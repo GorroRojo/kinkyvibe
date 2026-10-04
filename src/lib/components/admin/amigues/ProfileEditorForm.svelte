@@ -86,12 +86,12 @@
 		</label>
 	</div>
 
-	<fieldset class="kv-field">
+	<fieldset class="kv-field choices">
 		<span>Quién lo puede ver</span>
 		{#each VISIBILITY_OPTIONS as o (o.value)}
-			<label class="kv-check">
+			<label class="kv-choice">
 				<input type="radio" name="visibility" value={o.value} bind:group={values.visibility} />
-				{o.label} <small>{o.hint}</small>
+				<span><strong>{o.label}</strong> <small>{o.hint}</small></span>
 			</label>
 		{/each}
 	</fieldset>
@@ -276,6 +276,9 @@
 		border: 0;
 		padding: 0;
 		margin: 0;
+	}
+	.kv-field.choices {
+		gap: var(--space-2xs);
 	}
 	.venue {
 		border: 1px solid var(--field);

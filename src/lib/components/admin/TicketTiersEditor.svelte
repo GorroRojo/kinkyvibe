@@ -6,6 +6,7 @@
 	Uso: <TicketTiersEditor bind:tiers={t.tiers} taken={ventas por tramo} idPrefix="ev-0" />
 -->
 <script>
+	import { Plus } from '@lucide/svelte';
 	import { MAX_TIERS, emptyTier, tierPreview } from '$lib/utils/ticketsEditor.js';
 
 	/** @type {import('$lib/utils/ticketsEditor.js').TierForm[]} */
@@ -77,8 +78,8 @@
 	{/each}
 </ol>
 {#if tiers.length < MAX_TIERS}
-	<button type="button" class="link add-tier" id="{idPrefix}-add" on:click={add}
-		>+ Agregar tramo</button
+	<button type="button" class="kv-link add-tier" id="{idPrefix}-add" on:click={add}
+		><Plus size={16} aria-hidden="true" /> Agregar tramo</button
 	>
 {/if}
 <small class="tier-preview" aria-live="polite">{tierPreview(tiers)}</small>
@@ -144,10 +145,9 @@
 	/* Compu (o un editor ancho): todo el tramo en una fila. */
 	@container (min-width: 40em) {
 		.tier {
-			grid-template-columns: 1.8em minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(
-					0,
-					1.6fr
-				) 2.2em;
+			grid-template-columns:
+				1.8em minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr)
+				2.2em;
 			grid-template-areas:
 				'n name price qty until x'
 				'. sold sold sold sold .';

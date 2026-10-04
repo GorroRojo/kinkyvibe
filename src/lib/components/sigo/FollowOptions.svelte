@@ -49,7 +49,6 @@
 			{disabled}
 			on:change
 		/>
-		<span class="track" aria-hidden="true"></span>
 		<span><span aria-hidden="true">📅</span> En mi calendario</span>
 	</label>
 
@@ -91,7 +90,6 @@
 										aria-describedby={c.note ? noteId : undefined}
 									/>
 								{/if}
-								<span class="track" aria-hidden="true"></span>
 								<span class="visually-hidden"
 									>{k.label} por {c.label}{field
 										? ''
@@ -108,64 +106,25 @@
 
 <style>
 	.follow-options {
+		/* la fila de Lo que sigo pone --accent con el color de la etiqueta (para su borde): los
+		   interruptores siguen con el rosa de siempre */
+		--accent: var(--1);
 		display: grid;
 		gap: 0.4em;
 	}
+	/* el interruptor en sí es el compartido (style.scss, `role="switch"`) */
 	.switch {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.55em;
 		min-height: var(--tap);
 		cursor: pointer;
-		position: relative;
-	}
-	.switch input {
-		position: absolute;
-		opacity: 0;
-		width: 1px;
-		height: 1px;
-		margin: 0;
-	}
-	.track {
-		flex: none;
-		width: 2.6em;
-		height: 1.5em;
-		border-radius: var(--radius-m);
-		background: color-mix(in srgb, var(--ink) 25%, var(--surface));
-		position: relative;
-		transition: background 150ms;
-	}
-	.track::after {
-		content: '';
-		position: absolute;
-		top: 0.2em;
-		left: 0.2em;
-		width: 1.1em;
-		height: 1.1em;
-		border-radius: 50%;
-		background: var(--surface);
-		box-shadow: var(--shadow);
-		transition: transform 150ms;
-	}
-	.switch input:checked + .track {
-		background: var(--1-dark);
-	}
-	.switch input:checked + .track::after {
-		transform: translateX(1.1em);
-	}
-	.switch input:focus-visible + .track {
-		outline: var(--focus-ring);
-		outline-offset: 2px;
-	}
-	.switch input:disabled + .track {
-		opacity: 0.5;
-		cursor: not-allowed;
 	}
 	/* columna que todavía no existe: rayada, sin perilla */
 	.switch.off {
 		cursor: not-allowed;
 	}
-	.switch.off .track {
+	.switch.off input {
 		background: repeating-linear-gradient(
 			-45deg,
 			var(--line),
@@ -176,7 +135,7 @@
 		outline: 1px solid var(--line);
 		opacity: 1;
 	}
-	.switch.off .track::after {
+	.switch.off input::before {
 		display: none;
 	}
 	.calendar {

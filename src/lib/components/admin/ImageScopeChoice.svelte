@@ -22,7 +22,7 @@
 	aria-describedby={invalid && !scope ? `${idPrefix}-scope-error` : undefined}
 >
 	<legend>¿Esta imagen es para todas las ediciones de este evento o solo para esta?</legend>
-	<label class="option" class:chosen={scope === 'todas'}>
+	<label class="kv-choice">
 		<input
 			type="radio"
 			name="{idPrefix}-scope"
@@ -42,7 +42,7 @@
 			</small>
 		</span>
 	</label>
-	<label class="option" class:chosen={scope === 'esta'}>
+	<label class="kv-choice">
 		<input
 			type="radio"
 			name="{idPrefix}-scope"
@@ -54,7 +54,8 @@
 			<strong>Solo esta</strong>
 			<small>
 				Se guarda solo para este evento{#if ownFolder}
-					{' '}(en <code>{ownFolder}</code>){/if}. Los otros eventos siguen con la imagen compartida.
+					{' '}(en <code>{ownFolder}</code>){/if}. Los otros eventos siguen con la imagen
+				compartida.
 			</small>
 		</span>
 	</label>
@@ -72,10 +73,10 @@
 		background: var(--surface-2, #f3eef6);
 		display: flex;
 		flex-direction: column;
-		gap: 0.4em;
+		gap: 0.6em;
 		min-width: 0;
 		&.invalid {
-			outline: 2px solid var(--bad, var(--error));
+			outline: 2px solid var(--error);
 		}
 	}
 	legend {
@@ -85,37 +86,11 @@
 		font-weight: bold;
 		margin-bottom: 0.2em;
 	}
-	.option {
-		display: flex;
-		gap: 0.6em;
-		align-items: flex-start;
-		padding: 0.4em 0.6em;
-		border-radius: var(--radius-s);
-		background: var(--surface, white);
-		cursor: pointer;
-		outline: 2px solid transparent;
-		&.chosen {
-			outline-color: var(--1, #7b3fa0);
-		}
-		input {
-			margin-top: 0.25em;
-			flex: none;
-		}
-		span {
-			display: flex;
-			flex-direction: column;
-			min-width: 0;
-		}
-		small {
-			font-size: var(--step--1);
-			opacity: 0.85;
-		}
-		code {
-			overflow-wrap: anywhere;
-		}
+	code {
+		overflow-wrap: anywhere;
 	}
 	.error {
 		margin: 0;
-		color: var(--bad, var(--error));
+		color: var(--error);
 	}
 </style>

@@ -272,7 +272,8 @@
 		margin: 0;
 	}
 	.flash.error {
-		background: var(--bad-bg);
+		background: var(--error-bg);
+		color: var(--error);
 	}
 	.stream-form {
 		display: flex;

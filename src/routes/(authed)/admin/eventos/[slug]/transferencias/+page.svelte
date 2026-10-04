@@ -183,7 +183,8 @@
 		margin: 0;
 	}
 	.flash.error {
-		background: var(--bad-bg);
+		background: var(--error-bg);
+		color: var(--error);
 	}
 	.orders,
 	.resolved {

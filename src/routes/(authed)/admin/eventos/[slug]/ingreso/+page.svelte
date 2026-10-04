@@ -1557,8 +1557,8 @@
 		accent-color: var(--accent);
 	}
 	.error {
-		background: var(--bad-bg);
-		color: var(--bad);
+		background: var(--error-bg);
+		color: var(--error);
 		padding: var(--space-2xs) var(--space-xs);
 		border-radius: var(--radius-m);
 	}

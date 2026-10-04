@@ -3,6 +3,7 @@
 	import { applyAction, deserialize, enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
+	import { Undo2 } from '@lucide/svelte';
 	import ImageScopeChoice from '$lib/components/admin/ImageScopeChoice.svelte';
 	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
 	import FilePreview from '$lib/components/admin/event-form/FilePreview.svelte';
@@ -584,7 +585,9 @@
 								{/if}
 							</div>
 						{/if}
-						<button type="button" class="link" on:click={clearUpload}>No cambiar la imagen</button>
+						<button type="button" class="kv-link" on:click={clearUpload}
+							><Undo2 size={16} aria-hidden="true" /> No cambiar la imagen</button
+						>
 					{/if}
 				</ImageSection>
 			{/if}
