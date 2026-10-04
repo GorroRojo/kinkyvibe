@@ -11,8 +11,8 @@
  * - si ya se mergeó (o no hay PR: mock y modo demo), se restaura con otro PR que vuelve a poner
  *   el .md y las imágenes (los blobs siguen en el historial del repo, no se vuelven a subir).
  *
- * Los perfiles de amigues que viven SOLO en la base (sin .md: los creados en el panel o por las
- * cuentas) no pasan por GitHub: borrar es el borrado suave del objeto (`deleted_at` con
+ * Los perfiles de amigues viven solo en la base («solo base»: los creados en el panel o por las
+ * cuentas y también las fichas importadas de un .md) y no pasan por GitHub: borrar es el borrado suave del objeto (`deleted_at` con
  * saveObject(), con su revisión en `object_revisions`) y deshacer lo vuelve atrás, igual que los
  * eventos. La fila de `panel_deletions` (con `path` = `objeto:perfil:<id>`) va en la misma tanda,
  * así «Recuperar» de Actividad sirve para los dos. Ver {@link deleteDbProfile}.
@@ -71,16 +71,15 @@ export const DELETABLE = Object.freeze({
 export const isDeletable = (kind) => typeof kind === 'string' && Object.hasOwn(DELETABLE, kind);
 
 /**
- * Dónde vive lo que se borra: un perfil de amigues sin .md (`legacySlug` nulo: creado en el
- * panel o por una cuenta) vive solo en la base ('objects'); todo lo demás pasa por el cliente del
- * repo ('repo': los eventos y el material ya los guarda en la base `withContentDb`; las fichas
- * de amigues con .md siguen yendo a GitHub, como antes).
+ * Dónde vive lo que se borra: un perfil de amigues vive solo en la base ('objects': también las
+ * fichas importadas de un .md, «solo base»); los eventos y el material pasan por el cliente del
+ * repo ('repo'), que los guarda en la base (`withContentDb`).
  * @param {DeletableKind} kind
  * @param {{ legacySlug: string | null } | null} [profile] el perfil de la base con esa dirección
  * @returns {'repo' | 'objects'}
  */
 export function deleteBackend(kind, profile = null) {
-	return kind === 'amigues' && profile && profile.legacySlug === null ? 'objects' : 'repo';
+	return kind === 'amigues' && profile ? 'objects' : 'repo';
 }
 
 /**

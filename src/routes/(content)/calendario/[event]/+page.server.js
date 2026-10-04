@@ -14,6 +14,7 @@ import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 import { readWorkshop } from '$lib/server/eventos/partes.js';
 import { coveringTicketSlug, partOf } from '$lib/utils/partes.js';
+import { mentionPronouns } from '$lib/server/pronouns';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
@@ -26,7 +27,7 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	if (!post) error(404, 'Not found');
 	// Un evento oculto solo lo ven les admins: que no quede en ninguna caché compartida.
 	if (post.meta.force_unpublished) setHeaders({ 'cache-control': 'private, no-store' });
-	const [related, ownTickets, series, venue, personas, partes] = await Promise.all([
+	const [related, ownTickets, series, venue, personas, partes, pronouns] = await Promise.all([
 		loadRelated(post, posts, platform),
 		loadTickets(params.event, platform, fetch),
 		loadSeries(post, platform, locals, posts),
@@ -34,7 +35,9 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		eventPageVenue(getDB(platform), params.event, locals),
 		loadPersonas(post, platform),
 		// Talleres en varias partes: el taller y sus partes (`null` si no es parte de ninguno).
-		loadPartes(params.event, platform, locals)
+		loadPartes(params.event, platform, locals),
+		// Los pronombres de las @menciones del texto (de los perfiles de la base).
+		mentionPronouns(platform, posts).catch(() => ({}))
 	]);
 	// Una parte de un taller con una sola entrada: el botón de compra es el del taller.
 	const tickets = partes?.ticketSlug
@@ -47,6 +50,7 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		series,
 		venue,
 		personas,
+		pronouns,
 		// Con lugar, el «Dónde» del evento no sale del servidor.
 		post: venue ? { ...post, meta: stripMdPlace(post.meta) } : post
 	};

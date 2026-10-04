@@ -5,6 +5,8 @@
  * base todavía no tiene etiquetas, hay que importarlas primero ({@link NEEDS_IMPORT}).
  */
 import { getDB } from '$lib/server/db';
+import { getEventAdmin, getRepoClient } from '$lib/server/eventos';
+import { dbPostsOnlyClient } from '$lib/server/contenido/repo.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { commitTagEdit, previewOf } from '$lib/server/admin/tagEditor.js';
 import { FileChangedError, PendingChangeError } from '$lib/server/eventos/github.js';
@@ -18,19 +20,35 @@ import { clearTagSourceCache } from './source.js';
 /** @typedef {import('$lib/utils/tagConfig.js').TagOp} TagOp */
 /**
  * Con qué escribir las publicaciones (renombrar sin alias): el cliente del repo y quién firma.
- * `null` si quien edita no puede hacer commits.
+ * En el panel es siempre {@link dbRepoAccess} (solo la base); `null` solo en las pruebas.
  * @typedef {{ client: import('$lib/server/admin/tagEditor.js').TagClient, token: string, who: string } | null} RepoAccess
  */
+
+/**
+ * Con qué reescribir las publicaciones al renombrar una etiqueta o una serie: solo el contenido de
+ * la base (eventos, material, perfiles de amigues y páginas de la wiki), nunca GitHub
+ * (`dbPostsOnlyClient`, src/lib/server/contenido/repo.js). Quien guarda queda con su login
+ * (src/lib/server/contenido/author.js).
+ * @param {App.Locals} locals
+ * @returns {Promise<RepoAccess>}
+ */
+export async function dbRepoAccess(locals) {
+	const admin = getEventAdmin(locals);
+	return {
+		client: dbPostsOnlyClient(await getRepoClient()),
+		token: admin?.token ?? '',
+		who: admin?.name ?? locals.user?.login ?? 'panel'
+	};
+}
 
 /** La base todavía no tiene etiquetas (o no se puede leer): no hay dónde guardar. */
 export const NEEDS_IMPORT =
 	'Las etiquetas todavía no están en la base: importalas primero en Etiquetas → «Importar a la ' +
 	'base» (/admin/etiquetas/importar).';
 
-/** Renombrar sin alias sin poder hacer commits. */
+/** Renombrar sin alias sin con qué guardar las publicaciones (no pasa en el panel). */
 export const NEEDS_REPO =
-	'Para renombrar también en las publicaciones hace falta poder guardar en GitHub (entrá con tu ' +
-	'cuenta de GitHub). Si no, elegí «Dejar el nombre viejo como alias».';
+	'No se pueden cambiar las publicaciones ahora. Elegí «Dejar el nombre viejo como alias» o probá de nuevo.';
 
 /** @param {unknown} e */
 const describe = (e) => (e instanceof Error ? e.message : String(e));
@@ -138,7 +156,8 @@ export async function previewDbTagEdit({ records }, ops, repo) {
 
 /**
  * Guarda un cambio en la base y, si se renombra sin alias, primero reescribe las publicaciones
- * (un commit, el mismo camino que el editor del archivo). Si el commit falla, no se toca la base.
+ * (todas en la base: {@link dbRepoAccess}; el mismo camino que el editor del archivo). Si eso
+ * falla, no se tocan las etiquetas.
  *
  * @param {{ db: D1Database, records: StoredTag[] }} from lo de `dbTagsForAdmin`
  * @param {TagOp[]} ops
@@ -165,7 +184,7 @@ export async function saveDbTagEdit(from, ops, { repo, ...ctx }) {
 				return {
 					ok: false,
 					status: 409,
-					error: `${e.path} cambió en GitHub mientras tanto. Volvé a hacer la vista previa y guardá de nuevo.`
+					error: `${e.path} cambió mientras tanto. Volvé a hacer la vista previa y guardá de nuevo.`
 				};
 			if (e instanceof PendingChangeError)
 				return { ok: false, status: 409, error: e.message + '.' };

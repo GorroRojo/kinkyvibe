@@ -9,25 +9,25 @@
  * etiqueta (renombrar, con la misma elección que en Etiquetas: RenameChoice.svelte), nombre
  * visible, ícono, imagen y descripción de una serie. Se guardan por el mismo camino que
  * /admin/etiquetas: en la base al momento (src/lib/server/etiquetas/panel.js). Renombrar sin alias
- * también cambia las ediciones (eventos y material), solo en la base: nada de esta página lee ni
- * escribe GitHub ni el archivo de etiquetas (`repoAccess`). Renombrar pide confirmar después de ver
+ * también cambia las publicaciones que la usan, solo en la base: nada de esta página lee ni
+ * escribe GitHub ni el archivo de etiquetas (`dbRepoAccess`). Renombrar pide confirmar después de ver
  * cuántas publicaciones cambian.
  */
 import { fail } from '@sveltejs/kit';
 import { isAdmin, requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
-import { assetNames, getEventAdmin, getRepoClient } from '$lib/server/eventos';
+import { assetNames } from '$lib/server/eventos';
 import { allSeries, tagExists } from '$lib/server/series/index.js';
 import { subscriberCounts } from '$lib/server/series/subscriptions.js';
 import { seriesCreateOps, seriesEditOps } from '$lib/utils/seriesAdmin.js';
 import { SERIES_PARENT, seriesParentOf, seriesTagIds } from '$lib/utils/series.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
-import { dbPostsOnlyClient } from '$lib/server/contenido/repo.js';
 import { findImage, linkImage, seriesImages } from '$lib/server/media/library.js';
 import { targetObjectId } from '$lib/server/media/targets.js';
 import { readImageChoice } from '$lib/utils/imageChoice.js';
 import {
 	NEEDS_IMPORT,
+	dbRepoAccess,
 	dbTagsForAdmin,
 	previewDbTagEdit,
 	saveDbTagEdit
@@ -205,22 +205,6 @@ function editValues(tags, id) {
 }
 
 /**
- * Con qué reescribir las ediciones al renombrar: solo los posts de la base (eventos y material),
- * nunca GitHub (`dbPostsOnlyClient`: ni lee ni escribe amigues ni la wiki). Quien guarda queda
- * con su login (src/lib/server/contenido/author.js).
- * @param {App.Locals} locals
- * @returns {Promise<import('$lib/server/etiquetas/panel.js').RepoAccess>}
- */
-async function repoAccess(locals) {
-	const admin = getEventAdmin(locals);
-	return {
-		client: dbPostsOnlyClient(await getRepoClient()),
-		token: admin?.token ?? '',
-		who: admin?.name ?? locals.user?.login ?? 'panel'
-	};
-}
-
-/**
  * Cuántas publicaciones cambian al renombrar (lo que se muestra antes de confirmar): las del
  * renombre sin alias (con alias, ninguna).
  *
@@ -234,7 +218,7 @@ async function renamedPosts(locals, platform, ops) {
 		return { ok: false, status: 403, error: NO_PERMISSION };
 	const fromDb = await dbTagsForAdmin(platform, locals.user.login);
 	if (!fromDb) return { ok: false, status: 503, error: NEEDS_IMPORT };
-	const res = await previewDbTagEdit(fromDb, ops, await repoAccess(locals));
+	const res = await previewDbTagEdit(fromDb, ops, await dbRepoAccess(locals));
 	if (!res.ok) return res;
 	return { ok: true, posts: res.preview.posts?.total ?? 0, db: true };
 }
@@ -259,7 +243,7 @@ async function saveSeriesOps(locals, platform, ops, { name }) {
 		login: locals.user.login,
 		label: 'Series',
 		targetId: name.slice(0, 120),
-		repo: await repoAccess(locals)
+		repo: await dbRepoAccess(locals)
 	});
 	if (!res.ok) return res;
 	return {

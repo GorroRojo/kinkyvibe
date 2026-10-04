@@ -92,6 +92,7 @@ export function parseWikiFile(raw) {
 		title: str(m.title),
 		summary: str(m.summary),
 		authors: strList(m.authors),
+		tags: strList(m.tags),
 		body: body.replace(/^(?:[ \t]*\n)+/, '').trimEnd()
 	};
 }
@@ -211,6 +212,7 @@ export function tagsToRecords(rawTags, wikiFiles = []) {
 		if (w.title) r.data.wiki_title = w.title;
 		if (w.summary) r.data.wiki_summary = w.summary;
 		if (w.authors.length) r.data.wiki_authors = w.authors;
+		if (w.tags.length) r.data.wiki_tags = w.tags;
 	}
 
 	// Alias al final (apuntan a etiquetas que ya existen).

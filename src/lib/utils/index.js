@@ -1,9 +1,6 @@
 import '$lib/types.d.js';
-import { dev } from '$app/environment';
 import { isCurrent, relatedPostsFor } from './allPosts';
-import { addMentionPronouns, pronounLabel } from './mentions';
-import { currentSiteTags, fileSiteTags, siteTagsFromDb } from './siteTags.js';
-import { error } from '@sveltejs/kit';
+import { currentSiteTags } from './siteTags.js';
 import { isMediaPath } from './media.js';
 
 export { relatedPostsFor };
@@ -85,34 +82,14 @@ export function aliaserFactory(tagManager = currentSiteTags()) {
 }
 
 /**
- * Fetches a post from the specified category and post id.
- *
- * @param {"calendario"|"amigues"|"material"|"wiki"} category - The category of the post.
- * @param {string} postID - The id of the post.
- * @param {boolean} [shallow=false]
- * @return {Promise<ProcessedPost>} - The content and metadata of the post.
- */
-export const fetchPost = async (category, postID, shallow = false) => {
-	// templates (_*.md) are not posts
-	if (postID.startsWith('_')) throw error(404, 'Not found');
-	let postContent, meta;
-	try {
-		({ default: postContent, metadata: meta } = await import(`../posts/${category}/${postID}.md`));
-	} catch (e) {
-		throw error(404, 'Not found');
-	}
-	if (!meta || meta.force_unpublished) throw error(404, 'Not found');
-	return await processPost(postContent, postID, meta, shallow);
-};
-
-/**
  * Processes a post and returns relevant information. Exported for the posts stored in the
  * database ($lib/server/contenido/posts.js), so they become the same ProcessedPost as a .md.
  *
  * @param {ConstructorOfATypedSvelteComponent|undefined} postContent - The content of the post.
  * @param {string} postID - The ID of the post.
  * @param {AnyPostData} meta - The metadata associated with the post.
- * @param {boolean} [shallow=false] - Indicates whether to perform a shallow processing.
+ * @param {boolean} [shallow=false] - Without the content component. (The authors' profiles come
+ *   from the database: `authorProfilePosts` in $lib/server/amigues/asPost.js.)
  * @param {TagManager} [tagManager] - The tag manager to use.
  * @return {Promise<ProcessedPost>} An object containing the processed post information.
  */
@@ -123,22 +100,6 @@ export async function processPost(
 	shallow = false,
 	tagManager = currentSiteTags()
 ) {
-	let authorsProfiles = [];
-	/**@type {ProcessedPost[]} */
-	if (!shallow) {
-		for (const author of meta?.authors ?? []) {
-			const authorID = author.replaceAll(' ', '-');
-			if (authorID !== postID) {
-				try {
-					const authorProfile = await fetchPost('amigues', authorID, true);
-					authorsProfiles.push(authorProfile);
-				} catch (e) {
-					continue;
-				}
-			}
-		}
-	}
-
 	const processedMeta = {
 		...meta,
 		tags: canonicalTags(meta.tags ?? [], tagManager),
@@ -150,11 +111,10 @@ export async function processPost(
 		logo: meta.logo !== undefined ? await thumbURL(meta.category, postID, meta.logo) : undefined,
 		postID
 	};
-	writtenTags.set(processedMeta, [...(meta.tags ?? [])]);
 	const processedPost = {
 		content: shallow ? undefined : postContent,
 		meta: processedMeta,
-		authorsProfiles,
+		authorsProfiles: [],
 		path: '/' + meta.category + '/' + postID
 	};
 	return processedPost;
@@ -174,29 +134,6 @@ export function canonicalTags(tags, tagManager = currentSiteTags()) {
 		.map((t) => tagManager.get(t))
 		.sort(sortTags)
 		.map((t) => t.id);
-}
-
-/**
- * The tags each processed post had in its file (before canonicalTags), so the cached list can be
- * re-tagged with another tag tree without reading the posts again.
- * @type {WeakMap<object, string[]>}
- */
-const writtenTags = new WeakMap();
-
-/**
- * The same posts with their tags cleaned up with `tagManager` (new post and meta objects; the
- * rest is shared).
- * @param {readonly ProcessedPost[]} posts
- * @param {TagManager} tagManager
- * @returns {ProcessedPost[]}
- */
-export function retagPosts(posts, tagManager) {
-	return posts.map((p) => {
-		const written = writtenTags.get(p.meta) ?? p.meta.tags ?? [];
-		const meta = { ...p.meta, tags: canonicalTags(written, tagManager) };
-		writtenTags.set(meta, written);
-		return { ...p, meta };
-	});
 }
 
 /** @type {WeakMap<TagManager, (a: ProcessedTag, b: ProcessedTag) => number>} */
@@ -262,86 +199,6 @@ export function tagSorter(tagManager) {
 }
 
 /**
- * Fetches markdown posts and performs validations and transformations: the amigues profiles (or
- * the wiki). Events and material are not read from their .md any more: they come from the
- * database (`sitePosts` in $lib/server/contenido/posts.js).
- * @param {boolean} wiki - Whether or not the posts are from the wiki
- * @param {boolean} unlisted - Whether or not the posts shown are unlisted
- * @return {Promise<ProcessedPost[]>} An array of validated and transformed posts.
- */
-export const fetchMarkdownPosts = async (wiki = false, unlisted = false) => {
-	// Posts only change on deploy, so the processed list is computed once per
-	// server instance (not in dev, so edited posts show up without a restart).
-	// Callers get a fresh array and may sort it in place.
-	// The list is processed with the file's tag tree; when the database's tree is in use, the
-	// tags are cleaned up again with it (once per tree: retaggedCache).
-	const key = `${wiki}-${unlisted}`;
-	let posts = dev ? undefined : postsCache.get(key);
-	if (!posts) {
-		posts = loadMarkdownPosts(wiki, unlisted);
-		if (!dev) {
-			postsCache.set(key, posts);
-			posts.catch(() => postsCache.delete(key));
-		}
-	}
-	if (!siteTagsFromDb()) return [...(await posts)];
-	const tree = currentSiteTags();
-	let byKey = retaggedCache.get(tree);
-	if (!byKey) retaggedCache.set(tree, (byKey = new Map()));
-	let retagged = dev ? undefined : byKey.get(key);
-	if (!retagged) {
-		retagged = retagPosts(await posts, tree);
-		if (!dev) byKey.set(key, retagged);
-	}
-	return [...retagged];
-};
-
-/** @type {Map<string, Promise<ProcessedPost[]>>} */
-const postsCache = new Map();
-/** @type {WeakMap<TagManager, Map<string, ProcessedPost[]>>} */
-const retaggedCache = new WeakMap();
-
-/**
- * @param {boolean} wiki
- * @param {boolean} unlisted
- * @return {Promise<ProcessedPost[]>}
- */
-async function loadMarkdownPosts(wiki, unlisted) {
-	/** @type {[string, (()=>Promise<any>)|any][]} */
-	var allPosts;
-	if (wiki) {
-		allPosts = Object.entries(import.meta.glob('$lib/posts/wiki/*.md'));
-	} else {
-		// Los eventos y el material salen solo de la base ($lib/server/contenido/posts.js,
-		// `sitePosts`): sus .md quedan en el repo como respaldo, pero el sitio no los lee.
-		allPosts = Object.entries(import.meta.glob('$lib/posts/amigues/*.md'));
-	}
-	let processedPosts = [];
-	for (const [rawPath, constructor] of allPosts) {
-		const postID = rawPath.split('/').slice(-1)[0].split('.md')[0];
-		if (postID.startsWith('_')) continue;
-		const { metadata, default: postContent } = await constructor();
-		if (
-			!metadata ||
-			metadata.force_unpublished ||
-			(!unlisted && metadata.force_unlisted) ||
-			(unlisted && !metadata.force_unlisted)
-		) {
-			continue;
-		}
-		// The file's tree here: the cached list is the same whatever the switch says (see above).
-		processedPosts.push(await processPost(postContent, postID, metadata, true, fileSiteTags()));
-	}
-	processedPosts.sort((a, b) => {
-		/** @param {ProcessedPost} x @returns number */
-		let f = (x) =>
-			new Date(x.meta?.start ?? x.meta?.updated_date ?? x.meta?.published_date).getTime();
-		return f(b) - f(a);
-	});
-	return processedPosts;
-}
-
-/**
  * Splits related posts for a page load: the ones PostList shows by default are
  * sent, past events are only counted (the page fetches them if they're shown).
  * @param {ProcessedPost[]} related
@@ -351,14 +208,3 @@ export const currentRelated = (related) => {
 	const relatedPosts = related.filter((p) => isCurrent(p, now));
 	return { relatedPosts, relatedPastCount: related.length - relatedPosts.length };
 };
-
-/**
- * Svelte action adding pronouns after @mentions, looking each profile up with fetchPost.
- * Pages that get `pronouns` from their server load should use addMentionPronouns from
- * $lib/utils/mentions instead, so they don't pull this module into the client.
- * @param {HTMLElement} node
- */
-export const processContent = (node) =>
-	addMentionPronouns(node, async (name) =>
-		pronounLabel((await fetchPost('amigues', name, true)).meta.pronoun)
-	);

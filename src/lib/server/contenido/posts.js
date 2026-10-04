@@ -4,8 +4,9 @@
  *
  * Los eventos y el material salen de la base y se convierten en el mismo `ProcessedPost` que
  * daba un .md (el `toMeta` de cada categoría, ./categories.js, + `processPost`), así las listas,
- * las páginas, el .ics, las etiquetas, la búsqueda, el RSS y el sitemap no cambian su código. Las
- * fichas de amigues (y la wiki) siguen saliendo de sus .md: no son de la base todavía.
+ * las páginas, el .ics, las etiquetas, la búsqueda, el RSS y el sitemap no cambian su código. Los
+ * perfiles de amigues también salen de la base (src/lib/server/amigues/asPost.js) y la wiki, de las
+ * etiquetas (src/lib/server/wiki/site.js): ningún .md se lee («solo base»).
  *
  * Reglas (como los perfiles, docs/amigues.md):
  * - **Solo la base**: una dirección de evento o material que la base no tiene es 404, aunque haya
@@ -21,7 +22,8 @@
  *   cambio de la base.
  */
 import { error } from '@sveltejs/kit';
-import { fetchMarkdownPosts, fetchPost, processPost } from '$lib/utils';
+import { processPost } from '$lib/utils';
+import { pronounLabel } from '$lib/utils/mentions';
 import { isCurrent } from '$lib/utils/allPosts';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { getDB } from '$lib/server/db';
@@ -35,6 +37,9 @@ import { tagEdgesColumn, tagEdgesFromColumn } from './etiquetasEdges.js';
 import { hydrateContent, withContentEdges } from './relaciones.js';
 import { imageOf } from '$lib/server/media/library.js';
 import { mediaPath } from '$lib/server/media/sniff.js';
+import { authorProfilePosts, toPublic } from '$lib/server/amigues/asPost.js';
+import { profileAsPost } from '$lib/server/amigues/profiles.js';
+import { siteWikiPosts } from '$lib/server/wiki/site.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/visibility.js').Viewer} Viewer */
@@ -77,8 +82,11 @@ const isDbCategory = (p) => Object.hasOwn(CONTENT_CATEGORIES, String(p.meta.cate
  *   listed: ProcessedPost[],
  *   unlisted: ProcessedPost[],
  *   paths: Map<number, string>,
- *   bodies?: Promise<Map<string, string>>
+ *   profiles: { listed: ProcessedPost[], unlisted: ProcessedPost[] },
+ *   bodies?: Promise<Map<string, string>>,
+ *   pronouns?: Record<string, string>
  * }} DbState
+ *   `profiles`: los perfiles de amigues que ve cualquiera, como posts (src/lib/server/amigues/asPost.js).
  */
 
 /**
@@ -110,7 +118,12 @@ async function contentStamp(db) {
 				(SELECT max(updated_at) FROM content_sources WHERE category IN (${c})) AS su,
 				(SELECT max(updated_at) FROM objects WHERE type = 'perfil') AS pu,
 				(SELECT max(updated_at) FROM objects WHERE type = 'imagen') AS iu,
-				(SELECT max(updated_at) FROM objects WHERE type = 'etiqueta') AS tu`
+				(SELECT max(updated_at) FROM objects WHERE type = 'etiqueta') AS tu,
+				(SELECT count(*) FROM objects WHERE type = 'perfil') AS pn,
+				(SELECT count(*) FROM profile_approvals) AS an,
+				(SELECT total(profile_id) FROM profile_approvals) AS ai,
+				(SELECT count(*) FROM profile_sources) AS psn,
+				(SELECT max(updated_at) FROM profile_sources) AS psu`
 		)
 		.bind(...TYPES, ...TYPES, ...CATEGORIES, ...CATEGORIES)
 		.first();
@@ -118,7 +131,22 @@ async function contentStamp(db) {
 	// (./personasEdges.js): si un perfil cambia, lo recordado se vuelve a armar. `tu`: lo mismo con
 	// el `key` de las etiquetas (./etiquetasEdges.js).
 	// `iu`: borrar (o volver a subir) una imagen cambia qué imagen muestra un post.
-	return `${row?.n}:${row?.u}:${row?.sn}:${row?.su}:${row?.pu}:${row?.iu}:${row?.tu}`;
+	// `pn`, `an`, `ai`, `psn`, `psu`: los perfiles de amigues de las listas (cuántos, aprobaciones
+	// e importaciones; cualquier cambio de un perfil mueve `pu`).
+	return [
+		row?.n,
+		row?.u,
+		row?.sn,
+		row?.su,
+		row?.pu,
+		row?.iu,
+		row?.tu,
+		row?.pn,
+		row?.an,
+		row?.ai,
+		row?.psn,
+		row?.psu
+	].join(':');
 }
 
 /**
@@ -148,19 +176,27 @@ async function loadDbState(db, stamp, tree) {
 	const visibleImage = visibleWhere(ANON, 'i');
 	const t = marks(TYPES.length);
 	// Sin el cuerpo: ninguna lista lo usa (`toMeta` no lo lee) y es casi todo lo que pesa `data`.
-	// `cover`: la imagen de la biblioteca del post (edge `portada`, docs/imagenes.md), si tiene.
+	// `cover`: la imagen de la biblioteca del post (edge `portada`, docs/imagenes.md), si tiene; de un
+	// perfil, su `avatar`. En la misma consulta, los perfiles de amigues aprobados y no ocultos («solo
+	// base»: lo que las listas mostraban de las fichas .md).
 	const rows = await db
 		.prepare(
 			`SELECT o.id, o.type, o.slug, o.title, ${DATA_WITHOUT_BODY} AS data, o.visibility,
-				s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
+				coalesce(s.legacy_slug, ps.legacy_slug) AS legacy_slug,
+				${personaEdgesColumn('o')} AS persona_edges,
 				${tagEdgesColumn('o')} AS tag_edges,
 				(SELECT json_extract(i.data, '$.key') FROM edges e
 					JOIN objects i ON i.id = e.to_id AND i.type = 'imagen'
-					WHERE e.from_id = o.id AND e.kind = 'portada' AND ${visibleImage.sql}
+					WHERE e.from_id = o.id
+						AND e.kind = CASE WHEN o.type = 'perfil' THEN 'avatar' ELSE 'portada' END
+						AND ${visibleImage.sql}
 					ORDER BY e.position LIMIT 1) AS cover
 			FROM objects o
 			LEFT JOIN content_sources s ON s.object_id = o.id
-			WHERE o.type IN (${t}) AND ${visible.sql}
+			LEFT JOIN profile_sources ps ON ps.profile_id = o.id
+			WHERE (o.type IN (${t}) OR (o.type = 'perfil' AND o.visibility != 'hidden'
+				AND EXISTS (SELECT 1 FROM profile_approvals pa WHERE pa.profile_id = o.id)))
+				AND ${visible.sql}
 			ORDER BY o.id`
 		)
 		.bind(...visibleImage.params, ...TYPES, ...visible.params)
@@ -169,17 +205,37 @@ async function loadDbState(db, stamp, tree) {
 	const listed = [];
 	/** @type {ProcessedPost[]} */
 	const unlisted = [];
+	/** @type {{ listed: ProcessedPost[], unlisted: ProcessedPost[] }} */
+	const profiles = { listed: [], unlisted: [] };
 	/** @type {Map<number, string>} */
 	const paths = new Map();
 	for (const r of rows.results) {
-		const cat = categoryOfType(String(r.type));
-		if (!cat) continue;
 		let data = {};
 		try {
 			data = JSON.parse(String(r.data));
 		} catch {
 			data = {};
 		}
+		if (r.type === 'perfil') {
+			const profile = /** @type {any} */ ({
+				slug: String(r.slug),
+				title: String(r.title),
+				data,
+				visibility: String(r.visibility)
+			});
+			const post = profileAsPost(
+				await toPublic(
+					profile,
+					r.legacy_slug ? String(r.legacy_slug) : null,
+					typeof r.cover === 'string' ? r.cover : undefined,
+					tree
+				)
+			);
+			(profile.data.unlisted === true ? profiles.unlisted : profiles.listed).push(post);
+			continue;
+		}
+		const cat = categoryOfType(String(r.type));
+		if (!cat) continue;
 		const object = {
 			title: String(r.title),
 			// Los perfiles de `personas` y las etiquetas son edges (./relaciones.js), leídos en la
@@ -203,7 +259,7 @@ async function loadDbState(db, stamp, tree) {
 		(post.meta.force_unlisted ? unlisted : listed).push(post);
 		paths.set(Number(r.id), post.path);
 	}
-	return { stamp, listed, unlisted, paths };
+	return { stamp, listed, unlisted, paths, profiles };
 }
 
 /**
@@ -290,19 +346,20 @@ export function comparePosts(a, b) {
 }
 
 /**
- * Junta lo que sigue saliendo de los .md (amigues) con los eventos y el material de la base: de
- * los .md se descarta todo evento y material (la base es la única fuente). Pura.
+ * Junta los perfiles de amigues (de la base, como posts) con los eventos y el material de la
+ * base: de los perfiles se descarta todo lo que diga ser un evento o material. Pura.
  *
- * @param {ProcessedPost[]} md
+ * @param {ProcessedPost[]} profiles
  * @param {ProcessedPost[]} fromDb
  */
-export function mergePosts(md, fromDb) {
-	return [...md.filter((p) => !isDbCategory(p)), ...fromDb].sort(comparePosts);
+export function mergePosts(profiles, fromDb) {
+	return [...profiles.filter((p) => !isDbCategory(p)), ...fromDb].sort(comparePosts);
 }
 
 /**
- * Lo mismo que `fetchMarkdownPosts(wiki, unlisted)`, con los eventos y el material de la base en
- * lugar de sus .md.
+ * Las publicaciones del sitio, todas de la base: los eventos, el material y los perfiles de
+ * amigues listados (o, con `unlisted`, los no listados); con `wiki`, las páginas de la wiki. Sin
+ * base, nada.
  *
  * @param {App.Platform | undefined} platform
  * @param {boolean} [wiki]
@@ -310,29 +367,38 @@ export function mergePosts(md, fromDb) {
  * @returns {Promise<ProcessedPost[]>}
  */
 export async function sitePosts(platform, wiki = false, unlisted = false) {
-	const md = await fetchMarkdownPosts(wiki, unlisted);
-	if (wiki) return md;
+	if (wiki) return siteWikiPosts(platform);
 	const db = contentDb(platform);
-	if (!db) return mergePosts(md, []);
+	if (!db) return [];
 	const state = await dbState(db);
-	return mergePosts(md, unlisted ? state.unlisted : state.listed);
+	const posts = unlisted
+		? mergePosts(state.profiles.unlisted, state.unlisted)
+		: mergePosts(state.profiles.listed, state.listed);
+	stateOfList.set(posts, state);
+	return posts;
 }
+
+/**
+ * De qué estado salió cada lista que dio {@link sitePosts}: quien ya tiene la lista pide lo demás
+ * de ese mismo estado (los pronombres) sin volver a preguntar si cambió algo.
+ * @type {WeakMap<object, DbState>}
+ */
+const stateOfList = new WeakMap();
 
 /**
  * Cuántas publicaciones no listadas hay (el contador «No listadas» del menú del panel): lo mismo
  * que `(await sitePosts(platform, false, true)).length`, sin armar las listas públicas. Una
- * consulta, para la tanda del layout del panel: las fichas .md no listadas (amigues) más lo no
- * listado de la base que ve cualquiera (la columna `unlisted`, migración 0031). `null` si la
- * consulta falla (el contador no aparece).
+ * consulta, para la tanda del layout del panel: lo no listado de la base que ve cualquiera (la
+ * columna `unlisted`, migración 0031) más los perfiles no listados (aprobados y no ocultos, como
+ * los cuenta `listPublicProfiles`). `null` si la consulta falla (el contador no aparece).
  *
  * @param {App.Platform | undefined} platform
  * @returns {Promise<import('$lib/server/db/batch.js').BatchQuery<number | null>>}
  */
 export async function unlistedCountQuery(platform) {
-	const others = (await fetchMarkdownPosts(false, true)).filter((p) => !isDbCategory(p)).length;
 	const what = 'contador de no listadas';
 	if (!contentDb(platform)) {
-		return { what, fallback: others, statements: () => [], read: () => others };
+		return { what, fallback: 0, statements: () => [], read: () => 0 };
 	}
 	const t = marks(TYPES.length);
 	const visible = publicWhere(ANON, 'o');
@@ -345,10 +411,45 @@ export async function unlistedCountQuery(platform) {
 					`SELECT COUNT(*) AS db FROM objects o
 					WHERE o.type IN (${t}) AND ${visible.sql} AND o.unlisted = 1`
 				)
-				.bind(...TYPES, ...visible.params)
+				.bind(...TYPES, ...visible.params),
+			db
+				.prepare(
+					`SELECT COUNT(*) AS db FROM objects o
+					JOIN profile_approvals pa ON pa.profile_id = o.id
+					WHERE o.type = 'perfil' AND ${visible.sql} AND o.visibility != 'hidden'
+					AND COALESCE(json_extract(o.data, '$.unlisted'), 0) = 1`
+				)
+				.bind(...visible.params)
 		],
-		read: (results) => others + Number(results[0]?.results?.[0]?.db ?? 0)
+		read: (results) =>
+			Number(results[0]?.results?.[0]?.db ?? 0) + Number(results[1]?.results?.[0]?.db ?? 0)
 	};
+}
+
+/**
+ * Los pronombres de los perfiles que ve cualquiera (listados o no), por su dirección de /amigues,
+ * para las @menciones de los textos (src/lib/server/pronouns.js). Salen de las listas recordadas:
+ * sin consultas de más (con `posts`, la lista que dio {@link sitePosts} en este pedido, ni
+ * siquiera la de «¿cambió algo?»). Vacío sin base.
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {readonly ProcessedPost[]} [posts]
+ * @returns {Promise<Record<string, string>>}
+ */
+export async function siteProfilePronouns(platform, posts) {
+	const db = contentDb(platform);
+	if (!db) return {};
+	const state = (posts && stateOfList.get(posts)) || (await dbState(db));
+	if (!state.pronouns) {
+		/** @type {Record<string, string>} */
+		const out = {};
+		for (const p of [...state.profiles.listed, ...state.profiles.unlisted]) {
+			const label = pronounLabel(p.meta.pronoun);
+			if (label) out[String(p.meta.postID)] = label;
+		}
+		state.pronouns = out;
+	}
+	return state.pronouns;
 }
 
 /**
@@ -472,6 +573,10 @@ export async function siteContent(
 		/** @type {any} */ (withCover(cat.toMeta(object), cover?.key)),
 		shallow
 	);
+	// Les autores con perfil (de la base, como los ve quien mira): «Por …» y sus tarjetas.
+	if (!shallow) {
+		post.authorsProfiles = await authorProfilePosts(db, post.meta.authors, { postID, viewer });
+	}
 	const body = html
 		? await renderContentBody(
 				object.data,
@@ -500,20 +605,19 @@ export function siteEvent(platform, slug, opts) {
 }
 
 /**
- * Lo mismo que `fetchPost(category, slug, shallow)` (tira 404 si no existe): los eventos y el
- * material, de la base; amigues y wiki, de su .md. Para quien solo necesita la metadata.
+ * La metadata de un evento o un material de la base (tira 404 si no existe o quien mira no lo
+ * puede ver). Para quien solo necesita la metadata.
  *
  * @param {App.Platform | undefined} platform
- * @param {'calendario' | 'amigues' | 'material' | 'wiki'} category
+ * @param {'calendario' | 'material'} category
  * @param {string} slug
  * @param {{ viewer?: Viewer, shallow?: boolean }} [opts]
  * @returns {Promise<ProcessedPost>}
  */
 export async function sitePost(platform, category, slug, { viewer = ANON, shallow = true } = {}) {
-	if (CONTENT_CATEGORIES[category]) {
-		const found = await siteContent(platform, category, slug, { viewer, shallow, html: false });
-		if (!found) error(404, 'Not found');
-		return found;
-	}
-	return fetchPost(category, slug, shallow);
+	const found = CONTENT_CATEGORIES[category]
+		? await siteContent(platform, category, slug, { viewer, shallow, html: false })
+		: null;
+	if (!found) error(404, 'Not found');
+	return found;
 }

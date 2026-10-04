@@ -154,7 +154,8 @@ está configurado.
 `/sitemap.xml` también se arman en cada pedido (dejaron de prerenderizarse con `contenido_db`). Otros
 públicos dinámicos con el mismo costo: `/ics/etiqueta/<etiqueta>.ics` (con `series`) y
 `/api/series/<etiqueta>` (`private, no-store`). Las páginas HTML ya eran dinámicas (no hay
-`prerender` global; solo `/wiki/<término>` es `'auto'`).
+`prerender` global; `/wiki/<término>` era `'auto'` hasta que la wiki pasó a la base: ahora también
+es dinámica).
 
 ### Medición (producción, 2/10/2026, solo `GET`)
 

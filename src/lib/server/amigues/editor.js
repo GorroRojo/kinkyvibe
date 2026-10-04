@@ -330,16 +330,28 @@ function saveFailure(e) {
 	throw e;
 }
 
+/** Las imágenes de la ficha vieja (del repo): se sacan al elegir o sacar una de la biblioteca. */
+const LEGACY_IMAGE_FIELDS = Object.freeze(['featured', 'photo', 'logo']);
+
 /**
  * Guarda lo que mandó el editor sobre un perfil existente.
+ *
+ * `avatar`: la imagen de la biblioteca elegida en el selector (edge `avatar`, docs/imagenes.md), en
+ * el mismo guardado: el id, `null` para sacarla o sin pasar para dejarla como está. Al elegir o
+ * sacar una, se sacan también las imágenes de la ficha vieja (como `featured` en los eventos).
  *
  * @param {D1Database} db
  * @param {StoredObject} current el perfil como estaba al recibir el pedido
  * @param {ProfileFormValues} values
- * @param {{ actor: string, now?: number }} opts
+ * @param {{ actor: string, now?: number, avatar?: number | null }} opts
  * @returns {Promise<EditorSaveResult>}
  */
-export async function saveProfileFromPanel(db, current, values, { actor, now = Date.now() }) {
+export async function saveProfileFromPanel(
+	db,
+	current,
+	values,
+	{ actor, now = Date.now(), avatar }
+) {
 	if (!(/** @type {readonly string[]} */ (PROFILE_KINDS).includes(values.kind))) {
 		return {
 			ok: false,
@@ -348,6 +360,8 @@ export async function saveProfileFromPanel(db, current, values, { actor, now = D
 			errors: { kind: 'Elegí persona, proyecto o lugar.' }
 		};
 	}
+	const data = formToData(values, current.data);
+	if (avatar !== undefined) for (const key of LEGACY_IMAGE_FIELDS) delete data[key];
 	try {
 		const profile = await saveObject(
 			db,
@@ -356,8 +370,9 @@ export async function saveProfileFromPanel(db, current, values, { actor, now = D
 				type: PROFILE_TYPE,
 				version: values.version,
 				title: values.title.trim(),
-				data: formToData(values, current.data),
-				visibility: /** @type {any} */ (values.visibility || current.visibility)
+				data,
+				visibility: /** @type {any} */ (values.visibility || current.visibility),
+				...(avatar !== undefined ? { edges: { avatar: avatar ? [avatar] : [] } } : {})
 			},
 			{ actor, now }
 		);

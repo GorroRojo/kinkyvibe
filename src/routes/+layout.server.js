@@ -1,4 +1,4 @@
-import { fetchMarkdownPosts } from '$lib/utils';
+import { siteWikiPosts } from '$lib/server/wiki/site.js';
 import { isAdmin } from '$lib/server/auth';
 import { isPreviewDeploy } from '$lib/server/deploy.js';
 import { siteTagSource } from '$lib/server/etiquetas/source.js';
@@ -6,8 +6,8 @@ import { siteTagSource } from '$lib/server/etiquetas/source.js';
 // Don't read `url` here: SvelteKit would then re-run this load whenever the query string
 // changes, e.g. on each PostList search update.
 export const load = async ({ locals, platform }) => {
-	let wiki = await fetchMarkdownPosts(true);
-	const tags = await siteTagSource(platform);
+	// Las páginas de la wiki (el glosario): de la base, con el árbol de etiquetas (una lectura).
+	const [wiki, tags] = await Promise.all([siteWikiPosts(platform), siteTagSource(platform)]);
 	return {
 		wiki,
 		// `admin` only decides which menu links to show; every admin route checks on its own.

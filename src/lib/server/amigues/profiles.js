@@ -147,13 +147,15 @@ export async function findPublicProfile(db, urlSlug, viewer, { accountId } = {})
 
 /**
  * Los perfiles de /amigues: aprobados, no ocultos, no "no listados" y que quien mira puede ver.
+ * Con `unlisted`, al revés: los aprobados y no ocultos marcados «no listado» (la cuenta de «No
+ * listadas» y su lista).
  *
  * @param {D1Database} db
  * @param {Viewer} viewer
- * @param {{ kind?: ProfileKind }} [opts]
+ * @param {{ kind?: ProfileKind, unlisted?: boolean }} [opts]
  * @returns {Promise<{ object: StoredObject, legacySlug: string | null }[]>}
  */
-export async function listPublicProfiles(db, viewer, { kind } = {}) {
+export async function listPublicProfiles(db, viewer, { kind, unlisted = false } = {}) {
 	const visible = visibleWhere(viewer, 'o');
 	const cols = OBJECT_COLUMNS.split(', ')
 		.map((c) => `o.${c}`)
@@ -165,7 +167,7 @@ export async function listPublicProfiles(db, viewer, { kind } = {}) {
 			JOIN profile_approvals pa ON pa.profile_id = o.id
 			LEFT JOIN profile_sources s ON s.profile_id = o.id
 			WHERE o.type = ? AND ${visible.sql} AND o.visibility != 'hidden'
-			AND COALESCE(json_extract(o.data, '$.unlisted'), 0) = 0
+			AND COALESCE(json_extract(o.data, '$.unlisted'), 0) = ${unlisted ? 1 : 0}
 			ORDER BY o.title COLLATE NOCASE, o.id LIMIT 1000`
 		)
 		.bind(PROFILE_TYPE, ...visible.params)

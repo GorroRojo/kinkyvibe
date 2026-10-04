@@ -327,11 +327,12 @@ describe('buildSearchIndex', () => {
 		expect(JSON.stringify(index)).not.toContain('Persona Nueva');
 	});
 
-	it('con los perfiles de la base: esos y las .md sin importar', async () => {
+	// «Solo base»: con base, los perfiles salen solo de la base; una ficha .md sin importar no
+	// existe (antes se sumaba al índice: ese modo ya no existe).
+	it('con los perfiles de la base: solo esos (una ficha .md sin importar no aparece)', async () => {
 		const index = await build({ profiles: true });
 		const amigues = index.docs.filter((d) => d.c === 'amigues');
 		expect(amigues.map((d) => d.h).sort()).toEqual([
-			'/amigues/Ficha_Sola',
 			'/amigues/Ficha_Vieja',
 			'/amigues/lugar-listado',
 			'/amigues/lugar-por-evento',

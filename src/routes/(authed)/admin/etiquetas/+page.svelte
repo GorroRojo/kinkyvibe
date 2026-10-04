@@ -28,6 +28,8 @@
 	import TagGraph from '$lib/components/admin/tags/TagGraph.svelte';
 	import RenameChoice from '$lib/components/admin/tags/RenameChoice.svelte';
 	import { normalizeText } from '$lib/utils/adminTags.js';
+	import { wikiEditHref } from '$lib/admin/nav.js';
+	import { tagSlug } from '$lib/utils/tagSlug.js';
 	import { USAGE_CATEGORIES, analyzeTags, applyTagOps, describeOp } from '$lib/utils/tagConfig.js';
 	import { SYSTEM_TAGS, isSystemTag } from '$lib/utils/systemTags.js';
 
@@ -286,9 +288,9 @@
 
 {#if data.dbMode}
 	<p class="note">
-		Las etiquetas se leen de la base (interruptor «Etiquetas desde la base»): los cambios se guardan
-		al momento, sin commits (salvo renombrar en las publicaciones, que las cambia con un commit).
-		Los textos de la Kinkipedia siguen en sus publicaciones.
+		Las etiquetas se leen de la base: los cambios se guardan al momento, sin commits (renombrar en
+		las publicaciones también las cambia en la base). Los textos de la Kinkipedia también están en
+		la base: se editan desde cada etiqueta («Entrada de la Kinkipedia»).
 	</p>
 {/if}
 {#if data.mock}
@@ -304,13 +306,8 @@
 				: 's'}):{:else}Guardado ({saved.files} archivo{saved.files === 1 ? '' : 's'}):{/if}
 		{saved.summary.join('; ')}.
 		{#if data.dbMode}En menos de un minuto se ve en el sitio.{#if saved.posts}
-				Además, un commit cambia {saved.posts} publicaci{saved.posts === 1 ? 'ón' : 'ones'}: se ve
-				cuando termine de publicarse el sitio.
-				{#if saved.publish}<PublishStatus pr={saved.publish} />{:else if saved.commit}<a
-						href={saved.commit}
-						target="_blank"
-						rel="noreferrer">Ver el commit</a
-					>{/if}{/if}{:else if saved.publish}<PublishStatus pr={saved.publish} />{:else}<a
+				Además, cambiaron {saved.posts} publicaci{saved.posts === 1 ? 'ón' : 'ones'} (en la base).
+			{/if}{:else if saved.publish}<PublishStatus pr={saved.publish} />{:else}<a
 				href={saved.commit}
 				target="_blank"
 				rel="noreferrer">Ver el commit</a
@@ -433,7 +430,7 @@
 						{#if preview.posts}
 							<p>
 								{#if preview.posts.total}
-									Y <strong>un commit</strong> que cambia
+									Y cambia{preview.posts.total === 1 ? '' : 'n'}
 									<strong
 										>{preview.posts.total} publicaci{preview.posts.total === 1
 											? 'ón'
@@ -576,11 +573,13 @@
 							placeholder="Usá [[otra etiqueta]] para enlazar."></textarea>
 					</label>
 					<div class="wide actions">
-						{#if n.wiki}
-							<a class="kv-btn ghost" href="/edit/wiki/{n.wiki}"
-								><Pencil size={16} /> Editar la entrada de la Kinkipedia</a
-							>
-						{/if}
+						<!-- El texto de la wiki se guarda en la base, en su propio editor (sin GitHub). -->
+						<a class="kv-btn ghost" href={wikiEditHref(tagSlug(n.id))}
+							><Pencil size={16} />
+							{n.wiki
+								? 'Editar la entrada de la Kinkipedia'
+								: 'Escribir la entrada de la Kinkipedia'}</a
+						>
 						<a
 							class="kv-btn ghost"
 							href="/wiki/{encodeURIComponent(n.id)}"

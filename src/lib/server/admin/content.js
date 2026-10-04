@@ -1,15 +1,11 @@
 /**
  * Data the admin editors need about the site's content: which tags posts use (for the tag
  * picker) and the amigues profiles / names used as organizers (for the organizer picker).
- * Events and material come from the database (the only source); amigues profiles and the wiki,
- * from the posts bundled in this deploy, like the rest of the site.
+ * Everything comes from the database (the only source, «solo base»): events and material, the
+ * amigues profiles and the wiki pages (src/lib/server/contenido/fichas.js). Without a database,
+ * nothing.
  */
 import { isNumericFeatured } from '$lib/utils/eventDraft.js';
-import { PREVIEW_BUILD } from '$lib/server/deploy.js';
-
-const posts = import.meta.glob('/src/lib/posts/{amigues,wiki}/*.md', {
-	import: 'metadata'
-});
 /** @type {Record<string, string>} */
 const amiguesMedia = import.meta.glob('/src/lib/posts/amigues/media/*/*.{jpeg,jfif,jpg,png,webp}', {
 	eager: true,
@@ -28,69 +24,24 @@ const assetFiles = import.meta.glob('/src/lib/assets/*.{jpeg,jfif,jpg,png,webp}'
  * @prop {any} meta
  */
 
-/** @type {Promise<PostMeta[]> | undefined} */
-let cache;
-
 /** @returns {Promise<PostMeta[]>} */
 async function allMeta() {
-	if (!cache || import.meta.env.DEV) cache = loadAll();
-	const posts = PREVIEW_BUILD ? await withDemoPosts(await cache) : await cache;
-	return withDbPosts(posts);
-}
-
-/**
- * Los eventos y el material de la base (también los ocultos, que el panel ve; no los borrados).
- * @param {PostMeta[]} posts
- */
-async function withDbPosts(posts) {
 	const { activeContentDB, allDbPostObjects } = await import('../contenido/repo.js');
 	const { CONTENT_CATEGORIES } = await import('../contenido/categories.js');
+	const { fichaMetas } = await import('../contenido/fichas.js');
 	const db = activeContentDB();
-	if (!db) return posts;
-	const out = [...posts];
+	if (!db) return [];
+	/** @type {PostMeta[]} */
+	const out = [];
 	for (const [category, cat] of Object.entries(CONTENT_CATEGORIES)) {
-		// Solo la metadata: sin armar el texto de cada post.
+		// Solo la metadata: sin armar el texto de cada post (también los ocultos, que el panel ve;
+		// no los borrados).
 		for (const [slug, e] of await allDbPostObjects(db, category)) {
 			if (!e.deleted) out.push({ category, slug, meta: cat.toMeta(e.object) });
 		}
 	}
-	return out;
-}
-
-/**
- * Demo mode (preview deploys, $lib/server/demo): the deployed posts plus what the demo layer
- * created, edited or deleted.
- * @param {PostMeta[]} posts
- */
-async function withDemoPosts(posts) {
-	const { overlayPostMetas } = await import('../demo/index.js');
-	const changed = await overlayPostMetas();
-	if (!changed.length) return posts;
-	/** @type {Map<string, PostMeta>} */
-	const byKey = new Map(posts.map((p) => [`${p.category}/${p.slug}`, p]));
-	for (const { category, slug, meta } of changed) {
-		// Los eventos y el material solo salen de la base (los guarda ahí también la demo).
-		if (category === 'calendario' || category === 'material') continue;
-		if (meta) byKey.set(`${category}/${slug}`, { category, slug, meta });
-		else byKey.delete(`${category}/${slug}`);
-	}
-	return [...byKey.values()];
-}
-
-async function loadAll() {
-	/** @type {PostMeta[]} */
-	const out = [];
-	for (const [path, load] of Object.entries(posts)) {
-		const [category, file] = path.split('/').slice(-2);
-		const slug = file.replace(/\.md$/, '');
-		if (slug.startsWith('_')) continue;
-		try {
-			const meta = await load();
-			if (meta) out.push({ category, slug, meta });
-		} catch (e) {
-			// A post that doesn't compile is the site's problem, not the editor's.
-		}
-	}
+	// Los perfiles de amigues y las páginas de la wiki.
+	out.push(...(await fichaMetas(db)));
 	return out;
 }
 
@@ -183,8 +134,8 @@ export async function editorData(category) {
 }
 
 /**
- * Metadata of every post of this deploy (templates left out), for the panel's content lists and
- * the tag tree (./contentList.js, ./tagTree.js).
+ * Metadata of every post of the database (events, material, amigues profiles and wiki pages), for
+ * the panel's content lists and the tag tree (./contentList.js, ./tagTree.js).
  * @returns {Promise<PostMeta[]>}
  */
 export const contentMetas = () => allMeta();

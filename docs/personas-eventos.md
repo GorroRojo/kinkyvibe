@@ -107,8 +107,8 @@ personas:
   `0043_material_personas_edges.sql`, en el material. Las lecturas internas traen los edges de
   cualquier perfil, como antes estaba la dirección en el JSON: qué se muestra lo sigue decidiendo
   `personas/index.js`.
-- La wiki se prerenderiza (sin base al compilar): ahí el frontmatter se guarda pero la página no
-  muestra personas.
+- La wiki sale de la base (el texto de la wiki de cada etiqueta): la página no muestra personas
+  (sus autores, `wiki_authors`, sí cuentan para «Participa en»).
 - Links: `profileHref()` → `/amigues/<dirección>`: la vieja si el perfil se importó de una ficha
   `.md` (`profile_sources.legacy_slug`, como `urlSlugOf()` de amigues), si no la del objeto. La
   lista «Participa en» aparece en la página del perfil de la base, buscada

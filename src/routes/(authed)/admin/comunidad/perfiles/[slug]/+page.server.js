@@ -1,30 +1,28 @@
-import { editorActions, editLoad } from '$lib/server/admin/contentRoutes.js';
+import { error } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import {
+	NOT_IN_DB,
 	confirmKindAction,
 	editorPageData,
 	saveProfileAction
 } from '$lib/server/admin/amiguesRoutes.js';
 
-const mdLoad = editLoad('amigues');
-
 /**
- * El editor de la base (publica al toque, con control de versión) para los perfiles que solo están
- * en la base y para las fichas importadas. Si la base no tiene el perfil (o no hay base), el
- * editor del .md de siempre (cambios por PR).
+ * El editor de un perfil, solo en la base («solo base»: publica al toque, con control de versión):
+ * los creados en el panel, los de las cuentas, los lugares y las fichas importadas. Un perfil que
+ * la base no tiene (una ficha del repo sin importar) da 404 con el aviso de importarla primero.
  *
  * @type {import('./$types').PageServerLoad}
  */
 export async function load(event) {
 	requireAdmin(event.locals, event.url);
-	const data = await editorPageData(event.platform, event.params.slug);
-	if (data) return data;
-	return { editor: /** @type {const} */ ('md'), ...(await mdLoad(event)) };
+	const data = await editorPageData(event.platform, event.params.slug, event.locals);
+	if (!data) error(404, NOT_IN_DB);
+	return data;
 }
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	...editorActions('amigues'),
 	guardarPerfil: saveProfileAction,
 	confirmarTipo: confirmKindAction
 };

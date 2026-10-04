@@ -1,11 +1,11 @@
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { contentMetas, tagUsage } from '$lib/server/admin/content.js';
-import { getEventAdmin, getRepoClient } from '$lib/server/eventos';
 import { USAGE_CATEGORIES, readOps } from '$lib/utils/tagConfig.js';
 import { recordsToRawTags } from '$lib/server/etiquetas/model.js';
 import {
 	NEEDS_IMPORT,
+	dbRepoAccess,
 	dbTagsForAdmin,
 	previewDbTagEdit,
 	saveDbTagEdit
@@ -46,16 +46,6 @@ async function usageAndWiki() {
 }
 
 /**
- * Con qué hacer el commit de las publicaciones (renombrar sin alias), o null si no se puede.
- * @param {App.Locals} locals
- * @returns {Promise<import('$lib/server/etiquetas/panel.js').RepoAccess>}
- */
-async function repoAccess(locals) {
-	const admin = getEventAdmin(locals);
-	return admin ? { client: await getRepoClient(), token: admin.token, who: admin.name } : null;
-}
-
-/**
  * @param {FormData} data
  */
 function opsFrom(data) {
@@ -75,7 +65,7 @@ export const actions = {
 		const fromDb = await dbTagsForAdmin(platform, login);
 		if (!fromDb) return fail(503, { error: NEEDS_IMPORT });
 		// Renombrar sin alias: también cuántas publicaciones cambian (y cómo).
-		const res = await previewDbTagEdit(fromDb, r.ops, await repoAccess(locals));
+		const res = await previewDbTagEdit(fromDb, r.ops, await dbRepoAccess(locals));
 		if (!res.ok) return fail(res.status, { error: res.error });
 		return { preview: res.preview };
 	},
@@ -85,12 +75,12 @@ export const actions = {
 		if (!r.ops) return fail(400, { error: r.error });
 		const fromDb = await dbTagsForAdmin(platform, login);
 		if (!fromDb) return fail(503, { error: NEEDS_IMPORT });
-		// Al momento en la base. Renombrar sin alias, además, cambia las publicaciones (los eventos
-		// y el material en la base; las fichas de amigues y la wiki, con un commit).
+		// Al momento en la base. Renombrar sin alias, además, cambia las publicaciones (los eventos,
+		// el material, los perfiles y la wiki, también en la base: nunca GitHub).
 		const res = await saveDbTagEdit(fromDb, r.ops, {
 			locals,
 			login,
-			repo: await repoAccess(locals)
+			repo: await dbRepoAccess(locals)
 		});
 		if (!res.ok) return fail(res.status, { error: res.error });
 		return {
