@@ -218,6 +218,18 @@ importación, la lectura (solo la base) y el historial (`object_revisions`):
   (`hydratePersonas`/`withPersonaEdges`: listas y páginas en `contenido/posts.js`, panel en
   `contenido/repo.js`, importación). Si `data.personas` ya nombra a un perfil que también tiene
   edge (una lista entera escrita sin partir), manda esa y no se repite a nadie.
+  - **El material también** (migración `0043_material_personas_edges.sql` para lo ya guardado): el
+    tipo `material` declara el edge `persona` y se parte y se arma igual, por los mismos caminos
+    (`dehydrateContent`/`hydrateContent` de `contenido/relaciones.js`, las listas y la página en
+    `contenido/posts.js`, el panel, la importación, «Descargar todo»). La única diferencia es el
+    rol de `authors:` en lo guardado con la forma de antes (`authors` + `extra.personas`): Autore
+    en vez de Organiza (`withPersonaEdges(data, edges, 'material')`). La ficha de una cuenta en el
+    panel sigue listando solo los eventos de sus perfiles (`admin/ficha.js`), como antes.
+  - **DECIDIDO POR CLAUDE, A CONFIRMAR** (gorrite), en la 0043: (1) la migración no toca un
+    material cuya lista única tiene una fila que el tipo no acepta (no es `{ profile o name, role }`,
+    o trae otra clave): la 0035 las descartaba en silencio; acá se dejan para el chequeo nocturno,
+    como hace la 0042; (2) un perfil oculto también pasa a edge (como en los eventos: la lectura es
+    interna y qué se muestra lo decide `personas/index.js`).
 - Las lecturas de estos edges son internas (deciden qué mostrar), sin filtrar por visibilidad,
   igual que antes leían `event_venues` o el JSON: qué se ve de un lugar lo decide su nivel
   (`venueView`) y qué perfiles se nombran, `src/lib/server/personas/index.js`.
@@ -312,7 +324,6 @@ con `getObject`, `searchObjects`, `getEdges` o `visibleWhere(viewer, alias)` en 
 - Una prueba E2E que plante objetos privados de cada tipo y verifique que no aparecen en
   listados, búsqueda, sitemap, RSS, imágenes para compartir ni JSON.
 - Migrar los eventos desde los `.md` (P6.2: eventos primero).
-- Personas del material como edges `persona` (como los eventos, `personasEdges.js`).
 - Renombrar una etiqueta «en todas las publicaciones» sin reescribir los eventos ni el material
   que ya la tienen como edge (hoy se reescriben igual; ver `etiqueta` arriba).
 - Borrar la tabla `event_venues` cuando todos los eventos estén en la base (hoy la lee solo la

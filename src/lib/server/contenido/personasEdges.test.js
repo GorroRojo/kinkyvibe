@@ -1,5 +1,6 @@
 /**
- * Personas de un evento como edges `persona` (./personasEdges.js): guardar un evento parte la
+ * Personas de un evento como edges `persona` (./personasEdges.js; el material, en
+ * materialPersonas.test.js): guardar un evento parte la
  * lista (los perfiles vivos van a edges con sus roles y lugares; los nombres y las direcciones sin
  * perfil quedan en `data.personas`), y todo lo que se lee (la metadata de las páginas, el texto del
  * editor, lo que compara la importación) sale igual que antes, cuando la dirección del perfil
@@ -443,7 +444,7 @@ describe('importar un .md', () => {
 		);
 		const [full] = await hydratePersonas(t.db, [saved]);
 		expect(full.data).toEqual(data);
-		// El material no se toca.
-		expect(await dehydratePersonas(t.db, 'material', data)).toEqual({ data });
+		// Otras categorías, tal cual (el material también se parte: materialPersonas.test.js).
+		expect(await dehydratePersonas(t.db, 'amigues', data)).toEqual({ data });
 	});
 });

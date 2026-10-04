@@ -1,13 +1,13 @@
 /**
- * Personas de un evento como edges (regla 4 de docs/objetos.md: las relaciones son edges, nunca
+ * Personas de un evento o un material como edges (regla 4 de docs/objetos.md: las relaciones son edges, nunca
  * ids ni direcciones dentro del JSON).
  *
  * La lista única de personas (`[{ profile?, name?, role }]`, src/lib/utils/personasList.js) se
  * guarda partida:
  *
- * - cada **perfil** es un edge `persona` (evento → perfil) con `data: { roles, at }`: sus roles y,
+ * - cada **perfil** es un edge `persona` (evento o material → perfil) con `data: { roles, at }`: sus roles y,
  *   para cada uno, su lugar en la lista (`at[i]` es el lugar de `roles[i]`). Un perfil con dos
- *   roles es un solo edge (los edges son únicos por evento, tipo y perfil);
+ *   roles es un solo edge (los edges son únicos por post, tipo y perfil);
  * - los **nombres** sin perfil quedan en `data.personas` (no son relaciones), en su orden;
  * - una dirección que no es de ningún perfil vivo (no existe o está borrado) tampoco es una
  *   relación (no hay a qué apuntar): queda en `data.personas` como `{ profile, role }`, como
@@ -15,8 +15,8 @@
  *
  * Al leer, {@link hydratePersonas} vuelve a armar la lista entera, en el mismo orden: la metadata,
  * el .md que arma la base y lo que compara la importación salen igual que antes. Al guardar,
- * {@link dehydratePersonas} la parte de nuevo. Solo los eventos (el material todavía guarda la
- * lista entera en `data.personas`: docs/objetos.md, «Pendiente»).
+ * {@link dehydratePersonas} la parte de nuevo. Eventos (migración 0035 para lo ya guardado) y
+ * material (migración 0043).
  *
  * Las lecturas de acá son internas (panel, importación, listas): traen los edges de cualquier
  * perfil (también oculto o borrado), igual que antes estaba la dirección en el JSON. Qué perfiles
@@ -32,6 +32,17 @@ import { hasPersonaItems, reshapePersonas } from '../../utils/personasList.js';
 export const PERSONA_EDGE = 'persona';
 const PROFILE_TYPE = 'perfil';
 const EVENT_CATEGORY = 'calendario';
+
+/**
+ * Los tipos cuyas personas son edges, con su categoría (el rol de `authors:` de la forma de antes
+ * depende de ella: Organiza en eventos, Autore en material).
+ * @type {ReadonlyMap<string, string>}
+ */
+export const PERSONA_EDGE_TYPES = new Map([
+	['evento', EVENT_CATEGORY],
+	['material', 'material']
+]);
+const PERSONA_CATEGORIES = new Set(PERSONA_EDGE_TYPES.values());
 
 /** @param {unknown} v @returns {v is Record<string, unknown>} */
 const isRecord = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -135,9 +146,9 @@ async function liveProfileIds(db, slugs) {
 }
 
 /**
- * Para guardar un evento: `data` sin los perfiles de `personas` y los edges `persona` que los
- * reemplazan (siempre, también vacío: guardar reemplaza los edges de ese tipo). Otras categorías,
- * tal cual y sin edges.
+ * Para guardar un evento o un material: `data` sin los perfiles de `personas` y los edges
+ * `persona` que los reemplazan (siempre, también vacío: guardar reemplaza los edges de ese tipo).
+ * Otras categorías, tal cual y sin edges.
  *
  * @param {D1Database} db
  * @param {string} category
@@ -145,7 +156,7 @@ async function liveProfileIds(db, slugs) {
  * @returns {Promise<{ data: Record<string, unknown>, edges?: Record<string, { to: number, data: { roles: string[], at: number[] } }[]> }>}
  */
 export async function dehydratePersonas(db, category, data) {
-	if (category !== EVENT_CATEGORY) return { data };
+	if (!PERSONA_CATEGORIES.has(category)) return { data };
 	const items = Array.isArray(data.personas) ? /** @type {PersonaItem[]} */ (data.personas) : [];
 	const slugs = items.flatMap((it) => (typeof it.profile === 'string' ? [it.profile] : []));
 	const { kept, edges } = splitPersonaItems(items, await liveProfileIds(db, slugs));
@@ -156,7 +167,7 @@ export async function dehydratePersonas(db, category, data) {
 }
 
 /**
- * Los edges `persona` de esos eventos, por id del evento (una consulta).
+ * Los edges `persona` de esos posts, por id del post (una consulta).
  *
  * @param {D1Database} db
  * @param {readonly number[]} ids
@@ -222,20 +233,23 @@ export function personaEdgesFromColumn(value) {
 }
 
 /**
- * Pura: `data` de un evento con la lista entera (lo de `data.personas` más los edges). Sin edges,
- * tal cual. Lo guardado con la forma de antes de la lista única (`authors` + `extra.personas`) que
- * tenga edges pasa primero a la lista única (los `at` cuentan sobre ella).
+ * Pura: `data` de un evento o un material con la lista entera (lo de `data.personas` más los
+ * edges). Sin edges, tal cual. Lo guardado con la forma de antes de la lista única (`authors` +
+ * `extra.personas`) que tenga edges pasa primero a la lista única (los `at` cuentan sobre ella),
+ * con el rol de `authors:` de su categoría.
  *
  * @param {Record<string, any>} data
  * @param {readonly PersonaEdgeRow[] | undefined} edges
+ * @param {string} [category] `calendario` (por defecto) o `material`
  * @returns {Record<string, any>}
  */
-export function withPersonaEdges(data, edges) {
+export function withPersonaEdges(data, edges, category = EVENT_CATEGORY) {
 	if (!edges?.length) return data;
-	const base = hasPersonaItems(data) ? data : reshapePersonas(data, EVENT_CATEGORY);
+	const base = hasPersonaItems(data) ? data : reshapePersonas(data, category);
 	const kept = Array.isArray(base.personas) ? base.personas : [];
 	// Si `data.personas` ya nombra a uno de esos perfiles, es una lista entera escrita sin partir
-	// (por ejemplo, por el código de antes de la migración 0035): manda esa, sin repetir a nadie.
+	// (por ejemplo, por el código de antes de la migración 0035 o 0043): manda esa, sin repetir a
+	// nadie.
 	const linked = new Set(edges.map((e) => e.slug));
 	if (kept.some((it) => typeof it?.profile === 'string' && linked.has(it.profile))) return data;
 	return { ...base, personas: mergePersonaItems(kept, edges) };
@@ -243,7 +257,7 @@ export function withPersonaEdges(data, edges) {
 
 /**
  * Objetos de la base con la lista de personas entera en `data` (ver {@link withPersonaEdges}):
- * para todo lo que arma la metadata, el .md o compara con un .md. Solo toca los eventos.
+ * para todo lo que arma la metadata, el .md o compara con un .md. Solo toca eventos y material.
  *
  * @template {{ id: number, type: string, data: Record<string, any> }} O
  * @param {D1Database} db
@@ -251,15 +265,15 @@ export function withPersonaEdges(data, edges) {
  * @returns {Promise<O[]>}
  */
 export async function hydratePersonas(db, objects) {
-	const events = objects.filter((o) => o.type === 'evento');
-	if (!events.length) return [...objects];
+	const posts = objects.filter((o) => PERSONA_EDGE_TYPES.has(o.type));
+	if (!posts.length) return [...objects];
 	const edges = await personaEdgesOf(
 		db,
-		events.map((o) => o.id)
+		posts.map((o) => o.id)
 	);
 	return objects.map((o) =>
-		o.type === 'evento' && edges.has(o.id)
-			? { ...o, data: withPersonaEdges(o.data, edges.get(o.id)) }
+		PERSONA_EDGE_TYPES.has(o.type) && edges.has(o.id)
+			? { ...o, data: withPersonaEdges(o.data, edges.get(o.id), PERSONA_EDGE_TYPES.get(o.type)) }
 			: o
 	);
 }

@@ -5,6 +5,7 @@
  *
  * - `unlisted` es el `force_unlisted` de los .md; `force_unpublished` es la visibilidad `hidden`.
  * - `extra`: lo que el frontmatter tiene y el tipo todavía no conoce, tal cual.
+ * - Los perfiles de `personas` no van en `data`: son edges `persona` (ver `edges` abajo).
  * - La imagen principal es el edge `portada` hacia una `imagen` (R2, docs/imagenes.md); `featured`
  *   es la imagen vieja del repo. Los archivos (PDF, video) siguen en la carpeta del post en el repo.
  *
@@ -47,6 +48,11 @@ const material = {
 	edges: {
 		// La imagen principal (docs/imagenes.md); sin este edge, `featured` (la del repo).
 		portada: { label: 'Imagen principal', to: ['imagen'], max: 1 },
+		// Personas con rol, como en `evento`: un edge por perfil, `data: { roles: ['Autore', …],
+		// at: [0, …] }` (cada rol con su lugar en la lista única, src/lib/server/contenido/
+		// personasEdges.js; migración 0043 para lo ya guardado). Los nombres sin perfil no son
+		// relaciones: quedan en `data.personas`.
+		persona: { label: 'Personas con rol', to: ['perfil'] },
 		// Etiquetas, como en `evento`: un edge por etiqueta viva, `data: { at: [0, …] }` (su lugar en
 		// la lista de `tags`, src/lib/server/contenido/etiquetasEdges.js). Un nombre que no es de
 		// ninguna etiqueta queda en `data.tags`.
