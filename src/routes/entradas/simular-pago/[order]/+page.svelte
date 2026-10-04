@@ -10,6 +10,6 @@
 
 <MockCheckout
 	total={data.order.total}
-	detail="{data.item.quantity} × {data.item.title}"
+	detail={data.detail}
 	reference="Orden {data.order.id} · {data.order.email}"
 />

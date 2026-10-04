@@ -231,18 +231,23 @@
 		</div>
 		{#if data.tickets}
 			{@const t = data.tickets}
+			{@const price = [
+				t.priceFrom !== null ? `desde ${formatARS(t.priceFrom)}` : '',
+				t.gorraSuggested !== null ? 'a la gorra' : ''
+			]
+				.filter(Boolean)
+				.join(' · ')}
 			<section class="buy-cta" id="entradas" aria-label="Entradas">
 				{#if t.open}
 					<a class="buy-button" href="/calendario/{data.meta.postID}/entradas">
 						<span class="buy-title">Comprar entradas</span>
-						<span class="buy-meta">
-							{#if t.priceFrom !== null}desde {formatARS(
-									t.priceFrom
-								)}{/if}{#if t.priceFrom !== null && t.gorraSuggested !== null}
-								·
-							{/if}{#if t.gorraSuggested !== null}a la gorra{/if}{#if t.left !== null}
-								<strong class="buy-left">· {leftText(t.left)}</strong>{/if}
-						</span>
+						<!-- Los espacios van explícitos ({' '}): Svelte saca los del borde de cada {#if},
+						y salía «desde $ 6.400· Quedan 5». -->
+						<span class="buy-meta"
+							>{price}{#if t.left !== null}{#if price}{' '}<strong class="buy-left"
+										>· {leftText(t.left)}</strong
+									>{:else}<strong class="buy-left">{leftText(t.left)}</strong>{/if}{/if}</span
+						>
 					</a>
 					{#if t.closesAt}
 						<p class="buy-when">{saleWindowText({ closesAt: t.closesAt })}.</p>

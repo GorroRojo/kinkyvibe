@@ -223,3 +223,47 @@ describe('/calendario/<evento>: los botones', () => {
 		expect(text(block(body, 'share-row'))).toContain('Compartir');
 	});
 });
+
+describe('/calendario/<evento>: el botón de comprar entradas', () => {
+	/** @param {Record<string, any>} tickets */
+	const buyMeta = (tickets) => {
+		const body = page(
+			{},
+			{
+				tickets: {
+					open: true,
+					priceFrom: null,
+					gorraSuggested: null,
+					left: null,
+					closesAt: null,
+					door: null,
+					...tickets
+				}
+			}
+		);
+		const from = body.indexOf('class="buy-meta');
+		const html = body.slice(body.indexOf('>', from) + 1, body.indexOf('</span>', from));
+		// Sin poner espacios en lugar de las etiquetas (como hace stripTags): lo que importa es
+		// si los espacios están en el texto.
+		return html
+			.replace(/<!--[\s\S]*?-->/g, '')
+			.replace(/<[^<>]*>/g, '')
+			.replace(/\s+/g, ' ')
+			.trim();
+	};
+
+	it('separa el precio de lo que queda con « · »', () => {
+		expect(buyMeta({ priceFrom: 6400, left: 5 })).toMatch(/^desde \$\s6\.400 · Quedan 5$/);
+	});
+
+	it('precio y gorra, con y sin lo que queda', () => {
+		expect(buyMeta({ priceFrom: 6400, gorraSuggested: 3000 })).toMatch(
+			/^desde \$\s6\.400 · a la gorra$/
+		);
+		expect(buyMeta({ gorraSuggested: 3000, left: 2 })).toBe('a la gorra · ¡Últimas 2!');
+	});
+
+	it('solo lo que queda, sin un «·» suelto adelante', () => {
+		expect(buyMeta({ left: 1 })).toBe('¡Última!');
+	});
+});
