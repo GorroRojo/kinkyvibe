@@ -122,3 +122,55 @@ describe('VenueLocation compacto (la tarjeta del evento)', () => {
 		}
 	});
 });
+
+describe('el mapa de OpenStreetMap', () => {
+	const pub = { ...addressView, level: 'public', name: 'Galpón Inventado', href: '/x' };
+
+	it('con la dirección a la vista: baldosas perezosas, «Abrir en OpenStreetMap», «Cómo llegar» y el crédito', () => {
+		for (const view of /** @type {import('$lib/utils/venues.js').VenueView[]} */ ([
+			addressView,
+			pub
+		])) {
+			const body = html(view);
+			expect(body).toMatch(/<img[^>]+src="https:\/\/tile\.openstreetmap\.org\/16\/\d+\/\d+\.png"/);
+			expect(body).not.toMatch(/<img(?![^>]*loading="lazy")[^>]*tile\.openstreetmap/);
+			expect(body).toContain(
+				'href="https://www.openstreetmap.org/?mlat=-34.600000&amp;mlon=-58.400000#map=17/-34.600000/-58.400000"'
+			);
+			expect(body).toContain('>Abrir en OpenStreetMap</a>');
+			expect(body).toContain(
+				'href="https://www.openstreetmap.org/directions?route=%3B-34.600000%2C-58.400000#map=16/-34.600000/-58.400000"'
+			);
+			expect(body).toContain('>Cómo llegar</a>');
+			expect(body).toContain('href="https://www.openstreetmap.org/copyright"');
+			expect(stripTags(body)).toMatch(/©\s+colaboradores de OpenStreetMap/);
+			// alto reservado desde el principio (no corre nada al cargar), ancho que se adapta
+			expect(body).toContain('--map-h: 200px');
+			// sin scripts ni iframes de afuera
+			expect(body).not.toMatch(/<iframe|<script|leaflet/i);
+		}
+	});
+
+	it('sin la dirección a la vista no hay mapa ni coordenadas, aunque la vista las traiga', () => {
+		// Defensa extra: el servidor ya no las manda en estos niveles (venues.test.js), pero el
+		// componente tampoco las usaría.
+		for (const view of /** @type {import('$lib/utils/venues.js').VenueView[]} */ ([
+			{ ...pub, level: 'name' },
+			{ ...pub, level: 'area' },
+			{ ...pub, level: 'hidden' }
+		])) {
+			for (const context of /** @type {const} */ (['event', 'venue'])) {
+				const body = html(view, context);
+				expect(body).not.toContain('openstreetmap.org');
+				expect(body).not.toContain('Cómo llegar</a>');
+				expect(body).not.toMatch(/-34\.6|-58\.4/);
+			}
+		}
+	});
+
+	it('con la dirección pero sin el punto cargado: sin mapa', () => {
+		const body = html({ ...addressView, lat: undefined, lng: undefined });
+		expect(body).not.toContain('openstreetmap.org');
+		expect(body).toContain('Calle Inventada 1');
+	});
+});

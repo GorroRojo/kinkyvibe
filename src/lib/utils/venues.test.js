@@ -12,6 +12,7 @@ import {
 	fullAddress,
 	googleMapsLink,
 	inheritPrivacyLabel,
+	osmDirectionsLink,
 	osmLink,
 	osmTiles,
 	parseCoordinate,
@@ -237,6 +238,12 @@ describe('mapa de OpenStreetMap', () => {
 	it('arma el link con el marcador', () => {
 		expect(osmLink(-34.6, -58.4)).toBe(
 			'https://www.openstreetmap.org/?mlat=-34.600000&mlon=-58.400000#map=17/-34.600000/-58.400000'
+		);
+	});
+
+	it('arma el link «Cómo llegar» con el destino y el origen vacío', () => {
+		expect(osmDirectionsLink(-34.6, -58.4)).toBe(
+			'https://www.openstreetmap.org/directions?route=%3B-34.600000%2C-58.400000#map=16/-34.600000/-58.400000'
 		);
 	});
 
