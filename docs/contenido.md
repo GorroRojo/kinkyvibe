@@ -139,8 +139,8 @@ interruptor `contenido_db` **quedó prendido para siempre** y salió de Interrup
   puede importar (frontmatter roto, un componente no registrado, un fin antes del inicio) **no se
   muestra**: hay que corregirlo e importar de nuevo.
 - **Base local**: `npm run dev` (y `dev:admin`, `dev:tickets`) importa los `.md` a la base local
-  antes de arrancar (`scripts/import-content.js`, sin frenar el arranque si falla); a mano,
-  `npm run content:import`. Las pruebas E2E hacen lo mismo antes de `vite preview`.
+  antes de arrancar (`scripts/import-content.js`, sin frenar el arranque si falla; si la base no
+  tiene etiquetas, también las importa); a mano, `npm run content:import`. Las pruebas E2E hacen lo mismo antes de `vite preview`.
 - **Personas**: `authors:` y `personas:` de un `.md` se guardan como **una sola lista**,
   `data.personas: [{ profile?, name?, role }]` (`src/lib/utils/personasList.js`; ver
   [personas-eventos.md](personas-eventos.md)).

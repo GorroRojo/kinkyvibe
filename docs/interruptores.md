@@ -73,7 +73,8 @@ etiquetas) ya no existe.
 
 Una base nueva (un preview nuevo, la base local) necesita importar el contenido y las etiquetas:
 Contenido → En la base → Importar y Etiquetas → Importar a la base (en la compu,
-`npm run content:import`, que `npm run dev` ya corre solo, y `npm run tags:import`).
+`npm run content:import`, que `npm run dev` ya corre solo y que también importa las etiquetas si
+la base no tiene ninguna).
 
 ## Cómo prender `lo_que_sigo` (cuando se mergee)
 

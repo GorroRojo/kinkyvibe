@@ -1,6 +1,8 @@
 // Importa los eventos y el material (src/lib/posts/{calendario,material}/*.md) a la base D1 LOCAL
 // (la de `npm run dev` y la de las pruebas E2E con `vite preview`). El sitio lee los eventos y el
 // material solo de la base (docs/contenido.md): sin esto, una base local nueva no tiene ninguno.
+// Si la base todavía no tiene etiquetas, también las importa (como `npm run tags:import`): el
+// editor de etiquetas solo guarda en la base (docs/etiquetas.md).
 // Idempotente: lo que no cambió no se toca y lo editado en el panel no se pisa (ver
 // src/lib/server/contenido/importer.js). Nunca toca una base remota (scripts/local-d1.js).
 //
@@ -23,6 +25,8 @@ import {
 	summarizeImport
 } from '../src/lib/server/contenido/importer.js';
 import { sha256 } from '../src/lib/server/amigues/importer.js';
+import { importTags, summarizeTagImport } from '../src/lib/server/etiquetas/importer.js';
+import hardcodedTags from '../src/lib/utils/hardcodedTags.js';
 import { openLocalD1 } from './local-d1.js';
 
 const dryRun = process.argv.includes('--dry');
@@ -64,10 +68,37 @@ async function sourceFiles(db, category) {
 	);
 }
 
+/**
+ * Las etiquetas (el archivo y los textos de la wiki), solo si la base todavía no tiene ninguna.
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ */
+async function seedTags(db) {
+	const any = await db
+		.prepare("SELECT 1 AS x FROM objects WHERE type = 'etiqueta' LIMIT 1")
+		.first();
+	if (any) return;
+	const wikiDir = path.resolve('src/lib/posts/wiki');
+	const names = (await readdir(wikiDir)).filter((f) => f.endsWith('.md')).sort();
+	const wikiFiles = await Promise.all(
+		names.map(async (name) => ({
+			name: name.slice(0, -3),
+			raw: await readFile(path.join(wikiDir, name), 'utf8')
+		}))
+	);
+	const { results } = await importTags(
+		db,
+		{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)), wikiFiles },
+		{ actor: ACTOR, dryRun }
+	);
+	const s = summarizeTagImport(results);
+	console.log(`etiquetas: ${s.created} nuevas, ${s.error} con error.`);
+}
+
 async function main() {
 	const { db, dispose } = await openLocalD1({ migrate });
 	let errors = 0;
 	try {
+		await seedTags(db);
 		for (const category of CATEGORIES) {
 			const files = await sourceFiles(db, category);
 			if (dryRun) {
@@ -107,7 +138,7 @@ try {
 } catch (e) {
 	if (!soft) throw e;
 	console.warn(
-		'\n⚠️  No se pudieron importar los eventos y el material a la base local:\n' +
+		'\n⚠️  No se pudieron importar los eventos, el material y las etiquetas a la base local:\n' +
 			`   ${String(e)}\n` +
 			'   El sitio va a arrancar sin eventos ni material. Probá a mano con: npm run content:import\n'
 	);
