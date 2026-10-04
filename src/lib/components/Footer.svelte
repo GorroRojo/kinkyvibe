@@ -189,11 +189,11 @@
 	@media screen and (max-width: 680px) {
 		footer {
 			padding-inline: var(--space-xs);
-			/* 6rem de la barra de navegación inferior + lugar para el botón flotante
-			de búsqueda (56px + 16px de margen arriba y abajo), así lo último de la
-			página se puede scrollear hasta quedar libre del FAB. Va en el footer (no en el
-			body) para que el violeta llegue hasta abajo, sin una franja gris debajo. */
-			padding-bottom: calc(2em + 6rem + 88px);
+			/* 6rem de la barra de navegación inferior (con el buscador adentro), así lo
+			último de la página se puede scrollear hasta quedar libre de la barra. Va en el
+			footer (no en el body) para que el violeta llegue hasta abajo, sin una franja gris
+			debajo. */
+			padding-bottom: calc(2em + 6rem);
 		}
 		footer > ul {
 			justify-content: flex-start;

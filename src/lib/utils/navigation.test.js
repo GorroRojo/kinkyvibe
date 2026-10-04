@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { breadcrumbLd, isSectionActive, sectionCrumb } from './navigation.js';
+import { breadcrumbLd, isSectionActive, ownBackLink, sectionCrumb } from './navigation.js';
 
 describe('isSectionActive', () => {
 	it('la sección y lo que cuelga de ella', () => {
@@ -67,5 +67,15 @@ describe('breadcrumbLd', () => {
 
 	it('sin categoría, nada', () => {
 		expect(breadcrumbLd(undefined, 'https://kinkyvibe.ar')).toBeNull();
+	});
+});
+
+describe('ownBackLink: la compra tiene un solo «Volver al evento» (sin migas de pan)', () => {
+	it('solo la página de compra de un evento', () => {
+		expect(ownBackLink('/calendario/una-fiesta/entradas')).toBe(true);
+		expect(ownBackLink('/calendario/una-fiesta/entradas/')).toBe(true);
+		expect(ownBackLink('/calendario/una-fiesta')).toBe(false);
+		expect(ownBackLink('/calendario/una-fiesta/compartir')).toBe(false);
+		expect(ownBackLink('/entradas/abc/estado')).toBe(false);
 	});
 });
