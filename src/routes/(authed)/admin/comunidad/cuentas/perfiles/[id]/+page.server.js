@@ -1,19 +1,23 @@
 /**
  * Ficha de un perfil en el panel: sus datos, quiénes lo gestionan y las acciones de admins:
  * marcarlo como revisado (sale de "Para revisar"), ocultarlo o borrarlo (suave). Ocultar y borrar
- * van por `saveObject()` con la versión que se abrió (docs/objetos.md). Solo admins: el `load` y
+ * van por `saveObject()` con la versión que se abrió (docs/objetos.md). Borrar es el mismo borrado
+ * que el resto del panel (`deleteDbProfile`: una fila en `panel_deletions` con
+ * `objeto:perfil:<id>`), así tiene «Deshacer» enseguida y «Recuperar» en Actividad. Solo admins: el `load` y
  * cada action llaman a `requireAdmin`. Todo queda en el registro de actividad.
  */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { adminViewer, getProfileDetail, hideProfile } from '$lib/server/admin/cuentas.js';
 import {
-	adminViewer,
-	deleteProfileAsAdmin,
-	getProfileDetail,
-	hideProfile
-} from '$lib/server/admin/cuentas.js';
+	UndoError,
+	dbProfileIdOf,
+	deleteDbProfile,
+	getDeletion,
+	undoDbProfileDeletionById
+} from '$lib/server/admin/deletions.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/index.js';
 import { listClaims } from '$lib/server/amigues/claims.js';
 import { approvalAction, claimDecisionAction } from '$lib/server/admin/amiguesRoutes.js';
@@ -128,21 +132,48 @@ export const actions = {
 	// Aprobar o rechazar un pedido "Es mi perfil".
 	pedido: claimDecisionAction,
 
-	// Borrar (suave): no se ve en ningún lado; se puede deshacer desde la base.
+	// Borrar (suave): no se ve en ningún lado. «Deshacer» enseguida o «Recuperar» en Actividad.
 	borrar: async (event) => {
 		const t = await target(event);
 		if (t.failure) return t.failure;
+		const title = t.detail.profile.title;
+		/** @type {number} */
+		let deletion;
 		try {
-			await deleteProfileAsAdmin(t.db, t.id, t.version, t.user);
+			const r = await deleteDbProfile(
+				t.db,
+				{ login: t.user.login, locals: event.locals },
+				{ id: t.id, version: t.version, title, urlSlug: t.detail.urlSlug }
+			);
+			deletion = r.id;
 		} catch (e) {
 			return saveFailure(e);
 		}
-		await logAdminAction(t.db, event.locals, {
-			action: 'profile.delete',
-			targetType: 'profile',
-			targetId: t.id,
-			summary: `Borró el perfil «${t.detail.profile.title}»`
-		});
-		return { perfil: { ok: true, message: 'Listo: el perfil quedó borrado.' } };
+		return {
+			perfil: { ok: true, message: 'Listo: el perfil quedó borrado.' },
+			deleted: { id: deletion, title }
+		};
+	},
+
+	// Deshacer el borrado recién hecho (el mismo camino que «Recuperar» en Actividad).
+	deshacer: async (event) => {
+		const user = requireAdmin(event.locals, event.url);
+		const db = getDB(event.platform);
+		if (!db) return fail(503, { perfil: { ok: false, message: 'Sin base de datos.' } });
+		const id = profileId(event.params.id);
+		const deletionId = Number((await event.request.formData()).get('id'));
+		const d =
+			Number.isSafeInteger(deletionId) && deletionId > 0 ? await getDeletion(db, deletionId) : null;
+		// Solo un borrado de ESTE perfil (de la base): nunca uno del repo ni de otro perfil.
+		if (!id || !d || dbProfileIdOf(d.path) !== id) {
+			return fail(404, { perfil: { ok: false, message: 'No encontramos ese borrado.' } });
+		}
+		try {
+			await undoDbProfileDeletionById(db, { login: user.login, locals: event.locals }, d.id);
+		} catch (e) {
+			if (e instanceof UndoError) return fail(409, { perfil: { ok: false, message: e.message } });
+			throw e;
+		}
+		return { perfil: { ok: true, message: 'Listo: el perfil volvió.' } };
 	}
 };
