@@ -5,6 +5,7 @@
 	import { tagManager, wikiTagManager, query } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import { createCollapsible, melt } from '@melt-ui/svelte';
+	import { tagPagePath } from '$lib/utils/series.js';
 </script>
 
 <script>
@@ -130,7 +131,9 @@
 										{#if relatedTag.meta}
 											<a href="/wiki/{relatedTag.meta.wiki}">{relatedTag.meta.wiki}</a>
 										{:else}
-											<a href="/wiki#{relatedTag?.visible_name ?? tag.id}">{relatedTag.id}</a>
+											<a href={tagPagePath(relatedTag.id)}
+												>{relatedTag.visible_name ?? relatedTag.id}</a
+											>
 										{/if}
 										{i < tag.related.length - 1 ? ' | ' : ''}
 									{/each}
