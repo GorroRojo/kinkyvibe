@@ -13,6 +13,8 @@ import { stripMdPlace } from '$lib/utils/eventPlace.js';
 import { personasForPage } from '$lib/server/personas/index.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
+import { readWorkshop } from '$lib/server/eventos/partes.js';
+import { coveringTicketSlug, partOf } from '$lib/utils/partes.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
@@ -25,7 +27,7 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	if (!post) error(404, 'Not found');
 	// Un evento oculto solo lo ven les admins: que no quede en ninguna caché compartida.
 	if (post.meta.force_unpublished) setHeaders({ 'cache-control': 'private, no-store' });
-	const [related, tickets, series, venue, personas, propinas] = await Promise.all([
+	const [related, ownTickets, series, venue, personas, propinas, partes] = await Promise.all([
 		loadRelated(post, posts, platform),
 		loadTickets(params.event, platform, fetch),
 		loadSeries(post, platform, locals, posts),
@@ -34,11 +36,18 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		loadPersonas(post, platform),
 		// Interruptor `propinas`: bloque de propina en lugar de la nota del cafecito (la página
 		// solo lo muestra en los eventos de KinkyVibe).
-		propinasEnabled(platform)
+		propinasEnabled(platform),
+		// Talleres en varias partes: el taller y sus partes (`null` si no es parte de ninguno).
+		loadPartes(params.event, platform, locals)
 	]);
+	// Una parte de un taller con una sola entrada: el botón de compra es el del taller.
+	const tickets = partes?.ticketSlug
+		? await loadTickets(partes.ticketSlug, platform, fetch)
+		: ownTickets;
 	return {
 		...related,
-		tickets,
+		tickets: tickets ? { ...tickets, slug: partes?.ticketSlug ?? params.event } : null,
+		partes,
 		series,
 		venue,
 		personas,
@@ -94,6 +103,39 @@ async function loadSeries(post, platform, locals, posts) {
 	);
 	if (!list.length) return null;
 	return { list, account: await seriesAccountState(platform, locals) };
+}
+
+/**
+ * Talleres en varias partes (docs/talleres-partes.md): el taller, todas sus partes (las que quien
+ * mira puede ver) y cuál es este evento; `ticketSlug`: de qué evento es la entrada si es una parte
+ * de un taller con una sola entrada. `null` si no es parte de ningún taller.
+ * @param {string} slug
+ * @param {App.Platform|undefined} platform
+ * @param {App.Locals} locals
+ */
+async function loadPartes(slug, platform, locals) {
+	try {
+		const ws = await readWorkshop(getDB(platform), slug, viewerFor(locals));
+		const current = partOf(ws, slug);
+		if (!ws || !current) return null;
+		return {
+			total: ws.total,
+			current: current.n,
+			perPart: ws.workshop.perPart,
+			workshop: { slug: ws.workshop.slug, title: ws.workshop.title },
+			parts: ws.parts.map((p) => ({
+				slug: p.slug,
+				title: p.title,
+				n: p.n,
+				start: p.start,
+				status: p.status
+			})),
+			ticketSlug: coveringTicketSlug(ws, slug)
+		};
+	} catch (e) {
+		console.error('[partes] no se pudieron leer las partes del taller:', e);
+		return null;
+	}
 }
 
 /**

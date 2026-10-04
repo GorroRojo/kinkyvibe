@@ -6,7 +6,7 @@
  * Los precios, cupos y medios de pago salen del servidor (`getTicketsView`, frontmatter + D1) y
  * las form actions vuelven a validar todo (ver $lib/server/tickets/checkout.js).
  */
-import { error } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
 import { isValidEventSlug } from '$lib/server/tickets/events.js';
 import { buyAction, discountAction, getTicketsView } from '$lib/server/tickets/checkout.js';
@@ -15,6 +15,24 @@ import { viewerFor } from '$lib/server/amigues/profiles.js';
 import { eventPageVenue } from '$lib/server/amigues/venues.js';
 import { stripMdPlace } from '$lib/utils/eventPlace.js';
 import { purchaseAccount } from '$lib/server/cuentas/savedBuyer.js';
+import { readWorkshop } from '$lib/server/eventos/partes.js';
+import { coveringTicketSlug } from '$lib/utils/partes.js';
+
+/**
+ * Talleres en varias partes (docs/talleres-partes.md): si el evento es una parte de un taller con
+ * una sola entrada, la dirección de la compra del taller; si no, `null`.
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {string} slug
+ */
+async function workshopTickets(platform, slug) {
+	try {
+		return coveringTicketSlug(await readWorkshop(getDB(platform), slug), slug);
+	} catch (e) {
+		console.error('[partes] no se pudieron leer las partes del taller:', e);
+		return null;
+	}
+}
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
@@ -27,6 +45,9 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		html: false
 	});
 	if (!found) error(404, 'Ese evento no existe.');
+	// Una parte de un taller con una sola entrada no vende: la entrada se compra en el taller.
+	const host = await workshopTickets(platform, params.event);
+	if (host) redirect(307, `/calendario/${host}/entradas`);
 	const db = getDB(platform);
 	const tickets = await getTicketsView(db, params.event, fetch);
 	if (!tickets) error(404, 'Este evento no vende entradas por acá.');
@@ -42,6 +63,18 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	buy: (event) => buyAction(event),
+	buy: async (event) => {
+		if (await workshopTickets(event.platform, event.params.event)) {
+			return fail(409, {
+				buy: {
+					error: 'La entrada de esta parte se compra en la página del taller.',
+					errors: {},
+					values: {},
+					discount: null
+				}
+			});
+		}
+		return buyAction(event);
+	},
 	discount: (event) => discountAction(event)
 };

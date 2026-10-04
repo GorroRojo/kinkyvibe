@@ -23,7 +23,8 @@ import {
 	sendWithResend
 } from './email.js';
 import { parseAllowlist, routeEmail } from './emailGuard.js';
-import { getEventTickets, listTicketedEvents } from './events.js';
+import { getEventMeta, getEventTickets, listTicketedEvents } from './events.js';
+import { coveredPartsByWorkshop } from '../eventos/partes.js';
 import { isPreviewDeploy } from '../deploy.js';
 import { sha256Hex } from '../hash.js';
 import { trackFunnel } from '../analytics/track.js';
@@ -35,7 +36,7 @@ import {
 	getSalesSettings,
 	transferInfoFromSettings
 } from './settings.js';
-import { parseReminders, reminderId, sendDueReminders } from './reminders.js';
+import { parseReminders, reminderKey, sendDueReminders } from './reminders.js';
 import { resolveTemplate } from './templates.js';
 import { confirmUrl } from './safeguards.js';
 import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
@@ -598,26 +599,60 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 		}))
 		.filter((e) => Number.isFinite(e.start));
 	const bySlug = new Map(events.map((e) => [e.slug, e]));
+	// Talleres en varias partes con una sola entrada (docs/talleres-partes.md): cada otra parte es un
+	// evento más para los recordatorios, con su fecha y las órdenes del taller.
+	/** @type {Map<string, { title: string, start: string }>} */
+	const partInfo = new Map();
+	/** @type {import('./reminders.js').ReminderEvent[]} */
+	const partEvents = [];
+	const covered = await coveredPartsByWorkshop(db).catch((e) => {
+		console.error('[recordatorios] partes de los talleres:', e);
+		return new Map();
+	});
+	for (const [workshop, { parts }] of covered) {
+		const e = bySlug.get(workshop);
+		if (!e) continue;
+		for (const p of parts) {
+			const start = p.start ? Date.parse(p.start) : NaN;
+			if (!Number.isFinite(start)) continue;
+			partInfo.set(p.slug, { title: p.title, start: String(p.start) });
+			partEvents.push({
+				slug: workshop,
+				start,
+				reminders: e.reminders,
+				cancelled: e.cancelled || p.status === 'cancelado',
+				part: p.slug
+			});
+		}
+	}
 	/** @type {Map<string, string | null>} */
 	const links = new Map();
 	/** @type {Map<string, Awaited<ReturnType<typeof buyerLocation>>>} */
 	const venues = new Map();
+	/** @type {Map<string, Record<string, any> | null>} */
+	const partMetas = new Map();
 	// Plantilla de cada evento (la del evento sobre la general), leída una vez por evento.
 	/** @type {Map<string, Awaited<ReturnType<typeof resolveTemplate>>>} */
 	const templates = new Map();
 	return sendDueReminders(db, {
-		events,
+		events: [...events, ...partEvents],
 		reminders,
 		now,
 		limit: limit ?? mailBatchSize(settings.mail_batch_size),
-		send: async (order, reminder) => {
+		send: async (order, reminder, part) => {
 			const e = bySlug.get(order.event_slug);
 			if (!e) return false;
 			const config = e.config;
+			// Una parte: su título, su fecha y su lugar; las entradas y la plantilla, las del taller.
+			const where = part ?? e.slug;
+			const info = part ? partInfo.get(part) : null;
+			if (part && !info) return false;
+			if (part && !partMetas.has(part)) partMetas.set(part, await getEventMeta(part));
+			const meta = part ? partMetas.get(part) : null;
 			if (config.online && !links.has(e.slug)) links.set(e.slug, await streamLinkFor(db, e.slug));
 			const tickets = await getOrderTickets(db, order.id);
-			if (!venues.has(e.slug)) venues.set(e.slug, await buyerLocation(db, e.slug));
-			const venue = venues.get(e.slug);
+			if (!venues.has(where)) venues.set(where, await buyerLocation(db, where));
+			const venue = venues.get(where);
 			if (!templates.has(e.slug))
 				templates.set(e.slug, await resolveTemplate(db, e.slug, 'reminder'));
 			const message = buildReminderEmail({
@@ -625,10 +660,14 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				tickets,
 				reminder,
 				event: {
-					title: config.title || e.slug,
-					start: config.start,
-					location: venue ? venue.location : config.location,
-					location_name: venue ? venue.location_name : config.location_name,
+					title: info ? info.title : config.title || e.slug,
+					start: info ? info.start : config.start,
+					location: venue ? venue.location : meta ? meta.location : config.location,
+					location_name: venue
+						? venue.location_name
+						: meta
+							? meta.location_name
+							: config.location_name,
 					online: config.online,
 					streamLink: config.online ? (links.get(e.slug) ?? null) : null
 				},
@@ -642,7 +681,7 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				fetch: fetchFn,
 				to: order.buyer_email,
 				message,
-				idempotencyKey: `reminder-${order.id}-${reminderId(reminder)}`
+				idempotencyKey: `reminder-${order.id}-${reminderKey(reminder, part ?? undefined)}`
 			});
 			return result !== 'failed';
 		}

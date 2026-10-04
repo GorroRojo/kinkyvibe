@@ -7,6 +7,34 @@ import { getPanelEvent, panelEventFromMeta } from '$lib/server/eventos/panel.js'
 import { splitMarkdown, validateSlug } from '$lib/utils/eventDraft.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { personasEventosEnabled } from '$lib/server/flags.js';
+import { PANEL_VIEWER, readWorkshop } from '$lib/server/eventos/partes.js';
+import { coveringTicketSlug, partLabel, partOf } from '$lib/utils/partes.js';
+
+/**
+ * Talleres en varias partes (docs/talleres-partes.md): el chip del encabezado («Parte 2 de 3» con
+ * link al taller, o «Taller en 3 partes») y si el modo puerta de esta parte usa las entradas del
+ * taller. `null` si el evento no es parte de ningún taller.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ * @param {string} slug
+ */
+async function workshopChip(db, slug) {
+	try {
+		const ws = await readWorkshop(db, slug, PANEL_VIEWER);
+		const part = partOf(ws, slug);
+		if (!ws || !part) return null;
+		return {
+			label: part.n === 1 ? `Taller en ${ws.total} partes` : partLabel(part.n, ws.total),
+			workshopSlug: ws.workshop.slug,
+			workshopTitle: ws.workshop.title,
+			isWorkshop: part.n === 1,
+			coveredDoor: coveringTicketSlug(ws, slug) !== null
+		};
+	} catch (e) {
+		logDBError('partes del taller', e);
+		return null;
+	}
+}
 
 /**
  * Un evento que no está en este deploy (recién creado, o el sitio todavía no se publicó): se lee
@@ -64,8 +92,10 @@ export async function load({ locals, url, params, platform }) {
 			logDBError('contadores de la ficha del evento', e);
 		}
 	}
+	const workshop = await workshopChip(db, params.slug);
 	return {
 		event: { ...event, sellsTickets: Boolean(config), online: config?.online ?? event.online },
+		workshop,
 		tabCounts: counts,
 		dbAvailable: Boolean(db),
 		// Pestaña Preguntas (preguntas de inscripción): solo con el interruptor prendido.

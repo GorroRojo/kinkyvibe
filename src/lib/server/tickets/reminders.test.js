@@ -9,6 +9,7 @@ import {
 	parseReminders,
 	reminderDueAt,
 	reminderId,
+	reminderKey,
 	sendDueReminders
 } from './reminders.js';
 import { validateSalesSettings } from './settings.js';
@@ -202,6 +203,48 @@ describe('envío de recordatorios', () => {
 			failed: 0,
 			remaining: 0
 		});
+	});
+});
+
+describe('talleres en varias partes: un recordatorio por parte', () => {
+	it('con la entrada del taller llegan los de cada parte, una vez cada uno', async () => {
+		await order(START - 10 * 24 * H);
+		const PART_START = START + 7 * 24 * H;
+		const events = [
+			EVENT,
+			{
+				slug: 'fiesta',
+				start: PART_START,
+				reminders: true,
+				cancelled: false,
+				part: 'fiesta-parte-2'
+			}
+		];
+		/** @type {string[]} */
+		const sent = [];
+		const send = async (/** @type {any} */ o, /** @type {any} */ r, /** @type {any} */ part) => {
+			sent.push(`${reminderKey(r, part ?? undefined)}`);
+			return true;
+		};
+		const reminders = [DEFAULT_REMINDERS[0]];
+		// 48 h antes de la parte 1: solo el de la parte 1.
+		await sendDueReminders(t.db, { events, reminders, now: START - 47 * H, send });
+		expect(sent).toEqual(['h48']);
+		// 48 h antes de la parte 2 (la parte 1 ya pasó): el de la parte 2, con su propio id.
+		await sendDueReminders(t.db, { events, reminders, now: PART_START - 47 * H, send });
+		await sendDueReminders(t.db, { events, reminders, now: PART_START - 46 * H, send });
+		expect(sent).toEqual(['h48', 'h48@fiesta-parte-2']);
+		const { results } = await t.db
+			.prepare('SELECT reminder_id FROM reminder_sends ORDER BY reminder_id')
+			.all();
+		expect(results.map((r) => r.reminder_id)).toEqual(['h48', 'h48@fiesta-parte-2']);
+		// Una parte cancelada no manda.
+		const due = await dueReminderOrders(t.db, {
+			events: [{ ...events[1], part: 'fiesta-parte-3', cancelled: true }],
+			reminders,
+			now: PART_START - 47 * H
+		});
+		expect(due).toHaveLength(0);
 	});
 });
 

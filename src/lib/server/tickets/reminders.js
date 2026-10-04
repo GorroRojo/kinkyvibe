@@ -15,6 +15,10 @@
  * - Solo a órdenes aprobadas (no canceladas ni reembolsadas), de eventos que todavía no
  *   empezaron, y compradas antes de que el recordatorio "venciera" (quien compra una hora antes
  *   del evento ya tiene el mail de las entradas: no le llega el de "faltan 2 días").
+ * - Talleres en varias partes con una sola entrada (docs/talleres-partes.md): además de los del
+ *   taller (la parte 1), cada otra parte es un ítem más con su fecha (`part`): quienes tienen la
+ *   entrada del taller reciben los recordatorios de cada parte. Su id en `reminder_sends` lleva la
+ *   parte (`h48@<parte>`), así cada parte se manda una vez.
  */
 
 import { DEFAULT_MAIL_BATCH_SIZE } from './batchSize.js';
@@ -123,16 +127,35 @@ export function reminderDueAt(r, start) {
 }
 
 /**
+ * Un evento para los recordatorios. `slug`: el de las órdenes. `part`: si es una parte (2 en
+ * adelante) de un taller con una sola entrada, la dirección de la parte (y `start` es el de la
+ * parte); las órdenes son las del taller (`slug`).
+ *
+ * @typedef {{ slug: string, start: number, reminders: boolean, cancelled: boolean, part?: string }} ReminderEvent
+ */
+
+/**
+ * Id de un recordatorio para un evento: el del recordatorio y, en una parte de un taller, la
+ * parte (`h48@taller-parte-2`).
+ *
+ * @param {Reminder} r
+ * @param {string} [part]
+ */
+export function reminderKey(r, part) {
+	return part ? `${reminderId(r)}@${part}` : reminderId(r);
+}
+
+/**
  * Órdenes a las que les toca un recordatorio ahora (y todavía no lo recibieron ni se agotaron
  * sus intentos), del evento más cercano al más lejano.
  *
  * @param {D1Database} db
  * @param {{
- *   events: { slug: string, start: number, reminders: boolean, cancelled: boolean }[],
+ *   events: ReminderEvent[],
  *   reminders: Reminder[],
  *   now: number
  * }} input
- * @returns {Promise<{ order: import('./orders.js').Order, reminder: Reminder, id: string, slug: string }[]>}
+ * @returns {Promise<{ order: import('./orders.js').Order, reminder: Reminder, id: string, slug: string, part: string | null }[]>}
  */
 export async function dueReminderOrders(db, { events, reminders, now }) {
 	const out = [];
@@ -142,7 +165,13 @@ export async function dueReminderOrders(db, { events, reminders, now }) {
 			.bind(...dueReminderParams(item, now))
 			.all();
 		for (const order of /** @type {import('./orders.js').Order[]} */ (results)) {
-			out.push({ order, reminder: item.reminder, id: item.id, slug: item.slug });
+			out.push({
+				order,
+				reminder: item.reminder,
+				id: item.id,
+				slug: item.slug,
+				part: item.part
+			});
 		}
 	}
 	return out;
@@ -153,11 +182,11 @@ export async function dueReminderOrders(db, { events, reminders, now }) {
  * al más lejano: lo que recorre {@link dueReminderOrders}, una consulta por cada uno.
  *
  * @param {{
- *   events: { slug: string, start: number, reminders: boolean, cancelled: boolean }[],
+ *   events: ReminderEvent[],
  *   reminders: Reminder[],
  *   now: number
  * }} input
- * @returns {{ slug: string, reminder: Reminder, id: string, due: number }[]}
+ * @returns {{ slug: string, reminder: Reminder, id: string, due: number, part: string | null }[]}
  */
 export function dueReminderPlan({ events, reminders, now }) {
 	const out = [];
@@ -168,7 +197,13 @@ export function dueReminderPlan({ events, reminders, now }) {
 			if (!r.enabled) continue;
 			const due = reminderDueAt(r, e.start);
 			if (due > now || due >= e.start) continue;
-			out.push({ slug: e.slug, reminder: r, id: reminderId(r), due });
+			out.push({
+				slug: e.slug,
+				reminder: r,
+				id: reminderKey(r, e.part),
+				due,
+				part: e.part ?? null
+			});
 		}
 	}
 	return out;
@@ -203,11 +238,11 @@ export function dueReminderParams(item, now) {
  *
  * @param {D1Database} db
  * @param {{
- *   events: { slug: string, start: number, reminders: boolean, cancelled: boolean }[],
+ *   events: ReminderEvent[],
  *   reminders: Reminder[],
  *   now?: number,
  *   limit?: number,
- *   send: (order: import('./orders.js').Order, reminder: Reminder) => Promise<boolean>
+ *   send: (order: import('./orders.js').Order, reminder: Reminder, part: string | null) => Promise<boolean>
  * }} input
  * @returns {Promise<{ sent: number, failed: number, remaining: number }>}
  */
@@ -223,7 +258,7 @@ export async function sendDueReminders(
 		now,
 		label: 'el recordatorio',
 		claim: ({ order, id }) => ({ orderId: order.id, key: id }),
-		send: ({ order, reminder }) => send(order, reminder)
+		send: ({ order, reminder, part }) => send(order, reminder, part)
 	});
 }
 

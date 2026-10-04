@@ -13,6 +13,7 @@
 	import { onMount } from 'svelte';
 	import { tagManager, filteredTags } from '$lib/utils/stores';
 	import { ticketCta } from '$lib/utils/ticketCta.js';
+	import { partLabel } from '$lib/utils/partes.js';
 </script>
 
 <script>
@@ -40,7 +41,9 @@
 			category,
 			job_title,
 			redirect,
-			pronoun
+			pronoun,
+			// Talleres en varias partes: «Parte N de M» (lo agrega el calendario, docs/talleres-partes.md).
+			parte
 		}
 	} = post;
 	var date = start ?? published_date;
@@ -173,6 +176,9 @@
 	{#if src}<img {src} alt="" loading="lazy" decoding="async" />{/if}
 	<h3>
 		{title}
+		{#if parte}
+			<small class="part-label">{'\u00a0· ' + partLabel(parte.n, parte.m)}</small>
+		{/if}
 		{#if pronounDisplay(pronoun)}
 			<small class="p-pronouns">
 				{'\u00a0' + pronounDisplay(pronoun)}
