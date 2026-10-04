@@ -8,16 +8,20 @@
 //   npm run images:import -- --target=preview --dry      # preview: solo muestra qué haría
 //   npm run images:import -- --target=preview --yes      # preview: escribe en la base y el bucket
 //                                                        # de PRUEBA (necesita `wrangler login`)
+//   npm run images:import -- --target=production --dry   # producción: solo muestra qué haría
+//   npm run images:import -- --target=production --yes   # producción: pide escribir «produccion»
 //
 // `--target=preview` usa las bindings de [previews] de wrangler.toml (la base kinkyvibe-preview y
-// el bucket kinkyvibe-media-preview) con `remote = true`. Producción NO: no hay opción para eso a
-// propósito (la corre gorrite cuando corresponda, con el mismo código, ver docs/imagenes.md).
+// el bucket kinkyvibe-media-preview) con `remote = true`; `--target=production`, las de arriba (la
+// base kinkyvibe y el bucket kinkyvibe-media). Producción la corre gorrite desde su compu (pedido
+// de gorrite, 4/10): sin --yes no escribe y, con --yes, pregunta antes (ver docs/imagenes.md).
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { createInterface } from 'node:readline/promises';
 import { getPlatformProxy, unstable_readConfig } from 'wrangler';
 import {
 	ASSETS_DIR,
@@ -56,8 +60,23 @@ export async function repoImagePaths(root = process.cwd()) {
 	return out.sort();
 }
 
+/** Lo que hay que escribir para confirmar que se escribe en producción. */
+export const PRODUCTION_WORD = 'produccion';
+
+/** Pide escribir {@link PRODUCTION_WORD} antes de tocar producción; si no, corta. */
+async function confirmProduction() {
+	const rl = createInterface({ input: process.stdin, output: process.stdout });
+	const answer = await rl.question(
+		`Vas a escribir en la base y el bucket de PRODUCCIÓN. Escribí «${PRODUCTION_WORD}» para seguir: `
+	);
+	rl.close();
+	if (answer.trim().toLowerCase() !== PRODUCTION_WORD)
+		throw new Error('Cancelado: no se escribió nada.');
+}
+
 /**
- * Las bindings DB y MEDIA de local (miniflare, .wrangler/state) o de preview (remotas).
+ * Las bindings DB y MEDIA de local (miniflare, .wrangler/state) o de preview o producción
+ * (remotas).
  * @returns {Promise<{ db: any, bucket: any, dispose: () => Promise<void> }>}
  */
 async function openTarget() {
@@ -75,19 +94,27 @@ async function openTarget() {
 		const proxy = await getPlatformProxy({ persist: true, remoteBindings: false, envFiles: [] });
 		return { db: proxy.env.DB, bucket: proxy.env.MEDIA, dispose: () => proxy.dispose() };
 	}
-	if (target === 'preview') {
+	if (target === 'preview' || target === 'production') {
+		const prod = target === 'production';
 		if (!dryRun && !args.includes('--yes')) {
 			throw new Error(
-				'Esto escribe en la base y el bucket de PRUEBA (preview). Si es lo que querés, agregá --yes.'
+				prod
+					? 'Esto escribe en la base y el bucket de PRODUCCIÓN. Probá primero con --dry; para escribir, agregá --yes.'
+					: 'Esto escribe en la base y el bucket de PRUEBA (preview). Si es lo que querés, agregá --yes.'
 			);
 		}
-		// Las bindings de [previews] tal cual están en wrangler.toml (los ids se leen del archivo,
-		// nunca se escriben a mano), marcadas como remotas.
+		if (prod && !dryRun) await confirmProduction();
+		// Las bindings tal cual están en wrangler.toml (las de arriba para producción, las de
+		// [previews] para preview; los ids se leen del archivo, nunca se escriben a mano), marcadas
+		// como remotas.
 		const config = unstable_readConfig({ config: 'wrangler.toml' });
-		const previews = /** @type {any} */ (config).previews ?? {};
-		const d1 = (previews.d1_databases ?? []).find((/** @type {any} */ b) => b.binding === 'DB');
-		const r2 = (previews.r2_buckets ?? []).find((/** @type {any} */ b) => b.binding === 'MEDIA');
-		if (!d1 || !r2) throw new Error('wrangler.toml no tiene DB y MEDIA en [previews].');
+		const section = prod ? config : /** @type {any} */ ((config).previews ?? {});
+		const d1 = (section.d1_databases ?? []).find((/** @type {any} */ b) => b.binding === 'DB');
+		const r2 = (section.r2_buckets ?? []).find((/** @type {any} */ b) => b.binding === 'MEDIA');
+		if (!d1 || !r2) {
+			throw new Error(`wrangler.toml no tiene DB y MEDIA ${prod ? 'arriba' : 'en [previews]'}.`);
+		}
+		console.log(`${target}: base ${d1.database_name}, bucket ${r2.bucket_name}.`);
 		const dir = await mkdtemp(path.join(tmpdir(), 'kv-images-'));
 		const file = path.join(dir, 'wrangler.json');
 		await writeFile(
@@ -109,7 +136,7 @@ async function openTarget() {
 			}
 		};
 	}
-	throw new Error(`--target tiene que ser local o preview (no «${target}»).`);
+	throw new Error(`--target tiene que ser local, preview o production (no «${target}»).`);
 }
 
 async function main() {
