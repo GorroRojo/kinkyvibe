@@ -1,5 +1,5 @@
 /**
- * Las listas del panel (Eventos, la agenda) con el interruptor `contenido_db` prendido: leen los
+ * Las listas del panel (Eventos, la agenda): leen los
  * eventos de la base con una cantidad FIJA de consultas (no una o dos por evento) y sin armar el
  * texto de cada evento (postToMarkdown + sha), y dan lo mismo que `bundleMeta` evento por evento.
  * Con 500 eventos en la base, una consulta por evento hacía que /admin/eventos no respondiera.
@@ -94,7 +94,7 @@ afterEach(() => {
 });
 
 /**
- * Importa los eventos y carga panel.js con el interruptor prendido, la base registrada (como
+ * Importa los eventos y carga panel.js con la base registrada (como
  * hooks.server.js), `listEvents` con los eventos de la base y un espía en postToMarkdown.
  * @param {number} extra
  */
@@ -102,7 +102,6 @@ async function setup(extra) {
 	const files = eventFiles(extra);
 	await runImport(t.db, 'calendario', files, { actor: 'importacion', limit: files.length });
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { CONTENIDO_DB_ENABLED: '1' } }));
 	const toMarkdown = vi.fn();
 	vi.doMock('../contenido/markdown.js', async (importOriginal) => {
 		const actual = /** @type {typeof import('../contenido/markdown.js')} */ (
@@ -148,7 +147,7 @@ async function setup(extra) {
 	return { panel, repo, toMarkdown, slugs: summaries.map((s) => s.slug) };
 }
 
-describe('listas del panel con contenido_db', () => {
+describe('listas del panel (eventos de la base)', () => {
 	it('la lista de eventos hace las mismas pocas consultas con 5 o con 60 eventos', async () => {
 		const few = await setup(0);
 		const fewList = await few.panel.listPanelEventsWithMeta();

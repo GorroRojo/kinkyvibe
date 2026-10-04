@@ -33,7 +33,7 @@ import {
 import { readVenueChoice } from '$lib/utils/venueChoice.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import { MAX_IMAGE_BYTES, readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
-import { readDbEventFile } from '$lib/server/contenido/repo.js';
+import { postOfPath, readDbPostFile } from '$lib/server/contenido/repo.js';
 import { panelSavesToDb } from '$lib/server/contenido/saving.js';
 import { commitSavedToDb } from '$lib/admin/saveCopy.js';
 import {
@@ -101,7 +101,7 @@ export async function _editLoad({ locals, params, url, platform }) {
 				? await imageInfo(locals.user_token, params.postID, post.raw)
 				: null,
 		maxImageBytes: MAX_IMAGE_BYTES,
-		// Interruptor `contenido_db`: este post se guarda en la base (se ve enseguida).
+		// Los eventos y el material se guardan en la base (se ve enseguida).
 		savesToDb: await panelSavesToDb(platform, params.category, params.postID),
 		mock: isMockMode()
 	};
@@ -269,11 +269,14 @@ export const _editActions = {
  * @returns {Promise<*>}
  */
 async function getFileContent(token, path) {
-	// Interruptor `contenido_db`: un evento de la base se edita en la base (el sha es el de su
-	// texto, para avisar si alguien guardó en el medio; ver $lib/server/contenido/repo.js).
-	const fromDb = await readDbEventFile(path);
-	if (fromDb && 'deleted' in fromDb) throw error(404, 'No se encontró la publicación');
-	if (fromDb) return { raw: fromDb.raw, sha: fromDb.sha, path };
+	// Los eventos y el material se editan solo en la base (el sha es el de su texto, para avisar si
+	// alguien guardó en el medio; ver $lib/server/contenido/repo.js). Si la base no lo tiene, no
+	// existe (aunque su .md siga en el repo).
+	if (postOfPath(path)) {
+		const fromDb = await readDbPostFile(path);
+		if (!fromDb || 'deleted' in fromDb) throw error(404, 'No se encontró la publicación');
+		return { raw: fromDb.raw, sha: fromDb.sha, path };
+	}
 	if (usesLocalRepo()) {
 		// `npm run dev:admin` (reads the local checkout, see $lib/server/eventos/mock.js) or a
 		// preview deploy (demo mode: the demo layer in D1, then the deployed files).

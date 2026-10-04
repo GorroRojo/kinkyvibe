@@ -81,13 +81,12 @@ afterEach(() => {
 /**
  * El endpoint con los interruptores como se pidan, como en producción (`dev` apagado: recuerda el
  * índice), y un contador de cuántas veces se arma.
- * @param {{ contenido?: string, perfiles?: string }} [o]
+ * @param {{ perfiles?: string }} [o]
  */
-async function endpoint({ contenido = '1', perfiles = '1' } = {}) {
+async function endpoint({ perfiles = '1' } = {}) {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
 		env: {
-			CONTENIDO_DB_ENABLED: contenido,
 			PERFILES_PUBLICOS_ENABLED: perfiles,
 			ETIQUETAS_DB_ENABLED: '0',
 			SERIES_ENABLED: '1'
@@ -133,8 +132,10 @@ async function dbObject(type, slug, data, visibility = 'public') {
 /** @param {import('$lib/utils/search').RawSearchIndex} index */
 const hrefs = (index) => index.docs.map((d) => d.h);
 
-describe('contenido_db', () => {
-	it('prendido: eventos y material creados solo en la base, sin lo oculto ni lo no listado', async () => {
+// (La prueba «con `contenido_db` apagado» se sacó con el interruptor: el modo «.md» ya no existe.
+// No es aflojar las pruebas: es sacar un modo.)
+describe('eventos y material: solo de la base', () => {
+	it('lo de la base, sin lo oculto ni lo no listado; un .md de evento no entra', async () => {
 		await dbObject('evento', 'evento-base-inventado', {
 			start: '2031-03-01T20:00:00-03:00',
 			body: 'Texto con una palabra rarísima: zarandaja.'
@@ -153,13 +154,10 @@ describe('contenido_db', () => {
 		await dbObject('material', 'nota-base-oculta', { published_date: '2030-02-02' }, 'hidden');
 		const index = await (await endpoint()).get();
 		expect(hrefs(index)).toEqual(
-			expect.arrayContaining([
-				'/calendario/evento-md-inventado',
-				'/calendario/evento-base-inventado',
-				'/material/nota-base-inventada'
-			])
+			expect.arrayContaining(['/calendario/evento-base-inventado', '/material/nota-base-inventada'])
 		);
 		const json = JSON.stringify(index);
+		expect(json).not.toContain('evento-md-inventado');
 		expect(json).not.toContain('evento-base-oculto');
 		expect(json).not.toContain('evento-base-no-listado');
 		expect(json).not.toContain('nota-base-oculta');
@@ -167,13 +165,6 @@ describe('contenido_db', () => {
 		expect(index.docs.find((d) => d.h === '/calendario/evento-base-inventado')?.b).toContain(
 			'zarandaja'
 		);
-	});
-
-	it('apagado: solo los .md', async () => {
-		await dbObject('evento', 'evento-base-inventado', { start: '2031-03-01T20:00:00-03:00' });
-		const index = await (await endpoint({ contenido: '0' })).get();
-		expect(hrefs(index)).toContain('/calendario/evento-md-inventado');
-		expect(JSON.stringify(index)).not.toContain('evento-base-inventado');
 	});
 
 	it('el índice recordado se vuelve a armar cuando cambia la base, y solo entonces', async () => {
@@ -297,6 +288,8 @@ describe('perfiles_publicos', () => {
 		/** @param {string} eventSlug @param {{ id: number }} v @param {any} [privacy] */
 		const link = (eventSlug, v, privacy = null) =>
 			setEventVenue(t.db, { eventSlug, venueId: v.id, privacy, by: 'admin-inventade' });
+		// El evento visible (en la base: de ahí salen los eventos).
+		await dbObject('evento', 'evento-md-inventado', { start: '2031-02-01T20:00:00-03:00' });
 		// Un evento de la base no listado (su página no se alcanza navegando).
 		await dbObject('evento', 'evento-no-listado', {
 			start: '2031-03-03T20:00:00-03:00',

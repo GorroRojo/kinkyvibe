@@ -8,6 +8,7 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { emailHash } from '$lib/server/cuentas/accounts.js';
 import { fakeRequestEvent, fakeSeriesPosts, thrown } from '$lib/server/series/fixtures.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -37,7 +38,10 @@ async function routes(flag = '1') {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({ env: { SERIES_ENABLED: flag } }));
 	const posts = fakeSeriesPosts(Date.now());
-	vi.doMock('$lib/utils', () => ({
+	// Los eventos salen de la base.
+	await seedPosts(t.db, posts);
+	vi.doMock('$lib/utils', async () => ({
+		.../** @type {object} */ (await vi.importActual('$lib/utils')),
 		fetchMarkdownPosts: async () => [...posts],
 		thumbURL: async (/** @type {string} */ _c, /** @type {string} */ _p, /** @type {string} */ f) =>
 			`/assets/${f}`,

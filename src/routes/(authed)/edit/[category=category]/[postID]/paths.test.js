@@ -45,6 +45,23 @@ describe('post editor input validation', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
+	it('events and material are read only from the database: without it, 404 (GitHub is never asked)', async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal('fetch', fetchMock);
+		const e = await rejection(() =>
+			load(
+				/** @type {any} */ ({
+					locals,
+					url: new URL('https://kinkyvibe.ar/edit/material/fiesta'),
+					params: { category: 'material', postID: 'fiesta' }
+				})
+			)
+		);
+		expect(e.status).toBe(404);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	// Amigues (and the wiki) still live in the repo.
 	it('a valid post is fetched from the site repo and decoded as UTF-8', async () => {
 		// The editor reads the newest saved version: first the open content PRs (none here), then
 		// the file on main.
@@ -53,7 +70,12 @@ describe('post editor input validation', () => {
 			u.includes('/pulls?')
 				? new Response('[]')
 				: new Response(
-						JSON.stringify({ type: 'file', content: utf8ToBase64(text), encoding: 'base64', sha: 's' })
+						JSON.stringify({
+							type: 'file',
+							content: utf8ToBase64(text),
+							encoding: 'base64',
+							sha: 's'
+						})
 					)
 		);
 		vi.stubGlobal('fetch', fetchMock);
@@ -61,15 +83,15 @@ describe('post editor input validation', () => {
 			await load(
 				/** @type {any} */ ({
 					locals,
-					url: new URL('https://kinkyvibe.ar/edit/material/fiesta'),
-					params: { category: 'material', postID: 'fiesta' }
+					url: new URL('https://kinkyvibe.ar/edit/amigues/fiesta'),
+					params: { category: 'amigues', postID: 'fiesta' }
 				})
 			)
 		);
 		expect(r.post.raw).toBe(text);
 		expect(r.post.sha).toBe('s');
 		expect(fetchMock.mock.calls.map((c) => /** @type {any} */ (c)[0])).toContain(
-			'https://api.github.com/repos/GorroRojo/kinkyvibe/contents/src/lib/posts/material/fiesta.md?ref=main'
+			'https://api.github.com/repos/GorroRojo/kinkyvibe/contents/src/lib/posts/amigues/fiesta.md?ref=main'
 		);
 	});
 
@@ -79,17 +101,15 @@ describe('post editor input validation', () => {
 			vi.fn(async (/** @type {string} */ u) =>
 				u.includes('/pulls?')
 					? new Response('[]')
-					: new Response(
-							JSON.stringify({ type: 'file', content: '', encoding: 'none', sha: 's' })
-						)
+					: new Response(JSON.stringify({ type: 'file', content: '', encoding: 'none', sha: 's' }))
 			)
 		);
 		const e = await rejection(() =>
 			load(
 				/** @type {any} */ ({
 					locals,
-					url: new URL('https://kinkyvibe.ar/edit/material/fiesta'),
-					params: { category: 'material', postID: 'fiesta' }
+					url: new URL('https://kinkyvibe.ar/edit/amigues/fiesta'),
+					params: { category: 'amigues', postID: 'fiesta' }
 				})
 			)
 		);

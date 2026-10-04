@@ -16,6 +16,7 @@ import {
 	makeProfile,
 	readAmigueFiles
 } from '$lib/server/amigues/testing.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
 
@@ -94,6 +95,8 @@ afterEach(() => {
 /** Las rutas con los interruptores como se pidan ('1' prendido, '0' apagado). */
 async function modules({ perfiles = '1', cuentas = '1' } = {}) {
 	vi.resetModules();
+	// Los eventos de muestra salen de la base (las fichas, de los .md).
+	await seedPosts(t.db, fake.posts);
 	vi.doMock('$env/dynamic/private', () => ({
 		env: { PERFILES_PUBLICOS_ENABLED: perfiles, CUENTAS_ENABLED: cuentas }
 	}));

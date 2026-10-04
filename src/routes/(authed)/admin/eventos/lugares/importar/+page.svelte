@@ -190,15 +190,11 @@
 <div class="kv-stack">
 	<p class="kv-note">
 		Leímos {plural(data.total, 'evento', 'eventos')}
-		({data.fromDb ? 'de la base' : 'de los archivos .md'}). Salteamos {plural(
-			data.skipped.online,
-			'online',
-			'online'
-		)}, {plural(data.skipped.empty, 'sin «Dónde»', 'sin «Dónde»')} y {plural(
-			data.skipped.linked,
-			'que ya tiene lugar',
-			'que ya tienen lugar'
-		)}.
+		(de la base). Salteamos {plural(data.skipped.online, 'online', 'online')}, {plural(
+			data.skipped.empty,
+			'sin «Dónde»',
+			'sin «Dónde»'
+		)} y {plural(data.skipped.linked, 'que ya tiene lugar', 'que ya tienen lugar')}.
 	</p>
 	<p class="kv-note">
 		<strong>Privacidad:</strong> lo que ya está en los eventos es público, así que cada evento queda

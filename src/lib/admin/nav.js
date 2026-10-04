@@ -411,8 +411,7 @@ export const NAV = Object.freeze([
 		emoji: '🗄️',
 		label: 'En la base',
 		area: 'contenido',
-		soon: false,
-		flag: 'contenido_db'
+		soon: false
 	},
 	{
 		id: 'colecciones',

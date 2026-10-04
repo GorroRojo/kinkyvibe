@@ -19,23 +19,20 @@ import { purchaseAccount } from '$lib/server/cuentas/savedBuyer.js';
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
 	if (!isValidEventSlug(params.event)) error(404, 'Ese evento no existe.');
-	// Interruptor `contenido_db`: el encabezado sale del evento de la base (si la tiene). La
-	// configuración de las entradas sigue saliendo del .md (getTicketsView).
+	// El encabezado sale del evento de la base (si no lo tiene, 404); la configuración de las
+	// entradas, también (getTicketsView).
 	const found = await siteEvent(platform, params.event, {
 		viewer: viewerFor(locals),
 		shallow: true,
 		html: false
 	});
-	if (found.mode === 'db' && !found.post) error(404, 'Ese evento no existe.');
+	if (!found) error(404, 'Ese evento no existe.');
 	const db = getDB(platform);
 	const tickets = await getTicketsView(db, params.event, fetch);
 	if (!tickets) error(404, 'Este evento no vende entradas por acá.');
 	// Como en la página del evento: si tiene lugar, manda sobre el «Dónde» del evento.
 	const venue = await eventPageVenue(db, params.event, locals);
-	const stored = found.mode === 'db' ? found.post : null;
-	const event = stored
-		? { meta: venue ? stripMdPlace(stored.meta) : stored.meta, path: stored.path }
-		: null;
+	const event = { meta: venue ? stripMdPlace(found.meta) : found.meta, path: found.path };
 	// Con cuenta (interruptor `cuentas`): nombre, pronombres, DNI guardados y el mail de la cuenta,
 	// para completar «Tus datos». Es de esta persona: la página no se guarda en ningún caché.
 	const account = tickets.open ? await purchaseAccount(db, locals.member) : null;

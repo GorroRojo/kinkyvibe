@@ -7,6 +7,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
 import hardcodedTags from '$lib/utils/hardcodedTags.js';
 import {
 	DAY,
@@ -69,7 +70,13 @@ async function modules({ series = '1', cuentas = '1', sigo, extra } = {}) {
 	const unlisted = [
 		fakeEvent('privado-no-listado', now + 3 * DAY, ['taller'], { title: 'No listado de prueba' })
 	];
-	vi.doMock('$lib/utils', () => ({
+	// Los eventos salen de la base: se cargan ahí (los no listados, marcados).
+	await seedPosts(t.db, [
+		...listed,
+		...unlisted.map((p) => ({ meta: { ...p.meta, force_unlisted: true } }))
+	]);
+	vi.doMock('$lib/utils', async () => ({
+		.../** @type {object} */ (await vi.importActual('$lib/utils')),
 		fetchMarkdownPosts: async (_wiki = false, onlyUnlisted = false) =>
 			onlyUnlisted ? [...unlisted] : [...listed],
 		fetchPost: async (/** @type {string} */ _c, /** @type {string} */ slug) => {

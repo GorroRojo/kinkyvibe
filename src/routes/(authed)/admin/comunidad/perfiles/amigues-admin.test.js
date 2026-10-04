@@ -19,6 +19,7 @@ import {
 	readAmigueFiles
 } from '$lib/server/amigues/testing.js';
 import { rejectPendingVenue } from '$lib/server/amigues/pendingVenues.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
 import { deleteProfileAsAdmin } from '$lib/server/admin/cuentas.js';
 import { toCsv } from '$lib/admin/csv.js';
 import {
@@ -310,6 +311,8 @@ describe('editor de la base', () => {
 describe('Eventos → Lugares', () => {
 	it('vincula un evento a un lugar con su privacidad, avisa si el .md tiene dirección, y lo saca', async () => {
 		const m = await modules('0');
+		// El evento sale de la base.
+		await seedPosts(t.db, fake.posts);
 		const v = await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
 		const bad = /** @type {any} */ (
 			await m.lugares.actions.vincular(

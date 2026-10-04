@@ -1,7 +1,10 @@
 /**
- * De dónde lee el bot (decisión 0029): por la capa compartida (`sitePosts`), con el interruptor
- * `contenido_db` apagado (los `.md`) y prendido (la base, sin lo oculto ni lo no listado). En los
- * dos casos, nada que ya empezó. D1 de miniflare; eventos inventados.
+ * De dónde lee el bot (decisión 0029): por la capa compartida (`sitePosts`): solo la base, sin lo
+ * oculto ni lo no listado ni lo que ya empezó; un `.md` que no está en la base no cuenta. D1 de
+ * miniflare; eventos inventados.
+ *
+ * (La prueba «con `contenido_db` apagado» se sacó con el interruptor: el modo «.md» ya no existe.
+ * No es aflojar las pruebas: es sacar un modo.)
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -44,14 +47,12 @@ beforeEach(async () => {
 	];
 });
 afterEach(() => {
-	vi.doUnmock('$env/dynamic/private');
 	vi.resetModules();
 });
 
-/** El módulo del bot con `contenido_db` como se pida. @param {string} flag */
-async function events(flag) {
+/** El módulo del bot, recién cargado. */
+async function events() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { CONTENIDO_DB_ENABLED: flag } }));
 	(await import('$lib/server/contenido/posts.js')).clearContentCache();
 	return import('./events.js');
 }
@@ -84,19 +85,12 @@ async function seedDb() {
 }
 
 describe('listUpcomingEvents lee por sitePosts', () => {
-	it('contenido_db apagado: los .md, aunque la base tenga eventos', async () => {
+	it('solo la base (no el .md), sin ocultos, no listados ni pasados', async () => {
 		await seedDb();
-		const m = await events('0');
+		const m = await events();
 		const out = await m.listUpcomingEvents(t.platform, NOW);
-		expect(out.map((e) => e.slug)).toEqual(['md-proximo-2031']);
-	});
-
-	it('contenido_db prendido: también la base, sin ocultos, no listados ni pasados', async () => {
-		await seedDb();
-		const m = await events('1');
-		const out = await m.listUpcomingEvents(t.platform, NOW);
-		expect(out.map((e) => e.slug)).toEqual(['md-proximo-2031', 'base-proximo-2031']);
-		expect(out[1]).toEqual({
+		expect(out.map((e) => e.slug)).toEqual(['base-proximo-2031']);
+		expect(out[0]).toEqual({
 			slug: 'base-proximo-2031',
 			title: 'Evento base-proximo-2031',
 			start: '2031-03-01T20:00:00-03:00'

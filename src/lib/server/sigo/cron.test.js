@@ -1,7 +1,10 @@
 /**
- * El cron de «Lo que sigo» lee los eventos por la capa compartida (`sitePosts`): con
- * `contenido_db` apagado, los `.md`; prendido, también los de la base, sin los ocultos, los no
- * listados ni los que ya empezaron. D1 de miniflare; eventos inventados (example.com).
+ * El cron de «Lo que sigo» lee los eventos por la capa compartida (`sitePosts`): solo los de la
+ * base, sin los ocultos, los no listados ni los que ya empezaron; un `.md` que no está en la base
+ * no cuenta. D1 de miniflare; eventos inventados (example.com).
+ *
+ * (La prueba «con `contenido_db` apagado» se sacó con el interruptor: el modo «.md» ya no existe.
+ * No es aflojar las pruebas: es sacar un modo.)
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -44,11 +47,11 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/** El cron con `contenido_db` como se pida (y «Lo que sigo» y cuentas prendidos). @param {string} flag */
-async function cron(flag) {
+/** El cron (con «Lo que sigo» y cuentas prendidos). */
+async function cron() {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
-		env: { CONTENIDO_DB_ENABLED: flag, LO_QUE_SIGO_ENABLED: '1', CUENTAS_ENABLED: '1' }
+		env: { LO_QUE_SIGO_ENABLED: '1', CUENTAS_ENABLED: '1' }
 	}));
 	(await import('$lib/server/contenido/posts.js')).clearContentCache();
 	return import('./cron.js');
@@ -103,9 +106,9 @@ const mailed = (send) =>
 	].filter((slug) => send.sent.some((m) => m.text.includes(`/calendario/${slug}`)));
 
 describe('runSigoCron lee por sitePosts', () => {
-	it('contenido_db apagado: solo los .md próximos, aunque la base tenga eventos', async () => {
+	it('solo la base (no el .md), sin ocultos, no listados ni pasados', async () => {
 		await seed();
-		const m = await cron('0');
+		const m = await cron();
 		const send = fakeSend();
 		const r = await m.runSigoCron({
 			db: t.db,
@@ -115,23 +118,7 @@ describe('runSigoCron lee por sitePosts', () => {
 			now: NOW,
 			send
 		});
-		expect(r).toMatchObject({ seen: 1, sent: 1, failed: 0 });
-		expect(mailed(send)).toEqual(['md-manana-2031']);
-	});
-
-	it('contenido_db prendido: también la base, sin ocultos, no listados ni pasados', async () => {
-		await seed();
-		const m = await cron('1');
-		const send = fakeSend();
-		const r = await m.runSigoCron({
-			db: t.db,
-			platform: t.platform,
-			origin: 'https://kinkyvibe.ar',
-			fetch,
-			now: NOW,
-			send
-		});
-		expect(r).toMatchObject({ seen: 2, failed: 0 });
-		expect(mailed(send)).toEqual(['md-manana-2031', 'base-manana-2031']);
+		expect(r).toMatchObject({ seen: 1, failed: 0 });
+		expect(mailed(send)).toEqual(['base-manana-2031']);
 	});
 });

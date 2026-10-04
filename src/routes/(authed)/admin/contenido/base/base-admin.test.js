@@ -49,15 +49,13 @@ beforeEach(async () => {
 	await resetDB(t.db);
 });
 afterEach(() => {
-	vi.doUnmock('$env/dynamic/private');
 	vi.resetModules();
 });
 
 const admin = { id: ADMINS[0].id, login: ADMINS[0].login };
 
-async function modules(flag = '0') {
+async function modules() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { CONTENIDO_DB_ENABLED: flag } }));
 	return {
 		page: await import('./+page.server.js'),
 		csv: await import('./importacion.csv/+server.js')
@@ -113,9 +111,8 @@ describe('solo admins', () => {
 
 describe('importar desde el panel', () => {
 	it('muestra qué haría, importa, queda en Actividad y después todo coincide', async () => {
-		const m = await modules('0');
+		const m = await modules();
 		const before = /** @type {any} */ (await m.page.load(fakeEvent()));
-		expect(before.flagOn).toBe(false);
 		expect(before.categories.map((/** @type {any} */ c) => c.key)).toEqual([
 			'calendario',
 			'material'
@@ -157,7 +154,7 @@ describe('importar desde el panel', () => {
 	});
 
 	it('«Descargar todo»: los .md de la base en un .tar (sin los borrados), solo admins', async () => {
-		const m = await modules('0');
+		const m = await modules();
 		await m.page.actions.importar(fakeEvent({ form: { categoria: 'calendario' } }));
 		await m.page.actions.importar(fakeEvent({ form: { categoria: 'material' } }));
 		const download = await import('./descargar.tar/+server.js');
@@ -174,8 +171,8 @@ describe('importar desde el panel', () => {
 		expect(text).toContain('force_unpublished: true'); // la oculta va, marcada
 	});
 
-	it('material: el que usa un componente no se importa (sigue en su .md)', async () => {
-		const m = await modules('0');
+	it('material: el que usa un componente sin registrar no se importa', async () => {
+		const m = await modules();
 		const r = /** @type {any} */ (
 			await m.page.actions.importar(fakeEvent({ form: { categoria: 'material' } }))
 		);

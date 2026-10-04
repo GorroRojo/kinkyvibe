@@ -78,17 +78,6 @@ export const FLAGS = Object.freeze({
 			'etiquetas), todo sigue leyendo el archivo como siempre.',
 		envVar: 'ETIQUETAS_DB_ENABLED'
 	},
-	contenido_db: {
-		label: 'Contenido desde la base (eventos y material)',
-		description:
-			'Las páginas públicas (listas, la página de cada evento y de cada material, el .ics, las ' +
-			'etiquetas, la búsqueda, el RSS y el sitemap), la venta de entradas y el panel leen los ' +
-			'eventos y el material de la base en vez de los archivos .md, y editarlos desde el panel ' +
-			'guarda en la base (se ve enseguida, con historial). Lo que no está en la base sigue ' +
-			'saliendo de su .md. Apagado, todo sale de los .md como siempre. Antes de prenderlo: ' +
-			'importar (Contenido → En la base) y revisar que no haya diferencias.',
-		envVar: 'CONTENIDO_DB_ENABLED'
-	},
 	lo_que_sigo: {
 		label: 'Lo que sigo',
 		description:
@@ -284,16 +273,6 @@ export function propinasEnabled(platform) {
  */
 export function etiquetasDbEnabled(platform) {
 	return isFlagOn(getDB(platform), 'etiquetas_db');
-}
-
-/**
- * Atajo para las rutas: ¿el contenido (por ahora, los eventos) sale de la base?
- * (docs/contenido.md («En la base»))
- *
- * @param {App.Platform | undefined} platform
- */
-export function contenidoDbEnabled(platform) {
-	return isFlagOn(getDB(platform), 'contenido_db');
 }
 
 /**

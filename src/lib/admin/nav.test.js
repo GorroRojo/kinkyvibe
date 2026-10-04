@@ -324,13 +324,7 @@ describe('navLink y navState', () => {
 		}
 	});
 	it('navFlagKeys: los interruptores que usa el menú, sin repetir', () => {
-		expect(navFlagKeys().sort()).toEqual([
-			'contenido_db',
-			'cuentas',
-			'personas_eventos',
-			'propinas',
-			'series'
-		]);
+		expect(navFlagKeys().sort()).toEqual(['cuentas', 'personas_eventos', 'propinas', 'series']);
 	});
 	it('areaCount suma los contadores de las secciones del área', () => {
 		expect(areaCount('ventas', { transfers: 3 })).toBe(3);

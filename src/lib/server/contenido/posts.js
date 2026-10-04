@@ -1,16 +1,16 @@
 /**
- * De dónde leen las páginas públicas el contenido: los .md o la base (interruptor `contenido_db`).
+ * De dónde leen las páginas públicas los eventos y el material: de la base (decisión «Contenido
+ * solo en la base»; el interruptor `contenido_db` quedó prendido para siempre).
  *
- * Con el interruptor apagado, todo es exactamente lo de siempre (`fetchMarkdownPosts`,
- * `fetchPost` de $lib/utils). Prendido, los eventos y el material salen de la base y se convierten
- * en el mismo `ProcessedPost` que da un .md (el `toMeta` de cada categoría, ./categories.js, +
- * `processPost`), así las listas, las páginas, el .ics, las etiquetas, la búsqueda, el RSS y el
- * sitemap no cambian su código.
+ * Los eventos y el material salen de la base y se convierten en el mismo `ProcessedPost` que
+ * daba un .md (el `toMeta` de cada categoría, ./categories.js, + `processPost`), así las listas,
+ * las páginas, el .ics, las etiquetas, la búsqueda, el RSS y el sitemap no cambian su código. Las
+ * fichas de amigues (y la wiki) siguen saliendo de sus .md: no son de la base todavía.
  *
  * Reglas (como los perfiles, docs/amigues.md):
- * - **La base decide** cada dirección que tiene: un post importado (por su .md) o creado en la
- *   base. Si está oculto o borrado, para quien no lo puede ver es 404 aunque el .md siga en el repo.
- * - Un .md que no está en la base (no se importó todavía, o tuvo un error) sigue saliendo de su .md.
+ * - **Solo la base**: una dirección de evento o material que la base no tiene es 404, aunque haya
+ *   un .md en el repo (los .md quedan como respaldo hasta que se borren; 0004). Sin base (por
+ *   ejemplo en el build), no hay eventos ni material.
  * - Toda lectura de `objects` pasa por la visibilidad (`visibleWhere`/`getObject`): las listas,
  *   con la vista anónima (son las mismas para todes y se guardan en memoria); la página de cada
  *   post, con quien mira (les admins ven los ocultos).
@@ -23,8 +23,8 @@
 import { error } from '@sveltejs/kit';
 import { fetchMarkdownPosts, fetchPost, processPost } from '$lib/utils';
 import { isCurrent } from '$lib/utils/allPosts';
+import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { getDB } from '$lib/server/db';
-import { contenidoDbEnabled } from '$lib/server/flags.js';
 import { ANON, visibleWhere } from '$lib/server/objects/visibility.js';
 import { getObject } from '$lib/server/objects/read.js';
 import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
@@ -40,21 +40,21 @@ const CATEGORIES = CATEGORY_LIST.map((c) => c.category);
 const marks = (n) => Array.from({ length: n }, () => '?').join(', ');
 
 /**
- * La base, si el contenido sale de ella (interruptor prendido y base disponible); si no, `null`.
+ * La base de donde sale el contenido, o `null` si no hay (entonces no hay eventos ni material).
  *
  * @param {App.Platform | undefined} platform
- * @returns {Promise<D1Database | null>}
+ * @returns {D1Database | null}
  */
-export async function contentDb(platform) {
-	const db = getDB(platform);
-	if (!db || !(await contenidoDbEnabled(platform))) return null;
-	return db;
+export function contentDb(platform) {
+	return getDB(platform) ?? null;
 }
+
+/** ¿Esta publicación .md es de una categoría que sale de la base? @param {ProcessedPost} p */
+const isDbCategory = (p) => Object.hasOwn(CONTENT_CATEGORIES, String(p.meta.category));
 
 /**
  * @typedef {{
  *   stamp: string,
- *   claimed: Map<string, Set<string>>,
  *   listed: ProcessedPost[],
  *   unlisted: ProcessedPost[],
  *   paths: Map<number, string>,
@@ -62,7 +62,11 @@ export async function contentDb(platform) {
  * }} DbState
  */
 
-/** @type {{ stamp: string, state: Promise<DbState> } | null} */
+/**
+ * Lo recordado: por la marca de la base y por el árbol de etiquetas con que se limpiaron las
+ * etiquetas de cada post (`processPost`): si cambia cualquiera de los dos, se vuelve a armar.
+ * @type {{ stamp: string, tree: TagManager, state: Promise<DbState> } | null}
+ */
 let cached = null;
 
 /** Olvida lo recordado (tests). */
@@ -97,9 +101,10 @@ async function contentStamp(db) {
  */
 async function dbState(db) {
 	const stamp = await contentStamp(db);
-	if (cached?.stamp === stamp) return cached.state;
-	const state = loadDbState(db, stamp);
-	cached = { stamp, state };
+	const tree = currentSiteTags();
+	if (cached?.stamp === stamp && cached.tree === tree) return cached.state;
+	const state = loadDbState(db, stamp, tree);
+	cached = { stamp, tree, state };
 	state.catch(() => {
 		if (cached?.state === state) cached = null;
 	});
@@ -109,42 +114,23 @@ async function dbState(db) {
 /**
  * @param {D1Database} db
  * @param {string} stamp
+ * @param {TagManager} tree el árbol de etiquetas en uso
  * @returns {Promise<DbState>}
  */
-async function loadDbState(db, stamp) {
+async function loadDbState(db, stamp, tree) {
 	const visible = visibleWhere(ANON, 'o');
 	const t = marks(TYPES.length);
-	const [claimedRows, rows] = await Promise.all([
-		// Qué direcciones decide la base (vivas, ocultas o borradas): esas no salen del .md.
-		db
-			.prepare(
-				`SELECT o.type, o.slug, s.legacy_slug FROM objects o
-				LEFT JOIN content_sources s ON s.object_id = o.id
-				WHERE o.type IN (${t})`
-			)
-			.bind(...TYPES)
-			.all(),
-		// Sin el cuerpo: ninguna lista lo usa (`toMeta` no lo lee) y es casi todo lo que pesa `data`.
-		db
-			.prepare(
-				`SELECT o.id, o.type, o.slug, o.title, ${DATA_WITHOUT_BODY} AS data, o.visibility,
-					s.legacy_slug FROM objects o
-				LEFT JOIN content_sources s ON s.object_id = o.id
-				WHERE o.type IN (${t}) AND ${visible.sql}
-				ORDER BY o.id`
-			)
-			.bind(...TYPES, ...visible.params)
-			.all()
-	]);
-	/** @type {Map<string, Set<string>>} */
-	const claimed = new Map(CATEGORIES.map((c) => [c, new Set()]));
-	for (const r of claimedRows.results) {
-		const cat = categoryOfType(String(r.type));
-		if (!cat) continue;
-		const set = /** @type {Set<string>} */ (claimed.get(cat.category));
-		set.add(String(r.slug));
-		if (r.legacy_slug) set.add(String(r.legacy_slug));
-	}
+	// Sin el cuerpo: ninguna lista lo usa (`toMeta` no lo lee) y es casi todo lo que pesa `data`.
+	const rows = await db
+		.prepare(
+			`SELECT o.id, o.type, o.slug, o.title, ${DATA_WITHOUT_BODY} AS data, o.visibility,
+				s.legacy_slug FROM objects o
+			LEFT JOIN content_sources s ON s.object_id = o.id
+			WHERE o.type IN (${t}) AND ${visible.sql}
+			ORDER BY o.id`
+		)
+		.bind(...TYPES, ...visible.params)
+		.all();
 	/** @type {ProcessedPost[]} */
 	const listed = [];
 	/** @type {ProcessedPost[]} */
@@ -170,12 +156,13 @@ async function loadDbState(db, stamp) {
 			undefined,
 			postID,
 			/** @type {any} */ (cat.toMeta(object)),
-			true
+			true,
+			tree
 		);
 		(post.meta.force_unlisted ? unlisted : listed).push(post);
 		paths.set(Number(r.id), post.path);
 	}
-	return { stamp, claimed, listed, unlisted, paths };
+	return { stamp, listed, unlisted, paths };
 }
 
 /**
@@ -250,23 +237,19 @@ export function comparePosts(a, b) {
 }
 
 /**
- * Junta los .md con lo de la base: saca los .md cuya dirección decide la base y suma los de la
- * base. Pura (la prueba de paridad la usa directo).
+ * Junta lo que sigue saliendo de los .md (amigues) con los eventos y el material de la base: de
+ * los .md se descarta todo evento y material (la base es la única fuente). Pura.
  *
  * @param {ProcessedPost[]} md
- * @param {Pick<DbState, 'claimed'>} state
  * @param {ProcessedPost[]} fromDb
  */
-export function mergePosts(md, state, fromDb) {
-	const kept = md.filter(
-		(p) => !state.claimed.get(String(p.meta.category))?.has(String(p.meta.postID))
-	);
-	return [...kept, ...fromDb].sort(comparePosts);
+export function mergePosts(md, fromDb) {
+	return [...md.filter((p) => !isDbCategory(p)), ...fromDb].sort(comparePosts);
 }
 
 /**
- * Lo mismo que `fetchMarkdownPosts(wiki, unlisted)`, con los eventos y el material de la base si
- * el interruptor está prendido.
+ * Lo mismo que `fetchMarkdownPosts(wiki, unlisted)`, con los eventos y el material de la base en
+ * lugar de sus .md.
  *
  * @param {App.Platform | undefined} platform
  * @param {boolean} [wiki]
@@ -276,41 +259,27 @@ export function mergePosts(md, state, fromDb) {
 export async function sitePosts(platform, wiki = false, unlisted = false) {
 	const md = await fetchMarkdownPosts(wiki, unlisted);
 	if (wiki) return md;
-	const db = await contentDb(platform);
-	if (!db) return md;
+	const db = contentDb(platform);
+	if (!db) return mergePosts(md, []);
 	const state = await dbState(db);
-	return mergePosts(md, state, unlisted ? state.unlisted : state.listed);
+	return mergePosts(md, unlisted ? state.unlisted : state.listed);
 }
 
 /**
  * Cuántas publicaciones no listadas hay (el contador «No listadas» del menú del panel): lo mismo
- * que `(await sitePosts(platform, false, true)).length`, sin armar las listas públicas (después de
- * cada cambio en la base eso era volver a leer y procesar todas las publicaciones). Con el
- * interruptor prendido es una consulta, para la tanda del layout del panel: los .md no listados
- * cuya dirección no decide la base (`mergePosts`) más lo no listado de la base que ve cualquiera
- * (la columna `unlisted`, migración 0031, es el `unlisted` de cada objeto). Apagado, los .md.
- * `null` si la consulta falla (el contador no aparece).
+ * que `(await sitePosts(platform, false, true)).length`, sin armar las listas públicas. Una
+ * consulta, para la tanda del layout del panel: las fichas .md no listadas (amigues) más lo no
+ * listado de la base que ve cualquiera (la columna `unlisted`, migración 0031). `null` si la
+ * consulta falla (el contador no aparece).
  *
  * @param {App.Platform | undefined} platform
  * @returns {Promise<import('$lib/server/db/batch.js').BatchQuery<number | null>>}
  */
 export async function unlistedCountQuery(platform) {
-	const md = await fetchMarkdownPosts(false, true);
+	const others = (await fetchMarkdownPosts(false, true)).filter((p) => !isDbCategory(p)).length;
 	const what = 'contador de no listadas';
-	if (!(await contentDb(platform))) {
-		return { what, fallback: md.length, statements: () => [], read: () => md.length };
-	}
-	/** @type {[string, string][]} */
-	const pairs = [];
-	// Las de categorías que no están en la base (amigues) siempre salen del .md.
-	let others = 0;
-	for (const p of md) {
-		const category = String(p.meta.category);
-		if (Object.hasOwn(CONTENT_CATEGORIES, category)) {
-			pairs.push([CONTENT_CATEGORIES[category].type, String(p.meta.postID)]);
-		} else {
-			others++;
-		}
+	if (!contentDb(platform)) {
+		return { what, fallback: others, statements: () => [], read: () => others };
 	}
 	const t = marks(TYPES.length);
 	const visible = visibleWhere(ANON, 'o');
@@ -320,31 +289,17 @@ export async function unlistedCountQuery(platform) {
 		statements: (db) => [
 			db
 				.prepare(
-					// Las direcciones que decide la base: las de los objetos y las viejas de sus .md.
-					`WITH claimed(type, id) AS MATERIALIZED (
-						SELECT o.type, o.slug FROM objects o WHERE o.type IN (${t}) AND o.slug IS NOT NULL
-						UNION
-						SELECT o.type, s.legacy_slug FROM objects o JOIN content_sources s ON s.object_id = o.id
-						WHERE o.type IN (${t}) AND s.legacy_slug IS NOT NULL AND s.legacy_slug != ''
-					)
-					SELECT
-						(SELECT COUNT(*) FROM json_each(?) m
-							WHERE (json_extract(m.value, '$[0]'), json_extract(m.value, '$[1]'))
-								NOT IN (SELECT type, id FROM claimed)) AS md,
-						(SELECT COUNT(*) FROM objects o
-							WHERE o.type IN (${t}) AND ${visible.sql} AND o.unlisted = 1) AS db`
+					`SELECT COUNT(*) AS db FROM objects o
+					WHERE o.type IN (${t}) AND ${visible.sql} AND o.unlisted = 1`
 				)
-				.bind(...TYPES, ...TYPES, JSON.stringify(pairs), ...TYPES, ...visible.params)
+				.bind(...TYPES, ...visible.params)
 		],
-		read: (results) => {
-			const row = results[0]?.results?.[0];
-			return others + Number(row?.md ?? 0) + Number(row?.db ?? 0);
-		}
+		read: (results) => others + Number(results[0]?.results?.[0]?.db ?? 0)
 	};
 }
 
 /**
- * Lo mismo que `fetchCurrentPosts()`: las listadas, sin los eventos que ya empezaron.
+ * Las listadas, sin los eventos que ya empezaron.
  *
  * @param {App.Platform | undefined} platform
  */
@@ -355,27 +310,26 @@ export async function currentSitePosts(platform) {
 
 /**
  * El cuerpo (markdown) de lo que sale de la base, por dirección (`/calendario/<slug>`,
- * `/material/<slug>`), para el índice de la búsqueda. Vacío con el interruptor apagado.
+ * `/material/<slug>`), para el índice de la búsqueda. Vacío sin base.
  *
  * @param {App.Platform | undefined} platform
  * @returns {Promise<Map<string, string>>}
  */
 export async function siteBodies(platform) {
-	const db = await contentDb(platform);
+	const db = contentDb(platform);
 	if (!db) return new Map();
 	return stateBodies(db, await dbState(db));
 }
 
 /**
- * La marca de cambios del contenido de la base (la misma con la que se recuerdan las listas), o
- * `null` con el interruptor apagado. Para quien recuerda algo armado con las listas o los cuerpos
- * (el índice de la búsqueda): si la marca no cambió, lo armado sigue valiendo.
+ * La marca de cambios del contenido de la base (la misma con la que se recuerdan las listas). Para quien recuerda algo armado con las listas o los cuerpos
+ * (el índice de la búsqueda): si la marca no cambió, lo armado sigue valiendo. `null` sin base.
  *
  * @param {App.Platform | undefined} platform
  * @returns {Promise<string | null>}
  */
 export async function siteContentStamp(platform) {
-	const db = await contentDb(platform);
+	const db = contentDb(platform);
 	return db ? contentStamp(db) : null;
 }
 
@@ -423,19 +377,18 @@ export function resolveEventSlug(db, slug) {
 }
 
 /**
- * @typedef {{ mode: 'md' } | { mode: 'db', post: (ProcessedPost & import('./render.js').RenderedBody) | null }} SitePost
+ * @typedef {ProcessedPost & import('./render.js').RenderedBody} SitePost
  */
 
 /**
- * Un post (evento o material) para su página. `{ mode: 'md' }`: sale del .md como siempre
- * (interruptor apagado o dirección que la base no tiene). `{ mode: 'db', post: null }`: la base la
- * tiene pero quien mira no la puede ver → 404.
+ * Un post (evento o material) de la base para su página, o `null` si la base no lo tiene o quien
+ * mira no lo puede ver (→ 404).
  *
  * @param {App.Platform | undefined} platform
  * @param {string} category
  * @param {string} slug
  * @param {{ viewer?: Viewer, shallow?: boolean, html?: boolean }} [opts]
- * @returns {Promise<SitePost>}
+ * @returns {Promise<SitePost | null>}
  */
 export async function siteContent(
 	platform,
@@ -444,12 +397,12 @@ export async function siteContent(
 	{ viewer = ANON, shallow = false, html = true } = {}
 ) {
 	const cat = CONTENT_CATEGORIES[category];
-	const db = cat ? await contentDb(platform) : null;
-	if (!db || !cat) return { mode: 'md' };
+	const db = cat ? contentDb(platform) : null;
+	if (!db || !cat) return null;
 	const ref = await resolveContentSlug(db, category, slug);
-	if (!ref) return { mode: 'md' };
+	if (!ref) return null;
 	const object = await getObject(db, { id: ref.id }, viewer);
-	if (!object) return { mode: 'db', post: null };
+	if (!object) return null;
 	const postID = ref.legacySlug ?? object.slug;
 	const post = await processPost(
 		undefined,
@@ -465,11 +418,12 @@ export async function siteContent(
 				{ vars: post.meta }
 			)
 		: { html: '', css: '', component: false };
-	// El componente no viaja desde el servidor: con `component`, +page.js carga el del .md (el
-	// texto es el mismo); si no, la página muestra `html` (y `css`, solo dentro del texto).
+	// El componente no viaja desde el servidor: con `component`, +page.js carga el que mdsvex
+	// compiló del .md (el texto es el mismo); si no, la página muestra `html` (o `parts`, con
+	// interactivos) y `css`, solo dentro del texto.
 	// eslint-disable-next-line no-unused-vars
 	const { content, ...rest } = post;
-	return { mode: 'db', post: { ...rest, ...body } };
+	return { ...rest, ...body };
 }
 
 /**
@@ -478,15 +432,14 @@ export async function siteContent(
  * @param {App.Platform | undefined} platform
  * @param {string} slug
  * @param {{ viewer?: Viewer, shallow?: boolean, html?: boolean }} [opts]
- * @returns {Promise<SitePost>}
  */
 export function siteEvent(platform, slug, opts) {
 	return siteContent(platform, EVENT_CATEGORY, slug, opts);
 }
 
 /**
- * Lo mismo que `fetchPost(category, slug, shallow)` (tira 404 si no existe), con lo de la base si
- * el interruptor está prendido. Para quien solo necesita la metadata.
+ * Lo mismo que `fetchPost(category, slug, shallow)` (tira 404 si no existe): los eventos y el
+ * material, de la base; amigues y wiki, de su .md. Para quien solo necesita la metadata.
  *
  * @param {App.Platform | undefined} platform
  * @param {'calendario' | 'amigues' | 'material' | 'wiki'} category
@@ -497,10 +450,8 @@ export function siteEvent(platform, slug, opts) {
 export async function sitePost(platform, category, slug, { viewer = ANON, shallow = true } = {}) {
 	if (CONTENT_CATEGORIES[category]) {
 		const found = await siteContent(platform, category, slug, { viewer, shallow, html: false });
-		if (found.mode === 'db') {
-			if (!found.post) error(404, 'Not found');
-			return found.post;
-		}
+		if (!found) error(404, 'Not found');
+		return found;
 	}
 	return fetchPost(category, slug, shallow);
 }

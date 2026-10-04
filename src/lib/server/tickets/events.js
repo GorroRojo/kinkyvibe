@@ -1,12 +1,10 @@
 /**
- * Lee la configuración de entradas de los eventos (frontmatter de src/lib/posts/calendario).
+ * Lee la configuración de entradas de los eventos: la metadata de cada evento de la base (con la
+ * forma del frontmatter de un .md, ver $lib/server/contenido/repo.js).
  */
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
-import { PREVIEW_BUILD } from '$lib/server/deploy.js';
 import { isKinkyVibeEvent, parseTicketConfig } from './config.js';
-
-const eventFiles = import.meta.glob('/src/lib/posts/calendario/*.md');
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]{0,199}$/i;
 
@@ -81,52 +79,21 @@ function devFixture(slug, meta) {
 	};
 }
 
-/**
- * Modo demo (deploys de preview, docs/demo.md): los eventos que la capa demo (`demo_files`)
- * agregó, cambió o borró, por slug (`null` = borrado). Así la venta, la puerta y el panel usan
- * los eventos del modo demo (por ejemplo, los datos de prueba con fechas relativas a hoy).
- * `PREVIEW_BUILD` es una constante de compilación: en producción esto no existe.
- *
- * @typedef {Map<string, Record<string, any> | null>} DemoOverlay
- * @returns {Promise<DemoOverlay | null>}
- */
-async function demoOverlay() {
-	if (!PREVIEW_BUILD) return null;
-	const { overlayPostMetas } = await import('../demo/index.js');
-	const changed = await overlayPostMetas('calendario');
-	return new Map(changed.map(({ slug, meta }) => [slug, meta]));
-}
+/** @typedef {Map<string, Record<string, any> | null>} DbMetas */
 
 /**
  * @param {string} slug
- * @param {DemoOverlay | null} [overlay] ya leída (para no releerla por cada evento)
- * @param {DemoOverlay | null} [content] los eventos de la base ya leídos (interruptor
- *   `contenido_db`, ver $lib/server/contenido/repo.js); sin pasar, se busca este evento
+ * @param {DbMetas | null} [content] los eventos de la base ya leídos (para no releerlos por cada
+ *   evento); sin pasar, se busca este evento
  * @returns {Promise<Record<string, any> | null>} frontmatter de un evento publicado
  */
-async function loadMeta(slug, overlay, content) {
+async function loadMeta(slug, content) {
 	if (!isValidEventSlug(slug) || slug.startsWith('_')) return null;
-	// La base manda sobre el .md (y sobre la capa demo) para los eventos que tiene: `null` si
-	// está oculto o borrado.
-	const fromDb =
+	// Solo la base: `null` si no lo tiene, o si está oculto o borrado.
+	const meta =
 		content === undefined
 			? await (await import('../contenido/repo.js')).dbEventMeta(slug)
-			: content?.has(slug)
-				? content.get(slug)
-				: undefined;
-	const layer = fromDb !== undefined ? null : overlay === undefined ? await demoOverlay() : overlay;
-	/** @type {Record<string, any> | null | undefined} */
-	let meta;
-	if (fromDb !== undefined) {
-		meta = fromDb;
-	} else if (layer?.has(slug)) {
-		meta = layer.get(slug);
-	} else {
-		const importer = eventFiles[`/src/lib/posts/calendario/${slug}.md`];
-		if (!importer) return null;
-		const mod = /** @type {{ metadata?: Record<string, any> }} */ (await importer());
-		meta = mod.metadata;
-	}
+			: content?.get(slug);
 	if (!meta || meta.force_unpublished) return null;
 	// Los eventos de prueba del repo solo venden en `vite dev` (nunca en el sitio publicado).
 	if (!dev && isTestEventSlug(slug)) return null;
@@ -146,8 +113,8 @@ export function getEventMeta(slug) {
 }
 
 /**
- * Eventos de prueba de la venta de entradas (src/lib/posts/calendario/prueba-entradas-*.md):
- * sirven para probar en local y no venden en producción.
+ * Eventos de prueba de la venta de entradas (`prueba-entradas-*`, importados de sus .md): sirven
+ * para probar en local y no venden en producción.
  * @param {string} slug
  */
 export function isTestEventSlug(slug) {
@@ -222,22 +189,15 @@ export async function listTicketedEvents(options = {}) {
 }
 
 /**
- * El frontmatter de todos los eventos publicados (vendan entradas o no), con la capa del modo
- * demo si la hay.
+ * El frontmatter de todos los eventos publicados de la base (vendan entradas o no).
  *
  * @returns {Promise<{ slug: string, meta: Record<string, any> }[]>}
  */
 export async function listEventMetas() {
 	const out = [];
-	const overlay = await demoOverlay();
 	const content = await (await import('../contenido/repo.js')).dbEventMetas();
-	const slugs = new Set(
-		Object.keys(eventFiles).map((path) => path.split('/').pop()?.replace(/\.md$/, '') ?? '')
-	);
-	for (const slug of overlay?.keys() ?? []) slugs.add(slug);
-	for (const slug of content?.keys() ?? []) slugs.add(slug);
-	for (const slug of slugs) {
-		const meta = await loadMeta(slug, overlay, content);
+	for (const slug of content?.keys() ?? []) {
+		const meta = await loadMeta(slug, content);
 		if (meta) out.push({ slug, meta });
 	}
 	return out;

@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { currentRelated, fetchPost, relatedPostsFor } from '$lib/utils';
+import { currentRelated, relatedPostsFor } from '$lib/utils';
 import { siteEvent, sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
@@ -16,18 +16,15 @@ import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
-	// Interruptor `contenido_db`: el evento de la base (con su texto ya armado). Si la base no tiene
-	// esa dirección, el .md como siempre (+page.js carga su componente).
-	// La lista de publicaciones (para relacionados y series) se lee a la par del evento.
-	const [found, posts] = await Promise.all([
+	// El evento de la base (con su texto ya armado); si la base no lo tiene, o quien mira no lo
+	// puede ver, 404. La lista de publicaciones (para relacionados y series) se lee a la par.
+	const [post, posts] = await Promise.all([
 		siteEvent(platform, params.event, { viewer: viewerFor(locals) }),
 		sitePosts(platform)
 	]);
-	if (found.mode === 'db' && !found.post) error(404, 'Not found');
-	const db = found.mode === 'db' ? found.post : null;
+	if (!post) error(404, 'Not found');
 	// Un evento oculto solo lo ven les admins: que no quede en ninguna caché compartida.
-	if (db?.meta.force_unpublished) setHeaders({ 'cache-control': 'private, no-store' });
-	const post = db ?? (await fetchPost('calendario', params.event, true).catch(() => null));
+	if (post.meta.force_unpublished) setHeaders({ 'cache-control': 'private, no-store' });
 	const [related, tickets, series, venue, personas, propinas] = await Promise.all([
 		loadRelated(post, posts, platform),
 		loadTickets(params.event, platform, fetch),
@@ -46,19 +43,14 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		venue,
 		personas,
 		propinas,
-		// Con lugar, el «Dónde» del evento de la base no sale del servidor (como +page.js con el .md).
-		...(db
-			? {
-					mode: /** @type {const} */ ('db'),
-					post: venue ? { ...db, meta: stripMdPlace(db.meta) } : db
-				}
-			: { mode: /** @type {const} */ ('md') })
+		// Con lugar, el «Dónde» del evento no sale del servidor.
+		post: venue ? { ...post, meta: stripMdPlace(post.meta) } : post
 	};
 }
 
 /**
  * Personas con su rol (interruptor `personas_eventos`; apagado, `null` y la página queda igual).
- * @param {ProcessedPost|null} post null if missing/unpublished (handled by +page.js)
+ * @param {ProcessedPost} post
  * @param {App.Platform|undefined} platform
  */
 async function loadPersonas(post, platform) {
@@ -73,7 +65,7 @@ async function loadPersonas(post, platform) {
 /** Related posts, computed on the server so the page doesn't need every post, with the ticket
  * sales state of the related events for their cards (one batched query, see listStates.js).
  * Un lugar vinculado manda sobre el «Dónde» del .md de cada uno.
- * @param {ProcessedPost|null} post null if missing/unpublished (handled by +page.js)
+ * @param {ProcessedPost} post
  * @param {ProcessedPost[]} posts
  * @param {App.Platform|undefined} platform */
 async function loadRelated(post, posts, platform) {

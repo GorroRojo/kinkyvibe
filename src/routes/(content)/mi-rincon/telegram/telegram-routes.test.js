@@ -40,7 +40,6 @@ async function modules({ bot = '1', sigo = '1', cuentas = '1' } = {}) {
 			LO_QUE_SIGO_ENABLED: sigo,
 			CUENTAS_ENABLED: cuentas,
 			ETIQUETAS_DB_ENABLED: '0',
-			CONTENIDO_DB_ENABLED: '0',
 			PERFILES_PUBLICOS_ENABLED: '0',
 			TELEGRAM_BOT_USERNAME: 'BotInventadoBot'
 		}

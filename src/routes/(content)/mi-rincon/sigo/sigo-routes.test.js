@@ -6,6 +6,7 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { seedPosts } from '$lib/server/contenido/testing.js';
 import { makeAccount, makeProfile } from '$lib/server/amigues/testing.js';
 import { fakeRequestEvent, thrown } from '$lib/server/series/fixtures.js';
 
@@ -61,13 +62,14 @@ async function modules({ sigo = '1', cuentas = '1', perfiles = '0', series } = {
 			LO_QUE_SIGO_ENABLED: sigo,
 			CUENTAS_ENABLED: cuentas,
 			ETIQUETAS_DB_ENABLED: '0',
-			CONTENIDO_DB_ENABLED: '0',
 			PERFILES_PUBLICOS_ENABLED: perfiles,
 			// Sin pedirlo, como antes: el interruptor `series` sin tocar.
 			...(series ? { SERIES_ENABLED: series } : {})
 		}
 	}));
-	// Los posts del repo no hacen falta (y compilarlos todos tarda): eventos inventados.
+	// Los posts del repo no hacen falta (y compilarlos todos tarda): eventos inventados, en la
+	// base (de donde salen los eventos).
+	await seedPosts(t.db, FAKE_POSTS);
 	vi.doMock('$lib/utils', async (importOriginal) => ({
 		.../** @type {object} */ (await importOriginal()),
 		fetchMarkdownPosts: async () => FAKE_POSTS

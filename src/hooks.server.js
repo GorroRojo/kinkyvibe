@@ -17,8 +17,8 @@ const LEGACY_COOKIES = ['prevToken', 'userLogin', 'userName', 'userAvatarUrl'];
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
-	// Interruptor `contenido_db`: la base que usa el cliente del repo para los eventos de la base
-	// (es la misma para todo el isolate, como la del modo demo).
+	// La base donde el cliente del repo lee y guarda los eventos y el material (es la misma para
+	// todo el isolate, como la del modo demo).
 	setContentDB(getDB(event.platform));
 	// Interruptor `etiquetas_db` (docs/etiquetas.md): el árbol de etiquetas de este pedido (archivo o
 	// base) pasa a ser el que usa todo el servidor. Nunca tira: sin base, el archivo.

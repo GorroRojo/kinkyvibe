@@ -1,11 +1,14 @@
 /**
- * PRUEBAS DE PARIDAD: con el interruptor `contenido_db` prendido, las páginas reciben lo mismo de
- * la base que de los .md. Eventos inventados (fixtures/calendario, datos falsos) importados a un D1
+ * PRUEBAS DE PARIDAD: las páginas reciben de la base (la única fuente de los eventos) lo mismo que
+ * recibían de los .md. Eventos inventados (fixtures/calendario, datos falsos) importados a un D1
  * de miniflare con la importación de verdad; del lado .md, el mismo `processPost` que usa el sitio.
  *
  * También: la importación es idempotente, informa lo que cambia, no pisa lo editado en el panel,
- * guarda el historial; la visibilidad (oculto, no listado, borrado), que con el interruptor
- * apagado nada cambie y que el contador «No listadas» del panel dé lo mismo que la lista.
+ * guarda el historial; la visibilidad (oculto, no listado, borrado), que un .md que no está en la
+ * base no se muestre y que el contador «No listadas» del panel dé lo mismo que la lista.
+ *
+ * (Las pruebas «con el interruptor apagado» se sacaron con el interruptor: el modo «.md» ya no
+ * existe. No es aflojar las pruebas: es sacar un modo.)
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { countingDB, createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -86,14 +89,12 @@ beforeEach(async () => {
 	await resetDB(t.db);
 });
 afterEach(() => {
-	vi.doUnmock('$env/dynamic/private');
 	vi.resetModules();
 });
 
-/** El módulo de lectura con el interruptor como se pida. */
-async function contenido(flag = '1') {
+/** El módulo de lectura, recién cargado. */
+async function contenido() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { CONTENIDO_DB_ENABLED: flag } }));
 	const posts = await import('./posts.js');
 	posts.clearContentCache();
 	return posts;
@@ -166,9 +167,8 @@ describe('importación', () => {
 			action: 'unchanged',
 			changed: []
 		});
-		const posts = await contenido('1');
-		const found = await posts.siteEvent(t.platform, slug);
-		const post = found.mode === 'db' ? found.post : null;
+		const posts = await contenido();
+		const post = await posts.siteEvent(t.platform, slug);
 		expect(post?.meta.authors).toEqual(['Persona Inventada', 'Otre Inventade']);
 		const f = files.find((x) => x.legacySlug === slug);
 		const fromMd = await utils.processPost(undefined, slug, /** @type {any} */ (f?.meta));
@@ -256,19 +256,21 @@ describe('importación', () => {
 describe('paridad: lo que reciben las páginas', () => {
 	it('las listas: los mismos eventos, en el mismo orden, con la misma metadata', async () => {
 		await importAll();
-		const posts = await contenido('1');
+		const posts = await contenido();
 		for (const unlisted of [false, true]) {
 			const fromDb = await posts.sitePosts(t.platform, false, unlisted);
-			const fromMd = unlisted ? md.unlisted : md.listed;
+			const fromMd = (unlisted ? md.unlisted : md.listed).filter(
+				(/** @type {any} */ p) => p.meta.postID !== NOT_IMPORTED
+			);
 			expect(ids(fromDb)).toEqual(ids(fromMd));
 			for (const [i, p] of fromDb.entries()) {
 				expect(p.path).toBe(fromMd[i].path);
 				expect(metaDiff(norm(p.meta), norm(fromMd[i].meta)), p.meta.postID).toEqual([]);
 			}
 		}
-		// El que no se importó sigue saliendo del .md; el oculto no sale en ningún lado.
+		// El que no se importó no sale (aunque tenga .md); el oculto no sale en ningún lado.
 		const listed = ids(await posts.sitePosts(t.platform));
-		expect(listed).toContain(NOT_IMPORTED);
+		expect(listed).not.toContain(NOT_IMPORTED);
 		expect(listed).not.toContain('charla-oculta-2031-03');
 		expect(ids(await posts.sitePosts(t.platform, false, true))).toEqual([
 			'ciclo-no-listado-2031-04'
@@ -277,12 +279,10 @@ describe('paridad: lo que reciben las páginas', () => {
 
 	it('la página de cada evento: la misma metadata y el texto armado', async () => {
 		await importAll();
-		const posts = await contenido('1');
+		const posts = await contenido();
 		for (const f of files) {
 			if (!f.meta || f.meta.force_unpublished) continue;
-			const found = await posts.siteEvent(t.platform, f.legacySlug);
-			expect(found.mode, f.legacySlug).toBe('db');
-			const post = found.mode === 'db' ? found.post : null;
+			const post = await posts.siteEvent(t.platform, f.legacySlug);
 			if (!post) throw new Error(`no se encontró ${f.legacySlug}`);
 			const fromMd = await utils.processPost(undefined, f.legacySlug, /** @type {any} */ (f.meta));
 			expect(post.path).toBe(fromMd.path);
@@ -293,7 +293,7 @@ describe('paridad: lo que reciben las páginas', () => {
 			expect(post).not.toHaveProperty('content');
 		}
 		const fiesta = await posts.siteEvent(t.platform, 'fiesta-inventada-2031-01');
-		const html = fiesta.mode === 'db' ? (fiesta.post?.html ?? '') : '';
+		const html = fiesta?.html ?? '';
 		expect(html).toContain('<strong>inventada</strong>');
 		expect(html).toContain('href="/wiki/bondage"');
 		expect(html).toContain('<li>Música inventada</li>');
@@ -302,15 +302,16 @@ describe('paridad: lo que reciben las páginas', () => {
 
 	it('el .ics sale igual', async () => {
 		await importAll();
-		const posts = await contenido('1');
+		const posts = await contenido();
 		const fromDb = await posts.sitePosts(t.platform);
 		const strip = (/** @type {string} */ s) => s.replace(/^DTSTAMP:.*$/gm, '');
-		expect(strip(buildIcsFeed(fromDb))).toBe(strip(buildIcsFeed(md.listed)));
+		const fromMd = md.listed.filter((/** @type {any} */ p) => p.meta.postID !== NOT_IMPORTED);
+		expect(strip(buildIcsFeed(fromDb))).toBe(strip(buildIcsFeed(fromMd)));
 	});
 
 	it('el texto para la búsqueda sale igual', async () => {
 		await importAll();
-		const posts = await contenido('1');
+		const posts = await contenido();
 		const bodies = await posts.siteBodies(t.platform);
 		for (const f of files) {
 			if (!f.meta || f.meta.force_unpublished || f.meta.force_unlisted) continue;
@@ -324,22 +325,17 @@ describe('paridad: lo que reciben las páginas', () => {
 describe('visibilidad', () => {
 	it('oculto: 404 para el público, visible para admins', async () => {
 		await importAll();
-		const posts = await contenido('1');
-		expect(await posts.siteEvent(t.platform, 'charla-oculta-2031-03')).toEqual({
-			mode: 'db',
-			post: null
-		});
+		const posts = await contenido();
+		expect(await posts.siteEvent(t.platform, 'charla-oculta-2031-03')).toBeNull();
 		const admin = await posts.siteEvent(t.platform, 'charla-oculta-2031-03', { viewer: ADMIN });
-		expect(admin.mode === 'db' && admin.post?.meta.title).toBe('Charla Oculta Inventada');
+		expect(admin?.meta.title).toBe('Charla Oculta Inventada');
 	});
 
 	it('la dirección vieja con mayúsculas sigue andando', async () => {
 		await importAll();
-		const posts = await contenido('1');
+		const posts = await contenido();
 		const found = await posts.siteEvent(t.platform, 'Encuentro-Pasado-BDSM-2025-05');
-		expect(found.mode === 'db' && found.post?.path).toBe(
-			'/calendario/Encuentro-Pasado-BDSM-2025-05'
-		);
+		expect(found?.path).toBe('/calendario/Encuentro-Pasado-BDSM-2025-05');
 	});
 
 	it('borrado en la base: no sale en las listas ni en su página, aunque el .md siga', async () => {
@@ -353,17 +349,14 @@ describe('visibilidad', () => {
 			{ id: taller.objectId, type: 'evento', version: 1, deleted: true },
 			{ actor: 'admin-inventade', now: NOW }
 		);
-		const posts = await contenido('1');
+		const posts = await contenido();
 		expect(ids(await posts.sitePosts(t.platform))).not.toContain('taller-inventado-2031-02');
-		expect(await posts.siteEvent(t.platform, 'taller-inventado-2031-02')).toEqual({
-			mode: 'db',
-			post: null
-		});
+		expect(await posts.siteEvent(t.platform, 'taller-inventado-2031-02')).toBeNull();
 	});
 
 	it('un cambio en la base se ve enseguida (lo recordado se renueva)', async () => {
 		await importAll();
-		const posts = await contenido('1');
+		const posts = await contenido();
 		const before = await posts.sitePosts(t.platform);
 		expect(before.find((p) => p.meta.postID === 'taller-inventado-2031-02')?.meta.title).toBe(
 			'Taller Inventado de Nudos'
@@ -383,20 +376,18 @@ describe('visibilidad', () => {
 		);
 	});
 
-	it('lo que no está en la base sale del .md', async () => {
+	it('lo que no está en la base no existe, aunque tenga .md (ni para admins)', async () => {
 		await importAll();
-		const posts = await contenido('1');
-		expect(await posts.siteEvent(t.platform, NOT_IMPORTED)).toEqual({ mode: 'md' });
+		const posts = await contenido();
+		expect(await posts.siteEvent(t.platform, NOT_IMPORTED)).toBeNull();
+		expect(await posts.siteEvent(t.platform, NOT_IMPORTED, { viewer: ADMIN })).toBeNull();
 	});
 
-	it('con el interruptor apagado, todo sale de los .md aunque la base tenga eventos', async () => {
-		await importAll();
-		const posts = await contenido('0');
-		expect(await posts.sitePosts(t.platform)).toEqual(md.listed);
-		expect(await posts.siteEvent(t.platform, 'charla-oculta-2031-03', { viewer: ADMIN })).toEqual({
-			mode: 'md'
-		});
-		expect((await posts.siteBodies(t.platform)).size).toBe(0);
+	it('sin base no hay eventos (ni del .md)', async () => {
+		const posts = await contenido();
+		const noDb = /** @type {App.Platform} */ ({ env: {} });
+		expect(ids(await posts.sitePosts(noDb))).toEqual([]);
+		expect(await posts.siteEvent(noDb, 'taller-inventado-2031-02')).toBeNull();
 	});
 });
 
@@ -410,13 +401,6 @@ describe('las listas no leen el cuerpo de los posts', () => {
 		const types = CATEGORY_LIST.map((c) => c.type);
 		const t2 = types.map(() => '?').join(', ');
 		const visible = visibleWhere(ANON, 'o');
-		const { results: claimedRows } = await t.db
-			.prepare(
-				`SELECT o.type, o.slug, s.legacy_slug FROM objects o
-				LEFT JOIN content_sources s ON s.object_id = o.id WHERE o.type IN (${t2})`
-			)
-			.bind(...types)
-			.all();
 		const { results: rows } = await t.db
 			.prepare(
 				`SELECT o.id, o.type, o.slug, o.title, o.data, o.visibility, s.legacy_slug FROM objects o
@@ -425,13 +409,6 @@ describe('las listas no leen el cuerpo de los posts', () => {
 			)
 			.bind(...types, ...visible.params)
 			.all();
-		/** @type {Map<string, Set<string>>} */
-		const claimed = new Map(CATEGORY_LIST.map((c) => [c.category, new Set()]));
-		for (const r of claimedRows) {
-			const set = claimed.get(String(categoryOfType(String(r.type))?.category));
-			set?.add(String(r.slug));
-			if (r.legacy_slug) set?.add(String(r.legacy_slug));
-		}
 		/** @type {any[]} */
 		const listed = [];
 		/** @type {any[]} */
@@ -455,15 +432,15 @@ describe('las listas no leen el cuerpo de los posts', () => {
 			if (typeof data.body === 'string' && data.body) bodies.set(post.path, data.body);
 		}
 		return {
-			listed: posts.mergePosts(structuredClone(md.listed), { claimed }, listed),
-			unlisted: posts.mergePosts(structuredClone(md.unlisted), { claimed }, unlisted),
+			listed: posts.mergePosts(structuredClone(md.listed), listed),
+			unlisted: posts.mergePosts(structuredClone(md.unlisted), unlisted),
 			bodies
 		};
 	}
 
 	it('dan lo mismo que leyendo todo, sin traer ningún cuerpo', async () => {
 		await importAll();
-		const posts = await contenido('1');
+		const posts = await contenido();
 		const counted = countingDB(t.db);
 		const platform = /** @type {App.Platform} */ ({ env: { ...t.env, DB: counted.db } });
 		const listed = await posts.sitePosts(platform);
@@ -524,16 +501,16 @@ describe('el contador «No listadas» del menú del panel', () => {
 		];
 		md.unlisted.push(...extra);
 		try {
-			let posts = await contenido('1');
-			// Sin nada importado: todo sale de los .md.
+			let posts = await contenido();
+			// Sin nada importado: solo la ficha de amigues (los eventos salen solo de la base).
 			expect(await fromQuery(posts)).toBe(await fromList(posts));
-			expect(await fromQuery(posts)).toBe(md.unlisted.length);
+			expect(await fromQuery(posts)).toBe(1);
 
 			await importAll();
-			posts = await contenido('1');
+			posts = await contenido();
 			expect(await fromQuery(posts)).toBe(await fromList(posts));
 
-			// Un evento listado pasa a no listado en la base (su .md sigue listado).
+			// Un evento listado pasa a no listado.
 			const fiesta = await objectOf('fiesta-inventada-2031-01');
 			await saveObject(
 				t.db,
@@ -553,7 +530,7 @@ describe('el contador «No listadas» del menú del panel', () => {
 			expect(await fromQuery(posts)).toBe(await fromList(posts));
 			expect(await fromQuery(posts)).toBe(withFiesta - 1);
 
-			// Borrado: tampoco cuenta, y su .md no vuelve (la base decide su dirección).
+			// Borrado: tampoco cuenta, y su .md no vuelve.
 			const borrar = await objectOf('fiesta-inventada-2031-01');
 			await saveObject(
 				t.db,
@@ -561,11 +538,6 @@ describe('el contador «No listadas» del menú del panel', () => {
 				{ actor: 'admin-inventade', now: NOW + 3 }
 			);
 			expect(await fromQuery(posts)).toBe(await fromList(posts));
-
-			// Con el interruptor apagado, los .md.
-			posts = await contenido('0');
-			expect(await fromQuery(posts)).toBe(await fromList(posts));
-			expect(await fromQuery(posts)).toBe(md.unlisted.length);
 		} finally {
 			md.unlisted.splice(md.unlisted.length - extra.length, extra.length);
 		}

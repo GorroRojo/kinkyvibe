@@ -4,6 +4,7 @@
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import Tags from '$lib/components/Tags.svelte';
+	import ContentParts from '$lib/components/ContentParts.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
 	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
@@ -302,8 +303,13 @@
 			<div class="kv-texto-libre">
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				{@html ownStyle}
-				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				{@html data.html}
+				{#if data.parts}
+					<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
+					<ContentParts parts={data.parts} />
+				{:else}
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+					{@html data.html}
+				{/if}
 			</div>
 		{:else}
 			<svelte:component this={data.content} />
