@@ -15,6 +15,7 @@ import { getManagedProfile } from '$lib/server/cuentas/perfiles.js';
 import {
 	addManager,
 	makeAccount,
+	makeEvent,
 	makeProfile,
 	readAmigueFiles
 } from '$lib/server/amigues/testing.js';
@@ -317,6 +318,15 @@ describe('Eventos → Lugares', () => {
 			)
 		);
 		expect(bad.status).toBe(400);
+		// «Sucede en» es un edge del evento: un evento que todavía no está en la base no se vincula.
+		const notInDb = /** @type {any} */ (
+			await m.lugares.actions.vincular(
+				fakeEvent({ form: { evento: 'fiesta-inventada', lugar: String(v.id) } })
+			)
+		);
+		expect(notInDb.status).toBe(400);
+		expect(notInDb.data.link.message).toMatch(/todavía no está en la base/);
+		await makeEvent(t.db, 'fiesta-inventada');
 		const ok = /** @type {any} */ (
 			await m.lugares.actions.vincular(
 				fakeEvent({

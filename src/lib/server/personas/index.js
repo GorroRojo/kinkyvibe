@@ -18,7 +18,7 @@
  * - el perfil aprobado para /amigues (`PROFILE_APPROVED_SQL`: fila en `profile_approvals`,
  *   migración 0017), la misma regla que la lista de amigues;
  * - el perfil es una persona o un proyecto (`profileKindOf`, que lee el viejo `grupo` como
- *   proyecto): los lugares van aparte, en "Sucede en" (`event_venues`, docs/amigues.md).
+ *   proyecto): los lugares van aparte, en "Sucede en" (edge `lugar`, docs/amigues.md).
  *
  * Un perfil que no cumple todo eso no aparece: ni su nombre, ni su link, ni un "perfil oculto".
  * La dirección (slug) sí está en el .md, que es público en el repo: el editor solo ofrece

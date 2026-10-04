@@ -86,7 +86,7 @@ export async function _editLoad({ locals, params, url, platform }) {
 	const sales = isEvent ? await salesByType(getDB(platform), params.postID) : null;
 	return {
 		sales,
-		// «Lugar» del formulario: los lugares y el elegido (en `event_venues`, no en el archivo).
+		// «Lugar» del formulario: los lugares y el elegido (edge `lugar` del evento, no en el archivo).
 		venuePicker: isEvent ? await venuePickerData(getDB(platform), params.postID) : null,
 		salesUnavailable: isEvent && sales === null,
 		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
@@ -183,8 +183,8 @@ export const _editActions = {
 			);
 			if (linkError) return fail(400, { error: linkError });
 		}
-		// «Lugar» (solo eventos): va a `event_venues`, no al archivo. Se revisa antes de guardar y se
-		// guarda después, solo si el archivo se guardó.
+		// «Lugar» (solo eventos): va al edge `lugar` del evento, no al archivo. Se revisa antes de
+		// guardar y se guarda después, solo si el archivo se guardó.
 		const venue = params.category === 'calendario' ? readVenueChoice(data) : null;
 		const venueCheck = await checkVenueChoice(getDB(platform), venue);
 		if (!venueCheck.ok) return fail(400, { error: venueCheck.message });

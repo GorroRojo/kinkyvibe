@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ANON } from '$lib/server/objects/index.js';
 import { saveObject } from '../objects/save.js';
-import { makeProfile } from './testing.js';
+import { makeEvent, makeProfile } from './testing.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -27,11 +27,23 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/** Los módulos con el interruptor `perfiles_publicos` como se pida. */
+/**
+ * Los módulos con el interruptor `perfiles_publicos` como se pida. «Sucede en» es un edge del
+ * evento, así que el evento tiene que estar en la base: `setEventVenue` de acá lo crea antes si
+ * falta (con una dirección válida; las inválidas siguen sin poder vincularse).
+ */
 async function modules(flag = '1') {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({ env: { PERFILES_PUBLICOS_ENABLED: flag } }));
-	return import('./venues.js');
+	const m = await import('./venues.js');
+	return {
+		...m,
+		/** @type {typeof m.setEventVenue} */
+		async setEventVenue(db, input) {
+			await makeEvent(db, input.eventSlug);
+			return m.setEventVenue(db, input);
+		}
+	};
 }
 
 const SECRET = 'Calle Secreta 742';
@@ -302,15 +314,24 @@ describe('los .ics dinámicos (feedVenues)', () => {
 });
 
 describe('feedVenues lee todos los lugares juntos', () => {
-	/** Un vínculo escrito directo en la base (para casos que `setEventVenue` no deja crear). */
-	const rawLink = (/** @type {string} */ slug, /** @type {number} */ venueId) =>
-		t.db
-			.prepare(
-				`INSERT INTO event_venues (event_slug, venue_id, privacy, created_at, created_by, updated_at, updated_by)
-				VALUES (?1, ?2, NULL, 1, 'a', 1, 'a')`
-			)
-			.bind(slug, venueId)
-			.run();
+	/**
+	 * Un vínculo escrito sin pasar por `setEventVenue` (para casos que no deja crear: un perfil que
+	 * no es lugar, una dirección de evento inválida), con saveObject() como cualquier edge.
+	 */
+	const rawLink = async (/** @type {string} */ slug, /** @type {number} */ venueId) => {
+		const id = await makeEvent(t.db, slug, { anySlug: true });
+		const row = await t.db.prepare('SELECT version FROM objects WHERE id = ?1').bind(id).first();
+		await saveObject(
+			t.db,
+			{
+				id: /** @type {number} */ (id),
+				type: 'evento',
+				version: Number(row?.version),
+				edges: { lugar: [venueId] }
+			},
+			{ actor: 'a' }
+		);
+	};
 
 	/**
 	 * Lugares en todos los casos: los cinco niveles, el evento que cambia el nivel, oculto, solo
@@ -376,9 +397,8 @@ describe('feedVenues lee todos los lugares juntos', () => {
 	async function oneByOne(m, slugs) {
 		const want = new Set(slugs);
 		const out = new Map();
-		const { results } = await t.db.prepare('SELECT event_slug FROM event_venues').all();
-		for (const r of results) {
-			const slug = String(r.event_slug);
+		for (const r of await m.listEventVenues(t.db)) {
+			const slug = r.eventSlug;
 			if (!want.has(slug)) continue;
 			const view = await m.publicVenueForEvent(t.db, slug, ANON);
 			if (view) out.set(slug, view);
@@ -423,5 +443,124 @@ describe('feedVenues lee todos los lugares juntos', () => {
 		expect(counted.queries).toBe(1);
 		// El lugar viaja una vez, no una por evento.
 		expect(JSON.stringify(counted.log[0].result).split(SECRET).length - 1).toBe(1);
+	});
+});
+
+describe('«sucede en» es el edge `lugar` del evento', () => {
+	/** @param {string} slug */
+	const eventRow = async (slug) =>
+		/** @type {any} */ (
+			await t.db
+				.prepare(
+					`SELECT o.id, o.version FROM objects o
+					LEFT JOIN content_sources s ON s.object_id = o.id
+					WHERE o.type = 'evento' AND coalesce(s.legacy_slug, o.slug) = ?1`
+				)
+				.bind(slug)
+				.first()
+		);
+	/** @param {number} id */
+	const lugarEdges = async (id) =>
+		(
+			await t.db
+				.prepare(`SELECT to_id, data, created_by FROM edges WHERE from_id = ?1 AND kind = 'lugar'`)
+				.bind(id)
+				.all()
+		).results;
+
+	it('vincular guarda un edge con el nivel propio en `data` (o sin `data`), con saveObject y su revisión', async () => {
+		const m = await import('./venues.js');
+		const v = await venue('name');
+		const id = await makeEvent(t.db, 'con-edge');
+		expect(
+			await m.setEventVenue(t.db, { eventSlug: 'con-edge', venueId: v.id, privacy: null, by: 'a' })
+		).toEqual({ ok: true });
+		expect(await lugarEdges(Number(id))).toEqual([{ to_id: v.id, data: null, created_by: 'a' }]);
+		await m.setEventVenue(t.db, { eventSlug: 'con-edge', venueId: v.id, privacy: 'area', by: 'b' });
+		expect(await lugarEdges(Number(id))).toEqual([
+			{ to_id: v.id, data: JSON.stringify({ privacy: 'area' }), created_by: 'a' }
+		]);
+		// Cada cambio es una versión nueva del evento, con su historial; repetir lo mismo no.
+		await m.setEventVenue(t.db, { eventSlug: 'con-edge', venueId: v.id, privacy: 'area', by: 'b' });
+		expect((await eventRow('con-edge')).version).toBe(3);
+		const { listRevisions } = await import('$lib/server/contenido/revisions.js');
+		expect(
+			(await listRevisions(t.db, Number(id))).map((r) => [r.version, r.source, r.savedBy])
+		).toEqual([
+			[3, 'lugar', 'b'],
+			[2, 'lugar', 'a']
+		]);
+		expect(await m.removeEventVenue(t.db, 'con-edge', { by: 'c' })).toBe(true);
+		expect(await lugarEdges(Number(id))).toEqual([]);
+		expect(await m.removeEventVenue(t.db, 'con-edge', { by: 'c' })).toBe(false);
+	});
+
+	it('nada de `event_venues`: ni se escribe ni se lee', async () => {
+		const m = await import('./venues.js');
+		const v = await venue('public');
+		await makeEvent(t.db, 'sin-tabla');
+		await m.setEventVenue(t.db, { eventSlug: 'sin-tabla', venueId: v.id, privacy: null, by: 'a' });
+		const { results } = await t.db.prepare('SELECT count(*) AS n FROM event_venues').all();
+		expect(results[0].n).toBe(0);
+		// Una fila vieja en la tabla no cuenta para nada.
+		await makeEvent(t.db, 'fila-vieja');
+		await t.db
+			.prepare(
+				`INSERT INTO event_venues (event_slug, venue_id, privacy, created_at, created_by, updated_at, updated_by)
+				VALUES ('fila-vieja', ?1, NULL, 1, 'a', 1, 'a')`
+			)
+			.bind(v.id)
+			.run();
+		expect(await m.eventVenue(t.db, 'fila-vieja')).toBeNull();
+		expect((await m.listEventVenues(t.db)).map((l) => l.eventSlug)).toEqual(['sin-tabla']);
+	});
+
+	it('un evento que no está en la base no se puede vincular (lo dice)', async () => {
+		const m = await import('./venues.js');
+		const v = await venue('public');
+		expect(
+			await m.setEventVenue(t.db, { eventSlug: 'solo-md', venueId: v.id, privacy: null, by: 'a' })
+		).toEqual({ ok: false, message: m.NOT_IN_DB });
+		expect(await m.eventVenue(t.db, 'solo-md')).toBeNull();
+	});
+
+	it('un evento importado se busca por la dirección de su .md, y sigue contando como no editado', async () => {
+		const m = await import('./venues.js');
+		const v = await venue('public');
+		const id = await makeEvent(t.db, 'Evento_Viejo-BDSM');
+		await m.setEventVenue(t.db, {
+			eventSlug: 'Evento_Viejo-BDSM',
+			venueId: v.id,
+			privacy: 'name',
+			by: 'a'
+		});
+		expect((await m.eventVenue(t.db, 'Evento_Viejo-BDSM'))?.override).toBe('name');
+		const src = /** @type {any} */ (
+			await t.db
+				.prepare(
+					`SELECT s.imported_version, o.version FROM content_sources s
+					JOIN objects o ON o.id = s.object_id WHERE s.object_id = ?1`
+				)
+				.bind(id)
+				.first()
+		);
+		expect(src).toEqual({ imported_version: 2, version: 2 });
+	});
+
+	it('la marca de los vínculos cambia al vincular, cambiar el nivel o sacarlo', async () => {
+		const m = await import('./venues.js');
+		const v = await venue('public');
+		await makeEvent(t.db, 'marca');
+		const stamps = [await m.eventVenuesStamp(t.db)];
+		await m.setEventVenue(t.db, { eventSlug: 'marca', venueId: v.id, privacy: 'name', by: 'a' });
+		stamps.push(await m.eventVenuesStamp(t.db));
+		// 'name' → 'area': mismo largo, igual cambia.
+		await m.setEventVenue(t.db, { eventSlug: 'marca', venueId: v.id, privacy: 'area', by: 'a' });
+		stamps.push(await m.eventVenuesStamp(t.db));
+		await m.removeEventVenue(t.db, 'marca');
+		stamps.push(await m.eventVenuesStamp(t.db));
+		// Cada cambio, una marca distinta de la anterior (sin vínculos, la misma que sin vínculos).
+		for (let i = 1; i < stamps.length; i++) expect(stamps[i], String(i)).not.toBe(stamps[i - 1]);
+		expect(stamps[3]).toBe(stamps[0]);
 	});
 });

@@ -37,6 +37,13 @@ import { EVENT_CATEGORY, normalizeBody } from './eventos.js';
 import { panelAuthor } from './author.js';
 import { markdownToPost, postToMarkdown } from './markdown.js';
 import { revisionStatement } from './revisions.js';
+import {
+	dehydratePersonas,
+	personaEdgesColumn,
+	personaEdgesFromColumn,
+	personaEdgesOf,
+	withPersonaEdges
+} from './personasEdges.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -149,14 +156,17 @@ export async function findDbPostObject(db, category, slug) {
 	// tipo por el `OR` entre las dos tablas. Mismo orden: primero la dirección vieja, después la del
 	// objeto.
 	// Panel (solo admins): ve todo, también lo oculto y lo borrado.
+	// Los edges `persona` van en la misma consulta (./personasEdges.js): la lista de personas entera.
 	const row = await db
 		.prepare(
-			`SELECT ${OBJECT_COLUMNS}, legacy_slug FROM (
-				SELECT ${prefixed('o')}, s.legacy_slug, 0 AS pri FROM content_sources s
+			`SELECT ${OBJECT_COLUMNS}, legacy_slug, persona_edges FROM (
+				SELECT ${prefixed('o')}, s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
+					0 AS pri FROM content_sources s
 				JOIN objects o ON o.id = s.object_id AND o.type = ?1
 				WHERE s.category = ?2 AND s.legacy_slug = ?3
 				UNION ALL
-				SELECT ${prefixed('o')}, s.legacy_slug, 1 AS pri FROM objects o
+				SELECT ${prefixed('o')}, s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
+					1 AS pri FROM objects o
 				LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
 				WHERE o.type = ?1 AND o.slug = ?3
 			) ORDER BY pri LIMIT 1`
@@ -165,10 +175,15 @@ export async function findDbPostObject(db, category, slug) {
 		.first();
 	if (!row) return null;
 	// El objeto como lo da getObject(): sin la dirección vieja.
-	const { legacy_slug: legacy, ...columns } = row;
+	const { legacy_slug: legacy, persona_edges: personas, ...columns } = row;
 	const object = rowToObject(columns);
 	if (!canSee(object, PANEL, { includeDeleted: true })) return null;
-	return asPostObject(category, forViewer(object, PANEL), legacy ? String(legacy) : null);
+	const seen = forViewer(object, PANEL);
+	const full =
+		seen.type === 'evento'
+			? { ...seen, data: withPersonaEdges(seen.data, personaEdgesFromColumn(personas)) }
+			: seen;
+	return asPostObject(category, full, legacy ? String(legacy) : null);
 }
 
 /**
@@ -299,11 +314,13 @@ async function readPostsStamp(db, type, category) {
 				(SELECT max(updated_at) FROM objects WHERE type = ?1) AS u,
 				(SELECT max(id) FROM object_revisions) AS v,
 				(SELECT count(*) FROM content_sources WHERE category = ?2) AS sn,
-				(SELECT max(updated_at) FROM content_sources WHERE category = ?2) AS su`
+				(SELECT max(updated_at) FROM content_sources WHERE category = ?2) AS su,
+				(SELECT max(updated_at) FROM objects WHERE type = 'perfil') AS pu`
 		)
 		.bind(type, category)
 		.first();
-	return `${row?.n}:${row?.u}:${row?.v}:${row?.sn}:${row?.su}`;
+	// `pu`: la dirección de los perfiles de las personas (edges, ./personasEdges.js).
+	return `${row?.n}:${row?.u}:${row?.v}:${row?.sn}:${row?.su}:${row?.pu}`;
 }
 
 /**
@@ -322,7 +339,24 @@ async function readDbPostRows(db, type, category) {
 		)
 		.bind(type, category)
 		.all();
-	return results;
+	// Con la lista de personas entera (los perfiles son edges: ./personasEdges.js). Guardar un
+	// edge pasa por saveObject(), que cambia `updated_at`: la marca de arriba lo nota.
+	const personas = await personaEdgesOf(
+		db,
+		results.map((r) => Number(r.id))
+	);
+	if (!personas.size) return results;
+	return results.map((r) => {
+		const edges = personas.get(Number(r.id));
+		if (!edges) return r;
+		let data;
+		try {
+			data = JSON.parse(String(r.data));
+		} catch {
+			return r;
+		}
+		return { ...r, data: JSON.stringify(withPersonaEdges(data, edges)) };
+	});
 }
 
 /**
@@ -643,6 +677,12 @@ async function writePost(db, w, actor) {
 			{ actor, also }
 		);
 	}
+	// Los perfiles de `personas` van como edges, no en `data` (./personasEdges.js).
+	const { data, edges } = await dehydratePersonas(
+		db,
+		w.category,
+		/** @type {Record<string, unknown>} */ (w.data)
+	);
 	if (w.existing) {
 		return saveObject(
 			db,
@@ -651,7 +691,8 @@ async function writePost(db, w, actor) {
 				type,
 				version: w.existing.object.version,
 				title: w.title,
-				data: w.data,
+				data,
+				edges,
 				visibility: w.visibility,
 				// Volver a crear un post borrado es deshacer el borrado.
 				...(w.existing.deleted ? { deleted: false } : {})
@@ -661,7 +702,7 @@ async function writePost(db, w, actor) {
 	}
 	return saveObject(
 		db,
-		{ type, slug: w.slug, title: w.title, data: w.data, visibility: w.visibility },
+		{ type, slug: w.slug, title: w.title, data, edges, visibility: w.visibility },
 		{ actor, also }
 	);
 }

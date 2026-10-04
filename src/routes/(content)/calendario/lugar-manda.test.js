@@ -8,7 +8,7 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
-import { makeProfile } from '$lib/server/amigues/testing.js';
+import { makeEvent, makeProfile } from '$lib/server/amigues/testing.js';
 
 // La primera prueba compila las rutas (y la ficha real de Yuyo): tarda.
 vi.setConfig({ testTimeout: 180_000, hookTimeout: 90_000 });
@@ -118,6 +118,9 @@ async function linkVenues() {
 	});
 	const { setEventVenue } = await import('$lib/server/amigues/venues.js');
 	for (const level of LEVELS) {
+		// «Sucede en» es un edge del evento: el evento tiene que estar en la base (si ya se importó,
+		// es ese).
+		await makeEvent(t.db, `lugar-${level}`);
 		await setEventVenue(t.db, {
 			eventSlug: `lugar-${level}`,
 			venueId: venue.id,

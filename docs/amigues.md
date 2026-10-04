@@ -77,9 +77,9 @@ inventados: `node scripts/demo/n3-amigues.js` y después
 Cada lugar tiene un nivel por defecto (`venue_privacy`; sin elegir: **la dirección completa**,
 decisión de gorrite; también
 vale para los lugares ya guardados sin nivel) y cada evento lo puede cambiar
-(`event_venues.privacy`), y el del evento manda. Quien no quiera la dirección pública elige otro
-nivel; el valor por defecto se decide en un solo lugar, `DEFAULT_VENUE_PRIVACY` en
-`src/lib/utils/venues.js`:
+(`data.privacy` del edge `lugar` del evento), y el del evento manda. Quien no quiera la
+dirección pública elige otro nivel; el valor por defecto se decide en un solo lugar,
+`DEFAULT_VENUE_PRIVACY` en `src/lib/utils/venues.js`:
 
 | Nivel     | En el panel                       | En la página del evento                          | ¿El lugar lista el evento? |
 | --------- | --------------------------------- | ------------------------------------------------ | -------------------------- |
@@ -97,7 +97,8 @@ Los textos del panel salen de un solo mapa, `VENUE_PRIVACY_LABELS` en `src/lib/u
 de gorrite), pero no el nombre, el link, "cómo llegar" ni "accesibilidad" (textos libres que
 pueden nombrarlo). Por lo mismo la página del lugar, que siempre muestra el nombre, no lista esos
 eventos, y si el nivel por defecto del lugar es este, su página se ve como "Sólo Nombre" (sin la
-dirección). La migración 0027 agrega `address` al CHECK de `event_venues.privacy`.
+dirección). La migración 0027 agregó `address` al CHECK de la tabla vieja `event_venues`; en el
+edge, el nivel se valida en código (`isVenuePrivacy`).
 
 En `name`, `area` y `hidden` aparece "Te mandamos la dirección con tu entrada". En todos los
 niveles **quien compró recibe el lugar completo** (nombre y dirección) en el mail de confirmación,
@@ -140,10 +141,11 @@ barrio y ciudad, sin salir del formulario; se guarda en el perfil como desde su 
 Amigues salvo que se elija «Público», como al importar lugares desde los eventos: `venueListing`).
 No listado no es oculto: el evento lo muestra según su nivel. Con un lugar, el «Dónde» en texto
 libre queda plegado («Usar texto libre en vez de un lugar»), como en las páginas públicas. Guardar
-escribe `event_venues` con `setEventVenue`/`removeEventVenue` (y el registro), se guarde el evento
-en GitHub o en la base: **el `.md` no cambia por el lugar** (salvo la fecha de «Actualizado», que se
-pone como en cualquier guardado: cambiar solo el lugar en Editar también la actualiza, decisión de
-gorrite). Al crear, el lugar se vincula recién cuando el evento se creó (si crear falla, no se
+escribe el edge `lugar` del evento con `setEventVenue`/`removeEventVenue` (y el registro), se guarde
+el texto del evento en GitHub o en la base: **el `.md` no cambia por el lugar** (salvo la fecha de
+«Actualizado», que se pone como en cualquier guardado: cambiar solo el lugar en Editar también la
+actualiza, decisión de gorrite). Al crear, el lugar se vincula recién cuando el evento se creó (si
+crear falla, no se
 vincula nada); al duplicar, arranca con el lugar del original. La ficha del evento muestra el lugar
 y su nivel con «Cambiar». Código: `src/lib/server/amigues/eventFormVenue.js` y
 `src/lib/utils/venueChoice.js`.
@@ -182,7 +184,7 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   | solo un barrio o ciudad (sin número)      | "Sólo dirección parcial (Barrio)" |
 
   El lugar toma el más abierto de los eventos que se vinculan, y cada evento que muestra menos
-  lleva su propio nivel en `event_venues.privacy`. Con nombre, el «Dónde» va entero a la
+  lleva su propio nivel en `data.privacy` de su edge `lugar`. Con nombre, el «Dónde» va entero a la
   dirección del lugar; sin nombre ni número, al barrio.
 
 - **Nada cambia en el sitio**: un evento se propone marcado solo si con el lugar se ve lo mismo
@@ -202,24 +204,40 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   Se cambia después en el editor del perfil («No listar en /amigues»).
 - **Nada se guarda hasta «Crear lugares»** (con confirmación). Los lugares nacen visibles y
   aprobados (como los que crea une admin), listados o no según lo elegido; se guardan con
-  `saveObject()` y, en la misma tanda, su aprobación y los vínculos. Vincular no toca el `.md` ni el objeto del evento (es una fila de
-  `event_venues`), y nunca pisa el lugar de un evento que ya tiene uno. Va de a tandas y se puede
+  `saveObject()` y, en la misma tanda, su aprobación; después se vincula cada evento (un guardado
+  del evento con su edge `lugar`, `linkEventVenueIfFree`). Vincular no toca el `.md` ni los datos
+  del evento, solo un evento que está en la base se puede vincular, y nunca pisa el lugar de un
+  evento que ya tiene uno. Va de a tandas y se puede
   repetir; cada lugar creado o vínculo queda en Actividad. Hay CSV de los candidatos.
 
-## Del vínculo provisorio al edge
+## «Sucede en» es un edge
 
-Mientras los eventos sigan siendo `.md`, "sucede en" es una fila de **`event_venues`**
-(`event_slug` → `venue_id`, con `privacy`; confirmado por gorrite, porque los eventos pasan a la
-base pronto). Se eligió una tabla y no `lugar:` en el frontmatter
-porque: la dirección y la privacidad quedan fuera del repo público; el cambio se ve al toque (sin
-PR ni deploy); `venue_id` tiene foreign key al objeto; y las salidas compiladas no pueden filtrar
-nada. Contra: si se cambia la dirección (slug) de un evento, hay que volver a vincularlo.
+"Sucede en" es un **edge `lugar`** del evento (evento → perfil de tipo lugar), escrito solo con
+`saveObject()` sobre el evento (regla 4 de [objetos.md](objetos.md); decisión de gorrite,
+«Contenido solo en la base», paso 3). El nivel propio del evento va en `edges.data`
+(`{ "privacy": "name" }`); sin nivel propio, el edge no tiene `data` y vale el del lugar.
 
-Cuando los eventos pasen a la base: por cada fila, `saveObject()` del evento con
-`edges: { lugar: [{ to: venue_id, data: privacy ? { privacy } : null }] }` (el tipo `evento` ya
-tiene el edge `lugar` hacia… `lugar`: hay que cambiar su destino a `perfil`), y después se borra
-la tabla en una migración nueva. Las lecturas de `src/lib/server/amigues/venues.js` pasan a
-`getEdges`.
+- **El evento tiene que estar en la base** (importado desde Contenido → En la base, o creado con
+  `contenido_db`). Si no, vincular contesta «Ese evento todavía no está en la base: importalo…»
+  (`NOT_IN_DB`) y el formulario guarda el texto igual, con ese aviso.
+- Para afuera todo sigue siendo **por la dirección del evento**: la de su página, la del `.md`
+  importado (`content_sources.legacy_slug`) o la del objeto (la misma regla que `postID` en
+  `contenido/posts.js`). Las lecturas de `src/lib/server/amigues/venues.js` (`eventVenue`,
+  `feedVenues`, `linkedVenues`, `listedVenueEvents`, `listEventVenues`) leen los edges con esa
+  dirección; son lecturas internas (deciden qué mostrar) y nunca mandan el lugar entero a una
+  página: lo que se ve sale de `venueView` según el nivel, como antes.
+- Cada cambio es una **versión nueva del evento** con su revisión (`object_revisions`, `source =
+'lugar'`). Si el evento se importó de un `.md` y nadie lo había editado, sigue contando como no
+  editado (`content_sources.imported_version` sube con él), así volver a importar su `.md` lo
+  sigue actualizando. El guardado del texto (panel o importación) no toca el edge `lugar`.
+- `eventVenuesStamp` (lo usa el índice de la búsqueda para saber si cambió algo) suma la versión de
+  los eventos con lugar: cualquier cambio del vínculo la mueve.
+- **La tabla `event_venues` queda en la base pero nadie la usa** (las migraciones solo agregan).
+  La migración `0035_relaciones_edges.sql` pasó a edges las filas de los eventos que ya estaban en
+  la base; las de eventos que todavía eran solo `.md` se pasan cuando se importan
+  (`legacyVenueEdge` en `contenido/importer.js`, la única lectura que queda). Una migración futura
+  la puede borrar cuando todos los eventos estén en la base.
+- Antes (0017 → 0035) era esa tabla, por la dirección del evento, mientras los eventos eran `.md`.
 
 ## Tablas (migraciones 0017, 0024 y 0025)
 
@@ -229,7 +247,7 @@ la tabla en una migración nueva. Las lecturas de `src/lib/server/amigues/venues
 | `profile_approvals`  | perfiles aprobados para `/amigues`                                                                                                                                                                                                  |
 | `profile_claims`     | pedidos "Es mi perfil" (pendiente, aprobado, rechazado)                                                                                                                                                                             |
 | `profile_rejections` | lugares de cuentas rechazados (0025): quién, cuándo y el motivo que ve quien lo cargó; «Volver a mandar» o aprobarlo borra la fila                                                                                                  |
-| `event_venues`       | "sucede en" provisorio, con la privacidad del evento                                                                                                                                                                                |
+| `event_venues`       | "sucede en" de antes (0017, 0027); desde 0035 es el edge `lugar` del evento y la tabla ya no se usa                                                                                                                                 |
 
 ## Dónde está el código
 

@@ -1,8 +1,8 @@
 /**
  * «Lugar» en el formulario de eventos (crear y editar; pedido de gorrite: elegir el lugar desde el
- * evento, no solo desde Eventos → Lugares). El vínculo vive en `event_venues` (ver
- * docs/amigues.md), se guarde el evento en GitHub o en la base (`contenido_db`): el .md no cambia
- * por elegir un lugar.
+ * evento, no solo desde Eventos → Lugares). El vínculo es el edge `lugar` del evento en la base
+ * (ver docs/amigues.md y ./venues.js), se guarde el texto del evento en GitHub o en la base
+ * (`contenido_db`): el .md no cambia por elegir un lugar. El evento tiene que estar en la base.
  *
  * - {@link venuePickerData}: los lugares para el buscador y lo elegido ahora.
  * - {@link checkVenueChoice}: antes de guardar el evento (si el lugar no existe, no se guarda nada).
@@ -36,7 +36,13 @@ import {
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { isFlagOn } from '$lib/server/flags.js';
-import { eventVenue, listVenues, removeEventVenue, setEventVenue } from './venues.js';
+import {
+	eventVenue,
+	eventVenueLink,
+	listVenues,
+	removeEventVenue,
+	setEventVenue
+} from './venues.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -92,11 +98,8 @@ export async function venueOptions(db) {
  * @returns {Promise<VenueChoice>}
  */
 export async function eventVenueChoice(db, eventSlug) {
-	const row = await db
-		.prepare('SELECT venue_id, privacy FROM event_venues WHERE event_slug = ?1')
-		.bind(eventSlug)
-		.first();
-	return row ? venueChoice(Number(row.venue_id), row.privacy) : venueChoice(null, null);
+	const link = await eventVenueLink(db, eventSlug);
+	return link ? venueChoice(link.venueId, link.privacy) : venueChoice(null, null);
 }
 
 /**
@@ -193,9 +196,10 @@ export async function linkEventVenue(db, locals, { eventSlug, venueId, privacy, 
  * @param {D1Database} db
  * @param {App.Locals} locals
  * @param {string} eventSlug
+ * @param {string} [by] quién (el login de GitHub de le admin)
  */
-export async function unlinkEventVenue(db, locals, eventSlug) {
-	if (!(await removeEventVenue(db, eventSlug))) return false;
+export async function unlinkEventVenue(db, locals, eventSlug, by) {
+	if (!(await removeEventVenue(db, eventSlug, { by }))) return false;
 	await logAdminAction(db, locals, {
 		action: 'event.venue_remove',
 		targetType: 'event',
@@ -219,7 +223,7 @@ export async function saveVenueChoice(db, locals, { eventSlug, choice, by }) {
 	if (!db) return { ok: false, message: 'No hay base de datos disponible.' };
 	try {
 		if (choice.venueId === null) {
-			return { ok: true, changed: await unlinkEventVenue(db, locals, eventSlug) };
+			return { ok: true, changed: await unlinkEventVenue(db, locals, eventSlug, by) };
 		}
 		const r = await linkEventVenue(db, locals, {
 			eventSlug,

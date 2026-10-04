@@ -27,7 +27,7 @@ Apagado, ni las páginas, ni el editor, ni la compra, ni el CSV de Órdenes camb
      que carga une admin y los importados nacen aprobados; los de una cuenta esperan a une admin;
   3. es una persona o un proyecto (`profileKindOf()` de
      `src/lib/server/objects/types/perfil.js`, que lee el viejo `grupo` como proyecto). Los
-     lugares no van como personas: van en «Sucede en» (`event_venues`, ver amigues.md);
+     lugares no van como personas: van en «Sucede en» (edge `lugar`, ver amigues.md);
   4. el interruptor `perfiles_publicos` está prendido (`profilesSwitchOn()`): sin él, /amigues
      muestra las fichas `.md` y el link no tendría a dónde ir.
 
@@ -77,11 +77,13 @@ personas:
 - **Dónde se guarda.** En los `.md` no cambia nada: los nombres con el rol de autores (Organiza en
   eventos, Autore en material y wiki) van a `authors:` y el resto a `personas:`, así que un `.md`
   sin cambios en las personas queda igual, byte a byte. En la base (`contenido_db`) es **una sola
-  lista** en `data.personas`: `[{ profile?, name?, role }]` (`profile` es la dirección del perfil,
-  como `perfil:`; `name`, un nombre). Las páginas, las tarjetas, el `.ics`, el RSS, la búsqueda y
-  «Participa en» siguen leyendo `authors` y `personas` de la metadata, que para los posts de la
-  base se arma desde esa lista (`authors` = los nombres con el rol de autores, en orden). El mapa
-  está en un solo lugar, con pruebas de ida y vuelta: `src/lib/utils/personasList.js`. Lo importado
+  lista**, `[{ profile?, name?, role }]` (`profile` es la dirección del perfil, como `perfil:`;
+  `name`, un nombre): en los eventos, los perfiles van como edges (abajo) y el resto en
+  `data.personas`; en el material, todo en `data.personas`. Las páginas, las tarjetas, el `.ics`,
+  el RSS, la búsqueda y «Participa en» siguen leyendo `authors` y `personas` de la metadata, que
+  para los posts de la base se arma desde esa lista (`authors` = los nombres con el rol de autores,
+  en orden). El mapa está en un solo lugar, con pruebas de ida y vuelta:
+  `src/lib/utils/personasList.js`. Lo importado
   antes (con `data.authors` y `extra.personas`) se lee igual y pasa a la lista única la próxima vez
   que se guarda o se vuelve a importar (no hace falta migrar nada).
 - **Un perfil con el rol Organiza** que se suma desde los perfiles de la base va a `personas:`
@@ -93,10 +95,18 @@ personas:
   (`?/addRole`): solo admins, la misma validación (un rol repetido: «… ya está en la lista: elegilo
   de ahí.»), el mismo registro de actividad (`persona_role.add`) y la protección de SvelteKit contra
   pedidos de otros sitios.
-- **¿Por qué no edges?** Un edge une dos objetos, y los eventos todavía son `.md`. El tipo `evento`
-  ya declara el edge `persona` (→ `perfil`, `data: { roles: [...] }`) y `personasToEdges()` arma
-  exactamente esa forma: cuando los eventos pasen a la base, cada `personas:` se convierte en edges
-  con `saveObject()` y estas lecturas pasan a `getEdges()`.
+- **Edges en la base (eventos).** En un evento de la base, cada perfil de la lista es un **edge
+  `persona`** (evento → perfil), no una dirección en `data` (regla 4 de [objetos.md](objetos.md);
+  decisión de gorrite, «Contenido solo en la base», paso 3): un edge por perfil con
+  `data: { roles: [...], at: [...] }`, cada rol con su lugar en la lista. En `data.personas`
+  quedan solo los nombres sin perfil (y una dirección que no es de ningún perfil vivo: no hay a qué
+  apuntar), en su orden. Guardar (panel o importación) parte la lista y leer la vuelve a armar
+  igual, en el mismo orden, así la metadata, el `.md` que arma la base, la búsqueda y «Participa
+  en» no cambian: `src/lib/server/contenido/personasEdges.js`. La migración
+  `0035_relaciones_edges.sql` pasó a edges lo que ya estaba guardado. Las lecturas internas traen
+  los edges de cualquier perfil, como antes estaba la dirección en el JSON: qué se muestra lo sigue
+  decidiendo `personas/index.js`. El material todavía guarda la lista entera en `data.personas`
+  (paso aparte).
 - La wiki se prerenderiza (sin base al compilar): ahí el frontmatter se guarda pero la página no
   muestra personas.
 - Links: `profileHref()` → `/amigues/<dirección>`: la vieja si el perfil se importó de una ficha

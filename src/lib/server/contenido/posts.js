@@ -28,8 +28,9 @@ import { contenidoDbEnabled } from '$lib/server/flags.js';
 import { ANON, visibleWhere } from '$lib/server/objects/visibility.js';
 import { getObject } from '$lib/server/objects/read.js';
 import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
-import { EVENT_CATEGORY } from './eventos.js';
+import { EVENT_CATEGORY, EVENT_TYPE } from './eventos.js';
 import { renderContentBody } from './render.js';
+import { hydratePersonas, personaEdgesOf, withPersonaEdges } from './personasEdges.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/visibility.js').Viewer} Viewer */
@@ -84,11 +85,14 @@ async function contentStamp(db) {
 			`SELECT (SELECT count(*) FROM objects WHERE type IN (${t})) AS n,
 				(SELECT max(updated_at) FROM objects WHERE type IN (${t})) AS u,
 				(SELECT count(*) FROM content_sources WHERE category IN (${c})) AS sn,
-				(SELECT max(updated_at) FROM content_sources WHERE category IN (${c})) AS su`
+				(SELECT max(updated_at) FROM content_sources WHERE category IN (${c})) AS su,
+				(SELECT max(updated_at) FROM objects WHERE type = 'perfil') AS pu`
 		)
 		.bind(...TYPES, ...TYPES, ...CATEGORIES, ...CATEGORIES)
 		.first();
-	return `${row?.n}:${row?.u}:${row?.sn}:${row?.su}`;
+	// `pu`: los perfiles de las personas son edges y la metadata lleva su dirección actual
+	// (./personasEdges.js): si un perfil cambia, lo recordado se vuelve a armar.
+	return `${row?.n}:${row?.u}:${row?.sn}:${row?.su}:${row?.pu}`;
 }
 
 /**
@@ -151,6 +155,11 @@ async function loadDbState(db, stamp) {
 	const unlisted = [];
 	/** @type {Map<number, string>} */
 	const paths = new Map();
+	// Los perfiles de `personas` son edges (./personasEdges.js): la metadata lleva la lista entera.
+	const personas = await personaEdgesOf(
+		db,
+		rows.results.filter((r) => r.type === EVENT_TYPE).map((r) => Number(r.id))
+	);
 	for (const r of rows.results) {
 		const cat = categoryOfType(String(r.type));
 		if (!cat) continue;
@@ -162,7 +171,7 @@ async function loadDbState(db, stamp) {
 		}
 		const object = {
 			title: String(r.title),
-			data: /** @type {Record<string, any>} */ (data),
+			data: withPersonaEdges(/** @type {Record<string, any>} */ (data), personas.get(Number(r.id))),
 			visibility: String(r.visibility)
 		};
 		const postID = r.legacy_slug ? String(r.legacy_slug) : String(r.slug);
@@ -448,8 +457,9 @@ export async function siteContent(
 	if (!db || !cat) return { mode: 'md' };
 	const ref = await resolveContentSlug(db, category, slug);
 	if (!ref) return { mode: 'md' };
-	const object = await getObject(db, { id: ref.id }, viewer);
-	if (!object) return { mode: 'db', post: null };
+	const found = await getObject(db, { id: ref.id }, viewer);
+	if (!found) return { mode: 'db', post: null };
+	const [object] = await hydratePersonas(db, [found]);
 	const postID = ref.legacySlug ?? object.slug;
 	const post = await processPost(
 		undefined,

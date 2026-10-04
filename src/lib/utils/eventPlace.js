@@ -4,8 +4,8 @@
  * libre del frontmatter, que ya usaban la página y el .ics, más un link opcional al mapa
  * (`location_map`: OpenStreetMap o Google Maps, siempre https).
  *
- * Un lugar vinculado («Sucede en», `event_venues`) manda: con lugar, la página y el .ics muestran
- * el lugar según su privacidad y no se usa ni el `location` ni el `location_map` del .md.
+ * Un lugar vinculado («Sucede en», edge `lugar` del evento) manda: con lugar, la página y el .ics
+ * muestran el lugar según su privacidad y no se usa ni el `location` ni el `location_map` del .md.
  *
  * Funciones puras: las usan la página del evento, los calendarios .ics, el editor y el guardado.
  */

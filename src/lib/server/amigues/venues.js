@@ -1,11 +1,15 @@
 /**
- * Lugares y eventos: "sucede en" (tabla `event_venues`, migración 0017) y lo que se muestra de
- * cada lugar según su privacidad (decisión B3). Las reglas de qué se ve en cada nivel están en
- * src/lib/utils/venues.js (puras); acá, las lecturas y escrituras.
+ * Lugares y eventos: "sucede en" y lo que se muestra de cada lugar según su privacidad (decisión
+ * B3). Las reglas de qué se ve en cada nivel están en src/lib/utils/venues.js (puras); acá, las
+ * lecturas y escrituras.
  *
- * Vínculo PROVISORIO por la dirección del evento, mientras los eventos sigan siendo .md. Cuando
- * pasen a la base, cada fila se convierte en un edge `lugar` (evento → perfil de lugar) con
- * saveObject(), y `privacy` pasa a `edges.data` (ver docs/amigues.md).
+ * "Sucede en" es un edge `lugar` (evento → perfil de lugar, `edges.data.privacy` = el nivel propio
+ * del evento, o sin `data` si usa el del lugar), escrito SOLO con saveObject() sobre el evento
+ * (con su historial). Antes era la tabla `event_venues` (migraciones 0017 y 0027); la 0035 pasó
+ * sus filas a edges y nada la usa más (queda en la base: las migraciones solo agregan). Por eso
+ * el evento tiene que estar en la base para tener lugar (docs/amigues.md). Para afuera todo sigue
+ * siendo por la dirección del evento (la de su página: la del .md importado o la del objeto), como
+ * las listas de posts.
  *
  * Lo que nunca se tiene que romper:
  * - la dirección de un lugar sale de acá solo en {@link publicVenueForEvent} (según el nivel) y en
@@ -23,6 +27,9 @@
  */
 import { venuePlaceMeta, stripMdPlace } from '$lib/utils/eventPlace.js';
 import { ANON, canSee, getObject } from '$lib/server/objects/index.js';
+import { ObjectError, VersionConflictError } from '$lib/server/objects/errors.js';
+import { saveObject } from '$lib/server/objects/save.js';
+import { revisionStatement } from '$lib/server/contenido/revisions.js';
 import { OBJECT_COLUMNS, forViewer, rowToObject } from '$lib/server/objects/read.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
@@ -44,6 +51,10 @@ import { textOrNull as s } from '$lib/utils/text.js';
 /** @typedef {import('$lib/utils/venues.js').VenuePrivacy} VenuePrivacy */
 /** @typedef {import('$lib/utils/venues.js').VenueView} VenueView */
 
+/** El tipo de los eventos y la relación «sucede en» (src/lib/server/objects/types/evento.js). */
+const EVENT_TYPE = 'evento';
+const LUGAR_EDGE = 'lugar';
+
 /** Dirección de evento válida (la de los .md de calendario). */
 const EVENT_SLUG = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
@@ -51,6 +62,28 @@ const EVENT_SLUG = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 export function isEventSlug(slug) {
 	return typeof slug === 'string' && EVENT_SLUG.test(slug);
 }
+
+/**
+ * La dirección con la que las páginas conocen a un evento de la base: la del .md importado
+ * (`content_sources.legacy_slug`) o, si no tiene, la del objeto. La misma regla que `postID` en
+ * src/lib/server/contenido/posts.js. Para SQL con `ev` (el evento) y `cs` (su `content_sources`).
+ */
+const EVENT_POST_SLUG = 'coalesce(cs.legacy_slug, ev.slug)';
+
+/**
+ * Los vínculos evento → lugar (edges `lugar`), con la dirección del evento, el lugar y el nivel
+ * propio del evento. Lectura interna (decide qué mostrar; nunca se manda así a una página): no
+ * filtra por visibilidad, como la tabla de antes. `where` se agrega con AND.
+ *
+ * @param {string} where
+ */
+const lugarLinksSql = (where) =>
+	`SELECT ${EVENT_POST_SLUG} AS event_slug, e.from_id AS event_id, e.to_id AS venue_id,
+		json_extract(e.data, '$.privacy') AS privacy, e.created_at, e.created_by
+	FROM edges e
+	JOIN objects ev ON ev.id = e.from_id AND ev.type = '${EVENT_TYPE}'
+	LEFT JOIN content_sources cs ON cs.object_id = ev.id AND cs.category = 'calendario'
+	WHERE e.kind = '${LUGAR_EDGE}' AND (${where})`;
 
 /**
  * El vínculo de un evento con su lugar, con el lugar entero (sin filtrar: es para decidir qué
@@ -68,10 +101,11 @@ export async function eventVenue(db, eventSlug) {
 		.join(', ');
 	const row = await db
 		.prepare(
-			`SELECT ${cols}, ev.privacy AS ev_privacy, s.legacy_slug AS legacy_slug FROM event_venues ev
-			JOIN objects o ON o.id = ev.venue_id
+			`SELECT ${cols}, l.privacy AS ev_privacy, s.legacy_slug AS legacy_slug
+			FROM (${lugarLinksSql(`${EVENT_POST_SLUG} = ?1`)}) l
+			JOIN objects o ON o.id = l.venue_id
 			LEFT JOIN profile_sources s ON s.profile_id = o.id
-			WHERE ev.event_slug = ?1 AND o.type = ?2 AND o.deleted_at IS NULL`
+			WHERE o.type = ?2 AND o.deleted_at IS NULL`
 		)
 		.bind(eventSlug, PROFILE_TYPE)
 		.first();
@@ -228,8 +262,8 @@ export async function linkedVenues(db, slugs) {
 
 /**
  * Una marca que cambia cuando cambia algún vínculo evento → lugar (agregar, sacar o cambiar el
- * nivel: `setEventVenue` actualiza `updated_at`). Una consulta chica, para quien recuerda algo
- * armado con los vínculos (el índice de la búsqueda).
+ * nivel: cada cambio pasa por saveObject() sobre el evento, que le sube la `version`). Una
+ * consulta chica, para quien recuerda algo armado con los vínculos (el índice de la búsqueda).
  *
  * @param {D1Database} db
  * @returns {Promise<string>}
@@ -237,11 +271,13 @@ export async function linkedVenues(db, slugs) {
 export async function eventVenuesStamp(db) {
 	const row = await db
 		.prepare(
-			`SELECT count(*) AS n, total(updated_at) AS u, total(venue_id) AS v,
-				total(length(privacy)) AS p FROM event_venues`
+			`SELECT count(*) AS n, total(e.id) AS i, total(e.to_id) AS v, total(ev.version) AS u,
+				total(length(e.data)) AS p
+			FROM edges e JOIN objects ev ON ev.id = e.from_id WHERE e.kind = ?1`
 		)
+		.bind(LUGAR_EDGE)
 		.first();
-	return `${row?.n}:${row?.u}:${row?.v}:${row?.p}`;
+	return `${row?.n}:${row?.i}:${row?.v}:${row?.u}:${row?.p}`;
 }
 
 /**
@@ -266,8 +302,8 @@ async function anonEventVenues(db, slugs) {
 	const [links, venues] = await db.batch([
 		db
 			.prepare(
-				`SELECT event_slug, venue_id, privacy FROM event_venues
-				WHERE event_slug IN (SELECT value FROM json_each(?1)) ORDER BY event_slug`
+				`${lugarLinksSql(`${EVENT_POST_SLUG} IN (SELECT value FROM json_each(?1))`)}
+				ORDER BY event_slug`
 			)
 			.bind(wanted),
 		db
@@ -276,7 +312,7 @@ async function anonEventVenues(db, slugs) {
 					EXISTS (SELECT 1 FROM profile_approvals a WHERE a.profile_id = o.id) AS approved
 				FROM objects o LEFT JOIN profile_sources s ON s.profile_id = o.id
 				WHERE o.id IN (
-					SELECT venue_id FROM event_venues WHERE event_slug IN (SELECT value FROM json_each(?1))
+					SELECT venue_id FROM (${lugarLinksSql(`${EVENT_POST_SLUG} IN (SELECT value FROM json_each(?1))`)})
 				) AND o.type = ?2 AND o.deleted_at IS NULL`
 			)
 			.bind(wanted, PROFILE_TYPE)
@@ -367,10 +403,7 @@ export async function relatedWithVenuePlaces(db, related) {
  * @returns {Promise<string[]>} direcciones de eventos
  */
 export async function listedVenueEvents(db, venue) {
-	const { results } = await db
-		.prepare('SELECT event_slug, privacy FROM event_venues WHERE venue_id = ?1')
-		.bind(venue.id)
-		.all();
+	const { results } = await db.prepare(lugarLinksSql('e.to_id = ?1')).bind(venue.id).all();
 	return results
 		.filter((r) => showsVenueLink(effectivePrivacy(r.privacy, venue.data.venue_privacy)))
 		.map((r) => String(r.event_slug));
@@ -394,7 +427,8 @@ export function venuePageLocation(venue, href) {
 // ---------------------------------------------------------------------------------------------
 
 /**
- * Todos los vínculos evento → lugar, para el panel.
+ * Todos los vínculos evento → lugar, para el panel. `updatedAt`/`updatedBy`: cuándo y quién
+ * vinculó el evento a ese lugar (el edge; cambiar solo el nivel no lo cambia).
  *
  * @param {D1Database} db
  * @returns {Promise<{ eventSlug: string, venueId: number, venueTitle: string, venueDeleted: boolean, privacy: VenuePrivacy | null, updatedAt: number, updatedBy: string }[]>}
@@ -402,9 +436,9 @@ export function venuePageLocation(venue, href) {
 export async function listEventVenues(db) {
 	const { results } = await db
 		.prepare(
-			`SELECT ev.event_slug, ev.venue_id, ev.privacy, ev.updated_at, ev.updated_by, o.title,
-				o.deleted_at FROM event_venues ev JOIN objects o ON o.id = ev.venue_id
-			ORDER BY ev.event_slug`
+			`SELECT l.event_slug, l.venue_id, l.privacy, l.created_at, l.created_by, o.title,
+				o.deleted_at FROM (${lugarLinksSql('1')}) l JOIN objects o ON o.id = l.venue_id
+			ORDER BY l.event_slug`
 		)
 		.all();
 	return results.map((r) => ({
@@ -413,8 +447,8 @@ export async function listEventVenues(db) {
 		venueTitle: String(r.title),
 		venueDeleted: r.deleted_at != null,
 		privacy: isVenuePrivacy(r.privacy) ? r.privacy : null,
-		updatedAt: Number(r.updated_at),
-		updatedBy: String(r.updated_by)
+		updatedAt: Number(r.created_at),
+		updatedBy: String(r.created_by)
 	}));
 }
 
@@ -436,7 +470,109 @@ export async function listVenues(db) {
 }
 
 /**
- * Vincula (o cambia) el lugar de un evento.
+ * El vínculo de un evento como está guardado (también con un lugar borrado: el formulario lo
+ * avisa), o `null` si no tiene. Para el formulario del panel.
+ *
+ * @param {D1Database} db
+ * @param {string} eventSlug
+ * @returns {Promise<{ venueId: number, privacy: unknown } | null>}
+ */
+export async function eventVenueLink(db, eventSlug) {
+	if (!isEventSlug(eventSlug)) return null;
+	const row = await db
+		.prepare(lugarLinksSql(`${EVENT_POST_SLUG} = ?1`))
+		.bind(eventSlug)
+		.first();
+	return row ? { venueId: Number(row.venue_id), privacy: row.privacy } : null;
+}
+
+/**
+ * El evento de la base con esa dirección (la de su página, ver {@link EVENT_POST_SLUG}), también
+ * oculto o borrado (el panel lo puede vincular igual), o `null` si la base no lo tiene.
+ *
+ * @param {D1Database} db
+ * @param {string} eventSlug
+ * @returns {Promise<{ id: number, version: number, venueId: number | null, privacy: unknown } | null>}
+ */
+async function eventForVenue(db, eventSlug) {
+	const row = await db
+		.prepare(
+			`SELECT ev.id, ev.version, e.to_id AS venue_id, json_extract(e.data, '$.privacy') AS privacy
+			FROM objects ev
+			LEFT JOIN content_sources cs ON cs.object_id = ev.id AND cs.category = 'calendario'
+			LEFT JOIN edges e ON e.from_id = ev.id AND e.kind = ?2
+			WHERE ev.type = ?3 AND (cs.legacy_slug = ?1 OR (cs.legacy_slug IS NULL AND ev.slug = ?1))
+			ORDER BY cs.legacy_slug IS NULL LIMIT 1`
+		)
+		.bind(eventSlug, LUGAR_EDGE, EVENT_TYPE)
+		.first();
+	if (!row) return null;
+	return {
+		id: Number(row.id),
+		version: Number(row.version),
+		venueId: row.venue_id == null ? null : Number(row.venue_id),
+		privacy: row.privacy
+	};
+}
+
+/** Cuántas veces se reintenta si alguien guardó el evento en el medio. */
+const VENUE_SAVE_TRIES = 3;
+
+/**
+ * Escribe el edge `lugar` de un evento con saveObject() (versión nueva del evento, con su
+ * historial en la misma tanda). Lo que el evento tenía en `data` no cambia; si se importó de un
+ * .md y nadie lo había editado, sigue contando como no editado (`content_sources`), así volver a
+ * importar su .md lo sigue actualizando.
+ *
+ * @param {D1Database} db
+ * @param {string} eventSlug
+ * @param {{ to: number, data: { privacy: VenuePrivacy } | null }[]} lugar `[]` para sacarlo
+ * @param {{ by: string, now: number }} opts
+ * @returns {Promise<{ ok: true, changed: boolean } | { ok: false, message: string }>}
+ */
+async function writeVenueEdge(db, eventSlug, lugar, { by, now }) {
+	for (let attempt = 1; ; attempt++) {
+		const event = await eventForVenue(db, eventSlug);
+		if (!event) return { ok: false, message: NOT_IN_DB };
+		const want = lugar[0] ?? null;
+		const same = want
+			? event.venueId === want.to && (event.privacy ?? null) === (want.data?.privacy ?? null)
+			: event.venueId === null;
+		if (same) return { ok: true, changed: false };
+		try {
+			await saveObject(
+				db,
+				{ id: event.id, type: EVENT_TYPE, version: event.version, edges: { [LUGAR_EDGE]: lugar } },
+				{
+					actor: by,
+					now,
+					also: (self) => [
+						db
+							.prepare(
+								`UPDATE content_sources SET imported_version = ?3
+								WHERE object_id = ?1 AND imported_version = ?2`
+							)
+							.bind(event.id, event.version, event.version + 1),
+						revisionStatement(db, self, 'lugar')
+					]
+				}
+			);
+			return { ok: true, changed: true };
+		} catch (e) {
+			if (e instanceof VersionConflictError && attempt < VENUE_SAVE_TRIES) continue;
+			if (e instanceof ObjectError) return { ok: false, message: e.message };
+			throw e;
+		}
+	}
+}
+
+/** Lo que se contesta si el evento todavía no está en la base. */
+export const NOT_IN_DB =
+	'Ese evento todavía no está en la base: importalo (Contenido → En la base) y después elegile el lugar.';
+
+/**
+ * Vincula (o cambia) el lugar de un evento: el edge `lugar` del evento, con su nivel propio en
+ * `data.privacy` (`null`: el del lugar).
  *
  * @param {D1Database} db
  * @param {{ eventSlug: string, venueId: number, privacy: VenuePrivacy | null, by: string, now?: number }} input
@@ -455,29 +591,51 @@ export async function setEventVenue(db, { eventSlug, venueId, privacy, by, now =
 		.bind(venueId, PROFILE_TYPE)
 		.first();
 	if (!venue) return { ok: false, message: 'Ese lugar ya no existe.' };
-	await db
-		.prepare(
-			`INSERT INTO event_venues (event_slug, venue_id, privacy, created_at, created_by, updated_at, updated_by)
-			VALUES (?1, ?2, ?3, ?4, ?5, ?4, ?5)
-			ON CONFLICT (event_slug) DO UPDATE SET venue_id = excluded.venue_id,
-				privacy = excluded.privacy, updated_at = excluded.updated_at, updated_by = excluded.updated_by`
-		)
-		.bind(eventSlug, venueId, privacy, now, by)
-		.run();
-	return { ok: true };
+	const r = await writeVenueEdge(
+		db,
+		eventSlug,
+		[{ to: venueId, data: privacy ? { privacy } : null }],
+		{ by, now }
+	);
+	return r.ok ? { ok: true } : r;
 }
 
 /**
- * Saca el lugar de un evento (vuelve a mostrar lo de su .md).
+ * Saca el lugar de un evento (vuelve a mostrar lo de su .md). `false` si no tenía (o el evento no
+ * está en la base).
  *
  * @param {D1Database} db
  * @param {string} eventSlug
+ * @param {{ by?: string, now?: number }} [opts]
  */
-export async function removeEventVenue(db, eventSlug) {
+export async function removeEventVenue(db, eventSlug, { by = 'panel', now = Date.now() } = {}) {
 	if (!isEventSlug(eventSlug)) return false;
-	const r = await db
-		.prepare('DELETE FROM event_venues WHERE event_slug = ?1')
-		.bind(eventSlug)
-		.run();
-	return r.meta.changes > 0;
+	const r = await writeVenueEdge(db, eventSlug, [], { by, now });
+	return r.ok && r.changed;
+}
+
+/**
+ * Vincula un evento a un lugar solo si no tiene uno vigente (sin lugar, o con uno borrado): lo que
+ * usa «Importar de eventos», que nunca pisa un vínculo. `false` si no lo vinculó (ya tenía lugar o
+ * el evento no está en la base).
+ *
+ * @param {D1Database} db
+ * @param {{ eventSlug: string, venueId: number, privacy: VenuePrivacy | null, by: string, now?: number }} input
+ */
+export async function linkEventVenueIfFree(
+	db,
+	{ eventSlug, venueId, privacy, by, now = Date.now() }
+) {
+	if (!isEventSlug(eventSlug)) return false;
+	const event = await eventForVenue(db, eventSlug);
+	if (!event) return false;
+	if (event.venueId !== null) {
+		const alive = await db
+			.prepare('SELECT 1 AS ok FROM objects WHERE id = ?1 AND deleted_at IS NULL')
+			.bind(event.venueId)
+			.first();
+		if (alive) return false;
+	}
+	const r = await setEventVenue(db, { eventSlug, venueId, privacy, by, now });
+	return r.ok;
 }
