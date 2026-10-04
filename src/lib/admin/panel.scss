@@ -165,7 +165,8 @@
 		outline: 2px solid var(--link);
 		outline-offset: 2px;
 	}
-	// Campos de texto: borde rosa con foco (el resto sigue con el anillo violeta de teclado).
+	// Campos de texto y desplegables (`select`): borde rosa con foco (el resto sigue con el anillo
+	// violeta de teclado).
 	:where(
 		input:not(
 			[type='checkbox'],
@@ -178,7 +179,8 @@
 			[type='reset'],
 			[type='image']
 		),
-		textarea
+		textarea,
+		select
 	):focus {
 		outline: 2px solid var(--focus-field);
 		outline-offset: 0;

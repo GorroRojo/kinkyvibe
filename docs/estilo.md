@@ -100,8 +100,9 @@ son sombras: esos quedan como están.
 ## Foco
 
 - Teclado: anillo violeta (`--focus-ring`) en todo lo que se puede enfocar (`:focus-visible`).
-- Campos de texto (inputs de texto y textareas): borde rosa (`--focus-field`) cuando tienen el
-  foco, también con el mouse, así se ve dónde se está escribiendo.
+- Campos de texto (inputs de texto y textareas) y desplegables (`select`): borde rosa
+  (`--focus-field`) cuando tienen el foco, también con el mouse, así se ve dónde se está
+  escribiendo o eligiendo. En el sitio y en el panel.
 - No saques el `outline` sin poner otra señal de foco igual de visible.
 
 ## Piezas
