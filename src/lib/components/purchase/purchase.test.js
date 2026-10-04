@@ -8,7 +8,7 @@ import TicketPurchase from '../TicketPurchase.svelte';
 import StepIndicator from './StepIndicator.svelte';
 import PurchaseSummary from './PurchaseSummary.svelte';
 import { PURCHASE_STEPS } from '$lib/utils/purchaseSteps.js';
-import { stripHtmlComments } from '$lib/utils/htmlStrip.js';
+import { stripHtmlComments, stripHtmlTags } from '$lib/utils/htmlStrip.js';
 
 /** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
 const tickets = {
@@ -109,7 +109,7 @@ describe('PurchaseSummary en el celu: una línea y el recargo siempre a la vista
 		const bar = body.match(/<button[^>]*class="bar[^"]*"[\s\S]*?<\/button>/)?.[0] ?? '';
 		expect(bar).toContain('aria-expanded="false"');
 		expect(bar).toContain('aria-controls="resumen-detalle"');
-		expect(bar.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ')).toContain('1 entrada · $ 15.300');
+		expect(stripHtmlTags(bar).replace(/\s+/g, ' ')).toContain('1 entrada · $ 15.300');
 	});
 
 	it('con recargo de Mercado Pago, la línea va afuera del detalle plegado', () => {

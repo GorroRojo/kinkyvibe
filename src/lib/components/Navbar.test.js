@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'svelte/server';
 import { readable } from 'svelte/store';
 import { BookOpen } from '@lucide/svelte';
+import { stripHtmlTags } from '$lib/utils/htmlStrip.js';
 
 vi.mock('$app/stores', () => ({
 	page: readable({ url: new URL('http://localhost/material') })
@@ -21,7 +22,7 @@ describe('Navbar', () => {
 	it('el buscador es un ítem de la lista, con su texto «Buscar»', () => {
 		const item = body.match(/<li class="search-item[^"]*"[^>]*>[\s\S]*?<\/li>/)?.[0] ?? '';
 		expect(item).toMatch(/<button[^>]*type="button"[^>]*aria-haspopup="dialog"/);
-		expect(item.replace(/<[^>]+>/g, '').trim()).toBe('Buscar');
+		expect(stripHtmlTags(item).trim()).toBe('Buscar');
 		// dentro de la barra, no flotando aparte
 		expect(body.indexOf('search-item')).toBeLessThan(body.indexOf('</ul>'));
 	});
