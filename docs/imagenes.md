@@ -87,12 +87,15 @@ npm run images:import -- --dry                    # local: qué haría
 npm run images:import                             # local (.wrangler/state, como npm run dev)
 npm run images:import -- --target=preview --dry   # preview: qué haría (necesita wrangler login)
 npm run images:import -- --target=preview --yes   # preview: base y bucket de PRUEBA
+npm run images:import -- --target=production --dry  # producción: qué haría
+npm run images:import -- --target=production --yes  # producción: pide escribir «produccion»
 ```
 
 `--target=preview` arma una configuración temporal con las bindings de `[previews]` de
-`wrangler.toml` (los ids se leen del archivo) como remotas. **No hay opción de producción** a
-propósito: cuando corresponda, la corre gorrite (por ejemplo agregando un `--target=production`
-en un PR propio, o desde un endpoint del panel).
+`wrangler.toml` (los ids se leen del archivo) como remotas; `--target=production`, lo mismo con
+las bindings de arriba (base `kinkyvibe`, bucket `kinkyvibe-media`). Producción la corre gorrite
+desde su compu (lo eligió el 4/10, en vez de un botón en el panel): sin `--yes` no escribe nada y,
+con `--yes`, antes de escribir pide tipear «produccion».
 
 Después de importar y revisar, las imágenes del repo se pueden borrar en un PR aparte (las páginas
 ya no las usan si todos los objetos tienen su edge; el chequeo `missing` del script lista los
