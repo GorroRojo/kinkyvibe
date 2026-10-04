@@ -36,9 +36,10 @@ que aprobó gorrite: Inicio arriba, **7 áreas** que se abren de a una y **Ajust
 de cada área, las secciones van por frecuencia de uso (lo de todos los días primero) y lo que
 viene, al final.
 
-**Menú simplificado** (revisión de UI, paso 3): el menú no muestra las 8 áreas sino 5 grupos
-(`NAV_GROUPS` en `nav.js`): Eventos, Ventas (con Estadísticas), Comunidad (con Mensajes), Contenido
-(con Etiquetas) y Ajustes al pie. Las secciones de las áreas que se suman van debajo del nombre de
+**Menú simplificado** (revisión de UI, paso 3): el menú no muestra las 8 áreas sino 6 grupos
+(`NAV_GROUPS` en `nav.js`): Eventos, Ventas, Comunidad (con Mensajes), Contenido (con Etiquetas),
+Estadísticas y Ajustes al pie. Estadísticas va sola, como su propia entrada (gorrite, 4/10: no
+dentro de Ventas). Las secciones de las áreas que se suman van debajo del nombre de
 su área. Es solo el menú: cada sección sigue en su área y en su URL. En la página principal de
 cada sección de un grupo (menos Eventos) el layout pone una barra de pestañas con todas las
 secciones del grupo, como la que tenía Ajustes (`sectionTabs`).
