@@ -402,6 +402,7 @@
 			category,
 			hasImage: Boolean(image),
 			hasPersonas: hasAuthors,
+			hasPartes: Boolean($$slots.extra) && category === 'calendario',
 			parseError: !!parseError
 		})}
 		draftKey={draftKey(category, postID)}
@@ -508,6 +509,9 @@
 			{/if}
 
 			<BodySection bind:value={body} />
+
+			<!-- Algo que se guarda por su cuenta (Partes de un taller), en la misma columna. -->
+			<slot name="extra" />
 		{/if}
 
 		{#if problems.length}
