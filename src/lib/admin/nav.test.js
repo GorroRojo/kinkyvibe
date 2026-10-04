@@ -206,6 +206,7 @@ describe('NAV', () => {
 			'ajustes-mails',
 			'ajustes-admins',
 			'ajustes-interruptores',
+			'ajustes-automatizaciones',
 			'actividad'
 		]);
 	});
