@@ -11,7 +11,8 @@ import { listRoles } from '../personas/roles.js';
 import { resolvePersonas } from '../personas/index.js';
 import { publicVenueForEvent } from '../amigues/venues.js';
 import { ANON } from '../objects/index.js';
-import { makeEvent } from '../amigues/testing.js';
+import { hydrateContent } from '../contenido/relaciones.js';
+import { eventToMeta } from '../contenido/eventos.js';
 import { DEMO_ACCOUNTS, DEMO_VENUES } from './seedProfiles.js';
 import {
 	N3_CUSTOM_ROLE,
@@ -155,6 +156,28 @@ describe('demo seed', () => {
 
 const HOUR = 3600e3;
 const DAY = 24 * HOUR;
+
+/**
+ * The metadata the site builds for an event of the database (the same as `toMeta` in
+ * ../contenido/posts.js), or `null`.
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ */
+async function eventMeta(db, slug) {
+	const row = /** @type {any} */ (
+		await db
+			.prepare(
+				"SELECT id, type, slug, title, data, visibility FROM objects WHERE type = 'evento' AND slug = ?1 AND deleted_at IS NULL"
+			)
+			.bind(slug)
+			.first()
+	);
+	if (!row) return null;
+	const [object] = await hydrateContent(db, [
+		{ ...row, id: Number(row.id), data: JSON.parse(String(row.data)) }
+	]);
+	return eventToMeta(object);
+}
 
 describe('demo seed: dates relative to "now"', () => {
 	it('moving "now" by whole days moves every instant by the same amount, and nothing else', () => {
@@ -318,9 +341,8 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 
 	it('keeps everything else and gives the same result every time', async () => {
 		const day1 = Date.parse('2026-10-01T15:00:00Z');
-		const bundledSlugs = ['demo-noche-latex-2026-09-30', 'demo-munch-martes-2026-10-14'];
 		// A first load, so that there are "previous demo data" to wipe.
-		await reloadDemoData(t.db, { now: day1 - 3 * DAY, bundledSlugs });
+		await reloadDemoData(t.db, { now: day1 - 3 * DAY });
 
 		// Rows that are not demo data (must survive), and rows made "in the demo" on demo events
 		// (must go).
@@ -361,6 +383,12 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 				path: 'src/lib/posts/calendario/evento-real-2026-10.md',
 				content: 'editado en la demo',
 				author: 'demo'
+			}),
+			// A demo event left as .md by an older seed (the site no longer reads them): it goes.
+			insertRow('demo_files', {
+				path: 'src/lib/posts/calendario/demo-noche-latex-2026-09-30.md',
+				content: '---\ntitle: x\n---\n',
+				author: SEED_BY
 			}),
 			insertRow('demo_files', {
 				path: 'src/lib/posts/calendario/demo-creado-en-la-demo.md',
@@ -406,7 +434,7 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 			})
 		]);
 
-		const r1 = await reloadDemoData(t.db, { now: day1, bundledSlugs });
+		const r1 = await reloadDemoData(t.db, { now: day1 });
 		const first = await snapshot();
 		expect(r1.skipped).toEqual([]);
 		// 17 + «Fiesta con preventas (demo)» (Noche 3 · C, #134).
@@ -416,28 +444,28 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 		expect(r1.pendingTransfers).toBeGreaterThan(0);
 
 		// Idempotent: reloading gives exactly the same tables.
-		await reloadDemoData(t.db, { now: day1, bundledSlugs });
+		await reloadDemoData(t.db, { now: day1 });
 		expect(await snapshot()).toEqual(first);
 
 		// Another day: same amount of data, now around the new "today".
-		const r2 = await reloadDemoData(t.db, { now: day1 + DAY, bundledSlugs });
+		const r2 = await reloadDemoData(t.db, { now: day1 + DAY });
 		expect(await snapshot()).toEqual(first);
 		expect(r2.tonight?.slug).toBe('demo-noche-latex-2026-10-02');
 		expect(await count("orders WHERE event_slug = 'demo-noche-latex-2026-10-01'")).toBe(0);
 		expect(await count("orders WHERE event_slug = 'demo-noche-latex-2026-10-02'")).toBeGreaterThan(
 			20
 		);
+		// The events are objects (reused from one day to the next), not .md in the demo layer.
+		expect(r2.eventObjects).toBe(18);
 		expect(
 			await count(
-				"demo_files WHERE path = 'src/lib/posts/calendario/demo-noche-latex-2026-10-02.md' AND deleted = 0"
+				"objects WHERE type = 'evento' AND slug = 'demo-noche-latex-2026-10-02' AND deleted_at IS NULL"
 			)
 		).toBe(1);
-		// The deploy's events of other dates are hidden in the demo layer.
 		expect(
-			await count(
-				"demo_files WHERE path = 'src/lib/posts/calendario/demo-noche-latex-2026-09-30.md' AND deleted = 1"
-			)
-		).toBe(1);
+			await count("objects WHERE type = 'evento' AND slug = 'demo-noche-latex-2026-10-01'")
+		).toBe(0);
+		expect(await count("demo_files WHERE path LIKE 'src/lib/posts/calendario/demo-%'")).toBe(0);
 
 		// What isn't demo data is untouched.
 		expect(await count("orders WHERE id = 'real-order'")).toBe(1);
@@ -490,16 +518,8 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 				updated_by: 'GorroRojo'
 			})
 		]);
-		// Since migration 0035 «sucede en» is the event's `lugar` edge, so a venue can only be
-		// linked to an event that is in the database (in the demo, imported from Contenido → En la
-		// base). Put the next date of each venue's series there, as that import would.
-		const plan = buildData({ today: todayInArgentina(day1), now: day1 });
-		for (const v of DEMO_VENUES) {
-			const next = plan.events
-				.filter((e) => e.series === v.event && e.offset >= 0 && !e.draft)
-				.sort((a, b) => a.offset - b.offset)[0];
-			expect(await makeEvent(t.db, next.slug, { title: next.title })).not.toBeNull();
-		}
+		// «Sucede en» is the event's `lugar` edge (migration 0035): the seed writes the demo events
+		// as objects, with the venue on the next date of each venue's series.
 		const r = await reloadDemoData(t.db, { now: day1 });
 		expect(r.skipped).toEqual([]);
 		expect(r.venuesLinked).toBe(DEMO_VENUES.length);
@@ -514,16 +534,16 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 			expect(await count(`feature_flags WHERE key = '${key}' AND enabled = 1`)).toBe(1);
 
 		// Presales: «Preventa 1» full, «Preventa 2» current, «Última tanda» waiting.
-		const file = /** @type {any} */ (
+		const presale = /** @type {any} */ (
 			await t.db
-				.prepare("SELECT path, content FROM demo_files WHERE path LIKE '%demo-fiesta-preventas-%'")
+				.prepare(
+					"SELECT slug FROM objects WHERE type = 'evento' AND slug LIKE 'demo-fiesta-preventas-%' AND deleted_at IS NULL"
+				)
 				.first()
 		);
-		const slug = String(file.path).replace(/^.*\/(demo-[^/]+)\.md$/, '$1');
+		const slug = String(presale.slug);
 		const config = /** @type {any} */ (
-			parseTicketConfig(parse(splitMarkdown(String(file.content)).frontmatter), {
-				fondoPercent: 20
-			})
+			parseTicketConfig(/** @type {any} */ (await eventMeta(t.db, slug)), { fondoPercent: 20 })
 		);
 		const taken = await getTaken(t.db, slug, day1);
 		expect(taken.types.get('general')).toBe(9);
@@ -585,18 +605,7 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 		// Personas: the party's people, with the custom role; both profiles are public.
 		const roles = await listRoles(t.db);
 		expect(roles).toContain(N3_CUSTOM_ROLE);
-		const party = parse(
-			splitMarkdown(
-				String(
-					/** @type {any} */ (
-						await t.db
-							.prepare('SELECT content FROM demo_files WHERE path = ?1')
-							.bind(`src/lib/posts/calendario/${tonight}.md`)
-							.first()
-					).content
-				)
-			).frontmatter
-		);
+		const party = /** @type {any} */ (await eventMeta(t.db, tonight));
 		const groups = await resolvePersonas(t.db, party.personas, roles);
 		expect(groups.map((g) => [g.rol, g.items.map((i) => i.slug)])).toEqual([
 			['Organiza', ['colectivo-demo']],
@@ -630,4 +639,222 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 			await bare.dispose();
 		}
 	}, 60000);
+});
+
+describe('demo events as objects (D1): reused from one day to the next', () => {
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let t;
+	beforeAll(async () => {
+		t = await createTestDB();
+	});
+	afterAll(async () => {
+		await t?.dispose();
+	});
+
+	const day1 = Date.parse('2026-10-01T15:00:00Z');
+	/** @param {string} q */
+	const count = async (q) =>
+		Number(/** @type {any} */ (await t.db.prepare(`SELECT COUNT(*) AS n FROM ${q}`).first()).n);
+	async function counts() {
+		/** @type {Record<string, number>} */
+		const out = {};
+		for (const q of [
+			"objects WHERE type = 'evento'",
+			"objects WHERE type = 'evento' AND deleted_at IS NULL",
+			'objects',
+			'edges',
+			"edges WHERE kind = 'lugar'",
+			"edges WHERE kind = 'persona'",
+			'content_sources'
+		])
+			out[q] = await count(q);
+		return out;
+	}
+	/** slot → id of the live demo event objects. */
+	async function slotIds() {
+		const { results } = await t.db
+			.prepare(
+				`SELECT id, slug, json_extract(data, '$.extra.demo_slot') AS slot FROM objects
+				WHERE type = 'evento' AND deleted_at IS NULL AND json_extract(data, '$.extra.demo_slot') IS NOT NULL`
+			)
+			.all();
+		return Object.fromEntries(results.map((r) => [String(r.slot), Number(r.id)]));
+	}
+	/** @param {number} id */
+	const rowOf = (id) =>
+		t.db
+			.prepare(
+				'SELECT slug, version, updated_at, updated_by, data, deleted_at FROM objects WHERE id = ?1'
+			)
+			.bind(id)
+			.first();
+	/** @param {number} at */
+	async function listedSlugs(at) {
+		const posts = await import('../contenido/posts.js');
+		const listed = await posts.sitePosts(t.platform);
+		const unlisted = await posts.sitePosts(t.platform, false, true);
+		const plan = buildData({ today: todayInArgentina(at), now: at });
+		return {
+			plan,
+			listed: new Set(listed.map((p) => String(p.meta.postID))),
+			unlisted: new Set(unlisted.map((p) => String(p.meta.postID)))
+		};
+	}
+	/**
+	 * The demo .md of some events, as Contenido → Importar would read them from a deploy.
+	 * @param {ReturnType<typeof buildData>['events']} evs
+	 */
+	const mdFiles = (evs) =>
+		evs.map((e) => {
+			const raw = eventMarkdown(e);
+			return {
+				legacySlug: e.slug,
+				raw,
+				meta: JSON.parse(JSON.stringify(parse(splitMarkdown(raw).frontmatter)))
+			};
+		});
+
+	it('keeps the same objects and edges every day, visible in the public lists and with their venues', async () => {
+		const { saveObject } = await import('../objects/save.js');
+		// Not demo data: never touched.
+		const real = await saveObject(
+			t.db,
+			{
+				type: 'evento',
+				slug: 'evento-real-2026-10',
+				title: 'Evento real inventado',
+				data: { summary: 'No es de prueba.', start: '2026-10-20T20:00-03:00' }
+			},
+			{ actor: 'admin-inventade', now: 1 }
+		);
+		const realBefore = await rowOf(real.id);
+
+		const r1 = await reloadDemoData(t.db, { now: day1 });
+		expect(r1.eventObjects).toBe(18);
+		expect(r1.eventsSkipped).toEqual([]);
+		expect(r1.venuesLinked).toBe(DEMO_VENUES.length);
+		const first = await counts();
+		expect(first["edges WHERE kind = 'persona'"]).toBeGreaterThan(0);
+		const ids = await slotIds();
+		expect(Object.keys(ids)).toHaveLength(18);
+		const revisions1 = await count("object_revisions WHERE source = 'demo'");
+		expect(revisions1).toBe(18);
+
+		// The public list reader shows them (the draft, unlisted).
+		const s1 = await listedSlugs(day1);
+		for (const e of s1.plan.events) {
+			expect(e.draft ? s1.unlisted : s1.listed).toContain(e.slug);
+		}
+		expect(s1.listed).toContain('evento-real-2026-10');
+
+		// Another day, and a month later (each date of a series takes the slug another one had).
+		for (const at of [day1 + DAY, day1 + 28 * DAY, day1 + 29 * DAY]) {
+			const r = await reloadDemoData(t.db, { now: at });
+			expect(r.eventObjects).toBe(18);
+			expect(r.eventsSkipped).toEqual([]);
+			expect(r.venuesLinked).toBe(DEMO_VENUES.length);
+			expect(await counts()).toEqual(first);
+			expect(await slotIds()).toEqual(ids);
+			const s = await listedSlugs(at);
+			for (const e of s.plan.events) {
+				expect(e.draft ? s.unlisted : s.listed).toContain(e.slug);
+				expect(await count(`objects WHERE type = 'evento' AND slug = '${e.slug}'`)).toBe(1);
+			}
+			// Yesterday's slugs are gone (not left behind as other objects).
+			expect(
+				await count(
+					`objects WHERE type = 'evento' AND slug = 'demo-noche-latex-${todayInArgentina(at - DAY)}'`
+				)
+			).toBe(0);
+			const tonight = String(r.tonight?.slug);
+			expect(await publicVenueForEvent(t.db, tonight, ANON)).toMatchObject({
+				level: 'public',
+				name: 'Casa Demo Pública'
+			});
+		}
+		// One revision per event and reload (the history is never pruned).
+		expect(await count("object_revisions WHERE source = 'demo'")).toBe(18 * 4);
+		// Venues: one `lugar` edge per demo venue, on the next date of its series.
+		expect(
+			await count(`edges WHERE kind = 'lugar'
+				AND to_id IN (SELECT id FROM objects WHERE slug IN (${DEMO_VENUES.map((v) => `'${v.slug}'`).join(', ')}))`)
+		).toBe(DEMO_VENUES.length);
+		expect(await rowOf(real.id)).toEqual(realBefore);
+	}, 120000);
+
+	it('adopts a demo event imported from a .md, retires stale ones and never touches other events', async () => {
+		const fresh = await createTestDB();
+		const prev = t;
+		t = fresh;
+		try {
+			const { saveObject } = await import('../objects/save.js');
+			const { runImport } = await import('../contenido/importer.js');
+			const plan1 = buildData({ today: todayInArgentina(day1), now: day1 });
+			// Contenido → Importar on a deploy that has the demo .md of day 1 (the `demo` branch).
+			const latex = plan1.events.filter((e) => e.series === 'noche-latex');
+			const imported = await runImport(t.db, 'calendario', mdFiles(latex), { actor: 'demo' });
+			expect(imported.results.map((r) => r.action)).toEqual(latex.map(() => 'created'));
+			const importedIds = imported.results.map((r) => Number(r.objectId));
+			// An event that isn't demo data but whose old .md had the slug of a demo date.
+			const munch = /** @type {any} */ (plan1.events.find((e) => e.slot === 'munch-martes-4'));
+			const other = await saveObject(
+				t.db,
+				{
+					type: 'evento',
+					slug: 'evento-ajeno',
+					title: 'Evento ajeno inventado',
+					data: { summary: 'No es de prueba.', start: '2026-10-20T20:00-03:00' }
+				},
+				{ actor: 'admin-inventade', now: 1 }
+			);
+			await t.db
+				.prepare(
+					`INSERT INTO content_sources (object_id, category, legacy_slug, source_hash,
+						imported_version, imported_at, updated_at) VALUES (?1, 'calendario', ?2, ?3, 1, 1, 1)`
+				)
+				.bind(other.id, munch.slug, 'a'.repeat(64))
+				.run();
+			const otherBefore = await rowOf(other.id);
+
+			const r1 = await reloadDemoData(t.db, { now: day1 });
+			// The imported ones became the demo events of their dates (same objects).
+			const ids = await slotIds();
+			expect(latex.map((e) => ids[e.slot])).toEqual(importedIds);
+			expect(await count(`content_sources WHERE object_id IN (${importedIds.join(', ')})`)).toBe(0);
+			// The other event is never touched: that demo date is skipped.
+			expect(r1.eventsSkipped).toEqual([munch.slug]);
+			expect(r1.eventObjects).toBe(17);
+			expect(await rowOf(other.id)).toEqual(otherBefore);
+			expect(await count(`content_sources WHERE object_id = ${other.id}`)).toBe(1);
+
+			// A month later, the deploy's .md of that day get imported too: only the last party has
+			// a slug no demo event has yet, so it's created; the seed retires it to take its slug.
+			const at = day1 + 28 * DAY;
+			const plan2 = buildData({ today: todayInArgentina(at), now: at });
+			const latex2 = plan2.events.filter((e) => e.series === 'noche-latex');
+			const again = await runImport(t.db, 'calendario', mdFiles(latex2), { actor: 'demo' });
+			const created = again.results.filter((r) => r.action === 'created');
+			expect(created).toHaveLength(1);
+			const stale = Number(created[0].objectId);
+			const r2 = await reloadDemoData(t.db, { now: at });
+			expect(r2.eventsSkipped).toEqual([]);
+			expect(r2.eventObjects).toBe(18);
+			const gone = /** @type {any} */ (await rowOf(stale));
+			expect(gone.deleted_at).not.toBeNull();
+			expect(gone.slug).not.toBe(created[0].slug);
+			expect(await count(`content_sources WHERE object_id = ${stale}`)).toBe(0);
+			expect((await slotIds())['noche-latex-6']).toBe(ids['noche-latex-6']);
+			const s = await listedSlugs(at);
+			for (const e of plan2.events) expect(e.draft ? s.unlisted : s.listed).toContain(e.slug);
+			expect(await rowOf(other.id)).toEqual(otherBefore);
+
+			// From then on, nothing else changes in size.
+			const settled = await counts();
+			await reloadDemoData(t.db, { now: at + DAY });
+			expect(await counts()).toEqual(settled);
+		} finally {
+			t = prev;
+			await fresh.dispose();
+		}
+	}, 120000);
 });

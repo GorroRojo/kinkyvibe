@@ -12,15 +12,18 @@
  * - `reloadDemoData` (POST /api/preview-seed, botón «Recargar datos de prueba» del aviso del modo
  *   demo): borra los datos de prueba anteriores y vuelve a cargar todo con `now = Date.now()`.
  *   Solo se importa dentro de `if (PREVIEW_BUILD)`: no existe en el bundle de producción.
- * - `scripts/demo/seed.js` (CLI): el mismo SQL a un archivo, y los .md de los eventos.
+ * - `scripts/demo/seed.js` (CLI): el mismo SQL a un archivo, y los .md de los eventos. El SQL no
+ *   trae los eventos: son objetos (solo se escriben con saveObject(), ./seedEvents.js), así que
+ *   los carga solo `reloadDemoData`.
  *
  * Qué es "de prueba" (y lo único que se borra al recargar): los eventos con slug `demo-*` y todo
  * lo que cuelga de ellos (órdenes, entradas, envíos, avisos, archivos de la capa demo), más las
  * filas marcadas como del seed (`SEED_BY`, `SEED_DETAIL`) y la "última visita" del admin de
  * prueba.
  *
- * Sin imports de Node ni de `$lib`: corre en el Worker y en Node (los perfiles de prueba van con
- * saveObject(), en ./seedProfiles.js, que solo usa imports relativos).
+ * Sin imports de Node ni de `$lib`: corre en el Worker y en Node (los perfiles y los eventos de
+ * prueba van con saveObject(), en ./seedProfiles.js y ./seedEvents.js, que solo usan imports
+ * relativos).
  *
  * Noche 3 en adelante: además prende los interruptores nuevos
  * (`N3_FLAGS`), y carga preventas escalonadas, gorra, propinas, personas
@@ -32,6 +35,7 @@
  */
 import { DEMO_FILES_SQL } from './overlay.js';
 import { DEMO_ACCOUNTS, DEMO_VENUES, ensureDemoProfiles } from './seedProfiles.js';
+import { saveDemoEvents } from './seedEvents.js';
 
 /** Quién "hizo" lo que inserta el seed: sirve para borrarlo en la próxima corrida. */
 export const SEED_BY = 'seed-demo';
@@ -309,7 +313,9 @@ export function people() {
 
 /**
  * @typedef {object} DemoEvent
- * @prop {string} slug
+ * @prop {string} slug la dirección de hoy (lleva la fecha)
+ * @prop {string} slot identidad estable del evento de prueba (`noche-latex-4`: la cuarta Noche
+ *   Látex de la lista), la misma todos los días: el seed reusa su objeto (./seedEvents.js)
  * @prop {string} series
  * @prop {string} title
  * @prop {string} summary
@@ -341,7 +347,7 @@ export function people() {
  * @returns {DemoEvent[]}
  */
 export function events(today) {
-	/** @type {Omit<DemoEvent, 'slug' | 'start' | 'end'>[]} */
+	/** @type {Omit<DemoEvent, 'slug' | 'slot' | 'start' | 'end'>[]} */
 	const list = [];
 	const party = (/** @type {number} */ offset, extra = {}) =>
 		list.push({
@@ -499,11 +505,15 @@ export function events(today) {
 		body: 'Fiesta **inventada**: los primeros 5 a $ 8.000, los 10 siguientes a $ 9.000 y el resto a $ 10.000. Cuando se agota General, se habilita la Última tanda.'
 	});
 
+	/** @type {Map<string, number>} */
+	const perSeries = new Map();
 	return list.map((e) => {
 		const start = arInstant(today, e.offset, e.startTime);
 		const end = arInstant(today, e.offset + (e.endNextDay ?? 0), e.endTime);
 		const date = new Date(start + AR).toISOString().slice(0, 10);
-		return { ...e, slug: `demo-${e.series}-${date}`, start, end };
+		const n = (perSeries.get(e.series) ?? 0) + 1;
+		perSeries.set(e.series, n);
+		return { ...e, slug: `demo-${e.series}-${date}`, slot: `${e.series}-${n}`, start, end };
 	});
 }
 
@@ -578,11 +588,9 @@ const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 /**
  * Todos los datos de prueba, relativos a `now`.
  *
- * @param {{today: string, now: number, bundledSlugs?: string[]}} opts `bundledSlugs`: los eventos
- *   `demo-*` que trae el deploy (de corridas anteriores del seed): los que ya no tocan se tapan
- *   en la capa demo.
+ * @param {{today: string, now: number}} opts
  */
-export function buildData({ today, now, bundledSlugs = [] }) {
+export function buildData({ today, now }) {
 	const r = rng(20260930);
 	const pick = (/** @type {any[]} */ a) => a[Math.floor(r() * a.length)];
 	const hex = (/** @type {number} */ n) =>
@@ -1037,7 +1045,6 @@ export function buildData({ today, now, bundledSlugs = [] }) {
 		discountCodes,
 		story,
 		regulars,
-		bundledSlugs,
 		today,
 		now
 	};
@@ -1155,35 +1162,15 @@ function nextOf(d, series) {
 export const SECTIONS = [
 	{
 		table: 'demo_files',
-		// La capa del modo demo (no es migración). Solo se borran los archivos de los eventos de
-		// prueba (y sus imágenes); lo demás que se editó en la demo queda.
+		// La capa del modo demo (no es migración). Los eventos de prueba antes se guardaban acá como
+		// .md; desde «solo base» son objetos (./seedEvents.js) y el sitio ya no lee esos .md. Acá solo
+		// se borran las filas que dejaron los seeds anteriores (y lo que se guardó en la demo sobre
+		// eventos de prueba); lo demás que se editó en la demo queda.
 		reset: [
 			DEMO_FILES_SQL.replace(/\s+/g, ' ') + ';',
 			`DELETE FROM demo_files WHERE path LIKE ${sql(`${EVENTS_PATH}/demo-%`)} OR path LIKE ${sql(`${EVENTS_PATH}/media/demo-%`)};`
 		],
-		rows: (d) => {
-			const current = new Set(d.events.map((e) => e.slug));
-			const file = (/** @type {string} */ slug, /** @type {string | null} */ content) =>
-				insert('demo_files', {
-					path: `${EVENTS_PATH}/${slug}.md`,
-					content: content === null ? null : sqlText(content),
-					encoding: 'utf-8',
-					deleted: content === null ? 1 : 0,
-					author: SEED_BY,
-					message:
-						content === null
-							? 'Datos de prueba: evento de otra fecha'
-							: 'Datos de prueba (fechas relativas a hoy)'
-				});
-			return [
-				...d.events.map((e) => file(e.slug, eventMarkdown(e))),
-				// Los eventos de prueba de otra fecha que trae el deploy se tapan (si no, el panel
-				// mostraría dos Noche Látex "de hoy").
-				...d.bundledSlugs
-					.filter((slug) => slug.startsWith('demo-') && !current.has(slug))
-					.map((slug) => file(slug, null))
-			];
-		}
+		rows: () => []
 	},
 	{
 		table: 'ticket_settings',
@@ -1639,46 +1626,38 @@ async function sha256Hex(text) {
 }
 
 /**
- * "Sucede en" (#137): cada lugar de prueba en la próxima fecha de su serie. Desde la migración
- * 0035 es el edge `lugar` del evento, así que solo se puede vincular un evento que esté en la base
- * (importado desde Contenido → En la base); los que no están se saltean. Nunca pisa el lugar que
- * un evento ya tenga. Devuelve cuántos vinculó.
+ * Los eventos de prueba como objetos `evento` (./seedEvents.js): cada uno con su identidad estable
+ * (`slot`), el .md que lo describe y, si es la próxima fecha de la serie de un lugar de prueba,
+ * ese lugar («sucede en», #137: el edge `lugar`).
  *
- * `../amigues/venues.js` usa imports `$lib`: se importa acá adentro para que el CLI
- * (scripts/demo/seed.js, que no llama a esto) siga cargando este módulo en Node.
- *
- * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {SeedData} data
- * @param {{ now: number, tables: Set<string> }} opts
  */
-async function linkDemoVenues(db, data, { now, tables }) {
-	if (!tables.has('edges') || !data.profiles.size) return 0;
-	const { linkEventVenueIfFree } = await import('../amigues/venues.js');
-	let linked = 0;
+export function demoEventInputs(data) {
+	/** @type {Map<string, number>} */
+	const venueOf = new Map();
 	for (const v of DEMO_VENUES) {
 		const venueId = data.profiles.get(v.slug);
 		const ev = nextOf(data, v.event);
-		if (!venueId || !ev) continue;
-		const ok = await linkEventVenueIfFree(db, {
-			eventSlug: ev.slug,
-			venueId,
-			privacy: null,
-			by: SEED_BY,
-			now
-		});
-		if (ok) linked++;
+		if (venueId && ev) venueOf.set(ev.slug, venueId);
 	}
-	return linked;
+	return data.events.map((e) => ({
+		slot: e.slot,
+		slug: e.slug,
+		markdown: eventMarkdown(e),
+		venueId: venueOf.get(e.slug) ?? null
+	}));
 }
 
 /**
  * Borra los datos de prueba y los vuelve a cargar relativos a `now`, en un solo batch (atómico
  * en D1: si algo falla, quedan los de antes). Para la base de un preview, nunca producción.
+ * Los eventos de prueba son objetos que se reusan de un día para el otro (./seedEvents.js): se
+ * guardan con saveObject() después del batch, con sus personas, etiquetas y lugar.
  *
  * @param {import('@cloudflare/workers-types').D1Database} db
- * @param {{now?: number, bundledSlugs?: string[]}} [opts] `bundledSlugs`: ver buildData
+ * @param {{now?: number}} [opts]
  */
-export async function reloadDemoData(db, { now = Date.now(), bundledSlugs = [] } = {}) {
+export async function reloadDemoData(db, { now = Date.now() } = {}) {
 	// Tablas e índices (un índice dice si está una migración que solo agrega columnas, ver la
 	// sección de preventas).
 	const { results } = await db
@@ -1686,7 +1665,7 @@ export async function reloadDemoData(db, { now = Date.now(), bundledSlugs = [] }
 		.all();
 	const tables = new Set(/** @type {any[]} */ (results).map((r) => String(r.name)));
 	const today = todayInArgentina(now);
-	const data = buildData({ today, now, bundledSlugs });
+	const data = buildData({ today, now });
 	// Noche 3: los perfiles (con saveObject, antes del batch) y los hashes de las suscripciones.
 	data.profiles = await ensureDemoProfiles(db, { now, tables });
 	for (const x of N3_SERIES_SUBSCRIBERS) {
@@ -1694,7 +1673,12 @@ export async function reloadDemoData(db, { now = Date.now(), bundledSlugs = [] }
 	}
 	const statements = seedStatements(data, { tables });
 	await db.batch(statements.map((s) => db.prepare(s)));
-	const venuesLinked = await linkDemoVenues(db, data, { now, tables });
+	const saved = await saveDemoEvents(db, {
+		events: demoEventInputs(data),
+		actor: SEED_BY,
+		now,
+		tables
+	});
 	const counts = /** @type {Record<string, number>} */ (
 		await db
 			.prepare(
@@ -1717,7 +1701,9 @@ export async function reloadDemoData(db, { now = Date.now(), bundledSlugs = [] }
 		checkedIn: Number(counts?.checkedIn ?? 0),
 		pendingTransfers: Number(counts?.pendingTransfers ?? 0),
 		tonight: tonight ? { slug: tonight.slug, title: tonight.title } : null,
-		venuesLinked,
+		venuesLinked: saved.venuesLinked,
+		eventObjects: saved.saved,
+		eventsSkipped: saved.skipped,
 		skipped: SECTIONS.filter((s) => !activeSections(tables).includes(s)).map((s) => s.table),
 		statements: statements.length
 	};

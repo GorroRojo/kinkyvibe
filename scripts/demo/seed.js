@@ -6,6 +6,8 @@
  *
  * Lo normal es no usar esto: en el preview, el aviso del modo demo tiene «Recargar datos de
  * prueba» (POST /api/preview-seed), que genera lo mismo relativo al momento en que se aprieta.
+ * El SQL no trae los eventos de prueba: son objetos `evento` que solo se escriben con saveObject()
+ * (src/lib/server/demo/seedEvents.js), así que los carga solo ese botón.
  * Los datos y las reglas están en src/lib/server/demo/seed.js.
  *
  * Uso:
@@ -57,10 +59,7 @@ function main() {
 	if (!Number.isFinite(now)) throw new Error('--now inválido');
 	const today = typeof args.today === 'string' ? args.today : todayInArgentina(now);
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) throw new Error('--today tiene que ser YYYY-MM-DD');
-	const bundledSlugs = readdirSync(EVENTS_DIR)
-		.filter((f) => f.startsWith('demo-') && f.endsWith('.md'))
-		.map((f) => f.replace(/\.md$/, ''));
-	const data = buildData({ today, now, bundledSlugs });
+	const data = buildData({ today, now });
 	if (args['write-events']) writeEvents(data.events);
 	const tables = args.all ? new Set(SECTIONS.flatMap((s) => s.requires ?? [s.table])) : null;
 	const text = seedSql(data, { tables });

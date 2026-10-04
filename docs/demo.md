@@ -48,7 +48,7 @@ sin tocar el repo.
   preview, con `import.meta.glob`, ver `src/lib/server/demo/bundle.js`).
 - **Base del preview nueva**: hay que importar el contenido y las etiquetas desde el panel
   (Contenido → En la base → Importar; Etiquetas → Importar a la base). Sin eso, el preview no
-  tiene eventos ni material.
+  tiene eventos reales ni material (los de prueba los carga «Recargar datos de prueba», abajo).
 - **Datos inventados** (`scripts/demo/*.sql`): los eventos de la demo (`n3-entradas.sql`,
   `n3-personas.sql`) son objetos `evento` no listados en la base del preview (antes eran `.md` en
   `demo_files`, que el sitio ya no lee; el seed borra esas filas viejas). Necesitan la migración 0031.
@@ -81,9 +81,8 @@ prueba»** (con confirmación en la página; `src/lib/components/admin/DemoReloa
 2. **Carga** todo de nuevo relativo a este momento (`src/lib/server/demo/seed.js`): un evento hoy
    a la noche (Noche Látex) con la puerta andando, eventos que vienen, eventos pasados con
    ingresos para las estadísticas, transferencias que vencen en unas horas, pagos para revisar,
-   actividad reciente y «desde tu última visita». Los eventos van a `demo_files` (con el slug de
-   la fecha que les toca); los `demo-*.md` del deploy de otras fechas se tapan. Es determinístico
-   salvo por el corrimiento de fechas (mismas personas, montos y órdenes).
+   actividad reciente y «desde tu última visita». Es determinístico salvo por el corrimiento de
+   fechas (mismas personas, montos y órdenes).
 3. **Prende los interruptores** de `N3_FLAGS` (hoy solo `lo_que_sigo`; cuentas, propinas,
    perfiles públicos, personas en eventos, borrar desde el panel, series, etiquetas y contenido
    desde la base ya no tienen interruptor) en la base del preview; los valores por defecto del código no cambian. Se pueden
@@ -94,15 +93,33 @@ prueba»** (con confirmación en la página; `src/lib/components/admin/DemoReloa
    esperando aprobación), preventas, gorra, propinas, personas con rol, preguntas de inscripción
    y suscripciones a series. Además importa las fichas de amigues del deploy (lo mismo que
    Contenido → Amigues → Importar).
-5. **«Sucede en»**: desde la migración 0035 es el edge `lugar` del evento, así que cada lugar de
-   prueba se vincula a la próxima fecha de su serie **solo si ese evento está en la base**
-   (importado desde Contenido → En la base); si no, se saltea (la respuesta dice cuántos vinculó
-   en `venuesLinked`). Nunca pisa el lugar que un evento ya tenga.
+5. **Los eventos de prueba son objetos `evento`** (`src/lib/server/demo/seedEvents.js`), después
+   del batch, con saveObject(): el sitio lee los eventos solo de la base. **DECIDIDO POR CLAUDE, A
+   CONFIRMAR**: cada evento de prueba es siempre el mismo objeto, de un día para el otro. Su
+   identidad es su lugar en la lista (`demo_slot` dentro de `extra`, p. ej. `noche-latex-4`), no
+   su dirección (`demo-<serie>-<fecha>`, que cambia con la fecha): recargar le cambia en su lugar
+   la dirección, las fechas, el texto, las personas (edges `persona`), las etiquetas (edges
+   `etiqueta`) y el lugar, así la cantidad de objetos y de edges no crece. Si la dirección de hoy
+   la tiene otro evento de prueba, primero se mueve ese.
+   - **«Sucede en»** (edge `lugar`): cada lugar de prueba va en la próxima fecha de su serie; los
+     demás eventos de prueba quedan sin lugar (la respuesta dice cuántos vinculó en
+     `venuesLinked`). Las demás relaciones que alguien le haya agregado en la demo (partes,
+     portada) también se vacían: recargar vuelve al estado de prueba.
+   - **Historial**: cada guardado deja su revisión (`object_revisions`, fuente `demo`), como todo
+     el contenido («todo, para siempre»: no se borra). Crece unas 18 filas por recarga, solo en la
+     base del preview.
+   - Un evento `demo-*` sin la marca que tiene la dirección de hoy de uno de prueba (por ejemplo,
+     importado con Contenido → Importar desde los `.md` de la rama `demo`) se adopta si ese evento
+     de prueba todavía no tiene objeto, o se da de baja (borrado suave, con otra dirección) si ya
+     tiene; en los dos casos pierde su fila de `content_sources`. Un evento que no es `demo-*`
+     nunca se toca: ese evento de prueba se saltea (`eventsSkipped`).
+   - Los `.md` de eventos en `demo_files` que dejaron seeds anteriores se borran.
 
 Cada parte se saltea si la base no tiene su migración. Todo es inventado (emails
 `@example.invalid`, DNIs 99.xxx.xxx). `node scripts/demo/seed.js` genera el mismo SQL a un
 archivo (`--all` suma las tablas del panel, `--chunks=dir` lo parte para la API de D1), para
-aplicarlo a mano **solo** a la base de un preview o a la local.
+aplicarlo a mano **solo** a la base de un preview o a la local. Ese SQL no trae los eventos de
+prueba (son objetos y solo se escriben con saveObject()): los carga solo el botón.
 
 Además, en un preview la página de error muestra el mensaje del error (`handleError` en
 `src/hooks.server.js`), para diagnosticar sin los logs de Cloudflare. En producción
@@ -134,8 +151,10 @@ mismo Worker, misma base de prueba (`kinkyvibe-preview`) que los demás previews
 arriba ya está en `main`, así que la rama `demo` solo agrega:
 
 - los PR abiertos que se quieren mostrar, mergeados encima de `main`;
-- los `.md` de los eventos de prueba (`src/lib/posts/calendario/demo-*.md`), para que las páginas
-  públicas (que leen el contenido del deploy) los muestren. Nunca van a `main` (lo frena CI).
+- los `.md` de los eventos de prueba (`src/lib/posts/calendario/demo-*.md`). Nunca van a `main`
+  (lo frena CI). Desde «solo base» el sitio no los lee: los eventos de prueba que se ven son los
+  objetos que carga «Recargar datos de prueba». Si alguien los importa (Contenido → Importar), la
+  próxima recarga los adopta o los da de baja (ver arriba).
 
 Para ponerla al día (sin reescribir la historia de `demo`):
 
