@@ -23,6 +23,7 @@ import {
 } from '$lib/server/tickets/index.js';
 import { readOverride } from '$lib/server/tickets/overrides.js';
 import { orderReference } from '$lib/utils/tickets.js';
+import { trackFunnel } from '$lib/server/analytics/track.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
@@ -105,6 +106,14 @@ export const actions = {
 					platform
 				)
 		});
+		if (r.ok && r.order?.status === 'approved') {
+			// Embudo anónimo (docs/analiticas.md): solo el evento y el medio.
+			trackFunnel(platform?.env, {
+				slug: r.order.event_slug,
+				step: 'aprobada',
+				method: 'transferencia'
+			});
+		}
 		const body = {
 			transfer: {
 				ok: r.ok,
