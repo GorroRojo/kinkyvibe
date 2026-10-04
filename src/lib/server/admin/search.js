@@ -5,6 +5,7 @@
  * Solo para admins (Q30). El DNI nunca sale de la base: si alguien busca por DNI, la consulta
  * devuelve solo los últimos 3 dígitos para mostrar "DNI ···123". Las búsquedas no se guardan.
  */
+import { argDateList } from '$lib/utils/dates.js';
 import { logDBError } from '$lib/server/db';
 import { foldText, normalizeTicketCode } from '$lib/server/tickets/orders.js';
 import { orderReference } from '$lib/utils/tickets.js';
@@ -50,13 +51,7 @@ export function orderIdPrefix(q) {
 }
 
 /** @param {number} ms */
-const shortDate = (ms) =>
-	new Intl.DateTimeFormat('es-AR', {
-		timeZone: 'America/Argentina/Buenos_Aires',
-		day: 'numeric',
-		month: 'short',
-		year: 'numeric'
-	}).format(ms);
+const shortDate = (ms) => argDateList(ms, { time: false });
 
 /**
  * Eventos por título o slug, sin distinguir mayúsculas ni tildes (del bundle: anda sin base).
@@ -199,7 +194,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				sub: [
 					r.kind === 'percent' ? `${r.value} %` : `$ ${Number(r.value).toLocaleString('es-AR')}`,
 					r.event_slug ? title(String(r.event_slug)) : 'todos los eventos',
-					Number(r.active) ? 'activo' : 'desactivado'
+					Number(r.active) ? 'activo' : 'apagado'
 				].join(' · '),
 				href: '/admin/ventas/codigos'
 			}));

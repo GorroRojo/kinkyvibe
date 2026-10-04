@@ -224,9 +224,9 @@ const LINKED_VENUES = [
 ];
 
 /**
- * @param {{ tags?: TagManager, profiles?: boolean, series?: boolean }} [o]
+ * @param {{ tags?: TagManager, profiles?: boolean }} [o]
  */
-function build({ tags = fileTags(), profiles = false, series = true } = {}) {
+function build({ tags = fileTags(), profiles = false } = {}) {
 	return buildSearchIndex({
 		posts: POSTS,
 		wikiPosts: WIKI,
@@ -234,8 +234,7 @@ function build({ tags = fileTags(), profiles = false, series = true } = {}) {
 		body: (p) => BODIES[p.path],
 		profiles: profiles
 			? { list: PROFILES, imported: new Set(['Ficha_Vieja']), linkedVenues: LINKED_VENUES }
-			: null,
-		series
+			: null
 	});
 }
 
@@ -296,9 +295,9 @@ describe('buildSearchIndex', () => {
 		}
 	});
 
-	it('las series (interruptor prendido), con ícono y aunque no tengan descripción', async () => {
+	it('las series, con ícono y aunque no tengan descripción', async () => {
 		for (const tags of [fileTags(), dbTags()]) {
-			const index = await build({ tags, series: true });
+			const index = await build({ tags });
 			const lujo = index.docs.find((d) => d.t === 'Serie Inventada: Lujo');
 			expect(lujo).toMatchObject({
 				c: 'serie',
@@ -319,23 +318,16 @@ describe('buildSearchIndex', () => {
 			expect(found[0]).toBe('/wiki/Serie-Inventada%3A-Lujo');
 		}
 	});
+	// «Sin el interruptor de series» se fue con el interruptor `series` (quedó fijo).
 
-	it('sin el interruptor de series, una serie sin descripción no tiene entrada propia', async () => {
-		const index = await build({ series: false });
-		expect(index.docs.some((d) => d.c === 'serie')).toBe(false);
-		expect(index.docs.some((d) => d.t === 'Serie Inventada: Lujo')).toBe(false);
-		// La que tiene descripción sigue como entrada de la Kinkipedia.
-		expect(index.docs.find((d) => d.t === 'Serie Inventada: Formal')?.c).toBe('wiki');
-	});
-
-	it('perfiles_publicos apagado: las fichas .md, ningún perfil de la base', async () => {
+	it('sin perfiles de la base (sin base): las fichas .md', async () => {
 		const index = await build({ profiles: false });
 		const amigues = index.docs.filter((d) => d.c === 'amigues');
 		expect(amigues.map((d) => d.h)).toEqual(['/amigues/Ficha_Vieja', '/amigues/Ficha_Sola']);
 		expect(JSON.stringify(index)).not.toContain('Persona Nueva');
 	});
 
-	it('perfiles_publicos prendido: los perfiles de la base y las .md sin importar', async () => {
+	it('con los perfiles de la base: esos y las .md sin importar', async () => {
 		const index = await build({ profiles: true });
 		const amigues = index.docs.filter((d) => d.c === 'amigues');
 		expect(amigues.map((d) => d.h).sort()).toEqual([

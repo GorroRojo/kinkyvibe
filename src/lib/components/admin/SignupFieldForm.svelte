@@ -125,7 +125,7 @@
 		</fieldset>
 	{/if}
 	<div class="kv-row">
-		<button class="kv-btn" type="submit">{field ? 'Guardar cambios' : 'Agregar pregunta'}</button>
+		<button class="kv-btn" type="submit">{field ? 'Guardar cambios' : 'Crear pregunta'}</button>
 	</div>
 	{#if field}
 		<small class="kv-note">

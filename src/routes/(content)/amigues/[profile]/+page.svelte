@@ -50,7 +50,7 @@
 {#if data.mode === 'db'}
 	<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 	<DbProfile {data} claimResult={form?.claim} url={$page.url.href} />
-	<!-- «Lo que sigo» (interruptores `lo_que_sigo` y `cuentas`): apagado, /api/sigo da 404 y no se ve -->
+	<!-- «Lo que sigo» (interruptor `lo_que_sigo`): apagado, /api/sigo da 404 y no se ve -->
 	<FollowButton kind="perfil" key={String(data.profileId)} name={data.profile?.title ?? ''} />
 	{#if data.participa}
 		<div class="content"><ParticipacionesPorRol groups={data.participa} /></div>

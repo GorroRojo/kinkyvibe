@@ -3,14 +3,13 @@
  * eran "Amigues" y "Cuentas › Perfiles"). Todos los perfiles de la base (personas, proyectos y
  * lugares; también ocultos y borrados), con filtros en la URL (`?q=`, `?tipo=`, `?origen=`,
  * `?estado=`; ver src/lib/admin/perfiles.js), cuántas fichas .md faltan importar y los pedidos
- * "Es mi perfil" (`?vista=pedidos`). Con el interruptor `perfiles_publicos` apagado, la pestaña
- * `?vista=fichas` muestra la lista de fichas .md de siempre (lo que muestra el sitio). Sin base,
- * solo esa lista. Solo admins: el `load` y cada action llaman a `requireAdmin`.
+ * "Es mi perfil" (`?vista=pedidos`). Sin base, la lista de fichas .md de siempre (el interruptor
+ * `perfiles_publicos` quedó prendido para siempre; `?vista=fichas` vieja muestra la lista de la
+ * base). Solo admins: el `load` y cada action llaman a `requireAdmin`.
  */
 import { listLoad, visibilityAction } from '$lib/server/admin/contentRoutes.js';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
-import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { claimDecisionAction } from '$lib/server/admin/amiguesRoutes.js';
 import { listProfiles } from '$lib/server/admin/cuentas.js';
 import { listClaims } from '$lib/server/amigues/claims.js';
@@ -27,20 +26,16 @@ export async function load(event) {
 	// Lleva los mails de quienes gestionan cada perfil.
 	event.setHeaders({ 'cache-control': 'private, no-store', 'referrer-policy': 'no-referrer' });
 	const db = getDB(event.platform);
-	const flagOn = await perfilesPublicosEnabled(event.platform);
 	const filters = parseProfileFilters(event.url.searchParams);
-	if (!db || (filters.view === 'fichas' && !flagOn)) {
+	if (!db) {
 		return {
 			editor: /** @type {const} */ ('md'),
-			flagOn,
-			hasDb: Boolean(db),
 			...(await mdLoad(event))
 		};
 	}
 	const view = filters.view === 'fichas' ? '' : filters.view;
 	const empty = {
 		editor: /** @type {const} */ ('db'),
-		flagOn,
 		dbAvailable: false,
 		filters: { ...filters, view },
 		profiles: /** @type {Awaited<ReturnType<typeof listProfiles>>['profiles']} */ ([]),

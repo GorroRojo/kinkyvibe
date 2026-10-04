@@ -179,7 +179,7 @@ describe('Avisame con cuenta sobre «Lo que sigo»', () => {
 	async function subs(flag) {
 		vi.resetModules();
 		vi.doMock('$env/dynamic/private', () => ({
-			env: { LO_QUE_SIGO_ENABLED: flag, CUENTAS_ENABLED: '1' }
+			env: { LO_QUE_SIGO_ENABLED: flag }
 		}));
 		return import('$lib/server/series/subscriptions.js');
 	}

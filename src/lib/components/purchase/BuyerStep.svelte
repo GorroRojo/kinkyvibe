@@ -211,7 +211,7 @@
 	{/each}
 </fieldset>
 
-<!-- Preguntas de inscripción del evento (interruptor personas_eventos; si no hay, nada). -->
+<!-- Preguntas de inscripción del evento (si no hay, nada). -->
 <SignupFieldInputs fields={purchaseFields} values={answers} {errors} />
 {#if ticketFields.length && !purchaseFields.length}
 	<small class="hint">Tus respuestas las ven solo les organizadores.</small>

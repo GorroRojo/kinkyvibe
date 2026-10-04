@@ -41,7 +41,6 @@ import {
 	venuePageLevel,
 	venueView
 } from '$lib/utils/venues.js';
-import { isFlagOn } from '$lib/server/flags.js';
 import { isApproved, urlSlugOf, viewerFor } from './profiles.js';
 import { textOrNull as s } from '$lib/utils/text.js';
 
@@ -158,8 +157,8 @@ function linkedVenueView(link, visible, approved) {
 
 /**
  * "Sucede en" para las páginas de un evento (la del evento, /entradas y /compartir): el lugar
- * según su privacidad para quien mira, solo con el interruptor `perfiles_publicos` prendido.
- * `null` si no tiene lugar (o si la base falla): la página muestra lo de su .md.
+ * según su privacidad para quien mira. `null` sin base, si no tiene lugar (o si la base falla):
+ * la página muestra lo de su .md.
  *
  * @param {D1Database | null | undefined} db
  * @param {string} eventSlug
@@ -168,7 +167,7 @@ function linkedVenueView(link, visible, approved) {
  */
 export async function eventPageVenue(db, eventSlug, locals) {
 	try {
-		if (!db || !(await isFlagOn(db, 'perfiles_publicos'))) return null;
+		if (!db) return null;
 		return await publicVenueForEvent(db, eventSlug, viewerFor(locals));
 	} catch (e) {
 		console.error('[calendario] no se pudo leer el lugar del evento', e);
@@ -198,9 +197,9 @@ export async function buyerVenueForEvent(db, eventSlug) {
 
 /**
  * Para los mails y la página de la entrada de quien compró: el lugar completo como
- * `{ location_name, location }` (los mismos campos que usan las plantillas), o `null` si el
- * interruptor `perfiles_publicos` está apagado o el evento no tiene lugar (entonces se usa lo del
- * .md, como siempre). Nunca tira: un error deja lo del .md.
+ * `{ location_name, location }` (los mismos campos que usan las plantillas), o `null` sin base o
+ * si el evento no tiene lugar (entonces se usa lo del .md, como siempre). Nunca tira: un error
+ * deja lo del .md.
  *
  * @param {D1Database | null | undefined} db
  * @param {string} eventSlug
@@ -209,7 +208,6 @@ export async function buyerVenueForEvent(db, eventSlug) {
 export async function buyerLocation(db, eventSlug) {
 	if (!db) return null;
 	try {
-		if (!(await isFlagOn(db, 'perfiles_publicos'))) return null;
 		const venue = await buyerVenueForEvent(db, eventSlug);
 		if (!venue) return null;
 		return { location_name: venue.name, location: venue.address || undefined };
@@ -222,8 +220,8 @@ export async function buyerLocation(db, eventSlug) {
 /**
  * Para los calendarios .ics dinámicos (etiqueta o serie, "lo tuyo"): el lugar de cada evento de
  * `slugs` que tiene uno, como lo ve cualquiera en la página del evento (ANON), para
- * `feedLocation`. Vacío si `perfiles_publicos` está apagado (entonces el .ics usa lo del .md, como
- * la página). Si algo falla, tira: mejor un .ics que no carga que uno con una dirección oculta.
+ * `feedLocation`. Vacío sin base (entonces el .ics usa lo del .md, como la página). Si algo
+ * falla, tira: mejor un .ics que no carga que uno con una dirección oculta.
  *
  * @param {D1Database | null | undefined} db
  * @param {Iterable<string>} slugs
@@ -232,7 +230,7 @@ export async function buyerLocation(db, eventSlug) {
 export async function feedVenues(db, slugs) {
 	/** @type {Map<string, VenueView>} */
 	const out = new Map();
-	if (!db || !(await isFlagOn(db, 'perfiles_publicos'))) return out;
+	if (!db) return out;
 	for (const { eventSlug, view } of await anonEventVenues(db, slugs)) out.set(eventSlug, view);
 	return out;
 }
@@ -243,8 +241,7 @@ export async function feedVenues(db, slugs) {
  * que ANON puede ver y están aprobados (lo mismo que decide el link, {@link linkedVenueView}).
  * Para el buscador: un lugar no listado al que se llega desde un evento visible también se puede
  * encontrar buscando (regla de gorrite: lo que ya se alcanza navegando). El objeto va como lo ve
- * ANON (`forViewer`); quien lo use elige qué campos muestra. No mira el interruptor
- * `perfiles_publicos`: quien llama lo decide.
+ * ANON (`forViewer`); quien lo use elige qué campos muestra.
  *
  * @param {D1Database} db
  * @param {Iterable<string>} slugs los eventos que ya se pueden alcanzar (listados y publicados)
@@ -353,7 +350,7 @@ async function anonEventVenues(db, slugs) {
  * cualquiera (`venuePlaceMeta`). Para todo lo público que manda la meta de los eventos (listas,
  * carrusel, /api/posts). No toca los posts de entrada (vienen de la caché de los .md).
  *
- * Sin base o con `perfiles_publicos` apagado, como están (la página del evento también usa el
+ * Sin base, como están (la página del evento también usa el
  * .md). Si la base falla, los eventos van sin el «Dónde» del .md: mejor sin lugar que con uno
  * que debía estar oculto.
  *

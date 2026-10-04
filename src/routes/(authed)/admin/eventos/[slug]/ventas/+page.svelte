@@ -271,7 +271,7 @@
 	</Card>
 
 	{#if showFondo}
-		<Card title="Fondo KinkyVibe">
+		<Card title="Fondo Kinky Vibe">
 			<p class="muted small">
 				{#if data.fondoPercent !== null}Descuento del fondo este mes: {data.fondoPercent} %.{/if}
 				"Fondo usado" es lo que cubrió el fondo; "aportes", lo que se pagó de más (solidaria, muy solidaria

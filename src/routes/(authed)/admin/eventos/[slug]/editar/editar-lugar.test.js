@@ -89,7 +89,7 @@ const eventMd = (title) =>
  */
 async function page() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { PERFILES_PUBLICOS_ENABLED: '1' } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	const raw = eventMd('Fiesta de Prueba');
 	const meta = JSON.parse(JSON.stringify(parse(splitMarkdown(raw).frontmatter)));
 	await runImport(t.db, 'calendario', [{ legacySlug: SLUG, raw, meta }], {

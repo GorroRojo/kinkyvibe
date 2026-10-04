@@ -1,5 +1,5 @@
 /**
- * Ficha del evento, pestaña Preguntas (interruptor `personas_eventos`; apagado, 404): lo que se
+ * Ficha del evento, pestaña Preguntas: lo que se
  * pregunta al comprar o inscribirse, además de los datos de siempre. Preguntas propias de este
  * evento y las generales que elige usar (se definen en Eventos › Roles y preguntas). Cada
  * pregunta propia se puede editar y acotar a algunos tipos de entrada; una general, acotar en

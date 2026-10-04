@@ -4,9 +4,8 @@
  * `personas:` de ese evento. Se ven en Mi rincón → el perfil → Respuestas de inscripción.
  *
  * Reglas (todas en el servidor, en {@link requireOrganizer}):
- * - interruptor `cuentas` prendido, sesión de cuenta (si no, a /ingresar) y permiso "puede tener
- *   perfiles": lo de siempre de Mi rincón (`requireMember`);
- * - interruptor `personas_eventos` prendido;
+ * - sesión de cuenta (si no, a /ingresar) y permiso "puede tener perfiles": lo de siempre de Mi
+ *   rincón (`requireMember`);
  * - la cuenta gestiona el perfil (`getManagedProfile`, dueñe o gestore);
  * - el evento está publicado y lista ese perfil con el rol «Organiza».
  * Si algo falla, 404 (no 403): así no se sabe si el evento tiene respuestas.
@@ -25,7 +24,6 @@ import { requireMember } from '$lib/server/cuentas/perfilesWeb.js';
 import { logSignupAnswersViewed } from '$lib/server/admin/accountEvents.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { logDBError } from '$lib/server/db';
-import { personasEventosEnabled } from '$lib/server/flags.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { getEventMeta, isValidEventSlug, listEventMetas } from '$lib/server/tickets/events.js';
 import { fieldsForEvent } from '$lib/server/tickets/signupFields.js';
@@ -75,16 +73,15 @@ export async function organizedEvents(profileSlug) {
 }
 
 /**
- * Para la página del perfil en Mi rincón: los eventos que organiza, o `[]` con el interruptor
- * apagado (la sección no aparece). Nunca rompe la página.
+ * Para la página del perfil en Mi rincón: los eventos que organiza. Nunca rompe la página (si
+ * algo falla, `[]` y la sección no aparece).
  *
- * @param {App.Platform | undefined} platform
+ * @param {App.Platform | undefined} _platform ya no se usa (era para el interruptor)
  * @param {string} profileSlug
  * @returns {Promise<OrganizedEvent[]>}
  */
-export async function organizedEventsForPage(platform, profileSlug) {
+export async function organizedEventsForPage(_platform, profileSlug) {
 	try {
-		if (!(await personasEventosEnabled(platform))) return [];
 		return await organizedEvents(profileSlug);
 	} catch (e) {
 		logDBError('eventos que organiza el perfil', e);
@@ -100,7 +97,6 @@ export async function organizedEventsForPage(platform, profileSlug) {
  */
 export async function requireOrganizer(event) {
 	const { db, member } = await requireMember(event);
-	if (!(await personasEventosEnabled(event.platform))) error(404, 'Not found');
 	const eventSlug = event.params.event ?? '';
 	const found = await getManagedProfile(db, member.id, event.params.slug ?? '');
 	if (!found || !isValidEventSlug(eventSlug)) error(404, 'Not found');

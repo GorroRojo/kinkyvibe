@@ -20,7 +20,7 @@
 	 * se usa localStorage para estos datos. No se guarda la casilla de +18 (hay que volver a
 	 * marcarla).
 	 *
-	 * Con cuenta (interruptor `cuentas`, `account`), «Tus datos» arranca con el nombre, los
+	 * Con cuenta (`account`), «Tus datos» arranca con el nombre, los
 	 * pronombres y el DNI guardados y el mail de la cuenta, y muestra las casillas «Guardar mis
 	 * datos para la próxima» y «Recordar mi DNI» (docs/cuentas.md, «Datos guardados»). Si el
 	 * servidor devolvió el formulario o hay un borrador, mandan esos. Sin cuenta, nada cambia.
@@ -422,7 +422,7 @@
 
 	const closedText = {
 		cancelled: 'El evento se canceló: no hay venta de entradas.',
-		soldout: 'Entradas agotadas.',
+		soldout: 'Agotadas.',
 		closed: 'Venta cerrada.',
 		notyet: tickets.opensAt
 			? `${saleWindowText({ opensAt: tickets.opensAt })}.`

@@ -119,7 +119,7 @@ armar una variante nueva en un componente.
 | Campo de texto       | `.kv-input` o `<label class="kv-field">`: rectángulo neutro (borde `--field`, `--radius-s`), 44px, letra de 16px. Con foco, borde rosa. Píldora solo en buscadores (`type="search"`). Grande (~54px, `.large`) solo en el flujo de compra.                |
 | Casilla              | `<input type="checkbox">` ya sale con el estilo del sitio (`style.scss`). Va cuando hay un botón Guardar.                                                                                                                                                 |
 | Interruptor          | `<input type="checkbox" role="switch">`: para prender/apagar al instante, sin Guardar (como Ajustes › Interruptores). Feedback: «Guardando…» → «Guardado ✓».                                                                                              |
-| Uno de N             | `.kv-segmented` (como «Mostrar \| Ocultar» del sitio, más grande, en minúscula normal, 44px). En el panel: `charts/Segmented.svelte`. Si cada opción lleva descripción: tarjetas con radio.                                                               |
+| Uno de N             | `.kv-segmented` (como «Mostrar \| Ocultar» del sitio, más grande, en minúscula normal, 44px). En el panel: `charts/Segmented.svelte`. Si cada opción lleva descripción: tarjetas con radio (`.kv-choice`).                                                |
 | «Estás acá»          | Violeta sobre lila (`--link` sobre `--link-bg`; en el sitio `--2-dark` sobre `--2-tint`): pestañas, menú lateral, índice del editor, menú del sitio.                                                                                                      |
 | Tarjeta              | `Card.svelte`: blanca lisa. `status` pone un borde de color a la izquierda (solo si hay un estado); `filled` la llena de color para destacar. La entrada conserva su borde punteado.                                                                      |
 | Badge                | `Badge.svelte`: **siempre con ícono** (si no pasás `icon`, va el del tono). Muchas para comparar: el color dice qué significa; pocas: que combine con el componente.                                                                                      |
@@ -134,3 +134,18 @@ armar una variante nueva en un componente.
 
 Íconos: los de [Lucide](https://lucide.dev) (`@lucide/svelte`) en la interfaz. Los emoji quedan
 para el contenido y las etiquetas.
+
+## Textos
+
+Las palabras del panel y del sitio, con las decisiones de gorrite de la revisión de UI (paso 3).
+Valen para el texto que se ve; los ids de etiquetas, las URLs, los slugs, los valores de la base y
+el dominio no cambian.
+
+| Qué                 | Cómo                                                                                                                                                                                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Iniciar sesión      | **«Entrar»** («Entrar con GitHub», «Entrá a tu cuenta…»). Nunca «Iniciar sesión» ni «Ingresar».                                                                                                                                              |
+| Modo puerta         | **«Puerta»**: la sección del menú (`/admin/checkin`), la pestaña de la ficha del evento y la pantalla de escanear. No «Check-in», «Ingreso» ni «Modo puerta».                                                                                |
+| La marca            | **«Kinky Vibe»** (dos palabras). No en la etiqueta `KinkyVibe`, las URLs, el dominio, el código ni los asuntos de los mails (por ahora siguen con «KinkyVibe»).                                                                              |
+| Verbos              | «Borrar» (contenido), «Sacar» (de una lista o relación), «Apagar»/«Prender» (interruptores, códigos), «Guardar» (lo que ya existe), «Crear» (lo nuevo).                                                                                      |
+| Estados de la venta | «Agotadas» y «Venta cerrada».                                                                                                                                                                                                                |
+| Fechas              | Listas: `vie 2 oct · 22:00` (`argDateList`). Encabezados y mails: `viernes 2 de octubre de 2026, 22:00` (`argDateTimeLong`). Registros: «hace X» o `2/10/26 13:43` (`argDateLog`). Sin fechas ISO ni «hs». Todo en `src/lib/utils/dates.js`. |

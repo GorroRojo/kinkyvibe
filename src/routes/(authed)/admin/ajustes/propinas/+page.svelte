@@ -53,7 +53,7 @@
 
 <PageHeader
 	title="Propinas"
-	subtitle="Las que se dejan al pie de las publicaciones de KinkyVibe. Entran a la misma cuenta de Mercado Pago que las entradas."
+	subtitle="Las que se dejan al pie de las publicaciones de Kinky Vibe. Entran a la misma cuenta de Mercado Pago que las entradas."
 >
 	<svelte:fragment slot="actions">
 		<CsvButton href="/admin/ajustes/propinas/propinas.csv" />
@@ -63,12 +63,6 @@
 <div class="kv-stack">
 	{#if !data.dbAvailable}
 		<p class="kv-flash bad">No hay base de datos disponible.</p>
-	{/if}
-	{#if !data.enabled}
-		<p class="kv-flash" role="status">
-			El interruptor <b>Propinas</b> está apagado: las publicaciones muestran la nota del cafecito.
-			Se prende en <a href="/admin/ajustes/interruptores">Ajustes → Interruptores</a>.
-		</p>
 	{/if}
 
 	<div class="kv-stats">

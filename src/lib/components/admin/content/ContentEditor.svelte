@@ -21,7 +21,8 @@
 		ExternalLink,
 		LoaderCircle,
 		Save,
-		ShieldAlert
+		ShieldAlert,
+		Undo2
 	} from '@lucide/svelte';
 	import '$lib/components/admin/admin.scss';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -35,6 +36,7 @@
 	import SaveStatus from '$lib/components/admin/event-form/SaveStatus.svelte';
 	import { saveCopy, savedSummary } from '$lib/admin/saveCopy.js';
 	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
+	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
 	import PersonasSection from '$lib/components/admin/event-form/PersonasSection.svelte';
 	import { authorRoleOf, personasToMd, validatePersonaItems } from '$lib/utils/personasList.js';
@@ -72,7 +74,8 @@
 	 *   taken: string[], imageUrl: string | null, today: string, maxImageBytes: number,
 	 *   mock: boolean, savesToDb?: boolean, tagUsage: Record<string, number>,
 	 *   profiles: import('$lib/utils/organizers.js').Profile[], authorUsage: Record<string, number>,
-	 *   personas?: { roles: string[], profiles: import('$lib/utils/personasPicker.js').DbProfile[] } | null
+	 *   personas?: { roles: string[], profiles: import('$lib/utils/personasPicker.js').DbProfile[] } | null,
+	 *   image?: { current: import('$lib/server/media/library.js').PublicImage | null, legacyUrl: string | null, target: string | null } | null
 	 * }}
 	 */
 	export let data;
@@ -114,8 +117,8 @@
 	}
 
 	/* ---------- personas (material): autores y el resto, en una sola lista ---------- */
-	// Como en el editor de eventos: `data.personas` ({ roles, profiles }) llega solo con el
-	// interruptor personas_eventos; apagado, es el «Autores» de siempre y `personas:` no se toca.
+	// Como en el editor de eventos: `data.personas` ({ roles, profiles }) llega con base; sin
+	// base, es el «Autores» de siempre y `personas:` no se toca.
 	const withPeople = hasAuthors(category);
 	const personasData = withPeople ? (data.personas ?? null) : null;
 	const authorRole = authorRoleOf(category);
@@ -206,6 +209,13 @@
 		imageSection?.clear();
 	}
 	$: currentImage = isNew && data.source ? null : data.imageUrl;
+	// Material: el selector de imágenes (docs/imagenes.md). La imagen elegida va como edge
+	// `portada`; al elegir o sacar una, se saca la vieja del repo (`featured`). Amigues sigue
+	// subiendo su imagen al repo (ImageSection).
+	const library = Boolean(data.image);
+	/** @type {import('$lib/server/media/library.js').PublicImage | null} */
+	let pickedImage = data.image?.current ?? null;
+	let imageTouched = false;
 
 	/* ---------- result ---------- */
 	$: buildOpts = {
@@ -220,7 +230,9 @@
 				]
 			: []
 	};
-	$: content = parseError ? rawText : safeBuild(f, buildOpts);
+	$: content = parseError
+		? rawText
+		: safeBuild(f, imageTouched && !isNew ? { ...buildOpts, featured: null } : buildOpts);
 	/**
 	 * @param {typeof f} form
 	 * @param {any} opts
@@ -234,7 +246,10 @@
 	}
 	$: unchangedContent = parseError || isNew ? '' : safeBuild(initial, buildOpts);
 	$: changed =
-		isNew || content !== (parseError ? baseRaw : unchangedContent) || Boolean(upload.name);
+		isNew ||
+		content !== (parseError ? baseRaw : unchangedContent) ||
+		Boolean(upload.name) ||
+		imageTouched;
 	$: problems = parseError
 		? []
 		: [
@@ -274,7 +289,9 @@
 			summary: f.values.summary || '',
 			tags: previewTags,
 			authors: f.authors,
-			featured: upload.url || currentImage || undefined,
+			featured: library
+				? pickedImage?.url || (imageTouched ? undefined : currentImage) || undefined
+				: upload.url || currentImage || undefined,
 			published_date: f.values.published_date || data.today,
 			category
 		}
@@ -351,7 +368,7 @@
 	const newKey = (from) => draftKey(category, from ? `nuevo-desde-${from}` : 'nuevo');
 	const unsavedKey = isNew ? newKey(data.source?.slug ?? '') : draftKey(category, data.slug);
 	$: dirty = isNew
-		? JSON.stringify(f) !== startForm || Boolean(upload.name) || slugTouched
+		? JSON.stringify(f) !== startForm || Boolean(upload.name) || imageTouched || slugTouched
 		: changed;
 	$: draft = { f, people, slug, slugTouched, rawText };
 	/** @param {any} d */
@@ -503,38 +520,51 @@
 				/>
 			{/if}
 
-			<ImageSection
-				bind:this={imageSection}
-				bind:upload
-				src={upload.url || currentImage}
-				alt="Imagen de la publicación"
-				inputId="content-image"
-				form="content-form"
-				buttonText={upload.name
-					? 'Elegir otra imagen'
-					: currentImage
-						? 'Cambiar la imagen'
-						: 'Subir una imagen'}
-				maxImageBytes={data.maxImageBytes}
-			>
-				<svelte:fragment slot="before">
-					{#if upload.name}
-						<p class="hint">Nueva imagen: {upload.name}</p>
-					{:else if isNew && data.source && initial.featured}
-						<p class="hint">La copia no usa la imagen del original: subí una.</p>
-					{/if}
-				</svelte:fragment>
-				<svelte:fragment slot="formats">
-					JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Se guarda en
-					<code>{category}/media/{slug || '…'}/</code>{isNew
-						? ' como 1'
-						: ' con el próximo número libre'}
-					(las imágenes que ya usa el texto no se tocan).
-				</svelte:fragment>
-				{#if upload.name}<button type="button" class="link" on:click={clearUpload}
-						>No cambiar la imagen</button
-					>{/if}
-			</ImageSection>
+			{#if library}
+				<ImagePicker
+					bind:value={pickedImage}
+					legacyUrl={data.image?.legacyUrl}
+					target={data.image?.target}
+					contextLabel="De este material"
+					idPrefix="content-image"
+					form="content-form"
+					canDelete
+					on:change={() => (imageTouched = true)}
+				/>
+			{:else}
+				<ImageSection
+					bind:this={imageSection}
+					bind:upload
+					src={upload.url || currentImage}
+					alt="Imagen de la publicación"
+					inputId="content-image"
+					form="content-form"
+					buttonText={upload.name
+						? 'Elegir otra imagen'
+						: currentImage
+							? 'Cambiar la imagen'
+							: 'Subir una imagen'}
+					maxImageBytes={data.maxImageBytes}
+				>
+					<svelte:fragment slot="before">
+						{#if upload.name}
+							<p class="hint">Nueva imagen: {upload.name}</p>
+						{:else if isNew && data.source && initial.featured}
+							<p class="hint">La copia no usa la imagen del original: subí una.</p>
+						{/if}
+					</svelte:fragment>
+					<svelte:fragment slot="formats">
+						JPG, PNG o WEBP, hasta {data.maxImageBytes / 1024 / 1024} MB. Se guarda en
+						<code>{category}/media/{slug || '…'}/</code>{isNew
+							? ' como 1'
+							: ' con el próximo número libre'}
+						(las imágenes que ya usa el texto no se tocan).
+					</svelte:fragment>
+					{#if upload.name}<button type="button" class="kv-link" on:click={clearUpload}
+							><Undo2 size={16} aria-hidden="true" /> No cambiar la imagen</button
+						>{/if}
+				</ImageSection>
+			{/if}
 
 			<TagsSection
 				{category}

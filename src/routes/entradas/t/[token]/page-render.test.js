@@ -45,7 +45,7 @@ describe('/entradas/t/<token>: el estado', () => {
 		// 2/10/2026 13:14 en Buenos Aires.
 		const checkedInAt = Date.parse('2026-10-02T13:14:00-03:00');
 		expect(stateText({ state: 'used', checkedInAt })).toBe(
-			'Ya se usó para ingresar (2/10/26, 13:14)'
+			'Ya se usó para ingresar (2/10/26 13:14)'
 		);
 	});
 

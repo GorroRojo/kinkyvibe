@@ -1,7 +1,7 @@
 /**
  * GET /ics/etiqueta/<etiqueta>.ics: calendario para suscribirse a una etiqueta o serie (los
- * eventos listados con esa etiqueta o una de sus hijas, como su página). Interruptor `series`:
- * apagado, 404. Mismo armado que /calendario.ics ($lib/utils/icsFeed.js, que decide qué dirección
+ * eventos listados con esa etiqueta o una de sus hijas, como su página). Mismo
+ * armado que /calendario.ics ($lib/utils/icsFeed.js, que decide qué dirección
  * puede ir: ver `feedLocation`).
  */
 import { error } from '@sveltejs/kit';
@@ -29,6 +29,6 @@ export async function GET({ params, platform }) {
 		events.map((e) => String(e.meta.postID))
 	);
 	return icsResponse(
-		buildIcsFeed(events, { calName: `${name} · KinkyVibe`, profiles: posts, venues })
+		buildIcsFeed(events, { calName: `${name} · Kinky Vibe`, profiles: posts, venues })
 	);
 }

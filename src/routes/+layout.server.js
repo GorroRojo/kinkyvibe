@@ -1,7 +1,6 @@
 import { fetchMarkdownPosts } from '$lib/utils';
 import { isAdmin } from '$lib/server/auth';
 import { isPreviewDeploy } from '$lib/server/deploy.js';
-import { cuentasEnabled, propinasEnabled } from '$lib/server/flags.js';
 import { siteTagSource } from '$lib/server/etiquetas/source.js';
 /** @type {import("./$types").LayoutServerLoad} */
 // Don't read `url` here: SvelteKit would then re-run this load whenever the query string
@@ -15,13 +14,9 @@ export const load = async ({ locals, platform }) => {
 		user: locals.user && { ...locals.user, admin: isAdmin(locals.user) },
 		// Preview deploys: demo mode (docs/demo.md): "Entrar como admin de prueba" and the banner.
 		demoMode: isPreviewDeploy(),
-		// Cuentas del público (docs/cuentas.md): el link "Ingresar"/"Mi rincón" del encabezado, solo
-		// con el interruptor prendido. `member` es solo sí/no: el mail no viaja en cada página.
-		cuentas: await cuentasEnabled(platform),
+		// Cuentas del público (docs/cuentas.md): el link "Ingresar"/"Mi rincón" del encabezado.
+		// `member` es solo sí/no: el mail no viaja en cada página.
 		member: Boolean(locals.member),
-		// Interruptor `propinas` (docs/propinas.md): el pie de página muestra "Dejá una propina" en
-		// lugar de Cafecito.
-		propinas: await propinasEnabled(platform),
 		// El árbol de etiquetas de la base (docs/etiquetas.md), para los stores de las páginas
 		// (+layout.svelte). Sin etiquetas en la base: null, y todo usa el archivo de respaldo.
 		siteTags: tags.fromDb ? tags.rawTags : null

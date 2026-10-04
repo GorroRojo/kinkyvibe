@@ -1,7 +1,7 @@
 /**
  * GET /api/sigo?tipo=<etiqueta|perfil>&clave=<clave>: para el botón «Seguir»
  * ($lib/components/FollowButton.svelte), que lo pide al cargar porque las páginas de etiquetas
- * pueden estar prerenderizadas. Con `lo_que_sigo` o `cuentas` apagado, o si no hay nada que
+ * pueden estar prerenderizadas. Con `lo_que_sigo` apagado, o si no hay nada que
  * seguir con esa clave, 404 (y el botón no se muestra).
  *
  * Responde `{ member: false }` sin sesión, o `{ member: true, kind, key, following }` con la

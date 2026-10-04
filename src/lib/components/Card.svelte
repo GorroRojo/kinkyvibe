@@ -11,7 +11,7 @@
 		mark
 	} = post;
 	export let setId = true;
-	mark = tags.includes('KinkyVibe') ? 'KinkyVibe' : undefined;
+	mark = tags.includes('KinkyVibe') ? 'Kinky Vibe' : undefined;
 	let mounted = false;
 	onMount(() => (mounted = true));
 

@@ -36,7 +36,14 @@ que aprobó gorrite: Inicio arriba, **7 áreas** que se abren de a una y **Ajust
 de cada área, las secciones van por frecuencia de uso (lo de todos los días primero) y lo que
 viene, al final.
 
-Cada sección vive en **`/admin/<área>/<sección>`**. Las excepciones: Inicio (`/admin`), Check-in
+**Menú simplificado** (revisión de UI, paso 3): el menú no muestra las 8 áreas sino 5 grupos
+(`NAV_GROUPS` en `nav.js`): Eventos, Ventas (con Estadísticas), Comunidad (con Mensajes), Contenido
+(con Etiquetas) y Ajustes al pie. Las secciones de las áreas que se suman van debajo del nombre de
+su área. Es solo el menú: cada sección sigue en su área y en su URL. En la página principal de
+cada sección de un grupo (menos Eventos) el layout pone una barra de pestañas con todas las
+secciones del grupo, como la que tenía Ajustes (`sectionTabs`).
+
+Cada sección vive en **`/admin/<área>/<sección>`**. Las excepciones: Inicio (`/admin`), Puerta
 (`/admin/checkin`, porque esa URL está guardada en los celus de la puerta) y las áreas de una sola
 sección (Etiquetas, Estadísticas), que usan la URL del área.
 
@@ -131,8 +138,8 @@ las áreas y, al tocar una, sus secciones. Cuando llegue la Bandeja (fase 5), el
 ser "Para revisar".
 
 **Lo que viene**: las secciones aprobadas que todavía no existen están en `nav.js` con
-`soon: true, phase: N` y un `soonText`. Se ven al final de su área, grises y punteadas, con "fase
-N", y su URL reservada abre una sola página genérica "Próximamente" (`[...section=soon]`, con el
+`soon: true, phase: N` y un `soonText`. Se ven al final de su área, grises y punteadas, con
+«Próximamente», y **no son links** (no hay nada que abrir todavía); su URL reservada igual abre una sola página genérica "Próximamente" (`[...section=soon]`, con el
 matcher `src/params/soon.js`) que dice qué va a hacer. Cada persona puede esconderlas con «Ocultar
 lo que viene» en su menú de usuario (en el navegador, con try/catch).
 

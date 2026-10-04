@@ -35,7 +35,7 @@ export async function isValidWebhookSecret(given, expected) {
  *   listUpcoming: import('./router.js').Deps['listUpcoming'],
  *   accounts?: import('./router.js').Deps['accounts']
  * }} args `accounts`: la fase 2 (vincular cuentas); se llama solo para esos comandos y da `null`
- *   con `lo_que_sigo` o `cuentas` apagado
+ *   con `lo_que_sigo` apagado
  */
 export async function handleWebhook({ request, secret, enabled, origin, listUpcoming, accounts }) {
 	if (!secret || secret.length < MIN_WEBHOOK_SECRET_LENGTH) {

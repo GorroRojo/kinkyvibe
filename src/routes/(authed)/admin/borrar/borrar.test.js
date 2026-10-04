@@ -1,13 +1,13 @@
 /**
  * Panel → Borrar (/admin/borrar/[kind]/[slug]) y «Recuperar» en Actividad: solo admins (sin
- * sesión, redirect 303 al login; sin permiso, 403), solo con el interruptor prendido (si no, 404),
- * los eventos con entradas vendidas no se borran, con dependencias hay que escribir la dirección,
+ * sesión, redirect 303 al login; sin permiso, 403), los eventos con entradas vendidas no se borran, con dependencias hay que escribir la dirección,
  * y deshacer / recuperar restauran. D1 de miniflare, repo falso; datos inventados.
+ * (El interruptor `borrar_desde_panel` quedó prendido para siempre: se fueron los casos «apagado».)
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
-import { clearFlagCache, setFlag } from '$lib/server/flags.js';
+import { clearFlagCache } from '$lib/server/flags.js';
 import { listAudit } from '$lib/server/admin/audit.js';
 import { insertOrder } from '$lib/server/admin/testRows.js';
 import { makeEvent, makeProfile } from '$lib/server/amigues/testing.js';
@@ -59,7 +59,6 @@ afterAll(async () => {
 beforeEach(async () => {
 	await resetDB(t.db);
 	clearFlagCache();
-	await setFlag(t.db, 'borrar_desde_panel', true, { by: 'test' });
 	repo.files = new Set([
 		`src/lib/posts/calendario/${SLUG}.md`,
 		'src/lib/posts/material/guia-de-prueba.md'
@@ -117,13 +116,6 @@ describe('permissions', () => {
 		expect(intruderUndo.status).toBe(403);
 		expect(repo.commits).toEqual([]);
 	});
-	it('is a 404 with the switch off', async () => {
-		await setFlag(t.db, 'borrar_desde_panel', false, { by: 'test' });
-		expect((await thrown(() => borrar.load(fakeEvent()))).status).toBe(404);
-		const r = /** @type {any} */ (await borrar.actions.borrar(fakeEvent({ form: {} })));
-		expect(r.status).toBe(404);
-		expect(repo.commits).toEqual([]);
-	});
 });
 
 describe('deleting', () => {
@@ -166,14 +158,13 @@ describe('deleting', () => {
 		expect(repo.files.has('src/lib/posts/material/guia-de-prueba.md')).toBe(true);
 		expect((await listAudit(t.db))[0].action).toBe('material.restore');
 	});
-	it('lists recoverable deletions in Actividad and recovers one, even with the switch off', async () => {
+	it('lists recoverable deletions in Actividad and recovers one', async () => {
 		const r = /** @type {any} */ (await borrar.actions.borrar(fakeEvent({ form: {} })));
 		const page = /** @type {any} */ (
 			await actividad.load(fakeEvent({ path: '/admin/ajustes/actividad' }))
 		);
 		expect(page.deletions).toMatchObject([{ id: r.deleted.id, slug: SLUG }]);
 
-		await setFlag(t.db, 'borrar_desde_panel', false, { by: 'test' });
 		const back = /** @type {any} */ (
 			await actividad.actions.recuperar(
 				fakeEvent({ path: '/admin/ajustes/actividad', form: { id: String(r.deleted.id) } })
@@ -252,7 +243,8 @@ describe('perfiles que viven solo en la base (sin .md)', () => {
 		expect(repo.commits).toEqual([]);
 	});
 
-	it('se recupera desde Actividad, también con el interruptor apagado', async () => {
+	// (El caso «con el interruptor apagado» se fue con `borrar_desde_panel`, que quedó fijo.)
+	it('se recupera desde Actividad', async () => {
 		const p = await makeProfile(t.db, { title: 'Perfil Inventado' });
 		const r = /** @type {any} */ (
 			await borrar.actions.borrar(fakeEvent({ kind: 'amigues', slug: p.slug, form: {} }))
@@ -261,7 +253,6 @@ describe('perfiles que viven solo en la base (sin .md)', () => {
 			await actividad.load(fakeEvent({ path: '/admin/ajustes/actividad' }))
 		);
 		expect(page.deletions).toMatchObject([{ id: r.deleted.id, kind: 'amigues', slug: p.slug }]);
-		await setFlag(t.db, 'borrar_desde_panel', false, { by: 'test' });
 		const back = /** @type {any} */ (
 			await actividad.actions.recuperar(
 				fakeEvent({ path: '/admin/ajustes/actividad', form: { id: String(r.deleted.id) } })

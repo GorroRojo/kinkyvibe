@@ -1,5 +1,5 @@
 /**
- * GET /api/sigo (botón «Seguir»): 404 con un interruptor apagado o si no hay nada que seguir;
+ * GET /api/sigo (botón «Seguir»): 404 con `lo_que_sigo` apagado o si no hay nada que seguir;
  * sin sesión solo `{ member: false }`; con sesión, si **esta** cuenta lo sigue (nunca de otra).
  * D1 de miniflare; datos inventados.
  */
@@ -26,11 +26,11 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/** @param {{ sigo?: string, cuentas?: string }} [flags] */
-async function modules({ sigo = '1', cuentas = '1' } = {}) {
+/** @param {{ sigo?: string }} [flags] */
+async function modules({ sigo = '1' } = {}) {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
-		env: { LO_QUE_SIGO_ENABLED: sigo, CUENTAS_ENABLED: cuentas }
+		env: { LO_QUE_SIGO_ENABLED: sigo }
 	}));
 	return {
 		api: await import('./+server.js'),
@@ -51,7 +51,7 @@ const get = (tipo, clave, member) =>
 	});
 
 describe('GET /api/sigo', () => {
-	for (const flags of [{ sigo: '0' }, { cuentas: '0' }]) {
+	for (const flags of [{ sigo: '0' }]) {
 		it(`apagado (${JSON.stringify(flags)}): 404`, async () => {
 			const m = await modules(flags);
 			const member = await makeAccount(t.db, 'apagado');

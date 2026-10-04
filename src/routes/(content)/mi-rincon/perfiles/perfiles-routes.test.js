@@ -1,6 +1,7 @@
 /**
- * Páginas de perfiles (/mi-rincon/perfiles y /mi-rincon/perfiles/[slug]) con el interruptor
- * `cuentas` apagado y prendido. D1 de miniflare; datos inventados.
+ * Páginas de perfiles (/mi-rincon/perfiles y /mi-rincon/perfiles/[slug]). El interruptor
+ * `cuentas` quedó prendido para siempre: se fue el caso «apagado». D1 de miniflare; datos
+ * inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -23,10 +24,10 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/** Módulos con la variable CUENTAS_ENABLED que se pida ('' = lo que diga la base). */
-async function modules(flag = '') {
+/** Los módulos, recién cargados (sin variables de entorno). */
+async function modules() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { CUENTAS_ENABLED: flag } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	return {
 		rincon: await import('../+page.server.js'),
 		list: await import('./+page.server.js'),
@@ -89,28 +90,9 @@ async function member(m, name, { profiles = true } = {}) {
 	return { id: a.id, email: a.email };
 }
 
-describe('interruptor apagado', () => {
-	it('las páginas de perfiles y sus actions dan 404 y no escriben nada', async () => {
-		const m = await modules('');
-		const me = await member(m, 'persona-prueba');
-		expect((await thrown(() => m.list.load(fakeEvent({ member: me }))))?.status).toBe(404);
-		const create = fakeEvent({ member: me, form: { kind: 'persona', title: 'Nombre Inventado' } });
-		expect((await thrown(() => m.list.actions.crear(create)))?.status).toBe(404);
-		const edit = fakeEvent({ member: me, params: { slug: 'nombre-inventado' } });
-		expect((await thrown(() => m.edit.load(edit)))?.status).toBe(404);
-		const save = fakeEvent({
-			member: me,
-			params: { slug: 'nombre-inventado' },
-			form: { title: 'x', version: '1' }
-		});
-		expect((await thrown(() => m.edit.actions.guardar(save)))?.status).toBe(404);
-		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM objects').first())?.n).toBe(0);
-	});
-});
-
-describe('interruptor prendido', () => {
+describe('perfiles de la cuenta', () => {
 	it('sin sesión lleva a /ingresar y vuelve a la misma página', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const r = await thrown(() =>
 			m.edit.load(fakeEvent({ path: '/mi-rincon/perfiles/algo', params: { slug: 'algo' } }))
 		);
@@ -121,7 +103,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('crear, listar y editar; otra cuenta recibe 404 (como si no existiera)', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const me = await member(m, 'persona-prueba');
 		const other = await member(m, 'otre-prueba');
 		const r = await thrown(() =>
@@ -168,7 +150,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('conflicto de versión: 409 con el aviso y lo que la persona escribió', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const me = await member(m, 'persona-prueba');
 		const created = await m.perfiles.createProfile(t.db, me.id, {
 			kind: 'proyecto',
@@ -201,7 +183,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('invitar: la misma respuesta haya o no cuenta; el aviso va a waitUntil, después de responder', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const me = await member(m, 'dueñe-prueba');
 		const other = await member(m, 'gestora-prueba');
 		await m.perfiles.createProfile(t.db, me.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
@@ -228,7 +210,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('integrantes: el proyecto invita, la persona acepta o rechaza en Perfiles y sale con un clic', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const me = await member(m, 'dueñe-prueba');
 		const person = await member(m, 'persona-prueba');
 		await m.perfiles.createProfile(t.db, me.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
@@ -301,7 +283,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('"No recibir invitaciones de proyectos" desde Perfiles', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const me = await member(m, 'dueñe-prueba');
 		const person = await member(m, 'persona-prueba');
 		await m.perfiles.createProfile(t.db, me.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
@@ -330,7 +312,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('acciones de dueñes y borrar un proyecto: piden un código fresco de proyecto', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const me = await member(m, 'dueñe-prueba');
 		const other = await member(m, 'gestora-prueba');
 		const created = await m.perfiles.createProfile(t.db, me.id, {
@@ -407,7 +389,7 @@ describe('interruptor prendido', () => {
 	});
 
 	it('borrar pide escribir el nombre en la página', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const me = await member(m, 'persona-prueba');
 		await m.perfiles.createProfile(t.db, me.id, { kind: 'persona', title: 'Nombre Inventado' });
 		const params = { slug: 'nombre-inventado' };
@@ -436,7 +418,7 @@ describe('sin el permiso "puede tener perfiles"', () => {
 			.run();
 
 	it('Mi rincón no muestra perfiles; las páginas y todas sus actions dan 404 y no escriben nada', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const me = await member(m, 'persona-prueba');
 		await m.perfiles.createProfile(t.db, me.id, { kind: 'persona', title: 'Nombre Inventado' });
 		await m.perfiles.createProfile(t.db, me.id, { kind: 'proyecto', title: 'Proyecto Inventado' });
@@ -500,7 +482,7 @@ describe('sin el permiso "puede tener perfiles"', () => {
 	});
 
 	it('invitación a gestionar: quien invita recibe lo mismo; la cuenta sin permiso no la ve ni la acepta', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const owner = await member(m, 'dueñe-prueba');
 		const withIt = await member(m, 'con-permiso-prueba');
 		const without = await member(m, 'sin-permiso-prueba', { profiles: false });
@@ -555,7 +537,7 @@ describe('sin el permiso "puede tener perfiles"', () => {
 	});
 
 	it('invitación a integrante: quien invita recibe lo mismo; sin permiso no se ve ni se acepta', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const owner = await member(m, 'dueñe-prueba');
 		const keeps = await member(m, 'sigue-prueba');
 		const loses = await member(m, 'pierde-prueba');
@@ -605,7 +587,7 @@ describe('sin el permiso "puede tener perfiles"', () => {
 
 describe('lugares desde Mi rincón (decisión de gorrite, 0022)', () => {
 	it('crear un lugar, completar la dirección y ver que espera la aprobación', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const me = await member(m, 'carga-lugar');
 		const r = await thrown(() =>
 			m.list.actions.crear(
@@ -705,7 +687,7 @@ describe('lugares desde Mi rincón (decisión de gorrite, 0022)', () => {
 	});
 
 	it('la cuenta carga la ubicación en el mapa, con la misma validación que el panel', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const me = await member(m, 'carga-lugar');
 		const { params, page } = await createVenue(m, me);
 		const ok = /** @type {any} */ (
@@ -766,7 +748,7 @@ describe('lugares desde Mi rincón (decisión de gorrite, 0022)', () => {
 	});
 
 	it('rechazado: quien lo cargó lo ve con el motivo y, si lo edita, vuelve a esperar', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const me = await member(m, 'carga-lugar');
 		const other = await member(m, 'otre-prueba');
 		const { params, page } = await createVenue(m, me);
@@ -868,7 +850,7 @@ describe('lugares desde Mi rincón (decisión de gorrite, 0022)', () => {
 	});
 
 	it('«Volver a mandar» es solo para lugares', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const me = await member(m, 'persona-prueba');
 		await thrown(() =>
 			m.list.actions.crear(
@@ -884,7 +866,7 @@ describe('lugares desde Mi rincón (decisión de gorrite, 0022)', () => {
 	});
 
 	it('el formulario de una persona no trae campos de lugar (no se guardan aunque se manden)', async () => {
-		const m = await modules('1');
+		const m = await modules();
 		const me = await member(m, 'persona-prueba');
 		await thrown(() =>
 			m.list.actions.crear(

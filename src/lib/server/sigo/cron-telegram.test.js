@@ -61,7 +61,7 @@ afterEach(() => {
 async function cron(env) {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
-		env: { LO_QUE_SIGO_ENABLED: '1', CUENTAS_ENABLED: '1', ...env }
+		env: { LO_QUE_SIGO_ENABLED: '1', ...env }
 	}));
 	(await import('$lib/server/contenido/posts.js')).clearContentCache();
 	return import('./cron.js');

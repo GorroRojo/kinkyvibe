@@ -1,8 +1,8 @@
 /**
  * Red de seguridad del mapa del panel (paso 2): cada link del menú lateral abre una página.
  * Las URLs del panel se mudaron sin redirecciones, así que un link viejo daría 404; esta prueba
- * entra a todos (también a los de las áreas cerradas y a los de "Próximamente") con la sesión de
- * admin falsa de `npm run dev:tickets`. La otra mitad de la red es `src/lib/admin/adminPaths.test.js`
+ * entra a todos (también a los de los grupos cerrados) con la sesión de admin falsa de
+ * `npm run dev:tickets`. Lo que viene ("Próximamente") no es un link: se ve gris y punteado. La otra mitad de la red es `src/lib/admin/adminPaths.test.js`
  * (cada '/admin/…' escrito en el código lleva a una ruta que existe).
  */
 import { expect, test } from '@playwright/test';
@@ -21,8 +21,12 @@ test('cada link del menú del panel abre su página', async ({ page }) => {
 	const hrefs = await menu
 		.locator('a[href^="/admin"]')
 		.evaluateAll((links) => [...new Set(links.map((a) => a.getAttribute('href') ?? ''))]);
-	// Inicio, al menos una sección por área y las URLs reservadas de lo que viene.
+	// Inicio y al menos una sección por área.
 	expect(hrefs.length).toBeGreaterThan(20);
+	// Lo que viene está en el menú, pero sin link.
+	const soon = menu.locator('[aria-disabled="true"]', { hasText: 'Próximamente' });
+	expect(await soon.count()).toBeGreaterThan(0);
+	expect(await menu.locator('a', { hasText: 'Próximamente' }).count()).toBe(0);
 	expect(hrefs).toContain('/admin/ventas');
 	expect(hrefs).toContain('/admin/comunidad/perfiles');
 	expect(hrefs).toContain('/admin/mensajes/plantillas');

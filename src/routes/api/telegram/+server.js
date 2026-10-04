@@ -19,10 +19,7 @@ export async function POST({ request, url, platform }) {
 		enabled: await isFlagOn(db, 'telegram_bot'),
 		origin: url.origin,
 		listUpcoming: () => listUpcomingEvents(platform),
-		// Fase 2: con «Lo que sigo» y las cuentas prendidos (el bot ya está prendido si se llega acá).
-		accounts: async () =>
-			db && (await isFlagOn(db, 'lo_que_sigo')) && (await isFlagOn(db, 'cuentas'))
-				? botAccounts(db)
-				: null
+		// Fase 2: con «Lo que sigo» prendido (el bot ya está prendido si se llega acá).
+		accounts: async () => (db && (await isFlagOn(db, 'lo_que_sigo')) ? botAccounts(db) : null)
 	});
 }

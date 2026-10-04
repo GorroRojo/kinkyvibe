@@ -27,7 +27,7 @@
 			!SALES_TABS.includes(t.id) ||
 			(t.id === 'ingreso' && data.workshop?.coveredDoor)
 	)
-		// Preguntas de inscripción: solo con el interruptor `personas_eventos` prendido.
+		// Preguntas de inscripción: con base y venta de entradas.
 		.filter((t) => t.id !== 'preguntas' || data.signupFieldsTab)
 		// Los eventos online no tienen control de ingreso (las entradas llevan el link).
 		.filter((t) => !(t.id === 'ingreso' && e.online))
@@ -81,7 +81,7 @@
 						>
 					{/if}
 				{/if}
-				{#if e.kinkyvibe}<Badge tone="info">Fondo KinkyVibe</Badge>{/if}
+				{#if e.kinkyvibe}<Badge tone="info">Fondo Kinky Vibe</Badge>{/if}
 				{#each e.tags.filter((t) => t !== 'KinkyVibe' && t !== e.place) as t}
 					<span class="tag">{t}</span>
 				{/each}

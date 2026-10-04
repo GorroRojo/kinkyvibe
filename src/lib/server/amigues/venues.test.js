@@ -28,13 +28,13 @@ afterEach(() => {
 });
 
 /**
- * Los módulos con el interruptor `perfiles_publicos` como se pida. «Sucede en» es un edge del
+ * Los módulos, recién cargados. «Sucede en» es un edge del
  * evento, así que el evento tiene que estar en la base: `setEventVenue` de acá lo crea antes si
  * falta (con una dirección válida; las inválidas siguen sin poder vincularse).
  */
-async function modules(flag = '1') {
+async function modules() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { PERFILES_PUBLICOS_ENABLED: flag } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	const m = await import('./venues.js');
 	return {
 		...m,
@@ -312,13 +312,13 @@ describe('quien compró recibe la dirección completa', () => {
 		expect((await m.buyerLocation(t.db, 'override'))?.location).toContain(SECRET);
 	});
 
-	it('con el interruptor apagado o sin lugar, nada (se usa lo del .md, como siempre)', async () => {
-		const on = await modules('1');
+	// Se fue la mitad «con el interruptor apagado» (`perfiles_publicos` quedó fijo).
+	it('sin lugar o sin base, nada (se usa lo del .md, como siempre)', async () => {
+		const on = await modules();
 		const v = await venue('hidden');
-		await on.setEventVenue(t.db, { eventSlug: 'apagado', venueId: v.id, privacy: null, by: 'a' });
+		await on.setEventVenue(t.db, { eventSlug: 'con-lugar', venueId: v.id, privacy: null, by: 'a' });
 		expect(await on.buyerLocation(t.db, 'sin-lugar')).toBeNull();
-		const off = await modules('0');
-		expect(await off.buyerLocation(t.db, 'apagado')).toBeNull();
+		expect(await on.buyerLocation(null, 'con-lugar')).toBeNull();
 	});
 });
 
@@ -365,13 +365,12 @@ describe('los .ics dinámicos (feedVenues)', () => {
 		expect((await m.feedVenues(t.db, ['ics-name'])).size).toBe(1);
 	});
 
-	it('con el interruptor apagado o sin base, vacío (se usa lo del .md)', async () => {
-		const on = await modules('1');
+	// Se fue la mitad «con el interruptor apagado» (`perfiles_publicos` quedó fijo).
+	it('sin base, vacío (se usa lo del .md)', async () => {
+		const on = await modules();
 		const v = await venue('hidden');
 		await on.setEventVenue(t.db, { eventSlug: 'ics-off', venueId: v.id, privacy: null, by: 'a' });
 		expect((await on.feedVenues(null, ['ics-off'])).size).toBe(0);
-		const off = await modules('0');
-		expect((await off.feedVenues(t.db, ['ics-off'])).size).toBe(0);
 	});
 });
 

@@ -506,7 +506,7 @@ function expireStatement(db, eventSlug, now) {
 
 /**
  * Por tipo de entrada: vendidas, reservadas, lo cobrado (con descuentos y recargo de MP), lo
- * que cubrió el Fondo KinkyVibe, lo que se aportó al fondo (entradas solidarias) y el recargo de
+ * que cubrió el Fondo Kinky Vibe, lo que se aportó al fondo (entradas solidarias) y el recargo de
  * MP (que se va en la comisión). Solo cuentan las órdenes aprobadas (salvo `held`).
  *
  * @param {D1Database} db

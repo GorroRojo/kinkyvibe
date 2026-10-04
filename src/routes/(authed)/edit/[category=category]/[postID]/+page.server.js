@@ -4,18 +4,10 @@ import { withLineEnding } from '$lib/utils/lineEndings.js';
 import { requireAdmin } from '$lib/server/auth';
 import { editorData } from '$lib/server/admin/content.js';
 import { featuredURL, getRepoClient, isMockMode, usesLocalRepo } from '$lib/server/eventos';
-import {
-	FileChangedError,
-	PendingChangeError,
-	readFile,
-	UnreadableFileError
-} from '$lib/server/eventos/github.js';
-import {
-	findAssetUsers,
-	ownImageTarget,
-	readUploadedImage,
-	sharedAssetCommit
-} from '$lib/server/eventos/images.js';
+import { findImage, imageOf } from '$lib/server/media/library.js';
+import { readImageChoice } from '$lib/utils/imageChoice.js';
+import { resolveEventSlug } from '$lib/server/contenido/posts.js';
+import { PendingChangeError, readFile, UnreadableFileError } from '$lib/server/eventos/github.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors } from '$lib/server/tickets/editor.js';
@@ -32,18 +24,11 @@ import {
 } from '$lib/server/amigues/eventFormVenue.js';
 import { readVenueChoice } from '$lib/utils/venueChoice.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
-import { MAX_IMAGE_BYTES, readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
+import { readEventFields, splitMarkdown } from '$lib/utils/eventDraft.js';
 import { postOfPath, readDbPostFile } from '$lib/server/contenido/repo.js';
 import { panelSavesToDb } from '$lib/server/contenido/saving.js';
 import { commitSavedToDb } from '$lib/admin/saveCopy.js';
-import {
-	featuredOf,
-	isSafeAssetName,
-	isSharedAsset,
-	nextMediaNumber,
-	setFeatured,
-	uploadScope
-} from '$lib/utils/sharedImage.js';
+import { featuredOf } from '$lib/utils/sharedImage.js';
 
 /**
  * @param {{category: string, postID: string}} params
@@ -94,13 +79,12 @@ export async function _editLoad({ locals, params, url, platform }) {
 		post,
 		// Tag usage, amigues profiles and past authors for the pickers.
 		...(await editorData(params.category)),
-		// Personas con rol: roles y perfiles públicos (interruptor personas_eventos; apagado, null).
+		// Personas con rol: roles y perfiles públicos (sin base, null).
 		personas: params.category === 'amigues' ? null : await editorPersonas(platform),
 		image:
 			params.category === 'calendario'
-				? await imageInfo(locals.user_token, params.postID, post.raw)
+				? await eventImageInfo(getDB(platform), locals, params.postID, post.raw)
 				: null,
-		maxImageBytes: MAX_IMAGE_BYTES,
 		// Los eventos y el material se guardan en la base (se ve enseguida).
 		savesToDb: await panelSavesToDb(platform, params.category, params.postID),
 		mock: isMockMode()
@@ -108,31 +92,38 @@ export async function _editLoad({ locals, params, url, platform }) {
 }
 
 /**
- * The event's current image, and the number a new "solo esta" image would get.
- * @param {string} token
+ * La imagen del evento para el selector (docs/imagenes.md): la de la biblioteca (edge `portada`)
+ * si tiene; si no, la vieja del repo (`featured`), que se sigue mostrando hasta importar.
+ * @param {import('@cloudflare/workers-types').D1Database | null} db
+ * @param {App.Locals} locals
  * @param {string} slug
  * @param {string} raw
  */
-async function imageInfo(token, slug, raw) {
+async function eventImageInfo(db, locals, slug, raw) {
 	const featured = featuredOf(raw);
-	let nextNumber = 1;
-	try {
-		const client = await getRepoClient();
-		nextNumber = nextMediaNumber((await client.listDir(token, mediaDir(slug))).map((f) => f.name));
-	} catch (e) {
-		// Only a preview: the save action looks again.
+	/** @type {import('$lib/server/media/library.js').PublicImage | null} */
+	let current = null;
+	if (db) {
+		try {
+			const ref = await resolveEventSlug(db, slug);
+			if (ref) current = await imageOf(db, ref.id, 'portada', adminViewer(locals));
+		} catch (e) {
+			// Sin la imagen de la biblioteca, se muestra la del repo.
+		}
 	}
 	return {
-		featured,
-		url: featuredURL(slug, featured),
-		shared: isSharedAsset(featured),
-		nextNumber,
-		folder: `calendario/media/${slug}/`
+		current,
+		legacyUrl: current ? null : (featuredURL(slug, featured) ?? null),
+		target: `evento:${slug}`
 	};
 }
 
-/** @param {string} slug */
-const mediaDir = (slug) => `src/lib/posts/calendario/media/${slug}`;
+/** @param {App.Locals} locals */
+const adminViewer = (locals) =>
+	/** @type {import('$lib/server/objects/visibility.js').Viewer} */ ({
+		role: 'admin',
+		id: locals.user?.login ?? 'panel'
+	});
 
 /**
  * Las acciones del editor, para cualquier categoría (también las usa la pestaña Editar del panel).
@@ -155,7 +146,7 @@ export const _editActions = {
 		// Events follow the same tag rules as /admin/eventos/nuevo (one language, one place).
 		const tagError = params.category === 'calendario' ? eventTagError(fileContent) : null;
 		if (tagError) return fail(400, { error: tagError });
-		// Personas con rol (interruptor personas_eventos): perfiles y roles válidos.
+		// Personas con rol: perfiles y roles válidos.
 		const roles = params.category === 'amigues' ? null : await activeRoles(platform);
 		if (roles) {
 			const personasError = await newFileErrors(locals.user_token, params, fileContent, (c) =>
@@ -203,20 +194,21 @@ export const _editActions = {
 		// Commit author label from the verified GitHub user; `name` is null for
 		// accounts without a display name, so fall back to the login.
 		const userName = user.name || user.login || 'admin';
-		const image = data.get('image');
-		if (params.category === 'calendario' && image instanceof File && image.size > 0) {
-			return withVenue(
-				await saveWithImage({
-					token: locals.user_token,
-					params,
-					content: fileContent,
-					sha,
-					userName,
-					image,
-					asked: String(data.get('imageScope') ?? ''),
-					actor: user.login
-				})
-			);
+		// La imagen elegida en el selector (edge `portada`, en el mismo guardado; docs/imagenes.md).
+		/** @type {Record<string, number[]> | undefined} */
+		let edges;
+		if (params.category === 'calendario') {
+			const choice = readImageChoice(data.get('imageId'));
+			if (choice.action === 'remove') edges = { portada: [] };
+			if (choice.action === 'set') {
+				const db = getDB(platform);
+				const image = db ? await findImage(db, choice.id, adminViewer(locals)) : null;
+				if (!image)
+					return fail(400, {
+						error: 'La imagen elegida ya no está en la biblioteca. Elegí otra.'
+					});
+				edges = { portada: [image.id] };
+			}
 		}
 		let commit;
 		try {
@@ -228,7 +220,8 @@ export const _editActions = {
 				userName,
 				params.category,
 				params.postID,
-				user.login
+				user.login,
+				edges
 			);
 		} catch (e) {
 			console.log(e);
@@ -248,19 +241,7 @@ export const _editActions = {
 	/** «+ Crear lugar» desde el «Lugar» del formulario (solo eventos). */
 	crearLugar: createVenueForEventAction,
 	/** Edición rápida del lugar elegido en el «Lugar» del formulario (solo eventos). */
-	editarLugar: editVenueForEventAction,
-	/** Events that show a shared image, for the "todas las ediciones" option. */
-	afectados: async ({ locals, request, url }) => {
-		requireAdmin(locals, url);
-		const name = String((await request.formData()).get('asset') ?? '');
-		if (!isSafeAssetName(name)) return fail(400, { error: 'Imagen inválida.' });
-		try {
-			const client = await getRepoClient();
-			return { affected: await findAssetUsers(client, locals.user_token, name) };
-		} catch (e) {
-			return fail(502, { error: 'No pudimos consultar GitHub.' });
-		}
-	}
+	editarLugar: editVenueForEventAction
 };
 /**
  *
@@ -306,8 +287,20 @@ async function getFileContent(token, path) {
  * @param {string} category - The category of the post
  * @param {string} postID - The post ID
  * @param {string} [actor] login of who saves (events stored in the database record it)
+ * @param {Record<string, number[]>} [edges] relaciones del post que cambian en el mismo guardado
+ *   (la imagen: `{ portada: [id] }`)
  */
-async function saveFileContent(token, path, content, sha, userName, category, postID, actor) {
+async function saveFileContent(
+	token,
+	path,
+	content,
+	sha,
+	userName,
+	category,
+	postID,
+	actor,
+	edges
+) {
 	const client = await getRepoClient();
 	// The mock's sha is not a blob sha; the mock and the demo layer ignore `unchanged` anyway.
 	return await client.commitFiles(token, {
@@ -316,7 +309,8 @@ async function saveFileContent(token, path, content, sha, userName, category, po
 		actor,
 		// Un evento de la base se compara siempre (su sha es el del texto que se abrió).
 		unchanged: usesLocalRepo() && !sha.match(/^[0-9a-f]{40}$/) ? [] : [{ path, sha }],
-		pr: { action: 'edita', who: userName }
+		pr: { action: 'edita', who: userName },
+		...(edges ? { edges: { [path]: edges } } : {})
 	});
 }
 
@@ -373,122 +367,13 @@ async function newFileErrors(token, params, content, errorsOf) {
 	return added.length ? added.join(' ') : null;
 }
 
-/**
- * Saves an event together with a new image, in one commit (see $lib/utils/sharedImage.js):
- * - "todas": replaces the shared image in src/lib/assets (renaming it and updating every event
- *   that uses it if the extension changes);
- * - "esta" (or an event without a shared image): the next free number of the event's own folder.
- * @param {{token: string, params: {category: string, postID: string}, content: string, sha: string, userName: string, image: File, asked: string, actor?: string}} opts
- */
-async function saveWithImage({ token, params, content, sha, userName, image, asked, actor }) {
-	const read = await readUploadedImage(image);
-	if ('error' in read) return fail(400, { error: read.error });
-	const path = postPath(params);
-	const client = await getRepoClient();
-	// The image the event uses on GitHub now (the form's content already has the new `featured`).
-	let current;
-	try {
-		current = featuredOf((await client.getFile(token, path)) ?? '');
-	} catch (e) {
-		return fail(502, { error: 'No pudimos leer el evento desde GitHub. Probá de nuevo.' });
-	}
-	if (isSharedAsset(current) && asked !== 'todas' && asked !== 'esta') {
-		return fail(400, {
-			error:
-				'¿La imagen nueva es para todas las ediciones de este evento o solo para esta? Elegí una opción.'
-		});
-	}
-	const scope = uploadScope(current, asked);
-	if (scope === 'todas' && !isSafeAssetName(current)) {
-		return fail(400, {
-			error: `La imagen compartida «${current}» tiene un nombre raro y no se puede reemplazar desde acá. Elegí «Solo esta».`
-		});
-	}
-	try {
-		/** @type {import('$lib/server/eventos/github.js').CommitFile[]} */
-		let files;
-		/** @type {string[]} */
-		let mustNotExist = [];
-		/** @type {Array<{path: string, sha: string}>} */
-		let unchanged;
-		/** @type {import('$lib/utils/sharedImage.js').AffectedEvent[]} */
-		let affected = [];
-		let message;
-		if (scope === 'todas') {
-			const shared = await sharedAssetCommit(client, token, {
-				oldName: current,
-				ext: read.ext,
-				base64: read.base64,
-				override: { [path]: { text: content, sha } }
-			});
-			files = shared.commitFiles;
-			mustNotExist = shared.mustNotExist;
-			unchanged = shared.unchanged;
-			affected = shared.affected;
-			message =
-				`[admin] ${userName} updated ${params.category}/${params.postID} ` +
-				`y cambió la imagen compartida ${current} para todas las ediciones (${affected.length} eventos más)`;
-		} else {
-			const target = await ownImageTarget(client, token, params.postID, read.ext);
-			files = [
-				{ path, content: setFeatured(content, target.featured) },
-				{ path: target.path, base64: read.base64 }
-			];
-			mustNotExist = [target.path];
-			unchanged = [{ path, sha }];
-			message = `[admin] ${userName} updated ${params.category}/${params.postID} (imagen nueva)`;
-		}
-		// The mock's sha is not a blob sha; its commitFiles ignores `unchanged` anyway.
-		const commit = await client.commitFiles(token, {
-			files,
-			message,
-			mustNotExist,
-			unchanged,
-			actor,
-			pr: {
-				action: scope === 'todas' ? 'edita (imagen de todas las ediciones)' : 'edita',
-				who: userName
-			}
-		});
-		return {
-			save: 'Guardado',
-			publish: commit.pr ?? null,
-			commitUrl: commit.url,
-			savedToDb: commitSavedToDb(commit),
-			imageScope: scope,
-			affected,
-			files: files.filter((f) => !f.delete).map((f) => f.path),
-			deleted: files.filter((f) => f.delete).map((f) => f.path)
-		};
-	} catch (e) {
-		console.log(e);
-		if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
-		if (e instanceof FileChangedError) {
-			return fail(409, {
-				error:
-					'Alguien cambió este evento u otro que usa la misma imagen mientras tanto. Copiá tus cambios, recargá la página y volvé a intentar.'
-			});
-		}
-		return fail(502, {
-			error:
-				'No se pudo guardar: ' +
-				(e instanceof Error ? e.message : String(e)) +
-				'. Copiá tus cambios, recargá la página y volvé a intentar.'
-		});
-	}
-}
-
 /** @type {import("./$types").Actions} */
 export const actions = {
 	..._editActions,
-	// Guardar un evento (o ver qué eventos usan su imagen) se hace desde el panel.
+	// Guardar un evento se hace desde el panel.
 	save: (event) => {
 		rejectEvents(event.params);
 		return _editActions.save(event);
-	},
-	afectados: (event) => {
-		rejectEvents(event.params);
-		return _editActions.afectados(event);
 	},
 	crearLugar: (event) => {
 		rejectEvents(event.params);

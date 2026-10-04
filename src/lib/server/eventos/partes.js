@@ -28,6 +28,7 @@ import {
 	numberParts,
 	partOf
 } from '../../utils/partes.js';
+import { dehydrateTags, tagEdgesOf, withTagEdges } from '../contenido/etiquetasEdges.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('../objects/visibility.js').Viewer} Viewer */
@@ -424,7 +425,17 @@ export async function createWorkshopPart(db, { eventSlug, start, end, by, now = 
 	}
 	const n = existing.length + 2;
 	const full = await db.prepare('SELECT data FROM objects WHERE id = ?1').bind(workshop.id).first();
-	const data = newPartData(JSON.parse(String(full?.data ?? '{}')), { start, end });
+	// Las etiquetas son edges (../contenido/etiquetasEdges.js): la parte nueva lleva la misma lista
+	// (armada y partida de nuevo: una etiqueta que ya no existe queda como texto).
+	const tagEdges = await tagEdgesOf(db, [workshop.id]);
+	const { data, edges: tagEdgeInput } = await dehydrateTags(
+		db,
+		'calendario',
+		newPartData(withTagEdges(JSON.parse(String(full?.data ?? '{}')), tagEdges.get(workshop.id)), {
+			start,
+			end
+		})
+	);
 	// El lugar y las personas con perfil son edges: la parte nueva los copia tal cual.
 	const { results: copied } = await db
 		.prepare(
@@ -434,7 +445,7 @@ export async function createWorkshopPart(db, { eventSlug, start, end, by, now = 
 		.bind(workshop.id)
 		.all();
 	/** @type {Record<string, import('../objects/edges.js').EdgeInput[]>} */
-	const edges = {};
+	const edges = { ...tagEdgeInput };
 	for (const e of copied) {
 		const kind = String(e.kind);
 		(edges[kind] ??= []).push({

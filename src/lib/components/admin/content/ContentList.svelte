@@ -278,8 +278,8 @@
 		color: var(--ok);
 	}
 	.msg.bad {
-		background: var(--bad-bg);
-		color: var(--bad);
+		background: var(--error-bg);
+		color: var(--error);
 	}
 	.filters {
 		display: flex;

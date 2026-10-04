@@ -4,8 +4,7 @@
  * de Perfiles (filtro «Lugares»); se editan con el mismo editor.
  *
  * El vínculo evento → lugar es el edge `lugar` del evento en la base (por eso el evento tiene que
- * estar en la base): ver docs/amigues.md. Funciona con el interruptor
- * `perfiles_publicos` apagado (para dejar todo listo); el sitio lo usa recién al prenderlo.
+ * estar en la base): ver docs/amigues.md.
  * Solo admins; queda en el registro.
  *
  * "Para aprobar": los lugares que cargó una cuenta (decisión de gorrite, docs/decisiones/
@@ -19,7 +18,6 @@ import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
-import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { listEventVenues, listVenues } from '$lib/server/amigues/venues.js';
 import { linkEventVenue, unlinkEventVenue } from '$lib/server/amigues/eventFormVenue.js';
 import { createProfileAction } from '$lib/server/admin/amiguesRoutes.js';
@@ -58,17 +56,15 @@ export async function load({ locals, url, platform, setHeaders }) {
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
-	const [venues, links, events, flagOn, pending, rejected] = await Promise.all([
+	const [venues, links, events, pending, rejected] = await Promise.all([
 		listVenues(db),
 		listEventVenues(db),
 		eventChoices(platform),
-		perfilesPublicosEnabled(platform),
 		listPendingVenues(db),
 		// "Rechazados" (decisión de gorrite): quién lo rechazó y el motivo; se pueden aprobar.
 		listRejectedVenues(db)
 	]);
 	return {
-		flagOn,
 		pending,
 		rejected,
 		venues: venues.map((v) => ({

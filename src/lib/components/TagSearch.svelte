@@ -95,7 +95,7 @@
 						<span>{tag?.icon ?? ''} {tag?.visible_name ?? id}</span>
 						<button
 							type="button"
-							aria-label="Quitar etiqueta {tag?.visible_name ?? id}"
+							aria-label="Sacar etiqueta {tag?.visible_name ?? id}"
 							on:click|stopPropagation={() => {
 								removeTag(id);
 								inputEl?.focus();

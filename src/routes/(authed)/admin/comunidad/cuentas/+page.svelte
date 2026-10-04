@@ -34,7 +34,7 @@
 
 <PageHeader
 	title="Cuentas"
-	subtitle="Las cuentas del público (Ingresar / Mi rincón). Solo lo ven les admins."
+	subtitle="Las cuentas del público (Entrar / Mi rincón). Solo lo ven les admins."
 >
 	<svelte:fragment slot="actions">
 		<a class="kv-btn ghost" href={PROFILES_HREF}>Perfiles</a>

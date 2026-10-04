@@ -72,13 +72,7 @@ afterEach(() => {
 async function venuePage(n) {
 	await resetDB(t.db);
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: {
-			PERFILES_PUBLICOS_ENABLED: '1',
-			PERSONAS_EVENTOS_ENABLED: '1',
-			CUENTAS_ENABLED: '0'
-		}
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	fake.posts = Array.from({ length: n }, (_, i) => fakeEventPost(i));
 	// Los eventos salen de la base.
 	await seedPosts(t.db, fake.posts);

@@ -1,16 +1,7 @@
 /**
- * Pestañas de Ajustes (las mismas en cada página de /admin/ajustes/*) y ayudas para sus
- * formularios.
+ * Ayudas para los formularios de Ajustes. Las pestañas de Ajustes (y de las otras secciones) las
+ * pone el layout del panel: `sectionTabs` de `$lib/admin/nav.js`.
  */
-
-export const AJUSTES_TABS = Object.freeze([
-	{ href: '/admin/ajustes/cobros', label: 'Cobros' },
-	{ href: '/admin/ajustes/fondo', label: 'Fondo' },
-	{ href: '/admin/ajustes/mails', label: 'Mails' },
-	{ href: '/admin/ajustes/admins', label: 'Admins' },
-	{ href: '/admin/ajustes/interruptores', label: 'Interruptores' },
-	{ href: '/admin/ajustes/automatizaciones', label: 'Automatizaciones' }
-]);
 
 /**
  * Valor de un campo: lo que se mandó (si la action devolvió `values`, p. ej. con un error) o lo

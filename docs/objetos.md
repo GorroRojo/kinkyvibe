@@ -156,15 +156,15 @@ Una persona o un proyecto con cuenta (decisión A2). Archivo: `src/lib/server/ob
 Reglas de quién lo gestiona y lo edita: `src/lib/server/cuentas/perfiles.js` y
 [cuentas.md](cuentas.md) («Perfiles»).
 
-| Campo          | Clase      | Notas                                                                                          |
-| -------------- | ---------- | ---------------------------------------------------------------------------------------------- |
-| (`title`)      | —          | el nombre; no hay "nombre para mostrar" aparte (E1)                                            |
-| `kind`         | `option`   | `persona` o `proyecto`, obligatorio; no cambia después de crear (lo controla `perfiles.js`)    |
-| `bio`          | `longtext` | presentación, hasta 1000 caracteres                                                            |
-| `pronouns`     | `text`     | hasta 40 caracteres                                                                            |
-| `links`        | `list`     | hasta 8; solo `https://` o `http://`, sin usuario ni contraseña, hasta 300 caracteres cada uno |
-| `avatar`       | `text`     | clave de una imagen de NUESTRO almacenamiento (nunca un link externo); todavía no hay subidas  |
-| `show_members` | `boolean`  | solo proyectos: mostrar integrantes (solo los perfiles que quien mira puede ver)               |
+| Campo          | Clase      | Notas                                                                                             |
+| -------------- | ---------- | ------------------------------------------------------------------------------------------------- |
+| (`title`)      | —          | el nombre; no hay "nombre para mostrar" aparte (E1)                                               |
+| `kind`         | `option`   | `persona` o `proyecto`, obligatorio; no cambia después de crear (lo controla `perfiles.js`)       |
+| `bio`          | `longtext` | presentación, hasta 1000 caracteres                                                               |
+| `pronouns`     | `text`     | hasta 40 caracteres                                                                               |
+| `links`        | `list`     | hasta 8; solo `https://` o `http://`, sin usuario ni contraseña, hasta 300 caracteres cada uno    |
+| `avatar`       | `text`     | sin uso: la imagen del perfil es el edge `avatar` hacia una `imagen` ([imagenes.md](imagenes.md)) |
+| `show_members` | `boolean`  | solo proyectos: mostrar integrantes (solo los perfiles que quien mira puede ver)                  |
 
 - `proyecto` antes se llamaba `grupo` (migración `0023_perfil_proyecto.sql`). El valor viejo se
   sigue aceptando: se lee como `proyecto` (`normalizeProfileKind`/`profileKindOf`) y el
@@ -198,11 +198,13 @@ importación, la lectura (solo la base) y el historial (`object_revisions`):
 **Relaciones del evento** (regla 4: edges, nunca direcciones ni ids en `data`; decisión de gorrite,
 «Contenido solo en la base», paso 3; migración `0035_relaciones_edges.sql` para lo ya guardado):
 
-| Edge      | Hacia                          | `data`                                 | Lo escribe / lo lee                                                           |
-| --------- | ------------------------------ | -------------------------------------- | ----------------------------------------------------------------------------- |
-| `lugar`   | `perfil` de lugar (máximo 1)   | `{ privacy }`: nivel propio del evento | `src/lib/server/amigues/venues.js` ([amigues.md](amigues.md))                 |
-| `persona` | `perfil` (uno por perfil)      | `{ roles: [...], at: [...] }`          | `src/lib/server/contenido/personasEdges.js`                                   |
-| `parte`   | `evento` (máximo 20, en orden) | sin `data`; `position` = orden         | `src/lib/server/eventos/partes.js` ([talleres-partes.md](talleres-partes.md)) |
+| Edge       | Hacia                          | `data`                                 | Lo escribe / lo lee                                                           |
+| ---------- | ------------------------------ | -------------------------------------- | ----------------------------------------------------------------------------- |
+| `lugar`    | `perfil` de lugar (máximo 1)   | `{ privacy }`: nivel propio del evento | `src/lib/server/amigues/venues.js` ([amigues.md](amigues.md))                 |
+| `persona`  | `perfil` (uno por perfil)      | `{ roles: [...], at: [...] }`          | `src/lib/server/contenido/personasEdges.js`                                   |
+| `parte`    | `evento` (máximo 20, en orden) | sin `data`; `position` = orden         | `src/lib/server/eventos/partes.js` ([talleres-partes.md](talleres-partes.md)) |
+| `etiqueta` | `etiqueta` (uno por etiqueta)  | `{ at: [...] }`; `position` = orden    | `src/lib/server/contenido/etiquetasEdges.js` (también el material)            |
+| `portada`  | `imagen` (máximo 1)            | sin `data`                             | `src/lib/server/media/library.js` ([imagenes.md](imagenes.md))                |
 
 - **`lugar`**: «sucede en». `setEventVenue`/`removeEventVenue` guardan el evento con
   `saveObject()` (versión nueva, revisión `source = 'lugar'`) sin tocar `data`; si el evento se
@@ -220,27 +222,41 @@ importación, la lectura (solo la base) y el historial (`object_revisions`):
   igual que antes leían `event_venues` o el JSON: qué se ve de un lugar lo decide su nivel
   (`venueView`) y qué perfiles se nombran, `src/lib/server/personas/index.js`.
 
-#### Etiquetas de los eventos (plan, todavía no)
+- **`etiqueta`** (eventos y material; migración `0042_etiquetas_edges.sql` para lo ya guardado):
+  cada nombre de `data.tags` que es el `key` de una etiqueta viva (sin borrar; también oculta, y
+  un alias es una etiqueta más: se apunta a él tal cual, sin seguir `alias_de`) es un edge
+  `etiqueta`, uno por etiqueta, con `data.at` = su lugar (o sus lugares, si se repite) en la lista.
+  En `data.tags` quedan solo los nombres que no son de ninguna etiqueta viva (no hay a qué
+  apuntar), en orden; el próximo guardado los pasa a edge si para entonces existe la etiqueta. Se
+  parte al guardar (`dehydrateTags`, junto con las personas en `dehydrateContent` de
+  `contenido/relaciones.js`: panel, importación, Importar planilla y partes nuevas de un taller) y se arma al leer
+  con el `key` que la etiqueta tiene HOY (`withTagEdges`: en la misma consulta en las listas
+  públicas y la ficha del panel; una consulta para todos en `hydrateContent`/`contentEdgesOf`),
+  así las listas, los filtros, `/wiki/<etiqueta>`, las series, los `.ics`, «Lo que sigo», el
+  buscador, el RSS y «Descargar todo» reciben la misma lista que antes. Si `data.tags` ya nombra
+  una etiqueta que también tiene edge (una lista entera escrita sin partir), manda esa.
+  - Renombrar una etiqueta (su `key`) cambia el nombre en todos los posts que la tienen como edge
+    sin reescribirlos (las listas recordadas lo notan por el `updated_at` de las etiquetas).
+    Renombrar «en todas las publicaciones» (`rename.js`) sigue reescribiendo los posts como antes:
+    esos posts guardan el nombre nuevo como texto (la etiqueta todavía tiene el nombre viejo en
+    ese momento) y lo pasan a edge en su próximo guardado. Lo que se ve es lo mismo.
+  - Todavía no está la caché derivada en `data.tags` ni el chequeo nocturno `tags_out_of_sync` del
+    plan original: las listas leen los edges en la misma consulta que los posts (sin una consulta
+    por post), así que no hizo falta.
+  - **DECIDIDO POR CLAUDE, A CONFIRMAR** (gorrite): (1) un alias se guarda como edge al alias
+    mismo, no a la canónica (así la lista sale idéntica; la limpieza de etiquetas ya resuelve el
+    alias al mostrar); (2) el lugar va en `data.at` (como `persona`) y no en `position`, porque
+    `saveObject()` numera `position` solo entre los edges y la lista mezcla edges y texto; (3) una
+    etiqueta oculta también es edge (la lectura es interna, como con los perfiles ocultos); (4) la
+    migración no toca un post cuya lista tiene algo que no es texto (dato inválido: lo marca el
+    chequeo nocturno).
 
-Las etiquetas (`data.tags`, por `key`) también son relaciones con objetos `etiqueta` (con
-`etiquetas_db`), pero las leen muchos caminos (listas y filtros, `/wiki/<etiqueta>`, series, los
-`.ics` de etiqueta y serie, «Lo que sigo», el buscador, el bot de Telegram, el RSS, la venta de
-entradas por serie) y los `.md` las nombran por texto. Plan, en un PR propio:
+### `imagen`
 
-1. **Edges `etiqueta`** (evento → `etiqueta`, `data: { orden }`) como fuente de verdad: guardar
-   (panel e importación) resuelve cada `key` a la etiqueta viva (siguiendo `alias_de` hasta la
-   canónica, o guardando el alias tal cual: decidir con gorrite) en la misma tanda de
-   `saveObject()`; un `key` que no es de ninguna etiqueta queda como texto (como hoy en el sitio).
-2. **`data.tags` como caché derivada**, solo para leer rápido (las listas leen ~600 posts sin
-   unir tablas): la escribe SOLO `saveObject()` desde los edges (una opción `derive` del tipo, en
-   la misma tanda), nunca quien guarda. El chequeo nocturno compara caché y edges
-   (`tags_out_of_sync`), y una prueba guarda, renombra y borra etiquetas y verifica que nunca se
-   desfasan.
-3. **Renombrar** una etiqueta pasa a ser editar su `key` (los edges no cambian) + rearmar la caché
-   de los eventos que la usan (en tandas, con su revisión), en vez de reescribir cada publicación.
-4. Migración: edges desde `data.tags` de los eventos de la base (por `key`, con `alias_de`), con
-   la caché ya escrita, versión nueva y revisión `migracion`, como la 0035.
-5. Después, el material (`data.tags` y `data.personas`) con el mismo camino.
+Una imagen de la biblioteca (archivo en R2, binding `MEDIA`). Cada uso es un edge HACIA ella:
+evento → `portada`, material → `portada`, etiqueta (serie) → `imagen`, perfil → `avatar` (uno por
+objeto). Archivo: `src/lib/server/objects/types/imagen.js`; todo el detalle en
+[imagenes.md](imagenes.md).
 
 ### `etiqueta`
 
@@ -297,6 +313,7 @@ con `getObject`, `searchObjects`, `getEdges` o `visibleWhere(viewer, alias)` en 
   listados, búsqueda, sitemap, RSS, imágenes para compartir ni JSON.
 - Migrar los eventos desde los `.md` (P6.2: eventos primero).
 - Personas del material como edges `persona` (como los eventos, `personasEdges.js`).
-- Etiquetas de los eventos como edges (plan arriba, «Etiquetas de los eventos»).
+- Renombrar una etiqueta «en todas las publicaciones» sin reescribir los eventos ni el material
+  que ya la tienen como edge (hoy se reescriben igual; ver `etiqueta` arriba).
 - Borrar la tabla `event_venues` cuando todos los eventos estén en la base (hoy la lee solo la
   importación de un evento nuevo, `legacyVenueEdge`).

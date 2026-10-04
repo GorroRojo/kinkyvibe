@@ -25,56 +25,58 @@ con su `envVar` y un atajo (`algoEnabled(platform)`), y documentalo en esta guí
 
 ## Los interruptores
 
-| Interruptor (clave)                          | Variable                     | Qué prende                                                                                                                                                                      | Antes de prenderlo                                                                                      | Guía                                       |
-| -------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Cuentas del público (`cuentas`)              | `CUENTAS_ENABLED`            | "Ingresar" y "Mi rincón": cuentas con código por mail o contraseña, y las compras de cada mail. Apagado, esas páginas dan 404 y no hay link                                     | migración `0013_cuentas.sql` y `RESEND_API_KEY` en el entorno                                           | [cuentas.md](cuentas.md)                   |
-| Borrar desde el panel (`borrar_desde_panel`) | `BORRAR_DESDE_PANEL_ENABLED` | botón "Borrar" en eventos, material y amigues, con "Deshacer" y "Recuperar" desde Actividad (los eventos con entradas vendidas no se borran)                                    | —                                                                                                       | `src/lib/server/admin/deletions.js`        |
-| Perfiles públicos (`perfiles_publicos`)      | `PERFILES_PUBLICOS_ENABLED`  | `/amigues` lee los perfiles de la base (personas, proyectos, lugares), "Es mi perfil", mapas y la privacidad de las direcciones de los lugares. Apagado, todo sale de los `.md` | migraciones 0017 y 0024; Perfiles → Importar y clasificar; revisar la clasificación; cargar los lugares | [amigues.md](amigues.md), «Prenderlo»      |
-| Personas en eventos (`personas_eventos`)     | `PERSONAS_EVENTOS_ENABLED`   | roles (Organiza, Facilita, Enseña…) entre eventos o material y perfiles, y preguntas extra al comprar o inscribirse (Eventos → Roles y preguntas, pestaña Preguntas)            | migraciones 0018 y 0026                                                                                 | [personas-eventos.md](personas-eventos.md) |
-| Propinas (`propinas`)                        | `PROPINAS_ENABLED`           | el bloque de propina con Mercado Pago al pie de las publicaciones de KinkyVibe y "Dejá una propina" en el pie de página, en lugar del cafecito; `/propinas`                     | migraciones 0019 y 0022; revisar Ajustes → Plata → Propinas                                             | [propinas.md](propinas.md)                 |
+| Interruptor (clave)              | Variable               | Qué prende                                                                                                                                                                | Antes de prenderlo                                                                 | Guía                             |
+| -------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------- |
+| Lo que sigo (`lo_que_sigo`)      | `LO_QUE_SIGO_ENABLED`  | con cuenta, seguir etiquetas (y series), perfiles y lugares: «Seguir» en sus páginas y Mi rincón → Lo que sigo, con calendario y mails. Apagado, `/mi-rincon/sigo` da 404 | migración `0032_lo_que_sigo.sql`                                                   | [lo-que-sigo.md](lo-que-sigo.md) |
+| Bot de Telegram (`telegram_bot`) | `TELEGRAM_BOT_ENABLED` | el bot contesta `/proximos` y `/evento`; con «Lo que sigo» prendido, además conecta chats con cuentas y manda esos avisos por Telegram. Apagado, el bot no contesta       | `TELEGRAM_WEBHOOK_SECRET` y el webhook apuntando a `/api/telegram`; migración 0033 | [telegram.md](telegram.md)       |
 
 Las migraciones las aplica gorrite antes del merge del código que las necesita
 ([0028](decisiones/0028-migraciones-antes-del-merge.md), [datos.md](datos.md)).
 
 ### Cómo se relacionan
 
-- **`personas_eventos` → `perfiles_publicos`**: los roles se guardan igual, pero en las páginas
-  públicas solo se ven con «Perfiles públicos» prendido (sin él no hay a qué perfil enlazar).
-- **`personas_eventos` + `cuentas`**: que une organizadore vea las respuestas de su evento desde
-  Mi rincón pide los dos prendidos (y el permiso «puede tener perfiles» en la cuenta).
-- **`perfiles_publicos` + `cuentas`**: los pedidos "Es mi perfil" y los perfiles que se crean
-  desde una cuenta necesitan las cuentas prendidas. Sin `cuentas`, `/amigues` igual lee la base.
-- `borrar_desde_panel` y `propinas` no dependen de ningún otro.
+- **`telegram_bot` + `lo_que_sigo`**: vincular un chat con una cuenta (Mi rincón → Lo que sigo) y
+  los avisos por Telegram piden los dos prendidos. Solo con `telegram_bot`, el bot contesta
+  `/proximos` y `/evento` y nada más.
+- Las cuentas del público ya no tienen interruptor (ver abajo): «Lo que sigo» solo mira el suyo.
 
 ### Estado recomendado
 
 Ninguno se prende directo en producción: **primero en un preview** (con «🧪 Entrar como admin de
 prueba», [demo.md](demo.md)), se revisa, y después en producción. Antes de prender uno en
 producción, fijate en su guía que estén aplicadas sus migraciones y hechos sus pasos previos (la
-columna «Antes de prenderlo»). Si uno tiene importación, el orden es siempre **importar → revisar
-→ prender**.
-
-Orden sugerido entre los que dependen: `cuentas` y `perfiles_publicos` antes que
-`personas_eventos`.
+columna «Antes de prenderlo»).
 
 ## Interruptores que quedaron fijos
 
-«Contenido solo en la base» (paso 2, decisión de gorrite): tres interruptores que ya estaban
-prendidos en producción quedaron **prendidos para siempre** y salieron de la lista. Sus variables
-(`CONTENIDO_DB_ENABLED`, `ETIQUETAS_DB_ENABLED`, `SERIES_ENABLED`) ya no hacen nada y una fila
-vieja en `feature_flags` se ignora. No se pueden apagar: el camino viejo (los `.md`, el archivo de
-etiquetas) ya no existe.
+Interruptores que quedaron **prendidos para siempre** y salieron de la lista. Sus variables ya
+no hacen nada y una fila vieja en `feature_flags` se ignora (no hace falta borrarla). No se
+pueden apagar: el camino «apagado» ya no existe en el código.
 
-| Era                                   | Qué quedó                                                                                                                                                                           | Guía                         |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `contenido_db` (Contenido en la base) | los eventos y el material se leen y se guardan **solo** en la base; un `.md` de evento o material que la base no tiene no se muestra; «Descargar todo» arma los `.md` desde la base | [contenido.md](contenido.md) |
-| `etiquetas_db` (Etiquetas en la base) | el árbol sale de la base (el archivo es solo respaldo si la base no tiene etiquetas) y el editor guarda solo en la base (sin commits al archivo)                                    | [etiquetas.md](etiquetas.md) |
-| `series` (Series de eventos)          | «Edición N de…», páginas de serie, «Avisame si se repite», calendarios `.ics` y Eventos → Series, siempre                                                                           | [etiquetas.md](etiquetas.md) |
+- «Contenido solo en la base» (paso 2, decisión de gorrite): `contenido_db`, `etiquetas_db` y
+  `series` (variables `CONTENIDO_DB_ENABLED`, `ETIQUETAS_DB_ENABLED`, `SERIES_ENABLED`).
+- «Interruptores permanentes»: `cuentas`, `perfiles_publicos`, `personas_eventos`, `propinas` y
+  `borrar_desde_panel` (variables `CUENTAS_ENABLED`, `PERFILES_PUBLICOS_ENABLED`,
+  `PERSONAS_EVENTOS_ENABLED`, `PROPINAS_ENABLED`, `BORRAR_DESDE_PANEL_ENABLED`). Con la variable
+  en `0` ya **no** se cortan: si hace falta frenar una de estas partes, es con un PR.
+
+| Era                                          | Qué quedó                                                                                                                                                                           | Guía                                       |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `contenido_db` (Contenido en la base)        | los eventos y el material se leen y se guardan **solo** en la base; un `.md` de evento o material que la base no tiene no se muestra; «Descargar todo» arma los `.md` desde la base | [contenido.md](contenido.md)               |
+| `etiquetas_db` (Etiquetas en la base)        | el árbol sale de la base (el archivo es solo respaldo si la base no tiene etiquetas) y el editor guarda solo en la base (sin commits al archivo)                                    | [etiquetas.md](etiquetas.md)               |
+| `series` (Series de eventos)                 | «Edición N de…», páginas de serie, «Avisame si se repite», calendarios `.ics` y Eventos → Series, siempre                                                                           | [etiquetas.md](etiquetas.md)               |
+| `cuentas` (Cuentas del público)              | «Ingresar» y «Mi rincón» (código por mail o contraseña, compras de cada mail) siempre; el link del encabezado y del pie siempre                                                     | [cuentas.md](cuentas.md)                   |
+| `perfiles_publicos` (Perfiles públicos)      | con base, `/amigues` lee los perfiles de la base (las fichas `.md` que la base no tiene se siguen mostrando desde su archivo), «Es mi perfil», mapas y la privacidad de los lugares | [amigues.md](amigues.md)                   |
+| `personas_eventos` (Personas en eventos)     | roles entre eventos o material y perfiles, y preguntas extra al comprar o inscribirse (Eventos → Roles y preguntas, pestaña Preguntas), siempre                                     | [personas-eventos.md](personas-eventos.md) |
+| `propinas` (Propinas)                        | el bloque de propina al pie de las publicaciones de KinkyVibe y «Dejá una propina» en el pie de página, siempre (ya no hay nota del cafecito); `/propinas`                          | [propinas.md](propinas.md)                 |
+| `borrar_desde_panel` (Borrar desde el panel) | el botón «Borrar» en eventos, material y amigues, con «Deshacer» y «Recuperar», siempre                                                                                             | `src/lib/server/admin/deletions.js`        |
 
 Una base nueva (un preview nuevo, la base local) necesita importar el contenido y las etiquetas:
 Contenido → En la base → Importar y Etiquetas → Importar a la base (en la compu,
 `npm run content:import`, que `npm run dev` ya corre solo y que también importa las etiquetas si
-la base no tiene ninguna).
+la base no tiene ninguna). Las fichas de amigues se pasan con Perfiles → Importar y clasificar
+(`npm run amigues:import` en la compu); mientras tanto, `/amigues` las sigue mostrando desde su
+`.md`.
 
 ## Cómo prender `lo_que_sigo` (cuando se mergee)
 

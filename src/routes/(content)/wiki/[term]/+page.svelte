@@ -107,13 +107,13 @@
 			<svelte:component this={data.content} />
 		{/if}
 	</div>
-	<!-- «Lo que sigo» (interruptores `lo_que_sigo` y `cuentas`): apagado, /api/sigo da 404 y no se ve -->
+	<!-- «Lo que sigo» (interruptor `lo_que_sigo`): apagado, /api/sigo da 404 y no se ve -->
 	<FollowButton
 		kind="etiqueta"
 		key={data?.tag?.id ?? data?.meta?.wiki ?? ''}
 		name={data?.tag?.visible_name ?? data?.tag?.id ?? data?.meta?.wiki ?? ''}
 	/>
-	<!-- interruptor `series`: apagado, /api/series da 404 y no se muestra nada -->
+	<!-- sin nada de series para esta etiqueta, /api/series da 404 y no se muestra nada -->
 	<SeriesTagBlock tag={data?.tag?.id ?? data?.meta?.wiki ?? ''} />
 	<hr />
 	<div class="lineage">

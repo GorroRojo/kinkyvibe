@@ -718,7 +718,7 @@
 		text-align: left;
 	}
 	.msg.error {
-		color: var(--bad);
+		color: var(--error);
 	}
 	.foot {
 		font-size: var(--text-xs);

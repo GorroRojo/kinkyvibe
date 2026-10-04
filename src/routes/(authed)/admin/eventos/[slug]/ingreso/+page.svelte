@@ -1,5 +1,5 @@
 <script>
-	import { argFormat } from '$lib/utils/dates.js';
+	import { argDateLog } from '$lib/utils/dates.js';
 	/**
 	 * Modo puerta: pantalla completa y oscura (sin menús del panel), con la pantalla siempre
 	 * prendida (Wake Lock), escáner de QR, resultado grande, "Escribir código", "Buscar persona",
@@ -129,7 +129,7 @@
 	}
 	/** @param {number | null | undefined} ms */
 	function dateTime(ms) {
-		return ms ? argFormat({ dateStyle: 'short', timeStyle: 'short' }).format(ms) : '—';
+		return ms ? argDateLog(ms) : '—';
 	}
 
 	// --- Guardado local (try/catch adentro de doorOffline.js) ---
@@ -698,22 +698,21 @@
 </script>
 
 <svelte:head>
-	<title>Modo puerta · {data.title} · Panel</title>
+	<title>Puerta · {data.title} · Panel</title>
 	<meta name="theme-color" content="#16121a" />
 </svelte:head>
 
 <div class="door-root">
 	<div class="door">
 		<header class="bar">
-			<a class="round" href={backHref} aria-label="Salir del modo puerta"><ArrowLeft size={24} /></a
-			>
+			<a class="round" href={backHref} aria-label="Salir de Puerta"><ArrowLeft size={24} /></a>
 			<div class="heading">
 				<h1>{data.title}</h1>
 				{#if data.part}
 					<!-- Parte de un taller (docs/talleres-partes.md): entradas del taller, ingreso de esta parte. -->
 					<p class="part-of"><strong>{data.part.label}</strong> · ingreso de esta parte</p>
 				{/if}
-				<p>Modo puerta · {wakeOk ? 'la pantalla no se apaga' : 'la pantalla puede apagarse'}</p>
+				<p>Puerta · {wakeOk ? 'la pantalla no se apaga' : 'la pantalla puede apagarse'}</p>
 			</div>
 			<button type="button" class="round" on:click={() => (menuOpen = true)} aria-label="Opciones">
 				<Ellipsis size={24} />
@@ -1562,8 +1561,8 @@
 		accent-color: var(--accent);
 	}
 	.error {
-		background: var(--bad-bg);
-		color: var(--bad);
+		background: var(--error-bg);
+		color: var(--error);
 		padding: var(--space-2xs) var(--space-xs);
 		border-radius: var(--radius-m);
 	}

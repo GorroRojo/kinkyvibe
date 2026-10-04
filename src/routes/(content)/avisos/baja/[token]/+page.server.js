@@ -1,7 +1,6 @@
 /**
  * Link de baja de "Avisame si se repite" (va en cada mail). GET muestra el botón; el POST borra la
- * suscripción (con el mail). Funciona aunque el interruptor `series` esté apagado: darse de baja
- * tiene que andar siempre (solo hace falta la base).
+ * suscripción (con el mail). Darse de baja tiene que andar siempre (solo hace falta la base).
  */
 import { error, fail } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';

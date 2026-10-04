@@ -93,7 +93,7 @@
 				</small>
 			{:else if t.fondo}
 				<small class="type-fondo">
-					💜 Con el descuento del Fondo KinkyVibe ({formatARS(t.fondo)} menos)
+					💜 Con el descuento del Fondo Kinky Vibe ({formatARS(t.fondo)} menos)
 				</small>
 			{/if}
 			<small class="type-left">
@@ -143,7 +143,7 @@
 		<small class="hint" id="entradas-monto-ayuda">
 			Sugerido {formatARS(gorra.suggested)}{#if gorra.min}, mínimo {formatARS(gorra.min)}{:else}. Si
 				no podés pagar, poné 0{/if}. En las entradas a la gorra no se aplican el descuento del Fondo
-			KinkyVibe ni los códigos de descuento: pagás el monto que elijas{#if tickets.feeBasisPoints}{' '}(con
+			Kinky Vibe ni los códigos de descuento: pagás el monto que elijas{#if tickets.feeBasisPoints}{' '}(con
 				Mercado Pago se suma el recargo de la comisión){/if}.
 		</small>
 		{#if errors.amount}
@@ -156,7 +156,7 @@
 	<fieldset class="options">
 		<legend>¿Cómo querés pagar tu entrada?</legend>
 		<small class="hint">
-			El <a href="https://fondo.kinkyvibe.ar" target="_blank" rel="noopener">Fondo KinkyVibe</a>
+			El <a href="https://fondo.kinkyvibe.ar" target="_blank" rel="noopener">Fondo Kinky Vibe</a>
 			baja el precio de todo lo que hacemos para todo el mundo{#if tickets.fondoPercent}{' '}(este
 				mes, un {tickets.fondoPercent} %){/if}. Si podés, sumá un aporte: lo que pagás de más va
 			entero al fondo.
@@ -185,7 +185,7 @@
 					{:else if o.id === 'completo'}
 						{selected.fondo ? 'sin usar el descuento del fondo' : 'precio de la entrada'}
 					{:else}
-						{formatARS(u.contribution)} por entrada van al Fondo KinkyVibe
+						{formatARS(u.contribution)} por entrada van al Fondo Kinky Vibe
 					{/if}
 				</small>
 			</label>
@@ -512,8 +512,12 @@
 	button.chip:hover:not(:disabled) {
 		background: color-mix(in srgb, var(--2) 10%, white);
 	}
-	button.chip[aria-pressed='true'] {
-		box-shadow: inset 0 0 0 3px var(--2);
+	/* el elegido, lleno de su color (como los montos de las propinas) */
+	button.chip[aria-pressed='true'],
+	button.chip[aria-pressed='true']:hover:not(:disabled) {
+		background: var(--2-dark);
+		color: white;
+		box-shadow: inset 0 0 0 2px var(--2-dark);
 		font-weight: bold;
 	}
 	.option {

@@ -1,7 +1,7 @@
 /**
  * Calendarios .ics del sitio, con el paquete `ics`. Una sola forma de pasar un evento a .ics para
  * todos los calendarios: el general (/calendario.ics, prerenderizado), el de una etiqueta o serie
- * y el personal ("lo tuyo"), estos dos detrás del interruptor `series` (src/routes/ics/).
+ * y el personal ("lo tuyo") (src/routes/ics/).
  *
  * Sin Svelte ni SvelteKit: se prueba en vitest (icsFeed.test.js).
  */
@@ -55,7 +55,7 @@ function stringToDateArray(s) {
  * La dirección que puede ir en un calendario, o `undefined`. Es el ÚNICO lugar por donde la
  * dirección entra a un .ics.
  *
- * Si el evento tiene lugar (#137, interruptor `perfiles_publicos`), manda la privacidad del lugar,
+ * Si el evento tiene lugar (#137), manda la privacidad del lugar,
  * igual que en la página del evento: `venue` es lo que la página le muestra a cualquiera
  * (`publicVenueForEvent` con ANON, ver `feedVenues` en $lib/server/amigues/venues.js), y el
  * `location` del .md no se usa. Oculto → nada; "solo el barrio" → el barrio, si hay;
@@ -107,7 +107,7 @@ const STATUS = /** @type {Record<string, import('ics').EventStatus>} */ ({
  * @returns {string}
  */
 export function buildIcsFeed(posts, opts = {}) {
-	const { calName = 'KinkyVibe', origin = SITE_ORIGIN, includeCancelled = false } = opts;
+	const { calName = 'Kinky Vibe', origin = SITE_ORIGIN, includeCancelled = false } = opts;
 	const profiles = opts.profiles ?? posts;
 	/** @type {ics.EventAttributes[]} */
 	const events = [];
@@ -117,8 +117,8 @@ export function buildIcsFeed(posts, opts = {}) {
 		// one event with a missing/invalid start would make createEvents() fail for the whole feed
 		if (isNaN(new Date(post.meta.start).getTime())) continue;
 		const organizer = post.meta.tags?.includes('KinkyVibe')
-			? 'KinkyVibe'
-			: (post.meta.authors?.[0] ?? 'KinkyVibe');
+			? 'Kinky Vibe'
+			: (post.meta.authors?.[0] ?? 'Kinky Vibe');
 		const postPath = origin + post.path;
 		const venue = opts.venues?.get(String(post.meta.postID));
 		// El link al mapa del «Dónde» del .md, solo sin lugar vinculado (ver eventPlace.js).

@@ -69,36 +69,45 @@ describe('/admin/<sección que viene>', () => {
 describe('menú: lo que viene y "Ocultar lo que viene"', () => {
 	const active = navItem('ajustes-plantillas');
 
-	it('la barra lateral muestra lo que viene con su fase y lo oculta si se pide', () => {
+	it('la barra lateral muestra lo que viene (sin link, «Próximamente») y lo oculta si se pide', () => {
 		const shown = render(SideNav, { props: { active, counts: {}, flags: {} } }).body;
-		expect(shown).toContain('href="/admin/mensajes"');
-		expect(shown).toContain('fase 5');
-		// El área de la página actual está abierta; Interruptores está en Ajustes › Sistema.
-		expect(shown).toMatch(/aria-expanded="true"[^>]*>.*Mensajes/s);
+		// Bandeja (/admin/mensajes) viene: se ve, gris y punteada, pero no es un link.
+		expect(shown).not.toContain('href="/admin/mensajes"');
+		expect(shown).toMatch(
+			/<span[^>]*aria-disabled="true"[^>]*>(?:(?!<\/span>\s*<\/span>)[\s\S])*Bandeja/
+		);
+		expect(shown).toMatch(/Bandeja<\/span><span class="tag[^"]*">Próximamente<\/span>/);
+		// Menú simplificado: Mensajes va dentro de Comunidad, que está abierta (la página actual).
+		expect(shown).toMatch(/aria-expanded="true"[^>]*>.*Comunidad/s);
+		expect(shown).toMatch(/<div class="sub[^"]*">Mensajes<\/div>/);
 		expect(shown).toContain('href="/admin/ajustes/interruptores"');
 		expect(shown).toContain('Sistema');
 
 		const hidden = render(SideNav, {
 			props: { active, counts: {}, flags: {}, hideSoon: true }
 		}).body;
-		expect(hidden).not.toContain('href="/admin/mensajes"');
-		expect(hidden).not.toMatch(/fase \d/);
+		expect(hidden).not.toContain('Bandeja');
+		expect(hidden).not.toContain('Próximamente');
 		expect(hidden).toContain('href="/admin/mensajes/plantillas"');
 	});
 
-	it('el panel "Más" lista las áreas con sus próximamente, y sin ellas si se ocultan', () => {
+	it('el panel "Más" lista los grupos con sus próximamente, y sin ellos si se ocultan', () => {
 		const shown = render(MoreAreas, { props: { active, counts: { transfers: 2 } } }).body;
-		for (const label of ['Eventos', 'Ventas', 'Comunidad', 'Mensajes', 'Ajustes'])
+		for (const label of ['Eventos', 'Ventas', 'Comunidad', 'Contenido', 'Ajustes'])
 			expect(shown).toContain(label);
 		expect(shown).toContain('próximamente');
 		const hidden = render(MoreAreas, { props: { active, hideSoon: true } }).body;
 		expect(hidden).not.toContain('próximamente');
 	});
 
-	it('con el interruptor apagado, la sección dice "prueba"', () => {
+	// «Interruptor apagado → "prueba"» ya no tiene sección real (`cuentas` quedó prendido para
+	// siempre); el mecanismo lo cubre navState en src/lib/admin/nav.test.js.
+	it('Cuentas ya no dice "prueba" aunque llegue un `cuentas: false` viejo', () => {
 		const body = render(SideNav, {
 			props: { active: navItem('cuentas'), counts: {}, flags: { cuentas: false } }
 		}).body;
-		expect(body).toMatch(/href="\/admin\/comunidad\/cuentas"[^>]*>.*?prueba/s);
+		const link = body.match(/<a[^>]*href="\/admin\/comunidad\/cuentas"[^>]*>[\s\S]*?<\/a>/)?.[0];
+		expect(link).toBeTruthy();
+		expect(link).not.toContain('prueba');
 	});
 });

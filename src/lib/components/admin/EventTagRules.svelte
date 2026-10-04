@@ -35,9 +35,8 @@
 <div class="rules">
 	<label class="switch">
 		<input type="checkbox" role="switch" id="{idPrefix}-kv" bind:checked={state.kinkyvibe} />
-		<span class="track" aria-hidden="true"></span>
 		<span>
-			<strong>{icon(groups.kinkyvibe)} Lo organiza KinkyVibe</strong>
+			<strong>{icon(groups.kinkyvibe)} Lo organiza Kinky Vibe</strong>
 			<small>Agrega la etiqueta «{groups.kinkyvibe}».</small>
 		</span>
 	</label>
@@ -173,49 +172,12 @@
 			outline-style: dashed;
 		}
 	}
+	/* el interruptor en sí es el compartido (style.scss, `role="switch"`) */
 	.switch {
 		display: flex;
 		align-items: center;
 		gap: 0.7em;
 		cursor: pointer;
-		position: relative;
-		input {
-			position: absolute;
-			opacity: 0;
-			width: 1px;
-			height: 1px;
-			margin: 0;
-		}
-		.track {
-			flex: none;
-			width: 2.6em;
-			height: 1.5em;
-			border-radius: var(--radius-m);
-			background: #ccc;
-			position: relative;
-			transition: background 150ms;
-			&::after {
-				content: '';
-				position: absolute;
-				top: 0.2em;
-				left: 0.2em;
-				width: 1.1em;
-				height: 1.1em;
-				border-radius: 50%;
-				background: var(--surface, white);
-				transition: transform 150ms;
-			}
-		}
-		input:checked + .track {
-			background: var(--1);
-			&::after {
-				transform: translateX(1.1em);
-			}
-		}
-		input:focus-visible + .track {
-			outline: 3px solid var(--2-dark, #333);
-			outline-offset: 2px;
-		}
 		> span:last-child {
 			display: flex;
 			flex-direction: column;

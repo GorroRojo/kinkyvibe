@@ -1,6 +1,6 @@
 /**
- * Lo que arman las páginas públicas de /amigues cuando el interruptor `perfiles_publicos` está
- * prendido (las rutas solo eligen entre esto y los .md). Junta las reglas de profiles.js (quién ve
+ * Lo que arman las páginas públicas de /amigues con base (el interruptor
+ * `perfiles_publicos` quedó prendido para siempre; sin base, las rutas usan los .md). Junta las reglas de profiles.js (quién ve
  * qué), venues.js (privacidad de los lugares) y claims.js ("Es mi perfil"), y reusa lo que ya usa
  * el sitio para las fichas .md: imágenes (`thumbURL`/`mediaURL`), etiquetas (`canonicalTags`),
  * "Más cosas de…" (`relatedPostsFor`) y los pronombres de las menciones.
@@ -16,6 +16,8 @@ import {
 import { mentionPronouns } from '$lib/server/pronouns';
 import { canHaveProfiles } from '$lib/server/cuentas/accounts.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
+import { imageKeysByObject } from '$lib/server/media/library.js';
+import { mediaPath } from '$lib/server/media/sniff.js';
 import { claimState } from './claims.js';
 import {
 	findPublicProfile,
@@ -67,16 +69,18 @@ export async function profileImage(o, legacySlug) {
 }
 
 /**
- * La lista blanca del perfil con su imagen y sus etiquetas como las muestra el sitio.
+ * La lista blanca del perfil con su imagen y sus etiquetas como las muestra el sitio. La imagen:
+ * la de la biblioteca (edge `avatar`, docs/imagenes.md) si tiene; si no, la de la ficha vieja.
  *
  * @param {StoredObject} o
  * @param {string | null} legacySlug
+ * @param {string | undefined} [avatarKey] clave de su imagen en la biblioteca
  */
-async function toPublic(o, legacySlug) {
+async function toPublic(o, legacySlug, avatarKey) {
 	const raw = Array.isArray(o.data.tags) ? o.data.tags.filter((t) => typeof t === 'string') : [];
 	return publicProfile(o, {
 		legacySlug,
-		image: await profileImage(o, legacySlug),
+		image: avatarKey ? mediaPath(avatarKey) : await profileImage(o, legacySlug),
 		tags: canonicalTags(raw)
 	});
 }
@@ -92,13 +96,16 @@ async function toPublic(o, legacySlug) {
  */
 export async function amiguesListPosts(db, locals, { kind } = {}) {
 	const viewer = viewerFor(locals);
-	const [profiles, imported, md] = await Promise.all([
+	const [profiles, imported, md, avatars] = await Promise.all([
 		listPublicProfiles(db, viewer, { kind }),
 		importedLegacySlugs(db),
-		fetchMarkdownPosts()
+		fetchMarkdownPosts(),
+		imageKeysByObject(db, 'perfil', 'avatar').catch(() => new Map())
 	]);
 	const posts = await Promise.all(
-		profiles.map(async (p) => profileAsPost(await toPublic(p.object, p.legacySlug)))
+		profiles.map(async (p) =>
+			profileAsPost(await toPublic(p.object, p.legacySlug, avatars.get(p.object.id)))
+		)
 	);
 	if (!kind) {
 		for (const post of md) {
@@ -126,17 +133,16 @@ export async function profileSlugTaken(db, urlSlug) {
  * @param {D1Database} db
  * @param {string} urlSlug
  * @param {App.Locals} locals
- * @param {{ cuentas: boolean, posts?: ProcessedPost[] }} opts si están prendidas las cuentas
- *   (para "Es mi perfil"); `posts`: las publicaciones del sitio (con los eventos de la base si
- *   la base; por defecto, las fichas .md)
+ * @param {{ posts?: ProcessedPost[] }} [opts] `posts`: las publicaciones del sitio (con los
+ *   eventos de la base si la base; por defecto, las fichas .md)
  */
-export async function profilePageData(db, urlSlug, locals, { cuentas, posts: sitePosts }) {
+export async function profilePageData(db, urlSlug, locals, { posts: sitePosts } = {}) {
 	const viewer = viewerFor(locals);
 	const accountId = locals.member?.id;
 	const found = await findPublicProfile(db, urlSlug, viewer, { accountId });
 	if (!found) return null;
-	const { object, legacySlug, approved } = found;
-	const profile = await toPublic(object, legacySlug);
+	const { object, legacySlug, approved, avatarKey } = found;
+	const profile = await toPublic(object, legacySlug, avatarKey ?? undefined);
 	const kind = profileKindOf(object.data);
 	const href = `/amigues/${urlSlugOf(object, legacySlug)}`;
 
@@ -184,7 +190,7 @@ export async function profilePageData(db, urlSlug, locals, { cuentas, posts: sit
 
 	/** @type {{ state: 'none' | 'pending' | 'manager' } | null} */
 	let claim = null;
-	if (cuentas && accountId && (await canHaveProfiles(db, accountId))) {
+	if (accountId && (await canHaveProfiles(db, accountId))) {
 		claim = { state: await claimState(db, accountId, object.id) };
 	}
 

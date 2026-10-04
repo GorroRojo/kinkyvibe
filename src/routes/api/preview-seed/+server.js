@@ -11,7 +11,7 @@ import { PREVIEW_BUILD, isPreviewDeploy } from '$lib/server/deploy.js';
 import { isAdmin } from '$lib/server/auth.js';
 
 /**
- * Noche 3 (#137): con `perfiles_publicos` prendido, /amigues lee los perfiles de la base. Para
+ * Noche 3 (#137): /amigues lee los perfiles de la base. Para
  * que la demo no quede con solo los perfiles inventados, se importan las fichas .md públicas de
  * este deploy (lo mismo que Contenido → Amigues → Importar; idempotente). Sin la migración 0017,
  * no hace nada.

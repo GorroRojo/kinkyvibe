@@ -82,10 +82,10 @@ migraciones que reconstruyen tablas tienen su propia prueba con datos
 
 Hay dos juegos, con configuraciones distintas:
 
-| Juego                       | Config                         | Contra qué corre                                                              | ¿En CI?                                                                      |
-| --------------------------- | ------------------------------ | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Humo (`tests/*.spec.js`)    | `playwright.config.js`         | el build de producción (`vite preview`, puerto 4173), con `CUENTAS_ENABLED=1` | **Sí** (job `e2e`, con un reintento)                                         |
-| Entradas (`tests/tickets/`) | `playwright.tickets.config.js` | `npm run dev:tickets` en el puerto 5371, con Mercado Pago y admin simulados   | **No**, por decisión de gorrite: correlo a mano si tocás entradas o el panel |
+| Juego                       | Config                         | Contra qué corre                                                            | ¿En CI?                                                                      |
+| --------------------------- | ------------------------------ | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Humo (`tests/*.spec.js`)    | `playwright.config.js`         | el build de producción (`vite preview`, puerto 4173)                        | **Sí** (job `e2e`, con un reintento)                                         |
+| Entradas (`tests/tickets/`) | `playwright.tickets.config.js` | `npm run dev:tickets` en el puerto 5371, con Mercado Pago y admin simulados | **No**, por decisión de gorrite: correlo a mano si tocás entradas o el panel |
 
 El juego de entradas cubre la compra, la gorra, el editor de eventos, Ajustes y cada link del
 menú del panel (`tests/tickets/menu.spec.js`). Como la CI no lo corre, si tu PR toca esas partes

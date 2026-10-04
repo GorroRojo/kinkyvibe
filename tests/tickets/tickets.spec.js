@@ -359,7 +359,7 @@ test('recargo de Mercado Pago y fondo: el total cambia en vivo con el medio de p
 	// El tipo de entrada está en el paso «Entradas» (el indicador deja volver y seguir).
 	await goToStep(block, 'Entradas');
 	await expect(
-		block.getByText('💜 Con el descuento del Fondo KinkyVibe ($ 2.000 menos)')
+		block.getByText('💜 Con el descuento del Fondo Kinky Vibe ($ 2.000 menos)')
 	).toBeVisible();
 	await goToStep(block, 'Pagar');
 	// Horario de la venta (el fixture cierra en 30 días), en hora de Argentina.
@@ -722,7 +722,7 @@ test('entrada solidaria: +10 % para el fondo, en el total y en "Aportes al fondo
 	});
 	expect(prices).toMatchObject({ fondo: 0, contribution: 2000, subtotal: 22000 });
 	const block = page.locator('#entradas');
-	await expect(block.getByText('💜 Incluye $ 2.000 de aporte al Fondo KinkyVibe')).toBeVisible();
+	await expect(block.getByText('💜 Incluye $ 2.000 de aporte al Fondo Kinky Vibe')).toBeVisible();
 	await expect(block.locator('fieldset.options')).toContainText(
 		'lo que pagás de más va entero al fondo'
 	);

@@ -8,7 +8,7 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
 	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
-	import PostSupport from '$lib/components/propinas/PostSupport.svelte';
+	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { showEventTip } from '$lib/utils/propinas.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
@@ -33,7 +33,7 @@
 	// bloque de estilos del componente.
 	const STYLE_TAG = 'style';
 	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
-	// "Sucede en" (interruptor `perfiles_publicos`): si el evento tiene lugar, su privacidad manda
+	// "Sucede en": si el evento tiene lugar, su privacidad manda
 	// sobre el «Dónde» del .md (`location` y su link al mapa `location_map`; docs/amigues.md).
 	// Lo mismo que el .ics (eventPlace.js). En la tarjeta, el lugar va una sola vez: con lugar,
 	// VenueLocation en su versión chica (con las reglas de cada nivel); sin lugar, el «Dónde».
@@ -118,13 +118,13 @@
 		organizer: {
 			'@type': data.meta.tags?.includes('KinkyVibe') ? 'Organization' : 'Person',
 			name: data.meta.tags?.includes('KinkyVibe')
-				? 'KinkyVibe'
-				: (data.meta.authors?.[0] ?? 'KinkyVibe'),
+				? 'Kinky Vibe'
+				: (data.meta.authors?.[0] ?? 'Kinky Vibe'),
 			url:
 				'https://kinkyvibe.ar/' +
 				(data.meta.tags?.includes('KinkyVibe')
-					? 'KinkyVibe'
-					: (data.meta.authors?.[0] ?? 'KinkyVibe'))
+					? 'Kinky Vibe'
+					: (data.meta.authors?.[0] ?? 'Kinky Vibe'))
 		}
 		//   "offers": {
 		//     "@type": "Offer",
@@ -268,7 +268,7 @@
 				{:else}
 					<p class="buy-closed">
 						{t.reason === 'soldout'
-							? 'Entradas agotadas.'
+							? 'Agotadas.'
 							: t.reason === 'closed'
 								? 'Venta cerrada.'
 								: t.reason === 'notyet' && t.opensAt
@@ -336,7 +336,7 @@
 	{/if}
 	<!-- La propina solo en eventos gratis de KinkyVibe (decisión de gorrite). -->
 	{#if showEventTip(data.meta)}
-		<PostSupport propinas={data.propinas} category="calendario" slug={$page.params.event ?? ''} />
+		<TipBlock category="calendario" slug={$page.params.event ?? ''} />
 	{/if}
 </article>
 

@@ -1,6 +1,6 @@
 /**
  * Link del mail para confirmar "Avisame si se repite" (doble confirmación). GET solo muestra el
- * botón; el POST confirma (ver MailLinkCard.svelte). Interruptor `series`: apagado, 404.
+ * botón; el POST confirma (ver MailLinkCard.svelte).
  */
 import { fail } from '@sveltejs/kit';
 import { confirmSubscription } from '$lib/server/series/subscriptions.js';

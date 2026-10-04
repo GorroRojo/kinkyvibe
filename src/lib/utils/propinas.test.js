@@ -98,7 +98,7 @@ describe('destino de la propina', () => {
 		expect(TIP_DESTINATION).toBe('fondo');
 		expect(TIP_DESTINATIONS).toEqual(['kinkyvibe', 'fondo']);
 		expect(TIP_DESTINATION_LABELS).toEqual({
-			kinkyvibe: 'Para KinkyVibe',
+			kinkyvibe: 'Para Kinky Vibe',
 			fondo: 'Para el Fondo'
 		});
 	});

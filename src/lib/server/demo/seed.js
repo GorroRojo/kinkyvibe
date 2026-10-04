@@ -47,12 +47,8 @@ export const EVENTS_PATH = 'src/lib/posts/calendario';
  * base del preview, nunca en producción; los valores por defecto del código no cambian.
  */
 export const N3_FLAGS = Object.freeze([
-	'cuentas',
-	'propinas',
-	'perfiles_publicos',
-	'personas_eventos',
-	'borrar_desde_panel',
-	// Series, etiquetas y contenido desde la base ya no tienen interruptor (siempre prendidos).
+	// Cuentas, propinas, perfiles públicos, personas en eventos, borrar desde el panel, series,
+	// etiquetas y contenido desde la base ya no tienen interruptor (siempre prendidos).
 	// «Lo que sigo» (#178–#182): seguir etiquetas, perfiles y lugares.
 	'lo_que_sigo'
 ]);

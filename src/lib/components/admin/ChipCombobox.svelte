@@ -48,7 +48,7 @@
 	/** @type {(value: string) => Chip} */
 	export let chip = (value) => ({ label: value });
 	/** What the remove button says, before the chip's name. */
-	export let removeLabel = 'Quitar';
+	export let removeLabel = 'Sacar';
 	/** @type {(value: string) => string} */
 	export let addedMessage = (value) => `Agregado: ${value}`;
 	/** @type {(values: string[]) => void} */

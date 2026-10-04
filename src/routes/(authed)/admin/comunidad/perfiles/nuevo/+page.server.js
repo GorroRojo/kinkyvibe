@@ -6,8 +6,8 @@ import { emptyFormValues } from '$lib/server/amigues/editor.js';
 const mdLoad = newLoad('amigues');
 
 /**
- * Perfil nuevo: con el interruptor `perfiles_publicos` prendido, en la base (se publica al
- * guardar); si no, una ficha .md como siempre.
+ * Perfil nuevo: con base, en la base (se publica al guardar); sin base, una ficha .md como
+ * siempre.
  *
  * @type {import('./$types').PageServerLoad}
  */

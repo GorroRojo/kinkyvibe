@@ -9,14 +9,13 @@ import {
 	profilesStamp
 } from '$lib/server/amigues/profiles.js';
 import { eventVenuesStamp, linkedVenues } from '$lib/server/amigues/venues.js';
-import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { buildSearchIndex } from '$lib/server/search/siteIndex.js';
 import { TAGGED_CACHE } from '$lib/server/etiquetas/cache.js';
 
 // Not prerendered: the tags, events and material come from the database (docs/etiquetas.md,
-// docs/contenido.md) and the amigues profiles follow `perfiles_publicos`; the database can't be read at build time. What goes in the index is
-// decided in $lib/server/search/siteIndex.js (pure, with tests).
+// docs/contenido.md), and so do the amigues profiles; the database can't be read at build time.
+// What goes in the index is decided in $lib/server/search/siteIndex.js (pure, with tests).
 export const prerender = false;
 
 /**
@@ -42,11 +41,8 @@ const rawPosts = /** @type {Record<string, () => Promise<string>>} */ (
 export async function GET({ platform }) {
 	const tagManager = currentSiteTags();
 	const db = getDB(platform);
-	const [contentStamp, profilesOn] = await Promise.all([
-		siteContentStamp(platform),
-		perfilesPublicosEnabled(platform)
-	]);
-	const profiles = Boolean(db && profilesOn);
+	const contentStamp = await siteContentStamp(platform);
+	const profiles = Boolean(db);
 	const key = JSON.stringify([
 		contentStamp,
 		profiles ? await profilesStamp(/** @type {any} */ (db)) : null,
@@ -102,8 +98,6 @@ async function buildIndex(tagManager, platform, { profiles }) {
 			if (stored !== undefined) return stored;
 			return rawPosts[`/src/lib/posts/${meta.category}/${meta.postID}.md`]?.();
 		},
-		profiles:
-			profileList && imported ? { list: profileList, imported, linkedVenues: venues } : null,
-		series: true
+		profiles: profileList && imported ? { list: profileList, imported, linkedVenues: venues } : null
 	});
 }

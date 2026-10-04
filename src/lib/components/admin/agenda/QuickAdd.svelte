@@ -147,7 +147,8 @@
 	}
 	.error {
 		margin: 0;
-		background: var(--bad-bg);
+		background: var(--error-bg);
+		color: var(--error);
 		border-radius: var(--radius-s);
 		padding: 0.4rem var(--space-2xs);
 	}

@@ -1,5 +1,5 @@
 /**
- * Crear series desde el panel (interruptor `series`): «Crear serie» en Eventos → Series y la
+ * Crear series desde el panel: «Crear serie» en Eventos → Series y la
  * pregunta «¿Es parte de una serie?» al duplicar un evento. Una serie es una etiqueta hija de
  * «evento recurrente»; los cambios se guardan con el mismo camino que /admin/etiquetas
  * (planTagEdit / commitTagEdit). Funciones puras, con pruebas en seriesAdmin.test.js.

@@ -1,10 +1,8 @@
 <script>
 	/**
-	 * Link «Borrar…» a la página de confirmación (/admin/borrar/<kind>/<slug>). Solo aparece con
-	 * el interruptor `borrar_desde_panel` prendido (`borrarDesdePanel`, del layout del panel).
+	 * Link «Borrar…» a la página de confirmación (/admin/borrar/<kind>/<slug>).
 	 * Props: `kind` ('calendario' | 'material' | 'amigues'), `slug`, `label` (default "Borrar…").
 	 */
-	import { page } from '$app/stores';
 	import { Trash2 } from '@lucide/svelte';
 
 	/** @type {'calendario' | 'material' | 'amigues'} */
@@ -14,7 +12,7 @@
 	export let label = 'Borrar…';
 </script>
 
-{#if $page.data.borrarDesdePanel && slug}
+{#if slug}
 	<p class="delete">
 		<a href="/admin/borrar/{kind}/{encodeURIComponent(slug)}"
 			><Trash2 size={16} aria-hidden="true" /> {label}</a

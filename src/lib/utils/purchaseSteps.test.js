@@ -266,7 +266,7 @@ describe('resumen de la compra', () => {
 		expect(s.option).toBe('Con el descuento del fondo');
 		expect(s.lines).toEqual([
 			{ id: 'entradas', label: 'Entradas (2 × $ 8.000)', amount: '$ 16.000' },
-			{ id: 'fondo', label: '💜 Ya descontado: el Fondo KinkyVibe cubre $ 4.000', note: true },
+			{ id: 'fondo', label: '💜 Ya descontado: el Fondo Kinky Vibe cubre $ 4.000', note: true },
 			{
 				id: 'codigo',
 				label: 'Código E2E20',
@@ -310,7 +310,7 @@ describe('resumen de la compra', () => {
 		expect(s.option).toBe('Entrada solidaria (+10 %)');
 		expect(s.lines[1]).toEqual({
 			id: 'aporte',
-			label: '💜 Incluye $ 2.000 de aporte al Fondo KinkyVibe',
+			label: '💜 Incluye $ 2.000 de aporte al Fondo Kinky Vibe',
 			note: true
 		});
 

@@ -79,17 +79,12 @@ afterEach(() => {
 });
 
 /**
- * El endpoint con los interruptores como se pidan, como en producción (`dev` apagado: recuerda el
- * índice), y un contador de cuántas veces se arma.
- * @param {{ perfiles?: string }} [o]
+ * El endpoint como en producción (`dev` apagado: recuerda el índice), y un contador de cuántas
+ * veces se arma.
  */
-async function endpoint({ perfiles = '1' } = {}) {
+async function endpoint() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: {
-			PERFILES_PUBLICOS_ENABLED: perfiles
-		}
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	vi.doMock('$app/environment', () => ({ dev: false, building: false, browser: false }));
 	const builds = { count: 0 };
 	vi.doMock('$lib/server/search/siteIndex.js', async (importOriginal) => {
@@ -185,7 +180,7 @@ describe('eventos y material: solo de la base', () => {
 	});
 });
 
-describe('perfiles_publicos', () => {
+describe('perfiles de la base', () => {
 	async function seedProfiles() {
 		const imported = await makeProfile(t.db, {
 			title: 'Ficha Importada Desde La Base',
@@ -241,7 +236,7 @@ describe('perfiles_publicos', () => {
 	// Antes: «nunca lugares». Ahora la regla de gorrite: lo que ya se alcanza navegando se puede
 	// encontrar buscando. Un lugar listado está en /amigues, así que entra (sin su calle); uno no
 	// listado sin ningún link que lleve a él, no.
-	it('prendido: los perfiles que lista /amigues (también lugares listados), nunca ocultos, sin aprobar ni no listados', async () => {
+	it('los perfiles que lista /amigues (también lugares listados), nunca ocultos, sin aprobar ni no listados', async () => {
 		await seedProfiles();
 		const index = await (await endpoint()).get();
 		const amigues = index.docs.filter((d) => d.c === 'amigues').map((d) => d.h);
@@ -358,12 +353,5 @@ describe('perfiles_publicos', () => {
 		expect(json).not.toContain('casa-particular');
 		expect(json).not.toContain('Calle De La Casa');
 	});
-
-	it('apagado: las fichas .md, ningún perfil de la base', async () => {
-		await seedProfiles();
-		const index = await (await endpoint({ perfiles: '0' })).get();
-		const amigues = index.docs.filter((d) => d.c === 'amigues').map((d) => d.h);
-		expect(amigues).toEqual(['/amigues/Ficha_Importada', '/amigues/Ficha_Sin_Importar']);
-		expect(JSON.stringify(index)).not.toContain('Persona Visible');
-	});
+	// «Apagado: las fichas .md» se fue con el interruptor `perfiles_publicos` (quedó fijo).
 });

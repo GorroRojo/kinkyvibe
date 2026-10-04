@@ -1,12 +1,12 @@
 /**
- * Propinas al pie de las publicaciones de KinkyVibe (docs/propinas.md).
+ * Propinas al pie de las publicaciones de Kinky Vibe (docs/propinas.md).
  *
  * Usa la MISMA integración de Mercado Pago que las entradas: el cliente (`getGateway`), la cuenta
  * (MP_ACCESS_TOKEN), el webhook firmado (/api/mercadopago/webhook, que reconoce las propinas por
  * el prefijo `propina:` del `external_reference`) y la máquina de estados de los pagos
  * (`mapPaymentStatus` / `nextStatus` de tickets/orders.js). La plata siempre entra a la cuenta de
  * MP de las entradas. Toda propina nueva va al Fondo (`destination = 'fondo'`, decisión de
- * gorrite; las viejas "Para KinkyVibe" quedan como están). Las del Fondo aprobadas se cuentan como aportes al Fondo
+ * gorrite; las viejas "Para Kinky Vibe" quedan como están). Las del Fondo aprobadas se cuentan como aportes al Fondo
  * KinkyVibe (`fondoTipTotals`, que usa el Inicio del panel), igual que el aporte de una entrada
  * solidaria. Solo cambia cómo se cuenta, no a dónde va la plata.
  *
@@ -79,7 +79,7 @@ export function tipIdFromReference(ref) {
  * @param {{ tip: Pick<Tip, 'id' | 'amount' | 'created_at'> & { destination?: TipDestination }, postTitle: string, origin: string }} input
  */
 export function buildTipPreference({ tip, postTitle, origin }) {
-	const forWho = tip.destination === 'fondo' ? 'el Fondo KinkyVibe' : 'KinkyVibe';
+	const forWho = tip.destination === 'fondo' ? 'el Fondo Kinky Vibe' : 'Kinky Vibe';
 	return checkoutProPreference({
 		items: [
 			{
@@ -238,7 +238,7 @@ export async function applyTipPayment(db, payment, { now = Date.now() } = {}) {
 const AR_OFFSET_MS = 3 * 60 * 60 * 1000;
 
 /**
- * Las propinas que cuentan como aportes al Fondo KinkyVibe: aprobadas y "Para el Fondo" (ni
+ * Las propinas que cuentan como aportes al Fondo Kinky Vibe: aprobadas y "Para el Fondo" (ni
  * pendientes, ni rechazadas, ni reembolsadas, ni las de KinkyVibe). Una sola definición para el
  * panel de propinas y para los aportes al Fondo del Inicio.
  */

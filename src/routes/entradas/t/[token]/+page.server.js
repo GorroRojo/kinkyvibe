@@ -11,6 +11,7 @@ import { siteOrigin, streamLinkFor } from '$lib/server/tickets/index.js';
 import { checkIn, getTicketByToken, isValidToken } from '$lib/server/tickets/orders.js';
 import { qrSvg } from '$lib/server/tickets/qr.js';
 import { buyerLocation } from '$lib/server/amigues/venues.js';
+import { workshopPartsList } from '$lib/server/tickets/workshopParts.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, platform, url, locals }) {
@@ -50,7 +51,10 @@ export async function load({ params, platform, url, locals }) {
 			where: online
 				? 'Online'
 				: [place?.location_name, place?.location].filter(Boolean).join(' · '),
-			online
+			online,
+			// Taller en varias partes con una sola entrada: la fecha y el lugar de cada parte (el
+			// lugar completo solo con la compra aprobada, como el del taller).
+			parts: await workshopPartsList(db, ticket.event_slug, { online, buyer: valid })
 		},
 		// Eventos online: el link de la transmisión (solo con la compra aprobada), sin QR.
 		streamLink: online && valid ? await streamLinkFor(db, ticket.event_slug) : null,

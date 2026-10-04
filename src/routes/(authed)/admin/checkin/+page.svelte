@@ -1,4 +1,5 @@
 <script>
+	import { argDateList } from '$lib/utils/dates.js';
 	/** Check-in: elegir el evento y abrir el modo puerta. */
 	import { DoorOpen } from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -8,18 +9,8 @@
 
 	export let data;
 
-	const TZ = 'America/Argentina/Buenos_Aires';
 	/** @param {number} ms */
-	const when = (ms) =>
-		new Date(ms).toLocaleString('es-AR', {
-			weekday: 'short',
-			day: 'numeric',
-			month: 'short',
-			hour: '2-digit',
-			minute: '2-digit',
-			hourCycle: 'h23',
-			timeZone: TZ
-		});
+	const when = (ms) => argDateList(ms);
 
 	const SECTIONS = /** @type {const} */ ([
 		['hoy', 'Hoy'],
@@ -32,8 +23,8 @@
 </script>
 
 <PageHeader
-	title="Check-in"
-	subtitle="Elegí el evento para abrir el modo puerta: pantalla oscura, sin menús, que no se apaga y sigue andando sin conexión."
+	title="Puerta"
+	subtitle="Elegí el evento para abrir su Puerta: pantalla oscura, sin menús, que no se apaga y sigue andando sin conexión."
 />
 
 {#if !data.hasDb}
@@ -75,7 +66,7 @@
 								class:ghost={e.slug !== firstSlug || id === 'recientes'}
 								href={eventHref(e.slug, 'ingreso')}
 							>
-								<DoorOpen size={18} /> Abrir modo puerta
+								<DoorOpen size={18} /> Abrir Puerta
 							</a>
 						</div>
 					</Card>

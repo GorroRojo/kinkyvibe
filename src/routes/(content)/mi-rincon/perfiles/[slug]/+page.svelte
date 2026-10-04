@@ -1,9 +1,11 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { LogOut, Trash2, UserMinus } from '@lucide/svelte';
 	import { KIND_LABELS, ROLE_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
-	import { TIMEZONE } from '$lib/utils/dates.js';
+	import { TIMEZONE, argDateList } from '$lib/utils/dates.js';
 	import { VENUE_PRIVACY_LABELS, VENUE_PRIVACY_UNSET_LABEL } from '$lib/utils/venues.js';
 	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
+	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
 
 	export let data;
 	export let form;
@@ -41,6 +43,10 @@
 		new Date(d).toLocaleDateString('es-AR', { timeZone: TIMEZONE, day: 'numeric', month: 'long' });
 
 	let confirmName = '';
+
+	/** La imagen del perfil (selector de imágenes, docs/imagenes.md). */
+	/** @type {any} */
+	let avatar = data.avatar ?? null;
 
 	/** Ya se mandó el código fresco para las acciones de dueñes y borrar el proyecto. */
 	$: codeSent = f?.codeSentFor === 'grupo';
@@ -139,6 +145,14 @@
 				/>
 				{#if errors.title}<span class="field-error">{errors.title}</span>{/if}
 			</label>
+			<ImagePicker
+				bind:value={avatar}
+				target="perfil:{p.slug}"
+				contextLabel="De este perfil"
+				legend="Imagen del perfil"
+				idPrefix="perfil-imagen"
+				sectionId="sec-perfil-imagen"
+			/>
 			{#if venue}
 				<input type="hidden" name="pronouns" value={values.pronouns} />
 			{:else}
@@ -429,9 +443,10 @@
 											<input type="hidden" name="code" value={groupCode} />
 										{/if}
 										<button
-											class="pill-btn delete"
+											class="pill-btn danger"
 											type="submit"
-											disabled={m.role === 'owner' && !codeSent}>Sacar de la gestión</button
+											disabled={m.role === 'owner' && !codeSent}
+											><UserMinus size={18} aria-hidden="true" /> Sacar de la gestión</button
 										>
 									</form>
 									{#if !codeSent}
@@ -535,14 +550,14 @@
 				{#each data.organizes as ev (ev.slug)}
 					<li>
 						<a href="/mi-rincon/perfiles/{p.slug}/respuestas/{ev.slug}">{ev.title}</a>
-						{#if ev.start}<span class="hint">{fmtDate(Date.parse(ev.start))}</span>{/if}
+						{#if ev.start}<span class="hint">{argDateList(ev.start)}</span>{/if}
 					</li>
 				{/each}
 			</ul>
 		</section>
 	{/if}
 
-	<section class="surface-card danger" aria-labelledby="danger-title">
+	<section class="surface-card danger-zone" aria-labelledby="danger-title">
 		<h2 id="danger-title">{group ? 'Dejar o borrar' : 'Borrar este perfil'}</h2>
 		{#if group}
 			{#if msg('dejar')?.error}
@@ -556,7 +571,9 @@
 					{#if owner}Si sos la única persona dueña, antes hacé dueñe a otra.{/if}
 				</p>
 				<form method="POST" action="?/dejar" use:enhance>
-					<button class="pill-btn delete" type="submit">Dejar de gestionar</button>
+					<button class="pill-btn danger" type="submit"
+						><LogOut size={18} aria-hidden="true" /> Dejar de gestionar</button
+					>
 				</form>
 			</details>
 		{/if}
@@ -605,10 +622,10 @@
 							<input name="confirm" type="text" autocomplete="off" bind:value={confirmName} />
 						</label>
 						<button
-							class="pill-btn delete"
+							class="pill-btn danger"
 							type="submit"
 							disabled={confirmName.trim().toLowerCase() !== p.title.trim().toLowerCase()}
-							>Borrar</button
+							><Trash2 size={18} aria-hidden="true" /> Borrar</button
 						>
 					</form>
 					{#if group}
@@ -770,7 +787,7 @@
 		font: inherit;
 		min-height: var(--tap);
 	}
-	.danger {
+	.danger-zone {
 		border-top: 0.25rem solid var(--1-dark);
 	}
 	.stepup {
@@ -783,9 +800,6 @@
 	button:disabled {
 		opacity: 0.55;
 		cursor: not-allowed;
-	}
-	.pill-btn.delete {
-		background: var(--1-dark);
 	}
 	.ok {
 		color: var(--3-ink);

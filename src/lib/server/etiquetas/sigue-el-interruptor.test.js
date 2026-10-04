@@ -1,6 +1,6 @@
 /**
- * Todo lo que usa el árbol de etiquetas sigue la MISMA fuente (archivo o base, interruptor
- * `etiquetas_db`), sin excepciones: las publicaciones (la limpieza de etiquetas de cada post, los
+ * Todo lo que usa el árbol de etiquetas sigue la MISMA fuente (la base, con el archivo de
+ * respaldo; el interruptor `etiquetas_db` quedó fijo), sin excepciones: las publicaciones (la limpieza de etiquetas de cada post, los
  * listados, /api/posts, el índice del buscador), los editores del panel, las series, el ingreso y
  * lo que cuenta series en Estadísticas. El hook (`applySiteTags`) pone el árbol de cada pedido.
  *

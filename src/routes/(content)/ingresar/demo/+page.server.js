@@ -1,7 +1,7 @@
 /**
  * «Entrar como persona de prueba» (docs/demo.md): solo en deploys de preview, con la misma
- * condición que «Entrar como admin de prueba» (`isPreviewDeploy()`). En cualquier otro lado (y
- * con el interruptor `cuentas` apagado) la página y su action dan 404.
+ * condición que «Entrar como admin de prueba» (`isPreviewDeploy()`). En cualquier otro lado la
+ * página y su action dan 404.
  *
  * Solo entra a las cuentas que creó el seed de la demo (ver src/lib/server/demo/personas.js).
  * SvelteKit rechaza los POST de formularios de otros sitios (chequeo de origen).

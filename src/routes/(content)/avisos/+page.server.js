@@ -1,5 +1,5 @@
 /**
- * "Avisame si se repite" (interruptor `series`): suscribirse a una serie de eventos para recibir
+ * "Avisame si se repite": suscribirse a una serie de eventos para recibir
  * un mail cuando se publique una nueva edición. Los formularios de la página de un evento y de la
  * serie mandan acá (?/suscribir); sin JavaScript, esta página muestra el resultado. Con cuenta
  * del público y sesión abierta, se puede usar la cuenta en vez del mail (y darse de baja acá).
@@ -83,7 +83,7 @@ export const actions = {
 	},
 	baja: async ({ request, platform, locals }) => {
 		const db = await requireSeriesDB(platform);
-		if (!locals.member) return fail(401, { error: 'Ingresá a tu cuenta para darte de baja.' });
+		if (!locals.member) return fail(401, { error: 'Entrá a tu cuenta para darte de baja.' });
 		const form = await request.formData();
 		const series = await seriesPage(field(form, 'serie'), {
 			tags: await siteTagManager(platform),

@@ -1,11 +1,10 @@
 <script>
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
-	import { AJUSTES_TABS, fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
+	import { fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
-	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 
 	export let data;
 	export let form;
@@ -21,8 +20,6 @@
 </script>
 
 <PageHeader title="Cobros" subtitle="Datos para transferir y recargo de Mercado Pago." />
-<Tabs tabs={[...AJUSTES_TABS]} />
-
 <form
 	class="kv-form settings"
 	method="POST"

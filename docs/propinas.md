@@ -18,10 +18,9 @@ y el bloque lo dice.
   lugar del link a Cafecito (decisión de gorrite, 2/10): `/propinas` sin `?de=` no deja dejar
   una propina, solo explica que se dejan desde cada publicación de KinkyVibe.
 
-Está detrás del interruptor **Propinas** (Ajustes → Interruptores), apagado por defecto. Apagado,
-las publicaciones muestran la nota del cafecito de siempre, el pie de página sigue con el link a
-Cafecito y `/propinas` da 404. La variable
-`PROPINAS_ENABLED` manda sobre el panel (`1` prendido, `0` apagado; ver `src/lib/server/flags.js`).
+Está siempre prendido: el interruptor `propinas` quedó fijo ([interruptores.md](interruptores.md))
+y la variable `PROPINAS_ENABLED` ya no hace nada. La nota del cafecito y el link a Cafecito del
+pie de página ya no existen.
 
 ## Lo que nunca se tiene que romper
 
@@ -55,8 +54,8 @@ Cafecito y `/propinas` da 404. La variable
 | Montos, validación, helpers compartidos | `src/lib/utils/propinas.js`                                                      |
 | Propinas en D1, webhook, panel          | `src/lib/server/propinas/index.js`                                               |
 | Crear la propina y la preferencia de MP | `src/lib/server/propinas/checkout.js` (`startTip`)                               |
-| Pie de las publicaciones                | `src/lib/components/propinas/` (`PostSupport`, `TipBlock`, …)                    |
-| Link del pie de página (Footer)         | `supportLink` en `src/lib/utils/footer.js`, dato `propinas` del layout raíz      |
+| Pie de las publicaciones                | `src/lib/components/propinas/` (`TipBlock`, …)                                   |
+| Link del pie de página (Footer)         | `supportLink` en `src/lib/utils/footer.js`                                       |
 | Form action y gracias                   | `src/routes/(content)/propinas/`                                                 |
 | Panel (lista, CSV)                      | `src/routes/(authed)/admin/ajustes/propinas/` (menú: Ajustes › Plata › Propinas) |
 | Tabla                                   | `migrations/0019_propinas.sql` (`tips`)                                          |
@@ -91,15 +90,15 @@ simulado (`completeMockCheckout` en `tickets/mock.js`) y el CSV del panel (`$lib
 ## Probarlo
 
 - `npx vitest run src/lib/utils/propinas.test.js src/lib/utils/footer.test.js src/lib/components/Footer.test.js src/lib/server/propinas src/routes/\(content\)/propinas src/routes/\(authed\)/admin/ajustes/propinas`
-- En local, con MP simulado: `PROPINAS_ENABLED=1 npm run dev:tickets`, entrá a un material de
+- En local, con MP simulado: `npm run dev:tickets`, entrá a un material de
   KinkyVibe, elegí un monto y aprobá el pago en el checkout simulado (`/propinas/simular-pago/…`).
 - Datos de demo en la base local: `npx wrangler d1 execute kinkyvibe --local --file scripts/demo/n3-propinas.sql`
   (nunca con `--remote`).
 
-## Antes de prender el interruptor
+## Qué necesita la base
 
-Aplicar las migraciones **0019** y **0022** en la base (0022 agrega `destination`; sin ella no se
-pueden crear propinas). Con el interruptor apagado nada de esto se usa.
+Las migraciones **0019** y **0022** (0022 agrega `destination`; sin ella no se pueden crear
+propinas).
 
 ## Decisiones
 
@@ -112,8 +111,8 @@ Confirmadas por gorrite:
   se elige entre "Para KinkyVibe" y "Para el Fondo". La plata va a la misma cuenta de MP; cuentan
   como aportes al Fondo, igual que la entrada solidaria. Las viejas "Para KinkyVibe" se siguen
   mostrando como están (panel, filtro y CSV).
-- **Pie de página** (cambiado por gorrite): con el interruptor prendido, "Dejá una propina"
-  (`/propinas`) reemplaza al link a Cafecito; apagado, sigue Cafecito.
+- **Pie de página** (cambiado por gorrite): "Dejá una propina" (al Fondo) reemplaza al link a
+  Cafecito (el interruptor `propinas` quedó fijo).
 
 Tomadas por Claude, a confirmar: sin cuenta ni datos, mensaje opcional de 280 caracteres solo
 para admins y página de gracias.

@@ -3,7 +3,6 @@
  */
 import { error } from '@sveltejs/kit';
 import { getDB, logDBError } from '$lib/server/db';
-import { cuentasEnabled } from '$lib/server/flags.js';
 import { deliverEmail } from '$lib/server/tickets/index.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
 import {
@@ -16,7 +15,7 @@ import {
 
 /**
  * Carga `locals.member` desde la cookie de sesión (en hooks.server.js). No toca `locals.user`
- * (admins con GitHub). Con el interruptor apagado, sin base o con la cookie inválida, queda
+ * (admins con GitHub). Sin base o con la cookie inválida, queda
  * `undefined`; un error de base no rompe la página.
  *
  * @param {import('@sveltejs/kit').RequestEvent} event
@@ -25,7 +24,6 @@ export async function loadMember(event) {
 	event.locals.member = undefined;
 	const token = event.cookies.get(SESSION_COOKIE);
 	if (!token) return;
-	if (!(await cuentasEnabled(event.platform))) return;
 	const db = getDB(event.platform);
 	if (!db) return;
 	try {
@@ -44,12 +42,11 @@ export async function loadMember(event) {
 }
 
 /**
- * Para las páginas de cuentas: 404 si el interruptor está apagado (como si no existieran).
+ * Para las páginas de cuentas: la base, o 503 sin base.
  *
  * @param {App.Platform | undefined} platform
  */
 export async function requireCuentas(platform) {
-	if (!(await cuentasEnabled(platform))) error(404, 'Not found');
 	const db = getDB(platform);
 	if (!db) error(503, 'No disponible en este momento.');
 	return db;

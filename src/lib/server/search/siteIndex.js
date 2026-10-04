@@ -11,10 +11,10 @@
  *
  * Qué entra:
  * - eventos y material listados y publicados (`sitePosts`: de la base), con su cuerpo recortado;
- * - las fichas de amigues: con `perfiles_publicos` apagado, las .md; prendido, los perfiles que
+ * - las fichas de amigues: sin base, las .md; con base, los perfiles que
  *   lista /amigues para el público (aprobados, ni ocultos, ni «solo con cuenta», ni no listados) más
  *   las .md que todavía no se importaron. El contacto de un perfil no entra;
- * - los lugares (perfiles de tipo `lugar`, con `perfiles_publicos` prendido): los listados en
+ * - los lugares (perfiles de tipo `lugar`, con base): los listados en
  *   /amigues y los no listados a los que lleva el link de un evento que está en el índice
  *   (`linkedVenues` en src/lib/server/amigues/venues.js, que decide igual que la página del
  *   evento). De cada uno, lo que muestra su página: nombre, descripción, etiquetas y, según su
@@ -22,7 +22,7 @@
  *   «accesibilidad»; tampoco en qué eventos está. El «Dónde» de los eventos tampoco entra;
  * - la Kinkipedia: las entradas de la wiki y las etiquetas con descripción u otros nombres, con
  *   sus alias (los de la base vienen como `{ id, aliasOf }`, no como `aka`);
- * - las series (interruptor `series`): cada etiqueta que es serie, con su ícono, aunque no tenga
+ * - las series: cada etiqueta que es serie, con su ícono, aunque no tenga
  *   descripción («Picantearla: Deluxe»).
  */
 import { canonicalTags } from '$lib/utils';
@@ -152,14 +152,12 @@ export function venueAreaText(o) {
  *     list: readonly IndexProfile[],
  *     imported: ReadonlySet<string>,
  *     linkedVenues?: readonly IndexProfile[]
- *   } | null,
- *   series?: boolean
+ *   } | null
  * }} IndexInput
  * `posts`: lo listado del sitio (`sitePosts`: eventos, material y fichas .md); `wikiPosts`: las
  * entradas de la wiki; `body`: el markdown de un post (de la base o del .md); `profiles`: los
- * perfiles de la base si `perfiles_publicos` está prendido (`null`: las fichas .md), con los lugares
- * no listados a los que lleva el link de un evento del índice (`linkedVenues`); `series`: si
- * el interruptor `series` está prendido.
+ * perfiles de la base (`null` sin base: las fichas .md), con los lugares no listados a los que
+ * lleva el link de un evento del índice (`linkedVenues`).
  */
 
 /**
@@ -168,7 +166,7 @@ export function venueAreaText(o) {
  * @param {IndexInput} input
  * @returns {Promise<RawSearchIndex>}
  */
-export async function buildSearchIndex({ posts, wikiPosts, tags, body, profiles, series }) {
+export async function buildSearchIndex({ posts, wikiPosts, tags, body, profiles }) {
 	/** @type {SearchDoc[]} */
 	const docs = [];
 	/** @type {Set<string>} */
@@ -255,29 +253,27 @@ export async function buildSearchIndex({ posts, wikiPosts, tags, body, profiles,
 	}
 
 	// Series: cada una con su página, aunque no tenga descripción ni otros nombres.
-	if (series) {
-		for (const id of seriesTagIds(tags)) {
-			const tag = tags.get(id);
-			if (!tag || tag.aliasOf) continue;
-			const existing = wikiByTerm.get(fold(tag.id));
-			if (existing) {
-				existing.c = 'serie';
-				continue;
-			}
-			/** @type {SearchDoc} */
-			const doc = {
-				c: 'serie',
-				h: tagPagePath(tag.id),
-				t: tag.visible_name ?? tag.id,
-				s: typeof tag.description === 'string' ? stripMarkdown(tag.description) : '',
-				g: [tag.id],
-				k: aliasesOf(tag.id),
-				i: iconOf(tag.icon)
-			};
-			wikiByTerm.set(fold(tag.id), doc);
-			docs.push(doc);
-			usedTags.add(tag.id);
+	for (const id of seriesTagIds(tags)) {
+		const tag = tags.get(id);
+		if (!tag || tag.aliasOf) continue;
+		const existing = wikiByTerm.get(fold(tag.id));
+		if (existing) {
+			existing.c = 'serie';
+			continue;
 		}
+		/** @type {SearchDoc} */
+		const doc = {
+			c: 'serie',
+			h: tagPagePath(tag.id),
+			t: tag.visible_name ?? tag.id,
+			s: typeof tag.description === 'string' ? stripMarkdown(tag.description) : '',
+			g: [tag.id],
+			k: aliasesOf(tag.id),
+			i: iconOf(tag.icon)
+		};
+		wikiByTerm.set(fold(tag.id), doc);
+		docs.push(doc);
+		usedTags.add(tag.id);
 	}
 
 	for (const tag of tags.tagsData()) {

@@ -53,7 +53,7 @@
 		{#if !data.approval && !p.deletedAt}<Badge tone="info">no aparece en Amigues</Badge>{/if}
 	</svelte:fragment>
 	<svelte:fragment slot="actions">
-		{#if data.dbEditor && !p.deletedAt}
+		{#if !p.deletedAt}
 			<a class="kv-btn" href="/admin/comunidad/perfiles/{data.urlSlug}">Editar</a>
 		{/if}
 	</svelte:fragment>

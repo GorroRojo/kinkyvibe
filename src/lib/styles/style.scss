@@ -439,6 +439,44 @@ textarea {
 	}
 }
 
+// Elegir uno de N cuando cada opción lleva una descripción: tarjetas con radio (como el medio de
+// pago del flujo de compra).
+//   <label class="kv-choice"><input type="radio" …/><span><strong>Opción</strong>
+//     <small>Qué pasa si la elegís.</small></span></label>
+.kv-choice {
+	display: flex;
+	gap: 0.6em;
+	align-items: flex-start;
+	min-width: 0;
+	padding: 0.55em 0.8em;
+	border-radius: var(--radius-s);
+	background: var(--surface);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--2) 35%, transparent);
+	cursor: pointer;
+	&:has(input:checked) {
+		box-shadow: 0 0 0 3px var(--2);
+		background: color-mix(in srgb, var(--2) 6%, var(--surface));
+	}
+	> input {
+		flex: none;
+		width: 1.2em;
+		height: 1.2em;
+		margin: 0.15em 0 0;
+		accent-color: var(--2);
+	}
+	> span {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+	small {
+		display: block;
+		color: var(--muted);
+		font-size: var(--step--1);
+		line-height: 1.25;
+	}
+}
+
 // Link de texto que hace algo («Terminá al día siguiente», «Ver el archivo»): violeta,
 // subrayado y con un ícono adelante. Los «ver más» tienen su propio estilo.
 .kv-link {

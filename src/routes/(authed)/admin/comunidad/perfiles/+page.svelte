@@ -2,8 +2,7 @@
 	/**
 	 * Comunidad › Perfiles: la única lista de perfiles del panel (personas, proyectos y lugares),
 	 * con filtros en la URL, CSV de lo que se ve, las pestañas «Para aprobar» y «Pedidos "Es mi
-	 * perfil"» y, con el interruptor `perfiles_publicos` apagado, «Fichas .md» (la lista de los .md
-	 * de siempre). Cada fila abre el editor del perfil. Ver +page.server.js.
+	 * perfil"» (sin base, la lista de los .md de siempre). Cada fila abre el editor del perfil. Ver +page.server.js.
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { IdCard } from '@lucide/svelte';
@@ -48,8 +47,7 @@
 			href: profilesHref({ view: 'pedidos' }),
 			label: 'Pedidos «Es mi perfil»',
 			count: data.claims?.length
-		},
-		...(data.flagOn ? [] : [{ href: profilesHref({ view: 'fichas' }), label: 'Fichas .md' }])
+		}
 	];
 	$: current =
 		data.editor === 'md'
@@ -91,14 +89,6 @@
 			mostrando desde el archivo. <a href={IMPORT_HREF}>Importar</a>
 		</p>
 	{/if}
-	{#if !data.flagOn}
-		<p class="kv-note">
-			El interruptor «perfiles_publicos» está apagado: el sitio muestra las fichas .md y las
-			importadas se siguen editando en su .md. Pasá las fichas a la base para revisarlas antes de
-			prender «perfiles_publicos».
-		</p>
-	{/if}
-
 	{#if f.view === 'pedidos' || form?.claim}
 		<ClaimsCard claims={data.claims} result={form?.claim} />
 	{/if}
@@ -165,14 +155,10 @@
 		rows={data.rows}
 		{form}
 		title="Perfiles"
-		subtitle="Las fichas .md de amigues: lo que muestra el sitio mientras «perfiles_publicos» está apagado."
+		subtitle="Las fichas .md de amigues: sin base de datos, es lo que muestra el sitio."
 		newLabel="Nuevo perfil"
 		canDuplicate={false}
 	>
-		{#if data.hasDb}<Tabs {tabs} {current} />{/if}
-		<p class="kv-note">
-			Pasá las fichas a la base para revisarlas antes de prender «perfiles_publicos».
-		</p>
 		<svelte:fragment slot="actions">
 			<a class="kv-btn ghost" href={IMPORT_HREF}>Importar y clasificar</a>
 		</svelte:fragment>

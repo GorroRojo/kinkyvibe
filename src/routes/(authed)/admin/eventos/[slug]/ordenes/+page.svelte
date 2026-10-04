@@ -240,7 +240,8 @@
 		margin: 0 0 1rem;
 	}
 	.flash.error {
-		background: var(--bad-bg);
+		background: var(--error-bg);
+		color: var(--error);
 	}
 	.review {
 		background: var(--warn-bg);

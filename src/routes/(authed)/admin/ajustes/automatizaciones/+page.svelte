@@ -3,11 +3,9 @@
 	 * Ajustes → Automatizaciones: lo que corre solo, para mirar (todavía no se edita nada acá).
 	 * Cada fila: qué hace, cuándo corre, la última vez y la próxima (si se sabe) y dónde se configura.
 	 */
-	import { AJUSTES_TABS } from '$lib/admin/ajustes.js';
 	import { fmtDateTime, fmtRelative } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
-	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import {
 		BellRing,
@@ -52,7 +50,6 @@
 	title="Automatizaciones"
 	subtitle="Todo lo que corre solo, en un lugar. Por ahora es para mirar: cada cosa se configura donde dice."
 />
-<Tabs tabs={[...AJUSTES_TABS]} />
 
 <div class="kv-stack automations">
 	{#if !data.dbAvailable}

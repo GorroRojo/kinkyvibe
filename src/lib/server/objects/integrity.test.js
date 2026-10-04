@@ -196,9 +196,13 @@ describe('checkObjectsIntegrity (con base)', () => {
 		const lugar = /** @type {import('./types/index.js').CoreType} */ (coreTypes.get('lugar'));
 		// El evento tiene edges `persona` hacia perfiles: el registro tiene que conocer ese tipo.
 		const perfil = /** @type {import('./types/index.js').CoreType} */ (coreTypes.get('perfil'));
+		// Y edges `etiqueta` hacia etiquetas (migración 0042).
+		const etiqueta = /** @type {import('./types/index.js').CoreType} */ (coreTypes.get('etiqueta'));
 		const fields = { ...evento.fields };
 		delete fields.summary;
-		const registry = createRegistry([{ ...evento, fields }, lugar, perfil]);
+		// `imagen`: evento y perfil pueden apuntar a una imagen (docs/imagenes.md).
+		const imagen = /** @type {import('./types/index.js').CoreType} */ (coreTypes.get('imagen'));
+		const registry = createRegistry([{ ...evento, fields }, lugar, perfil, imagen, etiqueta]);
 		const ctx = { actor: 'admin-inventade' };
 		await saveObject(
 			t.db,

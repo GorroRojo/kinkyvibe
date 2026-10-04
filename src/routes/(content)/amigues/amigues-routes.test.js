@@ -1,7 +1,7 @@
 /**
- * /amigues y los lugares en las páginas, con el interruptor `perfiles_publicos` apagado (todo como
- * antes) y prendido (los perfiles de la base, con las mismas direcciones), "Es mi perfil", el
- * "sucede en" de los eventos y la prueba de filtraciones: un lugar con dirección oculta no
+ * /amigues y los lugares en las páginas: los perfiles de la base, con las mismas direcciones (el
+ * interruptor `perfiles_publicos` quedó prendido para siempre: se fueron los casos «apagado»),
+ * "Es mi perfil", el "sucede en" de los eventos y la prueba de filtraciones: un lugar con dirección oculta no
  * aparece en el calendario, el sitemap, el RSS, el .ics, el JSON de posts, el buscador, las
  * páginas ni sus datos. D1 de miniflare; los lugares y eventos son inventados (las fichas de
  * amigues son las reales, públicas a propósito).
@@ -93,14 +93,12 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-/** Las rutas con los interruptores como se pidan ('1' prendido, '0' apagado). */
-async function modules({ perfiles = '1', cuentas = '1' } = {}) {
+/** Las rutas (sin variables de entorno). */
+async function modules() {
 	vi.resetModules();
 	// Los eventos de muestra salen de la base (las fichas, de los .md).
 	await seedPosts(t.db, fake.posts);
-	vi.doMock('$env/dynamic/private', () => ({
-		env: { PERFILES_PUBLICOS_ENABLED: perfiles, CUENTAS_ENABLED: cuentas }
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	return {
 		list: await import('./+page.server.js'),
 		page: await import('./[profile]/+page.server.js'),
@@ -148,45 +146,7 @@ const profilePage = async (/** @type {any} */ m, slug, o = {}) =>
 		await m.page.load(fakeEvent({ path: `/amigues/${slug}`, params: { profile: slug }, ...o }))
 	);
 
-describe('interruptor apagado: como siempre', () => {
-	it('/amigues y las fichas salen de los .md, aunque la base tenga perfiles', async () => {
-		await importAmigues(t.db, files, { actor: 'admin-de-prueba' });
-		const m = await modules({ perfiles: '0' });
-		const list = /** @type {any} */ (await m.list.load(fakeEvent()));
-		expect(list.kinds).toBeNull();
-		expect(list.posts.map((/** @type {any} */ p) => p.path)).toEqual(['/amigues/Yuyo']);
-		const page = await profilePage(m, 'Yuyo');
-		expect(page.mode).toBe('md');
-		expect(page.meta.title).toBe('Yuyo');
-		// Los eventos no muestran lugar.
-		const v = await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
-		const { setEventVenue } = await import('$lib/server/amigues/venues.js');
-		await makeEvent(t.db, 'fiesta-inventada'); // «sucede en» es un edge del evento
-		await setEventVenue(t.db, {
-			eventSlug: 'fiesta-inventada',
-			venueId: v.id,
-			privacy: 'public',
-			by: 'a'
-		});
-		const ev = /** @type {any} */ (
-			await m.event.load(
-				fakeEvent({ path: '/calendario/fiesta-inventada', params: { event: 'fiesta-inventada' } })
-			)
-		);
-		expect(ev.venue).toBeNull();
-	});
-
-	it('"Es mi perfil" no existe', async () => {
-		const m = await modules({ perfiles: '0' });
-		const me = await makeAccount(t.db, 'persona-prueba');
-		const r = await thrown(() =>
-			m.page.actions.esMiPerfil(fakeEvent({ params: { profile: 'Yuyo' }, form: {}, member: me }))
-		);
-		expect(r?.status).toBe(404);
-	});
-});
-
-describe('interruptor prendido', () => {
+describe('perfiles de la base', () => {
 	it('sin importar todavía: las fichas .md siguen saliendo de su archivo', async () => {
 		const m = await modules();
 		const list = /** @type {any} */ (await m.list.load(fakeEvent()));

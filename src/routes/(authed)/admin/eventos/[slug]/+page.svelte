@@ -1,4 +1,5 @@
 <script>
+	import { argDateLog } from '$lib/utils/dates.js';
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import { enhance } from '$app/forms';
 	import { Check, Send, X } from '@lucide/svelte';
@@ -20,12 +21,7 @@
 
 	/** @param {number} ms */
 	function time(ms) {
-		return new Date(ms).toLocaleString('es-AR', {
-			dateStyle: 'short',
-			timeStyle: 'short',
-			hourCycle: 'h23',
-			timeZone: 'America/Argentina/Buenos_Aires'
-		});
+		return argDateLog(ms);
 	}
 	/** @param {number} n */
 	const people = (n) => (n === 1 ? '1 persona' : `${n} personas`);
@@ -93,11 +89,7 @@
 				{#if e.locationName || e.location}<dt>Texto libre</dt>
 					<dd>
 						{[e.locationName, e.location].filter(Boolean).join(' — ')}
-						<small class="muted block"
-							>{data.venue.flagOn
-								? 'No se muestra: manda el lugar.'
-								: 'Se muestra hasta que se prenda «Perfiles públicos».'}</small
-						>
+						<small class="muted block">No se muestra: manda el lugar.</small>
 					</dd>{/if}
 			{:else}
 				<dd id="venue-row">
@@ -276,7 +268,8 @@
 		margin: 0;
 	}
 	.flash.error {
-		background: var(--bad-bg);
+		background: var(--error-bg);
+		color: var(--error);
 	}
 	.stream-form {
 		display: flex;

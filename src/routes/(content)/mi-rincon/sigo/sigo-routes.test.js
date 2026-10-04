@@ -1,5 +1,6 @@
 /**
- * Mi rincón → Lo que sigo: con un interruptor apagado (`lo_que_sigo` o `cuentas`) todo da 404;
+ * Mi rincón → Lo que sigo: con el interruptor `lo_que_sigo` apagado todo da 404 (`cuentas` y
+ * `perfiles_publicos` ya no tienen interruptor: se fueron sus casos «apagado»);
  * sin sesión lleva a /ingresar (y de vuelta a la página del botón «Seguir», solo si es de este
  * sitio); con sesión, seguir, cambiar opciones, dejar de seguir y el CSV, siempre solo lo de esa
  * cuenta. D1 de miniflare; datos inventados.
@@ -54,16 +55,10 @@ const FAKE_POSTS = [
 	}
 ];
 
-/** @param {{ sigo?: string, cuentas?: string, perfiles?: string }} [flags] */
-async function modules({ sigo = '1', cuentas = '1', perfiles = '0' } = {}) {
+/** @param {{ sigo?: string }} [flags] */
+async function modules({ sigo = '1' } = {}) {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({
-		env: {
-			LO_QUE_SIGO_ENABLED: sigo,
-			CUENTAS_ENABLED: cuentas,
-			PERFILES_PUBLICOS_ENABLED: perfiles
-		}
-	}));
+	vi.doMock('$env/dynamic/private', () => ({ env: { LO_QUE_SIGO_ENABLED: sigo } }));
 	// Los posts del repo no hacen falta (y compilarlos todos tarda): eventos inventados, en la
 	// base (de donde salen los eventos).
 	await seedPosts(t.db, FAKE_POSTS);
@@ -85,7 +80,7 @@ async function modules({ sigo = '1', cuentas = '1', perfiles = '0' } = {}) {
 const ev = (o) => fakeRequestEvent({ platform: t.platform, path: '/mi-rincon/sigo', ...o });
 
 describe('interruptores', () => {
-	for (const flags of [{ sigo: '0' }, { cuentas: '0' }]) {
+	for (const flags of [{ sigo: '0' }]) {
 		it(`apagado (${JSON.stringify(flags)}): 404 en la página, las acciones y el CSV`, async () => {
 			const m = await modules(flags);
 			const member = await makeAccount(t.db, 'apagado');
@@ -227,27 +222,23 @@ describe('la página', () => {
 		expect(place).toMatchObject({ name: 'Lugar Inventado', profileKind: 'lugar', next: null });
 	});
 
-	it('«Agregar»: etiquetas del árbol con cuántos eventos próximos tienen; perfiles solo con perfiles públicos', async () => {
+	it('«Agregar»: etiquetas del árbol con cuántos eventos próximos tienen, y los perfiles', async () => {
 		const member = await makeAccount(t.db, 'agregar');
 		await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
 		await makeProfile(t.db, { title: 'Oculto Inventado', visibility: 'hidden' });
-		let m = await modules();
-		let data = /** @type {any} */ (await m.page.load(ev({ member })));
+		const m = await modules();
+		const data = /** @type {any} */ (await m.page.load(ev({ member })));
 		const byId = new Map(data.add.tags.map((/** @type {any} */ o) => [o.id, o]));
 		expect(byId.get('shibari')).toMatchObject({ name: 'shibari', count: 2, inTree: true });
 		expect(byId.get('Rancheadita Kinky')).toMatchObject({ series: true });
 		expect(byId.has('root')).toBe(false);
-		expect(data.add.profiles).toEqual([]);
-
-		m = await modules({ perfiles: '1' });
-		data = /** @type {any} */ (await m.page.load(ev({ member })));
 		expect(data.add.profiles).toEqual([
 			{ key: expect.any(String), name: 'Lugar Inventado', kind: 'lugar' }
 		]);
 	});
 
 	it('«Agregar» sigue con las opciones de siempre sin salir de la página', async () => {
-		const m = await modules({ perfiles: '1' });
+		const m = await modules();
 		const member = await makeAccount(t.db, 'agregar-seguir');
 		await makeProfile(t.db, { title: 'Persona Inventada' });
 		// Sin JavaScript: el nombre escrito, como en la URL de la etiqueta.

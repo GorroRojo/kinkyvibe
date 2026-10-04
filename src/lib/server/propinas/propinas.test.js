@@ -97,7 +97,7 @@ describe('buildTipPreference', () => {
 			{
 				id: 'propina',
 				// Toda propina nueva va al Fondo.
-				title: 'Propina para el Fondo KinkyVibe · Guía de prueba',
+				title: 'Propina para el Fondo Kinky Vibe · Guía de prueba',
 				quantity: 1,
 				unit_price: 5000,
 				currency_id: 'ARS'
@@ -119,7 +119,7 @@ describe('destino (KinkyVibe o el Fondo)', () => {
 	it('se guarda; sin destino, "fondo" (toda propina nueva va al Fondo)', async () => {
 		const plain = await newTip();
 		expect(plain.destination).toBe('fondo');
-		// Las viejas "Para KinkyVibe" se siguen leyendo como están.
+		// Las viejas "Para Kinky Vibe" se siguen leyendo como están.
 		const old = await newTip({ destination: 'kinkyvibe' });
 		expect(old.destination).toBe('kinkyvibe');
 		const fondo = await newTip({ destination: 'fondo' });
@@ -148,7 +148,7 @@ describe('destino (KinkyVibe o el Fondo)', () => {
 		expect(approved.tip).toMatchObject({ status: 'approved', destination: 'fondo' });
 		const refunded = await applyTipPayment(t.db, payment(tip, { status: 'refunded' }));
 		expect(refunded.tip).toMatchObject({ status: 'refunded', destination: 'fondo' });
-		// Una vieja "Para KinkyVibe" sigue así después del pago.
+		// Una vieja "Para Kinky Vibe" sigue así después del pago.
 		const other = await newTip({ destination: 'kinkyvibe' });
 		expect((await applyTipPayment(t.db, payment(other, { id: 2 }))).tip?.destination).toBe(
 			'kinkyvibe'
@@ -158,7 +158,7 @@ describe('destino (KinkyVibe o el Fondo)', () => {
 	it('la preferencia de MP dice para quién es', async () => {
 		const tip = await newTip({ destination: 'fondo' });
 		const p = buildTipPreference({ tip, postTitle: 'Guía', origin: 'https://kv.test' });
-		expect(p.items[0].title).toBe('Propina para el Fondo KinkyVibe · Guía');
+		expect(p.items[0].title).toBe('Propina para el Fondo Kinky Vibe · Guía');
 		expect(p.external_reference).toBe(`propina:${tip.id}`);
 	});
 
@@ -330,7 +330,7 @@ describe('datos de demo (scripts/demo/n3-propinas.sql)', () => {
 describe('panel: resumen, lista y CSV', () => {
 	async function seed() {
 		const DAY = 24 * 60 * 60 * 1000;
-		// Las "Para KinkyVibe" son propinas viejas (de antes de que todas fueran al Fondo).
+		// Las "Para Kinky Vibe" son propinas viejas (de antes de que todas fueran al Fondo).
 		const kv = /** @type {const} */ ('kinkyvibe');
 		const a = await newTip({ amount: 1000, slug: 'guia-a', now: NOW, destination: kv });
 		const b = await newTip({ amount: 5000, slug: 'guia-a', now: NOW + DAY, destination: kv });
@@ -401,7 +401,7 @@ describe('panel: resumen, lista y CSV', () => {
 		expect(lines.some((l) => l.includes(',Pendiente,700,'))).toBe(true);
 		// Destino al final de cada fila.
 		expect(row?.endsWith(',4,Para el Fondo')).toBe(true);
-		expect(lines.filter((l) => l.endsWith(',Para KinkyVibe'))).toHaveLength(4);
+		expect(lines.filter((l) => l.endsWith(',Para Kinky Vibe'))).toHaveLength(4);
 	});
 
 	it('la lista se filtra por destino', async () => {

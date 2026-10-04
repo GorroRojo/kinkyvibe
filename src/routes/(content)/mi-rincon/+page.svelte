@@ -1,7 +1,8 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { Trash2 } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
-	import { TIMEZONE } from '$lib/utils/dates.js';
+	import { TIMEZONE, argDateList } from '$lib/utils/dates.js';
 
 	export let data;
 	export let form;
@@ -109,7 +110,7 @@
 					<li>
 						<a href="/entradas/{o.id}/estado">
 							<strong>{o.event}</strong>
-							{#if o.eventStart}<span class="hint">{fmtDate(o.eventStart)}</span>{/if}
+							{#if o.eventStart}<span class="hint">{argDateList(o.eventStart)}</span>{/if}
 						</a>
 						<span>
 							{o.quantity === 1 ? '1 entrada' : `${o.quantity} entradas`} · {formatARS(o.total)} · {STATUS[
@@ -328,7 +329,7 @@
 		{/if}
 	</section>
 
-	<section class="surface-card danger" aria-labelledby="borrar-title">
+	<section class="surface-card danger-zone" aria-labelledby="borrar-title">
 		<h2 id="borrar-title">Borrar tu cuenta</h2>
 		{#if form?.action === 'borrar' && form.error}
 			<p class="error" role="alert">{form.error}</p>
@@ -361,9 +362,10 @@
 						<input name="confirm" type="text" autocomplete="off" bind:value={confirmDelete} />
 					</label>
 					<button
-						class="pill-btn delete"
+						class="pill-btn danger"
 						type="submit"
-						disabled={confirmDelete.trim().toLowerCase() !== 'borrar'}>Borrar mi cuenta</button
+						disabled={confirmDelete.trim().toLowerCase() !== 'borrar'}
+						><Trash2 size={18} aria-hidden="true" /> Borrar mi cuenta</button
 					>
 				</form>
 				<form method="POST" action="?/confirmar" use:enhance={keep}>
@@ -512,11 +514,8 @@
 		flex-wrap: wrap;
 		gap: 0.5em;
 	}
-	.danger {
+	.danger-zone {
 		border-top: 0.25rem solid var(--1-dark);
-	}
-	.pill-btn.delete {
-		background: var(--1-dark);
 	}
 	.ok {
 		color: var(--3-ink);

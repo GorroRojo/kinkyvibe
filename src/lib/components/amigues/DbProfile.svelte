@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * La página de un perfil guardado en la base (interruptor `perfiles_publicos`): persona, proyecto
+	 * La página de un perfil guardado en la base: persona, proyecto
 	 * o lugar. Todo lo que llega ya pasó por las reglas del servidor (src/lib/server/amigues/):
 	 * lista blanca de campos, HTML del texto ya limpio, integrantes visibles, privacidad del lugar.
 	 * Props: `data` (lo que arma `profilePageData`), `claimResult` (la respuesta de "Es mi perfil").

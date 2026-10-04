@@ -26,7 +26,7 @@
 {#if dbMode}
 	<fieldset class="choice">
 		<legend>¿Y el nombre viejo?</legend>
-		<label class="option" class:chosen={choice === 'posts'}>
+		<label class="kv-choice">
 			<input
 				type="radio"
 				name={name || `${idPrefix}-alias`}
@@ -43,7 +43,7 @@
 				>
 			</span>
 		</label>
-		<label class="option" class:chosen={choice === 'alias'}>
+		<label class="kv-choice">
 			<input
 				type="radio"
 				name={name || `${idPrefix}-alias`}
@@ -77,7 +77,7 @@
 		background: var(--surface-2, #f3eef6);
 		display: flex;
 		flex-direction: column;
-		gap: 0.4em;
+		gap: 0.6em;
 		min-width: 0;
 	}
 	legend {
@@ -86,32 +86,6 @@
 		padding: 0;
 		font-weight: bold;
 		margin-bottom: 0.2em;
-	}
-	.option {
-		display: flex;
-		gap: 0.6em;
-		align-items: flex-start;
-		padding: 0.4em 0.6em;
-		border-radius: var(--radius-s);
-		background: var(--surface, white);
-		cursor: pointer;
-		outline: 2px solid transparent;
-		&.chosen {
-			outline-color: var(--1, #7b3fa0);
-		}
-		input {
-			margin-top: 0.25em;
-			flex: none;
-		}
-		span {
-			display: flex;
-			flex-direction: column;
-			min-width: 0;
-		}
-		small {
-			font-size: var(--step--1);
-			opacity: 0.85;
-		}
 	}
 	.check {
 		display: flex;

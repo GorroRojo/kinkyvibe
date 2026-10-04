@@ -88,7 +88,8 @@
 			outline-width: 3px;
 		}
 	}
-	input[type='checkbox'] {
+	// los interruptores (`role="switch"`) usan el compartido de style.scss
+	input[type='checkbox']:not([role='switch']) {
 		accent-color: var(--1);
 		width: 1.2em;
 		height: 1.2em;

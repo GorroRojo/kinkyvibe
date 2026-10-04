@@ -13,7 +13,7 @@
  */
 import { combineQueries, mapQuery, rowsOf, runQuery } from '$lib/server/db/batch.js';
 import { orderReference } from '$lib/utils/tickets.js';
-import { argFormat } from '$lib/utils/dates.js';
+import { argDateList } from '$lib/utils/dates.js';
 import { formatARS } from '$lib/utils/money.js';
 import { MP_FEE_SQL, goalProgress } from '$lib/utils/salesGoal.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
@@ -560,7 +560,7 @@ export function monthMoneyQuery(now) {
 
 /** Lo que dice el ítem de actividad de una novedad de cuentas (en vez del autor y la acción). */
 const ACCOUNT_EVENT_WHO = /** @type {Record<string, string>} */ ({
-	[ACCOUNT_EVENT_ACTIONS.accountCreated]: 'Cuenta nueva · Ingresar',
+	[ACCOUNT_EVENT_ACTIONS.accountCreated]: 'Cuenta nueva · Entrar',
 	[ACCOUNT_EVENT_ACTIONS.profileCreated]: 'Perfil nuevo · Mi rincón',
 	[ACCOUNT_EVENT_ACTIONS.venueResubmitted]: 'Lugar para aprobar · Mi rincón',
 	[ACCOUNT_EVENT_ACTIONS.signupAnswersViewed]: 'Respuestas de inscripción · Mi rincón'
@@ -1390,13 +1390,7 @@ export function whenLabel(ms, now) {
 	const diff = ms - now;
 	if (diff > 0 && diff < 60 * 60 * 1000) return `en ${Math.max(1, Math.round(diff / 60000))} min`;
 	if (diff > 0 && diff < 24 * 60 * 60 * 1000) return `en ${Math.round(diff / 3600000)} h`;
-	return argFormat({
-		weekday: 'short',
-		day: 'numeric',
-		month: 'short',
-		hour: '2-digit',
-		minute: '2-digit'
-	}).format(ms);
+	return argDateList(ms, { now });
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

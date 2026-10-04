@@ -56,6 +56,27 @@ export function partDateText(start) {
 }
 
 /**
+ * Título de la lista de partes de un taller: «Las 3 partes del taller».
+ *
+ * @param {number} total
+ */
+export function partsListTitle(total) {
+	return `Las ${total} partes del taller`;
+}
+
+/**
+ * Una línea de la lista de partes (mails y página de la entrada): «Parte 2 · vie 9 oct · 22:00 ·
+ * Lugar», con « · cancelada» si la parte se canceló. Lo que falta (fecha, lugar) no va.
+ *
+ * @param {{ n: number, start?: string | null, where?: string | null, status?: string | null }} part
+ */
+export function partLine({ n, start, where, status }) {
+	return [`Parte ${n}`, partDateText(start), where, status === 'cancelado' ? 'cancelada' : '']
+		.filter(Boolean)
+		.join(' · ');
+}
+
+/**
  * ¿Cada parte vende su entrada? Con `entradas_por_parte: true` en el taller; si no, una sola
  * entrada (la del taller) vale para todas.
  *
