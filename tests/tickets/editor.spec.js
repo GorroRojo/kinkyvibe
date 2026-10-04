@@ -1,24 +1,43 @@
 /**
- * Sección "Entradas" del editor de eventos, con el GitHub simulado (ADMIN_DEV_MOCK, el mismo
- * mock que `npm run dev:admin`): crear un evento con 2 tipos de entrada en /admin/eventos/nuevo y
+ * Sección "Entradas" del editor de eventos, con el admin simulado (ADMIN_DEV_MOCK, el mismo de
+ * `npm run dev:admin`): crear un evento con 2 tipos de entrada en /admin/eventos/nuevo y
  * después cambiarle un precio en la pestaña Editar de su ficha (/admin/eventos/<slug>/editar).
- * Los "commits" van a
- * ADMIN_DEV_MOCK_DIR (ver playwright.tickets.config.js).
+ * Los eventos se guardan en la base local (no hay commits de .md): lo guardado se lee con
+ * «Descargar todo» (Contenido → En la base), que arma el .md desde la base.
  */
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { parseDocument } from 'yaml';
-import { ADMIN_MOCK_DIR } from './event.js';
 import { shots } from './helpers.js';
 
-/** @param {string} slug */
-function committed(slug) {
-	// El editor guarda con el form nativo: el navegador manda el textarea con CRLF (ya pasaba antes).
-	const raw = readFileSync(
-		join(ADMIN_MOCK_DIR, 'files', 'src/lib/posts/calendario', `${slug}.md`),
-		'utf8'
-	).replace(/\r\n/g, '\n');
+/**
+ * Los archivos de un .tar (ustar, como lo arma src/lib/utils/tar.js).
+ * @param {Uint8Array} buf
+ */
+function untar(buf) {
+	const dec = new TextDecoder();
+	/** @type {Map<string, string>} */
+	const files = new Map();
+	for (let at = 0; at + 512 <= buf.length;) {
+		const header = buf.subarray(at, at + 512);
+		const name = dec.decode(header.subarray(0, 100)).replace(/\0.*$/s, '');
+		if (!name) break;
+		const size = parseInt(dec.decode(header.subarray(124, 136)).replace(/\0.*$/s, ''), 8);
+		files.set(name, dec.decode(buf.subarray(at + 512, at + 512 + size)));
+		at += 512 + Math.ceil(size / 512) * 512;
+	}
+	return files;
+}
+
+/**
+ * El evento como quedó en la base, como .md.
+ * @param {import('@playwright/test').APIRequestContext} request
+ * @param {string} slug
+ */
+async function committed(request, slug) {
+	const res = await request.get('/admin/contenido/base/descargar.tar');
+	expect(res.status()).toBe(200);
+	const raw = untar(new Uint8Array(await res.body())).get(`calendario/${slug}.md`);
+	if (raw === undefined) throw new Error(`no está en la base: ${slug}`);
 	const fm = raw.split(/^---$/m)[1];
 	return { raw, meta: parseDocument(fm).toJS() };
 }
@@ -86,7 +105,7 @@ test('crear un evento con 2 tipos de entrada y después cambiar un precio', asyn
 	await page.locator('#save-draft').click();
 	await expect(page.getByRole('heading', { name: '¡Listo! 🎉' })).toBeVisible();
 
-	const created = committed(slug);
+	const created = await committed(page.request, slug);
 	expect(created.meta.tickets).toEqual([
 		{ id: 'general', name: 'General', price: 10000, capacity: 40 },
 		{
@@ -99,10 +118,9 @@ test('crear un evento con 2 tipos de entrada y después cambiar un precio', asyn
 	expect(created.meta.payment_methods).toEqual(['mercadopago', 'transferencia']);
 	expect(created.meta.tickets_open).toBe('2026-12-01T12:00-03:00');
 	expect(created.meta.tickets_close).toBe('2026-12-18T20:00-03:00');
-	expect(created.raw).toContain('a_la_gorra: { minimo: 1000, sugerido: 5000 }');
 
 	// Editar: cambiar el precio de General.
-	// El evento todavía no está en el deploy (se creó recién): la ficha lo lee del repo.
+	// El evento se creó recién: la ficha lo lee de la base.
 	await page.goto(`/admin/eventos/${slug}/editar`, { waitUntil: 'networkidle' });
 	const edit = page.locator('#edit-tickets');
 	await expect(edit.locator('#edit-ticket-price-0')).toHaveValue('10000');
@@ -118,7 +136,7 @@ test('crear un evento con 2 tipos de entrada y después cambiar un precio', asyn
 	await page.locator('#save').click();
 	await expect(page.locator('p.note[role="status"]')).toContainText('Guardado');
 
-	const edited = committed(slug);
+	const edited = await committed(page.request, slug);
 	expect(edited.meta.tickets[0]).toEqual({
 		id: 'general',
 		name: 'General',
