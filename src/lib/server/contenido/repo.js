@@ -37,7 +37,7 @@ import { panelAuthor } from './author.js';
 import { markdownToPost, postToMarkdown } from './markdown.js';
 import { revisionStatement } from './revisions.js';
 import { personaEdgesColumn, personaEdgesFromColumn } from './personasEdges.js';
-import { tagEdgesColumn, tagEdgesFromColumn } from './etiquetasEdges.js';
+import { linkedTagKeysOf, tagEdgesColumn, tagEdgesFromColumn } from './etiquetasEdges.js';
 import { contentEdgesOf, dehydrateContent, withContentEdges } from './relaciones.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -420,6 +420,33 @@ export const allDbEventObjects = (db) => allDbPostObjects(db, EVENT_CATEGORY);
  */
 
 /**
+ * Por dirección del .md, las etiquetas que cada post de la base (sin borrar) de esa carpeta nombra
+ * por edge: esas cambian solas al renombrar la etiqueta y no se reescriben (etiquetas/rename.js).
+ * Las carpetas que no son de la base, vacío.
+ *
+ * @param {string} dir
+ * @returns {Promise<Map<string, Set<string>>>}
+ */
+async function linkedTagsInDir(dir) {
+	const clean = dir.replace(/\/+$/, '');
+	const category = Object.keys(CONTENT_CATEGORIES).find((c) => dirOf(c) === clean);
+	const db = category ? activeContentDB() : null;
+	/** @type {Map<string, Set<string>>} */
+	const out = new Map();
+	if (!db || !category) return out;
+	const posts = [...(await allDbPostObjects(db, category))].filter(([, e]) => !e.deleted);
+	const linked = await linkedTagKeysOf(
+		db,
+		posts.map(([, e]) => Number(e.object.id))
+	);
+	for (const [slug, e] of posts) {
+		const keys = linked.get(Number(e.object.id));
+		if (keys) out.set(`${dirOf(category)}/${slug}.md`, keys);
+	}
+	return out;
+}
+
+/**
  * Envuelve un cliente del repo (GitHub, el mock de `dev:admin` o el modo demo): los .md de eventos
  * y material se leen y se guardan en la base; todo lo demás va al cliente, sin cambios.
  *
@@ -527,6 +554,12 @@ export function withContentDb(base) {
 			}
 			return out;
 		},
+
+		/**
+		 * Las etiquetas que los posts de la base de esa carpeta nombran por edge, por dirección.
+		 * @param {string} _token @param {string} dir
+		 */
+		linkedTagsOf: (_token, dir) => linkedTagsInDir(dir),
 
 		/**
 		 * @param {string} token
@@ -818,6 +851,9 @@ export function dbPostsOnlyClient(client) {
 			}
 			return out;
 		},
+
+		/** @param {string} _token @param {string} dir */
+		linkedTagsOf: (_token, dir) => linkedTagsInDir(dir),
 
 		/** @param {string} token @param {string} path */
 		async getFile(token, path) {
