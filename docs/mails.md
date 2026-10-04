@@ -66,6 +66,10 @@ de la tarjeta. El texto plano no pasa por la plantilla. `src/lib/server/email/la
 comprueba que cada builder la usa y que el asunto y el texto plano siguen iguales
 (`mails.text.json`).
 
+**Talleres en varias partes:** en un taller con una sola entrada, los mails de entradas,
+transferencia y recordatorios llevan la lista «Las N partes del taller» con la fecha y el lugar de
+cada parte ([talleres-partes.md](talleres-partes.md)); los demás mails no cambian.
+
 **Recordatorios:** el cron del propio Worker (`src/lib/server/scheduled.js`) le pasa cada 15
 minutos `POST /api/cron/recordatorios`, con el header `x-cron-secret`, al sitio. El sitio decide qué mandar. Por
 defecto: 2 días antes y el mismo día a las 9:00; un evento los apaga con `recordatorios: false`.
