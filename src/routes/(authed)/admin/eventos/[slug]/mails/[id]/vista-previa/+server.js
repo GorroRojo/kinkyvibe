@@ -7,7 +7,7 @@ import { error, json } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { templateInput } from '$lib/server/admin/mailTemplates.js';
 import { getDB } from '$lib/server/db';
-import { contactEmail, replyToAddress, siteOrigin } from '$lib/server/tickets/index.js';
+import { contactEmail, mailFooter, replyToAddress, siteOrigin } from '$lib/server/tickets/index.js';
 import { previewEmail } from '$lib/server/tickets/templatePreview.js';
 import { mergeTemplates, validateTemplate } from '$lib/utils/emailTemplates.js';
 import { eventMailOr404, generalTemplate } from '../context.server.js';
@@ -30,6 +30,7 @@ export async function POST({ locals, url, params, platform, request }) {
 		origin: siteOrigin(url),
 		contactEmail: contactEmail(),
 		replyTo: await replyToAddress(db),
+		footer: await mailFooter(db),
 		event: previewEvent
 	});
 	return json(

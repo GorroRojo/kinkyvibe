@@ -6,6 +6,7 @@
  * admin funciona igual que antes.
  */
 import { parseFeePercent } from '$lib/utils/tickets.js';
+import { safeTextError } from '$lib/utils/emailTemplates.js';
 import { MAX_MAIL_BATCH_SIZE, MIN_MAIL_BATCH_SIZE, parseMailBatchSize } from './batchSize.js';
 import { MAX_REMINDERS, normalizeReminder } from './reminders.js';
 
@@ -30,8 +31,19 @@ export const SETTING_KEYS = /** @type {const} */ ([
 	// Recordatorios: JSON (ver reminders.js). Vacío = los de por defecto.
 	'reminders',
 	// Mails por tanda en los envíos masivos (ver batchSize.js). Vacío = el de por defecto.
-	'mail_batch_size'
+	'mail_batch_size',
+	// Pie de todos los mails (src/lib/server/email/layout.js, `withMailFooter`): la línea de
+	// contacto («¿Dudas? Escribinos a {{contacto}}») y la firma («Kinky Vibe · Buenos Aires»).
+	// Vacío = el texto de siempre.
+	'mail_footer_contact',
+	'mail_footer_signoff'
 ]);
+
+/** Largo máximo de los textos del pie de los mails. */
+export const MAIL_FOOTER_LIMITS = Object.freeze({
+	mail_footer_contact: 300,
+	mail_footer_signoff: 120
+});
 
 /** Remitente y dirección de respuesta por defecto de los mails de entradas. */
 export const DEFAULT_FROM_EMAIL = 'KinkyVibe <entradas@kinkyvibe.ar>';
@@ -152,6 +164,19 @@ export function validateSalesSettings(form) {
 		errors.mail_batch_size = `Poné un número entero de ${MIN_MAIL_BATCH_SIZE} a ${MAX_MAIL_BATCH_SIZE}, o dejalo vacío.`;
 	}
 	value.mail_batch_size = batch === null ? '' : String(batch);
+	// Pie de los mails: el formato seguro de las plantillas (negrita, links); en la línea de
+	// contacto, `{{contacto}}`.
+	for (const key of /** @type {const} */ (['mail_footer_contact', 'mail_footer_signoff'])) {
+		const v = clean(form[key]);
+		const error = v
+			? safeTextError(v, {
+					max: MAIL_FOOTER_LIMITS[key],
+					vars: key === 'mail_footer_contact' ? ['contacto'] : []
+				})
+			: null;
+		if (error) errors[key] = error;
+		value[key] = v;
+	}
 	// Recordatorios: filas reminder_kind_<i>, reminder_amount_<i> (horas o días),
 	// reminder_time_<i>, reminder_enabled_<i>, reminder_delete_<i>. Solo si el form las trae.
 	if (form.reminder_kind_0 !== undefined) {

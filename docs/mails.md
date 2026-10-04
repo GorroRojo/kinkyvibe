@@ -68,7 +68,15 @@ invitaciones a perfiles) se arman con `mailLayout()` de `src/lib/server/email/la
 centrado (URL absoluta del sitio, nunca `data:`), tarjeta blanca con borde rosa, etiqueta gris,
 título, detalles, un botón rosa y una línea de ayuda; abajo, por qué te llega, el contacto, la
 baja (si el mail la tiene) y «Kinky Vibe · Buenos Aires». Lo editable de las plantillas va dentro
-de la tarjeta. El texto plano no pasa por la plantilla. `src/lib/server/email/layout.test.js`
+de la tarjeta.
+
+**Pie configurable:** la línea de contacto («¿Dudas? Escribinos a {{contacto}}») y la firma
+(«Kinky Vibe · Buenos Aires») se cambian en Panel → Ajustes → Mails → Pie de los mails
+(`mail_footer_contact` y `mail_footer_signoff` en `ticket_settings`), con el mismo formato seguro
+(negrita y links; `{{contacto}}` es la dirección de contacto con su `mailto:`). Valen para todos
+los mails: los pone `deliver()` al mandar (`withMailFooter` de `layout.js`, que reemplaza solo
+esas dos partes del pie) y la vista previa del editor de plantillas. Vacíos = el texto de siempre,
+byte a byte (`footer.test.js`). El «por qué te llega» sigue siendo de cada plantilla. El texto plano no pasa por la plantilla. `src/lib/server/email/layout.test.js`
 comprueba que cada builder la usa y que el asunto y el texto plano siguen iguales
 (`mails.text.json`).
 
@@ -88,6 +96,7 @@ por pedido); la página pide tandas y muestra el progreso.
 | Qué                                | Dónde                                                                                           |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | Remitente y dirección de respuesta | Panel → Ajustes → Mails y plantillas (si está vacío, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`) |
+| Pie de los mails (contacto, firma) | Panel → Ajustes → Mails (vacío = el de siempre)                                                 |
 | Recordatorios (cuándo)             | Panel → Ajustes → Mails y plantillas                                                            |
 | Clave de Resend                    | `RESEND_API_KEY`, Secret en Cloudflare. Sin ella no sale ningún mail                            |
 | Dominio                            | `kinkyvibe.ar` verificado en Resend (SPF/DKIM en Cloudflare DNS)                                |
