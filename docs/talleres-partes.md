@@ -36,6 +36,15 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
   su título, fecha y lugar. En `reminder_sends` el id lleva la parte (`h48@<parte>`), así cada uno
   se manda una vez. Una parte cancelada no manda.
 
+- **Mails y página de la entrada:** los mails de entradas, transferencia y recordatorios de un
+  taller con una sola entrada llevan «Las N partes del taller», una línea por parte
+  («Parte 2 · vie 9 oct · 22:00 · <lugar>», « · cancelada» si se canceló), en el HTML (dentro de la
+  tarjeta de la plantilla común) y en el texto plano. La página de cada entrada
+  (`/entradas/t/<token>`) muestra la misma lista. El lugar completo, como el del taller, solo con
+  la compra aprobada (en el de transferencia, el que se ve en el sitio). Lo arma
+  `src/lib/server/tickets/workshopParts.js`; con «Entradas por parte», o en un evento suelto, no
+  hay lista y los mails salen byte a byte como siempre.
+
 ## Dónde se ve
 
 - **Página del evento:** debajo del título, «Taller en 3 partes» o «Parte 2 de 3 de <taller>»;
@@ -49,6 +58,5 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
 
 ## Pendiente
 
-- El mail de compra del taller todavía no lista las fechas de las partes.
 - Los talleres cargados antes como eventos sueltos se unen a mano desde la sección Partes (sugiere
   los `-parte-N`); no hay migración que los una sola.

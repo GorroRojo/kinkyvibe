@@ -32,6 +32,16 @@
 	<h1>{data.event.title}</h1>
 	{#if data.event.when}<p class="when">{data.event.when}</p>{/if}
 	{#if data.event.where}<p class="where">{data.event.where}</p>{/if}
+	{#if data.event.parts?.lines.length}
+		<section class="parts" aria-labelledby="parts-title">
+			<h2 id="parts-title">{data.event.parts.title}</h2>
+			<ul>
+				{#each data.event.parts.lines as line, i (i)}
+					<li>{line}</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 
 	{#if data.event.online}
 		<div class="stream">
@@ -135,6 +145,25 @@
 	.when,
 	.where {
 		margin: 0.2em 0;
+	}
+	.parts {
+		margin: 0.8em 0;
+		padding: 0.6em 1em;
+		border-radius: var(--round);
+		background: var(--2-tint);
+		text-align: left;
+	}
+	.parts h2 {
+		font-size: var(--step-0);
+		margin: 0 0 0.3em;
+	}
+	.parts ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.parts li {
+		margin: 0.15em 0;
 	}
 	.qr-row {
 		display: flex;

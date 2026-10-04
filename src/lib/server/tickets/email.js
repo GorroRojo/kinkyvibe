@@ -23,6 +23,11 @@ const SMALL = `margin:16px 0 0;font-size:13px;line-height:1.5;color:${MAIL_COLOR
  */
 
 /**
+ * Las partes de un taller con una sola entrada (workshopParts.js): título y una línea por parte.
+ * @typedef {import('./workshopParts.js').PartsList} PartsList
+ */
+
+/**
  * Las partes editables ya armadas con las variables. Cada una es `null` si la plantilla no la
  * cambia (entonces el builder pone su texto de siempre).
  *
@@ -189,6 +194,23 @@ function streamLinkBlock(link) {
 }
 
 /**
+ * La lista «Las N partes del taller» de un taller con una sola entrada para todas sus partes
+ * (docs/talleres-partes.md), dentro de la tarjeta, después de los datos del evento. Sin lista,
+ * nada: el mail sale igual que siempre, byte a byte.
+ *
+ * @param {PartsList | null | undefined} parts
+ * @returns {{ html: string, text: string[] }}
+ */
+function partsBlocks(parts) {
+	if (!parts?.lines.length) return { html: '', text: [] };
+	return {
+		html: `
+		<div style="${MAIL_STYLES.box}" data-kv-mail="partes"><p style="margin:0 0 6px;font-weight:bold">${escapeHtml(parts.title)}</p><p style="margin:0">${parts.lines.map(escapeHtml).join('<br>')}</p></div>`,
+		text: ['', parts.title, ...parts.lines]
+	};
+}
+
+/**
  * Mail con las entradas. En los eventos presenciales, un QR por entrada con su código corto en
  * grande (para tipearlo en la puerta si el QR no se puede escanear). En los online, el link de
  * la transmisión (si ya está cargado; si no, avisa que llega antes del evento).
@@ -197,12 +219,13 @@ function streamLinkBlock(link) {
  *   order: import('./orders.js').Order,
  *   tickets: import('./orders.js').Ticket[],
  *   event: { title: string, start?: string, location?: string, location_name?: string,
- *     online?: boolean, streamLink?: string | null },
+ *     online?: boolean, streamLink?: string | null, parts?: PartsList | null },
  *   typeName: string,
  *   origin: string,
  *   contactEmail: string,
  *   template?: Template
  * }} input
+ * `event.parts`: la lista de partes si es un taller con una sola entrada.
  */
 export function buildTicketEmail({
 	order,
@@ -229,6 +252,7 @@ export function buildTicketEmail({
 		t.holder_pronouns ? `${t.holder_name} (${t.holder_pronouns})` : t.holder_name;
 	const prices = priceLines(order, typeName);
 	const policy = policyBlocks(contactEmail);
+	const parts = partsBlocks(event.parts);
 
 	const ticketBlocks = tickets
 		.map((t, i) => {
@@ -270,7 +294,7 @@ export function buildTicketEmail({
 		label: custom.label ?? 'Tus entradas',
 		titleHtml: custom.headingHtml ?? '¡Ya tenés tus entradas!',
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por tu compra.</p>`}
-		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>
+		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		${online && event.streamLink ? streamLinkBlock(event.streamLink) : ''}`,
 		button: withLabel(
@@ -294,6 +318,7 @@ export function buildTicketEmail({
 		`${title}`,
 		when,
 		where,
+		...parts.text,
 		'',
 		...prices,
 		'',
@@ -391,7 +416,7 @@ export function buildStreamLinkEmail({
  *   tickets: import('./orders.js').Ticket[],
  *   reminder: import('./reminders.js').Reminder,
  *   event: { title: string, start?: string, location?: string, location_name?: string,
- *     online?: boolean, streamLink?: string | null },
+ *     online?: boolean, streamLink?: string | null, parts?: PartsList | null },
  *   typeName: string,
  *   origin: string,
  *   contactEmail: string,
@@ -425,6 +450,7 @@ export function buildReminderEmail({
 	});
 	const subject = custom.subject ?? `Recordatorio: ${event.title} ${soon}`;
 	const policy = policyBlocks(contactEmail);
+	const parts = partsBlocks(event.parts);
 	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
 	/** @param {import('./orders.js').Ticket} t */
 	const holder = (t) =>
@@ -445,7 +471,7 @@ export function buildReminderEmail({
 		label: custom.label ?? 'Recordatorio',
 		titleHtml: custom.headingHtml ?? `¡${escapeHtml(event.title)} ${soon}!`,
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, te recordamos que tenés ${tickets.length === 1 ? 'una entrada' : `${tickets.length} entradas`} (${escapeHtml(typeName)}).</p>`}
-		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>
+		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}
 		${intro}
 		<ul style="margin:0 0 16px;padding-left:20px">${list}</ul>`,
 		button: withLabel(
@@ -467,6 +493,7 @@ export function buildReminderEmail({
 		`${event.title}`,
 		when,
 		where,
+		...parts.text,
 		'',
 		online
 			? event.streamLink
@@ -541,7 +568,7 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
  *
  * @param {{
  *   order: import('./orders.js').Order,
- *   event: { title: string, start?: string },
+ *   event: { title: string, start?: string, parts?: PartsList | null },
  *   typeName: string,
  *   transferInfo: string,
  *   replyTo?: string,
@@ -568,6 +595,7 @@ export function buildTransferEmail({
 }) {
 	const policy = policyBlocks(contactEmail);
 	const prices = priceLines(order, typeName);
+	const parts = partsBlocks(event.parts);
 	const ref = orderReference(order.id);
 	const deadline = formatEventDate(new Date(order.expires_at).toISOString());
 	const hours = holdHours(order);
@@ -591,7 +619,7 @@ export function buildTransferEmail({
 	const intro =
 		custom.bodyHtml ??
 		`<p>Hola ${escapeHtml(order.buyer_name)}, para confirmarlas transferí <strong>${formatARS(order.total)}</strong>. Te reservamos el lugar ${hours} horas (hasta el <strong>${escapeHtml(deadline)}</strong>) mientras mandás el comprobante por mail.</p>`;
-	const details = `<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventDate(event.start))}</p>
+	const details = `<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventDate(event.start))}</p>${parts.html}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		<div style="${MAIL_STYLES.box};white-space:pre-line">${escapeHtml(transferInfo)}</div>
 		<p>En el concepto o la descripción de la transferencia poné: <strong style="font-size:18px">${ref}</strong></p>
@@ -638,6 +666,8 @@ export function buildTransferEmail({
 		'',
 		`${event.title}`,
 		formatEventDate(event.start),
+		...parts.text,
+		...(parts.text.length ? [''] : []),
 		...prices,
 		'',
 		transferInfo,

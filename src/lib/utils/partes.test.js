@@ -12,6 +12,8 @@ import {
 	partDateText,
 	partLabel,
 	partLabelsBySlug,
+	partLine,
+	partsListTitle,
 	partOf,
 	sellsPerPart,
 	withPartLabel
@@ -37,6 +39,23 @@ describe('textos', () => {
 		expect(partDateText('')).toBe('');
 		expect(partDateText(null)).toBe('');
 		expect(partDateText('cualquier cosa')).toBe('');
+	});
+});
+
+describe('lista de partes (mails y página de la entrada)', () => {
+	it('título «Las N partes del taller»', () => {
+		expect(partsListTitle(3)).toBe('Las 3 partes del taller');
+	});
+
+	it('«Parte N · vie 2 oct · 22:00 · lugar», sin «hs» ni ISO', () => {
+		expect(partLine({ n: 1, start: '2026-10-02T22:00-03:00', where: 'Espacio Inventado' })).toBe(
+			'Parte 1 · vie 2 oct · 22:00 · Espacio Inventado'
+		);
+		expect(partLine({ n: 2, start: '2026-10-09', where: '' })).toBe('Parte 2 · vie 9 oct');
+		expect(partLine({ n: 3, start: null, where: 'Online' })).toBe('Parte 3 · Online');
+		expect(
+			partLine({ n: 2, start: '2026-10-09T22:00-03:00', where: 'X', status: 'cancelado' })
+		).toBe('Parte 2 · vie 9 oct · 22:00 · X · cancelada');
 	});
 });
 

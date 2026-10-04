@@ -25,6 +25,7 @@ import {
 import { parseAllowlist, routeEmail } from './emailGuard.js';
 import { getEventMeta, getEventTickets, listTicketedEvents } from './events.js';
 import { coveredPartsByWorkshop } from '../eventos/partes.js';
+import { workshopPartsList } from './workshopParts.js';
 import { isPreviewDeploy } from '../deploy.js';
 import { sha256Hex } from '../hash.js';
 import { trackFunnel } from '../analytics/track.js';
@@ -408,7 +409,9 @@ export async function sendOrderEmail({
 				location: venue ? venue.location : config?.location,
 				location_name: venue ? venue.location_name : config?.location_name,
 				online,
-				streamLink
+				streamLink,
+				// Taller en varias partes con una sola entrada: la fecha y el lugar de cada parte.
+				parts: await workshopPartsList(db, order.event_slug, { online })
 			},
 			typeName,
 			origin,
@@ -517,7 +520,15 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 		const config = await getEventTickets(order.event_slug);
 		const message = buildTransferEmail({
 			order,
-			event: { title: config?.title || order.event_slug, start: config?.start },
+			event: {
+				title: config?.title || order.event_slug,
+				start: config?.start,
+				// La compra todavía no está pagada: el lugar como se ve en el sitio.
+				parts: await workshopPartsList(db, order.event_slug, {
+					online: Boolean(config?.online),
+					buyer: false
+				})
+			},
 			typeName: config?.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
 			transferInfo: info,
 			replyTo: await replyToAddress(db),
@@ -631,6 +642,9 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 	const venues = new Map();
 	/** @type {Map<string, Record<string, any> | null>} */
 	const partMetas = new Map();
+	// La lista de partes de cada taller con una sola entrada, leída una vez por taller.
+	/** @type {Map<string, Awaited<ReturnType<typeof workshopPartsList>>>} */
+	const partLists = new Map();
 	// Plantilla de cada evento (la del evento sobre la general), leída una vez por evento.
 	/** @type {Map<string, Awaited<ReturnType<typeof resolveTemplate>>>} */
 	const templates = new Map();
@@ -655,6 +669,12 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 			const venue = venues.get(where);
 			if (!templates.has(e.slug))
 				templates.set(e.slug, await resolveTemplate(db, e.slug, 'reminder'));
+			if (!partLists.has(e.slug)) {
+				partLists.set(
+					e.slug,
+					await workshopPartsList(db, e.slug, { online: Boolean(config.online) })
+				);
+			}
 			const message = buildReminderEmail({
 				order,
 				tickets,
@@ -669,7 +689,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 							? meta.location_name
 							: config.location_name,
 					online: config.online,
-					streamLink: config.online ? (links.get(e.slug) ?? null) : null
+					streamLink: config.online ? (links.get(e.slug) ?? null) : null,
+					parts: partLists.get(e.slug) ?? null
 				},
 				typeName: config.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
 				origin,
