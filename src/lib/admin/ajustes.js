@@ -8,7 +8,8 @@ export const AJUSTES_TABS = Object.freeze([
 	{ href: '/admin/ajustes/fondo', label: 'Fondo' },
 	{ href: '/admin/ajustes/mails', label: 'Mails' },
 	{ href: '/admin/ajustes/admins', label: 'Admins' },
-	{ href: '/admin/ajustes/interruptores', label: 'Interruptores' }
+	{ href: '/admin/ajustes/interruptores', label: 'Interruptores' },
+	{ href: '/admin/ajustes/automatizaciones', label: 'Automatizaciones' }
 ]);
 
 /**

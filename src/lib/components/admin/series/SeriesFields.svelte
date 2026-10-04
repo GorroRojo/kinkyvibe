@@ -9,6 +9,8 @@
 	 *   nombre de la etiqueta ahora y `key` el que se escribió;
 	 * - `dbMode`: interruptor `etiquetas_db` (cambia qué se puede elegir al renombrar);
 	 * - `assets`: las imágenes de src/lib/assets para elegir;
+	 * - `parents` (solo 'create'): las series que pueden ser madre de la nueva (serie hija: una por
+	 *   año, una edición especial). Vacío = no se pregunta;
 	 * - `id`: prefijo único para los ids de los campos.
 	 */
 	import RenameChoice from '$lib/components/admin/tags/RenameChoice.svelte';
@@ -16,10 +18,12 @@
 
 	/** @type {'create' | 'edit'} */
 	export let mode = 'create';
-	/** @type {{ id?: string, key?: string, keepAlias?: string, name?: string, visible_name?: string, icon?: string, image?: string, description?: string }} */
+	/** @type {{ id?: string, key?: string, keepAlias?: string, name?: string, visible_name?: string, icon?: string, image?: string, description?: string, parent?: string }} */
 	export let values = {};
 	/** @type {readonly string[]} */
 	export let assets = [];
+	/** @type {readonly { id: string, name: string, icon?: string }[]} */
+	export let parents = [];
 	export let dbMode = false;
 	export let id = 'serie';
 	$: imageMissing = Boolean(values.image) && !assets.includes(values.image ?? '');
@@ -36,6 +40,30 @@
 		<span>Nombre</span>
 		<input id="{id}-name" name="name" required maxlength="60" value={values.name ?? ''} />
 		<small class="muted">Es la etiqueta que les vas a poner a sus eventos.</small>
+	</label>
+	{#if parents.length}
+		<label class="kv-field" for="{id}-parent">
+			<span>¿Va dentro de otra serie? (opcional)</span>
+			<select id="{id}-parent" name="parent" value={values.parent ?? ''}>
+				<option value="">No, es una serie aparte</option>
+				{#each parents as p (p.id)}<option value={p.id}>{p.icon ? `${p.icon} ` : ''}{p.name}</option
+					>{/each}
+			</select>
+			<small class="muted">
+				Para una serie por año (como «Cuirdas Sudacas 2026») o una edición especial. Sus eventos
+				llevan las dos etiquetas: la de esta serie y la de la madre.
+			</small>
+		</label>
+	{/if}
+	<label class="kv-field" for="{id}-icon">
+		<span>Ícono (opcional)</span>
+		<input
+			id="{id}-icon"
+			name="icon"
+			maxlength="16"
+			value={values.icon ?? ''}
+			placeholder="Ej.: 🎭"
+		/>
 	</label>
 {:else}
 	<label class="kv-field" for="{id}-key">

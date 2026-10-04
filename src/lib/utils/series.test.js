@@ -10,7 +10,9 @@ import {
 	editionNav,
 	editionNumberFromTitle,
 	eventImageRef,
+	groupSeries,
 	isSeriesTag,
+	seriesParentOf,
 	seriesEditions,
 	seriesImage,
 	seriesOfTags,
@@ -259,5 +261,43 @@ describe('links', () => {
 		// 23:30 en Argentina es el día siguiente en UTC: tiene que decir el 12
 		expect(editionDateLabel('2026-09-12T23:30-03:00')).toMatch(/^12 /);
 		expect(editionDateLabel('no')).toBe('');
+	});
+});
+
+describe('series hijas', () => {
+	const tm = () =>
+		tagsFactory(
+			/** @type {any} */ ([
+				{ id: 'root', children: ['calendario'] },
+				{ id: 'calendario', children: [SERIES_PARENT] },
+				{ id: SERIES_PARENT, children: ['Serie Madre', 'Serie Suelta'] },
+				{ id: 'Serie Madre', children: ['Serie Madre 2025', 'Serie Madre 2026'] }
+			])
+		);
+
+	it('seriesParentOf: la madre si es serie; las de arriba no tienen', () => {
+		const t = tm();
+		expect(seriesTagIds(t)).toEqual(
+			expect.arrayContaining(['Serie Madre', 'Serie Madre 2025', 'Serie Madre 2026'])
+		);
+		expect(seriesParentOf(t, 'Serie Madre 2026')).toBe('Serie Madre');
+		expect(seriesParentOf(t, 'Serie Madre')).toBeNull();
+		expect(seriesParentOf(t, 'Serie Suelta')).toBeNull();
+	});
+
+	it('groupSeries: hijas dentro de la madre, en orden; sin madre en la lista, sueltas', () => {
+		const groups = groupSeries([
+			{ id: 'Serie Madre', parent: null },
+			{ id: 'Serie Madre 2025', parent: 'Serie Madre' },
+			{ id: 'Serie Suelta', parent: null },
+			{ id: 'Serie Madre 2026', parent: 'Serie Madre' },
+			{ id: 'Huérfana', parent: 'No Está' },
+			{ id: 'Nieta', parent: 'Serie Madre 2026' }
+		]);
+		expect(groups.map((g) => [g.id, g.children.map((c) => c.id)])).toEqual([
+			['Serie Madre', ['Serie Madre 2025', 'Serie Madre 2026', 'Nieta']],
+			['Serie Suelta', []],
+			['Huérfana', []]
+		]);
 	});
 });

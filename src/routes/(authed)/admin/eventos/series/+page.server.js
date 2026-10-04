@@ -4,8 +4,9 @@
  * permiso, 403); con el interruptor apagado, 404. Los mails de quienes piden aviso nunca salen de
  * la base: acá solo se cuentan. Las ediciones se bajan en CSV (ediciones.csv).
  *
- * «Crear serie» (acción `crear`): una etiqueta nueva hija de «evento recurrente», con imagen
- * (de src/lib/assets) y descripción opcionales. «Editar» (acción `editar`): el nombre de la
+ * «Crear serie» (acción `crear`): una etiqueta nueva hija de «evento recurrente» o, con `parent`,
+ * de otra serie (serie hija: una por año, como «Cuirdas Sudacas 2026»), con ícono, imagen (de
+ * src/lib/assets) y descripción opcionales. «Editar» (acción `editar`): el nombre de la
  * etiqueta (renombrar, con la misma elección que en Etiquetas: RenameChoice.svelte), nombre
  * visible, ícono, imagen y descripción de una serie. Se guardan por el mismo camino que
  * /admin/etiquetas: un commit al archivo de etiquetas (planTagEdit / commitTagEdit) o, con el
@@ -25,6 +26,7 @@ import { subscriberCounts } from '$lib/server/series/subscriptions.js';
 import { requireSeries } from '$lib/server/series/web.js';
 import { seriesEnabled } from '$lib/server/flags.js';
 import { seriesCreateOps, seriesEditOps } from '$lib/utils/seriesAdmin.js';
+import { SERIES_PARENT, seriesParentOf, seriesTagIds } from '$lib/utils/series.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { dbTagsForAdmin, previewDbTagEdit, saveDbTagEdit } from '$lib/server/etiquetas/panel.js';
 // La copia del archivo de etiquetas de este deploy (si el cliente del repo no lo tiene).
@@ -54,10 +56,13 @@ export async function load({ locals, url, platform, setHeaders }) {
 	const dbMode = Boolean(await dbTagsForAdmin(platform, login));
 	const canCreate = dbMode || Boolean(getEventAdmin(locals));
 	const upcomingSlugs = new Set(series.flatMap((s) => s.upcoming.map((e) => e.slug)));
+	const ids = seriesTagIds(tags);
 	return {
 		series: series.map((s) => ({
 			id: s.id,
 			name: s.name,
+			// La serie madre, si es una serie hija (una por año, una edición especial).
+			parent: seriesParentOf(tags, s.id, ids),
 			icon: s.icon,
 			href: s.href,
 			image: s.image ?? null,
@@ -92,14 +97,22 @@ export const actions = {
 		const input = {
 			name: data.get('name'),
 			image: data.get('image'),
-			description: data.get('description')
+			description: data.get('description'),
+			icon: data.get('icon'),
+			parent: data.get('parent')
 		};
 		const tags = await siteTagManager(platform);
-		const planned = seriesCreateOps(input, { exists: (n) => tagExists(n, tags) });
+		const planned = seriesCreateOps(input, {
+			exists: (n) => tagExists(n, tags),
+			seriesIds: seriesTagIds(tags)
+		});
 		if (!planned.ok) return fail(400, { error: planned.error, values: textValues(input) });
 		const res = await saveSeriesOps(locals, platform, planned.ops, {
 			name: planned.name,
-			summary: `crear «${planned.name}»`
+			summary:
+				planned.parent === SERIES_PARENT
+					? `crear «${planned.name}»`
+					: `crear «${planned.name}» dentro de «${planned.parent}»`
 		});
 		if (!res.ok) return fail(res.status, { error: res.error, values: textValues(input) });
 		return { created: { name: planned.name, ...res.saved } };

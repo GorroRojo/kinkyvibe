@@ -428,5 +428,17 @@ describe('vistas (index.js)', () => {
 			next: { title: 'Serie de prueba: la próxima' }
 		});
 		expect(list[0].last?.start).toBeTruthy();
+		expect(list[0].parent).toBeNull();
+	});
+	it('seriesSummaries: una serie hija dice cuál es su madre', async () => {
+		const own = tagsFactory(
+			/** @type {any} */ ([
+				{ id: 'root', children: ['evento recurrente'] },
+				{ id: 'evento recurrente', children: ['Serie Madre'] },
+				{ id: 'Serie Madre', children: ['Picantearla'] }
+			])
+		);
+		const list = await seriesSummaries({ posts, tags: own, now: NOW });
+		expect(list.find((s) => s.id === 'Picantearla')?.parent).toBe('Serie Madre');
 	});
 });

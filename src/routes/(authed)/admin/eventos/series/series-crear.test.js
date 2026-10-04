@@ -80,6 +80,34 @@ describe('Crear serie', () => {
 		]);
 	});
 
+	it('serie hija (una por año): queda dentro de la serie madre, con su ícono', async () => {
+		const { mod, commits } = await page();
+		const res = await mod.actions.crear(
+			post({ name: 'Cuirdas Sudacas 2099', parent: 'Cuirdas Sudacas', icon: '🪢' })
+		);
+		expect(res).toMatchObject({ created: { name: 'Cuirdas Sudacas 2099' } });
+		const entries = parseTagSource(commits[0].files[0].content).items.map((i) => i.value);
+		expect(entries.find((e) => e.id === 'Cuirdas Sudacas')?.children).toContain(
+			'Cuirdas Sudacas 2099'
+		);
+		expect(entries.find((e) => e.id === 'evento recurrente')?.children).not.toContain(
+			'Cuirdas Sudacas 2099'
+		);
+		expect(entries.find((e) => e.id === 'Cuirdas Sudacas 2099')).toEqual({
+			id: 'Cuirdas Sudacas 2099',
+			icon: '🪢'
+		});
+		const log = await t.db.prepare('SELECT summary FROM admin_audit').all();
+		expect(log.results).toEqual([
+			{ summary: 'Series: crear «Cuirdas Sudacas 2099» dentro de «Cuirdas Sudacas»' }
+		]);
+		// Una madre que no es una serie: error, sin commit.
+		expect(await mod.actions.crear(post({ name: 'Otra Más', parent: 'taller' }))).toMatchObject({
+			status: 400
+		});
+		expect(commits).toHaveLength(1);
+	});
+
 	it('errores: nombre que ya existe o imagen inválida, sin commit', async () => {
 		const { mod, commits } = await page();
 		expect(await mod.actions.crear(post({ name: 'Picantearla' }))).toMatchObject({
