@@ -62,11 +62,12 @@ sección (Etiquetas, Estadísticas), que usan la URL del área.
 
 **Ficha de una persona** (`/admin/comunidad/personas/<id>`, con un id corto sacado del mail; nunca
 el mail en la URL). Es una sola ficha con todo lo que sabemos de alguien, encontrada por el mail
-normalizado (sin espacios ni mayúsculas) y por su cuenta: Cuenta (fechas, contraseña sí/no, sesiones,
+normalizado (sin espacios ni mayúsculas) y por su cuenta: Notas internas (arriba, después del
+resumen), Cuenta (fechas, contraseña sí/no, sesiones,
 «Mis datos», permiso para tener perfiles), Compras (todas las órdenes por cuenta o por mail, con
 entradas, respuestas, recordatorios y mails a compradores), Perfiles (los que gestiona, pedidos «Es
 mi perfil», invitaciones y los eventos donde participan), Lo que sigue (seguimientos, avisos,
-series, calendario y Telegram: nunca tokens ni el id del chat), Notas internas y Actividad. La
+series, calendario y Telegram: nunca tokens ni el id del chat) y Actividad. La
 ficha de una cuenta (`/admin/comunidad/cuentas/<id>`) muestra la misma ficha (también para una
 cuenta borrada), así que los links viejos siguen andando. Las notas internas van por el mail; una
 cuenta borrada ya no tiene mail, así que sus notas quedan atadas a la cuenta (`account_id`,
