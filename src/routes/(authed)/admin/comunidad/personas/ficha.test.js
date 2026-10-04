@@ -420,7 +420,9 @@ describe('ficha de una persona', () => {
 			fakeEvent({ params, form: { id: String(after.notes[0].id) } })
 		);
 		expect(del).toMatchObject({ note: { ok: true } });
-		expect((await cuenta.load(fakeEvent({ params }))).notes).toHaveLength(notesBefore);
+		expect(/** @type {any} */ (await cuenta.load(fakeEvent({ params }))).notes).toHaveLength(
+			notesBefore
+		);
 		const audit = [
 			...(await auditRows('person.note.add')),
 			...(await auditRows('person.note.delete'))
