@@ -4,13 +4,17 @@
 	 * apiladas por canal, con el cupo, "hoy", los cierres de tipos, la estimación al ritmo reciente
 	 * y (opcional) la edición anterior alineada por días antes del evento.
 	 *
-	 * Props: `chart` (lo que arma `buildSalesChart` de $lib/admin/salesChart.js).
+	 * Props: `chart` (lo que arma `buildSalesChart` de $lib/admin/salesChart.js); `progress`
+	 * (opcional): el avance contra la meta de venta ($lib/utils/salesGoal.js); si la meta es en
+	 * entradas, además una línea «meta N».
 	 * Con el teclado: foco en el gráfico y flechas ←/→ (Inicio/Fin) para recorrer los días.
 	 */
 	import { CHANNELS, CHANNEL_LABELS, dayShort } from '$lib/admin/salesChart.js';
 
 	/** @type {import('$lib/admin/salesChart.js').SalesChart} */
 	export let chart;
+	/** @type {import('$lib/utils/salesGoal.js').GoalProgress | null} */
+	export let progress = null;
 
 	let width = 640;
 	let showPrevious = true;
@@ -27,9 +31,11 @@
 	$: x = (/** @type {number} */ day) => PAD.l + ((day - c.from) / span) * plotW;
 
 	$: prev = showPrevious ? c.previous : null;
+	$: goalLine = progress?.kind === 'entradas' ? progress.target : null;
 	$: maxY = Math.max(
 		4,
 		c.capacity ?? 0,
+		goalLine ?? 0,
 		c.sold,
 		c.projection?.final ?? 0,
 		c.previous ? Math.max(...c.previous.points.map((p) => p.total)) : 0
@@ -226,7 +232,7 @@
 		: '';
 	$: summary =
 		`Termómetro de ventas: ${plural(c.sold, 'entrada vendida', 'entradas vendidas')} ` +
-		`desde el ${dayShort(c.from)}, ${capacityText}. ${c.sentence} ` +
+		`desde el ${dayShort(c.from)}, ${capacityText}. ${progress ? `Meta: ${progress.text}. ` : ''}${c.sentence} ` +
 		(c.previous ? `Edición anterior (${prevText})` : '');
 	$: multi = c.channels.length > 1;
 	/** @type {import('$lib/admin/salesChart.js').Channel[]} */
@@ -249,6 +255,11 @@
 				<span class="over">+{c.sold - c.capacity} sobre el cupo</span>
 			{/if}
 		</p>
+		{#if progress}
+			<p class="goal-line">
+				Meta: <b class="num">{progress.text}</b>{#if progress.reached}{' '}· cumplida{/if}
+			</p>
+		{/if}
 		{#if c.sentence}
 			<p class="sentence">
 				{#if c.projection}<span class="est-tag">Estimación</span>{/if}
@@ -339,6 +350,14 @@
 				<text class="tick cap-label" x={PAD.l + 4} y={y(c.capacity) - 5}>cupo {c.capacity}</text>
 			{:else if c.capacity === null}
 				<text class="tick" x={PAD.l + 4} y={PAD.t + 10}>sin cupo</text>
+			{/if}
+
+			<!-- Meta de venta (en entradas) -->
+			{#if goalLine !== null}
+				<line class="goal-chart-line" x1={PAD.l} x2={W - PAD.r} y1={y(goalLine)} y2={y(goalLine)} />
+				<text class="tick goal-label" x={W - PAD.r - 4} y={y(goalLine) - 5} text-anchor="end"
+					>meta {goalLine}</text
+				>
 			{/if}
 
 			<!-- Edición anterior -->
@@ -437,6 +456,7 @@
 		{#if c.capacity !== null && c.capacity > 0}<li>
 				<i class="key cap" aria-hidden="true"></i>Cupo
 			</li>{/if}
+		{#if goalLine !== null}<li><i class="key goal" aria-hidden="true"></i>Meta</li>{/if}
 		{#if c.markers.length}
 			<li>
 				<i class="key close" aria-hidden="true"></i>{compact
@@ -549,6 +569,9 @@
 	.sentence {
 		font-size: 0.95rem;
 	}
+	.goal-line {
+		font-size: 0.95rem;
+	}
 	.est-tag {
 		display: inline-block;
 		font-size: 0.72rem;
@@ -635,6 +658,15 @@
 	}
 	.cap-label {
 		fill: var(--text);
+		font-weight: 700;
+	}
+	.goal-chart-line {
+		stroke: var(--ok, var(--3-dark));
+		stroke-width: 2;
+		stroke-dasharray: 6 3;
+	}
+	.goal-label {
+		fill: var(--ok, var(--3-dark));
 		font-weight: 700;
 	}
 	.band {
@@ -786,6 +818,9 @@
 	}
 	.key.close {
 		border-top: 2px dashed var(--accent);
+	}
+	.key.goal {
+		border-top: 2px dashed var(--ok, var(--3-dark));
 	}
 	.table-view summary {
 		cursor: pointer;

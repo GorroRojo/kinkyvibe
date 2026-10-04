@@ -55,6 +55,7 @@ Archivo: `src/lib/server/objects/types/etiqueta.js`.
 | `color`        | `text`     | `color`: `darkblue`, `#ff4444` o `var(--3-dark)` (nada más, va dentro de `style`) |
 | `description`  | `longtext` | `description`, con `[[enlaces]]` a otras etiquetas                                |
 | `image`        | `text`     | `image` (series): un archivo de `src/lib/assets` o la imagen de un evento         |
+| `meta_venta`   | `text`     | series: meta de venta por defecto (`plata:250000`, `entradas:30`; tickets.md)     |
 | `body`         | `longtext` | el cuerpo del `.md` de la wiki (markdown, con `[[enlaces]]`)                      |
 | `wiki_title`   | `text`     | `title` del `.md` de la wiki                                                      |
 | `wiki_summary` | `longtext` | `summary` del `.md` de la wiki                                                    |

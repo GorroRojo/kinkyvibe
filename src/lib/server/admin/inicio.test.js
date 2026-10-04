@@ -510,6 +510,24 @@ describe('upcomingEvents y reviewItems', () => {
 		expect(e.oversold).toEqual([{ type: 'Anticipada', sold: 3, capacity: 2 }]);
 	});
 
+	it('meta de venta: el avance contra la meta; sin meta (o sin venta), null', () => {
+		expect(upcoming.map((e) => e.progress)).toEqual([null, null, null]);
+		const [e] = upcomingEvents({
+			events: [events[1]],
+			ticketed: new Map([['hoy', config({ goal: { kind: 'plata', value: 208000 } })]]),
+			totals,
+			now: NOW
+		});
+		expect(e.progress).toMatchObject({ kind: 'plata', current: 104000, target: 208000, pct: 50 });
+		const [byTickets] = upcomingEvents({
+			events: [events[1]],
+			ticketed: new Map([['hoy', config({ goal: { kind: 'entradas', value: 20 } })]]),
+			totals,
+			now: NOW
+		});
+		expect(byTickets.progress?.text).toBe('11 de 20 entradas');
+	});
+
 	it('reviewItems arma un ítem con acción por cada cosa para revisar', () => {
 		const items = reviewItems({
 			upcoming,

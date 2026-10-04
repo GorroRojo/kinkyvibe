@@ -15,6 +15,7 @@ import { combineQueries, mapQuery, rowsOf, runQuery } from '$lib/server/db/batch
 import { orderReference } from '$lib/utils/tickets.js';
 import { argFormat } from '$lib/utils/dates.js';
 import { formatARS } from '$lib/utils/money.js';
+import { goalProgress } from '$lib/utils/salesGoal.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
 	DUE_REMINDER_WHERE,
@@ -834,6 +835,7 @@ export function sinceLastVisitQuery({ since, login = '', titles }) {
  *   revenue: number,
  *   fondoNet: number,
  *   oversold: { type: string, sold: number, capacity: number }[],
+ *   progress: import('$lib/utils/salesGoal.js').GoalProgress | null,
  *   transfers: number,
  *   review: number,
  *   missingStream: boolean,
@@ -935,6 +937,8 @@ export function upcomingEvents({
 			revenue,
 			fondoNet,
 			oversold,
+			// Avance contra la meta de venta (`meta_venta`); sin meta, null (se muestra el cupo).
+			progress: config ? goalProgress(config.goal, { sold, revenue }) : null,
 			transfers: transferBy.get(e.slug) ?? 0,
 			review: reviewBy.get(e.slug) ?? 0,
 			missingStream: Boolean(config?.online && sold > 0 && !streamLinks.has(e.slug)),

@@ -101,8 +101,12 @@
  *   start: string | undefined,
  *   location: string | undefined,
  *   location_name: string | undefined,
+ *   goal: import('$lib/utils/salesGoal.js').SalesGoal | null,
  *   fields?: import('$lib/utils/signupFields.js').SignupField[]
  * }} EventTickets
+ *
+ * `goal`: la meta de venta (`meta_venta`, ver $lib/utils/salesGoal.js), o `null`. Una meta que no
+ * se entiende es `null`: nunca frena la venta.
  */
 
 import {
@@ -124,6 +128,7 @@ import {
 	isOnlineEvent
 } from '$lib/utils/ticketsEditor.js';
 import { validateAnswers } from '$lib/utils/signupFields.js';
+import { GOAL_KEY, parseSalesGoal } from '$lib/utils/salesGoal.js';
 import { validateBuyer, validateHolder, validateHolders } from '$lib/utils/ticketBuyer.js';
 
 // Viven en $lib/utils/ticketBuyer.js (la página de compra valida cada paso en el navegador con
@@ -326,7 +331,8 @@ export function parseTicketConfig(meta, options = {}) {
 		title: String(meta.title ?? ''),
 		start: meta.start instanceof Date ? meta.start.toISOString() : meta.start,
 		location: meta.location,
-		location_name: meta.location_name
+		location_name: meta.location_name,
+		goal: parseSalesGoal(meta[GOAL_KEY])
 	};
 }
 

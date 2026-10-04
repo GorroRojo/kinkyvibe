@@ -80,6 +80,7 @@ export function describeTagRecord(r) {
 	if (d.icon) lines.push(`ícono: ${d.icon}`);
 	if (d.color) lines.push(`color: ${d.color}`);
 	if (d.image) lines.push(`imagen: ${d.image}`);
+	if (d.meta_venta) lines.push(`meta de venta: ${d.meta_venta}`);
 	if (r.parents.length) lines.push(`madres: ${r.parents.map((p) => p.key).join(', ')}`);
 	if (r.related.length) lines.push(`relacionadas: ${r.related.join(', ')}`);
 	if (d.description) lines.push(`descripción: ${String(d.description).replace(/\n/g, '\n  ')}`);

@@ -51,6 +51,7 @@
 	import { eventLinkProblem } from '$lib/utils/eventLink.js';
 	import {
 		applyTicketsToMarkdown,
+		goalFields,
 		readTicketsForm,
 		validateTicketsForm
 	} from '$lib/utils/ticketsEditor.js';
@@ -362,7 +363,7 @@
 		if (d.tagRules) tagRules = { ...tagRules, ...d.tagRules };
 		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
 		people = restorePeople(d, people, authorRole);
-		if (d.tickets) tickets = d.tickets;
+		if (d.tickets) tickets = { ...goalFields(undefined), ...d.tickets };
 		if (typeof d.body === 'string') body = d.body;
 		if (typeof d.rawText === 'string') rawText = d.rawText;
 		if (venuePicker && d.venue && typeof d.venue === 'object')
