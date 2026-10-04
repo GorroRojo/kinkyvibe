@@ -18,6 +18,7 @@ import {
 	reviewState,
 	showsAddress,
 	showsVenueLink,
+	venueHasDetails,
 	venueLine,
 	venueSchema,
 	venueView
@@ -288,5 +289,26 @@ describe('rechazo de lugares que cargan las cuentas', () => {
 		expect(reviewState(true, true)).toBe('approved');
 		expect(reviewState(false, true)).toBe('rejected');
 		expect(reviewState(false, false)).toBe('pending');
+	});
+});
+
+describe('venueHasDetails: «Ver mapa y cómo llegar» en la página del evento', () => {
+	it('con mapa, «Cómo llegar» o «Accesibilidad» según el nivel', () => {
+		expect(venueHasDetails(venueView(venue, 'public', href))).toBe(true);
+		// «Sólo dirección»: el mapa sin el resto
+		expect(venueHasDetails(venueView(venue, 'address', href))).toBe(true);
+		for (const level of /** @type {const} */ (['name', 'area', 'hidden'])) {
+			expect(venueHasDetails(venueView(venue, level, href))).toBe(false);
+		}
+	});
+
+	it('pública sin coordenadas ni textos: no hay nada que plegar', () => {
+		const bare = { title: 'Sala Inventada', data: { address: 'Calle Falsa 1' } };
+		expect(venueHasDetails(venueView(bare, 'public', href))).toBe(false);
+		const howTo = {
+			title: 'Sala',
+			data: { address: 'Calle Falsa 1', how_to_get_there: 'Timbre B' }
+		};
+		expect(venueHasDetails(venueView(howTo, 'public', href))).toBe(true);
 	});
 });
