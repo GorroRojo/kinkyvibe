@@ -219,6 +219,9 @@
 	}
 	.sections li {
 		margin: 0;
+		&::before {
+			content: none;
+		}
 	}
 	.sections a {
 		display: inline-flex;

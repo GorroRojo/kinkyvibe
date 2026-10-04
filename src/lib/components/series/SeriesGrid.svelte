@@ -88,6 +88,10 @@
 		gap: 0.45em;
 		margin: 0;
 	}
+	/* Sin el «+» de las listas del contenido (style.scss). */
+	li::before {
+		content: none !important;
+	}
 	@media (min-width: 40rem) {
 		.series-grid > li.has-children {
 			grid-column: span 2;
