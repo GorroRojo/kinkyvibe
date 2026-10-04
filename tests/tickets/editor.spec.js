@@ -58,7 +58,7 @@ test('crear un evento con 2 tipos de entrada y después cambiar un precio', asyn
 	const fondo = card.locator('#ev-tickets-fondo');
 	await expect(fondo).toContainText('Tiene la etiqueta KinkyVibe');
 	await page.locator('#ev-kv').uncheck({ force: true });
-	await expect(fondo).toContainText('no usa el Fondo KinkyVibe');
+	await expect(fondo).toContainText('no usa el Fondo Kinky Vibe');
 	await page.locator('#ev-kv').check({ force: true });
 	await expect(fondo).toContainText('Tiene la etiqueta KinkyVibe');
 

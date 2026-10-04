@@ -39,7 +39,7 @@ export async function GET({ params, platform }) {
 	const mine = [...listed, ...unlisted].filter((p) => slugs.has(String(p.meta.postID)));
 	return icsResponse(
 		buildIcsFeed(mine, {
-			calName: 'Lo tuyo · KinkyVibe',
+			calName: 'Lo tuyo · Kinky Vibe',
 			profiles: listed,
 			includeCancelled: true,
 			// Como la página pública del evento (#137): nunca más dirección que la que ve cualquiera.

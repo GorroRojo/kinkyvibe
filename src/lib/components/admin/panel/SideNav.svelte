@@ -1,9 +1,10 @@
 <script>
 	/**
-	 * Menú de la barra lateral del panel (≥ 900 px): Inicio, las áreas de `$lib/admin/nav.js` y
-	 * Ajustes al pie. Las áreas se abren de a una: la de la página actual abierta, y si la persona
-	 * abre otra se recuerda (`navPrefs.js`, localStorage con try/catch; sin storage anda igual).
-	 * Un área cerrada muestra la suma de sus contadores.
+	 * Menú de la barra lateral del panel (≥ 900 px): Inicio, los grupos de `$lib/admin/nav.js`
+	 * (`NAV_GROUPS`: cada uno junta una o más áreas) y Ajustes al pie. Los grupos se abren de a
+	 * uno: el de la página actual abierto, y si la persona abre otro se recuerda (`navPrefs.js`,
+	 * localStorage con try/catch; sin storage anda igual). Un grupo cerrado muestra la suma de sus
+	 * contadores.
 	 * Props: `active` (NavItem actual), `counts` (`data.panelCounts`), `flags` (`data.navFlags`),
 	 * `hideSoon` ("Ocultar lo que viene").
 	 */
@@ -11,7 +12,15 @@
 	import { ChevronDown } from '@lucide/svelte';
 	import NavIcon from './NavIcon.svelte';
 	import NavEntry from './NavEntry.svelte';
-	import { NAV_AREAS, areaCount, navAreaItems, navAreaSections, navState } from '$lib/admin/nav.js';
+	import {
+		NAV_GROUPS,
+		groupCount,
+		navAreaItems,
+		navGroupItems,
+		navGroupOf,
+		navGroupSections,
+		navState
+	} from '$lib/admin/nav.js';
 	import { pickOpenArea, readOpenArea, saveOpenArea } from '$lib/admin/navPrefs.js';
 
 	/** @type {import('$lib/admin/nav.js').NavItem | undefined} */
@@ -23,15 +32,15 @@
 	export let hideSoon = false;
 
 	/** @type {string | null} */
-	let open = pickOpenArea(active?.area, null);
+	let open = pickOpenArea(navGroupOf(active?.area)?.id, null);
 	let mounted = false;
 	onMount(() => {
-		open = pickOpenArea(active?.area, readOpenArea());
+		open = pickOpenArea(navGroupOf(active?.area)?.id, navGroupOf(readOpenArea())?.id);
 		mounted = true;
 	});
-	// Al navegar a otra área, se abre esa.
-	$: activeArea = active?.area ?? null;
-	$: if (mounted && activeArea) open = activeArea;
+	// Al navegar a otro grupo, se abre ese.
+	$: activeGroup = navGroupOf(active?.area)?.id ?? null;
+	$: if (mounted && activeGroup) open = activeGroup;
 
 	/** @param {string} id */
 	function toggle(id) {
@@ -43,8 +52,8 @@
 	const countOf = (item) => (item.counter ? Number(counts[item.counter] ?? 0) : 0);
 
 	$: opts = { flags, hideSoon };
-	$: main = NAV_AREAS.filter((a) => !a.foot && navAreaItems(a.id, opts).length);
-	$: foot = NAV_AREAS.filter((a) => a.foot && navAreaItems(a.id, opts).length);
+	$: main = NAV_GROUPS.filter((g) => !g.foot && navGroupItems(g.id, opts).length);
+	$: foot = NAV_GROUPS.filter((g) => g.foot && navGroupItems(g.id, opts).length);
 </script>
 
 <nav class="sn" aria-label="Secciones del panel">
@@ -60,11 +69,11 @@
 		<div class="areas" class:foot={i === 1}>
 			{#each list as area (area.id)}
 				{@const isOpen = open === area.id}
-				{@const total = areaCount(area.id, counts, opts)}
+				{@const total = groupCount(area.id, counts, opts)}
 				<button
 					type="button"
 					class="area"
-					class:here={activeArea === area.id}
+					class:here={activeGroup === area.id}
 					aria-expanded={isOpen}
 					aria-controls="kv-area-{area.id}"
 					on:click={() => toggle(area.id)}
@@ -73,7 +82,7 @@
 					<span class="chev" aria-hidden="true"><ChevronDown size={16} /></span></button
 				>
 				<div class="items" id="kv-area-{area.id}" hidden={!isOpen}>
-					{#each navAreaSections(area.id, opts) as section (section.id)}
+					{#each navGroupSections(area.id, opts) as section (section.id)}
 						{#if section.label}<div class="sub">{section.label}</div>{/if}
 						{#each section.items as item (item.id)}
 							<NavEntry

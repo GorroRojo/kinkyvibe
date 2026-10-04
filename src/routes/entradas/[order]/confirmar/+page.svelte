@@ -11,7 +11,7 @@
 </script>
 
 <svelte:head>
-	<title>Confirmar reserva · KinkyVibe</title>
+	<title>Confirmar reserva · Kinky Vibe</title>
 </svelte:head>
 
 <main class="confirm">

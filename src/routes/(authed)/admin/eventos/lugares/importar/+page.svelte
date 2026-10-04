@@ -390,7 +390,7 @@
 						</p>
 						<div class="kv-row">
 							<button class="kv-btn" type="submit" disabled={busy}
-								>{busy ? 'Guardando…' : 'Crear lugares'}</button
+								>{busy ? 'Creando…' : 'Crear lugares'}</button
 							>
 							<button
 								class="kv-btn ghost"

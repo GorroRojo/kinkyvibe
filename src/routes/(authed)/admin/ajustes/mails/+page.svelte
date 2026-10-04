@@ -2,10 +2,9 @@
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import { Mail } from '@lucide/svelte';
-	import { AJUSTES_TABS, fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
+	import { fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
-	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 
 	export let data;
 	export let form;
@@ -19,8 +18,6 @@
 	title="Mails"
 	subtitle="Remitente, respuesta, recordatorios antes de cada evento y envíos en tandas."
 />
-<Tabs tabs={[...AJUSTES_TABS]} />
-
 <form
 	class="kv-form settings"
 	method="POST"
@@ -102,8 +99,8 @@
 		</p>
 		{#if !data.cronConfigured}
 			<p class="kv-flash warn">
-				Falta configurar el cron (el secreto <code>CRON_SECRET</code> del Worker): hasta entonces no
-				se manda ninguno.
+				Falta configurar el cron (el secreto <code>CRON_SECRET</code> del Worker): hasta entonces no se
+				manda ninguno.
 			</p>
 		{/if}
 		{#each [...data.reminders, null] as r, i (i)}

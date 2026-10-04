@@ -34,11 +34,11 @@ export const TIP_MESSAGE_MAX = 280;
 export const TIP_CATEGORIES = Object.freeze(['material', 'calendario']);
 /** Destinos que puede tener una propina guardada (los viejos `kinkyvibe` se siguen leyendo). */
 export const TIP_DESTINATIONS = Object.freeze(/** @type {const} */ (['kinkyvibe', 'fondo']));
-/** El destino de toda propina nueva: el Fondo KinkyVibe (ya no se elige). */
+/** El destino de toda propina nueva: el Fondo Kinky Vibe (ya no se elige). */
 export const TIP_DESTINATION = /** @type {TipDestination} */ ('fondo');
 /** Nombre de cada destino (panel y CSV). */
 export const TIP_DESTINATION_LABELS = Object.freeze({
-	kinkyvibe: 'Para KinkyVibe',
+	kinkyvibe: 'Para Kinky Vibe',
 	fondo: 'Para el Fondo'
 });
 

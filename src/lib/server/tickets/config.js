@@ -5,7 +5,7 @@
  * tipo de entrada y la cantidad, nunca un precio.
  *
  * ```yaml
- * tags: [KinkyVibe, ...]  # el Fondo KinkyVibe solo aplica a eventos con la etiqueta KinkyVibe
+ * tags: [KinkyVibe, ...]  # el Fondo Kinky Vibe solo aplica a eventos con la etiqueta KinkyVibe
  * tickets:
  *   - id: general
  *     name: General
@@ -159,7 +159,7 @@ export function toTime(value) {
  * Valida y normaliza `tickets` del frontmatter. Devuelve `null` si el evento no vende entradas.
  * Tira un error descriptivo si la configuración está mal (mejor que vender con un precio raro).
  *
- * `options.fondoPercent` es el porcentaje del Fondo KinkyVibe (ver fondo.js; el mismo para todos
+ * `options.fondoPercent` es el porcentaje del Fondo Kinky Vibe (ver fondo.js; el mismo para todos
  * los eventos, sigue a fondo.kinkyvibe.ar): se aplica a todos los tipos con precio. Sin él, sin
  * descuento del fondo. No hay fondo por evento ni por tipo (`fondo_percent` o `fondo` en el
  * frontmatter se ignoran).

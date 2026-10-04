@@ -9,5 +9,5 @@ export function accountLink(data) {
 	if (!data?.cuentas) return null;
 	return data.member
 		? { href: '/mi-rincon', label: 'Mi rincón' }
-		: { href: '/ingresar', label: 'Ingresar' };
+		: { href: '/ingresar', label: 'Entrar' };
 }

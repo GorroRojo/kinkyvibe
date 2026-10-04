@@ -1,5 +1,5 @@
 /** Textos de las órdenes en el panel (pestañas Órdenes y Transferencias de la ficha). */
-
+import { argDateLog } from '$lib/utils/dates.js';
 export const ORDER_STATUS = /** @type {Record<string, string>} */ ({
 	pending: 'Pendiente',
 	awaiting_transfer: 'Esperando transferencia',
@@ -31,16 +31,11 @@ export const PAYMENT_METHOD = /** @type {Record<string, string>} */ ({
 });
 
 /**
- * Fecha y hora cortas en Argentina ("30/9/26, 21:05").
+ * Fecha y hora cortas en Argentina, como en los registros ("30/9/26 21:05").
  * @param {number} ms
  */
 export function shortTime(ms) {
-	return new Date(ms).toLocaleString('es-AR', {
-		dateStyle: 'short',
-		timeStyle: 'short',
-		hourCycle: 'h23',
-		timeZone: 'America/Argentina/Buenos_Aires'
-	});
+	return argDateLog(ms);
 }
 
 /**

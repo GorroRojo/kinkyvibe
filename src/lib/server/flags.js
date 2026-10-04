@@ -19,7 +19,7 @@ export const FLAGS = Object.freeze({
 	cuentas: {
 		label: 'Cuentas del público',
 		description:
-			'"Ingresar" y "Mi rincón": cuentas con código por mail o contraseña, y las compras de ' +
+			'"Entrar" y "Mi rincón": cuentas con código por mail o contraseña, y las compras de ' +
 			'cada mail verificado. Apagado, las páginas dan 404 y el encabezado no muestra el link.',
 		envVar: 'CUENTAS_ENABLED'
 	},
@@ -53,7 +53,7 @@ export const FLAGS = Object.freeze({
 	propinas: {
 		label: 'Propinas',
 		description:
-			'Al pie de las publicaciones de KinkyVibe, un bloque para dejar una propina con Mercado ' +
+			'Al pie de las publicaciones de Kinky Vibe, un bloque para dejar una propina con Mercado ' +
 			'Pago (la misma cuenta que las entradas) en lugar de la nota del cafecito, y en el pie de ' +
 			'página "Dejá una propina" (al Fondo) en lugar de Cafecito. Apagado, se ve la nota del ' +
 			'cafecito como siempre y /propinas da 404.',

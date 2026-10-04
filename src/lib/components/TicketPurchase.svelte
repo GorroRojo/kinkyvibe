@@ -422,7 +422,7 @@
 
 	const closedText = {
 		cancelled: 'El evento se canceló: no hay venta de entradas.',
-		soldout: 'Entradas agotadas.',
+		soldout: 'Agotadas.',
 		closed: 'Venta cerrada.',
 		notyet: tickets.opensAt
 			? `${saleWindowText({ opensAt: tickets.opensAt })}.`

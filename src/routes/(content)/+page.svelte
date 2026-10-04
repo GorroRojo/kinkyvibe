@@ -68,7 +68,7 @@
 	<a rel="me" href="https://web.brid.gy/r/https://kinkyvibe.ar/">fed bridgy</a>
 	<a class="u-url u-uid" href="https://kinkyvibe.ar/">https://kinkyvibe.ar/</a>
 	<img class="profile-pic u-photo" src={kinkyProfilePic} alt="" />
-	<h1 class="profile-name p-name">KinkyVibe</h1>
+	<h1 class="profile-name p-name">Kinky Vibe</h1>
 	<a
 		target="_blank"
 		class="u-pronouns"

@@ -1,4 +1,5 @@
 <script>
+	import { argDateLog } from '$lib/utils/dates.js';
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import { enhance } from '$app/forms';
 	import { Check, Send, X } from '@lucide/svelte';
@@ -20,12 +21,7 @@
 
 	/** @param {number} ms */
 	function time(ms) {
-		return new Date(ms).toLocaleString('es-AR', {
-			dateStyle: 'short',
-			timeStyle: 'short',
-			hourCycle: 'h23',
-			timeZone: 'America/Argentina/Buenos_Aires'
-		});
+		return argDateLog(ms);
 	}
 	/** @param {number} n */
 	const people = (n) => (n === 1 ? '1 persona' : `${n} personas`);

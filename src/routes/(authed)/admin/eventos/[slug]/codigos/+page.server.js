@@ -101,11 +101,11 @@ export const actions = {
 				action: active ? 'discount.activate' : 'discount.deactivate',
 				targetType: 'discount',
 				targetId: code,
-				summary: `${active ? 'Activó' : 'Desactivó'} el código ${code}`
+				summary: `${active ? 'Prendió' : 'Apagó'} el código ${code}`
 			});
 		}
 		return ok
-			? { toggle: { ok: true, message: `Código ${code} ${active ? 'activado' : 'desactivado'}.` } }
+			? { toggle: { ok: true, message: `Código ${code} ${active ? 'prendido' : 'apagado'}.` } }
 			: fail(404, { toggle: { ok: false, message: 'No encontramos ese código.' } });
 	}
 };

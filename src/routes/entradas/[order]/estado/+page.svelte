@@ -118,7 +118,7 @@
 			<dd>{formatARS(order.list)}</dd>
 		{/if}
 		{#if order.fondo}
-			<dt>Fondo KinkyVibe</dt>
+			<dt>Fondo Kinky Vibe</dt>
 			<dd>−{formatARS(order.fondo)} 💜</dd>
 		{/if}
 		{#if order.contribution}

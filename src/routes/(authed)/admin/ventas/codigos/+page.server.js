@@ -85,14 +85,14 @@ export const actions = {
 				action: active ? 'discount.activate' : 'discount.deactivate',
 				targetType: 'discount',
 				targetId: code.toUpperCase(),
-				summary: `${active ? 'Activó' : 'Desactivó'} el código ${code.toUpperCase()}`
+				summary: `${active ? 'Prendió' : 'Apagó'} el código ${code.toUpperCase()}`
 			});
 		}
 		return ok
 			? {
 					toggle: {
 						ok: true,
-						message: `Código ${code.toUpperCase()} ${active ? 'activado' : 'desactivado'}.`
+						message: `Código ${code.toUpperCase()} ${active ? 'prendido' : 'apagado'}.`
 					}
 				}
 			: fail(404, { toggle: { ok: false, message: 'No encontramos ese código.' } });

@@ -502,7 +502,7 @@
 						<span class="chip"
 							>{a}<button
 								type="button"
-								aria-label="Quitar {a}"
+								aria-label="Sacar {a}"
 								on:click={() => queue({ type: 'removeAlias', id: n.id, alias: a }, n.id)}
 								><X size={12} /></button
 							></span
@@ -512,7 +512,7 @@
 						<span class="chip variant" title="Variante de escritura (aliasOf)"
 							>{a}<button
 								type="button"
-								aria-label="Quitar {a}"
+								aria-label="Sacar {a}"
 								on:click={() => queue({ type: 'removeAlias', id: n.id, alias: a }, n.id)}
 								><X size={12} /></button
 							></span

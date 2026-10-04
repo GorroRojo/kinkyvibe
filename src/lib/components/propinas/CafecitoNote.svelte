@@ -1,5 +1,5 @@
 <script>
-	// La nota de siempre al pie de las publicaciones de KinkyVibe (con el interruptor `propinas`
+	// La nota de siempre al pie de las publicaciones de Kinky Vibe (con el interruptor `propinas`
 	// apagado, es lo que se ve). Antes estaba copiada en material y en calendario.
 	import Note from '$lib/components/Note.svelte';
 </script>

@@ -1,5 +1,5 @@
 <script>
-	import { argFormat } from '$lib/utils/dates.js';
+	import { argDateLog } from '$lib/utils/dates.js';
 	import { applyAction, enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
@@ -357,16 +357,6 @@
 			}
 		};
 	}
-
-	// La hora del «guardado»: 24 h, hora de Argentina (es-AR a secas puede salir con «p. m.»).
-	const savedAtFmt = argFormat({
-		year: 'numeric',
-		month: 'numeric',
-		day: 'numeric',
-		hour: 'numeric',
-		minute: 'numeric',
-		second: 'numeric'
-	});
 </script>
 
 <svelte:head>
@@ -519,7 +509,7 @@
 		{#if form?.save}
 			<p class="note" role="status">
 				✅ {form.save}
-				{savedAtFmt.format(new Date())}
+				{argDateLog(new Date())}
 				<br />{#if form.savedToDb}Se ve enseguida en el sitio.{:else}<PublishStatus
 						pr={form.publish}
 					/>{/if}

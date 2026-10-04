@@ -337,7 +337,7 @@ describe('prendido: series de varias palabras y alias (el link usa guiones)', ()
 			expect(text.match(/BEGIN:VEVENT/g)).toHaveLength(2);
 			expect(text).toContain('UID:rancheadita-prueba-2@kinkyvibe.ar');
 			expect(text).not.toContain('serie-prueba-');
-			expect(text).toContain('X-WR-CALNAME:Rancheadita Kinky · KinkyVibe');
+			expect(text).toContain('X-WR-CALNAME:Rancheadita Kinky · Kinky Vibe');
 		}
 	});
 
@@ -478,7 +478,7 @@ describe('prendido: calendarios .ics', () => {
 		expect(text).toContain('UID:serie-prueba-3@kinkyvibe.ar');
 		expect(text).not.toContain('otra-cosa');
 		expect(text).not.toContain('privado-no-listado');
-		expect(text).toContain('X-WR-CALNAME:Picantearla · KinkyVibe');
+		expect(text).toContain('X-WR-CALNAME:Picantearla · Kinky Vibe');
 	});
 
 	it('personal: solo tus eventos (también no listados), sin mails; revocado deja de andar', async () => {

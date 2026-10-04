@@ -118,13 +118,13 @@
 		organizer: {
 			'@type': data.meta.tags?.includes('KinkyVibe') ? 'Organization' : 'Person',
 			name: data.meta.tags?.includes('KinkyVibe')
-				? 'KinkyVibe'
-				: (data.meta.authors?.[0] ?? 'KinkyVibe'),
+				? 'Kinky Vibe'
+				: (data.meta.authors?.[0] ?? 'Kinky Vibe'),
 			url:
 				'https://kinkyvibe.ar/' +
 				(data.meta.tags?.includes('KinkyVibe')
-					? 'KinkyVibe'
-					: (data.meta.authors?.[0] ?? 'KinkyVibe'))
+					? 'Kinky Vibe'
+					: (data.meta.authors?.[0] ?? 'Kinky Vibe'))
 		}
 		//   "offers": {
 		//     "@type": "Offer",
@@ -268,7 +268,7 @@
 				{:else}
 					<p class="buy-closed">
 						{t.reason === 'soldout'
-							? 'Entradas agotadas.'
+							? 'Agotadas.'
 							: t.reason === 'closed'
 								? 'Venta cerrada.'
 								: t.reason === 'notyet' && t.opensAt

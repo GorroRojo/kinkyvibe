@@ -22,19 +22,19 @@ describe('buildCommands', () => {
 			'Cargar evento',
 			'Importar planilla',
 			'Nuevo código de descuento',
-			'Abrir check-in de hoy'
+			'Abrir la puerta de hoy'
 		])
 			expect(labels).toContain(l);
 		expect(cmds.every((c) => c.href || c.run)).toBe(true);
 	});
-	it('con un evento hoy, "Abrir check-in de hoy" va directo a su modo puerta', () => {
+	it('con un evento hoy, "Abrir la puerta de hoy" va directo a su Puerta', () => {
 		const cmds = buildCommands({
 			today: [
 				{ slug: 'picantearla', title: 'Picantearla', href: '/admin/ventas/picantearla/ingreso' }
 			]
 		});
 		const c = cmds.find((x) => x.id === 'checkin-today:picantearla');
-		expect(c).toMatchObject({ label: 'Abrir check-in de hoy: Picantearla' });
+		expect(c).toMatchObject({ label: 'Abrir la puerta de hoy: Picantearla' });
 		expect(c?.href).toBe('/admin/ventas/picantearla/ingreso');
 	});
 });

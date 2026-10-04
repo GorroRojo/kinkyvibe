@@ -1,6 +1,7 @@
 /**
  * Email con las entradas, enviado con la API REST de Resend (POST https://api.resend.com/emails).
  */
+import { argDateTimeLong } from '$lib/utils/dates.js';
 import { formatARS } from '$lib/utils/money.js';
 import { fondoOptionLabel, holdHours, orderReference, refundPolicy } from '$lib/utils/tickets.js';
 import {
@@ -114,10 +115,10 @@ export function priceLines(order, typeName) {
 			? `${order.quantity} × ${typeName} (a la gorra, ${formatARS(order.unit_price)} c/u): ${formatARS(order.unit_price * order.quantity)}`
 			: `${order.quantity} × ${typeName}: ${formatARS(order.unit_price * order.quantity)}`
 	];
-	if (order.fondo_amount) lines.push(`Fondo KinkyVibe: −${formatARS(order.fondo_amount)}`);
+	if (order.fondo_amount) lines.push(`Fondo Kinky Vibe: −${formatARS(order.fondo_amount)}`);
 	if (order.fondo_contribution) {
 		lines.push(
-			`${fondoOptionLabel(order.fondo_option)}, aporte al Fondo KinkyVibe: +${formatARS(order.fondo_contribution)}`
+			`${fondoOptionLabel(order.fondo_option)}, aporte al Fondo Kinky Vibe: +${formatARS(order.fondo_contribution)}`
 		);
 	}
 	if (order.discount_amount) {
@@ -149,14 +150,7 @@ export function formatEventDate(start) {
 	if (!start) return '';
 	const d = new Date(start);
 	if (Number.isNaN(d.getTime())) return String(start);
-	return (
-		d.toLocaleString('es-AR', {
-			dateStyle: 'full',
-			timeStyle: 'short',
-			hourCycle: 'h23',
-			timeZone: 'America/Argentina/Buenos_Aires'
-		}) + ' hs'
-	);
+	return argDateTimeLong(d);
 }
 
 /** @param {string} email */

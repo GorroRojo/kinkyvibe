@@ -517,7 +517,7 @@ export async function buyAction(event) {
 		return failWith(
 			409,
 			state.reason === 'closed'
-				? 'La venta ya cerró.'
+				? 'Venta cerrada.'
 				: state.reason === 'notyet' && config.opensAt
 					? `La venta todavía no abrió: abre el ${formatSaleTime(config.opensAt)}.`
 					: 'No hay entradas a la venta.'

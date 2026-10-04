@@ -1,4 +1,5 @@
 <script>
+	import { argDateTimeLong } from '$lib/utils/dates.js';
 	import TicketPurchase from '$lib/components/TicketPurchase.svelte';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { doorText } from '$lib/utils/tickets.js';
@@ -17,16 +18,7 @@
 		currentPostData.set({ category: 'calendario', path: $page.url.pathname });
 	});
 
-	let when = $derived(
-		data.meta.start
-			? new Date(data.meta.start).toLocaleString('es-AR', {
-					dateStyle: 'full',
-					timeStyle: 'short',
-					hourCycle: 'h23',
-					timeZone: 'America/Argentina/Buenos_Aires'
-				}) + ' hs'
-			: ''
-	);
+	let when = $derived(data.meta.start ? argDateTimeLong(data.meta.start) : '');
 	// Con lugar vinculado, el lugar según su privacidad (nunca el «Dónde» del .md).
 	let where = $derived(
 		data.tickets.online

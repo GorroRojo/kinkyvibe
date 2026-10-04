@@ -1,7 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { formatARS } from '$lib/utils/money.js';
-	import { TIMEZONE } from '$lib/utils/dates.js';
+	import { TIMEZONE, argDateList } from '$lib/utils/dates.js';
 
 	export let data;
 	export let form;
@@ -109,7 +109,7 @@
 					<li>
 						<a href="/entradas/{o.id}/estado">
 							<strong>{o.event}</strong>
-							{#if o.eventStart}<span class="hint">{fmtDate(o.eventStart)}</span>{/if}
+							{#if o.eventStart}<span class="hint">{argDateList(o.eventStart)}</span>{/if}
 						</a>
 						<span>
 							{o.quantity === 1 ? '1 entrada' : `${o.quantity} entradas`} · {formatARS(o.total)} · {STATUS[

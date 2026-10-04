@@ -1,5 +1,5 @@
 /**
- * Descuento automático del Fondo KinkyVibe: el porcentaje del mes sale de
+ * Descuento automático del Fondo Kinky Vibe: el porcentaje del mes sale de
  * https://fondo.kinkyvibe.ar/api/porcentaje (`{ percent, collected, goal, step, updatedAt }`,
  * `percent` de 0 a 100 en pasos de 10) y se aplica a todos los tipos de entrada con precio
  * (fondo = round(precio × percent / 100), al peso).

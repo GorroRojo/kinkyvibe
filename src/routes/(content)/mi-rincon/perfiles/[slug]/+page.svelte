@@ -1,7 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { KIND_LABELS, ROLE_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
-	import { TIMEZONE } from '$lib/utils/dates.js';
+	import { TIMEZONE, argDateList } from '$lib/utils/dates.js';
 	import { VENUE_PRIVACY_LABELS, VENUE_PRIVACY_UNSET_LABEL } from '$lib/utils/venues.js';
 	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
 	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
@@ -548,7 +548,7 @@
 				{#each data.organizes as ev (ev.slug)}
 					<li>
 						<a href="/mi-rincon/perfiles/{p.slug}/respuestas/{ev.slug}">{ev.title}</a>
-						{#if ev.start}<span class="hint">{fmtDate(Date.parse(ev.start))}</span>{/if}
+						{#if ev.start}<span class="hint">{argDateList(ev.start)}</span>{/if}
 					</li>
 				{/each}
 			</ul>

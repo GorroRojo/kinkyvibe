@@ -1,5 +1,5 @@
 <script>
-	import { argFormat } from '$lib/utils/dates.js';
+	import { argFormat, argDateLog } from '$lib/utils/dates.js';
 	/**
 	 * Inicio del panel: saludo, "Hoy" (si hay un evento hoy), acciones rápidas, plata del mes,
 	 * "para revisar", "desde tu última visita" y todos los próximos eventos; en una columna a la
@@ -92,13 +92,6 @@
 		day: 'numeric',
 		month: 'short'
 	});
-	const whenFmt = argFormat({
-		weekday: 'short',
-		day: 'numeric',
-		month: 'short',
-		hour: '2-digit',
-		minute: '2-digit'
-	});
 	/** @param {string} iso */
 	const monthDay = (iso) => shortFmt.format(new Date(iso + 'T12:00:00-03:00'));
 
@@ -108,7 +101,7 @@
 		if (diff < 60_000) return 'recién';
 		if (diff < 3_600_000) return `hace ${Math.round(diff / 60_000)} min`;
 		if (diff < 86_400_000) return `hace ${Math.round(diff / 3_600_000)} h`;
-		return whenFmt.format(ms);
+		return argDateLog(ms);
 	}
 
 	/**
@@ -137,7 +130,7 @@
 
 	/** @type {import('$lib/admin/csv.js').CsvColumn<import('$lib/server/admin/inicio.js').ActivityItem>[]} */
 	const activityColumns = [
-		{ label: 'Cuándo', value: (r) => whenFmt.format(r.at) },
+		{ label: 'Cuándo', value: (r) => argDateLog(r.at) },
 		{ label: 'Qué', key: 'title' },
 		{ label: 'Quién', key: 'who' },
 		{ label: 'Detalle', key: 'detail' }
@@ -218,7 +211,7 @@
 				>
 				{#if checkinQuick}
 					<a class="kv-btn ghost" href={checkinQuick}
-						><ScanLine size={18} aria-hidden="true" /> Check-in</a
+						><ScanLine size={18} aria-hidden="true" /> Puerta</a
 					>
 				{/if}
 				<a class="kv-btn ghost" href="/admin/ventas/codigos"
@@ -251,7 +244,7 @@
 				{/if}
 				{#if fondo}
 					<Stat
-						label="Fondo KinkyVibe: suscripciones"
+						label="Fondo Kinky Vibe: suscripciones"
 						value={formatARS(fondo.collected)}
 						sub="{fondoPct} % de la meta ({formatARS(fondo.goal)}) · del {monthDay(
 							fondo.window.startDate
@@ -268,11 +261,11 @@
 					<Stat
 						label="Descuento del Fondo"
 						value="{fondo.percent} %"
-						sub="en las entradas de eventos KinkyVibe este mes"
+						sub="en las entradas de eventos de Kinky Vibe este mes"
 					/>
 				{:else}
 					<Stat
-						label="Fondo KinkyVibe: suscripciones"
+						label="Fondo Kinky Vibe: suscripciones"
 						value="—"
 						sub="no pudimos leer fondo.kinkyvibe.ar"
 					/>

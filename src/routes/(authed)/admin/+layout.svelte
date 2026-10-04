@@ -36,12 +36,14 @@
 	import NavIcon from '$lib/components/admin/panel/NavIcon.svelte';
 	import SideNav from '$lib/components/admin/panel/SideNav.svelte';
 	import MoreAreas from '$lib/components/admin/panel/MoreAreas.svelte';
+	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import {
 		MOBILE_TABS,
 		REVIEW_LINK,
 		activeNavItem,
 		navItem,
-		reviewCountOf
+		reviewCountOf,
+		sectionTabs
 	} from '$lib/admin/nav.js';
 	import { readHideSoon, saveHideSoon } from '$lib/admin/navPrefs.js';
 	import {
@@ -70,6 +72,8 @@
 	/** Una página con `wide: true` en su load (la agenda) usa todo el ancho, sin el máximo de siempre. */
 	$: wide = $page.data?.wide === true;
 	$: active = activeNavItem($page.url.pathname);
+	// Pestañas de sección (como las de Ajustes) arriba de cada sección de un grupo del menú.
+	$: tabsHere = sectionTabs($page.url.pathname, { flags });
 	/** @type {Record<string, number>} */
 	$: counts = data.panelCounts ?? {};
 	/** @type {Record<string, boolean>} */
@@ -222,7 +226,7 @@
 <svelte:head>
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -- string fijo, ver theme.js -->
 	{@html THEME_HEAD_SCRIPT}
-	<title>Panel · KinkyVibe</title>
+	<title>Panel · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -236,7 +240,7 @@
 		<div class="app">
 			<aside class="side" aria-label="Secciones del panel">
 				<a class="brand" href="/admin">
-					<img src={logo} alt="KinkyVibe" width="64" height="64" />
+					<img src={logo} alt="Kinky Vibe" width="64" height="64" />
 					<span class="pill">Panel de admin</span>
 				</a>
 				<SideNav {active} {counts} {flags} {hideSoon} />
@@ -309,7 +313,7 @@
 
 				<header class="mtop">
 					<a href="/admin" class="mlogo" aria-label="Inicio del panel"
-						><img src={logo} alt="KinkyVibe" width="44" height="44" /></a
+						><img src={logo} alt="Kinky Vibe" width="44" height="44" /></a
 					>
 					<SearchBox compact hotkeys={false} />
 					<a class="site" href="/" target="_blank" rel="noopener" title="Ver el sitio"
@@ -338,6 +342,7 @@
 				</header>
 
 				<main class="page" class:wide>
+					{#if tabsHere}<Tabs label={tabsHere.label} tabs={tabsHere.tabs} />{/if}
 					<slot />
 				</main>
 			</div>

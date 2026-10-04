@@ -56,7 +56,7 @@
 			? `Pasa el cupo de «${type.name}»: quedarían ${type.taken + count} / ${type.capacity}.`
 			: '',
 		count > data.maxPerPurchase ? `Son más de ${data.maxPerPurchase} entradas por compra.` : '',
-		data.salesClosed || (type && !type.open) ? 'La venta ya cerró.' : ''
+		data.salesClosed || (type && !type.open) ? 'Venta cerrada.' : ''
 	].filter(Boolean);
 
 	/** @type {import('./$types').SubmitFunction} */

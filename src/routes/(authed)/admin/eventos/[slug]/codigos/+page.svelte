@@ -23,7 +23,7 @@
 	/** @typedef {(typeof data.codes)[number]} Code */
 	/** @param {Code} c */
 	function codeState(c) {
-		if (!c.active) return 'Inactivo';
+		if (!c.active) return 'Apagado';
 		if (c.ends_at !== null && data.now >= c.ends_at) return 'Vencido';
 		if (c.starts_at !== null && data.now < c.starts_at) return 'Todavía no empieza';
 		if (c.max_uses !== null && c.approved + c.held >= c.max_uses) return 'Sin usos disponibles';
@@ -96,7 +96,7 @@
 										<input type="hidden" name="code" value={c.code} />
 										<input type="hidden" name="active" value={c.active ? '0' : '1'} />
 										<button type="submit" class="kv-btn ghost small">
-											{c.active ? 'Desactivar' : 'Activar'}
+											{c.active ? 'Apagar' : 'Prender'}
 										</button>
 									</form>
 								</td>

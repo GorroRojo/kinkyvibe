@@ -32,10 +32,10 @@ describe('Footer', () => {
 		expect(body).toContain('Entrar al panel');
 	});
 
-	it('cuentas prendido sin sesión: "Tu cuenta" con Ingresar', () => {
+	it('cuentas prendido sin sesión: "Tu cuenta" con Entrar', () => {
 		const body = html({ cuentas: true, member: false });
 		expect(body).toContain('Tu cuenta');
-		expect(body).toMatch(/href="\/ingresar"[^>]*>[\s\S]*?Ingresar/);
+		expect(body).toMatch(/href="\/ingresar"[^>]*>(?:(?!<\/a>)[\s\S])*Entrar\s*<\/a>/);
 		expect(body).not.toContain('href="/mi-rincon"');
 	});
 
