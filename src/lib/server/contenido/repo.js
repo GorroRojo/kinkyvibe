@@ -39,7 +39,8 @@ import { markdownToPost, postToMarkdown } from './markdown.js';
 import { revisionStatement } from './revisions.js';
 import {
 	dehydratePersonas,
-	hydratePersonas,
+	personaEdgesColumn,
+	personaEdgesFromColumn,
 	personaEdgesOf,
 	withPersonaEdges
 } from './personasEdges.js';
@@ -155,14 +156,17 @@ export async function findDbPostObject(db, category, slug) {
 	// tipo por el `OR` entre las dos tablas. Mismo orden: primero la dirección vieja, después la del
 	// objeto.
 	// Panel (solo admins): ve todo, también lo oculto y lo borrado.
+	// Los edges `persona` van en la misma consulta (./personasEdges.js): la lista de personas entera.
 	const row = await db
 		.prepare(
-			`SELECT ${OBJECT_COLUMNS}, legacy_slug FROM (
-				SELECT ${prefixed('o')}, s.legacy_slug, 0 AS pri FROM content_sources s
+			`SELECT ${OBJECT_COLUMNS}, legacy_slug, persona_edges FROM (
+				SELECT ${prefixed('o')}, s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
+					0 AS pri FROM content_sources s
 				JOIN objects o ON o.id = s.object_id AND o.type = ?1
 				WHERE s.category = ?2 AND s.legacy_slug = ?3
 				UNION ALL
-				SELECT ${prefixed('o')}, s.legacy_slug, 1 AS pri FROM objects o
+				SELECT ${prefixed('o')}, s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
+					1 AS pri FROM objects o
 				LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
 				WHERE o.type = ?1 AND o.slug = ?3
 			) ORDER BY pri LIMIT 1`
@@ -171,11 +175,14 @@ export async function findDbPostObject(db, category, slug) {
 		.first();
 	if (!row) return null;
 	// El objeto como lo da getObject(): sin la dirección vieja.
-	const { legacy_slug: legacy, ...columns } = row;
+	const { legacy_slug: legacy, persona_edges: personas, ...columns } = row;
 	const object = rowToObject(columns);
 	if (!canSee(object, PANEL, { includeDeleted: true })) return null;
-	// Con la lista de personas entera (los perfiles son edges: ./personasEdges.js).
-	const [full] = await hydratePersonas(db, [forViewer(object, PANEL)]);
+	const seen = forViewer(object, PANEL);
+	const full =
+		seen.type === 'evento'
+			? { ...seen, data: withPersonaEdges(seen.data, personaEdgesFromColumn(personas)) }
+			: seen;
 	return asPostObject(category, full, legacy ? String(legacy) : null);
 }
 

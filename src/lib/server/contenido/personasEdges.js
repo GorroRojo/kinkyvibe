@@ -192,6 +192,36 @@ export async function personaEdgesOf(db, ids) {
 }
 
 /**
+ * Para leer los edges `persona` en la MISMA consulta que el objeto (sin una vuelta más a la base):
+ * una columna con la lista `[{ slug, data }]` como JSON, para la fila de `objects` con ese alias.
+ * Se lee con {@link personaEdgesFromColumn}.
+ *
+ * @param {string} alias
+ */
+export function personaEdgesColumn(alias) {
+	return `(SELECT json_group_array(json_object('slug', p.slug, 'data', json(e.data)))
+		FROM (SELECT * FROM edges WHERE from_id = ${alias}.id AND kind = '${PERSONA_EDGE}'
+			ORDER BY position, id) e
+		JOIN objects p ON p.id = e.to_id)`;
+}
+
+/**
+ * @param {unknown} value la columna de {@link personaEdgesColumn}
+ * @returns {PersonaEdgeRow[]}
+ */
+export function personaEdgesFromColumn(value) {
+	if (typeof value !== 'string' || !value) return [];
+	try {
+		const list = JSON.parse(value);
+		return Array.isArray(list)
+			? list.filter(isRecord).map((e) => ({ slug: String(e.slug), data: e.data ?? null }))
+			: [];
+	} catch {
+		return [];
+	}
+}
+
+/**
  * Pura: `data` de un evento con la lista entera (lo de `data.personas` más los edges). Sin edges,
  * tal cual. Lo guardado con la forma de antes de la lista única (`authors` + `extra.personas`) que
  * tenga edges pasa primero a la lista única (los `at` cuentan sobre ella).
