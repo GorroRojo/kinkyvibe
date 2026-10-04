@@ -59,8 +59,7 @@
 							<div class="what">
 								<b>{r.title}</b>
 								<small class="muted"
-									>{KIND[r.kind] ?? r.kind} · <code>{r.slug}</code> · {argDateLog(r.deletedAt)} por
-									@{r.deletedBy}{r.mediaCount
+									>{KIND[r.kind] ?? r.kind} · <code>{r.slug}</code> · {argDateLog(r.deletedAt)} por @{r.deletedBy}{r.mediaCount
 										? ` · ${r.mediaCount} ${r.mediaCount === 1 ? 'imagen' : 'imágenes'}`
 										: ''}</small
 								>

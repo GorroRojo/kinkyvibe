@@ -140,8 +140,8 @@
 			(el porcentaje del mes de fondo.kinkyvibe.ar) y se ofrecen las opciones solidarias. No hay nada
 			que cargar.
 		{:else}
-			Sin la etiqueta KinkyVibe: este evento <strong>no usa el Fondo Kinky Vibe</strong> (se cobra el precio
-			de lista). Para usarlo, prendé «Lo organiza Kinky Vibe» en Etiquetas.
+			Sin la etiqueta KinkyVibe: este evento <strong>no usa el Fondo Kinky Vibe</strong> (se cobra el
+			precio de lista). Para usarlo, prendé «Lo organiza Kinky Vibe» en Etiquetas.
 		{/if}
 	</p>
 
@@ -452,14 +452,12 @@
 						>
 					</label>
 					<small
-						>La página del evento avisa que también hay entradas en la puerta, y en Puerta
-						se puede «Vender en puerta».{#if !state.doorSet && state.types.some((t) => t.origId)}{' '}(Este
+						>La página del evento avisa que también hay entradas en la puerta, y en Puerta se puede
+						«Vender en puerta».{#if !state.doorSet && state.types.some((t) => t.origId)}{' '}(Este
 							evento todavía no lo tenía elegido: al guardar queda prendido.){/if}</small
 					>
 				{:else}
-					<small
-						>La página del evento dice «Solo anticipadas» y Puerta no ofrece vender.</small
-					>
+					<small>La página del evento dice «Solo anticipadas» y Puerta no ofrece vender.</small>
 				{/if}
 			</fieldset>
 		{/if}

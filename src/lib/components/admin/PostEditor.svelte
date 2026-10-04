@@ -400,7 +400,6 @@
 			}
 		};
 	}
-
 </script>
 
 <svelte:head>

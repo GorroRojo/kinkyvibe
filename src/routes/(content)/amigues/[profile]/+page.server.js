@@ -72,8 +72,7 @@ export const actions = {
 		if (!db || !(await perfilesPublicosEnabled(platform)) || !(await cuentasEnabled(platform))) {
 			error(404, 'Not found');
 		}
-		if (!locals.member)
-			return fail(401, { claim: { ok: false, message: 'Entrá para pedirlo.' } });
+		if (!locals.member) return fail(401, { claim: { ok: false, message: 'Entrá para pedirlo.' } });
 		const ref = await resolveProfileSlug(db, params.profile);
 		const form = await request.formData();
 		const message = form.get('mensaje');

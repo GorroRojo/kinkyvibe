@@ -17,7 +17,6 @@
 	/** Familias que aparecen en el registro (la parte antes del punto de cada acción). */
 	$: families = [...new Set(data.facets.actions.map((a) => a.split('.')[0]))];
 
-
 	/** @param {string} action */
 	function tone(action) {
 		if (/refund|cancel|deactivate|clear/.test(action)) return 'bad';

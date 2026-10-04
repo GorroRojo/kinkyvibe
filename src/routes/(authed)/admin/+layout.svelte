@@ -36,12 +36,14 @@
 	import NavIcon from '$lib/components/admin/panel/NavIcon.svelte';
 	import SideNav from '$lib/components/admin/panel/SideNav.svelte';
 	import MoreAreas from '$lib/components/admin/panel/MoreAreas.svelte';
+	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import {
 		MOBILE_TABS,
 		REVIEW_LINK,
 		activeNavItem,
 		navItem,
-		reviewCountOf
+		reviewCountOf,
+		sectionTabs
 	} from '$lib/admin/nav.js';
 	import { readHideSoon, saveHideSoon } from '$lib/admin/navPrefs.js';
 	import {
@@ -70,6 +72,8 @@
 	/** Una página con `wide: true` en su load (la agenda) usa todo el ancho, sin el máximo de siempre. */
 	$: wide = $page.data?.wide === true;
 	$: active = activeNavItem($page.url.pathname);
+	// Pestañas de sección (como las de Ajustes) arriba de cada sección de un grupo del menú.
+	$: tabsHere = sectionTabs($page.url.pathname, { flags });
 	/** @type {Record<string, number>} */
 	$: counts = data.panelCounts ?? {};
 	/** @type {Record<string, boolean>} */
@@ -338,6 +342,7 @@
 				</header>
 
 				<main class="page" class:wide>
+					{#if tabsHere}<Tabs label={tabsHere.label} tabs={tabsHere.tabs} />{/if}
 					<slot />
 				</main>
 			</div>

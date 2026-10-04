@@ -107,12 +107,8 @@ describe('argDateTimeLong (encabezados)', () => {
 	});
 
 	it('midnight is 00:00 of the next day, and after midnight stays in 24 h', () => {
-		expect(argDateTimeLong('2026-10-03T00:00:00-03:00')).toBe(
-			'sábado 3 de octubre de 2026, 00:00'
-		);
-		expect(argDateTimeLong('2026-10-03T01:30:00-03:00')).toBe(
-			'sábado 3 de octubre de 2026, 01:30'
-		);
+		expect(argDateTimeLong('2026-10-03T00:00:00-03:00')).toBe('sábado 3 de octubre de 2026, 00:00');
+		expect(argDateTimeLong('2026-10-03T01:30:00-03:00')).toBe('sábado 3 de octubre de 2026, 01:30');
 		expect(argDateTimeLong('2026-10-02T12:00:00-03:00')).toBe(
 			'viernes 2 de octubre de 2026, 12:00'
 		);

@@ -25,6 +25,7 @@ import {
 	navLink,
 	navState,
 	reviewCountOf,
+	sectionTabs,
 	soonItemAt
 } from './nav.js';
 import { buildCommands, matchCommands } from './commands.js';
@@ -344,6 +345,56 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 		expect(groupCount('comunidad', counts)).toBe(3);
 		expect(groupCount('contenido', counts)).toBe(4);
 		expect(groupCount('no-existe', counts)).toBe(0);
+	});
+});
+
+describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
+	/** @param {string} path @param {Record<string, boolean>} [flags] */
+	const labels = (path, flags) => sectionTabs(path, { flags })?.tabs.map((t) => t.label) ?? null;
+	it('Ajustes: todas sus secciones, también Propinas y Actividad', () => {
+		expect(labels('/admin/ajustes/cobros')).toEqual([
+			'Cobros',
+			'Fondo',
+			'Propinas',
+			'Mails y envíos',
+			'Admins',
+			'Interruptores',
+			'Actividad'
+		]);
+		expect(sectionTabs('/admin/ajustes/actividad/')?.label).toBe('Secciones de Ajustes');
+	});
+	it('los grupos con varias áreas suman sus secciones (sin lo que viene)', () => {
+		expect(labels('/admin/ventas')).toEqual([
+			'Todas las ventas',
+			'Transferencias',
+			'Códigos',
+			'Ventas en el tiempo'
+		]);
+		expect(labels('/admin/estadisticas')).toEqual(labels('/admin/ventas'));
+		expect(labels('/admin/mensajes/plantillas')).toEqual([
+			'Personas',
+			'Perfiles',
+			'Cuentas',
+			'Plantillas'
+		]);
+		expect(labels('/admin/etiquetas')).toEqual([
+			'Material',
+			'No listadas',
+			'En la base',
+			'Árbol de etiquetas'
+		]);
+	});
+	it('con el interruptor apagado, lo que da 404 no aparece', () => {
+		expect(labels('/admin/ajustes/cobros', { propinas: false })).toContain('Propinas');
+		expect(labels('/admin/eventos/agenda', { series: false })).toBe(null);
+	});
+	it('no van en Eventos, en Inicio, en subpáginas ni en lo que viene', () => {
+		expect(sectionTabs('/admin')).toBe(null);
+		expect(sectionTabs('/admin/eventos')).toBe(null);
+		expect(sectionTabs('/admin/checkin')).toBe(null);
+		expect(sectionTabs('/admin/comunidad/personas/123')).toBe(null);
+		expect(sectionTabs('/admin/ventas/tienda')).toBe(null);
+		expect(sectionTabs('/admin/eventos/importar')).toBe(null);
 	});
 });
 

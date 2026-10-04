@@ -16,7 +16,6 @@
 	export let limit = Infinity;
 	export let compact = false;
 
-
 	/** @param {number} ms */
 	function ago(ms) {
 		const diff = now - ms;

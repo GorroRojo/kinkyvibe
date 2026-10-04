@@ -18,10 +18,7 @@
 		currentPostData.set({ category: 'calendario', path: $page.url.pathname });
 	});
 
-	let when = $derived(
-		data.meta.start
-? argDateTimeLong(data.meta.start) : ''
-	);
+	let when = $derived(data.meta.start ? argDateTimeLong(data.meta.start) : '');
 	// Con lugar vinculado, el lugar según su privacidad (nunca el «Dónde» del .md).
 	let where = $derived(
 		data.tickets.online

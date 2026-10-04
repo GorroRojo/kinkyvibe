@@ -1,9 +1,7 @@
 <script>
 	import '$lib/admin/panel-forms.scss';
-	import { AJUSTES_TABS } from '$lib/admin/ajustes.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
-	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import { brokenImage } from '$lib/admin/brokenImage.js';
 
@@ -17,8 +15,6 @@
 </script>
 
 <PageHeader title="Admins" subtitle="Quién puede entrar al panel." />
-<Tabs tabs={[...AJUSTES_TABS]} />
-
 <div class="kv-stack settings">
 	<Card padded={false}>
 		<ul class="admins">

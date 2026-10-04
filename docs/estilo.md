@@ -134,3 +134,18 @@ armar una variante nueva en un componente.
 
 Íconos: los de [Lucide](https://lucide.dev) (`@lucide/svelte`) en la interfaz. Los emoji quedan
 para el contenido y las etiquetas.
+
+## Textos
+
+Las palabras del panel y del sitio, con las decisiones de gorrite de la revisión de UI (paso 3).
+Valen para el texto que se ve; los ids de etiquetas, las URLs, los slugs, los valores de la base y
+el dominio no cambian.
+
+| Qué                 | Cómo                                                                                                                                                                                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Iniciar sesión      | **«Entrar»** («Entrar con GitHub», «Entrá a tu cuenta…»). Nunca «Iniciar sesión» ni «Ingresar».                                                                                                                                              |
+| Modo puerta         | **«Puerta»**: la sección del menú (`/admin/checkin`), la pestaña de la ficha del evento y la pantalla de escanear. No «Check-in», «Ingreso» ni «Modo puerta».                                                                                |
+| La marca            | **«Kinky Vibe»** (dos palabras). No en la etiqueta `KinkyVibe`, las URLs, el dominio, el código ni los asuntos de los mails (por ahora siguen con «KinkyVibe»).                                                                              |
+| Verbos              | «Borrar» (contenido), «Sacar» (de una lista o relación), «Apagar»/«Prender» (interruptores, códigos), «Guardar» (lo que ya existe), «Crear» (lo nuevo).                                                                                      |
+| Estados de la venta | «Agotadas» y «Venta cerrada».                                                                                                                                                                                                                |
+| Fechas              | Listas: `vie 2 oct · 22:00` (`argDateList`). Encabezados y mails: `viernes 2 de octubre de 2026, 22:00` (`argDateTimeLong`). Registros: «hace X» o `2/10/26 13:43` (`argDateLog`). Sin fechas ISO ni «hs». Todo en `src/lib/utils/dates.js`. |

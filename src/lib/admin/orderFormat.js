@@ -1,5 +1,5 @@
 /** Textos de las órdenes en el panel (pestañas Órdenes y Transferencias de la ficha). */
-
+import { argDateLog } from '$lib/utils/dates.js';
 export const ORDER_STATUS = /** @type {Record<string, string>} */ ({
 	pending: 'Pendiente',
 	awaiting_transfer: 'Esperando transferencia',

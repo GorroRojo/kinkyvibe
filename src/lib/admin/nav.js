@@ -783,6 +783,29 @@ export function navGroupItems(group, opts) {
 }
 
 /**
+ * Pestañas de sección (como las de Ajustes): en la página principal de cada sección de un grupo
+ * del menú con dos o más secciones, una barra con todas las secciones del grupo, así se pasa de
+ * una a otra sin abrir el menú. Las del grupo Eventos no llevan (son herramientas con su propia
+ * barra: la lista, la agenda, Puerta…), ni las subpáginas (fichas, formularios), ni lo que viene.
+ * `null` si la página no lleva.
+ * @param {string} pathname
+ * @param {{ flags?: Record<string, boolean> }} [opts]
+ * @returns {{ label: string, tabs: { href: string, label: string }[] } | null}
+ */
+export function sectionTabs(pathname, { flags = {} } = {}) {
+	const path = pathname.replace(/\/+$/, '') || '/';
+	const item = NAV.find((i) => i.href === path && !i.soon && i.menu !== false);
+	const group = navGroupOf(item?.area);
+	if (!item || !group || group.id === 'eventos' || navState(item, flags) === 'hidden') return null;
+	const items = navGroupItems(group.id, { flags, hideSoon: true });
+	if (items.length < 2) return null;
+	return {
+		label: `Secciones de ${group.label}`,
+		tabs: items.map((i) => ({ href: i.href, label: i.label }))
+	};
+}
+
+/**
  * Suma de los contadores de un grupo del menú (se muestra en el grupo cerrado).
  * @param {string} group
  * @param {Record<string, number>} counts

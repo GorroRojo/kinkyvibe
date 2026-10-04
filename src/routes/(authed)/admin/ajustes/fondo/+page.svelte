@@ -1,11 +1,10 @@
 <script>
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
-	import { AJUSTES_TABS, fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
+	import { fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
-	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 
 	export let data;
@@ -27,8 +26,6 @@
 </script>
 
 <PageHeader title="Fondo" subtitle="Descuento del Fondo Kinky Vibe en las entradas." />
-<Tabs tabs={[...AJUSTES_TABS]} />
-
 <form
 	class="kv-form settings"
 	method="POST"

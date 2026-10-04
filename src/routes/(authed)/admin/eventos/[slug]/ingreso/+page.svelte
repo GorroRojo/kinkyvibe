@@ -705,8 +705,7 @@
 <div class="door-root">
 	<div class="door">
 		<header class="bar">
-			<a class="round" href={backHref} aria-label="Salir de Puerta"><ArrowLeft size={24} /></a
-			>
+			<a class="round" href={backHref} aria-label="Salir de Puerta"><ArrowLeft size={24} /></a>
 			<div class="heading">
 				<h1>{data.title}</h1>
 				<p>Puerta · {wakeOk ? 'la pantalla no se apaga' : 'la pantalla puede apagarse'}</p>
