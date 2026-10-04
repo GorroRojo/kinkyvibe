@@ -62,26 +62,36 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'eventos-series': 'series ediciones recurrente repetir avisame',
 	'ajustes-personas': 'personas roles preguntas inscripcion organiza facilita campos',
 	checkin: 'check-in ingreso puerta qr escanear',
-	entradas: 'ventas entradas plata recaudado',
+	entradas: 'ventas entradas plata recaudado ordenes reembolso reembolsar devolver',
 	'entradas-transferencias': 'transferencias pagos comprobante confirmar',
 	'entradas-codigos': 'codigos descuento cupon',
 	propinas: 'propinas cafecito aportes donaciones',
-	personas: 'personas clientes compradores gente',
+	personas: 'personas clientes compradores gente ficha nota notas internas',
 	estadisticas: 'estadisticas graficos tendencias analytics',
-	'no-listadas': 'no listadas borradores ocultas',
+	'no-listadas': 'no listadas borradores ocultas sin listar',
 	'contenido-base': 'base de datos importar eventos md archivos migrar coinciden paridad',
-	'ajustes-cobros': 'ajustes cobros alias cbu mercado pago comision',
-	'ajustes-fondo': 'ajustes fondo porcentaje',
-	'ajustes-mails': 'ajustes de mails plantillas recordatorios remitente email envios',
-	'ajustes-plantillas': 'plantillas textos mails email compra recordatorio mensajes',
-	'ajustes-admins': 'admins permisos',
+	'ajustes-cobros':
+		'ajustes cobros alias cbu cvu mercado pago comision transferencia datos bancarios',
+	'ajustes-fondo': 'ajustes fondo porcentaje kinky vibe descuento solidaria',
+	'ajustes-mails':
+		'ajustes de mails plantillas recordatorios remitente email envios pie de mail firma',
+	'ajustes-plantillas':
+		'plantillas textos mails email compra recordatorio mensajes pie de mail asunto',
+	'ajustes-admins': 'admins permisos equipo organizadores github',
 	'ajustes-interruptores': 'ajustes interruptores funciones nuevas prender apagar activar flags',
 	'ajustes-automatizaciones':
 		'ajustes automatizaciones crons cron tareas programadas backup recordatorios mails automaticos bot telegram reglas',
-	cuentas: 'cuentas usuaries publico registradas',
+	cuentas: 'cuentas usuaries publico registradas contraseña entrar sesiones',
 	amigues:
 		'perfiles amigues personas proyectos lugares revisar aprobar pedidos es mi perfil importar fichas',
-	actividad: 'actividad registro auditoria historial quien cambio'
+	actividad: 'actividad registro auditoria historial quien cambio recuperar deshacer borrado',
+	etiquetas: 'etiquetas tags arbol kinkipedia wiki categorias alias renombrar juntar',
+	material: 'material guias articulos nota notas kinkipedia contenido publicaciones',
+	tienda: 'tienda productos merch vender',
+	'lo-que-sigo': 'lo que sigo seguimientos avisos seguir',
+	bandeja: 'bandeja mails recibidos respuestas inbox',
+	colecciones: 'colecciones listas agrupar material',
+	videos: 'videos grabaciones youtube'
 });
 
 /** Ícono (nombre de Lucide, ver SearchBox) de cada sección. */

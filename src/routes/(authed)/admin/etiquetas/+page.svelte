@@ -1,7 +1,7 @@
 <script>
 	import { deserialize } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import {
 		AlertTriangle,
 		ArrowRightLeft,
@@ -124,6 +124,12 @@
 	let moveTo = '';
 	let newAlias = '';
 	let childName = '';
+	// `?etiqueta=<id>` (el buscador del panel): abre el árbol con esa etiqueta elegida.
+	onMount(() => {
+		const id = new URL(location.href).searchParams.get('etiqueta');
+		if (id && byIdNow().has(id)) selectTag(id);
+	});
+
 	/** @param {string} id */
 	function selectTag(id) {
 		selected = id;

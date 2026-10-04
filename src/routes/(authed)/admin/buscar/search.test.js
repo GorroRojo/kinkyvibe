@@ -100,7 +100,11 @@ describe('/admin/buscar', () => {
 	it('busca eventos del bundle aunque no haya base de datos', async () => {
 		const res = await call('fiesta', { platform: {} });
 		const body = await res.json();
-		expect(body.groups).toHaveLength(1);
+		// Sin base: los eventos (y las etiquetas, que salen del árbol en memoria; «fiesta» también
+		// es una etiqueta). Nada de lo que sale de la base.
+		expect(body.groups.map((/** @type {any} */ g) => g.id).filter((id) => id !== 'tags')).toEqual([
+			'events'
+		]);
 		expect(body.groups[0].id).toBe('events');
 		expect(body.groups[0].items[0]).toMatchObject({
 			title: 'Fiesta Inventada',

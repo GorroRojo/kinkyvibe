@@ -1,6 +1,6 @@
 /**
  * Buscador global del panel (paleta de comandos): busca eventos, órdenes (`KV-…`, nombre o email
- * de quien compró), entradas (código corto), códigos de descuento y personas.
+ * de quien compró), entradas (código corto), códigos de descuento, personas, perfiles y etiquetas.
  *
  * Solo para admins (Q30). El DNI nunca sale de la base: si alguien busca por DNI, la consulta
  * devuelve solo los últimos 3 dígitos para mostrar "DNI ···123". Las búsquedas no se guardan.
@@ -86,6 +86,38 @@ export function searchEvents(events, q, { limit = 6, ticketed = new Set() } = {}
 }
 
 /**
+ * Etiquetas por nombre (el árbol en uso; anda sin base). Los alias no van (llevan a la etiqueta).
+ * Llevan al árbol de etiquetas con esa etiqueta elegida.
+ *
+ * @param {{ id: string, visible_name?: string, icon?: string, aliasOf?: string }[]} tags
+ * @param {string} q
+ * @param {{ limit?: number }} [opts]
+ * @returns {SearchItem[]}
+ */
+export function searchTags(tags, q, { limit = 5 } = {}) {
+	const f = foldText(q);
+	if (f.length < MIN_QUERY) return [];
+	const found = [];
+	for (const t of tags) {
+		if (!t?.id || t.aliasOf !== undefined || t.id === 'root') continue;
+		const name = foldText(String(t.visible_name ?? t.id));
+		const at = Math.min(
+			...[name.indexOf(f), foldText(t.id).indexOf(f)].map((i) => (i === -1 ? Infinity : i))
+		);
+		if (at === Infinity) continue;
+		found.push({ t, rank: at === 0 ? 0 : 1 });
+	}
+	found.sort((a, b) => a.rank - b.rank || String(a.t.id).localeCompare(String(b.t.id)));
+	return found.slice(0, limit).map(({ t }) => ({
+		id: `tag:${t.id}`,
+		icon: 'tag',
+		title: `${t.icon ? `${t.icon} ` : ''}${t.visible_name ?? t.id}`,
+		sub: t.visible_name && t.visible_name !== t.id ? `etiqueta · ${t.id}` : 'etiqueta',
+		href: `/admin/etiquetas?etiqueta=${encodeURIComponent(t.id)}`
+	}));
+}
+
+/**
  * @template T
  * @param {D1Database} db
  * @param {string} what
@@ -107,10 +139,10 @@ async function safe(db, what, fn) {
  * @param {D1Database | null | undefined} db
  * @param {string} q
  * @param {{ titles?: Map<string, string> }} [opts]
- * @returns {Promise<{ orders: SearchItem[], tickets: SearchItem[], codes: SearchItem[], people: SearchItem[] }>}
+ * @returns {Promise<{ orders: SearchItem[], tickets: SearchItem[], codes: SearchItem[], people: SearchItem[], profiles: SearchItem[] }>}
  */
 export async function searchDatabase(db, q, { titles = new Map() } = {}) {
-	const empty = { orders: [], tickets: [], codes: [], people: [] };
+	const empty = { orders: [], tickets: [], codes: [], people: [], profiles: [] };
 	const query = q.trim().slice(0, MAX_QUERY);
 	if (!db || query.length < MIN_QUERY) return empty;
 	const like = likeContains(query);
@@ -121,7 +153,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 	/** @param {string} slug */
 	const title = (slug) => titles.get(slug) ?? slug;
 
-	const [orders, tickets, codes, people] = await Promise.all([
+	const [orders, tickets, codes, people, profiles] = await Promise.all([
 		safe(db, 'órdenes', async (db) => {
 			const { results } = await db
 				.prepare(
@@ -219,15 +251,37 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				sub: `${r.email} · ${r.n} ${Number(r.n) === 1 ? 'compra' : 'compras'} · última: ${title(String(r.event_slug))}`,
 				href: orderHref(String(r.event_slug), String(r.id))
 			}));
+		}),
+		safe(db, 'perfiles', async (db) => {
+			// Perfiles de /amigues (y lugares) por nombre: al editor del perfil.
+			const { results } = await db
+				.prepare(
+					`SELECT o.slug, o.title, s.legacy_slug FROM objects o
+					LEFT JOIN profile_sources s ON s.profile_id = o.id
+					WHERE o.type = 'perfil' AND o.deleted_at IS NULL AND o.title LIKE ?1 ESCAPE '\\'
+					ORDER BY o.title LIMIT 5`
+				)
+				.bind(like)
+				.all();
+			return results.map((r) => {
+				const slug = String(r.legacy_slug || r.slug);
+				return {
+					id: `profile:${slug}`,
+					icon: 'profile',
+					title: String(r.title),
+					sub: `perfil · /amigues/${slug}`,
+					href: `/admin/comunidad/perfiles/${encodeURIComponent(slug)}`
+				};
+			});
 		})
 	]);
-	return { orders, tickets, codes, people };
+	return { orders, tickets, codes, people, profiles };
 }
 
 /**
  * Todos los grupos de resultados, en el orden en que se muestran (los vacíos no van).
  *
- * @param {{ events: SearchItem[], orders: SearchItem[], tickets: SearchItem[], codes: SearchItem[], people: SearchItem[] }} r
+ * @param {{ events: SearchItem[], orders: SearchItem[], tickets: SearchItem[], codes: SearchItem[], people: SearchItem[], profiles?: SearchItem[], tags?: SearchItem[] }} r
  * @returns {SearchGroup[]}
  */
 export function groupResults(r) {
@@ -235,6 +289,8 @@ export function groupResults(r) {
 		{ id: 'events', label: 'Eventos', items: r.events },
 		{ id: 'orders', label: 'Órdenes', items: r.orders },
 		{ id: 'people', label: 'Personas', items: r.people },
+		{ id: 'profiles', label: 'Perfiles', items: r.profiles ?? [] },
+		{ id: 'tags', label: 'Etiquetas', items: r.tags ?? [] },
 		{ id: 'tickets', label: 'Entradas', items: r.tickets },
 		{ id: 'codes', label: 'Códigos de descuento', items: r.codes }
 	].filter((g) => g.items.length);

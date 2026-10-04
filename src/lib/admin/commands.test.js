@@ -102,3 +102,22 @@ describe('atajos g + letra', () => {
 		}
 	});
 });
+
+describe('buscador: palabras de cada sección', () => {
+	it('cada sección del menú tiene palabras para encontrarla (no solo su área)', () => {
+		const navRows = buildCommands().filter((c) => c.id.startsWith('nav:'));
+		const bare = navRows.filter((c) => c.keywords.trim().split(/\s+/).length < 2);
+		expect(bare.map((c) => c.id)).toEqual([]);
+	});
+	it('encuentra secciones por palabras que no están en su nombre', () => {
+		const all = buildCommands();
+		for (const [q, id] of [
+			['pie de mail', 'nav:ajustes-plantillas'],
+			['kinkipedia', 'nav:etiquetas'],
+			['alias', 'nav:ajustes-cobros'],
+			['reembolso', 'nav:entradas']
+		]) {
+			expect(matchCommands(all, q).map((c) => c.id)).toContain(id);
+		}
+	});
+});
