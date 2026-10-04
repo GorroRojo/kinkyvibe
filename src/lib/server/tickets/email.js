@@ -3,38 +3,65 @@
  */
 import { formatARS } from '$lib/utils/money.js';
 import { fondoOptionLabel, holdHours, orderReference, refundPolicy } from '$lib/utils/tickets.js';
-import { renderBlockHtml, renderInlineHtml, renderPlain } from '$lib/utils/emailTemplates.js';
+import {
+	WHY_BOUGHT,
+	WHY_RESERVED,
+	renderBlockHtml,
+	renderInlineHtml,
+	renderPlain
+} from '$lib/utils/emailTemplates.js';
 import { MAIL_COLORS, MAIL_STYLES, mailLayout } from '$lib/server/email/layout.js';
-
-/** Por qué llegan los mails de entradas (pie de la plantilla común). */
-const WHY_BOUGHT = 'Te llega porque compraste entradas en kinkyvibe.ar.';
-const WHY_RESERVED = 'Te llega porque reservaste entradas en kinkyvibe.ar.';
 
 /** Línea chica del final de la tarjeta (número de orden, ayuda). */
 const SMALL = `margin:16px 0 0;font-size:13px;line-height:1.5;color:${MAIL_COLORS.muted}`;
 
 /**
- * Plantilla guardada en el panel (asunto, título y texto de arriba; ver emailTemplates.js), o
- * `null`: entonces el mail sale exactamente como siempre.
- * @typedef {import('$lib/utils/emailTemplates.js').TemplateText | null | undefined} Template
+ * Plantilla guardada en el panel (ver emailTemplates.js): la general y, encima, la del evento,
+ * ya juntas (`mergeTemplates`). Cada parte que falta o está vacía sale como siempre; con `null`,
+ * el mail sale exactamente como siempre.
+ * @typedef {import('$lib/utils/emailTemplates.js').TemplateParts | null | undefined} Template
  */
 
 /**
- * Las partes editables ya armadas con las variables, o `null` sin plantilla.
+ * Las partes editables ya armadas con las variables. Cada una es `null` si la plantilla no la
+ * cambia (entonces el builder pone su texto de siempre).
  *
  * @param {Template} template
  * @param {Record<string, string | number>} vars
  */
 function applyTemplate(template, vars) {
-	if (!template) return null;
+	/** @param {'subject' | 'heading' | 'body' | 'label' | 'button' | 'help' | 'why'} k */
+	const get = (k) => {
+		const v = template?.[k];
+		return typeof v === 'string' && v.trim() ? v : null;
+	};
+	/** @param {string | null} t */
+	const plainLine = (t) => (t === null ? null : renderPlain(t, vars).replace(/\s+/g, ' ').trim());
+	const heading = get('heading');
+	const body = get('body');
+	const help = get('help');
+	const why = get('why');
 	return {
-		subject: renderPlain(template.subject, vars).replace(/\s+/g, ' ').trim(),
-		headingHtml: renderInlineHtml(template.heading, vars),
-		headingText: renderPlain(template.heading, vars),
-		bodyHtml: renderBlockHtml(template.body, vars),
-		bodyText: renderPlain(template.body, vars)
+		subject: plainLine(get('subject')),
+		headingHtml: heading === null ? null : renderInlineHtml(heading, vars),
+		headingText: heading === null ? null : renderPlain(heading, vars),
+		bodyHtml: body === null ? null : renderBlockHtml(body, vars),
+		bodyText: body === null ? null : renderPlain(body, vars),
+		// Texto solo: el layout lo escapa.
+		label: plainLine(get('label')),
+		button: plainLine(get('button')),
+		helpHtml: help === null ? null : renderInlineHtml(help, vars),
+		helpText: help === null ? null : renderPlain(help, vars),
+		whyHtml: why === null ? null : renderInlineHtml(why, vars)
 	};
 }
+
+/**
+ * El botón con el texto de la plantilla (a dónde lleva lo decide siempre el código).
+ * @param {{ href: string, label: string }} button
+ * @param {string | null} label
+ */
+const withLabel = (button, label) => (label ? { ...button, label } : button);
 
 /**
  * Variables comunes de las plantillas.
@@ -193,7 +220,7 @@ export function buildTicketEmail({
 		? 'Online'
 		: [event.location_name, event.location].filter(Boolean).join(' · ');
 	const custom = applyTemplate(template, templateVars(order, event, typeName));
-	const subject = custom ? custom.subject : `Tus entradas para ${title}`;
+	const subject = custom.subject ?? `Tus entradas para ${title}`;
 	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
 
 	// Nombre y pronombres de cada entrada (nunca el DNI: los mails se reenvían y quedan guardados).
@@ -240,26 +267,29 @@ export function buildTicketEmail({
 
 	const html = mailLayout({
 		origin,
-		label: 'Tus entradas',
-		titleHtml: custom ? custom.headingHtml : '¡Ya tenés tus entradas!',
-		contentHtml: `${custom ? custom.bodyHtml : `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por tu compra.</p>`}
+		label: custom.label ?? 'Tus entradas',
+		titleHtml: custom.headingHtml ?? '¡Ya tenés tus entradas!',
+		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por tu compra.</p>`}
 		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		${online && event.streamLink ? streamLinkBlock(event.streamLink) : ''}`,
-		button:
+		button: withLabel(
 			online && event.streamLink
 				? { href: event.streamLink, label: 'Entrar a la transmisión' }
 				: { href: `${origin}/entradas/${order.id}/estado`, label: 'Ver mis entradas' },
-		helpHtml: intro,
+			custom.button
+		),
+		helpHtml: custom.helpHtml ?? intro,
 		afterHtml: `${ticketBlocks}
 		<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
-		whyHtml: WHY_BOUGHT,
+		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
 		contactEmail
 	});
 
 	const text = [
-		...(custom ? [custom.headingText, '', custom.bodyText] : ['¡Ya tenés tus entradas!']),
+		custom.headingText ?? '¡Ya tenés tus entradas!',
+		...(custom.bodyText !== null ? ['', custom.bodyText] : []),
 		'',
 		`${title}`,
 		when,
@@ -267,11 +297,13 @@ export function buildTicketEmail({
 		'',
 		...prices,
 		'',
-		online
-			? event.streamLink
-				? `Link de la transmisión (personal, no lo compartas): ${event.streamLink}`
-				: 'Es un evento online: te mandamos el link de la transmisión por mail antes del evento.'
-			: 'Mostrá el QR de cada entrada en la puerta; si no se puede escanear, dictá su código. Cada entrada sirve una sola vez.',
+		online && event.streamLink
+			? `Link de la transmisión (personal, no lo compartas): ${event.streamLink}`
+			: (custom.helpText ??
+				(online
+					? 'Es un evento online: te mandamos el link de la transmisión por mail antes del evento.'
+					: 'Mostrá el QR de cada entrada en la puerta; si no se puede escanear, dictá su código. Cada entrada sirve una sola vez.')),
+		...(online && event.streamLink && custom.helpText !== null ? [custom.helpText] : []),
 		...links.map(
 			(l, i) =>
 				`Entrada ${i + 1} (${holder(tickets[i])})${!online && tickets[i].code ? ` · código ${displayCode(tickets[i].code)}` : ''}: ${l}`
@@ -314,30 +346,33 @@ export function buildStreamLinkEmail({
 		evento: event.title,
 		fecha: when
 	});
-	const subject = custom ? custom.subject : `Link de la transmisión: ${event.title}`;
+	const subject = custom.subject ?? `Link de la transmisión: ${event.title}`;
 	const policy = policyBlocks(contactEmail);
 	const ticketLinks = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
+	const ticketLinksHtml = ticketLinks.length
+		? `También está en la página de ${ticketLinks.length === 1 ? 'tu entrada' : 'cada entrada'}: ${ticketLinks.map((l, i) => `<a href="${l}" style="${MAIL_STYLES.link}">entrada ${i + 1}</a>`).join(', ')}.`
+		: '';
 	const html = mailLayout({
 		origin,
-		label: 'Transmisión',
-		titleHtml: custom ? custom.headingHtml : 'Ya está el link de la transmisión',
-		contentHtml: `${custom ? custom.bodyHtml : `<p>Hola ${escapeHtml(order.buyer_name)}, este es el link para <strong>${escapeHtml(event.title)}</strong>${when ? ` (${escapeHtml(when)})` : ''}.</p>`}
+		label: custom.label ?? 'Transmisión',
+		titleHtml: custom.headingHtml ?? 'Ya está el link de la transmisión',
+		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, este es el link para <strong>${escapeHtml(event.title)}</strong>${when ? ` (${escapeHtml(when)})` : ''}.</p>`}
 		${streamLinkBlock(link)}`,
-		button: { href: link, label: 'Entrar a la transmisión' },
-		helpHtml: ticketLinks.length
-			? `También está en la página de ${ticketLinks.length === 1 ? 'tu entrada' : 'cada entrada'}: ${ticketLinks.map((l, i) => `<a href="${l}" style="${MAIL_STYLES.link}">entrada ${i + 1}</a>`).join(', ')}.`
-			: '',
-		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
+		button: withLabel({ href: link, label: 'Entrar a la transmisión' }, custom.button),
+		// Con una línea de ayuda propia, los links a cada entrada pasan al final de la tarjeta.
+		helpHtml: custom.helpHtml ?? ticketLinksHtml,
+		afterHtml: `${custom.helpHtml !== null && ticketLinksHtml ? `<p style="${SMALL}">${ticketLinksHtml}</p>` : ''}<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
-		whyHtml: WHY_BOUGHT,
+		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
 		contactEmail
 	});
 	const text = [
-		...(custom
-			? [custom.headingText, '', custom.bodyText]
-			: ['Ya está el link de la transmisión', '', `${event.title}${when ? ` (${when})` : ''}`]),
+		custom.headingText ?? 'Ya está el link de la transmisión',
+		'',
+		custom.bodyText ?? `${event.title}${when ? ` (${when})` : ''}`,
 		'',
 		`Link (personal, no lo compartas): ${link}`,
+		...(custom.helpText !== null ? ['', custom.helpText] : []),
 		'',
 		...ticketLinks.map((l, i) => `Entrada ${i + 1}: ${l}`),
 		'',
@@ -388,7 +423,7 @@ export function buildReminderEmail({
 		...templateVars({ ...order, quantity: tickets.length }, event, typeName),
 		cuando: soon
 	});
-	const subject = custom ? custom.subject : `Recordatorio: ${event.title} ${soon}`;
+	const subject = custom.subject ?? `Recordatorio: ${event.title} ${soon}`;
 	const policy = policyBlocks(contactEmail);
 	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
 	/** @param {import('./orders.js').Ticket} t */
@@ -407,23 +442,27 @@ export function buildReminderEmail({
 		: '<p>Llevá el QR de cada entrada (en el celu o impreso). Si no se puede escanear, alcanza con el código.</p>';
 	const html = mailLayout({
 		origin,
-		label: 'Recordatorio',
-		titleHtml: custom ? custom.headingHtml : `¡${escapeHtml(event.title)} ${soon}!`,
-		contentHtml: `${custom ? custom.bodyHtml : `<p>Hola ${escapeHtml(order.buyer_name)}, te recordamos que tenés ${tickets.length === 1 ? 'una entrada' : `${tickets.length} entradas`} (${escapeHtml(typeName)}).</p>`}
+		label: custom.label ?? 'Recordatorio',
+		titleHtml: custom.headingHtml ?? `¡${escapeHtml(event.title)} ${soon}!`,
+		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, te recordamos que tenés ${tickets.length === 1 ? 'una entrada' : `${tickets.length} entradas`} (${escapeHtml(typeName)}).</p>`}
 		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>
 		${intro}
 		<ul style="margin:0 0 16px;padding-left:20px">${list}</ul>`,
-		button:
+		button: withLabel(
 			online && event.streamLink
 				? { href: event.streamLink, label: 'Entrar a la transmisión' }
 				: { href: `${origin}/entradas/${order.id}/estado`, label: 'Ver mis entradas' },
+			custom.button
+		),
+		helpHtml: custom.helpHtml ?? '',
 		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
-		whyHtml: WHY_BOUGHT,
+		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
 		contactEmail
 	});
 	const text = [
-		...(custom ? [custom.headingText, '', custom.bodyText] : [`${event.title} ${soon}`]),
+		custom.headingText ?? `${event.title} ${soon}`,
+		...(custom.bodyText !== null ? ['', custom.bodyText] : []),
 		'',
 		`${event.title}`,
 		when,
@@ -438,6 +477,7 @@ export function buildReminderEmail({
 			(l, i) =>
 				`Entrada ${i + 1} (${holder(tickets[i])})${!online && tickets[i].code ? ` · código ${displayCode(tickets[i].code)}` : ''}: ${l}`
 		),
+		...(custom.helpText !== null ? ['', custom.helpText] : []),
 		'',
 		`Número de orden: ${order.id}`,
 		policy.text
@@ -460,7 +500,7 @@ export function buildReminderEmail({
  */
 export function buildRefundEmail({ order, event, typeName, contactEmail, origin, template }) {
 	const custom = applyTemplate(template, templateVars(order, event, typeName));
-	const subject = custom ? custom.subject : `Reembolso de tu compra · ${event.title}`;
+	const subject = custom.subject ?? `Reembolso de tu compra · ${event.title}`;
 	const how =
 		order.payment_method === 'mercadopago'
 			? 'Mercado Pago te devuelve el dinero al mismo medio con el que pagaste (con tarjeta, puede tardar en verse en el resumen).'
@@ -472,23 +512,20 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
 	const amount = order.total ? ` de ${formatARS(order.total)}` : '';
 	const html = mailLayout({
 		origin,
-		label: 'Reembolso',
-		titleHtml: custom ? custom.headingHtml : 'Reembolsamos tu compra',
-		contentHtml: `${custom ? custom.bodyHtml : `<p>Hola ${escapeHtml(order.buyer_name)}, hicimos el reembolso${escapeHtml(amount)} de tu compra de ${order.quantity} × ${escapeHtml(typeName)} para <strong>${escapeHtml(event.title)}</strong>${event.start ? ` (${escapeHtml(formatEventDate(event.start))})` : ''}.</p>`}
+		label: custom.label ?? 'Reembolso',
+		titleHtml: custom.headingHtml ?? 'Reembolsamos tu compra',
+		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, hicimos el reembolso${escapeHtml(amount)} de tu compra de ${order.quantity} × ${escapeHtml(typeName)} para <strong>${escapeHtml(event.title)}</strong>${event.start ? ` (${escapeHtml(formatEventDate(event.start))})` : ''}.</p>`}
 		<p>${escapeHtml(how)}</p>
 		<p>${order.quantity === 1 ? 'La entrada ya no es válida' : 'Las entradas ya no son válidas'} para ingresar.</p>`,
 		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés alguna duda, respondé este mail o escribinos a ${escapeHtml(contactEmail)}.</p>`,
-		whyHtml: WHY_BOUGHT,
+		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
 		contactEmail
 	});
 	const text = [
-		...(custom
-			? [custom.headingText, '', custom.bodyText]
-			: [
-					'Reembolsamos tu compra',
-					'',
-					`Hicimos el reembolso${amount} de tu compra de ${order.quantity} × ${typeName} para ${event.title}.`
-				]),
+		custom.headingText ?? 'Reembolsamos tu compra',
+		'',
+		custom.bodyText ??
+			`Hicimos el reembolso${amount} de tu compra de ${order.quantity} × ${typeName} para ${event.title}.`,
 		how,
 		order.quantity === 1 ? 'La entrada ya no es válida.' : 'Las entradas ya no son válidas.',
 		'',
@@ -541,7 +578,7 @@ export function buildTransferEmail({
 		vence: deadline,
 		link_estado: statusUrl
 	});
-	const subject = custom ? custom.subject : `Datos para transferir · ${event.title} (${ref})`;
+	const subject = custom.subject ?? `Datos para transferir · ${event.title} (${ref})`;
 	const where = replyTo ? `respondé este mail o escribinos a ${replyTo}` : 'respondé este mail';
 	const confirm =
 		confirmUrl && fullHoldHours && fullHoldHours > hours
@@ -551,9 +588,9 @@ export function buildTransferEmail({
 					text: `Confirmá tu reserva para que te guardemos el lugar ${fullHoldHours} horas: ${confirmUrl}\nSi no la confirmás, se libera a las ${hours} ${hours === 1 ? 'hora' : 'horas'}.`
 				}
 			: null;
-	const intro = custom
-		? custom.bodyHtml
-		: `<p>Hola ${escapeHtml(order.buyer_name)}, para confirmarlas transferí <strong>${formatARS(order.total)}</strong>. Te reservamos el lugar ${hours} horas (hasta el <strong>${escapeHtml(deadline)}</strong>) mientras mandás el comprobante por mail.</p>`;
+	const intro =
+		custom.bodyHtml ??
+		`<p>Hola ${escapeHtml(order.buyer_name)}, para confirmarlas transferí <strong>${formatARS(order.total)}</strong>. Te reservamos el lugar ${hours} horas (hasta el <strong>${escapeHtml(deadline)}</strong>) mientras mandás el comprobante por mail.</p>`;
 	const details = `<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventDate(event.start))}</p>
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		<div style="${MAIL_STYLES.box};white-space:pre-line">${escapeHtml(transferInfo)}</div>
@@ -567,37 +604,37 @@ export function buildTransferEmail({
 	const html = confirm
 		? mailLayout({
 				origin,
-				label: 'Tu reserva',
-				titleHtml: custom ? custom.headingHtml : 'Reservamos tus entradas',
+				label: custom.label ?? 'Tu reserva',
+				titleHtml: custom.headingHtml ?? 'Reservamos tus entradas',
 				contentHtml: `${intro}
 		${confirm.html}`,
-				button: { href: confirm.url, label: 'Confirmar mi reserva' },
+				button: withLabel({ href: confirm.url, label: 'Confirmar mi reserva' }, custom.button),
+				helpHtml: custom.helpHtml ?? '',
 				afterHtml: `<div style="margin-top:20px">${details}
 		<p><a href="${statusUrl}" style="${MAIL_STYLES.link}">Ver el estado de tu compra</a></p></div>
 		${footer}`,
-				whyHtml: WHY_RESERVED,
+				whyHtml: custom.whyHtml ?? WHY_RESERVED,
 				contactEmail
 			})
 		: mailLayout({
 				origin,
-				label: 'Tu reserva',
-				titleHtml: custom ? custom.headingHtml : 'Reservamos tus entradas',
+				label: custom.label ?? 'Tu reserva',
+				titleHtml: custom.headingHtml ?? 'Reservamos tus entradas',
 				contentHtml: `${intro}
 		${details}`,
-				button: { href: statusUrl, label: 'Ver el estado de tu compra' },
+				button: withLabel({ href: statusUrl, label: 'Ver el estado de tu compra' }, custom.button),
+				helpHtml: custom.helpHtml ?? '',
 				afterHtml: footer,
-				whyHtml: WHY_RESERVED,
+				whyHtml: custom.whyHtml ?? WHY_RESERVED,
 				contactEmail
 			});
 	const text = [
-		...(custom
-			? [custom.headingText, '', custom.bodyText]
-			: [
-					'Reservamos tus entradas',
-					'',
-					`Para confirmarlas transferí ${formatARS(order.total)}. Te reservamos el lugar ${hours} horas (hasta el ${deadline}) mientras mandás el comprobante por mail.`
-				]),
+		custom.headingText ?? 'Reservamos tus entradas',
+		'',
+		custom.bodyText ??
+			`Para confirmarlas transferí ${formatARS(order.total)}. Te reservamos el lugar ${hours} horas (hasta el ${deadline}) mientras mandás el comprobante por mail.`,
 		...(confirm ? ['', confirm.text] : []),
+		...(custom.helpText !== null ? ['', custom.helpText] : []),
 		'',
 		`${event.title}`,
 		formatEventDate(event.start),

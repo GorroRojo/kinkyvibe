@@ -6,8 +6,9 @@ El sitio manda mails a quienes compran entradas: las entradas con su QR, las ins
 transferencia, el link de la transmisión de un evento online, los recordatorios antes del evento,
 el aviso de reembolso y los avisos que les admins escriben desde el panel ("Mail a compradores").
 Salen con **Resend**, desde `entradas@kinkyvibe.ar` (se cambia en el panel). Les admins pueden
-cambiar el asunto, el título y el texto de arriba de cada mail sin tocar código, y mandarse una
-prueba.
+cambiar el asunto, el título, el texto de arriba y los detalles del diseño (etiqueta, texto del
+botón, línea de ayuda y «por qué te llega») de cada mail sin tocar código, en general o solo para
+un evento, y mandarse una prueba.
 
 ## Lo que nunca se tiene que romper
 
@@ -20,9 +21,11 @@ prueba.
   `[DEMO]` en el asunto, y sin la lista no sale nada (`src/lib/server/tickets/emailGuard.js`).
   Todo mail pasa por `deliver()` de `src/lib/server/tickets/index.js`: no se llama a Resend por
   otro lado.
-- **Una plantilla no puede romper un mail.** Solo se editan asunto, título y texto de arriba, en
-  un formato seguro (`{{variable}}`, `**negrita**`, párrafos), todo escapado. QR, códigos, links,
-  precios y la política de devoluciones los pone siempre el código.
+- **Una plantilla no puede romper un mail.** Solo se editan asunto, título, texto de arriba,
+  etiqueta, texto del botón, línea de ayuda y pie, en un formato seguro (`{{variable}}`,
+  `**negrita**`, párrafos), todo escapado; algo que parece HTML no se puede guardar. QR, códigos,
+  links (también a dónde lleva el botón), precios y la política de devoluciones los pone siempre el
+  código.
 - **"Mandarme una prueba" solo va a direcciones de la organización** (el email público de GitHub
   de le admin, la de respuesta, el contacto y las de `EMAIL_ALLOWLIST`), nunca a una cualquiera.
 - El DNI nunca va en un mail. Los tokens de las entradas no se loguean completos.
@@ -41,8 +44,18 @@ prueba.
 | Código para ingresar      | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —          | `src/lib/server/cuentas/email.js`    |
 
 Todo en `src/lib/server/tickets/` salvo que se indique. Las plantillas: definición y variables en
-`src/lib/utils/emailTemplates.js`, lo guardado en D1 (`email_templates`) en `templates.js`, el
-editor en `/admin/mensajes/plantillas`.
+`src/lib/utils/emailTemplates.js`, lo guardado en D1 en `templates.js`, el editor
+(`src/lib/components/admin/MailTemplateEditor.svelte`) en `/admin/mensajes/plantillas` y en la
+pestaña **Plantillas de mails** de la ficha de cada evento que vende entradas.
+
+**Plantillas por evento.** Cada parte se puede cambiar solo para los mails de un evento
+(`event_email_templates`, migración 0034; una fila por evento y mail, cada parte en NULL = sin
+cambiar). Al mandar, cada parte sale de lo del evento → la plantilla general (`email_templates`)
+→ el texto del código (`resolveTemplate` en `templates.js`, `mergeTemplates` en
+`emailTemplates.js`). Las partes opcionales vacías = el texto de siempre; el texto plano solo
+cambia con asunto, título, texto o línea de ayuda propios. La vista previa de la ficha usa el
+título, la fecha y el lugar del evento con una compra de ejemplo. Van en su propia tabla (no en el
+objeto `evento`) porque los eventos todavía salen de sus `.md` y no siempre están en la base.
 
 **Plantilla común (diseño):** todos los mails (los de esta tabla y los de series, «Lo que sigo» e
 invitaciones a perfiles) se arman con `mailLayout()` de `src/lib/server/email/layout.js`: logo
@@ -82,7 +95,8 @@ Routing). La bandeja dentro del panel es una decisión tomada (0010) pero todav�
   `curl -X POST localhost:5173/api/cron/recordatorios -H "x-cron-secret: dev-cron-secret-solo-local"`
   (el secreto de prueba está en `.env.tickets`).
 - Pruebas: `npx vitest run src/lib/server/tickets` (incluye `templates.test.js`, que compara cada
-  mail con `email.golden.json`, `buyerMail.test.js`, `reminders.test.js`, `emailGuard.test.js`).
+  mail con `email.golden.json`, `eventTemplates.test.js` (partes opcionales, orden evento →
+  general → código, validación), `buyerMail.test.js`, `reminders.test.js`, `emailGuard.test.js`).
 - En un preview: con `EMAIL_ALLOWLIST` cargada, comprá con cualquier mail y el mail llega a la
   primera dirección de la lista con `[DEMO]`. `GET /api/preview-status` muestra si está configurada.
 
@@ -91,6 +105,9 @@ Routing). La bandeja dentro del panel es una decisión tomada (0010) pero todav�
 **Cambiar el texto de un mail.** Panel → Ajustes → Mails y plantillas → Plantillas → el mail.
 Vista previa con datos de ejemplo y "Mandarme una prueba". "Restaurar el original" borra la
 fila y vuelve al del código.
+
+**Cambiar un mail solo para un evento.** Ficha del evento → Plantillas de mails → el mail. Lo
+vacío sale como en la plantilla general. "Volver a la plantilla general" borra lo del evento.
 
 **Cambiar un mail desde el código.** Editá la función `build…Email` en `email.js` y actualizá
 `email.golden.json` en el mismo PR, explicando el cambio. Si agregás una variable, sumala en

@@ -1,9 +1,10 @@
 /**
- * Editor de la plantilla de un mail: guardar, restaurar el original y mandarse una prueba.
- * Solo admins (`requireAdmin` en el `load` y en cada action). Cada cambio queda en el registro
- * de actividad.
+ * Plantilla de un mail para un evento: lo que cambia sobre la plantilla general solo en los mails
+ * de este evento (`event_email_templates`). Guardar, volver a la plantilla general y mandarse una
+ * prueba. Solo admins (`requireAdmin` en el `load` y en cada action); cada cambio queda en el
+ * registro de actividad.
  */
-import { error, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { templateInput, testRecipients } from '$lib/server/admin/mailTemplates.js';
@@ -16,18 +17,12 @@ import {
 } from '$lib/server/tickets/index.js';
 import { previewEmail } from '$lib/server/tickets/templatePreview.js';
 import {
-	deleteTemplateOverride,
-	listTemplateOverrides,
-	saveTemplateOverride
+	deleteEventTemplateOverride,
+	listEventTemplateOverrides,
+	saveEventTemplateOverride
 } from '$lib/server/tickets/templates.js';
-import { TEMPLATE_LIMITS, templateDef, validateTemplate } from '$lib/utils/emailTemplates.js';
-
-/** @param {string} id */
-function defOr404(id) {
-	const def = templateDef(id);
-	if (!def) error(404, 'No existe ese mail.');
-	return def;
-}
+import { TEMPLATE_LIMITS, mergeTemplates, validateTemplate } from '$lib/utils/emailTemplates.js';
+import { eventMailOr404, generalTemplate } from './context.server.js';
 
 /** @param {Request} request */
 async function readForm(request) {
@@ -45,17 +40,23 @@ async function readForm(request) {
 export async function load({ locals, url, params, platform, setHeaders, fetch }) {
 	requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
-	const def = defOr404(params.id);
+	const { def, config } = await eventMailOr404(params.slug, params.id);
 	const db = getDB(platform);
-	/** @type {import('$lib/server/tickets/templates.js').StoredTemplate | undefined} */
+	/** @type {import('$lib/server/tickets/templates.js').StoredEventTemplate | undefined} */
 	let saved;
+	/** @type {Awaited<ReturnType<typeof generalTemplate>>} */
+	let general = { general: null, inherited: {} };
 	try {
-		saved = (await listTemplateOverrides(db)).get(def.id);
+		[saved, general] = await Promise.all([
+			listEventTemplateOverrides(db, params.slug).then((m) => m.get(def.id)),
+			generalTemplate(db, def)
+		]);
 	} catch (e) {
-		logDBError('plantilla de mail', e);
+		logDBError('plantilla de mail del evento', e);
 	}
 	return {
 		dbAvailable: Boolean(db),
+		eventTitle: config.title || params.slug,
 		def: {
 			id: def.id,
 			label: def.label,
@@ -67,6 +68,8 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 		},
 		limits: TEMPLATE_LIMITS,
 		saved: saved ?? null,
+		hasGeneral: Boolean(general.general),
+		inherited: general.inherited,
 		recipients: await testRecipients({ db, token: locals.user_token, fetch })
 	};
 }
@@ -75,18 +78,21 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 export const actions = {
 	save: async ({ locals, url, params, platform, request }) => {
 		const admin = requireAdmin(locals, url);
-		const def = defOr404(params.id);
+		const { def, config } = await eventMailOr404(params.slug, params.id);
 		const db = getDB(platform);
 		const form = await readForm(request);
-		const valid = validateTemplate(def.id, form);
+		const valid = validateTemplate(def.id, form, { optional: true });
 		if (!valid.ok) {
 			return fail(400, { error: 'Revisá lo marcado.', errors: valid.errors, values: valid.value });
 		}
 		if (!db) return fail(503, { error: 'Sin base de datos.', errors: {}, values: valid.value });
+		let kept = false;
 		try {
-			await saveTemplateOverride(db, def.id, valid.value, { by: admin.login });
+			kept = await saveEventTemplateOverride(db, params.slug, def.id, valid.value, {
+				by: admin.login
+			});
 		} catch (e) {
-			logDBError('guardar plantilla de mail', e);
+			logDBError('guardar plantilla de mail del evento', e);
 			return fail(500, {
 				error: 'No se pudo guardar. Probá de nuevo.',
 				errors: {},
@@ -94,44 +100,52 @@ export const actions = {
 			});
 		}
 		await logAdminAction(db, locals, {
-			action: 'template.save',
-			targetType: 'email_template',
-			targetId: def.id,
-			summary: `Cambió el texto del mail "${def.label}"`,
-			detail: { subject: valid.value.subject }
+			action: kept ? 'template.event_save' : 'template.event_reset',
+			targetType: 'event_email_template',
+			targetId: `${params.slug}/${def.id}`,
+			summary: kept
+				? `Cambió el mail "${def.label}" de ${config.title || params.slug}`
+				: `Volvió a la plantilla general el mail "${def.label}" de ${config.title || params.slug}`,
+			detail: kept ? { subject: valid.value.subject || null } : undefined
 		});
-		return { ok: true, message: 'Guardado: los próximos mails salen con este texto.' };
+		return {
+			ok: true,
+			reset: !kept,
+			message: kept
+				? 'Guardado: los próximos mails de este evento salen con este texto.'
+				: 'No quedó nada propio: este mail sale como en la plantilla general.'
+		};
 	},
 
 	reset: async ({ locals, url, params, platform }) => {
 		requireAdmin(locals, url);
-		const def = defOr404(params.id);
+		const { def, config } = await eventMailOr404(params.slug, params.id);
 		const db = getDB(platform);
 		if (!db) return fail(503, { error: 'Sin base de datos.', errors: {} });
-		const had = await deleteTemplateOverride(db, def.id);
+		const had = await deleteEventTemplateOverride(db, params.slug, def.id);
 		if (had) {
 			await logAdminAction(db, locals, {
-				action: 'template.reset',
-				targetType: 'email_template',
-				targetId: def.id,
-				summary: `Restauró el texto original del mail "${def.label}"`
+				action: 'template.event_reset',
+				targetType: 'event_email_template',
+				targetId: `${params.slug}/${def.id}`,
+				summary: `Volvió a la plantilla general el mail "${def.label}" de ${config.title || params.slug}`
 			});
 		}
 		return {
 			ok: true,
 			reset: true,
-			message: 'Listo: el mail vuelve a salir con el texto original.'
+			message: 'Listo: este mail vuelve a salir como en la plantilla general.'
 		};
 	},
 
-	// "Mandarme una prueba": con lo que está escrito ahora (aunque no esté guardado), con datos de
-	// ejemplo, a una dirección de la organización o de le admin.
+	// "Mandarme una prueba": lo escrito ahora (aunque no esté guardado) sobre la plantilla general,
+	// con el evento de verdad y una compra de ejemplo, a una dirección de la organización.
 	test: async ({ locals, url, params, platform, request, fetch }) => {
 		requireAdmin(locals, url);
-		const def = defOr404(params.id);
+		const { def, previewEvent } = await eventMailOr404(params.slug, params.id);
 		const db = getDB(platform);
 		const form = await readForm(request);
-		const valid = validateTemplate(def.id, form);
+		const valid = validateTemplate(def.id, form, { optional: true });
 		if (!valid.ok) {
 			return fail(400, { error: 'Revisá lo marcado.', errors: valid.errors, values: valid.value });
 		}
@@ -143,10 +157,12 @@ export const actions = {
 				values: valid.value
 			});
 		}
-		const message = previewEmail(def.id, valid.value, {
+		const { general } = await generalTemplate(db, def);
+		const message = previewEmail(def.id, mergeTemplates(valid.value, general), {
 			origin: siteOrigin(url),
 			contactEmail: contactEmail(),
-			replyTo: await replyToAddress(db)
+			replyTo: await replyToAddress(db),
+			event: previewEvent
 		});
 		const result = await sendTestEmail({ db, fetch, to: form.to, message });
 		/** @type {Record<string, string>} */

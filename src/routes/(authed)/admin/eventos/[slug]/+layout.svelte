@@ -16,7 +16,7 @@
 
 	const icon = { size: 16, strokeWidth: 2.25, 'aria-hidden': true };
 	/** Pestañas que solo tienen sentido si el evento vende entradas. */
-	const SALES_TABS = ['ventas', 'ordenes', 'transferencias', 'ingreso', 'codigos', 'mail'];
+	const SALES_TABS = ['ventas', 'ordenes', 'transferencias', 'ingreso', 'codigos', 'mail', 'mails'];
 
 	$: bare = $page.data?.bare === true;
 	$: e = data.event;

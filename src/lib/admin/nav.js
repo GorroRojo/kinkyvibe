@@ -540,6 +540,8 @@ export const EVENT_TABS = Object.freeze([
 	{ id: 'ingreso', suffix: '/ingreso', label: 'Ingreso', soon: false },
 	{ id: 'codigos', suffix: '/codigos', label: 'Códigos', soon: false },
 	{ id: 'mail', suffix: '/mail', label: 'Mail a compradores', soon: false },
+	// Plantillas de los mails de este evento (lo que cambia sobre Mensajes → Plantillas).
+	{ id: 'mails', suffix: '/mails', label: 'Plantillas de mails', soon: false },
 	// Interruptor `personas_eventos`: la ficha la muestra solo prendido.
 	{ id: 'preguntas', suffix: '/preguntas', label: 'Preguntas', soon: false },
 	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false }

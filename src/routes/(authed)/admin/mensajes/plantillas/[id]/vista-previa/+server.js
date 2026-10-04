@@ -1,5 +1,6 @@
 /**
- * Vista previa en vivo del editor de plantillas: POST { subject, heading, body } → el mail
+ * Vista previa en vivo del editor de plantillas: POST { subject, heading, body, label, button,
+ * help, why } → el mail
  * armado con datos de ejemplo ({ subject, html, text }) y los errores de validación. Solo admins.
  * No guarda nada.
  */
@@ -8,7 +9,8 @@ import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { contactEmail, replyToAddress, siteOrigin } from '$lib/server/tickets/index.js';
 import { previewEmail } from '$lib/server/tickets/templatePreview.js';
-import { TEMPLATE_LIMITS, templateDef, validateTemplate } from '$lib/utils/emailTemplates.js';
+import { templateInput } from '$lib/server/admin/mailTemplates.js';
+import { templateDef, validateTemplate } from '$lib/utils/emailTemplates.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ locals, url, params, platform, request }) {
@@ -22,13 +24,7 @@ export async function POST({ locals, url, params, platform, request }) {
 	} catch {
 		error(400, 'JSON inválido.');
 	}
-	/** @param {string} k @param {number} max */
-	const get = (k, max) => String(raw?.[k] ?? '').slice(0, max + 100);
-	const valid = validateTemplate(def.id, {
-		subject: get('subject', TEMPLATE_LIMITS.subject),
-		heading: get('heading', TEMPLATE_LIMITS.heading),
-		body: get('body', TEMPLATE_LIMITS.body)
-	});
+	const valid = validateTemplate(def.id, templateInput(raw));
 	const message = previewEmail(def.id, valid.value, {
 		origin: siteOrigin(url),
 		contactEmail: contactEmail(),
