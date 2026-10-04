@@ -211,8 +211,9 @@ textarea {
 	outline-offset: 2px;
 }
 
-/* Text fields show focus with a pink border (also on mouse click, so you see where you're
-   typing). `:where()` keeps it overridable; the panel repeats it for its own tokens. */
+/* Text fields and dropdowns (`select`) show focus with a pink border (also on mouse click, so you
+   see where you're typing or choosing). `:where()` keeps it overridable; the panel repeats it for
+   its own tokens. */
 :where(
 	input:not(
 		[type='checkbox'],
@@ -225,7 +226,8 @@ textarea {
 		[type='reset'],
 		[type='image']
 	),
-	textarea
+	textarea,
+	select
 ):focus {
 	outline: 2px solid var(--focus-field);
 	outline-offset: 0;

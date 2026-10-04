@@ -6,10 +6,14 @@ Claude sessions, so small, verified PRs matter more than speed.
 ## Stack
 
 - SvelteKit 2 + Svelte 5 in **legacy mode** (no runes in components: `export let`, `$:`, stores).
-  mdsvex for `.md` posts. `adapter-cloudflare` on Cloudflare Pages, D1 database bound as `DB`.
+  mdsvex for `.md` posts. `adapter-cloudflare` on Cloudflare Workers (the `kinkyvibe` Worker with
+  static assets, deployed by Workers Builds: production from `main`, a preview for every other
+  branch), D1 database bound as `DB`.
 - Node version: `.node-version`. JavaScript with JSDoc types (only `src/app.d.ts` is TypeScript).
-- `wrangler.toml` has no `pages_build_output_dir` on purpose: production bindings and variables
-  live in the Cloudflare dashboard. Don't add it.
+- `wrangler.toml` is the Worker's config (Workers Builds, previews and local wrangler): bindings
+  live there, production variables and secrets in the Cloudflare dashboard (`keep_vars = true`).
+  It has no `pages_build_output_dir` on purpose: that key is Cloudflare Pages config and makes
+  wrangler treat the file as a Pages project. Don't add it.
 
 ## Commands
 

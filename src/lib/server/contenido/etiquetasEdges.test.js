@@ -340,6 +340,69 @@ describe('la etiqueta cambia de nombre', () => {
 	});
 });
 
+describe('renombrar «en todas las publicaciones»', () => {
+	it('el evento enlazado no se reescribe (cambia solo); el que la tiene como texto, sí', async () => {
+		const { cuerdas } = await tags();
+		const { client } = await setup();
+		const OTHER = 'fiesta-sin-edges-2031-09';
+		const OTHER_PATH = `src/lib/posts/calendario/${OTHER}.md`;
+		await create(client);
+		await create(client, OTHER_PATH, MD('Fiesta Sin Edges', OTHER));
+		// Como uno guardado antes de la migración 0042: la lista entera como texto, sin edges.
+		const other = await stored(OTHER);
+		await t.db.prepare('DELETE FROM edges WHERE from_id = ?1').bind(other.id).run();
+		await t.db
+			.prepare('UPDATE objects SET data = ?2, version = version + 1 WHERE id = ?1')
+			.bind(other.id, JSON.stringify({ ...other.data, tags: TAGS }))
+			.run();
+		const linked = await client.linkedTagsOf('t', 'src/lib/posts/calendario');
+		expect([...linked.keys()]).toEqual([PATH]);
+		expect([...(linked.get(PATH) ?? [])]).toEqual([
+			'Cuerdas Inventadas',
+			'Serie Inventada',
+			'Alias Inventado'
+		]);
+
+		const { planTagRenameInPosts } = await import('../etiquetas/rename.js');
+		const plan = await planTagRenameInPosts(client, 't', [
+			{ type: 'rename', from: 'Cuerdas Inventadas', to: 'Cuerdas Renombradas', keepAlias: false }
+		]);
+		expect(plan.files.map((f) => f.path)).toEqual([OTHER_PATH]);
+		expect(plan.files[0].after).toContain('  - Cuerdas Renombradas\n');
+		expect(plan.summary).toContain(
+			'1 publicación la tiene enlazada y cambia sola (no se reescribe)'
+		);
+
+		// Lo que hace el panel después: el commit de los posts y el `key` nuevo de la etiqueta.
+		const linkedBefore = await stored();
+		await client.commitFiles('t', {
+			files: plan.files.map((f) => ({ path: f.path, content: f.after })),
+			message: 'renombrar',
+			unchanged: plan.files.map((f) => ({ path: f.path, sha: f.sha })),
+			actor: 'admin-inventade',
+			superadmin: true
+		});
+		await saveObject(
+			t.db,
+			{
+				id: cuerdas.id,
+				type: 'etiqueta',
+				version: cuerdas.version,
+				data: { key: 'Cuerdas Renombradas' }
+			},
+			{ actor: 'a', now: Date.now() + 1000 }
+		);
+		const linkedAfter = await stored();
+		expect(linkedAfter.version).toBe(linkedBefore.version);
+		expect(linkedAfter.data).toEqual(linkedBefore.data);
+		expect(linkedAfter.data.tags).toEqual(['Suelta Inventada']);
+		expect(await client.getFile('t', PATH)).toContain('  - Cuerdas Renombradas\n');
+		const otherAfter = await stored(OTHER);
+		expect(otherAfter.data.tags).toContain('Cuerdas Renombradas');
+		expect(await client.getFile('t', OTHER_PATH)).toContain('  - Cuerdas Renombradas\n');
+	});
+});
+
 describe('importar un .md', () => {
 	const file = () => ({
 		legacySlug: SLUG,

@@ -15,6 +15,14 @@ export const PARTE_EDGE = 'parte';
 export const POR_PARTE_KEY = 'entradas_por_parte';
 
 /**
+ * Clave del taller (en `extra`): «Si ocultás el taller, ocultar también sus partes». Con `true`,
+ * una parte se ve solo si quien mira también ve el taller (la regla está en
+ * src/lib/server/objects/visibility.js, `partVisibleWhere`). Sin ella, cada parte tiene su propia
+ * visibilidad, como siempre.
+ */
+export const OCULTAR_PARTES_KEY = 'ocultar_partes';
+
+/**
  * Claves de la configuración de entradas (src/lib/server/tickets/config.js). Una parte nueva de
  * un taller con una sola entrada no las copia: la entrada se compra en el taller.
  */
@@ -87,11 +95,20 @@ export function sellsPerPart(meta) {
 }
 
 /**
+ * ¿Ocultar el taller oculta también sus partes? Con `ocultar_partes: true` en el taller.
+ *
+ * @param {Record<string, unknown> | null | undefined} meta la metadata (o `extra`) del taller
+ */
+export function hidesParts(meta) {
+	return meta?.[OCULTAR_PARTES_KEY] === true;
+}
+
+/**
  * @typedef {{ slug: string, title: string, start: string | null, end: string | null,
  *   status: string | null }} PartInfo
  * @typedef {PartInfo & { n: number }} NumberedPart
  * @typedef {{
- *   workshop: NumberedPart & { perPart: boolean },
+ *   workshop: NumberedPart & { perPart: boolean, hideParts: boolean },
  *   parts: NumberedPart[],
  *   total: number
  * }} Workshop
@@ -101,7 +118,7 @@ export function sellsPerPart(meta) {
 /**
  * Numera las partes: el taller es la 1 y las demás siguen en el orden de los edges.
  *
- * @param {PartInfo & { perPart?: boolean }} workshop
+ * @param {PartInfo & { perPart?: boolean, hideParts?: boolean }} workshop
  * @param {PartInfo[]} children en orden (`position`)
  * @returns {Workshop}
  */
@@ -115,7 +132,11 @@ export function numberParts(workshop, children) {
 		n: i + 1
 	}));
 	return {
-		workshop: { ...parts[0], perPart: Boolean(workshop.perPart) },
+		workshop: {
+			...parts[0],
+			perPart: Boolean(workshop.perPart),
+			hideParts: Boolean(workshop.hideParts)
+		},
 		parts,
 		total: parts.length
 	};
@@ -230,6 +251,8 @@ export function newPartData(workshopData, { start, end }) {
 	if (extra) {
 		const perPart = sellsPerPart(extra);
 		for (const key of TICKET_KEYS) if (!perPart || key === POR_PARTE_KEY) delete extra[key];
+		// Una parte no tiene partes: la opción es solo del taller.
+		delete extra[OCULTAR_PARTES_KEY];
 		if (Object.keys(extra).length) data.extra = extra;
 		else delete data.extra;
 	}

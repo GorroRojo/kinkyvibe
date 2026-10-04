@@ -249,9 +249,9 @@ importación, la lectura (solo la base) y el historial (`object_revisions`):
   una etiqueta que también tiene edge (una lista entera escrita sin partir), manda esa.
   - Renombrar una etiqueta (su `key`) cambia el nombre en todos los posts que la tienen como edge
     sin reescribirlos (las listas recordadas lo notan por el `updated_at` de las etiquetas).
-    Renombrar «en todas las publicaciones» (`rename.js`) sigue reescribiendo los posts como antes:
-    esos posts guardan el nombre nuevo como texto (la etiqueta todavía tiene el nombre viejo en
-    ese momento) y lo pasan a edge en su próximo guardado. Lo que se ve es lo mismo.
+    Renombrar «en todas las publicaciones» (`rename.js`) tampoco reescribe los posts que la
+    tienen como edge (cambian solos); solo reescribe, como antes, los que todavía la guardan como
+    texto en `data.tags` (que la pasan a edge en su próximo guardado). Lo que se ve es lo mismo.
   - Todavía no está la caché derivada en `data.tags` ni el chequeo nocturno `tags_out_of_sync` del
     plan original: las listas leen los edges en la misma consulta que los posts (sin una consulta
     por post), así que no hizo falta.
@@ -324,7 +324,5 @@ con `getObject`, `searchObjects`, `getEdges` o `visibleWhere(viewer, alias)` en 
 - Una prueba E2E que plante objetos privados de cada tipo y verifique que no aparecen en
   listados, búsqueda, sitemap, RSS, imágenes para compartir ni JSON.
 - Migrar los eventos desde los `.md` (P6.2: eventos primero).
-- Renombrar una etiqueta «en todas las publicaciones» sin reescribir los eventos ni el material
-  que ya la tienen como edge (hoy se reescriben igual; ver `etiqueta` arriba).
 - Borrar la tabla `event_venues` cuando todos los eventos estén en la base (hoy la lee solo la
   importación de un evento nuevo, `legacyVenueEdge`).

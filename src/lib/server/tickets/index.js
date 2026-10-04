@@ -49,6 +49,7 @@ import {
 	sendStreamLinkBatch
 } from './stream.js';
 import { mailBatchSize } from './batchSize.js';
+import { withMailFooter } from '../email/layout.js';
 import { runMailQueueWith } from './mailQueue.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
@@ -162,7 +163,7 @@ export function contactEmail() {
  * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
  */
 export async function emailSettings(db) {
-	/** @type {{ from_email?: string, reply_to_email?: string }} */
+	/** @type {{ from_email?: string, reply_to_email?: string, mail_footer_contact?: string, mail_footer_signoff?: string }} */
 	let s = {};
 	try {
 		s = await getSalesSettings(db);
@@ -171,8 +172,19 @@ export async function emailSettings(db) {
 	}
 	return {
 		from: s.from_email || env.TICKETS_FROM_EMAIL?.trim() || DEFAULT_FROM_EMAIL,
-		replyTo: s.reply_to_email || env.TICKETS_REPLY_TO?.trim() || DEFAULT_REPLY_TO
+		replyTo: s.reply_to_email || env.TICKETS_REPLY_TO?.trim() || DEFAULT_REPLY_TO,
+		// Pie de los mails (vacío = el de siempre): lo aplica `deliver()` con `withMailFooter`.
+		footer: { contact: s.mail_footer_contact || '', signoff: s.mail_footer_signoff || '' }
 	};
+}
+
+/**
+ * El pie de los mails de los ajustes (para la vista previa de las plantillas; ver `emailSettings`).
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ */
+export async function mailFooter(db) {
+	return (await emailSettings(db)).footer;
 }
 
 /**
@@ -302,7 +314,10 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  * }} input
  * @returns {Promise<'sent' | 'simulated' | 'failed'>}
  */
-async function deliver({ db, fetch: fetchFn, to, message, idempotencyKey, log = '' }) {
+async function deliver({ db, fetch: fetchFn, to, message: built, idempotencyKey, log = '' }) {
+	// Todo mail pasa por acá: el pie de Ajustes → Mails se pone una sola vez, para todos.
+	const settings = await emailSettings(db);
+	const message = { ...built, html: withMailFooter(built.html, settings.footer) };
 	const apiKey = env.RESEND_API_KEY;
 	if (!apiKey) {
 		if (dev) {
@@ -324,7 +339,7 @@ async function deliver({ db, fetch: fetchFn, to, message, idempotencyKey, log = 
 		console.warn(`[tickets] preview sin EMAIL_ALLOWLIST: no se mandó "${message.subject}"`);
 		return 'simulated';
 	}
-	const { from, replyTo } = await emailSettings(db);
+	const { from, replyTo } = settings;
 	await sendWithResend({
 		fetch: fetchFn,
 		apiKey,

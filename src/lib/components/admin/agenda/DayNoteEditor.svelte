@@ -149,7 +149,7 @@
 				>
 			{/if}
 			<button class="kv-btn" disabled={busy}
-				><Save size={16} aria-hidden="true" /> {busy ? 'Guardando…' : 'Guardar'}</button
+				><Save size={16} aria-hidden="true" /> {busy ? (note?.id ? 'Guardando…' : 'Creando…') : note?.id ? 'Guardar' : 'Crear nota'}</button
 			>
 		</div>
 	</form>

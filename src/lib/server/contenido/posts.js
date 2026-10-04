@@ -25,7 +25,7 @@ import { fetchMarkdownPosts, fetchPost, processPost } from '$lib/utils';
 import { isCurrent } from '$lib/utils/allPosts';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { getDB } from '$lib/server/db';
-import { ANON, visibleWhere } from '$lib/server/objects/visibility.js';
+import { ANON, partVisibleWhere, visibleWhere } from '$lib/server/objects/visibility.js';
 import { getObject } from '$lib/server/objects/read.js';
 import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
 import { EVENT_CATEGORY } from './eventos.js';
@@ -38,6 +38,20 @@ import { mediaPath } from '$lib/server/media/sniff.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/visibility.js').Viewer} Viewer */
+
+/**
+ * Lo que ve `viewer` de los posts de la base: su visibilidad y, si es una parte de un taller que
+ * oculta sus partes, la del taller (docs/talleres-partes.md). Usa `?` sin número.
+ *
+ * @param {Viewer} viewer
+ * @param {string} alias
+ * @returns {{ sql: string, params: string[] }}
+ */
+function publicWhere(viewer, alias) {
+	const own = visibleWhere(viewer, alias);
+	const part = partVisibleWhere(viewer, alias);
+	return { sql: `(${own.sql} AND ${part.sql})`, params: [...own.params, ...part.params] };
+}
 
 const TYPES = CATEGORY_LIST.map((c) => c.type);
 const CATEGORIES = CATEGORY_LIST.map((c) => c.category);
@@ -130,7 +144,7 @@ async function dbState(db) {
  * @returns {Promise<DbState>}
  */
 async function loadDbState(db, stamp, tree) {
-	const visible = visibleWhere(ANON, 'o');
+	const visible = publicWhere(ANON, 'o');
 	const visibleImage = visibleWhere(ANON, 'i');
 	const t = marks(TYPES.length);
 	// Sin el cuerpo: ninguna lista lo usa (`toMeta` no lo lee) y es casi todo lo que pesa `data`.
@@ -221,7 +235,7 @@ const DATA_WITHOUT_BODY = `CASE WHEN json_valid(o.data) THEN json_remove(o.data,
 function stateBodies(db, state) {
 	if (!state.bodies) {
 		const t = marks(TYPES.length);
-		const visible = visibleWhere(ANON, 'o');
+		const visible = publicWhere(ANON, 'o');
 		const loading = db
 			.prepare(
 				`SELECT o.id, CASE WHEN json_valid(o.data) AND json_type(o.data, '$.body') = 'text'
@@ -321,7 +335,7 @@ export async function unlistedCountQuery(platform) {
 		return { what, fallback: others, statements: () => [], read: () => others };
 	}
 	const t = marks(TYPES.length);
-	const visible = visibleWhere(ANON, 'o');
+	const visible = publicWhere(ANON, 'o');
 	return {
 		what,
 		fallback: null,
@@ -442,6 +456,13 @@ export async function siteContent(
 	if (!ref) return null;
 	const found = await getObject(db, { id: ref.id }, viewer);
 	if (!found) return null;
+	// Una parte de un taller que oculta sus partes, como el taller (docs/talleres-partes.md).
+	const part = partVisibleWhere(viewer, 'o');
+	const partOk = await db
+		.prepare(`SELECT 1 AS ok FROM objects o WHERE o.id = ? AND ${part.sql}`)
+		.bind(found.id, ...part.params)
+		.first();
+	if (!partOk) return null;
 	const [object] = await hydrateContent(db, [found]);
 	const postID = ref.legacySlug ?? object.slug;
 	const cover = await imageOf(db, object.id, 'portada', viewer).catch(() => null);

@@ -15,6 +15,14 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
   solo las partes de un evento importado de un `.md` no lo marca como editado (como el lugar).
 - Los dos eventos tienen que estar en la base. Las lecturas públicas solo muestran las partes que
   quien mira puede ver (`visibleWhere`); un taller oculto no muestra sus partes.
+- **«Si ocultás el taller, ocultar también sus partes»** (casilla en la sección Partes):
+  `ocultar_partes: true` en el `extra` del taller (como `entradas_por_parte`). Prendida, una parte
+  se ve solo si quien mira también ve el taller: con el taller oculto, sus partes no salen en las
+  listas públicas (calendario, búsqueda, RSS, sitemap…) ni en su página (404), salvo para les
+  admins. La regla está en `partVisibleWhere` de `src/lib/server/objects/visibility.js` y la usan
+  las lecturas públicas de `src/lib/server/contenido/posts.js`. Apagada, cada parte tiene su
+  propia visibilidad, como siempre. Una parte nueva no copia la opción. **DECIDIDO POR CLAUDE, A
+  CONFIRMAR** (gorrite): viene apagada (así nada cambia para los talleres que ya existen).
 - Las reglas puras (numerar, «Parte N de M», «vie 2 oct · 22:00», de qué evento es la entrada,
   datos de una parte nueva) están en `src/lib/utils/partes.js`.
 
@@ -54,7 +62,8 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
   sección **Partes** (`PartesEditor.svelte`): ordenar y sacar partes (sacar no borra: queda como
   evento suelto), crear una parte nueva copiando el taller (texto, etiquetas, personas, imagen y
   lugar; sin entradas si hay una sola), sumar un evento existente (sugiere los `<taller>-parte-N`
-  sueltos, como se cargaban antes) y «Entradas por parte».
+  sueltos, como se cargaban antes), «Entradas por parte» y «Si ocultás el taller, ocultar también
+  sus partes».
 
 ## Pendiente
 

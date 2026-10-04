@@ -171,6 +171,13 @@ Eventos → Series › Editar):
 - La parte de las publicaciones es una sola función, `planTagRenameInPosts`
   (`src/lib/server/etiquetas/rename.js`), y se guarda con el cliente del repo: los eventos y el
   material van a la base (se ve enseguida); las fichas de amigues y la wiki, con un commit.
+- Los eventos y el material que tienen la etiqueta como edge `etiqueta` (migración 0042,
+  [objetos.md](objetos.md)) **no se reescriben**: el edge apunta a la etiqueta y, al cambiarle el
+  `key`, ya muestran el nombre nuevo. Solo se reescriben los que la tienen como texto en
+  `data.tags` (guardados cuando la etiqueta no existía); el cliente dice cuáles son por edge
+  (`linkedTagsOf` de `withContentDb`/`dbPostsOnlyClient`). La vista previa lo cuenta en una línea
+  («N publicaciones la tienen enlazada y cambian solas»). Un `wiki:` con el nombre se reescribe
+  igual.
 - **En Eventos → Series, solo la base**: renombrar una serie reescribe solo sus eventos y el
   material (`dbPostsOnlyClient` en `src/lib/server/contenido/repo.js`), sin leer ni escribir
   GitHub. Si alguna ficha de amigues o página de la wiki usara la etiqueta de una serie (hoy

@@ -85,3 +85,50 @@ describe('planTagRenameInPosts', () => {
 		expect(plan).toEqual({ pairs: [], files: [], summary: [] });
 	});
 });
+
+describe('planTagRenameInPosts con etiquetas como edges', () => {
+	it('los posts que la nombran por edge no se reescriben; los que la tienen como texto, sí', async () => {
+		const linkedClient = {
+			...client,
+			/** @param {string} _token @param {string} dir */
+			linkedTagsOf: async (_token, dir) =>
+				dir === 'src/lib/posts/calendario'
+					? new Map([['src/lib/posts/calendario/uno.md', new Set(['Serie Vieja', 'fiesta'])]])
+					: new Map()
+		};
+		const plan = await planTagRenameInPosts(linkedClient, 'token-de-prueba', [
+			{ type: 'rename', from: 'Serie Vieja', to: 'Serie Nueva', keepAlias: false }
+		]);
+		expect(plan.files.map((f) => f.path)).toEqual(['src/lib/posts/wiki/tres.md']);
+		expect(plan.summary).toEqual([
+			'Renombrar «Serie Vieja» a «Serie Nueva» en las publicaciones',
+			'1 publicación la tiene enlazada y cambia sola (no se reescribe)'
+		]);
+	});
+
+	it('un post enlazado igual cambia su `wiki:` (no es una lista de etiquetas)', async () => {
+		const text = [
+			'---',
+			'title: Post de prueba',
+			'wiki: Serie Vieja',
+			'tags:',
+			'  - Serie Vieja',
+			'---',
+			''
+		].join('\n');
+		const plan = await planTagRenameInPosts(
+			{
+				getDirTexts: async (_t, dir) =>
+					dir === 'src/lib/posts/material'
+						? [{ path: 'src/lib/posts/material/cuatro.md', text, sha: 'e' }]
+						: [],
+				linkedTagsOf: async () =>
+					new Map([['src/lib/posts/material/cuatro.md', new Set(['Serie Vieja'])]])
+			},
+			'token-de-prueba',
+			[{ type: 'rename', from: 'Serie Vieja', to: 'Serie Nueva', keepAlias: false }]
+		);
+		expect(plan.files).toHaveLength(1);
+		expect(plan.files[0].after).toBe(text.replace('wiki: Serie Vieja', 'wiki: Serie Nueva'));
+	});
+});

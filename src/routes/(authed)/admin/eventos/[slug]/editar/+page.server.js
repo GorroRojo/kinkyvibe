@@ -12,6 +12,7 @@ import { getDB } from '$lib/server/db';
 import {
 	createWorkshopPart,
 	panelParts,
+	setHideParts,
 	setPerPartTickets,
 	setWorkshopParts
 } from '$lib/server/eventos/partes.js';
@@ -123,6 +124,19 @@ export const actions = {
 				setPerPartTickets(db, {
 					eventSlug: event.params.slug,
 					perPart: form.get('por_parte') === 'on',
+					by
+				}),
+			'Listo.'
+		),
+
+	// «Si ocultás el taller, ocultar también sus partes» (docs/talleres-partes.md).
+	partes_ocultar: (event) =>
+		partesAction(
+			event,
+			(db, form, by) =>
+				setHideParts(db, {
+					eventSlug: event.params.slug,
+					hideParts: form.get('ocultar_partes') === 'on',
 					by
 				}),
 			'Listo.'

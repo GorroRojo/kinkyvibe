@@ -97,7 +97,7 @@
 				</small>
 			{/if}
 			<small class="type-left">
-				{#if t.closed}Venta cerrada{:else if t.waitingFor}Se habilita cuando se agote «{t.waitingFor}»{:else if t.available === 0}Agotada{:else if t.left !== null}{leftText(
+				{#if t.closed}Venta cerrada{:else if t.waitingFor}Se habilita cuando se agote «{t.waitingFor}»{:else if t.available === 0}Agotadas{:else if t.left !== null}{leftText(
 						t.left
 					)}{#if t.tierLeft}{' '}a este precio{/if}{:else if t.tier?.until}{t.tier.name} hasta el
 					{formatSaleTime(t.tier.until)}{:else if t.closesAt}Hasta el {formatSaleTime(
