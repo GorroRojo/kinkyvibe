@@ -13,6 +13,7 @@
  */
 import { combineQueries, mapQuery, rowsOf, runQuery } from '$lib/server/db/batch.js';
 import { orderReference } from '$lib/utils/tickets.js';
+import { argFormat } from '$lib/utils/dates.js';
 import { formatARS } from '$lib/utils/money.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
@@ -1326,8 +1327,6 @@ export function integrityReviewRow(run, { formatWhen } = {}) {
 	};
 }
 
-const TZ = 'America/Argentina/Buenos_Aires';
-
 /**
  * "en 3 h", "en 40 min" o "jue 2, 14:00" (hora de Argentina).
  * @param {number} ms
@@ -1337,8 +1336,7 @@ export function whenLabel(ms, now) {
 	const diff = ms - now;
 	if (diff > 0 && diff < 60 * 60 * 1000) return `en ${Math.max(1, Math.round(diff / 60000))} min`;
 	if (diff > 0 && diff < 24 * 60 * 60 * 1000) return `en ${Math.round(diff / 3600000)} h`;
-	return new Intl.DateTimeFormat('es-AR', {
-		timeZone: TZ,
+	return argFormat({
 		weekday: 'short',
 		day: 'numeric',
 		month: 'short',

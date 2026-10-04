@@ -99,7 +99,6 @@
 					<!-- sort a copy: sorting `events` in place made featuredEvent depend on render order -->
 					{#each [...events].sort( (a, b) => (new Date(a.meta.start).getTime() > new Date(b.meta.start).getTime() ? 1 : -1) ) as event}
 						{@const start = toArgentina(event.meta.start)}
-						{@const minutes = format(start, 'mm')}
 						<a
 							href={'#' + event.path}
 							class="bar"
@@ -109,12 +108,7 @@
 							<span>
 								{event.meta.title ?? ' '}
 								&sdot;
-								<strong
-									>{format(start, 'h')}{minutes == '00' ? '' : ':' + minutes}{format(
-										start,
-										'aaa'
-									)}</strong
-								>
+								<strong>{format(start, 'HH:mm')}</strong>
 							</span>
 						</a>
 					{/each}

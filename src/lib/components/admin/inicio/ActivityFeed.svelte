@@ -1,4 +1,5 @@
 <script>
+	import { argFormat } from '$lib/utils/dates.js';
 	/**
 	 * Lista de movimientos del Inicio (actividad reciente y "desde tu última visita"): un punto de
 	 * color por tipo, qué pasó (con link a donde se ve), quién/dónde y hace cuánto.
@@ -15,8 +16,7 @@
 	export let limit = Infinity;
 	export let compact = false;
 
-	const whenFmt = new Intl.DateTimeFormat('es-AR', {
-		timeZone: 'America/Argentina/Buenos_Aires',
+	const whenFmt = argFormat({
 		weekday: 'short',
 		day: 'numeric',
 		month: 'short',

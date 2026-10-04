@@ -3,7 +3,7 @@
  * una edición nueva. Los dos llevan el link para darse de baja.
  */
 import { escapeHtml } from '$lib/server/tickets/email.js';
-import { TIMEZONE } from '$lib/utils/dates.js';
+import { argFormat } from '$lib/utils/dates.js';
 import { expiresInText } from '$lib/utils/expiry.js';
 
 /** @typedef {{ subject: string, html: string, text: string }} Message */
@@ -15,7 +15,7 @@ const SMALL = 'font-size:13px;color:#555';
 export function editionDate(start) {
 	const d = new Date(start);
 	if (Number.isNaN(d.getTime())) return '';
-	return d.toLocaleString('es-AR', { dateStyle: 'full', timeStyle: 'short', timeZone: TIMEZONE });
+	return argFormat({ dateStyle: 'full', timeStyle: 'short' }).format(d);
 }
 
 /**
