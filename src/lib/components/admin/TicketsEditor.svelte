@@ -41,6 +41,13 @@
 	export let idPrefix = 'ev';
 	/** Dónde se cargan el alias y los datos para transferir. */
 	export let settingsHref = '/admin/ajustes/cobros';
+	/**
+	 * ¿Hay datos para transferir (Ajustes → Cobros o TICKETS_TRANSFER_INFO)? Solo sí/no, nunca los
+	 * datos. `false`: «Transferencia» tildada no se ofrece en la compra, y se avisa. `null`: no se
+	 * sabe (no se avisa).
+	 * @type {boolean | null}
+	 */
+	export let transferReady = null;
 
 	/** @type {Array<'mercadopago' | 'transferencia'>} */
 	const METHODS = ['mercadopago', 'transferencia'];
@@ -351,7 +358,15 @@
 					{PAYMENT_METHOD_LABELS[m]}
 				</label>
 			{/each}
-			{#if state.methods.transferencia}
+			{#if state.methods.transferencia && transferReady === false}
+				<p class="warning" role="status" id="{idPrefix}-transfer-missing">
+					⚠️ Activaste transferencia pero faltan los datos en <a
+						href={settingsHref}
+						target="_blank"
+						rel="noopener">Ajustes → Cobros</a
+					>: por ahora no se ofrece.
+				</p>
+			{:else if state.methods.transferencia}
 				<small
 					>El alias y los datos para transferir se configuran en <a
 						href={settingsHref}

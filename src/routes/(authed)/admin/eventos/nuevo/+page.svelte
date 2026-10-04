@@ -763,6 +763,7 @@
 						bind:state={tickets}
 						tags={splitList(values.tags)}
 						location={values.location}
+						transferReady={data.transferReady}
 						errors={showProblems ? ticketsCheck.errors : []}
 						warnings={ticketsCheck.warnings}
 						idPrefix="ev"

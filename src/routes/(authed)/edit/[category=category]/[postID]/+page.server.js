@@ -19,6 +19,7 @@ import {
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors } from '$lib/server/tickets/editor.js';
+import { transferReady } from '$lib/server/tickets/index.js';
 import { placeFileErrors } from '$lib/utils/eventPlace.js';
 import { linkFileErrors } from '$lib/utils/eventLink.js';
 import {
@@ -88,6 +89,8 @@ export async function _editLoad({ locals, params, url, platform }) {
 		// «Lugar» del formulario: los lugares y el elegido (en `event_venues`, no en el archivo).
 		venuePicker: isEvent ? await venuePickerData(getDB(platform), params.postID) : null,
 		salesUnavailable: isEvent && sales === null,
+		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
+		transferReady: isEvent ? await transferReady(getDB(platform)) : null,
 		post,
 		// Tag usage, amigues profiles and past authors for the pickers.
 		...(await editorData(params.category)),

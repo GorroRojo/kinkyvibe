@@ -606,6 +606,7 @@
 					location={values.location}
 					sales={data.sales}
 					salesUnavailable={data.salesUnavailable}
+					transferReady={data.transferReady ?? null}
 					errors={ticketsCheck.errors}
 					warnings={ticketsCheck.warnings}
 					idPrefix="edit"
