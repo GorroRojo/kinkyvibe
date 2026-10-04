@@ -16,8 +16,10 @@
  * (../contenido/markdown.js) para reusar `buildImportedEvent` y el editor de entradas tal cual;
  * nunca se escribe un archivo.
  *
- * Lo que no se copia: la imagen propia del evento original (un número, en la carpeta del evento en
- * el repo: las imágenes todavía no están en la base); una imagen compartida (`src/lib/assets`) sí.
+ * La imagen: si el original tiene una de la biblioteca (edge `portada` a un objeto `imagen`), el
+ * borrador usa la misma (otro edge `portada` a esa imagen), como al duplicar desde el editor. Lo
+ * que no se copia: la imagen vieja propia del original (un número, en la carpeta del evento en el
+ * repo) cuando no tiene una de la biblioteca; una imagen compartida (`src/lib/assets`) sí.
  */
 import { parseDocument } from 'yaml';
 import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
@@ -27,6 +29,7 @@ import { markdownToPost } from '$lib/server/contenido/markdown.js';
 import { dehydrateContent } from '$lib/server/contenido/relaciones.js';
 import { revisionStatement } from '$lib/server/contenido/revisions.js';
 import { eventVenue } from '$lib/server/amigues/venues.js';
+import { imageOf } from '$lib/server/media/library.js';
 import { ObjectError } from '$lib/server/objects/errors.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import { coreTypes, validateData } from '$lib/server/objects/types/index.js';
@@ -50,6 +53,12 @@ import {
 } from '$lib/utils/ticketsEditor.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
+
+/** Viewer de admin para leer la imagen del original (ve también las ocultas). */
+const PANEL = /** @type {import('$lib/server/objects/visibility.js').Viewer} */ ({
+	role: 'admin',
+	id: 'panel'
+});
 /** @typedef {import('$lib/utils/ticketsEditor.js').TicketsForm} TicketsForm */
 /** @typedef {import('$lib/utils/sourcePicker.js').ImportSource} ImportSource */
 
@@ -260,8 +269,8 @@ export async function createImportedDrafts(
 	const def = /** @type {import('$lib/server/objects/types/index.js').CoreType} */ (
 		coreTypes.get(EVENT_TYPE)
 	);
-	/** Cada original se lee una vez (texto, objeto y lugar). */
-	/** @type {Map<string, Promise<{ file: Awaited<ReturnType<typeof findDbPost>>, venue: Awaited<ReturnType<typeof eventVenue>> }>>} */
+	/** Cada original se lee una vez (texto, objeto, lugar e imagen de la biblioteca). */
+	/** @type {Map<string, Promise<{ file: Awaited<ReturnType<typeof findDbPost>>, venue: Awaited<ReturnType<typeof eventVenue>>, image: Awaited<ReturnType<typeof imageOf>> }>>} */
 	const sources = new Map();
 	/** @param {string} slug */
 	const sourceOf = (slug) => {
@@ -269,8 +278,10 @@ export async function createImportedDrafts(
 		if (!p) {
 			p = (async () => {
 				const file = await findDbPost(db, EVENT_CATEGORY, slug);
-				const venue = file && !file.deleted ? await eventVenue(db, slug) : null;
-				return { file, venue };
+				const alive = file && !file.deleted;
+				const venue = alive ? await eventVenue(db, slug) : null;
+				const image = alive ? await imageOf(db, file.object.id, 'portada', PANEL) : null;
+				return { file, venue, image };
 			})();
 			sources.set(slug, p);
 		}
@@ -301,9 +312,18 @@ export async function createImportedDrafts(
 			const notes = [...built.notes];
 			let content = built.content;
 			if (edited) content = withTickets(content, row.tickets);
-			// La imagen propia del original está en el repo: no se copia (las imágenes todavía no
-			// están en la base). Una compartida (src/lib/assets) sirve tal cual.
-			if (!fromTemplate && isNumericFeatured(built.featured)) {
+			// La imagen de la biblioteca del original (edge `portada`) se reusa: el borrador apunta a
+			// la misma imagen y la vieja del repo (`featured`) sobra.
+			const image = src?.image ?? null;
+			if (image) {
+				const fm = splitMarkdown(content);
+				content = joinMarkdown(
+					applyFrontmatterChanges(fm.frontmatter, { featured: REMOVE }),
+					fm.body
+				);
+			} else if (!fromTemplate && isNumericFeatured(built.featured)) {
+				// Sin imagen de la biblioteca, la propia del original está en el repo: no se copia.
+				// Una compartida (src/lib/assets) sirve tal cual.
 				const fm = splitMarkdown(content);
 				content = joinMarkdown(
 					applyFrontmatterChanges(fm.frontmatter, { featured: REMOVE }),
@@ -335,6 +355,7 @@ export async function createImportedDrafts(
 				? { location: '', location_name: '' }
 				: readEventFields(splitMarkdown(raw).frontmatter);
 			const placeChanged = placeFields(row.place ?? '', sourceFields).changed;
+			if (image) allEdges.portada = [image.id];
 			if (src?.venue && !placeChanged) {
 				allEdges.lugar = [
 					{

@@ -73,7 +73,9 @@ lo más reciente primero, `src/lib/utils/sourcePicker.js`). Cada fila tiene sus 
 mismo editor que Cargar evento): arrancan como las del evento duplicado, con su meta de venta y el
 precio General de la planilla, y «Usar estas entradas en todas las filas» las copia a toda la tanda.
 Un mail suelto en el link de inscripción pasa a `mailto:`; también valen `tel:` y páginas del sitio
-(`/…`). La imagen propia del original (un número) no se copia: las imágenes siguen en el repo.
+(`/…`). Si el original tiene imagen de la biblioteca (edge `portada`), el borrador usa la misma imagen
+(otro edge `portada` al mismo objeto `imagen`), como al duplicar desde el editor; si solo tiene la
+imagen vieja del repo (un número), no se copia y queda el aviso para subirla desde el editor.
 Hasta 200 filas por vez. No van en un solo pedido (D1 tiene un tope de consultas por pedido): la
 página primero **revisa** todas de a 40 (`dryRun`, no guarda nada) y, si ninguna tiene problemas,
 las **guarda** de a 40 («Guardando 80 de 200…»). Si un guardado falla a mitad de camino, lo
