@@ -37,17 +37,9 @@ export async function POST({ platform, locals }) {
 		if (!isAdmin(locals.user)) error(403, 'Solo admins');
 		const db = getDB(platform);
 		if (!db) error(503, 'Sin base de datos');
-		const [{ reloadDemoData, SEED_BY }, { bundle }] = await Promise.all([
-			import('$lib/server/demo/seed.js'),
-			import('$lib/server/demo/bundle.js')
-		]);
-		// Los eventos de prueba que trae el deploy (los de otra fecha se tapan en la capa demo).
-		const bundledSlugs = [...bundle.files].flatMap((path) => {
-			const m = path.match(/^src\/lib\/posts\/calendario\/(demo-[^/]+)\.md$/);
-			return m ? [m[1]] : [];
-		});
+		const { reloadDemoData, SEED_BY } = await import('$lib/server/demo/seed.js');
 		try {
-			const result = await reloadDemoData(db, { bundledSlugs });
+			const result = await reloadDemoData(db);
 			return json({ ...result, amigues: await importBundledAmigues(db, SEED_BY) });
 		} catch (e) {
 			console.error('[demo] no se pudieron recargar los datos de prueba:', e);

@@ -21,7 +21,9 @@ export const REVISION_SOURCES = /** @type {const} */ ([
 	'deshacer',
 	'lugar',
 	'partes',
-	'migracion'
+	'migracion',
+	// Los eventos de prueba del modo demo (src/lib/server/demo/seedEvents.js), solo en un preview.
+	'demo'
 ]);
 
 /**

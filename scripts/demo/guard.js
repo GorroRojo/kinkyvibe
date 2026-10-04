@@ -17,17 +17,19 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EVENT_MARKER, SEED_BY } from '../../src/lib/server/demo/seed.js';
+import { DEMO_SLOT_KEY } from '../../src/lib/server/demo/seedEvents.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 export const POSTS_DIR = path.join(ROOT, 'src/lib/posts');
 
 /**
- * Textos que solo están en el seed (src/lib/server/demo/seed.js, seedProfiles.js) y en el botón
+ * Textos que solo están en el seed (src/lib/server/demo/seed.js, seedProfiles.js, seedEvents.js) y en el botón
  * de recargar (DemoReload.svelte). Si alguno aparece en el bundle de producción, algo importó el
  * modo demo fuera de `if (PREVIEW_BUILD)`.
  */
 export const SEED_BUNDLE_MARKERS = Object.freeze([
 	SEED_BY,
+	DEMO_SLOT_KEY,
 	'refugio-demo-oculto',
 	'demo.aviso.uno@example.invalid',
 	'Recargar datos de prueba'
