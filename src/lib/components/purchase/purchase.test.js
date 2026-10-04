@@ -8,6 +8,7 @@ import TicketPurchase from '../TicketPurchase.svelte';
 import StepIndicator from './StepIndicator.svelte';
 import PurchaseSummary from './PurchaseSummary.svelte';
 import { PURCHASE_STEPS } from '$lib/utils/purchaseSteps.js';
+import { stripHtmlComments } from '$lib/utils/htmlStrip.js';
 
 /** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
 const tickets = {
@@ -196,7 +197,7 @@ describe('TicketsStep', () => {
 		const soldOut = { ...tickets, types: [{ ...tickets.types[0], available: 0, left: 0 }] };
 		const { body } = render(TicketsStep, { props: { tickets: soldOut } });
 		// Sin los comentarios que deja Svelte al renderizar.
-		const html = body.replace(/<!--[^]*?-->/g, '');
+		const html = stripHtmlComments(body);
 		expect(html).toMatch(/<small class="type-left[^"]*">\s*Agotadas\s*<\/small>/);
 		expect(body).not.toMatch(/Agotada(?!s)/);
 	});

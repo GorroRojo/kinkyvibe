@@ -95,7 +95,7 @@ const signoffSpan = (inner) => `<span style="color:${MAIL_COLORS.faint};">${inne
 
 /** La línea de contacto de siempre, tal cual la escribe {@link mailLayout}. */
 const DEFAULT_CONTACT_LINE_RE = new RegExp(
-	`\n¿Dudas\\? Escribinos a (<a href="mailto:[^"<>]*" style="color:${MAIL_COLORS.link.replace(/[().]/g, '\\$&')};">[^<>]*</a>)<br>\n`,
+	`\n¿Dudas\\? Escribinos a (<a href="mailto:[^"<>]*" style="color:${MAIL_COLORS.link.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')};">[^<>]*</a>)<br>\n`,
 	'g'
 );
 

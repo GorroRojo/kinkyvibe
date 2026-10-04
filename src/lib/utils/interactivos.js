@@ -96,7 +96,7 @@ export function markInteractive(body, replace) {
 }
 
 /** El primer bloque `<script>` del texto (el de mdsvex, no `context="module"`). */
-const SCRIPT = /^<script(?![^>]*context=)[^>]*>\n?([\s\S]*?)<\/script>[ \t]*\n?/m;
+const SCRIPT = /^<script(?![^>]*context=)[^>]*>\n?([\s\S]*?)<\/script>[ \t]*\n?/im;
 
 /** @param {string} s */
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -133,7 +133,7 @@ export function toRegisteredTags(body) {
 	const rest = text.slice(start + script[0].length);
 	const before = text.slice(0, start);
 	if (code.trim()) {
-		const open = /** @type {RegExpMatchArray} */ (script[0].match(/^<script[^>]*>\n?/))[0];
+		const open = /** @type {RegExpMatchArray} */ (script[0].match(/^<script[^>]*>\n?/i))[0];
 		return `${before}${open}${code}</script>\n${rest}`;
 	}
 	// Sin nada más en el `<script>`: sale entero, con la línea en blanco que lo separaba.
@@ -162,7 +162,7 @@ export function toLegacyComponents(body) {
 	if (!imports.length) return text;
 	const script = SCRIPT.exec(text);
 	if (script) {
-		const open = /** @type {RegExpMatchArray} */ (script[0].match(/^<script[^>]*>\n?/))[0];
+		const open = /** @type {RegExpMatchArray} */ (script[0].match(/^<script[^>]*>\n?/i))[0];
 		const at = text.indexOf(script[0]) + open.length;
 		return text.slice(0, at) + imports.join('') + text.slice(at);
 	}
