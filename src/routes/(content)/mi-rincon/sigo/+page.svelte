@@ -59,7 +59,7 @@
 </script>
 
 <svelte:head>
-	<title>Lo que sigo - KinkyVibe.ar</title>
+	<title>Lo que sigo · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 

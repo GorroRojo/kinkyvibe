@@ -272,21 +272,6 @@ export function osmLink(lat, lng, zoom = 17) {
 }
 
 /**
- * Link «Cómo llegar»: las indicaciones de OpenStreetMap hasta el punto, con el origen vacío (la
- * persona elige desde dónde sale; no le pedimos la ubicación). Funciona igual en la compu y en el
- * celular, a diferencia de un link `geo:`, que en la compu no abre nada.
- *
- * @param {number} lat
- * @param {number} lng
- * @param {number} [zoom]
- */
-export function osmDirectionsLink(lat, lng, zoom = 16) {
-	const la = lat.toFixed(6);
-	const lo = lng.toFixed(6);
-	return `https://www.openstreetmap.org/directions?route=%3B${la}%2C${lo}#map=${zoom}/${la}/${lo}`;
-}
-
-/**
  * El link "Ver en Google Maps" de un lugar ya filtrado por su nivel, o `undefined` si el nivel no
  * muestra la dirección (pedido de gorrite: solo "Nombre + dirección" y "Sólo dirección"). Es un
  * link común, sin mapa embebido. Con el punto en el mapa busca el punto; si no, la dirección. En

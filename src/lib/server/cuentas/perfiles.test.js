@@ -518,7 +518,7 @@ describe('aviso por mail de las invitaciones', () => {
 		expect(fake.sent).toHaveLength(1);
 		const [{ to, message }] = fake.sent;
 		expect(to).toBe(b.email);
-		expect(message.subject).toBe('Te invitaron a gestionar un perfil en KinkyVibe');
+		expect(message.subject).toBe('Te invitaron a gestionar un perfil en Kinky Vibe');
 		expect(message.text).toContain('«Proyecto <Inventado>»');
 		expect(message.text).toContain('https://kinkyvibe.ar/mi-rincon/perfiles');
 		expect(message.html).toContain('Proyecto &lt;Inventado&gt;');

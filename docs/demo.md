@@ -20,7 +20,7 @@ sin tocar el repo.
 - **Entrar**: en un preview, `/login` (y el encabezado del sitio, si no hay sesión) muestra
   «🧪 Entrar como admin de prueba». Hace `POST /login/demo`, que pone la cookie httpOnly `kvDemo`;
   `hooks.server.js` arma una sesión falsa (login `demo`, nombre «Admin de prueba», id `-1`, que no
-  es un id de GitHub). «Cerrar sesión» borra la cookie.
+  es un id de GitHub). «Salir» borra la cookie.
 - **Entrar como persona de prueba** (cuentas del público, [cuentas.md](cuentas.md)): el
   encabezado, `/login` e `/ingresar` llevan a `/ingresar/demo`,
   que deja elegir una cuenta inventada y entrar con un clic, sin código por mail:
@@ -32,7 +32,7 @@ sin tocar el repo.
   por un id o un mail que mande el navegador) y la cuenta tiene que estar en la base con el id y
   el mail `@example.invalid` de `src/lib/server/demo/personas.js` y la marca
   `preferences.datos_de_prueba` que pone el seed. La sesión es la normal de las cuentas
-  (`startSession`, método `code`); «Cerrar sesión» en Mi rincón la cierra.
+  (`startSession`, método `code`); «Salir» en Mi rincón la cierra.
 - **Permisos**: `isAdmin` (`src/lib/server/auth.js`) acepta esa identidad **solo si
   `isPreviewDeploy()`**. Además, el bloque de `hooks.server.js` y el cliente demo están dentro de
   `if (PREVIEW_BUILD)`, una constante que se resuelve al compilar desde `WORKERS_CI_BRANCH`: en el

@@ -72,7 +72,7 @@
 </script>
 
 <svelte:head>
-	<title>KinkyVibe.ar - Calendario</title>
+	<title>Calendario · Kinky Vibe</title>
 </svelte:head>
 
 <div class="cardrow">

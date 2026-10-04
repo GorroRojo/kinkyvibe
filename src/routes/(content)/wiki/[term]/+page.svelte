@@ -81,7 +81,7 @@
 </script>
 
 <svelte:head>
-	<title>{data?.meta?.title ?? data.tag?.visible_name} - KinkyVibe.ar</title>
+	<title>{data?.meta?.title ?? data.tag?.visible_name} · Kinky Vibe</title>
 
 	<meta property="og:title" content={data?.meta?.title} />
 	<meta name="twitter:title" content={data?.meta?.title} />

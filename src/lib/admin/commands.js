@@ -211,7 +211,7 @@ export function buildCommands({ today = [] } = {}) {
 		},
 		{
 			id: 'logout',
-			label: 'Cerrar sesión',
+			label: 'Salir',
 			hint: '',
 			keywords: 'salir logout cerrar sesion',
 			icon: 'logout',

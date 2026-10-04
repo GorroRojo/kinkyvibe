@@ -7,6 +7,12 @@
  * lee de Analytics Engine desde el primer día del mes anterior («en vivo») y de D1 los meses de
  * antes, sin superponerse.
  *
+ * Los días y los meses son de **Argentina** (America/Argentina/Buenos_Aires: UTC−3 todo el año, sin
+ * horario de verano). La API de SQL de Analytics Engine guarda `timestamp` en UTC: los días se
+ * agrupan corriendo la hora 3 horas para atrás (`timestamp - INTERVAL '3' HOUR`, sin depender de que
+ * la API acepte un huso horario), y los bordes de cada mes (en vivo y en el resumen de D1) son la
+ * medianoche de Argentina, o sea las 03:00 UTC.
+ *
  * Solo imports relativos: el cron lo usa sin pasar por Vite.
  */
 import { DATASET, FUNNEL_STEPS } from './track.js';
@@ -24,16 +30,32 @@ const FUNNEL_LIMIT = 2000;
 /** Días de los rankings del panel (páginas, orígenes, países, dispositivos). */
 export const TOP_DAYS = 30;
 
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+/** Horas que Argentina está detrás de UTC (sin horario de verano). */
+export const AR_OFFSET_HOURS = 3;
+const AR_OFFSET_MS = AR_OFFSET_HOURS * 3_600_000;
 
-/** Primer instante (UTC) del mes de `date` más `offset` meses. */
-export function monthStart(/** @type {Date} */ date, offset = 0) {
-	return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + offset, 1));
+/** La fecha `date` corrida a la hora de Argentina (para leerla con getUTC…/toISOString). */
+const inArgentina = (/** @type {Date} */ date) => new Date(date.getTime() - AR_OFFSET_MS);
+
+/** El día de Argentina (`YYYY-MM-DD`) de un instante. */
+export function argentineDay(/** @type {Date} */ date) {
+	return inArgentina(date).toISOString().slice(0, 10);
 }
 
-/** `YYYY-MM` (UTC). */
+const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/**
+ * Primer instante del mes de Argentina de `date` más `offset` meses: la medianoche de Argentina
+ * del día 1 (las 03:00 UTC).
+ */
+export function monthStart(/** @type {Date} */ date, offset = 0) {
+	const ar = inArgentina(date);
+	return new Date(Date.UTC(ar.getUTCFullYear(), ar.getUTCMonth() + offset, 1) + AR_OFFSET_MS);
+}
+
+/** `YYYY-MM` del mes de Argentina de un instante. */
 export function monthKey(/** @type {Date} */ date) {
-	return date.toISOString().slice(0, 7);
+	return argentineDay(date).slice(0, 7);
 }
 
 /** `ago 2026` a partir de `2026-08`. */
@@ -48,9 +70,9 @@ function timeWhere({ from, to }) {
 	return to ? `${lo} AND timestamp < toDateTime('${sqlDateTime(to)}')` : lo;
 }
 
-/** Visitas por día (UTC) desde `from`. */
+/** Visitas por día de Argentina desde `from` (`day` es la medianoche de ese día, sin huso). */
 export function dailySql(/** @type {Date} */ from) {
-	return `SELECT toStartOfInterval(timestamp, INTERVAL '1' DAY) AS day, SUM(_sample_interval) AS n
+	return `SELECT toStartOfInterval(timestamp - INTERVAL '${AR_OFFSET_HOURS}' HOUR, INTERVAL '1' DAY) AS day, SUM(_sample_interval) AS n
 FROM ${DATASET}
 WHERE blob1 = 'view' AND ${timeWhere({ from })}
 GROUP BY day ORDER BY day`;
@@ -279,11 +301,14 @@ export function buildFunnel(rows, titleOf) {
 	);
 }
 
-/** Lista los días UTC entre `from` y `to` (incluidos). */
+/** Lista los días de Argentina entre `from` y `to` (incluidos). */
 function daysBetween(/** @type {Date} */ from, /** @type {Date} */ to) {
 	const out = [];
-	for (let t = from.getTime(); t <= to.getTime(); t += 86_400_000) {
-		out.push(new Date(t).toISOString().slice(0, 10));
+	const last = argentineDay(to);
+	for (let t = inArgentina(from).getTime(); ; t += 86_400_000) {
+		const day = new Date(t).toISOString().slice(0, 10);
+		if (day > last) break;
+		out.push(day);
 	}
 	return out;
 }
@@ -326,7 +351,7 @@ export async function loadVisits({ env, db, now = new Date(), fetch: fetchFn, ti
 		configured: config.ok,
 		missing: config.ok ? [] : config.missing,
 		error: null,
-		liveFrom: liveFromDate.toISOString().slice(0, 10),
+		liveFrom: argentineDay(liveFromDate),
 		topDays: TOP_DAYS,
 		totals: { views: 0, phoneShare: 0, countries: 0 },
 		daily: [],

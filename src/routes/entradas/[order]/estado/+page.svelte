@@ -23,7 +23,7 @@
 </script>
 
 <svelte:head>
-	<title>Tu compra - KinkyVibe.ar</title>
+	<title>Tu compra · Kinky Vibe</title>
 </svelte:head>
 
 <section class="estado estado-{order.status}" aria-live="polite">

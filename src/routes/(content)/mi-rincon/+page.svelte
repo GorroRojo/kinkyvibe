@@ -44,7 +44,7 @@
 </script>
 
 <svelte:head>
-	<title>Mi rincón - KinkyVibe.ar</title>
+	<title>Mi rincón · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
@@ -60,10 +60,10 @@
 		{/if}
 		<div class="row">
 			<form method="POST" action="?/salir">
-				<button class="pill-btn ghost" type="submit">Cerrar sesión</button>
+				<button class="pill-btn ghost" type="submit">Salir</button>
 			</form>
 			<form method="POST" action="?/salirTodos">
-				<button class="pill-btn ghost" type="submit">Cerrar sesión en todos lados</button>
+				<button class="pill-btn ghost" type="submit">Salir en todos lados</button>
 			</form>
 		</div>
 		<p class="hint">
@@ -362,7 +362,7 @@
 						<input name="confirm" type="text" autocomplete="off" bind:value={confirmDelete} />
 					</label>
 					<button
-						class="pill-btn danger"
+						class="pill-btn permanent"
 						type="submit"
 						disabled={confirmDelete.trim().toLowerCase() !== 'borrar'}
 						><Trash2 size={18} aria-hidden="true" /> Borrar mi cuenta</button

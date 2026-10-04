@@ -78,7 +78,14 @@ Si falla o falta el token, lo escribe en el log y **nunca** hace fallar el backu
 
 El panel lee de Analytics Engine desde el **primer día del mes anterior** y de D1 los meses de
 antes (sin superponerse). Si Analytics Engine no está configurado o falla, muestra lo que haya
-en D1. Los días y meses son en **UTC** (una visita a las 22 h de Argentina cae en el día siguiente).
+en D1. Los días y meses son de **Argentina** (America/Argentina/Buenos_Aires, UTC−3 todo el año,
+sin horario de verano): una visita a las 22 h del 30/9 cuenta para el 30/9 y para septiembre. La
+API de SQL guarda la hora en UTC: la consulta por día agrupa `timestamp - INTERVAL '3' HOUR` (no
+depende de que la API acepte un huso horario como argumento, que no está documentado para el SQL de
+Workers Analytics Engine) y los bordes de cada mes, en vivo y en el resumen de D1, son la medianoche
+de Argentina (03:00 UTC del día 1). Ver `AR_OFFSET_HOURS`, `monthStart` y `dailySql` en
+`src/lib/server/analytics/report.js`. Los meses que ya estaban guardados en D1 se calcularon en
+UTC: el cron vuelve a escribir el mes anterior y el actual, los más viejos quedan como estaban.
 
 ## Puesta en marcha (gorrite, en el panel de Cloudflare)
 

@@ -81,20 +81,25 @@ describe('Crear serie', () => {
 		expect(log.results).toHaveLength(1);
 	});
 
-	it('serie hija (una por año): queda dentro de la serie madre, con su ícono', async () => {
+	// «¿Va dentro de otra serie?» sigue (Picantearla Deluxe); el botón «Serie por año» se fue
+	// (gorrite, 4/10), así que el ejemplo es una edición especial.
+	it('serie hija (una edición especial): queda dentro de la serie madre, con su ícono', async () => {
 		const { mod, commits } = await page();
 		const res = await mod.actions.crear(
-			post({ name: 'Cuirdas Sudacas 2099', parent: 'Cuirdas Sudacas', icon: '🪢' })
+			post({ name: 'Cuirdas Sudacas: Edición Inventada', parent: 'Cuirdas Sudacas', icon: '🪢' })
 		);
-		expect(res).toMatchObject({ created: { name: 'Cuirdas Sudacas 2099' } });
+		expect(res).toMatchObject({ created: { name: 'Cuirdas Sudacas: Edición Inventada' } });
 		expect(commits).toHaveLength(0);
 		const records = await loadTagRecords(t.db);
-		const tag = records.find((r) => r.key === 'Cuirdas Sudacas 2099');
+		const tag = records.find((r) => r.key === 'Cuirdas Sudacas: Edición Inventada');
 		expect(tag?.parents.map((p) => p.key)).toEqual(['Cuirdas Sudacas']);
 		expect(tag?.data).toEqual({ icon: '🪢' });
 		const log = await t.db.prepare('SELECT summary FROM admin_audit').all();
 		expect(log.results).toEqual([
-			{ summary: 'Series (base): Crear «Cuirdas Sudacas 2099» dentro de «Cuirdas Sudacas»' }
+			{
+				summary:
+					'Series (base): Crear «Cuirdas Sudacas: Edición Inventada» dentro de «Cuirdas Sudacas»'
+			}
 		]);
 		// Una madre que no es una serie: error, sin commit.
 		expect(await mod.actions.crear(post({ name: 'Otra Más', parent: 'taller' }))).toMatchObject({

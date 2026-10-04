@@ -2,8 +2,8 @@
 	/**
 	 * Mapa chico de un lugar con baldosas de OpenStreetMap: imágenes comunes que el navegador carga
 	 * recién cuando el mapa está por entrar en pantalla (`loading="lazy"`), sin librerías, sin
-	 * scripts ni iframes de afuera. Abajo, «Abrir en OpenStreetMap», «Cómo llegar» y el crédito que
-	 * pide OpenStreetMap. Solo se muestra cuando la dirección del lugar se ve ("Nombre + dirección"
+	 * scripts ni iframes de afuera. Abajo, «Abrir en OpenStreetMap» y el crédito que pide
+	 * OpenStreetMap (el botón de indicaciones «Cómo llegar» se sacó: gorrite, 4/10). Solo se muestra cuando la dirección del lugar se ve ("Nombre + dirección"
 	 * o "Sólo dirección"): quien lo usa decide con `showsAddress`, y el servidor no manda las
 	 * coordenadas en los otros niveles (`venueView` en src/lib/utils/venues.js).
 	 *
@@ -14,7 +14,7 @@
 	 * Props: `lat`, `lng`, `label` (nombre del lugar, o su dirección si el nombre no se muestra,
 	 * para el texto alternativo).
 	 */
-	import { osmDirectionsLink, osmLink, osmTiles } from '$lib/utils/venues.js';
+	import { osmLink, osmTiles } from '$lib/utils/venues.js';
 
 	/** @type {number} */
 	export let lat;
@@ -50,12 +50,6 @@
 	<figcaption>
 		<span class="links">
 			<a {href} target="_blank" rel="noopener noreferrer">Abrir en OpenStreetMap</a>
-			<a
-				href={osmDirectionsLink(lat, lng)}
-				target="_blank"
-				rel="noopener noreferrer"
-				aria-label="Cómo llegar (indicaciones en OpenStreetMap)">Cómo llegar</a
-			>
 		</span>
 		<small class="credit"
 			>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer"

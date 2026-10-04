@@ -2,7 +2,7 @@
 	/**
 	 * Las series en tarjetas (la Kinkipedia): imagen (o el emoji grande si no tiene), nombre,
 	 * descripción corta, cuántas ediciones y la próxima (o la última, si no hay próxima). Las series
-	 * hijas (como «Picantearla: Deluxe», o una serie por año) van dentro de la tarjeta de su madre
+	 * hijas (como «Picantearla: Deluxe») van dentro de la tarjeta de su madre
 	 * (groupSeries). Cada tarjeta lleva a la página de la serie (/wiki/<serie>).
 	 * Props: `series` (lo de seriesSummaries, src/lib/server/series/index.js).
 	 */

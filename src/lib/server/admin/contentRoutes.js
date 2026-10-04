@@ -51,7 +51,7 @@ import amiguesTemplate from '$lib/posts/amigues/_profile_template.md?raw';
 const TEMPLATES = { material: materialTemplate, amigues: amiguesTemplate };
 
 const NO_PERMISSION =
-	'No tenés permiso para editar contenido. Probá cerrar sesión y volver a entrar.';
+	'No tenés permiso para editar contenido. Probá salir y volver a entrar.';
 
 /** @param {unknown} e */
 const describe = (e) => (e instanceof Error ? e.message : String(e));

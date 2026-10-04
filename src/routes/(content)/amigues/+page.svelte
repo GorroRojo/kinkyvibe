@@ -33,7 +33,7 @@
 </script>
 
 <svelte:head>
-	<title>KinkyVibe.ar - Emprendimientos y profesionales</title>
+	<title>Emprendimientos y profesionales · Kinky Vibe</title>
 </svelte:head>
 <div class="glosario">
 	<p>

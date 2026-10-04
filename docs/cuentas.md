@@ -152,7 +152,7 @@ el código por mail sigue andando.
 - Cookie `kvRincon`: token al azar de 256 bits, `HttpOnly`, `Secure` (salvo http://localhost),
   `SameSite=Lax`, 400 días (el máximo de los navegadores). `last_seen_at` se actualiza como
   mucho una vez por día y, cuando pasa, la cookie se vuelve a mandar con 400 días más.
-- En Mi rincón, "Cerrar sesión en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
+- En Mi rincón, "Salir en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
   cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
   saca acceso.
 - `hooks.server.js` carga `locals.member` (`{ id, email }`) solo si hay cookie (y base).
@@ -386,7 +386,7 @@ aprobar").
   acepta (queda como `manager`) o la rechaza.
 - **Aviso por mail de la invitación.** Si hay una cuenta verificada y no borrada con ese mail (y
   todavía no gestiona el proyecto), le llega un aviso corto: "Te invitaron a gestionar un perfil en
-  KinkyVibe", con el nombre del proyecto y el link a `/mi-rincon/perfiles`. Nunca lleva el mail de
+  Kinky Vibe", con el nombre del proyecto y el link a `/mi-rincon/perfiles`. Nunca lleva el mail de
   quien invitó. Sale por el mismo camino y con el mismo remitente que los códigos de ingreso
   (`deliverEmail`, que en los previews respeta `EMAIL_ALLOWLIST`).
 
@@ -507,7 +507,7 @@ actualizá esta lista.
   `SHA-256` del mail con un prefijo fijo: con acceso a la base, se puede confirmar si un mail
   adivinado está ahí. Para que "no se guarda el mail" valga también contra eso, habría que usar
   un HMAC con una clave secreta del entorno.
-- **Sesiones sin vencimiento** (P7.11). Para cortar todo: "Cerrar sesión en todos lados" o cambiar
+- **Sesiones sin vencimiento** (P7.11). Para cortar todo: "Salir en todos lados" o cambiar
   o sacar la contraseña. Con una sesión abierta ajena se pueden ver los datos guardados (también
   el DNI, si se guardó): «Mostrar» no pide código por mail.
 - **El nombre del proyecto va en el aviso de invitación.** Lo escribe quien gestiona el proyecto y llega

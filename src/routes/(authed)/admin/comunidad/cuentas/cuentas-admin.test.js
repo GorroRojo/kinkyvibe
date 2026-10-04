@@ -21,6 +21,7 @@ import * as list from './+page.server.js';
 import * as detail from './[id]/+page.server.js';
 import * as profiles from '../perfiles/+page.server.js';
 import * as profile from './perfiles/[id]/+page.server.js';
+import * as actividad from '../../ajustes/actividad/+page.server.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -336,8 +337,13 @@ describe('Perfiles (Comunidad › Perfiles, /admin/comunidad/perfiles)', () => {
 				await profile.actions.borrar(fakeEvent({ params, form: { version: '3' } }))
 			).status
 		).toBe(409);
-		expect(await profile.actions.borrar(fakeEvent({ params, form: { version: '1' } }))).toEqual({
-			perfil: { ok: true, message: 'Listo: el perfil quedó borrado.' }
+		const done = /** @type {any} */ (
+			await profile.actions.borrar(fakeEvent({ params, form: { version: '1' } }))
+		);
+		// Ahora también devuelve el borrado, para «Deshacer» (gorrite, 4/10).
+		expect(done).toEqual({
+			perfil: { ok: true, message: 'Listo: el perfil quedó borrado.' },
+			deleted: { id: expect.any(Number), title: 'Proyecto Inventado' }
 		});
 		const row = await t.db
 			.prepare('SELECT version, updated_by, deleted_at FROM objects WHERE id = ?1')
@@ -355,8 +361,9 @@ describe('Perfiles (Comunidad › Perfiles, /admin/comunidad/perfiles)', () => {
 					.first()
 			)?.n
 		).toBe(1);
+		// El mismo registro que el resto de los borrados del panel (deleteDbProfile).
 		expect((await auditRows('profile.delete')).map((r) => r.summary)).toEqual([
-			'Borró el perfil «Proyecto Inventado»'
+			`Borró el perfil «Proyecto Inventado» (amigues/${p.slug}, solo en la base)`
 		]);
 		const again = /** @type {any} */ (
 			await profile.actions.borrar(fakeEvent({ params, form: { version: '2' } }))
@@ -365,6 +372,110 @@ describe('Perfiles (Comunidad › Perfiles, /admin/comunidad/perfiles)', () => {
 		// La ficha sigue abriendo (les admins ven lo borrado).
 		const data = /** @type {any} */ (await profile.load(fakeEvent({ params })));
 		expect(data.profile.deletedAt).toBeTypeOf('number');
+	});
+
+	it('borrar ofrece «Deshacer»: el perfil vuelve, con su gestión, y queda en Actividad', async () => {
+		const { account: a, profile: p } = await profileOf('Persona Inventada');
+		const params = { id: String(p.id) };
+		const done = /** @type {any} */ (
+			await profile.actions.borrar(fakeEvent({ params, form: { version: '1' } }))
+		);
+		const deletion = await t.db
+			.prepare('SELECT path, status FROM panel_deletions WHERE id = ?1')
+			.bind(done.deleted.id)
+			.first();
+		expect(deletion).toEqual({ path: `objeto:perfil:${p.id}`, status: 'borrado' });
+
+		const undone = await profile.actions.deshacer(
+			fakeEvent({ params, form: { id: String(done.deleted.id) } })
+		);
+		expect(undone).toEqual({ perfil: { ok: true, message: 'Listo: el perfil volvió.' } });
+		const row = await t.db
+			.prepare('SELECT deleted_at FROM objects WHERE id = ?1')
+			.bind(p.id)
+			.first();
+		expect(row?.deleted_at).toBeNull();
+		expect(
+			(
+				await t.db
+					.prepare('SELECT COUNT(*) AS n FROM profile_managers WHERE account_id = ?1')
+					.bind(a.id)
+					.first()
+			)?.n
+		).toBe(1);
+		expect((await auditRows('profile.restore')).map((r) => r.summary)).toEqual([
+			`Recuperó el perfil «Persona Inventada» (amigues/${p.slug}, solo en la base)`
+		]);
+		// Dos veces no: ya se recuperó.
+		const twice = /** @type {any} */ (
+			await profile.actions.deshacer(fakeEvent({ params, form: { id: String(done.deleted.id) } }))
+		);
+		expect(twice.status).toBe(409);
+	});
+
+	it('deshacer solo vale para un borrado de ese mismo perfil', async () => {
+		const { profile: p } = await profileOf('Persona Inventada');
+		const { profile: other } = await profileOf('Otra Persona');
+		const done = /** @type {any} */ (
+			await profile.actions.borrar(
+				fakeEvent({ params: { id: String(p.id) }, form: { version: '1' } })
+			)
+		);
+		for (const id of [String(done.deleted.id + 1), '0', 'abc']) {
+			const r = /** @type {any} */ (
+				await profile.actions.deshacer(fakeEvent({ params: { id: String(p.id) }, form: { id } }))
+			);
+			expect(r.status, id).toBe(404);
+		}
+		const wrong = /** @type {any} */ (
+			await profile.actions.deshacer(
+				fakeEvent({ params: { id: String(other.id) }, form: { id: String(done.deleted.id) } })
+			)
+		);
+		expect(wrong.status).toBe(404);
+		const row = await t.db
+			.prepare('SELECT deleted_at FROM objects WHERE id = ?1')
+			.bind(p.id)
+			.first();
+		expect(row?.deleted_at).toBeTypeOf('number');
+		// Sin sesión de admin, no.
+		expect(
+			(
+				await thrown(() =>
+					profile.actions.deshacer(
+						fakeEvent({
+							params: { id: String(p.id) },
+							form: { id: String(done.deleted.id) },
+							user: null
+						})
+					)
+				)
+			)?.status
+		).toBeGreaterThanOrEqual(300);
+	});
+
+	it('un perfil borrado desde su ficha aparece en «Recuperar» de Actividad y se recupera', async () => {
+		const { profile: p } = await profileOf('Persona Inventada');
+		const done = /** @type {any} */ (
+			await profile.actions.borrar(
+				fakeEvent({ params: { id: String(p.id) }, form: { version: '1' } })
+			)
+		);
+		const page = /** @type {any} */ (
+			await actividad.load(fakeEvent({ path: '/admin/ajustes/actividad' }))
+		);
+		expect(page.deletions.map((/** @type {any} */ d) => d.id)).toContain(done.deleted.id);
+		const r = /** @type {any} */ (
+			await actividad.actions.recuperar(
+				fakeEvent({ path: '/admin/ajustes/actividad', form: { id: String(done.deleted.id) } })
+			)
+		);
+		expect(r.undone).toMatchObject({ id: done.deleted.id, mode: 'restored', immediate: true });
+		const row = await t.db
+			.prepare('SELECT deleted_at FROM objects WHERE id = ?1')
+			.bind(p.id)
+			.first();
+		expect(row?.deleted_at).toBeNull();
 	});
 
 	it('la ficha de un perfil: datos, quiénes lo gestionan; un id que no es un perfil da 404', async () => {

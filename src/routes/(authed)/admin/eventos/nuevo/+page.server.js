@@ -60,7 +60,7 @@ import {
 } from '$lib/utils/eventDraft.js';
 
 const NO_PERMISSION =
-	'No tenés permiso para cargar eventos. Probá cerrar sesión y volver a entrar.';
+	'No tenés permiso para cargar eventos. Probá salir y volver a entrar.';
 
 /** @param {string} slug */
 const eventPath = (slug) => `${POSTS_DIR}/${slug}.md`;
@@ -468,7 +468,7 @@ export const actions = {
 			}
 			const hint =
 				e instanceof GitHubError && (e.status === 401 || e.status === 403)
-					? ' Probá cerrar sesión y volver a entrar.'
+					? ' Probá salir y volver a entrar.'
 					: '';
 			const copy = saveCopy(await panelSavesToDb(platform, 'calendario').catch(() => false));
 			return fail(502, { error: copy.saveFailed + describeError(e) + hint });

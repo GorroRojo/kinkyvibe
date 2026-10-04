@@ -56,7 +56,7 @@
 		{/if}
 		{/if}
 		<a href={logoutHref($page.url)} class="menuitem" use:melt={$item}
-			><LogOut {...icon} /><span>Cerrar sesión</span></a
+			><LogOut {...icon} /><span>Salir</span></a
 		>
 	</div>
 	{/if}

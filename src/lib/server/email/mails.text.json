@@ -56,23 +56,23 @@
 		"text": "Sobre tu entrada para Fiesta <b>de</b> prueba (sábado 10 de octubre de 2026, 22:00)\n\nCambio de horario\n\nHola Persona <de> Ejemplo:\n\nLes contamos que el evento empieza <una hora> más tarde.\n\nNos vemos & gracias.\n\nTe escribimos porque compraste una entrada para este evento. Si tenés alguna duda, respondé este mail o escribinos a contacto@example.com."
 	},
 	"login-code": {
-		"subject": "Tu código para ingresar a KinkyVibe",
+		"subject": "Tu código para entrar a Kinky Vibe",
 		"text": "Hola:\n\nTu código para entrar a Kinky Vibe es: 482913\n\nEscribilo en la página donde lo pediste. Vence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\n\nSi no lo pediste vos, ignorá este mail: sin el código nadie puede entrar a tu rincón."
 	},
 	"confirm-code-password": {
-		"subject": "Tu código para confirmar en KinkyVibe",
+		"subject": "Tu código para confirmar en Kinky Vibe",
 		"text": "Hola:\n\nPara confirmar un cambio en la contraseña de tu cuenta, escribí este código en Mi rincón: 482913\n\nVence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\n\nSi no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio."
 	},
 	"confirm-code-delete": {
-		"subject": "Tu código para confirmar en KinkyVibe",
+		"subject": "Tu código para confirmar en Kinky Vibe",
 		"text": "Hola:\n\nPara confirmar que querés borrar tu cuenta, escribí este código en Mi rincón: 482913\n\nVence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\n\nSi no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio."
 	},
 	"confirm-code-grupo": {
-		"subject": "Tu código para confirmar en KinkyVibe",
+		"subject": "Tu código para confirmar en Kinky Vibe",
 		"text": "Hola:\n\nPara confirmar un cambio de dueñes o el borrado de un proyecto que gestionás, escribí este código en Mi rincón: 482913\n\nVence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\n\nSi no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio."
 	},
 	"profile-invite": {
-		"subject": "Te invitaron a gestionar un perfil en KinkyVibe",
+		"subject": "Te invitaron a gestionar un perfil en Kinky Vibe",
 		"text": "Hola:\n\nTe invitaron a gestionar el perfil del proyecto «Proyecto <de> ejemplo» en Kinky Vibe.\n\nPara aceptar o rechazar la invitación, entrá a Mi rincón → Perfiles: https://kinkyvibe.example/mi-rincon/perfiles\n\nSi no te interesa, ignorá este mail: la invitación vence sola."
 	},
 	"series-confirm": {

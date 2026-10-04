@@ -22,7 +22,7 @@
 </script>
 
 <svelte:head>
-	<title>Entrar - KinkyVibe.ar</title>
+	<title>Entrar · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 

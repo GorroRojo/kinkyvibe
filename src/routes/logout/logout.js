@@ -47,7 +47,7 @@ export function confirmLogoutPage(redirectTo) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Cerrar sesión · Kinky Vibe</title>
+<title>Salir · Kinky Vibe</title>
 <style>
 body{font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;padding:1rem;box-sizing:border-box;background:#fff;color:#222}
 form{display:flex;flex-direction:column;gap:1rem;align-items:center;text-align:center}
@@ -57,10 +57,10 @@ a{color:inherit}
 </head>
 <body>
 <form method="POST" action="/logout">
-<p>¿Cerrar la sesión de Kinky Vibe?</p>
+<p>¿Salir de Kinky Vibe?</p>
 <input type="hidden" name="redirectTo" value="${target}">
-<button type="submit">Cerrar sesión</button>
-<a href="${target}">Volver sin cerrar sesión</a>
+<button type="submit">Salir</button>
+<a href="${target}">Volver sin salir</a>
 </form>
 </body>
 </html>

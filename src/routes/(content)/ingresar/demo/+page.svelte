@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>Entrar como persona de prueba - KinkyVibe.ar</title>
+	<title>Entrar como persona de prueba · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 

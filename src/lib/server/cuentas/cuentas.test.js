@@ -509,7 +509,7 @@ describe('códigos para confirmar (acciones delicadas de Mi rincón)', () => {
 			now: NOW
 		});
 		expect(r.ok).toBe(true);
-		expect(sent[0].subject).toBe('Tu código para confirmar en KinkyVibe');
+		expect(sent[0].subject).toBe('Tu código para confirmar en Kinky Vibe');
 		const pwCode = sent[0].code;
 		// No sirve para ingresar ni para borrar.
 		expect(
