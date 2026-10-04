@@ -117,7 +117,7 @@
 					{/if}
 					{#if problem}<p class="kv-flash bad" role="alert">{problem}</p>{/if}
 					<div class="kv-row">
-						<button class="kv-btn permanent" type="submit" disabled={busy || !ready}>
+						<button class="kv-btn danger" type="submit" disabled={busy || !ready}>
 							<Trash2 size={16} aria-hidden="true" />
 							{busy ? 'Borrando…' : `Borrar ${data.info.one}`}
 						</button>
