@@ -497,6 +497,15 @@
 				use:enhance={({ submitter, cancel }) => {
 					const applying = submitter?.getAttribute('formaction')?.includes('discount');
 					if (!applying) {
+						// En «Entradas» el botón de pagar no se ve: lo que envía el formulario es un
+						// Enter en un campo (envío implícito, p. ej. en la lista de tipos de entrada).
+						// Eso no cambia de paso: solo «Continuar» (o el indicador) sale de «Entradas».
+						// Antes saltaba a «Tus datos» marcando errores apenas se elegía una entrada con
+						// el teclado. (En «Tus datos», Enter sigue llevando a «Pagar» si está todo bien.)
+						if (step === STEP_TICKETS) {
+							cancel();
+							return;
+						}
 						// Todos los pasos, por si algo cambió al volver atrás.
 						const byStep = PURCHASE_STEPS.map((_, s) => stepErrors(s));
 						const stop = furthestReachable(byStep, PURCHASE_STEPS.length);
