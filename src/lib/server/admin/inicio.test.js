@@ -29,7 +29,8 @@ import {
 	ticketTotals,
 	transferMissingItem,
 	unsentEmails,
-	upcomingEvents
+	upcomingEvents,
+	whenLabel
 } from './inicio.js';
 import { logAdminAction } from './audit.js';
 import { insertOrder, insertTicket } from './testRows.js';
@@ -1110,5 +1111,14 @@ describe('transferMissingItem («Transferencia» tildada sin datos para transfer
 			transferMissingItem({ upcoming: upcoming.slice(2), ticketed, transferReady: false })
 		).toBeNull();
 		expect(transferMissingItem({ upcoming: [], ticketed, transferReady: false })).toBeNull();
+	});
+});
+
+describe('whenLabel', () => {
+	it('shows far-off times on a 24-hour clock, in Argentina time', () => {
+		const now = Date.parse('2026-10-01T12:00:00-03:00');
+		const label = whenLabel(Date.parse('2026-10-11T22:00:00-03:00'), now);
+		expect(label).toContain('22:00');
+		expect(label).not.toMatch(/[ap]\.\s?m\./i);
 	});
 });

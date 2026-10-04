@@ -9,6 +9,7 @@
 	(`data.savesToDb`, switch `contenido_db`; see $lib/admin/saveCopy.js).
 -->
 <script>
+	import { argFormat } from '$lib/utils/dates.js';
 	import { onDestroy } from 'svelte';
 	import { lineEndingOf } from '$lib/utils/lineEndings.js';
 	import { browser } from '$app/environment';
@@ -599,7 +600,9 @@
 			<p class="banner ok" role="status">
 				<CircleCheck size={18} aria-hidden="true" />
 				<span>
-					{new Date(saved.at).toLocaleTimeString('es-AR')} ·
+					{argFormat({ hour: 'numeric', minute: 'numeric', second: 'numeric' }).format(
+						new Date(saved.at)
+					)} ·
 					{#if saved.savedToDb}{copy.contentSaved}{#if saved.publish}{' '}La imagen nueva tarda unos
 							minutos: <PublishStatus pr={saved.publish} />{/if}
 					{:else if saved.publish}<PublishStatus

@@ -1,4 +1,5 @@
 <script>
+	import { argFormat } from '$lib/utils/dates.js';
 	/**
 	 * Inicio del panel: saludo, "Hoy" (si hay un evento hoy), acciones rápidas, plata del mes,
 	 * "para revisar", "desde tu última visita" y todos los próximos eventos; en una columna a la
@@ -78,8 +79,7 @@
 	const dayFmt = new Intl.DateTimeFormat('es-AR', { timeZone: TZ, day: 'numeric' });
 	const monFmt = new Intl.DateTimeFormat('es-AR', { timeZone: TZ, month: 'short' });
 	const wdFmt = new Intl.DateTimeFormat('es-AR', { timeZone: TZ, weekday: 'short' });
-	const timeFmt = new Intl.DateTimeFormat('es-AR', {
-		timeZone: TZ,
+	const timeFmt = argFormat({
 		hour: '2-digit',
 		minute: '2-digit'
 	});
@@ -88,8 +88,7 @@
 		day: 'numeric',
 		month: 'short'
 	});
-	const whenFmt = new Intl.DateTimeFormat('es-AR', {
-		timeZone: TZ,
+	const whenFmt = argFormat({
 		weekday: 'short',
 		day: 'numeric',
 		month: 'short',

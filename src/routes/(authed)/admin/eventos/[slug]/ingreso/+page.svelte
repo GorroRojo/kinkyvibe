@@ -1,4 +1,5 @@
 <script>
+	import { argFormat } from '$lib/utils/dates.js';
 	/**
 	 * Modo puerta: pantalla completa y oscura (sin menús del panel), con la pantalla siempre
 	 * prendida (Wake Lock), escáner de QR, resultado grande, "Escribir código", "Buscar persona",
@@ -128,13 +129,7 @@
 	}
 	/** @param {number | null | undefined} ms */
 	function dateTime(ms) {
-		return ms
-			? new Date(ms).toLocaleString('es-AR', {
-					dateStyle: 'short',
-					timeStyle: 'short',
-					timeZone: TZ
-				})
-			: '—';
+		return ms ? argFormat({ dateStyle: 'short', timeStyle: 'short' }).format(ms) : '—';
 	}
 
 	// --- Guardado local (try/catch adentro de doorOffline.js) ---
