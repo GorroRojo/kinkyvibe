@@ -198,10 +198,11 @@ importación, la lectura detrás de `contenido_db` y el historial (`object_revis
 **Relaciones del evento** (regla 4: edges, nunca direcciones ni ids en `data`; decisión de gorrite,
 «Contenido solo en la base», paso 3; migración `0035_relaciones_edges.sql` para lo ya guardado):
 
-| Edge      | Hacia                        | `data`                                 | Lo escribe / lo lee                                           |
-| --------- | ---------------------------- | -------------------------------------- | ------------------------------------------------------------- |
-| `lugar`   | `perfil` de lugar (máximo 1) | `{ privacy }`: nivel propio del evento | `src/lib/server/amigues/venues.js` ([amigues.md](amigues.md)) |
-| `persona` | `perfil` (uno por perfil)    | `{ roles: [...], at: [...] }`          | `src/lib/server/contenido/personasEdges.js`                   |
+| Edge      | Hacia                          | `data`                                 | Lo escribe / lo lee                                                           |
+| --------- | ------------------------------ | -------------------------------------- | ----------------------------------------------------------------------------- |
+| `lugar`   | `perfil` de lugar (máximo 1)   | `{ privacy }`: nivel propio del evento | `src/lib/server/amigues/venues.js` ([amigues.md](amigues.md))                 |
+| `persona` | `perfil` (uno por perfil)      | `{ roles: [...], at: [...] }`          | `src/lib/server/contenido/personasEdges.js`                                   |
+| `parte`   | `evento` (máximo 20, en orden) | sin `data`; `position` = orden         | `src/lib/server/eventos/partes.js` ([talleres-partes.md](talleres-partes.md)) |
 
 - **`lugar`**: «sucede en». `setEventVenue`/`removeEventVenue` guardan el evento con
   `saveObject()` (versión nueva, revisión `source = 'lugar'`) sin tocar `data`; si el evento se

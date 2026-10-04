@@ -20,6 +20,7 @@
 	import AddToCalendarButton from '$lib/components/AddToCalendarButton.svelte';
 	import { Globe, MapPin } from '@lucide/svelte';
 	import EventSeries from '$lib/components/series/EventSeries.svelte';
+	import PartesTaller from '$lib/components/PartesTaller.svelte';
 	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
 	import { venueSchema } from '$lib/utils/venues.js';
 	import { eventPlace } from '$lib/utils/eventPlace.js';
@@ -170,6 +171,7 @@
 <article class="h-entry h-event">
 	<h1 id="title p-name">{data.meta.title}</h1>
 	{#if data.series}<EventSeries series={data.series} part="nav" />{/if}
+	{#if data.partes}<PartesTaller partes={data.partes} part="nav" />{/if}
 
 	{#if data.meta.authors && (data.meta.authors.length > 1 || (data.meta.authors.length == 1 && data.meta.authors[0] !== data.meta.postID))}
 		{@const authors = data.meta.authors}
@@ -244,8 +246,13 @@
 				.join(' · ')}
 			<section class="buy-cta" id="entradas" aria-label="Entradas">
 				{#if t.open}
-					<a class="buy-button" href="/calendario/{data.meta.postID}/entradas">
-						<span class="buy-title">Comprar entradas</span>
+					<!-- En una parte de un taller con una sola entrada, la entrada es la del taller. -->
+					<a class="buy-button" href="/calendario/{t.slug ?? data.meta.postID}/entradas">
+						<span class="buy-title"
+							>{data.partes && !data.partes.perPart
+								? 'Comprar entrada al taller'
+								: 'Comprar entradas'}</span
+						>
 						<!-- Los espacios van explícitos ({' '}): Svelte saca los del borde de cada {#if},
 						y salía «desde $ 6.400· Quedan 5». -->
 						<span class="buy-meta"
@@ -276,6 +283,7 @@
 			</section>
 		{/if}
 	{/if}
+	{#if data.partes}<PartesTaller partes={data.partes} part="list" />{/if}
 	<div class="share-row">
 		{#if data.meta.status != 'cancelado'}
 			<AddToCalendarButton event={calendarEvent} />

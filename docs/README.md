@@ -23,6 +23,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [cuentas.md](cuentas.md)                       | Cuentas del público ("Ingresar" / "Mi rincón"): código por mail, contraseña, sesiones, interruptor                  |
 | [lo-que-sigo.md](lo-que-sigo.md)               | «Lo que sigo»: seguir etiquetas, series, perfiles y lugares (calendario y mails), interruptor `lo_que_sigo`         |
 | [amigues.md](amigues.md)                       | Amigues como perfiles (persona, proyecto, lugar), "Es mi perfil", lugares y la privacidad de sus direcciones        |
+| [talleres-partes.md](talleres-partes.md)       | Talleres en varias partes: partes como edges, una entrada para todas, ingreso y avisos por parte                    |
 | [personas-eventos.md](personas-eventos.md)     | Personas con rol en eventos y material, y preguntas de inscripción (interruptor `personas_eventos`)                 |
 | [telegram.md](telegram.md)                     | Bot de Telegram: otra vista del sitio, solo lectura al principio, interruptor                                       |
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción                    |

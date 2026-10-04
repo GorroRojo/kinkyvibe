@@ -709,6 +709,10 @@
 			>
 			<div class="heading">
 				<h1>{data.title}</h1>
+				{#if data.part}
+					<!-- Parte de un taller (docs/talleres-partes.md): entradas del taller, ingreso de esta parte. -->
+					<p class="part-of"><strong>{data.part.label}</strong> · ingreso de esta parte</p>
+				{/if}
 				<p>Modo puerta · {wakeOk ? 'la pantalla no se apaga' : 'la pantalla puede apagarse'}</p>
 			</div>
 			<button type="button" class="round" on:click={() => (menuOpen = true)} aria-label="Opciones">

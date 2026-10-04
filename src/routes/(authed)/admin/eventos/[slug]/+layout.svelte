@@ -20,7 +20,13 @@
 
 	$: bare = $page.data?.bare === true;
 	$: e = data.event;
-	$: tabs = EVENT_TABS.filter((t) => e.sellsTickets || !SALES_TABS.includes(t.id))
+	// Parte de un taller con una sola entrada: su modo puerta usa las entradas del taller.
+	$: tabs = EVENT_TABS.filter(
+		(t) =>
+			e.sellsTickets ||
+			!SALES_TABS.includes(t.id) ||
+			(t.id === 'ingreso' && data.workshop?.coveredDoor)
+	)
 		// Preguntas de inscripción: solo con el interruptor `personas_eventos` prendido.
 		.filter((t) => t.id !== 'preguntas' || data.signupFieldsTab)
 		// Los eventos online no tienen control de ingreso (las entradas llevan el link).
@@ -59,6 +65,19 @@
 			{/if}
 			<div class="chips">
 				{#each eventBadges(e) as b}<Badge tone={b.tone}>{b.label}</Badge>{/each}
+				{#if data.workshop}
+					<!-- Talleres en varias partes (docs/talleres-partes.md) -->
+					{#if data.workshop.isWorkshop}
+						<Badge tone="info">{data.workshop.label}</Badge>
+					{:else}
+						<a
+							class="part-chip"
+							href="/admin/eventos/{encodeURIComponent(data.workshop.workshopSlug)}/editar#partes"
+							><Badge tone="info">{data.workshop.label}</Badge>
+							<span>de «{data.workshop.workshopTitle}»</span></a
+						>
+					{/if}
+				{/if}
 				{#if e.kinkyvibe}<Badge tone="info">Fondo KinkyVibe</Badge>{/if}
 				{#each e.tags.filter((t) => t !== 'KinkyVibe' && t !== e.place) as t}
 					<span class="tag">{t}</span>
@@ -147,6 +166,17 @@
 		flex-wrap: wrap;
 		gap: 0.3rem;
 		margin-top: 0.3rem;
+	}
+	.part-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		font-size: 0.8rem;
+		color: var(--muted);
+		text-decoration: none;
+	}
+	.part-chip:hover span {
+		text-decoration: underline;
 	}
 	.tag {
 		font-size: 0.75rem;
