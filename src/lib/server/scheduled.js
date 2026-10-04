@@ -38,7 +38,7 @@ export const DEFAULT_ORIGIN = 'https://kinkyvibe.ar';
  */
 
 /**
- * Recordatorios: el mismo pedido que antes hacía el Worker aparte de workers/cron/, pero sin
+ * Recordatorios: el mismo pedido que antes hacía el Worker aparte `kinkyvibe-cron`, pero sin
  * salir a internet: se le pasa directo al fetch de SvelteKit. Así sigue corriendo exactamente
  * `POST /api/cron/recordatorios` (con su control de CRON_SECRET), sin duplicar su lógica.
  *

@@ -44,8 +44,8 @@ Todo en `src/lib/server/tickets/` salvo que se indique. Las plantillas: definici
 `src/lib/utils/emailTemplates.js`, lo guardado en D1 (`email_templates`) en `templates.js`, el
 editor en `/admin/mensajes/plantillas`.
 
-**Recordatorios:** un Worker aparte (`workers/cron/`, ver su README) llama cada 15 minutos a
-`POST /api/cron/recordatorios` con el header `x-cron-secret`. El sitio decide qué mandar. Por
+**Recordatorios:** el cron del propio Worker (`src/lib/server/scheduled.js`) le pasa cada 15
+minutos `POST /api/cron/recordatorios`, con el header `x-cron-secret`, al sitio. El sitio decide qué mandar. Por
 defecto: 2 días antes y el mismo día a las 9:00; un evento los apaga con `recordatorios: false`.
 
 **Mail a compradores:** se manda en tandas (un Worker tiene un límite de pedidos a otros servicios
@@ -59,7 +59,7 @@ por pedido); la página pide tandas y muestra el progreso.
 | Recordatorios (cuándo)             | Panel → Ajustes → Mails y plantillas                                                            |
 | Clave de Resend                    | `RESEND_API_KEY`, Secret en Cloudflare. Sin ella no sale ningún mail                            |
 | Dominio                            | `kinkyvibe.ar` verificado en Resend (SPF/DKIM en Cloudflare DNS)                                |
-| Secreto del cron                   | `CRON_SECRET`, el mismo en el sitio y en el Worker `kinkyvibe-cron`                             |
+| Secreto del cron                   | `CRON_SECRET`, Secret del Worker `kinkyvibe` (lo usan el cron y `/api/cron/*`)                  |
 | Previews                           | `EMAIL_ALLOWLIST` en el entorno Preview de Cloudflare                                           |
 
 Las respuestas a `entradas@kinkyvibe.ar` llegan al Gmail de la organización (Cloudflare Email
@@ -91,5 +91,5 @@ fila y vuelve al del código.
 Resend) y, si es masivo, con una tabla de envíos que reserve a cada destinatarie antes de mandar
 (como `buyerMail.js`). Nueva migración si hace falta tabla ([datos.md](datos.md)).
 
-**Un recordatorio no salió.** Mirá los logs del Worker `kinkyvibe-cron` en Cloudflare: 401 =
-los secretos no coinciden; 503 = falta `CRON_SECRET` en el sitio.
+**Un recordatorio no salió.** Mirá los logs del Worker `kinkyvibe` en Cloudflare
+(**Observability → Logs**, buscar `recordatorios:`): 503 = falta `CRON_SECRET`.

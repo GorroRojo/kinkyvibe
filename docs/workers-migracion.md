@@ -4,6 +4,10 @@ Guía para pasar kinkyvibe.ar de **Cloudflare Pages** a **Cloudflare Workers** s
 cambie, y para los **backups nocturnos** de la base de datos. Está escrita para hacerla paso a
 paso desde el panel de Cloudflare, en orden. Nada de esto se hace solo al mergear el código.
 
+> **Estado (octubre 2026): la migración está hecha.** El sitio corre como Worker en
+> kinkyvibe.ar, Pages está desconectado, el Worker `kinkyvibe-cron` se borró y la carpeta
+> `workers/cron/` ya no está en el repo. Los pasos quedan como registro (y para un rollback).
+
 ## En pocas palabras
 
 **Qué no cambia:** las páginas, las URLs, el panel de admin, la venta de entradas, los mails,
@@ -194,8 +198,8 @@ Toda la [lista de verificación](#lista-de-verificación), ahora sí con login d
 
 Cuando en **Settings → Trigger Events → View events** del Worker `kinkyvibe` veas corridas OK de los recordatorios (cada 15
 minutos): **Workers & Pages → kinkyvibe-cron → Settings → Delete**. Si quedara vivo no rompe nada
-(los envíos no se repiten), pero sobra. La carpeta `workers/cron/` del repo se borra en un PR
-aparte, después de esto.
+(los envíos no se repiten), pero sobra. La carpeta `workers/cron/` del repo ya se borró (está
+en el historial de git).
 
 ### 11. Apagar Pages (sin borrarlo todavía)
 
@@ -210,8 +214,11 @@ Si algo sale mal después del paso 8:
 1. **Worker kinkyvibe → Settings → Domains & Routes**: quitar `kinkyvibe.ar`.
 2. **Pages kinkyvibe → Custom domains → Set up a custom domain** → `kinkyvibe.ar` (Pages vuelve a
    crear el CNAME). El proyecto de Pages sigue con su último deploy y sus variables.
-3. Si ya habías borrado `kinkyvibe-cron`: `cd workers/cron && npx wrangler deploy` y
-   `npx wrangler secret put CRON_SECRET` (ver `workers/cron/README.md`).
+3. Pages no tiene crons: hay que volver a deployar el Worker `kinkyvibe-cron`. Su código ya no
+   está en el repo: recuperá la carpeta `workers/cron/` del historial de git
+   (`git log --diff-filter=D -- workers/cron` da el commit que la borró; está entera en el
+   anterior) y, desde ahí, `npx wrangler deploy` y `npx wrangler secret put CRON_SECRET` (los
+   pasos están en su `README.md`).
 
 La base es la misma en los dos, así que no se pierde nada al ir y volver. Si el problema es solo
 de una versión del código, más rápido: **Worker → Deployments → (versión anterior) → Rollback**.
@@ -299,9 +306,11 @@ hay ninguna así.
 
 ## Después de migrar (PR de limpieza)
 
-- Borrar `workers/cron/`, y la mención de `CF_PAGES_BRANCH` en `src/lib/server/deployBranch.js`.
-- Actualizar `README.md`, `CLAUDE.md` (dice «Cloudflare Pages») y `docs/demo.md` (menciona
-  `CF_PAGES_BRANCH` y `pages.dev`).
+- Hecho: borrar `workers/cron/` y actualizar `README.md`, `docs/demo.md` y las guías que
+  mencionaban el Worker aparte o Pages.
+- Pendiente: `CLAUDE.md` todavía dice «Cloudflare Pages» (lo cambia gorrite). La lectura de
+  `CF_PAGES_BRANCH` en `src/lib/server/deployBranch.js` sigue (es inofensiva: sin Pages nadie la
+  pone).
 - Con el sitio en Workers se pueden sumar Queues (mails), Email Workers (casilla de entrada), etc.
 
 ## Dudas y riesgos conocidos

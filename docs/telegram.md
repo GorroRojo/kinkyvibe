@@ -141,8 +141,8 @@ Apagado, el endpoint contesta 200 sin hacer nada (con un error, Telegram acumula
    (0028): `npx wrangler d1 migrations apply <base> --remote` (el nombre de la base, de
    `npx wrangler d1 list`). Anda con el código de `main`.
 2. Cargar el token del bot (el que da @BotFather) como **secret `TELEGRAM_BOT_TOKEN`** en
-   Cloudflare (Pages → Settings → Variables and Secrets, Production; también Preview si querés
-   probar ahí). **Nunca en el repo.**
+   Cloudflare (Worker kinkyvibe → Settings → Variables and Secrets, Production; también Previews
+   Base si querés probar ahí). **Nunca en el repo.**
 3. Opcional: la variable `TELEGRAM_BOT_USERNAME` (el usuario del bot, sin `@`; no es un secreto)
    para el botón «Abrir el bot en Telegram».
 4. Con **Bot de Telegram**, **Lo que sigo** y **Cuentas del público** prendidos, aparece la

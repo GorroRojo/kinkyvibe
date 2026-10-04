@@ -6,8 +6,6 @@
  * nocturno), sin tocar cómo se atienden las páginas. El adapter escribe su Worker en
  * `.svelte-kit/cloudflare/_worker.js` (ver svelte.config.js y wrangler.adapter.toml); wrangler
  * empaqueta este archivo junto con ese.
- *
- * Cloudflare Pages no usa este archivo: allá el sitio sigue siendo el `_worker.js` del adapter.
  */
 import app from '../.svelte-kit/cloudflare/_worker.js';
 import { handleScheduled } from '../src/lib/server/scheduled.js';

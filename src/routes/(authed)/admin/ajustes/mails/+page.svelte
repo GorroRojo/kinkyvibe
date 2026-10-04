@@ -102,8 +102,8 @@
 		</p>
 		{#if !data.cronConfigured}
 			<p class="kv-flash warn">
-				Falta configurar el cron (CRON_SECRET y el Worker de <code>workers/cron/</code>): hasta
-				entonces no se manda ninguno.
+				Falta configurar el cron (el secreto <code>CRON_SECRET</code> del Worker): hasta entonces no
+				se manda ninguno.
 			</p>
 		{/if}
 		{#each [...data.reminders, null] as r, i (i)}

@@ -1,7 +1,7 @@
 /**
  * GET /api/preview-status: qué está configurado en un deploy de preview, para revisar el entorno
  * de prueba sin entrar a Cloudflare. Solo presente/ausente (nunca un valor) y si el token de
- * Mercado Pago es de prueba. En producción (y fuera de Pages) responde 404.
+ * Mercado Pago es de prueba. En producción (y en local) responde 404.
  * `demo`: filas de la base de prueba y los últimos cambios guardados en modo demo (docs/demo.md).
  */
 import { error, json } from '@sveltejs/kit';
