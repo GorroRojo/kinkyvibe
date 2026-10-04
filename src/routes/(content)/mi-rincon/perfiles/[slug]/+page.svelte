@@ -150,7 +150,7 @@
 				contextLabel="De este perfil"
 				legend="Imagen del perfil"
 				idPrefix="perfil-imagen"
-				sectionId="perfil-imagen"
+				sectionId="sec-perfil-imagen"
 			/>
 			{#if venue}
 				<input type="hidden" name="pronouns" value={values.pronouns} />

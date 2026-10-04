@@ -111,3 +111,24 @@ campos que apuntan a archivos que no están).
 npx vitest run src/lib/server/media src/routes/imagenes src/lib/utils/imageResize.test.js
 npm run dev:admin   # el bucket MEDIA local lo simula miniflare (.wrangler/state)
 ```
+
+## DECIDIDO POR CLAUDE, A CONFIRMAR
+
+- **Sin migración**: el `slug` de cada `imagen` es el SHA-256 del archivo (único por tipo) y la
+  búsqueda usa `objects_fts`. Si hace falta filtrar mucho por tipo o tamaño, se promueve a columna.
+- **Texto alternativo obligatorio** al subir (no solo un aviso). Las importadas del repo llevan
+  «Imagen de «<título>»» (o nada si nada las usa): conviene revisarlas.
+- **Cuentas del público**: solo suben y buscan entre lo suyo, y en su perfil solo ponen una imagen
+  que subieron (o la que ya tenía). No borran.
+- **/media sirve solo imágenes vivas** (una consulta a D1 por pedido, con caché inmutable en el
+  navegador). Una imagen borrada da 404 aunque el archivo siga en R2.
+- **Al elegir o sacar una imagen se borra el campo viejo** (`featured` del evento/material,
+  `image` de la serie): el edge pasa a ser lo único.
+- **Duplicar un evento**: si el original tiene imagen de la biblioteca, la copia usa la misma
+  (edge). Si solo tiene la vieja numerada del repo, se sigue copiando como antes (commit al repo)
+  hasta que se importe.
+- **El mismo archivo subido de nuevo** devuelve la imagen que ya existía (con su nombre de antes);
+  si no tenía texto alternativo, toma el nuevo.
+- **Las fichas de amigues `.md`** siguen subiendo su imagen al repo (no son de la base todavía).
+- **Importación**: crea imágenes para todo lo que hay en las carpetas (también lo que nada usa) y
+  edges solo para eventos, material y series; las fichas de amigues no reciben `avatar`.

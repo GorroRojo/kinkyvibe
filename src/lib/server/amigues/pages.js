@@ -16,7 +16,7 @@ import {
 import { mentionPronouns } from '$lib/server/pronouns';
 import { canHaveProfiles } from '$lib/server/cuentas/accounts.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
-import { imageKeysByObject, imageOf } from '$lib/server/media/library.js';
+import { imageKeysByObject } from '$lib/server/media/library.js';
 import { mediaPath } from '$lib/server/media/sniff.js';
 import { claimState } from './claims.js';
 import {
@@ -142,9 +142,8 @@ export async function profilePageData(db, urlSlug, locals, { cuentas, posts: sit
 	const accountId = locals.member?.id;
 	const found = await findPublicProfile(db, urlSlug, viewer, { accountId });
 	if (!found) return null;
-	const { object, legacySlug, approved } = found;
-	const avatar = await imageOf(db, object.id, 'avatar', viewer).catch(() => null);
-	const profile = await toPublic(object, legacySlug, avatar?.key);
+	const { object, legacySlug, approved, avatarKey } = found;
+	const profile = await toPublic(object, legacySlug, avatarKey ?? undefined);
 	const kind = profileKindOf(object.data);
 	const href = `/amigues/${urlSlugOf(object, legacySlug)}`;
 

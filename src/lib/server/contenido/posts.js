@@ -30,7 +30,7 @@ import { getObject } from '$lib/server/objects/read.js';
 import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
 import { EVENT_CATEGORY } from './eventos.js';
 import { renderContentBody } from './render.js';
-import { imageKeysByObject, imageOf } from '$lib/server/media/library.js';
+import { imageOf } from '$lib/server/media/library.js';
 import { mediaPath } from '$lib/server/media/sniff.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -123,17 +123,24 @@ async function dbState(db) {
  */
 async function loadDbState(db, stamp, tree) {
 	const visible = visibleWhere(ANON, 'o');
+	const visibleImage = visibleWhere(ANON, 'i');
 	const t = marks(TYPES.length);
 	// Sin el cuerpo: ninguna lista lo usa (`toMeta` no lo lee) y es casi todo lo que pesa `data`.
+	// `cover`: la imagen de la biblioteca del post (edge `portada`, docs/imagenes.md), si tiene.
 	const rows = await db
 		.prepare(
 			`SELECT o.id, o.type, o.slug, o.title, ${DATA_WITHOUT_BODY} AS data, o.visibility,
-				s.legacy_slug FROM objects o
+				s.legacy_slug,
+				(SELECT json_extract(i.data, '$.key') FROM edges e
+					JOIN objects i ON i.id = e.to_id AND i.type = 'imagen'
+					WHERE e.from_id = o.id AND e.kind = 'portada' AND ${visibleImage.sql}
+					ORDER BY e.position LIMIT 1) AS cover
+			FROM objects o
 			LEFT JOIN content_sources s ON s.object_id = o.id
 			WHERE o.type IN (${t}) AND ${visible.sql}
 			ORDER BY o.id`
 		)
-		.bind(...TYPES, ...visible.params)
+		.bind(...visibleImage.params, ...TYPES, ...visible.params)
 		.all();
 	/** @type {ProcessedPost[]} */
 	const listed = [];
@@ -141,8 +148,6 @@ async function loadDbState(db, stamp, tree) {
 	const unlisted = [];
 	/** @type {Map<number, string>} */
 	const paths = new Map();
-	// La imagen de la biblioteca de cada post (edge `portada`), si tiene (docs/imagenes.md).
-	const covers = await coverKeys(db);
 	for (const r of rows.results) {
 		const cat = categoryOfType(String(r.type));
 		if (!cat) continue;
@@ -161,7 +166,9 @@ async function loadDbState(db, stamp, tree) {
 		const post = await processPost(
 			undefined,
 			postID,
-			/** @type {any} */ (withCover(cat.toMeta(object), covers.get(Number(r.id)))),
+			/** @type {any} */ (
+				withCover(cat.toMeta(object), typeof r.cover === 'string' ? r.cover : undefined)
+			),
 			true,
 			tree
 		);
@@ -169,25 +176,6 @@ async function loadDbState(db, stamp, tree) {
 		paths.set(Number(r.id), post.path);
 	}
 	return { stamp, listed, unlisted, paths };
-}
-
-/**
- * La clave de la imagen de la biblioteca de cada evento y material (por id). Si la base todavía no
- * tiene imágenes (o falla), ninguna: se usan las del repo.
- * @param {D1Database} db
- * @returns {Promise<Map<number, string>>}
- */
-async function coverKeys(db) {
-	try {
-		/** @type {Map<number, string>} */
-		const out = new Map();
-		for (const type of TYPES) {
-			for (const [id, key] of await imageKeysByObject(db, type, 'portada')) out.set(id, key);
-		}
-		return out;
-	} catch {
-		return new Map();
-	}
 }
 
 /**

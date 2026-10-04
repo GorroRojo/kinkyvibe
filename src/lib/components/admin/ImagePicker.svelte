@@ -93,13 +93,17 @@
 		}
 		uploadError = '';
 		busy = 'achicando';
+		// Lo que se sube es lo que había al tocar «Subir» (aunque se cambie mientras sube).
+		const picked = file;
+		const pickedAlt = alt.trim();
+		const pickedTitle = title.trim();
 		try {
-			const prepared = await prepareImage(file);
+			const prepared = await prepareImage(picked);
 			busy = 'subiendo';
 			const body = new FormData();
 			body.set('file', prepared.blob, prepared.name);
-			body.set('name', title.trim() || prepared.name);
-			body.set('alt', alt.trim());
+			body.set('name', pickedTitle || prepared.name);
+			body.set('alt', pickedAlt);
 			if (prepared.width) body.set('width', String(prepared.width));
 			if (prepared.height) body.set('height', String(prepared.height));
 			const res = await fetch('/imagenes', { method: 'POST', body });
@@ -109,7 +113,7 @@
 				return;
 			}
 			choose(out.image);
-			clearFile();
+			if (file === picked) clearFile();
 		} catch {
 			uploadError = 'No se pudo subir la imagen. Revisá tu conexión y probá de nuevo.';
 		} finally {
@@ -267,9 +271,11 @@
 				<span class="file-button">{file ? 'Elegir otro archivo' : 'Elegir archivo'}</span>
 				<input
 					bind:this={fileInput}
+					id={idPrefix}
 					class="file-input"
 					type="file"
 					accept={PICKABLE_TYPES.join(',')}
+					disabled={Boolean(busy)}
 					on:change={onFile}
 				/>
 			</label>
@@ -333,7 +339,7 @@
 					{q.trim() ? 'No encontramos imágenes con eso.' : 'La biblioteca todavía está vacía.'}
 				</p>
 			{:else}
-				<ul class="grid">
+				<ul class="picker-grid">
 					{#each results as image (image.id)}
 						<li>
 							<button
@@ -347,8 +353,11 @@
 								<span>{image.title}</span>
 							</button>
 							{#if canDelete}
-								<button type="button" class="link small" on:click={() => deleteFromLibrary(image)}
-									>Sacar de la biblioteca</button
+								<button
+									type="button"
+									class="link small"
+									aria-label="Sacar «{image.title}» de la biblioteca"
+									on:click={() => deleteFromLibrary(image)}>Sacar</button
 								>
 							{/if}
 						</li>
@@ -369,7 +378,7 @@
 			{:else if contextResults.length === 0}
 				<p class="hint">Todavía no hay imágenes acá. Subí una o buscala en la biblioteca.</p>
 			{:else}
-				<ul class="grid">
+				<ul class="picker-grid">
 					{#each contextResults as image (image.id)}
 						<li>
 							<button
@@ -526,15 +535,15 @@
 		align-items: center;
 		flex-wrap: wrap;
 	}
-	.grid {
+	.picker-grid {
 		list-style: none;
 		padding: 0;
 		margin: 0;
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(7.5em, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
 		gap: 0.6em;
 	}
-	.grid li {
+	.picker-grid li {
 		display: flex;
 		flex-direction: column;
 		gap: 0.2em;
@@ -573,6 +582,22 @@
 	}
 	.pick.selected {
 		border-color: var(--accent, var(--1, #8a3ea0));
+	}
+	/* También fuera del panel (Mi rincón), donde no está admin.scss. */
+	.button {
+		background: var(--accent, var(--1, #8a3ea0));
+		color: var(--accent-ink, white);
+		border: 0;
+		border-radius: 2em;
+		padding: 0.55em 1.1em;
+		font: inherit;
+		font-weight: 700;
+		cursor: pointer;
+		min-height: 2.5rem;
+	}
+	.button:disabled {
+		opacity: 0.6;
+		cursor: progress;
 	}
 	.link {
 		background: none;

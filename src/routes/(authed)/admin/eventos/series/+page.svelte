@@ -129,7 +129,7 @@
 			<ImagePicker
 				bind:value={newImage}
 				idPrefix="crear-imagen"
-				sectionId="crear-imagen"
+				sectionId="sec-crear-imagen"
 				legend="Imagen (opcional)"
 				canDelete
 			/>
@@ -228,7 +228,7 @@
 							target="etiqueta:{s.id}"
 							contextLabel="De esta serie"
 							idPrefix="editar-imagen-{s.edit.id}"
-							sectionId="editar-imagen-{s.edit.id}"
+							sectionId="sec-editar-imagen-{s.edit.id}"
 							legend="Imagen (opcional)"
 							canDelete
 							on:change={() => (editImageTouched = true)}

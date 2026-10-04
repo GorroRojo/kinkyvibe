@@ -19,12 +19,14 @@ describe('wrangler.toml', () => {
 		expect([...(config.triggers.crons ?? [])].sort()).toEqual([BACKUP_CRON, REMINDERS_CRON].sort());
 	});
 
-	it('el Worker usa worker/index.js y el bucket de backups; los Previews, la base de prueba', () => {
+	it('el Worker usa worker/index.js, el bucket de backups y el de imágenes; los Previews, la base y el bucket de imágenes de prueba', () => {
 		const config = unstable_readConfig({ config: 'wrangler.toml' });
 		expect(config.name).toBe('kinkyvibe');
 		expect(config.main).toMatch(/worker[\\/]index\.js$/);
 		expect(config.r2_buckets).toEqual([
-			expect.objectContaining({ binding: 'BACKUPS', bucket_name: 'kinkyvibe-backups' })
+			expect.objectContaining({ binding: 'BACKUPS', bucket_name: 'kinkyvibe-backups' }),
+			// La biblioteca de imágenes (docs/imagenes.md).
+			expect.objectContaining({ binding: 'MEDIA', bucket_name: 'kinkyvibe-media' })
 		]);
 		expect(config.d1_databases).toEqual([
 			expect.objectContaining({ binding: 'DB', database_name: 'kinkyvibe' })
@@ -33,8 +35,11 @@ describe('wrangler.toml', () => {
 		expect(previews.d1_databases).toEqual([
 			expect.objectContaining({ binding: 'DB', database_name: 'kinkyvibe-preview' })
 		]);
-		// Los Previews nunca escriben en el bucket de backups de producción.
-		expect(previews.r2_buckets ?? []).toEqual([]);
+		// Los Previews nunca escriben en el bucket de backups ni en el de imágenes de producción:
+		// solo tienen el bucket de imágenes de prueba.
+		expect(previews.r2_buckets ?? []).toEqual([
+			{ binding: 'MEDIA', bucket_name: 'kinkyvibe-media-preview' }
+		]);
 	});
 });
 
