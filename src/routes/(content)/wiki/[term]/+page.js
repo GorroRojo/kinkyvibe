@@ -17,7 +17,7 @@ export async function load({ params, data, parent }) {
 	// no wiki entry: show the tag of the same name ("Rancheadita-Kinky" → "Rancheadita Kinky",
 	// aliases → their tag; same helper as /api/series and the .ics). Tags have methods, so they
 	// can't come from the server load.
-	// El árbol del archivo, o el de la base con el interruptor `etiquetas_db` (layout raíz).
+	// El árbol de la base (o el archivo de respaldo; layout raíz).
 	const { siteTags } = await parent();
 	const tags = siteTags
 		? tagsFactory(/** @type {any} */ (structuredClone(siteTags)))

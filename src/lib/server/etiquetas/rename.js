@@ -1,14 +1,14 @@
 /**
- * Renombrar una etiqueta en las publicaciones, con el interruptor `etiquetas_db` (docs/etiquetas.md).
+ * Renombrar una etiqueta en las publicaciones (docs/etiquetas.md).
  *
  * Decisión de gorrite: al renombrar en la base, por defecto el nombre viejo NO queda como alias y
  * se reescriben las publicaciones que lo usan; la otra opción es dejar el alias y no tocarlas.
  * Este módulo es la parte de las publicaciones, por el mismo camino que el editor del archivo
  * (`replaceTagInPost` sobre los .md del repo, un solo commit con `commitTagEdit`).
  *
- * Es UNA función a propósito (`planTagRenameInPosts`): hoy las publicaciones son los .md del repo;
- * cuando el contenido pase a la base (interruptor `contenido_db`, en otra pila de PRs) esta misma
- * función tiene que sumar los posts guardados en la base, y quien llama no cambia.
+ * Es UNA función a propósito (`planTagRenameInPosts`): lee las publicaciones con el cliente del
+ * repo (los eventos y el material, de la base; amigues y la wiki, del repo) y se guardan por el
+ * mismo cliente, así que quien llama no sabe dónde vive cada una.
  *
  * Sin imports de SvelteKit: se prueba con un cliente de mentira (rename.test.js).
  */

@@ -10,7 +10,7 @@ import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform }) {
-	// El árbol del archivo, o el de la base con el interruptor `etiquetas_db`.
+	// El árbol de etiquetas en uso (la base).
 	const tagManager = await siteTagManager(platform);
 	let term = '';
 	/** @type {string[]} */

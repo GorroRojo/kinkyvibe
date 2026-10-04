@@ -7,7 +7,8 @@
 	 *   imagen y la descripción);
 	 * - `values`: lo que ya tiene (o lo que se escribió antes de un error); en 'edit', `id` es el
 	 *   nombre de la etiqueta ahora y `key` el que se escribió;
-	 * - `dbMode`: interruptor `etiquetas_db` (cambia qué se puede elegir al renombrar);
+	 * - `dbMode`: siempre `true` hoy (las etiquetas están en la base; cambia qué se puede elegir al
+	 *   renombrar);
 	 * - `assets`: las imágenes de src/lib/assets para elegir;
 	 * - `id`: prefijo único para los ids de los campos.
 	 */

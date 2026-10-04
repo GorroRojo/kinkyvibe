@@ -2,8 +2,7 @@
  * La parte de «Lo que sigo» del cron de mails (POST /api/cron/recordatorios): con `lo_que_sigo`
  * o `cuentas` apagado no hace nada (`null`). Ver notify.js.
  *
- * Los eventos salen de la capa compartida de contenido (`sitePosts`, interruptor `contenido_db`):
- * de la base o de los `.md`, solo lo listado y visible para cualquiera (nada oculto ni no
+ * Los eventos salen de la capa compartida de contenido (`sitePosts`): de la base, solo lo listado y visible para cualquiera (nada oculto ni no
  * listado). notify.js se queda con los que todavía no empezaron.
  *
  * Los avisos por Telegram (fase 2 del bot) salen además con el interruptor `telegram_bot`

@@ -16,12 +16,12 @@
  * Sin sesión, a /ingresar (y de vuelta a la página de donde vino, si es de este sitio).
  * Todo es privado: `no-store`, `noindex`, y nada de otra cuenta.
  */
-import { error, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import { safeRedirect } from '$lib/server/auth.js';
 import { logDBError } from '$lib/server/db';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { perfilesPublicosEnabled, seriesEnabled } from '$lib/server/flags.js';
+import { perfilesPublicosEnabled } from '$lib/server/flags.js';
 import { createFeedToken, feedInfo, revokeFeeds } from '$lib/server/series/feeds.js';
 import { migrateAccountSubscriptions } from '$lib/server/sigo/avisame.js';
 import {
@@ -86,11 +86,10 @@ export async function load(event) {
 	} catch (e) {
 		logDBError('lo que sigo: pasar avisos de la cuenta', e);
 	}
-	const [tags, events, profilesOn, seriesOn, telegram] = await Promise.all([
+	const [tags, events, profilesOn, telegram] = await Promise.all([
 		siteTagManager(event.platform),
 		nextEvents(event.platform),
 		perfilesPublicosEnabled(event.platform),
-		seriesEnabled(event.platform),
 		// Fase 2 del bot: `null` con algún interruptor apagado (docs/telegram.md).
 		telegramCardData(event.platform, db, member.id)
 	]);
@@ -102,9 +101,8 @@ export async function load(event) {
 		telegram,
 		// Qué más va al calendario personal (además de lo seguido).
 		calendar: await getCalendarPrefs(db, member.id),
-		// El link del calendario personal: lo sirve /ics/mio/<token>.ics, que necesita `series`.
-		seriesOn,
-		feed: seriesOn ? await feedInfo(db, member.id) : null,
+		// El link del calendario personal: lo sirve /ics/mio/<token>.ics.
+		feed: await feedInfo(db, member.id),
 		// Para «Agregar»: las etiquetas y series del árbol y, con perfiles públicos, los perfiles.
 		add: {
 			tags: followableTags(tags, events),
@@ -152,13 +150,11 @@ export const actions = {
 	// vez, al crearlo; crear uno nuevo revoca el anterior.
 	crearLink: async (event) => {
 		const { db, member } = await actionContext(event);
-		if (!(await seriesEnabled(event.platform))) error(404, 'Not found');
 		const token = await createFeedToken(db, member.id);
 		return { action: 'link', ok: true, url: `${event.url.origin}/ics/mio/${token}.ics` };
 	},
 	revocarLink: async (event) => {
 		const { db, member } = await actionContext(event);
-		if (!(await seriesEnabled(event.platform))) error(404, 'Not found');
 		await revokeFeeds(db, member.id);
 		return { action: 'revocarLink', ok: true };
 	},

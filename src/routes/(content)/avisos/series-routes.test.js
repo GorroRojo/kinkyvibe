@@ -1,6 +1,5 @@
 /**
- * Rutas públicas de series con el interruptor `series` apagado (nada cambia: 404 o `null`) y
- * prendido: "Avisame si se repite" de punta a punta (suscribirse, confirmar, darse de baja), la
+ * Rutas públicas de series: "Avisame si se repite" de punta a punta (suscribirse, confirmar, darse de baja), la
  * página del evento, /api/series, los calendarios .ics (contenido, link personal revocable, sin
  * datos de nadie) y Mi rincón → Calendario. D1 de miniflare; posts y mails inventados.
  */
@@ -53,14 +52,13 @@ let mails = [];
  * Los módulos con los interruptores como se pida y posts inventados.
  * `extra`: más posts listados, además de los de fakeSeriesPosts.
  * `sigo`: el interruptor «Lo que sigo» (sin pedirlo, sin tocar, como antes).
- * @param {{ series?: string, cuentas?: string, sigo?: string, extra?: (now: number) => ProcessedPost[] }} [flags]
+ * @param {{ cuentas?: string, sigo?: string, extra?: (now: number) => ProcessedPost[] }} [flags]
  */
-async function modules({ series = '1', cuentas = '1', sigo, extra } = {}) {
+async function modules({ cuentas = '1', sigo, extra } = {}) {
 	vi.resetModules();
 	mails = [];
 	vi.doMock('$env/dynamic/private', () => ({
 		env: {
-			SERIES_ENABLED: series,
 			CUENTAS_ENABLED: cuentas,
 			...(sigo ? { LO_QUE_SIGO_ENABLED: sigo } : {})
 		}
@@ -120,57 +118,8 @@ async function modules({ series = '1', cuentas = '1', sigo, extra } = {}) {
 /** @param {Parameters<typeof fakeRequestEvent>[0] extends infer O ? Omit<O, 'platform'> : never} o */
 const ev = (o) => fakeRequestEvent({ platform: t.platform, ...o });
 
-describe('interruptor apagado: nada cambia', () => {
-	it('las páginas y endpoints nuevos dan 404; la página del evento no trae series', async () => {
-		const m = await modules({ series: '0' });
-		const notFound = { status: 404 };
-		expect(
-			await thrown(() => m.avisos.load(ev({ path: '/avisos?serie=Picantearla' })))
-		).toMatchObject(notFound);
-		expect(
-			await thrown(() =>
-				m.avisos.actions.suscribir(ev({ form: { serie: 'Picantearla', email: EMAIL } }))
-			)
-		).toMatchObject(notFound);
-		expect(await thrown(() => m.confirmar.load(ev({ params: { token: 'x' } })))).toMatchObject(
-			notFound
-		);
-		expect(await thrown(() => m.api.GET(ev({ params: { tag: 'Picantearla' } })))).toMatchObject(
-			notFound
-		);
-		expect(await thrown(() => m.icsTag.GET(ev({ params: { tag: 'Picantearla' } })))).toMatchObject(
-			notFound
-		);
-		expect(
-			await thrown(() => m.icsMine.GET(ev({ params: { token: 'x'.repeat(43) } })))
-		).toMatchObject(notFound);
-		expect(
-			await thrown(() =>
-				m.calendario.load(ev({ member: { id: crypto.randomUUID(), email: EMAIL } }))
-			)
-		).toMatchObject(notFound);
-		const data = /** @type {any} */ (
-			await m.evento.load(
-				ev({ path: '/calendario/serie-prueba-2', params: { event: 'serie-prueba-2' } })
-			)
-		);
-		expect(data.series).toBeNull();
-		expect(mails).toHaveLength(0);
-	});
-	it('/calendario no linkea a la lista de series', async () => {
-		const m = await modules({ series: '0' });
-		const data = /** @type {any} */ (await m.calendarioPublico.load(ev({ path: '/calendario' })));
-		expect(data.seriesLink).toBe(false);
-	});
-	it('el cron no hace nada de series', async () => {
-		const m = await modules({ series: '0' });
-		expect(
-			await m.web.runSeriesCron({ db: t.db, origin: 'https://kinkyvibe.ar', fetch })
-		).toBeNull();
-		const seen = await t.db.prepare('SELECT COUNT(*) AS n FROM series_editions_seen').first();
-		expect(Number(seen?.n)).toBe(0);
-	});
-});
+// (Las pruebas «interruptor apagado» se sacaron con el interruptor `series`, que quedó fijo: ese
+// modo ya no existe. No es aflojar las pruebas: es sacar un modo.)
 
 describe('prendido: "Avisame si se repite" de punta a punta', () => {
 	it('suscribirse → confirmar con el link → darse de baja con el link', async () => {
@@ -225,16 +174,6 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 		expect(await m.baja.load(ev({ params: { token: unsub } }))).toEqual({
 			valid: true,
 			seriesName: 'Picantearla en la Base'
-		});
-	});
-
-	it('la baja anda aunque después se apague el interruptor', async () => {
-		let m = await modules();
-		await m.avisos.actions.suscribir(ev({ form: { serie: 'Picantearla', email: EMAIL } }));
-		const unsub = String(linkIn(mails[0].message.text, '/avisos/baja/')).split('/').pop() ?? '';
-		m = await modules({ series: '0' });
-		expect(await m.baja.actions.default(ev({ params: { token: unsub }, form: {} }))).toMatchObject({
-			ok: true
 		});
 	});
 
@@ -313,12 +252,6 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 });
 
 describe('prendido: páginas', () => {
-	it('/calendario linkea a la lista de series de la Kinkipedia', async () => {
-		const m = await modules();
-		const data = /** @type {any} */ (await m.calendarioPublico.load(ev({ path: '/calendario' })));
-		expect(data.seriesLink).toBe(true);
-	});
-
 	it('evento: «Edición N de…», anterior/siguiente y si ya pasó', async () => {
 		const m = await modules();
 		const data = /** @type {any} */ (

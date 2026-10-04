@@ -1,7 +1,7 @@
 /**
  * El árbol de etiquetas en uso: UNA sola fuente para todo el sitio (docs/etiquetas.md).
- * Por defecto, el del archivo (src/lib/utils/hardcodedTags.js). Con el interruptor `etiquetas_db`
- * prendido, la lista de la base:
+ * La lista de la base (el interruptor `etiquetas_db` quedó fijo); el archivo
+ * (src/lib/utils/hardcodedTags.js) solo si la base no tiene etiquetas:
  *
  * - en el servidor, `hooks.server.js` la pone al empezar cada pedido (`setSiteTagList`, desde
  *   `siteTagSource`, que la recuerda 30 s por isolate: todos los pedidos de un isolate ven la misma);

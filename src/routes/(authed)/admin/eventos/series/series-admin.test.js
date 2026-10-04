@@ -1,6 +1,6 @@
 /**
- * Eventos → Series y su CSV: solo admins (sin sesión, 303 al login; sin permiso, 403), 404 con el
- * interruptor `series` apagado, y nunca los mails de quienes pidieron aviso (solo cuántos son).
+ * Eventos → Series y su CSV: solo admins (sin sesión, 303 al login; sin permiso, 403), y nunca
+ * los mails de quienes pidieron aviso (solo cuántos son).
  * D1 de miniflare; posts y mails inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -33,10 +33,9 @@ const admin = { id: ADMINS[0].id, login: ADMINS[0].login };
 const stranger = { id: 1, login: 'alguien-de-prueba' };
 const SECRET_EMAIL = 'suscripta.prueba@example.com';
 
-/** Las rutas con el interruptor como se pida ('1' prendido, '0' apagado). */
-async function routes(flag = '1') {
+/** Las rutas, recién cargadas. */
+async function routes() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { SERIES_ENABLED: flag } }));
 	const posts = fakeSeriesPosts(Date.now());
 	// Los eventos salen de la base.
 	await seedPosts(t.db, posts);
@@ -88,11 +87,6 @@ describe('acceso', () => {
 		const { page, csv } = await routes();
 		expect(await thrown(() => page.load(ev({ user: stranger })))).toMatchObject({ status: 403 });
 		expect(await thrown(() => csv.GET(ev({ user: stranger })))).toMatchObject({ status: 403 });
-	});
-	it('interruptor apagado: 404 aunque seas admin', async () => {
-		const { page, csv } = await routes('0');
-		expect(await thrown(() => page.load(ev()))).toMatchObject({ status: 404 });
-		expect(await thrown(() => csv.GET(ev()))).toMatchObject({ status: 404 });
 	});
 });
 

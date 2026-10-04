@@ -54,17 +54,14 @@ const FAKE_POSTS = [
 	}
 ];
 
-/** @param {{ sigo?: string, cuentas?: string, perfiles?: string, series?: string }} [flags] */
-async function modules({ sigo = '1', cuentas = '1', perfiles = '0', series } = {}) {
+/** @param {{ sigo?: string, cuentas?: string, perfiles?: string }} [flags] */
+async function modules({ sigo = '1', cuentas = '1', perfiles = '0' } = {}) {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
 		env: {
 			LO_QUE_SIGO_ENABLED: sigo,
 			CUENTAS_ENABLED: cuentas,
-			ETIQUETAS_DB_ENABLED: '0',
-			PERFILES_PUBLICOS_ENABLED: perfiles,
-			// Sin pedirlo, como antes: el interruptor `series` sin tocar.
-			...(series ? { SERIES_ENABLED: series } : {})
+			PERFILES_PUBLICOS_ENABLED: perfiles
 		}
 	}));
 	// Los posts del repo no hacen falta (y compilarlos todos tarda): eventos inventados, en la
@@ -315,11 +312,11 @@ describe('tu calendario', () => {
 });
 
 describe('tu calendario en la misma página (lo que estaba en Mi rincón → Calendario)', () => {
-	it('con `series`: el link secreto se crea acá, anda, se ve una vez y se revoca', async () => {
-		const m = await modules({ series: '1' });
+	it('el link secreto se crea acá, anda, se ve una vez y se revoca', async () => {
+		const m = await modules();
 		const member = await makeAccount(t.db, 'cal-link');
 		let data = /** @type {any} */ (await m.page.load(ev({ member })));
-		expect(data).toMatchObject({ seriesOn: true, feed: null });
+		expect(data).toMatchObject({ feed: null });
 
 		const r = /** @type {any} */ (await m.page.actions.crearLink(ev({ member, form: {} })));
 		expect(r).toMatchObject({ action: 'link', ok: true });
@@ -339,26 +336,13 @@ describe('tu calendario en la misma página (lo que estaba en Mi rincón → Cal
 		expect(/** @type {any} */ (await m.page.load(ev({ member }))).feed).toBeNull();
 	});
 
-	it('sin `series` (el .ics personal da 404): sin link ni acciones del link', async () => {
-		const m = await modules({ series: '0' });
-		const member = await makeAccount(t.db, 'cal-sin-series');
-		expect(await m.page.load(ev({ member }))).toMatchObject({ seriesOn: false, feed: null });
-		for (const action of /** @type {const} */ (['crearLink', 'revocarLink'])) {
-			expect(await thrown(() => m.page.actions[action](ev({ member, form: {} })))).toMatchObject({
-				status: 404
-			});
-		}
-		const { results } = await t.db.prepare('SELECT * FROM calendar_feeds').all();
-		expect(results).toEqual([]);
-	});
-
 	it('las acciones del link también piden sesión y los dos interruptores', async () => {
-		let m = await modules({ series: '1' });
+		let m = await modules();
 		expect(await thrown(() => m.page.actions.crearLink(ev({ form: {} })))).toMatchObject({
 			status: 303,
 			location: '/ingresar?next=%2Fmi-rincon%2Fsigo'
 		});
-		m = await modules({ series: '1', sigo: '0' });
+		m = await modules({ sigo: '0' });
 		const member = await makeAccount(t.db, 'cal-sigo-apagado');
 		expect(await thrown(() => m.page.actions.crearLink(ev({ member, form: {} })))).toMatchObject({
 			status: 404
@@ -367,7 +351,7 @@ describe('tu calendario en la misma página (lo que estaba en Mi rincón → Cal
 
 	it('Mi rincón → Calendario sigue andando: con «Lo que sigo» lleva acá; apagado, como siempre', async () => {
 		const member = await makeAccount(t.db, 'cal-viejo');
-		let m = await modules({ series: '1' });
+		let m = await modules();
 		const on = /** @type {any} */ (
 			await m.calendario.load(ev({ path: '/mi-rincon/calendario', member }))
 		);
@@ -379,7 +363,7 @@ describe('tu calendario en la misma página (lo que estaba en Mi rincón → Cal
 		expect(created.path).toMatch(/^\/ics\/mio\/.+\.ics$/);
 		expect(/** @type {any} */ (await m.page.load(ev({ member }))).feed).not.toBeNull();
 
-		m = await modules({ series: '1', sigo: '0' });
+		m = await modules({ sigo: '0' });
 		const off = /** @type {any} */ (
 			await m.calendario.load(ev({ path: '/mi-rincon/calendario', member }))
 		);
@@ -389,7 +373,7 @@ describe('tu calendario en la misma página (lo que estaba en Mi rincón → Cal
 
 	it('«Avisame» que la cuenta pidió antes: aparece en la lista al abrir la página, y el link de baja viejo anda', async () => {
 		// Con «Lo que sigo» apagado, «Avisame» con cuenta escribe en series_subscriptions.
-		let m = await modules({ series: '1', sigo: '0' });
+		let m = await modules({ sigo: '0' });
 		const a = await makeAccount(t.db, 'avisame-antes');
 		const b = await makeAccount(t.db, 'avisame-otra');
 		for (const acc of [a, b])
@@ -409,7 +393,7 @@ describe('tu calendario en la misma página (lo que estaba en Mi rincón → Cal
 			String(results[0].id)
 		);
 
-		m = await modules({ series: '1' });
+		m = await modules();
 		const data = /** @type {any} */ (await m.page.load(ev({ member: a })));
 		expect(data.follows).toHaveLength(1);
 		expect(data.follows[0]).toMatchObject({

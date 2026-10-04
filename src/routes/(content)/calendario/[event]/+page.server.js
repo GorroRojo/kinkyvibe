@@ -4,7 +4,7 @@ import { siteEvent, sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
 import { isValidEventSlug } from '$lib/server/tickets/events.js';
-import { propinasEnabled, seriesEnabled } from '$lib/server/flags.js';
+import { propinasEnabled } from '$lib/server/flags.js';
 import { eventSeries } from '$lib/server/series/index.js';
 import { seriesAccountState } from '$lib/server/series/web.js';
 import { eventPageVenue, relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
@@ -78,15 +78,15 @@ async function loadRelated(post, posts, platform) {
 }
 
 /**
- * Interruptor `series`: las series del evento ("Edición N de…", anterior/siguiente, "Avisame si
- * se repite"). Apagado, `null` y la página queda como siempre.
+ * Las series del evento ("Edición N de…", anterior/siguiente, "Avisame si se repite"); `null` si
+ * no es parte de ninguna.
  * @param {ProcessedPost|null} post
  * @param {App.Platform|undefined} platform
  * @param {App.Locals} locals
  * @param {ProcessedPost[]} posts
  */
 async function loadSeries(post, platform, locals, posts) {
-	if (!post || !(await seriesEnabled(platform))) return null;
+	if (!post) return null;
 	const { postID: slug, tags, start } = post.meta;
 	const list = await eventSeries(
 		{ slug, tags, start },

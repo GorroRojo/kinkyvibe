@@ -1,9 +1,10 @@
 /**
- * De dónde sale el árbol de etiquetas del sitio: el archivo (src/lib/utils/hardcodedTags.js) o,
- * con el interruptor `etiquetas_db` prendido, la base (objetos `etiqueta`, docs/etiquetas.md).
+ * De dónde sale el árbol de etiquetas del sitio: la base (objetos `etiqueta`, docs/etiquetas.md;
+ * el interruptor `etiquetas_db` quedó prendido para siempre).
  *
- * - Con el interruptor apagado, o prendido pero con la base sin etiquetas (todavía no se importó)
- *   o sin poder leerla: el archivo, como siempre.
+ * - Sin base, con la base sin etiquetas (todavía no se importó, por ejemplo en una base local
+ *   nueva: `npm run tags:import`) o sin poder leerla: el archivo (src/lib/utils/hardcodedTags.js),
+ *   solo como respaldo.
  * - Lo leído de la base se recuerda unos segundos por isolate (como los interruptores); el editor
  *   del panel lo olvida al guardar (`clearTagSourceCache`).
  * - `rawTags` (de la base) es la lista que espera `tagsFactory`, SIN tocar: `tagsFactory` les
@@ -13,7 +14,7 @@
 import hardcodedTags from '$lib/utils/hardcodedTags.js';
 import tagsFactory from '$lib/utils/tags.js';
 import { getDB, logDBError } from '$lib/server/db';
-import { FLAG_CACHE_MS, isFlagOn } from '$lib/server/flags.js';
+import { FLAG_CACHE_MS } from '$lib/server/flags.js';
 import { useSiteTags } from '$lib/utils/siteTags.js';
 import { tagManager, wikiTagManager } from '$lib/utils/stores.js';
 import { recordsToRawTags } from './model.js';
@@ -46,12 +47,11 @@ export async function readDbRawTags(db) {
 
 /**
  * @param {D1Database | null | undefined} db
- * @param {{ now?: number, flagOn?: boolean }} [opts] `flagOn` para tests
+ * @param {{ now?: number }} [opts]
  * @returns {Promise<TagSource>}
  */
-export async function tagSourceFrom(db, { now = Date.now(), flagOn } = {}) {
-	const on = flagOn ?? (await isFlagOn(db, 'etiquetas_db', { now }));
-	if (!on || !db) return FILE;
+export async function tagSourceFrom(db, { now = Date.now() } = {}) {
+	if (!db) return FILE;
 	if (cache && cache.expires > now) return cache.value;
 	/** @type {TagSource} */
 	let value = FILE;

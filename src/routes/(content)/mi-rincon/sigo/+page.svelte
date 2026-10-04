@@ -234,43 +234,41 @@
 			<noscript><button class="pill-btn ghost small" type="submit">Guardar</button></noscript>
 		</form>
 
-		{#if data.seriesOn}
-			<h3 id="cal-link-title">Tu link para suscribirte</h3>
-			<p class="hint">
-				El link es secreto: cualquiera que lo tenga ve tu calendario. Si lo compartiste sin querer,
-				generá uno nuevo y el anterior deja de andar.
+		<h3 id="cal-link-title">Tu link para suscribirte</h3>
+		<p class="hint">
+			El link es secreto: cualquiera que lo tenga ve tu calendario. Si lo compartiste sin querer,
+			generá uno nuevo y el anterior deja de andar.
+		</p>
+		{#if newUrl}
+			<p class="ok" role="status">
+				Este es tu link. Guardalo ahora: no lo vamos a mostrar de nuevo.
 			</p>
-			{#if newUrl}
-				<p class="ok" role="status">
-					Este es tu link. Guardalo ahora: no lo vamos a mostrar de nuevo.
-				</p>
-				<code class="feed-link">{newUrl}</code>
-				<CalendarSubscribe url={newUrl} label="tu calendario" />
-			{:else if revoked}
-				<p class="ok" role="status">Listo: el link dejó de andar.</p>
-			{/if}
-			{#if data.feed && !newUrl && !revoked}
-				<p>
-					Tenés un link activo desde el {fmtDate(data.feed.createdAt)}{data.feed.lastUsedAt
-						? `; tu calendario lo usó por última vez el ${fmtDate(data.feed.lastUsedAt)}`
-						: ''}.
-				</p>
-			{/if}
-			<div class="row">
-				<form method="POST" action="?/crearLink" use:enhance={submit('link')}>
-					<button class="pill-btn" type="submit" disabled={busy === 'link'}
-						>{hasLink ? 'Generar un link nuevo' : 'Crear mi link'}</button
+			<code class="feed-link">{newUrl}</code>
+			<CalendarSubscribe url={newUrl} label="tu calendario" />
+		{:else if revoked}
+			<p class="ok" role="status">Listo: el link dejó de andar.</p>
+		{/if}
+		{#if data.feed && !newUrl && !revoked}
+			<p>
+				Tenés un link activo desde el {fmtDate(data.feed.createdAt)}{data.feed.lastUsedAt
+					? `; tu calendario lo usó por última vez el ${fmtDate(data.feed.lastUsedAt)}`
+					: ''}.
+			</p>
+		{/if}
+		<div class="row">
+			<form method="POST" action="?/crearLink" use:enhance={submit('link')}>
+				<button class="pill-btn" type="submit" disabled={busy === 'link'}
+					>{hasLink ? 'Generar un link nuevo' : 'Crear mi link'}</button
+				>
+			</form>
+			{#if hasLink}
+				<form method="POST" action="?/revocarLink" use:enhance={submit('link')}>
+					<button class="pill-btn ghost" type="submit" disabled={busy === 'link'}
+						>Revocar el link</button
 					>
 				</form>
-				{#if hasLink}
-					<form method="POST" action="?/revocarLink" use:enhance={submit('link')}>
-						<button class="pill-btn ghost" type="submit" disabled={busy === 'link'}
-							>Revocar el link</button
-						>
-					</form>
-				{/if}
-			</div>
-		{/if}
+			{/if}
+		</div>
 	</section>
 </div>
 

@@ -94,7 +94,7 @@
 
 	const sha = data.post.sha ?? '';
 	const path = data.post.path ?? '';
-	/** Con el interruptor `contenido_db`, este post se guarda en la base (se ve enseguida). */
+	/** Los eventos y el material se guardan en la base (se ven enseguida). */
 	const copy = saveCopy(data.savesToDb);
 
 	/* ---------- the file ---------- */

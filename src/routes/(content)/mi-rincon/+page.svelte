@@ -89,7 +89,7 @@
 			</p>
 			<a class="pill-btn ghost start" href="/mi-rincon/sigo">Ver lo que seguís</a>
 		</section>
-	{:else if data.seriesOn}
+	{:else}
 		<section class="surface-card" aria-labelledby="calendario-title">
 			<h2 id="calendario-title">Tu calendario</h2>
 			<p class="hint">Tus eventos en tu calendario y los avisos de series que pediste.</p>

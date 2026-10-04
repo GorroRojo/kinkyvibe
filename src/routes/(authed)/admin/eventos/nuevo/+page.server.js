@@ -34,19 +34,15 @@ import { placeFileErrors } from '$lib/utils/eventPlace.js';
 import { linkFileErrors } from '$lib/utils/eventLink.js';
 import { transferReady } from '$lib/server/tickets/index.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
-import { seriesEnabled } from '$lib/server/flags.js';
 import { panelSavesToDb } from '$lib/server/contenido/saving.js';
 import { commitSavedToDb, saveCopy } from '$lib/admin/saveCopy.js';
 import { siteTags, tagExists } from '$lib/server/series/index.js';
 import { gitBlobSha } from '$lib/server/admin/posts.js';
-import { planTagEdit } from '$lib/server/admin/tagEditor.js';
 import { seriesTagIds } from '$lib/utils/series.js';
 import { readSeriesChoice, seriesCreateOps, seriesPromptFor } from '$lib/utils/seriesAdmin.js';
 import { addTagToPost } from '$lib/utils/tagConfig.js';
-import { dbTagsForAdmin, saveTagOpsToDb } from '$lib/server/etiquetas/panel.js';
+import { NEEDS_IMPORT, dbTagsForAdmin, saveTagOpsToDb } from '$lib/server/etiquetas/panel.js';
 import { planDbTagEdit } from '$lib/server/etiquetas/editor.js';
-// La copia del archivo de etiquetas de este deploy (si el cliente del repo no lo tiene).
-import bundledTags from '$lib/utils/hardcodedTags.js?raw';
 import { readNewEventPrefill } from '$lib/utils/calendario.js';
 import {
 	checkVenueChoice,
@@ -105,7 +101,7 @@ export async function load({ locals, url, platform }) {
 	let source = null;
 	/** @type {ReturnType<typeof seriesPromptFor>} */
 	let seriesPrompt = null;
-	// Interruptor `contenido_db`: el evento nuevo va a la base (se ve enseguida) y los textos lo dicen.
+	// El evento nuevo va a la base (se ve enseguida) y los textos lo dicen.
 	const savesToDb = await panelSavesToDb(platform, 'calendario');
 	if (desde) {
 		if (validateSlug(desde)) throw error(400, 'Ese evento no existe.');
@@ -135,9 +131,8 @@ export async function load({ locals, url, platform }) {
 			featured: fields.featured,
 			featuredUrl: featuredURL(desde, fields.featured)
 		};
-		// Interruptor `series`: si el original no está en una serie, «¿Es parte de una serie?».
-		if (await seriesEnabled(platform))
-			seriesPrompt = seriesPromptFor(fields, seriesTagIds(siteTags()));
+		// Si el original no está en una serie, «¿Es parte de una serie?».
+		seriesPrompt = seriesPromptFor(fields, seriesTagIds(siteTags()));
 	}
 	return {
 		source,
@@ -325,10 +320,10 @@ export const actions = {
 		const venueCheck = await checkVenueChoice(getDB(platform), venue);
 		if (!venueCheck.ok) return fail(400, { error: venueCheck.message });
 
-		// «¿Es parte de una serie?» (solo al duplicar y con el interruptor `series` prendido).
+		// «¿Es parte de una serie?» (solo al duplicar).
 		/** @type {import('$lib/utils/seriesAdmin.js').SeriesChoice} */
 		let seriesChoice = { type: 'none' };
-		if (source && data.has('seriesChoice') && (await seriesEnabled(platform))) {
+		if (source && data.has('seriesChoice')) {
 			const read = readSeriesChoice(
 				{
 					choice: data.get('seriesChoice'),
@@ -363,8 +358,8 @@ export const actions = {
 
 		/** @type {Array<{path: string, sha: string}>} */
 		const seriesUnchanged = [];
-		// Con el interruptor `etiquetas_db`, la serie nueva se crea en la base (después del commit
-		// del evento), no en el archivo: el mismo camino que /admin/etiquetas.
+		// La serie nueva se crea en la base (después de guardar el evento): el mismo camino que
+		// /admin/etiquetas. Ya no hay commits al archivo de etiquetas.
 		/** @type {null | { fromDb: NonNullable<Awaited<ReturnType<typeof dbTagsForAdmin>>>, ops: import('$lib/utils/tagConfig.js').TagOp[] }} */
 		let seriesToDb = null;
 		try {
@@ -373,16 +368,9 @@ export const actions = {
 				const planned = seriesCreateOps({ name: seriesChoice.name });
 				if (!planned.ok) return fail(400, { error: planned.error });
 				const fromDb = await dbTagsForAdmin(platform, admin.login);
-				if (fromDb) {
-					planDbTagEdit(fromDb.records, planned.ops); // valida antes del commit (tira)
-					seriesToDb = { fromDb, ops: planned.ops };
-				} else {
-					const plan = await planTagEdit(client, admin.token, planned.ops, bundledTags);
-					for (const f of plan.files) {
-						files.push({ path: f.path, content: f.after });
-						if (f.sha) seriesUnchanged.push({ path: f.path, sha: f.sha });
-					}
-				}
+				if (!fromDb) return fail(503, { error: 'Serie: ' + NEEDS_IMPORT });
+				planDbTagEdit(fromDb.records, planned.ops); // valida antes de guardar (tira)
+				seriesToDb = { fromDb, ops: planned.ops };
 			}
 			if (seriesChoice.type !== 'none' && seriesChoice.markSource) {
 				const sourceRaw = await client.getFile(admin.token, eventPath(source));
@@ -438,7 +426,7 @@ export const actions = {
 				message,
 				mustNotExist,
 				unchanged: [...unchanged, ...seriesUnchanged],
-				// Interruptor `contenido_db`: el evento nuevo va a la base (con su autoría).
+				// El evento nuevo va a la base (con su autoría).
 				actor: admin.login,
 				pr: {
 					action: mode === 'borrador' ? 'carga (no listado)' : source ? 'duplica' : 'publica',
@@ -486,7 +474,7 @@ export const actions = {
 				venueSaved: venueSaved.ok && venueSaved.changed,
 				commitUrl: commit.url,
 				publish: commit.pr ?? null,
-				// Interruptor `contenido_db`: el evento se guardó en la base (ya se ve).
+				// El evento se guardó en la base (ya se ve).
 				savedToDb: commitSavedToDb(commit),
 				eventUrl: `/calendario/${slug}`,
 				files: files.filter((f) => !f.delete).map((f) => f.path),

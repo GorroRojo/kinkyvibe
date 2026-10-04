@@ -58,10 +58,8 @@ async function route() {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
 		env: {
-			SERIES_ENABLED: '1',
 			CUENTAS_ENABLED: '1',
-			LO_QUE_SIGO_ENABLED: '1',
-			ETIQUETAS_DB_ENABLED: '0'
+			LO_QUE_SIGO_ENABLED: '1'
 		}
 	}));
 	(await import('$lib/server/contenido/posts.js')).clearContentCache();

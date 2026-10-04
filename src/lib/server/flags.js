@@ -23,15 +23,6 @@ export const FLAGS = Object.freeze({
 			'cada mail verificado. Apagado, las páginas dan 404 y el encabezado no muestra el link.',
 		envVar: 'CUENTAS_ENABLED'
 	},
-	series: {
-		label: 'Series de eventos',
-		description:
-			'"Edición N de <serie>" con anterior y siguiente en los eventos, la imagen y las ediciones ' +
-			'en la página de cada serie, "Avisame si se repite" (mails con doble confirmación), ' +
-			'calendarios para suscribirse (.ics) y Eventos → Series en el panel. Apagado, nada de ' +
-			'eso se ve y las direcciones nuevas dan 404.',
-		envVar: 'SERIES_ENABLED'
-	},
 	borrar_desde_panel: {
 		label: 'Borrar desde el panel',
 		description:
@@ -67,16 +58,6 @@ export const FLAGS = Object.freeze({
 			'página "Dejá una propina" (al Fondo) en lugar de Cafecito. Apagado, se ve la nota del ' +
 			'cafecito como siempre y /propinas da 404.',
 		envVar: 'PROPINAS_ENABLED'
-	},
-	etiquetas_db: {
-		label: 'Etiquetas desde la base',
-		description:
-			'El sitio lee el árbol de etiquetas de la base (objetos `etiqueta`) en lugar del archivo ' +
-			'hardcodedTags.js (todo el sitio: páginas, listados, buscador, panel, series, ingreso), y ' +
-			'Etiquetas en el panel guarda los cambios en la base al momento (renombrar en las ' +
-			'publicaciones, además, hace un commit). Antes de prenderlo: Etiquetas → Importar a la base. Apagado (o con la base sin ' +
-			'etiquetas), todo sigue leyendo el archivo como siempre.',
-		envVar: 'ETIQUETAS_DB_ENABLED'
 	},
 	lo_que_sigo: {
 		label: 'Lo que sigo',
@@ -221,15 +202,6 @@ export function cuentasEnabled(platform) {
 }
 
 /**
- * Atajo para las rutas: ¿están prendidas las series de eventos?
- *
- * @param {App.Platform | undefined} platform
- */
-export function seriesEnabled(platform) {
-	return isFlagOn(getDB(platform), 'series');
-}
-
-/**
  * Atajo para las rutas: ¿se puede borrar desde el panel? (src/lib/server/admin/deletions.js)
  *
  * @param {App.Platform | undefined} platform
@@ -264,15 +236,6 @@ export function personasEventosEnabled(platform) {
  */
 export function propinasEnabled(platform) {
 	return isFlagOn(getDB(platform), 'propinas');
-}
-
-/**
- * Atajo para las rutas: ¿las etiquetas se leen de la base? (docs/etiquetas.md)
- *
- * @param {App.Platform | undefined} platform
- */
-export function etiquetasDbEnabled(platform) {
-	return isFlagOn(getDB(platform), 'etiquetas_db');
 }
 
 /**

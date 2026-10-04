@@ -552,15 +552,14 @@
 							placeholder="(el de su madre)"
 						/></label
 					>
-					{#if data.seriesOn}
-						<label
-							>Imagen (series) <input
-								class="kv-input"
-								bind:value={fields.image}
-								placeholder="Ej.: serie.webp (de src/lib/assets)"
-							/></label
-						>
-					{/if}
+					<label
+						>Imagen (series) <input
+							class="kv-input"
+							bind:value={fields.image}
+							placeholder="Ej.: serie.webp (de src/lib/assets)"
+						/></label
+					>
+
 					<label
 						>Relacionadas <input
 							class="kv-input"

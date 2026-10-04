@@ -1,13 +1,13 @@
 /**
- * Duplicar un evento que no está en ninguna serie: «¿Es parte de una serie?» (interruptor
- * `series`). Crear una serie nueva (etiqueta + el evento nuevo y, si se pide, el original, todo en
- * un commit), agregarlo a una que existe, o no. Cliente del repo de mentira; datos inventados.
+ * Duplicar un evento que no está en ninguna serie: «¿Es parte de una serie?». Crear una serie
+ * nueva (la etiqueta en la base; el evento nuevo y, si se pide, el original, por el cliente del
+ * repo), agregarlo a una que existe, o no. Cliente del repo de mentira; datos inventados. (Las
+ * pruebas del archivo de etiquetas y del interruptor `series` apagado se sacaron con esos modos.)
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createTestDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent } from '$lib/server/series/fixtures.js';
-import { parseTagSource } from '$lib/utils/tagConfig.js';
 import hardcodedTags from '$lib/utils/hardcodedTags.js';
 import { importTags } from '$lib/server/etiquetas/importer.js';
 import { loadTagRecords } from '$lib/server/etiquetas/read.js';
@@ -55,10 +55,10 @@ const eventMd = (title, start) =>
 
 const SOURCE_MD = eventMd('Fiesta de Prueba (3ª Edición)', '2026-08-10T21:00-03:00');
 
-/** @param {string} flag @param {Record<string, string>} [env] */
-async function page(flag = '1', env = {}) {
+/** @param {Record<string, string>} [env] */
+async function page(env = {}) {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { SERIES_ENABLED: flag, ...env } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: { ...env } }));
 	/** @type {any[]} */
 	const commits = [];
 	vi.doMock('$lib/server/eventos', async (importOriginal) => ({
@@ -110,46 +110,20 @@ describe('¿Es parte de una serie? (duplicar)', () => {
 		);
 		expect(data.seriesPrompt.suggested).toBe('Fiesta de Prueba');
 		expect(data.seriesPrompt.existing).toContain('Picantearla');
-		// Apagado, no pregunta.
-		const off = await page('0');
-		const dataOff = /** @type {any} */ (
-			await off.mod.load(
-				fakeRequestEvent({
-					platform: t.platform,
-					path: `/admin/eventos/nuevo?desde=${SOURCE}`,
-					user: admin
-				})
-			)
-		);
-		expect(dataOff.seriesPrompt).toBeNull();
 	});
 
-	it('crear: la etiqueta, el evento nuevo y el original, en un solo commit', async () => {
+	it('crear sin etiquetas en la base: pide importarlas y no guarda nada', async () => {
 		const { mod, commits } = await page();
 		const res = /** @type {any} */ (
 			await mod.actions.publicar(
 				publish({ seriesChoice: 'crear', seriesName: 'Fiesta de Prueba', seriesMarkSource: 'on' })
 			)
 		);
-		expect(res.success).toBe(true);
-		expect(res.series).toEqual({ type: 'create', name: 'Fiesta de Prueba', markSource: true });
-		expect(commits).toHaveLength(1);
-		const c = commits[0];
-		expect(fileIn(c, 'src/lib/posts/calendario/fiesta-de-prueba-2026-10.md').content).toContain(
-			'  - fiesta\n  - Fiesta de Prueba\n'
-		);
-		const source = fileIn(c, `src/lib/posts/calendario/${SOURCE}.md`);
-		expect(source.content).toBe(
-			SOURCE_MD.replace('  - fiesta\n', '  - fiesta\n  - Fiesta de Prueba\n')
-		);
-		// El original se guarda solo si no cambió mientras tanto.
-		expect(c.unchanged.map((/** @type {any} */ u) => u.path)).toContain(
-			`src/lib/posts/calendario/${SOURCE}.md`
-		);
-		const tags = parseTagSource(fileIn(c, 'src/lib/utils/hardcodedTags.js').content).items.map(
-			(i) => i.value
-		);
-		expect(tags.find((e) => e.id === 'evento recurrente')?.children).toContain('Fiesta de Prueba');
+		expect(res).toMatchObject({
+			status: 503,
+			data: { error: expect.stringContaining('importalas') }
+		});
+		expect(commits).toHaveLength(0);
 	});
 
 	it('agregar a una existente sin marcar el original: solo el evento nuevo', async () => {
@@ -179,12 +153,12 @@ describe('¿Es parte de una serie? (duplicar)', () => {
 		expect(commits).toHaveLength(1);
 	});
 
-	it('con etiquetas_db: pregunta con las series de la base y crea la serie en la base', async () => {
+	it('pregunta con las series de la base y crea la serie en la base; el original, marcado', async () => {
 		/** @type {Record<string, any>[]} */
 		const raw = JSON.parse(JSON.stringify(hardcodedTags));
 		raw.find((e) => e.id === 'evento recurrente')?.children.push('Serie Solo de la Base');
 		await importTags(t.db, { rawTags: raw }, { actor: 'admin-de-prueba' });
-		const { mod, commits } = await page('1', { ETIQUETAS_DB_ENABLED: '1' });
+		const { mod, commits } = await page();
 		// Lo que hace hooks.server.js en cada pedido.
 		await (await import('$lib/server/etiquetas/source.js')).applySiteTags(t.platform);
 		const data = /** @type {any} */ (
@@ -199,28 +173,32 @@ describe('¿Es parte de una serie? (duplicar)', () => {
 		expect(data.seriesPrompt.existing).toContain('Serie Solo de la Base');
 		const res = /** @type {any} */ (
 			await mod.actions.publicar(
-				publish({ seriesChoice: 'crear', seriesName: 'Fiesta de Prueba en la Base' })
+				publish({
+					seriesChoice: 'crear',
+					seriesName: 'Fiesta de Prueba en la Base',
+					seriesMarkSource: 'on'
+				})
 			)
 		);
 		expect(res.success).toBe(true);
 		expect(res.warnings).toEqual([]);
-		// El commit es solo el evento: la serie no va al archivo…
-		expect(commits[0].files.map((/** @type {any} */ f) => f.path)).toEqual([
+		// Lo que se guarda es el evento nuevo y el original con la serie: nunca el archivo de
+		// etiquetas…
+		const c = commits[0];
+		expect(c.files.map((/** @type {any} */ f) => f.path).sort()).toEqual([
+			'src/lib/posts/calendario/fiesta-de-prueba-2026-08.md',
 			'src/lib/posts/calendario/fiesta-de-prueba-2026-10.md'
 		]);
+		expect(fileIn(c, 'src/lib/posts/calendario/fiesta-de-prueba-2026-10.md').content).toContain(
+			'  - fiesta\n  - Fiesta de Prueba en la Base\n'
+		);
+		// El original se guarda solo si no cambió mientras tanto.
+		expect(c.unchanged.map((/** @type {any} */ u) => u.path)).toContain(
+			`src/lib/posts/calendario/${SOURCE}.md`
+		);
 		// …sino a la base.
 		const tag = (await loadTagRecords(t.db)).find((r) => r.key === 'Fiesta de Prueba en la Base');
 		expect(tag?.parents.map((p) => p.key)).toEqual(['evento recurrente']);
 		// Importar el árbol entero a la base tarda: más tiempo que el resto.
 	}, 180_000);
-
-	it('con el interruptor apagado se ignora la respuesta', async () => {
-		const { mod, commits } = await page('0');
-		const res = /** @type {any} */ (
-			await mod.actions.publicar(publish({ seriesChoice: 'crear', seriesName: 'Fiesta de Prueba' }))
-		);
-		expect(res.success).toBe(true);
-		expect(commits[0].files).toHaveLength(1);
-		expect(commits[0].files[0].content).not.toContain('Fiesta de Prueba\n');
-	});
 });

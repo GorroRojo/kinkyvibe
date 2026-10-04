@@ -309,9 +309,10 @@ describe('navLink y navState', () => {
 		expect(navState(base)).toBe('ready');
 	});
 	it('con el interruptor apagado se ve "prueba" o se esconde (si la página da 404)', () => {
-		const flags = { series: false, personas_eventos: false, cuentas: false };
+		const flags = { personas_eventos: false, cuentas: false };
 		const ids = navAreaItems('eventos', { flags }).map((i) => i.id);
-		expect(ids).not.toContain('eventos-series');
+		// Series ya no tiene interruptor (quedó fijo): se ve siempre.
+		expect(ids).toContain('eventos-series');
 		expect(ids).not.toContain('ajustes-personas');
 		expect(navAreaItems('comunidad', { flags }).map((i) => i.id)).toContain('cuentas');
 		const cuentas = navItem('cuentas');
@@ -324,7 +325,7 @@ describe('navLink y navState', () => {
 		}
 	});
 	it('navFlagKeys: los interruptores que usa el menú, sin repetir', () => {
-		expect(navFlagKeys().sort()).toEqual(['cuentas', 'personas_eventos', 'propinas', 'series']);
+		expect(navFlagKeys().sort()).toEqual(['cuentas', 'personas_eventos', 'propinas']);
 	});
 	it('areaCount suma los contadores de las secciones del área', () => {
 		expect(areaCount('ventas', { transfers: 3 })).toBe(3);

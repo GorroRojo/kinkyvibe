@@ -58,7 +58,7 @@ afterEach(() => {
 /** Los módulos recién cargados. */
 async function modules() {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { ETIQUETAS_DB_ENABLED: '0' } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	(await import('$lib/server/contenido/posts.js')).clearContentCache();
 	return {
 		series: await import('./index.js'),

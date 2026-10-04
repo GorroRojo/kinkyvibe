@@ -17,8 +17,7 @@ const PRIOR_TTL_MS = 60 * 1000;
 const priorCache = new Map();
 
 /**
- * Los eventos salen de la capa compartida de contenido (`sitePosts`: de la base o de los `.md`,
- * según `contenido_db`).
+ * Los eventos salen de la capa compartida de contenido (`sitePosts`: de la base).
  *
  * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {string} slug

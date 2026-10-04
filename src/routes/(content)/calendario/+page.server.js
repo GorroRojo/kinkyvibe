@@ -3,7 +3,6 @@ import { isCurrent } from '$lib/utils/allPosts';
 import { getDB } from '$lib/server/db';
 import { withVenuePlaces } from '$lib/server/amigues/venues.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
-import { seriesEnabled } from '$lib/server/flags.js';
 
 // all the calendar grid (and a collapsed past-events list) uses; the page loads
 // the full posts if the viewer chooses to list past events
@@ -38,23 +37,20 @@ export async function load({ platform }) {
 	const now = Date.now();
 	const posts = (await sitePosts(platform)).filter((p) => p.meta.layout == 'calendario');
 	// A la par (cada consulta a la base es una vuelta).
-	const [withVenues, ticketStates, seriesLink] = await Promise.all([
+	const [withVenues, ticketStates] = await Promise.all([
 		// Un lugar vinculado manda sobre el «Dónde» del .md (los pasados ya van sin él).
 		withVenuePlaces(
 			getDB(platform),
 			posts.filter((p) => isCurrent(p, now))
 		),
 		// «Comprar entradas» / «Agotadas» en las tarjetas: todos los eventos en una consulta.
-		ticketStatesFor(platform, posts),
-		// Interruptor `series`: link a la lista de series de la Kinkipedia (/wiki#series).
-		seriesEnabled(platform)
+		ticketStatesFor(platform, posts)
 	]);
 	const current = new Map(withVenues.map((p) => [p.path, p]));
 	return {
 		posts: posts.map(
 			(p) => current.get(p.path) ?? /** @type {ProcessedPost} */ ({ ...p, meta: slimMeta(p.meta) })
 		),
-		ticketStates,
-		seriesLink
+		ticketStates
 	};
 }

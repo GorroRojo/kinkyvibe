@@ -3,7 +3,7 @@
  * the searchable tag list for the picker, and the rules events follow for some tag groups.
  *
  * Everything is derived from the tag tree in use (./hardcodedTags.js, or the database with the
- * `etiquetas_db` switch: ./siteTags.js), so adding e.g. a new city under "lugar" there makes it
+ * database: ./siteTags.js), so adding e.g. a new city under "lugar" there makes it
  * show up here with no other change.
  * No Svelte / SvelteKit imports: runs in the browser, on the server and in vitest.
  */
@@ -15,7 +15,7 @@ export { normalizeText };
 
 /** @typedef {TagManager} Tags */
 
-/** The site's tag tree in use (the file, or the database with the `etiquetas_db` switch). */
+/** The site's tag tree in use (the database; the file only as a fallback). */
 export function siteTags() {
 	return currentSiteTags();
 }

@@ -13,12 +13,7 @@ import {
 	subscribeEmail,
 	unsubscribeAccount
 } from '$lib/server/series/subscriptions.js';
-import {
-	requireSeries,
-	requireSeriesDB,
-	seriesAccountState,
-	seriesSender
-} from '$lib/server/series/web.js';
+import { requireSeriesDB, seriesAccountState, seriesSender } from '$lib/server/series/web.js';
 import { clientOf } from '$lib/server/cuentas/web.js';
 import { siteOrigin } from '$lib/server/tickets/index.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
@@ -31,7 +26,6 @@ const field = (form, key) => {
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ url, platform, locals, setHeaders }) {
-	await requireSeries(platform);
 	setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const series = await seriesPage(url.searchParams.get('serie') ?? '', {
 		tags: await siteTagManager(platform),

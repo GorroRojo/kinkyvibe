@@ -76,8 +76,7 @@ async function venuePage(n) {
 		env: {
 			PERFILES_PUBLICOS_ENABLED: '1',
 			PERSONAS_EVENTOS_ENABLED: '1',
-			CUENTAS_ENABLED: '0',
-			ETIQUETAS_DB_ENABLED: '0'
+			CUENTAS_ENABLED: '0'
 		}
 	}));
 	fake.posts = Array.from({ length: n }, (_, i) => fakeEventPost(i));

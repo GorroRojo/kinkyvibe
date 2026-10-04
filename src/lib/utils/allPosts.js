@@ -34,7 +34,7 @@ export function monthHasPastEvents(posts, month, now = Date.now()) {
 let allPosts;
 /**
  * Browser only: every listed post, including past events, from /api/posts (server-rendered and
- * cached a few minutes: its tags follow the `etiquetas_db` switch). Pages call this once the
+ * cached a few minutes: its tags come from the database). Pages call this once the
  * viewer turns on "show past events".
  * @return {Promise<ProcessedPost[]>}
  */

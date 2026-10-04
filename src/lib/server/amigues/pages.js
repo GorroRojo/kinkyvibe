@@ -128,7 +128,7 @@ export async function profileSlugTaken(db, urlSlug) {
  * @param {App.Locals} locals
  * @param {{ cuentas: boolean, posts?: ProcessedPost[] }} opts si están prendidas las cuentas
  *   (para "Es mi perfil"); `posts`: las publicaciones del sitio (con los eventos de la base si
- *   el interruptor `contenido_db` está prendido; por defecto, los .md)
+ *   la base; por defecto, las fichas .md)
  */
 export async function profilePageData(db, urlSlug, locals, { cuentas, posts: sitePosts }) {
 	const viewer = viewerFor(locals);

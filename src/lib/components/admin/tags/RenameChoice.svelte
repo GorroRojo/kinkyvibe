@@ -1,7 +1,7 @@
 <!--
 	Qué pasa con el nombre viejo al renombrar una etiqueta. Lo usan Etiquetas (Renombrar) y
 	Eventos → Series (Editar), así la elección y el valor por defecto son los mismos.
-	- Con el interruptor `etiquetas_db` (`dbMode`): dos opciones. Por defecto (decisión de gorrite)
+	- Con las etiquetas en la base (`dbMode`, hoy siempre): dos opciones. Por defecto (decisión de gorrite)
 	  se renombra en todas las publicaciones y el nombre viejo NO queda como alias; la otra deja el
 	  alias y no toca ninguna publicación.
 	- Con el archivo: las publicaciones se renombran siempre; el alias es opcional.

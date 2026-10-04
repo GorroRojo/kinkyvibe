@@ -1,6 +1,6 @@
 /**
- * Lugares → «Importar de eventos»: lee el «Dónde» de todos los eventos (los .md, o la base con
- * `contenido_db` prendido: los mismos lectores que el sitio, `sitePosts`), arma los candidatos a
+ * Lugares → «Importar de eventos»: lee el «Dónde» de todos los eventos (de la base, con los
+ * mismos lectores que el sitio, `sitePosts`), arma los candidatos a
  * lugar (reglas puras en src/lib/utils/venueImport.js) y crea los elegidos.
  *
  * Escribe solo con los caminos de siempre:

@@ -1,6 +1,6 @@
 /**
  * Mi rincón y Mi rincón → Calendario, render del servidor, con «Lo que sigo» apagado (como
- * siempre: la tarjeta «Tu calendario» con el interruptor `series`) y prendido (una sola tarjeta,
+ * siempre: la tarjeta «Tu calendario»; el interruptor `series` quedó fijo) y prendido (una sola tarjeta,
  * «Lo que seguís y tu calendario», que lleva a /mi-rincon/sigo; /mi-rincon/calendario sigue
  * andando y lleva ahí). Y que ningún link de estas páginas a Mi rincón apunte a una ruta que no
  * existe. Datos inventados.
@@ -19,7 +19,7 @@ const { default: Rincon } = await import('./+page.svelte');
 const { default: Calendario } = await import('./calendario/+page.svelte');
 const { default: Sigo } = await import('./sigo/+page.svelte');
 
-/** @param {{ seriesOn: boolean, sigoOn: boolean }} flags */
+/** @param {{ sigoOn: boolean }} flags */
 const rincon = (flags) =>
 	render(Rincon, {
 		props: /** @type {any} */ ({
@@ -48,7 +48,6 @@ const sigo = () =>
 			data: {
 				follows: [],
 				calendar: { entradas: true, participo: true },
-				seriesOn: true,
 				feed: { createdAt: 0, lastUsedAt: null },
 				add: { tags: [], profiles: [] }
 			},
@@ -66,8 +65,8 @@ const count = (html, href) => hrefs(html).filter((h) => h === href).length;
 const cards = (html) => [...html.matchAll(/<h2 id="[^"]+"[^>]*>([^<]+)<\/h2>/g)].map((m) => m[1]);
 
 describe('Mi rincón con «Lo que sigo» apagado: como siempre', () => {
-	it('con `series`: la tarjeta «Tu calendario» lleva a Mi rincón → Calendario; nada de Lo que sigo', () => {
-		const html = rincon({ seriesOn: true, sigoOn: false });
+	it('la tarjeta «Tu calendario» lleva a Mi rincón → Calendario; nada de Lo que sigo', () => {
+		const html = rincon({ sigoOn: false });
 		expect(cards(html)).toEqual([
 			'Tu cuenta',
 			'Tu calendario',
@@ -82,41 +81,26 @@ describe('Mi rincón con «Lo que sigo» apagado: como siempre', () => {
 		expect(count(html, '/mi-rincon/sigo')).toBe(0);
 		expect(html).not.toContain('Lo que seguís');
 	});
+});
 
-	it('sin `series`: ninguna de las dos', () => {
-		const html = rincon({ seriesOn: false, sigoOn: false });
+describe('Mi rincón con «Lo que sigo» prendido: una sola tarjeta', () => {
+	it('«Lo que seguís y tu calendario» lleva a /mi-rincon/sigo', () => {
+		const html = rincon({ sigoOn: true });
 		expect(cards(html)).toEqual([
 			'Tu cuenta',
+			'Lo que seguís y tu calendario',
 			'Tus compras',
 			'Mis datos',
 			'Contraseña',
 			'Borrar tu cuenta'
 		]);
+		expect(count(html, '/mi-rincon/sigo')).toBe(1);
+		expect(html).toContain('Ver lo que seguís');
+		expect(html).toContain('tus entradas y donde participás');
+		// La tarjeta vieja no está: el calendario es parte de Lo que sigo.
 		expect(count(html, '/mi-rincon/calendario')).toBe(0);
-		expect(count(html, '/mi-rincon/sigo')).toBe(0);
+		expect(html).not.toContain('Ver tu calendario');
 	});
-});
-
-describe('Mi rincón con «Lo que sigo» prendido: una sola tarjeta', () => {
-	for (const seriesOn of [true, false]) {
-		it(`«Lo que seguís y tu calendario» lleva a /mi-rincon/sigo (series ${seriesOn ? 'prendido' : 'apagado'})`, () => {
-			const html = rincon({ seriesOn, sigoOn: true });
-			expect(cards(html)).toEqual([
-				'Tu cuenta',
-				'Lo que seguís y tu calendario',
-				'Tus compras',
-				'Mis datos',
-				'Contraseña',
-				'Borrar tu cuenta'
-			]);
-			expect(count(html, '/mi-rincon/sigo')).toBe(1);
-			expect(html).toContain('Ver lo que seguís');
-			expect(html).toContain('tus entradas y donde participás');
-			// La tarjeta vieja no está: el calendario es parte de Lo que sigo.
-			expect(count(html, '/mi-rincon/calendario')).toBe(0);
-			expect(html).not.toContain('Ver tu calendario');
-		});
-	}
 });
 
 describe('Mi rincón → Calendario', () => {
@@ -161,8 +145,8 @@ describe('los links a Mi rincón apuntan a rutas que existen', () => {
 		return ['+page.svelte', '+server.js'].some((f) => existsSync(`${routes}${path}/${f}`));
 	};
 	const pages = {
-		'Mi rincón (apagado)': rincon({ seriesOn: true, sigoOn: false }),
-		'Mi rincón (prendido)': rincon({ seriesOn: true, sigoOn: true }),
+		'Mi rincón (apagado)': rincon({ sigoOn: false }),
+		'Mi rincón (prendido)': rincon({ sigoOn: true }),
 		'Calendario (apagado)': calendario({ sigoOn: false, feed: null, series: [] }),
 		'Calendario (prendido)': calendario({ sigoOn: true, feed: null, series: [] }),
 		'Lo que sigo': sigo()

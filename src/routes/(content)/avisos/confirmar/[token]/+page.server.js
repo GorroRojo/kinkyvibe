@@ -5,11 +5,10 @@
 import { fail } from '@sveltejs/kit';
 import { confirmSubscription } from '$lib/server/series/subscriptions.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
-import { requireSeries, requireSeriesDB } from '$lib/server/series/web.js';
+import { requireSeriesDB } from '$lib/server/series/web.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ platform, setHeaders }) {
-	await requireSeries(platform);
 	setHeaders({
 		'cache-control': 'private, no-store',
 		'x-robots-tag': 'noindex',

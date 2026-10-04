@@ -87,9 +87,7 @@ async function endpoint({ perfiles = '1' } = {}) {
 	vi.resetModules();
 	vi.doMock('$env/dynamic/private', () => ({
 		env: {
-			PERFILES_PUBLICOS_ENABLED: perfiles,
-			ETIQUETAS_DB_ENABLED: '0',
-			SERIES_ENABLED: '1'
+			PERFILES_PUBLICOS_ENABLED: perfiles
 		}
 	}));
 	vi.doMock('$app/environment', () => ({ dev: false, building: false, browser: false }));

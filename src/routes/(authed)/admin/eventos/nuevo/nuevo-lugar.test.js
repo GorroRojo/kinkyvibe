@@ -55,7 +55,7 @@ const EVENT_MD = [
 /** @param {{ failCommit?: boolean }} [opts] */
 async function page({ failCommit = false } = {}) {
 	vi.resetModules();
-	vi.doMock('$env/dynamic/private', () => ({ env: { SERIES_ENABLED: '0' } }));
+	vi.doMock('$env/dynamic/private', () => ({ env: {} }));
 	/** @type {any[]} */
 	const commits = [];
 	vi.doMock('$lib/server/eventos', async (importOriginal) => ({

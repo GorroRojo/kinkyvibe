@@ -35,7 +35,7 @@ async function eventFromRepo(locals, slug) {
  */
 export async function load({ locals, url, params, platform }) {
 	requireAdmin(locals, url);
-	// Las dos lecturas a la vez (cada una es una ida a la base con `contenido_db`).
+	// Las dos lecturas a la vez (cada una es una ida a la base).
 	const [found, config] = await Promise.all([
 		getPanelEvent(params.slug),
 		// Vende entradas de verdad (configuración válida y publicada): las pestañas de venta.

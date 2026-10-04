@@ -154,7 +154,7 @@ export function newLoad(category) {
 		requireAdmin(locals, url);
 		const admin = getEventAdmin(locals);
 		if (!admin) throw error(403, NO_PERMISSION);
-		// Interruptor `contenido_db`: lo nuevo de material va a la base (se ve enseguida).
+		// Lo nuevo de material va a la base (se ve enseguida).
 		const savesToDb = await panelSavesToDb(platform, category);
 		const desde = url.searchParams.get('desde') ?? '';
 		/** @type {null | {slug: string, raw: string, title: string}} */
@@ -210,7 +210,7 @@ export function editLoad(category) {
 		const slug = params.slug ?? '';
 		if (!contentPath(category, slug) || slug.startsWith('_'))
 			throw error(404, 'Esa publicación no existe.');
-		// Interruptor `contenido_db`: esta publicación se guarda en la base (se ve enseguida).
+		// El material se guarda en la base (se ve enseguida); amigues, con un PR.
 		const savesToDb = await panelSavesToDb(platform, category, slug);
 		let post;
 		try {
@@ -383,7 +383,7 @@ export function editorActions(category) {
 						imagePath: r.imagePath,
 						commit: r.commit.url,
 						publish: r.commit.pr ?? null,
-						// Interruptor `contenido_db`: se guardó en la base (ya se ve).
+						// Se guardó en la base (ya se ve).
 						savedToDb: commitSavedToDb(r.commit)
 					}
 				};

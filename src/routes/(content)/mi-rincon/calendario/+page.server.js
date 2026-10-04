@@ -14,7 +14,6 @@ import { requireCuentas } from '$lib/server/cuentas/web.js';
 import { createFeedToken, feedInfo, revokeFeeds } from '$lib/server/series/feeds.js';
 import { accountSubscriptions, unsubscribeAccount } from '$lib/server/series/subscriptions.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
-import { requireSeries } from '$lib/server/series/web.js';
 import { sigoEnabled } from '$lib/server/sigo/web.js';
 import { tagPagePath } from '$lib/utils/series.js';
 
@@ -24,7 +23,6 @@ const LOGIN = '/ingresar?next=%2Fmi-rincon%2Fcalendario';
  * @param {import('@sveltejs/kit').RequestEvent} event
  */
 async function requireMember(event) {
-	await requireSeries(event.platform);
 	const db = await requireCuentas(event.platform);
 	const member = event.locals.member;
 	if (!member) redirect(303, LOGIN);
