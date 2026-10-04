@@ -2,8 +2,8 @@
 	/**
 	 * Ficha de un perfil: datos (tipo, visibilidad, presentación, links), quiénes lo gestionan
 	 * (con link a cada cuenta) y las acciones de admins: marcar como revisado, ocultar y borrar.
-	 * Borrar se confirma en la misma página (sin ventanas de confirmación) y después ofrece
-	 * «Deshacer» (también se puede recuperar desde Actividad).
+	 * Borrar es el mismo link que la página del perfil (/admin/borrar/amigues/<dirección>: se
+	 * recupera desde Actividad); la acción `borrar` de esta página queda para los links viejos.
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
@@ -17,6 +17,7 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import ClaimsCard from '$lib/components/admin/amigues/ClaimsCard.svelte';
 	import UndoToast from '$lib/components/admin/panel/UndoToast.svelte';
+	import DeleteLink from '$lib/components/admin/panel/DeleteLink.svelte';
 
 	export let data;
 	export let form;
@@ -57,7 +58,7 @@
 	</svelte:fragment>
 	<svelte:fragment slot="actions">
 		{#if !p.deletedAt}
-			<a class="kv-btn" href="/admin/comunidad/perfiles/{data.urlSlug}">Editar</a>
+			<a class="kv-btn" href="/admin/comunidad/perfiles/{data.urlSlug}">Editar el perfil</a>
 		{/if}
 	</svelte:fragment>
 </PageHeader>
@@ -192,19 +193,8 @@
 			Ocultar o borrar también lo saca de "Para revisar". Oculto, lo ven solo les admins y quienes
 			lo gestionan (en Mi rincón, donde pueden volver a cambiar la visibilidad).
 		</p>
-		<details class="danger">
-			<summary>Borrar el perfil</summary>
-			<p>
-				Deja de verse en todos lados, también para quienes lo gestionan. Lo podés deshacer enseguida
-				o recuperarlo después desde Actividad.
-			</p>
-			<form method="POST" action="?/borrar" use:enhance={submit('borrar')}>
-				<input type="hidden" name="version" value={p.version} />
-				<button class="kv-btn del" type="submit" disabled={busy !== ''}
-					>Sí, borrar «{p.title}»</button
-				>
-			</form>
-		</details>
+		<!-- Borrar: uno solo, el de la página del perfil (se recupera desde Actividad). -->
+		<DeleteLink kind="amigues" slug={data.urlSlug} label="Borrar el perfil…" />
 	</Card>
 {/if}
 
@@ -249,17 +239,5 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-2xs);
-	}
-	.danger {
-		margin-top: 0.8rem;
-	}
-	.del {
-		background: var(--bad);
-		color: white;
-	}
-	.danger summary {
-		cursor: pointer;
-		color: var(--bad);
-		font-weight: 700;
 	}
 </style>
