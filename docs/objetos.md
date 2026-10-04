@@ -156,15 +156,15 @@ Una persona o un proyecto con cuenta (decisión A2). Archivo: `src/lib/server/ob
 Reglas de quién lo gestiona y lo edita: `src/lib/server/cuentas/perfiles.js` y
 [cuentas.md](cuentas.md) («Perfiles»).
 
-| Campo          | Clase      | Notas                                                                                          |
-| -------------- | ---------- | ---------------------------------------------------------------------------------------------- |
-| (`title`)      | —          | el nombre; no hay "nombre para mostrar" aparte (E1)                                            |
-| `kind`         | `option`   | `persona` o `proyecto`, obligatorio; no cambia después de crear (lo controla `perfiles.js`)    |
-| `bio`          | `longtext` | presentación, hasta 1000 caracteres                                                            |
-| `pronouns`     | `text`     | hasta 40 caracteres                                                                            |
-| `links`        | `list`     | hasta 8; solo `https://` o `http://`, sin usuario ni contraseña, hasta 300 caracteres cada uno |
-| `avatar`       | `text`     | clave de una imagen de NUESTRO almacenamiento (nunca un link externo); todavía no hay subidas  |
-| `show_members` | `boolean`  | solo proyectos: mostrar integrantes (solo los perfiles que quien mira puede ver)               |
+| Campo          | Clase      | Notas                                                                                             |
+| -------------- | ---------- | ------------------------------------------------------------------------------------------------- |
+| (`title`)      | —          | el nombre; no hay "nombre para mostrar" aparte (E1)                                               |
+| `kind`         | `option`   | `persona` o `proyecto`, obligatorio; no cambia después de crear (lo controla `perfiles.js`)       |
+| `bio`          | `longtext` | presentación, hasta 1000 caracteres                                                               |
+| `pronouns`     | `text`     | hasta 40 caracteres                                                                               |
+| `links`        | `list`     | hasta 8; solo `https://` o `http://`, sin usuario ni contraseña, hasta 300 caracteres cada uno    |
+| `avatar`       | `text`     | sin uso: la imagen del perfil es el edge `avatar` hacia una `imagen` ([imagenes.md](imagenes.md)) |
+| `show_members` | `boolean`  | solo proyectos: mostrar integrantes (solo los perfiles que quien mira puede ver)                  |
 
 - `proyecto` antes se llamaba `grupo` (migración `0023_perfil_proyecto.sql`). El valor viejo se
   sigue aceptando: se lee como `proyecto` (`normalizeProfileKind`/`profileKindOf`) y el
@@ -194,6 +194,13 @@ tipo todavía no conoce va tal cual en `extra` (clase `json`, solo para tipos n�
 generadas e índices (migración `0031`): `start_at`, `end_at` (ms), `event_status`, `unlisted`. La
 importación, la lectura (solo la base) y el historial (`object_revisions`):
 [contenido.md](contenido.md) («En la base»).
+
+### `imagen`
+
+Una imagen de la biblioteca (archivo en R2, binding `MEDIA`). Cada uso es un edge HACIA ella:
+evento → `portada`, material → `portada`, etiqueta (serie) → `imagen`, perfil → `avatar` (uno por
+objeto). Archivo: `src/lib/server/objects/types/imagen.js`; todo el detalle en
+[imagenes.md](imagenes.md).
 
 ### `etiqueta`
 

@@ -16,6 +16,8 @@ import {
 import { mentionPronouns } from '$lib/server/pronouns';
 import { canHaveProfiles } from '$lib/server/cuentas/accounts.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
+import { imageKeysByObject, imageOf } from '$lib/server/media/library.js';
+import { mediaPath } from '$lib/server/media/sniff.js';
 import { claimState } from './claims.js';
 import {
 	findPublicProfile,
@@ -67,16 +69,18 @@ export async function profileImage(o, legacySlug) {
 }
 
 /**
- * La lista blanca del perfil con su imagen y sus etiquetas como las muestra el sitio.
+ * La lista blanca del perfil con su imagen y sus etiquetas como las muestra el sitio. La imagen:
+ * la de la biblioteca (edge `avatar`, docs/imagenes.md) si tiene; si no, la de la ficha vieja.
  *
  * @param {StoredObject} o
  * @param {string | null} legacySlug
+ * @param {string | undefined} [avatarKey] clave de su imagen en la biblioteca
  */
-async function toPublic(o, legacySlug) {
+async function toPublic(o, legacySlug, avatarKey) {
 	const raw = Array.isArray(o.data.tags) ? o.data.tags.filter((t) => typeof t === 'string') : [];
 	return publicProfile(o, {
 		legacySlug,
-		image: await profileImage(o, legacySlug),
+		image: avatarKey ? mediaPath(avatarKey) : await profileImage(o, legacySlug),
 		tags: canonicalTags(raw)
 	});
 }
@@ -92,13 +96,16 @@ async function toPublic(o, legacySlug) {
  */
 export async function amiguesListPosts(db, locals, { kind } = {}) {
 	const viewer = viewerFor(locals);
-	const [profiles, imported, md] = await Promise.all([
+	const [profiles, imported, md, avatars] = await Promise.all([
 		listPublicProfiles(db, viewer, { kind }),
 		importedLegacySlugs(db),
-		fetchMarkdownPosts()
+		fetchMarkdownPosts(),
+		imageKeysByObject(db, 'perfil', 'avatar').catch(() => new Map())
 	]);
 	const posts = await Promise.all(
-		profiles.map(async (p) => profileAsPost(await toPublic(p.object, p.legacySlug)))
+		profiles.map(async (p) =>
+			profileAsPost(await toPublic(p.object, p.legacySlug, avatars.get(p.object.id)))
+		)
 	);
 	if (!kind) {
 		for (const post of md) {
@@ -136,7 +143,8 @@ export async function profilePageData(db, urlSlug, locals, { cuentas, posts: sit
 	const found = await findPublicProfile(db, urlSlug, viewer, { accountId });
 	if (!found) return null;
 	const { object, legacySlug, approved } = found;
-	const profile = await toPublic(object, legacySlug);
+	const avatar = await imageOf(db, object.id, 'avatar', viewer).catch(() => null);
+	const profile = await toPublic(object, legacySlug, avatar?.key);
 	const kind = profileKindOf(object.data);
 	const href = `/amigues/${urlSlugOf(object, legacySlug)}`;
 

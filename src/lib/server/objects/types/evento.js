@@ -89,7 +89,8 @@ const evento = {
 		// (src/lib/utils/personasList.js). En los .md siguen siendo `authors:` y `personas:`.
 		personas: { kind: 'json', array: true, label: 'Personas', max: 30_000 },
 		// Número de la imagen en la carpeta del evento («1») o archivo de src/lib/assets
-		// («cabaret-astral-miniatura.webp»). Las imágenes siguen en el repo (R2 es un paso aparte).
+		// («cabaret-astral-miniatura.webp»): la imagen vieja del repo. La nueva es el edge `portada`
+		// (docs/imagenes.md).
 		featured: { kind: 'text', label: 'Imagen principal', max: 200 },
 		logo: { kind: 'text', label: 'Logo', max: 200 },
 		location: { kind: 'text', label: 'Dónde', max: 500 },
@@ -107,7 +108,10 @@ const evento = {
 		// Personas con rol (B7): un edge por perfil, `data: { roles: ['Organiza', …] }`. Hoy los
 		// roles viven en el frontmatter de los .md (`personas:`); personasToEdges() de
 		// src/lib/utils/personas.js arma estos edges cuando el evento pase a la base.
-		persona: { label: 'Personas con rol', to: ['perfil'] }
+		persona: { label: 'Personas con rol', to: ['perfil'] },
+		// La imagen principal (docs/imagenes.md). Sin este edge, se usa `featured` (la imagen vieja
+		// del repo) hasta que se importen las imágenes.
+		portada: { label: 'Imagen principal', to: ['imagen'], max: 1 }
 	},
 	check(data) {
 		/** @type {import('../fields.js').FieldError[]} */

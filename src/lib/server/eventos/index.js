@@ -7,6 +7,7 @@ import * as github from './github.js';
 import { isAdmin } from '$lib/server/auth';
 import { PREVIEW_BUILD } from '$lib/server/deploy.js';
 import { parseEventDate, isNumericFeatured, AR_OFFSET } from '$lib/utils/eventDraft.js';
+import { isMediaPath } from '$lib/utils/media.js';
 
 import { POSTS_DIR } from './images.js';
 
@@ -103,6 +104,7 @@ const FORMATS = ['jpeg', 'jfif', 'jpg', 'png', 'webp'];
  */
 export function featuredURL(slug, featured) {
 	if (featured === undefined || featured === null || featured === '') return undefined;
+	if (isMediaPath(featured)) return String(featured);
 	if (isNumericFeatured(featured)) {
 		for (const f of FORMATS) {
 			const url = mediaFiles[`/src/lib/posts/calendario/media/${slug}/${featured}.${f}`];
@@ -139,13 +141,19 @@ function siteDate(v) {
 export async function listEvents() {
 	const { activeContentDB, allDbEventObjects } = await import('../contenido/repo.js');
 	const { eventToMeta } = await import('../contenido/eventos.js');
+	const { imageKeysByObject } = await import('../media/library.js');
 	const db = activeContentDB();
 	if (!db) return [];
+	// La imagen de la biblioteca de cada evento (edge `portada`), si tiene; si no, la del repo.
+	const covers = await imageKeysByObject(db, 'evento', 'portada').catch(() => new Map());
 	/** @type {EventSummary[]} */
 	const events = [];
 	// Solo la metadata: sin armar el texto de cada evento.
 	for (const [slug, e] of await allDbEventObjects(db)) {
-		if (!e.deleted) events.push(summarize(slug, eventToMeta(e.object)));
+		if (e.deleted) continue;
+		const meta = eventToMeta(e.object);
+		const cover = covers.get(e.object.id);
+		events.push(summarize(slug, cover ? { ...meta, featured: `/media/${cover}` } : meta));
 	}
 	return events.sort((a, b) => (b.start || '').localeCompare(a.start || ''));
 }

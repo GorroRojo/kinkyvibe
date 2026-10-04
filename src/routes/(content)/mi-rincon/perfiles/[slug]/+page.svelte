@@ -4,6 +4,7 @@
 	import { TIMEZONE } from '$lib/utils/dates.js';
 	import { VENUE_PRIVACY_LABELS, VENUE_PRIVACY_UNSET_LABEL } from '$lib/utils/venues.js';
 	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
+	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
 
 	export let data;
 	export let form;
@@ -41,6 +42,10 @@
 		new Date(d).toLocaleDateString('es-AR', { timeZone: TIMEZONE, day: 'numeric', month: 'long' });
 
 	let confirmName = '';
+
+	/** La imagen del perfil (selector de imágenes, docs/imagenes.md). */
+	/** @type {any} */
+	let avatar = data.avatar ?? null;
 
 	/** Ya se mandó el código fresco para las acciones de dueñes y borrar el proyecto. */
 	$: codeSent = f?.codeSentFor === 'grupo';
@@ -139,6 +144,14 @@
 				/>
 				{#if errors.title}<span class="field-error">{errors.title}</span>{/if}
 			</label>
+			<ImagePicker
+				bind:value={avatar}
+				target="perfil:{p.slug}"
+				contextLabel="De este perfil"
+				legend="Imagen del perfil"
+				idPrefix="perfil-imagen"
+				sectionId="perfil-imagen"
+			/>
 			{#if venue}
 				<input type="hidden" name="pronouns" value={values.pronouns} />
 			{:else}

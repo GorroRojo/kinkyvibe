@@ -4,6 +4,7 @@ import { isCurrent, relatedPostsFor } from './allPosts';
 import { addMentionPronouns, pronounLabel } from './mentions';
 import { currentSiteTags, fileSiteTags, siteTagsFromDb } from './siteTags.js';
 import { error } from '@sveltejs/kit';
+import { isMediaPath } from './media.js';
 
 export { relatedPostsFor };
 
@@ -48,6 +49,8 @@ const assetURLs = import.meta.glob('../assets/*.*', { eager: true, import: 'defa
  * @param {string} assetID
  */
 export const thumbURL = async (category, postID, assetID) => {
+	// Una imagen de la biblioteca (R2, docs/imagenes.md): ya es su dirección.
+	if (isMediaPath(assetID)) return String(assetID);
 	//check if string is an integer
 	let formats = ['jpeg', 'jfif', 'jpg', 'png', 'webp'];
 	if (('' + assetID).match(/^\d+$/)) {

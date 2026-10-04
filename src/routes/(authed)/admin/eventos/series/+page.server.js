@@ -19,6 +19,9 @@ import { allSeries, tagExists } from '$lib/server/series/index.js';
 import { subscriberCounts } from '$lib/server/series/subscriptions.js';
 import { seriesCreateOps, seriesEditOps } from '$lib/utils/seriesAdmin.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
+import { findImage, linkImage, seriesImages } from '$lib/server/media/library.js';
+import { targetObjectId } from '$lib/server/media/targets.js';
+import { readImageChoice } from '$lib/utils/imageChoice.js';
 import {
 	NEEDS_IMPORT,
 	dbTagsForAdmin,
@@ -49,6 +52,16 @@ export async function load({ locals, url, platform, setHeaders }) {
 	const dbMode = Boolean(await dbTagsForAdmin(platform, login));
 	const canCreate = dbMode;
 	const upcomingSlugs = new Set(series.flatMap((s) => s.upcoming.map((e) => e.slug)));
+	// La imagen de la biblioteca de cada serie (edge `imagen`, docs/imagenes.md).
+	/** @type {Map<string, import('$lib/server/media/library.js').PublicImage>} */
+	let library = new Map();
+	if (db) {
+		try {
+			library = await seriesImages(db, { role: 'admin', id: login });
+		} catch (error) {
+			logDBError('series: imágenes', error);
+		}
+	}
 	return {
 		series: series.map((s) => ({
 			id: s.id,
@@ -56,6 +69,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 			icon: s.icon,
 			href: s.href,
 			image: s.image ?? null,
+			libraryImage: library.get(s.id) ?? null,
 			description: s.description,
 			total: s.editions.length,
 			upcoming: s.upcoming.length,
@@ -93,7 +107,11 @@ export const actions = {
 			summary: `crear «${planned.name}»`
 		});
 		if (!res.ok) return fail(res.status, { error: res.error, values: textValues(input) });
-		return { created: { name: planned.name, ...res.saved } };
+		const imageWarning = await saveSeriesImage(locals, platform, planned.name, data);
+		return {
+			created: { name: planned.name, ...res.saved },
+			...(imageWarning ? { warning: imageWarning } : {})
+		};
 	},
 
 	editar: async ({ locals, request, platform }) => {
@@ -143,7 +161,11 @@ export const actions = {
 				: `editar «${planned.name}»`
 		});
 		if (!res.ok) return fail(res.status, { editing: id, error: res.error, values });
-		return { edited: { name: planned.name, renamedFrom: planned.renamed, ...res.saved } };
+		const imageWarning = await saveSeriesImage(locals, platform, planned.name, data);
+		return {
+			edited: { name: planned.name, renamedFrom: planned.renamed, ...res.saved },
+			...(imageWarning ? { warning: imageWarning } : {})
+		};
 	}
 };
 
@@ -224,6 +246,40 @@ async function saveSeriesOps(locals, platform, ops, { name }) {
 		ok: true,
 		saved: { db: true, commit: res.commit, publish: res.publish, posts: res.posts }
 	};
+}
+
+/**
+ * La imagen elegida en el selector (docs/imagenes.md): un edge `imagen` de la etiqueta de la
+ * serie, después de guardar la etiqueta. Devuelve un aviso si no se pudo (la serie ya se guardó).
+ *
+ * @param {App.Locals} locals
+ * @param {App.Platform | undefined} platform
+ * @param {string} name el nombre de la etiqueta (ya guardada)
+ * @param {FormData} data
+ * @returns {Promise<string | null>}
+ */
+async function saveSeriesImage(locals, platform, name, data) {
+	const choice = readImageChoice(data.get('imageId'));
+	if (choice.action === 'keep') return null;
+	const db = getDB(platform);
+	const login = locals.user?.login;
+	if (!db || !login || !locals.user || !isAdmin(locals.user)) return null;
+	const failed = 'La serie se guardó, pero no se pudo cambiar su imagen. Probá de nuevo.';
+	try {
+		const id = await targetObjectId(db, { type: 'etiqueta', slug: name });
+		if (!id) return failed;
+		let imageId = null;
+		if (choice.action === 'set') {
+			const image = await findImage(db, choice.id, { role: 'admin', id: login });
+			if (!image) return 'La serie se guardó, pero la imagen elegida ya no está en la biblioteca.';
+			imageId = image.id;
+		}
+		await linkImage(db, id, 'imagen', imageId, { actor: login });
+		return null;
+	} catch (error) {
+		logDBError('series: imagen', error);
+		return failed;
+	}
 }
 
 /** Lo que se escribió, para no perderlo si hay un error. @param {Record<string, unknown>} input */

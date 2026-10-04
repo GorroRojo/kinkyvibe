@@ -198,7 +198,9 @@ describe('checkObjectsIntegrity (con base)', () => {
 		const perfil = /** @type {import('./types/index.js').CoreType} */ (coreTypes.get('perfil'));
 		const fields = { ...evento.fields };
 		delete fields.summary;
-		const registry = createRegistry([{ ...evento, fields }, lugar, perfil]);
+		// `imagen`: evento y perfil pueden apuntar a una imagen (docs/imagenes.md).
+		const imagen = /** @type {import('./types/index.js').CoreType} */ (coreTypes.get('imagen'));
+		const registry = createRegistry([{ ...evento, fields }, lugar, perfil, imagen]);
 		const ctx = { actor: 'admin-inventade' };
 		await saveObject(
 			t.db,

@@ -26,6 +26,7 @@
 		"amigues:import": "node scripts/import-amigues.js",
 		"tags:import": "node scripts/import-tags.js",
 		"content:import": "node scripts/import-content.js",
+		"images:import": "node scripts/import-images.js",
 		"lint": "eslint .",
 		"format:check": "prettier --check .",
 		"format": "prettier --write ."

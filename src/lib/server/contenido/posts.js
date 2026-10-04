@@ -30,6 +30,8 @@ import { getObject } from '$lib/server/objects/read.js';
 import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
 import { EVENT_CATEGORY } from './eventos.js';
 import { renderContentBody } from './render.js';
+import { imageKeysByObject, imageOf } from '$lib/server/media/library.js';
+import { mediaPath } from '$lib/server/media/sniff.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/visibility.js').Viewer} Viewer */
@@ -88,11 +90,13 @@ async function contentStamp(db) {
 			`SELECT (SELECT count(*) FROM objects WHERE type IN (${t})) AS n,
 				(SELECT max(updated_at) FROM objects WHERE type IN (${t})) AS u,
 				(SELECT count(*) FROM content_sources WHERE category IN (${c})) AS sn,
-				(SELECT max(updated_at) FROM content_sources WHERE category IN (${c})) AS su`
+				(SELECT max(updated_at) FROM content_sources WHERE category IN (${c})) AS su,
+				(SELECT max(updated_at) FROM objects WHERE type = 'imagen') AS iu`
 		)
 		.bind(...TYPES, ...TYPES, ...CATEGORIES, ...CATEGORIES)
 		.first();
-	return `${row?.n}:${row?.u}:${row?.sn}:${row?.su}`;
+	// `iu`: borrar (o volver a subir) una imagen cambia qué imagen muestra un post.
+	return `${row?.n}:${row?.u}:${row?.sn}:${row?.su}:${row?.iu}`;
 }
 
 /**
@@ -137,6 +141,8 @@ async function loadDbState(db, stamp, tree) {
 	const unlisted = [];
 	/** @type {Map<number, string>} */
 	const paths = new Map();
+	// La imagen de la biblioteca de cada post (edge `portada`), si tiene (docs/imagenes.md).
+	const covers = await coverKeys(db);
 	for (const r of rows.results) {
 		const cat = categoryOfType(String(r.type));
 		if (!cat) continue;
@@ -155,7 +161,7 @@ async function loadDbState(db, stamp, tree) {
 		const post = await processPost(
 			undefined,
 			postID,
-			/** @type {any} */ (cat.toMeta(object)),
+			/** @type {any} */ (withCover(cat.toMeta(object), covers.get(Number(r.id)))),
 			true,
 			tree
 		);
@@ -163,6 +169,37 @@ async function loadDbState(db, stamp, tree) {
 		paths.set(Number(r.id), post.path);
 	}
 	return { stamp, listed, unlisted, paths };
+}
+
+/**
+ * La clave de la imagen de la biblioteca de cada evento y material (por id). Si la base todavía no
+ * tiene imágenes (o falla), ninguna: se usan las del repo.
+ * @param {D1Database} db
+ * @returns {Promise<Map<number, string>>}
+ */
+async function coverKeys(db) {
+	try {
+		/** @type {Map<number, string>} */
+		const out = new Map();
+		for (const type of TYPES) {
+			for (const [id, key] of await imageKeysByObject(db, type, 'portada')) out.set(id, key);
+		}
+		return out;
+	} catch {
+		return new Map();
+	}
+}
+
+/**
+ * La metadata con la imagen de la biblioteca en `featured` (si tiene); si no, tal cual (la imagen
+ * vieja del repo, que resuelve `processPost`).
+ * @template {Record<string, any>} M
+ * @param {M} meta
+ * @param {string | undefined} key
+ * @returns {M}
+ */
+export function withCover(meta, key) {
+	return key ? { ...meta, featured: mediaPath(key) } : meta;
 }
 
 /**
@@ -404,10 +441,11 @@ export async function siteContent(
 	const object = await getObject(db, { id: ref.id }, viewer);
 	if (!object) return null;
 	const postID = ref.legacySlug ?? object.slug;
+	const cover = await imageOf(db, object.id, 'portada', viewer).catch(() => null);
 	const post = await processPost(
 		undefined,
 		postID,
-		/** @type {any} */ (cat.toMeta(object)),
+		/** @type {any} */ (withCover(cat.toMeta(object), cover?.key)),
 		shallow
 	);
 	const body = html

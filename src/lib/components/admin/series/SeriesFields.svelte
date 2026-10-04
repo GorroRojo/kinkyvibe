@@ -21,6 +21,13 @@
 	export let values = {};
 	/** @type {readonly string[]} */
 	export let assets = [];
+	/**
+	 * La imagen se elige con el selector de imágenes (docs/imagenes.md), afuera de estos campos: acá
+	 * solo queda la imagen vieja (`image`) tal cual, o vacía si se eligió o se sacó una en el
+	 * selector (`clearLegacy`).
+	 */
+	export let library = false;
+	export let clearLegacy = false;
 	export let dbMode = false;
 	export let id = 'serie';
 	$: imageMissing = Boolean(values.image) && !assets.includes(values.image ?? '');
@@ -70,18 +77,22 @@
 		/>
 	</label>
 {/if}
-<label class="kv-field" for="{id}-image">
-	<span>Imagen (opcional)</span>
-	<select id="{id}-image" name="image" value={values.image ?? ''}>
-		<option value="">Sin imagen</option>
-		{#if imageMissing}<option value={values.image}>{values.image}</option>{/if}
-		{#each assets as a (a)}<option value={a}>{a}</option>{/each}
-	</select>
-	<small class="muted">
-		Un archivo de src/lib/assets.
-		{#if eventImage}Ahora usa la imagen del evento «{eventImage.slug}».{/if}
-	</small>
-</label>
+{#if library}
+	<input type="hidden" name="image" value={clearLegacy ? '' : (values.image ?? '')} />
+{:else}
+	<label class="kv-field" for="{id}-image">
+		<span>Imagen (opcional)</span>
+		<select id="{id}-image" name="image" value={values.image ?? ''}>
+			<option value="">Sin imagen</option>
+			{#if imageMissing}<option value={values.image}>{values.image}</option>{/if}
+			{#each assets as a (a)}<option value={a}>{a}</option>{/each}
+		</select>
+		<small class="muted">
+			Un archivo de src/lib/assets.
+			{#if eventImage}Ahora usa la imagen del evento «{eventImage.slug}».{/if}
+		</small>
+	</label>
+{/if}
 <label class="kv-field" for="{id}-description">
 	<span>Descripción (opcional)</span>
 	<textarea id="{id}-description" name="description" rows="3" maxlength="2000"
