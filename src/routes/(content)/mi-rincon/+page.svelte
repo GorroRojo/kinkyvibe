@@ -362,7 +362,7 @@
 						<input name="confirm" type="text" autocomplete="off" bind:value={confirmDelete} />
 					</label>
 					<button
-						class="pill-btn danger"
+						class="pill-btn permanent"
 						type="submit"
 						disabled={confirmDelete.trim().toLowerCase() !== 'borrar'}
 						><Trash2 size={18} aria-hidden="true" /> Borrar mi cuenta</button
