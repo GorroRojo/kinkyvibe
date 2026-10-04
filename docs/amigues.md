@@ -34,6 +34,26 @@ Todo como antes: `/amigues`, las fichas, los eventos, los mails y las entradas l
 panel deja igual importar, revisar la clasificación y cargar lugares, para preparar todo antes de
 prenderlo. Las fichas importadas se siguen editando en su `.md` (lo que muestra el sitio).
 
+## Borrar un perfil desde el panel
+
+Con `borrar_desde_panel` prendido, el editor de un perfil tiene «Borrar…», que lleva a la página de
+confirmación de siempre (`/admin/borrar/amigues/<dirección>`: lo que depende del perfil y, si hay
+algo, escribir la dirección para confirmar).
+
+- **Perfil que vive solo en la base** (sin `.md`: los creados en el panel, los lugares, los de las
+  cuentas): se borra en la base, al toque y sin GitHub. Es el borrado suave del objeto
+  (`deleted_at` con `saveObject()`, con su revisión en `object_revisions`); «Deshacer» y
+  «Recuperar» (Actividad) lo vuelven atrás. Las relaciones (lugar de eventos en `event_venues`,
+  personas con rol, integrantes, quién lo gestiona) **quedan guardadas**: quienes las leen ya se
+  saltean los perfiles borrados (`visibleWhere`, `getEdges`, `eventVenue`), así que dejan de
+  aparecer y vuelven al deshacer. Un evento cuyo lugar se borró muestra su «Dónde» en texto libre,
+  si tiene (también en los mails de las entradas): la página de borrar lo avisa.
+- **Ficha con `.md`** (importada): como antes, por GitHub (el editor del `.md`, con el interruptor
+  apagado). Con `perfiles_publicos` prendido, el editor de la base no ofrece borrarla.
+
+Código: `deleteDbProfile` y `deleteBackend` en `src/lib/server/admin/deletions.js`; pruebas en
+`deletions-db.test.js` y `src/routes/(authed)/admin/borrar/borrar.test.js`.
+
 ## Prenderlo (orden recomendado)
 
 1. Aplicar las migraciones `0017_amigues_lugares.sql` y `0024_perfil_fuente_proyecto.sql`

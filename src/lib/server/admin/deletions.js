@@ -11,11 +11,22 @@
  * - si ya se mergeó (o no hay PR: mock y modo demo), se restaura con otro PR que vuelve a poner
  *   el .md y las imágenes (los blobs siguen en el historial del repo, no se vuelven a subir).
  *
+ * Los perfiles de amigues que viven SOLO en la base (sin .md: los creados en el panel o por las
+ * cuentas) no pasan por GitHub: borrar es el borrado suave del objeto (`deleted_at` con
+ * saveObject(), con su revisión en `object_revisions`) y deshacer lo vuelve atrás, igual que los
+ * eventos. La fila de `panel_deletions` (con `path` = `objeto:perfil:<id>`) va en la misma tanda,
+ * así «Recuperar» de Actividad sirve para los dos. Ver {@link deleteDbProfile}.
+ *
  * Sin imports de SvelteKit: el cliente del repo, el estado de los PRs y la base llegan como
  * parámetros, así se prueba con fakes. Las rutas están en ./deletionRoutes.js.
  */
 import { profileSlugFor } from '$lib/utils/organizers.js';
+import { parsePersonas } from '$lib/utils/personas.js';
 import { postFilePath } from '$lib/utils/postPaths.js';
+import { MEMBER_EDGE, PROFILE_TYPE } from '../cuentas/perfiles.js';
+import { revisionStatement } from '../contenido/revisions.js';
+import { VersionConflictError } from '../objects/errors.js';
+import { saveObject } from '../objects/save.js';
 import { logAdminAction } from './audit.js';
 import { contentMediaDir, gitBlobSha } from './posts.js';
 
@@ -60,18 +71,16 @@ export const DELETABLE = Object.freeze({
 export const isDeletable = (kind) => typeof kind === 'string' && Object.hasOwn(DELETABLE, kind);
 
 /**
- * Dónde vive lo que se borra. Hoy todo es un archivo del repo ('repo').
- *
- * COSTURA para los perfiles de la base (#137, interruptor `perfiles_publicos`): esta función
- * va a devolver 'objects' para `amigues` y ese borrado va a ir por saveObject({ deleted: true })
- * (borrado suave y recuperable de la capa de objetos, #124) en lugar de un PR. Falta el camino
- * de las rutas, deshacer y «Recuperar» para eso; mientras tanto el botón "Borrar" solo aparece
- * en el editor del .md (no en el de la base).
- * @param {DeletableKind} _kind
+ * Dónde vive lo que se borra: un perfil de amigues sin .md (`legacySlug` nulo: creado en el
+ * panel o por una cuenta) vive solo en la base ('objects'); todo lo demás pasa por el cliente del
+ * repo ('repo': los eventos y el material ya los guarda en la base `withContentDb`; las fichas
+ * de amigues con .md siguen yendo a GitHub, como antes).
+ * @param {DeletableKind} kind
+ * @param {{ legacySlug: string | null } | null} [profile] el perfil de la base con esa dirección
  * @returns {'repo' | 'objects'}
  */
-export function deleteBackend(_kind) {
-	return 'repo';
+export function deleteBackend(kind, profile = null) {
+	return kind === 'amigues' && profile && profile.legacySlug === null ? 'objects' : 'repo';
 }
 
 /**
@@ -424,7 +433,8 @@ const UNPUBLISHED = new Set(['pendiente', 'fallo', 'conflicto', 'abierto']);
  * @param {Actor} actor
  * @param {number} id
  * @param {{ pulls?: PullOps | null, now?: number }} [opts]
- * @returns {Promise<{ mode: 'cancelled' | 'restored', deletion: Deletion, publish: PublishResult | null }>}
+ * @returns {Promise<{ mode: 'cancelled' | 'restored', deletion: Deletion, publish: PublishResult | null, immediate?: boolean }>}
+ *   `immediate`: ya está (un perfil de la base), no hay nada que publicar
  */
 export async function undoDeletion(client, db, actor, id, { pulls = null, now = Date.now() } = {}) {
 	const d = await getDeletion(db, id);
@@ -433,6 +443,10 @@ export async function undoDeletion(client, db, actor, id, { pulls = null, now = 
 		throw new UndoError(
 			d.status === 'deshecho' ? 'Ese borrado ya se deshizo.' : 'Esa publicación ya se recuperó.'
 		);
+	// Un perfil que vive solo en la base: se deshace en la base (sin GitHub).
+	const profileId = dbProfileIdOf(d.path);
+	if (profileId !== null) return undoDbProfileDeletion(db, actor, d, profileId, { now });
+
 	const k = DELETABLE[d.kind];
 	const targetId = d.kind === 'calendario' ? d.slug : `${d.kind}/${d.slug}`;
 
@@ -505,4 +519,244 @@ export async function undoDeletion(client, db, actor, id, { pulls = null, now = 
 		{ now }
 	);
 	return { mode: 'restored', deletion: { ...d, status: 'recuperado' }, publish };
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/*  Perfiles que viven solo en la base (sin .md en el repo)                                    */
+/* ------------------------------------------------------------------------------------------ */
+
+/**
+ * `panel_deletions.path` de un perfil de la base: no es una ruta del repo (no hay .md), así
+ * deshacer sabe que no tiene que ir a GitHub. `content` guarda solo el id y la versión.
+ */
+const DB_PROFILE_PATH = /^objeto:perfil:([1-9]\d*)$/;
+
+/** @param {number} id */
+export const dbProfilePath = (id) => `objeto:perfil:${id}`;
+
+/**
+ * El id del perfil de la base de un borrado, o `null` si es un .md del repo.
+ * @param {string} path
+ */
+export function dbProfileIdOf(path) {
+	const m = DB_PROFILE_PATH.exec(path);
+	return m ? Number(m[1]) : null;
+}
+
+/**
+ * @typedef {object} DbProfileDependents
+ * @prop {number} personaOf eventos y publicaciones que lo nombran en «Personas con rol»
+ * @prop {number} venueOf eventos que lo tienen como lugar («Sucede en»)
+ * @prop {number} members perfiles que figuran como integrantes (si es un proyecto)
+ * @prop {number} memberOf proyectos en los que figura como integrante
+ * @prop {number} managers cuentas que lo gestionan
+ */
+
+/**
+ * Lo que apunta a un perfil de la base. Las relaciones no se tocan al borrar (borrar es suave y
+ * se deshace): quienes leen ya se saltean los perfiles borrados (`visibleWhere`, `getEdges`,
+ * `eventVenue`). Esto es solo para avisar antes de borrar.
+ *
+ * @param {D1Database} db
+ * @param {{ id: number, slug: string }} profile
+ * @param {readonly { category: string, meta: Record<string, any> }[]} metas eventos y material
+ *   del panel (contentMetas de content.js)
+ * @returns {Promise<DbProfileDependents>}
+ */
+export async function dbProfileDependents(db, profile, metas) {
+	const row = await db
+		.prepare(
+			`SELECT
+				(SELECT count(*) FROM event_venues WHERE venue_id = ?1) AS venue_of,
+				(SELECT count(*) FROM edges e JOIN objects o ON o.id = e.from_id
+					WHERE e.to_id = ?1 AND e.kind = ?2 AND o.deleted_at IS NULL) AS members,
+				(SELECT count(*) FROM edges e JOIN objects o ON o.id = e.to_id
+					WHERE e.from_id = ?1 AND e.kind = ?2 AND o.deleted_at IS NULL) AS member_of,
+				(SELECT count(*) FROM profile_managers pm JOIN accounts a ON a.id = pm.account_id
+					WHERE pm.profile_id = ?1 AND a.deleted_at IS NULL) AS managers`
+		)
+		.bind(profile.id, MEMBER_EDGE)
+		.first();
+	let personaOf = 0;
+	for (const p of metas) {
+		if (p.category !== 'calendario' && p.category !== 'material') continue;
+		if (parsePersonas(p.meta?.personas).some((e) => e.perfil === profile.slug)) personaOf++;
+	}
+	return {
+		personaOf,
+		venueOf: Number(row?.venue_of ?? 0),
+		members: Number(row?.members ?? 0),
+		memberOf: Number(row?.member_of ?? 0),
+		managers: Number(row?.managers ?? 0)
+	};
+}
+
+/**
+ * El plan de borrado de un perfil de la base: nada lo bloquea (se deshace); lo que depende de él
+ * pide escribir la dirección para confirmar, como en los .md. Pura.
+ *
+ * @param {{ slug: string, dependents: DbProfileDependents }} input
+ * @returns {DeletePlan}
+ */
+export function dbProfileDeletionPlan({ slug, dependents: d }) {
+	/** @type {string[]} */
+	const warnings = [];
+	if (d.personaOf > 0)
+		warnings.push(
+			`Figura en «Personas con rol» de ${plural(d.personaOf, 'evento o publicación', 'eventos o publicaciones')}: ahí deja de aparecer.`
+		);
+	if (d.venueOf > 0)
+		warnings.push(
+			`Es el lugar de ${plural(d.venueOf, 'evento', 'eventos')}: ahí deja de aparecer, y la página y los mails de las entradas muestran el «Dónde» en texto libre del evento, si tiene.`
+		);
+	if (d.members > 0)
+		warnings.push(
+			`Tiene ${plural(d.members, 'integrante', 'integrantes')}: dejan de figurar en este proyecto.`
+		);
+	if (d.memberOf > 0)
+		warnings.push(
+			`Figura como integrante de ${plural(d.memberOf, 'proyecto', 'proyectos')}: deja de aparecer ahí.`
+		);
+	if (d.managers > 0)
+		warnings.push(
+			`Lo ${d.managers === 1 ? 'gestiona 1 cuenta' : `gestionan ${d.managers} cuentas`}: deja de verse en su Mi rincón.`
+		);
+	return {
+		blockers: [],
+		warnings,
+		notes: [
+			`La página /amigues/${slug} deja de existir al toque (el perfil está solo en la base: no hay cambios en GitHub).`,
+			'Las relaciones (lugar de eventos, personas con rol, integrantes) quedan guardadas: si lo deshacés, vuelven.'
+		],
+		needsTyping: warnings.length > 0,
+		alternative: ''
+	};
+}
+
+/**
+ * Borra (suave) un perfil que vive solo en la base: `deleted_at` con saveObject(), con la
+ * revisión en el historial y la fila de `panel_deletions` (para «Deshacer» y «Recuperar» en
+ * Actividad) en la MISMA tanda. Sin GitHub. Las relaciones quedan (para deshacer).
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {{ id: number, version: number, title: string, urlSlug: string }} profile como se leyó
+ *   (si alguien guardó en el medio, VersionConflictError y no se borra nada)
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ id: number, publish: null, commit: null }>}
+ */
+export async function deleteDbProfile(db, actor, profile, { now = Date.now() } = {}) {
+	const path = dbProfilePath(profile.id);
+	const content = JSON.stringify({ object: profile.id, version: profile.version + 1 });
+	const sha = await gitBlobSha(content);
+	await saveObject(
+		db,
+		{ id: profile.id, type: PROFILE_TYPE, version: profile.version, deleted: true },
+		{
+			actor: actor.login,
+			now,
+			also: (self) => [
+				revisionStatement(db, self, 'panel'),
+				db
+					.prepare(
+						`INSERT INTO panel_deletions
+							(kind, slug, title, path, content, content_sha, media, status, deleted_at, deleted_by)
+						VALUES ('amigues', ?1, ?2, ?3, ?4, ?5, '[]', 'borrado', ?6, ?7)`
+					)
+					.bind(profile.urlSlug, profile.title, path, content, sha, now, actor.login)
+			]
+		}
+	);
+	const row = await db
+		.prepare(
+			`SELECT id FROM panel_deletions WHERE path = ?1 AND status = 'borrado'
+			ORDER BY id DESC LIMIT 1`
+		)
+		.bind(path)
+		.first();
+	const id = Number(row?.id);
+	await logAdminAction(
+		db,
+		actor.locals,
+		{
+			action: 'profile.delete',
+			targetType: 'profile',
+			targetId: profile.id,
+			summary: `Borró el perfil «${profile.title}» (amigues/${profile.urlSlug}, solo en la base)`,
+			detail: { deletion: id }
+		},
+		{ now }
+	);
+	return { id, publish: null, commit: null };
+}
+
+/**
+ * Deshace el borrado de un perfil de la base: `deleted_at` vuelve a NULL con saveObject() (con la
+ * revisión y el estado del borrado en la misma tanda). Sus relaciones nunca se fueron.
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {Deletion} d el borrado (status 'borrado')
+ * @param {number} profileId
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ mode: 'restored', deletion: Deletion, publish: null, immediate: true }>}
+ */
+async function undoDbProfileDeletion(db, actor, d, profileId, { now = Date.now() } = {}) {
+	const row = await db
+		.prepare('SELECT type, version, deleted_at FROM objects WHERE id = ?1')
+		.bind(profileId)
+		.first();
+	if (!row || row.type !== PROFILE_TYPE) throw new UndoError('Ese perfil ya no existe en la base.');
+	if (row.deleted_at == null) {
+		// Alguien lo recuperó por otro camino: el borrado queda cerrado, sin tocar el perfil.
+		await db
+			.prepare(
+				`UPDATE panel_deletions SET status = 'recuperado', restored_at = ?2, restored_by = ?3
+				WHERE id = ?1 AND status = 'borrado'`
+			)
+			.bind(d.id, now, actor.login)
+			.run();
+		throw new UndoError('Ese perfil ya estaba recuperado.');
+	}
+	try {
+		await saveObject(
+			db,
+			{ id: profileId, type: PROFILE_TYPE, version: Number(row.version), deleted: false },
+			{
+				actor: actor.login,
+				now,
+				also: (self) => [
+					revisionStatement(db, self, 'deshacer'),
+					db
+						.prepare(
+							`UPDATE panel_deletions SET status = 'recuperado', restored_at = ?2, restored_by = ?3
+							WHERE id = ?1 AND status = 'borrado'`
+						)
+						.bind(d.id, now, actor.login)
+				]
+			}
+		);
+	} catch (e) {
+		if (e instanceof VersionConflictError)
+			throw new UndoError('El perfil cambió mientras tanto. Recargá y probá de nuevo.');
+		throw e;
+	}
+	await logAdminAction(
+		db,
+		actor.locals,
+		{
+			action: 'profile.restore',
+			targetType: 'profile',
+			targetId: profileId,
+			summary: `Recuperó el perfil «${d.title}» (amigues/${d.slug}, solo en la base)`,
+			detail: { deletion: d.id }
+		},
+		{ now }
+	);
+	return {
+		mode: 'restored',
+		deletion: { ...d, status: 'recuperado' },
+		publish: null,
+		immediate: true
+	};
 }
