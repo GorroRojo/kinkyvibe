@@ -182,7 +182,7 @@ describe('preferencia', () => {
 	});
 
 	it('itemDetail muestra la cantidad una sola vez', () => {
-		const detail = (/** @type {Partial<typeof order>} */ o) =>
+		const detail = (/** @type {Partial<typeof order> & { total?: number }} */ o) =>
 			itemDetail(
 				buildPreference({
 					order: { ...order, ...o },
