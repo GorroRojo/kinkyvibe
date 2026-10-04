@@ -109,8 +109,15 @@ describe('calendarEvent', () => {
 	it('cancelado y borrador tienen su color', () => {
 		const cancelled = calendarEvent(row({ status: 'cancelado' }), { places: PLACES });
 		expect(cancelled.classNames).toEqual(['kv-ev', 'kv-ev-bad', 'kv-ev-cancelado']);
-		const draft = calendarEvent(row({ force_unlisted: true }), { places: PLACES });
+		// Borrador (con la marca de la agenda): amarillo. Un no listado a propósito ya no se pinta
+		// como borrador: neutro (una sola palabra para cada cosa).
+		const draft = calendarEvent(
+			{ ...row({ force_unlisted: true }), draft: true },
+			{ places: PLACES }
+		);
 		expect(draft.classNames).toEqual(['kv-ev', 'kv-ev-warn']);
+		const unlisted = calendarEvent(row({ force_unlisted: true }), { places: PLACES });
+		expect(unlisted.classNames).toEqual(['kv-ev', 'kv-ev-neutral']);
 	});
 
 	it('una fila movida sin guardar se marca como pendiente (y se puede volver a arrastrar)', () => {
@@ -142,7 +149,8 @@ describe('eventTone', () => {
 		expect(eventTone({ state: 'publicado', status: 'anunciado' })).toBe('info');
 		expect(eventTone({ state: 'cancelado', status: 'abierto' })).toBe('bad');
 		expect(eventTone({ state: 'publicado', status: 'cancelado' })).toBe('info');
-		expect(eventTone({ state: 'no-listado', status: 'abierto' })).toBe('warn');
+		expect(eventTone({ state: 'no-listado', status: 'abierto', draft: true })).toBe('warn');
+		expect(eventTone({ state: 'no-listado', status: 'abierto' })).toBe('neutral');
 		expect(eventTone({ state: 'publicado', status: '' })).toBe('neutral');
 	});
 });

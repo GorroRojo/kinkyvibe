@@ -145,7 +145,7 @@
 
 <PageHeader
 	title="Eventos"
-	subtitle="{counts.proximos} próximos · {counts.borradores} borradores · {data.total} en total"
+	subtitle="{counts.proximos} próximos · {counts.borradores} no listados · {data.total} en total"
 >
 	<svelte:fragment slot="actions">
 		<CsvButton href={csvHref} />

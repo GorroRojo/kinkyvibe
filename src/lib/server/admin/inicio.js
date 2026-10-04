@@ -831,6 +831,7 @@ export function sinceLastVisitQuery({ since, login = '', titles }) {
  *   location: string,
  *   status: string,
  *   draft: boolean,
+ *   unlisted: boolean,
  *   today: boolean,
  *   hasImage: boolean,
  *   ticketed: boolean,
@@ -934,7 +935,11 @@ export function upcomingEvents({
 			day,
 			location: e.location,
 			status: config?.status ?? e.status,
-			draft: e.unlisted,
+			// Borrador = la marca de la agenda (`borrador: true`), que espera «Confirmar». Un evento no
+			// listado a propósito no es un borrador: no se destaca ni se pide revisarlo (una sola
+			// palabra para cada cosa, como el filtro «A confirmar» y el contador del menú).
+			draft: e.unlisted && e.draft === true,
+			unlisted: e.unlisted,
 			today: day === today,
 			hasImage: Boolean(e.thumb),
 			ticketed: Boolean(config),
@@ -1537,7 +1542,7 @@ export function agendaItems({
 				title: e.title,
 				text: [
 					cancelled ? 'Cancelado' : '',
-					e.unlisted ? 'Borrador' : '',
+					e.draft === true ? 'Borrador' : e.unlisted ? 'No listado' : '',
 					config?.online ? 'Online' : e.location
 				]
 					.filter(Boolean)
