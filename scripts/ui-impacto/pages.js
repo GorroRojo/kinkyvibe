@@ -10,7 +10,7 @@
  * @typedef {{
  *   id: string,
  *   title: string,
- *   group: 'sitio' | 'panel',
+ *   group: 'sitio' | 'panel' | 'estilo',
  *   path: (ctx: Record<string, any>) => string | null,
  *   prepare?: (page: Page, ctx: Record<string, any>) => Promise<void>,
  *   member?: boolean
@@ -182,5 +182,26 @@ export const PAGES = [
 		title: 'Panel: Estadísticas',
 		group: 'panel',
 		path: () => '/admin/estadisticas'
+	},
+	// La galería de componentes (docs/estilo.md, «Componentes»): solo existe en dev y en previews,
+	// y el informe corre con `vite dev`. Así un cambio en un componente compartido se ve acá aunque
+	// ninguna de las páginas de arriba lo use.
+	{
+		id: 'estilo',
+		title: 'Galería de componentes (/estilo)',
+		group: 'estilo',
+		path: () => '/estilo'
+	},
+	{
+		id: 'estilo-sitio',
+		title: 'Galería de componentes (/estilo, aspecto del sitio)',
+		group: 'estilo',
+		path: () => '/estilo?superficie=sitio'
+	},
+	{
+		id: 'estilo-oscuro',
+		title: 'Galería de componentes (/estilo, panel oscuro)',
+		group: 'estilo',
+		path: () => '/estilo?tema=oscuro'
 	}
 ];
