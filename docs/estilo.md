@@ -13,6 +13,9 @@ El panel de admin redefine los de color y sombra para su tema oscuro en
 - Colores nuevos no: mezclá los del sitio con `color-mix` o usá los alias de abajo.
 - Si agregás un token de color o sombra, dale también su valor oscuro en `@mixin dark` del panel.
 - Los posts (`src/lib/posts/`) no se tocan: los editan personas desde el panel.
+- Antes de pedir aprobación de un cambio visual, mirá qué páginas cambia: `npm run ui:impacto`
+  arma un informe con capturas antes y después (la CI lo corre sola en los PR que tocan estilos o
+  componentes; ver [ui-impacto.md](ui-impacto.md)).
 
 ## Texto (escala fluida de Utopia)
 

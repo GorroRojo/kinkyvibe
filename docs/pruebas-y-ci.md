@@ -34,6 +34,11 @@ Fuera de `ci.yml` aparecen además:
 | `Analyze (javascript)`, `Analyze (actions)` | escaneo de seguridad de GitHub (CodeQL) sobre el código y los workflows                  | configuración por defecto de GitHub (no hay archivo en el repo)                           |
 | `CodeQL`                                    | en los PRs, el resumen de ese escaneo: falla si el PR trae una alerta nueva              | ídem                                                                                      |
 
+Además, `ci.yml` tiene el job **`ui-impacto`** (informe de impacto visual,
+[ui-impacto.md](ui-impacto.md)): solo en PRs que tocan estilos o componentes, sube el artifact
+`ui-impacto` con capturas antes y después. Es **solo informativo**: no está en los `needs` de
+`ci-ok` y es el único job con `continue-on-error`, porque no es una prueba.
+
 `ci-ok` existe para que la protección de `main` pida un solo chequeo: si alguien agrega un job a
 `ci.yml`, lo suma a los `needs` de `ci-ok` y listo, sin tocar la configuración de GitHub.
 

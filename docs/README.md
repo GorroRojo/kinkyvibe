@@ -28,6 +28,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [analiticas.md](analiticas.md)                 | Visitas anónimas y embudo de compra con Workers Analytics Engine: qué se guarda, puesta en marcha y cómo apagarlo   |
 | [telegram.md](telegram.md)                     | Bot de Telegram: otra vista del sitio, solo lectura al principio, interruptor                                       |
 | [estilo.md](estilo.md)                         | Estilo visual: tokens de texto, espacio, radios, sombras, colores y foco, y cuándo usar cada uno                    |
+| [ui-impacto.md](ui-impacto.md)                 | Informe de impacto visual: capturas de las páginas principales antes y después de un cambio, comparadas             |
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción                    |
 | [release-1.md](release-1.md)                   | Release 1: qué prender, importar y verificar antes de la revisión grande, y rendimiento de los endpoints            |
 | [workers-migracion.md](workers-migracion.md)   | Paso de Cloudflare Pages a Workers (ya hecho), backups nocturnos y cómo restaurar                                   |

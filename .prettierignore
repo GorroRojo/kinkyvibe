@@ -23,3 +23,6 @@ yarn.lock
 
 # Fixtures de las pruebas de contenido en la base: el texto exacto importa (hash del .md).
 /src/lib/server/contenido/fixtures
+
+# Informe de impacto visual (npm run ui:impacto, docs/ui-impacto.md)
+/ui-impacto

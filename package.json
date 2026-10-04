@@ -29,7 +29,8 @@
 		"images:import": "node scripts/import-images.js",
 		"lint": "eslint .",
 		"format:check": "prettier --check .",
-		"format": "prettier --write ."
+		"format": "prettier --write .",
+		"ui:impacto": "node scripts/ui-impacto/run.js"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^5.20260929.1",
@@ -45,6 +46,8 @@
 		"eslint-config-prettier": "^8.5.0",
 		"eslint-plugin-svelte": "^2.46.1",
 		"mdsvex": "^0.12.8",
+		"pixelmatch": "7.2.0",
+		"pngjs": "7.0.0",
 		"prettier": "^3.9.9",
 		"prettier-plugin-svelte": "^4.1.1",
 		"rehype": "^12.0.1",
