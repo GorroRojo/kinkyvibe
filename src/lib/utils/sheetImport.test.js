@@ -8,6 +8,7 @@ import {
 	parseTsv,
 	parseSheet,
 	cleanLink,
+	normalizeLink,
 	parseDateText,
 	parseTimeText,
 	sectionOf,
@@ -844,6 +845,21 @@ describe('cleanLink (Link Inscripción)', () => {
 		expect(cleanLink('forms.gle/abc')).toBe('https://forms.gle/abc');
 		expect(cleanLink('mailto:hola@ejemplo.test')).toBe('mailto:hola@ejemplo.test');
 		expect(cleanLink('Escribinos a hola@ejemplo.test')).toBe('mailto:hola@ejemplo.test');
+	});
+
+	it('normalizeLink: un mail escrito a mano en la revisión pasa a mailto:', () => {
+		expect(normalizeLink(' hola@ejemplo.test ')).toBe('mailto:hola@ejemplo.test');
+		expect(normalizeLink('https://forms.gle/abc')).toBe('https://forms.gle/abc');
+		expect(normalizeLink('tel:+5491100000000')).toBe('tel:+5491100000000');
+		expect(normalizeLink('escribinos a hola@ejemplo.test')).toBe('escribinos a hola@ejemplo.test');
+	});
+
+	it('acepta tel: y una página del sitio (la celda es solo la dirección)', () => {
+		expect(cleanLink('tel:+5491100000000')).toBe('tel:+5491100000000');
+		expect(cleanLink('Llamanos: tel:+54-11-0000-0000')).toBe('tel:+54-11-0000-0000');
+		expect(cleanLink('/calendario/fiesta-inventada')).toBe('/calendario/fiesta-inventada');
+		expect(cleanLink('//otro-sitio.test/x')).toBe('');
+		expect(cleanLink('/calendario/a b')).toBe('');
 	});
 
 	it('nunca javascript: ni otros esquemas; texto suelto, vacío', () => {

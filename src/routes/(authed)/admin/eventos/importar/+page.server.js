@@ -1,71 +1,71 @@
+/**
+ * Importar eventos desde la planilla: cada fila elegida es un borrador (no listado, `borrador`)
+ * guardado en la BASE como objeto `evento` (saveObject, con historial y sus relaciones como edges;
+ * ver $lib/server/eventos/importarBase.js). Nada va a GitHub ni a un `.md`. Con el interruptor
+ * `contenido_db` apagado no se importa: el sitio y el panel todavía leen los `.md`, y un borrador
+ * guardado en la base no se vería en ningún lado.
+ */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { eventLinkProblem } from '$lib/utils/eventLink.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getDB } from '$lib/server/db';
+import { contenidoDbEnabled } from '$lib/server/flags.js';
+import { getEventAdmin, takenSlugsInBundle } from '$lib/server/eventos';
+import { panelAuthor } from '$lib/server/contenido/author.js';
 import {
-	getEventAdmin,
-	getRepoClient,
-	isMockMode,
-	listEvents,
-	takenSlugsInBundle
-} from '$lib/server/eventos';
-import { GitHubError, PathExistsError } from '$lib/server/eventos/github.js';
-import {
-	isValidDate,
-	isValidTime,
-	todayInArgentina,
-	uniqueSlug,
-	validateSlug
-} from '$lib/utils/eventDraft.js';
-import { commitDraftEvents, takenSlugsOnRepo } from '$lib/server/eventos/drafts.js';
+	IMPORT_MAX_ROWS,
+	createImportedDrafts,
+	importSources,
+	takenEventSlugs
+} from '$lib/server/eventos/importarBase.js';
+import { siteTags } from '$lib/server/series/index.js';
+import { normalizeLink } from '$lib/utils/sheetImport.js';
+import { seriesTagIds } from '$lib/utils/series.js';
+import { isValidDate, isValidTime, todayInArgentina, validateSlug } from '$lib/utils/eventDraft.js';
 
 const NO_PERMISSION =
 	'No tenés permiso para cargar eventos. Probá cerrar sesión y volver a entrar.';
-/**
- * Rows per import. Each import makes one GitHub read per distinct source event plus a constant
- * handful (two slug listings, one media listing, the commit's ~5 calls), so 200 rows stay far
- * below the Workers Paid subrequest limit: 10,000 per request by default (Free: 50), per
- * https://developers.cloudflare.com/workers/platform/limits/ (checked 2026-09-29). Text files go
- * inline in the commit's tree and copied images reuse their blobs, so rows add no other calls.
- */
-const MAX_ROWS = 200;
+const DB_OFF =
+	'Importar guarda los borradores en la base, y el contenido todavía sale de los archivos: prendé «Contenido desde la base» (Ajustes → Interruptores) para importar.';
+const MAX_ROWS = IMPORT_MAX_ROWS;
 
 /** @param {unknown} e */
 function describeError(e) {
 	return e instanceof Error ? e.message : String(e);
 }
 
+/** El nombre de la serie de unas etiquetas ('' si no son de ninguna). */
+function seriesNamer() {
+	try {
+		const tags = siteTags();
+		const series = new Set(seriesTagIds(tags));
+		return (/** @type {string[]} */ list) => {
+			const id = list.map((t) => tags.get(t)?.id ?? t).find((t) => series.has(t));
+			return id ? String(tags.get(id)?.visible_name ?? id) : '';
+		};
+	} catch {
+		return () => '';
+	}
+}
+
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ locals, url }) {
+export async function load({ locals, url, platform }) {
 	requireAdmin(locals, url);
 	if (!getEventAdmin(locals)) throw error(403, NO_PERMISSION);
-	const events = (await listEvents()).map((e) => ({
-		slug: e.slug,
-		title: e.title,
-		start: e.start,
-		end: e.end
-	}));
+	const db = getDB(platform);
+	const dbOn = Boolean(db) && (await contenidoDbEnabled(platform));
+	const base = { today: todayInArgentina(), maxRows: MAX_ROWS, dbOn };
+	if (!db || !dbOn) return { ...base, events: [], takenSlugs: takenSlugsInBundle() };
 	return {
-		events,
-		takenSlugs: takenSlugsInBundle(),
-		today: todayInArgentina(),
-		maxRows: MAX_ROWS,
-		mock: isMockMode()
+		...base,
+		events: await importSources(db, { seriesName: seriesNamer() }),
+		takenSlugs: [...(await takenEventSlugs(db, takenSlugsInBundle()))]
 	};
 }
 
 /**
- * @typedef {object} RowInput
- * @prop {string} title
- * @prop {string} date
- * @prop {string} startTime
- * @prop {string} endTime
- * @prop {string} place
- * @prop {string} link
- * @prop {string} price the "Valor" cell (one General price becomes the General ticket type)
- * @prop {string} source slug of the event to duplicate, or '' to start from the template
- * @prop {string} slug
+ * @typedef {import('$lib/server/eventos/importarBase.js').ImportRow} RowInput
  */
 
 /**
@@ -77,16 +77,18 @@ function readRow(raw) {
 	const r = raw && typeof raw === 'object' ? raw : {};
 	/** @param {unknown} v */
 	const s = (v) => (typeof v === 'string' ? v.trim() : '');
+	const tickets = r.tickets && typeof r.tickets === 'object' && !Array.isArray(r.tickets);
 	return {
 		title: s(r.title),
 		date: s(r.date),
 		startTime: s(r.startTime),
 		endTime: s(r.endTime),
 		place: s(r.place),
-		link: s(r.link),
+		link: normalizeLink(s(r.link)),
 		price: s(r.price).slice(0, 200),
 		source: s(r.source),
-		slug: s(r.slug)
+		slug: s(r.slug),
+		tickets: tickets ? r.tickets : null
 	};
 }
 
@@ -142,84 +144,55 @@ export const actions = {
 			});
 		}
 
-		const client = await getRepoClient();
+		const db = getDB(platform);
+		if (!db || !(await contenidoDbEnabled(platform))) return fail(409, { error: DB_OFF });
+
+		// Quién guarda: el login de GitHub de le admin (como todo lo que el panel guarda en la base).
+		const author = panelAuthor();
 		try {
-			// Which slugs are taken on GitHub right now (two listings, whatever the number of rows).
-			const taken = await takenSlugsOnRepo(client, admin.token);
-			/** @type {Record<number, string>} */
-			const conflicts = {};
-			const batch = new Set(rows.map((r) => r.slug));
-			rows.forEach((row, i) => {
-				if (taken.has(row.slug))
-					conflicts[i] = uniqueSlug(row.slug, (s) => taken.has(s) || batch.has(s));
+			const r = await createImportedDrafts(db, {
+				rows,
+				actor: author?.login || admin.login,
+				superadmin: author ? author.superadmin : true,
+				today: todayInArgentina(),
+				taken: await takenEventSlugs(db, takenSlugsInBundle())
 			});
-			if (Object.keys(conflicts).length) {
+			if (!r.ok && r.status === 409) {
 				return fail(409, {
 					error:
 						'Algunas direcciones ya existen en el sitio. Te propusimos otras: revisalas y volvé a intentar.',
-					conflicts
+					conflicts: r.conflicts
 				});
 			}
-
-			// The same drafts as the agenda's quick add: read the sources, build, copy the images,
-			// one commit.
-			const r = await commitDraftEvents({
-				client,
-				admin,
-				rows,
-				today: todayInArgentina(),
-				describe: (made) => {
-					const n = made.length;
-					return {
-						message: `[admin] ${admin.name} importó ${n} ${
-							n === 1 ? 'borrador' : 'borradores'
-						} desde la planilla`,
-						pr: {
-							action: 'importa',
-							title: `${n} ${n === 1 ? 'borrador' : 'borradores'} de eventos desde la planilla`,
-							who: admin.name,
-							kind: 'importar',
-							slug: n === 1 ? made[0].slug : `${n}-eventos`
-						}
-					};
-				}
-			});
 			if (!r.ok) {
 				return fail(400, {
 					error: 'Hay filas con problemas: corregilas y volvé a intentar.',
 					rowErrors: r.rowErrors
 				});
 			}
-			const { commit, files } = r;
-			const created = r.created.map(({ content, ...c }) => c);
-			const n = created.length;
-			await logAdminAction(getDB(platform), locals, {
-				action: 'event.import',
-				targetType: 'event',
-				targetId: n === 1 ? created[0].slug : null,
-				summary: `Importó ${n} ${n === 1 ? 'borrador' : 'borradores'} desde la planilla`,
-				detail: { slugs: created.map((c) => c.slug), commit: commit.url }
-			});
-			return {
-				success: true,
-				commitUrl: commit.url,
-				publish: commit.pr ?? null,
-				created: created.map((c) => ({ ...c, url: `/calendario/${c.slug}` })),
-				files,
-				mock: isMockMode()
-			};
-		} catch (e) {
-			if (e instanceof PathExistsError) {
-				return fail(409, {
-					error:
-						'Alguien cargó un evento con una de estas direcciones recién. Volvé a intentar para ver cuál.'
+			const n = r.created.length;
+			if (n) {
+				await logAdminAction(db, locals, {
+					action: 'event.import',
+					targetType: 'event',
+					targetId: n === 1 ? r.created[0].slug : null,
+					summary: `Importó ${n} ${n === 1 ? 'borrador' : 'borradores'} desde la planilla`,
+					detail: { slugs: r.created.map((c) => c.slug), base: true }
 				});
 			}
-			const hint =
-				e instanceof GitHubError && (e.status === 401 || e.status === 403)
-					? ' Probá cerrar sesión y volver a entrar.'
-					: '';
-			return fail(502, { error: 'No se pudo guardar en GitHub: ' + describeError(e) + hint });
+			return {
+				success: true,
+				created: r.created.map((c) => ({ ...c, url: `/calendario/${c.slug}` })),
+				failed: r.failed
+					? {
+							...r.failed,
+							title: rows[r.failed.index]?.title ?? r.failed.slug,
+							pending: rows.length - n - 1
+						}
+					: null
+			};
+		} catch (e) {
+			return fail(500, { error: 'No se pudo guardar en la base: ' + describeError(e) });
 		}
 	}
 };

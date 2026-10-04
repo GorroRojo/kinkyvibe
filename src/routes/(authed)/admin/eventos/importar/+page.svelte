@@ -2,7 +2,17 @@
 	import { deserialize, applyAction } from '$app/forms';
 	import { tick } from 'svelte';
 	import { eventLinkProblem } from '$lib/utils/eventLink.js';
-	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
+	import ChipCombobox from '$lib/components/admin/ChipCombobox.svelte';
+	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
+	import '$lib/components/admin/admin.scss';
+	import { formatARS } from '$lib/utils/money.js';
+	import { searchSources, sourceDetail, sourceLabel } from '$lib/utils/sourcePicker.js';
+	import {
+		describeTicketsForm,
+		readTicketsForm,
+		ticketsFormChanged,
+		validateTicketsForm
+	} from '$lib/utils/ticketsEditor.js';
 	import {
 		describeSchedule,
 		isValidDate,
@@ -13,10 +23,11 @@
 		buildMatchIndex,
 		composeSchedule,
 		findExisting,
+		generalTickets,
 		inheritedTimes,
-		longDate,
 		parseGeneralPrice,
 		matchSeries,
+		normalizeLink,
 		parseSheet,
 		proposeSlug,
 		proposeTitle,
@@ -53,6 +64,10 @@
 	 * @prop {string[]} notes extra notes computed here (already loaded, past date...)
 	 * @prop {string} serverError
 	 * @prop {boolean} open details expanded
+	 * @prop {import('$lib/utils/ticketsEditor.js').TicketsForm} ticketsInitial the tickets the
+	 *   draft gets if nobody touches them: the source's, with the sheet's General price
+	 * @prop {import('$lib/utils/ticketsEditor.js').TicketsForm} tickets what is being edited
+	 * @prop {boolean} ticketsOpen the tickets editor is shown
 	 */
 
 	let text = '';
@@ -65,10 +80,65 @@
 	/** @param {string} slug */
 	const eventLabel = (slug) => {
 		const e = bySlug.get(slug);
-		if (!e) return slug;
-		const d = e.start ? longDate(e.start.slice(0, 10)).replace(/^\S+ /, '') : 'sin fecha';
-		return `${e.title} (${d})`;
+		return e ? sourceLabel(e, data.today) : slug;
 	};
+
+	/**
+	 * The picker's options for a row: what matches the search, most recent first; with nothing
+	 * typed, the suggested events (same series) first.
+	 * @param {Item} item
+	 * @param {string} query
+	 */
+	const sourceOptions = (item, query) =>
+		searchSources(data.events, query, {
+			limit: 8,
+			suggested: item.suggestions.map((c) => c.slug)
+		}).map((e) => ({
+			value: e.slug,
+			label: e.title,
+			detail: sourceDetail(e, data.today)
+		}));
+
+	/**
+	 * The tickets a row gets from its source: the source's ticket setup (and sales goal), with the
+	 * sheet's single General price if there is one (the same rule the server applies).
+	 * @param {Item} item
+	 */
+	function sourceTickets(item) {
+		const src = item.source ? bySlug.get(item.source) : null;
+		/** @type {Record<string, any>} */
+		const meta = { ...(src?.ticketMeta ?? {}) };
+		const price = parseGeneralPrice(item.sheet.price);
+		if (price !== null) {
+			const general = generalTickets(src ? meta.tickets : undefined, price);
+			if (general.tickets) meta.tickets = general.tickets;
+		}
+		return readTicketsForm(meta);
+	}
+
+	/** @param {Item} item */
+	const ticketsEdited = (item) => ticketsFormChanged(item.ticketsInitial, item.tickets);
+
+	/** Restarts the tickets of a row from its source (unless they were edited). @param {Item} item */
+	function refreshTickets(item, force = false) {
+		if (!force && item.tickets && ticketsEdited(item)) {
+			item.ticketsInitial = sourceTickets(item);
+			return;
+		}
+		item.ticketsInitial = sourceTickets(item);
+		item.tickets = sourceTickets(item);
+	}
+
+	/** The same tickets in every other included row. @param {Item} from */
+	function ticketsToAll(from) {
+		for (const item of items) {
+			if (item === from || !item.include) continue;
+			item.tickets = structuredClone(from.tickets);
+		}
+		items = items;
+		ticketsMessage = `Listo: las ${included.length} filas usan estas entradas.`;
+	}
+	let ticketsMessage = '';
 
 	/** Slugs used by the other included rows. @param {Item} item */
 	const otherSlugs = (item) =>
@@ -135,6 +205,7 @@
 			item.endTime = s.endTime;
 			item.endEstimated = s.estimated;
 		}
+		refreshTickets(item);
 		if (!item.slugEdited) {
 			const others = otherSlugs(item);
 			item.slug = proposeSlug(
@@ -183,7 +254,10 @@
 				link: sheet.link,
 				notes,
 				serverError: '',
-				open: false
+				open: false,
+				ticketsInitial: readTicketsForm({}),
+				tickets: readTicketsForm({}),
+				ticketsOpen: false
 			};
 			next.push(item);
 		});
@@ -192,10 +266,9 @@
 		items = items;
 	}
 
-	// The new value is taken from the event: on:change may run before bind:value updates `item`.
-	/** @param {Item} item @param {Event} e */
-	function onSourceChange(item, e) {
-		item.source = /** @type {HTMLSelectElement} */ (e.currentTarget).value;
+	/** @param {Item} item @param {string} slug '' = desde cero */
+	function setSource(item, slug) {
+		item.source = slug;
 		applySource(item);
 		items = items;
 	}
@@ -225,12 +298,17 @@
 		if (!isValidDate(item.date)) out.push('Falta la fecha.');
 		if (!isValidTime(item.startTime)) out.push('Falta la hora de inicio.');
 		if (item.endTime && !isValidTime(item.endTime)) out.push('La hora de fin no es válida.');
-		const linkProblem = item.link.trim() ? eventLinkProblem(item.link.trim()) : null;
+		const link = normalizeLink(item.link);
+		const linkProblem = link ? eventLinkProblem(link) : null;
 		if (linkProblem) out.push(`El link de inscripción ${linkProblem}.`);
 		const slugError = validateSlug(item.slug, takenInSite);
 		if (slugError) out.push(`Dirección: ${slugError}`);
 		else if (all.some((o) => o !== item && o.include && o.slug === item.slug))
 			out.push('Dos filas tienen la misma dirección: cambiá una.');
+		if (ticketsEdited(item)) {
+			const t = validateTicketsForm(item.tickets);
+			if (t.errors.length) out.push(`Entradas: ${t.errors.join(' ')}`);
+		}
 		if (item.serverError) out.push(item.serverError);
 		return out;
 	}
@@ -244,7 +322,10 @@
 		(i) => i.sheet.warnings.length || i.notes.length || problems.get(i.id)?.length || !i.matched
 	);
 	$: canCreate =
-		included.length > 0 && ready.length === included.length && included.length <= data.maxRows;
+		data.dbOn &&
+		included.length > 0 &&
+		ready.length === included.length &&
+		included.length <= data.maxRows;
 
 	/** @param {Item} item */
 	function scheduleText(item) {
@@ -259,7 +340,7 @@
 	let confirming = false;
 	let submitting = false;
 	let globalError = '';
-	/** @type {null | {commitUrl: string, publish?: any, created: Array<{slug: string, title: string, url: string, notes: string[]}>, files: string[], mock: boolean}} */
+	/** @type {null | {created: Array<{slug: string, title: string, url: string, notes: string[]}>, failed: null | {slug: string, title: string, message: string, pending: number}}} */
 	let sent = null;
 
 	async function create() {
@@ -272,10 +353,12 @@
 			startTime: i.startTime,
 			endTime: i.endTime,
 			place: i.place,
-			link: i.link.trim(),
+			link: normalizeLink(i.link),
 			price: i.sheet.price,
 			source: i.source,
-			slug: i.slug.trim()
+			slug: i.slug.trim(),
+			// Only when they were changed: if not, the server copies the source's (and the price).
+			tickets: ticketsEdited(i) ? i.tickets : null
 		}));
 		try {
 			const body = new FormData();
@@ -342,14 +425,15 @@
 <main class="importar">
 	<p class="back"><a href="/admin/eventos/agenda">← Agenda</a></p>
 
-	{#if data.mock}
-		<p class="mock">
-			🧪 Modo de prueba (<code>npm run dev:admin</code>): no se escribe nada en GitHub, los archivos
-			se guardan en una carpeta temporal.
+	<h1>Importar eventos desde la planilla</h1>
+
+	{#if !data.dbOn}
+		<p class="global-error" role="alert">
+			Importar guarda los borradores en la base, y el contenido todavía sale de los archivos. Prendé
+			«Contenido desde la base» en <a href="/admin/ajustes/interruptores">Ajustes → Interruptores</a
+			> para poder importar.
 		</p>
 	{/if}
-
-	<h1>Importar eventos desde la planilla</h1>
 
 	{#if sent}
 		<section class="result" aria-live="polite">
@@ -357,9 +441,16 @@
 				¡Listo! 🎉 {sent.created.length === 1 ? 'Se creó' : 'Se crearon'}
 				{plural(sent.created.length, 'borrador', 'borradores')}
 			</h2>
+			{#if sent.failed}
+				<p class="global-error" role="alert">
+					No se pudo guardar «{sent.failed.title}» ({sent.failed.message}){sent.failed.pending
+						? ` y quedaron sin guardar ${plural(sent.failed.pending, 'fila más', 'filas más')}`
+						: ''}. Las que están abajo sí se guardaron: volvé a pegar las que faltan.
+				</p>
+			{/if}
 			<p>
-				Quedaron <strong>no listados</strong>: no aparecen en el calendario hasta que los publiquen.
-				Cada uno se puede ver con su link:
+				Quedaron guardados en la base como <strong>no listados</strong>: no aparecen en el
+				calendario hasta que los confirmen. Ya se pueden ver con su link:
 			</p>
 			<ul class="created">
 				{#each sent.created as c}
@@ -371,19 +462,9 @@
 				{/each}
 			</ul>
 			<p class="hint">
-				⏳ {#if sent.publish}<PublishStatus pr={sent.publish} />{:else}El sitio tarda unos minutos
-					(normalmente entre 2 y 5) en actualizarse.{/if} Después, para publicar cada uno, revisalo y
-				sacale el “no listado” (por ahora desde el editor del evento).
-			</p>
-			<p class="small">
-				{#if sent.publish}Guardado en el <a href={sent.publish.url} target="_blank" rel="noreferrer"
-						>PR #{sent.publish.number}</a
-					>{:else}Cambio guardado en GitHub: <a
-						href={sent.commitUrl}
-						target="_blank"
-						rel="noreferrer">ver el commit</a
-					>{/if}
-				· {plural(sent.files.length, 'archivo', 'archivos')}
+				Para publicar cada uno, revisalo y tocá «Confirmar» en la <a href="/admin/eventos/agenda"
+					>agenda</a
+				>.
 			</p>
 			<p>
 				<button class="button secondary" on:click={() => (sent = null)}>Importar más filas</button>
@@ -430,9 +511,10 @@
 					{#if layout === '2024'}<span class="small">(Formato de la planilla 2024.)</span>{/if}
 				</p>
 				<p class="hint">
-					Los eventos que ya existían se <strong>duplican</strong> (texto, imagen, etiquetas) con la
-					fecha nueva. Todos se crean como <strong>no listados</strong>: después los revisan y
-					publican de a uno.
+					Los eventos que ya existían se <strong>duplican</strong> con la fecha nueva: texto,
+					etiquetas, personas, lugar, entradas y meta de venta (la imagen propia no: se sube
+					después). Todos se crean como <strong>no listados</strong>: después los revisan y publican
+					de a uno.
 				</p>
 
 				<ol class="items">
@@ -492,33 +574,31 @@
 									{/if}
 								</p>
 								<div class="fields">
-									<label class="wide">
-										<span>Evento anterior (se copia)</span>
-										<select bind:value={item.source} on:change={(e) => onSourceChange(item, e)}>
-											{#if item.suggestions.length}
-												<optgroup label="Sugeridos">
-													{#each item.suggestions as c}
-														<option value={c.slug}>{eventLabel(c.slug)}</option>
-													{/each}
-												</optgroup>
-											{/if}
-											<option value="">✨ Ninguno: crear desde cero</option>
-											<optgroup label="Todos los eventos">
-												{#each data.events as e (e.slug)}
-													<option value={e.slug}>{eventLabel(e.slug)}</option>
-												{/each}
-											</optgroup>
-										</select>
-										{#if !item.matched && !item.source}
+									<div class="wide source kv-admin">
+										<label for="src-{item.id}">Evento anterior (se copia)</label>
+										<ChipCombobox
+											id="src-{item.id}"
+											values={item.source ? [item.source] : []}
+											placeholder={item.source
+												? 'Buscar otro: título, fecha o serie…'
+												: 'Buscá por título, fecha o serie (ej.: picante 2 oct)'}
+											search={(q) => sourceOptions(item, q)}
+											add={(_, value) => [value]}
+											chip={(value) => ({ label: eventLabel(value) })}
+											removeLabel="Quitar (crear desde cero):"
+											addedMessage={(label) => `Se duplica ${label}`}
+											onChange={(values) => setSource(item, values[0] ?? '')}
+										/>
+										{#if !item.source}
 											<small>Sin evento anterior: se crea desde cero (sin texto ni imagen).</small>
-										{:else if item.source}
+										{:else}
 											<small
 												><a href="/calendario/{item.source}" target="_blank" rel="noreferrer"
 													>Ver el evento anterior</a
 												></small
 											>
 										{/if}
-									</label>
+									</div>
 									<label class="wide">
 										<span>Título</span>
 										<input
@@ -586,9 +666,12 @@
 												>Link de inscripción {item.link ? '' : '(sin link queda “anunciado”)'}</span
 											>
 											<input
-												type="url"
+												type="text"
+												inputmode="url"
+												autocapitalize="off"
+												spellcheck="false"
 												bind:value={item.link}
-												placeholder="https://forms.gle/… o mailto:hola@…"
+												placeholder="https://forms.gle/…, mailto:hola@… o tel:+54…"
 											/>
 										</label>
 									</div>
@@ -607,14 +690,68 @@
 										<dd>
 											{item.sheet.price || '—'}
 											{#if parseGeneralPrice(item.sheet.price) !== null}<small
-													>(se carga como entrada General sin cupo: revisala en Entradas)</small
+													>(se carga como entrada General sin cupo: revisala en Entradas, acá abajo)</small
 												>{:else if item.sheet.price}<small
-													>(no se copia: revisalo en el texto y en Entradas)</small
+													>(no se copia solo: cargalo en Entradas, acá abajo)</small
 												>{/if}
 										</dd>
 										{#if item.sheet.comments}<dt>Comentarios</dt>
 											<dd>{item.sheet.comments} <small>(no se publican)</small></dd>{/if}
 									</dl>
+								</details>
+								<details class="tickets-box" bind:open={item.ticketsOpen}>
+									<summary>
+										🎟️ Entradas:
+										<span class="tickets-summary"
+											>{item.tickets.enabled
+												? describeTicketsForm(item.tickets, formatARS)
+												: 'sin venta por el sitio'}</span
+										>
+										{#if ticketsEdited(item)}<span class="badge">cambiadas</span>{/if}
+									</summary>
+									{#if item.ticketsOpen}
+										{@const src = item.source ? bySlug.get(item.source) : null}
+										<p class="small">
+											{item.source
+												? 'Arrancan como las del evento anterior (con su meta de venta).'
+												: 'Desde cero arranca sin venta por el sitio.'}
+											{parseGeneralPrice(item.sheet.price) !== null
+												? 'Con el precio General de la planilla.'
+												: ''}
+										</p>
+										<div class="kv-admin tickets-wrap">
+											<TicketsEditor
+												bind:state={item.tickets}
+												tags={src?.tags ?? []}
+												location={src?.location ?? item.place}
+												errors={ticketsEdited(item) ? validateTicketsForm(item.tickets).errors : []}
+												idPrefix="imp-{item.id}"
+											/>
+										</div>
+										<p class="tickets-actions">
+											{#if included.length > 1}
+												<button
+													type="button"
+													class="button secondary"
+													on:click={() => ticketsToAll(item)}
+													>Usar estas entradas en todas las filas ({included.length})</button
+												>
+											{/if}
+											{#if ticketsEdited(item)}
+												<button
+													type="button"
+													class="button secondary"
+													on:click={() => {
+														refreshTickets(item, true);
+														items = items;
+													}}>Volver a las del evento anterior</button
+												>
+											{/if}
+										</p>
+										{#if ticketsMessage}<p class="small" aria-live="polite">
+												{ticketsMessage}
+											</p>{/if}
+									{/if}
 								</details>
 							{/if}
 						</li>
@@ -674,12 +811,6 @@
 	}
 	.back {
 		margin: 0.5em 0 0;
-		font-size: var(--step--1);
-	}
-	.mock {
-		background: var(--warn-bg, #fff6d6);
-		border-radius: 1em;
-		padding: 0.5em 1em;
 		font-size: var(--step--1);
 	}
 	.small {
@@ -851,6 +982,48 @@
 		small {
 			font-size: var(--step--2);
 			opacity: 0.8;
+		}
+	}
+	.source,
+	.tickets-wrap {
+		max-width: none;
+		margin: 0;
+		padding: 0;
+	}
+	.source {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2em;
+		min-width: 0;
+		> label {
+			font-size: var(--step--1);
+			color: var(--1);
+		}
+	}
+	.tickets-box {
+		border-top: 1px solid var(--line, #eee);
+		padding-top: 0.5em;
+		summary {
+			overflow-wrap: anywhere;
+		}
+		.tickets-summary {
+			color: var(--text, inherit);
+		}
+		.badge {
+			display: inline-block;
+			margin-left: 0.4em;
+			padding: 0 0.6em;
+			border-radius: 1em;
+			background: var(--warn-bg, #fff6d6);
+			font-size: var(--step--2);
+		}
+	}
+	.tickets-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5em;
+		.button {
+			font-size: var(--step--1);
 		}
 	}
 	.slug {

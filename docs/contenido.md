@@ -61,6 +61,18 @@ entrada General a ese precio y sin cupo; cualquier otro valor (gorra, varios pre
 revisa a mano en Entradas (`parseGeneralPrice`, `generalTickets` e `inheritedTimes` en
 `src/lib/utils/sheetImport.js`).
 
+Importar planilla guarda **solo en la base** (`src/lib/server/eventos/importarBase.js`): cada fila
+es un objeto `evento` nuevo con `saveObject()` (versión 1, historial `panel`, los perfiles de
+`personas` como edges `persona` y el mismo edge `lugar` que el original si la planilla no dice otro
+lugar). Necesita el interruptor `contenido_db` prendido (si no, la página avisa y no importa). El
+evento a duplicar se busca mientras se escribe (título, fecha como «vie 2 oct», serie o etiqueta;
+lo más reciente primero, `src/lib/utils/sourcePicker.js`). Cada fila tiene sus **Entradas** (el
+mismo editor que Cargar evento): arrancan como las del evento duplicado, con su meta de venta y el
+precio General de la planilla, y «Usar estas entradas en todas las filas» las copia a toda la tanda.
+Un mail suelto en el link de inscripción pasa a `mailto:`; también valen `tel:` y páginas del sitio
+(`/…`). La imagen propia del original (un número) no se copia: las imágenes siguen en el repo.
+Hasta 40 filas por vez.
+
 **Borradores (planificar el mes).** En la Agenda, tocar un día vacío (o «Evento») ofrece duplicar un
 evento que ya existe o empezar de cero con el título, y crea un **borrador** en ese día sin salir de
 la agenda. Un borrador es un evento con `force_unlisted: true`, `status: anunciado` y la marca
