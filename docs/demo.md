@@ -21,6 +21,18 @@ sin tocar el repo.
   «🧪 Entrar como admin de prueba». Hace `POST /login/demo`, que pone la cookie httpOnly `kvDemo`;
   `hooks.server.js` arma una sesión falsa (login `demo`, nombre «Admin de prueba», id `-1`, que no
   es un id de GitHub). «Cerrar sesión» borra la cookie.
+- **Entrar como persona de prueba** (cuentas del público, [cuentas.md](cuentas.md)): con el
+  interruptor `cuentas` prendido, el encabezado, `/login` e `/ingresar` llevan a `/ingresar/demo`,
+  que deja elegir una cuenta inventada y entrar con un clic, sin código por mail:
+  «Persona con entradas» (una entrada aprobada y dos etiquetas y un perfil seguidos), «Persona que
+  gestiona un perfil» (dueñe de «Persona de Prueba») y «Cuenta recién creada» (nada). Las crea
+  `scripts/demo/n3-cuentas.sql` (después de `n3-personas.sql`; también prende `cuentas`).
+  Mismas reglas que el admin de prueba: la página y su action dan 404 si no es
+  `isPreviewDeploy()`. Además, solo entra a esas cuentas: la persona se elige por una clave (nunca
+  por un id o un mail que mande el navegador) y la cuenta tiene que estar en la base con el id y
+  el mail `@example.invalid` de `src/lib/server/demo/personas.js` y la marca
+  `preferences.datos_de_prueba` que pone el seed. La sesión es la normal de las cuentas
+  (`startSession`, método `code`); «Cerrar sesión» en Mi rincón la cierra.
 - **Permisos**: `isAdmin` (`src/lib/server/auth.js`) acepta esa identidad **solo si
   `isPreviewDeploy()`**. Además, el bloque de `hooks.server.js` y el cliente demo están dentro de
   `if (PREVIEW_BUILD)`, una constante que se resuelve al compilar desde `CF_PAGES_BRANCH`: en el
@@ -65,7 +77,10 @@ y los últimos cambios guardados en modo demo. Para empezar de cero:
   admin de prueba».
 - `GET /api/preview-status` dice si el entorno está bien armado (base, allowlist de mails) y qué se
   guardó en `demo_files`.
-- Pruebas: `npx vitest run src/lib/server/demo src/lib/server/tickets/events.demo.test.js`.
+- Para probar como alguien del público: cargá `n3-personas.sql` y `n3-cuentas.sql` en la base del
+  preview y tocá «🧪 Entrar como persona de prueba».
+- Pruebas: `npx vitest run src/lib/server/demo src/lib/server/tickets/events.demo.test.js` y, para
+  la persona de prueba, `npx vitest run "src/routes/(content)/ingresar/demo"`.
 
 ## Lo que viene
 

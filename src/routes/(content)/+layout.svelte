@@ -70,6 +70,10 @@
 			{:else if data.demoMode}
 				<!-- Preview deploys only (docs/demo.md) -->
 				<a href="/login?redirectTo=/admin">🧪 Entrar como admin de prueba</a>
+				{#if data.cuentas && !data.member}
+					<!-- Cuentas del público inventadas (src/lib/server/demo/personas.js) -->
+					<a href="/ingresar/demo">🧪 Entrar como persona de prueba</a>
+				{/if}
 			{:else}
 				<a href="https://fondo.kinkyvibe.ar" target="_blank">
 					¿Todo gratis?
