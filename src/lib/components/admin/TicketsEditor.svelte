@@ -50,8 +50,6 @@
 	 * @type {boolean | null}
 	 */
 	export let transferReady = null;
-	/** Aviso debajo de «Meta de venta» (por ejemplo, que viene de la serie). */
-	export let goalNote = '';
 
 	/** @type {Array<'mercadopago' | 'transferencia'>} */
 	const METHODS = ['mercadopago', 'transferencia'];
@@ -354,12 +352,7 @@
 			>+ Agregar tipo de entrada</button
 		>
 
-		<SalesGoalField
-			bind:kind={state.goalKind}
-			bind:value={state.goalValue}
-			{idPrefix}
-			note={goalNote}
-		/>
+		<SalesGoalField bind:kind={state.goalKind} bind:value={state.goalValue} {idPrefix} />
 
 		<fieldset class="group">
 			<legend>Medios de pago <span class="req">*</span></legend>

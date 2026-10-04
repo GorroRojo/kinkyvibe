@@ -1,11 +1,9 @@
 <!--
-	«Meta de venta»: ninguna, plata (pesos) o entradas, y el número ($lib/utils/salesGoal.js). La usan
-	el editor de eventos (dentro de «Entradas», TicketsEditor: `bind:kind` y `bind:value`) y el
-	editor de una serie (la meta por defecto de sus ediciones nuevas: con `named`, los campos van en
-	el formulario como `goal_kind` y `goal_value`).
+	«Meta de venta»: ninguna, plata (pesos netos) o entradas, y el número ($lib/utils/salesGoal.js).
+	La usa el editor de eventos, dentro de «Entradas» (TicketsEditor: `bind:kind` y `bind:value`).
 
-	Props: `kind` ('' | 'plata' | 'entradas'), `value`, `idPrefix`, `named`, `legend`, `help` (texto
-	debajo), `note` (aviso, por ejemplo «La meta viene de la serie…»), `error`.
+	Props: `kind` ('' | 'plata' | 'entradas'), `value`, `idPrefix`, `legend`, `help` (texto debajo),
+	`error`.
 -->
 <script>
 	import { formatARS } from '$lib/utils/money.js';
@@ -15,11 +13,9 @@
 	export let kind = '';
 	export let value = '';
 	export let idPrefix = 'ev';
-	export let named = false;
 	export let legend = 'Meta de venta';
 	export let help =
 		'El panel muestra el avance contra la meta. Sin meta, contra el cupo (vender todas las entradas).';
-	export let note = '';
 	export let error = '';
 
 	$: parsed = goalFromForm(kind, value);
@@ -36,12 +32,7 @@
 	<div class="row">
 		<label class="part">
 			<span>Medida</span>
-			<select
-				id="{idPrefix}-goal-kind"
-				name={named ? 'goal_kind' : undefined}
-				bind:value={kind}
-				aria-describedby="{idPrefix}-goal-help"
-			>
+			<select id="{idPrefix}-goal-kind" bind:value={kind} aria-describedby="{idPrefix}-goal-help">
 				<option value="">Sin meta</option>
 				<option value="plata">Plata (pesos)</option>
 				<option value="entradas">Entradas</option>
@@ -52,23 +43,19 @@
 				<span>{kind === 'plata' ? '¿Cuánta plata?' : '¿Cuántas entradas?'}</span>
 				<input
 					id="{idPrefix}-goal-value"
-					name={named ? 'goal_value' : undefined}
 					bind:value
 					inputmode="numeric"
 					placeholder={kind === 'plata' ? '250.000' : '30'}
 					aria-invalid={error ? 'true' : undefined}
 				/>
 			</label>
-		{:else if named}
-			<input type="hidden" name="goal_value" value="" />
 		{/if}
 	</div>
 	{#if preview}<small class="preview">Meta: {preview}</small>{/if}
 	<small id="{idPrefix}-goal-help"
-		>{help}{#if kind === 'plata'}{' '}Cuenta lo recaudado, como en el panel (antes de la comisión de
-			Mercado Pago).{/if}</small
+		>{help}{#if kind === 'plata'}{' '}Cuenta lo neto: lo cobrado menos la comisión de Mercado Pago
+			(las compras con transferencia, en la puerta o cargadas a mano no tienen comisión).{/if}</small
 	>
-	{#if note}<small class="note">{note}</small>{/if}
 	{#if error}<small class="error" role="alert">{error}</small>{/if}
 </fieldset>
 
@@ -106,9 +93,6 @@
 	}
 	.preview {
 		font-weight: 600;
-	}
-	.note {
-		color: var(--2-dark);
 	}
 	.error {
 		color: var(--bad, #b00020);

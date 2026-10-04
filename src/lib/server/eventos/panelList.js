@@ -7,7 +7,7 @@
 import { logDBError } from '$lib/server/db';
 import { listPanelEventsWithMeta } from './panel.js';
 import { totalCapacity } from '$lib/admin/eventFormat.js';
-import { GOAL_KEY, parseSalesGoal, storedSalesGoal } from '$lib/utils/salesGoal.js';
+import { GOAL_KEY, MP_FEE_SQL, parseSalesGoal, storedSalesGoal } from '$lib/utils/salesGoal.js';
 import {
 	FILTERS,
 	OLDER_PAGE,
@@ -25,7 +25,7 @@ import {
 
 /**
  * Todos los eventos del panel, del más nuevo al más viejo, sin las ventas (`sold`/`revenue`/
- * `transfers` en 0: ver {@link withSales}).
+ * `mpFee`/`transfers` en 0: ver {@link withSales}).
  * @returns {Promise<EventRow[]>}
  */
 export async function panelEventRows() {
@@ -61,6 +61,7 @@ export async function panelEventRows() {
 			goal,
 			sold: 0,
 			revenue: 0,
+			mpFee: 0,
 			transfers: 0,
 			i
 		};
@@ -68,8 +69,8 @@ export async function panelEventRows() {
 }
 
 /**
- * Las filas con sus ventas (entradas vendidas, lo recaudado y transferencias esperando
- * confirmación, vigentes),
+ * Las filas con sus ventas (entradas vendidas, lo recaudado, la comisión de Mercado Pago de eso y
+ * transferencias esperando confirmación, vigentes),
  * en UNA consulta y solo para esos eventos. Sin base de datos o con un error, en 0 (la lista se
  * ve igual, sin números).
  * @param {D1Database | null | undefined} db
@@ -79,7 +80,7 @@ export async function panelEventRows() {
  */
 export async function withSales(db, rows, now) {
 	if (!db || !rows.length) return rows;
-	/** @type {Map<string, { sold: number, revenue: number, transfers: number }>} */
+	/** @type {Map<string, { sold: number, revenue: number, mpFee: number, transfers: number }>} */
 	const sales = new Map();
 	try {
 		// Las direcciones van como una lista JSON (un solo parámetro: D1 acepta pocos por consulta).
@@ -88,6 +89,7 @@ export async function withSales(db, rows, now) {
 				`SELECT event_slug,
 					SUM(CASE WHEN status = 'approved' THEN quantity ELSE 0 END) AS sold,
 					SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) AS revenue,
+					SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_SQL} ELSE 0 END) AS mp_fee,
 					SUM(CASE WHEN status = 'awaiting_transfer' AND expires_at > ?1 THEN 1 ELSE 0 END) AS transfers
 				FROM orders WHERE event_slug IN (SELECT value FROM json_each(?2)) GROUP BY event_slug`
 			)
@@ -97,6 +99,7 @@ export async function withSales(db, rows, now) {
 			sales.set(String(r.event_slug), {
 				sold: Number(r.sold ?? 0),
 				revenue: Number(r.revenue ?? 0),
+				mpFee: Number(r.mp_fee ?? 0),
 				transfers: Number(r.transfers ?? 0)
 			});
 		}
@@ -107,6 +110,7 @@ export async function withSales(db, rows, now) {
 		...r,
 		sold: sales.get(r.slug)?.sold ?? 0,
 		revenue: sales.get(r.slug)?.revenue ?? 0,
+		mpFee: sales.get(r.slug)?.mpFee ?? 0,
 		transfers: sales.get(r.slug)?.transfers ?? 0
 	}));
 }

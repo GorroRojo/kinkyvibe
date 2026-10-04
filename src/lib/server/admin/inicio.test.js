@@ -126,10 +126,19 @@ describe('totales', () => {
 			held: 1,
 			revenue: 28000,
 			fondo: 2000,
-			contribution: 0
+			contribution: 0,
+			mpFee: 0
 		});
 		expect(totals.get('a')?.get('anticipada')).toMatchObject({ sold: 1, contribution: 3000 });
 		expect(await ticketTotals(t.db, [], NOW)).toEqual(new Map());
+	});
+
+	it('ticketTotals: mpFee = el recargo de las aprobadas pagadas con Mercado Pago', async () => {
+		await insertOrder(t.db, { slug: 'a', surcharge: 360, created: NOW - HOUR });
+		await insertOrder(t.db, { slug: 'a', method: 'transferencia', surcharge: 50 });
+		await insertOrder(t.db, { slug: 'a', status: 'pending', surcharge: 70, expires: NOW + HOUR });
+		const totals = await ticketTotals(t.db, ['a'], NOW);
+		expect(totals.get('a')?.get('general')).toMatchObject({ sold: 2, mpFee: 360 });
 	});
 
 	it('checkinTotals cuenta entradas de órdenes aprobadas e ingresos', async () => {
@@ -519,6 +528,23 @@ describe('upcomingEvents y reviewItems', () => {
 			now: NOW
 		});
 		expect(e.progress).toMatchObject({ kind: 'plata', current: 104000, target: 208000, pct: 50 });
+		// La meta en plata cuenta lo neto: lo recaudado menos la comisión de Mercado Pago.
+		const withFee = new Map(
+			[...totals].map(([slug, byType]) => [
+				slug,
+				new Map([...byType].map(([id, c]) => [id, { ...c, mpFee: 1000 }]))
+			])
+		);
+		const [net] = upcomingEvents({
+			events: [events[1]],
+			ticketed: new Map([['hoy', config({ goal: { kind: 'plata', value: 208000 } })]]),
+			totals: withFee,
+			now: NOW
+		});
+		const fee = [...(withFee.get('hoy')?.values() ?? [])].length * 1000;
+		expect(net.revenue).toBe(104000);
+		expect(net.progress).toMatchObject({ current: 104000 - fee, target: 208000 });
+		expect(net.progress?.text).toMatch(/netos de/);
 		const [byTickets] = upcomingEvents({
 			events: [events[1]],
 			ticketed: new Map([['hoy', config({ goal: { kind: 'entradas', value: 20 } })]]),

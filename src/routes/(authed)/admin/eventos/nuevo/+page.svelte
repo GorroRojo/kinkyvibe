@@ -52,10 +52,8 @@
 		describeTicketsForm,
 		readTicketsForm,
 		validateTicketsForm,
-		formGoal,
 		goalFields
 	} from '$lib/utils/ticketsEditor.js';
-	import { seriesGoalFor, storedSalesGoal } from '$lib/utils/salesGoal.js';
 	import { parseDocument } from 'yaml';
 	import {
 		STATUS_OPTIONS,
@@ -153,24 +151,6 @@
 	const initialTickets = readTicketsForm(sourceMeta);
 	let tickets = readTicketsForm(sourceMeta);
 	$: ticketsCheck = validateTicketsForm(tickets);
-	// Meta de venta por defecto de la serie (la del evento original o la elegida en «¿Es parte de
-	// una serie?»): se copia una vez por serie y después se puede cambiar solo para esta edición.
-	let goalFrom = '';
-	$: seriesGoal = seriesGoalFor(
-		[
-			...splitList(values.tags),
-			...(seriesChoice === 'agregar' && seriesExisting ? [seriesExisting] : [])
-		],
-		data.seriesGoals
-	);
-	$: if (seriesGoal && seriesGoal.series !== goalFrom) {
-		goalFrom = seriesGoal.series;
-		tickets = { ...tickets, ...goalFields(storedSalesGoal(seriesGoal.goal)) };
-	}
-	$: goalNote =
-		seriesGoal && formGoal(tickets) === storedSalesGoal(seriesGoal.goal)
-			? `Es la meta por defecto de la serie «${seriesGoal.series}». Podés cambiarla solo para esta edición.`
-			: '';
 
 	/* ---------- personas: quienes organizan y el resto, en una sola lista ---------- */
 	// Como en Editar: `data.personas` ({ roles, profiles }) llega solo con el interruptor
@@ -783,7 +763,6 @@
 					<TicketsEditor
 						bind:state={tickets}
 						tags={splitList(values.tags)}
-						{goalNote}
 						location={values.location}
 						transferReady={data.transferReady}
 						errors={showProblems ? ticketsCheck.errors : []}

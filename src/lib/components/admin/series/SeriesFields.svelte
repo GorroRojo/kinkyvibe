@@ -4,8 +4,7 @@
 	 * Props:
 	 * - `mode`: 'create' (pide el nombre con el que la nombran los eventos) o 'edit' (el nombre de
 	 *   la etiqueta, que se puede renombrar como en Etiquetas, el nombre visible, el ícono, la
-	 *   imagen y la descripción); en los dos, la meta de venta por defecto de las ediciones nuevas
-	 *   (SalesGoalField: `goal_kind` y `goal_value`);
+	 *   imagen y la descripción);
 	 * - `values`: lo que ya tiene (o lo que se escribió antes de un error); en 'edit', `id` es el
 	 *   nombre de la etiqueta ahora y `key` el que se escribió;
 	 * - `dbMode`: interruptor `etiquetas_db` (cambia qué se puede elegir al renombrar);
@@ -14,12 +13,10 @@
 	 */
 	import RenameChoice from '$lib/components/admin/tags/RenameChoice.svelte';
 	import { eventImageRef } from '$lib/utils/series.js';
-	import { goalToForm } from '$lib/utils/salesGoal.js';
-	import SalesGoalField from '$lib/components/admin/SalesGoalField.svelte';
 
 	/** @type {'create' | 'edit'} */
 	export let mode = 'create';
-	/** @type {{ id?: string, key?: string, keepAlias?: string, name?: string, visible_name?: string, icon?: string, image?: string, description?: string, meta_venta?: string, goal_kind?: string, goal_value?: string }} */
+	/** @type {{ id?: string, key?: string, keepAlias?: string, name?: string, visible_name?: string, icon?: string, image?: string, description?: string }} */
 	export let values = {};
 	/** @type {readonly string[]} */
 	export let assets = [];
@@ -31,16 +28,6 @@
 	let key = values.key ?? values.id ?? '';
 	// Como en Etiquetas: con la base, por defecto sin alias (se renombra en las publicaciones).
 	let keepAlias = values.keepAlias !== undefined ? values.keepAlias === '1' : !dbMode;
-	// La meta: lo que se escribió antes de un error o, si no, la guardada.
-	const savedGoal = goalToForm(values.meta_venta);
-	/** @type {'' | 'plata' | 'entradas'} */
-	let goalKind =
-		values.goal_kind === 'plata' || values.goal_kind === 'entradas'
-			? values.goal_kind
-			: values.goal_kind === ''
-				? ''
-				: savedGoal.kind;
-	let goalValue = values.goal_value !== undefined ? values.goal_value : savedGoal.value;
 	$: renaming = mode === 'edit' && key.trim() !== '' && key.trim() !== (values.id ?? '');
 </script>
 
@@ -101,11 +88,3 @@
 	>
 	<small class="muted">Se ve en la página de la serie y en la Kinkipedia.</small>
 </label>
-<SalesGoalField
-	bind:kind={goalKind}
-	bind:value={goalValue}
-	idPrefix={id}
-	named
-	legend="Meta de venta por defecto (opcional)"
-	help="La heredan las ediciones nuevas de la serie al cargarlas o duplicarlas (se copia: cambiarla después no toca los eventos que ya existen). Cada edición la puede cambiar en su sección Entradas."
-/>

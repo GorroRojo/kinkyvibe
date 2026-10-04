@@ -1,25 +1,22 @@
 /**
- * Meta de venta de un evento: leerla (frontmatter o etiqueta de una serie), el formulario, el
- * avance contra la meta y la herencia de la meta por defecto de una serie al crear o duplicar una
- * edición. Datos inventados.
+ * Meta de venta de un evento: leerla del frontmatter, el formulario, lo neto (lo cobrado menos la
+ * comisión de Mercado Pago) y el avance contra la meta. Datos inventados.
  */
 import { describe, expect, it } from 'vitest';
 import { formatARS } from './money.js';
 import {
-	GOAL_KEY,
 	GOAL_MAX,
 	describeSalesGoal,
 	goalFromForm,
 	goalProgress,
 	goalToForm,
-	inheritedGoal,
+	netRevenue,
+	orderMpFee,
 	parseSalesGoal,
 	salesGoalProblem,
-	seriesGoalFor,
-	seriesGoalMap,
 	storedSalesGoal
 } from './salesGoal.js';
-import { withInheritedGoal } from './salesGoalFile.js';
+import { mpSurcharge } from './tickets.js';
 
 describe('parseSalesGoal', () => {
 	it('lee la forma guardada (plata o entradas)', () => {
@@ -103,104 +100,72 @@ describe('formulario «Meta»', () => {
 	});
 });
 
+describe('lo neto: lo cobrado menos la comisión de Mercado Pago', () => {
+	it('la comisión de una orden es su recargo si pagó con Mercado Pago; si no, 0', () => {
+		expect(orderMpFee({ payment_method: 'mercadopago', surcharge_amount: 360 })).toBe(360);
+		for (const m of ['transferencia', 'efectivo', 'otro', 'gratis']) {
+			expect(orderMpFee({ payment_method: m, surcharge_amount: 360 })).toBe(0);
+		}
+		expect(orderMpFee({ payment_method: 'mercadopago', surcharge_amount: null })).toBe(0);
+	});
+
+	it('el recargo es justo lo que se queda MP: lo neto de una compra con MP es la base', () => {
+		// Base $ 17.600 con 2 %: el recargo ($ 360) se calcula para que, después de la comisión,
+		// quede la base (docs/tickets.md, «Precio: fondo, código y recargo»).
+		const surcharge = mpSurcharge(17600, 200);
+		expect(surcharge).toBe(360);
+		const order = { payment_method: 'mercadopago', surcharge_amount: surcharge };
+		expect(netRevenue({ revenue: 17600 + surcharge, mpFee: orderMpFee(order) })).toBe(17600);
+	});
+
+	it('netRevenue: recaudado − comisión, nunca negativo', () => {
+		expect(netRevenue({ revenue: 100000, mpFee: 2000 })).toBe(98000);
+		expect(netRevenue({ revenue: 0, mpFee: 0 })).toBe(0);
+		expect(netRevenue({ revenue: 10, mpFee: 50 })).toBe(0);
+	});
+});
+
 describe('goalProgress', () => {
-	it('plata: lo recaudado contra la meta, con el porcentaje', () => {
-		const p = goalProgress('plata:250000', { sold: 23, revenue: 180000 });
+	it('plata: lo NETO (recaudado − comisión de MP) contra la meta, con el porcentaje', () => {
+		const p = goalProgress('plata:250000', { sold: 23, revenue: 183600, mpFee: 3600 });
 		expect(p).toEqual({
 			kind: 'plata',
 			current: 180000,
 			target: 250000,
 			pct: 72,
 			reached: false,
-			text: `${formatARS(180000)} de ${formatARS(250000)} (72 %)`
+			text: `${formatARS(180000)} netos de ${formatARS(250000)} (72 %)`
 		});
 	});
 
-	it('entradas: «23 de 30 entradas»', () => {
-		const p = goalProgress({ kind: 'entradas', value: 30 }, { sold: 23, revenue: 999 });
+	it('plata: la comisión puede ser lo que falta para llegar', () => {
+		expect(goalProgress('plata:100000', { sold: 10, revenue: 100000, mpFee: 0 })?.reached).toBe(
+			true
+		);
+		const p = goalProgress('plata:100000', { sold: 10, revenue: 100000, mpFee: 1500 });
+		expect(p).toMatchObject({ current: 98500, pct: 99, reached: false });
+	});
+
+	it('entradas: «23 de 30 entradas» (la comisión no cuenta)', () => {
+		const p = goalProgress({ kind: 'entradas', value: 30 }, { sold: 23, revenue: 999, mpFee: 50 });
 		expect(p?.text).toBe('23 de 30 entradas');
 		expect(p?.pct).toBe(77);
 		expect(p?.reached).toBe(false);
-		expect(goalProgress('entradas:1', { sold: 0, revenue: 0 })?.text).toBe('0 de 1 entrada');
+		expect(goalProgress('entradas:1', { sold: 0, revenue: 0, mpFee: 0 })?.text).toBe(
+			'0 de 1 entrada'
+		);
 	});
 
 	it('pasarse de la meta: más de 100 % y cumplida', () => {
-		const p = goalProgress('entradas:20', { sold: 25, revenue: 0 });
+		const p = goalProgress('entradas:20', { sold: 25, revenue: 0, mpFee: 0 });
 		expect(p?.pct).toBe(125);
 		expect(p?.reached).toBe(true);
 	});
 
 	it('sin meta (o rota): null, para mostrar el cupo como siempre', () => {
-		expect(goalProgress(null, { sold: 3, revenue: 100 })).toBeNull();
-		expect(goalProgress('', { sold: 3, revenue: 100 })).toBeNull();
-		expect(goalProgress('plata:0', { sold: 3, revenue: 100 })).toBeNull();
-	});
-});
-
-describe('meta por defecto de las series', () => {
-	const tags = /** @type {Record<string, Record<string, unknown>>} */ ({
-		'Serie Inventada': { id: 'Serie Inventada', meta_venta: 'plata:300000' },
-		'Otra Serie': { id: 'Otra Serie', meta_venta: 'entradas:40' },
-		'Serie Sin Meta': { id: 'Serie Sin Meta' },
-		'Serie Rota': { id: 'Serie Rota', meta_venta: 'mucho' }
-	});
-	const goals = seriesGoalMap(Object.keys(tags), (id) => tags[id]);
-
-	it('seriesGoalMap: solo las series con una meta válida', () => {
-		expect(goals).toEqual({ 'Serie Inventada': 'plata:300000', 'Otra Serie': 'entradas:40' });
-	});
-
-	it('seriesGoalFor: la de la primera serie del evento que tenga una', () => {
-		expect(
-			seriesGoalFor(['español', 'Serie Sin Meta', 'Otra Serie', 'Serie Inventada'], goals)
-		).toEqual({ series: 'Otra Serie', goal: { kind: 'entradas', value: 40 } });
-		expect(seriesGoalFor(['español'], goals)).toBeNull();
-		expect(seriesGoalFor(undefined, goals)).toBeNull();
-		expect(seriesGoalFor(['Serie Inventada'], null)).toBeNull();
-	});
-
-	it('inheritedGoal: al duplicar, la meta de la serie reemplaza la copiada del original', () => {
-		const meta = {
-			tags: ['Serie Inventada'],
-			tickets: [{ id: 'general', name: 'General', price: 1000 }],
-			[GOAL_KEY]: 'entradas:10'
-		};
-		expect(inheritedGoal(meta, goals)).toBe('plata:300000');
-		// Ya la tiene: nada que cambiar.
-		expect(inheritedGoal({ ...meta, [GOAL_KEY]: 'plata:300000' }, goals)).toBeNull();
-	});
-
-	it('inheritedGoal: sin venta, sin serie o sin meta en la serie, no cambia nada', () => {
-		const tickets = [{ id: 'general', name: 'General', price: 1000 }];
-		expect(inheritedGoal({ tags: ['Serie Inventada'] }, goals)).toBeNull();
-		expect(inheritedGoal({ tags: ['Serie Sin Meta'], tickets }, goals)).toBeNull();
-		expect(inheritedGoal({ tags: ['español'], tickets, [GOAL_KEY]: 'entradas:5' }, goals)).toBe(
-			null
-		);
-	});
-
-	it('withInheritedGoal: escribe la meta en el archivo nuevo y deja lo demás igual', () => {
-		const raw = `---
-title: Edición Inventada
-tags:
-  - Serie Inventada
-tickets:
-  - id: general
-    name: General
-    price: 1000
-meta_venta: entradas:10
----
-
-Texto.
-`;
-		const out = withInheritedGoal(raw, goals);
-		expect(out).toContain('meta_venta: plata:300000');
-		expect(out).not.toContain('entradas:10');
-		expect(out).toContain('title: Edición Inventada');
-		expect(out.endsWith('Texto.\n')).toBe(true);
-		// Sin series con meta, el archivo queda tal cual.
-		expect(withInheritedGoal(raw, {})).toBe(raw);
-		const otherSeries = raw.replace('  - Serie Inventada', '  - Serie Sin Meta');
-		expect(withInheritedGoal(otherSeries, goals)).toBe(otherSeries);
+		const totals = { sold: 3, revenue: 100, mpFee: 0 };
+		expect(goalProgress(null, totals)).toBeNull();
+		expect(goalProgress('', totals)).toBeNull();
+		expect(goalProgress('plata:0', totals)).toBeNull();
 	});
 });

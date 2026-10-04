@@ -4,8 +4,7 @@
 	 * edición, cuántas personas pidieron aviso (solo el número) y sus ediciones. CSV con todas las
 	 * ediciones. «Crear serie»: una etiqueta nueva hija de «evento recurrente»; «Editar»: el nombre
 	 * de la etiqueta (renombrar, con la misma elección que en Etiquetas; se confirma después de ver
-	 * cuántas publicaciones cambian), nombre visible, ícono, imagen, descripción y meta de venta por
-	 * defecto (la heredan las ediciones nuevas). Se guarda como en
+	 * cuántas publicaciones cambian), nombre visible, ícono, imagen y descripción. Se guarda como en
 	 * Etiquetas (commit al archivo, o en la base con el interruptor `etiquetas_db`).
 	 */
 	import '$lib/admin/panel-forms.scss';
@@ -20,7 +19,6 @@
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import { eventPanelLink } from '$lib/admin/nav.js';
 	import { editionDateLabel } from '$lib/utils/series.js';
-	import { describeSalesGoal, parseSalesGoal } from '$lib/utils/salesGoal.js';
 
 	export let data;
 	/** @type {any} */
@@ -165,14 +163,6 @@
 									>{s.subscribers.pending} sin confirmar</Badge
 								>{/if}
 						</p>
-						{#if parseSalesGoal(s.edit.meta_venta)}
-							{@const goal = parseSalesGoal(s.edit.meta_venta)}
-							<p class="small">
-								Meta por defecto de las ediciones nuevas: <b
-									>{goal ? describeSalesGoal(goal) : ''}</b
-								>
-							</p>
-						{/if}
 					</div>
 					<div class="kv-row">
 						{#if data.canCreate}

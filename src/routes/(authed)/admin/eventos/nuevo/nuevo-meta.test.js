@@ -1,10 +1,15 @@
 /**
- * Cargar una edición nueva de una serie con meta de venta por defecto: el formulario arranca con
- * esa meta (copiada; la meta que traía el original no manda), y lo dice. Datos inventados.
+ * Duplicar un evento copia su meta de venta como cualquier otro campo: el formulario arranca con
+ * la meta del original y el archivo nuevo la lleva (también al duplicar desde la agenda o la
+ * planilla, sin formulario). Datos inventados.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'svelte/server';
 import { readable } from 'svelte/store';
+import { parseDocument } from 'yaml';
+import { buildEventMarkdown, formFromSource, splitMarkdown } from '$lib/utils/eventDraft.js';
+import { applyTicketsToMarkdown, readTicketsForm } from '$lib/utils/ticketsEditor.js';
+import { buildImportedEvent } from '$lib/utils/sheetImport.js';
 
 vi.mock('$app/stores', () => ({
 	page: readable({ url: new URL('http://localhost/admin/eventos/nuevo') })
@@ -32,8 +37,10 @@ meta_venta: entradas:10
 Texto.
 `;
 
-/** @param {Record<string, string>} seriesGoals */
-function renderNew(seriesGoals) {
+/** @param {string} raw */
+const frontmatterOf = (raw) => parseDocument(splitMarkdown(raw).frontmatter).toJS() ?? {};
+
+function renderDuplicate() {
 	return render(NewEvent, {
 		props: {
 			data: /** @type {any} */ ({
@@ -43,7 +50,6 @@ function renderNew(seriesGoals) {
 				maxImageBytes: 5 * 1024 * 1024,
 				source: { slug: 'encuentro-inventado-3', raw: SOURCE, title: 'Encuentro Inventado 3' },
 				seriesPrompt: null,
-				seriesGoals,
 				template: SOURCE,
 				today: '2031-03-20',
 				prefill: { date: '', startTime: '', endTime: '' },
@@ -59,16 +65,38 @@ function renderNew(seriesGoals) {
 /** @param {string} body */
 const goalValue = (body) => /id="ev-goal-value"[^>]*value="([^"]*)"/.exec(body)?.[1] ?? null;
 
-describe('nueva edición de una serie con meta por defecto', () => {
-	it('arranca con la meta de la serie (no la copiada del original) y avisa de dónde viene', () => {
-		const body = renderNew({ 'Serie Inventada': 'plata:300000' });
-		expect(goalValue(body)).toBe('300000');
-		expect(body).toContain('Es la meta por defecto de la serie «Serie Inventada»');
+describe('duplicar un evento con meta de venta', () => {
+	it('el formulario arranca con la meta del evento original', () => {
+		const body = renderDuplicate();
+		expect(body).toMatch(/<option value="entradas"[^>]*selected/);
+		expect(goalValue(body)).toBe('10');
 	});
 
-	it('sin meta en la serie, queda la del original', () => {
-		const body = renderNew({});
-		expect(goalValue(body)).toBe('10');
-		expect(body).not.toContain('Es la meta por defecto de la serie');
+	it('el archivo nuevo lleva la misma meta (como lo arma el formulario, sin tocarla)', () => {
+		const form = { ...formFromSource(SOURCE, { today: '2031-03-20' }), startDate: '2031-04-14' };
+		const md = buildEventMarkdown(SOURCE, form);
+		const initial = readTicketsForm(frontmatterOf(SOURCE));
+		const out = applyTicketsToMarkdown(md, readTicketsForm(frontmatterOf(SOURCE)), initial);
+		expect(frontmatterOf(out).meta_venta).toBe('entradas:10');
+		expect(frontmatterOf(out).start).toMatch(/^2031-04-14/);
+	});
+
+	it('cambiarla en el formulario cambia solo la del evento nuevo', () => {
+		const md = buildEventMarkdown(SOURCE, formFromSource(SOURCE, { today: '2031-03-20' }));
+		const initial = readTicketsForm(frontmatterOf(SOURCE));
+		const edited = { ...initial, goalKind: /** @type {const} */ ('plata'), goalValue: '300000' };
+		expect(frontmatterOf(applyTicketsToMarkdown(md, edited, initial)).meta_venta).toBe(
+			'plata:300000'
+		);
+		expect(frontmatterOf(SOURCE).meta_venta).toBe('entradas:10');
+	});
+
+	it('duplicar desde la agenda o la planilla (sin formulario) también la copia', () => {
+		const built = buildImportedEvent(
+			SOURCE,
+			{ title: 'Encuentro Inventado 4', date: '2031-05-12', startTime: '20:00' },
+			{ today: '2031-03-20' }
+		);
+		expect(frontmatterOf(built.content).meta_venta).toBe('entradas:10');
 	});
 });

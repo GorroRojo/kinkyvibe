@@ -15,7 +15,6 @@
 import { eventImageRef } from './series.js';
 
 import { isSystemTag, systemTagMessage } from './systemTags.js';
-import { parseSalesGoal, storedSalesGoal } from './salesGoal.js';
 
 /* ------------------------------------------------------------------------------------------ */
 /*  Parser (the small subset of JS the file uses: an array of object literals)                */
@@ -320,7 +319,6 @@ const KEY_ORDER = [
 	'aliasOf',
 	'color',
 	'image',
-	'meta_venta',
 	'description',
 	'related',
 	'children'
@@ -377,8 +375,6 @@ export const EDITABLE_FIELDS = Object.freeze([
 	'visible_name',
 	'color',
 	'image',
-	// Series: la meta de venta por defecto de sus ediciones nuevas (`plata:250000`, salesGoal.js).
-	'meta_venta',
 	'description',
 	'aka',
 	'related'
@@ -637,14 +633,6 @@ function applyOne(m, op) {
 					throw new Error(
 						`La imagen tiene que ser un archivo de src/lib/assets (por ejemplo, serie.webp) o la de un evento (calendario:<evento>/1.webp).`
 					);
-				if (k === 'meta_venta' && v) {
-					const goal = parseSalesGoal(v);
-					if (!goal)
-						throw new Error(
-							'La meta de venta tiene que ser «plata:<pesos>» o «entradas:<cantidad>», con un número entero mayor a 0.'
-						);
-					v = storedSalesGoal(goal);
-				}
 				if (k === 'aka') {
 					for (const a of v) {
 						const t = m.aliasTarget(a);
@@ -732,7 +720,7 @@ function applyOne(m, op) {
 					(a) => a !== into && a !== from
 				);
 				if (aka.length) setKey(dst, 'aka', [...new Set(aka)]);
-				for (const k of ['icon', 'visible_name', 'description', 'color', 'image', 'meta_venta']) {
+				for (const k of ['icon', 'visible_name', 'description', 'color', 'image']) {
 					if (dst[k] === undefined && src[k] !== undefined) setKey(dst, k, src[k]);
 				}
 				const rel = [...(dst.related ?? []), ...(src.related ?? [])].filter(
