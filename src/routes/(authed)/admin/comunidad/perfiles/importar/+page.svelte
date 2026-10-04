@@ -165,8 +165,8 @@
 	.problems,
 	.preview {
 		margin: 0.5rem 0 0;
-		padding-left: 1.2rem;
-		font-size: 0.9rem;
+		padding-left: var(--space-s);
+		font-size: var(--text-sm);
 	}
 	.muted {
 		color: var(--muted);
@@ -175,7 +175,7 @@
 		display: block;
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.done {
 		opacity: 0.75;

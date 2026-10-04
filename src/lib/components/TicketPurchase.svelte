@@ -737,7 +737,7 @@
 	}
 	.step-error,
 	.form-error {
-		color: hsl(0, 75%, 40%);
+		color: var(--error);
 		font-size: var(--step--1);
 		font-weight: bold;
 		margin: 0;

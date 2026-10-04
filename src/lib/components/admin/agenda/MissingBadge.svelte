@@ -24,11 +24,11 @@
 		display: inline-block;
 		margin-top: 0.2rem;
 		padding: 0 0.45em;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		border: 1px solid var(--warn);
 		background: var(--warn-bg);
 		color: var(--text);
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
 		line-height: 1.5;
 		white-space: nowrap;

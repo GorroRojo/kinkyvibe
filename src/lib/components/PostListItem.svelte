@@ -222,12 +222,12 @@
 
 <style lang="scss">
 	.post.amigues {
-		border-radius: 999em;
+		border-radius: var(--radius-pill);
 		padding-top: 0;
 		outline: 2px solid var(--post-color, var(--2));
 		padding-right: 3em;
 		img {
-			border-radius: 10em;
+			border-radius: var(--radius-pill);
 			aspect-ratio: 1;
 			object-fit: cover;
 		}
@@ -383,7 +383,7 @@
 		max-width: calc(100% - 0em);
 		object-fit: contain;
 		object-position: center;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		margin-left: 1em;
 		justify-self: center;
 		min-height: 0;

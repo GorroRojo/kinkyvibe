@@ -24,14 +24,14 @@
 		grid-template-areas: 'img title' 'img summary';
 		grid-template-columns: 6rem minmax(0, 1fr);
 		align-items: center;
-		column-gap: 1.1rem;
-		row-gap: 0.3rem;
+		column-gap: var(--space-s);
+		row-gap: var(--space-3xs);
 		max-width: 50rem;
 		width: calc(100% - 32px);
 		margin: 1em auto;
-		padding: 0.5rem 2.5rem 0.5rem 0.5rem;
+		padding: var(--space-2xs) var(--space-l) var(--space-2xs) var(--space-2xs);
 		background: var(--surface);
-		border-radius: 999em;
+		border-radius: var(--radius-pill);
 		outline: 2px solid var(--2);
 		box-shadow: var(--shadow);
 		color: var(--ink);
@@ -69,8 +69,8 @@
 		.author-callout {
 			grid-template-areas: 'img title' 'summary summary';
 			grid-template-columns: 4rem minmax(0, 1fr);
-			row-gap: 0.7rem;
-			padding: 0.5rem 1.2rem 1.2rem 0.5rem;
+			row-gap: var(--space-2xs);
+			padding: var(--space-2xs) var(--space-s) var(--space-s) var(--space-2xs);
 			border-radius: 2em;
 		}
 		.author-image {
@@ -80,7 +80,7 @@
 			align-self: center;
 		}
 		.author-summary {
-			padding-left: 0.7rem;
+			padding-left: var(--space-2xs);
 		}
 	}
 </style>

@@ -159,7 +159,7 @@
 		width: 100%;
 		max-width: 50rem;
 		margin: 0 auto 1.4em;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 		color: var(--2-dark);
 		text-decoration: none;
 		align-items: center;
@@ -249,7 +249,7 @@
 	}
 	#redes a:hover {
 		scale: 1.1;
-		box-shadow: 0 0 0.4em rgba(1, 1, 1, 0.2);
+		box-shadow: var(--shadow-2);
 		background: white;
 		outline: 5px solid white;
 	}
@@ -261,7 +261,7 @@
 	}
 	#user a:hover {
 		scale: 1.1;
-		box-shadow: 5px 5px 1em rgba(1, 1, 1, 0.2);
+		box-shadow: var(--shadow-2);
 		/* background: var(--1); */
 		/* filter: brightness(1.3); */
 	}
@@ -286,7 +286,7 @@
 	#user a.cuenta {
 		background: transparent;
 		color: var(--2);
-		font-weight: 600;
+		font-weight: 700;
 		padding-inline: 0.4em;
 	}
 	#user a.cuenta:hover {

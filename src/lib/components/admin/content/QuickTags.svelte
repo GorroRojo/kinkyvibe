@@ -47,15 +47,15 @@
 	.quick {
 		display: flex;
 		flex-direction: column;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 	}
 	.group {
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.label {
-		font-size: 0.72rem;
+		font-size: var(--text-xs);
 		letter-spacing: 0.07em;
 		text-transform: uppercase;
 		color: var(--muted, #6b6470);
@@ -64,7 +64,7 @@
 	.chips {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.35rem;
+		gap: var(--space-3xs);
 	}
 	.chip {
 		display: inline-flex;
@@ -74,9 +74,9 @@
 		background: var(--surface, #fff);
 		color: var(--text, inherit);
 		border-radius: 2em;
-		padding: 0.3rem 0.8rem;
+		padding: var(--space-3xs) var(--space-xs);
 		min-height: 2.2rem;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		cursor: pointer;
 	}
 	.chip[aria-pressed='true'] {

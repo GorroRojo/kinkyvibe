@@ -34,7 +34,7 @@
 	button {
 		background: var(--surface);
 		border: 0;
-		padding: 0.3rem 0.75rem;
+		padding: var(--space-3xs) var(--space-xs);
 		min-height: 2.25rem;
 		color: var(--accent);
 		font-weight: 700;

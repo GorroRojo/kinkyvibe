@@ -84,7 +84,7 @@
 		background: var(--surface, white);
 		color: var(--text, #333);
 		box-shadow: var(--shadow, 0 0.1em 0.3em rgba(0, 0, 0, 0.1));
-		padding: 1.2rem 1.3rem;
+		padding: var(--space-s) var(--space-s);
 		width: min(28rem, calc(100vw - 32px));
 		border-top: 0.4rem solid var(--warn, #7a5b00);
 	}
@@ -95,13 +95,13 @@
 	h2 {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		margin: 0 0 0.6rem;
-		font-size: 1.2rem;
+		font-size: var(--text-base);
 	}
 	ul {
 		margin: 0 0 0.8rem;
-		padding: 0.6rem 0.8rem 0.6rem 1.8rem;
+		padding: var(--space-2xs) var(--space-xs) var(--space-2xs) var(--space-m);
 		background: var(--warn-bg, #fff3c4);
 		border-radius: var(--card-round, 1rem);
 	}
@@ -111,13 +111,13 @@
 	.note {
 		margin: 0 0 1rem;
 		color: var(--muted, #666);
-		font-size: 0.95rem;
+		font-size: var(--text-sm);
 	}
 	.btns {
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: flex-end;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 	}
 	.btn {
 		display: inline-flex;

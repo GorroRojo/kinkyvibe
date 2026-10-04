@@ -700,7 +700,7 @@
 	.affected {
 		background: var(--warn-bg, #fff8e1);
 		color: var(--text, inherit);
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0.6em 1em;
 		align-self: stretch;
 		p {

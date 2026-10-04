@@ -108,7 +108,7 @@
 		gap: 0.25em;
 	}
 	label span {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	input[type='email'] {
 		font-size: var(--step-0);
@@ -123,10 +123,10 @@
 	}
 	.ok {
 		color: var(--3-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.error {
 		color: var(--1-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 </style>

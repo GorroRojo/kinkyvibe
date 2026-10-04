@@ -114,7 +114,7 @@
 	.dup {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 	}
 	.question {
 		margin: 0;
@@ -122,8 +122,8 @@
 	}
 	.compact {
 		border: 1px solid var(--line, #ddd);
-		border-radius: 0.8rem;
-		padding: 0.5rem 0.8rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-xs);
 		margin: 0 0 1rem;
 	}
 	.compact summary {
@@ -131,12 +131,12 @@
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.compact .body {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		margin-top: 0.6rem;
 	}
 	.search {
@@ -145,7 +145,7 @@
 		gap: 0.4rem;
 		border: 1px solid var(--field, var(--line, #ccc));
 		border-radius: 3em;
-		padding: 0 0.8rem;
+		padding: 0 var(--space-xs);
 		background: var(--surface, #fff);
 	}
 	.search:focus-within {
@@ -168,7 +168,7 @@
 		padding: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.result {
 		display: flex;
@@ -177,9 +177,9 @@
 		gap: 0.1rem;
 		width: 100%;
 		text-align: left;
-		padding: 0.45rem 0.7rem;
+		padding: 0.45rem var(--space-2xs);
 		border: 1px solid var(--line, #ddd);
-		border-radius: 0.6rem;
+		border-radius: var(--radius-s);
 		background: var(--surface, #fff);
 		color: inherit;
 		font: inherit;
@@ -196,19 +196,19 @@
 		cursor: wait;
 	}
 	.title {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.meta {
 		display: inline-flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.25rem;
+		gap: var(--space-3xs);
 		color: var(--muted);
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.empty {
 		margin: 0;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	.sr-only {
 		position: absolute;

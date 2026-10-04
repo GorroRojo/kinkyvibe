@@ -104,7 +104,7 @@
 		width: 8em;
 		height: 8em;
 		object-fit: cover;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 	}
 	.thumb.empty {
 		display: grid;

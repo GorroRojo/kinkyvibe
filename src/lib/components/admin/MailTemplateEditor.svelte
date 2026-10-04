@@ -367,7 +367,7 @@
 <style>
 	.editor {
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 		grid-template-columns: minmax(0, 1fr);
 		align-items: start;
 		margin-top: 1rem;
@@ -398,7 +398,7 @@
 	.vars li {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.2rem 0.6rem;
+		gap: 0.2rem var(--space-2xs);
 		align-items: baseline;
 	}
 	.var {
@@ -425,16 +425,16 @@
 		width: 100%;
 		height: 38rem;
 		border: 1px solid var(--line);
-		border-radius: 0.8rem;
+		border-radius: var(--radius-m);
 		background: white;
 	}
 	.text {
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		background: var(--surface-2);
-		border-radius: 0.8rem;
-		padding: 0.8rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-xs);
 		max-height: 38rem;
 		overflow: auto;
 		margin: 0;

@@ -192,7 +192,7 @@
 	}
 	@media screen and (max-width: 680px) {
 		footer {
-			padding-inline: 16px;
+			padding-inline: var(--space-xs);
 			/* 6rem de la barra de navegación inferior + lugar para el botón flotante
 			de búsqueda (56px + 16px de margen arriba y abajo), así lo último de la
 			página se puede scrollear hasta quedar libre del FAB. Va en el footer (no en el

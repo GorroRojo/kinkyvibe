@@ -103,7 +103,7 @@
 		border: 2px dashed var(--warn);
 		border-radius: var(--card-round);
 		box-shadow: var(--shadow);
-		padding: 0.6rem 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
 	}
 	@media (min-width: 900px) {
 		.pending-bar {
@@ -115,7 +115,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.5rem 1rem;
+		gap: var(--space-2xs) var(--space-xs);
 	}
 	.count {
 		display: inline-flex;
@@ -138,18 +138,18 @@
 	.btns {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		margin-left: auto;
 	}
 	.problems {
 		list-style: none;
 		margin: 0 0 0.5rem;
-		padding: 0 0 0.5rem;
+		padding: 0 0 var(--space-2xs);
 		border-bottom: 1px solid var(--line);
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
-		font-size: 0.88rem;
+		gap: var(--space-3xs);
+		font-size: var(--text-sm);
 		max-height: 30vh;
 		overflow-y: auto;
 	}

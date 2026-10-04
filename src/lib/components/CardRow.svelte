@@ -86,7 +86,7 @@
 	.cardrow_title {
 		display: block;
 		margin: 0em;
-		padding: 0.5rem 1rem;
+		padding: var(--space-2xs) var(--space-xs);
 		/* height: em; */
 
 		position: absolute;
@@ -99,7 +99,7 @@
 		color: var(--color-1, var(--2));
 		background: white;
 		border: 3px var(--color-1, var(--2)) solid;
-		border-radius: 1rem;
+		border-radius: var(--radius-m);
 	}
 	/* same pill as the site's buttons; inside the row (a negative `right` used to push the
 	   page 8 px sideways on phones) */
@@ -162,7 +162,7 @@
 		}
 
 		&::-webkit-scrollbar-thumb {
-			border-radius: 1rem;
+			border-radius: var(--radius-m);
 			background-color: var(--color-2, var(--2));
 			cursor: ew-resize;
 		}

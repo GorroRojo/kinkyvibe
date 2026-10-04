@@ -250,7 +250,7 @@
 		display: block;
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	tr.inactive td:not(:last-child) {
 		opacity: 0.7;
@@ -262,7 +262,7 @@
 	}
 	.plain legend {
 		font-weight: 700;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		padding: 0;
 		margin-bottom: 0.2rem;
 	}

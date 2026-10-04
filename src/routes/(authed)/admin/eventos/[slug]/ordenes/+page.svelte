@@ -235,8 +235,8 @@
 <style>
 	.flash {
 		background: var(--ok-bg);
-		padding: 0.6rem 0.9rem;
-		border-radius: 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		margin: 0 0 1rem;
 	}
 	.flash.error {
@@ -244,15 +244,15 @@
 	}
 	.review {
 		background: var(--warn-bg);
-		border-radius: 1rem;
-		padding: 0.6rem 1.1rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-s);
 		margin: 0 0 1rem;
 	}
 	.review h2 {
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
-		font-size: 1.05rem;
+		font-size: var(--text-sm);
 		margin: 0.3rem 0;
 	}
 	.review ul {
@@ -267,7 +267,7 @@
 	.tools {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		align-items: center;
 	}
 	.filter {
@@ -276,7 +276,7 @@
 		gap: 0.4rem;
 	}
 	.filter select {
-		padding: 0.45rem 0.7rem;
+		padding: 0.45rem var(--space-2xs);
 		min-height: 2.5rem;
 		border-radius: 3em;
 		border: 1px solid var(--field);
@@ -288,7 +288,7 @@
 		gap: 0.4rem;
 		border: 1px solid var(--field);
 		border-radius: 3em;
-		padding: 0 0.9rem;
+		padding: 0 var(--space-xs);
 		flex: 1 1 14rem;
 		max-width: 22rem;
 		color: var(--muted);
@@ -321,16 +321,16 @@
 		margin: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 	}
 	.order {
 		border: 1px solid var(--line);
 		border-left: 4px solid var(--line);
 		border-radius: var(--card-round);
-		padding: 0.7rem 0.9rem;
+		padding: var(--space-2xs) var(--space-xs);
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.status-approved {
 		border-left-color: var(--3);
@@ -342,7 +342,7 @@
 	.who {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.2rem 0.8rem;
+		gap: 0.2rem var(--space-xs);
 		align-items: center;
 		overflow-wrap: anywhere;
 	}
@@ -353,7 +353,7 @@
 	}
 	.what,
 	.meta {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.meta {
 		color: var(--muted);
@@ -362,11 +362,11 @@
 		display: inline;
 	}
 	.small {
-		padding: 0.25rem 0.7rem;
-		font-size: 0.82rem;
+		padding: var(--space-3xs) var(--space-2xs);
+		font-size: var(--text-xs);
 	}
 	.holders {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.holders :global(.in) {
 		color: var(--ok);
@@ -376,7 +376,7 @@
 		background: var(--ok-bg);
 	}
 	.refund {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.refund summary {
 		cursor: pointer;
@@ -385,8 +385,8 @@
 	}
 	.refund-panel {
 		margin-top: 0.4rem;
-		padding: 0.6rem 0.8rem;
-		border-radius: 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		background: var(--bad-bg);
 	}
 	.refund-panel p {
@@ -399,7 +399,7 @@
 		font-weight: 700;
 		border: 0;
 		border-radius: 2em;
-		padding: 0.6rem 1.1rem;
+		padding: var(--space-2xs) var(--space-s);
 		min-height: 2.75rem;
 		cursor: pointer;
 		background: var(--bad);

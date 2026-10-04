@@ -157,7 +157,7 @@
 		padding: 0;
 	}
 	.orders > li {
-		padding: 0.7rem 0;
+		padding: var(--space-2xs) 0;
 		border-top: 1px solid var(--line);
 		display: flex;
 		flex-direction: column;
@@ -173,15 +173,15 @@
 	.tickets li {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem 0.5rem;
+		gap: var(--space-3xs) var(--space-2xs);
 		align-items: center;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		padding: 0.15rem 0;
 	}
 	.notes li {
 		background: var(--surface-2);
-		border-radius: 0.8rem;
-		padding: 0.6rem 0.8rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-xs);
 		margin-top: 0.5rem;
 	}
 	.notes p {

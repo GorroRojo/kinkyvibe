@@ -362,7 +362,7 @@
 		justify-content: center;
 		gap: 0.6em;
 		margin-top: 1.2em;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 	}
 	#tags {
 		margin-inline: auto;
@@ -375,7 +375,7 @@
 	.buy-cta {
 		max-width: 40rem;
 		margin: 1.2em auto 0;
-		padding: 0 16px;
+		padding: 0 var(--space-xs);
 	}
 	.buy-button {
 		display: flex;
@@ -490,7 +490,7 @@
 			margin-top: 0.3em;
 			padding: 0.3em 0.8em;
 			border: 1px solid currentColor;
-			border-radius: 999px;
+			border-radius: var(--radius-pill);
 			color: inherit;
 			font-size: var(--step--1);
 			text-decoration: none;
@@ -512,7 +512,7 @@
 				--base-font-size-m: 18px;
 				--base-font-size-s: 18px;
 				display: block;
-				padding: 5px;
+				padding: var(--space-3xs);
 				position: relative;
 				font-size: var(--base-font-size-m);
 			}

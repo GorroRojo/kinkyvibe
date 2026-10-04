@@ -92,7 +92,7 @@
 		color: var(--1-dark);
 	}
 	.preview {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.error {
 		color: var(--bad, #b00020);

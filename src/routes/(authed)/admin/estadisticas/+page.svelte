@@ -359,7 +359,7 @@
 	}
 	h3 {
 		margin: 0;
-		font-size: 1rem;
+		font-size: var(--text-sm);
 	}
 	td small {
 		display: block;

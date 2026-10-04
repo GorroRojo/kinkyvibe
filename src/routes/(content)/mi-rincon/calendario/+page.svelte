@@ -119,7 +119,7 @@
 		gap: 1em;
 		width: min(40rem, 100%);
 		margin: 1.5em auto;
-		padding-inline: 16px;
+		padding-inline: var(--space-xs);
 		box-sizing: border-box;
 	}
 	h1 {
@@ -143,11 +143,11 @@
 	}
 	.ok {
 		color: var(--3-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.error {
 		color: var(--1-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.row {
 		display: flex;

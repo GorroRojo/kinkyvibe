@@ -147,8 +147,8 @@
 
 <style lang="scss">
 	.sm {
-		padding: 0.35rem 0.8rem;
-		font-size: 0.88rem;
+		padding: var(--space-3xs) var(--space-xs);
+		font-size: var(--text-sm);
 	}
 	.more {
 		align-self: flex-start;
@@ -167,7 +167,7 @@
 		display: flex;
 		align-items: flex-end;
 		justify-content: space-between;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		flex-wrap: wrap;
 	}
 	p {
@@ -176,9 +176,9 @@
 	.big {
 		display: flex;
 		align-items: baseline;
-		gap: 0.35rem;
+		gap: var(--space-3xs);
 		b {
-			font-size: 2rem;
+			font-size: var(--text-2xl);
 			line-height: 1;
 		}
 		span {
@@ -197,7 +197,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	.types {
 		list-style: none;
@@ -210,9 +210,9 @@
 	.types li {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto;
-		gap: 0.15rem 0.6rem;
+		gap: 0.15rem var(--space-2xs);
 		align-items: center;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	.tname {
 		overflow-wrap: anywhere;
@@ -220,7 +220,7 @@
 	.tnum {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 		white-space: nowrap;
 	}
 	.tbar,
@@ -229,11 +229,11 @@
 	}
 	.trend {
 		margin: 0.2rem 0 0;
-		padding-top: 0.7rem;
+		padding-top: var(--space-2xs);
 		border-top: 1px solid var(--line);
 	}
 	figcaption {
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		font-weight: 700;
 		margin-bottom: 0.5rem;
 		span {
@@ -274,7 +274,7 @@
 		background: color-mix(in srgb, var(--2) 55%, var(--surface));
 	}
 	.v {
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
 		font-variant-numeric: tabular-nums;
 		visibility: hidden;
@@ -288,7 +288,7 @@
 		margin-top: 0.25rem;
 		span {
 			text-align: center;
-			font-size: 0.72rem;
+			font-size: var(--text-xs);
 			color: var(--muted);
 			white-space: nowrap;
 			overflow: hidden;
@@ -297,20 +297,20 @@
 	}
 	.empty {
 		margin: 0;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	.channels {
 		display: flex;
-		gap: 1rem;
+		gap: var(--space-xs);
 		margin-top: 0.5rem;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		color: var(--muted);
 		b {
 			color: var(--text);
 		}
 	}
 	.others {
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	.sr-only {
 		position: absolute;

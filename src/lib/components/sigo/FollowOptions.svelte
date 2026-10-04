@@ -130,7 +130,7 @@
 		flex: none;
 		width: 2.6em;
 		height: 1.5em;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		background: color-mix(in srgb, var(--ink) 25%, var(--surface));
 		position: relative;
 		transition: background 150ms;
@@ -180,7 +180,7 @@
 		display: none;
 	}
 	.calendar {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.channels {
 		border-collapse: collapse;
@@ -216,7 +216,7 @@
 		background: var(--2-tint);
 		color: var(--2-dark);
 		font-size: var(--step--2);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.channels tbody th {
 		padding-inline-start: 0;

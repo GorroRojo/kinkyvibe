@@ -161,17 +161,17 @@
 		margin-bottom: 1rem;
 	}
 	h2 {
-		font-size: 1.1rem;
+		font-size: var(--text-base);
 		margin: 0;
 	}
 	.small {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		margin: 0;
 	}
 	.flash {
 		background: var(--ok-bg);
-		padding: 0.6rem 0.9rem;
-		border-radius: 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		margin: 0;
 	}
 	.flash.error {
@@ -184,16 +184,16 @@
 		margin: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 	}
 	.order {
 		border: 1px solid var(--line);
 		border-left: 4px solid var(--4);
 		border-radius: var(--card-round);
-		padding: 0.7rem 0.9rem;
+		padding: var(--space-2xs) var(--space-xs);
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.status-expired {
 		border-left-color: var(--bad);
@@ -201,7 +201,7 @@
 	.who {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.2rem 0.8rem;
+		gap: 0.2rem var(--space-xs);
 		overflow-wrap: anywhere;
 	}
 	.ref,
@@ -211,7 +211,7 @@
 	}
 	.what,
 	.meta {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	.meta {
 		color: var(--muted);
@@ -223,7 +223,7 @@
 	.buttons {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		margin-top: 0.3rem;
 	}
 	.buttons .kv-btn {
@@ -235,8 +235,8 @@
 	.resolved li {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem 0.6rem;
+		gap: var(--space-3xs) var(--space-2xs);
 		align-items: center;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 </style>

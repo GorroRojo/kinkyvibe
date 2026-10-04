@@ -29,7 +29,7 @@
 		background: var(--surface);
 		border-radius: var(--card-round);
 		box-shadow: var(--shadow);
-		padding: 1rem 1.1rem;
+		padding: var(--space-xs) var(--space-s);
 		display: flex;
 		flex-direction: column;
 		gap: 0.2rem;
@@ -45,7 +45,7 @@
 		color: var(--muted);
 	}
 	b {
-		font-size: 1.6rem;
+		font-size: var(--text-lg);
 		font-weight: 700;
 		font-variant-numeric: tabular-nums;
 		overflow-wrap: anywhere;

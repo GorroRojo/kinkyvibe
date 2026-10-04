@@ -37,10 +37,10 @@
 		background: var(--tone-bg);
 		color: var(--text);
 		font: inherit;
-		font-size: 0.82rem;
-		font-weight: 600;
+		font-size: var(--text-xs);
+		font-weight: 700;
 		line-height: 1.3;
-		padding: 0.15rem 0.5rem;
+		padding: 0.15rem var(--space-2xs);
 		cursor: pointer;
 		text-align: left;
 	}

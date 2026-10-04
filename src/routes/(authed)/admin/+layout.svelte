@@ -457,7 +457,7 @@
 	.side {
 		background: var(--surface);
 		box-shadow: var(--shadow);
-		padding: 1rem 0.8rem;
+		padding: var(--space-xs) var(--space-xs);
 		display: flex;
 		flex-direction: column;
 		gap: 0.1rem;
@@ -471,7 +471,7 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 0.4rem;
-		padding: 0 0 0.8rem;
+		padding: 0 0 var(--space-xs);
 		text-decoration: none;
 		img {
 			width: 4rem;
@@ -484,13 +484,13 @@
 		color: white;
 		border-radius: 3em;
 		padding: 0.1em 0.8em;
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.nav {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
-		padding: 0.45rem 0.8rem;
+		gap: var(--space-2xs);
+		padding: 0.45rem var(--space-xs);
 		border-radius: var(--round);
 		border: 0;
 		background: none;
@@ -510,9 +510,9 @@
 		margin-left: auto;
 		background: var(--counter);
 		color: var(--counter-ink);
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		padding: 0 0.55em;
 		font-variant-numeric: tabular-nums;
 	}
@@ -540,7 +540,7 @@
 	.foot {
 		margin-top: 0.5rem;
 		border-top: 1px solid var(--line);
-		padding-top: 0.5rem;
+		padding-top: var(--space-2xs);
 		.nav {
 			font-weight: 400;
 			color: var(--text);
@@ -552,9 +552,9 @@
 	}
 	.top {
 		display: flex;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		align-items: center;
-		padding: 0.9rem 2rem;
+		padding: var(--space-xs) var(--space-m);
 		position: sticky;
 		top: 0;
 		background: var(--bg);
@@ -588,7 +588,7 @@
 			top: calc(100% + 0.4rem);
 			background: var(--surface);
 			border-radius: var(--round);
-			box-shadow: 0 0.2em 1em rgba(1, 1, 1, 0.15);
+			box-shadow: var(--shadow-2);
 			min-width: 14rem;
 			padding: 0.4rem;
 			display: flex;
@@ -602,8 +602,8 @@
 				text-align: left;
 				background: none;
 				border: 0;
-				padding: 0.5rem 0.6rem;
-				border-radius: 0.7em;
+				padding: var(--space-2xs) var(--space-2xs);
+				border-radius: var(--radius-s);
 				text-decoration: none;
 				cursor: pointer;
 				&:hover {
@@ -611,7 +611,7 @@
 				}
 			}
 			.who {
-				padding: 0.4rem 0.6rem 0.5rem;
+				padding: 0.4rem var(--space-2xs) var(--space-2xs);
 				border-bottom: 1px solid var(--line);
 				margin-bottom: 0.3rem;
 				display: flex;
@@ -620,7 +620,7 @@
 		}
 	}
 	.page {
-		padding: 0.3rem 2rem 6rem;
+		padding: var(--space-3xs) var(--space-m) var(--space-3xl);
 		max-width: 80rem;
 	}
 	.page.wide {
@@ -628,7 +628,7 @@
 	}
 	@media (min-width: 900px) {
 		.page.wide {
-			padding-inline: 1.25rem;
+			padding-inline: var(--space-s);
 		}
 	}
 
@@ -647,9 +647,9 @@
 		}
 		.mtop {
 			display: flex;
-			gap: 0.6rem;
+			gap: var(--space-2xs);
 			align-items: center;
-			padding: 0.5rem 16px;
+			padding: var(--space-2xs) var(--space-xs);
 			position: sticky;
 			top: 0;
 			background: var(--bg);
@@ -664,7 +664,7 @@
 				display: inline-flex;
 				align-items: center;
 				gap: 0.2em;
-				font-size: 0.85rem;
+				font-size: var(--text-xs);
 				white-space: nowrap;
 				text-decoration: none;
 				color: white;
@@ -716,10 +716,10 @@
 				align-items: center;
 				justify-content: flex-end;
 				gap: 0.15rem;
-				font-size: 0.75rem;
+				font-size: var(--text-xs);
 				font-weight: 700;
 				color: var(--accent);
-				padding: 0.25rem 0;
+				padding: var(--space-3xs) 0;
 				min-height: 3.6rem;
 				text-decoration: none;
 				cursor: pointer;
@@ -743,7 +743,7 @@
 				height: 3.3rem;
 				border-radius: 50%;
 				margin-top: -1.5rem;
-				box-shadow: 0 0.2em 0.6em rgba(1, 1, 1, 0.25);
+				box-shadow: var(--shadow-2);
 			}
 			.door.on .ti {
 				scale: 1;
@@ -786,7 +786,7 @@
 			cursor: grab;
 			user-select: none;
 			margin: -0.5rem -16px 0;
-			padding: 0.5rem 16px 0.2rem;
+			padding: var(--space-2xs) var(--space-xs) 0.2rem;
 		}
 		&.dragging .drag {
 			cursor: grabbing;
@@ -794,7 +794,7 @@
 		.grab {
 			width: 3rem;
 			height: 0.3rem;
-			border-radius: 1em;
+			border-radius: var(--radius-m);
 			background: var(--line);
 			margin: 0 auto 0.6rem;
 		}
@@ -827,7 +827,7 @@
 	.sheet-head {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		.x {
 			margin-left: auto;
 			border: 0;
@@ -844,7 +844,7 @@
 	.sheet-foot {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		margin-top: 1rem;
 	}
 </style>

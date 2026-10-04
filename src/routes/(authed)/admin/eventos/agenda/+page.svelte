@@ -489,8 +489,8 @@
 <style>
 	.note {
 		background: var(--warn-bg);
-		border-radius: 0.8rem;
-		padding: 0.5rem 0.9rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-xs);
 	}
 	.drafts-filter.on {
 		background: var(--warn-bg);
@@ -498,11 +498,11 @@
 		font-weight: 700;
 	}
 	.foot {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		margin-top: 0.8rem;
 	}
 	.loading {
-		padding: 3rem 0;
+		padding: var(--space-xl) 0;
 		text-align: center;
 	}
 </style>

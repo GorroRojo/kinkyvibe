@@ -46,10 +46,10 @@
 		overflow-x: auto;
 		scrollbar-width: thin;
 		margin-bottom: 1rem;
-		padding: 0.3rem 0.1rem;
+		padding: var(--space-3xs) 0.1rem;
 	}
 	.tab {
-		padding: 0.5rem 0.9rem;
+		padding: var(--space-2xs) var(--space-xs);
 		border-radius: var(--round);
 		font-weight: 700;
 		color: var(--accent);
@@ -66,7 +66,7 @@
 	.tab.on {
 		color: var(--link);
 		background: var(--surface);
-		box-shadow: 0 0 0.5em rgba(1, 1, 1, 0.1);
+		box-shadow: var(--shadow-1);
 	}
 	.tab.off {
 		color: var(--muted);
@@ -75,8 +75,8 @@
 	.count {
 		background: var(--counter);
 		color: var(--counter-ink);
-		font-size: 0.72rem;
-		border-radius: 1em;
+		font-size: var(--text-xs);
+		border-radius: var(--radius-m);
 		padding: 0 0.5em;
 	}
 </style>

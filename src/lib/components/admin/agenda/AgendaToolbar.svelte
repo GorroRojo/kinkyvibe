@@ -49,25 +49,25 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		margin-bottom: 0.8rem;
 	}
 	.nav {
 		display: flex;
 		align-items: center;
-		gap: 0.25rem;
+		gap: var(--space-3xs);
 		min-width: 0;
 	}
 	h2 {
 		margin: 0 0 0 0.5rem;
-		font-size: 1.15rem;
+		font-size: var(--text-base);
 		white-space: nowrap;
 	}
 	h2::first-letter {
 		text-transform: uppercase;
 	}
 	.today {
-		padding: 0.35rem 0.9rem;
+		padding: var(--space-3xs) var(--space-xs);
 	}
 	.icon {
 		border: 0;
@@ -95,17 +95,17 @@
 		background: transparent;
 		color: var(--text);
 		border-radius: 2rem;
-		padding: 0.4rem 0.8rem;
+		padding: 0.4rem var(--space-xs);
 		min-height: 2.2rem;
 		cursor: pointer;
 		font: inherit;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	.views button.on {
 		background: var(--surface);
 		color: var(--link);
 		font-weight: 700;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+		box-shadow: var(--shadow-1);
 	}
 	.icon:focus-visible,
 	.views button:focus-visible {

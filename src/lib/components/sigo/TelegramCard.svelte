@@ -166,7 +166,7 @@
 	}
 	.error {
 		color: var(--1-ink);
-		font-weight: 600;
+		font-weight: 700;
 	}
 	.small {
 		font-size: var(--step--1);

@@ -92,9 +92,9 @@
 	.list li {
 		display: grid;
 		grid-template-columns: 3.2rem 3.2rem minmax(0, 1fr) auto;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		align-items: center;
-		padding: 0.7rem 1rem;
+		padding: var(--space-2xs) var(--space-xs);
 		border-bottom: 1px solid var(--line);
 	}
 	.list li:last-child {
@@ -111,10 +111,10 @@
 		color: var(--accent-dark);
 	}
 	.date b {
-		font-size: 1.35rem;
+		font-size: var(--text-lg);
 	}
 	.date small {
-		font-size: 0.72rem;
+		font-size: var(--text-xs);
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 		font-weight: 700;
@@ -145,17 +145,17 @@
 	}
 	.meta {
 		color: var(--muted);
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 	}
 	.badges {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.actions {
 		display: flex;
 		align-items: center;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	.icon-link {
 		display: inline-grid;
@@ -173,8 +173,8 @@
 		.list li {
 			grid-template-columns: 2.8rem minmax(0, 1fr) auto;
 			grid-template-areas: 'date info actions';
-			gap: 0.3rem 0.7rem;
-			padding: 0.7rem 0.8rem;
+			gap: var(--space-3xs) var(--space-2xs);
+			padding: var(--space-2xs) var(--space-xs);
 		}
 		.date {
 			grid-area: date;
@@ -191,7 +191,7 @@
 			align-self: start;
 		}
 		.actions .kv-btn {
-			padding: 0.4rem 0.7rem;
+			padding: 0.4rem var(--space-2xs);
 		}
 	}
 </style>

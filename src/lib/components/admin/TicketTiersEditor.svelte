@@ -105,7 +105,7 @@
 		gap: 0.4em 0.6em;
 		align-items: end;
 		padding: 0.5em 0.6em;
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		background: var(--surface, white);
 		outline: 1px solid var(--1-light);
 	}

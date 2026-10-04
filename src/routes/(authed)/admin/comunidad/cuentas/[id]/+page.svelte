@@ -128,7 +128,7 @@
 	.facts {
 		display: grid;
 		grid-template-columns: max-content 1fr;
-		gap: 0.4rem 1rem;
+		gap: 0.4rem var(--space-xs);
 		margin: 0;
 	}
 	.facts dt {
@@ -149,7 +149,7 @@
 		overflow-wrap: anywhere;
 	}
 	.small {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 	}
 	@media (max-width: 700px) {
 		.hide-sm {

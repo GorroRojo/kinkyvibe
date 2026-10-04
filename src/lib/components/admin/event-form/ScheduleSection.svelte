@@ -139,7 +139,7 @@
 	.schedule {
 		margin: 0;
 		background: var(--3-light);
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		padding: 0.4em 0.8em;
 		span {
 			display: inline-block;

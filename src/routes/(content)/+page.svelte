@@ -152,8 +152,8 @@
 		/* max-width: 50rem; */
 		margin: auto;
 		display: grid;
-		gap: 3rem;
-		padding-top: 3rem;
+		gap: var(--space-xl);
+		padding-top: var(--space-xl);
 	}
 	.cardrow {
 		width: 100%;

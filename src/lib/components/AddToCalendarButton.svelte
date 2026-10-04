@@ -51,7 +51,7 @@
 		color: var(--2-dark);
 		background: white;
 		border: 2px solid var(--2);
-		border-radius: 999em;
+		border-radius: var(--radius-pill);
 		padding: 0.45em 1.2em;
 		cursor: pointer;
 	}

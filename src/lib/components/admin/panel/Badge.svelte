@@ -20,7 +20,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.3em;
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		line-height: 1.2;
 		border-radius: 2em;
 		padding: 0.15em 0.6em;

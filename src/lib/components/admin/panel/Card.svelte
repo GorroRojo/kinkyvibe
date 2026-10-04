@@ -35,21 +35,21 @@
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.7rem;
+		gap: var(--space-2xs);
 	}
 	.padded {
-		padding: 1.1rem 1.3rem;
+		padding: var(--space-s) var(--space-s);
 	}
 	header {
 		display: flex;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		align-items: center;
 		flex-wrap: wrap;
 	}
 	/* Sin relleno (una tabla o una lista de borde a borde), el título igual va con el margen de
 	   la tarjeta. */
 	.card:not(.padded) > header {
-		padding: 1.1rem 1.3rem 0;
+		padding: var(--space-s) var(--space-s) 0;
 	}
 	h2 {
 		font-size: var(--step-0-5, 1.2rem);
@@ -64,7 +64,7 @@
 	.actions {
 		margin-left: auto;
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		flex-wrap: wrap;
 	}
 </style>

@@ -31,7 +31,7 @@
 <style>
 	.head {
 		display: flex;
-		gap: 1rem;
+		gap: var(--space-xs);
 		align-items: flex-end;
 		justify-content: space-between;
 		flex-wrap: wrap;
@@ -42,12 +42,12 @@
 	}
 	.row {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		align-items: center;
 		flex-wrap: wrap;
 	}
 	h1 {
-		font-size: 1.6rem;
+		font-size: var(--text-lg);
 		margin: 0;
 		overflow-wrap: anywhere;
 	}
@@ -56,12 +56,12 @@
 		color: var(--muted);
 	}
 	.back {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		color: var(--muted);
 	}
 	.actions {
 		display: flex;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		flex-wrap: wrap;
 		align-items: center;
 	}

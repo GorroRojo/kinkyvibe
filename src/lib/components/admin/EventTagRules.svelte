@@ -119,7 +119,7 @@
 		margin-bottom: 0.3em;
 	}
 	.req {
-		color: red;
+		color: var(--error);
 	}
 	small {
 		font-size: var(--step--1);
@@ -189,7 +189,7 @@
 			flex: none;
 			width: 2.6em;
 			height: 1.5em;
-			border-radius: 1em;
+			border-radius: var(--radius-m);
 			background: #ccc;
 			position: relative;
 			transition: background 150ms;

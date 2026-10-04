@@ -10,16 +10,16 @@
 	.kv-form {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: var(--space-xs);
 	}
 	.kv-field {
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 		min-width: 0;
 		> span:first-child {
 			font-weight: 700;
-			font-size: 0.9rem;
+			font-size: var(--text-sm);
 		}
 		small {
 			color: var(--muted);
@@ -55,14 +55,14 @@
 		min-height: 2.75rem;
 	}
 	.kv-field textarea {
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		resize: vertical;
 		line-height: 1.45;
 	}
 	.kv-check {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		min-height: 2.75rem;
 		input {
 			width: 1.15rem;
@@ -71,14 +71,14 @@
 		}
 	}
 	.kv-note {
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 		color: var(--muted);
 		margin: 0;
 	}
 	.kv-flash {
 		margin: 0;
-		padding: 0.6rem 0.9rem;
-		border-radius: 0.8em;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
 		background: var(--ok-bg);
 		color: var(--ok);
 		font-weight: 700;
@@ -94,25 +94,25 @@
 	.kv-row {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		align-items: center;
 	}
 	.kv-grid-2 {
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
 		align-items: start;
 	}
 	.kv-stats {
 		display: grid;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
 		margin-bottom: 1rem;
 	}
 	.kv-stack {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: var(--space-xs);
 	}
 	code {
 		background: var(--surface-2);

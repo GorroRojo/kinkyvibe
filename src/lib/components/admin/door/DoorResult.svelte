@@ -150,13 +150,13 @@
 
 <style>
 	.result {
-		border-radius: 1.2rem;
-		padding: 1rem 1.1rem 0.9rem;
+		border-radius: var(--radius-l);
+		padding: var(--space-xs) var(--space-s) var(--space-xs);
 		display: flex;
 		flex-direction: column;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 		animation: pop 0.22s ease-out;
-		box-shadow: 0 0.4rem 1.4rem rgba(0, 0, 0, 0.35);
+		box-shadow: var(--shadow-3);
 	}
 	.clickable {
 		cursor: pointer;
@@ -190,44 +190,44 @@
 	.head {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 	}
 	.title {
 		flex: 1;
 		display: flex;
 		align-items: center;
 		gap: 0.45rem;
-		font-size: 2rem;
+		font-size: var(--text-2xl);
 		font-weight: 700;
 		line-height: 1.1;
 	}
 	.who {
-		font-size: 1.25rem;
+		font-size: var(--text-base);
 		overflow-wrap: anywhere;
 	}
 	.when {
-		font-size: 1rem;
+		font-size: var(--text-sm);
 	}
 	.small {
-		font-size: 0.95rem;
+		font-size: var(--text-sm);
 		overflow-wrap: anywhere;
 	}
 	.meta {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.4rem 0.6rem;
+		gap: 0.4rem var(--space-2xs);
 	}
 	.first {
 		align-self: flex-start;
 		display: inline-flex;
 		align-items: center;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 		background: rgba(255, 255, 255, 0.55);
 		color: #3b0a52;
 		font-weight: 700;
 		border-radius: 2em;
-		padding: 0.2rem 0.7rem;
+		padding: 0.2rem var(--space-2xs);
 		margin: 0.15rem 0;
 	}
 	.bad .first {
@@ -255,7 +255,7 @@
 		background: none;
 		border: 0;
 		border-bottom: 2px dotted currentColor;
-		padding: 0.35rem 0;
+		padding: var(--space-3xs) 0;
 		cursor: pointer;
 	}
 	.offline {
@@ -268,7 +268,7 @@
 	.more {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 		border: 0;
 		border-radius: 2em;
 		font-weight: 700;
@@ -277,7 +277,7 @@
 	}
 	.pill {
 		background: rgba(255, 255, 255, 0.6);
-		padding: 0.6rem 1rem;
+		padding: var(--space-2xs) var(--space-xs);
 		min-height: 2.75rem;
 	}
 	.bad .pill {
@@ -286,7 +286,7 @@
 	.more {
 		align-self: flex-end;
 		background: none;
-		padding: 0.5rem 0 0.2rem;
+		padding: var(--space-2xs) 0 0.2rem;
 		min-height: 2.75rem;
 	}
 </style>

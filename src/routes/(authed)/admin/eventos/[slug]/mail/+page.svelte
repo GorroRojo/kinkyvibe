@@ -218,24 +218,24 @@
 <style>
 	.grid {
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 		grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
 		align-items: start;
 		margin-bottom: 1rem;
 	}
 	.small {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		margin: 0;
 	}
 	.compose {
 		display: flex;
 		flex-direction: column;
-		gap: 0.8rem;
+		gap: var(--space-xs);
 	}
 	.field {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: var(--space-3xs);
 	}
 	.field > span {
 		font-weight: 700;
@@ -248,7 +248,7 @@
 	}
 	.field input,
 	.field textarea {
-		padding: 0.55rem 0.8rem;
+		padding: var(--space-2xs) var(--space-xs);
 		min-height: 2.75rem;
 		box-sizing: border-box;
 		border-radius: var(--round);
@@ -263,8 +263,8 @@
 	}
 	.status {
 		background: var(--ok-bg);
-		border-radius: 0.8rem;
-		padding: 0.6rem 0.9rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-xs);
 		display: flex;
 		flex-direction: column;
 		gap: 0.4rem;
@@ -277,7 +277,7 @@
 	}
 	.progress {
 		height: 0.55rem;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		background: var(--bar-track);
 		overflow: hidden;
 	}
@@ -290,12 +290,12 @@
 	.buttons {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 	}
 	.mail {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 	}
 	.subject {
 		margin: 0;
@@ -307,8 +307,8 @@
 		background: #fff;
 		color: #222;
 		border: 1px solid var(--line);
-		border-radius: 0.8rem;
-		padding: 0.8rem 1rem;
+		border-radius: var(--radius-m);
+		padding: var(--space-xs) var(--space-xs);
 		overflow-wrap: anywhere;
 	}
 	.paper .muted {

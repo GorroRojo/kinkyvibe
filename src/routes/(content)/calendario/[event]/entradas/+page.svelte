@@ -66,7 +66,7 @@
 	.purchase-page {
 		max-width: 62rem;
 		margin: 0 auto;
-		padding: 0 16px 3em;
+		padding: 0 var(--space-xs) 3em;
 	}
 	.back {
 		margin: 1em 0 0.5em;
@@ -77,7 +77,7 @@
 		gap: 0.9em;
 		align-items: center;
 		padding: 0.7em;
-		border-radius: 1em;
+		border-radius: var(--radius-m);
 		background: var(--2-dark);
 		color: white;
 	}
@@ -85,7 +85,7 @@
 		width: 5.5em;
 		height: 5.5em;
 		object-fit: cover;
-		border-radius: 0.6em;
+		border-radius: var(--radius-s);
 		flex-shrink: 0;
 	}
 	.event-mini > div {

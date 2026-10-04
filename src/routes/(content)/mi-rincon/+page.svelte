@@ -413,7 +413,7 @@
 		width: 100%;
 	}
 	label span {
-		font-weight: 600;
+		font-weight: 700;
 	}
 	input[type='text'],
 	input[type='password'] {
@@ -456,7 +456,7 @@
 		border-bottom: 1px solid var(--line);
 	}
 	.saved dt {
-		font-weight: 600;
+		font-weight: 700;
 		min-width: 6.5em;
 	}
 	.saved dd {
@@ -492,7 +492,7 @@
 	}
 	summary {
 		cursor: pointer;
-		font-weight: 600;
+		font-weight: 700;
 		min-height: var(--tap);
 		display: flex;
 		align-items: center;

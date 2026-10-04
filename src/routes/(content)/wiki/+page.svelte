@@ -170,7 +170,7 @@
 	.searchbox input {
 		position: relative;
 		width: 100%;
-		border-radius: 10em;
+		border-radius: var(--radius-pill);
 		font-size: var(--step-1);
 		padding: 0.4em 0.8em;
 		padding-left: 2em;

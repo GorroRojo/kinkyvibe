@@ -42,7 +42,7 @@
 		display: grid;
 		place-items: center;
 		min-height: 100vh;
-		padding: 16px;
+		padding: var(--space-xs);
 	}
 	.login {
 		display: flex;

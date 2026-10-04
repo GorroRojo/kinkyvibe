@@ -99,7 +99,7 @@
 		display: grid;
 		grid-template-columns: 7rem minmax(0, 1fr);
 		grid-template-areas: 'cover text' 'actions actions';
-		gap: 0.6rem 1.1rem;
+		gap: var(--space-2xs) var(--space-s);
 		align-items: start;
 		margin: 0.4rem 0 1rem;
 	}
@@ -122,11 +122,11 @@
 		gap: 0.2rem;
 	}
 	.back {
-		font-size: 0.85rem;
+		font-size: var(--text-xs);
 		color: var(--muted);
 	}
 	h1 {
-		font-size: 1.6rem;
+		font-size: var(--text-lg);
 		margin: 0;
 		overflow-wrap: anywhere;
 		line-height: 1.15;
@@ -145,11 +145,11 @@
 	.chips {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 		margin-top: 0.3rem;
 	}
 	.tag {
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
 		border-radius: 3em;
 		padding: 0.1em 0.6em;
@@ -167,11 +167,11 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.6rem;
+		gap: var(--space-2xs);
 		background: var(--warn-bg);
 		color: var(--text);
 		border-radius: var(--card-round);
-		padding: 0.6rem 0.8rem 0.6rem 1rem;
+		padding: var(--space-2xs) var(--space-xs) var(--space-2xs) var(--space-xs);
 		margin: 0 0 1rem;
 	}
 	.push {
@@ -204,7 +204,7 @@
 			height: 4.5rem;
 		}
 		h1 {
-			font-size: 1.3rem;
+			font-size: var(--text-base);
 		}
 	}
 </style>

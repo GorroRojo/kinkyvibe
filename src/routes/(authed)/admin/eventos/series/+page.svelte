@@ -280,11 +280,11 @@
 	}
 	.list {
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-xs);
 	}
 	.head {
 		display: flex;
-		gap: 1rem;
+		gap: var(--space-xs);
 		align-items: flex-start;
 		flex-wrap: wrap;
 	}
@@ -292,18 +292,18 @@
 		width: 96px;
 		height: 96px;
 		object-fit: cover;
-		border-radius: 0.8rem;
+		border-radius: var(--radius-m);
 		flex: none;
 	}
 	.info {
 		flex: 1 1 14rem;
 		min-width: 0;
 		display: grid;
-		gap: 0.3rem;
+		gap: var(--space-3xs);
 	}
 	h2 {
 		margin: 0;
-		font-size: 1.2rem;
+		font-size: var(--text-base);
 	}
 	.form-title {
 		margin-bottom: 0.3rem;
@@ -312,7 +312,7 @@
 		margin: 0;
 	}
 	.small {
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 	.muted {
 		color: var(--muted);
@@ -325,7 +325,7 @@
 	}
 	summary {
 		cursor: pointer;
-		font-weight: 600;
+		font-weight: 700;
 		min-height: 2.5rem;
 		display: flex;
 		align-items: center;

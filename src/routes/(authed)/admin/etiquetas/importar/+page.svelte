@@ -181,8 +181,8 @@
 	.problems,
 	.preview {
 		margin: 0.5rem 0 0;
-		padding-left: 1.2rem;
-		font-size: 0.9rem;
+		padding-left: var(--space-s);
+		font-size: var(--text-sm);
 	}
 	.preview {
 		max-height: 24rem;

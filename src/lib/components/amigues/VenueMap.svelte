@@ -64,7 +64,7 @@
 		margin-inline: auto;
 		max-width: 100%;
 		overflow: hidden;
-		border-radius: 0.8em;
+		border-radius: var(--radius-m);
 		border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
 	}
 	.tiles {

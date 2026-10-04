@@ -216,7 +216,7 @@
 		.active-count {
 			background: var(--1);
 			color: white;
-			border-radius: 1em;
+			border-radius: var(--radius-m);
 			padding: 0 0.45em;
 			font-size: 0.85em;
 		}

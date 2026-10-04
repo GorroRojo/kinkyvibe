@@ -115,7 +115,7 @@
 	.card.mark {
 		--post-color: var(--1);
 		--shadow-color: var(--color, var(--color-2, var(--1)));
-		box-shadow: 0 0 0.3em 0.2em rgba(0, 0, 0, 0.05);
+		box-shadow: var(--shadow-1);
 		height: 100%;
 		outline: 0px var(--color, var(--color-2, var(--1))) solid;
 		&.amigues img {
@@ -193,7 +193,7 @@
 		}
 
 		&::-webkit-scrollbar-thumb {
-			border-radius: 1rem;
+			border-radius: var(--radius-m);
 			background-color: var(--1-light);
 			&:active {
 				background-color: var(--1);
@@ -209,7 +209,7 @@
 		outline: 1px solid var(--post-color, var(--2));
 		height: unset;
 		aspect-ratio: 1;
-		border-radius: 999em;
+		border-radius: var(--radius-pill);
 		scale: 1.1;
 	}
 	.amigues h3 {
