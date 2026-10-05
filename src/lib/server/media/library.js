@@ -3,7 +3,8 @@
  * en R2 (binding `MEDIA`). Cada uso es un edge hacia la imagen (evento → imagen `portada`,
  * material → `portada`, etiqueta de serie → `imagen`, perfil → `avatar`). Los documentos y los
  * videos (PDF, MP4, WebM, ODT, ODS, ODP) son objetos `archivo`, en el mismo bucket; un texto los
- * enlaza por su dirección (`/media/file/<hash>.pdf`). Solo les admins los suben.
+ * enlaza por su dirección (`/media/file/<hash>.pdf`) y el material tiene además un edge `adjunto`
+ * hacia cada uno, que sigue al texto (types/material.js). Solo les admins los suben.
  *
  * Todas las escrituras pasan por saveObject(); las lecturas, por la visibilidad
  * (`visibleWhere`/`canSee`). Sin imports de SvelteKit: lo usan las rutas, el script de
@@ -758,9 +759,11 @@ export async function deleteImage(db, id, { actor, now = Date.now() }) {
 export const HIDDEN_USE = 'otra publicación';
 
 /**
- * Dónde se usa cada imagen, TODO lo que la usa (para decidir si se puede borrar): los edges desde
- * objetos vivos (portada, imagen, avatar…) y los objetos vivos que nombran su archivo en sus
- * datos (por ejemplo, un texto con `/media/img/<hash>.webp`). Lo que quien mira no ve se cuenta
+ * Dónde se usa cada imagen o archivo, TODO lo que lo usa (para decidir si se puede borrar): los
+ * edges desde objetos vivos (portada, imagen, avatar, el `adjunto` de un material…) y los objetos
+ * vivos que nombran su archivo en sus datos (por ejemplo, un texto con `/media/img/<hash>.webp`,
+ * que no es edge; para un archivo, un texto que no es de un material o uno guardado antes del
+ * edge `adjunto`). Un objeto que hace las dos cosas cuenta una vez. Lo que quien mira no ve se cuenta
  * igual, como {@link HIDDEN_USE}. Sin usos, la imagen no está en el mapa.
  *
  * @param {D1Database} db

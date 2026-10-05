@@ -61,8 +61,16 @@ enlazan es otro paso** (lo corre gorrite).
   subir, en `/imagenes` mirando `Content-Length` antes de leer el cuerpo (413) y en `storeFile`.
 - **Objeto `archivo`** (tipo hermano de `imagen`): `title` (el nombre, **obligatorio**; es lo que
   se ve en el enlace), `key` (`file/<sha-256>.<ext>`), `mime`, `size`, `original_name` y, cuando se
-  pase del repo, `source_path`. Sin texto alternativo (no es una imagen) y sin edges: un texto lo
-  enlaza por su dirección (`/media/file/<hash>.pdf`), como un texto que muestra una imagen.
+  pase del repo, `source_path`. Sin texto alternativo (no es una imagen) y sin edges propios: un
+  texto lo enlaza por su dirección (`/media/file/<hash>.pdf`), como un texto que muestra una imagen.
+- **Edge `adjunto`** (material → `archivo`, solo eso): además del enlace, el material tiene un edge
+  `adjunto` hacia cada archivo que enlaza (en `body` o en `link`), uno por archivo, en el orden del
+  texto. **Sigue al texto**: `saveObject()` lo recalcula en cada guardado (cualquier camino: el
+  panel, la importación, deshacer una versión…) y suma los que faltan y saca los que sobran
+  (`deriveEdges` de `src/lib/server/objects/types/material.js`, `fileKeysInText`/`liveFileIds` de
+  `types/archivo.js`). Nadie lo manda a mano (es un error). Un enlace a un hash que no es de
+  ningún archivo vivo no es edge. Nada de ids en el JSON: la dirección sigue siendo lo que el texto
+  guarda.
 - **Servir** (`/media/file/…`): el tipo correcto, `X-Content-Type-Options: nosniff`, caché para
   siempre y `ETag` como las imágenes; `Content-Disposition` con un nombre seguro (ASCII en
   `filename`, el nombre con tildes en `filename*`). Todas las respuestas de `/media` dicen
@@ -77,9 +85,14 @@ enlazan es otro paso** (lo corre gorrite).
   Documentos / Videos; los documentos y videos con un ícono y su nombre, las imágenes con su
   miniatura) y «Enlazar» suma `[Nombre](/media/file/<hash>.pdf)` al final del texto. Hoy el
   material enlaza sus PDF con un `<script>` que importa el archivo del repo y `<a href={guia}>`;
-  el paso de datos los va a reescribir a este enlace.
+  el paso de datos los va a reescribir a este enlace. Al guardar, el material queda con su edge
+  `adjunto` hacia el archivo (ver arriba).
 - **Borrar**: les admins, con el mismo borrado suave (`DELETE /imagenes/<id>`); el archivo queda en
-  R2. Un texto que nombra el archivo cuenta como uso (`imageUsage`).
+  R2. «Dónde se usa» (`imageUsage`) cuenta el edge `adjunto` de cada material vivo y, como con las
+  imágenes, también un texto que nombra el archivo sin edge (de otro tipo, o un material guardado
+  antes del edge); cada objeto, una vez. Los edges `adjunto` hacia un archivo borrado quedan (como
+  todo edge al borrar suave, para poder deshacer) y el próximo guardado de ese material los saca
+  (como una etiqueta borrada: solo hay edge hacia lo vivo); el enlace del texto queda y da 404.
 
 ## El selector (ImagePicker)
 
@@ -214,26 +227,30 @@ aclara en cada punto.
 - **Importación**: crea imágenes para todo lo que hay en las carpetas (también lo que nada usa) y
   edges solo para eventos, material y series; las fichas de amigues no reciben `avatar`.
 
-## Documentos y video: DECIDIDO POR CLAUDE, A CONFIRMAR
+## Documentos y video: decisiones (confirmadas por gorrite, 5/10)
 
-- **Tipo hermano `archivo`** en vez de generalizar `imagen`: así ningún uso de imagen (portada,
-  avatar, imagen de serie) puede apuntar a un PDF o a un video, porque los edges dicen hacia qué
-  tipo van; `imagen` sigue pidiendo texto alternativo y `archivo` pide nombre. Nada de lo que ya
-  existía para las imágenes cambia de forma.
-- **Sin edges desde el material**: el texto enlaza el archivo por su dirección
-  (`/media/file/<hash>.<ext>`), como hoy un texto muestra una imagen; «dónde se usa» lo encuentra
-  por el hash (`imageUsage`). Un edge `adjunto` se puede sumar después si hace falta listar los
-  archivos de un material.
-- **25 MB** por documento o video (ver arriba). Para algo más grande: achicarlo o subirlo a otro
-  lado y poner el link.
-- **PDF y video sin `sandbox`** en la `Content-Security-Policy` (el visor de PDF del navegador no
-  abre en un documento con sandbox); las imágenes y los ODT/ODS/ODP la siguen teniendo. Solo
-  les admins suben PDF.
-- **Video `inline`** (se ve en el navegador) como los PDF; los OpenDocument se descargan.
-- **El nombre escrito va tal cual** (sin cortar lo que parece una extensión); sin nombre escrito,
-  el del archivo sin la extensión. El mismo archivo subido otra vez es el mismo objeto (con su
-  nombre de antes).
-- **WebM** se acepta (era trivial); ODS y ODP también, aunque hoy solo hay un ODT.
-- **Sin página propia de la biblioteca** en el panel: lo nuevo está en el editor de material. El
-  título de esta página pasó de «Imágenes» a «La biblioteca»; las rutas (`/imagenes`, `/media`) y
-  los tipos de la base no cambian (un renombre así va en un PR aparte).
+Propuestas por Claude; **confirmado por gorrite (5/10)** todo lo de esta lista, con los cambios que
+se aclaran en los puntos 2 y 8.
+
+1. **Tipo hermano `archivo`** en vez de generalizar `imagen`: así ningún uso de imagen (portada,
+   avatar, imagen de serie) puede apuntar a un PDF o a un video, porque los edges dicen hacia qué
+   tipo van; `imagen` sigue pidiendo texto alternativo y `archivo` pide nombre. Nada de lo que ya
+   existía para las imágenes cambia de forma.
+2. **Enlace por dirección Y edge `adjunto`** (gorrite): el texto enlaza el archivo por su dirección
+   (`/media/file/<hash>.<ext>`), como hoy un texto muestra una imagen, y además el material tiene
+   un edge `adjunto` hacia cada archivo que enlaza. El edge **sigue al texto**: cada guardado lo
+   recalcula (ver «Edge `adjunto`» arriba). «Dónde se usa» lo encuentra por el edge (y por el hash
+   en los textos sin edge, como con las imágenes).
+3. **25 MB** por documento o video (ver arriba). Para algo más grande: achicarlo o subirlo a otro
+   lado y poner el link.
+4. **PDF y video sin `sandbox`** en la `Content-Security-Policy` (el visor de PDF del navegador no
+   abre en un documento con sandbox); las imágenes y los ODT/ODS/ODP la siguen teniendo. Solo
+   les admins suben PDF.
+5. **Video `inline`** (se ve en el navegador) como los PDF; los OpenDocument se descargan.
+6. **El nombre escrito va tal cual** (sin cortar lo que parece una extensión); sin nombre escrito,
+   el del archivo sin la extensión. El mismo archivo subido otra vez es el mismo objeto (con su
+   nombre de antes).
+7. **WebM** se acepta (era trivial); ODS y ODP también, aunque hoy solo hay un ODT.
+8. **Una página de la biblioteca vendrá en un PR aparte** (gorrite). Por ahora lo nuevo está en el
+   editor de material. El título de esta página pasó de «Imágenes» a «La biblioteca»; las rutas
+   (`/imagenes`, `/media`) y los tipos de la base no cambian (un renombre así va en un PR aparte).

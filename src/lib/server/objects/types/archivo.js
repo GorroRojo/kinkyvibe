@@ -11,7 +11,9 @@
  * - `title` (del objeto) es el nombre que se muestra y con el que se busca: obligatorio al subir
  *   (en vez del texto alternativo de una imagen).
  * - Un texto que lo enlaza (`/media/file/<hash>.pdf`) lo nombra por su dirección, como un texto
- *   que muestra una imagen: no hay ids adentro del JSON.
+ *   que muestra una imagen: no hay ids adentro del JSON. Además, un material tiene un edge
+ *   `adjunto` hacia cada archivo que su texto enlaza; ese edge sigue al texto: lo calcula cada
+ *   guardado ({@link fileKeysInText}, {@link liveFileIds}; ver `deriveEdges` en ./material.js).
  * - Solo les admins suben archivos (src/lib/server/media/access.js y /imagenes).
  * - Borrar es el borrado suave del objeto: `/media/…` deja de servirlo; el archivo queda en R2.
  *
@@ -30,6 +32,53 @@ export const FILE_MIMES = /** @type {const} */ ([
 
 /** Clave en R2: `file/<sha-256 en hex>.<ext>`. */
 export const FILE_KEY = /^file\/[0-9a-f]{64}\.(?:pdf|mp4|webm|odt|ods|odp)$/;
+
+/**
+ * Un enlace a un archivo de la biblioteca dentro de un texto: `/media/file/<sha-256>.<ext>` (con o
+ * sin el dominio adelante). Lo de después de la extensión no puede seguir la palabra (así
+ * `….pdfx` no cuenta).
+ */
+const FILE_URL = /\/media\/(file\/[0-9a-f]{64}\.(?:pdf|mp4|webm|odt|ods|odp))(?![0-9A-Za-z_])/g;
+
+/**
+ * Pura: las claves (`file/<hash>.<ext>`) de los archivos que estos textos enlazan, sin repetir y en
+ * el orden en que aparecen.
+ *
+ * @param {readonly unknown[]} texts
+ * @returns {string[]}
+ */
+export function fileKeysInText(texts) {
+	/** @type {Set<string>} */
+	const keys = new Set();
+	for (const text of texts) {
+		if (typeof text !== 'string') continue;
+		for (const m of text.matchAll(FILE_URL)) keys.add(m[1]);
+	}
+	return [...keys];
+}
+
+/**
+ * Los ids de los archivos VIVOS (sin borrar) con esas claves, en el orden de `keys`. Una clave que
+ * no es de ningún archivo vivo no está (no hay a qué apuntar).
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {readonly string[]} keys
+ * @returns {Promise<number[]>}
+ */
+export async function liveFileIds(db, keys) {
+	if (!keys.length) return [];
+	const { results } = await db
+		.prepare(
+			`SELECT id, json_extract(data, '$.key') AS key FROM objects
+			WHERE type = 'archivo' AND deleted_at IS NULL
+			AND slug IN (SELECT substr(value, 6, 64) FROM json_each(?1))
+			AND json_extract(data, '$.key') IN (SELECT value FROM json_each(?1))`
+		)
+		.bind(JSON.stringify(keys))
+		.all();
+	const byKey = new Map(results.map((r) => [String(r.key), Number(r.id)]));
+	return keys.flatMap((k) => (byKey.has(k) ? [/** @type {number} */ (byKey.get(k))] : []));
+}
 
 /** @type {import('./index.js').CoreType} */
 const archivo = {
