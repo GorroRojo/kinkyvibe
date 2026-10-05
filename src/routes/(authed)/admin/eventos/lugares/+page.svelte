@@ -63,6 +63,7 @@
 	subtitle="Dónde suceden los eventos: dirección, mapa, accesibilidad, cómo llegar y qué se muestra de la dirección."
 >
 	<svelte:fragment slot="actions">
+		<a class="kv-btn ghost" href="/admin/eventos/lugares/vincular">Vincular lugares</a>
 		<a class="kv-btn ghost" href="/admin/eventos/lugares/importar">Importar de eventos</a>
 		<a class="kv-btn ghost" href="/admin/comunidad/perfiles?tipo=lugar">Ver en Perfiles</a>
 	</svelte:fragment>

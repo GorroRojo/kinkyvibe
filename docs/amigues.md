@@ -248,6 +248,63 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   evento que ya tiene uno. Va de a tandas y se puede
   repetir; cada lugar creado o vínculo queda en Actividad. Hay CSV de los candidatos.
 
+## Vincular lugares
+
+**Eventos → Lugares → «Vincular lugares»** (`/admin/eventos/lugares/vincular`, solo admins; botón
+en el encabezado de Lugares). Muchos eventos tienen el lugar solo como texto («Dónde»:
+`location_name` / `location`) y no tienen edge `lugar`, así que su página no puede mostrar el mapa.
+Pedido de gorrite: una herramienta que sugiera, para cada «Dónde» escrito, el perfil de lugar que
+probablemente es, para confirmar de a muchos. A diferencia de «Importar de eventos» (que crea
+lugares), esta vincula con los **lugares que ya existen**. Reglas puras en
+`src/lib/utils/venueMatch.js`; lecturas y escrituras en `src/lib/server/amigues/venueLinking.js`.
+
+- **Grupos**: los eventos sin lugar (un vínculo a un lugar borrado no cuenta) y con «Dónde»,
+  juntados con las mismas reglas que «Importar de eventos» (`planVenueImport`: mismo nombre, misma
+  calle y número o mismo link al mapa). Cada grupo muestra cómo lo escribieron, cuántos eventos y
+  desde cuándo hasta cuándo. Se saltean los online y los que no tienen «Dónde».
+- **Sugerencias** (hasta 3 por grupo, con el puntaje y por qué), comparando con cada lugar:
+
+  | Señal                                                                         | Puntaje  |
+  | ----------------------------------------------------------------------------- | -------- |
+  | mismo nombre (el del lugar, su dirección en el sitio o la de su ficha .md)    | 100      |
+  | misma calle y número                                                          | 95       |
+  | mismo punto del mapa (el link del evento a menos de 150 m del lugar)          | 90       |
+  | mismo número y calle parecida                                                 | 80       |
+  | nombre parecido (similitud de letras) o un nombre contiene al otro            | hasta 85 |
+  | dirección parecida (sin número que coincida)                                  | hasta 70 |
+  | mismo nombre pero otra dirección (¿se mudó? ¿otro lugar con el mismo nombre?) | 70       |
+
+  Manda la señal más fuerte y cada señal fuerte de más suma 5 (hasta 100). Se sugieren las de 45
+  o más. Para comparar: sin mayúsculas, tildes ni puntuación; en la dirección, sin «Av.»,
+  «Avenida», «Calle», «Pasaje»…, con «Gral.», «Pte.», «Dr.»… enteros, sin el punto de los miles
+  («1.234») ni el «N°», y sin lo que viene después del número (piso, depto). La primera sugerencia
+  viene **elegida**, y **marcada** para «Vincular todas las marcadas» solo si tiene 85 o más y le
+  gana por 10 o más a la segunda.
+
+- **Otras opciones** por grupo: «Buscar otro lugar» (por nombre, calle o barrio, entre todos los
+  lugares), «Crear lugar nuevo» (abre Perfiles → nuevo con el nombre y la dirección ya escritos:
+  `?tipo=lugar&nombre=…&direccion=…`; después de crearlo, el grupo lo sugiere con «mismo nombre») y
+  «Dejar como texto».
+- **Qué se ve**: con el lugar elegido, la página dice qué eventos se van a ver distinto y por qué
+  (`eventFit`, la misma lista blanca que la página del evento).
+- **Privacidad** (decidido por Claude, a confirmar): cada evento queda con el nivel del lugar,
+  salvo que el evento mostraba menos (por ejemplo, solo el nombre): entonces lleva ese nivel como
+  propio en el edge (`linkPrivacy`). Nunca muestra del lugar más de lo que el lugar deja ver por
+  defecto, aunque el evento mostrara más en su texto.
+- **«Vincular»** (un grupo) y **«Vincular todas las marcadas»** (con confirmación) escriben el edge
+  `lugar` de cada evento con `linkFreeEventVenue` (saveObject() sobre el evento: versión nueva,
+  revisión con `source = 'lugar'`, `content_sources` al día), como el formulario del evento. Cada
+  evento se revisa otra vez al guardar: uno que consiguió lugar en el medio (o quedó como texto) se
+  saltea; repetir es seguro. El «Dónde» escrito **no se toca** (se vuelve a ver si se saca el
+  lugar). Va de a tandas (el máximo de consultas de D1 por pedido); la página repite con lo que
+  falta y muestra lo vinculado, lo salteado y los errores de cada grupo. Cada grupo vinculado queda
+  en Actividad (`venue.bulk_link`, con los eventos y su nivel).
+- **«Dejar como texto»**: los eventos del grupo no se sugieren más. Es una fila por evento en
+  `event_venue_dismissals` (migración 0046; no en el JSON del evento, que le subiría la versión),
+  con la clave de su «Dónde» de ese momento (`placeKeyOf`): si alguien cambia el «Dónde», se
+  vuelve a sugerir. Abajo, «Quedaron como texto» los lista con «Volver a sugerir» (borra las
+  filas). Los dos quedan en Actividad (`venue.link_dismiss`, `venue.link_undismiss`).
+
 ## «Sucede en» es un edge
 
 "Sucede en" es un **edge `lugar`** del evento (evento → perfil de tipo lugar), escrito solo con
@@ -277,23 +334,25 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   la puede borrar cuando todos los eventos estén en la base.
 - Antes (0017 → 0035) era esa tabla, por la dirección del evento, mientras los eventos eran `.md`.
 
-## Tablas (migraciones 0017, 0024 y 0025)
+## Tablas (migraciones 0017, 0024, 0025 y 0046)
 
-| Tabla                | Qué guarda                                                                                                                                                                                                                          |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `profile_sources`    | de qué `.md` vino cada perfil (dirección vieja, SHA-256, versión importada) y la clasificación (propuesta: persona, proyecto o lugar; por qué; confirmada). 0024 rehízo la tabla para que la propuesta diga `proyecto` y no `grupo` |
-| `profile_approvals`  | perfiles aprobados para `/amigues`                                                                                                                                                                                                  |
-| `profile_claims`     | pedidos "Es mi perfil" (pendiente, aprobado, rechazado)                                                                                                                                                                             |
-| `profile_rejections` | lugares de cuentas rechazados (0025): quién, cuándo y el motivo que ve quien lo cargó; «Volver a mandar» o aprobarlo borra la fila                                                                                                  |
-| `event_venues`       | "sucede en" de antes (0017, 0027); desde 0035 es el edge `lugar` del evento y la tabla ya no se usa                                                                                                                                 |
+| Tabla                    | Qué guarda                                                                                                                                                                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `profile_sources`        | de qué `.md` vino cada perfil (dirección vieja, SHA-256, versión importada) y la clasificación (propuesta: persona, proyecto o lugar; por qué; confirmada). 0024 rehízo la tabla para que la propuesta diga `proyecto` y no `grupo` |
+| `profile_approvals`      | perfiles aprobados para `/amigues`                                                                                                                                                                                                  |
+| `profile_claims`         | pedidos "Es mi perfil" (pendiente, aprobado, rechazado)                                                                                                                                                                             |
+| `profile_rejections`     | lugares de cuentas rechazados (0025): quién, cuándo y el motivo que ve quien lo cargó; «Volver a mandar» o aprobarlo borra la fila                                                                                                  |
+| `event_venue_dismissals` | «Dejar como texto» de Vincular lugares (0046): un evento por fila, con la clave de su «Dónde» de entonces; si el «Dónde» cambia, se vuelve a sugerir                                                                                |
+| `event_venues`           | "sucede en" de antes (0017, 0027); desde 0035 es el edge `lugar` del evento y la tabla ya no se usa                                                                                                                                 |
 
 ## Dónde está el código
 
 - `src/lib/server/amigues/`: `importer.js` y `classify.js` (importación y clasificación),
   `profiles.js` (quién ve qué), `pages.js` (lo que arman las páginas), `venues.js` (lugares y
-  privacidad), `claims.js`, `approvals.js`, `editor.js` (editor del panel), `render.js` y
+  privacidad), `claims.js`, `approvals.js`, `editor.js` (editor del panel), `venueImport.js` (Importar de eventos), `venueLinking.js` (Vincular lugares), `render.js` y
   `sanitize.js` (texto en HTML), `review.js` (importar desde el panel y CSV).
-- Reglas puras de privacidad y mapa: `src/lib/utils/venues.js`.
+- Reglas puras de privacidad y mapa: `src/lib/utils/venues.js`; de Vincular lugares (sugerencias):
+  `src/lib/utils/venueMatch.js`.
 - Páginas: `src/routes/(content)/amigues/`; panel: `src/routes/(authed)/admin/comunidad/perfiles/`,
   `admin/eventos/lugares/`, `admin/comunidad/cuentas/perfiles/[id]/` (ficha de un perfil). Componentes: `src/lib/components/amigues/`
   y `src/lib/components/admin/amigues/`.
@@ -301,4 +360,4 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
 
 ## Probarlo
 
-`npx vitest run src/lib/server/amigues src/lib/utils/venues.test.js "src/routes/(content)/amigues" "src/routes/(authed)/admin/comunidad/perfiles"`
+`npx vitest run src/lib/server/amigues src/lib/utils/venues.test.js src/lib/utils/venueMatch.test.js "src/routes/(content)/amigues" "src/routes/(authed)/admin/eventos/lugares" "src/routes/(authed)/admin/comunidad/perfiles"`
