@@ -3,7 +3,8 @@
 	 * El bloque de compra de las maquetas: el mismo botón «Comprar entradas» de la página real
 	 * (calendario/[event]/+page.svelte, `.buy-cta`; docs/estilo.md: «el botón de comprar entradas
 	 * es otro y queda distinto»), copiado tal cual para no tocar la página. Solo el caso abierto,
-	 * con precio, «Quedan N», cierre de la venta y puerta.
+	 * con precio, «Quedan N», cierre de la venta y puerta; cerrada, los mismos textos que la página
+	 * real («Agotadas.», «Venta cerrada.», «Entradas: …», cancelado, no disponible).
 	 * Props: `tickets` (resumen de la venta), `wide` (ocupa todo el ancho de su caja), `title`
 	 * («Comprar entradas», o «Comprar entrada al taller» si una entrada vale para todas las partes).
 	 */
@@ -24,18 +25,32 @@
 </script>
 
 <section class="buy-cta" class:wide id="entradas" aria-label="Entradas">
-	<a class="buy-button" href="#entradas">
-		<span class="buy-title">{title}</span>
-		<span class="buy-meta"
-			>{price}{#if tickets.left !== null}{' '}<strong class="buy-left"
-					>· {leftText(tickets.left)}</strong
-				>{/if}</span
-		>
-	</a>
-	{#if tickets.closesAt}
-		<p class="buy-when">{saleWindowText({ closesAt: tickets.closesAt })}.</p>
+	{#if tickets.open}
+		<a class="buy-button" href="#entradas">
+			<span class="buy-title">{title}</span>
+			<span class="buy-meta"
+				>{price}{#if tickets.left !== null}{' '}<strong class="buy-left"
+						>· {leftText(tickets.left)}</strong
+					>{/if}</span
+			>
+		</a>
+		{#if tickets.closesAt}
+			<p class="buy-when">{saleWindowText({ closesAt: tickets.closesAt })}.</p>
+		{/if}
+	{:else}
+		<p class="buy-closed">
+			{tickets.reason === 'soldout'
+				? 'Agotadas.'
+				: tickets.reason === 'closed'
+					? 'Venta cerrada.'
+					: tickets.reason === 'notyet' && tickets.opensAt
+						? `Entradas: ${saleWindowText({ opensAt: tickets.opensAt })}.`
+						: tickets.reason === 'cancelled'
+							? 'El evento se canceló: no hay venta de entradas.'
+							: 'La venta online de entradas no está disponible en este momento.'}
+		</p>
 	{/if}
-	{#if doorText(tickets.door)}
+	{#if tickets.reason !== 'cancelled' && doorText(tickets.door)}
 		<p class="buy-when">{doorText(tickets.door)}</p>
 	{/if}
 </section>
@@ -79,6 +94,11 @@
 	}
 	.buy-left {
 		white-space: nowrap;
+	}
+	.buy-closed {
+		text-align: center;
+		font-weight: 700;
+		margin: 0;
 	}
 	.buy-when {
 		text-align: center;

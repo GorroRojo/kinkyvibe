@@ -2,42 +2,79 @@
 	/**
 	 * «Cuándo y dónde» de la maqueta: fecha, horario y lugar, y siempre un mapa chico (las
 	 * baldosas estáticas de VenueMap) debajo del lugar y ARRIBA de «Ver en Google Maps» (pedido de
-	 * gorrite). El lugar sale de VenueLocation (`part="where"`), así respeta las reglas de cada
-	 * nivel de privacidad; el mapa y el link a Google Maps, solo en los niveles que muestran la
-	 * dirección (`showsAddress`, `googleMapsLink`), como en la página real.
+	 * gorrite). Con lugar vinculado, VenueLocation (`part="where"`) respeta las reglas de cada
+	 * nivel de privacidad (y «Te mandamos la dirección con tu entrada.» cuando no se ve); el mapa
+	 * y el link a Google Maps, solo en los niveles que muestran la dirección, como en la página
+	 * real. Sin lugar vinculado, el «Dónde» del .md (`location`, con su link al mapa
+	 * `location_map`) u «Online» (eventPlace.js, lo mismo que el .ics).
+	 * Props: `meta`, `venue` (VenueView o null), `mapa` (false: sin el mapa chico, p. ej. cancelado).
 	 */
-	import { CalendarDays, Clock } from '@lucide/svelte';
+	import { CalendarDays, Clock, Globe, MapPin } from '@lucide/svelte';
 	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
 	import VenueMap from '$lib/components/amigues/VenueMap.svelte';
 	import { googleMapsLink, showsAddress } from '$lib/utils/venues.js';
-	import { fechaCorta, venue, START } from './datos.js';
+	import { eventPlace } from '$lib/utils/eventPlace.js';
+	import { MAP_LABEL } from '$lib/utils/icsFeed.js';
+	import { argDateTimeLong, argTime, eventEnd } from '$lib/utils/dates.js';
 
-	const f = fechaCorta();
-	const gmaps = googleMapsLink(venue);
-	const map = showsAddress(venue.level) && venue.lat !== undefined && venue.lng !== undefined;
+	/** @type {Record<string, any>} */
+	export let meta;
+	/** @type {import('$lib/utils/venues.js').VenueView | null} */
+	export let venue;
+	export let mapa = true;
+
+	$: end = eventEnd(meta.start, meta.end);
+	$: dia = argDateTimeLong(meta.start, { time: false });
+	// Si termina otro día (pasada la medianoche o eventos de varios días), con el día del final.
+	$: diaFin = argDateTimeLong(end, { time: false });
+	$: horas =
+		diaFin === dia
+			? `${argTime(meta.start)} a ${argTime(end)}`
+			: `${argTime(meta.start)} a ${argTime(end)} del ${diaFin}`;
+	$: place = eventPlace(meta, venue);
+	$: gmaps = venue ? googleMapsLink(venue) : undefined;
+	$: map =
+		mapa && venue && showsAddress(venue.level) && venue.lat !== undefined && venue.lng !== undefined
+			? { lat: venue.lat, lng: venue.lng, label: venue.name ?? venue.address ?? '' }
+			: null;
 </script>
 
 <section class="cuando-donde surface-card" aria-labelledby="cuando-donde-titulo">
 	<h2 id="cuando-donde-titulo">Cuándo y dónde</h2>
 	<p class="linea">
 		<CalendarDays size="1.1em" aria-hidden="true" />
-		<time datetime={START}><strong>{f.dia}</strong></time>
+		<time class="dt-start" datetime={meta.start}><strong>{dia}</strong></time>
 	</p>
 	<p class="linea">
 		<Clock size="1.1em" aria-hidden="true" />
-		<span>{f.horas}</span>
+		<span>{horas}</span>
 	</p>
-	<div class="lugar">
-		<VenueLocation view={venue} context="event" compact part="where" />
-	</div>
-	{#if map && venue.lat !== undefined && venue.lng !== undefined}
+	{#if venue}
+		<div class="lugar">
+			<VenueLocation view={venue} context="event" compact part="where" />
+		</div>
+	{:else}
+		<p class="linea">
+			<svelte:component
+				this={place.text === 'Online' ? Globe : MapPin}
+				size="1.1em"
+				aria-hidden="true"
+			/>
+			<span class="p-location">{place.text}</span>
+		</p>
+	{/if}
+	{#if map}
 		<div class="mini-mapa">
-			<VenueMap lat={venue.lat} lng={venue.lng} label={venue.name ?? venue.address ?? ''} />
+			<VenueMap lat={map.lat} lng={map.lng} label={map.label} />
 		</div>
 	{/if}
 	{#if gmaps}
-		<p class="gmaps">
+		<p class="map-link">
 			<a href={gmaps} target="_blank" rel="noopener noreferrer">Ver en Google Maps</a>
+		</p>
+	{:else if place.mapUrl}
+		<p class="map-link">
+			<a href={place.mapUrl} target="_blank" rel="noopener noreferrer">{MAP_LABEL}</a>
 		</p>
 	{/if}
 </section>
@@ -80,10 +117,10 @@
 		margin: 0;
 	}
 	/* El mismo «Ver en Google Maps» de VenueLocation (píldora con borde). */
-	.gmaps {
+	.map-link {
 		margin: var(--space-2xs) 0 0;
 	}
-	.gmaps a {
+	.map-link a {
 		display: inline-block;
 		padding: 0.3em 0.8em;
 		border: 1px solid currentColor;

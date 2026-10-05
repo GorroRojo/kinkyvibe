@@ -189,9 +189,146 @@ export function pageData() {
 		partes,
 		personas,
 		pronouns: {},
-		relatedPosts: [],
+		relatedPosts: relacionados,
 		relatedPastCount: 0,
-		authorsProfiles: Promise.resolve([]),
+		authorsProfiles: Promise.resolve(perfiles),
 		propinas: false
 	};
+}
+
+/** Los perfiles de les autores (para las tarjetas de abajo, como `authorsProfiles`). */
+export const perfiles = [
+	{
+		path: '/amigues/colectivo-inventado',
+		meta: {
+			postID: 'Colectivo Inventado',
+			title: 'Colectivo Inventado',
+			summary: 'Un colectivo de prueba que organiza encuentros inventados de cuerdas.',
+			featured: AFICHE
+		}
+	},
+	{
+		path: '/amigues/persona-de-prueba-uno',
+		meta: {
+			postID: 'Persona de Prueba Uno',
+			title: 'Persona de Prueba Uno',
+			summary: 'Perfil inventado para las maquetas.',
+			featured: AFICHE
+		}
+	}
+];
+
+/** «Más cosas de…»: dos eventos inventados que vienen (como `relatedPosts`). */
+export const relacionados = [
+	{
+		path: '/calendario/jornada-inventada-de-cuerdas-5',
+		meta: {
+			title: 'Jornada Inventada de Cuerdas · Edición 5',
+			summary: 'La próxima edición inventada.',
+			tags: ['KinkyVibe', 'español', 'Serie Inventada'],
+			authors: meta.authors,
+			start: '2026-12-12T15:00:00-03:00',
+			end: '2026-12-12T19:00:00-03:00',
+			status: 'anunciado',
+			featured: AFICHE,
+			category: 'calendario',
+			link: ''
+		}
+	},
+	{
+		path: '/calendario/practica-inventada',
+		meta: {
+			title: 'Práctica abierta inventada',
+			summary: 'Una práctica de ejemplo.',
+			tags: ['español', 'gratis'],
+			authors: ['Colectivo Inventado'],
+			start: '2026-11-28T18:00:00-03:00',
+			end: '2026-11-28T21:00:00-03:00',
+			status: 'abierto',
+			featured: AFICHE,
+			category: 'calendario',
+			link: ''
+		}
+	}
+];
+
+/**
+ * Los estados que se pueden probar en la maqueta «final», por la URL (Mockup.svelte):
+ * - `entrada`: 'parte' (por defecto: entradas por parte) | 'unica' (una sola entrada para el
+ *   taller) | 'link' (sin venta acá: link de inscripción `link`/`link_text`) | 'gratis' (sin
+ *   entradas ni link; evento gratis de KinkyVibe: bloque de propina);
+ * - `estado`: '' | 'agotadas' | 'cerrada' | 'pronto' (la venta abre más adelante) | 'cancelado';
+ * - `lugar`: 'publico' (por defecto) | 'nombre' | 'direccion' | 'zona' | 'oculto' (niveles de
+ *   privacidad del lugar) | 'texto' (sin lugar vinculado: el «Dónde» del .md con link al mapa) |
+ *   'online';
+ * - `imagen`, `serie`, `partes`: false para probar sin afiche, sin serie o sin partes;
+ * - `pasado`: el evento ya pasó;
+ * - `finOtroDia`: termina pasada la medianoche (el horario dice el día del final).
+ * @typedef {{ entrada: string, estado: string, lugar: string, imagen: boolean, serie: boolean, partes: boolean, pasado: boolean, finOtroDia?: boolean }} Opciones
+ */
+
+/** @type {Opciones} */
+export const POR_DEFECTO = {
+	entrada: 'parte',
+	estado: '',
+	lugar: 'publico',
+	imagen: true,
+	serie: true,
+	partes: true,
+	pasado: false
+};
+
+/**
+ * Los datos de la maqueta para unas opciones.
+ * @param {Opciones} o
+ */
+export function escenario(o) {
+	const cancelado = o.estado === 'cancelado';
+	/** @type {Record<string, any>} */
+	const m = { ...meta, status: cancelado ? 'cancelado' : meta.status, link: '', link_text: '' };
+	if (!o.imagen) delete m.featured;
+	if (o.finOtroDia) m.end = '2026-11-15T02:00:00-03:00';
+	if (!o.serie) m.tags = m.tags.filter((/** @type {string} */ t) => t !== 'Serie Inventada');
+	if (o.entrada === 'link') {
+		m.link = 'https://example.invalid/inscripcion';
+		m.link_text = 'Inscribirme';
+	}
+	if (o.entrada === 'gratis') {
+		m.tags = m.tags.map((/** @type {string} */ t) => (t === 'pago' ? 'gratis' : t));
+	}
+
+	/** @type {import('$lib/utils/venues.js').VenueView | null} */
+	let v = venue;
+	if (o.lugar === 'nombre') v = { level: 'name', name: venue.name, href: venue.href };
+	if (o.lugar === 'direccion') {
+		const { address, area, city, lat, lng } = venue;
+		v = { level: 'address', address, area, city, lat, lng };
+	}
+	if (o.lugar === 'zona') v = { level: 'area', area: venue.area, city: venue.city };
+	if (o.lugar === 'oculto') v = { level: 'hidden' };
+	if (o.lugar === 'texto' || o.lugar === 'online') v = null;
+	if (o.lugar === 'texto') {
+		m.location = 'Calle de Ejemplo 456, Ciudad de Ejemplo';
+		m.location_map = 'https://www.openstreetmap.org/?mlat=-34.6&mlon=-58.4';
+	}
+
+	const conVenta = o.entrada === 'parte' || o.entrada === 'unica';
+	/** @type {Record<string, any> | null} */
+	let t = conVenta ? { ...tickets } : null;
+	if (t && o.estado === 'agotadas') Object.assign(t, { open: false, reason: 'soldout' });
+	if (t && o.estado === 'cerrada') Object.assign(t, { open: false, reason: 'closed' });
+	if (t && o.estado === 'pronto') {
+		Object.assign(t, {
+			open: false,
+			reason: 'notyet',
+			opensAt: Date.parse('2026-10-20T12:00:00-03:00')
+		});
+	}
+	if (t && cancelado) Object.assign(t, { open: false, reason: 'cancelled' });
+
+	const s = o.serie
+		? { ...series, list: series.list.map((x) => ({ ...x, past: o.pasado })) }
+		: null;
+	const p = o.partes ? partesFor(o.entrada === 'unica') : null;
+	return { meta: m, venue: v, tickets: t, series: s, partes: p, personas };
 }

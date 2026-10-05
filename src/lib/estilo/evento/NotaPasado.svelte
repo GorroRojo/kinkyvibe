@@ -1,13 +1,21 @@
 <script>
-	/** «Este evento ya pasó», como en la página real (con la próxima edición de la serie). */
+	/**
+	 * «Este evento ya pasó» (con la próxima edición de la serie, si hay) o, con `cancelado`, «Este
+	 * evento se canceló.», en la tarjeta de la página real (`.past-note`).
+	 * Props: `next` (la edición siguiente o null), `cancelado`.
+	 */
 	import { ArrowRight } from '@lucide/svelte';
-	import { series } from './datos.js';
-	const next = series.list[0].next;
+
+	/** @type {{ path: string } | null} */
+	export let next = null;
+	export let cancelado = false;
 </script>
 
 <p class="past-note surface-card" role="note">
-	<strong>Este evento ya pasó.</strong>
-	<a href={next.path}>Próxima edición de la serie <ArrowRight size="1em" aria-hidden="true" /></a>
+	<strong>{cancelado ? 'Este evento se canceló.' : 'Este evento ya pasó.'}</strong>
+	{#if next}
+		<a href={next.path}>Próxima edición de la serie <ArrowRight size="1em" aria-hidden="true" /></a>
+	{/if}
 </p>
 
 <style>

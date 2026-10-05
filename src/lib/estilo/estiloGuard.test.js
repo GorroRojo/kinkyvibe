@@ -124,7 +124,9 @@ describe('maquetas /estilo/evento/<opcion>: solo en previews y en dev', () => {
 			for (const m of src.matchAll(/[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)/g))
 				expect(m[1], name).toMatch(/^(?:[a-z0-9-]+\.)*example\.invalid$/);
 			for (const m of src.matchAll(/https?:\/\/([A-Za-z0-9.-]+)/g))
-				expect(m[1], name).toMatch(/^(?:[a-z0-9-]+\.)*example\.invalid$|^www\.w3\.org$/);
+				expect(m[1], name).toMatch(
+					/^(?:[a-z0-9-]+\.)*example\.invalid$|^www\.(?:w3|openstreetmap)\.org$/
+				);
 		}
 	});
 });

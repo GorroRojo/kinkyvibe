@@ -2,14 +2,17 @@
 	/**
 	 * Maqueta de la página de un evento (pedido de gorrite): /estilo/evento/<opcion> con `actual`
 	 * (la página real con los mismos datos inventados) y `final` (Final.svelte). Datos inventados
-	 * (datos.js). Variantes de `final` por la URL: `?entrada=unica`, `?compra=lateral`,
-	 * `?pasado=1`. Solo existe en previews y en dev, como la galería /estilo
+	 * (datos.js). Estados de `final` por la URL (`Opciones` en datos.js): `?entrada=unica|link|
+	 * gratis`, `?estado=agotadas|cerrada|pronto|cancelado`, `?lugar=nombre|direccion|zona|oculto|
+	 * texto|online`, `?sin-imagen=1`, `?sin-serie=1`, `?sin-partes=1`, `?pasado=1`, `?fin=otro-dia` y
+	 * `?compra=lateral`. Solo existe en previews y en dev, como la galería /estilo
 	 * (src/routes/estilo/evento/[opcion]/+page.js).
 	 */
 	import { page } from '$app/stores';
 	import Actual from './Actual.svelte';
 	import Final from './Final.svelte';
 	import { OPCIONES } from './opciones.js';
+	import { POR_DEFECTO } from './datos.js';
 
 	/** @type {string} */
 	export let opcion;
@@ -17,26 +20,36 @@
 	// (`node scripts/demo/guard.js bundle`).
 	const MARCA = 'kv-estilo-galeria';
 	$: q = $page.url.searchParams;
-	$: past = q.get('pasado') === '1';
-	$: unica = q.get('entrada') === 'unica';
+	/** @type {import('./datos.js').Opciones} */
+	let opciones = POR_DEFECTO;
+	$: opciones = {
+		entrada: q.get('entrada') ?? POR_DEFECTO.entrada,
+		estado: q.get('estado') ?? '',
+		lugar: q.get('lugar') ?? POR_DEFECTO.lugar,
+		imagen: q.get('sin-imagen') !== '1',
+		serie: q.get('sin-serie') !== '1',
+		partes: q.get('sin-partes') !== '1',
+		pasado: q.get('pasado') === '1',
+		finOtroDia: q.get('fin') === 'otro-dia'
+	};
 	/** @type {'texto' | 'lateral'} */
 	let compra = 'texto';
 	$: compra = q.get('compra') === 'lateral' ? 'lateral' : 'texto';
-	/** Las variantes de `final`, para pasar de una a otra. */
-	$: variantes = [
-		{
-			href: '/estilo/evento/final',
-			nombre: 'por defecto',
-			actual: !unica && compra === 'texto' && !past
-		},
-		{ href: '/estilo/evento/final?entrada=unica', nombre: 'una sola entrada', actual: unica },
-		{
-			href: '/estilo/evento/final?compra=lateral',
-			nombre: 'comprar en la columna',
-			actual: compra === 'lateral'
-		},
-		{ href: '/estilo/evento/final?pasado=1', nombre: 'ya pasó', actual: past }
+	/** Algunos estados de `final`, para pasar de uno a otro. */
+	const VARIANTES = [
+		['', 'por defecto'],
+		['?entrada=unica', 'una sola entrada'],
+		['?entrada=link', 'link de inscripción'],
+		['?entrada=gratis', 'gratis'],
+		['?estado=agotadas', 'agotadas'],
+		['?estado=pronto', 'venta más adelante'],
+		['?estado=cancelado', 'cancelado'],
+		['?pasado=1', 'ya pasó'],
+		['?lugar=zona', 'lugar privado'],
+		['?lugar=online&sin-imagen=1&sin-serie=1&sin-partes=1', 'online, sin afiche ni serie'],
+		['?compra=lateral', 'comprar en la columna']
 	];
+	$: actualQ = $page.url.search;
 </script>
 
 <div class="maqueta" data-kv-estilo={MARCA}>
@@ -49,15 +62,17 @@
 		{/each}
 		{#if opcion === 'final'}
 			<span>·</span>
-			{#each variantes as v (v.href)}
-				<a href={v.href} aria-current={v.actual ? 'page' : undefined}>{v.nombre}</a>
+			{#each VARIANTES as [qs, nombre] (qs)}
+				<a href="/estilo/evento/final{qs}" aria-current={qs === actualQ ? 'page' : undefined}
+					>{nombre}</a
+				>
 			{/each}
 		{/if}
 	</nav>
 	{#if opcion === 'actual'}
 		<Actual />
 	{:else if opcion === 'final'}
-		<Final {past} {unica} {compra} />
+		<Final {opciones} {compra} />
 	{/if}
 </div>
 
