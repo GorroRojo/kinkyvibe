@@ -85,12 +85,14 @@
 					<svelte:component this={UserMenu} user={data.user} />
 				{/await}
 			{/if}
-			<!-- El Fondo: siempre a la vista, también con la sesión de admin abierta (pedido de
-			     gorrite, 5/10; antes se escondía con el menú de admin y en los previews) -->
-			<a href="https://fondo.kinkyvibe.ar" target="_blank">
-				¿Todo gratis?
-				<ArrowRight size="18" />
-			</a>
+			<!-- El Fondo: a la vista para todes, también en los previews; con la sesión de admin
+			     abierta no hace falta (pedido de gorrite, 5/10) -->
+			{#if !data.user?.admin}
+				<a href="https://fondo.kinkyvibe.ar" target="_blank">
+					¿Todo gratis?
+					<ArrowRight size="18" />
+				</a>
+			{/if}
 			{#if cuentaLink}
 				<!-- Cuentas del público (docs/cuentas.md) -->
 				<a class="cuenta" href={cuentaLink.href}>{cuentaLink.label}</a>
