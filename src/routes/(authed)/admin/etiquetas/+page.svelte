@@ -7,7 +7,6 @@
 		ArrowRightLeft,
 		BookOpen,
 		CircleCheck,
-		Eye,
 		FolderInput,
 		GitMerge,
 		LoaderCircle,
@@ -16,7 +15,6 @@
 		Save,
 		Search,
 		Trash2,
-		Undo2,
 		X
 	} from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -30,7 +28,14 @@
 	import { normalizeText } from '$lib/utils/adminTags.js';
 	import { wikiEditHref } from '$lib/admin/nav.js';
 	import { tagSlug } from '$lib/utils/tagSlug.js';
-	import { USAGE_CATEGORIES, analyzeTags, applyTagOps, describeOp } from '$lib/utils/tagConfig.js';
+	import {
+		USAGE_CATEGORIES,
+		analyzeTags,
+		applyTagOps,
+		postRenamePairs
+	} from '$lib/utils/tagConfig.js';
+	import { askConfirm } from '$lib/admin/confirm.js';
+	import SaveStatus from '$lib/components/ui/SaveStatus.svelte';
 	import { SYSTEM_TAGS, isSystemTag } from '$lib/utils/systemTags.js';
 
 	/** @type {import('./$types').PageData} */
@@ -43,46 +48,16 @@
 		wiki: 'Kinkipedia'
 	});
 
-	/* ---------- pending changes, applied live to the tree ---------- */
-	/** @type {import('$lib/utils/tagConfig.js').TagOp[]} */
-	let ops = [];
-	let opError = '';
-	$: current = applyTagOps(
-		data.entries.map((value) => ({ value })),
-		ops
-	).map((e) => e.value);
+	/* ---------- the tags as saved (each change is saved right away) ---------- */
+	// Decisión de gorrite: cada etiqueta se guarda al momento con su propio «Guardar» (o al
+	// arrastrarla); ya no hay una lista de «cambios por guardar».
+	$: current = data.entries;
 	$: view = analyzeTags(current, data.usage, data.wikiPosts);
 	$: byId = new Map(view.nodes.map((n) => [n.id, n]));
 	$: allNames = view.nodes
 		.map((n) => n.id)
 		.filter((id) => id !== 'root')
 		.sort((a, b) => a.localeCompare(b, 'es'));
-
-	/**
-	 * Queues an operation if it applies cleanly.
-	 * @param {import('$lib/utils/tagConfig.js').TagOp} op
-	 * @param {string} [select] tag to select afterwards
-	 */
-	function queue(op, select) {
-		try {
-			applyTagOps(
-				data.entries.map((value) => ({ value })),
-				[...ops, op]
-			);
-		} catch (e) {
-			opError = e instanceof Error ? e.message : String(e);
-			return false;
-		}
-		opError = '';
-		ops = [...ops, op];
-		preview = null;
-		if (select !== undefined) selectTag(select);
-		return true;
-	}
-	function undo() {
-		ops = ops.slice(0, -1);
-		preview = null;
-	}
 
 	/* ---------- tree ---------- */
 	/** @type {Record<string, boolean>} */
@@ -109,8 +84,8 @@
 	 * @param {string} to
 	 */
 	function onMove(id, from, to) {
-		queue({ type: 'move', id, from, to }, id);
 		open = { ...open, [to]: true };
+		save({ type: 'move', id, from, to }, id);
 	}
 
 	/* ---------- selection & detail form ---------- */
@@ -153,18 +128,9 @@
 		newAlias = '';
 		childName = '';
 	}
-	// `byId` is reactive; read it fresh right after an op is queued.
+	// `byId` is reactive; read it fresh right after the data was reloaded.
 	const byIdNow = () =>
-		new Map(
-			analyzeTags(
-				applyTagOps(
-					data.entries.map((value) => ({ value })),
-					ops
-				).map((e) => e.value),
-				data.usage,
-				data.wikiPosts
-			).nodes.map((n) => [n.id, n])
-		);
+		new Map(analyzeTags(data.entries, data.usage, data.wikiPosts).nodes.map((n) => [n.id, n]));
 	$: node = byId.get(selected);
 	$: undeclared = view.undeclared.find((u) => u.id === selected);
 	$: maxCount = Math.max(
@@ -174,6 +140,7 @@
 
 	function saveFields() {
 		if (!node) return;
+		/** @type {import('$lib/utils/tagConfig.js').TagEntry} */
 		const entry = current.find((e) => e.id === selected && !e.aliasOf) ?? {};
 		/** @type {Record<string, any>} */
 		const set = {};
@@ -190,27 +157,28 @@
 			.filter(Boolean);
 		if (rel.join('\n') !== (entry.related ?? []).join('\n')) set.related = rel;
 		if (!Object.keys(set).length) {
-			opError = 'No cambiaste nada.';
+			saveState = 'error';
+			saveError = 'No cambiaste nada.';
 			return;
 		}
-		queue({ type: 'update', id: selected, set }, selected);
+		save({ type: 'update', id: selected, set }, selected);
 	}
 
-	/* ---------- preview & save ---------- */
-	/** @typedef {{total: number, files: Array<{path: string, added: number, removed: number, more: number, hunks: Array<{oldStart: number, newStart: number, lines: Array<{t: string, s: string}>}>}>}} PreviewFiles */
-	/** @type {null | (PreviewFiles & {summary: string[], warnings?: string[], posts?: PreviewFiles | null})} */
-	let preview = null;
-	let busy = '';
+	/* ---------- save (one change at a time, right away) ---------- */
+	let busy = false;
+	/** @type {'' | 'saving' | 'saved' | 'error'} */
+	let saveState = '';
 	let saveError = '';
 	/** @type {null | {commit: string, publish?: any, summary: string[], files: number, posts?: number}} */
 	let saved = null;
 	/**
-	 * @param {string} action
+	 * @param {'previsualizar' | 'guardar'} action
+	 * @param {import('$lib/utils/tagConfig.js').TagOp} op
 	 * @returns {Promise<any>}
 	 */
-	async function post(action) {
+	async function post(action, op) {
 		const body = new FormData();
-		body.set('ops', JSON.stringify(ops));
+		body.set('op', JSON.stringify(op));
 		const response = await fetch(`?/${action}`, {
 			method: 'POST',
 			body,
@@ -219,34 +187,87 @@
 		/** @type {any} */
 		return deserialize(await response.text());
 	}
-	async function doPreview() {
-		busy = 'preview';
-		saveError = '';
-		try {
-			const r = await post('previsualizar');
-			if (r.type === 'success') preview = r.data.preview;
-			else saveError = r.data?.error ?? 'No se pudo armar la vista previa.';
-		} catch (e) {
-			saveError = 'No se pudo armar la vista previa.';
-		}
-		busy = '';
+	/** @param {string} message */
+	function failWith(message) {
+		saveState = 'error';
+		saveError = message;
+		return false;
 	}
-	async function doSave() {
-		busy = 'save';
-		saveError = '';
+	/**
+	 * Guarda un cambio al momento. Renombrar sin dejar alias (cambia publicaciones) y fusionar
+	 * piden confirmación antes; lo demás se guarda directo. El servidor lo vuelve a validar contra
+	 * lo que hay en la base ahora (si otra persona cambió algo, gana lo último y avisa si choca).
+	 * @param {import('$lib/utils/tagConfig.js').TagOp} op
+	 * @param {string} [select] tag to select afterwards
+	 */
+	async function save(op, select) {
+		if (busy) return false;
 		try {
-			const r = await post('guardar');
-			if (r.type === 'success') {
-				saved = r.data.saved;
-				ops = [];
-				preview = null;
-				await invalidateAll();
-				if (selected) selectTag(byIdNow().has(selected) ? selected : '');
-			} else saveError = r.data?.error ?? 'No se pudo guardar.';
+			applyTagOps(
+				data.entries.map((value) => ({ value })),
+				[op]
+			);
 		} catch (e) {
-			saveError = 'No se pudo guardar.';
+			return failWith(e instanceof Error ? e.message : String(e));
 		}
-		busy = '';
+		busy = true;
+		saveState = 'saving';
+		saveError = '';
+		saved = null;
+		try {
+			if (!(await confirmOp(op))) {
+				if (saveState === 'saving') saveState = '';
+				return false;
+			}
+			const r = await post('guardar', op);
+			if (r.type !== 'success') return failWith(r.data?.error ?? 'No se pudo guardar.');
+			saved = r.data.saved;
+			saveState = 'saved';
+			await invalidateAll();
+			const next = select ?? selected;
+			selectTag(next && byIdNow().has(next) ? next : '');
+			return true;
+		} catch (e) {
+			return failWith('No se pudo guardar.');
+		} finally {
+			busy = false;
+		}
+	}
+	/**
+	 * Lo que necesita un «¿seguro?» antes de guardarse, con la vista previa del servidor (sus
+	 * avisos, y cuántas publicaciones cambian): renombrar sin alias y fusionar.
+	 * @param {import('$lib/utils/tagConfig.js').TagOp} op
+	 * @returns {Promise<boolean>}
+	 */
+	async function confirmOp(op) {
+		const rewritesPosts = postRenamePairs([op], { onlyWithoutAlias: true }).length > 0;
+		if (op.type !== 'merge' && !rewritesPosts) return true;
+		const r = await post('previsualizar', op);
+		if (r.type !== 'success') {
+			failWith(r.data?.error ?? 'No se pudo armar la vista previa.');
+			return false;
+		}
+		/** @type {{posts?: {total: number} | null, warnings?: string[]}} */
+		const preview = r.data.preview;
+		const warnings = preview.warnings ?? [];
+		if (op.type === 'merge')
+			return askConfirm({
+				title: `¿Fusionar «${op.from}» con «${op.into}»?`,
+				text: [`«${op.from}» pasa a ser un alias de «${op.into}».`, ...warnings].join(' '),
+				confirmLabel: 'Fusionar',
+				tone: 'danger'
+			});
+		const total = preview.posts?.total ?? 0;
+		const uses = total
+			? `Cambia${total === 1 ? '' : 'n'} ${total} publicaci${total === 1 ? 'ón' : 'ones'} (en la base, al momento) y el nombre viejo deja de existir.`
+			: 'Ninguna publicación usa el nombre viejo: no cambia ninguna.';
+		const rename = /** @type {{from: string, to: string}} */ (op);
+		return askConfirm({
+			title: `¿Renombrar «${rename.from}» a «${rename.to.trim()}»?`,
+			text: [uses, ...warnings].join(' '),
+			confirmLabel: 'Renombrar',
+			tone: 'danger'
+		});
 	}
 
 	/* ---------- issues ---------- */
@@ -371,108 +392,11 @@
 	</Card>
 
 	<div class="side">
-		{#if ops.length || opError || saveError}
-			<Card title="Cambios sin guardar">
-				{#if opError}<p class="err" role="alert">
-						<AlertTriangle size={16} aria-hidden="true" />
-						{opError}
-					</p>{/if}
-				{#if ops.length}
-					<ol class="ops">
-						{#each ops as op}<li>{describeOp(op)}</li>{/each}
-					</ol>
-					<div class="actions">
-						<button type="button" class="kv-btn ghost" on:click={undo}
-							><Undo2 size={16} /> Deshacer el último</button
-						>
-						<button
-							type="button"
-							class="kv-btn ghost"
-							on:click={() => ((ops = []), (preview = null))}><X size={16} /> Descartar</button
-						>
-						<button type="button" class="kv-btn" on:click={doPreview} disabled={busy !== ''}>
-							{#if busy === 'preview'}<LoaderCircle size={16} class="spin" />{:else}<Eye
-									size={16}
-								/>{/if} Vista previa
-						</button>
-					</div>
-				{/if}
-				{#if saveError}<p class="err" role="alert">{saveError}</p>{/if}
-				{#if preview}
-					<div class="preview">
-						{#if data.dbMode}
-							<p>
-								Cambia{preview.total === 1 ? '' : 'n'}
-								<strong>{preview.total} etiqueta{preview.total === 1 ? '' : 's'}</strong> en la base:
-							</p>
-							{#each preview.warnings ?? [] as w}<p class="err">
-									<AlertTriangle size={16} aria-hidden="true" />
-									{w}
-								</p>{/each}
-						{:else}
-							<p>
-								<strong>Un solo commit</strong> que cambia {preview.total} archivo{preview.total ===
-								1
-									? ''
-									: 's'}:
-							</p>
-						{/if}
-						{#each preview.files as f}
-							<details open={preview.files.length <= 3}>
-								<summary
-									><code>{f.path}</code> <span class="plus">+{f.added}</span>
-									<span class="minus">−{f.removed}</span></summary
-								>
-								{#each f.hunks as h}
-									<pre class="diff">{#each h.lines as l}<span
-												class="l{l.t === '+' ? ' add' : l.t === '-' ? ' del' : ''}">{l.t}{l.s}</span
-											>{/each}</pre>
-								{/each}
-								{#if f.more}<p class="muted">… y {f.more} bloques más.</p>{/if}
-							</details>
-						{/each}
-						{#if preview.total > preview.files.length}<p class="muted">
-								… y {preview.total - preview.files.length} archivos más.
-							</p>{/if}
-						{#if preview.posts}
-							<p>
-								{#if preview.posts.total}
-									Y cambia{preview.posts.total === 1 ? '' : 'n'}
-									<strong
-										>{preview.posts.total} publicaci{preview.posts.total === 1
-											? 'ón'
-											: 'ones'}</strong
-									> (el nombre viejo deja de existir):
-								{:else}
-									Ninguna publicación usa el nombre viejo: no hace falta cambiar ninguna.
-								{/if}
-							</p>
-							{#each preview.posts.files as f}
-								<details open={preview.posts.files.length <= 3}>
-									<summary
-										><code>{f.path}</code> <span class="plus">+{f.added}</span>
-										<span class="minus">−{f.removed}</span></summary
-									>
-									{#each f.hunks as h}
-										<pre class="diff">{#each h.lines as l}<span
-													class="l{l.t === '+' ? ' add' : l.t === '-' ? ' del' : ''}"
-													>{l.t}{l.s}</span
-												>{/each}</pre>
-									{/each}
-								</details>
-							{/each}
-							{#if preview.posts.total > preview.posts.files.length}<p class="muted">
-									… y {preview.posts.total - preview.posts.files.length} publicaciones más.
-								</p>{/if}
-						{/if}
-						<button type="button" class="kv-btn" on:click={doSave} disabled={busy !== ''}>
-							{#if busy === 'save'}<LoaderCircle size={16} class="spin" />{:else}<Save
-									size={16}
-								/>{/if} Confirmar y guardar
-						</button>
-					</div>
-				{/if}
-			</Card>
+		{#if saveState === 'saving' || saveState === 'error'}
+			<p class="save-line">
+				{#if saveState === 'error'}<AlertTriangle size={16} aria-hidden="true" />{/if}
+				<SaveStatus status={saveState} error={saveError} />
+			</p>
 		{/if}
 
 		{#if node && selected !== 'root'}
@@ -507,7 +431,7 @@
 							>{a}<button
 								type="button"
 								aria-label="Sacar {a}"
-								on:click={() => queue({ type: 'removeAlias', id: n.id, alias: a }, n.id)}
+								on:click={() => save({ type: 'removeAlias', id: n.id, alias: a }, n.id)}
 								><X size={12} /></button
 							></span
 						>
@@ -517,7 +441,7 @@
 							>{a}<button
 								type="button"
 								aria-label="Sacar {a}"
-								on:click={() => queue({ type: 'removeAlias', id: n.id, alias: a }, n.id)}
+								on:click={() => save({ type: 'removeAlias', id: n.id, alias: a }, n.id)}
 								><X size={12} /></button
 							></span
 						>
@@ -525,7 +449,7 @@
 					<form
 						class="inline"
 						on:submit|preventDefault={() =>
-							newAlias.trim() && queue({ type: 'addAlias', id: n.id, alias: newAlias }, n.id)}
+							newAlias.trim() && save({ type: 'addAlias', id: n.id, alias: newAlias }, n.id)}
 					>
 						<input
 							class="kv-input"
@@ -593,7 +517,9 @@
 							target="_blank"
 							rel="noreferrer">Ver en la Kinkipedia</a
 						>
-						<button class="kv-btn"><Save size={16} /> Sumar a los cambios por guardar</button>
+						<button class="kv-btn" disabled={busy}
+							>{#if busy}<LoaderCircle size={16} class="spin" />{:else}<Save size={16} />{/if} Guardar</button
+						>
 					</div>
 				</form>
 
@@ -610,7 +536,7 @@
 						<form
 							on:submit|preventDefault={() =>
 								renameTo.trim() &&
-								queue({ type: 'rename', from: n.id, to: renameTo, keepAlias }, renameTo.trim())}
+								save({ type: 'rename', from: n.id, to: renameTo, keepAlias }, renameTo.trim())}
 						>
 							<label
 								><span><Pencil size={14} /> Renombrar</span><input
@@ -635,10 +561,7 @@
 					<form
 						on:submit|preventDefault={() =>
 							moveTo.trim() &&
-							queue(
-								{ type: 'move', id: n.id, from: n.parents[0] ?? null, to: moveTo.trim() },
-								n.id
-							)}
+							save({ type: 'move', id: n.id, from: n.parents[0] ?? null, to: moveTo.trim() }, n.id)}
 					>
 						<label
 							><span
@@ -658,7 +581,7 @@
 								<button
 									type="button"
 									class="kv-btn ghost small"
-									on:click={() => queue({ type: 'move', id: n.id, from: p, to: null }, n.id)}
+									on:click={() => save({ type: 'move', id: n.id, from: p, to: null }, n.id)}
 									><Trash2 size={14} /> Sacar de «{p}»</button
 								>
 							{/each}
@@ -668,7 +591,7 @@
 						<form
 							on:submit|preventDefault={() =>
 								mergeInto.trim() &&
-								queue({ type: 'merge', from: n.id, into: mergeInto.trim() }, mergeInto.trim())}
+								save({ type: 'merge', from: n.id, into: mergeInto.trim() }, mergeInto.trim())}
 						>
 							<label
 								><span><GitMerge size={14} /> Fusionar con</span><input
@@ -684,7 +607,7 @@
 					<form
 						on:submit|preventDefault={() =>
 							childName.trim() &&
-							queue({ type: 'create', id: childName, parent: n.id }, childName.trim())}
+							save({ type: 'create', id: childName, parent: n.id }, childName.trim())}
 					>
 						<label
 							><span><Plus size={14} /> Etiqueta hija nueva</span><input
@@ -708,7 +631,7 @@
 				<div class="ops-forms">
 					<form
 						on:submit|preventDefault={() =>
-							moveTo.trim() && queue({ type: 'create', id: u.id, parent: moveTo.trim() }, u.id)}
+							moveTo.trim() && save({ type: 'create', id: u.id, parent: moveTo.trim() }, u.id)}
 					>
 						<label
 							><span><FolderInput size={14} /> Agregar al árbol dentro de</span><input
@@ -723,7 +646,7 @@
 					<form
 						on:submit|preventDefault={() =>
 							mergeInto.trim() &&
-							queue({ type: 'merge', from: u.id, into: mergeInto.trim() }, mergeInto.trim())}
+							save({ type: 'merge', from: u.id, into: mergeInto.trim() }, mergeInto.trim())}
 					>
 						<label
 							><span><ArrowRightLeft size={14} /> Cambiarla por</span><input
@@ -743,7 +666,7 @@
 					class="ops-forms"
 					on:submit|preventDefault={() =>
 						childName.trim() &&
-						queue(
+						save(
 							{ type: 'create', id: childName, parent: moveTo.trim() || undefined },
 							childName.trim()
 						)}
@@ -1056,55 +979,14 @@
 		font-weight: 400;
 		align-items: flex-start;
 	}
-	.ops {
-		margin: 0;
-		padding-left: var(--space-s);
-	}
-	.err {
-		color: var(--bad);
+	.save-line {
 		display: flex;
 		gap: 0.4rem;
 		align-items: center;
 		margin: 0;
-	}
-	.preview {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2xs);
-		align-items: flex-start;
-	}
-	.preview details {
-		width: 100%;
-	}
-	.preview summary {
-		cursor: pointer;
-		overflow-wrap: anywhere;
-	}
-	.plus {
-		color: var(--ok);
-	}
-	.minus {
-		color: var(--bad);
-	}
-	.diff {
-		background: var(--surface-2);
-		border-radius: var(--radius-m);
-		padding: var(--space-2xs) 0;
-		font-size: var(--text-xs);
-		overflow-x: auto;
-		margin: 0.3rem 0;
-	}
-	.diff .l {
-		display: block;
-		padding: 0 var(--space-2xs);
-		white-space: pre;
-	}
-	.diff .add {
-		background: var(--ok-bg);
-		color: var(--ok);
-	}
-	.diff .del {
-		background: var(--bad-bg);
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--round);
+		background: var(--surface);
 		color: var(--bad);
 	}
 	.tabs {

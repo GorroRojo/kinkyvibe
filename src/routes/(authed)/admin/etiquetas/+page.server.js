@@ -46,11 +46,23 @@ async function usageAndWiki() {
 }
 
 /**
+ * El cambio que llega del formulario: UNO por vez (decisión de gorrite: cada etiqueta se guarda
+ * al momento con su propio «Guardar», sin lista de cambios por guardar). El campo `op` es un solo
+ * cambio en JSON (los de src/lib/utils/tagConfig.js); una lista no se acepta.
  * @param {FormData} data
+ * @returns {{ ops: import('$lib/utils/tagConfig.js').TagOp[], error?: undefined } | { ops?: undefined, error: string }}
  */
-function opsFrom(data) {
+function opFrom(data) {
+	let raw;
 	try {
-		return { ops: readOps(JSON.parse(String(data.get('ops') ?? '[]'))) };
+		raw = JSON.parse(String(data.get('op') ?? 'null'));
+	} catch {
+		return { error: 'Cambio inválido.' };
+	}
+	if (Array.isArray(raw)) return { error: 'Guardá de a un cambio por vez.' };
+	if (!raw) return { error: 'No hay cambios.' };
+	try {
+		return { ops: readOps([raw]) };
 	} catch (e) {
 		return { error: describe(e) };
 	}
@@ -60,7 +72,7 @@ function opsFrom(data) {
 export const actions = {
 	previsualizar: async ({ locals, request, url, platform }) => {
 		const login = requireAdmin(locals, url).login;
-		const r = opsFrom(await request.formData());
+		const r = opFrom(await request.formData());
 		if (!r.ops) return fail(400, { error: r.error });
 		const fromDb = await dbTagsForAdmin(platform, login);
 		if (!fromDb) return fail(503, { error: NEEDS_IMPORT });
@@ -71,7 +83,7 @@ export const actions = {
 	},
 	guardar: async ({ locals, request, url, platform }) => {
 		const login = requireAdmin(locals, url).login;
-		const r = opsFrom(await request.formData());
+		const r = opFrom(await request.formData());
 		if (!r.ops) return fail(400, { error: r.error });
 		const fromDb = await dbTagsForAdmin(platform, login);
 		if (!fromDb) return fail(503, { error: NEEDS_IMPORT });

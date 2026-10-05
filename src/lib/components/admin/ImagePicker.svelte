@@ -18,12 +18,20 @@
 	 * - `contextLabel`, `legend`, `idPrefix`, `form` (id del formulario del campo oculto).
 	 * - `canDelete`: «Sacar imágenes de la biblioteca…» en «Buscar» (solo admins): recién ahí cada
 	 *   imagen muestra «Sacar».
+	 * - `canDeleteOwn`: «Borrar imágenes sin usar…» en «Buscar» (Mi rincón: una cuenta ve solo las
+	 *   que subió). Solo las que nada usa muestran «Borrar»; las otras dicen dónde se usan.
 	 * - Evento `change`: se eligió o se sacó una imagen.
 	 */
 	import { createEventDispatcher, onDestroy } from 'svelte';
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import { Trash2 } from '@lucide/svelte';
-	import { IMAGE_FIELD, contextHref, imageFieldValue, searchHref } from '$lib/utils/imageChoice.js';
+	import {
+		IMAGE_FIELD,
+		contextHref,
+		imageFieldValue,
+		searchHref,
+		usageText
+	} from '$lib/utils/imageChoice.js';
 	import { PICKABLE_TYPES, pickProblem, prepareImage } from '$lib/utils/imageResize.js';
 
 	/** @typedef {import('$lib/server/media/library.js').PublicImage} PublicImage */
@@ -40,6 +48,7 @@
 	export let name = IMAGE_FIELD;
 	export let form = '';
 	export let canDelete = false;
+	export let canDeleteOwn = false;
 	/** `id` del fieldset (para el índice de secciones). */
 	export let sectionId = 'sec-imagen';
 
@@ -198,16 +207,35 @@
 
 	/** @param {PublicImage} image */
 	async function deleteFromLibrary(image) {
-		const ok = await askConfirm({
-			title: `¿Sacar «${image.title}» de la biblioteca?`,
-			text: 'Deja de verse donde se usa.',
-			confirmLabel: 'Sacar',
-			tone: 'danger'
-		});
+		const ok = await askConfirm(
+			canDelete
+				? {
+						title: `¿Sacar «${image.title}» de la biblioteca?`,
+						text: 'Deja de verse donde se usa.',
+						confirmLabel: 'Sacar',
+						tone: 'danger'
+					}
+				: {
+						title: `¿Borrar «${image.title}»?`,
+						text: 'No se usa en ningún lado. Deja de estar entre tus imágenes; si la volvés a subir, vuelve.',
+						confirmLabel: 'Borrar',
+						tone: 'danger'
+					}
+		);
 		if (!ok) return;
 		const res = await fetch(`/imagenes/${image.id}`, { method: 'DELETE' });
 		if (!res.ok) {
-			searchError = 'No se pudo sacar la imagen. Probá de nuevo.';
+			const out = await res.json().catch(() => ({}));
+			searchError =
+				out.error ||
+				(canDelete
+					? 'No se pudo sacar la imagen. Probá de nuevo.'
+					: 'No se pudo borrar la imagen. Probá de nuevo.');
+			// Si resultó que se usa, que lo diga la lista también.
+			if (Array.isArray(out.usedIn) && out.usedIn.length)
+				results = (results ?? []).map((r) =>
+					r.id === image.id ? { ...r, usedIn: out.usedIn } : r
+				);
 			return;
 		}
 		results = (results ?? []).filter((r) => r.id !== image.id);
@@ -350,7 +378,7 @@
 					{q.trim() ? 'No encontramos imágenes con eso.' : 'La biblioteca todavía está vacía.'}
 				</p>
 			{:else}
-				{#if canDelete}
+				{#if canDelete || canDeleteOwn}
 					<!-- Sacar de la biblioteca: aparte, para no tenerlo debajo de cada imagen. -->
 					<p class="manage">
 						<button
@@ -358,7 +386,11 @@
 							class="kv-link small"
 							aria-pressed={managing}
 							on:click={() => (managing = !managing)}
-							>{managing ? 'Listo' : 'Sacar imágenes de la biblioteca…'}</button
+							>{managing
+								? 'Listo'
+								: canDelete
+									? 'Sacar imágenes de la biblioteca…'
+									: 'Borrar imágenes sin usar…'}</button
 						>
 					</p>
 				{/if}
@@ -375,7 +407,7 @@
 								<img src={image.url} alt="" loading="lazy" />
 								<span>{image.title}</span>
 								{#if image.usedIn?.length}
-									<small class="used">En {image.usedIn.join(', ')}</small>
+									<small class="used">En {usageText(image.usedIn)}</small>
 								{/if}
 							</button>
 							{#if canDelete && managing}
@@ -386,6 +418,18 @@
 									on:click={() => deleteFromLibrary(image)}
 									><Trash2 size={14} aria-hidden="true" /> Sacar</button
 								>
+							{:else if canDeleteOwn && managing}
+								{#if image.usedIn?.length}
+									<small class="used">Se usa: no se puede borrar. Primero sacala de ahí.</small>
+								{:else}
+									<button
+										type="button"
+										class="kv-btn small danger"
+										aria-label="Borrar «{image.title}»"
+										on:click={() => deleteFromLibrary(image)}
+										><Trash2 size={14} aria-hidden="true" /> Borrar</button
+									>
+								{/if}
 							{/if}
 						</li>
 					{/each}

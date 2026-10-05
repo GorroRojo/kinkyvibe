@@ -8,8 +8,9 @@
  *   alternativo. Va a R2 y a la base al momento (sin commit ni deploy).
  *
  * Solo admins y cuentas que gestionan un perfil (src/lib/server/media/access.js); el resto, 404
- * (como si no existiera). Una cuenta del público busca solo entre lo que subió y pide «De este…»
- * solo para un perfil que gestiona.
+ * (como si no existiera). Una cuenta del público busca solo entre lo que subió (con dónde se usa
+ * cada una, para saber si la puede borrar: /imagenes/<id>) y pide «De este…» solo para un perfil
+ * que gestiona.
  */
 import { error, json } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
@@ -18,6 +19,7 @@ import {
 	ALT_REQUIRED,
 	ImageError,
 	contextImages,
+	imageUsage,
 	imageUses,
 	searchImages,
 	storeImage
@@ -59,15 +61,14 @@ export async function GET({ locals, platform, url }) {
 		createdBy: access.createdBy
 	});
 	// Les admins ven dónde se usa cada una (así una portada de otro material no parece del evento).
+	// Una cuenta del público ve todo lo que usa cada imagen suya (lo que no ve, como «otra
+	// publicación»): sin usos, la puede borrar.
+	const ids = found.map((i) => i.id);
 	const uses =
 		access.role === 'admin'
-			? await imageUses(
-					db,
-					found.map((i) => i.id),
-					access.viewer
-				)
-			: null;
-	const images = uses ? found.map((i) => ({ ...i, usedIn: uses.get(i.id) ?? [] })) : found;
+			? await imageUses(db, ids, access.viewer)
+			: await imageUsage(db, ids, access.viewer);
+	const images = found.map((i) => ({ ...i, usedIn: uses.get(i.id) ?? [] }));
 	return json({ images }, { headers: NO_STORE });
 }
 
