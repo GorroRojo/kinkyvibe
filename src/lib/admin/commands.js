@@ -69,6 +69,7 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	personas: 'personas clientes compradores gente ficha nota notas internas',
 	estadisticas: 'estadisticas graficos tendencias analytics',
 	'no-listadas': 'no listadas borradores ocultas sin listar',
+	biblioteca: 'biblioteca imagenes fotos archivos documentos pdf videos subir borrar sacar media',
 	'contenido-base': 'base de datos importar eventos md archivos migrar coinciden paridad',
 	'ajustes-cobros':
 		'ajustes cobros alias cbu cvu mercado pago comision transferencia datos bancarios',
@@ -115,6 +116,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	amigues: 'person',
 	etiquetas: 'tag',
 	'no-listadas': 'eye-off',
+	biblioteca: 'book',
 	'contenido-base': 'book',
 	'ajustes-cobros': 'settings',
 	'ajustes-fondo': 'settings',

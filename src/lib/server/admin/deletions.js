@@ -17,6 +17,11 @@
  * eventos. La fila de `panel_deletions` (con `path` = `objeto:perfil:<id>`) va en la misma tanda,
  * así «Recuperar» de Actividad sirve para los dos. Ver {@link deleteDbProfile}.
  *
+ * Las imágenes y los archivos de la biblioteca (R2) también: sacarlos (admins, Contenido ›
+ * Biblioteca o el selector de imágenes) es el borrado suave del objeto, con su fila acá (`path` =
+ * `objeto:imagen:<id>` u `objeto:archivo:<id>`) para «Recuperar» en Actividad. Ver
+ * {@link deleteLibraryItem}.
+ *
  * Sin imports de SvelteKit: el cliente del repo, el estado de los PRs y la base llegan como
  * parámetros, así se prueba con fakes. Las rutas están en ./deletionRoutes.js.
  */
@@ -27,6 +32,7 @@ import { MEMBER_EDGE, PROFILE_TYPE } from '../cuentas/perfiles.js';
 import { revisionStatement } from '../contenido/revisions.js';
 import { VersionConflictError } from '../objects/errors.js';
 import { saveObject } from '../objects/save.js';
+import { deleteImage, findLibraryObject, restoreLibraryItem } from '../media/library.js';
 import { logAdminAction } from './audit.js';
 import { contentMediaDir, gitBlobSha } from './posts.js';
 
@@ -445,6 +451,9 @@ export async function undoDeletion(client, db, actor, id, { pulls = null, now = 
 	// Un perfil que vive solo en la base: se deshace en la base (sin GitHub).
 	const profileId = dbProfileIdOf(d.path);
 	if (profileId !== null) return undoDbProfileDeletion(db, actor, d, profileId, { now });
+	// Una imagen o un archivo de la biblioteca: también se deshace en la base.
+	const libraryId = libraryIdOf(d.path);
+	if (libraryId !== null) return undoLibraryDeletion(db, actor, d, libraryId, { now });
 
 	const k = DELETABLE[d.kind];
 	const targetId = d.kind === 'calendario' ? d.slug : `${d.kind}/${d.slug}`;
@@ -782,4 +791,180 @@ async function undoDbProfileDeletion(db, actor, d, profileId, { now = Date.now()
 		publish: null,
 		immediate: true
 	};
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/*  Biblioteca: imágenes y archivos (R2)                                                       */
+/* ------------------------------------------------------------------------------------------ */
+
+/**
+ * `panel_deletions.path` de algo de la biblioteca (no es una ruta del repo). La columna `kind`
+ * solo admite 'calendario', 'material' y 'amigues' (migración 0021): estas filas van con
+ * 'material' (es contenido) y lo que las distingue es el `path`; el `slug` es el del objeto (el
+ * hash del archivo, que no choca con la dirección de ningún material).
+ */
+const LIBRARY_PATH = /^objeto:(imagen|archivo):([1-9]\d*)$/;
+
+/** @param {string} type 'imagen' o 'archivo' @param {number} id */
+export const libraryPath = (type, id) => `objeto:${type}:${id}`;
+
+/**
+ * El id del objeto de la biblioteca de un borrado, o `null` si no es de la biblioteca.
+ * @param {string} path
+ */
+export function libraryIdOf(path) {
+	const m = LIBRARY_PATH.exec(path);
+	return m ? Number(m[2]) : null;
+}
+
+/**
+ * Qué se borró, para la lista de «Recuperar»: 'imagen', 'archivo' o `null` (no es de la
+ * biblioteca).
+ * @param {string} path
+ * @returns {'imagen' | 'archivo' | null}
+ */
+export function libraryTypeOf(path) {
+	const m = LIBRARY_PATH.exec(path);
+	return m ? /** @type {'imagen' | 'archivo'} */ (m[1]) : null;
+}
+
+/** @param {string} type */
+const libraryThe = (type) => (type === 'archivo' ? 'el archivo' : 'la imagen');
+
+/**
+ * Saca (borrado suave) una imagen o un archivo de la biblioteca, con su fila de `panel_deletions`
+ * en la MISMA tanda (para «Recuperar» en Actividad) y lo anota en Actividad. Les admins, aunque
+ * se use (la confirmación de la página dice dónde).
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {number} id el objeto
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ deleted: boolean, deletion: number | null }>} `deleted: false` si no existe
+ *   o ya estaba borrado
+ */
+export async function deleteLibraryItem(db, actor, id, { now = Date.now() } = {}) {
+	const content = JSON.stringify({ object: id });
+	const sha = await gitBlobSha(content);
+	/** @type {{ type: string, title: string } | null} */
+	let what = null;
+	const done = await deleteImage(db, id, {
+		actor: actor.login,
+		now,
+		also: (o) => {
+			what = { type: o.type, title: o.title };
+			return [
+				db
+					.prepare(
+						`INSERT INTO panel_deletions
+							(kind, slug, title, path, content, content_sha, media, status, deleted_at, deleted_by)
+						VALUES ('material', ?1, ?2, ?3, ?4, ?5, '[]', 'borrado', ?6, ?7)`
+					)
+					.bind(o.slug, o.title, libraryPath(o.type, o.id), content, sha, now, actor.login)
+			];
+		}
+	});
+	if (!done || !what) return { deleted: false, deletion: null };
+	const { type, title } = /** @type {{ type: string, title: string }} */ (what);
+	const row = await db
+		.prepare(
+			`SELECT id FROM panel_deletions WHERE path = ?1 AND status = 'borrado'
+			ORDER BY id DESC LIMIT 1`
+		)
+		.bind(libraryPath(type, id))
+		.first();
+	const deletion = row ? Number(row.id) : null;
+	await logAdminAction(
+		db,
+		actor.locals,
+		{
+			action: 'library.delete',
+			targetType: 'library',
+			targetId: id,
+			summary: `Sacó ${libraryThe(type)} «${title}» de la biblioteca`,
+			detail: { deletion }
+		},
+		{ now }
+	);
+	return { deleted: true, deletion };
+}
+
+/**
+ * Deshace el borrado de algo de la biblioteca: {@link restoreLibraryItem} con el estado del
+ * borrado en la misma tanda. Si ya había vuelto por otro camino (alguien lo subió de nuevo), el
+ * borrado queda cerrado y es un UndoError.
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {Deletion} d el borrado (status 'borrado')
+ * @param {number} objectId
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ mode: 'restored', deletion: Deletion, publish: null, immediate: true }>}
+ */
+async function undoLibraryDeletion(db, actor, d, objectId, { now = Date.now() } = {}) {
+	const close = db
+		.prepare(
+			`UPDATE panel_deletions SET status = 'recuperado', restored_at = ?2, restored_by = ?3
+			WHERE id = ?1 AND status = 'borrado'`
+		)
+		.bind(d.id, now, actor.login);
+	const done = await restoreLibraryItem(db, objectId, {
+		actor: actor.login,
+		now,
+		also: () => [close]
+	});
+	if (!done) {
+		const o = await findLibraryObject(db, objectId);
+		if (!o) throw new UndoError('Eso ya no existe en la biblioteca.');
+		await close.run();
+		throw new UndoError('Ya estaba de vuelta en la biblioteca.');
+	}
+	const type = libraryTypeOf(d.path) ?? 'imagen';
+	await logAdminAction(
+		db,
+		actor.locals,
+		{
+			action: 'library.restore',
+			targetType: 'library',
+			targetId: objectId,
+			summary: `Recuperó ${libraryThe(type)} «${d.title}» en la biblioteca`,
+			detail: { deletion: d.id }
+		},
+		{ now }
+	);
+	return {
+		mode: 'restored',
+		deletion: { ...d, status: 'recuperado' },
+		publish: null,
+		immediate: true
+	};
+}
+
+/**
+ * «Deshacer» de Contenido › Biblioteca (por el id del objeto): deshace su último borrado abierto
+ * (así sale también de «Recuperar» en Actividad); sin borrado anotado (uno de antes de esto), lo
+ * vuelve igual.
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {number} objectId
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<boolean>} false si no existe o no estaba borrado
+ */
+export async function undoLibraryDeletionOf(db, actor, objectId, { now = Date.now() } = {}) {
+	const row = await db
+		.prepare(
+			`SELECT * FROM panel_deletions WHERE path IN (?1, ?2) AND status = 'borrado'
+			ORDER BY id DESC LIMIT 1`
+		)
+		.bind(libraryPath('imagen', objectId), libraryPath('archivo', objectId))
+		.first();
+	if (!row) return restoreLibraryItem(db, objectId, { actor: actor.login, now });
+	try {
+		await undoLibraryDeletion(db, actor, toDeletion(row), objectId, { now });
+		return true;
+	} catch (e) {
+		if (e instanceof UndoError) return false;
+		throw e;
+	}
 }

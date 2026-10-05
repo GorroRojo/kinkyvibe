@@ -81,6 +81,7 @@ import {
 	HandHeart,
 	House,
 	IdCard,
+	Images,
 	Inbox,
 	KeyRound,
 	Landmark,
@@ -439,6 +440,17 @@ export const NAV = Object.freeze([
 		icon: BookOpen,
 		emoji: '📚',
 		label: 'Material',
+		area: 'contenido',
+		soon: false
+	},
+	{
+		// Todo lo de la biblioteca (R2): imágenes, documentos y videos, con dónde se usa cada cosa,
+		// para buscar, subir y sacar (docs/imagenes.md).
+		id: 'biblioteca',
+		href: '/admin/contenido/biblioteca',
+		icon: Images,
+		emoji: '🖼️',
+		label: 'Biblioteca',
 		area: 'contenido',
 		soon: false
 	},

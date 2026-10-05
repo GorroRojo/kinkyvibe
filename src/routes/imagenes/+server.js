@@ -5,7 +5,8 @@
  * - GET `?q=<texto>`: buscar imágenes por nombre o texto alternativo (sin texto, las más nuevas);
  *   `?para=<tipo>:<dirección>`: las imágenes «De este evento» (del objeto y de sus series).
  *   Con `&tipo=todo|imagen|documento|video` (solo admins): toda la biblioteca, con filtro por
- *   tipo (cada cosa con `kind`, `typeLabel` y dónde se usa).
+ *   tipo (cada cosa con `kind`, `typeLabel` y dónde se usa); con `&desde=<n>`, la página
+ *   siguiente de Contenido › Biblioteca ({@link LIBRARY_PAGE}), con `more` si hay más.
  * - POST (multipart: `file`, `alt`, `name`, `width`, `height`): subir. El tipo sale de los bytes:
  *   - una imagen (el navegador ya la achicó y la pasó a WEBP): pide texto alternativo;
  *   - un documento o un video (PDF, MP4, WebM, ODT, ODS, ODP): solo admins, pide `name` y pesa
@@ -26,9 +27,10 @@ import {
 	MAX_FILE_BYTES,
 	contextImages,
 	imageUsage,
+	LIBRARY_PAGE,
+	browseLibrary,
 	imageUses,
 	searchImages,
-	searchLibrary,
 	storeFile,
 	storeImage
 } from '$lib/server/media/library.js';
@@ -67,20 +69,16 @@ export async function GET({ locals, platform, url }) {
 	}
 	const kind = libraryKind(url.searchParams.get('tipo'));
 	if (kind && access.role === 'admin') {
-		const items = await searchLibrary(db, {
+		// `desde`: «Cargar más» de Contenido › Biblioteca (las que ya se mostraron).
+		const desde = Number(url.searchParams.get('desde') ?? 0);
+		const { items, more } = await browseLibrary(db, {
 			q: url.searchParams.get('q') ?? '',
 			kind,
-			viewer: access.viewer
+			viewer: access.viewer,
+			limit: url.searchParams.has('desde') ? LIBRARY_PAGE : 24,
+			offset: Number.isSafeInteger(desde) && desde > 0 ? desde : 0
 		});
-		const uses = await imageUsage(
-			db,
-			items.map((i) => i.id),
-			access.viewer
-		);
-		return json(
-			{ images: items.map((i) => ({ ...i, usedIn: uses.get(i.id) ?? [] })) },
-			{ headers: NO_STORE }
-		);
+		return json({ images: items, more }, { headers: NO_STORE });
 	}
 	const found = await searchImages(db, {
 		q: url.searchParams.get('q') ?? '',

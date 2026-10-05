@@ -99,7 +99,8 @@ enlazan es otro paso** (lo corre gorrite).
 Es para elegir **una imagen** (portada, imagen de la serie, imagen del perfil), así que muestra
 solo imágenes; los documentos y los videos se enlazan con «Enlazar un archivo» (arriba). Lo usan
 el editor de eventos (Editar y Cargar/Duplicar), el de material, Eventos → Series, la
-imagen del perfil en Mi rincón y el editor de perfiles del panel (Comunidad → Perfiles). No hay página de biblioteca en el panel. Pestañas:
+imagen del perfil en Mi rincón y el editor de perfiles del panel (Comunidad → Perfiles). Para
+recorrer toda la biblioteca está Contenido → Biblioteca (abajo). Pestañas:
 
 - **Subir**: se elige un archivo (JPG, PNG, WEBP, GIF o AVIF, hasta 10 MB), se escribe **qué se
   ve** (texto alternativo, obligatorio) y se sube. Antes de subir, el navegador la achica (lado más
@@ -112,6 +113,41 @@ Lo elegido viaja en un campo oculto `imageId` (`''` = no se tocó, `none` = se s
 servidor crea el edge **en el mismo guardado** del objeto (eventos y material: `commitFiles` con
 `edges`; perfiles: `updateProfile` con `avatar`; series: después de guardar la etiqueta, con
 `linkImage`). Al elegir o sacar una imagen se saca también el campo viejo (`featured` / `image`).
+
+## Contenido → Biblioteca (la página del panel)
+
+`/admin/contenido/biblioteca` (solo admins): todo lo de la biblioteca, imágenes, documentos y
+videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tipo=…&desde=<n>`).
+
+- **Buscar** por nombre o texto alternativo, con filtro **Todo / Imágenes / Documentos / Videos**
+  (la misma búsqueda que los selectores: `browseLibrary` en `src/lib/server/media/library.js`; los
+  documentos y los videos se separan por el mime en la consulta, así la paginación no saltea nada).
+- Cada cosa muestra su miniatura (imágenes) o el ícono de su tipo, el nombre, el texto alternativo
+  (o el nombre del archivo original), el tipo y el peso, **dónde se usa** (con enlace a la ficha del
+  evento, al editor del material, a la ficha del perfil o a Series; `libraryUses`) y «Abrir».
+- **Subir** imágenes y archivos con el mismo `POST /imagenes` y los mismos límites (imágenes 10 MB,
+  achicadas en el navegador; documentos y videos 25 MB).
+- **Sacar** pide confirmación en la página (dice dónde se usa) y usa `DELETE /imagenes/<id>` (el
+  borrado suave de abajo). El aviso trae **Deshacer** (la acción `recuperar` de la página).
+- **Recuperar en Actividad**: todo lo que una persona admin saca de la biblioteca (desde esta
+  página o desde el selector de imágenes) queda en «Borrados que podés recuperar» (Ajustes ›
+  Actividad), como las publicaciones y los perfiles: `deleteLibraryItem` en
+  `src/lib/server/admin/deletions.js` escribe la fila de `panel_deletions` en la misma tanda que el
+  borrado y lo anota en Actividad (`library.delete`). «Recuperar» y «Deshacer» van por el mismo
+  camino (`restoreLibraryItem`, con la fila cerrada en la misma tanda; `library.restore`). Sin
+  migración: la columna `kind` solo admite `calendario`, `material` y `amigues`, así que estas
+  filas van con `material` y las distingue el `path` (`objeto:imagen:<id>` u
+  `objeto:archivo:<id>`); el `slug` es el hash del archivo. Si alguien volvió a subir el mismo
+  archivo antes de recuperarlo, «Recuperar» avisa que ya estaba y cierra el borrado. Lo que borra
+  una cuenta del público (lo suyo, sin usar) no va a esta lista.
+
+### Decisiones de la página (confirmadas por gorrite, 5/10)
+
+1. Va en **Contenido › Biblioteca** (`/admin/contenido/biblioteca`).
+2. De a **48**, con «Cargar más».
+3. Se puede **sacar algo que se usa**: la confirmación avisa dónde se usa. El botón dice «Sacar».
+4. Deshacer: el aviso con **«Deshacer»** y, después, **Actividad › Recuperar**.
+5. **Busca mientras escribís**, y la búsqueda queda en la dirección (`?q=&tipo=`) para compartirla.
 
 ## Quién puede
 
@@ -251,6 +287,5 @@ se aclaran en los puntos 2 y 8.
    el del archivo sin la extensión. El mismo archivo subido otra vez es el mismo objeto (con su
    nombre de antes).
 7. **WebM** se acepta (era trivial); ODS y ODP también, aunque hoy solo hay un ODT.
-8. **Una página de la biblioteca vendrá en un PR aparte** (gorrite). Por ahora lo nuevo está en el
-   editor de material. El título de esta página pasó de «Imágenes» a «La biblioteca»; las rutas
+8. **La página de la biblioteca va en un PR aparte** (gorrite): Contenido → Biblioteca (arriba). El título de esta página pasó de «Imágenes» a «La biblioteca»; las rutas
    (`/imagenes`, `/media`) y los tipos de la base no cambian (un renombre así va en un PR aparte).

@@ -199,6 +199,7 @@ describe('NAV', () => {
 		expect(ids('etiquetas')).toEqual(['etiquetas']);
 		expect(ids('contenido')).toEqual([
 			'material',
+			'biblioteca',
 			'no-listadas',
 			'contenido-base',
 			'colecciones',
@@ -326,7 +327,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 			['Mensajes', ['ajustes-plantillas', 'lo-que-sigo', 'bandeja']]
 		]);
 		expect(blocks('contenido')).toEqual([
-			['', ['material', 'no-listadas', 'contenido-base', 'colecciones', 'videos']],
+			['', ['material', 'biblioteca', 'no-listadas', 'contenido-base', 'colecciones', 'videos']],
 			['Etiquetas', ['etiquetas']]
 		]);
 		expect(navGroupSections('ajustes').map((s) => s.label)).toEqual([
@@ -380,6 +381,7 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 		]);
 		expect(labels('/admin/etiquetas')).toEqual([
 			'Material',
+			'Biblioteca',
 			'No listadas',
 			'En la base',
 			'Árbol de etiquetas'
