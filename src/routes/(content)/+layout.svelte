@@ -50,19 +50,21 @@
 <AgeModal />
 <SearchLauncher />
 
+{#if data.demoMode && !(data.user && data.user.login)}
+	<!-- Preview deploys only (docs/demo.md): afuera del encabezado, en una esquina, así no le
+	     saca lugar (pedido de gorrite, 5/10) -->
+	<nav class="demo-bar" aria-label="Modo demo">
+		<span aria-hidden="true">🧪</span>
+		<span>Entrar como</span>
+		<a href="/login?redirectTo=/admin">admin de prueba</a>
+		{#if !data.member}
+			<!-- Cuentas del público inventadas (src/lib/server/demo/personas.js) -->
+			<a href="/ingresar/demo">persona de prueba</a>
+		{/if}
+	</nav>
+{/if}
+
 <header>
-	{#if data.demoMode && !(data.user && data.user.login)}
-		<!-- Preview deploys only (docs/demo.md): una sola barrita chica, no dos burbujas grandes -->
-		<nav class="demo-bar" aria-label="Modo demo">
-			<span aria-hidden="true">🧪</span>
-			<span>Entrar como</span>
-			<a href="/login?redirectTo=/admin">admin de prueba</a>
-			{#if !data.member}
-				<!-- Cuentas del público inventadas (src/lib/server/demo/personas.js) -->
-				<a href="/ingresar/demo">persona de prueba</a>
-			{/if}
-		</nav>
-	{/if}
 	<div id="me">
 		<ul id="redes">
 			<!-- el buscador global reemplaza acá al link de Cafecito y a los íconos de
@@ -82,14 +84,14 @@
 				{#await import('$lib/components/UserMenu.svelte') then { default: UserMenu }}
 					<svelte:component this={UserMenu} user={data.user} />
 				{/await}
-			{:else if data.demoMode}
-				<!-- Preview deploys only (docs/demo.md): los «Entrar como…» van en la barrita de arriba -->
-			{:else}
+			{/if}
+			<!-- El Fondo: a la vista para todes, también en los previews; con la sesión de admin
+			     abierta no hace falta (pedido de gorrite, 5/10) -->
+			{#if !data.user?.admin}
 				<a href="https://fondo.kinkyvibe.ar" target="_blank">
 					¿Todo gratis?
 					<ArrowRight size="18" />
 				</a>
-				<!-- <a href="/login?redirectTo={$page.url}">Iniciar sesión</a> -->
 			{/if}
 			{#if cuentaLink}
 				<!-- Cuentas del público (docs/cuentas.md) -->
@@ -306,15 +308,27 @@
 	}
 
 	.demo-bar {
+		position: fixed;
+		left: var(--space-xs);
+		bottom: var(--space-xs);
+		z-index: 6;
 		display: flex;
 		flex-wrap: wrap;
-		justify-content: center;
 		align-items: center;
 		gap: 0 var(--space-2xs);
+		max-width: calc(100% - 2 * var(--space-xs));
 		padding: var(--space-3xs) var(--space-xs);
+		border-radius: var(--radius-pill);
 		background: var(--2-tint);
 		color: var(--2-dark);
 		font-size: var(--text-xs);
+		box-shadow: var(--shadow-1);
+	}
+	/* en el celu, arriba de la barra de navegación de abajo */
+	@media (max-width: 680px) {
+		.demo-bar {
+			bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+		}
 	}
 	.demo-bar a {
 		color: var(--2-dark);
