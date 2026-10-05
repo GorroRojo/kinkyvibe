@@ -127,6 +127,37 @@
 	nav a:focus small {
 		scale: 1;
 	}
+	/* Compu: cada ítem es una pastilla del tamaño de su texto, con aire a los costados; la
+	   descripción de hover aparece abajo, afuera de la pastilla, así la del «estás acá» no queda
+	   alta y vacía (pedido de gorrite, 5/10). */
+	@media screen and (min-width: 681px) {
+		nav li {
+			width: auto;
+			max-width: none;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			flex: 1 1 0;
+		}
+		nav a {
+			position: relative;
+			flex: 0 0 auto;
+			height: auto;
+			max-width: none;
+			padding: 0.4em 0.9em;
+			border-radius: var(--radius-pill);
+		}
+		nav a span {
+			translate: 0 0;
+		}
+		nav li small {
+			position: absolute;
+			top: 100%;
+			left: 50%;
+			translate: -50% 0.15em;
+			pointer-events: none;
+		}
+	}
 	/* 681–1024px: menú más compacto para que ninguna etiqueta se parta en dos líneas */
 	@media screen and (min-width: 681px) and (max-width: 1024px) {
 		nav {
