@@ -237,7 +237,9 @@ anterior** (que todavía muestra las fichas `.md`), o enseguida después del nue
 Si el deploy nuevo sale antes de importar, `/amigues` queda vacío y `/wiki/<término>` muestra solo
 la etiqueta hasta correr los pasos 1 y 2 (no se pierde nada: los `.md` siguen en el repo).
 
-#### DECIDIDO POR CLAUDE, A CONFIRMAR (gorrite)
+#### Decisiones de la wiki (confirmadas por gorrite, 5/10)
+
+Propuestas por Claude; **confirmado por gorrite (5/10)**: las seis, tal como están.
 
 1. **La wiki usa el tipo `etiqueta` que ya existía** (su texto de la wiki es el cuerpo de la
    etiqueta, tu diseño en [etiquetas.md](etiquetas.md)); no hay un tipo nuevo. La dirección de una

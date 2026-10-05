@@ -98,8 +98,9 @@ prueba»** (con confirmación en la página; `src/lib/components/admin/DemoReloa
    y suscripciones a series. Además importa las fichas de amigues del deploy (lo mismo que
    Contenido → Amigues → Importar).
 5. **Los eventos de prueba son objetos `evento`** (`src/lib/server/demo/seedEvents.js`), después
-   del batch, con saveObject(): el sitio lee los eventos solo de la base. **DECIDIDO POR CLAUDE, A
-   CONFIRMAR**: cada evento de prueba es siempre el mismo objeto, de un día para el otro. Su
+   del batch, con saveObject(): el sitio lee los eventos solo de la base. **Confirmado por gorrite
+   (5/10)** (también las ~18 revisiones por recarga en el preview y adoptar o dar de baja los
+   `demo-*.md` importados): cada evento de prueba es siempre el mismo objeto, de un día para el otro. Su
    identidad es su lugar en la lista (`demo_slot` dentro de `extra`, p. ej. `noche-latex-4`), no
    su dirección (`demo-<serie>-<fecha>`, que cambia con la fecha): recargar le cambia en su lugar
    la dirección, las fechas, el texto, las personas (edges `persona`), las etiquetas (edges

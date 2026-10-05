@@ -225,7 +225,7 @@ importación, la lectura (solo la base) y el historial (`object_revisions`):
     rol de `authors:` en lo guardado con la forma de antes (`authors` + `extra.personas`): Autore
     en vez de Organiza (`withPersonaEdges(data, edges, 'material')`). La ficha de una cuenta en el
     panel sigue listando solo los eventos de sus perfiles (`admin/ficha.js`), como antes.
-  - **DECIDIDO POR CLAUDE, A CONFIRMAR** (gorrite), en la 0043: (1) la migración no toca un
+  - **Confirmado por gorrite (5/10)**, en la 0043: (1) la migración no toca un
     material cuya lista única tiene una fila que el tipo no acepta (no es `{ profile o name, role }`,
     o trae otra clave): la 0035 las descartaba en silencio; acá se dejan para el chequeo nocturno,
     como hace la 0042; (2) un perfil oculto también pasa a edge (como en los eventos: la lectura es
@@ -255,7 +255,7 @@ importación, la lectura (solo la base) y el historial (`object_revisions`):
   - Todavía no está la caché derivada en `data.tags` ni el chequeo nocturno `tags_out_of_sync` del
     plan original: las listas leen los edges en la misma consulta que los posts (sin una consulta
     por post), así que no hizo falta.
-  - **DECIDIDO POR CLAUDE, A CONFIRMAR** (gorrite): (1) un alias se guarda como edge al alias
+  - **Confirmado por gorrite (5/10)**: (1) un alias se guarda como edge al alias
     mismo, no a la canónica (así la lista sale idéntica; la limpieza de etiquetas ya resuelve el
     alias al mostrar); (2) el lugar va en `data.at` (como `persona`) y no en `position`, porque
     `saveObject()` numera `position` solo entre los edges y la lista mezcla edges y texto; (3) una

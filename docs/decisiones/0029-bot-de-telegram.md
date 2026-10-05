@@ -95,4 +95,4 @@ Reglas:
   canal, con horario de silencio de 23 a 9 (hora de Argentina). Solo título, fecha y link.
 - Mandar necesita un secret nuevo, `TELEGRAM_BOT_TOKEN` (lo carga gorrite en Cloudflare); sin él,
   los avisos por Telegram se saltean con una línea en el log. El webhook sigue sin usarlo.
-- Detalle y lo decidido por Claude a confirmar: [`docs/telegram.md`](../telegram.md).
+- Detalle y las decisiones de Claude (confirmadas por gorrite, 5/10): [`docs/telegram.md`](../telegram.md).

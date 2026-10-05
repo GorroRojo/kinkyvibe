@@ -131,15 +131,20 @@ npx vitest run src/lib/server/media src/routes/imagenes src/lib/utils/imageResiz
 npm run dev:admin   # el bucket MEDIA local lo simula miniflare (.wrangler/state)
 ```
 
-## DECIDIDO POR CLAUDE, A CONFIRMAR
+## Decisiones (confirmadas por gorrite, 5/10)
+
+Propuestas por Claude; **confirmado por gorrite (5/10)** todo lo de esta lista, salvo lo que se
+aclara en cada punto.
 
 - **Sin migración**: el `slug` de cada `imagen` es el SHA-256 del archivo (único por tipo) y la
   búsqueda usa `objects_fts`. Si hace falta filtrar mucho por tipo o tamaño, se promueve a columna.
 - **Texto alternativo obligatorio** al subir (no solo un aviso). Las importadas del repo llevan
-  «Imagen de «<título>»» (o nada si nada las usa): conviene revisarlas.
+  «Imagen de «<título>»» (o nada si nada las usa). Una lista para revisar esos textos: por ahora
+  no (gorrite).
 - **Cuentas del público**: solo suben y buscan entre lo suyo, y en su perfil solo ponen una imagen
   que subieron (o la que ya tenía). Borran lo suyo sin usar (decidido por gorrite, ver «Borrar»).
-- **Borrar lo propio: qué cuenta como «usar»**: solo edges y menciones desde objetos **vivos** (un
+- **Borrar lo propio: qué cuenta como «usar»** (**DECIDIDO POR CLAUDE, A CONFIRMAR**, no está en lo
+  que confirmó gorrite): solo edges y menciones desde objetos **vivos** (un
   objeto borrado que la tenía no la frena; si se restaura, queda sin esa imagen hasta que se
   suba de nuevo). Sin sesión o sin perfiles, 404 como el resto de `/imagenes` (no 401/403).
 - **/media sirve solo imágenes vivas** (una consulta a D1 por pedido, con caché inmutable en el
