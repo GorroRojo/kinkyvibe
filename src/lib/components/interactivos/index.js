@@ -5,7 +5,7 @@
  * la escapó). Import estático: sus estilos van en el CSS de la página desde el primer pintado.
  */
 import { INTERACTIVE_TAGS } from '$lib/utils/interactivos.js';
-import DondeGolpearUnCuerpo from '$lib/posts/material/media/donde-y-como-golpear-un-cuerpo/DondeGolpearUnCuerpo.svelte';
+import DondeGolpearUnCuerpo from '$lib/components/interactivos/DondeGolpearUnCuerpo.svelte';
 
 /** @type {Readonly<Record<string, import('svelte').Component<any>>>} */
 export const INTERACTIVE_COMPONENTS = Object.freeze({

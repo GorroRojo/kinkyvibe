@@ -29,7 +29,7 @@ export const INTERACTIVE_TAGS = Object.freeze({
 		label: 'Dónde y con qué golpear un cuerpo (gráfico interactivo)',
 		legacy: {
 			name: 'DondeGolpearUnCuerpo',
-			from: '$lib/posts/material/media/donde-y-como-golpear-un-cuerpo/DondeGolpearUnCuerpo.svelte'
+			from: '$lib/components/interactivos/DondeGolpearUnCuerpo.svelte'
 		}
 	}
 });

@@ -33,7 +33,7 @@ imágenes viejas del repo siguen ahí hasta pasarlas a R2 ([imagenes.md](imagene
 | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Publicaciones                                                          | `src/lib/posts/<categoría>/<slug>.md` (`calendario`, `material`, `amigues`, `wiki`)                                     |
 | Imágenes de cada publicación                                           | `src/lib/posts/<categoría>/media/<slug>/`                                                                               |
-| Plantilla de evento                                                    | `src/lib/posts/calendario/_event_template.md`                                                                           |
+| Plantillas de evento y de material                                     | `src/lib/admin/plantillas/` (`evento.md`, `material.md`)                                                                |
 | Árbol de etiquetas                                                     | `src/lib/utils/hardcodedTags.js` (se edita desde Panel → Etiquetas)                                                     |
 | Páginas públicas                                                       | `src/routes/(content)/` (`calendario`, `material`, `amigues`, `wiki`…)                                                  |
 | Editor de eventos (nuevo, editar, duplicar, agenda, importar planilla) | `src/routes/(authed)/admin/eventos/`, `src/lib/server/eventos/`, `src/lib/utils/eventDraft.js`                          |
@@ -145,7 +145,8 @@ prendido para siempre** y salió de Interruptores (paso 2 de «Contenido solo en
   el texto nombra un interactivo con una etiqueta propia, sola, sin atributos:
   `<kv-donde-golpear-un-cuerpo></kv-donde-golpear-un-cuerpo>`. El registro está en
   `src/lib/utils/interactivos.js` (etiquetas y su forma en los `.md`) y
-  `src/lib/components/interactivos/index.js` (qué componente muestra cada una). Solo las
+  `src/lib/components/interactivos/index.js` (qué componente muestra cada una; los componentes
+  viven en esa misma carpeta). Solo las
   registradas se muestran (también dentro de otro elemento, con `ContentParts.svelte`); cualquier
   otra `<kv-…>` se ve escapada, como texto. La importación pasa la forma del `.md` (componente
   importado en el `<script>`) a la etiqueta, y «Descargar todo» la vuelve a armar. Un interactivo

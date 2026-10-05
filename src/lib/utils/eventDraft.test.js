@@ -417,8 +417,8 @@ describe('buildEventMarkdown (duplicating real events)', () => {
 		expect(meta(buildEventMarkdown(src, { ...form, personas: [] }))).not.toHaveProperty('personas');
 	});
 
-	it("creates an event from the owner's _event_template.md", () => {
-		const tpl = post('_event_template');
+	it("creates an event from the owner's template (src/lib/admin/plantillas/evento.md)", () => {
+		const tpl = readFileSync(new URL('../admin/plantillas/evento.md', import.meta.url), 'utf8');
 		const form = formFromSource(tpl, { today, fromTemplate: true });
 		const md = buildEventMarkdown(tpl, {
 			...form,
