@@ -4,7 +4,7 @@
  * list rows. No Svelte / SvelteKit imports: runs in the browser, on the server and in vitest.
  *
  * The fields are the ones the existing posts actually use (see the templates
- * src/lib/posts/material/_post_template.md and src/lib/posts/amigues/_profile_template.md).
+ * src/lib/admin/plantillas/material.md and src/lib/posts/amigues/_profile_template.md).
  * Saving only touches the keys that changed, so comments, key order and keys the form doesn't
  * know are kept (applyFrontmatterChanges).
  */

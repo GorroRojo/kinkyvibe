@@ -47,7 +47,7 @@ import {
 import { readVenueChoice } from '$lib/utils/venueChoice.js';
 import { duplicableEvents } from '$lib/server/eventos/drafts.js';
 // The owner's own starting point for new events; NEW_EVENT_TEMPLATE is only a fallback.
-import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
+import eventTemplate from '$lib/admin/plantillas/evento.md?raw';
 import {
 	NEW_EVENT_TEMPLATE,
 	applyFrontmatterChanges,
@@ -59,8 +59,7 @@ import {
 	validateSlug
 } from '$lib/utils/eventDraft.js';
 
-const NO_PERMISSION =
-	'No tenés permiso para cargar eventos. Probá salir y volver a entrar.';
+const NO_PERMISSION = 'No tenés permiso para cargar eventos. Probá salir y volver a entrar.';
 
 /** @param {string} slug */
 const eventPath = (slug) => `${POSTS_DIR}/${slug}.md`;
