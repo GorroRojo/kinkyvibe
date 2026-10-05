@@ -254,9 +254,10 @@
 		padding: 0;
 		display: flex;
 		font-size: 0.8em;
-		/* en varias filas, no recortadas abajo del botón de la derecha (y sin recortar la zona
-		   de toque de cada etiqueta) */
-		flex-wrap: wrap;
+		/* en una sola fila, que se desliza de costado (pedido de gorrite, 5/10) */
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		overflow-y: hidden;
 		gap: 0.3em;
 		/* position: absolute; */
 		/* bottom: -1em; */
