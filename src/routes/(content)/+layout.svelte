@@ -38,6 +38,8 @@
 	// «Salir» (Mi rincón o el encabezado) vuelve al inicio con ?salida=1: un aviso corto.
 	let closedNotice = false;
 	$: loggedOut = !closedNotice && !data.member && $page.url.searchParams.get('salida') === '1';
+	// en el inicio el logo grande va en la presentación (+page.svelte), no en el encabezado
+	$: isHome = $page.url.pathname == '/';
 	$: ldBreadcrumb = onPost ? breadcrumbLd($currentPostData?.category, $page.url.origin) : null;
 </script>
 
@@ -63,7 +65,7 @@
 			{/if}
 		</nav>
 	{/if}
-	<div id="me">
+	<div id="me" class:no-logo={isHome}>
 		<ul id="redes">
 			<!-- el buscador global reemplaza acá al link de Cafecito y a los íconos de
 			     Telegram/Instagram (todos siguen en el footer) -->
@@ -73,9 +75,11 @@
 			<!-- recursero -->
 			<!-- fanzines -->
 		</ul>
-		<a id="logo" rel="home" href="/">
-			<img src={logo} alt="Kinky Vibe" />
-		</a>
+		{#if !isHome}
+			<a id="logo" rel="home" href="/">
+				<img src={logo} alt="Kinky Vibe" />
+			</a>
+		{/if}
 		<div id="user">
 			{#if data.user && data.user !== undefined && data.user.login !== undefined && data.user.login !== ''}
 				<!-- loaded on demand: only logged-in admins see it, and it pulls in melt-ui -->
@@ -436,6 +440,30 @@
 		}
 		#redes {
 			display: none;
+		}
+	}
+	/* inicio, sin logo: el buscador y los botones de la cuenta juntos, al centro */
+	#me.no-logo {
+		grid-template-areas: 'redes user';
+		grid-template-columns: 1fr 1fr;
+	}
+	@media (min-width: 1380px) {
+		#me.no-logo {
+			grid-template-columns: 10em auto;
+		}
+	}
+	/* sin el buscador (pasa al botón flotante): solo los botones de la cuenta */
+	@media (max-width: 680px) {
+		#me.no-logo {
+			grid-template-areas: 'user';
+			grid-template-columns: auto;
+			justify-content: center;
+		}
+		#me.no-logo #redes {
+			display: none;
+		}
+		#me.no-logo #user {
+			justify-self: center;
 		}
 	}
 	/* muy angosto: solo el logo y el link de la cuenta (Ingresar / Mi rincón), para que siempre se

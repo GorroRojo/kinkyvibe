@@ -164,7 +164,8 @@
 		gap: var(--space-xl);
 		padding-top: var(--space-s);
 	}
-	/* logo a la izquierda y la descripción a la derecha, también en el celu */
+	/* logo grande a la izquierda y la descripción a la derecha (en el inicio el encabezado no
+	   lleva logo: va acá) */
 	.intro {
 		max-width: 50rem;
 		margin-inline: auto;
@@ -181,13 +182,13 @@
 	}
 	.intro-logo img {
 		display: block;
-		width: var(--space-xl-2xl);
+		width: calc(var(--space-2xl-3xl) * 1.5);
 		height: auto;
 	}
 	.intro p {
 		margin: 0;
 		max-width: 30rem;
-		font-size: var(--text-base);
+		font-size: var(--text-lg);
 		color: var(--muted);
 		text-wrap: pretty;
 	}

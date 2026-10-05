@@ -97,6 +97,20 @@ test.describe('rutas principales', () => {
 		).toBeVisible();
 	});
 
+	// El logo del encabezado (link al inicio) no va en el inicio, que ya lo muestra grande arriba.
+	test('el encabezado no lleva logo en el inicio y sí en las otras páginas', async ({ page }) => {
+		await acceptAgeGate(page);
+		await page.goto('/');
+		// el resto del encabezado sigue
+		await expect(page.getByRole('link', { name: /¿Todo gratis\?/ })).toBeVisible();
+		await expect(page.locator('#logo')).toHaveCount(0);
+		await page.goto('/calendario');
+		const logo = page.locator('#logo');
+		await expect(logo).toBeVisible();
+		await expect(logo).toHaveAttribute('href', '/');
+		await expect(logo.getByRole('img', { name: 'Kinky Vibe', exact: true })).toBeVisible();
+	});
+
 	test('/login muestra el botón de GitHub', async ({ page }) => {
 		const res = await page.goto('/login');
 		expect(res?.status()).toBe(200);
