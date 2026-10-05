@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { validateFields } from '../fields.js';
 import { coreTypes, createRegistry, validateData } from './index.js';
+import { fileKeysInText } from './archivo.js';
 import {
 	LEGACY_PROJECT_KIND,
 	PROFILE_KINDS,
@@ -15,14 +16,15 @@ const lugar = /** @type {import('./index.js').CoreType} */ (coreTypes.get('lugar
 const perfil = /** @type {import('./index.js').CoreType} */ (coreTypes.get('perfil'));
 
 describe('registro de tipos núcleo', () => {
-	it('tiene evento, lugar, perfil, etiqueta, material e imagen; el evento puede apuntar a un lugar (o a un perfil de lugar), a perfiles y a su portada', () => {
+	it('tiene evento, lugar, perfil, etiqueta, material, imagen y archivo; el evento puede apuntar a un lugar (o a un perfil de lugar), a perfiles y a su portada', () => {
 		expect([...coreTypes.types.keys()]).toEqual([
 			'evento',
 			'lugar',
 			'perfil',
 			'etiqueta',
 			'material',
-			'imagen'
+			'imagen',
+			'archivo'
 		]);
 		expect(evento.edges?.lugar).toMatchObject({ to: ['lugar', 'perfil'], max: 1 });
 		expect(evento.edges?.persona).toMatchObject({ to: ['perfil'] });
@@ -42,6 +44,22 @@ describe('registro de tipos núcleo', () => {
 		expect(() =>
 			createRegistry([{ ...base, type: 'a', edges: { b: { label: 'B', to: ['no_existe'] } } }])
 		).toThrow(/no existe/);
+		expect(() =>
+			createRegistry([
+				{ ...base, type: 'a', edges: { b: { label: 'B', to: ['a'], derived: true } } }
+			])
+		).toThrow(/deriveEdges/);
+	});
+
+	it('solo el material tiene `adjunto`, solo hacia `archivo`, y lo calcula de sus datos', () => {
+		for (const def of coreTypes.types.values()) {
+			if (def.type === 'material') continue;
+			expect(def.edges?.adjunto).toBeUndefined();
+			for (const edge of Object.values(def.edges ?? {})) expect(edge.derived).toBeFalsy();
+		}
+		const material = /** @type {import('./index.js').CoreType} */ (coreTypes.get('material'));
+		expect(material.edges?.adjunto).toMatchObject({ to: ['archivo'], derived: true });
+		expect(typeof material.deriveEdges).toBe('function');
 	});
 });
 
@@ -294,6 +312,44 @@ describe('imagen', () => {
 			['perfil', 'avatar']
 		]) {
 			expect(coreTypes.get(type)?.edges?.[kind]).toMatchObject({ to: ['imagen'], max: 1 });
+		}
+	});
+});
+
+describe('archivo (documentos y video de la biblioteca)', () => {
+	const archivo = /** @type {import('./index.js').CoreType} */ (coreTypes.get('archivo'));
+	const key = `file/${'b'.repeat(64)}.pdf`;
+	it('una clave de R2 por contenido (`file/…`), su tipo y su peso', () => {
+		expect(validateData(archivo, { key, mime: 'application/pdf', size: 1200 })).toMatchObject({
+			ok: true
+		});
+		expect(
+			validateData(archivo, { key: `img/${'b'.repeat(64)}.webp`, mime: 'application/pdf', size: 1 })
+		).toMatchObject({ ok: false, errors: [{ path: 'key' }] });
+		expect(validateData(archivo, { key, mime: 'text/html', size: 1 })).toMatchObject({ ok: false });
+		expect(validateData(archivo, { key, mime: 'image/svg+xml', size: 1 })).toMatchObject({
+			ok: false
+		});
+		expect(validateData(archivo, { key, mime: 'application/pdf' })).toMatchObject({ ok: false });
+	});
+	it('fileKeysInText: las claves de `/media/file/…` enlazadas, sin repetir y en orden', () => {
+		const a = 'a'.repeat(64);
+		const b = 'b'.repeat(64);
+		expect(
+			fileKeysInText([
+				`[Guía](/media/file/${b}.pdf) y [video](https://kinkyvibe.ar/media/file/${a}.mp4)`,
+				`otra vez [la guía](/media/file/${b}.pdf).`,
+				null,
+				`no: /media/img/${a}.webp, /media/file/${a}.pdfx, /media/file/${a.slice(1)}.pdf`
+			])
+		).toEqual([`file/${b}.pdf`, `file/${a}.mp4`]);
+		expect(fileKeysInText([undefined, ''])).toEqual([]);
+	});
+	it('ningún uso de imagen (portada, avatar, imagen de serie) puede apuntar a un archivo', () => {
+		for (const def of coreTypes.types.values()) {
+			for (const edge of Object.values(def.edges ?? {})) {
+				if (edge.to.includes('imagen')) expect(edge.to).not.toContain('archivo');
+			}
 		}
 	});
 });

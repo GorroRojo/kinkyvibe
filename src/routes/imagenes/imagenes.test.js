@@ -8,7 +8,8 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth.js';
 import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
 import { saveObject } from '$lib/server/objects/save.js';
-import { solidPng } from '$lib/server/media/testing.js';
+import { fakeMp4, fakeOdt, fakePdf, fakeZip, solidPng } from '$lib/server/media/testing.js';
+import { MAX_FILE_BYTES } from '$lib/utils/libraryFiles.js';
 import * as library from './+server.js';
 import * as one from './[id]/+server.js';
 import * as media from '../media/[...key]/+server.js';
@@ -329,5 +330,195 @@ describe('borrar lo propio (cuentas del público)', () => {
 		);
 		expect((await one.DELETE(delEv(admin, image.id))).status).toBe(200);
 		expect(await alive(image.id)).toBe(false);
+	});
+});
+
+/** Un documento o video para subir. @param {Uint8Array} bytes @param {string} fileName @param {string} [name] */
+function uploadDoc(bytes, fileName, name = 'Guía inventada de prueba') {
+	const form = new FormData();
+	form.set('file', new File([bytes], fileName));
+	if (name !== undefined) form.set('name', name);
+	return form;
+}
+
+/** GET /media/<clave> como cualquiera. @param {string} key @param {Record<string, string>} [headers] */
+const serve = (key, headers = {}) =>
+	media.GET(ev(anon, { path: `/media/${key}`, params: { key }, headers }));
+
+describe('documentos y video (biblioteca)', () => {
+	const count = async () =>
+		(await t.db.prepare("SELECT COUNT(*) AS n FROM objects WHERE type = 'archivo'").first())?.n;
+
+	it('les admins suben un PDF: objeto `archivo` con su nombre, y el mismo archivo es el mismo', async () => {
+		const res = await library.POST(
+			ev(admin, { method: 'POST', form: uploadDoc(fakePdf(), 'g.pdf') })
+		);
+		expect(res.status).toBe(201);
+		const { file, image } = await res.json();
+		expect(image).toBeUndefined();
+		expect(file).toMatchObject({
+			kind: 'documento',
+			mime: 'application/pdf',
+			title: 'Guía inventada de prueba',
+			typeLabel: 'PDF'
+		});
+		expect(file.url).toMatch(/^\/media\/file\/[0-9a-f]{64}\.pdf$/);
+		const again = await library.POST(
+			ev(admin, { method: 'POST', form: uploadDoc(fakePdf(), 'otro.pdf', 'Otro nombre') })
+		);
+		expect(again.status).toBe(200);
+		expect((await again.json()).file.id).toBe(file.id);
+		expect(await count()).toBe(1);
+	});
+
+	it('una cuenta del público no sube documentos ni video (415), aunque gestione un perfil', async () => {
+		const me = await member('persona-docs');
+		for (const [bytes, name] of /** @type {const} */ ([
+			[fakePdf(), 'g.pdf'],
+			[fakeMp4(), 'v.mp4'],
+			[fakeOdt(), 'd.odt']
+		])) {
+			const res = await library.POST(ev(me, { method: 'POST', form: uploadDoc(bytes, name) }));
+			expect(res.status).toBe(415);
+			expect((await res.json()).error).toMatch(/solo imágenes/);
+		}
+		expect(await count()).toBe(0);
+		// Y su búsqueda sigue trayendo solo sus imágenes, aunque pida `tipo`.
+		await library.POST(ev(admin, { method: 'POST', form: uploadDoc(fakePdf(), 'g.pdf') }));
+		const mine = await (await library.GET(ev(me, { path: '/imagenes?tipo=documento' }))).json();
+		expect(mine.images).toEqual([]);
+	});
+
+	it('rechaza lo que no es imagen ni documento aceptado (HTML, zip cualquiera) y lo que es muy grande', async () => {
+		const html = new TextEncoder().encode('<!doctype html><script>alert(1)</script>');
+		for (const [bytes, name] of /** @type {const} */ ([
+			[html, 'x.pdf'],
+			[fakeZip('[Content_Types].xml', '<Types/>'), 'x.odt']
+		])) {
+			const res = await library.POST(ev(admin, { method: 'POST', form: uploadDoc(bytes, name) }));
+			expect(res.status).toBe(415);
+		}
+		// Un pedido que dice pesar más que el máximo: 413 con explicación, sin leerlo.
+		const big = await library.POST(
+			ev(admin, {
+				method: 'POST',
+				form: uploadDoc(fakePdf(), 'g.pdf'),
+				headers: { 'content-length': String(MAX_FILE_BYTES + 1024 * 1024) }
+			})
+		);
+		expect(big.status).toBe(413);
+		expect((await big.json()).error).toMatch(/El máximo es 25 MB/);
+		expect(await count()).toBe(0);
+	});
+
+	it('PDF: se sirve inline con nombre seguro, nosniff y caché para siempre; ODT se descarga', async () => {
+		const pdf = (
+			await (
+				await library.POST(ev(admin, { method: 'POST', form: uploadDoc(fakePdf(), 'g.pdf') }))
+			).json()
+		).file;
+		const r = await serve(pdf.key);
+		expect(r.status).toBe(200);
+		expect(r.headers.get('content-type')).toBe('application/pdf');
+		expect(r.headers.get('x-content-type-options')).toBe('nosniff');
+		expect(r.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+		expect(r.headers.get('accept-ranges')).toBe('bytes');
+		expect(r.headers.get('content-disposition')).toBe(
+			`inline; filename="Guia inventada de prueba.pdf"; filename*=UTF-8''Gu%C3%ADa%20inventada%20de%20prueba.pdf`
+		);
+		expect(new Uint8Array(await r.arrayBuffer())).toEqual(fakePdf());
+
+		const odt = (
+			await (
+				await library.POST(
+					ev(admin, { method: 'POST', form: uploadDoc(fakeOdt(), 'd.odt', 'Ficha médica') })
+				)
+			).json()
+		).file;
+		const o = await serve(odt.key);
+		expect(o.headers.get('content-type')).toBe('application/vnd.oasis.opendocument.text');
+		expect(o.headers.get('content-disposition')).toMatch(
+			/^attachment; filename="Ficha medica\.odt"/
+		);
+		expect(o.headers.get('content-security-policy')).toMatch(/sandbox/);
+		// Las imágenes siguen igual (sin Content-Disposition) y también dicen nosniff.
+		const img = (
+			await (await library.POST(ev(admin, { method: 'POST', form: upload(solidPng(4, 4)) }))).json()
+		).image;
+		const i = await serve(img.key);
+		expect(i.headers.get('content-disposition')).toBeNull();
+		expect(i.headers.get('x-content-type-options')).toBe('nosniff');
+	});
+
+	it('video: pedidos por partes (206, límites, 416) y 404 al sacarlo', async () => {
+		const bytes = fakeMp4('mp42', 1000);
+		const video = (
+			await (
+				await library.POST(
+					ev(admin, { method: 'POST', form: uploadDoc(bytes, 'v.mp4', 'Video de prueba') })
+				)
+			).json()
+		).file;
+		expect(video).toMatchObject({ kind: 'video', mime: 'video/mp4' });
+		const whole = await serve(video.key);
+		expect(whole.status).toBe(200);
+		expect(whole.headers.get('content-length')).toBe('1000');
+		expect(whole.headers.get('content-disposition')).toMatch(/^inline; /);
+
+		const part = await serve(video.key, { range: 'bytes=100-199' });
+		expect(part.status).toBe(206);
+		expect(part.headers.get('content-range')).toBe('bytes 100-199/1000');
+		expect(part.headers.get('content-length')).toBe('100');
+		expect(new Uint8Array(await part.arrayBuffer())).toEqual(bytes.slice(100, 200));
+
+		const tail = await serve(video.key, { range: 'bytes=-10' });
+		expect(tail.status).toBe(206);
+		expect(tail.headers.get('content-range')).toBe('bytes 990-999/1000');
+		expect(new Uint8Array(await tail.arrayBuffer())).toEqual(bytes.slice(990));
+
+		const clipped = await serve(video.key, { range: 'bytes=950-5000' });
+		expect(clipped.status).toBe(206);
+		expect(clipped.headers.get('content-range')).toBe('bytes 950-999/1000');
+		expect((await clipped.arrayBuffer()).byteLength).toBe(50);
+
+		const outside = await serve(video.key, { range: 'bytes=1000-' });
+		expect(outside.status).toBe(416);
+		expect(outside.headers.get('content-range')).toBe('bytes */1000');
+
+		// Varios rangos: se ignora y se manda todo.
+		expect((await serve(video.key, { range: 'bytes=0-1,5-9' })).status).toBe(200);
+
+		expect((await one.DELETE(delEv(admin, video.id))).status).toBe(200);
+		expect(await status(() => serve(video.key))).toBe(404);
+		expect(await status(() => serve(video.key, { range: 'bytes=0-9' }))).toBe(404);
+	});
+
+	it('/media/file/… rechaza claves raras', async () => {
+		for (const key of ['file/../../x.pdf', `file/${'a'.repeat(64)}.html`, 'file/abc.pdf']) {
+			expect(await status(() => serve(key))).toBe(404);
+		}
+		// Una clave bien formada que no existe.
+		expect(await status(() => serve(`file/${'c'.repeat(64)}.pdf`))).toBe(404);
+	});
+
+	it('buscar con filtro por tipo (solo admins): todo, imágenes, documentos, videos', async () => {
+		await library.POST(ev(admin, { method: 'POST', form: upload(solidPng(5, 5)) }));
+		await library.POST(ev(admin, { method: 'POST', form: uploadDoc(fakePdf(), 'g.pdf') }));
+		await library.POST(
+			ev(admin, { method: 'POST', form: uploadDoc(fakeMp4(), 'v.mp4', 'Video inventado') })
+		);
+		const kinds = async (/** @type {string} */ q) =>
+			(await (await library.GET(ev(admin, { path: `/imagenes?${q}` }))).json()).images
+				.map((/** @type {any} */ i) => i.kind)
+				.sort();
+		expect(await kinds('tipo=todo')).toEqual(['documento', 'imagen', 'video']);
+		expect(await kinds('tipo=imagen')).toEqual(['imagen']);
+		expect(await kinds('tipo=documento')).toEqual(['documento']);
+		expect(await kinds('tipo=video')).toEqual(['video']);
+		expect(await kinds('q=invent&tipo=todo')).toEqual(['documento', 'video']);
+		// Sin `tipo` (el selector de imágenes): solo imágenes, como siempre.
+		const plain = await (await library.GET(ev(admin))).json();
+		expect(plain.images).toHaveLength(1);
+		expect(plain.images[0].kind).toBeUndefined();
 	});
 });

@@ -5,6 +5,7 @@
  * Solo usa imports relativos (lo usa el cron nocturno, que no pasa por Vite).
  */
 import { validateFields } from '../fields.js';
+import archivo from './archivo.js';
 import etiqueta from './etiqueta.js';
 import evento from './evento.js';
 import imagen from './imagen.js';
@@ -20,6 +21,8 @@ import perfil from './perfil.js';
  * @prop {readonly string[]} to tipos permitidos del otro extremo
  * @prop {number} [max] cuántos como mucho (sin `max`: sin límite)
  * @prop {boolean} [required] un objeto vivo sin este edge es un «huérfano» (chequeo nocturno)
+ * @prop {boolean} [derived] lo calcula el tipo en cada guardado a partir de sus datos
+ *   (`deriveEdges`): quien guarda no lo manda (si lo manda, es un error)
  */
 
 /**
@@ -32,6 +35,9 @@ import perfil from './perfil.js';
  *   un valor de opción que cambió de nombre); devuelve los datos tal cual si no hay nada que hacer
  * @prop {(data: Record<string, any>) => import('../fields.js').FieldError[]} [check] reglas entre campos
  * @prop {(data: Record<string, any>) => string} [searchText] texto extra para la búsqueda
+ * @prop {(db: import('@cloudflare/workers-types').D1Database, data: Record<string, any>) =>
+ *   Promise<Record<string, import('../edges.js').EdgeInput[]>>} [deriveEdges] los edges `derived`
+ *   que corresponden a estos datos (ya validados); saveObject() los reemplaza en cada guardado
  */
 
 /**
@@ -61,6 +67,8 @@ export function createRegistry(list) {
 	for (const def of list) {
 		for (const [kind, edge] of Object.entries(def.edges ?? {})) {
 			if (!KEY.test(kind)) throw new Error(`${def.type}: edge con clave inválida: ${kind}`);
+			if (edge.derived && !def.deriveEdges)
+				throw new Error(`${def.type}.${kind}: es calculado y el tipo no tiene deriveEdges`);
 			for (const to of edge.to) {
 				if (!types.has(to))
 					throw new Error(`${def.type}.${kind}: apunta a un tipo que no existe: ${to}`);
@@ -71,7 +79,15 @@ export function createRegistry(list) {
 }
 
 /** Los tipos núcleo del sitio. */
-export const coreTypes = createRegistry([evento, lugar, perfil, etiqueta, material, imagen]);
+export const coreTypes = createRegistry([
+	evento,
+	lugar,
+	perfil,
+	etiqueta,
+	material,
+	imagen,
+	archivo
+]);
 
 /**
  * Valida y normaliza los datos de un objeto según su tipo.

@@ -1,7 +1,10 @@
 /**
- * La biblioteca de imágenes (docs/imagenes.md): cada imagen es un objeto `imagen` en la base y
- * su archivo está en R2 (binding `MEDIA`). Cada uso es un edge hacia la imagen (evento → imagen
- * `portada`, material → `portada`, etiqueta de serie → `imagen`, perfil → `avatar`).
+ * La biblioteca (docs/imagenes.md): cada imagen es un objeto `imagen` en la base y su archivo está
+ * en R2 (binding `MEDIA`). Cada uso es un edge hacia la imagen (evento → imagen `portada`,
+ * material → `portada`, etiqueta de serie → `imagen`, perfil → `avatar`). Los documentos y los
+ * videos (PDF, MP4, WebM, ODT, ODS, ODP) son objetos `archivo`, en el mismo bucket; un texto los
+ * enlaza por su dirección (`/media/file/<hash>.pdf`) y el material tiene además un edge `adjunto`
+ * hacia cada uno, que sigue al texto (types/material.js). Solo les admins los suben.
  *
  * Todas las escrituras pasan por saveObject(); las lecturas, por la visibilidad
  * (`visibleWhere`/`canSee`). Sin imports de SvelteKit: lo usan las rutas, el script de
@@ -14,8 +17,10 @@ import { OBJECT_COLUMNS, forViewer, rowToObject } from '../objects/read.js';
 import { saveObject } from '../objects/save.js';
 import { ANON, canSee, visibleWhere } from '../objects/visibility.js';
 import { MEDIA_KEY } from '../objects/types/imagen.js';
-import { mediaKey, mediaPath, sha256Hex, sniffImage } from './sniff.js';
+import { FILE_KEY } from '../objects/types/archivo.js';
+import { fileKey, mediaKey, mediaPath, sha256Hex, sniffDocument, sniffImage } from './sniff.js';
 import { usageText } from '../../utils/imageChoice.js';
+import { MAX_FILE_BYTES, fileSizeProblem } from '../../utils/libraryFiles.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').R2Bucket} R2Bucket */
@@ -23,6 +28,9 @@ import { usageText } from '../../utils/imageChoice.js';
 /** @typedef {import('../objects/read.js').StoredObject} StoredObject */
 
 export const IMAGE_TYPE = 'imagen';
+/** Documentos y videos de la biblioteca (tipo hermano de `imagen`, ver types/archivo.js). */
+export const FILE_TYPE = 'archivo';
+export { MAX_FILE_BYTES };
 
 /**
  * Peso máximo de lo que llega al servidor. El navegador achica antes de subir (lado mayor 2000
@@ -83,6 +91,62 @@ export function publicImage(o) {
 /** `img/<hash>.<ext>` → `<hash>` (el slug del objeto). @param {string} key */
 export const slugOfKey = (key) => (MEDIA_KEY.test(key) ? key.slice(4, 68) : null);
 
+/** `file/<hash>.<ext>` → `<hash>` (el slug del objeto `archivo`). @param {string} key */
+export const slugOfFileKey = (key) => (FILE_KEY.test(key) ? key.slice(5, 69) : null);
+
+/** Cómo se nombra cada tipo de archivo para mostrar. */
+const FILE_LABELS = /** @type {Record<string, string>} */ ({
+	'application/pdf': 'PDF',
+	'video/mp4': 'Video MP4',
+	'video/webm': 'Video WebM',
+	'application/vnd.oasis.opendocument.text': 'Documento ODT',
+	'application/vnd.oasis.opendocument.spreadsheet': 'Planilla ODS',
+	'application/vnd.oasis.opendocument.presentation': 'Presentación ODP'
+});
+
+/**
+ * @typedef {{ id: number, kind: 'documento' | 'video', key: string, url: string, title: string,
+ *   mime: string, size: number, typeLabel: string, originalName: string }} PublicFile
+ *   Un documento o un video de la biblioteca (sin quién lo subió).
+ * @typedef {(PublicImage & { kind: 'imagen', typeLabel: string }) | PublicFile} LibraryItem
+ *   Lo que lista la biblioteca con filtro por tipo.
+ */
+
+/**
+ * @param {StoredObject} o
+ * @returns {PublicFile}
+ */
+export function publicFile(o) {
+	const d = /** @type {Record<string, any>} */ (o.data);
+	const mime = String(d.mime ?? '');
+	return {
+		id: o.id,
+		kind: mime.startsWith('video/') ? 'video' : 'documento',
+		key: String(d.key ?? ''),
+		url: mediaPath(String(d.key ?? '')),
+		title: o.title,
+		mime,
+		size: Number(d.size ?? 0),
+		typeLabel: FILE_LABELS[mime] ?? 'Archivo',
+		originalName: typeof d.original_name === 'string' ? d.original_name : ''
+	};
+}
+
+/**
+ * Un objeto de la biblioteca (imagen o archivo) como lo lista la biblioteca.
+ * @param {StoredObject} o
+ * @returns {LibraryItem}
+ */
+export function libraryItem(o) {
+	if (o.type === FILE_TYPE) return publicFile(o);
+	const image = publicImage(o);
+	return {
+		...image,
+		kind: 'imagen',
+		typeLabel: `Imagen ${image.mime.replace('image/', '').toUpperCase()}`
+	};
+}
+
 /**
  * El nombre para buscar una imagen: el del archivo, sin la extensión ni caracteres raros.
  * @param {unknown} name
@@ -99,14 +163,27 @@ export function imageTitle(name) {
 }
 
 /**
+ * Un nombre escrito por una persona, sin caracteres de control ni espacios de más.
+ * @param {unknown} name
+ */
+function cleanTitle(name) {
+	return String(name ?? '')
+		.replace(/\p{Cc}/gu, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.slice(0, 200);
+}
+
+/**
  * @param {D1Database} db
  * @param {string} slug
+ * @param {string} [type]
  * @returns {Promise<StoredObject | null>}
  */
-async function findBySlug(db, slug) {
+async function findBySlug(db, slug, type = IMAGE_TYPE) {
 	const row = await db
 		.prepare(`SELECT ${OBJECT_COLUMNS} FROM objects WHERE type = ?1 AND slug = ?2`)
-		.bind(IMAGE_TYPE, slug)
+		.bind(type, slug)
 		.first();
 	return row ? rowToObject(row) : null;
 }
@@ -200,6 +277,109 @@ function positive(n) {
 	return Number.isSafeInteger(v) && v > 0 && v <= 20_000 ? v : undefined;
 }
 
+/** Sin nombre no se sube un documento o un video (es lo que se ve en el enlace). */
+export const FILE_TITLE_REQUIRED =
+	'Escribí un nombre para el archivo: es lo que se ve en el enlace y con lo que se busca.';
+
+/**
+ * Guarda un documento o un video (PDF, MP4, WebM, ODT, ODS, ODP): el archivo en R2 (si no estaba)
+ * y su objeto `archivo` en la base. El tipo sale de los bytes; el mismo archivo subido otra vez es
+ * el mismo objeto (si estaba borrado, vuelve). Quién puede subir lo decide la ruta (solo admins).
+ *
+ * @param {D1Database} db
+ * @param {R2Bucket | undefined | null} bucket
+ * @param {{ bytes: Uint8Array, name?: string, title?: string, sourcePath?: string }} file
+ * @param {{ actor: string, now?: number }} ctx
+ * @returns {Promise<{ file: PublicFile, created: boolean }>}
+ */
+export async function storeFile(db, bucket, file, { actor, now = Date.now() }) {
+	if (!bucket) throw new ImageError(503, 'Todavía no hay dónde guardar archivos en este sitio.');
+	const bytes = file.bytes;
+	if (!(bytes instanceof Uint8Array) || bytes.length === 0) {
+		throw new ImageError(400, 'No llegó ningún archivo. Volvé a elegirlo.');
+	}
+	const tooBig = fileSizeProblem(bytes.length);
+	if (tooBig) throw new ImageError(413, tooBig);
+	const sniffed = sniffDocument(bytes);
+	if (!sniffed) {
+		throw new ImageError(
+			415,
+			'El archivo no es un PDF, un video MP4 o WebM, ni un documento ODT, ODS u ODP.'
+		);
+	}
+	// El nombre escrito va tal cual (limpio); sin nombre, el del archivo sin la extensión.
+	const title = String(file.title ?? '').trim()
+		? cleanTitle(file.title)
+		: String(file.name ?? '').trim()
+			? imageTitle(file.name)
+			: '';
+	if (!title) throw new ImageError(400, FILE_TITLE_REQUIRED);
+	const hash = await sha256Hex(bytes);
+	const key = fileKey(hash, sniffed.ext);
+
+	if (!(await bucket.head(key))) {
+		await bucket.put(key, bytes, {
+			httpMetadata: { contentType: sniffed.mime, cacheControl: IMMUTABLE_CACHE }
+		});
+	}
+
+	const existing = await findBySlug(db, hash, FILE_TYPE);
+	if (existing) {
+		if (existing.deleted_at === null) return { file: publicFile(existing), created: false };
+		const saved = await saveObject(
+			db,
+			{ id: existing.id, type: FILE_TYPE, version: existing.version, deleted: false },
+			{ actor, now }
+		);
+		return { file: publicFile(saved), created: false };
+	}
+
+	const saved = await saveObject(
+		db,
+		{
+			type: FILE_TYPE,
+			slug: hash,
+			title,
+			data: {
+				key,
+				mime: sniffed.mime,
+				size: bytes.length,
+				...(file.name ? { original_name: String(file.name).slice(0, 200) } : {}),
+				...(file.sourcePath ? { source_path: file.sourcePath } : {})
+			}
+		},
+		{ actor, now }
+	);
+	return { file: publicFile(saved), created: true };
+}
+
+/** Qué tipos de objeto trae cada filtro de la biblioteca. */
+const KIND_TYPES = Object.freeze({
+	todo: [IMAGE_TYPE, FILE_TYPE],
+	imagen: [IMAGE_TYPE],
+	documento: [FILE_TYPE],
+	video: [FILE_TYPE]
+});
+
+/**
+ * Buscar en toda la biblioteca (imágenes, documentos y videos) con un filtro por tipo, por nombre
+ * (y texto alternativo en las imágenes). Sin texto, lo más nuevo. Para les admins (el selector de
+ * imágenes sigue usando {@link searchImages}, que trae solo imágenes).
+ *
+ * @param {D1Database} db
+ * @param {{ q?: string, kind?: 'todo' | 'imagen' | 'documento' | 'video', viewer: Viewer,
+ *   createdBy?: string, limit?: number }} opts
+ * @returns {Promise<LibraryItem[]>}
+ */
+export async function searchLibrary(db, { q = '', kind = 'todo', viewer, createdBy, limit = 24 }) {
+	const types = KIND_TYPES[kind] ?? KIND_TYPES.todo;
+	const found = await searchObjectsOf(db, types, { q, viewer, createdBy, limit: 60 });
+	const items = found.map(libraryItem);
+	const wanted =
+		kind === 'documento' || kind === 'video' ? items.filter((i) => i.kind === kind) : items;
+	return wanted.slice(0, Math.min(Math.max(1, limit), 60));
+}
+
 /**
  * Buscar en la biblioteca por nombre o texto alternativo (cada palabra como prefijo). Sin texto,
  * las más nuevas. `createdBy`: solo las que subió esa cuenta (Mi rincón: una cuenta del público
@@ -210,6 +390,20 @@ function positive(n) {
  * @returns {Promise<PublicImage[]>}
  */
 export async function searchImages(db, { q = '', viewer, createdBy, limit = 24 }) {
+	const found = await searchObjectsOf(db, [IMAGE_TYPE], { q, viewer, createdBy, limit });
+	return found.map(publicImage);
+}
+
+/**
+ * La búsqueda de la biblioteca, para uno o más tipos (`imagen`, `archivo`): cada palabra como
+ * prefijo en el índice de objetos; sin texto, lo más nuevo. Pasa por la visibilidad.
+ *
+ * @param {D1Database} db
+ * @param {string[]} types
+ * @param {{ q?: string, viewer: Viewer, createdBy?: string, limit?: number }} opts
+ * @returns {Promise<StoredObject[]>}
+ */
+async function searchObjectsOf(db, types, { q = '', viewer, createdBy, limit = 24 }) {
 	const terms = String(q)
 		.split(/\s+/)
 		.map((w) => w.replace(/["*^():{}[\]]/g, '').trim())
@@ -226,20 +420,21 @@ export async function searchImages(db, { q = '', viewer, createdBy, limit = 24 }
 		? db
 				.prepare(
 					`SELECT ${cols} FROM objects_fts f JOIN objects o ON o.id = f.rowid
-					WHERE objects_fts MATCH ? AND o.type = ? AND ${visible.sql}
-					AND (? IS NULL OR o.created_by = ?)
+					WHERE objects_fts MATCH ? AND o.type IN (SELECT value FROM json_each(?))
+					AND ${visible.sql} AND (? IS NULL OR o.created_by = ?)
 					ORDER BY f.rank, o.id DESC LIMIT ?`
 				)
-				.bind(terms.join(' '), IMAGE_TYPE, ...visible.params, by, by, n)
+				.bind(terms.join(' '), JSON.stringify(types), ...visible.params, by, by, n)
 		: db
 				.prepare(
 					`SELECT ${cols} FROM objects o
-					WHERE o.type = ? AND ${visible.sql} AND (? IS NULL OR o.created_by = ?)
+					WHERE o.type IN (SELECT value FROM json_each(?)) AND ${visible.sql}
+					AND (? IS NULL OR o.created_by = ?)
 					ORDER BY o.created_at DESC, o.id DESC LIMIT ?`
 				)
-				.bind(IMAGE_TYPE, ...visible.params, by, by, n);
+				.bind(JSON.stringify(types), ...visible.params, by, by, n);
 	const { results } = await stmt.all();
-	return results.map((r) => publicImage(forViewer(rowToObject(r), viewer)));
+	return results.map((r) => forViewer(rowToObject(r), viewer));
 }
 
 /** Cómo se nombra cada tipo de objeto que usa una imagen («Usada en: material «…»»). */
@@ -478,6 +673,31 @@ export async function servableImage(db, key) {
 }
 
 /**
+ * Para servir `/media/<clave>`: una imagen (`img/…`) o un documento o video (`file/…`) si
+ * cualquiera lo puede ver (no borrado); `null` si no.
+ *
+ * @param {D1Database} db
+ * @param {string} key
+ * @returns {Promise<{ kind: 'imagen' | 'documento' | 'video', mime: string, size: number,
+ *   title: string, ext: string } | null>}
+ */
+export async function servableMedia(db, key) {
+	const ext = key.slice(key.lastIndexOf('.') + 1);
+	if (MEDIA_KEY.test(key)) {
+		const image = await servableImage(db, key);
+		return image
+			? { kind: 'imagen', mime: image.mime, size: image.size, title: image.title, ext }
+			: null;
+	}
+	const slug = slugOfFileKey(key);
+	if (!slug) return null;
+	const o = await findBySlug(db, slug, FILE_TYPE);
+	if (!o || o.data.key !== key || !canSee(o, ANON)) return null;
+	const f = publicFile(o);
+	return { kind: f.kind, mime: f.mime, size: f.size, title: f.title, ext };
+}
+
+/**
  * Cambia la imagen de un uso de un objeto (o la saca, con `imageId` null): un guardado del objeto
  * con solo ese edge (los datos quedan como están). Para quien guarda el objeto por otro camino
  * (las series se guardan como etiquetas); los eventos y el material mandan el edge en el mismo
@@ -511,7 +731,7 @@ export async function linkImage(db, objectId, kind, imageId, { actor, now = Date
 }
 
 /**
- * Borrar una imagen de la biblioteca: borrado suave (se deshace subiéndola de nuevo). El archivo
+ * Borrar una imagen (o un documento o video, solo admins) de la biblioteca: borrado suave (se deshace subiéndola de nuevo). El archivo
  * queda en R2; los edges quedan (para deshacer), pero nadie la ve: ni las páginas ni `/media/…`.
  *
  * @param {D1Database} db
@@ -521,15 +741,15 @@ export async function linkImage(db, objectId, kind, imageId, { actor, now = Date
  */
 export async function deleteImage(db, id, { actor, now = Date.now() }) {
 	const row = await db
-		.prepare(`SELECT ${OBJECT_COLUMNS} FROM objects WHERE id = ?1 AND type = ?2`)
-		.bind(id, IMAGE_TYPE)
+		.prepare(`SELECT ${OBJECT_COLUMNS} FROM objects WHERE id = ?1 AND type IN (?2, ?3)`)
+		.bind(id, IMAGE_TYPE, FILE_TYPE)
 		.first();
 	if (!row) return false;
 	const o = rowToObject(row);
 	if (o.deleted_at !== null) return false;
 	await saveObject(
 		db,
-		{ id: o.id, type: IMAGE_TYPE, version: o.version, deleted: true },
+		{ id: o.id, type: o.type, version: o.version, deleted: true },
 		{ actor, now }
 	);
 	return true;
@@ -539,9 +759,11 @@ export async function deleteImage(db, id, { actor, now = Date.now() }) {
 export const HIDDEN_USE = 'otra publicación';
 
 /**
- * Dónde se usa cada imagen, TODO lo que la usa (para decidir si se puede borrar): los edges desde
- * objetos vivos (portada, imagen, avatar…) y los objetos vivos que nombran su archivo en sus
- * datos (por ejemplo, un texto con `/media/img/<hash>.webp`). Lo que quien mira no ve se cuenta
+ * Dónde se usa cada imagen o archivo, TODO lo que lo usa (para decidir si se puede borrar): los
+ * edges desde objetos vivos (portada, imagen, avatar, el `adjunto` de un material…) y los objetos
+ * vivos que nombran su archivo en sus datos (por ejemplo, un texto con `/media/img/<hash>.webp`,
+ * que no es edge; para un archivo, un texto que no es de un material o uno guardado antes del
+ * edge `adjunto`). Un objeto que hace las dos cosas cuenta una vez. Lo que quien mira no ve se cuenta
  * igual, como {@link HIDDEN_USE}. Sin usos, la imagen no está en el mapa.
  *
  * @param {D1Database} db
@@ -573,12 +795,12 @@ export async function imageUsage(db, imageIds, viewer) {
 		db
 			.prepare(
 				`SELECT DISTINCT i.id AS image, ${cols} FROM objects i
-				JOIN objects s ON s.deleted_at IS NULL AND s.type != ?2 AND s.id != i.id
+				JOIN objects s ON s.deleted_at IS NULL AND s.type NOT IN (?2, ?3) AND s.id != i.id
 					AND instr(s.data, i.slug) > 0
-				WHERE i.type = ?2 AND i.id IN (SELECT value FROM json_each(?1))
+				WHERE i.type IN (?2, ?3) AND i.id IN (SELECT value FROM json_each(?1))
 				ORDER BY s.id DESC`
 			)
-			.bind(ids, IMAGE_TYPE)
+			.bind(ids, IMAGE_TYPE, FILE_TYPE)
 			.all()
 	]);
 	/** @type {Map<number, Set<number>>} */

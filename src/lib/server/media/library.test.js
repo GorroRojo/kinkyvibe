@@ -7,6 +7,7 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import {
 	ImageError,
+	MAX_FILE_BYTES,
 	MAX_UPLOAD_BYTES,
 	contextImages,
 	deleteImage,
@@ -19,10 +20,13 @@ import {
 	memberMayUse,
 	searchImages,
 	seriesImageKeys,
+	imageUsage,
 	servableImage,
+	servableMedia,
+	storeFile,
 	storeImage
 } from './library.js';
-import { solidPng } from './testing.js';
+import { fakePdf, fakeZip, solidPng } from './testing.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -243,5 +247,68 @@ describe('buscar y usos', () => {
 		expect((await servableImage(t.db, image.key))?.id).toBe(image.id);
 		expect(await servableImage(t.db, image.key.replace('.png', '.webp'))).toBeNull();
 		expect(await servableImage(t.db, '../secreto')).toBeNull();
+	});
+});
+
+describe('storeFile (documentos y video)', () => {
+	/** @param {Uint8Array} bytes @param {any} [extra] */
+	const store = (bytes, extra = { title: 'Guía de prueba' }) =>
+		storeFile(t.db, bucket(), { bytes, ...extra }, { actor: 'admin-prueba' });
+	/** @param {Uint8Array} bytes @param {any} [extra] */
+	const bad = async (bytes, extra) => {
+		try {
+			await store(bytes, extra);
+		} catch (e) {
+			return /** @type {any} */ (e);
+		}
+		throw new Error('se esperaba un error');
+	};
+
+	it('guarda un PDF en `file/…` con su nombre; sin nombre usa el del archivo', async () => {
+		const { file, created } = await store(fakePdf());
+		expect(created).toBe(true);
+		expect(file.key).toMatch(/^file\/[0-9a-f]{64}\.pdf$/);
+		expect(file).toMatchObject({ title: 'Guía de prueba', kind: 'documento', size: 300 });
+		expect(await bucket().head(file.key)).not.toBeNull();
+		expect(await servableMedia(t.db, file.key)).toMatchObject({
+			kind: 'documento',
+			mime: 'application/pdf',
+			ext: 'pdf'
+		});
+		const other = await store(fakePdf(400), { name: 'otra-guia.pdf' });
+		expect(other.file.title).toBe('otra-guia');
+	});
+
+	it('pide nombre, revisa el tipo por los bytes y el peso', async () => {
+		expect((await bad(fakePdf(), { title: '  ', name: '' })).status).toBe(400);
+		expect((await bad(fakeZip('word/document.xml', '<w/>'))).status).toBe(415);
+		expect((await bad(solidPng(3, 3))).status).toBe(415);
+		const huge = new Uint8Array(MAX_FILE_BYTES + 1);
+		huge.set(fakePdf());
+		const tooBig = await bad(huge);
+		expect(tooBig.status).toBe(413);
+		expect(tooBig.message).toMatch(/El máximo es 25 MB/);
+	});
+
+	it('borrar lo saca de /media; subirlo de nuevo lo vuelve; un texto que lo enlaza cuenta como uso', async () => {
+		const { file } = await store(fakePdf());
+		await saveObject(
+			t.db,
+			{
+				type: 'material',
+				slug: 'guia-inventada',
+				title: 'Guía inventada',
+				data: { body: `[Bajar el PDF](${file.url})` }
+			},
+			{ actor: 'admin-prueba' }
+		);
+		expect((await imageUsage(t.db, [file.id], ADMIN)).get(file.id)).toEqual([
+			'material «Guía inventada»'
+		]);
+		expect(await deleteImage(t.db, file.id, { actor: 'admin-prueba' })).toBe(true);
+		expect(await servableMedia(t.db, file.key)).toBeNull();
+		const again = await store(fakePdf());
+		expect(again.file.id).toBe(file.id);
+		expect(await servableMedia(t.db, file.key)).not.toBeNull();
 	});
 });

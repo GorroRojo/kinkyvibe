@@ -1,8 +1,10 @@
-# Imágenes: la biblioteca en R2
+# La biblioteca en R2: imágenes, documentos y video
 
-Las imágenes del sitio ya no se suben al repo (ni con commit ni esperando un deploy): van a un
-bucket de **R2** y se ven al momento. Cada imagen es un **objeto `imagen`** en la base y cada uso es
-un **edge** hacia ella (nunca un id adentro del JSON; ver [objetos.md](objetos.md)).
+Las imágenes, los documentos (PDF, ODT, ODS, ODP) y los videos (MP4, WebM) del sitio ya no se suben
+al repo (ni con commit ni esperando un deploy): van a un bucket de **R2** y se ven al momento.
+Cada imagen es un **objeto `imagen`** en la base y cada uso es un **edge** hacia ella (nunca un id
+adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **objeto `archivo`**
+(ver «Documentos y video» más abajo).
 
 ## Cómo funciona
 
@@ -10,12 +12,14 @@ un **edge** hacia ella (nunca un id adentro del JSON; ver [objetos.md](objetos.m
 | ------------------------ | --------------------------------------------------------------------------------------------------------- |
 | Bucket                   | binding `MEDIA`: `kinkyvibe-media` (producción), `kinkyvibe-media-preview` (previews), en `wrangler.toml` |
 | Tipo `imagen`            | `src/lib/server/objects/types/imagen.js`                                                                  |
+| Tipo `archivo`           | `src/lib/server/objects/types/archivo.js` (documentos y video)                                            |
 | Guardar, buscar, usos    | `src/lib/server/media/library.js`                                                                         |
 | Tipo real y medidas      | `src/lib/server/media/sniff.js` (por los bytes, nunca por el nombre)                                      |
 | Quién puede              | `src/lib/server/media/access.js`                                                                          |
 | Subir y buscar (JSON)    | `src/routes/imagenes/+server.js`, `src/routes/imagenes/[id]/+server.js`                                   |
-| Servir                   | `src/routes/media/[...key]/+server.js` → `/media/img/<sha-256>.<ext>`                                     |
+| Servir                   | `src/routes/media/[...key]/+server.js` → `/media/img/…`, `/media/file/…`; rangos en `media/range.js`      |
 | Selector de los editores | `src/lib/components/admin/ImagePicker.svelte`                                                             |
+| Enlazar un archivo       | `src/lib/components/admin/LibraryLinkPicker.svelte`, `src/lib/utils/libraryFiles.js` (editor de material) |
 | Achicar en el navegador  | `src/lib/utils/imageResize.js`                                                                            |
 | Importar las del repo    | `scripts/import-images.js` + `src/lib/server/media/import.js`                                             |
 
@@ -31,9 +35,70 @@ un **edge** hacia ella (nunca un id adentro del JSON; ver [objetos.md](objetos.m
   ediciones o solo esta?»: para que todas las ediciones usen la misma imagen, se elige la misma
   imagen en cada una (pestaña «De este evento» → las de la serie).
 
+## Documentos y video
+
+gorrite decidió (5/10) que los PDF, el video y el ODT del material vayan a la biblioteca. Este
+paso prepara la biblioteca; **pasar los archivos del repo a R2 y reescribir los textos que los
+enlazan es otro paso** (lo corre gorrite).
+
+| Tipo                         | Se detecta por los bytes                                            | Se sirve                           |
+| ---------------------------- | ------------------------------------------------------------------- | ---------------------------------- |
+| PDF (`application/pdf`)      | empieza con `%PDF-`                                                 | `inline` (se abre en el navegador) |
+| MP4 (`video/mp4`)            | caja `ftyp` con marca de video (`isom`, `mp41`, `mp42`, `avc1`…)    | `inline`, con rangos (206)         |
+| WebM (`video/webm`)          | cabecera EBML con DocType `webm`                                    | `inline`, con rangos (206)         |
+| ODT, ODS, ODP (OpenDocument) | zip cuya primera entrada es `mimetype`, sin comprimir, con ese tipo | `attachment` (se descarga)         |
+
+- **Se rechaza** todo lo demás: HTML, SVG, scripts, texto, un zip que no es OpenDocument (un
+  `.docx`, un `.zip` cualquiera), un `mimetype` comprimido o de otro tipo, un `ftyp` de imagen.
+  Las imágenes siguen siendo solo JPG, PNG, WEBP, GIF y AVIF.
+- **Solo les admins** suben documentos y video. Una cuenta del público (Mi rincón) sigue subiendo
+  solo imágenes: un PDF o un video le da 415 («Acá podés subir solo imágenes…»).
+- **Peso máximo: 25 MB** por documento o video (las imágenes, 10 MB). El archivo llega entero al
+  Worker, que lo lee para su hash y su tipo: tiene que entrar holgado en los 128 MB de memoria
+  del Worker y en el límite de un pedido de Cloudflare (100 MB en los planes Free y Pro; más
+  grande, Cloudflare corta con un error sin explicación). Los archivos del material miden hasta
+  11,5 MB. Lo que pasa del máximo se rechaza con un mensaje claro: en el navegador antes de
+  subir, en `/imagenes` mirando `Content-Length` antes de leer el cuerpo (413) y en `storeFile`.
+- **Objeto `archivo`** (tipo hermano de `imagen`): `title` (el nombre, **obligatorio**; es lo que
+  se ve en el enlace), `key` (`file/<sha-256>.<ext>`), `mime`, `size`, `original_name` y, cuando se
+  pase del repo, `source_path`. Sin texto alternativo (no es una imagen) y sin edges propios: un
+  texto lo enlaza por su dirección (`/media/file/<hash>.pdf`), como un texto que muestra una imagen.
+- **Edge `adjunto`** (material → `archivo`, solo eso): además del enlace, el material tiene un edge
+  `adjunto` hacia cada archivo que enlaza (en `body` o en `link`), uno por archivo, en el orden del
+  texto. **Sigue al texto**: `saveObject()` lo recalcula en cada guardado (cualquier camino: el
+  panel, la importación, deshacer una versión…) y suma los que faltan y saca los que sobran
+  (`deriveEdges` de `src/lib/server/objects/types/material.js`, `fileKeysInText`/`liveFileIds` de
+  `types/archivo.js`). Nadie lo manda a mano (es un error). Un enlace a un hash que no es de
+  ningún archivo vivo no es edge. Nada de ids en el JSON: la dirección sigue siendo lo que el texto
+  guarda.
+- **Servir** (`/media/file/…`): el tipo correcto, `X-Content-Type-Options: nosniff`, caché para
+  siempre y `ETag` como las imágenes; `Content-Disposition` con un nombre seguro (ASCII en
+  `filename`, el nombre con tildes en `filename*`). Todas las respuestas de `/media` dicen
+  `Accept-Ranges: bytes` y atienden **un rango** (`Range: bytes=…`): 206 con `Content-Range`,
+  416 si el rango está fuera del archivo; varios rangos o uno raro se ignoran (200 con todo). Un
+  archivo borrado da 404, como una imagen.
+- **Buscar con filtro por tipo**: `GET /imagenes?q=…&tipo=todo|imagen|documento|video` (solo
+  admins; cada cosa con `kind`, `typeLabel` y dónde se usa). Sin `tipo`, `/imagenes` sigue
+  trayendo solo imágenes (es lo que usa el selector de imágenes).
+- **Enlazar en el material**: en el editor de material, debajo del texto, «📎 Enlazar un archivo de
+  la biblioteca»: subir un documento o video (con su nombre) o buscarlo (filtro Todo / Imágenes /
+  Documentos / Videos; los documentos y videos con un ícono y su nombre, las imágenes con su
+  miniatura) y «Enlazar» suma `[Nombre](/media/file/<hash>.pdf)` al final del texto. Hoy el
+  material enlaza sus PDF con un `<script>` que importa el archivo del repo y `<a href={guia}>`;
+  el paso de datos los va a reescribir a este enlace. Al guardar, el material queda con su edge
+  `adjunto` hacia el archivo (ver arriba).
+- **Borrar**: les admins, con el mismo borrado suave (`DELETE /imagenes/<id>`); el archivo queda en
+  R2. «Dónde se usa» (`imageUsage`) cuenta el edge `adjunto` de cada material vivo y, como con las
+  imágenes, también un texto que nombra el archivo sin edge (de otro tipo, o un material guardado
+  antes del edge); cada objeto, una vez. Los edges `adjunto` hacia un archivo borrado quedan (como
+  todo edge al borrar suave, para poder deshacer) y el próximo guardado de ese material los saca
+  (como una etiqueta borrada: solo hay edge hacia lo vivo); el enlace del texto queda y da 404.
+
 ## El selector (ImagePicker)
 
-Lo usan el editor de eventos (Editar y Cargar/Duplicar), el de material, Eventos → Series, la
+Es para elegir **una imagen** (portada, imagen de la serie, imagen del perfil), así que muestra
+solo imágenes; los documentos y los videos se enlazan con «Enlazar un archivo» (arriba). Lo usan
+el editor de eventos (Editar y Cargar/Duplicar), el de material, Eventos → Series, la
 imagen del perfil en Mi rincón y el editor de perfiles del panel (Comunidad → Perfiles). No hay página de biblioteca en el panel. Pestañas:
 
 - **Subir**: se elige un archivo (JPG, PNG, WEBP, GIF o AVIF, hasta 10 MB), se escribe **qué se
@@ -50,7 +115,8 @@ servidor crea el edge **en el mismo guardado** del objeto (eventos y material: `
 
 ## Quién puede
 
-- **Admins**: subir, buscar en toda la biblioteca, elegir cualquiera y sacar imágenes.
+- **Admins**: subir (imágenes, documentos y video), buscar en toda la biblioteca, elegir
+  cualquiera y sacar imágenes y archivos.
 - **Cuentas que gestionan un perfil** (Mi rincón): subir y buscar **solo entre las que subieron**;
   en su perfil solo pueden poner una imagen que subieron o la que el perfil ya tenía. **Borran una
   imagen que subieron, solo si nada la usa** (decisión de gorrite; ver «Borrar»).
@@ -127,7 +193,7 @@ campos que apuntan a archivos que no están).
 ## Cómo probar
 
 ```sh
-npx vitest run src/lib/server/media src/routes/imagenes src/lib/utils/imageResize.test.js
+npx vitest run src/lib/server/media src/routes/imagenes src/lib/utils/imageResize.test.js src/lib/utils/libraryFiles.test.js
 npm run dev:admin   # el bucket MEDIA local lo simula miniflare (.wrangler/state)
 ```
 
@@ -160,3 +226,31 @@ aclara en cada punto.
   editores; al elegir o sacar una se sacan `featured`, `logo` y `photo` de la ficha vieja.
 - **Importación**: crea imágenes para todo lo que hay en las carpetas (también lo que nada usa) y
   edges solo para eventos, material y series; las fichas de amigues no reciben `avatar`.
+
+## Documentos y video: decisiones (confirmadas por gorrite, 5/10)
+
+Propuestas por Claude; **confirmado por gorrite (5/10)** todo lo de esta lista, con los cambios que
+se aclaran en los puntos 2 y 8.
+
+1. **Tipo hermano `archivo`** en vez de generalizar `imagen`: así ningún uso de imagen (portada,
+   avatar, imagen de serie) puede apuntar a un PDF o a un video, porque los edges dicen hacia qué
+   tipo van; `imagen` sigue pidiendo texto alternativo y `archivo` pide nombre. Nada de lo que ya
+   existía para las imágenes cambia de forma.
+2. **Enlace por dirección Y edge `adjunto`** (gorrite): el texto enlaza el archivo por su dirección
+   (`/media/file/<hash>.<ext>`), como hoy un texto muestra una imagen, y además el material tiene
+   un edge `adjunto` hacia cada archivo que enlaza. El edge **sigue al texto**: cada guardado lo
+   recalcula (ver «Edge `adjunto`» arriba). «Dónde se usa» lo encuentra por el edge (y por el hash
+   en los textos sin edge, como con las imágenes).
+3. **25 MB** por documento o video (ver arriba). Para algo más grande: achicarlo o subirlo a otro
+   lado y poner el link.
+4. **PDF y video sin `sandbox`** en la `Content-Security-Policy` (el visor de PDF del navegador no
+   abre en un documento con sandbox); las imágenes y los ODT/ODS/ODP la siguen teniendo. Solo
+   les admins suben PDF.
+5. **Video `inline`** (se ve en el navegador) como los PDF; los OpenDocument se descargan.
+6. **El nombre escrito va tal cual** (sin cortar lo que parece una extensión); sin nombre escrito,
+   el del archivo sin la extensión. El mismo archivo subido otra vez es el mismo objeto (con su
+   nombre de antes).
+7. **WebM** se acepta (era trivial); ODS y ODP también, aunque hoy solo hay un ODT.
+8. **Una página de la biblioteca vendrá en un PR aparte** (gorrite). Por ahora lo nuevo está en el
+   editor de material. El título de esta página pasó de «Imágenes» a «La biblioteca»; las rutas
+   (`/imagenes`, `/media`) y los tipos de la base no cambian (un renombre así va en un PR aparte).

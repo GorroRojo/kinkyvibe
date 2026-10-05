@@ -4,7 +4,8 @@
  * - una cuenta del público que gestiona al menos un perfil (Mi rincón, para la imagen del
  *   perfil): subir, buscar solo entre las que subió ella y borrar una que subió ella si nada la
  *   usa (decisión de gorrite; `deleteOwnImage` en library.js).
- * Nadie más (ni sin sesión).
+ * Nadie más (ni sin sesión). Documentos y video (tipo `archivo`): solo les admins (lo revisa
+ * `/imagenes` al ver el tipo real del archivo).
  */
 import { isAdmin } from '$lib/server/auth';
 import { accountActor, memberViewer } from '$lib/server/cuentas/perfiles.js';

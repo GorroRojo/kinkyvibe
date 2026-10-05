@@ -7,10 +7,14 @@
  * - `extra`: lo que el frontmatter tiene y el tipo todavía no conoce, tal cual.
  * - Los perfiles de `personas` no van en `data`: son edges `persona` (ver `edges` abajo).
  * - La imagen principal es el edge `portada` hacia una `imagen` (R2, docs/imagenes.md); `featured`
- *   es la imagen vieja del repo. Los archivos (PDF, video) siguen en la carpeta del post en el repo.
+ *   es la imagen vieja del repo. Los archivos (PDF, video) siguen en la carpeta del post en el repo
+ *   hasta que se pasen a la biblioteca (objetos `archivo`, docs/imagenes.md).
+ * - El texto enlaza los archivos de la biblioteca por su dirección (`/media/file/<hash>.pdf`) y el
+ *   material tiene un edge `adjunto` hacia cada uno: lo calcula cada guardado (`deriveEdges`).
  *
  * El sitio lo lee solo de la base (docs/contenido.md, «En la base»).
  */
+import { fileKeysInText, liveFileIds } from './archivo.js';
 import { linkProblem } from './evento.js';
 import { personaItemsProblems } from '../../../utils/personasList.js';
 
@@ -56,7 +60,15 @@ const material = {
 		// Etiquetas, como en `evento`: un edge por etiqueta viva, `data: { at: [0, …] }` (su lugar en
 		// la lista de `tags`, src/lib/server/contenido/etiquetasEdges.js). Un nombre que no es de
 		// ninguna etiqueta queda en `data.tags`.
-		etiqueta: { label: 'Etiquetas', to: ['etiqueta'], max: 60 }
+		etiqueta: { label: 'Etiquetas', to: ['etiqueta'], max: 60 },
+		// Los archivos de la biblioteca (`archivo`) que el texto enlaza (`/media/file/<hash>.<ext>`
+		// en `body` o en `link`): uno por archivo vivo, en el orden del texto, sin `data`. SIGUE AL
+		// TEXTO: cada guardado lo recalcula (`deriveEdges`) y nadie lo manda a mano. Un enlace a un
+		// archivo que no existe o está borrado no es edge (el próximo guardado lo saca).
+		adjunto: { label: 'Archivos enlazados', to: ['archivo'], derived: true }
+	},
+	async deriveEdges(db, data) {
+		return { adjunto: await liveFileIds(db, fileKeysInText([data.body, data.link])) };
 	},
 	check(data) {
 		const link = data.link ? String(data.link) : '';
