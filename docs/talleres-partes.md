@@ -21,8 +21,8 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
   listas públicas (calendario, búsqueda, RSS, sitemap…) ni en su página (404), salvo para les
   admins. La regla está en `partVisibleWhere` de `src/lib/server/objects/visibility.js` y la usan
   las lecturas públicas de `src/lib/server/contenido/posts.js`. Apagada, cada parte tiene su
-  propia visibilidad, como siempre. Una parte nueva no copia la opción. **DECIDIDO POR CLAUDE, A
-  CONFIRMAR** (gorrite): viene apagada (así nada cambia para los talleres que ya existen).
+  propia visibilidad, como siempre. Una parte nueva no copia la opción. **Confirmado por gorrite
+  (5/10)**: viene apagada (así nada cambia para los talleres que ya existen).
 - Las reglas puras (numerar, «Parte N de M», «vie 2 oct · 22:00», de qué evento es la entrada,
   datos de una parte nueva) están en `src/lib/utils/partes.js`.
 

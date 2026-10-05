@@ -159,7 +159,9 @@ Los tests usan eventos y chats inventados. Para probar a mano, un POST al endpoi
 `x-telegram-bot-api-secret-token` y un update de ejemplo (`{"message":{"chat":{"id":1},"text":"/proximos"}}`,
 o un botón tocado: `{"callback_query":{"id":"1","data":"ls","message":{"message_id":1,"chat":{"id":1}}}}`).
 
-## Decidido por Claude, a confirmar con gorrite
+## Decisiones (confirmadas por gorrite, 5/10)
+
+Propuestas por Claude; **confirmado por gorrite (5/10)**: todo tal como está escrito.
 
 - Código de 8 caracteres sin 0/O ni 1/I, 15 minutos, uno vivo por cuenta; topes de 10 intentos de
   `/vincular` por chat y 10 códigos por cuenta, por hora.

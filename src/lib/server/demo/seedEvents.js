@@ -3,7 +3,8 @@
  * para `reloadDemoData` (./seed.js). Desde «solo base» el sitio lee los eventos solo de la base:
  * los `.md` en `demo_files` ya no se ven.
  *
- * **DECIDIDO POR CLAUDE, A CONFIRMAR** (gorrite): cada evento de prueba es SIEMPRE el mismo objeto,
+ * **Confirmado por gorrite (5/10)** (con las ~18 revisiones por recarga y lo de adoptar o dar de
+ * baja los `demo-*` importados, abajo): cada evento de prueba es SIEMPRE el mismo objeto,
  * de un día para el otro. Su identidad es su «lugar» en la lista de eventos de prueba
  * (`data.extra.demo_slot`, p. ej. `noche-latex-4`: la cuarta Noche Látex), no su dirección (que
  * lleva la fecha y cambia en cada recarga). Recargar actualiza ese objeto en su lugar (dirección,

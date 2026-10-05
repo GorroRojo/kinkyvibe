@@ -165,7 +165,7 @@ galería: cada componente con su import, cuándo usarlo y cuándo no, y sus esta
 foco forzados, apagado, error, elegido, vacío), en el aspecto del panel y del sitio, claro y
 oscuro, celu y compu (también por la URL: `?superficie=sitio&tema=oscuro&ancho=celu`), con datos
 inventados. Solo existe en `npm run dev` y en los deploys de preview (como el modo demo,
-[demo.md](demo.md)): en producción da 404 y no está en el bundle (lo controlan
+[demo.md](demo.md); que también esté en `vite dev`: confirmado por gorrite, 5/10): en producción da 404 y no está en el bundle (lo controlan
 `src/lib/estilo/estiloGuard.test.js`, `tests/smoke.spec.js` y `node scripts/demo/guard.js bundle`).
 El informe de impacto visual ([ui-impacto.md](ui-impacto.md)) la fotografía, así un cambio en un
 componente se ve aunque ninguna página principal lo use.
@@ -196,7 +196,13 @@ componente se ve aunque ninguna página principal lo use.
 Los imports viejos (`$lib/components/admin/panel/Card.svelte`, `Badge`, `EmptyState`,
 `PageHeader`, `Tabs`, `ConfirmDialog`, `$lib/components/TagChip.svelte` y
 `$lib/components/admin/charts/Segmented.svelte`) siguen andando: son envoltorios del de `ui/`. En
-código nuevo, importá de `$lib/components/ui`; un PR aparte pasa los imports viejos.
+código nuevo, importá de `$lib/components/ui`. **Pendiente** (gorrite, 5/10: quiere limpiarlos):
+un PR aparte pasa los imports viejos y borra los envoltorios, después del rediseño de la página del
+evento.
+
+**Pendiente** (gorrite, 5/10): las piezas que hoy son solo del panel (`UndoToast`, el diálogo de
+`askConfirm`, que monta solo el layout del panel) tienen que tener también su versión para el
+sitio público.
 
 ## Textos
 
