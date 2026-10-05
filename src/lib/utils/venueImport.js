@@ -281,12 +281,15 @@ const sameAddress = (a, b) => addressKey(a) === addressKey(b);
  * nivel del evento (la misma lista blanca que usa la página, `venueView`). Distinto de mayúsculas,
  * tildes o «CABA» por «Ciudad Autónoma de Buenos Aires» cuenta como lo mismo.
  *
+ * `level`: el nivel con el que se mostraría (por defecto, el que muestra lo mismo que el evento,
+ * {@link eventShowLevel}; «Vincular lugares» puede usar el del lugar).
+ *
  * @param {EventPlaceFields} place
  * @param {{ title: string, data: Record<string, unknown> }} venue
+ * @param {VenuePrivacy} [level]
  * @returns {{ level: VenuePrivacy, fits: boolean, diffs: string[] }}
  */
-export function eventFit(place, venue) {
-	const level = eventShowLevel(place);
+export function eventFit(place, venue, level = eventShowLevel(place)) {
 	const view = venueView(venue, level, '');
 	/** @type {string[]} */
 	const diffs = [];

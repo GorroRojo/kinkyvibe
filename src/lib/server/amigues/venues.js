@@ -612,27 +612,41 @@ export async function removeEventVenue(db, eventSlug, { by = 'panel', now = Date
 }
 
 /**
- * Vincula un evento a un lugar solo si no tiene uno vigente (sin lugar, o con uno borrado): lo que
- * usa «Importar de eventos», que nunca pisa un vínculo. `false` si no lo vinculó (ya tenía lugar o
- * el evento no está en la base).
+ * Vincula un evento a un lugar solo si no tiene uno vigente (sin lugar, o con uno borrado). La usan
+ * «Importar de eventos» y «Vincular lugares», que nunca pisan un vínculo. `linked: false` si ya
+ * tenía lugar; `ok: false` con el motivo si no se pudo (el evento no está en la base, el lugar ya
+ * no existe…).
  *
  * @param {D1Database} db
  * @param {{ eventSlug: string, venueId: number, privacy: VenuePrivacy | null, by: string, now?: number }} input
+ * @returns {Promise<{ ok: true, linked: boolean } | { ok: false, message: string }>}
  */
-export async function linkEventVenueIfFree(
+export async function linkFreeEventVenue(
 	db,
 	{ eventSlug, venueId, privacy, by, now = Date.now() }
 ) {
-	if (!isEventSlug(eventSlug)) return false;
+	if (!isEventSlug(eventSlug)) return { ok: false, message: 'Elegí un evento.' };
 	const event = await eventForVenue(db, eventSlug);
-	if (!event) return false;
+	if (!event) return { ok: false, message: NOT_IN_DB };
 	if (event.venueId !== null) {
 		const alive = await db
 			.prepare('SELECT 1 AS ok FROM objects WHERE id = ?1 AND deleted_at IS NULL')
 			.bind(event.venueId)
 			.first();
-		if (alive) return false;
+		if (alive) return { ok: true, linked: false };
 	}
 	const r = await setEventVenue(db, { eventSlug, venueId, privacy, by, now });
-	return r.ok;
+	return r.ok ? { ok: true, linked: true } : r;
+}
+
+/**
+ * {@link linkFreeEventVenue} para quien solo quiere saber si lo vinculó. `false` si no lo vinculó
+ * (ya tenía lugar o el evento no está en la base).
+ *
+ * @param {D1Database} db
+ * @param {{ eventSlug: string, venueId: number, privacy: VenuePrivacy | null, by: string, now?: number }} input
+ */
+export async function linkEventVenueIfFree(db, input) {
+	const r = await linkFreeEventVenue(db, input);
+	return r.ok && r.linked;
 }
