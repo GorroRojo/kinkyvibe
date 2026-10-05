@@ -4,7 +4,8 @@
 	 * (calendario/[event]/+page.svelte, `.buy-cta`; docs/estilo.md: «el botón de comprar entradas
 	 * es otro y queda distinto»), copiado tal cual para no tocar la página. Solo el caso abierto,
 	 * con precio, «Quedan N», cierre de la venta y puerta.
-	 * Props: `tickets` (resumen de la venta), `wide` (ocupa todo el ancho de su caja).
+	 * Props: `tickets` (resumen de la venta), `wide` (ocupa todo el ancho de su caja), `title`
+	 * («Comprar entradas», o «Comprar entrada al taller» si una entrada vale para todas las partes).
 	 */
 	import { formatARS } from '$lib/utils/money.js';
 	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
@@ -12,6 +13,7 @@
 	/** @type {any} */
 	export let tickets;
 	export let wide = false;
+	export let title = 'Comprar entradas';
 
 	$: price = [
 		tickets.priceFrom !== null ? `desde ${formatARS(tickets.priceFrom)}` : '',
@@ -23,7 +25,7 @@
 
 <section class="buy-cta" class:wide id="entradas" aria-label="Entradas">
 	<a class="buy-button" href="#entradas">
-		<span class="buy-title">Comprar entradas</span>
+		<span class="buy-title">{title}</span>
 		<span class="buy-meta"
 			>{price}{#if tickets.left !== null}{' '}<strong class="buy-left"
 					>· {leftText(tickets.left)}</strong

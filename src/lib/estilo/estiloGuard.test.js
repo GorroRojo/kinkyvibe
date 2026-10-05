@@ -83,7 +83,7 @@ describe('maquetas /estilo/evento/<opcion>: solo en previews y en dev', () => {
 		vi.stubEnv('PROD', true);
 		expect(__DEPLOY_BRANCH__).toBe('');
 		const load = await loadMockup();
-		for (const opcion of ['actual', 'a', 'b', 'c'])
+		for (const opcion of ['actual', 'final'])
 			await expect(load(/** @type {any} */ ({ params: { opcion } }))).rejects.toMatchObject({
 				status: 404
 			});
@@ -92,9 +92,11 @@ describe('maquetas /estilo/evento/<opcion>: solo en previews y en dev', () => {
 	it('en dev, carga la maqueta pedida; una opción que no existe da 404', async () => {
 		vi.stubEnv('DEV', true);
 		const load = await loadMockup();
-		const data = /** @type {any} */ (await load(/** @type {any} */ ({ params: { opcion: 'b' } })));
+		const data = /** @type {any} */ (
+			await load(/** @type {any} */ ({ params: { opcion: 'final' } }))
+		);
 		expect(data?.Mockup).toBeTypeOf('function');
-		expect(data?.opcion).toBe('b');
+		expect(data?.opcion).toBe('final');
 		await expect(
 			load(/** @type {any} */ ({ params: { opcion: 'inventada' } }))
 		).rejects.toMatchObject({ status: 404 });

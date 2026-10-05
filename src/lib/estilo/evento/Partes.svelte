@@ -1,12 +1,13 @@
 <script>
 	/**
-	 * «Parte 2 de 3 de <taller>» y la lista de las partes, pegadas al botón de comprar (cada parte
-	 * tiene su entrada). PartesTaller real; `flat` le saca la tarjeta propia cuando ya está
-	 * adentro de otra.
+	 * «Parte 2 de 3 de <taller>» y la lista de las partes, pegadas al botón de comprar.
+	 * PartesTaller real; `flat` le saca la tarjeta propia cuando ya está adentro de otra.
+	 * Props: `partes` (con `perPart`: cada parte con su entrada, o una sola para todas).
 	 */
 	import PartesTaller from '$lib/components/PartesTaller.svelte';
-	import { partes } from './datos.js';
 
+	/** @type {any} */
+	export let partes;
 	export let flat = false;
 </script>
 

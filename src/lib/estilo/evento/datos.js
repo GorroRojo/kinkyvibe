@@ -97,7 +97,11 @@ export const series = {
 	account: { member: false, subscribed: [] }
 };
 
-/** Taller en varias partes (como `loadPartes`); entradas por parte. */
+/**
+ * Taller en varias partes (como `loadPartes`), con «Entradas por parte» prendida
+ * (`entradas_por_parte` en el `extra` del taller; docs/talleres-partes.md). Con una sola entrada
+ * (lo que viene por defecto), ver {@link partesFor}.
+ */
 export const partes = {
 	total: 3,
 	current: 2,
@@ -156,6 +160,15 @@ export const personas = [
 		items: [{ slug: 'persona-de-prueba-cuatro', title: 'Persona de Prueba Cuatro', href: '' }]
 	}
 ];
+
+/**
+ * Las partes según cómo vende el taller: `unica` = una sola entrada, la del taller, que vale
+ * para todas las partes (el botón dice «Comprar entrada al taller»).
+ * @param {boolean} unica
+ */
+export function partesFor(unica) {
+	return unica ? { ...partes, perPart: false, ticketSlug: partes.workshop.slug } : partes;
+}
 
 /** Fecha en una línea para las maquetas: «sábado 14 de noviembre de 2026» y «15:00 a 19:00». */
 export function fechaCorta() {
