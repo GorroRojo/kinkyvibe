@@ -12,6 +12,7 @@
 	import { page } from '$app/stores';
 	import { toArgentina } from '$lib/utils/dates.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
+	import CardRow from '$lib/components/CardRow.svelte';
 	import { partLabel, withPartLabel } from '$lib/utils/partes.js';
 	export let data;
 	let calendarioPosts = data.posts.filter((p) => p.meta.layout == 'calendario');
@@ -81,7 +82,19 @@
 	<title>Calendario · Kinky Vibe</title>
 </svelte:head>
 
-<h1 class="page-title">Calendario</h1>
+<!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
+<h1 class="visually-hidden">Calendario</h1>
+
+<!-- Los próximos eventos en una fila arriba del calendario, como antes (pedido de gorrite, 5/10). -->
+<div class="cardrow">
+	<CardRow
+		items={calendarioPosts
+			.filter((p) => !isPast(new Date(p.meta.start)))
+			.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))}
+		--color-1="transparent"
+		setId={false}
+	/>
+</div>
 
 <div id="container">
 	<div id="calendar">
@@ -210,6 +223,10 @@
 				background: var(--1-tint);
 			}
 		}
+	}
+	.cardrow {
+		max-width: 1200px;
+		margin-inline: auto;
 	}
 	strong {
 		color: unset;
