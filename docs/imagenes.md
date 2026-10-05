@@ -128,9 +128,26 @@ videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tip
 - **Subir** imágenes y archivos con el mismo `POST /imagenes` y los mismos límites (imágenes 10 MB,
   achicadas en el navegador; documentos y videos 25 MB).
 - **Sacar** pide confirmación en la página (dice dónde se usa) y usa `DELETE /imagenes/<id>` (el
-  borrado suave de abajo). El aviso trae **Deshacer** (la acción `recuperar` de la página,
-  `restoreLibraryItem`). No pasa por `panel_deletions`/Actividad › Recuperar: eso es para las
-  publicaciones; acá se deshace en el momento o subiendo el mismo archivo otra vez.
+  borrado suave de abajo). El aviso trae **Deshacer** (la acción `recuperar` de la página).
+- **Recuperar en Actividad**: todo lo que una persona admin saca de la biblioteca (desde esta
+  página o desde el selector de imágenes) queda en «Borrados que podés recuperar» (Ajustes ›
+  Actividad), como las publicaciones y los perfiles: `deleteLibraryItem` en
+  `src/lib/server/admin/deletions.js` escribe la fila de `panel_deletions` en la misma tanda que el
+  borrado y lo anota en Actividad (`library.delete`). «Recuperar» y «Deshacer» van por el mismo
+  camino (`restoreLibraryItem`, con la fila cerrada en la misma tanda; `library.restore`). Sin
+  migración: la columna `kind` solo admite `calendario`, `material` y `amigues`, así que estas
+  filas van con `material` y las distingue el `path` (`objeto:imagen:<id>` u
+  `objeto:archivo:<id>`); el `slug` es el hash del archivo. Si alguien volvió a subir el mismo
+  archivo antes de recuperarlo, «Recuperar» avisa que ya estaba y cierra el borrado. Lo que borra
+  una cuenta del público (lo suyo, sin usar) no va a esta lista.
+
+### Decisiones de la página (confirmadas por gorrite, 5/10)
+
+1. Va en **Contenido › Biblioteca** (`/admin/contenido/biblioteca`).
+2. De a **48**, con «Cargar más».
+3. Se puede **sacar algo que se usa**: la confirmación avisa dónde se usa. El botón dice «Sacar».
+4. Deshacer: el aviso con **«Deshacer»** y, después, **Actividad › Recuperar**.
+5. **Busca mientras escribís**, y la búsqueda queda en la dirección (`?q=&tipo=`) para compartirla.
 
 ## Quién puede
 

@@ -2,14 +2,16 @@
  * Contenido › Biblioteca: todo lo de la biblioteca (imágenes, documentos y videos) con dónde se usa
  * cada cosa, para buscar, subir y sacar (docs/imagenes.md). Buscar y «Cargar más» van por
  * `/imagenes` (la misma búsqueda que los selectores); subir, por POST `/imagenes`; sacar, por
- * DELETE `/imagenes/<id>` (borrado suave). Deshacer es la acción `recuperar` de acá.
+ * DELETE `/imagenes/<id>` (borrado suave, que queda en «Recuperar» de Actividad). Deshacer es
+ * la acción `recuperar` de acá (el mismo camino que «Recuperar»).
  *
  * Solo admins (como todo el panel).
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
-import { LIBRARY_PAGE, browseLibrary, restoreLibraryItem } from '$lib/server/media/library.js';
+import { LIBRARY_PAGE, browseLibrary } from '$lib/server/media/library.js';
+import { undoLibraryDeletionOf } from '$lib/server/admin/deletions.js';
 import { libraryKind } from '$lib/utils/libraryFiles.js';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -45,7 +47,8 @@ export const actions = {
 		if (!db) return fail(503, { error: 'Todavía no hay base en este sitio.' });
 		const id = Number((await request.formData()).get('id'));
 		if (!Number.isSafeInteger(id) || id <= 0) return fail(400, { error: 'Falta qué recuperar.' });
-		const done = await restoreLibraryItem(db, id, { actor: user.login });
+		// Deshace su borrado (así también sale de «Recuperar» en Actividad).
+		const done = await undoLibraryDeletionOf(db, { login: user.login, locals }, id);
 		if (!done) return fail(404, { error: 'Ya no está borrado (o no existe).' });
 		return { restored: id };
 	}

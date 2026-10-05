@@ -472,14 +472,20 @@
 	.search {
 		flex: 1 1 16rem;
 	}
-	/* En el celu, los cuatro tipos en una sola fila (se desliza si no entran). */
-	.filters :global(.kv-segmented) {
-		flex-wrap: nowrap;
-		max-width: 100%;
-		overflow-x: auto;
-	}
-	.filters :global(.kv-segmented button) {
-		white-space: nowrap;
+	/* En el celu, los cuatro tipos a todo el ancho, en una fila y sin cortarse: cada botón se
+	   achica (menos relleno) en vez de deslizarse o pasar abajo. */
+	@media (max-width: 40rem) {
+		.filters :global(.kv-segmented) {
+			display: flex;
+			flex-wrap: nowrap;
+			width: 100%;
+		}
+		.filters :global(.kv-segmented button) {
+			flex: 1 1 auto;
+			min-width: 0;
+			padding-inline: 0.4em;
+			white-space: nowrap;
+		}
 	}
 	.grid {
 		list-style: none;

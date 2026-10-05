@@ -1,33 +1,28 @@
 <script>
 	import { argDateLog } from '$lib/utils/dates.js';
 	/**
-	 * «Borrados que podés recuperar» (Actividad): publicaciones borradas desde el panel que
-	 * todavía no se deshicieron, cada una con «Recuperar» (POST `?/recuperar` con su `id`).
+	 * «Borrados que podés recuperar» (Actividad): publicaciones borradas desde el panel (y lo que se
+	 * sacó de la biblioteca) que todavía no se deshicieron, cada una con «Recuperar» (POST
+	 * `?/recuperar` con su `id`).
 	 * Props: `rows` (listRecoverable de deletions.js), `result` (lo que devolvió la acción).
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import { RotateCcw } from '@lucide/svelte';
 	import { csvFilename } from '$lib/admin/csv.js';
-	import { undoneMessage } from '$lib/admin/deleteText.js';
+	import { deletionLabel, undoneMessage } from '$lib/admin/deleteText.js';
 	import Card from './Card.svelte';
 	import CsvButton from './CsvButton.svelte';
 	import UndoToast from './UndoToast.svelte';
 	import PublishStatus from '../PublishStatus.svelte';
 
-	/** @type {Array<{ id: number, kind: string, slug: string, title: string, deletedAt: number, deletedBy: string, mediaCount: number, prNumber: number | null }>} */
+	/** @type {Array<{ id: number, kind: string, path?: string, slug: string, title: string, deletedAt: number, deletedBy: string, mediaCount: number, prNumber: number | null }>} */
 	export let rows = [];
 	/** @type {any} */
 	export let result = null;
 
 	/** @type {number | null} */
 	let busy = null;
-
-	const KIND = /** @type {Record<string, string>} */ ({
-		calendario: 'Evento',
-		material: 'Material',
-		amigues: 'Amigues'
-	});
 </script>
 
 {#if rows.length || result?.undone || result?.error}<div class="recover">
@@ -44,7 +39,7 @@
 					<CsvButton
 						{rows}
 						columns={[
-							{ key: 'kind', label: 'tipo' },
+							{ label: 'tipo', value: (r) => deletionLabel(r).label },
 							{ key: 'slug', label: 'slug' },
 							{ key: 'title', label: 'titulo' },
 							{ label: 'borrado', value: (r) => new Date(r.deletedAt) },
@@ -55,11 +50,13 @@
 				</svelte:fragment>
 				<ul class="list">
 					{#each rows as r (r.id)}
+						{@const what = deletionLabel(r)}
 						<li>
 							<div class="what">
 								<b>{r.title}</b>
 								<small class="muted"
-									>{KIND[r.kind] ?? r.kind} · <code>{r.slug}</code> · {argDateLog(r.deletedAt)} por @{r.deletedBy}{r.mediaCount
+									>{what.label}{#if !what.library}
+										· <code>{r.slug}</code>{/if} · {argDateLog(r.deletedAt)} por @{r.deletedBy}{r.mediaCount
 										? ` · ${r.mediaCount} ${r.mediaCount === 1 ? 'imagen' : 'imágenes'}`
 										: ''}</small
 								>

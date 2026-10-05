@@ -30,7 +30,8 @@ export const ACTION_FAMILIES = /** @type {Record<string, string>} */ ({
 	settings: 'Ajustes',
 	event: 'Eventos',
 	account: 'Cuentas',
-	profile: 'Perfiles'
+	profile: 'Perfiles',
+	library: 'Biblioteca'
 });
 
 /** Nombre legible de cada tipo de objetivo. */
@@ -40,7 +41,8 @@ export const TARGET_TYPES = /** @type {Record<string, string>} */ ({
 	discount: 'Código',
 	settings: 'Ajustes',
 	account: 'Cuenta',
-	profile: 'Perfil'
+	profile: 'Perfil',
+	library: 'Biblioteca'
 });
 
 /**

@@ -780,28 +780,40 @@ export async function linkImage(db, objectId, kind, imageId, { actor, now = Date
 }
 
 /**
- * Borrar una imagen (o un documento o video, solo admins) de la biblioteca: borrado suave (se deshace subiéndola de nuevo). El archivo
- * queda en R2; los edges quedan (para deshacer), pero nadie la ve: ni las páginas ni `/media/…`.
+ * Borrar una imagen (o un documento o video, solo admins) de la biblioteca: borrado suave (se
+ * deshace con {@link restoreLibraryItem} o subiéndola de nuevo). El archivo queda en R2; los edges
+ * quedan (para deshacer), pero nadie la ve: ni las páginas ni `/media/…`. `also`: sentencias que
+ * van en la misma tanda (la fila de «Recuperar» de Actividad, ver admin/deletions.js).
  *
  * @param {D1Database} db
  * @param {number} id
- * @param {{ actor: string, now?: number }} ctx
+ * @param {{ actor: string, now?: number,
+ *   also?: (o: StoredObject) => import('@cloudflare/workers-types').D1PreparedStatement[] }} ctx
  * @returns {Promise<boolean>} false si no existe (o ya estaba borrada)
  */
-export async function deleteImage(db, id, { actor, now = Date.now() }) {
+export async function deleteImage(db, id, { actor, now = Date.now(), also }) {
+	const o = await findLibraryObject(db, id);
+	if (!o || o.deleted_at !== null) return false;
+	await saveObject(
+		db,
+		{ id: o.id, type: o.type, version: o.version, deleted: true },
+		{ actor, now, ...(also ? { also: () => also(o) } : {}) }
+	);
+	return true;
+}
+
+/**
+ * Una imagen o un archivo de la biblioteca por id (borrado o no), o `null`.
+ * @param {D1Database} db
+ * @param {number} id
+ * @returns {Promise<StoredObject | null>}
+ */
+export async function findLibraryObject(db, id) {
 	const row = await db
 		.prepare(`SELECT ${OBJECT_COLUMNS} FROM objects WHERE id = ?1 AND type IN (?2, ?3)`)
 		.bind(id, IMAGE_TYPE, FILE_TYPE)
 		.first();
-	if (!row) return false;
-	const o = rowToObject(row);
-	if (o.deleted_at !== null) return false;
-	await saveObject(
-		db,
-		{ id: o.id, type: o.type, version: o.version, deleted: true },
-		{ actor, now }
-	);
-	return true;
+	return row ? rowToObject(row) : null;
 }
 
 /** Un uso que quien mira no puede ver: se cuenta, pero sin decir cuál. */
@@ -903,26 +915,23 @@ export async function libraryUses(db, imageIds, viewer) {
 }
 
 /**
- * Deshacer {@link deleteImage} (Contenido › Biblioteca, «Deshacer»): vuelve a la biblioteca una
- * imagen o un archivo borrado. Solo les admins (lo revisa la ruta).
+ * Deshacer {@link deleteImage}: vuelve a la biblioteca una imagen o un archivo borrado (el
+ * «Deshacer» de Contenido › Biblioteca y «Recuperar» de Actividad, admin/deletions.js). Solo les
+ * admins (lo revisa la ruta). `also`: sentencias que van en la misma tanda.
  *
  * @param {D1Database} db
  * @param {number} id
- * @param {{ actor: string, now?: number }} ctx
+ * @param {{ actor: string, now?: number,
+ *   also?: (o: StoredObject) => import('@cloudflare/workers-types').D1PreparedStatement[] }} ctx
  * @returns {Promise<boolean>} false si no existe o no estaba borrado
  */
-export async function restoreLibraryItem(db, id, { actor, now = Date.now() }) {
-	const row = await db
-		.prepare(`SELECT ${OBJECT_COLUMNS} FROM objects WHERE id = ?1 AND type IN (?2, ?3)`)
-		.bind(id, IMAGE_TYPE, FILE_TYPE)
-		.first();
-	if (!row) return false;
-	const o = rowToObject(row);
-	if (o.deleted_at === null) return false;
+export async function restoreLibraryItem(db, id, { actor, now = Date.now(), also }) {
+	const o = await findLibraryObject(db, id);
+	if (!o || o.deleted_at === null) return false;
 	await saveObject(
 		db,
 		{ id: o.id, type: o.type, version: o.version, deleted: false },
-		{ actor, now }
+		{ actor, now, ...(also ? { also: () => also(o) } : {}) }
 	);
 	return true;
 }

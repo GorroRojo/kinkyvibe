@@ -14,3 +14,25 @@ export function undoneMessage({ mode, title, immediate = false }) {
 		? `Listo: «${title}» vuelve a estar.`
 		: `Listo: «${title}» vuelve a estar. Se publica en unos minutos.`;
 }
+
+/** Las filas de la biblioteca en «Recuperar» (ver `libraryPath` de src/lib/server/admin/deletions.js). */
+const LIBRARY_ROW = /^objeto:(imagen|archivo):[1-9]\d*$/;
+
+const KIND_LABELS = /** @type {Record<string, string>} */ ({
+	calendario: 'Evento',
+	material: 'Material',
+	amigues: 'Amigues'
+});
+
+/**
+ * Qué es cada borrado en «Borrados que podés recuperar»: «Evento», «Material», «Amigues» o, para
+ * la biblioteca, «Biblioteca · imagen» / «Biblioteca · archivo» (sin la dirección: es el hash del
+ * archivo).
+ * @param {{ kind: string, path?: string }} row
+ * @returns {{ label: string, library: boolean }}
+ */
+export function deletionLabel({ kind, path = '' }) {
+	const m = LIBRARY_ROW.exec(path);
+	if (m) return { label: `Biblioteca · ${m[1]}`, library: true };
+	return { label: KIND_LABELS[kind] ?? kind, library: false };
+}
