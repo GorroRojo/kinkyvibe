@@ -1,21 +1,34 @@
 /**
- * DELETE /imagenes/<id>: sacar una imagen de la biblioteca (solo admins). Es el borrado suave del
- * objeto `imagen`: deja de aparecer y `/media/…` deja de servirla, pero el archivo queda en R2
+ * DELETE /imagenes/<id>: sacar una imagen de la biblioteca. Es el borrado suave del objeto
+ * `imagen`: deja de aparecer y `/media/…` deja de servirla, pero el archivo queda en R2
  * (docs/imagenes.md). Solo desde el mismo sitio (Origin), porque no es un formulario.
+ *
+ * - Admins: cualquier imagen (como siempre, aunque se use).
+ * - Una cuenta que gestiona un perfil: solo una imagen que subió ella y que nada usa
+ *   (`deleteOwnImage`); si se usa, 409 con dónde. La de otra persona: 404 (como si no existiera).
+ * - Nadie más: 404.
  */
 import { error, json } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
 import { imageAccess } from '$lib/server/media/access.js';
-import { deleteImage } from '$lib/server/media/library.js';
+import { deleteImage, deleteOwnImage } from '$lib/server/media/library.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function DELETE({ locals, platform, params, request, url }) {
 	const db = getDB(platform);
 	const access = await imageAccess(locals, db);
-	if (!access || !db || access.role !== 'admin') error(404, 'No existe.');
+	if (!access || !db) error(404, 'No existe.');
 	if (request.headers.get('origin') !== url.origin) error(403, 'Pedido de otro sitio.');
 	const id = Number(params.id);
 	if (!Number.isSafeInteger(id) || id <= 0) error(404, 'No existe.');
+	if (access.role !== 'admin') {
+		const res = await deleteOwnImage(db, id, { actor: access.actor, viewer: access.viewer });
+		if (!res.ok) {
+			if (res.status === 404) error(404, 'No existe.');
+			return json({ error: res.error, usedIn: res.usedIn ?? [] }, { status: res.status });
+		}
+		return json({ deleted: true });
+	}
 	const done = await deleteImage(db, id, { actor: access.actor });
 	if (!done) error(404, 'No existe.');
 	return json({ deleted: true });

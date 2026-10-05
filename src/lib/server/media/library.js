@@ -15,6 +15,7 @@ import { saveObject } from '../objects/save.js';
 import { ANON, canSee, visibleWhere } from '../objects/visibility.js';
 import { MEDIA_KEY } from '../objects/types/imagen.js';
 import { mediaKey, mediaPath, sha256Hex, sniffImage } from './sniff.js';
+import { usageText } from '../../utils/imageChoice.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').R2Bucket} R2Bucket */
@@ -532,6 +533,102 @@ export async function deleteImage(db, id, { actor, now = Date.now() }) {
 		{ actor, now }
 	);
 	return true;
+}
+
+/** Un uso que quien mira no puede ver: se cuenta, pero sin decir cuál. */
+export const HIDDEN_USE = 'otra publicación';
+
+/**
+ * Dónde se usa cada imagen, TODO lo que la usa (para decidir si se puede borrar): los edges desde
+ * objetos vivos (portada, imagen, avatar…) y los objetos vivos que nombran su archivo en sus
+ * datos (por ejemplo, un texto con `/media/img/<hash>.webp`). Lo que quien mira no ve se cuenta
+ * igual, como {@link HIDDEN_USE}. Sin usos, la imagen no está en el mapa.
+ *
+ * @param {D1Database} db
+ * @param {number[]} imageIds
+ * @param {Viewer} viewer
+ * @returns {Promise<Map<number, string[]>>}
+ */
+export async function imageUsage(db, imageIds, viewer) {
+	/** @type {Map<number, string[]>} */
+	const out = new Map();
+	const list = [...new Set(imageIds.filter((i) => Number.isSafeInteger(i) && i > 0))];
+	if (!list.length) return out;
+	const cols = OBJECT_COLUMNS.split(', ')
+		.map((c) => `s.${c}`)
+		.join(', ');
+	const ids = JSON.stringify(list);
+	const [byEdge, byText] = await Promise.all([
+		db
+			.prepare(
+				`SELECT DISTINCT e.to_id AS image, ${cols} FROM edges e
+				JOIN objects s ON s.id = e.from_id AND s.deleted_at IS NULL
+				WHERE e.to_id IN (SELECT value FROM json_each(?1))
+				ORDER BY s.id DESC`
+			)
+			.bind(ids)
+			.all(),
+		// El slug de una imagen es el SHA-256 de su archivo: si aparece en los datos de otro
+		// objeto, ese objeto la nombra (64 caracteres hexadecimales: no hay falsos parecidos).
+		db
+			.prepare(
+				`SELECT DISTINCT i.id AS image, ${cols} FROM objects i
+				JOIN objects s ON s.deleted_at IS NULL AND s.type != ?2 AND s.id != i.id
+					AND instr(s.data, i.slug) > 0
+				WHERE i.type = ?2 AND i.id IN (SELECT value FROM json_each(?1))
+				ORDER BY s.id DESC`
+			)
+			.bind(ids, IMAGE_TYPE)
+			.all()
+	]);
+	/** @type {Map<number, Set<number>>} */
+	const seen = new Map();
+	for (const { image, ...row } of [...byEdge.results, ...byText.results]) {
+		const imageId = Number(image);
+		const source = rowToObject(row);
+		const done = seen.get(imageId) ?? new Set();
+		if (done.has(source.id)) continue;
+		done.add(source.id);
+		seen.set(imageId, done);
+		const label = /** @type {Record<string, string>} */ (USE_LABEL)[source.type];
+		const uses = out.get(imageId) ?? [];
+		uses.push(label && canSee(source, viewer) ? `${label} «${source.title}»` : HIDDEN_USE);
+		out.set(imageId, uses);
+	}
+	return out;
+}
+
+/**
+ * Una cuenta del público borra una imagen que subió ella, solo si nada la usa (ni edges ni
+ * menciones; ver {@link imageUsage}). El mismo borrado suave que el de les admins
+ * ({@link deleteImage}): se deshace subiéndola de nuevo.
+ *
+ * @param {D1Database} db
+ * @param {number} id
+ * @param {{ actor: string, viewer: Viewer, now?: number }} ctx
+ * @returns {Promise<{ ok: true } | { ok: false, status: number, error: string, usedIn?: string[] }>}
+ *   404 si no existe, ya estaba borrada o la subió otra persona (no se dice cuál); 409 si se usa.
+ */
+export async function deleteOwnImage(db, id, { actor, viewer, now = Date.now() }) {
+	const row = await db
+		.prepare(`SELECT ${OBJECT_COLUMNS} FROM objects WHERE id = ?1 AND type = ?2`)
+		.bind(id, IMAGE_TYPE)
+		.first();
+	const o = row ? rowToObject(row) : null;
+	if (!o || o.deleted_at !== null || o.created_by !== actor) {
+		return { ok: false, status: 404, error: 'No existe.' };
+	}
+	const usedIn = (await imageUsage(db, [id], viewer)).get(id) ?? [];
+	if (usedIn.length) {
+		return {
+			ok: false,
+			status: 409,
+			error: `No la podés borrar: se usa en ${usageText(usedIn)}. Primero sacala de ahí.`,
+			usedIn
+		};
+	}
+	await deleteImage(db, id, { actor, now });
+	return { ok: true };
 }
 
 /**
