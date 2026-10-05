@@ -37,6 +37,8 @@
 	import { saveCopy, savedSummary } from '$lib/admin/saveCopy.js';
 	import ImageSection from '$lib/components/admin/event-form/ImageSection.svelte';
 	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
+	import LibraryLinkPicker from '$lib/components/admin/LibraryLinkPicker.svelte';
+	import { appendParagraph } from '$lib/utils/libraryFiles.js';
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
 	import PersonasSection from '$lib/components/admin/event-form/PersonasSection.svelte';
 	import { authorRoleOf, personasToMd, validatePersonaItems } from '$lib/utils/personasList.js';
@@ -605,6 +607,13 @@
 					>
 				</svelte:fragment>
 			</BodySection>
+
+			{#if library && category === 'material'}
+				<LibraryLinkPicker
+					idPrefix="content-biblio"
+					on:insert={(e) => (f.body = appendParagraph(f.body, e.detail.markdown))}
+				/>
+			{/if}
 
 			<fieldset class="card" id="sec-lista">
 				<legend>👀 Así se ve en la lista</legend>

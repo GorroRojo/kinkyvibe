@@ -270,6 +270,13 @@ evento → `portada`, material → `portada`, etiqueta (serie) → `imagen`, per
 objeto). Archivo: `src/lib/server/objects/types/imagen.js`; todo el detalle en
 [imagenes.md](imagenes.md).
 
+### `archivo`
+
+Un documento (PDF, ODT, ODS, ODP) o un video (MP4, WebM) de la biblioteca, en el mismo bucket que
+las imágenes (`file/<sha-256>.<ext>`). Tipo hermano de `imagen` para que ningún edge de imagen
+pueda apuntar a uno; sin edges: un texto lo enlaza por su dirección. Solo les admins los suben.
+Archivo: `src/lib/server/objects/types/archivo.js`; detalle en [imagenes.md](imagenes.md).
+
 ### `etiqueta`
 
 Las etiquetas del sitio (paso 3 de 0026), con su texto de la wiki como cuerpo y relaciones

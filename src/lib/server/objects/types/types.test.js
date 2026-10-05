@@ -15,14 +15,15 @@ const lugar = /** @type {import('./index.js').CoreType} */ (coreTypes.get('lugar
 const perfil = /** @type {import('./index.js').CoreType} */ (coreTypes.get('perfil'));
 
 describe('registro de tipos núcleo', () => {
-	it('tiene evento, lugar, perfil, etiqueta, material e imagen; el evento puede apuntar a un lugar (o a un perfil de lugar), a perfiles y a su portada', () => {
+	it('tiene evento, lugar, perfil, etiqueta, material, imagen y archivo; el evento puede apuntar a un lugar (o a un perfil de lugar), a perfiles y a su portada', () => {
 		expect([...coreTypes.types.keys()]).toEqual([
 			'evento',
 			'lugar',
 			'perfil',
 			'etiqueta',
 			'material',
-			'imagen'
+			'imagen',
+			'archivo'
 		]);
 		expect(evento.edges?.lugar).toMatchObject({ to: ['lugar', 'perfil'], max: 1 });
 		expect(evento.edges?.persona).toMatchObject({ to: ['perfil'] });
@@ -294,6 +295,31 @@ describe('imagen', () => {
 			['perfil', 'avatar']
 		]) {
 			expect(coreTypes.get(type)?.edges?.[kind]).toMatchObject({ to: ['imagen'], max: 1 });
+		}
+	});
+});
+
+describe('archivo (documentos y video de la biblioteca)', () => {
+	const archivo = /** @type {import('./index.js').CoreType} */ (coreTypes.get('archivo'));
+	const key = `file/${'b'.repeat(64)}.pdf`;
+	it('una clave de R2 por contenido (`file/…`), su tipo y su peso', () => {
+		expect(validateData(archivo, { key, mime: 'application/pdf', size: 1200 })).toMatchObject({
+			ok: true
+		});
+		expect(
+			validateData(archivo, { key: `img/${'b'.repeat(64)}.webp`, mime: 'application/pdf', size: 1 })
+		).toMatchObject({ ok: false, errors: [{ path: 'key' }] });
+		expect(validateData(archivo, { key, mime: 'text/html', size: 1 })).toMatchObject({ ok: false });
+		expect(validateData(archivo, { key, mime: 'image/svg+xml', size: 1 })).toMatchObject({
+			ok: false
+		});
+		expect(validateData(archivo, { key, mime: 'application/pdf' })).toMatchObject({ ok: false });
+	});
+	it('ningún uso de imagen (portada, avatar, imagen de serie) puede apuntar a un archivo', () => {
+		for (const def of coreTypes.types.values()) {
+			for (const edge of Object.values(def.edges ?? {})) {
+				if (edge.to.includes('imagen')) expect(edge.to).not.toContain('archivo');
+			}
 		}
 	});
 });

@@ -5,6 +5,7 @@
  * Solo usa imports relativos (lo usa el cron nocturno, que no pasa por Vite).
  */
 import { validateFields } from '../fields.js';
+import archivo from './archivo.js';
 import etiqueta from './etiqueta.js';
 import evento from './evento.js';
 import imagen from './imagen.js';
@@ -71,7 +72,15 @@ export function createRegistry(list) {
 }
 
 /** Los tipos núcleo del sitio. */
-export const coreTypes = createRegistry([evento, lugar, perfil, etiqueta, material, imagen]);
+export const coreTypes = createRegistry([
+	evento,
+	lugar,
+	perfil,
+	etiqueta,
+	material,
+	imagen,
+	archivo
+]);
 
 /**
  * Valida y normaliza los datos de un objeto según su tipo.
