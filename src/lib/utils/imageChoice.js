@@ -49,3 +49,14 @@ export const searchHref = (q) => `/imagenes?q=${encodeURIComponent(q.trim())}`;
  * @param {string} target
  */
 export const contextHref = (target) => `/imagenes?para=${encodeURIComponent(target)}`;
+
+/**
+ * «En uso: …» para mostrar: hasta 3 usos (los que no se ven, una sola vez) y cuántos más.
+ * @param {readonly string[]} uses
+ */
+export function usageText(uses) {
+	const shown = [...new Set(uses)];
+	const first = shown.slice(0, 3);
+	const more = uses.length - first.length;
+	return more > 0 ? `${first.join(', ')} y ${more} más` : first.join(', ');
+}

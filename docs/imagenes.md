@@ -52,15 +52,29 @@ servidor crea el edge **en el mismo guardado** del objeto (eventos y material: `
 
 - **Admins**: subir, buscar en toda la biblioteca, elegir cualquiera y sacar imágenes.
 - **Cuentas que gestionan un perfil** (Mi rincón): subir y buscar **solo entre las que subieron**;
-  en su perfil solo pueden poner una imagen que subieron o la que el perfil ya tenía. No borran.
+  en su perfil solo pueden poner una imagen que subieron o la que el perfil ya tenía. **Borran una
+  imagen que subieron, solo si nada la usa** (decisión de gorrite; ver «Borrar»).
 - Nadie más: `/imagenes` responde 404 (como si no existiera).
 
 ## Borrar
 
-«Sacar de la biblioteca» (solo admins, en Buscar) es el **borrado suave** del objeto `imagen`:
+«Sacar de la biblioteca» (admins, en Buscar) es el **borrado suave** del objeto `imagen`:
 deja de aparecer en el selector, las páginas dejan de mostrarla y `/media/…` da 404. **El archivo
 queda en R2** (es barato y permite deshacer: subir el mismo archivo la vuelve a la vida, con sus
 edges). Ojo: los navegadores que ya la tenían en caché la pueden seguir mostrando un tiempo.
+
+**Las cuentas** (Mi rincón, «Borrar imágenes sin usar…» en Buscar) borran igual (el mismo borrado
+suave), pero solo una imagen **que subieron y que nada usa** (`deleteOwnImage` en
+`src/lib/server/media/library.js`, `DELETE /imagenes/<id>`):
+
+- «Usar» es cualquier edge hacia la imagen desde un objeto vivo (portada, imagen, avatar…) o un
+  objeto vivo que nombra su archivo en sus datos (por ejemplo, `/media/img/<hash>.webp` en un
+  texto) (`imageUsage`). Lo que la cuenta no puede ver se cuenta igual, como «otra publicación».
+- Si se usa: 409 con dónde («No la podés borrar: se usa en perfil «…». Primero sacala de ahí.»),
+  y el selector ya no muestra «Borrar» para esa imagen sino dónde se usa.
+- La imagen de otra persona, una ya borrada, sin sesión o sin perfiles: 404 (como si no
+  existiera). Desde otro sitio (Origin): 403.
+- Les admins siguen pudiendo sacar cualquiera, aunque se use.
 
 ## Las imágenes viejas del repo (respaldo)
 
@@ -124,7 +138,10 @@ npm run dev:admin   # el bucket MEDIA local lo simula miniflare (.wrangler/state
 - **Texto alternativo obligatorio** al subir (no solo un aviso). Las importadas del repo llevan
   «Imagen de «<título>»» (o nada si nada las usa): conviene revisarlas.
 - **Cuentas del público**: solo suben y buscan entre lo suyo, y en su perfil solo ponen una imagen
-  que subieron (o la que ya tenía). No borran.
+  que subieron (o la que ya tenía). Borran lo suyo sin usar (decidido por gorrite, ver «Borrar»).
+- **Borrar lo propio: qué cuenta como «usar»**: solo edges y menciones desde objetos **vivos** (un
+  objeto borrado que la tenía no la frena; si se restaura, queda sin esa imagen hasta que se
+  suba de nuevo). Sin sesión o sin perfiles, 404 como el resto de `/imagenes` (no 401/403).
 - **/media sirve solo imágenes vivas** (una consulta a D1 por pedido, con caché inmutable en el
   navegador). Una imagen borrada da 404 aunque el archivo siga en R2.
 - **Al elegir o sacar una imagen se borra el campo viejo** (`featured` del evento/material,
