@@ -145,13 +145,18 @@ importar.
   - `sigue-el-interruptor.test.js` prueba cada lugar con una «base» inventada.
 - Los textos de la Kinkipedia (`/wiki/<entrada>`) salen de la base («solo base», paso 2): ver
   «La Kinkipedia» abajo.
-- **Editor** (`/admin/etiquetas`): guarda en la base al momento (sin etiquetas en la base, la
-  página pide importarlas: `NEEDS_IMPORT`) (`src/lib/server/etiquetas/editor.js`). Usa las mismas
+- **Editor** (`/admin/etiquetas`): **cada etiqueta se guarda al momento**, de a un cambio
+  (decisión de gorrite): su propio «Guardar» para los datos (ícono, nombre visible, color,
+  imagen, relacionadas, definición), y renombrar, mover (también arrastrando), fusionar, sumar o
+  sacar un alias y crear una hija se guardan al hacerlos. No hay lista de «cambios por guardar»:
+  la acción `guardar` acepta un solo cambio (`op`). Fusionar y renombrar sin alias piden
+  confirmación antes (con lo que diga la vista previa del servidor). Guarda en la base (sin
+  etiquetas en la base, la página pide importarlas: `NEEDS_IMPORT`) (`src/lib/server/etiquetas/editor.js`). Usa las mismas
   operaciones que el editor del archivo (`applyTagOps`), así que valida igual; después compara
   objeto por objeto y escribe solo lo que cambió. Diferencias:
   - renombrar: ver abajo; la etiqueta renombrada sigue siendo el mismo objeto;
   - el texto de la wiki y los demás datos que el archivo no tiene se conservan; si una etiqueta
-    con texto pasa a ser alias (fusionar), la vista previa avisa;
+    con texto pasa a ser alias (fusionar), la confirmación avisa;
   - sacar un alias lo borra (suave, recuperable desde el historial del objeto);
   - no es una sola tanda: si alguien cambió una etiqueta mientras tanto, se frena ahí y avisa
     («recargá»); lo anterior queda guardado.
@@ -169,8 +174,10 @@ Eventos → Series › Editar):
   después se renombra la etiqueta; el nombre viejo deja de existir. Si cambiar las publicaciones
   falla, la etiqueta no se toca. Se ve enseguida.
 - **Dejar el nombre viejo como alias**: no se toca ninguna publicación; se resuelven por el alias.
-- Antes de confirmar se ve cuántas publicaciones cambian (y cómo): la vista previa de Etiquetas,
-  o un paso de confirmación en Series.
+- Antes de confirmar se ve cuántas publicaciones cambian: el diálogo de confirmación de
+  Etiquetas (con la vista previa del servidor), o un paso de confirmación en Series.
+- En Etiquetas, la opción marcada por defecto es **dejar el nombre viejo como alias** (confirmado
+  por gorrite); en Series sigue la de arriba.
 - La parte de las publicaciones es una sola función, `planTagRenameInPosts`
   (`src/lib/server/etiquetas/rename.js`), y se guarda con el cliente solo-base
   (`dbPostsOnlyClient` en `src/lib/server/contenido/repo.js`): Etiquetas y Eventos → Series usan el
