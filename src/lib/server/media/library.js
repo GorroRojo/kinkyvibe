@@ -353,6 +353,9 @@ export async function storeFile(db, bucket, file, { actor, now = Date.now() }) {
 	return { file: publicFile(saved), created: true };
 }
 
+/** Cuántas cosas muestra cada página de Contenido › Biblioteca (y cada «Cargar más»). */
+export const LIBRARY_PAGE = 48;
+
 /** Qué tipos de objeto trae cada filtro de la biblioteca. */
 const KIND_TYPES = Object.freeze({
 	todo: [IMAGE_TYPE, FILE_TYPE],
@@ -364,20 +367,53 @@ const KIND_TYPES = Object.freeze({
 /**
  * Buscar en toda la biblioteca (imágenes, documentos y videos) con un filtro por tipo, por nombre
  * (y texto alternativo en las imágenes). Sin texto, lo más nuevo. Para les admins (el selector de
- * imágenes sigue usando {@link searchImages}, que trae solo imágenes).
+ * imágenes sigue usando {@link searchImages}, que trae solo imágenes). `offset`: para «Cargar más»
+ * (Contenido › Biblioteca).
  *
  * @param {D1Database} db
  * @param {{ q?: string, kind?: 'todo' | 'imagen' | 'documento' | 'video', viewer: Viewer,
- *   createdBy?: string, limit?: number }} opts
+ *   createdBy?: string, limit?: number, offset?: number }} opts
  * @returns {Promise<LibraryItem[]>}
  */
-export async function searchLibrary(db, { q = '', kind = 'todo', viewer, createdBy, limit = 24 }) {
+export async function searchLibrary(
+	db,
+	{ q = '', kind = 'todo', viewer, createdBy, limit = 24, offset = 0 }
+) {
 	const types = KIND_TYPES[kind] ?? KIND_TYPES.todo;
-	const found = await searchObjectsOf(db, types, { q, viewer, createdBy, limit: 60 });
-	const items = found.map(libraryItem);
-	const wanted =
-		kind === 'documento' || kind === 'video' ? items.filter((i) => i.kind === kind) : items;
-	return wanted.slice(0, Math.min(Math.max(1, limit), 60));
+	// Los documentos y los videos son el mismo tipo (`archivo`): los separa el mime, en la consulta
+	// (así «Cargar más» no se saltea nada).
+	const media = kind === 'documento' || kind === 'video' ? kind : null;
+	const found = await searchObjectsOf(db, types, { q, viewer, createdBy, limit, offset, media });
+	return found.map(libraryItem);
+}
+
+/**
+ * Una página de la biblioteca para Contenido › Biblioteca (y `/imagenes?tipo=…&desde=…`): lo que
+ * hay, con dónde se usa cada cosa (en texto, `usedIn`, y con qué objeto, `uses`, para enlazarlo),
+ * y si hay más.
+ *
+ * @param {D1Database} db
+ * @param {{ q?: string, kind?: 'todo' | 'imagen' | 'documento' | 'video', viewer: Viewer,
+ *   limit?: number, offset?: number }} opts
+ * @returns {Promise<{ items: (LibraryItem & { usedIn: string[], uses: LibraryUse[] })[],
+ *   more: boolean }>}
+ */
+export async function browseLibrary(db, { q = '', kind = 'todo', viewer, limit = 24, offset = 0 }) {
+	const n = Math.min(Math.max(1, limit), 59);
+	const found = await searchLibrary(db, { q, kind, viewer, limit: n + 1, offset });
+	const page = found.slice(0, n);
+	const uses = await libraryUses(
+		db,
+		page.map((i) => i.id),
+		viewer
+	);
+	return {
+		items: page.map((i) => {
+			const list = uses.get(i.id) ?? [];
+			return { ...i, usedIn: list.map(useText), uses: list };
+		}),
+		more: found.length > n
+	};
 }
 
 /**
@@ -396,14 +432,20 @@ export async function searchImages(db, { q = '', viewer, createdBy, limit = 24 }
 
 /**
  * La búsqueda de la biblioteca, para uno o más tipos (`imagen`, `archivo`): cada palabra como
- * prefijo en el índice de objetos; sin texto, lo más nuevo. Pasa por la visibilidad.
+ * prefijo en el índice de objetos; sin texto, lo más nuevo. Pasa por la visibilidad. `media`:
+ * entre los archivos, solo los videos (`video/…`) o solo los documentos (el resto).
  *
  * @param {D1Database} db
  * @param {string[]} types
- * @param {{ q?: string, viewer: Viewer, createdBy?: string, limit?: number }} opts
+ * @param {{ q?: string, viewer: Viewer, createdBy?: string, limit?: number, offset?: number,
+ *   media?: 'documento' | 'video' | null }} opts
  * @returns {Promise<StoredObject[]>}
  */
-async function searchObjectsOf(db, types, { q = '', viewer, createdBy, limit = 24 }) {
+async function searchObjectsOf(
+	db,
+	types,
+	{ q = '', viewer, createdBy, limit = 24, offset = 0, media = null }
+) {
 	const terms = String(q)
 		.split(/\s+/)
 		.map((w) => w.replace(/["*^():{}[\]]/g, '').trim())
@@ -415,24 +457,31 @@ async function searchObjectsOf(db, types, { q = '', viewer, createdBy, limit = 2
 		.map((c) => `o.${c}`)
 		.join(', ');
 	const n = Math.min(Math.max(1, limit), 60);
+	const skip = Number.isSafeInteger(offset) && offset > 0 ? Math.min(offset, 100_000) : 0;
 	const by = createdBy ?? null;
+	const byMime =
+		media === 'video'
+			? ` AND json_extract(o.data, '$.mime') LIKE 'video/%'`
+			: media === 'documento'
+				? ` AND json_extract(o.data, '$.mime') NOT LIKE 'video/%'`
+				: '';
 	const stmt = terms.length
 		? db
 				.prepare(
 					`SELECT ${cols} FROM objects_fts f JOIN objects o ON o.id = f.rowid
 					WHERE objects_fts MATCH ? AND o.type IN (SELECT value FROM json_each(?))
-					AND ${visible.sql} AND (? IS NULL OR o.created_by = ?)
-					ORDER BY f.rank, o.id DESC LIMIT ?`
+					AND ${visible.sql} AND (? IS NULL OR o.created_by = ?)${byMime}
+					ORDER BY f.rank, o.id DESC LIMIT ? OFFSET ?`
 				)
-				.bind(terms.join(' '), JSON.stringify(types), ...visible.params, by, by, n)
+				.bind(terms.join(' '), JSON.stringify(types), ...visible.params, by, by, n, skip)
 		: db
 				.prepare(
 					`SELECT ${cols} FROM objects o
 					WHERE o.type IN (SELECT value FROM json_each(?)) AND ${visible.sql}
-					AND (? IS NULL OR o.created_by = ?)
-					ORDER BY o.created_at DESC, o.id DESC LIMIT ?`
+					AND (? IS NULL OR o.created_by = ?)${byMime}
+					ORDER BY o.created_at DESC, o.id DESC LIMIT ? OFFSET ?`
 				)
-				.bind(JSON.stringify(types), ...visible.params, by, by, n);
+				.bind(JSON.stringify(types), ...visible.params, by, by, n, skip);
 	const { results } = await stmt.all();
 	return results.map((r) => forViewer(rowToObject(r), viewer));
 }
@@ -759,6 +808,20 @@ export async function deleteImage(db, id, { actor, now = Date.now() }) {
 export const HIDDEN_USE = 'otra publicación';
 
 /**
+ * Un uso de algo de la biblioteca: el objeto que lo usa (si quien mira lo puede ver) o, si no,
+ * `{ hidden: true }` (se cuenta sin decir cuál, ver {@link HIDDEN_USE}).
+ * @typedef {{ hidden?: false, type: string, id: number, slug: string, title: string }
+ *   | { hidden: true }} LibraryUse
+ */
+
+/** El uso en texto: «material «Guía de prueba»» u «otra publicación». @param {LibraryUse} u */
+export function useText(u) {
+	if (u.hidden) return HIDDEN_USE;
+	const label = /** @type {Record<string, string>} */ (USE_LABEL)[u.type];
+	return label ? `${label} «${u.title}»` : HIDDEN_USE;
+}
+
+/**
  * Dónde se usa cada imagen o archivo, TODO lo que lo usa (para decidir si se puede borrar): los
  * edges desde objetos vivos (portada, imagen, avatar, el `adjunto` de un material…) y los objetos
  * vivos que nombran su archivo en sus datos (por ejemplo, un texto con `/media/img/<hash>.webp`,
@@ -772,7 +835,22 @@ export const HIDDEN_USE = 'otra publicación';
  * @returns {Promise<Map<number, string[]>>}
  */
 export async function imageUsage(db, imageIds, viewer) {
-	/** @type {Map<number, string[]>} */
+	const uses = await libraryUses(db, imageIds, viewer);
+	return new Map([...uses].map(([id, list]) => [id, list.map(useText)]));
+}
+
+/**
+ * Lo mismo que {@link imageUsage}, con el objeto de cada uso (tipo, id, dirección y nombre) para
+ * enlazarlo (Contenido › Biblioteca). Un objeto de un tipo que no tiene nombre para mostrar, o que
+ * quien mira no ve, va como `{ hidden: true }`.
+ *
+ * @param {D1Database} db
+ * @param {number[]} imageIds
+ * @param {Viewer} viewer
+ * @returns {Promise<Map<number, LibraryUse[]>>}
+ */
+export async function libraryUses(db, imageIds, viewer) {
+	/** @type {Map<number, LibraryUse[]>} */
 	const out = new Map();
 	const list = [...new Set(imageIds.filter((i) => Number.isSafeInteger(i) && i > 0))];
 	if (!list.length) return out;
@@ -812,12 +890,41 @@ export async function imageUsage(db, imageIds, viewer) {
 		if (done.has(source.id)) continue;
 		done.add(source.id);
 		seen.set(imageId, done);
-		const label = /** @type {Record<string, string>} */ (USE_LABEL)[source.type];
+		const named = Object.hasOwn(USE_LABEL, source.type);
 		const uses = out.get(imageId) ?? [];
-		uses.push(label && canSee(source, viewer) ? `${label} «${source.title}»` : HIDDEN_USE);
+		uses.push(
+			named && canSee(source, viewer)
+				? { type: source.type, id: source.id, slug: source.slug, title: source.title }
+				: { hidden: true }
+		);
 		out.set(imageId, uses);
 	}
 	return out;
+}
+
+/**
+ * Deshacer {@link deleteImage} (Contenido › Biblioteca, «Deshacer»): vuelve a la biblioteca una
+ * imagen o un archivo borrado. Solo les admins (lo revisa la ruta).
+ *
+ * @param {D1Database} db
+ * @param {number} id
+ * @param {{ actor: string, now?: number }} ctx
+ * @returns {Promise<boolean>} false si no existe o no estaba borrado
+ */
+export async function restoreLibraryItem(db, id, { actor, now = Date.now() }) {
+	const row = await db
+		.prepare(`SELECT ${OBJECT_COLUMNS} FROM objects WHERE id = ?1 AND type IN (?2, ?3)`)
+		.bind(id, IMAGE_TYPE, FILE_TYPE)
+		.first();
+	if (!row) return false;
+	const o = rowToObject(row);
+	if (o.deleted_at === null) return false;
+	await saveObject(
+		db,
+		{ id: o.id, type: o.type, version: o.version, deleted: false },
+		{ actor, now }
+	);
+	return true;
 }
 
 /**
