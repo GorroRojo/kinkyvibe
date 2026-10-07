@@ -5,8 +5,12 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import PersonasConRol from './PersonasConRol.svelte';
 
-/** Texto visible (sin etiquetas ni comentarios). @param {string} html */
-const text = (html) => html.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]*>/g, '');
+/** Texto visible (sin etiquetas). @param {string} html */
+const text = (html) =>
+	html
+		.split('<')
+		.map((part, i) => (i === 0 ? part : part.slice(part.indexOf('>') + 1 || part.length)))
+		.join('');
 
 describe('PersonasConRol', () => {
 	it('separa los nombres con coma y espacio, con o sin perfil', () => {
