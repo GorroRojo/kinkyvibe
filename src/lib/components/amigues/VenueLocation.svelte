@@ -7,7 +7,8 @@
 	 * tarjeta del evento: lo mismo que se ve en cada nivel, sin el "Sucede en" ni márgenes; la
 	 * tarjeta ya dice «en»), `part` ('all': todo junto; en la página de un evento se parte en
 	 * 'where', la dirección y «Ver en Google Maps» en la tarjeta, y 'more', el mapa, «Cómo llegar» y
-	 * «Accesibilidad», que van después del botón de comprar).
+	 * «Accesibilidad», que van después del botón de comprar), `mapsLink` (false: sin «Ver en Google
+	 * Maps», para quien lo pone en otro lado, como «Cuándo y dónde» del evento, abajo del mapa).
 	 */
 	import { MapPin } from '@lucide/svelte';
 	import { ADDRESS_FOR_BUYERS, googleMapsLink, showsAddress } from '$lib/utils/venues.js';
@@ -21,6 +22,7 @@
 	export let compact = false;
 	/** @type {'all' | 'where' | 'more'} */
 	export let part = 'all';
+	export let mapsLink = true;
 
 	$: place = [view.area, view.city].filter(Boolean).join(', ');
 	/* "Ver en Google Maps": solo en los niveles que muestran la dirección (pedido de gorrite). */
@@ -63,7 +65,7 @@
 		{#if context === 'event' && !showsAddress(view.level)}
 			<p class="note">{ADDRESS_FOR_BUYERS}</p>
 		{/if}
-		{#if gmaps}
+		{#if gmaps && mapsLink}
 			<p class="gmaps">
 				<a href={gmaps} target="_blank" rel="noopener noreferrer">Ver en Google Maps</a>
 			</p>

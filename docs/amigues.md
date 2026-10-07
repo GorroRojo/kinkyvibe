@@ -143,7 +143,10 @@ Abajo, «Abrir en OpenStreetMap» y el crédito «© colaboradores de OpenStreet
 indicaciones «Cómo llegar» se sacó por pedido de gorrite, 4/10; la sección escrita «Cómo llegar»
 del lugar y «Ver en Google Maps» siguen). Sale solo en "Nombre + dirección"
 y "Sólo dirección": en los demás niveles el servidor no manda `lat`/`lng` (`venueView`; lo prueban
-`venues.test.js` y `VenueLocation.test.js`).
+`venues.test.js` y `VenueLocation.test.js`). En la página del evento va chico en «Cuándo y dónde», arriba de «Ver en
+Google Maps» (y no en un evento cancelado), con «Cómo llegar» y «Accesibilidad» en su propia
+tarjeta más abajo (`src/lib/components/evento/`). Un evento con solo el «Dónde» en texto libre
+no tiene mapa: no se geocodifica ni se inventa una ubicación.
 
 **Sin filtraciones**: el sitemap, el RSS, el `.ics`, `/api/posts` y las imágenes para compartir
 llevan de los perfiles solo lo que muestra `/amigues` a cualquiera (aprobados, no ocultos, con la

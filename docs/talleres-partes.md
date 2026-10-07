@@ -55,8 +55,10 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
 
 ## Dónde se ve
 
-- **Página del evento:** debajo del título, «Taller en 3 partes» o «Parte 2 de 3 de <taller>»;
-  más abajo, la lista de las partes con su fecha y link (`PartesTaller.svelte`).
+- **Página del evento:** «Taller en 3 partes» o «Parte 2 de 3 de <taller>» y la lista de las
+  partes con su fecha y link (`PartesTaller.svelte`), juntas y pegadas al botón de comprar (o a
+  la inscripción), después del texto; también en un evento que ya pasó
+  (`src/lib/components/evento/Partes.svelte`).
 - **Calendario:** cada parte en su fecha con «Parte N de M» (grilla y lista).
 - **Panel:** en la ficha, un chip «Parte 2 de 3 de «…»» (o «Taller en 3 partes»). En Editar, la
   sección **Partes** (`PartesEditor.svelte`): ordenar y sacar partes (sacar no borra: queda como
