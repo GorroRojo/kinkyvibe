@@ -20,9 +20,8 @@
 					<dd>
 						{#each g.items as p, i (i)}{#if p.href}<a class="h-card" href={p.href}>{p.title}</a
 								>{:else}<span class="h-card">{p.title}</span>{/if}{#if i < g.items.length - 1}<span
-									class="sep"
-									>,
-								</span>{/if}{/each}
+									class="sep">{', '}</span
+								>{/if}{/each}
 					</dd>
 				</div>
 			{/each}
