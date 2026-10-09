@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	LIST_MAX,
 	escapeHtml,
@@ -14,6 +14,16 @@ import {
 
 const ORIGIN = 'https://ejemplo.test';
 
+// Las fechas inventadas son de 2031: el reloj va a ese año para que no lleven el año al final
+// (`argDateList` lo agrega solo si no es el año en curso).
+beforeEach(() => {
+	vi.useFakeTimers({ toFake: ['Date'] });
+	vi.setSystemTime(new Date('2031-01-01T12:00:00-03:00'));
+});
+afterEach(() => {
+	vi.useRealTimers();
+});
+
 /** @param {number} n */
 const fake = (n) => ({
 	slug: `evento-inventado-${n}`,
@@ -27,6 +37,18 @@ describe('formatWhen', () => {
 		expect(formatWhen('2031-01-10T21:00:00-03:00')).toBe('vie 10 ene · 21:00');
 		// Mismo instante escrito en UTC: sigue siendo la hora de Argentina.
 		expect(formatWhen('2031-01-11T00:00:00Z')).toBe('vie 10 ene · 21:00');
+	});
+
+	it('usa las abreviaturas del sitio: «sep», no «sept»', () => {
+		// 2031-09-13 es sábado.
+		expect(formatWhen('2031-09-13T22:30:00-03:00')).toBe('sáb 13 sep · 22:30');
+	});
+
+	it('lleva el año al final si no es el de este año, como las listas del sitio', () => {
+		expect(formatWhen('2032-01-09T21:00:00-03:00')).toBe('vie 9 ene 2032 · 21:00');
+		expect(formatWhen('2032-01-09T21:00:00-03:00', '2032-01-01T12:00:00-03:00')).toBe(
+			'vie 9 ene · 21:00'
+		);
 	});
 
 	it('devuelve vacío si la fecha no se puede leer', () => {

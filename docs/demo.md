@@ -25,7 +25,9 @@ sin tocar el repo.
   encabezado, `/login` e `/ingresar` llevan a `/ingresar/demo`,
   que deja elegir una cuenta inventada y entrar con un clic, sin código por mail:
   «Persona con entradas» (una entrada aprobada y dos etiquetas y un perfil seguidos), «Persona que
-  gestiona un perfil» (dueñe de «Persona de Prueba») y «Cuenta recién creada» (nada). Las crea
+  gestiona un perfil» (dueñe de «Persona de Prueba» y del lugar «Casa Demo Pública», para probar
+  «Buscar en el mapa» en Mi rincón; el vínculo con el lugar lo pone «Recargar datos de prueba»,
+  `ensureDemoProfiles`) y «Cuenta recién creada» (nada). Las crea
   `scripts/demo/n3-cuentas.sql` (después de `n3-personas.sql`).
   La compra de «Persona con entradas» es de un evento `demo-*`, así que «Recargar datos de
   prueba» la borra con las demás órdenes de prueba: por eso la vuelve a cargar (una General

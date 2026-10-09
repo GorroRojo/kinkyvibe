@@ -315,8 +315,13 @@ aprobar").
 - `/mi-rincon/perfiles`: los perfiles que gestiona la cuenta, crear uno (persona, proyecto o lugar,
   nombre y quién lo puede ver) y las invitaciones a gestionar proyectos que le llegaron.
 - `/mi-rincon/perfiles/[slug]`: editar nombre, pronombres, presentación, links y visibilidad (un
-  lugar, además: dirección, barrio, ciudad, accesibilidad, cómo llegar y qué se muestra de la
-  dirección; la ubicación en el mapa la carga une admin).
+  lugar, además: dirección, barrio, ciudad, ubicación en el mapa, accesibilidad, cómo llegar y qué
+  se muestra de la dirección).
+  - En un lugar, **«Buscar en el mapa»** al lado de la dirección completa la latitud y la longitud
+    (lo mismo que en el panel; no se guarda hasta guardar el formulario). Busca en
+    `POST /mi-rincon/geocodificar`: solo cuentas con sesión que gestionan al menos un lugar, 10
+    búsquedas cada 10 minutos por cuenta y el pedido por segundo de todo el sitio a Nominatim.
+    Detalle en [amigues.md](amigues.md) («Buscar en el mapa»).
   - En un proyecto: invitar integrantes (con la dirección del perfil de la persona), ver las
     invitaciones pendientes y retirarlas, sacar integrantes, ver quiénes lo gestionan, invitar a
     gestionar, cambiar roles, sacar gente, dejar de gestionar y borrar.

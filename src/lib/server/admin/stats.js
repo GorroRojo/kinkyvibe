@@ -4,7 +4,7 @@
  */
 import { seriesOf } from '$lib/utils/sheetImport.js';
 import { fondoOptionLabel } from '$lib/utils/tickets.js';
-import { TIMEZONE } from '$lib/utils/dates.js';
+import { MONTHS_SHORT_ES, TIMEZONE } from '$lib/utils/dates.js';
 import { normalizeEmail, seriesLabel } from './people.js';
 
 /** @typedef {import('./people.js').PersonOrder} PersonOrder */
@@ -18,11 +18,7 @@ export function monthKey(ms) {
 /** @param {string} key "2026-09" → "sep 26" */
 export function monthLabel(key) {
 	const [y, m] = key.split('-').map(Number);
-	const name = new Date(Date.UTC(y, m - 1, 15)).toLocaleDateString('es-AR', {
-		month: 'short',
-		timeZone: 'UTC'
-	});
-	return `${name.replace('.', '')} ${String(y).slice(2)}`;
+	return `${MONTHS_SHORT_ES[m - 1]} ${String(y).slice(2)}`;
 }
 
 /**

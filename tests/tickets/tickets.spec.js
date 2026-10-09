@@ -216,10 +216,17 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	await page.getByRole('searchbox').fill('99999999999');
 	await expect(page.locator('.order', { hasText: buyer.email })).toHaveCount(0);
 
-	// El CSV tiene una fila por entrada, con el DNI de quien compró.
+	// El CSV tiene una fila por entrada, con el DNI de quien compró. Se arma con `toCsv`, que cita
+	// solo las celdas que lo necesitan: se busca la celda entera, con o sin comillas.
 	const csv = await (await page.request.get(`/admin/eventos/${EVENT}/ordenes.csv`)).text();
-	expect(csv).toContain(`"${buyer.dni}"`);
-	for (const p of people) expect(csv).toContain(`"${p.name}"`);
+	const cells = csv
+		.split(/\r\n/)
+		.flatMap((line) => line.split(',').map((c) => c.replace(/^"|"$/g, '')));
+	expect(cells).toContain(buyer.dni);
+	for (const p of people) expect(cells).toContain(p.name);
+	// La fecha de compra va en hora de Argentina (`2026-10-02 22:30`), no en ISO UTC.
+	expect(csv).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/);
+	expect(csv).toMatch(/,\d{4}-\d{2}-\d{2} \d{2}:\d{2},/);
 
 	// Modo puerta: "Escribir código" abre una hoja con el campo y "Validar".
 	await page.goto(`/admin/eventos/${EVENT}/ingreso`, { waitUntil: 'networkidle' });

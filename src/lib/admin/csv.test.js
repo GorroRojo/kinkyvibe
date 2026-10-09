@@ -24,8 +24,12 @@ describe('csvCell', () => {
 		expect(csvCell('-1')).toBe("'-1");
 		expect(csvCell('@a')).toBe("'@a");
 	});
-	it('fechas en ISO y objetos en JSON', () => {
-		expect(csvCell(new Date(Date.UTC(2026, 9, 2, 12)))).toBe('2026-10-02T12:00:00.000Z');
+	it('fechas en hora de Argentina y objetos en JSON', () => {
+		// Antes salían en ISO UTC (2026-10-03T01:30:00.000Z): una compra de las 22:30 del 2/10
+		// parecía del día siguiente.
+		expect(csvCell(new Date(Date.UTC(2026, 9, 3, 1, 30)))).toBe('2026-10-02 22:30');
+		expect(csvCell(new Date(Date.UTC(2026, 9, 2, 12)))).toBe('2026-10-02 09:00');
+		expect(csvCell(new Date(NaN))).toBe('');
 		expect(csvCell({ a: 1 })).toBe('"{""a"":1}"');
 	});
 });

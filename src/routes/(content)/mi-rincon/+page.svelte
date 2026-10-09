@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { Trash2 } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
-	import { TIMEZONE, argDateList } from '$lib/utils/dates.js';
+	import { argDateList, argDateLong } from '$lib/utils/dates.js';
 
 	export let data;
 	export let form;
@@ -13,17 +13,6 @@
 		awaiting_transfer: 'Esperando la transferencia',
 		refunded: 'Reembolsada'
 	};
-
-	/** @param {number | string | null} d */
-	const fmtDate = (d) =>
-		d == null
-			? ''
-			: new Date(d).toLocaleDateString('es-AR', {
-					timeZone: TIMEZONE,
-					day: 'numeric',
-					month: 'long',
-					year: 'numeric'
-				});
 
 	let confirmDelete = '';
 
@@ -70,7 +59,7 @@
 								o.status
 							] ?? o.status}
 						</span>
-						<span class="hint">Compra {o.reference}, del {fmtDate(o.createdAt)}</span>
+						<span class="hint">Compra {o.reference}, del {argDateLong(o.createdAt)}</span>
 					</li>
 				{/each}
 			</ul>
@@ -311,7 +300,7 @@
 	<section class="surface-card" aria-labelledby="cuenta-title">
 		<h2 id="cuenta-title">Tu cuenta</h2>
 		<p>Mail: <strong>{data.email}</strong></p>
-		<p class="hint">Con cuenta desde el {fmtDate(data.createdAt)}.</p>
+		<p class="hint">Con cuenta desde el {argDateLong(data.createdAt)}.</p>
 		{#if form?.action === 'sesiones' && form.error}
 			<p class="error" role="alert">{form.error}</p>
 		{/if}

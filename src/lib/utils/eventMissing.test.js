@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ONLINE_MISMATCH_TEXT } from './onlineTagMismatch.js';
 import {
 	eventMissing,
 	missingInputFromMeta,
@@ -46,6 +47,24 @@ describe('eventMissing', () => {
 		expect(
 			missingOf({ location: '', location_name: '', tags: ['español', 'gratis', 'Online'] })
 		).toEqual([]);
+	});
+
+	it('«Dónde» con la regla de la página (eventMode): modalidad o «Zoom» cuentan como online', () => {
+		// `modalidad: online` sin etiqueta: no falta el dónde (antes sí), sí la región.
+		expect(missingOf({ location: '', location_name: '', modalidad: 'online' })).toEqual([]);
+		expect(
+			missingOf({ location: '', location_name: '', modalidad: 'online', tags: ['pago'] })
+		).toEqual(['region']);
+		expect(missingOf({ location: 'Zoom', location_name: '' })).toEqual([]);
+		// `modalidad: presencial` con la etiqueta Online y sin «Dónde»: falta el dónde.
+		expect(
+			missingOf({
+				location: '',
+				location_name: '',
+				modalidad: 'presencial',
+				tags: ['Online', 'pago']
+			})
+		).toEqual(['donde']);
 	});
 
 	it('con entradas en el sitio no hace falta link', () => {
@@ -103,10 +122,13 @@ describe('publishWarnings (Revisar antes de publicar)', () => {
 	it('sin imagen', () => {
 		expect(publishWarnings({ ...base, image: false }).map((x) => x.id)).toEqual(['imagen']);
 	});
-	it('región presencial sin dónde: avisa que figura como Online', () => {
+	// Antes se llamaba «avisa que figura como Online»: la revisión ya no inventa «Online» para un
+	// evento sin lugar (dice «—»), así que el aviso tampoco lo dice.
+	it('región presencial sin dónde: avisa que falta el dónde', () => {
 		const w = publishWarnings({ ...base, location: '', locationName: '' });
 		expect(w.map((x) => x.id)).toEqual(['donde']);
 		expect(w[0].detail).toContain('AMBA');
+		expect(w[0].detail).not.toContain('Online');
 	});
 	it('un lugar elegido de la lista cuenta como dónde', () => {
 		expect(publishWarnings({ ...base, location: '', locationName: '', venue: true })).toEqual([]);
@@ -114,5 +136,23 @@ describe('publishWarnings (Revisar antes de publicar)', () => {
 	it('etiqueta Online con dirección: avisa la contradicción', () => {
 		const w = publishWarnings({ ...base, tags: ['Online', 'pago'] });
 		expect(w.map((x) => x.label)).toEqual(['Online o presencial']);
+	});
+	it('la contradicción es la de onlineTagMismatch, con su mismo texto', () => {
+		const w = publishWarnings({ ...base, tags: ['Online', 'pago'] });
+		expect(w[0]).toMatchObject({ id: 'donde', detail: ONLINE_MISMATCH_TEXT });
+		// Un lugar elegido de la lista también cuenta.
+		expect(
+			publishWarnings({
+				...base,
+				location: '',
+				locationName: '',
+				tags: ['Online', 'pago'],
+				venue: true
+			}).map((x) => x.label)
+		).toEqual(['Online o presencial']);
+		// «Zoom» no es un lugar: no hay contradicción (antes avisaba).
+		expect(
+			publishWarnings({ ...base, location: 'Zoom', locationName: '', tags: ['Online', 'pago'] })
+		).toEqual([]);
 	});
 });

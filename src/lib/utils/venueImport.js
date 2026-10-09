@@ -18,8 +18,11 @@
  *   mismo que ya se veía ({@link eventFit}); si no, se avisa qué cambiaría y queda sin marcar.
  */
 import { textOrNull } from './text.js';
-import { checkMapLink } from './eventPlace.js';
+import { ONLINE_WORDS, checkMapLink, isOnlinePlace, normalizePlaceText } from './eventPlace.js';
 import { venueView } from './venues.js';
+
+// Viven en eventPlace.js (la regla de online es una sola); acá quedan para quien ya las usaba.
+export { ONLINE_WORDS, normalizePlaceText };
 
 /** @typedef {import('./venues.js').VenuePrivacy} VenuePrivacy */
 
@@ -78,19 +81,6 @@ import { venueView } from './venues.js';
  */
 
 /**
- * Texto para comparar: sin tildes, en minúsculas, sin puntuación y con un solo espacio.
- * @param {unknown} raw
- */
-export function normalizePlaceText(raw) {
-	return String(raw ?? '')
-		.normalize('NFD')
-		.replace(/[̀-ͯ]/g, '')
-		.toLowerCase()
-		.replace(/[^\p{L}\p{N}]+/gu, ' ')
-		.trim();
-}
-
-/**
  * Formas de escribir la misma ciudad (para comparar direcciones). Solo las que aparecen en los
  * eventos; la clave es el texto ya normalizado.
  * @type {readonly [RegExp, string][]}
@@ -136,31 +126,6 @@ export function streetKey(text) {
 	return normalizePlaceText(part)
 		.replace(/^(av|avda|avenida)\s+/, '')
 		.trim();
-}
-
-/** Lo que dice un «Dónde» de un evento online. */
-export const ONLINE_WORDS = new Set([
-	'online',
-	'virtual',
-	'zoom',
-	'meet',
-	'google meet',
-	'discord'
-]);
-
-/**
- * ¿El evento es online? (`modalidad: online`, o el «Dónde» dice «Online», «Zoom»…, o tiene la
- * etiqueta Online y no tiene dirección, como en las entradas.)
- * @param {Record<string, any>} meta
- */
-export function isOnlinePlace(meta) {
-	const modalidad = normalizePlaceText(meta.modalidad);
-	if (modalidad === 'online' || modalidad === 'virtual') return true;
-	if (modalidad === 'presencial') return false;
-	if (ONLINE_WORDS.has(normalizePlaceText(meta.location))) return true;
-	if (ONLINE_WORDS.has(normalizePlaceText(meta.location_name))) return true;
-	const tags = Array.isArray(meta.tags) ? meta.tags : [];
-	return !textOrNull(meta.location) && tags.some((t) => normalizePlaceText(t) === 'online');
 }
 
 /**

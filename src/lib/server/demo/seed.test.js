@@ -14,7 +14,8 @@ import { ANON } from '../objects/index.js';
 import { hydrateContent } from '../contenido/relaciones.js';
 import { eventToMeta } from '../contenido/eventos.js';
 import { readFileSync } from 'node:fs';
-import { DEMO_ACCOUNTS, DEMO_VENUES } from './seedProfiles.js';
+import { DEMO_ACCOUNTS, DEMO_VENUES, MANAGED_VENUE } from './seedProfiles.js';
+import { listMyProfiles } from '../cuentas/perfiles.js';
 import { DEMO_ACCOUNT_MARK, DEMO_PERSONAS } from './personasData.js';
 import { ordersForAccount } from '../cuentas/orders.js';
 import {
@@ -934,5 +935,47 @@ describe('reloadDemoData (D1): the purchase of «Persona con entradas» survives
 			.run();
 		await reloadDemoData(t.db, { where: 'local', now: Date.parse('2026-10-03T15:00:00Z') });
 		expect(await ordersForAccount(t.db, persona.id)).toHaveLength(0);
+	}, 60000);
+});
+
+describe('reloadDemoData (D1): «Persona que gestiona un perfil» also manages a venue', () => {
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let t;
+	beforeAll(async () => {
+		t = await createTestDB();
+	});
+	afterAll(async () => {
+		await t?.dispose();
+	});
+
+	const persona = /** @type {(typeof DEMO_PERSONAS)[number]} */ (
+		DEMO_PERSONAS.find((p) => p.key === 'gestiona-perfil')
+	);
+	const managed = async () =>
+		(await listMyProfiles(t.db, persona.id)).map((p) => /** @type {any} */ (p).slug).sort();
+
+	it('adds nothing while the demo account is not loaded', async () => {
+		await reloadDemoData(t.db, { where: 'local', now: Date.parse('2026-10-01T15:00:00Z') });
+		const n = await t.db
+			.prepare('SELECT COUNT(*) AS n FROM profile_managers WHERE account_id = ?1')
+			.bind(persona.id)
+			.first();
+		expect(Number(/** @type {any} */ (n).n)).toBe(0);
+	}, 60000);
+
+	it('Mi rincón lists the venue after every reload', async () => {
+		// The account comes from scripts/demo/n3-cuentas.sql, as in the preview database.
+		const cuentas = readFileSync(
+			new URL('../../../../scripts/demo/n3-cuentas.sql', import.meta.url),
+			'utf8'
+		);
+		for (const s of unstable_splitSqlQuery(cuentas).filter((x) => x.trim()))
+			await t.db.prepare(s).run();
+
+		await reloadDemoData(t.db, { where: 'local', now: Date.parse('2026-10-02T15:00:00Z') });
+		expect(await managed()).toEqual([MANAGED_VENUE]);
+		await reloadDemoData(t.db, { where: 'local', now: Date.parse('2026-10-03T15:00:00Z') });
+		expect(await managed()).toEqual([MANAGED_VENUE]);
+		expect(DEMO_VENUES.some((v) => v.slug === MANAGED_VENUE)).toBe(true);
 	}, 60000);
 });

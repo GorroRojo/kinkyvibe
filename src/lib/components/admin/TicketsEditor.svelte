@@ -34,6 +34,10 @@
 	export let tags = [];
 	/** Dirección actual del evento (modalidad automática). */
 	export let location = '';
+	/** Nombre del lugar en texto libre (modalidad automática). */
+	export let locationName = '';
+	/** ¿Tiene un lugar elegido («Lugar», edge `lugar`)? Entonces es presencial, como en la página. */
+	export let hasVenue = false;
 	/** Vendidas y reservadas por tipo (al editar); `null` = evento nuevo o sin datos. */
 	/** @type {import('$lib/utils/ticketsEditor.js').SalesByType | null} */
 	export let sales = null;
@@ -77,8 +81,11 @@
 		{ id: 'gorra', label: 'A la gorra' }
 	]);
 	$: fondo = isKinkyVibeEvent({ tags });
-	$: autoOnline = isOnlineEvent({ tags, location });
-	$: online = state.modalidad === 'online' || (state.modalidad === '' && autoOnline);
+	// La regla de la página (`eventMode` de eventPlace.js): con lugar elegido, presencial; si no,
+	// la modalidad elegida; si no, el «Dónde» y la etiqueta Online.
+	$: place = { tags, location, location_name: locationName };
+	$: autoOnline = isOnlineEvent(place, { hasVenue });
+	$: online = isOnlineEvent({ ...place, modalidad: state.modalidad }, { hasVenue });
 	/** @param {string | null} id */
 	const salesFor = (id) => (id && sales ? sales[id] : undefined);
 	/** @param {string | null} id */
@@ -440,9 +447,17 @@
 				<option value="online">Online: el link de la transmisión en lugar de QR</option>
 			</select>
 			<small
-				>Automática = online si tiene la etiqueta Online y no tiene dirección. El link de la
-				transmisión se carga en el admin de entradas (nunca en el archivo).</small
+				>Automática = como la página del evento: online si el «Dónde» dice «Online» (o «Zoom»,
+				«Virtual»…), o si no tiene «Dónde» y sí la etiqueta Online. Con un lugar elegido, siempre
+				presencial. El link de la transmisión se carga en el admin de entradas (nunca en el
+				archivo).</small
 			>
+			{#if hasVenue && state.modalidad === 'online'}
+				<small id="{idPrefix}-modalidad-venue"
+					>⚠️ Tiene un lugar elegido, así que es presencial: para venderlo como online, sacá el
+					lugar.</small
+				>
+			{/if}
 		</label>
 
 		{#if !online}

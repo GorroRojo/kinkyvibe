@@ -187,6 +187,16 @@ describe('listas del panel (eventos de la base)', () => {
 			expect(event).toEqual(await panel.getPanelEvent(event.slug));
 		}
 	});
+
+	it('`online` sigue la regla de la página (eventMode, en eventPlace.js)', async () => {
+		const { panel } = await setup(0);
+		const { isOnlinePlace } = await import('$lib/utils/eventPlace.js');
+		const list = await panel.listPanelEventsWithMeta();
+		expect(list.some(({ event }) => event.online)).toBe(true);
+		for (const { event, meta } of list) {
+			expect(event.online, event.slug).toBe(isOnlinePlace(meta ?? {}));
+		}
+	});
 });
 
 /** ¿Alguna de las consultas lee todos los eventos (con su `data`, sin filtrar por dirección)? */

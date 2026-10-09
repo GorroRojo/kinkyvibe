@@ -26,7 +26,7 @@ export const DEMO_PERSONAS = Object.freeze([
 		id: '5eed0000-0000-4000-8000-0000000000a2',
 		email: 'demo.gestiona@example.invalid',
 		label: 'Persona que gestiona un perfil',
-		hint: 'Es dueñe de «Persona de Prueba» y puede editarlo.'
+		hint: 'Es dueñe de «Persona de Prueba» y de «Casa Demo Pública», y puede editarlos.'
 	}),
 	Object.freeze({
 		key: 'nueva',

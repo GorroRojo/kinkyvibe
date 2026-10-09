@@ -172,11 +172,30 @@ eventos tiene «Dónde» (el `location` en texto libre de siempre) y un **link a
 (`location_map`, solo https de OpenStreetMap o Google Maps; lo valida el guardado). La página del
 evento los muestra («Ver en el mapa»; con nombre `location_name` y dirección, «Nombre ·
 Dirección», o lo que haya de los dos) y el `.ics` lleva el texto en `LOCATION` y el link en la
-descripción. «Online» solo si el evento es online (`modalidad: online`, un «Dónde» que dice
-«Online»/«Virtual», o la etiqueta Online sin nombre ni dirección: `isOnlinePlace`); sin nada cargado no dice
-nada (antes decía «Online»). Los datos estructurados de schema.org siguen lo mismo
-(`eventPlaceSchema`). Si el evento tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto
-ni el link del `.md`. Todo en `src/lib/utils/eventPlace.js` (`eventPlace`, `eventPlaceSchema`, `checkMapLink`).
+descripción. «Online» solo si el evento es online; sin nada cargado no dice nada (antes decía
+«Online»). Los datos estructurados de schema.org siguen lo mismo (`eventPlaceSchema`). Si el evento
+tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto ni el link del `.md`. Todo en
+`src/lib/utils/eventPlace.js` (`eventPlace`, `eventPlaceSchema`, `checkMapLink`).
+
+**Online o presencial: una sola regla**, `eventMode(meta, { hasVenue })` en `eventPlace.js`
+(`'online' | 'presencial' | ''`; no hay eventos híbridos). En orden: un lugar vinculado manda
+(presencial); `modalidad: online | presencial`; un «Dónde» que dice solo «Online», «Virtual»,
+«Zoom», «Meet»… (`ONLINE_WORDS`, sin importar mayúsculas, tildes ni puntuación), online; cualquier
+otro «Dónde» (nombre o dirección), presencial, aunque tenga la etiqueta Online; sin «Dónde», la
+etiqueta Online (o «virtual»), online; sin nada, `''`. La usan la página («Cuándo y dónde» y su
+ícono), el `.ics`, schema.org, el carrusel y la imagen para compartir (`placeShort`), el panel
+(`online` de la lista de eventos), «Qué falta» y la revisión de «Nuevo evento», «Importar de
+eventos» y el importador de la planilla (`isOnlineWord`). El texto «Nombre · Dirección» es
+`placeLine` (también en los mails y en las partes de un taller).
+
+**La venta de entradas usa la misma regla** (decisión de gorrite): `isOnlineEvent(meta, { hasVenue })`
+(en `eventPlace.js`) es `eventMode(...) === 'online'`, ver [tickets.md](tickets.md#eventos-online).
+La venta lee el lugar vinculado de la base (`eventsWithVenue`) y el editor de entradas usa el
+«Lugar» elegido. Antes tenía su propia regla (`modalidad`, o la etiqueta Online sin `location`) y
+difería en dos casos, que ahora coinciden: la etiqueta Online con solo un nombre de lugar es
+presencial (QR y puerta) y un «Dónde» «Online» sin etiqueta ni `modalidad` es online. Los mails,
+la página de compra y la de cada entrada dicen «Online» cuando la venta lo dice (`salePlaceText`),
+para que coincida con el link en vez del QR.
 
 **Elegir el lugar desde el evento** (pedido de gorrite): el formulario de eventos (crear, duplicar y
 editar) tiene la sección **«📍 Lugar»** (`PlaceSection.svelte` en
@@ -202,26 +221,40 @@ sitio no tiene CSP de imágenes en las páginas públicas, así que no hizo falt
 `securityHeaders.js`) y el link "Ver en OpenStreetMap".
 
 **«Buscar en el mapa»** (pedido de gorrite): en el editor de un lugar del panel (Perfiles →
-lugar), al lado de la dirección, un botón que busca la dirección, el barrio y la ciudad (con
+lugar) y en el de Mi rincón (el lugar que gestiona una cuenta, `/mi-rincon/perfiles/[slug]`), al
+lado de la dirección, un botón que busca la dirección, el barrio y la ciudad (con
 «Argentina» al final) en **Nominatim**, el buscador de OpenStreetMap, y muestra hasta 5
 resultados con una vista previa del mapa (las mismas baldosas que `VenueMap`, sin librerías). El
 punto se ajusta con un clic en la vista previa o con las flechas, y **«Usar esta ubicación»**
 completa la latitud y la longitud; **no se guarda nada hasta guardar el formulario**. Sin
-resultados: «No encontramos esa dirección. Probá agregando la ciudad o el barrio.».
+resultados: «No encontramos esa dirección. Probá agregando la ciudad o el barrio.». Con el botón
+al lado, la explicación de la latitud y la longitud dice que se completan solas (y que se pueden
+corregir a mano); donde no hay botón, sigue explicando cómo copiarlas de openstreetmap.org.
 
-- **La dirección sale del sitio solo cuando une admin aprieta el botón**: se manda a Nominatim
-  (OpenStreetMap) desde el servidor, nunca desde el navegador, nunca sola, nunca para visitantes
-  y nunca para el «Dónde» en texto libre de un evento. Mi rincón no lo tiene. La privacidad del
-  lugar no cambia: las coordenadas se siguen mostrando solo en los niveles que muestran la
-  dirección.
-- Endpoint: `POST /admin/geocodificar` (solo admins; por POST para que la dirección no quede en
-  URLs). Política de uso de Nominatim: User-Agent `kinkyvibe/1.0 (+https://kinkyvibe.ar; …)` sin
-  mails, **un pedido por segundo para todo el sitio** (`rate_limits`, bucket `nominatim`; sin base
-  no se pide nada) y las búsquedas repetidas salen de una memoria de 24 h del Worker.
-- Código: `src/lib/server/geocode/nominatim.js`,
-  `src/routes/(authed)/admin/geocodificar/+server.js` y
-  `src/lib/components/admin/amigues/VenueGeocoder.svelte` (`osmMovePoint` en
-  `src/lib/utils/venues.js` mueve el punto).
+- **La dirección sale del sitio solo cuando alguien aprieta el botón** (une admin o quien gestiona
+  el lugar): se manda a Nominatim (OpenStreetMap) desde el servidor, nunca desde el navegador,
+  nunca sola, nunca para visitantes y nunca para el «Dónde» en texto libre de un evento. La
+  privacidad del lugar no cambia: las coordenadas se siguen mostrando solo en los niveles que
+  muestran la dirección.
+- Endpoints (por POST para que la dirección no quede en URLs; las mismas respuestas y los mismos
+  mensajes):
+  - `POST /admin/geocodificar`: solo admins.
+  - `POST /mi-rincon/geocodificar`: una cuenta con sesión que **gestiona al menos un lugar** (con
+    el permiso de perfiles), así no sirve de buscador gratis para cualquier cuenta. Sin sesión,
+    401; sin lugar, 403 («Buscar en el mapa es para quienes gestionan un lugar.»). Además, **10
+    búsquedas cada 10 minutos por cuenta** (`rate_limits`, bucket `nominatim:a:<hash del id>`; se
+    cuentan también las que salen de la memoria, no las que llegan sin dirección), así una cuenta
+    no se queda con el pedido por segundo del sitio: «Hiciste muchas búsquedas seguidas. Esperá
+    unos minutos y probá de nuevo, o cargá los números a mano.» (429).
+- Política de uso de Nominatim: User-Agent `kinkyvibe/1.0 (+https://kinkyvibe.ar; …)` sin mails,
+  **un pedido por segundo para todo el sitio** (`rate_limits`, bucket `nominatim`, compartido por
+  los dos endpoints; sin base no se pide nada) y las búsquedas repetidas salen de una memoria de
+  24 h del Worker.
+- Código: `src/lib/server/geocode/nominatim.js` (la búsqueda), `src/lib/server/geocode/web.js`
+  (cuerpo, respuestas, mensajes y límite por cuenta), `src/routes/(authed)/admin/geocodificar/`,
+  `src/routes/(content)/mi-rincon/geocodificar/` y
+  `src/lib/components/amigues/VenueGeocoder.svelte` (recibe el endpoint y las clases de cada
+  página; `osmMovePoint` en `src/lib/utils/venues.js` mueve el punto).
 
 **"Ver en Google Maps"** (pedido de gorrite): un link común (sin mapa embebido) en la página del
 evento y en la del lugar, solo en "Nombre + dirección" y "Sólo dirección". Busca el punto si el
@@ -240,7 +273,8 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   mayúsculas, tildes, espacios, puntuación, «Av.» ni «CABA» / «Ciudad Autónoma de Buenos Aires».
   Un barrio solo («Almagro, CABA») no es una dirección: junta solo eventos sin nombre. Dos grupos
   con el mismo nombre y direcciones distintas quedan aparte (se avisa: ¿se mudó?).
-- Se saltean los eventos online, los que no tienen «Dónde» y los que ya tienen lugar. Si el lugar
+- Se saltean los eventos online (`isOnlinePlace`, la regla de la página), los que no tienen «Dónde»
+  y los que ya tienen lugar. Si el lugar
   ya existe (mismo nombre o misma calle y número), se ofrece vincular sus eventos.
 - **Privacidad** (gorrite: «si está en los eventos, es público»): cada evento queda con el nivel
   que muestra lo mismo que ya mostraba:
@@ -394,4 +428,4 @@ lugares), esta vincula con los **lugares que ya existen**. Reglas puras en
 
 ## Probarlo
 
-`npx vitest run src/lib/server/amigues src/lib/server/geocode src/lib/utils/venues.test.js src/lib/utils/venueMatch.test.js "src/routes/(content)/amigues" "src/routes/(authed)/admin/eventos/lugares" "src/routes/(authed)/admin/comunidad/perfiles" "src/routes/(authed)/admin/geocodificar"`
+`npx vitest run src/lib/server/amigues src/lib/server/geocode src/lib/utils/venues.test.js src/lib/utils/venueMatch.test.js "src/routes/(content)/amigues" "src/routes/(authed)/admin/eventos/lugares" "src/routes/(authed)/admin/comunidad/perfiles" "src/routes/(authed)/admin/geocodificar" "src/routes/(content)/mi-rincon/geocodificar" "src/routes/(content)/mi-rincon/perfiles/geocoder-render.test.js"`

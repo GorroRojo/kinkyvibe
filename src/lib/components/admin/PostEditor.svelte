@@ -270,7 +270,9 @@
 				].filter(Boolean)
 			);
 
-	$: content = parseError ? rawText : build(allValues, tags, people, body, imageTouched, tickets);
+	$: content = parseError
+		? rawText
+		: build(allValues, tags, people, body, imageTouched, tickets, venue.venueId != null);
 	/**
 	 * @param {Record<string, any>} v
 	 * @param {string[]} t
@@ -279,8 +281,9 @@
 	 * @param {boolean} [dropFeatured] se eligió o se sacó una imagen en el selector: la vieja del
 	 *   repo (`featured`) se saca (la imagen pasa a ser el edge `portada`)
 	 * @param {typeof tickets} [tk] ticket sales form (events only)
+	 * @param {boolean} [hasVenue] con un lugar elegido, la venta es presencial (escribe `puerta`)
 	 */
-	function build(v, t, ps, b, dropFeatured = false, tk = initialTickets) {
+	function build(v, t, ps, b, dropFeatured = false, tk = initialTickets, hasVenue = false) {
 		/** @type {Record<string, any>} */
 		const changes = {};
 		for (const f of fields) {
@@ -299,7 +302,7 @@
 		if (dropFeatured) changes.featured = REMOVE;
 		try {
 			const md = joinMarkdown(applyFrontmatterChanges(frontmatter, changes), b);
-			return isEvent ? applyTicketsToMarkdown(md, tk, initialTickets) : md;
+			return isEvent ? applyTicketsToMarkdown(md, tk, initialTickets, { hasVenue }) : md;
 		} catch (e) {
 			return '';
 		}
@@ -312,7 +315,10 @@
 				isEvent ? { ...values, ...scheduleToInputs(schedule) } : values,
 				isEvent ? joinEventTags({ ...tagRules, rest: freeTags }) : freeTags,
 				initialPeople,
-				body
+				body,
+				false,
+				initialTickets,
+				savedVenue.venueId != null
 			);
 	// Cambiar solo el «Lugar» también se guarda, por el mismo camino que cualquier cambio: el
 	// archivo va con la fecha de «Actualizado» de hoy (decisión de gorrite), y nada más.
@@ -516,6 +522,8 @@
 					bind:state={tickets}
 					{tags}
 					location={values.location}
+					locationName={values.location_name}
+					hasVenue={venue.venueId != null}
 					sales={data.sales}
 					salesUnavailable={data.salesUnavailable}
 					transferReady={data.transferReady ?? null}
