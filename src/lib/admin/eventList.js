@@ -14,7 +14,8 @@ import { goalProgress } from '$lib/utils/salesGoal.js';
  * @typedef {{
  *   slug: string, title: string, start: string, end: string, status: string,
  *   locationName: string, location: string, place: string, unlisted: boolean,
- *   unpublished: boolean, online: boolean, thumb: string, sellsTickets: boolean,
+ *   unpublished: boolean, online: boolean, onlineMismatch: boolean, thumb: string,
+ *   sellsTickets: boolean,
  *   capacity: number | null, goal: string, sold: number, revenue: number, mpFee: number,
  *   transfers: number, i: number
  * }} EventRow
@@ -35,7 +36,10 @@ export const FILTERS = /** @type {const} */ ([
 	{ id: 'pasados', label: 'Pasados' },
 	// Todos los no listados (borradores de la agenda y los no listados a propósito).
 	{ id: 'borradores', label: 'No listados' },
-	{ id: 'sin-imagen', label: 'Sin imagen' }
+	{ id: 'sin-imagen', label: 'Sin imagen' },
+	// Etiqueta «Online» y además un lugar ($lib/utils/onlineTagMismatch.js): todos, también los
+	// pasados. El chip se muestra solo si hay alguno.
+	{ id: 'online-con-lugar', label: 'Online con lugar' }
 ]);
 
 /** @typedef {(typeof FILTERS)[number]['id']} FilterId */
@@ -61,21 +65,22 @@ export function isUpcoming(e, today) {
 /**
  * Qué eventos entran en cada filtro.
  * @param {string} today YYYY-MM-DD
- * @returns {Record<FilterId, (e: Pick<EventRow, 'start' | 'unpublished' | 'unlisted' | 'thumb'>) => boolean>}
+ * @returns {Record<FilterId, (e: Pick<EventRow, 'start' | 'unpublished' | 'unlisted' | 'thumb' | 'onlineMismatch'>) => boolean>}
  */
 export function filterTests(today) {
 	return {
 		proximos: (e) => isUpcoming(e, today) && !e.unpublished,
 		pasados: (e) => !isUpcoming(e, today),
 		borradores: (e) => e.unlisted && !e.unpublished,
-		'sin-imagen': (e) => isUpcoming(e, today) && !e.thumb && !e.unpublished
+		'sin-imagen': (e) => isUpcoming(e, today) && !e.thumb && !e.unpublished,
+		'online-con-lugar': (e) => e.onlineMismatch
 	};
 }
 
 /**
  * Los eventos de un filtro, en el orden en que se muestran: «Próximos» y «Sin imagen», del más
  * cercano al más lejano; el resto, del más nuevo al más viejo (el orden de `rows`).
- * @template {Pick<EventRow, 'start' | 'unpublished' | 'unlisted' | 'thumb'>} T
+ * @template {Pick<EventRow, 'start' | 'unpublished' | 'unlisted' | 'thumb' | 'onlineMismatch'>} T
  * @param {T[]} rows del más nuevo al más viejo
  * @param {FilterId} filter
  * @param {string} today

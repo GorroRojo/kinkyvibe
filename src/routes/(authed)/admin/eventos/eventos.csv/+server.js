@@ -15,11 +15,12 @@ export async function GET({ locals, url, platform }) {
 	requireAdmin(locals, url);
 	const now = Date.now();
 	const filter = filterId(url.searchParams.get('filtro'));
-	const rows = listedRows(await panelEventRows(), {
+	const db = getDB(platform);
+	const rows = listedRows(await panelEventRows(db), {
 		query: (url.searchParams.get('q') ?? '').slice(0, 200),
 		filter,
 		today: todayInArgentina(new Date(now))
 	});
-	const events = await withSales(getDB(platform), rows, now);
+	const events = await withSales(db, rows, now);
 	return csvResponse(toCsv(events, CSV_COLUMNS), `eventos-${filter}.csv`);
 }

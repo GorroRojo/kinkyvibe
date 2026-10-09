@@ -5,6 +5,7 @@
 		Copy,
 		ExternalLink,
 		FileSpreadsheet,
+		Pencil,
 		Repeat,
 		Search,
 		SearchX,
@@ -18,7 +19,7 @@
 	import { goalProgress } from '$lib/utils/salesGoal.js';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
-	import { eventPanelLink } from '$lib/admin/nav.js';
+	import { eventHref, eventPanelLink } from '$lib/admin/nav.js';
 	import { dateParts, eventBadges, shortDate, timeRange } from '$lib/admin/eventFormat.js';
 	import {
 		FILTERS,
@@ -138,6 +139,7 @@
 	function warnings(e) {
 		const out = [];
 		if (upcoming(e) && !e.thumb) out.push('sin imagen');
+		if (e.onlineMismatch) out.push('online con lugar');
 		if (e.transfers) out.push(`${e.transfers} transf. por confirmar`);
 		return out;
 	}
@@ -160,7 +162,8 @@
 
 <div class="tools">
 	<nav class="chips" aria-label="Filtrar eventos">
-		{#each FILTERS as f (f.id)}
+		<!-- «Online con lugar» es un aviso: su chip aparece solo si hay alguno (o si está elegido). -->
+		{#each FILTERS.filter((f) => f.id !== 'online-con-lugar' || counts[f.id] > 0 || filter === f.id) as f (f.id)}
 			<a
 				class="chip"
 				class:on={!words.length && filter === f.id}
@@ -200,7 +203,9 @@
 				: 'No hay eventos acá'}
 			text={filter === 'sin-imagen' && !words.length
 				? 'Todos los próximos eventos tienen imagen.'
-				: ''}
+				: filter === 'online-con-lugar' && !words.length
+					? 'Ningún evento tiene a la vez un lugar y la etiqueta «Online».'
+					: ''}
 		/>
 	{:else}
 		<ul class="list">
@@ -247,6 +252,14 @@
 						{/if}
 					</div>
 					<div class="actions">
+						{#if e.onlineMismatch}
+							<!-- Online con lugar: directo a las etiquetas del editor, para sacar una de las dos. -->
+							<a
+								class="kv-btn ghost"
+								href="{eventHref(e.slug, 'editar')}#sec-etiquetas"
+								aria-label="Editar {e.title}"><Pencil {...icon} /> Editar</a
+							>
+						{/if}
 						<a
 							class="kv-btn ghost"
 							href="/admin/eventos/nuevo?desde={encodeURIComponent(e.slug)}"

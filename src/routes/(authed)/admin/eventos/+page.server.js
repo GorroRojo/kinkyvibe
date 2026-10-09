@@ -10,9 +10,10 @@ export async function load({ locals, url, platform, setHeaders }) {
 	const now = Date.now();
 	// Los próximos, los borradores y los de los últimos meses (no todos): los anteriores y la
 	// búsqueda se piden a /admin/eventos/lista.json, el CSV completo a /admin/eventos/eventos.csv.
-	const page = firstPage(await panelEventRows(), todayInArgentina(new Date(now)));
+	const db = getDB(platform);
+	const page = firstPage(await panelEventRows(db), todayInArgentina(new Date(now)));
 	// Las ventas, solo de los eventos que se mandan.
-	const events = await withSales(getDB(platform), page.events, now);
+	const events = await withSales(db, page.events, now);
 	return {
 		events,
 		counts: page.counts,

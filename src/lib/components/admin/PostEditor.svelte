@@ -22,6 +22,8 @@
 	import PlaceSection from '$lib/components/admin/event-form/PlaceSection.svelte';
 	import ScheduleSection from '$lib/components/admin/event-form/ScheduleSection.svelte';
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
+	import Notice from '$lib/components/ui/Notice.svelte';
+	import { ONLINE_MISMATCH_TEXT, onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
 	import { draftKey } from '$lib/admin/draft.js';
 	import { formSections } from '$lib/admin/eventForm.js';
 	import {
@@ -182,6 +184,14 @@
 	let freeTags = isEvent ? split.rest : initialTags;
 	$: tags = isEvent ? joinEventTags({ ...tagRules, rest: freeTags }) : freeTags;
 	$: tagErrors = isEvent ? validateEventTags(tags) : [];
+	// Etiqueta «Online» y además un lugar (elegido o en texto libre): solo avisa, no bloquea
+	// guardar ($lib/utils/onlineTagMismatch.js).
+	$: onlineMismatch =
+		isEvent &&
+		onlineTagMismatch(
+			{ tags, location: values.location, location_name: values.location_name },
+			{ hasVenue: venue.venueId != null }
+		);
 
 	const hasAuthors = category !== 'amigues';
 
@@ -491,7 +501,15 @@
 				placeholder={isEvent
 					? 'Buscá una etiqueta: taller, shibari, cine…'
 					: 'Buscá una etiqueta: BDSM, shibari, guía…'}
-			/>
+			>
+				<svelte:fragment slot="before">
+					{#if onlineMismatch}
+						<div class="online-mismatch" id="edit-online-mismatch">
+							<Notice tone="warn">⚠️ {ONLINE_MISMATCH_TEXT}</Notice>
+						</div>
+					{/if}
+				</svelte:fragment>
+			</TagsSection>
 
 			{#if isEvent}
 				<TicketsEditor
@@ -580,6 +598,9 @@
 	textarea.raw {
 		font-family: monospace;
 		font-size: var(--step--1);
+	}
+	.online-mismatch {
+		margin-block: var(--space-xs);
 	}
 	.later {
 		display: block;

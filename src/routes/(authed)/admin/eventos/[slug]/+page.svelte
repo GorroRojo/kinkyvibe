@@ -6,6 +6,8 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import DeleteLink from '$lib/components/admin/panel/DeleteLink.svelte';
 	import ConfirmDraft from '$lib/components/admin/agenda/ConfirmDraft.svelte';
+	import Notice from '$lib/components/ui/Notice.svelte';
+	import { ONLINE_MISMATCH_TEXT } from '$lib/utils/onlineTagMismatch.js';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { describeSchedule } from '$lib/utils/eventDraft.js';
 
@@ -52,6 +54,17 @@
 			editHref={eventHref(e.slug, 'editar')}
 		/>
 	</form>
+{/if}
+{#if data.onlineMismatch}
+	<div class="online-mismatch" id="online-mismatch">
+		<Notice tone="warn">
+			⚠️ {ONLINE_MISMATCH_TEXT}
+			{#if e.sellsTickets}Hoy las entradas lo tratan como {data.online
+					? 'online (mandan el link de la transmisión en vez del QR)'
+					: 'presencial (con QR)'}.{/if}
+			<a href="{eventHref(e.slug, 'editar')}#sec-etiquetas">Editar</a>
+		</Notice>
+	</div>
 {/if}
 
 <div class="grid">
@@ -190,7 +203,8 @@
 <DeleteLink kind="calendario" slug={e.slug} label="Borrar evento…" />
 
 <style>
-	.confirm {
+	.confirm,
+	.online-mismatch {
 		margin-bottom: 1rem;
 	}
 	.flash[role='status'] {
