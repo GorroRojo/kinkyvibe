@@ -3,6 +3,8 @@ import {
 	MAP_LINK_ERROR,
 	checkMapLink,
 	eventPlace,
+	eventPlaceSchema,
+	isOnlinePlace,
 	placeFileErrors,
 	stripMdPlace,
 	venuePlaceMeta,
@@ -67,9 +69,43 @@ describe('lo que muestran la página y el .ics', () => {
 			mapUrl: 'https://www.openstreetmap.org/node/1',
 			fromVenue: false
 		});
-		expect(eventPlace({})).toEqual({ text: 'Online', mapUrl: '', fromVenue: false });
+		// Sin nada cargado no se inventa que es online (antes decía «Online»).
+		expect(eventPlace({})).toEqual({ text: '', mapUrl: '', fromVenue: false });
 		// Un link que no sirve no se muestra.
 		expect(eventPlace({ ...meta, location_map: 'http://ejemplo.com' }).mapUrl).toBe('');
+	});
+
+	it('con nombre y dirección, «Nombre · Dirección» (como un lugar); con uno solo, ese', () => {
+		const both = { location_name: ' Galpón Inventado ', location: 'Calle Falsa 123' };
+		expect(eventPlace(both).text).toBe('Galpón Inventado · Calle Falsa 123');
+		// Solo el nombre (antes decía «Online»).
+		expect(eventPlace({ location_name: 'Zona Inventada | Lugar de Prueba' }).text).toBe(
+			'Zona Inventada | Lugar de Prueba'
+		);
+		expect(eventPlace({ location: 'Calle Falsa 123' }).text).toBe('Calle Falsa 123');
+		// El mismo texto en los dos, una sola vez.
+		expect(eventPlace({ location_name: 'Plaza Falsa', location: 'plaza falsa' }).text).toBe(
+			'Plaza Falsa'
+		);
+	});
+
+	it('«Online» solo si el evento es online', () => {
+		const online = { text: 'Online', mapUrl: '', fromVenue: false };
+		expect(eventPlace({ location: 'Online' })).toEqual(online);
+		expect(eventPlace({ location: ' virtual ' })).toEqual(online);
+		expect(eventPlace({ tags: ['charla', 'Online'] })).toEqual(online);
+		expect(eventPlace({ modalidad: 'online', location_name: 'Sala Virtual' })).toEqual(online);
+		// La etiqueta «Online» con dirección, o `modalidad: presencial`, no es online.
+		expect(eventPlace({ tags: ['Online'], location: 'Calle Falsa 123' }).text).toBe(
+			'Calle Falsa 123'
+		);
+		expect(isOnlinePlace({ modalidad: 'presencial', tags: ['Online'] })).toBe(false);
+		// Un nombre de lugar con la etiqueta «Online» (quedada de otra edición) es presencial.
+		expect(eventPlace({ location_name: 'Zona Inventada', tags: ['Online'] }).text).toBe(
+			'Zona Inventada'
+		);
+		expect(isOnlinePlace({ location_name: 'Galpón Inventado' })).toBe(false);
+		expect(isOnlinePlace({})).toBe(false);
 	});
 
 	it('con lugar vinculado («Sucede en»), manda el lugar y no se usa el link del .md', () => {
@@ -79,6 +115,43 @@ describe('lo que muestran la página y el .ics', () => {
 		expect(eventPlace(meta, { level: 'area', area: 'Barrio Inventado' }).text).toBe(
 			'Barrio Inventado'
 		);
+	});
+});
+
+describe('los datos estructurados (schema.org)', () => {
+	const OFFLINE = 'https://schema.org/OfflineEventAttendanceMode';
+	it('con «Dónde» (nombre, dirección o los dos), presencial con un Place', () => {
+		expect(eventPlaceSchema({ location_name: 'Galpón Inventado' }, null)).toEqual({
+			eventAttendanceMode: OFFLINE,
+			location: { '@type': 'Place', name: 'Galpón Inventado' }
+		});
+		expect(
+			eventPlaceSchema({ location_name: 'Galpón Inventado', location: 'Calle Falsa 123' }, null)
+		).toEqual({
+			eventAttendanceMode: OFFLINE,
+			location: {
+				'@type': 'Place',
+				name: 'Galpón Inventado',
+				address: { '@type': 'PostalAddress', name: 'Calle Falsa 123' }
+			}
+		});
+	});
+
+	it('online, VirtualLocation; sin nada, ni modo ni lugar', () => {
+		expect(eventPlaceSchema({ location: 'Online' }, null, 'https://example.com/sala')).toEqual({
+			eventAttendanceMode: 'https://schema.org/OnlineEventAttendanceMode',
+			location: { '@type': 'VirtualLocation', url: 'https://example.com/sala' }
+		});
+		expect(eventPlaceSchema({ title: 'Evento de prueba' }, null)).toEqual({});
+	});
+
+	it('con lugar vinculado, presencial con lo que su nivel deja ver', () => {
+		const out = eventPlaceSchema(
+			{ location: 'Online' },
+			{ level: 'public', name: 'Lugar de Prueba', address: 'Calle Falsa 123' }
+		);
+		expect(out.eventAttendanceMode).toBe(OFFLINE);
+		expect(out.location.name).toBe('Lugar de Prueba');
 	});
 });
 
