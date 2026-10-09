@@ -22,7 +22,7 @@
 	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
 	import VenueMap from '$lib/components/amigues/VenueMap.svelte';
 	import { googleMapsLink, showsAddress } from '$lib/utils/venues.js';
-	import { eventPlace } from '$lib/utils/eventPlace.js';
+	import { eventMode, eventPlace } from '$lib/utils/eventPlace.js';
 	import { MAP_LABEL } from '$lib/utils/icsFeed.js';
 	import { argDateTimeLong, argTime, eventEnd } from '$lib/utils/dates.js';
 
@@ -47,6 +47,7 @@
 	$: sameDay =
 		argDateTimeLong(end, { time: false }) === argDateTimeLong(meta.start, { time: false });
 	$: place = eventPlace(meta, venue);
+	$: online = eventMode(meta, { hasVenue: Boolean(venue) }) === 'online';
 	$: gmaps = venue ? googleMapsLink(venue) : undefined;
 	$: map =
 		mapa &&
@@ -88,11 +89,7 @@
 		</div>
 	{:else if place.text}
 		<p class="linea">
-			<svelte:component
-				this={place.text === 'Online' ? Globe : MapPin}
-				size="1.1em"
-				aria-hidden="true"
-			/>
+			<svelte:component this={online ? Globe : MapPin} size="1.1em" aria-hidden="true" />
 			<span class="p-location">{place.text}</span>
 		</p>
 	{/if}

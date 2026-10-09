@@ -4,6 +4,7 @@
 import { argDateTimeLong } from '$lib/utils/dates.js';
 import { formatARS } from '$lib/utils/money.js';
 import { fondoOptionLabel, holdHours, orderReference, refundPolicy } from '$lib/utils/tickets.js';
+import { salePlaceText } from '$lib/utils/eventPlace.js';
 import {
 	WHY_BOUGHT,
 	WHY_RESERVED,
@@ -85,9 +86,7 @@ export function templateVars(order, event, typeName) {
 		nombre: order.buyer_name,
 		evento: event.title,
 		fecha: formatEventDate(event.start),
-		lugar: event.online
-			? 'Online'
-			: [event.location_name, event.location].filter(Boolean).join(' · '),
+		lugar: salePlaceText(Boolean(event.online), event),
 		tipo: typeName,
 		cantidad: order.quantity,
 		entradas: order.quantity === 1 ? 'una entrada' : `${order.quantity} entradas`,
@@ -237,9 +236,7 @@ export function buildTicketEmail({
 	const title = event.title;
 	const when = formatEventDate(event.start);
 	const online = Boolean(event.online);
-	const where = online
-		? 'Online'
-		: [event.location_name, event.location].filter(Boolean).join(' · ');
+	const where = salePlaceText(online, event);
 	const custom = applyTemplate(template, templateVars(order, event, typeName));
 	const subject = custom.subject ?? `Tus entradas para ${title}`;
 	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
@@ -433,9 +430,7 @@ export function buildReminderEmail({
 }) {
 	const when = formatEventDate(event.start);
 	const online = Boolean(event.online);
-	const where = online
-		? 'Online'
-		: [event.location_name, event.location].filter(Boolean).join(' · ');
+	const where = salePlaceText(online, event);
 	const soon =
 		reminder.kind === 'day_at' && reminder.days === 0
 			? 'es hoy'

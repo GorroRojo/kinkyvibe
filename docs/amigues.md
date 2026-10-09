@@ -172,11 +172,30 @@ eventos tiene «Dónde» (el `location` en texto libre de siempre) y un **link a
 (`location_map`, solo https de OpenStreetMap o Google Maps; lo valida el guardado). La página del
 evento los muestra («Ver en el mapa»; con nombre `location_name` y dirección, «Nombre ·
 Dirección», o lo que haya de los dos) y el `.ics` lleva el texto en `LOCATION` y el link en la
-descripción. «Online» solo si el evento es online (`modalidad: online`, un «Dónde» que dice
-«Online»/«Virtual», o la etiqueta Online sin nombre ni dirección: `isOnlinePlace`); sin nada cargado no dice
-nada (antes decía «Online»). Los datos estructurados de schema.org siguen lo mismo
-(`eventPlaceSchema`). Si el evento tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto
-ni el link del `.md`. Todo en `src/lib/utils/eventPlace.js` (`eventPlace`, `eventPlaceSchema`, `checkMapLink`).
+descripción. «Online» solo si el evento es online; sin nada cargado no dice nada (antes decía
+«Online»). Los datos estructurados de schema.org siguen lo mismo (`eventPlaceSchema`). Si el evento
+tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto ni el link del `.md`. Todo en
+`src/lib/utils/eventPlace.js` (`eventPlace`, `eventPlaceSchema`, `checkMapLink`).
+
+**Online o presencial: una sola regla**, `eventMode(meta, { hasVenue })` en `eventPlace.js`
+(`'online' | 'presencial' | ''`; no hay eventos híbridos). En orden: un lugar vinculado manda
+(presencial); `modalidad: online | presencial`; un «Dónde» que dice solo «Online», «Virtual»,
+«Zoom», «Meet»… (`ONLINE_WORDS`, sin importar mayúsculas, tildes ni puntuación), online; cualquier
+otro «Dónde» (nombre o dirección), presencial, aunque tenga la etiqueta Online; sin «Dónde», la
+etiqueta Online (o «virtual»), online; sin nada, `''`. La usan la página («Cuándo y dónde» y su
+ícono), el `.ics`, schema.org, el carrusel y la imagen para compartir (`placeShort`), el panel
+(`online` de la lista de eventos), «Qué falta» y la revisión de «Nuevo evento», «Importar de
+eventos» y el importador de la planilla (`isOnlineWord`). El texto «Nombre · Dirección» es
+`placeLine` (también en los mails y en las partes de un taller).
+
+**La venta de entradas usa la misma regla** (decisión de gorrite): `isOnlineEvent(meta, { hasVenue })`
+(en `eventPlace.js`) es `eventMode(...) === 'online'`, ver [tickets.md](tickets.md#eventos-online).
+La venta lee el lugar vinculado de la base (`eventsWithVenue`) y el editor de entradas usa el
+«Lugar» elegido. Antes tenía su propia regla (`modalidad`, o la etiqueta Online sin `location`) y
+difería en dos casos, que ahora coinciden: la etiqueta Online con solo un nombre de lugar es
+presencial (QR y puerta) y un «Dónde» «Online» sin etiqueta ni `modalidad` es online. Los mails,
+la página de compra y la de cada entrada dicen «Online» cuando la venta lo dice (`salePlaceText`),
+para que coincida con el link en vez del QR.
 
 **Elegir el lugar desde el evento** (pedido de gorrite): el formulario de eventos (crear, duplicar y
 editar) tiene la sección **«📍 Lugar»** (`PlaceSection.svelte` en
@@ -254,7 +273,8 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   mayúsculas, tildes, espacios, puntuación, «Av.» ni «CABA» / «Ciudad Autónoma de Buenos Aires».
   Un barrio solo («Almagro, CABA») no es una dirección: junta solo eventos sin nombre. Dos grupos
   con el mismo nombre y direcciones distintas quedan aparte (se avisa: ¿se mudó?).
-- Se saltean los eventos online, los que no tienen «Dónde» y los que ya tienen lugar. Si el lugar
+- Se saltean los eventos online (`isOnlinePlace`, la regla de la página), los que no tienen «Dónde»
+  y los que ya tienen lugar. Si el lugar
   ya existe (mismo nombre o misma calle y número), se ofrece vincular sus eventos.
 - **Privacidad** (gorrite: «si está en los eventos, es público»): cada evento queda con el nivel
   que muestra lo mismo que ya mostraba:

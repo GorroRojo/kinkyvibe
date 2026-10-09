@@ -1,5 +1,5 @@
 <script>
-	import { checkMapLink } from '$lib/utils/eventPlace.js';
+	import { checkMapLink, eventPlace } from '$lib/utils/eventPlace.js';
 	import { publishWarnings } from '$lib/utils/eventMissing.js';
 	import { eventHref } from '$lib/admin/nav.js';
 	import {
@@ -274,22 +274,23 @@
 	$: problems = problemItems.map((p) => p.text);
 	$: if (showProblems) tick().then(() => markInvalid(problemFields(problemItems)));
 
-	$: generated = build(values, featuredMode, problems.length, tickets);
+	$: generated = build(values, featuredMode, problems.length, tickets, venue.venueId != null);
 	/**
 	 * @param {typeof values} v
 	 * @param {'keep'|'library'|'none'} mode con una imagen de la biblioteca, el archivo no lleva
 	 *   `featured` (la imagen es el edge `portada`)
 	 * @param {number} nProblems
 	 * @param {typeof tickets} tk
+	 * @param {boolean} hasVenue con un lugar elegido, la venta es presencial (escribe `puerta`)
 	 */
-	function build(v, mode, nProblems, tk) {
+	function build(v, mode, nProblems, tk, hasVenue) {
 		if (nProblems) return { md: '', error: '' };
 		try {
 			const md = buildEventMarkdown(sourceRaw, {
 				...v,
 				featuredMode: mode === 'keep' && !sourceImage ? 'keep' : 'none'
 			});
-			return { md: applyTicketsToMarkdown(md, tk, initialTickets), error: '' };
+			return { md: applyTicketsToMarkdown(md, tk, initialTickets, { hasVenue }), error: '' };
 		} catch (e) {
 			return { md: '', error: e instanceof Error ? e.message : String(e) };
 		}
@@ -315,6 +316,15 @@
 		};
 	}
 
+	// «Lugar» de la revisión, sin lugar de la lista: lo que va a mostrar la página («Online» solo
+	// si el evento es online; sin nada, «—»).
+	$: reviewPlace = eventPlace({
+		location: values.location,
+		location_name: values.location_name,
+		tags: splitList(values.tags),
+		modalidad: tickets.enabled ? tickets.modalidad : ''
+	}).text;
+
 	// «Revisar antes de publicar»: los avisos de «Qué falta» de la agenda (no bloquean).
 	$: reviewWarnings = publishWarnings({
 		image: featuredMode !== 'none',
@@ -322,6 +332,7 @@
 		location: values.location ?? '',
 		locationName: values.location_name ?? '',
 		tags: splitList(values.tags),
+		modalidad: tickets.enabled ? tickets.modalidad : '',
 		authors: splitList(values.authors),
 		link: values.link ?? '',
 		tickets: tickets.enabled && tickets.types.length > 0,
@@ -778,6 +789,8 @@
 						bind:state={tickets}
 						tags={splitList(values.tags)}
 						location={values.location}
+						locationName={values.location_name}
+						hasVenue={venue.venueId != null}
 						transferReady={data.transferReady}
 						errors={ticketsCheck.errors}
 						showErrors={showProblems}
@@ -869,7 +882,7 @@
 							{#if venueChoiceText(venue, venues)}
 								{venueChoiceText(venue, venues)}
 							{:else}
-								{[values.location_name, values.location].filter(Boolean).join(' — ') || 'Online'}
+								{reviewPlace || '—'}
 								{#if values.location_map && !mapError}· con link al mapa{/if}
 							{/if}
 						</dd>

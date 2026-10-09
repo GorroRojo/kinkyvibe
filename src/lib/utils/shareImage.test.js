@@ -5,6 +5,7 @@ import {
 	priceLabel,
 	shortPlace,
 	defaultTexts,
+	eventInfo,
 	defaultEnabled,
 	visibleTexts,
 	buildCaption,
@@ -165,7 +166,39 @@ describe('datos del texto del evento', () => {
 		expect(t.tags).toBe('Cuerdas');
 		expect(t.kicker).toBe('con Ana B');
 		expect(t.organizers).toBe('Ana B & Kinky Vibe');
-		expect(t.place).toBe('ONLINE');
+		// Región AMBA y sin «Dónde»: no se sabe dónde, no se inventa que es online (antes decía
+		// «ONLINE» porque no tenía `location`; la regla ahora es la de la página, eventMode).
+		expect(t.place).toBe('');
+	});
+	it('online o el lugar con la misma regla que la página (eventMode)', () => {
+		const base = { postID: 'x', title: 'Jam', start: '2099-01-01T20:00-03:00' };
+		// Online: la etiqueta sin «Dónde», `modalidad` o un «Dónde» que dice «Zoom».
+		for (const m of [
+			{ ...base, tags: ['Online'] },
+			{ ...base, modalidad: 'online', location: 'Calle Falsa 123' },
+			{ ...base, location: 'Zoom' }
+		]) {
+			expect(eventInfo(m).online, JSON.stringify(m)).toBe(true);
+			expect(defaultTexts(m).place).toBe('ONLINE');
+			expect(buildCaption(m)).toContain('💻 Online');
+		}
+		// Solo el nombre del lugar (antes: «Online», porque no tenía `location`).
+		const named = { ...base, location_name: 'Galpón Inventado' };
+		expect(eventInfo(named)).toMatchObject({ online: false, place: 'Galpón Inventado', address: '' });
+		expect(buildCaption(named)).toContain('📍 Galpón Inventado');
+		expect(buildCaption(named)).not.toContain('💻');
+		// Nombre y dirección: la dirección aparte; el mismo texto, una sola vez.
+		expect(eventInfo({ ...base, location_name: 'Galpón Inventado', location: 'Calle Falsa 123' })).toMatchObject({
+			place: 'Galpón Inventado',
+			address: 'Calle Falsa 123'
+		});
+		expect(eventInfo({ ...base, location_name: 'Plaza Falsa', location: 'plaza falsa ' }).address).toBe('');
+		// Un nombre vacío no tapa la dirección (antes: lugar vacío).
+		expect(eventInfo({ ...base, location_name: '', location: 'Calle Falsa 123' }).place).toBe('Calle Falsa 123');
+		// Sin nada: ni «Online» ni la línea del lugar en el texto.
+		const none = { ...base, tags: ['AMBA'] };
+		expect(eventInfo(none)).toMatchObject({ online: false, place: '' });
+		expect(buildCaption(none)).not.toMatch(/💻|📍/);
 	});
 	it('los campos apagados no se dibujan (también el título)', () => {
 		const t = defaultTexts({ postID: 'x', title: 'Jam', summary: 'Hola', start: '2099-01-01T20:00-03:00' });
