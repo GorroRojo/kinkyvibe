@@ -13,6 +13,7 @@ import {
 	googleMapsLink,
 	inheritPrivacyLabel,
 	osmLink,
+	osmMovePoint,
 	osmTiles,
 	parseCoordinate,
 	reviewState,
@@ -256,6 +257,19 @@ describe('mapa de OpenStreetMap', () => {
 		expect(
 			tiles.some((t) => t.left <= 160 && t.left + 256 > 160 && t.top <= 100 && t.top + 256 > 100)
 		).toBe(true);
+	});
+
+	it('osmMovePoint: sin moverse queda igual; a la derecha y abajo, más al este y al sur', () => {
+		expect(osmMovePoint(-34.6, -58.4, 0, 0, 17)).toEqual({ lat: -34.6, lng: -58.4 });
+		const moved = osmMovePoint(-34.6, -58.4, 100, 100, 17);
+		expect(moved.lng).toBeGreaterThan(-58.4);
+		expect(moved.lat).toBeLessThan(-34.6);
+		// 256 px a zoom 17 son 360 / 2^17 grados de longitud.
+		expect(osmMovePoint(-34.6, -58.4, 256, 0, 17).lng).toBeCloseTo(-58.4 + 360 / 2 ** 17, 5);
+		// Ida y vuelta.
+		const back = osmMovePoint(moved.lat, moved.lng, -100, -100, 17);
+		expect(back.lat).toBeCloseTo(-34.6, 5);
+		expect(back.lng).toBeCloseTo(-58.4, 5);
 	});
 });
 

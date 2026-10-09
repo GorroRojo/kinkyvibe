@@ -15,6 +15,7 @@
 	import { KIND_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
 	import { VENUE_PRIVACY_LABELS, VENUE_PRIVACY_UNSET_LABEL } from '$lib/utils/venues.js';
 	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
+	import VenueGeocoder from './VenueGeocoder.svelte';
 	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
 
 	/** @type {import('$lib/server/amigues/editor.js').ProfileFormValues} */
@@ -222,6 +223,13 @@
 					>
 				</label>
 			</div>
+			<VenueGeocoder
+				address={values.text.address}
+				area={values.text.area}
+				city={values.text.city}
+				bind:lat={values.lat}
+				bind:lng={values.lng}
+			/>
 			<VenueCoordinates
 				bind:lat={values.lat}
 				bind:lng={values.lng}

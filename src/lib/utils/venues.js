@@ -341,6 +341,31 @@ export function osmTiles(lat, lng, { zoom = 16, width = 320, height = 200 } = {}
 }
 
 /**
+ * El punto que queda a `dx`, `dy` píxeles del centro de un mapa de `osmTiles` (la misma
+ * proyección): lo usa la vista previa de «Buscar en el mapa» para mover el punto con un clic o
+ * con las flechas. Redondea a 6 decimales.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ * @param {number} dx píxeles a la derecha (negativo: a la izquierda)
+ * @param {number} dy píxeles hacia abajo (negativo: hacia arriba)
+ * @param {number} [zoom]
+ * @returns {{ lat: number, lng: number }}
+ */
+export function osmMovePoint(lat, lng, dx, dy, zoom = 16) {
+	const size = 256 * 2 ** zoom;
+	const rad = (Math.max(-85.05112878, Math.min(85.05112878, lat)) * Math.PI) / 180;
+	const px = ((lng + 180) / 360) * size + dx;
+	const py = ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * size + dy;
+	let newLng = (px / size) * 360 - 180;
+	newLng = ((((newLng + 180) % 360) + 360) % 360) - 180;
+	const n = Math.PI - (2 * Math.PI * Math.min(Math.max(py, 0), size)) / size;
+	const newLat = (180 / Math.PI) * Math.atan(Math.sinh(n));
+	const round = (/** @type {number} */ v) => Math.round(v * 1e6) / 1e6;
+	return { lat: round(newLat), lng: round(newLng) };
+}
+
+/**
  * Un número escrito a mano ("-34,6037" o "-34.6037"), o `undefined` si está vacío. Lo que no es
  * un número queda como texto para que la validación del tipo `perfil` lo marque. Lo usan el
  * editor del panel y Mi rincón (la ubicación en el mapa de un lugar).
