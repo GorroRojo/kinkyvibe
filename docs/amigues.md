@@ -129,7 +129,9 @@ eventos, y si el nivel por defecto del lugar es este, su página se ve como "Só
 dirección). La migración 0027 agregó `address` al CHECK de la tabla vieja `event_venues`; en el
 edge, el nivel se valida en código (`isVenuePrivacy`).
 
-En `name`, `area` y `hidden` aparece "Te mandamos la dirección con tu entrada". En todos los
+En `name`, `area` y `hidden` aparece "Te mandamos la dirección con tu entrada" si el evento vende
+entradas en el sitio; si no (no hay entrada que la lleve), no aparece ningún aviso (decisión de
+gorrite, 9/10). En todos los
 niveles **quien compró recibe el lugar completo** (nombre y dirección) en el mail de confirmación,
 en los recordatorios y en la página de su entrada (con la compra aprobada).
 
@@ -143,7 +145,10 @@ Abajo, «Abrir en OpenStreetMap» y el crédito «© colaboradores de OpenStreet
 indicaciones «Cómo llegar» se sacó por pedido de gorrite, 4/10; la sección escrita «Cómo llegar»
 del lugar y «Ver en Google Maps» siguen). Sale solo en "Nombre + dirección"
 y "Sólo dirección": en los demás niveles el servidor no manda `lat`/`lng` (`venueView`; lo prueban
-`venues.test.js` y `VenueLocation.test.js`).
+`venues.test.js` y `VenueLocation.test.js`). En la página del evento va chico en «Cuándo y dónde», arriba de «Ver en
+Google Maps» (y no en un evento cancelado), con «Cómo llegar» y «Accesibilidad» en su propia
+tarjeta más abajo (`src/lib/components/evento/`). Un evento con solo el «Dónde» en texto libre
+no tiene mapa: no se geocodifica ni se inventa una ubicación.
 
 **Sin filtraciones**: el sitemap, el RSS, el `.ics`, `/api/posts` y las imágenes para compartir
 llevan de los perfiles solo lo que muestra `/amigues` a cualquiera (aprobados, no ocultos, con la
@@ -165,9 +170,13 @@ nombre, descripción, etiquetas y, si su nivel por defecto los muestra (`venuePa
 **«Dónde» sin lugar** (sitios de una sola vez que no son un Lugar: una plaza, un bar): el editor de
 eventos tiene «Dónde» (el `location` en texto libre de siempre) y un **link al mapa** opcional
 (`location_map`, solo https de OpenStreetMap o Google Maps; lo valida el guardado). La página del
-evento los muestra («Ver en el mapa») y el `.ics` lleva el texto en `LOCATION` y el link en la
-descripción. Si el evento tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto
-ni el link del `.md`. Todo en `src/lib/utils/eventPlace.js` (`eventPlace`, `checkMapLink`).
+evento los muestra («Ver en el mapa»; con nombre `location_name` y dirección, «Nombre ·
+Dirección», o lo que haya de los dos) y el `.ics` lleva el texto en `LOCATION` y el link en la
+descripción. «Online» solo si el evento es online (`modalidad: online`, un «Dónde» que dice
+«Online»/«Virtual», o la etiqueta Online sin nombre ni dirección: `isOnlinePlace`); sin nada cargado no dice
+nada (antes decía «Online»). Los datos estructurados de schema.org siguen lo mismo
+(`eventPlaceSchema`). Si el evento tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto
+ni el link del `.md`. Todo en `src/lib/utils/eventPlace.js` (`eventPlace`, `eventPlaceSchema`, `checkMapLink`).
 
 **Elegir el lugar desde el evento** (pedido de gorrite): el formulario de eventos (crear, duplicar y
 editar) tiene la sección **«📍 Lugar»** (`PlaceSection.svelte` en

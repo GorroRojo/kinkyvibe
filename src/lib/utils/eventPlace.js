@@ -11,7 +11,7 @@
  */
 import { parseDocument } from 'yaml';
 import { splitMarkdown } from './eventDraft.js';
-import { venueLine } from './venues.js';
+import { venueLine, venueSchema } from './venues.js';
 
 /** Largo máximo del link al mapa. */
 export const MAP_LINK_MAX = 500;
@@ -62,19 +62,90 @@ export function checkMapLink(raw) {
 	return site ? { ok: true, url: url.href } : { ok: false, message: MAP_LINK_ERROR };
 }
 
+/** Los «Dónde» en texto libre que quieren decir «es online» (sin dirección). */
+const ONLINE_WORDS = new Set(['online', 'virtual']);
+
+/** @param {unknown} v */
+const trimmed = (v) => (typeof v === 'string' ? v.trim() : '');
+
+/**
+ * ¿El evento (sin lugar vinculado) es online? `modalidad: online | presencial` manda (como en la
+ * venta, `isOnlineEvent` de ticketsEditor.js). Si falta: un «Dónde» que dice solo «Online» o
+ * «Virtual» (así se cargaban los eventos online), o la etiqueta «Online» sin ningún «Dónde».
+ * A diferencia de la venta, un nombre de lugar (`location_name`) también cuenta como «Dónde»: un
+ * evento con «Zona Inventada | Lugar de Prueba» y la etiqueta Online es presencial (la etiqueta
+ * suele quedar de otra edición).
+ *
+ * @param {Record<string, any>} meta
+ */
+export function isOnlinePlace(meta) {
+	const modalidad = trimmed(meta.modalidad).toLowerCase();
+	if (ONLINE_WORDS.has(modalidad)) return true;
+	if (modalidad === 'presencial') return false;
+	const loc = trimmed(meta.location).toLowerCase();
+	const name = trimmed(meta.location_name).toLowerCase();
+	if (ONLINE_WORDS.has(loc) || (!loc && ONLINE_WORDS.has(name))) return true;
+	if (loc || name) return false;
+	const tags = Array.isArray(meta.tags) ? meta.tags : [];
+	return tags.some((t) => String(t).trim().toLowerCase() === 'online');
+}
+
 /**
  * Lo que muestran la página y el .ics: con lugar, el lugar (según su privacidad) y sin link al
- * mapa del .md; sin lugar, el «Dónde» del .md (o «Online») y su link al mapa si es válido.
+ * mapa del .md; sin lugar, el «Dónde» del .md y su link al mapa si es válido: «Nombre ·
+ * Dirección» (como un lugar con nombre y dirección, `venueLine`), o lo que haya de los dos.
+ * «Online» solo si el evento es online (`isOnlinePlace`); sin nada cargado, texto vacío (no se
+ * inventa que es online).
  *
- * @param {{ location?: unknown, location_map?: unknown }} meta
+ * @param {{ location?: unknown, location_name?: unknown, location_map?: unknown, tags?: unknown, modalidad?: unknown }} meta
  * @param {import('./venues.js').VenueView | null} [venue]
  * @returns {{ text: string, mapUrl: string, fromVenue: boolean }}
  */
 export function eventPlace(meta, venue) {
 	if (venue) return { text: venueLine(venue), mapUrl: '', fromVenue: true };
-	const text = typeof meta.location === 'string' ? meta.location.trim() : '';
 	const map = checkMapLink(meta.location_map);
-	return { text: text || 'Online', mapUrl: map.ok ? map.url : '', fromVenue: false };
+	const mapUrl = map.ok ? map.url : '';
+	if (isOnlinePlace(meta)) return { text: 'Online', mapUrl, fromVenue: false };
+	const name = trimmed(meta.location_name);
+	const address = trimmed(meta.location);
+	const text =
+		name && address && name.toLowerCase() !== address.toLowerCase()
+			? `${name} · ${address}`
+			: name || address;
+	return { text, mapUrl, fromVenue: false };
+}
+
+/**
+ * El lugar de un evento para sus datos estructurados (schema.org): `eventAttendanceMode` y
+ * `location`, coherentes con lo que muestra la página. Con lugar vinculado, el lugar (lo que su
+ * nivel deja ver); online, `VirtualLocation` (con el link de inscripción si es web); con «Dónde»,
+ * un `Place`; sin nada, sin modo ni lugar (no se dice que es online).
+ *
+ * @param {Record<string, any>} meta
+ * @param {import('./venues.js').VenueView | null | undefined} venue
+ * @param {string} [webLink] el link de inscripción, solo si es web
+ * @returns {{ eventAttendanceMode?: any, location?: any }}
+ */
+export function eventPlaceSchema(meta, venue, webLink) {
+	const OFFLINE = 'https://schema.org/OfflineEventAttendanceMode';
+	if (venue) return { eventAttendanceMode: OFFLINE, location: venueSchema(venue) };
+	if (isOnlinePlace(meta)) {
+		return {
+			eventAttendanceMode: 'https://schema.org/OnlineEventAttendanceMode',
+			location: { '@type': 'VirtualLocation', url: webLink || undefined }
+		};
+	}
+	const name = trimmed(meta.location_name);
+	const address = trimmed(meta.location);
+	if (!name && !address) return {};
+	return {
+		eventAttendanceMode: OFFLINE,
+		location: {
+			'@type': 'Place',
+			name: name || trimmed(meta.title) || address,
+			...(address ? { address: { '@type': 'PostalAddress', name: address } } : {})
+		}
+	};
 }
 
 /**

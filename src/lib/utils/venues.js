@@ -48,7 +48,7 @@ export const VENUE_PRIVACY_LABELS = Object.freeze({
 /** La opción "sin elegir" del nivel de un lugar (vale el nivel por defecto). */
 export const VENUE_PRIVACY_UNSET_LABEL = `Sin elegir (${VENUE_PRIVACY_LABELS[DEFAULT_VENUE_PRIVACY]})`;
 
-/** Aviso para el público cuando la dirección no se muestra. */
+/** Aviso para el público cuando la dirección no se muestra y el evento vende entradas acá. */
 export const ADDRESS_FOR_BUYERS = 'Te mandamos la dirección con tu entrada.';
 
 /**
@@ -123,7 +123,8 @@ export function venuePageLevel(venueDefault) {
 
 /**
  * ¿En este nivel se ve la dirección (calle y número) y el mapa? Si no, la página del evento avisa
- * que la dirección llega con la entrada ({@link ADDRESS_FOR_BUYERS}).
+ * que la dirección llega con la entrada ({@link ADDRESS_FOR_BUYERS}) si vende entradas; si no
+ * vende, no dice nada (decisión de gorrite, 9/10).
  *
  * @param {VenuePrivacy} level
  */

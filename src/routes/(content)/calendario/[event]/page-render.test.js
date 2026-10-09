@@ -2,9 +2,12 @@
  * La página de un evento (/calendario/<evento>), pedido de gorrite:
  * - la hora en 24 h a la argentina («viernes 2 de octubre de 2026, 15:00», sin «hs» y nunca
  *   «3:00 p. m.»);
- * - el lugar una sola vez, en la tarjeta y con el ícono del pin, mostrando en cada nivel de
- *   privacidad exactamente lo mismo que antes mostraba el bloque «Sucede en» de abajo;
- * - «Agregar a mi calendario» abajo, al lado de «Compartir», y no en la tarjeta.
+ * - el lugar una sola vez, en «Cuándo y dónde» y con el ícono del pin, mostrando en cada nivel
+ *   de privacidad exactamente lo mismo que antes mostraba el bloque «Sucede en» de abajo;
+ * - con el diseño de la maqueta final (aprobada por gorrite): el texto se lee antes de comprar,
+ *   mapa chico arriba de «Ver en Google Maps», «Compartir» solo (sin «Agregar a mi
+ *   calendario»), el aviso grande de cancelado, las partes, quiénes y etiquetas, y la serie al
+ *   final.
  * Datos inventados.
  */
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -48,12 +51,22 @@ const VENUE = {
 	}
 };
 const HREF = '/amigues/galpon-inventado';
+/** Venta de entradas abierta (el resumen para el botón de comprar). */
+const TICKETS = {
+	open: true,
+	reason: null,
+	priceFrom: 6400,
+	gorraSuggested: null,
+	left: null,
+	closesAt: null,
+	door: null
+};
 
 /**
  * @param {Record<string, any>} [meta]
  * @param {Record<string, any>} [extra]
  */
-const page = (meta = {}, extra = {}) =>
+const rendered = (meta = {}, extra = {}) =>
 	render(Page, {
 		props: {
 			data: /** @type {any} */ ({
@@ -77,20 +90,26 @@ const page = (meta = {}, extra = {}) =>
 				series: null,
 				personas: null,
 				propinas: false,
+				// Un texto cualquiera: sin texto, «De qué se trata» no se muestra (ver abajo).
+				html: '<p>Texto inventado del evento.</p>',
 				...extra
 			})
 		}
-	}).body;
+	});
+/** El cuerpo de la página. @param {Record<string, any>} [meta] @param {Record<string, any>} [extra] */
+const page = (meta = {}, extra = {}) => rendered(meta, extra).body;
+/** El <head> (con los datos estructurados de schema.org). @param {Record<string, any>} [meta] */
+const head = (meta = {}) => rendered(meta).head;
 
 /** @param {string} html @param {string} cls */
 const block = (html, cls) => {
 	const at = html.indexOf(`class="${cls}`);
 	return at < 0 ? '' : html.slice(html.indexOf('>', at) + 1);
 };
-/** La tarjeta del evento (hasta lo que sigue después de ella). */
+/** «Cuándo y dónde» (la tarjeta con la fecha y el lugar), hasta el texto del evento. */
 const card = (/** @type {string} */ html) => {
-	const from = html.indexOf('class="event-header');
-	const to = html.indexOf('class="share-row');
+	const from = html.indexOf('class="cuando-donde');
+	const to = html.indexOf('id="que-titulo"');
 	return html.slice(from, to);
 };
 /**
@@ -119,7 +138,11 @@ describe('/calendario/<evento>: la hora', () => {
 	it('en 24 h, con el día de la semana y sin «hs» (formato de encabezado)', () => {
 		const body = page();
 		expect(body).toMatch(/class="dt-start[^"]*"[^>]*>viernes 2 de octubre de 2026, 15:00<\/time>/);
-		expect(body).toMatch(/class="dt-end[^"]*"[^>]*>viernes 2 de octubre de 2026, 19:00<\/time>/);
+		// Termina el mismo día: solo la hora («hasta las 19:00»), con su fecha completa en datetime.
+		expect(body).toMatch(
+			/class="dt-end[^"]*" datetime="2026-10-02T22:00:00\.000Z"[^>]*>19:00<\/time>/
+		);
+		expect(text(card(body))).toContain('hasta las 19:00');
 		expect(body).not.toContain('p. m.');
 		expect(article(body)).not.toMatch(/\d hs\b/);
 	});
@@ -127,23 +150,24 @@ describe('/calendario/<evento>: la hora', () => {
 	it('con minutos y pasada la medianoche', () => {
 		const body = page({ start: '2026-12-19T21:30:00-03:00', end: '2026-12-20T00:00:00-03:00' });
 		expect(body).toContain('sábado 19 de diciembre de 2026, 21:30');
-		expect(body).toContain('domingo 20 de diciembre de 2026, 00:00');
+		// Termina otro día: con el día del final.
+		expect(text(card(body))).toContain('hasta el domingo 20 de diciembre de 2026, 00:00');
 	});
 });
 
 /**
- * Lo que se ve del lugar en cada nivel: lo mismo que mostraba el bloque «Sucede en» de abajo
- * (que ya incluía lo de la tarjeta), ahora una sola vez y en la tarjeta.
- * @type {Record<string, { shows: string[], hides: string[], link: boolean, map: boolean }>}
+ * Lo que se ve del lugar en cada nivel: lo mismo que mostraba el bloque «Sucede en» de abajo,
+ * ahora una sola vez: el lugar, el mapa y «Ver en Google Maps» en «Cuándo y dónde» (`shows`);
+ * «Cómo llegar» y «Accesibilidad» en su propia tarjeta, después de compartir (`after`).
+ * @type {Record<string, { shows: string[], after?: string[], hides: string[], link: boolean, map: boolean }>}
  */
 const LEVELS = {
 	public: {
 		shows: [
 			'Galpón Inventado · Calle Inventada 1 (Barrio Inventado, Ciudad de Prueba)',
-			'Ver en Google Maps',
-			'Cómo llegar Tocá el timbre de prueba',
-			'Accesibilidad Rampa inventada'
+			'Ver en Google Maps'
 		],
+		after: ['Cómo llegar Tocá el timbre de prueba', 'Accesibilidad Rampa inventada'],
 		hides: [ADDRESS_FOR_BUYERS],
 		link: true,
 		map: true
@@ -174,17 +198,23 @@ const LEVELS = {
 	}
 };
 
-describe('/calendario/<evento>: el lugar, una sola vez y en la tarjeta', () => {
+describe('/calendario/<evento>: el lugar, una sola vez y en «Cuándo y dónde»', () => {
 	for (const [level, want] of Object.entries(LEVELS)) {
 		it(`nivel «${level}»: lo mismo que antes, sin repetir`, () => {
 			const venue = venueView(VENUE, /** @type {any} */ (level), HREF);
-			const body = page({}, { venue });
+			// Con venta de entradas en el sitio (la entrada lleva la dirección).
+			const body = page({}, { venue, tickets: TICKETS });
 			const all = text(article(body));
 			const inCard = text(card(body));
 			for (const s of want.shows) {
 				expect(inCard).toContain(s);
 				expect(count(all, s)).toBe(1);
 			}
+			for (const s of want.after ?? []) {
+				expect(text(block(body, 'llegar'))).toContain(s);
+				expect(count(all, s)).toBe(1);
+			}
+			if (!want.after) expect(body).not.toContain('class="llegar');
 			for (const s of want.hides) expect(all).not.toContain(s);
 			// el bloque de abajo ya no está: un solo «Dónde», adentro de la tarjeta
 			expect(count(body, 'aria-label="Dónde"')).toBe(1);
@@ -194,10 +224,41 @@ describe('/calendario/<evento>: el lugar, una sola vez y en la tarjeta', () => {
 			expect(count(card(body), 'lucide-map-pin')).toBe(1);
 			// el nombre lleva a la página del lugar solo si el nivel lo muestra
 			expect(count(body, `href="${HREF}"`)).toBe(want.link ? 1 : 0);
-			// el mapa, solo donde se ve la dirección
+			// el mapa, solo donde se ve la dirección: chico, en «Cuándo y dónde» y arriba de «Ver en
+			// Google Maps» (pedido de gorrite)
 			expect(count(body, 'openstreetmap.org/?mlat')).toBe(want.map ? 2 : 0);
+			if (want.map) {
+				expect(count(card(body), 'class="venue-map')).toBe(1);
+				expect(card(body).indexOf('class="venue-map')).toBeLessThan(
+					card(body).indexOf('Ver en Google Maps')
+				);
+			}
 		});
 	}
+
+	// Antes: «Te mandamos la dirección con tu entrada.» también en un evento sin venta, donde no hay
+	// entrada que la lleve. Sin venta no se muestra ningún aviso (decisión de gorrite, 9/10).
+	for (const level of ['name', 'area', 'hidden']) {
+		it(`nivel «${level}» sin venta de entradas: no promete la dirección con la entrada`, () => {
+			const venue = venueView(VENUE, /** @type {any} */ (level), HREF);
+			const all = text(article(page({}, { venue })));
+			expect(all).not.toContain(ADDRESS_FOR_BUYERS);
+			expect(article(page({}, { venue }))).not.toContain('class="note"');
+			// Un evento cancelado tampoco vende: tampoco lo promete.
+			const cancelled = text(
+				article(page({ status: 'cancelado' }, { venue, tickets: { ...TICKETS, open: false } }))
+			);
+			expect(cancelled).not.toContain(ADDRESS_FOR_BUYERS);
+		});
+	}
+	it('niveles que muestran la dirección: ningún aviso, con o sin venta', () => {
+		for (const level of ['public', 'address']) {
+			const venue = venueView(VENUE, /** @type {any} */ (level), HREF);
+			const all = text(article(page({}, { venue })));
+			expect(all).not.toContain(ADDRESS_FOR_BUYERS);
+			expect(article(page({}, { venue }))).not.toContain('class="note"');
+		}
+	});
 
 	it('sin lugar vinculado: el «Dónde» del .md en la tarjeta, con el pin y su link al mapa', () => {
 		const body = page({
@@ -205,36 +266,81 @@ describe('/calendario/<evento>: el lugar, una sola vez y en la tarjeta', () => {
 			location_map: 'https://www.openstreetmap.org/#map=17/-34.6/-58.4'
 		});
 		const inCard = card(body);
-		expect(text(inCard)).toContain('en Plaza Inventada Ver en el mapa');
+		expect(text(inCard)).toContain('Plaza Inventada Ver en el mapa');
+		// Sin lugar vinculado no hay coordenadas: sin mapa chico (no se inventa una ubicación).
+		expect(body).not.toContain('class="venue-map');
 		expect(count(text(article(body)), 'Plaza Inventada')).toBe(1);
 		expect(inCard).toContain('lucide-map-pin');
 		expect(inCard).toContain('href="https://www.openstreetmap.org/#map=17/-34.6/-58.4"');
 		expect(body).not.toContain('aria-label="Dónde"');
 	});
 
-	it('online (sin lugar ni «Dónde»): dice «Online», con el globo en vez del pin', () => {
-		const inCard = card(page());
-		expect(text(inCard)).toContain('en Online');
-		expect(inCard).toContain('lucide-globe');
-		expect(inCard).not.toContain('lucide-map-pin');
+	// Antes esta prueba decía que un evento sin lugar ni «Dónde» es online: no lo es, y mostraba
+	// «Online» en eventos presenciales. Ahora «Online» solo si el evento es online.
+	for (const [what, meta] of /** @type {[string, Record<string, any>][]} */ ([
+		['la etiqueta «Online»', { tags: ['Online'] }],
+		['«Dónde: Online»', { location: 'Online' }],
+		['modalidad online', { modalidad: 'online' }]
+	])) {
+		it(`online (${what}): dice «Online», con el globo en vez del pin`, () => {
+			const body = page(meta);
+			const inCard = card(body);
+			expect(inCard).toMatch(/<span class="p-location">Online<\/span>/);
+			expect(inCard).toContain('lucide-globe');
+			expect(inCard).not.toContain('lucide-map-pin');
+			expect(head(meta)).toContain('OnlineEventAttendanceMode');
+			expect(head(meta)).not.toContain('OfflineEventAttendanceMode');
+		});
+	}
+
+	it('sin lugar ni «Dónde» (y sin ser online): ni «Online» ni renglón del lugar', () => {
+		const body = page();
+		const inCard = card(body);
+		expect(text(inCard)).not.toContain('Online');
+		expect(inCard).not.toContain('p-location');
+		expect(inCard).not.toContain('lucide-globe');
+		expect(head()).not.toContain('OnlineEventAttendanceMode');
+		expect(head()).not.toContain('VirtualLocation');
+		expect(head()).not.toContain('eventAttendanceMode');
+	});
+
+	it('solo el nombre del lugar (`location_name`): el nombre con el pin, presencial', () => {
+		// Aunque tenga la etiqueta «Online» (quedada de otra edición).
+		const body = page({ location_name: 'Zona Inventada | Galpón de Prueba', tags: ['Online'] });
+		const inCard = card(body);
+		expect(inCard).toMatch(/<span class="p-location">Zona Inventada \| Galpón de Prueba<\/span>/);
+		expect(inCard).toContain('lucide-map-pin');
+		expect(text(inCard)).not.toContain('Online');
+		const ld = head({ location_name: 'Zona Inventada | Galpón de Prueba', tags: ['Online'] });
+		expect(ld).toContain('OfflineEventAttendanceMode');
+		expect(ld).not.toContain('OnlineEventAttendanceMode');
+	});
+
+	it('nombre y dirección: «Nombre · Dirección», una sola vez', () => {
+		const body = page({ location_name: 'Galpón de Prueba', location: 'Calle Inventada 2' });
+		expect(text(card(body))).toContain('Galpón de Prueba · Calle Inventada 2');
+		expect(count(text(article(body)), 'Calle Inventada 2')).toBe(1);
 	});
 });
 
 describe('/calendario/<evento>: los botones', () => {
-	it('«Agregar a mi calendario» va abajo, al lado de «Compartir», y no en la tarjeta', () => {
+	// Antes: «Agregar a mi calendario» al lado de «Compartir». La maqueta final (gorrite) lo saca:
+	// queda «Compartir» solo, centrado, y la inscripción va después del texto.
+	it('«Compartir» solo (sin «Agregar a mi calendario»), y la inscripción después del texto', () => {
 		const body = page({ link: 'https://example.com/inscripcion', link_text: 'Inscribirme' });
-		const row = block(body, 'share-row');
-		expect(text(row)).toMatch(/^Agregar a mi calendario Compartir/);
-		expect(card(body)).not.toContain('calendario</');
+		expect(text(block(body, 'compartir'))).toMatch(/^Compartir/);
+		expect(body).not.toContain('Agregar a mi calendario');
 		expect(body).not.toContain('<add-to-calendar-button');
-		// la tarjeta se queda con la inscripción como acción principal
-		expect(text(card(body))).toContain('Inscribirme');
+		// la inscripción no está en «Cuándo y dónde»: va después de «De qué se trata»
+		expect(text(card(body))).not.toContain('Inscribirme');
+		const art = article(body);
+		expect(art.indexOf('>Inscribirme<')).toBeGreaterThan(art.indexOf('id="que-titulo"'));
 	});
 
 	it('un evento cancelado no ofrece agregarlo al calendario', () => {
 		const body = page({ status: 'cancelado' });
 		expect(body).not.toContain('Agregar a mi calendario');
-		expect(text(block(body, 'share-row'))).toContain('Compartir');
+		expect(text(block(body, 'compartir'))).toContain('Compartir');
 	});
 });
 
@@ -284,10 +390,12 @@ describe('/calendario/<evento>: el link de inscripción', () => {
 		const links = [...html.matchAll(/<a [^>]*href="mailto:hola@ejemplo\.test"[^>]*>/g)].map(
 			(m) => m[0]
 		);
-		// En la tarjeta y al final del texto.
-		expect(links).toHaveLength(2);
+		// Antes iba dos veces (en la tarjeta y al final del texto); con la maqueta final, una sola:
+		// el botón de inscripción, después del texto.
+		expect(links).toHaveLength(1);
 		for (const a of links) expect(a).not.toContain('target=');
-		expect(html).toContain('>Escribinos</a>');
+		// El texto del link (Button lo envuelve en comentarios de Svelte).
+		expect(text(links.length ? html.slice(html.indexOf(links[0])) : '')).toMatch(/^Escribinos/);
 	});
 
 	it('un link web al final del texto sigue abriendo otra pestaña', () => {
@@ -299,10 +407,14 @@ describe('/calendario/<evento>: el link de inscripción', () => {
 		const html = page({ link: 'javascript:alert(1)', link_text: 'Inscribirme' });
 		expect(html).not.toContain('javascript:');
 		expect(html).not.toContain('>Inscribirme</a>');
+		expect(text(article(html))).not.toContain('Inscribirme');
 	});
 });
 
-describe('/calendario/<evento>: comprar arriba, el mapa después (igual en todos los eventos)', () => {
+// Antes: «comprar arriba, el mapa después», con el mapa plegado en el celu. La maqueta final
+// (gorrite) cambia la regla: el texto se lee antes de comprar, y el mapa chico va en «Cuándo y
+// dónde» (sin plegar), con «Cómo llegar» y «Accesibilidad» en su tarjeta.
+describe('/calendario/<evento>: el texto antes de comprar, el mapa en «Cuándo y dónde»', () => {
 	const tickets = {
 		open: true,
 		priceFrom: 6400,
@@ -312,32 +424,33 @@ describe('/calendario/<evento>: comprar arriba, el mapa después (igual en todos
 		door: null
 	};
 
-	it('el botón de comprar va justo después de la fecha y el lugar, antes del mapa', () => {
+	it('el botón de comprar va después del texto, la fecha, el lugar y el mapa', () => {
 		const venue = venueView(VENUE, 'public', HREF);
 		const body = article(page({}, { venue, tickets }));
 		const buy = body.indexOf('class="buy-cta');
-		expect(buy).toBeGreaterThan(body.indexOf('class="event-header'));
+		expect(buy).toBeGreaterThan(body.indexOf('id="que-titulo"'));
+		expect(buy).toBeGreaterThan(body.indexOf('class="cuando-donde'));
 		expect(buy).toBeGreaterThan(body.indexOf('Calle Inventada 1'));
-		expect(buy).toBeLessThan(body.indexOf('openstreetmap.org/?mlat'));
+		expect(buy).toBeGreaterThan(body.indexOf('openstreetmap.org/?mlat'));
+		// «Cómo llegar» y «Accesibilidad», después de comprar y de compartir
 		expect(buy).toBeLessThan(body.indexOf('Cómo llegar'));
 		expect(buy).toBeLessThan(body.indexOf('Accesibilidad'));
+		expect(body.indexOf('class="compartir')).toBeLessThan(body.indexOf('Cómo llegar'));
 	});
 
-	it('el mapa, «Cómo llegar» y «Accesibilidad» se pliegan en el celu detrás de un botón', () => {
+	it('el mapa se ve sin plegar (ni botón para abrirlo)', () => {
 		const venue = venueView(VENUE, 'public', HREF);
 		const body = page({}, { venue, tickets });
-		const toggle = body.match(/<button[^>]*class="[^"]*map-toggle[^"]*"[^>]*>/)?.[0] ?? '';
-		expect(toggle).toContain('aria-expanded="false"');
-		expect(toggle).toContain('aria-controls="venue-details-body"');
-		expect(text(block(body, 'venue-details'))).toMatch(/^Ver mapa y cómo llegar/);
-		const details = body.slice(body.indexOf('id="venue-details-body"'));
-		expect(details).toContain('openstreetmap.org/?mlat');
-		expect(text(details)).toContain('Cómo llegar Tocá el timbre de prueba');
+		expect(body).not.toContain('map-toggle');
+		expect(body).not.toContain('venue-details');
+		expect(card(body)).toContain('openstreetmap.org/?mlat');
 	});
 
-	it('sin mapa ni textos (solo el nombre del lugar), no hay nada que plegar', () => {
+	it('sin mapa ni textos (solo el nombre del lugar), ni mapa ni «Cómo llegar»', () => {
 		const venue = venueView(VENUE, 'name', HREF);
-		expect(page({}, { venue, tickets })).not.toContain('venue-details');
+		const body = page({}, { venue, tickets });
+		expect(body).not.toContain('class="venue-map');
+		expect(body).not.toContain('class="llegar');
 	});
 });
 
@@ -392,12 +505,13 @@ describe('/calendario/<evento>: un evento que ya pasó', () => {
 		);
 	});
 
-	it('«Agregar a mi calendario» queda en segundo plano (link, no botón)', () => {
+	// Antes: «Agregar a mi calendario» en segundo plano. La maqueta final lo saca en todos los
+	// eventos (gorrite); lo que queda es «Compartir».
+	it('sin «Agregar a mi calendario», con «Compartir»', () => {
 		vi.setSystemTime(AFTER);
-		const row = block(page(), 'share-row');
-		expect(row).toMatch(/<button[^>]*class="kv-link quiet[^"]*"[^>]*>/);
-		vi.setSystemTime(BEFORE);
-		expect(block(page(), 'share-row')).toMatch(/<button[^>]*class="trigger[^"]*"[^>]*>/);
+		const body = page();
+		expect(body).not.toContain('Agregar a mi calendario');
+		expect(text(block(body, 'compartir'))).toMatch(/^Compartir/);
 	});
 
 	it('antes de que pase, nada de eso', () => {
@@ -431,7 +545,10 @@ describe('/calendario/<evento>: la serie en la cabecera', () => {
 				}
 			}
 		);
-		const chip = block(card(body), 'event-series-chip');
+		// En la cabecera, arriba del título.
+		const head = body.slice(body.indexOf('class="cabeza'), body.indexOf('</header>'));
+		expect(head.indexOf('event-series-chip')).toBeLessThan(head.indexOf('class="p-name'));
+		const chip = block(head, 'event-series-chip');
 		expect(chip).toMatch(/<a class="kv-tag[^"]*"[^>]*href="\/wiki\/Serie-Inventada"/);
 		expect(text(chip)).toMatch(/^Serie Inventada/);
 	});
@@ -471,5 +588,251 @@ describe('/calendario/<evento>: «Más cosas de…»', () => {
 		expect(body.indexOf('fiesta-cercana')).toBeLessThan(body.indexOf('fiesta-lejana'));
 		const past = block(body, 'related-past');
 		expect(text(past)).toMatch(/^Pasados Ver 7 pasados/);
+	});
+});
+
+/**
+ * Los estados de la página con el diseño de la maqueta final (gorrite): normal, cancelado, ya
+ * pasó, con y sin entradas, con y sin el mapa del lugar. Datos inventados.
+ */
+describe('/calendario/<evento>: los estados de la maqueta final', () => {
+	const openTickets = {
+		open: true,
+		reason: null,
+		priceFrom: 6400,
+		gorraSuggested: null,
+		left: null,
+		closesAt: null,
+		door: null,
+		slug: 'taller-inventado'
+	};
+	const partes = {
+		total: 3,
+		current: 2,
+		perPart: true,
+		workshop: { slug: 'taller-de-prueba', title: 'Taller de Prueba' },
+		parts: [
+			{ slug: 'taller-de-prueba', title: 'Parte 1', n: 1, start: null, status: 'abierto' },
+			{ slug: 'taller-inventado', title: 'Parte 2', n: 2, start: null, status: 'abierto' },
+			{ slug: 'taller-de-prueba-3', title: 'Parte 3', n: 3, start: null, status: 'abierto' }
+		],
+		ticketSlug: null
+	};
+	const personas = [
+		{
+			rol: 'Organiza',
+			items: [
+				{
+					slug: 'colectivo-inventado',
+					title: 'Colectivo Inventado',
+					href: '/amigues/colectivo-inventado'
+				},
+				{ slug: '', title: 'Persona de Prueba', href: '' }
+			]
+		}
+	];
+	const AFICHE = '/afiche-inventado.png';
+
+	it('normal: afiche, título, resumen y «por…», «Cuándo y dónde», el texto y después comprar', () => {
+		const venue = venueView(VENUE, 'public', HREF);
+		const body = article(
+			page(
+				{ featured: AFICHE, authors: ['Colectivo Inventado', 'Persona de Prueba'] },
+				{ venue, tickets: openTickets, partes, personas }
+			)
+		);
+		// el afiche, cuadrado y con texto alternativo (en el celu va primero, por CSS)
+		expect(body).toMatch(
+			/<img class="afiche u-photo[^"]*" src="\/afiche-inventado\.png" alt="Afiche de Taller Inventado"/
+		);
+		expect(text(block(body, 'resumen'))).toMatch(/^Un taller inventado para las pruebas/);
+		expect(text(block(body, 'por'))).toMatch(/^por Colectivo Inventado y Persona de Prueba/);
+		const at = (/** @type {string} */ s) => body.indexOf(s);
+		expect(at('class="cabeza')).toBeLessThan(at('class="cuando-donde'));
+		expect(at('class="cuando-donde')).toBeLessThan(at('id="que-titulo"'));
+		expect(at('id="que-titulo"')).toBeLessThan(at('class="buy-cta'));
+		// el botón lleva a la página de compra
+		expect(body).toContain('href="/calendario/taller-inventado/entradas"');
+		// las partes, pegadas al botón de comprar
+		expect(at('class="buy-cta')).toBeLessThan(at('class="part-nav'));
+		expect(text(block(body, 'part-nav'))).toMatch(/^Parte 2 de 3 de/);
+		expect(text(body)).toContain('Las 3 partes del taller');
+		// compartir, cómo llegar, quiénes y etiquetas
+		expect(at('class="part-nav')).toBeLessThan(at('class="compartir'));
+		expect(at('class="compartir')).toBeLessThan(at('class="llegar'));
+		expect(at('class="llegar')).toBeLessThan(at('class="quienes'));
+		// sin avisos
+		expect(body).not.toContain('role="note"');
+	});
+
+	it('una sola entrada para el taller: «Comprar entrada al taller»', () => {
+		const body = article(
+			page(
+				{},
+				{
+					tickets: openTickets,
+					partes: { ...partes, perPart: false, ticketSlug: 'taller-de-prueba' }
+				}
+			)
+		);
+		expect(text(block(body, 'buy-title'))).toMatch(/^Comprar entrada al taller/);
+	});
+
+	it('quiénes (un rol por renglón, «, » entre personas) y las etiquetas, con sus títulos', () => {
+		const body = article(page({ tags: ['Shibari', 'español'] }, { personas }));
+		const quienes = text(block(body, 'quienes'));
+		expect(quienes).toMatch(/^Quiénes Organiza Colectivo Inventado , Persona de Prueba Etiquetas/);
+		expect(body).toMatch(
+			/<dd[^>]*><!--\[-->(<!--[^>]*-->)*<a class="h-card[^"]*" href="\/amigues\/colectivo-inventado">Colectivo Inventado<\/a>(<!--[^>]*-->)*, /
+		);
+		expect(body).toContain('id="tags"');
+	});
+
+	it('sin personas ni etiquetas, sin la tarjeta de «Quiénes»', () => {
+		expect(page()).not.toContain('class="quienes');
+	});
+
+	it('la serie va al final, después de quiénes: «Edición N de…» y el lugar de «Seguir»', () => {
+		const series = {
+			list: [
+				{
+					id: 'Serie Inventada',
+					name: 'Serie Inventada',
+					href: '/wiki/Serie-Inventada',
+					icon: '',
+					number: 2,
+					total: 3,
+					prev: null,
+					next: null,
+					past: false,
+					nextUpcoming: null
+				}
+			],
+			account: { member: false, subscribed: [] }
+		};
+		const body = article(page({ tags: ['Serie Inventada'] }, { series, personas }));
+		const serie = body.indexOf('class="serie');
+		expect(serie).toBeGreaterThan(body.indexOf('class="quienes'));
+		const rest = block(body, 'serie');
+		expect(text(rest)).toMatch(/^Edición 2 de/);
+		// «Seguir» (FollowButton) se arma en el navegador, después de preguntar a /api/sigo.
+		expect(rest).toContain('class="seguir');
+	});
+
+	it('cancelado: el aviso grande, sin venta, sin inscripción y sin mapa', () => {
+		const venue = venueView(VENUE, 'public', HREF);
+		const body = article(
+			page(
+				{ status: 'cancelado', link: 'https://example.com/inscripcion', featured: AFICHE },
+				{ venue, tickets: { ...openTickets, open: false, reason: 'cancelled' } }
+			)
+		);
+		const note = block(body, 'cancelado');
+		expect(text(note)).toMatch(/^Cancelado Este evento se canceló\./);
+		// arriba: justo después de la cabecera, antes de «Cuándo y dónde» y del texto
+		expect(body.indexOf('class="cancelado')).toBeLessThan(body.indexOf('class="cuando-donde'));
+		expect(body).not.toContain('class="buy-cta');
+		expect(body).not.toContain('example.com/inscripcion');
+		expect(body).not.toContain('class="venue-map');
+		expect(body).not.toContain('Este evento ya pasó');
+		// se sigue viendo qué era y cuándo
+		expect(text(card(body))).toContain('viernes 2 de octubre de 2026, 15:00');
+	});
+
+	it('ya pasó: el aviso, sin la venta cerrada, con las partes', () => {
+		vi.setSystemTime(AFTER);
+		const body = article(
+			page({}, { tickets: { ...openTickets, open: false, reason: 'closed' }, partes })
+		);
+		expect(text(block(body, 'past-note'))).toMatch(/^Este evento ya pasó\./);
+		expect(body).not.toContain('class="buy-cta');
+		expect(text(body)).toContain('Las 3 partes del taller');
+		expect(body).not.toContain('Agregar a mi calendario');
+	});
+
+	it('ya pasó, sin venta: no ofrece el link de inscripción', () => {
+		vi.setSystemTime(AFTER);
+		const body = article(
+			page({ link: 'https://example.com/inscripcion', link_text: 'Inscribirme' })
+		);
+		expect(body).not.toContain('example.com/inscripcion');
+	});
+
+	it('sin entradas ni link: ni botón de comprar ni de inscripción', () => {
+		const body = article(page());
+		expect(body).not.toContain('class="buy-cta');
+		expect(body).not.toContain('class="compra');
+	});
+
+	it('con entradas y link con texto: el link sigue al final del texto (docs/tickets.md)', () => {
+		const body = article(
+			page(
+				{ link: 'https://example.com/mas-info', link_text: 'Más info' },
+				{ tickets: openTickets }
+			)
+		);
+		const cta = body.indexOf('class="cta"');
+		expect(cta).toBeGreaterThan(body.indexOf('id="que-titulo"'));
+		expect(cta).toBeLessThan(body.indexOf('class="buy-cta'));
+		expect(count(body, 'href="https://example.com/mas-info"')).toBe(1);
+	});
+
+	it('venta cerrada antes del evento: dice por qué', () => {
+		const body = article(page({}, { tickets: { ...openTickets, open: false, reason: 'soldout' } }));
+		expect(text(block(body, 'buy-closed'))).toMatch(/^Agotadas\./);
+	});
+
+	it('lugar con coordenadas: mapa chico; solo con texto libre: sin mapa', () => {
+		const venue = venueView(VENUE, 'public', HREF);
+		expect(card(page({}, { venue }))).toContain('class="venue-map');
+		const noCoords = venueView(
+			{ ...VENUE, data: { ...VENUE.data, lat: undefined, lng: undefined } },
+			'public',
+			HREF
+		);
+		expect(page({}, { venue: noCoords })).not.toContain('class="venue-map');
+		expect(page({ location: 'Calle de Ejemplo 456' })).not.toContain('class="venue-map');
+	});
+});
+
+// Antes: «De qué se trata» se mostraba aunque el texto estuviera vacío (o fuera solo espacios o
+// comentarios), con nada abajo.
+describe('/calendario/<evento>: «De qué se trata» sin texto', () => {
+	for (const [what, html] of [
+		['vacío', ''],
+		['solo espacios', '  \n\t '],
+		['solo comentarios', '\n<!-- nota de prueba -->\n'],
+		['párrafos vacíos', '<p> </p><p>&nbsp;</p>']
+	]) {
+		it(`texto ${what}: sin el título ni su sección`, () => {
+			const body = article(page({}, { html }));
+			expect(body).not.toContain('id="que-titulo"');
+			expect(body).not.toContain('De qué se trata');
+			expect(body).not.toContain('class="texto-evento');
+		});
+	}
+
+	it('con texto, o solo una imagen: con el título', () => {
+		expect(page({}, { html: '<p>Un texto de prueba</p>' })).toContain('id="que-titulo"');
+		expect(page({}, { html: '<p><img src="/prueba.webp" alt="Prueba"></p>' })).toContain(
+			'id="que-titulo"'
+		);
+	});
+
+	it('vacío pero con el link de la venta al final del texto: la sección queda, con el link', () => {
+		const body = article(
+			page(
+				{ link: 'https://example.com/mas-info', link_text: 'Más info' },
+				{ html: '', tickets: TICKETS }
+			)
+		);
+		expect(body).toContain('href="https://example.com/mas-info"');
+	});
+});
+
+describe('/calendario/<evento>: los datos estructurados (schema.org)', () => {
+	it('dicen si el evento se canceló', () => {
+		expect(head()).toContain('https://schema.org/EventScheduled');
+		expect(head({ status: 'cancelado' })).toContain('https://schema.org/EventCancelled');
 	});
 });
