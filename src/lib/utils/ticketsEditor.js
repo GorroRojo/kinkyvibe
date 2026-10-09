@@ -24,6 +24,7 @@
 import { entradas } from './plural.js';
 import { isMap, isSeq, parseDocument } from 'yaml';
 import { joinMarkdown, serializeFrontmatter, splitMarkdown } from './eventDraft.js';
+import { isOnlineEvent, modalidadOf } from './eventPlace.js';
 import { currentSiteTags } from './siteTags.js';
 import { formatARS } from './money.js';
 import { chainCycle, doorPrice, unreachableAfter } from './ticketTiers.js';
@@ -90,20 +91,9 @@ export function isKinkyVibeEvent(meta) {
 	return tags.some((t) => typeof t === 'string' && tm.get(t.trim())?.id === KINKYVIBE_TAG);
 }
 
-/**
- * ¿El evento es online? `modalidad: online | presencial` en el frontmatter manda; si falta, es
- * online si tiene la etiqueta "Online" y no tiene `location`. En los eventos online las entradas
- * llevan el link de la transmisión en lugar de un QR, y no hay control de ingreso.
- *
- * @param {Record<string, any>} meta
- */
-export function isOnlineEvent(meta) {
-	const modalidad = typeof meta.modalidad === 'string' ? meta.modalidad.trim().toLowerCase() : '';
-	if (modalidad === 'online' || modalidad === 'virtual') return true;
-	if (modalidad === 'presencial') return false;
-	const tags = Array.isArray(meta.tags) ? meta.tags : [];
-	return !meta.location && tags.some((t) => String(t).trim().toLowerCase() === 'online');
-}
+// ¿La venta trata al evento como online? Vive en eventPlace.js: es la regla de la página
+// (`eventMode`).
+export { isOnlineEvent };
 
 /**
  * @typedef {object} TicketTypeForm
@@ -353,7 +343,6 @@ export function readTicketsForm(meta) {
 				);
 	const openAt = toLocalInput(meta?.tickets_open, false);
 	const closeAt = toLocalInput(meta?.tickets_close, true);
-	const modalidad = str(meta?.modalidad).trim().toLowerCase();
 	return {
 		enabled: meta?.tickets !== undefined && meta?.tickets !== null,
 		types,
@@ -365,12 +354,7 @@ export function readTicketsForm(meta) {
 		openAt,
 		customClose: Boolean(closeAt),
 		closeAt,
-		modalidad:
-			modalidad === 'online' || modalidad === 'virtual'
-				? 'online'
-				: modalidad === 'presencial'
-					? 'presencial'
-					: '',
+		modalidad: modalidadOf(meta),
 		reminders: meta?.recordatorios !== false,
 		mpFee:
 			meta?.mp_fee_percent === undefined || meta?.mp_fee_percent === null
@@ -771,12 +755,16 @@ const amount = (v) => /** @type {number} */ (parseAmount(v.trim() === '' ? '0' :
  * `initial` y conservando comentarios, orden y las claves que el editor no conoce (también dentro
  * de cada tipo de entrada). Suponé que el formulario ya pasó `validateTicketsForm`.
  *
+ * `opts.hasVenue`: el evento tiene (o va a tener) un lugar vinculado; entonces es presencial y
+ * se escribe `puerta` (ver {@link isOnlineEvent}).
+ *
  * @param {string} frontmatter
  * @param {TicketsForm} form
  * @param {TicketsForm} initial el estado leído de este mismo frontmatter
+ * @param {{ hasVenue?: boolean }} [opts]
  * @returns {string}
  */
-export function applyTicketsForm(frontmatter, form, initial) {
+export function applyTicketsForm(frontmatter, form, initial, opts) {
 	const formChanged = ticketsFormChanged(initial, form);
 	// Un evento con venta y sin `puerta` recibe la clave explícita al guardarlo (ver abajo).
 	if (!formChanged && !needsDoorKey(form, initial)) return frontmatter;
@@ -898,7 +886,7 @@ export function applyTicketsForm(frontmatter, form, initial) {
 	const doorPrice = form.door ? form.doorPrice.trim() : '';
 	const initialDoorPrice = initial.enabled && initial.door ? initial.doorPrice.trim() : '';
 	const setDoor =
-		!isOnlineEvent(/** @type {Record<string, any>} */ (doc.toJS() ?? {})) &&
+		!isOnlineEvent(/** @type {Record<string, any>} */ (doc.toJS() ?? {}), opts) &&
 		(!initial.enabled || !initial.doorSet || form.door !== initial.door);
 	if (setDoor) doc.set('puerta', form.door);
 	// Sin cambios en el formulario y evento online: no hay nada que escribir.
@@ -934,11 +922,12 @@ function needsDoorKey(form, initial) {
  * @param {string} raw
  * @param {TicketsForm} form
  * @param {TicketsForm} initial
+ * @param {{ hasVenue?: boolean }} [opts]
  */
-export function applyTicketsToMarkdown(raw, form, initial) {
+export function applyTicketsToMarkdown(raw, form, initial, opts) {
 	if (!ticketsFormChanged(initial, form) && !needsDoorKey(form, initial)) return raw;
 	const { frontmatter, body } = splitMarkdown(raw);
-	return joinMarkdown(applyTicketsForm(frontmatter, form, initial), body);
+	return joinMarkdown(applyTicketsForm(frontmatter, form, initial, opts), body);
 }
 
 /**

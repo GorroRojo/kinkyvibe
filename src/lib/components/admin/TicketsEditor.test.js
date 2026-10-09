@@ -60,3 +60,31 @@ describe('TicketsEditor: cuándo se muestran los errores', () => {
 		expect(body({ showErrors: true })).toContain('id="ev-tickets-errors"');
 	});
 });
+
+describe('TicketsEditor: modalidad automática con la regla de la página', () => {
+	/** @param {Record<string, unknown>} props @param {string} [modalidad] */
+	const body = (props, modalidad) =>
+		render(TicketsEditor, {
+			props: {
+				state: readTicketsForm({
+					tickets: [{ id: 'general', name: 'General', price: 10000 }],
+					...(modalidad ? { modalidad } : {})
+				}),
+				...props
+			}
+		}).body;
+
+	it('el «Dónde» y la etiqueta Online deciden; un lugar elegido, presencial', () => {
+		expect(body({ tags: ['Online'] })).toContain('Automática: online');
+		expect(body({ tags: ['Online'], locationName: 'Galpón Inventado' })).toContain(
+			'Automática: presencial'
+		);
+		expect(body({ location: 'Zoom' })).toContain('Automática: online');
+		expect(body({ tags: ['Online'], hasVenue: true })).toContain('Automática: presencial');
+	});
+
+	it('modalidad online con un lugar elegido: avisa que es presencial', () => {
+		expect(body({ hasVenue: true }, 'online')).toContain('id="ev-modalidad-venue"');
+		expect(body({}, 'online')).not.toContain('id="ev-modalidad-venue"');
+	});
+});

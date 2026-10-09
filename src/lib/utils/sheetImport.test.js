@@ -498,6 +498,10 @@ describe('proposals', () => {
 			changed: true
 		});
 		expect(placeFields('online', soguita)).toMatchObject({ location: 'Online', changed: true });
+		// Las mismas palabras que la regla de online (isOnlineWord, en eventPlace.js).
+		for (const p of ['Zoom', 'Google Meet', 'por zoom', 'Jitsi', 'Discord', 'Virtual.']) {
+			expect(placeFields(p, soguita), p).toMatchObject({ location: 'Online', changed: true });
+		}
 	});
 });
 

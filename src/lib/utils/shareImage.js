@@ -8,6 +8,7 @@
 // de 4 puntas, tramas de puntos y grano. El flyer del evento es la pieza principal.
 
 import { argDate, argDateParts, argDayMonth, argTime } from './dates.js';
+import { eventMode, placeShort } from './eventPlace.js';
 
 export const SITE = 'kinkyvibe.ar';
 
@@ -446,10 +447,13 @@ const joinNames = (names) =>
  */
 export function eventInfo(meta) {
 	const { day, hours, dayShort, hoursShort, multiDay } = formatEventDate(meta.start, meta.end);
-	const online = !meta.location;
-	const place = online ? 'Online' : meta.location_name ?? meta.location;
-	const address =
-		!online && meta.location_name && meta.location !== meta.location_name ? meta.location : '';
+	// Online o el lugar: la misma regla que la página (eventMode, en eventPlace.js).
+	const online = eventMode(meta) === 'online';
+	const place = placeShort(meta);
+	// La dirección aparte, solo si hay nombre (si no, la dirección ya es el lugar) y es otra cosa.
+	const name = typeof meta.location_name === 'string' ? meta.location_name.trim() : '';
+	const loc = typeof meta.location === 'string' ? meta.location.trim() : '';
+	const address = !online && name && loc && loc.toLowerCase() !== name.toLowerCase() ? loc : '';
 	/** @type {string[]} */
 	const all = (meta.authors ?? [])
 		.filter(Boolean)
@@ -753,7 +757,7 @@ export function buildCaption(meta) {
 	if (info.day) lines.push(`📅 ${info.day}`, `🕗 ${info.hours}`);
 	if (info.online) {
 		lines.push('💻 Online');
-	} else {
+	} else if (info.place) {
 		lines.push(`📍 ${info.place}${info.address ? ` (${info.address})` : ''}`);
 	}
 	if (price) lines.push(`💸 ${capitalize(price.toLowerCase())}`);

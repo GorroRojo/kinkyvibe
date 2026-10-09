@@ -529,7 +529,7 @@ describe('a la gorra', () => {
 });
 
 describe('eventos online', () => {
-	it('modalidad manda; si falta, la etiqueta Online sin location', () => {
+	it('modalidad manda; si falta, la regla de la página (eventMode)', () => {
 		expect(parseTicketConfig({ ...META, modalidad: 'online' })?.online).toBe(true);
 		expect(parseTicketConfig({ ...META, modalidad: 'Presencial', tags: ['Online'] })?.online).toBe(
 			false
@@ -539,6 +539,35 @@ describe('eventos online', () => {
 			parseTicketConfig({ ...META, tags: ['Online'], location: 'Calle Falsa 123' })?.online
 		).toBe(false);
 		expect(parseTicketConfig({ ...META, tags: ['AMBA'] })?.online).toBe(false);
+	});
+
+	// Antes la venta tenía su propia regla (la etiqueta Online sin `location`) y estos dos casos
+	// no coincidían con la página; ahora es la misma (decisión de gorrite).
+	it('etiqueta Online y solo un nombre de lugar: presencial (QR y puerta), como la página', () => {
+		const config = parseTicketConfig({
+			...META,
+			tags: ['Online'],
+			location_name: 'Galpón Inventado',
+			puerta: true
+		});
+		expect(config?.online).toBe(false);
+		expect(config?.door).toEqual({ on: true, explicit: true, price: '' });
+	});
+
+	it('«Dónde» «Online» sin etiqueta ni modalidad: online (link, sin puerta), como la página', () => {
+		const config = parseTicketConfig({ ...META, tags: ['AMBA'], location: 'Online', puerta: true });
+		expect(config?.online).toBe(true);
+		expect(config?.door).toBeNull();
+	});
+
+	it('con lugar vinculado, presencial (aunque tenga la etiqueta Online o `modalidad: online`)', () => {
+		expect(parseTicketConfig({ ...META, tags: ['Online'] })?.online).toBe(true);
+		const tagged = parseTicketConfig({ ...META, tags: ['Online'] }, { hasVenue: true });
+		expect(tagged?.online).toBe(false);
+		expect(tagged?.door).not.toBeNull();
+		expect(parseTicketConfig({ ...META, modalidad: 'online' }, { hasVenue: true })?.online).toBe(
+			false
+		);
 	});
 });
 

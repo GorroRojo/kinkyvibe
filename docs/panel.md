@@ -144,9 +144,10 @@ de la búsqueda (`/admin/eventos/eventos.csv`). Ver `src/lib/server/eventos/pane
 
 **Aviso «Online con lugar»** (pedido de gorrite, 9/10): un evento con la etiqueta «Online» (o
 «online», «virtual») que además tiene un lugar: uno vinculado (edge `lugar`, sin borrar) o un
-«Dónde» en texto libre (`location` o `location_name`) que no sea «Online», «Virtual», «Zoom»… Las
-partes del sitio no se ponen de acuerdo: la venta de entradas (`isOnlineEvent`) lo trata como
-online si no tiene `location`, y manda el link de la transmisión en vez del QR. **Solo avisa**: no
+«Dónde» en texto libre (`location` o `location_name`) que no sea «Online», «Virtual», «Zoom»… La
+página y la venta lo tratan como presencial (una sola regla, `eventMode` en
+`src/lib/utils/eventPlace.js`, ver [amigues.md](amigues.md) «Online o presencial»), pero la
+etiqueta sigue confundiendo filtros y listas (aparece entre los eventos online). **Solo avisa**: no
 cambia datos ni la venta, y no bloquea guardar. Una sola función decide:
 `onlineTagMismatch(meta, { hasVenue })` en `src/lib/utils/onlineTagMismatch.js`. Aparece en:
 
@@ -154,6 +155,8 @@ cambia datos ni la venta, y no bloquea guardar. Una sola función decide:
   botones de idioma, lugar y precio; cambia mientras se edita;
 - la ficha (pestaña Resumen): el mismo aviso arriba, con cómo lo tratan hoy las entradas (si vende)
   y un link a Editar;
+- «Revisar antes de publicar» de Nuevo evento (`publishWarnings` en `src/lib/utils/eventMissing.js`):
+  el aviso «Online o presencial», con el mismo texto;
 - **Para revisar** (Inicio): la fila «N eventos con lugar y etiqueta «Online»», que suma N en el
   contador de Para revisar y lleva a esa lista de Eventos (`/admin/eventos?filtro=online-con-lugar`).
   Cuenta los eventos que vienen (también los de hoy) y los de los **últimos 30 días**
