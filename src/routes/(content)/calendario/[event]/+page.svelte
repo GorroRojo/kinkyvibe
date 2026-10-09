@@ -10,8 +10,8 @@
 	 * llegar → quiénes y etiquetas → la serie → propina (eventos gratis de KinkyVibe) → tarjetas
 	 * de les autores y «Más cosas de…».
 	 *
-	 * Compu (dos columnas): a la izquierda todo eso menos el afiche y «Cuándo y dónde», que van a
-	 * la derecha (el afiche al ancho de la columna), fijos si la columna entra en la pantalla.
+	 * Compu (dos columnas): a la derecha todo eso menos el afiche y «Cuándo y dónde», que van a
+	 * la izquierda (el afiche al ancho de la columna), fijos si la columna entra en la pantalla.
 	 *
 	 * Lo que se ve del lugar y de las personas ya viene filtrado por el servidor (+page.server.js).
 	 */
@@ -107,7 +107,7 @@
 		}
 	}
 
-	// La columna de la derecha (compu): si es más alta que la pantalla, `top` negativo (queda fija
+	// La columna lateral (compu, a la izquierda): si es más alta que la pantalla, `top` negativo (queda fija
 	// mostrando su final), así nada de la columna queda escondido debajo del borde de la pantalla.
 	/** @type {HTMLElement} */
 	let fixed;
@@ -397,7 +397,7 @@
 	.evento > :global(*) {
 		margin-block: 0;
 	}
-	/* En el celu la columna de la derecha se desarma: el afiche va primero (arriba del título) y
+	/* En el celu la columna lateral se desarma: el afiche va primero (arriba del título) y
 	   «Cuándo y dónde» después del aviso, cada uno como una fila más. */
 	.lateral,
 	.lateral-fijo {
@@ -521,19 +521,20 @@
 	}
 	@media (min-width: 900px) {
 		.evento {
-			grid-template-columns: minmax(0, 1fr) 24rem;
+			/* Afiche y «Cuándo y dónde» a la izquierda, el texto a la derecha (gorrite, 9/10). */
+			grid-template-columns: 24rem minmax(0, 1fr);
 			column-gap: var(--space-l);
-			/* La columna de la derecha ocupa 10 filas aunque haya menos cosas a la izquierda: sin
-			   espacio entre filas (las filas vacías no suman nada); la separación va como margen. */
+			/* La columna lateral ocupa 10 filas aunque haya menos cosas en la otra: sin espacio entre
+			   filas (las filas vacías no suman nada); la separación va como margen. */
 			row-gap: 0;
 		}
 		.evento > :global(*) {
-			grid-column: 1;
+			grid-column: 2;
 			margin-block: 0 var(--space-m);
 		}
 		.evento > .lateral {
 			display: block;
-			grid-column: 2;
+			grid-column: 1;
 			grid-row: 1 / span 10;
 		}
 		.lateral-fijo {
