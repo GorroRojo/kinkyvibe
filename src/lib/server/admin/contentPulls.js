@@ -1,10 +1,11 @@
 /**
  * Estado de los PRs de contenido (ramas `contenido/*`, ver commitFiles en
  * $lib/server/eventos/github.js y docs/publicar-contenido.md): para el aviso «se publica cuando pasen las
- * pruebas» del editor y para «Para revisar» en el Inicio del panel. Consultas por GraphQL con el
- * token de la persona logueada; sin SvelteKit, así se prueba con un fetch falso.
+ * pruebas» del editor y para deshacer un borrado. Consultas por GraphQL con el token de la persona
+ * logueada; sin SvelteKit, así se prueba con un fetch falso. «Para revisar» ya no lista los PRs de
+ * contenido (decisión 0030: el contenido vive solo en la base).
  */
-import { BRANCH, CONTENT_BRANCH_PREFIX, REPO, graphql } from '../eventos/github.js';
+import { CONTENT_BRANCH_PREFIX, REPO, graphql } from '../eventos/github.js';
 
 /**
  * - `pendiente`: esperando las pruebas, se mergea solo;
@@ -75,117 +76,4 @@ export async function contentPullStatus(token, number) {
 	const node = data?.repository?.pullRequest;
 	if (!node || !String(node.headRefName).startsWith(CONTENT_BRANCH_PREFIX)) return null;
 	return toInfo(node);
-}
-
-/** Los PRs abiertos cambian poco: una consulta por admin cada tanto alcanza para el Inicio. */
-const CACHE_MS = 60 * 1000;
-/** @type {Map<string, {at: number, list: ContentPullInfo[]}>} */
-const cache = new Map();
-/**
- * La consulta en curso por token: el Inicio y el contador del menú («Para revisar») la piden a la
- * vez en el mismo pedido; así va una sola a GitHub.
- * @type {Map<string, Promise<ContentPullInfo[]>>}
- */
-const inflight = new Map();
-
-/**
- * PRs de contenido abiertos, del más nuevo al más viejo (cache de un minuto por token).
- * @param {string} token
- * @param {{now?: number, fresh?: boolean}} [opts]
- * @returns {Promise<ContentPullInfo[]>}
- */
-export async function openContentPullStatuses(token, { now = Date.now(), fresh = false } = {}) {
-	const hit = cache.get(token);
-	if (!fresh && hit && now - hit.at < CACHE_MS) return hit.list;
-	const pending = fresh ? undefined : inflight.get(token);
-	if (pending) return pending;
-	const request = fetchOpenContentPulls(token, now);
-	inflight.set(token, request);
-	try {
-		return await request;
-	} finally {
-		if (inflight.get(token) === request) inflight.delete(token);
-	}
-}
-
-/**
- * @param {string} token
- * @param {number} now
- * @returns {Promise<ContentPullInfo[]>}
- */
-async function fetchOpenContentPulls(token, now) {
-	const [owner, name] = REPO.split('/');
-	const data = await graphql(
-		token,
-		`query($owner: String!, $name: String!, $base: String!) {
-			repository(owner: $owner, name: $name) {
-				pullRequests(states: OPEN, baseRefName: $base, first: 50,
-					orderBy: {field: CREATED_AT, direction: DESC}) { nodes { ${FIELDS} } }
-			}
-		}`,
-		{ owner, name, base: BRANCH },
-		'PRs de contenido'
-	);
-	const list = (data?.repository?.pullRequests?.nodes ?? [])
-		.filter((/** @type {any} */ n) => String(n?.headRefName).startsWith(CONTENT_BRANCH_PREFIX))
-		.map(toInfo);
-	cache.set(token, { at: now, list });
-	if (cache.size > 50) cache.delete(String(cache.keys().next().value));
-	return list;
-}
-
-/** Para los tests. */
-export function clearContentPullCache() {
-	cache.clear();
-	inflight.clear();
-}
-
-/** @type {Record<ContentPullStatus, {tone: 'info'|'warn'|'bad', title: string, text: string}>} */
-const ITEM = {
-	pendiente: {
-		tone: 'info',
-		title: 'Publicándose',
-		text: 'se publica solo cuando pasen las pruebas'
-	},
-	fallo: {
-		tone: 'bad',
-		title: 'No se publicó: falló una prueba del contenido',
-		text: 'revisá el PR o volvé a guardar con el error corregido'
-	},
-	conflicto: {
-		tone: 'bad',
-		title: 'No se publicó: choca con otro cambio',
-		text: 'alguien tiene que resolver el conflicto en GitHub'
-	},
-	abierto: {
-		tone: 'warn',
-		title: 'Guardado sin publicar',
-		text: 'no tiene el merge automático: hay que mergearlo en GitHub'
-	},
-	publicado: { tone: 'info', title: 'Publicado', text: '' },
-	cerrado: { tone: 'warn', title: 'Cerrado sin publicar', text: '' }
-};
-
-/**
- * Ítems de «Para revisar» del Inicio: los PRs de contenido abiertos, los con problemas primero.
- * @param {ContentPullInfo[]} pulls
- * @returns {import('./inicio.js').ReviewItem[]}
- */
-export function contentPullItems(pulls) {
-	const order = { fallo: 0, conflicto: 1, abierto: 2, pendiente: 3, publicado: 4, cerrado: 5 };
-	return [...pulls]
-		.sort((a, b) => order[a.status] - order[b.status])
-		.map((p) => {
-			const item = ITEM[p.status];
-			const what = p.title.replace(/^Contenido:\s*/, '');
-			return {
-				id: `pr-${p.number}`,
-				tone: item.tone,
-				icon: 'pr',
-				title: `${item.title}: ${what}`,
-				text: `PR #${p.number}${item.text ? ` · ${item.text}` : ''}`,
-				action: 'Ver el PR',
-				href: p.url
-			};
-		});
 }

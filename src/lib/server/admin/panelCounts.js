@@ -13,7 +13,7 @@ import {
 	reviewCount,
 	reviewEventContext,
 	reviewEventQueries,
-	reviewOutside,
+	reviewTagUsage,
 	reviewQueries,
 	reviewRows,
 	skipReviewEvent
@@ -34,8 +34,7 @@ import {
  *
  * @param {App.Platform | undefined} platform
  * @param {number} [now]
- * @param {{ locals?: App.Locals }} [opts] quién mira (los PRs de contenido van con su token; las
- *   etiquetas, con su login)
+ * @param {{ locals?: App.Locals }} [opts] quién mira (las etiquetas, como las ve en Etiquetas)
  * @returns {Promise<Record<string, number>>}
  */
 export async function panelCounts(platform, now = Date.now(), { locals } = {}) {
@@ -50,8 +49,8 @@ export async function panelCounts(platform, now = Date.now(), { locals } = {}) {
 		console.error('[admin] contador de no listadas:', error);
 		unlistedQuery = { what: '', fallback: null, statements: () => [], read: () => null };
 	}
-	// Lo que no está en la base de este pedido y la lista de eventos, a la par de la tanda.
-	const outside = reviewOutside({ locals });
+	// El uso de las etiquetas y la lista de eventos, a la par de la tanda.
+	const outside = reviewTagUsage();
 	const eventLists = Promise.all([listEvents(), listTicketedEvents()]).catch((error) => {
 		console.error('[admin] «Para revisar»: no se pudo leer la lista de eventos', error);
 		return /** @type {[import('$lib/server/eventos/index.js').EventSummary[], { slug: string, config: import('$lib/server/tickets/config.js').EventTickets }[]]} */ ([

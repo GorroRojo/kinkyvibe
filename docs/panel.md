@@ -130,10 +130,10 @@ revisar" del Inicio.
   filas de Etiquetas y del importador) y `reviewCount(rows)` es `rows.length`. La tarjeta del
   Inicio (`+page.server.js`) y el contador del menú (`panelCounts.js`, `review`) llaman a las dos con
   los mismos datos: `reviewQueries` (lo que no depende de los eventos), `reviewEventQueries` (lo que
-  depende de los eventos que vienen) y `reviewOutside` (los PRs de contenido de GitHub y el uso de
-  las etiquetas). Los tests `para-revisar.test.js` e `inicio-tanda.test.js` siembran casos y
+  depende de los eventos que vienen) y `reviewTagUsage` (el uso de las etiquetas). Nada de esto le
+  pide algo a GitHub. Los tests `para-revisar.test.js` e `inicio-tanda.test.js` siembran casos y
   comprueban que el botón dice lo mismo que la tarjeta.
-- **Las filas**: PRs de contenido que no se publicaron, «Transferencia» tildada sin datos para
+- **Las filas**: «Transferencia» tildada sin datos para
   transferir, transferencias por confirmar (una por evento), órdenes para revisar, mails que no
   salieron (hasta 20), cupos sobrevendidos, links de transmisión que faltan, recordatorios que no
   salieron o fallaron, el link que no le llegó a todes, eventos sin imagen y borradores (juntos si
@@ -141,8 +141,12 @@ revisar" del Inicio.
   (juntos si son 2 o más), **Etiquetas** («N cosas para revisar en Etiquetas»: sin declarar, fuera
   del árbol y referencias rotas, lo mismo que las pestañas de su tarjeta «Para revisar»; «Sin usar»
   no cuenta), **el importador de contenido** («N archivos .md para revisar en Contenido → En la
-  base», su lista «Para revisar»), PRs que se están publicando y el chequeo nocturno. Las de
-  Etiquetas y del importador llevan a su página, que sigue mostrando su lista.
+  base», su lista «Para revisar») y el chequeo nocturno. Las de Etiquetas y del importador llevan
+  a su página, que sigue mostrando su lista.
+- **Sin PRs de contenido** (gorrite, 9/10): el contenido vive solo en la base, así que los PRs
+  `contenido/*` de GitHub ya no son filas y ninguna página del panel los pide para esto. El estado
+  de un PR suelto (`contentPullStatus` en `src/lib/server/admin/contentPulls.js`) sigue para el
+  aviso «Guardado» del editor (`/admin/contenido/estado`) y para deshacer un borrado.
 - **El importador, desde lo guardado**: comparar cada .md del deploy con la base es demasiado para
   cada página. Contenido → En la base guarda lo que encontró cada vez que se abre (y después de
   importar, que la vuelve a cargar) en `review_snapshots` (migración 0047,
@@ -167,9 +171,7 @@ con lo que depende de ellos (totales, links, envíos fallidos, recordatorios). S
 consultas que el Inicio (`reviewQueries` y `reviewEventQueries` en `src/lib/server/admin/review.js`):
 consultas chicas, por índice, que devuelven pocas filas (una por evento, hasta 20 mails, hasta 50
 órdenes…). Fuera de las tandas y a la par: la lista de eventos y el uso de las etiquetas (los posts
-de la base, que el isolate recuerda mientras la base no cambie) y los PRs de contenido de GitHub
-(recordados un minuto por admin; el Inicio y el menú comparten la misma consulta; en dev y en los
-previews no se piden). Si una
+de la base, que el isolate recuerda mientras la base no cambie). Si una
 consulta de la tanda falla (por ejemplo, falta una migración), cada una se corre sola con su
 respaldo, como antes. Para sumar algo al Inicio: un `…Query` en `src/lib/server/admin/inicio.js`
 (ver `src/lib/server/db/batch.js`) y una línea en la tanda que corresponda; el test

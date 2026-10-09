@@ -6,7 +6,9 @@
  *
  * Lo único que cambió a propósito (decisión 0030, gorrite): «Para revisar» suma dos filas nuevas
  * (lo que Etiquetas tiene para revisar y la lista del importador de contenido), que el load de
- * antes no tenía (`NEW_ROWS`), y el contador `review` del menú es ahora la cantidad de filas de la
+ * antes no tenía (`NEW_ROWS`), y ya no lista los PRs de contenido de GitHub (el contenido vive solo
+ * en la base; el load de antes tampoco los traía en estas pruebas, con `usesLocalRepo` en true, así
+ * que se sacaron de él sin cambiar lo que da), y el contador `review` del menú es ahora la cantidad de filas de la
  * tarjeta (antes sumaba solo transferencias, órdenes, perfiles y eventos «Online» con lugar). Por
  * eso se compara todo lo demás con lo de antes y `review` con las filas de la tarjeta.
  * D1 de miniflare, datos inventados (example.com); los eventos, de mentira.
@@ -62,8 +64,7 @@ import { touchLastSeen } from '$lib/server/admin/lastSeen.js';
 import { countProfilesToReview, profilesToReview } from '$lib/server/admin/cuentas.js';
 import { countPendingClaims, listClaims } from '$lib/server/amigues/claims.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { listEvents, usesLocalRepo } from '$lib/server/eventos/index.js';
-import { contentPullItems, openContentPullStatuses } from '$lib/server/admin/contentPulls.js';
+import { listEvents } from '$lib/server/eventos/index.js';
 import { isTestEventSlug, listTicketedEvents } from '$lib/server/tickets/events.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { parseReminders } from '$lib/server/tickets/reminders.js';
@@ -157,13 +158,6 @@ async function oldLoad({ locals, url, platform, fetch, setHeaders }) {
 		expiringTransfers(db, now, agendaUntil),
 		// Lo que encontró el chequeo nocturno de integridad de los objetos (null si nada).
 		integrityRun(db),
-		// Cambios del panel que esperan las pruebas para publicarse, o que fallaron.
-		usesLocalRepo() || !locals.user_token
-			? Promise.resolve([])
-			: openContentPullStatuses(locals.user_token).catch((e) => {
-					console.log('Inicio: no se pudieron leer los PRs de contenido', e);
-					return [];
-				}),
 		// Perfiles creados por cuentas que ninguna admin revisó todavía (Perfiles).
 		profilesToReview(db),
 		// Pedidos "Es mi perfil" pendientes (docs/amigues.md). [] sin la migración 0017.
@@ -206,7 +200,6 @@ async function oldLoad({ locals, url, platform, fetch, setHeaders }) {
 			settings,
 			expiring,
 			integrity,
-			contentPulls,
 			newProfiles,
 			claims,
 			onlineMismatch
@@ -246,7 +239,6 @@ async function oldLoad({ locals, url, platform, fetch, setHeaders }) {
 		now,
 		skip
 	});
-	const pullItems = contentPullItems(contentPulls);
 	const todoItems = reviewItems({
 		upcoming,
 		transfers,
@@ -256,17 +248,14 @@ async function oldLoad({ locals, url, platform, fetch, setHeaders }) {
 		links: { transfers: transfersHref, order: orderHref, stream: streamHref, edit: editEventHref },
 		formatWhen: (ms) => whenLabel(ms, now)
 	});
-	// Los PRs de contenido que no se publicaron van primero; los que se están publicando, al final.
 	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
 	const onlineItem = onlineMismatchItem(onlineMismatch);
 	const todo = groupReviewItems(
 		[
-			...pullItems.filter((i) => i.tone !== 'info'),
 			...todoItems,
 			...(onlineItem ? [onlineItem] : []),
 			...profileReviewItems(newProfiles, { formatWhen: (ms) => whenLabel(ms, now) }),
-			...claimReviewItems(claims, { formatWhen: (ms) => whenLabel(ms, now) }),
-			...pullItems.filter((i) => i.tone === 'info')
+			...claimReviewItems(claims, { formatWhen: (ms) => whenLabel(ms, now) })
 		],
 		{ links: { noImage: '/admin/eventos?filtro=sin-imagen' } }
 	);
@@ -766,7 +755,6 @@ const fondoFetch = /** @type {typeof fetch} */ (
 function fakeEvent(platform) {
 	return /** @type {any} */ ({
 		url: new URL('https://kinkyvibe.ar/admin'),
-		// Sin PRs de contenido: `usesLocalRepo` da true.
 		locals: { user: admin, user_token: 'token-de-prueba' },
 		platform,
 		fetch: fondoFetch,

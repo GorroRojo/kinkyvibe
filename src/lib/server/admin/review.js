@@ -11,9 +11,10 @@
  * {@link reviewRows}, sobre los mismos datos:
  * - {@link reviewQueries}: lo que no depende de la lista de eventos (va en la primera tanda);
  * - {@link reviewEventQueries}: lo que depende de los eventos que vienen (en la segunda);
- * - {@link reviewOutside}: lo que no sale de esas tandas (los PRs de contenido de GitHub, con su
- *   caché, y el uso de las etiquetas en las publicaciones, que el isolate recuerda mientras la
- *   base no cambie).
+ * - {@link reviewTagUsage}: lo que no sale de esas tandas (el uso de las etiquetas en las
+ *   publicaciones, que el isolate recuerda mientras la base no cambie).
+ * Ninguna pide nada a GitHub: los PRs de contenido ya no son filas (el contenido vive solo en la
+ * base, decisión 0030).
  * La lista para revisar del importador de contenido no se calcula acá: sale de lo que guardó la
  * última vez su página (`review_snapshots`, ver ./reviewSnapshots.js).
  */
@@ -21,8 +22,6 @@ import { dev } from '$app/environment';
 import { rowsOf } from '$lib/server/db/batch.js';
 import { profilesToReviewQuery } from '$lib/server/admin/cuentas.js';
 import { listClaimsStatement, toAdminClaim } from '$lib/server/amigues/claims.js';
-import { usesLocalRepo } from '$lib/server/eventos/index.js';
-import { contentPullItems, openContentPullStatuses } from '$lib/server/admin/contentPulls.js';
 import { isTestEventSlug } from '$lib/server/tickets/events.js';
 import { transferReadyFromSettings } from '$lib/server/tickets/index.js';
 import { parseReminders } from '$lib/server/tickets/reminders.js';
@@ -194,28 +193,17 @@ export function reviewEventQueries({ soonTicketed, reminderEvents, settings, now
 }
 
 /**
- * Lo que no sale de las tandas: los PRs de contenido (GitHub, recordados un minuto; ninguno en dev
- * y en los previews) y cuánto se usa cada etiqueta en las publicaciones (lo que lee Etiquetas; las
- * publicaciones las recuerda el isolate mientras la base no cambie). Nunca falla.
+ * Lo que no sale de las tandas: cuánto se usa cada etiqueta en las publicaciones (lo que lee
+ * Etiquetas; las publicaciones las recuerda el isolate mientras la base no cambie). Nunca falla.
  *
- * @param {{ locals: App.Locals | undefined }} input
- * @returns {Promise<{ contentPulls: import('./contentPulls.js').ContentPullInfo[], tagUsage: Awaited<ReturnType<typeof tagUsageAndWiki>> | null }>}
+ * @returns {Promise<{ tagUsage: Awaited<ReturnType<typeof tagUsageAndWiki>> | null }>}
  */
-export async function reviewOutside({ locals }) {
-	const token = locals?.user_token;
-	const [contentPulls, tagUsage] = await Promise.all([
-		usesLocalRepo() || !token
-			? Promise.resolve([])
-			: openContentPullStatuses(token).catch((e) => {
-					console.log('Para revisar: no se pudieron leer los PRs de contenido', e);
-					return [];
-				}),
-		tagUsageAndWiki().catch((e) => {
-			console.error('[admin] «Para revisar»: no se pudo leer el uso de las etiquetas', e);
-			return null;
-		})
-	]);
-	return { contentPulls, tagUsage };
+export async function reviewTagUsage() {
+	const tagUsage = await tagUsageAndWiki().catch((e) => {
+		console.error('[admin] «Para revisar»: no se pudo leer el uso de las etiquetas', e);
+		return null;
+	});
+	return { tagUsage };
 }
 
 /**
@@ -299,7 +287,6 @@ export function importReviewItem(snapshot, { formatWhen } = {}) {
  *   newProfiles: Parameters<typeof profileReviewItems>[0],
  *   claims: Parameters<typeof claimReviewItems>[0],
  *   integrity: import('$lib/server/objects/integrity.js').IntegrityRun | null,
- *   contentPulls: import('./contentPulls.js').ContentPullInfo[],
  *   tagRecords: import('$lib/server/etiquetas/editor.js').StoredTag[] | null,
  *   tagUsage: Awaited<ReturnType<typeof tagUsageAndWiki>> | null,
  *   importCheck: ReviewSnapshot | null,
@@ -311,7 +298,6 @@ export function reviewRows(facts) {
 	const { upcoming, ticketed, settings, transfers, unsent, review, titles, now } = facts;
 	/** @param {number} ms */
 	const formatWhen = (ms) => whenLabel(ms, now);
-	const pullItems = contentPullItems(facts.contentPulls);
 	const todoItems = reviewItems({
 		upcoming,
 		transfers,
@@ -331,19 +317,16 @@ export function reviewRows(facts) {
 	const onlineItem = onlineMismatchItem(facts.onlineMismatch);
 	const tagItem = tagReviewItem(tagIssuesOf(facts.tagRecords, facts.tagUsage));
 	const importItem = importReviewItem(facts.importCheck, { formatWhen });
-	// Los PRs de contenido que no se publicaron van primero; los que se están publicando, al final.
 	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
 	const rows = groupReviewItems(
 		[
-			...pullItems.filter((i) => i.tone !== 'info'),
 			...(transferMissing ? [transferMissing] : []),
 			...todoItems,
 			...(onlineItem ? [onlineItem] : []),
 			...profileReviewItems(facts.newProfiles, { formatWhen }),
 			...claimReviewItems(facts.claims, { formatWhen }),
 			...(tagItem ? [tagItem] : []),
-			...(importItem ? [importItem] : []),
-			...pullItems.filter((i) => i.tone === 'info')
+			...(importItem ? [importItem] : [])
 		],
 		{ links: { noImage: NO_IMAGE_HREF } }
 	);

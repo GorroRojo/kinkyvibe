@@ -24,7 +24,7 @@ import {
 	noQuery,
 	reviewEventContext,
 	reviewEventQueries,
-	reviewOutside,
+	reviewTagUsage,
 	reviewQueries,
 	reviewRows,
 	skipReviewEvent
@@ -62,9 +62,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	});
 	const others = Promise.all([
 		resolveFondoMonth({ db, fetch, now }),
-		// Los PRs de contenido (que esperan las pruebas o que fallaron) y lo que Etiquetas tiene
-		// para revisar.
-		reviewOutside({ locals })
+		// El uso de las etiquetas (para lo que Etiquetas tiene para revisar).
+		reviewTagUsage()
 	]);
 	// Sin que quede un rechazo sin atender si la lista de eventos falla antes de esperarlos.
 	first.catch(() => {});
@@ -83,7 +82,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	// su tendencia va en la segunda tanda, con los totales.
 	const focusSlugs = salesFocusSlugs(upcomingEvents({ events, ticketed, now, skip }));
 
-	// fondo.kinkyvibe.ar y los PRs de GitHub no frenan la segunda tanda: se esperan al final.
+	// fondo.kinkyvibe.ar y el uso de las etiquetas no frenan la segunda tanda: se esperan al final.
 	const s1 = await first;
 	const reminderList = s1.settings ? parseReminders(s1.settings.reminders) : [];
 	// Segunda: lo que depende de la lista de eventos o de la primera tanda (la última visita, los

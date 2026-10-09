@@ -21,6 +21,9 @@ La auditoría de unificación del panel (9/10) encontró dos cosas:
 - **El botón «Para revisar» cuenta cada fila de la tarjeta.** Una fila cuenta 1, también la que
   junta varias cosas («3 transferencias esperando confirmación» de un evento, «4 eventos sin
   imagen», el chequeo nocturno): es lo que se ve. La tarjeta y el botón salen de la misma función.
+- Los PRs de contenido de GitHub dejan de ser filas de «Para revisar» (gorrite, 9/10): el
+  contenido vive solo en la base, así que esos PRs ya no existen. Ni la tarjeta ni el botón le
+  piden nada a GitHub.
 - Etiquetas (sin declarar, fuera del árbol, referencias rotas) y la lista para revisar del
   importador de contenido son una fila más de «Para revisar», con link a su página. Sus páginas
   siguen con su lista.
@@ -39,11 +42,12 @@ La auditoría de unificación del panel (9/10) encontró dos cosas:
 ## Consecuencias
 
 - El contador del menú hace las mismas consultas de «Para revisar» que el Inicio (dos tandas; la
-  segunda solo si hay eventos con entradas que vienen). La lista del importador no se puede contar
+  segunda solo si hay eventos con entradas que vienen). Sin llamadas a GitHub. La lista del importador no se puede contar
   en cada página: su página guarda lo que encontró (`review_snapshots`, migración 0047) y la fila
   dice cuándo se revisó.
 - Ver docs/panel.md («Para revisar» y «Recuperar»).
 
 ## Cómo va
 
-- En la rama `claude/unificar-panel`: «Para revisar» (primer commit) y «Recuperar» (segundo).
+- En la rama `claude/unificar-panel`: «Para revisar» (primer commit), «Recuperar» (segundo) y
+  sin PRs de contenido en «Para revisar» (tercero).
