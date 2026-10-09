@@ -59,6 +59,8 @@ Detalles de `e2e`:
 
 `npm run lint` es solo ESLint: **no** revisa el formato de Prettier, y la CI tampoco. Para eso,
 `npm run format:check` (todo el repo) o `npx prettier --check docs` (solo la documentación).
+La configuración está en `eslint.config.js` (formato plano; las rutas ignoradas también van ahí,
+ya no hay `.eslintrc` ni `.eslintignore`).
 
 ## Los tipos de pruebas
 
