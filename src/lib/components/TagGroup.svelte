@@ -100,14 +100,31 @@
 		padding: 0;
 		max-width: 100%;
 	}
+	/* Cada chip conserva su forma de píldora de una línea: no se estira al alto de la fila (si al
+	   lado hay un grupo abierto) ni se achica para partir el texto. Pasa entero a la fila de abajo;
+	   el texto solo se parte si el chip solo ya no entra en el ancho. */
 	li {
 		list-style: none;
 		display: flex;
-		min-width: 0;
+		align-items: flex-start;
+		flex: none;
+		max-width: 100%;
+	}
+	li :global(.kv-tag) {
+		white-space: normal;
+	}
+	/* Una hija con sus propias hijas abiertas (ella o alguna de abajo tildada) ocupa la fila
+	   entera: su chip arriba y sus hijas debajo, con sangría y la línea de color, igual debajo de
+	   cada madre (una etiqueta puede estar en dos ramas, p. ej. bondage e implementos). Así no
+	   deja a las vecinas desparejas ni parece que sus hijas son de la madre de arriba. El grupo de
+	   adentro es otro TagGroup (svelte:self): Svelte no lo ve, por eso va en :global(). */
+	li:has(> :global(.filtergroup :checked)) {
+		flex-basis: 100%;
 	}
 	.groupitems {
 		display: none;
 		flex-wrap: wrap;
+		align-items: flex-start;
 		gap: var(--space-3xs);
 		margin-block-start: var(--space-3xs);
 		padding-inline-start: var(--space-2xs);

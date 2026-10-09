@@ -243,7 +243,8 @@
 	.tag-group-container {
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
+		/* arriba, no centrado: al lado de un grupo abierto, el chip queda en la línea de su madre */
+		justify-content: flex-start;
 		max-width: 100%;
 	}
 	@container (min-width: 1300px) {
