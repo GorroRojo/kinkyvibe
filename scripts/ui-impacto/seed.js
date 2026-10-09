@@ -70,7 +70,8 @@ if (has('src/lib/server/demo/seed.js') && has('scripts/local-d1.js')) {
 	if (typeof seed.reloadDemoData === 'function') {
 		const { db, dispose } = await openDB();
 		try {
-			const result = await seed.reloadDemoData(db, { now: ctx.now });
+			// Base local y sin `fetch`: solo los eventos inventados (las capturas no dependen de la red).
+			const result = await seed.reloadDemoData(db, { where: 'local', now: ctx.now });
 			ctx.today = result.today;
 			ctx.tonight = result.tonight?.slug ?? null;
 			/** @type {{ slug: string, series: string, offset: number, start: string | number, end?: string | number }[]} */

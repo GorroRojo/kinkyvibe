@@ -7,7 +7,7 @@ import * as github from './github.js';
 import { isAdmin } from '$lib/server/auth';
 import { PREVIEW_BUILD } from '$lib/server/deploy.js';
 import { parseEventDate, isNumericFeatured, AR_OFFSET } from '$lib/utils/eventDraft.js';
-import { isMediaPath } from '$lib/utils/media.js';
+import { isMediaPath, isPublicMediaUrl } from '$lib/utils/media.js';
 
 import { POSTS_DIR } from './images.js';
 
@@ -104,7 +104,7 @@ const FORMATS = ['jpeg', 'jfif', 'jpg', 'png', 'webp'];
  */
 export function featuredURL(slug, featured) {
 	if (featured === undefined || featured === null || featured === '') return undefined;
-	if (isMediaPath(featured)) return String(featured);
+	if (isMediaPath(featured) || isPublicMediaUrl(featured)) return String(featured);
 	if (isNumericFeatured(featured)) {
 		for (const f of FORMATS) {
 			const url = mediaFiles[`/src/lib/posts/calendario/media/${slug}/${featured}.${f}`];

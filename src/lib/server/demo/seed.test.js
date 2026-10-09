@@ -154,8 +154,11 @@ describe('demo seed', () => {
 		for (const e of data.events) {
 			const meta = parse(splitMarkdown(eventMarkdown(e)).frontmatter);
 			expect(validateEventTags(meta.tags)).toEqual([]);
-			expect(parseTicketConfig(meta, { fondoPercent: 20 })).not.toBeNull();
+			// A workshop part sells nothing: its ticket is the workshop's (docs/talleres-partes.md).
+			if (e.partOf) expect(parseTicketConfig(meta, { fondoPercent: 20 })).toBeNull();
+			else expect(parseTicketConfig(meta, { fondoPercent: 20 })).not.toBeNull();
 		}
+		expect(data.events.filter((e) => e.partOf)).toHaveLength(1);
 	});
 });
 
@@ -347,7 +350,7 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 	it('keeps everything else and gives the same result every time', async () => {
 		const day1 = Date.parse('2026-10-01T15:00:00Z');
 		// A first load, so that there are "previous demo data" to wipe.
-		await reloadDemoData(t.db, { now: day1 - 3 * DAY });
+		await reloadDemoData(t.db, { where: 'local', now: day1 - 3 * DAY });
 
 		// Rows that are not demo data (must survive), and rows made "in the demo" on demo events
 		// (must go).
@@ -439,21 +442,22 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 			})
 		]);
 
-		const r1 = await reloadDemoData(t.db, { now: day1 });
+		const r1 = await reloadDemoData(t.db, { where: 'local', now: day1 });
 		const first = await snapshot();
 		expect(r1.skipped).toEqual([]);
-		// 17 + «Fiesta con preventas (demo)» (Noche 3 · C, #134).
-		expect(r1.events).toBe(18);
+		// 17 + «Fiesta con preventas (demo)» (Noche 3 · C, #134) + the cancelled party and the
+		// second part of the past workshop (edge cases kept even with copies of real events).
+		expect(r1.events).toBe(20);
 		expect(r1.tonight?.slug).toBe('demo-noche-latex-2026-10-01');
 		expect(r1.orders).toBe(first.orders - 1); // all but the real one
 		expect(r1.pendingTransfers).toBeGreaterThan(0);
 
 		// Idempotent: reloading gives exactly the same tables.
-		await reloadDemoData(t.db, { now: day1 });
+		await reloadDemoData(t.db, { where: 'local', now: day1 });
 		expect(await snapshot()).toEqual(first);
 
 		// Another day: same amount of data, now around the new "today".
-		const r2 = await reloadDemoData(t.db, { now: day1 + DAY });
+		const r2 = await reloadDemoData(t.db, { where: 'local', now: day1 + DAY });
 		expect(await snapshot()).toEqual(first);
 		expect(r2.tonight?.slug).toBe('demo-noche-latex-2026-10-02');
 		expect(await count("orders WHERE event_slug = 'demo-noche-latex-2026-10-01'")).toBe(0);
@@ -461,7 +465,7 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 			20
 		);
 		// The events are objects (reused from one day to the next), not .md in the demo layer.
-		expect(r2.eventObjects).toBe(18);
+		expect(r2.eventObjects).toBe(20);
 		expect(
 			await count(
 				"objects WHERE type = 'evento' AND slug = 'demo-noche-latex-2026-10-02' AND deleted_at IS NULL"
@@ -525,11 +529,11 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 		]);
 		// «Sucede en» is the event's `lugar` edge (migration 0035): the seed writes the demo events
 		// as objects, with the venue on the next date of each venue's series.
-		const r = await reloadDemoData(t.db, { now: day1 });
+		const r = await reloadDemoData(t.db, { where: 'local', now: day1 });
 		expect(r.skipped).toEqual([]);
 		expect(r.venuesLinked).toBe(DEMO_VENUES.length);
 		const again = await snapshot();
-		await reloadDemoData(t.db, { now: day1 });
+		await reloadDemoData(t.db, { where: 'local', now: day1 });
 		expect(await snapshot()).toEqual(again);
 		expect(await count("tips WHERE mp_preference_id = 'pref-real'")).toBe(1);
 		expect(await count("signup_fields WHERE label = 'Pregunta real'")).toBe(1);
@@ -637,7 +641,10 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 		const bare = await createTestDB();
 		try {
 			await bare.db.prepare('DROP TABLE IF EXISTS admin_audit').run();
-			const r = await reloadDemoData(bare.db, { now: Date.parse('2026-10-01T15:00:00Z') });
+			const r = await reloadDemoData(bare.db, {
+				where: 'local',
+				now: Date.parse('2026-10-01T15:00:00Z')
+			});
 			expect(r.skipped).toContain('admin_audit');
 			expect(r.orders).toBeGreaterThan(100);
 		} finally {
@@ -734,16 +741,16 @@ describe('demo events as objects (D1): reused from one day to the next', () => {
 		);
 		const realBefore = await rowOf(real.id);
 
-		const r1 = await reloadDemoData(t.db, { now: day1 });
-		expect(r1.eventObjects).toBe(18);
+		const r1 = await reloadDemoData(t.db, { where: 'local', now: day1 });
+		expect(r1.eventObjects).toBe(20);
 		expect(r1.eventsSkipped).toEqual([]);
 		expect(r1.venuesLinked).toBe(DEMO_VENUES.length);
 		const first = await counts();
 		expect(first["edges WHERE kind = 'persona'"]).toBeGreaterThan(0);
 		const ids = await slotIds();
-		expect(Object.keys(ids)).toHaveLength(18);
+		expect(Object.keys(ids)).toHaveLength(20);
 		const revisions1 = await count("object_revisions WHERE source = 'demo'");
-		expect(revisions1).toBe(18);
+		expect(revisions1).toBe(20);
 
 		// The public list reader shows them (the draft, unlisted).
 		const s1 = await listedSlugs(day1);
@@ -754,8 +761,8 @@ describe('demo events as objects (D1): reused from one day to the next', () => {
 
 		// Another day, and a month later (each date of a series takes the slug another one had).
 		for (const at of [day1 + DAY, day1 + 28 * DAY, day1 + 29 * DAY]) {
-			const r = await reloadDemoData(t.db, { now: at });
-			expect(r.eventObjects).toBe(18);
+			const r = await reloadDemoData(t.db, { where: 'local', now: at });
+			expect(r.eventObjects).toBe(20);
 			expect(r.eventsSkipped).toEqual([]);
 			expect(r.venuesLinked).toBe(DEMO_VENUES.length);
 			expect(await counts()).toEqual(first);
@@ -778,7 +785,7 @@ describe('demo events as objects (D1): reused from one day to the next', () => {
 			});
 		}
 		// One revision per event and reload (the history is never pruned).
-		expect(await count("object_revisions WHERE source = 'demo'")).toBe(18 * 4);
+		expect(await count("object_revisions WHERE source = 'demo'")).toBe(20 * 4);
 		// Venues: one `lugar` edge per demo venue, on the next date of its series.
 		expect(
 			await count(`edges WHERE kind = 'lugar'
@@ -821,14 +828,14 @@ describe('demo events as objects (D1): reused from one day to the next', () => {
 				.run();
 			const otherBefore = await rowOf(other.id);
 
-			const r1 = await reloadDemoData(t.db, { now: day1 });
+			const r1 = await reloadDemoData(t.db, { where: 'local', now: day1 });
 			// The imported ones became the demo events of their dates (same objects).
 			const ids = await slotIds();
 			expect(latex.map((e) => ids[e.slot])).toEqual(importedIds);
 			expect(await count(`content_sources WHERE object_id IN (${importedIds.join(', ')})`)).toBe(0);
 			// The other event is never touched: that demo date is skipped.
 			expect(r1.eventsSkipped).toEqual([munch.slug]);
-			expect(r1.eventObjects).toBe(17);
+			expect(r1.eventObjects).toBe(19);
 			expect(await rowOf(other.id)).toEqual(otherBefore);
 			expect(await count(`content_sources WHERE object_id = ${other.id}`)).toBe(1);
 
@@ -841,9 +848,9 @@ describe('demo events as objects (D1): reused from one day to the next', () => {
 			const created = again.results.filter((r) => r.action === 'created');
 			expect(created).toHaveLength(1);
 			const stale = Number(created[0].objectId);
-			const r2 = await reloadDemoData(t.db, { now: at });
+			const r2 = await reloadDemoData(t.db, { where: 'local', now: at });
 			expect(r2.eventsSkipped).toEqual([]);
-			expect(r2.eventObjects).toBe(18);
+			expect(r2.eventObjects).toBe(20);
 			const gone = /** @type {any} */ (await rowOf(stale));
 			expect(gone.deleted_at).not.toBeNull();
 			expect(gone.slug).not.toBe(created[0].slug);
@@ -855,7 +862,7 @@ describe('demo events as objects (D1): reused from one day to the next', () => {
 
 			// From then on, nothing else changes in size.
 			const settled = await counts();
-			await reloadDemoData(t.db, { now: at + DAY });
+			await reloadDemoData(t.db, { where: 'local', now: at + DAY });
 			expect(await counts()).toEqual(settled);
 		} finally {
 			t = prev;
@@ -891,7 +898,7 @@ describe('reloadDemoData (D1): the purchase of «Persona con entradas» survives
 		expect(before).toHaveLength(1);
 
 		const day1 = Date.parse('2026-10-01T15:00:00Z');
-		const r1 = await reloadDemoData(t.db, { now: day1 });
+		const r1 = await reloadDemoData(t.db, { where: 'local', now: day1 });
 		// Before the fix the reset of the `demo-*` orders wiped it: «Todavía no hay compras».
 		const after = await ordersForAccount(t.db, persona.id);
 		expect(after).toHaveLength(1);
@@ -908,7 +915,7 @@ describe('reloadDemoData (D1): the purchase of «Persona con entradas» survives
 		expect(Number(/** @type {any} */ (tickets).n)).toBe(1);
 
 		// Another reload (and another day): still exactly one, around the new "today".
-		const r2 = await reloadDemoData(t.db, { now: day1 + DAY });
+		const r2 = await reloadDemoData(t.db, { where: 'local', now: day1 + DAY });
 		const again = await ordersForAccount(t.db, persona.id);
 		expect(again).toHaveLength(1);
 		expect(again[0].event_slug).toBe(r2.tonight?.slug);
@@ -926,7 +933,7 @@ describe('reloadDemoData (D1): the purchase of «Persona con entradas» survives
 			)
 			.bind(persona.id)
 			.run();
-		await reloadDemoData(t.db, { now: Date.parse('2026-10-03T15:00:00Z') });
+		await reloadDemoData(t.db, { where: 'local', now: Date.parse('2026-10-03T15:00:00Z') });
 		expect(await ordersForAccount(t.db, persona.id)).toHaveLength(0);
 	}, 60000);
 });

@@ -44,6 +44,11 @@
 			<span role="status" class="result">
 				Listo: {result.events} eventos, {result.orders} órdenes, {result.tickets} entradas ({result.checkedIn}
 				con ingreso), {result.pendingTransfers} transferencias por confirmar.
+				{#if result.realEvents?.copied}
+					Más {result.realEvents.copied} copias de eventos de kinkyvibe.ar («copia de producción»).
+				{:else if result.realEvents}
+					Sin copias de eventos reales: {result.realEvents.fallback}.
+				{/if}
 			</span>
 		{:else if state === 'error'}
 			<span role="alert" class="result">No se pudo: {message}</span>
