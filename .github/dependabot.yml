@@ -1,0 +1,40 @@
+# Dependabot: actualizaciones de dependencias agrupadas (docs/pruebas-y-ci.md).
+#
+# - npm: un solo PR por semana con todas las actualizaciones minor y patch, y otro con las de
+#   seguridad. Cada salto de major (SvelteKit 3, ESLint 9...) llega en su propio PR, aparte, para
+#   revisarlo con calma; si se posterga, comentar `@dependabot ignore this major version` en el PR.
+#   No hay `ignore` de majors a propósito: también taparía las alertas de seguridad que lo pidan.
+# - github-actions: un solo PR por semana con todas las actions de los workflows.
+#
+# Los PRs de Dependabot pasan por la misma CI que cualquier otro y, como todos, se mergean solo con
+# la aprobación de gorrite.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Argentina/Buenos_Aires
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        applies-to: version-updates
+        patterns: ['*']
+        update-types: [minor, patch]
+      npm-security:
+        applies-to: security-updates
+        patterns: ['*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Argentina/Buenos_Aires
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns: ['*']
