@@ -1,8 +1,7 @@
 import { fail } from '@sveltejs/kit';
-import { dev } from '$app/environment';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
-import { rowsOf, runQueries } from '$lib/server/db/batch.js';
+import { runQueries } from '$lib/server/db/batch.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import {
 	AGENDA_DAYS,
@@ -11,60 +10,34 @@ import {
 	arDay,
 	arDayStart,
 	checkinTotalsQuery,
-	claimReviewItems,
 	eventSalesTrendQuery,
 	expiringTransfersQuery,
-	failedRemindersQuery,
-	groupReviewItems,
-	integrityReviewRow,
-	integrityRunQuery,
 	monthMoneyQuery,
-	onlineMismatchCountQuery,
-	onlineMismatchItem,
-	pendingTransfersQuery,
-	profileReviewItems,
 	recentActivityRowsQuery,
-	reviewItems,
-	reviewOrdersQuery,
 	salesFocus,
 	salesFocusSlugs,
 	salesSummary,
 	sinceLastVisitQuery,
-	streamLinkSlugsQuery,
-	stuckSendsQuery,
-	ticketTotalsQuery,
-	transferMissingItem,
-	unsentEmailsQuery,
-	upcomingEvents,
-	whenLabel
+	upcomingEvents
 } from '$lib/server/admin/inicio.js';
-import { markSeen, touchLastSeenQuery } from '$lib/server/admin/lastSeen.js';
-import { profilesToReviewQuery } from '$lib/server/admin/cuentas.js';
-import { listClaimsStatement, toAdminClaim } from '$lib/server/amigues/claims.js';
-import { listEvents, usesLocalRepo } from '$lib/server/eventos/index.js';
-import { contentPullItems, openContentPullStatuses } from '$lib/server/admin/contentPulls.js';
-import { isTestEventSlug, listTicketedEvents } from '$lib/server/tickets/events.js';
-import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import {
-	sendOrderEmail,
-	siteOrigin,
-	transferReadyFromSettings
-} from '$lib/server/tickets/index.js';
+	noQuery,
+	reviewEventContext,
+	reviewEventQueries,
+	reviewOutside,
+	reviewQueries,
+	reviewRows,
+	skipReviewEvent
+} from '$lib/server/admin/review.js';
+import { markSeen, touchLastSeenQuery } from '$lib/server/admin/lastSeen.js';
+import { listEvents } from '$lib/server/eventos/index.js';
+import { listTicketedEvents } from '$lib/server/tickets/events.js';
+import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
+import { sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { getOrder } from '$lib/server/tickets/orders.js';
 import { parseReminders, retryFailedReminders } from '$lib/server/tickets/reminders.js';
-import {
-	getSalesSettings,
-	readSalesSettings,
-	salesSettingsStatement
-} from '$lib/server/tickets/settings.js';
 import { orderReference } from '$lib/utils/tickets.js';
-import {
-	editEventHref,
-	eventLink,
-	orderHref,
-	streamHref,
-	transfersHref
-} from '$lib/admin/links.js';
+import { eventLink, orderHref, transfersHref } from '$lib/admin/links.js';
 import { navItem, navLink } from '$lib/admin/nav.js';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -77,58 +50,34 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 
 	const agendaUntil = arDayStart(now) + AGENDA_DAYS * 24 * 60 * 60 * 1000;
 	// Dos idas a la base (dos tandas, ver $lib/server/db/batch.js) en vez de una por consulta.
-	// Primera: todo lo que no depende de la lista de eventos, a la par de leerla.
+	// Primera: todo lo que no depende de la lista de eventos, a la par de leerla. Lo de «Para
+	// revisar» sale de review.js: las mismas consultas que cuenta el botón del menú.
 	const first = runQueries(db, {
-		transfers: pendingTransfersQuery(now),
-		review: reviewOrdersQuery(),
-		unsent: unsentEmailsQuery(now),
+		...reviewQueries(now, { login: user.login }),
 		money: monthMoneyQuery(now),
 		seen: touchLastSeenQuery(user.id, now),
-		settings: salesSettingsQuery(),
 		expiring: expiringTransfersQuery(now, agendaUntil),
-		// Lo que encontró el chequeo nocturno de integridad de los objetos (null si nada).
-		integrity: integrityRunQuery(),
-		// Perfiles creados por cuentas que ninguna admin revisó todavía (Perfiles).
-		newProfiles: profilesToReviewQuery(),
-		// Pedidos "Es mi perfil" pendientes (docs/amigues.md). [] sin la migración 0017.
-		claims: claimsQuery(),
-		// Eventos con la etiqueta «Online» y además un lugar (los que vienen y los del último mes).
-		onlineMismatch: onlineMismatchCountQuery(now),
 		// Las filas: los títulos de los eventos se ponen después, con la lista de eventos.
 		activity: recentActivityRowsQuery({ limit: 10 })
 	});
 	const others = Promise.all([
 		resolveFondoMonth({ db, fetch, now }),
-		// Cambios del panel que esperan las pruebas para publicarse, o que fallaron.
-		usesLocalRepo() || !locals.user_token
-			? Promise.resolve([])
-			: openContentPullStatuses(locals.user_token).catch((e) => {
-					console.log('Inicio: no se pudieron leer los PRs de contenido', e);
-					return [];
-				})
+		// Los PRs de contenido (que esperan las pruebas o que fallaron) y lo que Etiquetas tiene
+		// para revisar.
+		reviewOutside({ locals })
 	]);
 	// Sin que quede un rechazo sin atender si la lista de eventos falla antes de esperarlos.
 	first.catch(() => {});
 	others.catch(() => {});
 
 	const [events, ticketedList] = await Promise.all([listEvents(), listTicketedEvents()]);
-	const ticketed = new Map(ticketedList.map((t) => [t.slug, t.config]));
-	const titles = new Map(events.map((e) => [e.slug, e.title]));
 	// Los eventos de prueba del repo solo existen en `vite dev`.
-	/** @param {string} slug */
-	const skip = (slug) => !dev && isTestEventSlug(slug);
-	const today = arDay(now);
-	const soonSlugs = events
-		.filter((e) => !e.unpublished && e.start && arDay(e.start) >= today && !skip(e.slug))
-		.map((e) => e.slug);
-	const soonTicketed = soonSlugs.filter((s) => ticketed.has(s));
-
-	const reminderEvents = soonTicketed.flatMap((slug) => {
-		const c = ticketed.get(slug);
-		const start = c?.start ? Date.parse(c.start) : NaN;
-		return c && Number.isFinite(start)
-			? [{ slug, start, reminders: c.reminders, cancelled: c.status === 'cancelado' }]
-			: [];
+	const skip = skipReviewEvent;
+	const { ticketed, titles, today, soonTicketed, reminderEvents } = reviewEventContext({
+		events,
+		ticketedList,
+		now,
+		skip
 	});
 	// El bloque de ventas elige su evento con los totales, pero los que puede elegir se saben ya:
 	// su tendencia va en la segunda tanda, con los totales.
@@ -140,15 +89,10 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	// Segunda: lo que depende de la lista de eventos o de la primera tanda (la última visita, los
 	// ajustes de los recordatorios).
 	const s2 = await runQueries(db, {
-		totals: ticketTotalsQuery(soonTicketed, now),
+		...reviewEventQueries({ soonTicketed, reminderEvents, settings: s1.settings, now }),
 		checkins: checkinTotalsQuery(
 			soonTicketed.filter((s) => arDay(ticketed.get(s)?.start ?? '') === today)
 		),
-		streamLinks: streamLinkSlugsQuery(soonTicketed),
-		stuck: stuckSendsQuery(soonTicketed),
-		reminders: s1.settings
-			? failedRemindersQuery({ events: reminderEvents, reminders: reminderList, now })
-			: noQuery(new Map()),
 		since: s1.seen
 			? sinceLastVisitQuery({ since: s1.seen.since, login: user.login, titles })
 			: noQuery(null),
@@ -157,19 +101,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		)
 	});
 	const { totals, checkins, streamLinks, stuck, reminders, since } = s2;
-	const {
-		transfers,
-		review,
-		unsent,
-		money,
-		seen,
-		expiring,
-		integrity,
-		newProfiles,
-		claims,
-		onlineMismatch
-	} = s1;
-	const [fondo, contentPulls] = await others;
+	const { transfers, review, money, seen, expiring } = s1;
+	const [fondo, outside] = await others;
 
 	const upcoming = upcomingEvents({
 		events,
@@ -184,41 +117,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		now,
 		skip
 	});
-	const pullItems = contentPullItems(contentPulls);
-	const todoItems = reviewItems({
-		upcoming,
-		transfers,
-		unsent,
-		review,
-		titles,
-		links: { transfers: transfersHref, order: orderHref, stream: streamHref, edit: editEventHref },
-		formatWhen: (ms) => whenLabel(ms, now)
-	});
-	// Los PRs de contenido que no se publicaron van primero; los que se están publicando, al final.
-	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
-	// Un evento ofrece transferencia y no hay datos para transferir: la compra no la muestra.
-	const transferMissing = transferMissingItem({
-		upcoming,
-		ticketed,
-		transferReady: transferReadyFromSettings(s1.settings)
-	});
-	// Eventos con lugar y etiqueta «Online»: una fila que lleva a esa lista de Eventos.
-	const onlineItem = onlineMismatchItem(onlineMismatch);
-	const todo = groupReviewItems(
-		[
-			...pullItems.filter((i) => i.tone !== 'info'),
-			...(transferMissing ? [transferMissing] : []),
-			...todoItems,
-			...(onlineItem ? [onlineItem] : []),
-			...profileReviewItems(newProfiles, { formatWhen: (ms) => whenLabel(ms, now) }),
-			...claimReviewItems(claims, { formatWhen: (ms) => whenLabel(ms, now) }),
-			...pullItems.filter((i) => i.tone === 'info')
-		],
-		{ links: { noImage: '/admin/eventos?filtro=sin-imagen' } }
-	);
-	// El chequeo nocturno de los datos, en una sola fila que se despliega (solo si encontró algo).
-	const integrityRow = integrityReviewRow(integrity, { formatWhen: (ms) => whenLabel(ms, now) });
-	if (integrityRow) todo.push(integrityRow);
+	// «Para revisar»: las mismas filas que cuenta el botón del menú (panelCounts.js).
+	const todo = reviewRows({ ...s1, ...outside, upcoming, ticketed, titles, now });
 
 	// Los recordatorios se configuran en Ajustes → Mails y plantillas.
 	const remindersItem = navItem('ajustes-mails');
@@ -259,44 +159,6 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		fondo,
 		activity: activityItems(s1.activity, { limit: 10, titles }),
 		since: since ? { ...since, first: seen?.first ?? false } : null
-	};
-}
-
-/**
- * Lugar vacío en una tanda: no va a la base y da `value`.
- * @template T
- * @param {T} value
- * @returns {import('$lib/server/db/batch.js').BatchQuery<T>}
- */
-function noQuery(value) {
-	return { what: '', fallback: value, statements: () => [], read: () => value };
-}
-
-/**
- * Los ajustes de la venta (para los recordatorios y para saber si hay datos para transferir). `null` si fallan; sin la tabla, los de las
- * variables de entorno (como `getSalesSettings`).
- * @returns {import('$lib/server/db/batch.js').BatchQuery<Awaited<ReturnType<typeof getSalesSettings>> | null>}
- */
-function salesSettingsQuery() {
-	return {
-		what: 'inicio: ajustes de la venta',
-		fallback: null,
-		statements: (db) => [salesSettingsStatement(db)],
-		read: (results) => readSalesSettings(rowsOf(results)),
-		alone: getSalesSettings
-	};
-}
-
-/**
- * Los pedidos "Es mi perfil" pendientes; `[]` si falla (sin la migración 0017).
- * @returns {import('$lib/server/db/batch.js').BatchQuery<import('$lib/server/amigues/claims.js').AdminClaim[]>}
- */
-function claimsQuery() {
-	return {
-		what: 'inicio: pedidos "Es mi perfil"',
-		fallback: [],
-		statements: (db) => [listClaimsStatement(db)],
-		read: (results) => rowsOf(results).map(toAdminClaim)
 	};
 }
 

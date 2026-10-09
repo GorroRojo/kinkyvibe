@@ -197,9 +197,10 @@ export const REVIEW_LINK = Object.freeze({
 });
 
 /**
- * Cuántas cosas hay "Para revisar": la ÚNICA cuenta, la del botón global (barra de arriba y
- * header del celu) y la del Inicio ("N cosas para revisar" y la tarjeta). Sale de
- * `data.panelCounts` (`panelCounts.js`), así los dos números no pueden ser distintos.
+ * Cuántas cosas hay "Para revisar" en el botón global (barra de arriba y header del celu): las
+ * filas de la tarjeta "Para revisar" del Inicio, cada una cuenta 1. Sale de `data.panelCounts`
+ * (`panelCounts.js`), que arma las filas con la misma función que la tarjeta (`reviewRows` en
+ * src/lib/server/admin/review.js, decisión 0030).
  * @param {Record<string, number> | null | undefined} counts `data.panelCounts`
  * @returns {number}
  */

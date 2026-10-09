@@ -23,8 +23,12 @@ async function navFlags(platform) {
 /** @type {import('./$types').LayoutServerLoad} */
 export async function load({ locals, url, platform, untrack }) {
 	// El layout de (authed) ya controla, pero los loads corren en paralelo: se controla acá también.
-	// `untrack` para que los contadores no se recalculen en cada cambio de página.
+	// `untrack` para que los contadores no se recalculen en cada cambio de página (sí después de
+	// cada acción del panel, que vuelve a pedir los datos: el número de «Para revisar» se actualiza).
 	untrack(() => requireAdmin(locals, url));
-	const [counts, flags] = await Promise.all([panelCounts(platform), navFlags(platform)]);
+	const [counts, flags] = await Promise.all([
+		panelCounts(platform, Date.now(), { locals }),
+		navFlags(platform)
+	]);
 	return { panelCounts: counts, navFlags: flags };
 }

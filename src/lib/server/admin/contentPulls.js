@@ -81,6 +81,12 @@ export async function contentPullStatus(token, number) {
 const CACHE_MS = 60 * 1000;
 /** @type {Map<string, {at: number, list: ContentPullInfo[]}>} */
 const cache = new Map();
+/**
+ * La consulta en curso por token: el Inicio y el contador del menú («Para revisar») la piden a la
+ * vez en el mismo pedido; así va una sola a GitHub.
+ * @type {Map<string, Promise<ContentPullInfo[]>>}
+ */
+const inflight = new Map();
 
 /**
  * PRs de contenido abiertos, del más nuevo al más viejo (cache de un minuto por token).
@@ -91,6 +97,23 @@ const cache = new Map();
 export async function openContentPullStatuses(token, { now = Date.now(), fresh = false } = {}) {
 	const hit = cache.get(token);
 	if (!fresh && hit && now - hit.at < CACHE_MS) return hit.list;
+	const pending = fresh ? undefined : inflight.get(token);
+	if (pending) return pending;
+	const request = fetchOpenContentPulls(token, now);
+	inflight.set(token, request);
+	try {
+		return await request;
+	} finally {
+		if (inflight.get(token) === request) inflight.delete(token);
+	}
+}
+
+/**
+ * @param {string} token
+ * @param {number} now
+ * @returns {Promise<ContentPullInfo[]>}
+ */
+async function fetchOpenContentPulls(token, now) {
 	const [owner, name] = REPO.split('/');
 	const data = await graphql(
 		token,
@@ -114,6 +137,7 @@ export async function openContentPullStatuses(token, { now = Date.now(), fresh =
 /** Para los tests. */
 export function clearContentPullCache() {
 	cache.clear();
+	inflight.clear();
 }
 
 /** @type {Record<ContentPullStatus, {tone: 'info'|'warn'|'bad', title: string, text: string}>} */

@@ -161,6 +161,11 @@ importar.
   - no es una sola tanda: si alguien cambió una etiqueta mientras tanto, se frena ahí y avisa
     («recargá»); lo anterior queda guardado.
 - Lo editado en el panel cambia la `version` del objeto: reimportar ya no lo pisa.
+- **«Para revisar»** del editor (sin declarar, fuera del árbol, sin usar, referencias rotas): lo
+  que no es «sin usar» es además una fila de «Para revisar» del panel («N cosas para revisar en
+  Etiquetas», con link acá). Se cuenta en el servidor con lo mismo que la página
+  (`src/lib/server/etiquetas/review.js`: `analyzeTags` sobre las etiquetas de la base y su uso);
+  ver [panel.md](panel.md).
 
 ### Renombrar (con la base)
 

@@ -153,6 +153,35 @@ describe('importar desde el panel', () => {
 		expect(csv).toContain('sin cambios');
 	});
 
+	it('lo que hay para revisar queda guardado para «Para revisar» del panel (Inicio y menú)', async () => {
+		const m = await modules();
+		const snapshot = async () =>
+			/** @type {any} */ (
+				await t.db
+					.prepare(
+						"SELECT count, detail, computed_by FROM review_snapshots WHERE source = 'importacion'"
+					)
+					.first()
+			);
+		expect(await snapshot()).toBeNull();
+		const before = /** @type {any} */ (await m.page.load(fakeEvent()));
+		const rowsOf = (/** @type {any} */ data) =>
+			data.categories.map((/** @type {any} */ c) => [c.key, c.rows.length]);
+		expect(await snapshot()).toEqual({
+			count: before.categories.reduce(
+				(/** @type {number} */ n, /** @type {any} */ c) => n + c.rows.length,
+				0
+			),
+			detail: JSON.stringify(Object.fromEntries(rowsOf(before))),
+			computed_by: admin.login
+		});
+		// Después de importar, la página se vuelve a cargar y lo guardado se actualiza.
+		await m.page.actions.importar(fakeEvent({ form: { categoria: 'calendario' } }));
+		const after = /** @type {any} */ (await m.page.load(fakeEvent()));
+		expect((await snapshot())?.detail).toBe(JSON.stringify(Object.fromEntries(rowsOf(after))));
+		expect(Object.fromEntries(rowsOf(after)).calendario).toBe(2);
+	});
+
 	it('«Descargar todo»: los .md de la base en un .tar (sin los borrados), solo admins', async () => {
 		const m = await modules();
 		await m.page.actions.importar(fakeEvent({ form: { categoria: 'calendario' } }));

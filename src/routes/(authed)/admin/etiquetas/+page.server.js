@@ -1,7 +1,6 @@
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
-import { contentMetas, tagUsage } from '$lib/server/admin/content.js';
-import { USAGE_CATEGORIES, readOps } from '$lib/utils/tagConfig.js';
+import { readOps } from '$lib/utils/tagConfig.js';
 import { recordsToRawTags } from '$lib/server/etiquetas/model.js';
 import {
 	NEEDS_IMPORT,
@@ -10,6 +9,7 @@ import {
 	previewDbTagEdit,
 	saveDbTagEdit
 } from '$lib/server/etiquetas/panel.js';
+import { tagUsageAndWiki } from '$lib/server/etiquetas/review.js';
 
 /** @param {unknown} e */
 const describe = (e) => (e instanceof Error ? e.message : String(e));
@@ -17,7 +17,8 @@ const describe = (e) => (e instanceof Error ? e.message : String(e));
 /** @param {{locals: App.Locals, url: URL, platform?: App.Platform}} event */
 export async function load({ locals, url, platform }) {
 	const login = requireAdmin(locals, url).login;
-	const counts = await usageAndWiki();
+	// Lo mismo que cuenta la fila de etiquetas de «Para revisar» (src/lib/server/etiquetas/review.js).
+	const counts = await tagUsageAndWiki();
 	// Las etiquetas se editan solo en la base (ya no hay commits al archivo de etiquetas).
 	const fromDb = await dbTagsForAdmin(platform, login);
 	if (!fromDb) throw error(503, NEEDS_IMPORT);
@@ -28,21 +29,6 @@ export async function load({ locals, url, platform }) {
 		mock: false,
 		dbMode: true
 	};
-}
-
-/** Cuánto se usa cada etiqueta (en los posts del deploy) y qué etiquetas tienen entrada en la wiki. */
-async function usageAndWiki() {
-	/** @type {Record<string, Record<string, number>>} */
-	const usage = {};
-	// Una sola lectura de todas las publicaciones (los eventos y el material, de la base).
-	const metas = await contentMetas();
-	for (const c of USAGE_CATEGORIES) usage[c] = await tagUsage(c, metas);
-	/** @type {Record<string, string>} */
-	const wikiPosts = {};
-	for (const p of metas) {
-		if (p.category === 'wiki' && p.meta?.wiki) wikiPosts[String(p.meta.wiki)] = p.slug;
-	}
-	return { usage, wikiPosts };
 }
 
 /**

@@ -115,9 +115,42 @@ Los links que se arman en varios lugares salen de `nav.js` (`navItem`, `eventHre
 `contentAdminHref`) o de `links.js`; no los escribas a mano. Las migraciones de D1 viejas nombran
 URLs de antes en sus comentarios: son append-only y no se tocan.
 
-**Para revisar**: botón global en la barra de arriba y en el header del celu, con un contador
-(transferencias pendientes + órdenes para revisar + perfiles y pedidos "Es mi perfil" + eventos con
-lugar y etiqueta «Online»). Por ahora lleva a la tarjeta "Para revisar" del Inicio.
+**Para revisar** (decisión [0030](decisiones/0030-para-revisar-y-recuperar.md)): botón global en la
+barra de arriba y en el header del celu, con un contador. Por ahora lleva a la tarjeta "Para
+revisar" del Inicio.
+
+- **La regla: el contador es la cantidad de filas de la tarjeta.** Cada fila cuenta 1, también la
+  que junta varias cosas: «3 transferencias esperando confirmación» (una fila por evento), «4
+  eventos próximos sin imagen», «2 perfiles nuevos para revisar», el chequeo nocturno con sus
+  problemas o las etiquetas. Si la tarjeta tiene 7 filas, el botón dice 7 y el Inicio dice «7 cosas
+  para revisar». Sin filas, «todo al día».
+- **Una sola fuente**: `src/lib/server/admin/review.js`. `reviewRows()` arma las filas (con los
+  constructores de `inicio.js`: `reviewItems`, `transferMissingItem`, `onlineMismatchItem`,
+  `profileReviewItems`, `claimReviewItems`, `groupReviewItems`, `integrityReviewRow`, y los de las
+  filas de Etiquetas y del importador) y `reviewCount(rows)` es `rows.length`. La tarjeta del
+  Inicio (`+page.server.js`) y el contador del menú (`panelCounts.js`, `review`) llaman a las dos con
+  los mismos datos: `reviewQueries` (lo que no depende de los eventos), `reviewEventQueries` (lo que
+  depende de los eventos que vienen) y `reviewOutside` (los PRs de contenido de GitHub y el uso de
+  las etiquetas). Los tests `para-revisar.test.js` e `inicio-tanda.test.js` siembran casos y
+  comprueban que el botón dice lo mismo que la tarjeta.
+- **Las filas**: PRs de contenido que no se publicaron, «Transferencia» tildada sin datos para
+  transferir, transferencias por confirmar (una por evento), órdenes para revisar, mails que no
+  salieron (hasta 20), cupos sobrevendidos, links de transmisión que faltan, recordatorios que no
+  salieron o fallaron, el link que no le llegó a todes, eventos sin imagen y borradores (juntos si
+  son 2 o más), eventos con lugar y etiqueta «Online», perfiles nuevos y pedidos «Es mi perfil»
+  (juntos si son 2 o más), **Etiquetas** («N cosas para revisar en Etiquetas»: sin declarar, fuera
+  del árbol y referencias rotas, lo mismo que las pestañas de su tarjeta «Para revisar»; «Sin usar»
+  no cuenta), **el importador de contenido** («N archivos .md para revisar en Contenido → En la
+  base», su lista «Para revisar»), PRs que se están publicando y el chequeo nocturno. Las de
+  Etiquetas y del importador llevan a su página, que sigue mostrando su lista.
+- **El importador, desde lo guardado**: comparar cada .md del deploy con la base es demasiado para
+  cada página. Contenido → En la base guarda lo que encontró cada vez que se abre (y después de
+  importar, que la vuelve a cargar) en `review_snapshots` (migración 0047,
+  `src/lib/server/admin/reviewSnapshots.js`), y la fila dice «revisado …», como el chequeo nocturno.
+  Si nadie abre esa página después de un deploy con .md nuevos, la fila no se entera hasta que
+  alguien la abre.
+- **Cuándo se actualiza el botón**: el layout lo calcula al cargar una página del panel y después
+  de cada acción (guardar, confirmar una transferencia…), no en cada cambio de página.
 
 **Barra lateral**: las áreas se abren de a una. Se abre la de la página actual; en Inicio, la
 última que abriste (se recuerda en el navegador, `navPrefs.js`; sin storage anda igual). Un área
@@ -126,9 +159,17 @@ cerrada muestra la suma de sus contadores.
 **Consultas en tanda** (Inicio y contadores del menú): el Inicio hace **dos** idas a la base
 (`db.batch`) en vez de una por consulta (eran 33): la primera con todo lo que no depende de la
 lista de eventos, la segunda con lo que sí (totales, recordatorios, "desde tu última visita", la
-tendencia de ventas). Los contadores del menú son **una** (las dos cuentas de órdenes van en una
-sola consulta, cada una por su índice; «No listadas» se cuenta con una consulta, sin armar las
-listas públicas). Si una
+tendencia de ventas). Los contadores del menú son también **dos** como mucho: la primera con los
+contadores (las dos cuentas de órdenes van en una sola consulta, cada una por su índice; «No
+listadas» se cuenta con una consulta, sin armar las listas públicas) y las consultas de «Para
+revisar» que no dependen de los eventos; la segunda, solo si hay eventos que vienen con entradas,
+con lo que depende de ellos (totales, links, envíos fallidos, recordatorios). Son las mismas
+consultas que el Inicio (`reviewQueries` y `reviewEventQueries` en `src/lib/server/admin/review.js`):
+consultas chicas, por índice, que devuelven pocas filas (una por evento, hasta 20 mails, hasta 50
+órdenes…). Fuera de las tandas y a la par: la lista de eventos y el uso de las etiquetas (los posts
+de la base, que el isolate recuerda mientras la base no cambie) y los PRs de contenido de GitHub
+(recordados un minuto por admin; el Inicio y el menú comparten la misma consulta; en dev y en los
+previews no se piden). Si una
 consulta de la tanda falla (por ejemplo, falta una migración), cada una se corre sola con su
 respaldo, como antes. Para sumar algo al Inicio: un `…Query` en `src/lib/server/admin/inicio.js`
 (ver `src/lib/server/db/batch.js`) y una línea en la tanda que corresponda; el test
@@ -154,8 +195,8 @@ cambia datos ni la venta, y no bloquea guardar. Una sola función decide:
   botones de idioma, lugar y precio; cambia mientras se edita;
 - la ficha (pestaña Resumen): el mismo aviso arriba, con cómo lo tratan hoy las entradas (si vende)
   y un link a Editar;
-- **Para revisar** (Inicio): la fila «N eventos con lugar y etiqueta «Online»», que suma N en el
-  contador de Para revisar y lleva a esa lista de Eventos (`/admin/eventos?filtro=online-con-lugar`).
+- **Para revisar** (Inicio): la fila «N eventos con lugar y etiqueta «Online»», que cuenta 1 en el
+  contador de Para revisar (una fila) y lleva a esa lista de Eventos (`/admin/eventos?filtro=online-con-lugar`).
   Cuenta los eventos que vienen (también los de hoy) y los de los **últimos 30 días**
   (`ONLINE_MISMATCH_DAYS` y `onlineReviewTest` en `src/lib/admin/eventList.js`), sin los
   despublicados: uno más viejo ya no se arregla para nadie. Las etiquetas y el «Dónde» están en el
@@ -229,7 +270,10 @@ muestra.
 **Ver quién hizo algo.** Ajustes › Sistema › Actividad (filtros y CSV).
 
 **Algo "para revisar".** Aparece en Inicio, en Ventas y en la ficha del evento (pago tarde que
-pasó el cupo, posible cobro doble); "Marcar como revisada" después de resolverlo. Los perfiles
+pasó el cupo, posible cobro doble); "Marcar como revisada" después de resolverlo. Para sumar una
+fila nueva a «Para revisar»: su constructor en `inicio.js` o `review.js`, sus datos en
+`reviewQueries`/`reviewEventQueries` (una consulta chica en la tanda que corresponda) y una línea en
+`reviewRows`; así la cuentan la tarjeta y el botón. Sumá su caso a `para-revisar.test.js`. Los perfiles
 nuevos de cuentas aparecen en Inicio y en el contador de Comunidad › Perfiles hasta que se marcan
 como revisados (o se ocultan o borran) desde su ficha.
 
