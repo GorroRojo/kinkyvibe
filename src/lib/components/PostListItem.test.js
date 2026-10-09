@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import PostListItem from './PostListItem.svelte';
+import { withoutComments } from '$lib/testing/html.js';
 
 /** @param {Record<string, any>} [extra] */
 const post = (extra = {}) => ({
@@ -95,9 +96,7 @@ describe('PostListItem: etiquetas', () => {
 			post: post({ tags: ['etiqueta inventada', 'otra inventada', 'KinkyVibe'] })
 		});
 		const chips = [
-			...html
-				.replace(/<!--[\s\S]*?-->/g, '')
-				.matchAll(/<span class="kv-tag[^"]*"[^>]*>([^<]*)<\/span>/g)
+			...withoutComments(html).matchAll(/<span class="kv-tag[^"]*"[^>]*>([^<]*)<\/span>/g)
 		].map((m) => m[1]);
 		expect(chips).toEqual(['etiqueta inventada', 'otra inventada']);
 		expect(html).not.toMatch(/class="tag\b/);

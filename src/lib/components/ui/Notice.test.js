@@ -7,10 +7,11 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import Notice from './Notice.svelte';
+import { withoutComments } from '$lib/testing/html.js';
 
 /** @param {Record<string, any>} props */
 const html = (props = {}) =>
-	render(Notice, { props: /** @type {any} */ (props) }).body.replace(/<!--[\s\S]*?-->/g, '');
+	withoutComments(render(Notice, { props: /** @type {any} */ (props) }).body);
 
 /** El elemento de afuera: [etiqueta, atributos]. @param {string} body */
 const outer = (body) => body.match(/^<(div|span)([^>]*)>/)?.slice(1) ?? [];

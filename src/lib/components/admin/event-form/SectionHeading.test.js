@@ -8,6 +8,7 @@ import { render } from 'svelte/server';
 import SectionHeading from './SectionHeading.svelte';
 import { SECTION_ICONS } from './sectionIcons.js';
 import { SECTION_LABELS, formSections } from '$lib/admin/eventForm.js';
+import { textOf } from '$lib/testing/html.js';
 
 const KEYS = /** @type {Array<keyof typeof SECTION_LABELS>} */ (Object.keys(SECTION_LABELS));
 
@@ -21,7 +22,7 @@ describe('SectionHeading', () => {
 		const m = body.match(/<legend class="section-heading[^"]*"[^>]*>([\s\S]*?)<\/legend>/);
 		expect(m, body).toBeTruthy();
 		expect(m?.[1]).toMatch(/<svg[^>]*aria-hidden="true"/);
-		expect(m?.[1].replace(/<[^>]*>/g, '').trim()).toBe(SECTION_LABELS[key]);
+		expect(textOf(m?.[1] ?? '').trim()).toBe(SECTION_LABELS[key]);
 		expect(body).not.toMatch(/\p{Extended_Pictographic}/u);
 	});
 

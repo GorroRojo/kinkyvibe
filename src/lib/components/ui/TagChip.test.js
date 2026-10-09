@@ -7,16 +7,13 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import TagChip from './TagChip.svelte';
+import { textOf, withoutComments } from '$lib/testing/html.js';
 
 /** @param {Record<string, any>} props */
 const html = (props) =>
-	render(TagChip, { props: /** @type {any} */ (props) }).body.replace(/<!--[\s\S]*?-->/g, '');
+	withoutComments(render(TagChip, { props: /** @type {any} */ (props) }).body);
 /** Lo que lee un lector de pantalla (sin el emoji, que va con aria-hidden). @param {string} body */
-const spoken = (body) =>
-	body
-		.replace(/<span aria-hidden="true">[^<]*<\/span>/g, '')
-		.replace(/<[^>]*>/g, '')
-		.trim();
+const spoken = (body) => textOf(body.replace(/<span aria-hidden="true">[^<]*<\/span>/g, '')).trim();
 
 describe('TagChip', () => {
 	it('solo: un <span class="kv-tag"> con el nombre', () => {

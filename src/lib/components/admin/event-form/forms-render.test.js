@@ -7,6 +7,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'svelte/server';
 import { readable } from 'svelte/store';
+import { textOf } from '$lib/testing/html.js';
 
 vi.mock('$app/stores', () => ({
 	page: readable({ url: new URL('http://localhost/admin/contenido/material/guia-de-prueba') })
@@ -45,11 +46,7 @@ const common = { tagUsage: {}, profiles: [], authorUsage: {}, maxImageBytes: 5 *
 const hasId = (body, id) => body.includes(`id="${id}"`);
 
 /** @param {string} html */
-const text = (html) =>
-	html
-		.replace(/<[^>]*>/g, '')
-		.replace(/\s+/g, ' ')
-		.trim();
+const text = (html) => textOf(html).replace(/\s+/g, ' ').trim();
 /** El ícono de Lucide de un pedazo de HTML (la clase `lucide-…` de su <svg>). @param {string} html */
 const lucide = (html) => html.match(/\blucide-(?!icon\b)([a-z0-9-]+)/)?.[1] ?? null;
 
