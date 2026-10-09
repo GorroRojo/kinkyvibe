@@ -46,4 +46,4 @@ La auditoría de unificación del panel (9/10) encontró dos cosas:
 
 ## Cómo va
 
-- En la rama `claude/unificar-panel`.
+- En la rama `claude/unificar-panel`: «Para revisar» (primer commit) y «Recuperar» (segundo).

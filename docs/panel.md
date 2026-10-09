@@ -269,6 +269,24 @@ muestra.
 
 **Ver quién hizo algo.** Ajustes › Sistema › Actividad (filtros y CSV).
 
+**Recuperar lo borrado** (Ajustes › Sistema › Actividad, «Borrados que podés recuperar»). Todo
+sale de `panel_deletions` (migración 0021), que escribe solo `src/lib/server/admin/deletions.js`,
+en la misma tanda que el borrado; «Recuperar» va por `undoDeletion` (también «Deshacer»).
+
+| Qué                                     | Cómo se borra                                    | Fila (`path`)                     | En la lista      |
+| --------------------------------------- | ------------------------------------------------ | --------------------------------- | ---------------- |
+| Eventos y material                      | por el cliente del repo (la base)                | `src/lib/posts/<tipo>/<slug>.md`  | Evento, Material |
+| Perfiles                                | borrado suave del objeto                         | `objeto:perfil:<id>`              | Amigues          |
+| Imágenes y archivos de la biblioteca    | borrado suave del objeto                         | `objeto:imagen:<id>`, `…archivo…` | Biblioteca · …   |
+| Etiquetas y series (también los alias)  | borrado suave (Etiquetas: sacar un alias…)       | `objeto:etiqueta:<id>`, `…serie…` | Etiqueta, Serie  |
+| El texto propio de un mail de un evento | se borra la fila; antes, una copia de sus textos | `plantilla:<evento>:<mail>`       | Mail del evento  |
+
+Decisión 0030: las etiquetas, las series y los mails por evento se recuperan. Una etiqueta vuelve
+con sus datos y sus relaciones (nunca se fueron); si mientras tanto se creó otra con el mismo
+nombre, «Recuperar» avisa y no hace nada. Un mail no pisa un texto guardado después (avisa). **Son
+permanentes, sin «Recuperar», a propósito**: las preguntas de inscripción, los roles y las notas
+internas de una persona.
+
 **Algo "para revisar".** Aparece en Inicio, en Ventas y en la ficha del evento (pago tarde que
 pasó el cupo, posible cobro doble); "Marcar como revisada" después de resolverlo. Para sumar una
 fila nueva a «Para revisar»: su constructor en `inicio.js` o `review.js`, sus datos en

@@ -30,4 +30,15 @@ describe('deletionLabel', () => {
 			'Biblioteca · archivo'
 		);
 	});
+
+	it('names tags, series and an event mail text (decisión 0030)', () => {
+		expect(deletionLabel({ kind: 'material', path: 'objeto:etiqueta:4' })).toEqual({
+			label: 'Etiqueta',
+			library: false
+		});
+		expect(deletionLabel({ kind: 'material', path: 'objeto:serie:5' }).label).toBe('Serie');
+		expect(
+			deletionLabel({ kind: 'calendario', path: 'plantilla:fiesta-inventada:tickets' })
+		).toEqual({ label: 'Mail del evento', library: false });
+	});
 });

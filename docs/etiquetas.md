@@ -157,7 +157,8 @@ importar.
   - renombrar: ver abajo; la etiqueta renombrada sigue siendo el mismo objeto;
   - el texto de la wiki y los demás datos que el archivo no tiene se conservan; si una etiqueta
     con texto pasa a ser alias (fusionar), la confirmación avisa;
-  - sacar un alias lo borra (suave, recuperable desde el historial del objeto);
+  - sacar un alias (o cualquier etiqueta que un cambio deja afuera) la borra (suave): queda en
+    «Recuperar» de Ajustes › Actividad, como «Etiqueta» o «Serie» (decisión 0030);
   - no es una sola tanda: si alguien cambió una etiqueta mientras tanto, se frena ahí y avisa
     («recargá»); lo anterior queda guardado.
 - Lo editado en el panel cambia la `version` del objeto: reimportar ya no lo pisa.
