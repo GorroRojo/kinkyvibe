@@ -137,7 +137,8 @@ export function modalidadOf(meta) {
 
 /**
  * **La** regla de si un evento es online o presencial (página, .ics, schema.org, listas,
- * carrusel, imagen para compartir, panel, «Qué falta», «Importar de eventos»). En orden:
+ * carrusel, imagen para compartir, panel, «Qué falta», «Importar de eventos» y la venta de
+ * entradas, con {@link isOnlineEvent}). En orden:
  *
  * 1. un lugar vinculado («Sucede en», `hasVenue`) manda: presencial;
  * 2. `modalidad: online | presencial` (como en la venta);
@@ -149,8 +150,7 @@ export function modalidadOf(meta) {
  * 5. sin «Dónde», la etiqueta Online (o «virtual»): online;
  * 6. sin nada: '' (no se sabe; no se inventa que es online).
  *
- * No hay eventos híbridos en los datos. La venta de entradas decide con su propia regla
- * ({@link isOnlineEvent}), que puede no coincidir: ver ese comentario.
+ * No hay eventos híbridos en los datos.
  *
  * @param {Record<string, any> | null | undefined} meta
  * @param {{ hasVenue?: boolean }} [opts]
@@ -179,21 +179,16 @@ export function isOnlinePlace(meta) {
 /**
  * ¿La **venta de entradas** trata al evento como online? Entonces las entradas llevan el link de
  * la transmisión en lugar de un QR, no hay puerta ni control de ingreso, y los mails y la página
- * de cada entrada dicen «Online». `modalidad: online | presencial` manda; si falta, es online si
- * tiene la etiqueta Online y no tiene `location` (aunque tenga `location_name` o un lugar
- * vinculado).
+ * de cada entrada dicen «Online». Es la misma regla que la página: `eventMode(meta, opts) ===
+ * 'online'` (decisión de gorrite: antes la venta tenía su propia regla, la etiqueta Online sin
+ * `location`, que no coincidía en dos casos). Pasale `hasVenue` donde se sabe si el evento tiene
+ * un lugar vinculado (con lugar, presencial).
  *
- * Difiere de {@link eventMode} a propósito (cambiarla cambia qué reciben quienes ya compraron):
- * con la etiqueta Online y solo un nombre de lugar, la venta dice online y la página presencial
- * (lo avisa `onlineTagMismatch`); con un «Dónde» «Online» sin etiqueta ni `modalidad`, la página
- * dice online y la venta presencial. Para no depender de esto, cargá `modalidad`.
- *
- * @param {Record<string, any>} meta
+ * @param {Record<string, any> | null | undefined} meta
+ * @param {{ hasVenue?: boolean }} [opts]
  */
-export function isOnlineEvent(meta) {
-	const modalidad = modalidadOf(meta);
-	if (modalidad) return modalidad === 'online';
-	return !meta.location && hasOnlineTag(meta.tags);
+export function isOnlineEvent(meta, opts) {
+	return eventMode(meta, opts) === 'online';
 }
 
 /**

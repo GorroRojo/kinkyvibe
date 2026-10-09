@@ -91,8 +91,8 @@ export function isKinkyVibeEvent(meta) {
 	return tags.some((t) => typeof t === 'string' && tm.get(t.trim())?.id === KINKYVIBE_TAG);
 }
 
-// ¿La venta trata al evento como online? Vive en eventPlace.js, junto a la regla de la página
-// (`eventMode`), con por qué difieren.
+// ¿La venta trata al evento como online? Vive en eventPlace.js: es la regla de la página
+// (`eventMode`).
 export { isOnlineEvent };
 
 /**
@@ -755,12 +755,16 @@ const amount = (v) => /** @type {number} */ (parseAmount(v.trim() === '' ? '0' :
  * `initial` y conservando comentarios, orden y las claves que el editor no conoce (también dentro
  * de cada tipo de entrada). Suponé que el formulario ya pasó `validateTicketsForm`.
  *
+ * `opts.hasVenue`: el evento tiene (o va a tener) un lugar vinculado; entonces es presencial y
+ * se escribe `puerta` (ver {@link isOnlineEvent}).
+ *
  * @param {string} frontmatter
  * @param {TicketsForm} form
  * @param {TicketsForm} initial el estado leído de este mismo frontmatter
+ * @param {{ hasVenue?: boolean }} [opts]
  * @returns {string}
  */
-export function applyTicketsForm(frontmatter, form, initial) {
+export function applyTicketsForm(frontmatter, form, initial, opts) {
 	const formChanged = ticketsFormChanged(initial, form);
 	// Un evento con venta y sin `puerta` recibe la clave explícita al guardarlo (ver abajo).
 	if (!formChanged && !needsDoorKey(form, initial)) return frontmatter;
@@ -882,7 +886,7 @@ export function applyTicketsForm(frontmatter, form, initial) {
 	const doorPrice = form.door ? form.doorPrice.trim() : '';
 	const initialDoorPrice = initial.enabled && initial.door ? initial.doorPrice.trim() : '';
 	const setDoor =
-		!isOnlineEvent(/** @type {Record<string, any>} */ (doc.toJS() ?? {})) &&
+		!isOnlineEvent(/** @type {Record<string, any>} */ (doc.toJS() ?? {}), opts) &&
 		(!initial.enabled || !initial.doorSet || form.door !== initial.door);
 	if (setDoor) doc.set('puerta', form.door);
 	// Sin cambios en el formulario y evento online: no hay nada que escribir.
@@ -918,11 +922,12 @@ function needsDoorKey(form, initial) {
  * @param {string} raw
  * @param {TicketsForm} form
  * @param {TicketsForm} initial
+ * @param {{ hasVenue?: boolean }} [opts]
  */
-export function applyTicketsToMarkdown(raw, form, initial) {
+export function applyTicketsToMarkdown(raw, form, initial, opts) {
 	if (!ticketsFormChanged(initial, form) && !needsDoorKey(form, initial)) return raw;
 	const { frontmatter, body } = splitMarkdown(raw);
-	return joinMarkdown(applyTicketsForm(frontmatter, form, initial), body);
+	return joinMarkdown(applyTicketsForm(frontmatter, form, initial, opts), body);
 }
 
 /**

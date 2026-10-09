@@ -274,22 +274,23 @@
 	$: problems = problemItems.map((p) => p.text);
 	$: if (showProblems) tick().then(() => markInvalid(problemFields(problemItems)));
 
-	$: generated = build(values, featuredMode, problems.length, tickets);
+	$: generated = build(values, featuredMode, problems.length, tickets, venue.venueId != null);
 	/**
 	 * @param {typeof values} v
 	 * @param {'keep'|'library'|'none'} mode con una imagen de la biblioteca, el archivo no lleva
 	 *   `featured` (la imagen es el edge `portada`)
 	 * @param {number} nProblems
 	 * @param {typeof tickets} tk
+	 * @param {boolean} hasVenue con un lugar elegido, la venta es presencial (escribe `puerta`)
 	 */
-	function build(v, mode, nProblems, tk) {
+	function build(v, mode, nProblems, tk, hasVenue) {
 		if (nProblems) return { md: '', error: '' };
 		try {
 			const md = buildEventMarkdown(sourceRaw, {
 				...v,
 				featuredMode: mode === 'keep' && !sourceImage ? 'keep' : 'none'
 			});
-			return { md: applyTicketsToMarkdown(md, tk, initialTickets), error: '' };
+			return { md: applyTicketsToMarkdown(md, tk, initialTickets, { hasVenue }), error: '' };
 		} catch (e) {
 			return { md: '', error: e instanceof Error ? e.message : String(e) };
 		}
@@ -788,6 +789,8 @@
 						bind:state={tickets}
 						tags={splitList(values.tags)}
 						location={values.location}
+						locationName={values.location_name}
+						hasVenue={venue.venueId != null}
 						transferReady={data.transferReady}
 						errors={ticketsCheck.errors}
 						showErrors={showProblems}

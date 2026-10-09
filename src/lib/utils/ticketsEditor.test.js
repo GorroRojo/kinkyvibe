@@ -167,6 +167,10 @@ describe('cupo opcional, «General» y entradas en la puerta', () => {
 		// Un evento online no recibe `puerta` (no hay puerta).
 		const online = `${FM_SIN_PUERTA}modalidad: online\n`;
 		expect(applyTicketsForm(online, formOf(online), formOf(online))).toBe(online);
+		// Con un lugar elegido es presencial (la regla de la página): sí recibe `puerta`.
+		expect(
+			metaOf(applyTicketsForm(online, formOf(online), formOf(online), { hasVenue: true })).puerta
+		).toBe(true);
 	});
 
 	it('puerta: true con precio, false sin precio, y apagar la venta borra todo', () => {

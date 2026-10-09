@@ -1,8 +1,7 @@
 /**
- * ¿Un evento tiene la etiqueta «Online» y también un lugar de verdad? Entonces partes del sitio
- * no se ponen de acuerdo: la venta de entradas (`isOnlineEvent` en eventPlace.js) lo trata
- * como online si no tiene `location` (aunque tenga `location_name` o un lugar vinculado) y manda
- * el link de la transmisión en vez del QR, mientras la página muestra el lugar.
+ * ¿Un evento tiene la etiqueta «Online» y también un lugar de verdad? La página y la venta de
+ * entradas lo tratan como presencial (una sola regla, `eventMode` en eventPlace.js), pero la
+ * etiqueta sigue confundiendo filtros y listas: casi seguro quedó de otra edición.
  *
  * Es solo un aviso (no cambia nada ni bloquea guardar): lo muestran el editor del evento, la
  * ficha del panel y «Para revisar» del Inicio, con su lista en Panel → Eventos (docs/panel.md).

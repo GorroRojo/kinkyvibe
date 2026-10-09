@@ -188,13 +188,14 @@ etiqueta Online (o «virtual»), online; sin nada, `''`. La usan la página («C
 eventos» y el importador de la planilla (`isOnlineWord`). El texto «Nombre · Dirección» es
 `placeLine` (también en los mails y en las partes de un taller).
 
-**La venta de entradas tiene su propia regla**, `isOnlineEvent` (también en `eventPlace.js`, ver
-[tickets.md](tickets.md#eventos-online)): `modalidad`, o la etiqueta Online sin `location`. Difiere
-a propósito en dos casos (cambiarla cambiaría el QR por el link a quienes ya compraron): la
-etiqueta Online con solo un nombre de lugar (la venta dice online, la página presencial; lo marca
-el aviso «Online con lugar») y un «Dónde» «Online» sin etiqueta ni `modalidad` (la página dice
-online, la venta presencial). Los mails, la página de compra y la de cada entrada dicen «Online»
-cuando la venta lo dice (`salePlaceText`), para que coincida con el link en vez del QR.
+**La venta de entradas usa la misma regla** (decisión de gorrite): `isOnlineEvent(meta, { hasVenue })`
+(en `eventPlace.js`) es `eventMode(...) === 'online'`, ver [tickets.md](tickets.md#eventos-online).
+La venta lee el lugar vinculado de la base (`eventsWithVenue`) y el editor de entradas usa el
+«Lugar» elegido. Antes tenía su propia regla (`modalidad`, o la etiqueta Online sin `location`) y
+difería en dos casos, que ahora coinciden: la etiqueta Online con solo un nombre de lugar es
+presencial (QR y puerta) y un «Dónde» «Online» sin etiqueta ni `modalidad` es online. Los mails,
+la página de compra y la de cada entrada dicen «Online» cuando la venta lo dice (`salePlaceText`),
+para que coincida con el link en vez del QR.
 
 **Elegir el lugar desde el evento** (pedido de gorrite): el formulario de eventos (crear, duplicar y
 editar) tiene la sección **«📍 Lugar»** (`PlaceSection.svelte` en

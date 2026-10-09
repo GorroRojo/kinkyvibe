@@ -98,7 +98,12 @@ describe('components render frontmatter as text', () => {
 					])
 				}
 			});
-			return (body.match(/<h2[^>]*>([\s\S]*?)<\/h2>/)?.[1] ?? '').replace(/<!--.*?-->/g, '').trim();
+			// Sin los comentarios de Svelte (`<!---->`), cortando por `<!--` (sin regex sobre HTML).
+			return (body.match(/<h2[^>]*>([\s\S]*?)<\/h2>/)?.[1] ?? '')
+				.split('<!--')
+				.map((s, i) => (i ? s.slice(s.indexOf('-->') + 3) : s))
+				.join('')
+				.trim();
 		};
 		expect(heading({ tags: ['Online'] })).toMatch(/ - Online$/);
 		expect(heading({ modalidad: 'online', tags: [] })).toMatch(/ - Online$/);

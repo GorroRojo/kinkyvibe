@@ -294,28 +294,36 @@ describe('eventMode: la regla de online o presencial', () => {
 	});
 });
 
-describe('isOnlineEvent: la regla de la venta de entradas', () => {
+describe('isOnlineEvent: la venta de entradas usa la misma regla (eventMode)', () => {
 	it('`modalidad` manda', () => {
 		expect(isOnlineEvent({ modalidad: 'online', location: 'Calle Falsa 123' })).toBe(true);
 		expect(isOnlineEvent({ modalidad: 'virtual' })).toBe(true);
 		expect(isOnlineEvent({ modalidad: 'presencial', tags: ['Online'] })).toBe(false);
 	});
 
-	it('sin `modalidad`: la etiqueta Online y sin `location`', () => {
+	it('sin `modalidad`: el «Dónde» y, sin «Dónde», la etiqueta Online', () => {
 		expect(isOnlineEvent({ tags: ['Online'] })).toBe(true);
 		expect(isOnlineEvent({ tags: [' online '] })).toBe(true);
 		expect(isOnlineEvent({ tags: ['Online'], location: 'Calle Falsa 123' })).toBe(false);
 		expect(isOnlineEvent({ tags: ['AMBA'] })).toBe(false);
 		expect(isOnlineEvent({})).toBe(false);
+		expect(isOnlineEvent(null)).toBe(false);
 	});
 
-	it('difiere de eventMode a propósito (no cambia qué reciben quienes compraron)', () => {
-		// Etiqueta Online y solo un nombre de lugar: la venta dice online, la página presencial.
+	it('con lugar vinculado, presencial', () => {
+		expect(isOnlineEvent({ tags: ['Online'] }, { hasVenue: true })).toBe(false);
+		expect(isOnlineEvent({ modalidad: 'online' }, { hasVenue: true })).toBe(false);
+	});
+
+	// Cambio decidido por gorrite: antes la venta tenía su propia regla y estos dos casos no
+	// coincidían con la página. Ahora coinciden.
+	it('coincide con eventMode en los dos casos que antes diferían', () => {
+		// Etiqueta Online y solo un nombre de lugar: presencial en los dos.
 		const named = { tags: ['Online'], location_name: 'Galpón Inventado' };
-		expect(isOnlineEvent(named)).toBe(true);
+		expect(isOnlineEvent(named)).toBe(false);
 		expect(eventMode(named)).toBe('presencial');
-		// «Dónde» «Online» sin etiqueta ni modalidad: la página dice online, la venta presencial.
-		expect(isOnlineEvent({ location: 'Online' })).toBe(false);
+		// «Dónde» «Online» sin etiqueta ni modalidad: online en los dos.
+		expect(isOnlineEvent({ location: 'Online' })).toBe(true);
 		expect(eventMode({ location: 'Online' })).toBe('online');
 	});
 });
