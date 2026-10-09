@@ -378,7 +378,8 @@ describe('«Para revisar»: el botón del menú cuenta las filas de la tarjeta d
 		try {
 			await accountProfile('una-cuenta@example.com');
 			const { rows, badge } = await both();
-			expect(asked.filter((u) => u.includes('github.com'))).toEqual([]);
+			// Ningún pedido de red (antes: la lista de PRs de contenido, a api.github.com).
+			expect(asked).toEqual([]);
 			expect(rows.map((r) => r.id.replace(/\d+$/, ''))).toEqual(['profile-']);
 			expect(badge).toBe(1);
 		} finally {
