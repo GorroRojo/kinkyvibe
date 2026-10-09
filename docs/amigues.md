@@ -130,8 +130,8 @@ dirección). La migración 0027 agregó `address` al CHECK de la tabla vieja `ev
 edge, el nivel se valida en código (`isVenuePrivacy`).
 
 En `name`, `area` y `hidden` aparece "Te mandamos la dirección con tu entrada" si el evento vende
-entradas en el sitio; si no (no hay entrada que la lleve), "La dirección exacta no se publica"
-(`ADDRESS_NOT_PUBLIC` en `src/lib/utils/venues.js`). En todos los
+entradas en el sitio; si no (no hay entrada que la lleve), no aparece ningún aviso (decisión de
+gorrite, 9/10). En todos los
 niveles **quien compró recibe el lugar completo** (nombre y dirección) en el mail de confirmación,
 en los recordatorios y en la página de su entrada (con la compra aprobada).
 

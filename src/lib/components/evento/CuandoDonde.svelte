@@ -6,8 +6,8 @@
 	 * - Con lugar vinculado, VenueLocation (`part="where"`) con las reglas de cada nivel de
 	 *   privacidad (lo que llega ya viene filtrado por el servidor). Cuando no se ve la dirección:
 	 *   «Te mandamos la dirección con tu entrada.» si el evento vende entradas acá (`entradas`); si
-	 *   no, «La dirección exacta no se publica.» (no hay entrada que la lleve). El mapa chico y «Ver en Google Maps», solo en los niveles que
-	 *   muestran la dirección y si el lugar tiene coordenadas.
+	 *   no, ningún aviso (no hay entrada que la lleve). El mapa chico y «Ver en Google Maps», solo
+	 *   en los niveles que muestran la dirección y si el lugar tiene coordenadas.
 	 * - Sin lugar vinculado, el «Dónde» del evento (`location`, con su link al mapa `location_map`)
 	 *   y su nombre (`location_name`), u «Online» si el evento es online (eventPlace.js, lo mismo
 	 *   que el .ics); sin nada de eso, sin renglón del lugar. Sin coordenadas no hay mapa chico:

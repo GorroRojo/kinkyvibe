@@ -13,7 +13,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'svelte/server';
 import { readable } from 'svelte/store';
-import { ADDRESS_FOR_BUYERS, ADDRESS_NOT_PUBLIC, venueView } from '$lib/utils/venues.js';
+import { ADDRESS_FOR_BUYERS, venueView } from '$lib/utils/venues.js';
 import { stripHtmlTags } from '$lib/utils/htmlStrip.js';
 
 vi.mock('$app/stores', () => ({
@@ -237,13 +237,13 @@ describe('/calendario/<evento>: el lugar, una sola vez y en «Cuándo y dónde»
 	}
 
 	// Antes: «Te mandamos la dirección con tu entrada.» también en un evento sin venta, donde no hay
-	// entrada que la lleve.
+	// entrada que la lleve. Sin venta no se muestra ningún aviso (decisión de gorrite, 9/10).
 	for (const level of ['name', 'area', 'hidden']) {
 		it(`nivel «${level}» sin venta de entradas: no promete la dirección con la entrada`, () => {
 			const venue = venueView(VENUE, /** @type {any} */ (level), HREF);
 			const all = text(article(page({}, { venue })));
 			expect(all).not.toContain(ADDRESS_FOR_BUYERS);
-			expect(count(all, ADDRESS_NOT_PUBLIC)).toBe(1);
+			expect(article(page({}, { venue }))).not.toContain('class="note"');
 			// Un evento cancelado tampoco vende: tampoco lo promete.
 			const cancelled = text(
 				article(page({ status: 'cancelado' }, { venue, tickets: { ...TICKETS, open: false } }))
@@ -256,7 +256,7 @@ describe('/calendario/<evento>: el lugar, una sola vez y en «Cuándo y dónde»
 			const venue = venueView(VENUE, /** @type {any} */ (level), HREF);
 			const all = text(article(page({}, { venue })));
 			expect(all).not.toContain(ADDRESS_FOR_BUYERS);
-			expect(all).not.toContain(ADDRESS_NOT_PUBLIC);
+			expect(article(page({}, { venue }))).not.toContain('class="note"');
 		}
 	});
 

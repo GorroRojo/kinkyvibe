@@ -52,12 +52,6 @@ export const VENUE_PRIVACY_UNSET_LABEL = `Sin elegir (${VENUE_PRIVACY_LABELS[DEF
 export const ADDRESS_FOR_BUYERS = 'Te mandamos la dirección con tu entrada.';
 
 /**
- * Aviso cuando la dirección no se muestra y el evento NO vende entradas en el sitio: no hay
- * entrada que la lleve, así que no se promete nada.
- */
-export const ADDRESS_NOT_PUBLIC = 'La dirección exacta no se publica.';
-
-/**
  * @param {unknown} value
  * @returns {value is VenuePrivacy}
  */
@@ -129,8 +123,8 @@ export function venuePageLevel(venueDefault) {
 
 /**
  * ¿En este nivel se ve la dirección (calle y número) y el mapa? Si no, la página del evento avisa
- * que la dirección llega con la entrada ({@link ADDRESS_FOR_BUYERS}) si vende entradas, o que no
- * se publica ({@link ADDRESS_NOT_PUBLIC}) si no.
+ * que la dirección llega con la entrada ({@link ADDRESS_FOR_BUYERS}) si vende entradas; si no
+ * vende, no dice nada (decisión de gorrite, 9/10).
  *
  * @param {VenuePrivacy} level
  */
