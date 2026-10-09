@@ -1,16 +1,7 @@
 <script>
-	import { TIMEZONE } from '$lib/utils/dates.js';
+	import { argDateLong } from '$lib/utils/dates.js';
 
 	export let data;
-
-	/** @param {string} d */
-	const fmtDate = (d) =>
-		new Date(d).toLocaleDateString('es-AR', {
-			timeZone: TIMEZONE,
-			day: 'numeric',
-			month: 'long',
-			year: 'numeric'
-		});
 
 	$: base = `/mi-rincon/perfiles/${data.profile.slug}`;
 </script>
@@ -24,7 +15,9 @@
 	<p class="back"><a href={base}>← {data.profile.title}</a></p>
 	<h1>Respuestas de inscripción</h1>
 	<p class="hint">
-		<strong>{data.event.title}</strong>{#if data.event.start}{' · '}{fmtDate(data.event.start)}{/if}
+		<strong>{data.event.title}</strong>{#if data.event.start}{' · '}{argDateLong(
+				data.event.start
+			)}{/if}
 		· como organizadore ({data.profile.title})
 	</p>
 

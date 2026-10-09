@@ -1,5 +1,5 @@
 <script>
-	import { argDateLog } from '$lib/utils/dates.js';
+	import { argDateLog, argTime } from '$lib/utils/dates.js';
 	/**
 	 * Modo puerta: pantalla completa y oscura (sin menús del panel), con la pantalla siempre
 	 * prendida (Wake Lock), escáner de QR, resultado grande, "Escribir código", "Buscar persona",
@@ -57,7 +57,6 @@
 	/** @typedef {import('$lib/admin/doorOffline.js').DoorCard} Card */
 	/** @typedef {import('$lib/admin/doorOffline.js').DoorState} DoorState */
 
-	const TZ = 'America/Argentina/Buenos_Aires';
 	const METHOD_TEXT = /** @type {Record<string, string>} */ ({
 		mercadopago: 'Mercado Pago',
 		transferencia: 'Transferencia',
@@ -123,14 +122,7 @@
 
 	/** @param {number | null | undefined} ms */
 	function hhmm(ms) {
-		return ms
-			? new Date(ms).toLocaleTimeString('es-AR', {
-					hour: '2-digit',
-					minute: '2-digit',
-					hourCycle: 'h23',
-					timeZone: TZ
-				})
-			: '';
+		return ms ? argTime(ms) : '';
 	}
 	/** @param {number | null | undefined} ms */
 	function dateTime(ms) {

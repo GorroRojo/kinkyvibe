@@ -7,12 +7,6 @@ import { csvFilename, csvResponse, toCsv } from '$lib/admin/csv.js';
 const MAX_ROWS = 10000;
 const PAGE = 500;
 
-const fmt = new Intl.DateTimeFormat('sv-SE', {
-	timeZone: 'America/Argentina/Buenos_Aires',
-	dateStyle: 'short',
-	timeStyle: 'medium'
-});
-
 /** CSV del registro de actividad con los mismos filtros que la página. */
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ locals, url, platform }) {
@@ -29,7 +23,7 @@ export async function GET({ locals, url, platform }) {
 		before = page[page.length - 1].id;
 	}
 	const csv = toCsv(rows, [
-		{ label: 'Fecha (hora de Argentina)', value: (r) => fmt.format(r.at) },
+		{ label: 'Fecha (hora de Argentina)', value: (r) => new Date(r.at) },
 		{ label: 'Admin', key: 'actorLogin' },
 		{ label: 'Acción', key: 'action' },
 		{ label: 'Tipo de objeto', key: 'targetType' },

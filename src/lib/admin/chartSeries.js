@@ -6,6 +6,7 @@
  * Los días son enteros (días desde 1970 en hora de Argentina, `dayNumber` de salesChart.js).
  */
 import { dayDate, dayShort } from './salesChart.js';
+import { MONTHS_SHORT_ES } from '$lib/utils/dates.js';
 
 /** @typedef {{ day: number, slug: string, tickets: number, revenue: number }} SalesDay */
 /** @typedef {'day' | 'week' | 'month'} Bucket */
@@ -36,8 +37,7 @@ export function monthStart(day, add = 0) {
 /** @param {number} day "sep 26" */
 function monthText(day) {
 	const d = new Date(day * DAY_MS);
-	const name = d.toLocaleDateString('es-AR', { month: 'short', timeZone: 'UTC' }).replace('.', '');
-	return `${name} ${String(d.getUTCFullYear()).slice(2)}`;
+	return `${MONTHS_SHORT_ES[d.getUTCMonth()]} ${String(d.getUTCFullYear()).slice(2)}`;
 }
 
 /**

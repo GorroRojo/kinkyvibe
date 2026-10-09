@@ -5,8 +5,7 @@
  * El modelo: el taller es un evento (que es también la parte 1) con edges `parte` hacia los
  * eventos de las otras partes, en orden. Cada parte tiene su fecha, su hora y su lugar.
  */
-import { dateParts } from '../admin/eventFormat.js';
-import { parseEventDate } from './eventDraft.js';
+import { eventDateList } from './dates.js';
 
 /** El `kind` del edge del taller a cada una de sus otras partes. */
 export const PARTE_EDGE = 'parte';
@@ -49,18 +48,13 @@ export function partLabel(n, m) {
 }
 
 /**
- * «vie 2 oct · 22:00» (la hora como está escrita en el evento: hora de Argentina). Sin hora,
- * solo la fecha; si no se entiende, `''`.
+ * «vie 2 oct · 22:00» (`eventDateList`: la hora como está escrita en el evento, hora de
+ * Argentina). Sin hora, solo la fecha; si no se entiende, `''`.
  *
  * @param {string | null | undefined} start
  */
 export function partDateText(start) {
-	if (!start) return '';
-	const p = dateParts(String(start));
-	if (!p) return '';
-	const { time } = parseEventDate(String(start));
-	const day = `${p.weekday} ${p.day} ${p.month}`;
-	return time ? `${day} · ${time}` : day;
+	return eventDateList(start);
 }
 
 /**

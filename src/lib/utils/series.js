@@ -8,7 +8,7 @@
  * Todo lo de series usa esto.
  */
 
-import { TIMEZONE } from './dates.js';
+import { argDateShort } from './dates.js';
 import { currentSiteTagList } from './siteTags.js';
 import { tagSlug } from './tagSlug.js';
 
@@ -270,22 +270,12 @@ export function tagPagePath(id) {
 }
 
 /**
- * Fecha corta de una edición en hora de Argentina: «12 sept 2026».
+ * Fecha corta de una edición en hora de Argentina: «12 sep 2026» (`argDateShort`).
  *
  * @param {string} start
  */
 export function editionDateLabel(start) {
-	const d = new Date(start);
-	if (Number.isNaN(d.getTime())) return '';
-	return d
-		.toLocaleDateString('es-AR', {
-			day: 'numeric',
-			month: 'short',
-			year: 'numeric',
-			timeZone: TIMEZONE
-		})
-		.replace(/ de /g, ' ')
-		.replace('.', '');
+	return argDateShort(start);
 }
 
 /**
