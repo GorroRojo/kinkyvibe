@@ -955,7 +955,7 @@ describe('reloadDemoData (D1): «Persona que gestiona un perfil» also manages a
 		(await listMyProfiles(t.db, persona.id)).map((p) => /** @type {any} */ (p).slug).sort();
 
 	it('adds nothing while the demo account is not loaded', async () => {
-		await reloadDemoData(t.db, { now: Date.parse('2026-10-01T15:00:00Z') });
+		await reloadDemoData(t.db, { where: 'local', now: Date.parse('2026-10-01T15:00:00Z') });
 		const n = await t.db
 			.prepare('SELECT COUNT(*) AS n FROM profile_managers WHERE account_id = ?1')
 			.bind(persona.id)
@@ -972,9 +972,9 @@ describe('reloadDemoData (D1): «Persona que gestiona un perfil» also manages a
 		for (const s of unstable_splitSqlQuery(cuentas).filter((x) => x.trim()))
 			await t.db.prepare(s).run();
 
-		await reloadDemoData(t.db, { now: Date.parse('2026-10-02T15:00:00Z') });
+		await reloadDemoData(t.db, { where: 'local', now: Date.parse('2026-10-02T15:00:00Z') });
 		expect(await managed()).toEqual([MANAGED_VENUE]);
-		await reloadDemoData(t.db, { now: Date.parse('2026-10-03T15:00:00Z') });
+		await reloadDemoData(t.db, { where: 'local', now: Date.parse('2026-10-03T15:00:00Z') });
 		expect(await managed()).toEqual([MANAGED_VENUE]);
 		expect(DEMO_VENUES.some((v) => v.slug === MANAGED_VENUE)).toBe(true);
 	}, 60000);
