@@ -39,7 +39,13 @@ export async function POST({ platform, locals }) {
 		if (!db) error(503, 'Sin base de datos');
 		const { reloadDemoData, SEED_BY } = await import('$lib/server/demo/seed.js');
 		try {
-			const result = await reloadDemoData(db);
+			// Segunda llave (además del `if` de arriba): el seed vuelve a mirar la rama del deploy. Con
+			// `fetch`, copia eventos del sitio público (solo GET; docs/demo.md, «Copias de producción»).
+			const result = await reloadDemoData(db, {
+				where: 'preview',
+				branch: __DEPLOY_BRANCH__,
+				fetch
+			});
 			return json({ ...result, amigues: await importBundledAmigues(db, SEED_BY) });
 		} catch (e) {
 			console.error('[demo] no se pudieron recargar los datos de prueba:', e);
