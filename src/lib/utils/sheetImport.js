@@ -32,6 +32,7 @@ import {
 	uniqueSlug
 } from './eventDraft.js';
 import { withEventTagDefaults } from './adminTags.js';
+import { ONLINE_PLACE_TEXT, isOnlineWord } from './eventPlace.js';
 import { foldText as fold } from './text.js';
 import { eventLinkProblem } from './eventLink.js';
 
@@ -1099,8 +1100,6 @@ export function generalTickets(sourceTickets, price) {
 /** Frontmatter key that marks a panel draft (only these get «A confirmar» and «Confirmar»). */
 export const DRAFT_KEY = 'borrador';
 
-const ONLINE = /^(online|virtual|zoom|meet|google meet|jitsi|por zoom|por meet)$/i;
-
 /**
  * Where the event happens, given the spreadsheet's "Lugar" and the previous event.
  * Kept as is when the sheet is empty or names the same place ("club soguita" vs
@@ -1118,7 +1117,7 @@ export function placeFields(place, source) {
 		fold(x).replace(/[^a-z0-9 ]/g, '')
 	);
 	if (known.some((k) => k && (k.includes(f) || f.includes(k)))) return { changed: false };
-	if (ONLINE.test(p)) return { location: 'Online', location_name: '', changed: true };
+	if (isOnlineWord(p)) return { location: ONLINE_PLACE_TEXT, location_name: '', changed: true };
 	if (/\d/.test(p)) return { location: p, location_name: '', changed: true };
 	return { location: '', location_name: p, changed: true };
 }
@@ -1179,7 +1178,7 @@ export function buildImportedEvent(sourceRaw, choice, { today, fromTemplate = fa
 	// row makes the place "Online". Other tags are left as they were.
 	const tagsBefore = splitList(form.tags);
 	form.tags = withEventTagDefaults(tagsBefore, {
-		place: place.changed && place.location === 'Online' ? 'Online' : undefined
+		place: place.changed && place.location === ONLINE_PLACE_TEXT ? 'Online' : undefined
 	});
 	if (!fromTemplate && form.tags.join('\n') !== tagsBefore.join('\n'))
 		notes.push('Se ajustaron las etiquetas de idioma/lugar: revisalas.');

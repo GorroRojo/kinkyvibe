@@ -15,8 +15,9 @@
  *     name: A la gorra
  *     a_la_gorra: { minimo: 0, sugerido: 5000 }   # en lugar de `price`: la persona elige el monto
  *     capacity: 200
- * modalidad: online      # opcional: online | presencial (si falta: online si tiene la etiqueta
- *                        # "Online" y no tiene `location`). Online = link en lugar de QR.
+ * modalidad: online      # opcional: online | presencial (si falta, la regla de la página:
+ *                        # `eventMode` de $lib/utils/eventPlace.js; con lugar vinculado,
+ *                        # presencial). Online = link en lugar de QR.
  * tickets_open: 2026-10-01T12:00-03:00    # opcional; antes de eso la venta no abrió
  * tickets_close: 2026-10-16T18:00-03:00   # opcional; si falta, cierra al empezar el evento
  *                                         # (solo fecha = hasta el fin de ese día; hora de
@@ -167,8 +168,12 @@ export function toTime(value) {
  * El Fondo (descuento, aportes y las opciones de "¿Cómo querés pagar tu entrada?") solo aplica a
  * eventos con la etiqueta KinkyVibe (`fondoEnabled`); en los demás, precio de lista y nada más.
  *
+ * `options.hasVenue`: el evento tiene un lugar vinculado («Sucede en», edge `lugar` en la base).
+ * Con lugar es presencial, como en la página (`isOnlineEvent`, la regla de eventPlace.js). Sin
+ * pasarlo, se decide solo por el frontmatter.
+ *
  * @param {Record<string, any> | undefined} meta
- * @param {{ fondoPercent?: number | null }} [options]
+ * @param {{ fondoPercent?: number | null, hasVenue?: boolean }} [options]
  * @returns {EventTickets | null}
  */
 export function parseTicketConfig(meta, options = {}) {
@@ -309,6 +314,7 @@ export function parseTicketConfig(meta, options = {}) {
 			throw new TypeError('`mp_fee_percent` tiene que ser un porcentaje entre 0 y 49,99');
 		}
 	}
+	const online = isOnlineEvent(meta, { hasVenue: options.hasVenue === true });
 	const opensAt = saleTime(meta.tickets_open, '`tickets_open`');
 	const closesAt = saleTime(meta.tickets_close, '`tickets_close`', true) ?? toTime(meta.start);
 	if (opensAt !== null && closesAt !== null && opensAt >= closesAt) {
@@ -322,9 +328,9 @@ export function parseTicketConfig(meta, options = {}) {
 		mpFeeBasisPoints,
 		opensAt,
 		closesAt,
-		online: isOnlineEvent(meta),
+		online,
 		// Entradas en la puerta (solo eventos presenciales; en los online no hay puerta).
-		door: isOnlineEvent(meta) ? null : parseDoor(meta),
+		door: online ? null : parseDoor(meta),
 		// `recordatorios: false` en el frontmatter: este evento no manda recordatorios por mail.
 		reminders: meta.recordatorios !== false,
 		status: meta.status,

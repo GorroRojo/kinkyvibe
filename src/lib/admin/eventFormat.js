@@ -3,9 +3,7 @@
  * ficha). Puras: sirven en el navegador y en el servidor.
  */
 import { parseEventDate } from '$lib/utils/eventDraft.js';
-
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+import { eventDateList, MONTHS_SHORT_ES, WEEKDAYS_SHORT_ES } from '$lib/utils/dates.js';
 
 /**
  * Fecha para el bloque grande de las listas: `{ day: '12', month: 'dic', weekday: 'sáb', year }`.
@@ -16,7 +14,7 @@ export function dateParts(start) {
 	if (!date) return null;
 	const [y, m, d] = date.split('-').map(Number);
 	const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-	return { day: String(d), month: MONTHS[m - 1], weekday: WEEKDAYS[wd], year: y };
+	return { day: String(d), month: MONTHS_SHORT_ES[m - 1], weekday: WEEKDAYS_SHORT_ES[wd], year: y };
 }
 
 /**
@@ -47,11 +45,7 @@ export function shortDate(start) {
  * @param {string} [today] YYYY-MM-DD (el día de hoy en Argentina)
  */
 export function listDate(start, today = '') {
-	const p = dateParts(start);
-	if (!p) return '';
-	const year = today && String(p.year) !== today.slice(0, 4) ? ` ${p.year}` : '';
-	const time = parseEventDate(start).time;
-	return `${p.weekday} ${p.day} ${p.month}${year}${time ? ` · ${time}` : ''}`;
+	return eventDateList(start, { now: today ? `${today.slice(0, 10)}T12:00:00-03:00` : undefined });
 }
 
 /** `status` del frontmatter → texto y tono del chip. */
@@ -102,7 +96,7 @@ export function dayLabel(date, short = false) {
 	const [y, m, d] = date.split('-').map(Number);
 	if (short) return `${d}/${m}`;
 	const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-	return `${WEEKDAYS[wd]} ${d} ${MONTHS[m - 1]}`;
+	return `${WEEKDAYS_SHORT_ES[wd]} ${d} ${MONTHS_SHORT_ES[m - 1]}`;
 }
 
 /**

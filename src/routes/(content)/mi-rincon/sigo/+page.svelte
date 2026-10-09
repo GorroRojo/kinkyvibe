@@ -4,7 +4,7 @@
 	import FollowOptions from '$lib/components/sigo/FollowOptions.svelte';
 	import CalendarSubscribe from '$lib/components/series/CalendarSubscribe.svelte';
 	import TelegramCard from '$lib/components/sigo/TelegramCard.svelte';
-	import { TIMEZONE } from '$lib/utils/dates.js';
+	import { argDateLong } from '$lib/utils/dates.js';
 	import { editionDateLabel } from '$lib/utils/series.js';
 	import { followEmoji, groupFollows, notifyChannels } from '$lib/utils/sigo.js';
 
@@ -33,17 +33,6 @@
 
 	/** @param {{ kind: string, key: string }} f */
 	const rowId = (f) => `${f.kind}:${f.key}`;
-
-	/** @param {number | null} d */
-	const fmtDate = (d) =>
-		d == null
-			? ''
-			: new Date(d).toLocaleDateString('es-AR', {
-					timeZone: TIMEZONE,
-					day: 'numeric',
-					month: 'long',
-					year: 'numeric'
-				});
 
 	// El link recién creado (se muestra una sola vez) o el aviso de que se revocó.
 	$: newUrl = form?.action === 'link' && form.url ? String(form.url) : '';
@@ -252,8 +241,8 @@
 		{/if}
 		{#if data.feed && !newUrl && !revoked}
 			<p>
-				Tenés un link activo desde el {fmtDate(data.feed.createdAt)}{data.feed.lastUsedAt
-					? `; tu calendario lo usó por última vez el ${fmtDate(data.feed.lastUsedAt)}`
+				Tenés un link activo desde el {argDateLong(data.feed.createdAt)}{data.feed.lastUsedAt
+					? `; tu calendario lo usó por última vez el ${argDateLong(data.feed.lastUsedAt)}`
 					: ''}.
 			</p>
 		{/if}

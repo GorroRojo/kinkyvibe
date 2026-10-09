@@ -63,8 +63,18 @@ export function eventEnd(start, end) {
 
 /** @param {number} n */
 const pad2 = (n) => String(n).padStart(2, '0');
-const WEEKDAYS_ES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-const MONTHS_ES = [
+/** Weekday names, Sunday first (`Date#getDay`). */
+export const WEEKDAYS_ES = [
+	'domingo',
+	'lunes',
+	'martes',
+	'miércoles',
+	'jueves',
+	'viernes',
+	'sábado'
+];
+/** Month names, January first. */
+export const MONTHS_ES = [
 	'enero',
 	'febrero',
 	'marzo',
@@ -107,9 +117,12 @@ export function argWeekdayDay(d) {
 	return `${WEEKDAYS_ES[a.getDay()]} ${pad2(a.getDate())}`;
 }
 
-/** Weekday and month abbreviations for lists ("vie 2 oct"). */
-const WEEKDAYS_SHORT_ES = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
-const MONTHS_SHORT_ES = MONTHS_ES.map((m) => m.slice(0, 3));
+/**
+ * Weekday and month abbreviations for lists ("vie 2 oct"). Always three letters: «sep», never
+ * the «sept» that recent ICU data gives es-AR (`Intl` with `month: 'short'`).
+ */
+export const WEEKDAYS_SHORT_ES = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+export const MONTHS_SHORT_ES = MONTHS_ES.map((m) => m.slice(0, 3));
 
 /**
  * Formatos de fecha visibles (decisión de gorrite, revisión de UI paso 3). Nunca fechas ISO ni
@@ -117,7 +130,38 @@ const MONTHS_SHORT_ES = MONTHS_ES.map((m) => m.slice(0, 3));
  * - listas: {@link argDateList} → `vie 2 oct · 22:00` (con el año si no es el actual);
  * - encabezados: {@link argDateTimeLong} → `viernes 2 de octubre de 2026, 22:00`;
  * - registros: «hace X» (`fmtRelative` del panel) o {@link argDateLog} → `2/10/26 13:43`.
+ *
+ * Variantes para lo que no es una lista ni un encabezado:
+ * - fecha corta con año: {@link argDateShort} → `2 oct 2026`;
+ * - fecha larga sin día de la semana: {@link argDateLong} → `2 de octubre de 2026`;
+ * - día y mes en números: {@link argDayMonth} → `2/10`;
+ * - solo la hora: {@link argTime} → `22:00`;
+ * - las partes sueltas (bloques de fecha, imágenes): {@link argDateParts};
+ * - una fecha de evento tal como está escrita (`2026-10-02T22:00-03:00` o solo `2026-10-02`):
+ *   {@link eventDateList};
+ * - planillas (CSV): {@link argDateTimeCsv} → `2026-10-02 22:30`.
  */
+
+/**
+ * The pieces of a date in Argentina time, for layouts that place them apart (a date block, an
+ * image): `{ weekday: 'vie', day: 2, month: 'oct', year: 2026, hours: 22, minutes: 0 }`. `null`
+ * if the date can't be read.
+ * @param {string|number|Date} d
+ */
+export function argDateParts(d) {
+	const a = toArgentina(d);
+	if (isNaN(a.getTime())) return null;
+	return {
+		weekday: WEEKDAYS_SHORT_ES[a.getDay()],
+		weekdayLong: WEEKDAYS_ES[a.getDay()],
+		day: a.getDate(),
+		month: MONTHS_SHORT_ES[a.getMonth()],
+		monthLong: MONTHS_ES[a.getMonth()],
+		year: a.getFullYear(),
+		hours: a.getHours(),
+		minutes: a.getMinutes()
+	};
+}
 
 /**
  * Date for lists, in Argentina time: `vie 2 oct · 22:00`. Without the time if `time` is false
@@ -159,4 +203,74 @@ export function argDateTimeLong(d, { time = true } = {}) {
 	if (isNaN(a.getTime())) return '';
 	const day = `${WEEKDAYS_ES[a.getDay()]} ${a.getDate()} de ${MONTHS_ES[a.getMonth()]} de ${a.getFullYear()}`;
 	return time ? `${day}, ${pad2(a.getHours())}:${pad2(a.getMinutes())}` : day;
+}
+
+/**
+ * Short date with the year, in Argentina time: `2 oct 2026`.
+ *
+ * Like the other helpers below it, it gives `''` for a missing (`null`, `''`) or unreadable date.
+ * @param {string|number|Date|null|undefined} d
+ */
+export function argDateShort(d) {
+	if (d == null || d === '') return '';
+	const a = toArgentina(d);
+	if (isNaN(a.getTime())) return '';
+	return `${a.getDate()} ${MONTHS_SHORT_ES[a.getMonth()]} ${a.getFullYear()}`;
+}
+
+/**
+ * Long date without the weekday, in Argentina time: `2 de octubre de 2026` (`2 de octubre` if
+ * `year` is false).
+ * @param {string|number|Date|null|undefined} d
+ * @param {{ year?: boolean }} [opts]
+ */
+export function argDateLong(d, { year = true } = {}) {
+	if (d == null || d === '') return '';
+	const a = toArgentina(d);
+	if (isNaN(a.getTime())) return '';
+	const day = `${a.getDate()} de ${MONTHS_ES[a.getMonth()]}`;
+	return year ? `${day} de ${a.getFullYear()}` : day;
+}
+
+/**
+ * Day and month in numbers, in Argentina time: `2/10`.
+ * @param {string|number|Date|null|undefined} d
+ */
+export function argDayMonth(d) {
+	if (d == null || d === '') return '';
+	const a = toArgentina(d);
+	if (isNaN(a.getTime())) return '';
+	return `${a.getDate()}/${a.getMonth() + 1}`;
+}
+
+/**
+ * Date and time for spreadsheets (CSV exports), in Argentina time: `2026-10-02 22:30`. Sorts as
+ * text and every spreadsheet reads it as a date. `''` if the date can't be read.
+ * @param {string|number|Date|null|undefined} d
+ */
+export function argDateTimeCsv(d) {
+	if (d == null || d === '') return '';
+	const a = toArgentina(d);
+	if (isNaN(a.getTime())) return '';
+	return `${argDate(d)} ${argTime(d)}`;
+}
+
+/**
+ * {@link argDateList} for an event date as the site writes it (`2026-10-02T22:00-03:00`): the
+ * time as written (it is already Argentina time), and only the day (`vie 2 oct`) when the date
+ * has no time (`2026-10-02`). A `Date` (some YAML parsers give one) is read in Argentina time.
+ * The year goes at the end when it isn't the year of `now`; without `now` it never goes.
+ * `''` if the date can't be read.
+ * @param {string|Date|null|undefined} start
+ * @param {{ now?: string|number|Date }} [opts]
+ */
+export function eventDateList(start, { now } = {}) {
+	if (start instanceof Date) return argDateList(start, { now: now ?? start });
+	const m = String(start ?? '')
+		.trim()
+		.match(/^(\d{4}-\d{2}-\d{2})(?:[T ](\d{1,2}):(\d{2}))?/);
+	if (!m) return '';
+	const hh = (m[2] ?? '12').padStart(2, '0');
+	const iso = `${m[1]}T${hh}:${m[3] ?? '00'}:00-03:00`;
+	return argDateList(iso, { time: Boolean(m[2]), now: now ?? iso });
 }

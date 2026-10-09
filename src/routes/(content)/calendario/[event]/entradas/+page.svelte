@@ -5,6 +5,7 @@
 	import { doorText } from '$lib/utils/tickets.js';
 	import { page } from '$app/stores';
 	import { venueLine } from '$lib/utils/venues.js';
+	import { salePlaceText } from '$lib/utils/eventPlace.js';
 
 	/**
 	 * @type {{
@@ -21,11 +22,9 @@
 	let when = $derived(data.meta.start ? argDateTimeLong(data.meta.start) : '');
 	// Con lugar vinculado, el lugar según su privacidad (nunca el «Dónde» del .md).
 	let where = $derived(
-		data.tickets.online
-			? 'Online'
-			: data.venue
-				? venueLine(data.venue)
-				: [data.meta.location_name, data.meta.location].filter(Boolean).join(' · ')
+		!data.tickets.online && data.venue
+			? venueLine(data.venue)
+			: salePlaceText(data.tickets.online, data.meta)
 	);
 </script>
 

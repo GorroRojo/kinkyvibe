@@ -39,6 +39,11 @@ Además, `ci.yml` tiene el job **`ui-impacto`** (informe de impacto visual,
 `ui-impacto` con capturas antes y después. Es **solo informativo**: no está en los `needs` de
 `ci-ok` y es el único job con `continue-on-error`, porque no es una prueba.
 
+**Dependabot** (`.github/dependabot.yml`) abre los lunes PRs agrupados de dependencias: uno con
+todas las actualizaciones minor y patch de npm, otro con las de seguridad y otro con las actions
+de los workflows. Cada salto de major llega en su propio PR. Pasan por la misma CI y, como todo
+PR, se mergean solo con la aprobación de gorrite.
+
 `ci-ok` existe para que la protección de `main` pida un solo chequeo: si alguien agrega un job a
 `ci.yml`, lo suma a los `needs` de `ci-ok` y listo, sin tocar la configuración de GitHub.
 
@@ -54,6 +59,8 @@ Detalles de `e2e`:
 
 `npm run lint` es solo ESLint: **no** revisa el formato de Prettier, y la CI tampoco. Para eso,
 `npm run format:check` (todo el repo) o `npx prettier --check docs` (solo la documentación).
+La configuración está en `eslint.config.js` (formato plano; las rutas ignoradas también van ahí,
+ya no hay `.eslintrc` ni `.eslintignore`).
 
 ## Los tipos de pruebas
 

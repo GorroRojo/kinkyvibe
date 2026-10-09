@@ -2,6 +2,7 @@
  * Reglas de entradas que se usan en el servidor Y en el navegador (sin secretos ni base de
  * datos). El navegador las usa solo para mostrar; el servidor siempre recalcula.
  */
+import { argDateParts, argDayMonth, argTime } from './dates.js';
 
 /**
  * Cuántos bloques de datos por entrada se muestran como máximo en el formulario. No es un
@@ -490,20 +491,9 @@ export function parseSaleTime(value, { endOfDay = false } = {}) {
  * @param {number} ms
  */
 export function formatSaleTime(ms) {
-	const parts = Object.fromEntries(
-		new Intl.DateTimeFormat('es-AR', {
-			timeZone: AR_TIMEZONE,
-			weekday: 'long',
-			day: 'numeric',
-			month: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit',
-			hourCycle: 'h23'
-		})
-			.formatToParts(new Date(ms))
-			.map((p) => [p.type, p.value])
-	);
-	return `${parts.weekday} ${parts.day}/${parts.month} a las ${parts.hour}:${parts.minute}`;
+	const p = argDateParts(ms);
+	if (!p) return '';
+	return `${p.weekdayLong} ${argDayMonth(ms)} a las ${argTime(ms)}`;
 }
 
 /**

@@ -5,7 +5,6 @@
 import { requireAdmin } from '$lib/server/auth';
 import { csvFilename, csvResponse, toCsv } from '$lib/admin/csv.js';
 import { allSeries } from '$lib/server/series/index.js';
-import { argDate, argTime } from '$lib/utils/dates.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
 
 /** @type {import('./$types').RequestHandler} */
@@ -20,8 +19,7 @@ export async function GET({ locals, url, platform }) {
 		{ label: 'Serie', key: 'series' },
 		{ label: 'Edición', key: 'number' },
 		{ label: 'Título', key: 'title' },
-		{ label: 'Fecha (Argentina)', value: (r) => argDate(r.start) },
-		{ label: 'Hora', value: (r) => argTime(r.start) },
+		{ label: 'Fecha (hora de Argentina)', value: (r) => new Date(r.start) },
 		{ label: 'Estado', key: 'status' },
 		{ label: 'Próxima', value: (r) => new Date(r.start).getTime() > now },
 		{ label: 'Dirección', value: (r) => r.path }

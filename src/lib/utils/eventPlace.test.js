@@ -2,9 +2,17 @@ import { describe, expect, it } from 'vitest';
 import {
 	MAP_LINK_ERROR,
 	checkMapLink,
+	eventMode,
 	eventPlace,
 	eventPlaceSchema,
+	hasOnlineTag,
+	isOnlineEvent,
 	isOnlinePlace,
+	isOnlineWord,
+	modalidadOf,
+	placeLine,
+	placeShort,
+	salePlaceText,
 	placeFileErrors,
 	stripMdPlace,
 	venuePlaceMeta,
@@ -235,5 +243,118 @@ describe('un lugar vinculado manda sobre el «Dónde» del .md (salidas pública
 		expect(venueShortLabel(view('area'))).toBe('Barrio Inventado, Ciudad Inventada');
 		expect(venueShortLabel({ level: 'area' })).toBe('Lugar a confirmar');
 		expect(venueShortLabel({ level: 'hidden' })).toBe('Lugar a confirmar');
+	});
+});
+
+describe('eventMode: la regla de online o presencial', () => {
+	it('un lugar vinculado manda: presencial', () => {
+		expect(eventMode({ tags: ['Online'] }, { hasVenue: true })).toBe('presencial');
+		expect(eventMode({ modalidad: 'online' }, { hasVenue: true })).toBe('presencial');
+	});
+
+	it('`modalidad` manda sobre el «Dónde» y las etiquetas', () => {
+		expect(eventMode({ modalidad: 'online', location: 'Calle Falsa 123' })).toBe('online');
+		expect(eventMode({ modalidad: ' Virtual ' })).toBe('online');
+		expect(eventMode({ modalidad: 'presencial', tags: ['Online'] })).toBe('presencial');
+		expect(eventMode({ modalidad: 'PRESENCIAL' })).toBe('presencial');
+		expect(modalidadOf({ modalidad: 'otra cosa' })).toBe('');
+		expect(modalidadOf(null)).toBe('');
+	});
+
+	it('un «Dónde» que dice «Online», «Virtual», «Zoom»…: online', () => {
+		for (const location of ['Online', ' virtual ', 'Zoom', 'Google Meet', 'Jitsi', 'por zoom']) {
+			expect(eventMode({ location }), location).toBe('online');
+		}
+		expect(eventMode({ location_name: 'Online' })).toBe('online');
+		// Con dirección, el nombre «Online» no alcanza.
+		expect(eventMode({ location_name: 'Online', location: 'Calle Falsa 123' })).toBe('presencial');
+		// La página también (antes mostraba «Zoom» con el pin de un lugar).
+		expect(eventPlace({ location: 'Zoom' }).text).toBe('Online');
+		expect(isOnlineWord('ONLÍNE')).toBe(true);
+		expect(isOnlineWord('Online - Zoom')).toBe(false);
+	});
+
+	it('cualquier otro «Dónde»: presencial, aunque tenga la etiqueta Online', () => {
+		expect(eventMode({ location: 'Calle Falsa 123', tags: ['Online'] })).toBe('presencial');
+		expect(eventMode({ location_name: 'Galpón Inventado', tags: ['Online'] })).toBe('presencial');
+	});
+
+	it('sin «Dónde»: la etiqueta Online (o «virtual»); sin nada, no se sabe', () => {
+		expect(eventMode({ tags: ['charla', 'Online'] })).toBe('online');
+		expect(eventMode({ tags: [' virtual '] })).toBe('online');
+		expect(eventMode({ tags: ['AMBA'] })).toBe('');
+		expect(eventMode({})).toBe('');
+		expect(eventMode(null)).toBe('');
+		expect(hasOnlineTag('Online')).toBe(false);
+	});
+
+	it('isOnlinePlace es eventMode sin lugar vinculado', () => {
+		expect(isOnlinePlace({ location: 'Zoom' })).toBe(true);
+		expect(isOnlinePlace({ location_name: 'Galpón Inventado', tags: ['Online'] })).toBe(false);
+	});
+});
+
+describe('isOnlineEvent: la venta de entradas usa la misma regla (eventMode)', () => {
+	it('`modalidad` manda', () => {
+		expect(isOnlineEvent({ modalidad: 'online', location: 'Calle Falsa 123' })).toBe(true);
+		expect(isOnlineEvent({ modalidad: 'virtual' })).toBe(true);
+		expect(isOnlineEvent({ modalidad: 'presencial', tags: ['Online'] })).toBe(false);
+	});
+
+	it('sin `modalidad`: el «Dónde» y, sin «Dónde», la etiqueta Online', () => {
+		expect(isOnlineEvent({ tags: ['Online'] })).toBe(true);
+		expect(isOnlineEvent({ tags: [' online '] })).toBe(true);
+		expect(isOnlineEvent({ tags: ['Online'], location: 'Calle Falsa 123' })).toBe(false);
+		expect(isOnlineEvent({ tags: ['AMBA'] })).toBe(false);
+		expect(isOnlineEvent({})).toBe(false);
+		expect(isOnlineEvent(null)).toBe(false);
+	});
+
+	it('con lugar vinculado, presencial', () => {
+		expect(isOnlineEvent({ tags: ['Online'] }, { hasVenue: true })).toBe(false);
+		expect(isOnlineEvent({ modalidad: 'online' }, { hasVenue: true })).toBe(false);
+	});
+
+	// Cambio decidido por gorrite: antes la venta tenía su propia regla y estos dos casos no
+	// coincidían con la página. Ahora coinciden.
+	it('coincide con eventMode en los dos casos que antes diferían', () => {
+		// Etiqueta Online y solo un nombre de lugar: presencial en los dos.
+		const named = { tags: ['Online'], location_name: 'Galpón Inventado' };
+		expect(isOnlineEvent(named)).toBe(false);
+		expect(eventMode(named)).toBe('presencial');
+		// «Dónde» «Online» sin etiqueta ni modalidad: online en los dos.
+		expect(isOnlineEvent({ location: 'Online' })).toBe(true);
+		expect(eventMode({ location: 'Online' })).toBe('online');
+	});
+});
+
+describe('textos del lugar', () => {
+	it('placeLine: «Nombre · Dirección», lo que haya, el mismo texto una sola vez', () => {
+		expect(placeLine(' Galpón Inventado ', 'Calle Falsa 123 ')).toBe(
+			'Galpón Inventado · Calle Falsa 123'
+		);
+		expect(placeLine('Galpón Inventado', '')).toBe('Galpón Inventado');
+		expect(placeLine(undefined, 'Calle Falsa 123')).toBe('Calle Falsa 123');
+		expect(placeLine('Plaza Falsa', 'plaza falsa')).toBe('Plaza Falsa');
+		expect(placeLine(null, undefined)).toBe('');
+	});
+
+	it('salePlaceText: «Online» si la venta lo dice; si no, «Nombre · Dirección»', () => {
+		const place = { location_name: 'Galpón Inventado', location: 'Calle Falsa 123' };
+		expect(salePlaceText(true, place)).toBe('Online');
+		expect(salePlaceText(false, place)).toBe('Galpón Inventado · Calle Falsa 123');
+		expect(salePlaceText(false, { location_name: 'Casa', location: 'Casa' })).toBe('Casa');
+		expect(salePlaceText(false, null)).toBe('');
+	});
+
+	it('placeShort: «Online», el nombre o la dirección; sin nada, vacío', () => {
+		expect(placeShort({ tags: ['Online'] })).toBe('Online');
+		expect(placeShort({ location: 'Zoom' })).toBe('Online');
+		expect(placeShort({ location_name: 'Galpón Inventado', location: 'Calle Falsa 123' })).toBe(
+			'Galpón Inventado'
+		);
+		expect(placeShort({ location: 'Calle Falsa 123' })).toBe('Calle Falsa 123');
+		expect(placeShort({ location_name: '', location: 'Calle Falsa 123' })).toBe('Calle Falsa 123');
+		expect(placeShort({ tags: ['AMBA'] })).toBe('');
 	});
 });
