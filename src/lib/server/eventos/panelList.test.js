@@ -4,11 +4,26 @@
  * repetir ni perder ninguno; las cuentas, la búsqueda y el CSV son de TODOS; las ventas se piden
  * en una consulta y solo para los eventos que se mandan. Eventos inventados.
  */
-import { describe, expect, it } from 'vitest';
-import { firstPage, listedRows, olderPage, pastSince, withSales } from './panelList.js';
+import { describe, expect, it, vi } from 'vitest';
+import {
+	firstPage,
+	listedRows,
+	olderPage,
+	panelEventRows,
+	pastSince,
+	withSales
+} from './panelList.js';
+import { listPanelEventsWithMeta } from './panel.js';
+import { listEventVenues } from '$lib/server/amigues/venues.js';
+
+// Para `panelEventRows`: los eventos y sus lugares vinculados, inventados (sin base de contenido).
+vi.mock('./panel.js', () => ({ listPanelEventsWithMeta: vi.fn() }));
+vi.mock('$lib/server/amigues/venues.js', () => ({ listEventVenues: vi.fn() }));
 import {
 	OLDER_PAGE,
 	PAST_DAYS,
+	ONLINE_MISMATCH_DAYS,
+	daysBefore,
 	filterTests,
 	inFilter,
 	matchesSearch,
@@ -34,6 +49,7 @@ function row(over) {
 		unlisted: false,
 		unpublished: false,
 		online: false,
+		onlineMismatch: false,
 		thumb: '/img.webp',
 		sellsTickets: false,
 		capacity: null,
@@ -195,5 +211,104 @@ describe('ventas de la lista', () => {
 		expect(calls.length).toBe(0);
 		const rows = [row({ slug: 'uno' })];
 		expect(await withSales(null, rows, 1)).toBe(rows);
+	});
+});
+
+describe('«Online con lugar»', () => {
+	// Antes el filtro juntaba todos los que avisan, también los viejos. Ahora es la lista de
+	// «Para revisar» (pedido de gorrite): los que vienen, los de hoy y los de los últimos
+	// ONLINE_MISMATCH_DAYS días, sin los despublicados; la misma regla que la cuenta del Inicio.
+	it('el filtro junta los que avisan que vienen y los del último mes, y la página los manda', () => {
+		const all = [
+			row({
+				slug: 'proximo-online-con-lugar',
+				start: '2031-07-01T20:00-03:00',
+				onlineMismatch: true
+			}),
+			row({ slug: 'proximo-bien', start: '2031-07-02T20:00-03:00' }),
+			row({ slug: 'hoy-online-con-lugar', start: `${TODAY}T20:00-03:00`, onlineMismatch: true }),
+			row({
+				slug: 'despublicado-online-con-lugar',
+				start: '2031-06-20T20:00-03:00',
+				onlineMismatch: true,
+				unpublished: true
+			}),
+			row({
+				slug: 'hace-30-dias-online-con-lugar',
+				start: `${daysBefore(TODAY, ONLINE_MISMATCH_DAYS)}T20:00-03:00`,
+				onlineMismatch: true
+			}),
+			row({
+				slug: 'hace-31-dias-online-con-lugar',
+				start: `${daysBefore(TODAY, ONLINE_MISMATCH_DAYS + 1)}T20:00-03:00`,
+				onlineMismatch: true
+			}),
+			row({
+				slug: 'viejo-online-con-lugar',
+				start: '2029-01-10T20:00-03:00',
+				onlineMismatch: true
+			}),
+			row({ slug: 'viejo-bien', start: '2029-01-11T20:00-03:00' })
+		].map((e, i) => ({ ...e, i }));
+		const page = firstPage(all, TODAY);
+		expect(page.counts['online-con-lugar']).toBe(3);
+		expect(inFilter(page.events, 'online-con-lugar', TODAY).map((e) => e.slug)).toEqual([
+			'proximo-online-con-lugar',
+			'hoy-online-con-lugar',
+			'hace-30-dias-online-con-lugar'
+		]);
+		// Los viejos (con aviso o sin) siguen yendo con «Ver anteriores», con su marca.
+		expect(page.events.map((e) => e.slug)).not.toContain('viejo-bien');
+		expect(olderPage(all, TODAY).events.map((e) => e.slug)).toEqual([
+			'viejo-online-con-lugar',
+			'viejo-bien'
+		]);
+	});
+
+	it('panelEventRows marca los eventos con etiqueta Online y lugar (texto libre o vinculado)', async () => {
+		/** @param {string} slug @param {Record<string, any>} meta */
+		const ev = (slug, meta) => ({
+			event: /** @type {any} */ ({
+				slug,
+				title: slug,
+				start: '2031-07-01T20:00-03:00',
+				end: '',
+				status: '',
+				location: meta.location ?? '',
+				locationName: meta.location_name ?? '',
+				place: '',
+				tags: meta.tags,
+				unlisted: false,
+				unpublished: false,
+				online: false,
+				sellsTickets: false
+			}),
+			meta
+		});
+		vi.mocked(listPanelEventsWithMeta).mockResolvedValue([
+			ev('con-nombre', { tags: ['Online'], location_name: 'Casa Ficticia | Sala Inventada' }),
+			ev('con-lugar-vinculado', { tags: ['online'] }),
+			ev('lugar-borrado', { tags: ['Online'] }),
+			ev('online-de-verdad', { tags: ['Online'], location_name: 'Zoom' }),
+			ev('presencial', { tags: ['AMBA'], location: 'Calle Falsa 123' })
+		]);
+		vi.mocked(listEventVenues).mockResolvedValue([
+			/** @type {any} */ ({ eventSlug: 'con-lugar-vinculado', venueDeleted: false }),
+			/** @type {any} */ ({ eventSlug: 'lugar-borrado', venueDeleted: true }),
+			/** @type {any} */ ({ eventSlug: 'presencial', venueDeleted: false })
+		]);
+		const db = /** @type {any} */ ({});
+		const flagged = (await panelEventRows(db)).filter((r) => r.onlineMismatch).map((r) => r.slug);
+		expect(flagged).toEqual(['con-nombre', 'con-lugar-vinculado']);
+
+		// Sin base, o si leer los lugares falla, mira solo el texto libre (y no rompe la lista).
+		expect((await panelEventRows(null)).filter((r) => r.onlineMismatch).map((r) => r.slug)).toEqual(
+			['con-nombre']
+		);
+		vi.mocked(listEventVenues).mockRejectedValueOnce(new Error('sin tabla'));
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const rows = await panelEventRows(db);
+		spy.mockRestore();
+		expect(rows.filter((r) => r.onlineMismatch).map((r) => r.slug)).toEqual(['con-nombre']);
 	});
 });

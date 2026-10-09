@@ -5,10 +5,12 @@
 		Copy,
 		ExternalLink,
 		FileSpreadsheet,
+		Pencil,
 		Repeat,
 		Search,
 		SearchX,
-		Table2
+		Table2,
+		X
 	} from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
@@ -18,10 +20,11 @@
 	import { goalProgress } from '$lib/utils/salesGoal.js';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
-	import { eventPanelLink } from '$lib/admin/nav.js';
+	import { eventHref, eventPanelLink } from '$lib/admin/nav.js';
 	import { dateParts, eventBadges, shortDate, timeRange } from '$lib/admin/eventFormat.js';
 	import {
-		FILTERS,
+		CHIP_FILTERS,
+		REVIEW_FILTERS,
 		filterId,
 		inFilter,
 		isUpcoming,
@@ -64,6 +67,8 @@
 	$: loaded = merge(data.events, older);
 
 	$: filter = filterId($page.url.searchParams.get('filtro'));
+	// Una lista de «Para revisar» (sin chip): la página dice cuál es y cómo salir.
+	$: reviewList = REVIEW_FILTERS[filter] ?? null;
 	let query = '';
 	let shown = PAGE;
 	$: words = searchWords(query);
@@ -138,6 +143,7 @@
 	function warnings(e) {
 		const out = [];
 		if (upcoming(e) && !e.thumb) out.push('sin imagen');
+		if (e.onlineMismatch) out.push('online con lugar');
 		if (e.transfers) out.push(`${e.transfers} transf. por confirmar`);
 		return out;
 	}
@@ -160,7 +166,8 @@
 
 <div class="tools">
 	<nav class="chips" aria-label="Filtrar eventos">
-		{#each FILTERS as f (f.id)}
+		<!-- Las listas de «Para revisar» (REVIEW_FILTERS) no tienen chip: se llega desde el Inicio. -->
+		{#each CHIP_FILTERS as f (f.id)}
 			<a
 				class="chip"
 				class:on={!words.length && filter === f.id}
@@ -184,6 +191,24 @@
 	</label>
 </div>
 
+{#if reviewList && !words.length}
+	<section class="review-list" aria-labelledby="review-list-title">
+		<div class="grow">
+			<h2 id="review-list-title">{reviewList.title} <span class="n">{counts[filter]}</span></h2>
+			<p>{reviewList.text}</p>
+		</div>
+		<div class="review-actions">
+			<a class="kv-btn ghost sm" href="/admin#para-revisar">Volver a Para revisar</a>
+			<a
+				class="kv-btn ghost sm"
+				href="?filtro=proximos"
+				data-sveltekit-replacestate
+				data-sveltekit-noscroll><X {...icon} /> Ver todos los eventos</a
+			>
+		</div>
+	</section>
+{/if}
+
 <Card padded={false}>
 	{#if words.length && (searching || searchError)}
 		<p class="status" role="status">
@@ -200,7 +225,9 @@
 				: 'No hay eventos acá'}
 			text={filter === 'sin-imagen' && !words.length
 				? 'Todos los próximos eventos tienen imagen.'
-				: ''}
+				: filter === 'online-con-lugar' && !words.length
+					? 'Ningún evento que viene (ni del último mes) tiene a la vez un lugar y la etiqueta «Online».'
+					: ''}
 		/>
 	{:else}
 		<ul class="list">
@@ -247,6 +274,14 @@
 						{/if}
 					</div>
 					<div class="actions">
+						{#if e.onlineMismatch}
+							<!-- Online con lugar: directo a las etiquetas del editor, para sacar una de las dos. -->
+							<a
+								class="kv-btn ghost"
+								href="{eventHref(e.slug, 'editar')}#sec-etiquetas"
+								aria-label="Editar {e.title}"><Pencil {...icon} /> Editar</a
+							>
+						{/if}
 						<a
 							class="kv-btn ghost"
 							href="/admin/eventos/nuevo?desde={encodeURIComponent(e.slug)}"
@@ -291,6 +326,37 @@
 		align-items: center;
 		justify-content: space-between;
 		margin-bottom: 1rem;
+	}
+	.review-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2xs) var(--space-xs);
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 1rem;
+		padding: var(--space-xs);
+		border-radius: var(--radius-m);
+		background: var(--warn-bg);
+	}
+	.review-list .grow {
+		flex: 1 1 18rem;
+		min-width: 0;
+	}
+	.review-list h2 {
+		margin: 0;
+		font-size: var(--text-m, 1.1rem);
+	}
+	.review-list h2 .n {
+		font-weight: 400;
+	}
+	.review-list p {
+		margin: 0.2rem 0 0;
+		font-size: var(--text-s, 0.95rem);
+	}
+	.review-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
 	}
 	.chips {
 		display: flex;

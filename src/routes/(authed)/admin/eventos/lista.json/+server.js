@@ -19,7 +19,9 @@ export async function GET({ locals, url, platform }) {
 	const q = url.searchParams.get('q');
 	const offset = url.searchParams.get('anteriores');
 	if (q === null && offset === null) error(400, 'Falta `q` o `anteriores`.');
-	const rows = await panelEventRows();
+	const db = getDB(platform);
+	// Con la base, como la página: así «Ver anteriores» no repite ni pierde ninguno.
+	const rows = await panelEventRows(db);
 	const page =
 		q !== null
 			? {
@@ -27,7 +29,7 @@ export async function GET({ locals, url, platform }) {
 					remaining: 0
 				}
 			: olderPage(rows, today, { offset: Number(offset) });
-	const events = await withSales(getDB(platform), page.events, now);
+	const events = await withSales(db, page.events, now);
 	return json(
 		{ events, remaining: page.remaining },
 		{ headers: { 'cache-control': 'private, no-store' } }

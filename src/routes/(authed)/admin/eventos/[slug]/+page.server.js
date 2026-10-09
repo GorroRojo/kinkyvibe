@@ -16,6 +16,7 @@ import { getEventAdmin, getRepoClient } from '$lib/server/eventos';
 import { confirmDraft } from '$lib/server/eventos/drafts.js';
 import { eventMissing } from '$lib/utils/eventMissing.js';
 import { panelVenueRow } from '$lib/server/amigues/eventFormVenue.js';
+import { onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
 
 /** @type {Record<string, string>} */
 const CLOSED_REASON = {
@@ -137,7 +138,21 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 		: [];
 	// «Lugar»: el vinculado (edge `lugar` del evento, se elige en el formulario del evento).
 	const venue = await panelVenueRow(db, params.slug);
-	return { checklist, stream, sale, online: Boolean(config?.online), draft, missing, venue };
+	// Etiqueta «Online» y además un lugar: un aviso arriba (no cambia nada).
+	const onlineMismatch = onlineTagMismatch(
+		{ tags: event.tags, location: event.location, location_name: event.locationName },
+		{ hasVenue: Boolean(venue) }
+	);
+	return {
+		checklist,
+		stream,
+		sale,
+		online: Boolean(config?.online),
+		draft,
+		missing,
+		venue,
+		onlineMismatch
+	};
 }
 
 export const actions = {

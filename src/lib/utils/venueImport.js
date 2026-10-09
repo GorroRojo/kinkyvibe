@@ -139,7 +139,14 @@ export function streetKey(text) {
 }
 
 /** Lo que dice un «Dónde» de un evento online. */
-const ONLINE_WORDS = new Set(['online', 'virtual', 'zoom', 'meet', 'google meet', 'discord']);
+export const ONLINE_WORDS = new Set([
+	'online',
+	'virtual',
+	'zoom',
+	'meet',
+	'google meet',
+	'discord'
+]);
 
 /**
  * ¿El evento es online? (`modalidad: online`, o el «Dónde» dice «Online», «Zoom»…, o tiene la

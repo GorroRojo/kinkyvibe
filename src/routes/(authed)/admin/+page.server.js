@@ -19,6 +19,8 @@ import {
 	integrityReviewRow,
 	integrityRunQuery,
 	monthMoneyQuery,
+	onlineMismatchCountQuery,
+	onlineMismatchItem,
 	pendingTransfersQuery,
 	profileReviewItems,
 	recentActivityRowsQuery,
@@ -90,6 +92,8 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		newProfiles: profilesToReviewQuery(),
 		// Pedidos "Es mi perfil" pendientes (docs/amigues.md). [] sin la migración 0017.
 		claims: claimsQuery(),
+		// Eventos con la etiqueta «Online» y además un lugar (los que vienen y los del último mes).
+		onlineMismatch: onlineMismatchCountQuery(now),
 		// Las filas: los títulos de los eventos se ponen después, con la lista de eventos.
 		activity: recentActivityRowsQuery({ limit: 10 })
 	});
@@ -153,7 +157,18 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		)
 	});
 	const { totals, checkins, streamLinks, stuck, reminders, since } = s2;
-	const { transfers, review, unsent, money, seen, expiring, integrity, newProfiles, claims } = s1;
+	const {
+		transfers,
+		review,
+		unsent,
+		money,
+		seen,
+		expiring,
+		integrity,
+		newProfiles,
+		claims,
+		onlineMismatch
+	} = s1;
 	const [fondo, contentPulls] = await others;
 
 	const upcoming = upcomingEvents({
@@ -187,11 +202,14 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		ticketed,
 		transferReady: transferReadyFromSettings(s1.settings)
 	});
+	// Eventos con lugar y etiqueta «Online»: una fila que lleva a esa lista de Eventos.
+	const onlineItem = onlineMismatchItem(onlineMismatch);
 	const todo = groupReviewItems(
 		[
 			...pullItems.filter((i) => i.tone !== 'info'),
 			...(transferMissing ? [transferMissing] : []),
 			...todoItems,
+			...(onlineItem ? [onlineItem] : []),
 			...profileReviewItems(newProfiles, { formatWhen: (ms) => whenLabel(ms, now) }),
 			...claimReviewItems(claims, { formatWhen: (ms) => whenLabel(ms, now) }),
 			...pullItems.filter((i) => i.tone === 'info')

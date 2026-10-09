@@ -116,8 +116,8 @@ Los links que se arman en varios lugares salen de `nav.js` (`navItem`, `eventHre
 URLs de antes en sus comentarios: son append-only y no se tocan.
 
 **Para revisar**: botón global en la barra de arriba y en el header del celu, con un contador
-(transferencias pendientes + órdenes para revisar + perfiles y pedidos "Es mi perfil"). Por ahora
-lleva a la tarjeta "Para revisar" del Inicio.
+(transferencias pendientes + órdenes para revisar + perfiles y pedidos "Es mi perfil" + eventos con
+lugar y etiqueta «Online»). Por ahora lleva a la tarjeta "Para revisar" del Inicio.
 
 **Barra lateral**: las áreas se abren de a una. Se abre la de la página actual; en Inicio, la
 última que abriste (se recuerda en el navegador, `navPrefs.js`; sin storage anda igual). Un área
@@ -141,6 +141,35 @@ buscar busca primero en lo cargado y enseguida en todos (`?q=`). Los filtros son
 lo cargado y sus cuentas son de todos. El CSV sale del servidor con todos los eventos del filtro o
 de la búsqueda (`/admin/eventos/eventos.csv`). Ver `src/lib/server/eventos/panelList.js` y
 `src/lib/admin/eventList.js`.
+
+**Aviso «Online con lugar»** (pedido de gorrite, 9/10): un evento con la etiqueta «Online» (o
+«online», «virtual») que además tiene un lugar: uno vinculado (edge `lugar`, sin borrar) o un
+«Dónde» en texto libre (`location` o `location_name`) que no sea «Online», «Virtual», «Zoom»… Las
+partes del sitio no se ponen de acuerdo: la venta de entradas (`isOnlineEvent`) lo trata como
+online si no tiene `location`, y manda el link de la transmisión en vez del QR. **Solo avisa**: no
+cambia datos ni la venta, y no bloquea guardar. Una sola función decide:
+`onlineTagMismatch(meta, { hasVenue })` en `src/lib/utils/onlineTagMismatch.js`. Aparece en:
+
+- el editor del evento (pestaña Editar): aviso amarillo dentro de «🏷️ Etiquetas», debajo de los
+  botones de idioma, lugar y precio; cambia mientras se edita;
+- la ficha (pestaña Resumen): el mismo aviso arriba, con cómo lo tratan hoy las entradas (si vende)
+  y un link a Editar;
+- **Para revisar** (Inicio): la fila «N eventos con lugar y etiqueta «Online»», que suma N en el
+  contador de Para revisar y lleva a esa lista de Eventos (`/admin/eventos?filtro=online-con-lugar`).
+  Cuenta los eventos que vienen (también los de hoy) y los de los **últimos 30 días**
+  (`ONLINE_MISMATCH_DAYS` y `onlineReviewTest` en `src/lib/admin/eventList.js`), sin los
+  despublicados: uno más viejo ya no se arregla para nadie. Las etiquetas y el «Dónde» están en el
+  JSON del evento, así que no se cuenta del todo en SQL: una sola sentencia
+  (`onlineMismatchCountQuery` en `src/lib/server/admin/inicio.js`) trae los candidatos (eventos con
+  una etiqueta que dice «online» o «virtual», en `data.tags` o como edge) con si tienen lugar
+  vinculado, y `onlineTagMismatch` decide en JS. Va en la primera tanda del Inicio y en la de los
+  contadores del menú (sin idas de más);
+- la lista de Eventos con ese filtro: no tiene chip en la barra de filtros (se llega desde Para
+  revisar; `REVIEW_FILTERS` en `eventList.js`). Arriba dice en qué lista estás, con «Volver a Para
+  revisar» y «Ver todos los eventos». Usa la misma ventana que la cuenta. Cada fila de la lista
+  (con o sin el filtro, también las viejas) lleva la marca «online con lugar» y un botón «Editar»
+  que va a las etiquetas del editor. Saber qué eventos tienen lugar vinculado es una consulta más
+  para todos (`listEventVenues`); sin base, mira solo el texto libre.
 
 **Celu**: la barra de abajo sigue igual (Inicio, Eventos, Check-in, Ventas, Más). "Más" muestra
 las áreas y, al tocar una, sus secciones. Cuando llegue la Bandeja (fase 5), el cuarto lugar pasa a

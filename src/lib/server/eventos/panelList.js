@@ -6,12 +6,15 @@
  */
 import { logDBError } from '$lib/server/db';
 import { listPanelEventsWithMeta } from './panel.js';
+import { listEventVenues } from '$lib/server/amigues/venues.js';
+import { onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
 import { totalCapacity } from '$lib/admin/eventFormat.js';
 import { GOAL_KEY, MP_FEE_SQL, parseSalesGoal, storedSalesGoal } from '$lib/utils/salesGoal.js';
 import {
 	FILTERS,
 	OLDER_PAGE,
 	PAST_DAYS,
+	daysBefore,
 	filterTests,
 	inFilter,
 	isUpcoming,
@@ -24,13 +27,33 @@ import {
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
 /**
+ * Los eventos que tienen un lugar vinculado (edge `lugar` hacia un lugar sin borrar), en una
+ * consulta para todos. Sin base o con un error, ninguno (el filtro «Online con lugar» mira solo
+ * el texto libre).
+ * @param {D1Database | null | undefined} db
+ * @returns {Promise<Set<string>>}
+ */
+async function eventsWithVenue(db) {
+	if (!db) return new Set();
+	try {
+		const links = await listEventVenues(db);
+		return new Set(links.filter((l) => !l.venueDeleted).map((l) => l.eventSlug));
+	} catch (error) {
+		logDBError('lugares de los eventos para la lista del panel', error);
+		return new Set();
+	}
+}
+
+/**
  * Todos los eventos del panel, del más nuevo al más viejo, sin las ventas (`sold`/`revenue`/
  * `mpFee`/`transfers` en 0: ver {@link withSales}).
+ * @param {D1Database | null | undefined} [db] para saber qué eventos tienen lugar vinculado
+ *   (`onlineMismatch`)
  * @returns {Promise<EventRow[]>}
  */
-export async function panelEventRows() {
+export async function panelEventRows(db) {
 	// Con su frontmatter, leído una sola vez para todos (no un pedido a la base por evento).
-	const events = await listPanelEventsWithMeta();
+	const [events, withVenue] = await Promise.all([listPanelEventsWithMeta(), eventsWithVenue(db)]);
 	return events.map(({ event: e, meta }, i) => {
 		/** @type {number | null} */
 		let capacity = null;
@@ -55,6 +78,9 @@ export async function panelEventRows() {
 			unlisted: e.unlisted,
 			unpublished: e.unpublished,
 			online: e.online,
+			onlineMismatch: onlineTagMismatch(meta ?? { tags: e.tags, location: e.location }, {
+				hasVenue: withVenue.has(e.slug)
+			}),
 			thumb: e.thumb ?? '',
 			sellsTickets: e.sellsTickets,
 			capacity,
@@ -120,14 +146,13 @@ export async function withSales(db, rows, now) {
  * @param {string} today
  */
 export function pastSince(today) {
-	const d = new Date(`${today}T12:00:00Z`);
-	d.setUTCDate(d.getUTCDate() - PAST_DAYS);
-	return d.toISOString().slice(0, 10);
+	return daysBefore(today, PAST_DAYS);
 }
 
 /**
  * ¿Va en la página de entrada? Los próximos, los de los últimos `PAST_DAYS` días, los borradores
- * (así «Próximos», «Borradores» y «Sin imagen» están completos) y los que no tienen fecha.
+ * (así «Próximos», «Borradores», «Sin imagen» y «Online con lugar», que mira solo los últimos
+ * `ONLINE_MISMATCH_DAYS` días, están completos) y los que no tienen fecha.
  * @param {EventRow} e
  * @param {string} today
  * @param {string} since ver {@link pastSince}

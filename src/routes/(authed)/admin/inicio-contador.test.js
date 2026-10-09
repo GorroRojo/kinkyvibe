@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import Page from './+page.svelte';
+import { onlineMismatchItem } from '$lib/server/admin/inicio.js';
 
 /** @param {number} n */
 const rows = (n) =>
@@ -20,13 +21,13 @@ const rows = (n) =>
 		href: `/admin/eventos/evento-inventado-${i}/editar`
 	}));
 
-/** @param {{ review?: number, todo?: number }} opts */
-function inicio({ review, todo = 0 }) {
+/** @param {{ review?: number, todo?: number, extra?: any[] }} opts */
+function inicio({ review, todo = 0, extra = [] }) {
 	const data = /** @type {any} */ ({
 		user: { name: 'Persona Inventada', login: 'persona-inventada' },
 		now: Date.parse('2026-10-02T15:00:00Z'),
 		panelCounts: review === undefined ? {} : { review },
-		todo: rows(todo),
+		todo: [...rows(todo), ...extra],
 		todayEvents: [],
 		upcoming: [],
 		agenda: [],
@@ -63,5 +64,22 @@ describe('Inicio: la cuenta de "Para revisar"', () => {
 
 	it('nada de nada: «todo al día»', () => {
 		expect(hello(inicio({ review: 0, todo: 0 }))).toContain('todo al día');
+	});
+});
+
+describe('Inicio: eventos con lugar y etiqueta «Online» en «Para revisar»', () => {
+	it('la fila dice cuántos y lleva a esa lista de Eventos; su número suma en el contador', () => {
+		const item = onlineMismatchItem(2);
+		const body = inicio({ review: 2, extra: [{ kind: 'item', ...item }] });
+		const card = body.slice(body.indexOf('id="para-revisar"'));
+		expect(card).toContain('2 eventos con lugar y etiqueta «Online»');
+		expect(card).toContain('href="/admin/eventos?filtro=online-con-lugar"');
+		expect(hello(body)).toContain('2 cosas para revisar');
+	});
+
+	it('uno solo, en singular; ninguno o la cuenta fallada, sin fila', () => {
+		expect(onlineMismatchItem(1)?.title).toBe('1 evento con lugar y etiqueta «Online»');
+		expect(onlineMismatchItem(0)).toBeNull();
+		expect(onlineMismatchItem(null)).toBeNull();
 	});
 });
