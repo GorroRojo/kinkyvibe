@@ -7,6 +7,7 @@ import { featuredURL, listEvents } from './index.js';
 import { agendaRowFromMeta } from '$lib/utils/agenda.js';
 import { eventMissing, missingInputFromMeta } from '$lib/utils/eventMissing.js';
 import { splitEventTags } from '$lib/utils/adminTags.js';
+import { isOnlinePlace } from '$lib/utils/eventPlace.js';
 import { AR_OFFSET, parseEventDate, todayInArgentina } from '$lib/utils/eventDraft.js';
 
 /**
@@ -93,7 +94,8 @@ function toPanelEvent(e, meta) {
 		summary: meta?.summary ? String(meta.summary) : '',
 		unlisted: e.unlisted,
 		unpublished: e.unpublished,
-		online: split.place === 'Online' || meta?.modalidad === 'online',
+		// La regla de la página (eventPlace.js); con entradas, la ficha usa la de la venta.
+		online: isOnlinePlace(meta ?? { tags, location: e.location }),
 		kinkyvibe: split.kinkyvibe,
 		sellsTickets: Array.isArray(meta?.tickets) && meta.tickets.length > 0,
 		draft: meta?.borrador === true,

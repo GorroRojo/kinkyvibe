@@ -24,6 +24,7 @@
 import { entradas } from './plural.js';
 import { isMap, isSeq, parseDocument } from 'yaml';
 import { joinMarkdown, serializeFrontmatter, splitMarkdown } from './eventDraft.js';
+import { isOnlineEvent, modalidadOf } from './eventPlace.js';
 import { currentSiteTags } from './siteTags.js';
 import { formatARS } from './money.js';
 import { chainCycle, doorPrice, unreachableAfter } from './ticketTiers.js';
@@ -90,20 +91,9 @@ export function isKinkyVibeEvent(meta) {
 	return tags.some((t) => typeof t === 'string' && tm.get(t.trim())?.id === KINKYVIBE_TAG);
 }
 
-/**
- * ¿El evento es online? `modalidad: online | presencial` en el frontmatter manda; si falta, es
- * online si tiene la etiqueta "Online" y no tiene `location`. En los eventos online las entradas
- * llevan el link de la transmisión en lugar de un QR, y no hay control de ingreso.
- *
- * @param {Record<string, any>} meta
- */
-export function isOnlineEvent(meta) {
-	const modalidad = typeof meta.modalidad === 'string' ? meta.modalidad.trim().toLowerCase() : '';
-	if (modalidad === 'online' || modalidad === 'virtual') return true;
-	if (modalidad === 'presencial') return false;
-	const tags = Array.isArray(meta.tags) ? meta.tags : [];
-	return !meta.location && tags.some((t) => String(t).trim().toLowerCase() === 'online');
-}
+// ¿La venta trata al evento como online? Vive en eventPlace.js, junto a la regla de la página
+// (`eventMode`), con por qué difieren.
+export { isOnlineEvent };
 
 /**
  * @typedef {object} TicketTypeForm
@@ -353,7 +343,6 @@ export function readTicketsForm(meta) {
 				);
 	const openAt = toLocalInput(meta?.tickets_open, false);
 	const closeAt = toLocalInput(meta?.tickets_close, true);
-	const modalidad = str(meta?.modalidad).trim().toLowerCase();
 	return {
 		enabled: meta?.tickets !== undefined && meta?.tickets !== null,
 		types,
@@ -365,12 +354,7 @@ export function readTicketsForm(meta) {
 		openAt,
 		customClose: Boolean(closeAt),
 		closeAt,
-		modalidad:
-			modalidad === 'online' || modalidad === 'virtual'
-				? 'online'
-				: modalidad === 'presencial'
-					? 'presencial'
-					: '',
+		modalidad: modalidadOf(meta),
 		reminders: meta?.recordatorios !== false,
 		mpFee:
 			meta?.mp_fee_percent === undefined || meta?.mp_fee_percent === null

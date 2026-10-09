@@ -1,12 +1,15 @@
 <script>
 	// @ts-nocheck
 	import { argWeekdayDay } from '$lib/utils/dates.js';
+	import { placeShort } from '$lib/utils/eventPlace.js';
 	import { cubicInOut } from 'svelte/easing';
 	import { fade } from 'svelte/transition';
 	/**@type {{path: string, meta: AnyPostData}[]}*/
 	export let posts;
 	let index = 0;
 	$: post = posts[index];
+	// «Online», el nombre del lugar o la dirección (eventPlace.js); sin nada, solo la fecha.
+	$: place = placeShort(post.meta);
 	const defaultCombos = [
 		['var(--1)', 'white'],
 		['var(--2)', 'white'],
@@ -86,10 +89,7 @@
 			</div>
 			<div class="details" in:fade={{ delay: 1100 }} out:fade>
 				<h2>
-					{argWeekdayDay(post.meta.start)} - {(post.meta.location_name ?? 'Online').replaceAll(
-						' ',
-						'\u00a0'
-					)}
+					{argWeekdayDay(post.meta.start)}{place ? ` - ${place.replaceAll(' ', '\u00a0')}` : ''}
 				</h2>
 				<p>{post.meta.summary}</p>
 				<a href={post.path}>Saber más</a>

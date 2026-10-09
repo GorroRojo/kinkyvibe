@@ -258,7 +258,7 @@ Un tipo de entrada con `a_la_gorra: { minimo, sugerido }` en lugar de `price`:
 
 ### Eventos online
 
-Un evento es online si tiene `modalidad: online` en el frontmatter o, si no tiene `modalidad`, la etiqueta **Online** (la que ya usan los eventos del calendario) y no tiene `location`. En esos eventos:
+Un evento es online si tiene `modalidad: online` en el frontmatter o, si no tiene `modalidad`, la etiqueta **Online** (o su alias «virtual», como en el resto del sitio) y no tiene `location` (`isOnlineEvent` en `src/lib/utils/eventPlace.js`). Es la regla de la venta: la página del evento usa otra (`eventMode`, en el mismo archivo) y difieren a propósito en dos casos, explicados en [amigues.md](amigues.md) «Online o presencial». Para no depender de eso, cargá `modalidad`. Los mails, la página de compra y la de cada entrada dicen «Online» cuando la venta lo dice y, si no, «Nombre · Dirección» (`salePlaceText`). En esos eventos:
 
 - Las entradas llevan **el link de la transmisión en lugar de un QR**, y no hay control de ingreso.
 - El link **no va en el repo** (es público): une admin lo carga en la ficha del evento (`/admin/eventos/<slug>`, pestaña Resumen) → **Link de la transmisión** (se guarda en D1, `event_ticket_settings`; tiene que ser `https://`).

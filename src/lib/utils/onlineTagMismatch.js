@@ -1,6 +1,6 @@
 /**
  * ¿Un evento tiene la etiqueta «Online» y también un lugar de verdad? Entonces partes del sitio
- * no se ponen de acuerdo: la venta de entradas (`isOnlineEvent` en ticketsEditor.js) lo trata
+ * no se ponen de acuerdo: la venta de entradas (`isOnlineEvent` en eventPlace.js) lo trata
  * como online si no tiene `location` (aunque tenga `location_name` o un lugar vinculado) y manda
  * el link de la transmisión en vez del QR, mientras la página muestra el lugar.
  *
@@ -9,34 +9,21 @@
  *
  * Pura: sin base ni tag manager, así corre igual en el navegador, en el servidor y en vitest.
  */
-import { ONLINE_WORDS, normalizePlaceText } from './venueImport.js';
+import { hasOnlineTag, isOnlineWord, normalizePlaceText } from './eventPlace.js';
 
-/** Lo que se le dice a quien edita (editor y ficha). */
+/** Lo que se le dice a quien edita (editor, ficha y «Revisar antes de publicar»). */
 export const ONLINE_MISMATCH_TEXT =
 	'Este evento tiene un lugar y también la etiqueta «Online». ¿Es presencial? Si es así, sacale la etiqueta; si es online, sacale el lugar.';
 
-/**
- * Las formas de escribir la etiqueta Online en un evento: «Online» y los alias que acepta el
- * editor para el lugar (`EVENT_ALIASES` de adminTags.js: «online», «virtual»).
- */
-const ONLINE_TAGS = new Set(['online', 'virtual']);
-
-/**
- * ¿Tiene la etiqueta Online? Sin importar mayúsculas, tildes ni espacios.
- * @param {unknown} tags
- */
-export function hasOnlineTag(tags) {
-	const list = Array.isArray(tags) ? tags : [];
-	return list.some((t) => ONLINE_TAGS.has(normalizePlaceText(t)));
-}
+// Vive en eventPlace.js (con la regla de online); acá queda para quien ya la usaba.
+export { hasOnlineTag };
 
 /**
  * ¿El texto dice un lugar? Vacío, «Online», «Virtual», «Zoom»… no cuentan.
  * @param {unknown} v
  */
 function isRealPlaceText(v) {
-	const text = normalizePlaceText(v);
-	return text !== '' && !ONLINE_WORDS.has(text);
+	return normalizePlaceText(v) !== '' && !isOnlineWord(v);
 }
 
 /**

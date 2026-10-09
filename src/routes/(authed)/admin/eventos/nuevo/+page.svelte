@@ -1,5 +1,5 @@
 <script>
-	import { checkMapLink } from '$lib/utils/eventPlace.js';
+	import { checkMapLink, eventPlace } from '$lib/utils/eventPlace.js';
 	import { publishWarnings } from '$lib/utils/eventMissing.js';
 	import { eventHref } from '$lib/admin/nav.js';
 	import {
@@ -315,6 +315,15 @@
 		};
 	}
 
+	// «Lugar» de la revisión, sin lugar de la lista: lo que va a mostrar la página («Online» solo
+	// si el evento es online; sin nada, «—»).
+	$: reviewPlace = eventPlace({
+		location: values.location,
+		location_name: values.location_name,
+		tags: splitList(values.tags),
+		modalidad: tickets.enabled ? tickets.modalidad : ''
+	}).text;
+
 	// «Revisar antes de publicar»: los avisos de «Qué falta» de la agenda (no bloquean).
 	$: reviewWarnings = publishWarnings({
 		image: featuredMode !== 'none',
@@ -322,6 +331,7 @@
 		location: values.location ?? '',
 		locationName: values.location_name ?? '',
 		tags: splitList(values.tags),
+		modalidad: tickets.enabled ? tickets.modalidad : '',
 		authors: splitList(values.authors),
 		link: values.link ?? '',
 		tickets: tickets.enabled && tickets.types.length > 0,
@@ -869,7 +879,7 @@
 							{#if venueChoiceText(venue, venues)}
 								{venueChoiceText(venue, venues)}
 							{:else}
-								{[values.location_name, values.location].filter(Boolean).join(' — ') || 'Online'}
+								{reviewPlace || '—'}
 								{#if values.location_map && !mapError}· con link al mapa{/if}
 							{/if}
 						</dd>

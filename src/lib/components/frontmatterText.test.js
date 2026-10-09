@@ -84,4 +84,31 @@ describe('components render frontmatter as text', () => {
 		expect(body).not.toContain('<img src=x');
 		expect(body).toContain('Casa\u00a0&lt;img');
 	});
+
+	it('Carrousel: online o el lugar con la regla de la página (eventPlace.js)', () => {
+		/** @param {Record<string, unknown>} meta */
+		const heading = (meta) => {
+			const { body } = render(Carrousel, {
+				props: {
+					posts: /** @type {any[]} */ ([
+						{
+							path: '/calendario/x',
+							meta: { title: 'Evento', start: '2099-12-01T20:00-03:00', summary: 'R', ...meta }
+						}
+					])
+				}
+			});
+			return (body.match(/<h2[^>]*>([\s\S]*?)<\/h2>/)?.[1] ?? '').replace(/<!--.*?-->/g, '').trim();
+		};
+		expect(heading({ tags: ['Online'] })).toMatch(/ - Online$/);
+		expect(heading({ modalidad: 'online', tags: [] })).toMatch(/ - Online$/);
+		// Solo la dirección (antes: «Online», porque no tenía nombre).
+		expect(heading({ location: 'Calle Falsa 123', tags: [] })).toMatch(
+			/ - Calle\u00a0Falsa\u00a0123$/
+		);
+		// Sin nada: solo la fecha (antes: «- Online»).
+		const bare = heading({ tags: ['AMBA'] });
+		expect(bare).not.toContain('Online');
+		expect(bare).not.toContain(' - ');
+	});
 });
