@@ -7,7 +7,7 @@
 // intercaladas ("GRUPO de APOYO y DISCUSIÓN"), textos inclinados como stickers, destellos
 // de 4 puntas, tramas de puntos y grano. El flyer del evento es la pieza principal.
 
-import { TIMEZONE as TZ } from './dates.js';
+import { argDate, argDateParts, argDayMonth, argTime } from './dates.js';
 
 export const SITE = 'kinkyvibe.ar';
 
@@ -316,8 +316,6 @@ export function statusLines(text, status) {
 
 /** @param {string} s */
 const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-/** @param {string} s */
-const noDots = (s) => s.replace(/\./g, '');
 
 /**
  * Fecha y horario del evento, siempre en hora de Buenos Aires.
@@ -332,29 +330,31 @@ export function formatEventDate(start, end, now = new Date()) {
 	const s = new Date(start);
 	if (isNaN(+s)) return { day: '', hours: '', dayShort: '', hoursShort: '', multiDay: false };
 	const e = end && !isNaN(+new Date(end)) ? new Date(end) : null;
-	/** @param {Date} d @param {Intl.DateTimeFormatOptions} o */
-	const fmt = (d, o) => new Intl.DateTimeFormat('es-AR', { timeZone: TZ, ...o }).format(d);
+	// Con los helpers de dates.js y no con Intl: la salida no depende de los datos de ICU del
+	// entorno (Node, el Worker o el navegador dan «sept» o «sep» según la versión).
 	/** @param {Date} d */
-	const dayKey = (d) =>
-		new Intl.DateTimeFormat('en-CA', { timeZone: TZ, dateStyle: 'short' }).format(d);
+	const p = (d) => /** @type {NonNullable<ReturnType<typeof argDateParts>>} */ (argDateParts(d));
+	const dayKey = argDate;
 	/** @param {Date} d */
-	const hour = (d) => Number(fmt(d, { hour: 'numeric', hourCycle: 'h23' }));
-	/** @param {Date} d */
-	const time = (d) => fmt(d, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+	const hour = (d) => p(d).hours;
+	const time = argTime;
 	/** @param {Date} d  "20" o "20:30" */
 	const shortTime = (d) => time(d).replace(/:00$/, '').replace(/^0(\d)/, '$1');
 	/** @param {Date} d */
-	const wd = (d) => noDots(fmt(d, { weekday: 'short' })).slice(0, 3);
+	const wd = (d) => p(d).weekday;
 	/** @param {Date} d */
-	const mon = (d) => noDots(fmt(d, { month: 'short' })).slice(0, 3);
+	const mon = (d) => p(d).month;
 	/** @param {Date} d */
-	const dnum = (d) => fmt(d, { day: 'numeric' });
-	const otherYear = fmt(s, { year: 'numeric' }) !== fmt(now, { year: 'numeric' });
+	const dnum = (d) => String(p(d).day);
+	const otherYear = p(s).year !== argDateParts(now)?.year;
 
-	/** @type {Intl.DateTimeFormatOptions} */
-	const dayOpts = { weekday: 'long', day: 'numeric', month: 'long' };
-	if (otherYear) dayOpts.year = 'numeric';
-	const long = (/** @type {Date} */ d) => capitalize(fmt(d, dayOpts).replace(',', ''));
+	/** @param {Date} d  "Sábado 12 de septiembre" (con el año si no es el de `now`) */
+	const long = (d) => {
+		const x = p(d);
+		return capitalize(
+			`${x.weekdayLong} ${x.day} de ${x.monthLong}${otherYear ? ` de ${x.year}` : ''}`
+		);
+	};
 
 	const sameDay = !e || dayKey(e) === dayKey(s);
 	// termina de madrugada (antes de las 9) y dura menos de 16 hs: es la misma noche
@@ -632,8 +632,7 @@ export function defaultTexts(meta, extras = {}) {
 	if (meta.link && info.status !== 'cancelado' && !info.ended) {
 		const opening = meta.opening_date ? new Date(meta.opening_date) : null;
 		if (opening && !isNaN(+opening) && +opening > Date.now()) {
-			const d = new Intl.DateTimeFormat('es-AR', { timeZone: TZ, day: 'numeric', month: 'numeric' });
-			cta = 'Inscripción desde el ' + d.format(opening) + ' en';
+			cta = 'Inscripción desde el ' + argDayMonth(opening) + ' en';
 		} else if (info.status === 'abierto') {
 			cta = /entrada|venta/i.test(meta.link_text ?? '') ? 'Entradas en' : 'Inscribite en';
 		}

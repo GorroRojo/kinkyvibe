@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { LogOut, Trash2, UserMinus } from '@lucide/svelte';
 	import { KIND_LABELS, ROLE_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
-	import { TIMEZONE, argDateList } from '$lib/utils/dates.js';
+	import { argDateList, argDateLong } from '$lib/utils/dates.js';
 	import { VENUE_PRIVACY_LABELS, VENUE_PRIVACY_UNSET_LABEL } from '$lib/utils/venues.js';
 	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
 	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
@@ -37,10 +37,6 @@
 
 	/** @type {(action: string) => FormState | null} */
 	$: msg = (action) => (f?.action === action ? (f ?? null) : null);
-
-	/** @param {number} d */
-	const fmtDate = (d) =>
-		new Date(d).toLocaleDateString('es-AR', { timeZone: TIMEZONE, day: 'numeric', month: 'long' });
 
 	let confirmName = '';
 
@@ -85,8 +81,9 @@
 	{:else if data.rejection}
 		<div class="error rejected" role="status">
 			<p>
-				<strong>Rechazado.</strong> Une admin no lo aprobó ({fmtDate(data.rejection.at)}), así que
-				no aparece en el sitio. Lo seguís viendo vos (y quienes lo gestionan).
+				<strong>Rechazado.</strong> Une admin no lo aprobó ({argDateLong(data.rejection.at, {
+					year: false
+				})}), así que no aparece en el sitio. Lo seguís viendo vos (y quienes lo gestionan).
 			</p>
 			{#if data.rejection.reason}
 				<p>Motivo: <q>{data.rejection.reason}</q></p>
@@ -494,9 +491,10 @@
 						{#each data.invites as inv (inv.id)}
 							<li>
 								<span class="hint"
-									>{inv.invitedBy ? `La mandó ${inv.invitedBy}` : 'Invitación'} el {fmtDate(
-										inv.createdAt
-									)}; vence el {fmtDate(inv.expiresAt)}.</span
+									>{inv.invitedBy ? `La mandó ${inv.invitedBy}` : 'Invitación'} el {argDateLong(
+										inv.createdAt,
+										{ year: false }
+									)}; vence el {argDateLong(inv.expiresAt, { year: false })}.</span
 								>
 								<form method="POST" action="?/cancelarInvitacion" use:enhance>
 									<input type="hidden" name="invite" value={inv.id} />

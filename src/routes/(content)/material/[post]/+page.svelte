@@ -13,7 +13,7 @@
 	import { isKinkyVibePost } from '$lib/utils/propinas.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
-	import { TIMEZONE } from '$lib/utils/dates.js';
+	import { argDateLong } from '$lib/utils/dates.js';
 	export let data;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
@@ -108,10 +108,7 @@
 			{/await}
 			&ThickSpace;-&ThickSpace;
 			<time datetime={data.meta.published_date?.toString()} class="dt-published">
-				{new Date(data.meta.published_date?.toString() ?? '').toLocaleDateString('es-AR', {
-					dateStyle: 'long',
-					timeZone: TIMEZONE
-				})}
+				{argDateLong(data.meta.published_date?.toString())}
 			</time>
 		</address>
 	{/if}
@@ -134,10 +131,7 @@
 		<Note id="via" className="h-cite">
 			Fecha de publicación original:
 			<span class="dt-published">
-				{new Date(data.meta.original_published_date?.toString() ?? '').toLocaleDateString('es-AR', {
-					dateStyle: 'long',
-					timeZone: TIMEZONE
-				})}
+				{argDateLong(data.meta.original_published_date?.toString())}
 			</span><br />
 			{#if data.meta.link}
 				<a href={data.meta.link} target="_blank" class="u-url">Link al original</a>

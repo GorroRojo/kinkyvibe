@@ -7,6 +7,7 @@
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import { invalidTitle } from '$lib/admin/doorOffline.js';
+	import { argTime } from '$lib/utils/dates.js';
 	import {
 		ChevronRight,
 		CircleCheck,
@@ -52,14 +53,7 @@
 
 	/** @param {number | null | undefined} ms */
 	function time(ms) {
-		return ms
-			? new Date(ms).toLocaleTimeString('es-AR', {
-					hour: '2-digit',
-					minute: '2-digit',
-					hourCycle: 'h23',
-					timeZone: 'America/Argentina/Buenos_Aires'
-				})
-			: '';
+		return ms ? argTime(ms) : '';
 	}
 
 	/** @param {string} d */

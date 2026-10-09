@@ -364,8 +364,9 @@ export async function listTips(
 /** Columnas del CSV de propinas. @type {import('$lib/admin/csv.js').CsvColumn<Tip>[]} */
 export const TIP_CSV_COLUMNS = [
 	{ label: 'id', key: 'id' },
-	{ label: 'fecha', value: (t) => new Date(t.created_at).toISOString() },
-	{ label: 'aprobada', value: (t) => (t.approved_at ? new Date(t.approved_at).toISOString() : '') },
+	// Fechas como Date: csvCell las escribe en hora de Argentina (`2026-10-02 22:30`).
+	{ label: 'fecha', value: (t) => new Date(t.created_at) },
+	{ label: 'aprobada', value: (t) => (t.approved_at ? new Date(t.approved_at) : '') },
 	{ label: 'estado', value: (t) => TIP_STATUS_LABELS[t.status] ?? t.status },
 	{ label: 'monto', key: 'amount' },
 	{ label: 'categoria', key: 'post_category' },

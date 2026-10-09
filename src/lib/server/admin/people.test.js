@@ -153,7 +153,8 @@ describe('estadísticas', () => {
 			['2026-08', 3],
 			['2026-09', 2]
 		]);
-		expect(monthLabel('2026-09')).toBe('sept 26');
+		// Antes esperaba «sept 26» (lo que da Intl con ICU nuevo): era el bug; el sitio dice «sep».
+		expect(monthLabel('2026-09')).toBe('sep 26');
 	});
 	it('por serie, medio de pago y fondo (sin las reembolsadas)', () => {
 		expect(s.bySeries[0]).toMatchObject({ series: 'picantearla', tickets: 5, events: 3 });

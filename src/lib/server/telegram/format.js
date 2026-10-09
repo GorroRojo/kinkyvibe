@@ -3,6 +3,7 @@
  * inclusivo del sitio. Funciones puras: reciben datos ya listos y devuelven HTML de Telegram
  * (`parse_mode: 'HTML'`), que solo admite unas pocas etiquetas (`<b>`, `<a>`).
  */
+import { argDateList } from '$lib/utils/dates.js';
 
 /**
  * Lo mínimo que el bot sabe de un evento. Nada de lugar, entradas ni datos de compradores.
@@ -12,8 +13,6 @@
 
 /** Telegram corta los mensajes de más de 4096 caracteres: la lista se limita antes. */
 export const LIST_MAX = 8;
-
-const TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
 /**
  * Escapa para el HTML de Telegram, también dentro de un atributo (`href="…"`): las comillas
@@ -30,29 +29,14 @@ export function escapeHtml(text) {
 }
 
 /**
- * "sáb 10 may · 21:00", en hora de Argentina. Vacío si la fecha no se puede leer.
+ * "sáb 10 may · 21:00", en hora de Argentina (`argDateList`, como las listas del sitio; con el año
+ * al final si no es el de este año). Vacío si la fecha no se puede leer.
  *
  * @param {string} iso
+ * @param {string|number|Date} [now]
  */
-export function formatWhen(iso) {
-	const date = new Date(iso);
-	if (Number.isNaN(date.getTime())) return '';
-	const parts = Object.fromEntries(
-		new Intl.DateTimeFormat('es-AR', {
-			timeZone: TIME_ZONE,
-			weekday: 'short',
-			day: 'numeric',
-			month: 'short',
-			hour: '2-digit',
-			minute: '2-digit',
-			hourCycle: 'h23'
-		})
-			.formatToParts(date)
-			.map((p) => [p.type, p.value])
-	);
-	const weekday = String(parts.weekday).replace('.', '');
-	const month = String(parts.month).replace('.', '');
-	return `${weekday} ${parts.day} ${month} · ${parts.hour}:${parts.minute}`;
+export function formatWhen(iso, now = Date.now()) {
+	return argDateList(iso, { now });
 }
 
 /**
