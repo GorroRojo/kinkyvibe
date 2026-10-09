@@ -85,7 +85,10 @@ export default function customRehype() {
 	return (tree) => {
 		// eslint-disable-next-line no-unused-vars
 		visit(tree, 'element', (node, _index, _parent) => {
-			if (headingRank(node) && hasProperty(node, 'id')) {
+			// hast-util-heading-rank 3 tipa con @types/hast 3 y el resto del pipeline (rehype 12)
+			// sigue en hast 2: el nodo es el mismo, solo difieren los tipos (en hast 2
+			// `properties` es opcional). Mirar solo `tagName` no cambia entre versiones.
+			if (headingRank(/** @type {any} */ (node)) && hasProperty(node, 'id')) {
 				node.children.unshift({
 					type: 'element',
 					tagName: 'a',
