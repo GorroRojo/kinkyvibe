@@ -111,14 +111,80 @@ prueba»** (con confirmación en la página; `src/lib/components/admin/DemoReloa
      `venuesLinked`). Las demás relaciones que alguien le haya agregado en la demo (partes,
      portada) también se vacían: recargar vuelve al estado de prueba.
    - **Historial**: cada guardado deja su revisión (`object_revisions`, fuente `demo`), como todo
-     el contenido («todo, para siempre»: no se borra). Crece unas 18 filas por recarga, solo en la
-     base del preview.
+     el contenido («todo, para siempre»: no se borra). Crece unas 20 filas por recarga (más una
+     por copia de un evento real, abajo), solo en la base del preview.
    - Un evento `demo-*` sin la marca que tiene la dirección de hoy de uno de prueba (por ejemplo,
      importado con Contenido → Importar desde los `.md` de la rama `demo`) se adopta si ese evento
      de prueba todavía no tiene objeto, o se da de baja (borrado suave, con otra dirección) si ya
      tiene; en los dos casos pierde su fila de `content_sources`. Un evento que no es `demo-*`
      nunca se toca: ese evento de prueba se saltea (`eventsSkipped`).
    - Los `.md` de eventos en `demo_files` que dejaron seeds anteriores se borran.
+
+6. **Copias de eventos reales** (abajo): si el sitio público responde, suma copias de sus
+   eventos al lado de los inventados.
+
+### Casos especiales (siempre)
+
+Los eventos inventados quedan siempre, haya copias o no: son los que tienen órdenes, entradas,
+puerta y estadísticas, y cada uno prueba un caso. Venta abierta (Noche Látex, talleres),
+agotadas, venta que todavía no abre, borrador, preventas escalonadas, online (charlas, con y sin
+link), series (Noche Látex, Munch), un evento **cancelado** («Fiesta cancelada (demo)», sin
+órdenes) y un **taller en dos partes** (el taller de cuerdas que ya pasó, con su «parte 2» una
+semana después: edge `parte`, [talleres-partes.md](talleres-partes.md)). La parte va en el taller
+que ya pasó para no cruzarse con el que viene, al que el informe de impacto visual le agrega la
+suya. Las partes no venden: la parte inventada no tiene entradas.
+
+### Copias de producción
+
+**Decidido por gorrite**: la demo usa eventos reales cuando hay, copiados **solo del sitio
+público**, nunca de la base de producción (`src/lib/server/demo/realEvents.js`).
+
+- **De dónde**: `GET https://kinkyvibe.ar/api/posts`, la lista JSON que ya usa el sitio. Trae
+  solo lo publicado y listado (sin borradores, ocultos ni no listados), con la privacidad del
+  lugar ya aplicada (el «Dónde» que ve cualquiera) y sin nada de compradores, cuentas ni entradas
+  vendidas. Se eligió esa y no el RSS, el `.ics` o las páginas porque es una sola petición, ya
+  viene como JSON con los campos del evento (fechas con zona, etiquetas, imagen) y es la que el
+  sitio mismo usa para el calendario. Solo GET, con 8 segundos de espera como mucho.
+- **Cuáles**: hasta 12 eventos del calendario. Primero los que vienen (el más cercano primero; uno
+  que está pasando cuenta), y si no alcanzan, los últimos que pasaron. Fuera: los que solo
+  redirigen a un link («Ir directo al link»), los `demo-*` y los que no tienen título o fecha.
+- **Qué se copia**: título, resumen, etiquetas, quiénes organizan (nombres o perfiles públicos),
+  estado, fechas, «Dónde», nombre del lugar, fecha de publicación y la imagen. **Nunca**: la
+  configuración de entradas, el link de acción (suele ser el formulario de entradas de verdad),
+  las personas con rol ni el texto (la API no lo trae: el texto de la copia es el resumen). Una
+  copia no tiene órdenes, no vende, no manda mails y no crea cuentas.
+- **Cómo se marcan**: dirección `demo-copia-<dirección original>`, título con «(copia de
+  producción)» (se ve en el panel y en el sitio del preview), `copia_de_produccion` en «Otros datos
+  del archivo» (`extra`) con el link al original, la marca `demo_slot` (`copia-<dirección>`) y un
+  aviso al principio del texto. Como son `demo-*`, «Recargar datos de prueba» las trata como
+  datos de prueba.
+- **Imágenes**: la copia apunta a la imagen de la biblioteca del sitio público (`featured:
+https://kinkyvibe.ar/media/img/<hash>.webp`). El preview no tiene esos archivos en su R2 ni sus
+  objetos `imagen`, y bajarlos sería más código para el mismo resultado. El sitio muestra esa URL
+  tal cual en el calendario, las tarjetas, la página del evento y el panel: `isPublicMediaUrl`
+  (`src/lib/utils/media.js`, lo usan `thumbURL` y `featuredURL`) acepta solo
+  `https://kinkyvibe.ar/media/img/<sha-256>.<ext>`; cualquier otra URL absoluta se sigue
+  ignorando. Las imágenes viejas del repo (archivos del bundle) no se copian: esa copia queda sin
+  imagen. La tarjeta para compartir (`/compartir`) dibuja en un canvas y puede no poder usar una
+  imagen de otro dominio.
+- **Identidad**: cada copia es siempre el mismo objeto para el mismo evento real (su `demo_slot`
+  lleva la dirección original). Un evento que deja de estar entre los elegidos (o una recarga sin
+  red) da de baja su copia (borrado suave); si vuelve, la misma copia revive. Así crece de a un
+  objeto por evento real copiado alguna vez, solo en la base del preview.
+- **Sin red** (local sin conexión, el sitio caído, una respuesta rara o sin eventos que sirvan):
+  no hay copias y quedan solo los inventados. La recarga nunca falla por eso; la respuesta lo dice
+  en `realEvents` (`copied` y `fallback` con el motivo).
+- Las pruebas nunca usan la red (`fetch` falso con eventos inventados,
+  `src/lib/server/demo/realEvents.test.js`). Sin `fetch` (las pruebas de siempre y el informe de
+  impacto visual, [ui-impacto.md](ui-impacto.md)) no se piden copias: las capturas no dependen de
+  la red.
+
+### En local
+
+`npm run demo:local` (`scripts/demo/recargar-local.js`) hace lo mismo que el botón en la base D1
+**local** (la de `npm run dev`; nunca se conecta a Cloudflare), con copias del sitio público.
+`npm run demo:local -- --sin-red` carga solo los inventados. Para entrar como admin en local,
+`npm run dev:admin`.
 
 Cada parte se saltea si la base no tiene su migración. Todo es inventado (emails
 `@example.invalid`, DNIs 99.xxx.xxx). `node scripts/demo/seed.js` genera el mismo SQL a un
@@ -144,6 +210,11 @@ en el panel. Lo verifica CI:
   que inventa el seed (y lo de `scripts/demo/`) es de un dominio reservado (`example.invalid`,
   `example.com`…); `wrangler.toml` no tiene variables de producción que finjan la rama o prendan
   algo «demo»/«preview», y los previews nunca usan la base `kinkyvibe`.
+- **Segunda llave en el seed**: `reloadDemoData` pide que le digan dónde corre
+  (`seedTargetProblem` en `src/lib/server/demo/seed.js`): `{ where: 'preview', branch }` con la
+  rama compilada (`__DEPLOY_BRANCH__`, que no puede ser `main` ni vacía) o `{ where: 'local' }`
+  (miniflare: el script local, el informe de impacto visual, las pruebas). Si no, tira antes de
+  tocar la base o pedir nada a la red (lo prueba `realEvents.test.js`).
 - `node scripts/demo/guard.js bundle .wrangler/dry-run/index.js` (job `e2e`): el Worker
   empaquetado sin rama de deploy (como producción) no trae el seed ni el botón.
 - `node scripts/demo/guard.js posts` (job `unit`, en los PR contra `main` y en `main`): no hay
@@ -194,5 +265,6 @@ Nunca se aplica nada de esto a la base `kinkyvibe`.
   guardó en `demo_files`.
 - Para probar como alguien del público: cargá `n3-personas.sql` y `n3-cuentas.sql` en la base del
   preview y tocá «🧪 Entrar como persona de prueba».
-- Pruebas: `npx vitest run src/lib/server/demo src/routes/api/preview-seed scripts/demo` y, para
+- Pruebas: `npx vitest run src/lib/server/demo src/routes/api/preview-seed scripts/demo` (las
+  copias, la vuelta a los inventados sin red y la segunda llave: `realEvents.test.js`) y, para
   la persona de prueba, `npx vitest run "src/routes/(content)/ingresar/demo"`.

@@ -10,8 +10,9 @@
  * lleva la fecha y cambia en cada recarga). Recargar actualiza ese objeto en su lugar (dirección,
  * fechas, título, personas, etiquetas, lugar) con saveObject(): la cantidad de objetos y de edges no
  * crece. Cada guardado deja su revisión (`object_revisions`, fuente `demo`): el historial es «todo,
- * para siempre» y no se borra; crece unas 18 filas chicas por cada vez que alguien aprieta
- * «Recargar datos de prueba», solo en la base del preview.
+ * para siempre» y no se borra; crece unas 20 filas chicas (más una por cada copia de un evento
+ * real, ./realEvents.js) por cada vez que alguien aprieta «Recargar datos de prueba», solo en la
+ * base del preview.
  *
  * Qué toca, y nada más:
  * - los objetos `evento` con dirección `demo-*` y la marca `demo_slot` (los del seed);
@@ -44,6 +45,9 @@ const EDGE_KINDS = ['lugar', 'persona', 'etiqueta', 'parte', 'portada'];
  * @prop {string} slug la dirección de hoy (`demo-…-AAAA-MM-DD`)
  * @prop {string} markdown el evento como .md (`eventMarkdown`)
  * @prop {number | null} venueId el lugar de prueba («sucede en»), o ninguno
+ * @prop {string[]} [parts] los lugares (`slot`) de sus otras partes, en orden: un taller en varias
+ *   partes (edges `parte`, docs/talleres-partes.md). Conviene que las partes vengan antes en la
+ *   lista; si una todavía no tiene objeto, el taller se vuelve a guardar al final con sus partes.
  */
 
 /**
@@ -169,6 +173,9 @@ export async function saveDemoEvents(db, { events, actor, now, tables }) {
 		}
 	}
 
+	/** @type {DemoEventInput[]} talleres para volver a guardar con sus partes */
+	const needParts = [];
+
 	// 3. Guardar, en un orden en que ninguna dirección choque: si la dirección que le toca a uno la
 	// tiene todavía otro de prueba, primero se mueve ese.
 	/** @type {Map<string, string>} dirección actual → lugar, de los objetos de prueba */
@@ -201,7 +208,31 @@ export async function saveDemoEvents(db, { events, actor, now, tables }) {
 		}
 		pending = next;
 	}
+	// Los talleres cuyas partes no tenían objeto cuando se guardaron (la primera carga, si una parte
+	// venía después en la lista): ahora sí.
+	for (const e of needParts) {
+		const row = bySlot.get(e.slot);
+		const parte = partEdges(e);
+		if (!row || parte.length !== (e.parts ?? []).length) continue;
+		const saved = await saveObject(
+			db,
+			{ id: row.id, type: def.type, version: row.version, edges: { parte } },
+			{ actor, now, also: also(row.id) }
+		);
+		row.version = saved.version;
+	}
 	return out;
+
+	/**
+	 * Los edges `parte` de un taller, con los objetos que ya tienen sus partes.
+	 * @param {DemoEventInput} e
+	 */
+	function partEdges(e) {
+		return (e.parts ?? [])
+			.map((slot) => bySlot.get(slot)?.id)
+			.filter((id) => id !== undefined)
+			.map((id) => ({ to: /** @type {number} */ (id), data: null }));
+	}
 
 	/**
 	 * Da de baja un evento `demo-*` sin la marca que tiene la dirección de uno de prueba.
@@ -245,6 +276,8 @@ export async function saveDemoEvents(db, { events, actor, now, tables }) {
 		const edges = Object.fromEntries(EDGE_KINDS.map((k) => [k, []]));
 		Object.assign(edges, split.edges ?? {});
 		edges.lugar = e.venueId ? [{ to: e.venueId, data: null }] : [];
+		edges.parte = partEdges(e);
+		if (edges.parte.length !== (e.parts ?? []).length) needParts.push(e);
 		const row = bySlot.get(e.slot);
 		const saved = await saveObject(
 			db,
