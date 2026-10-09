@@ -90,4 +90,20 @@
 	.etiquetas :global(.tags) {
 		justify-content: flex-start;
 	}
+	/* Un chip largo («Grupo de Apoyo y Discusión para…») no puede ensanchar la página en el celu:
+	   si no entra en la tarjeta, su texto pasa al renglón de abajo (y una palabra muy larga se
+	   corta). Los chips cortos se ven igual: solo cambia algo cuando no entran. El chip es
+	   compartido (TagChip, `.kv-tag` en style.scss): esto vale solo acá. */
+	.etiquetas {
+		min-width: 0;
+	}
+	.etiquetas :global(li) {
+		min-width: 0;
+		max-width: 100%;
+	}
+	.etiquetas :global(.kv-tag) {
+		max-width: 100%;
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
 </style>

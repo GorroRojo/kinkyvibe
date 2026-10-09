@@ -4,17 +4,19 @@
 	 * de comienzo, hasta cuándo, el lugar y un mapa chico ARRIBA de «Ver en Google Maps».
 	 *
 	 * - Con lugar vinculado, VenueLocation (`part="where"`) con las reglas de cada nivel de
-	 *   privacidad (lo que llega ya viene filtrado por el servidor; «Te mandamos la dirección con tu
-	 *   entrada.» cuando no se ve). El mapa chico y «Ver en Google Maps», solo en los niveles que
+	 *   privacidad (lo que llega ya viene filtrado por el servidor). Cuando no se ve la dirección:
+	 *   «Te mandamos la dirección con tu entrada.» si el evento vende entradas acá (`entradas`); si
+	 *   no, «La dirección exacta no se publica.» (no hay entrada que la lleve). El mapa chico y «Ver en Google Maps», solo en los niveles que
 	 *   muestran la dirección y si el lugar tiene coordenadas.
 	 * - Sin lugar vinculado, el «Dónde» del evento (`location`, con su link al mapa `location_map`)
-	 *   u «Online» (eventPlace.js, lo mismo que el .ics). Sin coordenadas no hay mapa chico: nunca
-	 *   se geocodifica ni se inventa una ubicación.
+	 *   y su nombre (`location_name`), u «Online» si el evento es online (eventPlace.js, lo mismo
+	 *   que el .ics); sin nada de eso, sin renglón del lugar. Sin coordenadas no hay mapa chico:
+	 *   nunca se geocodifica ni se inventa una ubicación.
 	 *
 	 * La hora va en 24 h a la argentina, con el día de la semana (`argDateTimeLong`).
 	 *
 	 * Props: `meta` (la del evento), `venue` (VenueView o null), `mapa` (false: sin el mapa chico,
-	 * p. ej. un evento cancelado).
+	 * p. ej. un evento cancelado), `entradas` (true: se venden entradas en el sitio).
 	 */
 	import { CalendarDays, Clock, Globe, MapPin } from '@lucide/svelte';
 	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
@@ -29,6 +31,7 @@
 	/** @type {import('$lib/utils/venues.js').VenueView | null} */
 	export let venue = null;
 	export let mapa = true;
+	export let entradas = false;
 
 	/** @param {string | number | Date} s */
 	const toISO = (s) => {
@@ -74,9 +77,16 @@
 	</p>
 	{#if venue}
 		<div class="lugar">
-			<VenueLocation view={venue} context="event" compact part="where" mapsLink={false} />
+			<VenueLocation
+				view={venue}
+				context="event"
+				compact
+				part="where"
+				mapsLink={false}
+				{entradas}
+			/>
 		</div>
-	{:else}
+	{:else if place.text}
 		<p class="linea">
 			<svelte:component
 				this={place.text === 'Online' ? Globe : MapPin}

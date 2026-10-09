@@ -8,10 +8,17 @@
 	 * tarjeta ya dice «en»), `part` ('all': todo junto; en la página de un evento se parte en
 	 * 'where', la dirección y «Ver en Google Maps» en la tarjeta, y 'more', el mapa, «Cómo llegar» y
 	 * «Accesibilidad», que van después del botón de comprar), `mapsLink` (false: sin «Ver en Google
-	 * Maps», para quien lo pone en otro lado, como «Cuándo y dónde» del evento, abajo del mapa).
+	 * Maps», para quien lo pone en otro lado, como «Cuándo y dónde» del evento, abajo del mapa),
+	 * `entradas` (false: el evento no vende entradas en el sitio, así que en los niveles que esconden
+	 * la dirección no se promete mandarla con la entrada; dice que no se publica).
 	 */
 	import { MapPin } from '@lucide/svelte';
-	import { ADDRESS_FOR_BUYERS, googleMapsLink, showsAddress } from '$lib/utils/venues.js';
+	import {
+		ADDRESS_FOR_BUYERS,
+		ADDRESS_NOT_PUBLIC,
+		googleMapsLink,
+		showsAddress
+	} from '$lib/utils/venues.js';
 	import VenueMap from './VenueMap.svelte';
 	import Self from './VenueLocation.svelte';
 
@@ -23,6 +30,7 @@
 	/** @type {'all' | 'where' | 'more'} */
 	export let part = 'all';
 	export let mapsLink = true;
+	export let entradas = true;
 
 	$: place = [view.area, view.city].filter(Boolean).join(', ');
 	/* "Ver en Google Maps": solo en los niveles que muestran la dirección (pedido de gorrite). */
@@ -63,7 +71,7 @@
 			{/if}
 		</p>
 		{#if context === 'event' && !showsAddress(view.level)}
-			<p class="note">{ADDRESS_FOR_BUYERS}</p>
+			<p class="note">{entradas ? ADDRESS_FOR_BUYERS : ADDRESS_NOT_PUBLIC}</p>
 		{/if}
 		{#if gmaps && mapsLink}
 			<p class="gmaps">
@@ -71,7 +79,7 @@
 			</p>
 		{/if}
 		{#if part === 'all'}
-			<Self {view} {context} {compact} part="more" />
+			<Self {view} {context} {compact} {entradas} part="more" />
 		{/if}
 	</section>
 {:else}

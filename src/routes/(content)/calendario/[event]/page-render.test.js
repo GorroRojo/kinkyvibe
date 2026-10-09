@@ -13,7 +13,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'svelte/server';
 import { readable } from 'svelte/store';
-import { ADDRESS_FOR_BUYERS, venueView } from '$lib/utils/venues.js';
+import { ADDRESS_FOR_BUYERS, ADDRESS_NOT_PUBLIC, venueView } from '$lib/utils/venues.js';
 import { stripHtmlTags } from '$lib/utils/htmlStrip.js';
 
 vi.mock('$app/stores', () => ({
@@ -51,12 +51,22 @@ const VENUE = {
 	}
 };
 const HREF = '/amigues/galpon-inventado';
+/** Venta de entradas abierta (el resumen para el botón de comprar). */
+const TICKETS = {
+	open: true,
+	reason: null,
+	priceFrom: 6400,
+	gorraSuggested: null,
+	left: null,
+	closesAt: null,
+	door: null
+};
 
 /**
  * @param {Record<string, any>} [meta]
  * @param {Record<string, any>} [extra]
  */
-const page = (meta = {}, extra = {}) =>
+const rendered = (meta = {}, extra = {}) =>
 	render(Page, {
 		props: {
 			data: /** @type {any} */ ({
@@ -80,10 +90,16 @@ const page = (meta = {}, extra = {}) =>
 				series: null,
 				personas: null,
 				propinas: false,
+				// Un texto cualquiera: sin texto, «De qué se trata» no se muestra (ver abajo).
+				html: '<p>Texto inventado del evento.</p>',
 				...extra
 			})
 		}
-	}).body;
+	});
+/** El cuerpo de la página. @param {Record<string, any>} [meta] @param {Record<string, any>} [extra] */
+const page = (meta = {}, extra = {}) => rendered(meta, extra).body;
+/** El <head> (con los datos estructurados de schema.org). @param {Record<string, any>} [meta] */
+const head = (meta = {}) => rendered(meta).head;
 
 /** @param {string} html @param {string} cls */
 const block = (html, cls) => {
@@ -186,7 +202,8 @@ describe('/calendario/<evento>: el lugar, una sola vez y en «Cuándo y dónde»
 	for (const [level, want] of Object.entries(LEVELS)) {
 		it(`nivel «${level}»: lo mismo que antes, sin repetir`, () => {
 			const venue = venueView(VENUE, /** @type {any} */ (level), HREF);
-			const body = page({}, { venue });
+			// Con venta de entradas en el sitio (la entrada lleva la dirección).
+			const body = page({}, { venue, tickets: TICKETS });
 			const all = text(article(body));
 			const inCard = text(card(body));
 			for (const s of want.shows) {
@@ -219,6 +236,30 @@ describe('/calendario/<evento>: el lugar, una sola vez y en «Cuándo y dónde»
 		});
 	}
 
+	// Antes: «Te mandamos la dirección con tu entrada.» también en un evento sin venta, donde no hay
+	// entrada que la lleve.
+	for (const level of ['name', 'area', 'hidden']) {
+		it(`nivel «${level}» sin venta de entradas: no promete la dirección con la entrada`, () => {
+			const venue = venueView(VENUE, /** @type {any} */ (level), HREF);
+			const all = text(article(page({}, { venue })));
+			expect(all).not.toContain(ADDRESS_FOR_BUYERS);
+			expect(count(all, ADDRESS_NOT_PUBLIC)).toBe(1);
+			// Un evento cancelado tampoco vende: tampoco lo promete.
+			const cancelled = text(
+				article(page({ status: 'cancelado' }, { venue, tickets: { ...TICKETS, open: false } }))
+			);
+			expect(cancelled).not.toContain(ADDRESS_FOR_BUYERS);
+		});
+	}
+	it('niveles que muestran la dirección: ningún aviso, con o sin venta', () => {
+		for (const level of ['public', 'address']) {
+			const venue = venueView(VENUE, /** @type {any} */ (level), HREF);
+			const all = text(article(page({}, { venue })));
+			expect(all).not.toContain(ADDRESS_FOR_BUYERS);
+			expect(all).not.toContain(ADDRESS_NOT_PUBLIC);
+		}
+	});
+
 	it('sin lugar vinculado: el «Dónde» del .md en la tarjeta, con el pin y su link al mapa', () => {
 		const body = page({
 			location: 'Plaza Inventada',
@@ -234,11 +275,51 @@ describe('/calendario/<evento>: el lugar, una sola vez y en «Cuándo y dónde»
 		expect(body).not.toContain('aria-label="Dónde"');
 	});
 
-	it('online (sin lugar ni «Dónde»): dice «Online», con el globo en vez del pin', () => {
-		const inCard = card(page());
-		expect(inCard).toMatch(/<span class="p-location">Online<\/span>/);
-		expect(inCard).toContain('lucide-globe');
-		expect(inCard).not.toContain('lucide-map-pin');
+	// Antes esta prueba decía que un evento sin lugar ni «Dónde» es online: no lo es, y mostraba
+	// «Online» en eventos presenciales. Ahora «Online» solo si el evento es online.
+	for (const [what, meta] of /** @type {[string, Record<string, any>][]} */ ([
+		['la etiqueta «Online»', { tags: ['Online'] }],
+		['«Dónde: Online»', { location: 'Online' }],
+		['modalidad online', { modalidad: 'online' }]
+	])) {
+		it(`online (${what}): dice «Online», con el globo en vez del pin`, () => {
+			const body = page(meta);
+			const inCard = card(body);
+			expect(inCard).toMatch(/<span class="p-location">Online<\/span>/);
+			expect(inCard).toContain('lucide-globe');
+			expect(inCard).not.toContain('lucide-map-pin');
+			expect(head(meta)).toContain('OnlineEventAttendanceMode');
+			expect(head(meta)).not.toContain('OfflineEventAttendanceMode');
+		});
+	}
+
+	it('sin lugar ni «Dónde» (y sin ser online): ni «Online» ni renglón del lugar', () => {
+		const body = page();
+		const inCard = card(body);
+		expect(text(inCard)).not.toContain('Online');
+		expect(inCard).not.toContain('p-location');
+		expect(inCard).not.toContain('lucide-globe');
+		expect(head()).not.toContain('OnlineEventAttendanceMode');
+		expect(head()).not.toContain('VirtualLocation');
+		expect(head()).not.toContain('eventAttendanceMode');
+	});
+
+	it('solo el nombre del lugar (`location_name`): el nombre con el pin, presencial', () => {
+		// Aunque tenga la etiqueta «Online» (quedada de otra edición).
+		const body = page({ location_name: 'Zona Inventada | Galpón de Prueba', tags: ['Online'] });
+		const inCard = card(body);
+		expect(inCard).toMatch(/<span class="p-location">Zona Inventada \| Galpón de Prueba<\/span>/);
+		expect(inCard).toContain('lucide-map-pin');
+		expect(text(inCard)).not.toContain('Online');
+		const ld = head({ location_name: 'Zona Inventada | Galpón de Prueba', tags: ['Online'] });
+		expect(ld).toContain('OfflineEventAttendanceMode');
+		expect(ld).not.toContain('OnlineEventAttendanceMode');
+	});
+
+	it('nombre y dirección: «Nombre · Dirección», una sola vez', () => {
+		const body = page({ location_name: 'Galpón de Prueba', location: 'Calle Inventada 2' });
+		expect(text(card(body))).toContain('Galpón de Prueba · Calle Inventada 2');
+		expect(count(text(article(body)), 'Calle Inventada 2')).toBe(1);
 	});
 });
 
@@ -711,5 +792,47 @@ describe('/calendario/<evento>: los estados de la maqueta final', () => {
 		);
 		expect(page({}, { venue: noCoords })).not.toContain('class="venue-map');
 		expect(page({ location: 'Calle de Ejemplo 456' })).not.toContain('class="venue-map');
+	});
+});
+
+// Antes: «De qué se trata» se mostraba aunque el texto estuviera vacío (o fuera solo espacios o
+// comentarios), con nada abajo.
+describe('/calendario/<evento>: «De qué se trata» sin texto', () => {
+	for (const [what, html] of [
+		['vacío', ''],
+		['solo espacios', '  \n\t '],
+		['solo comentarios', '\n<!-- nota de prueba -->\n'],
+		['párrafos vacíos', '<p> </p><p>&nbsp;</p>']
+	]) {
+		it(`texto ${what}: sin el título ni su sección`, () => {
+			const body = article(page({}, { html }));
+			expect(body).not.toContain('id="que-titulo"');
+			expect(body).not.toContain('De qué se trata');
+			expect(body).not.toContain('class="texto-evento');
+		});
+	}
+
+	it('con texto, o solo una imagen: con el título', () => {
+		expect(page({}, { html: '<p>Un texto de prueba</p>' })).toContain('id="que-titulo"');
+		expect(page({}, { html: '<p><img src="/prueba.webp" alt="Prueba"></p>' })).toContain(
+			'id="que-titulo"'
+		);
+	});
+
+	it('vacío pero con el link de la venta al final del texto: la sección queda, con el link', () => {
+		const body = article(
+			page(
+				{ link: 'https://example.com/mas-info', link_text: 'Más info' },
+				{ html: '', tickets: TICKETS }
+			)
+		);
+		expect(body).toContain('href="https://example.com/mas-info"');
+	});
+});
+
+describe('/calendario/<evento>: los datos estructurados (schema.org)', () => {
+	it('dicen si el evento se canceló', () => {
+		expect(head()).toContain('https://schema.org/EventScheduled');
+		expect(head({ status: 'cancelado' })).toContain('https://schema.org/EventCancelled');
 	});
 });

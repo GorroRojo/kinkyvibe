@@ -38,9 +38,10 @@
 	import Partes from '$lib/components/evento/Partes.svelte';
 	import Quienes from '$lib/components/evento/Quienes.svelte';
 	import Serie from '$lib/components/evento/Serie.svelte';
-	import { venueSchema } from '$lib/utils/venues.js';
+	import { eventPlaceSchema } from '$lib/utils/eventPlace.js';
 	import { isPastEvent, mainSeries, nextEdition, splitUpcomingPast } from '$lib/utils/eventPage.js';
 	import { isWebLink, safeEventLink } from '$lib/utils/eventLink.js';
+	import { hasVisibleHtml } from '$lib/utils/htmlStrip.js';
 	export let data;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
@@ -78,6 +79,13 @@
 	$: showLink = !data.tickets && Boolean(actionLink) && !cancelled && !past;
 	// Con venta acá, el link (si tiene `link_text`) sigue al final del texto (docs/tickets.md).
 	$: textLink = Boolean(data.tickets && actionLink && data.meta.link_text);
+	// «De qué se trata» solo si el texto muestra algo: un texto vacío, o con solo espacios o
+	// comentarios, no deja el título sin nada abajo (htmlStrip.js). El texto del .md
+	// (`data.content`) y los interactivos (`data.parts`) siempre muestran algo.
+	$: hasText =
+		data.html === undefined
+			? Boolean(data.content)
+			: Boolean(data.parts?.length) || hasVisibleHtml(data.html);
 	// «por …»: les autores (salvo cuando el evento es el perfil de su única autora).
 	$: authors = /** @type {string[]} */ (data.meta.authors ?? []);
 	$: showAuthors = authors.length > 1 || (authors.length == 1 && authors[0] !== data.meta.postID);
@@ -128,24 +136,13 @@
 		name: data.meta.title,
 		startDate: toISO(data.meta.start ?? ''),
 		endDate: toISO(end),
-		// Con lugar o con «Dónde», presencial; sin ninguno de los dos, online.
-		eventAttendanceMode:
-			data.venue || data.meta.location
-				? 'https://schema.org/OfflineEventAttendanceMode'
-				: 'https://schema.org/OnlineEventAttendanceMode',
+		// Con lugar o con «Dónde», presencial; online solo si el evento lo es; sin nada, ni modo
+		// ni lugar (eventPlace.js, lo mismo que «Cuándo y dónde»).
+		...eventPlaceSchema(data.meta, data.venue, isWebLink(actionLink) ? actionLink : undefined),
 		eventStatus:
 			data.meta.status == 'cancelado'
 				? 'https://schema.org/EventCancelled'
 				: 'https://schema.org/EventScheduled',
-		location: data.venue
-			? venueSchema(data.venue)
-			: data.meta.location
-				? {
-						'@type': 'Place',
-						name: data.meta.location_name ?? data.meta.title,
-						address: { '@type': 'PostalAddress', name: data.meta.location }
-					}
-				: { '@type': 'VirtualLocation', url: isWebLink(actionLink) ? actionLink : undefined },
 		image: [data.meta.featured + ''],
 		description: data.meta.summary,
 		organizer: {
@@ -241,44 +238,46 @@
 					alt="Afiche de {data.meta.title}"
 				/>
 			{/if}
-			<CuandoDonde meta={data.meta} venue={data.venue} mapa={!cancelled} />
+			<CuandoDonde meta={data.meta} venue={data.venue} mapa={!cancelled} entradas={showTickets} />
 		</div>
 	</aside>
 
-	<section class="texto-evento" aria-labelledby="que-titulo">
-		<h2 id="que-titulo">De qué se trata</h2>
-		<div
-			class="content texto e-content"
-			use:addMentionPronouns={(name) =>
-				/** @type {Record<string, string>} */ (data.pronouns)?.[name]}
-		>
-			{#if data.html !== undefined}
-				<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML
+	{#if hasText || textLink}
+		<section class="texto-evento" aria-labelledby="que-titulo">
+			<h2 id="que-titulo">De qué se trata</h2>
+			<div
+				class="content texto e-content"
+				use:addMentionPronouns={(name) =>
+					/** @type {Record<string, string>} */ (data.pronouns)?.[name]}
+			>
+				{#if data.html !== undefined}
+					<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML
 				     libre de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
-				<div class="kv-texto-libre">
-					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-					{@html ownStyle}
-					{#if data.parts}
-						<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
-						<ContentParts parts={data.parts} />
-					{:else}
+					<div class="kv-texto-libre">
 						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-						{@html data.html}
-					{/if}
-				</div>
-			{:else}
-				<svelte:component this={data.content} />
-			{/if}
-			{#if textLink}
-				<a
-					href={actionLink}
-					target={actionLinkTarget}
-					rel={actionLinkTarget ? 'noopener' : undefined}
-					class="cta">{data.meta.link_text}</a
-				>
-			{/if}
-		</div>
-	</section>
+						{@html ownStyle}
+						{#if data.parts}
+							<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
+							<ContentParts parts={data.parts} />
+						{:else}
+							<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+							{@html data.html}
+						{/if}
+					</div>
+				{:else}
+					<svelte:component this={data.content} />
+				{/if}
+				{#if textLink}
+					<a
+						href={actionLink}
+						target={actionLinkTarget}
+						rel={actionLinkTarget ? 'noopener' : undefined}
+						class="cta">{data.meta.link_text}</a
+					>
+				{/if}
+			</div>
+		</section>
+	{/if}
 
 	{#if showTickets && data.tickets}
 		<section class="compra" aria-label="Comprar">
