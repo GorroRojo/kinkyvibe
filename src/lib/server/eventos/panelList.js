@@ -14,6 +14,7 @@ import {
 	FILTERS,
 	OLDER_PAGE,
 	PAST_DAYS,
+	daysBefore,
 	filterTests,
 	inFilter,
 	isUpcoming,
@@ -145,22 +146,20 @@ export async function withSales(db, rows, now) {
  * @param {string} today
  */
 export function pastSince(today) {
-	const d = new Date(`${today}T12:00:00Z`);
-	d.setUTCDate(d.getUTCDate() - PAST_DAYS);
-	return d.toISOString().slice(0, 10);
+	return daysBefore(today, PAST_DAYS);
 }
 
 /**
  * ¿Va en la página de entrada? Los próximos, los de los últimos `PAST_DAYS` días, los borradores
- * y los «Online con lugar» (así esos filtros y «Sin imagen» están completos) y los que no tienen
- * fecha.
+ * (así «Próximos», «Borradores», «Sin imagen» y «Online con lugar», que mira solo los últimos
+ * `ONLINE_MISMATCH_DAYS` días, están completos) y los que no tienen fecha.
  * @param {EventRow} e
  * @param {string} today
  * @param {string} since ver {@link pastSince}
  */
 function inFirstPage(e, today, since) {
 	if (!e.start || isUpcoming(e, today) || e.start.slice(0, 10) >= since) return true;
-	return (e.unlisted && !e.unpublished) || e.onlineMismatch;
+	return e.unlisted && !e.unpublished;
 }
 
 /**

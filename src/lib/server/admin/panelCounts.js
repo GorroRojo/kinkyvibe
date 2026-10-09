@@ -6,6 +6,7 @@ import { rowsOf, runQueries } from '$lib/server/db/batch.js';
 import { countProfilesToReviewQuery } from '$lib/server/admin/cuentas.js';
 import { countPendingClaimsStatement, readPendingClaimsCount } from '$lib/server/amigues/claims.js';
 import { unlistedCountQuery } from '$lib/server/contenido/posts.js';
+import { onlineMismatchCountQuery } from '$lib/server/admin/inicio.js';
 
 /**
  * Contadores del menú del panel (`data.panelCounts`, las claves que usa `counter` en
@@ -29,7 +30,7 @@ export async function panelCounts(platform, now = Date.now()) {
 		console.error('[admin] contador de no listadas:', error);
 		unlistedQuery = { what: '', fallback: null, statements: () => [], read: () => null };
 	}
-	const { orders, profiles, claims, unlisted } = await runQueries(db, {
+	const { orders, profiles, claims, unlisted, onlineMismatch } = await runQueries(db, {
 		orders: panelOrderCountsQuery(now),
 		// Perfiles creados por cuentas que ninguna admin revisó (Perfiles). Sin la base o sin las
 		// migraciones de perfiles, 0 (no aparece).
@@ -43,7 +44,10 @@ export async function panelCounts(platform, now = Date.now()) {
 		},
 		// Lo no listado que hay que revisar: los borradores de la agenda (no los eventos no listados
 		// a propósito), el material y los perfiles no listados.
-		unlisted: unlistedQuery
+		unlisted: unlistedQuery,
+		// Eventos con la etiqueta «Online» y además un lugar, los que vienen y los del último mes
+		// (una fila de «Para revisar» en el Inicio). null si falla: no suma.
+		onlineMismatch: onlineMismatchCountQuery(now)
 	});
 	if (orders) {
 		counts.transfers = orders.transfers;
@@ -51,12 +55,16 @@ export async function panelCounts(platform, now = Date.now()) {
 	}
 	counts.profilesToReview = profiles + claims;
 	if (unlisted !== null) counts.unlisted = unlisted;
+	if (onlineMismatch !== null) counts.onlineMismatch = onlineMismatch;
 	// Botón global "Para revisar": lo pendiente que se cuenta barato (transferencias, órdenes para
-	// revisar, perfiles y pedidos "Es mi perfil"). La tarjeta del Inicio puede listar algo más
+	// revisar, perfiles y pedidos "Es mi perfil", eventos «Online» con lugar). La tarjeta del Inicio puede listar algo más
 	// (mails sin mandar, recordatorios que fallaron…) como avisos, pero el número que muestra el
 	// Inicio es este mismo (`reviewCountOf` en $lib/admin/nav.js).
 	counts.review =
-		(counts.transfers ?? 0) + (counts.reviewOrders ?? 0) + (counts.profilesToReview ?? 0);
+		(counts.transfers ?? 0) +
+		(counts.reviewOrders ?? 0) +
+		(counts.profilesToReview ?? 0) +
+		(counts.onlineMismatch ?? 0);
 	return counts;
 }
 

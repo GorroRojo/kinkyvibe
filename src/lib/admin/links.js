@@ -86,3 +86,9 @@ export const PROFILES_TO_REVIEW_HREF = '/admin/comunidad/perfiles?estado=sin-rev
 
 /** Comunidad › Perfiles, pestaña de los pedidos "Es mi perfil". */
 export const PROFILE_CLAIMS_HREF = '/admin/comunidad/perfiles?vista=pedidos';
+
+/**
+ * Panel → Eventos, solo los que tienen la etiqueta «Online» y además un lugar: la lista a la que
+ * lleva esa fila de «Para revisar» (el filtro no tiene chip; ver REVIEW_FILTERS en eventList.js).
+ */
+export const ONLINE_MISMATCH_HREF = '/admin/eventos?filtro=online-con-lugar';

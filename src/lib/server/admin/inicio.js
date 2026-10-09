@@ -40,9 +40,19 @@ import {
 	accountHref,
 	personHref,
 	profileHref,
+	ONLINE_MISMATCH_HREF,
 	PROFILE_CLAIMS_HREF,
 	PROFILES_TO_REVIEW_HREF
 } from '$lib/admin/links.js';
+import { onlineReviewTest } from '$lib/admin/eventList.js';
+import { onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
+import { parseEventDate, todayInArgentina } from '$lib/utils/eventDraft.js';
+import {
+	TAG_EDGE,
+	tagEdgesColumn,
+	tagEdgesFromColumn,
+	withTagEdges
+} from '$lib/server/contenido/etiquetasEdges.js';
 import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
 import { fondoTipTotalsStatement, readFondoTipTotals } from '$lib/server/propinas/index.js';
 
@@ -1383,6 +1393,113 @@ export function integrityReviewRow(run, { formatWhen } = {}) {
 		text: `${codes || 'sin detalle'}${when}. No se arregla solo.`,
 		action: 'Ver',
 		items
+	};
+}
+
+/**
+ * La etiqueta Online en la base: los eventos cuya lista de etiquetas (lo que quedó en `data.tags`
+ * o un edge `etiqueta`, ver etiquetasEdges.js) tiene algo que dice «online» o «virtual». Es solo
+ * un primer corte barato (en SQL no se puede sacar tildes como `normalizePlaceText`): quién avisa
+ * de verdad lo decide `onlineTagMismatch`, en JS, sobre estos pocos.
+ */
+const ONLINE_TAG_LIKE = `(lower(TAG) LIKE '%online%' OR lower(TAG) LIKE '%virtual%')`;
+
+/**
+ * "Para revisar": cuántos eventos tienen la etiqueta «Online» y además un lugar (vinculado o en
+ * texto libre), con la misma regla que el aviso del editor, la ficha y el filtro de Eventos
+ * (`onlineTagMismatch`) y la misma ventana que ese filtro (`onlineReviewTest`: los que vienen y
+ * los de los últimos 30 días, sin los despublicados). Las etiquetas y el «Dónde» están en el JSON
+ * del evento, así que no se puede contar del todo en SQL: una sola sentencia trae los candidatos
+ * (los que tienen una etiqueta que dice online o virtual, que son pocos) con si tienen lugar
+ * vinculado, y el resto se decide acá. Va en la tanda del Inicio y en la de los contadores del menú.
+ * `null` si falla (el contador y la fila no aparecen).
+ *
+ * @param {number} now
+ * @returns {BatchQuery<number | null>}
+ */
+export function onlineMismatchCountQuery(now) {
+	return query(
+		'eventos «Online» con lugar',
+		null,
+		(db) => [
+			db.prepare(
+				`SELECT o.title, o.data, o.visibility, ${tagEdgesColumn('o')} AS tag_edges,
+					EXISTS (SELECT 1 FROM edges v JOIN objects p ON p.id = v.to_id
+						WHERE v.from_id = o.id AND v.kind = 'lugar' AND p.deleted_at IS NULL) AS has_venue
+				FROM objects o
+				WHERE o.type = 'evento' AND o.deleted_at IS NULL AND (
+					EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(o.data) THEN o.data ELSE '{}' END, '$.tags') j
+						WHERE j.type = 'text' AND ${ONLINE_TAG_LIKE.replaceAll('TAG', 'j.value')})
+					OR EXISTS (SELECT 1 FROM edges e JOIN objects t ON t.id = e.to_id
+						WHERE e.from_id = o.id AND e.kind = '${TAG_EDGE}'
+						AND ${ONLINE_TAG_LIKE.replaceAll('TAG', "json_extract(t.data, '$.key')")}))`
+			)
+		],
+		(results) => {
+			const inWindow = onlineReviewTest(todayInArgentina(new Date(now)));
+			return rowsOf(results).filter((r) => {
+				const meta = onlineCandidateMeta(r);
+				if (!meta) return false;
+				return inWindow({
+					start: parseEventDate(/** @type {any} */ (meta.start)).date,
+					unpublished: r.visibility === 'hidden',
+					onlineMismatch: onlineTagMismatch(meta, { hasVenue: Number(r.has_venue) === 1 })
+				});
+			}).length;
+		}
+	);
+}
+
+/**
+ * Lo que mira `onlineTagMismatch` de un candidato, como lo arma `eventToMeta` (contenido/eventos.js):
+ * lo de `data.extra` y encima lo de `data`, con la lista de etiquetas entera. `null` si el JSON está
+ * roto.
+ * @param {Record<string, unknown>} row
+ * @returns {Record<string, unknown> | null}
+ */
+function onlineCandidateMeta(row) {
+	let data;
+	try {
+		data = JSON.parse(String(row.data));
+	} catch {
+		return null;
+	}
+	if (!data || typeof data !== 'object') return null;
+	const full = withTagEdges(data, tagEdgesFromColumn(row.tag_edges));
+	const extra = full.extra && typeof full.extra === 'object' ? full.extra : {};
+	/** @type {Record<string, unknown>} */
+	const meta = { ...extra, tags: Array.isArray(full.tags) ? full.tags : [] };
+	for (const key of ['start', 'location', 'location_name']) {
+		if (full[key] !== undefined) meta[key] = full[key];
+	}
+	return meta;
+}
+
+/**
+ * Lo mismo que {@link onlineMismatchCountQuery}, solo.
+ * @param {D1Database | null | undefined} db
+ * @param {number} now
+ */
+export function onlineMismatchCount(db, now) {
+	return runQuery(db, onlineMismatchCountQuery(now));
+}
+
+/**
+ * "Para revisar": la fila de los eventos con lugar y etiqueta «Online», que lleva a esa lista en
+ * Panel → Eventos. Nada si no hay ninguno (o si la cuenta falló).
+ * @param {number | null} count ver {@link onlineMismatchCountQuery}
+ * @returns {ReviewItem | null}
+ */
+export function onlineMismatchItem(count) {
+	if (!count || count <= 0) return null;
+	return {
+		id: 'online-mismatch',
+		tone: 'warn',
+		icon: 'place',
+		title: `${count} ${count === 1 ? 'evento' : 'eventos'} con lugar y etiqueta «Online»`,
+		text: 'Cada parte del sitio los lee distinto: si es presencial, sacale la etiqueta; si es online, el lugar',
+		action: 'Ver',
+		href: ONLINE_MISMATCH_HREF
 	};
 }
 

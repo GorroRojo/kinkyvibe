@@ -13,7 +13,9 @@ import { insertOrder, insertTicket } from '$lib/server/admin/testRows.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { logAccountCreated } from '$lib/server/admin/accountEvents.js';
 import { createProfile } from '$lib/server/cuentas/perfiles.js';
-import { makeProfile } from '$lib/server/amigues/testing.js';
+import { makeEvent, makeProfile } from '$lib/server/amigues/testing.js';
+import { setEventVenue } from '$lib/server/amigues/venues.js';
+import { saveObject } from '$lib/server/objects/save.js';
 import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
 import { recordIntegrityRun } from '$lib/server/objects/integrity.js';
 import { applyTipPayment, createTip, tipReference } from '$lib/server/propinas/index.js';
@@ -32,6 +34,8 @@ import {
 	integrityReviewRow,
 	integrityRun,
 	monthMoney,
+	onlineMismatchCount,
+	onlineMismatchItem,
 	pendingTransfers,
 	profileReviewItems,
 	claimReviewItems,
@@ -157,7 +161,9 @@ async function oldLoad({ locals, url, platform, fetch, setHeaders }) {
 		// Perfiles creados por cuentas que ninguna admin revisó todavía (Perfiles).
 		profilesToReview(db),
 		// Pedidos "Es mi perfil" pendientes (docs/amigues.md). [] sin la migración 0017.
-		db ? listClaims(db).catch(() => []) : Promise.resolve([])
+		db ? listClaims(db).catch(() => []) : Promise.resolve([]),
+		// Eventos con la etiqueta «Online» y además un lugar (sumado con la fila de «Para revisar»).
+		onlineMismatchCount(db, now)
 	]);
 	// Sin que quede un rechazo sin atender si la lista de eventos falla antes de esperarlo.
 	independent.catch(() => {});
@@ -196,7 +202,8 @@ async function oldLoad({ locals, url, platform, fetch, setHeaders }) {
 			integrity,
 			contentPulls,
 			newProfiles,
-			claims
+			claims,
+			onlineMismatch
 		]
 	] = await Promise.all([
 		Promise.all([
@@ -245,10 +252,12 @@ async function oldLoad({ locals, url, platform, fetch, setHeaders }) {
 	});
 	// Los PRs de contenido que no se publicaron van primero; los que se están publicando, al final.
 	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
+	const onlineItem = onlineMismatchItem(onlineMismatch);
 	const todo = groupReviewItems(
 		[
 			...pullItems.filter((i) => i.tone !== 'info'),
 			...todoItems,
+			...(onlineItem ? [onlineItem] : []),
 			...profileReviewItems(newProfiles, { formatWhen: (ms) => whenLabel(ms, now) }),
 			...claimReviewItems(claims, { formatWhen: (ms) => whenLabel(ms, now) }),
 			...pullItems.filter((i) => i.tone === 'info')
@@ -352,11 +361,19 @@ async function oldPanelCounts(platform) {
 			} catch (error) {
 				console.error('[admin] contador de no listadas:', error);
 			}
+		})(),
+		(async () => {
+			// Eventos con la etiqueta «Online» y además un lugar (sumado con la fila de «Para revisar»).
+			const n = await onlineMismatchCount(db, Date.now());
+			if (n !== null) counts.onlineMismatch = n;
 		})()
 	];
 	await Promise.all(tasks);
 	counts.review =
-		(counts.transfers ?? 0) + (counts.reviewOrders ?? 0) + (counts.profilesToReview ?? 0);
+		(counts.transfers ?? 0) +
+		(counts.reviewOrders ?? 0) +
+		(counts.profilesToReview ?? 0) +
+		(counts.onlineMismatch ?? 0);
 	return counts;
 }
 
@@ -596,6 +613,63 @@ async function seed() {
 	// Un perfil no listado (el contador del menú): «solo base», sale de la base como los eventos
 	// (antes era una ficha .md no listada).
 	await makeProfile(t.db, { title: 'Perfil No Listado Inventado', data: { unlisted: true } });
+	await seedOnlineWithPlace();
+}
+
+/**
+ * Eventos de la base con la etiqueta «Online» y además un lugar («Para revisar»): cuentan 3 (uno
+ * que viene con «Dónde» en texto libre, uno con lugar vinculado y la etiqueta como edge, y uno de
+ * hace 10 días); no cuentan el de hace 40 días, el despublicado, el que dice «Zoom» ni el
+ * presencial sin la etiqueta.
+ */
+async function seedOnlineWithPlace() {
+	await makeEvent(t.db, 'online-con-nombre', {
+		data: {
+			start: '2026-10-08T20:00-03:00',
+			tags: ['Online'],
+			location_name: 'Casa Ficticia | Sala Inventada'
+		}
+	});
+	// La etiqueta como edge `etiqueta` (así quedan casi todas desde la migración 0042).
+	const tag = await saveObject(
+		t.db,
+		{ type: 'etiqueta', title: 'online', slug: 'online', data: { key: 'online' } },
+		{ actor: 'admin-de-prueba' }
+	);
+	const linked = await makeEvent(t.db, 'online-con-lugar-vinculado', {
+		data: { start: '2026-09-30T19:00-03:00' }
+	});
+	await t.db
+		.prepare(
+			`INSERT INTO edges (from_id, kind, to_id, position, data, created_at, created_by)
+			VALUES (?1, 'etiqueta', ?2, 0, '{"at":[0]}', ?3, 'admin-de-prueba')`
+		)
+		.bind(linked, tag.id, NOW)
+		.run();
+	const venue = await makeProfile(t.db, { title: 'Sala Inventada', kind: 'lugar' });
+	const set = await setEventVenue(t.db, {
+		eventSlug: 'online-con-lugar-vinculado',
+		venueId: Number(venue.id),
+		privacy: null,
+		by: 'admin-de-prueba'
+	});
+	if (!set.ok) throw new Error(set.message);
+	await makeEvent(t.db, 'online-hace-10-dias', {
+		data: { start: '2026-09-20T20:00-03:00', tags: ['Online'], location: 'Calle Falsa 123' }
+	});
+	await makeEvent(t.db, 'online-hace-40-dias', {
+		data: { start: '2026-08-21T20:00-03:00', tags: ['Online'], location: 'Calle Falsa 123' }
+	});
+	await makeEvent(t.db, 'online-despublicado', {
+		visibility: 'hidden',
+		data: { start: '2026-10-08T20:00-03:00', tags: ['Online'], location: 'Calle Falsa 123' }
+	});
+	await makeEvent(t.db, 'online-de-verdad', {
+		data: { start: '2026-10-08T20:00-03:00', tags: ['Virtual'], location_name: 'Zoom' }
+	});
+	await makeEvent(t.db, 'presencial', {
+		data: { start: '2026-10-08T20:00-03:00', tags: ['AMBA'], location: 'Calle Falsa 123' }
+	});
 }
 
 /** La fila de la última visita, para volver a dejarla igual entre las dos corridas. */
@@ -729,7 +803,17 @@ describe('Inicio en tanda: lo mismo que antes', () => {
 			reviewOrders: 1,
 			profilesToReview: 2,
 			unlisted: 1,
-			review: 5
+			// Los 3 eventos «Online» con lugar de seedOnlineWithPlace (suman en «Para revisar»).
+			onlineMismatch: 3,
+			review: 8
+		});
+		// Y su fila en la tarjeta, que lleva a esa lista de Eventos.
+		expect(after.todo.find((r) => r.id === 'online-mismatch')).toMatchObject({
+			kind: 'item',
+			tone: 'warn',
+			title: '3 eventos con lugar y etiqueta «Online»',
+			action: 'Ver',
+			href: '/admin/eventos?filtro=online-con-lugar'
 		});
 	});
 
@@ -777,10 +861,11 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		await load(fakeEvent(page.platform));
 		expect(page.trips()).toBe(2);
 		expect(page.stats.batches).toBe(2);
-		// Las sentencias de este escenario (no crecen sin que se note): 16 en la primera tanda y 19
-		// en la segunda (totales, ingresos, links, 3 de envíos fallidos, 4 recordatorios vencidos
-		// —2 por evento de hoy—, 5 de la última visita y 2 por evento de hoy para el gráfico).
-		expect(page.stats.prepared).toBe(16 + 19);
+		// Las sentencias de este escenario (no crecen sin que se note): 17 en la primera tanda (con
+		// la de los eventos «Online» con lugar) y 19 en la segunda (totales, ingresos, links, 3 de
+		// envíos fallidos, 4 recordatorios vencidos —2 por evento de hoy—, 5 de la última visita y 2
+		// por evento de hoy para el gráfico).
+		expect(page.stats.prepared).toBe(17 + 19);
 
 		// El de antes, con las mismas funciones: una ida por consulta (acá sin las de la lista de
 		// eventos, que son de mentira).
@@ -791,8 +876,9 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		const layout = countingPlatform();
 		await panelCounts(layout.platform);
 		expect(layout.trips()).toBe(1);
-		// (La cuenta de «No listadas» suma los perfiles no listados de la base: una sentencia más.)
-		expect(layout.stats.prepared).toBe(5);
+		// (La cuenta de «No listadas» suma los perfiles no listados de la base: una sentencia más; los
+		// eventos «Online» con lugar, otra, en la misma tanda.)
+		expect(layout.stats.prepared).toBe(6);
 	});
 });
 

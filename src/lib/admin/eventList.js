@@ -31,18 +31,63 @@ export const PAST_DAYS = 90;
 /** Cuántos eventos anteriores trae cada «Ver anteriores». */
 export const OLDER_PAGE = 40;
 
+/**
+ * «Online con lugar» en «Para revisar»: cuenta los eventos que vienen (también los de hoy) y los
+ * de los últimos 30 días (uno viejo ya no se puede arreglar para nadie). Los despublicados
+ * (`force_unpublished`), no: no se ven en ningún lado.
+ */
+export const ONLINE_MISMATCH_DAYS = 30;
+
 export const FILTERS = /** @type {const} */ ([
 	{ id: 'proximos', label: 'Próximos' },
 	{ id: 'pasados', label: 'Pasados' },
 	// Todos los no listados (borradores de la agenda y los no listados a propósito).
 	{ id: 'borradores', label: 'No listados' },
 	{ id: 'sin-imagen', label: 'Sin imagen' },
-	// Etiqueta «Online» y además un lugar ($lib/utils/onlineTagMismatch.js): todos, también los
-	// pasados. El chip se muestra solo si hay alguno.
+	// Etiqueta «Online» y además un lugar ($lib/utils/onlineTagMismatch.js): los que vienen y los
+	// de los últimos ONLINE_MISMATCH_DAYS días. No tiene chip: se llega desde «Para revisar»
+	// (ver REVIEW_FILTERS).
 	{ id: 'online-con-lugar', label: 'Online con lugar' }
 ]);
 
 /** @typedef {(typeof FILTERS)[number]['id']} FilterId */
+
+/**
+ * Los filtros que son una lista de «Para revisar» (Inicio): no tienen chip en la barra de filtros;
+ * se llega con su link y la página dice en qué lista estás, con cómo salir.
+ * @type {Partial<Record<FilterId, { title: string, text: string }>>}
+ */
+export const REVIEW_FILTERS = {
+	'online-con-lugar': {
+		title: 'Eventos con lugar y etiqueta «Online»',
+		text: `De «Para revisar»: los que vienen y los de los últimos ${ONLINE_MISMATCH_DAYS} días. A cada uno sacale la etiqueta (si es presencial) o el lugar (si es online).`
+	}
+};
+
+/** Los filtros con chip en la barra de Eventos (los de {@link REVIEW_FILTERS}, no). */
+export const CHIP_FILTERS = FILTERS.filter((f) => !REVIEW_FILTERS[f.id]);
+
+/**
+ * La fecha `days` días antes (YYYY-MM-DD).
+ * @param {string} today YYYY-MM-DD
+ * @param {number} days
+ */
+export function daysBefore(today, days) {
+	const d = new Date(`${today}T12:00:00Z`);
+	d.setUTCDate(d.getUTCDate() - days);
+	return d.toISOString().slice(0, 10);
+}
+
+/**
+ * ¿Va en «Online con lugar» (el filtro y la cuenta de «Para revisar»)? Ver
+ * {@link ONLINE_MISMATCH_DAYS}. Un evento sin fecha cuenta (no se sabe si pasó).
+ * @param {string} today YYYY-MM-DD
+ * @returns {(e: Pick<EventRow, 'start' | 'unpublished' | 'onlineMismatch'>) => boolean}
+ */
+export function onlineReviewTest(today) {
+	const since = daysBefore(today, ONLINE_MISMATCH_DAYS);
+	return (e) => e.onlineMismatch && !e.unpublished && (!e.start || e.start.slice(0, 10) >= since);
+}
 
 /**
  * El filtro de la dirección (`?filtro=`), o «Próximos».
@@ -68,12 +113,13 @@ export function isUpcoming(e, today) {
  * @returns {Record<FilterId, (e: Pick<EventRow, 'start' | 'unpublished' | 'unlisted' | 'thumb' | 'onlineMismatch'>) => boolean>}
  */
 export function filterTests(today) {
+	const onlineReview = onlineReviewTest(today);
 	return {
 		proximos: (e) => isUpcoming(e, today) && !e.unpublished,
 		pasados: (e) => !isUpcoming(e, today),
 		borradores: (e) => e.unlisted && !e.unpublished,
 		'sin-imagen': (e) => isUpcoming(e, today) && !e.thumb && !e.unpublished,
-		'online-con-lugar': (e) => e.onlineMismatch
+		'online-con-lugar': onlineReview
 	};
 }
 

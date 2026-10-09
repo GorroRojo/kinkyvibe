@@ -37,6 +37,7 @@
 		ImageOff,
 		Link,
 		Mail,
+		MapPin,
 		ScanLine,
 		History,
 		Inbox,
@@ -58,7 +59,8 @@
 		image: ImageOff,
 		draft: FilePen,
 		pr: GitPullRequest,
-		profile: IdCard
+		profile: IdCard,
+		place: MapPin
 	});
 
 	$: user = data.user;

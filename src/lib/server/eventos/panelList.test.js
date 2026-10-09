@@ -22,6 +22,8 @@ vi.mock('$lib/server/amigues/venues.js', () => ({ listEventVenues: vi.fn() }));
 import {
 	OLDER_PAGE,
 	PAST_DAYS,
+	ONLINE_MISMATCH_DAYS,
+	daysBefore,
 	filterTests,
 	inFilter,
 	matchesSearch,
@@ -213,7 +215,10 @@ describe('ventas de la lista', () => {
 });
 
 describe('«Online con lugar»', () => {
-	it('el filtro junta todos los que avisan, también los pasados, y la página los manda', () => {
+	// Antes el filtro juntaba todos los que avisan, también los viejos. Ahora es la lista de
+	// «Para revisar» (pedido de gorrite): los que vienen, los de hoy y los de los últimos
+	// ONLINE_MISMATCH_DAYS días, sin los despublicados; la misma regla que la cuenta del Inicio.
+	it('el filtro junta los que avisan que vienen y los del último mes, y la página los manda', () => {
 		const all = [
 			row({
 				slug: 'proximo-online-con-lugar',
@@ -221,6 +226,23 @@ describe('«Online con lugar»', () => {
 				onlineMismatch: true
 			}),
 			row({ slug: 'proximo-bien', start: '2031-07-02T20:00-03:00' }),
+			row({ slug: 'hoy-online-con-lugar', start: `${TODAY}T20:00-03:00`, onlineMismatch: true }),
+			row({
+				slug: 'despublicado-online-con-lugar',
+				start: '2031-06-20T20:00-03:00',
+				onlineMismatch: true,
+				unpublished: true
+			}),
+			row({
+				slug: 'hace-30-dias-online-con-lugar',
+				start: `${daysBefore(TODAY, ONLINE_MISMATCH_DAYS)}T20:00-03:00`,
+				onlineMismatch: true
+			}),
+			row({
+				slug: 'hace-31-dias-online-con-lugar',
+				start: `${daysBefore(TODAY, ONLINE_MISMATCH_DAYS + 1)}T20:00-03:00`,
+				onlineMismatch: true
+			}),
 			row({
 				slug: 'viejo-online-con-lugar',
 				start: '2029-01-10T20:00-03:00',
@@ -229,14 +251,18 @@ describe('«Online con lugar»', () => {
 			row({ slug: 'viejo-bien', start: '2029-01-11T20:00-03:00' })
 		].map((e, i) => ({ ...e, i }));
 		const page = firstPage(all, TODAY);
-		expect(page.counts['online-con-lugar']).toBe(2);
+		expect(page.counts['online-con-lugar']).toBe(3);
 		expect(inFilter(page.events, 'online-con-lugar', TODAY).map((e) => e.slug)).toEqual([
 			'proximo-online-con-lugar',
-			'viejo-online-con-lugar'
+			'hoy-online-con-lugar',
+			'hace-30-dias-online-con-lugar'
 		]);
-		// El viejo que está bien sigue yendo con «Ver anteriores».
+		// Los viejos (con aviso o sin) siguen yendo con «Ver anteriores», con su marca.
 		expect(page.events.map((e) => e.slug)).not.toContain('viejo-bien');
-		expect(olderPage(all, TODAY).events.map((e) => e.slug)).toEqual(['viejo-bien']);
+		expect(olderPage(all, TODAY).events.map((e) => e.slug)).toEqual([
+			'viejo-online-con-lugar',
+			'viejo-bien'
+		]);
 	});
 
 	it('panelEventRows marca los eventos con etiqueta Online y lugar (texto libre o vinculado)', async () => {

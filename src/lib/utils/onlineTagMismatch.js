@@ -5,7 +5,7 @@
  * el link de la transmisión en vez del QR, mientras la página muestra el lugar.
  *
  * Es solo un aviso (no cambia nada ni bloquea guardar): lo muestran el editor del evento, la
- * ficha del panel y el filtro «Online con lugar» de Panel → Eventos (docs/panel.md).
+ * ficha del panel y «Para revisar» del Inicio, con su lista en Panel → Eventos (docs/panel.md).
  *
  * Pura: sin base ni tag manager, así corre igual en el navegador, en el servidor y en vitest.
  */

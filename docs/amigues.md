@@ -335,7 +335,7 @@ lugares), esta vincula con los **lugares que ya existen**. Reglas puras en
   editado (`content_sources.imported_version` sube con él), así volver a importar su `.md` lo
   sigue actualizando. El guardado del texto (panel o importación) no toca el edge `lugar`.
 - Un evento con lugar **y** la etiqueta «Online» no está claro (¿presencial u online?): el panel lo
-  avisa (editor, ficha y el filtro «Online con lugar» de Eventos) sin cambiar nada. Ver
+  avisa (editor, ficha y una fila de «Para revisar» en el Inicio) sin cambiar nada. Ver
   [panel.md](panel.md), «Aviso «Online con lugar»».
 - `eventVenuesStamp` (lo usa el índice de la búsqueda para saber si cambió algo) suma la versión de
   los eventos con lugar: cualquier cambio del vínculo la mueve.

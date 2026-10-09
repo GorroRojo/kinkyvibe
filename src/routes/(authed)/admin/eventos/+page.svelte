@@ -9,7 +9,8 @@
 		Repeat,
 		Search,
 		SearchX,
-		Table2
+		Table2,
+		X
 	} from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
@@ -22,7 +23,8 @@
 	import { eventHref, eventPanelLink } from '$lib/admin/nav.js';
 	import { dateParts, eventBadges, shortDate, timeRange } from '$lib/admin/eventFormat.js';
 	import {
-		FILTERS,
+		CHIP_FILTERS,
+		REVIEW_FILTERS,
 		filterId,
 		inFilter,
 		isUpcoming,
@@ -65,6 +67,8 @@
 	$: loaded = merge(data.events, older);
 
 	$: filter = filterId($page.url.searchParams.get('filtro'));
+	// Una lista de «Para revisar» (sin chip): la página dice cuál es y cómo salir.
+	$: reviewList = REVIEW_FILTERS[filter] ?? null;
 	let query = '';
 	let shown = PAGE;
 	$: words = searchWords(query);
@@ -162,8 +166,8 @@
 
 <div class="tools">
 	<nav class="chips" aria-label="Filtrar eventos">
-		<!-- «Online con lugar» es un aviso: su chip aparece solo si hay alguno (o si está elegido). -->
-		{#each FILTERS.filter((f) => f.id !== 'online-con-lugar' || counts[f.id] > 0 || filter === f.id) as f (f.id)}
+		<!-- Las listas de «Para revisar» (REVIEW_FILTERS) no tienen chip: se llega desde el Inicio. -->
+		{#each CHIP_FILTERS as f (f.id)}
 			<a
 				class="chip"
 				class:on={!words.length && filter === f.id}
@@ -187,6 +191,24 @@
 	</label>
 </div>
 
+{#if reviewList && !words.length}
+	<section class="review-list" aria-labelledby="review-list-title">
+		<div class="grow">
+			<h2 id="review-list-title">{reviewList.title} <span class="n">{counts[filter]}</span></h2>
+			<p>{reviewList.text}</p>
+		</div>
+		<div class="review-actions">
+			<a class="kv-btn ghost sm" href="/admin#para-revisar">Volver a Para revisar</a>
+			<a
+				class="kv-btn ghost sm"
+				href="?filtro=proximos"
+				data-sveltekit-replacestate
+				data-sveltekit-noscroll><X {...icon} /> Ver todos los eventos</a
+			>
+		</div>
+	</section>
+{/if}
+
 <Card padded={false}>
 	{#if words.length && (searching || searchError)}
 		<p class="status" role="status">
@@ -204,7 +226,7 @@
 			text={filter === 'sin-imagen' && !words.length
 				? 'Todos los próximos eventos tienen imagen.'
 				: filter === 'online-con-lugar' && !words.length
-					? 'Ningún evento tiene a la vez un lugar y la etiqueta «Online».'
+					? 'Ningún evento que viene (ni del último mes) tiene a la vez un lugar y la etiqueta «Online».'
 					: ''}
 		/>
 	{:else}
@@ -304,6 +326,37 @@
 		align-items: center;
 		justify-content: space-between;
 		margin-bottom: 1rem;
+	}
+	.review-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2xs) var(--space-xs);
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 1rem;
+		padding: var(--space-xs);
+		border-radius: var(--radius-m);
+		background: var(--warn-bg);
+	}
+	.review-list .grow {
+		flex: 1 1 18rem;
+		min-width: 0;
+	}
+	.review-list h2 {
+		margin: 0;
+		font-size: var(--text-m, 1.1rem);
+	}
+	.review-list h2 .n {
+		font-weight: 400;
+	}
+	.review-list p {
+		margin: 0.2rem 0 0;
+		font-size: var(--text-s, 0.95rem);
+	}
+	.review-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
 	}
 	.chips {
 		display: flex;
