@@ -46,7 +46,7 @@
 		"@types/node": "^22.20.5",
 		"autoprefixer": "^10.6.1",
 		"eslint": "^8.57.1",
-		"eslint-config-prettier": "^8.5.0",
+		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.23.1",
 		"globals": "^16.5.0",
 		"mdsvex": "^0.12.8",
