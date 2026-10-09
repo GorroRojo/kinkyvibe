@@ -9,9 +9,16 @@
 import { changedKeys } from './draft.js';
 
 /**
+ * Qué ícono lleva cada sección en el índice: SectionIndex lo traduce a un ícono de Lucide (los
+ * emoji quedan para el contenido y las etiquetas, ver docs/estilo.md).
+ * @typedef {'cuando' | 'datos' | 'personas' | 'lugar' | 'direccion' | 'etiquetas' | 'entradas'
+ *   | 'imagen' | 'texto' | 'lista' | 'partes'} SectionIcon
+ */
+
+/**
  * @typedef {object} FormSection
  * @prop {string} id id del elemento de la sección en la página (el índice salta ahí)
- * @prop {string} icon
+ * @prop {SectionIcon} icon
  * @prop {string} label
  */
 
@@ -39,50 +46,50 @@ export function formSections({
 	hasPartes = false,
 	parseError = false
 }) {
-	const tickets = { id: `${idPrefix}-tickets`, icon: '🎟️', label: 'Entradas' };
-	const cuando = { id: 'sec-cuando', icon: '📅', label: 'Fecha y hora' };
-	const personas = hasPersonas && { id: 'sec-personas', icon: '👥', label: 'Personas' };
+	const tickets = { id: `${idPrefix}-tickets`, icon: 'entradas', label: 'Entradas' };
+	const cuando = { id: 'sec-cuando', icon: 'cuando', label: 'Fecha y hora' };
+	const personas = hasPersonas && { id: 'sec-personas', icon: 'personas', label: 'Personas' };
 	// El lugar elegido y el «Dónde» en texto libre (PlaceSection).
-	const lugar = { id: 'sec-lugar', icon: '📍', label: 'Lugar' };
+	const lugar = { id: 'sec-lugar', icon: 'lugar', label: 'Lugar' };
 	if (mode === 'nuevo')
 		return /** @type {FormSection[]} */ (
 			[
 				cuando,
-				{ id: 'sec-datos', icon: '📝', label: 'Datos' },
+				{ id: 'sec-datos', icon: 'datos', label: 'Datos' },
 				personas,
 				lugar,
-				{ id: 'sec-direccion', icon: '🔗', label: 'Dirección' },
-				{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
+				{ id: 'sec-direccion', icon: 'direccion', label: 'Dirección' },
+				{ id: 'sec-etiquetas', icon: 'etiquetas', label: 'Etiquetas' },
 				tickets,
-				{ id: 'sec-imagen', icon: '🖼️', label: 'Imagen' },
-				{ id: 'sec-texto', icon: '📄', label: 'Texto' }
+				{ id: 'sec-imagen', icon: 'imagen', label: 'Imagen' },
+				{ id: 'sec-texto', icon: 'texto', label: 'Texto' }
 			].filter(Boolean)
 		);
 	if (parseError) return [];
 	if (mode === 'contenido')
 		return /** @type {FormSection[]} */ (
 			[
-				{ id: 'sec-datos', icon: '📝', label: 'Datos' },
+				{ id: 'sec-datos', icon: 'datos', label: 'Datos' },
 				personas,
-				{ id: 'sec-imagen', icon: '🖼️', label: 'Imagen' },
-				{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
-				{ id: 'sec-texto', icon: '📄', label: 'Texto' },
-				{ id: 'sec-lista', icon: '👀', label: 'En la lista' }
+				{ id: 'sec-imagen', icon: 'imagen', label: 'Imagen' },
+				{ id: 'sec-etiquetas', icon: 'etiquetas', label: 'Etiquetas' },
+				{ id: 'sec-texto', icon: 'texto', label: 'Texto' },
+				{ id: 'sec-lista', icon: 'lista', label: 'En la lista' }
 			].filter(Boolean)
 		);
 	const isEvent = category === 'calendario';
 	return /** @type {FormSection[]} */ (
 		[
 			isEvent && cuando,
-			{ id: 'sec-datos', icon: '📝', label: 'Datos' },
+			{ id: 'sec-datos', icon: 'datos', label: 'Datos' },
 			personas,
 			isEvent && lugar,
-			hasImage && { id: 'sec-imagen', icon: '🖼️', label: 'Imagen' },
-			{ id: 'sec-etiquetas', icon: '🏷️', label: 'Etiquetas' },
+			hasImage && { id: 'sec-imagen', icon: 'imagen', label: 'Imagen' },
+			{ id: 'sec-etiquetas', icon: 'etiquetas', label: 'Etiquetas' },
 			isEvent && tickets,
-			{ id: 'sec-texto', icon: '📄', label: 'Texto' },
+			{ id: 'sec-texto', icon: 'texto', label: 'Texto' },
 			// Talleres en varias partes: la sección se guarda por su cuenta (PartesEditor).
-			isEvent && hasPartes && { id: 'partes', icon: '🧩', label: 'Partes' }
+			isEvent && hasPartes && { id: 'partes', icon: 'partes', label: 'Partes' }
 		].filter(Boolean)
 	);
 }
