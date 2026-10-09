@@ -5,6 +5,7 @@
 	import { TIMEZONE, argDateList } from '$lib/utils/dates.js';
 	import { VENUE_PRIVACY_LABELS, VENUE_PRIVACY_UNSET_LABEL } from '$lib/utils/venues.js';
 	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
+	import VenueGeocoder from '$lib/components/amigues/VenueGeocoder.svelte';
 	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
 
 	export let data;
@@ -34,6 +35,26 @@
 		f?.action === 'guardar' ? (f.errors ?? {}) : {}
 	);
 	$: values = draft ?? p;
+
+	/**
+	 * Dirección, barrio, ciudad y coordenadas del lugar, enlazados: «Buscar en el mapa» lee los
+	 * tres primeros y completa los dos últimos. Vuelven a lo guardado (o al borrador) cuando cambia
+	 * `values`.
+	 */
+	let venueAddress = '';
+	let venueArea = '';
+	let venueCity = '';
+	let venueLat = '';
+	let venueLng = '';
+	$: resetVenueFields(values);
+	/** @param {{ venue?: Record<string, any> | null }} v */
+	function resetVenueFields(v) {
+		venueAddress = v.venue?.address ?? '';
+		venueArea = v.venue?.area ?? '';
+		venueCity = v.venue?.city ?? '';
+		venueLat = v.venue?.lat ?? '';
+		venueLng = v.venue?.lng ?? '';
+	}
 
 	/** @type {(action: string) => FormState | null} */
 	$: msg = (action) => (f?.action === action ? (f ?? null) : null);
@@ -214,7 +235,7 @@
 							type="text"
 							maxlength="300"
 							autocomplete="off"
-							value={values.venue?.address ?? ''}
+							bind:value={venueAddress}
 							aria-invalid={errors.address ? 'true' : undefined}
 						/>
 						{#if errors.address}<span class="field-error">{errors.address}</span>{/if}
@@ -225,7 +246,7 @@
 							name="area"
 							type="text"
 							maxlength="100"
-							value={values.venue?.area ?? ''}
+							bind:value={venueArea}
 							aria-invalid={errors.area ? 'true' : undefined}
 						/>
 						{#if errors.area}<span class="field-error">{errors.area}</span>{/if}
@@ -236,16 +257,30 @@
 							name="city"
 							type="text"
 							maxlength="100"
-							value={values.venue?.city ?? ''}
+							bind:value={venueCity}
 							aria-invalid={errors.city ? 'true' : undefined}
 						/>
 						{#if errors.city}<span class="field-error">{errors.city}</span>{/if}
 					</label>
 					<div class="coords">
+						<VenueGeocoder
+							endpoint="/mi-rincon/geocodificar"
+							address={venueAddress}
+							area={venueArea}
+							city={venueCity}
+							bind:lat={venueLat}
+							bind:lng={venueLng}
+							buttonClass="pill-btn ghost"
+							useClass="pill-btn"
+							rowClass="geo-row"
+							noteClass="hint"
+							errorClass="error"
+						/>
 						<VenueCoordinates
-							lat={values.venue?.lat ?? ''}
-							lng={values.venue?.lng ?? ''}
+							bind:lat={venueLat}
+							bind:lng={venueLng}
 							{errors}
+							geocoder
 							gridClass="coords-grid"
 						/>
 					</div>
@@ -855,5 +890,19 @@
 		color: var(--muted);
 		font-size: var(--step--1);
 		margin: 0;
+	}
+	/* «Buscar en el mapa» (componente compartido con el panel). */
+	.coords :global(.geo-row) {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.4em 0.8em;
+	}
+	.coords :global(.error) {
+		margin: 0;
+		color: var(--1-ink);
+		background: var(--1-tint);
+		padding: 0.5em 0.8em;
+		border-radius: var(--round-sm);
 	}
 </style>

@@ -1,7 +1,8 @@
 <script>
 	/**
-	 * «Buscar en el mapa» del editor de lugares del panel. Solo cuando une admin aprieta el botón,
-	 * manda la dirección, el barrio y la ciudad a `POST /admin/geocodificar` (que le pregunta a
+	 * «Buscar en el mapa» del editor de un lugar: en el panel (Perfiles → lugar) y en Mi rincón
+	 * (el lugar de una cuenta). Solo cuando se aprieta el botón, manda la dirección, el barrio y la
+	 * ciudad a `endpoint` (`/admin/geocodificar` o `/mi-rincon/geocodificar`, que le preguntan a
 	 * Nominatim, de OpenStreetMap, desde el servidor) y muestra los resultados con una vista previa.
 	 * El punto se ajusta con un clic en el mapa o con las flechas, y «Usar esta ubicación» completa
 	 * la latitud y la longitud del formulario. No guarda nada: eso pasa al guardar el formulario.
@@ -9,16 +10,26 @@
 	 * La vista previa son las mismas baldosas de OpenStreetMap que `VenueMap` (imágenes comunes, sin
 	 * librerías ni scripts de afuera; `osmTiles` en src/lib/utils/venues.js).
 	 *
-	 * Props: `address`, `area`, `city` (lo escrito en el formulario), `lat`, `lng` (texto, con
-	 * bind:).
+	 * Props: `endpoint` (adónde se busca), `address`, `area`, `city` (lo escrito en el formulario),
+	 * `lat`, `lng` (texto, con bind:), y las clases de cada página (como `VenueCoordinates`):
+	 * `buttonClass` (el botón de buscar), `useClass` («Usar esta ubicación»), `rowClass` (la fila
+	 * de botones), `noteClass` (las explicaciones) y `errorClass` (el aviso de error). Por defecto,
+	 * las del panel.
 	 */
 	import { osmTiles, osmMovePoint } from '$lib/utils/venues.js';
 
+	/** @type {string} */
+	export let endpoint;
 	export let address = '';
 	export let area = '';
 	export let city = '';
 	export let lat = '';
 	export let lng = '';
+	export let buttonClass = 'kv-btn ghost';
+	export let useClass = 'kv-btn';
+	export let rowClass = 'kv-row';
+	export let noteClass = 'kv-note';
+	export let errorClass = 'kv-flash warn';
 
 	const width = 440;
 	const height = 220;
@@ -47,7 +58,7 @@
 		selected = -1;
 		point = null;
 		try {
-			const res = await fetch('/admin/geocodificar', {
+			const res = await fetch(endpoint, {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ address, area, city })
@@ -103,17 +114,17 @@
 </script>
 
 <div class="geocoder">
-	<div class="kv-row">
-		<button class="kv-btn ghost" type="button" on:click={search} disabled={!canSearch}>
+	<div class={rowClass}>
+		<button class={buttonClass} type="button" on:click={search} disabled={!canSearch}>
 			{busy ? 'Buscando…' : 'Buscar en el mapa'}
 		</button>
-		<small class="kv-note"
+		<small class={noteClass}
 			>Busca la dirección, el barrio y la ciudad en OpenStreetMap. Solo se manda cuando apretás el
 			botón.</small
 		>
 	</div>
 
-	{#if error}<p class="kv-flash warn" role="alert">{error}</p>{/if}
+	{#if error}<p class={errorClass} role="alert">{error}</p>{/if}
 
 	{#if results.length}
 		<ul class="results" aria-label="Resultados">
@@ -173,13 +184,13 @@
 					></small
 				>
 			</div>
-			<p class="kv-note">Hacé clic en el mapa o usá las flechas para ajustar el punto.</p>
-			<div class="kv-row">
-				<button class="kv-btn" type="button" on:click={use}>Usar esta ubicación</button>
+			<p class={noteClass}>Hacé clic en el mapa o usá las flechas para ajustar el punto.</p>
+			<div class={rowClass}>
+				<button class={useClass} type="button" on:click={use}>Usar esta ubicación</button>
 			</div>
 		</div>
 	{/if}
-	<p class="kv-note" role="status">{status}</p>
+	<p class="{noteClass} status" role="status">{status}</p>
 </div>
 
 <style>
@@ -187,7 +198,7 @@
 		display: grid;
 		gap: var(--space-2xs);
 	}
-	.geocoder .kv-note:empty {
+	.status:empty {
 		display: none;
 	}
 	.results {
