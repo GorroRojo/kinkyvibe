@@ -202,26 +202,40 @@ sitio no tiene CSP de imágenes en las páginas públicas, así que no hizo falt
 `securityHeaders.js`) y el link "Ver en OpenStreetMap".
 
 **«Buscar en el mapa»** (pedido de gorrite): en el editor de un lugar del panel (Perfiles →
-lugar), al lado de la dirección, un botón que busca la dirección, el barrio y la ciudad (con
+lugar) y en el de Mi rincón (el lugar que gestiona una cuenta, `/mi-rincon/perfiles/[slug]`), al
+lado de la dirección, un botón que busca la dirección, el barrio y la ciudad (con
 «Argentina» al final) en **Nominatim**, el buscador de OpenStreetMap, y muestra hasta 5
 resultados con una vista previa del mapa (las mismas baldosas que `VenueMap`, sin librerías). El
 punto se ajusta con un clic en la vista previa o con las flechas, y **«Usar esta ubicación»**
 completa la latitud y la longitud; **no se guarda nada hasta guardar el formulario**. Sin
-resultados: «No encontramos esa dirección. Probá agregando la ciudad o el barrio.».
+resultados: «No encontramos esa dirección. Probá agregando la ciudad o el barrio.». Con el botón
+al lado, la explicación de la latitud y la longitud dice que se completan solas (y que se pueden
+corregir a mano); donde no hay botón, sigue explicando cómo copiarlas de openstreetmap.org.
 
-- **La dirección sale del sitio solo cuando une admin aprieta el botón**: se manda a Nominatim
-  (OpenStreetMap) desde el servidor, nunca desde el navegador, nunca sola, nunca para visitantes
-  y nunca para el «Dónde» en texto libre de un evento. Mi rincón no lo tiene. La privacidad del
-  lugar no cambia: las coordenadas se siguen mostrando solo en los niveles que muestran la
-  dirección.
-- Endpoint: `POST /admin/geocodificar` (solo admins; por POST para que la dirección no quede en
-  URLs). Política de uso de Nominatim: User-Agent `kinkyvibe/1.0 (+https://kinkyvibe.ar; …)` sin
-  mails, **un pedido por segundo para todo el sitio** (`rate_limits`, bucket `nominatim`; sin base
-  no se pide nada) y las búsquedas repetidas salen de una memoria de 24 h del Worker.
-- Código: `src/lib/server/geocode/nominatim.js`,
-  `src/routes/(authed)/admin/geocodificar/+server.js` y
-  `src/lib/components/admin/amigues/VenueGeocoder.svelte` (`osmMovePoint` en
-  `src/lib/utils/venues.js` mueve el punto).
+- **La dirección sale del sitio solo cuando alguien aprieta el botón** (une admin o quien gestiona
+  el lugar): se manda a Nominatim (OpenStreetMap) desde el servidor, nunca desde el navegador,
+  nunca sola, nunca para visitantes y nunca para el «Dónde» en texto libre de un evento. La
+  privacidad del lugar no cambia: las coordenadas se siguen mostrando solo en los niveles que
+  muestran la dirección.
+- Endpoints (por POST para que la dirección no quede en URLs; las mismas respuestas y los mismos
+  mensajes):
+  - `POST /admin/geocodificar`: solo admins.
+  - `POST /mi-rincon/geocodificar`: una cuenta con sesión que **gestiona al menos un lugar** (con
+    el permiso de perfiles), así no sirve de buscador gratis para cualquier cuenta. Sin sesión,
+    401; sin lugar, 403 («Buscar en el mapa es para quienes gestionan un lugar.»). Además, **10
+    búsquedas cada 10 minutos por cuenta** (`rate_limits`, bucket `nominatim:a:<hash del id>`; se
+    cuentan también las que salen de la memoria, no las que llegan sin dirección), así una cuenta
+    no se queda con el pedido por segundo del sitio: «Hiciste muchas búsquedas seguidas. Esperá
+    unos minutos y probá de nuevo, o cargá los números a mano.» (429).
+- Política de uso de Nominatim: User-Agent `kinkyvibe/1.0 (+https://kinkyvibe.ar; …)` sin mails,
+  **un pedido por segundo para todo el sitio** (`rate_limits`, bucket `nominatim`, compartido por
+  los dos endpoints; sin base no se pide nada) y las búsquedas repetidas salen de una memoria de
+  24 h del Worker.
+- Código: `src/lib/server/geocode/nominatim.js` (la búsqueda), `src/lib/server/geocode/web.js`
+  (cuerpo, respuestas, mensajes y límite por cuenta), `src/routes/(authed)/admin/geocodificar/`,
+  `src/routes/(content)/mi-rincon/geocodificar/` y
+  `src/lib/components/amigues/VenueGeocoder.svelte` (recibe el endpoint y las clases de cada
+  página; `osmMovePoint` en `src/lib/utils/venues.js` mueve el punto).
 
 **"Ver en Google Maps"** (pedido de gorrite): un link común (sin mapa embebido) en la página del
 evento y en la del lugar, solo en "Nombre + dirección" y "Sólo dirección". Busca el punto si el
@@ -394,4 +408,4 @@ lugares), esta vincula con los **lugares que ya existen**. Reglas puras en
 
 ## Probarlo
 
-`npx vitest run src/lib/server/amigues src/lib/server/geocode src/lib/utils/venues.test.js src/lib/utils/venueMatch.test.js "src/routes/(content)/amigues" "src/routes/(authed)/admin/eventos/lugares" "src/routes/(authed)/admin/comunidad/perfiles" "src/routes/(authed)/admin/geocodificar"`
+`npx vitest run src/lib/server/amigues src/lib/server/geocode src/lib/utils/venues.test.js src/lib/utils/venueMatch.test.js "src/routes/(content)/amigues" "src/routes/(authed)/admin/eventos/lugares" "src/routes/(authed)/admin/comunidad/perfiles" "src/routes/(authed)/admin/geocodificar" "src/routes/(content)/mi-rincon/geocodificar" "src/routes/(content)/mi-rincon/perfiles/geocoder-render.test.js"`

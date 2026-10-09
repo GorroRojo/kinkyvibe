@@ -1,8 +1,9 @@
 /**
- * «Buscar en el mapa» del editor de lugares del panel: pasa una dirección a coordenadas con
- * Nominatim (el buscador de OpenStreetMap). Solo corre en el servidor y solo cuando une admin
- * aprieta el botón (docs/amigues.md): nunca solo, nunca para el público, nunca para la dirección
- * libre de un evento.
+ * «Buscar en el mapa» del editor de lugares (el del panel y el de Mi rincón): pasa una dirección a
+ * coordenadas con Nominatim (el buscador de OpenStreetMap). Solo corre en el servidor y solo
+ * cuando une admin o quien gestiona el lugar aprieta el botón (docs/amigues.md): nunca solo, nunca
+ * para visitantes, nunca para la dirección libre de un evento. Los endpoints están en
+ * src/lib/server/geocode/web.js (Mi rincón suma un límite por cuenta).
  *
  * Cumple la política de uso de Nominatim (https://operations.osmfoundation.org/policies/nominatim/):
  * - un User-Agent que dice quién es, con la URL del sitio (sin mails de nadie);
@@ -20,7 +21,7 @@ import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 
 export const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 export const SITE_URL = 'https://kinkyvibe.ar';
-export const USER_AGENT = `kinkyvibe/1.0 (+${SITE_URL}; buscador de lugares del panel)`;
+export const USER_AGENT = `kinkyvibe/1.0 (+${SITE_URL}; buscador de lugares)`;
 /** Un pedido por segundo para todo el sitio (la política de Nominatim). */
 export const NOMINATIM_RATE_LIMIT = { limit: 1, windowSeconds: 1 };
 export const MAX_RESULTS = 5;
