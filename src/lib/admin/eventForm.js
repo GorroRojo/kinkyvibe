@@ -23,6 +23,35 @@ import { changedKeys } from './draft.js';
  */
 
 /**
+ * El nombre de cada sección, el mismo en el índice (SectionIndex) y en el título de la sección
+ * (SectionHeading, con el mismo ícono de Lucide): una sola fuente para las dos cosas.
+ * @type {Record<SectionIcon, string>}
+ */
+export const SECTION_LABELS = {
+	cuando: 'Fecha y hora',
+	datos: 'Datos',
+	personas: 'Personas',
+	lugar: 'Lugar',
+	direccion: 'Dirección',
+	etiquetas: 'Etiquetas',
+	entradas: 'Entradas',
+	imagen: 'Imagen',
+	texto: 'Texto',
+	lista: 'En la lista',
+	partes: 'Partes'
+};
+
+/**
+ * La entrada del índice de una sección.
+ * @param {SectionIcon} key
+ * @param {string} id
+ * @returns {FormSection}
+ */
+function section(key, id) {
+	return { id, icon: key, label: SECTION_LABELS[key] };
+}
+
+/**
  * Las secciones del formulario, en el orden en que aparecen.
  * @param {object} o
  * @param {'nuevo' | 'editar' | 'contenido'} o.mode crear/duplicar un evento, editar una
@@ -46,50 +75,50 @@ export function formSections({
 	hasPartes = false,
 	parseError = false
 }) {
-	const tickets = { id: `${idPrefix}-tickets`, icon: 'entradas', label: 'Entradas' };
-	const cuando = { id: 'sec-cuando', icon: 'cuando', label: 'Fecha y hora' };
-	const personas = hasPersonas && { id: 'sec-personas', icon: 'personas', label: 'Personas' };
+	const tickets = section('entradas', `${idPrefix}-tickets`);
+	const cuando = section('cuando', 'sec-cuando');
+	const personas = hasPersonas && section('personas', 'sec-personas');
 	// El lugar elegido y el «Dónde» en texto libre (PlaceSection).
-	const lugar = { id: 'sec-lugar', icon: 'lugar', label: 'Lugar' };
+	const lugar = section('lugar', 'sec-lugar');
 	if (mode === 'nuevo')
 		return /** @type {FormSection[]} */ (
 			[
 				cuando,
-				{ id: 'sec-datos', icon: 'datos', label: 'Datos' },
+				section('datos', 'sec-datos'),
 				personas,
 				lugar,
-				{ id: 'sec-direccion', icon: 'direccion', label: 'Dirección' },
-				{ id: 'sec-etiquetas', icon: 'etiquetas', label: 'Etiquetas' },
+				section('direccion', 'sec-direccion'),
+				section('etiquetas', 'sec-etiquetas'),
 				tickets,
-				{ id: 'sec-imagen', icon: 'imagen', label: 'Imagen' },
-				{ id: 'sec-texto', icon: 'texto', label: 'Texto' }
+				section('imagen', 'sec-imagen'),
+				section('texto', 'sec-texto')
 			].filter(Boolean)
 		);
 	if (parseError) return [];
 	if (mode === 'contenido')
 		return /** @type {FormSection[]} */ (
 			[
-				{ id: 'sec-datos', icon: 'datos', label: 'Datos' },
+				section('datos', 'sec-datos'),
 				personas,
-				{ id: 'sec-imagen', icon: 'imagen', label: 'Imagen' },
-				{ id: 'sec-etiquetas', icon: 'etiquetas', label: 'Etiquetas' },
-				{ id: 'sec-texto', icon: 'texto', label: 'Texto' },
-				{ id: 'sec-lista', icon: 'lista', label: 'En la lista' }
+				section('imagen', 'sec-imagen'),
+				section('etiquetas', 'sec-etiquetas'),
+				section('texto', 'sec-texto'),
+				section('lista', 'sec-lista')
 			].filter(Boolean)
 		);
 	const isEvent = category === 'calendario';
 	return /** @type {FormSection[]} */ (
 		[
 			isEvent && cuando,
-			{ id: 'sec-datos', icon: 'datos', label: 'Datos' },
+			section('datos', 'sec-datos'),
 			personas,
 			isEvent && lugar,
-			hasImage && { id: 'sec-imagen', icon: 'imagen', label: 'Imagen' },
-			{ id: 'sec-etiquetas', icon: 'etiquetas', label: 'Etiquetas' },
+			hasImage && section('imagen', 'sec-imagen'),
+			section('etiquetas', 'sec-etiquetas'),
 			isEvent && tickets,
-			{ id: 'sec-texto', icon: 'texto', label: 'Texto' },
+			section('texto', 'sec-texto'),
 			// Talleres en varias partes: la sección se guarda por su cuenta (PartesEditor).
-			isEvent && hasPartes && { id: 'partes', icon: 'partes', label: 'Partes' }
+			isEvent && hasPartes && section('partes', 'partes')
 		].filter(Boolean)
 	);
 }
@@ -99,21 +128,21 @@ export function formSections({
  * @type {Record<string, string>}
  */
 export const DRAFT_PART_SECTION = {
-	schedule: 'Fecha y hora',
-	values: 'Datos',
+	schedule: SECTION_LABELS.cuando,
+	values: SECTION_LABELS.datos,
 	// Los borradores de antes de juntar «Organizan» y «Personas» guardaban `authors`.
-	authors: 'Personas',
-	people: 'Personas',
-	venue: 'Lugar',
-	slug: 'Dirección',
-	slugEdited: 'Dirección',
-	tagRules: 'Etiquetas',
-	freeTags: 'Etiquetas',
-	tickets: 'Entradas',
-	personas: 'Personas',
-	featuredMode: 'Imagen',
-	body: 'Texto',
-	rawText: 'Texto'
+	authors: SECTION_LABELS.personas,
+	people: SECTION_LABELS.personas,
+	venue: SECTION_LABELS.lugar,
+	slug: SECTION_LABELS.direccion,
+	slugEdited: SECTION_LABELS.direccion,
+	tagRules: SECTION_LABELS.etiquetas,
+	freeTags: SECTION_LABELS.etiquetas,
+	tickets: SECTION_LABELS.entradas,
+	personas: SECTION_LABELS.personas,
+	featuredMode: SECTION_LABELS.imagen,
+	body: SECTION_LABELS.texto,
+	rawText: SECTION_LABELS.texto
 };
 
 /**
@@ -132,13 +161,13 @@ export function draftSectionLabels(keys, map = DRAFT_PART_SECTION) {
  * @type {Record<string, string>}
  */
 export const CONTENT_FORM_SECTION = {
-	values: 'Datos',
-	authors: 'Personas',
-	personas: 'Personas',
-	people: 'Personas',
-	featured: 'Imagen',
-	tags: 'Etiquetas',
-	body: 'Texto'
+	values: SECTION_LABELS.datos,
+	authors: SECTION_LABELS.personas,
+	personas: SECTION_LABELS.personas,
+	people: SECTION_LABELS.personas,
+	featured: SECTION_LABELS.imagen,
+	tags: SECTION_LABELS.etiquetas,
+	body: SECTION_LABELS.texto
 };
 
 /**
@@ -155,9 +184,9 @@ export function contentDraftLabels(draft, current) {
 	const inForm = top.includes('f') ? changedKeys(obj(draft).f, obj(current).f) : [];
 	return draftSectionLabels([...inForm, ...top.filter((k) => k !== 'f')], {
 		...CONTENT_FORM_SECTION,
-		slug: 'Datos',
-		slugTouched: 'Datos',
-		rawText: 'Texto'
+		slug: SECTION_LABELS.datos,
+		slugTouched: SECTION_LABELS.datos,
+		rawText: SECTION_LABELS.texto
 	});
 }
 

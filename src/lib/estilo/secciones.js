@@ -113,9 +113,9 @@ export const SECCIONES = [
 		nombre: 'Notice',
 		importa: "import { Notice } from '$lib/components/ui';",
 		cuando:
-			'Avisos en la página: verde para lo que salió bien, amarillo para avisos, rojo para errores y malas noticias.',
+			'Avisos en la página: verde para lo que salió bien, amarillo para avisos, rojo para errores y malas noticias. Lleva su ícono (sin «⚠️» en el texto). `compact` para avisos largos o junto a un campo; `inline` dentro de un label.',
 		cuandoNo:
-			'«Guardado ✓» y «Deshacer» nunca en rojo. Si el aviso lleva Deshacer, es UndoToast. Para el estado de un guardado automático, SaveStatus.',
+			'«Guardado» y «Deshacer» nunca en rojo. Si el aviso lleva Deshacer, es UndoToast. Para el estado de un guardado automático, SaveStatus. `role="alert"` solo para errores o lo que aparece después de una acción.',
 		soloPanel: true
 	},
 	{

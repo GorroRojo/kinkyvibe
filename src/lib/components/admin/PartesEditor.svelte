@@ -10,6 +10,7 @@
 	 *
 	 * Props: `state` (lo que da `panelParts`, src/lib/server/eventos/partes.js) y `slug`.
 	 */
+	import SectionHeading from '$lib/components/admin/event-form/SectionHeading.svelte';
 	import { deserialize } from '$app/forms';
 	import { ArrowDown, ArrowUp, Plus, Search, X } from '@lucide/svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -189,7 +190,7 @@
 </script>
 
 <section class="card partes" id="partes" aria-labelledby="partes-title">
-	<h2 id="partes-title">Partes</h2>
+	<SectionHeading section="partes" as="h2" id="partes-title" />
 
 	{#if !state}
 		<p class="hint">No pudimos leer las partes (¿hay base de datos?).</p>
@@ -403,7 +404,8 @@
 		gap: 0.8rem;
 		scroll-margin-top: var(--form-sticky-top, 1rem);
 	}
-	h2 {
+	/* el título (SectionHeading, como en el índice) */
+	.partes > :global(h2) {
 		margin: 0;
 		font-size: 1.25rem;
 	}

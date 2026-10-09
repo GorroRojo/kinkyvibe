@@ -286,6 +286,33 @@ textarea {
 		color: white;
 	}
 }
+/* El chip como casilla (filtros del sitio; `<TagChip checkbox>`): la casilla de verdad queda
+   encima del chip, transparente, así se toca, se enfoca con Tab y se tilda con Espacio; el foco
+   se dibuja en el chip. */
+.kv-tag-check {
+	position: relative;
+	display: inline-flex;
+	max-width: 100%;
+	cursor: pointer;
+	> input[type='checkbox'] {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		width: 100%;
+		height: 100%;
+		margin: 0;
+		border: 0;
+		opacity: 0;
+		cursor: pointer;
+	}
+	> input:focus-visible + .kv-tag {
+		outline: var(--focus-ring);
+		outline-offset: 2px;
+	}
+	&:hover > .kv-tag {
+		text-decoration: underline;
+	}
+}
 
 /** Botones (ver docs/estilo.md, «Piezas»). En <a> y <button>:
     .pill-btn            principal: píldora rosa llena (el botón de COMPRAR entradas es otro)

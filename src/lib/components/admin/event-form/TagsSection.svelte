@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Sección «🏷️ Etiquetas» del formulario: en los eventos, las reglas (KinkyVibe, idioma,
+	 * Sección «Etiquetas» del formulario: en los eventos, las reglas (KinkyVibe, idioma,
 	 * lugar, precio) con EventTagRules y las demás con TagPicker; en otras publicaciones, solo
 	 * TagPicker. Movida tal cual desde /admin/eventos/nuevo y PostEditor.
 	 *
@@ -16,6 +16,7 @@
 	 * - Slot `before`: arriba del buscador (los botones rápidos de ContentEditor); slot `help`: la
 	 *   ayuda del buscador.
 	 */
+	import SectionHeading from './SectionHeading.svelte';
 	import EventTagRules from '$lib/components/admin/EventTagRules.svelte';
 	import TagPicker from '$lib/components/admin/TagPicker.svelte';
 	import { buildTagOptions, reservedPickerTags } from '$lib/utils/adminTags.js';
@@ -43,7 +44,7 @@
 </script>
 
 <fieldset class="card" id="sec-etiquetas">
-	<legend>🏷️ Etiquetas</legend>
+	<SectionHeading section="etiquetas" />
 	{#if isEvent}
 		<EventTagRules bind:state={tagRules} {errors} {idPrefix} />
 	{/if}

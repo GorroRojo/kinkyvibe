@@ -1,22 +1,22 @@
 <script>
 	/**
-	 * Sección «📄 Texto» del formulario: el texto de la página en markdown, con CodeMirror. La
+	 * Sección «Texto» del formulario: el texto de la página en markdown, con CodeMirror. La
 	 * misma al crear un evento (/admin/eventos/nuevo), al editar (PostEditor) y en ContentEditor.
 	 * Con el slot `preview` (ContentEditor) muestra al lado una vista previa; en pantallas angostas,
 	 * con botones «Editar / Vista previa».
 	 *
 	 * Props:
 	 * - `value` (bind): el texto.
-	 * - `legend`: el título de la tarjeta.
+	 * - El título es el de la sección en el índice (SectionHeading, `formSections`).
 	 * - `id`: id del contenedor del editor (`ev-body` al crear).
 	 * - Slot `hint`: la ayuda de formato (arriba del editor).
 	 * - Slot `preview`: la vista previa (opcional).
 	 */
+	import SectionHeading from './SectionHeading.svelte';
 	import CodeMirror from 'svelte-codemirror-editor';
 	import { markdown } from '@codemirror/lang-markdown';
 
 	export let value = '';
-	export let legend = '📄 Texto de la página';
 	/** @type {string | undefined} */
 	export let id = undefined;
 
@@ -27,7 +27,7 @@
 </script>
 
 <fieldset class="card body-card" id="sec-texto">
-	<legend>{legend}</legend>
+	<SectionHeading section="texto" />
 	{#if withPreview}
 		<div class="panes-toggle" role="tablist" aria-label="Texto">
 			<button

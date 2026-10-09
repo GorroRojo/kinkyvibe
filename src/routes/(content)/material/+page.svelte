@@ -3,10 +3,8 @@
 	export let data;
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import Tag from '$lib/components/Tag.svelte';
 	import { filteredTags, tagManager, togglePositiveTagFilterFn } from '$lib/utils/stores';
 	import { ArrowRight, Globe } from '@lucide/svelte';
-	import { page } from '$app/stores';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 
@@ -51,18 +49,7 @@
 					<dd>
 						{#each termino.parsedDescription as d}
 							{#if d.type == 'link'}
-								<Tag
-									tag={d.line}
-									onInput={(evt, tag) => $togglePositiveTagFilterFn(evt.target?.checked, d.line)}
-									isCheckbox
-									checked={$page.url.searchParams.has('tags') &&
-										$page.url.searchParams.get('tags')?.split(',').includes(d.line)}
-									--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
-									--font-size="1em"
-									--padding="0.1em 0.2em"
-									--border-radius=".3em"
-									noBorder
-								/>
+								<InlineTag tag={d.line} />
 							{:else}
 								{d.line}
 							{/if}
@@ -72,18 +59,7 @@
 							<small>
 								Ver también:
 								{#each termino.related as tag, i}
-									<Tag
-										{tag}
-										onInput={(evt, _) => $togglePositiveTagFilterFn(evt.target?.checked, tag)}
-										isCheckbox
-										checked={$page.url.searchParams.has('tags') &&
-											$page.url.searchParams.get('tags')?.split(',').includes(tag)}
-										--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
-										--font-size="1em"
-										--padding="0.1em 0.2em"
-										--border-radius=".3em"
-										noBorder
-									/>
+									<InlineTag {tag} />
 									{i < termino.related.length - 1 ? ', ' : ''}
 								{/each}
 								.

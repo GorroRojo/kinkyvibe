@@ -1,4 +1,5 @@
 <script>
+	import Notice from '$lib/components/ui/Notice.svelte';
 	import { deserialize } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { onMount, tick } from 'svelte';
@@ -322,9 +323,11 @@
 	</p>
 {/if}
 {#if data.mock}
-	<p class="note warn">
-		Modo de prueba (<code>npm run dev:admin</code>): los «commits» van a una carpeta temporal.
-	</p>
+	<div class="mock-note">
+		<Notice tone="warn" role={null}>
+			Modo de prueba (<code>npm run dev:admin</code>): los «commits» van a una carpeta temporal.
+		</Notice>
+	</div>
 {/if}
 {#if saved}
 	<p class="note ok" role="status">
@@ -764,9 +767,8 @@
 		background: var(--ok-bg);
 		color: var(--ok);
 	}
-	.note.warn {
-		background: var(--warn-bg);
-		color: var(--warn);
+	.mock-note {
+		margin: 0 0 1rem;
 	}
 	.tree-head {
 		padding: var(--space-xs) var(--space-xs) 0.4rem;

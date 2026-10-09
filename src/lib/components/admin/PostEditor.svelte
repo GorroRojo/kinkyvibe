@@ -117,10 +117,10 @@
 
 	/** @typedef {import('$lib/admin/postFields.js').Field} Field */
 	// Todos los campos (para armar el archivo) y los que se muestran en «Datos»: Empieza y Termina
-	// van en «¿Cuándo es?».
+	// van en «Fecha y hora».
 	const fields = postFields(category);
 	const shownFields = datosFields('editar', category);
-	// En los eventos, el «Dónde» en texto libre va en «📍 Lugar», junto al lugar elegido.
+	// En los eventos, el «Dónde» en texto libre va en «Lugar», junto al lugar elegido.
 	const { datos: datosShown, place: placeShown } = splitPlaceFields(shownFields, category);
 
 	/* ---------- lugar (eventos): edge `lugar` del evento en la base, no en el archivo ---------- */
@@ -505,7 +505,7 @@
 				<svelte:fragment slot="before">
 					{#if onlineMismatch}
 						<div class="online-mismatch" id="edit-online-mismatch">
-							<Notice tone="warn">⚠️ {ONLINE_MISMATCH_TEXT}</Notice>
+							<Notice tone="warn">{ONLINE_MISMATCH_TEXT}</Notice>
 						</div>
 					{/if}
 				</svelte:fragment>
@@ -544,7 +544,7 @@
 			<p class="error" role="alert">{form.error}</p>
 		{/if}
 		{#each form?.warnings ?? [] as warning}
-			<p class="warning" role="alert">⚠️ {warning}</p>
+			<Notice tone="warn">{warning}</Notice>
 		{/each}
 		{#if form?.save}
 			<p class="note" role="status">

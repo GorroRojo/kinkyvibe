@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Sección «🖼️ Imagen» del formulario: la miniatura, el botón para subir una imagen, el aviso
+	 * Sección «Imagen» del formulario: la miniatura, el botón para subir una imagen, el aviso
 	 * de formatos y el estado de la imagen elegida (`upload`: revisarla, la URL local de la
 	 * miniatura y soltarla al cambiarla o al salir; ver `$lib/admin/imageState.js`). Queda solo para
 	 * las fichas de amigues en ContentEditor (suben su imagen al repo); lo demás usa la biblioteca
@@ -16,6 +16,7 @@
 	 * - `resetInput()`: vacía el `<input type="file">`; `clear()`: además suelta la imagen elegida
 	 *   («No cambiar la imagen»).
 	 */
+	import SectionHeading from './SectionHeading.svelte';
 	import { createEventDispatcher, onDestroy } from 'svelte';
 	import { IMAGE_TYPES } from '$lib/utils/imageUpload.js';
 	import { chooseImage, clearImage, emptyUpload } from '$lib/admin/imageState.js';
@@ -53,7 +54,7 @@
 </script>
 
 <fieldset class="card" id="sec-imagen">
-	<legend>🖼️ Imagen</legend>
+	<SectionHeading section="imagen" />
 	<div class="image-row">
 		{#if src}
 			<img {src} {alt} class="thumb" />

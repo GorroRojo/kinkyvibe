@@ -58,7 +58,7 @@
 {#if data.onlineMismatch}
 	<div class="online-mismatch" id="online-mismatch">
 		<Notice tone="warn">
-			⚠️ {ONLINE_MISMATCH_TEXT}
+			{ONLINE_MISMATCH_TEXT}
 			{#if e.sellsTickets}Hoy las entradas lo tratan como {data.online
 					? 'online (mandan el link de la transmisión en vez del QR)'
 					: 'presencial (con QR)'}.{/if}

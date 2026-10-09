@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Sección «👥 Personas» del formulario: quiénes organizan (o escriben) y quiénes participan con
+	 * Sección «Personas» del formulario: quiénes organizan (o escriben) y quiénes participan con
 	 * otro rol, en una sola lista (PersonasField). Antes eran dos: «Organizan» en Datos y
 	 * «Personas». La misma al crear un evento, al editar una
 	 * publicación (PostEditor) y en ContentEditor (material).
@@ -9,6 +9,7 @@
 	 * solo el rol de autores (`defaultRole`): no hay selector de rol ni
 	 * perfiles de la base, como el viejo «Organizan».
 	 */
+	import SectionHeading from './SectionHeading.svelte';
 	import PersonasField from './PersonasField.svelte';
 
 	/** @type {import('$lib/utils/personasList.js').PersonaItem[]} */
@@ -35,7 +36,7 @@
 </script>
 
 <fieldset class="card" id="sec-personas">
-	<legend>👥 Personas</legend>
+	<SectionHeading section="personas" />
 	<label class="add-label" for={id}>Sumar persona</label>
 	<PersonasField
 		bind:items

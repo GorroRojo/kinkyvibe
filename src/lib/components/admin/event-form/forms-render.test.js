@@ -44,6 +44,49 @@ const common = { tagUsage: {}, profiles: [], authorUsage: {}, maxImageBytes: 5 *
 /** @param {string} body @param {string} id */
 const hasId = (body, id) => body.includes(`id="${id}"`);
 
+/** @param {string} html */
+const text = (html) =>
+	html
+		.replace(/<[^>]*>/g, '')
+		.replace(/\s+/g, ' ')
+		.trim();
+/** El ícono de Lucide de un pedazo de HTML (la clase `lucide-…` de su <svg>). @param {string} html */
+const lucide = (html) => html.match(/\blucide-(?!icon\b)([a-z0-9-]+)/)?.[1] ?? null;
+
+/** Las entradas del índice de secciones: id al que salta, nombre e ícono. @param {string} body */
+function indexEntries(body) {
+	const nav = body.match(/<nav class="section-index[\s\S]*?<\/nav>/)?.[0] ?? '';
+	return [...nav.matchAll(/<a[^>]*href="#([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => ({
+		id: m[1],
+		label: text(m[2]),
+		icon: lucide(m[2])
+	}));
+}
+
+/** El título (<legend> o <h2>) de la sección con ese id. @param {string} body @param {string} id */
+function headingOf(body, id) {
+	const start = body.search(new RegExp(`<(fieldset|section)[^>]*\\bid="${id}"`));
+	if (start < 0) return null;
+	const m = body.slice(start).match(/<(legend|h2)\b[^>]*>([\s\S]*?)<\/\1>/);
+	return m ? { label: text(m[2]), icon: lucide(m[2]) } : null;
+}
+
+/**
+ * Cada sección del índice tiene un título con el mismo nombre y el mismo ícono de Lucide, y
+ * ningún título lleva emoji (los emoji quedan para el contenido y las etiquetas).
+ * @param {string} body
+ */
+function expectHeadingsLikeIndex(body) {
+	const entries = indexEntries(body);
+	expect(entries.length).toBeGreaterThan(3);
+	for (const e of entries) {
+		expect(e.icon, e.id).toBeTruthy();
+		expect(headingOf(body, e.id), e.id).toEqual({ label: e.label, icon: e.icon });
+	}
+	for (const m of body.matchAll(/<legend\b[^>]*>([\s\S]*?)<\/legend>/g))
+		expect(text(m[1])).not.toMatch(/\p{Extended_Pictographic}/u);
+}
+
 describe('PostEditor (Editar un evento)', () => {
 	const body = render(PostEditor, {
 		props: {
@@ -60,7 +103,12 @@ describe('PostEditor (Editar un evento)', () => {
 		}
 	}).body;
 
-	it('usa «¿Cuándo es?» con el día y las horas por separado (no datetime-local)', () => {
+	it('los títulos de las secciones son los del índice (ícono de Lucide, sin emoji)', () => {
+		expectHeadingsLikeIndex(body);
+		expect(headingOf(body, 'sec-cuando')?.label).toBe('Fecha y hora');
+	});
+
+	it('usa «Fecha y hora» con el día y las horas por separado (no datetime-local)', () => {
 		expect(hasId(body, 'sec-cuando')).toBe(true);
 		expect(hasId(body, 'edit-start-time')).toBe(true);
 		expect(body).toMatch(
@@ -88,7 +136,7 @@ describe('PostEditor (Editar un evento)', () => {
 });
 
 /*
- * «Personas en una sola sección»: Organizan y Personas son una sola sección (👥 Personas) en los
+ * «Personas en una sola sección»: Organizan y Personas son una sola sección («Personas») en los
  * tres formularios, con el buscador de siempre (mismo id) y, con el interruptor personas_eventos,
  * el rol de cada persona y «+ Nuevo rol…».
  */
@@ -211,6 +259,10 @@ describe('/admin/eventos/nuevo (crear un evento)', () => {
 			expect(hasId(body, id), id).toBe(true);
 	});
 
+	it('los títulos de las secciones son los del índice (ícono de Lucide, sin emoji)', () => {
+		expectHeadingsLikeIndex(body);
+	});
+
 	it('el texto también usa CodeMirror (BodySection)', () => {
 		expect(hasId(body, 'ev-body')).toBe(true);
 		expect(body).not.toMatch(/<textarea[^>]*id="ev-body"/);
@@ -270,6 +322,10 @@ Texto.
 			/class="bar sticky[^"]*"[^>]*id="content-form"|id="content-form"[^>]*class="bar sticky/
 		);
 		expect(body).toContain('Vista previa');
+	});
+
+	it('los títulos de las secciones son los del índice (ícono de Lucide, sin emoji)', () => {
+		expectHeadingsLikeIndex(body);
 	});
 });
 

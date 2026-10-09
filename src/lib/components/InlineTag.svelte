@@ -1,6 +1,12 @@
 <script>
+	/**
+	 * Una etiqueta dentro de una frase que, al tocarla, se suma (o se saca) del filtro de la lista
+	 * de abajo. Es el chip compartido como casilla (TagChip, docs/estilo.md, «Chip de etiqueta»);
+	 * `tag` es el texto que se lee y `internalTag` la etiqueta de verdad (si es otra, como un
+	 * plural).
+	 */
 	import { togglePositiveTagFilterFn, filteredTags } from '$lib/utils/stores';
-	import Tag from '$lib/components/Tag.svelte';
+	import TagChip from '$lib/components/ui/TagChip.svelte';
 
 	/** @type string */
 	export let tag;
@@ -11,16 +17,11 @@
 	$: checked = $filteredTags?.includes(aliasedTag) ?? false;
 </script>
 
-<Tag
-	onInput={(/**@type {*} */ evt) => $togglePositiveTagFilterFn(evt.target?.checked, aliasedTag)}
-	{tag}
-	isCheckbox
-	{checked}
-	--off-background="color-mix(in srgb, var(--1-light) 10%, transparent)"
-	--off-outline="1px solid var(--1-light)"
-	--off-outline-offset="-2px"
-	--font-size="1em"
-	--padding="0.1em 0.2em"
-	--border-radius=".3em"
-	noBorder
+<TagChip
+	tag={aliasedTag}
+	label={tag}
+	name={aliasedTag}
+	checkbox
+	selected={checked}
+	on:change={(/**@type {*} */ evt) => $togglePositiveTagFilterFn(evt.target?.checked, aliasedTag)}
 />

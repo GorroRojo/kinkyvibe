@@ -83,3 +83,24 @@ describe('PostListItem: venta de entradas', () => {
 		expect(html).toContain('TERMINADO');
 	});
 });
+
+/*
+ * Las etiquetas de la lista usan el chip compartido (TagChip, `.kv-tag`), el mismo que la página
+ * del evento y los filtros (decisión de gorrite, 4/10). En el servidor van sin link: un <a> en el
+ * <a> de la tarjeta rompería la hidratación (el link se arma al montar).
+ */
+describe('PostListItem: etiquetas', () => {
+	it('cada etiqueta es un chip `.kv-tag` (y KinkyVibe no sale como chip)', () => {
+		const html = body({
+			post: post({ tags: ['etiqueta inventada', 'otra inventada', 'KinkyVibe'] })
+		});
+		const chips = [
+			...html
+				.replace(/<!--[\s\S]*?-->/g, '')
+				.matchAll(/<span class="kv-tag[^"]*"[^>]*>([^<]*)<\/span>/g)
+		].map((m) => m[1]);
+		expect(chips).toEqual(['etiqueta inventada', 'otra inventada']);
+		expect(html).not.toMatch(/class="tag\b/);
+		expect(html).not.toMatch(/<a [^>]*rel="tag"/);
+	});
+});

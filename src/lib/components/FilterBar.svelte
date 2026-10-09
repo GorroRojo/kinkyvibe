@@ -181,7 +181,8 @@
 		/* container-type: inline-size; */
 	}
 	.tagfilters {
-		gap: var(--gap);
+		/* entre los chips (TagChip) de cada grupo */
+		gap: var(--space-2xs) var(--space-3xs);
 		display: flex;
 		flex-direction: row;
 		flex-wrap: wrap;
@@ -256,9 +257,6 @@
 		.tagfilters {
 			flex-direction: column;
 			max-width: 20rem;
-		}
-		.groupname {
-			width: 100%;
 		}
 	}
 </style>

@@ -24,7 +24,7 @@ describe('formSections', () => {
 		]);
 	});
 
-	// Noche 4: Editar usa la misma «📅 ¿Cuándo es?» que crear (antes Empieza y Termina estaban en
+	// Noche 4: Editar usa la misma «Fecha y hora» que crear (antes Empieza y Termina estaban en
 	// Datos), así que el índice de Editar empieza con Fecha y hora, como el de crear.
 	it('editar un evento: Fecha y hora primero (como al crear), con imagen y entradas', () => {
 		expect(ids(formSections({ mode: 'editar', category: 'calendario', hasImage: true }))).toEqual([

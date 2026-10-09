@@ -5,7 +5,8 @@
 	 * sola, sin encabezado ni pestañas.
 	 */
 	import { page } from '$app/stores';
-	import { CalendarDays, Copy, ExternalLink, ImageDown, Pencil, ReceiptText } from '@lucide/svelte';
+	import { CalendarDays, Copy, ExternalLink, ImageDown, Pencil } from '@lucide/svelte';
+	import Notice from '$lib/components/ui/Notice.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import TagChip from '$lib/components/TagChip.svelte';
@@ -107,13 +108,16 @@
 	</header>
 
 	{#if data.tabCounts.transfers && !$page.url.pathname.endsWith('/transferencias')}
-		<p class="alert" role="status">
-			<ReceiptText size={18} aria-hidden="true" />
-			{data.tabCounts.transfers === 1
-				? 'Hay 1 transferencia esperando confirmación.'
-				: `Hay ${data.tabCounts.transfers} transferencias esperando confirmación.`}
-			<a class="kv-btn small push" href={eventHref(e.slug, 'transferencias')}>Revisar</a>
-		</p>
+		<div class="transfers-notice">
+			<Notice tone="warn">
+				<span
+					>{data.tabCounts.transfers === 1
+						? 'Hay 1 transferencia esperando confirmación.'
+						: `Hay ${data.tabCounts.transfers} transferencias esperando confirmación.`}</span
+				>
+				<a class="kv-btn small push" href={eventHref(e.slug, 'transferencias')}>Revisar</a>
+			</Notice>
+		</div>
 	{/if}
 
 	<Tabs {tabs} />
@@ -197,16 +201,18 @@
 		flex-wrap: wrap;
 		gap: 0.4rem;
 	}
-	.alert {
+	/* el aviso (Notice) con «Revisar» a la derecha */
+	.transfers-notice {
+		margin: 0 0 1rem;
+	}
+	.transfers-notice :global(.kv-notice) {
+		align-items: center;
+	}
+	.transfers-notice :global(.kv-notice-text) {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--space-2xs);
-		background: var(--warn-bg);
-		color: var(--text);
-		border-radius: var(--card-round);
-		padding: var(--space-2xs) var(--space-xs) var(--space-2xs) var(--space-xs);
-		margin: 0 0 1rem;
 	}
 	.push {
 		margin-left: auto;
