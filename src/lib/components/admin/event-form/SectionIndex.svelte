@@ -2,14 +2,43 @@
 	/**
 	 * Índice de secciones de un formulario largo: en la compu, una columna al costado que queda
 	 * fija al scrollear; en el celu, una fila de botones fija arriba que se desliza de costado.
-	 * Marca la sección que se está viendo y, al tocar una, la lleva a la pantalla.
+	 * Marca la sección que se está viendo y, al tocar una, la lleva a la pantalla. Íconos de Lucide;
+	 * la sección actual es una tarjeta blanca con texto violeta, como la pestaña actual (`Tabs`).
 	 *
 	 * Props:
 	 * - `sections`: [{ id, icon, label }] (ver `formSections` en `$lib/admin/eventForm.js`); `id`
 	 *   es el del elemento de la sección en la página.
 	 */
 	import { onMount, tick } from 'svelte';
+	import {
+		CalendarClock,
+		Eye,
+		FileText,
+		Image as ImageIcon,
+		Link2,
+		MapPin,
+		Puzzle,
+		Tags,
+		TextAlignStart,
+		Ticket,
+		Users
+	} from '@lucide/svelte';
 	import { currentSection } from '$lib/admin/eventForm.js';
+
+	/** El ícono de Lucide de cada sección (`icon` en `formSections`). */
+	const ICONS = {
+		cuando: CalendarClock,
+		datos: FileText,
+		personas: Users,
+		lugar: MapPin,
+		direccion: Link2,
+		etiquetas: Tags,
+		entradas: Ticket,
+		imagen: ImageIcon,
+		texto: TextAlignStart,
+		lista: Eye,
+		partes: Puzzle
+	};
 
 	/** @type {import('$lib/admin/eventForm.js').FormSection[]} */
 	export let sections = [];
@@ -92,10 +121,13 @@
 		{#each sections as s (s.id)}
 			<li>
 				<a
+					class="item"
 					href="#{s.id}"
 					aria-current={s.id === current ? 'true' : undefined}
 					on:click={(e) => jump(e, s.id)}
-					><span class="icon" aria-hidden="true">{s.icon}</span><span>{s.label}</span></a
+					><svelte:component this={ICONS[s.icon]} size={18} aria-hidden="true" /><span
+						>{s.label}</span
+					></a
 				>
 			</li>
 		{/each}
@@ -122,25 +154,37 @@
 		margin: 0;
 		padding: 0;
 	}
-	.section-index a {
+	/* `.item` le gana a `.kv-panel .kv-admin a` (links violetas del panel). */
+	.section-index a.item {
 		display: flex;
 		align-items: center;
 		gap: 0.45em;
 		text-decoration: none;
-		color: var(--text, #333);
-		border-radius: 2em;
+		color: var(--text, var(--ink, #333));
+		font-weight: 400;
+		border-radius: var(--round);
 		white-space: nowrap;
 		min-height: 2.75rem;
 		box-sizing: border-box;
 		padding: 0 0.9em;
 	}
-	/* «Estás acá»: violeta sobre lila. */
-	.section-index a[aria-current='true'] {
-		background: var(--link-bg, var(--2-tint));
+	/* Ícono gris en las que no son la actual; en la actual toma el violeta del texto. */
+	.section-index a.item :global(svg) {
+		flex: none;
+		color: var(--muted, #666);
+	}
+	/* «Estás acá»: tarjeta blanca con texto violeta, como la pestaña actual (Tabs.svelte;
+	   gorrite, 9/10). */
+	.section-index a.item[aria-current='true'] {
+		background: var(--surface, white);
+		box-shadow: var(--shadow-1);
 		color: var(--link, var(--2-dark));
 		font-weight: 700;
 	}
-	.section-index a:focus-visible {
+	.section-index a.item[aria-current='true'] :global(svg) {
+		color: currentColor;
+	}
+	.section-index a.item:focus-visible {
 		outline: 2px solid var(--link, #6a2fc4);
 		outline-offset: 2px;
 	}
@@ -162,10 +206,11 @@
 		ol::-webkit-scrollbar {
 			display: none;
 		}
-		.section-index a {
-			background: var(--surface, white);
-			box-shadow: inset 0 0 0 1px var(--line, #ddd);
+		.section-index a.item {
 			font-size: var(--text-sm);
+		}
+		.section-index a.item:not([aria-current='true']) {
+			box-shadow: inset 0 0 0 1px var(--line, #ddd);
 		}
 	}
 
@@ -184,8 +229,8 @@
 			flex-direction: column;
 			gap: 0.15rem;
 		}
-		.section-index a:not([aria-current='true']):hover {
-			background: var(--surface-2, #f3eef6);
+		.section-index a.item:not([aria-current='true']):hover {
+			background: color-mix(in srgb, var(--surface, white) 55%, transparent);
 		}
 	}
 </style>
