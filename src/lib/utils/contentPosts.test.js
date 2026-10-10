@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	buildContentMarkdown,
+	contentProblemItems,
 	contentProblems,
 	contentRow,
 	duplicateContentForm,
@@ -242,6 +243,35 @@ describe('contentProblems', () => {
 		f.values.redirect = true;
 		f.values.link = '';
 		expect(contentProblems('material', f)).toContain('Para ir directo al link hace falta el link.');
+	});
+});
+
+describe('contentProblemItems', () => {
+	it('each problem points at the editor field where it is fixed', () => {
+		const f = readContentForm('material', MATERIAL);
+		expect(contentProblemItems('material', f)).toEqual([]);
+		f.values.title = '';
+		f.tags = [];
+		f.authors = [];
+		f.values.redirect = true;
+		f.values.link = '';
+		expect(contentProblemItems('material', f)).toEqual([
+			{ text: 'Falta «Título».', field: 'title-input' },
+			{ text: 'Poné al menos una etiqueta.', field: 'tags-input' },
+			{ text: 'Poné al menos une autore.', field: 'authors-input' },
+			{ text: 'Para ir directo al link hace falta el link.', field: 'link-input' }
+		]);
+	});
+	it('contentProblems is the same list as plain texts (what the server checks)', () => {
+		const f = readContentForm('amigues', PROFILE);
+		f.values.title = '';
+		f.values.email = 'no-es-mail';
+		expect(contentProblems('amigues', f)).toEqual(
+			contentProblemItems('amigues', f).map((p) => p.text)
+		);
+		expect(contentProblemItems('amigues', f).find((p) => p.text.includes('mail'))?.field).toBe(
+			'email-input'
+		);
 	});
 });
 

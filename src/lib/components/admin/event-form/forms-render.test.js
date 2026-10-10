@@ -508,7 +508,11 @@ describe('después de guardar: la confirmación según adónde se guardó', () =
 	it('Editar, en la base: «Guardado. Se ve enseguida en el sitio.» en la barra', () => {
 		const body = editSaved({ save: 'Guardado', publish: null, savedToDb: true });
 		expect(body).toMatch(/id="save-status"[\s\S]*Guardado\. Se ve enseguida en el sitio\./);
-		expect(body).toMatch(/<p class="note[^"]*" role="status">[\s\S]*Se ve enseguida en el sitio/);
+		// el aviso verde compartido (Notice), sin «✅»
+		expect(body).toMatch(
+			/<div class="kv-notice ok[^"]*" role="status" id="save-result">[\s\S]*Se ve enseguida en el sitio/
+		);
+		expect(body).not.toContain('✅');
 		expect(body).not.toContain('PR #7');
 	});
 
