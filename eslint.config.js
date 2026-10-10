@@ -1,7 +1,7 @@
 // Configuración plana de ESLint: eslint-plugin-svelte 3 ya no soporta .eslintrc.
 // Traduce uno a uno el viejo .eslintrc.cjs + .eslintignore, con las mismas reglas y severidades.
 import js from '@eslint/js';
-import prettier from 'eslint-config-prettier';
+import prettier from 'eslint-config-prettier/flat';
 import svelte from 'eslint-plugin-svelte';
 import globals from 'globals';
 
