@@ -8,10 +8,10 @@
 		Heart
 	} from '@lucide/svelte';
 	import { argDate, argDateList, argTime, eventEnd } from '$lib/utils/dates.js';
-	import Tag from './Tag.svelte';
+	import TagChip from './ui/TagChip.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { onMount } from 'svelte';
-	import { tagManager, filteredTags } from '$lib/utils/stores';
+	import { filteredTags } from '$lib/utils/stores';
 	import { ticketCta } from '$lib/utils/ticketCta.js';
 	import { partLabel } from '$lib/utils/partes.js';
 </script>
@@ -187,18 +187,10 @@
 	<div class="tags">
 		<ul class="tagrow">
 			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe' && !$filteredTags.includes(t) /* && !$redundantTags.has(t)*/)] as tag}
-				{@const config = $tagManager.get(tag)}
-				{@const color = config?.getColor() ?? 'var(--color-2,var(--1))'}
-				<li
-					style:--tag-color={color}
-					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black)'}
-					style:--filled-outline={'1px solid var(--tag-color)'}
-					style:--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent)'}
-					style:--filled-outline-offset={'-2px'}
-					style:--hover-text-decoration={'underline var(--tag-color)'}
-					style:white-space={'nowrap'}
-				>
-					<Tag {tag} icon={config.icon ?? ''} isLink={mounted} />
+				<!-- El chip compartido (TagChip, docs/estilo.md, «Chip de etiqueta»): link recién
+				     después de hidratar, porque es un <a> dentro del <a> de la tarjeta. -->
+				<li>
+					<TagChip {tag} href={mounted ? `/todo?tags=${encodeURIComponent(tag)}` : undefined} />
 				</li>
 			{/each}
 		</ul>

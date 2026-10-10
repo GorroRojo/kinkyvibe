@@ -10,6 +10,8 @@
 	en una grilla según el ancho del editor (container queries), no de la ventana.
 -->
 <script>
+	import Notice from '$lib/components/ui/Notice.svelte';
+	import SectionHeading from '$lib/components/admin/event-form/SectionHeading.svelte';
 	import { X } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
 	import { LOW_STOCK, formatSaleTime, gorraQuickAmounts, parseAmount } from '$lib/utils/tickets.js';
@@ -134,7 +136,7 @@
 </script>
 
 <fieldset class="card tickets" id="{idPrefix}-tickets" on:focusout={onFocusOut}>
-	<legend>🎟️ Entradas</legend>
+	<SectionHeading section="entradas" />
 
 	<label class="switch">
 		<input
@@ -168,10 +170,10 @@
 
 	{#if state.enabled}
 		{#if salesUnavailable}
-			<p class="warning">
-				⚠️ No pudimos consultar las ventas de este evento: al guardar se vuelve a revisar que no se
+			<Notice tone="warn" compact>
+				No pudimos consultar las ventas de este evento: al guardar se vuelve a revisar que no se
 				rompan compras hechas.
-			</p>
+			</Notice>
 		{/if}
 
 		<ol class="types">
@@ -384,13 +386,13 @@
 				</label>
 			{/each}
 			{#if state.methods.transferencia && transferReady === false}
-				<p class="warning" role="status" id="{idPrefix}-transfer-missing">
-					⚠️ Activaste transferencia pero faltan los datos en <a
+				<Notice tone="warn" compact id="{idPrefix}-transfer-missing">
+					Activaste transferencia pero faltan los datos en <a
 						href={settingsHref}
 						target="_blank"
 						rel="noopener">Ajustes → Cobros</a
 					>: por ahora no se ofrece.
-				</p>
+				</Notice>
 			{:else if state.methods.transferencia}
 				<small
 					>El alias y los datos para transferir se configuran en <a
@@ -512,7 +514,7 @@
 			</label>
 		</details>
 
-		{#each warnings as w}<p class="warning">⚠️ {w}</p>{/each}
+		{#each warnings as w}<Notice tone="warn" compact>{w}</Notice>{/each}
 		{#if shownErrors.length}
 			<ul class="errors" id="{idPrefix}-tickets-errors">
 				{#each shownErrors as e}<li class="error">{e}</li>{/each}

@@ -9,6 +9,8 @@
 	(`data.savesToDb`: material, always the database; see $lib/admin/saveCopy.js).
 -->
 <script>
+	import Notice from '$lib/components/ui/Notice.svelte';
+	import SectionHeading from '$lib/components/admin/event-form/SectionHeading.svelte';
 	import { argFormat } from '$lib/utils/dates.js';
 	import { onDestroy } from 'svelte';
 	import { lineEndingOf } from '$lib/utils/lineEndings.js';
@@ -498,10 +500,10 @@
 						<summary
 							><ShieldAlert size={16} aria-hidden="true" /> Datos de contacto públicos</summary
 						>
-						<p class="warn">
+						<Notice tone="warn" compact role={null}>
 							Todo lo que pongas acá se ve en la página pública del perfil y queda en el historial
 							público del repositorio. Completalo solo si la persona lo pidió.
-						</p>
+						</Notice>
 						<FieldGrid fields={contactFields} bind:values={f.values} />
 					</details>
 				{/if}
@@ -616,7 +618,7 @@
 			{/if}
 
 			<fieldset class="card" id="sec-lista">
-				<legend>👀 Así se ve en la lista</legend>
+				<SectionHeading section="lista" />
 				<div class="card-preview" aria-hidden="true">
 					{#key previewPost}<PostListItem post={previewPost} />{/key}
 				</div>
@@ -747,13 +749,6 @@
 			display: flex;
 			gap: 0.4em;
 			align-items: center;
-		}
-		.warn {
-			background: var(--warn-bg);
-			color: var(--warn);
-			border-radius: var(--radius-m);
-			padding: var(--space-2xs) var(--space-xs);
-			font-size: var(--text-sm);
 		}
 	}
 	/* The public site is light-only: its palette inside the previews, also in dark mode. */

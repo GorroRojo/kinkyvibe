@@ -84,8 +84,10 @@ describe('editor del evento: aviso «Online con lugar»', () => {
 		);
 		expect(body).toContain(WARN_ID);
 		expect(body).toContain(ONLINE_MISMATCH_TEXT);
-		expect(body).toMatch(/class="kv-flash[^"]*warn/);
-		// Dentro de «🏷️ Etiquetas» (después de su comienzo y antes del buscador de etiquetas).
+		// El aviso amarillo compartido (Notice `tone="warn"`, con su ícono: sin «⚠️» en el texto).
+		expect(body).toMatch(/class="kv-notice warn\b/);
+		expect(body).not.toContain('⚠️');
+		// Dentro de «Etiquetas» (después de su comienzo y antes del buscador de etiquetas).
 		const at = body.indexOf(WARN_ID);
 		expect(at).toBeGreaterThan(body.indexOf('id="sec-etiquetas"'));
 		// No bloquea guardar: no es un problema de «Antes de guardar».

@@ -1,5 +1,5 @@
 /**
- * «📍 Lugar» del formulario de eventos (PlaceSection; pedido de gorrite: elegir el lugar desde el
+ * «Lugar» del formulario de eventos (PlaceSection; pedido de gorrite: elegir el lugar desde el
  * evento): el buscador de lugares (con ocultos, no listados y sin aprobar marcados), el nivel de
  * privacidad para el evento («Igual que el Lugar (…)» y los demás) y el «Dónde» en texto libre,
  * plegado cuando hay un lugar. También que Editar y Crear lo usan y mandan lo elegido en campos

@@ -81,6 +81,10 @@ ya no hay `.eslintrc` ni `.eslintignore`).
   `UPDATE_CONTENT_ALLOWLIST=1 npx vitest run src/tests/content.test.js`.
 - **Mails "golden"**: `src/lib/server/tickets/email.golden.json` guarda cómo sale cada mail; si
   cambiás un mail a propósito, actualizá ese archivo en el mismo PR y explicalo.
+- **HTML de componentes**: para leer lo que devuelve `render` usá `textOf` y `withoutComments` de
+  `src/lib/testing/html.js`. No saques etiquetas ni comentarios con expresiones regulares
+  (`/<[^>]*>/`, `/<!--.*?-->/`): CodeQL lo marca como alerta alta aunque sea un test, y el PR queda
+  en rojo.
 
 ### Pruebas con base de datos
 

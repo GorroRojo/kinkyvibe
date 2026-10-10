@@ -481,9 +481,16 @@
 
 			<!-- Notice -->
 			<Seccion seccion={seccion.notice}>
-				<Notice>Guardado ✓</Notice>
+				<Notice>Guardado.</Notice>
 				<Notice tone="warn">El evento todavía no tiene lugar.</Notice>
 				<Notice tone="error">No se pudo guardar: revisá tu conexión.</Notice>
+				<Notice tone="warn" compact
+					>Compacto: para avisos largos dentro de un formulario, con letra normal.</Notice
+				>
+				<label class="kv-field"
+					><span>Campo inventado</span><input class="kv-input" value="Texto de prueba" />
+					<Notice tone="warn" inline>En línea: dentro del label de un campo.</Notice></label
+				>
 				<UndoToast message="Sacaste a Persona de Prueba de la lista." />
 				<UndoToast message="No se pudo deshacer." error canUndo={false} />
 			</Seccion>

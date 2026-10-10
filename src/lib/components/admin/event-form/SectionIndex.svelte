@@ -10,35 +10,10 @@
 	 *   es el del elemento de la sección en la página.
 	 */
 	import { onMount, tick } from 'svelte';
-	import {
-		CalendarClock,
-		Eye,
-		FileText,
-		Image as ImageIcon,
-		Link2,
-		MapPin,
-		Puzzle,
-		Tags,
-		TextAlignStart,
-		Ticket,
-		Users
-	} from '@lucide/svelte';
 	import { currentSection } from '$lib/admin/eventForm.js';
-
-	/** El ícono de Lucide de cada sección (`icon` en `formSections`). */
-	const ICONS = {
-		cuando: CalendarClock,
-		datos: FileText,
-		personas: Users,
-		lugar: MapPin,
-		direccion: Link2,
-		etiquetas: Tags,
-		entradas: Ticket,
-		imagen: ImageIcon,
-		texto: TextAlignStart,
-		lista: Eye,
-		partes: Puzzle
-	};
+	// El ícono de Lucide de cada sección (`icon` en `formSections`), el mismo que en su título
+	// (SectionHeading).
+	import { SECTION_ICONS as ICONS } from './sectionIcons.js';
 
 	/** @type {import('$lib/admin/eventForm.js').FormSection[]} */
 	export let sections = [];

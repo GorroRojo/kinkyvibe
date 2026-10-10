@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Sección «📅 ¿Cuándo es?» del formulario, la misma al crear o duplicar un evento
+	 * Sección «Fecha y hora» del formulario, la misma al crear o duplicar un evento
 	 * (/admin/eventos/nuevo) y al editarlo (PostEditor): el día (DayPicker), las horas, el fin
 	 * opcional y el horario en palabras. Pasar de esto a lo que se guarda: `$lib/admin/schedule.js`.
 	 *
@@ -22,6 +22,8 @@
 	 * - `resync()`: llamarla después de cambiar `values` desde afuera (al recuperar un borrador),
 	 *   para que el día de fin recuperado no se recalcule desde el de inicio.
 	 */
+	import Notice from '$lib/components/ui/Notice.svelte';
+	import SectionHeading from './SectionHeading.svelte';
 	import { CalendarPlus } from '@lucide/svelte';
 	import DayPicker from '$lib/components/admin/DayPicker.svelte';
 	import { addDays, isValidDate } from '$lib/utils/eventDraft.js';
@@ -72,7 +74,7 @@
 </script>
 
 <fieldset class="card" id="sec-cuando">
-	<legend>📅 ¿Cuándo es?</legend>
+	<SectionHeading section="cuando" />
 	{#if originalSchedule}
 		<p class="hint">El evento original fue el {originalSchedule}.</p>
 	{/if}
@@ -93,7 +95,7 @@
 			{#if hintWeekday !== undefined}Resaltamos el mismo día de la semana que el original.{/if}
 		</small>
 		{#if mode === 'nuevo' && values.startDate && values.startDate < today}
-			<p class="warning">⚠️ Esa fecha ya pasó.</p>
+			<Notice tone="warn" compact>Esa fecha ya pasó.</Notice>
 		{/if}
 	</div>
 	<div class="grid">

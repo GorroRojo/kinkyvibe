@@ -15,13 +15,16 @@
 	 * - `value` (bind): la imagen elegida de la biblioteca (`PublicImage`) o null.
 	 * - `legacyUrl`: la imagen vieja del repo, si el objeto todavía no tiene una de la biblioteca.
 	 * - `target`: `evento:<dirección>`… para «De este…» (sin `target`, no hay esa pestaña).
-	 * - `contextLabel`, `legend`, `idPrefix`, `form` (id del formulario del campo oculto).
+	 * - `contextLabel`, `idPrefix`, `form` (id del formulario del campo oculto).
+	 * - `legend`: el título (por ejemplo «Imagen del perfil»); sin pasarlo, el de la sección
+	 *   «Imagen» del formulario de eventos, con su ícono (SectionHeading, como en el índice).
 	 * - `canDelete`: «Sacar imágenes de la biblioteca…» en «Buscar» (solo admins): recién ahí cada
 	 *   imagen muestra «Sacar».
 	 * - `canDeleteOwn`: «Borrar imágenes sin usar…» en «Buscar» (Mi rincón: una cuenta ve solo las
 	 *   que subió). Solo las que nada usa muestran «Borrar»; las otras dicen dónde se usan.
 	 * - Evento `change`: se eligió o se sacó una imagen.
 	 */
+	import SectionHeading from '$lib/components/admin/event-form/SectionHeading.svelte';
 	import { createEventDispatcher, onDestroy } from 'svelte';
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import { Trash2 } from '@lucide/svelte';
@@ -43,7 +46,8 @@
 	/** @type {string | null} */
 	export let target = null;
 	export let contextLabel = 'De este evento';
-	export let legend = '🖼️ Imagen';
+	/** @type {string | undefined} */
+	export let legend = undefined;
 	export let idPrefix = 'img';
 	export let name = IMAGE_FIELD;
 	export let form = '';
@@ -258,7 +262,7 @@
 </script>
 
 <fieldset class="card image-picker" id={sectionId}>
-	<legend>{legend}</legend>
+	{#if legend}<legend>{legend}</legend>{:else}<SectionHeading section="imagen" />{/if}
 	<input type="hidden" {name} value={fieldValue} form={form || undefined} />
 	<div class="current">
 		{#if shown}

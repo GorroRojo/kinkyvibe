@@ -181,7 +181,8 @@
 		/* container-type: inline-size; */
 	}
 	.tagfilters {
-		gap: var(--gap);
+		/* entre los chips (TagChip) de cada grupo */
+		gap: var(--space-2xs) var(--space-3xs);
 		display: flex;
 		flex-direction: row;
 		flex-wrap: wrap;
@@ -242,7 +243,8 @@
 	.tag-group-container {
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
+		/* arriba, no centrado: al lado de un grupo abierto, el chip queda en la línea de su madre */
+		justify-content: flex-start;
 		max-width: 100%;
 	}
 	@container (min-width: 1300px) {
@@ -256,9 +258,6 @@
 		.tagfilters {
 			flex-direction: column;
 			max-width: 20rem;
-		}
-		.groupname {
-			width: 100%;
 		}
 	}
 </style>

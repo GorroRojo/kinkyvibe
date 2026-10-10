@@ -5,9 +5,10 @@
 	 * página pregunta con un diálogo (OverrideDialog); sin JavaScript, la confirmación aparece en
 	 * la página con un botón.
 	 */
+	import Notice from '$lib/components/ui/Notice.svelte';
 	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
-	import { TicketPlus, TriangleAlert } from '@lucide/svelte';
+	import { TicketPlus } from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
@@ -218,29 +219,23 @@
 			</label>
 
 			{#if hints.length}
-				<div class="warn" role="note">
-					<TriangleAlert size={18} aria-hidden="true" />
-					<div>
-						{#each hints as h}<p>{h}</p>{/each}
-						<p class="muted small">Podés seguir: te vamos a pedir que confirmes.</p>
-					</div>
-				</div>
+				<Notice tone="warn" compact>
+					{#each hints as h}<p>{h}</p>{/each}
+					<p class="muted small">Podés seguir: te vamos a pedir que confirmes.</p>
+				</Notice>
 			{/if}
 
 			{#if form && !form.ok && 'needsConfirmation' in form && form.needsConfirmation}
 				<!-- Sin JavaScript: la confirmación en la página. -->
-				<div class="warn" role="alert">
-					<TriangleAlert size={18} aria-hidden="true" />
-					<div>
-						{#each form.needsConfirmation.limits as l}<p>{l.message}</p>{/each}
-						<button
-							class="kv-btn small"
-							type="submit"
-							name="override"
-							value={form.needsConfirmation.key}>Sí, cargar igual</button
-						>
-					</div>
-				</div>
+				<Notice tone="warn" compact role="alert">
+					{#each form.needsConfirmation.limits as l}<p>{l.message}</p>{/each}
+					<button
+						class="kv-btn small"
+						type="submit"
+						name="override"
+						value={form.needsConfirmation.key}>Sí, cargar igual</button
+					>
+				</Notice>
 			{:else if form && !form.ok && 'message' in form}
 				<p class="error" role="alert">{form.message}</p>
 			{/if}
@@ -316,16 +311,8 @@
 		gap: 0.4rem;
 		align-items: center;
 	}
-	.warn {
-		display: flex;
-		gap: var(--space-2xs);
-		align-items: flex-start;
-		background: var(--warn-bg);
-		color: var(--text);
-		border-radius: var(--card-round);
-		padding: var(--space-2xs) var(--space-xs);
-	}
-	.warn p {
+	/* los renglones dentro de los avisos (Notice) */
+	form :global(.kv-notice p) {
 		margin: 0 0 0.2rem;
 	}
 	.error {

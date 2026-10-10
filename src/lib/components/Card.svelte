@@ -1,7 +1,7 @@
 <script>
 	import { tagManager } from '$lib/utils/stores';
 	import { onMount } from 'svelte';
-	import Tag from './Tag.svelte';
+	import TagChip from './ui/TagChip.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { argDateList } from '$lib/utils/dates.js';
 	export let post;
@@ -57,14 +57,9 @@
 	{#if tags}
 		<ul class="tagrow">
 			{#each removeParents([...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')]) as tag}
-				{@const config = $tagManager.get(tag)}
-				{@const color = config?.getColor() ?? 'var(--color-2,var(--1))'}
-				<li
-					style:--tag-color={color}
-					style:white-space={'nowrap'}
-					style:--hover-text-decoration={'underline white'}
-				>
-					<Tag {tag} icon={config.icon ?? ''} isLink={mounted} />
+				<!-- El chip compartido (TagChip); link recién después de hidratar (un <a> en otro <a>). -->
+				<li>
+					<TagChip {tag} href={mounted ? `/todo?tags=${encodeURIComponent(tag)}` : undefined} />
 				</li>
 			{/each}
 		</ul>
@@ -172,6 +167,7 @@
 		list-style: none;
 		padding: 0;
 		display: flex;
+		gap: var(--space-3xs);
 		font-size: 0.8em;
 		/* padding: 0 0.4em; */
 		overflow-x: scroll;

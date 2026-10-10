@@ -1,4 +1,7 @@
 <script>
+	import Notice from '$lib/components/ui/Notice.svelte';
+	import SectionHeading from '$lib/components/admin/event-form/SectionHeading.svelte';
+	import { Repeat } from '@lucide/svelte';
 	import { checkMapLink, eventPlace } from '$lib/utils/eventPlace.js';
 	import { publishWarnings } from '$lib/utils/eventMissing.js';
 	import { eventHref } from '$lib/admin/nav.js';
@@ -556,7 +559,7 @@
 					<p class="note" id="done-venue">📍 El lugar quedó elegido para el evento.</p>
 				{/if}
 				{#each form.warnings ?? [] as warning}
-					<p class="warning">⚠️ {warning}</p>
+					<Notice tone="warn">{warning}</Notice>
 				{/each}
 				{#if form.savedToDb}
 					<p class="small">
@@ -643,7 +646,9 @@
 					{#if seriesPrompt}
 						<input type="hidden" name="seriesChoice" value={seriesChoice} />
 						<fieldset class="card series-prompt">
-							<legend>🔁 ¿Es parte de una serie?</legend>
+							<legend class="with-icon"
+								><Repeat size="1em" aria-hidden="true" /> ¿Es parte de una serie?</legend
+							>
 							<p class="hint">
 								El evento original no está en ninguna serie. Si se repite, ponelo en una: así se
 								numeran las ediciones y la gente puede pedir aviso.
@@ -704,7 +709,6 @@
 					/>
 
 					<DatosSection
-						legend="📝 Datos del evento"
 						fields={datosShown}
 						idFor={datosFieldId('nuevo')}
 						errors={linkError ? { link: linkError } : {}}
@@ -738,7 +742,7 @@
 					/>
 
 					<fieldset class="card" id="sec-direccion">
-						<legend>🔗 Dirección de la página</legend>
+						<SectionHeading section="direccion" />
 						<label class="field">
 							<span>Así va a quedar el link del evento</span>
 							<div class="slug">
@@ -815,7 +819,7 @@
 						>
 					{/if}
 
-					<BodySection bind:value={values.body} legend="📄 Texto largo de la página" id="ev-body">
+					<BodySection bind:value={values.body} id="ev-body">
 						<svelte:fragment slot="hint"
 							>Opcional. Se muestra al entrar al evento. Formato: <code>## Título</code>,
 							<code>- lista</code>, <code>**negrita**</code>.</svelte:fragment
@@ -852,14 +856,16 @@
 				<div class="step" hidden={step !== 'revisar'}>
 					{#if publishError}<p class="error" role="alert">{publishError}</p>{/if}
 					{#if reviewWarnings.length}
-						<div class="warning review-warnings" id="review-warnings">
-							<strong>Antes de publicar, fijate:</strong>
-							<ul>
-								{#each reviewWarnings as w (w.id + w.label)}
-									<li><strong>{w.label}:</strong> {w.detail}</li>
-								{/each}
-							</ul>
-							<p class="small">Son avisos: podés publicar igual o volver a editar.</p>
+						<div class="review-warnings">
+							<Notice tone="warn" compact id="review-warnings">
+								<strong>Antes de publicar, fijate:</strong>
+								<ul>
+									{#each reviewWarnings as w (w.id + w.label)}
+										<li><strong>{w.label}:</strong> {w.detail}</li>
+									{/each}
+								</ul>
+								<p class="small">Son avisos: podés publicar igual o volver a editar.</p>
+							</Notice>
 						</div>
 					{/if}
 					<p class="hint">Así se va a ver en la lista de eventos:</p>
@@ -976,13 +982,23 @@
 <style lang="scss">
 	.review-warnings {
 		margin-bottom: var(--space-s);
-		ul {
+		:global(ul) {
 			margin: var(--space-3xs) 0;
 			padding-left: 1.2em;
 		}
-		p {
+		:global(p) {
 			margin: 0;
 		}
+	}
+	/* ícono de Lucide en el título, como los de las secciones (SectionHeading) */
+	.series-prompt > .with-icon {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3xs);
+	}
+	.series-prompt > .with-icon > :global(svg) {
+		flex: none;
+		color: var(--muted);
 	}
 	.series-prompt .choices {
 		display: grid;
