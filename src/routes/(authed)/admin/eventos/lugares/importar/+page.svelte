@@ -21,6 +21,7 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
+	import Notice from '$lib/components/ui/Notice.svelte';
 
 	export let data;
 
@@ -332,7 +333,7 @@
 								</p>
 							{/if}
 							{#each c.merges as m (m)}
-								<p class="small warn">{m}</p>
+								<Notice tone="warn" compact role={null}>{m}</Notice>
 							{/each}
 							<details>
 								<summary class="small"
@@ -359,7 +360,7 @@
 												]}{link?.privacy ? ' (propio del evento)' : ''}</small
 											>
 											{#each e.diffs as d (d)}
-												<small class="warn block">Cambiaría: {d}</small>
+												<Notice tone="warn" compact role={null}>Cambiaría: {d}</Notice>
 											{/each}
 										</li>
 									{/each}

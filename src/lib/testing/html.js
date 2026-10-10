@@ -27,3 +27,17 @@ export function textOf(html) {
 		})
 		.join('');
 }
+
+/**
+ * La etiqueta de apertura del último `Notice` (`class="kv-notice …"`) que empieza antes de `text`,
+ * o '' si `text` no está o no hay ninguno antes. Sirve para ver el tono y el `role` del aviso que
+ * dice algo (la prueba igual mira que el texto esté).
+ * @param {string} html @param {string} text
+ */
+export function noticeBefore(html, text) {
+	const at = html.indexOf(text);
+	if (at === -1) return '';
+	const cls = html.lastIndexOf('class="kv-notice ', at);
+	if (cls === -1) return '';
+	return html.slice(html.lastIndexOf('<', cls), html.indexOf('>', cls) + 1);
+}

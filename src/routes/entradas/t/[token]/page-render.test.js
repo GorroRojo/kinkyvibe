@@ -6,10 +6,11 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import Page from './+page.svelte';
 import { stripHtmlTags } from '$lib/utils/htmlStrip.js';
+import { noticeBefore, textOf } from '$lib/testing/html.js';
 
-/** @param {Record<string, any>} ticket */
-const stateText = (ticket) => {
-	const data = /** @type {any} */ ({
+/** @param {Record<string, any>} ticket @param {Record<string, any>} [extra] */
+const pageData = (ticket, extra = {}) =>
+	/** @type {any} */ ({
 		event: {
 			slug: 'evento-de-prueba',
 			title: 'Evento de prueba',
@@ -28,9 +29,13 @@ const stateText = (ticket) => {
 		},
 		qr: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=',
 		streamLink: null,
-		isAdmin: false
+		isAdmin: false,
+		...extra
 	});
-	const { body } = render(Page, { props: { data, form: null } });
+
+/** @param {Record<string, any>} ticket */
+const stateText = (ticket) => {
+	const { body } = render(Page, { props: { data: pageData(ticket), form: null } });
 	const from = body.indexOf('class="state');
 	const html = body.slice(body.indexOf('>', from) + 1, body.indexOf('</dd>', from));
 	// Sin poner espacios en lugar de las etiquetas: lo que importa es si están en el texto.
@@ -48,5 +53,35 @@ describe('/entradas/t/<token>: el estado', () => {
 
 	it('válida: solo el estado', () => {
 		expect(stateText({})).toBe('Válida');
+	});
+});
+
+describe('/entradas/t/<token>: «Marcar ingreso» (admin)', () => {
+	/** @param {Record<string, any>} checkin */
+	const result = (checkin) =>
+		render(Page, {
+			props: { data: pageData({}, { isAdmin: true }), form: /** @type {any} */ ({ checkin }) }
+		}).body;
+
+	it('ya ingresó: aviso amarillo (Notice) que se anuncia, sin «⚠️» en el texto', () => {
+		const at = Date.parse('2026-10-02T13:14:00-03:00');
+		const body = result({ result: 'already', at, by: 'alguien-inventado' });
+		expect(textOf(body)).toContain('Ya ingresó (2/10/26 13:14, por alguien-inventado).');
+		const tag = noticeBefore(body, 'Ya ingresó');
+		expect(tag).toContain('class="kv-notice warn');
+		expect(tag).toContain('role="alert"');
+		expect(body).not.toContain('⚠️');
+	});
+
+	it('registrado en verde; anulada e inválida en rojo', () => {
+		expect(noticeBefore(result({ result: 'ok' }), 'Ingreso registrado.')).toContain(
+			'class="kv-notice ok'
+		);
+		expect(noticeBefore(result({ result: 'void' }), 'Entrada anulada.')).toContain(
+			'class="kv-notice error'
+		);
+		expect(noticeBefore(result({ result: 'invalid' }), 'Entrada inválida.')).toContain(
+			'class="kv-notice error'
+		);
 	});
 });

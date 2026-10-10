@@ -11,6 +11,7 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
 	import GoalProgress from '$lib/components/admin/panel/GoalProgress.svelte';
+	import Notice from '$lib/components/ui/Notice.svelte';
 	import { eventLink, orderHref } from '$lib/admin/links.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import { ChartColumn, ChevronRight } from '@lucide/svelte';
@@ -57,7 +58,9 @@
 		<CapacityBar sold={e.sold} held={e.held} capacity={e.capacity} />
 	{/if}
 	{#if over}
-		<p class="warn-line"><Badge tone="bad">Sobrevendido</Badge> {over} más que el cupo total</p>
+		<Notice tone="error" compact role={null}
+			><Badge tone="bad">Sobrevendido</Badge> {over} más que el cupo total</Notice
+		>
 	{/if}
 
 	{#if sales.types.length > 1 || sales.types.some((t) => t.over)}
@@ -192,12 +195,6 @@
 		small {
 			color: var(--muted);
 		}
-	}
-	.warn-line {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-		font-size: var(--text-sm);
 	}
 	.types {
 		list-style: none;
