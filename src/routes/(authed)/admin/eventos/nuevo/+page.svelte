@@ -5,13 +5,8 @@
 	import { checkMapLink, eventPlace } from '$lib/utils/eventPlace.js';
 	import { publishWarnings } from '$lib/utils/eventMissing.js';
 	import { eventHref } from '$lib/admin/nav.js';
-	import {
-		focusField,
-		isProblem,
-		markInvalid,
-		problemFields,
-		scheduleField
-	} from '$lib/admin/formProblems.js';
+	import { focusField, isProblem, scheduleField } from '$lib/admin/formProblems.js';
+	import FormProblems from '$lib/components/admin/event-form/FormProblems.svelte';
 	import { eventLinkProblem } from '$lib/utils/eventLink.js';
 	import { enhance, applyAction, deserialize } from '$app/forms';
 	import { tick } from 'svelte';
@@ -275,7 +270,6 @@
 		...ticketsCheck.errors.map((e) => ({ text: `Entradas: ${e}`, field: 'ev-tickets' }))
 	]).filter(isProblem);
 	$: problems = problemItems.map((p) => p.text);
-	$: if (showProblems) tick().then(() => markInvalid(problemFields(problemItems)));
 
 	$: generated = build(values, featuredMode, problems.length, tickets, venue.venueId != null);
 	/**
@@ -827,17 +821,12 @@
 					</BodySection>
 
 					{#if showProblems && (problems.length || generated.error)}
-						<div class="problems" role="alert">
-							<strong>Falta completar:</strong>
-							<ul>
-								{#each problemItems as p}<li>
-										<a href="#{p.field}" on:click|preventDefault={() => focusField(p.field)}
-											>{p.text}</a
-										>
-									</li>{/each}
-								{#if generated.error}<li>{generated.error}</li>{/if}
-							</ul>
-						</div>
+						<!-- Cada problema lleva a su campo (los campos con problema llevan aria-invalid). -->
+						<FormProblems
+							problems={generated.error
+								? [...problemItems, { text: generated.error, field: '' }]
+								: problemItems}
+						/>
 					{/if}
 					{#if checkError}<p class="error check-error">{checkError}</p>{/if}
 
