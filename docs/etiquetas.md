@@ -157,10 +157,16 @@ importar.
   - renombrar: ver abajo; la etiqueta renombrada sigue siendo el mismo objeto;
   - el texto de la wiki y los demás datos que el archivo no tiene se conservan; si una etiqueta
     con texto pasa a ser alias (fusionar), la confirmación avisa;
-  - sacar un alias lo borra (suave, recuperable desde el historial del objeto);
+  - sacar un alias (o cualquier etiqueta que un cambio deja afuera) la borra (suave): queda en
+    «Recuperar» de Ajustes › Actividad, como «Etiqueta» o «Serie» (decisión 0030);
   - no es una sola tanda: si alguien cambió una etiqueta mientras tanto, se frena ahí y avisa
     («recargá»); lo anterior queda guardado.
 - Lo editado en el panel cambia la `version` del objeto: reimportar ya no lo pisa.
+- **«Para revisar»** del editor (sin declarar, fuera del árbol, sin usar, referencias rotas): lo
+  que no es «sin usar» es además una fila de «Para revisar» del panel («N cosas para revisar en
+  Etiquetas», con link acá). Se cuenta en el servidor con lo mismo que la página
+  (`src/lib/server/etiquetas/review.js`: `analyzeTags` sobre las etiquetas de la base y su uso);
+  ver [panel.md](panel.md).
 
 ### Renombrar (con la base)
 

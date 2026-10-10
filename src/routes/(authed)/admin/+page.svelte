@@ -18,7 +18,7 @@
 	import GoalProgress from '$lib/components/admin/panel/GoalProgress.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
-	import { navItem, navLink, reviewCountOf } from '$lib/admin/nav.js';
+	import { navItem, navLink } from '$lib/admin/nav.js';
 	import { checkinHref, eventLink } from '$lib/admin/links.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 	import {
@@ -26,13 +26,13 @@
 		ArrowLeftRight,
 		Bell,
 		CalendarDays,
+		DatabaseZap,
 		CalendarPlus,
 		Check,
 		ChevronDown,
 		ChevronRight,
 		FilePen,
 		FileSpreadsheet,
-		GitPullRequest,
 		IdCard,
 		ImageOff,
 		Link,
@@ -57,20 +57,20 @@
 		bell: Bell,
 		image: ImageOff,
 		draft: FilePen,
-		pr: GitPullRequest,
 		profile: IdCard,
-		place: MapPin
+		place: MapPin,
+		tag: Tag,
+		import: DatabaseZap
 	});
 
 	$: user = data.user;
 	$: firstName = String(user?.name || user?.login || '').split(/\s+/)[0];
 	$: todayRaw = `${argDateParts(data.now)?.weekdayLong}, ${argDateLong(data.now, { year: false })}`;
 	$: todayLabel = todayRaw.charAt(0).toUpperCase() + todayRaw.slice(1);
-	$: todoCount = data.todo.length;
-	// La misma cuenta que el botón "Para revisar" de arriba (`reviewCountOf`, de panelCounts): las
-	// filas de la tarjeta agrupan cosas (3 transferencias son una fila) y suman avisos que el
-	// botón no cuenta (sin imagen, borradores…), así que no se cuentan las filas.
-	$: reviewCount = reviewCountOf(data.panelCounts);
+	// Cuántas cosas hay para revisar: las filas de la tarjeta, cada una cuenta 1 (una fila que junta
+	// varias, como «3 transferencias», también). El botón «Para revisar» de arriba cuenta lo mismo:
+	// las dos salen de `reviewRows` (src/lib/server/admin/review.js, decisión 0030).
+	$: reviewCount = data.todo.length;
 	$: checkinItem = navItem('checkin');
 	$: checkinGeneral = checkinItem ? navLink(checkinItem) : null;
 	$: todayEvent = data.todayEvents.find((e) => e.ticketed) ?? data.todayEvents[0];
@@ -150,8 +150,6 @@
 			·
 			{#if reviewCount}
 				<a href="#para-revisar">{plural(reviewCount, 'cosa para revisar', 'cosas para revisar')}</a>
-			{:else if todoCount}
-				<a href="#para-revisar">{plural(todoCount, 'aviso', 'avisos')}</a>
 			{:else}
 				todo al día
 			{/if}

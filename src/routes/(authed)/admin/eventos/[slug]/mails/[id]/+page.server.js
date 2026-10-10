@@ -1,7 +1,7 @@
 /**
  * Plantilla de un mail para un evento: lo que cambia sobre la plantilla general solo en los mails
- * de este evento (`event_email_templates`). Guardar, volver a la plantilla general y mandarse una
- * prueba. Solo admins (`requireAdmin` en el `load` y en cada action); cada cambio queda en el
+ * de este evento (`event_email_templates`). Guardar, volver a la plantilla general (el texto de
+ * antes queda para «Recuperar» en Actividad) y mandarse una prueba. Solo admins (`requireAdmin` en el `load` y en cada action); cada cambio queda en el
  * registro de actividad.
  */
 import { fail } from '@sveltejs/kit';
@@ -89,7 +89,9 @@ export const actions = {
 		let kept = false;
 		try {
 			kept = await saveEventTemplateOverride(db, params.slug, def.id, valid.value, {
-				by: admin.login
+				by: admin.login,
+				// Si quedó todo vacío, el texto de antes queda para «Recuperar» en Actividad.
+				title: `Mail «${def.label}» de ${config.title || params.slug}`
 			});
 		} catch (e) {
 			logDBError('guardar plantilla de mail del evento', e);
@@ -118,11 +120,15 @@ export const actions = {
 	},
 
 	reset: async ({ locals, url, params, platform }) => {
-		requireAdmin(locals, url);
+		const admin = requireAdmin(locals, url);
 		const { def, config } = await eventMailOr404(params.slug, params.id);
 		const db = getDB(platform);
 		if (!db) return fail(503, { error: 'Sin base de datos.', errors: {} });
-		const had = await deleteEventTemplateOverride(db, params.slug, def.id);
+		// El texto de antes queda para «Recuperar» en Actividad.
+		const had = await deleteEventTemplateOverride(db, params.slug, def.id, {
+			by: admin.login,
+			title: `Mail «${def.label}» de ${config.title || params.slug}`
+		});
 		if (had) {
 			await logAdminAction(db, locals, {
 				action: 'template.event_reset',
@@ -134,7 +140,9 @@ export const actions = {
 		return {
 			ok: true,
 			reset: true,
-			message: 'Listo: este mail vuelve a salir como en la plantilla general.'
+			message: had
+				? 'Listo: este mail vuelve a salir como en la plantilla general. Si te equivocaste, el texto de antes se recupera desde Ajustes › Actividad.'
+				: 'Listo: este mail vuelve a salir como en la plantilla general.'
 		};
 	},
 

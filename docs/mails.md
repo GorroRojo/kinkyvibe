@@ -126,7 +126,9 @@ Vista previa con datos de ejemplo y "Mandarme una prueba". "Restaurar el origina
 fila y vuelve al del código.
 
 **Cambiar un mail solo para un evento.** Ficha del evento → Plantillas de mails → el mail. Lo
-vacío sale como en la plantilla general. "Volver a la plantilla general" borra lo del evento.
+vacío sale como en la plantilla general. "Volver a la plantilla general" borra lo del evento (también guardar todo vacío); antes guarda
+una copia en `panel_deletions`, así se recupera desde Ajustes › Actividad («Recuperar», decisión
+0030).
 
 **Cambiar un mail desde el código.** Editá la función `build…Email` en `email.js` y actualizá
 `email.golden.json` en el mismo PR, explicando el cambio. Si agregás una variable, sumala en

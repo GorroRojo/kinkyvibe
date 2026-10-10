@@ -164,7 +164,9 @@ prendido para siempre** y salió de Interruptores (paso 2 de «Contenido solo en
   lo que no cambió no se toca, lo editado o borrado en el panel tampoco (lo informa). Sirve para
   una base nueva (un preview) y para traer un `.md` nuevo que llegue por un PR. Un `.md` que no se
   puede importar (frontmatter roto, un componente no registrado, un fin antes del inicio) **no se
-  muestra**: hay que corregirlo e importar de nuevo.
+  muestra**: hay que corregirlo e importar de nuevo. Su lista «Para revisar» es además una fila de
+  «Para revisar» del panel: la página guarda cuántos hay cada vez que se abre (`review_snapshots`,
+  ver [panel.md](panel.md)).
 - **Base local**: `npm run dev` (y `dev:admin`, `dev:tickets`) importa los `.md` a la base local
   antes de arrancar (`scripts/import-content.js`, sin frenar el arranque si falla): eventos,
   material, fichas de amigues y, si la base no tiene etiquetas, las etiquetas con los textos de la

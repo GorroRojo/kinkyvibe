@@ -44,6 +44,10 @@ todas las actualizaciones minor y patch de npm, otro con las de seguridad y otro
 de los workflows. Cada salto de major llega en su propio PR. Pasan por la misma CI y, como todo
 PR, se mergean solo con la aprobación de gorrite.
 
+Dependabot regenera `package-lock.json` desde cero, y ahí se caen los peers opcionales. Por eso
+`@types/node` (de la versión mayor de `.node-version`) es una devDependency explícita: sin ella,
+svelte-check deja de encontrar `process` y `node:fs` en los tests y el ratchet falla.
+
 `ci-ok` existe para que la protección de `main` pida un solo chequeo: si alguien agrega un job a
 `ci.yml`, lo suma a los `needs` de `ci-ok` y listo, sin tocar la configuración de GitHub.
 
@@ -59,6 +63,8 @@ Detalles de `e2e`:
 
 `npm run lint` es solo ESLint: **no** revisa el formato de Prettier, y la CI tampoco. Para eso,
 `npm run format:check` (todo el repo) o `npx prettier --check docs` (solo la documentación).
+La configuración está en `eslint.config.js` (formato plano; las rutas ignoradas también van ahí,
+ya no hay `.eslintrc` ni `.eslintignore`).
 
 ## Los tipos de pruebas
 

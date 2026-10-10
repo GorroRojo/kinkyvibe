@@ -17,26 +17,48 @@ import { TAG_TYPE } from '../objects/types/etiqueta.js';
  * @returns {Promise<(TagRecord & { id: number, slug: string, version: number })[]>}
  */
 export async function loadTagRecords(db, viewer = ANON) {
+	const [objects, relations] = tagRecordsStatements(db, viewer);
+	const { results: objs } = await objects.all();
+	const { results: edges } = await relations.all();
+	return readTagRecords(objs, edges);
+}
+
+/**
+ * Las dos consultas de {@link loadTagRecords} (las etiquetas y sus relaciones), para correrlas en
+ * una tanda (`runQueries`, src/lib/server/db/batch.js) con {@link readTagRecords}.
+ * @param {D1Database} db
+ * @param {import('../objects/visibility.js').Viewer} [viewer]
+ */
+export function tagRecordsStatements(db, viewer = ANON) {
 	const vo = visibleWhere(viewer, 'o');
-	const { results: objs } = await db
-		.prepare(
-			`SELECT o.id, o.slug, o.title, o.data, o.version FROM objects o
-			WHERE o.type = ? AND ${vo.sql} ORDER BY o.id`
-		)
-		.bind(TAG_TYPE, ...vo.params)
-		.all();
 	const a = visibleWhere(viewer, 'a');
 	const b = visibleWhere(viewer, 'b');
-	const { results: edges } = await db
-		.prepare(
-			`SELECT e.from_id, e.kind, e.to_id, e.position, e.data FROM edges e
+	return [
+		db
+			.prepare(
+				`SELECT o.id, o.slug, o.title, o.data, o.version FROM objects o
+			WHERE o.type = ? AND ${vo.sql} ORDER BY o.id`
+			)
+			.bind(TAG_TYPE, ...vo.params),
+		db
+			.prepare(
+				`SELECT e.from_id, e.kind, e.to_id, e.position, e.data FROM edges e
 			JOIN objects a ON a.id = e.from_id JOIN objects b ON b.id = e.to_id
 			WHERE a.type = ? AND b.type = ? AND e.kind IN ('hijo_de', 'relacionada_con', 'alias_de')
 				AND ${a.sql} AND ${b.sql}
 			ORDER BY e.from_id, e.kind, e.position`
-		)
-		.bind(TAG_TYPE, TAG_TYPE, ...a.params, ...b.params)
-		.all();
+			)
+			.bind(TAG_TYPE, TAG_TYPE, ...a.params, ...b.params)
+	];
+}
+
+/**
+ * Los registros a partir de las filas de {@link tagRecordsStatements}.
+ * @param {Record<string, unknown>[]} objs
+ * @param {Record<string, unknown>[]} edges
+ * @returns {(TagRecord & { id: number, slug: string, version: number })[]}
+ */
+export function readTagRecords(objs, edges) {
 	/** @type {Map<number, TagRecord & { id: number, slug: string, version: number }>} */
 	const byId = new Map();
 	for (const o of objs) {
