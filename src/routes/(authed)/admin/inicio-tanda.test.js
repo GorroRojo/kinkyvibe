@@ -1,8 +1,16 @@
 /**
  * Panel → Inicio (/admin) en tanda: el load de la página y los contadores del menú (layout) dan
- * EXACTAMENTE lo mismo que antes, ahora con dos idas a la base en la página y una en el layout (eran
+ * EXACTAMENTE lo mismo que antes, ahora con dos idas a la base en la página y dos en el layout (eran
  * 33 consultas sueltas por visita). Para comparar, abajo está el load de antes, tal cual (con las
  * funciones de inicio.js de siempre, que siguen existiendo y tienen sus propios tests).
+ *
+ * Lo único que cambió a propósito (decisión 0030, gorrite): «Para revisar» suma dos filas nuevas
+ * (lo que Etiquetas tiene para revisar y la lista del importador de contenido), que el load de
+ * antes no tenía (`NEW_ROWS`), y ya no lista los PRs de contenido de GitHub (el contenido vive solo
+ * en la base; el load de antes tampoco los traía en estas pruebas, con `usesLocalRepo` en true, así
+ * que se sacaron de él sin cambiar lo que da), y el contador `review` del menú es ahora la cantidad de filas de la
+ * tarjeta (antes sumaba solo transferencias, órdenes, perfiles y eventos «Online» con lugar). Por
+ * eso se compara todo lo demás con lo de antes y `review` con las filas de la tarjeta.
  * D1 de miniflare, datos inventados (example.com); los eventos, de mentira.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -56,8 +64,7 @@ import { touchLastSeen } from '$lib/server/admin/lastSeen.js';
 import { countProfilesToReview, profilesToReview } from '$lib/server/admin/cuentas.js';
 import { countPendingClaims, listClaims } from '$lib/server/amigues/claims.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { listEvents, usesLocalRepo } from '$lib/server/eventos/index.js';
-import { contentPullItems, openContentPullStatuses } from '$lib/server/admin/contentPulls.js';
+import { listEvents } from '$lib/server/eventos/index.js';
 import { isTestEventSlug, listTicketedEvents } from '$lib/server/tickets/events.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { parseReminders } from '$lib/server/tickets/reminders.js';
@@ -151,13 +158,6 @@ async function oldLoad({ locals, url, platform, fetch, setHeaders }) {
 		expiringTransfers(db, now, agendaUntil),
 		// Lo que encontró el chequeo nocturno de integridad de los objetos (null si nada).
 		integrityRun(db),
-		// Cambios del panel que esperan las pruebas para publicarse, o que fallaron.
-		usesLocalRepo() || !locals.user_token
-			? Promise.resolve([])
-			: openContentPullStatuses(locals.user_token).catch((e) => {
-					console.log('Inicio: no se pudieron leer los PRs de contenido', e);
-					return [];
-				}),
 		// Perfiles creados por cuentas que ninguna admin revisó todavía (Perfiles).
 		profilesToReview(db),
 		// Pedidos "Es mi perfil" pendientes (docs/amigues.md). [] sin la migración 0017.
@@ -200,7 +200,6 @@ async function oldLoad({ locals, url, platform, fetch, setHeaders }) {
 			settings,
 			expiring,
 			integrity,
-			contentPulls,
 			newProfiles,
 			claims,
 			onlineMismatch
@@ -240,7 +239,6 @@ async function oldLoad({ locals, url, platform, fetch, setHeaders }) {
 		now,
 		skip
 	});
-	const pullItems = contentPullItems(contentPulls);
 	const todoItems = reviewItems({
 		upcoming,
 		transfers,
@@ -250,17 +248,14 @@ async function oldLoad({ locals, url, platform, fetch, setHeaders }) {
 		links: { transfers: transfersHref, order: orderHref, stream: streamHref, edit: editEventHref },
 		formatWhen: (ms) => whenLabel(ms, now)
 	});
-	// Los PRs de contenido que no se publicaron van primero; los que se están publicando, al final.
 	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
 	const onlineItem = onlineMismatchItem(onlineMismatch);
 	const todo = groupReviewItems(
 		[
-			...pullItems.filter((i) => i.tone !== 'info'),
 			...todoItems,
 			...(onlineItem ? [onlineItem] : []),
 			...profileReviewItems(newProfiles, { formatWhen: (ms) => whenLabel(ms, now) }),
-			...claimReviewItems(claims, { formatWhen: (ms) => whenLabel(ms, now) }),
-			...pullItems.filter((i) => i.tone === 'info')
+			...claimReviewItems(claims, { formatWhen: (ms) => whenLabel(ms, now) })
 		],
 		{ links: { noImage: '/admin/eventos?filtro=sin-imagen' } }
 	);
@@ -672,6 +667,35 @@ async function seedOnlineWithPlace() {
 	});
 }
 
+/** Las filas de «Para revisar» que el load de antes no tenía (decisión 0030). */
+const NEW_ROWS = new Set(['tags-review', 'import-review']);
+
+/**
+ * El resultado del load sin las filas nuevas de «Para revisar», para compararlo con el de antes.
+ * @template {{ todo: { id: string }[] }} T
+ * @param {T} data
+ * @returns {T}
+ */
+const withoutNewRows = (data) => ({ ...data, todo: data.todo.filter((r) => !NEW_ROWS.has(r.id)) });
+
+/**
+ * Los contadores del menú sin `review` (desde la decisión 0030 cuenta las filas de la tarjeta).
+ * @param {Record<string, number>} counts
+ */
+const withoutReview = (counts) => {
+	const rest = { ...counts };
+	delete rest.review;
+	return rest;
+};
+
+/**
+ * Los contadores del menú como los pide el layout (con quién mira: las etiquetas van con su
+ * login).
+ * @param {App.Platform | undefined} platform
+ */
+const menuCounts = (platform) =>
+	panelCounts(platform, Date.now(), { locals: fakeEvent(platform).locals });
+
 /** La fila de la última visita, para volver a dejarla igual entre las dos corridas. */
 async function lastSeenRow() {
 	return t.db.prepare('SELECT * FROM admin_last_seen').all();
@@ -731,7 +755,6 @@ const fondoFetch = /** @type {typeof fetch} */ (
 function fakeEvent(platform) {
 	return /** @type {any} */ ({
 		url: new URL('https://kinkyvibe.ar/admin'),
-		// Sin PRs de contenido: `usesLocalRepo` da true.
 		locals: { user: admin, user_token: 'token-de-prueba' },
 		platform,
 		fetch: fondoFetch,
@@ -758,7 +781,15 @@ describe('Inicio en tanda: lo mismo que antes', () => {
 	it('con datos de todo tipo: la página y los contadores del menú son idénticos', async () => {
 		await seed();
 		const { before, after } = await bothLoads(t.platform);
-		expect(after).toEqual(before);
+		expect(withoutNewRows(after)).toEqual(before);
+		// La etiqueta «online» de seedOnlineWithPlace no tiene madre: Etiquetas la muestra «fuera del
+		// árbol», y eso es una fila nueva de «Para revisar».
+		expect(after.todo.find((r) => r.id === 'tags-review')).toMatchObject({
+			kind: 'item',
+			title: '1 cosa para revisar en Etiquetas',
+			text: '1 fuera del árbol',
+			href: '/admin/etiquetas'
+		});
 		// Que la comparación no sea entre dos cosas vacías.
 		expect(before.upcoming.map((e) => e.slug)).toEqual([
 			'taller-hoy',
@@ -796,17 +827,38 @@ describe('Inicio en tanda: lo mismo que antes', () => {
 		expect(before.todo.length).toBeGreaterThan(4);
 		expect(before.agenda.length).toBeGreaterThan(1);
 
-		const counts = await panelCounts(t.platform);
-		expect(counts).toEqual(await oldPanelCounts(t.platform));
+		const counts = await menuCounts(t.platform);
+		expect(withoutReview(counts)).toEqual(withoutReview(await oldPanelCounts(t.platform)));
 		expect(counts).toEqual({
 			transfers: 2,
 			reviewOrders: 1,
 			profilesToReview: 2,
 			unlisted: 1,
-			// Los 3 eventos «Online» con lugar de seedOnlineWithPlace (suman en «Para revisar»).
+			// Los 3 eventos «Online» con lugar de seedOnlineWithPlace (una fila de «Para revisar»).
 			onlineMismatch: 3,
-			review: 8
+			// El botón «Para revisar» cuenta las filas de la tarjeta (antes, 8: 2 + 1 + 2 + 3).
+			review: after.todo.length
 		});
+		// Las 16 filas (antes el botón decía 8 sobre esta misma tarjeta): cada una cuenta 1, también
+		// la de las 2 transferencias del viernes, la de los sin imagen y la del chequeo nocturno.
+		expect(after.todo.map((r) => r.id.replace(/-[0-9a-f-]{36}$/, ''))).toEqual([
+			'transfer-viernes',
+			'review',
+			'mail',
+			'mail',
+			'reminder-taller-hoy',
+			'oversold-fiesta-hoy-General',
+			'stream-fiesta-hoy',
+			'reminder-fiesta-hoy',
+			'reminder-failed-fiesta-hoy',
+			'stream-failed-viernes',
+			'group-image',
+			'online-mismatch',
+			'profile-1',
+			'claim-1',
+			'tags-review',
+			'group-integrity'
+		]);
 		// Y su fila en la tarjeta, que lleva a esa lista de Eventos.
 		expect(after.todo.find((r) => r.id === 'online-mismatch')).toMatchObject({
 			kind: 'item',
@@ -820,19 +872,25 @@ describe('Inicio en tanda: lo mismo que antes', () => {
 	it('primera visita y base vacía: igual', async () => {
 		fake.events = [event('fiesta-hoy', 'Fiesta Inventada', '2026-09-30T22:00-03:00')];
 		const { before, after } = await bothLoads(t.platform);
-		expect(after).toEqual(before);
+		expect(withoutNewRows(after)).toEqual(before);
 		expect(before.since).toMatchObject({ first: true, since: NOW - 7 * DAY });
-		expect(await panelCounts(t.platform)).toEqual(await oldPanelCounts(t.platform));
+		const counts = await menuCounts(t.platform);
+		expect(withoutReview(counts)).toEqual(withoutReview(await oldPanelCounts(t.platform)));
+		expect(counts.review).toBe(after.todo.length);
 	});
 
 	it('sin base de datos: igual (todo vacío, nunca rompe)', async () => {
 		await seed();
 		const none = /** @type {App.Platform} */ (/** @type {unknown} */ ({ env: {} }));
 		const before = await oldLoad(fakeEvent(none));
-		const after = await load(fakeEvent(none));
-		expect(after).toEqual(before);
+		const after = /** @type {typeof before} */ (await load(fakeEvent(none)));
+		expect(withoutNewRows(after)).toEqual(before);
 		expect(after).toMatchObject({ dbAvailable: false, money: null, since: null, activity: [] });
-		expect(await panelCounts(none)).toEqual(await oldPanelCounts(none));
+		const counts = await menuCounts(none);
+		expect(withoutReview(counts)).toEqual(withoutReview(await oldPanelCounts(none)));
+		// Sin base, la tarjeta igual muestra lo que sale de la lista de eventos (los sin imagen).
+		expect(counts.review).toBe(after.todo.length);
+		expect(after.todo.length).toBeGreaterThan(0);
 	});
 
 	it('si a la base le falta una tabla, lo demás sale igual que antes', async () => {
@@ -841,10 +899,12 @@ describe('Inicio en tanda: lo mismo que antes', () => {
 		await t.db.prepare('ALTER TABLE tips RENAME TO tips_aparte').run();
 		try {
 			const { before, after } = await bothLoads(t.platform);
-			expect(after).toEqual(before);
+			expect(withoutNewRows(after)).toEqual(before);
 			expect(after.money).toMatchObject({ fondoTips: 0 });
 			expect(after.upcoming.find((e) => e.slug === 'fiesta-hoy')?.sold).toBe(6);
-			expect(await panelCounts(t.platform)).toEqual(await oldPanelCounts(t.platform));
+			const counts = await menuCounts(t.platform);
+			expect(withoutReview(counts)).toEqual(withoutReview(await oldPanelCounts(t.platform)));
+			expect(counts.review).toBe(after.todo.length);
 		} finally {
 			await t.db.prepare('ALTER TABLE tips_aparte RENAME TO tips').run();
 		}
@@ -852,7 +912,7 @@ describe('Inicio en tanda: lo mismo que antes', () => {
 });
 
 describe('Inicio en tanda: cuántas idas a la base', () => {
-	it('la página hace 2 (antes, 33 consultas) y los contadores del menú 1 (antes, 5)', async () => {
+	it('la página hace 2 (antes, 33 consultas) y los contadores del menú 2 (antes, 5)', async () => {
 		await seed();
 		// fondo.kinkyvibe.ar ya leído en este isolate (lo normal: se recuerda unos minutos).
 		await load(fakeEvent(t.platform));
@@ -861,11 +921,12 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		await load(fakeEvent(page.platform));
 		expect(page.trips()).toBe(2);
 		expect(page.stats.batches).toBe(2);
-		// Las sentencias de este escenario (no crecen sin que se note): 17 en la primera tanda (con
-		// la de los eventos «Online» con lugar) y 19 en la segunda (totales, ingresos, links, 3 de
-		// envíos fallidos, 4 recordatorios vencidos —2 por evento de hoy—, 5 de la última visita y 2
-		// por evento de hoy para el gráfico).
-		expect(page.stats.prepared).toBe(17 + 19);
+		// Las sentencias de este escenario (no crecen sin que se note): 20 en la primera tanda (con
+		// la de los eventos «Online» con lugar, las 2 de las etiquetas y la de la última revisión del
+		// importador, de «Para revisar») y 19 en la segunda (totales, ingresos, links, 3 de envíos
+		// fallidos, 4 recordatorios vencidos —2 por evento de hoy—, 5 de la última visita y 2 por
+		// evento de hoy para el gráfico).
+		expect(page.stats.prepared).toBe(20 + 19);
 
 		// El de antes, con las mismas funciones: una ida por consulta (acá sin las de la lista de
 		// eventos, que son de mentira).
@@ -873,12 +934,23 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		await oldLoad(fakeEvent(old.platform));
 		expect(old.trips()).toBeGreaterThan(20);
 
+		// El menú: «Para revisar» cuenta las filas de la tarjeta (decisión 0030), así que hace las
+		// mismas consultas de «Para revisar» que la página, en dos tandas como ella.
 		const layout = countingPlatform();
-		await panelCounts(layout.platform);
-		expect(layout.trips()).toBe(1);
-		// (La cuenta de «No listadas» suma los perfiles no listados de la base: una sentencia más; los
-		// eventos «Online» con lugar, otra, en la misma tanda.)
-		expect(layout.stats.prepared).toBe(6);
+		await menuCounts(layout.platform);
+		expect(layout.trips()).toBe(2);
+		expect(layout.stats.batches).toBe(2);
+		// Primera tanda: los 5 contadores de siempre (la cuenta de «No listadas» son 2) y las 11 de
+		// «Para revisar» que no dependen de los eventos (con la de los eventos «Online» con lugar, que
+		// es también su contador). Segunda: totales, links, 3 de envíos fallidos y 4 recordatorios
+		// vencidos.
+		expect(layout.stats.prepared).toBe(5 + 11 + 9);
+
+		// Sin eventos que vienen con entradas, la segunda tanda no tiene nada: una sola ida.
+		fake.ticketed = [];
+		const quiet = countingPlatform();
+		await menuCounts(quiet.platform);
+		expect(quiet.trips()).toBe(1);
 	});
 });
 

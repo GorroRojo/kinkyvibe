@@ -1,11 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-	clearContentPullCache,
-	contentPullItems,
-	contentPullStatus,
-	openContentPullStatuses,
-	pullStatus
-} from './contentPulls.js';
+// La lista de PRs abiertos y sus filas de «Para revisar» se sacaron (decisión 0030: el contenido
+// vive solo en la base); quedan el estado de un PR (aviso del editor, deshacer un borrado).
+import { contentPullStatus, pullStatus } from './contentPulls.js';
 
 /** @param {string | null} rollup @param {Record<string, any>} [extra] */
 const node = (rollup, extra = {}) => ({
@@ -34,29 +30,6 @@ describe('pullStatus', () => {
 	});
 });
 
-describe('contentPullItems', () => {
-	it('lists failures first, with a link to the PR', () => {
-		const items = contentPullItems([
-			{
-				...node('PENDING'),
-				number: 1,
-				status: 'pendiente',
-				branch: 'b',
-				title: 'Contenido: edita A'
-			},
-			{ ...node('FAILURE'), number: 2, status: 'fallo', branch: 'b', title: 'Contenido: crea B' }
-		]);
-		expect(items.map((i) => i.id)).toEqual(['pr-2', 'pr-1']);
-		expect(items[0]).toMatchObject({
-			tone: 'bad',
-			icon: 'pr',
-			title: 'No se publicó: falló una prueba del contenido: crea B'
-		});
-		expect(items[1]).toMatchObject({ tone: 'info', title: 'Publicándose: edita A' });
-		expect(items[1].text).toContain('PR #1');
-	});
-});
-
 describe('GitHub queries', () => {
 	const realFetch = globalThis.fetch;
 	/** @type {any[]} */
@@ -65,7 +38,6 @@ describe('GitHub queries', () => {
 	let data;
 	beforeEach(() => {
 		bodies = [];
-		clearContentPullCache();
 		// @ts-ignore
 		globalThis.fetch = async (/** @type {string} */ url, /** @type {any} */ init) => {
 			expect(url).toBe('https://api.github.com/graphql');
@@ -83,20 +55,5 @@ describe('GitHub queries', () => {
 		expect(bodies[0].variables).toMatchObject({ n: 7 });
 		data = { repository: { pullRequest: node('FAILURE', { headRefName: 'claude/x' }) } };
 		expect(await contentPullStatus('t', 7)).toBeNull();
-	});
-
-	it('lists open content PRs, cached for a minute', async () => {
-		data = {
-			repository: {
-				pullRequests: { nodes: [node('PENDING'), node('SUCCESS', { headRefName: 'claude/x' })] }
-			}
-		};
-		const list = await openContentPullStatuses('t', { now: 1000 });
-		expect(list).toHaveLength(1);
-		expect(list[0]).toMatchObject({ number: 7, status: 'pendiente' });
-		await openContentPullStatuses('t', { now: 30_000 });
-		expect(bodies).toHaveLength(1);
-		await openContentPullStatuses('t', { now: 70_000 });
-		expect(bodies).toHaveLength(2);
 	});
 });

@@ -23,6 +23,7 @@ import { getEventTickets } from '$lib/server/tickets/events.js';
 import { loadEditableProfile } from '$lib/server/amigues/editor.js';
 import { urlSlugOf } from '$lib/server/amigues/profiles.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/errors.js';
+import { clearTagSourceCache } from '$lib/server/etiquetas/source.js';
 import { authorUsage, contentMetas } from './content.js';
 import { contentPullStatus } from './contentPulls.js';
 import {
@@ -39,6 +40,7 @@ import {
 	isDeletable,
 	organizedEvents,
 	readPostFiles,
+	tagIdOf,
 	undoDeletion
 } from './deletions.js';
 
@@ -254,6 +256,8 @@ export async function undoAction(event) {
 		return fail(400, { error: 'Falta el borrado a deshacer.' });
 	try {
 		const r = await undoDeletion(await getRepoClient(), db, actor, id, { pulls: pullOps() });
+		// Una etiqueta que vuelve: el árbol que se recuerda por isolate se vuelve a leer.
+		if (tagIdOf(r.deletion.path) !== null) clearTagSourceCache();
 		return {
 			undone: {
 				id,

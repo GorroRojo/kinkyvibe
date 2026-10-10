@@ -2,7 +2,8 @@
 	import { argDateLog } from '$lib/utils/dates.js';
 	/**
 	 * «Borrados que podés recuperar» (Actividad): publicaciones borradas desde el panel (y lo que se
-	 * sacó de la biblioteca) que todavía no se deshicieron, cada una con «Recuperar» (POST
+	 * sacó de la biblioteca, las etiquetas y series y el texto propio de un mail de un evento) que
+	 * todavía no se deshicieron, cada una con «Recuperar» (POST
 	 * `?/recuperar` con su `id`).
 	 * Props: `rows` (listRecoverable de deletions.js), `result` (lo que devolvió la acción).
 	 */

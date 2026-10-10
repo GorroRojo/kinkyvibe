@@ -11,6 +11,7 @@ import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { saveReviewSnapshot } from '$lib/server/admin/reviewSnapshots.js';
 import { bundledSourceFiles } from '$lib/server/contenido/bundle.js';
 import {
 	IMPORT_CHUNK,
@@ -28,7 +29,7 @@ import {
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
-	requireAdmin(locals, url);
+	const admin = requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
@@ -50,6 +51,17 @@ export async function load({ locals, url, platform, setHeaders }) {
 			)
 		});
 	}
+	// Lo que hay para revisar queda guardado para la fila de «Para revisar» del panel (Inicio y
+	// contador del menú): contarlo en cada página sería demasiado (docs/panel.md).
+	await saveReviewSnapshot(
+		db,
+		'importacion',
+		{
+			count: categories.reduce((n, c) => n + c.rows.length, 0),
+			detail: Object.fromEntries(categories.map((c) => [c.key, c.rows.length]))
+		},
+		{ by: admin.login }
+	);
 	return {
 		categories,
 		labels: ACTION_LABELS,

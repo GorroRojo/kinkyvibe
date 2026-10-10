@@ -113,3 +113,5 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 
 - [0008](0008-crm.md): El panel como CRM (30/9)
 - [0010](0010-panel.md): Panel: tema, formularios, Inicio y detalles (30/9)
+- [0030](0030-para-revisar-y-recuperar.md): «Para revisar» cuenta cada fila; etiquetas, series y
+  mails por evento se recuperan (9/10)
