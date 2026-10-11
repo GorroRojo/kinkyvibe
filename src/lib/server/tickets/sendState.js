@@ -1,6 +1,7 @@
 /**
- * Estado de cada envío masivo por orden (recordatorios y link de la transmisión), para mandar en
- * tandas sin duplicar: ver migrations/0011_send_batches.sql.
+ * Estado de cada envío masivo por orden (recordatorios, link de la transmisión y aviso de cambio
+ * de fecha), para mandar en tandas sin duplicar: ver migrations/0011_send_batches.sql y
+ * migrations/0048_avisar_cambio_fecha.sql.
  *
  * - Antes de mandar, la orden se reserva con un INSERT/UPDATE atómico ({@link claimSend}): dos
  *   corridas del cron a la vez (o dos admins) nunca le mandan dos veces a la misma orden.
@@ -22,7 +23,8 @@ export const STALE_CLAIM_MS = 10 * 60 * 1000;
 /** Tablas de envíos y su segunda columna de la clave (con `order_id`). */
 const TABLES = /** @type {const} */ ({
 	reminder_sends: 'reminder_id',
-	stream_link_sends: 'link_hash'
+	stream_link_sends: 'link_hash',
+	date_change_sends: 'version'
 });
 
 /** @typedef {keyof typeof TABLES} SendTable */
@@ -53,7 +55,7 @@ export function pendingSendSql(table, { key, stale, includeFailed = false }) {
  *
  * @param {D1Database} db
  * @param {SendTable} table
- * @param {{ orderId: string, key: string, now?: number }} input
+ * @param {{ orderId: string, key: string | number, now?: number }} input
  */
 export async function claimSend(db, table, { orderId, key, now = Date.now() }) {
 	const col = keyColumn(table);
@@ -75,7 +77,7 @@ export async function claimSend(db, table, { orderId, key, now = Date.now() }) {
  *
  * @param {D1Database} db
  * @param {SendTable} table
- * @param {{ orderId: string, key: string, ok: boolean, now?: number }} input
+ * @param {{ orderId: string, key: string | number, ok: boolean, now?: number }} input
  */
 export async function finishSend(db, table, { orderId, key, ok, now = Date.now() }) {
 	await db
@@ -116,7 +118,7 @@ export async function expireStaleClaims(db, table, now = Date.now()) {
  *   items: T[],
  *   limit: number,
  *   now: number,
- *   claim: (item: T) => { orderId: string, key: string },
+ *   claim: (item: T) => { orderId: string, key: string | number },
  *   send: (item: T) => Promise<boolean>,
  *   label: string
  * }} input

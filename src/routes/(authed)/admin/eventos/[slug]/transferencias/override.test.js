@@ -16,7 +16,10 @@ vi.mock('$lib/server/tickets/events.js', async (importOriginal) => ({
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth.js';
 import { listAudit } from '$lib/server/admin/audit.js';
-import { TRANSFER_HOLD_MS, getCounts, getOrder, reserveOrder } from '$lib/server/tickets/orders.js';
+import { getCounts, getOrder, reserveOrder } from '$lib/server/tickets/orders.js';
+
+/** Una reserva fija de prueba (48 h): este test no depende de la regla de los días hábiles. */
+const TRANSFER_HOLD_MS = 48 * 60 * 60 * 1000;
 import { actions } from './+page.server.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */

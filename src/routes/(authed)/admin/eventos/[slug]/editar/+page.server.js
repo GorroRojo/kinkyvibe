@@ -5,6 +5,9 @@
  *
  * Abajo, la sección «Partes» (talleres en varias partes, docs/talleres-partes.md), con sus propias
  * acciones (`partes_*`): guardan los edges `parte` del taller en la base, aparte del editor.
+ *
+ * Al guardar con otro inicio o fin, el cambio de fecha queda anotado (dateChange.js) y la ficha
+ * ofrece «Avisar a les compradores» (nunca manda nada sola).
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
@@ -20,6 +23,9 @@ import {
 	_editActions,
 	_editLoad
 } from '../../../../edit/[category=category]/[postID]/+page.server.js';
+import { readDbPostFile } from '$lib/server/contenido/repo.js';
+import { postFilePath } from '$lib/utils/postPaths.js';
+import { recordDateChange, scheduleFromFile } from '$lib/server/tickets/dateChange.js';
 
 /**
  * @template {{ params: { slug: string } }} E
@@ -76,6 +82,42 @@ function argDateTime(raw) {
 	return `${v}-03:00`;
 }
 
+/**
+ * El inicio y el fin guardados del evento (antes de guardar), o `null` si no se pueden leer.
+ * @param {string} slug
+ */
+async function savedSchedule(slug) {
+	const path = postFilePath('calendario', slug);
+	const file = path ? await readDbPostFile(path).catch(() => null) : null;
+	return file && 'raw' in file ? scheduleFromFile(file.raw) : null;
+}
+
+/**
+ * «Guardar» del editor y, si se guardó con otro inicio o fin, el cambio de fecha anotado para
+ * ofrecer «Avisar a les compradores» (dateChange.js). Si anotarlo falla, el guardado vale igual.
+ *
+ * @param {import('./$types').RequestEvent} event
+ */
+async function saveWithDateChange(event) {
+	const user = requireAdmin(event.locals, event.url);
+	const db = getDB(event.platform);
+	const content = db ? (await event.request.clone().formData()).get('content') : null;
+	const before = typeof content === 'string' ? await savedSchedule(event.params.slug) : null;
+	const result = await _editActions.save(asEventEdit(event));
+	if (!db || !before || !result || !('save' in result)) return result;
+	try {
+		await recordDateChange(db, {
+			eventSlug: event.params.slug,
+			before,
+			after: scheduleFromFile(/** @type {string} */ (content)),
+			by: user.login
+		});
+	} catch (e) {
+		console.error('[cambio de fecha] no se pudo anotar:', e);
+	}
+	return result;
+}
+
 /** @type {import('./$types').Actions} */
 export const actions = {
 	...Object.fromEntries(
@@ -85,6 +127,7 @@ export const actions = {
 			(event) => action(asEventEdit(event))
 		])
 	),
+	save: saveWithDateChange,
 
 	// La lista entera de partes (2 en adelante), en orden: sumar, sacar y reordenar.
 	partes_guardar: (event) =>

@@ -18,6 +18,7 @@ import {
 	publicLeft
 } from '$lib/utils/tickets.js';
 import { formatARS } from '$lib/utils/money.js';
+import { transferDeadline } from '$lib/utils/transferDeadline.js';
 import { emptyTaken, stockOf } from '$lib/utils/ticketTiers.js';
 import {
 	salesState,
@@ -39,14 +40,12 @@ import {
 	sendOrderEmail,
 	sendTransferEmail,
 	siteOrigin,
-	transferHoldMs,
 	transferInfo
 } from './index.js';
 import { buildPreference } from './mercadopago.js';
 import {
 	approveFreeOrder,
 	cancelPendingOrder,
-	TRANSFER_INITIAL_HOLD_MS,
 	getTaken,
 	isValidOrderId,
 	reserveOrder,
@@ -88,7 +87,7 @@ export const CHECKOUT_RATE_LIMITS = {
  *   maxQuantity: number,
  *   mock: boolean,
  *   methods: import('./config.js').PaymentMethod[],
- *   transferHoldHours: number,
+ *   transferUntil: number,
  *   feeBasisPoints: number,
  *   contactEmail: string,
  *   online: boolean,
@@ -209,7 +208,8 @@ export async function getTicketsView(db, slug, fetchFn) {
 		maxQuantity: MAX_TICKETS_PER_FORM,
 		mock: isMpMock() && methods.includes('mercadopago'),
 		methods,
-		transferHoldHours: Math.round(transferHoldMs() / 3600000),
+		// Hasta cuándo se guardaría el lugar comprando ahora por transferencia (decisión 0031).
+		transferUntil: transferDeadline(now, config.start ?? null),
 		feeBasisPoints: await mpFeeBasisPoints(db, config),
 		contactEmail: contactEmail(),
 		online: config.online,
@@ -675,11 +675,10 @@ export async function buyAction(event) {
 			method,
 			feeBasisPoints: await mpFeeBasisPoints(db, config),
 			discount: discount && { code: discount.code, kind: discount.kind, value: discount.value },
-			// Transferencia: reserva inicial corta; se extiende al confirmar desde el mail.
+			// Transferencia: 2 días hábiles después del día de la compra, o hasta que empiece el
+			// evento si es antes (decisión 0031).
 			holdMs:
-				method === 'transferencia'
-					? Math.min(TRANSFER_INITIAL_HOLD_MS, transferHoldMs())
-					: undefined,
+				method === 'transferencia' ? transferDeadline(now, config.start ?? null) - now : undefined,
 			clientHash: client,
 			answers: valid.answers,
 			now

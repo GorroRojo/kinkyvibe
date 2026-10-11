@@ -39,7 +39,8 @@ const TEMPLATE_OF = {
 	buildTransferEmail: 'transfer',
 	buildStreamLinkEmail: 'stream',
 	buildReminderEmail: 'reminder',
-	buildRefundEmail: 'refund'
+	buildRefundEmail: 'refund',
+	buildDateChangeEmail: 'date_change'
 };
 
 /** Etiqueta gris, botón y pie del HTML. */

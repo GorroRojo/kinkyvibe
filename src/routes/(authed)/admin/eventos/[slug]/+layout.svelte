@@ -5,6 +5,8 @@
 	 * sola, sin encabezado ni pestañas.
 	 */
 	import { page } from '$app/stores';
+	import { afterNavigate } from '$app/navigation';
+	import DateChangeOffer from '$lib/components/admin/DateChangeOffer.svelte';
 	import { CalendarDays, Copy, ExternalLink, ImageDown, Pencil } from '@lucide/svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -17,6 +19,12 @@
 	export let data;
 
 	const icon = { size: 16, strokeWidth: 2.25, 'aria-hidden': true };
+	/** Lo que contestó «Avisar a les compradores» (se sigue viendo hasta cambiar de página). */
+	/** @type {{ ok: boolean, message: string } | null} */
+	let dateChangeResult = null;
+	afterNavigate(({ type }) => {
+		if (type !== 'form') dateChangeResult = null;
+	});
 	/** Pestañas que solo tienen sentido si el evento vende entradas. */
 	const SALES_TABS = ['ventas', 'ordenes', 'transferencias', 'ingreso', 'codigos', 'mail', 'mails'];
 
@@ -118,6 +126,12 @@
 				<a class="kv-btn small push" href={eventHref(e.slug, 'transferencias')}>Revisar</a>
 			</Notice>
 		</div>
+	{/if}
+
+	<!-- «Cambiaste la fecha»: después de guardar el evento con otro inicio o fin, si hay a quién
+	avisar (docs/mails.md). En «Mail a compradores» está su propia tarjeta. -->
+	{#if data.dateChange && (data.dateChange.notice || dateChangeResult) && !$page.url.pathname.endsWith('/mail')}
+		<DateChangeOffer offer={data.dateChange} slug={e.slug} bind:result={dateChangeResult} />
 	{/if}
 
 	<Tabs {tabs} />

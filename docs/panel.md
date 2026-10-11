@@ -6,9 +6,10 @@
 material y amigues, ver las ventas, confirmar transferencias, controlar el ingreso en la puerta,
 mandar mails a quienes compraron, ajustar cobros, el Fondo y los textos de los mails, y ver quién
 cambió qué. Se entra con la cuenta de GitHub (solo las cuentas de la lista de admins). Anda en la
-compu y en el celu, arranca en tema claro y tiene un buscador (`/` o Ctrl/⌘+K) que encuentra
-eventos, órdenes, entradas, códigos, personas, perfiles y etiquetas (y cada sección por sus
-palabras: «pie de mail», «alias», «reembolso»…, `NAV_KEYWORDS` en `src/lib/admin/commands.js`).
+compu y en el celu, arranca en tema claro y tiene un buscador (`/` o Ctrl/⌘+K, ver
+[El buscador](#el-buscador)) que encuentra eventos, órdenes, entradas, códigos, personas, perfiles
+y etiquetas (y cada sección por sus palabras: «pie de mail», «alias», «reembolso»…,
+`NAV_KEYWORDS` en `src/lib/admin/commands.js`).
 
 ## Lo que nunca se tiene que romper
 
@@ -51,7 +52,7 @@ sección (Etiquetas), que usan la URL del área.
 | Área         | Secciones (URL)                                                                                                                                                                                                                                                                                                         | Para qué                                                                                                                                                                                                                                                                                                                |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | —            | Inicio (`/admin`)                                                                                                                                                                                                                                                                                                       | próximos eventos, para revisar, plata del mes, actividad, "desde tu última visita"                                                                                                                                                                                                                                      |
-| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`), Agenda (`/agenda`, + Importar planilla en `/importar`), Check-in (`/admin/checkin`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                               | lista y ficha de cada evento (`/admin/eventos/<slug>`, sus pestañas no cambian); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                                  |
+| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`), Agenda (`/agenda`, + Importar planilla en `/importar`), Puerta (`/admin/checkin`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                                 | lista y ficha de cada evento (`/admin/eventos/<slug>`, sus pestañas no cambian); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                                  |
 | Ventas       | Todas las ventas (`/admin/ventas`), Transferencias (`/transferencias`), Códigos (`/codigos`) · próximamente: Tienda (`/tienda`, fase 8)                                                                                                                                                                                 | ventas de todos los eventos, bandeja de transferencias, códigos de descuento                                                                                                                                                                                                                                            |
 | Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`)                                                                                         | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md))                                                                                          |
 | Mensajes     | Plantillas (`/admin/mensajes/plantillas`) · próximamente: Bandeja (`/admin/mensajes`, fase 5), Lo que sigo (`/lo-que-sigo`, fase 2)                                                                                                                                                                                     | textos de los mails ([mails.md](mails.md))                                                                                                                                                                                                                                                                              |
@@ -255,7 +256,7 @@ cambia datos ni la venta, y no bloquea guardar. Una sola función decide:
   que va a las etiquetas del editor. Saber qué eventos tienen lugar vinculado es una consulta más
   para todos (`listEventVenues`); sin base, mira solo el texto libre.
 
-**Celu**: la barra de abajo sigue igual (Inicio, Eventos, Check-in, Ventas, Más). "Más" muestra
+**Celu**: la barra de abajo sigue igual (Inicio, Eventos, Puerta, Ventas, Más). "Más" muestra
 las áreas y, al tocar una, sus secciones. Cuando llegue la Bandeja (fase 5), el cuarto lugar pasa a
 ser "Para revisar".
 
@@ -309,17 +310,79 @@ Cómo se descubren (`src/lib/admin/shortcutHints.js`):
 3. **Lista**: se prende el interruptor; cuando el interruptor desaparece, se borra `flag`.
 4. **Descartada**: se borra el ítem.
 
+## El buscador
+
+La paleta (`SearchBox.svelte`) junta **acciones** (en el navegador) y **registros**
+(`GET /admin/buscar`, `src/lib/server/admin/search.js`).
+
+- **Sin mayúsculas ni tildes, en todo**: «jose» encuentra «José», «nunez» a «Núñez», «muller» a
+  «Müller». Todo compara con `foldText` (`src/lib/server/tickets/orders.js`), la misma función de
+  los eventos, las etiquetas y la búsqueda de la Puerta. SQLite no ignora tildes, así que cada
+  consulta a la base usa un `LIKE` flojo (`looseLike`: las letras que pueden llevar tilde, como
+  a e i o u n c y, valen cualquier carácter) y la comparación de verdad se hace en JS sobre lo que
+  vuelve, con un techo de `MAX_CANDIDATES` filas (las más nuevas). Sin columnas nuevas ni
+  migraciones: alcanza para cientos o pocos miles de filas. La referencia `KV-…`, el código de la
+  entrada y el DNI se siguen comparando en SQL (el DNI nunca sale de la base).
+- **Qué encuentra y adónde lleva**: eventos (a la ficha; del primero salen atajos a Puerta,
+  Órdenes, Mail a compradores y Ventas si vende entradas, y Duplicar siempre), órdenes (a la
+  orden), personas (a **su ficha**, `personHref`), perfiles (al editor), etiquetas (también por
+  sus alias: `aka` o `{ id, aliasOf }` llevan a la etiqueta de verdad), entradas y códigos.
+- **Acciones**: cada sección del menú (`buildCommands`) más las de `paletteActions.js`: «Para
+  revisar», Nuevo material, Nuevo perfil, Importar perfiles, lugares y etiquetas (Importar
+  eventos es «Importar planilla»), Vincular lugares, «Nuevo código de descuento» (abre el
+  formulario, `#nuevo`), «Cambiar tema» y «Ocultar/Mostrar lo que viene» (estas dos las cambia el
+  layout, por eventos de `SearchBox`).
+- **Qué va arriba** (`recordsFirst`): las acciones, salvo que lo buscado sea claramente un
+  registro: algún registro coincide entero (nombre, título, email, código o `KV-…`, marcado
+  `exact`) y ninguna acción se llama exactamente así, o hay registros y ninguna acción coincide
+  por su nombre (solo por sus palabras extra). Dentro de cada grupo, primero lo que coincide igual,
+  después al comienzo, al comienzo de una palabra y en el medio; a igual coincidencia, lo más
+  nuevo.
+
+### Operadores
+
+Los lee una sola función pura, `parseSearchQuery` (`src/lib/utils/searchQuery.js`): la usan la
+paleta (acciones, y si hace falta preguntarle al servidor) y `/admin/buscar` (registros). Nunca
+falla: lo que no entiende queda como texto. Sin mayúsculas ni tildes, como el resto.
+
+| Operador                                             | Qué hace                                                                                                                         |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| palabras sueltas                                     | Tienen que estar todas, en cualquier orden («perez jose» encuentra «José Pérez»).                                                |
+| `"frase exacta"`                                     | Esas palabras juntas y en ese orden.                                                                                             |
+| `-palabra`, `-"frase"`                               | Sin eso.                                                                                                                         |
+| `>tema`                                              | Solo acciones (tiene que ir al comienzo; no le pregunta al servidor).                                                            |
+| `#shibari`, `etiqueta:shibari`                       | Eventos con esa etiqueta (por id, nombre o alias; si ninguna se llama así, las que empiezan así) y la etiqueta. `-#…`: sin ella. |
+| `@ana`, `persona:ana`                                | Solo personas y perfiles.                                                                                                        |
+| `e:fiesta`, `evento:fiesta`                          | Solo eventos. Con `puerta`, `ordenes`, `mail`, `ventas` o `duplicar` al final, el atajo a esa pestaña del primero va arriba.     |
+| `orden:ana`                                          | Solo órdenes. `orden:pendiente` (o `estado:pendiente`): las órdenes en ese estado, con o sin texto.                              |
+| `tipo:evento` (`,` para varios)                      | Solo ese tipo: evento, orden, persona, perfil (amigue), etiqueta, entrada, codigo, accion. `-tipo:orden`: todos menos ese.       |
+| `lugar:palermo`                                      | Eventos cuyo lugar lo dice.                                                                                                      |
+| `hoy`, `mañana`, `semana` («esta semana»), `finde`   | Eventos en esos días, en hora de Argentina, del más próximo al más lejano. Las acciones siguen («Abrir la puerta de hoy»).       |
+| `cuando:sabado`, `cuando:15/10`, `cuando:15/10/2026` | El próximo sábado (hoy cuenta) o esa fecha (sin año, la de cualquier año).                                                       |
+
+- Los filtros dejan solo los tipos a los que se aplican (`#…`, eventos y etiquetas; `lugar:` y
+  `cuando:`, eventos; las fechas sueltas, eventos y acciones; `estado:`, órdenes) y se cruzan con `tipo:`/`@`/`e:`. Si no queda ninguno («estado:pendiente
+  #shibari»), la paleta lo dice.
+- Un `algo:` que no es operador (`20:30`, `foo:bar`) es texto. Entre comillas, una palabra de
+  fecha también (`"semana"`, por un evento que se llame así).
+- Para la base, el filtro flojo (`looseLike`) usa la palabra o frase más larga; las demás y las
+  excluidas se comparan en JS (`matchTerms`).
+- **Ayuda**: con la paleta vacía hay una línea con ejemplos; «Cómo buscar» (al pie de la paleta,
+  como acción y en la hoja de atajos `?`) explica todos con ejemplos que se pueden tocar
+  (`SEARCH_TIPS` en `paletteActions.js`; un test verifica que cada ejemplo use un operador).
+- El buscador público del sitio (`SearchPalette.svelte`) es otro y no tiene operadores.
+
 ## Dónde está el código
 
-| Qué                                 | Dónde                                                                                                 |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Páginas                             | `src/routes/(authed)/admin/`                                                                          |
-| Lógica del servidor del panel       | `src/lib/server/admin/` (inicio, ventas, personas, búsqueda, auditoría…)                              |
-| Lógica de entradas que usa el panel | `src/lib/server/tickets/` (`overrides.js`, `door.js`, `manual.js`, `checkin.js`…)                     |
-| Quién es admin                      | `ADMINS` en `src/lib/server/auth.js` (por id numérico de GitHub); `requireAdmin`                      |
-| Login con GitHub                    | `src/routes/login`, `src/routes/callback`, `src/lib/server/session.js`                                |
-| Menú, atajos, tema, borradores      | `src/lib/admin/` (`nav.js`, `navPrefs.js`, `commands.js`, `shortcutHints.js`, `theme.js`, `draft.js`) |
-| Componentes y estilos               | `src/lib/components/admin/` (`panel/`, `door/`, `inicio/`…), `src/lib/admin/panel*.scss`              |
+| Qué                                 | Dónde                                                                                                                      |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Páginas                             | `src/routes/(authed)/admin/`                                                                                               |
+| Lógica del servidor del panel       | `src/lib/server/admin/` (inicio, ventas, personas, búsqueda, auditoría…)                                                   |
+| Lógica de entradas que usa el panel | `src/lib/server/tickets/` (`overrides.js`, `door.js`, `manual.js`, `checkin.js`…)                                          |
+| Quién es admin                      | `ADMINS` en `src/lib/server/auth.js` (por id numérico de GitHub); `requireAdmin`                                           |
+| Login con GitHub                    | `src/routes/login`, `src/routes/callback`, `src/lib/server/session.js`                                                     |
+| Menú, atajos, tema, borradores      | `src/lib/admin/` (`nav.js`, `navPrefs.js`, `commands.js`, `paletteActions.js`, `shortcutHints.js`, `theme.js`, `draft.js`) |
+| Componentes y estilos               | `src/lib/components/admin/` (`panel/`, `door/`, `inicio/`…), `src/lib/admin/panel*.scss`                                   |
 
 ## Cómo probar
 
@@ -397,7 +460,8 @@ que corre solo (la única acción es «Actualizar comandos del bot», abajo). La
   links de transmisión, avisos de series y de «Lo que sigo» (nuevo y recordatorio), con el último
   envío, los pendientes y los que fallaron (`reminder_sends`, `stream_link_sends`,
   `series_notifications`, `follow_notifications`). «Mail a compradores» no está: sale desde la
-  página del evento, no del cron.
+  página del evento, no del cron. Lo que queda de un «Avisar a les compradores» (cambio de fecha)
+  sí lo manda el cron, pero esta página todavía no lo muestra.
 - **Bot de Telegram**: el interruptor, si el secreto del webhook y el token están cargados (sí/no;
   nunca el valor) y cuántos chats hay vinculados. El botón **Actualizar comandos del bot**
   (`?/comandos`) le registra a Telegram el menú «/» y muestra qué quedó o el error; queda en el
