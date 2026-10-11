@@ -96,6 +96,8 @@
 		if (href) goto(href);
 		return values;
 	};
+	import LDTag from '$lib/components/LDTag.svelte';
+	import { kinkipediaSchema } from '$lib/utils/jsonLd.js';
 </script>
 
 <svelte:head>
@@ -182,6 +184,8 @@
 		<a href="/amigues/KinkyBunny">@KinkyBunny <small class="p-pronoun">ellx</small></a>.
 	</p>
 </article>
+<!-- La Kinkipedia como conjunto de términos (schema.org, jsonLd.js). -->
+<LDTag schema={kinkipediaSchema()} />
 
 <style lang="scss">
 	.callout {

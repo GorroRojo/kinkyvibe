@@ -7,6 +7,7 @@
 	export let data;
 	import { userConfig } from '$lib/utils/stores';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	import { organizationSchema } from '$lib/utils/jsonLd.js';
 	// the server only sends upcoming events; load the rest if past events are shown
 	let allPosts = data.posts;
 	let loadedPast = false;
@@ -21,17 +22,8 @@
 	const summary =
 		'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
 	const canonical = 'https://kinkyvibe.ar';
-	/**@type {LD.Schema}*/
-	const websiteSchema = {
-		'@context': 'https://schema.org',
-		'@type': 'Organization',
-		'@id': canonical + '#organization',
-		url: canonical,
-		name: title,
-		description: summary,
-		sameAs: ['https://twitter.com/kinkyvibearg'],
-		logo: 'https://KinkyVibe.ar/favicon-32x32.png'
-	};
+	// La organización (schema.org, jsonLd.js): nombre, logo, contacto público y redes oficiales.
+	const websiteSchema = /** @type {any} */ (organizationSchema());
 	import kinkyProfilePic from '../logo.png';
 </script>
 
