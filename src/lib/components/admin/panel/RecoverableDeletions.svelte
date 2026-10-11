@@ -2,7 +2,8 @@
 	import { argDateLog } from '$lib/utils/dates.js';
 	/**
 	 * «Borrados que podés recuperar» (Actividad): publicaciones borradas desde el panel (y lo que se
-	 * sacó de la biblioteca, las etiquetas y series y el texto propio de un mail de un evento) que
+	 * sacó de la biblioteca, las etiquetas y series, el texto propio de un mail de un evento, las
+	 * preguntas de inscripción, los roles y las notas internas) que
 	 * todavía no se deshicieron, cada una con «Recuperar» (POST
 	 * `?/recuperar` con su `id`).
 	 * Props: `rows` (listRecoverable de deletions.js), `result` (lo que devolvió la acción).
@@ -11,7 +12,7 @@
 	import { enhance } from '$app/forms';
 	import { RotateCcw } from '@lucide/svelte';
 	import { csvFilename } from '$lib/admin/csv.js';
-	import { deletionLabel, undoneMessage } from '$lib/admin/deleteText.js';
+	import { deletionLabel, deletionLink, undoneMessage } from '$lib/admin/deleteText.js';
 	import Card from './Card.svelte';
 	import CsvButton from './CsvButton.svelte';
 	import UndoToast from './UndoToast.svelte';
@@ -52,12 +53,15 @@
 				<ul class="list">
 					{#each rows as r (r.id)}
 						{@const what = deletionLabel(r)}
+						{@const link = deletionLink(r)}
 						<li>
 							<div class="what">
 								<b>{r.title}</b>
 								<small class="muted"
-									>{what.label}{#if !what.library}
-										· <code>{r.slug}</code>{/if} · {argDateLog(r.deletedAt)} por @{r.deletedBy}{r.mediaCount
+									>{what.label}{#if link}{' · '}<a href={link.href}>{link.text}</a
+										>{:else if !what.library}{' · '}<code>{r.slug}</code>{/if} · {argDateLog(
+										r.deletedAt
+									)} por @{r.deletedBy}{r.mediaCount
 										? ` · ${r.mediaCount} ${r.mediaCount === 1 ? 'imagen' : 'imágenes'}`
 										: ''}</small
 								>
