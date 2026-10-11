@@ -10,15 +10,22 @@
  * mentira (en memoria).
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { metasOf } from './testing.js';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
-import { FileChangedError, PathExistsError } from '$lib/server/eventos/github.js';
+import { FileChangedError, PathExistsError } from './cliente.js';
 import { runImport } from './importer.js';
 import { listRevisions } from './revisions.js';
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
 
 const metas = /** @type {Record<string, Record<string, any> | undefined>} */ (
-	import.meta.glob('./fixtures/calendario/*.md', { import: 'metadata', eager: true })
+	metasOf(
+		import.meta.glob('./fixtures/calendario/*.md', {
+			query: '?raw',
+			import: 'default',
+			eager: true
+		})
+	)
 );
 const raws = /** @type {Record<string, string>} */ (
 	import.meta.glob('./fixtures/calendario/*.md', { query: '?raw', import: 'default', eager: true })

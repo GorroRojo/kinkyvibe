@@ -5,9 +5,11 @@
 Todo lo que cambia mientras el sitio funciona (órdenes, entradas, ingresos en la puerta,
 códigos de descuento, ajustes del panel, plantillas de mails, notas sobre personas, registro de
 actividad) se guarda en una base de datos **Cloudflare D1** (un SQLite en Cloudflare). Las
-publicaciones (eventos, material, amigues, wiki) **no** están ahí por ahora: son archivos `.md` en
-el repo (ver [contenido.md](contenido.md)). Hay tres copias separadas de la base: la de tu compu,
-la de los previews y la de producción.
+publicaciones (eventos, material, perfiles de amigues, la wiki) y las etiquetas también: son
+objetos de la base (ver [contenido.md](contenido.md) y [objetos.md](objetos.md)); ya no hay `.md`
+en el repo. Hay tres copias separadas de la base: la de tu compu, la de los previews y la de
+producción. La de tu compu y la de las pruebas E2E arrancan con la semilla de contenido público
+(`npm run db:semilla`, `src/lib/server/semilla/`).
 
 ## Lo que nunca se tiene que romper
 
@@ -59,11 +61,11 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 | `feature_flags`                                   | 0013                                 | interruptores de funciones nuevas (Ajustes → Interruptores)                                 | `src/lib/server/flags.js`                                  |
 | `accounts`, `account_sessions`, `login_codes`     | 0013                                 | cuentas del público, sesiones y códigos por mail (ver [cuentas.md](cuentas.md))             | `src/lib/server/cuentas/`                                  |
 | `agenda_day_notes`                                | 0030                                 | notas de colores en los días de la Agenda (solo admins; nunca en páginas públicas ni .ics)  | `src/lib/server/admin/dayNotes.js`                         |
-| `review_snapshots`                                | 0047                                 | «Para revisar»: la última revisión del importador de contenido (lo que no se cuenta barato) | `src/lib/server/admin/reviewSnapshots.js`                  |
+| `review_snapshots`                                | 0047                                 | sin uso desde la decisión 0032 (era la última revisión del importador de contenido)         | ninguno                                                    |
 | `event_date_changes`, `date_change_sends`         | 0048                                 | último cambio de fecha de cada evento y a qué orden se le avisó (por versión)               | `src/lib/server/tickets/dateChange.js`                     |
-| `demo_files`                                      | ninguna                              | solo en previews: los "commits" del modo demo                                               | `src/lib/server/demo/overlay.js`                           |
 
-`demo_files` no es una migración a propósito: producción no la tiene (ver [demo.md](demo.md)).
+`demo_files` (solo en la base de los previews, nunca fue una migración) era la capa de "commits"
+del modo demo: desde la decisión 0032 nadie la usa; se puede borrar a mano en el preview.
 
 ## Dónde está el código
 
@@ -113,5 +115,6 @@ son de personas reales: no los copies a issues, PRs ni capturas.
 
 ### Resetear la base de preview
 
-Solo `kinkyvibe-preview`, nunca `kinkyvibe`. Para vaciar los cambios del modo demo:
-`DELETE FROM demo_files;` (ver [demo.md](demo.md)).
+Solo `kinkyvibe-preview`, nunca `kinkyvibe`. Los datos de prueba del modo demo se recargan con
+«Recargar datos de prueba» (ver [demo.md](demo.md)). La tabla vieja `demo_files` ya no se usa:
+`DROP TABLE IF EXISTS demo_files;` la saca.

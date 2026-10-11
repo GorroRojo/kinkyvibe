@@ -1,35 +1,12 @@
 /**
- * Panel: importar las fichas de amigues desde el deploy y revisar su clasificación.
- *
- * - {@link bundledAmigueFiles}: los .md de amigues tal como están en este deploy (texto), para
- *   correr la importación desde el panel contra la base de ese entorno (preview o producción). Es
- *   la forma de importar en las bases remotas sin tocar la terminal.
- * - {@link classificationRows}: la lista de revisión (lo que propuso la heurística, por qué, y si
- *   ya está confirmado), también en CSV.
+ * Panel: revisar la clasificación de los perfiles que vinieron de las fichas .md de amigues
+ * ({@link classificationRows}: lo que propuso la heurística, por qué, y si ya está confirmado),
+ * también en CSV. (Importar las fichas del deploy ya no existe: no quedan .md, decisión 0032.)
  */
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
-
-/** @type {Record<string, () => Promise<string>>} */
-const sources = /** @type {any} */ (
-	import.meta.glob('/src/lib/posts/amigues/*.md', { query: '?raw', import: 'default' })
-);
-
-/**
- * Las fichas de este deploy, como las pide `importAmigues`.
- *
- * @returns {Promise<{ legacySlug: string, raw: string }[]>}
- */
-export async function bundledAmigueFiles() {
-	const out = [];
-	for (const [path, load] of Object.entries(sources)) {
-		const legacySlug = path.split('/').pop()?.replace(/\.md$/, '') ?? '';
-		out.push({ legacySlug, raw: await load() });
-	}
-	return out;
-}
 
 /**
  * @typedef {{

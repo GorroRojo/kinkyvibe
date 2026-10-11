@@ -10,12 +10,8 @@ import {
 	featuredURL,
 	takenSlugsInBundle
 } from '$lib/server/eventos';
-import {
-	FileChangedError,
-	GitHubError,
-	PathExistsError,
-	PendingChangeError
-} from '$lib/server/eventos/github.js';
+import { FileChangedError, PathExistsError } from '$lib/server/contenido/cliente.js';
+import { legacyNumberedURL } from '$lib/utils/legacyMedia.js';
 import { findImage, imageOf } from '$lib/server/media/library.js';
 import { readImageChoice } from '$lib/utils/imageChoice.js';
 import { resolveEventSlug } from '$lib/server/contenido/posts.js';
@@ -63,8 +59,6 @@ const NO_PERMISSION = 'No tenés permiso para cargar eventos. Probá salir y vol
 
 /** @param {string} slug */
 const eventPath = (slug) => `${POSTS_DIR}/${slug}.md`;
-/** @param {string} slug */
-const mediaPath = (slug) => `${POSTS_DIR}/media/${slug}`;
 
 /** @param {unknown} e */
 function describeError(e) {
@@ -174,17 +168,32 @@ async function sourceImage(db, locals, slug) {
 }
 
 /**
- * Is the slug free on GitHub (no event file and no media folder)?
+ * Is the slug free (no event in the database, not even a deleted one, and not an old media
+ * folder: its images are still in the library under that name)?
  * @param {Awaited<ReturnType<typeof getRepoClient>>} client
  * @param {string} token
  * @param {string} slug
  */
 async function slugIsFree(client, token, slug) {
-	const [md, media] = await Promise.all([
-		client.pathExists(token, eventPath(slug)),
-		client.pathExists(token, mediaPath(slug))
-	]);
-	return !md && !media;
+	if (takenSlugsInBundle().includes(slug)) return false;
+	return !(await client.pathExists(token, eventPath(slug)));
+}
+
+/**
+ * El id del objeto `imagen` (vivo) de una dirección de la biblioteca (`…/media/img/<sha>.<ext>`), o
+ * null.
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ * @param {string | undefined} url
+ * @returns {Promise<number | null>}
+ */
+async function legacyLibraryImage(db, url) {
+	const sha = url ? /\/media\/img\/([0-9a-f]{64})\.[a-z]+$/.exec(url)?.[1] : undefined;
+	if (!db || !sha) return null;
+	const row = await db
+		.prepare("SELECT id FROM objects WHERE type = 'imagen' AND slug = ?1 AND deleted_at IS NULL")
+		.bind(sha)
+		.first();
+	return row ? Number(row.id) : null;
 }
 
 /**
@@ -202,7 +211,7 @@ async function suggestFreeSlug(client, token, slug) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	/** Checks the slug against GitHub right before showing the preview. */
+	/** Checks the slug right before showing the preview. */
 	verificar: async ({ locals, request, platform }) => {
 		const admin = getEventAdmin(locals);
 		if (!admin) return fail(403, { error: NO_PERMISSION });
@@ -328,12 +337,12 @@ export const actions = {
 			}
 		}
 
-		/** @type {import('$lib/server/eventos/github.js').CommitFile[]} */
+		/** @type {import('$lib/server/contenido/cliente.js').CommitFile[]} */
 		const files = [{ path: eventPath(slug), content }];
 		/** @type {string[]} */
 		const warnings = [];
 		/** @type {string[]} */
-		const mustNotExist = [eventPath(slug), mediaPath(slug)];
+		const mustNotExist = [eventPath(slug)];
 		/** @type {string[]} */
 		const deleted = [];
 
@@ -367,15 +376,20 @@ export const actions = {
 
 		try {
 			if (!portada && featuredMode === 'keep' && source && isNumericFeatured(fields.featured)) {
-				// The image lives in the source event's media folder; copy it (GitHub reuses the
-				// existing blob, nothing is re-uploaded) so the new event is self-contained.
-				const list = await client.listDir(admin.token, mediaPath(source));
-				const id = String(fields.featured).trim();
-				const hit = ['jpeg', 'jfif', 'jpg', 'png', 'webp']
-					.map((f) => list.find((item) => item.name === `${id}.${f}`))
-					.find(Boolean);
-				if (hit) files.push({ path: `${mediaPath(slug)}/${hit.name}`, sha: hit.sha });
-				else
+				// La imagen vieja numerada del original (de su carpeta del repo, que ya no existe): su
+				// copia en la biblioteca ($lib/utils/legacyMedia.js) pasa a ser la portada del nuevo.
+				const copy = await legacyLibraryImage(
+					getDB(platform),
+					legacyNumberedURL('calendario', source, String(fields.featured).trim())
+				);
+				if (copy) {
+					portada = [copy];
+					content = joinMarkdown(
+						applyFrontmatterChanges(splitMarkdown(content).frontmatter, { featured: null }),
+						splitMarkdown(content).body
+					);
+					files[0] = { path: eventPath(slug), content };
+				} else
 					warnings.push(
 						'No encontramos la imagen del evento original, así que el evento quedó sin imagen.'
 					);
@@ -451,7 +465,6 @@ export const actions = {
 				mock: isMockMode()
 			};
 		} catch (e) {
-			if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
 			if (e instanceof FileChangedError) {
 				return fail(409, {
 					error:
@@ -465,12 +478,8 @@ export const actions = {
 					suggestion: await suggestFreeSlug(client, admin.token, slug).catch(() => undefined)
 				});
 			}
-			const hint =
-				e instanceof GitHubError && (e.status === 401 || e.status === 403)
-					? ' Probá salir y volver a entrar.'
-					: '';
 			const copy = saveCopy(await panelSavesToDb(platform, 'calendario').catch(() => false));
-			return fail(502, { error: copy.saveFailed + describeError(e) + hint });
+			return fail(502, { error: copy.saveFailed + describeError(e) });
 		}
 	}
 };

@@ -40,7 +40,7 @@ vi.mock('$lib/server/eventos', async (importOriginal) => {
 			return { sha: 'c1', url: 'https://example.com/commit/c1' };
 		}
 	};
-	return { ...real, getRepoClient: async () => client, usesLocalRepo: () => true };
+	return { ...real, getRepoClient: async () => client };
 });
 
 const borrar = await import('./[kind]/[slug]/+page.server.js');

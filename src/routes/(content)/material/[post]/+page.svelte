@@ -139,23 +139,19 @@
 		</Note>
 	{/if}
 	<div class="content" use:addMentionPronouns={(name) => data.pronouns[name]}>
-		{#if data.html !== undefined}
-			<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML libre
-			     de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
-			<div class="kv-texto-libre">
+		<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML libre
+		     de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
+		<div class="kv-texto-libre">
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+			{@html ownStyle}
+			{#if data.parts}
+				<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
+				<ContentParts parts={data.parts} />
+			{:else}
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				{@html ownStyle}
-				{#if data.parts}
-					<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
-					<ContentParts parts={data.parts} />
-				{:else}
-					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-					{@html data.html}
-				{/if}
-			</div>
-		{:else}
-			<svelte:component this={data.content} />
-		{/if}
+				{@html data.html}
+			{/if}
+		</div>
 	</div>
 	{#if isKinkyVibePost(data.meta)}
 		<TipBlock category="material" slug={$page.params.post ?? ''} />

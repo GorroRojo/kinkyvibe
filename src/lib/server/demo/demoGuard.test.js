@@ -9,8 +9,7 @@
  * - scripts/demo/guard.js (lo corre CI) detecta eventos de prueba en los posts y el seed en el
  *   bundle de producción.
  */
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { PREVIEW_BUILD, PRODUCTION_BRANCH, isPreviewDeploy } from '../deploy.js';
@@ -26,11 +25,7 @@ import {
 	eventMarkdown,
 	seedSql
 } from './seed.js';
-import {
-	SEED_BUNDLE_MARKERS,
-	findDemoPosts,
-	seedMarkersIn
-} from '../../../../scripts/demo/guard.js';
+import { SEED_BUNDLE_MARKERS, seedMarkersIn } from '../../../../scripts/demo/guard.js';
 
 const ROOT = path.resolve(import.meta.dirname, '../../../..');
 const read = (/** @type {string} */ rel) => readFileSync(path.join(ROOT, rel), 'utf8');
@@ -215,20 +210,6 @@ describe('demo guard: wrangler.toml', () => {
 });
 
 describe('demo guard: scripts/demo/guard.js (run by CI)', () => {
-	it('finds demo events among posts', () => {
-		const dir = mkdtempSync(path.join(tmpdir(), 'kv-demo-guard-'));
-		try {
-			mkdirSync(path.join(dir, 'calendario'));
-			writeFileSync(path.join(dir, 'calendario', 'evento-real.md'), '---\ntitle: Real\n---\n');
-			expect(findDemoPosts(dir)).toEqual([]);
-			const { data } = fullSeed('2026-10-04');
-			writeFileSync(path.join(dir, 'calendario', 'x.md'), eventMarkdown(data.events[0]));
-			expect(findDemoPosts(dir)).toEqual([path.join('calendario', 'x.md')]);
-		} finally {
-			rmSync(dir, { recursive: true, force: true });
-		}
-	});
-
 	it('its bundle markers really come from the seed and the reload button', () => {
 		const sources = [
 			read('src/lib/server/demo/seed.js'),

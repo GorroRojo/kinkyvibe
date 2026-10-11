@@ -26,7 +26,7 @@ vi.mock('$lib/server/eventos', async (importOriginal) => {
 			throw new Error('no debería commitear');
 		}
 	};
-	return { ...real, getRepoClient: async () => client, usesLocalRepo: () => true };
+	return { ...real, getRepoClient: async () => client };
 });
 
 const one = await import('../../../../imagenes/[id]/+server.js');

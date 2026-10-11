@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import realSource from './hardcodedTags.js?raw';
+import seedTagList from '../server/semilla/etiquetas.json';
 import {
 	addTagToPost,
 	analyzeTags,
@@ -52,24 +52,6 @@ const entry = (out, id) =>
 	parseTagSource(out).items.find((i) => i.value.id === id && !i.value.aliasOf)?.value;
 
 describe('parseTagSource / emitTagSource', () => {
-	it('reads the real file and writes it back byte for byte', () => {
-		const parsed = parseTagSource(realSource);
-		expect(parsed.items.length).toBeGreaterThan(100);
-		expect(parsed.items.find((i) => i.value.id === 'BDSM')?.value.related).toContain('top');
-		expect(
-			emitTagSource(
-				parsed,
-				parsed.items.map((it) => ({ value: it.value, orig: it }))
-			)
-		).toBe(realSource);
-	});
-	it('prints almost every entry of the real file exactly as prettier left it', () => {
-		const items = parseTagSource(realSource).items;
-		const same = items.filter(
-			(it) => printEntry(it.value, { multiline: it.multiline }) === it.text
-		);
-		expect(same.length / items.length).toBeGreaterThan(0.95);
-	});
 	it('reports where the file is broken', () => {
 		expect(() => parseTagSource('export const hardcodedTags = [\n\t{ id: "x" \n];')).toThrow(
 			/línea/
@@ -346,10 +328,7 @@ describe('analyzeTags', () => {
 		expect(a.broken).toEqual([{ from: 'top', to: 'fantasma', kind: 'related' }]);
 	});
 	it('inherits colors from ancestors', () => {
-		const b = analyzeTags(
-			parseTagSource(realSource).items.map((i) => i.value),
-			{}
-		);
+		const b = analyzeTags(structuredClone(seedTagList), {});
 		expect(b.nodes.find((x) => x.id === 'cabaret')?.color).toBe('var(--3-dark)');
 	});
 });

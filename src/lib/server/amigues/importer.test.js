@@ -5,6 +5,7 @@
  * idempotencia, que no pisa ni revive lo que se tocó en el panel, y las direcciones viejas.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { seedMetasByPath } from '$lib/server/semilla/testing.js';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import {
 	importAmigues,
@@ -21,10 +22,8 @@ import { saveObject } from '../objects/save.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
-/** Lo que compila mdsvex de cada ficha (la página de hoy muestra esto). */
-const mdsvexMeta = /** @type {Record<string, Record<string, any>>} */ (
-	import.meta.glob('/src/lib/posts/amigues/*.md', { import: 'metadata', eager: true })
-);
+/** Lo que compilaba mdsvex de cada ficha (lo que mostraba la página; guardado en la semilla). */
+const mdsvexMeta = /** @type {Record<string, Record<string, any>>} */ (seedMetasByPath('amigues'));
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -63,11 +62,10 @@ async function objectRow(id) {
 	return t.db.prepare('SELECT * FROM objects WHERE id = ?1').bind(id).first();
 }
 
-describe('las fichas del repo', () => {
-	it('son 31 (más la plantilla, que no se importa)', () => {
-		expect(files.length).toBe(32);
+describe('las fichas (de la semilla: los .md ya no están en el repo)', () => {
+	it('son 31; la plantilla (`_…`) no se importaría', () => {
+		expect(files.length).toBe(31);
 		expect(real().length).toBe(31);
-		expect(files.some((f) => f.legacySlug === '_profile_template')).toBe(true);
 		expect(isImportable('_profile_template')).toBe(false);
 	});
 });
