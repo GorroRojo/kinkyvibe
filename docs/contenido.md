@@ -135,10 +135,14 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   cómo se muestra (`data.body_html`):
   - libre (lo que vino de los `.md` y lo que guarda une superadmin): `freeHtml.js` lo arma con el
     mismo camino que usaba mdsvex (rehype-slug, rehype-toc, `customRehype`, comillas tipográficas,
-    menciones y wiki; `render.test.js` lo compara con lo que daba mdsvex). Hasta la decisión 0032,
-    un texto sin cambios respecto de su `.md` se dibujaba con el componente que mdsvex compilaba de
-    ese `.md`; unos pocos textos viejos se ven un poco distinto (cursivas con `*` pegado, listas
-    «sueltas», comillas): se arreglan desde el editor;
+    menciones y wiki). Lee el markdown como el parser de mdsvex donde CommonMark lo lee distinto
+    (énfasis con `*` pegado o con espacios, una etiqueta HTML que corta el párrafo, listas) y no
+    toca el HTML escrito a mano (como mdsvex: sin comillas tipográficas, menciones ni anclas
+    adentro). Hasta la decisión 0032, un texto sin cambios respecto de su `.md` se dibujaba con el
+    componente que mdsvex compilaba de ese `.md`; comparados uno por uno, los 571 eventos y
+    materiales y las 12 páginas de la wiki dan el mismo HTML, salvo el embed de Instagram de
+    `carrera-de-reyes-2025-04`, que ya no carga el script de Instagram (queda la tarjeta con el
+    link). `freeHtml.test.js` tiene un caso inventado por cada diferencia que hubo;
   - lista corta: `amigues/sanitize.js`, como los perfiles.
 - **Imágenes y archivos que un texto importa** (`import foto from './media/<carpeta>/1.webp'`):
   las imágenes, su copia en la biblioteca (`legacyMedia.js`); los PDF, el video y el documento, el

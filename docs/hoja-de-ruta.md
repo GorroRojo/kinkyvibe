@@ -148,9 +148,6 @@ La cola de las noches, en este orden:
 - Arreglos de datos en textos viejos (etiquetas HTML sin cerrar, `&nbsp;`, negritas rotas). S.
   Bloqueo: son cambios en producción, desde el panel o con OK de gorrite.
 - Eventos sin imagen y campos vacíos del CMS. Bloqueo: gorrite elige en el panel.
-- Textos viejos que se ven un poco distinto sin mdsvex (cursivas o negritas pegadas, listas
-  «sueltas», un embed de Instagram): la lista está en el PR de 0032. S. Bloqueo: se arreglan
-  desde el editor (producción).
 - Guardados con colecciones y notas, amigues guardades, «No mostrar que voy» (fase 4). L.
 - Vista de grafo de los objetos, estilo Obsidian. L.
 - Campos de perfil: afiliación, formación, experiencia, habilidades (TODO en `types.d.js`). S.
