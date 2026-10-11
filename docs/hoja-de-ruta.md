@@ -22,8 +22,9 @@ PRs abiertos:
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
 - #274: «X min de lectura» en material y Kinkipedia, con reloj, la explicación del cálculo y la
   velocidad de cada persona (navegador y cuenta) (idea de JorgeT10, #46).
-- #290: seguir desde el bot prende los avisos por Telegram
-  ([0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)).
+- Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
+  tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
+  directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
 
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
 BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
@@ -179,8 +180,6 @@ de amigues y lanzamientos grandes.
 - Invitar a cada amigue a editar su perfil: desde el panel, mandarle un link por mail para que lo
   gestione desde Mi rincón (con cuenta), sin pasar por les admins para cada cambio (gorrite,
   11/10). M. Revisar cómo se asigna hoy quién gestiona un perfil (docs/amigues.md).
-- Prueba E2E: objetos privados de cada tipo que nunca aparecen en listas, búsqueda, sitemap, RSS,
-  imágenes para compartir ni JSON. M.
 - Borrar objetos para siempre; campos propios y tipos simples desde el panel. L. Bloqueo: diseño.
 - Pestañas arriba en cada sección (como Ajustes) y un menú más simple. M. Bloqueo: proponer la
   estructura antes.
@@ -198,6 +197,10 @@ de amigues y lanzamientos grandes.
 
 ### Telegram
 
+- Puerta por Telegram, después de #273: prenderla en un preview y probarla con celulares reales
+  (vincular, abrir con el botón del bot, escanear); después en producción. S. Bloqueo: gorrite.
+- Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir su
+  dirección, y un comando o botón para abrirla sin volver a vincular (0037). S.
 - Guardar si alguien apagó a propósito los avisos por Telegram de algo, para que volver a seguirlo
   desde el bot no los prenda de nuevo (hoy la base no lo distingue, 0036). S. Bloqueo: que haga
   falta (necesita migración).

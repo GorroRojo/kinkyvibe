@@ -325,6 +325,63 @@ Propuestas por Claude; **confirmado por gorrite (5/10)**: todo tal como está es
   (desconectado no mandan nada; al reconectar vuelven).
 - `/start <código>` también vincula (para el link `t.me/<bot>?start=<código>`).
 
+## La puerta por Telegram (0037)
+
+Les admins marcan ingresos desde Telegram, con el escáner de QR del celular. Es la segunda acción
+del bot que escribe (decisión [0037](decisiones/0037-puerta-por-telegram.md)) y sale detrás del
+interruptor **Puerta por Telegram** (`telegram_puerta`, `TELEGRAM_PUERTA_ENABLED`), apagado
+(0001). Pide además el bot prendido (`telegram_bot`). Con cualquiera de los dos apagado:
+`/telegram/puerta` y su API dan 404, el panel no deja vincular y `/start adm_<código>` contesta
+que ahora no se puede.
+
+- `/telegram/puerta` (opcional `?evento=<dirección>`): abre adentro de Telegram, se escribe la
+  dirección del evento, escanea con el escáner nativo (`showScanQrPopup`) y manda cada código a
+  `/telegram/puerta/api`. Fuera de Telegram no hace nada.
+- **Cómo se abre**: con el botón «🚪 Abrir la puerta» que manda el bot cuando confirma el vínculo
+  (un botón `web_app`, solo en chat privado). Si se pierde ese mensaje, vincular de nuevo desde el
+  panel lo vuelve a mandar.
+- En **cada pedido** el servidor (`puerta.js`): valida el `initData` (`initData.js`: HMAC-SHA-256
+  con la clave `HMAC-SHA-256("WebAppData", token)`, todos los campos menos `hash` ordenados y
+  unidos con `\n`, comparación en tiempo constante, `auth_date` de menos de 1 hora y no del
+  futuro, sin claves repetidas); busca a le admin vinculade a ese usuario de Telegram
+  (`telegram_admin_links`); y exige que ese id de GitHub **siga siendo admin** (`isAdmin` de
+  `auth.js`, con `ADMINS`): sacar a alguien de la lista le corta la puerta aunque el vínculo siga
+  en la base. Si no: 403 (`not_linked` / `not_admin`).
+- **Vincular** (les admins entran con GitHub y no tienen cuenta pública, así que no usa
+  `telegram_chats` ni Mi rincón; `adminLink.js`, migración `0050`):
+  1. En el panel, Ajustes → Admins → «Tu Telegram para la puerta» → **Vincular Telegram**: crea un
+     código al azar (8 caracteres, 40 bits), de un solo uso, que vence en 15 minutos; se guarda
+     solo su SHA-256 (`telegram_admin_link_codes`). Hay uno solo vivo por admin y un tope de 10
+     por hora. Muestra el link `t.me/<bot>?start=adm_<código>` y su QR (necesita los
+     interruptores `telegram_bot` y `telegram_puerta` y `TELEGRAM_BOT_USERNAME`).
+  2. El bot recibe `/start adm_<código>` **solo por chat privado** (en un grupo contesta que se
+     hace por privado). Marca el código usado en la misma sentencia que lo lee, vuelve a chequear
+     `isAdmin` y guarda `id de GitHub ↔ id del usuario de Telegram` (una cuenta de Telegram por
+     admin y viceversa: vincular de nuevo reemplaza). Confirma en el chat. Código inválido,
+     vencido o ya usado: «Ese link no sirve…». Tope de 10 intentos por hora por usuario de
+     Telegram. No depende de «Lo que sigo».
+  3. **Desvincular** en el mismo lugar borra el vínculo y los códigos.
+  4. Vincular y desvincular quedan en Actividad (`telegram.admin_link`, `telegram.admin_unlink`).
+     «Seguir» desde el bot sigue sin registro.
+- De Telegram solo se guarda el id del usuario (ni nombre ni usuario). La lista muestra quién
+  tiene Telegram vinculado.
+- Marca con lo mismo que el modo puerta del panel (`extractToken` + `checkIn`), con el login de le
+  admin; contesta solo el resultado y el nombre de la entrada. Tope de 600 escaneos por hora.
+- Solo Telegram Web puede embeberla (`frame-ancestors https://web.telegram.org`).
+
+### Puesta en marcha de la puerta (la hace gorrite)
+
+1. **Aplicar la migración `0050_telegram_admins_puerta.sql` en producción y en preview antes de
+   mergear** (0028): `npx wrangler d1 migrations apply <base> --remote` (el nombre de la base, de
+   `npx wrangler d1 list`). Solo crea dos tablas y un índice: anda con el código de `main`.
+2. Tienen que estar el secret `TELEGRAM_BOT_TOKEN` (valida el `initData`) y la variable
+   `TELEGRAM_BOT_USERNAME` (el link de «Vincular Telegram»), los mismos de la fase 2.
+3. Prender **Puerta por Telegram** primero en un preview, con el bot prendido, y probar: vincular
+   desde Ajustes → Admins, abrir la puerta con el botón del bot y escanear una entrada de prueba.
+4. Después, en producción. Cada admin vincula su Telegram una vez.
+5. Para cortarla de golpe: `TELEGRAM_PUERTA_ENABLED=0` en Cloudflare o apagar el interruptor.
+   Sacar a alguien de `ADMINS` le corta la puerta aunque siga vinculade.
+
 ## Qué sigue
 
 - ~~Cambiar `events.js` a `sitePosts` cuando `contenido_db` esté en `main`.~~ Hecho: el bot lee
@@ -333,6 +390,8 @@ Propuestas por Claude; **confirmado por gorrite (5/10)**: todo tal como está es
 - ~~Fase 2: vincular un chat con una cuenta y sumar Telegram a "Lo que sigo" (0025).~~ Hecha
   (arriba), con la migración 0033.
 - ~~Navegación por pantallas, efímeros, Seguir, Mini App del calendario.~~ Hecho (0034).
-- Prototipo aparte, sin mergear: la puerta con el escáner de QR de Telegram (rama
-  `claude/telegram-puerta-miniapp`).
+- ~~La puerta con el escáner de QR de Telegram.~~ Hecha (0037, arriba), detrás de
+  `telegram_puerta`.
+- Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir la
+  dirección, y un comando o botón para abrirla sin volver a vincular.
 - Fase 3: avisos y estado para organizadores (0029).
