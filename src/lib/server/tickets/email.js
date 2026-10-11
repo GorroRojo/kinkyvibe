@@ -344,7 +344,7 @@ export function buildTicketEmail({
 
 	const intro = online
 		? event.streamLink
-			? 'Este es el link para entrar a la transmisión.'
+			? '' // el recuadro «Link de la transmisión» y el botón ya lo dicen
 			: 'Es un evento online: <strong>te mandamos el link de la transmisión por mail antes del evento</strong>. También va a aparecer en la página de cada entrada.'
 		: 'Mostrá el QR de cada entrada en la puerta (desde el celu o impreso). Si el QR no se puede escanear, dictá el código que está junto al QR. Cada entrada sirve para una sola persona y una sola vez: no la compartas en redes.';
 
@@ -694,7 +694,7 @@ export function buildTransferEmail({
 			: null;
 	const intro =
 		custom.bodyHtml ??
-		`<p>Hola ${escapeHtml(order.buyer_name)}, para confirmarlas transferí <strong>${formatARS(order.total)}</strong>. Te reservamos el lugar ${hours} horas (hasta el <strong>${escapeHtml(deadline)}</strong>) mientras mandás el comprobante por mail.</p>`;
+		`<p>Hola ${escapeHtml(order.buyer_name)}, para confirmarlas transferí <strong>${formatARS(order.total)}</strong>. Te reservamos el lugar ${hours} ${hours === 1 ? 'hora' : 'horas'} (hasta el <strong>${escapeHtml(deadline)}</strong>) mientras mandás el comprobante por mail.</p>`;
 	const details = `<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventDate(event.start))}</p>${parts.html}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		<div style="${MAIL_STYLES.box};white-space:pre-line">${escapeHtml(transferInfo)}</div>
@@ -736,7 +736,7 @@ export function buildTransferEmail({
 		custom.headingText ?? 'Reservamos tus entradas',
 		'',
 		custom.bodyText ??
-			`Para confirmarlas transferí ${formatARS(order.total)}. Te reservamos el lugar ${hours} horas (hasta el ${deadline}) mientras mandás el comprobante por mail.`,
+			`Para confirmarlas transferí ${formatARS(order.total)}. Te reservamos el lugar ${hours} ${hours === 1 ? 'hora' : 'horas'} (hasta el ${deadline}) mientras mandás el comprobante por mail.`,
 		...(confirm ? ['', confirm.text] : []),
 		...(custom.helpText !== null ? ['', custom.helpText] : []),
 		'',
