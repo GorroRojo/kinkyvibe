@@ -137,7 +137,7 @@
 	$: shownPosts = allowed
 		? cappedPosts.filter((p) => /**@type {Set<string>}*/ (allowed).has(p.path))
 		: cappedPosts;
-	$: (prevShown = shownPosts), (prevDisplay = $userConfig.display_type);
+	$: ((prevShown = shownPosts), (prevDisplay = $userConfig.display_type));
 	onMount(() => {
 		mounted = true;
 		return () => clearTimeout(releaseTimer);
@@ -222,8 +222,8 @@
 			touched && performance.now() - touchedAt < 1000
 				? touched
 				: active && active != document.body && controls.contains(active)
-				? active
-				: null;
+					? active
+					: null;
 		// items of the list itself are what changes; don't anchor to them
 		if (!el?.isConnected || el.closest('#posts')) return;
 		anchor = el;
@@ -231,7 +231,7 @@
 	});
 	// The tag tree marks tags as checked from the URL, one navigation after the filter
 	// changed; depending on it makes that update go through the anchoring above too.
-	$: $page.url.search, void 0;
+	$: ($page.url.search, void 0);
 	afterUpdate(() => {
 		if (anchor?.isConnected) {
 			const dy = anchor.getBoundingClientRect().top - anchorTop;
@@ -312,11 +312,7 @@
 				</ul>
 				{#if hiddenCount > 0}
 					<div class="more">
-						<button
-							type="button"
-							class="pill-btn ghost"
-							on:click={() => (shownLimit += limit)}
-						>
+						<button type="button" class="pill-btn ghost" on:click={() => (shownLimit += limit)}>
 							Ver más ({hiddenCount})
 						</button>
 					</div>

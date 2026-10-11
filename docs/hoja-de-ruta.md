@@ -156,7 +156,8 @@ La cola de las noches, en este orden:
 
 ### Infraestructura
 
-- Chequeo de Prettier en la CI (`format:check` existe pero no corre). S–M.
+- Prettier en la CI: formatear y sacar de `.prettierignore` la lista temporal de archivos que
+  tocaban ramas abiertas, a medida que esas ramas entren. S.
 - Ordenar GitHub: cerrar issues ya hechos (#15, #27, #66, #67, #68, casi #69) y decidir los PRs
   viejos. S. Bloqueo: gorrite cierra.
 - Dashboard de Cloudflare: borrar el proyecto viejo de Pages y las variables `*_ENABLED` que ya

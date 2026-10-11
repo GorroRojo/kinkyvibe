@@ -28,3 +28,18 @@ yarn.lock
 
 # Informe de impacto visual (npm run ui:impacto, docs/ui-impacto.md)
 /ui-impacto
+
+# TEMPORAL: archivos sin formatear que tocan PRs o ramas abiertas (contenido/mdsvex, estándares
+# web y otros). Se dejaron afuera para no generarles conflictos; cuando esas ramas entren a main,
+# corré `npx prettier --write` sobre cada uno y sacalo de esta lista.
+/src/app.html
+/src/lib/external/github.js
+/src/lib/server/eventos/mock.js
+/src/routes/(content)/material/+page.svelte
+/src/routes/(content)/todo/+page.svelte
+/src/routes/.well-known/\[param\]/+server.js
+/src/lib/utils/customRehype.test.js
+/src/lib/utils/markdownPreview.js
+/src/lib/utils/markdownPreview.test.js
+/src/tests/content-lib.js
+/src/tests/content.test.js

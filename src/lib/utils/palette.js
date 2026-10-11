@@ -59,7 +59,8 @@ export function readableText(bg, light = LIGHT_TEXT, dark = DARK_TEXT) {
 	const c = useLight ? light : dark;
 	// en tonos medios puede quedar apenas abajo de AA: blanco o negro puros (uno de los
 	// dos siempre llega a 4.58 o más)
-	if (contrastRatio(c, bg) < 4.5) return contrastRatio('#ffffff', bg) >= contrastRatio('#000000', bg) ? '#ffffff' : '#000000';
+	if (contrastRatio(c, bg) < 4.5)
+		return contrastRatio('#ffffff', bg) >= contrastRatio('#000000', bg) ? '#ffffff' : '#000000';
 	return c;
 }
 
@@ -286,7 +287,9 @@ export function pickRoles(swatches) {
 	if (!accent) {
 		// complementario del fondo, con luminosidad opuesta
 		const [h, s] = rgbToHsl(hexToRgb(bg));
-		accent = rgbToHex(hslToRgb((h + 180) % 360, Math.max(0.6, s), luminance(bg) < 0.4 ? 0.7 : 0.35));
+		accent = rgbToHex(
+			hslToRgb((h + 180) % 360, Math.max(0.6, s), luminance(bg) < 0.4 ? 0.7 : 0.35)
+		);
 	}
 	return { bg, main, accent };
 }
