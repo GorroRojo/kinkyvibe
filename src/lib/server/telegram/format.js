@@ -200,6 +200,23 @@ export const PRIVATE_ONLY_TEXT =
 
 export const ACCOUNTS_OFF_TEXT = 'Todavía no se puede conectar una cuenta con el bot.';
 
+/**
+ * `/start adm_<código>` salió bien (la puerta por Telegram, adminLink.js).
+ *
+ * @param {string} login el de GitHub de le admin
+ */
+export function formatAdminLinked(login) {
+	return (
+		`Listo: este Telegram quedó vinculado a le admin <b>${escapeHtml(login)}</b> del panel, ` +
+		'para la puerta. Para desvincularlo: panel → Ajustes → Admins.'
+	);
+}
+
+export const ADMIN_LINK_INVALID_TEXT =
+	'Ese link no sirve: puede estar vencido (duran 15 minutos), ya usado o incompleto. Generá otro en el panel → Ajustes → Admins → «Vincular Telegram».';
+
+export const ADMIN_LINK_OFF_TEXT = 'Ahora no se puede vincular una cuenta de admin con el bot.';
+
 export const NOT_LINKED_TEXT =
 	'Este chat no está conectado a ninguna cuenta. Para conectarlo: /vincular &lt;código&gt;.';
 
@@ -230,8 +247,24 @@ export const FOLLOW_GONE_TEXT = 'Esa etiqueta ya no está para seguir.';
 export const FOLLOW_FULL_TEXT =
 	'Ya seguís el máximo de cosas: dejá de seguir alguna en Mi rincón → Lo que sigo.';
 
-/** @param {string} title */
-export const followedText = (title) => `Listo: ahora seguís ${title}.`.slice(0, 200);
+/** La línea que se suma cuando seguir desde el bot prendió los avisos por Telegram. */
+export const FOLLOW_TELEGRAM_LINE =
+	'Te aviso por acá cuando haya algo nuevo. Podés apagarlo en Mi rincón.';
+
+/**
+ * El aviso del botón al seguir algo (Telegram lo corta en 200 caracteres: se acorta el nombre, no
+ * la línea de los avisos).
+ *
+ * @param {string} title
+ * @param {{ telegram?: boolean }} [opts] `telegram`: se prendieron los avisos por Telegram
+ */
+export const followedText = (title, { telegram = false } = {}) => {
+	const line = telegram ? `\n${FOLLOW_TELEGRAM_LINE}` : '';
+	const head = `Listo: ahora seguís ${title}.`;
+	return head.length + line.length <= 200
+		? head + line
+		: `${head.slice(0, 200 - line.length - 2)}….${line}`;
+};
 
 export const FOLLOW_TOO_MANY_TEXT =
 	'Hiciste muchos cambios seguidos. Esperá un rato y probá de nuevo.';

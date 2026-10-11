@@ -49,6 +49,13 @@ import { formatARS } from '$lib/utils/money.js';
 /** La Mini App del calendario (`/telegram/app`, sin login). @param {string} origin */
 export const miniAppUrl = (origin) => `${origin}/telegram/app`;
 
+/**
+ * La Mini App de la puerta (`/telegram/puerta`, solo admins con el Telegram vinculado, 0037).
+ *
+ * @param {string} origin
+ */
+export const doorAppUrl = (origin) => `${origin}/telegram/puerta`;
+
 /** Eventos por página en las listas. */
 export const PAGE_SIZE = 5;
 

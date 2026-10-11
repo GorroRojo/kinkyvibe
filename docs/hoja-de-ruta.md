@@ -149,8 +149,8 @@ de amigues y lanzamientos grandes.
   de producción lo decide gorrite.
 - Imagen para compartir: más paletas, formatos apaisado y carrusel, estilo por serie. M.
 - Kinkipedia más rica y una lista de series mejor armada. M. Bloqueo: dirección de gorrite.
-- Ícono grande del tipo en el encabezado cuando no hay miniatura (perfiles, series, material,
-  lugares). S.
+- Ícono grande del tipo en el encabezado cuando no hay miniatura, también en las series (perfiles,
+  lugares y material ya lo tienen). S.
 - Passkeys para las cuentas del público. M–L.
 - Botón grande para comprar afuera: cuando las entradas se venden en otro sitio (link externo),
   el llamado a la acción tiene el mismo tamaño y peso que «Comprar entradas» (gorrite, 10/10). S.
@@ -162,8 +162,7 @@ de amigues y lanzamientos grandes.
 
 - Comprar con cuenta: guardar `orders.account_id` al comprar y que `requiere_cuenta` pida
   ingresar de verdad. M. Bloqueo: `requiere_cuenta` necesita decisión de gorrite.
-- Talleres en partes: vista previa de los mails de cada parte en el panel y las fechas de las
-  partes en el estado del pedido. S–M.
+- Talleres en partes: vista previa de los mails de cada parte en el panel. S.
 - Pasar a talleres en partes los talleres viejos de varios días. S. Bloqueo: datos de producción,
   los vincula gorrite (o con su OK, probando antes en el demo).
 - Mercado Pago: elegir el plazo de cobro y cargar la comisión real; probar contracargos y pagos
@@ -199,6 +198,14 @@ de amigues y lanzamientos grandes.
 - Bandeja de entrada en el panel, mails individuales y masivos (fase 5, CRM). L.
 
 ### Telegram
+
+- Puerta por Telegram, después de #273: prenderla en un preview y probarla con celulares reales
+  (vincular, abrir con el botón del bot, escanear); después en producción. S. Bloqueo: gorrite.
+- Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir su
+  dirección, y un comando o botón para abrirla sin volver a vincular (0037). S.
+- Guardar si alguien apagó a propósito los avisos por Telegram de algo, para que volver a seguirlo
+  desde el bot no los prenda de nuevo (hoy la base no lo distingue, 0036). S. Bloqueo: que haga
+  falta (necesita migración).
 
 - Fase 3: avisos y estado para organizadores, nunca datos de compradores
   ([0029](decisiones/0029-bot-de-telegram.md)). L. Bloqueo: el rol de organizadore.

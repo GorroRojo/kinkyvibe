@@ -53,6 +53,7 @@
 		restorePeople
 	} from '$lib/utils/personasPicker.js';
 	import { clearDraft, draftKey } from '$lib/admin/draft.js';
+	import { typeIcon } from '$lib/admin/typeIcons.js';
 	import { contentDraftLabels, formSections } from '$lib/admin/eventForm.js';
 	import { emptyUpload } from '$lib/admin/imageState.js';
 	import { contentAdminHref, contentAdminLabel } from '$lib/admin/nav.js';
@@ -415,6 +416,9 @@
 			? savedSummary({ savedToDb: data.savesToDb, pr: createdPr })
 			: '';
 
+	// Encabezado como la ficha de un evento: la imagen o, sin imagen, el ícono del tipo (no al crear).
+	$: headImage = isNew ? '' : (library ? pickedImage?.url : '') || currentImage || '';
+
 	$: pageTitle = isNew
 		? data.source
 			? `Duplicar «${data.source.title}»`
@@ -425,7 +429,12 @@
 </script>
 
 <div class="kv-admin content-editor">
-	<PageHeader title={pageTitle} back={{ href: listHref, label: contentAdminLabel(category) }}>
+	<PageHeader
+		title={pageTitle}
+		back={{ href: listHref, label: contentAdminLabel(category) }}
+		image={headImage}
+		icon={isNew ? null : typeIcon(category)}
+	>
 		<svelte:fragment slot="actions">
 			{#if !isNew}
 				<a class="kv-btn ghost" href="/{category}/{data.slug}" target="_blank" rel="noreferrer"
