@@ -73,7 +73,7 @@
 			on:pointerenter={place}
 		>
 			<Clock size="1em" aria-hidden="true" />
-			<span>{label}</span>
+			<span class="label">{label}</span>
 		</button>
 		<span class="hint" {id} role="note" bind:this={hint} style:--shift="{shift}px"
 			>{READING_TIME_HINT}</span
@@ -82,26 +82,51 @@
 {/if}
 
 <style>
+	/* Todo en línea, como el texto de al lado: misma letra, interlineado y línea de base (gorrite:
+	   «no está alineado con el resto del texto»). Nada de inline-block ni inline-flex, que corren
+	   la línea de base al borde de abajo del ícono. */
 	.reading-time {
 		position: relative;
-		display: inline-block;
 		white-space: nowrap;
 	}
 	.time {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.3em;
+		position: relative;
+		display: inline;
+		margin: 0;
 		padding: 0;
 		border: 0;
+		border-radius: 0;
 		background: none;
 		font: inherit;
+		line-height: inherit;
+		letter-spacing: inherit;
 		color: var(--muted);
+		vertical-align: baseline;
 		cursor: help;
+		-webkit-appearance: none;
+		appearance: none;
+	}
+	.label {
 		text-decoration: underline dotted;
 		text-underline-offset: 0.2em;
 	}
+	/* El reloj a 1em (el sitio pone todo `svg` a 24px de alto: ver (content)/+layout.svelte),
+	   centrado con el texto como un ícono dentro de la línea. */
 	.time :global(svg) {
-		flex: none;
+		display: inline;
+		width: 1em;
+		height: 1em;
+		vertical-align: -0.125em;
+		margin-inline-end: 0.3em;
+	}
+	/* Zona para tocar más grande (al menos 44px de alto), invisible y sin mover nada. */
+	.time::after {
+		content: '';
+		position: absolute;
+		inset-inline: -0.3em;
+		top: 50%;
+		height: max(44px, 100%);
+		transform: translateY(-50%);
 	}
 	.hint {
 		display: none;
