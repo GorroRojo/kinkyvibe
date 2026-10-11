@@ -84,6 +84,58 @@ comprueba que cada builder la usa y que el asunto y el texto plano siguen iguale
 transferencia y recordatorios llevan la lista «Las N partes del taller» con la fecha y el lugar de
 cada parte ([talleres-partes.md](talleres-partes.md)); los demás mails no cambian.
 
+**Calendario («Agregalo a tu calendario»):** solo los mails que salen con el pago ya acreditado
+llevan el calendario: «Tus entradas», los **recordatorios** y «Link de la transmisión» («Enviar el
+link a todes», con el `.ics` actualizado: el link como lugar). Abajo de la fecha y el lugar (o del
+link), una línea que dice que va adjunto `<slug>.ics` (un solo evento; en un recordatorio de una
+parte de un taller, el de esa parte) y el link «Agregar a Google Calendar». «Tus entradas» lleva
+además, en el `<head>`, el marcado schema.org `EventReservation` (JSON-LD) para Gmail. El de los
+datos para transferir (la compra todavía no está pagada) no lleva nada de esto ni el link de la
+transmisión. «Mail a compradores» tampoco, por ahora. Todo sale de
+`src/lib/server/tickets/calendarFile.js` (`calendarEvent`: las mismas horas, el mismo lugar y la
+misma descripción) y de `calendarExtras` en `email.js`:
+
+- **El .ics** (`ticketCalendarFile`, con `buildEventIcs` de `src/lib/utils/icsFeed.js`): título,
+  inicio y fin en UTC (la hora argentina bien pasada), el link a la página del evento, el estado y
+  el mismo UID que los calendarios del sitio (`eventUid`), así no se duplica si la persona además
+  está suscripta. `METHOD:PUBLISH` y sin `ATTENDEE`: es un evento para agregar, no una invitación
+  (con `REQUEST` los clientes muestran botones de «Asistiré / No asistiré»). Va a Resend en
+  `attachments` (base64) con `content_type: text/calendar; method=PUBLISH; charset=UTF-8`
+  explícito. Pesa ~1 KB.
+- **Versión (`SEQUENCE` y `DTSTAMP`):** un archivo con el mismo UID y un `SEQUENCE` más alto
+  reemplaza al anterior en el calendario en lugar de duplicarlo. Sin columnas nuevas: el
+  `SEQUENCE` son los minutos desde 1970 de la versión (`calendarSequence` en `icsFeed.js`), y la
+  versión (`calendarStamp`) es la más nueva entre la compra y el último cambio del link de la
+  transmisión. Tiene que ser la misma en cada reintento de un envío: Resend rechaza (409) una clave
+  de idempotencia reusada con otro contenido, así que no puede ser «la hora del envío». Un link
+  nuevo da un `SEQUENCE` más alto; dos mails que dicen lo mismo, el mismo. «Reenviar» desde el
+  panel (sin clave) usa la hora del envío. «Enviar el link a todes» sigue sin repetirle el mail a
+  nadie (`stream_link_sends`, igual que antes).
+- **Lugar:** presencial, el lugar como lo dice el mail (quien compró recibe la dirección completa).
+  Online con el link de la transmisión ya cargado al mandar el mail: ese link como lugar y en la
+  descripción, con «Si el link cambia, te llega por mail.» (el link es el mismo para todes les que
+  compraron). Online sin link todavía: «Online» y que el link llega por mail. El link de la
+  transmisión va **solo** en el mail de quien compró: nunca en un calendario público ni en una
+  página.
+- **Google Calendar** (`googleCalendarUrl`): `calendar.google.com/calendar/render?action=TEMPLATE`
+  con título, las mismas horas UTC, la página del evento (y la nota de online) y el mismo lugar.
+- **Marcado para Gmail** (`eventReservationScript`): número de orden, estado confirmado, solo el
+  nombre de quien compró (nunca mail ni DNI) y el evento con fechas `-03:00`, la página y el lugar
+  (`Place`, o `VirtualLocation` con el link de la transmisión si ya está o la página si no). El
+  JSON va con `<` escapado (`\u003c`) para que nada cierre el `<script>`. **Gmail solo lo muestra a
+  remitentes registrados con Google**
+  ([requisitos](https://developers.google.com/workspace/gmail/markup/registering-with-google): DKIM
+  o SPF alineados con el dominio del remitente, remitente fijo, cientos de mails por día a Gmail y
+  pocas quejas; se pide mandando un mail con el marcado a `schema.whitelisting+sample@gmail.com` y
+  completando el formulario). Hasta entonces Gmail lo ignora, salvo en un mail que una cuenta se
+  manda a sí misma (así se prueba). El .ics no necesita registro.
+- Un evento cancelado no lleva nada de esto, y las vistas previas y `email.golden.json` tampoco
+  (sin `event.slug` el mail sale como siempre).
+
+**El link de la transmisión es el mismo para todes** les que compraron: los mails (entradas,
+«Link de la transmisión», recordatorios) y la página de la entrada lo muestran como «Link de la
+transmisión: …», sin «personal, no lo compartas».
+
 **Recordatorios:** el cron del propio Worker (`src/lib/server/scheduled.js`) le pasa cada 15
 minutos `POST /api/cron/recordatorios`, con el header `x-cron-secret`, al sitio. El sitio decide qué mandar. Por
 defecto: 2 días antes y el mismo día a las 9:00; un evento los apaga con `recordatorios: false`.
