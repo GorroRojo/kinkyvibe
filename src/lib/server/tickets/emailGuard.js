@@ -19,6 +19,17 @@ export function parseAllowlist(raw) {
 }
 
 /**
+ * El asunto para un log que puede quedar en producción o en un preview: tapa los números de 6
+ * cifras o más (los mails de código llevan el código al principio del asunto, y un código nunca se
+ * loguea en producción).
+ *
+ * @param {string} subject
+ */
+export function subjectForLog(subject) {
+	return subject.replace(/\d{6,}/g, (d) => '•'.repeat(d.length));
+}
+
+/**
  * Destinatario y asunto finales, o `null` si el mail no se tiene que mandar.
  *
  * @param {{ to: string, subject: string, preview: boolean, allowlist: string[] }} input
