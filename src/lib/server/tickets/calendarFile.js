@@ -44,9 +44,29 @@ export const ICS_CONTENT_TYPE = 'text/calendar; method=PUBLISH; charset=UTF-8';
  *   streamLink?: string | null,
  *   location?: string,
  *   location_name?: string,
- *   origin: string
+ *   origin: string,
+ *   stamp?: number
  * }} MailEvent
+ *
+ * `stamp` (ms): la versión del .ics (DTSTAMP y SEQUENCE, ver {@link calendarStamp}).
  */
+
+/**
+ * La versión del .ics de un mail, en ms. Tiene que ser la MISMA en cada reintento de un envío
+ * (Resend rechaza con 409 una clave de idempotencia reusada con otro contenido) y crecer cuando
+ * cambia lo que dice el archivo:
+ *
+ * - con clave de idempotencia (entradas, recordatorios, «Enviar el link a todes»): la más nueva
+ *   entre la compra y el último cambio del link de la transmisión. Un link nuevo da un SEQUENCE
+ *   más alto; dos mails con lo mismo dan el mismo (misma versión del evento).
+ * - sin clave («Reenviar» desde el panel): ahora.
+ *
+ * @param {{ orderCreatedAt: number, linkUpdatedAt?: number | null, now?: number | null }} input
+ */
+export function calendarStamp({ orderCreatedAt, linkUpdatedAt, now }) {
+	if (now !== undefined && now !== null) return now;
+	return Math.max(orderCreatedAt || 0, linkUpdatedAt || 0);
+}
 
 /**
  * Los datos comunes del .ics, el link de Google Calendar y el marcado de Gmail, o `null` si el
@@ -96,7 +116,8 @@ export function ticketCalendarFile(event) {
 		status: event.status,
 		origin: event.origin,
 		location: cal.location,
-		description: cal.note
+		description: cal.note,
+		stamp: event.stamp
 	});
 	if (!content) return null;
 	return {

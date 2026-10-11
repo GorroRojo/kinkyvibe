@@ -23,6 +23,55 @@ import {
 /** Texto del link a Google Calendar del mail con las entradas. */
 const GOOGLE_LABEL = 'Agregar a Google Calendar';
 
+/**
+ * «Agregalo a tu calendario» para los mails que salen con el pago ya acreditado (entradas y
+ * recordatorios): el `.ics` adjunto, la línea con el link a Google Calendar y, si se pide, el
+ * marcado `EventReservation` para Gmail (calendarFile.js). Sin `event.slug` (vistas previas,
+ * golden) o con el evento cancelado, nada: el mail sale como siempre.
+ *
+ * @param {{
+ *   order: import('./orders.js').Order,
+ *   event: { title: string, start?: string, end?: string | null, status?: string,
+ *     slug?: string, location?: string, location_name?: string, streamLink?: string | null,
+ *     stamp?: number },
+ *   online: boolean,
+ *   origin: string,
+ *   markup?: boolean
+ * }} input
+ */
+function calendarExtras({ order, event, online, origin, markup = false }) {
+	const calEvent =
+		event.slug && event.status !== 'cancelado'
+			? { ...event, slug: event.slug, online, origin }
+			: null;
+	const calendar = calEvent ? ticketCalendarFile(calEvent) : null;
+	if (!calendar || !calEvent) {
+		return {
+			html: '',
+			text: /** @type {string[]} */ ([]),
+			/** @param {{ subject: string, html: string, text: string }} m */
+			finish: (m) => m
+		};
+	}
+	const googleUrl = googleCalendarUrl(calEvent);
+	const reservation = markup
+		? eventReservationScript({ orderId: order.id, buyerName: order.buyer_name, event: calEvent })
+		: null;
+	const line = `Agregalo a tu calendario: abrí el archivo ${calendar.filename} que va adjunto.`;
+	return {
+		html: `
+		<p style="${SMALL};margin-top:0" data-kv-mail="calendario">${escapeHtml(line)}${googleUrl ? `<br><a href="${escapeHtml(googleUrl)}" style="${MAIL_STYLES.link}">${GOOGLE_LABEL}</a>` : ''}</p>`,
+		text: ['', line, ...(googleUrl ? [`${GOOGLE_LABEL}: ${googleUrl}`] : [])],
+		/** @param {{ subject: string, html: string, text: string }} m */
+		finish: (m) => ({
+			...m,
+			// El marcado para Gmail va en el <head> (función: un `$` del JSON no es un patrón).
+			html: reservation ? m.html.replace('</head>', () => `${reservation}</head>`) : m.html,
+			attachments: [resendAttachment(calendar)]
+		})
+	};
+}
+
 /** Línea chica del final de la tarjeta (número de orden, ayuda). */
 const SMALL = `margin:16px 0 0;font-size:13px;line-height:1.5;color:${MAIL_COLORS.muted}`;
 
@@ -195,7 +244,6 @@ function streamLinkBlock(link) {
 	return `<div style="${MAIL_STYLES.box};text-align:center">
 		<p style="margin:0 0 8px;font-weight:bold">Link de la transmisión</p>
 		<p style="margin:0;font-size:18px;word-break:break-all"><a href="${escapeHtml(link)}" style="${MAIL_STYLES.link}">${escapeHtml(link)}</a></p>
-		<p style="margin:8px 0 0;font-size:13px;color:${MAIL_COLORS.muted}">Es personal: no lo compartas.</p>
 	</div>`;
 }
 
@@ -226,7 +274,7 @@ function partsBlocks(parts) {
  *   tickets: import('./orders.js').Ticket[],
  *   event: { title: string, start?: string, location?: string, location_name?: string,
  *     online?: boolean, streamLink?: string | null, parts?: PartsList | null,
- *     slug?: string, end?: string | null, status?: string },
+ *     slug?: string, end?: string | null, status?: string, stamp?: number },
  *   typeName: string,
  *   origin: string,
  *   contactEmail: string,
@@ -237,7 +285,7 @@ function partsBlocks(parts) {
  * «Agregalo a tu calendario» con el link a Google Calendar y el marcado `EventReservation` para
  * Gmail; sin él (vistas previas, golden), sale como siempre. Un evento
  * cancelado no lleva el adjunto.
- * @returns {{ subject: string, html: string, text: string, attachments?: ReturnType<typeof resendAttachment>[] }}
+ * @returns {{ subject: string, html: string, text: string, attachments?: MailAttachment[] }}
  */
 export function buildTicketEmail({
 	order,
@@ -263,19 +311,7 @@ export function buildTicketEmail({
 	const prices = priceLines(order, typeName);
 	const policy = policyBlocks(contactEmail);
 	const parts = partsBlocks(event.parts);
-	const calEvent =
-		event.slug && event.status !== 'cancelado'
-			? { ...event, slug: event.slug, online, origin }
-			: null;
-	const calendar = calEvent ? ticketCalendarFile(calEvent) : null;
-	const googleUrl = calendar && calEvent ? googleCalendarUrl(calEvent) : null;
-	const reservation =
-		calendar && calEvent
-			? eventReservationScript({ orderId: order.id, buyerName: order.buyer_name, event: calEvent })
-			: null;
-	const calendarLine = calendar
-		? `Agregalo a tu calendario: abrí el archivo ${calendar.filename} que va adjunto.`
-		: '';
+	const cal = calendarExtras({ order, event, online, origin, markup: true });
 
 	const ticketBlocks = tickets
 		.map((t, i) => {
@@ -308,7 +344,7 @@ export function buildTicketEmail({
 
 	const intro = online
 		? event.streamLink
-			? 'Este es el link para entrar a la transmisión. Es personal: no lo compartas en redes.'
+			? 'Este es el link para entrar a la transmisión.'
 			: 'Es un evento online: <strong>te mandamos el link de la transmisión por mail antes del evento</strong>. También va a aparecer en la página de cada entrada.'
 		: 'Mostrá el QR de cada entrada en la puerta (desde el celu o impreso). Si el QR no se puede escanear, dictá el código que está junto al QR. Cada entrada sirve para una sola persona y una sola vez: no la compartas en redes.';
 
@@ -317,12 +353,7 @@ export function buildTicketEmail({
 		label: custom.label ?? 'Tus entradas',
 		titleHtml: custom.headingHtml ?? '¡Ya tenés tus entradas!',
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por tu compra.</p>`}
-		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}${
-			calendar
-				? `
-		<p style="${SMALL};margin-top:0" data-kv-mail="calendario">${escapeHtml(calendarLine)}${googleUrl ? `<br><a href="${escapeHtml(googleUrl)}" style="${MAIL_STYLES.link}">${GOOGLE_LABEL}</a>` : ''}</p>`
-				: ''
-		}
+		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}${cal.html}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		${online && event.streamLink ? streamLinkBlock(event.streamLink) : ''}`,
 		button: withLabel(
@@ -347,13 +378,12 @@ export function buildTicketEmail({
 		when,
 		where,
 		...parts.text,
-		...(calendar ? ['', calendarLine] : []),
-		...(googleUrl ? [`${GOOGLE_LABEL}: ${googleUrl}`] : []),
+		...cal.text,
 		'',
 		...prices,
 		'',
 		online && event.streamLink
-			? `Link de la transmisión (personal, no lo compartas): ${event.streamLink}`
+			? `Link de la transmisión: ${event.streamLink}`
 			: (custom.helpText ??
 				(online
 					? 'Es un evento online: te mandamos el link de la transmisión por mail antes del evento.'
@@ -370,14 +400,7 @@ export function buildTicketEmail({
 		.filter((l) => l !== undefined)
 		.join('\n');
 
-	if (!calendar) return { subject, html, text };
-	return {
-		subject,
-		// El marcado para Gmail va en el <head> (función: un `$` del JSON no es un patrón).
-		html: reservation ? html.replace('</head>', () => `${reservation}</head>`) : html,
-		text,
-		attachments: [resendAttachment(calendar)]
-	};
+	return cal.finish({ subject, html, text });
 }
 
 /**
@@ -386,12 +409,16 @@ export function buildTicketEmail({
  * @param {{
  *   order: import('./orders.js').Order,
  *   tickets: import('./orders.js').Ticket[],
- *   event: { title: string, start?: string },
+ *   event: { title: string, start?: string, slug?: string, end?: string | null,
+ *     status?: string, stamp?: number },
  *   link: string,
  *   origin: string,
  *   contactEmail: string,
  *   template?: Template
  * }} input
+ * `event.slug`: con él, el mail lleva el `.ics` actualizado (con el link como lugar) y el link a
+ * Google Calendar, como el de las entradas.
+ * @returns {{ subject: string, html: string, text: string, attachments?: MailAttachment[] }}
  */
 export function buildStreamLinkEmail({
 	order,
@@ -410,6 +437,12 @@ export function buildStreamLinkEmail({
 	});
 	const subject = custom.subject ?? `Link de la transmisión: ${event.title}`;
 	const policy = policyBlocks(contactEmail);
+	const cal = calendarExtras({
+		order,
+		event: { ...event, streamLink: link },
+		online: true,
+		origin
+	});
 	const ticketLinks = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
 	const ticketLinksHtml = ticketLinks.length
 		? `También está en la página de ${ticketLinks.length === 1 ? 'tu entrada' : 'cada entrada'}: ${ticketLinks.map((l, i) => `<a href="${l}" style="${MAIL_STYLES.link}">entrada ${i + 1}</a>`).join(', ')}.`
@@ -419,7 +452,7 @@ export function buildStreamLinkEmail({
 		label: custom.label ?? 'Transmisión',
 		titleHtml: custom.headingHtml ?? 'Ya está el link de la transmisión',
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, este es el link para <strong>${escapeHtml(event.title)}</strong>${when ? ` (${escapeHtml(when)})` : ''}.</p>`}
-		${streamLinkBlock(link)}`,
+		${streamLinkBlock(link)}${cal.html}`,
 		button: withLabel({ href: link, label: 'Entrar a la transmisión' }, custom.button),
 		// Con una línea de ayuda propia, los links a cada entrada pasan al final de la tarjeta.
 		helpHtml: custom.helpHtml ?? ticketLinksHtml,
@@ -433,7 +466,8 @@ export function buildStreamLinkEmail({
 		'',
 		custom.bodyText ?? `${event.title}${when ? ` (${when})` : ''}`,
 		'',
-		`Link (personal, no lo compartas): ${link}`,
+		`Link de la transmisión: ${link}`,
+		...cal.text,
 		...(custom.helpText !== null ? ['', custom.helpText] : []),
 		'',
 		...ticketLinks.map((l, i) => `Entrada ${i + 1}: ${l}`),
@@ -441,7 +475,7 @@ export function buildStreamLinkEmail({
 		`Número de orden: ${order.id}`,
 		policy.text
 	].join('\n');
-	return { subject, html, text };
+	return cal.finish({ subject, html, text });
 }
 
 /**
@@ -453,12 +487,16 @@ export function buildStreamLinkEmail({
  *   tickets: import('./orders.js').Ticket[],
  *   reminder: import('./reminders.js').Reminder,
  *   event: { title: string, start?: string, location?: string, location_name?: string,
- *     online?: boolean, streamLink?: string | null, parts?: PartsList | null },
+ *     online?: boolean, streamLink?: string | null, parts?: PartsList | null,
+ *     slug?: string, end?: string | null, status?: string, stamp?: number },
  *   typeName: string,
  *   origin: string,
  *   contactEmail: string,
  *   template?: Template
  * }} input
+ * `event.slug`: con él, el recordatorio lleva el `.ics` adjunto y el link a Google Calendar (como
+ * el mail de las entradas, sin el marcado para Gmail).
+ * @returns {{ subject: string, html: string, text: string, attachments?: MailAttachment[] }}
  */
 export function buildReminderEmail({
 	order,
@@ -486,6 +524,8 @@ export function buildReminderEmail({
 	const subject = custom.subject ?? `Recordatorio: ${event.title} ${soon}`;
 	const policy = policyBlocks(contactEmail);
 	const parts = partsBlocks(event.parts);
+	// Con `event.slug`: el .ics adjunto y el link a Google Calendar, como en el mail de las entradas.
+	const cal = calendarExtras({ order, event, online, origin });
 	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
 	/** @param {import('./orders.js').Ticket} t */
 	const holder = (t) =>
@@ -506,7 +546,7 @@ export function buildReminderEmail({
 		label: custom.label ?? 'Recordatorio',
 		titleHtml: custom.headingHtml ?? `¡${escapeHtml(event.title)} ${soon}!`,
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, te recordamos que tenés ${tickets.length === 1 ? 'una entrada' : `${tickets.length} entradas`} (${escapeHtml(typeName)}).</p>`}
-		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}
+		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}${cal.html}
 		${intro}
 		<ul style="margin:0 0 16px;padding-left:20px">${list}</ul>`,
 		button: withLabel(
@@ -529,10 +569,11 @@ export function buildReminderEmail({
 		when,
 		where,
 		...parts.text,
+		...cal.text,
 		'',
 		online
 			? event.streamLink
-				? `Link de la transmisión (personal): ${event.streamLink}`
+				? `Link de la transmisión: ${event.streamLink}`
 				: 'Te vamos a mandar el link de la transmisión antes de que empiece.'
 			: 'Llevá el QR de cada entrada; si no se puede escanear, alcanza con el código.',
 		...links.map(
@@ -544,7 +585,7 @@ export function buildReminderEmail({
 		`Número de orden: ${order.id}`,
 		policy.text
 	].join('\n');
-	return { subject, html, text };
+	return cal.finish({ subject, html, text });
 }
 
 /**

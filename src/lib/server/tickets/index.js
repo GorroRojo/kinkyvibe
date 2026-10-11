@@ -51,6 +51,7 @@ import {
 import { mailBatchSize } from './batchSize.js';
 import { withMailFooter } from '../email/layout.js';
 import { runMailQueueWith } from './mailQueue.js';
+import { calendarStamp } from './calendarFile.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
 const DEV_MOCK_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
@@ -370,8 +371,21 @@ export function deliverEmail(input) {
  * @param {string} slug
  */
 export async function streamLinkFor(db, slug) {
+	return (await streamLinkInfoFor(db, slug))?.link ?? null;
+}
+
+/**
+ * El link de la transmisión y cuándo se cargó (o `null`), sin romper si falta la tabla. El
+ * `updatedAt` da la versión del .ics de los mails (`calendarStamp` en calendarFile.js).
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ * @returns {Promise<{ link: string, updatedAt: number | null } | null>}
+ */
+async function streamLinkInfoFor(db, slug) {
 	try {
-		return (await getStreamLink(db, slug))?.link ?? null;
+		const row = await getStreamLink(db, slug);
+		return row ? { link: row.link, updatedAt: row.updatedAt } : null;
 	} catch (error) {
 		console.error(`[tickets] no se pudo leer el link de ${slug}:`, error);
 		return null;
@@ -409,7 +423,8 @@ export async function sendOrderEmail({
 		const typeName =
 			config?.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type;
 		const online = Boolean(config?.online);
-		const streamLink = online ? await streamLinkFor(db, order.event_slug) : null;
+		const linkInfo = online ? await streamLinkInfoFor(db, order.event_slug) : null;
+		const streamLink = linkInfo?.link ?? null;
 		if (streamLink && (await claimStreamLinkSend(db, { orderId: order.id, link: streamLink }))) {
 			claimedLink = streamLink;
 		}
@@ -426,6 +441,12 @@ export async function sendOrderEmail({
 				start: config?.start,
 				end: config?.end,
 				status: config?.status,
+				// Versión del .ics: la misma en los reintentos; «Reenviar» (sin clave), ahora.
+				stamp: calendarStamp({
+					orderCreatedAt: order.created_at,
+					linkUpdatedAt: linkInfo?.updatedAt,
+					now: idempotent ? null : Date.now()
+				}),
 				location: venue ? venue.location : config?.location,
 				location_name: venue ? venue.location_name : config?.location_name,
 				online,
@@ -490,7 +511,16 @@ export async function sendStreamLinkEmails({
 	now = Date.now()
 }) {
 	const config = await getEventTickets(eventSlug);
-	const event = { title: config?.title || eventSlug, start: config?.start };
+	// Cuándo se cargó ESTE link (versión del .ics adjunto; si ya cambió, el de la compra).
+	const info = await streamLinkInfoFor(db, eventSlug);
+	const linkUpdatedAt = info?.link === link ? info.updatedAt : null;
+	const event = {
+		slug: eventSlug,
+		title: config?.title || eventSlug,
+		start: config?.start,
+		end: config?.end,
+		status: config?.status
+	};
 	// Los primeros 8 bytes del hash del link (cambia si cambia el link).
 	const key = (await sha256Hex(link)).slice(0, 16);
 	const template = await resolveTemplate(db, eventSlug, 'stream');
@@ -504,7 +534,10 @@ export async function sendStreamLinkEmails({
 			const message = buildStreamLinkEmail({
 				order,
 				tickets,
-				event,
+				event: {
+					...event,
+					stamp: calendarStamp({ orderCreatedAt: order.created_at, linkUpdatedAt })
+				},
 				link,
 				origin,
 				contactEmail: contactEmail(),
@@ -656,7 +689,7 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 			});
 		}
 	}
-	/** @type {Map<string, string | null>} */
+	/** @type {Map<string, { link: string, updatedAt: number | null } | null>} */
 	const links = new Map();
 	/** @type {Map<string, Awaited<ReturnType<typeof buyerLocation>>>} */
 	const venues = new Map();
@@ -683,7 +716,10 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 			if (part && !info) return false;
 			if (part && !partMetas.has(part)) partMetas.set(part, await getEventMeta(part));
 			const meta = part ? partMetas.get(part) : null;
-			if (config.online && !links.has(e.slug)) links.set(e.slug, await streamLinkFor(db, e.slug));
+			if (config.online && !links.has(e.slug)) {
+				links.set(e.slug, await streamLinkInfoFor(db, e.slug));
+			}
+			const linkInfo = config.online ? (links.get(e.slug) ?? null) : null;
 			const tickets = await getOrderTickets(db, order.id);
 			if (!venues.has(where)) venues.set(where, await buyerLocation(db, where));
 			const venue = venues.get(where);
@@ -700,8 +736,12 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				tickets,
 				reminder,
 				event: {
+					// Con el slug (el de la parte, si es una), el .ics y el link a Google Calendar.
+					slug: where,
 					title: info ? info.title : config.title || e.slug,
 					start: info ? info.start : config.start,
+					end: part ? (typeof meta?.end === 'string' ? meta.end : undefined) : config.end,
+					status: part ? meta?.status : config.status,
 					location: venue ? venue.location : meta ? meta.location : config.location,
 					location_name: venue
 						? venue.location_name
@@ -709,7 +749,11 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 							? meta.location_name
 							: config.location_name,
 					online: config.online,
-					streamLink: config.online ? (links.get(e.slug) ?? null) : null,
+					streamLink: linkInfo?.link ?? null,
+					stamp: calendarStamp({
+						orderCreatedAt: order.created_at,
+						linkUpdatedAt: linkInfo?.updatedAt
+					}),
 					parts: partLists.get(e.slug) ?? null
 				},
 				typeName: config.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,

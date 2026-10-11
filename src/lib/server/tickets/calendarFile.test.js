@@ -9,12 +9,13 @@ import {
 	ICS_CONTENT_TYPE,
 	ONLINE_ICS_NOTE,
 	STREAM_CHANGE_NOTE,
+	calendarStamp,
 	eventReservationScript,
 	googleCalendarUrl,
 	resendAttachment,
 	ticketCalendarFile
 } from './calendarFile.js';
-import { buildTicketEmail, sendWithResend } from './email.js';
+import { buildStreamLinkEmail, buildTicketEmail, sendWithResend } from './email.js';
 import { fixtureOrder, fixtureTickets } from './email.fixtures.js';
 import { textOf } from '$lib/testing/html.js';
 import { buildIcsFeed } from '$lib/utils/icsFeed.js';
@@ -330,5 +331,66 @@ describe('el mail con las entradas', () => {
 		expect(bodies[0].attachments).toEqual(mail.attachments);
 		expect(bodies[0].attachments[0].content_type).toBe(ICS_CONTENT_TYPE);
 		expect(bodies[1]).not.toHaveProperty('attachments');
+	});
+});
+
+describe('SEQUENCE (un archivo posterior reemplaza al anterior)', () => {
+	const STAMP = Date.parse('2099-11-01T12:34:56Z');
+
+	it('stamp → DTSTAMP y SEQUENCE en minutos desde 1970', () => {
+		const ics = icsOf({ ...EVENT, stamp: STAMP });
+		expect(prop(ics, 'DTSTAMP')).toBe('20991101T123456Z');
+		expect(prop(ics, 'SEQUENCE')).toBe(String(Math.floor(STAMP / 60_000)));
+	});
+
+	it('el mismo stamp da el mismo archivo, byte a byte (los reintentos con la misma clave de Resend)', () => {
+		expect(icsOf({ ...EVENT, stamp: STAMP })).toBe(icsOf({ ...EVENT, stamp: STAMP }));
+	});
+
+	it('un stamp posterior da un SEQUENCE más alto', () => {
+		const before = Number(prop(icsOf({ ...EVENT, stamp: STAMP }), 'SEQUENCE'));
+		const after = Number(prop(icsOf({ ...EVENT, stamp: STAMP + 60_000 }), 'SEQUENCE'));
+		expect(after).toBeGreaterThan(before);
+	});
+
+	it('calendarStamp: lo más nuevo entre la compra y el link; «Reenviar» (now), ahora', () => {
+		expect(calendarStamp({ orderCreatedAt: 1000, linkUpdatedAt: 5000 })).toBe(5000);
+		expect(calendarStamp({ orderCreatedAt: 9000, linkUpdatedAt: 5000 })).toBe(9000);
+		expect(calendarStamp({ orderCreatedAt: 9000, linkUpdatedAt: null })).toBe(9000);
+		expect(calendarStamp({ orderCreatedAt: 9000, linkUpdatedAt: 5000, now: 20000 })).toBe(20000);
+	});
+});
+
+describe('el mail «Link de la transmisión»', () => {
+	const base = {
+		order: fixtureOrder({ buyer_name: 'Persona Demo', event_slug: 'evento-de-prueba' }),
+		tickets: fixtureTickets(),
+		link: STREAM,
+		origin: ORIGIN,
+		contactEmail: 'contacto@example.com'
+	};
+
+	it('con el slug: el .ics actualizado con el link como lugar y el link a Google Calendar', () => {
+		const mail = buildStreamLinkEmail({ ...base, event: { ...EVENT, stamp: 120_000 } });
+		const [att] = /** @type {any[]} */ (mail.attachments);
+		expect(att.filename).toBe('evento-de-prueba.ics');
+		const ics = fromBase64(att.content);
+		expect(new URL(/** @type {string} */ (unescape(prop(ics, 'LOCATION')))).href).toBe(STREAM);
+		expect(prop(ics, 'UID')).toBe('evento-de-prueba@kinkyvibe.ar');
+		expect(prop(ics, 'SEQUENCE')).toBe('2');
+		expect(textOf(mail.html)).toContain(
+			'Agregalo a tu calendario: abrí el archivo evento-de-prueba.ics que va adjunto.'
+		);
+		const prefix = 'Agregar a Google Calendar: ';
+		const line = /** @type {string} */ (mail.text.split('\n').find((l) => l.startsWith(prefix)));
+		expect(new URL(line.slice(prefix.length)).searchParams.get('location')).toBe(STREAM);
+		// Sin el marcado para Gmail (va solo en la confirmación de la compra).
+		expect(mail.html.split('application/ld+json')).toHaveLength(1);
+	});
+
+	it('sin el slug (vistas previas, golden): sin adjunto ni link', () => {
+		const mail = buildStreamLinkEmail({ ...base, event: { ...EVENT, slug: undefined } });
+		expect(mail.attachments).toBeUndefined();
+		expect(mail.text).not.toContain('Google Calendar');
 	});
 });

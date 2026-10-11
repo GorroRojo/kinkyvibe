@@ -163,8 +163,13 @@ export function buildIcsFeed(posts, opts = {}) {
  * entradas le da a quien compró lo mismo que ya dice el mail. Las horas van en UTC (`Z`), así
  * que da igual la zona horaria del servidor y la del celu de quien lo abre.
  *
+ * `stamp` (ms): la versión del archivo. Va como DTSTAMP y, en minutos desde 1970, como SEQUENCE
+ * (un archivo posterior con el mismo UID reemplaza al anterior en lugar de duplicarlo; ver
+ * tickets/calendarFile.js). Sin él, DTSTAMP es ahora y no hay SEQUENCE.
+ *
  * @param {{ slug: string, title: string, start: string | undefined, end?: string | null,
- *   location?: string, description?: string, status?: string, origin?: string }} ev
+ *   location?: string, description?: string, status?: string, origin?: string,
+ *   stamp?: number }} ev
  * @returns {string | null} `null` si el evento no tiene una fecha válida (o el paquete falla)
  */
 export function buildEventIcs(ev) {
@@ -184,13 +189,23 @@ export function buildEventIcs(ev) {
 		url,
 		description: ev.description ? `${ev.description}\n\n${url}` : url,
 		location: ev.location || undefined,
-		status: STATUS[ev.status ?? ''] ?? 'CONFIRMED'
+		status: STATUS[ev.status ?? ''] ?? 'CONFIRMED',
+		...(ev.stamp === undefined ? {} : { timestamp: ev.stamp, sequence: calendarSequence(ev.stamp) })
 	});
 	if (error || !value) {
 		console.error('[ics] no se pudo armar el evento:', error);
 		return null;
 	}
 	return value;
+}
+
+/**
+ * El SEQUENCE de un .ics con versión `stamp` (ms): minutos desde 1970. Crece solo, sin guardar
+ * nada en la base (un entero de 32 bits alcanza por miles de años).
+ * @param {number} stamp
+ */
+export function calendarSequence(stamp) {
+	return Math.floor(stamp / 60_000);
 }
 
 /**
