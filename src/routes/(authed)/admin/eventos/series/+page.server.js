@@ -14,7 +14,7 @@
  * cuántas publicaciones cambian.
  */
 import { fail } from '@sveltejs/kit';
-import { isAdmin, requireAdmin } from '$lib/server/auth';
+import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { assetNames } from '$lib/server/eventos';
 import { allSeries, tagExists } from '$lib/server/series/index.js';
@@ -32,8 +32,6 @@ import {
 	previewDbTagEdit,
 	saveDbTagEdit
 } from '$lib/server/etiquetas/panel.js';
-
-const NO_PERMISSION = 'No tenés permiso para editar etiquetas. Probá salir y volver a entrar.';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
@@ -98,7 +96,9 @@ export async function load({ locals, url, platform, setHeaders }) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	crear: async ({ locals, request, platform }) => {
+	crear: async ({ locals, request, platform, url }) => {
+		// Las acciones no corren el load: cada una se fija sola (sin sesión, al login; sin permiso, 403).
+		const { login } = requireAdmin(locals, url);
 		const data = await request.formData();
 		const input = {
 			name: data.get('name'),
@@ -113,7 +113,7 @@ export const actions = {
 			seriesIds: seriesTagIds(tags)
 		});
 		if (!planned.ok) return fail(400, { error: planned.error, values: textValues(input) });
-		const res = await saveSeriesOps(locals, platform, planned.ops, {
+		const res = await saveSeriesOps(locals, login, platform, planned.ops, {
 			name: planned.name,
 			summary:
 				planned.parent === SERIES_PARENT
@@ -121,14 +121,15 @@ export const actions = {
 					: `crear «${planned.name}» dentro de «${planned.parent}»`
 		});
 		if (!res.ok) return fail(res.status, { error: res.error, values: textValues(input) });
-		const imageWarning = await saveSeriesImage(locals, platform, planned.name, data);
+		const imageWarning = await saveSeriesImage(login, platform, planned.name, data);
 		return {
 			created: { name: planned.name, ...res.saved },
 			...(imageWarning ? { warning: imageWarning } : {})
 		};
 	},
 
-	editar: async ({ locals, request, platform }) => {
+	editar: async ({ locals, request, platform, url }) => {
+		const { login } = requireAdmin(locals, url);
 		const data = await request.formData();
 		const id = String(data.get('id') ?? '');
 		const keepAlias = data.get('keepAlias') === '1';
@@ -154,7 +155,7 @@ export const actions = {
 		const confirmed =
 			data.get('confirmTo') === planned.name && data.get('confirmAlias') === values.keepAlias;
 		if (planned.renamed && !confirmed) {
-			const count = await renamedPosts(locals, platform, planned.ops);
+			const count = await renamedPosts(locals, login, platform, planned.ops);
 			if (!count.ok) return fail(count.status, { editing: id, error: count.error, values });
 			return {
 				editing: id,
@@ -168,14 +169,14 @@ export const actions = {
 				}
 			};
 		}
-		const res = await saveSeriesOps(locals, platform, planned.ops, {
+		const res = await saveSeriesOps(locals, login, platform, planned.ops, {
 			name: planned.name,
 			summary: planned.renamed
 				? `renombrar «${id}» a «${planned.name}»`
 				: `editar «${planned.name}»`
 		});
 		if (!res.ok) return fail(res.status, { editing: id, error: res.error, values });
-		const imageWarning = await saveSeriesImage(locals, platform, planned.name, data);
+		const imageWarning = await saveSeriesImage(login, platform, planned.name, data);
 		return {
 			edited: { name: planned.name, renamedFrom: planned.renamed, ...res.saved },
 			...(imageWarning ? { warning: imageWarning } : {})
@@ -209,14 +210,13 @@ function editValues(tags, id) {
  * renombre sin alias (con alias, ninguna).
  *
  * @param {App.Locals} locals
+ * @param {string} login la cuenta admin (ya verificada con `requireAdmin`)
  * @param {App.Platform | undefined} platform
  * @param {import('$lib/utils/tagConfig.js').TagOp[]} ops
  * @returns {Promise<{ ok: true, posts: number, db: boolean } | { ok: false, status: number, error: string }>}
  */
-async function renamedPosts(locals, platform, ops) {
-	if (!locals.user || !isAdmin(locals.user))
-		return { ok: false, status: 403, error: NO_PERMISSION };
-	const fromDb = await dbTagsForAdmin(platform, locals.user.login);
+async function renamedPosts(locals, login, platform, ops) {
+	const fromDb = await dbTagsForAdmin(platform, login);
 	if (!fromDb) return { ok: false, status: 503, error: NEEDS_IMPORT };
 	const res = await previewDbTagEdit(fromDb, ops, await dbRepoAccess(locals));
 	if (!res.ok) return res;
@@ -227,20 +227,19 @@ async function renamedPosts(locals, platform, ops) {
  * Guarda operaciones de series en la base.
  *
  * @param {App.Locals} locals
+ * @param {string} login la cuenta admin (ya verificada con `requireAdmin`)
  * @param {App.Platform | undefined} platform
  * @param {import('$lib/utils/tagConfig.js').TagOp[]} ops
  * @param {{ name: string, summary?: string }} what
  * @returns {Promise<{ ok: true, saved: { db: boolean, commit: string | null, publish: any, posts?: number } } | { ok: false, status: number, error: string }>}
  */
-async function saveSeriesOps(locals, platform, ops, { name }) {
-	if (!locals.user || !isAdmin(locals.user))
-		return { ok: false, status: 403, error: NO_PERMISSION };
-	const fromDb = await dbTagsForAdmin(platform, locals.user.login);
+async function saveSeriesOps(locals, login, platform, ops, { name }) {
+	const fromDb = await dbTagsForAdmin(platform, login);
 	if (!fromDb) return { ok: false, status: 503, error: NEEDS_IMPORT };
 	// Renombrar sin alias: también cambia las publicaciones (saveDbTagEdit).
 	const res = await saveDbTagEdit(fromDb, ops, {
 		locals,
-		login: locals.user.login,
+		login,
 		label: 'Series',
 		targetId: name.slice(0, 120),
 		repo: await dbRepoAccess(locals)
@@ -256,18 +255,17 @@ async function saveSeriesOps(locals, platform, ops, { name }) {
  * La imagen elegida en el selector (docs/imagenes.md): un edge `imagen` de la etiqueta de la
  * serie, después de guardar la etiqueta. Devuelve un aviso si no se pudo (la serie ya se guardó).
  *
- * @param {App.Locals} locals
+ * @param {string} login la cuenta admin (ya verificada con `requireAdmin`)
  * @param {App.Platform | undefined} platform
  * @param {string} name el nombre de la etiqueta (ya guardada)
  * @param {FormData} data
  * @returns {Promise<string | null>}
  */
-async function saveSeriesImage(locals, platform, name, data) {
+async function saveSeriesImage(login, platform, name, data) {
 	const choice = readImageChoice(data.get('imageId'));
 	if (choice.action === 'keep') return null;
 	const db = getDB(platform);
-	const login = locals.user?.login;
-	if (!db || !login || !locals.user || !isAdmin(locals.user)) return null;
+	if (!db) return null;
 	const failed = 'La serie se guardó, pero no se pudo cambiar su imagen. Probá de nuevo.';
 	try {
 		const id = await targetObjectId(db, { type: 'etiqueta', slug: name });
