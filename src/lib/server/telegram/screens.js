@@ -46,6 +46,9 @@ import { formatARS } from '$lib/utils/money.js';
  *   ticket?: import('$lib/utils/ticketCta.js').TicketCta | null }} CardInfo
  */
 
+/** La Mini App del calendario (`/telegram/app`, sin login). @param {string} origin */
+export const miniAppUrl = (origin) => `${origin}/telegram/app`;
+
 /** Eventos por página en las listas. */
 export const PAGE_SIZE = 5;
 
@@ -119,7 +122,14 @@ export function homeScreen(ctx) {
 		]
 	];
 	if (isHttps(ctx.origin)) {
-		rows.push([{ text: `Abrir ${new URL(ctx.origin).host} ↗`, url: ctx.origin }]);
+		/** @type {Button[]} */
+		const last = [];
+		// La Mini App del calendario (`web_app` solo anda en chats privados, Bot API).
+		if (ctx.chat === 'private') {
+			last.push({ text: '📅 Calendario', web_app: { url: miniAppUrl(ctx.origin) } });
+		}
+		last.push({ text: `Abrir ${new URL(ctx.origin).host} ↗`, url: ctx.origin });
+		rows.push(last);
 	}
 	return { text: HOME_TEXT, keyboard: rows };
 }
