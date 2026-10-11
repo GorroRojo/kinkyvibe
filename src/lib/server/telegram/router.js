@@ -38,6 +38,7 @@ import {
 	findByToken,
 	parseCallbackData
 } from './keyboards.js';
+import { ACCOUNT_COMMAND_NAMES, HANDLED_COMMANDS } from './commands.js';
 
 /** @typedef {import('./format.js').BotEvent} BotEvent */
 
@@ -64,9 +65,6 @@ import {
  *   accounts?: () => Promise<BotAccounts | null>
  * }} Deps
  */
-
-/** Los comandos de la cuenta (fase 2). */
-const ACCOUNT_COMMANDS = new Set(['vincular', 'desvincular', 'silenciar', 'reanudar']);
 
 /** Lo que trae "/start" cuando viene del link con el código (8 letras y números). */
 const START_CODE = /^[A-Za-z0-9]{8}$/;
@@ -293,6 +291,8 @@ export async function handleUpdate(update, deps) {
 	if (typeof chatId !== 'number' && typeof chatId !== 'string') return null;
 	const command = parseCommand(message?.text);
 	if (!command) return null;
+	// La lista de comandos vive en commands.js (también la que se registra en Telegram).
+	if (!HANDLED_COMMANDS.has(command.name)) return reply(chatId, UNKNOWN_TEXT);
 	const { origin } = deps;
 
 	try {
@@ -329,7 +329,7 @@ export async function handleUpdate(update, deps) {
 				return reply(chatId, formatChoices(found, origin), eventListKeyboard(found));
 			}
 			default:
-				if (ACCOUNT_COMMANDS.has(command.name)) {
+				if (ACCOUNT_COMMAND_NAMES.has(command.name)) {
 					return reply(chatId, await accountCommand(command, message.chat, deps));
 				}
 				return reply(chatId, UNKNOWN_TEXT);

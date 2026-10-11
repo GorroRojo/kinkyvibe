@@ -33,6 +33,30 @@ Son teclados "inline" de Telegram (`src/lib/server/telegram/keyboards.js`):
 No muestra lugares, precios, entradas ni datos de compradores. Todo lo que implique plata o
 cuentas es un link al sitio.
 
+## El menú de comandos (autocompletado)
+
+Cuando alguien escribe «/», Telegram sugiere los comandos que se le registraron con
+`setMyCommands`. La lista vive en **un solo lugar**, `src/lib/server/telegram/commands.js`: de ahí
+salen lo que entiende el router y lo que se registra (un test, `commands.test.js`, chequea que
+coincidan).
+
+- **Para todes** (alcance `default`, grupos incluidos): `/proximos` «Los próximos eventos
+  públicos», `/evento` «Buscá un evento por nombre, fecha o lugar», `/ayuda` «Qué podés pedirme».
+- **En chats privados** (alcance `all_private_chats`): esos tres y, solo con «Lo que sigo»
+  prendido, `/vincular` «Conectá tu cuenta (código de Mi rincón)», `/silenciar` «Pausá tus avisos
+  por Telegram», `/reanudar` «Volvé a recibir tus avisos», `/desvincular` «Desconectá este chat de
+  tu cuenta». Con «Lo que sigo» apagado contestan «todavía no se puede», así que no se ofrecen.
+- `/start` y `/help` funcionan pero no van en el menú.
+- Sin `language_code`: valen para cualquier idioma de la app.
+
+**Para actualizarlos:** Ajustes → Automatizaciones → tarjeta **Bot de Telegram** → **Actualizar
+comandos del bot** (solo admins). Manda los dos `setMyCommands` con el token del bot
+(`TELEGRAM_BOT_TOKEN`) y muestra qué quedó registrado en cada alcance o el error de Telegram (sin
+el token). Se puede tocar las veces que haga falta: cada vez reemplaza la lista. Queda en el
+registro de actividad (`telegram.commands`). Sin el token, avisa y no hace nada. Hay que tocarlo
+después de cambiar la lista en el código o de prender o apagar «Lo que sigo». No hace falta
+`/setcommands` en @BotFather (lo que se cargue ahí se pisa con el botón).
+
 ## Fase 2: vincular la cuenta y avisos de «Lo que sigo»
 
 Detrás de **dos** interruptores: `telegram_bot` y `lo_que_sigo` (las cuentas ya no tienen
@@ -109,20 +133,23 @@ minutos), con estas reglas:
 | `src/routes/api/telegram/+server.js`          | La ruta del webhook: junta secreto, interruptor y eventos           |
 | `src/lib/server/telegram/webhook.js`          | Verifica el secreto, lee el update y contesta (probable sin Svelte) |
 | `src/lib/server/telegram/router.js`           | Interpreta el comando o el botón y elige la respuesta               |
+| `src/lib/server/telegram/commands.js`         | La lista de comandos y el `setMyCommands` del menú «/»              |
 | `src/lib/server/telegram/keyboards.js`        | Los botones (`callback_data` corto y validado)                      |
 | `src/lib/server/telegram/format.js`           | Los textos (HTML de Telegram), funciones puras                      |
 | `src/lib/server/telegram/events.js`           | De dónde salen los eventos (el único lugar para cambiar)            |
 | `src/lib/server/flags.js`                     | El interruptor `telegram_bot` (`TELEGRAM_BOT_ENABLED`)              |
 | `src/lib/server/telegram/link.js`             | Fase 2: códigos de un solo uso y chats vinculados                   |
-| `src/lib/server/telegram/send.js`             | Fase 2: mandar un mensaje desde el cron (`TELEGRAM_BOT_TOKEN`)      |
+| `src/lib/server/telegram/send.js`             | Llamar a la API (`TELEGRAM_BOT_TOKEN`): avisos del cron y comandos  |
 | `src/lib/server/telegram/quiet.js`            | Fase 2: el horario de silencio (23 a 9, hora de Argentina)          |
 | `src/lib/server/telegram/web.js`              | Fase 2: los dos interruptores y lo que necesita Mi rincón           |
 | `src/lib/components/sigo/TelegramCard.svelte` | Fase 2: la tarjeta «Telegram» de Lo que sigo                        |
 | `src/routes/(content)/mi-rincon/telegram/`    | Fase 2: las acciones de la tarjeta (`?/codigo`, `?/desconectar`)    |
 
 El webhook **contesta en el mismo pedido** (Telegram acepta un método de la API como respuesta),
-así que no necesita el token del bot. El token solo lo usa el cron de la fase 2 para mandar los
-avisos (`send.js`); es el único lugar que llama a la API de Telegram.
+así que no necesita el token del bot. El token lo usan el cron de la fase 2 para mandar los
+avisos y el botón «Actualizar comandos del bot»; los dos pasan por `send.js`
+(`callTelegramApi`), el único lugar que llama a la API de Telegram. Nunca se loguea ni se
+devuelve la URL (lleva el token) y los errores se muestran sin él.
 
 ## Puesta en marcha (la hace gorrite)
 
@@ -132,6 +159,8 @@ avisos (`send.js`); es el único lugar que llama a la API de Telegram.
 3. Apuntar el webhook del bot a `https://kinkyvibe.ar/api/telegram` con `setWebhook`, pasando ese
    mismo valor como `secret_token`. El token del bot se usa solo en ese paso, desde tu compu.
 4. Prender el interruptor **Bot de Telegram** en Ajustes → Interruptores.
+5. Con el token cargado (fase 2, abajo), tocar **Actualizar comandos del bot** en Ajustes →
+   Automatizaciones para que Telegram sugiera los comandos (arriba, «El menú de comandos»).
 
 Apagado, el endpoint contesta 200 sin hacer nada (con un error, Telegram acumularía reintentos).
 
@@ -152,7 +181,7 @@ Apagado, el endpoint contesta 200 sin hacer nada (con un error, Telegram acumula
 ## Cómo probarlo
 
 ```bash
-npx vitest run src/lib/server/telegram src/lib/server/sigo src/lib/utils/sigo-telegram.test.js "src/routes/(content)/mi-rincon/telegram"
+npx vitest run src/lib/server/telegram src/lib/server/sigo src/lib/components/admin/telegram "src/routes/(authed)/admin/ajustes/automatizaciones" src/lib/utils/sigo-telegram.test.js "src/routes/(content)/mi-rincon/telegram"
 ```
 
 Los tests usan eventos y chats inventados. Para probar a mano, un POST al endpoint con el header
