@@ -154,6 +154,12 @@ que dé verde. `npm run check` corre svelte-check sin trinquete (lo mismo, sin c
   GitHub (`ci-ok`).
 - **Al arrancar una sesión** (`scripts/hooks/session-start.sh`): corre `npm ci` si falta
   `node_modules` o cambió `package-lock.json`.
+- **Procesos de pruebas huérfanos** (`node scripts/limpiar-procesos.js`, `--dry` para solo
+  listar): en sesiones largas con varios agentes quedan workers de vitest y `workerd` vivos de
+  corridas cortadas (timeout, falta de memoria), ~300 MB cada uno. El script mata solo los
+  huérfanos (padre ya muerto) de más de 60 minutos y sus hijos; nunca algo con un padre vivo. Está
+  permitido sin preguntar en `.claude/settings.json` (solo ese comando: matar procesos en general
+  sigue frenado, porque podría cortar el trabajo de otra sesión).
 
 ## Antes de pushear
 
