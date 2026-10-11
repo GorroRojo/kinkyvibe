@@ -149,6 +149,16 @@ describe('calendarDayFlags', () => {
 		expect(calendarDayFlags('2026-10-12', now).today).toBe(false);
 	});
 
+	it('from 21:00 to 23:59 in Argentina (already tomorrow in UTC) today is still today', () => {
+		for (const time of ['21:00:00', '22:15:00', '23:59:59']) {
+			const now = Date.parse(`2026-12-31T${time}-03:00`);
+			expect(new Date(now).toISOString().slice(0, 10)).toBe('2027-01-01');
+			expect(calendarDayFlags('2026-12-31', now)).toEqual({ today: true, past: false });
+			expect(calendarDayFlags('2027-01-01', now)).toEqual({ today: false, past: false });
+			expect(currentMonth(now)).toBe('2026-12');
+		}
+	});
+
 	it('turns over exactly at midnight in Argentina (03:00 UTC)', () => {
 		expect(calendarDayFlags('2026-10-12', Date.parse('2026-10-12T02:59:59Z')).today).toBe(false);
 		expect(calendarDayFlags('2026-10-12', Date.parse('2026-10-12T03:00:00Z')).today).toBe(true);
