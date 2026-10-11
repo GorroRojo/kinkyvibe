@@ -2,10 +2,12 @@
  * Personas en una sola lista (./personasList.js) y la sección «Personas» de los formularios
  * (./personasPicker.js): ida y vuelta entre los campos de los .md (`authors:` + `personas:`) y la
  * lista única, y que guardar desde el formulario escribe en los .md exactamente lo de siempre
- * (también con TODOS los posts reales del repo, que ya son públicos). Datos inventados.
+ * (también con TODOS los posts reales, de la semilla de contenido, que ya son públicos). Datos
+ * inventados.
  */
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
+import { seedRawsByPath } from '$lib/server/semilla/testing.js';
 import { REMOVE, applyFrontmatterChanges, splitMarkdown } from './eventDraft.js';
 import { mergeRoles } from './personas.js';
 import {
@@ -364,17 +366,13 @@ describe('el formulario', () => {
  * Los .md reales: leerlos con el formulario y guardar sin tocar las personas da el mismo texto, y
  * sumar a alguien escribe exactamente lo que escribía «Organizan» (`authors:` con une más).
  */
-describe('todos los posts reales del repo', () => {
-	const raws = /** @type {Record<string, string>} */ (
-		import.meta.glob(
-			[
-				'/src/lib/posts/calendario/*.md',
-				'/src/lib/posts/material/*.md',
-				'/src/lib/posts/wiki/*.md'
-			],
-			{ query: '?raw', import: 'default', eager: true }
-		)
-	);
+describe('todos los posts reales (la semilla de contenido: los .md ya no están, decisión 0032)', () => {
+	/** @type {Record<string, string>} */
+	const raws = {
+		...seedRawsByPath('calendario'),
+		...seedRawsByPath('material'),
+		...seedRawsByPath('wiki')
+	};
 	const posts = Object.entries(raws)
 		.filter(([path]) => !path.split('/').at(-1)?.startsWith('_'))
 		.flatMap(([path, raw]) => {
@@ -386,7 +384,7 @@ describe('todos los posts reales del repo', () => {
 				const meta = doc.toJS() ?? {};
 				return [{ path, category, frontmatter, meta }];
 			} catch {
-				return []; // los que no se pueden leer se editan como texto (y los revisa content.test.js)
+				return []; // los que no se pueden leer se editan como texto
 			}
 		});
 

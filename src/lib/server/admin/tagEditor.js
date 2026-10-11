@@ -1,53 +1,27 @@
 /**
- * Server side of /admin/etiquetas: reads the tag tree and the posts through the repo client
- * (GitHub, the `npm run dev:admin` mock or the preview demo layer), plans a change with
- * $lib/utils/tagConfig.js and commits it as ONE commit. No SvelteKit imports: tested with a fake
- * client in tagEditor.test.js.
+ * Lo que queda del editor de etiquetas «por archivos»: reescribir las publicaciones que nombran una
+ * etiqueta renombrada (por el cliente de contenido, que las guarda en la base: ./etiquetas/rename.js
+ * y ./etiquetas/panel.js), la vista previa de esos cambios y el guardado en una tanda. El árbol de
+ * etiquetas vive en la base (el archivo de etiquetas se borró con los .md, decisión 0032). Sin
+ * imports de SvelteKit: se prueba con un cliente falso en tagEditor.test.js.
  */
-import { gitBlobSha } from './posts.js';
-import { lineDiff, planTagChange } from '$lib/utils/tagConfig.js';
+import { lineDiff } from '$lib/utils/tagConfig.js';
 
-export const TAGS_PATH = 'src/lib/utils/hardcodedTags.js';
+/** Las carpetas (rutas viejas) de las publicaciones, como las nombra el cliente de contenido. */
 export const POST_DIRS = Object.freeze(
 	['calendario', 'material', 'amigues', 'wiki'].map((c) => `src/lib/posts/${c}`)
 );
 
 /**
- * @typedef {Pick<typeof import('../eventos/github.js'), 'getFile' | 'getDirTexts' | 'commitFiles'>} TagClient
+ * @typedef {Pick<typeof import('../contenido/cliente.js').sinRepo, 'getFile' | 'getDirTexts' | 'commitFiles'>} TagClient
  */
-
-/**
- * The tag file as it is on the repo now, with its blob sha. When the client doesn't have it (the
- * preview demo layer only holds posts), the copy bundled in this deploy is used.
- * @param {TagClient} client
- * @param {string} token
- * @param {string} bundled
- */
-export async function readTagSource(client, token, bundled) {
-	const text = await client.getFile(token, TAGS_PATH);
-	if (text === null) return { source: bundled, sha: undefined, fromRepo: false };
-	return { source: text, sha: await gitBlobSha(text), fromRepo: true };
-}
 
 /** @param {import('$lib/utils/tagConfig.js').TagOp[]} ops */
 export const touchesPosts = (ops) => ops.some((o) => o.type === 'rename' || o.type === 'merge');
 
 /**
- * Plans the change: the tag file plus, for rename/merge, every post (4 folders, one request each).
- * @param {TagClient} client
- * @param {string} token
- * @param {import('$lib/utils/tagConfig.js').TagOp[]} ops
- * @param {string} bundled
- */
-export async function planTagEdit(client, token, ops, bundled) {
-	const { source, sha } = await readTagSource(client, token, bundled);
-	const posts = touchesPosts(ops) ? await readPostFiles(client, token) : [];
-	return planTagChange({ source, sourceSha: sha, sourcePath: TAGS_PATH, posts, ops });
-}
-
-/**
- * Every post (.md, not the `_` templates) of the 4 folders as it is on the repo now, with its
- * blob sha (one request per folder).
+ * Every post (.md, not the `_` templates) of the 4 folders as the content client gives it (from
+ * the database), with its sha (one request per folder).
  * @param {Pick<TagClient, 'getDirTexts'>} client
  * @param {string} token
  */
@@ -59,7 +33,7 @@ export async function readPostFiles(client, token) {
 
 /**
  * What the preview shows: per file, its diff hunks (capped) and +/- counts.
- * @param {ReturnType<typeof planTagChange>} plan
+ * @param {ReturnType<typeof import('$lib/utils/tagConfig.js').planTagChange>} plan
  * @param {{maxFiles?: number, maxHunks?: number}} [opts]
  */
 export function previewOf(plan, { maxFiles = 60, maxHunks = 12 } = {}) {
@@ -95,7 +69,7 @@ export function tagCommitMessage(who, summary, files) {
  * Commits a plan: every changed file in one commit, each guarded by the sha it was read at.
  * @param {TagClient} client
  * @param {string} token
- * @param {ReturnType<typeof planTagChange>} plan
+ * @param {ReturnType<typeof import('$lib/utils/tagConfig.js').planTagChange>} plan
  * @param {string} who
  */
 export async function commitTagEdit(client, token, plan, who) {

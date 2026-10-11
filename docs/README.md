@@ -15,8 +15,8 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [entradas.md](entradas.md)                     | Venta de entradas: guía corta con las reglas que no se pueden romper                                                |
 | [tickets.md](tickets.md)                       | Venta de entradas: referencia completa (precios, Fondo, Mercado Pago, variables, pendientes)                        |
 | [propinas.md](propinas.md)                     | Propinas con Mercado Pago al pie de las publicaciones de KinkyVibe (en lugar del cafecito)                          |
-| [contenido.md](contenido.md)                   | Eventos, material, amigues y wiki: todo en la base (D1), cómo se editan, importan y descargan como `.md`            |
-| [publicar-contenido.md](publicar-contenido.md) | Cómo se publica lo que se guarda en el panel: un PR por cambio que se mergea solo cuando pasan las pruebas          |
+| [contenido.md](contenido.md)                   | Eventos, material, amigues y wiki: todo en la base (D1), cómo se editan, la semilla local y «Descargar todo»        |
+| [publicar-contenido.md](publicar-contenido.md) | Cómo se publica lo que se guarda en el panel: en la base, al momento (antes, un PR por cambio)                      |
 | [mails.md](mails.md)                           | Qué mails manda el sitio, con Resend, plantillas editables, recordatorios y el filtro de los previews               |
 | [datos.md](datos.md)                           | La base D1: tablas, migraciones, cómo agregar una, base de preview y base de producción                             |
 | [objetos.md](objetos.md)                       | "Todo es un objeto": objetos y relaciones en D1, las reglas que no se rompen y cómo agregar un tipo núcleo          |
@@ -35,12 +35,11 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción                    |
 | [release-1.md](release-1.md)                   | Release 1: qué prender, importar y verificar antes de la revisión grande, y rendimiento de los endpoints            |
 | [workers-migracion.md](workers-migracion.md)   | Paso de Cloudflare Pages a Workers (ya hecho), backups nocturnos y cómo restaurar                                   |
-| [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite (0001 a 0029, cada una con su línea en su índice): leelo antes de cambiar un área |
+| [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite (0001 a 0035, cada una con su línea en su índice): leelo antes de cambiar un área |
 
 Otras guías sueltas:
 
-- [`README.md`](../README.md) de la raíz: cómo escribir publicaciones a mano (propiedades,
-  imágenes, etiquetas).
+- [`README.md`](../README.md) de la raíz: qué es el sitio y cómo arrancar.
 - [`CLAUDE.md`](../CLAUDE.md): reglas para los agentes (también valen para humanes).
 
 ## Cómo mantener esto

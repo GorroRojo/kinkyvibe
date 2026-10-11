@@ -2,7 +2,8 @@
 
 - Fecha: 2026-09-30
 - Estado: Aceptada. El orden de migración lo actualiza [0026](0026-orden-1-10.md): etiquetas
-  antes que eventos.
+  antes que eventos. Cuándo se borran los `.md` lo reemplaza [0032](0032-borrar-los-md.md): ya,
+  sin esperar un mes.
 
 ## Contexto
 
@@ -69,3 +70,5 @@ relaciones) que después sirve para todo lo demás.
   en la base (`contenido_db`, `etiquetas_db` y `series` quedaron fijos). Los interactivos son
   etiquetas registradas en el texto (`<kv-donde-golpear-un-cuerpo>`, `src/lib/utils/interactivos.js`).
   Los `.md` quedan en el repo como respaldo hasta borrarlos. Guía: [`docs/contenido.md`](../contenido.md).
+- Los `.md`, sus carpetas de medios y `src/lib/assets` se borran (0032, 11/10): el último commit de
+  `main` que los tiene queda marcado con el tag `posts-md-final`.

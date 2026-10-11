@@ -1,10 +1,15 @@
 <script>
-	/** Gracias por la propina (o qué pasó si el pago no se completó). */
+	/**
+	 * Gracias por la propina (o qué pasó si el pago no se completó). Si vino desde el Fondo
+	 * (`/propinas?de=fondo`), el link de vuelta es a fondo.kinkyvibe.ar.
+	 */
 	import { formatARS } from '$lib/utils/money.js';
+	import { FONDO_SITE_URL } from '$lib/utils/propinas.js';
 
 	export let data;
 
 	$: status = data.tip.status;
+	$: fromFondo = data.tip.source === 'fondo';
 </script>
 
 <svelte:head>
@@ -19,9 +24,8 @@
 		<h1>¡Gracias por tu propina!</h1>
 		<p>
 			Recibimos tus <strong>{formatARS(data.tip.amount)}</strong
-			>{#if data.tip.destination === 'fondo'}
-				para el Fondo Kinky Vibe{/if}. Nos ayuda un montón a seguir haciendo material y encuentros
-			para todes.
+			>{#if data.tip.destination === 'fondo'}{' '}para el Fondo Kinky Vibe{/if}. Nos ayuda un montón
+			a seguir haciendo material y encuentros para todes.
 		</p>
 	{:else if status === 'pending'}
 		<p class="emoji" aria-hidden="true">⏳</p>
@@ -33,12 +37,20 @@
 	{:else if status === 'rejected'}
 		<p class="emoji" aria-hidden="true">🙈</p>
 		<h1>El pago no se completó</h1>
-		<p>No se cobró nada. Si querés, podés intentar de nuevo desde la publicación.</p>
+		<p>
+			No se cobró nada. Si querés, podés intentar de nuevo desde {fromFondo
+				? 'el Fondo'
+				: 'la publicación'}.
+		</p>
 	{:else}
 		<h1>Esta propina se reembolsó</h1>
 		<p>La devolvimos por Mercado Pago. Gracias igual por la intención.</p>
 	{/if}
-	<a class="pill-btn ghost" href={data.postPath}>Volver a la publicación</a>
+	{#if fromFondo || !data.postPath}
+		<a class="pill-btn ghost" href={FONDO_SITE_URL}>Volver al Fondo Kinky Vibe</a>
+	{:else}
+		<a class="pill-btn ghost" href={data.postPath}>Volver a la publicación</a>
+	{/if}
 </section>
 
 <style>

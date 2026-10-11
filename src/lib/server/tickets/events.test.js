@@ -1,17 +1,15 @@
-import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { seedFiles } from '$lib/server/semilla/testing.js';
 import { isTestEventSlug } from './events.js';
 
 describe('eventos de prueba de la venta de entradas', () => {
-	const dir = 'src/lib/posts/calendario';
-	const files = readdirSync(dir).filter((f) => f.endsWith('.md'));
+	// Los eventos reales de la semilla de contenido (los .md ya no están en el repo, decisión 0032).
+	const files = seedFiles('calendario');
 
-	it('los del repo se reconocen como de prueba (no venden fuera de `vite dev`)', () => {
-		const tests = files.filter(
-			(f) => /prueba/i.test(f) && /^tickets:/m.test(readFileSync(`${dir}/${f}`, 'utf8'))
-		);
+	it('los de la semilla se reconocen como de prueba (no venden fuera de `vite dev`)', () => {
+		const tests = files.filter((f) => /prueba/i.test(f.legacySlug) && /^tickets:/m.test(f.raw));
 		expect(tests.length).toBeGreaterThan(0);
-		for (const f of tests) expect(isTestEventSlug(f.replace(/\.md$/, ''))).toBe(true);
+		for (const f of tests) expect(isTestEventSlug(f.legacySlug)).toBe(true);
 	});
 
 	it('un evento normal no es de prueba', () => {

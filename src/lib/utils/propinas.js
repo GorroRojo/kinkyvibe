@@ -10,7 +10,15 @@ export const KINKYVIBE_TAG = 'KinkyVibe';
 
 /**
  * Lo que manda el formulario de propina (todo texto; ver `validateTip`).
- * @typedef {{ amount: string, custom: string, message: string, category: string, slug: string }} TipFormValues
+ * `source`: `fondo` si se deja desde fondo.kinkyvibe.ar (`/propinas?de=fondo`, sin publicación);
+ * vacío o `post` si es desde una publicación.
+ * @typedef {{ amount: string, custom: string, message: string, category: string, slug: string, source?: string }} TipFormValues
+ */
+
+/**
+ * Desde dónde se dejó una propina: `post` (el pie de una publicación) o `fondo` (las «donaciones
+ * únicas» de fondo.kinkyvibe.ar, que llegan a `/propinas?de=fondo`). Columna `source` (0052).
+ * @typedef {'post' | 'fondo'} TipSource
  */
 
 /**
@@ -41,6 +49,13 @@ export const TIP_DESTINATION_LABELS = Object.freeze({
 	kinkyvibe: 'Para Kinky Vibe',
 	fondo: 'Para el Fondo'
 });
+
+/** Los orígenes que puede tener una propina guardada. */
+export const TIP_SOURCES = Object.freeze(/** @type {const} */ (['post', 'fondo']));
+/** El `?de=` de /propinas para las donaciones únicas de fondo.kinkyvibe.ar. */
+export const TIP_SOURCE_FONDO = /** @type {TipSource} */ ('fondo');
+/** El sitio del Fondo (el link de vuelta del gracias de una propina desde el Fondo). */
+export const FONDO_SITE_URL = 'https://fondo.kinkyvibe.ar';
 
 /** Slug de una publicación (como los nombres de archivo de src/lib/posts). */
 export const TIP_SLUG_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,150}$/;
@@ -103,6 +118,34 @@ export function parseTipAmount(raw) {
 }
 
 /**
+ * El `?monto=` con el que llega alguien desde fondo.kinkyvibe.ar, para elegirlo de entrada: solo
+ * un entero en pesos (dígitos) dentro del mínimo y el máximo de {@link parseTipAmount}. Si no, `null`
+ * (y se ignora). Es solo la elección inicial del formulario: el servidor vuelve a validar el monto
+ * que llega en el POST con `validateTip`.
+ *
+ * @param {string | null | undefined} raw
+ * @returns {number | null}
+ */
+export function presetFromQuery(raw) {
+	if (typeof raw !== 'string' || !/^\d{1,7}$/.test(raw)) return null;
+	const parsed = parseTipAmount(raw);
+	return parsed.ok ? parsed.amount : null;
+}
+
+/**
+ * Los valores iniciales del selector de monto para un monto pedido: el botón sugerido si coincide
+ * con uno, si no «Otro monto» con ese número. Sin monto, nada (queda el sugerido por defecto).
+ *
+ * @param {number | null} amount
+ * @returns {Partial<TipFormValues>}
+ */
+export function presetValues(amount) {
+	if (amount === null) return {};
+	if (TIP_PRESETS.includes(amount)) return { amount: String(amount) };
+	return { amount: 'otro', custom: String(amount) };
+}
+
+/**
  * Mensaje opcional: sin espacios de más; vacío = `null`.
  *
  * @param {unknown} raw
@@ -124,10 +167,12 @@ export function parseTipMessage(raw) {
 /**
  * Valida todo lo que manda el formulario. El monto sale de `amount` (un botón sugerido) o, si es
  * `otro`, de `custom`. El destino siempre es el Fondo ({@link TIP_DESTINATION}): si llega un
- * `destination` (un formulario viejo o armado a mano), se ignora.
+ * `destination` (un formulario viejo o armado a mano), se ignora. Con `source = 'fondo'` (desde
+ * fondo.kinkyvibe.ar) no hay publicación: `category` y `slug` se ignoran y quedan en `null`.
  *
- * @param {{ amount?: unknown, custom?: unknown, message?: unknown, category?: unknown, slug?: unknown, destination?: unknown }} input
- * @returns {{ ok: true, amount: number, message: string | null, category: 'material' | 'calendario', slug: string, destination: TipDestination }
+ * @param {{ amount?: unknown, custom?: unknown, message?: unknown, category?: unknown, slug?: unknown, destination?: unknown, source?: unknown }} input
+ * @returns {{ ok: true, amount: number, message: string | null, source: 'post', category: 'material' | 'calendario', slug: string, destination: TipDestination }
+ *   | { ok: true, amount: number, message: string | null, source: 'fondo', category: null, slug: null, destination: TipDestination }
  *   | { ok: false, errors: Record<string, string> }}
  */
 export function validateTip(input) {
@@ -138,17 +183,37 @@ export function validateTip(input) {
 	if (!amount.ok) errors.amount = choice ? amount.error : 'Elegí un monto.';
 	const message = parseTipMessage(input.message);
 	if (!message.ok) errors.message = message.error;
-	const post = tipPost(input.category, input.slug);
-	if (!post) errors.post = 'No sabemos desde qué publicación llegaste.';
-	if (!amount.ok || !message.ok || !post) return { ok: false, errors };
+	const fromFondo = input.source === TIP_SOURCE_FONDO;
+	const post = fromFondo ? null : tipPost(input.category, input.slug);
+	if (!fromFondo && !post) errors.post = 'No sabemos desde qué publicación llegaste.';
+	if (!amount.ok || !message.ok) return { ok: false, errors };
+	if (fromFondo) {
+		return {
+			ok: true,
+			amount: amount.amount,
+			message: message.message,
+			source: 'fondo',
+			category: null,
+			slug: null,
+			destination: TIP_DESTINATION
+		};
+	}
+	if (!post) return { ok: false, errors };
 	return {
 		ok: true,
 		amount: amount.amount,
 		message: message.message,
+		source: 'post',
 		...post,
 		destination: TIP_DESTINATION
 	};
 }
+
+/** Nombre de cada origen (panel y CSV). */
+export const TIP_SOURCE_LABELS = Object.freeze({
+	post: 'Publicación',
+	fondo: 'Fondo (una vez)'
+});
 
 /** Nombre de cada estado de una propina (panel y CSV). */
 export const TIP_STATUS_LABELS = Object.freeze({

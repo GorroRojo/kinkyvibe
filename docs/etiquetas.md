@@ -4,9 +4,9 @@
 
 Las etiquetas ordenan todo el sitio: los eventos, el material, les amigues y la Kinkipedia (la
 wiki) las nombran en su `tags:`. Viven en la base (objetos `etiqueta`) y se editan desde
-`/admin/etiquetas`, que guarda en la base al momento. El archivo `src/lib/utils/hardcodedTags.js`
-queda solo como respaldo de lectura (sin base, o con la base sin etiquetas) y ya no se edita desde
-el panel. El paso 3 del plan ([decisión 0026](decisiones/0026-orden-1-10.md),
+`/admin/etiquetas`, que guarda en la base al momento. El viejo archivo `hardcodedTags.js` se borró
+([0032](decisiones/0032-borrar-los-md.md)): sin base, o con la base sin etiquetas, el árbol está
+vacío. El paso 3 del plan ([decisión 0026](decisiones/0026-orden-1-10.md),
 «Etiquetas a objetos») las pasa a la base, como objetos ([objetos.md](objetos.md)).
 
 El diseño es de gorrite:
@@ -24,7 +24,8 @@ La referencia del modelo es TagStudio ([0011](decisiones/0011-etiquetas.md)).
 Se hace en PRs chicos, uno arriba del otro:
 
 1. **El tipo `etiqueta`** (este documento, migración `0029_etiquetas.sql`). Nada lo usa todavía.
-2. Importar el archivo y los textos de la wiki a la base (panel y `npm run tags:import`).
+2. Importar el archivo y los textos de la wiki a la base (hecho; desde 0032 el importador solo
+   carga la semilla de una base local o de pruebas).
 3. Leer las etiquetas de la base detrás del interruptor `etiquetas_db`, y editarlas en el panel
    guardando en la base.
 4. Arreglos de series (editar, imagen, páginas y listado en la Kinkipedia).
@@ -49,14 +50,14 @@ Se hace en PRs chicos, uno arriba del otro:
 
 Archivo: `src/lib/server/objects/types/etiqueta.js`.
 
-| Campo            | Clase      | Qué es hoy en `hardcodedTags.js` / la wiki                                        |
+| Campo            | Clase      | Qué era en el viejo `hardcodedTags.js` / la wiki                                  |
 | ---------------- | ---------- | --------------------------------------------------------------------------------- |
 | (`title`)        | —          | `visible_name`, o el `id` si no tiene                                             |
 | `key`            | `text`     | `id`: el nombre en los posts. Obligatorio, una línea, sin corchetes               |
 | `icon`           | `text`     | `icon` (un emoji)                                                                 |
 | `color`          | `text`     | `color`: `darkblue`, `#ff4444` o `var(--3-dark)` (nada más, va dentro de `style`) |
 | `description`    | `longtext` | `description`, con `[[enlaces]]` a otras etiquetas                                |
-| `image`          | `text`     | `image` (series): un archivo de `src/lib/assets` o la imagen de un evento         |
+| `image`          | `text`     | `image` (series): un nombre de las viejas imágenes de series o la de un evento    |
 | `body`           | `longtext` | el cuerpo del `.md` de la wiki (markdown, con `[[enlaces]]`)                      |
 | `wiki_title`     | `text`     | `title` del `.md` de la wiki                                                      |
 | `wiki_summary`   | `longtext` | `summary` del `.md` de la wiki                                                    |
@@ -80,15 +81,16 @@ archivo salió cada etiqueta, con qué hash y en qué versión, para no pisar lo
 
 ## Importar (paso 2)
 
-`src/lib/server/etiquetas/importer.js` pasa el archivo (`hardcodedTags.js`) y los textos de la
-wiki (`src/lib/posts/wiki/*.md`, el cuerpo de la etiqueta de su `wiki:`) a objetos. Mismo patrón
-que amigues:
+`src/lib/server/etiquetas/importer.js` pasaba el archivo de etiquetas y los textos de la wiki (el
+cuerpo de la etiqueta de su `wiki:`) a objetos. Producción ya los tiene; desde 0032 lo usa solo la
+semilla (`src/lib/server/semilla/etiquetas.json` y `wiki.json`, la copia fija del archivo y la
+wiki), para una base local o de pruebas sin etiquetas. Mismo patrón que amigues:
 
 - **Idempotente**, por `tag_sources.source_key`: sin cambios no hace nada; si la etiqueta se
   editó en el panel (otra `version`), no la pisa; si se borró, no la revive; si ya había una
   etiqueta viva con ese nombre creada en el panel, la deja y la usa para las relaciones.
 - Lee el archivo como `tagsFactory` (`model.js`, `tagsToRecords`): las hijas no declaradas existen
-  igual y `aka`/`aliasOf` son alias. `model.test.js` verifica, sobre el archivo real, que
+  igual y `aka`/`aliasOf` son alias. `model.test.js` verifica, sobre la semilla, que
   importar y volver a leer (`recordsToRawTags`) da el mismo árbol. Diferencias a propósito:
   - una relacionada con una etiqueta que no existe («cosquillas») no se importa (hoy es texto sin
     página); se avisa;
@@ -97,15 +99,10 @@ que amigues:
   - las relacionadas se ven en los dos sentidos también con las hijas no declaradas («sumise»);
   - ícono, color e imagen sin espacios en las puntas.
 - En dos pasos: primero crea las que faltan (solo con su nombre), después datos y relaciones.
-- **Por tandas** (`budget`): el panel hace 120 escrituras por pedido y vuelve a pedir solo hasta
-  terminar; una etiqueta cuya madre todavía no se creó espera a la tanda siguiente.
+- **Por tandas** (`budget`): una etiqueta cuya madre todavía no se creó espera a la tanda siguiente.
 
-Cómo correrlo:
-
-- **Panel**: Etiquetas → «Importar a la base» (`/admin/etiquetas/importar`). Anda con el
-  interruptor apagado; muestra antes qué va a pasar con cada etiqueta. Queda en Actividad.
-- **Local**: `npm run tags:import` (o `-- --dry` para ver sin escribir), contra la base de
-  `npm run dev`.
+Cómo correrlo: `npm run db:semilla` (local; solo carga etiquetas si la base no tiene ninguna).
+`npm run dev` lo hace solo.
 
 La lectura (`read.js`, `loadTagRecords`) devuelve las etiquetas que ve quien mira (por defecto el
 público) con sus relaciones, ambas puntas con `visibleWhere()`.
@@ -114,13 +111,13 @@ público) con sus relaciones, ambas puntas con `visibleWhere()`.
 
 El interruptor «Etiquetas desde la base» (`etiquetas_db`) **quedó prendido para siempre** y salió
 de Interruptores («Contenido solo en la base», paso 2): ya no hay commits al archivo de etiquetas.
-Una base nueva (un preview o la local) necesita importar primero (paso 2; en la compu,
-`npm run tags:import`): hasta entonces el sitio lee el archivo y el editor avisa que hay que
-importar.
+Una base local nueva se llena con la semilla (`npm run db:semilla`, que `npm run dev` corre
+solo); hasta entonces el árbol está vacío y el editor lo avisa.
 
 - **De dónde sale el árbol**: `src/lib/server/etiquetas/source.js` (`siteTagSource`,
-  `siteTagManager`): la base. Sin base, con la base sin etiquetas o sin poder leerla: el archivo,
-  solo como respaldo. Lo leído se recuerda 30 s por isolate (si al volver a leer no cambió
+  `siteTagManager`): la base. Sin base, con la base sin etiquetas o sin poder leerla: vacío
+  (`src/lib/utils/tagFallback.js`; las pruebas de vitest ponen ahí las etiquetas de la semilla,
+  en `src/tests/setup.js`). Lo leído se recuerda 30 s por isolate (si al volver a leer no cambió
   nada, es la misma lista: no se rearma nada); el editor lo olvida al guardar.
 - **Todo usa esa fuente, sin excepciones** (paso 5). Una sola puerta: `src/lib/utils/siteTags.js`
   (`currentSiteTags()`, `currentSiteTagList()`).
@@ -130,8 +127,7 @@ importar.
   - En el navegador, el layout raíz manda la lista de la base (`data.siteTags`, solo prendido) y
     `useSiteTags` la pone en los stores y en `siteTags.js`.
   - Lo leen de ahí: la limpieza de etiquetas de cada post (`canonicalTags`/`processPost`,
-    `fetchPost`), los listados de posts (`fetchMarkdownPosts`: la lista se procesa una vez con el
-    archivo y, con la base, se vuelven a limpiar las etiquetas, una vez por árbol), los
+    `fetchPost`), los listados de posts (`fetchMarkdownPosts`: la lista se procesa una vez y, con la base, se vuelven a limpiar las etiquetas, una vez por árbol), los
     editores del panel (`adminTags.js`: el editor de eventos, «¿Es parte de una serie?» al
     duplicar, que con la base crea la serie en la base), las series (páginas, avisos, link de
     baja, `/ics/etiqueta/…`), el ingreso (la serie del evento), KinkyVibe en las entradas
@@ -151,7 +147,7 @@ importar.
   sacar un alias y crear una hija se guardan al hacerlos. No hay lista de «cambios por guardar»:
   la acción `guardar` acepta un solo cambio (`op`). Fusionar y renombrar sin alias piden
   confirmación antes (con lo que diga la vista previa del servidor). Guarda en la base (sin
-  etiquetas en la base, la página pide importarlas: `NEEDS_IMPORT`) (`src/lib/server/etiquetas/editor.js`). Usa las mismas
+  etiquetas en la base, la página pide cargar la semilla: `NEEDS_IMPORT`) (`src/lib/server/etiquetas/editor.js`). Usa las mismas
   operaciones que el editor del archivo (`applyTagOps`), así que valida igual; después compara
   objeto por objeto y escribe solo lo que cambió. Diferencias:
   - renombrar: ver abajo; la etiqueta renombrada sigue siendo el mismo objeto;
@@ -195,13 +191,12 @@ Eventos → Series › Editar):
   (`linkedTagsOf` de `withContentDb`/`dbPostsOnlyClient`). La vista previa lo cuenta en una línea
   («N publicaciones la tienen enlazada y cambian solas»). Un `wiki:` con el nombre se reescribe
   igual.
-- El archivo (`hardcodedTags.js`) no se toca nunca desde el panel: es solo el respaldo.
 
 ## La Kinkipedia (solo base)
 
 El texto de la wiki de cada etiqueta (`body`, `wiki_title`, `wiki_summary`, `wiki_authors`,
-`wiki_tags`) es su página `/wiki/<dirección>` (`tagSlug(key)`: los mismos nombres que los `.md` de
-`src/lib/posts/wiki/`, que quedan solo como respaldo).
+`wiki_tags`) es su página `/wiki/<dirección>` (`tagSlug(key)`: los mismos nombres que tenían los viejos
+`.md` de la wiki).
 
 - **Leer**: `src/lib/server/wiki/site.js`. Las páginas vienen con el árbol de etiquetas
   (`siteTagSource`, recordado 30 s por isolate): el glosario del layout, `/wiki`, el buscador, el
@@ -217,8 +212,8 @@ El texto de la wiki de cada etiqueta (`body`, `wiki_title`, `wiki_summary`, `wik
   «Sacar la entrada» le saca el texto (queda en el historial). `/edit/wiki/<…>` lleva ahí.
 - **Cómo se muestra** (`wiki_body_html`, como `body_html` de los eventos): si el texto no cambió,
   como estaba; si cambió, HTML libre si guarda une superadmin (todes les admins del panel, decisión 0003) y la lista corta si no. Sin valor (lo importado del repo): HTML libre.
-- **Importar**: el importador de etiquetas (arriba); `wiki_tags` es nuevo, así que reimportar
-  actualiza la página que tiene `tags:` (si nadie la editó en el panel).
+- **Semilla**: el importador de etiquetas (arriba) carga la wiki de `semilla/wiki.json` en una base
+  local o de pruebas.
 
 ## Series (paso 4)
 
@@ -228,17 +223,18 @@ para siempre y salió de Interruptores («Contenido solo en la base», paso 2).
 - **Eventos → Series** (`/admin/eventos/series`): «Crear serie» y, en cada serie, **«Editar»**:
   nombre de la etiqueta (renombrar, con la misma elección y el mismo valor por defecto que en
   Etiquetas, y un paso para confirmar después de ver cuántas publicaciones cambian), nombre
-  visible, ícono, imagen (de `src/lib/assets`) y descripción (`seriesEditOps`,
+  visible, ícono, imagen (de las imágenes de series de siempre) y descripción (`seriesEditOps`,
   `src/lib/utils/seriesAdmin.js`). Se guarda como en Etiquetas: en la base al momento
   (`src/lib/server/etiquetas/panel.js`). Los campos son un
   componente (`SeriesFields.svelte`) que usan crear y editar.
-- **Imagen de la serie** (`image` de la etiqueta): un archivo de `src/lib/assets`
-  (`picantearla-miniatura.webp`) o, sin copiarla, la imagen de un evento:
-  `calendario:<evento>/<archivo>` (`calendario:colectiver-2026-08/1.webp`, el archivo de
-  `src/lib/posts/calendario/media/colectiver-2026-08/`). Lo resuelven `eventImageRef`
+- **Imagen de la serie** (`image` de la etiqueta): el nombre de una de las viejas imágenes de
+  `src/lib/assets` (`picantearla-miniatura.webp`) o, sin copiarla, la imagen de un evento viejo:
+  `calendario:<evento>/<archivo>` (`calendario:colectiver-2026-08/1.webp`). Esos archivos ya no
+  están en el repo (0032): `src/lib/utils/legacyMedia.js` da su copia en la biblioteca. Con el edge
+  `imagen` (biblioteca) manda la imagen elegida ahí. Lo resuelven `eventImageRef`
   (`src/lib/utils/series.js`) y `seriesImageURL`; lo validan el editor (`isTagImage`) y el tipo
   (`IMAGE_KEY`), así que el importador lo copia a la base igual. El selector de Editar solo ofrece
-  archivos de `src/lib/assets`; la imagen de un evento se conserva si no se cambia.
+  esos nombres viejos (`legacyAssetNames`); la imagen de un evento se conserva si no se cambia.
 - **Página de la serie**: `/wiki/<serie>`, con su imagen, descripción, próximas y pasadas
   ediciones (`SeriesTagBlock.svelte`, como antes).
 - **Kinkipedia** (`/wiki`): la sección «Series» (`#series`), con una tarjeta por serie que tiene
@@ -266,7 +262,7 @@ para siempre y salió de Interruptores («Contenido solo en la base», paso 2).
 
 ```sh
 npx vitest run src/lib/server/objects/types src/lib/server/etiquetas src/routes/\(authed\)/admin/eventos/series
-npm run db:migrate:local && npm run tags:import -- --dry
+npm run db:semilla
 ```
 
 La migración no se aplica a mano en preview ni en producción desde un PR

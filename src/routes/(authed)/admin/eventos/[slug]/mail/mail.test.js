@@ -3,6 +3,7 @@
  * (mandar el mismo formulario dos veces no le escribe dos veces a nadie).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { seedMetasByPath, seedRawsByPath } from '$lib/server/semilla/testing.js';
 import { isHttpError, isRedirect } from '@sveltejs/kit';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { applyPayment, reserveOrder } from '$lib/server/tickets/orders.js';
@@ -25,19 +26,12 @@ afterAll(async () => {
 });
 /** El evento de prueba del repo, como lo importa la base (de donde salen los eventos). */
 const source = {
-	raw: /** @type {Record<string, string>} */ (
-		import.meta.glob('/src/lib/posts/calendario/prueba-entradas-2026-12.md', {
-			query: '?raw',
-			import: 'default',
-			eager: true
-		})
-	)[`/src/lib/posts/calendario/${EVENT}.md`],
-	meta: /** @type {Record<string, any>} */ (
-		import.meta.glob('/src/lib/posts/calendario/prueba-entradas-2026-12.md', {
-			import: 'metadata',
-			eager: true
-		})
-	)[`/src/lib/posts/calendario/${EVENT}.md`]
+	raw: /** @type {Record<string, string>} */ (seedRawsByPath('calendario'))[
+		`/src/lib/posts/calendario/${EVENT}.md`
+	],
+	meta: /** @type {Record<string, any>} */ (seedMetasByPath('calendario'))[
+		`/src/lib/posts/calendario/${EVENT}.md`
+	]
 };
 
 beforeEach(async () => {

@@ -1,5 +1,5 @@
 /**
- * Importación de las fichas de amigues (src/lib/posts/amigues/*.md) a perfiles en la base.
+ * Carga de fichas de amigues (texto .md: frontmatter y cuerpo) a perfiles en la base.
  *
  * - Escribe SOLO con saveObject() (docs/objetos.md); las tablas de apoyo (`profile_sources`,
  *   `profile_approvals`, migración 0017) van en la misma tanda (opción `also`).
@@ -15,8 +15,9 @@
  * - Clasifica cada ficha como persona, proyecto o lugar ("a confirmar", ver classify.js).
  * - Los perfiles importados nacen aprobados para /amigues (ya eran públicos).
  *
- * Corre en el Worker (Panel → Perfiles → Importar y clasificar, para las bases remotas), en el
- * script `scripts/import-amigues.js` (base local) y en los tests. Por eso usa solo imports
+ * Hoy solo carga la semilla de contenido (src/lib/server/semilla: la base local con
+ * `npm run db:semilla` y los perfiles de «Recargar datos de prueba» del preview) y lo usan las
+ * pruebas: las fichas .md ya no están en el repo (decisión 0032). Por eso usa solo imports
  * relativos y `yaml` (nada de `$lib` ni de Vite).
  */
 import YAML from 'yaml';

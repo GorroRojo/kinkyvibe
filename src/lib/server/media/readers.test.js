@@ -8,6 +8,7 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { seedPosts } from '$lib/server/contenido/testing.js';
 import { storeImage } from './library.js';
 import { solidPng } from './testing.js';
+import { legacyAssetURL } from '$lib/utils/legacyMedia.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -58,11 +59,12 @@ const base = {
 };
 
 describe('imagen de un evento', () => {
-	it('sin edge, la del repo; con el edge del editor, la de la biblioteca (y al sacarla, vuelve)', async () => {
+	it('sin edge, la copia en la biblioteca de la imagen vieja; con el edge del editor, la del edge (y al sacarlo, vuelve)', async () => {
 		const m = await modules();
+		const old = /** @type {string} */ (legacyAssetURL('cabaret-astral-miniatura.webp'));
+		expect(old).toMatch(/\/media\/img\/[0-9a-f]{64}\.webp$/);
 		const before = await m.posts.siteEvent(t.platform, SLUG);
-		expect(String(before?.meta.featured)).toContain('cabaret-astral-miniatura');
-		expect(String(before?.meta.featured)).not.toMatch(/^\/media\//);
+		expect(before?.meta.featured).toBe(old);
 
 		const { image } = await storeImage(
 			t.db,
@@ -109,6 +111,6 @@ describe('imagen de un evento', () => {
 			edges: { [PATH]: { portada: [] } }
 		});
 		const removed = await m.posts.siteEvent(t.platform, SLUG);
-		expect(String(removed?.meta.featured)).toContain('cabaret-astral-miniatura');
+		expect(removed?.meta.featured).toBe(old);
 	});
 });

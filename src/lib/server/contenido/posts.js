@@ -593,10 +593,8 @@ export async function siteContent(
 				postID,
 				{ vars: post.meta }
 			)
-		: { html: '', css: '', component: false };
-	// El componente no viaja desde el servidor: con `component`, +page.js carga el que mdsvex
-	// compiló del .md (el texto es el mismo); si no, la página muestra `html` (o `parts`, con
-	// interactivos) y `css`, solo dentro del texto.
+		: { html: '', css: '' };
+	// La página muestra `html` (o `parts`, con interactivos) y `css`, solo dentro del texto.
 	// eslint-disable-next-line no-unused-vars
 	const { content, ...rest } = post;
 	return { ...rest, ...body, ...reading, cover: coverForPreview(cover) };

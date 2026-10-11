@@ -2,14 +2,13 @@
  * GET /api/preview-status: qué está configurado en un deploy de preview, para revisar el entorno
  * de prueba sin entrar a Cloudflare. Solo presente/ausente (nunca un valor) y si el token de
  * Mercado Pago es de prueba. En producción (y en local) responde 404.
- * `demo`: filas de la base de prueba y los últimos cambios guardados en modo demo (docs/demo.md).
+ * `demo`: filas de la base de prueba (docs/demo.md).
  */
 import { error, json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { getDB } from '$lib/server/db';
 import { isPreviewDeploy } from '$lib/server/deploy.js';
 import { parseAllowlist } from '$lib/server/tickets/emailGuard.js';
-import { overlaySummary } from '$lib/server/demo/overlay.js';
 
 /** Tablas cuyas filas se cuentan (para ver si se cargó el seed de datos de prueba). */
 const COUNTED_TABLES = [
@@ -66,7 +65,7 @@ export async function GET({ platform }) {
 			cron_secret: present(env.CRON_SECRET),
 			site_url: present(env.SITE_URL),
 			transfer_info: present(env.TICKETS_TRANSFER_INFO),
-			demo: db ? { rows, ...(await overlaySummary(db)) } : null
+			demo: db ? { rows } : null
 		},
 		{ headers: { 'cache-control': 'no-store' } }
 	);

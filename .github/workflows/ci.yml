@@ -86,12 +86,6 @@ jobs:
       - name: Prettier
         run: npm run format:check
 
-      # Los eventos de prueba del modo demo (.md con la marca del seed) son solo de la rama demo:
-      # nunca pueden llegar a main (docs/demo.md).
-      - name: No demo events in posts
-        if: github.event_name == 'push' || github.base_ref == 'main'
-        run: node scripts/demo/guard.js posts
-
   # Las pruebas de vitest, repartidas en 3 máquinas en paralelo (eran ~7 de los ~8 minutos de CI).
   # Cada una corre un tercio de los archivos (`--shard`); juntas, todas.
   tests:

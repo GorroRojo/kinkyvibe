@@ -8,6 +8,10 @@ import {
 	TIP_MESSAGE_MAX,
 	TIP_MIN,
 	TIP_PRESETS,
+	TIP_SOURCES,
+	TIP_SOURCE_LABELS,
+	presetFromQuery,
+	presetValues,
 	isKinkyVibePost,
 	showEventTip,
 	monthLabel,
@@ -70,6 +74,7 @@ describe('validateTip', () => {
 			ok: true,
 			amount: 2000,
 			message: null,
+			source: 'post',
 			category: 'material',
 			slug: 'una-guia',
 			destination: 'fondo'
@@ -91,6 +96,71 @@ describe('validateTip', () => {
 	});
 });
 
+describe('propinas desde el Fondo (?de=fondo)', () => {
+	it('validateTip con source fondo: sin publicación, el monto igual se valida', () => {
+		expect(validateTip({ amount: 'otro', custom: '3000', source: 'fondo' })).toEqual({
+			ok: true,
+			amount: 3000,
+			message: null,
+			source: 'fondo',
+			category: null,
+			slug: null,
+			destination: 'fondo'
+		});
+		// Una publicación que llegue igual se ignora (no hay error de publicación).
+		expect(
+			validateTip({ amount: '1000', source: 'fondo', category: 'wiki', slug: '../x' })
+		).toMatchObject({ ok: true, source: 'fondo', category: null, slug: null });
+		// Fuera de rango: error de monto, como cualquier propina.
+		expect(validateTip({ amount: 'otro', custom: '499', source: 'fondo' })).toEqual({
+			ok: false,
+			errors: { amount: `El mínimo es ${formatARS(TIP_MIN)}.` }
+		});
+		expect(validateTip({ amount: 'otro', custom: String(TIP_MAX + 1), source: 'fondo' })).toEqual({
+			ok: false,
+			errors: { amount: `El máximo es ${formatARS(TIP_MAX)}.` }
+		});
+		// Otro `source` cualquiera es una propina de publicación (y pide la publicación).
+		expect(validateTip({ amount: '1000', source: 'otra-cosa' })).toMatchObject({
+			ok: false,
+			errors: { post: expect.any(String) }
+		});
+	});
+
+	it('presetFromQuery: solo enteros dentro del mínimo y el máximo', () => {
+		for (const n of [1500, 3000, 7500, 15000, 30000, 45000, TIP_MIN, TIP_MAX]) {
+			expect(presetFromQuery(String(n))).toBe(n);
+		}
+		for (const raw of [
+			null,
+			undefined,
+			'',
+			'499',
+			String(TIP_MAX + 1),
+			'3.000',
+			'3000.5',
+			'-3000',
+			'3e3',
+			' 3000',
+			'abc',
+			'99999999'
+		]) {
+			expect(presetFromQuery(raw), String(raw)).toBeNull();
+		}
+	});
+
+	it('presetValues: el botón si coincide, si no «Otro monto» con ese número', () => {
+		expect(presetValues(null)).toEqual({});
+		expect(presetValues(TIP_PRESETS[0])).toEqual({ amount: String(TIP_PRESETS[0]) });
+		expect(presetValues(3000)).toEqual({ amount: 'otro', custom: '3000' });
+	});
+
+	it('los nombres de cada origen', () => {
+		expect(TIP_SOURCES).toEqual(['post', 'fondo']);
+		expect(Object.keys(TIP_SOURCE_LABELS)).toEqual([...TIP_SOURCES]);
+	});
+});
+
 describe('destino de la propina', () => {
 	const base = { amount: '2000', category: 'material', slug: 'una-guia', message: '' };
 
@@ -109,6 +179,7 @@ describe('destino de la propina', () => {
 				ok: true,
 				amount: 2000,
 				message: null,
+				source: 'post',
 				category: 'material',
 				slug: 'una-guia',
 				destination: 'fondo'

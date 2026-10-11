@@ -91,10 +91,6 @@ describe('demo seed', () => {
 		expect(
 			await t.db.prepare("SELECT code FROM discount_codes WHERE code = 'REAL'").first()
 		).toBeTruthy();
-		const demoFiles = await t.db
-			.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'demo_files'")
-			.first();
-		expect(demoFiles).toBeTruthy();
 	}, 60000);
 
 	it('covers every order state the panel shows', () => {
@@ -309,7 +305,6 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 		'discount_codes',
 		'ticket_settings',
 		'event_ticket_settings',
-		'demo_files',
 		'admin_audit',
 		'admin_last_seen',
 		'person_notes',
@@ -387,22 +382,6 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 			t.db.prepare(
 				"UPDATE ticket_settings SET value = 'Banco Guardado A Mano', updated_by = 'demo' WHERE key = 'transfer_bank'"
 			),
-			insertRow('demo_files', {
-				path: 'src/lib/posts/calendario/evento-real-2026-10.md',
-				content: 'editado en la demo',
-				author: 'demo'
-			}),
-			// A demo event left as .md by an older seed (the site no longer reads them): it goes.
-			insertRow('demo_files', {
-				path: 'src/lib/posts/calendario/demo-noche-latex-2026-09-30.md',
-				content: '---\ntitle: x\n---\n',
-				author: SEED_BY
-			}),
-			insertRow('demo_files', {
-				path: 'src/lib/posts/calendario/demo-creado-en-la-demo.md',
-				content: '---\ntitle: x\n---\n',
-				author: 'demo'
-			}),
 			insertRow('admin_audit', {
 				at: 1,
 				actor_login: 'GorroRojo',
@@ -474,7 +453,6 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 		expect(
 			await count("objects WHERE type = 'evento' AND slug = 'demo-noche-latex-2026-10-01'")
 		).toBe(0);
-		expect(await count("demo_files WHERE path LIKE 'src/lib/posts/calendario/demo-%'")).toBe(0);
 
 		// What isn't demo data is untouched.
 		expect(await count("orders WHERE id = 'real-order'")).toBe(1);
@@ -483,15 +461,11 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 		expect(await count("discount_codes WHERE code = 'REAL'")).toBe(1);
 		expect(await count("ticket_settings WHERE key = 'reminders'")).toBe(1);
 		expect(await count("ticket_settings WHERE value = 'Banco Guardado A Mano'")).toBe(1);
-		expect(
-			await count("demo_files WHERE path = 'src/lib/posts/calendario/evento-real-2026-10.md'")
-		).toBe(1);
 		expect(await count("admin_audit WHERE summary = 'real'")).toBe(1);
 		expect(await count('admin_last_seen WHERE admin_id = 12345')).toBe(1);
 		expect(await count("person_notes WHERE created_by = 'GorroRojo'")).toBe(1);
 		// What was made in the demo on demo events is gone.
 		expect(await count("orders WHERE event_slug = 'demo-creado-en-la-demo'")).toBe(0);
-		expect(await count("demo_files WHERE path LIKE '%demo-creado-en-la-demo%'")).toBe(0);
 		expect(await count("admin_audit WHERE target_id = 'demo-creado-en-la-demo'")).toBe(0);
 		expect(await count('event_mail_sends')).toBe(0);
 		expect(await count('event_mail_recipients')).toBe(0);

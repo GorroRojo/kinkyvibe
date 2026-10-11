@@ -4,11 +4,11 @@
  * 33 consultas sueltas por visita). Para comparar, abajo está el load de antes, tal cual (con las
  * funciones de inicio.js de siempre, que siguen existiendo y tienen sus propios tests).
  *
- * Lo único que cambió a propósito (decisión 0030, gorrite): «Para revisar» suma dos filas nuevas
- * (lo que Etiquetas tiene para revisar y la lista del importador de contenido), que el load de
- * antes no tenía (`NEW_ROWS`), y ya no lista los PRs de contenido de GitHub (el contenido vive solo
- * en la base; el load de antes tampoco los traía en estas pruebas, con `usesLocalRepo` en true, así
- * que se sacaron de él sin cambiar lo que da), y el contador `review` del menú es ahora la cantidad de filas de la
+ * Lo único que cambió a propósito (decisión 0030, gorrite): «Para revisar» suma una fila nueva
+ * (lo que Etiquetas tiene para revisar; la del importador de contenido se fue con él, decisión
+ * 0032), que el load de antes no tenía (`NEW_ROWS`), y ya no lista los PRs de contenido de GitHub (el contenido vive solo
+ * en la base; el load de antes tampoco los traía en estas pruebas, así que se sacaron de él sin
+ * cambiar lo que da), y el contador `review` del menú es ahora la cantidad de filas de la
  * tarjeta (antes sumaba solo transferencias, órdenes, perfiles y eventos «Online» con lugar). Por
  * eso se compara todo lo demás con lo de antes y `review` con las filas de la tarjeta.
  * D1 de miniflare, datos inventados (example.com); los eventos, de mentira.
@@ -89,8 +89,7 @@ const fake = vi.hoisted(() => ({
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
 vi.mock('$lib/server/eventos/index.js', async (importOriginal) => ({
 	.../** @type {object} */ (await importOriginal()),
-	listEvents: async () => structuredClone(fake.events),
-	usesLocalRepo: () => true
+	listEvents: async () => structuredClone(fake.events)
 }));
 vi.mock('$lib/server/tickets/events.js', async (importOriginal) => ({
 	.../** @type {object} */ (await importOriginal()),
@@ -668,7 +667,7 @@ async function seedOnlineWithPlace() {
 }
 
 /** Las filas de «Para revisar» que el load de antes no tenía (decisión 0030). */
-const NEW_ROWS = new Set(['tags-review', 'import-review']);
+const NEW_ROWS = new Set(['tags-review']);
 
 /**
  * El resultado del load sin las filas nuevas de «Para revisar», para compararlo con el de antes.
@@ -921,12 +920,12 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		await load(fakeEvent(page.platform));
 		expect(page.trips()).toBe(2);
 		expect(page.stats.batches).toBe(2);
-		// Las sentencias de este escenario (no crecen sin que se note): 20 en la primera tanda (con
-		// la de los eventos «Online» con lugar, las 2 de las etiquetas y la de la última revisión del
-		// importador, de «Para revisar») y 19 en la segunda (totales, ingresos, links, 3 de envíos
+		// Las sentencias de este escenario (no crecen sin que se note): 19 en la primera tanda (con
+		// la de los eventos «Online» con lugar y las 2 de las etiquetas, de «Para revisar»; la de la
+		// última revisión del importador se fue con él, decisión 0032) y 19 en la segunda (totales, ingresos, links, 3 de envíos
 		// fallidos, 4 recordatorios vencidos —2 por evento de hoy—, 5 de la última visita y 2 por
 		// evento de hoy para el gráfico).
-		expect(page.stats.prepared).toBe(20 + 19);
+		expect(page.stats.prepared).toBe(19 + 19);
 
 		// El de antes, con las mismas funciones: una ida por consulta (acá sin las de la lista de
 		// eventos, que son de mentira).
@@ -940,11 +939,11 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		await menuCounts(layout.platform);
 		expect(layout.trips()).toBe(2);
 		expect(layout.stats.batches).toBe(2);
-		// Primera tanda: los 5 contadores de siempre (la cuenta de «No listadas» son 2) y las 11 de
+		// Primera tanda: los 5 contadores de siempre (la cuenta de «No listadas» son 2) y las 10 de
 		// «Para revisar» que no dependen de los eventos (con la de los eventos «Online» con lugar, que
 		// es también su contador). Segunda: totales, links, 3 de envíos fallidos y 4 recordatorios
 		// vencidos.
-		expect(layout.stats.prepared).toBe(5 + 11 + 9);
+		expect(layout.stats.prepared).toBe(5 + 10 + 9);
 
 		// Sin eventos que vienen con entradas, la segunda tanda no tiene nada: una sola ida.
 		fake.ticketed = [];

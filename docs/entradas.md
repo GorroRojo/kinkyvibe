@@ -32,6 +32,10 @@ invitaciones a mano, reembolsan y controlan el ingreso escaneando el QR con el c
   modo puerta no lo ofrece salvo con "Vender igual"), confirmar una transferencia vencida (cupo y
   tramo) y cargar entradas a mano (cupo, máximo, venta cerrada, encadenado sin habilitar)
   (`src/lib/server/tickets/overrides.js`).
+- **Una venta en la puerta hecha sin conexión nunca se pierde ni se duplica** (decisión 0035): se
+  sincroniza con `sellAtDoor`, en orden, con el id del celu único en la base
+  (`orders.client_sale_id`); si pasó un límite se guarda igual y queda en «Para revisar». Con
+  conexión, la venta en la puerta sigue igual que siempre.
 - **La compra pública conserva todos los límites.** `reserveOrder` no tiene override y mandar
   `override` en la compra no hace nada (hay pruebas).
 - El `id` de un tipo de entrada **no cambia nunca** una vez que vendió (las órdenes lo guardan).
@@ -98,7 +102,8 @@ empieza. No hay paso de confirmar
 `src/lib/utils/transferDeadline.js`).
 
 **Vender en la puerta / cargar invitaciones.** Check-in → el evento → Vender en puerta; o menú
-"Opciones" → Cargar entradas a mano.
+"Opciones" → Cargar entradas a mano. Sin conexión también se vende: la venta queda en el celu y
+se manda sola cuando vuelve ([tickets.md](tickets.md), modo puerta).
 
 **Reembolsar.** Ficha del evento → Órdenes → Reembolsar… (total; MP o marcar la transferencia como
 devuelta). Anula las entradas y avisa por mail.
