@@ -64,7 +64,7 @@
 	</nav>
 {/if}
 
-<header>
+<header data-sitio>
 	<div id="me">
 		<ul id="redes">
 			<!-- el buscador global reemplaza acá al link de Cafecito y a los íconos de
@@ -239,9 +239,15 @@
 		justify-self: right;
 		--color: var(--1);
 	}
-	/* `width: 24` (no unit) was always invalid and ignored by browsers; Vite 8's CSS minifier
-	   would turn it into 24px and resize every icon, so it's dropped to keep the old rendering. */
-	:global(svg) {
+	/* Desde 2023 todo `svg` del sitio mide 24px de alto. Nació para los íconos de redes
+	   (SimpleIcon.svelte, que no traían tamaño; ahora lo tienen ellos), pero el resto de los íconos
+	   del sitio ya se acomodó a esa caja, así que se mantiene igual en las páginas públicas. Antes
+	   era un `svg` suelto: como el CSS de una página queda cargado al navegar sin recargar, se
+	   colaba en el panel si se entraba desde el sitio. Ahora vale solo mientras este layout está
+	   en pantalla (su encabezado tiene `data-sitio`); el `:where` deja la especificidad de un `svg`
+	   suelto, así que las reglas propias de cada componente siguen ganando.
+	   (`width: 24`, sin unidad, nunca valió y el minificador de Vite 8 lo volvería 24px: no va.) */
+	:global(:where(body:has(header[data-sitio])) svg) {
 		height: 24px;
 	}
 	#logo img {
