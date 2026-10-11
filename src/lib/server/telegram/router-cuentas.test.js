@@ -161,7 +161,7 @@ describe('errores', () => {
 	});
 });
 
-describe('/start adm_<código> (vincular el Telegram de une admin, prototipo de la puerta)', () => {
+describe('/start adm_<código> (vincular el Telegram de une admin, la puerta por Telegram)', () => {
 	/**
 	 * @param {Awaited<ReturnType<import('./router.js').BotAdminLink>>} result
 	 * @param {ReturnType<typeof fakeAccounts> | null} [accounts]
@@ -182,6 +182,10 @@ describe('/start adm_<código> (vincular el Telegram de une admin, prototipo de 
 		expect(d.adminLink).toHaveBeenCalledWith('adm_ABCD2345', 42);
 		expect(res?.text).toContain('quedó vinculado a le admin <b>admin-inventade</b>');
 		expect(res?.text).toContain('Ajustes → Admins');
+		// Con el botón que abre la Mini App de la puerta.
+		expect(/** @type {any} */ (res)?.reply_markup?.inline_keyboard).toEqual([
+			[{ text: '🚪 Abrir la puerta', web_app: { url: 'https://ejemplo.test/telegram/puerta' } }]
+		]);
 	});
 
 	it('no depende de «Lo que sigo» ni toca los códigos de Mi rincón', async () => {
@@ -198,6 +202,7 @@ describe('/start adm_<código> (vincular el Telegram de une admin, prototipo de 
 	it('inválido, vencido o ya usado: lo dice sin detalles y manda al panel', async () => {
 		const res = await handleUpdate(fromUser('/start adm_ZZZZZZZZ'), adminDeps('invalid'));
 		expect(res?.text).toContain('Ese link no sirve');
+		expect(res).not.toHaveProperty('reply_markup');
 		expect(res?.text).toContain('15 minutos');
 		expect(res?.text).toContain('Vincular Telegram');
 	});
@@ -214,7 +219,7 @@ describe('/start adm_<código> (vincular el Telegram de une admin, prototipo de 
 		expect(res?.text).toContain('chat privado');
 	});
 
-	it('sin base (sin `adminLink`) o sin usuario: avisa que no se puede', async () => {
+	it('sin base o con la puerta apagada (sin `adminLink`) o sin usuario: avisa que no se puede', async () => {
 		const res = await handleUpdate(fromUser('/start adm_ABCD2345'), deps(null));
 		expect(res?.text).toContain('no se puede vincular');
 		const d = adminDeps({ linked: 'admin-inventade' });

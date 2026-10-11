@@ -56,6 +56,7 @@ import {
 import { cardFor, navigate } from './navigate.js';
 import {
 	SEARCH_PROMPT_HEAD,
+	doorAppUrl,
 	followScreen,
 	listScreen,
 	noticeScreen,
@@ -86,8 +87,8 @@ import {
  */
 
 /**
- * Vincular el Telegram de une admin (prototipo de la puerta, adminLink.js): recibe lo que vino
- * después de `/start` (`adm_<código>`) y el id del usuario de Telegram.
+ * Vincular el Telegram de une admin (la puerta por Telegram, decisión 0036, adminLink.js): recibe
+ * lo que vino después de `/start` (`adm_<código>`) y el id del usuario de Telegram.
  *
  * @typedef {(param: string, telegramUserId: number) =>
  *   Promise<{ linked: string } | 'invalid' | 'too_many'>} BotAdminLink
@@ -99,7 +100,8 @@ import {
  *   adminLink?: BotAdminLink | null,
  *   media?: boolean
  * }} Deps `media`: hay token, así que se pueden usar fotos y varios métodos (run.js).
- *   `adminLink`: sin base, `null` (el bot contesta que no se puede).
+ *   `adminLink`: sin base o con `telegram_puerta` apagado, `null` (el bot contesta que no se
+ *   puede).
  */
 
 /** Lo que trae "/start" cuando viene del link con el código (8 letras y números). */
@@ -216,20 +218,26 @@ async function accountCommand(command, chat, deps) {
 
 /**
  * `/start adm_<código>`: el link de «Vincular Telegram» del panel (Ajustes → Admins). Solo por
- * chat privado; no depende de «Lo que sigo» (les admins no tienen cuenta pública).
+ * chat privado; no depende de «Lo que sigo» (les admins no tienen cuenta pública). Si sale bien,
+ * la confirmación trae el botón que abre la puerta (Mini App, `web_app` solo anda en privado).
  *
  * @param {string} param
  * @param {any} message
  * @param {Deps} deps
- * @returns {Promise<string>}
+ * @returns {Promise<Screen>}
  */
 async function adminLinkCommand(param, message, deps) {
-	if (message?.chat?.type !== 'private') return PRIVATE_ONLY_TEXT;
+	if (message?.chat?.type !== 'private') return textScreen(PRIVATE_ONLY_TEXT);
 	const userId = message?.from?.id;
-	if (!deps.adminLink || typeof userId !== 'number') return ADMIN_LINK_OFF_TEXT;
+	if (!deps.adminLink || typeof userId !== 'number') return textScreen(ADMIN_LINK_OFF_TEXT);
 	const r = await deps.adminLink(param, userId);
-	if (typeof r === 'object' && r) return formatAdminLinked(r.linked);
-	return r === 'too_many' ? LINK_TOO_MANY_TEXT : ADMIN_LINK_INVALID_TEXT;
+	if (typeof r === 'object' && r) {
+		return {
+			text: formatAdminLinked(r.linked),
+			keyboard: [[{ text: '🚪 Abrir la puerta', web_app: { url: doorAppUrl(deps.origin) } }]]
+		};
+	}
+	return textScreen(r === 'too_many' ? LINK_TOO_MANY_TEXT : ADMIN_LINK_INVALID_TEXT);
 }
 
 /**
@@ -506,7 +514,7 @@ async function commandScreen(command, message, ctx, deps, accounts) {
 		case 'start': {
 			// El link de «Vincular Telegram» del panel llega como "/start adm_<código>".
 			if (command.args.startsWith(ADMIN_START_PREFIX)) {
-				return textScreen(await adminLinkCommand(command.args, message, deps));
+				return adminLinkCommand(command.args, message, deps);
 			}
 			// El link `t.me/<bot>?start=<código>` de Mi rincón llega como "/start <código>".
 			if (START_CODE.test(command.args)) {

@@ -1,5 +1,5 @@
 /**
- * Validación del `initData` de la Mini App (prototipo de la puerta): vectores armados acá con
+ * Validación del `initData` de la Mini App (la puerta por Telegram): vectores armados acá con
  * `node:crypto` (otra implementación del mismo algoritmo de las docs de Telegram) y un token
  * inventado. Nunca sale nada a la red.
  */

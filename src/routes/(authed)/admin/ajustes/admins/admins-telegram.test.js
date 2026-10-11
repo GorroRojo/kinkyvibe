@@ -1,5 +1,5 @@
 /**
- * Ajustes → Admins: «Vincular Telegram» y «Desvincular» (prototipo de la puerta). Solo admins;
+ * Ajustes → Admins: «Vincular Telegram» y «Desvincular» (la puerta por Telegram). Solo admins;
  * el link lleva `?start=adm_<código>` del bot, la base guarda solo el hash y desvincular deja
  * registro. D1 de miniflare; usuario del bot inventado.
  */
@@ -74,8 +74,23 @@ describe('/admin/ajustes/admins: Telegram para la puerta', () => {
 		expect(results).toEqual([]);
 	});
 
+	it('con el bot prendido pero la puerta apagada no se puede vincular y lo dice', async () => {
+		await setFlag(t.db, 'telegram_bot', true, { by: 'prueba' });
+		const { load, actions } = await page();
+		const data = /** @type {any} */ (await load(ev(admin)));
+		expect(data.telegram).toEqual({
+			linkedAt: null,
+			blocked: expect.stringContaining('puerta por Telegram está apagada')
+		});
+		const r = /** @type {any} */ (await actions.vincularTelegram(post('vincularTelegram', admin)));
+		expect(r.status).toBe(503);
+		const { results } = await t.db.prepare('SELECT * FROM telegram_admin_link_codes').all();
+		expect(results).toEqual([]);
+	});
+
 	it('vincular: link t.me con adm_<código> y QR; el bot lo usa; la lista lo marca; desvincular', async () => {
 		await setFlag(t.db, 'telegram_bot', true, { by: 'prueba' });
+		await setFlag(t.db, 'telegram_puerta', true, { by: 'prueba' });
 		const { load, actions } = await page();
 		const r = /** @type {any} */ (await actions.vincularTelegram(post('vincularTelegram', admin)));
 		const m = /^https:\/\/t\.me\/bot_inventado_de_prueba\?start=adm_([2-9A-HJ-NP-Z]{8})$/.exec(
@@ -111,6 +126,7 @@ describe('/admin/ajustes/admins: Telegram para la puerta', () => {
 
 	it('sin TELEGRAM_BOT_USERNAME no hay link', async () => {
 		await setFlag(t.db, 'telegram_bot', true, { by: 'prueba' });
+		await setFlag(t.db, 'telegram_puerta', true, { by: 'prueba' });
 		const { actions } = await page({ bot: '' });
 		const r = /** @type {any} */ (await actions.vincularTelegram(post('vincularTelegram', admin)));
 		expect(r.status).toBe(503);

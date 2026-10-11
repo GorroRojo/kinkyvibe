@@ -1,7 +1,7 @@
 /**
- * Vincular el Telegram de une admin desde el panel (prototipo de la puerta, PR #273; migración
- * 0050). Les admins entran con GitHub y no tienen cuenta pública (Mi rincón), así que esto no usa
- * `telegram_chats` (link.js): tiene su propia tabla, por id de GitHub.
+ * Vincular el Telegram de une admin desde el panel (la puerta por Telegram, decisión 0036;
+ * migración 0050). Les admins entran con GitHub y no tienen cuenta pública (Mi rincón), así que
+ * esto no usa `telegram_chats` (link.js): tiene su propia tabla, por id de GitHub.
  *
  * 1. En Ajustes → Admins, «Vincular Telegram» crea un código al azar, de un solo uso, que vence en
  *    15 minutos (se guarda solo su hash) y muestra el link `t.me/<bot>?start=adm_<código>`.

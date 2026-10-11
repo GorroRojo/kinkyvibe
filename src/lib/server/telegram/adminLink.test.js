@@ -1,5 +1,5 @@
 /**
- * Vincular el Telegram de une admin desde el panel (prototipo de la puerta): códigos de un solo
+ * Vincular el Telegram de une admin desde el panel (la puerta por Telegram): códigos de un solo
  * uso que vencen, solo el hash en la base, `/start adm_<código>`, desvincular y el registro.
  * Base de prueba; ids de Telegram inventados.
  */

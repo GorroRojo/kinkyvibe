@@ -1,8 +1,8 @@
 <script>
 	/**
-	 * PROTOTIPO (no para mergear): la puerta con el escáner de QR de Telegram
-	 * (`showScanQrPopup`, core.telegram.org/bots/webapps). Cada código escaneado va a `api`, que
-	 * valida el `initData` y los permisos en el servidor. Fuera de Telegram no hace nada.
+	 * La puerta con el escáner de QR de Telegram (`showScanQrPopup`, core.telegram.org/bots/webapps;
+	 * decisión 0036). Cada código escaneado va a `api`, que valida el `initData` y los permisos en
+	 * el servidor. Fuera de Telegram no hace nada.
 	 */
 	import { onMount } from 'svelte';
 
@@ -43,7 +43,12 @@
 				body: JSON.stringify({ initData: tg.initData, evento: slug, codigo: code })
 			});
 			const body = await res.json().catch(() => ({}));
-			if (res.status === 403)
+			if (res.status === 403 && body.reason === 'stale')
+				last = {
+					tone: 'error',
+					text: 'Pasó más de una hora desde que abriste la puerta: cerrala y volvé a abrirla desde el bot.'
+				};
+			else if (res.status === 403)
 				last = {
 					tone: 'error',
 					text: 'Este Telegram no está vinculado a une admin. Vinculalo en el panel: Ajustes → Admins.'
@@ -54,8 +59,11 @@
 				const r = RESULTS[body.result] ?? RESULTS.invalid;
 				last = { tone: r.tone, text: body.holder ? `${r.text} ${body.holder}` : r.text };
 			}
-			tg.HapticFeedback?.notificationOccurred?.(last.tone === 'ok' ? 'success' : 'error');
+		} catch {
+			// Sin conexión o el servidor no contestó: no se marcó nada.
+			last = { tone: 'error', text: 'No hay conexión: no se marcó. Probá de nuevo.' };
 		} finally {
+			tg.HapticFeedback?.notificationOccurred?.(last?.tone === 'ok' ? 'success' : 'error');
 			busy = false;
 		}
 	}
@@ -70,13 +78,12 @@
 </script>
 
 <svelte:head>
-	<title>Puerta (prototipo) · Kinky Vibe</title>
+	<title>Puerta · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 	<script src="https://telegram.org/js/telegram-web-app.js?64"></script>
 </svelte:head>
 
 <main>
-	<p class="proto">Prototipo: no está en uso.</p>
 	<h1>Puerta</h1>
 	{#if !tg}
 		<p>
@@ -107,13 +114,6 @@
 		padding: 16px;
 		max-width: 480px;
 		margin: 0 auto;
-	}
-	.proto {
-		background: #ffd54a;
-		color: #4a3b00;
-		padding: 4px 8px;
-		border-radius: 6px;
-		font-size: 0.85em;
 	}
 	label {
 		display: grid;

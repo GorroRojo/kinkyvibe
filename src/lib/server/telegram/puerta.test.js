@@ -1,5 +1,5 @@
 /**
- * Prototipo de la puerta por Mini App: los permisos se miran en cada pedido (initData válido,
+ * La puerta por Mini App de Telegram: los permisos se miran en cada pedido (initData válido,
  * Telegram vinculado desde el panel a une admin que sigue en ADMINS) y el ingreso usa el mismo
  * `checkIn` que el panel. Base de prueba, datos inventados, token inventado.
  */
@@ -7,9 +7,10 @@ import { createHmac } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
+import { clearFlagCache, setFlag } from '$lib/server/flags.js';
 import { sellAtDoor } from '$lib/server/tickets/door.js';
 import { createAdminLinkCode, consumeAdminLinkCode, unlinkAdminTelegram } from './adminLink.js';
-import { doorAdmin, doorCheckIn } from './puerta.js';
+import { doorAdmin, doorCheckIn, doorEnabled } from './puerta.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -163,5 +164,23 @@ describe('doorCheckIn', () => {
 			.bind(tk.id)
 			.first();
 		expect(row?.checked_in_at).toBeNull();
+	});
+});
+
+describe('doorEnabled (interruptores)', () => {
+	it('sale apagada; pide el bot y la puerta prendidos', async () => {
+		clearFlagCache();
+		expect(await doorEnabled(t.db)).toBe(false);
+		await setFlag(t.db, 'telegram_puerta', true, { by: 'prueba' });
+		clearFlagCache();
+		expect(await doorEnabled(t.db)).toBe(false);
+		await setFlag(t.db, 'telegram_bot', true, { by: 'prueba' });
+		clearFlagCache();
+		expect(await doorEnabled(t.db)).toBe(true);
+		await setFlag(t.db, 'telegram_puerta', false, { by: 'prueba' });
+		clearFlagCache();
+		expect(await doorEnabled(t.db)).toBe(false);
+		expect(await doorEnabled(null)).toBe(false);
+		clearFlagCache();
 	});
 });

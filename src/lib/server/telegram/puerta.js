@@ -1,7 +1,8 @@
 /**
- * PROTOTIPO, no para mergear: la puerta (control de ingreso) desde una Mini App de Telegram, con
- * el escáner de QR nativo (`showScanQrPopup`). Ver `docs/telegram.md` («Prototipo: la puerta») y
- * la decisión 0034, que deja las escrituras de la puerta afuera hasta una decisión propia.
+ * La puerta (control de ingreso) desde una Mini App de Telegram, con el escáner de QR nativo
+ * (`showScanQrPopup`). Decisión 0036; ver `docs/telegram.md` («La puerta por Telegram»). Sale
+ * detrás del interruptor `telegram_puerta` (apagado, decisión 0001), que además pide el bot
+ * prendido (`telegram_bot`).
  *
  * En **cada pedido**:
  * 1. se valida el `initData` con el token del bot (initData.js: HMAC, `auth_date` de menos de
@@ -17,10 +18,25 @@ import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { extractToken } from '$lib/server/tickets/checkin.js';
 import { checkIn } from '$lib/server/tickets/orders.js';
 import { isAdmin } from '$lib/server/auth';
+import { isFlagOn } from '$lib/server/flags.js';
 import { linkedAdmin } from './adminLink.js';
 import { validateInitData } from './initData.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
+
+/**
+ * ¿Está prendida la puerta por Telegram? Pide los dos interruptores: el del bot y el de la puerta.
+ *
+ * @param {D1Database | null | undefined} db
+ */
+export async function doorEnabled(db) {
+	if (!db) return false;
+	const [bot, door] = await Promise.all([
+		isFlagOn(db, 'telegram_bot'),
+		isFlagOn(db, 'telegram_puerta')
+	]);
+	return bot && door;
+}
 
 /** Escaneos por usuario de Telegram. */
 export const DOOR_RATE_LIMIT = Object.freeze({ limit: 600, windowSeconds: 60 * 60 });

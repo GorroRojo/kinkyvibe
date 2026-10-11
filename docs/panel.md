@@ -414,8 +414,8 @@ sin permiso da 403. Lo nuevo sale detrás de un interruptor, apagado (0001; ver
 
 **Agregar une admin.** Hoy es código: sumar `{ id, login }` en `ADMINS` de `auth.js`, con el id
 sacado de `https://api.github.com/users/<login>` (no tipeado a mano). Ajustes › Admins solo lo
-muestra. En el prototipo de la puerta por Mini App (PR #273), ahí mismo cada admin vincula y
-desvincula su Telegram («Vincular Telegram», ver [`telegram.md`](telegram.md)).
+muestra. Ahí mismo cada admin vincula y desvincula su Telegram para la puerta por Telegram
+(«Vincular Telegram», con el interruptor `telegram_puerta`; ver [`telegram.md`](telegram.md)).
 
 **Ver quién hizo algo.** Ajustes › Sistema › Actividad (filtros y CSV).
 

@@ -20,6 +20,10 @@ PRs abiertos:
   nuevo mapa de teclas `g`.
 - #261: reserva por transferencia hasta las 20 del segundo día hábil, sin paso de confirmar.
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
+- #273: la puerta por Telegram ([0036](decisiones/0036-puerta-por-telegram.md)): les admins
+  vinculan su Telegram en Ajustes → Admins y marcan ingresos con el escáner de QR de Telegram,
+  detrás de `telegram_puerta`. Bloqueo: gorrite aplica la migración 0050 en producción y en
+  preview antes del merge (0028).
 
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
 BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
@@ -200,6 +204,10 @@ de amigues y lanzamientos grandes.
 
 ### Telegram
 
+- Puerta por Telegram, después de #273: prenderla en un preview y probarla con celulares reales
+  (vincular, abrir con el botón del bot, escanear); después en producción. S. Bloqueo: gorrite.
+- Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir su
+  dirección, y un comando o botón para abrirla sin volver a vincular (0036). S.
 - Fase 3: avisos y estado para organizadores, nunca datos de compradores
   ([0029](decisiones/0029-bot-de-telegram.md)). L. Bloqueo: el rol de organizadore.
 

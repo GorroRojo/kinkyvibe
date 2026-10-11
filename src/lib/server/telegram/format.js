@@ -201,7 +201,7 @@ export const PRIVATE_ONLY_TEXT =
 export const ACCOUNTS_OFF_TEXT = 'Todavía no se puede conectar una cuenta con el bot.';
 
 /**
- * `/start adm_<código>` salió bien (prototipo de la puerta, adminLink.js).
+ * `/start adm_<código>` salió bien (la puerta por Telegram, adminLink.js).
  *
  * @param {string} login el de GitHub de le admin
  */

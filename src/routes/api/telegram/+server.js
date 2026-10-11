@@ -2,7 +2,7 @@
  * Webhook del bot de Telegram (decisiones 0029 y 0034, docs/telegram.md). La lógica está en
  * `$lib/server/telegram/`; esta ruta solo junta el secreto, los interruptores, los eventos, la
  * tarjeta de cada evento, el Fondo, el token (con él, el webhook llama a la API en `waitUntil`) y,
- * para la fase 2 (vincular cuentas) y el vínculo de les admins (prototipo de la puerta), la base.
+ * para la fase 2 (vincular cuentas) y el vínculo de les admins (la puerta por Telegram), la base.
  */
 import { env } from '$env/dynamic/private';
 import { isFlagOn } from '$lib/server/flags.js';
@@ -33,7 +33,8 @@ export async function POST({ request, url, platform, fetch }) {
 		// Fase 2: con «Lo que sigo» prendido (el bot ya está prendido si se llega acá).
 		accounts: async () =>
 			db && (await isFlagOn(db, 'lo_que_sigo')) ? botAccounts(db, platform) : null,
-		// Prototipo de la puerta: `/start adm_<código>` del panel (no depende de «Lo que sigo»).
-		adminLink: db ? botAdminLink(db) : null
+		// La puerta por Telegram (0036): `/start adm_<código>` del panel, con `telegram_puerta`
+		// prendido (no depende de «Lo que sigo»). Apagado, el bot contesta que no se puede.
+		adminLink: db && (await isFlagOn(db, 'telegram_puerta')) ? botAdminLink(db) : null
 	});
 }

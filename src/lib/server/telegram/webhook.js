@@ -46,7 +46,8 @@ export async function isValidWebhookSecret(given, expected) {
  *   fetch?: typeof fetch
  * }} args `accounts`: la fase 2 (vincular cuentas); se llama solo para esos comandos y da `null`
  *   con `lo_que_sigo` apagado. `adminLink`: `/start adm_<código>`, vincular el Telegram de une
- *   admin desde el panel (prototipo de la puerta, adminLink.js). `token`: el del bot; con él, el webhook llama a la API.
+ *   admin desde el panel (la puerta por Telegram, adminLink.js); `null` con `telegram_puerta`
+ *   apagado. `token`: el del bot; con él, el webhook llama a la API.
  */
 export async function handleWebhook({
 	request,

@@ -2,7 +2,8 @@
 
 - Fecha: 2026-10-11
 - Estado: Aceptada (decisiones de gorrite, 11/10). Amplía 0029, que dejaba afuera las acciones
-  que escriben y contestaba todo sin token.
+  que escriben y contestaba todo sin token. Los ingresos en la puerta los cambia
+  [0036](0036-puerta-por-telegram.md) (11/10): ya no son prototipo.
 
 ## Contexto
 

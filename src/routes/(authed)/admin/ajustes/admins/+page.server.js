@@ -2,7 +2,7 @@
  * Ajustes → Admins: quién puede entrar al panel. La lista es de solo lectura: vive en
  * `src/lib/server/auth.js` (ADMINS, por id numérico de GitHub).
  *
- * En la fila propia, «Vincular Telegram» (prototipo de la puerta por Mini App, PR #273,
+ * «Tu Telegram para la puerta»: «Vincular Telegram» (la puerta por Telegram, decisión 0036,
  * $lib/server/telegram/adminLink.js): crea un código de un solo uso, que vence en 15 minutos, y
  * muestra el link `t.me/<bot>?start=adm_<código>` (y su QR). «Desvincular» lo borra. Las dos
  * cosas quedan en el registro; vincular lo anota el bot cuando se usa el código.
@@ -31,6 +31,8 @@ async function linkingBlocked(db) {
 	if (!db) return 'No hay base de datos disponible.';
 	if (!(await isFlagOn(db, 'telegram_bot')))
 		return 'El bot de Telegram está apagado (Ajustes → Interruptores).';
+	if (!(await isFlagOn(db, 'telegram_puerta')))
+		return 'La puerta por Telegram está apagada (Ajustes → Interruptores).';
 	if (!botUsername()) return 'Falta la variable TELEGRAM_BOT_USERNAME (el usuario del bot).';
 	return null;
 }
