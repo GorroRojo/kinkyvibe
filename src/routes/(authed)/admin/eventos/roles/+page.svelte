@@ -1,6 +1,7 @@
 <script>
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
@@ -36,7 +37,8 @@
 		</svelte:fragment>
 		<p class="kv-note">
 			Los eventos y el material listan personas con un rol («Organiza: …»). Los fijos vienen con el
-			sitio; acá podés sumar otros. Sacar un rol no lo borra de las publicaciones que ya lo usan.
+			sitio; acá podés sumar otros. Sacar un rol no lo borra de las publicaciones que ya lo usan, y
+			lo podés recuperar desde Actividad.
 		</p>
 		{#if form?.role}
 			<p class="kv-flash" class:bad={!form.role.ok} role="status">{form.role.message}</p>
@@ -49,7 +51,19 @@
 						<Badge tone="neutral">fijo</Badge>
 					{:else}
 						<small class="kv-note">{r.createdBy} · {fmtDateTime(r.createdAt ?? 0)}</small>
-						<form method="POST" action="?/removeRole" use:enhance>
+						<form
+							method="POST"
+							action="?/removeRole"
+							use:enhance={async ({ cancel }) => {
+								const ok = await askConfirm({
+									title: `¿Sacar el rol «${r.name}»?`,
+									text: 'Las publicaciones que ya lo usan lo siguen mostrando. Si te equivocás, lo recuperás desde Ajustes › Actividad.',
+									confirmLabel: 'Sacar',
+									tone: 'danger'
+								});
+								if (!ok) cancel();
+							}}
+						>
 							<input type="hidden" name="name" value={r.name} />
 							<button class="kv-btn ghost small" type="submit"
 								>Sacar<span class="visually-hidden"> el rol {r.name}</span></button
