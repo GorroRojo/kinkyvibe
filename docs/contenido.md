@@ -28,6 +28,11 @@ queda marcado con el tag de git `posts-md-final`. Ningún guardado del panel pas
   borradores locales del editor también se marcan como viejos si el texto cambió
   (`src/lib/admin/draft.js`).
 - Los eventos de prueba `prueba-entradas-*` son ocultos y solo venden en `vite dev`.
+- **«Hoy» es el de Argentina.** En `/calendario`, el día marcado como hoy, los días pasados de la
+  grilla y el mes con el que abre salen de la hora de Argentina (`calendarDayFlags`,
+  `defaultCalendarMonth` en `src/lib/utils/allPosts.js`, con `argDate`), nunca de la del servidor
+  (UTC) ni la del navegador de quien mira. Lo mismo el botón «Hoy» de la vista calendario de la
+  agenda del panel (`todayInArgentina`).
 
 ## Dónde está
 
