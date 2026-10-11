@@ -49,7 +49,8 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
  *   refunded_at?: number | null, refunded_by?: string | null,
  *   client_hash?: string | null, needs_review?: 'late_payment' | 'duplicate_payment' | null,
  *   review_detail?: string | null, channel?: 'online' | 'puerta' | 'manual',
- *   admin_note?: string | null, ticket_tier?: string | null
+ *   admin_note?: string | null, ticket_tier?: string | null,
+ *   client_sale_id?: string | null, offline_review?: string | null
  * }} Order
  */
 /**
@@ -835,7 +836,8 @@ export async function ordersNeedingReview(db, eventSlug) {
 }
 
 /**
- * Une admin ya revisó la orden: se saca la marca.
+ * Une admin ya revisó la orden: se saca la marca (también la de una venta sin conexión que pasó
+ * un límite, `offline_review`, migración 0051).
  *
  * @param {D1Database} db
  * @param {string} orderId
@@ -844,8 +846,9 @@ export async function ordersNeedingReview(db, eventSlug) {
 export async function clearReview(db, orderId, now = Date.now()) {
 	const res = await db
 		.prepare(
-			`UPDATE orders SET needs_review = NULL, review_detail = NULL, updated_at = ?2
-			WHERE id = ?1 AND needs_review IS NOT NULL`
+			`UPDATE orders SET needs_review = NULL, review_detail = NULL, offline_review = NULL,
+				updated_at = ?2
+			WHERE id = ?1 AND (needs_review IS NOT NULL OR offline_review IS NOT NULL)`
 		)
 		.bind(orderId, now)
 		.run();

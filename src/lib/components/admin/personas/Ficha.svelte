@@ -48,7 +48,11 @@
 	/** @type {Record<string, string>} */
 	const CHANNEL = { online: 'online', puerta: 'en la puerta', manual: 'cargada a mano' };
 	/** @type {Record<string, string>} */
-	const REVIEW = { late_payment: 'pago tardío', duplicate_payment: 'pago duplicado' };
+	const REVIEW = {
+		late_payment: 'pago tardío',
+		duplicate_payment: 'pago duplicado',
+		door_offline: 'venta sin conexión que pasó un límite'
+	};
 	/** @type {Record<string, string>} */
 	const CLAIM = { pending: 'pendiente', approved: 'aprobado', rejected: 'rechazado' };
 	/** @type {Record<string, 'warn' | 'ok' | 'bad'>} */

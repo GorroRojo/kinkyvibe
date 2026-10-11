@@ -191,6 +191,53 @@ describe('isSafeCheckoutUrl (sin redirecciones abiertas)', () => {
 	});
 });
 
+describe('startTip desde el Fondo (?de=fondo)', () => {
+	/** @param {Record<string, string>} [o] */
+	const fondoValues = (o = {}) =>
+		values({ category: '', slug: '', source: 'fondo', amount: 'otro', custom: '3000', ...o });
+
+	it('con el interruptor apagado: 404 y no crea nada', async () => {
+		const res = await run({ values: fondoValues() });
+		expect(res).toMatchObject({ ok: false, status: 404 });
+		expect(await allTips()).toEqual([]);
+	});
+
+	it('prendido: sin publicación, origen `fondo`, monto del servidor', async () => {
+		findPost.mockClear();
+		const { fetch, gateway } = mpGateway();
+		const res = await run({ gateway, values: fondoValues(), fondoEnabled: true });
+		expect(res).toMatchObject({ ok: true });
+		if (!res.ok) throw new Error('esperaba ok');
+		expect(await getTip(t.db, res.tipId)).toMatchObject({
+			amount: 3000,
+			status: 'pending',
+			destination: 'fondo',
+			source: 'fondo',
+			post_slug: '',
+			mp_preference_id: 'pref-1'
+		});
+		expect(findPost).not.toHaveBeenCalled();
+		const body = JSON.parse(/** @type {any} */ (fetch.mock.calls[0])[1].body);
+		expect(body.items[0]).toMatchObject({
+			title: 'Propina para el Fondo Kinky Vibe',
+			unit_price: 3000
+		});
+		expect(body.back_urls.success).toBe(`${ORIGIN}/propinas/${res.tipId}/gracias`);
+	});
+
+	it('prendido: fuera del mínimo o del máximo, 400 y no crea nada', async () => {
+		for (const custom of ['499', '500001', '45000.5']) {
+			const res = await run({
+				values: fondoValues({ custom }),
+				fondoEnabled: true,
+				client: `c-${custom}`
+			});
+			expect(res).toMatchObject({ ok: false, status: 400, errors: { amount: expect.any(String) } });
+		}
+		expect(await allTips()).toEqual([]);
+	});
+});
+
 describe('readTipForm', () => {
 	it('lee todo como texto acotado', () => {
 		const form = new FormData();
@@ -204,5 +251,15 @@ describe('readTipForm', () => {
 		// Ya no se elige a dónde va: `destination` no se lee aunque llegue.
 		form.set('destination', 'kinkyvibe');
 		expect(readTipForm(form)).not.toHaveProperty('destination');
+	});
+
+	it('`source` solo vale si es exactamente `fondo`', () => {
+		const form = new FormData();
+		form.set('source', 'fondo');
+		expect(readTipForm(form).source).toBe('fondo');
+		for (const raw of ['FONDO', 'fondo ', 'post', 'otra']) {
+			form.set('source', raw);
+			expect(readTipForm(form).source).toBe('');
+		}
 	});
 });

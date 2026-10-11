@@ -13,7 +13,15 @@ import {
 	parseScan,
 	saveDoorState,
 	sha256Hex,
-	undoLocal
+	undoLocal,
+	applySaleSyncResults,
+	emptyDoorState,
+	isPendingSaleTicket,
+	markRecentSynced,
+	offlineSaleLimits,
+	pendingNote,
+	queueOfflineSale,
+	salesPayload
 } from './doorOffline.js';
 
 const TOKEN = 'A'.repeat(42) + 'b';
@@ -60,7 +68,7 @@ describe('validar y marcar sin conexión', () => {
 			ticket({ hash: await sha256Hex(TOKEN) }),
 			ticket({ ticketId: 't2', code: 'XYZ789', hash: 'x' })
 		];
-		const state = { list, queue: [], savedAt: 1 };
+		const state = { list, queue: [], savedAt: 1, sales: [], failed: [] };
 		const parsed = parseScan(`/entradas/t/${TOKEN}`);
 		const found = await findTicket(list, parsed);
 		expect(found?.ticketId).toBe('t1');
@@ -97,7 +105,7 @@ describe('validar y marcar sin conexión', () => {
 
 	it('anulada e inválida', async () => {
 		const list = [ticket({ valid: false })];
-		const state = { list, queue: [], savedAt: 1 };
+		const state = { list, queue: [], savedAt: 1, sales: [], failed: [] };
 		const p = parseScan('ABC234');
 		expect(
 			localCheckIn(state, p, await findTicket(list, p), { now: 1, by: 'x', id: 'q' }).result
@@ -113,7 +121,9 @@ describe('validar y marcar sin conexión', () => {
 		const state = {
 			list: [ticket({ at: 5 })],
 			queue: [{ id: 'q', ticketId: 't1', holder: 'x', code: 'ABC234', at: 5 }],
-			savedAt: 1
+			savedAt: 1,
+			sales: [],
+			failed: []
 		};
 		const undone = undoLocal(state, 't1');
 		expect(undone?.queue).toHaveLength(0);
@@ -136,7 +146,9 @@ describe('sincronizar', () => {
 				{ id: 'q3', ticketId: 't3', holder: 'Tres', code: 'C', at: 7 },
 				{ id: 'q4', ticketId: 't4', holder: 'Cuatro', code: 'D', at: 8 }
 			],
-			savedAt: 1
+			savedAt: 1,
+			sales: [],
+			failed: []
 		};
 		const r = applySyncResults(state, [
 			{ id: 'q1', result: 'ok' },
@@ -191,7 +203,8 @@ describe('buscar y guardar', () => {
 				}
 			})
 		);
-		const state = { list: [ticket({})], queue: [], savedAt: 5 };
+		// El estado completo (con la cola de ventas sin conexión, decisión 0035).
+		const state = { list: [ticket({})], queue: [], savedAt: 5, sales: [], failed: [] };
 		expect(saveDoorState(storage, 'ev', state)).toBe(true);
 		expect(loadDoorState(storage, 'ev')).toEqual(state);
 		const broken = /** @type {Storage} */ (
@@ -204,7 +217,13 @@ describe('buscar y guardar', () => {
 				}
 			})
 		);
-		expect(loadDoorState(broken, 'ev')).toEqual({ list: [], queue: [], savedAt: null });
+		expect(loadDoorState(broken, 'ev')).toEqual({
+			list: [],
+			queue: [],
+			savedAt: null,
+			sales: [],
+			failed: []
+		});
 		expect(saveDoorState(broken, 'ev', state)).toBe(false);
 		mem['kv-door:roto'] = '{no';
 		expect(loadDoorState(storage, 'roto').list).toEqual([]);
@@ -243,13 +262,26 @@ describe('doorConnectionNote', () => {
 		expect(doorConnectionNote({ online: true, saved: false, savedAt: '' })).toBeNull();
 	});
 
-	it('sin conexión y con lista: qué sigue andando y qué necesita conexión', () => {
+	// Decisión 0035: vender en la puerta pasó de «necesita conexión» a «sigue andando». Este caso
+	// antes pedía que el aviso nombrara la venta entre lo que necesita conexión; ahora la nombra
+	// entre lo que anda, con la nota de que se sincroniza después.
+	it('sin conexión y con lista: qué sigue andando (también vender) y qué necesita conexión', () => {
 		const n = doorConnectionNote({ online: false, saved: true, savedAt: '22:05' });
 		expect(n?.kind).toBe('offline');
 		expect(n?.title).toBe('Sin conexión.');
 		expect(n?.detail).toContain('Podés seguir validando');
 		expect(n?.detail).toContain('(22:05)');
-		expect(n?.detail).toContain('Vender en la puerta');
+		expect(n?.detail).toContain('vender en la puerta');
+		expect(n?.detail).toContain('los ingresos y las ventas se mandan solos cuando vuelve');
+		expect(n?.detail).toContain('Ver el DNI completo necesita conexión');
+		expect(n?.detail).not.toMatch(/vender en la puerta[^.]*necesita/i);
+	});
+
+	it('sin conexión en un evento sin venta en la puerta: no ofrece vender', () => {
+		const n = doorConnectionNote({ online: false, saved: true, savedAt: '', canSell: false });
+		expect(n?.detail).toContain('Podés seguir validando');
+		expect(n?.detail).not.toContain('vender');
+		expect(n?.detail).toContain('Ver el DNI completo necesita conexión');
 	});
 
 	it('sin conexión y sin lista: no se puede validar, y se baja sola al volver', () => {
@@ -257,11 +289,213 @@ describe('doorConnectionNote', () => {
 		expect(n?.kind).toBe('offline');
 		expect(n?.detail).toContain('no se puede validar');
 		expect(n?.detail).toContain('se baja sola');
+		// Vender no depende de la lista.
+		expect(n?.detail).toContain('Podés vender en la puerta');
 	});
 
 	it('sin hora no deja paréntesis vacíos', () => {
 		expect(doorConnectionNote({ online: true, saved: true, savedAt: '' })?.detail).not.toContain(
 			'()'
+		);
+	});
+});
+
+describe('ventas sin conexión', () => {
+	const NOW = Date.parse('2026-10-01T23:00:00Z');
+	const GENERAL = { id: 'general', name: 'General' };
+	/** Datos inventados. */
+	const FIELDS = {
+		type: 'general',
+		quantity: '2',
+		method: 'efectivo',
+		name: 'Persona Inventada',
+		email: 'prueba@example.com',
+		dni: '30123456',
+		holder_1: 'Otra Persona'
+	};
+	/**
+	 * @param {import('./doorOffline.js').DoorState} state
+	 * @param {string} id
+	 * @param {Partial<Parameters<typeof queueOfflineSale>[1]>} [o]
+	 */
+	const queue = (state, id, o = {}) =>
+		queueOfflineSale(state, {
+			id,
+			now: NOW,
+			by: 'admin-de-prueba',
+			fields: FIELDS,
+			type: GENERAL,
+			quantity: 2,
+			total: 16000,
+			holders: [
+				{ name: 'Persona Inventada', pronouns: 'elle' },
+				{ name: 'Otra Persona', pronouns: '' }
+			],
+			...o
+		});
+
+	it('se encola y sus entradas cuentan como adentro en este celu, pendientes', () => {
+		const base = { ...emptyDoorState(), list: [ticket({})] };
+		const { state, sale } = queue(base, 'venta-0001');
+		expect(base.sales).toHaveLength(0);
+		expect(state.sales).toHaveLength(1);
+		expect(sale).toMatchObject({
+			id: 'venta-0001',
+			buyer: 'Persona Inventada',
+			quantity: 2,
+			method: 'efectivo'
+		});
+		expect(state.list).toHaveLength(3);
+		expect(localCounts(state.list)).toMatchObject({ total: 3, inside: 2 });
+		expect(sale.tickets.every((x) => x.at === NOW && isPendingSaleTicket(x.ticketId))).toBe(true);
+		expect(sale.tickets[0].orderRef).toBe('Pendiente de sincronizar');
+	});
+
+	it('el DNI no se guarda en el celu', () => {
+		const { state } = queue(emptyDoorState(), 'venta-0001');
+		expect(state.sales[0].fields).not.toHaveProperty('dni');
+		/** @type {Record<string, string>} */
+		const box = {};
+		const storage = /** @type {Storage} */ (
+			/** @type {unknown} */ ({
+				getItem: (/** @type {string} */ k) => box[k] ?? null,
+				setItem: (/** @type {string} */ k, /** @type {string} */ v) => (box[k] = v)
+			})
+		);
+		saveDoorState(storage, 'fiesta', state);
+		expect(JSON.stringify(box)).not.toContain('30123456');
+		// Y vuelve igual al recargar la página.
+		expect(loadDoorState(storage, 'fiesta').sales).toEqual(state.sales);
+	});
+
+	it('lo guardado antes de esta versión (sin ventas) sigue cargando', () => {
+		const storage = /** @type {Storage} */ (
+			/** @type {unknown} */ ({
+				getItem: () => JSON.stringify({ list: [ticket({})], queue: [], savedAt: 5 })
+			})
+		);
+		const s = loadDoorState(storage, 'fiesta');
+		expect(s.sales).toEqual([]);
+		expect(s.failed).toEqual([]);
+		expect(s.list).toHaveLength(1);
+	});
+
+	it('la lista nueva del servidor mantiene las entradas de las ventas pendientes', () => {
+		const { state } = queue(emptyDoorState(), 'venta-0001');
+		const merged = mergeServerList([ticket({})], [], state.sales);
+		expect(merged).toHaveLength(3);
+		expect(merged.filter((x) => isPendingSaleTicket(x.ticketId))).toHaveLength(2);
+	});
+
+	it('se mandan en el orden en que se vendieron, sin las entradas locales', () => {
+		let s = emptyDoorState();
+		s = queue(s, 'venta-000b', { now: NOW + 2000 }).state;
+		s = queue(s, 'venta-000a', { now: NOW + 1000 }).state;
+		const payload = salesPayload(s.sales);
+		expect(payload.map((x) => x.id)).toEqual(['venta-000a', 'venta-000b']);
+		expect(Object.keys(payload[0]).sort()).toEqual(['at', 'fields', 'id']);
+	});
+
+	it('al sincronizar: saca las registradas (también las repetidas) y avisa las que pasaron un límite', () => {
+		let s = { ...emptyDoorState(), list: [ticket({})] };
+		s = queue(s, 'venta-0001').state;
+		s = queue(s, 'venta-0002', { fields: { ...FIELDS, name: 'Se Pasa' } }).state;
+		s = queue(s, 'venta-0003').state;
+		const r = applySaleSyncResults(s, [
+			{ id: 'venta-0001', result: 'ok', ref: 'KV-AAAA1111', review: [] },
+			{
+				id: 'venta-0002',
+				result: 'ok',
+				ref: 'KV-BBBB2222',
+				buyer: 'Se Pasa',
+				review: ['Se pasa del cupo de «General»: quedarían 4 / 3, 1 entrada de más.']
+			}
+		]);
+		expect(r.done).toBe(2);
+		expect(r.state.sales.map((x) => x.id)).toEqual(['venta-0003']);
+		// Quedan la entrada del servidor y las 2 de la venta que falta mandar.
+		expect(r.state.list).toHaveLength(3);
+		expect(r.warnings).toEqual([
+			{ buyer: 'Se Pasa', ref: 'KV-BBBB2222', review: [expect.stringContaining('cupo')] }
+		]);
+		const again = applySaleSyncResults(r.state, [
+			{ id: 'venta-0003', result: 'duplicate', ref: 'KV-CCCC3333' }
+		]);
+		expect(again.done).toBe(1);
+		expect(again.state.sales).toEqual([]);
+		expect(again.warnings).toEqual([]);
+	});
+
+	it('una venta que el servidor no pudo registrar no se pierde: queda a la vista', () => {
+		const { state } = queue(emptyDoorState(), 'venta-0001');
+		const r = applySaleSyncResults(state, [
+			{ id: 'venta-0001', result: 'rejected', message: 'Elegí un tipo de entrada.' }
+		]);
+		expect(r.done).toBe(0);
+		expect(r.state.sales).toEqual([]);
+		expect(r.state.failed).toEqual([
+			expect.objectContaining({
+				id: 'venta-0001',
+				buyer: 'Persona Inventada',
+				quantity: 2,
+				total: 16000,
+				message: 'Elegí un tipo de entrada.'
+			})
+		]);
+	});
+
+	it('las que el servidor no contestó siguen en la cola', () => {
+		const { state } = queue(emptyDoorState(), 'venta-0001');
+		const r = applySaleSyncResults(state, []);
+		expect(r.state.sales).toHaveLength(1);
+		expect(r.state.list).toHaveLength(2);
+	});
+
+	it('«Últimos escaneos»: las ventas ya registradas dejan de decir «pendiente»', () => {
+		const recent = [
+			{
+				result: 'sold',
+				title: 'A',
+				sub: 'pendiente de sincronizar',
+				at: 2,
+				ticketId: 'local:v1:0'
+			},
+			{
+				result: 'sold',
+				title: 'B',
+				sub: 'pendiente de sincronizar',
+				at: 1,
+				ticketId: 'local:v2:0'
+			},
+			{ result: 'ok', title: 'C', sub: '', at: 0, ticketId: 't1' }
+		];
+		expect(markRecentSynced(recent, ['v1']).map((r) => r.sub)).toEqual([
+			'sincronizada',
+			'pendiente de sincronizar',
+			''
+		]);
+	});
+
+	it('cuántas ventas e ingresos faltan sincronizar', () => {
+		expect(pendingNote({ checkins: 0, sales: 0 })).toBe('');
+		expect(pendingNote({ checkins: 0, sales: 2 })).toBe('2 ventas por sincronizar.');
+		expect(pendingNote({ checkins: 0, sales: 1 })).toBe('1 venta por sincronizar.');
+		expect(pendingNote({ checkins: 3, sales: 1 })).toBe('1 venta y 3 ingresos por sincronizar.');
+		expect(pendingNote({ checkins: 1, sales: 0 })).toBe('1 ingreso por sincronizar.');
+	});
+
+	it('avisa antes de guardar si, con lo que sabe el celu, pasaría un límite', () => {
+		const type = { id: 'general', name: 'General', capacity: 3, taken: 1 };
+		const base = { type, quantity: 1, doorSales: true, maxPerSale: 10, sales: [] };
+		expect(offlineSaleLimits(base)).toEqual([]);
+		const { state } = queue(emptyDoorState(), 'venta-0001');
+		// 1 vendida + 2 sin conexión + 1 = 4 de 3.
+		expect(offlineSaleLimits({ ...base, sales: state.sales })[0].message).toContain('4 / 3');
+		expect(offlineSaleLimits({ ...base, quantity: 11, type: { ...type, capacity: null } })).toEqual(
+			[{ message: expect.stringContaining('máximo por venta es 10') }]
+		);
+		expect(offlineSaleLimits({ ...base, doorSales: false })[0].message).toContain(
+			'solo anticipadas'
 		);
 	});
 });

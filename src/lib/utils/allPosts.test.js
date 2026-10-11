@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isCurrent, monthCountLabel, monthHasPastEvents } from './allPosts.js';
+import {
+	calendarDayFlags,
+	currentMonth,
+	defaultCalendarMonth,
+	isCurrent,
+	monthCountLabel,
+	monthHasPastEvents,
+	shiftCalendarMonth
+} from './allPosts.js';
 
 /** @param {Record<string, any>} meta */
 const post = (meta) => /** @type {ProcessedPost} */ (/** @type {unknown} */ ({ meta, path: '/x' }));
@@ -122,5 +130,78 @@ describe('monthCountLabel', () => {
 		expect(monthCountLabel('2026-10', 7, now)).toBe('Octubre · 7 eventos');
 		expect(monthCountLabel('2026-11', 1, now)).toBe('Noviembre · 1 evento');
 		expect(monthCountLabel('2027-01', 0, now)).toBe('Enero 2027 · 0 eventos');
+	});
+});
+
+// «Hoy» en /calendario es el de Argentina (UTC−3 todo el año), no el del servidor (UTC) ni el del
+// navegador. Las pruebas pasan por la medianoche de un lado y del otro.
+describe('calendarDayFlags', () => {
+	it('at 01:30 UTC it is still the previous day in Argentina', () => {
+		const now = Date.parse('2026-10-12T01:30:00Z'); // 11/10 22:30 en Argentina
+		expect(calendarDayFlags('2026-10-11', now)).toEqual({ today: true, past: false });
+		expect(calendarDayFlags('2026-10-12', now)).toEqual({ today: false, past: false });
+		expect(calendarDayFlags('2026-10-10', now)).toEqual({ today: false, past: true });
+	});
+
+	it('at 23:30 in Argentina it is already the next day in UTC, but today stays put', () => {
+		const now = Date.parse('2026-10-11T23:30:00-03:00'); // 12/10 02:30 UTC
+		expect(calendarDayFlags('2026-10-11', now).today).toBe(true);
+		expect(calendarDayFlags('2026-10-12', now).today).toBe(false);
+	});
+
+	it('from 21:00 to 23:59 in Argentina (already tomorrow in UTC) today is still today', () => {
+		for (const time of ['21:00:00', '22:15:00', '23:59:59']) {
+			const now = Date.parse(`2026-12-31T${time}-03:00`);
+			expect(new Date(now).toISOString().slice(0, 10)).toBe('2027-01-01');
+			expect(calendarDayFlags('2026-12-31', now)).toEqual({ today: true, past: false });
+			expect(calendarDayFlags('2027-01-01', now)).toEqual({ today: false, past: false });
+			expect(currentMonth(now)).toBe('2026-12');
+		}
+	});
+
+	it('turns over exactly at midnight in Argentina (03:00 UTC)', () => {
+		expect(calendarDayFlags('2026-10-12', Date.parse('2026-10-12T02:59:59Z')).today).toBe(false);
+		expect(calendarDayFlags('2026-10-12', Date.parse('2026-10-12T03:00:00Z')).today).toBe(true);
+		expect(calendarDayFlags('2026-10-11', Date.parse('2026-10-12T03:00:00Z')).past).toBe(true);
+	});
+});
+
+describe('currentMonth and shiftCalendarMonth', () => {
+	it('uses the month in Argentina around a month change', () => {
+		// 1/11 01:30 UTC = 31/10 22:30 en Argentina.
+		expect(currentMonth(Date.parse('2026-11-01T01:30:00Z'))).toBe('2026-10');
+		expect(currentMonth(Date.parse('2026-11-01T03:00:00Z'))).toBe('2026-11');
+	});
+
+	it('moves across years both ways', () => {
+		expect(shiftCalendarMonth('2026-12', 1)).toBe('2027-01');
+		expect(shiftCalendarMonth('2026-01', -1)).toBe('2025-12');
+		expect(shiftCalendarMonth('2026-10', 0)).toBe('2026-10');
+	});
+});
+
+describe('defaultCalendarMonth', () => {
+	/** @param {string} start */
+	const ev = (start) => post({ category: 'calendario', start });
+
+	it('stays on this month (in Argentina) while it has an upcoming event', () => {
+		// 31/10 23:00 en Argentina, ya 1/11 en UTC: el evento de las 23:30 todavía no empezó.
+		const now = Date.parse('2026-10-31T23:00:00-03:00');
+		const days = { '2026-10-31': [ev('2026-10-31T23:30-03:00')] };
+		expect(defaultCalendarMonth(days, now)).toBe('2026-10');
+	});
+
+	it('opens on next month when every event of this month already started', () => {
+		const now = Date.parse('2026-10-31T23:00:00-03:00');
+		const days = {
+			'2026-10-31': [ev('2026-10-31T20:00-03:00')],
+			'2026-11-07': [ev('2026-11-07T22:00-03:00')]
+		};
+		expect(defaultCalendarMonth(days, now)).toBe('2026-11');
+	});
+
+	it('ignores events with an invalid start', () => {
+		const now = Date.parse('2026-10-15T12:00:00-03:00');
+		expect(defaultCalendarMonth({ '2026-10-20': [ev('mal')] }, now)).toBe('2026-11');
 	});
 });

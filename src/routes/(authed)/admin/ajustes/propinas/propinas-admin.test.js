@@ -138,7 +138,7 @@ describe('/admin/ajustes/propinas', () => {
 		const data = /** @type {any} */ (await page.load(fakeEvent()));
 		expect(data.summary).toMatchObject({ total: 2000, count: 1, counts: { pending: 1 } });
 		expect(data.summary.byPost).toEqual([
-			{ category: 'material', slug: 'guia', count: 1, total: 2000 }
+			{ source: 'post', category: 'material', slug: 'guia', count: 1, total: 2000 }
 		]);
 		expect(data.tips).toHaveLength(1);
 		expect(data.tips[0]).toMatchObject({ status: 'approved', message: 'Mensaje de prueba' });
@@ -194,18 +194,18 @@ describe('/admin/ajustes/propinas', () => {
 		expect(odd.tips).toHaveLength(2);
 	});
 
-	it('CSV: columna destino', async () => {
+	it('CSV: columnas destino y origen', async () => {
 		await seed();
 		await seedFondo();
 		const res = await csv.GET(fakeEvent({ path: '/admin/ajustes/propinas/propinas.csv' }));
 		const lines = (await res.text()).replace('\ufeff', '').trim().split('\r\n');
-		expect(lines[0].split(',').at(-1)).toBe('destino');
+		expect(lines[0].split(',').slice(-2)).toEqual(['destino', 'origen']);
 		expect(lines).toHaveLength(4);
 		const fondoRows = lines.filter(
-			(l) => l.includes(',Aprobada,5000,') && l.endsWith(',2,Para el Fondo')
+			(l) => l.includes(',Aprobada,5000,') && l.endsWith(',2,Para el Fondo,Publicación')
 		);
 		expect(fondoRows).toHaveLength(1);
-		expect(lines.filter((l) => l.endsWith(',Para Kinky Vibe'))).toHaveLength(2);
+		expect(lines.filter((l) => l.endsWith(',Para Kinky Vibe,Publicación'))).toHaveLength(2);
 	});
 
 	it('las propinas aprobadas aparecen en la actividad del Inicio (las pendientes no)', async () => {
@@ -222,5 +222,33 @@ describe('/admin/ajustes/propinas', () => {
 		]);
 		// Sin el mensaje (privado) en el feed.
 		expect(JSON.stringify(items)).not.toContain('Mensaje de prueba');
+	});
+
+	it('una propina desde fondo.kinkyvibe.ar (sin publicación): fila propia y en la actividad', async () => {
+		const tip = await createTip(
+			t.db,
+			{ amount: 3000, message: null, category: null, slug: null, source: 'fondo' },
+			{ now: NOW }
+		);
+		await applyTipPayment(
+			t.db,
+			{
+				id: 9,
+				status: 'approved',
+				external_reference: tipReference(tip.id),
+				transaction_amount: 3000,
+				currency_id: 'ARS'
+			},
+			{ now: NOW + 60_000 }
+		);
+		const data = /** @type {any} */ (await page.load(fakeEvent()));
+		expect(data.summary.byPost).toEqual([
+			{ source: 'fondo', category: 'material', slug: '', count: 1, total: 3000 }
+		]);
+		expect(data.tips[0]).toMatchObject({ source: 'fondo', post_slug: '' });
+		const items = (await recentActivity(t.db, { limit: 10 })).filter((i) => i.kind === 'tip');
+		expect(items).toEqual([
+			expect.objectContaining({ who: 'Fondo Kinky Vibe', detail: 'fondo.kinkyvibe.ar' })
+		]);
 	});
 });

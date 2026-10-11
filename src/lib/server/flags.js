@@ -51,6 +51,18 @@ export const FLAGS = Object.freeze({
 			'TELEGRAM_BOT_TOKEN en cada pedido. Necesita la migración 0050, TELEGRAM_BOT_TOKEN y ' +
 			'TELEGRAM_BOT_USERNAME. Apagado, /telegram/puerta da 404.',
 		envVar: 'TELEGRAM_PUERTA_ENABLED'
+	},
+	propinas_fondo: {
+		label: 'Donaciones únicas al Fondo',
+		description:
+			'El botón «Una vez» de fondo.kinkyvibe.ar trae a la gente a dejar una propina para el Fondo ' +
+			'Kinky Vibe acá, sin cuenta ni datos, y al terminar les devuelve al Fondo. Apagado, esa ' +
+			'página solo explica que las propinas se dejan desde cada publicación.',
+		tech:
+			'/propinas?de=fondo (y su POST, source = fondo). El total para el Fondo ' +
+			'(GET /api/fondo/propinas-total) no depende de este interruptor. Antes de prenderlo: ' +
+			'migración 0052. docs/propinas.md.',
+		envVar: 'PROPINAS_FONDO_ENABLED'
 	}
 });
 
@@ -173,6 +185,16 @@ export async function isFlagOn(db, key, { now = Date.now(), envValue } = {}) {
  */
 export function loQueSigoEnabled(platform) {
 	return isFlagOn(getDB(platform), 'lo_que_sigo');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidas las donaciones únicas al Fondo (`/propinas?de=fondo`)?
+ * (docs/propinas.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function propinasFondoEnabled(platform) {
+	return isFlagOn(getDB(platform), 'propinas_fondo');
 }
 
 /**

@@ -1,0 +1,14 @@
+-- Migration number: 0052 	 Desde dónde se dejó cada propina: una publicación o el Fondo.
+--
+-- Las «donaciones únicas» de fondo.kinkyvibe.ar («Una vez») pasan por el sistema de propinas de
+-- este sitio (`/propinas?de=fondo`, issue #265, docs/propinas.md). Para que el panel las separe de
+-- las propinas de las publicaciones, cada propina guarda su origen:
+--   - `post`: desde el pie de una publicación (todas las que ya existen);
+--   - `fondo`: desde fondo.kinkyvibe.ar. No tienen publicación: como `post_category` es NOT NULL
+--     con un CHECK (0019, ya aplicada) se guardan con `post_category = 'material'` y
+--     `post_slug = ''` (un slug vacío nunca es una publicación), y lo que manda es `source`.
+--
+-- Solo agrega una columna con valor por defecto (las propinas que ya existen quedan como `post`).
+-- Anda con el código que ya está en `main`, que no la lee ni la escribe (decisión 0028).
+-- Numerada 0052 a propósito: 0050 la usa otra rama abierta y 0051 queda para otra que viene.
+ALTER TABLE tips ADD COLUMN source TEXT NOT NULL DEFAULT 'post' CHECK (source IN ('post','fondo'));

@@ -17,6 +17,54 @@ y el bloque lo dice.
 - En el pie de página (Footer), "Dejá una propina" lleva al Fondo (`fondo.kinkyvibe.ar`) en
   lugar del link a Cafecito (decisión de gorrite, 2/10): `/propinas` sin `?de=` no deja dejar
   una propina, solo explica que se dejan desde cada publicación de KinkyVibe.
+- **Donaciones únicas al Fondo** (decisión de gorrite, 11/10, issue #265): el botón «Una vez» de
+  fondo.kinkyvibe.ar lleva a `/propinas?de=fondo` (ver abajo). Así hay un solo flujo de pago.
+
+## Donaciones únicas desde el Fondo (`/propinas?de=fondo`)
+
+Con el interruptor **`propinas_fondo`** prendido ([interruptores.md](interruptores.md); sale
+apagado, como todo lo nuevo, decisión 0001):
+
+- `https://kinkyvibe.ar/propinas?de=fondo&monto=<n>` muestra el mismo formulario de propina sin
+  publicación, con el título «Dejá una propina para el Fondo Kinky Vibe». Sin cuenta ni datos.
+- `monto` es opcional (el Fondo manda 1500, 3000, 7500, 15000, 30000 o 45000). Si es un entero
+  entre el mínimo y el máximo de las propinas, queda elegido: el botón sugerido si coincide con
+  uno, si no «Otro monto» con ese número (`presetFromQuery` / `presetValues`). Si no, se ignora.
+  Es solo la elección inicial: el monto del POST lo vuelve a validar `validateTip`.
+- El formulario manda `source=fondo` en lugar de `category`/`slug`. La propina se guarda igual que
+  las demás (`destination = 'fondo'`, pendiente hasta que MP la apruebe) con **`source = 'fondo'`**
+  (migración 0052). Como `post_category`/`post_slug` no aceptan `NULL` (0019), se guardan
+  `material` y `''`; lo que manda es `source`.
+- El gracias es el de siempre, con «Volver al Fondo Kinky Vibe» (`https://fondo.kinkyvibe.ar`) en
+  lugar de «Volver a la publicación».
+- En el panel van en su propia fila («Fondo (una vez)») en «Por publicación», con ese link en la
+  lista y la columna `origen` del CSV.
+- Apagado, `/propinas?de=fondo` muestra solo la explicación de siempre y un POST con
+  `source=fondo` da 404. Las propinas de las publicaciones no cambian en ningún caso.
+
+## Total para el Fondo (`GET /api/fondo/propinas-total`)
+
+Para el porcentaje de fondo.kinkyvibe.ar (issue #265). Pedido de servidor a servidor; la lógica en
+`src/lib/server/fondo/propinasTotal.js`.
+
+- **Secreto:** header `x-fondo-secret` = `FONDO_MAIL_SECRET`, el mismo chequeo en tiempo constante
+  que `/api/fondo/mi-link` ([mails.md](mails.md)). Sin el correcto (o sin el secreto configurado):
+  `401` sin cuerpo.
+- **`?mes=AAAA-MM`** (mes 01 a 12): si no, `400` sin cuerpo.
+- **Mes Fondo:** del 5 de `mes` a las 00:00 de Argentina (UTC−3, sin horario de verano) hasta el 4
+  del mes siguiente a las 23:59:59. `mes=2026-10` = desde `2026-10-05T03:00:00Z` (inclusive) hasta
+  `2026-11-05T03:00:00Z` (exclusive) (`fondoMonthRange`).
+- **Qué suma:** las propinas con `destination = 'fondo'` **aprobadas** cuyo `approved_at` (lo pone
+  el webhook o el re-chequeo cuando pasan a aprobadas) cae en ese mes Fondo: las del pie de las
+  publicaciones y las «Una vez» del Fondo. Las reembolsadas no cuentan (ya no están aprobadas), así
+  que el total de un mes cerrado puede bajar. Es la misma definición del panel
+  (`FONDO_TIP_WHERE` / `fondoTipTotals`).
+- **Respuesta:** `{ "total": <ARS>, "count": <n>, "month": "<mes>", "updatedAt": "<ISO>" }`, sin
+  nombres, mails, mensajes ni ids de pago. `Cache-Control: private, max-age=300`.
+- Si la base falla: `503` sin cuerpo (el Fondo usa el último valor que tenía).
+- **No depende de `propinas_fondo`:** las propinas de las publicaciones ya van todas al Fondo, así
+  que el total sirve aunque el formulario `?de=fondo` esté apagado, y el endpoint es de solo
+  lectura y con secreto.
 
 Está siempre prendido: el interruptor `propinas` quedó fijo ([interruptores.md](interruptores.md))
 y la variable `PROPINAS_ENABLED` ya no hace nada. La nota del cafecito y el link a Cafecito del
@@ -60,6 +108,8 @@ pie de página ya no existen.
 | Panel (lista, CSV)                      | `src/routes/(authed)/admin/ajustes/propinas/` (menú: Ajustes › Plata › Propinas) |
 | Tabla                                   | `migrations/0019_propinas.sql` (`tips`)                                          |
 | Destino (`destination`)                 | `migrations/0022_propinas_destino.sql`                                           |
+| Origen (`source`: publicación o Fondo)  | `migrations/0052_propinas_origen.sql`                                            |
+| Total para el Fondo                     | `src/lib/server/fondo/propinasTotal.js`, `src/routes/api/fondo/propinas-total/`  |
 | Datos de demo (inventados)              | `scripts/demo/n3-propinas.sql`                                                   |
 
 Reutiliza lo de las entradas: el cliente de MP y su gateway (`getGateway`), el cuerpo común de la
@@ -89,7 +139,9 @@ simulado (`completeMockCheckout` en `tickets/mock.js`) y el CSV del panel (`$lib
 
 ## Probarlo
 
-- `npx vitest run src/lib/utils/propinas.test.js src/lib/utils/footer.test.js src/lib/components/Footer.test.js src/lib/server/propinas src/routes/\(content\)/propinas src/routes/\(authed\)/admin/ajustes/propinas`
+- `npx vitest run src/lib/utils/propinas.test.js src/lib/utils/footer.test.js src/lib/components/Footer.test.js src/lib/server/propinas src/routes/\(content\)/propinas src/routes/\(authed\)/admin/ajustes/propinas src/routes/api/fondo/propinas-total`
+- La página del Fondo en local: `PROPINAS_FONDO_ENABLED=1 npm run dev:tickets` y entrá a
+  `/propinas?de=fondo&monto=3000`.
 - En local, con MP simulado: `npm run dev:tickets`, entrá a un material de
   KinkyVibe, elegí un monto y aprobá el pago en el checkout simulado (`/propinas/simular-pago/…`).
 - Datos de demo en la base local: `npx wrangler d1 execute kinkyvibe --local --file scripts/demo/n3-propinas.sql`
@@ -97,8 +149,9 @@ simulado (`completeMockCheckout` en `tickets/mock.js`) y el CSV del panel (`$lib
 
 ## Qué necesita la base
 
-Las migraciones **0019** y **0022** (0022 agrega `destination`; sin ella no se pueden crear
-propinas).
+Las migraciones **0019**, **0022** y **0052** (0022 agrega `destination` y 0052 `source`; sin
+ellas no se pueden crear propinas). 0052 solo agrega una columna con valor por defecto: se aplica
+en producción **antes** de mergear el código que la usa (decisión 0028).
 
 ## Decisiones
 

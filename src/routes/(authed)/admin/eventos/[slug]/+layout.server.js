@@ -80,7 +80,7 @@ export async function load({ locals, url, params, platform }) {
 					`SELECT
 						SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS orders,
 						SUM(CASE WHEN status = 'awaiting_transfer' AND expires_at > ?2 THEN 1 ELSE 0 END) AS transfers,
-						SUM(CASE WHEN needs_review IS NOT NULL THEN 1 ELSE 0 END) AS review
+						SUM(CASE WHEN needs_review IS NOT NULL OR offline_review IS NOT NULL THEN 1 ELSE 0 END) AS review
 					FROM orders WHERE event_slug = ?1`
 				)
 				.bind(params.slug, Date.now())
