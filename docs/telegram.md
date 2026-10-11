@@ -104,8 +104,12 @@ una cuenta** (mirado en cada mensaje):
 - «⭐ Seguir» en una tarjeta muestra las etiquetas y series de ese evento que se pueden seguir
   (hasta 5, primero las series; las que ya sigue, deshabilitadas). Tocar una la sigue por el mismo
   camino que el botón del sitio (`resolveTag` + `follow` de `sigo/follows.js`), con sus topes y
-  sus opciones por defecto (calendario y mail de lo nuevo). Los avisos por Telegram se prenden en
-  Mi rincón → Lo que sigo, como siempre. Dejar de seguir, también ahí.
+  sus opciones por defecto (calendario y mail de lo nuevo), **más «Algo nuevo» por Telegram**
+  ([0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)): el aviso del botón suma «Te aviso
+  por acá cuando haya algo nuevo. Podés apagarlo en Mi rincón.». No los prende si el chat está en
+  `/silenciar` ni si ya lo seguía (sus opciones quedan como estaban: la base no distingue «nunca
+  lo tocó» de «lo apagó»). Seguir desde el sitio no los prende; dejar de seguir no apaga nada más.
+  El resto de los avisos y dejar de seguir, en Mi rincón → Lo que sigo.
 - `/sigo` y «⭐ Lo que sigo»: los nombres de lo que sigue la cuenta.
 - Sin chat vinculado: explica cómo conectarlo. En un grupo: link al privado
   (`?start=seguir-<id>` o `?start=sigo`), sin mirar ninguna cuenta.
@@ -194,7 +198,8 @@ En Lo que sigo, la grilla de avisos tiene la columna **Telegram** (`notifyChanne
 - sin el bot: «Próximamente», como antes;
 - con el bot y sin chat vinculado: apagada, «Sin conectar», con una nota que manda a la tarjeta;
 - con el chat vinculado: «Algo nuevo» y «Recordatorio» por Telegram, por cada cosa seguida
-  (columnas `tg_new` y `tg_reminder` de `follows`, apagadas por defecto).
+  (columnas `tg_new` y `tg_reminder` de `follows`, apagadas por defecto; seguir desde el bot
+  prende «Algo nuevo», 0036).
 
 Los manda el mismo cron que los mails de Lo que sigo (`src/lib/server/sigo/notify.js`, cada 15
 minutos), con estas reglas:

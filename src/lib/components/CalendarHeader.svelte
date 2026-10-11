@@ -1,6 +1,7 @@
 <script>
 	//@ts-nocheck
-	import { isSameMonth, isSameYear, addMonths, format } from 'date-fns';
+	import { addMonths, format } from 'date-fns';
+	import { currentMonth } from '$lib/utils/allPosts';
 	import { ArrowLeft, Home, ArrowRight } from '@lucide/svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
@@ -10,16 +11,16 @@
 	/** @type {string} yyyy-MM the page opens on without ?viewdate */
 	export let default_month;
 
-	const today_date = new Date();
+	/** El mes de hoy en hora de Argentina (no la del navegador), yyyy-MM. */
+	const this_month = currentMonth();
 
 	/**
 	 * Move to another month through the URL, so back/forward work and nothing global is written.
 	 * The page's loads don't read the query string, so this doesn't refetch anything.
-	 * @param {Date} d
+	 * @param {string} month yyyy-MM
 	 * @param {boolean} [replaceState]
 	 */
-	const show_month = (d, replaceState = false) => {
-		const month = format(d, 'yyyy-MM');
+	const show_month = (month, replaceState = false) => {
 		const url = new URL($page.url);
 		url.hash = '';
 		if (month === default_month) url.searchParams.delete('viewdate');
@@ -30,14 +31,15 @@
 	function capitalize(string) {
 		return string.charAt(0).toUpperCase() + string.slice(1);
 	}
-	const set_next_month = () => show_month(addMonths(view_date, 1));
-	const set_prev_month = () => show_month(addMonths(view_date, -1));
-	const set_today = () => show_month(today_date, true);
+	const set_next_month = () => show_month(format(addMonths(view_date, 1), 'yyyy-MM'));
+	const set_prev_month = () => show_month(format(addMonths(view_date, -1), 'yyyy-MM'));
+	const set_today = () => show_month(this_month, true);
 
 	$: view_month_string = capitalize(view_date.toLocaleDateString('es-AR', { month: 'long' }));
 	$: view_year_string = view_date.toLocaleDateString('es-AR', { year: 'numeric' });
-	$: view_is_different_year = !isSameYear(view_date, today_date);
-	$: view_is_same_month = isSameMonth(view_date, today_date);
+	$: view_month = format(view_date, 'yyyy-MM');
+	$: view_is_different_year = view_month.slice(0, 4) !== this_month.slice(0, 4);
+	$: view_is_same_month = view_month === this_month;
 </script>
 
 <div class="header">
