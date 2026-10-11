@@ -164,11 +164,13 @@ mandamos. Lo que sigue sale de lo que se observa y de las reglas publicadas para
 
 - **6 cifras, sin letras ni separadores.** El formato de nuestros códigos ya es el más fácil de
   reconocer (Android, para SMS, busca de 4 a 10 caracteres con al menos una cifra).
-- **El asunto empieza con el código y dice «código»**: «482913 es tu código para entrar a Kinky
-  Vibe» y «482913 es tu código para confirmar en Kinky Vibe». Antes el código no iba en el asunto
-  (se ve en las notificaciones del celu); gorrite probó con un mail real, Gmail no mostró «Copiar
-  código», y eligió ponerlo (11/10/2026), aceptando que se vea en la pantalla bloqueada. Los logs
-  de producción y de los previews lo tapan (`subjectForLog` en `emailGuard.js`).
+- **«código» en el asunto, sin el código**: «Tu código para entrar a Kinky Vibe» y «Tu código
+  para confirmar en Kinky Vibe». El código no va en el asunto porque se ve en las notificaciones
+  del celu. Se probó ponerlo al principio («482913 es tu código…»): en dos pruebas de gorrite con
+  mails reales en Gmail para celu (11/10/2026), no apareció «Copiar código» ni con el código en el
+  asunto ni sin él, así que volvió a salir. Igual, los logs de producción y de los previews tapan
+  los números de 6 cifras o más del asunto (`subjectForLog` en `emailGuard.js`), por si alguna vez
+  vuelve.
 - **Un preencabezado en castellano y sin números** (lo que se lee en la lista de mails, oculto en
   el mail abierto; `preheader` de `mailLayout`).
 - **El código es lo primero del mail**, solo en su renglón y justo después de una frase con
@@ -189,8 +191,9 @@ de código, que está en castellano. Google no dice cómo decide el idioma. Lo q
 tenía `<html lang="es">` y ningún texto en inglés salvo «Kinky Vibe» (logo, asunto, cuerpo, firma
 y el nombre del remitente), y es muy corto. Por eso ahora todos los mails salen con el encabezado
 `Content-Language: es` (`MAIL_HEADERS` en `tickets/email.js`, que Resend manda tal cual), y los de
-código con el asunto y el preencabezado en castellano. Que esto lo arregle es una suposición:
-hay que volver a probar con un mail real.
+código con un preencabezado en castellano. En la segunda prueba Gmail siguió ofreciendo traducir:
+no alcanzó. Quedan igual, porque dicen la verdad sobre el mail y no molestan; la causa sigue sin
+saberse.
 
 Fuentes: [9to5Google](https://9to5google.com/2026/09/19/gmail-copy-code/) (botón de Gmail),
 [foro de desarrolladores de Apple](https://developer.apple.com/forums/thread/738690) (códigos en

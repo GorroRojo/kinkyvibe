@@ -16,9 +16,9 @@ describe('mails con código', () => {
 		const m = buildLoginCodeEmail({ code: '123456', now: NOW, expiresAt: NOW + CODE_TTL_MS });
 		expect(m.text).toContain(`Escribilo en la página donde lo pediste. ${EXPIRES}`);
 		expect(m.html).toContain(EXPIRES);
-		// El código al principio del asunto (pedido de gorrite, 11/10/2026, para que Gmail lo
-		// detecte; se ve en las notificaciones del celu, y se acepta).
-		expect(m.subject).toBe('123456 es tu código para entrar a Kinky Vibe');
+		// Nada del código en el asunto (se ve en las notificaciones).
+		expect(m.subject).not.toContain('123456');
+		expect(m.subject).toBe('Tu código para entrar a Kinky Vibe');
 	});
 
 	it('confirmar una acción: lo mismo', () => {
@@ -46,7 +46,7 @@ describe('mails con código', () => {
 
 /**
  * Lo que ayuda a que Gmail («Copiar código») y Mail de Apple detecten el código (docs/mails.md,
- * «Códigos copiables»): el asunto empieza con el código y dice «código»; en el texto plano y en el
+ * «Códigos copiables»): el asunto dice «código» sin el código; en el texto plano y en el
  * HTML, el código solo en su renglón, primero, justo después de una frase con «código»; y un
  * preencabezado en castellano, sin números.
  */
@@ -56,20 +56,21 @@ describe('mails con código: el código se puede detectar y copiar', () => {
 			'ingresar',
 			buildLoginCodeEmail({ code: '482913', now: NOW }),
 			'Tu código para entrar a Kinky Vibe es:',
-			'482913 es tu código para entrar a Kinky Vibe',
+			'Tu código para entrar a Kinky Vibe',
 			'Escribilo en la página donde lo pediste. Sirve una sola vez.'
 		],
 		[
 			'confirmar',
 			buildConfirmCodeEmail({ code: '482913', purpose: 'delete', now: NOW }),
 			'Para confirmar que querés borrar tu cuenta, escribí este código en Mi rincón:',
-			'482913 es tu código para confirmar en Kinky Vibe',
+			'Tu código para confirmar en Kinky Vibe',
 			'Escribilo en Mi rincón para confirmar. Sirve una sola vez.'
 		]
 	]);
 
-	it.each(cases)('%s: el asunto empieza con el código', (_, m, _intro, subject) => {
+	it.each(cases)('%s: «código» en el asunto, sin el código', (_, m, _intro, subject) => {
 		expect(m.subject).toBe(subject);
+		expect(m.subject).not.toMatch(/\d/);
 	});
 
 	it.each(cases)('%s: preencabezado oculto, en castellano y sin números', (_, m, _i, _s, pre) => {
