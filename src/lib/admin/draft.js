@@ -151,3 +151,23 @@ export function changedKeys(a, b) {
 	const keys = [...new Set([...Object.keys(x), ...Object.keys(y)])];
 	return keys.filter((k) => JSON.stringify(x[k] ?? null) !== JSON.stringify(y[k] ?? null));
 }
+
+/**
+ * Los textos del diálogo «¿Salís con cambios sin guardar?» de UnsavedChanges. Con borrador
+ * (`draftKey`), lo escrito queda en este navegador; sin borrador (por ejemplo «Importar
+ * planilla»), salir lo pierde, y el diálogo lo dice.
+ * @param {boolean} keepsDraft
+ * @returns {{ title: string, body: string }}
+ */
+export function leaveDialogText(keepsDraft) {
+	const title = 'Tenés cambios sin guardar';
+	if (keepsDraft)
+		return {
+			title,
+			body: 'Si salís ahora no se publican. Los dejamos guardados en este navegador y los recuperamos cuando vuelvas a editar.'
+		};
+	return {
+		title,
+		body: 'Si salís ahora, lo que cargaste acá se pierde: no queda guardado en ningún lado.'
+	};
+}
