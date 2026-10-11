@@ -96,3 +96,10 @@ Reglas:
 - Mandar necesita un secret nuevo, `TELEGRAM_BOT_TOKEN` (lo carga gorrite en Cloudflare); sin él,
   los avisos por Telegram se saltean con una línea en el log. El webhook sigue sin usarlo.
 - Detalle y las decisiones de Claude (confirmadas por gorrite, 5/10): [`docs/telegram.md`](../telegram.md).
+
+## Cómo va (11/10)
+
+- El menú «/» de Telegram: la lista de comandos vive en `src/lib/server/telegram/commands.js` (de
+  ahí salen el router y el `setMyCommands`) y se registra con el botón «Actualizar comandos del
+  bot» de Ajustes → Automatizaciones (solo admins, queda en el registro). Los de la cuenta, solo
+  por chat privado y con «Lo que sigo» prendido. Detalle en [`docs/telegram.md`](../telegram.md).
