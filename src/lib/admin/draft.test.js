@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { DRAFT_MAX_AGE_MS, clearDraft, draftAge, draftKey, loadDraft, saveDraft } from './draft.js';
+import {
+	DRAFT_MAX_AGE_MS,
+	clearDraft,
+	draftAge,
+	draftKey,
+	leaveDialogText,
+	loadDraft,
+	saveDraft
+} from './draft.js';
 
 /** Storage en memoria, como localStorage. */
 function memoryStorage() {
@@ -106,5 +114,20 @@ describe('draftAge', () => {
 	});
 	it('un reloj adelantado no da tiempos negativos', () => {
 		expect(draftAge(10 * min, 0)).toBe('hace un momento');
+	});
+});
+
+describe('leaveDialogText', () => {
+	it('con borrador: dice que lo escrito queda en este navegador', () => {
+		const t = leaveDialogText(true);
+		expect(t.title).toBe('Tenés cambios sin guardar');
+		expect(t.body).toContain('Los dejamos guardados en este navegador');
+	});
+
+	it('sin borrador: avisa que lo cargado se pierde, sin prometer recuperarlo', () => {
+		const t = leaveDialogText(false);
+		expect(t.title).toBe('Tenés cambios sin guardar');
+		expect(t.body).toContain('se pierde');
+		expect(t.body).not.toContain('recuperamos');
 	});
 });
