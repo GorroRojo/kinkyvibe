@@ -80,6 +80,11 @@ La cola de las noches, en este orden:
 12. **Prototipos** (para mirar y decidir, no para prender): lista de espera por evento, segundo
     proveedor de pago, rol de organizadore, conector de Claude para el panel, IndieWeb y
     ActivityPub. L cada uno.
+13. **Navegación del panel**: gorrite elige entre las tres opciones de
+    `/estilo/prototipos/panel-nav` (la recomendada es la C) y se hace por partes: «Cargar evento»
+    sale de la barra y pasa al encabezado de Eventos; la Puerta como sección; la ficha del evento
+    con 5 pestañas y «Más»; «+ Crear» y acciones en el buscador. M cada parte. Bloqueo: gorrite
+    elige.
 
 ## Lanzamiento de entradas
 
