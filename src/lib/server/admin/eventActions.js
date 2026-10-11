@@ -8,6 +8,7 @@ import {
 	getGateway,
 	inBackground,
 	sendOrderEmail,
+	sendDateChangeEmails,
 	sendRefundEmail,
 	sendStreamLinkEmails,
 	siteOrigin
@@ -31,6 +32,12 @@ import {
 	requestStreamLinkSend,
 	setStreamLink
 } from '$lib/server/tickets/stream.js';
+import {
+	dateChangeOffer,
+	dismissDateChange,
+	getDateChange,
+	requestDateChangeSend
+} from '$lib/server/tickets/dateChange.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
 
@@ -295,6 +302,96 @@ export const eventTicketActions = {
 			: { stream: { ok: true, message } };
 	},
 
+	// «Avisar a les compradores» (cambio de fecha, dateChange.js): solo a las órdenes aprobadas de
+	// antes del cambio que todavía no recibieron ESTE aviso (`version` del formulario: si hubo
+	// otro cambio después, no se manda y se pide mirar el nuevo). Como «Enviar el link a todes»:
+	// manda una tanda y deja el envío pedido; el resto lo manda el cron. Nunca sale solo: lo pide
+	// este botón, que confirma antes.
+	dateChangeSend: async ({ locals, url, params, platform, request, fetch }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { dateChange: { ok: false, message: 'Sin base de datos.' } });
+		const version = Number((await request.formData()).get('version'));
+		const config = await getEventTickets(params.slug);
+		const change = config ? await getDateChange(db, params.slug) : null;
+		if (!config || !change) {
+			return fail(404, {
+				dateChange: { ok: false, message: 'No hay ningún cambio de fecha para avisar.' }
+			});
+		}
+		if (config.status === 'cancelado') {
+			return fail(409, {
+				dateChange: { ok: false, message: 'El evento está cancelado: no se avisa la fecha.' }
+			});
+		}
+		if (!Number.isSafeInteger(version) || version !== change.version) {
+			return fail(409, {
+				dateChange: {
+					ok: false,
+					message: 'La fecha volvió a cambiar. Revisá el aviso nuevo y volvé a tocar el botón.'
+				}
+			});
+		}
+		await requestDateChangeSend(db, { eventSlug: params.slug, version, by: admin.login });
+		const r = await sendDateChangeEmails({
+			db,
+			change,
+			origin: siteOrigin(url),
+			fetch
+		});
+		const who = (/** @type {number} */ n) => (n === 1 ? '1 persona' : `${n} personas`);
+		if (r.sent || r.failed) {
+			// Sin mails de nadie: solo cuántos.
+			await logAdminAction(db, locals, {
+				action: 'event.date_change.send',
+				targetType: 'event',
+				targetId: params.slug,
+				summary: `Avisó el cambio de fecha a ${who(r.sent)}`,
+				detail: {
+					version,
+					sent: r.sent,
+					failed: r.failed,
+					remaining: r.remaining,
+					from: change.old_start,
+					to: change.new_start
+				}
+			});
+		}
+		const message = dateChangeSendMessage(r, who);
+		return r.failed || r.gaveUp
+			? fail(502, { dateChange: { ok: false, message } })
+			: { dateChange: { ok: true, message } };
+	},
+
+	// «No hace falta avisar»: el aviso de arriba de la ficha deja de mostrarse para este cambio (la
+	// pestaña «Mail a compradores» lo sigue ofreciendo). No manda nada.
+	dateChangeDismiss: async ({ locals, url, params, platform, request }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { dateChange: { ok: false, message: 'Sin base de datos.' } });
+		const version = Number((await request.formData()).get('version'));
+		const offer = await dateChangeOffer(db, params.slug);
+		if (!offer || offer.version !== version) {
+			return fail(409, { dateChange: { ok: false, message: 'Ese cambio de fecha ya no está.' } });
+		}
+		if (await dismissDateChange(db, { eventSlug: params.slug, version })) {
+			await logAdminAction(db, locals, {
+				action: 'event.date_change.dismiss',
+				targetType: 'event',
+				targetId: params.slug,
+				summary: 'Decidió no avisar el cambio de fecha',
+				detail: { version }
+			});
+		}
+		return {
+			dateChange: {
+				ok: true,
+				message:
+					'Listo, no avisamos. Si cambiás de idea, está en «Mail a compradores» → «Avisar el cambio de fecha».'
+			}
+		};
+	},
+
 	// "Reembolsar": Mercado Pago → reembolso total por la API de MP y después se marca la orden;
 	// transferencia o sin cargo → solo se marca (la plata se devuelve a mano). Idempotente: una
 	// orden ya reembolsada no se vuelve a reembolsar (y MP recibe la misma X-Idempotency-Key).
@@ -441,6 +538,32 @@ export function streamSendMessage(r, who) {
 	}
 	const parts = [];
 	if (r.sent || r.failed) parts.push(`Link enviado a ${who(r.sent)}.`);
+	if (r.failed) parts.push(`No se pudo mandar a ${who(r.failed)}: se reintenta solo.`);
+	if (r.remaining) {
+		parts.push(
+			`Faltan ${who(r.remaining)}: siguen solas en las próximas vueltas del cron (cada 15 minutos), o tocá el botón de nuevo para mandar otra tanda.`
+		);
+	}
+	if (r.gaveUp) {
+		parts.push(
+			`A ${who(r.gaveUp)} no le llegó después de varios intentos (ver logs; tocá el botón para reintentar).`
+		);
+	}
+	return parts.join(' ');
+}
+
+/**
+ * Qué pasó con una tanda de «Avisar a les compradores», para le admin.
+ *
+ * @param {{ sent: number, failed: number, remaining: number, gaveUp: number }} r
+ * @param {(n: number) => string} who
+ */
+export function dateChangeSendMessage(r, who) {
+	if (!r.sent && !r.failed && !r.remaining && !r.gaveUp) {
+		return 'Todes ya tenían este aviso: no se mandó nada.';
+	}
+	const parts = [];
+	if (r.sent || r.failed) parts.push(`Aviso enviado a ${who(r.sent)}.`);
 	if (r.failed) parts.push(`No se pudo mandar a ${who(r.failed)}: se reintenta solo.`);
 	if (r.remaining) {
 		parts.push(

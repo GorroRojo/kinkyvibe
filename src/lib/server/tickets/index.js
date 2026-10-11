@@ -14,6 +14,7 @@ import {
 	parseFeePercent
 } from '$lib/utils/tickets.js';
 import {
+	buildDateChangeEmail,
 	buildRefundEmail,
 	buildReminderEmail,
 	buildStreamLinkEmail,
@@ -51,6 +52,7 @@ import { mailBatchSize } from './batchSize.js';
 import { withMailFooter } from '../email/layout.js';
 import { runMailQueueWith } from './mailQueue.js';
 import { calendarStamp } from './calendarFile.js';
+import { getDateChange, sendDateChangeBatch } from './dateChange.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
 const DEV_MOCK_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
@@ -397,6 +399,23 @@ async function streamLinkInfoFor(db, slug) {
 }
 
 /**
+ * La versión del último cambio de fecha del evento (dateChange.js), o `null`, sin romper si falta
+ * la tabla. Entra en la versión del .ics de los mails (`calendarStamp`): un mail que sale después
+ * de un cambio de fecha no tiene un SEQUENCE más bajo que el del aviso.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ */
+async function dateChangeVersionFor(db, slug) {
+	try {
+		return (await getDateChange(db, slug))?.version ?? null;
+	} catch (error) {
+		console.error(`[tickets] no se pudo leer el cambio de fecha de ${slug}:`, error);
+		return null;
+	}
+}
+
+/**
  * Manda (o, sin RESEND_API_KEY, loguea) el email con las entradas de una orden aprobada. En los
  * eventos online, si ya hay link de la transmisión, va en el mail y queda registrado (así
  * "Enviar el link a todes" no se lo vuelve a mandar).
@@ -449,6 +468,7 @@ export async function sendOrderEmail({
 				stamp: calendarStamp({
 					orderCreatedAt: order.created_at,
 					linkUpdatedAt: linkInfo?.updatedAt,
+					dateChangedAt: await dateChangeVersionFor(db, order.event_slug),
 					now: idempotent ? null : Date.now()
 				}),
 				location: venue ? venue.location : config?.location,
@@ -518,6 +538,7 @@ export async function sendStreamLinkEmails({
 	// Cuándo se cargó ESTE link (versión del .ics adjunto; si ya cambió, el de la compra).
 	const info = await streamLinkInfoFor(db, eventSlug);
 	const linkUpdatedAt = info?.link === link ? info.updatedAt : null;
+	const dateChangedAt = await dateChangeVersionFor(db, eventSlug);
 	const event = {
 		slug: eventSlug,
 		title: config?.title || eventSlug,
@@ -540,7 +561,7 @@ export async function sendStreamLinkEmails({
 				tickets,
 				event: {
 					...event,
-					stamp: calendarStamp({ orderCreatedAt: order.created_at, linkUpdatedAt })
+					stamp: calendarStamp({ orderCreatedAt: order.created_at, linkUpdatedAt, dateChangedAt })
 				},
 				link,
 				origin,
@@ -553,6 +574,84 @@ export async function sendStreamLinkEmails({
 				to: order.buyer_email,
 				message,
 				idempotencyKey: `stream-${order.id}-${key}`
+			});
+			return result !== 'failed';
+		}
+	});
+}
+
+/**
+ * «Avisar a les compradores»: manda una tanda del aviso de cambio de fecha (como mucho `limit`
+ * mails, por defecto el "de a cuántos" de los ajustes) a las órdenes aprobadas de antes del
+ * cambio que todavía no lo recibieron (una vez por orden y versión; ver dateChange.js). Lo que
+ * quede lo sigue el cron ({@link runMailQueue}) si el envío está pedido con
+ * `requestDateChangeSend`. La fecha y el lugar son los de ahora; el .ics, con la versión del
+ * cambio (mismo UID, SEQUENCE más alto).
+ *
+ * @param {{
+ *   db: import('@cloudflare/workers-types').D1Database,
+ *   change: import('./dateChange.js').DateChange,
+ *   origin: string,
+ *   fetch: typeof fetch,
+ *   limit?: number,
+ *   now?: number
+ * }} input
+ */
+export async function sendDateChangeEmails({
+	db,
+	change,
+	origin,
+	fetch: fetchFn,
+	limit,
+	now = Date.now()
+}) {
+	const eventSlug = change.event_slug;
+	const config = await getEventTickets(eventSlug);
+	const online = Boolean(config?.online);
+	const linkInfo = online ? await streamLinkInfoFor(db, eventSlug) : null;
+	const venue = await buyerLocation(db, eventSlug);
+	const template = await resolveTemplate(db, eventSlug, 'date_change');
+	const event = {
+		slug: eventSlug,
+		title: config?.title || eventSlug,
+		start: config?.start ?? change.new_start,
+		end: config ? config.end : change.new_end,
+		status: config?.status,
+		location: venue ? venue.location : config?.location,
+		location_name: venue ? venue.location_name : config?.location_name,
+		online,
+		streamLink: linkInfo?.link ?? null
+	};
+	const previous = change.old_start ? { start: change.old_start, end: change.old_end } : null;
+	return sendDateChangeBatch(db, {
+		change,
+		now,
+		limit: limit ?? mailBatchSize((await getSalesSettings(db)).mail_batch_size),
+		send: async (order) => {
+			const tickets = await getOrderTickets(db, order.id);
+			const message = buildDateChangeEmail({
+				order,
+				tickets,
+				event: {
+					...event,
+					stamp: calendarStamp({
+						orderCreatedAt: order.created_at,
+						linkUpdatedAt: linkInfo?.updatedAt,
+						dateChangedAt: change.version
+					})
+				},
+				previous,
+				typeName: config?.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
+				origin,
+				contactEmail: contactEmail(),
+				template
+			});
+			const result = await deliver({
+				db,
+				fetch: fetchFn,
+				to: order.buyer_email,
+				message,
+				idempotencyKey: `datechange-${order.id}-${change.version}`
 			});
 			return result !== 'failed';
 		}
@@ -693,6 +792,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 	}
 	/** @type {Map<string, { link: string, updatedAt: number | null } | null>} */
 	const links = new Map();
+	/** @type {Map<string, number | null>} */
+	const dateChanges = new Map();
 	/** @type {Map<string, Awaited<ReturnType<typeof buyerLocation>>>} */
 	const venues = new Map();
 	/** @type {Map<string, Record<string, any> | null>} */
@@ -722,6 +823,7 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				links.set(e.slug, await streamLinkInfoFor(db, e.slug));
 			}
 			const linkInfo = config.online ? (links.get(e.slug) ?? null) : null;
+			if (!dateChanges.has(e.slug)) dateChanges.set(e.slug, await dateChangeVersionFor(db, e.slug));
 			const tickets = await getOrderTickets(db, order.id);
 			if (!venues.has(where)) venues.set(where, await buyerLocation(db, where));
 			const venue = venues.get(where);
@@ -754,7 +856,9 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 					streamLink: linkInfo?.link ?? null,
 					stamp: calendarStamp({
 						orderCreatedAt: order.created_at,
-						linkUpdatedAt: linkInfo?.updatedAt
+						linkUpdatedAt: linkInfo?.updatedAt,
+						// Una parte de un taller tiene su propia fecha: el cambio del taller no cuenta.
+						dateChangedAt: part ? null : dateChanges.get(e.slug)
 					}),
 					parts: partLists.get(e.slug) ?? null
 				},
@@ -777,8 +881,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 
 /**
  * Una corrida del cron de mails (POST /api/cron/recordatorios, cada 15 minutos): una tanda de
- * recordatorios y, con lo que sobre, de lo que quede de cada "Enviar el link a todes" (ver
- * mailQueue.js). Se puede llamar dos veces a la vez sin duplicar nada (ver sendState.js).
+ * recordatorios y, con lo que sobre, de lo que quede de cada "Enviar el link a todes" y de cada
+ * «Avisar a les compradores» de un cambio de fecha (ver mailQueue.js). Se puede llamar dos veces a la vez sin duplicar nada (ver sendState.js).
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
@@ -793,7 +897,9 @@ export async function runMailQueue({ db, origin, fetch: fetchFn, now = Date.now(
 		limit,
 		sendReminders: (limit) => sendReminderEmails({ db, origin, fetch: fetchFn, now, limit }),
 		sendStreamLink: ({ eventSlug, link, limit }) =>
-			sendStreamLinkEmails({ db, eventSlug, link, origin, fetch: fetchFn, now, limit })
+			sendStreamLinkEmails({ db, eventSlug, link, origin, fetch: fetchFn, now, limit }),
+		sendDateChange: ({ change, limit }) =>
+			sendDateChangeEmails({ db, change, origin, fetch: fetchFn, now, limit })
 	});
 }
 

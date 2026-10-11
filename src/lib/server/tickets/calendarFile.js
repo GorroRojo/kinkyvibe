@@ -56,16 +56,18 @@ export const ICS_CONTENT_TYPE = 'text/calendar; method=PUBLISH; charset=UTF-8';
  * (Resend rechaza con 409 una clave de idempotencia reusada con otro contenido) y crecer cuando
  * cambia lo que dice el archivo:
  *
- * - con clave de idempotencia (entradas, recordatorios, «Enviar el link a todes»): la más nueva
- *   entre la compra y el último cambio del link de la transmisión. Un link nuevo da un SEQUENCE
- *   más alto; dos mails con lo mismo dan el mismo (misma versión del evento).
+ * - con clave de idempotencia (entradas, recordatorios, «Enviar el link a todes», aviso de cambio
+ *   de fecha): la más nueva entre la compra, el último cambio del link de la transmisión y el
+ *   último cambio de fecha del evento (`version` de dateChange.js). Un link o una fecha nuevos dan
+ *   un SEQUENCE más alto; dos mails con lo mismo dan el mismo (misma versión del evento).
  * - sin clave («Reenviar» desde el panel): ahora.
  *
- * @param {{ orderCreatedAt: number, linkUpdatedAt?: number | null, now?: number | null }} input
+ * @param {{ orderCreatedAt: number, linkUpdatedAt?: number | null, dateChangedAt?: number | null,
+ *   now?: number | null }} input
  */
-export function calendarStamp({ orderCreatedAt, linkUpdatedAt, now }) {
+export function calendarStamp({ orderCreatedAt, linkUpdatedAt, dateChangedAt, now }) {
 	if (now !== undefined && now !== null) return now;
-	return Math.max(orderCreatedAt || 0, linkUpdatedAt || 0);
+	return Math.max(orderCreatedAt || 0, linkUpdatedAt || 0, dateChangedAt || 0);
 }
 
 /**

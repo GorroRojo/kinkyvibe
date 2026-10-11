@@ -460,7 +460,8 @@ que corre solo (la única acción es «Actualizar comandos del bot», abajo). La
   links de transmisión, avisos de series y de «Lo que sigo» (nuevo y recordatorio), con el último
   envío, los pendientes y los que fallaron (`reminder_sends`, `stream_link_sends`,
   `series_notifications`, `follow_notifications`). «Mail a compradores» no está: sale desde la
-  página del evento, no del cron.
+  página del evento, no del cron. Lo que queda de un «Avisar a les compradores» (cambio de fecha)
+  sí lo manda el cron, pero esta página todavía no lo muestra.
 - **Bot de Telegram**: el interruptor, si el secreto del webhook y el token están cargados (sí/no;
   nunca el valor) y cuántos chats hay vinculados. El botón **Actualizar comandos del bot**
   (`?/comandos`) le registra a Telegram el menú «/» y muestra qué quedó o el error; queda en el
