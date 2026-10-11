@@ -20,12 +20,8 @@
 			.catch(() => (loadedPast = false));
 	}
 
-	const title = 'Kinky Vibe';
 	// Los textos de la vista previa (los del panel; docs/compartir.md).
 	$: previewTexts = linkPreviewOf($page.data).texts;
-	const summary =
-		'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
-	const canonical = 'https://kinkyvibe.ar';
 	// La organización (schema.org, jsonLd.js): nombre, logo, contacto público y redes oficiales.
 	const websiteSchema = /** @type {any} */ (organizationSchema());
 	import kinkyProfilePic from '../logo.png';
