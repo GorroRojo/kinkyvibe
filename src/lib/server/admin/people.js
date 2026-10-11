@@ -11,6 +11,7 @@
 import { seriesOf } from '$lib/utils/sheetImport.js';
 import { foldText } from '$lib/server/tickets/orders.js';
 import { getEventInfo } from '$lib/server/tickets/events.js';
+import { noteDeletionPath, softDeletionStatement } from './deletions.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -185,6 +186,9 @@ export function matchesPerson(p, q) {
 /* Notas internas (tabla person_notes, migraciones 0009 y 0045)                              */
 /* ------------------------------------------------------------------------------------------ */
 
+// Borrar una nota es suave (`deleted_at`, migración 0049; decisión 0033): las borradas no se
+// listan ni se cuentan, y «Recuperar» de Actividad las vuelve a poner (./deletions.js).
+
 export const NOTE_MAX = 2000;
 
 /**
@@ -204,7 +208,7 @@ export async function listNotes(db, email) {
 	try {
 		const { results } = await db
 			.prepare(
-				'SELECT id, body, created_at, created_by FROM person_notes WHERE lower(trim(email)) = ?1 ORDER BY created_at DESC, id DESC'
+				'SELECT id, body, created_at, created_by FROM person_notes WHERE lower(trim(email)) = ?1 AND deleted_at IS NULL ORDER BY created_at DESC, id DESC'
 			)
 			.bind(email)
 			.all();
@@ -231,7 +235,7 @@ export async function noteCounts(db) {
 		const { results } = await db
 			.prepare(
 				// Las notas de una cuenta borrada (sin mail, 0045) no son de ninguna persona por mail.
-				"SELECT lower(trim(email)) AS email, COUNT(*) AS n FROM person_notes WHERE trim(email) != '' GROUP BY lower(trim(email))"
+				"SELECT lower(trim(email)) AS email, COUNT(*) AS n FROM person_notes WHERE trim(email) != '' AND deleted_at IS NULL GROUP BY lower(trim(email))"
 			)
 			.all();
 		return new Map(results.map((r) => [String(r.email), Number(r.n)]));
@@ -283,21 +287,42 @@ export async function addNote(db, { email = '', accountId = '', body, by, now = 
 }
 
 /**
- * Borra una nota de esa persona: por su mail o, sin mail, por la cuenta a la que está atada.
+ * Borra (suave) una nota de esa persona: por su mail o, sin mail, por la cuenta a la que está
+ * atada. En la MISMA tanda, su fila de `panel_deletions` para «Recuperar» en Actividad, sin el
+ * texto de la nota ni el mail (`slug`: el id corto de la persona, o `cuenta:<id>`).
  *
  * @param {D1Database} db
- * @param {{ email?: string, accountId?: string, id: number }} input
+ * @param {{ email?: string, accountId?: string, id: number, by?: string, now?: number }} input
  */
-export async function deleteNote(db, { email = '', accountId = '', id }) {
+export async function deleteNote(
+	db,
+	{ email = '', accountId = '', id, by = 'panel', now = Date.now() }
+) {
 	if (!email && !accountId) return false;
-	const res = email
-		? await db
-				.prepare('DELETE FROM person_notes WHERE id = ?1 AND lower(trim(email)) = ?2')
-				.bind(id, email)
-				.run()
-		: await db
-				.prepare("DELETE FROM person_notes WHERE id = ?1 AND account_id = ?2 AND trim(email) = ''")
-				.bind(id, accountId)
-				.run();
+	const mark = email
+		? db
+				.prepare(
+					'UPDATE person_notes SET deleted_at = ?3 WHERE id = ?1 AND lower(trim(email)) = ?2 AND deleted_at IS NULL'
+				)
+				.bind(id, email, now)
+		: db
+				.prepare(
+					"UPDATE person_notes SET deleted_at = ?3 WHERE id = ?1 AND account_id = ?2 AND trim(email) = '' AND deleted_at IS NULL"
+				)
+				.bind(id, accountId, now);
+	const [res] = await db.batch([
+		mark,
+		await softDeletionStatement(
+			db,
+			{
+				kind: 'amigues',
+				slug: email ? await personId(email) : `cuenta:${accountId}`,
+				title: email ? 'Nota interna de una persona' : 'Nota interna de una cuenta borrada',
+				path: noteDeletionPath(id),
+				object: id
+			},
+			{ login: by, now }
+		)
+	]);
 	return res.meta.changes === 1;
 }

@@ -64,11 +64,7 @@ describe('tagsFactory (src/lib/utils/tags.js)', () => {
 	});
 
 	it('un tag con varios padres los conserva todos', () => {
-		const raw = [
-			{ id: 'a', children: ['x'] },
-			{ id: 'b', children: ['x'] },
-			{ id: 'x' }
-		];
+		const raw = [{ id: 'a', children: ['x'] }, { id: 'b', children: ['x'] }, { id: 'x' }];
 		const tm = tagsFactory(raw);
 		expect(tm.get('x').parents).toEqual(['a', 'b']);
 	});

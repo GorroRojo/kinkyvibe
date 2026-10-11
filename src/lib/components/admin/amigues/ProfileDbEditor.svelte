@@ -16,6 +16,7 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import ProfileEditorForm from './ProfileEditorForm.svelte';
 	import { typeIcon } from '$lib/admin/typeIcons.js';
+	import { draftKey } from '$lib/admin/draft.js';
 
 	/** @type {any} */
 	export let data;
@@ -108,6 +109,8 @@
 			submitLabel="Guardar y publicar"
 			kinds={data.kinds}
 			image={data.image ?? null}
+			draftKey={draftKey('perfil', String(p.id))}
+			saved={Boolean(form?.perfil?.ok)}
 		/>
 	</Card>
 </div>

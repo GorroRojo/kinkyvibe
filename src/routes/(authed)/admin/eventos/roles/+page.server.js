@@ -61,11 +61,11 @@ export const actions = {
 		return { role: { ok: true, name: result.name, message: `Rol «${result.name}» agregado.` } };
 	},
 	removeRole: async (event) => {
-		const { db } = await requirePersonasAdmin(event);
+		const { admin, db } = await requirePersonasAdmin(event);
 		const name = String((await event.request.formData()).get('name') ?? '').slice(0, 200);
 		let result;
 		try {
-			result = await removeRole(db, name);
+			result = await removeRole(db, name, { by: admin.login });
 		} catch (e) {
 			logDBError('sacar rol', e);
 			return fail(500, { role: { ok: false, message: 'No se pudo guardar. Probá de nuevo.' } });
@@ -80,7 +80,7 @@ export const actions = {
 		return {
 			role: {
 				ok: true,
-				message: `Rol «${result.name}» sacado. Las publicaciones que ya lo usan lo siguen mostrando.`
+				message: `Rol «${result.name}» sacado. Las publicaciones que ya lo usan lo siguen mostrando. Si te equivocaste, lo recuperás desde Actividad.`
 			}
 		};
 	},

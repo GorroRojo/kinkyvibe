@@ -145,3 +145,50 @@ describe('handleWebhook', () => {
 		expect((await run({ request: req({ body: big }) })).status).toBe(413);
 	});
 });
+
+describe('handleWebhook con el token (decisión 0034)', () => {
+	const TOKEN = '000000:token-inventado-para-pruebas';
+	const okFetch = () =>
+		vi.fn(
+			async (/** @type {any} */ _url, /** @type {any} */ _init) =>
+				new Response(JSON.stringify({ ok: true, result: true }), { status: 200 })
+		);
+
+	it('contesta 200 vacío y llama a la API en waitUntil, nunca con el token en la respuesta', async () => {
+		const f = okFetch();
+		/** @type {Promise<unknown>[]} */
+		const tasks = [];
+		const res = await run({ token: TOKEN, fetch: f, waitUntil: (t) => tasks.push(t) });
+		expect(res.status).toBe(200);
+		expect(await res.text()).toBe('');
+		await Promise.all(tasks);
+		expect(f).toHaveBeenCalledTimes(1);
+		const [url, init] = f.mock.calls[0];
+		expect(new URL(url).pathname).toBe(`/bot${TOKEN}/sendMessage`);
+		expect(JSON.parse(init.body).text).toContain('Fiesta inventada');
+	});
+
+	it('un botón: edita y contesta el botón', async () => {
+		const f = okFetch();
+		const body = JSON.stringify({
+			callback_query: {
+				id: 'cb-9',
+				data: 'l:p:0',
+				message: { message_id: 11, chat: { id: 7, type: 'private' } }
+			}
+		});
+		await run({ request: req({ body }), token: TOKEN, fetch: f });
+		expect(f.mock.calls.map(([u]) => new URL(u).pathname.split('/').pop())).toEqual([
+			'editMessageText',
+			'answerCallbackQuery'
+		]);
+	});
+
+	it('sin secreto válido no llama a nada aunque haya token', async () => {
+		const f = okFetch();
+		expect((await run({ request: req({ secret: null }), token: TOKEN, fetch: f })).status).toBe(
+			401
+		);
+		expect(f).not.toHaveBeenCalled();
+	});
+});

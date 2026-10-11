@@ -191,6 +191,7 @@
 								use:enhance={async ({ cancel }) => {
 									const ok = await askConfirm({
 										title: '¿Borrar esta nota?',
+										text: 'Si te equivocás, la recuperás desde Ajustes › Actividad.',
 										confirmLabel: 'Borrar',
 										tone: 'danger'
 									});

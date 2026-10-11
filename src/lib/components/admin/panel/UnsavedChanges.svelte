@@ -15,7 +15,8 @@
 	 *   hasta que termina la redirección, si la hay).
 	 *
 	 * Props:
-	 * - `draftKey`: clave del borrador (ver `$lib/admin/draft.js`); vacía = sin borrador.
+	 * - `draftKey`: clave del borrador (ver `$lib/admin/draft.js`); vacía = sin borrador (igual avisa
+	 *   al salir, y el diálogo dice que lo cargado se pierde).
 	 * - `base`: versión del archivo (por ejemplo el sha); si cambió, pregunta antes de recuperar.
 	 * - `dirty`: hay cambios sin guardar.
 	 * - `snapshot`: lo que hay que guardar (datos planos, se pasa por JSON).
@@ -28,7 +29,14 @@
 	 */
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { beforeNavigate, goto } from '$app/navigation';
-	import { clearDraft, draftAction, draftAge, loadDraft, saveDraft } from '$lib/admin/draft.js';
+	import {
+		clearDraft,
+		draftAction,
+		draftAge,
+		leaveDialogText,
+		loadDraft,
+		saveDraft
+	} from '$lib/admin/draft.js';
 
 	export let draftKey = '';
 	export let base = '';
@@ -130,6 +138,8 @@
 		dialog?.showModal();
 	});
 
+	$: leaveText = leaveDialogText(Boolean(draftKey));
+
 	function stay() {
 		pending = null;
 		dialog?.close();
@@ -195,11 +205,8 @@
 	aria-labelledby="kv-unsaved-title"
 	on:cancel={() => (pending = null)}
 >
-	<h2 id="kv-unsaved-title">Tenés cambios sin guardar</h2>
-	<p>
-		Si salís ahora no se publican. Los dejamos guardados en este navegador y los recuperamos cuando
-		vuelvas a editar.
-	</p>
+	<h2 id="kv-unsaved-title">{leaveText.title}</h2>
+	<p>{leaveText.body}</p>
 	<div class="kv-dialog-btns">
 		<!-- svelte-ignore a11y-autofocus -->
 		<button type="button" class="kv-btn" autofocus on:click={stay}>Seguir editando</button>

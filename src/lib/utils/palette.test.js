@@ -46,7 +46,15 @@ describe('colores y contraste', () => {
 		expect(readableText('#6b2ee6')).toBe(LIGHT_TEXT);
 	});
 	it('readableText siempre llega a AA', () => {
-		for (const bg of ['#808080', '#ff0000', '#00ff00', '#0000ff', '#f4622f', '#3cc2bd', '#777777']) {
+		for (const bg of [
+			'#808080',
+			'#ff0000',
+			'#00ff00',
+			'#0000ff',
+			'#f4622f',
+			'#3cc2bd',
+			'#777777'
+		]) {
 			expect(contrastRatio(readableText(bg), bg)).toBeGreaterThanOrEqual(4.5);
 		}
 	});
@@ -56,7 +64,9 @@ describe('colores y contraste', () => {
 		const [r, g] = hexToRgb(fg);
 		expect(r).toBeGreaterThan(g); // sigue siendo rosa, no gris
 		expect(ensureContrast('#ffffff', '#000000', 4.5)).toBe('#ffffff');
-		expect(contrastRatio(ensureContrast('#3a0d78', '#2b0f4e', 4.5), '#2b0f4e')).toBeGreaterThanOrEqual(4.5);
+		expect(
+			contrastRatio(ensureContrast('#3a0d78', '#2b0f4e', 4.5), '#2b0f4e')
+		).toBeGreaterThanOrEqual(4.5);
 	});
 	it('mix mezcla en RGB', () => {
 		expect(mix('#000000', '#ffffff', 0.5)).toBe('#808080');

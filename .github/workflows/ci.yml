@@ -30,6 +30,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Respeta .prettierignore (los posts del CMS y los archivos de la lista temporal quedan afuera).
+      # Si falla: `npm run format` y commiteá el resultado.
+      - name: Prettier
+        run: npm run format:check
+
       - name: Unit + content tests
         run: npx vitest run
 
