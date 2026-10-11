@@ -110,8 +110,9 @@ migraciones que reconstruyen tablas tienen su propia prueba con datos
 
 **Lo privado no sale en público** (`src/routes/privados.test.js`): planta objetos de cada tipo en
 cada nivel que no ve une visitante (oculto, solo con cuenta, borrado, sin aprobar, no listado, y
-cada nivel de privacidad de un lugar) y revisa todas las listas, feeds, JSON, imágenes para
-compartir y direcciones directas. Si agregás una salida pública, sumala ahí con una línea (ver
+cada nivel de privacidad de un lugar), más datos de personas (mails de cuentas, una compra con sus
+respuestas, una nota interna), y revisa todas las listas, feeds, JSON, imágenes para compartir y
+direcciones directas. Es de vitest, sin navegador. Si agregás una salida pública, sumala ahí con una línea (ver
 [objetos.md](objetos.md)).
 
 ### En el navegador (Playwright)

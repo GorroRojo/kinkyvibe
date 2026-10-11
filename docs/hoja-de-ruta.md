@@ -21,7 +21,8 @@ PRs abiertos:
 - #261: reserva por transferencia hasta las 20 del segundo día hábil, sin paso de confirmar.
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
 - Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
-  tipo y nivel, en cada lista, feed, JSON, imagen para compartir y dirección directa.
+  tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
+  directa.
 
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
 BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
@@ -186,8 +187,6 @@ de amigues y lanzamientos grandes.
 - Endurecer lo que muestran las listas públicas de lo público que apunta a objetos privados: la
   prueba «vínculos: direcciones» de `src/routes/privados.test.js` está marcada `it.fails` hasta
   entonces. S–M. Bloqueo: decisión de gorrite (el detalle, por privado).
-- Sumar a `src/routes/privados.test.js` las salidas nuevas cuando entren: los feeds Atom y JSON
-  (#280) y las imágenes `/og` (#257). Una línea cada una. S.
 - Borrar objetos para siempre; campos propios y tipos simples desde el panel. L. Bloqueo: diseño.
 - Pestañas arriba en cada sección (como Ajustes) y un menú más simple. M. Bloqueo: proponer la
   estructura antes.

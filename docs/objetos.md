@@ -162,11 +162,18 @@ tiene que aparecer, para que la prueba no pase por no mostrar nada.
 | lugar con dirección                 | cada nivel de `venue_privacy` (del lugar y propio del evento)                           |
 
 Salidas: inicio, `/calendario`, `/material`, `/amigues`, `/todo`, `/wiki`, `/wiki/<etiqueta>`, el
-layout (glosario y árbol de etiquetas de cada página), `sitemap.xml`, `/rss`, `/calendario.ics`,
-`/ics/etiqueta/<etiqueta>.ics`, `/api/posts`, `/api/search-index.json`, `/api/series/<etiqueta>`;
-y las direcciones directas `/calendario/<evento>` (y `/compartir`, las imágenes para compartir, y
-`/entradas`), `/material/<post>`, `/amigues/<perfil>`, `/wiki/<etiqueta>` y `/media/<clave>`, que
-dan 404 a lo que no se puede ver. **Una salida pública nueva se suma con una línea** en
+layout (glosario y árbol de etiquetas de cada página), `sitemap.xml`, `/rss`, los feeds Atom y
+JSON (`/calendario/feed.*`, `/material/feed.*`, `/wiki/<etiqueta>/feed.*`), lo que dibujan las
+imágenes `/og` (`linkPreviewState`), `/calendario.ics`, `/ics/etiqueta/<etiqueta>.ics`,
+`/api/posts`, `/api/search-index.json`, `/api/series/<etiqueta>`; y las direcciones directas
+`/calendario/<evento>` (y `/compartir`, las imágenes para compartir, y `/entradas`),
+`/material/<post>`, `/amigues/<perfil>`, `/wiki/<etiqueta>` (y sus feeds) y `/media/<clave>`, que
+dan 404 a lo que no se puede ver.
+
+También planta datos de personas que nunca son públicos (los mails de las cuentas, una compra de
+un evento público con nombre, mail, DNI y respuestas, y una nota interna) y revisa que no salgan en
+ninguna de esas salidas ni en las páginas de lo público; y que la biblioteca (`/imagenes`) dé 404
+sin cuenta. **Una salida pública nueva se suma con una línea** en
 `LIST_OUTPUTS` (si lista cosas) o en `DIRECT_OUTPUTS` (si es la dirección de un objeto).
 
 La última parte (lo público que apunta a lo privado: personas, etiquetas y lugar) tiene una prueba

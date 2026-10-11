@@ -490,6 +490,62 @@ async function plantMedia() {
 	});
 }
 
+/**
+ * Datos de personas que nunca son públicos: los mails de las cuentas (las que crearon perfiles
+ * sin aprobar y una que gestiona un perfil público), una compra de un evento público (nombre,
+ * mail, DNI y respuestas de inscripción) y una nota interna del panel sobre quien compró.
+ *
+ * @type {string[]}
+ */
+const personalSecrets = [];
+
+async function plantPeople() {
+	const { addManager } = await import('$lib/server/amigues/testing.js');
+	const { addNote } = await import('$lib/server/admin/people.js');
+	// Los mails de las cuentas que crearon los perfiles sin aprobar.
+	for (const kind of ['persona', 'proyecto', 'lugar']) {
+		personalSecrets.push(`cuenta-fugazz-${kind}@example.com`);
+	}
+	// Una cuenta que gestiona un perfil público.
+	const manager = await makeAccount(t.db, 'gestore-fugazz');
+	const shown = /** @type {{ id: number }} */ (
+		await t.db
+			.prepare(`SELECT id FROM objects WHERE type = 'perfil' AND slug = ?1`)
+			.bind(slugOf('perfil-persona', 'publico'))
+			.first()
+	);
+	await addManager(t.db, shown.id, manager.id);
+	personalSecrets.push(manager.email);
+	// Una compra de un evento público, con sus respuestas.
+	const buyer = {
+		name: 'Compradore Fugazz Secrete',
+		email: 'compradore-fugazz@example.com',
+		dni: '99000111'
+	};
+	const orderId = '00000000-0000-4000-9000-00000000f0f0';
+	const now = Date.now();
+	await t.db
+		.prepare(
+			`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal, total,
+				buyer_name, buyer_email, buyer_dni, status, created_at, updated_at, expires_at)
+			VALUES (?1, ?2, 'general', 1, 1000, 1000, 1000, ?3, ?4, ?5, 'approved', ?6, ?6, ?6)`
+		)
+		.bind(orderId, slugOf('evento', 'publico'), buyer.name, buyer.email, buyer.dni, now)
+		.run();
+	await t.db
+		.prepare('INSERT INTO order_answers (order_id, answers, created_at) VALUES (?1, ?2, ?3)')
+		.bind(orderId, JSON.stringify({ alergias: 'respuesta-fugazz-secreta' }), now)
+		.run();
+	await addNote(t.db, { email: buyer.email, body: 'nota-interna-fugazz', by: 'admin-de-prueba' });
+	personalSecrets.push(
+		buyer.name,
+		buyer.email,
+		buyer.dni,
+		'respuesta-fugazz-secreta',
+		'nota-interna-fugazz'
+	);
+}
+
 // ---------------------------------------------------------------------------------------------
 // Lugares: cada nivel de privacidad de la dirección, por defecto del lugar y propio del evento.
 // ---------------------------------------------------------------------------------------------
@@ -667,6 +723,20 @@ const get = async (mod, event) => {
 	return (await res.text()).replace(/\r\n[ \t]/g, '');
 };
 
+/** Los feeds Atom y JSON (imports fijos: Vite no resuelve `[term]` en un import armado). */
+const FEEDS = {
+	atom: {
+		calendario: () => import('./(content)/calendario/feed.atom/+server.js'),
+		material: () => import('./(content)/material/feed.atom/+server.js'),
+		wiki: () => import('./(content)/wiki/[term]/feed.atom/+server.js')
+	},
+	json: {
+		calendario: () => import('./(content)/calendario/feed.json/+server.js'),
+		material: () => import('./(content)/material/feed.json/+server.js'),
+		wiki: () => import('./(content)/wiki/[term]/feed.json/+server.js')
+	}
+};
+
 /**
  * Lo que lista cosas: `[nombre, cómo se pide (como texto), qué controles públicos tiene que
  * mostrar]`. Los controles prueban que la salida no pasa por no mostrar nada.
@@ -721,6 +791,30 @@ const LIST_OUTPUTS = [
 		['evento', 'material', 'perfil-persona', 'etiqueta']
 	],
 	['/rss', () => get(import('./rss/+server.js'), anonEvent()), ['evento', 'material']],
+	.../** @type {const} */ (['atom', 'json']).flatMap((format) => [
+		/** @type {[string, () => Promise<string>, string[]]} */ ([
+			`/calendario/feed.${format}`,
+			() => get(FEEDS[format].calendario(), anonEvent()),
+			['evento']
+		]),
+		/** @type {[string, () => Promise<string>, string[]]} */ ([
+			`/material/feed.${format}`,
+			() => get(FEEDS[format].material(), anonEvent()),
+			['material']
+		]),
+		/** @type {[string, () => Promise<string>, string[]]} */ ([
+			`/wiki/${PUBLIC_SERIES_SLUG}/feed.${format}`,
+			() => get(FEEDS[format].wiki(), anonEvent({ params: { term: PUBLIC_SERIES_SLUG } })),
+			['evento']
+		])
+	]),
+	[
+		// Lo que dibujan las imágenes `/og/<tarjeta>/<hash>.jpg` (las portadas de los eventos).
+		'/og (imágenes para compartir del sitio)',
+		async () =>
+			text(await (await import('$lib/server/linkPreview.js')).linkPreviewState(t.platform)),
+		['imagen']
+	],
 	[
 		'/calendario.ics',
 		() => get(import('./(content)/calendario.ics/+server.js'), anonEvent()),
@@ -811,6 +905,13 @@ const etiqueta = [
 				anonEvent({ params: { term: p.slug } })
 			)
 	],
+	.../** @type {const} */ (['atom', 'json']).map(
+		(format) =>
+			/** @type {[string, (p: Pick<Planted, 'slug'>) => Promise<string>]} */ ([
+				`/wiki/<etiqueta>/feed.${format}`,
+				(p) => get(FEEDS[format].wiki(), anonEvent({ params: { term: p.slug } }))
+			])
+	),
 	[
 		'/ics/etiqueta/<etiqueta>.ics',
 		(p) =>
@@ -881,6 +982,7 @@ beforeAll(async () => {
 	await plantProfiles();
 	await plantMedia();
 	await plantVenues();
+	await plantPeople();
 	await fresh();
 	for (const [name, fn] of LIST_OUTPUTS) outputs.set(name, await fn());
 	// Después, lo público que apunta a lo privado (sus salidas, aparte).
@@ -893,6 +995,7 @@ beforeAll(async () => {
 async function fresh() {
 	(await import('$lib/server/contenido/posts.js')).clearContentCache();
 	(await import('$lib/server/etiquetas/source.js')).clearTagSourceCache();
+	(await import('$lib/server/linkPreview.js')).clearLinkPreviewCache();
 }
 afterAll(async () => {
 	await t?.dispose();
@@ -941,7 +1044,7 @@ describe('la dirección de algo privado no lo muestra', () => {
 				// Los eventos de prueba no venden entradas: su página de compra da 404 aunque se vean.
 				if (name.endsWith('/entradas')) continue;
 				// Una etiqueta sin eventos no tiene .ics ni datos de serie (404 aunque se vea).
-				if (p.type === 'etiqueta' && !name.startsWith('/wiki/')) continue;
+				if (p.type === 'etiqueta' && name !== '/wiki/<etiqueta>') continue;
 				const r = await attempt(() => fn(p));
 				expect(r.status, `${name} ${p.type} ${p.level}`).toBe(200);
 				if (p.type !== 'imagen') {
@@ -1120,5 +1223,33 @@ describe('lo público que apunta a lo privado', () => {
 	it.fails('vínculos: direcciones', async () => {
 		const keys = (/** @type {Planted} */ p) => [p.slug, ...(p.keys ?? [])];
 		expect(found(await all(), keys)).toEqual([]);
+	});
+});
+
+describe('los datos de las personas no salen', () => {
+	it('ni en las listas ni en las páginas de lo público', async () => {
+		expect(personalSecrets.length).toBeGreaterThan(0);
+		const out = [...outputs.entries(), ...linkedOutputs.entries()];
+		for (const p of controls) {
+			for (const [name, fn] of DIRECT_OUTPUTS[p.type]) {
+				const r = await attempt(() => fn(p));
+				out.push([`${name} ${p.slug}`, r.body]);
+			}
+		}
+		const found = out.flatMap(([name, o]) =>
+			personalSecrets
+				.filter((s) => o.toLowerCase().includes(s.toLowerCase()))
+				.map((s) => `${name}: ${s}`)
+		);
+		expect(found).toEqual([]);
+	});
+
+	it('la biblioteca (/imagenes) no se abre sin cuenta', async () => {
+		const { GET } = await import('./imagenes/+server.js');
+		const r = await attempt(async () => {
+			const res = /** @type {Response} */ (await GET(anonEvent({ path: '/imagenes' })));
+			return `${res.status} ${await res.text()}`;
+		});
+		expect(r.status).toBe(404);
 	});
 });
