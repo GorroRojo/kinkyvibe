@@ -15,6 +15,8 @@
  * - Toda lectura de `objects` pasa por la visibilidad (`visibleWhere`/`getObject`): las listas,
  *   con la vista anónima (son las mismas para todes y se guardan en memoria); la página de cada
  *   post, con quien mira (les admins ven los ocultos).
+ * - La metadata (listas y páginas) lleva solo los vínculos (`personas`, `tags`) a perfiles y
+ *   etiquetas que ve cualquiera (./vinculosPublicos.js). El panel lee con ./repo.js: ve todo.
  * - Las listas se recuerdan por isolate mientras la base no cambie: cada pedido mira solo cuántos
  *   objetos hay y cuándo cambió el último (una consulta chica, con índice).
  * - Las listas no leen el cuerpo de los posts (`data.body`, la mayor parte de lo guardado): solo
@@ -35,6 +37,7 @@ import { renderContentBody } from './render.js';
 import { personaEdgesColumn, personaEdgesFromColumn } from './personasEdges.js';
 import { tagEdgesColumn, tagEdgesFromColumn } from './etiquetasEdges.js';
 import { hydrateContent, withContentEdges } from './relaciones.js';
+import { publicLinksOf } from './vinculosPublicos.js';
 import { imageOf } from '$lib/server/media/library.js';
 import { mediaPath } from '$lib/server/media/sniff.js';
 import { authorProfilePosts, toPublic } from '$lib/server/amigues/asPost.js';
@@ -209,14 +212,39 @@ async function loadDbState(db, stamp, tree) {
 	const profiles = { listed: [], unlisted: [] };
 	/** @type {Map<number, string>} */
 	const paths = new Map();
-	for (const r of rows.results) {
-		let data = {};
+	/** @param {Record<string, unknown>} r */
+	const parsed = (r) => {
 		try {
-			data = JSON.parse(String(r.data));
+			return JSON.parse(String(r.data));
 		} catch {
-			data = {};
+			return {};
 		}
+	};
+	// La metadata de cada evento y material, con sus listas enteras: los perfiles de `personas` y
+	// las etiquetas son edges (./relaciones.js), leídos en la misma consulta. Después, sin los
+	// vínculos a lo que no ve cualquiera (./vinculosPublicos.js, una vuelta más para todos).
+	const content = rows.results.flatMap((r) => {
+		const cat = r.type === 'perfil' ? null : categoryOfType(String(r.type));
+		if (!cat) return [];
+		const object = {
+			title: String(r.title),
+			data: withContentEdges(String(r.type), /** @type {Record<string, any>} */ (parsed(r)), {
+				personas: personaEdgesFromColumn(r.persona_edges),
+				tags: tagEdgesFromColumn(r.tag_edges)
+			}),
+			visibility: String(r.visibility)
+		};
+		return [{ r, meta: cat.toMeta(object) }];
+	});
+	const metas = await publicLinksOf(
+		db,
+		content.map((c) => c.meta)
+	);
+	/** @type {Map<Record<string, unknown>, Record<string, any>>} */
+	const metaOf = new Map(content.map((c, i) => [c.r, metas[i]]));
+	for (const r of rows.results) {
 		if (r.type === 'perfil') {
+			const data = parsed(r);
 			const profile = /** @type {any} */ ({
 				slug: String(r.slug),
 				title: String(r.title),
@@ -234,25 +262,13 @@ async function loadDbState(db, stamp, tree) {
 			(profile.data.unlisted === true ? profiles.unlisted : profiles.listed).push(post);
 			continue;
 		}
-		const cat = categoryOfType(String(r.type));
-		if (!cat) continue;
-		const object = {
-			title: String(r.title),
-			// Los perfiles de `personas` y las etiquetas son edges (./relaciones.js), leídos en la
-			// misma consulta: la metadata lleva las listas enteras.
-			data: withContentEdges(String(r.type), /** @type {Record<string, any>} */ (data), {
-				personas: personaEdgesFromColumn(r.persona_edges),
-				tags: tagEdgesFromColumn(r.tag_edges)
-			}),
-			visibility: String(r.visibility)
-		};
+		const meta = metaOf.get(r);
+		if (!meta) continue;
 		const postID = r.legacy_slug ? String(r.legacy_slug) : String(r.slug);
 		const post = await processPost(
 			undefined,
 			postID,
-			/** @type {any} */ (
-				withCover(cat.toMeta(object), typeof r.cover === 'string' ? r.cover : undefined)
-			),
+			/** @type {any} */ (withCover(meta, typeof r.cover === 'string' ? r.cover : undefined)),
 			true,
 			tree
 		);
@@ -569,10 +585,13 @@ export async function siteContent(
 	const [object] = await hydrateContent(db, [found]);
 	const postID = ref.legacySlug ?? object.slug;
 	const cover = await imageOf(db, object.id, 'portada', viewer).catch(() => null);
+	// Sin los vínculos a lo que no ve cualquiera, para todes (también con cuenta o admin): es la
+	// página pública. El panel lee con ./repo.js.
+	const [meta] = await publicLinksOf(db, [cat.toMeta(object)]);
 	const post = await processPost(
 		undefined,
 		postID,
-		/** @type {any} */ (withCover(cat.toMeta(object), cover?.key)),
+		/** @type {any} */ (withCover(meta, cover?.key)),
 		shallow
 	);
 	// Les autores con perfil (de la base, como los ve quien mira): «Por …» y sus tarjetas.

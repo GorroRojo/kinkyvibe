@@ -20,13 +20,10 @@ PRs abiertos:
   nuevo mapa de teclas `g`.
 - #261: reserva por transferencia hasta las 20 del segundo día hábil, sin paso de confirmar.
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
-- #273: la puerta por Telegram ([0037](decisiones/0037-puerta-por-telegram.md)): les admins
-  vinculan su Telegram en Ajustes → Admins y marcan ingresos con el escáner de QR de Telegram,
-  detrás de `telegram_puerta`. Bloqueo: gorrite aplica la migración 0050 en producción y en
-  preview antes del merge (0028).
-- #290: seguir desde el bot prende los avisos por Telegram
-  ([0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)).
 - #296: miniatura de la portada en el recuadro «Hoy» del Inicio del panel (gorrite, 11/10).
+- Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
+  tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
+  directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
 
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
 BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
@@ -186,8 +183,6 @@ de amigues y lanzamientos grandes.
 - Invitar a cada amigue a editar su perfil: desde el panel, mandarle un link por mail para que lo
   gestione desde Mi rincón (con cuenta), sin pasar por les admins para cada cambio (gorrite,
   11/10). M. Revisar cómo se asigna hoy quién gestiona un perfil (docs/amigues.md).
-- Prueba E2E: objetos privados de cada tipo que nunca aparecen en listas, búsqueda, sitemap, RSS,
-  imágenes para compartir ni JSON. M.
 - Borrar objetos para siempre; campos propios y tipos simples desde el panel. L. Bloqueo: diseño.
 - Pestañas arriba en cada sección (como Ajustes) y un menú más simple. M. Bloqueo: proponer la
   estructura antes.
