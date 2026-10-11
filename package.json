@@ -28,7 +28,8 @@
 		"format:check": "prettier --check .",
 		"format": "prettier --write .",
 		"ui:impacto": "node scripts/ui-impacto/run.js",
-		"demo:local": "node scripts/demo/recargar-local.js"
+		"demo:local": "node scripts/demo/recargar-local.js",
+		"telegram:webhook": "node scripts/telegram-webhook.js"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^5.20260929.1",

@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_BODY_BYTES, handleWebhook, isValidWebhookSecret } from './webhook.js';
+import { resetInlineRate } from './inline.js';
+import { makeInlineSource } from './inlineSource.js';
 
 const SECRET = 'un-secreto-de-prueba-largo';
 const ORIGIN = 'https://ejemplo.test';
@@ -190,5 +192,83 @@ describe('handleWebhook con el token (decisión 0034)', () => {
 			401
 		);
 		expect(f).not.toHaveBeenCalled();
+	});
+});
+
+describe('handleWebhook: el modo inline', () => {
+	const TOKEN = '000000:token-inventado-para-pruebas';
+	const inlineBody = JSON.stringify({
+		update_id: 9,
+		inline_query: { id: 'iq-7', from: { id: 5 }, query: 'fiesta', offset: '' }
+	});
+	const fakeSource = () =>
+		makeInlineSource({
+			raw: {
+				v: 1,
+				docs: [{ c: 'material', h: '/material/fiesta-inventada', t: 'Fiesta inventada' }],
+				tags: {}
+			},
+			posts: [],
+			wikiPosts: [],
+			profiles: null
+		});
+
+	beforeEach(() => resetInlineRate());
+
+	it('con el interruptor apagado no contesta nada ni lee el índice', async () => {
+		const source = vi.fn(async () => fakeSource());
+		const f = vi.fn();
+		for (const token of [undefined, TOKEN]) {
+			const res = await run({
+				request: req({ body: inlineBody }),
+				enabled: false,
+				inline: { source },
+				token,
+				fetch: f
+			});
+			expect(res.status).toBe(200);
+			expect(await res.text()).toBe('');
+		}
+		expect(source).not.toHaveBeenCalled();
+		expect(f).not.toHaveBeenCalled();
+	});
+
+	it('sin secreto: 401, sin leer el índice', async () => {
+		const source = vi.fn(async () => fakeSource());
+		const res = await run({ request: req({ body: inlineBody, secret: null }), inline: { source } });
+		expect(res.status).toBe(401);
+		expect(source).not.toHaveBeenCalled();
+	});
+
+	it('sin token: answerInlineQuery en el mismo pedido', async () => {
+		const res = await run({
+			request: req({ body: inlineBody }),
+			inline: { source: async () => fakeSource() }
+		});
+		const out = await res.json();
+		expect(out).toMatchObject({ method: 'answerInlineQuery', inline_query_id: 'iq-7' });
+		expect(out.results[0].title).toBe('Fiesta inventada');
+	});
+
+	it('con token: llama a answerInlineQuery', async () => {
+		const f = vi.fn(
+			async (/** @type {any} */ _url, /** @type {any} */ _init) =>
+				new Response(JSON.stringify({ ok: true, result: true }), { status: 200 })
+		);
+		await run({
+			request: req({ body: inlineBody }),
+			inline: { source: async () => fakeSource() },
+			token: TOKEN,
+			fetch: f
+		});
+		expect(f).toHaveBeenCalledTimes(1);
+		const [url, init] = f.mock.calls[0];
+		expect(new URL(url).pathname.split('/').pop()).toBe('answerInlineQuery');
+		expect(JSON.parse(init.body)).toMatchObject({ inline_query_id: 'iq-7', is_personal: false });
+	});
+
+	it('sin el modo inline cargado: no contesta', async () => {
+		const res = await run({ request: req({ body: inlineBody }) });
+		expect(await res.text()).toBe('');
 	});
 });

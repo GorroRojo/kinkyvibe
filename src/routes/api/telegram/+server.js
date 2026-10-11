@@ -1,14 +1,15 @@
 /**
  * Webhook del bot de Telegram (decisiones 0029 y 0034, docs/telegram.md). La lógica está en
  * `$lib/server/telegram/`; esta ruta solo junta el secreto, los interruptores, los eventos, la
- * tarjeta de cada evento, el Fondo, el token (con él, el webhook llama a la API en `waitUntil`) y,
+ * tarjeta de cada evento, el modo inline, el Fondo, el token (con él, el webhook llama a la API en `waitUntil`) y,
  * para la fase 2 (vincular cuentas) y el vínculo de les admins (la puerta por Telegram), la base.
  */
 import { env } from '$env/dynamic/private';
 import { isFlagOn } from '$lib/server/flags.js';
 import { getDB } from '$lib/server/db';
 import { handleWebhook } from '$lib/server/telegram/webhook.js';
-import { eventCardInfo, listUpcomingEvents } from '$lib/server/telegram/events.js';
+import { eventCardInfo, inlineEventInfo, listUpcomingEvents } from '$lib/server/telegram/events.js';
+import { inlineSource } from '$lib/server/telegram/inlineSource.js';
 import { botAccounts } from '$lib/server/telegram/link.js';
 import { botAdminLink } from '$lib/server/telegram/adminLink.js';
 import { botUsername } from '$lib/server/telegram/web.js';
@@ -27,6 +28,12 @@ export async function POST({ request, url, platform, fetch }) {
 		card: (event) => eventCardInfo(platform, event.slug, url.origin),
 		// Solo los cinco números de /api/porcentaje, con la memoria de fondoMonth.js (issue #265).
 		fondo: () => resolveFondoMonth({ db, fetch }),
+		// El modo inline: solo lo del índice público de la búsqueda (el mismo de
+		// /api/search-index.json), con el lugar y la venta de los eventos como la tarjeta.
+		inline: {
+			source: () => inlineSource(platform),
+			events: (metas) => inlineEventInfo(platform, metas)
+		},
 		botUsername: botUsername(),
 		token: env.TELEGRAM_BOT_TOKEN,
 		waitUntil: ctx?.waitUntil ? (task) => ctx.waitUntil(task) : undefined,
