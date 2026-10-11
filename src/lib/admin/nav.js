@@ -792,7 +792,9 @@ export function areaBackLink(id) {
 	const area = navArea(navItem(id)?.area);
 	if (!area) return null;
 	const root = NAV.find((i) => i.href === `/admin/${area.id}`);
-	return root ? { href: root.href, label: area.label } : null;
+	// Si la página del área todavía no existe («Próximamente», como la Bandeja de Mensajes), no hay
+	// a dónde volver: sin link (gorrite, 11/10: «el botón "Mensajes" no lleva a ningún lado»).
+	return root && !root.soon ? { href: root.href, label: area.label } : null;
 }
 
 /**

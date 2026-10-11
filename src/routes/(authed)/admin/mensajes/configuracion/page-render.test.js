@@ -27,10 +27,8 @@ const data = {
 describe('/admin/mensajes/configuracion', () => {
 	const body = render(Page, { props: { data: /** @type {any} */ (data), form: null } }).body;
 
-	it('«← Mensajes» lleva a /admin/mensajes', () => {
-		const back = body.match(/<a class="back[^"]*" href="([^"]*)">← ([^<]*)<\/a>/);
-		expect(back?.[1]).toBe('/admin/mensajes');
-		expect(back?.[2]).toBe('Mensajes');
+	it('sin «← Mensajes» mientras Mensajes no tenga página propia (la Bandeja es «Próximamente»)', () => {
+		expect(body).not.toMatch(/<a class="back[^"]*" href="\/admin\/mensajes">/);
 	});
 
 	it('las plantillas: un link a Mensajes › Plantillas, sin tarjeta propia', () => {

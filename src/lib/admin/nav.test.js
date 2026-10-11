@@ -461,20 +461,23 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 });
 
 describe('areaBackLink («← Área» arriba del título)', () => {
-	it('Plantillas vuelve a Mensajes, su área (no a Ajustes)', () => {
+	it('Plantillas es de Mensajes (no de Ajustes); sin link mientras la Bandeja sea «Próximamente»', () => {
 		expect(navItem('ajustes-plantillas')?.area).toBe('mensajes');
-		expect(areaBackLink('ajustes-plantillas')).toEqual({
-			href: '/admin/mensajes',
-			label: 'Mensajes'
-		});
+		// /admin/mensajes es la Bandeja, que todavía no existe: «← Mensajes» no llevaba a nada.
+		expect(navItem('bandeja')?.soon).toBe(true);
+		expect(areaBackLink('ajustes-plantillas')).toBe(null);
+	});
+	it('cuando la página del área existe, el link vuelve a ella', () => {
+		expect(areaBackLink('entradas-codigos')).toEqual({ href: '/admin/ventas', label: 'Ventas' });
 	});
 	it('Códigos vuelve a Ventas; sin área o sin página del área, null', () => {
 		expect(areaBackLink('entradas-codigos')).toEqual({ href: '/admin/ventas', label: 'Ventas' });
 		expect(areaBackLink('inicio')).toBe(null);
 		expect(areaBackLink('no-existe')).toBe(null);
 		expect(areaBackLink('actividad')).toBe(null);
-		// Configuración de los mails se mudó de Ajustes a Mensajes: vuelve a Mensajes.
-		expect(areaBackLink('ajustes-mails')).toEqual({ href: '/admin/mensajes', label: 'Mensajes' });
+		// Configuración de los mails se mudó a Mensajes, que todavía no tiene página propia.
+		expect(navItem('ajustes-mails')?.area).toBe('mensajes');
+		expect(areaBackLink('ajustes-mails')).toBe(null);
 	});
 });
 

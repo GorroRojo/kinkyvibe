@@ -7,13 +7,12 @@ import { render } from 'svelte/server';
 import Page from './+page.svelte';
 
 describe('/admin/mensajes/plantillas', () => {
-	it('«← Mensajes» lleva a /admin/mensajes', () => {
+	it('sin «← Mensajes» mientras Mensajes no tenga página propia (la Bandeja es «Próximamente»)', () => {
 		const body = render(Page, {
 			props: { data: /** @type {any} */ ({ dbAvailable: true, templates: [] }) }
 		}).body;
-		const back = body.match(/<a class="back[^"]*" href="([^"]*)">← ([^<]*)<\/a>/);
-		expect(back?.[1]).toBe('/admin/mensajes');
-		expect(back?.[2]).toBe('Mensajes');
+		// Antes llevaba a /admin/mensajes, la Bandeja que todavía no existe (gorrite, 11/10).
+		expect(body).not.toMatch(/<a class="back[^"]*" href="\/admin\/mensajes">/);
 		expect(body).not.toContain('href="/admin/ajustes/mails"');
 	});
 });
