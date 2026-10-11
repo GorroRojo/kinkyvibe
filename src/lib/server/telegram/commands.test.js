@@ -21,6 +21,9 @@ const TOKEN = '000000:token-inventado-para-pruebas';
 
 const PUBLIC = [
 	{ command: 'proximos', description: 'Los próximos eventos públicos' },
+	{ command: 'hoy', description: 'Los eventos de hoy' },
+	{ command: 'semana', description: 'Lo que hay en los próximos 7 días' },
+	{ command: 'finde', description: 'Lo que hay este fin de semana' },
 	{ command: 'evento', description: 'Buscá un evento por nombre, fecha o lugar' },
 	{ command: 'ayuda', description: 'Qué podés pedirme' }
 ];
@@ -96,14 +99,14 @@ describe('la lista', () => {
 });
 
 describe('commandPayloads', () => {
-	it('con «Lo que sigo»: todes ven los tres; por privado, además los de la cuenta', () => {
+	it('con «Lo que sigo»: todes ven los públicos; por privado, además los de la cuenta', () => {
 		expect(commandPayloads({ accounts: true })).toEqual([
 			{ commands: PUBLIC, scope: { type: 'default' } },
 			{ commands: [...PUBLIC, ...ACCOUNT], scope: { type: 'all_private_chats' } }
 		]);
 	});
 
-	it('sin «Lo que sigo»: también por privado, solo los tres (pisa lo de antes)', () => {
+	it('sin «Lo que sigo»: también por privado, solo los públicos (pisa lo de antes)', () => {
 		expect(commandPayloads({ accounts: false })).toEqual([
 			{ commands: PUBLIC, scope: { type: 'default' } },
 			{ commands: PUBLIC, scope: { type: 'all_private_chats' } }
@@ -134,7 +137,7 @@ describe('registerBotCommands', () => {
 				{
 					scope: 'default',
 					label: 'Para todes (grupos y chats)',
-					commands: ['proximos', 'evento', 'ayuda'],
+					commands: ['proximos', 'hoy', 'semana', 'finde', 'evento', 'ayuda'],
 					ok: true
 				},
 				{
@@ -142,6 +145,9 @@ describe('registerBotCommands', () => {
 					label: 'En chats privados',
 					commands: [
 						'proximos',
+						'hoy',
+						'semana',
+						'finde',
 						'evento',
 						'ayuda',
 						'vincular',

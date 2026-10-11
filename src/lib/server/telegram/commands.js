@@ -14,6 +14,9 @@ import { callTelegramApi } from './send.js';
 /** Los de todes (grupos y chats privados). @type {readonly BotCommand[]} */
 export const PUBLIC_COMMANDS = Object.freeze([
 	{ command: 'proximos', description: 'Los próximos eventos públicos' },
+	{ command: 'hoy', description: 'Los eventos de hoy' },
+	{ command: 'semana', description: 'Lo que hay en los próximos 7 días' },
+	{ command: 'finde', description: 'Lo que hay este fin de semana' },
 	{ command: 'evento', description: 'Buscá un evento por nombre, fecha o lugar' },
 	{ command: 'ayuda', description: 'Qué podés pedirme' }
 ]);

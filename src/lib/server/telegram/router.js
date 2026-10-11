@@ -30,8 +30,10 @@ import {
 	formatEvent,
 	formatEventList,
 	formatHelp,
-	formatPickList
+	formatPickList,
+	formatWindowList
 } from './format.js';
+import { eventsInWindow } from './windows.js';
 import {
 	eventDetailKeyboard,
 	eventListKeyboard,
@@ -62,7 +64,8 @@ import { ACCOUNT_COMMAND_NAMES, HANDLED_COMMANDS } from './commands.js';
  * @typedef {{
  *   listUpcoming: () => Promise<BotEvent[]>,
  *   origin: string,
- *   accounts?: () => Promise<BotAccounts | null>
+ *   accounts?: () => Promise<BotAccounts | null>,
+ *   now?: () => number
  * }} Deps
  */
 
@@ -312,6 +315,13 @@ export async function handleUpdate(update, deps) {
 			case 'proximos': {
 				const events = await deps.listUpcoming();
 				return reply(chatId, formatEventList(events, origin), keyboardFor(events));
+			}
+			case 'hoy':
+			case 'semana':
+			case 'finde': {
+				const now = deps.now ? deps.now() : Date.now();
+				const found = eventsInWindow(await deps.listUpcoming(), command.name, now);
+				return reply(chatId, formatWindowList(command.name, found, origin), keyboardFor(found));
 			}
 			case 'evento': {
 				const events = await deps.listUpcoming();

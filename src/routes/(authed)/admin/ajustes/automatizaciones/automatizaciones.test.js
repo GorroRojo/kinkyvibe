@@ -132,8 +132,8 @@ describe('?/comandos (Actualizar comandos del bot)', () => {
 		const r = /** @type {any} */ (await actions.comandos(post(admin)));
 		expect(r.commandsOk).toBe(true);
 		expect(r.commandsResults.map((/** @type {any} */ x) => [x.scope, x.commands])).toEqual([
-			['default', ['proximos', 'evento', 'ayuda']],
-			['all_private_chats', ['proximos', 'evento', 'ayuda']]
+			['default', ['proximos', 'hoy', 'semana', 'finde', 'evento', 'ayuda']],
+			['all_private_chats', ['proximos', 'hoy', 'semana', 'finde', 'evento', 'ayuda']]
 		]);
 		expect(f).toHaveBeenCalledTimes(2);
 		for (const [url] of f.mock.calls) {
@@ -159,6 +159,9 @@ describe('?/comandos (Actualizar comandos del bot)', () => {
 			scope: { type: 'all_private_chats' },
 			commands: [
 				{ command: 'proximos', description: 'Los próximos eventos públicos' },
+				{ command: 'hoy', description: 'Los eventos de hoy' },
+				{ command: 'semana', description: 'Lo que hay en los próximos 7 días' },
+				{ command: 'finde', description: 'Lo que hay este fin de semana' },
 				{ command: 'evento', description: 'Buscá un evento por nombre, fecha o lugar' },
 				{ command: 'ayuda', description: 'Qué podés pedirme' },
 				{ command: 'vincular', description: 'Conectá tu cuenta (código de Mi rincón)' },
