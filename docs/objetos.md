@@ -176,9 +176,13 @@ ninguna de esas salidas ni en las páginas de lo público; que la biblioteca (`/
 sin cuenta, y que `/api/fondo/propinas-total` pida su secreto. **Una salida pública nueva se suma con una línea** en
 `LIST_OUTPUTS` (si lista cosas) o en `DIRECT_OUTPUTS` (si es la dirección de un objeto).
 
-La última parte (lo público que apunta a lo privado: personas, etiquetas y lugar) tiene una prueba
-marcada `it.fails` («vínculos: direcciones»), pendiente de una decisión; cuando se resuelva, falla
-y pasa a ser una prueba común.
+La última parte (lo público que apunta a lo privado: personas, etiquetas y lugar) revisa también
+las direcciones y los nombres internos («vínculos: direcciones»): la metadata pública de un evento
+o un material (`meta.personas`, `meta.tags`) solo lleva vínculos a perfiles y etiquetas que ve
+cualquiera (`src/lib/server/contenido/vinculosPublicos.js`, con la misma regla que sus páginas:
+`visibleWhere(ANON)` y, los perfiles, aprobados; lo no listado cuenta como visible). Las listas y
+las páginas de `src/lib/server/contenido/posts.js` pasan por ahí; el panel y el editor leen con
+`repo.js` y ven la lista entera.
 
 La migración **no se aplica a mano** en preview ni en producción desde un PR: eso lo hace gorrite
 cuando corresponde ([datos.md](datos.md)).

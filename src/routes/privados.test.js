@@ -1218,9 +1218,9 @@ describe('lo público que apunta a lo privado', () => {
 		expect(found(out, names)).toEqual([]);
 	});
 
-	// Pendiente (ver la descripción del PR): cuando se resuelva, esta prueba falla y pasa a ser
-	// una prueba común (`it`).
-	it.fails('vínculos: direcciones', async () => {
+	// La metadata pública solo lleva vínculos a lo que ve cualquiera
+	// (src/lib/server/contenido/vinculosPublicos.js).
+	it('vínculos: direcciones', async () => {
 		const keys = (/** @type {Planted} */ p) => [p.slug, ...(p.keys ?? [])];
 		expect(found(await all(), keys)).toEqual([]);
 	});
