@@ -201,9 +201,6 @@ de amigues y lanzamientos grandes.
 
 - Puerta por Telegram, después de #273: prenderla en un preview y probarla con celulares reales
   (vincular, abrir con el botón del bot, escanear); después en producción. S. Bloqueo: gorrite.
-- Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir su
-  dirección (0037). S. (Abrirla sin volver a vincular: «🚪 Puerta» en el inicio del bot, PR
-  `claude/bot-inicio`.)
 - Después de mergear `claude/bot-inicio`: tocar **Actualizar comandos del bot** (Ajustes →
   Automatizaciones) para que Telegram muestre `/inicio` ya (si no, lo registra el cron en 15
   minutos). S. Bloqueo: gorrite.
