@@ -18,8 +18,8 @@
  * Una anotación sin confirmar nunca pasa a `cancelled` ni a `expired`: se borra (nunca dio su
  * consentimiento, como en «Avisame si se repite»).
  *
- * Todavía no: el motor que ofrece los lugares, los mails, la compra con la oferta ni el panel
- * (las partes siguientes del plan).
+ * El motor que ofrece los lugares, vence, cierra y manda los mails está en ./waitlistEngine.js;
+ * la compra con la oferta, en ./waitlistPurchase.js.
  */
 import { sha256Hex } from '$lib/server/hash.js';
 import { normalizeEmail } from '$lib/server/cuentas/accounts.js';

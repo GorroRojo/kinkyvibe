@@ -62,6 +62,7 @@ import {
 	waitlistShareMessage
 } from './waitlistPurchase.js';
 import { listaEsperaEnabled } from '$lib/server/flags.js';
+import { queueWaitlistAdvance } from './waitlistEngine.js';
 import { eventSignupFields, readAnswers } from './signupFields.js';
 import { saveAfterPurchase } from '$lib/server/cuentas/savedBuyer.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
@@ -857,6 +858,9 @@ export async function buyAction(event) {
 	} catch (error) {
 		console.error(`[tickets] no se pudo crear la preferencia de la orden ${order.id}:`, error);
 		await cancelPendingOrder(db, order.id).catch((e) => logDBError('cancel order', e));
+		// Si era la compra de alguien con su lugar guardado, vuelve a tenerlo (y si no, el lugar
+		// liberado pasa a la lista de espera).
+		queueWaitlistAdvance({ platform, db, eventSlug: params.event, fetch, origin });
 		return failWith(502, 'No pudimos conectar con Mercado Pago. Probá de nuevo en un ratito.');
 	}
 	rememberOrder(cookies, url, order.id);
