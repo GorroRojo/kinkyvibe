@@ -108,7 +108,7 @@ async function openTarget() {
 		// [previews] para preview; los ids se leen del archivo, nunca se escriben a mano), marcadas
 		// como remotas.
 		const config = unstable_readConfig({ config: 'wrangler.toml' });
-		const section = prod ? config : /** @type {any} */ ((config).previews ?? {});
+		const section = prod ? config : /** @type {any} */ (config.previews ?? {});
 		const d1 = (section.d1_databases ?? []).find((/** @type {any} */ b) => b.binding === 'DB');
 		const r2 = (section.r2_buckets ?? []).find((/** @type {any} */ b) => b.binding === 'MEDIA');
 		if (!d1 || !r2) {

@@ -373,6 +373,13 @@ falla: lo que no entiende queda como texto. Sin mayúsculas ni tildes, como el r
   (`SEARCH_TIPS` en `paletteActions.js`; un test verifica que cada ejemplo use un operador).
 - El buscador público del sitio (`SearchPalette.svelte`) es otro y no tiene operadores.
 
+**Cambios sin guardar.** Los editores del panel (eventos, material, perfiles, la agenda) usan
+`UnsavedChanges` (`src/lib/components/admin/panel/`): mientras hay cambios guardan un borrador en
+ese navegador (`draft.js`), al volver ofrecen «Recuperar / Descartar», y antes de salir preguntan
+con un diálogo («Seguir editando / Salir igual»); cerrar o recargar la pestaña muestra el aviso del
+navegador. «Importar planilla» avisa igual pero sin borrador: el diálogo dice que lo cargado se
+pierde.
+
 ## Dónde está el código
 
 | Qué                                 | Dónde                                                                                                                      |

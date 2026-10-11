@@ -55,7 +55,6 @@ La cola de las noches, en este orden:
      `objects/visibility.js`;
    - restos de imágenes en R2 (`sharedImage.js`, el campo de texto `perfil.avatar`);
    - el calendario público calcula «hoy» con la hora local y no la de Argentina;
-   - aviso de cambios sin guardar en «Cargar evento» e «Importar planilla»;
    - docs: cerrar los «a confirmar» que gorrite ya confirmó y las líneas viejas de `tickets.md`.
 5. **Borrados recuperables** para preguntas de inscripción, roles y notas internas de una
    persona. S–M. Necesita una decisión nueva: [0030](decisiones/0030-para-revisar-y-recuperar.md)
@@ -157,7 +156,8 @@ La cola de las noches, en este orden:
 
 ### Infraestructura
 
-- Chequeo de Prettier en la CI (`format:check` existe pero no corre). S–M.
+- Prettier en la CI: formatear y sacar de `.prettierignore` la lista temporal de archivos que
+  tocaban ramas abiertas, a medida que esas ramas entren. S.
 - Ordenar GitHub: cerrar issues ya hechos (#15, #27, #66, #67, #68, casi #69) y decidir los PRs
   viejos. S. Bloqueo: gorrite cierra.
 - Dashboard de Cloudflare: borrar el proyecto viejo de Pages y las variables `*_ENABLED` que ya

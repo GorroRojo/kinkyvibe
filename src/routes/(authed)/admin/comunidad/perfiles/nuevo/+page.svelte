@@ -3,6 +3,7 @@
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import ProfileEditorForm from '$lib/components/admin/amigues/ProfileEditorForm.svelte';
+	import { draftKey } from '$lib/admin/draft.js';
 
 	/** @type {any} */
 	export let data;
@@ -27,5 +28,6 @@
 		action="?/crearPerfil"
 		submitLabel="Crear y publicar"
 		kinds={data.kinds}
+		draftKey={draftKey('perfil', 'nuevo')}
 	/>
 </Card>

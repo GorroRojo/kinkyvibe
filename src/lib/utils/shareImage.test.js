@@ -118,7 +118,9 @@ describe('texts', () => {
 	it('cancelled or past events only point to more info', () => {
 		const m = { ...meta, status: 'cancelado' };
 		expect(defaultTexts(m).cta).toBe('Más info en');
-		expect(defaultTexts({ ...meta, start: '2020-01-01T20:00-03:00', end: '2020-01-01T22:00-03:00' }).cta).toBe('Más info en');
+		expect(
+			defaultTexts({ ...meta, start: '2020-01-01T20:00-03:00', end: '2020-01-01T22:00-03:00' }).cta
+		).toBe('Más info en');
 		expect(buildCaption(m).startsWith('❌ EVENTO CANCELADO ❌')).toBe(true);
 	});
 	it('caption has link and hashtags', () => {
@@ -127,7 +129,9 @@ describe('texts', () => {
 		expect(c).toContain('#kinkyvibe #picantearla');
 		expect(c).toContain('#buenosaires');
 		expect(c).not.toMatch(/instagram|link en bio/i);
-		expect(buildCaption({ ...meta, status: 'anunciado' })).toContain('🔗 Más info: kinkyvibe.ar/calendario/picantearla-2026-09');
+		expect(buildCaption({ ...meta, status: 'anunciado' })).toContain(
+			'🔗 Más info: kinkyvibe.ar/calendario/picantearla-2026-09'
+		);
 	});
 });
 
@@ -135,7 +139,9 @@ describe('datos del texto del evento', () => {
 	it('firstSentences corta por oraciones', () => {
 		expect(firstSentences('Uno. Dos. Tres.', 9)).toBe('Uno. Dos.');
 		expect(firstSentences('Corto')).toBe('Corto');
-		expect(firstSentences('una oración larguísima sin puntos que no entra', 20)).toBe('una oración…');
+		expect(firstSentences('una oración larguísima sin puntos que no entra', 20)).toBe(
+			'una oración…'
+		);
 	});
 	it('findAmount encuentra precios escritos de varias formas', () => {
 		expect(findAmount('La entrada se paga en puerta a 6000$ por persona.')).toBe('$6.000');
@@ -144,13 +150,31 @@ describe('datos del texto del evento', () => {
 	});
 	it('extrasFromSections toma entrada, para quién, accesibilidad y dress code', () => {
 		const ex = extrasFromSections([
-			{ heading: '🤩 LA IDEA DEL EVENTO', text: 'Vení con dress code negro. Traé agua.', items: [] },
-			{ heading: 'Entrada', text: 'La entrada se paga en puerta a 6000$ por persona. Con 50% de descuento para el Club.', items: [] },
-			{ heading: '¿A quién está dirigido este espacio?', text: 'A todes quienes quieran practicar.', items: [] },
-			{ heading: '¿Qué onda la accesibilidad del espacio?', text: 'QI cuenta con:', items: ['Baños sin género', 'Rampa'] },
+			{
+				heading: '🤩 LA IDEA DEL EVENTO',
+				text: 'Vení con dress code negro. Traé agua.',
+				items: []
+			},
+			{
+				heading: 'Entrada',
+				text: 'La entrada se paga en puerta a 6000$ por persona. Con 50% de descuento para el Club.',
+				items: []
+			},
+			{
+				heading: '¿A quién está dirigido este espacio?',
+				text: 'A todes quienes quieran practicar.',
+				items: []
+			},
+			{
+				heading: '¿Qué onda la accesibilidad del espacio?',
+				text: 'QI cuenta con:',
+				items: ['Baños sin género', 'Rampa']
+			},
 			{ heading: '¿Qué aportes te vas a llevar?', text: 'Muchos.', items: [] }
 		]);
-		expect(ex.priceInfo).toBe('La entrada se paga en puerta a 6000$ por persona. Con 50% de descuento para el Club.');
+		expect(ex.priceInfo).toBe(
+			'La entrada se paga en puerta a 6000$ por persona. Con 50% de descuento para el Club.'
+		);
 		expect(ex.audience).toBe('A todes quienes quieran practicar.');
 		expect(ex.access).toBe('Baños sin género · Rampa');
 		expect(ex.dress).toBe('Vení con dress code negro.');
@@ -158,7 +182,13 @@ describe('datos del texto del evento', () => {
 	});
 	it('defaultTexts suma lo que vino del texto y las etiquetas de acceso', () => {
 		const t = defaultTexts(
-			{ postID: 'x', title: 'Jam', tags: ['LSA', 'pago', 'cuerdas', 'AMBA'], authors: ['Ana_B', 'KinkyVibe'], start: '2099-01-01T20:00-03:00' },
+			{
+				postID: 'x',
+				title: 'Jam',
+				tags: ['LSA', 'pago', 'cuerdas', 'AMBA'],
+				authors: ['Ana_B', 'KinkyVibe'],
+				start: '2099-01-01T20:00-03:00'
+			},
 			{ priceInfo: 'A 6000$ en puerta.', access: 'Rampa' }
 		);
 		expect(t.price).toBe('$6.000');
@@ -184,24 +214,39 @@ describe('datos del texto del evento', () => {
 		}
 		// Solo el nombre del lugar (antes: «Online», porque no tenía `location`).
 		const named = { ...base, location_name: 'Galpón Inventado' };
-		expect(eventInfo(named)).toMatchObject({ online: false, place: 'Galpón Inventado', address: '' });
+		expect(eventInfo(named)).toMatchObject({
+			online: false,
+			place: 'Galpón Inventado',
+			address: ''
+		});
 		expect(buildCaption(named)).toContain('📍 Galpón Inventado');
 		expect(buildCaption(named)).not.toContain('💻');
 		// Nombre y dirección: la dirección aparte; el mismo texto, una sola vez.
-		expect(eventInfo({ ...base, location_name: 'Galpón Inventado', location: 'Calle Falsa 123' })).toMatchObject({
+		expect(
+			eventInfo({ ...base, location_name: 'Galpón Inventado', location: 'Calle Falsa 123' })
+		).toMatchObject({
 			place: 'Galpón Inventado',
 			address: 'Calle Falsa 123'
 		});
-		expect(eventInfo({ ...base, location_name: 'Plaza Falsa', location: 'plaza falsa ' }).address).toBe('');
+		expect(
+			eventInfo({ ...base, location_name: 'Plaza Falsa', location: 'plaza falsa ' }).address
+		).toBe('');
 		// Un nombre vacío no tapa la dirección (antes: lugar vacío).
-		expect(eventInfo({ ...base, location_name: '', location: 'Calle Falsa 123' }).place).toBe('Calle Falsa 123');
+		expect(eventInfo({ ...base, location_name: '', location: 'Calle Falsa 123' }).place).toBe(
+			'Calle Falsa 123'
+		);
 		// Sin nada: ni «Online» ni la línea del lugar en el texto.
 		const none = { ...base, tags: ['AMBA'] };
 		expect(eventInfo(none)).toMatchObject({ online: false, place: '' });
 		expect(buildCaption(none)).not.toMatch(/💻|📍/);
 	});
 	it('los campos apagados no se dibujan (también el título)', () => {
-		const t = defaultTexts({ postID: 'x', title: 'Jam', summary: 'Hola', start: '2099-01-01T20:00-03:00' });
+		const t = defaultTexts({
+			postID: 'x',
+			title: 'Jam',
+			summary: 'Hola',
+			start: '2099-01-01T20:00-03:00'
+		});
 		const on = defaultEnabled(t);
 		expect(on.summary).toBe(true);
 		expect(on.audience).toBe(false);
