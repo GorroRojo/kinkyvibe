@@ -11,10 +11,18 @@
 	 * `imageInfo` no trae), `type` (`website`, `article`, `event`, `profile`), `canonical`
 	 * (relativa o entera; por defecto, la dirección de la página sin `?…`), `ogUrl` (la dirección
 	 * para `og:url` si no es la canónica: una lista filtrada guarda sus filtros) y `noindex`
-	 * (no listado).
+	 * (no listado). Sin imagen propia, la tarjeta por defecto que manda el servidor
+	 * (`linkPreview` en los datos de la página; si no, la de `static/`).
 	 */
 	import { page } from '$app/stores';
-	import { absoluteUrl, canonicalUrl, previewImage, seoTags } from '$lib/utils/seo.js';
+	import {
+		absoluteUrl,
+		canonicalUrl,
+		cardImage,
+		linkPreviewOf,
+		previewImage,
+		seoTags
+	} from '$lib/utils/seo.js';
 
 	export let title = '';
 	/** @type {unknown} */
@@ -37,7 +45,13 @@
 		title,
 		description,
 		url: absoluteUrl(ogUrl, $page.url.origin) || url,
-		image: previewImage(image, $page.url.origin, imageInfo, imageAlt),
+		image: previewImage(
+			image,
+			$page.url.origin,
+			imageInfo,
+			imageAlt,
+			cardImage('default', linkPreviewOf($page.data))
+		),
 		type,
 		noindex
 	});

@@ -1,47 +1,45 @@
-// Dibuja las tarjetas de la vista previa al compartir (scripts/og-default/card.html): la por
-// defecto y una por sección, cada una en static/<archivo>.png, 1200 × 630 (docs/compartir.md).
-// Los textos y los nombres de archivo salen de src/lib/utils/ogCards.js.
-// Uso: `node scripts/og-default/render.js` (con los navegadores de Playwright instalados; si
-// están en otra carpeta, PLAYWRIGHT_BROWSERS_PATH).
-import { chromium } from '@playwright/test';
-import { statSync } from 'node:fs';
+// Dibuja las tarjetas de respaldo de la vista previa al compartir (docs/compartir.md): la por
+// defecto y una por sección, cada una en static/<archivo>, 1200 × 630, con el mismo dibujo que las
+// de `/og/…` (src/lib/utils/ogCollage.js, worker/og-render.js) pero sin portadas y con los textos
+// originales (src/lib/utils/previewTexts.js). Se usan cuando no se puede dibujar la de verdad (sin
+// base, en `vite dev`, o si falla). Uso: `node scripts/og-default/render.js`.
+import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { OG_CARDS, OG_CARD_SIZE, SITE_TAGLINE } from '../../src/lib/utils/ogCards.js';
+import { createOgRenderer } from '../../worker/og-render.js';
+import { OG_CARDS, OG_CARD_SIZE, ogCardText } from '../../src/lib/utils/ogCards.js';
+import { COLLAGE_FONTS, COLLAGE_LOGO, collageTree } from '../../src/lib/utils/ogCollage.js';
 
-/** Que cada PNG entre holgado en lo que WhatsApp muestra (unos 300 KB). */
+/** Que cada imagen entre holgada en lo que WhatsApp muestra (unos 300 KB). */
 const MAX_BYTES = 150 * 1024;
 
-const browser = await chromium.launch();
+/** @param {string} specifier */
+const fromPackage = (specifier) => readFileSync(fileURLToPath(import.meta.resolve(specifier)));
+/** @param {string} path un archivo de static/ */
+const fromStatic = (path) =>
+	readFileSync(fileURLToPath(new URL(`../../static${path}`, import.meta.url)));
+
+const render = createOgRenderer(
+	fromPackage('satori/yoga.wasm'),
+	fromPackage('@resvg/resvg-wasm/index_bg.wasm')
+);
+const fonts = COLLAGE_FONTS.map((f) => ({
+	name: f.name,
+	weight: f.weight,
+	data: fromStatic(f.file)
+}));
+const logo = `data:image/png;base64,${fromStatic(COLLAGE_LOGO).toString('base64')}`;
+
 let tooBig = false;
-try {
-	const page = await browser.newPage({ viewport: OG_CARD_SIZE, colorScheme: 'light' });
-	for (const { name, file } of Object.values(OG_CARDS)) {
-		const card = new URL('./card.html', import.meta.url);
-		card.searchParams.set('section', name);
-		card.searchParams.set('tagline', SITE_TAGLINE);
-		await page.goto(card.href);
-		await page.evaluate(() => document.fonts.ready);
-		// La frase se achica hasta que entra en su lugar: una o dos líneas quedan grandes; una
-		// frase larga, más chica (y nunca se sale de la tarjeta).
-		await page.evaluate((withSection) => {
-			const p = /** @type {HTMLElement} */ (document.getElementById('tagline'));
-			const room = withSection ? 250 : 320;
-			let size = parseFloat(getComputedStyle(p).fontSize);
-			while (p.offsetHeight > room && size > 24) {
-				size -= 2;
-				p.style.fontSize = `${size}px`;
-			}
-		}, Boolean(name));
-		const out = fileURLToPath(new URL(`../../static/${file}`, import.meta.url));
-		await page.locator('.card').screenshot({ path: out });
-		const bytes = statSync(out).size;
-		console.log(`${file}: ${Math.round(bytes / 1024)} KB`);
-		if (bytes > MAX_BYTES) tooBig = true;
-	}
-} finally {
-	await browser.close();
+for (const [key, { file }] of Object.entries(OG_CARDS)) {
+	const text = ogCardText(/** @type {keyof typeof OG_CARDS} */ (key));
+	const bytes = await render(collageTree({ ...text, tiles: [], logo }), { ...OG_CARD_SIZE, fonts });
+	const out = fileURLToPath(new URL(`../../static/${file}`, import.meta.url));
+	writeFileSync(out, bytes);
+	const size = statSync(out).size;
+	console.log(`${file}: ${Math.round(size / 1024)} KB`);
+	if (size > MAX_BYTES) tooBig = true;
 }
 if (tooBig) {
-	console.error(`Alguna tarjeta pasa de ${MAX_BYTES / 1024} KB: simplificala (colores planos).`);
+	console.error(`Alguna tarjeta pasa de ${MAX_BYTES / 1024} KB.`);
 	process.exitCode = 1;
 }

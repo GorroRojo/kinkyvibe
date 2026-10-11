@@ -7,6 +7,7 @@ import { argDateTimeLong, argDayMonth } from './dates.js';
 import { placeShort, venuePlaceMeta } from './eventPlace.js';
 import { isMediaPath } from './media.js';
 import { OG_CARDS, OG_CARD_SIZE, ogCardAlt } from './ogCards.js';
+import { PREVIEW_TEXT_DEFAULTS, fillPlaceholder } from './previewTexts.js';
 
 export const SITE_NAME = 'Kinky Vibe';
 export const TWITTER_SITE = '@kinkyvibearg';
@@ -19,22 +20,48 @@ export const LOCALE = 'es_AR';
  */
 
 /**
- * La imagen cuando la página no tiene una propia: una tarjeta de 1200 × 630 con el logo y la frase
- * del sitio (src/lib/utils/ogCards.js), en `static/`, así su dirección no cambia entre deploys.
- * Se dibuja con `node scripts/og-default/render.js` (docs/compartir.md).
+ * @typedef {object} LinkPreview lo que el servidor manda a las páginas para su vista previa
+ *   (`linkPreview` en los datos del layout, src/lib/server/linkPreview.js)
+ * @property {Readonly<Record<string, string>>} texts los textos en uso (los del panel sobre los originales)
+ * @property {Partial<Record<keyof typeof OG_CARDS, string>>} [images] la dirección de cada
+ *   tarjeta dibujada con las portadas (`/og/<tarjeta>/<hash>.jpg`); sin ella, la de `static/`
+ */
+
+/**
+ * Lo que mandó el servidor para la vista previa (los datos de la página), o los textos
+ * originales y las tarjetas de `static/` si no mandó nada (pruebas, una página de error).
+ * @param {unknown} data `$page.data`
+ * @returns {LinkPreview}
+ */
+export function linkPreviewOf(data) {
+	const lp = /** @type {{ linkPreview?: Partial<LinkPreview> } | null | undefined} */ (data)
+		?.linkPreview;
+	return { texts: lp?.texts ?? PREVIEW_TEXT_DEFAULTS, images: lp?.images ?? {} };
+}
+
+/**
+ * La tarjeta de una sección (o la por defecto), con sus medidas y su texto alternativo: la
+ * dibujada con las portadas de los próximos eventos si el servidor la mandó, si no la de
+ * `static/` (el mismo diseño sin portadas; `node scripts/og-default/render.js`). La dirección es
+ * relativa: {@link previewImage} la vuelve entera.
+ * @param {keyof typeof OG_CARDS} key
+ * @param {LinkPreview} [preview]
+ * @returns {Readonly<Required<PreviewImage>>}
+ */
+export function cardImage(key, preview) {
+	return Object.freeze({
+		url: preview?.images?.[key] || '/' + OG_CARDS[key].file,
+		...OG_CARD_SIZE,
+		alt: ogCardAlt(key, preview?.texts)
+	});
+}
+
+/**
+ * La imagen cuando la página no tiene una propia y el servidor no mandó otra: la tarjeta por
+ * defecto de `static/` ({@link cardImage}).
  * @type {Readonly<Required<PreviewImage>>}
  */
 export const DEFAULT_IMAGE = cardImage('default');
-
-/**
- * La tarjeta de una sección (o la por defecto), con sus medidas y su texto alternativo. La
- * dirección es relativa: {@link previewImage} la vuelve entera.
- * @param {keyof typeof OG_CARDS} key
- * @returns {Readonly<Required<PreviewImage>>}
- */
-export function cardImage(key) {
-	return Object.freeze({ url: '/' + OG_CARDS[key].file, ...OG_CARD_SIZE, alt: ogCardAlt(key) });
-}
 
 /**
  * El sitio de producción: su zona de Cloudflare tiene las transformaciones de imágenes
@@ -170,16 +197,17 @@ export function tagDescription(name) {
 /**
  * La imagen de la vista previa: la de la página (dirección entera, con sus medidas y su texto
  * alternativo si se conocen; en producción, achicada si es grande: {@link resizedImageUrl}) o,
- * sin imagen, {@link DEFAULT_IMAGE}.
+ * sin imagen, `fallback` (por defecto {@link DEFAULT_IMAGE}).
  * @param {unknown} src la imagen de la página (`featured`, la del perfil…), relativa o entera
  * @param {string | URL} origin
  * @param {ImageInfo | null | undefined} [info] medidas y texto alternativo (la portada de la biblioteca)
  * @param {string} [fallbackAlt] el texto alternativo si `info` no trae uno
+ * @param {Readonly<Required<PreviewImage>>} [fallback] la imagen si la página no tiene
  * @returns {PreviewImage}
  */
-export function previewImage(src, origin, info, fallbackAlt = '') {
+export function previewImage(src, origin, info, fallbackAlt = '', fallback = DEFAULT_IMAGE) {
 	const url = absoluteUrl(src, origin);
-	if (!url) return { ...DEFAULT_IMAGE, url: absoluteUrl(DEFAULT_IMAGE.url, origin) };
+	if (!url) return { ...fallback, url: absoluteUrl(fallback.url, origin) };
 	const known = Number.isSafeInteger(info?.width) && Number.isSafeInteger(info?.height);
 	const width = known ? Number(info?.width) : null;
 	const height = known ? Number(info?.height) : null;
@@ -259,16 +287,17 @@ export const MATERIAL_FORMATS = Object.freeze([
  * @param {{ tags?: string[], summary?: unknown }} meta
  * @param {{ get(id: string): { id: string, visible_name?: string } }} [tagManager] para el nombre
  *   que se ve de cada formato (sin árbol, el id)
+ * @param {Readonly<Record<string, string>>} [texts] los textos en uso (`materialTipo.*`)
  */
-export function materialDescription(meta, tagManager) {
+export function materialDescription(meta, tagManager, texts = PREVIEW_TEXT_DEFAULTS) {
 	const tags = meta?.tags ?? [];
 	const format = MATERIAL_FORMATS.find((f) => tags.includes(f));
 	const name = format ? (tagManager?.get(format)?.visible_name ?? format) : '';
 	const download = tags.includes('descargable');
 	const kind = name
-		? capitalize(name) + (download ? ' descargable' : '')
+		? capitalize(name) + (download ? texts['materialTipo.downloadSuffix'] : '')
 		: download
-			? 'Descargable'
+			? texts['materialTipo.downloadOnly']
 			: '';
 	return [kind, shortText(meta?.summary, Infinity)].filter(Boolean).join(' · ');
 }
@@ -281,8 +310,14 @@ export function materialDescription(meta, tagManager) {
  * @param {Array<{ meta: Record<string, any> }>} posts
  * @param {string} base
  * @param {number} [now]
+ * @param {string} [prefix] lo que va antes de los eventos (`calendario.upcomingPrefix`)
  */
-export function upcomingDescription(posts, base, now = Date.now()) {
+export function upcomingDescription(
+	posts,
+	base,
+	now = Date.now(),
+	prefix = PREVIEW_TEXT_DEFAULTS['calendario.upcomingPrefix']
+) {
 	const next = posts
 		.filter((p) => p.meta?.title && p.meta?.status !== 'cancelado')
 		.map((p) => ({ title: String(p.meta.title), at: new Date(p.meta.start).getTime() }))
@@ -290,53 +325,47 @@ export function upcomingDescription(posts, base, now = Date.now()) {
 		.sort((a, b) => a.at - b.at)
 		.slice(0, 3)
 		.map((p) => `${p.title} (${argDayMonth(p.at)})`);
-	return next.length ? `Próximos: ${joinList(next)}. ${base}` : base;
+	return next.length ? `${prefix} ${joinList(next)}. ${base}` : base;
 }
 
-/**
- * Las listas que se pueden filtrar por la dirección (`?tags=a,b&q=texto`, y `?tipo=` en
- * Amigues): `title`, el nombre corto (el de las listas filtradas: «Amigues · terapia»);
- * `heading`, el título de la vista previa sin filtros, que dice qué es la página; `description`,
- * qué hay (sin filtros, y también después del filtro: «Amigues con la etiqueta terapia. …»), con
- * el texto de presentación de cada página; e `items`, cómo se llama lo que lista.
- */
-export const LIST_SECTIONS = Object.freeze({
-	calendario: {
-		title: 'Calendario',
-		heading: 'Calendario · Próximos talleres, encuentros y eventos cuir, kinky y BDSM',
-		description:
-			'Talleres, encuentros y eventos cuir, kinky y BDSM de Kinky Vibe y la comunidad, con fecha, lugar y entradas.',
-		items: 'Eventos'
-	},
-	material: {
-		title: 'Material',
-		heading: 'Material · Guías, artículos, libros y descargables sobre BDSM y kink',
-		description:
-			'Guías, artículos, libros, fanzines y descargables sobre BDSM y kink, en español e inglés: material inicial para quienes empiezan y por práctica, como cuerdas, impacto o electro.',
-		items: 'Material'
-	},
-	amigues: {
-		title: 'Amigues',
-		heading: 'Amigues · Emprendimientos y profesionales de la comunidad',
-		description:
-			'Profesionales, proyectos y lugares cuir y kinky de la comunidad de Kinky Vibe: sesiones BDSM, clases, terapia, arte, tiendas y más.',
-		items: 'Amigues'
-	},
-	todo: {
-		title: 'Todo el contenido',
-		heading: 'Todo el contenido · Eventos, material y amigues',
-		description:
-			'Todo Kinky Vibe en un mismo lugar: eventos, material y amigues. Filtrá por un tema, como shibari, y encontrá libros, talleres y les profesionales que dan clases.',
-		items: 'Contenido'
-	}
-});
+/** Las listas que se pueden filtrar por la dirección. */
+const LIST_SECTION_KEYS = /** @type {const} */ (['calendario', 'material', 'amigues', 'todo']);
 
-/** La Kinkipedia (sin filtros por la dirección): título y descripción de su vista previa. */
-export const KINKIPEDIA_PREVIEW = Object.freeze({
-	title: 'Kinkipedia · Glosario cuir, kinky y BDSM',
-	description:
-		'Glosario cuir, kinky y BDSM de Kinky Vibe: qué es cada práctica, rol, implemento y término, con su material, eventos y amigues, y las series de encuentros que se repiten.'
-});
+/**
+ * Los textos de una lista que se puede filtrar por la dirección (`?tags=a,b&q=texto`, y `?tipo=`
+ * en Amigues): `title`, el nombre corto (el de las listas filtradas: «Amigues · terapia»);
+ * `heading`, el título de la vista previa sin filtros, que dice qué es la página; `description`,
+ * qué hay (sin filtros, y también después del filtro: «Amigues con la etiqueta terapia. …»); e
+ * `items`, cómo se llama lo que lista. Salen de los textos del panel (src/lib/utils/previewTexts.js).
+ * @param {(typeof LIST_SECTION_KEYS)[number]} section
+ * @param {Readonly<Record<string, string>>} [texts]
+ */
+export function sectionTexts(section, texts = PREVIEW_TEXT_DEFAULTS) {
+	return {
+		title: texts[`${section}.title`],
+		heading: texts[`${section}.heading`],
+		description: texts[`${section}.description`],
+		items: texts[`${section}.items`]
+	};
+}
+
+/** Los textos originales de cada lista ({@link sectionTexts}). */
+export const LIST_SECTIONS = Object.freeze(
+	/** @type {Record<(typeof LIST_SECTION_KEYS)[number], ReturnType<typeof sectionTexts>>} */ (
+		Object.fromEntries(LIST_SECTION_KEYS.map((k) => [k, Object.freeze(sectionTexts(k))]))
+	)
+);
+
+/**
+ * La Kinkipedia (sin filtros por la dirección): título y descripción de su vista previa.
+ * @param {Readonly<Record<string, string>>} [texts]
+ */
+export function kinkipediaPreview(texts = PREVIEW_TEXT_DEFAULTS) {
+	return { title: texts['wiki.title'], description: texts['wiki.description'] };
+}
+
+/** Los originales de {@link kinkipediaPreview}. */
+export const KINKIPEDIA_PREVIEW = Object.freeze(kinkipediaPreview());
 
 /** Cuántas etiquetas se nombran como mucho (una dirección puede traer cualquier cosa). */
 const MAX_FILTER_TAGS = 5;
@@ -406,19 +435,21 @@ export function filteredListUrl(url, filters) {
  * @param {keyof typeof LIST_SECTIONS} section
  * @param {ListFilters} filters
  * @param {{ title: string, description: string }} [plain] sin filtros
+ * @param {Readonly<Record<string, string>>} [texts] los textos en uso (los del panel)
  */
-export function listPreview(section, filters, plain) {
-	const { title, heading, description, items } = LIST_SECTIONS[section];
+export function listPreview(section, filters, plain, texts = PREVIEW_TEXT_DEFAULTS) {
+	const { title, heading, description, items } = sectionTexts(section, texts);
 	if (!isFiltered(filters)) return plain ?? { title: heading, description };
 	const names = filters.tags.map((t) => t.name);
-	const quoted = filters.text ? `«${filters.text}»` : '';
 	const tagsPart = !names.length
 		? ''
 		: names.length === 1
-			? ` con la etiqueta ${names[0]}`
-			: ` con las etiquetas ${joinList(names)}`;
+			? ' ' + fillPlaceholder(texts['filtros.oneTag'], names[0])
+			: ' ' + fillPlaceholder(texts['filtros.manyTags'], joinList(names));
+	const textPart = filters.text ? ' ' + fillPlaceholder(texts['filtros.text'], filters.text) : '';
+	const quoted = filters.text ? `«${filters.text}»` : '';
 	return {
 		title: [title, filters.kindLabel ?? '', names.join(', '), quoted].filter(Boolean).join(' · '),
-		description: `${filters.kindLabel ?? items}${tagsPart}${quoted ? ` que mencionan ${quoted}` : ''}. ${description}`
+		description: `${filters.kindLabel ?? items}${tagsPart}${textPart}. ${description}`
 	};
 }

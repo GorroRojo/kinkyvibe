@@ -9,9 +9,9 @@
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import SeoHead from '$lib/components/SeoHead.svelte';
-	import { cardImage, tagDescription } from '$lib/utils/seo.js';
+	import { cardImage, linkPreviewOf, tagDescription } from '$lib/utils/seo.js';
 	/** Sin imagen propia, la tarjeta de la Kinkipedia. */
-	const KINKIPEDIA_CARD = cardImage('wiki');
+	$: KINKIPEDIA_CARD = cardImage('wiki', linkPreviewOf($page.data));
 	/** @type {any} La página de la wiki (de la base) o la etiqueta sola (+page.js). */
 	export let data;
 	// Los estilos propios del texto (ya limitados al texto en el servidor). La etiqueta se arma por

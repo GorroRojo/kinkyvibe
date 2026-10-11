@@ -15,7 +15,7 @@
 	import { page } from '$app/stores';
 	import { argDateLong } from '$lib/utils/dates.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
-	import { materialDescription } from '$lib/utils/seo.js';
+	import { linkPreviewOf, materialDescription } from '$lib/utils/seo.js';
 	import { tagManager } from '$lib/utils/stores.js';
 	export let data;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
@@ -72,7 +72,7 @@
 <!-- La vista previa al compartir (docs/compartir.md): «Guía descargable · resumen». -->
 <SeoHead
 	title={data.meta.title}
-	description={materialDescription(data.meta, $tagManager)}
+	description={materialDescription(data.meta, $tagManager, linkPreviewOf($page.data).texts)}
 	image={data.meta.featured}
 	imageInfo={data.cover}
 	imageAlt={data.meta.title}

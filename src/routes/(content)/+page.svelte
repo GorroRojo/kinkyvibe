@@ -3,7 +3,7 @@
 	import Carrousel from '$lib/components/Carrousel.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import SeoHead from '$lib/components/SeoHead.svelte';
-	import { SITE_TAGLINE } from '$lib/utils/ogCards.js';
+	import { linkPreviewOf } from '$lib/utils/seo.js';
 	import PostList from '$lib/components/PostList.svelte';
 	import { page } from '$app/stores';
 	export let data;
@@ -20,6 +20,8 @@
 	}
 
 	const title = 'Kinky Vibe';
+	// Los textos de la vista previa (los del panel; docs/compartir.md).
+	$: previewTexts = linkPreviewOf($page.data).texts;
 	const summary =
 		'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
 	const canonical = 'https://kinkyvibe.ar';
@@ -42,9 +44,13 @@
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 </svelte:head>
-<!-- La vista previa al compartir (docs/compartir.md): la tarjeta por defecto y, de descripción,
-     la frase oficial del sitio (SITE_TAGLINE). -->
-<SeoHead {title} description={SITE_TAGLINE} canonical="/" />
+<!-- La vista previa al compartir (docs/compartir.md): la tarjeta por defecto y los textos del panel
+     (`home.title`, `home.description`: por defecto «Kinky Vibe» y la frase oficial del sitio). -->
+<SeoHead
+	title={previewTexts['home.title']}
+	description={previewTexts['home.description']}
+	canonical="/"
+/>
 
 <LDTag schema={websiteSchema} />
 <div class="profile-header h-card p-contact hidden">

@@ -12,6 +12,7 @@ import { metaTags, tagsOf } from '$lib/testing/html.js';
 import { venueView } from '$lib/utils/venues.js';
 import { LIST_SECTIONS } from '$lib/utils/seo.js';
 import { SITE_TAGLINE } from '$lib/utils/ogCards.js';
+import { PREVIEW_TEXT_DEFAULTS } from '$lib/utils/previewTexts.js';
 
 const ORIGIN = 'https://sitio.test';
 const pageStore = writable({ url: new URL(ORIGIN + '/'), params: {}, data: {} });
@@ -29,9 +30,13 @@ await Promise.all([
 	import('./amigues/[profile]/+page.svelte')
 ]);
 
-/** @param {string} path @param {string} [origin] */
-function at(path, origin = ORIGIN) {
-	pageStore.set({ url: new URL(origin + path), params: {}, data: { wiki: [] } });
+/**
+ * @param {string} path
+ * @param {string} [origin]
+ * @param {Record<string, any>} [data] más datos de la página (`linkPreview`)
+ */
+function at(path, origin = ORIGIN, data = {}) {
+	pageStore.set({ url: new URL(origin + path), params: {}, data: { wiki: [], ...data } });
 }
 
 const BEFORE = new Date('2026-10-01T12:00:00-03:00');
@@ -99,7 +104,7 @@ function expectComplete(meta, head, path) {
  * @param {Record<string, string>} meta
  * @param {string} [file]
  */
-function expectDefaultImage(meta, file = '/og-default.png') {
+function expectDefaultImage(meta, file = '/og-default.jpg') {
 	const image = new URL(meta['og:image']);
 	expect(image.origin).toBe(ORIGIN);
 	expect(image.pathname).toBe(file);
@@ -138,12 +143,13 @@ describe('calendario', () => {
 		const meta = single(head);
 		expectComplete(meta, head, '/calendario');
 		expect(meta['og:type']).toBe('website');
+		// título aprobado por gorrite (11/10)
 		expect(meta['og:title']).toBe(
-			'Calendario · Próximos talleres, encuentros y eventos cuir, kinky y BDSM'
+			'Calendario · Próximos talleres, encuentros y eventos cuir y kinky'
 		);
 		expect(meta['og:description']).toBe(LIST_SECTIONS.calendario.description);
-		expectDefaultImage(meta, '/og-calendario.png');
-		expect(meta['og:image:alt']).toContain('«Calendario»');
+		expectDefaultImage(meta, '/og-calendario.jpg');
+		expect(meta['og:image:alt']).toContain('«Calendario · ');
 	});
 
 	it('con próximos eventos, los nombra', async () => {
@@ -180,7 +186,7 @@ describe('amigues (la lista)', () => {
 		expectComplete(meta, head, '/amigues');
 		expect(meta['og:title']).toBe('Amigues · Emprendimientos y profesionales de la comunidad');
 		expect(meta['og:description']).toBe(LIST_SECTIONS.amigues.description);
-		expectDefaultImage(meta, '/og-amigues.png');
+		expectDefaultImage(meta, '/og-amigues.jpg');
 	});
 
 	it('con ?tags=: la etiqueta en el título y la descripción; og:url guarda el filtro y la canónica no', async () => {
@@ -197,7 +203,7 @@ describe('amigues (la lista)', () => {
 		const canon = new URL(canonical(head));
 		expect(canon.href).toBe(ORIGIN + '/amigues');
 		expect(canon.search).toBe('');
-		expectDefaultImage(meta, '/og-amigues.png');
+		expectDefaultImage(meta, '/og-amigues.jpg');
 	});
 
 	it('?tipo= y varias etiquetas, ordenadas en og:url', async () => {
@@ -402,7 +408,7 @@ describe('la Kinkipedia', () => {
 		expect(meta['og:type']).toBe('article');
 		expect(meta['og:title']).toBe('Término Inventado');
 		expect(meta['og:description']).toBe('Un término inventado para las pruebas.');
-		expectDefaultImage(meta, '/og-kinkipedia.png');
+		expectDefaultImage(meta, '/og-kinkipedia.jpg');
 	});
 
 	it('una etiqueta sin entrada: website, con su nombre y una descripción', async () => {
@@ -478,5 +484,60 @@ describe('un perfil de amigues', () => {
 
 	it('no listado: noindex', async () => {
 		expect(single(await profileHead({}, { unlisted: true })).robots).toBe('noindex');
+	});
+});
+
+describe('textos del panel e imágenes dibujadas (linkPreview del layout)', () => {
+	const CUSTOM = {
+		linkPreview: {
+			texts: {
+				...PREVIEW_TEXT_DEFAULTS,
+				'home.title': 'Inicio inventado',
+				'home.description': 'Descripción inventada del inicio.',
+				'calendario.heading': 'Agenda · Cosas inventadas',
+				'calendario.description': 'Calendario inventado.',
+				'calendario.upcomingPrefix': 'Se viene:'
+			},
+			images: {
+				default: '/og/default/0123456789abcdef.jpg',
+				calendario: '/og/calendario/fedcba9876543210.jpg'
+			}
+		}
+	};
+
+	it('el inicio usa sus textos y la tarjeta dibujada', async () => {
+		at('/', ORIGIN, CUSTOM);
+		const { default: Home } = await import('./+page.svelte');
+		const { head } = render(Home, { props: { data: /** @type {any} */ ({ posts: [] }) } });
+		const meta = single(head);
+		expectComplete(meta, head, '/');
+		expect(meta['og:title']).toBe('Inicio inventado');
+		expect(meta['og:description']).toBe('Descripción inventada del inicio.');
+		expectDefaultImage(meta, '/og/default/0123456789abcdef.jpg');
+	});
+
+	it('el calendario: título, descripción, lo de antes de los próximos y su tarjeta', async () => {
+		at('/calendario', ORIGIN, CUSTOM);
+		const { default: Calendario } = await import('./calendario/+page.svelte');
+		const posts = [
+			{
+				path: '/calendario/x',
+				meta: {
+					title: 'Taller Inventado',
+					start: '2026-10-05T20:00:00-03:00',
+					layout: 'calendario',
+					category: 'calendario',
+					tags: [],
+					postID: 'x'
+				}
+			}
+		];
+		const { head } = render(Calendario, {
+			props: { data: /** @type {any} */ ({ posts, ticketStates: null }) }
+		});
+		const meta = single(head);
+		expect(meta['og:title']).toBe('Agenda · Cosas inventadas');
+		expect(meta['og:description']).toBe('Se viene: Taller Inventado (5/10). Calendario inventado.');
+		expectDefaultImage(meta, '/og/calendario/fedcba9876543210.jpg');
 	});
 });

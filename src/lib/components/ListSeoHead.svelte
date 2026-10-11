@@ -6,20 +6,21 @@
 	 * (alias resueltos, árbol de la base). `og:url` guarda los filtros (normalizados y ordenados);
 	 * la canónica, no: para los buscadores la lista es una sola (docs/compartir.md).
 	 *
-	 * Props: `section` (clave de `LIST_SECTIONS`, que tiene el título y la descripción de cada
-	 * sección), `description` sin filtros si no es la de la sección (el calendario suma los
-	 * próximos eventos), `card`
+	 * Props: `section` (clave de `LIST_SECTIONS`; el título y la descripción de cada sección son
+	 * los textos del panel, `linkPreview` en los datos de la página), `description` sin filtros si
+	 * no es la de la sección (el calendario suma los próximos eventos), `card`
 	 * (la tarjeta de la sección, clave de `OG_CARDS`) y `kinds` (los `?tipo=` que la lista conoce).
 	 */
 	import { page } from '$app/stores';
 	import { tagManager } from '$lib/utils/stores';
 	import SeoHead from './SeoHead.svelte';
 	import {
-		LIST_SECTIONS,
 		cardImage,
 		filteredListUrl,
+		linkPreviewOf,
 		listFilters,
-		listPreview
+		listPreview,
+		sectionTexts
 	} from '$lib/utils/seo.js';
 
 	/** @type {keyof typeof import('$lib/utils/seo.js').LIST_SECTIONS} */
@@ -31,13 +32,12 @@
 	/** @type {Readonly<Record<string, string>> | undefined} */
 	export let kinds = undefined;
 
+	$: lp = linkPreviewOf($page.data);
+	$: texts = sectionTexts(section, lp.texts);
 	$: filters = listFilters($page.url, $tagManager, { kinds });
-	$: plain = {
-		title: LIST_SECTIONS[section].heading,
-		description: description ?? LIST_SECTIONS[section].description
-	};
-	$: preview = listPreview(section, filters, plain);
-	$: image = cardImage(card);
+	$: plain = { title: texts.heading, description: description ?? texts.description };
+	$: preview = listPreview(section, filters, plain, lp.texts);
+	$: image = cardImage(card, lp);
 </script>
 
 <SeoHead

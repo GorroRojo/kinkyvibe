@@ -93,6 +93,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'ajustes-fondo': 'ajustes fondo porcentaje kinky vibe descuento solidaria',
 	'ajustes-mails':
 		'ajustes de mails plantillas recordatorios remitente email envios pie de mail firma',
+	'ajustes-vistas-previas':
+		'vistas previas al compartir link whatsapp telegram tarjeta imagen og textos titulo descripcion',
 	'ajustes-plantillas':
 		'plantillas textos mails email compra recordatorio mensajes pie de mail asunto',
 	'ajustes-admins': 'admins permisos equipo organizadores github',
@@ -140,6 +142,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'ajustes-cobros': 'settings',
 	'ajustes-fondo': 'settings',
 	'ajustes-mails': 'mail',
+	'ajustes-vistas-previas': 'eye',
 	'ajustes-plantillas': 'mail',
 	'ajustes-admins': 'key',
 	'ajustes-interruptores': 'settings',

@@ -1,7 +1,11 @@
 <script>
 	import SeoHead from '$lib/components/SeoHead.svelte';
-	import { KINKIPEDIA_PREVIEW, cardImage } from '$lib/utils/seo.js';
-	const KINKIPEDIA_CARD = cardImage('wiki');
+	import { cardImage, kinkipediaPreview, linkPreviewOf } from '$lib/utils/seo.js';
+	import { page } from '$app/stores';
+	// La vista previa con los textos del panel y la tarjeta de la Kinkipedia (docs/compartir.md).
+	$: lp = linkPreviewOf($page.data);
+	$: KINKIPEDIA_CARD = cardImage('wiki', lp);
+	$: KINKIPEDIA_PREVIEW = kinkipediaPreview(lp.texts);
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
 	import { wikiTagManager, query, searchOpen } from '$lib/utils/stores';
 	import { SearchX } from '@lucide/svelte';

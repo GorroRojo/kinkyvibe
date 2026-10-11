@@ -4,7 +4,8 @@
 import { describe, expect, it } from 'vitest';
 import { venueView } from './venues.js';
 import { tagsFactory } from './tags.js';
-import { OG_CARDS, SITE_TAGLINE } from './ogCards.js';
+import { OG_CARDS, SITE_TAGLINE, ogCardText } from './ogCards.js';
+import { PREVIEW_TEXT_DEFAULTS } from './previewTexts.js';
 import {
 	DEFAULT_IMAGE,
 	DESCRIPTION_MAX,
@@ -20,6 +21,9 @@ import {
 	listPreview,
 	LIST_SECTIONS,
 	KINKIPEDIA_PREVIEW,
+	kinkipediaPreview,
+	linkPreviewOf,
+	sectionTexts,
 	materialDescription,
 	upcomingDescription,
 	previewImage,
@@ -204,7 +208,8 @@ describe('achicar portadas grandes en producción', () => {
 	it('solo imágenes de la biblioteca', () => {
 		for (const path of [
 			'/_app/immutable/assets/1.x.webp',
-			'/og-default.png',
+			'/og-default.jpg',
+			'/og/default/0123456789abcdef.jpg',
 			`/media/file/${HASH}.pdf`,
 			`/media/img/${HASH}.webp?x=1`
 		]) {
@@ -352,7 +357,8 @@ describe('listPreview', () => {
 			expect(heading.startsWith(title + ' · ')).toBe(true);
 			expect(description.length).toBeLessThanOrEqual(DESCRIPTION_MAX);
 		}
-		expect(KINKIPEDIA_PREVIEW.title).toBe('Kinkipedia · Glosario cuir, kinky y BDSM');
+		// Título aprobado por gorrite (11/10).
+		expect(KINKIPEDIA_PREVIEW.title).toBe('Kinkipedia · Glosario cuir y kinky');
 		expect(KINKIPEDIA_PREVIEW.description.length).toBeLessThanOrEqual(DESCRIPTION_MAX);
 	});
 
@@ -385,6 +391,35 @@ describe('listPreview', () => {
 			'Material · xyz'
 		);
 	});
+
+	it('con los textos del panel: título, descripción y las frases de los filtros', () => {
+		const texts = {
+			...PREVIEW_TEXT_DEFAULTS,
+			'amigues.heading': 'Amigues · Gente inventada',
+			'amigues.description': 'Una descripción inventada.',
+			'amigues.title': 'Amigas',
+			'amigues.items': 'Personas amigas',
+			'filtros.oneTag': 'que tienen {x}',
+			'filtros.manyTags': 'que tienen {x} (todas)',
+			'filtros.text': 'que dicen {x}'
+		};
+		expect(listPreview('amigues', listFilters(at(''), TAGS), undefined, texts)).toEqual({
+			title: 'Amigues · Gente inventada',
+			description: 'Una descripción inventada.'
+		});
+		expect(listPreview('amigues', listFilters(at('?tags=terapia'), TAGS), plain, texts)).toEqual({
+			title: 'Amigas · terapia',
+			description: 'Personas amigas que tienen terapia. Una descripción inventada.'
+		});
+		expect(
+			listPreview('amigues', listFilters(at('?tags=terapia,sogas&q=x'), TAGS), plain, texts)
+				.description
+		).toBe(
+			'Personas amigas que tienen terapia y Cuerdas y nudos (todas) que dicen x. Una descripción inventada.'
+		);
+		expect(sectionTexts('amigues', texts).title).toBe('Amigas');
+		expect(kinkipediaPreview({ ...texts, 'wiki.title': 'Glosario X' }).title).toBe('Glosario X');
+	});
 });
 
 describe('materialDescription', () => {
@@ -397,6 +432,20 @@ describe('materialDescription', () => {
 		);
 		expect(materialDescription({ tags: ['web'], summary: 'Solo el resumen.' })).toBe(
 			'Solo el resumen.'
+		);
+	});
+
+	it('con los textos del panel', () => {
+		const texts = {
+			...PREVIEW_TEXT_DEFAULTS,
+			'materialTipo.downloadSuffix': ' para bajar',
+			'materialTipo.downloadOnly': 'Para bajar'
+		};
+		expect(materialDescription({ tags: ['guía', 'descargable'], summary: 'X.' }, TAGS, texts)).toBe(
+			'Guía para bajar · X.'
+		);
+		expect(materialDescription({ tags: ['descargable'], summary: 'X.' }, TAGS, texts)).toBe(
+			'Para bajar · X.'
 		);
 	});
 });
@@ -426,6 +475,12 @@ describe('upcomingDescription', () => {
 		);
 	});
 
+	it('con el texto del panel antes de los eventos', () => {
+		expect(
+			upcomingDescription([post('Noche', '2026-10-17T23:30:00-03:00')], 'Base.', now, 'Se viene:')
+		).toBe('Se viene: Noche (17/10). Base.');
+	});
+
 	it('sin próximos, la frase fija', () => {
 		expect(upcomingDescription([post('Pasado', '2026-10-01')], 'Frase fija.', now)).toBe(
 			'Frase fija.'
@@ -445,10 +500,33 @@ describe('las tarjetas', () => {
 			const card = cardImage(key);
 			expect(card.url).toBe('/' + OG_CARDS[key].file);
 			expect(card).toMatchObject({ width: 1200, height: 630 });
-			expect(card.alt).toContain(SITE_TAGLINE);
-			if (OG_CARDS[key].name) expect(card.alt).toContain(`«${OG_CARDS[key].name}»`);
+			// el texto alternativo dice lo que está escrito en la tarjeta
+			const { name, subtitle } = ogCardText(key);
+			expect(card.alt).toContain(name);
+			if (subtitle) expect(card.alt).toContain(subtitle);
 		}
+		expect(cardImage('default').alt).toContain(SITE_TAGLINE);
+		expect(cardImage('calendario').alt).toContain(
+			'«Calendario · Próximos talleres, encuentros y eventos cuir y kinky»'
+		);
 		expect(DEFAULT_IMAGE).toEqual(cardImage('default'));
+	});
+
+	it('la dibujada con las portadas si el servidor la manda, con los textos del panel', () => {
+		const preview = linkPreviewOf({
+			linkPreview: {
+				texts: { ...PREVIEW_TEXT_DEFAULTS, 'calendario.cardName': 'Agenda' },
+				images: { calendario: '/og/calendario/0123456789abcdef.jpg' }
+			}
+		});
+		const card = cardImage('calendario', preview);
+		expect(card.url).toBe('/og/calendario/0123456789abcdef.jpg');
+		expect(card.alt).toContain('«Agenda · Próximos talleres');
+		// sin la de esa tarjeta, la de static/
+		expect(cardImage('material', preview).url).toBe('/og-material.jpg');
+		// sin nada del servidor, los originales
+		expect(linkPreviewOf(undefined).texts).toBe(PREVIEW_TEXT_DEFAULTS);
+		expect(linkPreviewOf({}).images).toEqual({});
 	});
 
 	it('la frase oficial, tal cual', () => {
