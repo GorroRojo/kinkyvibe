@@ -15,16 +15,22 @@ PR no entra hasta arreglarlo. Y además, nadie mergea sin que gorrite lo apruebe
 Todo lo de GitHub Actions está en un solo archivo, `.github/workflows/ci.yml` (no hay otros
 workflows). Corre en cada pull request y en cada push a `main`, con permiso de solo lectura sobre
 el repo (`permissions: contents: read`). Si pusheás de nuevo a la misma rama, la corrida anterior
-se cancela (`concurrency`). Los tres primeros jobs corren en paralelo, usan Ubuntu 22.04 y la
-versión de Node de `.node-version` (con caché de npm), y arrancan con `npm ci`. Tienen un límite
-de tiempo: 15 minutos `unit` y `e2e`, 10 `typecheck`.
+se cancela (`concurrency`). Los jobs de prueba corren en paralelo, usan Ubuntu 22.04 y la versión
+de Node de `.node-version` (con caché de npm), y arrancan con `npm ci`. Tienen un límite de
+tiempo: 15 minutos `unit`, `tests` y `e2e`, 10 `typecheck`.
 
-| Job (nombre en GitHub) | Pasos, en orden                                                                                                                                                                                                                                          | Cómo reproducirlo en tu compu                                                                    |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `unit`                 | **Lint** (`npm run lint`) → **Prettier** (`npm run format:check`) → **Unit + content tests** (`npx vitest run`)                                                                                                                                          | `npm run lint && npm run format:check && npx vitest run`                                         |
-| `e2e`                  | **Build** (`npm run build`) → **Worker bundle** (`npx wrangler deploy --dry-run --outdir .wrangler/dry-run`) → instala Chromium (o, si está en caché, solo sus librerías del sistema) → **E2E smoke tests** (`npx playwright test`, con `PW_NO_BUILD=1`) | `npm run build && PW_NO_BUILD=1 npm run test:e2e` (o solo `npm run test:e2e`, que compila antes) |
-| `typecheck`            | **svelte-check ratchet** (`node scripts/svelte-check-ratchet.js`)                                                                                                                                                                                        | `node scripts/svelte-check-ratchet.js`                                                           |
-| **`ci-ok`**            | corre siempre (`if: always()`, en `ubuntu-latest`, sin `npm ci`) y pasa solo si `unit`, `e2e` y `typecheck` terminaron bien (o se saltearon). **Es el único chequeo obligatorio**                                                                        | —                                                                                                |
+**PRs de solo documentación** (gorrite, 11/10): el job `changes` mira qué archivos toca el PR. Si
+todos están en `docs/`, son `.md` de la raíz o están en `.claude/`, corre solo `docs` (el chequeo
+de formato) y se saltean `unit`, `tests`, `e2e` y `typecheck`; `ci-ok` igual da verde, porque
+cuenta lo salteado como bien. En `main` (push) corre todo siempre.
+
+| Job (nombre en GitHub)          | Pasos, en orden                                                                                                                                                                                                                                          | Cómo reproducirlo en tu compu                                                                    |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `unit`                          | **Lint** (`npm run lint`) → **Prettier** (`npm run format:check`)                                                                                                                                                                                        | `npm run lint && npm run format:check`                                                           |
+| `tests (1/3)`, `(2/3)`, `(3/3)` | **Unit + content tests** repartidas en 3 máquinas (`npx vitest run --shard=N/3`): juntas corren todas                                                                                                                                                    | `npx vitest run` (todas) o `npx vitest run --shard=1/3`                                          |
+| `e2e`                           | **Build** (`npm run build`) → **Worker bundle** (`npx wrangler deploy --dry-run --outdir .wrangler/dry-run`) → instala Chromium (o, si está en caché, solo sus librerías del sistema) → **E2E smoke tests** (`npx playwright test`, con `PW_NO_BUILD=1`) | `npm run build && PW_NO_BUILD=1 npm run test:e2e` (o solo `npm run test:e2e`, que compila antes) |
+| `typecheck`                     | **svelte-check ratchet** (`node scripts/svelte-check-ratchet.js`)                                                                                                                                                                                        | `node scripts/svelte-check-ratchet.js`                                                           |
+| **`ci-ok`**                     | corre siempre (`if: always()`, en `ubuntu-latest`, sin `npm ci`) y pasa solo si `changes`, `docs`, `unit`, `tests`, `e2e` y `typecheck` terminaron bien (o se saltearon). **Es el único chequeo obligatorio**                                            | —                                                                                                |
 
 Fuera de `ci.yml` aparecen además:
 
