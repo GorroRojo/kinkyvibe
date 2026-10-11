@@ -533,7 +533,7 @@ export function resolveEventSlug(db, slug) {
 }
 
 /**
- * @typedef {ProcessedPost & import('./render.js').RenderedBody} SitePost
+ * @typedef {ProcessedPost & import('./render.js').RenderedBody & { cover: import('$lib/utils/seo.js').ImageInfo | null }} SitePost
  */
 
 /**
@@ -592,7 +592,19 @@ export async function siteContent(
 	// interactivos) y `css`, solo dentro del texto.
 	// eslint-disable-next-line no-unused-vars
 	const { content, ...rest } = post;
-	return { ...rest, ...body };
+	return { ...rest, ...body, cover: coverForPreview(cover) };
+}
+
+/**
+ * Las medidas, el texto alternativo y el peso de la portada de la biblioteca, para la vista previa
+ * al compartir (`og:image:width`, `og:image:alt` y si se achica; src/lib/utils/seo.js). `null`
+ * sin portada de la biblioteca (la imagen vieja del repo no tiene medidas guardadas).
+ * @param {{ width: number | null, height: number | null, alt: string, size: number } | null} cover
+ * @returns {import('$lib/utils/seo.js').ImageInfo | null}
+ */
+function coverForPreview(cover) {
+	if (!cover) return null;
+	return { width: cover.width, height: cover.height, alt: cover.alt, size: cover.size || null };
 }
 
 /**

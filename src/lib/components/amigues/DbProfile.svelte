@@ -44,6 +44,7 @@
 	authors={p.authors}
 	tags={p.tags}
 	canonical={data.canonical}
+	noindex={Boolean(data.unlisted)}
 />
 
 <article class="h-entry h-resume" data-kind={p.kind}>

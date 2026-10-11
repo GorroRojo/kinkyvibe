@@ -1,4 +1,11 @@
 <script>
+	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { cardImage, kinkipediaPreview, linkPreviewOf } from '$lib/utils/seo.js';
+	import { page } from '$app/stores';
+	// La vista previa con los textos del panel y la tarjeta de la Kinkipedia (docs/compartir.md).
+	$: lp = linkPreviewOf($page.data);
+	$: KINKIPEDIA_CARD = cardImage('wiki', lp);
+	$: KINKIPEDIA_PREVIEW = kinkipediaPreview(lp.texts);
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
 	import { wikiTagManager, query, searchOpen } from '$lib/utils/stores';
 	import { SearchX } from '@lucide/svelte';
@@ -103,6 +110,13 @@
 <svelte:head>
 	<title>Kinkipedia - Enciclopedia Fetichista</title>
 </svelte:head>
+<!-- La vista previa al compartir (docs/compartir.md). -->
+<SeoHead
+	title={KINKIPEDIA_PREVIEW.title}
+	description={KINKIPEDIA_PREVIEW.description}
+	image={KINKIPEDIA_CARD.url}
+	imageInfo={KINKIPEDIA_CARD}
+/>
 <article class="content">
 	<h1>Kinkipedia</h1>
 	<p class="callout" style:--callout-color="var(--1-dark)">
