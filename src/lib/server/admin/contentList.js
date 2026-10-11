@@ -1,24 +1,11 @@
 /**
- * Lists of the panel's content sections (/admin/contenido/material, /admin/comunidad/perfiles), from the posts bundled
- * in this deploy (plus the demo layer on previews, through contentMetas).
+ * Lists of the panel's content sections (/admin/contenido/material, /admin/comunidad/perfiles), from
+ * the database (through contentMetas).
  */
 import { amiguesImageURL, contentMetas } from './content.js';
 import { contentRow } from '$lib/utils/contentPosts.js';
 import { isNumericFeatured } from '$lib/utils/eventDraft.js';
-
-const postFiles = import.meta.glob('/src/lib/posts/{material,amigues}/*.md');
-/** @type {Record<string, string>} */
-const materialMedia = import.meta.glob(
-	'/src/lib/posts/material/media/*/*.{jpeg,jfif,jpg,png,webp}',
-	{ eager: true, import: 'default' }
-);
-const amiguesFolders = import.meta.glob('/src/lib/posts/amigues/media/*/*');
-const materialFolders = import.meta.glob('/src/lib/posts/material/media/*/*');
-/** @type {Record<string, string>} */
-const assetFiles = import.meta.glob('/src/lib/assets/*.{jpeg,jfif,jpg,png,webp}', {
-	eager: true,
-	import: 'default'
-});
+import { legacyAssetURL, legacyMediaFolders, legacyNumberedURL } from '$lib/utils/legacyMedia.js';
 
 /**
  * @param {string} slug
@@ -26,18 +13,13 @@ const assetFiles = import.meta.glob('/src/lib/assets/*.{jpeg,jfif,jpg,png,webp}'
  */
 function materialImage(slug, id) {
 	if (id === undefined || id === null || id === '') return undefined;
-	if (isNumericFeatured(id)) {
-		for (const f of ['jpeg', 'jfif', 'jpg', 'png', 'webp']) {
-			const url = materialMedia[`/src/lib/posts/material/media/${slug}/${id}.${f}`];
-			if (url) return url;
-		}
-		return undefined;
-	}
-	return assetFiles[`/src/lib/assets/${id}`];
+	// La copia en la biblioteca de la imagen vieja ($lib/utils/legacyMedia.js).
+	if (isNumericFeatured(id)) return legacyNumberedURL('material', slug, id);
+	return legacyAssetURL(String(id));
 }
 
 /**
- * URL of a post's current image as bundled in this deploy, or undefined.
+ * URL of a post's current image (the library copy of its old image), or undefined.
  * @param {string} category
  * @param {string} slug
  * @param {any} featured
@@ -72,19 +54,13 @@ export async function listContent(category) {
 }
 
 /**
- * Slugs a new post of `category` can't use in this deploy: its files (templates included) and
- * media folders. The save checks GitHub too.
+ * Slugs a new post of `category` can't use: the database's (deleted ones included, through
+ * contentMetas) and the old media folders (their images are still in the library under that name).
  * @param {string} category material | amigues
  */
 export async function takenContentSlugs(category) {
 	/** @type {Set<string>} */
-	const out = new Set();
-	for (const path of Object.keys(postFiles)) {
-		const [c, file] = path.split('/').slice(-2);
-		if (c === category) out.add(file.replace(/\.md$/, ''));
-	}
-	const folders = category === 'amigues' ? amiguesFolders : materialFolders;
-	for (const path of Object.keys(folders)) out.add(path.split('/').slice(-2)[0]);
+	const out = new Set(legacyMediaFolders(category));
 	for (const p of await contentMetas()) if (p.category === category) out.add(p.slug);
 	return [...out].sort();
 }
