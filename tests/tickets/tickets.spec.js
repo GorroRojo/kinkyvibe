@@ -1036,3 +1036,24 @@ test('una dirección de un paso sin lo anterior completo vuelve al primero que f
 	await expect(stepHeading(block, 'Tus datos')).toBeVisible();
 	await expect(page).toHaveURL(new RegExp(`${BUY_URL}\\?paso=2$`));
 });
+
+test('vender en puerta dos veces seguidas: la segunda arranca en efectivo, tildado', async ({
+	page
+}) => {
+	await page.goto(`/admin/eventos/${EVENT}/ingreso`, { waitUntil: 'networkidle' });
+	const sheet = page.getByRole('dialog', { name: 'Vender en puerta' });
+	const efectivo = sheet.getByRole('radio', { name: 'Efectivo' });
+	/** @param {string} name */
+	const sell = async (name) => {
+		await page.getByRole('button', { name: 'Vender en puerta' }).click();
+		await expect(efectivo).toBeChecked();
+		await sheet.getByLabel('Nombre de quien compra').fill(name);
+		await sheet.getByRole('button', { name: /^Cobrar .* y marcar adentro$/ }).click();
+		await expect(page.locator('.result')).toContainText(name);
+	};
+	await sell('Persona Puerta Uno');
+	// Después del `reset` del formulario, los radios no quedan sin tildar (antes la segunda venta
+	// salía sin `method` y el servidor decía «Elegí cómo pagó…»).
+	await sell('Persona Puerta Dos');
+	await expect(page.getByText(/Elegí cómo pagó/)).toHaveCount(0);
+});

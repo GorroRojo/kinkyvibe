@@ -690,8 +690,13 @@
 				const sale = r.data.sale;
 				saleOpen = false;
 				formEl.reset();
+				// Svelte vuelve a leer los campos enlazados después del `reset` (los radios quedan sin
+				// tildar): recién después se ponen los valores de una venta nueva, así la próxima arranca
+				// en efectivo, tildado.
+				await tick();
 				saleQty = 1;
 				saleEmail = '';
+				saleMethod = 'efectivo';
 				show({
 					result: 'sold',
 					card: sale.tickets[0] ?? null,
