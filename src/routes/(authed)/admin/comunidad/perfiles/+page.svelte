@@ -31,7 +31,7 @@
 	/** @type {any} */
 	export let form;
 
-	const IMPORT_HREF = `${PROFILES_HREF}/importar`;
+	const CLASSIFY_HREF = `${PROFILES_HREF}/importar`;
 	const NEW_HREF = `${PROFILES_HREF}/nuevo`;
 
 	$: f = data.filters ?? { q: '', kind: '', origin: '', state: '', view: '' };
@@ -68,7 +68,7 @@
 				filename={csvFilename('perfiles')}
 			/>
 		{/if}
-		<a class="kv-btn ghost" href={IMPORT_HREF}>Importar y clasificar</a>
+		<a class="kv-btn ghost" href={CLASSIFY_HREF}>Clasificar</a>
 		<a class="kv-btn" href={NEW_HREF}>Nuevo perfil</a>
 	</svelte:fragment>
 </PageHeader>
@@ -77,13 +77,6 @@
 
 {#if !data.dbAvailable}
 	<p class="kv-flash bad">No hay base de datos disponible.</p>
-{/if}
-{#if data.notImported}
-	<p class="kv-flash warn">
-		Hay {data.notImported}
-		{data.notImported === 1 ? 'ficha .md del repo que no está' : 'fichas .md del repo que no están'}
-		en la base: no se muestran en el sitio hasta importarlas. <a href={IMPORT_HREF}>Importar</a>
-	</p>
 {/if}
 {#if f.view === 'pedidos' || form?.claim}
 	<ClaimsCard claims={data.claims} result={form?.claim} />

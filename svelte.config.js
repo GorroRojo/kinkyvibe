@@ -1,11 +1,7 @@
 import { preprocessMeltUI, sequence } from '@melt-ui/pp';
 import adapter from '@sveltejs/adapter-cloudflare';
 import sveltePreprocess from 'svelte-preprocess';
-import { mdsvex } from 'mdsvex';
-import rehypeSlug from 'rehype-slug';
 import autoprefixer from 'autoprefixer';
-import toc from '@jsdevtools/rehype-toc';
-import customRehype from './src/lib/utils/customRehype.js';
 
 /**
  * adapter-cloudflare con `emulate()` a prueba de requests concurrentes.
@@ -56,7 +52,10 @@ const config = {
 			}
 		})
 	},
-	extensions: ['.svelte', '.md', '.svx'],
+	// Solo componentes .svelte: los .md de las publicaciones ya no existen (decisión 0032). El texto de
+	// una publicación lo arma src/lib/server/contenido/freeHtml.js (con rehype-slug, rehype-toc y
+	// customRehype, como lo hacía mdsvex).
+	extensions: ['.svelte'],
 	preprocess: sequence([
 		sveltePreprocess({
 			// Svelte 5 strips TypeScript natively. Letting svelte-preprocess transpile TS without
@@ -66,15 +65,6 @@ const config = {
 			postcss: {
 				plugins: [autoprefixer]
 			}
-		}),
-		mdsvex({
-			extensions: ['.md', '.svx'],
-			smartypants: {
-				quotes: true,
-				ellipses: true,
-				dashes: 'oldschool'
-			},
-			rehypePlugins: [rehypeSlug, customRehype, toc]
 		}),
 		preprocessMeltUI()
 	])

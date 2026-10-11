@@ -10,10 +10,16 @@
  * Acá también se anotan las visitas anónimas (docs/analiticas.md): este `fetch` ve todos los
  * pedidos que llegan al Worker, incluso las páginas que el adapter sirve desde su caché (esas no
  * pasan por hooks.server.js). Sin el binding `ANALYTICS` no hace nada.
+ *
+ * Las imágenes de vista previa (`/og/…`, docs/compartir.md) se dibujan con WebAssembly, que en
+ * Workers solo se puede usar como módulo que sube wrangler: Vite (que arma el Worker de
+ * SvelteKit) no lo puede importar. Por eso el dibujante vive acá (worker/og.js) y le llega a la
+ * ruta de SvelteKit en `platform.env.OG_RENDER`, solo en esos pedidos.
  */
 import app from '../.svelte-kit/cloudflare/_worker.js';
 import { handleScheduled } from '../src/lib/server/scheduled.js';
 import { trackPageView } from '../src/lib/server/analytics/track.js';
+import { renderOg } from './og.js';
 
 export default {
 	/**
@@ -22,7 +28,8 @@ export default {
 	 * @param {import('@cloudflare/workers-types').ExecutionContext} ctx
 	 */
 	async fetch(request, env, ctx) {
-		const response = await app.fetch(request, env, ctx);
+		const og = new URL(request.url).pathname.startsWith('/og/');
+		const response = await app.fetch(request, og ? { ...env, OG_RENDER: renderOg } : env, ctx);
 		// Sincrónico y nunca tira (writeDataPoint no espera la red). No lee el cuerpo.
 		trackPageView(request, response, env);
 		return response;

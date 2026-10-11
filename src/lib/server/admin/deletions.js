@@ -1,15 +1,13 @@
 /**
  * Borrar desde el panel (eventos, material y amigues), con deshacer y «Recuperar».
  *
- * Las publicaciones son archivos .md del repo: borrar es un cambio de contenido más, por el mismo
- * camino que guardar (`commitFiles` de $lib/server/eventos/github.js: un PR `contenido/*` que se
- * mergea solo). El commit saca el .md y toda su carpeta de imágenes.
+ * Los eventos y el material viven en la base: borrar es un guardado más, por el mismo camino que
+ * guardar (`commitFiles` del cliente de contenido, $lib/server/contenido/repo.js), que hace el
+ * borrado suave del objeto. Nada va a GitHub (decisión 0032).
  *
- * Nunca se pierde nada: ANTES de commitear se guarda en D1 (`panel_deletions`, migración 0021) el
- * texto del .md, su sha y la lista de imágenes con sus shas. Deshacer:
- * - si el PR del borrado todavía no se mergeó, se cierra (no se publica nada);
- * - si ya se mergeó (o no hay PR: mock y modo demo), se restaura con otro PR que vuelve a poner
- *   el .md y las imágenes (los blobs siguen en el historial del repo, no se vuelven a subir).
+ * Nunca se pierde nada: ANTES de borrar se guarda en D1 (`panel_deletions`, migración 0021) el
+ * texto de la publicación (con la forma de un .md) y su sha. Deshacer la vuelve a guardar. (La
+ * columna `media` es de cuando también se borraba su carpeta de imágenes del repo: queda vacía.)
  *
  * Los perfiles de amigues viven solo en la base («solo base»: los creados en el panel o por las
  * cuentas y también las fichas importadas de un .md) y no pasan por GitHub: borrar es el borrado suave del objeto (`deleted_at` con
@@ -35,8 +33,8 @@
  * fila acá en la misma tanda (`path` = `pregunta:<id>`, `rol:<nombre>` o `nota:<id>`). Ver
  * {@link softDeletionStatement}.
  *
- * Sin imports de SvelteKit: el cliente del repo, el estado de los PRs y la base llegan como
- * parámetros, así se prueba con fakes. Las rutas están en ./deletionRoutes.js.
+ * Sin imports de SvelteKit: el cliente de contenido y la base llegan como parámetros, así se
+ * prueba con fakes. Las rutas están en ./deletionRoutes.js.
  */
 import { profileSlugFor } from '$lib/utils/organizers.js';
 import { parsePersonas } from '$lib/utils/personas.js';
@@ -51,13 +49,16 @@ import { VersionConflictError } from '../objects/errors.js';
 import { saveObject } from '../objects/save.js';
 import { deleteImage, findLibraryObject, restoreLibraryItem } from '../media/library.js';
 import { logAdminAction } from './audit.js';
-import { contentMediaDir, gitBlobSha } from './posts.js';
+import { gitBlobSha } from './posts.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
-/** @typedef {import('../eventos/github.js').CommitFile} CommitFile */
-/** @typedef {import('../eventos/github.js').PublishResult} PublishResult */
+/** @typedef {import('../contenido/cliente.js').CommitFile} CommitFile */
+/** @typedef {import('../contenido/cliente.js').PublishResult} PublishResult */
 /**
- * @typedef {Pick<typeof import('../eventos/github.js'), 'getFile' | 'listTree' | 'commitFiles'>} DeleteClient
+ * @typedef {{
+ *   getFile: (token: string, path: string) => Promise<string | null>,
+ *   commitFiles: (token: string, opts: any) => Promise<import('../contenido/cliente.js').CommitResult>
+ * }} DeleteClient
  */
 
 /** Lo que se puede borrar desde el panel, con cómo se llama en los textos. */
@@ -234,7 +235,8 @@ export function postTitle(raw, slug) {
 }
 
 /**
- * Lo que hay en el repo de una publicación: el .md y los archivos de su carpeta de imágenes.
+ * Lo que hay de una publicación: su texto (con la forma de un .md) y su sha. `media` queda vacío
+ * (ya no hay carpetas de imágenes en el repo).
  * @param {DeleteClient} client
  * @param {string} token
  * @param {DeletableKind} kind
@@ -246,10 +248,8 @@ export async function readPostFiles(client, token, kind, slug) {
 	if (!path || slug.startsWith('_')) return null;
 	const raw = await client.getFile(token, path);
 	if (raw === null) return null;
-	const dir = contentMediaDir(kind, slug);
-	const media = (await client.listTree(token, dir, { recursive: true }))
-		.filter((e) => e.type === 'blob')
-		.map((e) => ({ path: `${dir}/${e.path}`, sha: e.sha }));
+	/** @type {Array<{path: string, sha: string}>} */
+	const media = [];
 	return { path, raw, sha: await gitBlobSha(raw), title: postTitle(raw, slug), media };
 }
 
@@ -357,9 +357,8 @@ export async function listRecoverable(db, { limit = 20 } = {}) {
 const message = (who, verb, d) => `[admin] ${who} ${verb} ${d.kind}/${d.slug}`;
 
 /**
- * Borra una publicación: guarda la copia en D1, commitea (PR que se mergea solo, aparte de
- * cualquier otro: `stack: false`) y lo anota en Actividad. Si el commit falla, la copia se
- * descarta y el error sube (PendingChangeError, FileChangedError…).
+ * Borra una publicación: guarda la copia en D1, la borra (borrado suave en la base) y lo anota en
+ * Actividad. Si el guardado falla, la copia se descarta y el error sube (FileChangedError…).
  * @param {DeleteClient} client
  * @param {D1Database} db
  * @param {Actor} actor
@@ -397,10 +396,7 @@ export async function deletePost(
 	let commit;
 	try {
 		commit = await client.commitFiles(actor.token, {
-			files: [files.path, ...files.media.map((m) => m.path)].map((path) => ({
-				path,
-				delete: true
-			})),
+			files: [{ path: files.path, delete: true }],
 			message: message(actor.name, 'deleted', { kind, slug }),
 			unchanged: [{ path: files.path, sha: files.sha }],
 			pr: { action: 'borra', title: files.title, who: actor.name, stack: false }
@@ -440,25 +436,16 @@ export async function deletePost(
 export class UndoError extends Error {}
 
 /**
- * @typedef {object} PullOps cómo consultar y cerrar el PR del borrado (null en mock/demo)
- * @prop {(token: string, number: number) => Promise<{status: string} | null>} status
- * @prop {(token: string, pull: {number: number, branch: string}) => Promise<void>} close
- */
-
-/** Estados de un PR de contenido que todavía no se publicó (ver contentPulls.js). */
-const UNPUBLISHED = new Set(['pendiente', 'fallo', 'conflicto', 'abierto']);
-
-/**
- * Deshace un borrado: cierra el PR si no se publicó; si ya se publicó, lo restaura con otro PR.
+ * Deshace un borrado: vuelve a guardar la publicación (en la base).
  * @param {DeleteClient} client
  * @param {D1Database} db
  * @param {Actor} actor
  * @param {number} id
- * @param {{ pulls?: PullOps | null, now?: number }} [opts]
+ * @param {{ now?: number }} [opts]
  * @returns {Promise<{ mode: 'cancelled' | 'restored', deletion: Deletion, publish: PublishResult | null, immediate?: boolean }>}
  *   `immediate`: ya está (un perfil de la base), no hay nada que publicar
  */
-export async function undoDeletion(client, db, actor, id, { pulls = null, now = Date.now() } = {}) {
+export async function undoDeletion(client, db, actor, id, { now = Date.now() } = {}) {
 	const d = await getDeletion(db, id);
 	if (!d) throw new UndoError('No encontramos ese borrado.');
 	if (d.status !== 'borrado')
@@ -486,48 +473,10 @@ export async function undoDeletion(client, db, actor, id, { pulls = null, now = 
 	const k = DELETABLE[d.kind];
 	const targetId = d.kind === 'calendario' ? d.slug : `${d.kind}/${d.slug}`;
 
-	if (pulls && d.prNumber && d.prBranch) {
-		let state = (await pulls.status(actor.token, d.prNumber))?.status ?? 'publicado';
-		if (UNPUBLISHED.has(state)) {
-			try {
-				await pulls.close(actor.token, { number: d.prNumber, branch: d.prBranch });
-				state = 'cerrado';
-			} catch (e) {
-				// Se mergeó justo ahora (GitHub no deja cerrar un PR mergeado): se mira de nuevo.
-				state = (await pulls.status(actor.token, d.prNumber))?.status ?? 'publicado';
-				if (UNPUBLISHED.has(state)) throw e;
-			}
-		}
-		if (state === 'cerrado') {
-			await db
-				.prepare(
-					`UPDATE panel_deletions SET status = 'deshecho', restored_at = ?2, restored_by = ?3
-					WHERE id = ?1 AND status = 'borrado'`
-				)
-				.bind(id, now, actor.login)
-				.run();
-			await logAdminAction(
-				db,
-				actor.locals,
-				{
-					action: `${k.action}.undelete`,
-					targetType: k.targetType,
-					targetId,
-					summary: `Deshizo el borrado de «${d.title}» antes de que se publicara (PR #${d.prNumber} cerrado)`,
-					detail: { deletion: id, pr: d.prNumber }
-				},
-				{ now }
-			);
-			return { mode: 'cancelled', deletion: { ...d, status: 'deshecho' }, publish: null };
-		}
-	}
-
-	// Ya publicado (o sin PR): otro PR que vuelve a poner el .md y sus imágenes.
+	// Se vuelve a guardar el texto. (Las imágenes de una carpeta del repo, de los borrados de antes,
+	// ya no existen: sus copias están en la biblioteca, $lib/utils/legacyMedia.js.)
 	/** @type {CommitFile[]} */
-	const files = [
-		{ path: d.path, content: d.content },
-		...d.media.map((m) => ({ path: m.path, sha: m.sha }))
-	];
+	const files = [{ path: d.path, content: d.content }];
 	const commit = await client.commitFiles(actor.token, {
 		files,
 		message: message(actor.name, 'restored', d),

@@ -57,11 +57,13 @@ async function openDB() {
 	);
 }
 
-// 1. Migraciones + eventos, material, amigues y etiquetas de los .md (como las pruebas E2E).
-if (has('scripts/import-content.js')) run('node', ['scripts/import-content.js', '--quiet']);
+// 1. Migraciones + eventos, material, amigues y etiquetas: la semilla de contenido (como las
+// pruebas E2E). Un lado más viejo todavía los importaba de los .md.
+if (has('scripts/semilla.js')) run('node', ['scripts/semilla.js', '--quiet']);
+else if (has('scripts/import-content.js')) run('node', ['scripts/import-content.js', '--quiet']);
 else {
 	run('npx', ['wrangler', 'd1', 'migrations', 'apply', 'kinkyvibe', '--local']);
-	skipped.push('import-content');
+	skipped.push('semilla');
 }
 
 // 2. Los datos de prueba del modo demo, con el «ahora» corrido (como «Recargar datos de prueba»).

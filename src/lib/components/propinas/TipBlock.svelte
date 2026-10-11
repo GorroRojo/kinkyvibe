@@ -6,15 +6,18 @@
 	 * Toda propina va al Fondo Kinky Vibe (decisión de gorrite): ya no se elige a dónde va.
 	 * Props: `category` y `slug` (la publicación), `values` y `errors`/`error` (lo que devolvió el
 	 * servidor, para volver a mostrar el formulario), `heading` (h2 por defecto; h1 en /propinas).
+	 * `fondo`: la versión de `/propinas?de=fondo` (desde fondo.kinkyvibe.ar), sin publicación: manda
+	 * `source=fondo` en lugar de `category` y `slug`.
 	 */
 	import { enhance } from '$app/forms';
-	import { TIP_MESSAGE_MAX } from '$lib/utils/propinas.js';
+	import { FONDO_SITE_URL, TIP_MESSAGE_MAX } from '$lib/utils/propinas.js';
 	import TipAmountPicker from './TipAmountPicker.svelte';
 
-	/** @type {'material' | 'calendario'} */
-	export let category;
-	/** @type {string} */
-	export let slug;
+	/** @type {'material' | 'calendario' | null} */
+	export let category = null;
+	/** @type {string | null} */
+	export let slug = null;
+	export let fondo = false;
 	/** @type {Partial<import('$lib/utils/propinas.js').TipFormValues>} */
 	export let values = {};
 	/** @type {Record<string, string>} */
@@ -50,17 +53,24 @@
 
 <section class="propina surface-card" id="propina" aria-labelledby="propina-title">
 	<svelte:element this={heading} id="propina-title" class="title"
-		>¿Te sirvió? Dejá una propina</svelte:element
+		>{fondo
+			? 'Dejá una propina para el Fondo Kinky Vibe'
+			: '¿Te sirvió? Dejá una propina'}</svelte:element
 	>
 	<p class="lead">
-		Esto lo hicimos <a rel="author" href="/amigues/KinkyVibe">nosotres</a> ✨. Tu propina va entera
-		al
-		<a href="https://fondo.kinkyvibe.ar" target="_blank" rel="noopener">Fondo Kinky Vibe</a>, que
-		baja el precio de lo que hacemos para todes. ¡Gracias! 🤗
+		{#if !fondo}Esto lo hicimos <a rel="author" href="/amigues/KinkyVibe">nosotres</a> ✨.{/if}
+		Tu propina va entera al
+		<a href={FONDO_SITE_URL} target="_blank" rel="noopener">Fondo Kinky Vibe</a>, que baja el precio
+		de lo que hacemos para todes.{#if fondo}{' '}No hace falta cuenta ni dejar tus datos.{/if} ¡Gracias!
+		🤗
 	</p>
 	<form method="POST" action="/propinas" use:enhance={submit}>
-		<input type="hidden" name="category" value={category} />
-		<input type="hidden" name="slug" value={slug} />
+		{#if fondo}
+			<input type="hidden" name="source" value="fondo" />
+		{:else}
+			<input type="hidden" name="category" value={category} />
+			<input type="hidden" name="slug" value={slug} />
+		{/if}
 		<TipAmountPicker
 			selected={values.amount || undefined}
 			custom={values.custom ?? ''}

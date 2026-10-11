@@ -74,8 +74,10 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 
 ### Contenido, objetos y etiquetas
 
-- [0004](0004-modelo-de-contenido.md): Modelo de contenido, propuesta 6 (30/9)
+- [0004](0004-modelo-de-contenido.md): Modelo de contenido, propuesta 6 (30/9; cuándo se borran los
+  `.md` lo reemplaza 0032)
 - [0011](0011-etiquetas.md): Sistema de etiquetas (30/9)
+- [0032](0032-borrar-los-md.md): Los `.md` se borran ya, no un mes después (11/10)
 
 ### Series, lugares, roles y campos
 
@@ -98,6 +100,7 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0016](0016-pago-tardio.md): Un pago tardío se acepta al precio de la orden (1/10)
 - [0031](0031-reserva-transferencia-dias-habiles.md): La reserva por transferencia dura 2 días
   hábiles (11/10)
+- [0035](0035-vender-en-puerta-sin-conexion.md): La puerta vende sin conexión (11/10)
 
 ### Propinas
 

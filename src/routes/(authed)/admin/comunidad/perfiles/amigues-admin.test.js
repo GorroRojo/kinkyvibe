@@ -1,8 +1,9 @@
 /**
  * Panel de amigues y lugares: solo admins; el editor de la base (publica al toque y, si alguien
- * guardó en el medio, 409 sin guardar nada y con lo que cambió); importar y confirmar la
- * clasificación; Eventos → Lugares (vincular y sacar); aprobar para /amigues y los pedidos "Es mi
- * perfil". D1 de miniflare; datos inventados (las fichas de amigues son las reales, públicas).
+ * guardó en el medio, 409 sin guardar nada y con lo que cambió); confirmar la clasificación de los
+ * perfiles que vinieron de las fichas; Eventos → Lugares (vincular y sacar); aprobar para /amigues
+ * y los pedidos "Es mi perfil". D1 de miniflare; datos inventados (las fichas de amigues son las
+ * públicas, de la semilla de contenido).
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -159,7 +160,7 @@ describe('solo admins', () => {
 					fakeEvent({ params: { slug: 'x' }, form: {}, user: null, token: null })
 				),
 			() => m.importar.load(fakeEvent({ user: null, token: null })),
-			() => m.importar.actions.importar(fakeEvent({ form: {}, user: null, token: null })),
+			() => m.importar.actions.confirmar(fakeEvent({ form: {}, user: null, token: null })),
 			() => m.csv.GET(fakeEvent({ user: null, token: null })),
 			() => m.lugares.load(fakeEvent({ user: null, token: null })),
 			() => m.lugares.actions.vincular(fakeEvent({ form: {}, user: null, token: null })),
@@ -177,7 +178,7 @@ describe('solo admins', () => {
 		for (const call of calls) expect((await thrown(call))?.status).toBe(303);
 		const intruder = { id: 1, login: 'no-es-admin' };
 		for (const call of [
-			() => m.importar.actions.importar(fakeEvent({ form: {}, user: intruder })),
+			() => m.importar.actions.confirmar(fakeEvent({ form: {}, user: intruder })),
 			() => m.lugares.actions.vincular(fakeEvent({ form: {}, user: intruder })),
 			() => m.lugares.actions.aprobarLugar(fakeEvent({ form: { lugar: '1' }, user: intruder })),
 			() => m.lugares.actions.rechazarLugar(fakeEvent({ form: { lugar: '1' }, user: intruder })),
@@ -190,17 +191,16 @@ describe('solo admins', () => {
 	});
 });
 
-describe('importar y clasificar desde el panel', () => {
-	it('importa las fichas, queda en Actividad y se confirma (o cambia) el tipo', async () => {
+describe('clasificar desde el panel', () => {
+	// La importación desde el panel ya no existe (decisión 0032): las fichas se cargan en la base
+	// como en la semilla, y el panel solo revisa su clasificación.
+	it('sin perfiles de fichas, la lista vacía; con ellos, se confirma (o cambia) el tipo', async () => {
 		const m = await modules();
-		const preview = /** @type {any} */ (await m.importar.load(fakeEvent()));
-		expect(preview.summary.created).toBe(31);
-		expect(preview.rows).toEqual([]);
-		const r = /** @type {any} */ (await m.importar.actions.importar(fakeEvent({ form: {} })));
-		expect(r.importResult.summary).toMatchObject({ created: 31, error: 0 });
-		expect((await audit('amigues.import')).length).toBe(1);
+		const before = /** @type {any} */ (await m.importar.load(fakeEvent()));
+		expect(before.rows).toEqual([]);
+		expect(before.summary).toBeUndefined();
+		await importAmigues(t.db, files, { actor: 'admin-de-prueba' });
 		const after = /** @type {any} */ (await m.importar.load(fakeEvent()));
-		expect(after.summary.unchanged).toBe(31);
 		expect(after.rows.length).toBe(31);
 		const kv = after.rows.find((/** @type {any} */ x) => x.legacySlug === 'KinkyVibe');
 		expect(kv).toMatchObject({ kind: 'proyecto', confirmedAt: null });
@@ -693,7 +693,6 @@ describe('Comunidad › Perfiles (/admin/comunidad/perfiles): una sola lista (de
 		const m = await modules();
 		const all = await listed(m);
 		expect(all).toMatchObject({ editor: 'db', dbAvailable: true });
-		expect(all.notImported).toBe(0);
 		expect(all.profiles).toHaveLength(36);
 		expect(all.counts).toMatchObject({ total: 36, toApprove: 1, hidden: 1, deleted: 1 });
 		const byTitle = Object.fromEntries(all.profiles.map((/** @type {any} */ p) => [p.title, p]));

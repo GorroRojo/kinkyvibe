@@ -5,7 +5,11 @@
  * - valida los QR y códigos contra esa lista (el QR trae el token: se compara su SHA-256);
  * - marca el ingreso en la lista local y lo encola con la hora;
  * - cuando vuelve la conexión, manda la cola (`?/sync`) y aplica lo que responde el servidor
- *   (hecho, o conflicto: otra persona u otro celu la había marcado antes).
+ *   (hecho, o conflicto: otra persona u otro celu la había marcado antes);
+ * - «Vender en puerta» sigue andando (decisión 0035): la venta queda en el celu con un id propio
+ *   (`queueOfflineSale`), sus entradas cuentan como adentro en este celu y, cuando vuelve la
+ *   conexión, se manda en orden (`?/syncSales`); el servidor no la duplica si se reintenta y, si
+ *   pasó un límite (cupo, agotadas…), la guarda igual y avisa (`applySaleSyncResults`).
  *
  * Todo lo que toca localStorage va en try/catch: en modo privado o con el almacenamiento lleno,
  * el modo puerta sigue andando (solo que sin copia para usar sin conexión).
@@ -40,7 +44,36 @@ import { normalizeTicketCode } from '$lib/utils/ticketCode.js';
  * Un ingreso marcado sin conexión, esperando para sincronizar.
  * @typedef {{ id: string, ticketId: string, holder: string, token?: string, code?: string, at: number }} QueueItem
  */
-/** @typedef {{ list: OfflineTicket[], queue: QueueItem[], savedAt: number | null }} DoorState */
+/**
+ * Una venta hecha sin conexión, esperando para sincronizar. `fields`: los campos del formulario
+ * de «Vender en puerta» (sin el DNI: sin conexión no se guarda en el celu); `tickets`: sus
+ * entradas en la lista local (adentro en este celu, «pendiente de sincronizar»).
+ * @typedef {{
+ *   id: string, at: number, fields: Record<string, string>, buyer: string, quantity: number,
+ *   type: string, method: 'efectivo' | 'transferencia', total: number | null,
+ *   tickets: OfflineTicket[]
+ * }} QueuedSale
+ */
+/**
+ * Una venta sin conexión que el servidor no pudo registrar (datos que ya no sirven): queda a la
+ * vista hasta que alguien la descarta, nunca se borra sola.
+ * @typedef {{ id: string, at: number, buyer: string, quantity: number, type: string,
+ *   method: string, total: number | null, message: string }} FailedSale
+ */
+/**
+ * @typedef {{
+ *   list: OfflineTicket[], queue: QueueItem[], savedAt: number | null,
+ *   sales: QueuedSale[], failed: FailedSale[]
+ * }} DoorState
+ */
+/**
+ * @typedef {{
+ *   id: string,
+ *   result: 'ok' | 'duplicate' | 'rejected',
+ *   orderId?: string, ref?: string, buyer?: string, quantity?: number, type?: string,
+ *   total?: number, method?: string, message?: string, review?: string[]
+ * }} SaleSyncResult
+ */
 /**
  * @typedef {{
  *   id: string,
@@ -133,17 +166,23 @@ export function undoLocal(state, ticketId) {
 }
 
 /**
- * Lista nueva del servidor + ingresos que siguen en la cola (todavía no llegaron al servidor).
+ * Lista nueva del servidor + ingresos que siguen en la cola y entradas de las ventas sin conexión
+ * (todavía no llegaron al servidor).
  * @param {OfflineTicket[]} list
  * @param {QueueItem[]} queue
+ * @param {QueuedSale[]} [sales]
  * @returns {OfflineTicket[]}
  */
-export function mergeServerList(list, queue) {
+export function mergeServerList(list, queue, sales = []) {
 	const pending = new Map(queue.map((q) => [q.ticketId, q]));
-	return list.map((t) => {
-		const q = pending.get(t.ticketId);
-		return q && !t.at ? { ...t, at: q.at } : t;
-	});
+	return [
+		...list.map((t) => {
+			const q = pending.get(t.ticketId);
+			return q && !t.at ? { ...t, at: q.at } : t;
+		}),
+		// Las entradas de las ventas sin conexión que todavía no llegaron al servidor.
+		...sales.flatMap((s) => s.tickets)
+	];
 }
 
 /**
@@ -240,6 +279,11 @@ export function localSearch(list, query, limit = 8) {
 /** @param {string} slug */
 const key = (slug) => `kv-door:${slug}`;
 
+/** @returns {DoorState} */
+export function emptyDoorState() {
+	return { list: [], queue: [], savedAt: null, sales: [], failed: [] };
+}
+
 /**
  * @param {Storage | undefined | null} storage
  * @param {string} slug
@@ -250,12 +294,19 @@ export function loadDoorState(storage, slug) {
 		const raw = storage?.getItem(key(slug));
 		const parsed = raw ? JSON.parse(raw) : null;
 		if (parsed && Array.isArray(parsed.list) && Array.isArray(parsed.queue)) {
-			return { list: parsed.list, queue: parsed.queue, savedAt: Number(parsed.savedAt) || null };
+			return {
+				list: parsed.list,
+				queue: parsed.queue,
+				savedAt: Number(parsed.savedAt) || null,
+				// Lo guardado antes de las ventas sin conexión no tiene estas listas.
+				sales: Array.isArray(parsed.sales) ? parsed.sales : [],
+				failed: Array.isArray(parsed.failed) ? parsed.failed : []
+			};
 		}
 	} catch {
 		// sin almacenamiento o JSON roto: empezamos de cero
 	}
-	return { list: [], queue: [], savedAt: null };
+	return emptyDoorState();
 }
 
 /**
@@ -312,12 +363,15 @@ export function markRecentUndone(recent, ticketId, holder) {
  *   quien está en la puerta sepa que, si se corta, puede seguir validando;
  * - con conexión y sin lista todavía (bajándola, o sin almacenamiento): nada;
  * - sin conexión: `offline`, con lo que sigue andando y lo que necesita conexión.
- * @param {{ online: boolean, saved: boolean, savedAt: string }} s `saved`: hay una lista bajada y
- *   guardada en el celu (aunque el evento no tenga entradas todavía); `savedAt`: su hora, ya
- *   formateada («21:40»)
+ * - sin conexión, «Vender en puerta» sigue andando (decisión 0035): las ventas se guardan en el
+ *   celu y se mandan solas cuando vuelve.
+ * @param {{ online: boolean, saved: boolean, savedAt: string, canSell?: boolean }} s `saved`: hay
+ *   una lista bajada y guardada en el celu (aunque el evento no tenga entradas todavía); `savedAt`:
+ *   su hora, ya formateada («21:40»); `canSell`: la pantalla ofrece «Vender en puerta» (no en una
+ *   parte de un taller ni en un evento solo anticipadas)
  * @returns {null | { kind: 'ready' | 'offline', title: string, detail: string }}
  */
-export function doorConnectionNote({ online, saved, savedAt }) {
+export function doorConnectionNote({ online, saved, savedAt, canSell = true }) {
 	if (online) {
 		if (!saved) return null;
 		return {
@@ -326,16 +380,203 @@ export function doorConnectionNote({ online, saved, savedAt }) {
 			detail: `La lista quedó guardada en este celu${savedAt ? ` (${savedAt})` : ''}: si se corta internet, podés seguir validando.`
 		};
 	}
+	const selling = canSell
+		? ' Podés vender en la puerta: las ventas quedan en este celu y se mandan solas cuando vuelve.'
+		: '';
 	if (!saved)
 		return {
 			kind: 'offline',
 			title: 'Sin conexión.',
-			detail:
-				'No hay lista guardada en este celu, así que no se puede validar. Cuando vuelva la conexión se baja sola.'
+			detail: `No hay lista guardada en este celu, así que no se puede validar. Cuando vuelva la conexión se baja sola.${selling}`
 		};
+	const list = savedAt ? ` (${savedAt})` : '';
 	return {
 		kind: 'offline',
 		title: 'Sin conexión.',
-		detail: `Podés seguir validando QR y códigos y buscar personas con la lista guardada${savedAt ? ` (${savedAt})` : ''}; los ingresos se mandan solos cuando vuelve. Vender en la puerta y ver el DNI completo necesitan conexión.`
+		detail: canSell
+			? `Podés seguir validando QR y códigos, buscar personas con la lista guardada${list} y vender en la puerta; los ingresos y las ventas se mandan solos cuando vuelve. Ver el DNI completo necesita conexión.`
+			: `Podés seguir validando QR y códigos y buscar personas con la lista guardada${list}; los ingresos se mandan solos cuando vuelve. Ver el DNI completo necesita conexión.`
 	};
+}
+
+/**
+ * «2 ventas y 1 ingreso por sincronizar.» ('' si no hay nada pendiente).
+ * @param {{ checkins: number, sales: number }} n
+ */
+export function pendingNote({ checkins, sales }) {
+	const parts = [];
+	if (sales) parts.push(`${sales} ${sales === 1 ? 'venta' : 'ventas'}`);
+	if (checkins) parts.push(`${checkins} ${checkins === 1 ? 'ingreso' : 'ingresos'}`);
+	return parts.length ? `${parts.join(' y ')} por sincronizar.` : '';
+}
+
+/**
+ * Lo que se sabe en el celu de los límites que pasaría una venta sin conexión (con los datos de
+ * cuando se abrió la página, menos lo que ya se vendió sin conexión). Es solo un aviso antes de
+ * guardarla: al sincronizar, el servidor vuelve a controlar con los números de ese momento, guarda
+ * la venta igual y, si pasó un límite, la deja en «Para revisar».
+ *
+ * @param {{
+ *   type: { id: string, name: string, capacity: number | null, taken: number },
+ *   quantity: number, doorSales: boolean, maxPerSale: number, sales: QueuedSale[]
+ * }} input
+ * @returns {{ message: string }[]}
+ */
+export function offlineSaleLimits({ type, quantity, doorSales, maxPerSale, sales }) {
+	/** @type {{ message: string }[]} */
+	const out = [];
+	if (!doorSales)
+		out.push({ message: 'Este evento es solo anticipadas: no tiene entradas en la puerta.' });
+	if (quantity > maxPerSale)
+		out.push({
+			message: `Son ${quantity} entradas y el máximo por venta es ${maxPerSale} (${quantity - maxPerSale} de más).`
+		});
+	if (type.capacity !== null && type.capacity !== undefined) {
+		const queued = sales
+			.filter((s) => s.fields.type === type.id)
+			.reduce((n, s) => n + s.quantity, 0);
+		const after = type.taken + queued + quantity;
+		if (after > type.capacity)
+			out.push({
+				message: `Se pasaría del cupo de «${type.name}»: quedarían ${after} / ${type.capacity} (según la lista de cuando había conexión).`
+			});
+	}
+	return out;
+}
+
+/**
+ * Guarda una venta hecha sin conexión: la encola y suma sus entradas a la lista local, ya adentro
+ * («pendiente de sincronizar»). No cambia `state`: devuelve el estado nuevo.
+ *
+ * @param {DoorState} state
+ * @param {{
+ *   id: string, now: number, by: string, fields: Record<string, string>,
+ *   type: { id: string, name: string }, quantity: number, total: number | null,
+ *   holders: { name: string, pronouns: string }[]
+ * }} sale `fields`: los del formulario (el DNI no se guarda)
+ * @returns {{ state: DoorState, sale: QueuedSale }}
+ */
+export function queueOfflineSale(state, { id, now, by, fields, type, quantity, total, holders }) {
+	const kept = { ...fields };
+	delete kept.dni;
+	const buyer = String(kept.name ?? '').trim();
+	const method = kept.method === 'transferencia' ? 'transferencia' : 'efectivo';
+	/** @type {OfflineTicket[]} */
+	const tickets = holders.map((h, i) => ({
+		ticketId: `local:${id}:${i}`,
+		orderId: `local:${id}`,
+		orderRef: 'Pendiente de sincronizar',
+		holder: h.name || buyer,
+		pronouns: h.pronouns ?? '',
+		type: type.name,
+		typeId: type.id,
+		buyer,
+		email: String(kept.email ?? ''),
+		dniTail: '',
+		code: '',
+		at: now,
+		by,
+		firstTime: null,
+		hash: '',
+		valid: true
+	}));
+	/** @type {QueuedSale} */
+	const sale = {
+		id,
+		at: now,
+		fields: kept,
+		buyer,
+		quantity,
+		type: type.name,
+		method,
+		total,
+		tickets
+	};
+	return {
+		sale,
+		state: { ...state, sales: [...state.sales, sale], list: [...state.list, ...tickets] }
+	};
+}
+
+/** @param {string} ticketId */
+export function isPendingSaleTicket(ticketId) {
+	return String(ticketId ?? '').startsWith('local:');
+}
+
+/**
+ * Lo que se le manda al servidor (`?/syncSales`), en el orden en que se vendió.
+ * @param {QueuedSale[]} sales
+ */
+export function salesPayload(sales) {
+	return [...sales].sort((a, b) => a.at - b.at).map(({ id, at, fields }) => ({ id, at, fields }));
+}
+
+/**
+ * Aplica la respuesta de `?/syncSales`: saca de la cola lo que el servidor procesó (registrada,
+ * o ya registrada antes: un reintento), saca sus entradas locales (la lista nueva del servidor
+ * trae las de verdad) y devuelve los avisos:
+ * - `warnings`: ventas registradas que pasaron un límite (quedan en «Para revisar»);
+ * - las que el servidor no pudo registrar pasan a `failed` (a la vista, no se borran solas).
+ *
+ * @param {DoorState} state
+ * @param {SaleSyncResult[]} results
+ * @returns {{ state: DoorState, done: number, warnings: { buyer: string, ref: string, review: string[] }[], rejected: FailedSale[] }}
+ */
+export function applySaleSyncResults(state, results) {
+	const byId = new Map(results.map((r) => [r.id, r]));
+	/** @type {{ buyer: string, ref: string, review: string[] }[]} */
+	const warnings = [];
+	/** @type {FailedSale[]} */
+	const rejected = [];
+	/** @type {Set<string>} */
+	const gone = new Set();
+	let done = 0;
+	const sales = state.sales.filter((s) => {
+		const r = byId.get(s.id);
+		if (!r) return true;
+		gone.add(`local:${s.id}`);
+		if (r.result === 'rejected') {
+			rejected.push({
+				id: s.id,
+				at: s.at,
+				buyer: s.buyer,
+				quantity: s.quantity,
+				type: s.type,
+				method: s.method,
+				total: s.total,
+				message: r.message || 'No se pudo registrar.'
+			});
+			return false;
+		}
+		done++;
+		if (r.review?.length)
+			warnings.push({ buyer: r.buyer || s.buyer, ref: r.ref ?? '', review: r.review });
+		return false;
+	});
+	return {
+		state: {
+			...state,
+			sales,
+			failed: [...state.failed, ...rejected],
+			list: state.list.filter((t) => !gone.has(t.orderId))
+		},
+		done,
+		warnings,
+		rejected
+	};
+}
+
+/**
+ * «Últimos escaneos» después de sincronizar ventas: las que decían «pendiente de sincronizar»
+ * pasan a «sincronizada».
+ * @param {RecentScan[]} recent
+ * @param {Iterable<string>} saleIds ids (del celu) de las ventas que el servidor ya registró
+ * @returns {RecentScan[]}
+ */
+export function markRecentSynced(recent, saleIds) {
+	const ids = new Set(saleIds);
+	return recent.map((r) => {
+		const id = r.ticketId && isPendingSaleTicket(r.ticketId) ? r.ticketId.split(':')[1] : '';
+		return id && ids.has(id) ? { ...r, sub: 'sincronizada' } : r;
+	});
 }

@@ -1,7 +1,8 @@
 # 0030. «Para revisar» cuenta cada fila; etiquetas, series y mails por evento se recuperan
 
 - Fecha: 2026-10-09
-- Estado: Aceptada. Completa 0010 (Inicio del panel). Lo que seguía permanente (preguntas de
+- Estado: Aceptada. Completa 0010 (Inicio del panel). La fila del importador de contenido la saca
+  [0032](0032-borrar-los-md.md) (ya no hay importador). Lo que seguía permanente (preguntas de
   inscripción, roles y notas internas) lo reemplaza 0033: ahora se recuperan.
 
 ## Contexto

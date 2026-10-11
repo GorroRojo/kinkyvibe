@@ -3,6 +3,7 @@
 	import { fetchAllPostsClient, relatedPostsFor } from '$lib/utils/allPosts';
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	import LDTag from '$lib/components/LDTag.svelte';
+	import { materialSchema } from '$lib/utils/jsonLd.js';
 	import Tags from '$lib/components/Tags.svelte';
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import PostList from '$lib/components/PostList.svelte';
@@ -14,6 +15,9 @@
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { argDateLong } from '$lib/utils/dates.js';
+	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { linkPreviewOf, materialDescription } from '$lib/utils/seo.js';
+	import { tagManager } from '$lib/utils/stores.js';
 	export let data;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
@@ -21,14 +25,6 @@
 	const STYLE_TAG = 'style';
 	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
-	/**@type {(s:string|number|Date)=>(string)}*/
-	let toISO = (s) => {
-		try {
-			return new Date(s).toISOString();
-		} catch (e) {
-			return s + '';
-		}
-	};
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
 	let loadedPast = false;
@@ -40,41 +36,12 @@
 	}
 </script>
 
-<LDTag
-	schema={{
-		'@context': 'https://schema.org',
-		'@type': 'NewsArticle',
-		headline: data.meta.title,
-		image: [data.meta.featured + ''],
-		datePublished: toISO(data.meta.published_date ?? ''),
-		dateModified: toISO(data.meta.updated_date ?? data.meta.published_date ?? ''),
-		author: data.meta.authors?.map((a) => ({
-			'@type': 'Person',
-			name: a,
-			url: 'https://kinkyvibe.ar/' + a
-		}))
-	}}
-/>
+<!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js). -->
+<LDTag schema={materialSchema(data.meta)} />
 <svelte:head>
 	<title>{data.meta.title} · Kinky Vibe</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
-
-	<meta property="og:url" content={$page.url.href} />
-
-	<meta property="og:title" content={data.meta.title} />
-	<meta name="twitter:title" content={data.meta.title} />
-
-	<meta name="description" content={data.meta.summary} />
-	<meta name="twitter:description" content={data.meta.summary} />
-	<meta property="og:description" content={data.meta.summary} />
-
-	<meta property="og:image" content={data.meta.featured + ''} />
-	<meta name="twitter:image" content={data.meta.featured + ''} />
-
-	<meta name="twitter:site" content="@kinkyvibearg" />
-	<meta name="twitter:card" content="summary_large_image" />
-	<meta property="og:type" content="article" />
 
 	<meta property="article:published_time" content={data.meta.published_date?.toString()} />
 	<meta property="article:modified_time" content={data.meta.updated_date?.toString()} />
@@ -82,9 +49,19 @@
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
+<!-- La vista previa al compartir (docs/compartir.md): «Guía descargable · resumen». -->
+<SeoHead
+	title={data.meta.title}
+	description={materialDescription(data.meta, $tagManager, linkPreviewOf($page.data).texts)}
+	image={data.meta.featured}
+	imageInfo={data.cover}
+	imageAlt={data.meta.title}
+	type="article"
+	noindex={Boolean(data.meta.force_unlisted || data.meta.force_unpublished)}
+/>
 <article class="h-entry">
 	<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
-	<h1 id="title p-name">{data.meta.title}</h1>
+	<h1 id="title" class="p-name">{data.meta.title}</h1>
 	{#if data.meta.authors && data.meta.authors.length > 0}
 		{@const authors = data.meta.authors}
 		<address>
@@ -139,23 +116,19 @@
 		</Note>
 	{/if}
 	<div class="content" use:addMentionPronouns={(name) => data.pronouns[name]}>
-		{#if data.html !== undefined}
-			<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML libre
-			     de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
-			<div class="kv-texto-libre">
+		<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML libre
+		     de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
+		<div class="kv-texto-libre">
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+			{@html ownStyle}
+			{#if data.parts}
+				<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
+				<ContentParts parts={data.parts} />
+			{:else}
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				{@html ownStyle}
-				{#if data.parts}
-					<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
-					<ContentParts parts={data.parts} />
-				{:else}
-					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-					{@html data.html}
-				{/if}
-			</div>
-		{:else}
-			<svelte:component this={data.content} />
-		{/if}
+				{@html data.html}
+			{/if}
+		</div>
 	</div>
 	{#if isKinkyVibePost(data.meta)}
 		<TipBlock category="material" slug={$page.params.post ?? ''} />
