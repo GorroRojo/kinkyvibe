@@ -9,13 +9,14 @@ import { isHttpError, isRedirect } from '@sveltejs/kit';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { applyPayment, reserveOrder } from '$lib/server/tickets/orders.js';
 import { runImport } from '$lib/server/contenido/importer.js';
+import { seedFiles } from '$lib/server/semilla/testing.js';
 import { setContentDB } from '$lib/server/contenido/repo.js';
 import { dateChangeOffer, recordDateChange } from '$lib/server/tickets/dateChange.js';
 import { actions } from './+page.server.js';
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
 
-// Evento de prueba del repo que vende entradas (solo en dev/tests, nunca en el sitio publicado).
+// Evento de prueba de la semilla que vende entradas (solo en dev/tests, nunca en el sitio publicado).
 const EVENT = 'prueba-entradas-2026-12';
 const ADMIN = { id: 4594048, login: 'GorroRojo', name: null, avatar_url: '' };
 const BEFORE = { start: '2026-12-05T21:00-03:00', end: '2026-12-06T02:00-03:00' };
@@ -29,21 +30,12 @@ beforeAll(async () => {
 afterAll(async () => {
 	await t?.dispose();
 });
-const source = {
-	raw: /** @type {Record<string, string>} */ (
-		import.meta.glob('/src/lib/posts/calendario/prueba-entradas-2026-12.md', {
-			query: '?raw',
-			import: 'default',
-			eager: true
-		})
-	)[`/src/lib/posts/calendario/${EVENT}.md`],
-	meta: /** @type {Record<string, any>} */ (
-		import.meta.glob('/src/lib/posts/calendario/prueba-entradas-2026-12.md', {
-			import: 'metadata',
-			eager: true
-		})
-	)[`/src/lib/posts/calendario/${EVENT}.md`]
-};
+// El evento de la semilla de contenido (antes, su .md del repo; decisión 0032).
+const source = (() => {
+	const f = seedFiles('calendario').find((x) => x.legacySlug === EVENT);
+	if (!f) throw new Error(`La semilla no tiene ${EVENT}`);
+	return { raw: f.raw, meta: f.meta ?? {} };
+})();
 
 beforeEach(async () => {
 	await resetDB(t.db);

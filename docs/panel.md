@@ -330,7 +330,7 @@ La paleta (`SearchBox.svelte`) junta **acciones** (en el navegador) y **registro
   orden), personas (a **su ficha**, `personHref`), perfiles (al editor), etiquetas (también por
   sus alias: `aka` o `{ id, aliasOf }` llevan a la etiqueta de verdad), entradas y códigos.
 - **Acciones**: cada sección del menú (`buildCommands`) más las de `paletteActions.js`: «Para
-  revisar», Nuevo material, Nuevo perfil, Importar perfiles, lugares y etiquetas (Importar
+  revisar», Nuevo material, Nuevo perfil, Clasificar perfiles, Importar lugares (Importar
   eventos es «Importar planilla»), Vincular lugares, «Nuevo código de descuento» (abre el
   formulario, `#nuevo`), «Cambiar tema» y «Ocultar/Mostrar lo que viene» (estas dos las cambia el
   layout, por eventos de `SearchBox`).
@@ -425,7 +425,7 @@ en la misma tanda que el borrado; «Recuperar» va por `undoDeletion` (también 
 
 | Qué                                     | Cómo se borra                                    | Fila (`path`)                     | En la lista             |
 | --------------------------------------- | ------------------------------------------------ | --------------------------------- | ----------------------- |
-| Eventos y material                      | por el cliente del repo (la base)                | `src/lib/posts/<tipo>/<slug>.md`  | Evento, Material        |
+| Eventos y material                      | por el cliente del repo (la base)                | `src/lib/posts/<tipo>/<slug>.md`¹ | Evento, Material        |
 | Perfiles                                | borrado suave del objeto                         | `objeto:perfil:<id>`              | Amigues                 |
 | Imágenes y archivos de la biblioteca    | borrado suave del objeto                         | `objeto:imagen:<id>`, `…archivo…` | Biblioteca · …          |
 | Etiquetas y series (también los alias)  | borrado suave (Etiquetas: sacar un alias…)       | `objeto:etiqueta:<id>`, `…serie…` | Etiqueta, Serie         |
@@ -433,6 +433,8 @@ en la misma tanda que el borrado; «Recuperar» va por `undoDeletion` (también 
 | Preguntas de inscripción                | borrado suave (`deleted_at`, 0049)               | `pregunta:<id>`                   | Pregunta de inscripción |
 | Roles agregados desde el panel          | borrado suave (`deleted_at`, 0049)               | `rol:<nombre>`                    | Rol                     |
 | Notas internas de una persona           | borrado suave (`deleted_at`, 0049)               | `nota:<id>`                       | Nota interna            |
+
+¹ Es solo el nombre de la fila (la forma de siempre): esos archivos ya no están en el repo (0032).
 
 Decisión 0030: las etiquetas, las series y los mails por evento se recuperan. Una etiqueta vuelve
 con sus datos y sus relaciones (nunca se fueron); si mientras tanto se creó otra con el mismo

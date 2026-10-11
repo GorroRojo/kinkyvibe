@@ -15,7 +15,7 @@ export async function load({ params, platform, locals, setHeaders }) {
 	const found = await siteContent(platform, 'material', params.post, { viewer: viewerFor(locals) });
 	if (!found) error(404, 'Not found');
 	if (found.meta.force_unpublished) setHeaders({ 'cache-control': 'private, no-store' });
-	const { html, css, component, parts, ...post } = found;
+	const { html, css, parts, ...post } = found;
 	if (post.meta?.redirect) {
 		redirect(307, post.meta.link);
 	}
@@ -29,7 +29,6 @@ export async function load({ params, platform, locals, setHeaders }) {
 		...post,
 		html,
 		css,
-		component,
 		parts: parts ?? null,
 		...related,
 		// «Comprar entradas» / «Agotadas» en las tarjetas de "Más cosas de…".

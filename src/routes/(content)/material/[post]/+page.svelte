@@ -3,6 +3,7 @@
 	import { fetchAllPostsClient, relatedPostsFor } from '$lib/utils/allPosts';
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	import LDTag from '$lib/components/LDTag.svelte';
+	import { materialSchema } from '$lib/utils/jsonLd.js';
 	import Tags from '$lib/components/Tags.svelte';
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import PostList from '$lib/components/PostList.svelte';
@@ -24,14 +25,6 @@
 	const STYLE_TAG = 'style';
 	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
-	/**@type {(s:string|number|Date)=>(string)}*/
-	let toISO = (s) => {
-		try {
-			return new Date(s).toISOString();
-		} catch (e) {
-			return s + '';
-		}
-	};
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
 	let loadedPast = false;
@@ -43,21 +36,8 @@
 	}
 </script>
 
-<LDTag
-	schema={{
-		'@context': 'https://schema.org',
-		'@type': 'NewsArticle',
-		headline: data.meta.title,
-		image: [data.meta.featured + ''],
-		datePublished: toISO(data.meta.published_date ?? ''),
-		dateModified: toISO(data.meta.updated_date ?? data.meta.published_date ?? ''),
-		author: data.meta.authors?.map((a) => ({
-			'@type': 'Person',
-			name: a,
-			url: 'https://kinkyvibe.ar/' + a
-		}))
-	}}
-/>
+<!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js). -->
+<LDTag schema={materialSchema(data.meta)} />
 <svelte:head>
 	<title>{data.meta.title} · Kinky Vibe</title>
 	<link rel="icon" href="/favicon-32x32.png" />
@@ -81,7 +61,7 @@
 />
 <article class="h-entry">
 	<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
-	<h1 id="title p-name">{data.meta.title}</h1>
+	<h1 id="title" class="p-name">{data.meta.title}</h1>
 	{#if data.meta.authors && data.meta.authors.length > 0}
 		{@const authors = data.meta.authors}
 		<address>
@@ -136,23 +116,19 @@
 		</Note>
 	{/if}
 	<div class="content" use:addMentionPronouns={(name) => data.pronouns[name]}>
-		{#if data.html !== undefined}
-			<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML libre
-			     de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
-			<div class="kv-texto-libre">
+		<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML libre
+		     de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
+		<div class="kv-texto-libre">
+			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+			{@html ownStyle}
+			{#if data.parts}
+				<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
+				<ContentParts parts={data.parts} />
+			{:else}
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				{@html ownStyle}
-				{#if data.parts}
-					<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
-					<ContentParts parts={data.parts} />
-				{:else}
-					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-					{@html data.html}
-				{/if}
-			</div>
-		{:else}
-			<svelte:component this={data.content} />
-		{/if}
+				{@html data.html}
+			{/if}
+		</div>
 	</div>
 	{#if isKinkyVibePost(data.meta)}
 		<TipBlock category="material" slug={$page.params.post ?? ''} />

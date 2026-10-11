@@ -32,7 +32,12 @@
 	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { computePrice, defaultFondoOption } from '$lib/utils/tickets.js';
-	import { doorOptionLabel, doorSaleBreakdown } from '$lib/admin/doorSale.js';
+	import {
+		DOOR_SALE_DEFAULT_METHOD,
+		doorOptionLabel,
+		doorSaleBreakdown,
+		resetDoorSaleForm
+	} from '$lib/admin/doorSale.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import { entradas } from '$lib/utils/plural.js';
 	import {
@@ -684,7 +689,7 @@
 	let saleType =
 		data.types.find((t) => t.available === null || t.available > 0)?.id ?? data.types[0]?.id ?? '';
 	let saleQty = 1;
-	let saleMethod = 'efectivo';
+	let saleMethod = DOOR_SALE_DEFAULT_METHOD;
 	let saleOption = '';
 	let saleAmount = '';
 	let saleBusy = false;
@@ -823,7 +828,7 @@
 			if (r.type === 'success' && r.data?.sale?.ok) {
 				const sale = r.data.sale;
 				saleOpen = false;
-				formEl.reset();
+				saleMethod = resetDoorSaleForm(formEl);
 				saleQty = 1;
 				saleEmail = '';
 				show({

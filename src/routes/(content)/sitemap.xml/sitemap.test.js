@@ -54,6 +54,19 @@ describe('sitemap helpers', () => {
 	});
 });
 
+test('render deja afuera las publicaciones que redirigen a otro sitio', () => {
+	const xml = render(
+		[],
+		[
+			post('/material/guia', {}),
+			post('/material/en-la-tienda', { redirect: true, link: 'https://example.com/tienda' })
+		],
+		[]
+	);
+	expect(xml).toContain('<loc>https://kinkyvibe.ar/material/guia</loc>');
+	expect(xml).not.toContain('en-la-tienda');
+});
+
 describe('GET /sitemap.xml', () => {
 	test('lista los posts y las entradas de la Kinkipedia', async () => {
 		const res = await GET(/** @type {any} */ ({}));

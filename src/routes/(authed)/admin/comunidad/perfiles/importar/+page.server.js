@@ -1,16 +1,14 @@
 /**
- * Perfiles → Importar y clasificar: pasa las fichas .md de este deploy a perfiles en
- * la base de este entorno (preview o producción) y muestra la lista de revisión de la
- * clasificación (persona, proyecto o lugar, "a confirmar"). Es la forma de correr la importación en
- * las bases remotas: idempotente, se puede repetir (ver src/lib/server/amigues/importer.js).
+ * Perfiles → Clasificar: la lista de revisión de la clasificación de los perfiles que vinieron de
+ * las fichas .md (persona, proyecto o lugar, "a confirmar"). La importación de las fichas ya no
+ * existe (decisión 0032: no quedan .md). La dirección sigue siendo /importar para no romper links.
  * Solo admins; queda en el registro.
  */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { logAdminAction } from '$lib/server/admin/audit.js';
-import { importAmigues, summarizeImport } from '$lib/server/amigues/importer.js';
-import { bundledAmigueFiles, classificationRows } from '$lib/server/amigues/review.js';
+import { classificationRows } from '$lib/server/amigues/review.js';
 import {
 	confirmKind,
 	loadEditableProfile,
@@ -22,17 +20,11 @@ import { getObject } from '$lib/server/objects/index.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
-	const admin = requireAdmin(locals, url);
+	requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
-	const preview = await importAmigues(db, await bundledAmigueFiles(), {
-		actor: admin.login,
-		dryRun: true
-	});
 	return {
-		preview,
-		summary: summarizeImport(preview),
 		rows: await classificationRows(db),
 		kinds: EDITOR_KINDS
 	};
@@ -40,29 +32,6 @@ export async function load({ locals, url, platform, setHeaders }) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	importar: async ({ locals, url, platform }) => {
-		const admin = requireAdmin(locals, url);
-		const db = getDB(platform);
-		if (!db) return fail(503, { importResult: null, error: 'Sin base de datos.' });
-		const results = await importAmigues(db, await bundledAmigueFiles(), { actor: admin.login });
-		const summary = summarizeImport(results);
-		await logAdminAction(db, locals, {
-			action: 'amigues.import',
-			targetType: 'settings',
-			targetId: 'amigues',
-			summary: `Importó las fichas de amigues: ${summary.created} nuevas, ${summary.updated} actualizadas, ${summary.unchanged} sin cambios`,
-			detail: summary
-		});
-		return {
-			importResult: {
-				summary,
-				problems: results
-					.filter((r) => r.action === 'error' || r.action.startsWith('skipped'))
-					.map((r) => ({ legacySlug: r.legacySlug, action: r.action, message: r.message ?? '' }))
-			}
-		};
-	},
-
 	// Confirma el tipo de una ficha (y, si se eligió otro, lo cambia con saveObject()).
 	confirmar: async ({ locals, url, platform, request }) => {
 		const admin = requireAdmin(locals, url);

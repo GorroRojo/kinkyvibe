@@ -2,22 +2,39 @@
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	let mayorDeEdad = true;
+	// localStorage puede tirar error (modo privado, datos bloqueados): entonces se pregunta igual,
+	// solo que la respuesta no se recuerda.
+	function savedAnswer() {
+		try {
+			return localStorage.getItem('mayorDeEdad') === 'true';
+		} catch {
+			return false;
+		}
+	}
+	/** @param {boolean} value */
+	function saveAnswer(value) {
+		try {
+			localStorage.setItem('mayorDeEdad', '' + value);
+		} catch {
+			// sin almacenamiento: no se recuerda
+		}
+	}
 	onMount(() => {
-		mayorDeEdad = localStorage.getItem('mayorDeEdad') === 'true';
-		localStorage.setItem('mayorDeEdad', '' + mayorDeEdad);
+		mayorDeEdad = savedAnswer();
+		saveAnswer(mayorDeEdad);
 	});
 </script>
 
 {#if !mayorDeEdad}
 	<div class="background" transition:fade>
-		<div class="content box">
-			<h2>¿Sos mayor de 18 años?</h2>
+		<div class="content box" role="dialog" aria-modal="true" aria-labelledby="age-modal-title">
+			<h2 id="age-modal-title">¿Sos mayor de 18 años?</h2>
 			<div class="button-group">
 				<button
 					class="button tap-target"
 					on:click={() => {
 						mayorDeEdad = true;
-						localStorage.setItem('mayorDeEdad', '' + mayorDeEdad);
+						saveAnswer(true);
 					}}>Sí</button
 				>
 				<a class="button tap-target" href="https://instagram.com/kinkyvibeargentina">No</a>

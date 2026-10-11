@@ -8,6 +8,7 @@
 	import { ArrowRight, Globe } from '@lucide/svelte';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
+	import FeedLinks from '$lib/components/FeedLinks.svelte';
 
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
 </script>
@@ -19,6 +20,7 @@
 <ListSeoHead section="material" card="material" />
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Artículos, links y descargables</h1>
+<FeedLinks base="/material" title="Material · Kinky Vibe" />
 <div class="glosario">
 	<p>
 		¡Bienvenide! Si estás empezando, podés filtrar acá el material <InlineTag tag="inicial" /> sobre

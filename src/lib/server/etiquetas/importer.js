@@ -1,7 +1,7 @@
 /**
- * Importación de las etiquetas (src/lib/utils/hardcodedTags.js + los textos de la wiki,
- * src/lib/posts/wiki/*.md) a objetos `etiqueta` en la base. Mismo patrón que el importador de
- * amigues (src/lib/server/amigues/importer.js):
+ * Carga de un árbol de etiquetas (con la forma del viejo archivo de etiquetas) y los textos de la
+ * wiki a objetos `etiqueta` en la base. Mismo patrón que el importador de amigues
+ * (src/lib/server/amigues/importer.js):
  *
  * - Escribe SOLO con saveObject(); la tabla de apoyo `tag_sources` (migración 0029) va en la
  *   misma tanda (opción `also`).
@@ -17,8 +17,9 @@
  * - `budget`: cuántas escrituras hace como mucho en una corrida (el panel corre por tandas para no
  *   pasarse del límite de consultas de un Worker; vuelve a correr y sigue donde quedó).
  *
- * Corre en el Worker (Panel → Etiquetas → Importar), en `scripts/import-tags.js` (base local) y
- * en las pruebas. Solo imports relativos.
+ * Hoy solo carga la semilla de contenido de las bases locales (src/lib/server/semilla,
+ * `npm run db:semilla`) y lo usan las pruebas: el archivo de etiquetas y los .md de la wiki ya no
+ * están en el repo (decisión 0032). Solo imports relativos.
  */
 import { ObjectError } from '../objects/errors.js';
 import { saveObject, slugify } from '../objects/save.js';

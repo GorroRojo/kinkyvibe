@@ -12,7 +12,7 @@
  * - `reloadDemoData` (POST /api/preview-seed, botón «Recargar datos de prueba» del aviso del modo
  *   demo): borra los datos de prueba anteriores y vuelve a cargar todo con `now = Date.now()`.
  *   Solo se importa dentro de `if (PREVIEW_BUILD)`: no existe en el bundle de producción.
- * - `scripts/demo/seed.js` (CLI): el mismo SQL a un archivo, y los .md de los eventos. El SQL no
+ * - `scripts/demo/seed.js` (CLI): el mismo SQL a un archivo. El SQL no
  *   trae los eventos: son objetos (solo se escriben con saveObject(), ./seedEvents.js), así que
  *   los carga solo `reloadDemoData`.
  *
@@ -25,7 +25,7 @@
  * rama, que no puede ser `main` ni vacía) o la base local. Si no, no toca nada.
  *
  * Qué es "de prueba" (y lo único que se borra al recargar): los eventos con slug `demo-*` y todo
- * lo que cuelga de ellos (órdenes, entradas, envíos, avisos, archivos de la capa demo), más las
+ * lo que cuelga de ellos (órdenes, entradas, envíos, avisos), más las
  * filas marcadas como del seed (`SEED_BY`, `SEED_DETAIL`) y la "última visita" del admin de
  * prueba.
  *
@@ -41,7 +41,6 @@
  * Para agregar una tabla: sumar una sección a SECTIONS (reset = cómo borrar SOLO lo del seed,
  * rows = los INSERT; `optional` = la tabla viene de una migración que puede no estar).
  */
-import { DEMO_FILES_SQL } from './overlay.js';
 import { DEMO_ACCOUNTS, DEMO_VENUES, ensureDemoProfiles } from './seedProfiles.js';
 import { saveDemoEvents } from './seedEvents.js';
 import { loadRealEventCopies } from './realEvents.js';
@@ -54,8 +53,6 @@ export const SEED_DETAIL = '{"datos_de_prueba":true}';
 /** Marca en el frontmatter de los eventos que genera el seed. */
 export const EVENT_MARKER =
 	'# generado por scripts/demo/seed.js (datos de prueba, no es un evento real)';
-/** Carpeta de los eventos (paths de la capa demo, relativos a la raíz del repo). */
-export const EVENTS_PATH = 'src/lib/posts/calendario';
 /**
  * Noche 3: los interruptores que la demo prende en cada recarga (src/lib/server/flags.js). En la
  * base del preview, nunca en producción; los valores por defecto del código no cambian.
@@ -1286,18 +1283,6 @@ function personaPurchaseRows(d) {
  */
 export const SECTIONS = [
 	{
-		table: 'demo_files',
-		// La capa del modo demo (no es migración). Los eventos de prueba antes se guardaban acá como
-		// .md; desde «solo base» son objetos (./seedEvents.js) y el sitio ya no lee esos .md. Acá solo
-		// se borran las filas que dejaron los seeds anteriores (y lo que se guardó en la demo sobre
-		// eventos de prueba); lo demás que se editó en la demo queda.
-		reset: [
-			DEMO_FILES_SQL.replace(/\s+/g, ' ') + ';',
-			`DELETE FROM demo_files WHERE path LIKE ${sql(`${EVENTS_PATH}/demo-%`)} OR path LIKE ${sql(`${EVENTS_PATH}/media/demo-%`)};`
-		],
-		rows: () => []
-	},
-	{
 		table: 'ticket_settings',
 		reset: [`DELETE FROM ticket_settings WHERE updated_by = ${sql(SEED_BY)};`],
 		rows: (d) =>
@@ -1699,7 +1684,7 @@ export function activeSections(tables) {
 	return SECTIONS.filter((s) => {
 		const needed = s.requires ?? [s.table];
 		if (!tables) return !s.optional;
-		const missing = needed.filter((t) => t !== 'demo_files' && !tables.has(t));
+		const missing = needed.filter((t) => !tables.has(t));
 		if (missing.length && !s.optional)
 			throw new Error(`Faltan tablas en la base (¿migraciones?): ${missing.join(', ')}`);
 		return !missing.length;

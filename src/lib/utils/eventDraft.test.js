@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
+import { seedFiles, seedRaw } from '$lib/server/semilla/testing.js';
 import { parseDocument } from 'yaml';
 import {
 	splitMarkdown,
@@ -30,9 +31,8 @@ import {
 	NEW_EVENT_TEMPLATE
 } from './eventDraft.js';
 
-/** @param {string} slug */
-const post = (slug) =>
-	readFileSync(new URL(`../posts/calendario/${slug}.md`, import.meta.url), 'utf8');
+/** El texto real de un evento (de la semilla de contenido: los .md ya no están, decisión 0032). */
+const post = (/** @type {string} */ slug) => seedRaw('calendario', slug);
 
 /** @param {string} md */
 const meta = (md) => parseDocument(splitMarkdown(md).frontmatter).toJS();
@@ -56,8 +56,8 @@ describe('splitMarkdown / joinMarkdown', () => {
 	});
 	it('rejects files without frontmatter', () => {
 		expect(() => splitMarkdown('# hola')).toThrow();
-		// real broken file in the repo (whole file indented by two spaces)
-		expect(() => splitMarkdown(post('taller-shibari-intensivo-2024-02'))).toThrow();
+		// como el único .md roto que tenía el repo: todo el archivo corrido dos espacios
+		expect(() => splitMarkdown('  ---\n  title: Roto\n  ---\n  Texto\n')).toThrow();
 	});
 });
 
@@ -178,10 +178,8 @@ describe('slugs', () => {
 		for (const p of pages) expect(RESERVED_EVENT_SLUGS).toContain(p);
 	});
 	it('no existing event uses a reserved slug', () => {
-		const dir = new URL('../posts/calendario/', import.meta.url);
-		const slugs = readdirSync(dir)
-			.filter((f) => f.endsWith('.md'))
-			.map((f) => f.slice(0, -3));
+		const slugs = seedFiles('calendario').map((f) => f.legacySlug);
+		expect(slugs.length).toBeGreaterThan(500);
 		for (const s of RESERVED_EVENT_SLUGS) expect(slugs).not.toContain(s);
 	});
 });
