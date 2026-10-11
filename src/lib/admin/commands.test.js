@@ -192,13 +192,14 @@ describe('atajos g + letra', () => {
 		expect(shortcutOf('ajustes-mails')).toBe('');
 	});
 	it('cada atajo va a una sección construida que está en el menú, en el orden del menú', () => {
+		// La única excepción: `g n` («Cargar evento»), una acción que salió del menú (decisión 0038).
 		const order = NAV.map((i) => i.id);
 		const idx = GO_SHORTCUTS.map((s) => order.indexOf(s.id));
 		expect(idx).toEqual([...idx].sort((x, y) => x - y));
 		for (const s of GO_SHORTCUTS) {
 			const item = navItem(s.id);
 			expect(item?.soon, s.id).toBe(false);
-			expect(item?.menu, s.id).not.toBe(false);
+			if (s.id !== 'eventos-nuevo') expect(item?.menu, s.id).not.toBe(false);
 			expect(item && navLink(item), s.id).toBeTruthy();
 		}
 	});
