@@ -38,7 +38,8 @@ import { venuePageLevel, venueView } from '$lib/utils/venues.js';
  * Un perfil de la base como lo devuelve `listPublicProfiles` (el objeto ya filtrado para el
  * público) con la dirección vieja de su ficha, si la tenía.
  * @typedef {{
- *   object: { slug: string, title: string, visibility?: string, data: Record<string, any> },
+ *   object: { id?: number, slug: string, title: string, visibility?: string,
+ *     data: Record<string, any> },
  *   legacySlug: string | null
  * }} IndexProfile
  */

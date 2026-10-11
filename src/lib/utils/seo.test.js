@@ -28,6 +28,8 @@ import {
 	upcomingDescription,
 	previewImage,
 	resizedImageUrl,
+	thumbnailUrl,
+	THUMB_RESIZE,
 	resizedSize,
 	seoTags,
 	shortText,
@@ -265,6 +267,37 @@ const TAGS = tagsFactory(
 const KINDS = { persona: 'Personas', proyecto: 'Proyectos', lugar: 'Lugares' };
 /** @param {string} search */
 const at = (search) => new URL('https://sitio.test/amigues' + search);
+
+describe('thumbnailUrl: la miniatura del recuadro «Hoy» del panel', () => {
+	const cover = `/media/img/${'c'.repeat(64)}.webp`;
+
+	it('en producción, una portada de la biblioteca va achicada a un cuadrado de 128 px', () => {
+		const url = thumbnailUrl(cover, 'kinkyvibe.ar');
+		expect(url).toBe(
+			`/cdn-cgi/image/width=128,height=128,fit=cover,format=auto,quality=80,onerror=redirect${cover}`
+		);
+		expect(url.startsWith(`/cdn-cgi/image/${THUMB_RESIZE.options}/media/img/`)).toBe(true);
+		expect(THUMB_RESIZE.size).toBe(128);
+	});
+
+	it('en un preview o en local, la portada tal cual (esos sitios no tienen transformaciones)', () => {
+		expect(thumbnailUrl(cover, 'claude-algo-kinkyvibe.gorro-rojo.workers.dev')).toBe(cover);
+		expect(thumbnailUrl(cover, 'localhost')).toBe(cover);
+	});
+
+	it('una imagen que no es de la biblioteca del sitio va tal cual, también en producción', () => {
+		const legacy = '/_app/immutable/assets/fiesta.abc123.webp';
+		const remote = `https://kinkyvibe.ar/media/img/${'c'.repeat(64)}.webp`;
+		expect(thumbnailUrl(legacy, 'kinkyvibe.ar')).toBe(legacy);
+		expect(thumbnailUrl(remote, 'kinkyvibe.ar')).toBe(remote);
+	});
+
+	it('sin portada, nada', () => {
+		expect(thumbnailUrl('', 'kinkyvibe.ar')).toBe('');
+		expect(thumbnailUrl(undefined, 'kinkyvibe.ar')).toBe('');
+		expect(thumbnailUrl(null, 'localhost')).toBe('');
+	});
+});
 
 describe('listFilters', () => {
 	it('sin filtros', () => {

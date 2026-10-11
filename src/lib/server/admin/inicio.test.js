@@ -499,6 +499,30 @@ describe('upcomingEvents y reviewItems', () => {
 		expect(upcoming[2]).toMatchObject({ draft: true, ticketed: false, capacity: 0 });
 	});
 
+	it('la portada de cada evento (para la miniatura de «Hoy»); sin portada, vacía', () => {
+		expect(upcoming.map((e) => [e.slug, e.thumb])).toEqual([
+			['hoy', 'x.jpg'],
+			['online', ''],
+			['borrador', '']
+		]);
+		expect(upcoming[0].hasImage).toBe(true);
+		// Varios eventos hoy: cada uno con la suya.
+		const today = upcomingEvents({
+			events: [
+				events[1],
+				{ ...events[1], slug: 'hoy-sin', title: 'Hoy sin portada', thumb: undefined },
+				{ ...events[1], slug: 'hoy-otra', title: 'Hoy con otra', thumb: 'y.webp' }
+			],
+			ticketed: new Map(),
+			now: NOW
+		}).filter((e) => e.today);
+		expect(today.map((e) => [e.slug, e.thumb, e.hasImage])).toEqual([
+			['hoy', 'x.jpg', true],
+			['hoy-otra', 'y.webp', true],
+			['hoy-sin', '', false]
+		]);
+	});
+
 	it('un tipo sin cupo (capacity null): el evento no tiene cupo total y ese tipo no se pasa', () => {
 		const [e] = upcomingEvents({
 			events: [events[1]],
