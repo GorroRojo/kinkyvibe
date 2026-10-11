@@ -18,6 +18,7 @@
  * `fallback` dice qué probar una sola vez; en un grupo, lo más privado posible: contestar el botón
  * con el link al chat privado con el bot.
  */
+import { botText } from './texts.js';
 
 /** @typedef {import('./screens.js').Screen} Screen */
 /** @typedef {{ method: string } & Record<string, any>} BotMethod */
@@ -117,8 +118,8 @@ const withPhoto = (screen, group, media) => Boolean(screen.photo && media && !gr
  */
 const privateFallback = (privateLink) =>
 	privateLink
-		? { text: 'Abrí el bot por privado para ver esto.', url: privateLink }
-		: { text: 'Escribile al bot por privado para ver esto.' };
+		? { text: botText('errores.grupo_link'), url: privateLink }
+		: { text: botText('errores.grupo') };
 
 /**
  * El plan para mostrar una pantalla.

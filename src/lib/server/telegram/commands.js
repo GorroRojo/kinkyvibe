@@ -5,9 +5,15 @@
  * Un test (`commands.test.js`) chequea que no se separen.
  *
  * Las descripciones las muestra Telegram en el menú «/»: hasta 256 caracteres, en el español del
- * sitio. Los comandos: minúsculas, números y `_`, hasta 32.
+ * sitio. Los comandos: minúsculas, números y `_`, hasta 32. Las descripciones se cambian en el
+ * panel («Textos del bot», claves `comandos.<comando>`): lo que se registra es lo cambiado (y por
+ * eso cambia el hash del registro automático, commandsSync.js); acá quedan los originales.
  */
+import { renderBotText } from '$lib/utils/botTexts.js';
 import { callTelegramApi } from './send.js';
+
+/** @param {string} command */
+const original = (command) => renderBotText(`comandos.${command}`);
 
 /**
  * `is_ephemeral` (Bot API 10.2): en los grupos, el comando y la respuesta los ve solo quien lo
@@ -17,25 +23,20 @@ import { callTelegramApi } from './send.js';
  */
 
 /** Los de todes (grupos y chats privados). @type {readonly BotCommand[]} */
-export const PUBLIC_COMMANDS = Object.freeze([
-	{ command: 'proximos', description: 'Los próximos eventos públicos' },
-	{ command: 'hoy', description: 'Los eventos de hoy' },
-	{ command: 'semana', description: 'Lo que hay en los próximos 7 días' },
-	{ command: 'finde', description: 'Lo que hay este fin de semana' },
-	{ command: 'evento', description: 'Buscá un evento por nombre, fecha o lugar' },
-	{ command: 'buscar', description: 'Escribí lo que buscás y te muestro los eventos' },
-	{ command: 'fondo', description: 'Cuánto juntó el Fondo Kinky Vibe este mes' },
-	{ command: 'ayuda', description: 'Qué podés pedirme' }
-]);
+export const PUBLIC_COMMANDS = Object.freeze(
+	['proximos', 'hoy', 'semana', 'finde', 'evento', 'buscar', 'fondo', 'ayuda'].map((command) => ({
+		command,
+		description: original(command)
+	}))
+);
 
 /** Los de la cuenta (fase 2): solo por chat privado y con «Lo que sigo». @type {readonly BotCommand[]} */
-export const ACCOUNT_COMMANDS = Object.freeze([
-	{ command: 'vincular', description: 'Conectá tu cuenta (código de Mi rincón)' },
-	{ command: 'sigo', description: 'Lo que seguís en Lo que sigo' },
-	{ command: 'silenciar', description: 'Pausá tus avisos por Telegram' },
-	{ command: 'reanudar', description: 'Volvé a recibir tus avisos' },
-	{ command: 'desvincular', description: 'Desconectá este chat de tu cuenta' }
-]);
+export const ACCOUNT_COMMANDS = Object.freeze(
+	['vincular', 'sigo', 'silenciar', 'reanudar', 'desvincular'].map((command) => ({
+		command,
+		description: original(command)
+	}))
+);
 
 /**
  * Los que el router entiende pero no van en el menú: `/start` (lo manda Telegram al abrir el bot y
@@ -75,15 +76,20 @@ export const HANDLED_COMMANDS = new Set([
  * Se mandan siempre los tres, también sin los de la cuenta, para que pisar lo registrado antes sea
  * idempotente. Sin `language_code`: valen para cualquier idioma.
  *
- * @param {{ accounts: boolean }} opts
+ * @param {{ accounts: boolean, texts?: import('$lib/utils/botTexts.js').BotTexts | null }} opts
+ *   `texts`: los textos cambiados en el panel (las descripciones `comandos.<comando>`)
  * @returns {SetMyCommandsPayload[]}
  */
-export function commandPayloads({ accounts }) {
-	const copy = (/** @type {readonly BotCommand[]} */ list) => list.map((c) => ({ ...c }));
+export function commandPayloads({ accounts, texts = null }) {
+	const copy = (/** @type {readonly BotCommand[]} */ list) =>
+		list.map((c) => ({
+			...c,
+			description: renderBotText(`comandos.${c.command}`, {}, texts)
+		}));
 	return [
 		{ commands: copy(PUBLIC_COMMANDS), scope: { type: 'default' } },
 		{
-			commands: PUBLIC_COMMANDS.map((c) => ({ ...c, is_ephemeral: true })),
+			commands: copy(PUBLIC_COMMANDS).map((c) => ({ ...c, is_ephemeral: true })),
 			scope: { type: 'all_group_chats' }
 		},
 		{
@@ -116,15 +122,17 @@ export const SCOPE_LABELS = Object.freeze({
  * llamada reemplaza la lista de ese alcance. Sin token no hace nada. Los errores nunca traen el
  * token (ver `callTelegramApi`).
  *
- * @param {{ token: string | undefined, accounts: boolean, fetch?: typeof fetch }} input
+ * @param {{ token: string | undefined, accounts: boolean, fetch?: typeof fetch,
+ *   texts?: import('$lib/utils/botTexts.js').BotTexts | null }} input `texts`: los textos
+ *   cambiados en el panel (las descripciones)
  * @returns {Promise<SetCommandsResult>}
  */
-export async function registerBotCommands({ token, accounts, fetch: fetchFn }) {
+export async function registerBotCommands({ token, accounts, fetch: fetchFn, texts = null }) {
 	const clean = String(token ?? '').trim();
 	if (!clean) return { ok: false, reason: 'no_token' };
 	/** @type {ScopeResult[]} */
 	const results = [];
-	for (const payload of commandPayloads({ accounts })) {
+	for (const payload of commandPayloads({ accounts, texts })) {
 		const r = await callTelegramApi({
 			token: clean,
 			method: 'setMyCommands',

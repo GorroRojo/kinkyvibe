@@ -7,11 +7,14 @@
  * Reglas:
  * - nada personal fuera del chat privado (lo que necesita cuenta lo arma quien llama, solo ahí);
  * - un botón con link solo si el sitio es https (Telegram rechaza los otros);
- * - todo en español rioplatense con el lenguaje inclusivo del sitio.
+ * - todo en español rioplatense con el lenguaje inclusivo del sitio;
+ * - las palabras salen de «Textos del bot» (`botText`, editables en el panel): acá solo se arman.
  */
 import { escapeHtml, eventUrl, formatWhen, WINDOW_TEXTS, formatHelp } from './format.js';
 import { truncate } from './keyboards.js';
 import { encodeNav, navId, startLink } from './nav.js';
+import { botText } from './texts.js';
+import { renderBotText, telegramHtmlToPlain } from '$lib/utils/botTexts.js';
 import { formatARS } from '$lib/utils/money.js';
 
 /** @typedef {import('./format.js').BotEvent} BotEvent */
@@ -62,23 +65,29 @@ export const PAGE_SIZE = 5;
 /** Telegram corta los pies de foto de más de 1024 caracteres. */
 export const CAPTION_MAX = 1024;
 
-/** Títulos de cada lista. */
+/** La clave de «Textos del bot» de cada lista (`eventos.titulo_<…>` y `eventos.vacio_<…>`). */
+const LIST_TEXT = Object.freeze({ d: 'hoy', w: 'semana', f: 'finde', p: 'proximos' });
+
+/** Títulos de cada lista (los originales; las pantallas usan los de este pedido). */
 export const LIST_TITLES = Object.freeze({
 	d: WINDOW_TEXTS.hoy.title,
 	w: WINDOW_TEXTS.semana.title,
 	f: WINDOW_TEXTS.finde.title,
-	p: 'Próximos eventos'
+	p: renderBotText('eventos.titulo_proximos')
 });
 
 /** @param {string} origin */
 export const isHttps = (origin) => origin.startsWith('https://');
 
 /** @returns {Button} */
-const homeButton = () => ({ text: '🏠 Inicio', callback_data: encodeNav({ screen: 'home' }) });
+const homeButton = () => ({
+	text: botText('inicio.boton_inicio'),
+	callback_data: encodeNav({ screen: 'home' })
+});
 
 /** @param {ListView} view @param {number} page */
 const backToList = (view, page) => ({
-	text: '‹ Volver',
+	text: botText('inicio.boton_volver'),
 	callback_data: encodeNav({ screen: 'list', view, page })
 });
 
@@ -101,10 +110,8 @@ export function tgTime(iso, now) {
 // Inicio
 // ---------------------------------------------------------------------------------------------
 
-export const HOME_TEXT =
-	'<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\n' +
-	'Podés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando ' +
-	'(/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.';
+/** El mensaje de inicio original (la pantalla usa el de este pedido). */
+export const HOME_TEXT = renderBotText('inicio.texto');
 
 /**
  * «⭐ Lo que sigo» en el inicio, solo con «Lo que sigo» prendido: en privado abre la pantalla; en
@@ -116,10 +123,10 @@ export const HOME_TEXT =
 function sigoButton(ctx) {
 	if (!ctx.sigo) return [];
 	if (ctx.chat === 'private') {
-		return [{ text: '⭐ Lo que sigo', callback_data: encodeNav({ screen: 'sigo' }) }];
+		return [{ text: botText('inicio.boton_sigo'), callback_data: encodeNav({ screen: 'sigo' }) }];
 	}
 	const link = startLink(ctx.botUsername, 'sigo');
-	return link ? [{ text: '⭐ Lo que sigo ↗', url: link }] : [];
+	return link ? [{ text: `${botText('inicio.boton_sigo')} ↗`, url: link }] : [];
 }
 
 /**
@@ -137,11 +144,18 @@ export function homeScreen(ctx) {
 	});
 	/** @type {Button[][]} */
 	const rows = [
-		[list('d', 'Hoy'), list('w', 'Semana'), list('f', 'Finde')],
-		[{ text: '🔎 Buscar', callback_data: encodeNav({ screen: 'search' }) }, ...sigoButton(ctx)],
 		[
-			{ text: '💗 Fondo', callback_data: encodeNav({ screen: 'fondo' }) },
-			{ text: '❓ Ayuda', callback_data: encodeNav({ screen: 'help' }) }
+			list('d', botText('inicio.boton_hoy')),
+			list('w', botText('inicio.boton_semana')),
+			list('f', botText('inicio.boton_finde'))
+		],
+		[
+			{ text: botText('inicio.boton_buscar'), callback_data: encodeNav({ screen: 'search' }) },
+			...sigoButton(ctx)
+		],
+		[
+			{ text: botText('inicio.boton_fondo'), callback_data: encodeNav({ screen: 'fondo' }) },
+			{ text: botText('inicio.boton_ayuda'), callback_data: encodeNav({ screen: 'help' }) }
 		]
 	];
 	if (isHttps(ctx.origin)) {
@@ -149,12 +163,18 @@ export function homeScreen(ctx) {
 		const last = [];
 		// La Mini App del calendario (`web_app` solo anda en chats privados, Bot API).
 		if (ctx.chat === 'private') {
-			last.push({ text: '📅 Calendario', web_app: { url: miniAppUrl(ctx.origin) } });
+			last.push({
+				text: botText('inicio.boton_calendario'),
+				web_app: { url: miniAppUrl(ctx.origin) }
+			});
 		}
-		last.push({ text: `Abrir ${new URL(ctx.origin).host} ↗`, url: ctx.origin });
+		last.push({
+			text: botText('inicio.boton_sitio', { sitio: new URL(ctx.origin).host }),
+			url: ctx.origin
+		});
 		rows.push(last);
 	}
-	return { text: HOME_TEXT, keyboard: rows };
+	return { text: botText('inicio.texto'), keyboard: rows };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -192,13 +212,14 @@ export function pagerRow(page, pages, data) {
 	return row;
 }
 
-/** @param {string} view @param {string} origin @returns {string} */
+/** @param {ListView} view @param {string} origin @returns {string} */
 function emptyText(view, origin) {
-	if (view === 'd') return WINDOW_TEXTS.hoy.empty;
-	if (view === 'w') return WINDOW_TEXTS.semana.empty;
-	if (view === 'f') return WINDOW_TEXTS.finde.empty;
-	return `Por ahora no hay eventos próximos. Mirá el calendario en ${escapeHtml(origin)}/calendario`;
+	return botText(`eventos.vacio_${LIST_TEXT[view]}`, { sitio: origin });
 }
+
+/** @param {BotEvent} event */
+const seeButtonText = (event) =>
+	botText('eventos.boton_ver', { evento: truncate(event.title, 32) });
 
 /**
  * Un renglón de un evento en una lista: la fecha (`date_time`) y el título con link al sitio.
@@ -227,12 +248,13 @@ export function listScreen(view, events, page, ctx, { intro } = {}) {
 	if (events.length === 0) return { text: emptyText(view, ctx.origin), keyboard: [[homeButton()]] };
 	const p = paginate(events.length, page);
 	const shown = events.slice(p.from, p.to);
-	const head = `<b>${escapeHtml(LIST_TITLES[view])}</b>${p.pages > 1 ? ` · ${p.page + 1}/${p.pages}` : ''}`;
+	const title = botText(`eventos.titulo_${LIST_TEXT[view]}`);
+	const head = `<b>${escapeHtml(title)}</b>${p.pages > 1 ? ` · ${p.page + 1}/${p.pages}` : ''}`;
 	const text = `${intro ? `${intro}\n\n` : ''}${head}\n\n${shown.map((e) => eventLine(e, ctx)).join('\n\n')}`;
 	/** @type {Button[][]} */
 	const rows = shown.map((e) => [
 		{
-			text: `Ver: ${truncate(e.title, 32)}`,
+			text: seeButtonText(e),
 			callback_data: encodeNav({ screen: 'event', id: navId(e.slug), back: view })
 		}
 	]);
@@ -253,24 +275,28 @@ export function listScreen(view, events, page, ctx, { intro } = {}) {
  * @returns {Screen}
  */
 export function searchResultsScreen(query, found, ctx, { head } = {}) {
-	const again = { text: '🔎 Buscar otra cosa', callback_data: encodeNav({ screen: 'search' }) };
+	const again = {
+		text: botText('eventos.boton_buscar_otra'),
+		callback_data: encodeNav({ screen: 'search' })
+	};
+	const busqueda = truncate(query, 60);
 	if (found.length === 0) {
 		return {
-			text: `No encontré nada para «${escapeHtml(truncate(query, 60))}» entre los próximos eventos.`,
+			text: botText('eventos.sin_resultados', { busqueda }),
 			keyboard: [[again], [homeButton()]]
 		};
 	}
 	const shown = found.slice(0, PAGE_SIZE + 3);
 	const title =
 		head ??
-		`<b>Encontré ${found.length === 1 ? 'esto' : 'estos'} para «${escapeHtml(truncate(query, 60))}»</b>`;
+		botText(found.length === 1 ? 'eventos.resultado_uno' : 'eventos.resultados', { busqueda });
 	const text = `${title}\n\n${shown.map((e) => eventLine(e, ctx)).join('\n\n')}`;
 	return {
 		text,
 		keyboard: [
 			...shown.map((e) => [
 				{
-					text: `Ver: ${truncate(e.title, 32)}`,
+					text: seeButtonText(e),
 					callback_data: encodeNav({ screen: 'event', id: navId(e.slug), back: 'n' })
 				}
 			]),
@@ -341,7 +367,7 @@ export function eventScreen(event, info, nav, ctx, { follow = null } = {}) {
 	if (when) lines.push(`📅 ${when}`);
 	if (info.place) lines.push(`📍 ${escapeHtml(truncate(info.place, 200))}`);
 	if (info.ticket?.kind === 'note') lines.push(`🎟 ${escapeHtml(info.ticket.text)}`);
-	lines.push('', `<a href="${escapeHtml(url)}">Ver todo en el sitio</a>`);
+	lines.push('', `<a href="${escapeHtml(url)}">${escapeHtml(botText('eventos.ver_todo'))}</a>`);
 	const text = lines.join('\n');
 
 	/** @type {Button[][]} */
@@ -350,19 +376,23 @@ export function eventScreen(event, info, nav, ctx, { follow = null } = {}) {
 		const ticket = info.ticket;
 		if (ticket?.kind === 'buy') {
 			rows.push([
-				{ text: '🎟 Comprar en el sitio', url: `${ctx.origin}${ticket.href}`, style: 'success' }
+				{
+					text: botText('eventos.boton_comprar'),
+					url: `${ctx.origin}${ticket.href}`,
+					style: 'success'
+				}
 			]);
 		} else if (ticket?.kind === 'note') {
 			rows.push([{ text: `🎟 ${ticket.text}`, disabled: {} }]);
 		} else {
-			rows.push([{ text: 'Abrir en el sitio', url }]);
+			rows.push([{ text: botText('eventos.boton_abrir'), url }]);
 		}
 		/** @type {Button[]} */
 		const second = [];
 		const cal = calendarLink(event, ctx.origin, info.place);
-		if (cal) second.push({ text: '📅 Agregar al calendario', url: cal });
+		if (cal) second.push({ text: botText('eventos.boton_calendario'), url: cal });
 		if (info.mapUrl && info.mapUrl.startsWith('https://')) {
-			second.push({ text: '🗺 Cómo llegar', url: info.mapUrl });
+			second.push({ text: botText('eventos.boton_mapa'), url: info.mapUrl });
 		}
 		if (second.length) rows.push(second);
 	}
@@ -393,10 +423,26 @@ export function eventScreen(event, info, nav, ctx, { follow = null } = {}) {
 // Buscar, Fondo, Ayuda
 // ---------------------------------------------------------------------------------------------
 
-/** El comienzo del mensaje de Buscar: así se reconoce la respuesta. */
+/**
+ * El comienzo del mensaje de Buscar original: así se reconoce la respuesta (también a los
+ * mensajes que se mandaron antes de cambiarlo en el panel; ver {@link isSearchPrompt}).
+ */
 export const SEARCH_PROMPT_HEAD = '🔎 Escribí qué buscás';
 
-export const SEARCH_PROMPT_TEXT = `${SEARCH_PROMPT_HEAD}: un nombre, «sábado», «15/10», una dirección… Respondé a este mensaje.`;
+/** El mensaje de Buscar original (la pantalla usa el de este pedido). */
+export const SEARCH_PROMPT_TEXT = renderBotText('eventos.buscar');
+
+/**
+ * ¿Este texto (como lo devuelve Telegram, sin formato) es el mensaje de Buscar? El original o el
+ * de ahora (cambiado en el panel).
+ *
+ * @param {string} text
+ */
+export function isSearchPrompt(text) {
+	if (text.startsWith(SEARCH_PROMPT_HEAD)) return true;
+	const current = telegramHtmlToPlain(botText('eventos.buscar')).trim();
+	return Boolean(current) && text.trim() === current;
+}
 
 /**
  * Buscar: un mensaje nuevo con `force_reply` (abre «responder») y «Cancelar». En un grupo no se
@@ -408,13 +454,20 @@ export const SEARCH_PROMPT_TEXT = `${SEARCH_PROMPT_HEAD}: un nombre, «sábado»
 export function searchScreen(ctx) {
 	if (ctx.chat === 'group') {
 		return {
-			text: 'Para buscar acá, escribí /evento y lo que buscás, por ejemplo: /evento cuerdas',
+			text: botText('eventos.buscar_grupo'),
 			keyboard: [[homeButton()]]
 		};
 	}
 	return {
-		text: SEARCH_PROMPT_TEXT,
-		keyboard: [[{ text: 'Cancelar', callback_data: encodeNav({ screen: 'search_cancel' }) }]],
+		text: botText('eventos.buscar'),
+		keyboard: [
+			[
+				{
+					text: botText('eventos.boton_cancelar'),
+					callback_data: encodeNav({ screen: 'search_cancel' })
+				}
+			]
+		],
 		forceReply: true
 	};
 }
@@ -438,28 +491,30 @@ export const FONDO_URL = 'https://fondo.kinkyvibe.ar';
  * @returns {Screen}
  */
 export function fondoScreen(fondo, ctx) {
-	const keyboard = [[{ text: 'Sumate al Fondo ↗', url: FONDO_URL }], [homeButton()]];
+	const keyboard = [[{ text: botText('inicio.fondo_boton'), url: FONDO_URL }], [homeButton()]];
 	if (!fondo) {
 		return {
-			text:
-				'<b>💗 Fondo Kinky Vibe</b>\n\n' +
-				`Ahora no pude leer los números del Fondo. Mirálos en ${FONDO_URL.replace('https://', '')}`,
+			text: botText('inicio.fondo_sin_numeros', { fondo: FONDO_URL.replace('https://', '') }),
 			keyboard
 		};
 	}
 	const pct = fondo.goal > 0 ? Math.floor((fondo.collected / fondo.goal) * 100) : 0;
 	const lines = [
-		'<b>💗 Fondo Kinky Vibe</b>',
+		botText('inicio.fondo_titulo'),
 		'',
-		`Este mes juntamos <b>${escapeHtml(formatARS(fondo.collected))}</b> de ${escapeHtml(formatARS(fondo.goal))} (${pct}\u00a0% de la meta).`,
-		`Descuento del Fondo en las entradas de eventos de Kinky Vibe: <b>${fondo.percent}\u00a0%</b>.`
+		botText('inicio.fondo_juntado', {
+			juntado: formatARS(fondo.collected),
+			meta: formatARS(fondo.goal),
+			porcentaje: pct
+		}),
+		botText('inicio.fondo_descuento', { descuento: fondo.percent })
 	];
-	if (fondo.stale) lines.push('', 'Todavía no hay números de este mes: son los del mes pasado.');
+	if (fondo.stale) lines.push('', botText('inicio.fondo_viejo'));
 	if (fondo.updatedAt) {
 		const iso = new Date(fondo.updatedAt).toISOString();
-		lines.push('', `Actualizado: ${tgTime(iso, ctx.now)}`);
+		lines.push('', botText('inicio.fondo_actualizado', { fecha: tgTime(iso, ctx.now) }));
 	}
-	lines.push('', 'El Fondo baja el precio de las entradas para todes con aportes de la comunidad.');
+	lines.push('', botText('inicio.fondo_pie'));
 	return { text: lines.join('\n'), keyboard };
 }
 
@@ -486,7 +541,7 @@ export function noticeScreen(text) {
 /** @param {ScreenCtx} ctx */
 const sigoLink = (ctx) =>
 	isHttps(ctx.origin)
-		? [[{ text: 'Abrir Mi rincón → Lo que sigo ↗', url: `${ctx.origin}/mi-rincon/sigo` }]]
+		? [[{ text: botText('seguir.boton_rincon'), url: `${ctx.origin}/mi-rincon/sigo` }]]
 		: [];
 
 /**
@@ -497,9 +552,9 @@ const sigoLink = (ctx) =>
  */
 export function privateOnlyScreen(privateLink) {
 	return {
-		text: 'Esto se hace por chat privado con el bot, con tu cuenta conectada.',
+		text: botText('seguir.solo_privado'),
 		keyboard: [
-			...(privateLink ? [[{ text: 'Abrir el bot por privado ↗', url: privateLink }]] : []),
+			...(privateLink ? [[{ text: botText('seguir.boton_privado'), url: privateLink }]] : []),
 			[homeButton()]
 		]
 	};
@@ -513,9 +568,7 @@ export function privateOnlyScreen(privateLink) {
  */
 export function unlinkedScreen(ctx) {
 	return {
-		text:
-			'Para seguir etiquetas y series desde acá, conectá este chat con tu cuenta: en Mi rincón → ' +
-			'Lo que sigo tocá «Conectar Telegram» y mandame el código con /vincular.',
+		text: botText('seguir.sin_vincular'),
 		keyboard: [...sigoLink(ctx), [homeButton()]]
 	};
 }
@@ -533,12 +586,11 @@ export function sigoScreen(titles, ctx) {
 		? titles
 				.slice(0, MAX)
 				.map((t) => `• ${escapeHtml(t)}`)
-				.join('\n') + (titles.length > MAX ? `\n… y ${titles.length - MAX} más.` : '')
-		: 'Todavía no seguís nada. En la tarjeta de un evento tocá «⭐ Seguir».';
+				.join('\n') +
+			(titles.length > MAX ? `\n${botText('seguir.mas', { cantidad: titles.length - MAX })}` : '')
+		: botText('seguir.nada');
 	return {
-		text:
-			`<b>⭐ Lo que seguís</b>\n\n${body}\n\n` +
-			'Qué te avisamos (por mail o por acá) y dejar de seguir: en Mi rincón → Lo que sigo.',
+		text: botText('seguir.lo_que_sigo', { lista: body }),
 		keyboard: [...sigoLink(ctx), [homeButton()]]
 	};
 }
@@ -554,26 +606,25 @@ export function sigoScreen(titles, ctx) {
  */
 export function followScreen(event, targets, ctx) {
 	const id = navId(event.slug);
-	const head = `<b>⭐ Seguir</b>\n\nDe «${escapeHtml(truncate(event.title, 100))}»`;
-	const text = targets.length
-		? `${head} podés seguir estas etiquetas y series (tocá una):\n\n` +
-			'Te avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, ' +
-			'prendé la columna Telegram en Mi rincón → Lo que sigo.'
-		: `${head} no hay etiquetas para seguir desde acá.`;
+	const evento = truncate(event.title, 100);
+	const text = botText(targets.length ? 'seguir.opciones' : 'seguir.sin_opciones', { evento });
 	return {
 		text,
 		keyboard: [
 			...targets.map((t) => [
 				t.following
-					? { text: `✓ Ya seguís ${truncate(t.title, 40)}`, disabled: {} }
+					? { text: botText('seguir.boton_ya', { nombre: truncate(t.title, 40) }), disabled: {} }
 					: {
-							text: `⭐ ${truncate(t.title, 40)}`,
+							text: botText('seguir.boton_etiqueta', { nombre: truncate(t.title, 40) }),
 							callback_data: encodeNav({ screen: 'follow_do', id, tag: t.hash })
 						}
 			]),
 			...sigoLink(ctx),
 			[
-				{ text: '‹ Volver', callback_data: encodeNav({ screen: 'event', id, back: 'n' }) },
+				{
+					text: botText('inicio.boton_volver'),
+					callback_data: encodeNav({ screen: 'event', id, back: 'n' })
+				},
 				homeButton()
 			]
 		]

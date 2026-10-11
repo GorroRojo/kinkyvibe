@@ -15,31 +15,7 @@
  * también cuando se toca un botón viejo. No sabe de la base: lo de las cuentas pasa por
  * `deps.accounts` (link.js). En los grupos, solo lo público (deliver.js: efímeros).
  */
-import {
-	ACCOUNTS_OFF_TEXT,
-	ADMIN_LINK_INVALID_TEXT,
-	ADMIN_LINK_OFF_TEXT,
-	formatAdminLinked,
-	LINK_ASK_CODE_TEXT,
-	LINK_INVALID_TEXT,
-	LINK_TOO_MANY_TEXT,
-	MUTED_TEXT,
-	NOT_LINKED_TEXT,
-	PRIVATE_ONLY_TEXT,
-	UNLINKED_TEXT,
-	UNMUTED_TEXT,
-	formatLinked,
-	ERROR_TEXT,
-	NOT_FOUND_TEXT,
-	UNAVAILABLE_TEXT,
-	UNKNOWN_TEXT,
-	PICK_EVENT_TEXT,
-	FOLLOW_ALREADY_TEXT,
-	FOLLOW_FULL_TEXT,
-	FOLLOW_GONE_TEXT,
-	FOLLOW_TOO_MANY_TEXT,
-	followedText
-} from './format.js';
+import { escapeHtml, formatAdminLinked, formatLinked, followedText } from './format.js';
 import { ACCOUNT_COMMAND_NAMES, HANDLED_COMMANDS } from './commands.js';
 import { answerOnly, deliverScreen, singleMethod } from './deliver.js';
 import {
@@ -55,8 +31,8 @@ import {
 } from './nav.js';
 import { cardFor, navigate } from './navigate.js';
 import {
-	SEARCH_PROMPT_HEAD,
 	doorAppUrl,
+	isSearchPrompt,
 	followScreen,
 	listScreen,
 	noticeScreen,
@@ -65,6 +41,15 @@ import {
 	sigoScreen,
 	unlinkedScreen
 } from './screens.js';
+import { botText } from './texts.js';
+
+/**
+ * Un texto de «Textos del bot» que también es aviso de un botón (texto solo), para un mensaje:
+ * escapado para el HTML de Telegram.
+ *
+ * @param {string} key
+ */
+const htmlOf = (key) => escapeHtml(botText(key));
 
 /** @typedef {import('./format.js').BotEvent} BotEvent */
 /** @typedef {import('./deliver.js').BotMethod} BotMethod */
@@ -196,23 +181,24 @@ export function matchEvents(events, query) {
  * @returns {Promise<string>}
  */
 async function accountCommand(command, chat, deps) {
-	if (chat?.type !== 'private') return PRIVATE_ONLY_TEXT;
+	if (chat?.type !== 'private') return botText('vincular.solo_privado');
 	const accounts = deps.accounts ? await deps.accounts() : null;
-	if (!accounts) return ACCOUNTS_OFF_TEXT;
+	if (!accounts) return htmlOf('vincular.apagado');
 	const chatId = chat.id;
+	const notLinked = () => botText('vincular.sin_vincular');
 	switch (command.name) {
 		case 'vincular': {
-			if (!command.args) return LINK_ASK_CODE_TEXT;
+			if (!command.args) return botText('vincular.pedir_codigo');
 			const r = await accounts.link(command.args, chatId);
 			if (r === 'linked') return formatLinked(deps.origin);
-			return r === 'too_many' ? LINK_TOO_MANY_TEXT : LINK_INVALID_TEXT;
+			return botText(r === 'too_many' ? 'vincular.muchos' : 'vincular.codigo_malo');
 		}
 		case 'desvincular':
-			return (await accounts.unlink(chatId)) ? UNLINKED_TEXT : NOT_LINKED_TEXT;
+			return (await accounts.unlink(chatId)) ? botText('vincular.desvinculado') : notLinked();
 		case 'silenciar':
-			return (await accounts.setMuted(chatId, true)) ? MUTED_TEXT : NOT_LINKED_TEXT;
+			return (await accounts.setMuted(chatId, true)) ? botText('vincular.silenciado') : notLinked();
 		default:
-			return (await accounts.setMuted(chatId, false)) ? UNMUTED_TEXT : NOT_LINKED_TEXT;
+			return (await accounts.setMuted(chatId, false)) ? botText('vincular.reanudado') : notLinked();
 	}
 }
 
@@ -227,17 +213,19 @@ async function accountCommand(command, chat, deps) {
  * @returns {Promise<Screen>}
  */
 async function adminLinkCommand(param, message, deps) {
-	if (message?.chat?.type !== 'private') return textScreen(PRIVATE_ONLY_TEXT);
+	if (message?.chat?.type !== 'private') return textScreen(botText('vincular.solo_privado'));
 	const userId = message?.from?.id;
-	if (!deps.adminLink || typeof userId !== 'number') return textScreen(ADMIN_LINK_OFF_TEXT);
+	if (!deps.adminLink || typeof userId !== 'number') {
+		return textScreen(botText('puerta.apagada'));
+	}
 	const r = await deps.adminLink(param, userId);
 	if (typeof r === 'object' && r) {
 		return {
 			text: formatAdminLinked(r.linked),
-			keyboard: [[{ text: '🚪 Abrir la puerta', web_app: { url: doorAppUrl(deps.origin) } }]]
+			keyboard: [[{ text: botText('puerta.boton'), web_app: { url: doorAppUrl(deps.origin) } }]]
 		};
 	}
-	return textScreen(r === 'too_many' ? LINK_TOO_MANY_TEXT : ADMIN_LINK_INVALID_TEXT);
+	return textScreen(botText(r === 'too_many' ? 'vincular.muchos' : 'puerta.link_malo'));
 }
 
 /**
@@ -281,12 +269,12 @@ function followButton(event, ctx) {
 	if (!ctx.sigo) return null;
 	if (ctx.chat === 'private') {
 		return {
-			text: '⭐ Seguir',
+			text: botText('seguir.boton'),
 			callback_data: encodeNav({ screen: 'follow', id: navId(event.slug) })
 		};
 	}
 	const link = startLink(ctx.botUsername, startParam({ screen: 'follow', slug: event.slug }));
-	return link ? { text: '⭐ Seguir ↗', url: link } : null;
+	return link ? { text: `${botText('seguir.boton')} ↗`, url: link } : null;
 }
 
 /**
@@ -303,7 +291,7 @@ function followButton(event, ctx) {
  */
 async function personalScreen(state, chatId, ctx, deps, accounts) {
 	const follows = accounts?.follows;
-	if (!follows) return { toast: ACCOUNTS_OFF_TEXT };
+	if (!follows) return { toast: botText('vincular.apagado') };
 	if (ctx.chat === 'group') {
 		return {
 			screen: privateOnlyScreen(startLink(ctx.botUsername, startParam({ screen: 'sigo' })))
@@ -318,24 +306,26 @@ async function personalScreen(state, chatId, ctx, deps, accounts) {
 		'deep' in state && state.deep
 			? findByDeepId(events, state.deep)
 			: findByNavId(events, /** @type {string} */ (state.id));
-	if (!event) return { toast: UNAVAILABLE_TEXT };
+	if (!event) return { toast: botText('errores.no_disponible') };
 	const targets = await follows.targets(event.slug);
 	/** @type {string | undefined} */
 	let toast;
 	if (state.screen === 'follow_do') {
 		const target = targets.find((t) => t.hash === state.tag);
-		if (!target) return { toast: FOLLOW_GONE_TEXT };
+		if (!target) return { toast: botText('seguir.no_esta') };
 		const r = await follows.follow(accountId, target.key);
 		toast =
 			r === 'created' || r === 'created_telegram'
 				? followedText(target.title, { telegram: r === 'created_telegram' })
-				: r === 'already'
-					? FOLLOW_ALREADY_TEXT
-					: r === 'too_many'
-						? FOLLOW_TOO_MANY_TEXT
-						: r === 'full'
-							? FOLLOW_FULL_TEXT
-							: FOLLOW_GONE_TEXT;
+				: botText(
+						r === 'already'
+							? 'seguir.ya'
+							: r === 'too_many'
+								? 'seguir.muchos'
+								: r === 'full'
+									? 'seguir.lleno'
+									: 'seguir.no_esta'
+					);
 	}
 	const following = await follows.following(
 		accountId,
@@ -362,7 +352,7 @@ function isSearchReply(message) {
 		!message.text.startsWith('/') &&
 		prompt?.from?.is_bot === true &&
 		typeof prompt?.text === 'string' &&
-		prompt.text.startsWith(SEARCH_PROMPT_HEAD)
+		isSearchPrompt(prompt.text)
 	);
 }
 
@@ -401,7 +391,7 @@ async function planCallback(callback, deps) {
 	const message = callback?.message;
 	const chatId = message?.chat?.id;
 	if (typeof chatId !== 'number' && typeof chatId !== 'string') {
-		return answerOnly(callbackId, UNAVAILABLE_TEXT);
+		return answerOnly(callbackId, botText('errores.no_disponible'));
 	}
 	const group = isGroup(message.chat);
 	/** @type {Where} */
@@ -421,7 +411,7 @@ async function planCallback(callback, deps) {
 		isPhoto: Array.isArray(message.photo)
 	};
 	const state = decodeNav(callback?.data);
-	if (!state) return answerOnly(callbackId, UNKNOWN_TEXT);
+	if (!state) return answerOnly(callbackId, botText('errores.no_entendi'));
 	if (state.screen === 'noop') return answerOnly(callbackId);
 	if (state.screen === 'search_cancel') {
 		if (group || !where.messageId) return answerOnly(callbackId);
@@ -452,7 +442,7 @@ async function planCallback(callback, deps) {
 		return plan;
 	} catch (error) {
 		console.error('[telegram] error al contestar un botón:', error);
-		return answerOnly(callbackId, ERROR_TEXT);
+		return answerOnly(callbackId, botText('errores.algo_salio_mal'));
 	}
 }
 
@@ -472,7 +462,7 @@ async function startScreen(param, ctx, deps, chatId, accounts) {
 	if (!target) return null;
 	if (target.screen === 'sigo' || target.screen === 'follow') {
 		const r = await personalScreen(target, chatId, ctx, deps, accounts);
-		return 'screen' in r ? r.screen : noticeScreen(r.toast);
+		return 'screen' in r ? r.screen : noticeScreen(escapeHtml(r.toast));
 	}
 	if (target.screen === 'list') {
 		const r = await navigate({ screen: 'list', view: target.view, page: 0 }, ctx, deps);
@@ -481,7 +471,7 @@ async function startScreen(param, ctx, deps, chatId, accounts) {
 	if (target.screen === 'event') {
 		const events = await deps.listUpcoming();
 		const event = findByDeepId(events, target.deep);
-		if (!event) return noticeScreen(UNAVAILABLE_TEXT);
+		if (!event) return noticeScreen(htmlOf('errores.no_disponible'));
 		return cardFor(event, 'n', events, ctx, deps, { follow: followButton(event, ctx) });
 	}
 	if (target.screen === 'fondo' || target.screen === 'search' || target.screen === 'home') {
@@ -508,7 +498,7 @@ async function commandScreen(command, message, ctx, deps, accounts) {
 			accounts: Boolean(accounts),
 			follow: (event) => followButton(event, ctx)
 		});
-		return 'screen' in r ? r.screen : noticeScreen(r.toast);
+		return 'screen' in r ? r.screen : noticeScreen(escapeHtml(r.toast));
 	};
 	switch (command.name) {
 		case 'start': {
@@ -545,26 +535,32 @@ async function commandScreen(command, message, ctx, deps, accounts) {
 		case 'evento': {
 			const events = await deps.listUpcoming();
 			if (!command.args) {
-				return listScreen('p', events, 0, ctx, events.length ? { intro: PICK_EVENT_TEXT } : {});
+				return listScreen(
+					'p',
+					events,
+					0,
+					ctx,
+					events.length ? { intro: botText('eventos.elegir') } : {}
+				);
 			}
 			const found = matchEvents(events, command.args);
-			if (found.length === 0) return noticeScreen(NOT_FOUND_TEXT);
+			if (found.length === 0) return noticeScreen(botText('eventos.no_encontrado'));
 			if (found.length === 1) {
 				return cardFor(found[0], 'n', events, ctx, deps, { follow: followButton(found[0], ctx) });
 			}
 			return searchResultsScreen(command.args, found, ctx, {
-				head: 'Encontré varios eventos. ¿Cuál querés ver? Tocá uno.'
+				head: botText('eventos.varios')
 			});
 		}
 		default:
 			if (command.name === 'sigo') {
 				const r = await personalScreen({ screen: 'sigo' }, message.chat.id, ctx, deps, accounts);
-				return 'screen' in r ? r.screen : textScreen(r.toast);
+				return 'screen' in r ? r.screen : textScreen(escapeHtml(r.toast));
 			}
 			if (ACCOUNT_COMMAND_NAMES.has(command.name)) {
 				return textScreen(await accountCommand(command, message.chat, deps));
 			}
-			return noticeScreen(UNKNOWN_TEXT);
+			return noticeScreen(htmlOf('errores.no_entendi'));
 	}
 }
 
@@ -601,13 +597,13 @@ export async function planUpdate(update, deps) {
 		const command = parseCommand(message?.text);
 		if (!command) return null;
 		// La lista de comandos vive en commands.js (también la que se registra en Telegram).
-		if (!HANDLED_COMMANDS.has(command.name)) return send(textScreen(UNKNOWN_TEXT));
+		if (!HANDLED_COMMANDS.has(command.name)) return send(textScreen(htmlOf('errores.no_entendi')));
 		const accounts = await accountsOf(deps);
 		const ctx = screenCtx(deps, group, accounts);
 		return send(await commandScreen(command, message, ctx, deps, accounts));
 	} catch (error) {
 		console.error('[telegram] error al armar la respuesta:', error);
-		return send(textScreen(ERROR_TEXT));
+		return send(textScreen(htmlOf('errores.algo_salio_mal')));
 	}
 }
 

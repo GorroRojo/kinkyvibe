@@ -112,7 +112,7 @@ function deps({ accounts = null, follows = null, adminLink = null, media = false
 			image: 'https://ejemplo.test/foto.jpg',
 			place: 'Lugar inventado',
 			mapUrl: 'https://maps.example/x',
-			ticket: { kind: 'buy', href: '/calendario/x/entradas' }
+			ticket: { kind: 'buy', href: '/calendario/x/entradas', text: 'Entradas' }
 		}),
 		fondo: async () => ({ percent: 10, collected: 150000, goal: 300000, step: 5, updatedAt: NOW }),
 		accounts: async () =>
@@ -227,7 +227,7 @@ export function botCases() {
 				image: 'https://ejemplo.test/a.jpg',
 				place: 'Lugar <x>',
 				mapUrl: 'https://maps.example/a',
-				ticket: { kind: 'buy', href: '/calendario/taller-de-cuerdas/entradas' }
+				ticket: { kind: 'buy', href: '/calendario/taller-de-cuerdas/entradas', text: 'Entradas' }
 			},
 			{ back: 'w', list: EVENTS.slice(0, 4) },
 			ctx('private'),
@@ -248,7 +248,7 @@ export function botCases() {
 	add('tarjeta sin https', () =>
 		eventScreen(
 			EVENTS[3],
-			{ ticket: { kind: 'buy', href: '/x' } },
+			{ ticket: { kind: 'buy', href: '/x', text: 'Entradas' } },
 			{ back: 'n' },
 			{ ...ctx('private'), origin: 'http://localhost' }
 		)
