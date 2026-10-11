@@ -14,6 +14,9 @@
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { argDateLong } from '$lib/utils/dates.js';
+	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { linkPreviewOf, materialDescription } from '$lib/utils/seo.js';
+	import { tagManager } from '$lib/utils/stores.js';
 	export let data;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
@@ -60,28 +63,22 @@
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 
-	<meta property="og:url" content={$page.url.href} />
-
-	<meta property="og:title" content={data.meta.title} />
-	<meta name="twitter:title" content={data.meta.title} />
-
-	<meta name="description" content={data.meta.summary} />
-	<meta name="twitter:description" content={data.meta.summary} />
-	<meta property="og:description" content={data.meta.summary} />
-
-	<meta property="og:image" content={data.meta.featured + ''} />
-	<meta name="twitter:image" content={data.meta.featured + ''} />
-
-	<meta name="twitter:site" content="@kinkyvibearg" />
-	<meta name="twitter:card" content="summary_large_image" />
-	<meta property="og:type" content="article" />
-
 	<meta property="article:published_time" content={data.meta.published_date?.toString()} />
 	<meta property="article:modified_time" content={data.meta.updated_date?.toString()} />
 	<meta property="article:author" content={data.meta.authors?.join(', ')} />
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
+<!-- La vista previa al compartir (docs/compartir.md): «Guía descargable · resumen». -->
+<SeoHead
+	title={data.meta.title}
+	description={materialDescription(data.meta, $tagManager, linkPreviewOf($page.data).texts)}
+	image={data.meta.featured}
+	imageInfo={data.cover}
+	imageAlt={data.meta.title}
+	type="article"
+	noindex={Boolean(data.meta.force_unlisted || data.meta.force_unpublished)}
+/>
 <article class="h-entry">
 	<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 	<h1 id="title p-name">{data.meta.title}</h1>

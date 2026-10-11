@@ -1,5 +1,6 @@
 <script>
 	//@ts-nocheck
+	import ListSeoHead from '$lib/components/ListSeoHead.svelte';
 	export let data;
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import PostList from '$lib/components/PostList.svelte';
@@ -14,6 +15,8 @@
 <svelte:head>
 	<title>Artículos, links y descargables · Kinky Vibe</title>
 </svelte:head>
+<!-- La vista previa al compartir (docs/compartir.md). -->
+<ListSeoHead section="material" card="material" />
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Artículos, links y descargables</h1>
 <div class="glosario">
