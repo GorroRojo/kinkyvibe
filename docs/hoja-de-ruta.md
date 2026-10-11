@@ -23,7 +23,7 @@ PRs abiertos:
 - Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
   tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
   directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
-- Códigos copiables: los mails de código (ingresar y confirmar) armados para que Gmail y el celu
+- #297: códigos copiables, los mails de código (ingresar y confirmar) armados para que Gmail y el celu
   reconozcan el código ([mails.md](mails.md#códigos-copiables)).
 
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
