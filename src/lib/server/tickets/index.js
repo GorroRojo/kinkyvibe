@@ -304,6 +304,8 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 /**
  * Manda un mail con Resend. Sin RESEND_API_KEY: en dev lo resume en la consola (`simulated`),
  * en producción loguea un error (`failed`). En un preview, solo a EMAIL_ALLOWLIST (emailGuard.js).
+ * `from`: remitente fijo de un mail que no es del sitio de entradas (el del Fondo); sin él, el de
+ * los ajustes, como siempre.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database | null | undefined,
@@ -312,11 +314,20 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  *   message: { subject: string, html: string, text: string,
  *     attachments?: import('./email.js').MailAttachment[] },
  *   idempotencyKey?: string,
- *   log?: string
+ *   log?: string,
+ *   from?: string
  * }} input
  * @returns {Promise<'sent' | 'simulated' | 'failed'>}
  */
-async function deliver({ db, fetch: fetchFn, to, message: built, idempotencyKey, log = '' }) {
+async function deliver({
+	db,
+	fetch: fetchFn,
+	to,
+	message: built,
+	idempotencyKey,
+	log = '',
+	from: fixedFrom
+}) {
 	// Todo mail pasa por acá: el pie de Ajustes → Mails se pone una sola vez, para todos.
 	const settings = await emailSettings(db);
 	const message = { ...built, html: withMailFooter(built.html, settings.footer) };
@@ -341,7 +352,8 @@ async function deliver({ db, fetch: fetchFn, to, message: built, idempotencyKey,
 		console.warn(`[tickets] preview sin EMAIL_ALLOWLIST: no se mandó "${message.subject}"`);
 		return 'simulated';
 	}
-	const { from, replyTo } = settings;
+	const { replyTo } = settings;
+	const from = fixedFrom || settings.from;
 	await sendWithResend({
 		fetch: fetchFn,
 		apiKey,

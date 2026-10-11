@@ -13,6 +13,7 @@ import {
 } from '$lib/server/cuentas/email.js';
 import { buildNewEditionEmail, buildSeriesConfirmEmail } from '$lib/server/series/email.js';
 import { buildFollowEmail } from '$lib/server/sigo/email.js';
+import { buildFondoLinkEmail } from '$lib/server/fondo/email.js';
 
 const NOW = Date.parse('2026-10-01T12:00:00Z');
 const ORIGIN = 'https://kinkyvibe.example';
@@ -112,6 +113,17 @@ export function allMailCases() {
 				reasons: ['Ciclo de prueba'],
 				manageUrl: `${ORIGIN}/mi-rincon/sigo`,
 				stopUrl: `${ORIGIN}/sigo/baja?t=ghi&x=1`,
+				origin: ORIGIN
+			}
+		],
+		[
+			'fondo-mi-link',
+			buildFondoLinkEmail,
+			{
+				// Un link (lo común): con varias suscripciones lleva un botón por link (email.test.js).
+				links: [
+					{ tier: 'Casual', url: 'https://fondo.kinkyvibe.ar/gracias?preapproval_id=0a1b2c3d' }
+				],
 				origin: ORIGIN
 			}
 		]
