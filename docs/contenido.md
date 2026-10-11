@@ -36,21 +36,22 @@ queda marcado con el tag de git `posts-md-final`. Ningún guardado del panel pas
 
 ## Dónde está
 
-| Qué                                                                    | Dónde                                                                                                               |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Publicaciones                                                          | En la base (objetos `evento`, `material`, `perfil`, `etiqueta`; [objetos.md](objetos.md))                           |
-| Imágenes                                                               | La biblioteca (R2, [imagenes.md](imagenes.md)); las viejas, por `src/lib/utils/legacyMedia.js`                      |
-| PDF, video y documento viejos del material                             | `src/lib/archivos/material/<carpeta>/` (hasta subirlos a la biblioteca)                                             |
-| Plantillas de evento, material y perfil                                | `src/lib/admin/plantillas/` (`evento.md`, `material.md`, `perfil.md`)                                               |
-| Árbol de etiquetas                                                     | En la base (Panel → Etiquetas, [etiquetas.md](etiquetas.md))                                                        |
-| Semilla de las bases locales (dev, E2E)                                | `src/lib/server/semilla/` (`npm run db:semilla`)                                                                    |
-| Páginas públicas                                                       | `src/routes/(content)/` (`calendario`, `material`, `amigues`, `wiki`…)                                              |
-| Editor de eventos (nuevo, editar, duplicar, agenda, importar planilla) | `src/routes/(authed)/admin/eventos/`, `src/lib/server/eventos/`, `src/lib/utils/eventDraft.js`                      |
-| Editor de material                                                     | `src/routes/(authed)/admin/contenido/material/`, `src/lib/server/admin/contentRoutes.js`, `posts.js`                |
-| Editor de perfiles (amigues)                                           | `src/routes/(authed)/admin/comunidad/perfiles/`, `src/lib/server/admin/amiguesRoutes.js` ([amigues.md](amigues.md)) |
-| Editor de la wiki                                                      | `src/routes/(authed)/admin/etiquetas/wiki/[term]/`, `src/lib/server/etiquetas/wikiEditor.js`                        |
-| Editor genérico (material; amigues y wiki llevan a sus editores)       | `src/routes/(authed)/edit/[category]/[postID]/`                                                                     |
-| Cliente de contenido del panel                                         | `getRepoClient()` en `src/lib/server/eventos/index.js`: `withContentDb` sobre `contenido/cliente.js`                |
+| Qué                                                                    | Dónde                                                                                                                                           |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Publicaciones                                                          | En la base (objetos `evento`, `material`, `perfil`, `etiqueta`; [objetos.md](objetos.md))                                                       |
+| Imágenes                                                               | La biblioteca (R2, [imagenes.md](imagenes.md)); las viejas, por `src/lib/utils/legacyMedia.js`                                                  |
+| PDF, video y documento viejos del material                             | `src/lib/archivos/material/<carpeta>/` (hasta subirlos a la biblioteca)                                                                         |
+| Plantillas de evento, material y perfil                                | `src/lib/admin/plantillas/` (`evento.md`, `material.md`, `perfil.md`)                                                                           |
+| Árbol de etiquetas                                                     | En la base (Panel → Etiquetas, [etiquetas.md](etiquetas.md))                                                                                    |
+| Semilla de las bases locales (dev, E2E)                                | `src/lib/server/semilla/` (`npm run db:semilla`)                                                                                                |
+| Páginas públicas                                                       | `src/routes/(content)/` (`calendario`, `material`, `amigues`, `wiki`…)                                                                          |
+| Listas públicas y sus filtros (buscador, barra de chips, árbol)        | `src/lib/components/PostList.svelte` con `TagSearch`, `FilterBar`, `TagBar` y `TagTree` ([estilo.md](estilo.md#barra-de-filtros-de-las-listas)) |
+| Editor de eventos (nuevo, editar, duplicar, agenda, importar planilla) | `src/routes/(authed)/admin/eventos/`, `src/lib/server/eventos/`, `src/lib/utils/eventDraft.js`                                                  |
+| Editor de material                                                     | `src/routes/(authed)/admin/contenido/material/`, `src/lib/server/admin/contentRoutes.js`, `posts.js`                                            |
+| Editor de perfiles (amigues)                                           | `src/routes/(authed)/admin/comunidad/perfiles/`, `src/lib/server/admin/amiguesRoutes.js` ([amigues.md](amigues.md))                             |
+| Editor de la wiki                                                      | `src/routes/(authed)/admin/etiquetas/wiki/[term]/`, `src/lib/server/etiquetas/wikiEditor.js`                                                    |
+| Editor genérico (material; amigues y wiki llevan a sus editores)       | `src/routes/(authed)/edit/[category]/[postID]/`                                                                                                 |
+| Cliente de contenido del panel                                         | `getRepoClient()` en `src/lib/server/eventos/index.js`: `withContentDb` sobre `contenido/cliente.js`                                            |
 
 ## Cómo probar
 

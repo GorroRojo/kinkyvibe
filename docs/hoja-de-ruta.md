@@ -22,9 +22,13 @@ PRs abiertos:
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
 - #274: «X min de lectura» en material y Kinkipedia, con reloj, la explicación del cálculo y la
   velocidad de cada persona (navegador y cuenta) (idea de JorgeT10, #46).
+- «Textos del bot» (Ajustes › Comunicación): todo lo que dice el bot de Telegram, editable en el
+  panel, sin migración.
 - Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
   tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
   directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
+- #297: códigos copiables, los mails de código (ingresar y confirmar) armados para que Gmail y el celu
+  reconozcan el código ([mails.md](mails.md#códigos-copiables)).
 
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
 BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
@@ -137,8 +141,8 @@ de amigues y lanzamientos grandes.
 - Revisar los hallazgos de la auditoría de UX del 4/10 que siguen abiertos (anclas del glosario,
   áreas de toque, migas de pan, búsqueda vacía de la wiki). M.
 - «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`). S.
-- Rediseño de la barra de filtros, con panel desplegable en el celu (#18). M. Bloqueo: maqueta y
-  elección de gorrite.
+- Barra de filtros de las listas: probarla en celulares reales (Android y iPhone) y, cuando se
+  confirme, sacar los prototipos `/estilo/prototipos/filtros-celu` y `filtros-celu-v2`. S.
 - Esconder etiquetas del filtro que no cambiarían los resultados (#17). S–M.
 - Barra de progreso de lectura (#19). S. Bloqueo: confirmar que se sigue queriendo.
 - Ajustes de lectura: tamaño de letra y tema (#20). M. Bloqueo: diseño.
@@ -194,6 +198,11 @@ de amigues y lanzamientos grandes.
 
 - Tarjeta de evento en Gmail: los pasos para registrarse con Google y revisar el requisito de
   volumen de envío. S. Bloqueo: gorrite manda el formulario.
+- Códigos copiables (pedido de gorrite, 11/10/2026; #297): en dos pruebas con mails reales, Gmail
+  para celu no mostró «Copiar código» (ni con el código en el asunto) y ofreció traducir el mail
+  «del inglés» (también con `Content-Language: es`). Falta: probar en un iPhone con Mail de Apple;
+  averiguar por qué Gmail lo toma por inglés; sumar el encabezado `OTP-Token` o `One-Time-Code`
+  cuando un cliente de mail lo use. S.
 - Colas (Queues) para los mails y Email Workers para recibir. L.
 - Newsletter general y por combinación de etiquetas. L.
 - Bandeja de entrada en el panel, mails individuales y masivos (fase 5, CRM). L.
@@ -209,6 +218,17 @@ de amigues y lanzamientos grandes.
 - Guardar si alguien apagó a propósito los avisos por Telegram de algo, para que volver a seguirlo
   desde el bot no los prenda de nuevo (hoy la base no lo distingue, 0036). S. Bloqueo: que haga
   falta (necesita migración).
+- Textos del bot: sumar a «Textos del bot» los de `/inicio` y el botón «🚪 Puerta» del inicio
+  cuando entre `claude/bot-inicio` (si ese PR entra después). S.
+- Textos del bot: sumar los textos de #298 (`INLINE_TEXTS` de `inline.js`, `SITE_TEXTS` de
+  `siteScreens.js`, `SITE_SEARCH_PROMPT_TEXT` y la descripción nueva de `/buscar`) cuando entren
+  los dos PRs: una entrada por texto en `src/lib/utils/botTexts.js` y `botText` en el código. S.
+- Textos del bot: los textos de las páginas de la Mini App del calendario (`/telegram/app`) y de
+  la puerta (`/telegram/puerta`) siguen en el código (son páginas, no mensajes del bot). S.
+  Bloqueo: que haga falta.
+- Bot: borrar las funciones de antes que ya no usa el bot (`formatEventList`, `formatEvent`,
+  `formatChoices`, `formatPickList` en `format.js`; `eventListKeyboard` y `eventDetailKeyboard` en
+  `keyboards.js`) y sus pruebas. S.
 
 - Fase 3: avisos y estado para organizadores, nunca datos de compradores
   ([0029](decisiones/0029-bot-de-telegram.md)). L. Bloqueo: el rol de organizadore.

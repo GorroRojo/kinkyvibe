@@ -13,6 +13,7 @@ import { json } from '@sveltejs/kit';
 import { sha256Hex, timingSafeEqual } from '$lib/server/hash.js';
 import { handleUpdate, planUpdate } from './router.js';
 import { runPlan, telegramCaller } from './run.js';
+import { runWithBotTexts } from './texts.js';
 
 /** Largo mínimo del secreto (más corto se considera no configurado). */
 export const MIN_WEBHOOK_SECRET_LENGTH = 16;
@@ -38,20 +39,23 @@ export async function isValidWebhookSecret(given, expected) {
  *   listUpcoming: import('./router.js').Deps['listUpcoming'],
  *   accounts?: import('./router.js').Deps['accounts'],
  *   adminLink?: import('./router.js').Deps['adminLink'],
- *   door?: import('./router.js').Deps['door'],
  *   inline?: import('./router.js').Deps['inline'],
+ *   door?: import('./router.js').Deps['door'],
  *   card?: import('./router.js').Deps['card'],
  *   fondo?: import('./router.js').Deps['fondo'],
  *   botUsername?: string | null,
  *   token?: string,
  *   waitUntil?: (task: Promise<unknown>) => void,
- *   fetch?: typeof fetch
+ *   fetch?: typeof fetch,
+ *   texts?: () => Promise<import('$lib/utils/botTexts.js').BotTexts>
  * }} args `accounts`: la fase 2 (vincular cuentas); se llama solo para esos comandos y da `null`
  *   con `lo_que_sigo` apagado. `adminLink`: `/start adm_<código>`, vincular el Telegram de une
  *   admin desde el panel (la puerta por Telegram, adminLink.js); `null` con `telegram_puerta`
- *   apagado. `door`: ¿puede este usuario de Telegram abrir la puerta? (el botón «🚪 Puerta» del
- *   inicio, puerta.js); `null` con `telegram_puerta` apagado. `inline`: el modo inline (inline.js),
- *   con lo público del índice de la búsqueda. `token`: el del bot; con él, el webhook llama a la API.
+ *   apagado. `inline`: el modo inline (inline.js), con lo público del índice de la búsqueda.
+ *   `door`: ¿puede este usuario de Telegram abrir la puerta? (el botón «🚪 Puerta» del inicio,
+ *   puerta.js); `null` con `telegram_puerta` apagado. `token`: el del bot; con él, el webhook
+ *   llama a la API. `texts`: lo cambiado en «Textos del bot» (se lee una vez, después del
+ *   secreto; todo el pedido lo usa, ver texts.js).
  */
 export async function handleWebhook({
 	request,
@@ -61,14 +65,15 @@ export async function handleWebhook({
 	listUpcoming,
 	accounts,
 	adminLink,
-	door,
 	inline,
+	door,
 	card,
 	fondo,
 	botUsername,
 	token,
 	waitUntil,
-	fetch: fetchFn
+	fetch: fetchFn,
+	texts
 }) {
 	if (!secret || secret.length < MIN_WEBHOOK_SECRET_LENGTH) {
 		console.error('[telegram] falta TELEGRAM_WEBHOOK_SECRET: no se pueden verificar pedidos');
@@ -95,12 +100,32 @@ export async function handleWebhook({
 		origin,
 		accounts,
 		adminLink,
-		door,
 		inline,
+		door,
 		card,
 		fondo,
 		botUsername
 	};
+	/** @type {import('$lib/utils/botTexts.js').BotTexts} */
+	let overrides = {};
+	try {
+		overrides = texts ? await texts() : {};
+	} catch {
+		// Sin los textos cambiados, los originales: el bot nunca se queda mudo por esto.
+	}
+	// Todo el pedido (también lo que sigue en `waitUntil`) con esos textos.
+	return runWithBotTexts(overrides, () => answer(update, deps, { token, waitUntil, fetchFn }));
+}
+
+/**
+ * Contesta el update ya leído (ver {@link handleWebhook}).
+ *
+ * @param {unknown} update
+ * @param {import('./router.js').Deps} deps
+ * @param {{ token?: string, waitUntil?: (task: Promise<unknown>) => void,
+ *   fetchFn?: typeof fetch }} opts
+ */
+async function answer(update, deps, { token, waitUntil, fetchFn }) {
 	const clean = String(token ?? '').trim();
 	if (clean) {
 		const task = planUpdate(update, { ...deps, media: true })
