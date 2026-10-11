@@ -7,7 +7,7 @@ import {
 	saveAgendaRow,
 	saveAgendaRows
 } from './agenda.js';
-import { FileChangedError } from './github.js';
+import { FileChangedError } from '../contenido/cliente.js';
 import { eventTagGroups } from '$lib/utils/adminTags.js';
 
 const PLACES = eventTagGroups().places;

@@ -7,8 +7,8 @@
  * Lo único que cambió a propósito (decisión 0030, gorrite): «Para revisar» suma dos filas nuevas
  * (lo que Etiquetas tiene para revisar y la lista del importador de contenido), que el load de
  * antes no tenía (`NEW_ROWS`), y ya no lista los PRs de contenido de GitHub (el contenido vive solo
- * en la base; el load de antes tampoco los traía en estas pruebas, con `usesLocalRepo` en true, así
- * que se sacaron de él sin cambiar lo que da), y el contador `review` del menú es ahora la cantidad de filas de la
+ * en la base; el load de antes tampoco los traía en estas pruebas, así que se sacaron de él sin
+ * cambiar lo que da), y el contador `review` del menú es ahora la cantidad de filas de la
  * tarjeta (antes sumaba solo transferencias, órdenes, perfiles y eventos «Online» con lugar). Por
  * eso se compara todo lo demás con lo de antes y `review` con las filas de la tarjeta.
  * D1 de miniflare, datos inventados (example.com); los eventos, de mentira.
@@ -89,8 +89,7 @@ const fake = vi.hoisted(() => ({
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
 vi.mock('$lib/server/eventos/index.js', async (importOriginal) => ({
 	.../** @type {object} */ (await importOriginal()),
-	listEvents: async () => structuredClone(fake.events),
-	usesLocalRepo: () => true
+	listEvents: async () => structuredClone(fake.events)
 }));
 vi.mock('$lib/server/tickets/events.js', async (importOriginal) => ({
 	.../** @type {object} */ (await importOriginal()),

@@ -325,7 +325,7 @@
 {#if data.mock}
 	<div class="mock-note">
 		<Notice tone="warn" role={null}>
-			Modo de prueba (<code>npm run dev:admin</code>): los «commits» van a una carpeta temporal.
+			Modo de prueba (<code>npm run dev:admin</code>): admin falso; los cambios van a la base local.
 		</Notice>
 	</div>
 {/if}

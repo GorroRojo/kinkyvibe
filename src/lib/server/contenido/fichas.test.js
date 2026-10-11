@@ -12,7 +12,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import YAML from 'yaml';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
-import { FileChangedError } from '$lib/server/eventos/github.js';
+import { FileChangedError } from './cliente.js';
 import {
 	importAmigues,
 	isImportable,

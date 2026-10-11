@@ -3,26 +3,18 @@
  * Guardas para que los datos de prueba del modo demo nunca lleguen a producción (docs/demo.md).
  * Las corre CI (.github/workflows/ci.yml) y las prueba src/lib/server/demo/demoGuard.test.js.
  *
- *   node scripts/demo/guard.js posts
- *     Falla si hay eventos de prueba entre los posts (`src/lib/posts/**`): los .md que escribe
- *     `node scripts/demo/seed.js --write-events` son solo para la rama `demo`. CI lo corre en los
- *     PR contra `main` y en `main`.
- *
  *   node scripts/demo/guard.js bundle <archivo>
  *     Falla si el Worker empaquetado (`wrangler deploy --dry-run`) trae el seed, el botón
  *     «Recargar datos de prueba» o la galería de componentes (/estilo, docs/estilo.md). El build
  *     de CI no tiene rama de deploy, igual que el de producción para estos fines
  *     (`PREVIEW_BUILD` es `false`): esos módulos se eliminan.
  */
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { EVENT_MARKER, SEED_BY } from '../../src/lib/server/demo/seed.js';
+import { SEED_BY } from '../../src/lib/server/demo/seed.js';
 import { DEMO_SLOT_KEY } from '../../src/lib/server/demo/seedEvents.js';
 import { COPY_MARK_KEY } from '../../src/lib/server/demo/realEvents.js';
-
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-export const POSTS_DIR = path.join(ROOT, 'src/lib/posts');
 
 /**
  * Textos que solo están en el seed (src/lib/server/demo/seed.js, seedProfiles.js, seedEvents.js,
@@ -57,24 +49,6 @@ export function galleryIn(text) {
 }
 
 /**
- * Los .md de `dir` (recursivo) que son eventos de prueba: llevan la marca del seed en el
- * frontmatter. Devuelve sus paths relativos a `dir`.
- *
- * @param {string} [dir]
- * @returns {string[]}
- */
-export function findDemoPosts(dir = POSTS_DIR) {
-	/** @type {string[]} */
-	const found = [];
-	for (const entry of readdirSync(dir, { recursive: true, withFileTypes: true })) {
-		if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
-		const full = path.join(entry.parentPath, entry.name);
-		if (readFileSync(full, 'utf8').includes(EVENT_MARKER)) found.push(path.relative(dir, full));
-	}
-	return found.sort();
-}
-
-/**
  * Las marcas del seed que aparecen en un bundle.
  *
  * @param {string} text
@@ -86,18 +60,6 @@ export function seedMarkersIn(text) {
 
 function main() {
 	const [cmd, file] = process.argv.slice(2);
-	if (cmd === 'posts') {
-		const found = findDemoPosts();
-		if (found.length) {
-			console.error(
-				`Hay eventos de prueba del modo demo entre los posts (solo van en la rama demo):\n` +
-					found.map((f) => `  src/lib/posts/${f}`).join('\n')
-			);
-			process.exit(1);
-		}
-		console.log('guard posts: sin eventos de prueba.');
-		return;
-	}
 	if (cmd === 'bundle' && file) {
 		const branch = (process.env.WORKERS_CI_BRANCH || process.env.CF_PAGES_BRANCH || '').trim();
 		if (branch && branch !== 'main') {
@@ -122,7 +84,7 @@ function main() {
 		console.log('guard bundle: sin datos de prueba ni galería de componentes.');
 		return;
 	}
-	console.error('Uso: node scripts/demo/guard.js posts | bundle <archivo>');
+	console.error('Uso: node scripts/demo/guard.js bundle <archivo>');
 	process.exit(2);
 }
 

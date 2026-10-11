@@ -11,7 +11,7 @@ import { logAdminAction } from '$lib/server/admin/audit.js';
 import { tagDeletionStatement } from '$lib/server/admin/deletions.js';
 import { SERIES_PARENT } from '$lib/utils/series.js';
 import { commitTagEdit, previewOf } from '$lib/server/admin/tagEditor.js';
-import { FileChangedError, PendingChangeError } from '$lib/server/eventos/github.js';
+import { FileChangedError } from '$lib/server/contenido/cliente.js';
 import { applyDbTagPlan, dbPreviewOf, planDbTagEdit } from './editor.js';
 import { loadTagRecords } from './read.js';
 import { planTagRenameInPosts, renamesPosts } from './rename.js';
@@ -223,8 +223,6 @@ export async function saveDbTagEdit(from, ops, { repo, ...ctx }) {
 					status: 409,
 					error: `${e.path} cambió mientras tanto. Volvé a hacer la vista previa y guardá de nuevo.`
 				};
-			if (e instanceof PendingChangeError)
-				return { ok: false, status: 409, error: e.message + '.' };
 			return {
 				ok: false,
 				status: 502,

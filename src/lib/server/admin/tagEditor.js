@@ -13,7 +13,7 @@ export const POST_DIRS = Object.freeze(
 );
 
 /**
- * @typedef {Pick<typeof import('../eventos/github.js'), 'getFile' | 'getDirTexts' | 'commitFiles'>} TagClient
+ * @typedef {Pick<typeof import('../contenido/cliente.js').sinRepo, 'getFile' | 'getDirTexts' | 'commitFiles'>} TagClient
  */
 
 /**
