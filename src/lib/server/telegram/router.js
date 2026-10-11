@@ -17,6 +17,9 @@
  */
 import {
 	ACCOUNTS_OFF_TEXT,
+	ADMIN_LINK_INVALID_TEXT,
+	ADMIN_LINK_OFF_TEXT,
+	formatAdminLinked,
 	LINK_ASK_CODE_TEXT,
 	LINK_INVALID_TEXT,
 	LINK_TOO_MANY_TEXT,
@@ -40,6 +43,7 @@ import {
 import { ACCOUNT_COMMAND_NAMES, HANDLED_COMMANDS } from './commands.js';
 import { answerOnly, deliverScreen, singleMethod } from './deliver.js';
 import {
+	ADMIN_START_PREFIX,
 	decodeNav,
 	encodeNav,
 	findByDeepId,
@@ -82,10 +86,20 @@ import {
  */
 
 /**
+ * Vincular el Telegram de une admin (prototipo de la puerta, adminLink.js): recibe lo que vino
+ * después de `/start` (`adm_<código>`) y el id del usuario de Telegram.
+ *
+ * @typedef {(param: string, telegramUserId: number) =>
+ *   Promise<{ linked: string } | 'invalid' | 'too_many'>} BotAdminLink
+ */
+
+/**
  * @typedef {import('./navigate.js').NavDeps & {
  *   accounts?: () => Promise<BotAccounts | null>,
+ *   adminLink?: BotAdminLink | null,
  *   media?: boolean
- * }} Deps `media`: hay token, así que se pueden usar fotos y varios métodos (run.js)
+ * }} Deps `media`: hay token, así que se pueden usar fotos y varios métodos (run.js).
+ *   `adminLink`: sin base, `null` (el bot contesta que no se puede).
  */
 
 /** Lo que trae "/start" cuando viene del link con el código (8 letras y números). */
@@ -198,6 +212,24 @@ async function accountCommand(command, chat, deps) {
 		default:
 			return (await accounts.setMuted(chatId, false)) ? UNMUTED_TEXT : NOT_LINKED_TEXT;
 	}
+}
+
+/**
+ * `/start adm_<código>`: el link de «Vincular Telegram» del panel (Ajustes → Admins). Solo por
+ * chat privado; no depende de «Lo que sigo» (les admins no tienen cuenta pública).
+ *
+ * @param {string} param
+ * @param {any} message
+ * @param {Deps} deps
+ * @returns {Promise<string>}
+ */
+async function adminLinkCommand(param, message, deps) {
+	if (message?.chat?.type !== 'private') return PRIVATE_ONLY_TEXT;
+	const userId = message?.from?.id;
+	if (!deps.adminLink || typeof userId !== 'number') return ADMIN_LINK_OFF_TEXT;
+	const r = await deps.adminLink(param, userId);
+	if (typeof r === 'object' && r) return formatAdminLinked(r.linked);
+	return r === 'too_many' ? LINK_TOO_MANY_TEXT : ADMIN_LINK_INVALID_TEXT;
 }
 
 /**
@@ -472,6 +504,10 @@ async function commandScreen(command, message, ctx, deps, accounts) {
 	};
 	switch (command.name) {
 		case 'start': {
+			// El link de «Vincular Telegram» del panel llega como "/start adm_<código>".
+			if (command.args.startsWith(ADMIN_START_PREFIX)) {
+				return textScreen(await adminLinkCommand(command.args, message, deps));
+			}
 			// El link `t.me/<bot>?start=<código>` de Mi rincón llega como "/start <código>".
 			if (START_CODE.test(command.args)) {
 				const linkCommand = { name: 'vincular', args: command.args };

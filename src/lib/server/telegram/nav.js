@@ -206,6 +206,12 @@ export function decodeNav(data) {
 const DEEP_SLUG = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
 /**
+ * `?start=adm_<código>`: «Vincular Telegram» del panel (adminLink.js, lo mira router.js antes que
+ * `parseStartParam`). Ningún otro deep link empieza así.
+ */
+export const ADMIN_START_PREFIX = 'adm_';
+
+/**
  * El id de un evento en un deep link (solo `A-Za-z0-9_-`): la dirección si sirve y entra; si no,
  * `_<hash>` (ninguna dirección de evento empieza con `_`).
  *

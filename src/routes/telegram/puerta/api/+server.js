@@ -1,7 +1,7 @@
 /**
  * PROTOTIPO (no para mergear): POST `{ initData, evento, codigo }` → marca el ingreso. Valida el
- * `initData` (HMAC con el token del bot, `auth_date` reciente) y que sea une admin con la cuenta
- * vinculada, **en cada pedido** ($lib/server/telegram/puerta.js). Sin token, apagado o sin base:
+ * `initData` (HMAC con el token del bot, `auth_date` reciente) y que sea une admin con el Telegram
+ * vinculado desde el panel, **en cada pedido** ($lib/server/telegram/puerta.js). Sin token, apagado o sin base:
  * 404.
  */
 import { error, json } from '@sveltejs/kit';
@@ -33,7 +33,6 @@ export async function POST({ request, platform }) {
 		db,
 		initData: body?.initData,
 		token,
-		doorAdmins: env.TELEGRAM_DOOR_ADMINS,
 		eventSlug: slug,
 		code: body?.codigo
 	});

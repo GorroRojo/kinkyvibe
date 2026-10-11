@@ -160,3 +160,66 @@ describe('errores', () => {
 		spy.mockRestore();
 	});
 });
+
+describe('/start adm_<código> (vincular el Telegram de une admin, prototipo de la puerta)', () => {
+	/**
+	 * @param {Awaited<ReturnType<import('./router.js').BotAdminLink>>} result
+	 * @param {ReturnType<typeof fakeAccounts> | null} [accounts]
+	 */
+	const adminDeps = (result, accounts = null) => ({
+		...deps(accounts),
+		adminLink: vi.fn(async () => result)
+	});
+	/** @param {string} text @param {string} [type] */
+	const fromUser = (text, type = 'private') => ({
+		update_id: 1,
+		message: { chat: { id: 42, type }, from: { id: 42 }, text }
+	});
+
+	it('código bueno: le pasa el parámetro y el usuario, y confirma con el login', async () => {
+		const d = adminDeps({ linked: 'admin-inventade' });
+		const res = await handleUpdate(fromUser('/start adm_ABCD2345'), d);
+		expect(d.adminLink).toHaveBeenCalledWith('adm_ABCD2345', 42);
+		expect(res?.text).toContain('quedó vinculado a le admin <b>admin-inventade</b>');
+		expect(res?.text).toContain('Ajustes → Admins');
+	});
+
+	it('no depende de «Lo que sigo» ni toca los códigos de Mi rincón', async () => {
+		const accounts = fakeAccounts();
+		const d = adminDeps({ linked: 'admin-inventade' }, accounts);
+		await handleUpdate(fromUser('/start adm_ABCD2345'), d);
+		expect(accounts.link).not.toHaveBeenCalled();
+		const off = adminDeps({ linked: 'admin-inventade' }, null);
+		expect((await handleUpdate(fromUser('/start adm_ABCD2345'), off))?.text).toContain(
+			'quedó vinculado'
+		);
+	});
+
+	it('inválido, vencido o ya usado: lo dice sin detalles y manda al panel', async () => {
+		const res = await handleUpdate(fromUser('/start adm_ZZZZZZZZ'), adminDeps('invalid'));
+		expect(res?.text).toContain('Ese link no sirve');
+		expect(res?.text).toContain('15 minutos');
+		expect(res?.text).toContain('Vincular Telegram');
+	});
+
+	it('muchos intentos: pide esperar', async () => {
+		const res = await handleUpdate(fromUser('/start adm_ZZZZZZZZ'), adminDeps('too_many'));
+		expect(res?.text).toContain('Esperá un rato');
+	});
+
+	it('en un grupo no vincula', async () => {
+		const d = adminDeps({ linked: 'admin-inventade' });
+		const res = await handleUpdate(fromUser('/start adm_ABCD2345', 'group'), d);
+		expect(d.adminLink).not.toHaveBeenCalled();
+		expect(res?.text).toContain('chat privado');
+	});
+
+	it('sin base (sin `adminLink`) o sin usuario: avisa que no se puede', async () => {
+		const res = await handleUpdate(fromUser('/start adm_ABCD2345'), deps(null));
+		expect(res?.text).toContain('no se puede vincular');
+		const d = adminDeps({ linked: 'admin-inventade' });
+		const noFrom = await handleUpdate(update('/start adm_ABCD2345'), d);
+		expect(d.adminLink).not.toHaveBeenCalled();
+		expect(noFrom?.text).toContain('no se puede vincular');
+	});
+});

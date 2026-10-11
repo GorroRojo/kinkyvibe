@@ -2,7 +2,7 @@
  * Webhook del bot de Telegram (decisiones 0029 y 0034, docs/telegram.md). La lógica está en
  * `$lib/server/telegram/`; esta ruta solo junta el secreto, los interruptores, los eventos, la
  * tarjeta de cada evento, el Fondo, el token (con él, el webhook llama a la API en `waitUntil`) y,
- * para la fase 2 (vincular cuentas), la base.
+ * para la fase 2 (vincular cuentas) y el vínculo de les admins (prototipo de la puerta), la base.
  */
 import { env } from '$env/dynamic/private';
 import { isFlagOn } from '$lib/server/flags.js';
@@ -10,6 +10,7 @@ import { getDB } from '$lib/server/db';
 import { handleWebhook } from '$lib/server/telegram/webhook.js';
 import { eventCardInfo, listUpcomingEvents } from '$lib/server/telegram/events.js';
 import { botAccounts } from '$lib/server/telegram/link.js';
+import { botAdminLink } from '$lib/server/telegram/adminLink.js';
 import { botUsername } from '$lib/server/telegram/web.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 
@@ -31,6 +32,8 @@ export async function POST({ request, url, platform, fetch }) {
 		waitUntil: ctx?.waitUntil ? (task) => ctx.waitUntil(task) : undefined,
 		// Fase 2: con «Lo que sigo» prendido (el bot ya está prendido si se llega acá).
 		accounts: async () =>
-			db && (await isFlagOn(db, 'lo_que_sigo')) ? botAccounts(db, platform) : null
+			db && (await isFlagOn(db, 'lo_que_sigo')) ? botAccounts(db, platform) : null,
+		// Prototipo de la puerta: `/start adm_<código>` del panel (no depende de «Lo que sigo»).
+		adminLink: db ? botAdminLink(db) : null
 	});
 }

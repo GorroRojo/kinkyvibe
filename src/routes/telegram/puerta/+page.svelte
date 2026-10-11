@@ -44,7 +44,10 @@
 			});
 			const body = await res.json().catch(() => ({}));
 			if (res.status === 403)
-				last = { tone: 'error', text: 'Tu cuenta no tiene permiso para la puerta.' };
+				last = {
+					tone: 'error',
+					text: 'Este Telegram no está vinculado a une admin. Vinculalo en el panel: Ajustes → Admins.'
+				};
 			else if (res.status === 429) last = { tone: 'warn', text: 'Más despacio 🙂' };
 			else if (!res.ok) last = { tone: 'error', text: 'Algo salió mal. Probá de nuevo.' };
 			else {
@@ -76,7 +79,10 @@
 	<p class="proto">Prototipo: no está en uso.</p>
 	<h1>Puerta</h1>
 	{#if !tg}
-		<p>Esto se abre desde el bot de Telegram, con una cuenta de admin conectada.</p>
+		<p>
+			Esto se abre desde el bot de Telegram, con el Telegram vinculado en el panel (Ajustes →
+			Admins).
+		</p>
 	{:else}
 		<label>
 			Evento (dirección)

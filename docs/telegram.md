@@ -330,11 +330,28 @@ ingresos) y 0034 la deja afuera hasta una decisión propia.
 - En **cada pedido** el servidor (`puerta.js`): valida el `initData` (`initData.js`: HMAC-SHA-256
   con la clave `HMAC-SHA-256("WebAppData", token)`, todos los campos menos `hash` ordenados y
   unidos con `\n`, comparación en tiempo constante, `auth_date` de menos de 1 hora y no del
-  futuro, sin claves repetidas); busca la cuenta vinculada a ese usuario de Telegram (en un chat
-  privado, el id del chat es el del usuario); y exige que sea une admin.
-- Les admins (GitHub, `ADMINS`) y las cuentas del público no están unidas: el prototipo usa la
-  variable `TELEGRAM_DOOR_ADMINS` (`<login>=<id de la cuenta>`) y además chequea que el login siga
-  en `ADMINS`. **Pregunta abierta:** cómo unir una cuenta con une admin de verdad.
+  futuro, sin claves repetidas); busca a le admin vinculade a ese usuario de Telegram
+  (`telegram_admin_links`); y exige que ese id de GitHub **siga siendo admin** (`isAdmin` de
+  `auth.js`, con `ADMINS`): sacar a alguien de la lista le corta la puerta aunque el vínculo siga
+  en la base. Si no: 403 (`not_linked` / `not_admin`).
+- **Vincular** (les admins entran con GitHub y no tienen cuenta pública, así que no usa
+  `telegram_chats` ni Mi rincón; `adminLink.js`, migración `0050`):
+  1. En el panel, Ajustes → Admins → «Tu Telegram para la puerta» → **Vincular Telegram**: crea un
+     código al azar (8 caracteres, 40 bits), de un solo uso, que vence en 15 minutos; se guarda
+     solo su SHA-256 (`telegram_admin_link_codes`). Hay uno solo vivo por admin y un tope de 10
+     por hora. Muestra el link `t.me/<bot>?start=adm_<código>` y su QR (necesita el interruptor
+     `telegram_bot` y `TELEGRAM_BOT_USERNAME`).
+  2. El bot recibe `/start adm_<código>` **solo por chat privado** (en un grupo contesta que se
+     hace por privado). Marca el código usado en la misma sentencia que lo lee, vuelve a chequear
+     `isAdmin` y guarda `id de GitHub ↔ id del usuario de Telegram` (una cuenta de Telegram por
+     admin y viceversa: vincular de nuevo reemplaza). Confirma en el chat. Código inválido,
+     vencido o ya usado: «Ese link no sirve…». Tope de 10 intentos por hora por usuario de
+     Telegram. No depende de «Lo que sigo».
+  3. **Desvincular** en el mismo lugar borra el vínculo y los códigos.
+  4. Vincular y desvincular quedan en Actividad (`telegram.admin_link`, `telegram.admin_unlink`).
+     «Seguir» desde el bot sigue sin registro.
+- De Telegram solo se guarda el id del usuario (ni nombre ni usuario). La lista muestra quién
+  tiene Telegram vinculado.
 - Marca con lo mismo que el modo puerta del panel (`extractToken` + `checkIn`), con el login de le
   admin; contesta solo el resultado y el nombre de la entrada. Tope de 600 escaneos por hora.
 - Solo Telegram Web puede embeberla (`frame-ancestors https://web.telegram.org`).

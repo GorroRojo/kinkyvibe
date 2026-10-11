@@ -200,6 +200,23 @@ export const PRIVATE_ONLY_TEXT =
 
 export const ACCOUNTS_OFF_TEXT = 'Todavía no se puede conectar una cuenta con el bot.';
 
+/**
+ * `/start adm_<código>` salió bien (prototipo de la puerta, adminLink.js).
+ *
+ * @param {string} login el de GitHub de le admin
+ */
+export function formatAdminLinked(login) {
+	return (
+		`Listo: este Telegram quedó vinculado a le admin <b>${escapeHtml(login)}</b> del panel, ` +
+		'para la puerta. Para desvincularlo: panel → Ajustes → Admins.'
+	);
+}
+
+export const ADMIN_LINK_INVALID_TEXT =
+	'Ese link no sirve: puede estar vencido (duran 15 minutos), ya usado o incompleto. Generá otro en el panel → Ajustes → Admins → «Vincular Telegram».';
+
+export const ADMIN_LINK_OFF_TEXT = 'Ahora no se puede vincular una cuenta de admin con el bot.';
+
 export const NOT_LINKED_TEXT =
 	'Este chat no está conectado a ninguna cuenta. Para conectarlo: /vincular &lt;código&gt;.';
 
