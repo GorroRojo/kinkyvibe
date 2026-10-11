@@ -20,7 +20,8 @@ PRs abiertos:
   nuevo mapa de teclas `g`.
 - #261: reserva por transferencia hasta las 20 del segundo día hábil, sin paso de confirmar.
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
-- #296: miniatura de la portada en el recuadro «Hoy» del Inicio del panel (gorrite, 11/10).
+- #274: «X min de lectura» en material y Kinkipedia, con reloj, la explicación del cálculo y la
+  velocidad de cada persona (navegador y cuenta) (idea de JorgeT10, #46).
 - Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
   tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
   directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
@@ -28,8 +29,8 @@ PRs abiertos:
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
 BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
 
-PRs viejos para decidir: #46 (tiempo de lectura, de JorgeT10; ver Próximo 6), #43 (notificaciones
-push, de boniSantana) y #25 (negociación interactiva para bottoms).
+PRs viejos para decidir: #43 (notificaciones push, de boniSantana) y #25 (negociación interactiva
+para bottoms). #46 (tiempo de lectura, de JorgeT10) lo reemplaza #274.
 
 ## Próximo
 
@@ -63,22 +64,21 @@ La cola de las noches, en este orden:
 5. **Borrados recuperables** para preguntas de inscripción, roles y notas internas de una
    persona. S–M. Necesita una decisión nueva: [0030](decisiones/0030-para-revisar-y-recuperar.md)
    las dejó permanentes.
-6. **Tiempo de lectura** (#21), rehecho en una rama nueva con crédito a JorgeT10 (#46). S.
-7. **Estándares web**: JSON-LD completo, microformatos (`h-event`, `h-card`), feeds visibles
+6. **Estándares web**: JSON-LD completo, microformatos (`h-event`, `h-card`), feeds visibles
    (webcal de Apple y Outlook en `/calendario`, feed en las páginas de etiquetas),
    `security.txt`, `rel=me`. M.
-8. **Auditoría de SEO y AEO** (buscadores y respuestas de IA): informe y arreglos chicos. M.
-9. **Sistema de diseño**: una página de aprobación por componente para gorrite, versiones para el
+7. **Auditoría de SEO y AEO** (buscadores y respuestas de IA): informe y arreglos chicos. M.
+8. **Sistema de diseño**: una página de aprobación por componente para gorrite, versiones para el
    sitio público (Field, Checkbox, Switch, Notice, Card, Badge, Table), limpiar envoltorios y
    restos de UI, y después fijarlo con pruebas de capturas y reglas de CI. M cada parte.
    Bloqueo: gorrite aprueba cada componente.
-10. **Borradores de páginas legales** antes de vender en serio: términos y devoluciones, aviso de
-    privacidad (Ley 25.326), datos del proveedor, botón de arrepentimiento. M. Bloqueo: gorrite
-    (o alguien de legales) aprueba el texto.
-11. **Bot de Telegram, fase 1 de lo que sigue**: que se vea en el sitio (mención, link desde Mi
+9. **Borradores de páginas legales** antes de vender en serio: términos y devoluciones, aviso de
+   privacidad (Ley 25.326), datos del proveedor, botón de arrepentimiento. M. Bloqueo: gorrite
+   (o alguien de legales) aprueba el texto.
+10. **Bot de Telegram, fase 1 de lo que sigue**: que se vea en el sitio (mención, link desde Mi
     rincón y el pie, textos de `/start` y `/ayuda`), después de #262. S–M. Bloqueo: textos y
     lugar los elige gorrite.
-12. **Prototipos** (para mirar y decidir, no para prender): lista de espera por evento, segundo
+11. **Prototipos** (para mirar y decidir, no para prender): lista de espera por evento, segundo
     proveedor de pago, rol de organizadore, conector de Claude para el panel, IndieWeb y
     ActivityPub. L cada uno.
 
@@ -155,9 +155,6 @@ de amigues y lanzamientos grandes.
 - Passkeys para las cuentas del público. M–L.
 - Botón grande para comprar afuera: cuando las entradas se venden en otro sitio (link externo),
   el llamado a la acción tiene el mismo tamaño y peso que «Comprar entradas» (gorrite, 10/10). S.
-- Tiempo de lectura a la medida de cada persona: «leo rápido / normal / despacio» (por ejemplo
-  250 / 200 / 150 palabras por minuto), guardado en el navegador como las otras preferencias, desde
-  la explicación del «X min de lectura» o los ajustes de lectura (#20). S. Después de #274.
 
 ### Entradas
 
