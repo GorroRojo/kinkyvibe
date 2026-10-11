@@ -70,27 +70,35 @@
 		</li>
 		<li>
 			<h3>Redes</h3>
+			<!-- rel="me": las cuentas oficiales (las mismas que OFFICIAL_PROFILES de jsonLd.js, en el
+			     JSON-LD de la organización): así los sitios que verifican perfiles las reconocen. -->
 			<ul class="redes">
 				<li>
-					<a href="https://t.me/BDSMtextos" target="_blank">
+					<a href="https://t.me/BDSMtextos" target="_blank" rel="me noopener">
 						<SimpleIcon icon={siTelegram} />
 						Telegram
 					</a>
 				</li>
 				<li>
-					<a href="https://www.instagram.com/kinkyvibeargentina/" target="_blank">
+					<a href="https://www.instagram.com/kinkyvibeargentina/" target="_blank" rel="me noopener">
 						<SimpleIcon icon={siInstagram} />
 						Instagram
 					</a>
 				</li>
 				<li>
-					<a href="https://twitter.com/kinkyvibearg"><SimpleIcon icon={siTwitter} />Twitter</a>
+					<a href="https://twitter.com/kinkyvibearg" rel="me"
+						><SimpleIcon icon={siTwitter} />Twitter</a
+					>
 				</li>
 				<li>
-					<a href="https://www.youtube.com/@KinkyVibe"><SimpleIcon icon={siYoutube} />Youtube</a>
+					<a href="https://www.youtube.com/@KinkyVibe" rel="me"
+						><SimpleIcon icon={siYoutube} />Youtube</a
+					>
 				</li>
 				<li>
-					<a href="https://www.tiktok.com/@kinkyvibearg"><SimpleIcon icon={siTiktok} />TikTok</a>
+					<a href="https://www.tiktok.com/@kinkyvibearg" rel="me"
+						><SimpleIcon icon={siTiktok} />TikTok</a
+					>
 				</li>
 				<li>
 					<a data-sveltekit-reload href="https://kinkyvibe.ar/rss"><Rss {style} />RSS</a>

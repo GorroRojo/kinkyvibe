@@ -4,12 +4,19 @@
 	import SeriesTagBlock from '$lib/components/series/SeriesTagBlock.svelte';
 	import FollowButton from '$lib/components/FollowButton.svelte';
 	import ContentParts from '$lib/components/ContentParts.svelte';
+	import LDTag from '$lib/components/LDTag.svelte';
+	import { wikiTermSchema } from '$lib/utils/jsonLd.js';
+	import FeedLinks from '$lib/components/FeedLinks.svelte';
 	import { tagManager, currentPostData, userConfig } from '$lib/utils/stores.js';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import ReadingTime from '$lib/components/ReadingTime.svelte';
 	import { readingTimeLabel } from '$lib/utils/readingTime.js';
+	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { cardImage, linkPreviewOf, tagDescription } from '$lib/utils/seo.js';
+	/** Sin imagen propia, la tarjeta de la Kinkipedia. */
+	$: KINKIPEDIA_CARD = cardImage('wiki', linkPreviewOf($page.data));
 	/** @type {any} La página de la wiki (de la base) o la etiqueta sola (+page.js). */
 	export let data;
 	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
@@ -61,6 +68,8 @@
 	}
 	const guessedTitle =
 		data?.tag?.id ?? decodeURIComponent($page.url.pathname.slice(6)).replaceAll('-', ' ');
+	/** El título de la entrada o, sin entrada, el nombre de la etiqueta. */
+	$: pageTitle = data?.meta?.title ?? data?.tag?.visible_name ?? guessedTitle;
 	const ascendance = getAscendance(data?.meta?.wiki ?? guessedTitle ?? 'BDSM');
 	const descendance = getDescendance(data?.meta?.wiki ?? guessedTitle ?? 'inglés');
 	// const descendance = [[{ name: 'Shibari' }], [{ name: 'Momificación' }]];
@@ -89,27 +98,31 @@
 			.then((posts) => (relatedPosts = posts.filter(isRelated)))
 			.catch(() => (loadedPast = false));
 	}
+	// La entrada como término definido (schema.org, jsonLd.js); sin entrada, nada.
+	$: termSchema = data?.meta
+		? wikiTermSchema({
+				title: data.meta.title,
+				summary: data.meta.summary,
+				path: data.path,
+				aka: $tagManager.get(data.meta.wiki)?.aka
+			})
+		: null;
 </script>
 
+{#if termSchema}<LDTag schema={termSchema} />{/if}
 <svelte:head>
-	<title>{data?.meta?.title ?? data.tag?.visible_name} · Kinky Vibe</title>
-
-	<meta property="og:title" content={data?.meta?.title} />
-	<meta name="twitter:title" content={data?.meta?.title} />
-
-	<meta name="description" content={data?.meta?.summary} />
-	<meta name="twitter:description" content={data?.meta?.summary} />
-	<meta property="og:description" content={data?.meta?.summary} />
-
-	<meta property="og:image" content={data?.meta?.featured + ''} />
-	<meta name="twitter:image" content={data?.meta?.featured + ''} />
-
-	<meta name="twitter:site" content="@kinkyvibearg" />
-	<meta name="twitter:card" content="summary_large_image" />
-	<meta property="og:type" content="article" />
-
-	<!-- <meta property="article:section" content="" /> -->
+	<title>{pageTitle} · Kinky Vibe</title>
 </svelte:head>
+<!-- La vista previa al compartir (docs/compartir.md): la entrada de la Kinkipedia o, sin entrada,
+     la etiqueta (o la serie) con una descripción genérica; sin imagen, la tarjeta de la Kinkipedia. -->
+<SeoHead
+	title={pageTitle}
+	description={data?.meta?.summary || tagDescription(pageTitle)}
+	image={data?.meta?.featured || KINKIPEDIA_CARD.url}
+	imageInfo={data?.meta?.featured ? undefined : KINKIPEDIA_CARD}
+	imageAlt={pageTitle}
+	type={data?.meta ? 'article' : 'website'}
+/>
 
 <article class="h-entry wiki" id="title">
 	<div class="content">
@@ -183,6 +196,11 @@
 	</div>
 </article>
 {#if relatedPosts.length > 0 || data.relatedPastCount > 0}
+	<!-- Los feeds de la etiqueta (eventos y material; wiki/[term]/feed.atom y feed.json). -->
+	<FeedLinks
+		base={$page.url.pathname}
+		title="{data?.meta?.title ?? data?.tag?.visible_name ?? guessedTitle} · Kinky Vibe"
+	/>
 	<PostList posts={relatedPosts}>
 		<hr />
 		<h2>Materiales, amigues y eventos relevantes</h2>

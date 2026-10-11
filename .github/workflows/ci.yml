@@ -13,8 +13,59 @@ permissions:
   contents: read
 
 jobs:
-  # Lint + unit tests and build + E2E run in parallel (each on its own runner).
+  # ¿El PR toca solo documentación? Entonces no hace falta correr tests, build ni E2E: alcanza con
+  # el chequeo de formato (job `docs`). En `main` (push) corre todo siempre. «Solo documentación» =
+  # cada archivo cambiado está en docs/, es un .md de la raíz o está en .claude/ (skills, notas).
+  # Nada de eso lo importa el sitio ni lo leen los tests.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.check.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # El merge del PR y su primer padre (la base del PR), para comparar con HEAD^1.
+          fetch-depth: 2
+
+      - name: ¿Solo documentación?
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only HEAD^1 HEAD)
+          echo "$files"
+          if [ -n "$files" ] && ! echo "$files" | grep -qvE '^docs/|^[^/]+\.md$|^\.claude/'; then
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+            echo "Solo documentación: corre el chequeo de formato y se saltean tests, build y E2E." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Para los PRs de solo documentación: el mismo chequeo de formato que `unit`, nada más.
+  docs:
+    needs: changes
+    if: needs.changes.outputs.docs_only == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      - name: Prettier
+        run: npm run format:check
+
+  # Lint y formato (unit), las pruebas en 3 partes (tests), build + E2E y tipos corren en paralelo.
   unit:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -35,16 +86,40 @@ jobs:
       - name: Prettier
         run: npm run format:check
 
-      - name: Unit + content tests
-        run: npx vitest run
-
       # Los eventos de prueba del modo demo (.md con la marca del seed) son solo de la rama demo:
       # nunca pueden llegar a main (docs/demo.md).
       - name: No demo events in posts
         if: github.event_name == 'push' || github.base_ref == 'main'
         run: node scripts/demo/guard.js posts
 
+  # Las pruebas de vitest, repartidas en 3 máquinas en paralelo (eran ~7 de los ~8 minutos de CI).
+  # Cada una corre un tercio de los archivos (`--shard`); juntas, todas.
+  tests:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    name: tests (${{ matrix.shard }}/3)
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit + content tests
+        run: npx vitest run --shard=${{ matrix.shard }}/3
+
   e2e:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     # 22.04: @playwright/test 1.40 can't install system deps on 24.04.
     runs-on: ubuntu-22.04
     timeout-minutes: 15
@@ -105,6 +180,8 @@ jobs:
   # Fails only if svelte-check reports MORE errors than scripts/svelte-check-baseline.json.
   # Its log lists every current error.
   typecheck:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -195,7 +272,7 @@ jobs:
   # When you add a job above, add it to `needs` here too.
   ci-ok:
     if: always()
-    needs: [unit, e2e, typecheck]
+    needs: [changes, docs, unit, tests, e2e, typecheck]
     runs-on: ubuntu-latest
     steps:
       - name: All required jobs passed

@@ -1,12 +1,10 @@
 /**
- * Confirmaciones de la agenda en la página (nunca `window.confirm`): antes de cargar un evento en
- * un día vacío y antes de guardar los eventos movidos.
+ * Confirmaciones de la agenda en la página (nunca `window.confirm`): antes de guardar los eventos
+ * movidos.
  */
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
-import ConfirmPrompt from './ConfirmPrompt.svelte';
 import PendingBar from './PendingBar.svelte';
-import { newEventQuestion } from '$lib/utils/calendario.js';
 
 /**
  * El texto visible del HTML que devuelve `render`: saca cada etiqueta (y los comentarios que usa
@@ -27,31 +25,6 @@ describe('text (helper de estos tests)', () => {
 		const t = text('a<!--<!-- -->-->b<scr<script>ipt>c<img');
 		expect(t).not.toContain('<');
 		expect(t).toBe('a -->b ipt>c');
-	});
-});
-
-describe('ConfirmPrompt (día vacío)', () => {
-	it('pregunta por el día con Cargar / Cancelar', () => {
-		const { body } = render(ConfirmPrompt, {
-			props: {
-				message: newEventQuestion({ date: '2026-12-12' }),
-				confirmLabel: 'Cargar',
-				cancelLabel: 'Cancelar'
-			}
-		});
-		expect(body).toContain('role="alertdialog"');
-		const t = text(body);
-		expect(t).toContain('¿Cargar un evento el sábado 12 de diciembre de 2026?');
-		expect(t).toContain('Cargar');
-		expect(t).toContain('Cancelar');
-	});
-
-	it('muestra el mensaje como texto, nunca como HTML', () => {
-		const { body } = render(ConfirmPrompt, {
-			props: { message: '¿Cargar <img src=x onerror=alert(1)>?' }
-		});
-		expect(body).not.toContain('<img src=x');
-		expect(body).toContain('&lt;img src=x onerror=alert(1)>');
 	});
 });
 

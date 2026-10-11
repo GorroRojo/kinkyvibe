@@ -28,6 +28,8 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [personas-eventos.md](personas-eventos.md)     | Personas con rol en eventos y material, y preguntas de inscripción                                                  |
 | [analiticas.md](analiticas.md)                 | Visitas anónimas y embudo de compra con Workers Analytics Engine: qué se guarda, puesta en marcha y cómo apagarlo   |
 | [telegram.md](telegram.md)                     | Bot de Telegram: otra vista del sitio, solo lectura al principio, interruptor                                       |
+| [compartir.md](compartir.md)                   | La vista previa de un link al compartirlo (WhatsApp, Telegram…): etiquetas Open Graph de cada página e imágenes     |
+| [seo.md](seo.md)                               | Datos estructurados, microformats, `rel="me"`, `security.txt`, vCard, robots, sitemap y el peso de las páginas      |
 | [estilo.md](estilo.md)                         | Estilo visual: tokens de texto, espacio, radios, sombras, colores y foco, y cuándo usar cada uno                    |
 | [ui-impacto.md](ui-impacto.md)                 | Informe de impacto visual: capturas de las páginas principales antes y después de un cambio, comparadas             |
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción                    |

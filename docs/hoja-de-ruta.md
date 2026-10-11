@@ -78,6 +78,54 @@ La cola de las noches, en este orden:
     proveedor de pago, rol de organizadore, conector de Claude para el panel, IndieWeb y
     ActivityPub. L cada uno.
 
+## Lanzamiento de entradas
+
+Para vender de verdad en todos los eventos sin sorpresas (gorrite, 11/10). Detalle y contexto en
+[tickets.md](tickets.md#pendientes-antes-de-vender-de-verdad). Bloqueo general: las decisiones de
+gorrite de la primera lista.
+
+**Decisiones de gorrite:**
+
+- Qué pasa con las entradas si un evento se cancela o se reprograma (reembolso, crédito, caso por
+  caso).
+- Tope del Fondo por evento; cuándo cierra la venta; quién puede reembolsar; si hacen falta
+  reembolsos parciales.
+- Plazo de acreditación de Mercado Pago y cargar esa comisión en Ajustes → Cobros.
+- El mínimo legal: aviso de privacidad, datos del proveedor en la compra y, si corresponde, el
+  botón de arrepentimiento (#282).
+
+**Probar antes de abrir:**
+
+- De punta a punta en el sandbox de MP: compra, pago rechazado y reintento, pago después de vencida
+  la reserva, reembolso, contracargo, código de descuento con total muy chico, entrada solidaria con
+  el Fondo. Bloqueo: credenciales de prueba de MP.
+- Una compra real de monto chico con la cuenta de verdad, y su reembolso.
+- Transferencia: reserva → confirmar en el panel → entrada por mail; y una reserva vencida.
+- Mails en Gmail, Hotmail, Yahoo y un mail de trabajo: spam, .ics, recordatorio, aviso de cambio de
+  fecha; revisar SPF, DKIM y DMARC de kinkyvibe.ar.
+- Puerta con los celulares reales (Android y iPhone): escanear, escribir código, buscar persona,
+  vender en efectivo y por transferencia, todo de nuevo sin conexión y con dos celulares a la vez.
+- Cupo en el límite: la última entrada vendida a la vez desde el sitio y la puerta; qué muestra
+  «Para revisar».
+- Cambio de fecha y cancelación de un evento de prueba, con reembolso a todes.
+- Carga chica: 50–100 intentos de compra en pocos minutos contra un preview.
+- Que alguien que no sea gorrite use el panel siguiendo la guía.
+
+**Preparar:**
+
+- Borrar los eventos de prueba; revisar remitente, respuesta y contacto de la política de
+  devoluciones; el webhook de MP apuntando a donde corresponde.
+- Roles: quién revisa transferencias y cada cuánto, quién está en la puerta (y practicó), una
+  segunda persona con acceso a Cloudflare, MP y el panel.
+- Guías cortas: puerta (una página, para el celu), confirmar transferencias, reembolsar, «qué hacer
+  si se cae el sitio».
+- Plan B en papel: exportar la lista de entradas antes de cada evento.
+- Avisos durante una venta: errores de MP, mails que no salieron, cupo pasado.
+- No mergear a `main` mientras hay una venta grande abierta.
+
+**Cómo abrir:** un evento piloto propio y chico → revisar → dos o tres eventos normales → eventos
+de amigues y lanzamientos grandes.
+
 ## Más adelante
 
 ### Sitio público
@@ -101,6 +149,11 @@ La cola de las noches, en este orden:
 - Ícono grande del tipo en el encabezado cuando no hay miniatura (perfiles, series, material,
   lugares). S.
 - Passkeys para las cuentas del público. M–L.
+- Botón grande para comprar afuera: cuando las entradas se venden en otro sitio (link externo),
+  el llamado a la acción tiene el mismo tamaño y peso que «Comprar entradas» (gorrite, 10/10). S.
+- Tiempo de lectura a la medida de cada persona: «leo rápido / normal / despacio» (por ejemplo
+  250 / 200 / 150 palabras por minuto), guardado en el navegador como las otras preferencias, desde
+  la explicación del «X min de lectura» o los ajustes de lectura (#20). S. Después de #274.
 
 ### Entradas
 
@@ -115,10 +168,18 @@ La cola de las noches, en este orden:
 - Probar el modo puerta en celulares reales y con mala señal. S.
 - Preguntas abiertas para les organizadores (reprogramar o cancelar, tope del Fondo por evento,
   si las extras cuentan para el Fondo, cuándo cierra la venta). Bloqueo: gorrite.
+- Promociones de varios eventos: por ejemplo, dos eventos a un precio especial si se compran
+  juntos (gorrite, 10/10). M–L. Bloqueo: diseño (cómo se arma la promo en el panel, cómo se ve al
+  comprar, cómo se reparte el Fondo y los reembolsos).
 
 ### Panel
 
-- Redirecciones 301 cuando cambia la dirección de un objeto. M.
+- Cambiar la dirección (URL) de un evento u otro objeto desde el panel, con redirección 301 desde
+  la vieja. Hoy la dirección se arma al crearlo y no se puede cambiar (gorrite preguntó dónde se
+  cambia, 10/10). M.
+- Invitar a cada amigue a editar su perfil: desde el panel, mandarle un link por mail para que lo
+  gestione desde Mi rincón (con cuenta), sin pasar por les admins para cada cambio (gorrite,
+  11/10). M. Revisar cómo se asigna hoy quién gestiona un perfil (docs/amigues.md).
 - Prueba E2E: objetos privados de cada tipo que nunca aparecen en listas, búsqueda, sitemap, RSS,
   imágenes para compartir ni JSON. M.
 - Borrar objetos para siempre; campos propios y tipos simples desde el panel. L. Bloqueo: diseño.

@@ -1,4 +1,6 @@
 <script>
+	import ListSeoHead from '$lib/components/ListSeoHead.svelte';
+	import { linkPreviewOf, upcomingDescription } from '$lib/utils/seo.js';
 	import { userConfig } from '$lib/utils/stores.js';
 	import {
 		fetchAllPostsClient,
@@ -13,6 +15,7 @@
 	import { toArgentina } from '$lib/utils/dates.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
 	import CardRow from '$lib/components/CardRow.svelte';
+	import FeedLinks from '$lib/components/FeedLinks.svelte';
 	import { partLabel, withPartLabel } from '$lib/utils/partes.js';
 	export let data;
 	let calendarioPosts = data.posts.filter((p) => p.meta.layout == 'calendario');
@@ -76,14 +79,28 @@
 	$: month_has_past = monthHasPastEvents(calendarioPosts, view_month);
 	// En el celu primero la lista; la grilla del mes, si la piden (en la compu, siempre al lado).
 	let showGrid = false;
+	// Los textos de la vista previa (los del panel; docs/compartir.md).
+	$: previewTexts = linkPreviewOf($page.data).texts;
 </script>
 
 <svelte:head>
 	<title>Calendario · Kinky Vibe</title>
 </svelte:head>
+<!-- La vista previa al compartir (docs/compartir.md). -->
+<ListSeoHead
+	section="calendario"
+	card="calendario"
+	description={upcomingDescription(
+		data.posts,
+		previewTexts['calendario.description'],
+		Date.now(),
+		previewTexts['calendario.upcomingPrefix']
+	)}
+/>
 
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Calendario</h1>
+<FeedLinks base="/calendario" title="Calendario · Kinky Vibe" />
 
 <!-- Los próximos eventos en una fila arriba del calendario, como antes (pedido de gorrite, 5/10). -->
 <div class="cardrow">

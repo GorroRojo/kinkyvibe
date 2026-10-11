@@ -1,6 +1,11 @@
-lilita-one-latin.woff2 (Lilita One):
+lilita-one-latin.woff2, lilita-one-latin.woff (Lilita One):
 Copyright (c) 2011 Juan Montoreano (juan@remolacha.biz), 
 with Reserved Font Name Lilita
+
+lato-latin-700.woff (Lato Bold; the WOFF files are the unmodified Fontsource 5.3.0 builds,
+used by the link-preview images because the renderer doesn't read WOFF2):
+Copyright (c) 2010-2011 by tyPoland Lukasz Dziedzic (team@latofonts.com)
+with Reserved Font Name "Lato"
 
 fredoka-latin-variable.woff2 (Fredoka):
 Copyright 2016 The Fredoka Project Authors (https://github.com/hafontia/Fredoka-One)
