@@ -1,263 +1,108 @@
 <script>
+	/**
+	 * Opciones de las listas, abajo del buscador (en pantalla ancha, en la columna de la izquierda):
+	 * «Ver como» lista o grilla (íconos), «Mostrar | Ocultar eventos pasados» y, solo en pantalla
+	 * ancha (`wide`), el árbol de etiquetas entero (TagTree). En el celu el árbol va en la hoja de
+	 * TagBar. Los dos segmentados van a la escala de los chips (`.kv-segmented.small`). Ver
+	 * docs/estilo.md, «Barra de filtros de las listas».
+	 *
+	 * Props: `event_toggle` (muestra «eventos pasados»), `wide` (la lista mide 1300px o más).
+	 */
 	import '$lib/types.d.js';
-	import { filteredTags, visibleTags, userConfig, tagManager } from '$lib/utils/stores';
-	import TagGroup from './TagGroup.svelte';
+	import { LayoutGrid, LayoutList } from '@lucide/svelte';
+	import { userConfig } from '$lib/utils/stores';
+	import TagTree from './TagTree.svelte';
 
 	export let event_toggle = true;
+	export let wide = false;
 
 	// ?tags= is read and written by PostList, which owns the URL sync
-
-	// Tag tree open/closed on narrow screens (collapsed by default to keep the list close to the
-	// top on mobile). On wide layouts it's always shown, see the @container rule below.
-	let view_filters = false;
-	$: tags = [
-		...$tagManager
-			.tagsData()
-			.filter(
-				(td) =>
-					td?.parents?.includes('root') &&
-					(td.getAllChildren().some((t) => $visibleTags.includes(t)) ||
-						$visibleTags.includes(td.id))
-			),
-		$tagManager.get('misc', {
-			children: $visibleTags
-				.filter((v) => $tagManager.get(v).orphan)
-				.sort((a, b) => a.localeCompare(b)),
-			noname: true
-		})
+	const VIEWS = [
+		{ value: 'list', label: 'Ver como lista', icon: LayoutList },
+		{ value: 'grid', label: 'Ver como grilla', icon: LayoutGrid }
+	];
+	const PAST = [
+		{ value: true, label: 'Mostrar' },
+		{ value: false, label: 'Ocultar' }
 	];
 </script>
 
 <div class="filterbar">
-	<div class="option-group-wrapper">
-		<div class="option-group-title">Ver como</div>
-		<div id="display-type" class="option-group">
-			<label class="tap-target">
-				<input
-					type="radio"
-					name="display-type"
-					id="display-type-list"
-					bind:group={$userConfig.display_type}
-					value="list"
-				/>lista
-			</label>
-			<label class="tap-target">
-				<input
-					type="radio"
-					name="display-type"
-					id="display-type-grid"
-					bind:group={$userConfig.display_type}
-					value="grid"
-				/>grilla
-			</label>
+	<div class="options">
+		<div id="display-type" class="kv-segmented small" role="group" aria-label="Ver como">
+			{#each VIEWS as v (v.value)}
+				<button
+					type="button"
+					class="icon-only tap-target"
+					aria-label={v.label}
+					title={v.label}
+					aria-pressed={$userConfig.display_type == v.value}
+					on:click={() => ($userConfig.display_type = /** @type {any} */ (v.value))}
+					><svelte:component this={v.icon} size={16} aria-hidden="true" /></button
+				>
+			{/each}
 		</div>
-	</div>
-	{#if event_toggle}
-		<div class="option-group-wrapper">
-			<div id="show-past-events" class="option-group">
-				<label class="tap-target">
-					<input
-						type="radio"
-						name="show-past-events"
-						id="show-past-events-yes"
-						bind:group={$userConfig.show_past_events}
-						value={true}
-					/>Mostrar
-				</label>
-				<label class="tap-target">
-					<input
-						type="radio"
-						name="show-past-events"
-						id="show-past-events-no"
-						bind:group={$userConfig.show_past_events}
-						value={false}
-					/>Ocultar
-				</label>
+		{#if event_toggle}
+			<div class="option">
+				<div
+					id="show-past-events"
+					class="kv-segmented small"
+					role="group"
+					aria-label="Eventos pasados"
+				>
+					{#each PAST as o (o.label)}
+						<button
+							type="button"
+							class="tap-target"
+							aria-pressed={$userConfig.show_past_events == o.value}
+							on:click={() => ($userConfig.show_past_events = o.value)}>{o.label}</button
+						>
+					{/each}
+				</div>
+				<span aria-hidden="true">eventos pasados</span>
 			</div>
-			<div class="option-group-title">eventos pasados</div>
-		</div>
-	{/if}
-
-	<!-- The toggle and "Despejar filtros" share a row, so picking the first tag (or clearing
-	the last one) doesn't push the results down/up by a whole button on narrow screens. -->
-	<div class="filter-actions">
-		<button
-			type="button"
-			class="filters-toggle"
-			aria-expanded={view_filters}
-			aria-controls="tagfilters"
-			on:click={() => (view_filters = !view_filters)}
-		>
-			{view_filters ? 'Ocultar etiquetas' : 'Filtrar por etiquetas'}
-			{#if $filteredTags.length > 0}<span class="active-count">{$filteredTags.length}</span>{/if}
-			<span class="chevron" class:open={view_filters} aria-hidden="true">▾</span>
-		</button>
-		{#if $filteredTags.length > 0}
-			<button
-				type="button"
-				on:click={() => {
-					$filteredTags = [];
-				}}>Despejar filtros</button
-			>
 		{/if}
 	</div>
-	<div class="tagfilters" id="tagfilters" class:collapsed={!view_filters}>
-		{#each tags as tag, i (tag.id)}
-			<div class="tag-group-container">
-				<TagGroup {tag} gap={tag?.getColor() != tags[i + 1]?.getColor()} nested={false} />
-			</div>
-		{/each}
-	</div>
+	{#if wide}
+		<TagTree column />
+	{/if}
 </div>
 
-<style lang="scss">
-	/* Segmented pills ("Ver como lista | grilla", "Mostrar | Ocultar eventos pasados") and the
-	   buttons below share one look: white pill, pink ink with AA contrast, pink when active. */
-	.option-group-wrapper {
-		display: flex;
-		align-items: center;
-		gap: 0.5em;
-		width: auto;
-		min-width: 0;
-		height: auto;
-		min-height: 0;
-		margin-bottom: 0.7em;
-		font-size: var(--step--1);
-	}
-	.option-group-title {
-		color: var(--1-ink);
-	}
-	.option-group {
-		display: flex;
-		align-items: stretch;
-		justify-content: center;
-		width: auto;
-		min-width: 0;
-		padding: 0.15em;
-		background: var(--surface);
-		border-radius: var(--round-pill);
-		border: 1px solid var(--1);
-		label {
-			display: flex;
-			align-items: center;
-			cursor: pointer;
-			color: var(--1-ink);
-			padding: 0.2em 0.8em;
-			border-radius: var(--round-pill);
-			flex: 1 1;
-			transition: 200ms;
-			&:has(input:checked) {
-				background: var(--1);
-				color: white;
-				font-weight: 700;
-			}
-			&:has(input:focus-visible) {
-				outline: var(--focus-ring);
-				outline-offset: 2px;
-			}
-		}
-		/* visually hidden, but still focusable with the keyboard (display:none wasn't) */
-		input {
-			position: absolute;
-			opacity: 0;
-			width: 1px;
-			height: 1px;
-			pointer-events: none;
-		}
-	}
+<style>
 	.filterbar {
 		display: flex;
 		flex-direction: column;
-		/* flex-wrap: wrap; */
+		align-items: center;
+		gap: var(--space-xs);
 		width: 100%;
-		/* height: 10rem; */
-		--gap: 1px;
-		gap: var(--gap);
-		justify-content: center;
-		align-items: center;
-		column-gap: calc(var(--gap) * 0.8);
-		--tag-color: var(--1, indigo);
 		max-width: min(100%, 100dvw);
-		/* container-type: inline-size; */
 	}
-	.tagfilters {
-		/* entre los chips (TagChip) de cada grupo */
-		gap: var(--space-2xs) var(--space-3xs);
-		display: flex;
-		flex-direction: row;
-		flex-wrap: wrap;
-		justify-content: center;
-		max-width: min(100dvw, 100%);
-	}
-	.filter-actions {
+	.options {
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: center;
 		align-items: center;
-		column-gap: 0.6em;
+		gap: var(--space-2xs) var(--space-s);
 	}
-	.filter-actions button {
+	.option {
 		display: flex;
 		align-items: center;
-		gap: 0.4em;
-		margin-bottom: 0.5em;
-		padding: 0.35em 1em;
-		font-size: var(--step--1);
-		color: var(--1-ink);
-		background: var(--surface);
-		border: 1px solid var(--1);
-		border-radius: var(--round-pill);
-		cursor: pointer;
-		&:hover {
-			background: var(--1-tint);
-		}
-	}
-	.filters-toggle {
+		gap: var(--space-3xs);
+		font-size: var(--text-xs);
 		font-weight: 700;
-		.active-count {
-			background: var(--1);
-			color: white;
-			border-radius: var(--radius-m);
-			padding: 0 0.45em;
-			font-size: 0.85em;
-		}
-		.chevron {
-			transition: transform 200ms;
-			&.open {
-				transform: rotate(180deg);
-			}
-		}
-	}
-	/* 44 px de alto para el dedo */
-	@media (max-width: 680px) {
-		.option-group label {
-			min-height: calc(var(--tap) - 0.3em - 2px);
-		}
-		.filter-actions button {
-			min-height: var(--tap);
-		}
-	}
-	.tagfilters.collapsed {
-		display: none;
-	}
-	.tag-group-container {
-		display: flex;
-		flex-direction: column;
-		/* arriba, no centrado: al lado de un grupo abierto, el chip queda en la línea de su madre */
-		justify-content: flex-start;
-		max-width: 100%;
+		color: var(--1-ink);
+		/* en una columna angosta, «eventos pasados» baja entero abajo del segmentado */
+		flex-wrap: wrap;
+		white-space: nowrap;
 	}
 	@container (min-width: 1300px) {
-		/* wide layout: the tree sits in its own column, always visible */
-		.filter-actions .filters-toggle {
-			display: none;
+		/* pantalla ancha: la columna cuelga a la izquierda de la lista; todo va contra la lista
+		   (a la derecha), así el hueco hasta la lista es --space-l y no lo que sobra de la columna */
+		.filterbar {
+			align-items: flex-end;
 		}
-		.tagfilters.collapsed {
-			display: flex;
-		}
-		.tagfilters {
-			flex-direction: column;
-			max-width: 20rem;
+		.options {
+			justify-content: flex-end;
 		}
 	}
 </style>
