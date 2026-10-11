@@ -93,12 +93,17 @@
 			</time>
 			{#if readingTime}
 				<!-- El «·» va con el texto: en el celu bajan juntos de línea. -->
-				<span class="reading-time">·&ThickSpace;<ReadingTime minutes={data.readingMinutes} /></span>
+				<span class="reading-time"
+					>·&ThickSpace;<ReadingTime
+						minutes={data.readingMinutes}
+						words={data.readingWords}
+					/></span
+				>
 			{/if}
 		</address>
 	{:else if readingTime}
 		<address>
-			<ReadingTime minutes={data.readingMinutes} />
+			<ReadingTime minutes={data.readingMinutes} words={data.readingWords} />
 		</address>
 	{/if}
 	{#if data.meta.tags}

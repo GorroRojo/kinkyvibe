@@ -19,7 +19,7 @@ const { default: Rincon } = await import('./+page.svelte');
 const { default: Calendario } = await import('./calendario/+page.svelte');
 const { default: Sigo } = await import('./sigo/+page.svelte');
 
-/** @param {{ sigoOn: boolean }} flags */
+/** @param {{ sigoOn: boolean, readingSpeed?: number | null }} flags */
 const rincon = (flags) =>
 	render(Rincon, {
 		props: /** @type {any} */ ({
@@ -71,6 +71,7 @@ describe('Mi rincón con «Lo que sigo» apagado: como siempre', () => {
 			'Tus compras y entradas',
 			'Tu calendario',
 			'Mis datos',
+			'Velocidad de lectura',
 			'Contraseña',
 			'Tu cuenta',
 			'Borrar tu cuenta'
@@ -90,6 +91,7 @@ describe('Mi rincón con «Lo que sigo» prendido: una sola tarjeta', () => {
 			'Tus compras y entradas',
 			'Lo que seguís y tu calendario',
 			'Mis datos',
+			'Velocidad de lectura',
 			'Contraseña',
 			'Tu cuenta',
 			'Borrar tu cuenta'
@@ -204,5 +206,38 @@ describe('Mi rincón: orden y borrar la cuenta', () => {
 		);
 		expect(button?.[1]).toContain('permanent');
 		expect(button?.[1]).not.toContain('ghost');
+	});
+});
+
+describe('Mi rincón → Velocidad de lectura', () => {
+	/** El radio elegido y el número de «Otro». @param {string} html */
+	const chosen = (html) => ({
+		checked: [
+			...html.matchAll(
+				/<input(?=[^>]*name="velocidad")(?=[^>]*\bchecked)(?=[^>]*value="([^"]+)")[^>]*>/g
+			)
+		].map((m) => m[1]),
+		other: html.match(/<input(?=[^>]*name="otro")[^>]*value="([^"]*)"/)?.[1] ?? ''
+	});
+
+	it('las tres velocidades y «Otro»; sin elegir, Normal', () => {
+		const html = rincon({ sigoOn: false, readingSpeed: null });
+		expect(html).toContain('action="?/velocidad"');
+		for (const v of ['despacio', 'normal', 'rapido', 'otro']) {
+			expect(html).toMatch(new RegExp(`<input[^>]*name="velocidad"[^>]*value="${v}"`));
+		}
+		expect(html).toMatch(/<input(?=[^>]*name="otro")(?=[^>]*min="80")(?=[^>]*max="600")[^>]*>/);
+		expect(chosen(html)).toEqual({ checked: ['normal'], other: '' });
+	});
+
+	it('una de las tres, elegida; otra velocidad, en «Otro» con su número', () => {
+		expect(chosen(rincon({ sigoOn: false, readingSpeed: 280 }))).toEqual({
+			checked: ['rapido'],
+			other: ''
+		});
+		expect(chosen(rincon({ sigoOn: false, readingSpeed: 330 }))).toEqual({
+			checked: ['otro'],
+			other: '330'
+		});
 	});
 });

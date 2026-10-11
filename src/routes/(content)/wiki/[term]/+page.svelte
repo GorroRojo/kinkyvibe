@@ -128,7 +128,9 @@
 	<div class="content">
 		<GlosarioItem item={data?.tag?.id ?? data?.meta?.wiki} single title />
 		{#if readingTime}
-			<p class="reading-time"><ReadingTime minutes={data.readingMinutes} /></p>
+			<p class="reading-time">
+				<ReadingTime minutes={data.readingMinutes} words={data.readingWords} />
+			</p>
 		{/if}
 		{#if data.html}
 			<!-- El texto de la wiki, de la base (src/lib/server/contenido/render.js): HTML libre con sus

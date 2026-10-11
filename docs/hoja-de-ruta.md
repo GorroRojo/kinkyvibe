@@ -20,8 +20,8 @@ PRs abiertos:
   nuevo mapa de teclas `g`.
 - #261: reserva por transferencia hasta las 20 del segundo día hábil, sin paso de confirmar.
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
-- #274: «X min de lectura» en material y Kinkipedia, con reloj y la explicación del cálculo
-  (idea de JorgeT10, #46).
+- #274: «X min de lectura» en material y Kinkipedia, con reloj, la explicación del cálculo y la
+  velocidad de cada persona (navegador y cuenta) (idea de JorgeT10, #46).
 - #290: seguir desde el bot prende los avisos por Telegram
   ([0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)).
 
@@ -154,9 +154,6 @@ de amigues y lanzamientos grandes.
 - Passkeys para las cuentas del público. M–L.
 - Botón grande para comprar afuera: cuando las entradas se venden en otro sitio (link externo),
   el llamado a la acción tiene el mismo tamaño y peso que «Comprar entradas» (gorrite, 10/10). S.
-- Tiempo de lectura a la medida de cada persona: «leo rápido / normal / despacio» (por ejemplo
-  250 / 200 / 150 palabras por minuto), guardado en el navegador como las otras preferencias, desde
-  la explicación del «X min de lectura» o los ajustes de lectura (#20). S. Después de #274.
 
 ### Entradas
 

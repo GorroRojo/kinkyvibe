@@ -128,6 +128,16 @@ dónde») y el texto, que es un botón; al pasar el mouse, con el foco del tecla
 celu no hay mouse) muestra la explicación de cómo se calcula (`READING_TIME_HINT`: «Calculado a unas
 200 palabras por minuto, sin contar imágenes ni código»), unida al botón con `aria-describedby`.
 
+**Velocidad de cada persona** (pedido de gorrite, en #274). En la explicación, «¿Leés más rápido o
+más lento? Ajustalo» abre las opciones: «Más despacio» (150), «Normal» (200), «Más rápido» (280) u
+«Otro» (de 80 a 600). La elección vale para todo «X min de lectura» del sitio y la explicación pasa
+a decir «Calculado a tu velocidad (N palabras por minuto), sin contar imágenes ni código». Además de
+`readingMinutes`, el servidor manda `readingWords` (las palabras que cuentan; 0 si el texto es
+corto) y el navegador recalcula con `minutesAtSpeed`. Para que nada se mueva, el servidor dibuja
+siempre los minutos de siempre y el navegador los cambia después de hidratar solo si la persona
+eligió otra velocidad. Dónde se guarda (navegador y cuenta) y quién gana al entrar:
+[cuentas.md](cuentas.md), «Velocidad de lectura». También se elige en Mi rincón.
+
 ## En la base (solo la base)
 
 **Eventos** y **material** (`material`, mismo camino; ver `src/lib/server/contenido/categories.js`).

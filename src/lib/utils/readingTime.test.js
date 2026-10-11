@@ -5,10 +5,17 @@
 import { describe, expect, it } from 'vitest';
 import {
 	MIN_WORDS_TO_SHOW,
+	READING_SPEEDS,
+	READING_SPEED_MAX,
+	READING_SPEED_MIN,
 	READING_TIME_HINT,
 	WORDS_PER_MINUTE,
 	countWords,
+	minutesAtSpeed,
 	pageReadingMinutes,
+	pageReadingWords,
+	parseReadingSpeed,
+	readingTimeHint,
 	readingMinutes,
 	readingTimeLabel
 } from './readingTime.js';
@@ -132,5 +139,61 @@ describe('READING_TIME_HINT', () => {
 				'Dos palabras ![una foto con un texto alternativo largo](/media/foto.jpg) <img src="/a.jpg" alt="otra foto inventada">'
 			)
 		).toBe(2);
+	});
+});
+
+describe('velocidad de cada persona', () => {
+	it('las opciones: más despacio, normal (la de siempre) y más rápido', () => {
+		expect(READING_SPEEDS.map((s) => [s.id, s.label, s.wpm])).toEqual([
+			['despacio', 'Más despacio', 150],
+			['normal', 'Normal', 200],
+			['rapido', 'Más rápido', 280]
+		]);
+		expect([READING_SPEED_MIN, READING_SPEED_MAX]).toEqual([80, 600]);
+	});
+
+	it('parseReadingSpeed: números o texto con un número, redondeado y dentro del rango', () => {
+		expect(parseReadingSpeed(250)).toBe(250);
+		expect(parseReadingSpeed('  320 ')).toBe(320);
+		expect(parseReadingSpeed(212.6)).toBe(213);
+		expect(parseReadingSpeed(10)).toBe(80);
+		expect(parseReadingSpeed(-5)).toBe(80);
+		expect(parseReadingSpeed('5000')).toBe(600);
+		expect(parseReadingSpeed(Infinity)).toBeNull();
+		for (const nada of [null, undefined, '', '   ', 'rápido', NaN, true, {}, [250]]) {
+			expect(parseReadingSpeed(nada)).toBeNull();
+		}
+	});
+
+	it('pageReadingWords: las palabras si alcanzan para mostrar, si no 0', () => {
+		expect(pageReadingWords(words(MIN_WORDS_TO_SHOW - 1))).toBe(0);
+		expect(pageReadingWords(words(650))).toBe(650);
+		expect(pageReadingMinutes(words(650))).toBe(minutesAtSpeed(650, WORDS_PER_MINUTE));
+	});
+
+	it('minutesAtSpeed: recalcula con la velocidad elegida, para arriba y mínimo 1', () => {
+		expect(minutesAtSpeed(650)).toBe(4);
+		expect(minutesAtSpeed(650, 150)).toBe(5);
+		expect(minutesAtSpeed(650, 280)).toBe(3);
+		expect(minutesAtSpeed(650, 600)).toBe(2);
+		expect(minutesAtSpeed(120, 600)).toBe(1);
+		// Fuera de rango se lleva al rango; sin velocidad válida, la de siempre.
+		expect(minutesAtSpeed(650, 10)).toBe(Math.ceil(650 / 80));
+		expect(minutesAtSpeed(650, 'x')).toBe(4);
+		expect(minutesAtSpeed(650, null)).toBe(4);
+		// Sin palabras (texto corto), nada.
+		expect(minutesAtSpeed(0, 150)).toBe(0);
+		expect(minutesAtSpeed(undefined, 150)).toBe(0);
+	});
+
+	it('readingTimeHint: la de siempre, o «a tu velocidad» con el número', () => {
+		expect(readingTimeHint(null)).toBe(READING_TIME_HINT);
+		expect(readingTimeHint(WORDS_PER_MINUTE)).toBe(READING_TIME_HINT);
+		expect(readingTimeHint(150)).toBe(
+			'Calculado a tu velocidad (150 palabras por minuto), sin contar imágenes ni código'
+		);
+		expect(readingTimeHint(9999)).toBe(
+			'Calculado a tu velocidad (600 palabras por minuto), sin contar imágenes ni código'
+		);
 	});
 });

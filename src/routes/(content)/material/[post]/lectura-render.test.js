@@ -65,6 +65,8 @@ describe('material: tiempo de lectura', () => {
 		expect(address).toMatch(
 			/<svg[^>]*class="[^"]*lucide-clock[^"]*"[^>]*aria-hidden="true"[\s\S]*?<\/svg>[\s\S]*?7 min de lectura/
 		);
+		// En la explicación, el link para ajustar la velocidad de cada persona.
+		expect(address).toContain('¿Leés más rápido o más lento? Ajustalo');
 	});
 
 	it('sin autores, solo el tiempo de lectura', () => {

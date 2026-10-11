@@ -57,14 +57,64 @@ export function readingMinutes(body, wpm = WORDS_PER_MINUTE) {
 export const MIN_WORDS_TO_SHOW = 100;
 
 /**
- * Los minutos que muestra la página de un material o de la wiki: los de {@link readingMinutes} si
- * el texto tiene al menos {@link MIN_WORDS_TO_SHOW} palabras; si no, 0 (no se muestra).
+ * Las palabras que cuentan para la página: las de {@link countWords} si son al menos
+ * {@link MIN_WORDS_TO_SHOW}; si no, 0 (no se muestra). Viajan a la página para que el navegador
+ * recalcule los minutos con la velocidad de cada persona ({@link minutesAtSpeed}).
+ * @param {unknown} body markdown o HTML
+ * @returns {number}
+ */
+export function pageReadingWords(body) {
+	const words = countWords(body);
+	return words >= MIN_WORDS_TO_SHOW ? words : 0;
+}
+
+/**
+ * Los minutos que muestra la página de un material o de la wiki, a la velocidad de siempre
+ * ({@link WORDS_PER_MINUTE}): 0 si el texto es corto (no se muestra).
  * @param {unknown} body markdown o HTML
  * @returns {number}
  */
 export function pageReadingMinutes(body) {
-	const words = countWords(body);
-	return words >= MIN_WORDS_TO_SHOW ? Math.max(1, Math.ceil(words / WORDS_PER_MINUTE)) : 0;
+	return minutesAtSpeed(pageReadingWords(body), WORDS_PER_MINUTE);
+}
+
+/** La velocidad más lenta y la más rápida que se puede elegir («Otro»). */
+export const READING_SPEED_MIN = 80;
+export const READING_SPEED_MAX = 600;
+
+/** Las velocidades para elegir rápido (palabras por minuto). «Normal» es la de siempre. */
+export const READING_SPEEDS = /** @type {const} */ ([
+	{ id: 'despacio', label: 'Más despacio', wpm: 150 },
+	{ id: 'normal', label: 'Normal', wpm: WORDS_PER_MINUTE },
+	{ id: 'rapido', label: 'Más rápido', wpm: 280 }
+]);
+
+/**
+ * Una velocidad elegida (número o texto con un número), redondeada y llevada al rango
+ * {@link READING_SPEED_MIN}–{@link READING_SPEED_MAX}; `null` si no es un número (nada elegido).
+ * @param {unknown} value
+ * @returns {number | null}
+ */
+export function parseReadingSpeed(value) {
+	if (typeof value === 'string') value = value.trim();
+	if ((typeof value !== 'number' && typeof value !== 'string') || value === '') return null;
+	const n = Number(value);
+	if (!Number.isFinite(n)) return null;
+	return Math.min(READING_SPEED_MAX, Math.max(READING_SPEED_MIN, Math.round(n)));
+}
+
+/**
+ * Minutos para tantas palabras a esa velocidad, para arriba (mínimo 1); 0 sin palabras. Sin una
+ * velocidad válida, la de siempre.
+ * @param {unknown} words las de {@link pageReadingWords}
+ * @param {unknown} [wpm]
+ * @returns {number}
+ */
+export function minutesAtSpeed(words, wpm = WORDS_PER_MINUTE) {
+	const n = Number(words);
+	if (!Number.isFinite(n) || n <= 0) return 0;
+	const rate = parseReadingSpeed(wpm) ?? WORDS_PER_MINUTE;
+	return Math.max(1, Math.ceil(n / rate));
 }
 
 /**
@@ -72,6 +122,18 @@ export function pageReadingMinutes(body) {
  * Las imágenes y el código no cuentan porque {@link countWords} los saca.
  */
 export const READING_TIME_HINT = `Calculado a unas ${WORDS_PER_MINUTE} palabras por minuto, sin contar imágenes ni código`;
+
+/**
+ * La explicación con la velocidad de la persona: la de siempre ({@link READING_TIME_HINT}) si no
+ * eligió ninguna (o eligió «Normal»).
+ * @param {unknown} [wpm]
+ */
+export function readingTimeHint(wpm) {
+	const rate = parseReadingSpeed(wpm);
+	return rate === null || rate === WORDS_PER_MINUTE
+		? READING_TIME_HINT
+		: `Calculado a tu velocidad (${rate} palabras por minuto), sin contar imágenes ni código`;
+}
 
 /**
  * «X min de lectura», o '' si no hay nada para leer.

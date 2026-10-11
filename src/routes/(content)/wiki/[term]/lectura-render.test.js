@@ -48,6 +48,8 @@ describe('wiki: tiempo de lectura', () => {
 		expect(html).toMatch(
 			/<svg[^>]*class="[^"]*lucide-clock[^"]*"[^>]*aria-hidden="true"[\s\S]*?<\/svg>[\s\S]*?3 min de lectura/
 		);
+		// En la explicación, el link para ajustar la velocidad de cada persona.
+		expect(html).toContain('¿Leés más rápido o más lento? Ajustalo');
 	});
 
 	it('texto corto (0), sin dato o sin texto de la wiki: no se muestra', () => {
