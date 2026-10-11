@@ -100,19 +100,46 @@ describe('/admin/buscar', () => {
 	it('busca eventos del bundle aunque no haya base de datos', async () => {
 		const res = await call('fiesta', { platform: {} });
 		const body = await res.json();
-		// Sin base: los eventos (y las etiquetas, que salen del árbol en memoria; «fiesta» también
-		// es una etiqueta). Nada de lo que sale de la base.
+		// Sin base: los eventos con los atajos a las pestañas del primero (y las etiquetas, que
+		// salen del árbol en memoria; «fiesta» también es una etiqueta). Nada de lo que sale de la
+		// base.
 		expect(
 			body.groups
 				.map((/** @type {any} */ g) => g.id)
 				.filter((/** @type {string} */ id) => id !== 'tags')
-		).toEqual(['events']);
+		).toEqual(['events', 'event-tabs']);
 		expect(body.groups[0].id).toBe('events');
 		expect(body.groups[0].items[0]).toMatchObject({
 			title: 'Fiesta Inventada',
 			// La ficha del evento (#106), en su pestaña Ventas.
 			href: '/admin/eventos/fiesta-inventada-2026-10/ventas'
 		});
+	});
+
+	it('del primer evento salen atajos a sus pestañas (vende entradas: Puerta, Órdenes…)', async () => {
+		const body = await (await call('fiesta', { platform: {} })).json();
+		const tabs = body.groups.find((/** @type {any} */ g) => g.id === 'event-tabs');
+		expect(tabs.label).toBe('En «Fiesta Inventada»');
+		expect(tabs.items.map((/** @type {any} */ i) => i.title)).toEqual([
+			'Puerta',
+			'Órdenes',
+			'Mail a compradores',
+			'Ventas',
+			'Duplicar'
+		]);
+		const puerta = new URL(tabs.items[0].href, 'http://localhost');
+		expect(puerta.pathname).toBe('/admin/eventos/fiesta-inventada-2026-10/ingreso');
+	});
+
+	it('«jose» encuentra a «José» y la persona lleva a su ficha', async () => {
+		await insertOrder(t.db, { name: 'José Inventado', email: 'jose.inventado@example.com' });
+		const body = await (await call('jose')).json();
+		const people = body.groups.find((/** @type {any} */ g) => g.id === 'people');
+		expect(people.items.map((/** @type {any} */ i) => i.title)).toEqual(['José Inventado']);
+		const ficha = new URL(people.items[0].href, 'http://localhost');
+		expect(ficha.pathname.startsWith('/admin/comunidad/personas/')).toBe(true);
+		const orders = body.groups.find((/** @type {any} */ g) => g.id === 'orders');
+		expect(orders.items).toHaveLength(1);
 	});
 
 	it('búsqueda corta: sin grupos (solo los eventos de hoy)', async () => {

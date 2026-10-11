@@ -4,7 +4,8 @@
  *
  * - Acciones: todas las secciones del menú (`NAV`) que ya tienen página (también las de
  *   Ajustes, como Interruptores; las "Próximamente" no), más atajos como
- *   "Nuevo código" o "Abrir check-in de hoy".
+ *   "Nuevo código de descuento" o "Abrir la puerta de hoy". Las que no son secciones (crear,
+ *   importar, preferencias) se suman en `paletteActions.js`.
  * - Atajos de dos teclas: `g` y después una letra (`g i` Inicio, `g e` Eventos…). `/` o
  *   Ctrl/⌘+K abren la paleta y `?` muestra la hoja de atajos.
  */
@@ -164,8 +165,9 @@ export function shortcutOf(id) {
 }
 
 /**
- * Todas las acciones de la paleta. `today`: eventos de hoy con venta (para "Abrir check-in de
- * hoy"; si no hay, la acción va a elegir evento).
+ * Las acciones de la paleta que salen del menú. `today`: eventos de hoy con venta (para «Abrir la
+ * puerta de hoy»; si no hay, la acción va a elegir evento). La paleta usa `paletteCommands` de
+ * `paletteActions.js`, que suma las demás.
  *
  * @param {{ today?: { slug: string, title: string, href: string }[] }} [opts]
  * @returns {Command[]}
@@ -204,7 +206,8 @@ export function buildCommands({ today = [] } = {}) {
 		hint: 'Códigos',
 		keywords: 'nuevo codigo descuento cupon crear',
 		icon: 'tag',
-		href: '/admin/ventas/codigos'
+		// El formulario de código nuevo está al pie de Códigos.
+		href: '/admin/ventas/codigos#nuevo'
 	});
 
 	for (const item of NAV) {
@@ -270,16 +273,17 @@ export function fold(s) {
  * las que tienen una palabra que empieza igual, después las que lo contienen (en el nombre o en
  * las palabras extra). Con la búsqueda vacía, todas en su orden.
  *
- * @param {Command[]} commands
+ * @template {{ label: string, keywords: string, hint: string }} C
+ * @param {C[]} commands
  * @param {string} q
  * @param {number} [limit]
- * @returns {Command[]}
+ * @returns {C[]}
  */
 export function matchCommands(commands, q, limit = Infinity) {
 	const f = fold(q);
 	if (!f) return commands.slice(0, limit);
 	const words = f.split(' ');
-	/** @type {{ c: Command, rank: number, i: number }[]} */
+	/** @type {{ c: C, rank: number, i: number }[]} */
 	const found = [];
 	commands.forEach((c, i) => {
 		const label = fold(c.label);
