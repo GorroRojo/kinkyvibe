@@ -60,7 +60,7 @@ export function normalizePath(pathname) {
 
 /**
  * Secciones que nunca se cuentan: el panel, la API, los login, el rincón de cada cuenta y las
- * rutas que llevan un token o un id privado en la URL (entradas, avisos, propinas).
+ * rutas que llevan un token o un id privado en la URL (entradas, avisos, lista de espera, propinas).
  */
 const EXCLUDED = [
 	'/admin',
@@ -79,7 +79,8 @@ const EXCLUDED = [
 	'/.well-known',
 	'/avisos/confirmar',
 	'/avisos/baja',
-	'/avisos/sigo'
+	'/avisos/sigo',
+	'/lista-de-espera'
 ];
 /** Secciones que se cuentan solo en su página principal (las de adentro llevan ids). */
 const ONLY_ROOT = ['/propinas'];

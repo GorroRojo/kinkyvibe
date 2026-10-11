@@ -268,10 +268,47 @@ gorrite se escribe al integrar.
   sus tipos con cupo), no contra cada tipo: una persona esperando guarda un solo lugar. Por tipo,
   contra el lugar libre de ese tipo.
 
-**Lo que falta**, en este orden: anotarse desde la página, confirmar y salir, y los mails (parte
-2); que la fila guarde lugares en la compra y la compra con el link de la oferta (parte 3); el
-motor que ofrece los lugares desde el cron y cuando se libera uno (parte 4); el panel (editor,
-Ajustes, pestaña del evento y aviso en la puerta, parte 5).
+**Ya está (parte 2, anotarse, confirmar, salir y los mails).** Con el interruptor apagado no se ve
+nada (las páginas de confirmar y volver y `?/waitlist` dan 404).
+
+- **Anotarse:** `?/waitlist` en la página de compra
+  (`(content)/calendario/[event]/entradas/+page.server.js`, lógica en
+  `src/lib/server/tickets/waitlistSignup.js`). Solo el mail (y, por tipo, cuál). Con una cuenta con
+  sesión y ese mismo mail verificado, entra directo a la fila; si no, le mandamos el mail de
+  confirmar (48 h). La respuesta es la misma esté o no el mail anotado (si ya está en la fila, no se
+  le manda nada). Límites (`WAITLIST_SIGNUP_LIMITS`): 10 pedidos por hora por conexión, 3 mails de
+  confirmar por día a una misma dirección, el tope global de mails de Resend (`accountMailAllowed`)
+  y 5 anotaciones vivas por evento desde una misma conexión. La anotación guarda el `client_hash`
+  (como `orders`, sin IP).
+- **Cuándo se puede** (`waitlistJoinStates`): solo en un alcance agotado; con la venta sin abrir,
+  la lista cerrada (`holdUntil` da `closed`: comienzo − 30 min o cierre de la venta, el del tipo en
+  una lista por tipo) o el evento cancelado, no. `agotadas` a mano cuenta como agotado. La fila
+  cuenta como vendido: por evento, quienes esperan (y los lugares guardados vigentes) se restan del
+  lugar libre total del evento; un tipo sin cupo abierto hace que el evento nunca se agote. La
+  página muestra un formulario mínimo («Lista de espera», `WaitlistSignup.svelte`) debajo de la
+  compra cuando hay dónde anotarse; la versión completa (en cada tipo agotado, y que la compra
+  pública reste la fila) es de la parte 3.
+- **Links de los mails** (GET muestra el botón, POST hace el cambio, con `MailLinkCard`):
+  `/lista-de-espera/confirmar/<token>` (entra a la fila; vencido o usado, no),
+  `/lista-de-espera/salir/<id>.<firma>` (sale: `cancelled` por `left`, o se borra si no había
+  confirmado; anda siempre, también con el interruptor apagado) y
+  `/lista-de-espera/volver/<id>.<firma>` («Volver a anotarme» del mail de vencida: al final de la
+  fila sin confirmar, solo si la lista sigue abierta). Salir y volver van firmados con
+  `waitlist_leave_key`, cada uno con su mensaje (`waitlistMail.js`). No se cuentan en las
+  estadísticas (`classify.js`).
+- **Los cinco mails** con sus plantillas editables (`waitlist_confirm`, `waitlist_offer`,
+  `waitlist_reminder`, `waitlist_expired`, `waitlist_closed`), en `waitlistEmail.js`; todos con el
+  link para salir. La oferta lleva el link `/calendario/<slug>/entradas?lista=<token>` (el token lo
+  arma el motor). Ver [mails.md](mails.md#mails-de-la-lista-de-espera).
+- **`waitlist_sends`:** `sendState.js` ahora sirve también para filas por anotación (clave
+  `entry_id` + `kind` + `round`), y `sendWaitlistEntryMail` manda cada mail del cron una sola vez
+  por anotación, mail y ronda.
+
+**Lo que falta**, en este orden: que la fila guarde lugares en la compra, la compra con el link de
+la oferta y el formulario completo en la página (parte 3); el motor que ofrece los lugares desde el
+cron y cuando se libera uno, y que dispare los mails de oferta, último aviso, vencida y cierre
+(parte 4; al salir alguien con un lugar guardado también tiene que pasar a la siguiente persona); el
+panel (editor, Ajustes, pestaña del evento y aviso en la puerta, parte 5).
 
 ### Horario de la venta
 

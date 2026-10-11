@@ -282,3 +282,77 @@ export function emailCases() {
 		]
 	];
 }
+
+/** El lugar guardado de los mails de la lista: viernes 2/10 a las 21:00. */
+const HOLD_UNTIL = Date.parse('2026-10-02T21:00:00-03:00');
+const LEAVE = `${ORIGIN}/lista-de-espera/salir/def?x=1&y=2`;
+const OFFER = `${ORIGIN}/calendario/fiesta-de-prueba/entradas?lista=abc&x=1`;
+
+/**
+ * Casos de los mails de la lista de espera (waitlistEmail.js): [nombre, builder, entrada]. Van
+ * aparte de {@link emailCases} porque no tienen compra ni nombre; sus golden también están en
+ * `email.golden.json`. Por evento y por tipo, con lugar guardado y con aviso a toda la lista, y el
+ * cierre por horario y por evento cancelado.
+ * @returns {[string, string, any][]}
+ */
+export function waitlistEmailCases() {
+	const common = { event: EVENT, unsubscribeUrl: LEAVE, origin: ORIGIN, contactEmail: CONTACT };
+	return [
+		[
+			'waitlist-confirm',
+			'buildWaitlistConfirmEmail',
+			{
+				...common,
+				confirmUrl: `${ORIGIN}/lista-de-espera/confirmar/ghi?x=1&y=2`,
+				expiresAt: NOW + 48 * 3600000,
+				now: NOW
+			}
+		],
+		[
+			'waitlist-confirm-tipo',
+			'buildWaitlistConfirmEmail',
+			{
+				...common,
+				typeName: 'General <con> cena',
+				confirmUrl: `${ORIGIN}/lista-de-espera/confirmar/ghi`,
+				expiresAt: NOW + 48 * 3600000,
+				now: NOW
+			}
+		],
+		[
+			'waitlist-offer',
+			'buildWaitlistOfferEmail',
+			{ ...common, offerUrl: OFFER, holdUntil: HOLD_UNTIL }
+		],
+		[
+			'waitlist-offer-todes',
+			'buildWaitlistOfferEmail',
+			{ ...common, typeName: 'General', offerUrl: OFFER, holdUntil: null }
+		],
+		[
+			'waitlist-reminder',
+			'buildWaitlistReminderEmail',
+			{ ...common, offerUrl: OFFER, holdUntil: HOLD_UNTIL }
+		],
+		[
+			'waitlist-expired',
+			'buildWaitlistExpiredEmail',
+			{ ...common, rejoinUrl: `${ORIGIN}/lista-de-espera/volver/jkl?x=1&y=2` }
+		],
+		[
+			'waitlist-closed',
+			'buildWaitlistClosedEmail',
+			{ ...common, reason: 'closed', eventUrl: `${ORIGIN}/calendario/fiesta-de-prueba` }
+		],
+		[
+			'waitlist-closed-cancelado',
+			'buildWaitlistClosedEmail',
+			{
+				...common,
+				event: { title: 'Sin fecha' },
+				reason: 'event_cancelled',
+				eventUrl: `${ORIGIN}/calendario/fiesta-de-prueba`
+			}
+		]
+	];
+}

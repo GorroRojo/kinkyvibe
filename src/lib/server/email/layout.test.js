@@ -29,7 +29,12 @@ describe('todos los mails usan la plantilla común', () => {
 				'buildSeriesConfirmEmail',
 				'buildStreamLinkEmail',
 				'buildTicketEmail',
-				'buildTransferEmail'
+				'buildTransferEmail',
+				'buildWaitlistClosedEmail',
+				'buildWaitlistConfirmEmail',
+				'buildWaitlistExpiredEmail',
+				'buildWaitlistOfferEmail',
+				'buildWaitlistReminderEmail'
 			].sort()
 		);
 		expect(Object.keys(textGolden).sort()).toEqual(cases.map(([name]) => name).sort());
