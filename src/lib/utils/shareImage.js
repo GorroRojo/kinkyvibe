@@ -40,11 +40,41 @@ export const FONTS = {
 			fallback: 'sans-serif',
 			src: { url: '/fonts/share/fredoka-latin-variable.woff2', format: 'woff2', weight: '300 700' }
 		},
-		bebas: { label: 'Bebas Neue (condensada)', family: 'Bebas Neue', weight: 400, fallback: 'sans-serif', google: 'Bebas+Neue' },
-		alfa: { label: 'Alfa Slab One', family: 'Alfa Slab One', weight: 400, fallback: 'serif', google: 'Alfa+Slab+One' },
-		shrikhand: { label: 'Shrikhand', family: 'Shrikhand', weight: 400, fallback: 'serif', google: 'Shrikhand' },
-		marker: { label: 'Permanent Marker (a mano)', family: 'Permanent Marker', weight: 400, fallback: 'cursive', google: 'Permanent+Marker' },
-		lato: { label: 'Lato (la del sitio)', family: 'Lato', weight: 900, fallback: 'sans-serif', google: 'Lato:wght@900' },
+		bebas: {
+			label: 'Bebas Neue (condensada)',
+			family: 'Bebas Neue',
+			weight: 400,
+			fallback: 'sans-serif',
+			google: 'Bebas+Neue'
+		},
+		alfa: {
+			label: 'Alfa Slab One',
+			family: 'Alfa Slab One',
+			weight: 400,
+			fallback: 'serif',
+			google: 'Alfa+Slab+One'
+		},
+		shrikhand: {
+			label: 'Shrikhand',
+			family: 'Shrikhand',
+			weight: 400,
+			fallback: 'serif',
+			google: 'Shrikhand'
+		},
+		marker: {
+			label: 'Permanent Marker (a mano)',
+			family: 'Permanent Marker',
+			weight: 400,
+			fallback: 'cursive',
+			google: 'Permanent+Marker'
+		},
+		lato: {
+			label: 'Lato (la del sitio)',
+			family: 'Lato',
+			weight: 900,
+			fallback: 'sans-serif',
+			google: 'Lato:wght@900'
+		},
 		retosta: {
 			label: 'Retosta',
 			family: 'Retosta',
@@ -61,11 +91,41 @@ export const FONTS = {
 			fallback: 'sans-serif',
 			src: { url: '/fonts/share/fredoka-latin-variable.woff2', format: 'woff2', weight: '300 700' }
 		},
-		lato: { label: 'Lato (la del sitio)', family: 'Lato', weight: 400, fallback: 'sans-serif', google: 'Lato:wght@400;700' },
-		nunito: { label: 'Nunito', family: 'Nunito', weight: 400, fallback: 'sans-serif', google: 'Nunito:wght@400..800' },
-		oswald: { label: 'Oswald (condensada)', family: 'Oswald', weight: 400, fallback: 'sans-serif', google: 'Oswald:wght@400..700' },
-		mono: { label: 'Space Mono', family: 'Space Mono', weight: 400, fallback: 'monospace', google: 'Space+Mono:wght@400;700' },
-		serif: { label: 'Libre Baskerville', family: 'Libre Baskerville', weight: 400, fallback: 'serif', google: 'Libre+Baskerville:wght@400;700' }
+		lato: {
+			label: 'Lato (la del sitio)',
+			family: 'Lato',
+			weight: 400,
+			fallback: 'sans-serif',
+			google: 'Lato:wght@400;700'
+		},
+		nunito: {
+			label: 'Nunito',
+			family: 'Nunito',
+			weight: 400,
+			fallback: 'sans-serif',
+			google: 'Nunito:wght@400..800'
+		},
+		oswald: {
+			label: 'Oswald (condensada)',
+			family: 'Oswald',
+			weight: 400,
+			fallback: 'sans-serif',
+			google: 'Oswald:wght@400..700'
+		},
+		mono: {
+			label: 'Space Mono',
+			family: 'Space Mono',
+			weight: 400,
+			fallback: 'monospace',
+			google: 'Space+Mono:wght@400;700'
+		},
+		serif: {
+			label: 'Libre Baskerville',
+			family: 'Libre Baskerville',
+			weight: 400,
+			fallback: 'serif',
+			google: 'Libre+Baskerville:wght@400;700'
+		}
 	}
 };
 
@@ -275,7 +335,12 @@ export const STATUS = {
 	anunciado: { text: '¡SE VIENE!', sticker: ['¡SE', 'VIENE!'], caption: '📣 ¡Se viene!' },
 	abierto: { text: '¡ANOTATE!', sticker: ['¡ANO-', 'TATE!'], caption: '' },
 	agotadas: { text: '¡AGOTADO!', sticker: ['¡AGO-', 'TADO!'], caption: '🔥 ¡Cupos agotados! 🔥' },
-	cancelado: { text: 'CANCELADO', sticker: ['CANCELADO'], tape: true, caption: '❌ EVENTO CANCELADO ❌' }
+	cancelado: {
+		text: 'CANCELADO',
+		sticker: ['CANCELADO'],
+		tape: true,
+		caption: '❌ EVENTO CANCELADO ❌'
+	}
 };
 
 /**
@@ -285,7 +350,10 @@ export const STATUS = {
  * @returns {string[]}
  */
 export function statusLines(text, status) {
-	const clean = String(text ?? '').replace(/\s+/g, ' ').trim().toUpperCase();
+	const clean = String(text ?? '')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.toUpperCase();
 	if (!clean) return [];
 	const st = status ? STATUS[status] : undefined;
 	if (st && clean === st.text) return st.sticker;
@@ -340,7 +408,10 @@ export function formatEventDate(start, end, now = new Date()) {
 	const hour = (d) => p(d).hours;
 	const time = argTime;
 	/** @param {Date} d  "20" o "20:30" */
-	const shortTime = (d) => time(d).replace(/:00$/, '').replace(/^0(\d)/, '$1');
+	const shortTime = (d) =>
+		time(d)
+			.replace(/:00$/, '')
+			.replace(/^0(\d)/, '$1');
 	/** @param {Date} d */
 	const wd = (d) => p(d).weekday;
 	/** @param {Date} d */
@@ -439,7 +510,9 @@ export function priceLabel(tags) {
 
 /** @param {string[]} names */
 const joinNames = (names) =>
-	names.length <= 1 ? names[0] ?? '' : names.slice(0, -1).join(', ') + ' & ' + names[names.length - 1];
+	names.length <= 1
+		? (names[0] ?? '')
+		: names.slice(0, -1).join(', ') + ' & ' + names[names.length - 1];
 
 /**
  * Datos del evento ya formateados para dibujar / escribir.
@@ -480,13 +553,29 @@ export function eventInfo(meta) {
 }
 
 /** Etiquetas que ya se dicen de otra forma (lugar, precio, idioma) o no suman en la imagen. */
-const NOT_TOPICS = new Set(
-	[
-		'kinkyvibe', 'evento', 'calendario', 'español', 'inglés', 'lsa', 'pago', 'gratis', 'a la gorra',
-		'online', 'presencial', 'argentina', 'amba', 'córdoba', 'rosario', 'santa cruz', 'la plata',
-		'uruguay', 'montevideo', 'chile', 'brasil'
-	]
-);
+const NOT_TOPICS = new Set([
+	'kinkyvibe',
+	'evento',
+	'calendario',
+	'español',
+	'inglés',
+	'lsa',
+	'pago',
+	'gratis',
+	'a la gorra',
+	'online',
+	'presencial',
+	'argentina',
+	'amba',
+	'córdoba',
+	'rosario',
+	'santa cruz',
+	'la plata',
+	'uruguay',
+	'montevideo',
+	'chile',
+	'brasil'
+]);
 
 /** "BDSM · Cuerdas · Inicial" @param {string[]|undefined} tags @param {number} [max] */
 export function topicTags(tags, max = 6) {
@@ -503,7 +592,9 @@ export function topicTags(tags, max = 6) {
  * @param {string} text @param {number} [max]
  */
 export function firstSentences(text, max = 160) {
-	const clean = String(text ?? '').replace(/\s+/g, ' ').trim();
+	const clean = String(text ?? '')
+		.replace(/\s+/g, ' ')
+		.trim();
 	if (clean.length <= max) return clean;
 	const parts = clean.split(/(?<=[.!?])\s+/);
 	let out = '';
@@ -539,20 +630,28 @@ export function findAmount(text) {
  */
 export function extrasFromSections(sections) {
 	/** @param {RegExp} re @param {RegExp} [not] */
-	const find = (re, not) => sections.find((s) => re.test(s.heading) && !(not && not.test(s.heading)));
+	const find = (re, not) =>
+		sections.find((s) => re.test(s.heading) && !(not && not.test(s.heading)));
 	const price = find(/entrada|valor|precio|costo|bono|aporte/i, /llevar|libre!?$|bloque/i);
 	const audience = find(/dirigid|para qui[eé]n/i);
 	const access = find(/accesib/i);
 	const dress = find(/dress|vestimenta|requisit|qu[eé] (traer|llevar)/i, /aportes/i);
-	let dressText = dress ? firstSentences(dress.items.length ? dress.items.join(' · ') : dress.text, 140) : '';
+	let dressText = dress
+		? firstSentences(dress.items.length ? dress.items.join(' · ') : dress.text, 140)
+		: '';
 	if (!dressText) {
-		const m = sections.map((s) => s.text).join(' ').match(/[^.!?]*dress ?code[^.!?]*[.!?]?/i);
+		const m = sections
+			.map((s) => s.text)
+			.join(' ')
+			.match(/[^.!?]*dress ?code[^.!?]*[.!?]?/i);
 		if (m) dressText = firstSentences(m[0], 140);
 	}
 	return {
 		priceInfo: price ? firstSentences(price.text || price.items.join(' · '), 150) : '',
 		audience: audience ? firstSentences(audience.text || audience.items.join(' · '), 150) : '',
-		access: access ? firstSentences(access.items.length ? access.items.join(' · ') : access.text, 140) : '',
+		access: access
+			? firstSentences(access.items.length ? access.items.join(' · ') : access.text, 140)
+			: '',
 		dress: dressText
 	};
 }
@@ -605,18 +704,47 @@ export const FIELDS = [
 	{ key: 'title', label: 'Título', placeholder: 'Apagalo si ya está en la imagen', where: 'todas' },
 	{ key: 'kicker', label: 'Antetítulo', placeholder: 'taller de…, con…', where: 'portada' },
 	{ key: 'sub', label: 'Bajada', placeholder: 'Debajo del título', where: 'portada' },
-	{ key: 'status', label: 'Estado', placeholder: '¡ANOTATE!, ¡SE VIENE!, CANCELADO…', where: 'portada' },
+	{
+		key: 'status',
+		label: 'Estado',
+		placeholder: '¡ANOTATE!, ¡SE VIENE!, CANCELADO…',
+		where: 'portada'
+	},
 	{ key: 'date', label: 'Fecha', where: 'todas' },
 	{ key: 'hours', label: 'Horario', where: 'todas' },
 	{ key: 'place', label: 'Lugar', where: 'todas' },
 	{ key: 'address', label: 'Dirección', where: 'ficha' },
 	{ key: 'price', label: 'Entrada', placeholder: 'GRATIS, A LA GORRA, $…', where: 'todas' },
-	{ key: 'priceInfo', label: 'Detalle de la entrada', placeholder: 'con posibilidad de beca, en puerta…', where: 'todas', long: true },
+	{
+		key: 'priceInfo',
+		label: 'Detalle de la entrada',
+		placeholder: 'con posibilidad de beca, en puerta…',
+		where: 'todas',
+		long: true
+	},
 	{ key: 'organizers', label: 'Organiza / facilita', where: 'ficha' },
 	{ key: 'summary', label: 'Descripción corta', where: 'ficha', long: true },
-	{ key: 'audience', label: 'Para quién es', placeholder: 'para subs, doms, switches…', where: 'nota al pie y ficha', long: true },
-	{ key: 'dress', label: 'Dress code / qué traer', placeholder: 'Dress code, qué llevar…', where: 'ficha', long: true },
-	{ key: 'access', label: 'Accesibilidad', placeholder: 'Rampa, baños sin género, LSA…', where: 'ficha', long: true },
+	{
+		key: 'audience',
+		label: 'Para quién es',
+		placeholder: 'para subs, doms, switches…',
+		where: 'nota al pie y ficha',
+		long: true
+	},
+	{
+		key: 'dress',
+		label: 'Dress code / qué traer',
+		placeholder: 'Dress code, qué llevar…',
+		where: 'ficha',
+		long: true
+	},
+	{
+		key: 'access',
+		label: 'Accesibilidad',
+		placeholder: 'Rampa, baños sin género, LSA…',
+		where: 'ficha',
+		long: true
+	},
 	{ key: 'tags', label: 'Etiquetas', where: 'ficha' },
 	{ key: 'cta', label: 'Llamado', placeholder: 'Ej.: Inscribite en', where: 'barra de abajo' },
 	{ key: 'url', label: 'Link del evento', where: 'barra de abajo' }
@@ -703,7 +831,16 @@ export function visibleTexts(texts, enabled) {
 /** Raíces de palabras que los filtros automáticos de las redes suelen esconder. */
 const SENSITIVE =
 	/\b(er[oó]tic\w*|sex\w*|bdsm|kink\w*|fetich\w*|asfixi\w*|tortur\w*|genital\w*|porn\w*|sado\w*|masoquis\w*|humillaci\w*|shibari|bondage|sumis\w*|dominaci\w*|fisting|spanking|nalgad\w*|agujas?)\b/giu;
-const LEET = /** @type {Record<string, string>} */ ({ a: '4', e: '3', i: '1', o: '0', á: '4', é: '3', í: '1', ó: '0' });
+const LEET = /** @type {Record<string, string>} */ ({
+	a: '4',
+	e: '3',
+	i: '1',
+	o: '0',
+	á: '4',
+	é: '3',
+	í: '1',
+	ó: '0'
+});
 
 /**
  * "Disimula" palabras sensibles como en los flyers (ASF1XI4 ER0TIC4, TORTUR4 G3NIT4L, BD$M):
@@ -732,7 +869,15 @@ export function censorText(text) {
 /* ------------------------------------------------------------------ */
 
 /** Etiquetas que no suman como hashtag */
-const SKIP_TAGS = new Set(['español', 'inglés', 'lsa', 'pago', 'gratis', 'a la gorra', 'kinkyvibe']);
+const SKIP_TAGS = new Set([
+	'español',
+	'inglés',
+	'lsa',
+	'pago',
+	'gratis',
+	'a la gorra',
+	'kinkyvibe'
+]);
 
 /** @param {string} tag */
 export const toHashtag = (tag) =>
@@ -777,7 +922,8 @@ export function buildCaption(meta) {
 		if (h.length > 2 && !tags.includes(h)) tags.push(h);
 	}
 	for (const extra of ['#bdsm', '#kink']) if (!tags.includes(extra)) tags.push(extra);
-	if ((meta.tags ?? []).includes('AMBA') && !tags.includes('#buenosaires')) tags.push('#buenosaires');
+	if ((meta.tags ?? []).includes('AMBA') && !tags.includes('#buenosaires'))
+		tags.push('#buenosaires');
 	lines.push(tags.slice(0, 20).join(' '));
 	return lines.join('\n');
 }

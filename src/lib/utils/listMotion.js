@@ -48,9 +48,7 @@ export function listMotion(getList) {
 	let snapClass = '';
 
 	const keysOf = (/** @type {HTMLElement} */ list) =>
-		[...list.children]
-			.map((li) => /** @type {HTMLElement} */ (li).dataset.key ?? '')
-			.join('|');
+		[...list.children].map((li) => /** @type {HTMLElement} */ (li).dataset.key ?? '').join('|');
 
 	return {
 		/** Read pass #1 (layout is still clean here): where the near items are now. */
@@ -143,7 +141,11 @@ export function listMotion(getList) {
 				});
 				layer.append(ghost);
 				ghost
-					.animate([{ opacity: 1 }, { opacity: 0 }], { duration: LEAVE_MS, easing: 'ease-in', fill: 'forwards' })
+					.animate([{ opacity: 1 }, { opacity: 0 }], {
+						duration: LEAVE_MS,
+						easing: 'ease-in',
+						fill: 'forwards'
+					})
 					.finished.finally(() => ghost.remove());
 			}
 		}

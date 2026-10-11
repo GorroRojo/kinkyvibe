@@ -25,10 +25,15 @@ const PUBLIC = [
 	{ command: 'semana', description: 'Lo que hay en los próximos 7 días' },
 	{ command: 'finde', description: 'Lo que hay este fin de semana' },
 	{ command: 'evento', description: 'Buscá un evento por nombre, fecha o lugar' },
+	{ command: 'buscar', description: 'Escribí lo que buscás y te muestro los eventos' },
+	{ command: 'fondo', description: 'Cuánto juntó el Fondo Kinky Vibe este mes' },
 	{ command: 'ayuda', description: 'Qué podés pedirme' }
 ];
+/** En los grupos, los mismos como comandos efímeros (Bot API 10.2). */
+const GROUP = PUBLIC.map((c) => ({ ...c, is_ephemeral: true }));
 const ACCOUNT = [
 	{ command: 'vincular', description: 'Conectá tu cuenta (código de Mi rincón)' },
+	{ command: 'sigo', description: 'Lo que seguís en Lo que sigo' },
 	{ command: 'silenciar', description: 'Pausá tus avisos por Telegram' },
 	{ command: 'reanudar', description: 'Volvé a recibir tus avisos' },
 	{ command: 'desvincular', description: 'Desconectá este chat de tu cuenta' }
@@ -99,9 +104,10 @@ describe('la lista', () => {
 });
 
 describe('commandPayloads', () => {
-	it('con «Lo que sigo»: todes ven los públicos; por privado, además los de la cuenta', () => {
+	it('con «Lo que sigo»: todes ven los públicos (efímeros en grupos); por privado, además los de la cuenta', () => {
 		expect(commandPayloads({ accounts: true })).toEqual([
 			{ commands: PUBLIC, scope: { type: 'default' } },
+			{ commands: GROUP, scope: { type: 'all_group_chats' } },
 			{ commands: [...PUBLIC, ...ACCOUNT], scope: { type: 'all_private_chats' } }
 		]);
 	});
@@ -109,17 +115,27 @@ describe('commandPayloads', () => {
 	it('sin «Lo que sigo»: también por privado, solo los públicos (pisa lo de antes)', () => {
 		expect(commandPayloads({ accounts: false })).toEqual([
 			{ commands: PUBLIC, scope: { type: 'default' } },
+			{ commands: GROUP, scope: { type: 'all_group_chats' } },
 			{ commands: PUBLIC, scope: { type: 'all_private_chats' } }
 		]);
+	});
+
+	it('los de la cuenta nunca son efímeros ni van a los grupos', () => {
+		const [def, group] = commandPayloads({ accounts: true });
+		for (const c of [...def.commands, ...group.commands]) {
+			expect(ACCOUNT.map((a) => a.command)).not.toContain(c.command);
+		}
+		expect(group.commands.every((c) => c.is_ephemeral === true)).toBe(true);
+		expect(def.commands.some((c) => 'is_ephemeral' in c)).toBe(false);
 	});
 });
 
 describe('registerBotCommands', () => {
-	it('manda los dos setMyCommands exactos, sin language_code', async () => {
+	it('manda los tres setMyCommands exactos, sin language_code', async () => {
 		const f = fakeFetch();
 		const r = await registerBotCommands({ token: TOKEN, accounts: true, fetch: f });
 		const sent = calls(f);
-		expect(sent).toHaveLength(2);
+		expect(sent).toHaveLength(3);
 		for (const c of sent) {
 			expect(c.url.origin).toBe('https://api.telegram.org');
 			expect(c.url.pathname).toBe(`/bot${TOKEN}/setMyCommands`);
@@ -129,6 +145,7 @@ describe('registerBotCommands', () => {
 		}
 		expect(sent.map((c) => c.body)).toEqual([
 			{ commands: PUBLIC, scope: { type: 'default' } },
+			{ commands: GROUP, scope: { type: 'all_group_chats' } },
 			{ commands: [...PUBLIC, ...ACCOUNT], scope: { type: 'all_private_chats' } }
 		]);
 		expect(r).toEqual({
@@ -136,8 +153,14 @@ describe('registerBotCommands', () => {
 			results: [
 				{
 					scope: 'default',
-					label: 'Para todes (grupos y chats)',
-					commands: ['proximos', 'hoy', 'semana', 'finde', 'evento', 'ayuda'],
+					label: 'Para todes (respaldo)',
+					commands: PUBLIC.map((c) => c.command),
+					ok: true
+				},
+				{
+					scope: 'all_group_chats',
+					label: 'En grupos (efímeros: solo los ve quien pregunta)',
+					commands: PUBLIC.map((c) => c.command),
 					ok: true
 				},
 				{
@@ -149,8 +172,11 @@ describe('registerBotCommands', () => {
 						'semana',
 						'finde',
 						'evento',
+						'buscar',
+						'fondo',
 						'ayuda',
 						'vincular',
+						'sigo',
 						'silenciar',
 						'reanudar',
 						'desvincular'
@@ -166,8 +192,8 @@ describe('registerBotCommands', () => {
 		await registerBotCommands({ token: TOKEN, accounts: false, fetch: f });
 		await registerBotCommands({ token: TOKEN, accounts: false, fetch: f });
 		const bodies = calls(f).map((c) => c.body);
-		expect(bodies).toHaveLength(4);
-		expect(bodies.slice(2)).toEqual(bodies.slice(0, 2));
+		expect(bodies).toHaveLength(6);
+		expect(bodies.slice(3)).toEqual(bodies.slice(0, 3));
 	});
 
 	it('sin token: no llama a nada', async () => {
@@ -194,7 +220,7 @@ describe('registerBotCommands', () => {
 		const r = await registerBotCommands({ token: TOKEN, accounts: true, fetch: f });
 		expect(r.ok).toBe(false);
 		const results = /** @type {any} */ (r).results;
-		expect(results.map((/** @type {any} */ x) => x.ok)).toEqual([false, false]);
+		expect(results.map((/** @type {any} */ x) => x.ok)).toEqual([false, false, false]);
 		expect(results[0].error).toContain('401');
 		expect(JSON.stringify(r)).not.toContain(TOKEN);
 		expect(JSON.stringify(spy.mock.calls)).not.toContain(TOKEN);
@@ -228,7 +254,8 @@ describe('callTelegramApi', () => {
 		expect(r).toEqual({
 			ok: false,
 			status: 200,
-			error: 'Telegram respondió 200: Bad Request: algo.'
+			error: 'Telegram respondió 200: Bad Request: algo.',
+			description: 'Bad Request: algo'
 		});
 		vi.restoreAllMocks();
 	});

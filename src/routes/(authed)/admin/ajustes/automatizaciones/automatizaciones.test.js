@@ -125,17 +125,19 @@ describe('?/comandos (Actualizar comandos del bot)', () => {
 		expect(await auditRows()).toHaveLength(before);
 	});
 
-	it('admins: registra los dos alcances, contesta qué quedó y lo anota', async () => {
+	it('admins: registra los tres alcances, contesta qué quedó y lo anota', async () => {
 		await setFlag(t.db, 'lo_que_sigo', false, { by: 'prueba' });
 		const f = stubTelegram();
 		const { actions } = await page();
 		const r = /** @type {any} */ (await actions.comandos(post(admin)));
 		expect(r.commandsOk).toBe(true);
+		const PUBLIC = ['proximos', 'hoy', 'semana', 'finde', 'evento', 'buscar', 'fondo', 'ayuda'];
 		expect(r.commandsResults.map((/** @type {any} */ x) => [x.scope, x.commands])).toEqual([
-			['default', ['proximos', 'hoy', 'semana', 'finde', 'evento', 'ayuda']],
-			['all_private_chats', ['proximos', 'hoy', 'semana', 'finde', 'evento', 'ayuda']]
+			['default', PUBLIC],
+			['all_group_chats', PUBLIC],
+			['all_private_chats', PUBLIC]
 		]);
-		expect(f).toHaveBeenCalledTimes(2);
+		expect(f).toHaveBeenCalledTimes(3);
 		for (const [url] of f.mock.calls) {
 			const u = new URL(url);
 			expect(u.host).toBe('api.telegram.org');
@@ -155,7 +157,7 @@ describe('?/comandos (Actualizar comandos del bot)', () => {
 		const { actions } = await page();
 		await actions.comandos(post(admin));
 		const bodies = f.mock.calls.map(([, init]) => JSON.parse(init.body));
-		expect(bodies[1]).toEqual({
+		expect(bodies[2]).toEqual({
 			scope: { type: 'all_private_chats' },
 			commands: [
 				{ command: 'proximos', description: 'Los próximos eventos públicos' },
@@ -163,8 +165,11 @@ describe('?/comandos (Actualizar comandos del bot)', () => {
 				{ command: 'semana', description: 'Lo que hay en los próximos 7 días' },
 				{ command: 'finde', description: 'Lo que hay este fin de semana' },
 				{ command: 'evento', description: 'Buscá un evento por nombre, fecha o lugar' },
+				{ command: 'buscar', description: 'Escribí lo que buscás y te muestro los eventos' },
+				{ command: 'fondo', description: 'Cuánto juntó el Fondo Kinky Vibe este mes' },
 				{ command: 'ayuda', description: 'Qué podés pedirme' },
 				{ command: 'vincular', description: 'Conectá tu cuenta (código de Mi rincón)' },
+				{ command: 'sigo', description: 'Lo que seguís en Lo que sigo' },
 				{ command: 'silenciar', description: 'Pausá tus avisos por Telegram' },
 				{ command: 'reanudar', description: 'Volvé a recibir tus avisos' },
 				{ command: 'desvincular', description: 'Desconectá este chat de tu cuenta' }
