@@ -113,11 +113,16 @@
 		object-fit: cover;
 		box-shadow: var(--shadow);
 	}
+	/* Sin imagen: ícono rosa sobre un cuadrado blanco (en modo oscuro, --surface del panel) con un
+	   borde suave, así se lee sobre el gris del panel y sobre páginas blancas. Rosa sobre blanco
+	   3,35:1 (alcanza para un gráfico, ≥ 3:1); sobre la superficie oscura, 4,8:1. */
 	.type-icon {
 		display: grid;
 		place-items: center;
-		background: var(--link-bg);
-		color: var(--link);
+		box-sizing: border-box;
+		background: var(--surface, #fff);
+		color: var(--accent, var(--1));
+		border: 1px solid var(--line);
 		box-shadow: none;
 	}
 	.cover-text {

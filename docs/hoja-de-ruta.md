@@ -148,8 +148,8 @@ de amigues y lanzamientos grandes.
   de producción lo decide gorrite.
 - Imagen para compartir: más paletas, formatos apaisado y carrusel, estilo por serie. M.
 - Kinkipedia más rica y una lista de series mejor armada. M. Bloqueo: dirección de gorrite.
-- Ícono grande del tipo en el encabezado cuando no hay miniatura (perfiles, series, material,
-  lugares). S.
+- Ícono grande del tipo en el encabezado cuando no hay miniatura, también en las series (perfiles,
+  lugares y material ya lo tienen). S.
 - Passkeys para las cuentas del público. M–L.
 - Botón grande para comprar afuera: cuando las entradas se venden en otro sitio (link externo),
   el llamado a la acción tiene el mismo tamaño y peso que «Comprar entradas» (gorrite, 10/10). S.
