@@ -96,6 +96,9 @@ Demo con datos inventados: `node scripts/demo/n3-amigues.js` y después `npm run
   ajustado en `src/lib/server/amigues/sanitize.js`, el único lugar que lo decide): lista corta de
   etiquetas; sin scripts, estilos, `on…`, `javascript:` ni `data:`; `id`/`name` con prefijo.
 - **La dirección de un lugar nunca sale de su nivel** (abajo).
+- **Los datos estructurados y la tarjeta de contacto tampoco**: el JSON-LD (`ProfilePage`), la
+  h-card y `/amigues/<perfil>/contacto.vcf` usan solo lo que muestra la página (el contacto de
+  `contactItems()` y la dirección según el nivel). Ver [seo.md](seo.md).
 
 ## Privacidad de los lugares
 
