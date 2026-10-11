@@ -20,6 +20,8 @@ PRs abiertos:
   nuevo mapa de teclas `g`.
 - #261: reserva por transferencia hasta las 20 del segundo día hábil, sin paso de confirmar.
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
+- #290: seguir desde el bot prende los avisos por Telegram
+  ([0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)).
 
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
 BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
@@ -198,6 +200,10 @@ de amigues y lanzamientos grandes.
 - Bandeja de entrada en el panel, mails individuales y masivos (fase 5, CRM). L.
 
 ### Telegram
+
+- Guardar si alguien apagó a propósito los avisos por Telegram de algo, para que volver a seguirlo
+  desde el bot no los prenda de nuevo (hoy la base no lo distingue, 0036). S. Bloqueo: que haga
+  falta (necesita migración).
 
 - Fase 3: avisos y estado para organizadores, nunca datos de compradores
   ([0029](decisiones/0029-bot-de-telegram.md)). L. Bloqueo: el rol de organizadore.

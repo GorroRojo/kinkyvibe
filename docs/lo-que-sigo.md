@@ -51,7 +51,8 @@ Las columnas de la grilla salen de `NOTIFY_CHANNELS` (`src/lib/utils/sigo.js`). 
 (`src/lib/components/sigo/FollowOptions.svelte`) no cambia. Con la fase 2 del bot
 ([telegram.md](telegram.md), migración 0033) la columna se prende por cuenta con
 `notifyChannels(data.telegram)`: andando con el chat vinculado, «Sin conectar» si no, y
-«Próximamente» con el bot apagado. La tarjeta «Telegram» (`TelegramCard.svelte`) va abajo de lo
+«Próximamente» con el bot apagado. Seguir desde el bot prende «Algo nuevo» por Telegram para eso
+([0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)); seguir desde acá, no. La tarjeta «Telegram» (`TelegramCard.svelte`) va abajo de lo
 seguido.
 
 ## Cómo prenderlo
