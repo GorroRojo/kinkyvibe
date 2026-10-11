@@ -32,6 +32,7 @@ import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
 import { signUpForWaitlist, waitlistJoinStates } from '$lib/server/tickets/waitlistSignup.js';
 import { findOffer } from '$lib/server/tickets/waitlistPurchase.js';
 import { waitlistSender } from '$lib/server/tickets/waitlistMail.js';
+import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 
 /**
  * Talleres en varias partes (docs/talleres-partes.md): si el evento es una parte de un taller con
@@ -65,6 +66,10 @@ export async function load({ params, platform, fetch, locals, setHeaders, url })
 	if (host) redirect(307, `/calendario/${host}/entradas`);
 	const db = getDB(platform);
 	const waitlistOn = Boolean(db) && (await listaEsperaEnabled(platform));
+	// Las reservas de MP (20 min) y de transferencia vencen sin aviso: si hay gente en la lista,
+	// un empujón en segundo plano (como mucho uno por minuto) le pasa el lugar a quien sigue.
+	if (waitlistOn)
+		queueWaitlistAdvance({ platform, db, eventSlug: params.event, fetch, origin: siteOrigin(url) });
 	const offer =
 		waitlistOn && db ? await offerView(db, params.event, url.searchParams.get('lista')) : null;
 	const tickets = await getTicketsView(db, params.event, fetch, {

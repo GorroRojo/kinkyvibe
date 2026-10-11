@@ -40,6 +40,7 @@ import {
 } from './settings.js';
 import { parseReminders, reminderKey, sendDueReminders } from './reminders.js';
 import { resolveTemplate } from './templates.js';
+import { queueWaitlistAdvance } from './waitlistEngine.js';
 import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
 import { buyerLocation } from '../amigues/venues.js';
 import {
@@ -278,6 +279,20 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 		// Reembolso hecho desde el panel de MP (o contracargo): avisar una vez (solo quien cambió
 		// el estado llega acá; un reembolso hecho desde nuestro admin ya lo avisó).
 		await inBackground(sendRefundEmail({ db, order: result.order, fetch: fetchFn }), platform);
+	}
+	// Reembolso, contracargo o pago cancelado: se liberó el lugar y la lista de espera pasa a la
+	// próxima persona (en segundo plano; el cron lo garantiza igual).
+	if (
+		result.outcome === 'updated' &&
+		(result.order?.status === 'refunded' || result.order?.status === 'cancelled')
+	) {
+		queueWaitlistAdvance({
+			platform,
+			db,
+			eventSlug: result.order.event_slug,
+			fetch: fetchFn,
+			origin
+		});
 	}
 	if (result.newlyApproved && result.order) {
 		const order = result.order;
@@ -883,18 +898,29 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
  * Una corrida del cron de mails (POST /api/cron/recordatorios, cada 15 minutos): una tanda de
  * recordatorios y, con lo que sobre, de lo que quede de cada "Enviar el link a todes" y de cada
  * «Avisar a les compradores» de un cambio de fecha (ver mailQueue.js). Se puede llamar dos veces a la vez sin duplicar nada (ver sendState.js).
+ * Con `sendWaitlist` (interruptor `lista_espera` prendido; `waitlistMailBatch` de
+ * waitlistEngine.js), los mails de la lista de espera van primero.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
  *   origin: string,
  *   fetch: typeof fetch,
  *   now?: number,
- *   limit?: number
+ *   limit?: number,
+ *   sendWaitlist?: (limit: number) => Promise<{ sent: number, failed: number, remaining: number }>
  * }} input
  */
-export async function runMailQueue({ db, origin, fetch: fetchFn, now = Date.now(), limit }) {
+export async function runMailQueue({
+	db,
+	origin,
+	fetch: fetchFn,
+	now = Date.now(),
+	limit,
+	sendWaitlist
+}) {
 	return runMailQueueWith(db, {
 		limit,
+		...(sendWaitlist ? { sendWaitlist } : {}),
 		sendReminders: (limit) => sendReminderEmails({ db, origin, fetch: fetchFn, now, limit }),
 		sendStreamLink: ({ eventSlug, link, limit }) =>
 			sendStreamLinkEmails({ db, eventSlug, link, origin, fetch: fetchFn, now, limit }),

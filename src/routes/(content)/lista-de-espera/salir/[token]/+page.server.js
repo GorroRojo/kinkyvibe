@@ -7,6 +7,8 @@ import { fail } from '@sveltejs/kit';
 import { LIVE_STATUSES } from '$lib/server/tickets/waitlist.js';
 import { checkWaitlistLinkToken } from '$lib/server/tickets/waitlistMail.js';
 import { leaveByToken, waitlistEntryInfo } from '$lib/server/tickets/waitlistSignup.js';
+import { siteOrigin } from '$lib/server/tickets/index.js';
+import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 import { PRIVATE_HEADERS, eventLabel, requireWaitlistDB } from '../../shared.server.js';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -25,10 +27,19 @@ export async function load({ params, platform, setHeaders }) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
-	default: async ({ params, platform }) => {
+	default: async ({ params, platform, fetch, url }) => {
 		const db = await requireWaitlistDB(platform, { flag: false });
 		const r = await leaveByToken(db, params.token);
 		if (!r.ok) return fail(400, { error: 'Este link no es válido. Revisá que esté completo.' });
+		// Tenía un lugar guardado: pasa a la próxima persona (el empujón mira el interruptor).
+		if (r.left && r.was === 'offered' && r.eventSlug)
+			queueWaitlistAdvance({
+				platform,
+				db,
+				eventSlug: r.eventSlug,
+				fetch,
+				origin: siteOrigin(url)
+			});
 		return { ok: true, left: r.left, event: await eventLabel(r.eventSlug) };
 	}
 };

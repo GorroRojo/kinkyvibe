@@ -334,12 +334,51 @@ apagado (o el evento sin lista) la sentencia de la compra es la de siempre y `li
 - La página del evento (botón «Comprar entradas») también resta la fila; las tarjetas de las
   listas de eventos (`listStates.js`) todavía no.
 
-**Lo que falta**, en este orden: el motor que ofrece los lugares desde el cron y cuando se libera
-uno, y que dispare los mails de oferta, último aviso, vencida y cierre (parte 4; al salir alguien
-con un lugar guardado también tiene que pasar a la siguiente persona, y una compra con oferta que
-no se pagó devuelve la oferta hasta su vencimiento); el panel (editor, Ajustes, pestaña del evento
-y aviso en la puerta), el formulario completo en cada tipo agotado y que las tarjetas de las listas
-de eventos resten la fila (parte 5).
+**Ya está (parte 4, el motor).** Con el interruptor apagado no corre nada (ni la pasada del cron,
+ni los mails, ni los empujones).
+
+- **`advanceWaitlist`** (`src/lib/server/tickets/waitlistEngine.js`), una pasada sobre un evento,
+  idempotente: (1) vence las reservas pasadas (`expired`, `hold_expired`); (2) devuelve a
+  `offered` a quien compró con su oferta y no pagó (la orden se canceló, venció o fue rechazada),
+  con el mismo link y el mismo vencimiento, sin tiempo extra; (3) mira lo libre de cada alcance y
+  no ofrece nada si la venta no está abierta (`agotadas` a mano, todavía no abrió); (4) si hay
+  lugar y nadie tiene uno guardado vigente, se lo ofrece a la primera de la fila (`ORDER BY
+confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas a la vez nunca
+  ofrecen dos veces; en el aviso a todes (faltan menos de 6 h, o «todes a la vez»), a toda la fila,
+  sin lugar guardado; (5) pasado el cierre de la lista (comienzo − 30 min o el cierre de la venta)
+  o con el evento cancelado, cierra lo vivo (`closed` / `event_cancelled`), también a quien
+  confirmó después del cierre; (6) borra las anotaciones sin confirmar de más de 48 h. Si el evento
+  ya no vende entradas o no tiene lista, solo hace 1, 2 y 6 (nunca cierra por una configuración que
+  no se pudo leer). Anotaciones de un alcance que ya no existe (tipo borrado o alcance cambiado a
+  mano): `expired` / `type_removed`, sin mail.
+- **El link de la oferta** lleva un token de 256 bits que no se guarda: la firma HMAC de
+  `offer:<id>:<ronda>` con la clave `waitlist_offer_key` (`offerToken`, se crea sola en
+  `ticket_settings`); en la base queda solo su SHA-256. El mail de la oferta, sus reintentos y el
+  último aviso llevan el mismo link.
+- **Cron:** `runWaitlistCron` en `POST /api/cron/recordatorios` (el de cada 15 minutos; no hay
+  cron nuevo), antes de la tanda de mails y en su propio try/catch: pasa por cada evento con
+  anotaciones vivas (o con una compra de oferta abandonada). La respuesta trae `waitlistAdvance`
+  (cuentas) y `waitlist` (la tanda de sus mails).
+- **Mails** (`sendWaitlistMails`): no hay cola aparte, lo que falta sale del estado y de
+  `waitlist_sends` (una vez por anotación, mail y ronda; un fallo se reintenta hasta 3 veces). En
+  orden: la oferta (cada oferta vigente sin su mail), el último aviso (reservas de 12 h o más, con
+  3 h por delante y la oferta ya mandada; nunca en el aviso a todes), «se venció» (con la oferta ya
+  mandada) y «se cerró la lista»; los dos últimos solo si pasó hace menos de 48 h. En el cron van
+  **primero** en la tanda (`runMailQueueWith`, `sendWaitlist`) y comparten el «de a cuántos».
+- **Empujones** (`queueWaitlistAdvance`): en segundo plano (`waitUntil`), como mucho uno por
+  minuto y evento (`hitRateLimit`, `waitlist:advance:<slug>`) y solo si el evento tiene a alguien
+  esperando o con oferta; avanza la lista y manda los mails de ese evento. Lo garantiza el cron;
+  el empujón solo adelanta. Desde: reembolso y cancelación de transferencia en la ficha del evento,
+  cancelación desde la bandeja de transferencias, reembolso / contracargo / pago cancelado de
+  Mercado Pago (`processPayment`), la preferencia de MP que falla (`cancelPendingOrder`), cada
+  carga de la página de compra (las reservas de MP y de transferencia vencen sin aviso), «Guardar»
+  en el editor del evento (más cupo, dejó de estar agotado, otra fecha, cancelado), y los links de
+  los mails: salir con un lugar guardado, confirmar y volver a anotarse.
+
+**Lo que falta** (parte 5): el panel (editor, Ajustes, pestaña del evento con sus acciones, que
+también tienen que empujar la lista, y aviso en la puerta), el formulario completo en cada tipo
+agotado, que las tarjetas de las listas de eventos resten la fila y la fila de «Para revisar» para
+los mails de la lista que fallaron.
 
 ### Horario de la venta
 
