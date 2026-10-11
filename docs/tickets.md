@@ -238,6 +238,41 @@ Código: `src/lib/utils/salesGoal.js` (leer, formulario, lo neto, `goalProgress`
 `ticketTotals` y `upcomingEvents` (`admin/inicio.js`), `goal`/`revenue`/`mpFee` en las filas de
 Panel → Eventos (`panelList.js`), y los componentes `GoalProgress.svelte` y `SalesGoalField.svelte`.
 
+### Lista de espera (en construcción)
+
+Cuando un evento (o un tipo de entrada) se agota, la gente se anota en una lista; si se libera un
+lugar, se le avisa por mail a la próxima persona y se le guarda un rato. Detrás del interruptor
+`lista_espera` (apagado, [interruptores.md](interruptores.md)) y de la clave `lista_espera` de cada
+evento. Se construye en partes, en ramas que se juntan en `claude/lista-espera` y entran a `main`
+como un solo PR (decisión [0001](decisiones/0001-ritmo-y-orden.md)); la decisión con lo que eligió
+gorrite se escribe al integrar.
+
+**Ya está (parte 1, datos y reglas).** Nada de esto se ve todavía ni toca la venta.
+
+- Migración `0053_lista_de_espera.sql`: `waitlist_entries` (una fila por anotación) y
+  `waitlist_sends` (mails por ronda). Ver [datos.md](datos.md).
+- Por evento, `lista_espera` en el frontmatter (o en `extra`): `evento` o `tipo` (atajo), o
+  `{ alcance: evento | tipo, todes_a_la_vez: true, reservas: [{ overHours, holdHours }] }`. Queda en
+  `config.waitlist` (`parseTicketConfig`); lo que no se entiende cuenta como sin lista y nunca frena
+  la venta (como `meta_venta`).
+- Ajustes globales en `ticket_settings`, clave `waitlist` (JSON). Vacío = de a una persona por vez;
+  la reserva dura 24 h si faltan 7 días o más para el comienzo, 12 h si faltan 48 h o más, 2 h si
+  faltan 6 h o más; con menos de 6 h se le avisa a toda la lista a la vez (sin lugar guardado). La
+  lista cierra en `min(comienzo − 30 min, cierre de la venta)` y ninguna reserva pasa de ahí. Reglas
+  puras en `src/lib/utils/waitlistHold.js` (`holdUntil`).
+- Cambios de estado en `src/lib/server/tickets/waitlist.js`: anotarse (con cuenta y el mail
+  verificado, entra directo a la fila), confirmar por mail, volver a anotarse después de vencer
+  (al final y sin confirmar otra vez), salir, que le saque une admin, terminar, comprar con la
+  oferta y borrar las anotaciones sin confirmar a las 48 h.
+- **Por evento, la fila cuenta contra el lugar libre total del evento** (la suma de lo que queda en
+  sus tipos con cupo), no contra cada tipo: una persona esperando guarda un solo lugar. Por tipo,
+  contra el lugar libre de ese tipo.
+
+**Lo que falta**, en este orden: anotarse desde la página, confirmar y salir, y los mails (parte
+2); que la fila guarde lugares en la compra y la compra con el link de la oferta (parte 3); el
+motor que ofrece los lugares desde el cron y cuando se libera uno (parte 4); el panel (editor,
+Ajustes, pestaña del evento y aviso en la puerta, parte 5).
+
 ### Horario de la venta
 
 - `tickets_open` (opcional): antes de ese momento la venta no abrió; la página del evento y la de compra dicen "Abre el jueves 1/10 a las 12:00".

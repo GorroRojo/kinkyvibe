@@ -124,6 +124,53 @@ describe('cupo opcional y entradas en la puerta', () => {
 	});
 });
 
+describe('lista de espera (lista_espera)', () => {
+	it('sin la clave: sin lista', () => {
+		expect(parseTicketConfig(META)?.waitlist).toBeNull();
+	});
+
+	it('se lee por evento o por tipo, con «todes a la vez» y reservas propias', () => {
+		expect(parseTicketConfig({ ...META, lista_espera: 'evento' })?.waitlist).toEqual({
+			scope: 'event',
+			allAtOnce: false,
+			tiers: null
+		});
+		expect(
+			parseTicketConfig({
+				...META,
+				lista_espera: {
+					alcance: 'tipo',
+					todes_a_la_vez: true,
+					reservas: [{ overHours: 24, holdHours: 3 }]
+				}
+			})?.waitlist
+		).toEqual({ scope: 'type', allAtOnce: true, tiers: [{ overHours: 24, holdHours: 3 }] });
+	});
+
+	it('algo que no se entiende cuenta como apagada y nunca frena la venta', () => {
+		for (const lista_espera of [
+			'sí',
+			true,
+			42,
+			['evento'],
+			{ alcance: 'todo' },
+			{ alcance: 'evento', todes_a_la_vez: 'quizás' },
+			{ alcance: 'tipo', reservas: [{ overHours: 'mucho', holdHours: 2 }] }
+		]) {
+			const config = parseTicketConfig({ ...META, lista_espera });
+			expect(config?.waitlist, JSON.stringify(lista_espera)).toBeNull();
+			// El resto de la configuración queda igual: se vende como siempre.
+			expect({ ...config, waitlist: undefined }).toEqual({
+				...parseTicketConfig(META),
+				waitlist: undefined
+			});
+			expect(salesState(/** @type {any} */ (config), Date.parse('2026-10-01T12:00:00Z'))).toEqual({
+				open: true
+			});
+		}
+	});
+});
+
 describe('salesState', () => {
 	const c = /** @type {NonNullable<ReturnType<typeof parseTicketConfig>>} */ (
 		parseTicketConfig(META)
