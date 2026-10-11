@@ -186,6 +186,9 @@ de amigues y lanzamientos grandes.
 - Más gráficos: mapa de la comunidad, Fondo y finanzas. M.
 - Colaboración en tiempo real con Durable Objects. L.
 - Preguntas de inscripción sugeridas para elegir rápido. S.
+- Miniaturas achicadas en las otras listas del panel (Eventos, Contenido): hoy usan la portada
+  entera; el recuadro «Hoy» ya usa `thumbnailUrl` (`seo.js`). En previews y en local no hay
+  transformaciones de Cloudflare, así que ahí siguen enteras. S.
 
 ### Mails
 

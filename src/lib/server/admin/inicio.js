@@ -852,6 +852,7 @@ export function sinceLastVisitQuery({ since, login = '', titles }) {
  *   unlisted: boolean,
  *   today: boolean,
  *   hasImage: boolean,
+ *   thumb: string,
  *   ticketed: boolean,
  *   online: boolean,
  *   fondoEnabled: boolean,
@@ -960,6 +961,9 @@ export function upcomingEvents({
 			unlisted: e.unlisted,
 			today: day === today,
 			hasImage: Boolean(e.thumb),
+			// La portada, tal como la usan las tarjetas del sitio ('' si no tiene): la miniatura del
+			// recuadro «Hoy» del Inicio (achicada en producción con `thumbnailUrl`, seo.js).
+			thumb: e.thumb ?? '',
 			ticketed: Boolean(config),
 			online: Boolean(config?.online),
 			fondoEnabled: Boolean(config?.fondoEnabled),
