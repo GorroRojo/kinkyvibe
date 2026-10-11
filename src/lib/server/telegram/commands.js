@@ -9,7 +9,12 @@
  */
 import { callTelegramApi } from './send.js';
 
-/** @typedef {{ command: string, description: string }} BotCommand */
+/**
+ * `is_ephemeral` (Bot API 10.2): en los grupos, el comando y la respuesta los ve solo quien lo
+ * mandó (y el bot).
+ *
+ * @typedef {{ command: string, description: string, is_ephemeral?: boolean }} BotCommand
+ */
 
 /** Los de todes (grupos y chats privados). @type {readonly BotCommand[]} */
 export const PUBLIC_COMMANDS = Object.freeze([
@@ -18,6 +23,8 @@ export const PUBLIC_COMMANDS = Object.freeze([
 	{ command: 'semana', description: 'Lo que hay en los próximos 7 días' },
 	{ command: 'finde', description: 'Lo que hay este fin de semana' },
 	{ command: 'evento', description: 'Buscá un evento por nombre, fecha o lugar' },
+	{ command: 'buscar', description: 'Escribí lo que buscás y te muestro los eventos' },
+	{ command: 'fondo', description: 'Cuánto juntó el Fondo Kinky Vibe este mes' },
 	{ command: 'ayuda', description: 'Qué podés pedirme' }
 ]);
 
@@ -46,15 +53,21 @@ export const HANDLED_COMMANDS = new Set([
 ]);
 
 /**
- * @typedef {{ type: 'default' } | { type: 'all_private_chats' }} CommandScope
+ * @typedef {{ type: 'default' } | { type: 'all_group_chats' } | { type: 'all_private_chats' }} CommandScope
  * @typedef {{ commands: BotCommand[], scope: CommandScope }} SetMyCommandsPayload
  */
 
 /**
- * Los dos `setMyCommands` que hay que mandar: el de todes (`default`) y el de los chats privados,
- * que suma los de la cuenta solo con «Lo que sigo» prendido (apagado, contestan «todavía no se
- * puede», así que no se ofrecen). Se manda siempre el privado, también sin los de la cuenta, para
- * que pisar lo registrado antes sea idempotente. Sin `language_code`: valen para cualquier idioma.
+ * Los tres `setMyCommands` que hay que mandar:
+ *
+ * - `default`: los de todes (el respaldo, por si un alcance más específico no está);
+ * - `all_group_chats`: los mismos, **efímeros** (`is_ephemeral`, Bot API 10.2): en un grupo, el
+ *   comando y la respuesta los ve solo quien preguntó, y no se ensucia el grupo;
+ * - `all_private_chats`: los de todes y, solo con «Lo que sigo» prendido, los de la cuenta
+ *   (apagado, contestan «todavía no se puede», así que no se ofrecen).
+ *
+ * Se mandan siempre los tres, también sin los de la cuenta, para que pisar lo registrado antes sea
+ * idempotente. Sin `language_code`: valen para cualquier idioma.
  *
  * @param {{ accounts: boolean }} opts
  * @returns {SetMyCommandsPayload[]}
@@ -64,6 +77,10 @@ export function commandPayloads({ accounts }) {
 	return [
 		{ commands: copy(PUBLIC_COMMANDS), scope: { type: 'default' } },
 		{
+			commands: PUBLIC_COMMANDS.map((c) => ({ ...c, is_ephemeral: true })),
+			scope: { type: 'all_group_chats' }
+		},
+		{
 			commands: copy(accounts ? [...PUBLIC_COMMANDS, ...ACCOUNT_COMMANDS] : PUBLIC_COMMANDS),
 			scope: { type: 'all_private_chats' }
 		}
@@ -72,7 +89,8 @@ export function commandPayloads({ accounts }) {
 
 /** Cómo se dice cada alcance en el panel. */
 export const SCOPE_LABELS = Object.freeze({
-	default: 'Para todes (grupos y chats)',
+	default: 'Para todes (respaldo)',
+	all_group_chats: 'En grupos (efímeros: solo los ve quien pregunta)',
 	all_private_chats: 'En chats privados'
 });
 
