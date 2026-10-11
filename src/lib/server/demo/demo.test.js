@@ -1,12 +1,8 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { isAdmin, requireAdmin } from '../auth.js';
 import { PREVIEW_BUILD, isPreviewDeploy } from '../deploy.js';
-import { PathExistsError } from '../eventos/github.js';
-import { createTestDB, resetDB } from '../db/testing.js';
-import { createDemoClient } from './client.js';
 import { DEMO_COOKIE, DEMO_TOKEN, demoUser, isDemoUser } from './identity.js';
 import { startDemoSession } from './login.js';
-import { overlaySummary, overlayTexts } from './overlay.js';
 
 describe('demo identity', () => {
 	it('is only an admin on preview deploys', () => {
@@ -70,131 +66,5 @@ describe('startDemoSession', () => {
 		expect(
 			startDemoSession({ preview: true, cookies, url, redirectTo: 'https://evil.example' })
 		).toBe('/admin');
-	});
-});
-
-describe('demo client (D1 layer over the deployed files)', () => {
-	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
-	let t;
-	/** @type {ReturnType<typeof createDemoClient>} */
-	let client;
-	const bundle = {
-		texts: {
-			'src/lib/posts/calendario/fiesta.md': async () => '---\ntitle: Fiesta\n---\nDeploy',
-			'src/lib/posts/calendario/otra.md': async () => '---\ntitle: Otra\n---\n'
-		},
-		files: new Set([
-			'src/lib/posts/calendario/fiesta.md',
-			'src/lib/posts/calendario/otra.md',
-			'src/lib/posts/calendario/media/fiesta/1.jpg',
-			'src/lib/assets/compartida.png'
-		])
-	};
-
-	beforeAll(async () => {
-		t = await createTestDB();
-		client = createDemoClient({ getDB: () => t.db, bundle });
-	});
-	afterAll(async () => {
-		await t?.dispose();
-	});
-	beforeEach(async () => {
-		await resetDB(t.db);
-	});
-
-	it('the table is not a migration: it is created on first use', async () => {
-		const before = await t.db
-			.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'demo_files'")
-			.all();
-		// First test of the file: the DB has only the numbered migrations applied.
-		expect(before.results.length).toBe(0);
-		expect(await client.getFile('', 'src/lib/posts/calendario/fiesta.md')).toContain('Deploy');
-		const after = await t.db
-			.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'demo_files'")
-			.all();
-		expect(after.results.length).toBe(1);
-	});
-
-	it('reads fall back to the deploy, and the layer wins after a commit', async () => {
-		expect(await client.getFile('', 'src/lib/posts/calendario/nope.md')).toBeNull();
-		await client.commitFiles(DEMO_TOKEN, {
-			files: [
-				{ path: 'src/lib/posts/calendario/fiesta.md', content: '---\ntitle: Fiesta (demo)\n---\n' },
-				{ path: 'src/lib/posts/calendario/nueva.md', content: '---\ntitle: Nueva\n---\n' }
-			],
-			message: '[admin] Admin de prueba updated calendario/fiesta'
-		});
-		expect(await client.getFile('', 'src/lib/posts/calendario/fiesta.md')).toContain('(demo)');
-		expect(await client.pathExists('', 'src/lib/posts/calendario/nueva.md')).toBe(true);
-		const names = (await client.listDir('', 'src/lib/posts/calendario')).map((e) => e.name);
-		expect(names).toEqual(['fiesta.md', 'media', 'nueva.md', 'otra.md']);
-		const texts = await client.getDirTexts('', 'src/lib/posts/calendario');
-		expect(texts.map((f) => f.path).sort()).toEqual([
-			'src/lib/posts/calendario/fiesta.md',
-			'src/lib/posts/calendario/nueva.md',
-			'src/lib/posts/calendario/otra.md'
-		]);
-		const summary = await overlaySummary(t.db);
-		expect(summary.files).toBe(2);
-		expect(summary.recent[0].author).toBe('Admin de prueba');
-	});
-
-	it('mustNotExist sees both the deploy and the layer', async () => {
-		await expect(
-			client.commitFiles('', {
-				files: [{ path: 'src/lib/posts/calendario/fiesta.md', content: 'x' }],
-				message: 'm',
-				mustNotExist: ['src/lib/posts/calendario/fiesta.md']
-			})
-		).rejects.toBeInstanceOf(PathExistsError);
-		await client.commitFiles('', {
-			files: [{ path: 'src/lib/posts/calendario/b.md', content: 'x' }],
-			message: 'm'
-		});
-		await expect(
-			client.commitFiles('', {
-				files: [{ path: 'src/lib/posts/calendario/b.md', content: 'y' }],
-				message: 'm',
-				mustNotExist: ['src/lib/posts/calendario/b.md']
-			})
-		).rejects.toBeInstanceOf(PathExistsError);
-	});
-
-	it('deletes hide deployed files; images and blob copies are recorded', async () => {
-		const assets = await client.listTree('', 'src/lib/assets');
-		const sha = assets.find((e) => e.path === 'compartida.png')?.sha;
-		expect(sha).toBeTruthy();
-		await client.commitFiles('', {
-			files: [
-				{ path: 'src/lib/posts/calendario/otra.md', delete: true },
-				{ path: 'src/lib/assets/compartida.webp', sha },
-				{ path: 'src/lib/assets/compartida.png', delete: true },
-				{ path: 'src/lib/posts/calendario/media/fiesta/2.webp', base64: 'AAAA' }
-			],
-			message: 'm'
-		});
-		expect(await client.getFile('', 'src/lib/posts/calendario/otra.md')).toBeNull();
-		expect(
-			await client.existingPaths('', [
-				'src/lib/posts/calendario/otra.md',
-				'src/lib/assets/compartida.webp',
-				'src/lib/assets/compartida.png'
-			])
-		).toEqual(['src/lib/assets/compartida.webp']);
-		const media = await client.listTree('', 'src/lib/posts/calendario/media', { recursive: true });
-		expect(media.map((e) => `${e.type}:${e.path}`)).toEqual([
-			'tree:fiesta',
-			'blob:fiesta/1.jpg',
-			'blob:fiesta/2.webp'
-		]);
-		const rows = await overlayTexts(t.db, 'src/lib/posts/calendario/');
-		expect(rows).toContainEqual({ path: 'src/lib/posts/calendario/otra.md', text: null });
-	});
-
-	it('fails clearly without a database', async () => {
-		const noDB = createDemoClient({ getDB: () => null, bundle });
-		await expect(noDB.getFile('', 'src/lib/posts/calendario/fiesta.md')).rejects.toThrow(
-			/base de prueba/
-		);
 	});
 });

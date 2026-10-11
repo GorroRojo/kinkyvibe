@@ -20,14 +20,12 @@ vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
 const fake = vi.hoisted(() => ({
 	/** @type {any[]} */ events: [],
-	/** @type {{ slug: string, config: any }[]} */ ticketed: [],
-	/** Como en dev y en los previews (true) o como en producción (false). */ localRepo: true
+	/** @type {{ slug: string, config: any }[]} */ ticketed: []
 }));
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
 vi.mock('$lib/server/eventos/index.js', async (importOriginal) => ({
 	.../** @type {object} */ (await importOriginal()),
-	listEvents: async () => structuredClone(fake.events),
-	usesLocalRepo: () => fake.localRepo
+	listEvents: async () => structuredClone(fake.events)
 }));
 vi.mock('$lib/server/tickets/events.js', async (importOriginal) => ({
 	.../** @type {object} */ (await importOriginal()),
@@ -56,7 +54,6 @@ beforeEach(async () => {
 	vi.setSystemTime(NOW);
 	fake.events = [];
 	fake.ticketed = [];
-	fake.localRepo = true;
 });
 afterEach(() => {
 	vi.useRealTimers();
@@ -364,8 +361,7 @@ describe('«Para revisar»: el botón del menú cuenta las filas de la tarjeta d
 		});
 	});
 
-	it('no le pide nada a GitHub (los PRs de contenido ya no son filas), tampoco en producción', async () => {
-		fake.localRepo = false;
+	it('no le pide nada a GitHub (los PRs de contenido ya no existen)', async () => {
 		const realFetch = globalThis.fetch;
 		/** @type {string[]} */
 		const asked = [];

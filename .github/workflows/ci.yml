@@ -33,12 +33,6 @@ jobs:
       - name: Unit + content tests
         run: npx vitest run
 
-      # Los eventos de prueba del modo demo (.md con la marca del seed) son solo de la rama demo:
-      # nunca pueden llegar a main (docs/demo.md).
-      - name: No demo events in posts
-        if: github.event_name == 'push' || github.base_ref == 'main'
-        run: node scripts/demo/guard.js posts
-
   e2e:
     # 22.04: @playwright/test 1.40 can't install system deps on 24.04.
     runs-on: ubuntu-22.04

@@ -1,6 +1,4 @@
 import { readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
 /** Datos de transferencia INVENTADOS para las pruebas (nunca poner datos reales en el repo). */
 export const TRANSFER_INFO = 'Alias: EJEMPLO.ALIAS.PRUEBA\\nTitular: Nombre de ejemplo';
@@ -46,11 +44,3 @@ export function ticketsE2EGorraEvent() {
 	if (!slug) throw new Error('No encontré un segundo evento para la prueba de la gorra');
 	return slug;
 }
-
-/**
- * Carpeta de los "commits" del GitHub simulado (ADMIN_DEV_MOCK_DIR) en las pruebas del editor:
- * una por corrida, para no mezclar con lo que haya hecho `npm run dev:admin`.
- */
-export const ADMIN_MOCK_DIR =
-	process.env.ADMIN_DEV_MOCK_DIR ??
-	(process.env.ADMIN_DEV_MOCK_DIR = join(tmpdir(), `kinkyvibe-admin-mock-e2e-${process.pid}`));

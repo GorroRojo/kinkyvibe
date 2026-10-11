@@ -19,7 +19,7 @@
 import { parseDocument } from 'yaml';
 import { POSTS_DIR, takenSlugsInBundle } from './index.js';
 import { gitBlobSha, publishNote } from './agenda.js';
-import { FileChangedError } from './github.js';
+import { FileChangedError } from '../contenido/cliente.js';
 import { listPanelEvents } from './panel.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getDB } from '$lib/server/db';

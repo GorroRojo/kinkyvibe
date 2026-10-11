@@ -3,8 +3,8 @@
  * (GitHub, o la capa demo en los previews: siempre por `getRepoClient()`), aplica solo los campos
  * que cambiaron y hace un commit, igual que el editor de eventos.
  */
-import { FileChangedError } from './github.js';
-import { POSTS_DIR } from './images.js';
+import { FileChangedError } from '../contenido/cliente.js';
+import { POSTS_DIR } from './paths.js';
 import {
 	AGENDA_FIELD_LABELS,
 	applyAgendaChange,

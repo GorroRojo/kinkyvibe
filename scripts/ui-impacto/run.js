@@ -308,7 +308,6 @@ async function main() {
 					UI_IMPACTO_NOW: String(fixedNow),
 					// Lo mismo que `npm run dev:tickets`: admin falso, Mercado Pago simulado, sin red.
 					ADMIN_DEV_MOCK: '1',
-					ADMIN_DEV_MOCK_DIR: path.join(tmp, `${s.side}-commits`),
 					MP_MOCK: '1',
 					TICKETS_MP_FEE_PERCENT: '2',
 					TICKETS_TRANSFER_INFO: 'Alias: EJEMPLO.ALIAS.PRUEBA\\nTitular: Nombre de ejemplo',

@@ -11,7 +11,7 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
-import { FileChangedError, PathExistsError } from '$lib/server/eventos/github.js';
+import { FileChangedError, PathExistsError } from './cliente.js';
 import { runImport } from './importer.js';
 import { listRevisions } from './revisions.js';
 
