@@ -101,6 +101,11 @@ La cola de las noches, en este orden:
 - Ícono grande del tipo en el encabezado cuando no hay miniatura (perfiles, series, material,
   lugares). S.
 - Passkeys para las cuentas del público. M–L.
+- Botón grande para comprar afuera: cuando las entradas se venden en otro sitio (link externo),
+  el llamado a la acción tiene el mismo tamaño y peso que «Comprar entradas» (gorrite, 10/10). S.
+- Tiempo de lectura a la medida de cada persona: «leo rápido / normal / despacio» (por ejemplo
+  250 / 200 / 150 palabras por minuto), guardado en el navegador como las otras preferencias, desde
+  la explicación del «X min de lectura» o los ajustes de lectura (#20). S. Después de #274.
 
 ### Entradas
 
@@ -115,10 +120,18 @@ La cola de las noches, en este orden:
 - Probar el modo puerta en celulares reales y con mala señal. S.
 - Preguntas abiertas para les organizadores (reprogramar o cancelar, tope del Fondo por evento,
   si las extras cuentan para el Fondo, cuándo cierra la venta). Bloqueo: gorrite.
+- Promociones de varios eventos: por ejemplo, dos eventos a un precio especial si se compran
+  juntos (gorrite, 10/10). M–L. Bloqueo: diseño (cómo se arma la promo en el panel, cómo se ve al
+  comprar, cómo se reparte el Fondo y los reembolsos).
 
 ### Panel
 
-- Redirecciones 301 cuando cambia la dirección de un objeto. M.
+- Cambiar la dirección (URL) de un evento u otro objeto desde el panel, con redirección 301 desde
+  la vieja. Hoy la dirección se arma al crearlo y no se puede cambiar (gorrite preguntó dónde se
+  cambia, 10/10). M.
+- Invitar a cada amigue a editar su perfil: desde el panel, mandarle un link por mail para que lo
+  gestione desde Mi rincón (con cuenta), sin pasar por les admins para cada cambio (gorrite,
+  11/10). M. Revisar cómo se asigna hoy quién gestiona un perfil (docs/amigues.md).
 - Prueba E2E: objetos privados de cada tipo que nunca aparecen en listas, búsqueda, sitemap, RSS,
   imágenes para compartir ni JSON. M.
 - Borrar objetos para siempre; campos propios y tipos simples desde el panel. L. Bloqueo: diseño.
