@@ -40,7 +40,7 @@ describe('security.txt', () => {
 	});
 
 	it('la ruta lo sirve como texto plano', async () => {
-		const res = GET(/** @type {any} */ ({}));
+		const res = await GET(/** @type {any} */ ({}));
 		expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8');
 		const text = await res.text();
 		expect(text).toContain('Canonical: https://kinkyvibe.ar/.well-known/security.txt');
