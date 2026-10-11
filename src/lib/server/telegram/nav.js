@@ -248,14 +248,16 @@ export function startParam(target) {
  *
  * @param {string} param
  * @returns {{ screen: 'list', view: ListView } | { screen: 'event', deep: string }
- *   | { screen: 'follow', deep: string } | { screen: 'sigo' | 'fondo' | 'search' | 'home' } | null}
+ *   | { screen: 'follow', deep: string } | { screen: 'sigo' }
+ *   | { screen: 'fondo' | 'search' | 'home' } | null}
  */
 export function parseStartParam(param) {
 	if (typeof param !== 'string' || param.length > START_PARAM_MAX) return null;
 	for (const [view, name] of Object.entries(LIST_VIEWS)) {
 		if (param === name) return { screen: 'list', view: /** @type {ListView} */ (view) };
 	}
-	if (param === 'sigo' || param === 'fondo') return { screen: param };
+	if (param === 'sigo') return { screen: 'sigo' };
+	if (param === 'fondo') return { screen: 'fondo' };
 	if (param === 'buscar') return { screen: 'search' };
 	if (param === 'inicio') return { screen: 'home' };
 	const m = /^(ev|seguir)-([A-Za-z0-9_-]{1,61})$/.exec(param);
