@@ -110,6 +110,15 @@ listadas.
 la base): los perfiles en Comunidad → Perfiles, la wiki en Etiquetas → cada etiqueta → «Entrada de
 la Kinkipedia» (`/admin/etiquetas/wiki/<dirección>`). No hay otra forma: no quedan archivos.
 
+**Tiempo de lectura** (idea de JorgeT10, PR #46). La página de un material y la de la wiki muestran
+«X min de lectura» junto a la fecha (material) o debajo del título (wiki). Sale del texto guardado
+en la base (`data.body`, no del `.md` ni de lo armado): `src/lib/utils/readingTime.js` lo pasa a
+texto plano con `stripMarkdown` (el del buscador), sin bloques de código, y cuenta ~200 palabras
+por minuto, para arriba. Con menos de 100 palabras no se muestra (un material que es solo un
+link, una entrada corta). Se calcula en cada pedido, al lado del armado del texto (cuesta mucho
+menos que eso): sin columna ni migración. Los eventos no lo muestran (casi todos se leen en menos
+de 2 minutos y lo que importa ahí es cuándo, dónde y las entradas).
+
 ## En la base (solo la base)
 
 **Eventos** y **material** (`material`, mismo camino; ver `src/lib/server/contenido/categories.js`).
