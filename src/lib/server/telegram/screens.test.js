@@ -60,9 +60,18 @@ describe('homeScreen', () => {
 			's',
 			'fo',
 			'a',
+			undefined,
 			ORIGIN
 		]);
+		expect(flat(s).at(-2)).toEqual({
+			text: '📅 Calendario',
+			web_app: { url: `${ORIGIN}/telegram/app` }
+		});
 		expect(flat(s).at(-1)?.text).toBe('Abrir ejemplo.test ↗');
+	});
+
+	it('en un grupo no hay botón de Mini App (web_app solo anda en privado)', () => {
+		expect(flat(homeScreen(GROUP)).some((b) => b.web_app)).toBe(false);
 	});
 
 	it('sin https no hay botón con link', () => {
