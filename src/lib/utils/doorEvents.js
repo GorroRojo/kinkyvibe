@@ -3,7 +3,7 @@
  * queda elegido al abrir y cómo se muestra cada uno. Funciones puras, también para el navegador.
  */
 
-const TZ = 'America/Argentina/Buenos_Aires';
+import { argDateList, argTime } from './dates.js';
 
 /** @typedef {{ slug: string, title: string, start: number, today: boolean }} DoorEvent */
 
@@ -22,23 +22,14 @@ export function defaultDoorSlug(events, slug = '') {
 }
 
 /**
- * «Hoy 21:00» o «sáb 15/10 21:00», en hora de Argentina.
+ * «Hoy 21:00» o, otro día, como en las listas del sitio («sáb 11 ene · 21:30»), en hora de
+ * Argentina. Vacío si la fecha no se lee.
  *
  * @param {DoorEvent} event
+ * @param {number} [now]
  * @returns {string}
  */
-export function doorEventWhen(event) {
-	const date = new Date(event.start);
-	if (Number.isNaN(date.getTime())) return '';
-	const time = date.toLocaleTimeString('es-AR', {
-		timeZone: TZ,
-		hour: '2-digit',
-		minute: '2-digit',
-		hour12: false
-	});
-	if (event.today) return `Hoy ${time}`;
-	/** @param {Intl.DateTimeFormatOptions} opts */
-	const part = (opts) =>
-		new Intl.DateTimeFormat('es-AR', { timeZone: TZ, ...opts }).format(date).replace('.', '');
-	return `${part({ weekday: 'short' })} ${part({ day: 'numeric' })}/${part({ month: 'numeric' })} ${time}`;
+export function doorEventWhen(event, now = Date.now()) {
+	if (!Number.isFinite(event.start)) return '';
+	return event.today ? `Hoy ${argTime(event.start)}` : argDateList(event.start, { now });
 }

@@ -43,11 +43,8 @@ describe('doorEventWhen', () => {
 		expect(doorEventWhen(hoy)).toBe('Hoy 23:00');
 	});
 
-	it('otro día: el día de la semana, la fecha y la hora', () => {
-		const text = doorEventWhen(sabado);
-		expect(text).toContain('11/1');
-		expect(text).toMatch(/s[aá]b/);
-		expect(text.endsWith('21:30')).toBe(true);
+	it('otro día: como en las listas del sitio', () => {
+		expect(doorEventWhen(sabado, at('2031-01-10T12:00:00-03:00'))).toBe('sáb 11 ene · 21:30');
 	});
 
 	it('una fecha que no se lee: vacío', () => {
