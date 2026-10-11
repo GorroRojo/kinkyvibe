@@ -22,6 +22,8 @@ PRs abiertos:
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
 - #274: «X min de lectura» en material y Kinkipedia, con reloj, la explicación del cálculo y la
   velocidad de cada persona (navegador y cuenta) (idea de JorgeT10, #46).
+- «Textos del bot» (Ajustes › Comunicación): todo lo que dice el bot de Telegram, editable en el
+  panel, sin migración.
 - Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
   tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
   directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
@@ -212,6 +214,17 @@ de amigues y lanzamientos grandes.
 - Guardar si alguien apagó a propósito los avisos por Telegram de algo, para que volver a seguirlo
   desde el bot no los prenda de nuevo (hoy la base no lo distingue, 0036). S. Bloqueo: que haga
   falta (necesita migración).
+- Textos del bot: sumar a «Textos del bot» los de `/inicio` y el botón «🚪 Puerta» del inicio
+  cuando entre `claude/bot-inicio` (si ese PR entra después). S.
+- Textos del bot: sumar los textos de #298 (`INLINE_TEXTS` de `inline.js`, `SITE_TEXTS` de
+  `siteScreens.js`, `SITE_SEARCH_PROMPT_TEXT` y la descripción nueva de `/buscar`) cuando entren
+  los dos PRs: una entrada por texto en `src/lib/utils/botTexts.js` y `botText` en el código. S.
+- Textos del bot: los textos de las páginas de la Mini App del calendario (`/telegram/app`) y de
+  la puerta (`/telegram/puerta`) siguen en el código (son páginas, no mensajes del bot). S.
+  Bloqueo: que haga falta.
+- Bot: borrar las funciones de antes que ya no usa el bot (`formatEventList`, `formatEvent`,
+  `formatChoices`, `formatPickList` en `format.js`; `eventListKeyboard` y `eventDetailKeyboard` en
+  `keyboards.js`) y sus pruebas. S.
 
 - Fase 3: avisos y estado para organizadores, nunca datos de compradores
   ([0029](decisiones/0029-bot-de-telegram.md)). L. Bloqueo: el rol de organizadore.

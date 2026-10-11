@@ -150,6 +150,52 @@ funciones que `/calendario`).
 - Se abre con el botón «📅 Calendario» del inicio (solo en privado: `web_app` no anda en grupos).
   El botón de menú del bot sigue siendo la lista de comandos.
 
+## Textos del bot (lo edita el panel)
+
+Pedido de gorrite (11/10): «¿Dónde puedo editar el wording de todas las cosas del bot?». En
+**Ajustes › Comunicación › Textos del bot** (`/admin/ajustes/textos-bot`, solo admins) está todo
+lo que dice el bot: los mensajes, los botones, los avisos que salen al tocar un botón y las
+descripciones del menú «/». Como «Vistas previas al compartir» y las plantillas de los mails: cada
+texto con su original, «Volver al texto original», sus variables (chips que se suman donde está el
+cursor) y una vista previa que imita un mensaje de Telegram con sus botones (salta a la pantalla
+del campo que tocás). Cada guardado queda en Actividad (`settings.save`, `telegram_bot_texts`) con
+**solo las claves** que cambiaron, nunca el texto.
+
+- **Dónde está cada cosa**: los originales, qué es cada uno, sus variables y la validación, en
+  `src/lib/utils/botTexts.js` (secciones Inicio y menú, Comandos, Eventos, Seguir y avisos,
+  Vincular cuenta, Puerta y Errores). El bot pide cada texto con `botText(clave, variables)`
+  (`src/lib/server/telegram/texts.js`); no queda texto para la gente escrito en las pantallas.
+- **Dónde se guarda**: en `ticket_settings`, la fila `telegram_bot_texts` (un JSON con solo los
+  cambiados), como `link_preview_texts`. Sin tabla nueva ni migración.
+- **Una lectura por pedido**: el webhook lee la fila una vez, después de chequear el secreto, y
+  corre el pedido entero (también lo que sigue en `waitUntil`) con esos textos
+  (`runWithBotTexts`, `AsyncLocalStorage`, como `contenido/author.js`). El cron los lee una vez
+  por corrida para los avisos de Lo que sigo y para el menú «/». Si no se pueden leer, los
+  originales.
+- **Sin nada cambiado, el bot dice lo mismo que antes, byte a byte**: `bot.golden.json` se sacó
+  del código de antes y `texts-golden.test.js` compara cada pantalla, respuesta, aviso y comando.
+- **Formato**: en los mensajes, texto común, `**negrita**` y `[texto](https://…)`; todo lo demás
+  se escapa para el HTML de Telegram (`/vincular <código>` sale tal cual) y algo que parece HTML
+  (`<b>`) no se puede guardar. Los botones, los avisos de un botón y los comandos van sin formato.
+  Las variables van con una llave (`{evento}`); una que no existe, una llave suelta o un `**` sin
+  cerrar no se pueden guardar (el error dice cuál y cuáles se pueden usar). El valor de una
+  variable nunca se vuelve formato ni link. Algunas tienen que quedar (`{evento}` en «Ver: …»).
+- **Límites de Telegram**: botones 64 bytes (los emojis y las tildes ocupan más), avisos de un
+  botón 200 caracteres (el de «Seguir» sigue acortando el nombre para entrar, #290), comandos 256 y
+  mensajes 4096. El `callback_data` de los botones no depende del texto: cambiar un botón no rompe
+  los mensajes viejos.
+- **Comandos**: lo que registra el menú «/» (`setMyCommands`) son las descripciones de acá. Como
+  cambian el hash del registro, el cron las registra solo en la próxima corrida (hasta 15
+  minutos); «Actualizar comandos del bot» las registra ya.
+- **Buscar**: la respuesta se reconoce por el mensaje de Buscar; vale el original y el de ahora,
+  así cambiarlo no rompe los que ya se mandaron.
+- Lo que sigue en el código: los datos (títulos, fechas, lugares, links), los símbolos de las
+  flechas («‹ 2/3 ›») y el « ↗» que se suma en los grupos. Las páginas de la Mini App y de la
+  puerta no son mensajes del bot: sus textos siguen en sus páginas.
+- **Pendiente**: los textos del modo inline y de buscar en todo el sitio (#298: `INLINE_TEXTS`,
+  `SITE_TEXTS`, `SITE_SEARCH_PROMPT_TEXT` y el «Para buscar acá…» de `/buscar` en grupos) siguen
+  en el código; se suman al registro en otro PR.
+
 ## Modo inline
 
 En **cualquier chat** (también uno donde el bot no está), escribir `@<bot> <texto>` muestra lo que
@@ -343,6 +389,8 @@ minutos), con estas reglas:
 | `src/lib/server/telegram/commands.js`         | La lista de comandos y el `setMyCommands` del menú «/»              |
 | `src/lib/server/telegram/keyboards.js`        | Los botones de antes (`ev:`/`ls`), que siguen andando               |
 | `src/lib/server/telegram/format.js`           | Los textos (HTML de Telegram), funciones puras                      |
+| `src/lib/server/telegram/texts.js`            | «Textos del bot»: lo cambiado en el panel, `botText`, una lectura   |
+| `src/lib/utils/botTexts.js`                   | «Textos del bot»: originales, formato, variables y validación       |
 | `src/lib/server/telegram/events.js`           | De dónde salen los eventos (el único lugar para cambiar)            |
 | `src/lib/server/flags.js`                     | El interruptor `telegram_bot` (`TELEGRAM_BOT_ENABLED`)              |
 | `src/lib/server/telegram/link.js`             | Fase 2: códigos de un solo uso y chats vinculados                   |
@@ -398,7 +446,7 @@ Apagado, el endpoint contesta 200 sin hacer nada (con un error, Telegram acumula
 ## Cómo probarlo
 
 ```bash
-npx vitest run src/lib/server/telegram src/lib/server/sigo src/lib/components/admin/telegram "src/routes/(authed)/admin/ajustes/automatizaciones" src/lib/utils/sigo-telegram.test.js "src/routes/(content)/mi-rincon/telegram"
+npx vitest run src/lib/server/telegram src/lib/utils/botTexts.test.js "src/routes/(authed)/admin/ajustes/textos-bot" src/lib/server/sigo src/lib/components/admin/telegram "src/routes/(authed)/admin/ajustes/automatizaciones" src/lib/utils/sigo-telegram.test.js "src/routes/(content)/mi-rincon/telegram"
 ```
 
 Los tests usan eventos y chats inventados. Para probar a mano, un POST al endpoint con el header

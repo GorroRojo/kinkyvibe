@@ -2,8 +2,15 @@
  * Textos del bot de Telegram (decisión 0029). Todo en español rioplatense, con el lenguaje
  * inclusivo del sitio. Funciones puras: reciben datos ya listos y devuelven HTML de Telegram
  * (`parse_mode: 'HTML'`), que solo admite unas pocas etiquetas (`<b>`, `<a>`).
+ *
+ * Las palabras salen de «Textos del bot» (`$lib/utils/botTexts.js`, editables en el panel): cada
+ * función pide el texto de este pedido con `botText` (./texts.js). Las funciones de antes que ya no
+ * usa el bot (`formatEventList`, `formatEvent`, `formatChoices`, `formatPickList`) quedan con los
+ * originales.
  */
 import { argDateList } from '$lib/utils/dates.js';
+import { renderBotText } from '$lib/utils/botTexts.js';
+import { botText } from './texts.js';
 
 /**
  * Lo mínimo que el bot sabe de un evento. Nada de lugar, entradas ni datos de compradores.
@@ -79,19 +86,19 @@ export function formatEventList(events, origin, { title = 'Próximos eventos', e
 	return `<b>${escapeHtml(title)}</b>\n\n${lines.join('\n\n')}${more}`;
 }
 
-/** Título y texto vacío de `/hoy`, `/semana` y `/finde`. */
+/**
+ * Título y texto vacío de `/hoy`, `/semana` y `/finde`, con su original (las pantallas piden los
+ * de este pedido con `botText`; ver screens.js).
+ */
 export const WINDOW_TEXTS = Object.freeze({
-	hoy: {
-		title: 'Hoy',
-		empty: 'Hoy no hay eventos públicos. Mirá lo que viene con /proximos.'
-	},
+	hoy: { title: renderBotText('eventos.titulo_hoy'), empty: renderBotText('eventos.vacio_hoy') },
 	semana: {
-		title: 'En los próximos 7 días',
-		empty: 'No hay eventos públicos en los próximos 7 días. Mirá lo que viene con /proximos.'
+		title: renderBotText('eventos.titulo_semana'),
+		empty: renderBotText('eventos.vacio_semana')
 	},
 	finde: {
-		title: 'Este finde',
-		empty: 'Este finde no hay eventos públicos. Mirá lo que viene con /proximos.'
+		title: renderBotText('eventos.titulo_finde'),
+		empty: renderBotText('eventos.vacio_finde')
 	}
 });
 
@@ -145,24 +152,8 @@ export function formatPickList(events, origin) {
  *   la cuenta
  */
 export function formatHelp(origin, { accounts = false } = {}) {
-	const account = accounts
-		? '\nCon tu cuenta del sitio (por chat privado):\n' +
-			'/vincular &lt;código&gt;: conectá este chat (el código está en Mi rincón → Lo que sigo)\n' +
-			'/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n' +
-			'/desvincular: desconectá este chat\n'
-		: '';
-	return (
-		'Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n' +
-		'/proximos: los próximos eventos (tocá uno para ver el detalle)\n' +
-		'/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n' +
-		'/evento: elegí un evento de la lista\n' +
-		'/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n' +
-		'/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n' +
-		'/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n' +
-		'/inicio: volver al inicio, con botones para todo\n' +
-		account +
-		`\nPara comprar entradas y ver todo lo demás, entrá a ${escapeHtml(origin)}`
-	);
+	const cuenta = accounts ? `\n${botText('inicio.ayuda_cuenta')}\n` : '';
+	return botText('inicio.ayuda', { cuenta, sitio: origin });
 }
 
 /**
@@ -170,35 +161,20 @@ export function formatHelp(origin, { accounts = false } = {}) {
  * más sigue lo mismo).
  *
  * @param {{ kind: 'nuevo' | 'recordatorio', title: string, start: string, url: string }} notice
+ * @param {import('$lib/utils/botTexts.js').BotTexts | null} [texts] los textos cambiados (el cron
+ *   los lee una vez por corrida)
  */
-export function formatFollowNotice({ kind, title, start, url }) {
-	const head = kind === 'nuevo' ? '🆕 Se anunció algo nuevo' : '⏰ Recordatorio: falta poco';
+export function formatFollowNotice({ kind, title, start, url }, texts) {
+	const key = kind === 'nuevo' ? 'seguir.aviso_nuevo' : 'seguir.aviso_recordatorio';
+	const head = botText(key, {}, texts);
 	const when = formatWhen(start);
 	return `${head}\n\n<b>${escapeHtml(title)}</b>${when ? `\n${escapeHtml(when)}` : ''}\n${escapeHtml(url)}`;
 }
 
 /** @param {string} origin */
 export function formatLinked(origin) {
-	return (
-		'Listo: este chat quedó conectado a tu cuenta de Kinky Vibe. ' +
-		`Elegí qué avisos querés por Telegram en Mi rincón → Lo que sigo: ${escapeHtml(origin)}/mi-rincon/sigo\n\n` +
-		'Para pausarlos: /silenciar. Para desconectar: /desvincular.'
-	);
+	return botText('vincular.listo', { link: `${origin}/mi-rincon/sigo` });
 }
-
-export const LINK_ASK_CODE_TEXT =
-	'Mandame el código que aparece en Mi rincón → Lo que sigo → «Conectar Telegram», así: /vincular ABCD-2345';
-
-export const LINK_INVALID_TEXT =
-	'Ese código no sirve: puede estar mal escrito, ya usado o vencido (duran 15 minutos). Pedí uno nuevo en Mi rincón → Lo que sigo.';
-
-export const LINK_TOO_MANY_TEXT =
-	'Probaste muchos códigos seguidos. Esperá un rato y probá de nuevo.';
-
-export const PRIVATE_ONLY_TEXT =
-	'Esto se hace por chat privado con el bot, no en grupos: escribime directamente.';
-
-export const ACCOUNTS_OFF_TEXT = 'Todavía no se puede conectar una cuenta con el bot.';
 
 /**
  * `/start adm_<código>` salió bien (la puerta por Telegram, adminLink.js).
@@ -206,50 +182,39 @@ export const ACCOUNTS_OFF_TEXT = 'Todavía no se puede conectar una cuenta con e
  * @param {string} login el de GitHub de le admin
  */
 export function formatAdminLinked(login) {
-	return (
-		`Listo: este Telegram quedó vinculado a le admin <b>${escapeHtml(login)}</b> del panel, ` +
-		'para la puerta. Para desvincularlo: panel → Ajustes → Admins.'
-	);
+	return botText('puerta.listo', { login });
 }
 
-export const ADMIN_LINK_INVALID_TEXT =
-	'Ese link no sirve: puede estar vencido (duran 15 minutos), ya usado o incompleto. Generá otro en el panel → Ajustes → Admins → «Vincular Telegram».';
+// Los textos fijos, con su original (los cambiados en el panel los pide el router con `botText`
+// en cada pedido; estas constantes quedan para las pruebas y para quien necesite el original).
+// Los que también son avisos de un botón (`toast`) son texto solo: en un mensaje van escapados.
 
-export const ADMIN_LINK_OFF_TEXT = 'Ahora no se puede vincular una cuenta de admin con el bot.';
-
-export const NOT_LINKED_TEXT =
-	'Este chat no está conectado a ninguna cuenta. Para conectarlo: /vincular &lt;código&gt;.';
-
-export const UNLINKED_TEXT =
-	'Listo: desconecté este chat de tu cuenta. No te va a llegar ningún aviso más por acá.';
-
-export const MUTED_TEXT =
-	'Listo: pausé todos los avisos por Telegram. Cuando quieras volver a recibirlos: /reanudar.';
-
-export const UNMUTED_TEXT = 'Listo: vas a volver a recibir los avisos que elegiste en Lo que sigo.';
-
-export const NOT_FOUND_TEXT =
-	'No encontré ese evento entre los próximos. Probá con /proximos para ver la lista.';
-
-export const PICK_EVENT_TEXT =
-	'Tocá el evento que querés ver. También podés decirme qué evento buscás, por ejemplo: /evento taller de shibari';
-
-export const UNAVAILABLE_TEXT = 'Ese evento ya no está disponible.';
-
-export const UNKNOWN_TEXT = 'No entendí ese comando. Probá con /ayuda.';
-
-export const ERROR_TEXT = 'Algo salió mal de nuestro lado. Probá de nuevo en un rato.';
-
-export const FOLLOW_ALREADY_TEXT = 'Ya lo seguías.';
-
-export const FOLLOW_GONE_TEXT = 'Esa etiqueta ya no está para seguir.';
-
-export const FOLLOW_FULL_TEXT =
-	'Ya seguís el máximo de cosas: dejá de seguir alguna en Mi rincón → Lo que sigo.';
+export const LINK_ASK_CODE_TEXT = renderBotText('vincular.pedir_codigo');
+export const LINK_INVALID_TEXT = renderBotText('vincular.codigo_malo');
+export const LINK_TOO_MANY_TEXT = renderBotText('vincular.muchos');
+export const PRIVATE_ONLY_TEXT = renderBotText('vincular.solo_privado');
+export const ACCOUNTS_OFF_TEXT = renderBotText('vincular.apagado');
+export const ADMIN_LINK_INVALID_TEXT = renderBotText('puerta.link_malo');
+export const ADMIN_LINK_OFF_TEXT = renderBotText('puerta.apagada');
+export const NOT_LINKED_TEXT = renderBotText('vincular.sin_vincular');
+export const UNLINKED_TEXT = renderBotText('vincular.desvinculado');
+export const MUTED_TEXT = renderBotText('vincular.silenciado');
+export const UNMUTED_TEXT = renderBotText('vincular.reanudado');
+export const NOT_FOUND_TEXT = renderBotText('eventos.no_encontrado');
+export const PICK_EVENT_TEXT = renderBotText('eventos.elegir');
+export const UNAVAILABLE_TEXT = renderBotText('errores.no_disponible');
+export const UNKNOWN_TEXT = renderBotText('errores.no_entendi');
+export const ERROR_TEXT = renderBotText('errores.algo_salio_mal');
+export const FOLLOW_ALREADY_TEXT = renderBotText('seguir.ya');
+export const FOLLOW_GONE_TEXT = renderBotText('seguir.no_esta');
+export const FOLLOW_FULL_TEXT = renderBotText('seguir.lleno');
+export const FOLLOW_TOO_MANY_TEXT = renderBotText('seguir.muchos');
 
 /** La línea que se suma cuando seguir desde el bot prendió los avisos por Telegram. */
-export const FOLLOW_TELEGRAM_LINE =
-	'Te aviso por acá cuando haya algo nuevo. Podés apagarlo en Mi rincón.';
+export const FOLLOW_TELEGRAM_LINE = renderBotText('seguir.listo_telegram');
+
+/** Lo que Telegram deja en el aviso de un botón (`answerCallbackQuery`). */
+export const TOAST_MAX = 200;
 
 /**
  * El aviso del botón al seguir algo (Telegram lo corta en 200 caracteres: se acorta el nombre, no
@@ -259,12 +224,9 @@ export const FOLLOW_TELEGRAM_LINE =
  * @param {{ telegram?: boolean }} [opts] `telegram`: se prendieron los avisos por Telegram
  */
 export const followedText = (title, { telegram = false } = {}) => {
-	const line = telegram ? `\n${FOLLOW_TELEGRAM_LINE}` : '';
-	const head = `Listo: ahora seguís ${title}.`;
-	return head.length + line.length <= 200
+	const line = telegram ? `\n${botText('seguir.listo_telegram')}` : '';
+	const head = botText('seguir.listo', { nombre: title });
+	return head.length + line.length <= TOAST_MAX
 		? head + line
-		: `${head.slice(0, 200 - line.length - 2)}….${line}`;
+		: `${head.slice(0, TOAST_MAX - line.length - 2)}….${line}`;
 };
-
-export const FOLLOW_TOO_MANY_TEXT =
-	'Hiciste muchos cambios seguidos. Esperá un rato y probá de nuevo.';

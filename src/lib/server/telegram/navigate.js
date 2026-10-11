@@ -6,7 +6,6 @@
  * Todo evento se busca **entre los próximos públicos** (`deps.listUpcoming`), también el de un
  * botón viejo: si ya no está, se avisa y no se cambia el mensaje.
  */
-import { UNAVAILABLE_TEXT, UNKNOWN_TEXT } from './format.js';
 import { findByToken } from './keyboards.js';
 import { findByNavId } from './nav.js';
 import {
@@ -17,6 +16,7 @@ import {
 	listScreen,
 	searchScreen
 } from './screens.js';
+import { botText } from './texts.js';
 import { eventsInWindow } from './windows.js';
 
 /** @typedef {import('./format.js').BotEvent} BotEvent */
@@ -96,12 +96,12 @@ export async function navigate(state, ctx, deps, opts = {}) {
 			const events = await deps.listUpcoming();
 			const event =
 				state.screen === 'event' ? findByNavId(events, state.id) : findByToken(events, state.token);
-			if (!event) return { toast: UNAVAILABLE_TEXT };
+			if (!event) return { toast: botText('errores.no_disponible') };
 			const back = state.screen === 'event' ? state.back : 'p';
 			const follow = opts.follow ? opts.follow(event) : null;
 			return { screen: await cardFor(event, back, events, ctx, deps, { follow }) };
 		}
 		default:
-			return { toast: UNKNOWN_TEXT };
+			return { toast: botText('errores.no_entendi') };
 	}
 }
