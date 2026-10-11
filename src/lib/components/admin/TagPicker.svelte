@@ -68,15 +68,15 @@
 		return {
 			label: o?.name ?? tag?.visible_name ?? value,
 			icon: o?.icon ?? tag?.icon,
-			color: known ? o?.color ?? tag?.getColor?.() : undefined,
+			color: known ? (o?.color ?? tag?.getColor?.()) : undefined,
 			unknown: !known,
 			title:
 				(value !== id ? `En el archivo dice «${value}». ` : '') +
 				(known
-					? o?.group ?? ''
+					? (o?.group ?? '')
 					: o?.count
-					? `Etiqueta sin categoría (${o.count} usos)`
-					: 'Etiqueta nueva')
+						? `Etiqueta sin categoría (${o.count} usos)`
+						: 'Etiqueta nueva')
 		};
 	}
 
@@ -100,7 +100,7 @@
 							o.matched ? `también «${o.matched}»` : '',
 							o.inTree ? o.group : 'sin categoría',
 							o.count ? `${o.count} ${o.count === 1 ? 'uso' : 'usos'}` : ''
-					  ]
+						]
 							.filter(Boolean)
 							.join(' · ')
 			};
@@ -156,7 +156,8 @@
 	<p class="replaced" role="status" slot="after-chips">
 		{#if replacedNote}
 			<span class="replaced-note" transition:fade={{ duration: 300 }}>
-				{#each replacedNote.gone as g}<s class="ghost" style:--chip-color={g.color}>{g.label}</s>{/each}
+				{#each replacedNote.gone as g}<s class="ghost" style:--chip-color={g.color}>{g.label}</s
+					>{/each}
 				{replacedNote.gone.length === 1 ? 'ya incluye' : 'ya incluyen'} a «{replacedNote.by}»: se
 				{replacedNote.gone.length === 1 ? 'reemplazó' : 'reemplazaron'} por la más específica.
 			</span>

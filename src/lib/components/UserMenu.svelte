@@ -15,7 +15,7 @@
 		elements: { trigger, menu, item },
 		states: { open }
 	} = createDropdownMenu({
-		preventScroll:false
+		preventScroll: false
 	});
 	// Los eventos se editan en la ficha del panel; lo demás en /edit (ver $lib/admin/nav.js).
 	$: editHref = contentEditLink($page.url.pathname);
@@ -34,31 +34,33 @@
 		{user.name || user.login}
 	</span>
 	{#if $open}
-	<div class="menu" use:melt={$menu} transition:fly={{ duration: 150, y: -10 }}>
-		{#if admin}
-		<a href="/admin" class="menuitem" use:melt={$item}
-			><LayoutDashboard {...icon} /><span>Panel de admin</span></a
-		>
-		{#if eventSlug}
-			<a href={eventPanelLink(eventSlug, { tickets: !!$page.data?.tickets })} class="menuitem" use:melt={$item}
-				><CalendarCog {...icon} /><span>Este evento en el panel</span></a
+		<div class="menu" use:melt={$menu} transition:fly={{ duration: 150, y: -10 }}>
+			{#if admin}
+				<a href="/admin" class="menuitem" use:melt={$item}
+					><LayoutDashboard {...icon} /><span>Panel de admin</span></a
+				>
+				{#if eventSlug}
+					<a
+						href={eventPanelLink(eventSlug, { tickets: !!$page.data?.tickets })}
+						class="menuitem"
+						use:melt={$item}><CalendarCog {...icon} /><span>Este evento en el panel</span></a
+					>
+				{/if}
+				{#if editHref}
+					<!-- TODO handle wikiless wiki links -->
+					<a href={editHref} class="menuitem" use:melt={$item}
+						><SquarePen {...icon} /><span>Editar contenido</span></a
+					>
+				{:else}
+					<span class="menuitem disabled" use:melt={$item}
+						><SquarePen {...icon} /><span>Editar contenido</span></span
+					>
+				{/if}
+			{/if}
+			<a href={logoutHref($page.url)} class="menuitem" use:melt={$item}
+				><LogOut {...icon} /><span>Salir</span></a
 			>
-		{/if}
-		{#if editHref}
-			<!-- TODO handle wikiless wiki links -->
-			<a href={editHref} class="menuitem" use:melt={$item}
-				><SquarePen {...icon} /><span>Editar contenido</span></a
-			>
-		{:else}
-			<span class="menuitem disabled" use:melt={$item}
-				><SquarePen {...icon} /><span>Editar contenido</span></span
-			>
-		{/if}
-		{/if}
-		<a href={logoutHref($page.url)} class="menuitem" use:melt={$item}
-			><LogOut {...icon} /><span>Salir</span></a
-		>
-	</div>
+		</div>
 	{/if}
 </div>
 

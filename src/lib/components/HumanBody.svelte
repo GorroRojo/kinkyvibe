@@ -14,7 +14,7 @@
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
 		<path
 			id={part.name}
-			style:--color={group ? group.color : colors.default ?? '#888'}
+			style:--color={group ? group.color : (colors.default ?? '#888')}
 			d={part.path}
 			on:click={() => (debug ? alert(part.name) : '')}
 		/>

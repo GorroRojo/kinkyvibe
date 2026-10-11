@@ -32,7 +32,11 @@ export const hardcodedTags = [
 	},
 	{ id: 'Online', icon: '🖥️' },
 	{ id: 'Presencial', icon: '👥', children: ['Argentina', 'Uruguay', 'Chile', 'Brasil'] },
-	{ id: 'Argentina', icon: '🇦🇷', children: ['AMBA', 'Córdoba', 'Rosario', 'Santa Cruz', 'La Plata'] },
+	{
+		id: 'Argentina',
+		icon: '🇦🇷',
+		children: ['AMBA', 'Córdoba', 'Rosario', 'Santa Cruz', 'La Plata']
+	},
 	{ id: 'AMBA', icon: '🏙️' },
 	{ id: 'Córdoba', icon: '♜' },
 	{ id: 'Rosario', icon: '🇦🇷' },
@@ -85,7 +89,7 @@ export const hardcodedTags = [
 	{ id: 'jam de cuerdas', icon: '🪢' },
 	{ id: 'laboratorio', icon: '🧪' },
 	{ id: 'perfo', icon: '🤹‍♂️' },
-	{ id: 'poesía', icon: '✍️'},
+	{ id: 'poesía', icon: '✍️' },
 	{ id: 'rancheadita', icon: '🧺' },
 	{ id: 'sesión en vivo', icon: '🏇' },
 	{ id: 'taller', icon: '🎓' },
@@ -155,7 +159,8 @@ export const hardcodedTags = [
 	{
 		id: 'Charla debate de Fugas Críticas',
 		icon: '💬',
-		image: 'calendario:fugas-criticas-charla-debate-2025-07-redes-afectivas-en-tiempos-de-individualismo/1.webp'
+		image:
+			'calendario:fugas-criticas-charla-debate-2025-07-redes-afectivas-en-tiempos-de-individualismo/1.webp'
 	},
 	{ id: 'Aberraciones', icon: '🎬', image: 'aberraciones-miniatura.webp' },
 	{ id: 'Carrera de Reyes', icon: '👑', image: 'carrera-de-reyes-miniatura.webp' },
@@ -525,7 +530,8 @@ export const hardcodedTags = [
 		visible_name: 'Juegos primales',
 		aka: ['primal play'],
 		related: ['mascota', 'cazadore-presa'],
-		description: 'Juego de roles en donde se toman características asociadas a lo animalístico no-humano. Algunos ejemplos serían: rasguñar, gruñir, morder, etc.'
+		description:
+			'Juego de roles en donde se toman características asociadas a lo animalístico no-humano. Algunos ejemplos serían: rasguñar, gruñir, morder, etc.'
 	},
 	{
 		icon: '🐕‍🦺',
