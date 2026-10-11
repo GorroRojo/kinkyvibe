@@ -184,12 +184,11 @@ elección de gorrite sobre el prototipo «Filtros en el celu» (#283):
 - **El árbol de etiquetas** (`TagTree`): en el celu, en una hoja (`Sheet`) que abren «Filtros» y
   «Más filtros», con el árbol y nada más (sin buscador), armada recién al abrirla. Con la lista de
   1300px o más (el mismo corte de siempre de PostList), en la columna de la izquierda, sin hoja ni
-  esos dos botones; los chips quedan como atajo. La columna (`--list-tree-w`, 16rem, con «Ver
-  como» y «Eventos pasados» arriba) va pegada a la lista (`--list-main-w`, 50rem) con `--space-l`
-  en el medio, y las dos forman un grupo centrado (`--list-group-w`); el buscador y la barra van
-  con la columna de la lista. Las cajas de presentación de arriba (la de /material y la de
-  /amigues) miden lo mismo que el grupo (gorrite pidió que en compu el árbol quede al lado de la
-  lista).
+  esos dos botones; los chips quedan como atajo. La lista queda donde estuvo siempre (centrada, 50rem) y el árbol cuelga a su izquierda, pegado,
+  con `--space-l` hasta la lista y hasta `--list-tree-w` (16rem) de ancho, con «Ver como» y
+  «Eventos pasados» arriba: no corre la lista (gorrite, al revisar #294). Con la lista de 1300px o
+  más, la celda de la izquierda mide al menos 226px, así que el árbol siempre entra; más angosto,
+  va en la hoja. El buscador y la barra van con la columna de la lista.
 - **El buscador** queda siempre en una línea con su forma de píldora: con muchas etiquetas
   elegidas, se deslizan de costado en su fila (fundido a la izquierda, la última a la vista) y el
   campo de texto no baja de 10.5em.

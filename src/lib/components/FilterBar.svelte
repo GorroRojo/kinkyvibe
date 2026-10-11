@@ -91,14 +91,18 @@
 		font-size: var(--text-xs);
 		font-weight: 700;
 		color: var(--1-ink);
+		/* en una columna angosta, «eventos pasados» baja entero abajo del segmentado */
+		flex-wrap: wrap;
 		white-space: nowrap;
 	}
 	@container (min-width: 1300px) {
-		/* pantalla ancha: la columna de la izquierda, todo alineado a la izquierda */
-		.filterbar,
+		/* pantalla ancha: la columna cuelga a la izquierda de la lista; todo va contra la lista
+		   (a la derecha), así el hueco hasta la lista es --space-l y no lo que sobra de la columna */
+		.filterbar {
+			align-items: flex-end;
+		}
 		.options {
-			align-items: flex-start;
-			justify-content: flex-start;
+			justify-content: flex-end;
 		}
 	}
 </style>

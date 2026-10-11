@@ -109,12 +109,9 @@
 	/* minimum size of anything tappable on phones */
 	--tap: 2.75rem;
 
-	/** Listas (PostList) en pantalla ancha: la columna del árbol de etiquetas, la de la lista y el
-	    grupo de las dos con --space-l en el medio, centrado. Las cajas de presentación de arriba
-	    de una lista (por ejemplo la de /material) usan --list-group-w para alinearse con él. **/
+	/** Listas (PostList) en pantalla ancha: el ancho máximo de la columna del árbol de etiquetas,
+	    que cuelga a la izquierda de la lista centrada (sin correrla). **/
 	--list-tree-w: 16rem;
-	--list-main-w: 50rem;
-	--list-group-w: calc(var(--list-tree-w) + var(--space-l) + var(--list-main-w));
 }
 // Lato 400 y 700 (Google Fonts files via @fontsource/lato 5.3.0, SIL OFL 1.1), self-hosted
 // so pages don't wait on a render-blocking stylesheet from fonts.googleapis.com

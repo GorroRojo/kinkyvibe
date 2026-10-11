@@ -315,27 +315,35 @@ test.describe('barra de filtros de las listas', () => {
 		await expect(bar.locator('input[name="tagbar-chip"]').first()).toBeVisible();
 		await expect(bar.getByRole('button', { name: /^Filtros/ })).toBeHidden();
 		await expect(bar.getByRole('button', { name: 'Más filtros' })).toBeHidden();
-		// el árbol pegado a la lista (--space-l en el medio) y los dos, un grupo centrado
+		// La lista queda donde estuvo siempre: centrada con las tres columnas de antes (la grilla
+		// tiene 1em de padding a la izquierda, por eso el lado izquierdo mide 16px más). El árbol
+		// cuelga a su izquierda, con --space-l hasta la lista, sin taparla.
 		const m = await page.evaluate(() => {
 			const box = (/** @type {string} */ s) =>
 				/** @type {Element} */ (document.querySelector(s)).getBoundingClientRect();
 			const col = box('#filterbar');
 			const list = box('.results');
 			const group = box('.postlist');
-			const gap = parseFloat(
-				getComputedStyle(/** @type {Element} */ (document.querySelector('.postlist'))).columnGap
-			);
+			const probe = document.createElement('div');
+			probe.style.width = 'var(--space-l)';
+			document.body.append(probe);
+			const spaceL = probe.getBoundingClientRect().width;
+			probe.remove();
 			return {
 				gap: list.left - col.right,
-				expected: gap,
-				left: col.left - group.left,
+				spaceL,
+				treeLeft: col.left - group.left,
+				left: list.left - group.left,
 				right: group.right - list.right,
+				listWidth: list.width,
 				barLeft: box('.tagbar').left - list.left
 			};
 		});
-		expect(Math.abs(m.gap - m.expected)).toBeLessThanOrEqual(1);
-		expect(m.expected).toBeGreaterThan(20);
-		expect(Math.abs(m.left - m.right)).toBeLessThanOrEqual(2);
+		expect(Math.abs(m.gap - m.spaceL)).toBeLessThanOrEqual(1);
+		expect(m.spaceL).toBeGreaterThan(20);
+		expect(m.treeLeft).toBeGreaterThanOrEqual(0);
+		expect(Math.abs(m.left - m.right - 16)).toBeLessThanOrEqual(2);
+		expect(m.listWidth).toBeCloseTo(800, 0);
 		expect(Math.abs(m.barLeft)).toBeLessThanOrEqual(1);
 		await context.close();
 	});

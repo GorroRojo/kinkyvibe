@@ -52,7 +52,8 @@
 	.tagtree.column {
 		flex-direction: column;
 		flex-wrap: nowrap;
-		align-items: flex-start;
+		/* contra la lista, que está a la derecha */
+		align-items: flex-end;
 		max-width: 100%;
 	}
 	.tag-group-container {

@@ -409,23 +409,23 @@
 		width: 100%;
 	}
 	@container (min-width: 1300px) {
-		/* El árbol y la lista, un solo grupo centrado: la columna del árbol (con «Ver como» y
-		   «Eventos pasados» arriba) pegada a la izquierda de la lista, con --space-l entre los dos.
-		   Antes eran tres columnas (1fr 50rem 1fr) y el árbol quedaba lejos, en el borde. El ancho
-		   del grupo es --list-group-w (style.scss), el mismo que usan las cajas de presentación. */
+		/* La lista queda donde estuvo siempre (centrada, 50rem; las mismas tres columnas que antes)
+		   y el árbol cuelga a su izquierda, pegado: en la celda de la izquierda, alineado al final,
+		   con --space-l hasta la lista. El árbol no corre la lista. Con 1300px de lista o más, la
+		   celda mide al menos 226px, así que el árbol (hasta --list-tree-w) siempre entra sin
+		   tapar nada; más angosto, va en la hoja de la barra (TagBar). */
 		.postlist {
-			grid-template-columns: var(--list-tree-w) minmax(0, var(--list-main-w));
-			justify-content: center;
-			column-gap: var(--space-l);
-			row-gap: 1em;
+			/* minmax(0, …): lo que hay en la celda del árbol nunca ensancha su columna ni corre la lista */
+			grid-template-columns: minmax(0, 1fr) minmax(0, 50rem) minmax(0, 1fr);
+			gap: 1em;
 			align-items: start;
 			align-content: start;
+			padding-left: 1em;
 		}
 		#posts {
 			width: 100%;
 		}
 		#filterbar {
-			grid-area: left;
 			top: 1em;
 			display: block;
 			height: auto;
@@ -441,6 +441,10 @@
 		#filterbar {
 			grid-column: 1;
 			grid-row: 1 / span 2;
+			justify-self: end;
+			/* la grilla ya pone 1em entre columnas: el resto, hasta --space-l */
+			margin-right: calc(var(--space-l) - 1em);
+			width: min(var(--list-tree-w), 100% - (var(--space-l) - 1em));
 		}
 		.results {
 			grid-column: 2;
