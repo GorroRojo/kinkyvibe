@@ -31,19 +31,36 @@ function jpeg(body, cacheControl) {
 	});
 }
 
-/** @param {string} location */
-const redirect302 = (location) =>
-	new Response(null, { status: 302, headers: { location, 'cache-control': OG_SHORT } });
+/**
+ * @param {string} location
+ * @param {string} [reason] por qué se manda la de respaldo (`x-og-fallback`, para revisar con
+ *   curl: `no-db`, `no-card`, `no-renderer` o `render-error: …`)
+ */
+const redirect302 = (location, reason) =>
+	new Response(null, {
+		status: 302,
+		headers: {
+			location,
+			'cache-control': OG_SHORT,
+			...(reason ? { 'x-og-fallback': reason } : {})
+		}
+	});
+
+/** El error en una línea corta, sin caracteres raros (va en un encabezado). @param {unknown} e */
+const errorLine = (e) =>
+	(e instanceof Error ? `${e.name}: ${e.message}` : String(e))
+		.replace(/[^\x20-\x7e]/g, '?')
+		.slice(0, 160);
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ params, platform, url, fetch }) {
 	const card = params.card;
 	const m = FILE.exec(params.file);
 	if (!isOgCard(card) || !m) error(404, 'No existe esa imagen.');
-	const fallback = () => redirect302('/' + OG_CARDS[card].file);
-	if (!getDB(platform)) return fallback();
+	const fallback = (/** @type {string} */ reason) => redirect302('/' + OG_CARDS[card].file, reason);
+	if (!getDB(platform)) return fallback('no-db');
 	const current = (await linkPreviewState(platform)).cards[card];
-	if (!current) return fallback();
+	if (!current) return fallback('no-card');
 	if (current.hash !== m[1]) return redirect302(current.url);
 
 	const env = /** @type {import('$lib/server/ogImage.js').OgEnv} */ (platform?.env ?? {});
@@ -61,14 +78,14 @@ export async function GET({ params, platform, url, fetch }) {
 		waitUntil(cache?.put(cacheKey, jpeg(bytes, OG_IMMUTABLE)) ?? Promise.resolve());
 		return jpeg(bytes, OG_IMMUTABLE);
 	}
-	if (!env.OG_RENDER) return fallback();
+	if (!env.OG_RENDER) return fallback('no-renderer');
 
 	let result;
 	try {
 		result = await renderCard(current.spec, { env, fetch, origin: url.origin });
 	} catch (e) {
 		console.error('[og] dibujar la imagen:', e);
-		return fallback();
+		return fallback(`render-error: ${errorLine(e)}`);
 	}
 	if (!result.complete) return jpeg(result.bytes, OG_SHORT);
 	const { bytes } = result;

@@ -166,9 +166,11 @@ describe('/og/<tarjeta>/<hash>.jpg', () => {
 		expect(res.status).toBe(302);
 		expect(res.headers.get('location')).toBe('/og-calendario.jpg');
 		expect(res.headers.get('cache-control')).toBe(OG_SHORT);
+		expect(res.headers.get('x-og-fallback')).toBe('no-renderer');
 		const noDb = await get({ env: {} }, 'wiki', '0123456789abcdef.jpg');
 		expect(noDb.status).toBe(302);
 		expect(noDb.headers.get('location')).toBe('/og-kinkipedia.jpg');
+		expect(noDb.headers.get('x-og-fallback')).toBe('no-db');
 	});
 
 	it('si falta una portada, la manda igual pero no la guarda', async () => {
