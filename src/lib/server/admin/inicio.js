@@ -315,7 +315,9 @@ export function unsentEmailsQuery(now) {
 }
 
 /**
- * Órdenes marcadas para revisar a mano (pago tardío o duplicado).
+ * Órdenes marcadas para revisar a mano: pago tardío o duplicado (`needs_review`) o una venta en la
+ * puerta hecha sin conexión que pasó un límite al sincronizarse (`offline_review`, migración 0051;
+ * `reason` = 'door_offline'). Dos consultas unidas, cada una por su índice parcial.
  *
  * @param {D1Database | null | undefined} db
  * @returns {Promise<{ id: string, ref: string, slug: string, reason: string, buyerName: string }[]>}
@@ -333,8 +335,12 @@ export function reviewOrdersQuery() {
 		[],
 		(db) => [
 			db.prepare(
-				`SELECT id, event_slug, needs_review, buyer_name FROM orders
-				WHERE needs_review IS NOT NULL ORDER BY updated_at DESC LIMIT 50`
+				`SELECT id, event_slug, needs_review, buyer_name, updated_at FROM orders
+				WHERE needs_review IS NOT NULL
+				UNION ALL
+				SELECT id, event_slug, 'door_offline', buyer_name, updated_at FROM orders
+				WHERE offline_review IS NOT NULL AND needs_review IS NULL
+				ORDER BY updated_at DESC LIMIT 50`
 			)
 		],
 		(results) =>
@@ -1094,7 +1100,9 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 			title:
 				o.reason === 'duplicate_payment'
 					? `Pago duplicado de ${o.buyerName}`
-					: `Pago tardío de ${o.buyerName} (la reserva había vencido)`,
+					: o.reason === 'door_offline'
+						? `Venta sin conexión de ${o.buyerName} que pasó un límite`
+						: `Pago tardío de ${o.buyerName} (la reserva había vencido)`,
 			text: `${o.ref} · ${title(o.slug)}`,
 			action: 'Ver orden',
 			href: links.order(o.slug, o.id)

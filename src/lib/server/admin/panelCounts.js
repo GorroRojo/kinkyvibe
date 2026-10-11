@@ -135,7 +135,9 @@ function panelOrderCountsQuery(now) {
 				.prepare(
 					`SELECT
 						(SELECT COUNT(*) FROM orders WHERE status = 'awaiting_transfer' AND expires_at > ?1) AS transfers,
-						(SELECT COUNT(*) FROM orders WHERE needs_review IS NOT NULL) AS review`
+						(SELECT COUNT(*) FROM orders WHERE needs_review IS NOT NULL)
+							+ (SELECT COUNT(*) FROM orders
+								WHERE offline_review IS NOT NULL AND needs_review IS NULL) AS review`
 				)
 				.bind(now)
 		],
