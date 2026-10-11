@@ -14,7 +14,10 @@
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { argDateLong } from '$lib/utils/dates.js';
+	import { READING_TIME_HINT, readingTimeLabel } from '$lib/utils/readingTime.js';
 	export let data;
+	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
+	$: readingTime = readingTimeLabel(data.readingMinutes);
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
 	// bloque de estilos del componente.
@@ -110,6 +113,14 @@
 			<time datetime={data.meta.published_date?.toString()} class="dt-published">
 				{argDateLong(data.meta.published_date?.toString())}
 			</time>
+			{#if readingTime}
+				<!-- El «·» va con el texto: en el celu bajan juntos de línea. -->
+				<span class="reading-time" title={READING_TIME_HINT}>·&ThickSpace;{readingTime}</span>
+			{/if}
+		</address>
+	{:else if readingTime}
+		<address>
+			<span class="reading-time" title={READING_TIME_HINT}>{readingTime}</span>
 		</address>
 	{/if}
 	{#if data.meta.tags}
@@ -190,6 +201,10 @@
 {/if}
 
 <style lang="scss">
+	.reading-time {
+		color: var(--muted);
+		white-space: nowrap;
+	}
 	#tags {
 		margin-inline: auto;
 		max-width: 70rem;

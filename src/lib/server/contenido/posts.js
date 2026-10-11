@@ -40,6 +40,7 @@ import { mediaPath } from '$lib/server/media/sniff.js';
 import { authorProfilePosts, toPublic } from '$lib/server/amigues/asPost.js';
 import { profileAsPost } from '$lib/server/amigues/profiles.js';
 import { siteWikiPosts } from '$lib/server/wiki/site.js';
+import { pageReadingMinutes } from '$lib/utils/readingTime.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/visibility.js').Viewer} Viewer */
@@ -533,7 +534,8 @@ export function resolveEventSlug(db, slug) {
 }
 
 /**
- * @typedef {ProcessedPost & import('./render.js').RenderedBody} SitePost
+ * @typedef {ProcessedPost & import('./render.js').RenderedBody & { readingMinutes?: number }} SitePost
+ *   `readingMinutes`: solo el material (los eventos son cortos); 0 si el texto es corto.
  */
 
 /**
@@ -579,6 +581,11 @@ export async function siteContent(
 	if (!shallow) {
 		post.authorsProfiles = await authorProfilePosts(db, post.meta.authors, { postID, viewer });
 	}
+	// «X min de lectura» del material, del texto guardado ($lib/utils/readingTime.js).
+	const reading =
+		category === 'material' && !shallow
+			? { readingMinutes: pageReadingMinutes(object.data?.body) }
+			: {};
 	const body = html
 		? await renderContentBody(
 				object.data,
@@ -592,7 +599,7 @@ export async function siteContent(
 	// interactivos) y `css`, solo dentro del texto.
 	// eslint-disable-next-line no-unused-vars
 	const { content, ...rest } = post;
-	return { ...rest, ...body };
+	return { ...rest, ...body, ...reading };
 }
 
 /**
