@@ -350,7 +350,8 @@ lo que corre solo. La lógica está en `src/lib/server/admin/automatizaciones.js
   links de transmisión, avisos de series y de «Lo que sigo» (nuevo y recordatorio), con el último
   envío, los pendientes y los que fallaron (`reminder_sends`, `stream_link_sends`,
   `series_notifications`, `follow_notifications`). «Mail a compradores» no está: sale desde la
-  página del evento, no del cron.
+  página del evento, no del cron. Lo que queda de un «Avisar a les compradores» (cambio de fecha)
+  sí lo manda el cron, pero esta página todavía no lo muestra.
 - **Bot de Telegram**: el interruptor, si el secreto del webhook y el token están cargados (sí/no;
   nunca el valor) y cuántos chats hay vinculados.
 - **Reglas**: «próximamente» (las del tipo «si pasa X, hacé Y»).

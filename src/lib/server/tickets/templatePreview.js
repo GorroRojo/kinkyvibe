@@ -3,6 +3,7 @@
  * "Mandarme una prueba". Usa los mismos builders que los mails de verdad.
  */
 import {
+	buildDateChangeEmail,
 	buildRefundEmail,
 	buildReminderEmail,
 	buildStreamLinkEmail,
@@ -155,6 +156,19 @@ function buildPreview(
 			});
 		case 'refund':
 			return buildRefundEmail({ ...common, event });
+		case 'date_change': {
+			const start = Date.parse(event.start);
+			return buildDateChangeEmail({
+				...common,
+				tickets,
+				event,
+				// La fecha de antes, inventada: un día antes y una hora más temprano.
+				previous: Number.isFinite(start)
+					? { start: new Date(start - 25 * 3600000).toISOString() }
+					: null,
+				origin
+			});
+		}
 		default:
 			return withPlaceholderQr(buildTicketEmail({ ...common, tickets, event, origin }));
 	}

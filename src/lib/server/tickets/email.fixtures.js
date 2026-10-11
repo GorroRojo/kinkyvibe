@@ -84,7 +84,8 @@ const CONTACT = 'contacto@example.com';
 
 /**
  * Casos: [nombre del builder, entrada]. Cubre presencial/online, con y sin link, recordatorios
- * de cada tipo, reembolso por cada medio y transferencia con y sin confirmación.
+ * de cada tipo, reembolso por cada medio, transferencia con y sin confirmación y el aviso de
+ * cambio de fecha (con y sin la fecha de antes).
  * @returns {[string, string, any][]}
  */
 export function emailCases() {
@@ -251,6 +252,32 @@ export function emailCases() {
 				transferInfo: 'Alias: EJEMPLO.PRUEBA',
 				contactEmail: CONTACT,
 				origin: ORIGIN
+			}
+		],
+		[
+			'date-change-presencial',
+			'buildDateChangeEmail',
+			{
+				order,
+				tickets,
+				event: { ...EVENT, end: '2026-10-11T03:00:00-03:00' },
+				previous: { start: '2026-10-03T21:00:00-03:00', end: '2026-10-04T02:00:00-03:00' },
+				typeName: 'General',
+				origin: ORIGIN,
+				contactEmail: CONTACT
+			}
+		],
+		[
+			'date-change-online-con-link',
+			'buildDateChangeEmail',
+			{
+				order,
+				tickets: tickets.slice(0, 1),
+				event: { ...EVENT, online: true, streamLink: 'https://meet.example/abc?x=1&y=2' },
+				previous: null,
+				typeName: 'General',
+				origin: ORIGIN,
+				contactEmail: CONTACT
 			}
 		]
 	];

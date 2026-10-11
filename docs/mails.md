@@ -4,7 +4,8 @@
 
 El sitio manda mails a quienes compran entradas: las entradas con su QR, las instrucciones de una
 transferencia, el link de la transmisión de un evento online, los recordatorios antes del evento,
-el aviso de reembolso y los avisos que les admins escriben desde el panel ("Mail a compradores").
+el aviso de reembolso, el aviso de cambio de fecha («Avisar a les compradores») y los avisos que
+les admins escriben desde el panel ("Mail a compradores").
 Salen con **Resend**, desde `entradas@kinkyvibe.ar` (se cambia en el panel). Les admins pueden
 cambiar el asunto, el título, el texto de arriba y los detalles del diseño (etiqueta, texto del
 botón, línea de ayuda y «por qué te llega») de cada mail sin tocar código, en general o solo para
@@ -14,8 +15,10 @@ un evento, y mandarse una prueba.
 
 - **Nadie recibe un mail dos veces por el mismo envío.** Cada envío masivo reserva a cada
   destinatarie con un `INSERT` atómico antes de mandar y lo libera si falla (`reminder_sends`,
-  `stream_link_sends`, `event_mail_recipients`). Un doble click, dos pestañas o un reintento no
-  duplican.
+  `stream_link_sends`, `date_change_sends`, `event_mail_recipients`). Un doble click, dos pestañas
+  o un reintento no duplican.
+- **Nada sale solo después de cambiar un evento.** Cambiar la fecha anota el cambio y el panel
+  ofrece avisar; el mail sale solo si une admin toca «Avisar a les compradores» y confirma.
 - **Los previews no le mandan mails a gente real.** En un deploy de preview solo llegan mails a
   las direcciones de `EMAIL_ALLOWLIST`; cualquier otra se desvía a la primera de esa lista con
   `[DEMO]` en el asunto, y sin la lista no sale nada (`src/lib/server/tickets/emailGuard.js`).
@@ -39,15 +42,16 @@ un evento, y mandarse una prueba.
 
 ## Los mails
 
-| Mail                      | Cuándo sale                                                             | Plantilla  | Código                               |
-| ------------------------- | ----------------------------------------------------------------------- | ---------- | ------------------------------------ |
-| Tus entradas              | al aprobarse una compra o confirmarse una transferencia; "Reenviar"     | `tickets`  | `buildTicketEmail` en `email.js`     |
-| Reserva por transferencia | al reservar pagando por transferencia                                   | `transfer` | `buildTransferEmail`                 |
-| Link de la transmisión    | "Enviar el link a todes" en un evento online                            | `stream`   | `buildStreamLinkEmail`, `stream.js`  |
-| Recordatorio              | antes del evento, según Ajustes → Mails y plantillas                    | `reminder` | `buildReminderEmail`, `reminders.js` |
-| Reembolso                 | al reembolsar (desde el panel o desde Mercado Pago)                     | `refund`   | `buildRefundEmail`                   |
-| Mail a compradores        | une admin lo escribe en la ficha del evento → Mail                      | —          | `buyerMail.js`                       |
-| Código para ingresar      | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —          | `src/lib/server/cuentas/email.js`    |
+| Mail                      | Cuándo sale                                                             | Plantilla     | Código                                  |
+| ------------------------- | ----------------------------------------------------------------------- | ------------- | --------------------------------------- |
+| Tus entradas              | al aprobarse una compra o confirmarse una transferencia; "Reenviar"     | `tickets`     | `buildTicketEmail` en `email.js`        |
+| Reserva por transferencia | al reservar pagando por transferencia                                   | `transfer`    | `buildTransferEmail`                    |
+| Link de la transmisión    | "Enviar el link a todes" en un evento online                            | `stream`      | `buildStreamLinkEmail`, `stream.js`     |
+| Recordatorio              | antes del evento, según Ajustes → Mails y plantillas                    | `reminder`    | `buildReminderEmail`, `reminders.js`    |
+| Reembolso                 | al reembolsar (desde el panel o desde Mercado Pago)                     | `refund`      | `buildRefundEmail`                      |
+| Cambió la fecha           | «Avisar a les compradores» después de cambiar la fecha de un evento     | `date_change` | `buildDateChangeEmail`, `dateChange.js` |
+| Mail a compradores        | une admin lo escribe en la ficha del evento → Mail                      | —             | `buyerMail.js`                          |
+| Código para ingresar      | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
 
 Todo en `src/lib/server/tickets/` salvo que se indique. Las plantillas: definición y variables en
 `src/lib/utils/emailTemplates.js`, lo guardado en D1 en `templates.js`, el editor
@@ -85,8 +89,9 @@ transferencia y recordatorios llevan la lista «Las N partes del taller» con la
 cada parte ([talleres-partes.md](talleres-partes.md)); los demás mails no cambian.
 
 **Calendario («Agregalo a tu calendario»):** solo los mails que salen con el pago ya acreditado
-llevan el calendario: «Tus entradas», los **recordatorios** y «Link de la transmisión» («Enviar el
-link a todes», con el `.ics` actualizado: el link como lugar). Abajo de la fecha y el lugar (o del
+llevan el calendario: «Tus entradas», los **recordatorios**, «Link de la transmisión» («Enviar el
+link a todes», con el `.ics` actualizado: el link como lugar) y «Cambió la fecha» (el `.ics` con la
+fecha nueva). Abajo de la fecha y el lugar (o del
 link), una línea que dice que va adjunto `<slug>.ics` (un solo evento; en un recordatorio de una
 parte de un taller, el de esa parte) y el link «Agregar a Google Calendar». «Tus entradas» lleva
 además, en el `<head>`, el marcado schema.org `EventReservation` (JSON-LD) para Gmail. El de los
@@ -105,10 +110,11 @@ misma descripción) y de `calendarExtras` en `email.js`:
 - **Versión (`SEQUENCE` y `DTSTAMP`):** un archivo con el mismo UID y un `SEQUENCE` más alto
   reemplaza al anterior en el calendario en lugar de duplicarlo. Sin columnas nuevas: el
   `SEQUENCE` son los minutos desde 1970 de la versión (`calendarSequence` en `icsFeed.js`), y la
-  versión (`calendarStamp`) es la más nueva entre la compra y el último cambio del link de la
-  transmisión. Tiene que ser la misma en cada reintento de un envío: Resend rechaza (409) una clave
-  de idempotencia reusada con otro contenido, así que no puede ser «la hora del envío». Un link
-  nuevo da un `SEQUENCE` más alto; dos mails que dicen lo mismo, el mismo. «Reenviar» desde el
+  versión (`calendarStamp`) es la más nueva entre la compra, el último cambio del link de la
+  transmisión y el último cambio de fecha del evento (`event_date_changes.version`). Tiene que ser
+  la misma en cada reintento de un envío: Resend rechaza (409) una clave de idempotencia reusada
+  con otro contenido, así que no puede ser «la hora del envío». Un link o una fecha nuevos dan un
+  `SEQUENCE` más alto; dos mails que dicen lo mismo, el mismo. «Reenviar» desde el
   panel (sin clave) usa la hora del envío. «Enviar el link a todes» sigue sin repetirle el mail a
   nadie (`stream_link_sends`, igual que antes).
 - **Lugar:** presencial, el lugar como lo dice el mail (quien compró recibe la dirección completa).
@@ -143,6 +149,35 @@ defecto: 2 días antes y el mismo día a las 9:00; un evento los apaga con `reco
 **Mail a compradores:** se manda en tandas (un Worker tiene un límite de pedidos a otros servicios
 por pedido); la página pide tandas y muestra el progreso.
 
+**Cambió la fecha («Avisar a les compradores»)** (`src/lib/server/tickets/dateChange.js`,
+migración `0048_avisar_cambio_fecha.sql`):
+
+- **Detectar el cambio.** Al guardar un evento en Editar (`editar/+page.server.js`), si el inicio o
+  el fin cambiaron (se comparan instantes, con `eventEnd`), se anota en `event_date_changes`: una
+  fila por evento con la fecha de antes, la nueva, cuándo y quién. No manda nada. Si el cambio
+  anterior todavía no se avisó a nadie, «antes» sigue siendo la fecha original (dos cambios
+  seguidos avisan «de la original a la última»), y volver a la original sin avisar borra el cambio.
+- **Ofrecerlo.** Si hay compras aprobadas (con mail) de antes del cambio, arriba de todas las
+  pestañas de la ficha aparece «Cambiaste la fecha. ¿Avisamos a las N personas que compraron?»
+  con **Avisar a les compradores** y **No hace falta** (deja de mostrarse). No aparece con el
+  evento cancelado o ya terminado. En **Mail a compradores** está siempre la tarjeta **Avisar el
+  cambio de fecha**, para usarla más tarde. El botón pide confirmación.
+- **A quiénes.** Cada orden aprobada, con mail, de antes del cambio (las que compraron después ya
+  recibieron la fecha nueva en sus entradas). Reembolsadas, canceladas y sin pagar no. Una vez por
+  orden y versión (`date_change_sends`, con los estados de los envíos en tandas): tocar dos veces
+  no manda dos veces, y un cambio nuevo se puede volver a avisar. Clave de Resend
+  `datechange-<orden>-<versión>`.
+- **En tandas.** El botón manda la primera («Mails por tanda») y deja el envío pedido
+  (`send_requested_at`); el cron sigue con el resto después de los recordatorios y los links
+  (`mailQueue.js`). Queda en Actividad (`event.date_change.send`, solo cuántos: nunca mails).
+- **El mail.** Asunto «Cambió la fecha: <evento>», la fecha nueva en un recuadro (hora argentina,
+  con el fin: «sábado 21 de noviembre de 2026, 21:00 a 02:00») con el lugar, «Antes era: …», el
+  `.ics` y el link «Agregar a Google Calendar» con el mismo UID y la **versión del cambio**: el
+  minuto siguiente al guardado, así el `SEQUENCE` es más alto que el de cualquier mail anterior y
+  el calendario reemplaza la entrada vieja. En un evento online, el link de la transmisión (recuadro
+  y botón) si ya está, como en los demás mails. Plantilla `date_change` (variables: `nombre`,
+  `evento`, `fecha`, `fecha_anterior`, `lugar`, `entradas`).
+
 ## Configuración
 
 | Qué                                | Dónde                                                                                           |
@@ -167,7 +202,8 @@ Routing). La bandeja dentro del panel es una decisión tomada (0010) pero todav�
   (el secreto de prueba está en `.env.tickets`).
 - Pruebas: `npx vitest run src/lib/server/tickets` (incluye `templates.test.js`, que compara cada
   mail con `email.golden.json`, `eventTemplates.test.js` (partes opcionales, orden evento →
-  general → código, validación), `buyerMail.test.js`, `reminders.test.js`, `emailGuard.test.js`).
+  general → código, validación), `buyerMail.test.js`, `reminders.test.js`, `emailGuard.test.js`,
+  `dateChange.test.js` y `dateChange.send.test.js`).
 - En un preview: con `EMAIL_ALLOWLIST` cargada, comprá con cualquier mail y el mail llega a la
   primera dirección de la lista con `[DEMO]`. `GET /api/preview-status` muestra si está configurada.
 

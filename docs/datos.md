@@ -60,6 +60,7 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 | `accounts`, `account_sessions`, `login_codes`     | 0013                                 | cuentas del público, sesiones y códigos por mail (ver [cuentas.md](cuentas.md))             | `src/lib/server/cuentas/`                                  |
 | `agenda_day_notes`                                | 0030                                 | notas de colores en los días de la Agenda (solo admins; nunca en páginas públicas ni .ics)  | `src/lib/server/admin/dayNotes.js`                         |
 | `review_snapshots`                                | 0047                                 | «Para revisar»: la última revisión del importador de contenido (lo que no se cuenta barato) | `src/lib/server/admin/reviewSnapshots.js`                  |
+| `event_date_changes`, `date_change_sends`         | 0048                                 | último cambio de fecha de cada evento y a qué orden se le avisó (por versión)               | `src/lib/server/tickets/dateChange.js`                     |
 | `demo_files`                                      | ninguna                              | solo en previews: los "commits" del modo demo                                               | `src/lib/server/demo/overlay.js`                           |
 
 `demo_files` no es una migración a propósito: producción no la tiene (ver [demo.md](demo.md)).

@@ -2,6 +2,9 @@
  * Ficha del evento, pestaña "Mail a compradores": un aviso a todas las personas con una orden
  * aprobada (ver $lib/server/tickets/buyerMail.js). Se manda en tandas: la página vuelve a llamar
  * a `?/send` con el mismo id hasta que no queda nadie.
+ *
+ * También «Avisar el cambio de fecha» (`dateChangeSend`, `dateChangeDismiss`; ver
+ * $lib/server/tickets/dateChange.js): lo usan esta pestaña y el aviso de arriba de la ficha.
  */
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
@@ -17,6 +20,7 @@ import {
 } from '$lib/server/tickets/buyerMail.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { contactEmail, deliverBuyerMailBatch } from '$lib/server/tickets/index.js';
+import { pickActions } from '$lib/server/admin/eventActions.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, params, platform, setHeaders }) {
@@ -48,6 +52,7 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
+	...pickActions('dateChangeSend', 'dateChangeDismiss'),
 	send: async ({ locals, url, params, platform, request, fetch }) => {
 		const admin = requireAdmin(locals, url);
 		const db = getDB(platform);

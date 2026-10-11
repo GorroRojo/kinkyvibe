@@ -90,5 +90,13 @@
 	"sigo-recordatorio": {
 		"subject": "Mañana: Fiesta <b>de</b> prueba",
 		"text": "Hola:\n\nTe recordamos que se viene este evento:\n\nFiesta <b>de</b> prueba · sábado 10 de octubre de 2026, 22:00\nhttps://kinkyvibe.example/calendario/fiesta-de-prueba\n\nTe llega porque seguís: Ciclo de prueba.\nElegí qué te llega en Mi rincón → Lo que sigo: https://kinkyvibe.example/mi-rincon/sigo\nPara no recibir más mails de lo que seguís: https://kinkyvibe.example/sigo/baja?t=ghi&x=1"
+	},
+	"tickets/date-change-presencial": {
+		"subject": "Cambió la fecha: Fiesta <b>de</b> prueba",
+		"text": "Cambió la fecha\n\nHola Persona <de> \"Ejemplo\" & Cía, cambió la fecha de Fiesta <b>de</b> prueba. Lo que compraste sigue valiendo para la fecha nueva: no tenés que hacer nada.\n\nFecha nueva: sábado 10 de octubre de 2026, 22:00 a 03:00\nLugar de ejemplo · Calle Falsa 123\nAntes era: sábado 3 de octubre de 2026, 21:00 a 02:00\n\nSi con la fecha nueva no podés, respondé este mail.\n\nEntrada 1: https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA1111111111111111111111111111111\nEntrada 2: https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA2222222222222222222222222222222\n\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\n\n\nDevoluciones y cambios\n\nSi no podés venir, avisanos hasta 5 días hábiles antes del evento y te devolvemos lo que pagaste. Si preferís, en lugar de la devolución te ofrecemos un taller grabado de los que haya en la tienda en ese momento.\n\nSi le pasás tu entrada a otra persona, escribinos a contacto@example.com con su nombre, sus pronombres y su email."
+	},
+	"tickets/date-change-online-con-link": {
+		"subject": "Cambió la fecha: Fiesta <b>de</b> prueba",
+		"text": "Cambió la fecha\n\nHola Persona <de> \"Ejemplo\" & Cía, cambió la fecha de Fiesta <b>de</b> prueba. Lo que compraste sigue valiendo para la fecha nueva: no tenés que hacer nada.\n\nFecha nueva: sábado 10 de octubre de 2026, 22:00\nOnline\n\nLink de la transmisión: https://meet.example/abc?x=1&y=2\n\nSi con la fecha nueva no podés, respondé este mail.\n\nEntrada 1: https://kinkyvibe.example/entradas/t/TOKENDEPRUEBA1111111111111111111111111111111\n\nNúmero de orden: 3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b\n\n\nDevoluciones y cambios\n\nSi no podés venir, avisanos hasta 5 días hábiles antes del evento y te devolvemos lo que pagaste. Si preferís, en lugar de la devolución te ofrecemos un taller grabado de los que haya en la tienda en ese momento.\n\nSi le pasás tu entrada a otra persona, escribinos a contacto@example.com con su nombre, sus pronombres y su email."
 	}
 }

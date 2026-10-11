@@ -1,7 +1,7 @@
 /**
  * Email con las entradas, enviado con la API REST de Resend (POST https://api.resend.com/emails).
  */
-import { argDateTimeLong } from '$lib/utils/dates.js';
+import { argDateTimeLong, argTime, eventEnd } from '$lib/utils/dates.js';
 import { formatARS } from '$lib/utils/money.js';
 import { fondoOptionLabel, holdHours, orderReference, refundPolicy } from '$lib/utils/tickets.js';
 import { salePlaceText } from '$lib/utils/eventPlace.js';
@@ -10,7 +10,8 @@ import {
 	WHY_RESERVED,
 	renderBlockHtml,
 	renderInlineHtml,
-	renderPlain
+	renderPlain,
+	templateDef
 } from '$lib/utils/emailTemplates.js';
 import { MAIL_COLORS, MAIL_STYLES, mailLayout } from '$lib/server/email/layout.js';
 import {
@@ -581,6 +582,117 @@ export function buildReminderEmail({
 				`Entrada ${i + 1} (${holder(tickets[i])})${!online && tickets[i].code ? ` · código ${displayCode(tickets[i].code)}` : ''}: ${l}`
 		),
 		...(custom.helpText !== null ? ['', custom.helpText] : []),
+		'',
+		`Número de orden: ${order.id}`,
+		policy.text
+	].join('\n');
+	return cal.finish({ subject, html, text });
+}
+
+/**
+ * Fecha y hora de un evento con su fin, en hora argentina: «sábado 14 de noviembre de 2026, 22:00
+ * a 03:00» (el fin dentro de las 24 h) o «… al domingo 15 de noviembre de 2026, 18:00». Sin fin,
+ * como {@link formatEventDate}.
+ *
+ * @param {string | undefined | null} start
+ * @param {string | undefined | null} [end]
+ */
+export function formatEventSchedule(start, end) {
+	const when = formatEventDate(start ?? undefined);
+	if (!start || !end) return when;
+	const s = new Date(start);
+	const e = eventEnd(start, end);
+	if (Number.isNaN(s.getTime()) || e.getTime() <= s.getTime()) return when;
+	return e.getTime() - s.getTime() < 24 * 60 * 60 * 1000
+		? `${when} a ${argTime(e)}`
+		: `${when} al ${argDateTimeLong(e)}`;
+}
+
+/**
+ * Aviso de cambio de fecha («Avisar a les compradores», dateChange.js): la fecha nueva en un
+ * recuadro, la de antes si se sabe, el calendario actualizado y, en un evento online con el link
+ * ya cargado, el link de la transmisión (como los demás mails).
+ *
+ * @param {{
+ *   order: import('./orders.js').Order,
+ *   tickets: import('./orders.js').Ticket[],
+ *   event: { title: string, start?: string, end?: string | null, location?: string,
+ *     location_name?: string, online?: boolean, streamLink?: string | null, slug?: string,
+ *     status?: string, stamp?: number },
+ *   previous?: { start?: string | null, end?: string | null } | null,
+ *   typeName: string,
+ *   origin: string,
+ *   contactEmail: string,
+ *   template?: Template
+ * }} input
+ * `event.stamp`: la versión del cambio (más nueva que la de los mails anteriores), así el `.ics`
+ * adjunto tiene el mismo UID y un SEQUENCE más alto y reemplaza la entrada del calendario.
+ * `previous`: la fecha de antes («Antes era…»); sin ella, no se muestra.
+ * @returns {{ subject: string, html: string, text: string, attachments?: MailAttachment[] }}
+ */
+export function buildDateChangeEmail({
+	order,
+	tickets,
+	event,
+	previous,
+	typeName,
+	origin,
+	contactEmail,
+	template
+}) {
+	const online = Boolean(event.online);
+	const where = salePlaceText(online, event);
+	const when = formatEventSchedule(event.start, event.end);
+	const before = previous?.start ? formatEventSchedule(previous.start, previous.end) : '';
+	const custom = applyTemplate(template, {
+		...templateVars({ ...order, quantity: tickets.length || order.quantity }, event, typeName),
+		fecha_anterior: previous?.start ? formatEventDate(previous.start) : ''
+	});
+	const def = templateDef('date_change');
+	const subject = custom.subject ?? `Cambió la fecha: ${event.title}`;
+	const policy = policyBlocks(contactEmail);
+	const cal = calendarExtras({ order, event, online, origin });
+	const stream = online && event.streamLink ? event.streamLink : null;
+	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
+	const help = def?.extras.help?.default ?? '';
+	const html = mailLayout({
+		origin,
+		label: custom.label ?? 'Cambio de fecha',
+		titleHtml: custom.headingHtml ?? 'Cambió la fecha',
+		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, cambió la fecha de <strong>${escapeHtml(event.title)}</strong>. Lo que compraste sigue valiendo para la fecha nueva: no tenés que hacer nada.</p>`}
+		<div style="${MAIL_STYLES.box}" data-kv-mail="fecha-nueva"><p style="margin:0 0 6px;font-weight:bold">Fecha nueva</p><p style="margin:0;font-size:18px">${escapeHtml(when)}</p>${where ? `<p style="margin:6px 0 0">${escapeHtml(where)}</p>` : ''}</div>${
+			before
+				? `
+		<p style="${SMALL};margin-top:0" data-kv-mail="fecha-anterior">Antes era: ${escapeHtml(before)}</p>`
+				: ''
+		}${cal.html}
+		${stream ? streamLinkBlock(stream) : ''}`,
+		button: withLabel(
+			stream
+				? { href: stream, label: 'Entrar a la transmisión' }
+				: { href: `${origin}/entradas/${order.id}/estado`, label: 'Ver mis entradas' },
+			custom.button
+		),
+		helpHtml: custom.helpHtml ?? escapeHtml(help),
+		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
+		${policy.html}`,
+		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
+		contactEmail
+	});
+	const text = [
+		custom.headingText ?? 'Cambió la fecha',
+		'',
+		custom.bodyText ??
+			`Hola ${order.buyer_name}, cambió la fecha de ${event.title}. Lo que compraste sigue valiendo para la fecha nueva: no tenés que hacer nada.`,
+		'',
+		`Fecha nueva: ${when}`,
+		...(where ? [where] : []),
+		...(before ? [`Antes era: ${before}`] : []),
+		...cal.text,
+		...(stream ? ['', `Link de la transmisión: ${stream}`] : []),
+		'',
+		custom.helpText ?? help,
+		...(links.length ? ['', ...links.map((l, i) => `Entrada ${i + 1}: ${l}`)] : []),
 		'',
 		`Número de orden: ${order.id}`,
 		policy.text
