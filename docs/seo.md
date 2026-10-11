@@ -1,8 +1,8 @@
 # SEO, datos estructurados y estándares web
 
 Qué le cuenta el sitio a buscadores, asistentes y lectores de feeds, además de lo que ve la gente:
-datos estructurados (JSON-LD), microformats, `rel="me"`, `security.txt`, tarjetas de contacto,
-`robots.txt` y el sitemap. Al final, la auditoría de octubre de 2026 con los números.
+datos estructurados (JSON-LD), microformats, `rel="me"`, feeds, `security.txt`, tarjetas de
+contacto, `robots.txt` y el sitemap. Al final, la auditoría de octubre de 2026 con los números.
 
 La vista previa al compartir (Open Graph, Twitter, títulos y descripciones, canónicas) es de otra
 guía: `compartir.md` (llega con el PR #257).
@@ -19,14 +19,15 @@ guía: `compartir.md` (llega con el PR #257).
 
 ## Dónde está
 
-| Qué                                    | Dónde                                                                      |
-| -------------------------------------- | -------------------------------------------------------------------------- |
-| JSON-LD (todos los tipos)              | `src/lib/utils/jsonLd.js`; cada página lo pone con `<LDTag>`               |
-| Redes oficiales (`sameAs`, `rel="me"`) | `OFFICIAL_PROFILES` en `jsonLd.js` y el pie (`Footer.svelte`)              |
-| vCard de perfiles                      | `src/lib/utils/vcard.js`, `/amigues/<perfil>/contacto.vcf`                 |
-| `security.txt`                         | `src/lib/utils/securityTxt.js`, `/.well-known/security.txt`                |
-| `robots.txt`                           | `static/robots.txt` (lo cuida `src/lib/utils/robots.test.js`)              |
-| Sitemap                                | `src/routes/(content)/sitemap.xml/` (sin las publicaciones con `redirect`) |
+| Qué                                    | Dónde                                                                           |
+| -------------------------------------- | ------------------------------------------------------------------------------- |
+| JSON-LD (todos los tipos)              | `src/lib/utils/jsonLd.js`; cada página lo pone con `<LDTag>`                    |
+| Redes oficiales (`sameAs`, `rel="me"`) | `OFFICIAL_PROFILES` en `jsonLd.js` y el pie (`Footer.svelte`)                   |
+| vCard de perfiles                      | `src/lib/utils/vcard.js`, `/amigues/<perfil>/contacto.vcf`                      |
+| `security.txt`                         | `src/lib/utils/securityTxt.js`, `/.well-known/security.txt`                     |
+| `robots.txt`                           | `static/robots.txt` (lo cuida `src/lib/utils/robots.test.js`)                   |
+| Feeds Atom y JSON Feed                 | `src/lib/utils/feeds.js` (el texto), `src/lib/server/feeds.js` (las respuestas) |
+| Sitemap                                | `src/routes/(content)/sitemap.xml/` (sin las publicaciones con `redirect`)      |
 
 ### JSON-LD por página
 
@@ -43,6 +44,20 @@ guía: `compartir.md` (llega con el PR #257).
 (`InStock`, `SoldOut`, `PreOrder` con `validFrom`) y el link a `/entradas`; sin venta, el link de
 inscripción (precio 0 si tiene la etiqueta `gratis`). Cancelado o pasado: sin oferta.
 
+### Feeds
+
+| Feed                       | Atom                         | JSON Feed                    |
+| -------------------------- | ---------------------------- | ---------------------------- |
+| Eventos                    | `/calendario/feed.atom`      | `/calendario/feed.json`      |
+| Material                   | `/material/feed.atom`        | `/material/feed.json`        |
+| Una etiqueta (y sus hijas) | `/wiki/<etiqueta>/feed.atom` | `/wiki/<etiqueta>/feed.json` |
+
+Las 50 publicaciones más nuevas (por fecha de publicación), sin las que redirigen a otro sitio.
+Del evento va la fecha en el resumen (y «Cancelado» si lo está), **nunca el lugar**: así no hay
+que repetir las reglas de privacidad. Cada página los anuncia con `<link rel="alternate">`
+(`FeedLinks.svelte`); el feed de una etiqueta sin eventos ni material da 404. El RSS de siempre
+(`/rss`, en `app.html`) y los calendarios `.ics` siguen igual.
+
 ### Microformats
 
 `h-event` en eventos, `h-entry` en material y wiki, `h-card` en el encabezado de cada perfil (con
@@ -51,7 +66,9 @@ inicio y en las tarjetas de las listas.
 
 ## Cómo probarlo
 
-- `npx vitest run src/lib/utils/jsonLd.test.js src/lib/utils/vcard.test.js src/lib/utils/securityTxt.test.js src/lib/utils/robots.test.js`
+- `npx vitest run src/lib/utils/jsonLd.test.js src/lib/utils/vcard.test.js src/lib/utils/securityTxt.test.js src/lib/utils/robots.test.js src/lib/utils/feeds.test.js src/lib/server/feeds.test.js`
+- Feeds: <https://validator.w3.org/feed/> (Atom) y <https://validator.jsonfeed.org/> con la URL
+  del preview.
 - A mano, en el preview de la rama: abrir un evento, un material, una entrada de la wiki y un
   perfil, copiar la URL en <https://validator.schema.org/> y revisar que no haya errores. Para un
   lugar con la dirección oculta, el `Place` no tiene que tener `address` ni `geo`.

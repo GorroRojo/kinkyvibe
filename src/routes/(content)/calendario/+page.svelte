@@ -15,6 +15,7 @@
 	import { toArgentina } from '$lib/utils/dates.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
 	import CardRow from '$lib/components/CardRow.svelte';
+	import FeedLinks from '$lib/components/FeedLinks.svelte';
 	import { partLabel, withPartLabel } from '$lib/utils/partes.js';
 	export let data;
 	let calendarioPosts = data.posts.filter((p) => p.meta.layout == 'calendario');
@@ -99,6 +100,7 @@
 
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Calendario</h1>
+<FeedLinks base="/calendario" title="Calendario · Kinky Vibe" />
 
 <!-- Los próximos eventos en una fila arriba del calendario, como antes (pedido de gorrite, 5/10). -->
 <div class="cardrow">
