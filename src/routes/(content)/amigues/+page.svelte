@@ -39,60 +39,62 @@
 <ListSeoHead section="amigues" card="amigues" kinds={data.kinds} />
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Profesionales y emprendimientos</h1>
-<div class="glosario">
-	<p>
-		¡Bienvenide! Acá vas a encontrar profesionales que ofrecen <InlineTag tag="sesiones" /> BDSM, que
-		dan <InlineTag tag="clases" /> o profesionales de la salud mental que ofrecen espacios de <InlineTag
-			tag="terapia"
-		/>. También podrás encontrar <InlineTag tag="artistas" internalTag="arte" /> y <InlineTag
-			tag="emprendimientos"
-			internalTag="emprendimiento"
-		/>.
-	</p>
-	<dl>
-		{#each $filteredTags
-			.map($tagManager.get)
-			.filter((t) => t.parsedDescription) as termino (termino.id)}
-			{@const name = termino.visible_name ?? termino.id}
-			<div animate:flip in:fade>
-				<div>
-					<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
-					<dt>
-						{termino.icon ?? ''}{name.charAt(0).toUpperCase() + name.slice(1)}
-						{#if data.wiki.find((w) => w.meta.wiki == termino.id)}
-							<a href="/wiki/{termino.id}" class="gotowiki">
-								<span>
-									<Globe {style} />
-									Es más complejo
-									<ArrowRight {style} />
-								</span>
-							</a>
-						{/if}
-					</dt>
-					<dd>
-						{#each termino.parsedDescription as d}
-							{#if d.type == 'link'}
-								<InlineTag tag={d.line} />
-							{:else}
-								{d.line}
+<div class="intro">
+	<div class="glosario">
+		<p>
+			¡Bienvenide! Acá vas a encontrar profesionales que ofrecen <InlineTag tag="sesiones" /> BDSM, que
+			dan <InlineTag tag="clases" /> o profesionales de la salud mental que ofrecen espacios de <InlineTag
+				tag="terapia"
+			/>. También podrás encontrar <InlineTag tag="artistas" internalTag="arte" /> y <InlineTag
+				tag="emprendimientos"
+				internalTag="emprendimiento"
+			/>.
+		</p>
+		<dl>
+			{#each $filteredTags
+				.map($tagManager.get)
+				.filter((t) => t.parsedDescription) as termino (termino.id)}
+				{@const name = termino.visible_name ?? termino.id}
+				<div animate:flip in:fade>
+					<div>
+						<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
+						<dt>
+							{termino.icon ?? ''}{name.charAt(0).toUpperCase() + name.slice(1)}
+							{#if data.wiki.find((w) => w.meta.wiki == termino.id)}
+								<a href="/wiki/{termino.id}" class="gotowiki">
+									<span>
+										<Globe {style} />
+										Es más complejo
+										<ArrowRight {style} />
+									</span>
+								</a>
 							{/if}
-						{/each}
+						</dt>
+						<dd>
+							{#each termino.parsedDescription as d}
+								{#if d.type == 'link'}
+									<InlineTag tag={d.line} />
+								{:else}
+									{d.line}
+								{/if}
+							{/each}
 
-						{#if termino.related}
-							<small>
-								Ver también:
-								{#each termino.related as tag, i}
-									<InlineTag {tag} />
-									{i < termino.related.length - 1 ? ', ' : ''}
-								{/each}
-								.
-							</small>
-						{/if}
-					</dd>
+							{#if termino.related}
+								<small>
+									Ver también:
+									{#each termino.related as tag, i}
+										<InlineTag {tag} />
+										{i < termino.related.length - 1 ? ', ' : ''}
+									{/each}
+									.
+								</small>
+							{/if}
+						</dd>
+					</div>
 				</div>
-			</div>
-		{/each}
-	</dl>
+			{/each}
+		</dl>
+	</div>
 </div>
 
 {#if data.kinds}
@@ -181,6 +183,16 @@
 			&:hover {
 				left: 0.3em;
 			}
+		}
+	}
+	/* Mide lo mismo que la lista de abajo (PostList): con 1300px o más, la caja se alinea con el
+	   grupo del árbol y la lista (--list-group-w, style.scss). */
+	.intro {
+		container-type: inline-size;
+	}
+	@container (min-width: 1300px) {
+		.glosario {
+			max-width: var(--list-group-w);
 		}
 	}
 </style>

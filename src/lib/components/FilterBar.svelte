@@ -91,6 +91,7 @@
 		font-size: var(--text-xs);
 		font-weight: 700;
 		color: var(--1-ink);
+		white-space: nowrap;
 	}
 	@container (min-width: 1300px) {
 		/* pantalla ancha: la columna de la izquierda, todo alineado a la izquierda */

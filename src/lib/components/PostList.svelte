@@ -409,13 +409,17 @@
 		width: 100%;
 	}
 	@container (min-width: 1300px) {
+		/* El árbol y la lista, un solo grupo centrado: la columna del árbol (con «Ver como» y
+		   «Eventos pasados» arriba) pegada a la izquierda de la lista, con --space-l entre los dos.
+		   Antes eran tres columnas (1fr 50rem 1fr) y el árbol quedaba lejos, en el borde. El ancho
+		   del grupo es --list-group-w (style.scss), el mismo que usan las cajas de presentación. */
 		.postlist {
-			grid-template-areas: 'left' 'main' 'right';
-			grid-template-columns: 1fr 50rem 1fr;
-			gap: 1em;
+			grid-template-columns: var(--list-tree-w) minmax(0, var(--list-main-w));
+			justify-content: center;
+			column-gap: var(--space-l);
+			row-gap: 1em;
 			align-items: start;
 			align-content: start;
-			padding-left: 1em;
 		}
 		#posts {
 			width: 100%;

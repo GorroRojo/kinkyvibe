@@ -315,6 +315,28 @@ test.describe('barra de filtros de las listas', () => {
 		await expect(bar.locator('input[name="tagbar-chip"]').first()).toBeVisible();
 		await expect(bar.getByRole('button', { name: /^Filtros/ })).toBeHidden();
 		await expect(bar.getByRole('button', { name: 'Más filtros' })).toBeHidden();
+		// el árbol pegado a la lista (--space-l en el medio) y los dos, un grupo centrado
+		const m = await page.evaluate(() => {
+			const box = (/** @type {string} */ s) =>
+				/** @type {Element} */ (document.querySelector(s)).getBoundingClientRect();
+			const col = box('#filterbar');
+			const list = box('.results');
+			const group = box('.postlist');
+			const gap = parseFloat(
+				getComputedStyle(/** @type {Element} */ (document.querySelector('.postlist'))).columnGap
+			);
+			return {
+				gap: list.left - col.right,
+				expected: gap,
+				left: col.left - group.left,
+				right: group.right - list.right,
+				barLeft: box('.tagbar').left - list.left
+			};
+		});
+		expect(Math.abs(m.gap - m.expected)).toBeLessThanOrEqual(1);
+		expect(m.expected).toBeGreaterThan(20);
+		expect(Math.abs(m.left - m.right)).toBeLessThanOrEqual(2);
+		expect(Math.abs(m.barLeft)).toBeLessThanOrEqual(1);
 		await context.close();
 	});
 });

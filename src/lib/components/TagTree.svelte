@@ -53,7 +53,7 @@
 		flex-direction: column;
 		flex-wrap: nowrap;
 		align-items: flex-start;
-		max-width: 20rem;
+		max-width: 100%;
 	}
 	.tag-group-container {
 		display: flex;

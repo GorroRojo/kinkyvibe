@@ -21,6 +21,7 @@
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Artículos, links y descargables</h1>
 <FeedLinks base="/material" title="Material · Kinky Vibe" />
+<div class="intro">
 <div class="glosario">
 	<p>
 		¡Bienvenide! Si estás empezando, podés filtrar acá el material <InlineTag tag="inicial" /> sobre
@@ -75,6 +76,7 @@
 			</div>
 		{/each}
 	</dl>
+</div>
 </div>
 
 <PostList posts={data.posts.filter((p) => p.meta.layout == 'material')} />
@@ -157,6 +159,16 @@
 			&:hover {
 				left: 0.3em;
 			}
+		}
+	}
+	/* Mide lo mismo que la lista de abajo (PostList): con 1300px o más, la caja se alinea con el
+	   grupo del árbol y la lista (--list-group-w, style.scss). */
+	.intro {
+		container-type: inline-size;
+	}
+	@container (min-width: 1300px) {
+		.glosario {
+			max-width: var(--list-group-w);
 		}
 	}
 </style>
