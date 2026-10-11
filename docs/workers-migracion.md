@@ -47,8 +47,8 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
   - `0 6 * * *` (03:00 en Argentina) → backup de la base a R2 y limpieza de los viejos.
   - Los crons **solo corren en producción**; los Previews no los ejecutan.
 - **Modo demo en los Previews**: `__DEPLOY_BRANCH__` se fija al compilar con `WORKERS_CI_BRANCH`
-  (la pone Workers Builds) o, mientras siga Pages, `CF_PAGES_BRANCH`
-  (`src/lib/server/deployBranch.js`). En `main` (y en local) queda `false` y el modo demo no
+  (la pone Workers Builds; `src/lib/server/deployBranch.js`). `CF_PAGES_BRANCH`, la de Pages,
+  ya no se lee. En `main` (y en local) queda `false` y el modo demo no
   entra en el bundle, igual que hoy.
 - **Backups**: `src/lib/server/backup/` (ver [Backups](#backups-de-la-base)).
 - **Scripts**: `npm run db:restore` (`scripts/d1-restore.js`), `npm run db:migrate:preview`
@@ -308,9 +308,8 @@ hay ninguna así.
 
 - Hecho: borrar `workers/cron/` y actualizar `README.md`, `docs/demo.md` y las guías que
   mencionaban el Worker aparte o Pages.
-- Pendiente: `CLAUDE.md` todavía dice «Cloudflare Pages» (lo cambia gorrite). La lectura de
-  `CF_PAGES_BRANCH` en `src/lib/server/deployBranch.js` sigue (es inofensiva: sin Pages nadie la
-  pone).
+- Hecho: `CLAUDE.md` ya describe el Worker, y `src/lib/server/deployBranch.js` y
+  `scripts/demo/guard.js` ya no leen `CF_PAGES_BRANCH` (solo `WORKERS_CI_BRANCH`).
 - Con el sitio en Workers se pueden sumar Queues (mails), Email Workers (casilla de entrada), etc.
 
 ## Dudas y riesgos conocidos

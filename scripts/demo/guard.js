@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { EVENT_MARKER, SEED_BY } from '../../src/lib/server/demo/seed.js';
 import { DEMO_SLOT_KEY } from '../../src/lib/server/demo/seedEvents.js';
 import { COPY_MARK_KEY } from '../../src/lib/server/demo/realEvents.js';
+import { deployBranchFromEnv } from '../../src/lib/server/deployBranch.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 export const POSTS_DIR = path.join(ROOT, 'src/lib/posts');
@@ -99,7 +100,7 @@ function main() {
 		return;
 	}
 	if (cmd === 'bundle' && file) {
-		const branch = (process.env.WORKERS_CI_BRANCH || process.env.CF_PAGES_BRANCH || '').trim();
+		const branch = deployBranchFromEnv(process.env);
 		if (branch && branch !== 'main') {
 			console.error(`guard bundle: este build es de la rama «${branch}» (preview); no sirve.`);
 			process.exit(1);
