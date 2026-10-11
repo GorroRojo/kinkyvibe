@@ -83,15 +83,23 @@ const htmlOf = (key) => escapeHtml(botText(key));
  */
 
 /**
+ * ¿Este usuario de Telegram es une admin vinculade que puede abrir la puerta? (puerta.js,
+ * `botDoor`). Para el botón «🚪 Puerta» del inicio.
+ *
+ * @typedef {(telegramUserId: number) => Promise<boolean>} BotDoor
+ */
+
+/**
  * @typedef {import('./navigate.js').NavDeps & {
  *   accounts?: () => Promise<BotAccounts | null>,
  *   adminLink?: BotAdminLink | null,
  *   inline?: import('./inline.js').InlineDeps | null,
+ *   door?: BotDoor | null,
  *   media?: boolean
  * }} Deps `media`: hay token, así que se pueden usar fotos y varios métodos (run.js).
  *   `inline`: el modo inline (inline.js); sin él, un `inline_query` no se contesta.
  *   `adminLink`: sin base o con `telegram_puerta` apagado, `null` (el bot contesta que no se
- *   puede).
+ *   puede). `door`: lo mismo; se llama solo al mostrar el inicio por chat privado.
  */
 
 /** Lo que trae "/start" cuando viene del link con el código (8 letras y números). */
@@ -327,6 +335,28 @@ async function siteDocResult(state, ctx, deps) {
 }
 
 /**
+ * El contexto del inicio: con `door` si quien escribe puede abrir la puerta (une admin vinculade,
+ * los dos interruptores prendidos). Solo por chat privado (`web_app` no anda en grupos) y solo
+ * para el inicio: una consulta por id de Telegram, nada más. Si falla, el inicio sale sin el
+ * botón.
+ *
+ * @param {ScreenCtx} ctx
+ * @param {Deps} deps
+ * @param {any} chat
+ * @param {unknown} userId
+ * @returns {Promise<ScreenCtx>}
+ */
+async function homeCtx(ctx, deps, chat, userId) {
+	if (chat?.type !== 'private' || !deps.door || typeof userId !== 'number') return ctx;
+	try {
+		return (await deps.door(userId)) ? { ...ctx, door: true } : ctx;
+	} catch (error) {
+		console.error('[telegram] no se pudo mirar la puerta:', /** @type {Error} */ (error)?.name);
+		return ctx;
+	}
+}
+
+/**
  * El botón «⭐ Seguir» de una tarjeta, solo con «Lo que sigo» prendido: en privado abre las
  * opciones; en un grupo, el chat privado con el bot (`?start=seguir-<id>`).
  *
@@ -491,7 +521,9 @@ async function planCallback(callback, deps) {
 	}
 	try {
 		const accounts = await accountsOf(deps);
-		const ctx = screenCtx(deps, group, accounts);
+		const base = screenCtx(deps, group, accounts);
+		const ctx =
+			state.screen === 'home' ? await homeCtx(base, deps, message.chat, callback?.from?.id) : base;
 		const result =
 			state.screen === 'site_results'
 				? { screen: await siteSearchScreen(state.query, state.page, ctx, deps) }
@@ -526,11 +558,12 @@ async function planCallback(callback, deps) {
  * @param {string} param
  * @param {ScreenCtx} ctx
  * @param {Deps} deps
- * @param {number | string} chatId
+ * @param {any} message
  * @param {BotAccounts | null} accounts
  * @returns {Promise<Screen | null>}
  */
-async function startScreen(param, ctx, deps, chatId, accounts) {
+async function startScreen(param, ctx, deps, message, accounts) {
+	const chatId = message.chat.id;
 	const target = parseStartParam(param);
 	if (!target) return null;
 	if (target.screen === 'sigo' || target.screen === 'follow') {
@@ -547,7 +580,15 @@ async function startScreen(param, ctx, deps, chatId, accounts) {
 		if (!event) return noticeScreen(htmlOf('errores.no_disponible'));
 		return cardFor(event, 'n', events, ctx, deps, { follow: followButton(event, ctx) });
 	}
-	if (target.screen === 'fondo' || target.screen === 'search' || target.screen === 'home') {
+	if (target.screen === 'home') {
+		const r = await navigate(
+			target,
+			await homeCtx(ctx, deps, message.chat, message?.from?.id),
+			deps
+		);
+		return 'screen' in r ? r.screen : null;
+	}
+	if (target.screen === 'fondo' || target.screen === 'search') {
 		const r = await navigate({ screen: target.screen }, ctx, deps);
 		return 'screen' in r ? r.screen : null;
 	}
@@ -565,9 +606,9 @@ async function startScreen(param, ctx, deps, chatId, accounts) {
  * @returns {Promise<Screen>}
  */
 async function commandScreen(command, message, ctx, deps, accounts) {
-	/** @param {NavState} state */
-	const go = async (state) => {
-		const r = await navigate(state, ctx, deps, {
+	/** @param {NavState} state @param {ScreenCtx} [where] */
+	const go = async (state, where = ctx) => {
+		const r = await navigate(state, where, deps, {
 			accounts: Boolean(accounts),
 			follow: (event) => followButton(event, ctx)
 		});
@@ -585,11 +626,14 @@ async function commandScreen(command, message, ctx, deps, accounts) {
 				return textScreen(await accountCommand(linkCommand, message.chat, deps));
 			}
 			if (command.args) {
-				const screen = await startScreen(command.args, ctx, deps, message.chat.id, accounts);
+				const screen = await startScreen(command.args, ctx, deps, message, accounts);
 				if (screen) return screen;
 			}
-			return go({ screen: 'home' });
+			return go({ screen: 'home' }, await homeCtx(ctx, deps, message.chat, message?.from?.id));
 		}
+		case 'inicio':
+			// Lo mismo que `/start` sin nada, por el mismo camino (lo que venga después se ignora).
+			return commandScreen({ name: 'start', args: '' }, message, ctx, deps, accounts);
 		case 'ayuda':
 		case 'help':
 			return go({ screen: 'help' });

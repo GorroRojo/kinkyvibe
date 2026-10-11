@@ -40,6 +40,7 @@ export async function isValidWebhookSecret(given, expected) {
  *   accounts?: import('./router.js').Deps['accounts'],
  *   adminLink?: import('./router.js').Deps['adminLink'],
  *   inline?: import('./router.js').Deps['inline'],
+ *   door?: import('./router.js').Deps['door'],
  *   card?: import('./router.js').Deps['card'],
  *   fondo?: import('./router.js').Deps['fondo'],
  *   botUsername?: string | null,
@@ -51,8 +52,10 @@ export async function isValidWebhookSecret(given, expected) {
  *   con `lo_que_sigo` apagado. `adminLink`: `/start adm_<código>`, vincular el Telegram de une
  *   admin desde el panel (la puerta por Telegram, adminLink.js); `null` con `telegram_puerta`
  *   apagado. `inline`: el modo inline (inline.js), con lo público del índice de la búsqueda.
- *   `token`: el del bot; con él, el webhook llama a la API. `texts`: lo cambiado en «Textos del
- *   bot» (se lee una vez, después del secreto; todo el pedido lo usa, ver texts.js).
+ *   `door`: ¿puede este usuario de Telegram abrir la puerta? (el botón «🚪 Puerta» del inicio,
+ *   puerta.js); `null` con `telegram_puerta` apagado. `token`: el del bot; con él, el webhook
+ *   llama a la API. `texts`: lo cambiado en «Textos del bot» (se lee una vez, después del
+ *   secreto; todo el pedido lo usa, ver texts.js).
  */
 export async function handleWebhook({
 	request,
@@ -63,6 +66,7 @@ export async function handleWebhook({
 	accounts,
 	adminLink,
 	inline,
+	door,
 	card,
 	fondo,
 	botUsername,
@@ -91,7 +95,17 @@ export async function handleWebhook({
 	} catch {
 		return new Response('bad request', { status: 400 });
 	}
-	const deps = { listUpcoming, origin, accounts, adminLink, inline, card, fondo, botUsername };
+	const deps = {
+		listUpcoming,
+		origin,
+		accounts,
+		adminLink,
+		inline,
+		door,
+		card,
+		fondo,
+		botUsername
+	};
 	/** @type {import('$lib/utils/botTexts.js').BotTexts} */
 	let overrides = {};
 	try {

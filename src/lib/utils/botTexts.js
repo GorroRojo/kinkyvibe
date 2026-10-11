@@ -169,7 +169,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 				'/evento <nombre>: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n' +
 				'/buscar <texto>: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n' +
 				'/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n' +
-				'/start: el inicio, con botones para todo\n' +
+				'/inicio: volver al inicio, con botones para todo\n' +
 				'{cuenta}\n' +
 				'Para comprar entradas y ver todo lo demás, entrá a {sitio}',
 			{
@@ -262,6 +262,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 		// Comandos
 		// -----------------------------------------------------------------------------------------
 		...[
+			['inicio', 'Volver al inicio del bot'],
 			['proximos', 'Los próximos eventos públicos'],
 			['hoy', 'Los eventos de hoy'],
 			['semana', 'Lo que hay en los próximos 7 días'],
@@ -695,6 +696,13 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			}
 		),
 		f('puerta.boton', 'puerta', 'button', 'El botón que abre la puerta', '🚪 Abrir la puerta'),
+		f(
+			'puerta.boton_inicio',
+			'puerta',
+			'button',
+			'Botón «Puerta» del inicio (solo admins vinculades, en privado)',
+			'🚪 Puerta'
+		),
 		f(
 			'puerta.link_malo',
 			'puerta',

@@ -205,7 +205,8 @@ de amigues y lanzamientos grandes.
 - Puerta por Telegram, después de #273: prenderla en un preview y probarla con celulares reales
   (vincular, abrir con el botón del bot, escanear); después en producción. S. Bloqueo: gorrite.
 - Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir su
-  dirección, y un comando o botón para abrirla sin volver a vincular (0037). S.
+  dirección (0037). S. (Abrirla sin volver a vincular: «🚪 Puerta» en el inicio del bot, PR
+  `claude/bot-inicio`.)
 - Modo inline y buscar en todo el sitio desde el bot: hecho. Falta que gorrite haga
   `/setinline` en @BotFather (placeholder «Buscá en Kinky Vibe…») y vuelva a registrar el webhook
   con `npm run telegram:webhook` (docs/telegram.md, «Modo inline»). S. Bloqueo: gorrite.

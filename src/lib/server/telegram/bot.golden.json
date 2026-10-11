@@ -33,6 +33,10 @@
 		{
 			"commands": [
 				{
+					"command": "inicio",
+					"description": "Volver al inicio del bot"
+				},
+				{
 					"command": "proximos",
 					"description": "Los próximos eventos públicos"
 				},
@@ -71,6 +75,11 @@
 		},
 		{
 			"commands": [
+				{
+					"command": "inicio",
+					"description": "Volver al inicio del bot",
+					"is_ephemeral": true
+				},
 				{
 					"command": "proximos",
 					"description": "Los próximos eventos públicos",
@@ -118,6 +127,10 @@
 		},
 		{
 			"commands": [
+				{
+					"command": "inicio",
+					"description": "Volver al inicio del bot"
+				},
 				{
 					"command": "proximos",
 					"description": "Los próximos eventos públicos"
@@ -160,6 +173,10 @@
 		{
 			"commands": [
 				{
+					"command": "inicio",
+					"description": "Volver al inicio del bot"
+				},
+				{
 					"command": "proximos",
 					"description": "Los próximos eventos públicos"
 				},
@@ -198,6 +215,11 @@
 		},
 		{
 			"commands": [
+				{
+					"command": "inicio",
+					"description": "Volver al inicio del bot",
+					"is_ephemeral": true
+				},
 				{
 					"command": "proximos",
 					"description": "Los próximos eventos públicos",
@@ -245,6 +267,10 @@
 		},
 		{
 			"commands": [
+				{
+					"command": "inicio",
+					"description": "Volver al inicio del bot"
+				},
 				{
 					"command": "proximos",
 					"description": "Los próximos eventos públicos"
@@ -1163,7 +1189,7 @@
 		]
 	},
 	"ayuda": {
-		"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/start: el inicio, con botones para todo\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
+		"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
 		"keyboard": [
 			[
 				{
@@ -1174,7 +1200,7 @@
 		]
 	},
 	"ayuda con cuentas": {
-		"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/start: el inicio, con botones para todo\n\nCon tu cuenta del sitio (por chat privado):\n/vincular &lt;código&gt;: conectá este chat (el código está en Mi rincón → Lo que sigo)\n/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n/desvincular: desconectá este chat\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
+		"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nCon tu cuenta del sitio (por chat privado):\n/vincular &lt;código&gt;: conectá este chat (el código está en Mi rincón → Lo que sigo)\n/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n/desvincular: desconectá este chat\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
 		"keyboard": [
 			[
 				{
@@ -1611,7 +1637,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/start: el inicio, con botones para todo\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
+				"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -1634,7 +1660,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/start: el inicio, con botones para todo\n\nCon tu cuenta del sitio (por chat privado):\n/vincular &lt;código&gt;: conectá este chat (el código está en Mi rincón → Lo que sigo)\n/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n/desvincular: desconectá este chat\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
+				"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nCon tu cuenta del sitio (por chat privado):\n/vincular &lt;código&gt;: conectá este chat (el código está en Mi rincón → Lo que sigo)\n/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n/desvincular: desconectá este chat\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -3158,7 +3184,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": -100,
-				"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/start: el inicio, con botones para todo\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
+				"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true

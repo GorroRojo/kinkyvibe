@@ -22,12 +22,16 @@ const original = (command) => renderBotText(`comandos.${command}`);
  * @typedef {{ command: string, description: string, is_ephemeral?: boolean }} BotCommand
  */
 
-/** Los de todes (grupos y chats privados). @type {readonly BotCommand[]} */
+/**
+ * Los de todes (grupos y chats privados). `/inicio` va primero: es lo mismo que `/start` sin nada
+ * (el inicio con sus botones), con un nombre que se entiende en el menú.
+ *
+ * @type {readonly BotCommand[]}
+ */
 export const PUBLIC_COMMANDS = Object.freeze(
-	['proximos', 'hoy', 'semana', 'finde', 'evento', 'buscar', 'fondo', 'ayuda'].map((command) => ({
-		command,
-		description: original(command)
-	}))
+	['inicio', 'proximos', 'hoy', 'semana', 'finde', 'evento', 'buscar', 'fondo', 'ayuda'].map(
+		(command) => ({ command, description: original(command) })
+	)
 );
 
 /** Los de la cuenta (fase 2): solo por chat privado y con «Lo que sigo». @type {readonly BotCommand[]} */
@@ -40,7 +44,8 @@ export const ACCOUNT_COMMANDS = Object.freeze(
 
 /**
  * Los que el router entiende pero no van en el menú: `/start` (lo manda Telegram al abrir el bot y
- * el link `t.me/<bot>?start=<código>`) y `/help` (sinónimo de `/ayuda`).
+ * el link `t.me/<bot>?start=<código>`; en el menú está `/inicio`, que hace lo mismo sin código) y
+ * `/help` (sinónimo de `/ayuda`).
  */
 export const HIDDEN_COMMANDS = Object.freeze(['start', 'help']);
 

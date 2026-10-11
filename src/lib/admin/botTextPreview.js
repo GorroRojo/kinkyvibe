@@ -32,7 +32,7 @@ const eventLine = (e) =>
 export const PREVIEW_SCREENS = Object.freeze([
 	{
 		id: 'inicio',
-		label: 'Inicio',
+		label: 'Inicio (como lo ve une admin vinculade)',
 		keys: [
 			'inicio.texto',
 			'inicio.boton_hoy',
@@ -43,7 +43,8 @@ export const PREVIEW_SCREENS = Object.freeze([
 			'inicio.boton_fondo',
 			'inicio.boton_ayuda',
 			'inicio.boton_calendario',
-			'inicio.boton_sitio'
+			'inicio.boton_sitio',
+			'puerta.boton_inicio'
 		],
 		build: (t) => ({
 			html: t('inicio.texto'),
@@ -58,7 +59,8 @@ export const PREVIEW_SCREENS = Object.freeze([
 				[
 					{ text: t('inicio.boton_calendario') },
 					{ text: t('inicio.boton_sitio', { sitio: 'kinkyvibe.ar' }), link: true }
-				]
+				],
+				[{ text: t('puerta.boton_inicio') }]
 			]
 		})
 	},
@@ -80,6 +82,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 		keys: [],
 		build: (t) => ({
 			commands: [
+				'inicio',
 				'proximos',
 				'hoy',
 				'semana',
