@@ -218,6 +218,107 @@ test.describe('calendario', () => {
 	});
 });
 
+// Barra de filtros de las listas (TagBar en PostList; docs/estilo.md, «Barra de filtros de las
+// listas»): en el celu, chips + «Filtros» que abre una hoja con solo el árbol de etiquetas; en
+// pantalla ancha, el árbol en la columna de la izquierda y sin hoja.
+test.describe('barra de filtros de las listas', () => {
+	test('en el celu: un chip filtra (y va a ?tags=), «Filtros» abre la hoja con el árbol', async ({
+		browser
+	}) => {
+		const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+		const page = await context.newPage();
+		await acceptAgeGate(page);
+		await page.goto('/material', { waitUntil: 'networkidle' });
+		const bar = page.getByRole('region', { name: 'Filtrar por etiquetas' });
+		await expect(bar).toBeVisible();
+		// sin abrir la hoja no hay árbol en la página
+		await expect(page.locator('#tagfilters')).toHaveCount(0);
+		const chip = bar.locator('input[name="tagbar-chip"]').first();
+		const tag = await chip.getAttribute('value');
+		await chip.check();
+		await expect(page).toHaveURL(new RegExp(`[?&]tags=${encodeURIComponent(tag ?? '')}`));
+		await expect(bar.getByRole('button', { name: 'Filtros (1)' })).toBeVisible();
+		await expect(bar.getByRole('button', { name: 'Limpiar (1)' })).toBeVisible();
+
+		await bar.getByRole('button', { name: 'Filtros (1)' }).click();
+		const sheet = page.locator('dialog[open]');
+		await expect(sheet).toBeVisible();
+		await expect(sheet.locator('#tagfilters')).toBeVisible();
+		// solo el árbol: ni buscador ni «Ver como» ni «Eventos pasados» adentro
+		await expect(sheet.locator('input[type="text"], input[type="search"]')).toHaveCount(0);
+		await expect(sheet.locator('#display-type, #show-past-events')).toHaveCount(0);
+		await page.keyboard.press('Escape');
+		await expect(page.locator('dialog[open]')).toHaveCount(0);
+
+		await bar.getByRole('button', { name: 'Limpiar (1)' }).click();
+		await expect(page).not.toHaveURL(/[?&]tags=/);
+		await context.close();
+	});
+
+	test('en el celu: con muchas etiquetas elegidas el buscador queda en una línea', async ({
+		browser
+	}) => {
+		const context = await browser.newContext({ viewport: { width: 360, height: 800 } });
+		const page = await context.newPage();
+		await acceptAgeGate(page);
+		await page.goto(
+			'/material?tags=español,gratis,web,artículo,género y salud sexual,despatologización',
+			{ waitUntil: 'networkidle' }
+		);
+		const field = page.locator('.tag-search .field');
+		await expect(field.locator('.chip')).toHaveCount(6);
+		const box = await field.boundingBox();
+		expect(box?.height).toBeLessThanOrEqual(48);
+		const input = await field.locator('input').boundingBox();
+		expect(input?.width).toBeGreaterThanOrEqual(10 * 15);
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+			360
+		);
+		await context.close();
+	});
+
+	test('«Ver como» con íconos: el elegido queda lleno aunque tenga el mouse encima', async ({
+		browser
+	}) => {
+		const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+		const page = await context.newPage();
+		await acceptAgeGate(page);
+		await page.goto('/material', { waitUntil: 'networkidle' });
+		const grid = page.getByRole('button', { name: 'Ver como grilla' });
+		await grid.click();
+		await expect(grid).toHaveAttribute('aria-pressed', 'true');
+		await expect(page.getByRole('button', { name: 'Ver como lista' })).toHaveAttribute(
+			'aria-pressed',
+			'false'
+		);
+		await expect(page.locator('#posts.grid')).toBeVisible();
+		// el mouse sigue encima (como el hover pegado después de tocar en un celu)
+		await grid.hover();
+		const [bg, ink] = await grid.evaluate((el) => [
+			getComputedStyle(el).backgroundColor,
+			getComputedStyle(el).color
+		]);
+		expect(ink).toBe('rgb(255, 255, 255)');
+		expect(bg).not.toBe('rgba(0, 0, 0, 0)');
+		await context.close();
+	});
+
+	test('en pantalla ancha: el árbol en la columna de la izquierda, sin «Filtros» ni hoja', async ({
+		browser
+	}) => {
+		const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+		const page = await context.newPage();
+		await acceptAgeGate(page);
+		await page.goto('/material', { waitUntil: 'networkidle' });
+		await expect(page.locator('#filterbar #tagfilters')).toBeVisible();
+		const bar = page.getByRole('region', { name: 'Filtrar por etiquetas' });
+		await expect(bar.locator('input[name="tagbar-chip"]').first()).toBeVisible();
+		await expect(bar.getByRole('button', { name: /^Filtros/ })).toBeHidden();
+		await expect(bar.getByRole('button', { name: 'Más filtros' })).toBeHidden();
+		await context.close();
+	});
+});
+
 test.describe('feeds', () => {
 	test('/rss responde con items', async ({ request }) => {
 		const res = await request.get('/rss');

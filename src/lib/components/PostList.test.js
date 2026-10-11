@@ -74,3 +74,74 @@ describe('Card', () => {
 		expect(html).toMatch(/<time class="card-date[^"]*"[^>]*>vie 2 oct 2099 · 22:00<\/time>/);
 	});
 });
+
+const { filteredTags, userConfig } = await import('$lib/utils/stores');
+
+describe('barra de filtros de las listas (TagBar)', () => {
+	/** @param {number} i @param {string[]} tags */
+	const tagged = (i, tags) => ({ ...post(i), meta: { ...post(i).meta, tags } });
+	const many = [
+		tagged(1, ['taller', 'Online', 'español']),
+		tagged(2, ['taller', 'Presencial', 'español']),
+		tagged(3, ['fiesta', 'Presencial', 'español']),
+		tagged(4, ['taller', 'Presencial', 'a la gorra', 'español'])
+	];
+	const html = () => render(PostList, { props: /** @type {any} */ ({ posts: many }) }).body;
+	/** @param {string} body */
+	const chipValues = (body) =>
+		[
+			...body.matchAll(
+				/name="tagbar-chip"[^>]*value="([^"]+)"|value="([^"]+)"[^>]*name="tagbar-chip"/g
+			)
+		].map((m) => m[1] ?? m[2]);
+
+	it('reemplaza «Filtrar por etiquetas»: chips de las más usadas, «Filtros» y «Más filtros»', () => {
+		filteredTags.set([]);
+		const body = html();
+		expect(body).not.toContain('Filtrar por etiquetas</button');
+		expect(body).toContain('aria-label="Filtrar por etiquetas"');
+		expect(chipValues(body)).toEqual(['Presencial', 'taller', 'a la gorra', 'fiesta', 'Online']);
+		expect(body).toMatch(/class="[^"]*filters-toggle[^"]*"[^>]*>[\s\S]*?Filtros<\/button>/);
+		expect(body).toContain('Más filtros');
+		expect(body).not.toContain('Limpiar (');
+	});
+
+	it('las elegidas van primero, con su cuenta en «Filtros (N)» y «Limpiar (N)»', () => {
+		filteredTags.set(['fiesta']);
+		const body = html();
+		expect(chipValues(body)[0]).toBe('fiesta');
+		expect(body).toContain('Filtros (1)');
+		expect(body).toContain('Limpiar (1)');
+		filteredTags.set([]);
+	});
+
+	it('sin abrir la hoja ni ser pantalla ancha, el árbol de etiquetas no se arma', () => {
+		filteredTags.set([]);
+		const body = html();
+		expect(body).not.toContain('id="tagfilters"');
+		expect(body).not.toContain('<dialog open');
+	});
+
+	it('«Ver como» con íconos: cada botón con su nombre y su estado elegido', () => {
+		userConfig.set({ display_type: 'grid', show_past_events: false });
+		const body = html();
+		expect(body).toMatch(/aria-label="Ver como lista"[^>]*aria-pressed="false"/);
+		expect(body).toMatch(/aria-label="Ver como grilla"[^>]*aria-pressed="true"/);
+		expect(body).toContain('class="kv-segmented small"');
+		userConfig.set({ display_type: 'list', show_past_events: false });
+	});
+
+	it('«Mostrar | Ocultar eventos pasados» a la misma escala, con el elegido marcado', () => {
+		const body = render(PostList, {
+			props: /** @type {any} */ ({ posts: many, pastEventsToggle: true })
+		}).body;
+		expect(body).toMatch(/id="show-past-events" class="kv-segmented small"/);
+		expect(body).toMatch(/aria-pressed="false"[^>]*>Mostrar<\/button>/);
+		expect(body).toMatch(/aria-pressed="true"[^>]*>Ocultar<\/button>/);
+	});
+
+	it('lo que dice arriba de los resultados va en la barra (amountLabel)', () => {
+		const body = html();
+		expect(body).toMatch(/class="post-amount[^"]*"[^>]*>4 resultados<\/p>/);
+	});
+});

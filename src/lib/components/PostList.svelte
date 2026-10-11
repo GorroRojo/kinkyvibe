@@ -16,6 +16,7 @@
 	import { listMotion } from '$lib/utils/listMotion';
 	import PostListItem from './PostListItem.svelte';
 	import FilterBar from './FilterBar.svelte';
+	import TagBar from './TagBar.svelte';
 	import TagSearch from './TagSearch.svelte';
 	import Card from './Card.svelte';
 	/**
@@ -42,6 +43,10 @@
 	 * @type {(n: number) => string} */
 	export let amountLabel = (n) => `${n} ${n == 1 ? 'resultado' : 'resultados'}`;
 	let shownLimit = limit;
+	/** Ancho de la lista: desde 1300px (el corte del @container de abajo) el árbol de etiquetas va
+	 * en la columna de la izquierda; más angosto, en la hoja de la barra de filtros (TagBar). */
+	let width = 0;
+	$: wide = width >= 1300;
 	$: states = ticketStates ?? $page.data?.ticketStates ?? null;
 
 	/**@type ProcessedPost[]*/
@@ -259,7 +264,7 @@
 </script>
 
 <slot />
-<div class="container">
+<div class="container" bind:clientWidth={width}>
 	<div
 		class="postlist"
 		bind:this={controls}
@@ -273,6 +278,7 @@
 		{/if}
 		<div id="filterbar">
 			<FilterBar
+				{wide}
 				event_toggle={pastEventsToggle ??
 					(tagFilteredPosts.length == 0 ||
 						tagFilteredPosts.some((p) => p.meta.category == 'calendario'))}
@@ -280,9 +286,7 @@
 		</div>
 		{#if outerFilteredPosts.length > 0 || searching}
 			<div class="results">
-				<p class="post-amount" aria-live="polite">
-					{amountLabel(tagFilteredPosts.length)}
-				</p>
+				<TagBar posts={tagFilteredPosts} amount={amountLabel(tagFilteredPosts.length)} {wide} />
 				{#if tagFilteredPosts.length == 0}
 					<div class="empty-state">
 						<p>No encontramos nada con esa búsqueda.</p>
@@ -345,12 +349,6 @@
 		display: flex;
 		justify-content: center;
 		margin-top: var(--space-l);
-	}
-	.post-amount {
-		text-align: right;
-		max-width: 50rem;
-		margin: 0 auto 1.5em;
-		color: var(--muted);
 	}
 	.empty-state {
 		max-width: 50rem;
@@ -429,9 +427,6 @@
 			height: auto;
 			align-self: start;
 			min-width: 0;
-		}
-		#display-type {
-			margin-bottom: 1em;
 		}
 		/* search above the results, filters in the left column beside both */
 		.search {

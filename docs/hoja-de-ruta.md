@@ -133,8 +133,8 @@ de amigues y lanzamientos grandes.
 - Revisar los hallazgos de la auditoría de UX del 4/10 que siguen abiertos (anclas del glosario,
   áreas de toque, migas de pan, búsqueda vacía de la wiki). M.
 - «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`). S.
-- Rediseño de la barra de filtros, con panel desplegable en el celu (#18). M. Bloqueo: maqueta y
-  elección de gorrite.
+- Barra de filtros de las listas: probarla en celulares reales (Android y iPhone) y, cuando se
+  confirme, sacar los prototipos `/estilo/prototipos/filtros-celu` y `filtros-celu-v2`. S.
 - Esconder etiquetas del filtro que no cambiarían los resultados (#17). S–M.
 - Barra de progreso de lectura (#19). S. Bloqueo: confirmar que se sigue queriendo.
 - Ajustes de lectura: tamaño de letra y tema (#20). M. Bloqueo: diseño.
