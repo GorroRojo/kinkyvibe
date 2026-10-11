@@ -1,27 +1,38 @@
 // @ts-nocheck -- test code: loose fixtures, no need for strict JSDoc types
 import { describe, it, expect } from 'vitest';
 import { rehype } from 'rehype';
-import { compile } from 'mdsvex';
 import rehypeSlug from 'rehype-slug';
 import customRehype from './customRehype';
+import { renderFreeBody } from '$lib/server/contenido/freeHtml.js';
 
 /** HTML -> rehype, same plugin order as svelte.config.js (rehypeSlug before customRehype). */
 const run = async (/** @type {string} */ html) =>
 	String(
-		await rehype().data('settings', { fragment: true }).use(rehypeSlug).use(customRehype).process(html)
+		await rehype()
+			.data('settings', { fragment: true })
+			.use(rehypeSlug)
+			.use(customRehype)
+			.process(html)
 	);
 
 /**
- * Markdown -> mdsvex, like the real posts. Wikilinks depend on how the markdown parser splits
- * `[[x]]` into text nodes, so they must be tested through the markdown pipeline.
+ * Markdown -> the pipeline of the texts stored in the database (freeHtml.js: the same as mdsvex's,
+ * with rehype-slug and customRehype; mdsvex itself is gone, decisión 0032). Wikilinks depend on how
+ * the markdown parser splits `[[x]]` into text nodes, so they must be tested through the markdown
+ * pipeline.
  */
 const md = async (/** @type {string} */ source) =>
-	(await compile(source, { rehypePlugins: [rehypeSlug, customRehype] }))?.code.trim();
+	(await renderFreeBody(source)).html
+		// el índice de rehype-toc (vacío en estos textos sin títulos), que mdsvex acá no agregaba
+		.replace(/^<nav class="toc">[\s\S]*?<\/nav>/, '')
+		.trim();
 
 describe('customRehype', () => {
 	it('agrega el link "linktothis" y "backtotop" a los títulos con id', async () => {
 		const out = await run('<h2>Siglas y más</h2>');
-		expect(out).toMatch(/^<h2 id="siglas-y-más"><a href="#siglas-y-más" class="linktothis"[^>]*><svg/);
+		expect(out).toMatch(
+			/^<h2 id="siglas-y-más"><a href="#siglas-y-más" class="linktothis"[^>]*><svg/
+		);
 		expect(out).toContain('class="lucide lucide-link"');
 		expect(out).toMatch(/<a href="#title" class="backtotop"[^>]*><svg[^>]*lucide-corner-right-up/);
 		expect(out).toContain('Siglas y más');

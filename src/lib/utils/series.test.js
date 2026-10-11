@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
 import YAML from 'yaml';
-import { extractFrontmatter, listPosts } from '../../tests/content-lib.js';
+import { seedFiles } from '$lib/server/semilla/testing.js';
+import { splitMarkdown } from './eventDraft.js';
+import { legacyAssetURL, legacyMediaURL } from './legacyMedia.js';
 import tagsFactory from './tags';
 import {
 	SERIES_PARENT,
@@ -60,16 +60,16 @@ describe('seriesTagIds / isSeriesTag / seriesOfTags', () => {
 			expect(isSeriesTag(t, id)).toBe(true);
 			expect(t.get(id).icon).toBeTruthy();
 			const image = seriesImage(t.get(id));
-			expect(existsSync(path.resolve('src/lib/assets', String(image)))).toBe(true);
+			// La imagen vieja (de src/lib/assets, que ya no está): su copia en la biblioteca.
+			expect(legacyAssetURL(String(image))).toBeTruthy();
 		}
 	});
 	it('las ediciones reales de las series hijas siguen siendo ediciones de Picantearla', () => {
-		const posts = listPosts()
-			.filter((p) => p.category === 'calendario')
-			.map((p) => {
-				const doc = YAML.parseDocument(extractFrontmatter(p.source) ?? '');
-				return { slug: p.slug, errors: doc.errors.length, data: doc.toJS() };
-			});
+		// Los eventos reales, de la semilla de contenido (los .md ya no están, decisión 0032).
+		const posts = seedFiles('calendario').map((p) => {
+			const doc = YAML.parseDocument(splitMarkdown(p.raw).frontmatter);
+			return { slug: p.legacySlug, errors: doc.errors.length, data: doc.toJS() };
+		});
 		/** @param {string} id */
 		const tagged = (id) =>
 			posts.filter((p) => (p.data?.tags ?? []).includes(id)).map((p) => p.slug);
@@ -92,7 +92,7 @@ describe('seriesTagIds / isSeriesTag / seriesOfTags', () => {
 			expect(isSeriesTag(t, id)).toBe(true);
 			const image = seriesImage(t.get(id));
 			expect(image).toMatch(/\.webp$/);
-			expect(existsSync(path.resolve('src/lib/assets', String(image)))).toBe(true);
+			expect(legacyAssetURL(String(image))).toBeTruthy();
 		}
 	});
 });
@@ -102,7 +102,7 @@ describe('seriesTagIds / isSeriesTag / seriesOfTags', () => {
 const SERIES_SIN_IMAGEN = ['Merienda Kinky'];
 
 describe('las series del sitio: imagen e ícono', () => {
-	it('cada serie tiene ícono e imagen, y la imagen existe (de src/lib/assets o de un evento)', () => {
+	it('cada serie tiene ícono e imagen, y la imagen existe (su copia en la biblioteca: de src/lib/assets o de un evento)', () => {
 		const t = tagsFactory();
 		const ids = seriesTagIds(t);
 		expect(ids.length).toBeGreaterThan(40);
@@ -112,11 +112,9 @@ describe('las series del sitio: imagen e ícono', () => {
 			if (SERIES_SIN_IMAGEN.includes(id)) continue;
 			const image = String(seriesImage(tag) ?? '');
 			const ref = eventImageRef(image);
-			const file = ref
-				? path.resolve('src/lib/posts/calendario/media', ref.slug, ref.file)
-				: path.resolve('src/lib/assets', image);
+			const url = ref ? legacyMediaURL('calendario', ref.slug, ref.file) : legacyAssetURL(image);
 			expect(image, `${id}: imagen`).not.toBe('');
-			expect(existsSync(file), `${id}: ${image}`).toBe(true);
+			expect(url, `${id}: ${image}`).toBeTruthy();
 		}
 	});
 

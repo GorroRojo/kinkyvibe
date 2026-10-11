@@ -3,6 +3,7 @@
  * públicos): cada uno se importa sin errores y vuelve a dar la misma metadata que usa el sitio.
  */
 import { describe, expect, it } from 'vitest';
+import { seedMetasByPath, seedRawsByPath } from '$lib/server/semilla/testing.js';
 import { coreTypes, validateData } from '../objects/types/index.js';
 import { EVENT_FIELDS, eventToMeta, mdToEvent, nextDay } from './eventos.js';
 import { metaDiff, normalizeMeta } from './parity.js';
@@ -21,15 +22,9 @@ const TEXT_KEYS = Object.entries(EVENT_FIELDS)
 
 /** La metadata como la da mdsvex en este deploy (la misma que usa el sitio). */
 const metas = /** @type {Record<string, Record<string, any> | undefined>} */ (
-	import.meta.glob('/src/lib/posts/calendario/*.md', { import: 'metadata', eager: true })
+	seedMetasByPath('calendario')
 );
-const raws = /** @type {Record<string, string>} */ (
-	import.meta.glob('/src/lib/posts/calendario/*.md', {
-		query: '?raw',
-		import: 'default',
-		eager: true
-	})
-);
+const raws = /** @type {Record<string, string>} */ (seedRawsByPath('calendario'));
 
 /** @param {Record<string, unknown>} meta */
 const norm = (meta) => normalizeMeta(meta, { textKeys: TEXT_KEYS });

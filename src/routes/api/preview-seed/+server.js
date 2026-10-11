@@ -11,24 +11,24 @@ import { PREVIEW_BUILD, isPreviewDeploy } from '$lib/server/deploy.js';
 import { isAdmin } from '$lib/server/auth.js';
 
 /**
- * Noche 3 (#137): /amigues lee los perfiles de la base. Para
- * que la demo no quede con solo los perfiles inventados, se importan las fichas .md públicas de
- * este deploy (lo mismo que Contenido → Amigues → Importar; idempotente). Sin la migración 0017,
- * no hace nada.
+ * /amigues lee los perfiles de la base. Para que la demo no quede con solo los perfiles
+ * inventados, se cargan los perfiles públicos de la semilla de contenido
+ * (src/lib/server/semilla; idempotente: lo que ya está o se editó no se toca). Sin la migración
+ * 0017, no hace nada.
  *
  * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {string} actor
  */
-async function importBundledAmigues(db, actor) {
+async function seedAmigues(db, actor) {
 	const ready = await db
 		.prepare("SELECT 1 AS x FROM sqlite_master WHERE type = 'table' AND name = 'profile_sources'")
 		.first();
 	if (!ready) return null;
-	const [{ importAmigues, summarizeImport }, { bundledAmigueFiles }] = await Promise.all([
-		import('$lib/server/amigues/importer.js'),
-		import('$lib/server/amigues/review.js')
+	const [{ loadSeed }, { default: amigues }] = await Promise.all([
+		import('$lib/server/semilla/index.js'),
+		import('$lib/server/semilla/amigues.json')
 	]);
-	return summarizeImport(await importAmigues(db, await bundledAmigueFiles(), { actor }));
+	return (await loadSeed(db, { amigues }, { actor })).amigues;
 }
 
 /** @type {import('./$types').RequestHandler} */
@@ -46,7 +46,7 @@ export async function POST({ platform, locals }) {
 				branch: __DEPLOY_BRANCH__,
 				fetch
 			});
-			return json({ ...result, amigues: await importBundledAmigues(db, SEED_BY) });
+			return json({ ...result, amigues: await seedAmigues(db, SEED_BY) });
 		} catch (e) {
 			console.error('[demo] no se pudieron recargar los datos de prueba:', e);
 			error(

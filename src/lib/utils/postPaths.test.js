@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { seedRawsByPath } from '$lib/server/semilla/testing.js';
 import { CATEGORIES, isCategory, isPostID, postFilePath } from './postPaths.js';
 
 describe('postFilePath', () => {
@@ -50,8 +51,10 @@ describe('postFilePath', () => {
 		}
 	});
 
-	it('accepts every existing post file name', async () => {
-		const files = Object.keys(import.meta.glob('/src/lib/posts/*/*.md'));
+	it('accepts every real post name (the content seed; the .md files are gone, decisión 0032)', () => {
+		const files = /** @type {const} */ (['calendario', 'material', 'amigues', 'wiki']).flatMap(
+			(c) => Object.keys(seedRawsByPath(c))
+		);
 		expect(files.length).toBeGreaterThan(100);
 		for (const file of files) {
 			const [, , , , category, name] = file.split('/');

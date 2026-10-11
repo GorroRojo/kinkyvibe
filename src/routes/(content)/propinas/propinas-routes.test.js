@@ -6,6 +6,7 @@
  * datos inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { seedMetasByPath, seedRawsByPath } from '$lib/server/semilla/testing.js';
 import { render } from 'svelte/server';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { signWebhook } from '$lib/server/tickets/mercadopago.js';
@@ -39,18 +40,10 @@ afterEach(() => {
 
 const SECRET = 'secreto-webhook-de-prueba';
 
-/** Publicaciones de material con y sin la etiqueta KinkyVibe (las que haya en el repo). */
-const rawPosts = /** @type {Record<string, string>} */ (
-	import.meta.glob('/src/lib/posts/material/*.md', {
-		query: '?raw',
-		import: 'default',
-		eager: true
-	})
-);
-/** La metadata de cada publicación (se compila solo la que se pide). */
-const metaLoaders = /** @type {Record<string, () => Promise<Record<string, any>>>} */ (
-	import.meta.glob('/src/lib/posts/material/*.md', { import: 'metadata' })
-);
+/** Publicaciones de material con y sin la etiqueta KinkyVibe (las de la semilla de contenido). */
+const rawPosts = seedRawsByPath('material');
+/** La metadata de cada publicación (la que daba mdsvex, guardada en la semilla). */
+const metas = seedMetasByPath('material');
 
 /** Las dos publicaciones de la prueba, en la base (de donde sale el material). */
 async function seedMaterial() {
@@ -58,7 +51,7 @@ async function seedMaterial() {
 	for (const kv of [true, false]) {
 		const slug = materialSlug(kv);
 		const path = `/src/lib/posts/material/${slug}.md`;
-		files.push({ legacySlug: slug, raw: rawPosts[path], meta: await metaLoaders[path]() });
+		files.push({ legacySlug: slug, raw: rawPosts[path], meta: metas[path] });
 	}
 	const r = await runImport(t.db, 'material', files, { actor: 'prueba' });
 	expect(r.results.filter((x) => x.action === 'error')).toEqual([]);

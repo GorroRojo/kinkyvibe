@@ -12,16 +12,27 @@
  *   en eventos con `puerta: false` (ver `doorSalesOpen`). Une admin puede pasar esos límites
  *   con confirmación (`doorSaleLimits` + overrides.js).
  * - `insertApprovedOrder`: la orden aprobada del panel (la usan la puerta y la carga a mano).
+ * - `parseDoorSale` / `applyQueuedSales`: las ventas hechas sin conexión (decisión 0035): se
+ *   registran en orden con `sellAtDoor`, de forma idempotente (`client_sale_id`), y si pasan un
+ *   límite se guardan igual y quedan en «Para revisar» (`offline_review`).
  *
  * Privacidad: el DNI completo nunca va en la lista sin conexión ni en el escaneo (solo los
  * últimos 3 dígitos); se pide aparte y se registra quién lo vio.
  */
-import { computePrice, remainingOf } from '$lib/utils/tickets.js';
+import { computePrice, isFondoOption, normalizeDni, remainingOf } from '$lib/utils/tickets.js';
 import { doorPrice } from '$lib/utils/ticketTiers.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { HOLDING } from './discounts.js';
-import { capacityLimit, closedLimit, maxPerPurchaseLimit, noDoorLimit } from './overrides.js';
+import {
+	capacityLimit,
+	closedLimit,
+	limitMessage,
+	limitSummary,
+	logOverride,
+	maxPerPurchaseLimit,
+	noDoorLimit
+} from './overrides.js';
 import { getCounts, isValidToken, issueTicketsStatements } from './orders.js';
 import { isFirstTime } from './series.js';
 
@@ -397,6 +408,13 @@ export async function doorSaleLimits(db, { eventSlug, config, type, quantity, no
 }
 
 /**
+ * Lo que se guarda de una venta hecha sin conexión: el id que le puso el celu (único: un reintento
+ * no crea otra orden) y los límites que pasó al sincronizarse (van a «Para revisar»).
+ *
+ * @typedef {{ clientSaleId: string, review?: import('./overrides.js').ExceededLimit[] | null }} OfflineSaleMark
+ */
+
+/**
  * Crea una orden YA aprobada desde el panel y emite sus entradas, todo en un batch (una
  * transacción): la usan la venta en la puerta (`sellAtDoor`, canal `puerta`, entradas marcadas
  * adentro) y la carga a mano (`createManualOrder` de manual.js, canal `manual`).
@@ -421,9 +439,10 @@ export async function doorSaleLimits(db, { eventSlug, config, type, quantity, no
  *   note?: string | null,
  *   checkIn?: boolean,
  *   override?: boolean,
+ *   offline?: OfflineSaleMark | null,
  *   by: string,
  *   now: number
- * }} input
+ * }} input `offline`: venta hecha sin conexión (ver `applyQueuedSales`)
  * @returns {Promise<{ ok: true, order: Order, tickets: Ticket[] } | { ok: false }>}
  */
 export async function insertApprovedOrder(db, input) {
@@ -432,6 +451,7 @@ export async function insertApprovedOrder(db, input) {
 		throw new Error('Cantidad inválida');
 	}
 	if (holders.length !== quantity) throw new Error('Falta la información de alguna entrada');
+	const offline = input.offline ?? null;
 	const id = crypto.randomUUID();
 	const [inserted] = await db.batch([
 		db
@@ -440,9 +460,9 @@ export async function insertApprovedOrder(db, input) {
 					discount_amount, total, payment_method, buyer_name, buyer_email, holders, status,
 					created_at, updated_at, expires_at, fondo_amount, surcharge_amount, buyer_dni,
 					fondo_option, fondo_contribution, buyer_pronouns, fondo_percent, confirmed_by,
-					channel, admin_note)
+					channel, admin_note${offline ? ', client_sale_id, offline_review' : ''})
 				SELECT ?1, ?2, ?3, ?4, ?5, ?6, 0, ?7, ?8, ?9, ?10, ?11, 'approved', ?12, ?12, ?12,
-					?13, 0, ?14, ?15, ?16, ?17, ?18, ?19, ?21, ?22
+					?13, 0, ?14, ?15, ?16, ?17, ?18, ?19, ?21, ?22${offline ? ', ?24, ?25' : ''}
 				WHERE ?23 = 1 OR ?20 IS NULL OR (
 					SELECT COALESCE(SUM(quantity), 0) FROM orders
 					WHERE event_slug = ?2 AND ticket_type = ?3
@@ -473,7 +493,12 @@ export async function insertApprovedOrder(db, input) {
 				type.capacity,
 				input.channel,
 				input.note || null,
-				input.override ? 1 : 0
+				input.override ? 1 : 0,
+				// Venta sin conexión (migración 0051): las columnas nuevas solo se nombran cuando hay
+				// una, así la venta de siempre y la carga a mano no dependen de la migración.
+				...(offline
+					? [offline.clientSaleId, offline.review?.length ? JSON.stringify(offline.review) : null]
+					: [])
 			),
 		...issueTicketsStatements(db, {
 			id,
@@ -538,6 +563,7 @@ export async function insertApprovedOrder(db, input) {
  *   unitPrice?: number,
  *   fondoPercent?: number | null,
  *   override?: boolean,
+ *   offline?: OfflineSaleMark | null,
  *   by: string,
  *   now?: number
  * }} input
@@ -581,6 +607,7 @@ export async function sellAtDoor(db, input) {
 		channel: 'puerta',
 		checkIn: true,
 		override: input.override,
+		offline: input.offline ?? null,
 		by,
 		now
 	});
@@ -589,6 +616,325 @@ export async function sellAtDoor(db, input) {
 		return { ok: false, reason: 'soldout', available: remainingOf(type, c) };
 	}
 	return r;
+}
+
+/**
+ * Una venta en la puerta ya validada (lo que `sellAtDoor` necesita además del evento y quién).
+ *
+ * @typedef {{
+ *   type: import('./config.js').TicketType,
+ *   quantity: number,
+ *   method: 'efectivo' | 'transferencia',
+ *   option?: import('$lib/utils/tickets.js').PriceOption,
+ *   unitPrice?: number,
+ *   holders: import('./config.js').Holder[],
+ *   buyer: { name: string, pronouns: string, email: string, dni: string | null },
+ *   sendEmail: boolean
+ * }} DoorSaleInput
+ */
+
+/**
+ * Valida los campos de «Vender en puerta» (los del formulario: `type`, `quantity`, `method`,
+ * `name`, `email`, `dni`, `amount` u `option`, `pronouns`, `holder_N`, `pronouns_N`,
+ * `send_email`). La usan la venta con conexión (acción `sell`) y la sincronización de las ventas
+ * hechas sin conexión (`applyQueuedSales`), así las dos aceptan exactamente lo mismo.
+ *
+ * @param {{ types: import('./config.js').TicketType[] }} config
+ * @param {(name: string) => unknown} get el valor de un campo (FormData.get o un objeto)
+ * @returns {{ ok: true, sale: DoorSaleInput } | { ok: false, message: string }}
+ */
+export function parseDoorSale(config, get) {
+	const text = (/** @type {string} */ name, max = 120) =>
+		String(get(name) ?? '')
+			.trim()
+			.slice(0, max);
+	/** @param {string} message */
+	const bad = (message) => /** @type {const} */ ({ ok: false, message });
+	const type = config.types.find((t) => t.id === text('type', 64));
+	if (!type) return bad('Elegí un tipo de entrada.');
+	const quantity = Number(text('quantity', 3));
+	if (!Number.isInteger(quantity) || quantity < 1 || quantity > PANEL_ORDER_HARD_MAX) {
+		return bad(`La cantidad tiene que ser de 1 a ${PANEL_ORDER_HARD_MAX}.`);
+	}
+	const method = text('method', 20);
+	if (method !== 'efectivo' && method !== 'transferencia') {
+		return bad('Elegí cómo pagó: efectivo o transferencia.');
+	}
+	const name = text('name');
+	if (!name) return bad('Falta el nombre de quien compra.');
+	const email = text('email', 200).toLowerCase();
+	if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad('El email no es válido.');
+	const dniRaw = text('dni', 20);
+	const dni = dniRaw ? normalizeDni(dniRaw) : null;
+	if (dniRaw && !dni) return bad('El DNI tiene que tener 7 a 9 números.');
+	/** @type {import('$lib/utils/tickets.js').PriceOption | undefined} */
+	let option;
+	/** @type {number | undefined} */
+	let unitPrice;
+	if (type.gorra) {
+		unitPrice = Number(text('amount', 12).replace(/[.\s$]/g, ''));
+		if (!Number.isSafeInteger(unitPrice) || unitPrice < type.gorra.min) {
+			return bad(`El monto por entrada tiene que ser de al menos $ ${type.gorra.min}.`);
+		}
+	} else {
+		const o = text('option', 20);
+		option = isFondoOption(o) ? /** @type {any} */ (o) : undefined;
+		if (option === 'fondo' && !((doorPrice(type)?.fondo ?? 0) > 0)) option = undefined;
+	}
+	const holders = Array.from({ length: quantity }, (_, i) => ({
+		name: text(`holder_${i}`) || name,
+		pronouns: i === 0 ? text('pronouns', 40) : text(`pronouns_${i}`, 40)
+	}));
+	return {
+		ok: true,
+		sale: {
+			type,
+			quantity,
+			method,
+			option,
+			unitPrice,
+			holders,
+			buyer: { name, pronouns: text('pronouns', 40), email, dni },
+			sendEmail: Boolean(email) && (get('send_email') === 'on' || get('send_email') === true)
+		}
+	};
+}
+
+/** Cuántas ventas sin conexión se sincronizan por pedido como máximo. */
+export const SALE_QUEUE_MAX_ITEMS = 100;
+
+/** Campos de una venta sin conexión que se aceptan (los del formulario de «Vender en puerta»). */
+const SALE_FIELD_RE =
+	/^(type|quantity|method|option|amount|name|pronouns|email|send_email|transfer_seen|holder_\d{1,3}|pronouns_\d{1,3})$/;
+
+/**
+ * Una venta hecha sin conexión, esperando para sincronizar: el id que le puso el celu, la hora
+ * del celu y los campos del formulario (sin el DNI: sin conexión no se guarda en el celu).
+ *
+ * @typedef {{ id: string, at: number, fields: Record<string, string> }} QueuedSale
+ */
+
+/**
+ * @typedef {{
+ *   id: string,
+ *   result: 'ok' | 'duplicate' | 'rejected',
+ *   orderId?: string, ref?: string, buyer?: string, quantity?: number, type?: string,
+ *   total?: number, method?: string, message?: string, review?: string[]
+ * }} SaleSyncResult `review`: los límites que pasó (texto), si pasó alguno
+ */
+
+/**
+ * Valida la cola de ventas que manda el celu (JSON sin confiar). Solo la forma: lo que vale cada
+ * campo lo decide `parseDoorSale` al aplicarla.
+ *
+ * @param {unknown} raw
+ * @returns {QueuedSale[] | null}
+ */
+export function parseSaleQueue(raw) {
+	if (!Array.isArray(raw) || raw.length > SALE_QUEUE_MAX_ITEMS) return null;
+	/** @type {QueuedSale[]} */
+	const out = [];
+	for (const item of raw) {
+		if (!item || typeof item !== 'object') return null;
+		const id = String(item.id ?? '');
+		const at = Number(item.at);
+		if (!/^[A-Za-z0-9_-]{8,64}$/.test(id) || !Number.isFinite(at)) return null;
+		if (!item.fields || typeof item.fields !== 'object') return null;
+		/** @type {Record<string, string>} */
+		const fields = {};
+		for (const [k, v] of Object.entries(item.fields)) {
+			if (SALE_FIELD_RE.test(k)) fields[k] = String(v ?? '').slice(0, 200);
+		}
+		out.push({ id, at, fields });
+	}
+	return out;
+}
+
+/**
+ * La orden que ya se creó para una venta sin conexión, si existe.
+ *
+ * @param {D1Database} db
+ * @param {string} clientSaleId
+ * @returns {Promise<Order | null>}
+ */
+async function orderByClientSaleId(db, clientSaleId) {
+	return /** @type {Order | null} */ (
+		await db.prepare('SELECT * FROM orders WHERE client_sale_id = ?1').bind(clientSaleId).first()
+	);
+}
+
+/**
+ * Límites que pasó una venta sin conexión, como texto (de `offline_review`).
+ * @param {string | null | undefined} json
+ */
+export function offlineReviewMessages(json) {
+	if (!json) return [];
+	try {
+		const list = JSON.parse(json);
+		return Array.isArray(list) ? list.map((l) => limitMessage(l)) : [];
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * Resumen corto de lo que pasó una venta sin conexión (para «Para revisar»).
+ * @param {string | null | undefined} json
+ */
+export function offlineReviewSummary(json) {
+	if (!json) return '';
+	try {
+		const list = JSON.parse(json);
+		return Array.isArray(list) ? list.map((l) => limitSummary(l)).join('; ') : '';
+	} catch {
+		return '';
+	}
+}
+
+/**
+ * Registra las ventas que se hicieron sin conexión en la puerta, **en el orden en que se
+ * hicieron**, con la misma función que la venta con conexión (`sellAtDoor`).
+ *
+ * - **Idempotente**: cada venta trae un id del celu (`client_sale_id`, único en la base). Si ya hay
+ *   una orden con ese id (el celu reintentó porque se cortó en el medio), da `duplicate` con esa
+ *   orden y no crea otra. Si dos pedidos llegan a la vez, el índice único hace fallar al segundo
+ *   (la tanda entera se deshace) y también da `duplicate`.
+ * - **Nunca se pierde una venta por un límite**: si ahora se pasa del cupo, el tipo se agotó
+ *   mientras tanto, son más de 10, el evento es solo anticipadas o se canceló, la venta se guarda
+ *   igual (decide quien organiza, decisión 0035) y esos límites quedan en `offline_review`: la
+ *   orden sale en «Para revisar» y el celu muestra un aviso.
+ * - Solo da `rejected` si los datos no sirven para crear una orden (un tipo que ya no existe, un
+ *   monto inválido): el celu la deja a la vista, no la borra.
+ *
+ * La hora de la venta (y del ingreso) es la del celu, acotada como la de los ingresos sin conexión
+ * (últimos `QUEUE_MAX_AGE_MS`, nunca en el futuro).
+ *
+ * @param {D1Database} db
+ * @param {App.Locals} locals para el registro de actividad
+ * @param {{
+ *   eventSlug: string,
+ *   config: { types: import('./config.js').TicketType[], door?: { on: boolean } | null, status?: string },
+ *   fondoPercent?: number | null,
+ *   by: string,
+ *   items: QueuedSale[],
+ *   now?: number,
+ *   onSold?: (r: { order: Order, tickets: Ticket[], sale: DoorSaleInput }) => Promise<void> | void
+ * }} input `onSold`: después de cada venta nueva (para mandar el mail)
+ * @returns {Promise<SaleSyncResult[]>}
+ */
+export async function applyQueuedSales(db, locals, input) {
+	const { eventSlug, config, by, items, now = Date.now() } = input;
+	/** @type {SaleSyncResult[]} */
+	const out = [];
+	/** @param {string} id @param {Order} o */
+	const duplicate = (id, o) => ({
+		id,
+		result: /** @type {const} */ ('duplicate'),
+		orderId: o.id,
+		ref: orderRef(o.id),
+		buyer: o.buyer_name,
+		quantity: o.quantity,
+		total: o.total,
+		method: o.payment_method,
+		review: offlineReviewMessages(/** @type {any} */ (o).offline_review)
+	});
+	for (const item of items) {
+		const existing = await orderByClientSaleId(db, item.id);
+		if (existing) {
+			out.push(duplicate(item.id, existing));
+			continue;
+		}
+		const parsed = parseDoorSale(config, (name) => item.fields[name]);
+		if (!parsed.ok) {
+			out.push({ id: item.id, result: 'rejected', message: parsed.message });
+			continue;
+		}
+		const { sale } = parsed;
+		const soldAt = Math.min(now, Math.max(now - QUEUE_MAX_AGE_MS, Math.round(item.at)));
+		const limits = await doorSaleLimits(db, {
+			eventSlug,
+			config,
+			type: sale.type,
+			quantity: sale.quantity,
+			now
+		});
+		/** @type {Awaited<ReturnType<typeof sellAtDoor>>} */
+		let r;
+		try {
+			r = await sellAtDoor(db, {
+				eventSlug,
+				door: config.door,
+				// Sin conexión no hubo a quién preguntarle: se vende igual y queda para revisar.
+				override: true,
+				offline: { clientSaleId: item.id, review: limits },
+				type: sale.type,
+				quantity: sale.quantity,
+				holders: sale.holders,
+				buyer: sale.buyer,
+				method: sale.method,
+				option: sale.option,
+				unitPrice: sale.unitPrice,
+				fondoPercent: input.fondoPercent ?? null,
+				by,
+				now: soldAt
+			});
+		} catch (e) {
+			// El índice único de `client_sale_id`: otro pedido con la misma venta llegó primero.
+			const again = await orderByClientSaleId(db, item.id);
+			if (again) out.push(duplicate(item.id, again));
+			else
+				out.push({
+					id: item.id,
+					result: 'rejected',
+					message: e instanceof Error && e.message ? e.message : 'No se pudo registrar.'
+				});
+			continue;
+		}
+		if (!r.ok) {
+			// Con `override` no pasa (no se controla el cupo ni la puerta), pero por las dudas.
+			out.push({ id: item.id, result: 'rejected', message: 'No se pudo registrar.' });
+			continue;
+		}
+		await logAdminAction(db, locals, {
+			action: 'order.door_sale',
+			targetType: 'order',
+			targetId: r.order.id,
+			summary: `Vendió en la puerta sin conexión ${sale.quantity} × ${sale.type.name} (${orderRef(r.order.id)}, ${r.order.payment_method})`,
+			detail: {
+				event: eventSlug,
+				type: sale.type.id,
+				quantity: sale.quantity,
+				method: r.order.payment_method,
+				total: r.order.total,
+				offline: true,
+				soldAt,
+				...(sale.method === 'transferencia'
+					? { transferSeen: item.fields.transfer_seen === 'on' }
+					: {}),
+				...(limits.length ? { overrides: limits } : {})
+			}
+		});
+		await logOverride(db, locals, {
+			event: eventSlug,
+			what: 'venta en la puerta sin conexión',
+			orderId: r.order.id,
+			limits
+		});
+		await input.onSold?.({ order: r.order, tickets: r.tickets, sale });
+		out.push({
+			id: item.id,
+			result: 'ok',
+			orderId: r.order.id,
+			ref: orderRef(r.order.id),
+			buyer: r.order.buyer_name,
+			quantity: sale.quantity,
+			type: sale.type.name,
+			total: r.order.total,
+			method: r.order.payment_method,
+			review: limits.map((l) => limitMessage(l))
+		});
+	}
+	return out;
 }
 
 const TZ = 'America/Argentina/Buenos_Aires';

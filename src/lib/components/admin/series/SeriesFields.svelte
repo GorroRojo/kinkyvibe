@@ -9,7 +9,7 @@
 	 *   nombre de la etiqueta ahora y `key` el que se escribió;
 	 * - `dbMode`: siempre `true` hoy (las etiquetas están en la base; cambia qué se puede elegir al
 	 *   renombrar);
-	 * - `assets`: las imágenes de src/lib/assets para elegir;
+	 * - `assets`: los nombres de las viejas imágenes de series (src/lib/utils/legacyMedia.js) para elegir;
 	 * - `parents` (solo 'create'): las series que pueden ser madre de la nueva (serie hija: una por
 	 *   año, una edición especial). Vacío = no se pregunta;
 	 * - `id`: prefijo único para los ids de los campos.
@@ -116,7 +116,7 @@
 			{#each assets as a (a)}<option value={a}>{a}</option>{/each}
 		</select>
 		<small class="muted">
-			Un archivo de src/lib/assets.
+			Una de las imágenes de series de siempre.
 			{#if eventImage}Ahora usa la imagen del evento «{eventImage.slug}».{/if}
 		</small>
 	</label>

@@ -72,12 +72,10 @@ pueden apagar: el camino «apagado» ya no existe en el código.
 | `propinas` (Propinas)                        | el bloque de propina al pie de las publicaciones de KinkyVibe y «Dejá una propina» en el pie de página, siempre (ya no hay nota del cafecito); `/propinas`                          | [propinas.md](propinas.md)                 |
 | `borrar_desde_panel` (Borrar desde el panel) | el botón «Borrar» en eventos, material y amigues, con «Deshacer» y «Recuperar», siempre                                                                                             | `src/lib/server/admin/deletions.js`        |
 
-Una base nueva (un preview nuevo, la base local) necesita importar el contenido y las etiquetas:
-Contenido → En la base → Importar y Etiquetas → Importar a la base (en la compu,
-`npm run content:import`, que `npm run dev` ya corre solo y que también importa las etiquetas si
-la base no tiene ninguna). Las fichas de amigues se pasan con Perfiles → Importar y clasificar
-(`npm run amigues:import` en la compu); mientras tanto, `/amigues` las sigue mostrando desde su
-`.md`.
+Una base local nueva se llena con la semilla de contenido (`npm run db:semilla`, que
+`npm run dev` ya corre solo): eventos, material, fichas de amigues y, si la base no tiene ninguna,
+etiquetas y wiki ([contenido.md](contenido.md)). Los importadores del panel ya no existen
+([0032](decisiones/0032-borrar-los-md.md)).
 
 ## Cómo prender `lo_que_sigo` (cuando se mergee)
 

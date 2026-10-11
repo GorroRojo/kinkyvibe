@@ -33,7 +33,7 @@ velocidad.
 ## La arquitectura en una página
 
 - **SvelteKit 2 + Svelte 5 en modo legacy** (sin runes: `export let`, `$:`, stores). JavaScript
-  con tipos en JSDoc (solo `src/app.d.ts` es TypeScript). mdsvex para los `.md`.
+  con tipos en JSDoc (solo `src/app.d.ts` es TypeScript).
 - **Cloudflare Workers** (con Workers Builds) y `adapter-cloudflare`; la base es **D1** (`DB`),
   con backups nocturnos a R2. Cada rama tiene su preview con modo demo
   ([workers-migracion.md](workers-migracion.md)).
@@ -46,16 +46,19 @@ velocidad.
   - `login`, `callback`, `logout`: login de admins con GitHub OAuth. `(custom)/cdh`: página propia.
 - **Servidor** (`src/lib/server/`): `auth.js` (quién es admin, `requireAdmin`), `session.js`,
   `db/` (acceso a D1 y herramientas de prueba), `tickets/` (toda la venta de entradas),
-  `admin/` (lógica del panel), `eventos/` (commits a GitHub y editor de eventos), `demo/` (modo
-  demo de los previews). Compartido cliente/servidor: `src/lib/utils/`.
+  `admin/` (lógica del panel), `eventos/` (editor de eventos), `contenido/` (leer y guardar
+  publicaciones en la base), `demo/` (modo demo de los previews). Compartido cliente/servidor:
+  `src/lib/utils/`.
 - **Datos**:
-  - Contenido: archivos `.md` en `src/lib/posts/` (ver [contenido.md](contenido.md)). El panel
-    los edita haciendo commits en `main`. **Plan decidido (0004):** pasarlo a D1 como objetos
-    con tipos, campos, relaciones e historial, empezando por los eventos.
+  - Contenido: eventos, material, perfiles, wiki y etiquetas son **objetos en D1** con historial
+    (decisiones 0004 y 0032; ver [contenido.md](contenido.md)). El panel los guarda en la base y se
+    ven al momento. Ya no hay `.md` en el repo (el último commit que los tenía: tag
+    `posts-md-final`). Tu base local arranca con la semilla de contenido público
+    (`npm run db:semilla`, la carga sola `npm run dev`).
   - Todo lo demás, en D1: órdenes y entradas, códigos, ajustes, plantillas de mails, notas de
     personas, registro de actividad (tablas y quién las usa en [datos.md](datos.md)).
-- **Servicios externos**: Mercado Pago (cobros), Resend (mails), GitHub (login de admins y
-  commits de contenido), fondo.kinkyvibe.ar (porcentaje del Fondo). Los crons
+- **Servicios externos**: Mercado Pago (cobros), Resend (mails), GitHub (login de admins),
+  fondo.kinkyvibe.ar (porcentaje del Fondo). Los crons
   (recordatorios y backup) son del propio Worker (`src/lib/server/scheduled.js`). Los secretos viven en el panel de Cloudflare, nunca en el repo.
 
 ## Convenciones
@@ -70,7 +73,6 @@ velocidad.
 - IDs, tokens y SHAs nunca se tipean a mano: se copian de la salida de un comando.
 - Lo nuevo sale **detrás de un interruptor, apagado** (decisión 0001).
 - Pruebas al lado del código; nunca se saltea ni afloja una para que dé verde.
-- Los `.md` de `src/lib/posts` no se reformatean (los editan personas desde el panel).
 - Antes de tocar un área, leé sus decisiones en `docs/decisiones/`. Contradecir una necesita una
   decisión nueva, no un cambio silencioso.
 
@@ -92,8 +94,8 @@ velocidad.
 
 1. `CLAUDE.md` (reglas cortas, valen para humanes también) y `docs/decisiones/README.md`.
 2. `src/hooks.server.js` y `src/lib/server/auth.js`: cómo entra cada pedido y quién es admin.
-3. Una publicación en `src/lib/posts/calendario/` y `src/routes/(content)/calendario/[event]/`:
-   cómo se arma una página pública.
+3. `src/lib/server/contenido/posts.js` y `src/routes/(content)/calendario/[event]/`: cómo se arma
+   una página pública desde la base.
 4. `src/lib/server/tickets/orders.js` (la reserva atómica) y `checkout.js`: el corazón de la venta.
 5. `src/lib/admin/nav.js` y `src/routes/(authed)/admin/+page.server.js`: el mapa del panel.
 6. `src/lib/server/db/testing.js` y cualquier `*.test.js` de `tickets/`: cómo se prueba.
