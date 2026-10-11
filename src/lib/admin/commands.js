@@ -98,6 +98,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 		'vistas previas al compartir link whatsapp telegram tarjeta imagen og textos titulo descripcion',
 	'ajustes-plantillas':
 		'plantillas textos mails email compra recordatorio mensajes pie de mail asunto',
+	'ajustes-textos-bot':
+		'textos del bot telegram mensajes botones comandos wording palabras inicio ayuda avisos',
 	'ajustes-admins': 'admins permisos equipo organizadores github',
 	'ajustes-interruptores': 'ajustes interruptores funciones nuevas prender apagar activar flags',
 	'ajustes-automatizaciones':
@@ -145,6 +147,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'ajustes-mails': 'mail',
 	'ajustes-vistas-previas': 'eye',
 	'ajustes-plantillas': 'mail',
+	'ajustes-textos-bot': 'mail',
 	'ajustes-admins': 'key',
 	'ajustes-interruptores': 'settings',
 	'ajustes-automatizaciones': 'history',

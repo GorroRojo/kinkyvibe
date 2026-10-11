@@ -1,6 +1,13 @@
 /**
- * Mail con el código para ingresar. Sin el código en el asunto (se ve en las notificaciones del
- * celu) y sin links: el código se escribe en la página donde se pidió.
+ * Mails con códigos de un solo uso: para ingresar y para confirmar una acción delicada. Sin
+ * links: el código se escribe en la página donde se pidió.
+ *
+ * Armados para que Gmail («Copiar código») y Mail de Apple (autocompletar el código) lo detecten
+ * (ver «Códigos copiables» en docs/mails.md): el asunto dice «código» pero no lleva el código (se
+ * ve en las notificaciones del celu; con el código en el asunto, dos pruebas con mails reales no
+ * mostraron ninguna mejora), y en el HTML y en el texto plano el código es lo primero, solo en su
+ * renglón, justo después de una frase con «código». El preencabezado (lo que se lee en la lista de
+ * mails) va en castellano y sin números.
  */
 import { escapeHtml } from '$lib/server/tickets/email.js';
 import { MAIL_STYLES, mailLayout } from '$lib/server/email/layout.js';
@@ -19,7 +26,8 @@ const expires = ({ now = Date.now(), expiresAt = now + CODE_TTL_MS }) =>
 const WHY_CODE = 'Te llega porque alguien pidió un código con este mail en kinkyvibe.ar.';
 
 /**
- * El código grande, en un recuadro (se copia fácil desde el celu).
+ * El código grande, solo en su recuadro (se copia fácil desde el celu y los clientes de mail lo
+ * reconocen como código).
  * @param {string} code
  */
 const codeBlock = (code) =>
@@ -35,9 +43,9 @@ export function buildLoginCodeEmail({ code, now, expiresAt, origin }) {
 	const vence = expires({ now, expiresAt });
 	const subject = 'Tu código para entrar a Kinky Vibe';
 	const text = [
-		'Hola:',
+		'Tu código para entrar a Kinky Vibe es:',
 		'',
-		`Tu código para entrar a Kinky Vibe es: ${code}`,
+		code,
 		'',
 		`Escribilo en la página donde lo pediste. ${vence}. Sirve una sola vez.`,
 		'',
@@ -45,10 +53,10 @@ export function buildLoginCodeEmail({ code, now, expiresAt, origin }) {
 	].join('\n');
 	const html = mailLayout({
 		origin,
+		preheader: 'Escribilo en la página donde lo pediste. Sirve una sola vez.',
 		label: 'Tu código',
 		titleHtml: 'Tu código para entrar',
-		contentHtml: `<p>Hola:</p>
-		<p>Tu código para entrar a Kinky Vibe es:</p>
+		contentHtml: `<p>Tu código para entrar a Kinky Vibe es:</p>
 		${codeBlock(code)}
 		<p>Escribilo en la página donde lo pediste. ${escapeHtml(vence)}. Sirve una sola vez.</p>`,
 		helpHtml:
@@ -77,9 +85,9 @@ export function buildConfirmCodeEmail({ code, purpose, now, expiresAt, origin })
 	const what = CONFIRM_WHAT[purpose];
 	const subject = 'Tu código para confirmar en Kinky Vibe';
 	const text = [
-		'Hola:',
+		`Para confirmar ${what}, escribí este código en Mi rincón:`,
 		'',
-		`Para confirmar ${what}, escribí este código en Mi rincón: ${code}`,
+		code,
 		'',
 		`${vence}. Sirve una sola vez.`,
 		'',
@@ -87,10 +95,10 @@ export function buildConfirmCodeEmail({ code, purpose, now, expiresAt, origin })
 	].join('\n');
 	const html = mailLayout({
 		origin,
+		preheader: 'Escribilo en Mi rincón para confirmar. Sirve una sola vez.',
 		label: 'Tu código',
 		titleHtml: 'Tu código para confirmar',
-		contentHtml: `<p>Hola:</p>
-		<p>Para confirmar ${escapeHtml(what)}, escribí este código en Mi rincón:</p>
+		contentHtml: `<p>Para confirmar ${escapeHtml(what)}, escribí este código en Mi rincón:</p>
 		${codeBlock(code)}
 		<p>${escapeHtml(vence)}. Sirve una sola vez.</p>`,
 		helpHtml:

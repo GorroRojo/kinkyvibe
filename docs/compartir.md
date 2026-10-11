@@ -202,6 +202,10 @@ Cloudflare: `https://kinkyvibe.ar/cdn-cgi/image/width=800,format=jpeg,quality=80
   nuevas dan error 9422 (sin cobrar) y `onerror=redirect` manda a la original.
   Fuente: <https://developers.cloudflare.com/images/pricing/>.
 - Las tarjetas y las imágenes viejas del repo (`/_app/immutable/…`) van tal cual.
+- **Miniaturas del panel**: el recuadro «Hoy» del Inicio usa la misma transformación, pero
+  cuadrada y chica (`thumbnailUrl` y `THUMB_RESIZE` en `seo.js`: 128 × 128, `fit=cover`,
+  `format=auto`), solo si la página se sirve desde `kinkyvibe.ar`. Suma al cupo una por portada
+  de un evento de hoy, una vez por mes: unas pocas.
 
 ## Cómo probar
 

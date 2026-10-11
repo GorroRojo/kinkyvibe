@@ -20,12 +20,21 @@ PRs abiertos:
   nuevo mapa de teclas `g`.
 - #261: reserva por transferencia hasta las 20 del segundo día hábil, sin paso de confirmar.
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
+- #274: «X min de lectura» en material y Kinkipedia, con reloj, la explicación del cálculo y la
+  velocidad de cada persona (navegador y cuenta) (idea de JorgeT10, #46).
+- «Textos del bot» (Ajustes › Comunicación): todo lo que dice el bot de Telegram, editable en el
+  panel, sin migración.
+- Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
+  tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
+  directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
+- #297: códigos copiables, los mails de código (ingresar y confirmar) armados para que Gmail y el celu
+  reconozcan el código ([mails.md](mails.md#códigos-copiables)).
 
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
 BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
 
-PRs viejos para decidir: #46 (tiempo de lectura, de JorgeT10; ver Próximo 6), #43 (notificaciones
-push, de boniSantana) y #25 (negociación interactiva para bottoms).
+PRs viejos para decidir: #43 (notificaciones push, de boniSantana) y #25 (negociación interactiva
+para bottoms). #46 (tiempo de lectura, de JorgeT10) lo reemplaza #274.
 
 ## Próximo
 
@@ -55,27 +64,25 @@ La cola de las noches, en este orden:
    - series: usar `requireAdmin` como el resto del panel, y renombrar el `isAdmin` de
      `objects/visibility.js`;
    - restos de imágenes en R2 (`sharedImage.js`, el campo de texto `perfil.avatar`);
-   - el calendario público calcula «hoy» con la hora local y no la de Argentina;
    - docs: cerrar los «a confirmar» que gorrite ya confirmó y las líneas viejas de `tickets.md`.
 5. **Borrados recuperables** para preguntas de inscripción, roles y notas internas de una
    persona. S–M. Necesita una decisión nueva: [0030](decisiones/0030-para-revisar-y-recuperar.md)
    las dejó permanentes.
-6. **Tiempo de lectura** (#21), rehecho en una rama nueva con crédito a JorgeT10 (#46). S.
-7. **Estándares web**: JSON-LD completo, microformatos (`h-event`, `h-card`), feeds visibles
+6. **Estándares web**: JSON-LD completo, microformatos (`h-event`, `h-card`), feeds visibles
    (webcal de Apple y Outlook en `/calendario`, feed en las páginas de etiquetas),
    `security.txt`, `rel=me`. M.
-8. **Auditoría de SEO y AEO** (buscadores y respuestas de IA): informe y arreglos chicos. M.
-9. **Sistema de diseño**: una página de aprobación por componente para gorrite, versiones para el
+7. **Auditoría de SEO y AEO** (buscadores y respuestas de IA): informe y arreglos chicos. M.
+8. **Sistema de diseño**: una página de aprobación por componente para gorrite, versiones para el
    sitio público (Field, Checkbox, Switch, Notice, Card, Badge, Table), limpiar envoltorios y
    restos de UI, y después fijarlo con pruebas de capturas y reglas de CI. M cada parte.
    Bloqueo: gorrite aprueba cada componente.
-10. **Borradores de páginas legales** antes de vender en serio: términos y devoluciones, aviso de
-    privacidad (Ley 25.326), datos del proveedor, botón de arrepentimiento. M. Bloqueo: gorrite
-    (o alguien de legales) aprueba el texto.
-11. **Bot de Telegram, fase 1 de lo que sigue**: que se vea en el sitio (mención, link desde Mi
+9. **Borradores de páginas legales** antes de vender en serio: términos y devoluciones, aviso de
+   privacidad (Ley 25.326), datos del proveedor, botón de arrepentimiento. M. Bloqueo: gorrite
+   (o alguien de legales) aprueba el texto.
+10. **Bot de Telegram, fase 1 de lo que sigue**: que se vea en el sitio (mención, link desde Mi
     rincón y el pie, textos de `/start` y `/ayuda`), después de #262. S–M. Bloqueo: textos y
     lugar los elige gorrite.
-12. **Prototipos** (para mirar y decidir, no para prender): lista de espera por evento, segundo
+11. **Prototipos** (para mirar y decidir, no para prender): lista de espera por evento, segundo
     proveedor de pago, rol de organizadore, conector de Claude para el panel, IndieWeb y
     ActivityPub. L cada uno.
 
@@ -134,8 +141,8 @@ de amigues y lanzamientos grandes.
 - Revisar los hallazgos de la auditoría de UX del 4/10 que siguen abiertos (anclas del glosario,
   áreas de toque, migas de pan, búsqueda vacía de la wiki). M.
 - «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`). S.
-- Rediseño de la barra de filtros, con panel desplegable en el celu (#18). M. Bloqueo: maqueta y
-  elección de gorrite.
+- Barra de filtros de las listas: probarla en celulares reales (Android y iPhone) y, cuando se
+  confirme, sacar los prototipos `/estilo/prototipos/filtros-celu` y `filtros-celu-v2`. S.
 - Esconder etiquetas del filtro que no cambiarían los resultados (#17). S–M.
 - Barra de progreso de lectura (#19). S. Bloqueo: confirmar que se sigue queriendo.
 - Ajustes de lectura: tamaño de letra y tema (#20). M. Bloqueo: diseño.
@@ -147,21 +154,17 @@ de amigues y lanzamientos grandes.
   de producción lo decide gorrite.
 - Imagen para compartir: más paletas, formatos apaisado y carrusel, estilo por serie. M.
 - Kinkipedia más rica y una lista de series mejor armada. M. Bloqueo: dirección de gorrite.
-- Ícono grande del tipo en el encabezado cuando no hay miniatura (perfiles, series, material,
-  lugares). S.
+- Ícono grande del tipo en el encabezado cuando no hay miniatura, también en las series (perfiles,
+  lugares y material ya lo tienen). S.
 - Passkeys para las cuentas del público. M–L.
 - Botón grande para comprar afuera: cuando las entradas se venden en otro sitio (link externo),
   el llamado a la acción tiene el mismo tamaño y peso que «Comprar entradas» (gorrite, 10/10). S.
-- Tiempo de lectura a la medida de cada persona: «leo rápido / normal / despacio» (por ejemplo
-  250 / 200 / 150 palabras por minuto), guardado en el navegador como las otras preferencias, desde
-  la explicación del «X min de lectura» o los ajustes de lectura (#20). S. Después de #274.
 
 ### Entradas
 
 - Comprar con cuenta: guardar `orders.account_id` al comprar y que `requiere_cuenta` pida
   ingresar de verdad. M. Bloqueo: `requiere_cuenta` necesita decisión de gorrite.
-- Talleres en partes: vista previa de los mails de cada parte en el panel y las fechas de las
-  partes en el estado del pedido. S–M.
+- Talleres en partes: vista previa de los mails de cada parte en el panel. S.
 - Pasar a talleres en partes los talleres viejos de varios días. S. Bloqueo: datos de producción,
   los vincula gorrite (o con su OK, probando antes en el demo).
 - Mercado Pago: elegir el plazo de cobro y cargar la comisión real; probar contracargos y pagos
@@ -181,8 +184,6 @@ de amigues y lanzamientos grandes.
 - Invitar a cada amigue a editar su perfil: desde el panel, mandarle un link por mail para que lo
   gestione desde Mi rincón (con cuenta), sin pasar por les admins para cada cambio (gorrite,
   11/10). M. Revisar cómo se asigna hoy quién gestiona un perfil (docs/amigues.md).
-- Prueba E2E: objetos privados de cada tipo que nunca aparecen en listas, búsqueda, sitemap, RSS,
-  imágenes para compartir ni JSON. M.
 - Borrar objetos para siempre; campos propios y tipos simples desde el panel. L. Bloqueo: diseño.
 - Pestañas arriba en cada sección (como Ajustes) y un menú más simple. M. Bloqueo: proponer la
   estructura antes.
@@ -193,16 +194,48 @@ de amigues y lanzamientos grandes.
 - Más gráficos: mapa de la comunidad, Fondo y finanzas. M.
 - Colaboración en tiempo real con Durable Objects. L.
 - Preguntas de inscripción sugeridas para elegir rápido. S.
+- Miniaturas achicadas en las otras listas del panel (Eventos, Contenido): hoy usan la portada
+  entera; el recuadro «Hoy» ya usa `thumbnailUrl` (`seo.js`). En previews y en local no hay
+  transformaciones de Cloudflare, así que ahí siguen enteras. S.
 
 ### Mails
 
 - Tarjeta de evento en Gmail: los pasos para registrarse con Google y revisar el requisito de
   volumen de envío. S. Bloqueo: gorrite manda el formulario.
+- Códigos copiables (pedido de gorrite, 11/10/2026; #297): en dos pruebas con mails reales, Gmail
+  para celu no mostró «Copiar código» (ni con el código en el asunto) y ofreció traducir el mail
+  «del inglés» (también con `Content-Language: es`). Falta: probar en un iPhone con Mail de Apple;
+  averiguar por qué Gmail lo toma por inglés; sumar el encabezado `OTP-Token` o `One-Time-Code`
+  cuando un cliente de mail lo use. S.
 - Colas (Queues) para los mails y Email Workers para recibir. L.
 - Newsletter general y por combinación de etiquetas. L.
 - Bandeja de entrada en el panel, mails individuales y masivos (fase 5, CRM). L.
 
 ### Telegram
+
+- Puerta por Telegram, después de #273: prenderla en un preview y probarla con celulares reales
+  (vincular, abrir con el botón del bot, escanear); después en producción. S. Bloqueo: gorrite.
+- Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir su
+  dirección (0037). S. (Abrirla sin volver a vincular: «🚪 Puerta» en el inicio del bot, PR
+  `claude/bot-inicio`.)
+- Bot: recorrer el sitio por secciones («📚 Material», «📖 Kinkipedia», «👥 Amigues» en el inicio,
+  con listas y etiquetas), reusando la lista y la tarjeta compacta de `siteScreens.js`. M.
+- Bot: pasar los textos nuevos del modo inline y de la búsqueda (`INLINE_TEXTS` en `inline.js`,
+  `SITE_TEXTS` en `siteScreens.js`) al registro «Textos del bot» cuando esté en `main`. S.
+- Guardar si alguien apagó a propósito los avisos por Telegram de algo, para que volver a seguirlo
+  desde el bot no los prenda de nuevo (hoy la base no lo distingue, 0036). S. Bloqueo: que haga
+  falta (necesita migración).
+- Textos del bot: sumar a «Textos del bot» los de `/inicio` y el botón «🚪 Puerta» del inicio
+  cuando entre `claude/bot-inicio` (si ese PR entra después). S.
+- Textos del bot: sumar los textos de #298 (`INLINE_TEXTS` de `inline.js`, `SITE_TEXTS` de
+  `siteScreens.js`, `SITE_SEARCH_PROMPT_TEXT` y la descripción nueva de `/buscar`) cuando entren
+  los dos PRs: una entrada por texto en `src/lib/utils/botTexts.js` y `botText` en el código. S.
+- Textos del bot: los textos de las páginas de la Mini App del calendario (`/telegram/app`) y de
+  la puerta (`/telegram/puerta`) siguen en el código (son páginas, no mensajes del bot). S.
+  Bloqueo: que haga falta.
+- Bot: borrar las funciones de antes que ya no usa el bot (`formatEventList`, `formatEvent`,
+  `formatChoices`, `formatPickList` en `format.js`; `eventListKeyboard` y `eventDetailKeyboard` en
+  `keyboards.js`) y sus pruebas. S.
 
 - Fase 3: avisos y estado para organizadores, nunca datos de compradores
   ([0029](decisiones/0029-bot-de-telegram.md)). L. Bloqueo: el rol de organizadore.

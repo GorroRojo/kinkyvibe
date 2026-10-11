@@ -218,6 +218,195 @@ test.describe('calendario', () => {
 	});
 });
 
+// Barra de filtros de las listas (TagBar en PostList; docs/estilo.md, «Barra de filtros de las
+// listas»): en el celu, chips + «Filtros» que abre una hoja con solo el árbol de etiquetas; en
+// pantalla ancha, el árbol en la columna de la izquierda y sin hoja.
+test.describe('barra de filtros de las listas', () => {
+	test('en el celu: un chip filtra (y va a ?tags=), «Filtros» abre la hoja con el árbol', async ({
+		browser
+	}) => {
+		const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+		const page = await context.newPage();
+		await acceptAgeGate(page);
+		await page.goto('/material', { waitUntil: 'networkidle' });
+		const bar = page.getByRole('region', { name: 'Filtrar por etiquetas' });
+		await expect(bar).toBeVisible();
+		// sin abrir la hoja no hay árbol en la página
+		await expect(page.locator('#tagfilters')).toHaveCount(0);
+		const chip = bar.locator('input[name="tagbar-chip"]').first();
+		const tag = await chip.getAttribute('value');
+		await chip.check();
+		await expect(page).toHaveURL(new RegExp(`[?&]tags=${encodeURIComponent(tag ?? '')}`));
+		await expect(bar.getByRole('button', { name: 'Filtros (1)' })).toBeVisible();
+		await expect(bar.getByRole('button', { name: 'Limpiar (1)' })).toBeVisible();
+
+		await bar.getByRole('button', { name: 'Filtros (1)' }).click();
+		const sheet = page.locator('dialog[open]');
+		await expect(sheet).toBeVisible();
+		await expect(sheet.locator('#tagfilters')).toBeVisible();
+		// solo el árbol: ni buscador ni «Ver como» ni «Eventos pasados» adentro
+		await expect(sheet.locator('input[type="text"], input[type="search"]')).toHaveCount(0);
+		await expect(sheet.locator('#display-type, #show-past-events')).toHaveCount(0);
+		await page.keyboard.press('Escape');
+		await expect(page.locator('dialog[open]')).toHaveCount(0);
+
+		await bar.getByRole('button', { name: 'Limpiar (1)' }).click();
+		await expect(page).not.toHaveURL(/[?&]tags=/);
+		await context.close();
+	});
+
+	test('en el celu: al bajar, la barra pasa por detrás de la navegación y queda arriba de la lista', async ({
+		browser
+	}) => {
+		const context = await browser.newContext({
+			viewport: { width: 390, height: 800 },
+			isMobile: true,
+			hasTouch: true
+		});
+		const page = await context.newPage();
+		await acceptAgeGate(page);
+		await page.goto('/', { waitUntil: 'networkidle' });
+		const bar = page.locator('.tagbar');
+		await expect(bar).toBeVisible();
+		// La barra, a mitad de camino sobre la navegación (fija abajo en el celu).
+		const navTop = await page.evaluate(() => {
+			const nav = /** @type {Element} */ (document.querySelector('nav')).getBoundingClientRect();
+			const top = /** @type {Element} */ (document.querySelector('.tagbar')).getBoundingClientRect()
+				.top;
+			window.scrollTo({ top: top + window.scrollY - (nav.top + 20), behavior: 'instant' });
+			return nav.top;
+		});
+		await page.waitForTimeout(300);
+		const covered = await page.evaluate(() => {
+			const nav = /** @type {Element} */ (document.querySelector('nav')).getBoundingClientRect();
+			const b = /** @type {Element} */ (document.querySelector('.tagbar')).getBoundingClientRect();
+			const y = (Math.max(b.top, nav.top) + Math.min(b.bottom, nav.bottom)) / 2;
+			return {
+				overlaps: b.bottom > nav.top && b.top < nav.bottom,
+				navOnTop: [0.1, 0.5, 0.9].every((f) =>
+					document.elementFromPoint(nav.left + nav.width * f, y)?.closest('nav')
+				)
+			};
+		});
+		expect(navTop).toBeGreaterThan(400);
+		expect(covered.overlaps).toBe(true);
+		expect(covered.navOnTop).toBe(true);
+		// Más abajo, fija arriba: no se sale de la pantalla y la lista pasa por detrás.
+		await page.evaluate(() => {
+			const top = /** @type {Element} */ (document.querySelector('.tagbar')).getBoundingClientRect()
+				.top;
+			window.scrollTo({ top: top + window.scrollY + 900, behavior: 'instant' });
+		});
+		await page.waitForTimeout(300);
+		const stuck = await page.evaluate(() => {
+			const b = /** @type {Element} */ (document.querySelector('.tagbar')).getBoundingClientRect();
+			return {
+				top: b.top,
+				onTop: [0.2, 0.5, 0.8].every((f) =>
+					document.elementFromPoint(b.left + b.width * f, b.top + b.height / 2)?.closest('.tagbar')
+				)
+			};
+		});
+		expect(stuck.top).toBeGreaterThanOrEqual(0);
+		expect(stuck.top).toBeLessThanOrEqual(1);
+		expect(stuck.onTop).toBe(true);
+		await context.close();
+	});
+
+	test('en el celu: con muchas etiquetas elegidas el buscador queda en una línea', async ({
+		browser
+	}) => {
+		const context = await browser.newContext({ viewport: { width: 360, height: 800 } });
+		const page = await context.newPage();
+		await acceptAgeGate(page);
+		await page.goto(
+			'/material?tags=español,gratis,web,artículo,género y salud sexual,despatologización',
+			{ waitUntil: 'networkidle' }
+		);
+		const field = page.locator('.tag-search .field');
+		await expect(field.locator('.chip')).toHaveCount(6);
+		const box = await field.boundingBox();
+		expect(box?.height).toBeLessThanOrEqual(48);
+		const input = await field.locator('input').boundingBox();
+		expect(input?.width).toBeGreaterThanOrEqual(10 * 15);
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+			360
+		);
+		await context.close();
+	});
+
+	test('«Ver como» con íconos: el elegido queda lleno aunque tenga el mouse encima', async ({
+		browser
+	}) => {
+		const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+		const page = await context.newPage();
+		await acceptAgeGate(page);
+		await page.goto('/material', { waitUntil: 'networkidle' });
+		const grid = page.getByRole('button', { name: 'Ver como grilla' });
+		await grid.click();
+		await expect(grid).toHaveAttribute('aria-pressed', 'true');
+		await expect(page.getByRole('button', { name: 'Ver como lista' })).toHaveAttribute(
+			'aria-pressed',
+			'false'
+		);
+		await expect(page.locator('#posts.grid')).toBeVisible();
+		// el mouse sigue encima (como el hover pegado después de tocar en un celu)
+		await grid.hover();
+		const [bg, ink] = await grid.evaluate((el) => [
+			getComputedStyle(el).backgroundColor,
+			getComputedStyle(el).color
+		]);
+		expect(ink).toBe('rgb(255, 255, 255)');
+		expect(bg).not.toBe('rgba(0, 0, 0, 0)');
+		await context.close();
+	});
+
+	test('en pantalla ancha: el árbol en la columna de la izquierda, sin «Filtros» ni hoja', async ({
+		browser
+	}) => {
+		const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+		const page = await context.newPage();
+		await acceptAgeGate(page);
+		await page.goto('/material', { waitUntil: 'networkidle' });
+		await expect(page.locator('#filterbar #tagfilters')).toBeVisible();
+		const bar = page.getByRole('region', { name: 'Filtrar por etiquetas' });
+		await expect(bar.locator('input[name="tagbar-chip"]').first()).toBeVisible();
+		await expect(bar.getByRole('button', { name: /^Filtros/ })).toBeHidden();
+		await expect(bar.getByRole('button', { name: 'Más filtros' })).toBeHidden();
+		// La lista queda donde estuvo siempre: centrada con las tres columnas de antes (la grilla
+		// tiene 1em de padding a la izquierda, por eso el lado izquierdo mide 16px más). El árbol
+		// cuelga a su izquierda, con --space-l hasta la lista, sin taparla.
+		const m = await page.evaluate(() => {
+			const box = (/** @type {string} */ s) =>
+				/** @type {Element} */ (document.querySelector(s)).getBoundingClientRect();
+			const col = box('#filterbar');
+			const list = box('.results');
+			const group = box('.postlist');
+			const probe = document.createElement('div');
+			probe.style.width = 'var(--space-l)';
+			document.body.append(probe);
+			const spaceL = probe.getBoundingClientRect().width;
+			probe.remove();
+			return {
+				gap: list.left - col.right,
+				spaceL,
+				treeLeft: col.left - group.left,
+				left: list.left - group.left,
+				right: group.right - list.right,
+				listWidth: list.width,
+				barLeft: box('.tagbar').left - list.left
+			};
+		});
+		expect(Math.abs(m.gap - m.spaceL)).toBeLessThanOrEqual(1);
+		expect(m.spaceL).toBeGreaterThan(20);
+		expect(m.treeLeft).toBeGreaterThanOrEqual(0);
+		expect(Math.abs(m.left - m.right - 16)).toBeLessThanOrEqual(2);
+		expect(m.listWidth).toBeCloseTo(800, 0);
+		expect(Math.abs(m.barLeft)).toBeLessThanOrEqual(1);
+		await context.close();
+	});
+});
+
 test.describe('feeds', () => {
 	test('/rss responde con items', async ({ request }) => {
 		const res = await request.get('/rss');

@@ -3,9 +3,28 @@
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
+	import { enhance } from '$app/forms';
 	import { brokenImage } from '$lib/admin/brokenImage.js';
+	import { fmtDateTime } from '$lib/admin/format.js';
+	import { argTime } from '$lib/utils/dates.js';
+	import { Send } from '@lucide/svelte';
 
 	export let data;
+	export let form;
+
+	let busy = false;
+
+	/** @type {import('@sveltejs/kit').SubmitFunction} */
+	const submit = () => {
+		busy = true;
+		return async ({ update }) => {
+			await update({ reset: false });
+			busy = false;
+		};
+	};
+
+	// El link recién creado (solo hasta que se vincula o se recarga la página).
+	$: pending = form?.telegramLink && !data.telegram.linkedAt ? form : null;
 
 	/** @type {Record<number, boolean>} */
 	let failed = {};
@@ -42,10 +61,59 @@
 						>
 						<small class="muted">GitHub · id {a.id}</small>
 					</div>
+					{#if a.telegram}<Badge tone="ok" icon={Send}>Telegram</Badge>{/if}
 					{#if a.me}<Badge tone="info">vos</Badge>{/if}
 				</li>
 			{/each}
 		</ul>
+	</Card>
+	<Card title="Tu Telegram para la puerta">
+		{#if form?.telegramMessage}
+			<p class="kv-flash ok" role="status">{form.telegramMessage}</p>
+		{:else if form?.telegramError}
+			<p class="kv-flash bad" role="alert">{form.telegramError}</p>
+		{/if}
+		{#if data.telegram.linkedAt}
+			<p class="tg-state" data-state="vinculado">
+				<Badge tone="ok" icon={Send}>Vinculado</Badge>
+				desde el {fmtDateTime(data.telegram.linkedAt)}. Con tu Telegram podés marcar ingresos desde
+				la puerta del bot mientras sigas en esta lista.
+			</p>
+			<form method="POST" action="?/desvincularTelegram" use:enhance={submit}>
+				<button class="kv-btn ghost small" type="submit" disabled={busy}>Desvincular</button>
+			</form>
+		{:else if pending}
+			<p>Abrí este link desde el Telegram que vas a usar en la puerta y tocá «Iniciar»:</p>
+			<p class="tg-link">
+				<a class="kv-btn small" href={pending.telegramLink} target="_blank" rel="noopener"
+					>Abrir el bot en Telegram</a
+				>
+			</p>
+			{#if pending.telegramQr}
+				<figure class="tg-qr">
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -- SVG armado en el servidor (qr.js) con nuestro link -->
+					{@html pending.telegramQr}
+					<figcaption class="kv-note">O escaneá el QR con el celular.</figcaption>
+				</figure>
+			{/if}
+			<p class="kv-note">
+				Sirve una sola vez y vence a las {argTime(pending.telegramExpiresAt)}. Cuando el bot te
+				confirme, recargá esta página.
+			</p>
+		{:else}
+			<p class="tg-state" data-state="sin-vincular">
+				Vinculá tu cuenta de Telegram para usar la puerta (control de ingreso) desde el bot. Solo se
+				guarda el número de tu usuario de Telegram.
+			</p>
+			{#if data.telegram.blocked}
+				<p class="kv-note">{data.telegram.blocked}</p>
+			{/if}
+			<form method="POST" action="?/vincularTelegram" use:enhance={submit}>
+				<button class="kv-btn small" type="submit" disabled={busy || !!data.telegram.blocked}
+					>Vincular Telegram</button
+				>
+			</form>
+		{/if}
 	</Card>
 	<p class="kv-note">
 		Por ahora la lista se cambia en el código (<code>src/lib/server/auth.js</code>, por el número de
@@ -85,6 +153,18 @@
 		place-items: center;
 		font-weight: 700;
 		color: var(--muted);
+	}
+	.tg-state {
+		margin-top: 0;
+	}
+	.tg-qr {
+		margin: var(--space-xs) 0;
+	}
+	.tg-qr :global(svg) {
+		width: 180px;
+		height: 180px;
+		display: block;
+		background: #fff;
 	}
 	.who {
 		display: flex;

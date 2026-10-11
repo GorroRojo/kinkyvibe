@@ -71,6 +71,7 @@
 import {
 	ArrowRightLeft,
 	BookOpen,
+	Bot,
 	CalendarDays,
 	CalendarPlus,
 	CalendarRange,
@@ -590,6 +591,17 @@ export const NAV = Object.freeze([
 		icon: Share2,
 		emoji: '🔗',
 		label: 'Vistas previas al compartir',
+		area: 'ajustes',
+		sub: 'comunicacion',
+		soon: false
+	},
+	{
+		// Todo lo que dice el bot de Telegram (docs/telegram.md, «Textos del bot»).
+		id: 'ajustes-textos-bot',
+		href: '/admin/ajustes/textos-bot',
+		icon: Bot,
+		emoji: '💬',
+		label: 'Textos del bot',
 		area: 'ajustes',
 		sub: 'comunicacion',
 		soon: false

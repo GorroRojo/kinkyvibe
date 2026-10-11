@@ -7,6 +7,7 @@
  * - Borrar la cuenta: las órdenes quedan, desvinculadas (P7.6); se van las sesiones, los códigos
  *   pendientes y todos los datos de la persona (la fila queda vacía, con `deleted_at`).
  */
+import { WORDS_PER_MINUTE, parseReadingSpeed } from '$lib/utils/readingTime.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { logAccountCreated } from '$lib/server/admin/accountEvents.js';
 import { hashPassword, needsRehash, passwordProblem, verifyPassword } from './password.js';
@@ -254,6 +255,50 @@ export async function setNoGroupInvites(db, accountId, value, { now = Date.now()
 		)
 		.bind(accountId, now, value ? 1 : 0)
 		.run();
+}
+
+/**
+ * La velocidad de lectura que eligió la cuenta (`preferences.readingSpeed`, palabras por minuto;
+ * $lib/utils/readingSpeed.js), o `null` si no eligió ninguna (la de siempre).
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @returns {Promise<number | null>}
+ */
+export async function getReadingSpeed(db, accountId) {
+	const row = await db
+		.prepare(
+			`SELECT json_extract(preferences, '$.readingSpeed') AS v FROM accounts
+			WHERE id = ?1 AND deleted_at IS NULL`
+		)
+		.bind(accountId)
+		.first();
+	return parseReadingSpeed(row?.v ?? null);
+}
+
+/**
+ * Guarda la velocidad de lectura de la cuenta (llevada al rango permitido), o la saca con `null`
+ * (o con la de siempre: no queda nada guardado). Devuelve lo que quedó.
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {unknown} wpm
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<number | null>}
+ */
+export async function setReadingSpeed(db, accountId, wpm, { now = Date.now() } = {}) {
+	const parsed = parseReadingSpeed(wpm);
+	const value = parsed === WORDS_PER_MINUTE ? null : parsed;
+	await db
+		.prepare(
+			`UPDATE accounts SET updated_at = ?2, preferences = CASE WHEN ?3 IS NULL
+				THEN json_remove(preferences, '$.readingSpeed')
+				ELSE json_set(preferences, '$.readingSpeed', ?3) END
+			WHERE id = ?1 AND deleted_at IS NULL`
+		)
+		.bind(accountId, now, value)
+		.run();
+	return value;
 }
 
 /**
