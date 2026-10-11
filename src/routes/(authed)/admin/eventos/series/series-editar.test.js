@@ -9,7 +9,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
-import { fakeRequestEvent } from '$lib/server/series/fixtures.js';
+import { fakeRequestEvent, thrown } from '$lib/server/series/fixtures.js';
 import seedTagList from '$lib/server/semilla/etiquetas.json';
 import { importTags } from '$lib/server/etiquetas/importer.js';
 import { loadTagRecords } from '$lib/server/etiquetas/read.js';
@@ -183,8 +183,11 @@ describe('Editar serie', () => {
 			status: 404
 		});
 		expect(
-			await mod.actions.editar(post(EDIT, { id: 1, login: 'alguien-de-prueba' }))
+			await thrown(() => mod.actions.editar(post(EDIT, { id: 1, login: 'alguien-de-prueba' })))
 		).toMatchObject({ status: 403 });
+		expect(await thrown(() => mod.actions.editar(post(EDIT, null)))).toMatchObject({
+			status: 303
+		});
 		expect(commits).toHaveLength(0);
 	});
 

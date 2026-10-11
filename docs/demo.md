@@ -189,8 +189,8 @@ Además, en un preview la página de error muestra el mensaje del error (`handle
 
 ## Cómo se bloquea en producción
 
-Todo el modo demo depende de la rama que se compila (`__DEPLOY_BRANCH__`, de `WORKERS_CI_BRANCH`
-o `CF_PAGES_BRANCH`; `src/lib/server/deployBranch.js`). No hay variable de entorno que lo prenda:
+Todo el modo demo depende de la rama que se compila (`__DEPLOY_BRANCH__`, de `WORKERS_CI_BRANCH`,
+que pone Workers Builds; `src/lib/server/deployBranch.js`). No hay variable de entorno que lo prenda:
 en el build de producción (rama `main`), en local y en los tests, `PREVIEW_BUILD` es `false`, el
 seed y el botón quedan fuera del bundle y `/api/preview-seed` da 404 aunque se carguen variables
 en el panel. Lo verifica CI:
