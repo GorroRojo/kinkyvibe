@@ -2,25 +2,39 @@
 	/**
 	 * /propinas: el mismo bloque de propina de las publicaciones, para cuando el formulario se
 	 * mandó sin JavaScript y volvió con algo para corregir (o se entró con `?de=material/<slug>`).
+	 * Con `?de=fondo` (interruptor `propinas_fondo`), la versión para el Fondo, sin publicación, con
+	 * el `?monto=` ya elegido si es válido.
 	 */
 	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
-	import { tipPost, tipPostPath } from '$lib/utils/propinas.js';
+	import {
+		FONDO_SITE_URL,
+		TIP_SOURCE_FONDO,
+		presetValues,
+		tipPost,
+		tipPostPath
+	} from '$lib/utils/propinas.js';
 
 	export let data;
 	export let form;
 
 	/** @type {Partial<import('$lib/utils/propinas.js').TipFormValues>} */
 	let values = {};
-	$: values = form?.values ?? {};
-	$: post = tipPost(values.category, values.slug) ?? data.post;
+	$: fondo = form?.values
+		? form.values.source === TIP_SOURCE_FONDO && data.fondoEnabled
+		: data.fondo;
+	$: values = form?.values ?? (fondo ? presetValues(data.monto) : {});
+	$: post = fondo ? null : (tipPost(values.category, values.slug) ?? data.post);
 </script>
 
 <svelte:head>
-	<title>Dejá una propina · Kinky Vibe</title>
+	<title>{fondo ? 'Propina para el Fondo' : 'Dejá una propina'} · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-{#if post}
+{#if fondo}
+	<TipBlock heading="h1" fondo {values} errors={form?.errors ?? {}} error={form?.error ?? ''} />
+	<p class="back"><a href={FONDO_SITE_URL}>Volver al Fondo Kinky Vibe</a></p>
+{:else if post}
 	<TipBlock
 		heading="h1"
 		category={post.category}

@@ -5,7 +5,7 @@
  */
 import { logDBError } from '$lib/server/db';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
-import { validateTip } from '$lib/utils/propinas.js';
+import { TIP_SOURCE_FONDO, validateTip } from '$lib/utils/propinas.js';
 import {
 	TIP_RATE_LIMITS,
 	buildTipPreference,
@@ -42,7 +42,8 @@ export function isSafeCheckoutUrl(url, origin) {
 
 /**
  * Lee el formulario (todo como texto acotado; el servidor valida después). No lee `destination`:
- * toda propina va al Fondo.
+ * toda propina va al Fondo. `source` es `fondo` solo si llega exactamente eso (desde
+ * `/propinas?de=fondo`); si no, queda vacío (una propina de publicación).
  * @param {FormData} form
  * @returns {TipFormValues}
  */
@@ -54,12 +55,15 @@ export function readTipForm(form) {
 		custom: get('custom', 20),
 		message: get('message', 600),
 		category: get('category', 20),
-		slug: get('slug', 160)
+		slug: get('slug', 160),
+		source: get('source', 10) === TIP_SOURCE_FONDO ? TIP_SOURCE_FONDO : ''
 	};
 }
 
 /**
- * Crea la propina (pendiente) y su preferencia de MP.
+ * Crea la propina (pendiente) y su preferencia de MP. Una propina desde el Fondo
+ * (`values.source = 'fondo'`) no tiene publicación y solo se acepta con `fondoEnabled` (el
+ * interruptor `propinas_fondo`); apagado, 404.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
@@ -68,6 +72,7 @@ export function readTipForm(form) {
  *   client: string,
  *   origin: string,
  *   findPost: (category: 'material' | 'calendario', slug: string) => Promise<{ title: string } | null>,
+ *   fondoEnabled?: boolean,
  *   now?: number
  * }} input
  * @returns {Promise<{ ok: true, checkoutUrl: string, tipId: string }
@@ -80,6 +85,7 @@ export async function startTip({
 	client,
 	origin,
 	findPost,
+	fondoEnabled = false,
 	now = Date.now()
 }) {
 	/** @param {number} status @param {string} error @param {Record<string, string>} [errors] */
@@ -100,14 +106,22 @@ export async function startTip({
 		return failWith(500, 'No pudimos preparar tu propina. Probá de nuevo más tarde.');
 	}
 
+	if (values.source === TIP_SOURCE_FONDO && !fondoEnabled) {
+		return failWith(404, 'Las propinas para el Fondo desde acá todavía no están disponibles.');
+	}
 	const valid = validateTip(values);
 	if (!valid.ok) return failWith(400, 'Revisá lo marcado.', valid.errors);
 
-	const post = await findPost(valid.category, valid.slug).catch(() => null);
-	if (!post) {
-		return failWith(400, 'Revisá lo marcado.', {
-			post: 'No encontramos la publicación desde la que llegaste.'
-		});
+	/** @type {string | null} */
+	let postTitle = null;
+	if (valid.source === 'post') {
+		const post = await findPost(valid.category, valid.slug).catch(() => null);
+		if (!post) {
+			return failWith(400, 'Revisá lo marcado.', {
+				post: 'No encontramos la publicación desde la que llegaste.'
+			});
+		}
+		postTitle = post.title;
 	}
 	if (!gateway) return failWith(503, 'El pago con Mercado Pago no está disponible ahora.');
 
@@ -121,7 +135,7 @@ export async function startTip({
 	}
 	try {
 		const created = await gateway.createPreference(
-			buildTipPreference({ tip, postTitle: post.title, origin }),
+			buildTipPreference({ tip, postTitle, origin }),
 			tip.id
 		);
 		if (!isSafeCheckoutUrl(created.init_point, origin)) {

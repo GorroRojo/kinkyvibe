@@ -16,18 +16,26 @@
 import { checkoutProPreference } from '$lib/server/tickets/mercadopago.js';
 import { mapPaymentStatus, nextStatus } from '$lib/server/tickets/orders.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
-import { TIP_DESTINATION, TIP_DESTINATION_LABELS, TIP_STATUS_LABELS } from '$lib/utils/propinas.js';
+import {
+	TIP_DESTINATION,
+	TIP_DESTINATION_LABELS,
+	TIP_SOURCE_LABELS,
+	TIP_STATUS_LABELS
+} from '$lib/utils/propinas.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {'pending' | 'approved' | 'rejected' | 'refunded'} TipStatus */
 /** @typedef {import('$lib/utils/propinas.js').TipDestination} TipDestination */
+/** @typedef {import('$lib/utils/propinas.js').TipSource} TipSource */
 /**
  * @typedef {{
  *   id: string, amount: number, status: TipStatus, post_category: 'material' | 'calendario',
  *   post_slug: string, message: string | null, mp_preference_id: string | null,
  *   mp_payment_id: string | null, created_at: number, updated_at: number,
- *   approved_at: number | null, destination: TipDestination
+ *   approved_at: number | null, destination: TipDestination, source: TipSource
  * }} Tip
+ * `source = 'fondo'` (desde fondo.kinkyvibe.ar, migración 0052): no tiene publicación; se guarda con
+ * `post_category = 'material'` y `post_slug = ''` porque esas columnas no aceptan `NULL`.
  */
 
 /** Prefijo del `external_reference` de MP: así el webhook distingue propinas de órdenes. */
@@ -76,7 +84,9 @@ export function tipIdFromReference(ref) {
  * Cuerpo de la preferencia de Checkout Pro para una propina. Sin `payer`: no pedimos datos de
  * quien deja la propina (MP pide lo que necesite en su checkout).
  *
- * @param {{ tip: Pick<Tip, 'id' | 'amount' | 'created_at'> & { destination?: TipDestination }, postTitle: string, origin: string }} input
+ * `postTitle`: la publicación; `null` para una propina desde el Fondo (sin publicación).
+ *
+ * @param {{ tip: Pick<Tip, 'id' | 'amount' | 'created_at'> & { destination?: TipDestination }, postTitle: string | null, origin: string }} input
  */
 export function buildTipPreference({ tip, postTitle, origin }) {
 	const forWho = tip.destination === 'fondo' ? 'el Fondo Kinky Vibe' : 'Kinky Vibe';
@@ -84,7 +94,7 @@ export function buildTipPreference({ tip, postTitle, origin }) {
 		items: [
 			{
 				id: 'propina',
-				title: `Propina para ${forWho} · ${postTitle}`,
+				title: postTitle ? `Propina para ${forWho} · ${postTitle}` : `Propina para ${forWho}`,
 				quantity: 1,
 				unit_price: tip.amount,
 				currency_id: 'ARS'
@@ -101,24 +111,35 @@ export function buildTipPreference({ tip, postTitle, origin }) {
  * Guarda una propina pendiente (antes de mandar a la persona a MP).
  *
  * @param {D1Database} db
- * @param {{ amount: number, message: string | null, category: 'material' | 'calendario', slug: string, destination?: TipDestination }} input
+ * @param {{ amount: number, message: string | null, category: 'material' | 'calendario' | null, slug: string | null, destination?: TipDestination, source?: TipSource }} input
  *   `destination`: si no viene, el Fondo ({@link TIP_DESTINATION}), que es lo que manda siempre
  *   `validateTip`. Otro valor solo sirve para armar propinas viejas en los tests.
+ *   `source`: `post` por defecto; con `fondo` se ignoran `category` y `slug` (ver {@link Tip}).
  * @param {{ now?: number }} [opts]
  * @returns {Promise<Tip>}
  */
 export async function createTip(
 	db,
-	{ amount, message, category, slug, destination = TIP_DESTINATION },
+	{ amount, message, category, slug, destination = TIP_DESTINATION, source = 'post' },
 	{ now = Date.now() } = {}
 ) {
 	const id = crypto.randomUUID();
+	const fromFondo = source === 'fondo';
 	await db
 		.prepare(
-			`INSERT INTO tips (id, amount, status, post_category, post_slug, message, destination, created_at, updated_at)
-			VALUES (?1, ?2, 'pending', ?3, ?4, ?5, ?6, ?7, ?7)`
+			`INSERT INTO tips (id, amount, status, post_category, post_slug, message, destination, source, created_at, updated_at)
+			VALUES (?1, ?2, 'pending', ?3, ?4, ?5, ?6, ?7, ?8, ?8)`
 		)
-		.bind(id, amount, category, slug, message, destination, now)
+		.bind(
+			id,
+			amount,
+			fromFondo ? 'material' : category,
+			fromFondo ? '' : slug,
+			message,
+			destination,
+			fromFondo ? 'fondo' : 'post',
+			now
+		)
 		.run();
 	return /** @type {Tip} */ (await getTip(db, id));
 }
@@ -279,7 +300,8 @@ export function readFondoTipTotals(row) {
 
 /**
  * Totales de las propinas aprobadas: en total, por destino, por mes (hora de Argentina, por fecha
- * de aprobación) y por publicación.
+ * de aprobación) y por publicación (las de fondo.kinkyvibe.ar, sin publicación, van juntas en una
+ * fila con `source = 'fondo'`).
  *
  * @param {D1Database} db
  */
@@ -296,8 +318,8 @@ export async function tipSummary(db) {
 			)
 			.bind(AR_OFFSET_MS),
 		db.prepare(
-			`SELECT post_category, post_slug, COUNT(*) AS count, SUM(amount) AS total
-			FROM tips WHERE status = 'approved' GROUP BY post_category, post_slug
+			`SELECT source, post_category, post_slug, COUNT(*) AS count, SUM(amount) AS total
+			FROM tips WHERE status = 'approved' GROUP BY source, post_category, post_slug
 			ORDER BY total DESC, count DESC LIMIT 50`
 		),
 		db.prepare(
@@ -328,6 +350,7 @@ export async function tipSummary(db) {
 			total: Number(r.total)
 		})),
 		byPost: /** @type {any[]} */ (byPost.results).map((r) => ({
+			source: /** @type {TipSource} */ (r.source === 'fondo' ? 'fondo' : 'post'),
 			category: String(r.post_category),
 			slug: String(r.post_slug),
 			count: Number(r.count),
@@ -373,7 +396,8 @@ export const TIP_CSV_COLUMNS = [
 	{ label: 'publicacion', key: 'post_slug' },
 	{ label: 'mensaje', value: (t) => t.message ?? '' },
 	{ label: 'pago_mp', value: (t) => t.mp_payment_id ?? '' },
-	{ label: 'destino', value: (t) => TIP_DESTINATION_LABELS[t.destination] ?? t.destination }
+	{ label: 'destino', value: (t) => TIP_DESTINATION_LABELS[t.destination] ?? t.destination },
+	{ label: 'origen', value: (t) => TIP_SOURCE_LABELS[t.source] ?? t.source ?? '' }
 ];
 
 /** Re-chequeos con MP desde la página de gracias, por propina (si el webhook tarda). */
