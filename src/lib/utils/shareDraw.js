@@ -5,8 +5,24 @@
 // palabras chicas intercaladas, franjas cruzadas con la fecha, estrellas con el precio,
 // barra al pie con dónde anotarse y una nota con asterisco para quién es el evento.
 
-import { FONTS, SITE, STATUS, statusLines, eventInfo, shortPlace, defaultTexts } from './shareImage.js';
-import { hexToRgb, readableText, ensureContrast, mix, luminance, contrastRatio, DARK_TEXT } from './palette.js';
+import {
+	FONTS,
+	SITE,
+	STATUS,
+	statusLines,
+	eventInfo,
+	shortPlace,
+	defaultTexts
+} from './shareImage.js';
+import {
+	hexToRgb,
+	readableText,
+	ensureContrast,
+	mix,
+	luminance,
+	contrastRatio,
+	DARK_TEXT
+} from './palette.js';
 
 /** @param {import('./shareImage.js').FontOption} f @param {string} second */
 const stack = (f, second) => `'${f.family}', '${second}', ${f.fallback}`;
@@ -112,7 +128,8 @@ export function fitText(ctx, text, o) {
 	if (lines.length > n) {
 		lines = lines.slice(0, n);
 		let last = lines[n - 1];
-		while (last.length > 1 && ctx.measureText(last + '…').width > o.maxWidth) last = last.slice(0, -1);
+		while (last.length > 1 && ctx.measureText(last + '…').width > o.maxWidth)
+			last = last.slice(0, -1);
 		lines[n - 1] = last.replace(/[\s,.:;-]+$/, '') + '…';
 	}
 	return { lines, size, lineHeight: size * lh };
@@ -301,7 +318,9 @@ function starburst(ctx, cx, cy, r, lines, bg, fg, shadow) {
 		setFont(ctx, DISPLAY, size);
 	}
 	const lh = size * 0.95;
-	lines.forEach((l, i) => ctx.fillText(l, cx, cy + (i - (lines.length - 1) / 2) * lh + size * 0.06));
+	lines.forEach((l, i) =>
+		ctx.fillText(l, cx, cy + (i - (lines.length - 1) / 2) * lh + size * 0.06)
+	);
 	ctx.restore();
 }
 
@@ -396,7 +415,11 @@ export function layoutTitle(ctx, text, o) {
 		const tokens = raw.map((t) => {
 			if (t.small) {
 				setFont(ctx, ROUND, smallSize, 600);
-				return { text: t.text.toLowerCase(), small: true, w: ctx.measureText(t.text.toLowerCase()).width };
+				return {
+					text: t.text.toLowerCase(),
+					small: true,
+					w: ctx.measureText(t.text.toLowerCase()).width
+				};
 			}
 			setFont(ctx, DISPLAY, size);
 			const up = t.text.toUpperCase();
@@ -544,7 +567,6 @@ function badge(ctx, logo, x, y, s, p, rot = -0.12) {
 	ctx.restore();
 }
 
-
 /* ------------------------------------------------------------------ */
 /* Bloques comunes                                                     */
 /* ------------------------------------------------------------------ */
@@ -584,7 +606,12 @@ const rgba = (hex, a) => {
 const lowerFirst = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 /** @param {string} text @param {number} max */
 const firstWords = (text, max) =>
-	text.length <= max ? text : text.slice(0, max).replace(/\s+\S*$/, '').replace(/[\s,.:;-]+$/, '') + '…';
+	text.length <= max
+		? text
+		: text
+				.slice(0, max)
+				.replace(/\s+\S*$/, '')
+				.replace(/[\s,.:;-]+$/, '') + '…';
 /** @param {string} s */
 const upperFirst = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -606,7 +633,7 @@ function titleBlock(ctx, t, box, p, o) {
 				minSize: Math.min(26, kickSize),
 				weight: 600,
 				maxLines: 2
-		  })
+			})
 		: null;
 	const sub = t.sub
 		? fitText(ctx, t.sub, {
@@ -617,7 +644,7 @@ function titleBlock(ctx, t, box, p, o) {
 				weight: 700,
 				lineHeight: 1.08,
 				maxLines: 2
-		  })
+			})
 		: null;
 	const kickH = kick ? kick.lines.length * kick.lineHeight + 12 : 0;
 	const subH = sub ? sub.lines.length * sub.lineHeight + 14 : 0;
@@ -629,7 +656,7 @@ function titleBlock(ctx, t, box, p, o) {
 				maxSize: o.maxSize,
 				minSize: o.minSize ?? 40,
 				maxLines: o.maxLines
-		  })
+			})
 		: { size: 0, lineH: 0, lines: [], w: 0, h: 0 };
 	const h = kickH + title.h + subH;
 	let y = box.y;
@@ -705,7 +732,14 @@ function ctaLines(ctx, t, maxW, size) {
 	/** @type {{text:string, size:number}[]} */
 	const out = [];
 	if (t.cta) {
-		const f = fitText(ctx, t.cta, { maxWidth: maxW, maxHeight: size * 1.2, maxSize: size, minSize: size * 0.7, weight: 600, maxLines: 1 });
+		const f = fitText(ctx, t.cta, {
+			maxWidth: maxW,
+			maxHeight: size * 1.2,
+			maxSize: size,
+			minSize: size * 0.7,
+			weight: 600,
+			maxLines: 1
+		});
 		out.push({ text: f.lines[0], size: f.size });
 	}
 	if (url) {
@@ -733,8 +767,21 @@ function footerBars(ctx, t, f, p, opt = {}) {
 	/** @type {{lines:{text:string, size:number}[], bg:string, fg:string, qr:boolean[][]|null}[]} */
 	const items = [];
 	if (note) {
-		const fn = fitText(ctx, note, { maxWidth: f.w - 90 * s, maxHeight: 28 * s * 2.5, maxSize: 28 * s, minSize: 20 * s, weight: 600, lineHeight: 1.2, maxLines: 2 });
-		items.push({ lines: fn.lines.map((text) => ({ text, size: fn.size })), bg: p.note, fg: p.noteText, qr: null });
+		const fn = fitText(ctx, note, {
+			maxWidth: f.w - 90 * s,
+			maxHeight: 28 * s * 2.5,
+			maxSize: 28 * s,
+			minSize: 20 * s,
+			weight: 600,
+			lineHeight: 1.2,
+			maxLines: 2
+		});
+		items.push({
+			lines: fn.lines.map((text) => ({ text, size: fn.size })),
+			bg: p.note,
+			fg: p.noteText,
+			qr: null
+		});
 	}
 	if (main.length || qr) items.push({ lines: main, bg: p.bar, fg: p.barText, qr });
 	let y = f.h - f.bottom;
@@ -803,9 +850,18 @@ function priceBurst(ctx, cx, cy, r, price, note, p) {
 	setFont(ctx, DISPLAY, size);
 	while (ctx.measureText(price).width > r * 1.45 && size > 12) setFont(ctx, DISPLAY, (size -= 2));
 	const nf = note
-		? fitText(ctx, note, { maxWidth: r * 1.3, maxHeight: r * 0.42, maxSize: r * 0.15, minSize: r * 0.1, weight: 600, lineHeight: 1.05, maxLines: 3 })
+		? fitText(ctx, note, {
+				maxWidth: r * 1.3,
+				maxHeight: r * 0.42,
+				maxSize: r * 0.15,
+				minSize: r * 0.1,
+				weight: 600,
+				lineHeight: 1.05,
+				maxLines: 3
+			})
 		: null;
-	const total = (label ? labelS * 1.1 : 0) + size * 1.02 + (nf ? nf.lines.length * nf.lineHeight + 4 : 0);
+	const total =
+		(label ? labelS * 1.1 : 0) + size * 1.02 + (nf ? nf.lines.length * nf.lineHeight + 4 : 0);
 	let y = cy - total / 2;
 	if (label) {
 		setFont(ctx, ROUND, labelS, 700);
@@ -830,7 +886,8 @@ function priceBurst(ctx, cx, cy, r, price, note, p) {
 function statusSticker(ctx, o, p, x, y, r, tapeY, w) {
 	if (!o.status) return;
 	const text = o.texts.status.trim();
-	if (STATUS[o.status]?.tape) tape(ctx, w / 2, tapeY, w * 1.6, text.toUpperCase(), p.tape, p.tapeText, -0.07);
+	if (STATUS[o.status]?.tape)
+		tape(ctx, w / 2, tapeY, w * 1.6, text.toUpperCase(), p.tape, p.tapeText, -0.07);
 	else starburst(ctx, x, y, r, statusLines(text, o.status), stickerColor(p), p.bg, p.extrude);
 }
 
@@ -896,11 +953,30 @@ function tplFlyer(ctx, o, f, p) {
 	grain(ctx, w, h, 0.12);
 	const barsTop = footerBars(ctx, t, f, p, { dry: true });
 	const line = [t.date, t.hours, t.place].filter(Boolean).join('  |  ');
-	const pillO = { size: 46 * s, bg: p.pillBg, fg: p.pillFg, shadow: p.extrude, align: /** @type {const} */ ('center'), rot: -0.02, maxW: w - 90 * s };
+	const pillO = {
+		size: 46 * s,
+		bg: p.pillBg,
+		fg: p.pillFg,
+		shadow: p.extrude,
+		align: /** @type {const} */ ('center'),
+		rot: -0.02,
+		maxW: w - 90 * s
+	};
 	const lp = line ? pill(ctx, line, w / 2, 0, { ...pillO, dry: true }) : { w: 0, h: 0 };
 	// el detalle largo de la entrada va en la ficha; acá solo si es corto
-	const priceLine = [t.price, t.priceInfo.length <= 48 ? t.priceInfo : ''].filter(Boolean).join(' · ') || firstWords(t.priceInfo, 48);
-	const priceO = { size: 34 * s, family: ROUND, weight: 700, bg: p.small, fg: readableText(p.small), shadow: null, align: /** @type {const} */ ('center'), maxW: w - 140 * s };
+	const priceLine =
+		[t.price, t.priceInfo.length <= 48 ? t.priceInfo : ''].filter(Boolean).join(' · ') ||
+		firstWords(t.priceInfo, 48);
+	const priceO = {
+		size: 34 * s,
+		family: ROUND,
+		weight: 700,
+		bg: p.small,
+		fg: readableText(p.small),
+		shadow: null,
+		align: /** @type {const} */ ('center'),
+		maxW: w - 140 * s
+	};
 	const pp = priceLine ? pill(ctx, priceLine, w / 2, 0, { ...priceO, dry: true }) : { w: 0, h: 0 };
 	const infoH = (lp.h ? lp.h + 24 * s : 0) + (pp.h ? pp.h + 16 * s : 0);
 	const boxTop = f.top + 56 * s;
@@ -928,8 +1004,25 @@ function tplFlyer(ctx, o, f, p) {
 		yy += lp.h + 24 * s;
 	}
 	if (priceLine) pill(ctx, priceLine, w / 2, yy, priceO);
-	badge(ctx, o.logo, Math.max(16 * s, x - 56 * s), Math.max(f.top + 10 * s, y - 50 * s), 136 * s, p, -0.12);
-	statusSticker(ctx, o, p, Math.min(w - 130 * s, x + dw - 20 * s), y + dh - 60 * s, 118 * s, y + dh * 0.6, w);
+	badge(
+		ctx,
+		o.logo,
+		Math.max(16 * s, x - 56 * s),
+		Math.max(f.top + 10 * s, y - 50 * s),
+		136 * s,
+		p,
+		-0.12
+	);
+	statusSticker(
+		ctx,
+		o,
+		p,
+		Math.min(w - 130 * s, x + dw - 20 * s),
+		y + dh - 60 * s,
+		118 * s,
+		y + dh * 0.6,
+		w
+	);
 	footerBars(ctx, t, f, p);
 }
 
@@ -979,14 +1072,27 @@ function tplFranja(ctx, o, f, p) {
 	// título dentro del bloque oscuro, inclinado como la franja
 	// como en Picantearla: relleno de color, contorno oscuro y sombra clara
 	const titleFill = ensureContrast(p.title, p.bar, 3);
-	const titleP = { ...p, title: titleFill, extrude: mix(titleFill, '#ffffff', 0.65), outline: p.bar, sub: p.barText, small: p.barText };
+	const titleP = {
+		...p,
+		title: titleFill,
+		extrude: mix(titleFill, '#ffffff', 0.65),
+		outline: p.bar,
+		sub: p.barText,
+		small: p.barText
+	};
 	const { head, dateUsed } = headline(o);
-	titleBlock(ctx, head, { x: 64 * s, y: top + 34 * s, w: w - 128 * s, h: yR - top - 40 * s }, titleP, {
-		align: 'left',
-		maxSize: 150 * s,
-		rot: ang,
-		maxLines: dateUsed ? 2 : undefined
-	});
+	titleBlock(
+		ctx,
+		head,
+		{ x: 64 * s, y: top + 34 * s, w: w - 128 * s, h: yR - top - 40 * s },
+		titleP,
+		{
+			align: 'left',
+			maxSize: 150 * s,
+			rot: ang,
+			maxLines: dateUsed ? 2 : undefined
+		}
+	);
 	// franja clara con los datos
 	const sh = 84 * s;
 	const midY = (yL + yR) / 2;
@@ -997,7 +1103,14 @@ function tplFranja(ctx, o, f, p) {
 	ctx.fillRect(-w, -sh / 2, 2 * w, sh);
 	const line = [dateUsed ? '' : t.date, t.hours, t.place].filter(Boolean).join(' | ').toUpperCase();
 	if (line) {
-		const fl = fitText(ctx, line, { maxWidth: w * 0.92, maxHeight: sh, maxSize: 46 * s, minSize: 22 * s, weight: 700, maxLines: 1 });
+		const fl = fitText(ctx, line, {
+			maxWidth: w * 0.92,
+			maxHeight: sh,
+			maxSize: 46 * s,
+			minSize: 22 * s,
+			weight: 700,
+			maxLines: 1
+		});
 		ctx.fillStyle = p.stripeText;
 		setFont(ctx, ROUND, fl.size, 700);
 		ctx.textAlign = 'center';
@@ -1022,11 +1135,24 @@ function tplFranja(ctx, o, f, p) {
 		setFont(ctx, DISPLAY, size);
 		while (ctx.measureText(t.price).width > pw && size > 30) setFont(ctx, DISPLAY, (size -= 4));
 		const tw = ctx.measureText(t.price).width;
-		chunky(ctx, t.price, cx - tw / 2, py + size * 0.82, size, { fill: p.text, extrude: p.bar, outline: null, depth: size * 0.06 });
+		chunky(ctx, t.price, cx - tw / 2, py + size * 0.82, size, {
+			fill: p.text,
+			extrude: p.bar,
+			outline: null,
+			depth: size * 0.06
+		});
 		py += size * 1.08;
 	}
 	if (t.priceInfo && priceBottom - py > 40 * s) {
-		const fi = fitText(ctx, t.priceInfo.toUpperCase(), { maxWidth: pw, maxHeight: priceBottom - py, maxSize: 36 * s, minSize: 24 * s, weight: 700, lineHeight: 1.12, maxLines: 5 });
+		const fi = fitText(ctx, t.priceInfo.toUpperCase(), {
+			maxWidth: pw,
+			maxHeight: priceBottom - py,
+			maxSize: 36 * s,
+			minSize: 24 * s,
+			weight: 700,
+			lineHeight: 1.12,
+			maxLines: 5
+		});
 		ctx.fillStyle = p.text;
 		setFont(ctx, ROUND, fi.size, 700);
 		ctx.textAlign = 'center';
@@ -1043,7 +1169,14 @@ function tplFranja(ctx, o, f, p) {
 		ctx.rotate(ang * 0.8);
 		ctx.fillStyle = bandC;
 		ctx.fillRect(-w, -40 * s, 2 * w, 80 * s);
-		const fl = fitText(ctx, main, { maxWidth: w * 0.94, maxHeight: 80 * s, maxSize: 34 * s, minSize: 18 * s, weight: 700, maxLines: 1 });
+		const fl = fitText(ctx, main, {
+			maxWidth: w * 0.94,
+			maxHeight: 80 * s,
+			maxSize: 34 * s,
+			minSize: 18 * s,
+			weight: 700,
+			maxLines: 1
+		});
 		ctx.fillStyle = readableText(bandC);
 		setFont(ctx, ROUND, fl.size, 700);
 		ctx.textAlign = 'center';
@@ -1090,9 +1223,22 @@ function tplFoto(ctx, o, f, p) {
 	const boxW = w * 0.42;
 	/** @param {string[]} lines @param {number} size */
 	const box = (lines, size) => {
-		const fits = lines.map((l) => fitText(ctx, l, { family: DISPLAY, maxWidth: boxW - 40 * s, maxHeight: size * 1.2, maxSize: size, minSize: 18 * s, maxLines: 1 }));
+		const fits = lines.map((l) =>
+			fitText(ctx, l, {
+				family: DISPLAY,
+				maxWidth: boxW - 40 * s,
+				maxHeight: size * 1.2,
+				maxSize: size,
+				minSize: 18 * s,
+				maxLines: 1
+			})
+		);
 		setFont(ctx, DISPLAY, size);
-		const bw = Math.max(...fits.map((fi) => (setFont(ctx, DISPLAY, fi.size), ctx.measureText(fi.lines[0]).width))) + 40 * s;
+		const bw =
+			Math.max(
+				...fits.map((fi) => (setFont(ctx, DISPLAY, fi.size), ctx.measureText(fi.lines[0]).width))
+			) +
+			40 * s;
 		const bh = fits.reduce((a, fi) => a + fi.size * 1.05, 0) + 28 * s;
 		ctx.fillStyle = p.pillBg;
 		ctx.strokeStyle = p.bar;
@@ -1120,18 +1266,35 @@ function tplFoto(ctx, o, f, p) {
 	// título abajo (sin título: la fecha, con horario y lugar debajo)
 	const titleTop = top + H * 0.56;
 	const titleP = { ...p, outline: p.outline ?? p.extrude };
-	const bottomText = dateUsed ? { ...head, sub: [t.hours, t.place, t.sub].filter(Boolean).join(' · ') } : head;
-	titleBlock(ctx, bottomText, { x: 60 * s, y: titleTop, w: w - 120 * s, h: barsTop - 40 * s - titleTop }, titleP, {
-		align: 'center',
-		maxSize: 170 * s,
-		valign: 'bottom',
-		maxLines: dateUsed ? 2 : undefined
-	});
-	const st = o.status ? STATUS[o.status] ?? { tape: false } : undefined;
+	const bottomText = dateUsed
+		? { ...head, sub: [t.hours, t.place, t.sub].filter(Boolean).join(' · ') }
+		: head;
+	titleBlock(
+		ctx,
+		bottomText,
+		{ x: 60 * s, y: titleTop, w: w - 120 * s, h: barsTop - 40 * s - titleTop },
+		titleP,
+		{
+			align: 'center',
+			maxSize: 170 * s,
+			valign: 'bottom',
+			maxLines: dateUsed ? 2 : undefined
+		}
+	);
+	const st = o.status ? (STATUS[o.status] ?? { tape: false }) : undefined;
 	if (t.price || t.priceInfo) {
 		const note = t.price && t.priceInfo.length <= 48 ? t.priceInfo : '';
 		const main = t.price || (t.priceInfo.length <= 16 ? t.priceInfo : '');
-		if (main) priceBurst(ctx, w - 200 * s, top + H * (st && !st.tape ? 0.46 : 0.42), 150 * s, main, note, p);
+		if (main)
+			priceBurst(
+				ctx,
+				w - 200 * s,
+				top + H * (st && !st.tape ? 0.46 : 0.42),
+				150 * s,
+				main,
+				note,
+				p
+			);
 	}
 	statusSticker(ctx, o, p, w - 150 * s, top + 330 * s, 100 * s, top + H * 0.5, w);
 	footerBars(ctx, t, f, p);
@@ -1163,7 +1326,14 @@ function tplGrupo(ctx, o, f, p) {
 		ctx.beginPath();
 		ctx.moveTo(0, barsTop);
 		ctx.lineTo(0, imgTop + 50 * s);
-		ctx.bezierCurveTo(w * 0.22, imgTop - 40 * s, w * 0.4, imgTop + 70 * s, w * 0.6, imgTop + 10 * s);
+		ctx.bezierCurveTo(
+			w * 0.22,
+			imgTop - 40 * s,
+			w * 0.4,
+			imgTop + 70 * s,
+			w * 0.6,
+			imgTop + 10 * s
+		);
 		ctx.bezierCurveTo(w * 0.78, imgTop - 40 * s, w * 0.9, imgTop + 40 * s, w, imgTop);
 		ctx.lineTo(w, barsTop);
 		ctx.closePath();
@@ -1183,7 +1353,11 @@ function tplGrupo(ctx, o, f, p) {
 	grain(ctx, w, h, 0.12);
 	// título a la izquierda (con conectores chicos: GRUPO de APOYO y DISCUSIÓN)
 	if (!noHead) {
-		titleBlock(ctx, t, { x: 60 * s, y: headTop, w: leftW, h: headH }, p, { align: 'left', maxSize: 118 * s, valign: 'center' });
+		titleBlock(ctx, t, { x: 60 * s, y: headTop, w: leftW, h: headH }, p, {
+			align: 'left',
+			maxSize: 118 * s,
+			valign: 'center'
+		});
 		// línea divisoria
 		ctx.fillStyle = p.title;
 		ctx.fillRect(divX, headTop, 8 * s, headH);
@@ -1216,7 +1390,13 @@ function tplGrupo(ctx, o, f, p) {
 		ctx.fillRect(lx, y, w - lx - 30 * s, 7 * s);
 		y += 24 * s;
 	}
-	const details = [noHead ? t.kicker : '', noHead ? t.sub : '', t.place ? lowerFirst(t.place === t.place.toUpperCase() ? t.place.toLowerCase() : t.place) : '', t.price ? t.price.toLowerCase() : '', t.priceInfo].filter(Boolean);
+	const details = [
+		noHead ? t.kicker : '',
+		noHead ? t.sub : '',
+		t.place ? lowerFirst(t.place === t.place.toUpperCase() ? t.place.toLowerCase() : t.place) : '',
+		t.price ? t.price.toLowerCase() : '',
+		t.priceInfo
+	].filter(Boolean);
 	if (details.length) {
 		const room = headTop + headH - y;
 		/** @type {string[]} */
@@ -1231,7 +1411,9 @@ function tplGrupo(ctx, o, f, p) {
 		ctx.fillStyle = p.title;
 		ctx.textAlign = 'left';
 		ctx.textBaseline = 'top';
-		lines.slice(0, Math.max(1, Math.floor(room / lh))).forEach((l, i) => ctx.fillText(l, rx, y + i * lh));
+		lines
+			.slice(0, Math.max(1, Math.floor(room / lh)))
+			.forEach((l, i) => ctx.fillText(l, rx, y + i * lh));
 	}
 	if (imgTop < barsTop - 60 * s) {
 		ctx.save();
@@ -1270,33 +1452,66 @@ function tplCartel(ctx, o, f, p) {
 	// recuadro con los datos (se mide primero para saber cuánto lugar queda)
 	// fecha y horario no se parten por dentro ("19 A 20:30" / "HS" quedaba feo)
 	const { head, dateUsed } = headline(o);
-	const dateLine = [dateUsed ? '' : t.date, t.hours].filter(Boolean).map((x) => x.trim().replace(/ +/g, '\u00a0')).join('  •  ');
+	const dateLine = [dateUsed ? '' : t.date, t.hours]
+		.filter(Boolean)
+		.map((x) => x.trim().replace(/ +/g, '\u00a0'))
+		.join('  •  ');
 	const placeLine = t.place;
 	// el detalle largo de la entrada va en la ficha; acá solo si es corto
-	const priceLine = [t.price, t.priceInfo.length <= 48 ? t.priceInfo : ''].filter(Boolean).join(' · ') || firstWords(t.priceInfo, 48);
+	const priceLine =
+		[t.price, t.priceInfo.length <= 48 ? t.priceInfo : ''].filter(Boolean).join(' · ') ||
+		firstWords(t.priceInfo, 48);
 	const bw = w * 0.76;
 	const lines = [
-		dateLine && { text: dateLine, size: 50 * s, weight: 700, color: ensureContrast(p.title, p.bar, 4.5) },
+		dateLine && {
+			text: dateLine,
+			size: 50 * s,
+			weight: 700,
+			color: ensureContrast(p.title, p.bar, 4.5)
+		},
 		placeLine && { text: placeLine, size: 32 * s, weight: 500, color: p.barText },
-		priceLine && { text: priceLine, size: 30 * s, weight: 700, color: ensureContrast(p.small, p.bar, 4.5) }
+		priceLine && {
+			text: priceLine,
+			size: 30 * s,
+			weight: 700,
+			color: ensureContrast(p.small, p.bar, 4.5)
+		}
 	].filter(Boolean);
-	const fits = /** @type {{text:string,size:number,weight:number,color:string}[]} */ (lines).map((l) => ({
-		l,
-		f: fitText(ctx, l.text, { maxWidth: bw - 120 * s, maxHeight: l.size * 2.4, maxSize: l.size, minSize: l.size * 0.6, weight: l.weight, lineHeight: 1.15, maxLines: 2 })
-	}));
-	const boxH = fits.length ? fits.reduce((a, x) => a + x.f.lines.length * x.f.lineHeight + 8 * s, 0) + 44 * s : 0;
+	const fits = /** @type {{text:string,size:number,weight:number,color:string}[]} */ (lines).map(
+		(l) => ({
+			l,
+			f: fitText(ctx, l.text, {
+				maxWidth: bw - 120 * s,
+				maxHeight: l.size * 2.4,
+				maxSize: l.size,
+				minSize: l.size * 0.6,
+				weight: l.weight,
+				lineHeight: 1.15,
+				maxLines: 2
+			})
+		})
+	);
+	const boxH = fits.length
+		? fits.reduce((a, x) => a + x.f.lines.length * x.f.lineHeight + 8 * s, 0) + 44 * s
+		: 0;
 	const boxY = barsTop - 70 * s - boxH;
 	// imagen chica (si entra) entre el título y el recuadro
 	// el logo va fijo arriba a la izquierda y el título empieza debajo (antes se pisaban)
 	const badgeY = top + 36 * s;
 	const titleTop = Math.max(top + Math.max(70 * s, H * 0.08), badgeY + 110 * s + 20 * s);
 	const titleH = Math.min(H * 0.42, boxY - titleTop - 40 * s);
-	const tb = titleBlock(ctx, head, { x: 120 * s, y: titleTop, w: w - 240 * s, h: titleH }, { ...p, outline: p.outline ?? p.extrude }, {
-		align: 'center',
-		maxSize: dateUsed ? 150 * s : 180 * s,
-		dry: true,
-		maxLines: dateUsed ? 2 : undefined
-	});
+	const tb = titleBlock(
+		ctx,
+		head,
+		{ x: 120 * s, y: titleTop, w: w - 240 * s, h: titleH },
+		{ ...p, outline: p.outline ?? p.extrude },
+		{
+			align: 'center',
+			maxSize: dateUsed ? 150 * s : 180 * s,
+			dry: true,
+			maxLines: dateUsed ? 2 : undefined
+		}
+	);
 	const freeTop = tb.y + tb.h + 40 * s;
 	const freeH = boxY - 40 * s - freeTop;
 	const withImage = !!o.image && freeH > 260 * s;
@@ -1325,11 +1540,17 @@ function tplCartel(ctx, o, f, p) {
 		ctx.filter = 'none';
 		ctx.restore();
 	}
-	const tb2 = titleBlock(ctx, head, titleBox, { ...p, outline: p.outline ?? p.extrude }, {
-		align: 'center',
-		maxSize: dateUsed ? 150 * s : withImage ? 180 * s : 200 * s,
-		maxLines: dateUsed ? 2 : undefined
-	});
+	const tb2 = titleBlock(
+		ctx,
+		head,
+		titleBox,
+		{ ...p, outline: p.outline ?? p.extrude },
+		{
+			align: 'center',
+			maxSize: dateUsed ? 150 * s : withImage ? 180 * s : 200 * s,
+			maxLines: dateUsed ? 2 : undefined
+		}
+	);
 	tb.y = tb2.y;
 	tb.h = tb2.h;
 	sparkle(ctx, 80 * s, tb.y + tb.h * 0.7, 44 * s, p.accent);
@@ -1385,13 +1606,39 @@ function tplTexto(ctx, o, f, p) {
 	const sticker = !!o.status && !STATUS[o.status]?.tape;
 	const maxW = w - (sticker ? 330 : 120) * s;
 	const priceLine =
-		[t.price, t.priceInfo.length <= 48 ? t.priceInfo : ''].filter(Boolean).join(' · ') || firstWords(t.priceInfo, 48);
+		[t.price, t.priceInfo.length <= 48 ? t.priceInfo : ''].filter(Boolean).join(' · ') ||
+		firstWords(t.priceInfo, 48);
 	/** @type {{text:string, size:number, family:string, weight:number, bg:string, fg:string}[]} */
 	const items = [];
-	if (!dateUsed && t.date) items.push({ text: t.date, size: 70 * s, family: DISPLAY, weight: DISPLAY_WEIGHT, bg: pBg, fg: pFg });
-	if (t.hours) items.push({ text: t.hours, size: 46 * s, family: DISPLAY, weight: DISPLAY_WEIGHT, bg: pBg, fg: pFg });
-	if (t.place) items.push({ text: t.place, size: 40 * s, family: ROUND, weight: 700, bg: pBg, fg: pFg });
-	if (priceLine) items.push({ text: priceLine, size: 36 * s, family: ROUND, weight: 700, bg: p.bar, fg: p.barText });
+	if (!dateUsed && t.date)
+		items.push({
+			text: t.date,
+			size: 70 * s,
+			family: DISPLAY,
+			weight: DISPLAY_WEIGHT,
+			bg: pBg,
+			fg: pFg
+		});
+	if (t.hours)
+		items.push({
+			text: t.hours,
+			size: 46 * s,
+			family: DISPLAY,
+			weight: DISPLAY_WEIGHT,
+			bg: pBg,
+			fg: pFg
+		});
+	if (t.place)
+		items.push({ text: t.place, size: 40 * s, family: ROUND, weight: 700, bg: pBg, fg: pFg });
+	if (priceLine)
+		items.push({
+			text: priceLine,
+			size: 36 * s,
+			family: ROUND,
+			weight: 700,
+			bg: p.bar,
+			fg: p.barText
+		});
 	const gap = 22 * s;
 	const sizes = items.map((it) => pill(ctx, it.text, 0, 0, { ...it, maxW, dry: true }));
 	const stackH = sizes.reduce((a, z) => a + z.h, 0) + gap * Math.max(0, items.length - 1);
@@ -1402,18 +1649,31 @@ function tplTexto(ctx, o, f, p) {
 	ctx.beginPath();
 	ctx.moveTo(0, barsTop + 2);
 	ctx.lineTo(0, waveTop + 40 * s);
-	ctx.bezierCurveTo(w * 0.25, waveTop - 30 * s, w * 0.55, waveTop + 60 * s, w * 0.78, waveTop + 5 * s);
+	ctx.bezierCurveTo(
+		w * 0.25,
+		waveTop - 30 * s,
+		w * 0.55,
+		waveTop + 60 * s,
+		w * 0.78,
+		waveTop + 5 * s
+	);
 	ctx.bezierCurveTo(w * 0.88, waveTop - 20 * s, w * 0.95, waveTop - 10 * s, w, waveTop - 20 * s);
 	ctx.lineTo(w, barsTop + 2);
 	ctx.closePath();
 	ctx.fill();
 	// título arriba
 	const tTop = top + 170 * s;
-	const tb = titleBlock(ctx, head, { x: 100 * s, y: tTop, w: w - 200 * s, h: waveTop - 70 * s - tTop }, { ...p, outline: p.outline ?? p.extrude }, {
-		align: 'center',
-		maxSize: dateUsed ? 170 * s : 200 * s,
-		maxLines: dateUsed ? 2 : undefined
-	});
+	const tb = titleBlock(
+		ctx,
+		head,
+		{ x: 100 * s, y: tTop, w: w - 200 * s, h: waveTop - 70 * s - tTop },
+		{ ...p, outline: p.outline ?? p.extrude },
+		{
+			align: 'center',
+			maxSize: dateUsed ? 170 * s : 200 * s,
+			maxLines: dateUsed ? 2 : undefined
+		}
+	);
 	sparkle(ctx, 80 * s, Math.min(waveTop - 90 * s, tb.y + tb.h + 60 * s), 40 * s, p.accent);
 	sparkle(ctx, w - 130 * s, Math.min(waveTop - 100 * s, tb.y + tb.h + 50 * s), 34 * s, p.accent);
 	sparkle(ctx, w - 70 * s, Math.min(waveTop - 40 * s, tb.y + tb.h + 110 * s), 18 * s, p.accent);
@@ -1422,7 +1682,13 @@ function tplTexto(ctx, o, f, p) {
 	const cx = sticker ? w / 2 - 90 * s : w / 2;
 	let y = waveTop + (barsTop - waveTop - stackH) / 2 + 20 * s;
 	items.forEach((it, i) => {
-		pill(ctx, it.text, cx, y, { ...it, maxW, align: 'center', shadow: p.extrude, rot: i % 2 ? 0.015 : -0.02 });
+		pill(ctx, it.text, cx, y, {
+			...it,
+			maxW,
+			align: 'center',
+			shadow: p.extrude,
+			rot: i % 2 ? 0.015 : -0.02
+		});
 		y += sizes[i].h + gap;
 	});
 	statusSticker(ctx, o, p, w - 165 * s, barsTop - 175 * s, 125 * s, (waveTop + barsTop) / 2, w);
@@ -1463,18 +1729,42 @@ function renderInfo(ctx, o, f, p) {
 	const short = h <= w;
 	const barsTop = footerBars(ctx, t, f, p, { skipNote: true });
 	badge(ctx, o.logo, w - 200 * s, f.top + 44 * s, 140 * s, p, 0.1);
-	const tb = titleBlock(ctx, { ...t, kicker: '', sub: t.sub }, { x: pad, y: f.top + pad, w: w - pad * 2 - 150 * s, h: (short ? 180 : 250) * s }, p, {
-		align: 'left',
-		maxSize: (short ? 92 : 108) * s,
-		valign: 'top',
-		rot: -0.02
-	});
+	const tb = titleBlock(
+		ctx,
+		{ ...t, kicker: '', sub: t.sub },
+		{ x: pad, y: f.top + pad, w: w - pad * 2 - 150 * s, h: (short ? 180 : 250) * s },
+		p,
+		{
+			align: 'left',
+			maxSize: (short ? 92 : 108) * s,
+			valign: 'top',
+			rot: -0.02
+		}
+	);
 	let y = tb.y + tb.h + (short ? 26 : 40) * s;
 	/** @type {[string, string, string][]} */
 	const rows = [
-		['CUÁNDO', t.date === def.date ? info.day : t.date, t.hours === def.hours ? info.hours : t.hours.toLowerCase()],
-		['DÓNDE', t.place === def.place ? (info.online ? 'Online' : shortPlace(info.place)) : t.place, t.address],
-		['ENTRADA', t.price ? upperFirst(t.price === t.price.toUpperCase() && !/\d/.test(t.price) ? t.price.toLowerCase() : t.price) : t.priceInfo, t.price ? t.priceInfo : ''],
+		[
+			'CUÁNDO',
+			t.date === def.date ? info.day : t.date,
+			t.hours === def.hours ? info.hours : t.hours.toLowerCase()
+		],
+		[
+			'DÓNDE',
+			t.place === def.place ? (info.online ? 'Online' : shortPlace(info.place)) : t.place,
+			t.address
+		],
+		[
+			'ENTRADA',
+			t.price
+				? upperFirst(
+						t.price === t.price.toUpperCase() && !/\d/.test(t.price)
+							? t.price.toLowerCase()
+							: t.price
+					)
+				: t.priceInfo,
+			t.price ? t.priceInfo : ''
+		],
 		['ORGANIZA', t.organizers, ''],
 		['PARA QUIÉN', t.audience ? upperFirst(t.audience) : '', ''],
 		[/dress|vestim/i.test(t.dress) ? 'DRESS CODE' : 'TENÉ EN CUENTA', t.dress, ''],
@@ -1506,7 +1796,9 @@ function renderInfo(ctx, o, f, p) {
 			const m = clampLines(ctx, wrapLines(ctx, main, vw), 3, vw);
 			setFont(ctx, ROUND, 31 * k * s, 400);
 			const sb = sub ? clampLines(ctx, wrapLines(ctx, sub, vw), 2, vw) : [];
-			const rh = Math.max(30 * k * s * 1.5, m.length * 38 * k * s * 1.18 + sb.length * 31 * k * s * 1.18) + 22 * k * s;
+			const rh =
+				Math.max(30 * k * s * 1.5, m.length * 38 * k * s * 1.18 + sb.length * 31 * k * s * 1.18) +
+				22 * k * s;
 			L.rows.push({ label, main: m, sub: sb, h: rh });
 			total += rh;
 		}
@@ -1528,7 +1820,13 @@ function renderInfo(ctx, o, f, p) {
 	}
 	for (const r of L.rows) {
 		if (y + r.h > barsTop - tagsH) break;
-		pill(ctx, r.label, pad, y, { size: 30 * k * s, bg: p.pillBg, fg: p.pillFg, shadow: p.extrude, rot: -0.03 });
+		pill(ctx, r.label, pad, y, {
+			size: 30 * k * s,
+			bg: p.pillBg,
+			fg: p.pillFg,
+			shadow: p.extrude,
+			rot: -0.03
+		});
 		ctx.fillStyle = p.text;
 		ctx.textAlign = 'left';
 		ctx.textBaseline = 'top';
@@ -1544,21 +1842,45 @@ function renderInfo(ctx, o, f, p) {
 		y += r.h;
 	}
 	if (t.tags) {
-		const ft = fitText(ctx, t.tags, { maxWidth: w - pad * 2, maxHeight: 50 * s, maxSize: 32 * s, minSize: 22 * s, weight: 700, maxLines: 1 });
+		const ft = fitText(ctx, t.tags, {
+			maxWidth: w - pad * 2,
+			maxHeight: 50 * s,
+			maxSize: 32 * s,
+			minSize: 22 * s,
+			weight: 700,
+			maxLines: 1
+		});
 		ctx.fillStyle = p.small;
 		setFont(ctx, ROUND, ft.size, 700);
 		ctx.textAlign = 'left';
 		ctx.textBaseline = 'bottom';
 		ctx.fillText(ft.lines[0], pad, barsTop - 26 * s);
 	}
-	if (o.status && STATUS[o.status]?.tape) tape(ctx, w / 2, barsTop - 110 * s, w * 1.6, o.texts.status.trim().toUpperCase(), p.tape, p.tapeText, -0.04);
+	if (o.status && STATUS[o.status]?.tape)
+		tape(
+			ctx,
+			w / 2,
+			barsTop - 110 * s,
+			w * 1.6,
+			o.texts.status.trim().toUpperCase(),
+			p.tape,
+			p.tapeText,
+			-0.04
+		);
 }
 
 /* ------------------------------------------------------------------ */
 /* Entrada                                                             */
 /* ------------------------------------------------------------------ */
 
-const TEMPLATES = { flyer: tplFlyer, franja: tplFranja, foto: tplFoto, grupo: tplGrupo, cartel: tplCartel, texto: tplTexto };
+const TEMPLATES = {
+	flyer: tplFlyer,
+	franja: tplFranja,
+	foto: tplFoto,
+	grupo: tplGrupo,
+	cartel: tplCartel,
+	texto: tplTexto
+};
 
 /**
  * Dibuja la imagen para compartir en el canvas dado.
@@ -1580,7 +1902,12 @@ export function renderShareImage(canvas, opts) {
 	ROUND = stack(fb, 'Lato');
 	// el estado sale del texto editable: vacío (o apagado) = sin sticker ni cinta
 	const stText = String(opts.texts.status ?? '').trim();
-	const status = (opts.showStatus ?? true) && stText ? (opts.meta.status in STATUS ? opts.meta.status : 'otro') : undefined;
+	const status =
+		(opts.showStatus ?? true) && stText
+			? opts.meta.status in STATUS
+				? opts.meta.status
+				: 'otro'
+			: undefined;
 	let layout = opts.layout in TEMPLATES ? opts.layout : 'cartel';
 	if (layout === 'flyer' && !opts.image) layout = 'cartel';
 	/** @type {RenderOpts} */
@@ -1602,7 +1929,7 @@ export function renderShareImage(canvas, opts) {
 		top: story ? 200 : 0,
 		bottom: story ? 170 : 0,
 		s: 1,
-		qr: opts.format === 'post' ? null : opts.qr ?? null
+		qr: opts.format === 'post' ? null : (opts.qr ?? null)
 	};
 	const p = completePalette(opts.palette);
 	ctx.clearRect(0, 0, w, h);

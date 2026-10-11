@@ -48,7 +48,7 @@
 	// Whenever the list changes or opens: with a query, highlight the top suggestion so
 	// Enter picks it; with an empty query, highlight nothing so Enter adds no tag.
 	// (Also avoids keeping a highlight on an option that was just removed.)
-	$: suggestions, $open, highlightFirst();
+	$: (suggestions, $open, highlightFirst());
 
 	/** @type {HTMLElement} */
 	let menuEl;
@@ -135,12 +135,7 @@
 	<!-- Picking a suggestion with the mouse used to move focus to <body>; keep it in the
 	input so the next keystroke still searches. -->
 	<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-	<ul
-		class="menu"
-		bind:this={menuEl}
-		use:melt={$menu}
-		on:mousedown|preventDefault
-	>
+	<ul class="menu" bind:this={menuEl} use:melt={$menu} on:mousedown|preventDefault>
 		{#each suggestions as s (s.id)}
 			{@const tag = $tagManager.get(s.id)}
 			<li

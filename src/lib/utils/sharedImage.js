@@ -84,7 +84,8 @@ export function setFeatured(raw, value) {
 	const text = String(raw ?? '');
 	// Line by line on the original text, so CRLF files keep their line endings.
 	const lines = text.split(/(?<=\n)/);
-	const re = /^([ \t]*)featured:[ \t]*(?:'[^'\n]*'|"[^"\n]*"|[^#\r\n]*?)([ \t]+#[^\r\n]*)?[ \t]*(\r?\n)?$/;
+	const re =
+		/^([ \t]*)featured:[ \t]*(?:'[^'\n]*'|"[^"\n]*"|[^#\r\n]*?)([ \t]+#[^\r\n]*)?[ \t]*(\r?\n)?$/;
 	if (/^---[ \t]*\r?\n$/.test(lines[0] ?? '')) {
 		for (let i = 1; i < lines.length; i++) {
 			if (/^---[ \t]*(\r?\n)?$/.test(lines[i])) break;
