@@ -2,8 +2,8 @@
  * Visitas para el panel y resumen mensual en D1, con una API de Analytics Engine falsa y datos
  * inventados (eventos «fiesta-rara» y «taller-falso»).
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTestDB } from '../db/testing.js';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestDB, resetDB } from '../db/testing.js';
 import { analyticsConfig, clearSqlCache, runSql } from './sql.js';
 import {
 	argentineDay,
@@ -83,6 +83,20 @@ function sample(sql) {
 }
 
 beforeEach(() => clearSqlCache());
+
+// Una base para las pruebas con D1 del archivo (vaciada antes de cada una): antes cada una
+// levantaba la suya adentro de la prueba, y eso se comía su tiempo límite con la máquina cargada.
+/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+let t;
+beforeAll(async () => {
+	t = await createTestDB();
+});
+afterAll(async () => {
+	await t?.dispose();
+});
+beforeEach(async () => {
+	await resetDB(t.db);
+});
 
 describe('analyticsConfig', () => {
 	it('dice exactamente qué falta', () => {
@@ -264,98 +278,90 @@ describe('loadVisits', () => {
 
 describe('resumen mensual en D1', () => {
 	it('el cron guarda el mes anterior y el actual; el panel lee los viejos de D1', async () => {
-		const { db, dispose } = await createTestDB();
-		try {
-			const api = fakeApi(sample);
-			const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-			const result = await runAnalyticsRollup(
-				{ ...env, DB: db },
-				{ now: new Date('2026-10-04T06:00:00Z'), fetch: api.fetch }
-			);
-			log.mockRestore();
-			expect(result).toEqual({ months: ['2026-09', '2026-10'] });
-			// Las consultas del mes van con los dos bordes: medianoche de Argentina (03:00 UTC).
-			expect(
-				api.calls.some(
-					(c) =>
-						c.sql.includes("timestamp >= toDateTime('2026-09-01 03:00:00')") &&
-						c.sql.includes("timestamp < toDateTime('2026-10-01 03:00:00')")
-				)
-			).toBe(true);
-			const rows = await readMonthly(db, '2026-11');
-			const sept = rows.filter((r) => r.month === '2026-09');
-			expect(sept.find((r) => r.dimension === 'total')?.value).toBe(150);
-			expect(sept.filter((r) => r.dimension === 'page').map((r) => r.key)).toEqual(
-				expect.arrayContaining(['/calendario/fiesta-rara', '/'])
-			);
-			expect(sept.find((r) => r.key === 'fiesta-rara|orden|mercadopago')?.value).toBe(9);
-			// Nada que identifique a alguien: solo rutas, dominios, países, dispositivos y eventos.
-			expect(JSON.stringify(rows)).not.toMatch(/@|token|cookie|\d+\.\d+\.\d+\.\d+/i);
+		const db = t.db;
+		const api = fakeApi(sample);
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		const result = await runAnalyticsRollup(
+			{ ...env, DB: db },
+			{ now: new Date('2026-10-04T06:00:00Z'), fetch: api.fetch }
+		);
+		log.mockRestore();
+		expect(result).toEqual({ months: ['2026-09', '2026-10'] });
+		// Las consultas del mes van con los dos bordes: medianoche de Argentina (03:00 UTC).
+		expect(
+			api.calls.some(
+				(c) =>
+					c.sql.includes("timestamp >= toDateTime('2026-09-01 03:00:00')") &&
+					c.sql.includes("timestamp < toDateTime('2026-10-01 03:00:00')")
+			)
+		).toBe(true);
+		const rows = await readMonthly(db, '2026-11');
+		const sept = rows.filter((r) => r.month === '2026-09');
+		expect(sept.find((r) => r.dimension === 'total')?.value).toBe(150);
+		expect(sept.filter((r) => r.dimension === 'page').map((r) => r.key)).toEqual(
+			expect.arrayContaining(['/calendario/fiesta-rara', '/'])
+		);
+		expect(sept.find((r) => r.key === 'fiesta-rara|orden|mercadopago')?.value).toBe(9);
+		// Nada que identifique a alguien: solo rutas, dominios, países, dispositivos y eventos.
+		expect(JSON.stringify(rows)).not.toMatch(/@|token|cookie|\d+\.\d+\.\d+\.\d+/i);
 
-			// Volver a correr reemplaza (no duplica) y borra lo que ya no está.
-			await saveMonth(
-				db,
-				'2026-09',
-				[{ month: '2026-09', dimension: 'total', key: '', value: 7 }],
-				1
-			);
-			const again = (await readMonthly(db, '2026-10')).filter((r) => r.month === '2026-09');
-			expect(again).toEqual([{ month: '2026-09', dimension: 'total', key: '', value: 7 }]);
-		} finally {
-			await dispose();
-		}
+		// Volver a correr reemplaza (no duplica) y borra lo que ya no está.
+		await saveMonth(
+			db,
+			'2026-09',
+			[{ month: '2026-09', dimension: 'total', key: '', value: 7 }],
+			1
+		);
+		const again = (await readMonthly(db, '2026-10')).filter((r) => r.month === '2026-09');
+		expect(again).toEqual([{ month: '2026-09', dimension: 'total', key: '', value: 7 }]);
 	});
 
 	it('el panel junta los meses de D1 (viejos) con los de Analytics Engine (en vivo)', async () => {
-		const { db, dispose } = await createTestDB();
-		try {
-			await saveMonth(
-				db,
-				'2026-06',
-				[
-					{ month: '2026-06', dimension: 'total', key: '', value: 500 },
-					{ month: '2026-06', dimension: 'funnel', key: 'taller-falso|evento|', value: 80 },
-					{ month: '2026-06', dimension: 'funnel', key: 'taller-falso|aprobada|gratis', value: 4 }
-				],
-				1
-			);
-			// Agosto está en D1 pero también en vivo: como arranca el 1/9, agosto sale de D1.
-			await saveMonth(
-				db,
-				'2026-08',
-				[{ month: '2026-08', dimension: 'total', key: '', value: 70 }],
-				1
-			);
-			// Septiembre está en D1 pero ya es «en vivo»: no se suma dos veces.
-			await saveMonth(
-				db,
-				'2026-09',
-				[{ month: '2026-09', dimension: 'total', key: '', value: 999 }],
-				1
-			);
-			const api = fakeApi(sample);
-			const v = await loadVisits({
-				env,
-				db,
-				fetch: api.fetch,
-				now: new Date('2026-10-04T12:00:00Z')
-			});
-			expect(v.months.map((m) => [m.month, m.views, m.saved])).toEqual([
-				['2026-06', 500, true],
-				['2026-08', 70, true],
-				['2026-09', 12, false],
-				['2026-10', 30, false]
-			]);
-			expect(v.funnel.map((f) => f.slug)).toEqual(['fiesta-rara', 'taller-falso']);
-			expect(v.funnel[1]).toMatchObject({ evento: 80, aprobada: 4, rate: 0.05 });
+		const db = t.db;
+		await saveMonth(
+			db,
+			'2026-06',
+			[
+				{ month: '2026-06', dimension: 'total', key: '', value: 500 },
+				{ month: '2026-06', dimension: 'funnel', key: 'taller-falso|evento|', value: 80 },
+				{ month: '2026-06', dimension: 'funnel', key: 'taller-falso|aprobada|gratis', value: 4 }
+			],
+			1
+		);
+		// Agosto está en D1 pero también en vivo: como arranca el 1/9, agosto sale de D1.
+		await saveMonth(
+			db,
+			'2026-08',
+			[{ month: '2026-08', dimension: 'total', key: '', value: 70 }],
+			1
+		);
+		// Septiembre está en D1 pero ya es «en vivo»: no se suma dos veces.
+		await saveMonth(
+			db,
+			'2026-09',
+			[{ month: '2026-09', dimension: 'total', key: '', value: 999 }],
+			1
+		);
+		const api = fakeApi(sample);
+		const v = await loadVisits({
+			env,
+			db,
+			fetch: api.fetch,
+			now: new Date('2026-10-04T12:00:00Z')
+		});
+		expect(v.months.map((m) => [m.month, m.views, m.saved])).toEqual([
+			['2026-06', 500, true],
+			['2026-08', 70, true],
+			['2026-09', 12, false],
+			['2026-10', 30, false]
+		]);
+		expect(v.funnel.map((f) => f.slug)).toEqual(['fiesta-rara', 'taller-falso']);
+		expect(v.funnel[1]).toMatchObject({ evento: 80, aprobada: 4, rate: 0.05 });
 
-			// Sin token: igual muestra la historia guardada.
-			const offline = await loadVisits({ env: {}, db, now: new Date('2026-10-04T12:00:00Z') });
-			expect(offline.configured).toBe(false);
-			expect(offline.months.map((m) => m.month)).toEqual(['2026-06', '2026-08', '2026-09']);
-		} finally {
-			await dispose();
-		}
+		// Sin token: igual muestra la historia guardada.
+		const offline = await loadVisits({ env: {}, db, now: new Date('2026-10-04T12:00:00Z') });
+		expect(offline.configured).toBe(false);
+		expect(offline.months.map((m) => m.month)).toEqual(['2026-06', '2026-08', '2026-09']);
 	});
 
 	it('sin token o sin base, el cron no hace nada y no tira', async () => {
@@ -421,19 +427,15 @@ describe('días y meses de Argentina (UTC−3)', () => {
 	});
 
 	it('el cron de la noche del 30/9 en Argentina (01:00 UTC del 1/10) resume agosto y septiembre', async () => {
-		const { db, dispose } = await createTestDB();
-		try {
-			const api = fakeApi(sample);
-			const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-			const result = await runAnalyticsRollup(
-				{ ...env, DB: db },
-				{ now: new Date('2026-10-01T01:00:00Z'), fetch: api.fetch }
-			);
-			log.mockRestore();
-			expect(result).toEqual({ months: ['2026-08', '2026-09'] });
-		} finally {
-			await dispose();
-		}
+		const db = t.db;
+		const api = fakeApi(sample);
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		const result = await runAnalyticsRollup(
+			{ ...env, DB: db },
+			{ now: new Date('2026-10-01T01:00:00Z'), fetch: api.fetch }
+		);
+		log.mockRestore();
+		expect(result).toEqual({ months: ['2026-08', '2026-09'] });
 	});
 });
 

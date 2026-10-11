@@ -104,9 +104,19 @@ miniflare), creada vacía con `createTestDB()` de `src/lib/server/db/testing.js`
 `npm run dev`. Lo normal es una base por archivo (`beforeAll`) y `resetDB()` en cada `beforeEach`.
 Para que sean rápidas, el archivo de la base vive en `/dev/shm` (en memoria; si no se puede, en
 la carpeta temporal) y cada consulta, las migraciones enteras y cada `resetDB()` son un solo
-pedido al worker de miniflare. Así se prueba, por ejemplo, que 30 compras al mismo tiempo no vendan de más. Las
+pedido al worker de miniflare. Si cada prueba de un archivo arranca con los mismos datos y
+armarlos es caro (por ejemplo, importar todas las etiquetas de la semilla: ~10 s con la máquina
+cargada), se arman una vez, se guarda la copia con `snapshotDB()` y cada prueba la vuelve a poner
+con `restoreDB()` (exactamente las mismas filas, en un solo pedido; ver
+`src/routes/(authed)/admin/eventos/series/series-crear.test.js`). Así se prueba, por ejemplo, que 30 compras al mismo tiempo no vendan de más. Las
 migraciones que reconstruyen tablas tienen su propia prueba con datos
 (`src/lib/server/db/migration0010.test.js`). Más en [datos.md](datos.md).
+
+**Tiempos límite**: el de vitest es de 5 s por prueba. No se sube para todas: si una prueba es
+lenta a propósito (recorre toda la semilla, lee todo el repo, compila la galería), se le sube solo
+a ella (`it('…', { timeout: 30_000 }, …)` o a su `describe`) con un comentario que diga por qué.
+Antes, conviene ver si se puede hacer más rápida (una base por archivo, una copia con
+`restoreDB()`, el reloj de mentira en vez de esperas de verdad).
 
 **Lo privado no sale en público** (`src/routes/privados.test.js`): planta objetos de cada tipo en
 cada nivel que no ve une visitante (oculto, solo con cuenta, borrado, sin aprobar, no listado, y

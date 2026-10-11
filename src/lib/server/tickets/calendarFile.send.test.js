@@ -270,8 +270,14 @@ describe('reintentos con la misma clave de Resend', () => {
 		const o = await order('evento-de-prueba');
 		const { sent, fetch } = captureFetch();
 		await tickets.sendOrderEmail({ db: t.db, ...o, origin: 'https://kv.example', fetch });
-		await new Promise((r) => setTimeout(r, 1100));
-		await tickets.sendOrderEmail({ db: t.db, ...o, origin: 'https://kv.example', fetch });
+		// Pasa más de un segundo entre los dos envíos (el reloj, no una espera de verdad: solo
+		// `Date` es de mentira, los timers y la base siguen siendo los reales).
+		vi.useFakeTimers({ toFake: ['Date'], now: Date.now() + 1100 });
+		try {
+			await tickets.sendOrderEmail({ db: t.db, ...o, origin: 'https://kv.example', fetch });
+		} finally {
+			vi.useRealTimers();
+		}
 		expect(sent).toHaveLength(2);
 		expect(sent[1].attachments).toEqual(sent[0].attachments);
 		expect(icsProp(sent[0], 'SEQUENCE')).toBe(String(Math.floor(o.order.created_at / 60_000)));

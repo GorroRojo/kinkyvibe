@@ -242,6 +242,16 @@ de amigues y lanzamientos grandes.
 - Un solo ingreso con kv-openauth y admins con cuentas del público en lugar de GitHub. L.
 - ¿Sumar kv-fondo a este repo? L. Bloqueo: decisión de gorrite.
 - Push y PWA (#16, #43). M. Bloqueo: decisión de gorrite.
+- Pruebas más rápidas, lo que quedó después del PR «tests-mas-rapidos» (informe en el PR):
+  - unir (sin perder nada de lo que se prueba) las que importan TODAS las etiquetas de la semilla
+    en más de un archivo (`etiquetas/importer.test.js`, `contenido/fichas.test.js`,
+    `semilla/semilla.test.js`) y las casi copias `reopen.test.js` de Ventas y de la ficha del
+    evento (un `describe.each`). Bloqueo: gorrite decide;
+  - las bases `createTestDB()` que se levantan adentro de una prueba (las `migrate: false` de
+    `flags`, `backup`, `inicio`…, y dos de `scheduled.test.js` y `demo/seed.test.js`): cuentan
+    para el tiempo límite de la prueba;
+  - cada consulta a la base de prueba son ~5 ms de ida y vuelta a miniflare (2,5 ms sin tocar
+    D1): `importTags` de la semilla son ~1800 consultas. S–M cada una.
 
 ### Estándares web y SEO
 
