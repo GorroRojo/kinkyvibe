@@ -63,11 +63,10 @@ async function objectRow(id) {
 	return t.db.prepare('SELECT * FROM objects WHERE id = ?1').bind(id).first();
 }
 
-describe('las fichas del repo', () => {
-	it('son 31 (más la plantilla, que no se importa)', () => {
-		expect(files.length).toBe(32);
+describe('las fichas (de la semilla: los .md ya no están en el repo)', () => {
+	it('son 31; la plantilla (`_…`) no se importaría', () => {
+		expect(files.length).toBe(31);
 		expect(real().length).toBe(31);
-		expect(files.some((f) => f.legacySlug === '_profile_template')).toBe(true);
 		expect(isImportable('_profile_template')).toBe(false);
 	});
 });

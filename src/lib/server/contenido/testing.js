@@ -3,9 +3,51 @@
  * base, con la importación de verdad, para las pruebas que antes los daban como .md (el sitio lee
  * los eventos y el material solo de la base).
  */
-import { stringify } from 'yaml';
+import { parse, stringify } from 'yaml';
 import { CONTENT_CATEGORIES } from './categories.js';
 import { runImport } from './importer.js';
+import { splitMarkdown } from '../amigues/importer.js';
+
+/** Los .md inventados de ./fixtures, como texto. */
+const fixtureRaws = /** @type {Record<string, string>} */ (
+	import.meta.glob('./fixtures/*/*.md', { query: '?raw', import: 'default', eager: true })
+);
+
+/**
+ * La metadata del frontmatter de un .md (YAML), o `null` si no se puede leer (como hacía mdsvex,
+ * que daba `metadata` vacía y el sitio no lo mostraba).
+ *
+ * @param {string} raw
+ * @returns {Record<string, any> | null}
+ */
+export function frontmatterMeta(raw) {
+	try {
+		const { frontmatter } = splitMarkdown(raw);
+		if (!frontmatter.trim()) return null;
+		const meta = parse(frontmatter);
+		return meta && typeof meta === 'object' && !Array.isArray(meta) ? meta : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Los .md inventados de ./fixtures/<categoría>, como los pide la importación (`legacySlug`, texto y
+ * metadata), ordenados.
+ *
+ * @param {string} category
+ * @returns {import('./importer.js').SourceFile[]}
+ */
+export function fixtureFiles(category) {
+	return Object.keys(fixtureRaws)
+		.filter((path) => path.split('/').slice(-2)[0] === category)
+		.sort()
+		.map((path) => ({
+			legacySlug: /** @type {string} */ (path.split('/').pop()).replace(/\.md$/, ''),
+			raw: fixtureRaws[path],
+			meta: frontmatterMeta(fixtureRaws[path])
+		}));
+}
 
 /**
  * @typedef {{ meta: Record<string, any>, body?: string } | Record<string, any>} SeedPost

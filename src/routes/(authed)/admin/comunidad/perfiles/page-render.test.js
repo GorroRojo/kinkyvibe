@@ -1,5 +1,6 @@
 /**
- * Comunidad › Perfiles (/admin/comunidad/perfiles). El link a "Importar y clasificar" tiene que
+ * Comunidad › Perfiles (/admin/comunidad/perfiles). El link a "Clasificar" (la revisión de los
+ * perfiles que vinieron de las fichas; antes "Importar y clasificar", decisión 0032) tiene que
  * estar con base y sin base, igual que "Nuevo perfil". El interruptor «perfiles_publicos» quedó
  * prendido para siempre: los casos «apagado» (la pista «antes de prender» con base y la pestaña
  * «Fichas .md») se fueron con él.
@@ -8,8 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import Page from './+page.svelte';
 
-const IMPORT_LINK =
-	/<a[^>]*href="\/admin\/comunidad\/perfiles\/importar"[^>]*>Importar y clasificar<\/a>/;
+const IMPORT_LINK = /<a[^>]*href="\/admin\/comunidad\/perfiles\/importar"[^>]*>Clasificar<\/a>/;
 const FICHAS_TAB =
 	/<a[^>]*href="\/admin\/comunidad\/perfiles\?vista=fichas"[^>]*>(?:<!--[^>]*-->)*Fichas \.md/;
 const HINT = /prender «perfiles_publicos»/;
@@ -21,13 +21,12 @@ const dbData = () => ({
 	filters: { q: '', kind: '', origin: '', state: '', view: '' },
 	profiles: [],
 	counts: { total: 0, toReview: 0, toApprove: 0, hidden: 0, deleted: 0 },
-	claims: [],
-	notImported: 0
+	claims: []
 });
 
 describe('/admin/comunidad/perfiles (Perfiles)', () => {
 	// «Solo base»: sin base ya no está la lista de las fichas .md; la página avisa que no hay base.
-	it('sin base: el aviso y el link para importar', () => {
+	it('sin base: el aviso y el link para clasificar', () => {
 		const { body } = render(Page, {
 			props: { data: { ...dbData(), dbAvailable: false }, form: null }
 		});
@@ -39,7 +38,7 @@ describe('/admin/comunidad/perfiles (Perfiles)', () => {
 		expect(body).toContain('Perfiles');
 	});
 
-	it('con base: la lista de la base, el link para importar, sin «Fichas .md» ni la pista', () => {
+	it('con base: la lista de la base, el link para clasificar, sin «Fichas .md» ni la pista', () => {
 		const { body } = render(Page, { props: { data: dbData(), form: null } });
 		expect(body).toMatch(/<h1[^>]*>\s*Perfiles\s*<\/h1>/);
 		expect(body).toMatch(IMPORT_LINK);

@@ -15,9 +15,7 @@
  * viejo da `FileChangedError`.
  *
  * Reglas:
- * - Un perfil que la base no tiene no existe (aunque su .md siga en el repo): se importa primero
- *   (Comunidad → Perfiles → Importar y clasificar). Un perfil nuevo se crea en el panel, no con un
- *   .md.
+ * - Un perfil que la base no tiene no existe. Un perfil nuevo se crea en el panel, no con un .md.
  * - Una página de la wiki es de una etiqueta que ya existe; guardarla no cambia la etiqueta (ni su
  *   nombre ni sus relaciones), solo su texto de la wiki. Borrarla le saca el texto.
  * - Todo se escribe con saveObject() (versión nueva, con su revisión en `object_revisions`).
@@ -243,7 +241,7 @@ export async function planFichaWrite(db, file, { superadmin }) {
 	if (!existing) {
 		throw new Error(
 			p.category === 'amigues'
-				? `${file.path}: ese perfil no está en la base. Los perfiles nuevos se crean en Comunidad → Perfiles → «Nuevo perfil» (y las fichas del repo se importan en «Importar y clasificar»).`
+				? `${file.path}: ese perfil no está en la base. Los perfiles nuevos se crean en Comunidad → Perfiles → «Nuevo perfil».`
 				: `${file.path}: no hay ninguna etiqueta con esa dirección. Creala primero en Etiquetas.`
 		);
 	}
