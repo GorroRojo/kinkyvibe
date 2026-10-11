@@ -18,6 +18,7 @@ import {
 } from '$lib/server/tickets/index.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { getOrder, getOrderTickets, isValidOrderId } from '$lib/server/tickets/orders.js';
+import { workshopPartsList } from '$lib/server/tickets/workshopParts.js';
 
 const RECHECK_LIMIT = { limit: 10, windowSeconds: 60 };
 
@@ -69,6 +70,7 @@ export async function load({ params, url, platform, fetch, cookies }) {
 		mine && current.status === 'approved'
 			? (await getOrderTickets(db, current.id)).map((t) => ({ token: t.token }))
 			: [];
+	const online = Boolean(config?.online);
 	return {
 		order: {
 			id: current.id,
@@ -96,7 +98,14 @@ export async function load({ params, url, platform, fetch, cookies }) {
 		event: {
 			slug: current.event_slug,
 			title: config?.title ?? current.event_slug,
-			online: Boolean(config?.online)
+			online,
+			// Taller en varias partes con una sola entrada: la fecha (y el lugar) de cada parte, como
+			// en los mails y en la página de cada entrada (docs/talleres-partes.md). El lugar completo
+			// solo para quien hizo esta compra y ya está aprobada; si no, el que se ve en el sitio.
+			parts: await workshopPartsList(db, current.event_slug, {
+				online,
+				buyer: mine && current.status === 'approved'
+			})
 		},
 		tickets,
 		// Datos para transferir: solo mientras se espera la transferencia.
