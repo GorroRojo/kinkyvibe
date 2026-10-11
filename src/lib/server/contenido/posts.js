@@ -596,15 +596,15 @@ export async function siteContent(
 }
 
 /**
- * Las medidas y el texto alternativo de la portada de la biblioteca, para la vista previa al
- * compartir (`og:image:width`, `og:image:alt`; src/lib/utils/seo.js). `null` sin portada de la
- * biblioteca (la imagen vieja del repo no tiene medidas guardadas).
- * @param {{ width: number | null, height: number | null, alt: string } | null} cover
+ * Las medidas, el texto alternativo y el peso de la portada de la biblioteca, para la vista previa
+ * al compartir (`og:image:width`, `og:image:alt` y si se achica; src/lib/utils/seo.js). `null`
+ * sin portada de la biblioteca (la imagen vieja del repo no tiene medidas guardadas).
+ * @param {{ width: number | null, height: number | null, alt: string, size: number } | null} cover
  * @returns {import('$lib/utils/seo.js').ImageInfo | null}
  */
 function coverForPreview(cover) {
 	if (!cover) return null;
-	return { width: cover.width, height: cover.height, alt: cover.alt };
+	return { width: cover.width, height: cover.height, alt: cover.alt, size: cover.size || null };
 }
 
 /**

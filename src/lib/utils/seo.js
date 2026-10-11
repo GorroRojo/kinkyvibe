@@ -5,27 +5,87 @@
  */
 import { argDateTimeLong } from './dates.js';
 import { placeShort, venuePlaceMeta } from './eventPlace.js';
+import { isMediaPath } from './media.js';
 
 export const SITE_NAME = 'Kinky Vibe';
 export const TWITTER_SITE = '@kinkyvibearg';
 export const LOCALE = 'es_AR';
 
 /**
- * @typedef {{ width?: number | null, height?: number | null, alt?: string | null }} ImageInfo
- * @typedef {ImageInfo & { url: string }} PreviewImage
+ * @typedef {{ width?: number | null, height?: number | null, alt?: string | null, size?: number | null }} ImageInfo
+ *   `size`: el peso en bytes (la portada de la biblioteca lo sabe)
+ * @typedef {{ url: string, width?: number | null, height?: number | null, alt?: string | null }} PreviewImage
  */
 
 /**
- * La imagen cuando la página no tiene una propia: el logo redondo (512 × 512, unos 100 KB, entra
- * en el límite de WhatsApp). Está en `static/`, así que su dirección no cambia entre deploys.
+ * La imagen cuando la página no tiene una propia: una tarjeta de 1200 × 630 con el logo, el nombre
+ * y una frase del inicio (unos 75 KB). Está en `static/`, así que su dirección no cambia entre
+ * deploys. Se arma con `node scripts/og-default/render.js` (docs/compartir.md).
  * @type {Readonly<Required<PreviewImage>>}
  */
 export const DEFAULT_IMAGE = Object.freeze({
-	url: '/android-chrome-512x512.png',
-	width: 512,
-	height: 512,
-	alt: 'Kinky Vibe, en letras blancas sobre un círculo rosa'
+	url: '/og-default.png',
+	width: 1200,
+	height: 630,
+	alt: 'Logo de Kinky Vibe y el texto «Información y encuentros cuir LGTBQIA+ kinky y de BDSM. kinkyvibe.ar»'
 });
+
+/**
+ * El sitio de producción: su zona de Cloudflare tiene las transformaciones de imágenes
+ * (`/cdn-cgi/image/…`). Los previews de `workers.dev` y el desarrollo local no.
+ */
+export const PRODUCTION_HOST = 'kinkyvibe.ar';
+
+/**
+ * Cómo se achica una portada grande para la vista previa: JPEG (lo lee cualquier app) de 800 px de
+ * ancho como mucho (sin agrandar; `fit` por defecto, `scale-down`). Con 1200 px no alcanza: las
+ * portadas miden 1000–1280 px y en JPEG pesan más que el WEBP original. `onerror=redirect`: si
+ * Cloudflare no puede (por ejemplo, pasado el cupo del mes), manda a la imagen original.
+ */
+export const PREVIEW_RESIZE = Object.freeze({
+	width: 800,
+	options: 'width=800,format=jpeg,quality=80,onerror=redirect'
+});
+
+/** Hasta este peso la portada va tal cual (WhatsApp muestra hasta unos 300 KB). */
+export const SMALL_IMAGE_BYTES = 200 * 1024;
+
+/**
+ * La dirección achicada de una imagen para la vista previa, o `null` si va tal cual: solo una
+ * imagen de la biblioteca servida desde {@link PRODUCTION_HOST} (así un preview, que se sirve desde
+ * otro sitio, nunca la pide), y no si ya se sabe que es liviana.
+ * @param {string} url la imagen, entera
+ * @param {number | null | undefined} [size] su peso en bytes, si se sabe
+ */
+export function resizedImageUrl(url, size) {
+	let parsed;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return null;
+	}
+	if (parsed.protocol !== 'https:' || parsed.hostname !== PRODUCTION_HOST) return null;
+	if (!isMediaPath(parsed.pathname) || parsed.search) return null;
+	if (Number.isFinite(size) && Number(size) <= SMALL_IMAGE_BYTES) return null;
+	return `${parsed.origin}/cdn-cgi/image/${PREVIEW_RESIZE.options}${parsed.pathname}`;
+}
+
+/**
+ * Las medidas de la imagen achicada: hasta {@link PREVIEW_RESIZE}.width de ancho, con la misma
+ * proporción. Si el alto no da un número entero (Cloudflare redondea a su manera) o no se saben
+ * las medidas, ninguna: mejor sin medidas que con medidas equivocadas.
+ * @param {number | null} width
+ * @param {number | null} height
+ * @returns {{ width: number | null, height: number | null }}
+ */
+export function resizedSize(width, height) {
+	if (!width || !height) return { width: null, height: null };
+	if (width <= PREVIEW_RESIZE.width) return { width, height };
+	const h = (height * PREVIEW_RESIZE.width) / width;
+	return Number.isInteger(h)
+		? { width: PREVIEW_RESIZE.width, height: h }
+		: { width: null, height: null };
+}
 
 /**
  * Hasta cuántos caracteres va la descripción: WhatsApp muestra unas dos líneas y la de un evento
@@ -103,7 +163,8 @@ export function tagDescription(name) {
 
 /**
  * La imagen de la vista previa: la de la página (dirección entera, con sus medidas y su texto
- * alternativo si se conocen) o, sin imagen, {@link DEFAULT_IMAGE}.
+ * alternativo si se conocen; en producción, achicada si es grande: {@link resizedImageUrl}) o,
+ * sin imagen, {@link DEFAULT_IMAGE}.
  * @param {unknown} src la imagen de la página (`featured`, la del perfil…), relativa o entera
  * @param {string | URL} origin
  * @param {ImageInfo | null | undefined} [info] medidas y texto alternativo (la portada de la biblioteca)
@@ -113,14 +174,13 @@ export function tagDescription(name) {
 export function previewImage(src, origin, info, fallbackAlt = '') {
 	const url = absoluteUrl(src, origin);
 	if (!url) return { ...DEFAULT_IMAGE, url: absoluteUrl(DEFAULT_IMAGE.url, origin) };
-	const width = Number.isSafeInteger(info?.width) ? info?.width : null;
-	const height = Number.isSafeInteger(info?.height) ? info?.height : null;
-	return {
-		url,
-		width: width && height ? width : null,
-		height: width && height ? height : null,
-		alt: (info?.alt || fallbackAlt || '').trim()
-	};
+	const known = Number.isSafeInteger(info?.width) && Number.isSafeInteger(info?.height);
+	const width = known ? Number(info?.width) : null;
+	const height = known ? Number(info?.height) : null;
+	const alt = (info?.alt || fallbackAlt || '').trim();
+	const resized = resizedImageUrl(url, info?.size);
+	if (resized) return { url: resized, ...resizedSize(width, height), alt };
+	return { url, width, height, alt };
 }
 
 /**

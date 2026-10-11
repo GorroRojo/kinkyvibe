@@ -9,7 +9,10 @@ import {
 	absoluteUrl,
 	canonicalUrl,
 	eventDescription,
+	SMALL_IMAGE_BYTES,
 	previewImage,
+	resizedImageUrl,
+	resizedSize,
 	seoTags,
 	shortText,
 	tagDescription
@@ -135,8 +138,100 @@ describe('previewImage', () => {
 			const url = new URL(img.url);
 			expect(url.origin).toBe(ORIGIN);
 			expect(url.pathname).toBe(DEFAULT_IMAGE.url);
-			expect(img).toMatchObject({ width: 512, height: 512, alt: DEFAULT_IMAGE.alt });
+			expect(img).toMatchObject({ width: 1200, height: 630, alt: DEFAULT_IMAGE.alt });
 		}
+	});
+});
+
+describe('achicar portadas grandes en producción', () => {
+	const HASH = 'c'.repeat(64);
+	const PROD = 'https://kinkyvibe.ar';
+	const BIG = 400 * 1024;
+
+	/** Las partes de una dirección de `/cdn-cgi/image/<opciones>/<imagen>`. @param {string} href */
+	function transform(href) {
+		const url = new URL(href);
+		const [, cdn, image, options, ...rest] = url.pathname.split('/');
+		return { url, cdn, image, options: options.split(','), source: '/' + rest.join('/') };
+	}
+
+	it('una portada grande de la biblioteca, en kinkyvibe.ar: JPEG de 800 px con vuelta a la original', () => {
+		const href = resizedImageUrl(`${PROD}/media/img/${HASH}.webp`, BIG);
+		expect(href).not.toBeNull();
+		const t = transform(/** @type {string} */ (href));
+		expect(t.url.protocol).toBe('https:');
+		expect(t.url.hostname).toBe('kinkyvibe.ar');
+		expect([t.cdn, t.image]).toEqual(['cdn-cgi', 'image']);
+		expect(t.options).toEqual(['width=800', 'format=jpeg', 'quality=80', 'onerror=redirect']);
+		expect(t.source).toBe(`/media/img/${HASH}.webp`);
+		expect(t.url.search).toBe('');
+	});
+
+	it('sin el peso, también se achica', () => {
+		expect(resizedImageUrl(`${PROD}/media/img/${HASH}.png`)).not.toBeNull();
+		expect(resizedImageUrl(`${PROD}/media/img/${HASH}.png`, null)).not.toBeNull();
+	});
+
+	it('una liviana (hasta 200 KB) va tal cual', () => {
+		expect(resizedImageUrl(`${PROD}/media/img/${HASH}.webp`, SMALL_IMAGE_BYTES)).toBeNull();
+		expect(resizedImageUrl(`${PROD}/media/img/${HASH}.webp`, 70_000)).toBeNull();
+	});
+
+	it('en un preview, en local o en otro sitio, nunca (no tienen las transformaciones)', () => {
+		for (const origin of [
+			'https://claude-x-kinkyvibe.gorro-rojo.workers.dev',
+			'http://localhost:5173',
+			'https://www.kinkyvibe.ar',
+			'https://kinkyvibe.ar.otro.test',
+			'http://kinkyvibe.ar'
+		]) {
+			expect(resizedImageUrl(`${origin}/media/img/${HASH}.webp`, BIG)).toBeNull();
+		}
+	});
+
+	it('solo imágenes de la biblioteca', () => {
+		for (const path of [
+			'/_app/immutable/assets/1.x.webp',
+			'/og-default.png',
+			`/media/file/${HASH}.pdf`,
+			`/media/img/${HASH}.webp?x=1`
+		]) {
+			expect(resizedImageUrl(PROD + path, BIG)).toBeNull();
+		}
+		expect(resizedImageUrl('no es una dirección', BIG)).toBeNull();
+	});
+
+	it('las medidas de la achicada: como Cloudflare (sin agrandar), o ninguna si no son exactas', () => {
+		expect(resizedSize(1080, 1350)).toEqual({ width: 800, height: 1000 });
+		expect(resizedSize(1280, 1600)).toEqual({ width: 800, height: 1000 });
+		expect(resizedSize(1061, 1061)).toEqual({ width: 800, height: 800 });
+		expect(resizedSize(800, 800)).toEqual({ width: 800, height: 800 });
+		expect(resizedSize(640, 480)).toEqual({ width: 640, height: 480 });
+		expect(resizedSize(1000, 333)).toEqual({ width: null, height: null });
+		expect(resizedSize(null, 600)).toEqual({ width: null, height: null });
+	});
+
+	it('previewImage: en producción la achicada con sus medidas; en un preview, la original', () => {
+		const info = { width: 1080, height: 1350, alt: 'Afiche', size: BIG };
+		const prod = previewImage(`/media/img/${HASH}.webp`, PROD, info);
+		expect(transform(prod.url).source).toBe(`/media/img/${HASH}.webp`);
+		expect(new URL(prod.url).hostname).toBe('kinkyvibe.ar');
+		expect(prod).toMatchObject({ width: 800, height: 1000, alt: 'Afiche' });
+
+		const preview = previewImage(`/media/img/${HASH}.webp`, ORIGIN, info);
+		const url = new URL(preview.url);
+		expect(url.origin).toBe(ORIGIN);
+		expect(url.pathname).toBe(`/media/img/${HASH}.webp`);
+		expect(preview).toMatchObject({ width: 1080, height: 1350 });
+
+		const small = previewImage(`/media/img/${HASH}.webp`, PROD, { ...info, size: 90_000 });
+		expect(new URL(small.url).pathname).toBe(`/media/img/${HASH}.webp`);
+		expect(small).toMatchObject({ width: 1080, height: 1350 });
+	});
+
+	it('la imagen por defecto nunca se achica', () => {
+		const img = previewImage(undefined, PROD);
+		expect(new URL(img.url).pathname).toBe(DEFAULT_IMAGE.url);
 	});
 });
 

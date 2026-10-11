@@ -16,9 +16,9 @@ const pageStore = writable({ url: new URL(ORIGIN + '/'), params: {}, data: {} })
 vi.mock('$app/stores', () => ({ page: pageStore }));
 vi.mock('$app/navigation', () => ({ goto: vi.fn(), afterNavigate: vi.fn() }));
 
-/** @param {string} path */
-function at(path) {
-	pageStore.set({ url: new URL(ORIGIN + path), params: {}, data: { wiki: [] } });
+/** @param {string} path @param {string} [origin] */
+function at(path, origin = ORIGIN) {
+	pageStore.set({ url: new URL(origin + path), params: {}, data: { wiki: [] } });
 }
 
 const BEFORE = new Date('2026-10-01T12:00:00-03:00');
@@ -85,9 +85,9 @@ function expectComplete(meta, head, path) {
 function expectDefaultImage(meta) {
 	const image = new URL(meta['og:image']);
 	expect(image.origin).toBe(ORIGIN);
-	expect(image.pathname).toBe('/android-chrome-512x512.png');
-	expect(meta['og:image:width']).toBe('512');
-	expect(meta['og:image:height']).toBe('512');
+	expect(image.pathname).toBe('/og-default.png');
+	expect(meta['og:image:width']).toBe('1200');
+	expect(meta['og:image:height']).toBe('630');
 	expect(meta['og:image:alt']).toBeTruthy();
 }
 
@@ -125,9 +125,10 @@ const COVER = '/media/img/' + 'a'.repeat(64) + '.webp';
 /**
  * @param {Record<string, any>} [meta]
  * @param {Record<string, any>} [extra]
+ * @param {string} [origin]
  */
-async function eventHead(meta = {}, extra = {}) {
-	at('/calendario/taller-inventado');
+async function eventHead(meta = {}, extra = {}, origin = ORIGIN) {
+	at('/calendario/taller-inventado', origin);
 	const { default: Page } = await import('./calendario/[event]/+page.svelte');
 	return render(Page, {
 		props: {
@@ -204,6 +205,32 @@ describe('un evento', () => {
 		expect(head).not.toContain('Calle Secreta');
 		expect(head).not.toContain('Galpón Escondido');
 		expect(single(head)['og:description']).toContain('Barrio Inventado, Ciudad de Prueba');
+	});
+
+	it('en producción, una portada pesada va achicada por Cloudflare, con las medidas que devuelve', async () => {
+		const cover = { width: 1080, height: 1350, alt: 'Afiche de prueba', size: 400 * 1024 };
+		const head = await eventHead({}, { cover }, 'https://kinkyvibe.ar');
+		const meta = single(head);
+		const image = new URL(meta['og:image']);
+		expect(image.origin).toBe('https://kinkyvibe.ar');
+		const [, cdn, kind, options, ...rest] = image.pathname.split('/');
+		expect([cdn, kind]).toEqual(['cdn-cgi', 'image']);
+		expect(options.split(',')).toContain('format=jpeg');
+		expect('/' + rest.join('/')).toBe(COVER);
+		expect(new URL(meta['twitter:image']).href).toBe(image.href);
+		expect(meta['og:image:width']).toBe('800');
+		expect(meta['og:image:height']).toBe('1000');
+		// la canónica sigue siendo la página, no la imagen
+		expect(new URL(meta['og:url']).pathname).toBe('/calendario/taller-inventado');
+	});
+
+	it('en un preview, la misma portada va tal cual', async () => {
+		const cover = { width: 1080, height: 1350, alt: 'Afiche de prueba', size: 400 * 1024 };
+		const meta = single(await eventHead({}, { cover }));
+		const image = new URL(meta['og:image']);
+		expect(image.origin).toBe(ORIGIN);
+		expect(image.pathname).toBe(COVER);
+		expect(meta['og:image:width']).toBe('1080');
 	});
 
 	it('no listado (o borrador): se puede compartir, pero con noindex', async () => {
