@@ -1,7 +1,7 @@
 /**
  * Los eventos de prueba del modo demo como objetos `evento` de la base del preview (docs/demo.md),
  * para `reloadDemoData` (./seed.js). Desde «solo base» el sitio lee los eventos solo de la base:
- * los `.md` en `demo_files` ya no se ven.
+ * los `.md` que se guardaban en el preview ya no existen.
  *
  * **Confirmado por gorrite (5/10)** (con las ~18 revisiones por recarga y lo de adoptar o dar de
  * baja los `demo-*` importados, abajo): cada evento de prueba es SIEMPRE el mismo objeto,

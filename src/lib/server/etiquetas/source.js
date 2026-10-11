@@ -2,16 +2,16 @@
  * De dónde sale el árbol de etiquetas del sitio: la base (objetos `etiqueta`, docs/etiquetas.md;
  * el interruptor `etiquetas_db` quedó prendido para siempre).
  *
- * - Sin base, con la base sin etiquetas (todavía no se importó, por ejemplo en una base local
- *   nueva: `npm run tags:import`) o sin poder leerla: el archivo (src/lib/utils/hardcodedTags.js),
- *   solo como respaldo.
+ * - Sin base, con la base sin etiquetas (por ejemplo una base local nueva sin la semilla:
+ *   `npm run db:semilla`) o sin poder leerla: el árbol de respaldo ($lib/utils/tagFallback.js),
+ *   que es vacío (el archivo de etiquetas se borró con los .md, decisión 0032).
  * - Lo leído de la base se recuerda unos segundos por isolate (como los interruptores); el editor
  *   del panel lo olvida al guardar (`clearTagSourceCache`).
  * - `rawTags` (de la base) es la lista que espera `tagsFactory`, SIN tocar: `tagsFactory` les
  *   agrega funciones a los objetos que recibe, así que el árbol se arma sobre una copia
  *   (`tagManagerOf`) y la lista se puede mandar a la página tal cual.
  */
-import hardcodedTags from '$lib/utils/hardcodedTags.js';
+import { fallbackTagList } from '$lib/utils/tagFallback.js';
 import tagsFactory from '$lib/utils/tags.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { FLAG_CACHE_MS } from '$lib/server/flags.js';
@@ -28,8 +28,8 @@ import { wikiEntriesOf } from './wikiPages.js';
  *   ./wikiPages.js). Solo de la base: sin base no hay páginas de la wiki (como los eventos).
  */
 
-/** @type {TagSource} */
-const FILE = Object.freeze({ rawTags: hardcodedTags, fromDb: false, wiki: [] });
+/** Sin etiquetas de la base: el árbol de respaldo ($lib/utils/tagFallback.js). @returns {TagSource} */
+const FILE = () => ({ rawTags: fallbackTagList(), fromDb: false, wiki: [] });
 
 /** @type {{ value: TagSource, expires: number } | null} */
 let cache = null;
@@ -68,10 +68,10 @@ async function readDbTags(db) {
  * @returns {Promise<TagSource>}
  */
 export async function tagSourceFrom(db, { now = Date.now() } = {}) {
-	if (!db) return FILE;
+	if (!db) return FILE();
 	if (cache && cache.expires > now) return cache.value;
 	/** @type {TagSource} */
-	let value = FILE;
+	let value = FILE();
 	try {
 		const read = await readDbTags(db);
 		// Sin cambios: la misma lista (el mismo objeto), así los árboles y los posts ya
@@ -111,7 +111,7 @@ let fileManager;
 
 /**
  * El árbol armado (`tagsFactory`) de una fuente, uno por lista (se arma sobre una copia). El del
- * archivo es el de siempre (`tagsFactory()`, que ya le agregó funciones a hardcodedTags).
+ * respaldo es el de siempre (`tagsFactory()` sobre ./tagFallback.js).
  *
  * @param {TagSource} source
  * @returns {TagManager}

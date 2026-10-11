@@ -6,16 +6,7 @@
  * nothing.
  */
 import { isNumericFeatured } from '$lib/utils/eventDraft.js';
-/** @type {Record<string, string>} */
-const amiguesMedia = import.meta.glob('/src/lib/posts/amigues/media/*/*.{jpeg,jfif,jpg,png,webp}', {
-	eager: true,
-	import: 'default'
-});
-/** @type {Record<string, string>} */
-const assetFiles = import.meta.glob('/src/lib/assets/*.{jpeg,jfif,jpg,png,webp}', {
-	eager: true,
-	import: 'default'
-});
+import { legacyAssetURL, legacyNumberedURL } from '$lib/utils/legacyMedia.js';
 
 /**
  * @typedef {object} PostMeta
@@ -89,14 +80,9 @@ export async function authorUsage(category, metas) {
  */
 function profileImage(slug, id) {
 	if (id === undefined || id === null || id === '') return undefined;
-	if (isNumericFeatured(id)) {
-		for (const f of ['jpeg', 'jfif', 'jpg', 'png', 'webp']) {
-			const url = amiguesMedia[`/src/lib/posts/amigues/media/${slug}/${id}.${f}`];
-			if (url) return url;
-		}
-		return undefined;
-	}
-	return assetFiles[`/src/lib/assets/${id}`];
+	// La copia en la biblioteca de la imagen vieja ($lib/utils/legacyMedia.js).
+	if (isNumericFeatured(id)) return legacyNumberedURL('amigues', slug, id);
+	return legacyAssetURL(String(id));
 }
 
 /**
@@ -141,7 +127,7 @@ export async function editorData(category) {
 export const contentMetas = () => allMeta();
 
 /**
- * Image URL (as bundled in this deploy) of an amigues profile's `featured` / `logo` / `photo`.
+ * Image URL (the library copy of the old image) of an amigues profile's `featured` / `logo` / `photo`.
  * @param {string} slug
  * @param {any} id
  */

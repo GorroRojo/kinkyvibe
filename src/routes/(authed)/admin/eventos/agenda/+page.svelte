@@ -371,8 +371,8 @@
 
 {#if data.mock}
 	<p class="note">
-		<FlaskConical size={15} aria-hidden="true" /> Modo de prueba: los cambios van a una carpeta temporal,
-		no a GitHub.
+		<FlaskConical size={15} aria-hidden="true" /> Modo de prueba: admin falso; los cambios van a la base
+		local.
 	</p>
 {/if}
 

@@ -21,7 +21,8 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 | Selector de los editores | `src/lib/components/admin/ImagePicker.svelte`                                                             |
 | Enlazar un archivo       | `src/lib/components/admin/LibraryLinkPicker.svelte`, `src/lib/utils/libraryFiles.js` (editor de material) |
 | Achicar en el navegador  | `src/lib/utils/imageResize.js`                                                                            |
-| Importar las del repo    | `scripts/import-images.js` + `src/lib/server/media/import.js`                                             |
+| Imágenes viejas del repo | `src/lib/utils/legacyMedia.js` (mapa fijo a su copia en la biblioteca)                                    |
+| PDF y video del material | `scripts/subir-archivos.js` + `src/lib/server/media/archivosViejos.js` (sin correr en producción)         |
 
 - **Clave por contenido**: `img/<sha-256>.<ext>`. El mismo archivo subido dos veces es la misma
   imagen (el `slug` del objeto es el hash). Como un archivo nunca cambia, `/media/…` responde con
@@ -39,7 +40,7 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 
 gorrite decidió (5/10) que los PDF, el video y el ODT del material vayan a la biblioteca. Este
 paso prepara la biblioteca; **pasar los archivos del repo a R2 y reescribir los textos que los
-enlazan es otro paso** (lo corre gorrite).
+enlazan es otro paso** (lo corre gorrite: «Los PDF y el video del material», abajo).
 
 | Tipo                         | Se detecta por los bytes                                            | Se sirve                           |
 | ---------------------------- | ------------------------------------------------------------------- | ---------------------------------- |
@@ -84,8 +85,8 @@ enlazan es otro paso** (lo corre gorrite).
   la biblioteca»: subir un documento o video (con su nombre) o buscarlo (filtro Todo / Imágenes /
   Documentos / Videos; los documentos y videos con un ícono y su nombre, las imágenes con su
   miniatura) y «Enlazar» suma `[Nombre](/media/file/<hash>.pdf)` al final del texto. Hoy el
-  material enlaza sus PDF con un `<script>` que importa el archivo del repo y `<a href={guia}>`;
-  el paso de datos los va a reescribir a este enlace. Al guardar, el material queda con su edge
+  material viejo enlaza sus PDF con un `<script>` que importa el archivo del repo y
+  `<a href={guia}>`; `scripts/subir-archivos.js` los reescribe a este enlace. Al guardar, el material queda con su edge
   `adjunto` hacia el archivo (ver arriba).
 - **Borrar**: les admins, con el mismo borrado suave (`DELETE /imagenes/<id>`); el archivo queda en
   R2. «Dónde se usa» (`imageUsage`) cuenta el edge `adjunto` de cada material vivo y, como con las
@@ -178,44 +179,38 @@ suave), pero solo una imagen **que subieron y que nada usa** (`deleteOwnImage` e
   existiera). Desde otro sitio (Origin): 403.
 - Les admins siguen pudiendo sacar cualquiera, aunque se use.
 
-## Las imágenes viejas del repo (respaldo)
+## Las imágenes viejas del repo
 
-Hasta que se corra la importación, los eventos, el material, las series y las fichas siguen
-mostrando sus imágenes del repo (`featured` numérico o archivo de `src/lib/assets`, `image` de las
-series): **si un objeto no tiene edge, se usa el campo viejo**. Con edge, manda el edge
-(`withCover` en `src/lib/server/contenido/posts.js`, `seriesHeader` en `src/lib/server/series`,
-`toPublic` en `src/lib/server/amigues/pages.js`, `listEvents` en `src/lib/server/eventos`).
+Las imágenes que estaban en el repo (las carpetas `media/` de cada publicación y
+`src/lib/assets`) se importaron a la biblioteca de producción (con `scripts/import-images.js`,
+4–5/10) y se borraron del repo ([0032](decisiones/0032-borrar-los-md.md)), después de verificar
+que cada una tenía su objeto `imagen` vivo y que su dirección respondía.
 
-Las fichas de amigues ya viven solo en la base («solo base»): su imagen se elige en el selector
-(edge `avatar`, en el mismo guardado del editor de perfiles, `saveProfileFromPanel`); elegir o sacar
-una saca también las imágenes viejas de la ficha (`featured`, `logo`, `photo`). Sin edge, se sigue
-mostrando la imagen vieja del repo.
+Lo que en la base todavía nombra una imagen con la forma vieja (un `featured` numérico o con nombre
+de archivo, la foto o el logo de una ficha sin edge `avatar`, la `image` de una serie sin edge, un
+texto que importa `./media/<carpeta>/1.webp`) se resuelve con un mapa fijo a su copia:
+`src/lib/utils/legacyMedia.js` (`legacyMedia.json`, generado una vez con el SHA-256 de cada
+archivo). **Si un objeto tiene edge, manda el edge** (`withCover` en
+`src/lib/server/contenido/posts.js`, `seriesHeader` en `src/lib/server/series`, `toPublic` en
+`src/lib/server/amigues/pages.js`, `listEvents` en `src/lib/server/eventos`). En producción la
+dirección es `/media/img/…`; en local, en las pruebas y en los previews, la del sitio público.
 
-### Importación (una vez)
+### Los PDF y el video del material
 
-`scripts/import-images.js` sube cada imagen de `src/lib/posts/*/media/**` y `src/lib/assets` a R2,
-crea su objeto `imagen` (con texto alternativo «Imagen de «<título>»» si algo la usa) y el edge de
-cada evento, material o serie cuyo campo viejo apunta a ese archivo. Idempotente: correrla de nuevo
-no duplica nada; lo que ya tiene edge no se toca. Primero siempre con `--dry`:
+Los 13 PDF, el video y el documento del material **todavía no están en R2**: siguen en el repo, en
+`src/lib/archivos/material/<carpeta>/<archivo>`, con la misma dirección pública que antes (Vite
+los nombra por su contenido; `render.js` los resuelve para el texto que los importa). Subirlos es
+una escritura en producción, así que lo corre gorrite:
 
 ```sh
-npm run images:import -- --dry                    # local: qué haría
-npm run images:import                             # local (.wrangler/state, como npm run dev)
-npm run images:import -- --target=preview --dry   # preview: qué haría (necesita wrangler login)
-npm run images:import -- --target=preview --yes   # preview: base y bucket de PRUEBA
-npm run images:import -- --target=production --dry  # producción: qué haría
-npm run images:import -- --target=production --yes  # producción: pide escribir «produccion»
+node scripts/subir-archivos.js --target=production --dry   # qué haría
+node scripts/subir-archivos.js --target=production --yes   # pide escribir «produccion»
 ```
 
-`--target=preview` arma una configuración temporal con las bindings de `[previews]` de
-`wrangler.toml` (los ids se leen del archivo) como remotas; `--target=production`, lo mismo con
-las bindings de arriba (base `kinkyvibe`, bucket `kinkyvibe-media`). Producción la corre gorrite
-desde su compu (lo eligió el 4/10, en vez de un botón en el panel): sin `--yes` no escribe nada y,
-con `--yes`, antes de escribir pide tipear «produccion».
-
-Después de importar y revisar, las imágenes del repo se pueden borrar en un PR aparte (las páginas
-ya no las usan si todos los objetos tienen su edge; el chequeo `missing` del script lista los
-campos que apuntan a archivos que no están).
+Sube cada archivo a R2 (objeto `archivo` con su `source_path`), reescribe el texto de cada
+material que lo importa a `/media/file/<hash>.<ext>` (con su revisión, fuente `migracion`) y el
+edge `adjunto` sale solo. Idempotente. Después, un PR borra `src/lib/archivos/` y el glob de
+`render.js`. `--target=local` y `--target=preview` lo prueban antes.
 
 ## Configuración en Cloudflare (gorrite)
 
@@ -240,7 +235,7 @@ aclara en cada punto.
 
 - **Sin migración**: el `slug` de cada `imagen` es el SHA-256 del archivo (único por tipo) y la
   búsqueda usa `objects_fts`. Si hace falta filtrar mucho por tipo o tamaño, se promueve a columna.
-- **Texto alternativo obligatorio** al subir (no solo un aviso). Las importadas del repo llevan
+- **Texto alternativo obligatorio** al subir (no solo un aviso). Las importadas del repo llevaron
   «Imagen de «<título>»» (o nada si nada las usa). Una lista para revisar esos textos: por ahora
   no (gorrite).
 - **Cuentas del público**: solo suben y buscan entre lo suyo, y en su perfil solo ponen una imagen
@@ -254,8 +249,8 @@ aclara en cada punto.
 - **Al elegir o sacar una imagen se borra el campo viejo** (`featured` del evento/material,
   `image` de la serie): el edge pasa a ser lo único.
 - **Duplicar un evento**: si el original tiene imagen de la biblioteca, la copia usa la misma
-  (edge). Si solo tiene la vieja numerada del repo, se sigue copiando como antes (commit al repo)
-  hasta que se importe.
+  (edge). Si solo tiene la vieja numerada del repo, la copia apunta a su copia
+  en la biblioteca (edge `portada`, por `legacyMedia.js`).
 - **El mismo archivo subido de nuevo** devuelve la imagen que ya existía (con su nombre de antes);
   si no tenía texto alternativo, toma el nuevo.
 - **Las fichas de amigues** (ya en la base) eligen su imagen en el selector, como los demás

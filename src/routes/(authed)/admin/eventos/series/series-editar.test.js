@@ -10,7 +10,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent, thrown } from '$lib/server/series/fixtures.js';
-import hardcodedTags from '$lib/utils/hardcodedTags.js';
+import seedTagList from '$lib/server/semilla/etiquetas.json';
 import { importTags } from '$lib/server/etiquetas/importer.js';
 import { loadTagRecords } from '$lib/server/etiquetas/read.js';
 import { saveObject } from '$lib/server/objects/save.js';
@@ -117,11 +117,11 @@ const EDIT = {
 };
 
 describe('Editar serie', () => {
-	it('sin etiquetas en la base: no se guarda (hay que importarlas), sin commit', async () => {
+	it('sin etiquetas en la base: no se guarda (avisa que no hay etiquetas; no hay importación: decisión 0032)', async () => {
 		const { mod, commits } = await page({});
 		expect(await mod.actions.editar(post(EDIT))).toMatchObject({
 			status: 503,
-			data: { error: expect.stringContaining('importalas') }
+			data: { error: expect.stringContaining('no tiene etiquetas') }
 		});
 		expect(commits).toHaveLength(0);
 	});
@@ -129,7 +129,7 @@ describe('Editar serie', () => {
 	it('con la base: se guarda al momento, sin commit', async () => {
 		await importTags(
 			t.db,
-			{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
+			{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
 			{ actor: 'admin-de-prueba' }
 		);
 		const { mod, commits } = await page({});
@@ -164,7 +164,7 @@ describe('Editar serie', () => {
 	it('errores: sin cambios, una etiqueta que no es serie, sin permiso', async () => {
 		await importTags(
 			t.db,
-			{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
+			{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
 			{ actor: 'admin-de-prueba' }
 		);
 		const { mod, commits } = await page({});
@@ -197,7 +197,7 @@ describe('Editar serie', () => {
 		it('con la base: primero cuántas publicaciones cambian; al confirmar, las ediciones y la serie cambian en la base (nada a GitHub)', async () => {
 			await importTags(
 				t.db,
-				{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
+				{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
 				{ actor: 'admin-de-prueba' }
 			);
 			await seedEdition();
@@ -241,7 +241,7 @@ describe('Editar serie', () => {
 		it('con la base y «dejar el alias»: no cambia ninguna publicación', async () => {
 			await importTags(
 				t.db,
-				{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
+				{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
 				{ actor: 'admin-de-prueba' }
 			);
 			const { mod, commits } = await page({});

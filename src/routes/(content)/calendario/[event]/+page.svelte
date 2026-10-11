@@ -74,12 +74,9 @@
 	// Con venta acá, el link (si tiene `link_text`) sigue al final del texto (docs/tickets.md).
 	$: textLink = Boolean(data.tickets && actionLink && data.meta.link_text);
 	// «De qué se trata» solo si el texto muestra algo: un texto vacío, o con solo espacios o
-	// comentarios, no deja el título sin nada abajo (htmlStrip.js). El texto del .md
-	// (`data.content`) y los interactivos (`data.parts`) siempre muestran algo.
-	$: hasText =
-		data.html === undefined
-			? Boolean(data.content)
-			: Boolean(data.parts?.length) || hasVisibleHtml(data.html);
+	// comentarios, no deja el título sin nada abajo (htmlStrip.js). Los interactivos
+	// (`data.parts`) siempre muestran algo.
+	$: hasText = Boolean(data.parts?.length) || hasVisibleHtml(data.html ?? '');
 	// «por …»: les autores (salvo cuando el evento es el perfil de su única autora).
 	$: authors = /** @type {string[]} */ (data.meta.authors ?? []);
 	$: showAuthors = authors.length > 1 || (authors.length == 1 && authors[0] !== data.meta.postID);
@@ -205,23 +202,19 @@
 				use:addMentionPronouns={(name) =>
 					/** @type {Record<string, string>} */ (data.pronouns)?.[name]}
 			>
-				{#if data.html !== undefined}
-					<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML
+				<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML
 				     libre de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
-					<div class="kv-texto-libre">
+				<div class="kv-texto-libre">
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+					{@html ownStyle}
+					{#if data.parts}
+						<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
+						<ContentParts parts={data.parts} />
+					{:else}
 						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-						{@html ownStyle}
-						{#if data.parts}
-							<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
-							<ContentParts parts={data.parts} />
-						{:else}
-							<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-							{@html data.html}
-						{/if}
-					</div>
-				{:else}
-					<svelte:component this={data.content} />
-				{/if}
+						{@html data.html}
+					{/if}
+				</div>
 				{#if textLink}
 					<a
 						href={actionLink}

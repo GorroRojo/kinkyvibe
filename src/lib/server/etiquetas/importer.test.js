@@ -4,8 +4,9 @@
  * pisa ni revive lo tocado en el panel; y por tandas (`budget`) llega al mismo resultado.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { seedRawsByPath } from '$lib/server/semilla/testing.js';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
-import hardcodedTags from '$lib/utils/hardcodedTags.js';
+import seedTagList from '$lib/server/semilla/etiquetas.json';
 import tagsFactory from '$lib/utils/tags.js';
 import { saveObject } from '../objects/save.js';
 import { TAG_TYPE } from '../objects/types/etiqueta.js';
@@ -15,14 +16,12 @@ import { loadTagRecords } from './read.js';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
 
-const wikiRaw = /** @type {Record<string, string>} */ (
-	import.meta.glob('/src/lib/posts/wiki/*.md', { query: '?raw', import: 'default', eager: true })
-);
+const wikiRaw = /** @type {Record<string, string>} */ (seedRawsByPath('wiki'));
 const wikiFiles = Object.entries(wikiRaw).map(([p, raw]) => ({
 	name: p.slice(p.lastIndexOf('/') + 1, -3),
 	raw
 }));
-const fresh = () => JSON.parse(JSON.stringify(hardcodedTags));
+const fresh = () => JSON.parse(JSON.stringify(seedTagList));
 const source = () => ({ rawTags: fresh(), wikiFiles });
 const ACTOR = 'admin-de-prueba';
 

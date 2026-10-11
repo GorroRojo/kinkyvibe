@@ -25,7 +25,7 @@
  * que el modo demo: así el cliente sirve para cualquiera que llame a getRepoClient().
  */
 import { getRequestEvent } from '$app/server';
-import { FileChangedError, PathExistsError } from '$lib/server/eventos/github.js';
+import { FileChangedError, PathExistsError } from './cliente.js';
 import { gitBlobSha } from '$lib/server/admin/posts.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/errors.js';
 import { forViewer, OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
@@ -627,7 +627,7 @@ export function withContentDb(base) {
 
 		/**
 		 * @param {string} token
-		 * @param {{ files: import('$lib/server/eventos/github.js').CommitFile[], message: string, mustNotExist?: string[], unchanged?: Array<{path: string, sha: string}>, pr?: any, actor?: string, superadmin?: boolean, edges?: Record<string, Record<string, import('$lib/server/objects/edges.js').EdgeInput[]>> }} opts
+		 * @param {{ files: import('./cliente.js').CommitFile[], message: string, mustNotExist?: string[], unchanged?: Array<{path: string, sha: string}>, pr?: any, actor?: string, superadmin?: boolean, edges?: Record<string, Record<string, import('$lib/server/objects/edges.js').EdgeInput[]>> }} opts
 		 *   `actor`/`superadmin`: solo fuera de un pedido del panel (pruebas); en el panel, ./author.js.
 		 *   `edges`: por ruta, relaciones del post que cambian en el mismo guardado (por ejemplo la
 		 *   imagen, `{ portada: [id] }`; docs/imagenes.md). Solo para posts de la base.
@@ -975,7 +975,7 @@ export function dbPostsOnlyClient(client) {
 
 		/**
 		 * @param {string} token
-		 * @param {{ files: import('$lib/server/eventos/github.js').CommitFile[], message: string } & Record<string, any>} opts
+		 * @param {{ files: import('./cliente.js').CommitFile[], message: string } & Record<string, any>} opts
 		 */
 		async commitFiles(token, opts) {
 			const outside = opts.files.find((f) => !isDbPath(f.path));

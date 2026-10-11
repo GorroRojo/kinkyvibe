@@ -34,14 +34,15 @@ La cola de las noches, en este orden:
 1. **Seguimiento de #260**: varios grupos del menú lateral abiertos a la vez, y que los recuerde;
    abrir y cerrar todos; el menú se desplaza solo hasta lo elegido; `g u` = Cuentas. S.
 2. **Operadores de búsqueda** (parte 2 del buscador, después de #259). M.
-3. **Sacar los `.md` de las publicaciones**: el contenido vive solo en D1. Necesita una decisión
-   nueva que reemplace lo de «un mes después» de [0004](decisiones/0004-modelo-de-contenido.md).
-   Incluye: avatares de perfiles y referencias a imágenes dentro de los textos pasadas a
-   `/media/...`, el sitio deja de leer archivos, el panel sin GitHub, una semilla inventada para
-   dev, E2E y previews, sacar los importadores, `git rm` de `src/lib/posts` con un tag de git,
-   sacar mdsvex y los assets viejos, y actualizar docs y CI. L, en varios PRs. Bloqueo: correr
-   los pasos de datos en preview y producción es de gorrite; antes de borrar, un chequeo de solo
-   lectura de que producción tiene todo.
+3. **Después de sacar los `.md`** ([0032](decisiones/0032-borrar-los-md.md), PR «limpieza-md»):
+   - gorrite: crear y subir el tag `posts-md-final` en el último commit de `main` con los `.md`
+     (el comando está en el PR). S. Bloqueo: gorrite.
+   - gorrite: `node scripts/subir-archivos.js --target=production` (PDF, video y ODT del material
+     a R2); después, un PR que borra `src/lib/archivos/` y su glob en `render.js`. S. Bloqueo:
+     gorrite.
+   - Código muerto que quedó del panel con GitHub: funciones de `sharedImage.js`, la edición del
+     archivo de etiquetas en `tagConfig.js`, ramas «no se guardó en la base» de la UI, el permiso
+     `public_repo` del login. M.
 4. **Restos chicos** (un PR o dos):
    - borrar `AddToCalendarButton.svelte` y `admin/agenda/ConfirmPrompt.svelte`, que no se usan;
    - sacar el `CF_PAGES_BRANCH` y los comentarios de «mientras siga en Pages» de `deployBranch.js`
@@ -207,8 +208,6 @@ de amigues y lanzamientos grandes.
 - Arreglos de datos en textos viejos (etiquetas HTML sin cerrar, `&nbsp;`, negritas rotas). S.
   Bloqueo: son cambios en producción, desde el panel o con OK de gorrite.
 - Eventos sin imagen y campos vacíos del CMS. Bloqueo: gorrite elige en el panel.
-- Preguntas pendientes del plan de limpieza (mantener «Descargar todo» en `.md`, `hardcodedTags`,
-  `HumanBody.svelte`, la rama del demo). Bloqueo: gorrite.
 - Guardados con colecciones y notas, amigues guardades, «No mostrar que voy» (fase 4). L.
 - Vista de grafo de los objetos, estilo Obsidian. L.
 - Campos de perfil: afiliación, formación, experiencia, habilidades (TODO en `types.d.js`). S.
@@ -236,7 +235,7 @@ Lo grande está en Próximo (7 y 8). Lo que quede de esas auditorías se suma ac
 ## Decidido y descartado
 
 - **AUCH como etiqueta especial** en todos lados (TODO en `PostListItem.svelte`): descartado.
-- Contenido en archivos `.md` como fuente: el contenido vive en D1 (0004 y Próximo 3).
+- Contenido en archivos `.md` como fuente: el contenido vive en D1 (0004 y 0032).
 
 ## Cómo mantenerla
 

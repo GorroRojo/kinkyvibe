@@ -4,6 +4,8 @@
  * miniflare, más guardarlo desde el panel.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { metasOf } from './testing.js';
+import { seedMetasByPath, seedRawsByPath } from '$lib/server/semilla/testing.js';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { coreTypes, validateData } from '../objects/types/index.js';
 import { splitMarkdown } from '../amigues/importer.js';
@@ -31,17 +33,13 @@ vi.mock('$lib/utils', async (importOriginal) => ({
 }));
 
 const realMetas = /** @type {Record<string, Record<string, any> | undefined>} */ (
-	import.meta.glob('/src/lib/posts/material/*.md', { import: 'metadata', eager: true })
+	seedMetasByPath('material')
 );
-const realRaws = /** @type {Record<string, string>} */ (
-	import.meta.glob('/src/lib/posts/material/*.md', {
-		query: '?raw',
-		import: 'default',
-		eager: true
-	})
-);
+const realRaws = /** @type {Record<string, string>} */ (seedRawsByPath('material'));
 const fixtureMetas = /** @type {Record<string, Record<string, any> | undefined>} */ (
-	import.meta.glob('./fixtures/material/*.md', { import: 'metadata', eager: true })
+	metasOf(
+		import.meta.glob('./fixtures/material/*.md', { query: '?raw', import: 'default', eager: true })
+	)
 );
 const fixtureRaws = /** @type {Record<string, string>} */ (
 	import.meta.glob('./fixtures/material/*.md', { query: '?raw', import: 'default', eager: true })

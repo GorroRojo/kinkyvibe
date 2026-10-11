@@ -8,7 +8,7 @@ Permite que la gente compre entradas para un evento del calendario desde el siti
 
 ## Cómo se activa en un evento
 
-Se agrega `tickets` al frontmatter del evento (`src/lib/posts/calendario/<slug>.md`). Los eventos sin `tickets` siguen igual que siempre (con su `link` externo).
+Se agrega `tickets` a los datos del evento (en la base; el editor de eventos lo arma). Los eventos sin `tickets` siguen igual que siempre (con su `link` externo).
 
 **Desde el panel (lo normal):** la sección **🎟️ Entradas** del editor de eventos, al crear o duplicar (`/admin/eventos/nuevo`) y al editar (pestaña **Editar** de la ficha del evento, `/admin/eventos/<slug>/editar`). Tiene:
 
@@ -61,7 +61,7 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
 ```
 
 - El precio que se cobra **siempre** sale de este frontmatter, leído en el servidor. El formulario solo manda el tipo, la cantidad, cómo quiere pagar (opción del fondo), el código y el medio de pago.
-- **El Fondo KinkyVibe solo aplica a eventos con la etiqueta `KinkyVibe`** (decisión de la organización; también cuentan sus alias `Kinkyvibe` y `kinkyvibe`, que se resuelven con el tag manager de `src/lib/utils/hardcodedTags.js`, no comparando texto: `isKinkyVibeEvent` en `config.js`). En un evento **sin** la etiqueta: precio de lista y nada más: no se muestra "¿Cómo querés pagar tu entrada?" (ni descuento del fondo ni solidaria / muy solidaria / Sugar), ni textos del Fondo, no se guarda fondo usado ni aportes (y el admin no muestra las columnas del fondo para ese evento, salvo que tenga órdenes viejas con montos del fondo). El servidor lo hace cumplir: `validatePurchase` ignora cualquier `option` que llegue en el POST y la orden queda `completo`, con `fondo_percent` NULL (hay tests unitarios y E2E con un POST armado). Las órdenes ya hechas no cambian.
+- **El Fondo KinkyVibe solo aplica a eventos con la etiqueta `KinkyVibe`** (decisión de la organización; también cuentan sus alias `Kinkyvibe` y `kinkyvibe`, que se resuelven con el árbol de etiquetas del sitio (de la base), no comparando texto: `isKinkyVibeEvent` en `config.js`). En un evento **sin** la etiqueta: precio de lista y nada más: no se muestra "¿Cómo querés pagar tu entrada?" (ni descuento del fondo ni solidaria / muy solidaria / Sugar), ni textos del Fondo, no se guarda fondo usado ni aportes (y el admin no muestra las columnas del fondo para ese evento, salvo que tenga órdenes viejas con montos del fondo). El servidor lo hace cumplir: `validatePurchase` ignora cualquier `option` que llegue en el POST y la orden queda `completo`, con `fondo_percent` NULL (hay tests unitarios y E2E con un POST armado). Las órdenes ya hechas no cambian.
 - En los eventos KinkyVibe, **el fondo aplica a todos los tipos de entrada** y **es automático**: el porcentaje del mes sale de fondo.kinkyvibe.ar (ver [Descuento automático del Fondo](#descuento-automático-del-fondo)) y se aplica a todos los tipos con precio, redondeado al peso. **No hay fondo fijo por evento ni por tipo**: `fondo_percent` en el evento y `fondo` (pesos) en un tipo ya no existen y, si quedan en un frontmatter, se ignoran sin error. Los precios siguen a fondo.kinkyvibe.ar también durante una venta; cada orden guarda el porcentaje y los montos con los que se compró (las órdenes ya hechas no cambian). Los tipos **a la gorra** no tienen fondo (quien paga elige el monto). Se eligió así porque el Fondo KinkyVibe funciona como **un porcentaje de descuento sobre todo** (ver [El Fondo KinkyVibe](#el-fondo-kinkyvibe)). Con 100 % la entrada "con el descuento del fondo" queda gratis.
 - `status: cancelado` o `status: agotadas` cierran la venta.
 - **Cantidad:** un stepper compacto **− n +** al lado de la etiqueta (botones de 42 px, cómodos para el dedo; también se puede tipear), de 1 a `min(disponibles, 20)`: cada entrada lleva su bloque de datos y con más el formulario se vuelve inmanejable en el celu. El servidor rechaza más de 20. Cada entrada tiene su propio QR y su código corto.
@@ -242,7 +242,7 @@ Panel → Eventos (`panelList.js`), y los componentes `GoalProgress.svelte` y `S
 - `tickets_open` (opcional): antes de ese momento la venta no abrió; la página del evento y la de compra dicen "Abre el jueves 1/10 a las 12:00".
 - `tickets_close` (opcional; si falta, el inicio del evento): desde ese instante no se puede comprar. Mientras tanto se muestra "La venta cierra el viernes 2/10 a las 20:00"; después, "Venta cerrada".
 - `close` en un tipo (opcional): ese tipo deja de venderse antes (por ejemplo, la anticipada); nunca después del cierre del evento. Si todos los tipos cerraron, la venta está cerrada.
-- Formato: con zona (`2026-10-02T20:00-03:00`, lo que escribe el editor) o sin zona (se toma la hora de Argentina, `America/Argentina/Buenos_Aires`, UTC−3 sin horario de verano). **Una fecha sola** (`2026-10-02`, como se usaba antes) en un cierre significa **hasta el fin de ese día** en Argentina; en la apertura, desde el principio del día. (mdsvex convierte esa fecha en `2026-10-02T00:00:00.000Z` al compilar el `.md`; `parseSaleTime` toma la medianoche UTC exacta con `Z` como fecha sola, así que para cerrar justo a las 21:00 del día anterior hay que escribir `2026-10-01T21:00-03:00`.) Un valor que no se entiende deja al evento sin venta (y se loguea).
+- Formato: con zona (`2026-10-02T20:00-03:00`, lo que escribe el editor) o sin zona (se toma la hora de Argentina, `America/Argentina/Buenos_Aires`, UTC−3 sin horario de verano). **Una fecha sola** (`2026-10-02`, como se usaba antes) en un cierre significa **hasta el fin de ese día** en Argentina; en la apertura, desde el principio del día. (Un YAML importado puede traer esa fecha como `2026-10-02T00:00:00.000Z`; `parseSaleTime` toma la medianoche UTC exacta con `Z` como fecha sola, así que para cerrar justo a las 21:00 del día anterior hay que escribir `2026-10-01T21:00-03:00`.) Un valor que no se entiende deja al evento sin venta (y se loguea).
 - El servidor lo controla en cada compra (`salesState`, `typeOpen` y `validatePurchase` en `config.js`). Lo que ya estaba en curso al cerrar se completa: un pago de Mercado Pago que llega después, una transferencia reservada antes que se confirma o la confirmación de la reserva desde el mail.
 
 ### A la gorra
@@ -348,7 +348,7 @@ Se muestra en "Condiciones de compra y devoluciones" del formulario y al pie de 
 
 ### Evento de prueba
 
-`src/lib/posts/calendario/prueba-entradas-2026-12.md` es un evento **oculto** (`force_unlisted`) con entradas (General y Anticipada, con fondo en las dos), los dos medios de pago, y en el cuerpo las instrucciones paso a paso para probar todo. `prueba-entradas-gorra-2026-12.md` es otro, online y a la gorra. **Hay que borrarlos antes de vender de verdad.**
+`prueba-entradas-2026-12` (en la semilla de contenido, `src/lib/server/semilla/calendario.json`; en producción ya está borrado) es un evento **oculto** (`force_unlisted`) con entradas (General y Anticipada, con fondo en las dos), los dos medios de pago, y en el cuerpo las instrucciones paso a paso para probar todo. `prueba-entradas-gorra-2026-12` es otro, online y a la gorra.
 
 ### Archivos
 
