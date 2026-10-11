@@ -453,9 +453,8 @@
 				archivo).</small
 			>
 			{#if hasVenue && state.modalidad === 'online'}
-				<small id="{idPrefix}-modalidad-venue"
-					>⚠️ Tiene un lugar elegido, así que es presencial: para venderlo como online, sacá el
-					lugar.</small
+				<Notice tone="warn" inline id="{idPrefix}-modalidad-venue"
+					>Tiene un lugar elegido, así que es presencial: para venderlo como online, sacá el lugar.</Notice
 				>
 			{/if}
 		</label>

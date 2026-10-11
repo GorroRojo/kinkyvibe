@@ -2,6 +2,7 @@
 	import { argDateLog } from '$lib/utils/dates.js';
 	import { enhance } from '$app/forms';
 	import { eventHref } from '$lib/admin/nav.js';
+	import Notice from '$lib/components/ui/Notice.svelte';
 
 	let { data, form } = $props();
 
@@ -104,12 +105,15 @@
 			<button type="submit">Marcar ingreso</button>
 			{#if form?.checkin}
 				{@const r = form.checkin}
-				<p class="result result-{r.result}" role="status">
-					{#if r.result === 'ok'}✅ Ingreso registrado.
-					{:else if r.result === 'already'}⚠️ Ya ingresó ({time(r.at)}, por {r.by}).
-					{:else if r.result === 'void'}❌ Entrada anulada.
-					{:else}❌ Entrada inválida.{/if}
-				</p>
+				<Notice
+					tone={r.result === 'ok' ? 'ok' : r.result === 'already' ? 'warn' : 'error'}
+					role="alert"
+				>
+					{#if r.result === 'ok'}Ingreso registrado.
+					{:else if r.result === 'already'}Ya ingresó ({time(r.at)}, por {r.by}).
+					{:else if r.result === 'void'}Entrada anulada.
+					{:else}Entrada inválida.{/if}
+				</Notice>
 			{/if}
 			<a href={eventHref(data.event.slug, 'ingreso')}>Ir a Puerta</a>
 		</form>
@@ -273,6 +277,12 @@
 		padding-top: 1em;
 		border-top: 2px solid var(--line);
 	}
+	/* el resultado de «Marcar ingreso»: separado del botón y del link, y alineado a la izquierda
+	   como su ícono (la entrada centra el resto del texto) */
+	.admin :global(.kv-notice) {
+		margin-block: var(--space-xs);
+		text-align: left;
+	}
 	.admin button {
 		font: inherit;
 		font-weight: bold;
@@ -283,9 +293,5 @@
 		background: var(--3-ink);
 		color: white;
 		cursor: pointer;
-	}
-	.result {
-		font-size: var(--step-1);
-		font-weight: bold;
 	}
 </style>

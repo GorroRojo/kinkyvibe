@@ -138,6 +138,9 @@ armar una variante nueva en un componente.
 | Tabla                | `.kv-table` para leer; el estilo de planilla editable solo donde se edita.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Encabezado de página | El de la ficha de evento (imagen, título, fecha, chips, acciones); sin imagen, el ícono grande del tipo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
+Una excepción a los avisos: los carteles de la Puerta (`ingreso`) no son `Notice`. Tienen su
+estilo oscuro propio, el mismo que los de «sin conexión» y «pendientes».
+
 ### Ajustes del 4/10 (decisión de gorrite)
 
 Comparando el encabezado del evento antes y después de la revisión, gorrite prefirió el aspecto

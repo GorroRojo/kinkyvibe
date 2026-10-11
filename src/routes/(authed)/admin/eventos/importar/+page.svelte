@@ -4,6 +4,7 @@
 	import { eventLinkProblem } from '$lib/utils/eventLink.js';
 	import ChipCombobox from '$lib/components/admin/ChipCombobox.svelte';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
+	import Notice from '$lib/components/ui/Notice.svelte';
 	import '$lib/components/admin/admin.scss';
 	import { formatARS } from '$lib/utils/money.js';
 	import { searchSources, sourceDetail, sourceLabel } from '$lib/utils/sourcePicker.js';
@@ -605,7 +606,7 @@
 					<li>
 						<a href={c.url} target="_blank" rel="noreferrer"><strong>{c.title}</strong></a>
 						<code>{c.slug}</code>
-						{#each c.notes as note}<span class="note">⚠️ {note}</span>{/each}
+						{#each c.notes as note}<Notice tone="warn" compact role={null}>{note}</Notice>{/each}
 					</li>
 				{/each}
 			</ul>
@@ -698,12 +699,16 @@
 
 							{#if item.sheet.warnings.length || item.notes.length || itemProblems.length}
 								<ul class="warnings">
-									{#each itemProblems as p}<li class="problem">⛔ {p}</li>{/each}
+									{#each itemProblems as p}<li>
+											<Notice tone="error" compact role="status">{p}</Notice>
+										</li>{/each}
 									{#each item.sheet.warnings as w}{#if !(item.timesFrom && w === 'Falta el horario.')}<li
 											>
-												⚠️ {w}
+												<Notice tone="warn" compact role={null}>{w}</Notice>
 											</li>{/if}{/each}
-									{#each item.notes as w}<li>⚠️ {w}</li>{/each}
+									{#each item.notes as w}<li>
+											<Notice tone="warn" compact role={null}>{w}</Notice>
+										</li>{/each}
 								</ul>
 							{/if}
 
@@ -1094,15 +1099,8 @@
 		list-style: none;
 		padding: 0;
 		margin: 0.5em 0 0;
-		font-size: var(--step--1);
 		li {
-			background: var(--warn-bg, #fff6d6);
-			border-radius: var(--radius-s);
-			padding: 0.2em 0.6em;
 			margin-bottom: 0.25em;
-		}
-		.problem {
-			background: var(--bad-bg, #fde2e2);
 		}
 	}
 	.when {
@@ -1283,9 +1281,8 @@
 			opacity: 0.7;
 			margin-left: 0.4em;
 		}
-		.note {
-			display: block;
-			font-size: var(--step--1);
+		li > :global(.kv-notice) {
+			margin-top: 0.25em;
 		}
 	}
 	@media (max-width: 540px) {
