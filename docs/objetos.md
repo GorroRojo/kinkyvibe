@@ -172,8 +172,8 @@ dan 404 a lo que no se puede ver.
 
 También planta datos de personas que nunca son públicos (los mails de las cuentas, una compra de
 un evento público con nombre, mail, DNI y respuestas, y una nota interna) y revisa que no salgan en
-ninguna de esas salidas ni en las páginas de lo público; y que la biblioteca (`/imagenes`) dé 404
-sin cuenta. **Una salida pública nueva se suma con una línea** en
+ninguna de esas salidas ni en las páginas de lo público; que la biblioteca (`/imagenes`) dé 404
+sin cuenta, y que `/api/fondo/propinas-total` pida su secreto. **Una salida pública nueva se suma con una línea** en
 `LIST_OUTPUTS` (si lista cosas) o en `DIRECT_OUTPUTS` (si es la dirección de un objeto).
 
 La última parte (lo público que apunta a lo privado: personas, etiquetas y lugar) tiene una prueba

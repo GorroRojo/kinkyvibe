@@ -1244,6 +1244,14 @@ describe('los datos de las personas no salen', () => {
 		expect(found).toEqual([]);
 	});
 
+	it('el total de propinas del Fondo pide su secreto', async () => {
+		const { GET } = await import('./api/fondo/propinas-total/+server.js');
+		const res = /** @type {Response} */ (
+			await GET(anonEvent({ path: '/api/fondo/propinas-total?mes=2026-09' }))
+		);
+		expect(res.status).toBe(401);
+	});
+
 	it('la biblioteca (/imagenes) no se abre sin cuenta', async () => {
 		const { GET } = await import('./imagenes/+server.js');
 		const r = await attempt(async () => {
