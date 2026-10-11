@@ -20,6 +20,7 @@ PRs abiertos:
   nuevo mapa de teclas `g`.
 - #261: reserva por transferencia hasta las 20 del segundo día hábil, sin paso de confirmar.
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
+- #296: miniatura de la portada en el recuadro «Hoy» del Inicio del panel (gorrite, 11/10).
 - Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
   tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
   directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
@@ -188,6 +189,9 @@ de amigues y lanzamientos grandes.
 - Más gráficos: mapa de la comunidad, Fondo y finanzas. M.
 - Colaboración en tiempo real con Durable Objects. L.
 - Preguntas de inscripción sugeridas para elegir rápido. S.
+- Miniaturas achicadas en las otras listas del panel (Eventos, Contenido): hoy usan la portada
+  entera; el recuadro «Hoy» ya usa `thumbnailUrl` (`seo.js`). En previews y en local no hay
+  transformaciones de Cloudflare, así que ahí siguen enteras. S.
 
 ### Mails
 

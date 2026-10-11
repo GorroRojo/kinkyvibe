@@ -121,6 +121,32 @@ export function resizedSize(width, height) {
 }
 
 /**
+ * Cómo se achica una portada para una miniatura cuadrada del panel (el recuadro «Hoy» del Inicio):
+ * 128 px de lado (el doble de los 64 px en pantalla, para pantallas densas), recortada al centro
+ * (`fit=cover`), en el formato que mejor lea el navegador (`format=auto`). `onerror=redirect`: si
+ * Cloudflare no puede (por ejemplo, pasado el cupo del mes), manda a la imagen original. Cada
+ * portada distinta cuenta una vez por mes en el cupo de transformaciones (docs/compartir.md).
+ */
+export const THUMB_RESIZE = Object.freeze({
+	size: 128,
+	options: 'width=128,height=128,fit=cover,format=auto,quality=80,onerror=redirect'
+});
+
+/**
+ * La dirección de la miniatura de una portada: achicada con las transformaciones de Cloudflare
+ * (`/cdn-cgi/image/…`) solo si la página se sirve desde {@link PRODUCTION_HOST} y la portada es de
+ * la biblioteca (`/media/img/…`, del mismo sitio); si no (un preview, el desarrollo local, una
+ * imagen vieja de `static/` o de otro sitio), la portada tal cual. Sin portada, ''.
+ * @param {string | null | undefined} src la portada, como la usan las tarjetas (`thumb`)
+ * @param {string} host el host de la página (`$page.url.hostname`)
+ */
+export function thumbnailUrl(src, host) {
+	if (!src) return '';
+	if (host !== PRODUCTION_HOST || !isMediaPath(src)) return src;
+	return `/cdn-cgi/image/${THUMB_RESIZE.options}${src}`;
+}
+
+/**
  * Hasta cuántos caracteres va la descripción: WhatsApp muestra unas dos líneas y la de un evento
  * empieza con la fecha y el lugar, que tienen que entrar.
  */
