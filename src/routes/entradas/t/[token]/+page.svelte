@@ -277,6 +277,12 @@
 		padding-top: 1em;
 		border-top: 2px solid var(--line);
 	}
+	/* el resultado de «Marcar ingreso»: separado del botón y del link, y alineado a la izquierda
+	   como su ícono (la entrada centra el resto del texto) */
+	.admin :global(.kv-notice) {
+		margin-block: var(--space-xs);
+		text-align: left;
+	}
 	.admin button {
 		font: inherit;
 		font-weight: bold;

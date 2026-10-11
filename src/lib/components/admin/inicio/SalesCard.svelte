@@ -58,7 +58,7 @@
 		<CapacityBar sold={e.sold} held={e.held} capacity={e.capacity} />
 	{/if}
 	{#if over}
-		<Notice tone="error" compact role={null}
+		<Notice tone="warn" compact role={null}
 			><Badge tone="bad">Sobrevendido</Badge> {over} más que el cupo total</Notice
 		>
 	{/if}
