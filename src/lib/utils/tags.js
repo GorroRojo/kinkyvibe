@@ -1,5 +1,4 @@
-/**@type Array<RawTag> */
-import hardcodedTags from './hardcodedTags';
+import { fallbackTagList } from './tagFallback.js';
 
 /**
  *
@@ -30,11 +29,12 @@ function orphanTagFactory(id, data) {
 /**
  *
  *
- * @param {Array<ProcessedTag>} [rawTags=hardcodedTags]
+ * @param {Array<ProcessedTag>} [rawTags] por defecto, el árbol de respaldo (./tagFallback.js: vacío
+ *   en la app; las etiquetas viven en la base)
  * @return {TagManager}
  */
 // @ts-ignore
-export function tagsFactory(rawTags = hardcodedTags) {
+export function tagsFactory(rawTags = /** @type {any} */ (fallbackTagList())) {
 	/** @type Array<ProcessedTag> */
 	/**@type Map<TagID, ProcessedTag> */
 	let tagsMap = new Map([...rawTags].map((t) => [t.id, t]));
@@ -262,7 +262,7 @@ function parseDescription(description, query) {
 							? [
 									{ line: p, type, href },
 									{ line: query, type: 'mark' }
-							  ]
+								]
 							: { line: p, type, href }
 					)
 					.flat();

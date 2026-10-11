@@ -1,5 +1,6 @@
 <script>
 	import LDTag from '$lib/components/LDTag.svelte';
+	import { profileSchema } from '$lib/utils/jsonLd.js';
 	import DbProfile from '$lib/components/amigues/DbProfile.svelte';
 	import FollowButton from '$lib/components/FollowButton.svelte';
 	import ParticipacionesPorRol from '$lib/components/ParticipacionesPorRol.svelte';
@@ -11,31 +12,16 @@
 	export let form;
 	// El perfil sale de la base (+page.server.js, «solo base»).
 	currentPostData.set({ category: 'amigues', path: $page.url.pathname });
-	/**@type {(s:string|number|Date)=>(string)}*/
-	let toISO = (s) => {
-		try {
-			return new Date(s).toISOString();
-		} catch (e) {
-			return s + '';
-		}
-	};
-	$: ld = data.profile;
 </script>
 
+<!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js); el lugar, según
+     su privacidad. -->
 <LDTag
-	schema={{
-		'@context': 'https://schema.org',
-		'@type': 'NewsArticle',
-		headline: ld.title,
-		image: [ld.image + ''],
-		datePublished: toISO(ld.publishedDate ?? ''),
-		dateModified: toISO(ld.updatedDate ?? ld.publishedDate ?? ''),
-		author: ld.authors?.map((/** @type {string} */ a) => ({
-			'@type': 'Person',
-			name: a,
-			url: 'https://kinkyvibe.ar/' + a
-		}))
-	}}
+	schema={profileSchema({
+		profile: data.profile,
+		canonical: data.canonical,
+		location: data.location
+	})}
 />
 <a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 <DbProfile {data} claimResult={form?.claim} url={$page.url.href} />

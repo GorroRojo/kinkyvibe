@@ -1,6 +1,9 @@
 /**
- * Importación del contenido .md (eventos; después material y wiki) a objetos en la base. Es el
- * mismo patrón que las fichas de amigues (src/lib/server/amigues/importer.js):
+ * Carga de publicaciones en forma de .md (eventos y material: frontmatter y cuerpo) a objetos en la
+ * base. Hoy solo carga la semilla de contenido de las bases locales (src/lib/server/semilla,
+ * `npm run db:semilla`) y lo usan las pruebas (./testing.js): los .md ya no están en el repo ni hay
+ * importación desde el panel (decisión 0032). Es el mismo patrón que las fichas de amigues
+ * (src/lib/server/amigues/importer.js):
  *
  * - Escribe SOLO con saveObject() (docs/objetos.md). `content_sources` (de qué .md salió) y el
  *   historial (`object_revisions`) van en la misma tanda (opción `also`).
@@ -13,7 +16,7 @@
  * - **Informa** qué haría antes de hacerlo ({@link planImport}, sin escribir nada) y qué campos
  *   cambian en cada actualización.
  * - **De a tandas** ({@link runImport} con `limit`): D1 tiene un máximo de consultas por pedido,
- *   así que el panel la llama varias veces hasta que no queda nada.
+ *   así que quien la llama la repite hasta que no queda nada.
  *
  * Los .md que el sitio no muestra porque su frontmatter no se puede leer (mdsvex da `metadata`
  * vacía) quedan afuera («no se puede leer»), igual que en el sitio.

@@ -120,8 +120,17 @@ describe('handleUpdate con botones', () => {
 		});
 		expect(res?.text).toContain('<b>Fiesta inventada</b>');
 		expect(res?.text).toContain('https://ejemplo.test/calendario/fiesta-inventada-2031-02');
-		expect(res?.reply_markup?.inline_keyboard.at(-1)).toEqual([
-			{ text: '« Próximos eventos', callback_data: 'ls' }
+		// Un botón viejo (`ev:`) vuelve a la lista de próximos: «‹ 2/3 ›», «‹ Volver» e «🏠 Inicio».
+		expect(res?.reply_markup?.inline_keyboard.slice(-2)).toEqual([
+			[
+				{ text: '‹', callback_data: 'e:taller-de-cuerdas-2031-01:p' },
+				{ text: '2/3', disabled: {} },
+				{ text: '›', callback_data: 'e:taller-de-teatro-2031-03:p' }
+			],
+			[
+				{ text: '‹ Volver', callback_data: 'l:p:0' },
+				{ text: '🏠 Inicio', callback_data: 'h' }
+			]
 		]);
 	});
 
@@ -129,7 +138,13 @@ describe('handleUpdate con botones', () => {
 		const res = await handleUpdate(tap('ls'), deps());
 		expect(res).toMatchObject({ method: 'editMessageText', message_id: 99 });
 		expect(res?.text).toContain('<b>Próximos eventos</b>');
-		expect(res?.reply_markup?.inline_keyboard).toHaveLength(3);
+		const rows = res?.reply_markup?.inline_keyboard;
+		expect(rows.map((/** @type {any} */ r) => r[0].callback_data)).toEqual([
+			'e:taller-de-cuerdas-2031-01:p',
+			'e:fiesta-inventada-2031-02:p',
+			'e:taller-de-teatro-2031-03:p',
+			'h'
+		]);
 	});
 
 	it('un evento que ya no está entre los próximos: «ya no está disponible»', async () => {
@@ -185,8 +200,11 @@ describe('handleUpdate con botones', () => {
 			listUpcoming: async () => EVENTS,
 			origin: 'http://localhost:5173'
 		});
-		expect(res?.reply_markup?.inline_keyboard).toEqual([
-			[{ text: '« Próximos eventos', callback_data: 'ls' }]
+		expect(JSON.stringify(res?.reply_markup)).not.toContain('"url"');
+		expect(res?.link_preview_options).toEqual({ is_disabled: true });
+		expect(res?.reply_markup?.inline_keyboard.at(-1)).toEqual([
+			{ text: '‹ Volver', callback_data: 'l:p:0' },
+			{ text: '🏠 Inicio', callback_data: 'h' }
 		]);
 	});
 });
@@ -213,19 +231,22 @@ describe('handleUpdate', () => {
 		expect(
 			res?.reply_markup?.inline_keyboard.map((/** @type {any} */ row) => row[0].callback_data)
 		).toEqual([
-			'ev:taller-de-cuerdas-2031-01',
-			'ev:fiesta-inventada-2031-02',
-			'ev:taller-de-teatro-2031-03'
+			'e:taller-de-cuerdas-2031-01:p',
+			'e:fiesta-inventada-2031-02:p',
+			'e:taller-de-teatro-2031-03:p',
+			'h'
 		]);
 	});
 
-	it('/evento sin nada y sin eventos: avisa, sin botones', async () => {
+	it('/evento sin nada y sin eventos: avisa, solo con «🏠 Inicio»', async () => {
 		const res = await handleUpdate(update('/evento'), {
 			listUpcoming: async () => [],
 			origin: ORIGIN
 		});
 		expect(res?.text).toContain('no hay eventos próximos');
-		expect(res).not.toHaveProperty('reply_markup');
+		expect(res?.reply_markup).toEqual({
+			inline_keyboard: [[{ text: '🏠 Inicio', callback_data: 'h' }]]
+		});
 	});
 
 	it('/evento con una coincidencia muestra el detalle', async () => {
@@ -238,39 +259,44 @@ describe('handleUpdate', () => {
 		const res = await handleUpdate(update('/evento taller'), deps());
 		expect(res?.text).toContain('¿Cuál querés ver?');
 		expect(res?.reply_markup?.inline_keyboard).toEqual([
-			[{ text: 'Ver: Taller de cuerdas', callback_data: 'ev:taller-de-cuerdas-2031-01' }],
-			[{ text: 'Ver: Taller de teatro', callback_data: 'ev:taller-de-teatro-2031-03' }]
+			[{ text: 'Ver: Taller de cuerdas', callback_data: 'e:taller-de-cuerdas-2031-01:n' }],
+			[{ text: 'Ver: Taller de teatro', callback_data: 'e:taller-de-teatro-2031-03:n' }],
+			[{ text: '🔎 Buscar otra cosa', callback_data: 's' }],
+			[{ text: '🏠 Inicio', callback_data: 'h' }]
 		]);
 	});
 
-	it('/evento con una coincidencia trae el botón al sitio y a la lista', async () => {
+	it('/evento con una coincidencia trae el botón al sitio, al calendario y al inicio', async () => {
 		const res = await handleUpdate(update('/evento fiesta'), deps());
-		expect(res?.reply_markup?.inline_keyboard).toEqual([
-			[
-				{
-					text: 'Abrir en el sitio',
-					url: 'https://ejemplo.test/calendario/fiesta-inventada-2031-02'
-				}
-			],
-			[{ text: '« Próximos eventos', callback_data: 'ls' }]
+		const rows = res?.reply_markup?.inline_keyboard;
+		expect(rows[0]).toEqual([
+			{
+				text: 'Abrir en el sitio',
+				url: 'https://ejemplo.test/calendario/fiesta-inventada-2031-02'
+			}
 		]);
+		expect(rows[1][0].text).toBe('📅 Agregar al calendario');
+		expect(new URL(rows[1][0].url).host).toBe('calendar.google.com');
+		expect(rows.at(-1)).toEqual([{ text: '🏠 Inicio', callback_data: 'h' }]);
 	});
 
 	it('/proximos trae un botón «Ver» por evento', async () => {
 		const res = await handleUpdate(update('/proximos'), deps());
 		const rows = res?.reply_markup?.inline_keyboard;
-		expect(rows).toHaveLength(3);
+		expect(rows).toHaveLength(4);
 		expect(rows[1]).toEqual([
-			{ text: 'Ver: Fiesta inventada', callback_data: 'ev:fiesta-inventada-2031-02' }
+			{ text: 'Ver: Fiesta inventada', callback_data: 'e:fiesta-inventada-2031-02:p' }
 		]);
 	});
 
-	it('/proximos sin eventos no trae botones', async () => {
+	it('/proximos sin eventos solo trae «🏠 Inicio»', async () => {
 		const res = await handleUpdate(update('/proximos'), {
 			listUpcoming: async () => [],
 			origin: ORIGIN
 		});
-		expect(res).not.toHaveProperty('reply_markup');
+		expect(res?.reply_markup).toEqual({
+			inline_keyboard: [[{ text: '🏠 Inicio', callback_data: 'h' }]]
+		});
 	});
 
 	it('/evento sin coincidencias avisa', async () => {

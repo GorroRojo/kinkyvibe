@@ -1,8 +1,7 @@
 /**
  * Panel → Perfiles, solo en la base («solo base»: los perfiles de amigues ya no pasan por GitHub):
  * loads y actions que usan /admin/comunidad/perfiles/[slug], /admin/comunidad/perfiles/nuevo y
- * /admin/eventos/lugares. Un perfil que la base todavía no tiene no se edita: hay que importar las
- * fichas primero (Perfiles → Importar y clasificar). Sin base, no hay perfiles.
+ * /admin/eventos/lugares. Un perfil que la base no tiene no existe. Sin base, no hay perfiles.
  *
  * Cada load y cada action llama a `requireAdmin`. Todo cambio queda en el registro de actividad.
  * La lógica está en src/lib/server/amigues/editor.js; acá, solo el pegamento con SvelteKit.
@@ -31,9 +30,9 @@ import { KIND_LABELS } from '$lib/utils/perfiles.js';
 /** Tipos que se eligen en el editor. */
 export const EDITOR_KINDS = Object.freeze({ ...KIND_LABELS });
 
-/** Un perfil que la base no tiene (por ejemplo, una ficha del repo sin importar). */
+/** Un perfil que la base no tiene. */
 export const NOT_IN_DB =
-	'Ese perfil no está en la base. Si es una ficha del repo, importala primero en Perfiles → «Importar y clasificar».';
+	'Ese perfil no está en la base. Los perfiles nuevos se crean en Comunidad → Perfiles → «Nuevo perfil».';
 
 /** @param {App.Locals} locals */
 const adminViewer = (locals) =>

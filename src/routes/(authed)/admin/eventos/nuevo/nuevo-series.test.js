@@ -8,7 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { createTestDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent } from '$lib/server/series/fixtures.js';
-import hardcodedTags from '$lib/utils/hardcodedTags.js';
+import seedTagList from '$lib/server/semilla/etiquetas.json';
 import { importTags } from '$lib/server/etiquetas/importer.js';
 import { loadTagRecords } from '$lib/server/etiquetas/read.js';
 
@@ -112,7 +112,7 @@ describe('¿Es parte de una serie? (duplicar)', () => {
 		expect(data.seriesPrompt.existing).toContain('Picantearla');
 	});
 
-	it('crear sin etiquetas en la base: pide importarlas y no guarda nada', async () => {
+	it('crear sin etiquetas en la base: avisa que no hay etiquetas (no hay importación: decisión 0032) y no guarda nada', async () => {
 		const { mod, commits } = await page();
 		const res = /** @type {any} */ (
 			await mod.actions.publicar(
@@ -121,7 +121,7 @@ describe('¿Es parte de una serie? (duplicar)', () => {
 		);
 		expect(res).toMatchObject({
 			status: 503,
-			data: { error: expect.stringContaining('importalas') }
+			data: { error: expect.stringContaining('no tiene etiquetas') }
 		});
 		expect(commits).toHaveLength(0);
 	});
@@ -155,7 +155,7 @@ describe('¿Es parte de una serie? (duplicar)', () => {
 
 	it('pregunta con las series de la base y crea la serie en la base; el original, marcado', async () => {
 		/** @type {Record<string, any>[]} */
-		const raw = JSON.parse(JSON.stringify(hardcodedTags));
+		const raw = JSON.parse(JSON.stringify(seedTagList));
 		raw.find((e) => e.id === 'evento recurrente')?.children.push('Serie Solo de la Base');
 		await importTags(t.db, { rawTags: raw }, { actor: 'admin-de-prueba' });
 		const { mod, commits } = await page();

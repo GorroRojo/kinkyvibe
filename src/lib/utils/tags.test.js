@@ -1,7 +1,7 @@
 // @ts-nocheck -- test code: loose fixtures, no need for strict JSDoc types
 import { describe, it, expect } from 'vitest';
 import tagsFactory from './tags';
-import hardcodedTags from './hardcodedTags';
+import seedTagList from '../server/semilla/etiquetas.json';
 import { aliaserFactory } from './index';
 
 /** Fresh raw tags for every test: tagsFactory mutates the objects it receives. */
@@ -64,11 +64,7 @@ describe('tagsFactory (src/lib/utils/tags.js)', () => {
 	});
 
 	it('un tag con varios padres los conserva todos', () => {
-		const raw = [
-			{ id: 'a', children: ['x'] },
-			{ id: 'b', children: ['x'] },
-			{ id: 'x' }
-		];
+		const raw = [{ id: 'a', children: ['x'] }, { id: 'b', children: ['x'] }, { id: 'x' }];
 		const tm = tagsFactory(raw);
 		expect(tm.get('x').parents).toEqual(['a', 'b']);
 	});
@@ -161,19 +157,19 @@ describe('tagsFactory (src/lib/utils/tags.js)', () => {
 	});
 });
 
-describe('tags hardcodeados (hardcodedTags.js)', () => {
+describe('tags hardcodeados (el árbol de la semilla)', () => {
 	const tm = tagsFactory();
 
 	it('ids únicos', () => {
-		const ids = hardcodedTags.map((t) => t.id);
+		const ids = seedTagList.map((t) => t.id);
 		const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
 		expect(dupes).toEqual([]);
 	});
 
 	it('todos los aliasOf apuntan a tags declarados', () => {
 		// (children may reference undeclared ids on purpose: tagsFactory creates them.)
-		const declared = new Set(hardcodedTags.map((t) => t.id));
-		const missing = hardcodedTags
+		const declared = new Set(seedTagList.map((t) => t.id));
+		const missing = seedTagList
 			.filter((t) => t.aliasOf && !declared.has(t.aliasOf))
 			.map((t) => `${t.id} aliasOf ${t.aliasOf}`);
 		// Known issue on main: 'Dominatrix' points to a 'dominatrix' tag that doesn't exist,
@@ -183,7 +179,7 @@ describe('tags hardcodeados (hardcodedTags.js)', () => {
 	});
 
 	it('la jerarquía no tiene ciclos (getAllChildren terminaría en loop infinito)', () => {
-		const children = new Map(hardcodedTags.map((t) => [t.id, t.children ?? []]));
+		const children = new Map(seedTagList.map((t) => [t.id, t.children ?? []]));
 		const cycles = [];
 		const visit = (id, stack) => {
 			if (stack.includes(id)) return cycles.push([...stack, id].join(' > '));
@@ -195,7 +191,7 @@ describe('tags hardcodeados (hardcodedTags.js)', () => {
 
 	it('tags declarados que no cuelgan de root (snapshot)', () => {
 		const underRoot = new Set(tm.get('root').getAllChildren());
-		const loose = hardcodedTags
+		const loose = seedTagList
 			.filter((t) => t.id !== 'root' && !t.aliasOf && !underRoot.has(t.id))
 			.map((t) => t.id);
 		// Snapshot so detached tags are a conscious decision. Current state on main:

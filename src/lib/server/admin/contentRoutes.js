@@ -4,9 +4,9 @@
  * (./amiguesRoutes.js).
  *
  * Every load calls requireAdmin (loads run in parallel with the layout's) and every action checks
- * the admin itself (actions don't run the layout load). Writes go through the same GitHub commit
- * path as the event editor (getRepoClient: dev mock / demo layer / GitHub) and leave an audit
- * entry after the commit.
+ * the admin itself (actions don't run the layout load). Writes go to the database through the
+ * same content client as the event editor (getRepoClient, $lib/server/contenido/repo.js) and leave
+ * an audit entry after the save.
  */
 import { error, fail, isRedirect, redirect } from '@sveltejs/kit';
 import { withLineEnding } from '$lib/utils/lineEndings.js';
@@ -17,19 +17,13 @@ import { editorData } from './content.js';
 import { contentImageURL, listContent, takenContentSlugs } from './contentList.js';
 import {
 	contentCommitMessage,
-	contentMediaDir,
 	contentPath,
 	gitBlobSha,
 	readContentPost,
 	saveContentPost
 } from './posts.js';
 import { getEventAdmin, getRepoClient, isMockMode } from '$lib/server/eventos';
-import {
-	FileChangedError,
-	PathExistsError,
-	PendingChangeError
-} from '$lib/server/eventos/github.js';
-import { readUploadedImage } from '$lib/server/eventos/images.js';
+import { FileChangedError, PathExistsError } from '$lib/server/contenido/cliente.js';
 import { findImage, imageOf } from '$lib/server/media/library.js';
 import { resolveContentSlug } from '$lib/server/contenido/posts.js';
 import { readImageChoice } from '$lib/utils/imageChoice.js';
@@ -129,7 +123,7 @@ export function visibilityAction(category) {
 		try {
 			post = await readContentPost(client, admin.token, category, slug);
 		} catch (e) {
-			return fail(502, { error: 'No pudimos leer la publicación desde GitHub: ' + describe(e) });
+			return fail(502, { error: 'No pudimos leer la publicación: ' + describe(e) });
 		}
 		if (!post) return fail(404, { error: 'Esa publicación no existe (¿la borraron?).' });
 		let content;
@@ -139,7 +133,7 @@ export function visibilityAction(category) {
 			return fail(400, { error: describe(e) });
 		}
 		if (content === post.raw) return { visibility: { slug, unlisted, unchanged: true } };
-		/** @type {import('$lib/server/eventos/github.js').PublishResult | null} */
+		/** @type {import('$lib/server/contenido/cliente.js').PublishResult | null} */
 		let publish = null;
 		try {
 			const r = await saveContentPost(client, admin.token, {
@@ -167,9 +161,8 @@ export function visibilityAction(category) {
 		} catch (e) {
 			if (e instanceof FileChangedError)
 				return fail(409, {
-					error: 'La publicación cambió en GitHub mientras tanto. Recargá y probá de nuevo.'
+					error: 'La publicación cambió mientras tanto. Recargá y probá de nuevo.'
 				});
-			if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
 			return fail(502, { error: 'No se pudo guardar: ' + describe(e) });
 		}
 		return { visibility: { slug, unlisted, publish } };
@@ -296,7 +289,7 @@ export function editLoad(category) {
 
 /**
  * The editor's actions: `?/guardar` (create, duplicate or edit) and `?/direccion` (is this slug
- * free on GitHub?).
+ * free in the database?).
  * @param {'material'|'amigues'} category
  * @returns {import('@sveltejs/kit').Actions}
  */
@@ -312,10 +305,7 @@ export function editorActions(category) {
 			try {
 				const client = await getRepoClient();
 				const path = contentPath(category, slug);
-				const found = await client.existingPaths(admin.token, [
-					/** @type {string} */ (path),
-					contentMediaDir(category, slug)
-				]);
+				const found = await client.existingPaths(admin.token, [/** @type {string} */ (path)]);
 				return {
 					slugCheck: {
 						slug,
@@ -378,7 +368,7 @@ export function editorActions(category) {
 			}
 
 			// Material: la imagen elegida en el selector va como edge `portada` en el mismo guardado
-			// (docs/imagenes.md). Amigues: el archivo subido va al repo, como antes.
+			// (docs/imagenes.md).
 			/** @type {Record<string, number[]> | undefined} */
 			let edges;
 			if (category === 'material') {
@@ -394,14 +384,6 @@ export function editorActions(category) {
 					edges = { portada: [picked.id] };
 				}
 			}
-			/** @type {{base64: string, ext: 'jpg'|'png'|'webp'} | null} */
-			let image = null;
-			const file = category === 'material' ? null : data.get('image');
-			if (file instanceof File && file.size > 0) {
-				const read = await readUploadedImage(file);
-				if ('error' in read) return fail(400, { error: read.error });
-				image = { base64: read.base64, ext: read.ext };
-			}
 			const verb = !isNew ? 'updated' : from ? 'duplicated' : 'created';
 			try {
 				const client = await getRepoClient();
@@ -411,14 +393,12 @@ export function editorActions(category) {
 					content,
 					isNew,
 					baseSha,
-					image,
 					message: contentCommitMessage({
 						who: admin.name,
 						verb,
 						category,
 						slug,
-						from: isNew && from ? from : undefined,
-						image: Boolean(image)
+						from: isNew && from ? from : undefined
 					}),
 					pr: { action: !isNew ? 'edita' : from ? 'duplica' : 'crea', who: admin.name },
 					...(edges ? { edges } : {})
@@ -430,9 +410,8 @@ export function editorActions(category) {
 					summary:
 						(isNew ? (from ? 'Duplicó ' : 'Creó ') : 'Editó ') +
 						`${category}/${slug}` +
-						(isNew && from ? ` (copia de ${from})` : '') +
-						(image ? ' con imagen nueva' : ''),
-					detail: { commit: r.commit.url, image: r.imagePath }
+						(isNew && from ? ` (copia de ${from})` : ''),
+					detail: { commit: r.commit.url }
 				});
 				if (isNew) {
 					const pr = r.commit.pr ? `&pr=${r.commit.pr.number}&estado=${r.commit.pr.state}` : '';
@@ -446,7 +425,7 @@ export function editorActions(category) {
 						at: Date.now(),
 						sha: await gitBlobSha(r.content),
 						content: r.content,
-						imagePath: r.imagePath,
+						imagePath: null,
 						commit: r.commit.url,
 						publish: r.commit.pr ?? null,
 						// Se guardó en la base (ya se ve).
@@ -458,7 +437,6 @@ export function editorActions(category) {
 				const toDb = await panelSavesToDb(platform, category, isNew ? '' : slug).catch(() => false);
 				if (e instanceof PathExistsError)
 					return fail(409, { error: pathExistsMessage(toDb, e.path) });
-				if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
 				if (e instanceof FileChangedError)
 					return fail(409, { error: saveCopy(toDb).changedMeanwhile });
 				console.log(e);

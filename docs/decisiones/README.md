@@ -74,8 +74,10 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 
 ### Contenido, objetos y etiquetas
 
-- [0004](0004-modelo-de-contenido.md): Modelo de contenido, propuesta 6 (30/9)
+- [0004](0004-modelo-de-contenido.md): Modelo de contenido, propuesta 6 (30/9; cuándo se borran los
+  `.md` lo reemplaza 0032)
 - [0011](0011-etiquetas.md): Sistema de etiquetas (30/9)
+- [0032](0032-borrar-los-md.md): Los `.md` se borran ya, no un mes después (11/10)
 
 ### Series, lugares, roles y campos
 
@@ -110,6 +112,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   suscripciones (30/9)
 - [0025](0025-lo-que-sigo.md): "Lo que sigo" (1/10)
 - [0029](0029-bot-de-telegram.md): Un bot de Telegram como otra vista del sitio (1/10)
+- [0034](0034-bot-seguir-y-token.md): El bot de Telegram: «Seguir» como primera acción que
+  escribe, y el webhook usa el token (11/10)
 
 ### Panel y CRM
 

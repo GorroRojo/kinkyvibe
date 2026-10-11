@@ -8,8 +8,9 @@
  * resuelven) y le pone otro nombre visible, y un alias nuevo de KinkyVibe.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { seedMetasByPath, seedRawsByPath } from '$lib/server/semilla/testing.js';
 import { get } from 'svelte/store';
-import hardcodedTags from '$lib/utils/hardcodedTags.js';
+import seedTagList from '$lib/server/semilla/etiquetas.json';
 import { canonicalTags } from '$lib/utils';
 import { createTestDB } from '$lib/server/db/testing.js';
 import { runImport } from '$lib/server/contenido/importer.js';
@@ -31,7 +32,7 @@ const RENAMED = 'Picante de Prueba';
 /** La lista del archivo, como datos, con los cambios de la «base». */
 function fakeDbList() {
 	/** @type {Record<string, any>[]} */
-	const list = JSON.parse(JSON.stringify(hardcodedTags));
+	const list = JSON.parse(JSON.stringify(seedTagList));
 	for (const e of list) {
 		if (e.id === 'Picantearla' && !e.aliasOf) {
 			e.id = RENAMED;
@@ -49,19 +50,8 @@ afterEach(() => setSiteTagList(null));
 /** Un evento real de la serie (público), en la base: de ahí salen los eventos. */
 const EVENT = 'picantearla-2024-02';
 const EVENT_PATH = `/src/lib/posts/calendario/${EVENT}.md`;
-const eventRaw = /** @type {Record<string, string>} */ (
-	import.meta.glob('/src/lib/posts/calendario/picantearla-2024-02.md', {
-		query: '?raw',
-		import: 'default',
-		eager: true
-	})
-)[EVENT_PATH];
-const eventMeta = /** @type {Record<string, any>} */ (
-	import.meta.glob('/src/lib/posts/calendario/picantearla-2024-02.md', {
-		import: 'metadata',
-		eager: true
-	})
-)[EVENT_PATH];
+const eventRaw = /** @type {Record<string, string>} */ (seedRawsByPath('calendario'))[EVENT_PATH];
+const eventMeta = /** @type {Record<string, any>} */ (seedMetasByPath('calendario'))[EVENT_PATH];
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;

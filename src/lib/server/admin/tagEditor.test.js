@@ -1,14 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import {
-	TAGS_PATH,
 	commitTagEdit,
-	planTagEdit,
 	previewOf,
-	readTagSource,
+	readPostFiles,
 	tagCommitMessage,
 	touchesPosts
 } from './tagEditor.js';
+import { planTagChange } from '$lib/utils/tagConfig.js';
 import { gitBlobSha } from './posts.js';
+
+// El árbol, con la forma del viejo archivo de etiquetas (planTagChange lo sigue sabiendo leer;
+// el archivo ya no existe, decisión 0032).
+const TAGS_PATH = 'etiquetas.js';
 
 const SRC = `export const hardcodedTags = [
 	{ id: 'root', children: ['bondage'] },
@@ -24,11 +27,20 @@ function fakeClient({ source = SRC } = {}) {
 	const commits = [];
 	/** @type {string[]} */
 	const dirReads = [];
-	return {
+	const client = {
 		commits,
 		dirReads,
 		/** @param {string} _t @param {string} path */
 		getFile: async (_t, path) => (path === TAGS_PATH ? source : null),
+		/** @param {string} token @param {any[]} ops */
+		plan: async (token, ops) =>
+			planTagChange({
+				source: /** @type {string} */ (source),
+				sourceSha: await gitBlobSha(/** @type {string} */ (source)),
+				sourcePath: TAGS_PATH,
+				posts: touchesPosts(ops) ? await readPostFiles(/** @type {any} */ (client), token) : [],
+				ops
+			}),
 		/** @param {string} _t @param {string} dir */
 		getDirTexts: async (_t, dir) => {
 			dirReads.push(dir);
@@ -46,36 +58,18 @@ function fakeClient({ source = SRC } = {}) {
 			return { sha: 'c', url: 'https://example.com/c' };
 		}
 	};
+	return client;
 }
 
-describe('readTagSource', () => {
-	it('reads the repo copy with its sha, or falls back to the bundled one', async () => {
-		const r = await readTagSource(/** @type {any} */ (fakeClient()), 't', 'bundled');
-		expect(r).toEqual({ source: SRC, sha: await gitBlobSha(SRC), fromRepo: true });
-		const d = await readTagSource(/** @type {any} */ (fakeClient({ source: null })), 't', SRC);
-		expect(d).toEqual({ source: SRC, sha: undefined, fromRepo: false });
-	});
-});
-
-describe('planTagEdit / commitTagEdit', () => {
+describe('readPostFiles / commitTagEdit', () => {
 	it('reads posts only for rename/merge, skips templates, commits once with shas', async () => {
 		const client = fakeClient();
-		const move = await planTagEdit(
-			/** @type {any} */ (client),
-			't',
-			[{ type: 'create', id: 'x', parent: 'root' }],
-			SRC
-		);
+		const move = await client.plan('t', [{ type: 'create', id: 'x', parent: 'root' }]);
 		expect(client.dirReads).toEqual([]);
 		expect(move.files.map((f) => f.path)).toEqual([TAGS_PATH]);
 		expect(touchesPosts([{ type: 'merge', from: 'a', into: 'b' }])).toBe(true);
 
-		const plan = await planTagEdit(
-			/** @type {any} */ (client),
-			't',
-			[{ type: 'rename', from: 'bondage', to: 'cuerdas' }],
-			SRC
-		);
+		const plan = await client.plan('t', [{ type: 'rename', from: 'bondage', to: 'cuerdas' }]);
 		expect(client.dirReads).toHaveLength(4);
 		expect(plan.files.map((f) => f.path)).toEqual([TAGS_PATH, 'src/lib/posts/material/a.md']);
 		await commitTagEdit(/** @type {any} */ (client), 't', plan, 'gorrite');
@@ -99,12 +93,7 @@ describe('planTagEdit / commitTagEdit', () => {
 
 describe('previewOf / tagCommitMessage', () => {
 	it('summarizes diffs per file', async () => {
-		const plan = await planTagEdit(
-			/** @type {any} */ (fakeClient()),
-			't',
-			[{ type: 'rename', from: 'bondage', to: 'cuerdas' }],
-			SRC
-		);
+		const plan = await fakeClient().plan('t', [{ type: 'rename', from: 'bondage', to: 'cuerdas' }]);
 		const p = previewOf(plan);
 		expect(p.total).toBe(2);
 		expect(p.files[1]).toMatchObject({

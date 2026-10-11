@@ -6,13 +6,20 @@
  * Eventos inventados (fixtures de contenido, repetidos con otra dirección) en un D1 de miniflare.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { metasOf } from '$lib/server/contenido/testing.js';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { runImport } from '$lib/server/contenido/importer.js';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
 const metas = /** @type {Record<string, Record<string, any> | undefined>} */ (
-	import.meta.glob('../contenido/fixtures/calendario/*.md', { import: 'metadata', eager: true })
+	metasOf(
+		import.meta.glob('../contenido/fixtures/calendario/*.md', {
+			query: '?raw',
+			import: 'default',
+			eager: true
+		})
+	)
 );
 const raws = /** @type {Record<string, string>} */ (
 	import.meta.glob('../contenido/fixtures/calendario/*.md', {

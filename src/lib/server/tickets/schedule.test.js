@@ -2,6 +2,7 @@
  * Horarios de venta: apertura, cierre del evento y cierre propio de un tipo, en hora de Argentina.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import YAML from 'yaml';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import {
 	formatSaleTime,
@@ -41,14 +42,13 @@ describe('parseSaleTime', () => {
 		expect(parseSaleTime(new Date(CLOSE))).toBe(CLOSE);
 	});
 
-	it.each([
-		'2026-10-02T00:00:00.000Z',
-		'2026-10-02T00:00:00Z',
-		'2026-10-02T00:00Z'
-	])('%j (una fecha sola que pasó por JSON, como la deja mdsvex) = solo fecha', (value) => {
-		expect(parseSaleTime(value, { endOfDay: true })).toBe(Date.UTC(2026, 9, 3, 2, 59, 59, 999));
-		expect(parseSaleTime(value)).toBe(Date.UTC(2026, 9, 2, 3, 0));
-	});
+	it.each(['2026-10-02T00:00:00.000Z', '2026-10-02T00:00:00Z', '2026-10-02T00:00Z'])(
+		'%j (una fecha sola que pasó por JSON, como la deja mdsvex) = solo fecha',
+		(value) => {
+			expect(parseSaleTime(value, { endOfDay: true })).toBe(Date.UTC(2026, 9, 3, 2, 59, 59, 999));
+			expect(parseSaleTime(value)).toBe(Date.UTC(2026, 9, 2, 3, 0));
+		}
+	);
 
 	it('medianoche con otra zona u otra hora en UTC sigue siendo ese instante', () => {
 		expect(parseSaleTime('2026-10-02T00:00-03:00', { endOfDay: true })).toBe(
@@ -179,12 +179,11 @@ describe('salesState y cierres por tipo (bordes)', () => {
 		expect(salesState(old, endOfDay)).toEqual({ open: false, reason: 'closed' });
 	});
 
-	it('fecha sola escrita en el .md: cierra al final de ese día (metadata compilada por mdsvex)', async () => {
-		// El camino real: getEventTickets lee `metadata` del módulo que genera mdsvex, que pasa el
-		// frontmatter por JSON.stringify (una fecha sola de YAML llega como "…T00:00:00.000Z").
-		const { compile } = await import('mdsvex');
-		const md = [
-			'---',
+	it('fecha sola: cierra al final de ese día (también con la metadata que daba mdsvex)', () => {
+		// Lo importado de los .md venía con la metadata de mdsvex, que pasaba el frontmatter por
+		// JSON.stringify: una fecha sola de YAML (1.1) llegaba como "…T00:00:00.000Z". Los .md y
+		// mdsvex ya no están (decisión 0032); acá se arma esa misma metadata con YAML 1.1.
+		const frontmatter = [
 			'title: Fiesta de prueba',
 			'start: 2026-10-10T21:00-03:00',
 			'tickets_close: 2026-10-03',
@@ -193,14 +192,11 @@ describe('salesState y cierres por tipo (bordes)', () => {
 			'    name: Anticipada',
 			'    price: 5000',
 			'    capacity: 10',
-			'    close: 2026-10-02',
-			'---',
-			'Hola'
+			'    close: 2026-10-02'
 		].join('\n');
-		const code = (await compile(md))?.code ?? '';
-		const json = /export const metadata = (\{.*\});/.exec(code)?.[1];
-		expect(json).toBeTruthy();
-		const c = /** @type {any} */ (parseTicketConfig(JSON.parse(/** @type {string} */ (json))));
+		const meta = JSON.parse(JSON.stringify(YAML.parse(frontmatter, { schema: 'yaml-1.1' })));
+		expect(meta.tickets_close).toBe('2026-10-03T00:00:00.000Z');
+		const c = /** @type {any} */ (parseTicketConfig(meta));
 		// 2/10 23:59:59.999 en Argentina, no 1/10 a las 21:00.
 		expect(c.types[0].closesAt).toBe(Date.UTC(2026, 9, 3, 2, 59, 59, 999));
 		expect(typeOpen(c, c.types[0], Date.UTC(2026, 9, 2, 12, 0))).toBe(true);

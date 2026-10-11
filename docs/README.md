@@ -15,8 +15,8 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [entradas.md](entradas.md)                     | Venta de entradas: guía corta con las reglas que no se pueden romper                                                |
 | [tickets.md](tickets.md)                       | Venta de entradas: referencia completa (precios, Fondo, Mercado Pago, variables, pendientes)                        |
 | [propinas.md](propinas.md)                     | Propinas con Mercado Pago al pie de las publicaciones de KinkyVibe (en lugar del cafecito)                          |
-| [contenido.md](contenido.md)                   | Eventos, material, amigues y wiki: todo en la base (D1), cómo se editan, importan y descargan como `.md`            |
-| [publicar-contenido.md](publicar-contenido.md) | Cómo se publica lo que se guarda en el panel: un PR por cambio que se mergea solo cuando pasan las pruebas          |
+| [contenido.md](contenido.md)                   | Eventos, material, amigues y wiki: todo en la base (D1), cómo se editan, la semilla local y «Descargar todo»        |
+| [publicar-contenido.md](publicar-contenido.md) | Cómo se publica lo que se guarda en el panel: en la base, al momento (antes, un PR por cambio)                      |
 | [mails.md](mails.md)                           | Qué mails manda el sitio, con Resend, plantillas editables, recordatorios y el filtro de los previews               |
 | [datos.md](datos.md)                           | La base D1: tablas, migraciones, cómo agregar una, base de preview y base de producción                             |
 | [objetos.md](objetos.md)                       | "Todo es un objeto": objetos y relaciones en D1, las reglas que no se rompen y cómo agregar un tipo núcleo          |
@@ -28,6 +28,8 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [personas-eventos.md](personas-eventos.md)     | Personas con rol en eventos y material, y preguntas de inscripción                                                  |
 | [analiticas.md](analiticas.md)                 | Visitas anónimas y embudo de compra con Workers Analytics Engine: qué se guarda, puesta en marcha y cómo apagarlo   |
 | [telegram.md](telegram.md)                     | Bot de Telegram: otra vista del sitio, solo lectura al principio, interruptor                                       |
+| [compartir.md](compartir.md)                   | La vista previa de un link al compartirlo (WhatsApp, Telegram…): etiquetas Open Graph de cada página e imágenes     |
+| [seo.md](seo.md)                               | Datos estructurados, microformats, `rel="me"`, `security.txt`, vCard, robots, sitemap y el peso de las páginas      |
 | [estilo.md](estilo.md)                         | Estilo visual: tokens de texto, espacio, radios, sombras, colores y foco, y cuándo usar cada uno                    |
 | [ui-impacto.md](ui-impacto.md)                 | Informe de impacto visual: capturas de las páginas principales antes y después de un cambio, comparadas             |
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción                    |
@@ -37,8 +39,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 
 Otras guías sueltas:
 
-- [`README.md`](../README.md) de la raíz: cómo escribir publicaciones a mano (propiedades,
-  imágenes, etiquetas).
+- [`README.md`](../README.md) de la raíz: qué es el sitio y cómo arrancar.
 - [`CLAUDE.md`](../CLAUDE.md): reglas para los agentes (también valen para humanes).
 
 ## Cómo mantener esto

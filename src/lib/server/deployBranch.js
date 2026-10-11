@@ -5,7 +5,8 @@
  *
  * - Workers Builds pone `WORKERS_CI_BRANCH` (en producción y en los Previews):
  *   https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#environment-variables
- * - Cloudflare Pages pone `CF_PAGES_BRANCH` (se mantiene mientras el sitio siga en Pages).
+ * - `CF_PAGES_BRANCH` (de cuando el sitio estaba en Cloudflare Pages) ya no se lee: si alguien la
+ *   cargara a mano, el build queda como producción (el lado seguro).
  * - En local, en los tests y en un `wrangler deploy` a mano no hay ninguna: '' (producción, sin
  *   modo demo). Ante la duda, siempre el lado seguro.
  *
@@ -13,5 +14,5 @@
  * @returns {string}
  */
 export function deployBranchFromEnv(env) {
-	return (env.WORKERS_CI_BRANCH || env.CF_PAGES_BRANCH || '').trim();
+	return (env.WORKERS_CI_BRANCH || '').trim();
 }

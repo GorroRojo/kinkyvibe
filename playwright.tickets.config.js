@@ -14,7 +14,6 @@
  * - TICKETS_SHOTS_DIR: carpeta para guardar capturas (opcional).
  */
 import {
-	ADMIN_MOCK_DIR,
 	MP_FEE_PERCENT,
 	TRANSFER_INFO,
 	ticketsE2EEvent,
@@ -46,8 +45,6 @@ const config = {
 			ADMIN_DEV_MOCK: '1',
 			// Todas las compras salen de localhost: sin los límites por cliente (hay tests unitarios).
 			TICKETS_DEV_RELAX_LIMITS: '1',
-			// Los "commits" del editor de eventos (tests/tickets/editor.spec.js).
-			ADMIN_DEV_MOCK_DIR: ADMIN_MOCK_DIR,
 			TICKETS_DEV_FIXTURE: ticketsE2EEvent(),
 			TICKETS_DEV_FIXTURE_GORRA: ticketsE2EGorraEvent(),
 			TICKETS_TRANSFER_INFO: TRANSFER_INFO,

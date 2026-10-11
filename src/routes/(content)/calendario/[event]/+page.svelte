@@ -20,6 +20,7 @@
 	import { relatedPostsFor } from '$lib/utils';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import LDTag from '$lib/components/LDTag.svelte';
+	import { eventSchema } from '$lib/utils/jsonLd.js';
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
@@ -38,10 +39,11 @@
 	import Partes from '$lib/components/evento/Partes.svelte';
 	import Quienes from '$lib/components/evento/Quienes.svelte';
 	import Serie from '$lib/components/evento/Serie.svelte';
-	import { eventPlaceSchema } from '$lib/utils/eventPlace.js';
 	import { isPastEvent, mainSeries, nextEdition, splitUpcomingPast } from '$lib/utils/eventPage.js';
 	import { isWebLink, safeEventLink } from '$lib/utils/eventLink.js';
 	import { hasVisibleHtml } from '$lib/utils/htmlStrip.js';
+	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { eventDescription } from '$lib/utils/seo.js';
 	export let data;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
@@ -54,14 +56,6 @@
 	$: actionLinkTarget = isWebLink(actionLink) ? '_blank' : undefined;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
-	/**@type {(s:string|number|Date)=>(string)}*/
-	let toISO = (s) => {
-		try {
-			return new Date(s).toISOString();
-		} catch (e) {
-			return s + '';
-		}
-	};
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
 	let loadedPast = false;
@@ -80,12 +74,9 @@
 	// Con venta acá, el link (si tiene `link_text`) sigue al final del texto (docs/tickets.md).
 	$: textLink = Boolean(data.tickets && actionLink && data.meta.link_text);
 	// «De qué se trata» solo si el texto muestra algo: un texto vacío, o con solo espacios o
-	// comentarios, no deja el título sin nada abajo (htmlStrip.js). El texto del .md
-	// (`data.content`) y los interactivos (`data.parts`) siempre muestran algo.
-	$: hasText =
-		data.html === undefined
-			? Boolean(data.content)
-			: Boolean(data.parts?.length) || hasVisibleHtml(data.html);
+	// comentarios, no deja el título sin nada abajo (htmlStrip.js). Los interactivos
+	// (`data.parts`) siempre muestran algo.
+	$: hasText = Boolean(data.parts?.length) || hasVisibleHtml(data.html ?? '');
 	// «por …»: les autores (salvo cuando el evento es el perfil de su única autora).
 	$: authors = /** @type {string[]} */ (data.meta.authors ?? []);
 	$: showAuthors = authors.length > 1 || (authors.length == 1 && authors[0] !== data.meta.postID);
@@ -129,75 +120,34 @@
 	});
 </script>
 
+<!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js). -->
 <LDTag
-	schema={/**@type LD.Event & {"@context":"https://schema.org"}*/ {
-		'@context': 'https://schema.org',
-		'@type': 'Event',
-		name: data.meta.title,
-		startDate: toISO(data.meta.start ?? ''),
-		endDate: toISO(end),
-		// Con lugar o con «Dónde», presencial; online solo si el evento lo es; sin nada, ni modo
-		// ni lugar (eventPlace.js, lo mismo que «Cuándo y dónde»).
-		...eventPlaceSchema(data.meta, data.venue, isWebLink(actionLink) ? actionLink : undefined),
-		eventStatus:
-			data.meta.status == 'cancelado'
-				? 'https://schema.org/EventCancelled'
-				: 'https://schema.org/EventScheduled',
-		image: [data.meta.featured + ''],
-		description: data.meta.summary,
-		organizer: {
-			'@type': data.meta.tags?.includes('KinkyVibe') ? 'Organization' : 'Person',
-			name: data.meta.tags?.includes('KinkyVibe')
-				? 'Kinky Vibe'
-				: (data.meta.authors?.[0] ?? 'Kinky Vibe'),
-			url:
-				'https://kinkyvibe.ar/' +
-				(data.meta.tags?.includes('KinkyVibe')
-					? 'Kinky Vibe'
-					: (data.meta.authors?.[0] ?? 'Kinky Vibe'))
-		}
-		//   "offers": {
-		//     "@type": "Offer",
-		//     "url": "https://www.example.com/event_offer/12345_201803180430",
-		//     "price": "30",
-		//     "priceCurrency": "USD",
-		//     "availability": "https://schema.org/InStock",
-		//     "validFrom": "2024-05-21T12:00"
-		//   },
-		//   "performer": {
-		//     "@type": "PerformingGroup",
-		//     "name": "Kira and Morrison"
-		//   },
-	}}
+	schema={eventSchema({
+		meta: data.meta,
+		end,
+		venue: data.venue,
+		tickets: data.tickets,
+		webLink: isWebLink(actionLink) ? actionLink : undefined,
+		past
+	})}
 />
 <svelte:head>
 	<title>{data.meta.title} · Kinky Vibe</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
-
-	<meta property="og:url" content={$page.url.href} />
-
-	<meta property="og:title" content={data.meta.title} />
-	<meta name="twitter:title" content={data.meta.title} />
-
-	<meta name="description" content={data.meta.summary} />
-	<meta name="twitter:description" content={data.meta.summary} />
-	<meta property="og:description" content={data.meta.summary} />
-
-	<meta property="og:image" content={data.meta.featured + ''} />
-	<meta name="twitter:image" content={data.meta.featured + ''} />
-
-	<meta name="twitter:site" content="@kinkyvibearg" />
-	<meta name="twitter:card" content="summary_large_image" />
-	<meta property="og:type" content="article" />
-
-	<meta property="article:published_time" content={data.meta.published_date?.toString()} />
-	<meta property="article:modified_time" content={data.meta.updated_date?.toString()} />
-	<meta property="article:author" content={data.meta.authors?.join(', ')} />
-	<!-- <meta property="article:section" content="" /> -->
-	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
+<!-- La vista previa al compartir (docs/compartir.md). No listado (o borrador): el link se puede
+     compartir, pero los buscadores no lo guardan. -->
+<SeoHead
+	title={data.meta.title}
+	description={eventDescription(data.meta, data.venue)}
+	image={data.meta.featured}
+	imageInfo={data.cover}
+	imageAlt={data.meta.title}
+	type="event"
+	noindex={Boolean(data.meta.force_unlisted || data.meta.force_unpublished)}
+/>
 <a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 <article class="evento h-entry h-event">
 	<header class="cabeza">
@@ -205,6 +155,8 @@
 			<p class="event-series-chip"><TagChip tag={series.id} href={series.href} /></p>
 		{/if}
 		<h1 class="p-name">{data.meta.title}</h1>
+		<!-- La dirección del evento para la h-event (el link de arriba queda fuera del article). -->
+		<data hidden class="u-url" value="https://kinkyvibe.ar/calendario/{data.meta.postID}"></data>
 		{#if data.meta.summary}<p class="resumen p-summary">{data.meta.summary}</p>{/if}
 		{#if showAuthors}
 			<!-- Mientras llegan los perfiles, los nombres sin link. -->
@@ -250,23 +202,19 @@
 				use:addMentionPronouns={(name) =>
 					/** @type {Record<string, string>} */ (data.pronouns)?.[name]}
 			>
-				{#if data.html !== undefined}
-					<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML
+				<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML
 				     libre de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
-					<div class="kv-texto-libre">
+				<div class="kv-texto-libre">
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+					{@html ownStyle}
+					{#if data.parts}
+						<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
+						<ContentParts parts={data.parts} />
+					{:else}
 						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-						{@html ownStyle}
-						{#if data.parts}
-							<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
-							<ContentParts parts={data.parts} />
-						{:else}
-							<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-							{@html data.html}
-						{/if}
-					</div>
-				{:else}
-					<svelte:component this={data.content} />
-				{/if}
+						{@html data.html}
+					{/if}
+				</div>
 				{#if textLink}
 					<a
 						href={actionLink}

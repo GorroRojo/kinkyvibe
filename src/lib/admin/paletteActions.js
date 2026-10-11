@@ -89,10 +89,10 @@ export const EXTRA_COMMANDS = Object.freeze([
 		href: '/admin/comunidad/perfiles/nuevo'
 	},
 	{
-		id: 'import-profiles',
-		label: 'Importar perfiles',
-		hint: 'Perfiles · importar y clasificar',
-		keywords: 'importar perfiles amigues clasificar base migrar',
+		id: 'classify-profiles',
+		label: 'Clasificar perfiles',
+		hint: 'Perfiles · persona, proyecto o lugar',
+		keywords: 'clasificar perfiles amigues confirmar persona proyecto lugar',
 		icon: 'sheet',
 		href: '/admin/comunidad/perfiles/importar'
 	},
@@ -111,14 +111,6 @@ export const EXTRA_COMMANDS = Object.freeze([
 		keywords: 'vincular lugares eventos sucede en venues espacios unir',
 		icon: 'map-pin',
 		href: '/admin/eventos/lugares/vincular'
-	},
-	{
-		id: 'import-tags',
-		label: 'Importar etiquetas',
-		hint: 'Etiquetas · a la base',
-		keywords: 'importar etiquetas tags base migrar arbol',
-		icon: 'tag',
-		href: '/admin/etiquetas/importar'
 	}
 ]);
 

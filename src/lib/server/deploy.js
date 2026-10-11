@@ -1,14 +1,14 @@
 /**
  * En qué deploy corre el sitio. `__DEPLOY_BRANCH__` lo fija vite.config.js al compilar, con la
- * rama que pone Cloudflare en el build: WORKERS_CI_BRANCH (Workers Builds) o CF_PAGES_BRANCH
- * (Cloudflare Pages); '' en local y en los tests. Ver ./deployBranch.js.
+ * rama que pone Workers Builds en el build (WORKERS_CI_BRANCH); '' en local y en los tests. Ver
+ * ./deployBranch.js.
  */
 
-/** Rama de producción (Workers Builds y Cloudflare Pages). */
+/** Rama de producción (Workers Builds). */
 export const PRODUCTION_BRANCH = 'main';
 
 /**
- * `true` en un deploy de preview (cualquier rama que no sea main), en Workers o en Pages.
+ * `true` en un deploy de preview (cualquier rama que no sea main).
  *
  * @param {string} [branch]
  */

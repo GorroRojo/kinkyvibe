@@ -45,7 +45,8 @@ const postDate = (post) => parseDate(post.meta.updated_date ?? post.meta.publish
 
 /**
  * @param {string[]} pages static pages, relative to the site root
- * @param {ProcessedPost[]} posts calendario, amigues and material posts
+ * @param {ProcessedPost[]} posts calendario, amigues and material posts (the ones with `redirect`
+ *   are left out: their URL answers 307 to another site, so search engines can't index it)
  * @param {ProcessedPost[]} wikiPosts Kinkipedia entries
  * @param {Date} [now]
  * @returns {string}
@@ -58,7 +59,10 @@ export const render = (pages, posts, wikiPosts, now = new Date()) =>
       xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 ${url('', '1', now)}
 ${pages.map((p) => url(p, '0.8', now)).join('\n')}
-${posts.map((post) => url(post.path, '0.6', postDate(post) ?? now)).join('\n')}
+${posts
+	.filter((post) => !post.meta.redirect)
+	.map((post) => url(post.path, '0.6', postDate(post) ?? now))
+	.join('\n')}
 ${wikiPosts.map((post) => url(post.path, '0.5', postDate(post))).join('\n')}
 </urlset>
 `;

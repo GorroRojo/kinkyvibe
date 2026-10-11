@@ -6,7 +6,7 @@ import { lucideDeepImports } from './scripts/vite/lucide-deep-imports.js';
 export default defineConfig({
 	// En vitest, los íconos se importan de a uno (ver scripts/vite/lucide-deep-imports.js).
 	plugins: [sveltekit(), process.env.VITEST ? lucideDeepImports() : null],
-	// Rama del deploy (Workers Builds o Cloudflare Pages; '' en local): ver
+	// Rama del deploy (Workers Builds; '' en local): ver
 	// src/lib/server/deployBranch.js y src/lib/server/deploy.js.
 	define: {
 		__DEPLOY_BRANCH__: JSON.stringify(deployBranchFromEnv(process.env))
@@ -18,7 +18,9 @@ export default defineConfig({
 		assetsInlineLimit: 0
 	},
 	test: {
-		include: ['src/**/*.{test,spec}.{js,ts}', 'scripts/**/*.test.js']
+		include: ['src/**/*.{test,spec}.{js,ts}', 'scripts/**/*.test.js'],
+		// El árbol de etiquetas de respaldo, para las pruebas (src/tests/setup.js).
+		setupFiles: ['src/tests/setup.js']
 	},
 	optimizeDeps: {
 		exclude: ['svelte-codemirror-editor', 'codemirror', '@codemirror/lang-markdown']

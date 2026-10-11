@@ -40,38 +40,28 @@ sin tocar el repo.
   `preferences.datos_de_prueba` que pone el seed. La sesión es la normal de las cuentas
   (`startSession`, método `code`); «Salir» en Mi rincón la cierra.
 - **Permisos**: `isAdmin` (`src/lib/server/auth.js`) acepta esa identidad **solo si
-  `isPreviewDeploy()`**. Además, el bloque de `hooks.server.js` y el cliente demo están dentro de
+  `isPreviewDeploy()`**. Además, el bloque de `hooks.server.js` y el seed demo están dentro de
   `if (PREVIEW_BUILD)`, una constante que se resuelve al compilar desde `WORKERS_CI_BRANCH`: en el
   build de producción (y en local) esas ramas se eliminan y nada importa el módulo demo.
-- **Contenido**: en un preview, `getRepoClient()` (`src/lib/server/eventos/index.js`) devuelve el
-  cliente demo (`src/lib/server/demo/client.js`) en vez de GitHub, **sea quien sea que esté
-  logueade**: desde un preview nunca se commitea al repo. Los eventos y el material se leen y se
-  guardan en la base del preview, como en producción (los `.md` no se leen:
-  [contenido.md](contenido.md)); lo que todavía va al repo (imágenes, fichas de amigues, la wiki)
-  se guarda en la tabla `demo_files` de la base del preview.
-- **Lecturas** (lo que va al repo): primero `demo_files`; si el archivo no está ahí, el archivo tal
-  como está en el deploy (los `.md` de `src/lib/posts` se empaquetan como texto en el Worker del
-  preview, con `import.meta.glob`, ver `src/lib/server/demo/bundle.js`).
-- **Base del preview nueva**: hay que importar el contenido y las etiquetas desde el panel
-  (Contenido → En la base → Importar; Etiquetas → Importar a la base). Sin eso, el preview no
-  tiene eventos reales ni material (los de prueba los carga «Recargar datos de prueba», abajo).
+- **Contenido**: como en producción, todo se lee y se guarda en la base del preview: los
+  eventos, el material, los perfiles y la wiki ([contenido.md](contenido.md)). Desde un preview
+  nunca se escribe en el repo (el panel ya no escribe en GitHub en ningún lado, decisión
+  [0032](decisiones/0032-borrar-los-md.md)); las imágenes que se suben van al R2 del preview.
+- **Base del preview nueva**: no trae eventos reales ni material; los de prueba los carga
+  «Recargar datos de prueba» (abajo), y también las fichas de amigues de la semilla
+  (`src/lib/server/semilla/amigues.json`). Las etiquetas: sin filas en la base, el árbol está
+  vacío (la base de prueba compartida ya las tiene, importadas antes de la decisión 0032).
 - **Datos inventados** (`scripts/demo/*.sql`): los eventos de la demo (`n3-entradas.sql`,
   `n3-personas.sql`) son objetos `evento` no listados en la base del preview (antes eran `.md` en
-  `demo_files`, que el sitio ya no lee; el seed borra esas filas viejas). Necesitan la migración 0031.
+  la vieja tabla `demo_files`; los `.sql` borran esas filas si quedan). Necesitan la migración 0031.
 - **Aviso**: en `/admin` y `/edit` se ve «Modo demo: los cambios se guardan solo en la base de
   prueba».
 
-## La tabla `demo_files`
+## `GET /api/preview-status`
 
-No es una migración numerada (producción no la tiene): se crea sola la primera vez que se usa
-(`CREATE TABLE IF NOT EXISTS`, ver `src/lib/server/demo/overlay.js`). Una fila por archivo
-(última versión): `path`, `content`, `encoding` (`utf-8`; `binary` para imágenes subidas, sin
-guardar el contenido; `ref` para copias de un archivo del deploy), `deleted`, `author`,
-`message`, `updated_at`.
-
-`GET /api/preview-status` (solo en previews) muestra cuántas filas hay en las tablas principales
-y los últimos cambios guardados en modo demo. Para empezar de cero:
-`DELETE FROM demo_files;` en la base del preview.
+Solo en previews: cuántas filas hay en las tablas principales y si el entorno está bien armado.
+(La vieja tabla `demo_files`, la capa de archivos del modo demo, ya no se usa: si una base de
+preview vieja la tiene, se puede borrar con `DROP TABLE demo_files;`.)
 
 ## Datos de prueba: «Recargar datos de prueba»
 
@@ -81,7 +71,7 @@ prueba»** (con confirmación en la página; `src/lib/components/admin/DemoReloa
 
 1. **Borra** los datos de prueba anteriores, y nada más: los eventos `demo-*` y lo que cuelga de
    ellos (órdenes, entradas, recordatorios, links de transmisión, avisos por mail, códigos del
-   evento, sus archivos en `demo_files`, entradas del registro de actividad sobre esos eventos u
+   evento, entradas del registro de actividad sobre esos eventos u
    órdenes), las filas que puso el seed (`seed-demo`) y la «última visita» del admin de prueba.
    Los ajustes o códigos que alguien guardó a mano no se pisan.
 2. **Carga** todo de nuevo relativo a este momento (`src/lib/server/demo/seed.js`): un evento hoy
@@ -97,8 +87,8 @@ prueba»** (con confirmación en la página; `src/lib/components/admin/DemoReloa
    (`src/lib/server/demo/seedProfiles.js`: un lugar por nivel de privacidad, un grupo con su
    integrante, una ficha con un pedido «Es mi perfil» pendiente y un perfil de una cuenta
    esperando aprobación), preventas, gorra, propinas, personas con rol, preguntas de inscripción
-   y suscripciones a series. Además importa las fichas de amigues del deploy (lo mismo que
-   Contenido → Amigues → Importar).
+   y suscripciones a series. Además carga las fichas de amigues de la semilla
+   (`src/lib/server/semilla/amigues.json`).
 5. **Los eventos de prueba son objetos `evento`** (`src/lib/server/demo/seedEvents.js`), después
    del batch, con saveObject(): el sitio lee los eventos solo de la base. **Confirmado por gorrite
    (5/10)** (también las ~18 revisiones por recarga en el preview y adoptar o dar de baja los
@@ -116,11 +106,10 @@ prueba»** (con confirmación en la página; `src/lib/components/admin/DemoReloa
      el contenido («todo, para siempre»: no se borra). Crece unas 20 filas por recarga (más una
      por copia de un evento real, abajo), solo en la base del preview.
    - Un evento `demo-*` sin la marca que tiene la dirección de hoy de uno de prueba (por ejemplo,
-     importado con Contenido → Importar desde los `.md` de la rama `demo`) se adopta si ese evento
+     uno importado hace tiempo desde los `.md` de la rama `demo`) se adopta si ese evento
      de prueba todavía no tiene objeto, o se da de baja (borrado suave, con otra dirección) si ya
      tiene; en los dos casos pierde su fila de `content_sources`. Un evento que no es `demo-*`
      nunca se toca: ese evento de prueba se saltea (`eventsSkipped`).
-   - Los `.md` de eventos en `demo_files` que dejaron seeds anteriores se borran.
 
 6. **Copias de eventos reales** (abajo): si el sitio público responde, suma copias de sus
    eventos al lado de los inventados.
@@ -166,7 +155,7 @@ https://kinkyvibe.ar/media/img/<hash>.webp`). El preview no tiene esos archivos 
   tal cual en el calendario, las tarjetas, la página del evento y el panel: `isPublicMediaUrl`
   (`src/lib/utils/media.js`, lo usan `thumbURL` y `featuredURL`) acepta solo
   `https://kinkyvibe.ar/media/img/<sha-256>.<ext>`; cualquier otra URL absoluta se sigue
-  ignorando. Las imágenes viejas del repo (archivos del bundle) no se copian: esa copia queda sin
+  ignorando. Las imágenes con la forma vieja (un `featured` numérico o un nombre de archivo) no se copian: esa copia queda sin
   imagen. La tarjeta para compartir (`/compartir`) dibuja en un canvas y puede no poder usar una
   imagen de otro dominio.
 - **Identidad**: cada copia es siempre el mismo objeto para el mismo evento real (su `demo_slot`
@@ -200,8 +189,8 @@ Además, en un preview la página de error muestra el mensaje del error (`handle
 
 ## Cómo se bloquea en producción
 
-Todo el modo demo depende de la rama que se compila (`__DEPLOY_BRANCH__`, de `WORKERS_CI_BRANCH`
-o `CF_PAGES_BRANCH`; `src/lib/server/deployBranch.js`). No hay variable de entorno que lo prenda:
+Todo el modo demo depende de la rama que se compila (`__DEPLOY_BRANCH__`, de `WORKERS_CI_BRANCH`,
+que pone Workers Builds; `src/lib/server/deployBranch.js`). No hay variable de entorno que lo prenda:
 en el build de producción (rama `main`), en local y en los tests, `PREVIEW_BUILD` es `false`, el
 seed y el botón quedan fuera del bundle y `/api/preview-seed` da 404 aunque se carguen variables
 en el panel. Lo verifica CI:
@@ -219,8 +208,6 @@ en el panel. Lo verifica CI:
   tocar la base o pedir nada a la red (lo prueba `realEvents.test.js`).
 - `node scripts/demo/guard.js bundle .wrangler/dry-run/index.js` (job `e2e`): el Worker
   empaquetado sin rama de deploy (como producción) no trae el seed ni el botón.
-- `node scripts/demo/guard.js posts` (job `unit`, en los PR contra `main` y en `main`): no hay
-  eventos de prueba (`.md` con la marca del seed) entre los posts.
 
 ## La demo (rama `demo`)
 
@@ -228,34 +215,26 @@ en el panel. Lo verifica CI:
 mismo Worker, misma base de prueba (`kinkyvibe-preview`) que los demás previews. Todo el código de
 arriba ya está en `main`, así que la rama `demo` solo agrega:
 
-- los PR abiertos que se quieren mostrar, mergeados encima de `main`;
-- los `.md` de los eventos de prueba (`src/lib/posts/calendario/demo-*.md`). Nunca van a `main`
-  (lo frena CI). Desde «solo base» el sitio no los lee: los eventos de prueba que se ven son los
-  objetos que carga «Recargar datos de prueba». Si alguien los importa (Contenido → Importar), la
-  próxima recarga los adopta o los da de baja (ver arriba).
+- los PR abiertos que se quieren mostrar, mergeados encima de `main`.
 
-Para ponerla al día (sin reescribir la historia de `demo`):
+Los eventos de prueba son los objetos que carga «Recargar datos de prueba» (ya no hay `.md` de
+eventos de prueba ni `seed.js --write-events`). Para ponerla al día (sin reescribir la historia de
+`demo`):
 
 ```sh
 git fetch origin
 git switch demo && git merge --ff-only origin/demo
 git merge origin/main
 git merge origin/claude/<pr-a-mostrar>   # los que hagan falta
-node scripts/demo/seed.js --today=AAAA-MM-DD --write-events
-git add -A src/lib/posts/calendario
-git commit -m "demo: eventos de prueba al AAAA-MM-DD"
 git push origin demo
 ```
 
-`--write-events` borra los `demo-*.md` que tengan la marca del seed y escribe los de esa fecha.
-Después del deploy, entrá como admin de prueba y tocá «Recargar datos de prueba» (en cualquier
-otro preview anda igual, sin los `.md`: solo que las páginas públicas no muestran los eventos).
-Nunca se aplica nada de esto a la base `kinkyvibe`.
+Después del deploy, entrá como admin de prueba y tocá «Recargar datos de prueba». Nunca se aplica
+nada de esto a la base `kinkyvibe`.
 
 ## Lo que no hace
 
-- No sube imágenes de verdad: el panel sigue mostrando las del deploy.
-- No hay GitHub de verdad: los links «ver el commit» llevan a `/api/preview-status`.
+- No escribe en el repo ni en GitHub (nada lo hace desde la decisión 0032).
 - En producción no hace nada: no hay botón, la cookie se ignora y el código no está en el bundle.
 
 ## Cómo probar
@@ -263,8 +242,7 @@ Nunca se aplica nada de esto a la base `kinkyvibe`.
 - Abrí el preview del PR (Cloudflare publica el link en el PR; el chequeo «Workers Builds:
   kinkyvibe» → Details lleva al build en el panel de Cloudflare), entrá a `/login` y tocá «🧪 Entrar como
   admin de prueba».
-- `GET /api/preview-status` dice si el entorno está bien armado (base, allowlist de mails) y qué se
-  guardó en `demo_files`.
+- `GET /api/preview-status` dice si el entorno está bien armado (base, allowlist de mails).
 - Para probar como alguien del público: cargá `n3-personas.sql` y `n3-cuentas.sql` en la base del
   preview y tocá «🧪 Entrar como persona de prueba».
 - Pruebas: `npx vitest run src/lib/server/demo src/routes/api/preview-seed scripts/demo` (las
