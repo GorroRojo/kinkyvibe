@@ -164,15 +164,15 @@ test('ficha del evento: 7 pestañas, Ventas y Mails con sus vistas, y la lista �
 	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 	await toggle.click();
 	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-	const list = page.getByRole('navigation', { name: 'Pestañas' }).getByRole('listitem');
-	await expect(list).toHaveCount(7);
-	await expect(page.getByRole('link', { name: 'Mails' })).toBeFocused();
+	const menu = page.getByRole('navigation', { name: 'Pestañas' });
+	await expect(menu.getByRole('listitem')).toHaveCount(7);
+	await expect(menu.getByRole('link', { name: 'Mails', exact: true })).toBeFocused();
 	await page.keyboard.press('Escape');
 	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 	await expect(toggle).toBeFocused();
 	await page.keyboard.press('ArrowDown');
 	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-	await page.getByRole('link', { name: 'Códigos' }).click();
+	await menu.getByRole('link', { name: 'Códigos', exact: true }).click();
 	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/codigos$`));
 	await expect(page.getByRole('button', { name: /^Códigos/ })).toHaveAttribute(
 		'aria-expanded',
