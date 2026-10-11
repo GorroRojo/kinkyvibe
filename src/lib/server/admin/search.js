@@ -9,6 +9,10 @@
  * primer filtro flojo ({@link looseLike}) y la comparación de verdad se hace acá. Sin columnas
  * nuevas ni migraciones: con cientos o pocos miles de filas alcanza.
  *
+ * Entiende los operadores de `$lib/utils/searchQuery.js` (`#etiqueta`, `@persona`, `e:evento`,
+ * `orden:`, `estado:`, `tipo:`, `lugar:`, `hoy`/`semana`/`finde`, `"frase"`, `-palabra`): cada
+ * función recibe lo escrito o lo ya leído (`ParsedQuery`).
+ *
  * Solo para admins (Q30). El DNI nunca sale de la base: si alguien busca por DNI, la consulta
  * devuelve solo los últimos 3 dígitos para mostrar "DNI ···123". Las búsquedas no se guardan.
  */
@@ -19,9 +23,20 @@ import { orderReference } from '$lib/utils/tickets.js';
 import { eventLink, orderHref, personHref } from '$lib/admin/links.js';
 import { eventHref } from '$lib/admin/nav.js';
 import { normalizeEmail, personId } from '$lib/server/admin/people.js';
+import {
+	allowsKind,
+	eventInWhen,
+	foldQuery,
+	foldedRank,
+	hasRecordCriteria,
+	matchTerms,
+	parseSearchQuery
+} from '$lib/utils/searchQuery.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
+/** @typedef {import('$lib/utils/searchQuery.js').ParsedQuery} ParsedQuery */
+/** @typedef {{ id: string, visible_name?: string, icon?: string, aliasOf?: string | null, aka?: string[] }} TagNode */
 
 /**
  * `exact`: coincide entero con lo buscado (nombre, título, email, código o referencia, sin
@@ -86,15 +101,51 @@ export function looseLike(folded) {
  * @param {...unknown} fields
  */
 export function foldedMatch(f, ...fields) {
-	let best = -1;
-	for (const field of fields) {
-		const v = foldText(field);
-		const at = v.indexOf(f);
-		if (at === -1) continue;
-		const rank = v === f ? 0 : at === 0 ? 1 : /[\s@._-]/.test(v[at - 1]) ? 2 : 3;
-		if (best === -1 || rank < best) best = rank;
+	return foldedRank(f, fields.map(foldText));
+}
+
+/**
+ * Lo escrito ya leído (si viene un texto, lo lee acá).
+ * @param {string | ParsedQuery} q
+ * @returns {ParsedQuery}
+ */
+export function asQuery(q) {
+	return typeof q === 'string' ? parseSearchQuery(q.trim().slice(0, MAX_QUERY)) : q;
+}
+
+/**
+ * Los nombres (sin tildes) con que un evento puede tener la etiqueta pedida: lo escrito, y si
+ * es el id, el nombre o un alias de una etiqueta del árbol, todos los de esa etiqueta. Si
+ * ninguna se llama exactamente así, las que empiezan así (`#shib` → shibari).
+ *
+ * @param {TagNode[]} tags
+ * @param {string} value ya sin tildes
+ * @returns {Set<string>}
+ */
+export function tagFilterNames(tags, value) {
+	const names = new Set([value]);
+	const byId = new Map(tags.filter((t) => t?.id).map((t) => [t.id, t]));
+	/** @type {Map<string, TagNode>} */
+	const exact = new Map();
+	/** @type {Map<string, TagNode>} */
+	const prefix = new Map();
+	for (const t of tags) {
+		if (!t?.id || t.id === 'root') continue;
+		const target = t.aliasOf ? byId.get(t.aliasOf) : t;
+		if (!target || target.aliasOf) continue;
+		const rank = foldedRank(value, [t.id, t.visible_name ?? '', ...(t.aka ?? [])].map(foldQuery));
+		if (rank === 0) exact.set(target.id, target);
+		else if (rank === 1) prefix.set(target.id, target);
 	}
-	return best;
+	const chosen = exact.size ? exact : prefix;
+	for (const t of chosen.values()) {
+		for (const n of [t.id, t.visible_name ?? '', ...(t.aka ?? [])]) if (n) names.add(foldQuery(n));
+		for (const a of tags) {
+			if (a?.aliasOf === t.id)
+				for (const n of [a.id, a.visible_name ?? '']) if (n) names.add(foldQuery(n));
+		}
+	}
+	return names;
 }
 
 /**
@@ -112,26 +163,45 @@ const shortDate = (ms) => argDateList(ms, { time: false });
 
 /**
  * Eventos por título o slug, sin distinguir mayúsculas ni tildes (del bundle: anda sin base).
- * Primero los que empiezan con lo buscado, después los más nuevos.
+ * Primero los que mejor coinciden, después los más nuevos. Con fecha pedida (`hoy`, `semana`…),
+ * del más próximo al más lejano. Filtra por etiqueta (`#…`, también por alias; hace falta
+ * `tags`, el árbol), lugar (`lugar:`) y fecha.
  *
- * @param {EventSummary[]} events
- * @param {string} q
- * @param {{ limit?: number, ticketed?: Set<string> }} [opts]
+ * @param {(EventSummary & { tags?: string[] })[]} events
+ * @param {string | ParsedQuery} q
+ * @param {{ limit?: number, ticketed?: Set<string>, tags?: TagNode[], now?: number }} [opts]
  * @returns {SearchItem[]}
  */
-export function searchEvents(events, q, { limit = 6, ticketed = new Set() } = {}) {
-	const f = foldText(q);
-	if (f.length < MIN_QUERY) return [];
+export function searchEvents(events, q, { limit = 6, ticketed = new Set(), tags = [], now } = {}) {
+	const pq = asQuery(q);
+	if (!allowsKind(pq, 'events') || !hasRecordCriteria(pq)) return [];
+	const wanted = pq.tags.map((v) => tagFilterNames(tags, v));
+	const unwanted = pq.excludeTags.map((v) => tagFilterNames(tags, v));
+	const joined = [...pq.words, ...pq.phrases].join(' ');
 	const found = [];
 	for (const e of events) {
-		const title = foldText(e.title);
-		const at = title.indexOf(f);
-		const inSlug = e.slug.includes(f.replace(/\s+/g, '-'));
-		if (at === -1 && !inSlug) continue;
-		const exact = title === f || e.slug === f.replace(/\s+/g, '-');
-		found.push({ e, exact, rank: at === 0 ? 0 : at > 0 ? 1 : 2 });
+		if (pq.when && !eventInWhen(e, pq.when, now)) continue;
+		const location = foldQuery(e.location);
+		if (!pq.places.every((p) => location.includes(p))) continue;
+		if (wanted.length || unwanted.length) {
+			const own = (e.tags ?? []).map(foldQuery);
+			if (!wanted.every((names) => own.some((t) => names.has(t)))) continue;
+			if (unwanted.some((names) => own.some((t) => names.has(t)))) continue;
+		}
+		const rank = matchTerms(pq, e.title, e.slug, e.slug.replace(/-/g, ' '));
+		if (rank === -1) continue;
+		const exact =
+			Boolean(joined) && (foldQuery(e.title) === joined || e.slug === joined.replace(/\s+/g, '-'));
+		found.push({ e, exact, rank });
 	}
-	found.sort((a, b) => a.rank - b.rank || (b.e.start || '').localeCompare(a.e.start || ''));
+	const soonest = Boolean(pq.when);
+	found.sort(
+		(a, b) =>
+			a.rank - b.rank ||
+			(soonest
+				? (a.e.start || '').localeCompare(b.e.start || '')
+				: (b.e.start || '').localeCompare(a.e.start || ''))
+	);
 	return found.slice(0, limit).map(({ e, exact }) => ({
 		id: `event:${e.slug}`,
 		icon: 'event',
@@ -152,11 +222,13 @@ export const eventTabsLabel = (title) => `En «${title}»`;
  * Mail a compradores y Ventas si vende entradas, y Duplicar siempre (cargar uno nuevo a partir
  * de este, `/admin/eventos/nuevo?desde=`).
  *
+ * Con `tab` (`e:latex puerta`), solo esa pestaña, marcada como `exact` (va arriba de todo).
+ *
  * @param {{ slug: string, title: string }} e
- * @param {{ tickets?: boolean }} [opts]
+ * @param {{ tickets?: boolean, tab?: string | null }} [opts]
  * @returns {SearchItem[]}
  */
-export function eventTabActions(e, { tickets = false } = {}) {
+export function eventTabActions(e, { tickets = false, tab = null } = {}) {
 	/** @type {[string, string, string, string][]} */
 	const tabs = tickets
 		? [
@@ -166,13 +238,14 @@ export function eventTabActions(e, { tickets = false } = {}) {
 				['ventas', 'wallet', 'Ventas', 'resumen de ventas']
 			]
 		: [];
-	return [
-		...tabs.map(([tab, icon, label, sub]) => ({
-			id: `event-tab:${e.slug}:${tab}`,
+	/** @type {SearchItem[]} */
+	const all = [
+		...tabs.map(([id, icon, label, sub]) => ({
+			id: `event-tab:${e.slug}:${id}`,
 			icon,
 			title: label,
 			sub,
-			href: eventHref(e.slug, tab)
+			href: eventHref(e.slug, id)
 		})),
 		{
 			id: `event-tab:${e.slug}:duplicar`,
@@ -182,6 +255,10 @@ export function eventTabActions(e, { tickets = false } = {}) {
 			href: `/admin/eventos/nuevo?desde=${encodeURIComponent(e.slug)}`
 		}
 	];
+	if (!tab) return all;
+	return all
+		.filter((item) => item.id === `event-tab:${e.slug}:${tab}`)
+		.map((item) => ({ ...item, exact: true }));
 }
 
 /**
@@ -189,14 +266,19 @@ export function eventTabActions(e, { tickets = false } = {}) {
  * de cada etiqueta y las entradas `{ id, aliasOf }` llevan a la etiqueta de verdad. Llevan al
  * árbol de etiquetas con esa etiqueta elegida.
  *
- * @param {{ id: string, visible_name?: string, icon?: string, aliasOf?: string | null, aka?: string[] }[]} tags
- * @param {string} q
+ * Con `#…`/`etiqueta:…` busca eso (y no el resto del texto, que es para los eventos); sin las
+ * que dicen algo excluido (`-palabra`).
+ *
+ * @param {TagNode[]} tags
+ * @param {string | ParsedQuery} q
  * @param {{ limit?: number }} [opts]
  * @returns {SearchItem[]}
  */
 export function searchTags(tags, q, { limit = 5 } = {}) {
-	const f = foldText(q);
-	if (f.length < MIN_QUERY) return [];
+	const pq = asQuery(q);
+	if (!allowsKind(pq, 'tags')) return [];
+	const f = pq.tags.length ? pq.tags[0] : [...pq.words, ...pq.phrases].join(' ');
+	if (f.length < MIN_QUERY && !(pq.tags.length && f)) return [];
 	const byId = new Map(tags.filter((t) => t?.id).map((t) => [t.id, t]));
 	/** @type {Map<string, { t: (typeof tags)[number], rank: number, alias: string }>} */
 	const found = new Map();
@@ -221,7 +303,11 @@ export function searchTags(tags, q, { limit = 5 } = {}) {
 			if (r !== -1) add(t, r, aka);
 		}
 	}
-	return [...found.values()]
+	// `-palabra` también vale para las etiquetas.
+	const shown = [...found.values()].filter(
+		({ t }) => !pq.exclude.some((x) => [t.id, t.visible_name].some((n) => foldText(n).includes(x)))
+	);
+	return shown
 		.sort((a, b) => a.rank - b.rank || String(a.t.id).localeCompare(String(b.t.id)))
 		.slice(0, limit)
 		.map(({ t, rank, alias }) => ({
@@ -244,10 +330,12 @@ export function searchTags(tags, q, { limit = 5 } = {}) {
  * @template T
  * @param {D1Database} db
  * @param {string} what
+ * @param {boolean} enabled si es `false`, ni pregunta (devuelve `[]`)
  * @param {(db: D1Database) => Promise<T[]>} fn
  * @returns {Promise<T[]>}
  */
-async function safe(db, what, fn) {
+async function safe(db, what, enabled, fn) {
+	if (!enabled) return [];
 	try {
 		return await fn(db);
 	} catch (error) {
@@ -276,26 +364,40 @@ function best(rows, limit) {
  * que podría coincidir (con {@link looseLike}, más la referencia `KV-…`, el código de la entrada o
  * el DNI, que se comparan en SQL) y acá se queda con lo que coincide sin mayúsculas ni tildes.
  *
+ * Con operadores: cada grupo se busca solo si `tipo:` (o `@`, `orden:`…) lo deja, y
+ * `estado:` filtra las órdenes (sin texto, trae las últimas en ese estado).
+ *
  * @param {D1Database | null | undefined} db
- * @param {string} q
+ * @param {string | ParsedQuery} q
  * @param {{ titles?: Map<string, string> }} [opts]
  * @returns {Promise<{ orders: SearchItem[], tickets: SearchItem[], codes: SearchItem[], people: SearchItem[], profiles: SearchItem[] }>}
  */
 export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 	const empty = { orders: [], tickets: [], codes: [], people: [], profiles: [] };
-	const query = q.trim().slice(0, MAX_QUERY);
-	if (!db || query.length < MIN_QUERY) return empty;
-	const f = foldText(query);
-	const like = looseLike(f);
+	const pq = asQuery(q);
+	if (!db || !hasRecordCriteria(pq)) return empty;
+	const terms = [...pq.words, ...pq.phrases];
+	// El filtro flojo de la base, con el pedazo más largo (los demás se comparan acá).
+	const longest = terms.reduce((a, b) => (b.length > a.length ? b : a), '');
+	const hasTerms = longest.length > 0;
+	const like = looseLike(longest);
+	const query = pq.text.slice(0, MAX_QUERY);
 	const idPrefix = orderIdPrefix(query);
 	const digits = query.replace(/[.\s-]/g, '');
 	const dniLike = /^\d{6,}$/.test(digits) ? likeContains(digits) : '';
-	const code = normalizeTicketCode(query);
+	const code = query ? normalizeTicketCode(query) : null;
 	/** @param {string} slug */
 	const title = (slug) => titles.get(slug) ?? slug;
+	/** Lo buscado no tiene que estar en ninguno de estos (con `-palabra`). @param {...unknown} fields */
+	const excluded = (...fields) =>
+		pq.exclude.length > 0 &&
+		fields.map(foldText).some((v) => pq.exclude.some((x) => v.includes(x)));
+	/** @param {import('$lib/utils/searchQuery.js').SearchKind} kind @param {boolean} [needsTerms] */
+	const wants = (kind, needsTerms = true) => allowsKind(pq, kind) && (hasTerms || !needsTerms);
+	const status = pq.status ?? '';
 
 	const [orders, tickets, codes, people, profiles] = await Promise.all([
-		safe(db, 'órdenes', async (db) => {
+		safe(db, 'órdenes', wants('orders', !status), async (db) => {
 			// `key_hit`: coincide por referencia o por DNI (eso no se compara acá: el DNI no sale).
 			const { results } = await db
 				.prepare(
@@ -303,16 +405,18 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 						CASE WHEN ?3 != '' AND buyer_dni LIKE ?3 ESCAPE '\\' THEN substr(buyer_dni, -3) END AS dni_tail,
 						((?1 != '' AND id LIKE ?1 || '%') OR (?3 != '' AND buyer_dni LIKE ?3 ESCAPE '\\')) AS key_hit
 					FROM orders
-					WHERE (?1 != '' AND id LIKE ?1 || '%')
+					WHERE (?5 = '' OR status = ?5) AND (
+						(?1 != '' AND id LIKE ?1 || '%')
 						OR buyer_name LIKE ?2 ESCAPE '\\' OR buyer_email LIKE ?2 ESCAPE '\\'
-						OR (?3 != '' AND buyer_dni LIKE ?3 ESCAPE '\\')
+						OR (?3 != '' AND buyer_dni LIKE ?3 ESCAPE '\\'))
 					ORDER BY key_hit DESC, created_at DESC LIMIT ?4`
 				)
-				.bind(idPrefix ?? '', like, dniLike, MAX_CANDIDATES)
+				.bind(idPrefix ?? '', like, dniLike, MAX_CANDIDATES, status)
 				.all();
 			const found = [];
 			for (const r of results) {
-				const rank = Number(r.key_hit) ? 0 : foldedMatch(f, r.buyer_name, r.buyer_email);
+				if (excluded(r.buyer_name, r.buyer_email)) continue;
+				const rank = Number(r.key_hit) ? 0 : matchTerms(pq, r.buyer_name, r.buyer_email);
 				if (rank !== -1) found.push({ r, rank });
 			}
 			return best(found, 8).map(({ r, rank }) => {
@@ -333,7 +437,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				};
 			});
 		}),
-		safe(db, 'entradas', async (db) => {
+		safe(db, 'entradas', wants('tickets'), async (db) => {
 			const { results } = await db
 				.prepare(
 					`SELECT t.code, t.event_slug, t.holder_name, t.order_id, t.checked_in_at, o.status,
@@ -346,7 +450,8 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				.all();
 			const found = [];
 			for (const r of results) {
-				const rank = Number(r.key_hit) ? 0 : foldedMatch(f, r.holder_name);
+				if (excluded(r.holder_name)) continue;
+				const rank = Number(r.key_hit) ? 0 : matchTerms(pq, r.holder_name);
 				if (rank !== -1) found.push({ r, rank });
 			}
 			return best(found, 6).map(({ r, rank }) => {
@@ -367,7 +472,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				};
 			});
 		}),
-		safe(db, 'códigos', async (db) => {
+		safe(db, 'códigos', wants('codes'), async (db) => {
 			const { results } = await db
 				.prepare(
 					`SELECT code, kind, value, event_slug, active FROM discount_codes
@@ -377,7 +482,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				.all();
 			const found = [];
 			for (const r of results) {
-				const rank = foldedMatch(f, r.code);
+				const rank = matchTerms(pq, r.code);
 				if (rank !== -1) found.push({ r, rank });
 			}
 			return best(found, 5).map(({ r, rank }) => ({
@@ -393,7 +498,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				...(rank === 0 ? { exact: true } : {})
 			}));
 		}),
-		safe(db, 'personas', async (db) => {
+		safe(db, 'personas', wants('people'), async (db) => {
 			// Una fila por compra que podría coincidir; acá se agrupan por email (en minúsculas).
 			const { results } = await db
 				.prepare(
@@ -407,7 +512,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 			/** @type {Map<string, { r: Record<string, unknown>, email: string, n: number, rank: number }>} */
 			const byEmail = new Map();
 			for (const r of results) {
-				const rank = foldedMatch(f, r.buyer_name, r.buyer_email);
+				const rank = matchTerms(pq, r.buyer_name, r.buyer_email);
 				if (rank === -1) continue;
 				const email = normalizeEmail(String(r.buyer_email));
 				const p = byEmail.get(email);
@@ -428,7 +533,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				}))
 			);
 		}),
-		safe(db, 'perfiles', async (db) => {
+		safe(db, 'perfiles', wants('profiles'), async (db) => {
 			// Perfiles de /amigues (y lugares) por nombre: al editor del perfil.
 			const { results } = await db
 				.prepare(
@@ -441,7 +546,7 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 				.all();
 			const found = [];
 			for (const r of results) {
-				const rank = foldedMatch(f, r.title);
+				const rank = matchTerms(pq, r.title);
 				if (rank !== -1) found.push({ r, rank });
 			}
 			return best(found, 5).map(({ r, rank }) => {
@@ -463,13 +568,20 @@ export async function searchDatabase(db, q, { titles = new Map() } = {}) {
 /**
  * Todos los grupos de resultados, en el orden en que se muestran (los vacíos no van).
  *
- * @param {{ events: SearchItem[], eventTabs?: SearchItem[], eventTabsLabel?: string, orders: SearchItem[], tickets: SearchItem[], codes: SearchItem[], people: SearchItem[], profiles?: SearchItem[], tags?: SearchItem[] }} r
+ * Con una pestaña pedida (`e:latex puerta`), su atajo va primero.
+ *
+ * @param {{ events: SearchItem[], eventTabs?: SearchItem[], eventTabsLabel?: string, tabFirst?: boolean, orders: SearchItem[], tickets: SearchItem[], codes: SearchItem[], people: SearchItem[], profiles?: SearchItem[], tags?: SearchItem[] }} r
  * @returns {SearchGroup[]}
  */
 export function groupResults(r) {
+	const events = { id: 'events', label: 'Eventos', items: r.events };
+	const tabs = {
+		id: 'event-tabs',
+		label: r.eventTabsLabel ?? 'En el evento',
+		items: r.eventTabs ?? []
+	};
 	return [
-		{ id: 'events', label: 'Eventos', items: r.events },
-		{ id: 'event-tabs', label: r.eventTabsLabel ?? 'En el evento', items: r.eventTabs ?? [] },
+		...(r.tabFirst ? [tabs, events] : [events, tabs]),
 		{ id: 'orders', label: 'Órdenes', items: r.orders },
 		{ id: 'people', label: 'Personas', items: r.people },
 		{ id: 'profiles', label: 'Perfiles', items: r.profiles ?? [] },

@@ -142,6 +142,44 @@ describe('/admin/buscar', () => {
 		expect(orders.items).toHaveLength(1);
 	});
 
+	it('operadores: e:evento + pestaña lleva directo a esa pestaña, primero', async () => {
+		const body = await (await call('e:fiesta puerta', { platform: {} })).json();
+		expect(body.groups.map((/** @type {any} */ g) => g.id)).toEqual(['event-tabs', 'events']);
+		const [puerta] = body.groups[0].items;
+		expect(body.groups[0].items).toHaveLength(1);
+		expect(puerta).toMatchObject({ title: 'Puerta', exact: true });
+		expect(new URL(puerta.href, 'http://localhost').pathname).toBe(
+			'/admin/eventos/fiesta-inventada-2026-10/ingreso'
+		);
+	});
+
+	it('operadores: @persona solo trae personas y perfiles', async () => {
+		await insertOrder(t.db, { name: 'Dana Inventada', email: 'dana@example.com' });
+		const body = await (await call('@dana')).json();
+		expect(body.groups.map((/** @type {any} */ g) => g.id)).toEqual(['people']);
+	});
+
+	it('operadores: hoy trae los eventos de hoy (en hora de Argentina)', async () => {
+		const now = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-10T23:30:00-03:00'));
+		try {
+			const today = await (await call('hoy', { platform: {} })).json();
+			expect(today.groups[0].items.map((/** @type {any} */ i) => i.title)).toEqual([
+				'Fiesta Inventada'
+			]);
+			const tomorrow = await (await call('mañana', { platform: {} })).json();
+			expect(tomorrow.groups).toEqual([]);
+		} finally {
+			now.mockRestore();
+		}
+	});
+
+	it('operadores: solo filtros que no van juntos o solo acciones, sin grupos', async () => {
+		for (const q of ['>fiesta', 'tipo:orden fiesta', 'estado:pendiente #fiesta']) {
+			const body = await (await call(q, { platform: {} })).json();
+			expect(body.groups, q).toEqual([]);
+		}
+	});
+
 	it('búsqueda corta: sin grupos (solo los eventos de hoy)', async () => {
 		const body = await (await call('a')).json();
 		expect(body.groups).toEqual([]);

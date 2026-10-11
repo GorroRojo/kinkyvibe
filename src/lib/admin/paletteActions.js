@@ -1,18 +1,62 @@
 /**
  * Todas las acciones de la paleta de comandos (SearchBox): las de `buildCommands` (secciones del
  * menú, «Nuevo código de descuento», «Abrir la puerta de hoy»…) más las que no son secciones:
- * «Para revisar», crear e importar, y las preferencias de cada persona (tema, «Ocultar lo que
- * viene»). Y la regla de qué va arriba: las acciones o los registros. Sin dependencias del
- * navegador.
+ * «Para revisar», crear e importar, «Cómo buscar» y las preferencias de cada persona (tema,
+ * «Ocultar lo que viene»). Y la regla de qué va arriba: las acciones o los registros, y los
+ * ejemplos de la ayuda «Cómo buscar» (los operadores, ver $lib/utils/searchQuery.js). Sin
+ * dependencias del navegador.
  */
 import { REVIEW_LINK } from './nav.js';
 import { buildCommands, fold } from './commands.js';
 
 /**
- * Una acción; `run` dice qué hace la paleta en vez de ir a `href`: la hoja de atajos, cambiar el
- * tema u ocultar o mostrar lo que viene.
- * @typedef {Omit<import('./commands.js').Command, 'run'> & { run?: 'help' | 'theme' | 'hide-soon' }} Command
+ * Una acción; `run` dice qué hace la paleta en vez de ir a `href`: la hoja de atajos, la ayuda
+ * «Cómo buscar», cambiar el tema u ocultar o mostrar lo que viene.
+ * @typedef {Omit<import('./commands.js').Command, 'run'> & { run?: 'help' | 'search-help' | 'theme' | 'hide-soon' }} Command
  */
+
+/** La acción que abre la ayuda «Cómo buscar» (en la hoja de atajos). @type {Readonly<Command>} */
+export const SEARCH_HELP_COMMAND = Object.freeze({
+	id: 'search-help',
+	label: 'Cómo buscar',
+	hint: 'Operadores: #etiqueta, @persona, hoy, "frase", -palabra…',
+	keywords: 'ayuda buscar buscador operadores filtros etiqueta persona tipo lugar fecha',
+	icon: 'search',
+	run: /** @type {const} */ ('search-help')
+});
+
+/**
+ * Los ejemplos de la ayuda «Cómo buscar», en orden. `q`: lo que se escribe (al tocarlo, la
+ * paleta lo busca); `also`: otras formas de lo mismo. Datos inventados.
+ * @type {readonly { q: string, also?: string[], text: string }[]}
+ */
+export const SEARCH_TIPS = Object.freeze([
+	{ q: '#shibari', also: ['etiqueta:shibari'], text: 'Eventos con esa etiqueta (vale un alias)' },
+	{ q: '@ana', also: ['persona:ana'], text: 'Solo personas y perfiles' },
+	{
+		q: 'e:fiesta puerta',
+		also: ['evento:fiesta'],
+		text: 'Solo eventos; con puerta, órdenes, mail, ventas o duplicar, directo a esa pestaña'
+	},
+	{ q: 'estado:pendiente', also: ['orden:ana'], text: 'Órdenes en ese estado, o solo órdenes' },
+	{
+		q: 'tipo:entrada',
+		text: 'Un solo tipo: evento, orden, persona, perfil, etiqueta, entrada, codigo o accion'
+	},
+	{ q: 'lugar:palermo', text: 'Eventos en ese lugar' },
+	{
+		q: 'finde',
+		also: ['hoy', 'mañana', 'semana', 'cuando:sabado', 'cuando:15/10'],
+		text: 'Eventos de esos días'
+	},
+	{ q: '"frase exacta"', text: 'Esas palabras juntas y en ese orden' },
+	{
+		q: 'fiesta -latex',
+		also: ['-#latex', '-tipo:orden'],
+		text: 'Sin esa palabra, esa etiqueta o ese tipo'
+	},
+	{ q: '>tema', text: 'Solo acciones' }
+]);
 
 /**
  * Atajos a páginas que no están en el menú (o que son un botón dentro de una sección). Van
@@ -108,12 +152,17 @@ export function preferenceCommands({ hideSoon = false } = {}) {
 
 /**
  * Las acciones de la paleta, en orden: las de `buildCommands`, después las de
- * {@link EXTRA_COMMANDS} y las preferencias.
+ * {@link EXTRA_COMMANDS}, «Cómo buscar» y las preferencias.
  * @param {{ today?: { slug: string, title: string, href: string }[], hideSoon?: boolean }} [opts]
  * @returns {Command[]}
  */
 export function paletteCommands({ today = [], hideSoon = false } = {}) {
-	return [...buildCommands({ today }), ...EXTRA_COMMANDS, ...preferenceCommands({ hideSoon })];
+	return [
+		...buildCommands({ today }),
+		...EXTRA_COMMANDS,
+		SEARCH_HELP_COMMAND,
+		...preferenceCommands({ hideSoon })
+	];
 }
 
 /**

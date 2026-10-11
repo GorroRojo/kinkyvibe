@@ -292,6 +292,39 @@ La paleta (`SearchBox.svelte`) junta **acciones** (en el navegador) y **registro
   después al comienzo, al comienzo de una palabra y en el medio; a igual coincidencia, lo más
   nuevo.
 
+### Operadores
+
+Los lee una sola función pura, `parseSearchQuery` (`src/lib/utils/searchQuery.js`): la usan la
+paleta (acciones, y si hace falta preguntarle al servidor) y `/admin/buscar` (registros). Nunca
+falla: lo que no entiende queda como texto. Sin mayúsculas ni tildes, como el resto.
+
+| Operador                                             | Qué hace                                                                                                                         |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| palabras sueltas                                     | Tienen que estar todas, en cualquier orden («perez jose» encuentra «José Pérez»).                                                |
+| `"frase exacta"`                                     | Esas palabras juntas y en ese orden.                                                                                             |
+| `-palabra`, `-"frase"`                               | Sin eso.                                                                                                                         |
+| `>tema`                                              | Solo acciones (tiene que ir al comienzo; no le pregunta al servidor).                                                            |
+| `#shibari`, `etiqueta:shibari`                       | Eventos con esa etiqueta (por id, nombre o alias; si ninguna se llama así, las que empiezan así) y la etiqueta. `-#…`: sin ella. |
+| `@ana`, `persona:ana`                                | Solo personas y perfiles.                                                                                                        |
+| `e:fiesta`, `evento:fiesta`                          | Solo eventos. Con `puerta`, `ordenes`, `mail`, `ventas` o `duplicar` al final, el atajo a esa pestaña del primero va arriba.     |
+| `orden:ana`                                          | Solo órdenes. `orden:pendiente` (o `estado:pendiente`): las órdenes en ese estado, con o sin texto.                              |
+| `tipo:evento` (`,` para varios)                      | Solo ese tipo: evento, orden, persona, perfil (amigue), etiqueta, entrada, codigo, accion. `-tipo:orden`: todos menos ese.       |
+| `lugar:palermo`                                      | Eventos cuyo lugar lo dice.                                                                                                      |
+| `hoy`, `mañana`, `semana` («esta semana»), `finde`   | Eventos en esos días, en hora de Argentina, del más próximo al más lejano. Las acciones siguen («Abrir la puerta de hoy»).       |
+| `cuando:sabado`, `cuando:15/10`, `cuando:15/10/2026` | El próximo sábado (hoy cuenta) o esa fecha (sin año, la de cualquier año).                                                       |
+
+- Los filtros dejan solo los tipos a los que se aplican (`#…`, eventos y etiquetas; `lugar:` y
+  `cuando:`, eventos; las fechas sueltas, eventos y acciones; `estado:`, órdenes) y se cruzan con `tipo:`/`@`/`e:`. Si no queda ninguno («estado:pendiente
+  #shibari»), la paleta lo dice.
+- Un `algo:` que no es operador (`20:30`, `foo:bar`) es texto. Entre comillas, una palabra de
+  fecha también (`"semana"`, por un evento que se llame así).
+- Para la base, el filtro flojo (`looseLike`) usa la palabra o frase más larga; las demás y las
+  excluidas se comparan en JS (`matchTerms`).
+- **Ayuda**: con la paleta vacía hay una línea con ejemplos; «Cómo buscar» (al pie de la paleta,
+  como acción y en la hoja de atajos `?`) explica todos con ejemplos que se pueden tocar
+  (`SEARCH_TIPS` en `paletteActions.js`; un test verifica que cada ejemplo use un operador).
+- El buscador público del sitio (`SearchPalette.svelte`) es otro y no tiene operadores.
+
 ## Dónde está el código
 
 | Qué                                 | Dónde                                                                                                  |

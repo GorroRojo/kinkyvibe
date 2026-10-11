@@ -10,7 +10,8 @@ import {
 	orderIdPrefix,
 	searchDatabase,
 	searchEvents,
-	searchTags
+	searchTags,
+	tagFilterNames
 } from './search.js';
 import { insertOrder, insertTicket } from './testRows.js';
 import { personId } from './people.js';
@@ -387,5 +388,224 @@ describe('searchDatabase: sin mayúsculas ni tildes', () => {
 
 	it('trae como mucho MAX_CANDIDATES filas por consulta', () => {
 		expect(MAX_CANDIDATES).toBeGreaterThanOrEqual(500);
+	});
+});
+
+describe('operadores', () => {
+	/** Sábado 10 de octubre de 2026, 15:00 en Argentina (datos inventados). */
+	const NOW = Date.parse('2026-10-10T15:00:00-03:00');
+	const tags = [
+		{ id: 'shibari', visible_name: 'Shibari', aka: ['Kinbaku'] },
+		{ id: 'cuerdas', aliasOf: 'shibari' },
+		{ id: 'latex', visible_name: 'Látex' },
+		{ id: 'espanol', visible_name: 'Español' }
+	];
+	/** @type {any[]} */
+	const events = [
+		{
+			slug: 'taller-atadura-basica',
+			title: 'Taller de atadura básica',
+			start: '2026-10-10T18:00-03:00',
+			end: '',
+			location: 'Espacio Inventado, Palermo',
+			unlisted: false,
+			tags: ['Shibari', 'español']
+		},
+		{
+			slug: 'fiesta-latex-2026-10',
+			title: 'Fiesta Látex',
+			start: '2026-10-11T23:00-03:00',
+			end: '2026-10-12T05:00-03:00',
+			location: 'Club Inventado, San Telmo',
+			unlisted: false,
+			tags: ['latex']
+		},
+		{
+			slug: 'kinbaku-avanzado',
+			title: 'Taller avanzado',
+			start: '2026-10-17T18:00-03:00',
+			end: '',
+			location: 'Espacio Inventado, Palermo',
+			unlisted: false,
+			tags: ['kinbaku']
+		},
+		{
+			slug: 'fiesta-de-cuerdas',
+			title: 'Fiesta de cuerdas',
+			start: '2026-09-01T23:00-03:00',
+			end: '',
+			location: 'Club Inventado, San Telmo',
+			unlisted: false,
+			tags: ['cuerdas', 'latex']
+		}
+	];
+	/** @param {string} q */
+	const slugs = (q) => searchEvents(events, q, { tags, now: NOW }).map((e) => e.id.slice(6));
+
+	it('tagFilterNames: la etiqueta con su nombre, sus alias y los alias de la base', () => {
+		expect([...tagFilterNames(tags, 'cuerdas')].sort()).toEqual(['cuerdas', 'kinbaku', 'shibari']);
+		// Sin una que se llame exactamente así, las que empiezan así.
+		expect(tagFilterNames(tags, 'shib').has('kinbaku')).toBe(true);
+		// Una que no está en el árbol: tal cual.
+		expect([...tagFilterNames(tags, 'pizza')]).toEqual(['pizza']);
+	});
+
+	it('#etiqueta: eventos con esa etiqueta, también por alias y sin tildes', () => {
+		expect(slugs('#shibari').sort()).toEqual([
+			'fiesta-de-cuerdas',
+			'kinbaku-avanzado',
+			'taller-atadura-basica'
+		]);
+		expect(slugs('etiqueta:cuerdas')).toHaveLength(3);
+		expect(slugs('#LÁTEX').sort()).toEqual(['fiesta-de-cuerdas', 'fiesta-latex-2026-10']);
+		expect(slugs('#Espanol')).toEqual(['taller-atadura-basica']);
+		expect(slugs('#pizza')).toEqual([]);
+		// Dos etiquetas: las dos.
+		expect(slugs('#shibari #latex')).toEqual(['fiesta-de-cuerdas']);
+		// -#etiqueta: sin esa.
+		expect(slugs('fiesta -#shibari')).toEqual(['fiesta-latex-2026-10']);
+	});
+
+	it('#etiqueta en Etiquetas: busca la etiqueta, no el resto del texto', () => {
+		expect(searchTags(tags, '#kinbaku fiesta').map((x) => x.id)).toEqual(['tag:shibari']);
+		// -palabra también las saca.
+		expect(searchTags(tags, '#shib -shibari')).toEqual([]);
+		// Con un alcance que no las incluye, nada.
+		expect(searchTags(tags, '@shibari')).toEqual([]);
+	});
+
+	it('lugar:', () => {
+		expect(slugs('lugar:palermo').sort()).toEqual(['kinbaku-avanzado', 'taller-atadura-basica']);
+		expect(slugs('taller lugar:"san telmo"')).toEqual([]);
+	});
+
+	it('hoy, mañana, semana, finde y cuando:, del más próximo al más lejano', () => {
+		expect(slugs('hoy')).toEqual(['taller-atadura-basica']);
+		expect(slugs('mañana')).toEqual(['fiesta-latex-2026-10']);
+		expect(slugs('finde')).toEqual(['taller-atadura-basica', 'fiesta-latex-2026-10']);
+		expect(slugs('esta semana')).toEqual(['taller-atadura-basica', 'fiesta-latex-2026-10']);
+		expect(slugs('cuando:17/10')).toEqual(['kinbaku-avanzado']);
+		expect(slugs('cuando:lunes')).toEqual(['fiesta-latex-2026-10']);
+	});
+
+	it('dos operadores juntos: #etiqueta y fecha', () => {
+		expect(slugs('#shibari finde')).toEqual(['taller-atadura-basica']);
+		expect(slugs('#latex hoy')).toEqual([]);
+	});
+
+	it('"frase exacta" y -palabra', () => {
+		expect(slugs('"taller de atadura"')).toEqual(['taller-atadura-basica']);
+		expect(slugs('"atadura de taller"')).toEqual([]);
+		// Palabras sueltas: en cualquier orden.
+		expect(slugs('basica taller')).toEqual(['taller-atadura-basica']);
+		expect(slugs('taller -avanzado')).toEqual(['taller-atadura-basica']);
+		expect(slugs('fiesta -latex')).toEqual(['fiesta-de-cuerdas']);
+	});
+
+	it('tipo: y @ dejan afuera los eventos', () => {
+		expect(slugs('tipo:orden fiesta')).toEqual([]);
+		expect(slugs('@fiesta')).toEqual([]);
+		expect(slugs('tipo:evento fiesta')).toHaveLength(2);
+		expect(slugs('e:fiesta')).toHaveLength(2);
+	});
+
+	it('un `algo:` desconocido se busca como texto', () => {
+		expect(slugs('foo:fiesta')).toEqual([]);
+	});
+
+	it('eventTabActions con pestaña: solo esa, marcada exact', () => {
+		const tabs = eventTabActions(
+			{ slug: 'fiesta-latex-2026-10', title: 'Fiesta Látex' },
+			{
+				tickets: true,
+				tab: 'ingreso'
+			}
+		);
+		expect(tabs).toHaveLength(1);
+		expect(tabs[0]).toMatchObject({ title: 'Puerta', exact: true });
+		expect(pathOf(tabs[0].href)).toBe('/admin/eventos/fiesta-latex-2026-10/ingreso');
+		const dup = eventTabActions({ slug: 'x', title: 'X' }, { tab: 'duplicar' });
+		expect(new URL(dup[0].href, 'https://panel.test').searchParams.get('desde')).toBe('x');
+		// Sin entradas no hay Puerta.
+		expect(eventTabActions({ slug: 'x', title: 'X' }, { tab: 'ingreso' })).toEqual([]);
+	});
+
+	it('groupResults: con pestaña pedida, su atajo va primero', () => {
+		const item = { id: 'a', icon: 'x', title: 'a', sub: '', href: '/admin' };
+		const groups = groupResults({
+			events: [item],
+			eventTabs: [{ ...item, id: 'b' }],
+			tabFirst: true,
+			orders: [],
+			tickets: [],
+			codes: [],
+			people: []
+		});
+		expect(groups.map((g) => g.id)).toEqual(['event-tabs', 'events']);
+	});
+});
+
+describe('searchDatabase: operadores', () => {
+	beforeEach(async () => {
+		await insertOrder(t.db, {
+			name: 'Ana Inventada',
+			email: 'ana@example.com',
+			status: 'approved',
+			created: 1
+		});
+		await insertOrder(t.db, {
+			name: 'Ana Ficticia',
+			email: 'ficticia@example.com',
+			status: 'pending',
+			created: 2
+		});
+		await insertOrder(t.db, {
+			name: 'Beto Prueba',
+			email: 'beto@example.com',
+			status: 'pending',
+			created: 3
+		});
+	});
+
+	it('estado: trae las órdenes en ese estado, con o sin texto', async () => {
+		const r = await searchDatabase(t.db, 'estado:pendiente');
+		expect(r.orders.map((o) => o.title.split(' · ')[1])).toEqual(['Beto Prueba', 'Ana Ficticia']);
+		expect(r.people).toEqual([]);
+		const ana = await searchDatabase(t.db, 'orden:pend ana');
+		expect(ana.orders.map((o) => o.title.split(' · ')[1])).toEqual(['Ana Ficticia']);
+	});
+
+	it('orden: solo órdenes', async () => {
+		const r = await searchDatabase(t.db, 'orden:ana');
+		expect(r.orders).toHaveLength(2);
+		expect(r.people).toEqual([]);
+		expect(r.tickets).toEqual([]);
+	});
+
+	it('@persona: solo personas y perfiles', async () => {
+		const r = await searchDatabase(t.db, '@ana');
+		expect(r.orders).toEqual([]);
+		expect(r.people.map((p) => p.title)).toEqual(['Ana Inventada']);
+	});
+
+	it('-palabra y palabras en cualquier orden', async () => {
+		const r = await searchDatabase(t.db, 'ana -ficticia');
+		expect(r.orders.map((o) => o.title.split(' · ')[1])).toEqual(['Ana Inventada']);
+		const swapped = await searchDatabase(t.db, 'inventada ana');
+		expect(swapped.orders.map((o) => o.title.split(' · ')[1])).toEqual(['Ana Inventada']);
+		expect(swapped.orders[0].exact).toBeUndefined();
+	});
+
+	it('-tipo: saca ese grupo', async () => {
+		const r = await searchDatabase(t.db, 'ana -tipo:orden');
+		expect(r.orders).toEqual([]);
+		expect(r.people).toHaveLength(1);
+	});
+
+	it('filtros de eventos (#, lugar:, hoy) no preguntan a la base', async () => {
+		for (const q of ['#shibari', 'lugar:palermo ana', 'hoy', '>ana']) {
+			const r = await searchDatabase(t.db, q);
+			expect(Object.values(r).flat(), q).toEqual([]);
+		}
 	});
 });
