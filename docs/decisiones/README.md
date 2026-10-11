@@ -115,7 +115,9 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0029](0029-bot-de-telegram.md): Un bot de Telegram como otra vista del sitio (1/10)
 - [0034](0034-bot-seguir-y-token.md): El bot de Telegram: «Seguir» como primera acción que
   escribe, y el webhook usa el token (11/10)
-- [0036](0036-puerta-por-telegram.md): La puerta por Telegram: les admins marcan ingresos desde
+- [0036](0036-seguir-en-el-bot-prende-avisos.md): Seguir desde el bot prende los avisos por
+  Telegram (11/10)
+- [0037](0037-puerta-por-telegram.md): La puerta por Telegram: les admins marcan ingresos desde
   el bot (11/10)
 
 ### Panel y CRM

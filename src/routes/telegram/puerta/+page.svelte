@@ -1,7 +1,7 @@
 <script>
 	/**
 	 * La puerta con el escáner de QR de Telegram (`showScanQrPopup`, core.telegram.org/bots/webapps;
-	 * decisión 0036). Cada código escaneado va a `api`, que valida el `initData` y los permisos en
+	 * decisión 0037). Cada código escaneado va a `api`, que valida el `initData` y los permisos en
 	 * el servidor. Fuera de Telegram no hace nada.
 	 */
 	import { onMount } from 'svelte';

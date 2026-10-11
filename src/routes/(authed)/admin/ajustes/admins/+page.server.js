@@ -2,7 +2,7 @@
  * Ajustes → Admins: quién puede entrar al panel. La lista es de solo lectura: vive en
  * `src/lib/server/auth.js` (ADMINS, por id numérico de GitHub).
  *
- * «Tu Telegram para la puerta»: «Vincular Telegram» (la puerta por Telegram, decisión 0036,
+ * «Tu Telegram para la puerta»: «Vincular Telegram» (la puerta por Telegram, decisión 0037,
  * $lib/server/telegram/adminLink.js): crea un código de un solo uso, que vence en 15 minutos, y
  * muestra el link `t.me/<bot>?start=adm_<código>` (y su QR). «Desvincular» lo borra. Las dos
  * cosas quedan en el registro; vincular lo anota el bot cuando se usa el código.

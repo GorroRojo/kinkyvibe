@@ -87,7 +87,7 @@ import {
  */
 
 /**
- * Vincular el Telegram de une admin (la puerta por Telegram, decisión 0036, adminLink.js): recibe
+ * Vincular el Telegram de une admin (la puerta por Telegram, decisión 0037, adminLink.js): recibe
  * lo que vino después de `/start` (`adm_<código>`) y el id del usuario de Telegram.
  *
  * @typedef {(param: string, telegramUserId: number) =>
@@ -327,8 +327,8 @@ async function personalScreen(state, chatId, ctx, deps, accounts) {
 		if (!target) return { toast: FOLLOW_GONE_TEXT };
 		const r = await follows.follow(accountId, target.key);
 		toast =
-			r === 'created'
-				? followedText(target.title)
+			r === 'created' || r === 'created_telegram'
+				? followedText(target.title, { telegram: r === 'created_telegram' })
 				: r === 'already'
 					? FOLLOW_ALREADY_TEXT
 					: r === 'too_many'

@@ -1,4 +1,4 @@
-# 0036. La puerta por Telegram: les admins marcan ingresos desde el bot
+# 0037. La puerta por Telegram: les admins marcan ingresos desde el bot
 
 - Fecha: 2026-10-11
 - Estado: Aceptada (gorrite, Mesa, 11/10: «Sí, que sea real»). Cambia una parte de

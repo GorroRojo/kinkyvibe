@@ -33,7 +33,7 @@ export async function POST({ request, url, platform, fetch }) {
 		// Fase 2: con «Lo que sigo» prendido (el bot ya está prendido si se llega acá).
 		accounts: async () =>
 			db && (await isFlagOn(db, 'lo_que_sigo')) ? botAccounts(db, platform) : null,
-		// La puerta por Telegram (0036): `/start adm_<código>` del panel, con `telegram_puerta`
+		// La puerta por Telegram (0037): `/start adm_<código>` del panel, con `telegram_puerta`
 		// prendido (no depende de «Lo que sigo»). Apagado, el bot contesta que no se puede.
 		adminLink: db && (await isFlagOn(db, 'telegram_puerta')) ? botAdminLink(db) : null
 	});

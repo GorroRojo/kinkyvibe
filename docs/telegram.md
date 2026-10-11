@@ -104,8 +104,12 @@ una cuenta** (mirado en cada mensaje):
 - «⭐ Seguir» en una tarjeta muestra las etiquetas y series de ese evento que se pueden seguir
   (hasta 5, primero las series; las que ya sigue, deshabilitadas). Tocar una la sigue por el mismo
   camino que el botón del sitio (`resolveTag` + `follow` de `sigo/follows.js`), con sus topes y
-  sus opciones por defecto (calendario y mail de lo nuevo). Los avisos por Telegram se prenden en
-  Mi rincón → Lo que sigo, como siempre. Dejar de seguir, también ahí.
+  sus opciones por defecto (calendario y mail de lo nuevo), **más «Algo nuevo» por Telegram**
+  ([0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)): el aviso del botón suma «Te aviso
+  por acá cuando haya algo nuevo. Podés apagarlo en Mi rincón.». No los prende si el chat está en
+  `/silenciar` ni si ya lo seguía (sus opciones quedan como estaban: la base no distingue «nunca
+  lo tocó» de «lo apagó»). Seguir desde el sitio no los prende; dejar de seguir no apaga nada más.
+  El resto de los avisos y dejar de seguir, en Mi rincón → Lo que sigo.
 - `/sigo` y «⭐ Lo que sigo»: los nombres de lo que sigue la cuenta.
 - Sin chat vinculado: explica cómo conectarlo. En un grupo: link al privado
   (`?start=seguir-<id>` o `?start=sigo`), sin mirar ninguna cuenta.
@@ -194,7 +198,8 @@ En Lo que sigo, la grilla de avisos tiene la columna **Telegram** (`notifyChanne
 - sin el bot: «Próximamente», como antes;
 - con el bot y sin chat vinculado: apagada, «Sin conectar», con una nota que manda a la tarjeta;
 - con el chat vinculado: «Algo nuevo» y «Recordatorio» por Telegram, por cada cosa seguida
-  (columnas `tg_new` y `tg_reminder` de `follows`, apagadas por defecto).
+  (columnas `tg_new` y `tg_reminder` de `follows`, apagadas por defecto; seguir desde el bot
+  prende «Algo nuevo», 0036).
 
 Los manda el mismo cron que los mails de Lo que sigo (`src/lib/server/sigo/notify.js`, cada 15
 minutos), con estas reglas:
@@ -320,10 +325,10 @@ Propuestas por Claude; **confirmado por gorrite (5/10)**: todo tal como está es
   (desconectado no mandan nada; al reconectar vuelven).
 - `/start <código>` también vincula (para el link `t.me/<bot>?start=<código>`).
 
-## La puerta por Telegram (0036)
+## La puerta por Telegram (0037)
 
 Les admins marcan ingresos desde Telegram, con el escáner de QR del celular. Es la segunda acción
-del bot que escribe (decisión [0036](decisiones/0036-puerta-por-telegram.md)) y sale detrás del
+del bot que escribe (decisión [0037](decisiones/0037-puerta-por-telegram.md)) y sale detrás del
 interruptor **Puerta por Telegram** (`telegram_puerta`, `TELEGRAM_PUERTA_ENABLED`), apagado
 (0001). Pide además el bot prendido (`telegram_bot`). Con cualquiera de los dos apagado:
 `/telegram/puerta` y su API dan 404, el panel no deja vincular y `/start adm_<código>` contesta
@@ -385,7 +390,7 @@ que ahora no se puede.
 - ~~Fase 2: vincular un chat con una cuenta y sumar Telegram a "Lo que sigo" (0025).~~ Hecha
   (arriba), con la migración 0033.
 - ~~Navegación por pantallas, efímeros, Seguir, Mini App del calendario.~~ Hecho (0034).
-- ~~La puerta con el escáner de QR de Telegram.~~ Hecha (0036, arriba), detrás de
+- ~~La puerta con el escáner de QR de Telegram.~~ Hecha (0037, arriba), detrás de
   `telegram_puerta`.
 - Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir la
   dirección, y un comando o botón para abrirla sin volver a vincular.

@@ -1,6 +1,6 @@
 /**
  * La puerta (control de ingreso) desde una Mini App de Telegram, con el escáner de QR nativo
- * (`showScanQrPopup`). Decisión 0036; ver `docs/telegram.md` («La puerta por Telegram»). Sale
+ * (`showScanQrPopup`). Decisión 0037; ver `docs/telegram.md` («La puerta por Telegram»). Sale
  * detrás del interruptor `telegram_puerta` (apagado, decisión 0001), que además pide el bot
  * prendido (`telegram_bot`).
  *

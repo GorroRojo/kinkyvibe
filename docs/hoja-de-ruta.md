@@ -20,10 +20,12 @@ PRs abiertos:
   nuevo mapa de teclas `g`.
 - #261: reserva por transferencia hasta las 20 del segundo día hábil, sin paso de confirmar.
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
-- #273: la puerta por Telegram ([0036](decisiones/0036-puerta-por-telegram.md)): les admins
+- #273: la puerta por Telegram ([0037](decisiones/0037-puerta-por-telegram.md)): les admins
   vinculan su Telegram en Ajustes → Admins y marcan ingresos con el escáner de QR de Telegram,
   detrás de `telegram_puerta`. Bloqueo: gorrite aplica la migración 0050 en producción y en
   preview antes del merge (0028).
+- #290: seguir desde el bot prende los avisos por Telegram
+  ([0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)).
 
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
 BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
@@ -150,8 +152,8 @@ de amigues y lanzamientos grandes.
   de producción lo decide gorrite.
 - Imagen para compartir: más paletas, formatos apaisado y carrusel, estilo por serie. M.
 - Kinkipedia más rica y una lista de series mejor armada. M. Bloqueo: dirección de gorrite.
-- Ícono grande del tipo en el encabezado cuando no hay miniatura (perfiles, series, material,
-  lugares). S.
+- Ícono grande del tipo en el encabezado cuando no hay miniatura, también en las series (perfiles,
+  lugares y material ya lo tienen). S.
 - Passkeys para las cuentas del público. M–L.
 - Botón grande para comprar afuera: cuando las entradas se venden en otro sitio (link externo),
   el llamado a la acción tiene el mismo tamaño y peso que «Comprar entradas» (gorrite, 10/10). S.
@@ -206,7 +208,11 @@ de amigues y lanzamientos grandes.
 - Puerta por Telegram, después de #273: prenderla en un preview y probarla con celulares reales
   (vincular, abrir con el botón del bot, escanear); después en producción. S. Bloqueo: gorrite.
 - Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir su
-  dirección, y un comando o botón para abrirla sin volver a vincular (0036). S.
+  dirección, y un comando o botón para abrirla sin volver a vincular (0037). S.
+- Guardar si alguien apagó a propósito los avisos por Telegram de algo, para que volver a seguirlo
+  desde el bot no los prenda de nuevo (hoy la base no lo distingue, 0036). S. Bloqueo: que haga
+  falta (necesita migración).
+
 - Fase 3: avisos y estado para organizadores, nunca datos de compradores
   ([0029](decisiones/0029-bot-de-telegram.md)). L. Bloqueo: el rol de organizadore.
 

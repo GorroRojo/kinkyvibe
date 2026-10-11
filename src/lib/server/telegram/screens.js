@@ -50,7 +50,7 @@ import { formatARS } from '$lib/utils/money.js';
 export const miniAppUrl = (origin) => `${origin}/telegram/app`;
 
 /**
- * La Mini App de la puerta (`/telegram/puerta`, solo admins con el Telegram vinculado, 0036).
+ * La Mini App de la puerta (`/telegram/puerta`, solo admins con el Telegram vinculado, 0037).
  *
  * @param {string} origin
  */

@@ -1,6 +1,6 @@
 /**
  * Validar el `initData` de una Mini App de Telegram en el servidor (la puerta por Telegram,
- * decisión 0036; core.telegram.org/bots/webapps, «Validating data received via the Mini App»):
+ * decisión 0037; core.telegram.org/bots/webapps, «Validating data received via the Mini App»):
  *
  * 1. `initData` es un query string. Se saca `hash`.
  * 2. data-check-string: **todos los demás campos** recibidos (también `signature`, si viene: las

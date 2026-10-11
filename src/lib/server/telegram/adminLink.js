@@ -1,5 +1,5 @@
 /**
- * Vincular el Telegram de une admin desde el panel (la puerta por Telegram, decisión 0036;
+ * Vincular el Telegram de une admin desde el panel (la puerta por Telegram, decisión 0037;
  * migración 0050). Les admins entran con GitHub y no tienen cuenta pública (Mi rincón), así que
  * esto no usa `telegram_chats` (link.js): tiene su propia tabla, por id de GitHub.
  *

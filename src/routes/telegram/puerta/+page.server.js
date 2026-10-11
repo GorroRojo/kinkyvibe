@@ -1,5 +1,5 @@
 /**
- * La puerta (control de ingreso) desde una Mini App de Telegram (decisión 0036, docs/telegram.md).
+ * La puerta (control de ingreso) desde una Mini App de Telegram (decisión 0037, docs/telegram.md).
  * La página no muestra nada sin Telegram; todo lo que importa pasa por `api/+server.js`, que valida
  * el `initData` y los permisos de admin en cada pedido ($lib/server/telegram/puerta.js). Pide los
  * interruptores `telegram_bot` y `telegram_puerta`; si no, 404.

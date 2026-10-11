@@ -47,7 +47,7 @@ export const FLAGS = Object.freeze({
 			'para admins con el Telegram vinculado. Necesita el bot prendido. Apagado, no se puede ' +
 			'vincular ni marcar ingresos desde Telegram.',
 		tech:
-			'Mini App /telegram/puerta (docs/telegram.md, decisión 0036). Valida el initData con ' +
+			'Mini App /telegram/puerta (docs/telegram.md, decisión 0037). Valida el initData con ' +
 			'TELEGRAM_BOT_TOKEN en cada pedido. Necesita la migración 0050, TELEGRAM_BOT_TOKEN y ' +
 			'TELEGRAM_BOT_USERNAME. Apagado, /telegram/puerta da 404.',
 		envVar: 'TELEGRAM_PUERTA_ENABLED'

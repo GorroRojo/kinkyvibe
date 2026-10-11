@@ -1,5 +1,5 @@
 /**
- * POST `{ initData, evento, codigo }` → marca el ingreso (decisión 0036). Valida el `initData`
+ * POST `{ initData, evento, codigo }` → marca el ingreso (decisión 0037). Valida el `initData`
  * (HMAC con el token del bot, `auth_date` reciente) y que sea une admin con el Telegram vinculado
  * desde el panel, **en cada pedido** ($lib/server/telegram/puerta.js). Sin token, sin base o con
  * `telegram_bot` o `telegram_puerta` apagado: 404.
