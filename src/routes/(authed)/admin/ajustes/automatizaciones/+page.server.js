@@ -4,13 +4,20 @@
  * Solo admins. Nunca muestra secretos (del bot, solo si están cargados) ni a quién se le mandó algo.
  *
  * Una sola acción: `?/comandos`, «Actualizar comandos del bot» (registra en Telegram la lista de
- * $lib/server/telegram/commands.js para el autocompletado; queda en el registro).
+ * $lib/server/telegram/commands.js para el autocompletado; queda en el registro). Ya no hace falta
+ * después de cada deploy: el cron los registra solo cuando cambian (commandsSync.js); el botón
+ * los registra ya y guarda el mismo hash.
  */
 import { fail } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { registerBotCommands } from '$lib/server/telegram/commands.js';
+import {
+	commandsHash,
+	getCommandsSync,
+	storeCommandsSync
+} from '$lib/server/telegram/commandsSync.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { isFlagOn } from '$lib/server/flags.js';
 import { getSalesSettings } from '$lib/server/tickets/settings.js';
@@ -50,6 +57,8 @@ export async function load({ locals, url, platform, setHeaders }) {
 		now,
 		// Para el botón «Actualizar comandos del bot»: solo si está cargado, nunca el valor.
 		telegramTokenOk: Boolean(String(env.TELEGRAM_BOT_TOKEN ?? '').trim()),
+		// «Último registro: <fecha> (automático/manual)».
+		commandsSync: await getCommandsSync(db),
 		...automations
 	};
 }
@@ -82,6 +91,19 @@ export const actions = {
 				scopes: results.map((x) => ({ scope: x.scope, commands: x.commands, ok: x.ok }))
 			}
 		});
+		if (r.ok && db) {
+			// Así el cron no los vuelve a mandar.
+			try {
+				const now = Date.now();
+				await storeCommandsSync(
+					db,
+					{ hash: await commandsHash({ accounts }), at: now, by: 'manual' },
+					locals.user?.login ?? 'manual'
+				);
+			} catch (error) {
+				logDBError('automatizaciones: guardar el registro de comandos', error);
+			}
+		}
 		if (!r.ok) {
 			return fail(502, {
 				commandsError: 'Telegram no aceptó los comandos. No cambió nada de lo que falló.',

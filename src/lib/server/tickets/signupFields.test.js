@@ -100,7 +100,8 @@ describe('guardar preguntas', () => {
 		expect(await deleteField(t.db, ids.own, null)).toBeNull();
 		expect(await deleteField(t.db, ids.own, 'otro-evento')).toBeNull();
 		expect(await deleteField(t.db, ids.own, EVENT)).toBe('¿Alguna restricción alimentaria?');
-		// Borrar una general la saca de los eventos que la usaban.
+		// Borrar una general la saca de los eventos que la usaban (borrado suave, decisión 0033: lo
+		// elegido queda guardado y vuelve si se recupera; ver admin/borrados-recuperables.test.js).
 		expect(await deleteField(t.db, ids.other, null)).toBe('Pregunta general sin usar');
 		expect(await chosenGeneralIds(t.db, EVENT)).toEqual([]);
 	});

@@ -4,9 +4,12 @@
  * agregan o sacan roles (lo controlan las rutas con requireAdmin); los fijos no se sacan.
  *
  * Sacar un rol no toca los .md que lo usan: las páginas lo siguen mostrando como está escrito y
- * el editor avisa al guardar esa publicación (ver validatePersonas).
+ * el editor avisa al guardar esa publicación (ver validatePersonas). Sacar es un borrado suave
+ * (`deleted_at`, migración 0049; decisión 0033): «Recuperar» de Actividad lo vuelve a poner en la
+ * lista (src/lib/server/admin/deletions.js), y agregarlo de nuevo con el mismo nombre también.
  */
 import { logDBError } from '$lib/server/db';
+import { roleDeletionPath, softDeletionStatement } from '$lib/server/admin/deletions.js';
 import {
 	FIXED_ROLES,
 	MAX_CUSTOM_ROLES,
@@ -18,14 +21,16 @@ import {
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
 /**
- * Los roles agregados desde el panel, en el orden en que se agregaron.
+ * Los roles agregados desde el panel (sin los sacados), en el orden en que se agregaron.
  *
  * @param {D1Database} db
  * @returns {Promise<{ name: string, createdAt: number, createdBy: string }[]>}
  */
 export async function listCustomRoles(db) {
 	const { results } = await db
-		.prepare('SELECT name, created_at, created_by FROM persona_roles ORDER BY created_at, name')
+		.prepare(
+			'SELECT name, created_at, created_by FROM persona_roles WHERE deleted_at IS NULL ORDER BY created_at, name'
+		)
 		.all();
 	return results.map((r) => ({
 		name: String(r.name),
@@ -51,7 +56,8 @@ export async function listRoles(db) {
 }
 
 /**
- * Agrega un rol. No repite uno que ya existe (fijo o del panel, sin importar mayúsculas).
+ * Agrega un rol. No repite uno que ya existe (fijo o del panel, sin importar mayúsculas). Uno que
+ * se había sacado vuelve (con su nombre de antes) y su borrado sale de «Recuperar».
  *
  * @param {D1Database} db
  * @param {unknown} raw
@@ -74,33 +80,73 @@ export async function addRole(db, raw, { by, now = Date.now() }) {
 	if (custom.length >= MAX_CUSTOM_ROLES) {
 		return { ok: false, status: 400, message: `Hasta ${MAX_CUSTOM_ROLES} roles agregados.` };
 	}
-	const res = await db
-		.prepare(
-			'INSERT OR IGNORE INTO persona_roles (name, created_at, created_by) VALUES (?1, ?2, ?3)'
-		)
-		.bind(name, now, by)
-		.run();
+	const [res, , stored] = await db.batch([
+		db
+			.prepare(
+				`INSERT INTO persona_roles (name, created_at, created_by) VALUES (?1, ?2, ?3)
+				ON CONFLICT (name) DO UPDATE SET deleted_at = NULL, created_at = excluded.created_at,
+					created_by = excluded.created_by
+				WHERE persona_roles.deleted_at IS NOT NULL`
+			)
+			.bind(name, now, by),
+		// Si volvió uno sacado, su borrado ya no está para recuperar.
+		db
+			.prepare(
+				`UPDATE panel_deletions SET status = 'recuperado', restored_at = ?2, restored_by = ?3
+				WHERE status = 'borrado' AND path = 'rol:' || (SELECT name FROM persona_roles WHERE name = ?1)
+					AND changes() > 0`
+			)
+			.bind(name, now, by),
+		db.prepare('SELECT name FROM persona_roles WHERE name = ?1').bind(name)
+	]);
 	if (!res.meta.changes)
 		return { ok: false, status: 409, message: `«${name}» ya está en la lista: elegilo de ahí.` };
-	return { ok: true, name };
+	const row = /** @type {{ name?: unknown } | undefined} */ (stored.results[0]);
+	return { ok: true, name: String(row?.name ?? name) };
 }
 
 /**
- * Saca un rol agregado desde el panel. Los fijos no se sacan.
+ * Saca (borrado suave) un rol agregado desde el panel, con su fila de `panel_deletions` en la
+ * MISMA tanda para «Recuperar» en Actividad. Los fijos no se sacan.
  *
  * @param {D1Database} db
  * @param {unknown} raw
+ * @param {{ by?: string, now?: number }} [opts]
  * @returns {Promise<{ ok: true, name: string } | { ok: false, status: number, message: string }>}
  */
-export async function removeRole(db, raw) {
+export async function removeRole(db, raw, { by = 'panel', now = Date.now() } = {}) {
 	const name = cleanRole(raw);
 	if (name && findRole(FIXED_ROLES, name)) {
 		return { ok: false, status: 400, message: 'Los roles fijos no se pueden sacar.' };
 	}
-	const res = name
-		? await db.prepare('DELETE FROM persona_roles WHERE name = ?1').bind(name).run()
+	// El nombre como está guardado (la columna no distingue mayúsculas), para «Recuperar».
+	const row = name
+		? await db
+				.prepare('SELECT name FROM persona_roles WHERE name = ?1 AND deleted_at IS NULL')
+				.bind(name)
+				.first()
 		: null;
-	if (!res?.meta.changes)
+	const results = row
+		? await db.batch([
+				db
+					.prepare(
+						'UPDATE persona_roles SET deleted_at = ?2 WHERE name = ?1 AND deleted_at IS NULL'
+					)
+					.bind(row.name, now),
+				await softDeletionStatement(
+					db,
+					{
+						kind: 'calendario',
+						slug: '',
+						title: String(row.name),
+						path: roleDeletionPath(String(row.name)),
+						object: String(row.name)
+					},
+					{ login: by, now }
+				)
+			])
+		: null;
+	if (!name || !results?.[0]?.meta.changes)
 		return { ok: false, status: 404, message: 'Ese rol no está en la lista.' };
 	return { ok: true, name };
 }

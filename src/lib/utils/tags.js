@@ -262,7 +262,7 @@ function parseDescription(description, query) {
 							? [
 									{ line: p, type, href },
 									{ line: query, type: 'mark' }
-							  ]
+								]
 							: { line: p, type, href }
 					)
 					.flat();

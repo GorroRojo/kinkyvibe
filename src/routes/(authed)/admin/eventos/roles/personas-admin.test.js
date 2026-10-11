@@ -43,6 +43,7 @@ import { listRoles } from '$lib/server/personas/roles.js';
 import { ADD_ROLE_ACTION } from '$lib/utils/personasPicker.js';
 import * as preguntas from '../[slug]/preguntas/+page.server.js';
 import * as csv from '../[slug]/ordenes.csv/+server.js';
+import { listRecoverable, undoDeletion } from '$lib/server/admin/deletions.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -236,6 +237,46 @@ describe('Eventos › Roles y preguntas', () => {
 		expect((await audit('signup_field.delete'))[0].summary).toBe(
 			'Borró la pregunta «¿Cómo te enteraste?» (general)'
 		);
+	});
+
+	// Decisión 0033: sacar un rol y borrar una pregunta dejan «Recuperar» en Actividad, a nombre de
+	// quien lo hizo, y recuperar los vuelve a poner en esta página.
+	it('un rol sacado y una pregunta borrada se recuperan desde Actividad', async () => {
+		await ajustes.actions.addRole(fakeEvent({ form: { name: 'Cuida la puerta' } }));
+		await ajustes.actions.createField(
+			fakeEvent({ form: { label: '¿Cómo te enteraste?', kind: 'text' } })
+		);
+		const before = /** @type {any} */ (await ajustes.load(fakeEvent()));
+		const removed = /** @type {any} */ (
+			await ajustes.actions.removeRole(fakeEvent({ form: { name: 'Cuida la puerta' } }))
+		);
+		expect(removed.role.message).toContain('lo recuperás desde Actividad');
+		await ajustes.actions.deleteField(fakeEvent({ form: { id: String(before.fields[0].id) } }));
+		const gone = /** @type {any} */ (await ajustes.load(fakeEvent()));
+		expect(gone.roles.some((/** @type {any} */ r) => r.name === 'Cuida la puerta')).toBe(false);
+		expect(gone.fields).toEqual([]);
+
+		const rows = await listRecoverable(t.db);
+		expect(rows.map((r) => [r.title, r.deletedBy])).toEqual([
+			['¿Cómo te enteraste?', admin.login],
+			['Cuida la puerta', admin.login]
+		]);
+		const repo = /** @type {any} */ ({});
+		const who = { login: admin.login, name: admin.login, token: 'tok', locals: { user: admin } };
+		for (const r of rows) await undoDeletion(repo, t.db, who, r.id);
+		const back = /** @type {any} */ (await ajustes.load(fakeEvent()));
+		expect(back.roles.at(-1)).toMatchObject({ name: 'Cuida la puerta', fixed: false });
+		expect(back.fields.map((/** @type {any} */ f) => f.label)).toEqual(['¿Cómo te enteraste?']);
+		expect(await audit('persona_role.remove')).toHaveLength(1);
+		expect(await audit('signup_field.delete')).toHaveLength(1);
+		expect((await audit('persona_role.restore'))[0]).toMatchObject({
+			actor_login: admin.login,
+			summary: 'Recuperó el rol «Cuida la puerta»'
+		});
+		expect((await audit('signup_field.restore'))[0]).toMatchObject({
+			actor_login: admin.login,
+			summary: 'Recuperó la pregunta «¿Cómo te enteraste?» (general)'
+		});
 	});
 });
 
