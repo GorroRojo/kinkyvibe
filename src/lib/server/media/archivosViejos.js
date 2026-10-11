@@ -23,6 +23,7 @@ import { FILE_TYPE, storeFile } from './library.js';
 import { fileKey, mediaPath, sha256Hex, sniffDocument } from './sniff.js';
 import { saveObject } from '../objects/save.js';
 import { revisionStatement } from '../contenido/revisions.js';
+import { escapeRegExp } from '../../utils/text.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').R2Bucket} R2Bucket */
@@ -81,10 +82,11 @@ export function inlineFileImports(body, urlOf) {
 			missing.push(`${ref.folder}/${ref.file}`);
 			continue;
 		}
-		const name = ref.name.replace(/[$]/g, '\\$&');
+		const name = escapeRegExp(ref.name);
+		// Reemplazos con función: un `$` en la dirección no es un patrón de `replace`.
 		text = text
-			.replace(new RegExp(`=\\s*\\{\\s*${name}\\s*\\}`, 'g'), `="${url}"`)
-			.replace(new RegExp(`\\{\\s*${name}\\s*\\}`, 'g'), url)
+			.replace(new RegExp(`=\\s*\\{\\s*${name}\\s*\\}`, 'g'), () => `="${url}"`)
+			.replace(new RegExp(`\\{\\s*${name}\\s*\\}`, 'g'), () => url)
 			.replace(IMPORT_LINE, (line, n) => (n === ref.name ? '' : line));
 		replaced.push(`${ref.folder}/${ref.file}`);
 	}

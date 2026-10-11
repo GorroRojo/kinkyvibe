@@ -52,6 +52,13 @@ describe('legacyFileImports / inlineFileImports', () => {
 			'<a href="/media/file/x.odt">Bajar</a>'
 		);
 	});
+
+	it('un nombre con `$` y una dirección con `$&`/`$1` se reemplazan tal cual', () => {
+		const body =
+			"<script>\n  import $g$ from './media/x/1.pdf'\n</script>\n<a href={$g$}>{ $g$ }</a> {g}";
+		const url = '/media/file/$&$1$$.(a)+[b]*.pdf';
+		expect(inlineFileImports(body, () => url).body).toBe(`<a href="${url}">${url}</a> {g}`);
+	});
 });
 
 describe('uploadRepoFiles', () => {
