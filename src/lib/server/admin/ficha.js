@@ -251,6 +251,7 @@ function fichaQueries(key, extra) {
 				(o.buyer_dni IS NOT NULL AND trim(o.buyer_dni) != '') AS has_dni,
 				o.status, o.confirmed_by, o.refunded_at, o.refunded_by, o.email_sent_at, o.created_at,
 				o.updated_at, o.needs_review, o.review_detail, o.channel, o.admin_note,
+				o.offline_review IS NOT NULL AS offline_review,
 				o.account_id IS NOT NULL AND o.account_id IN ${ACC} AS by_account
 			FROM orders o WHERE ${ORDER_MATCH} ORDER BY o.created_at DESC LIMIT 500`,
 			p,
@@ -619,7 +620,7 @@ export async function loadFicha(db, key, opts = {}) {
 			refundedBy: str(o.refunded_by),
 			emailSentAt: num(o.email_sent_at),
 			createdAt: Number(o.created_at),
-			needsReview: str(o.needs_review),
+			needsReview: str(o.needs_review) || (Number(o.offline_review) === 1 ? 'door_offline' : ''),
 			reviewDetail: str(o.review_detail),
 			adminNote: str(o.admin_note),
 			tickets,

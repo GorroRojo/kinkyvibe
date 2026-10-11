@@ -98,6 +98,7 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0016](0016-pago-tardio.md): Un pago tardío se acepta al precio de la orden (1/10)
 - [0031](0031-reserva-transferencia-dias-habiles.md): La reserva por transferencia dura 2 días
   hábiles (11/10)
+- [0035](0035-vender-en-puerta-sin-conexion.md): La puerta vende sin conexión (11/10)
 
 ### Propinas
 

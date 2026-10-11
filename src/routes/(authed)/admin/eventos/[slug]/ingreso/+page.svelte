@@ -48,7 +48,15 @@
 		undoLocal,
 		invalidTitle,
 		markRecentUndone,
-		doorConnectionNote
+		markRecentSynced,
+		doorConnectionNote,
+		applySaleSyncResults,
+		emptyDoorState,
+		isPendingSaleTicket,
+		offlineSaleLimits,
+		pendingNote,
+		queueOfflineSale,
+		salesPayload
 	} from '$lib/admin/doorOffline.js';
 
 	export let data;
@@ -85,7 +93,7 @@
 	let counts = data.counts;
 	let online = true;
 	/** @type {DoorState} */
-	let door = { list: [], queue: [], savedAt: null };
+	let door = emptyDoorState();
 	/** @type {DoorScan | null} */
 	let scan = form?.checkin ?? null;
 	let busy = false;
@@ -98,6 +106,9 @@
 	let syncing = false;
 	/** @type {{ holder: string, result: string, at: number | null, by: string | null }[]} */
 	let conflicts = [];
+	/** Ventas sin conexión que al sincronizarse pasaron un límite (quedaron en «Para revisar»). */
+	/** @type {{ buyer: string, ref: string, review: string[] }[]} */
+	let saleWarnings = [];
 	/** @type {string} */
 	let toast = '';
 	/** @type {ReturnType<typeof setTimeout> | undefined} */
@@ -113,11 +124,13 @@
 	let purchaseError = '';
 
 	$: pct = counts.total ? Math.round((counts.inside / counts.total) * 100) : 0;
-	$: pending = door.queue.length;
+	$: pending = door.queue.length + door.sales.length;
+	$: pendingText = pendingNote({ checkins: door.queue.length, sales: door.sales.length });
 	$: connection = doorConnectionNote({
 		online,
 		saved: Boolean(door.savedAt),
-		savedAt: door.savedAt ? hhmm(door.savedAt) : ''
+		savedAt: door.savedAt ? hhmm(door.savedAt) : '',
+		canSell: data.doorSales
 	});
 
 	/** @param {string} text */
@@ -225,7 +238,9 @@
 				: s.result === 'wrong-event'
 					? (s.otherEvent ?? '')
 					: s.offline
-						? 'sin conexión'
+						? s.result === 'sold'
+							? 'pendiente de sincronizar'
+							: 'sin conexión'
 						: '';
 		recent = [
 			{ result: s.result, title: titles[s.result], sub, at: Date.now(), ticketId: c?.ticketId },
@@ -384,7 +399,8 @@
 					by: t.by
 				}))
 		});
-		if (!online) {
+		// Una venta sin conexión que todavía no se sincronizó solo está en este celu.
+		if (!online || isPendingSaleTicket(card.ticketId)) {
 			purchase = local();
 			return;
 		}
@@ -408,21 +424,56 @@
 			if (!res.ok) return;
 			const body = await res.json();
 			door = {
-				list: mergeServerList(body.tickets, door.queue),
-				queue: door.queue,
+				...door,
+				list: mergeServerList(body.tickets, door.queue, door.sales),
 				savedAt: body.at
 			};
 			persist();
-			if (!door.queue.length) setCounts(body.counts);
+			if (!door.queue.length && !door.sales.length) setCounts(body.counts);
 		} catch {
 			// sin red: queda la lista que había
 		}
 	}
 
+	/**
+	 * Ventas hechas sin conexión: se mandan todas juntas, en el orden en que se vendieron; el
+	 * servidor las registra una por una (idempotente: un reintento no duplica).
+	 */
+	async function syncSales() {
+		const r = await postAction('syncSales', { sales: JSON.stringify(salesPayload(door.sales)) });
+		if (r.type !== 'success' || !r.data?.syncSales?.ok) return;
+		const applied = applySaleSyncResults(door, r.data.syncSales.results);
+		door = applied.state;
+		persist();
+		const synced = /** @type {{ id: string, result: string }[]} */ (r.data.syncSales.results)
+			.filter((x) => x.result !== 'rejected')
+			.map((x) => x.id);
+		recent = markRecentSynced(recent, synced);
+		persistRecent();
+		// El resultado grande de una venta que ya se registró deja de decir «pendiente».
+		if (scan?.offline && scan.result === 'sold' && scan.card) {
+			const id = scan.card.ticketId.split(':')[1];
+			if (synced.includes(id)) scan = { ...scan, offline: false };
+		}
+		saleWarnings = [...applied.warnings, ...saleWarnings].slice(0, 20);
+		setCounts(r.data.counts);
+		if (applied.done) {
+			const n = applied.done;
+			say(
+				`${n === 1 ? 'Se sincronizó 1 venta hecha' : `Se sincronizaron ${n} ventas hechas`} sin conexión${applied.warnings.length ? ` (${applied.warnings.length} para revisar)` : ''}.`
+			);
+		}
+	}
+
 	async function sync() {
-		if (syncing || !online || !door.queue.length) return;
+		if (syncing || !online || (!door.queue.length && !door.sales.length)) return;
 		syncing = true;
 		try {
+			if (door.sales.length) await syncSales();
+			if (!door.queue.length) {
+				await refreshList();
+				return;
+			}
 			const queue = door.queue.map(({ id, token, code, at }) => ({ id, token, code, at }));
 			const r = await postAction('sync', { queue: JSON.stringify(queue) });
 			if (r.type === 'success' && r.data?.sync?.ok) {
@@ -663,12 +714,95 @@
 		}
 	})();
 
+	/**
+	 * Venta sin conexión (decisión 0035): queda en este celu con un id propio, sus entradas cuentan
+	 * como adentro acá y se manda sola cuando vuelve la conexión. Si con lo que se sabe en el celu
+	 * pasaría un límite, se avisa antes (como con conexión), pero se puede guardar igual.
+	 * @param {HTMLFormElement} formEl
+	 */
+	async function queueSale(formEl) {
+		const fd = new FormData(formEl);
+		/** @type {Record<string, string>} */
+		const fields = {};
+		for (const [k, v] of fd.entries()) if (typeof v === 'string') fields[k] = v;
+		delete fields.dni;
+		delete fields.override;
+		if (!sType) {
+			saleError = 'Elegí un tipo de entrada.';
+			return;
+		}
+		const quantity = Number(fields.quantity);
+		if (!Number.isInteger(quantity) || quantity < 1 || quantity > data.maxOrder) {
+			saleError = `La cantidad tiene que ser de 1 a ${data.maxOrder}.`;
+			return;
+		}
+		if (fields.method !== 'efectivo' && fields.method !== 'transferencia') {
+			saleError = 'Elegí cómo pagó: efectivo o transferencia.';
+			return;
+		}
+		if (!String(fields.name ?? '').trim()) {
+			saleError = 'Falta el nombre de quien compra.';
+			return;
+		}
+		if (fields.method === 'transferencia' && fields.transfer_seen !== 'on') {
+			saleError = 'Sin conexión: confirmá que viste llegar la transferencia.';
+			return;
+		}
+		const limits = offlineSaleLimits({
+			type: sType,
+			quantity,
+			doorSales: data.doorSales,
+			maxPerSale: data.maxPerSale,
+			sales: door.sales
+		});
+		if (limits.length) {
+			const ok = await overrideDialog.ask(
+				{ limits, key: 'sin-conexion' },
+				{ title: 'Sin conexión: esto pasaría un límite de venta' }
+			);
+			if (!ok) {
+				saleError = 'No se vendió.';
+				return;
+			}
+		}
+		const name = String(fields.name).trim();
+		const holders = Array.from({ length: quantity }, (_, i) => ({
+			name: String(fields[`holder_${i}`] ?? '').trim() || name,
+			pronouns: i === 0 ? String(fields.pronouns ?? '').trim() : ''
+		}));
+		const queued = queueOfflineSale(door, {
+			id: crypto.randomUUID(),
+			now: Date.now(),
+			by: data.login,
+			fields,
+			type: sType,
+			quantity,
+			total: salePrice,
+			holders
+		});
+		door = queued.state;
+		persist();
+		counts = localCounts(door.list);
+		saleOpen = false;
+		formEl.reset();
+		// Svelte vuelve a leer los campos enlazados después del `reset` (los radios quedan sin
+		// tildar): recién después se ponen los valores de una venta nueva, así la próxima arranca
+		// en efectivo, tildado.
+		await tick();
+		saleQty = 1;
+		saleEmail = '';
+		saleMethod = 'efectivo';
+		const cards = queued.sale.tickets;
+		show({ result: 'sold', card: cards[0] ?? null, cards, offline: true, stamp: Date.now() });
+		say('Venta guardada en este celu: se manda sola cuando vuelva la conexión.');
+	}
+
 	/** @param {SubmitEvent} e */
 	async function submitSale(e) {
 		const formEl = /** @type {HTMLFormElement} */ (e.currentTarget);
+		saleError = '';
 		if (!online) {
-			saleError =
-				'Sin conexión: para vender en la puerta hace falta conexión (se controla el cupo).';
+			await queueSale(formEl);
 			return;
 		}
 		saleBusy = true;
@@ -741,13 +875,13 @@
 				<span>
 					<strong>{connection.title}</strong>
 					{connection.detail}
-					{#if pending}{pending} {pending === 1 ? 'ingreso' : 'ingresos'} por sincronizar.{/if}
+					{#if pendingText}<strong class="pending">{pendingText}</strong>{/if}
 				</span>
 			</div>
 		{:else if pending}
 			<div class="banner" role="status">
 				<CloudUpload size={20} />
-				<span>{pending} {pending === 1 ? 'ingreso' : 'ingresos'} por sincronizar.</span>
+				<span>{pendingText}</span>
 				<button type="button" class="link" on:click={sync} disabled={syncing}>
 					{syncing ? 'Sincronizando…' : 'Sincronizar'}
 				</button>
@@ -758,6 +892,44 @@
 				<span><strong>{connection.title}</strong> {connection.detail}</span>
 			</div>
 		{/if}
+		{#each door.failed as f (f.id)}
+			<!-- Una venta sin conexión que el servidor no pudo registrar: queda a la vista hasta que
+			     alguien la descarta (nunca se borra sola). -->
+			<div class="banner warn" role="alert">
+				<TriangleAlert size={20} />
+				<span>
+					No se pudo registrar la venta sin conexión de <strong>{f.buyer}</strong> ({f.quantity} × {f.type},
+					{METHOD_TEXT[f.method] ?? f.method}{f.total === null ? '' : `, ${formatARS(f.total)}`}, a
+					las {hhmm(f.at)}): {f.message} Cargala a mano.
+				</span>
+				<button
+					type="button"
+					class="x"
+					aria-label="Descartar aviso"
+					on:click={() => {
+						door = { ...door, failed: door.failed.filter((x) => x.id !== f.id) };
+						persist();
+					}}><X size={18} /></button
+				>
+			</div>
+		{/each}
+		{#each saleWarnings as w, i (i)}
+			<div class="banner warn" role="alert">
+				<TriangleAlert size={20} />
+				<span>
+					Se registró la venta sin conexión de <strong>{w.buyer}</strong>{w.ref
+						? ` (${w.ref})`
+						: ''}, pero pasó un límite: {w.review.join(' ')} Quedó en «Para revisar».
+				</span>
+				<button
+					type="button"
+					class="x"
+					aria-label="Descartar aviso"
+					on:click={() => (saleWarnings = saleWarnings.filter((_, j) => j !== i))}
+					><X size={18} /></button
+				>
+			</div>
+		{/each}
 		{#each conflicts as c, i (i)}
 			<div class="banner warn" role="alert">
 				<TriangleAlert size={20} />
@@ -957,6 +1129,12 @@
 	<!-- Vender en puerta -->
 	<Sheet bind:open={saleOpen} title="Vender en puerta">
 		<form method="POST" action="?/sell" class="stack" on:submit|preventDefault={submitSale}>
+			{#if !online}
+				<p class="warn-note" role="note">
+					<WifiOff size={18} aria-hidden="true" /> Sin conexión: la venta queda en este celu como «pendiente
+					de sincronizar» y se manda sola cuando vuelva la conexión.
+				</p>
+			{/if}
 			{#if !data.doorSales}
 				<p class="warn-note" role="note">
 					<TriangleAlert size={18} aria-hidden="true" /> Este evento es solo anticipadas. Podés vender
@@ -1027,6 +1205,12 @@
 					(ya llegó)</label
 				>
 			</fieldset>
+			{#if !online && saleMethod === 'transferencia'}
+				<!-- Sin conexión no hay cómo controlar nada: quien vende confirma que la vio llegar. -->
+				<label class="check"
+					><input type="checkbox" name="transfer_seen" required /> Vi que llegó la transferencia</label
+				>
+			{/if}
 			<label class="field">
 				<span>Nombre de quien compra</span>
 				<input name="name" autocomplete="off" required />
@@ -1036,10 +1220,16 @@
 					<span>Pronombres (opcional)</span>
 					<input name="pronouns" autocomplete="off" />
 				</label>
-				<label class="field">
-					<span>DNI (opcional)</span>
-					<input name="dni" inputmode="numeric" autocomplete="off" />
-				</label>
+				{#if online}
+					<label class="field">
+						<span>DNI (opcional)</span>
+						<input name="dni" inputmode="numeric" autocomplete="off" />
+					</label>
+				{:else}
+					<!-- Sin conexión el DNI no se guarda en el celu (como la lista, que solo tiene los
+					     últimos 3). -->
+					<p class="muted small dni-off">DNI: sin conexión no se guarda en el celu.</p>
+				{/if}
 			</div>
 			<label class="field">
 				<span>Email (opcional)</span>
@@ -1064,16 +1254,24 @@
 				{/each}
 			{/if}
 			{#if saleError}<p class="error" role="alert">{saleError}</p>{/if}
-			<button type="submit" class="primary" disabled={saleBusy || !online}>
+			<button type="submit" class="primary" disabled={saleBusy}>
 				{saleBusy
 					? 'Vendiendo…'
 					: `Cobrar ${salePrice === null ? '' : formatARS(salePrice)} y marcar adentro`}
 			</button>
-			<p class="muted small">
-				Se crea una compra aprobada ({saleMethod === 'efectivo' ? 'efectivo' : 'transferencia'}, en
-				la puerta), descuenta del cupo y las entradas quedan adentro. Queda en el registro de
-				actividad.
-			</p>
+			{#if online}
+				<p class="muted small">
+					Se crea una compra aprobada ({saleMethod === 'efectivo' ? 'efectivo' : 'transferencia'},
+					en la puerta), descuenta del cupo y las entradas quedan adentro. Queda en el registro de
+					actividad.
+				</p>
+			{:else}
+				<p class="muted small">
+					Las entradas quedan adentro en este celu. Cuando vuelva la conexión se crea la compra
+					aprobada ({saleMethod === 'efectivo' ? 'efectivo' : 'transferencia'}, en la puerta); si
+					mientras tanto se llenó el cupo, se guarda igual y queda en «Para revisar».
+				</p>
+			{/if}
 		</form>
 	</Sheet>
 
@@ -1188,8 +1386,8 @@
 			</button>
 			<p class="muted small">
 				La lista de entradas se guarda en este celu para seguir validando si se corta la conexión.
-				Los ingresos marcados sin conexión se mandan solos cuando vuelve. Vibra al escanear;
-				pantalla siempre prendida mientras esta página está abierta.
+				Los ingresos marcados y las ventas hechas sin conexión se mandan solos cuando vuelve. Vibra
+				al escanear; pantalla siempre prendida mientras esta página está abierta.
 			</p>
 			<a class="link-btn" href={ordersHref}>Ver todas las órdenes del evento</a>
 			<a class="link-btn" href="/admin/eventos/{encodeURIComponent(data.slug)}/ordenes/cargar"
@@ -1309,6 +1507,14 @@
 	.banner.offline {
 		background: hsl(45, 60%, 17%);
 		color: var(--warn);
+	}
+	.banner .pending {
+		display: block;
+		margin-top: var(--space-3xs);
+	}
+	.dni-off {
+		align-self: end;
+		padding-bottom: 0.6rem;
 	}
 	.banner.ready {
 		background: var(--ok-bg);

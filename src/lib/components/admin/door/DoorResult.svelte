@@ -128,7 +128,10 @@
 			{/if}
 			{#if card.code}<span class="mono code">{card.code.slice(0, 3)} {card.code.slice(3)}</span
 				>{/if}
-			{#if scan.offline}<span class="offline"><CloudUpload size={14} /> sin conexión</span>{/if}
+			{#if scan.offline}<span class="offline"
+					><CloudUpload size={14} />
+					{scan.result === 'sold' ? 'pendiente de sincronizar' : 'sin conexión'}</span
+				>{/if}
 		</p>
 		<button type="button" class="more" on:click|stopPropagation={details}>
 			Ver compra <ChevronRight size={18} />
