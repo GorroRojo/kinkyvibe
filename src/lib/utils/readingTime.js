@@ -82,10 +82,10 @@ export function pageReadingMinutes(body) {
 export const READING_SPEED_MIN = 80;
 export const READING_SPEED_MAX = 600;
 
-/** Las velocidades para elegir rápido (palabras por minuto). «Normal» es la de siempre. */
+/** Las velocidades para elegir rápido (palabras por minuto). «Predeterminado» es la de siempre. */
 export const READING_SPEEDS = /** @type {const} */ ([
 	{ id: 'despacio', label: 'Más despacio', wpm: 150 },
-	{ id: 'normal', label: 'Normal', wpm: WORDS_PER_MINUTE },
+	{ id: 'normal', label: 'Predeterminado', wpm: WORDS_PER_MINUTE },
 	{ id: 'rapido', label: 'Más rápido', wpm: 280 }
 ]);
 
@@ -125,7 +125,7 @@ export const READING_TIME_HINT = `Calculado a unas ${WORDS_PER_MINUTE} palabras 
 
 /**
  * La explicación con la velocidad de la persona: la de siempre ({@link READING_TIME_HINT}) si no
- * eligió ninguna (o eligió «Normal»).
+ * eligió ninguna (o eligió «Predeterminado»).
  * @param {unknown} [wpm]
  */
 export function readingTimeHint(wpm) {

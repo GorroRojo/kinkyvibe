@@ -223,9 +223,9 @@ lo que la cuenta tiene guardado, y la persona elige qué se guarda.
 Con qué velocidad se calcula el «X min de lectura» de los materiales y la Kinkipedia
 ([contenido.md](contenido.md), «Tiempo de lectura»).
 
-- **Opciones:** «Más despacio» (150 palabras por minuto), «Normal» (200, la de siempre), «Más
+- **Opciones:** «Más despacio» (150 palabras por minuto), «Predeterminado» (200, la de siempre), «Más
   rápido» (280) u «Otro» (un número de 80 a 600; fuera de ese rango se lleva al borde). Elegir
-  «Normal» saca lo guardado.
+  «Predeterminado» saca lo guardado.
 - **Dónde se elige:** en la explicación de «X min de lectura» («¿Leés más rápido o más lento?
   Ajustalo») y en **Mi rincón → «Velocidad de lectura»** (`?/velocidad`).
 - **Dónde se guarda:** sin cuenta, en el navegador (`localStorage`, clave

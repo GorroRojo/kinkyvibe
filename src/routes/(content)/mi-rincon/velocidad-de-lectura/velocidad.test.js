@@ -91,7 +91,7 @@ async function preferences(id) {
 }
 
 describe('velocidad de lectura en la cuenta', () => {
-	it('sin elegir: null; se guarda, se lleva al rango y «Normal» la saca', async () => {
+	it('sin elegir: null; se guarda, se lleva al rango y «Predeterminado» la saca', async () => {
 		const m = await modules();
 		const { account } = await signedIn(m);
 		expect(await m.accounts.getReadingSpeed(t.db, account.id)).toBeNull();
@@ -104,7 +104,7 @@ describe('velocidad de lectura en la cuenta', () => {
 		expect(await m.accounts.getReadingSpeed(t.db, account.id)).toBe(600);
 		expect(await m.accounts.setReadingSpeed(t.db, account.id, 10)).toBe(80);
 
-		// «Normal» (la de siempre) o null: no queda nada guardado.
+		// «Predeterminado» (la de siempre) o null: no queda nada guardado.
 		expect(await m.accounts.setReadingSpeed(t.db, account.id, 200)).toBeNull();
 		expect(await preferences(account.id)).toEqual({});
 		await m.accounts.setReadingSpeed(t.db, account.id, 280);

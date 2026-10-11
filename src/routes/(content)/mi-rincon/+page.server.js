@@ -251,7 +251,7 @@ export const actions = {
 	},
 
 	// «Velocidad de lectura»: una de las tres o «Otro» con un número (llevado al rango permitido).
-	// «Normal» saca lo guardado. El sitio la toma al recargar los datos ((content)/+layout.svelte).
+	// «Predeterminado» saca lo guardado. El sitio la toma al recargar los datos ((content)/+layout.svelte).
 	velocidad: async (event) => {
 		const { db, member } = await requireMember(event);
 		const form = await event.request.formData();

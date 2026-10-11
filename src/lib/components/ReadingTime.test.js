@@ -1,6 +1,6 @@
 /**
  * ReadingTime.svelte: el reloj y «X min de lectura», la explicación con el link para ajustar la
- * velocidad, las opciones (Más despacio, Normal, Más rápido, Otro) y el recálculo con la velocidad
+ * velocidad, las opciones (Más despacio, Predeterminado, Más rápido, Otro) y el recálculo con la velocidad
  * elegida. Lo que se toca (abrir, elegir) se prueba en el navegador; acá, lo que se dibuja.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -36,7 +36,7 @@ describe('ReadingTime', () => {
 		);
 	});
 
-	it('abiertas: las tres velocidades (Normal elegida) y «Otro» de 80 a 600', () => {
+	it('abiertas: las tres velocidades (Predeterminado elegido) y «Otro» de 80 a 600', () => {
 		const body = html({ minutes: 4, words: 650, open: true, adjusting: true });
 		expect(body).toMatch(/class="adjust[^"]*"[^>]*aria-expanded="true"/);
 		expect(body).toMatch(
@@ -44,7 +44,7 @@ describe('ReadingTime', () => {
 		);
 		for (const [label, wpm, pressed] of [
 			['Más despacio', 150, false],
-			['Normal', 200, true],
+			['Predeterminado', 200, true],
 			['Más rápido', 280, false]
 		]) {
 			expect(body).toMatch(
@@ -70,7 +70,7 @@ describe('ReadingTime', () => {
 			'Calculado a tu velocidad (150 palabras por minuto), sin contar imágenes ni código'
 		);
 		expect(body).toMatch(/<button[^>]*aria-pressed="true"[^>]*>Más despacio<\/button>/);
-		expect(body).toMatch(/<button[^>]*aria-pressed="false"[^>]*>Normal<\/button>/);
+		expect(body).toMatch(/<button[^>]*aria-pressed="false"[^>]*>Predeterminado<\/button>/);
 	});
 
 	it('más rápido: menos minutos; sin palabras, quedan los del servidor', () => {

@@ -81,7 +81,7 @@ describe('al cargar y al entrar', () => {
 		expect(s.data[READING_SPEED_KEY]).toBe('280');
 	});
 
-	it('la misma cuenta la sacó («Normal» en Mi rincón): se saca también del navegador', () => {
+	it('la misma cuenta la sacó («Predeterminado» en Mi rincón): se saca también del navegador', () => {
 		const s = memoryStorage({ [READING_SPEED_KEY]: '280' });
 		expect(applyAccountSpeedChange({ previous: 280, next: null, sameMember: true }, s)).toBeNull();
 		expect(get(readingSpeed)).toBeNull();
@@ -105,7 +105,7 @@ describe('elegir una velocidad', () => {
 		expect(f).not.toHaveBeenCalled();
 	});
 
-	it('«Normal» vuelve a la de siempre (null) y lo saca del navegador', async () => {
+	it('«Predeterminado» vuelve a la de siempre (null) y lo saca del navegador', async () => {
 		const s = memoryStorage({ [READING_SPEED_KEY]: '150' });
 		expect(await chooseReadingSpeed(200, { storage: s })).toBeNull();
 		expect(get(readingSpeed)).toBeNull();

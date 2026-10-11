@@ -220,7 +220,7 @@ describe('Mi rincón → Velocidad de lectura', () => {
 		other: html.match(/<input(?=[^>]*name="otro")[^>]*value="([^"]*)"/)?.[1] ?? ''
 	});
 
-	it('las tres velocidades y «Otro»; sin elegir, Normal', () => {
+	it('las tres velocidades y «Otro»; sin elegir, Predeterminado', () => {
 		const html = rincon({ sigoOn: false, readingSpeed: null });
 		expect(html).toContain('action="?/velocidad"');
 		for (const v of ['despacio', 'normal', 'rapido', 'otro']) {

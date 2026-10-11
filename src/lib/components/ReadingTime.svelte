@@ -10,7 +10,7 @@
 	 * pantalla (16px de margen), así funciona igual centrada (material) o contra el borde (wiki).
 	 *
 	 * Velocidad de cada persona (pedido de gorrite): desde la explicación, «¿Leés más rápido o más
-	 * lento? Ajustalo» abre las opciones (Más despacio, Normal, Más rápido u Otro). La elección vale
+	 * lento? Ajustalo» abre las opciones (Más despacio, Predeterminado, Más rápido u Otro). La elección vale
 	 * para todo el sitio ($lib/utils/readingSpeed.js): el servidor dibuja los minutos de siempre y,
 	 * si la persona eligió otra velocidad, después de hidratar se recalculan con `words`.
 	 *

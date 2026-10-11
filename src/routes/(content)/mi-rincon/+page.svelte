@@ -233,7 +233,8 @@
 		<h2 id="velocidad-title">Velocidad de lectura</h2>
 		<p class="hint">
 			Con esto calculamos el «X min de lectura» de los materiales y la Kinkipedia. Vale en todos los
-			dispositivos donde entres con tu cuenta. Normal son {WORDS_PER_MINUTE} palabras por minuto.
+			dispositivos donde entres con tu cuenta. La predeterminada es de {WORDS_PER_MINUTE} palabras por
+			minuto.
 		</p>
 		{#if form?.action === 'velocidad'}
 			{#if form.error}

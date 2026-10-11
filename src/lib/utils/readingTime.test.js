@@ -146,7 +146,7 @@ describe('velocidad de cada persona', () => {
 	it('las opciones: más despacio, normal (la de siempre) y más rápido', () => {
 		expect(READING_SPEEDS.map((s) => [s.id, s.label, s.wpm])).toEqual([
 			['despacio', 'Más despacio', 150],
-			['normal', 'Normal', 200],
+			['normal', 'Predeterminado', 200],
 			['rapido', 'Más rápido', 280]
 		]);
 		expect([READING_SPEED_MIN, READING_SPEED_MAX]).toEqual([80, 600]);

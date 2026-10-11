@@ -1,7 +1,7 @@
 /**
  * POST /mi-rincon/velocidad-de-lectura con `{ wpm: number | null }`: guarda en la cuenta la
  * velocidad de lectura elegida desde la explicación de «X min de lectura»
- * ($lib/utils/readingSpeed.js). `null` (o «Normal») la saca. Responde `{ wpm }` con lo que quedó.
+ * ($lib/utils/readingSpeed.js). `null` (o «Predeterminado») la saca. Responde `{ wpm }` con lo que quedó.
  *
  * Solo JSON: un formulario de otro sitio no puede mandar `application/json` (el chequeo de origen
  * de SvelteKit frena los otros tipos) y sin headers CORS un navegador de otro sitio no puede hacer

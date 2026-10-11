@@ -7,7 +7,7 @@
  * - Con cuenta: además se guarda en la cuenta (`accounts.preferences.readingSpeed`), así vale en
  *   todos los dispositivos. Al entrar, lo de la cuenta gana sobre lo del navegador.
  *
- * `null` = no eligió ninguna: la de siempre (`WORDS_PER_MINUTE`). Elegir «Normal» vuelve a `null`.
+ * `null` = no eligió ninguna: la de siempre (`WORDS_PER_MINUTE`). Elegir «Predeterminado» vuelve a `null`.
  */
 import { writable } from 'svelte/store';
 import { WORDS_PER_MINUTE, parseReadingSpeed } from './readingTime.js';
@@ -78,7 +78,7 @@ export function initReadingSpeed(accountSpeed, storage = defaultStorage()) {
 
 /**
  * Lo de la cuenta cambió (al entrar, salir o guardar en Mi rincón). Si la misma cuenta pasó de
- * tener una velocidad a no tener ninguna, la sacó («Normal»): se saca también del navegador. Si
+ * tener una velocidad a no tener ninguna, la sacó («Predeterminado»): se saca también del navegador. Si
  * no, como al cargar ({@link initReadingSpeed}): al salir queda la del navegador.
  * @param {{ previous: unknown, next: unknown, sameMember: boolean }} change
  * @param {SpeedStorage | undefined} [storage]
