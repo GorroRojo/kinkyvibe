@@ -14,7 +14,8 @@
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { argDateLong } from '$lib/utils/dates.js';
-	import { READING_TIME_HINT, readingTimeLabel } from '$lib/utils/readingTime.js';
+	import ReadingTime from '$lib/components/ReadingTime.svelte';
+	import { readingTimeLabel } from '$lib/utils/readingTime.js';
 	export let data;
 	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
 	$: readingTime = readingTimeLabel(data.readingMinutes);
@@ -115,12 +116,12 @@
 			</time>
 			{#if readingTime}
 				<!-- El «·» va con el texto: en el celu bajan juntos de línea. -->
-				<span class="reading-time" title={READING_TIME_HINT}>·&ThickSpace;{readingTime}</span>
+				<span class="reading-time">·&ThickSpace;<ReadingTime minutes={data.readingMinutes} /></span>
 			{/if}
 		</address>
 	{:else if readingTime}
 		<address>
-			<span class="reading-time" title={READING_TIME_HINT}>{readingTime}</span>
+			<ReadingTime minutes={data.readingMinutes} />
 		</address>
 	{/if}
 	{#if data.meta.tags}

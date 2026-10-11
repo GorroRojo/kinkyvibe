@@ -67,8 +67,11 @@ export function pageReadingMinutes(body) {
 	return words >= MIN_WORDS_TO_SHOW ? Math.max(1, Math.ceil(words / WORDS_PER_MINUTE)) : 0;
 }
 
-/** El `title` del indicador: cómo se calcula. */
-export const READING_TIME_HINT = `Estimado a unas ${WORDS_PER_MINUTE} palabras por minuto`;
+/**
+ * La explicación del indicador (al pasar el mouse, con el foco o al tocarlo): cómo se calcula.
+ * Las imágenes y el código no cuentan porque {@link countWords} los saca.
+ */
+export const READING_TIME_HINT = `Calculado a unas ${WORDS_PER_MINUTE} palabras por minuto, sin contar imágenes ni código`;
 
 /**
  * «X min de lectura», o '' si no hay nada para leer.

@@ -8,7 +8,8 @@
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
-	import { READING_TIME_HINT, readingTimeLabel } from '$lib/utils/readingTime.js';
+	import ReadingTime from '$lib/components/ReadingTime.svelte';
+	import { readingTimeLabel } from '$lib/utils/readingTime.js';
 	/** @type {any} La página de la wiki (de la base) o la etiqueta sola (+page.js). */
 	export let data;
 	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
@@ -114,7 +115,7 @@
 	<div class="content">
 		<GlosarioItem item={data?.tag?.id ?? data?.meta?.wiki} single title />
 		{#if readingTime}
-			<p class="reading-time" title={READING_TIME_HINT}>{readingTime}</p>
+			<p class="reading-time"><ReadingTime minutes={data.readingMinutes} /></p>
 		{/if}
 		{#if data.html}
 			<!-- El texto de la wiki, de la base (src/lib/server/contenido/render.js): HTML libre con sus

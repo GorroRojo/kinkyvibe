@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	MIN_WORDS_TO_SHOW,
+	READING_TIME_HINT,
 	WORDS_PER_MINUTE,
 	countWords,
 	pageReadingMinutes,
@@ -114,5 +115,22 @@ describe('readingTimeLabel', () => {
 		expect(readingTimeLabel(0)).toBe('');
 		expect(readingTimeLabel(undefined)).toBe('');
 		expect(readingTimeLabel('x')).toBe('');
+	});
+});
+
+describe('READING_TIME_HINT', () => {
+	it('dice los números reales del cálculo', () => {
+		expect(READING_TIME_HINT).toBe(
+			`Calculado a unas ${WORDS_PER_MINUTE} palabras por minuto, sin contar imágenes ni código`
+		);
+		expect(WORDS_PER_MINUTE).toBe(200);
+	});
+
+	it('las imágenes no cuentan, como dice la explicación', () => {
+		expect(
+			countWords(
+				'Dos palabras ![una foto con un texto alternativo largo](/media/foto.jpg) <img src="/a.jpg" alt="otra foto inventada">'
+			)
+		).toBe(2);
 	});
 });

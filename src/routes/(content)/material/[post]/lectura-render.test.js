@@ -54,7 +54,17 @@ describe('material: tiempo de lectura', () => {
 		const text = stripHtmlTags(address).replace(/\s+/g, ' ');
 		expect(text).toContain('Persona Inventada');
 		expect(text).toContain('7 min de lectura');
-		expect(html).toContain('title="Estimado a unas 200 palabras por minuto"');
+		// La explicación, unida al botón (se abre al tocar; mouse y foco, por CSS): ReadingTime.svelte.
+		expect(address).toMatch(
+			/<button[^>]*aria-expanded="false"[^>]*aria-describedby="kv-tiempo-de-lectura"/
+		);
+		expect(address).toMatch(
+			/<span(?=[^>]*\bid="kv-tiempo-de-lectura")(?=[^>]*\brole="note")[^>]*>Calculado a unas 200 palabras por minuto, sin contar imágenes ni código<\/span>/
+		);
+		// El reloj (Lucide, como los de «Cuándo y dónde»), antes del texto y oculto a los lectores.
+		expect(address).toMatch(
+			/<svg[^>]*class="[^"]*lucide-clock[^"]*"[^>]*aria-hidden="true"[\s\S]*?<\/svg>[\s\S]*?7 min de lectura/
+		);
 	});
 
 	it('sin autores, solo el tiempo de lectura', () => {

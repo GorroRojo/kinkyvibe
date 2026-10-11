@@ -111,14 +111,18 @@ solo si después se vuelve a importar (Contenido → En la base; Perfiles → Im
 Etiquetas → Importar a la base) y el objeto no se editó en el panel. Si tocás un `.md` del repo,
 editá solo las líneas necesarias y corré `npx vitest run src/tests/content.test.js`.
 
-**Tiempo de lectura** (idea de JorgeT10, PR #46). La página de un material y la de la wiki muestran
-«X min de lectura» junto a la fecha (material) o debajo del título (wiki). Sale del texto guardado
-en la base (`data.body`, no del `.md` ni de lo armado): `src/lib/utils/readingTime.js` lo pasa a
-texto plano con `stripMarkdown` (el del buscador), sin bloques de código, y cuenta ~200 palabras
-por minuto, para arriba. Con menos de 100 palabras no se muestra (un material que es solo un
-link, una entrada corta). Se calcula en cada pedido, al lado del armado del texto (cuesta mucho
-menos que eso): sin columna ni migración. Los eventos no lo muestran (casi todos se leen en menos
-de 2 minutos y lo que importa ahí es cuándo, dónde y las entradas).
+**Tiempo de lectura** (idea de JorgeT10, PR #46). La página de un material y la de la wiki
+(Kinkipedia) muestran «X min de lectura» junto a la fecha (material) o debajo del título (wiki).
+Sale del texto guardado en la base (`data.body`, no del `.md` ni de lo armado):
+`src/lib/utils/readingTime.js` lo pasa a texto plano con `stripMarkdown` (el del buscador), sin
+bloques de código, y cuenta ~200 palabras por minuto, para arriba. Con menos de 100 palabras no se
+muestra (un material que es solo un link, una entrada corta). Se calcula en cada pedido, al lado del
+armado del texto (cuesta mucho menos que eso): sin columna ni migración. Los eventos no lo muestran
+(casi todos se leen en menos de 2 minutos y lo que importa ahí es cuándo, dónde y las entradas). Lo
+dibuja `src/lib/components/ReadingTime.svelte`: un reloj de Lucide (`Clock`, como en «Cuándo y
+dónde») y el texto, que es un botón; al pasar el mouse, con el foco del teclado o al tocarlo (en el
+celu no hay mouse) muestra la explicación de cómo se calcula (`READING_TIME_HINT`: «Calculado a unas
+200 palabras por minuto, sin contar imágenes ni código»), unida al botón con `aria-describedby`.
 
 ## En la base (solo la base)
 
