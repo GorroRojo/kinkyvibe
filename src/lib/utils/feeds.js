@@ -44,14 +44,16 @@ export function rfc3339(d) {
  * @param {unknown} s
  */
 export function escapeXml(s) {
-	return String(s ?? '')
-		// eslint-disable-next-line no-control-regex -- justamente los saca
-		.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g, '')
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;')
-		.replaceAll("'", '&apos;');
+	return (
+		String(s ?? '')
+			// eslint-disable-next-line no-control-regex -- justamente los saca
+			.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g, '')
+			.replaceAll('&', '&amp;')
+			.replaceAll('<', '&lt;')
+			.replaceAll('>', '&gt;')
+			.replaceAll('"', '&quot;')
+			.replaceAll("'", '&apos;')
+	);
 }
 
 /** @param {unknown} v */
