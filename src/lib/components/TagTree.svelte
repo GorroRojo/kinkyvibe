@@ -56,6 +56,26 @@
 		align-items: flex-end;
 		max-width: 100%;
 	}
+	/* En la columna (pantalla ancha) todo va contra la lista, que está a la derecha: también un
+	   grupo abierto. Su chip va a la derecha, sus hijas se acomodan a la derecha y la línea de su
+	   color pasa al costado derecho (TagGroup la pone a la izquierda). */
+	.tagtree.column .tag-group-container {
+		align-items: flex-end;
+	}
+	.tagtree.column :global(.filtergroup) {
+		align-items: flex-end;
+	}
+	.tagtree.column :global(.groupitems) {
+		justify-content: flex-end;
+		padding-inline-start: 0;
+		border-inline-start: 0;
+		padding-inline-end: var(--space-2xs);
+		border-inline-end: 2px solid var(--tag-color);
+	}
+	.tagtree.column :global(.noname > .groupitems) {
+		padding-inline-end: 0;
+		border-inline-end: 0;
+	}
 	.tag-group-container {
 		display: flex;
 		flex-direction: column;
