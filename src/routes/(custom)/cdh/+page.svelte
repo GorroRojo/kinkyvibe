@@ -6,7 +6,7 @@
 	import star from './byn-glowing-star_1f31f.png';
 	import hat from './galera-02.png';
 	import logo from './titulo copia.svg';
-	import rabbit from './rabbit_1f407.png'
+	import rabbit from './rabbit_1f407.png';
 	/**
 	 * @type {Record<string, string>}
 	 */
@@ -49,7 +49,6 @@
 
 	let msg_words = msg.split(' ');
 
-
 	let msg_words_emoji = msg_words.map((w) =>
 		w
 			.split('')
@@ -65,7 +64,7 @@
 			<div class="table">
 				<h2>
 					<img src={logo} id="logo" alt="Bingo" />
-					-  ¡Bingo!
+					- ¡Bingo!
 				</h2>
 				{#each [0, 1, 2, 3, 4] as row}
 					{#each [0, 1, 2, 3, 4] as col}
@@ -110,13 +109,8 @@
 			--max-dot-size: 4px;
 			filter: contrast(21) brightness(200%);
 			opacity: 0.1;
-			background: 
-			repeating-linear-gradient(
-					45deg,
-					#fff,
-					#999,
-					#fff 20%
-				),
+			background:
+				repeating-linear-gradient(45deg, #fff, #999, #fff 20%),
 				radial-gradient(circle at 75% 75%, var(--bg-color) 0px, transparent var(--max-dot-size)) 0 /
 					var(--pattern-size) var(--pattern-size),
 				radial-gradient(circle at 25% 25%, var(--bg-color) 0px, transparent var(--max-dot-size)) 0 /
@@ -129,14 +123,14 @@
 		height: 1em;
 		scale: 1.4;
 		display: inline-block;
-		margin-right: .3em;
+		margin-right: 0.3em;
 		/* height: 100%; */
 		/* position: absolute; */
-		left:0;
-		top:-0.3rem;
+		left: 0;
+		top: -0.3rem;
 		/* left:-1.3rem; */
 		/* top:-1rem; */
-		z-index:10;
+		z-index: 10;
 	}
 	.emojis {
 		margin: 0;
@@ -204,7 +198,7 @@
 	.cell {
 		/* border: 1px solid black; */
 		/* aspect-ratio: 1 / 1; */
-		z-index:3;
+		z-index: 3;
 		display: grid;
 		place-items: center;
 		background: white;
