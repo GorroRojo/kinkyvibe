@@ -2,18 +2,23 @@
 	/**
 	 * «Actualizar comandos del bot» (Ajustes → Automatizaciones, tarjeta del bot de Telegram): manda
 	 * `?/comandos`, que le registra a Telegram la lista de $lib/server/telegram/commands.js para el
-	 * autocompletado del menú «/». Se puede tocar las veces que haga falta (cada vez reemplaza la
-	 * lista). Muestra qué quedó registrado o el error.
+	 * autocompletado del menú «/». El cron ya los registra solo cuando cambian
+	 * ($lib/server/telegram/commandsSync.js): el botón es para hacerlo ya. Muestra el último registro,
+	 * qué quedó registrado o el error.
 	 *
 	 * Props:
 	 * - `tokenOk`: si está cargado `TELEGRAM_BOT_TOKEN` (sin él, el botón no hace nada y se avisa).
+	 * - `lastSync`: el último registro (`{ at, by: 'automático' | 'manual' }`) o `null`.
 	 * - `form`: lo que devolvió la acción (`commandsOk`, `commandsError`, `commandsResults`).
 	 */
 	import { enhance } from '$app/forms';
 	import { Button, Notice } from '$lib/components/ui';
 	import { RefreshCw } from '@lucide/svelte';
+	import { argDateLog } from '$lib/utils/dates.js';
 
 	export let tokenOk = false;
+	/** @type {{ at: number, by: string } | null} */
+	export let lastSync = null;
 	/** @type {any} */
 	export let form = null;
 
@@ -39,8 +44,14 @@
 		>
 	</form>
 	<p class="hint">
-		Le dice a Telegram qué comandos sugerir cuando alguien escribe «/». Hacelo después de cambiar la
-		lista o el interruptor «Lo que sigo» (con él apagado no se ofrecen los de la cuenta).
+		Le dice a Telegram qué comandos sugerir cuando alguien escribe «/». Se registran solos: cada 15
+		minutos se revisa si cambió la lista o el interruptor «Lo que sigo» y, si cambió, se mandan. El
+		botón lo hace ahora.
+	</p>
+	<p class="hint">
+		Último registro: {lastSync
+			? `${argDateLog(lastSync.at)} (${lastSync.by === 'manual' ? 'manual' : 'automático'})`
+			: 'todavía ninguno'}
 	</p>
 	{#if !tokenOk && !form?.commandsError}
 		<Notice tone="warn" compact role={null}
