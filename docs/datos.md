@@ -63,11 +63,19 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 | `agenda_day_notes`                                | 0030                                 | notas de colores en los días de la Agenda (solo admins; nunca en páginas públicas ni .ics)                                  | `src/lib/server/admin/dayNotes.js`                         |
 | `review_snapshots`                                | 0047                                 | sin uso desde la decisión 0032 (era la última revisión del importador de contenido)                                         | ninguno                                                    |
 | `event_date_changes`, `date_change_sends`         | 0048                                 | último cambio de fecha de cada evento y a qué orden se le avisó (por versión)                                               | `src/lib/server/tickets/dateChange.js`                     |
+| `waitlist_entries`, `waitlist_sends`              | 0053                                 | lista de espera de las entradas (por evento o tipo) y sus mails por ronda; interruptor `lista_espera`, en construcción      | `src/lib/server/tickets/waitlist.js`                       |
 
 **Borrados suaves (0049, decisión [0033](decisiones/0033-borrados-recuperables.md)).**
 `signup_fields`, `persona_roles` y `person_notes` tienen `deleted_at` (NULL = está). Borrar desde el
 panel lo marca y escribe la fila de `panel_deletions` (0021) en la misma tanda, para «Recuperar» en
 Actividad; toda consulta de esas tablas lleva `deleted_at IS NULL`. No hay purga.
+
+**Lista de espera (0053).** Una fila de `waitlist_entries` por anotación; `ticket_type` NULL es la
+lista de todo el evento. Viva (`pending_confirmation`, `waiting`, `offered`) hay una sola por mail
+y alcance (índice único parcial); al terminar (`expired`, `cancelled`) se puede volver a anotar. Los
+tokens se guardan como SHA-256. Mismo trato que `orders`: sin purga, solo admins, nunca el mail en
+`admin_audit`; las anotaciones sin confirmar se borran a las 48 h. Borrar una anotación borra sus
+`waitlist_sends`. Detalle en [tickets.md](tickets.md), «Lista de espera».
 
 `demo_files` (solo en la base de los previews, nunca fue una migración) era la capa de "commits"
 del modo demo: desde la decisión 0032 nadie la usa; se puede borrar a mano en el preview.

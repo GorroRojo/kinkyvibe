@@ -104,11 +104,16 @@
  *   location: string | undefined,
  *   location_name: string | undefined,
  *   goal: import('$lib/utils/salesGoal.js').SalesGoal | null,
+ *   waitlist: import('$lib/utils/waitlistHold.js').EventWaitlist | null,
  *   fields?: import('$lib/utils/signupFields.js').SignupField[]
  * }} EventTickets
  *
  * `goal`: la meta de venta (`meta_venta`, ver $lib/utils/salesGoal.js), o `null`. Una meta que no
  * se entiende es `null`: nunca frena la venta.
+ *
+ * `waitlist`: la lista de espera (`lista_espera`, ver $lib/utils/waitlistHold.js), o `null` si el
+ * evento no tiene. Igual que la meta: una lista que no se entiende es `null` (sin lista) y nunca
+ * frena la venta. Solo se usa con el interruptor `lista_espera` prendido.
  */
 
 import {
@@ -131,6 +136,7 @@ import {
 } from '$lib/utils/ticketsEditor.js';
 import { validateAnswers } from '$lib/utils/signupFields.js';
 import { GOAL_KEY, parseSalesGoal } from '$lib/utils/salesGoal.js';
+import { WAITLIST_KEY, parseEventWaitlist } from '$lib/utils/waitlistHold.js';
 import { validateBuyer, validateHolder, validateHolders } from '$lib/utils/ticketBuyer.js';
 
 // Viven en $lib/utils/ticketBuyer.js (la página de compra valida cada paso en el navegador con
@@ -341,7 +347,8 @@ export function parseTicketConfig(meta, options = {}) {
 		end: meta.end instanceof Date ? meta.end.toISOString() : meta.end,
 		location: meta.location,
 		location_name: meta.location_name,
-		goal: parseSalesGoal(meta[GOAL_KEY])
+		goal: parseSalesGoal(meta[GOAL_KEY]),
+		waitlist: parseEventWaitlist(meta[WAITLIST_KEY])
 	};
 }
 
