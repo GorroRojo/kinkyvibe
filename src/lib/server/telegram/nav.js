@@ -247,8 +247,8 @@ export function startParam(target) {
  * ejemplo, el código de vincular, que lo mira router.js).
  *
  * @param {string} param
- * @returns {{ screen: 'list', view: ListView } | { screen: 'event' | 'follow', deep: string }
- *   | { screen: 'sigo' | 'fondo' | 'search' | 'home' } | null}
+ * @returns {{ screen: 'list', view: ListView } | { screen: 'event', deep: string }
+ *   | { screen: 'follow', deep: string } | { screen: 'sigo' | 'fondo' | 'search' | 'home' } | null}
  */
 export function parseStartParam(param) {
 	if (typeof param !== 'string' || param.length > START_PARAM_MAX) return null;
@@ -260,7 +260,7 @@ export function parseStartParam(param) {
 	if (param === 'inicio') return { screen: 'home' };
 	const m = /^(ev|seguir)-([A-Za-z0-9_-]{1,61})$/.exec(param);
 	if (!m) return null;
-	return { screen: m[1] === 'ev' ? 'event' : 'follow', deep: m[2] };
+	return m[1] === 'ev' ? { screen: 'event', deep: m[2] } : { screen: 'follow', deep: m[2] };
 }
 
 /**

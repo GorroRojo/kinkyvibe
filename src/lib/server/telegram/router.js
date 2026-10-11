@@ -405,8 +405,9 @@ async function planCallback(callback, deps) {
 			media: Boolean(deps.media),
 			privateLink: privateLinkFor(state, deps)
 		});
-		if ('toast' in result && result.toast && plan.callback) {
-			plan.callback = { ...plan.callback, text: result.toast };
+		const toast = 'toast' in result ? result.toast : undefined;
+		if (typeof toast === 'string' && toast && plan.callback) {
+			plan.callback = { ...plan.callback, text: toast };
 		}
 		return plan;
 	} catch (error) {

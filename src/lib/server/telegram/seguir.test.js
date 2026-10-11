@@ -51,7 +51,7 @@ describe('followTargets', () => {
 		const out = followTargets(['shibari', 'Rancheadita-Kinky'], tags);
 		expect(out[0].key).toBe('Rancheadita Kinky');
 		expect(out[0].series).toBe(true);
-		const many = followTargets(Object.keys(tags.tags ?? {}).slice(0, 20), tags);
+		const many = followTargets([...tags.tagIDs()].slice(0, 20), tags);
 		expect(many.length).toBeLessThanOrEqual(FOLLOW_TARGETS_MAX);
 		expect(followTargets(undefined, tags)).toEqual([]);
 	});

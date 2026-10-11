@@ -444,8 +444,8 @@ export function fondoScreen(fondo, ctx) {
 	const lines = [
 		'<b>💗 Fondo Kinky Vibe</b>',
 		'',
-		`Este mes juntamos <b>${escapeHtml(formatARS(fondo.collected))}</b> de ${escapeHtml(formatARS(fondo.goal))} (${pct} % de la meta).`,
-		`Descuento del Fondo en las entradas de eventos de Kinky Vibe: <b>${fondo.percent} %</b>.`
+		`Este mes juntamos <b>${escapeHtml(formatARS(fondo.collected))}</b> de ${escapeHtml(formatARS(fondo.goal))} (${pct}\u00a0% de la meta).`,
+		`Descuento del Fondo en las entradas de eventos de Kinky Vibe: <b>${fondo.percent}\u00a0%</b>.`
 	];
 	if (fondo.stale) lines.push('', 'Todavía no hay números de este mes: son los del mes pasado.');
 	if (fondo.updatedAt) {
