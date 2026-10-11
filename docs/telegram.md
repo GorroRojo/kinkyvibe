@@ -162,9 +162,10 @@ Telegram**, solo admins) queda para registrarlos ya: hace lo mismo, lo anota con
 guarda el mismo hash. La tarjeta muestra «Último registro: <fecha> (automático/manual)». No hace
 falta `/setcommands` en @BotFather (se pisa).
 
-**Después de mergear un cambio en la lista** (por ejemplo, cuando se sumó `/inicio`): gorrite
-toca **Actualizar comandos del bot** para que Telegram la muestre ya (si no, la registra el cron
-en los 15 minutos siguientes). En la app de Telegram puede hacer falta cerrar y abrir el chat.
+**Después de mergear un cambio en la lista** (por ejemplo, cuando se sumó `/inicio`): no hace
+falta hacer nada. El hash de la lista cambia y el cron la registra en los 15 minutos siguientes
+(el botón queda por si se quiere ya). En la app de Telegram puede hacer falta cerrar y abrir el
+chat para ver el menú nuevo.
 
 ## Fase 2: vincular la cuenta y avisos de «Lo que sigo»
 

@@ -204,9 +204,6 @@ de amigues y lanzamientos grandes.
 - Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir su
   dirección (0037). S. (Abrirla sin volver a vincular: «🚪 Puerta» en el inicio del bot, PR
   `claude/bot-inicio`.)
-- Después de mergear `claude/bot-inicio`: tocar **Actualizar comandos del bot** (Ajustes →
-  Automatizaciones) para que Telegram muestre `/inicio` ya (si no, lo registra el cron en 15
-  minutos). S. Bloqueo: gorrite.
 - Guardar si alguien apagó a propósito los avisos por Telegram de algo, para que volver a seguirlo
   desde el bot no los prenda de nuevo (hoy la base no lo distingue, 0036). S. Bloqueo: que haga
   falta (necesita migración).
