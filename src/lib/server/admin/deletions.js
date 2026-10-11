@@ -30,6 +30,11 @@
  * la plantilla general: antes, una fila guarda la copia (`path` = `plantilla:<evento>:<mail>`) para
  * «Recuperar». Ver {@link templateDeletionStatement}.
  *
+ * Las preguntas de inscripción, los roles agregados desde el panel y las notas internas de una
+ * persona (decisión 0033) se borran suave en su propia tabla (`deleted_at`, migración 0049), con su
+ * fila acá en la misma tanda (`path` = `pregunta:<id>`, `rol:<nombre>` o `nota:<id>`). Ver
+ * {@link softDeletionStatement}.
+ *
  * Sin imports de SvelteKit: el cliente del repo, el estado de los PRs y la base llegan como
  * parámetros, así se prueba con fakes. Las rutas están en ./deletionRoutes.js.
  */
@@ -37,6 +42,8 @@ import { profileSlugFor } from '$lib/utils/organizers.js';
 import { parsePersonas } from '$lib/utils/personas.js';
 import { postFilePath } from '$lib/utils/postPaths.js';
 import { TEMPLATE_KEYS } from '$lib/utils/emailTemplates.js';
+import { FIXED_ROLES, MAX_CUSTOM_ROLES, findRole } from '$lib/utils/personas.js';
+import { MAX_EVENT_FIELDS, MAX_GENERAL_FIELDS } from '$lib/utils/signupFields.js';
 import { MEMBER_EDGE, PROFILE_TYPE } from '../cuentas/perfiles.js';
 import { TAG_TYPE } from '../objects/types/etiqueta.js';
 import { revisionStatement } from '../contenido/revisions.js';
@@ -468,6 +475,13 @@ export async function undoDeletion(client, db, actor, id, { pulls = null, now = 
 	const tagId = tagIdOf(d.path);
 	if (tagId !== null) return undoTagDeletion(db, actor, d, tagId, { now });
 	if (templateOf(d.path)) return undoTemplateDeletion(db, actor, d, { now });
+	// Una pregunta de inscripción, un rol o una nota interna (decisión 0033): en la base.
+	const fieldId = fieldIdOf(d.path);
+	if (fieldId !== null) return undoFieldDeletion(db, actor, d, fieldId, { now });
+	const role = roleOf(d.path);
+	if (role !== null) return undoRoleDeletion(db, actor, d, role, { now });
+	const noteId = noteIdOf(d.path);
+	if (noteId !== null) return undoNoteDeletion(db, actor, d, noteId, { now });
 
 	const k = DELETABLE[d.kind];
 	const targetId = d.kind === 'calendario' ? d.slug : `${d.kind}/${d.slug}`;
@@ -1244,4 +1258,262 @@ async function undoTemplateDeletion(db, actor, d, { now = Date.now() } = {}) {
 		publish: null,
 		immediate: true
 	};
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/*  Preguntas de inscripción, roles y notas internas (decisión 0033, migración 0049)           */
+/* ------------------------------------------------------------------------------------------ */
+
+/**
+ * `panel_deletions.path` de estas tres cosas, que se borran suave en su propia tabla
+ * (`deleted_at`):
+ * - `pregunta:<id>` (`signup_fields`): `kind` 'calendario', `slug` el evento (vacío si es general),
+ *   `title` el texto de la pregunta;
+ * - `rol:<nombre>` (`persona_roles`, el nombre es la clave): `kind` 'calendario', `slug` vacío,
+ *   `title` el rol;
+ * - `nota:<id>` (`person_notes`): `kind` 'amigues', `slug` el id corto de la persona
+ *   (`personId`, como en su URL) o `cuenta:<id>` si la nota está atada a una cuenta borrada, y un
+ *   `title` sin el texto de la nota (puede ser sensible).
+ *
+ * `content` guarda solo el id: lo borrado sigue en su tabla.
+ */
+const FIELD_PATH = /^pregunta:([1-9]\d*)$/;
+const ROLE_PATH = /^rol:(.+)$/;
+const NOTE_PATH = /^nota:([1-9]\d*)$/;
+
+/** @param {number} id */
+export const fieldDeletionPath = (id) => `pregunta:${id}`;
+/** @param {string} name el rol como está guardado */
+export const roleDeletionPath = (name) => `rol:${name}`;
+/** @param {number} id */
+export const noteDeletionPath = (id) => `nota:${id}`;
+
+/** El id de la pregunta de un borrado, o `null`. @param {string} path */
+export function fieldIdOf(path) {
+	const m = FIELD_PATH.exec(path);
+	return m ? Number(m[1]) : null;
+}
+
+/** El rol de un borrado, o `null`. @param {string} path */
+export function roleOf(path) {
+	return ROLE_PATH.exec(path)?.[1] ?? null;
+}
+
+/** El id de la nota de un borrado, o `null`. @param {string} path */
+export function noteIdOf(path) {
+	const m = NOTE_PATH.exec(path);
+	return m ? Number(m[1]) : null;
+}
+
+/**
+ * La fila de `panel_deletions` de algo que se borra suave en su propia tabla, para la MISMA tanda
+ * y justo después del UPDATE que le pone `deleted_at`: solo se escribe si ese UPDATE cambió una
+ * fila (`changes()`), así un borrado que no pasó no deja nada para recuperar.
+ *
+ * @param {D1Database} db
+ * @param {{ kind: 'calendario' | 'amigues', slug: string, title: string, path: string, object: number | string }} what
+ * @param {{ login: string, now: number }} meta
+ */
+export async function softDeletionStatement(db, what, { login, now }) {
+	const content = JSON.stringify({ object: what.object });
+	return db
+		.prepare(
+			`INSERT INTO panel_deletions
+				(kind, slug, title, path, content, content_sha, media, status, deleted_at, deleted_by)
+			SELECT ?1, ?2, ?3, ?4, ?5, ?6, '[]', 'borrado', ?7, ?8 WHERE changes() > 0`
+		)
+		.bind(
+			what.kind,
+			what.slug,
+			what.title.slice(0, 200),
+			what.path,
+			content,
+			await gitBlobSha(content),
+			now,
+			login
+		);
+}
+
+/**
+ * Cierra el borrado `id` como «recuperado» solo si el UPDATE anterior de la tanda cambió una fila.
+ * @param {D1Database} db
+ * @param {number} id
+ * @param {number} now
+ * @param {string} login
+ */
+const closeDeletionIfChanged = (db, id, now, login) =>
+	db
+		.prepare(
+			`UPDATE panel_deletions SET status = 'recuperado', restored_at = ?2, restored_by = ?3
+			WHERE id = ?1 AND status = 'borrado' AND changes() > 0`
+		)
+		.bind(id, now, login);
+
+/**
+ * Lo que devuelven las tres: ya está, no hay nada que publicar.
+ * @param {Deletion} d
+ * @returns {{ mode: 'restored', deletion: Deletion, publish: null, immediate: true }}
+ */
+const restoredNow = (d) => ({
+	mode: 'restored',
+	deletion: { ...d, status: 'recuperado' },
+	publish: null,
+	immediate: true
+});
+
+/**
+ * Vuelve a poner una pregunta de inscripción: `deleted_at` a NULL, en su lugar de siempre. Lo que
+ * eligió cada evento (si era general) nunca se fue, así que vuelve a preguntarse ahí; las
+ * respuestas tampoco se fueron (las órdenes guardan una copia). Respeta el tope de preguntas.
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {Deletion} d el borrado (status 'borrado')
+ * @param {number} fieldId
+ * @param {{ now?: number }} [opts]
+ */
+async function undoFieldDeletion(db, actor, d, fieldId, { now = Date.now() } = {}) {
+	const row = await db
+		.prepare(
+			`SELECT event_slug, deleted_at,
+				(SELECT COUNT(*) FROM signup_fields o WHERE o.event_slug IS f.event_slug
+					AND o.deleted_at IS NULL) AS active
+			FROM signup_fields f WHERE id = ?1`
+		)
+		.bind(fieldId)
+		.first();
+	if (!row) throw new UndoError('Esa pregunta ya no existe en la base.');
+	if (row.deleted_at == null) {
+		await closeDeletion(db, d.id, now, actor.login).run();
+		throw new UndoError('Esa pregunta ya estaba recuperada.');
+	}
+	const eventSlug = row.event_slug == null ? null : String(row.event_slug);
+	const max = eventSlug === null ? MAX_GENERAL_FIELDS : MAX_EVENT_FIELDS;
+	if (Number(row.active) >= max)
+		throw new UndoError(
+			eventSlug === null
+				? `Ya hay ${max} preguntas generales: borrá una antes de recuperar esta.`
+				: `Ese evento ya tiene ${max} preguntas propias: borrá una antes de recuperar esta.`
+		);
+	const [res] = await db.batch([
+		db
+			.prepare(
+				`UPDATE signup_fields SET deleted_at = NULL, updated_at = ?2, updated_by = ?3
+				WHERE id = ?1 AND deleted_at IS NOT NULL`
+			)
+			.bind(fieldId, now, actor.login),
+		closeDeletionIfChanged(db, d.id, now, actor.login)
+	]);
+	if (!res?.meta?.changes) throw new UndoError('Esa pregunta ya estaba recuperada.');
+	await logAdminAction(
+		db,
+		actor.locals,
+		{
+			action: 'signup_field.restore',
+			targetType: eventSlug ? 'event' : 'settings',
+			targetId: eventSlug ?? 'signup_fields',
+			summary: `Recuperó la pregunta «${d.title}»${eventSlug ? '' : ' (general)'}`,
+			detail: { deletion: d.id, id: fieldId }
+		},
+		{ now }
+	);
+	return restoredNow(d);
+}
+
+/**
+ * Vuelve a poner un rol agregado desde el panel en la lista. Las publicaciones que lo usan nunca
+ * lo perdieron (se muestra como está escrito); ahora el editor lo vuelve a aceptar. Respeta el
+ * tope de roles.
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {Deletion} d el borrado (status 'borrado')
+ * @param {string} name
+ * @param {{ now?: number }} [opts]
+ */
+async function undoRoleDeletion(db, actor, d, name, { now = Date.now() } = {}) {
+	const row = await db
+		.prepare(
+			`SELECT name, deleted_at,
+				(SELECT COUNT(*) FROM persona_roles WHERE deleted_at IS NULL) AS active
+			FROM persona_roles WHERE name = ?1`
+		)
+		.bind(name)
+		.first();
+	if (!row || findRole(FIXED_ROLES, name)) throw new UndoError('Ese rol ya no existe en la base.');
+	if (row.deleted_at == null) {
+		await closeDeletion(db, d.id, now, actor.login).run();
+		throw new UndoError('Ese rol ya estaba en la lista.');
+	}
+	if (Number(row.active) >= MAX_CUSTOM_ROLES)
+		throw new UndoError(
+			`Ya hay ${MAX_CUSTOM_ROLES} roles agregados: sacá uno antes de recuperar este.`
+		);
+	const [res] = await db.batch([
+		db
+			.prepare(
+				'UPDATE persona_roles SET deleted_at = NULL WHERE name = ?1 AND deleted_at IS NOT NULL'
+			)
+			.bind(name),
+		closeDeletionIfChanged(db, d.id, now, actor.login)
+	]);
+	if (!res?.meta?.changes) throw new UndoError('Ese rol ya estaba en la lista.');
+	await logAdminAction(
+		db,
+		actor.locals,
+		{
+			action: 'persona_role.restore',
+			targetType: 'settings',
+			targetId: 'persona_roles',
+			summary: `Recuperó el rol «${String(row.name)}»`,
+			detail: { deletion: d.id }
+		},
+		{ now }
+	);
+	return restoredNow(d);
+}
+
+/**
+ * Vuelve a poner una nota interna en la ficha de su persona (o de su cuenta borrada: sigue atada a
+ * la misma cuenta). En Actividad, sin el texto de la nota ni el mail.
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {Deletion} d el borrado (status 'borrado')
+ * @param {number} noteId
+ * @param {{ now?: number }} [opts]
+ */
+async function undoNoteDeletion(db, actor, d, noteId, { now = Date.now() } = {}) {
+	const row = await db
+		.prepare('SELECT deleted_at FROM person_notes WHERE id = ?1')
+		.bind(noteId)
+		.first();
+	if (!row) throw new UndoError('Esa nota ya no existe en la base.');
+	if (row.deleted_at == null) {
+		await closeDeletion(db, d.id, now, actor.login).run();
+		throw new UndoError('Esa nota ya estaba recuperada.');
+	}
+	const [res] = await db.batch([
+		db
+			.prepare('UPDATE person_notes SET deleted_at = NULL WHERE id = ?1 AND deleted_at IS NOT NULL')
+			.bind(noteId),
+		closeDeletionIfChanged(db, d.id, now, actor.login)
+	]);
+	if (!res?.meta?.changes) throw new UndoError('Esa nota ya estaba recuperada.');
+	const account = d.slug.startsWith('cuenta:');
+	await logAdminAction(
+		db,
+		actor.locals,
+		{
+			action: 'person.note.restore',
+			targetType: account ? 'account' : 'person',
+			targetId: account ? d.slug.slice('cuenta:'.length) : d.slug,
+			summary: account
+				? 'Recuperó una nota de una cuenta borrada'
+				: 'Recuperó una nota de una persona',
+			detail: { deletion: d.id }
+		},
+		{ now }
+	);
+	return restoredNow(d);
 }

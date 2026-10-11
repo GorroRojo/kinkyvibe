@@ -72,7 +72,8 @@ series, calendario y Telegram: nunca tokens ni el id del chat) y Actividad. La
 ficha de una cuenta (`/admin/comunidad/cuentas/<id>`) muestra la misma ficha (también para una
 cuenta borrada), así que los links viejos siguen andando. Las notas internas van por el mail; una
 cuenta borrada ya no tiene mail, así que sus notas quedan atadas a la cuenta (`account_id`,
-migración 0045, con `email` vacío). El DNI no viene con la página: cada
+migración 0045, con `email` vacío). Borrar una nota pide confirmar y se recupera desde Actividad
+(`deleted_at`, migración 0049; decisión 0033). El DNI no viene con la página: cada
 «Mostrar» lo pide aparte y queda en Actividad (`person.dni.reveal`, sin el DNI). Propinas y códigos
 de ingreso no se pueden atar a una persona y no aparecen. Código: `src/lib/server/admin/ficha.js`
 (una sola tanda de consultas), `fichaRoutes.js` y `src/lib/components/admin/personas/Ficha.svelte`.
@@ -414,19 +415,31 @@ muestra.
 sale de `panel_deletions` (migración 0021), que escribe solo `src/lib/server/admin/deletions.js`,
 en la misma tanda que el borrado; «Recuperar» va por `undoDeletion` (también «Deshacer»).
 
-| Qué                                     | Cómo se borra                                    | Fila (`path`)                     | En la lista      |
-| --------------------------------------- | ------------------------------------------------ | --------------------------------- | ---------------- |
-| Eventos y material                      | por el cliente del repo (la base)                | `src/lib/posts/<tipo>/<slug>.md`  | Evento, Material |
-| Perfiles                                | borrado suave del objeto                         | `objeto:perfil:<id>`              | Amigues          |
-| Imágenes y archivos de la biblioteca    | borrado suave del objeto                         | `objeto:imagen:<id>`, `…archivo…` | Biblioteca · …   |
-| Etiquetas y series (también los alias)  | borrado suave (Etiquetas: sacar un alias…)       | `objeto:etiqueta:<id>`, `…serie…` | Etiqueta, Serie  |
-| El texto propio de un mail de un evento | se borra la fila; antes, una copia de sus textos | `plantilla:<evento>:<mail>`       | Mail del evento  |
+| Qué                                     | Cómo se borra                                    | Fila (`path`)                     | En la lista             |
+| --------------------------------------- | ------------------------------------------------ | --------------------------------- | ----------------------- |
+| Eventos y material                      | por el cliente del repo (la base)                | `src/lib/posts/<tipo>/<slug>.md`  | Evento, Material        |
+| Perfiles                                | borrado suave del objeto                         | `objeto:perfil:<id>`              | Amigues                 |
+| Imágenes y archivos de la biblioteca    | borrado suave del objeto                         | `objeto:imagen:<id>`, `…archivo…` | Biblioteca · …          |
+| Etiquetas y series (también los alias)  | borrado suave (Etiquetas: sacar un alias…)       | `objeto:etiqueta:<id>`, `…serie…` | Etiqueta, Serie         |
+| El texto propio de un mail de un evento | se borra la fila; antes, una copia de sus textos | `plantilla:<evento>:<mail>`       | Mail del evento         |
+| Preguntas de inscripción                | borrado suave (`deleted_at`, 0049)               | `pregunta:<id>`                   | Pregunta de inscripción |
+| Roles agregados desde el panel          | borrado suave (`deleted_at`, 0049)               | `rol:<nombre>`                    | Rol                     |
+| Notas internas de una persona           | borrado suave (`deleted_at`, 0049)               | `nota:<id>`                       | Nota interna            |
 
 Decisión 0030: las etiquetas, las series y los mails por evento se recuperan. Una etiqueta vuelve
 con sus datos y sus relaciones (nunca se fueron); si mientras tanto se creó otra con el mismo
-nombre, «Recuperar» avisa y no hace nada. Un mail no pisa un texto guardado después (avisa). **Son
-permanentes, sin «Recuperar», a propósito**: las preguntas de inscripción, los roles y las notas
-internas de una persona.
+nombre, «Recuperar» avisa y no hace nada. Un mail no pisa un texto guardado después (avisa).
+
+Decisión 0033 (reemplaza la parte de 0030 que las dejaba permanentes): las preguntas de
+inscripción, los roles y las notas internas también se recuperan. Borrar pide confirmar, marca
+`deleted_at` y escribe la fila con `softDeletionStatement` en la misma tanda; lo que las lista o usa
+saltea las borradas. Una pregunta vuelve con lo que eligió cada evento (sus respuestas nunca se
+fueron); un rol vuelve a la lista (las publicaciones lo siguen mostrando mientras tanto; agregarlo
+de nuevo con el mismo nombre también lo vuelve); una nota vuelve a la ficha de su persona o cuenta.
+Recuperar respeta los topes de preguntas y de roles. La fila de una nota no lleva el texto ni el
+mail: «Nota interna» con un link a la ficha (por el id corto). En la lista, cada una lleva un link a
+donde se ve (`deletionLink` de `src/lib/admin/deleteText.js`). Actividad anota `signup_field.restore`,
+`persona_role.restore` y `person.note.restore`.
 
 **Algo "para revisar".** Aparece en Inicio, en Ventas y en la ficha del evento (pago tarde que
 pasó el cupo, posible cobro doble); "Marcar como revisada" después de resolverlo. Para sumar una
