@@ -27,6 +27,7 @@
 	 */
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { dragSnapDuration, dropTarget, localDateParts } from '$lib/utils/calendario.js';
+	import { todayInArgentina } from '$lib/utils/eventDraft.js';
 
 	/** @type {import('$lib/utils/calendario.js').CalendarEventInput[]} */
 	export let events = [];
@@ -74,8 +75,9 @@
 	export function next() {
 		ec?.next();
 	}
+	/** «Hoy» es el de Argentina, no el del navegador (la librería usa la hora de pared). */
 	export function today() {
-		ec?.setOption('date', new Date());
+		ec?.setOption('date', new Date(`${todayInArgentina()}T12:00:00`));
 	}
 
 	/** @param {any} info */

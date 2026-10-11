@@ -58,7 +58,6 @@ La cola de las noches, en este orden:
    - series: usar `requireAdmin` como el resto del panel, y renombrar el `isAdmin` de
      `objects/visibility.js`;
    - restos de imágenes en R2 (`sharedImage.js`, el campo de texto `perfil.avatar`);
-   - el calendario público calcula «hoy» con la hora local y no la de Argentina;
    - docs: cerrar los «a confirmar» que gorrite ya confirmó y las líneas viejas de `tickets.md`.
 5. **Borrados recuperables** para preguntas de inscripción, roles y notas internas de una
    persona. S–M. Necesita una decisión nueva: [0030](decisiones/0030-para-revisar-y-recuperar.md)
