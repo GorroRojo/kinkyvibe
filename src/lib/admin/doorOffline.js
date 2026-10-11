@@ -305,3 +305,37 @@ export function markRecentUndone(recent, ticketId, holder) {
 		return { ...r, result: 'undone', title: `${holder} · ingreso deshecho`, sub: '' };
 	});
 }
+
+/**
+ * El cartel de conexión del modo puerta:
+ * - con conexión y la lista ya guardada en el celu: `ready` («listo para sin conexión»), para que
+ *   quien está en la puerta sepa que, si se corta, puede seguir validando;
+ * - con conexión y sin lista todavía (bajándola, o sin almacenamiento): nada;
+ * - sin conexión: `offline`, con lo que sigue andando y lo que necesita conexión.
+ * @param {{ online: boolean, saved: boolean, savedAt: string }} s `saved`: hay una lista bajada y
+ *   guardada en el celu (aunque el evento no tenga entradas todavía); `savedAt`: su hora, ya
+ *   formateada («21:40»)
+ * @returns {null | { kind: 'ready' | 'offline', title: string, detail: string }}
+ */
+export function doorConnectionNote({ online, saved, savedAt }) {
+	if (online) {
+		if (!saved) return null;
+		return {
+			kind: 'ready',
+			title: 'Listo para sin conexión.',
+			detail: `La lista quedó guardada en este celu${savedAt ? ` (${savedAt})` : ''}: si se corta internet, podés seguir validando.`
+		};
+	}
+	if (!saved)
+		return {
+			kind: 'offline',
+			title: 'Sin conexión.',
+			detail:
+				'No hay lista guardada en este celu, así que no se puede validar. Cuando vuelva la conexión se baja sola.'
+		};
+	return {
+		kind: 'offline',
+		title: 'Sin conexión.',
+		detail: `Podés seguir validando QR y códigos y buscar personas con la lista guardada${savedAt ? ` (${savedAt})` : ''}; los ingresos se mandan solos cuando vuelve. Vender en la puerta y ver el DNI completo necesitan conexión.`
+	};
+}

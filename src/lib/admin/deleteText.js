@@ -21,6 +21,13 @@ const LIBRARY_ROW = /^objeto:(imagen|archivo):[1-9]\d*$/;
 const TAG_ROW = /^objeto:(etiqueta|serie):[1-9]\d*$/;
 /** El texto propio de un mail de un evento (ver `templateDeletionPath`). */
 const TEMPLATE_ROW = /^plantilla:[^:]+:[a-z_]+$/;
+/** Preguntas de inscripción, roles y notas internas (decisión 0033; ver `softDeletionStatement`). */
+const FIELD_ROW = /^pregunta:[1-9]\d*$/;
+const ROLE_ROW = /^rol:.+$/;
+const NOTE_ROW = /^nota:[1-9]\d*$/;
+/** El `slug` de una nota: el id corto de la persona, o `cuenta:<id>` (una cuenta borrada). */
+const NOTE_PERSON = /^[0-9a-f]{16}$/;
+const NOTE_ACCOUNT = /^cuenta:(.+)$/;
 
 const KIND_LABELS = /** @type {Record<string, string>} */ ({
 	calendario: 'Evento',
@@ -30,7 +37,8 @@ const KIND_LABELS = /** @type {Record<string, string>} */ ({
 
 /**
  * Qué es cada borrado en «Borrados que podés recuperar»: «Evento», «Material», «Amigues»,
- * «Etiqueta», «Serie», «Mail del evento» (con la dirección del evento) o, para la biblioteca,
+ * «Etiqueta», «Serie», «Mail del evento» (con la dirección del evento), «Pregunta de inscripción»,
+ * «Rol», «Nota interna» o, para la biblioteca,
  * «Biblioteca · imagen» / «Biblioteca · archivo» (sin la dirección: es el hash del archivo).
  * @param {{ kind: string, path?: string }} row
  * @returns {{ label: string, library: boolean }}
@@ -41,5 +49,34 @@ export function deletionLabel({ kind, path = '' }) {
 	const tag = TAG_ROW.exec(path);
 	if (tag) return { label: tag[1] === 'serie' ? 'Serie' : 'Etiqueta', library: false };
 	if (TEMPLATE_ROW.test(path)) return { label: 'Mail del evento', library: false };
+	if (FIELD_ROW.test(path)) return { label: 'Pregunta de inscripción', library: false };
+	if (ROLE_ROW.test(path)) return { label: 'Rol', library: false };
+	if (NOTE_ROW.test(path)) return { label: 'Nota interna', library: false };
 	return { label: KIND_LABELS[kind] ?? kind, library: false };
+}
+
+/**
+ * Dónde se ve un borrado de una pregunta, un rol o una nota (para el link de «Recuperar»), o
+ * `null`: la pestaña Preguntas del evento (o Roles y preguntas, si es general), Roles y preguntas,
+ * o la ficha de la persona (por su id corto, nunca el mail) o de la cuenta borrada.
+ * @param {{ path?: string, slug?: string }} row
+ * @returns {{ href: string, text: string } | null}
+ */
+export function deletionLink({ path = '', slug = '' }) {
+	if (FIELD_ROW.test(path))
+		return slug
+			? { href: `/admin/eventos/${encodeURIComponent(slug)}/preguntas`, text: slug }
+			: { href: '/admin/eventos/roles', text: 'pregunta general' };
+	if (ROLE_ROW.test(path)) return { href: '/admin/eventos/roles', text: 'Roles y preguntas' };
+	if (NOTE_ROW.test(path)) {
+		if (NOTE_PERSON.test(slug))
+			return { href: `/admin/comunidad/personas/${slug}`, text: 'ver la ficha' };
+		const account = NOTE_ACCOUNT.exec(slug)?.[1];
+		if (account)
+			return {
+				href: `/admin/comunidad/cuentas/${encodeURIComponent(account)}`,
+				text: 'ver la ficha'
+			};
+	}
+	return null;
 }

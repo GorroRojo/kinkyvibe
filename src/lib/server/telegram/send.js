@@ -1,7 +1,8 @@
 /**
- * Llamar a la API de Telegram (decisión 0029). Es lo único que la llama: el webhook contesta en el
- * mismo pedido y no la necesita. La usan el cron de la fase 2 (`sendMessage`, para los avisos) y
- * el botón «Actualizar comandos del bot» del panel (`setMyCommands`, en commands.js).
+ * Llamar a la API de Telegram (decisión 0029). Es lo único que la llama. La usan el cron de la fase 2
+ * (`sendMessage`, para los avisos), el registro de comandos (`setMyCommands`, en commands.js) y,
+ * con el token cargado, el webhook (run.js: editar pantallas, fotos, contestar botones; decisión
+ * 0034).
  *
  * Usa el secret `TELEGRAM_BOT_TOKEN` (Cloudflare, nunca en el repo). Sin él, `telegramSender`
  * devuelve `null` y los avisos por Telegram se saltean con una línea en el log.
@@ -25,7 +26,7 @@ const scrub = (text, token) => (token ? text.split(token).join('…') : text);
  * (así lo pide Telegram): nunca se loguea ni se devuelve la URL.
  *
  * @param {{ token: string, method: string, body: unknown, fetch?: typeof fetch }} input
- * @returns {Promise<{ ok: true, status: number } | { ok: false, status: number | null, error: string }>}
+ * @returns {Promise<{ ok: true, status: number } | { ok: false, status: number | null, error: string, description?: string }>}
  */
 export async function callTelegramApi({ token, method, body, fetch: fetchFn = fetch }) {
 	let res;
@@ -54,7 +55,8 @@ export async function callTelegramApi({ token, method, body, fetch: fetchFn = fe
 	return {
 		ok: false,
 		status: res.status,
-		error: `Telegram respondió ${res.status}${description ? `: ${description}` : ''}.`
+		error: `Telegram respondió ${res.status}${description ? `: ${description}` : ''}.`,
+		description
 	};
 }
 
