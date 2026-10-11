@@ -4,7 +4,7 @@
 	 * abogade) antes de publicar. El ícono de alerta lo pone `Notice`. Slot default: qué hay que
 	 * decidir. docs/legales.md junta la lista entera.
 	 */
-	import { Notice } from '$lib/components/ui';
+	import Notice from '$lib/components/ui/Notice.svelte';
 </script>
 
 <div class="revisar" data-revisar>

@@ -9,4 +9,4 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<svelte:component this={data.Componente} slug={data.slug} paginas={data.paginas} />
+<svelte:component this={data.Componente} />
