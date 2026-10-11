@@ -973,16 +973,19 @@ export function renderBotText(key, vars = {}, overrides = null) {
 	);
 }
 
+const ENTITIES = Object.freeze({ lt: '<', gt: '>', quot: '"', amp: '&' });
+
 /**
  * Lo que se ve de un texto con formato, sin las etiquetas (para reconocer la respuesta a
- * «Buscar», que Telegram devuelve sin formato).
+ * «Buscar», que Telegram devuelve sin formato). Saca las etiquetas y decodifica las entidades en
+ * una sola pasada: lo decodificado nunca se vuelve a mirar.
+ *
+ * Solo para comparar texto: nunca lo pongas en HTML.
+ *
  * @param {string} html
  */
 export function telegramHtmlToPlain(html) {
-	return html
-		.replace(/<[^>]+>/g, '')
-		.replace(/&lt;/g, '<')
-		.replace(/&gt;/g, '>')
-		.replace(/&quot;/g, '"')
-		.replace(/&amp;/g, '&');
+	return html.replace(/<[^>]*>|&(lt|gt|quot|amp);/g, (_, entity) =>
+		entity ? ENTITIES[/** @type {keyof typeof ENTITIES} */ (entity)] : ''
+	);
 }

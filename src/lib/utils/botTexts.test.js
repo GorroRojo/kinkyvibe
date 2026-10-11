@@ -138,6 +138,21 @@ describe('renderBotText', () => {
 	});
 });
 
+describe('telegramHtmlToPlain (solo para comparar texto)', () => {
+	it('decodifica una sola vez: lo decodificado no se vuelve a limpiar ni a decodificar', () => {
+		expect(telegramHtmlToPlain('&lt;script&gt;alert(1)&lt;/script&gt;')).toBe(
+			'<script>alert(1)</script>'
+		);
+		expect(telegramHtmlToPlain('&amp;lt;b&amp;gt;')).toBe('&lt;b&gt;');
+	});
+
+	it('etiquetas anidadas o rotas: saca solo las etiquetas enteras', () => {
+		// `<<b>` es una sola etiqueta: no queda un «<script» armado con los pedazos.
+		expect(telegramHtmlToPlain('<<b>script>')).toBe('script>');
+		expect(telegramHtmlToPlain('<b>a</b> < b')).toBe('a < b');
+	});
+});
+
 describe('botTextError', () => {
 	it('variables desconocidas: dice cuáles y cuáles se pueden usar', () => {
 		expect(botTextError(field('eventos.sin_resultados'), 'Nada para {busqueda} ni {nombre}')).toBe(
