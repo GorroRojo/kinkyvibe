@@ -8,6 +8,10 @@
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
+	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { cardImage, linkPreviewOf, tagDescription } from '$lib/utils/seo.js';
+	/** Sin imagen propia, la tarjeta de la Kinkipedia. */
+	$: KINKIPEDIA_CARD = cardImage('wiki', linkPreviewOf($page.data));
 	/** @type {any} La página de la wiki (de la base) o la etiqueta sola (+page.js). */
 	export let data;
 	// Los estilos propios del texto (ya limitados al texto en el servidor). La etiqueta se arma por
@@ -57,6 +61,8 @@
 	}
 	const guessedTitle =
 		data?.tag?.id ?? decodeURIComponent($page.url.pathname.slice(6)).replaceAll('-', ' ');
+	/** El título de la entrada o, sin entrada, el nombre de la etiqueta. */
+	$: pageTitle = data?.meta?.title ?? data?.tag?.visible_name ?? guessedTitle;
 	const ascendance = getAscendance(data?.meta?.wiki ?? guessedTitle ?? 'BDSM');
 	const descendance = getDescendance(data?.meta?.wiki ?? guessedTitle ?? 'inglés');
 	// const descendance = [[{ name: 'Shibari' }], [{ name: 'Momificación' }]];
@@ -88,24 +94,18 @@
 </script>
 
 <svelte:head>
-	<title>{data?.meta?.title ?? data.tag?.visible_name} · Kinky Vibe</title>
-
-	<meta property="og:title" content={data?.meta?.title} />
-	<meta name="twitter:title" content={data?.meta?.title} />
-
-	<meta name="description" content={data?.meta?.summary} />
-	<meta name="twitter:description" content={data?.meta?.summary} />
-	<meta property="og:description" content={data?.meta?.summary} />
-
-	<meta property="og:image" content={data?.meta?.featured + ''} />
-	<meta name="twitter:image" content={data?.meta?.featured + ''} />
-
-	<meta name="twitter:site" content="@kinkyvibearg" />
-	<meta name="twitter:card" content="summary_large_image" />
-	<meta property="og:type" content="article" />
-
-	<!-- <meta property="article:section" content="" /> -->
+	<title>{pageTitle} · Kinky Vibe</title>
 </svelte:head>
+<!-- La vista previa al compartir (docs/compartir.md): la entrada de la Kinkipedia o, sin entrada,
+     la etiqueta (o la serie) con una descripción genérica; sin imagen, la tarjeta de la Kinkipedia. -->
+<SeoHead
+	title={pageTitle}
+	description={data?.meta?.summary || tagDescription(pageTitle)}
+	image={data?.meta?.featured || KINKIPEDIA_CARD.url}
+	imageInfo={data?.meta?.featured ? undefined : KINKIPEDIA_CARD}
+	imageAlt={pageTitle}
+	type={data?.meta ? 'article' : 'website'}
+/>
 
 <article class="h-entry wiki" id="title">
 	<div class="content">
