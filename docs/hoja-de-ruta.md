@@ -20,6 +20,10 @@ PRs abiertos:
   nuevo mapa de teclas `g`.
 - #261: reserva por transferencia hasta las 20 del segundo día hábil, sin paso de confirmar.
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
+- #273: la puerta por Telegram ([0037](decisiones/0037-puerta-por-telegram.md)): les admins
+  vinculan su Telegram en Ajustes → Admins y marcan ingresos con el escáner de QR de Telegram,
+  detrás de `telegram_puerta`. Bloqueo: gorrite aplica la migración 0050 en producción y en
+  preview antes del merge (0028).
 - #290: seguir desde el bot prende los avisos por Telegram
   ([0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)).
 
@@ -200,6 +204,10 @@ de amigues y lanzamientos grandes.
 
 ### Telegram
 
+- Puerta por Telegram, después de #273: prenderla en un preview y probarla con celulares reales
+  (vincular, abrir con el botón del bot, escanear); después en producción. S. Bloqueo: gorrite.
+- Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir su
+  dirección, y un comando o botón para abrirla sin volver a vincular (0037). S.
 - Guardar si alguien apagó a propósito los avisos por Telegram de algo, para que volver a seguirlo
   desde el bot no los prenda de nuevo (hoy la base no lo distingue, 0036). S. Bloqueo: que haga
   falta (necesita migración).

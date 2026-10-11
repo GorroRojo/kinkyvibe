@@ -37,6 +37,7 @@ export async function isValidWebhookSecret(given, expected) {
  *   origin: string,
  *   listUpcoming: import('./router.js').Deps['listUpcoming'],
  *   accounts?: import('./router.js').Deps['accounts'],
+ *   adminLink?: import('./router.js').Deps['adminLink'],
  *   card?: import('./router.js').Deps['card'],
  *   fondo?: import('./router.js').Deps['fondo'],
  *   botUsername?: string | null,
@@ -44,7 +45,9 @@ export async function isValidWebhookSecret(given, expected) {
  *   waitUntil?: (task: Promise<unknown>) => void,
  *   fetch?: typeof fetch
  * }} args `accounts`: la fase 2 (vincular cuentas); se llama solo para esos comandos y da `null`
- *   con `lo_que_sigo` apagado. `token`: el del bot; con él, el webhook llama a la API.
+ *   con `lo_que_sigo` apagado. `adminLink`: `/start adm_<código>`, vincular el Telegram de une
+ *   admin desde el panel (la puerta por Telegram, adminLink.js); `null` con `telegram_puerta`
+ *   apagado. `token`: el del bot; con él, el webhook llama a la API.
  */
 export async function handleWebhook({
 	request,
@@ -53,6 +56,7 @@ export async function handleWebhook({
 	origin,
 	listUpcoming,
 	accounts,
+	adminLink,
 	card,
 	fondo,
 	botUsername,
@@ -80,7 +84,7 @@ export async function handleWebhook({
 	} catch {
 		return new Response('bad request', { status: 400 });
 	}
-	const deps = { listUpcoming, origin, accounts, card, fondo, botUsername };
+	const deps = { listUpcoming, origin, accounts, adminLink, card, fondo, botUsername };
 	const clean = String(token ?? '').trim();
 	if (clean) {
 		const task = planUpdate(update, { ...deps, media: true })
