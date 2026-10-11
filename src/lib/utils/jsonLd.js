@@ -283,8 +283,8 @@ export function wikiTermSchema({ title, summary, path, aka }) {
 		description: summary,
 		alternateName: tagList(aka).filter((a) => a !== title),
 		url: absoluteUrl(path),
-		inDefinedTermSet: kinkipediaRef(),
-		inLanguage: 'es'
+		// Sin `inLanguage`: DefinedTerm no es un CreativeWork (validator.schema.org lo marca).
+		inDefinedTermSet: kinkipediaRef()
 	});
 }
 

@@ -220,6 +220,8 @@ describe('Kinkipedia', () => {
 		expect(t.url).toBe('https://kinkyvibe.ar/wiki/bondage');
 		expect(t.alternateName).toEqual(['ataduras']);
 		expect(t.inDefinedTermSet['@type']).toBe('DefinedTermSet');
+		// DefinedTerm no es CreativeWork: sin inLanguage.
+		expect(t.inLanguage).toBeUndefined();
 	});
 	it('sin entrada, nada', () => {
 		expect(wikiTermSchema({ title: undefined, path: '/wiki/x' })).toBeNull();
