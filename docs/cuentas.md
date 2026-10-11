@@ -99,8 +99,10 @@ nada de estas tablas para sumarlas.
   (dos intentos a la vez no pueden pasarse de 5). La comparación es en tiempo constante.
 - El mail sale por el mismo camino que los de entradas (`deliverEmail` →
   `deliver()` de `src/lib/server/tickets/index.js`): Resend, remitente de Ajustes → Mails y el
-  filtro de los previews. El código no va en el asunto. Cómo va armado para que Gmail y el celu
-  lo reconozcan y se pueda copiar: [mails.md](mails.md#códigos-copiables).
+  filtro de los previews. El código va al principio del asunto («482913 es tu código para
+  entrar a Kinky Vibe»): lo pidió gorrite (11/10/2026) para que Gmail ofrezca «Copiar código»,
+  aceptando que se vea en las notificaciones. Los logs de producción lo tapan. Cómo va armado:
+  [mails.md](mails.md#códigos-copiables).
 
 ### Límites de intentos (`rate_limits`)
 

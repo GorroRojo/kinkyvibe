@@ -23,7 +23,7 @@ import {
 	maskEmail,
 	sendWithResend
 } from './email.js';
-import { parseAllowlist, routeEmail } from './emailGuard.js';
+import { parseAllowlist, routeEmail, subjectForLog } from './emailGuard.js';
 import { getEventMeta, getEventTickets, listTicketedEvents } from './events.js';
 import { coveredPartsByWorkshop } from '../eventos/partes.js';
 import { workshopPartsList } from './workshopParts.js';
@@ -333,7 +333,9 @@ async function deliver({
 			);
 			return 'simulated';
 		}
-		console.error(`[tickets] falta RESEND_API_KEY: no se mandó "${message.subject}"`);
+		console.error(
+			`[tickets] falta RESEND_API_KEY: no se mandó "${subjectForLog(message.subject)}"`
+		);
 		return 'failed';
 	}
 	const route = routeEmail({
@@ -343,7 +345,9 @@ async function deliver({
 		allowlist: parseAllowlist(env.EMAIL_ALLOWLIST)
 	});
 	if (!route) {
-		console.warn(`[tickets] preview sin EMAIL_ALLOWLIST: no se mandó "${message.subject}"`);
+		console.warn(
+			`[tickets] preview sin EMAIL_ALLOWLIST: no se mandó "${subjectForLog(message.subject)}"`
+		);
 		return 'simulated';
 	}
 	const { replyTo } = settings;

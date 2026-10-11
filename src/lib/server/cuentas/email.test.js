@@ -16,8 +16,9 @@ describe('mails con código', () => {
 		const m = buildLoginCodeEmail({ code: '123456', now: NOW, expiresAt: NOW + CODE_TTL_MS });
 		expect(m.text).toContain(`Escribilo en la página donde lo pediste. ${EXPIRES}`);
 		expect(m.html).toContain(EXPIRES);
-		// Nada del código en el asunto (se ve en las notificaciones).
-		expect(m.subject).not.toContain('123456');
+		// El código al principio del asunto (pedido de gorrite, 11/10/2026, para que Gmail lo
+		// detecte; se ve en las notificaciones del celu, y se acepta).
+		expect(m.subject).toBe('123456 es tu código para entrar a Kinky Vibe');
 	});
 
 	it('confirmar una acción: lo mismo', () => {
@@ -45,26 +46,38 @@ describe('mails con código', () => {
 
 /**
  * Lo que ayuda a que Gmail («Copiar código») y Mail de Apple detecten el código (docs/mails.md,
- * «Códigos copiables»): «código» en el asunto y, en el texto plano y en el HTML, el código solo en
- * su renglón, primero, justo después de una frase con «código».
+ * «Códigos copiables»): el asunto empieza con el código y dice «código»; en el texto plano y en el
+ * HTML, el código solo en su renglón, primero, justo después de una frase con «código»; y un
+ * preencabezado en castellano, sin números.
  */
 describe('mails con código: el código se puede detectar y copiar', () => {
 	const cases = /** @type {const} */ ([
 		[
 			'ingresar',
 			buildLoginCodeEmail({ code: '482913', now: NOW }),
-			'Tu código para entrar a Kinky Vibe es:'
+			'Tu código para entrar a Kinky Vibe es:',
+			'482913 es tu código para entrar a Kinky Vibe',
+			'Escribilo en la página donde lo pediste. Sirve una sola vez.'
 		],
 		[
 			'confirmar',
 			buildConfirmCodeEmail({ code: '482913', purpose: 'delete', now: NOW }),
-			'Para confirmar que querés borrar tu cuenta, escribí este código en Mi rincón:'
+			'Para confirmar que querés borrar tu cuenta, escribí este código en Mi rincón:',
+			'482913 es tu código para confirmar en Kinky Vibe',
+			'Escribilo en Mi rincón para confirmar. Sirve una sola vez.'
 		]
 	]);
 
-	it.each(cases)('%s: «código» en el asunto, sin el código', (_, m) => {
-		expect(m.subject).toMatch(/^Tu código para /);
-		expect(m.subject).not.toContain('482913');
+	it.each(cases)('%s: el asunto empieza con el código', (_, m, _intro, subject) => {
+		expect(m.subject).toBe(subject);
+	});
+
+	it.each(cases)('%s: preencabezado oculto, en castellano y sin números', (_, m, _i, _s, pre) => {
+		const found = m.html.match(
+			/<body[^>]*>\n<div style="display:none;max-height:0;overflow:hidden;[^"]*" data-kv-mail="preheader">([^<]*)<\/div>/
+		);
+		expect(found?.[1]).toBe(pre);
+		expect(pre).not.toMatch(/\d/);
 	});
 
 	it.each(cases)('%s: texto plano, la frase y el código solo en su renglón', (_, m, intro) => {

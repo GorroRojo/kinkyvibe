@@ -195,10 +195,10 @@ de amigues y lanzamientos grandes.
 
 - Tarjeta de evento en Gmail: los pasos para registrarse con Google y revisar el requisito de
   volumen de envío. S. Bloqueo: gorrite manda el formulario.
-- Códigos copiables (pedido de gorrite, 11/10/2026): probar con un mail real en Gmail para
-  Android e iOS y en un iPhone; decidir si el código va también en el asunto (hoy no, por las
-  notificaciones); sumar el encabezado `OTP-Token` o `One-Time-Code` cuando un cliente de mail lo
-  use. S. Bloqueo: gorrite.
+- Códigos copiables (pedido de gorrite, 11/10/2026): volver a probar con un mail real (#297, con
+  el código en el asunto y `Content-Language: es`) en Gmail para Android e iOS y en un iPhone: que
+  aparezca «Copiar código» y que Gmail no ofrezca traducir; sumar el encabezado `OTP-Token` o
+  `One-Time-Code` cuando un cliente de mail lo use. S. Bloqueo: gorrite.
 - Colas (Queues) para los mails y Email Workers para recibir. L.
 - Newsletter general y por combinación de etiquetas. L.
 - Bandeja de entrada en el panel, mails individuales y masivos (fase 5, CRM). L.
