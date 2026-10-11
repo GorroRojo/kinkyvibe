@@ -1,0 +1,444 @@
+/**
+ * Casos para `bot.golden.json`: todo lo que el bot dice (pantallas, respuestas, avisos, comandos)
+ * con datos inventados. La golden se sacó del código de antes de «Textos del bot» y no se toca a
+ * mano: sin nada cambiado en el panel, cada caso tiene que salir igual, byte a byte
+ * (`texts-golden.test.js`). Para regenerarla (solo si un cambio de texto en el código es a
+ * propósito): `UPDATE_BOT_GOLDEN=1 npx vitest run src/lib/server/telegram/texts-golden.test.js`.
+ */
+import { commandPayloads } from './commands.js';
+import { deliverScreen } from './deliver.js';
+import {
+	ACCOUNTS_OFF_TEXT,
+	ADMIN_LINK_INVALID_TEXT,
+	ADMIN_LINK_OFF_TEXT,
+	ERROR_TEXT,
+	FOLLOW_ALREADY_TEXT,
+	FOLLOW_FULL_TEXT,
+	FOLLOW_GONE_TEXT,
+	FOLLOW_TOO_MANY_TEXT,
+	LINK_ASK_CODE_TEXT,
+	LINK_INVALID_TEXT,
+	LINK_TOO_MANY_TEXT,
+	MUTED_TEXT,
+	NOT_FOUND_TEXT,
+	NOT_LINKED_TEXT,
+	PICK_EVENT_TEXT,
+	PRIVATE_ONLY_TEXT,
+	UNAVAILABLE_TEXT,
+	UNKNOWN_TEXT,
+	UNLINKED_TEXT,
+	UNMUTED_TEXT,
+	followedText,
+	formatAdminLinked,
+	formatFollowNotice,
+	formatLinked
+} from './format.js';
+import { planUpdate } from './router.js';
+import { runPlan } from './run.js';
+import {
+	eventScreen,
+	followScreen,
+	fondoScreen,
+	helpScreen,
+	homeScreen,
+	listScreen,
+	noticeScreen,
+	privateOnlyScreen,
+	searchResultsScreen,
+	searchScreen,
+	sigoScreen,
+	unlinkedScreen
+} from './screens.js';
+
+export const ORIGIN = 'https://ejemplo.test';
+export const NOW = Date.parse('2031-01-08T12:00:00-03:00');
+
+/** Eventos inventados (dos en el finde del 10/1, para que haya hoy/semana/finde). */
+export const EVENTS = [
+	{ slug: 'hoy-inventado', title: 'Juntada inventada', start: '2031-01-08T20:00:00-03:00' },
+	{ slug: 'taller-de-cuerdas', title: 'Taller de cuerdas', start: '2031-01-10T21:00:00-03:00' },
+	{
+		slug: 'fiesta-inventada',
+		title: 'Fiesta <inventada> & "más"',
+		start: '2031-01-11T23:00:00-03:00'
+	},
+	{ slug: 'taller-de-teatro', title: 'Taller de teatro', start: '2031-01-20T18:00:00-03:00' },
+	{ slug: 'charla-inventada', title: 'Charla inventada', start: '2031-02-01T18:00:00-03:00' },
+	{
+		slug: 'jam-inventada',
+		title: 'Jam inventada con un título bastante largo',
+		start: '2031-02-05T19:00:00-03:00'
+	},
+	{ slug: 'otra-fiesta', title: 'Otra fiesta', start: '2031-03-01T23:00:00-03:00' }
+];
+
+const TARGETS = [
+	{ key: 'Serie Inventada', title: 'Serie Inventada', series: true, hash: 'abc12' },
+	{ key: 'cuerdas', title: '🪢 Cuerdas', series: false, hash: 'def34' }
+];
+
+/** @param {'private' | 'group'} chat @param {boolean} [sigo] */
+const ctx = (chat, sigo = true) => ({
+	origin: ORIGIN,
+	chat,
+	now: NOW,
+	botUsername: 'BotDePrueba',
+	sigo
+});
+
+/** @param {any} [o] */
+function fakeFollows({
+	linked = true,
+	followResult = 'created',
+	titles = ['Serie', '🪢 Cuerdas']
+} = {}) {
+	return {
+		accountFor: async () => (linked ? 'cuenta-inventada' : null),
+		targets: async () => TARGETS,
+		following: async () => new Set(['cuerdas']),
+		follow: async () => followResult,
+		titles: async () => titles
+	};
+}
+
+/** @param {any} [o] */
+function deps({ accounts = null, follows = null, adminLink = null, media = false } = {}) {
+	return {
+		listUpcoming: async () => EVENTS,
+		origin: ORIGIN,
+		now: () => NOW,
+		botUsername: 'BotDePrueba',
+		card: async () => ({
+			image: 'https://ejemplo.test/foto.jpg',
+			place: 'Lugar inventado',
+			mapUrl: 'https://maps.example/x',
+			ticket: { kind: 'buy', href: '/calendario/x/entradas' }
+		}),
+		fondo: async () => ({ percent: 10, collected: 150000, goal: 300000, step: 5, updatedAt: NOW }),
+		accounts: async () =>
+			accounts || follows
+				? {
+						link: async () => accounts?.link ?? 'linked',
+						unlink: async () => accounts?.linked ?? true,
+						setMuted: async () => accounts?.linked ?? true,
+						...(follows ? { follows } : {})
+					}
+				: null,
+		adminLink,
+		media
+	};
+}
+
+const PRIVATE = { id: 42, type: 'private' };
+const GROUP = { id: -100, type: 'supergroup' };
+/** @param {string} text @param {any} [chat] */
+const msg = (text, chat = PRIVATE) => ({
+	update_id: 1,
+	message: { chat, from: { id: 77 }, text, message_id: 5 }
+});
+/** @param {string} data @param {any} [chat] */
+const cb = (data, chat = PRIVATE) => ({
+	update_id: 1,
+	callback_query: { id: 'cb', from: { id: 77 }, data, message: { message_id: 9, chat } }
+});
+
+/**
+ * `[nombre, () => salida]`. La salida es JSON (texto, botones, métodos de la API).
+ * @returns {Array<[string, () => unknown]>}
+ */
+export function botCases() {
+	/** @type {Array<[string, () => unknown]>} */
+	const cases = [];
+	/** @param {string} name @param {() => unknown} fn */
+	const add = (name, fn) => cases.push([name, fn]);
+
+	// Constantes y textos sueltos de format.js.
+	add('constantes', () => ({
+		ACCOUNTS_OFF_TEXT,
+		ADMIN_LINK_INVALID_TEXT,
+		ADMIN_LINK_OFF_TEXT,
+		ERROR_TEXT,
+		FOLLOW_ALREADY_TEXT,
+		FOLLOW_FULL_TEXT,
+		FOLLOW_GONE_TEXT,
+		FOLLOW_TOO_MANY_TEXT,
+		LINK_ASK_CODE_TEXT,
+		LINK_INVALID_TEXT,
+		LINK_TOO_MANY_TEXT,
+		MUTED_TEXT,
+		NOT_FOUND_TEXT,
+		NOT_LINKED_TEXT,
+		PICK_EVENT_TEXT,
+		PRIVATE_ONLY_TEXT,
+		UNAVAILABLE_TEXT,
+		UNKNOWN_TEXT,
+		UNLINKED_TEXT,
+		UNMUTED_TEXT
+	}));
+	add('seguido corto', () => followedText('🪢 Cuerdas'));
+	add('seguido con telegram', () => followedText('🪢 Cuerdas', { telegram: true }));
+	add('seguido largo con telegram', () => followedText('x'.repeat(250), { telegram: true }));
+	add('seguido largo', () => followedText('y'.repeat(250)));
+	add('vinculado', () => formatLinked(ORIGIN));
+	add('admin vinculade', () => formatAdminLinked('admin-<inventade>'));
+	add('aviso nuevo', () =>
+		formatFollowNotice({
+			kind: 'nuevo',
+			title: 'Fiesta <x>',
+			start: EVENTS[2].start,
+			url: `${ORIGIN}/calendario/x?a=1&b=2`
+		})
+	);
+	add('aviso recordatorio', () =>
+		formatFollowNotice({
+			kind: 'recordatorio',
+			title: 'Taller',
+			start: EVENTS[1].start,
+			url: `${ORIGIN}/calendario/y`
+		})
+	);
+	add('comandos sin cuentas', () => commandPayloads({ accounts: false }));
+	add('comandos con cuentas', () => commandPayloads({ accounts: true }));
+
+	// Pantallas.
+	add('inicio privado', () => homeScreen(ctx('private')));
+	add('inicio privado sin sigo', () => homeScreen(ctx('private', false)));
+	add('inicio grupo', () => homeScreen(ctx('group')));
+	add('inicio sin https', () => homeScreen({ ...ctx('private'), origin: 'http://localhost:5173' }));
+	for (const view of /** @type {const} */ (['d', 'w', 'f', 'p'])) {
+		add(`lista ${view} vacía`, () => listScreen(view, [], 0, ctx('private')));
+		add(`lista ${view} pag 0`, () => listScreen(view, EVENTS, 0, ctx('private')));
+	}
+	add('lista p pag 1', () => listScreen('p', EVENTS, 1, ctx('private')));
+	add('lista con intro', () =>
+		listScreen('p', EVENTS, 0, ctx('private'), { intro: PICK_EVENT_TEXT })
+	);
+	add('búsqueda sin nada', () => searchResultsScreen('algo <raro>', [], ctx('private')));
+	add('búsqueda uno', () => searchResultsScreen('cuerdas', [EVENTS[1]], ctx('private')));
+	add('búsqueda varios', () => searchResultsScreen('taller', EVENTS, ctx('private')));
+	add('búsqueda varios con head', () =>
+		searchResultsScreen('taller', EVENTS.slice(0, 2), ctx('private'), { head: 'Otra cabeza' })
+	);
+	const follow = { text: '⭐ Seguir', callback_data: 'f:x' };
+	add('tarjeta comprar', () =>
+		eventScreen(
+			EVENTS[1],
+			{
+				image: 'https://ejemplo.test/a.jpg',
+				place: 'Lugar <x>',
+				mapUrl: 'https://maps.example/a',
+				ticket: { kind: 'buy', href: '/calendario/taller-de-cuerdas/entradas' }
+			},
+			{ back: 'w', list: EVENTS.slice(0, 4) },
+			ctx('private'),
+			{ follow }
+		)
+	);
+	add('tarjeta nota', () =>
+		eventScreen(
+			EVENTS[2],
+			{ place: 'Lugar a confirmar', ticket: { kind: 'note', text: 'Agotadas' } },
+			{ back: 'n' },
+			ctx('private')
+		)
+	);
+	add('tarjeta sin entradas', () =>
+		eventScreen(EVENTS[3], {}, { back: 'p', list: EVENTS }, ctx('group'))
+	);
+	add('tarjeta sin https', () =>
+		eventScreen(
+			EVENTS[3],
+			{ ticket: { kind: 'buy', href: '/x' } },
+			{ back: 'n' },
+			{ ...ctx('private'), origin: 'http://localhost' }
+		)
+	);
+	add('buscar privado', () => searchScreen(ctx('private')));
+	add('buscar grupo', () => searchScreen(ctx('group')));
+	add('fondo sin números', () => fondoScreen(null, ctx('private')));
+	add('fondo', () =>
+		fondoScreen(
+			{ percent: 12, collected: 123456, goal: 400000, step: 5, updatedAt: NOW },
+			ctx('private')
+		)
+	);
+	add('fondo viejo', () =>
+		fondoScreen(
+			{ percent: 8, collected: 0, goal: 0, step: 5, updatedAt: null, stale: true },
+			ctx('private')
+		)
+	);
+	add('ayuda', () => helpScreen(ctx('private')));
+	add('ayuda con cuentas', () => helpScreen(ctx('private'), { accounts: true }));
+	add('aviso', () => noticeScreen(UNAVAILABLE_TEXT));
+	add('solo privado con link', () => privateOnlyScreen('https://t.me/BotDePrueba?start=sigo'));
+	add('solo privado sin link', () => privateOnlyScreen(null));
+	add('sin vincular', () => unlinkedScreen(ctx('private')));
+	add('lo que sigo vacío', () => sigoScreen([], ctx('private')));
+	add('lo que sigo', () => sigoScreen(['Serie <x>', '🪢 Cuerdas'], ctx('private')));
+	add('lo que sigo largo', () =>
+		sigoScreen(
+			Array.from({ length: 18 }, (_, i) => `Cosa ${i}`),
+			ctx('private')
+		)
+	);
+	add('seguir opciones', () =>
+		followScreen(
+			EVENTS[2],
+			TARGETS.map((t, i) => ({ ...t, following: i === 1 })),
+			ctx('private')
+		)
+	);
+	add('seguir sin opciones', () => followScreen(EVENTS[1], [], ctx('private')));
+	add('entrega grupo botón', () =>
+		deliverScreen(
+			homeScreen(ctx('group')),
+			{ kind: 'callback', callbackId: 'cb', chatId: -100, group: true, messageId: 9, userId: 77 },
+			{ media: true, privateLink: 'https://t.me/BotDePrueba?start=inicio' }
+		)
+	);
+	add('entrega grupo botón sin link', () =>
+		deliverScreen(
+			homeScreen(ctx('group')),
+			{ kind: 'callback', callbackId: 'cb', chatId: -100, group: true, messageId: 9, userId: 77 },
+			{ media: true, privateLink: null }
+		)
+	);
+	return cases;
+}
+
+/**
+ * Lo que contesta el router (`planUpdate`) a cada update, y lo que contesta el botón cuando la
+ * API falla o pide ir más despacio (`runPlan`).
+ * @returns {Array<[string, () => Promise<unknown>]>}
+ */
+export function routerCases() {
+	/** @type {Array<[string, () => Promise<unknown>]>} */
+	const cases = [];
+	/** @param {string} name @param {any} update @param {any} [d] */
+	const add = (name, update, d = deps()) => cases.push([name, () => planUpdate(update, d)]);
+	add('/start', msg('/start'));
+	add('/start grupo', msg('/start', GROUP));
+	add('/ayuda', msg('/ayuda'));
+	add('/ayuda con cuentas', msg('/ayuda'), deps({ follows: fakeFollows() }));
+	add('/hoy', msg('/hoy'));
+	add('/semana', msg('/semana'));
+	add('/finde', msg('/finde'));
+	add('/proximos', msg('/proximos'));
+	add('/evento', msg('/evento'));
+	add('/evento varios', msg('/evento taller'));
+	add('/evento uno', msg('/evento cuerdas'));
+	add('/evento uno con seguir', msg('/evento cuerdas'), deps({ follows: fakeFollows() }));
+	add(
+		'/evento uno con seguir grupo',
+		msg('/evento cuerdas', GROUP),
+		deps({ follows: fakeFollows() })
+	);
+	add('/evento nada', msg('/evento inexistente'));
+	add('/buscar', msg('/buscar'));
+	add('/fondo', msg('/fondo'));
+	add('/xyz', msg('/xyz'));
+	add('respuesta a buscar', {
+		update_id: 1,
+		message: {
+			chat: PRIVATE,
+			text: 'cuerdas',
+			reply_to_message: { from: { is_bot: true }, text: '🔎 Escribí qué buscás: un nombre…' }
+		}
+	});
+	add('/vincular sin cuentas', msg('/vincular ABCD-2345'));
+	add('/vincular grupo', msg('/vincular ABCD-2345', GROUP), deps({ accounts: {} }));
+	add('/vincular sin código', msg('/vincular'), deps({ accounts: {} }));
+	add('/vincular bien', msg('/vincular ABCD-2345'), deps({ accounts: {} }));
+	add('/vincular mal', msg('/vincular ABCD-2345'), deps({ accounts: { link: 'invalid' } }));
+	add('/vincular muchos', msg('/vincular ABCD-2345'), deps({ accounts: { link: 'too_many' } }));
+	add('/start código', msg('/start ABCD2345'), deps({ accounts: {} }));
+	add('/desvincular', msg('/desvincular'), deps({ accounts: {} }));
+	add('/desvincular sin vínculo', msg('/desvincular'), deps({ accounts: { linked: false } }));
+	add('/silenciar', msg('/silenciar'), deps({ accounts: {} }));
+	add('/reanudar', msg('/reanudar'), deps({ accounts: {} }));
+	add('/sigo', msg('/sigo'), deps({ follows: fakeFollows() }));
+	add('/sigo sin vincular', msg('/sigo'), deps({ follows: fakeFollows({ linked: false }) }));
+	add('/sigo sin cuentas', msg('/sigo'));
+	add('/sigo grupo', msg('/sigo', GROUP), deps({ follows: fakeFollows() }));
+	add('/start sigo', msg('/start sigo'), deps({ follows: fakeFollows() }));
+	add('/start sigo sin cuentas', msg('/start sigo'));
+	add('/start seguir', msg('/start seguir-fiesta-inventada'), deps({ follows: fakeFollows() }));
+	add('/start ev viejo', msg('/start ev-no-existe'));
+	add('/start adm grupo', msg('/start adm_ABCD2345', GROUP));
+	add('/start adm apagado', msg('/start adm_ABCD2345'));
+	add(
+		'/start adm bien',
+		msg('/start adm_ABCD2345'),
+		deps({ adminLink: async () => ({ linked: 'admin-inventade' }) })
+	);
+	add('/start adm mal', msg('/start adm_ABCD2345'), deps({ adminLink: async () => 'invalid' }));
+	add('/start adm muchos', msg('/start adm_ABCD2345'), deps({ adminLink: async () => 'too_many' }));
+	add('botón inicio', cb('h'));
+	add('botón inicio con token', cb('h'), deps({ media: true }));
+	add('botón lista', cb('l:p:1'));
+	add('botón tarjeta', cb('e:taller-de-cuerdas:w'), deps({ media: true, follows: fakeFollows() }));
+	add('botón tarjeta vieja', cb('e:no-existe:w'));
+	add('botón roto', cb('zzz'));
+	add('botón buscar grupo', cb('s', GROUP), deps({ media: true }));
+	add('botón ayuda grupo', cb('a', GROUP), deps({ media: true }));
+	add('botón seguir', cb('f:fiesta-inventada'), deps({ follows: fakeFollows() }));
+	add('botón seguir sin cuentas', cb('f:fiesta-inventada'));
+	for (const r of ['created', 'created_telegram', 'already', 'too_many', 'full', 'gone']) {
+		add(
+			`botón seguir una ${r}`,
+			cb('fy:fiesta-inventada:abc12'),
+			deps({ follows: fakeFollows({ followResult: r }) })
+		);
+	}
+	add(
+		'botón seguir una que no está',
+		cb('fy:fiesta-inventada:zzzzz'),
+		deps({ follows: fakeFollows() })
+	);
+	add(
+		'botón seguir grupo',
+		cb('f:fiesta-inventada', GROUP),
+		deps({ follows: fakeFollows(), media: true })
+	);
+	add('botón lo que sigo', cb('g'), deps({ follows: fakeFollows() }));
+	add('botón sin chat', { update_id: 1, callback_query: { id: 'cb', data: 'h' } });
+	add('error', msg('/proximos'), {
+		...deps(),
+		listUpcoming: async () => {
+			throw new Error('x');
+		}
+	});
+	add('error botón', cb('l:p:0'), {
+		...deps(),
+		listUpcoming: async () => {
+			throw new Error('x');
+		}
+	});
+
+	/** @param {string} name @param {any} plan @param {number} status */
+	const run = (name, plan, status) =>
+		cases.push([
+			name,
+			async () => {
+				/** @type {any[]} */
+				const calls = [];
+				await runPlan(plan, async (method, body) => {
+					calls.push({ method, body });
+					return method === 'answerCallbackQuery'
+						? { ok: true, status: 200 }
+						: { ok: false, status, description: 'x' };
+				});
+				return calls;
+			}
+		]);
+	const step = { method: 'editMessageText', chat_id: 1, message_id: 9, text: 'x' };
+	run('api lenta', { steps: [step], callback: { id: 'cb' } }, 429);
+	run('api falla', { steps: [step], callback: { id: 'cb' } }, 400);
+	run(
+		'api falla con onFail',
+		{ steps: [step], callback: { id: 'cb', onFail: { text: 'Otro', url: 'https://t.me/x' } } },
+		400
+	);
+	return cases;
+}
