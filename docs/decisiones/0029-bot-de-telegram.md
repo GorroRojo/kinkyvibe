@@ -3,6 +3,8 @@
 - Fecha: 2026-10-01
 - Estado: Aceptada. Fase 1 con código (#175): `/proximos` y `/evento`, interruptor `telegram_bot`.
   Fase 2 en un PR aparte: vincular la cuenta y avisos de «Lo que sigo» (migración 0033).
+  Ampliada por [0034](0034-bot-seguir-y-token.md) (11/10): «Seguir» desde el bot y el webhook
+  con token.
 
 ## Contexto
 
@@ -103,3 +105,13 @@ Reglas:
   ahí salen el router y el `setMyCommands`) y se registra con el botón «Actualizar comandos del
   bot» de Ajustes → Automatizaciones (solo admins, queda en el registro). Los de la cuenta, solo
   por chat privado y con «Lo que sigo» prendido. Detalle en [`docs/telegram.md`](../telegram.md).
+
+## Cómo va (11/10, navegación)
+
+- Navegación por pantallas: `/start` es el inicio con botones, los comandos son atajos a las
+  mismas pantallas, un solo mensaje que se edita, «‹ 1/3 ›», tarjeta de evento con lo que la
+  página pública muestra (foto o vista previa grande, lugar según su nivel, «Comprar en el
+  sitio», «Agregar al calendario», «Cómo llegar»), `/buscar`, `/fondo`.
+- En grupos, comandos y respuestas efímeros (solo los ve quien pregunta), solo lo público.
+- Lo que contradice «Solo lectura» y «contesta en el mismo pedido» (Seguir y el token) está en
+  [0034](0034-bot-seguir-y-token.md). Detalle en [`docs/telegram.md`](../telegram.md).
