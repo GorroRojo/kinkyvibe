@@ -1,24 +1,29 @@
 <script>
 	/**
 	 * «Ventas en el tiempo»: entradas o plata por día, semana o mes, de todos los eventos o de uno.
-	 * Props: `sales` (computeCharts().sales: ventas por evento y día, los eventos y el día de hoy).
+	 * Props: `sales` (computeCharts().sales o salesPage().sales: ventas por evento y día, los
+	 * eventos y el día de hoy; con `from`, el gráfico general arranca ahí y `bucket` dice cómo
+	 * arranca agrupado).
 	 */
 	import { bucketSales, formatCount } from '$lib/admin/chartSeries.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import Chart from './Chart.svelte';
 	import Segmented from './Segmented.svelte';
 
-	/** @type {{ days: import('$lib/admin/chartSeries.js').SalesDay[], events: { slug: string, title: string }[], today: number }} */
+	/** @type {{ days: import('$lib/admin/chartSeries.js').SalesDay[], events: { slug: string, title: string }[], today: number, from?: number | null, bucket?: string }} */
 	export let sales;
 
 	let slug = '';
-	let bucket = 'week';
+	// Cómo arranca agrupado (Estadísticas → Ventas lo elige según el período; la página vuelve a
+	// montar el gráfico cuando cambia el período).
+	let bucket = sales.bucket ?? 'week';
 	let measure = 'tickets';
 
 	$: rows = bucketSales(sales.days, {
 		bucket: /** @type {import('$lib/admin/chartSeries.js').Bucket} */ (bucket),
 		slug,
-		today: sales.today
+		today: sales.today,
+		from: sales.from ?? null
 	});
 	$: eventTitle = sales.events.find((e) => e.slug === slug)?.title;
 	$: unit = bucket === 'day' ? 'día' : bucket === 'week' ? 'semana' : 'mes';

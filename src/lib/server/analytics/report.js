@@ -27,8 +27,10 @@ export const DIMENSIONS = Object.freeze({
 });
 /** Cuántas filas del embudo (evento × paso × medio) se guardan por mes, como mucho. */
 const FUNNEL_LIMIT = 2000;
-/** Días de los rankings del panel (páginas, orígenes, países, dispositivos). */
+/** Días de los rankings del panel (páginas, orígenes, países, dispositivos) por defecto. */
 export const TOP_DAYS = 30;
+/** Período más largo que se le pide a Analytics Engine: guarda el detalle unos 3 meses. */
+export const MAX_DAYS = 90;
 
 /** Horas que Argentina está detrás de UTC (sin horario de verano). */
 export const AR_OFFSET_HOURS = 3;
@@ -51,6 +53,17 @@ const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', '
 export function monthStart(/** @type {Date} */ date, offset = 0) {
 	const ar = inArgentina(date);
 	return new Date(Date.UTC(ar.getUTCFullYear(), ar.getUTCMonth() + offset, 1) + AR_OFFSET_MS);
+}
+
+/**
+ * Primer instante del día de Argentina de `date` más `offset` días (la medianoche de Argentina,
+ * las 03:00 UTC).
+ */
+export function dayStart(/** @type {Date} */ date, offset = 0) {
+	const ar = inArgentina(date);
+	return new Date(
+		Date.UTC(ar.getUTCFullYear(), ar.getUTCMonth(), ar.getUTCDate() + offset) + AR_OFFSET_MS
+	);
 }
 
 /** `YYYY-MM` del mes de Argentina de un instante. */
@@ -254,6 +267,7 @@ export async function readMonthly(db, beforeMonth) {
  *   liveFrom: string,
  *   topDays: number,
  *   totals: { views: number, phoneShare: number, countries: number },
+ *   previousViews?: number | null,
  *   daily: { day: string, label: string, views: number }[],
  *   months: { month: string, label: string, views: number, saved: boolean }[],
  *   pages: Ranked[], sources: Ranked[], countries: Ranked[], devices: Ranked[],
@@ -335,14 +349,33 @@ export function queryErrorMessage(error) {
  *   db: import('@cloudflare/workers-types').D1Database | null | undefined,
  *   now?: Date,
  *   fetch?: typeof fetch,
- *   titleOf?: (slugs: string[]) => Promise<Map<string, string>>
- * }} input
+ *   titleOf?: (slugs: string[]) => Promise<Map<string, string>>,
+ *   days?: number
+ * }} input `days`: el período de las visitas por día, los rankings y los números de arriba (el
+ *   filtro de la pestaña, de 1 a {@link MAX_DAYS}). Sin `days`, los rankings van con
+ *   {@link TOP_DAYS} y las visitas por día desde el primer día del mes anterior.
  * @returns {Promise<VisitsReport>}
  */
-export async function loadVisits({ env, db, now = new Date(), fetch: fetchFn, titleOf }) {
+export async function loadVisits({ env, db, now = new Date(), fetch: fetchFn, titleOf, days }) {
 	const config = analyticsConfig(env);
 	const liveFromDate = monthStart(now, -1);
 	const liveFrom = monthKey(liveFromDate);
+	const period =
+		days === undefined ? null : Math.min(MAX_DAYS, Math.max(1, Math.trunc(Number(days) || 0)));
+	const topDays = period ?? TOP_DAYS;
+	// Las visitas por día: el período, pero la consulta arranca como mucho el 1 del mes anterior
+	// (así los meses «en vivo» de Visitas por mes salen completos).
+	const periodFrom = period === null ? null : dayStart(now, -(period - 1));
+	const dailyFrom = periodFrom && periodFrom < liveFromDate ? periodFrom : liveFromDate;
+	// El período anterior del mismo largo, solo si Analytics Engine todavía lo tiene.
+	const DAY_MS = 86_400_000;
+	const previous =
+		period !== null && period * 2 <= MAX_DAYS
+			? {
+					from: new Date(now.getTime() - 2 * period * DAY_MS),
+					to: new Date(now.getTime() - period * DAY_MS)
+				}
+			: null;
 	// Todo lo guardado; si las consultas en vivo andan, se usan solo los meses de antes de liveFrom.
 	const savedAll = await readMonthly(db, '9999-12');
 
@@ -352,7 +385,7 @@ export async function loadVisits({ env, db, now = new Date(), fetch: fetchFn, ti
 		missing: config.ok ? [] : config.missing,
 		error: null,
 		liveFrom: argentineDay(liveFromDate),
-		topDays: TOP_DAYS,
+		topDays,
 		totals: { views: 0, phoneShare: 0, countries: 0 },
 		daily: [],
 		months: [],
@@ -372,26 +405,32 @@ export async function loadVisits({ env, db, now = new Date(), fetch: fetchFn, ti
 	if (config.ok) {
 		try {
 			const opts = { fetch: fetchFn, now: now.getTime() };
-			const [daily, pages, sources, countries, devices, funnel] = await Promise.all([
-				runSql(config, dailySql(liveFromDate), opts),
-				runSql(config, dimensionSql('blob2', { limit: 20 }), opts),
-				runSql(config, dimensionSql('blob3', { limit: 20 }), opts),
-				runSql(config, dimensionSql('blob4', { limit: 30 }), opts),
-				runSql(config, dimensionSql('blob5', { limit: 5 }), opts),
-				runSql(config, funnelSql({ from: liveFromDate }), opts)
+			const [daily, pages, sources, countries, devices, funnel, prev] = await Promise.all([
+				runSql(config, dailySql(dailyFrom), opts),
+				runSql(config, dimensionSql('blob2', { days: topDays, limit: 20 }), opts),
+				runSql(config, dimensionSql('blob3', { days: topDays, limit: 20 }), opts),
+				runSql(config, dimensionSql('blob4', { days: topDays, limit: 30 }), opts),
+				runSql(config, dimensionSql('blob5', { days: topDays, limit: 5 }), opts),
+				runSql(config, funnelSql({ from: liveFromDate }), opts),
+				// La comparación es un extra: si falla, no se muestra y listo.
+				previous ? runSql(config, totalSql(previous), opts).catch(() => null) : null
 			]);
 			/** @type {Map<string, number>} */
 			const byDay = new Map();
 			for (const r of daily) byDay.set(str(r.day).slice(0, 10), num(r.n));
-			report.daily = daysBetween(liveFromDate, now).map((day) => ({
+			const allDays = daysBetween(dailyFrom, now).map((day) => ({
 				day,
 				label: `${Number(day.slice(8, 10))}/${Number(day.slice(5, 7))}`,
 				views: byDay.get(day) ?? 0
 			}));
-			for (const d of report.daily) {
+			const firstDay = periodFrom ? argentineDay(periodFrom) : report.liveFrom;
+			report.daily = allDays.filter((d) => d.day >= firstDay);
+			for (const d of allDays) {
+				if (d.day < report.liveFrom) continue;
 				const m = d.day.slice(0, 7);
 				liveMonths.set(m, (liveMonths.get(m) ?? 0) + d.views);
 			}
+			if (previous) report.previousViews = prev ? num(prev[0]?.n) : null;
 			report.pages = ranked(pages);
 			report.sources = ranked(sources);
 			report.countries = ranked(countries);

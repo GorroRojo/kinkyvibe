@@ -57,6 +57,52 @@ describe('secciones de Ajustes y Cuentas', () => {
 	});
 });
 
+describe('Estadísticas: tres pestañas (gorrite, 11/10)', () => {
+	const cmds = buildCommands();
+	/** @param {string} q */
+	const found = (q) => matchCommands(cmds, q, 50).map((c) => c.id);
+	it('cada pestaña está en la paleta con su URL; `g s` sigue llevando a Ventas', () => {
+		/** @param {string} id */
+		const cmd = (id) => cmds.find((c) => c.id === id);
+		expect(cmd('nav:estadisticas')).toMatchObject({
+			label: 'Ventas en el tiempo',
+			hint: 'Estadísticas',
+			href: '/admin/estadisticas/ventas',
+			shortcut: 'g s'
+		});
+		expect(cmd('nav:estadisticas-asistencia')).toMatchObject({
+			label: 'Asistencia',
+			hint: 'Estadísticas',
+			href: '/admin/estadisticas/asistencia'
+		});
+		expect(cmd('nav:estadisticas-visitas')).toMatchObject({
+			label: 'Visitas al sitio',
+			hint: 'Estadísticas',
+			href: '/admin/estadisticas/visitas'
+		});
+		expect(shortcutOf('estadisticas')).toBe('g s');
+		expect(goShortcutHref('s')).toBe('/admin/estadisticas/ventas');
+	});
+	it('se encuentran por lo que muestran', () => {
+		expect(found('estadisticas')).toEqual(
+			expect.arrayContaining([
+				'nav:estadisticas',
+				'nav:estadisticas-asistencia',
+				'nav:estadisticas-visitas'
+			])
+		);
+		for (const q of ['asistencia', 'primera vez', 'vuelven', 'check-in'])
+			expect(found(q), q).toContain('nav:estadisticas-asistencia');
+		for (const q of ['visitas', 'analytics', 'paginas mas vistas', 'embudo'])
+			expect(found(q), q).toContain('nav:estadisticas-visitas');
+		for (const q of ['ventas en el tiempo', 'medios de pago', 'fondo'])
+			expect(found(q), q).toContain('nav:estadisticas');
+		// Visitas no sale buscando cosas de ventas, ni Asistencia buscando visitas.
+		expect(found('medios de pago')).not.toContain('nav:estadisticas-visitas');
+		expect(found('paginas mas vistas')).not.toContain('nav:estadisticas-asistencia');
+	});
+});
+
 describe('matchCommands', () => {
 	const cmds = buildCommands();
 	it('encuentra por nombre, sin tildes, y por palabras extra', () => {

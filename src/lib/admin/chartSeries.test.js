@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	MAX_SPAN,
 	OVERALL_SPAN,
 	barPath,
 	bucketSales,
@@ -55,6 +56,22 @@ describe('bucketSales', () => {
 			['2026-09-03', 1]
 		]);
 		expect(bucketSales(days, { bucket: 'week', slug: 'nada', today })).toEqual([]);
+	});
+	it('with a period (`from`), the overall chart starts at that period, with a cap', () => {
+		const since = bucketSales(days, { bucket: 'day', today, from: day('2026-09-02') });
+		expect(since[0]).toMatchObject({ date: '2026-09-02', tickets: 0 });
+		expect(since.at(-1)).toMatchObject({ date: '2026-10-01' });
+		expect(since).toHaveLength(30);
+		// La venta del 1/9 queda afuera del período.
+		expect(since.reduce((s, r) => s + r.tickets, 0)).toBe(7);
+
+		const months = bucketSales(days, { bucket: 'month', today, from: day('2026-09-01') });
+		expect(months.map((r) => r.date)).toEqual(['2026-09-01', '2026-10-01']);
+
+		// Desde hace años, por día: no pasa del tope.
+		const capped = bucketSales(days, { bucket: 'day', today, from: day('2020-01-01') });
+		expect(capped).toHaveLength(MAX_SPAN.day);
+		expect(capped.at(-1)).toMatchObject({ date: '2026-10-01' });
 	});
 });
 

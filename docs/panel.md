@@ -47,7 +47,7 @@ secciones del grupo, como la que tenía Ajustes (`sectionTabs`).
 
 Cada sección vive en **`/admin/<área>/<sección>`**. Las excepciones: Inicio (`/admin`), Puerta
 (`/admin/checkin`, porque esa URL está guardada en los celus de la puerta) y las áreas de una sola
-sección (Etiquetas, Estadísticas), que usan la URL del área.
+sección (Etiquetas), que usan la URL del área.
 
 | Área         | Secciones (URL)                                                                                                                                                                                                                                                                           | Para qué                                                                                                                                                                                                                                  |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -58,7 +58,7 @@ sección (Etiquetas, Estadísticas), que usan la URL del área.
 | Mensajes     | Plantillas (`/admin/mensajes/plantillas`) · próximamente: Bandeja (`/admin/mensajes`, fase 5), Lo que sigo (`/lo-que-sigo`, fase 2)                                                                                                                                                       | textos de los mails ([mails.md](mails.md))                                                                                                                                                                                                |
 | Etiquetas    | Árbol de etiquetas (`/admin/etiquetas`, + Importar a la base en `/importar`)                                                                                                                                                                                                              | la taxonomía del sitio ([etiquetas.md](etiquetas.md))                                                                                                                                                                                     |
 | Contenido    | Material (`/admin/contenido/material`), No listadas (`/no-listadas`) · próximamente: Colecciones (`/colecciones`, fase 4), Videos (`/videos`, fase 7)                                                                                                                                     | editores de contenido ([contenido.md](contenido.md))                                                                                                                                                                                      |
-| Estadísticas | Ventas en el tiempo (`/admin/estadisticas`)                                                                                                                                                                                                                                               | gráficos                                                                                                                                                                                                                                  |
+| Estadísticas | Ventas en el tiempo (`/admin/estadisticas/ventas`), Asistencia (`/asistencia`), Visitas al sitio (`/visitas`); `/admin/estadisticas` redirige a Ventas                                                                                                                                    | ventas, series, medios de pago y Fondo; quiénes vinieron y vuelven; visitas anónimas del sitio ([analiticas.md](analiticas.md)). Ver «Estadísticas» abajo                                                                                 |
 | Ajustes      | Plata: Cobros (`/admin/ajustes/cobros`), Fondo (`/fondo`), Propinas (`/propinas`) · Comunicación: Mails y envíos (`/mails`) · Equipo: Admins (`/admins`) · Sistema: Interruptores (`/interruptores`), Automatizaciones (`/automatizaciones`), Actividad (`/actividad`)                    | datos para transferir y comisión de MP, % del Fondo, propinas, remitente y recordatorios, lista de admins, interruptores, lo que corre solo (crons, mails programados, bot; solo para mirar), registro (con CSV y "Recuperar" lo borrado) |
 
 **Ficha de una persona** (`/admin/comunidad/personas/<id>`, con un id corto sacado del mail; nunca
@@ -76,6 +76,30 @@ migración 0045, con `email` vacío). El DNI no viene con la página: cada
 «Mostrar» lo pide aparte y queda en Actividad (`person.dni.reveal`, sin el DNI). Propinas y códigos
 de ingreso no se pueden atar a una persona y no aparecen. Código: `src/lib/server/admin/ficha.js`
 (una sola tanda de consultas), `fichaRoutes.js` y `src/lib/components/admin/personas/Ficha.svelte`.
+
+**Estadísticas** (tres pestañas, decisión de gorrite del 11/10). Cada pestaña lee **solo su
+fuente** y tiene su período en la URL (`?periodo=`), así un link se puede compartir:
+
+- **Ventas en el tiempo** (`/admin/estadisticas/ventas`, id `estadisticas`: el atajo `g s` y el
+  buscador siguen yendo acá): entradas, cobrado y entrada promedio (con el cambio contra el período
+  anterior), ventas en el tiempo, por serie, cómo pagan, opciones del fondo y Fondo y finanzas.
+  Períodos 30 días / 90 días / **12 meses** (por defecto) / Todo, y filtro de serie (`?serie=`,
+  el slug sin la fecha, como «Por serie»). Lee las órdenes filtradas por fecha de compra en SQL
+  (desde el comienzo del período anterior, para comparar).
+- **Asistencia** (`/asistencia`): vinieron (check-in), personas que entraron, primera vez y
+  vuelven (con el período anterior), vendidas y entraron, primera vez y vuelven, vuelven a la misma
+  serie, vuelven por serie y asistencia por evento. Mismos períodos, por defecto 12 meses; cuentan
+  los eventos que ya pasaron y **empezaron** en el período. Lee todas las órdenes: «primera vez» y
+  «ya habían venido» necesitan la historia completa.
+- **Visitas al sitio** (`/visitas`): las visitas anónimas ([analiticas.md](analiticas.md)), 7 /
+  **30** (por defecto) / 90 días. Analytics Engine guarda el detalle unos 3 meses: más atrás solo
+  quedan los totales por mes de `analytics_monthly`, y la página lo dice. Nunca lee las órdenes.
+
+Ventas y Asistencia nunca llaman a Analytics Engine. `/admin/estadisticas` redirige a Ventas (la
+única redirección del panel, ver «Mover una URL»). Código: `src/lib/admin/statsPeriod.js`
+(períodos), `src/lib/server/admin/statsPages.js` (lo que muestra cada pestaña, sobre
+`computeStats` y `charts.js`), `src/lib/components/admin/stats/` (`PeriodFilter`, `Visits`) y
+`src/lib/server/analytics/report.js` (`loadVisits` con `days`).
 
 **Agenda** (`/admin/eventos/agenda`, cambiada en #171). Usa todo el ancho de la pantalla; en la
 compu el mes llena el alto y los días crecen con sus eventos. Tiene dos vistas, Calendario y
@@ -102,7 +126,9 @@ Planilla:
 
 **Mover una URL** (regla de gorrite para el paso 2 del mapa): **sin redirecciones** desde la vieja
 (un favorito puede dar "no encontrado", y está bien), pero **nada interno** puede apuntar a ella.
-Dos pruebas lo cuidan:
+**Única excepción**, aprobada por gorrite el 11/10: `/admin/estadisticas` redirige (307) a
+`/admin/estadisticas/ventas` (con el mismo `?periodo=`), porque era una página muy usada y se partió
+en tres pestañas (`src/routes/(authed)/admin/estadisticas/+server.js`). Dos pruebas lo cuidan:
 
 - `src/lib/admin/adminPaths.test.js` junta cada `'/admin/…'` escrito en `src/` y verifica que
   exista esa ruta (estática o dinámica); además, que ningún archivo de `src/`, `docs/`, `tests/` ni

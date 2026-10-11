@@ -8,9 +8,12 @@
  * Forma de cada ítem ({@link NavItem}):
  * - `id`: identificador estable (no cambiarlo: lo usan los atajos y el buscador).
  * - `href`: la URL de la sección, siempre /admin/<área>/<sección> (paso 2 del mapa). Las
- *   excepciones: Inicio, Eventos, Check-in (su URL está guardada en los celus de la puerta),
- *   Etiquetas y Estadísticas, que son su propia área. Sin redirecciones desde las URLs viejas:
- *   si una cambia, `adminPaths.test.js` marca cada link interno que quedó apuntando a la vieja.
+ *   excepciones: Inicio, Eventos, Check-in (su URL está guardada en los celus de la puerta) y
+ *   Etiquetas, que es su propia área. Sin redirecciones desde las URLs viejas: si una cambia,
+ *   `adminPaths.test.js` marca cada link interno que quedó apuntando a la vieja.
+ *   **Única excepción** (aprobada por gorrite, 11/10): `/admin/estadisticas` era una página y
+ *   ahora redirige (307) a Ventas (`/admin/estadisticas/ventas`), así los favoritos viejos siguen
+ *   andando (`src/routes/(authed)/admin/estadisticas/+server.js`). No es un ítem del menú.
  * - `icon`: componente de Lucide (el ícono que se muestra, ver `ICON_MODE`).
  * - `emoji`: el mismo ícono como emoji (se usa si `ICON_MODE` es 'emoji').
  * - `label`: nombre en el menú.
@@ -73,6 +76,7 @@ import {
 	CalendarRange,
 	ChartLine,
 	Database,
+	Eye,
 	EyeOff,
 	FileSpreadsheet,
 	FileText,
@@ -101,6 +105,7 @@ import {
 	ToggleRight,
 	Users,
 	Video,
+	UserCheck,
 	Workflow
 } from '@lucide/svelte';
 
@@ -501,13 +506,32 @@ export const NAV = Object.freeze([
 			'aparte de las entradas.'
 	},
 
-	// Estadísticas
+	// Estadísticas: tres pestañas (gorrite, 11/10), cada una con su período en la URL. El id
+	// `estadisticas` queda en Ventas (lo usan el atajo `g s` y el buscador).
 	{
 		id: 'estadisticas',
-		href: '/admin/estadisticas',
+		href: '/admin/estadisticas/ventas',
 		icon: ChartLine,
 		emoji: '📈',
 		label: 'Ventas en el tiempo',
+		area: 'estadisticas',
+		soon: false
+	},
+	{
+		id: 'estadisticas-asistencia',
+		href: '/admin/estadisticas/asistencia',
+		icon: UserCheck,
+		emoji: '🙋',
+		label: 'Asistencia',
+		area: 'estadisticas',
+		soon: false
+	},
+	{
+		id: 'estadisticas-visitas',
+		href: '/admin/estadisticas/visitas',
+		icon: Eye,
+		emoji: '👀',
+		label: 'Visitas al sitio',
 		area: 'estadisticas',
 		soon: false
 	},
