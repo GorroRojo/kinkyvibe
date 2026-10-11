@@ -267,6 +267,14 @@ test.describe('errores', () => {
 		const res = await request.get('/estilo');
 		expect(res.status()).toBe(404);
 	});
+
+	// Los borradores legales, lo mismo hasta que se publiquen (docs/legales.md).
+	for (const path of ['/legales', '/legales/privacidad', '/legales/entradas']) {
+		test(`${path} (borrador legal) devuelve 404 fuera de un preview`, async ({ request }) => {
+			const res = await request.get(path);
+			expect(res.status()).toBe(404);
+		});
+	}
 });
 
 test.describe('auth', () => {
