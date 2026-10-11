@@ -181,7 +181,10 @@ describe('ingresar con código', () => {
 		expect(r).toEqual({ ok: true, email: EMAIL, expiresAt: NOW + CODE_TTL_MS });
 		expect(sent).toHaveLength(1);
 		expect(sent[0].to).toBe(EMAIL);
-		expect(sent[0].subject).not.toMatch(/\d{6}/);
+		// El código va al principio del asunto (pedido de gorrite, 11/10/2026, para que Gmail lo
+		// detecte) y es el mismo que el del cuerpo.
+		expect(sent[0].code).toMatch(/^\d{6}$/);
+		expect(sent[0].subject).toBe(`${sent[0].code} es tu código para entrar a Kinky Vibe`);
 		expect(await getAccountByEmail(t.db, EMAIL)).toBeNull(); // todavía no hay cuenta
 
 		const v = await verifyCode({
@@ -509,7 +512,8 @@ describe('códigos para confirmar (acciones delicadas de Mi rincón)', () => {
 			now: NOW
 		});
 		expect(r.ok).toBe(true);
-		expect(sent[0].subject).toBe('Tu código para confirmar en Kinky Vibe');
+		expect(sent[0].code).toMatch(/^\d{6}$/);
+		expect(sent[0].subject).toBe(`${sent[0].code} es tu código para confirmar en Kinky Vibe`);
 		const pwCode = sent[0].code;
 		// No sirve para ingresar ni para borrar.
 		expect(
