@@ -145,6 +145,34 @@ npm run db:migrate:local   # aplica 0012 en tu compu
 npx wrangler d1 execute kinkyvibe --local --command "SELECT id, type, slug, version FROM objects"
 ```
 
+### Lo privado no sale en público
+
+`src/routes/privados.test.js` planta, por los caminos del panel (el editor de eventos y material,
+el de perfiles, Mi rincón, la biblioteca y `saveObject()`), objetos de cada tipo en cada nivel que
+une visitante sin cuenta no puede ver, y revisa que no aparezca nada de ellos (dirección, título,
+textos) en ninguna salida pública. Cada salida tiene un control: algo público del mismo tipo que sí
+tiene que aparecer, para que la prueba no pase por no mostrar nada.
+
+| Tipo                                | Niveles                                                                                 |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| `evento`, `material`                | oculto, solo con cuenta, borrado, no listado (este se abre con su dirección)            |
+| `perfil` (persona, proyecto, lugar) | oculto, solo con cuenta, borrado, sin aprobar (de una cuenta), no listado               |
+| `etiqueta` (y serie)                | oculta, con texto de la wiki y descripción                                              |
+| `imagen`, `archivo`                 | borrados; la portada de un evento oculto (la imagen se sirve, su dirección no se lista) |
+| lugar con dirección                 | cada nivel de `venue_privacy` (del lugar y propio del evento)                           |
+
+Salidas: inicio, `/calendario`, `/material`, `/amigues`, `/todo`, `/wiki`, `/wiki/<etiqueta>`, el
+layout (glosario y árbol de etiquetas de cada página), `sitemap.xml`, `/rss`, `/calendario.ics`,
+`/ics/etiqueta/<etiqueta>.ics`, `/api/posts`, `/api/search-index.json`, `/api/series/<etiqueta>`;
+y las direcciones directas `/calendario/<evento>` (y `/compartir`, las imágenes para compartir, y
+`/entradas`), `/material/<post>`, `/amigues/<perfil>`, `/wiki/<etiqueta>` y `/media/<clave>`, que
+dan 404 a lo que no se puede ver. **Una salida pública nueva se suma con una línea** en
+`LIST_OUTPUTS` (si lista cosas) o en `DIRECT_OUTPUTS` (si es la dirección de un objeto).
+
+La última parte (lo público que apunta a lo privado: personas, etiquetas y lugar) tiene una prueba
+marcada `it.fails` («vínculos: direcciones»), pendiente de una decisión; cuando se resuelva, falla
+y pasa a ser una prueba común.
+
 La migración **no se aplica a mano** en preview ni en producción desde un PR: eso lo hace gorrite
 cuando corresponde ([datos.md](datos.md)).
 
@@ -339,8 +367,6 @@ con `getObject`, `searchObjects`, `getEdges` o `visibleWhere(viewer, alias)` en 
 - Redirecciones 301 al cambiar un slug (P6.4).
 - Purga definitiva de lo borrado.
 - Campos extra y tipos simples desde el panel (`object_types.origin = 'panel'`).
-- Una prueba E2E que plante objetos privados de cada tipo y verifique que no aparecen en
-  listados, búsqueda, sitemap, RSS, imágenes para compartir ni JSON.
 - Migrar los eventos desde los `.md` (P6.2: eventos primero).
 - Borrar la tabla `event_venues` cuando todos los eventos estén en la base (hoy la lee solo la
   importación de un evento nuevo, `legacyVenueEdge`).
