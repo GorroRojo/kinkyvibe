@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -8,19 +8,21 @@ export const TRANSFER_INFO = 'Alias: EJEMPLO.ALIAS.PRUEBA\\nTitular: Nombre de e
 /** Comisión de Mercado Pago que se simula en las pruebas (TICKETS_MP_FEE_PERCENT). */
 export const MP_FEE_PERCENT = '2';
 
-const EVENTS_DIR = 'src/lib/posts/calendario';
+/** La semilla de eventos de la base local (src/lib/server/semilla, scripts/semilla.js). */
+const SEED_EVENTS = 'src/lib/server/semilla/calendario.json';
 
 /**
- * Eventos publicados reales del repo que sirven para la prueba E2E (el contenido cambia, así que
- * los buscamos). Las entradas se las agregan TICKETS_DEV_FIXTURE / TICKETS_DEV_FIXTURE_GORRA
- * solo en `vite dev`, sin tocar sus archivos.
+ * Eventos publicados reales de la semilla que sirven para la prueba E2E (la semilla puede cambiar,
+ * así que los buscamos). Las entradas se las agregan TICKETS_DEV_FIXTURE /
+ * TICKETS_DEV_FIXTURE_GORRA solo en `vite dev`, sin tocar la base.
  */
 function candidates() {
-	return readdirSync(EVENTS_DIR)
-		.filter((f) => f.endsWith('.md') && !f.startsWith('_'))
-		.sort()
-		.filter((f) => {
-			const text = readFileSync(`${EVENTS_DIR}/${f}`, 'utf8');
+	/** @type {{ legacySlug: string, raw: string }[]} */
+	const events = JSON.parse(readFileSync(SEED_EVENTS, 'utf8'));
+	return events
+		.filter(({ legacySlug }) => !legacySlug.startsWith('_'))
+		.sort((a, b) => a.legacySlug.localeCompare(b.legacySlug))
+		.filter(({ raw: text }) => {
 			return (
 				!/^force_unpublished:\s*true/m.test(text) &&
 				!/^redirect:/m.test(text) &&
@@ -28,7 +30,7 @@ function candidates() {
 				/^start:/m.test(text)
 			);
 		})
-		.map((f) => f.replace(/\.md$/, ''));
+		.map(({ legacySlug }) => legacySlug);
 }
 
 /** Evento presencial con fondo (General y Anticipada) para la prueba E2E. */
