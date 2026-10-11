@@ -218,36 +218,36 @@ export function emailCases() {
 			}
 		],
 		[
-			'transfer-con-confirmar',
+			'transfer',
 			'buildTransferEmail',
 			{
+				// Jueves 1/10 → vence el sábado 3/10 a las 20:00 (decisión 0031).
 				order: fixtureOrder({
 					payment_method: 'transferencia',
 					surcharge_amount: 0,
 					total: 15000,
-					expires_at: NOW + 2 * 3600000
+					expires_at: Date.parse('2026-10-03T20:00:00-03:00')
 				}),
 				event: EVENT,
 				typeName: 'General',
 				transferInfo: 'Alias: EJEMPLO.PRUEBA\nTitular: <Nombre>',
 				replyTo: 'entradas@example.com',
 				contactEmail: CONTACT,
-				origin: ORIGIN,
-				confirmUrl: 'https://kinkyvibe.example/entradas/x/confirmar?k=abc&z=1',
-				fullHoldHours: 48
+				origin: ORIGIN
 			}
 		],
 		[
-			'transfer-sin-confirmar',
+			'transfer-hasta-el-evento',
 			'buildTransferEmail',
 			{
+				// El evento empieza antes del vencimiento por días hábiles: la reserva dura hasta ahí.
 				order: fixtureOrder({
 					payment_method: 'transferencia',
 					surcharge_amount: 0,
 					total: 15000,
-					expires_at: NOW + 3600000
+					expires_at: Date.parse('2026-10-02T21:00:00-03:00')
 				}),
-				event: EVENT,
+				event: { ...EVENT, start: '2026-10-02T21:00:00-03:00' },
 				typeName: 'General',
 				transferInfo: 'Alias: EJEMPLO.PRUEBA',
 				contactEmail: CONTACT,

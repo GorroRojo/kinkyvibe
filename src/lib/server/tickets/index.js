@@ -3,7 +3,7 @@
  *
  * Variables (ver docs/tickets.md): MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET, RESEND_API_KEY,
  * TICKETS_FROM_EMAIL, TICKETS_REPLY_TO, TICKETS_CONTACT_EMAIL, SITE_URL, TICKETS_TRANSFER_INFO,
- * TICKETS_TRANSFER_HOLD_HOURS, TICKETS_MP_FEE_PERCENT, EMAIL_ALLOWLIST (obligatoria para mandar
+ * TICKETS_MP_FEE_PERCENT, EMAIL_ALLOWLIST (obligatoria para mandar
  * mails desde un preview; ver emailGuard.js). Solo en dev: MP_MOCK, TICKETS_DEV_FIXTURE.
  */
 import { dev } from '$app/environment';
@@ -31,7 +31,7 @@ import { isPreviewDeploy } from '../deploy.js';
 import { sha256Hex } from '../hash.js';
 import { trackFunnel } from '../analytics/track.js';
 import { createPreference, findPaymentByOrder, getPayment, refundPayment } from './mercadopago.js';
-import { TRANSFER_HOLD_MS, applyPayment, getOrderTickets, markEmailSent } from './orders.js';
+import { applyPayment, getOrderTickets, markEmailSent } from './orders.js';
 import {
 	DEFAULT_FROM_EMAIL,
 	DEFAULT_REPLY_TO,
@@ -40,7 +40,6 @@ import {
 } from './settings.js';
 import { parseReminders, reminderKey, sendDueReminders } from './reminders.js';
 import { resolveTemplate } from './templates.js';
-import { confirmUrl } from './safeguards.js';
 import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
 import { buyerLocation } from '../amigues/venues.js';
 import {
@@ -144,13 +143,6 @@ export async function transferReady(db) {
  */
 export function transferReadyFromSettings(settings) {
 	return Boolean((settings && transferInfoFromSettings(settings)) || envTransferInfo());
-}
-
-/** Cuánto se reserva el cupo esperando una transferencia (TICKETS_TRANSFER_HOLD_HOURS, 1–240 h). */
-export function transferHoldMs() {
-	const hours = Number(env.TICKETS_TRANSFER_HOLD_HOURS);
-	if (!Number.isFinite(hours) || hours < 1 || hours > 240) return TRANSFER_HOLD_MS;
-	return Math.round(hours * 60 * 60 * 1000);
 }
 
 /** Contacto público de la organización (política de devoluciones, cambios de titular…). */
@@ -306,6 +298,8 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 /**
  * Manda un mail con Resend. Sin RESEND_API_KEY: en dev lo resume en la consola (`simulated`),
  * en producción loguea un error (`failed`). En un preview, solo a EMAIL_ALLOWLIST (emailGuard.js).
+ * `from`: remitente fijo de un mail que no es del sitio de entradas (el del Fondo); sin él, el de
+ * los ajustes, como siempre.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database | null | undefined,
@@ -314,11 +308,20 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  *   message: { subject: string, html: string, text: string,
  *     attachments?: import('./email.js').MailAttachment[] },
  *   idempotencyKey?: string,
- *   log?: string
+ *   log?: string,
+ *   from?: string
  * }} input
  * @returns {Promise<'sent' | 'simulated' | 'failed'>}
  */
-async function deliver({ db, fetch: fetchFn, to, message: built, idempotencyKey, log = '' }) {
+async function deliver({
+	db,
+	fetch: fetchFn,
+	to,
+	message: built,
+	idempotencyKey,
+	log = '',
+	from: fixedFrom
+}) {
 	// Todo mail pasa por acá: el pie de Ajustes → Mails se pone una sola vez, para todos.
 	const settings = await emailSettings(db);
 	const message = { ...built, html: withMailFooter(built.html, settings.footer) };
@@ -343,7 +346,8 @@ async function deliver({ db, fetch: fetchFn, to, message: built, idempotencyKey,
 		console.warn(`[tickets] preview sin EMAIL_ALLOWLIST: no se mandó "${message.subject}"`);
 		return 'simulated';
 	}
-	const { from, replyTo } = settings;
+	const { replyTo } = settings;
+	const from = fixedFrom || settings.from;
 	await sendWithResend({
 		fetch: fetchFn,
 		apiKey,
@@ -686,8 +690,6 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			replyTo: await replyToAddress(db),
 			contactEmail: contactEmail(),
 			origin,
-			confirmUrl: await confirmUrl(db, origin, order.id),
-			fullHoldHours: Math.round(transferHoldMs() / 3600000),
 			template: await resolveTemplate(db, order.event_slug, 'transfer')
 		});
 		const result = await deliver({

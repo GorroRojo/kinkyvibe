@@ -458,19 +458,21 @@ describe('condiciones de compra', () => {
 	it('una sola lista, con la política de devoluciones incluida', () => {
 		const list = purchaseConditions({
 			contactEmail: 'contacto@example.com',
-			transferHoldHours: 48,
+			transferUntil: Date.parse('2026-10-14T20:00-03:00'),
 			methods: ['mercadopago', 'transferencia']
 		});
 		expect(list.join(' ')).toContain('18 años');
 		expect(list.join(' ')).toContain('20 minutos');
-		expect(list.join(' ')).toContain('48 horas');
+		expect(list.join(' ')).toContain(
+			'Con transferencia te guardamos el lugar hasta las 20:00 (hora de Argentina) del segundo día hábil después de la compra, sin contar el día en que se compra (los días hábiles son de martes a sábado), o hasta que empiece el evento si es antes. Si comprás ahora, hasta el miércoles 14 de octubre a las 20:00. Transferí y mandanos el comprobante antes de esa hora.'
+		);
+		expect(list.join(' ')).not.toMatch(/\d+ horas|confirmando la reserva/);
 		expect(list.join(' ')).toContain('5 días hábiles antes del evento');
 		expect(list.join(' ')).toContain('taller grabado');
 		expect(list.at(-1)).toContain('contacto@example.com');
 		expect(list.at(-1)).toMatch(/nombre, sus pronombres y su email/);
 		const online = purchaseConditions({
 			contactEmail: 'c@example.com',
-			transferHoldHours: 48,
 			methods: ['mercadopago'],
 			online: true
 		});

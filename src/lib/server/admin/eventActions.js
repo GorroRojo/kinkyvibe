@@ -11,8 +11,7 @@ import {
 	sendDateChangeEmails,
 	sendRefundEmail,
 	sendStreamLinkEmails,
-	siteOrigin,
-	transferHoldMs
+	siteOrigin
 } from '$lib/server/tickets/index.js';
 import { reopenTransferFromPanel } from '$lib/server/admin/transfers.js';
 import { orderIdsByDni, revealOrderDni } from '$lib/server/admin/eventOrders.js';
@@ -504,7 +503,6 @@ export const eventTicketActions = {
 			by: admin.login,
 			orderId,
 			eventSlug: params.slug,
-			holdMs: transferHoldMs(),
 			override: readOverride(form)
 		});
 		const body = {

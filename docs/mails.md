@@ -52,6 +52,7 @@ un evento, y mandarse una prueba.
 | Cambió la fecha           | «Avisar a les compradores» después de cambiar la fecha de un evento     | `date_change` | `buildDateChangeEmail`, `dateChange.js` |
 | Mail a compradores        | une admin lo escribe en la ficha del evento → Mail                      | —             | `buyerMail.js`                          |
 | Código para ingresar      | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
+| Tu link (Fondo KinkyVibe) | lo pide fondo.kinkyvibe.ar («¿Ya sos Mecenas?», ver abajo)              | —             | `src/lib/server/fondo/email.js`         |
 
 Todo en `src/lib/server/tickets/` salvo que se indique. Las plantillas: definición y variables en
 `src/lib/utils/emailTemplates.js`, lo guardado en D1 en `templates.js`, el editor
@@ -146,6 +147,42 @@ transmisión: …», sin «personal, no lo compartas».
 minutos `POST /api/cron/recordatorios`, con el header `x-cron-secret`, al sitio. El sitio decide qué mandar. Por
 defecto: 2 días antes y el mismo día a las 9:00; un evento los apaga con `recordatorios: false`.
 
+### Mail del Fondo (tu link)
+
+fondo.kinkyvibe.ar («¿Ya sos Mecenas?», `/mi-link`) no tiene clave de Resend: le pide a este sitio
+que mande el mail con el link de cada suscripción de une mecenas para elegir cómo aparece en el
+Fondo (issue #265). Es un pedido de servidor a servidor, no un relay genérico: quien llama elige
+solo la dirección y los links; el asunto, los textos y el remitente están fijos en el código.
+
+- **Endpoint:** `POST /api/fondo/mi-link` (`src/routes/api/fondo/mi-link/+server.js`; la lógica en
+  `src/lib/server/fondo/miLink.js`, el mail en `src/lib/server/fondo/email.js`).
+- **Secreto:** header `x-fondo-secret` = `FONDO_MAIL_SECRET`, comparado en tiempo constante (sobre
+  los SHA-256). Es un Secret del Worker `kinkyvibe` con el mismo valor que en el Worker del Fondo;
+  se genera con un comando, nunca se escribe a mano ni va a `wrangler.toml`. Sin él (o con menos de
+  16 caracteres) el endpoint contesta 401 siempre. El secreto se revisa antes de leer el body.
+- **Body:** JSON (`content-type: application/json`), 4 KB como mucho, exactamente
+  `{ "to": "<mail>", "links": [{ "tier": "Casual", "url": "https://fondo.kinkyvibe.ar/gracias?preapproval_id=<hex>" }] }`:
+  - `to`: un mail válido (`normalizeEmail` de cuentas: hasta 254 caracteres, se pasa a minúsculas);
+  - `links`: de 1 a 5;
+  - `tier`: Visitante, Casual, Regular, Sugar, Estrella, Leyenda o Super, tal cual;
+  - `url`: exactamente `https://fondo.kinkyvibe.ar/gracias?preapproval_id=` + hexadecimal (sin
+    otros parámetros), 200 caracteres como mucho;
+  - cualquier otra clave, arriba o en un link, es un 400.
+- **El mail:** remitente `Fondo KinkyVibe <fondo@kinkyvibe.ar>` (no el de entradas de Ajustes;
+  `deliver()` acepta un `from` fijo solo para esto; la dirección de respuesta y el pie siguen siendo
+  los de Ajustes), asunto «Tu link para elegir cómo aparecés en el Fondo KinkyVibe», un botón
+  «Mecenas <nivel>: elegir cómo aparezco» por link y el aviso «No compartas este mail…». Es el único
+  mail con más de un botón (uno por suscripción). Sale por `deliver()`, así que en un preview solo
+  llega a `EMAIL_ALLOWLIST`.
+- **Respuestas** (sin detalles, a lo sumo un código corto): `204` si salió (o se simuló o desvió en
+  un preview), `400` si el pedido no es válido, `401` sin el secreto correcto, `429` (con
+  `Retry-After`) si se pasó el tope, `502` si Resend o `deliver()` fallaron y `503` si no hay base
+  para contar el tope.
+- **Tope:** 30 mails por hora para todo el sitio (`rate_limits` de D1, clave `fondo:mi-link:global`),
+  contados solo después de validar. Es grueso a propósito: el límite por mail y por IP lo hace el
+  Fondo de su lado.
+- **Logs:** nunca la dirección ni los links; solo el resultado y cuántos links.
+
 **Mail a compradores:** se manda en tandas (un Worker tiene un límite de pedidos a otros servicios
 por pedido); la página pide tandas y muestra el progreso.
 
@@ -188,6 +225,7 @@ migración `0048_avisar_cambio_fecha.sql`):
 | Clave de Resend                    | `RESEND_API_KEY`, Secret en Cloudflare. Sin ella no sale ningún mail                            |
 | Dominio                            | `kinkyvibe.ar` verificado en Resend (SPF/DKIM en Cloudflare DNS)                                |
 | Secreto del cron                   | `CRON_SECRET`, Secret del Worker `kinkyvibe` (lo usan el cron y `/api/cron/*`)                  |
+| Secreto del mail del Fondo         | `FONDO_MAIL_SECRET`, Secret del Worker `kinkyvibe` (el mismo valor en el del Fondo)             |
 | Previews                           | `EMAIL_ALLOWLIST` en el entorno Preview de Cloudflare                                           |
 
 Las respuestas a `entradas@kinkyvibe.ar` llegan al Gmail de la organización (Cloudflare Email

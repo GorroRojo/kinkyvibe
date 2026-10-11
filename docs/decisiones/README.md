@@ -96,6 +96,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0014](0014-reserva-vencida.md): Una reserva vencida devuelve el lugar a su tramo (1/10)
 - [0015](0015-encadenado-al-comprar.md): Los tipos encadenados se deciden al comprar (1/10)
 - [0016](0016-pago-tardio.md): Un pago tardío se acepta al precio de la orden (1/10)
+- [0031](0031-reserva-transferencia-dias-habiles.md): La reserva por transferencia dura 2 días
+  hábiles (11/10)
 
 ### Propinas
 

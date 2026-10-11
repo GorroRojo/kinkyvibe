@@ -4,9 +4,11 @@
 	 * `$lib/admin/nav.js` (`navState`): lista, "prueba" (interruptor apagado) o próximamente (gris
 	 * y punteada, con «Próximamente»; no es un link: todavía no hay nada que abrir).
 	 * Props: `item` (NavItem), `state`, `active` (página actual), `count` (contador amarillo),
-	 * `variant` ('side' | 'tile').
+	 * `variant` ('side' | 'tile'). En la barra lateral muestra la pista del atajo `g x`
+	 * (`NavShortcut`, solo en la compu); en las tarjetas del panel "Más", nunca.
 	 */
 	import NavIcon from './NavIcon.svelte';
+	import NavShortcut from './NavShortcut.svelte';
 
 	/** @type {import('$lib/admin/nav.js').NavItem} */
 	export let item;
@@ -37,7 +39,8 @@
 		>{#if state === 'prueba'}<span
 				class="tag prueba"
 				title="Su interruptor está apagado: solo lo ven les superadmins">prueba</span
-			>{/if}{#if count}<span class="count" title="Pendientes">{count}</span>{/if}</a
+			>{/if}{#if count}<span class="count" title="Pendientes">{count}</span
+			>{/if}{#if variant === 'side'}<NavShortcut id={item.id} />{/if}</a
 	>
 {/if}
 

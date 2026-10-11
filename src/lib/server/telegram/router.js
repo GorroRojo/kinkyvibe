@@ -30,14 +30,17 @@ import {
 	formatEvent,
 	formatEventList,
 	formatHelp,
-	formatPickList
+	formatPickList,
+	formatWindowList
 } from './format.js';
+import { eventsInWindow } from './windows.js';
 import {
 	eventDetailKeyboard,
 	eventListKeyboard,
 	findByToken,
 	parseCallbackData
 } from './keyboards.js';
+import { ACCOUNT_COMMAND_NAMES, HANDLED_COMMANDS } from './commands.js';
 
 /** @typedef {import('./format.js').BotEvent} BotEvent */
 
@@ -61,12 +64,10 @@ import {
  * @typedef {{
  *   listUpcoming: () => Promise<BotEvent[]>,
  *   origin: string,
- *   accounts?: () => Promise<BotAccounts | null>
+ *   accounts?: () => Promise<BotAccounts | null>,
+ *   now?: () => number
  * }} Deps
  */
-
-/** Los comandos de la cuenta (fase 2). */
-const ACCOUNT_COMMANDS = new Set(['vincular', 'desvincular', 'silenciar', 'reanudar']);
 
 /** Lo que trae "/start" cuando viene del link con el código (8 letras y números). */
 const START_CODE = /^[A-Za-z0-9]{8}$/;
@@ -293,6 +294,8 @@ export async function handleUpdate(update, deps) {
 	if (typeof chatId !== 'number' && typeof chatId !== 'string') return null;
 	const command = parseCommand(message?.text);
 	if (!command) return null;
+	// La lista de comandos vive en commands.js (también la que se registra en Telegram).
+	if (!HANDLED_COMMANDS.has(command.name)) return reply(chatId, UNKNOWN_TEXT);
 	const { origin } = deps;
 
 	try {
@@ -313,6 +316,13 @@ export async function handleUpdate(update, deps) {
 				const events = await deps.listUpcoming();
 				return reply(chatId, formatEventList(events, origin), keyboardFor(events));
 			}
+			case 'hoy':
+			case 'semana':
+			case 'finde': {
+				const now = deps.now ? deps.now() : Date.now();
+				const found = eventsInWindow(await deps.listUpcoming(), command.name, now);
+				return reply(chatId, formatWindowList(command.name, found, origin), keyboardFor(found));
+			}
 			case 'evento': {
 				const events = await deps.listUpcoming();
 				if (!command.args)
@@ -329,7 +339,7 @@ export async function handleUpdate(update, deps) {
 				return reply(chatId, formatChoices(found, origin), eventListKeyboard(found));
 			}
 			default:
-				if (ACCOUNT_COMMANDS.has(command.name)) {
+				if (ACCOUNT_COMMAND_NAMES.has(command.name)) {
 					return reply(chatId, await accountCommand(command, message.chat, deps));
 				}
 				return reply(chatId, UNKNOWN_TEXT);
