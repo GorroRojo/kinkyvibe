@@ -245,8 +245,9 @@
 		text-align: center;
 		white-space: normal;
 	}
+	/* 24rem: con «Predeterminado» las tres no entraban en 22rem (gorrite, 11/10). */
 	.hint.adjusting {
-		width: min(22rem, calc(100vw - 32px));
+		width: min(24rem, calc(100vw - 32px));
 		max-width: none;
 	}
 	/* Puente invisible entre el tiempo y la caja: el mouse puede bajar sin que se cierre. */
@@ -283,10 +284,22 @@
 		justify-content: center;
 		flex-wrap: nowrap;
 	}
-	/* Las tres en una fila, también a 390px. */
+	/* Las tres en una fila, también en el celu. */
 	.speeds .kv-segmented > button {
-		padding-inline: 0.6em;
+		padding-inline: 0.5em;
 		white-space: nowrap;
+	}
+	/* Celus angostos: letra un poco más chica para que sigan en una fila (probado a 360 y 320). */
+	@media (max-width: 375px) {
+		.speeds .kv-segmented > button {
+			font-size: 0.88em;
+		}
+	}
+	@media (max-width: 340px) {
+		.speeds .kv-segmented > button {
+			padding-inline: 0.4em;
+			font-size: 0.8em;
+		}
 	}
 	.other {
 		display: flex;
