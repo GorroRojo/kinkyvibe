@@ -9,6 +9,8 @@ export async function load({ data }) {
 		venue: data.venue ?? null,
 		account: data.account,
 		// Lista de espera: los alcances agotados donde se puede anotar, o null.
-		waitlist: data.waitlist ?? null
+		waitlist: data.waitlist ?? null,
+		// Link de una oferta de la lista de espera (`?lista=`): si vale y hasta cuándo, o null.
+		offer: data.offer ?? null
 	};
 }

@@ -286,8 +286,7 @@ nada (las páginas de confirmar y volver y `?/waitlist` dan 404).
   cuenta como vendido: por evento, quienes esperan (y los lugares guardados vigentes) se restan del
   lugar libre total del evento; un tipo sin cupo abierto hace que el evento nunca se agote. La
   página muestra un formulario mínimo («Lista de espera», `WaitlistSignup.svelte`) debajo de la
-  compra cuando hay dónde anotarse; la versión completa (en cada tipo agotado, y que la compra
-  pública reste la fila) es de la parte 3.
+  compra cuando hay dónde anotarse.
 - **Links de los mails** (GET muestra el botón, POST hace el cambio, con `MailLinkCard`):
   `/lista-de-espera/confirmar/<token>` (entra a la fila; vencido o usado, no),
   `/lista-de-espera/salir/<id>.<firma>` (sale: `cancelled` por `left`, o se borra si no había
@@ -304,11 +303,43 @@ nada (las páginas de confirmar y volver y `?/waitlist` dan 404).
   `entry_id` + `kind` + `round`), y `sendWaitlistEntryMail` manda cada mail del cron una sola vez
   por anotación, mail y ronda.
 
-**Lo que falta**, en este orden: que la fila guarde lugares en la compra, la compra con el link de
-la oferta y el formulario completo en la página (parte 3); el motor que ofrece los lugares desde el
-cron y cuando se libera uno, y que dispare los mails de oferta, último aviso, vencida y cierre
-(parte 4; al salir alguien con un lugar guardado también tiene que pasar a la siguiente persona); el
-panel (editor, Ajustes, pestaña del evento y aviso en la puerta, parte 5).
+**Ya está (parte 3, la fila en la compra y la compra con el link de la oferta).** Con el interruptor
+apagado (o el evento sin lista) la sentencia de la compra es la de siempre y `lista` no hace nada.
+
+- **La fila guarda lugares en la compra online** (`src/lib/server/tickets/waitlistPurchase.js`):
+  cada persona que espera y cada una con un lugar guardado vigente guarda un lugar; el público
+  compra lo que sobra. Por evento, contra el lugar libre total (los tipos a la venta; con uno sin
+  límite, el evento no se agota y la fila no guarda nada); por tipo, contra el de ese tipo. Es la
+  misma cuenta que `waitlistJoinStates`: «se puede comprar» y «se puede anotar» nunca dicen las dos
+  cosas a la vez.
+- **En la misma sentencia que crea la orden** (`reserveOrder` con `waitlist`, armado por
+  `waitlistGuard`): por cada tipo del alcance va hasta cuánto puede llegar lo tomado y la sentencia
+  vuelve a contar lo tomado y la fila en el momento, así dos compras a la vez no se pasan. Si no
+  entra por la fila, `reason: 'waitlist'` («Por ahora los lugares que se liberan son para la lista
+  de espera. Anotate y te avisamos.», o «Solo quedan N entradas a la venta…» si sobra algo).
+- **Una reserva vencida deja de guardar en el acto** (`hold_until <= now`), sin esperar al cron,
+  como `expires_at` en las órdenes. El aviso a toda la lista (`hold_until` NULL) no guarda nada:
+  compite con el público.
+- **Comprar con el link de la oferta** (`/calendario/<slug>/entradas?lista=<token>`): la página
+  muestra arriba hasta cuándo le guardamos el lugar (`WaitlistOffer.svelte`) y lo que puede comprar
+  esa persona: todo lo libre menos los lugares guardados vigentes de otras personas. El token va en
+  un campo oculto `lista`; `buyAction` lo vuelve a mirar (`findOffer`), y `reserveOrder` controla
+  que la oferta siga vigente y en la misma tanda pasa la anotación a `purchased` con la orden (un
+  link no se usa dos veces). El mail de quien compra puede ser otro (puede comprar para alguien
+  más). Un link vencido, usado o inventado: «El link de la lista de espera ya no vale…» (la página
+  lo dice arriba y la compra sigue como la del resto). En una lista por tipo, el link es para su
+  tipo. Si justo se vendió el lugar en la puerta, se lo dice y la oferta sigue hasta que venza.
+- **La puerta, la carga a mano y la confirmación de transferencias no miran la lista** (venden
+  aunque haya gente esperando, como decidió gorrite; el aviso en la puerta es de la parte 5).
+- La página del evento (botón «Comprar entradas») también resta la fila; las tarjetas de las
+  listas de eventos (`listStates.js`) todavía no.
+
+**Lo que falta**, en este orden: el motor que ofrece los lugares desde el cron y cuando se libera
+uno, y que dispare los mails de oferta, último aviso, vencida y cierre (parte 4; al salir alguien
+con un lugar guardado también tiene que pasar a la siguiente persona, y una compra con oferta que
+no se pagó devuelve la oferta hasta su vencimiento); el panel (editor, Ajustes, pestaña del evento
+y aviso en la puerta), el formulario completo en cada tipo agotado y que las tarjetas de las listas
+de eventos resten la fila (parte 5).
 
 ### Horario de la venta
 
