@@ -79,6 +79,13 @@ export function feedLocation(meta, venue) {
 	return loc || undefined;
 }
 
+/**
+ * El UID de un evento en cualquier .ics del sitio (los calendarios y el adjunto del mail de las
+ * entradas): el mismo siempre, así un calendario actualiza el evento en lugar de duplicarlo.
+ * @param {unknown} slug el `postID` del evento
+ */
+export const eventUid = (slug) => `${slug}@kinkyvibe.ar`;
+
 /** Estado del evento → STATUS del .ics. */
 const STATUS = /** @type {Record<string, import('ics').EventStatus>} */ ({
 	abierto: 'CONFIRMED',
@@ -126,7 +133,7 @@ export function buildIcsFeed(posts, opts = {}) {
 		/** @type {ics.EventAttributes} */
 		const event = {
 			// stable UID so subscribed calendars update events instead of re-creating them
-			uid: post.meta.postID + '@kinkyvibe.ar',
+			uid: eventUid(post.meta.postID),
 			start: stringToDateArray(post.meta.start),
 			end: stringToDateArray(eventEnd(post.meta.start, post.meta.end)),
 			title: post.meta.title,
@@ -148,6 +155,58 @@ export function buildIcsFeed(posts, opts = {}) {
 	const { value, error } = ics.createEvents(events);
 	if (error) console.error('[ics] no se pudo armar el calendario:', error);
 	return value ?? emptyCalendar(calName);
+}
+
+/**
+ * Un solo evento como .ics (para adjuntarlo a un mail; ver tickets/calendarFile.js). A diferencia
+ * de {@link buildIcsFeed}, la dirección y la descripción las decide quien llama: el mail de las
+ * entradas le da a quien compró lo mismo que ya dice el mail. Las horas van en UTC (`Z`), así
+ * que da igual la zona horaria del servidor y la del celu de quien lo abre.
+ *
+ * @param {{ slug: string, title: string, start: string | undefined, end?: string | null,
+ *   location?: string, description?: string, status?: string, origin?: string }} ev
+ * @returns {string | null} `null` si el evento no tiene una fecha válida (o el paquete falla)
+ */
+export function buildEventIcs(ev) {
+	if (!ev.start || isNaN(new Date(ev.start).getTime())) return null;
+	const url = `${ev.origin ?? SITE_ORIGIN}/calendario/${ev.slug}`;
+	const { value, error } = ics.createEvent({
+		productId: 'kinkyvibe.ar',
+		method: 'PUBLISH',
+		uid: eventUid(ev.slug),
+		start: utcDateArray(ev.start),
+		startInputType: 'utc',
+		startOutputType: 'utc',
+		end: utcDateArray(eventEnd(ev.start, ev.end ?? undefined)),
+		endInputType: 'utc',
+		endOutputType: 'utc',
+		title: ev.title,
+		url,
+		description: ev.description ? `${ev.description}\n\n${url}` : url,
+		location: ev.location || undefined,
+		status: STATUS[ev.status ?? ''] ?? 'CONFIRMED'
+	});
+	if (error || !value) {
+		console.error('[ics] no se pudo armar el evento:', error);
+		return null;
+	}
+	return value;
+}
+
+/**
+ * Una fecha como [año, mes, día, hora, minutos] en UTC.
+ * @param {string | Date} s
+ * @returns {import('ics').DateArray}
+ */
+function utcDateArray(s) {
+	const d = new Date(s);
+	return [
+		d.getUTCFullYear(),
+		d.getUTCMonth() + 1,
+		d.getUTCDate(),
+		d.getUTCHours(),
+		d.getUTCMinutes()
+	];
 }
 
 /**

@@ -308,7 +308,8 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  *   db: import('@cloudflare/workers-types').D1Database | null | undefined,
  *   fetch: typeof fetch,
  *   to: string,
- *   message: { subject: string, html: string, text: string },
+ *   message: { subject: string, html: string, text: string,
+ *     attachments?: import('./email.js').MailAttachment[] },
  *   idempotencyKey?: string,
  *   log?: string
  * }} input
@@ -322,7 +323,7 @@ async function deliver({ db, fetch: fetchFn, to, message: built, idempotencyKey,
 	if (!apiKey) {
 		if (dev) {
 			console.log(
-				`[tickets:email simulado] para ${maskEmail(to)} · "${message.subject}"${log ? `\n${log}` : ''}`
+				`[tickets:email simulado] para ${maskEmail(to)} · "${message.subject}"${message.attachments?.length ? ` · adjuntos: ${message.attachments.map((a) => a.filename).join(', ')}` : ''}${log ? `\n${log}` : ''}`
 			);
 			return 'simulated';
 		}
@@ -419,8 +420,12 @@ export async function sendOrderEmail({
 			order,
 			tickets: list,
 			event: {
+				// Con el slug, el mail lleva adjunto el .ics del evento (calendarFile.js).
+				slug: order.event_slug,
 				title: config?.title || order.event_slug,
 				start: config?.start,
+				end: config?.end,
+				status: config?.status,
 				location: venue ? venue.location : config?.location,
 				location_name: venue ? venue.location_name : config?.location_name,
 				online,

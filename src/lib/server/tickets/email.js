@@ -13,6 +13,7 @@ import {
 	renderPlain
 } from '$lib/utils/emailTemplates.js';
 import { MAIL_COLORS, MAIL_STYLES, mailLayout } from '$lib/server/email/layout.js';
+import { resendAttachment, ticketCalendarFile } from './calendarFile.js';
 
 /** Línea chica del final de la tarjeta (número de orden, ayuda). */
 const SMALL = `margin:16px 0 0;font-size:13px;line-height:1.5;color:${MAIL_COLORS.muted}`;
@@ -216,13 +217,18 @@ function partsBlocks(parts) {
  *   order: import('./orders.js').Order,
  *   tickets: import('./orders.js').Ticket[],
  *   event: { title: string, start?: string, location?: string, location_name?: string,
- *     online?: boolean, streamLink?: string | null, parts?: PartsList | null },
+ *     online?: boolean, streamLink?: string | null, parts?: PartsList | null,
+ *     slug?: string, end?: string | null, status?: string },
  *   typeName: string,
  *   origin: string,
  *   contactEmail: string,
  *   template?: Template
  * }} input
  * `event.parts`: la lista de partes si es un taller con una sola entrada.
+ * `event.slug`: con él, el mail lleva adjunto `<slug>.ics` (calendarFile.js) y una línea
+ * «Agregalo a tu calendario»; sin él (vistas previas, golden), sale como siempre. Un evento
+ * cancelado no lleva el adjunto.
+ * @returns {{ subject: string, html: string, text: string, attachments?: ReturnType<typeof resendAttachment>[] }}
  */
 export function buildTicketEmail({
 	order,
@@ -248,6 +254,13 @@ export function buildTicketEmail({
 	const prices = priceLines(order, typeName);
 	const policy = policyBlocks(contactEmail);
 	const parts = partsBlocks(event.parts);
+	const calendar =
+		event.slug && event.status !== 'cancelado'
+			? ticketCalendarFile({ ...event, slug: event.slug, online, origin })
+			: null;
+	const calendarLine = calendar
+		? `Agregalo a tu calendario: abrí el archivo ${calendar.filename} que va adjunto.`
+		: '';
 
 	const ticketBlocks = tickets
 		.map((t, i) => {
@@ -289,7 +302,12 @@ export function buildTicketEmail({
 		label: custom.label ?? 'Tus entradas',
 		titleHtml: custom.headingHtml ?? '¡Ya tenés tus entradas!',
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por tu compra.</p>`}
-		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}
+		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}${
+			calendar
+				? `
+		<p style="${SMALL};margin-top:0" data-kv-mail="calendario">${escapeHtml(calendarLine)}</p>`
+				: ''
+		}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		${online && event.streamLink ? streamLinkBlock(event.streamLink) : ''}`,
 		button: withLabel(
@@ -314,6 +332,7 @@ export function buildTicketEmail({
 		when,
 		where,
 		...parts.text,
+		...(calendar ? ['', calendarLine] : []),
 		'',
 		...prices,
 		'',
@@ -335,7 +354,9 @@ export function buildTicketEmail({
 		.filter((l) => l !== undefined)
 		.join('\n');
 
-	return { subject, html, text };
+	return calendar
+		? { subject, html, text, attachments: [resendAttachment(calendar)] }
+		: { subject, html, text };
 }
 
 /**
@@ -676,6 +697,11 @@ export function buildTransferEmail({
 	return { subject, html, text };
 }
 
+/**
+ * Un adjunto para Resend (`content` en base64), como el .ics de las entradas (calendarFile.js).
+ * @typedef {{ filename: string, content: string, content_type: string }} MailAttachment
+ */
+
 /** Cuánto se espera la respuesta de Resend (un envío colgado no puede trabar la request). */
 export const RESEND_TIMEOUT_MS = 10_000;
 
@@ -686,7 +712,7 @@ export const RESEND_TIMEOUT_MS = 10_000;
  *   from: string,
  *   to: string,
  *   replyTo?: string,
- *   message: { subject: string, html: string, text: string },
+ *   message: { subject: string, html: string, text: string, attachments?: MailAttachment[] },
  *   idempotencyKey?: string,
  *   timeoutMs?: number
  * }} input
@@ -714,6 +740,7 @@ export async function sendWithResend({
 			subject: message.subject,
 			html: message.html,
 			text: message.text,
+			...(message.attachments?.length ? { attachments: message.attachments } : {}),
 			...(replyTo ? { reply_to: replyTo } : {})
 		})
 	});

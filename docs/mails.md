@@ -84,6 +84,17 @@ comprueba que cada builder la usa y que el asunto y el texto plano siguen iguale
 transferencia y recordatorios llevan la lista «Las N partes del taller» con la fecha y el lugar de
 cada parte ([talleres-partes.md](talleres-partes.md)); los demás mails no cambian.
 
+**Calendario adjunto («Agregalo a tu calendario»):** el mail «Tus entradas» lleva adjunto
+`<slug>.ics` (un solo evento) y una línea que lo dice, abajo de la fecha y el lugar. Lo arma
+`ticketCalendarFile` de `src/lib/server/tickets/calendarFile.js` con `buildEventIcs` de
+`src/lib/utils/icsFeed.js`: título, inicio y fin en UTC (la hora argentina bien pasada), el link
+a la página del evento, el estado y el mismo UID que los calendarios del sitio (`eventUid`), así no
+se duplica si la persona además está suscripta. Presencial: el lugar como lo dice el mail (quien
+compró recibe la dirección completa). Online: «Online» y una nota, **nunca el link de la
+transmisión** (es personal, puede cambiar y los calendarios se comparten); el link sigue llegando
+por mail. Un evento cancelado no lleva adjunto, y las vistas previas y `email.golden.json` tampoco
+(sin `event.slug` el mail sale como siempre). Va a Resend en `attachments` (base64); pesa ~1 KB.
+
 **Recordatorios:** el cron del propio Worker (`src/lib/server/scheduled.js`) le pasa cada 15
 minutos `POST /api/cron/recordatorios`, con el header `x-cron-secret`, al sitio. El sitio decide qué mandar. Por
 defecto: 2 días antes y el mismo día a las 9:00; un evento los apaga con `recordatorios: false`.
