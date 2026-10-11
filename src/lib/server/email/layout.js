@@ -70,7 +70,7 @@ export function mailButton({ href, label }) {
 }
 
 /**
- * El pie de todos los mails que se puede cambiar en Ajustes → Mails (`mail_footer_contact` y
+ * El pie de todos los mails que se puede cambiar en Mensajes → Configuración (`mail_footer_contact` y
  * `mail_footer_signoff` de `ticket_settings`): la línea de contacto y la firma. Vacíos = estos
  * textos (el mail sale byte a byte como siempre). Mismo formato seguro que las plantillas
  * (`**negrita**`, links); en la línea de contacto, `{{contacto}}` es la dirección de contacto

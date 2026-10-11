@@ -11,6 +11,12 @@ cambiar el asunto, el título, el texto de arriba y los detalles del diseño (et
 botón, línea de ayuda y «por qué te llega») de cada mail sin tocar código, en general o solo para
 un evento, y mandarse una prueba.
 
+**En el panel, todo lo de mails está en Mensajes** (gorrite, 11/10): **Plantillas**
+(`/admin/mensajes/plantillas`, el texto de cada mail) y **Configuración**
+(`/admin/mensajes/configuracion`: remitente, respuesta, pie, recordatorios y envíos en tandas; la
+vieja `/admin/ajustes/mails` redirige ahí). Lo de un evento (mandar un aviso a quienes compraron y
+sus plantillas propias) está en la ficha del evento.
+
 ## Lo que nunca se tiene que romper
 
 - **Nadie recibe un mail dos veces por el mismo envío.** Cada envío masivo reserva a cada
@@ -47,7 +53,7 @@ un evento, y mandarse una prueba.
 | Tus entradas              | al aprobarse una compra o confirmarse una transferencia; "Reenviar"     | `tickets`     | `buildTicketEmail` en `email.js`        |
 | Reserva por transferencia | al reservar pagando por transferencia                                   | `transfer`    | `buildTransferEmail`                    |
 | Link de la transmisión    | "Enviar el link a todes" en un evento online                            | `stream`      | `buildStreamLinkEmail`, `stream.js`     |
-| Recordatorio              | antes del evento, según Ajustes → Mails y plantillas                    | `reminder`    | `buildReminderEmail`, `reminders.js`    |
+| Recordatorio              | antes del evento, según Mensajes → Configuración                        | `reminder`    | `buildReminderEmail`, `reminders.js`    |
 | Reembolso                 | al reembolsar (desde el panel o desde Mercado Pago)                     | `refund`      | `buildRefundEmail`                      |
 | Cambió la fecha           | «Avisar a les compradores» después de cambiar la fecha de un evento     | `date_change` | `buildDateChangeEmail`, `dateChange.js` |
 | Mail a compradores        | une admin lo escribe en la ficha del evento → Mail                      | —             | `buyerMail.js`                          |
@@ -76,7 +82,7 @@ baja (si el mail la tiene) y «Kinky Vibe · Buenos Aires». Lo editable de las 
 de la tarjeta.
 
 **Pie configurable:** la línea de contacto («¿Dudas? Escribinos a {{contacto}}») y la firma
-(«Kinky Vibe · Buenos Aires») se cambian en Panel → Ajustes → Mails → Pie de los mails
+(«Kinky Vibe · Buenos Aires») se cambian en Panel → Mensajes → Configuración → Pie de los mails
 (`mail_footer_contact` y `mail_footer_signoff` en `ticket_settings`), con el mismo formato seguro
 (negrita y links; `{{contacto}}` es la dirección de contacto con su `mailto:`). Valen para todos
 los mails: los pone `deliver()` al mandar (`withMailFooter` de `layout.js`, que reemplaza solo
@@ -220,16 +226,16 @@ migración `0048_avisar_cambio_fecha.sql`):
 
 ## Configuración
 
-| Qué                                | Dónde                                                                                           |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Remitente y dirección de respuesta | Panel → Ajustes → Mails y plantillas (si está vacío, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`) |
-| Pie de los mails (contacto, firma) | Panel → Ajustes → Mails (vacío = el de siempre)                                                 |
-| Recordatorios (cuándo)             | Panel → Ajustes → Mails y plantillas                                                            |
-| Clave de Resend                    | `RESEND_API_KEY`, Secret en Cloudflare. Sin ella no sale ningún mail                            |
-| Dominio                            | `kinkyvibe.ar` verificado en Resend (SPF/DKIM en Cloudflare DNS)                                |
-| Secreto del cron                   | `CRON_SECRET`, Secret del Worker `kinkyvibe` (lo usan el cron y `/api/cron/*`)                  |
-| Secreto del mail del Fondo         | `FONDO_MAIL_SECRET`, Secret del Worker `kinkyvibe` (el mismo valor en el del Fondo)             |
-| Previews                           | `EMAIL_ALLOWLIST` en el entorno Preview de Cloudflare                                           |
+| Qué                                | Dónde                                                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| Remitente y dirección de respuesta | Panel → Mensajes → Configuración (si está vacío, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`) |
+| Pie de los mails (contacto, firma) | Panel → Mensajes → Configuración (vacío = el de siempre)                                    |
+| Recordatorios (cuándo)             | Panel → Mensajes → Configuración                                                            |
+| Clave de Resend                    | `RESEND_API_KEY`, Secret en Cloudflare. Sin ella no sale ningún mail                        |
+| Dominio                            | `kinkyvibe.ar` verificado en Resend (SPF/DKIM en Cloudflare DNS)                            |
+| Secreto del cron                   | `CRON_SECRET`, Secret del Worker `kinkyvibe` (lo usan el cron y `/api/cron/*`)              |
+| Secreto del mail del Fondo         | `FONDO_MAIL_SECRET`, Secret del Worker `kinkyvibe` (el mismo valor en el del Fondo)         |
+| Previews                           | `EMAIL_ALLOWLIST` en el entorno Preview de Cloudflare                                       |
 
 Las respuestas a `entradas@kinkyvibe.ar` llegan al Gmail de la organización (Cloudflare Email
 Routing). La bandeja dentro del panel es una decisión tomada (0010) pero todavía no existe.
@@ -250,7 +256,7 @@ Routing). La bandeja dentro del panel es una decisión tomada (0010) pero todav�
 
 ## Tareas comunes
 
-**Cambiar el texto de un mail.** Panel → Ajustes → Mails y plantillas → Plantillas → el mail.
+**Cambiar el texto de un mail.** Panel → Mensajes → Plantillas → el mail.
 Vista previa con datos de ejemplo y "Mandarme una prueba". "Restaurar el original" borra la
 fila y vuelve al del código.
 

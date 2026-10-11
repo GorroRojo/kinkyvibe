@@ -140,7 +140,8 @@ describe('NAV', () => {
 			'/admin/contenido/no-listadas',
 			'/admin/ajustes/cobros',
 			'/admin/ajustes/fondo',
-			'/admin/ajustes/mails',
+			// Antes /admin/ajustes/mails (redirige acá): todo lo de mails, en Mensajes.
+			'/admin/mensajes/configuracion',
 			'/admin/ajustes/admins',
 			'/admin/ajustes/interruptores',
 			'/admin/ajustes/actividad',
@@ -199,7 +200,12 @@ describe('NAV', () => {
 			'tienda'
 		]);
 		expect(ids('comunidad')).toEqual(['personas', 'amigues', 'cuentas']);
-		expect(ids('mensajes')).toEqual(['ajustes-plantillas', 'lo-que-sigo', 'bandeja']);
+		expect(ids('mensajes')).toEqual([
+			'ajustes-plantillas',
+			'ajustes-mails',
+			'lo-que-sigo',
+			'bandeja'
+		]);
 		expect(ids('etiquetas')).toEqual(['etiquetas']);
 		expect(ids('contenido')).toEqual([
 			'material',
@@ -218,7 +224,6 @@ describe('NAV', () => {
 			'ajustes-cobros',
 			'ajustes-fondo',
 			'propinas',
-			'ajustes-mails',
 			'ajustes-vistas-previas',
 			'ajustes-admins',
 			'ajustes-interruptores',
@@ -337,7 +342,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 		]);
 		expect(blocks('comunidad')).toEqual([
 			['', ['personas', 'amigues', 'cuentas']],
-			['Mensajes', ['ajustes-plantillas', 'lo-que-sigo', 'bandeja']]
+			['Mensajes', ['ajustes-plantillas', 'ajustes-mails', 'lo-que-sigo', 'bandeja']]
 		]);
 		expect(blocks('contenido')).toEqual([
 			['', ['material', 'biblioteca', 'no-listadas', 'contenido-base', 'colecciones', 'videos']],
@@ -354,7 +359,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 			navGroupSections('comunidad', { hideSoon: true }).map((s) => [s.label, s.items.length])
 		).toEqual([
 			['', 3],
-			['Mensajes', 1]
+			['Mensajes', 2]
 		]);
 	});
 	it('groupCount suma los contadores de todas sus áreas', () => {
@@ -374,7 +379,6 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 			'Cobros',
 			'Fondo',
 			'Propinas',
-			'Mails y envíos',
 			'Vistas previas al compartir',
 			'Admins',
 			'Interruptores',
@@ -418,7 +422,8 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 			'Personas',
 			'Perfiles',
 			'Cuentas',
-			'Plantillas'
+			'Plantillas',
+			'Configuración'
 		]);
 		expect(labels('/admin/etiquetas')).toEqual([
 			'Material',
@@ -467,7 +472,9 @@ describe('areaBackLink («← Área» arriba del título)', () => {
 		expect(areaBackLink('entradas-codigos')).toEqual({ href: '/admin/ventas', label: 'Ventas' });
 		expect(areaBackLink('inicio')).toBe(null);
 		expect(areaBackLink('no-existe')).toBe(null);
-		expect(areaBackLink('ajustes-mails')).toBe(null);
+		expect(areaBackLink('actividad')).toBe(null);
+		// Configuración de los mails se mudó de Ajustes a Mensajes: vuelve a Mensajes.
+		expect(areaBackLink('ajustes-mails')).toEqual({ href: '/admin/mensajes', label: 'Mensajes' });
 	});
 });
 
@@ -550,7 +557,7 @@ describe('activeNavItem', () => {
 		expect(activeNavItem('/admin/comunidad/cuentas/perfiles/12')?.id).toBe('amigues');
 		expect(activeNavItem('/admin/comunidad/perfiles')?.id).toBe('amigues');
 		expect(activeNavItem('/admin/comunidad/perfiles/Gorro_Rojo')?.id).toBe('amigues');
-		expect(activeNavItem('/admin/ajustes/mails')?.id).toBe('ajustes-mails');
+		expect(activeNavItem('/admin/mensajes/configuracion')?.id).toBe('ajustes-mails');
 		expect(activeNavItem('/admin/mensajes/plantillas/compra')?.id).toBe('ajustes-plantillas');
 		expect(activeNavItem('/admin/eventos/roles')?.id).toBe('ajustes-personas');
 		expect(activeNavItem('/admin/eventos/series')?.id).toBe('eventos-series');

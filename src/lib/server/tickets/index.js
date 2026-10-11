@@ -152,7 +152,7 @@ export function contactEmail() {
 
 /**
  * Remitente y dirección de respuesta de los mails (y adonde se mandan los comprobantes): los de
- * /admin/ajustes/mails o, vacíos, TICKETS_FROM_EMAIL / TICKETS_REPLY_TO, o los de por defecto
+ * /admin/mensajes/configuracion o, vacíos, TICKETS_FROM_EMAIL / TICKETS_REPLY_TO, o los de por defecto
  * ("KinkyVibe <entradas@kinkyvibe.ar>" y entradas@kinkyvibe.ar).
  *
  * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
@@ -322,7 +322,7 @@ async function deliver({
 	log = '',
 	from: fixedFrom
 }) {
-	// Todo mail pasa por acá: el pie de Ajustes → Mails se pone una sola vez, para todos.
+	// Todo mail pasa por acá: el pie de Mensajes → Configuración se pone una sola vez, para todos.
 	const settings = await emailSettings(db);
 	const message = { ...built, html: withMailFooter(built.html, settings.footer) };
 	const apiKey = env.RESEND_API_KEY;

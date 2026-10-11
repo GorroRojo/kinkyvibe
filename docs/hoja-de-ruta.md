@@ -200,7 +200,9 @@ de amigues y lanzamientos grandes.
   volumen de envío. S. Bloqueo: gorrite manda el formulario.
 - Colas (Queues) para los mails y Email Workers para recibir. L.
 - Newsletter general y por combinación de etiquetas. L.
-- Bandeja de entrada en el panel, mails individuales y masivos (fase 5, CRM). L.
+- Bandeja de entrada en el panel, mails individuales y masivos (fase 5, CRM). L. Cuando esté,
+  va primera en Mensajes: Bandeja, Plantillas, Configuración (gorrite, 11/10; hoy va al final
+  porque lo que viene va al final de su área).
 
 ### Telegram
 

@@ -5,7 +5,7 @@
  * Primero los recordatorios que tocan y, con lo que sobre de la tanda, lo que quede de cada
  * "Enviar el link a todes" pedido y después de cada «Avisar a les compradores» de un cambio de
  * fecha (dateChange.js; los dos del más viejo al más nuevo). En total, como mucho `limit`
- * mails (por defecto, el "de a cuántos" de Ajustes → Mails); lo demás sigue en la próxima
+ * mails (por defecto, el "de a cuántos" de Mensajes → Configuración); lo demás sigue en la próxima
  * corrida.
  */
 import { mailBatchSize } from './batchSize.js';

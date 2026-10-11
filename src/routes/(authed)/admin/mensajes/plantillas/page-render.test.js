@@ -1,6 +1,6 @@
 /**
  * Mensajes › Plantillas: el link de arriba vuelve a Mensajes (su área en el mapa del panel), no a
- * Ajustes › Mails.
+ * Mensajes › Configuración.
  */
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
