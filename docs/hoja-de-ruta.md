@@ -161,8 +161,7 @@ de amigues y lanzamientos grandes.
 
 - Comprar con cuenta: guardar `orders.account_id` al comprar y que `requiere_cuenta` pida
   ingresar de verdad. M. Bloqueo: `requiere_cuenta` necesita decisión de gorrite.
-- Talleres en partes: vista previa de los mails de cada parte en el panel y las fechas de las
-  partes en el estado del pedido. S–M.
+- Talleres en partes: vista previa de los mails de cada parte en el panel. S.
 - Pasar a talleres en partes los talleres viejos de varios días. S. Bloqueo: datos de producción,
   los vincula gorrite (o con su OK, probando antes en el demo).
 - Mercado Pago: elegir el plazo de cobro y cargar la comisión real; probar contracargos y pagos
