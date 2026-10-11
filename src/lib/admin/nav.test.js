@@ -396,9 +396,21 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 			expect(sectionTabs(path)).toEqual({
 				label: 'Secciones de Estadísticas',
 				tabs: [
-					{ href: '/admin/estadisticas/ventas', label: 'Ventas en el tiempo' },
-					{ href: '/admin/estadisticas/asistencia', label: 'Asistencia' },
-					{ href: '/admin/estadisticas/visitas', label: 'Visitas al sitio' }
+					{
+						href: '/admin/estadisticas/ventas',
+						label: 'Ventas en el tiempo',
+						icon: navItem('estadisticas')?.icon
+					},
+					{
+						href: '/admin/estadisticas/asistencia',
+						label: 'Asistencia',
+						icon: navItem('estadisticas-asistencia')?.icon
+					},
+					{
+						href: '/admin/estadisticas/visitas',
+						label: 'Visitas al sitio',
+						icon: navItem('estadisticas-visitas')?.icon
+					}
 				]
 			});
 		}
@@ -419,6 +431,19 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 	it('con el interruptor apagado, lo que da 404 no aparece', () => {
 		expect(labels('/admin/ajustes/cobros', { propinas: false })).toContain('Propinas');
 		expect(labels('/admin/eventos/agenda', { series: false })).toBe(null);
+	});
+	it('cada pestaña lleva el ícono de su sección (el mismo que en la barra lateral)', () => {
+		const paths = NAV.filter((i) => !i.soon && i.menu !== false).map((i) => i.href);
+		let checked = 0;
+		for (const path of paths) {
+			for (const tab of sectionTabs(path)?.tabs ?? []) {
+				const item = NAV.find((i) => i.href === tab.href);
+				expect(tab.icon, tab.href).toBeTruthy();
+				expect(tab.icon, tab.href).toBe(item?.icon);
+				checked++;
+			}
+		}
+		expect(checked).toBeGreaterThan(10);
 	});
 	it('no van en Eventos, en Inicio, en subpáginas ni en lo que viene', () => {
 		expect(sectionTabs('/admin')).toBe(null);
@@ -576,5 +601,45 @@ describe('links a la ficha del evento', () => {
 	});
 	it('la agenda tiene su ítem', () => {
 		expect(activeNavItem('/admin/eventos/agenda')?.id).toBe('eventos-agenda');
+	});
+});
+
+describe('íconos de las pestañas de la ficha del evento', () => {
+	it('todas tienen ícono del mismo juego (Lucide) y su emoji', () => {
+		for (const tab of EVENT_TABS) {
+			expect(tab.icon, tab.id).toBeTruthy();
+			expect(tab.emoji, tab.id).not.toBe('');
+		}
+	});
+	it('las que son una sección del menú usan el ícono de esa sección', () => {
+		const withSection = EVENT_TABS.filter((t) => t.section);
+		expect(withSection.map((t) => t.id)).toEqual([
+			'ventas',
+			'transferencias',
+			'ingreso',
+			'codigos',
+			'mails',
+			'preguntas'
+		]);
+		for (const tab of withSection) {
+			const item = navItem(/** @type {string} */ (tab.section));
+			expect(item, tab.id).toBeTruthy();
+			expect(tab.icon, tab.id).toBe(item?.icon);
+			expect(tab.emoji, tab.id).toBe(item?.emoji);
+		}
+	});
+	it('si una pestaña se llama como una sección o un área del menú, lleva su mismo ícono', () => {
+		let matched = 0;
+		for (const tab of EVENT_TABS) {
+			const same = [...NAV.filter((i) => i.menu !== false), ...NAV_AREAS].filter(
+				(i) => i.label === tab.label
+			);
+			for (const item of same) {
+				expect(tab.icon, `${tab.label} ↔ ${item.id}`).toBe(item.icon);
+				matched++;
+			}
+		}
+		// Ventas, Transferencias, Puerta y Códigos.
+		expect(matched).toBeGreaterThanOrEqual(4);
 	});
 });

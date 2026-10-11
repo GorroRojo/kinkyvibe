@@ -6,6 +6,9 @@
 	 * Props: `tabs`: { href, label, count?, soon?, icon? }[] (`icon`: componente de Lucide,
 	 * opcional); `current` (opcional): el href activo. Si no se pasa, se usa la URL actual.
 	 * `label` (opcional): nombre de la barra para los lectores de pantalla.
+	 * Íconos (`aria-hidden`, de 16 px; el nombre sigue siendo el de la pestaña): si todas tienen y
+	 * en una pantalla angosta (< 600 px) no entran con sus nombres, quedan solo los íconos y el
+	 * nombre de la actual. Las otras muestran su nombre como `title` y lo llevan en `aria-label`.
 	 */
 	import { onMount, tick } from 'svelte';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
@@ -22,8 +25,22 @@
 	let bar;
 	let moreLeft = false;
 	let moreRight = false;
+	// Solo íconos: cuando todas tienen ícono y en una pantalla angosta no entran con sus nombres.
+	// `fullWidth` es lo que ocupan con los nombres (se mide mientras se ven, así no oscila).
+	$: allIcons = tabs.length > 0 && tabs.every((t) => t.icon);
+	let iconOnly = false;
+	let fullWidth = 0;
+	const narrow = () =>
+		typeof matchMedia === 'function' && matchMedia('(max-width: 599.98px)').matches;
 	function measure() {
 		if (!bar) return;
+		if (!iconOnly) fullWidth = bar.scrollWidth;
+		const next = allIcons && narrow() && fullWidth > bar.clientWidth + 4;
+		if (next !== iconOnly) {
+			iconOnly = next;
+			tick().then(measure);
+			return;
+		}
 		moreLeft = bar.scrollLeft > 4;
 		moreRight = bar.scrollLeft + bar.clientWidth < bar.scrollWidth - 4;
 	}
@@ -42,7 +59,13 @@
 		ro.observe(bar);
 		return () => ro.disconnect();
 	});
-	$: if (bar && tabs) tick().then(measure);
+	// Pestañas nuevas: se vuelven a medir con sus nombres.
+	$: if (bar && tabs) {
+		iconOnly = false;
+		tick().then(measure);
+	}
+	/** @param {{ label: string, count?: number }} tab */
+	const nameOf = (tab) => (tab.count ? `${tab.label} (${tab.count})` : tab.label);
 </script>
 
 <div class="tabs-wrap" class:more-left={moreLeft} class:more-right={moreRight}>
@@ -55,27 +78,39 @@
 			on:click={() => slide(-1)}><ChevronLeft size={18} /></button
 		>
 	{/if}
-	<nav class="tabs" aria-label={label} bind:this={bar} on:scroll={measure}>
+	<nav
+		class="tabs"
+		class:icon-only={iconOnly}
+		aria-label={label}
+		bind:this={bar}
+		on:scroll={measure}
+	>
 		{#each tabs as tab (tab.href)}
+			{@const on = active === tab.href}
+			{@const short = iconOnly && !on}
 			{#if tab.soon}
-				<span class="tab off" aria-disabled="true" title="Próximamente"
-					>{#if tab.icon}<svelte:component
-							this={tab.icon}
-							size={16}
-							aria-hidden="true"
-						/>{/if}{tab.label}</span
+				<span
+					class="tab off"
+					aria-disabled="true"
+					title={short ? `${tab.label} (próximamente)` : 'Próximamente'}
+					aria-label={short ? tab.label : undefined}
+					>{#if tab.icon}<svelte:component this={tab.icon} size={16} aria-hidden="true" />{/if}<span
+						class="name"
+						class:short>{tab.label}</span
+					></span
 				>
 			{:else}
 				<a
 					class="tab"
-					class:on={active === tab.href}
+					class:on
 					href={tab.href}
-					aria-current={active === tab.href ? 'page' : undefined}
-					>{#if tab.icon}<svelte:component
-							this={tab.icon}
-							size={16}
-							aria-hidden="true"
-						/>{/if}{tab.label}{#if tab.count}<span class="count">{tab.count}</span>{/if}</a
+					aria-current={on ? 'page' : undefined}
+					title={short ? nameOf(tab) : undefined}
+					aria-label={short ? nameOf(tab) : undefined}
+					>{#if tab.icon}<svelte:component this={tab.icon} size={16} aria-hidden="true" />{/if}<span
+						class="name"
+						class:short>{tab.label}</span
+					>{#if tab.count}<span class="count">{tab.count}</span>{/if}</a
 				>
 			{/if}
 		{/each}
@@ -142,8 +177,11 @@
 		scrollbar-width: thin;
 		padding: var(--space-3xs) 0.1rem;
 	}
+	/* Compactas (gorrite, 11/10): menos alto en la compu; en el celu, al menos 44 px de toque. */
 	.tab {
-		padding: var(--space-2xs) var(--space-xs);
+		padding: var(--space-3xs) var(--space-xs);
+		min-height: 2.25rem;
+		position: relative;
 		border-radius: var(--round);
 		font-weight: 700;
 		color: var(--accent);
@@ -152,6 +190,29 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35em;
+		flex: none;
+	}
+	.tab :global(svg) {
+		flex: none;
+	}
+	/* Solo íconos: el nombre queda para los lectores de pantalla (y en el `title`). */
+	.name.short {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+	.icon-only .tab:not(.on) {
+		padding-inline: var(--space-2xs);
+		justify-content: center;
+		min-width: var(--tap);
+	}
+	@media (max-width: 599.98px) {
+		.tab {
+			min-height: var(--tap);
+		}
 	}
 	a.tab:hover {
 		color: var(--accent);
