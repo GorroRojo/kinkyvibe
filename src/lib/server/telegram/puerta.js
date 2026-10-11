@@ -51,10 +51,35 @@ export const DOOR_RATE_LIMIT = Object.freeze({ limit: 600, windowSeconds: 60 * 6
 export async function doorAdmin({ db, initData, token, now = Date.now() }) {
 	const v = await validateInitData(initData, token, { now });
 	if (!v.ok) return { ok: false, reason: v.reason };
-	const admin = await linkedAdmin(db, v.user.id);
+	const who = await linkedDoorAdmin(db, v.user.id);
+	if (!who.ok) return who;
+	return { ok: true, login: who.login, telegramUserId: v.user.id };
+}
+
+/**
+ * Le admin vinculade a este usuario de Telegram, si **sigue** en `ADMINS`. Una sola consulta (por
+ * el id del usuario de Telegram); `isAdmin` no toca la base.
+ *
+ * @param {D1Database} db
+ * @param {number} telegramUserId
+ * @returns {Promise<{ ok: true, login: string } | { ok: false, reason: 'not_linked' | 'not_admin' }>}
+ */
+export async function linkedDoorAdmin(db, telegramUserId) {
+	const admin = await linkedAdmin(db, telegramUserId);
 	if (!admin) return { ok: false, reason: 'not_linked' };
 	if (!isAdmin(admin)) return { ok: false, reason: 'not_admin' };
-	return { ok: true, login: admin.login, telegramUserId: v.user.id };
+	return { ok: true, login: admin.login };
+}
+
+/**
+ * Lo que usa el bot para el botón «🚪 Puerta» del inicio (router.js no sabe de la base): ¿este
+ * usuario de Telegram puede abrir la puerta? Se pasa solo con los dos interruptores prendidos.
+ *
+ * @param {D1Database} db
+ * @returns {import('./router.js').BotDoor}
+ */
+export function botDoor(db) {
+	return async (telegramUserId) => (await linkedDoorAdmin(db, telegramUserId)).ok;
 }
 
 /**

@@ -16,8 +16,14 @@ import { callTelegramApi } from './send.js';
  * @typedef {{ command: string, description: string, is_ephemeral?: boolean }} BotCommand
  */
 
-/** Los de todes (grupos y chats privados). @type {readonly BotCommand[]} */
+/**
+ * Los de todes (grupos y chats privados). `/inicio` va primero: es lo mismo que `/start` sin nada
+ * (el inicio con sus botones), con un nombre que se entiende en el menú.
+ *
+ * @type {readonly BotCommand[]}
+ */
 export const PUBLIC_COMMANDS = Object.freeze([
+	{ command: 'inicio', description: 'Volver al inicio del bot' },
 	{ command: 'proximos', description: 'Los próximos eventos públicos' },
 	{ command: 'hoy', description: 'Los eventos de hoy' },
 	{ command: 'semana', description: 'Lo que hay en los próximos 7 días' },
@@ -42,7 +48,8 @@ export const ACCOUNT_COMMANDS = Object.freeze([
 
 /**
  * Los que el router entiende pero no van en el menú: `/start` (lo manda Telegram al abrir el bot y
- * el link `t.me/<bot>?start=<código>`) y `/help` (sinónimo de `/ayuda`).
+ * el link `t.me/<bot>?start=<código>`; en el menú está `/inicio`, que hace lo mismo sin código) y
+ * `/help` (sinónimo de `/ayuda`).
  */
 export const HIDDEN_COMMANDS = Object.freeze(['start', 'help']);
 
