@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ORG_CONTACT_EMAIL } from './organization.js';
 import {
 	ORGANIZATION_ID,
 	OFFICIAL_PROFILES,
@@ -57,7 +58,7 @@ describe('organizationSchema', () => {
 		expect(o['@id']).toBe(ORGANIZATION_ID);
 		expect(o.sameAs).toEqual([...OFFICIAL_PROFILES]);
 		expect(o.logo).toMatch(/^https:\/\/kinkyvibe\.ar\//);
-		expect(o.email).toMatch(/@/);
+		expect(o.email).toBe(ORG_CONTACT_EMAIL);
 	});
 });
 
