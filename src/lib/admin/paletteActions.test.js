@@ -3,12 +3,15 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
 	EXTRA_COMMANDS,
+	SEARCH_HELP_COMMAND,
+	SEARCH_TIPS,
 	paletteCommands,
 	preferenceCommands,
 	recordsFirst
 } from './paletteActions.js';
 import { buildCommands, matchCommands } from './commands.js';
 import { NAV, REVIEW_LINK, navItem } from './nav.js';
+import { parseSearchQuery } from '$lib/utils/searchQuery.js';
 
 const ROUTES = join(import.meta.dirname, '..', '..', 'routes', '(authed)');
 const BASE = 'https://panel.test';
@@ -98,5 +101,29 @@ describe('recordsFirst: qué va arriba, las acciones o los registros', () => {
 		expect(recordsFirst('fondo', ['Fondo', 'Ventas en el tiempo'], loose)).toBe(false);
 		expect(recordsFirst('import', ['Importar planilla'], loose)).toBe(false);
 		expect(recordsFirst('ferencias', ['Transferencias'], loose)).toBe(false);
+	});
+});
+
+describe('«Cómo buscar»', () => {
+	it('es una acción que se encuentra por «cómo buscar» u «operadores», y con «ayuda»', () => {
+		const cmds = paletteCommands();
+		expect(cmds).toContain(SEARCH_HELP_COMMAND);
+		expect(SEARCH_HELP_COMMAND.run).toBe('search-help');
+		for (const q of ['como buscar', 'Cómo buscar', 'operadores', 'filtros']) {
+			expect(matchCommands(cmds, q)[0]?.id, q).toBe('search-help');
+		}
+		// «ayuda»: los atajos de teclado y «Cómo buscar».
+		expect(matchCommands(cmds, 'ayuda').map((c) => c.id)).toEqual(
+			expect.arrayContaining(['help', 'search-help'])
+		);
+	});
+
+	it('cada ejemplo usa de verdad un operador (la ayuda no promete lo que no anda)', () => {
+		expect(SEARCH_TIPS.length).toBeGreaterThanOrEqual(8);
+		for (const tip of SEARCH_TIPS) {
+			for (const q of [tip.q, ...(tip.also ?? [])]) {
+				expect(parseSearchQuery(q).operators, q).toBe(true);
+			}
+		}
 	});
 });
