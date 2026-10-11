@@ -1,10 +1,19 @@
 /**
- * El .ics adjunto al mail con las entradas: hora argentina pasada bien a UTC, UID estable (el de
- * los calendarios del sitio), título, lugar o «Online» (nunca el link de la transmisión) y el
- * adjunto en el mail armado y en lo que se le manda a Resend. Datos inventados.
+ * «Agregalo a tu calendario» en el mail con las entradas: el .ics adjunto (hora argentina pasada
+ * bien a UTC, UID estable, título, lugar, «Online» o el link de la transmisión), el link a Google
+ * Calendar, el marcado `EventReservation` para Gmail y el adjunto en lo que se le manda a Resend.
+ * Datos inventados.
  */
 import { describe, expect, it } from 'vitest';
-import { ONLINE_ICS_NOTE, resendAttachment, ticketCalendarFile } from './calendarFile.js';
+import {
+	ICS_CONTENT_TYPE,
+	ONLINE_ICS_NOTE,
+	STREAM_CHANGE_NOTE,
+	eventReservationScript,
+	googleCalendarUrl,
+	resendAttachment,
+	ticketCalendarFile
+} from './calendarFile.js';
 import { buildTicketEmail, sendWithResend } from './email.js';
 import { fixtureOrder, fixtureTickets } from './email.fixtures.js';
 import { textOf } from '$lib/testing/html.js';
@@ -12,7 +21,8 @@ import { buildIcsFeed } from '$lib/utils/icsFeed.js';
 import { fakeEvent } from '../series/fixtures.js';
 
 const ORIGIN = 'https://kinkyvibe.example';
-const STREAM = 'https://meet.example/sala-secreta-inventada';
+const STREAM = 'https://meet.example/sala-inventada';
+const PAGE = `${ORIGIN}/calendario/evento-de-prueba`;
 
 /** Un evento presencial inventado: empieza a las 22:00 de Buenos Aires (01:00 UTC del día siguiente). */
 const EVENT = {
@@ -25,6 +35,8 @@ const EVENT = {
 	location_name: 'Lugar Inventado',
 	origin: ORIGIN
 };
+const ONLINE = { ...EVENT, online: true, streamLink: null };
+const ONLINE_LINK = { ...EVENT, online: true, streamLink: STREAM };
 
 /** Las líneas del .ics desplegadas (el formato corta las largas en 75 caracteres). */
 const lines = (/** @type {string} */ ics) => ics.replace(/\r\n[ \t]/g, '').split('\r\n');
@@ -45,69 +57,184 @@ const unescape = (v) => v?.replace(/\\n/g, '\n').replace(/\\([,;\\])/g, '$1');
 const fromBase64 = (b64) =>
 	new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
 
-describe('ticketCalendarFile (el .ics del evento)', () => {
-	const file = /** @type {import('./calendarFile.js').CalendarFile} */ (ticketCalendarFile(EVENT));
+/** @param {any} ev */
+const icsOf = (ev) =>
+	/** @type {import('./calendarFile.js').CalendarFile} */ (ticketCalendarFile(ev)).content;
 
-	it('se llama <slug>.ics y es text/calendar', () => {
+/** @param {any} ev */
+const googleOf = (ev) => new URL(/** @type {string} */ (googleCalendarUrl(ev)));
+
+/**
+ * El JSON-LD que va adentro de `<script type="application/ld+json">…</script>`, leído con
+ * `split` (sin expresiones regulares sobre HTML) y `JSON.parse`.
+ * @param {string} html
+ */
+function jsonLdOf(html) {
+	const parts = html.split('<script type="application/ld+json">');
+	expect(parts).toHaveLength(2);
+	return JSON.parse(parts[1].split('</script>')[0]);
+}
+
+describe('ticketCalendarFile (el .ics del evento)', () => {
+	const ics = icsOf(EVENT);
+
+	it('se llama <slug>.ics y es text/calendar de publicación', () => {
+		const file = /** @type {any} */ (ticketCalendarFile(EVENT));
 		expect(file.filename).toBe('evento-de-prueba.ics');
-		expect(file.contentType.split(';')[0]).toBe('text/calendar');
-		expect(file.content.startsWith('BEGIN:VCALENDAR\r\n')).toBe(true);
-		expect(lines(file.content).filter((l) => l === 'BEGIN:VEVENT')).toHaveLength(1);
-		expect(prop(file.content, 'METHOD')).toBe('PUBLISH');
+		expect(file.contentType).toBe('text/calendar; method=PUBLISH; charset=UTF-8');
+		expect(ics.startsWith('BEGIN:VCALENDAR\r\n')).toBe(true);
+		expect(lines(ics).filter((l) => l === 'BEGIN:VEVENT')).toHaveLength(1);
+		expect(prop(ics, 'METHOD')).toBe('PUBLISH');
+		// Publicación, no invitación: sin ATTENDEE (que haría mostrar botones de RSVP).
+		expect(prop(ics, 'ATTENDEE')).toBeUndefined();
 	});
 
 	it('las 22:00 de Buenos Aires son la 01:00 UTC del día siguiente; el fin, también en UTC', () => {
-		expect(prop(file.content, 'DTSTART')).toBe('20991115T010000Z');
-		expect(prop(file.content, 'DTEND')).toBe('20991115T063000Z');
+		expect(prop(ics, 'DTSTART')).toBe('20991115T010000Z');
+		expect(prop(ics, 'DTEND')).toBe('20991115T063000Z');
 	});
 
 	it('UID estable: el mismo que el evento en los calendarios del sitio', () => {
-		expect(prop(file.content, 'UID')).toBe('evento-de-prueba@kinkyvibe.ar');
+		expect(prop(ics, 'UID')).toBe('evento-de-prueba@kinkyvibe.ar');
 		const feed = buildIcsFeed([fakeEvent('evento-de-prueba', Date.parse(EVENT.start), ['Fiesta'])]);
-		expect(prop(feed, 'UID')).toBe(prop(file.content, 'UID'));
+		expect(prop(feed, 'UID')).toBe(prop(ics, 'UID'));
 	});
 
 	it('título, link a la página del evento y lugar como lo dice el mail', () => {
-		expect(unescape(prop(file.content, 'SUMMARY'))).toBe('Evento de prueba');
-		const url = new URL(/** @type {string} */ (prop(file.content, 'URL')));
-		expect(url.origin).toBe(ORIGIN);
-		expect(url.pathname).toBe('/calendario/evento-de-prueba');
-		expect(unescape(prop(file.content, 'LOCATION'))).toBe('Lugar Inventado · Calle Falsa 123');
-		expect(prop(file.content, 'STATUS')).toBe('CONFIRMED');
+		expect(unescape(prop(ics, 'SUMMARY'))).toBe('Evento de prueba');
+		expect(new URL(/** @type {string} */ (prop(ics, 'URL'))).href).toBe(PAGE);
+		expect(unescape(prop(ics, 'LOCATION'))).toBe('Lugar Inventado · Calle Falsa 123');
+		expect(unescape(prop(ics, 'DESCRIPTION'))).toBe(PAGE);
+		expect(prop(ics, 'STATUS')).toBe('CONFIRMED');
 	});
 
-	it('sin fin: el fin es el inicio (como los calendarios del sitio); fin pasada la medianoche con la fecha del inicio, al día siguiente', () => {
-		const sinFin = /** @type {any} */ (ticketCalendarFile({ ...EVENT, end: undefined }));
-		expect(prop(sinFin.content, 'DTEND')).toBe('20991115T010000Z');
-		const mismaFecha = /** @type {any} */ (
-			ticketCalendarFile({ ...EVENT, end: '2099-11-14T03:00:00-03:00' })
+	it('sin fin: el fin es el inicio; fin pasada la medianoche con la fecha del inicio, al día siguiente', () => {
+		expect(prop(icsOf({ ...EVENT, end: undefined }), 'DTEND')).toBe('20991115T010000Z');
+		expect(prop(icsOf({ ...EVENT, end: '2099-11-14T03:00:00-03:00' }), 'DTEND')).toBe(
+			'20991115T060000Z'
 		);
-		expect(prop(mismaFecha.content, 'DTEND')).toBe('20991115T060000Z');
 	});
 
-	it('online: «Online» y la nota, nunca el link de la transmisión', () => {
-		const online = /** @type {any} */ (
-			ticketCalendarFile(/** @type {any} */ ({ ...EVENT, online: true, streamLink: STREAM }))
-		);
-		expect(prop(online.content, 'LOCATION')).toBe('Online');
-		expect(unescape(prop(online.content, 'DESCRIPTION'))).toContain(ONLINE_ICS_NOTE);
-		expect(online.content).not.toContain('meet.example');
-		expect(online.content).not.toContain('sala-secreta');
+	it('online sin link todavía: «Online» y que el link llega por mail', () => {
+		const online = icsOf(ONLINE);
+		expect(prop(online, 'LOCATION')).toBe('Online');
+		expect(unescape(prop(online, 'DESCRIPTION'))).toBe(`${ONLINE_ICS_NOTE}\n\n${PAGE}`);
 	});
 
-	it('sin fecha válida: sin archivo', () => {
-		expect(ticketCalendarFile({ ...EVENT, start: undefined })).toBeNull();
-		expect(ticketCalendarFile({ ...EVENT, start: 'a confirmar' })).toBeNull();
+	it('online con link: el link como lugar y en la descripción, con el aviso y la página', () => {
+		const online = icsOf(ONLINE_LINK);
+		expect(new URL(/** @type {string} */ (unescape(prop(online, 'LOCATION')))).href).toBe(STREAM);
+		expect(unescape(prop(online, 'DESCRIPTION'))?.split('\n')).toEqual([
+			`Link de la transmisión: ${STREAM}`,
+			STREAM_CHANGE_NOTE,
+			'',
+			PAGE
+		]);
+		expect(new URL(/** @type {string} */ (prop(online, 'URL'))).href).toBe(PAGE);
 	});
 
-	it('el adjunto para Resend: base64 del mismo .ics (con tildes)', () => {
+	it('sin fecha válida: sin archivo, sin link de Google y sin marcado', () => {
+		for (const start of [undefined, 'a confirmar']) {
+			const ev = { ...EVENT, start };
+			expect(ticketCalendarFile(ev)).toBeNull();
+			expect(googleCalendarUrl(ev)).toBeNull();
+			expect(eventReservationScript({ orderId: 'o', buyerName: 'P', event: ev })).toBeNull();
+		}
+	});
+
+	it('el adjunto para Resend: base64 del mismo .ics (con tildes) y content_type explícito', () => {
 		const withAccent = /** @type {any} */ (
 			ticketCalendarFile({ ...EVENT, title: 'Fiesta de primavera ñandú' })
 		);
 		const att = resendAttachment(withAccent);
 		expect(att.filename).toBe('evento-de-prueba.ics');
-		expect(att.content_type).toBe(withAccent.contentType);
+		expect(att.content_type).toBe(ICS_CONTENT_TYPE);
 		expect(fromBase64(att.content)).toBe(withAccent.content);
+	});
+});
+
+describe('googleCalendarUrl', () => {
+	it('presencial: las mismas horas UTC que el .ics, la página y el lugar', () => {
+		const url = googleOf(EVENT);
+		expect(url.origin).toBe('https://calendar.google.com');
+		expect(url.pathname).toBe('/calendar/render');
+		expect(url.searchParams.get('action')).toBe('TEMPLATE');
+		expect(url.searchParams.get('text')).toBe('Evento de prueba');
+		expect(url.searchParams.get('dates')).toBe('20991115T010000Z/20991115T063000Z');
+		expect(url.searchParams.get('details')).toBe(PAGE);
+		expect(url.searchParams.get('location')).toBe('Lugar Inventado · Calle Falsa 123');
+	});
+
+	it('online sin link: «Online» y la nota con la página', () => {
+		const url = googleOf(ONLINE);
+		expect(url.searchParams.get('location')).toBe('Online');
+		expect(url.searchParams.get('details')).toBe(`${ONLINE_ICS_NOTE}\n\n${PAGE}`);
+	});
+
+	it('online con link: el link como lugar y en los detalles, con el aviso y la página', () => {
+		const url = googleOf(ONLINE_LINK);
+		expect(url.searchParams.get('location')).toBe(STREAM);
+		expect(url.searchParams.get('details')).toBe(
+			`Link de la transmisión: ${STREAM}\n${STREAM_CHANGE_NOTE}\n\n${PAGE}`
+		);
+	});
+
+	it('un título con & y # no rompe los parámetros', () => {
+		const url = googleOf({ ...EVENT, title: 'Fiesta & taller #2' });
+		expect(url.searchParams.get('text')).toBe('Fiesta & taller #2');
+		expect(url.searchParams.get('action')).toBe('TEMPLATE');
+	});
+});
+
+describe('eventReservationScript (marcado para Gmail)', () => {
+	/** @param {any} event @param {string} [buyerName] */
+	const ld = (event, buyerName = 'Persona Demo') =>
+		jsonLdOf(
+			/** @type {string} */ (eventReservationScript({ orderId: 'orden-1', buyerName, event }))
+		);
+
+	it('EventReservation con número, estado, solo el nombre y el evento en hora argentina', () => {
+		const data = ld(EVENT);
+		expect(data['@context']).toBe('http://schema.org');
+		expect(data['@type']).toBe('EventReservation');
+		expect(data.reservationNumber).toBe('orden-1');
+		expect(data.reservationStatus).toBe('http://schema.org/Confirmed');
+		expect(data.underName).toEqual({ '@type': 'Person', name: 'Persona Demo' });
+		const ev = data.reservationFor;
+		expect(ev['@type']).toBe('Event');
+		expect(ev.name).toBe('Evento de prueba');
+		expect(ev.startDate).toBe('2099-11-14T22:00:00-03:00');
+		expect(ev.endDate).toBe('2099-11-15T03:30:00-03:00');
+		expect(new URL(ev.url).href).toBe(PAGE);
+		expect(ev.location).toEqual({
+			'@type': 'Place',
+			name: 'Lugar Inventado',
+			address: { '@type': 'PostalAddress', streetAddress: 'Calle Falsa 123', addressCountry: 'AR' }
+		});
+	});
+
+	it('online: VirtualLocation con la página sin link, con el link de la transmisión si ya está', () => {
+		expect(ld(ONLINE).reservationFor.location).toEqual({ '@type': 'VirtualLocation', url: PAGE });
+		expect(ld(ONLINE_LINK).reservationFor.location).toEqual({
+			'@type': 'VirtualLocation',
+			url: STREAM
+		});
+	});
+
+	it('un </script> en un texto no cierra el script (el < sale escapado)', () => {
+		const evil = 'Persona </script><img src=x onerror=alert(1)>';
+		const script = /** @type {string} */ (
+			eventReservationScript({
+				orderId: 'orden-1',
+				buyerName: evil,
+				event: { ...EVENT, title: '<b>Evento</b>' }
+			})
+		);
+		expect(script.split('</script>')).toHaveLength(2);
+		expect(script.split('<')).toHaveLength(3); // solo <script> y </script>
+		const data = jsonLdOf(script);
+		expect(data.underName.name).toBe(evil);
+		expect(data.reservationFor.name).toBe('<b>Evento</b>');
 	});
 });
 
@@ -121,38 +248,69 @@ describe('el mail con las entradas', () => {
 	};
 	const LINE = 'Agregalo a tu calendario: abrí el archivo evento-de-prueba.ics que va adjunto.';
 
-	it('con el slug: lleva adjunto <slug>.ics y la línea «Agregalo a tu calendario»', () => {
+	/** El href del link «Agregar a Google Calendar» del HTML (con split, sin regex). @param {string} html */
+	function googleHref(html) {
+		const before = html.split('>Agregar a Google Calendar</a>');
+		expect(before).toHaveLength(2);
+		const tag = before[0].slice(before[0].lastIndexOf('<a '));
+		const href = tag.split('href="')[1].split('"')[0].replaceAll('&amp;', '&');
+		return new URL(href);
+	}
+
+	it('con el slug: .ics adjunto, la línea, el link a Google y el marcado en el <head>', () => {
 		const mail = buildTicketEmail({ ...base, event: EVENT });
 		expect(mail.attachments).toHaveLength(1);
 		const [att] = /** @type {any[]} */ (mail.attachments);
 		expect(att.filename).toBe('evento-de-prueba.ics');
+		expect(att.content_type).toBe(ICS_CONTENT_TYPE);
 		expect(prop(fromBase64(att.content), 'UID')).toBe('evento-de-prueba@kinkyvibe.ar');
 		expect(textOf(mail.html)).toContain(LINE);
-		expect(mail.text.split('\n')).toContain(LINE);
+		expect(textOf(mail.html)).toContain('Agregar a Google Calendar');
+		const google = googleHref(mail.html);
+		expect(google.href).toBe(/** @type {string} */ (googleCalendarUrl(EVENT)));
+		const textLines = mail.text.split('\n');
+		expect(textLines).toContain(LINE);
+		const googleLine = textLines.find((l) => l.startsWith('Agregar a Google Calendar: '));
+		expect(
+			new URL(/** @type {string} */ (googleLine).slice('Agregar a Google Calendar: '.length)).href
+		).toBe(google.href);
+		const head = mail.html.split('</head>')[0];
+		const data = jsonLdOf(head);
+		expect(data.reservationNumber).toBe(base.order.id);
+		expect(data.underName.name).toBe('Persona Demo');
 	});
 
-	it('online con link: el link va en el mail (es de quien compró) pero no en el .ics', () => {
-		const mail = buildTicketEmail({
-			...base,
-			event: { ...EVENT, online: true, streamLink: STREAM }
-		});
+	it('el marcado no lleva el mail ni el DNI de quien compró', () => {
+		const mail = buildTicketEmail({ ...base, event: EVENT });
+		const json = JSON.stringify(jsonLdOf(mail.html));
+		expect(json).not.toContain(base.order.buyer_email);
+		expect(json).not.toContain(base.order.buyer_dni);
+	});
+
+	it('online con link: el link en el mail, en el .ics, en Google y en el marcado', () => {
+		const mail = buildTicketEmail({ ...base, event: ONLINE_LINK });
 		expect(mail.text).toContain(STREAM);
 		const ics = fromBase64(/** @type {any[]} */ (mail.attachments)[0].content);
-		expect(prop(ics, 'LOCATION')).toBe('Online');
-		expect(ics).not.toContain('meet.example');
+		expect(unescape(prop(ics, 'LOCATION'))).toBe(STREAM);
+		expect(googleHref(mail.html).searchParams.get('location')).toBe(STREAM);
+		expect(jsonLdOf(mail.html).reservationFor.location.url).toBe(STREAM);
 	});
 
-	it('sin el slug (vistas previas, golden): sin adjunto ni línea', () => {
+	it('sin el slug (vistas previas, golden): sin adjunto, línea, link ni marcado', () => {
 		const mail = buildTicketEmail({ ...base, event: { ...EVENT, slug: undefined } });
 		expect(mail.attachments).toBeUndefined();
 		expect(textOf(mail.html)).not.toContain('Agregalo a tu calendario');
+		expect(textOf(mail.html)).not.toContain('Google Calendar');
+		expect(mail.html.split('application/ld+json')).toHaveLength(1);
 		expect(mail.text).not.toContain('Agregalo a tu calendario');
 	});
 
-	it('evento cancelado: sin adjunto ni línea', () => {
+	it('evento cancelado: sin adjunto, línea, link ni marcado', () => {
 		const mail = buildTicketEmail({ ...base, event: { ...EVENT, status: 'cancelado' } });
 		expect(mail.attachments).toBeUndefined();
 		expect(mail.text).not.toContain('Agregalo a tu calendario');
+		expect(mail.text).not.toContain('Google Calendar');
+		expect(mail.html.split('application/ld+json')).toHaveLength(1);
 	});
 
 	it('sendWithResend le pasa los adjuntos a Resend (y sin adjuntos no manda el campo)', async () => {
@@ -170,6 +328,7 @@ describe('el mail con las entradas', () => {
 		const { subject, html, text } = mail;
 		await sendWithResend({ ...common, message: { subject, html, text } });
 		expect(bodies[0].attachments).toEqual(mail.attachments);
+		expect(bodies[0].attachments[0].content_type).toBe(ICS_CONTENT_TYPE);
 		expect(bodies[1]).not.toHaveProperty('attachments');
 	});
 });

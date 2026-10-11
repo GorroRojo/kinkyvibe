@@ -84,16 +84,39 @@ comprueba que cada builder la usa y que el asunto y el texto plano siguen iguale
 transferencia y recordatorios llevan la lista «Las N partes del taller» con la fecha y el lugar de
 cada parte ([talleres-partes.md](talleres-partes.md)); los demás mails no cambian.
 
-**Calendario adjunto («Agregalo a tu calendario»):** el mail «Tus entradas» lleva adjunto
-`<slug>.ics` (un solo evento) y una línea que lo dice, abajo de la fecha y el lugar. Lo arma
-`ticketCalendarFile` de `src/lib/server/tickets/calendarFile.js` con `buildEventIcs` de
-`src/lib/utils/icsFeed.js`: título, inicio y fin en UTC (la hora argentina bien pasada), el link
-a la página del evento, el estado y el mismo UID que los calendarios del sitio (`eventUid`), así no
-se duplica si la persona además está suscripta. Presencial: el lugar como lo dice el mail (quien
-compró recibe la dirección completa). Online: «Online» y una nota, **nunca el link de la
-transmisión** (es personal, puede cambiar y los calendarios se comparten); el link sigue llegando
-por mail. Un evento cancelado no lleva adjunto, y las vistas previas y `email.golden.json` tampoco
-(sin `event.slug` el mail sale como siempre). Va a Resend en `attachments` (base64); pesa ~1 KB.
+**Calendario («Agregalo a tu calendario»):** el mail «Tus entradas» lleva, abajo de la fecha y el
+lugar, una línea que dice que va adjunto `<slug>.ics` (un solo evento) y el link «Agregar a Google
+Calendar». En el `<head>` va además el marcado schema.org `EventReservation` (JSON-LD) para Gmail.
+Los tres salen de `src/lib/server/tickets/calendarFile.js` (`calendarEvent`: las mismas horas, el
+mismo lugar y la misma descripción para los tres):
+
+- **El .ics** (`ticketCalendarFile`, con `buildEventIcs` de `src/lib/utils/icsFeed.js`): título,
+  inicio y fin en UTC (la hora argentina bien pasada), el link a la página del evento, el estado y
+  el mismo UID que los calendarios del sitio (`eventUid`), así no se duplica si la persona además
+  está suscripta. `METHOD:PUBLISH` y sin `ATTENDEE`: es un evento para agregar, no una invitación
+  (con `REQUEST` los clientes muestran botones de «Asistiré / No asistiré»). Va a Resend en
+  `attachments` (base64) con `content_type: text/calendar; method=PUBLISH; charset=UTF-8`
+  explícito. Pesa ~1 KB.
+- **Lugar:** presencial, el lugar como lo dice el mail (quien compró recibe la dirección completa).
+  Online con el link de la transmisión ya cargado al mandar el mail: ese link como lugar y en la
+  descripción, con «Si el link cambia, te llega por mail.» (el link es el mismo para todes les que
+  compraron). Online sin link todavía: «Online» y que el link llega por mail. El link de la
+  transmisión va **solo** en el mail de quien compró: nunca en un calendario público ni en una
+  página.
+- **Google Calendar** (`googleCalendarUrl`): `calendar.google.com/calendar/render?action=TEMPLATE`
+  con título, las mismas horas UTC, la página del evento (y la nota de online) y el mismo lugar.
+- **Marcado para Gmail** (`eventReservationScript`): número de orden, estado confirmado, solo el
+  nombre de quien compró (nunca mail ni DNI) y el evento con fechas `-03:00`, la página y el lugar
+  (`Place`, o `VirtualLocation` con el link de la transmisión si ya está o la página si no). El
+  JSON va con `<` escapado (`\u003c`) para que nada cierre el `<script>`. **Gmail solo lo muestra a
+  remitentes registrados con Google**
+  ([requisitos](https://developers.google.com/workspace/gmail/markup/registering-with-google): DKIM
+  o SPF alineados con el dominio del remitente, remitente fijo, cientos de mails por día a Gmail y
+  pocas quejas; se pide mandando un mail con el marcado a `schema.whitelisting+sample@gmail.com` y
+  completando el formulario). Hasta entonces Gmail lo ignora, salvo en un mail que una cuenta se
+  manda a sí misma (así se prueba). El .ics no necesita registro.
+- Un evento cancelado no lleva nada de esto, y las vistas previas y `email.golden.json` tampoco
+  (sin `event.slug` el mail sale como siempre).
 
 **Recordatorios:** el cron del propio Worker (`src/lib/server/scheduled.js`) le pasa cada 15
 minutos `POST /api/cron/recordatorios`, con el header `x-cron-secret`, al sitio. El sitio decide qué mandar. Por

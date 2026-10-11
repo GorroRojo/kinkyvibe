@@ -13,7 +13,15 @@ import {
 	renderPlain
 } from '$lib/utils/emailTemplates.js';
 import { MAIL_COLORS, MAIL_STYLES, mailLayout } from '$lib/server/email/layout.js';
-import { resendAttachment, ticketCalendarFile } from './calendarFile.js';
+import {
+	eventReservationScript,
+	googleCalendarUrl,
+	resendAttachment,
+	ticketCalendarFile
+} from './calendarFile.js';
+
+/** Texto del link a Google Calendar del mail con las entradas. */
+const GOOGLE_LABEL = 'Agregar a Google Calendar';
 
 /** Línea chica del final de la tarjeta (número de orden, ayuda). */
 const SMALL = `margin:16px 0 0;font-size:13px;line-height:1.5;color:${MAIL_COLORS.muted}`;
@@ -225,8 +233,9 @@ function partsBlocks(parts) {
  *   template?: Template
  * }} input
  * `event.parts`: la lista de partes si es un taller con una sola entrada.
- * `event.slug`: con él, el mail lleva adjunto `<slug>.ics` (calendarFile.js) y una línea
- * «Agregalo a tu calendario»; sin él (vistas previas, golden), sale como siempre. Un evento
+ * `event.slug`: con él, el mail lleva adjunto `<slug>.ics` (calendarFile.js), una línea
+ * «Agregalo a tu calendario» con el link a Google Calendar y el marcado `EventReservation` para
+ * Gmail; sin él (vistas previas, golden), sale como siempre. Un evento
  * cancelado no lleva el adjunto.
  * @returns {{ subject: string, html: string, text: string, attachments?: ReturnType<typeof resendAttachment>[] }}
  */
@@ -254,9 +263,15 @@ export function buildTicketEmail({
 	const prices = priceLines(order, typeName);
 	const policy = policyBlocks(contactEmail);
 	const parts = partsBlocks(event.parts);
-	const calendar =
+	const calEvent =
 		event.slug && event.status !== 'cancelado'
-			? ticketCalendarFile({ ...event, slug: event.slug, online, origin })
+			? { ...event, slug: event.slug, online, origin }
+			: null;
+	const calendar = calEvent ? ticketCalendarFile(calEvent) : null;
+	const googleUrl = calendar && calEvent ? googleCalendarUrl(calEvent) : null;
+	const reservation =
+		calendar && calEvent
+			? eventReservationScript({ orderId: order.id, buyerName: order.buyer_name, event: calEvent })
 			: null;
 	const calendarLine = calendar
 		? `Agregalo a tu calendario: abrí el archivo ${calendar.filename} que va adjunto.`
@@ -305,7 +320,7 @@ export function buildTicketEmail({
 		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}${
 			calendar
 				? `
-		<p style="${SMALL};margin-top:0" data-kv-mail="calendario">${escapeHtml(calendarLine)}</p>`
+		<p style="${SMALL};margin-top:0" data-kv-mail="calendario">${escapeHtml(calendarLine)}${googleUrl ? `<br><a href="${escapeHtml(googleUrl)}" style="${MAIL_STYLES.link}">${GOOGLE_LABEL}</a>` : ''}</p>`
 				: ''
 		}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
@@ -333,6 +348,7 @@ export function buildTicketEmail({
 		where,
 		...parts.text,
 		...(calendar ? ['', calendarLine] : []),
+		...(googleUrl ? [`${GOOGLE_LABEL}: ${googleUrl}`] : []),
 		'',
 		...prices,
 		'',
@@ -354,9 +370,14 @@ export function buildTicketEmail({
 		.filter((l) => l !== undefined)
 		.join('\n');
 
-	return calendar
-		? { subject, html, text, attachments: [resendAttachment(calendar)] }
-		: { subject, html, text };
+	if (!calendar) return { subject, html, text };
+	return {
+		subject,
+		// El marcado para Gmail va en el <head> (función: un `$` del JSON no es un patrón).
+		html: reservation ? html.replace('</head>', () => `${reservation}</head>`) : html,
+		text,
+		attachments: [resendAttachment(calendar)]
+	};
 }
 
 /**
