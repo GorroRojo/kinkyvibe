@@ -121,7 +121,10 @@
 		--control-px: 0.85em;
 		position: sticky;
 		top: 0;
-		z-index: 5;
+		/* Arriba de la lista (cada ítem es su propio contexto de apilado, a nivel 0) pero debajo de
+		   la barra de navegación del celu (fija abajo, z-index 2), del botón de buscar (3) y de los
+		   avisos: al bajar, la barra pasa por detrás de la navegación, nunca por encima. */
+		z-index: 1;
 		max-width: 50rem;
 		margin: 0 auto var(--space-s);
 		background: var(--bg);

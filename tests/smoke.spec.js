@@ -255,6 +255,64 @@ test.describe('barra de filtros de las listas', () => {
 		await context.close();
 	});
 
+	test('en el celu: al bajar, la barra pasa por detrás de la navegación y queda arriba de la lista', async ({
+		browser
+	}) => {
+		const context = await browser.newContext({
+			viewport: { width: 390, height: 800 },
+			isMobile: true,
+			hasTouch: true
+		});
+		const page = await context.newPage();
+		await acceptAgeGate(page);
+		await page.goto('/', { waitUntil: 'networkidle' });
+		const bar = page.locator('.tagbar');
+		await expect(bar).toBeVisible();
+		// La barra, a mitad de camino sobre la navegación (fija abajo en el celu).
+		const navTop = await page.evaluate(() => {
+			const nav = /** @type {Element} */ (document.querySelector('nav')).getBoundingClientRect();
+			const top = /** @type {Element} */ (document.querySelector('.tagbar')).getBoundingClientRect()
+				.top;
+			window.scrollTo({ top: top + window.scrollY - (nav.top + 20), behavior: 'instant' });
+			return nav.top;
+		});
+		await page.waitForTimeout(300);
+		const covered = await page.evaluate(() => {
+			const nav = /** @type {Element} */ (document.querySelector('nav')).getBoundingClientRect();
+			const b = /** @type {Element} */ (document.querySelector('.tagbar')).getBoundingClientRect();
+			const y = (Math.max(b.top, nav.top) + Math.min(b.bottom, nav.bottom)) / 2;
+			return {
+				overlaps: b.bottom > nav.top && b.top < nav.bottom,
+				navOnTop: [0.1, 0.5, 0.9].every((f) =>
+					document.elementFromPoint(nav.left + nav.width * f, y)?.closest('nav')
+				)
+			};
+		});
+		expect(navTop).toBeGreaterThan(400);
+		expect(covered.overlaps).toBe(true);
+		expect(covered.navOnTop).toBe(true);
+		// Más abajo, fija arriba: no se sale de la pantalla y la lista pasa por detrás.
+		await page.evaluate(() => {
+			const top = /** @type {Element} */ (document.querySelector('.tagbar')).getBoundingClientRect()
+				.top;
+			window.scrollTo({ top: top + window.scrollY + 900, behavior: 'instant' });
+		});
+		await page.waitForTimeout(300);
+		const stuck = await page.evaluate(() => {
+			const b = /** @type {Element} */ (document.querySelector('.tagbar')).getBoundingClientRect();
+			return {
+				top: b.top,
+				onTop: [0.2, 0.5, 0.8].every((f) =>
+					document.elementFromPoint(b.left + b.width * f, b.top + b.height / 2)?.closest('.tagbar')
+				)
+			};
+		});
+		expect(stuck.top).toBeGreaterThanOrEqual(0);
+		expect(stuck.top).toBeLessThanOrEqual(1);
+		expect(stuck.onTop).toBe(true);
+		await context.close();
+	});
+
 	test('en el celu: con muchas etiquetas elegidas el buscador queda en una línea', async ({
 		browser
 	}) => {
