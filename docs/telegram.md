@@ -8,6 +8,9 @@ mismos datos y manda un link para todo lo demás.
 
 - `/start`, `/ayuda`: qué podés pedirle.
 - `/proximos`: los próximos eventos públicos, con link al sitio y un botón «Ver: …» por evento.
+- `/hoy`, `/semana`, `/finde`: lo mismo, solo lo que empieza hoy, en los próximos 7 días (hoy y
+  los 6 que siguen) o este fin de semana (viernes a domingo: de lunes a jueves, el que viene),
+  siempre en hora de Argentina (`src/lib/server/telegram/windows.js`).
 - `/evento`: los próximos eventos como botones, para elegir sin saberse el nombre.
 - `/evento <texto>`: el detalle de un evento (título, fecha y link). Busca sin importar tildes ni
   mayúsculas, con pedazos de palabra («cuer» encuentra «cuerdas»), por la dirección exacta o por
@@ -41,8 +44,10 @@ salen lo que entiende el router y lo que se registra (un test, `commands.test.js
 coincidan).
 
 - **Para todes** (alcance `default`, grupos incluidos): `/proximos` «Los próximos eventos
-  públicos», `/evento` «Buscá un evento por nombre, fecha o lugar», `/ayuda` «Qué podés pedirme».
-- **En chats privados** (alcance `all_private_chats`): esos tres y, solo con «Lo que sigo»
+  públicos», `/hoy` «Los eventos de hoy», `/semana` «Lo que hay en los próximos 7 días», `/finde`
+  «Lo que hay este fin de semana», `/evento` «Buscá un evento por nombre, fecha o lugar», `/ayuda`
+  «Qué podés pedirme».
+- **En chats privados** (alcance `all_private_chats`): esos y, solo con «Lo que sigo»
   prendido, `/vincular` «Conectá tu cuenta (código de Mi rincón)», `/silenciar` «Pausá tus avisos
   por Telegram», `/reanudar` «Volvé a recibir tus avisos», `/desvincular` «Desconectá este chat de
   tu cuenta». Con «Lo que sigo» apagado contestan «todavía no se puede», así que no se ofrecen.
