@@ -14,7 +14,7 @@ import {
 	cleanBotTextOverrides,
 	isFormattedKind,
 	renderBotText,
-	telegramHtmlToPlain,
+	renderBotTextPlain,
 	validateBotTexts
 } from './botTexts.js';
 
@@ -130,26 +130,33 @@ describe('renderBotText', () => {
 	it('una clave que no existe tira (así un error de tipeo no pasa callado)', () => {
 		expect(() => renderBotText('inicio.no_existe')).toThrow(/desconocido/);
 	});
-
-	it('telegramHtmlToPlain: lo que ve quien lee', () => {
-		expect(telegramHtmlToPlain('<b>Hola</b> &lt;x&gt; &amp; <a href="y">z</a>')).toBe(
-			'Hola <x> & z'
-		);
-	});
 });
 
-describe('telegramHtmlToPlain (solo para comparar texto)', () => {
-	it('decodifica una sola vez: lo decodificado no se vuelve a limpiar ni a decodificar', () => {
-		expect(telegramHtmlToPlain('&lt;script&gt;alert(1)&lt;/script&gt;')).toBe(
-			'<script>alert(1)</script>'
+describe('renderBotTextPlain (solo para comparar texto)', () => {
+	const key = 'eventos.buscar';
+	it('lo que ve quien lee, desde lo escrito: sin ** ni links, sin HTML', () => {
+		expect(renderBotTextPlain(key)).toBe(
+			'🔎 Escribí qué buscás: un nombre, «sábado», «15/10», una dirección… Respondé a este mensaje.'
 		);
-		expect(telegramHtmlToPlain('&amp;lt;b&amp;gt;')).toBe('&lt;b&gt;');
+		expect(
+			renderBotTextPlain(key, {}, { [key]: '**¿Qué buscás?** Mirá [el sitio](https://x.y).' })
+		).toBe('¿Qué buscás? Mirá el sitio.');
 	});
 
-	it('etiquetas anidadas o rotas: saca solo las etiquetas enteras', () => {
-		// `<<b>` es una sola etiqueta: no queda un «<script» armado con los pedazos.
-		expect(telegramHtmlToPlain('<<b>script>')).toBe('script>');
-		expect(telegramHtmlToPlain('<b>a</b> < b')).toBe('a < b');
+	it('lo escrito queda tal cual: ni entidades ni etiquetas se interpretan', () => {
+		expect(renderBotTextPlain(key, {}, { [key]: 'Buscá &lt;script&gt; &amp; más' })).toBe(
+			'Buscá &lt;script&gt; &amp; más'
+		);
+		expect(renderBotTextPlain(key, {}, { [key]: 'Buscá <<b>script> acá' })).toBe(
+			'Buscá <<b>script> acá'
+		);
+	});
+
+	it('las variables van tal cual y nunca se vuelven formato', () => {
+		expect(renderBotTextPlain('eventos.resultado_uno', { busqueda: '**x** <y>' })).toBe(
+			'Encontré esto para «**x** <y>»'
+		);
+		expect(renderBotTextPlain('inicio.boton_sitio', { sitio: 'a.b' })).toBe('Abrir a.b ↗');
 	});
 });
 

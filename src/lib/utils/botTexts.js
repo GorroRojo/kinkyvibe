@@ -973,19 +973,38 @@ export function renderBotText(key, vars = {}, overrides = null) {
 	);
 }
 
-const ENTITIES = Object.freeze({ lt: '<', gt: '>', quot: '"', amp: '&' });
-
 /**
- * Lo que se ve de un texto con formato, sin las etiquetas (para reconocer la respuesta a
- * «Buscar», que Telegram devuelve sin formato). Saca las etiquetas y decodifica las entidades en
- * una sola pasada: lo decodificado nunca se vuelve a mirar.
+ * Lo que ve quien lee un texto, como texto solo, armado desde lo escrito (nunca desde HTML):
+ * `**x**` → `x`, `[texto](https://…)` → `texto` y las variables tal cual. No arma ni lee HTML:
+ * sirve para comparar con lo que devuelve Telegram (la respuesta a «Buscar»), nunca para ponerlo
+ * en un mensaje con formato.
  *
- * Solo para comparar texto: nunca lo pongas en HTML.
- *
- * @param {string} html
+ * @param {string} key
+ * @param {Record<string, string | number>} [vars]
+ * @param {Record<string, string> | null} [overrides]
+ * @returns {string}
  */
-export function telegramHtmlToPlain(html) {
-	return html.replace(/<[^>]*>|&(lt|gt|quot|amp);/g, (_, entity) =>
-		entity ? ENTITIES[/** @type {keyof typeof ENTITIES} */ (entity)] : ''
-	);
+export function renderBotTextPlain(key, vars = {}, overrides = null) {
+	const field = FIELD_BY_KEY.get(key);
+	if (!field) throw new Error(`[bot] texto desconocido: ${key}`);
+	if (!isFormattedKind(field.kind)) return renderBotText(key, vars, overrides);
+	const own = overrides?.[key];
+	const template = typeof own === 'string' && own ? own : field.value;
+	/** @type {string[]} */
+	const slots = [];
+	const marked = template.replace(VAR_RE, (whole, name) => {
+		if (!field.vars.some((v) => v.name === name)) return whole;
+		slots.push(String(vars[name] ?? ''));
+		return `${MARK_OPEN}${slots.length - 1}${MARK_CLOSE}`;
+	});
+	return marked
+		.replace(/\*\*([\s\S]+?)\*\*/g, '$1')
+		.replace(LINK_RE, (whole, text, url) => {
+			const href = url.replace(
+				MARK_RE,
+				(/** @type {string} */ _, /** @type {string} */ i) => slots[Number(i)]
+			);
+			return SAFE_URL_RE.test(href) ? text : whole;
+		})
+		.replace(MARK_RE, (_, i) => slots[Number(i)]);
 }

@@ -13,8 +13,8 @@
 import { escapeHtml, eventUrl, formatWhen, WINDOW_TEXTS, formatHelp } from './format.js';
 import { truncate } from './keyboards.js';
 import { encodeNav, navId, startLink } from './nav.js';
-import { botText } from './texts.js';
-import { renderBotText, telegramHtmlToPlain } from '$lib/utils/botTexts.js';
+import { botText, currentBotTexts } from './texts.js';
+import { renderBotText, renderBotTextPlain } from '$lib/utils/botTexts.js';
 import { formatARS } from '$lib/utils/money.js';
 
 /** @typedef {import('./format.js').BotEvent} BotEvent */
@@ -457,7 +457,7 @@ export const SEARCH_PROMPT_TEXT = renderBotText('eventos.buscar');
  */
 export function isSearchPrompt(text) {
 	if (text.startsWith(SEARCH_PROMPT_HEAD)) return true;
-	const current = telegramHtmlToPlain(botText('eventos.buscar')).trim();
+	const current = renderBotTextPlain('eventos.buscar', {}, currentBotTexts()).trim();
 	return Boolean(current) && text.trim() === current;
 }
 
