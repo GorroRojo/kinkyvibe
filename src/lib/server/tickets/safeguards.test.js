@@ -4,6 +4,9 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
+/** El comienzo del evento de prueba (un test lo acerca para ver el tope de la reserva). */
+const eventStart = vi.hoisted(() => ({ value: '2099-12-01T20:00-03:00' }));
+
 vi.mock('./events.js', async () => {
 	const { parseTicketConfig } = await import('./config.js');
 	const meta = {
@@ -20,7 +23,7 @@ vi.mock('./events.js', async () => {
 		isValidEventSlug: () => true,
 		isTestEventSlug: (/** @type {string} */ s) => s.startsWith('prueba-entradas'),
 		getEventTickets: async (/** @type {string} */ _slug, /** @type {any} */ opts) =>
-			parseTicketConfig(meta, opts),
+			parseTicketConfig({ ...meta, start: eventStart.value }, opts),
 		listTicketedEvents: async () => []
 	};
 });
@@ -31,6 +34,7 @@ import { validateBuyer, validateHolder } from './config.js';
 import { createDiscountCode } from './discounts.js';
 import { HOLD_LIMITS, getCounts, reserveOrder } from './orders.js';
 import { clientHash, clientNetwork } from './safeguards.js';
+import { transferDeadline } from '$lib/utils/transferDeadline.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -173,8 +177,9 @@ describe('topes de reservas abiertas (reserveOrder)', () => {
 
 	it('lo vencido o pagado no cuenta', async () => {
 		expect((await reserve(20)).ok).toBe(true);
-		// Pasada la reserva (2 h por defecto para transferencia), se puede de nuevo.
-		expect((await reserve(20, { now: 1000 + 2 * 3600_000 + 1 })).ok).toBe(true);
+		// Pasada la reserva (por defecto, la de los días hábiles para transferencia), se puede de nuevo.
+		expect((await reserve(20, { now: transferDeadline(1000) - 1 })).ok).toBe(false);
+		expect((await reserve(20, { now: transferDeadline(1000) })).ok).toBe(true);
 	});
 
 	it('por cliente: como mucho 40 entradas reservadas a la vez, con emails distintos', async () => {
@@ -213,7 +218,7 @@ describe('?/buy', () => {
 		}
 	);
 
-	it('la reserva por transferencia arranca corta (se extiende al confirmarla desde el mail)', async () => {
+	it('la reserva por transferencia dura de entrada hasta las 20:00 del segundo día hábil (sin paso de confirmar)', async () => {
 		const r = await post(buyAction, order());
 		const id = r.redirect.split('/')[2];
 		const row = /** @type {any} */ (
@@ -222,11 +227,27 @@ describe('?/buy', () => {
 				.bind(id)
 				.first()
 		);
-		expect(row.expires_at - row.created_at).toBe(2 * 3600_000);
+		expect(row.expires_at).toBe(transferDeadline(row.created_at));
 		// Se guarda el hash del cliente, nunca la IP.
 		expect(row.client_hash).toMatch(/^[0-9a-f]{32}$/);
 		const all = JSON.stringify(await t.db.prepare('SELECT * FROM orders').all());
 		expect(all).not.toContain('203.0.113.7');
+	});
+
+	it('si el evento empieza antes de ese vencimiento, la reserva por transferencia dura hasta que empieza', async () => {
+		const soon = new Date(Date.now() + 3 * 3600_000);
+		soon.setUTCSeconds(0, 0);
+		eventStart.value = soon.toISOString();
+		onTestFinished(() => {
+			eventStart.value = '2099-12-01T20:00-03:00';
+		});
+		const r = await post(buyAction, order());
+		const id = r.redirect.split('/')[2];
+		const row = /** @type {any} */ (
+			await t.db.prepare('SELECT created_at, expires_at FROM orders WHERE id = ?1').bind(id).first()
+		);
+		expect(row.expires_at).toBe(Math.min(soon.getTime(), transferDeadline(row.created_at)));
+		expect(row.expires_at).toBe(soon.getTime());
 	});
 
 	it(

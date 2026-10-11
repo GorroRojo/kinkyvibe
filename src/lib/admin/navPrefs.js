@@ -1,11 +1,14 @@
 /**
  * Preferencias del menú del panel de cada persona, en localStorage (puede fallar en ventanas
  * privadas o con el storage bloqueado: entonces vale lo de siempre y el menú anda igual):
- * - qué área de la barra lateral abrió por última vez;
+ * - qué grupos de la barra lateral dejó abiertos (pueden ser varios a la vez);
  * - "Ocultar lo que viene" (las secciones próximamente).
  */
-import { NAV_AREAS } from './nav.js';
+import { NAV_AREAS, NAV_GROUPS, navGroupOf } from './nav.js';
 
+/** Grupos abiertos: un JSON con la lista de ids (`["eventos","ventas"]`; `[]` = todos cerrados). */
+export const OPEN_GROUPS_KEY = 'kv-panel-grupos';
+/** La clave vieja, de cuando se abría un grupo a la vez: se lee una vez y se borra al guardar. */
 export const OPEN_AREA_KEY = 'kv-panel-area';
 export const HIDE_SOON_KEY = 'kv-panel-hide-soon';
 
@@ -42,14 +45,47 @@ export function parseArea(value) {
 	return NAV_AREAS.some((a) => a.id === value) ? /** @type {string} */ (value) : null;
 }
 
-/** @returns {string | null} */
-export function readOpenArea() {
-	return parseArea(read(OPEN_AREA_KEY));
+/**
+ * Ids de grupo válidos, sin repetir y en el orden del menú. Lo que no es un grupo se descarta.
+ * @param {Iterable<unknown>} ids
+ * @returns {string[]}
+ */
+export function normalizeGroups(ids) {
+	const set = new Set(ids);
+	return NAV_GROUPS.filter((g) => set.has(g.id)).map((g) => g.id);
 }
 
-/** @param {string | null} area */
-export function saveOpenArea(area) {
-	write(OPEN_AREA_KEY, parseArea(area));
+/**
+ * Lo guardado en `OPEN_GROUPS_KEY`, o `null` si no hay nada (o no se entiende).
+ * @param {string | null} raw
+ * @returns {string[] | null}
+ */
+export function parseGroups(raw) {
+	if (raw === null) return null;
+	try {
+		const value = JSON.parse(raw);
+		return Array.isArray(value) ? normalizeGroups(value) : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Los grupos que la persona dejó abiertos, o `null` si nunca tocó el menú. Si solo está la clave
+ * vieja (un área), vale ese grupo.
+ * @returns {string[] | null}
+ */
+export function readOpenGroups() {
+	const saved = parseGroups(read(OPEN_GROUPS_KEY));
+	if (saved) return saved;
+	const old = navGroupOf(parseArea(read(OPEN_AREA_KEY)))?.id;
+	return old ? [old] : null;
+}
+
+/** @param {Iterable<string>} ids */
+export function saveOpenGroups(ids) {
+	write(OPEN_GROUPS_KEY, JSON.stringify(normalizeGroups(ids)));
+	write(OPEN_AREA_KEY, null);
 }
 
 /** @returns {boolean} */
@@ -63,11 +99,41 @@ export function saveHideSoon(hide) {
 }
 
 /**
- * Qué área se ve abierta: la de la página actual; si la página no es de ningún área (Inicio), la
- * última que la persona abrió.
- * @param {string | null | undefined} activeArea
- * @param {string | null | undefined} saved
+ * Qué grupos se ven abiertos al cargar: los que la persona dejó abiertos y, siempre, el de la
+ * página actual (aunque lo haya cerrado). Sin nada guardado, solo el de la página actual (en
+ * Inicio, ninguno).
+ * @param {string | null | undefined} activeGroup
+ * @param {readonly string[] | null | undefined} saved
+ * @returns {string[]}
  */
-export function pickOpenArea(activeArea, saved) {
-	return parseArea(activeArea) ?? parseArea(saved);
+export function pickOpenGroups(activeGroup, saved) {
+	return normalizeGroups([...(saved ?? []), activeGroup]);
+}
+
+/**
+ * Abre o cierra un grupo sin tocar los demás.
+ * @param {readonly string[]} open
+ * @param {string} id
+ * @returns {string[]}
+ */
+export function toggleGroup(open, id) {
+	return open.includes(id) ? open.filter((g) => g !== id) : normalizeGroups([...open, id]);
+}
+
+/**
+ * «Abrir todo» o «Cerrar todo»: si ya están todos abiertos, cierra todo; si no, abre todos.
+ * @param {readonly string[]} open
+ * @param {readonly string[]} all los grupos que se ven en el menú
+ * @returns {string[]}
+ */
+export function toggleAllGroups(open, all) {
+	return allGroupsOpen(open, all) ? [] : normalizeGroups(all);
+}
+
+/**
+ * @param {readonly string[]} open
+ * @param {readonly string[]} all
+ */
+export function allGroupsOpen(open, all) {
+	return all.length > 0 && all.every((id) => open.includes(id));
 }

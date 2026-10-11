@@ -18,7 +18,11 @@
 	 * - prop `hideSoon`: si ahora está «Ocultar lo que viene» (para el nombre de la acción);
 	 * - eventos `theme` y `hidesoon`: la persona eligió «Cambiar tema» u «Ocultar/Mostrar lo que
 	 *   viene» (las preferencias las cambia el layout);
-	 * - `open(q?)` exportada, para abrirla desde afuera (bind:this), con algo ya escrito o no.
+	 * - `open(q?)` y `openHelp()` exportadas, para abrir la paleta (con algo ya escrito o no) o la
+	 *   hoja de atajos desde afuera (bind:this; «Atajos de teclado» del menú lateral y el botón `?`
+	 *   de la barra de arriba);
+	 * - mientras `g` espera su segunda tecla, `goPending` (`$lib/admin/shortcutHints.js`) está en
+	 *   `true` y las pistas «g x» del menú se encienden.
 	 *
 	 * Teclado adentro: ↑/↓ para moverse, Enter para abrir, Esc para cerrar. En el celu la paleta
 	 * ocupa toda la pantalla.
@@ -69,6 +73,7 @@
 	} from '$lib/admin/commands.js';
 	import { SEARCH_TIPS, paletteCommands, recordsFirst } from '$lib/admin/paletteActions.js';
 	import { allowsKind, hasRecordCriteria, parseSearchQuery } from '$lib/utils/searchQuery.js';
+	import { goPending, isMac } from '$lib/admin/shortcutHints.js';
 
 	/** Texto corto para el header del celu. */
 	export let compact = false;
@@ -210,7 +215,7 @@
 		if (dialog?.open) dialog.close();
 	}
 	/** @param {{ searchTips?: boolean }} [opts] `searchTips`: ir directo a «Cómo buscar» */
-	async function openHelp({ searchTips = false } = {}) {
+	export async function openHelp({ searchTips = false } = {}) {
 		close();
 		helpOpen = true;
 		helpDialog?.showModal?.();
@@ -335,11 +340,22 @@
 		return n + ri;
 	}
 
+	/** «Ctrl K» o «⌘ K», al lado del `/` (el CSS lo muestra solo en una compu con mouse). */
+	let ctrlK = '';
+
 	onMount(() => {
 		if (!hotkeys) return;
+		ctrlK = isMac() ? '⌘ K' : 'Ctrl K';
 		let pendingG = false;
 		/** @type {ReturnType<typeof setTimeout> | undefined} */
 		let gTimer;
+		/** @param {boolean} on */
+		const setPending = (on) => {
+			pendingG = on;
+			goPending.set(on);
+			clearTimeout(gTimer);
+			if (on) gTimer = setTimeout(() => setPending(false), 1200);
+		};
 		/** @param {KeyboardEvent} e */
 		const onKey = (e) => {
 			const el = /** @type {HTMLElement | null} */ (document.activeElement);
@@ -350,11 +366,16 @@
 				else open();
 				return;
 			}
-			if (typing || e.ctrlKey || e.metaKey || e.altKey || isOpen || helpOpen) return;
+			if (typing || e.ctrlKey || e.metaKey || e.altKey || isOpen || helpOpen) {
+				if (pendingG) setPending(false);
+				return;
+			}
 			if (document.querySelector('dialog[open]')) return;
+			// Dejar `g` apretada repite la tecla: no es `g g`.
+			if (e.repeat) return;
 			if (pendingG) {
-				pendingG = false;
-				clearTimeout(gTimer);
+				if (e.key === 'Shift') return;
+				setPending(false);
 				const href = goShortcutHref(e.key);
 				if (href) {
 					e.preventDefault();
@@ -369,14 +390,13 @@
 				e.preventDefault();
 				openHelp();
 			} else if (e.key === 'g') {
-				pendingG = true;
-				gTimer = setTimeout(() => (pendingG = false), 1200);
+				setPending(true);
 			}
 		};
 		window.addEventListener('keydown', onKey);
 		return () => {
 			window.removeEventListener('keydown', onKey);
-			clearTimeout(gTimer);
+			setPending(false);
 		};
 	});
 </script>
@@ -388,7 +408,7 @@
 			? 'Buscar o hacer…'
 			: 'Buscar personas, eventos, perfiles, etiquetas o acciones…'}</span
 	>
-	{#if !compact}<kbd>/</kbd>{/if}
+	{#if !compact}<kbd>/</kbd>{#if ctrlK}<kbd class="ck">{ctrlK}</kbd>{/if}{/if}
 </button>
 
 <dialog
@@ -622,6 +642,17 @@
 	}
 	.search kbd {
 		margin-left: auto;
+		flex: none;
+		&.ck {
+			display: none;
+		}
+	}
+	/* La misma consulta que HINTS_MEDIA (shortcutHints.js). */
+	@media (hover: hover) and (pointer: fine) and (min-width: 1100px) {
+		.search kbd.ck {
+			display: inline;
+			margin-left: 0;
+		}
 	}
 	dialog {
 		border: 0;

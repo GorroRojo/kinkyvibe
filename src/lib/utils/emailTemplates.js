@@ -103,11 +103,15 @@ const V = {
 		label: 'referencia de la compra (KV-…)',
 		sample: 'KV-3F2B8C1E'
 	},
-	horas: { name: 'horas', label: 'horas de reserva', sample: '2' },
+	horas: {
+		name: 'horas',
+		label: 'horas de reserva, redondeadas (mejor usá «vence», con la fecha y la hora)',
+		sample: '52'
+	},
 	vence: {
 		name: 'vence',
-		label: 'cuándo vence la reserva',
-		sample: 'jueves 1 de octubre de 2026, 11:00'
+		label: 'hasta cuándo se guarda el lugar',
+		sample: 'miércoles 15 de octubre a las 20:00'
 	},
 	link_estado: {
 		name: 'link_estado',
@@ -163,7 +167,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		label: 'Datos para transferir',
 		when: 'Cuando alguien reserva pagando por transferencia.',
 		fixed:
-			'Botón para confirmar la reserva (si corresponde), evento, detalle del precio, datos para transferir, referencia para el concepto, cómo mandar el comprobante, link al estado de la compra y política de devoluciones.',
+			'Hasta cuándo se guarda el lugar (fecha y hora exactas), evento, detalle del precio, datos para transferir, referencia para el concepto, cómo mandar el comprobante, link al estado de la compra y política de devoluciones.',
 		vars: [
 			V.nombre,
 			V.evento,
@@ -179,14 +183,11 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		defaults: {
 			subject: 'Datos para transferir · {{evento}} ({{referencia}})',
 			heading: 'Reservamos tus entradas',
-			body: 'Hola {{nombre}}, para confirmarlas transferí **{{total}}**. Te reservamos el lugar {{horas}} horas (hasta el **{{vence}}**) mientras mandás el comprobante por mail.'
+			body: 'Hola {{nombre}}, para confirmar tus entradas transferí **{{total}}**.'
 		},
 		extras: {
 			label: { default: 'Tu reserva' },
-			button: {
-				default: 'Ver el estado de tu compra',
-				note: 'Si hay que confirmar la reserva, el botón lleva a confirmarla y dice «Confirmar mi reserva».'
-			},
+			button: { default: 'Ver el estado de tu compra' },
 			help: { default: '', note: 'Sin texto propio, este mail no tiene línea de ayuda.' },
 			why: { default: WHY_RESERVED }
 		}

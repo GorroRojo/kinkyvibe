@@ -134,6 +134,7 @@ export const MONTHS_SHORT_ES = MONTHS_ES.map((m) => m.slice(0, 3));
  * Variantes para lo que no es una lista ni un encabezado:
  * - fecha corta con año: {@link argDateShort} → `2 oct 2026`;
  * - fecha larga sin día de la semana: {@link argDateLong} → `2 de octubre de 2026`;
+ * - un vencimiento en una frase: {@link argDeadline} → `miércoles 15 de octubre a las 20:00`;
  * - día y mes en números: {@link argDayMonth} → `2/10`;
  * - solo la hora: {@link argTime} → `22:00`;
  * - las partes sueltas (bloques de fecha, imágenes): {@link argDateParts};
@@ -203,6 +204,19 @@ export function argDateTimeLong(d, { time = true } = {}) {
 	if (isNaN(a.getTime())) return '';
 	const day = `${WEEKDAYS_ES[a.getDay()]} ${a.getDate()} de ${MONTHS_ES[a.getMonth()]} de ${a.getFullYear()}`;
 	return time ? `${day}, ${pad2(a.getHours())}:${pad2(a.getMinutes())}` : day;
+}
+
+/**
+ * A deadline in a sentence, in Argentina time: `miércoles 15 de octubre a las 20:00` (for
+ * «te guardamos el lugar hasta el …»). No year: these deadlines are a few days away.
+ * `''` for a missing or unreadable date.
+ * @param {string|number|Date|null|undefined} d
+ */
+export function argDeadline(d) {
+	if (d == null || d === '') return '';
+	const a = toArgentina(d);
+	if (isNaN(a.getTime())) return '';
+	return `${WEEKDAYS_ES[a.getDay()]} ${a.getDate()} de ${MONTHS_ES[a.getMonth()]} a las ${pad2(a.getHours())}:${pad2(a.getMinutes())}`;
 }
 
 /**

@@ -2,11 +2,13 @@
 	/**
 	 * Ajustes → Automatizaciones: lo que corre solo, para mirar (todavía no se edita nada acá).
 	 * Cada fila: qué hace, cuándo corre, la última vez y la próxima (si se sabe) y dónde se configura.
+	 * Lo único que se toca: «Actualizar comandos del bot», en la tarjeta del bot.
 	 */
 	import { fmtDateTime, fmtRelative } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
+	import CommandsForm from '$lib/components/admin/telegram/CommandsForm.svelte';
 	import {
 		BellRing,
 		Bot,
@@ -24,6 +26,8 @@
 	} from '@lucide/svelte';
 
 	export let data;
+	/** @type {any} */
+	export let form;
 
 	/** @type {Record<string, any>} */
 	const ICONS = {
@@ -48,7 +52,7 @@
 
 <PageHeader
 	title="Automatizaciones"
-	subtitle="Todo lo que corre solo, en un lugar. Por ahora es para mirar: cada cosa se configura donde dice."
+	subtitle="Todo lo que corre solo, en un lugar. Casi todo es para mirar: cada cosa se configura donde dice."
 />
 
 <div class="kv-stack automations">
@@ -99,6 +103,9 @@
 								</div>
 							{/if}
 						</dl>
+						{#if a.id === 'telegram'}
+							<CommandsForm tokenOk={data.telegramTokenOk} {form} />
+						{/if}
 						{#if a.details.length}
 							<details class="tech">
 								<summary>Para técnicos</summary>

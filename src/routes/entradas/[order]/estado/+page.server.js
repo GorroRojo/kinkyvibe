@@ -14,10 +14,9 @@ import {
 	processPayment,
 	replyToAddress,
 	siteOrigin,
-	transferHoldMs,
 	transferInfo
 } from '$lib/server/tickets/index.js';
-import { holdHours, orderReference } from '$lib/utils/tickets.js';
+import { orderReference } from '$lib/utils/tickets.js';
 import { getOrder, getOrderTickets, isValidOrderId } from '$lib/server/tickets/orders.js';
 
 const RECHECK_LIMIT = { limit: 10, windowSeconds: 60 };
@@ -80,12 +79,6 @@ export async function load({ params, url, platform, fetch, cookies }) {
 			fondoOption: current.fondo_option,
 			unitPrice: current.unit_price,
 			contribution: current.fondo_contribution,
-			holdHours: holdHours(current),
-			// Reserva por transferencia todavía sin confirmar desde el mail (la corta inicial).
-			confirmPending:
-				current.status === 'awaiting_transfer' &&
-				current.expires_at < current.created_at + transferHoldMs(),
-			fullHoldHours: Math.round(transferHoldMs() / 3600000),
 			discountCode: current.discount_code,
 			discountAmount: current.discount_amount,
 			surcharge: current.surcharge_amount,
@@ -96,7 +89,9 @@ export async function load({ params, url, platform, fetch, cookies }) {
 				config?.types.find((t) => t.id === current.ticket_type)?.name ?? current.ticket_type,
 			// Sin la cookie de esta compra no mostramos el email completo.
 			email: mine ? current.buyer_email : maskEmail(current.buyer_email),
-			expiresAt: current.expires_at
+			expiresAt: current.expires_at,
+			// Transferencia que sigue esperando pero ya pasó su vencimiento (todavía no se marcó vencida).
+			holdExpired: current.status === 'awaiting_transfer' && current.expires_at <= Date.now()
 		},
 		event: {
 			slug: current.event_slug,

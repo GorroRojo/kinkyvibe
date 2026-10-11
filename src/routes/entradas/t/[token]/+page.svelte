@@ -46,7 +46,6 @@
 					>Entrar a la transmisión</a
 				>
 				<p class="stream-url">{data.streamLink}</p>
-				<p class="hint">Es personal: no lo compartas.</p>
 			{:else if data.ticket.state !== 'void' && data.ticket.state !== 'refunded'}
 				<p class="stream-title">Evento online</p>
 				<p>

@@ -13,7 +13,7 @@ const view = (types) => ({
 	maxQuantity: 20,
 	mock: false,
 	methods: ['mercadopago'],
-	transferHoldHours: 48,
+	transferUntil: Date.parse('2026-10-14T20:00-03:00'),
 	feeBasisPoints: 0,
 	contactEmail: 'prueba@example.com',
 	online: false,
