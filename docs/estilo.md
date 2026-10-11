@@ -206,6 +206,10 @@ componente se ve aunque ninguna página principal lo use.
 | Estado de un guardado automático                                                | `$lib/components/ui/SaveStatus.svelte`                                             |
 | Tabla para leer                                                                 | `$lib/components/ui/Table.svelte`                                                  |
 
+El ícono grande de cada tipo para `PageHeader` (sin imagen) sale de `typeIcon` en
+`$lib/admin/typeIcons.js`: lo usan la ficha de un perfil (persona, proyecto o lugar) y la de un
+material.
+
 Los imports viejos (`$lib/components/admin/panel/Card.svelte`, `Badge`, `EmptyState`,
 `PageHeader`, `Tabs`, `ConfirmDialog`, `$lib/components/TagChip.svelte` y
 `$lib/components/admin/charts/Segmented.svelte`) siguen andando: son envoltorios del de `ui/`. En
