@@ -713,9 +713,15 @@ test('el evento de prueba: botón en la página del evento → página de compra
 	await fillBuyer(block);
 	await nextStep(block, 'Pagar');
 	await block.getByLabel(/Transferencia/).check();
-	await expect(block.locator('.method-note.shown')).toContainText(
-		'Confirmando la reserva desde el mail, te guardamos el lugar 48 horas mientras mandás el comprobante por mail'
+	// Hasta cuándo se guarda el lugar, con día y hora (decisión 0031): sin paso de confirmar.
+	const transferNote = block.locator('.method-note.shown');
+	await expect(transferNote).toContainText(
+		/Te guardamos el lugar hasta (el \S+ \d+ de \S+ a las|las) \d\d:\d\d/
 	);
+	await expect(transferNote).toContainText(
+		'Transferí y mandanos el comprobante antes de esa hora; si no llega, la reserva se libera.'
+	);
+	await expect(transferNote).not.toContainText(/confirmando|horas/i);
 	// Condiciones: una sola lista con el mismo formato, devoluciones incluidas.
 	await block.getByText('Condiciones de compra y devoluciones').click();
 	const conditions = block.locator('details.conditions > ul > li');
@@ -841,9 +847,11 @@ test('el formulario sobrevive a una recarga (sessionStorage) y se borra al compr
 	await block.locator('.pay button[type="submit"]').click();
 	await expect(page).toHaveURL(/\/entradas\/[0-9a-f-]{36}\/estado$/);
 	await expect(page.locator('.amount')).toHaveText(ars(26000));
-	// Reserva inicial corta: pide confirmarla desde el mail para guardarla 48 horas.
-	await expect(page.getByText(/te reservamos el lugar\s+2 horas/)).toBeVisible();
-	await expect(page.locator('.confirm-note')).toContainText('48 horas');
+	// La reserva completa desde el principio, con día y hora; nada para confirmar (decisión 0031).
+	await expect(page.locator('.hold-note')).toContainText(
+		/Te guardamos el lugar hasta (el \S+ \d+ de \S+ a las|las) \d\d:\d\d/
+	);
+	await expect(page.getByText(/confirmá tu reserva/i)).toHaveCount(0);
 	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
 	await expect(page.locator('#entradas').getByLabel('Tu nombre')).toHaveValue('');
 });

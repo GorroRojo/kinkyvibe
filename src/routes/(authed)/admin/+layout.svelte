@@ -9,8 +9,13 @@
 	 * solo pone los tokens del panel (`.kv-panel`, con modo oscuro) y la página, sin menús.
 	 *
 	 * Las secciones y sus íconos salen de `$lib/admin/nav.js` (no agregar links a mano acá): la
-	 * barra lateral es `SideNav.svelte` (áreas que se abren de a una) y el panel "Más" del celu,
-	 * `MoreAreas.svelte`. Arriba (y en el header del celu) está el botón global "Para revisar".
+	 * barra lateral es `SideNav.svelte` (varios grupos abiertos a la vez, con scroll propio) y el
+	 * panel "Más" del celu, `MoreAreas.svelte`. Arriba (y en el header del celu) está el botón
+	 * global "Para revisar".
+	 *
+	 * Atajos de teclado (solo en la compu): «Atajos de teclado» al pie de la barra lateral y el
+	 * botón `?` de la barra de arriba abren la hoja de atajos del buscador (`openHelp`), y
+	 * `ShortcutTip` los cuenta una vez. Ver `$lib/admin/shortcutHints.js`.
 	 */
 	import '$lib/admin/panel.scss';
 	import { onMount } from 'svelte';
@@ -21,6 +26,7 @@
 		ExternalLink,
 		Eye,
 		EyeOff,
+		Keyboard,
 		LogOut,
 		Menu,
 		Moon,
@@ -32,6 +38,7 @@
 	import logo from '../../logo.png';
 	import { logoutHref as logoutLink } from '$lib/utils/authLinks.js';
 	import SearchBox from '$lib/components/admin/panel/SearchBox.svelte';
+	import ShortcutTip from '$lib/components/admin/panel/ShortcutTip.svelte';
 	import ConfirmDialog from '$lib/components/admin/panel/ConfirmDialog.svelte';
 	import NavIcon from '$lib/components/admin/panel/NavIcon.svelte';
 	import SideNav from '$lib/components/admin/panel/SideNav.svelte';
@@ -67,6 +74,10 @@
 	let hideSoon = false;
 	/** @type {HTMLDetailsElement | undefined} */
 	let userMenu;
+	/** El buscador de la barra de arriba (el que escucha el teclado y tiene la hoja de atajos). */
+	/** @type {SearchBox | undefined} */
+	let searchBox;
+	const openShortcuts = () => searchBox?.openHelp();
 
 	$: bare = $page.data?.bare === true;
 	/** Una página con `wide: true` en su load (la agenda) usa todo el ancho, sin el máximo de siempre. */
@@ -255,12 +266,22 @@
 					<a class="nav" href="/" target="_blank" rel="noopener"
 						><ExternalLink size={20} aria-hidden="true" />Ver el sitio</a
 					>
+					<button type="button" class="nav keys" on:click={openShortcuts}
+						><Keyboard size={20} aria-hidden="true" />Atajos de teclado<kbd aria-hidden="true"
+							>?</kbd
+						></button
+					>
 				</div>
 			</aside>
 
 			<div class="main">
 				<header class="top">
-					<SearchBox />
+					<SearchBox
+						bind:this={searchBox}
+						{hideSoon}
+						on:theme={toggleTheme}
+						on:hidesoon={toggleHideSoon}
+					/>
 					<a
 						class="review"
 						href={REVIEW_LINK.href}
@@ -270,6 +291,14 @@
 					>
 					<a class="kv-btn" href="/admin/eventos/nuevo"
 						><Plus size={18} strokeWidth={2.5} aria-hidden="true" />Cargar evento</a
+					>
+					<button
+						type="button"
+						class="keysbtn"
+						title="Atajos de teclado (?)"
+						aria-label="Atajos de teclado"
+						on:click={openShortcuts}
+						><Keyboard size={18} aria-hidden="true" /><kbd aria-hidden="true">?</kbd></button
 					>
 					<details class="usermenu" bind:this={userMenu}>
 						<summary aria-label="Tu cuenta">
@@ -315,7 +344,13 @@
 					<a href="/admin" class="mlogo" aria-label="Inicio del panel"
 						><img src={logo} alt="Kinky Vibe" width="44" height="44" /></a
 					>
-					<SearchBox compact hotkeys={false} />
+					<SearchBox
+						compact
+						hotkeys={false}
+						{hideSoon}
+						on:theme={toggleTheme}
+						on:hidesoon={toggleHideSoon}
+					/>
 					<a class="site" href="/" target="_blank" rel="noopener" title="Ver el sitio"
 						>Sitio<ExternalLink size={14} aria-hidden="true" /></a
 					>
@@ -347,6 +382,8 @@
 				</main>
 			</div>
 		</div>
+
+		<ShortcutTip onShowShortcuts={openShortcuts} />
 
 		<nav class="tabbar" aria-label="Secciones principales">
 			{#each mobileTabs as tab, i (i)}
@@ -458,6 +495,13 @@
 		grid-template-columns: 15.5rem minmax(0, 1fr);
 		min-height: 100vh;
 	}
+	/* Con las pistas de atajos «g x» (NavShortcut, misma consulta que HINTS_MEDIA) la barra es más
+	   ancha, así «Ventas en el tiempo» o «Árbol de etiquetas» entran en un renglón. */
+	@media (hover: hover) and (pointer: fine) and (min-width: 1100px) {
+		.app {
+			grid-template-columns: 18rem minmax(0, 1fr);
+		}
+	}
 
 	/* Barra lateral: blanca, como las tarjetas del sitio; los links como el menú del sitio
 	   (rosas en negrita, el actual en violeta). */
@@ -468,10 +512,16 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.1rem;
+		/* Scroll propio: si el menú es más alto que la pantalla, la barra scrollea sola y no se
+		   mueve con la página (SideNav lleva a la vista el link actual al cargar). */
 		position: sticky;
 		top: 0;
 		height: 100vh;
-		overflow: auto;
+		height: 100dvh;
+		max-height: 100vh;
+		max-height: 100dvh;
+		overflow-y: auto;
+		overscroll-behavior: contain;
 	}
 	.brand {
 		display: flex;
@@ -551,6 +601,50 @@
 		.nav {
 			font-weight: 400;
 			color: var(--text);
+		}
+	}
+
+	/* Atajos de teclado: solo en una compu con mouse (la consulta de HINTS_MEDIA, sin el ancho). */
+	.keys,
+	.keysbtn {
+		display: none;
+	}
+	.foot .keys kbd,
+	.keysbtn kbd {
+		font: inherit;
+		font-size: var(--text-xs);
+		background: var(--surface-2);
+		border: 1px solid var(--line);
+		border-radius: 0.4em;
+		padding: 0 0.4em;
+		color: var(--muted);
+	}
+	.foot .keys kbd {
+		margin-left: auto;
+	}
+	.keysbtn {
+		align-items: center;
+		gap: 0.3rem;
+		flex: none;
+		margin-left: auto;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		color: var(--muted);
+		border-radius: 3em;
+		padding: 0.35em 0.6em;
+		cursor: pointer;
+		&:hover {
+			color: var(--text);
+			background: var(--surface-2);
+		}
+	}
+	@media (hover: hover) and (pointer: fine) {
+		.keys,
+		.keysbtn {
+			display: flex;
+		}
+		.keysbtn + .usermenu {
+			margin-left: 0;
 		}
 	}
 

@@ -44,7 +44,7 @@ import { escapeHtml } from './escape.js';
  * @typedef {{ default: string, note?: string }} ExtraDef
  * @typedef {{ id: TemplateId, label: string, when: string, fixed: string, vars: TemplateVar[],
  *   defaults: TemplateText, extras: Partial<Record<ExtraKey, ExtraDef>> }} TemplateDef
- * @typedef {'tickets' | 'transfer' | 'stream' | 'reminder' | 'refund'} TemplateId
+ * @typedef {'tickets' | 'transfer' | 'stream' | 'reminder' | 'refund' | 'date_change'} TemplateId
  */
 
 /** Largo máximo de cada parte. */
@@ -103,16 +103,25 @@ const V = {
 		label: 'referencia de la compra (KV-…)',
 		sample: 'KV-3F2B8C1E'
 	},
-	horas: { name: 'horas', label: 'horas de reserva', sample: '2' },
+	horas: {
+		name: 'horas',
+		label: 'horas de reserva, redondeadas (mejor usá «vence», con la fecha y la hora)',
+		sample: '52'
+	},
 	vence: {
 		name: 'vence',
-		label: 'cuándo vence la reserva',
-		sample: 'jueves 1 de octubre de 2026, 11:00'
+		label: 'hasta cuándo se guarda el lugar',
+		sample: 'miércoles 15 de octubre a las 20:00'
 	},
 	link_estado: {
 		name: 'link_estado',
 		label: 'dirección de la página de la compra',
 		sample: 'https://kinkyvibe.ar/entradas/…/estado'
+	},
+	fecha_anterior: {
+		name: 'fecha_anterior',
+		label: 'la fecha y hora de antes del cambio',
+		sample: 'viernes 9 de octubre de 2026, 21:00'
 	},
 	cuando: {
 		name: 'cuando',
@@ -163,7 +172,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		label: 'Datos para transferir',
 		when: 'Cuando alguien reserva pagando por transferencia.',
 		fixed:
-			'Botón para confirmar la reserva (si corresponde), evento, detalle del precio, datos para transferir, referencia para el concepto, cómo mandar el comprobante, link al estado de la compra y política de devoluciones.',
+			'Hasta cuándo se guarda el lugar (fecha y hora exactas), evento, detalle del precio, datos para transferir, referencia para el concepto, cómo mandar el comprobante, link al estado de la compra y política de devoluciones.',
 		vars: [
 			V.nombre,
 			V.evento,
@@ -179,14 +188,11 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		defaults: {
 			subject: 'Datos para transferir · {{evento}} ({{referencia}})',
 			heading: 'Reservamos tus entradas',
-			body: 'Hola {{nombre}}, para confirmarlas transferí **{{total}}**. Te reservamos el lugar {{horas}} horas (hasta el **{{vence}}**) mientras mandás el comprobante por mail.'
+			body: 'Hola {{nombre}}, para confirmar tus entradas transferí **{{total}}**.'
 		},
 		extras: {
 			label: { default: 'Tu reserva' },
-			button: {
-				default: 'Ver el estado de tu compra',
-				note: 'Si hay que confirmar la reserva, el botón lleva a confirmarla y dice «Confirmar mi reserva».'
-			},
+			button: { default: 'Ver el estado de tu compra' },
 			help: { default: '', note: 'Sin texto propio, este mail no tiene línea de ayuda.' },
 			why: { default: WHY_RESERVED }
 		}
@@ -250,6 +256,31 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		// Sin botón (ni línea de ayuda debajo).
 		extras: {
 			label: { default: 'Reembolso' },
+			why: { default: WHY_BOUGHT }
+		}
+	},
+	{
+		id: 'date_change',
+		label: 'Cambio de fecha',
+		when: 'Con «Avisar a les compradores» después de cambiar la fecha o el horario de un evento.',
+		fixed:
+			'La fecha nueva en un recuadro (con el lugar), la de antes, el calendario actualizado (.ics y Google Calendar), el link de la transmisión si es online y ya está, número de orden y política de devoluciones.',
+		vars: [V.nombre, V.evento, V.fecha, V.fecha_anterior, V.lugar, V.entradas],
+		defaults: {
+			subject: 'Cambió la fecha: {{evento}}',
+			heading: 'Cambió la fecha',
+			body: 'Hola {{nombre}}, cambió la fecha de **{{evento}}**. Lo que compraste sigue valiendo para la fecha nueva: no tenés que hacer nada.'
+		},
+		extras: {
+			label: { default: 'Cambio de fecha' },
+			button: {
+				default: 'Ver mis entradas',
+				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión».'
+			},
+			help: {
+				default:
+					'Si con la fecha nueva no podés, respondé este mail y te devolvemos lo que pagaste.'
+			},
 			why: { default: WHY_BOUGHT }
 		}
 	}

@@ -14,7 +14,7 @@ export function eventLink(slug, { tickets = false } = {}) {
 }
 
 /**
- * Modo puerta (check-in) de un evento.
+ * La Puerta (control de ingreso) de un evento.
  * @param {string} slug
  */
 export function checkinHref(slug) {

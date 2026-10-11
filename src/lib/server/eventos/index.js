@@ -84,6 +84,7 @@ export function featuredURL(slug, featured) {
  * @prop {boolean} unpublished
  * @prop {boolean} [draft] borrador de la agenda (`borrador: true`, ver drafts.js)
  * @prop {string} [thumb]
+ * @prop {string[]} [tags] etiquetas como están en el evento (para `#etiqueta` en el buscador)
  */
 
 /** @param {any} v */
@@ -132,7 +133,8 @@ function summarize(slug, meta) {
 		unlisted: meta.force_unlisted === true,
 		unpublished: meta.force_unpublished === true,
 		draft: meta.borrador === true,
-		thumb: featuredURL(slug, meta.featured)
+		thumb: featuredURL(slug, meta.featured),
+		tags: Array.isArray(meta.tags) ? meta.tags.map(String) : []
 	};
 }
 
