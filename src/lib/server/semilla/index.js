@@ -5,9 +5,9 @@
  * nueva se llena con estos datos.
  *
  * Los datos (los .json de esta carpeta) son una copia fija de contenido PÚBLICO del sitio, sacada
- * de los .md el día que se borraron: las etiquetas y la wiki, los perfiles de amigues, todo el
- * material y los eventos de 2026 (más los pocos de antes que usan las pruebas). No es una copia de
- * producción ni se actualiza sola: es solo para tener con qué probar.
+ * de los .md el día que se borraron: las etiquetas y la wiki, los perfiles de amigues, el material
+ * y los eventos (todos los que se podían leer: las pruebas usan el conjunto entero). No es una
+ * copia de producción ni se actualiza sola: es solo para tener con qué probar.
  *
  * Se carga con la misma escritura que siempre (saveObject(), por los importadores de cada tipo),
  * así que es idempotente: lo que ya está no se toca y lo editado en la base no se pisa.

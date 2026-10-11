@@ -91,7 +91,10 @@ Settings → Variables and Secrets). Después, borrarla para que vuelva a mandar
 
 ### Importadores
 
-Todos son idempotentes (lo que no cambió no se toca; lo editado en el panel tampoco) y andan con
+**Ya no existen** ([0032](decisiones/0032-borrar-los-md.md)): los `.md` se borraron del repo y una
+base local se llena con la semilla (`npm run db:semilla`). La tabla queda como historia.
+
+Todos eran idempotentes (lo que no cambió no se toca; lo editado en el panel tampoco) y andan con
 el interruptor apagado. **Primero en preview, después en producción**: cada entorno tiene su base.
 
 | Qué                     | Dónde                                                                    | Local                             |

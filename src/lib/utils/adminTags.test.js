@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { seedFiles } from '$lib/server/semilla/testing.js';
 import { parseDocument } from 'yaml';
 import {
 	normalizeText,
@@ -96,13 +96,12 @@ describe('validateEventTags', () => {
 		// intermediate nodes are not places
 		expect(validateEventTags(['español', 'Argentina'])[0]).toMatch(/Falta dónde/);
 	});
-	it('every recent event in the repo passes (2025 on)', () => {
-		const dir = new URL('../posts/calendario/', import.meta.url);
+	it('every recent real event passes (2025 on; the content seed, decisión 0032)', () => {
 		const bad = [];
 		let checked = 0;
-		for (const f of readdirSync(dir)) {
-			if (!f.endsWith('.md') || f.startsWith('_')) continue;
-			const raw = readFileSync(new URL(f, dir), 'utf8').replace(/\r/g, '');
+		for (const { legacySlug, raw: text } of seedFiles('calendario')) {
+			const f = `${legacySlug}.md`;
+			const raw = text.replace(/\r/g, '');
 			const m = raw.match(/^---\n([\s\S]*?)\n---/);
 			if (!m) continue;
 			const doc = parseDocument(m[1]);

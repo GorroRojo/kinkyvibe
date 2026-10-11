@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { seedFiles, seedRaw } from '$lib/server/semilla/testing.js';
 import { parseDocument } from 'yaml';
 import { NEW_EVENT_TEMPLATE, splitMarkdown, readEventFields } from './eventDraft.js';
 import { validateEventTags } from './adminTags.js';
@@ -32,28 +33,22 @@ import {
 } from './sheetImport.js';
 
 const TODAY = '2026-09-29';
-const DIR = new URL('../posts/calendario/', import.meta.url);
 const TEMPLATE = new URL('../admin/plantillas/evento.md', import.meta.url);
 
-/** @param {string} slug */
-const post = (slug) => readFileSync(new URL(`${slug}.md`, DIR), 'utf8');
+/** El texto real de un evento (de la semilla de contenido: los .md ya no están, decisión 0032). */
+const post = (/** @type {string} */ slug) => seedRaw('calendario', slug);
 /** @param {string} md */
 const meta = (md) => parseDocument(splitMarkdown(md).frontmatter).toJS();
 
-/** Every event in the repo: slug, title and dates read from the frontmatter. */
-const EVENTS = readdirSync(DIR)
-	.filter((f) => f.endsWith('.md') && !f.startsWith('_'))
-	.flatMap((f) => {
-		const slug = f.replace(/\.md$/, '');
-		try {
-			const fields = readEventFields(
-				splitMarkdown(readFileSync(new URL(f, DIR), 'utf8')).frontmatter
-			);
-			return [{ slug, title: fields.title || slug, start: fields.start, end: fields.end }];
-		} catch (e) {
-			return [];
-		}
-	});
+/** Every real event (the content seed): slug, title and dates read from the frontmatter. */
+const EVENTS = seedFiles('calendario').flatMap(({ legacySlug: slug, raw }) => {
+	try {
+		const fields = readEventFields(splitMarkdown(raw).frontmatter);
+		return [{ slug, title: fields.title || slug, start: fields.start, end: fields.end }];
+	} catch (e) {
+		return [];
+	}
+});
 const INDEX = buildMatchIndex(EVENTS);
 
 /** The real sample rows from the 2023 spreadsheet (see the PR description). */
@@ -631,10 +626,7 @@ describe('imported drafts follow the event tag rules', () => {
 	const template = readFileSync(TEMPLATE, 'utf8');
 	const choice = { title: 'Algo nuevo', date: '2026-10-10', startTime: '20:00', endTime: '22:00' };
 	it('an online row makes the place Online', () => {
-		const src = readFileSync(
-			new URL('../posts/calendario/taller-ecofetichismo-2026-09-cordoba.md', import.meta.url),
-			'utf8'
-		);
+		const src = post('taller-ecofetichismo-2026-09-cordoba');
 		const { content, notes } = buildImportedEvent(
 			src,
 			{ ...choice, place: 'Zoom' },

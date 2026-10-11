@@ -11,6 +11,7 @@
  * existe. No es aflojar las pruebas: es sacar un modo.)
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { metasOf } from './testing.js';
 import { countingDB, createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { runQuery } from '$lib/server/db/batch.js';
 import { ANON, visibleWhere } from '$lib/server/objects/visibility.js';
@@ -39,7 +40,13 @@ vi.mock('$lib/utils', async (importOriginal) => ({
 }));
 
 const metas = /** @type {Record<string, Record<string, any> | undefined>} */ (
-	import.meta.glob('./fixtures/calendario/*.md', { import: 'metadata', eager: true })
+	metasOf(
+		import.meta.glob('./fixtures/calendario/*.md', {
+			query: '?raw',
+			import: 'default',
+			eager: true
+		})
+	)
 );
 const raws = /** @type {Record<string, string>} */ (
 	import.meta.glob('./fixtures/calendario/*.md', { query: '?raw', import: 'default', eager: true })

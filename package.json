@@ -46,7 +46,6 @@
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.23.1",
 		"globals": "^16.5.0",
-		"mdsvex": "^0.12.8",
 		"pixelmatch": "8.0.0",
 		"pngjs": "7.0.0",
 		"prettier": "^3.9.9",

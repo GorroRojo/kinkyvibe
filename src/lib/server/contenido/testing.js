@@ -32,6 +32,19 @@ export function frontmatterMeta(raw) {
 }
 
 /**
+ * Lo que daba `import.meta.glob(…, { import: 'metadata' })` de mdsvex sobre unos .md (ya no hay
+ * mdsvex): por ruta, la metadata del frontmatter, o `undefined` si no se puede leer.
+ *
+ * @param {Record<string, string>} raws por ruta, el texto (`import.meta.glob(…, { query: '?raw' })`)
+ * @returns {Record<string, Record<string, any> | undefined>}
+ */
+export function metasOf(raws) {
+	return Object.fromEntries(
+		Object.entries(raws).map(([path, raw]) => [path, frontmatterMeta(raw) ?? undefined])
+	);
+}
+
+/**
  * Los .md inventados de ./fixtures/<categoría>, como los pide la importación (`legacySlug`, texto y
  * metadata), ordenados.
  *

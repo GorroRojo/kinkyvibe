@@ -14,9 +14,6 @@ pnpm-lock.yaml
 package-lock.json
 yarn.lock
 
-# Post content is edited by non-developers through the admin CMS (some files use CRLF).
-# Formatting it would rewrite markdown/YAML frontmatter and conflict with CMS commits.
-/src/lib/posts
 # Las plantillas del panel se usan tal cual (texto de partida de un evento o material nuevo).
 /src/lib/admin/plantillas
 

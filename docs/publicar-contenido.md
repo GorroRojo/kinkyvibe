@@ -1,65 +1,30 @@
 # Contenido desde el panel: cómo se publica
 
-Todo lo que el panel escribe pasa por **un solo camino**: el cliente del repo (`getRepoClient()`,
-con `commitFiles` en `src/lib/server/eventos/github.js`). Desde «Contenido solo en la base», los
-eventos, el material, los perfiles de amigues y la wiki **no llegan a GitHub**: `withContentDb`
-(`src/lib/server/contenido/repo.js`) los guarda en la base ([contenido.md](contenido.md)). Lo que
-sigue describe lo que todavía puede llegar al repo (imágenes viejas, el respaldo).
+Todo lo que el panel guarda va **a la base** y se ve enseguida: eventos, material, perfiles de
+amigues, páginas de la wiki y etiquetas. No hay PRs, ramas `contenido/*` ni deploys de por medio.
 
-`main` está protegida (el check `ci-ok` es obligatorio para todes), así que el panel **no
-commitea a `main`**. Cada guardado:
+- **Un solo camino**: el cliente de contenido (`getRepoClient()` en `src/lib/server/eventos/index.js`)
+  es `withContentDb` (`src/lib/server/contenido/repo.js`) sobre un repo vacío
+  (`src/lib/server/contenido/cliente.js`). Habla en rutas de los viejos `.md`
+  (`src/lib/posts/<tipo>/<dirección>.md`) y las lleva a objetos de la base con `saveObject()`.
+  Es igual en producción, en los previews (la base del preview) y en `npm run dev:admin` (la base
+  local). Ver [contenido.md](contenido.md).
+- **Historial**: cada guardado es una versión nueva (`object_revisions`), con quién guardó (el
+  login de GitHub de le admin).
+- **Guardar dos veces seguidas** o desde dos pestañas: el panel manda el sha del texto que abrió;
+  si alguien guardó en el medio, avisa (`FileChangedError`) y no pisa nada.
+- **Lo que ve quien edita**: «Guardado. Se ve enseguida en el sitio.» (`PublishStatus.svelte`).
+- **Lo que no es una publicación** (una imagen, un archivo) no se guarda por acá: va a la
+  biblioteca (R2, [imagenes.md](imagenes.md)). Intentarlo da `NotInRepoError`.
 
-1. crea una rama `contenido/<tipo>-<slug>-<aaaammdd-hhmmss>` (hora de Argentina) desde la punta
-   de `main`, p. ej. `contenido/calendario-fiesta-2026-10-20260930-120405`;
-2. hace **un commit** con todos los archivos del cambio (el `.md` y sus imágenes juntos, como
-   antes), con la persona logueada como autora (su token de GitHub);
-3. abre un PR a `main` titulado «Contenido: <acción> <título>» con los archivos, quién lo hizo y
-   que se hizo desde el panel;
-4. activa el **auto-merge** (merge commit) con el mismo token: GitHub lo mergea solo cuando
-   pasan las pruebas, y el deploy de `main` publica el cambio.
+## Antes (hasta la decisión 0032)
 
-Eso pasa aunque la protección esté apagada un rato: el camino es siempre el mismo. Si en ese
-momento `main` no exige ningún check, GitHub no deja activar el auto-merge («clean status»,
-no hay nada que esperar) y el panel mergea el PR en el momento.
+Hasta octubre de 2026 el contenido eran archivos `.md` en `src/lib/posts/` y el panel publicaba
+con un PR por cambio (rama `contenido/*`, auto-merge cuando pasaban las pruebas). Con «Contenido
+solo en la base» los textos pasaron a la base y, con la decisión
+[0032](decisiones/0032-borrar-los-md.md), los `.md`, sus carpetas de medios y el cliente de GitHub
+se borraron del repo. El último commit de `main` con los `.md` está marcado con el tag
+`posts-md-final`.
 
-## Lo que ve quien edita
-
-- «Guardado. Se publica en unos minutos, cuando pasen las pruebas (PR #N)», con link al PR. El
-  aviso consulta `GET /admin/contenido/estado?pr=N` cada 20 segundos y cambia a «Publicado»
-  o a «**No se publicó: falló una prueba del contenido** (PR #N)» (o «choca con otro cambio»).
-- Si no se pudo activar el auto-merge (la opción «Allow auto-merge» está apagada en el repo, o
-  el token no tiene permiso) el PR queda abierto y el aviso lo dice: alguien con acceso tiene
-  que mergearlo a mano.
-- «Para revisar» del Inicio ya no lista los PRs de contenido abiertos (decisión 0030: el contenido
-  vive solo en la base).
-
-## Guardar dos veces seguidas
-
-Mientras el PR de una publicación sigue abierto, el panel **lee esa publicación desde la rama
-del PR** (lo último guardado, no lo que hay en `main`), y el siguiente guardado de la misma
-publicación **se suma como otro commit a ese PR** en lugar de abrir otro. Así no hay dos PRs
-peleándose por el mismo archivo, y el chequeo de «alguien lo cambió mientras tanto» se hace
-contra la rama del PR. Si el PR se mergeó justo antes, el commit va a un PR nuevo.
-
-Los cambios que tocan muchas publicaciones (etiquetas, importar la planilla, reemplazar una
-imagen compartida) abren siempre su propio PR. Si alguna de las publicaciones que tocan tiene
-un PR sin publicar, el panel no guarda y pide esperar a que se publique (`PendingChangeError`),
-para no generar conflictos.
-
-La publicación de un archivo se reconoce por su ruta: `src/lib/posts/<tipo>/<slug>.md` y todo
-lo que está en `src/lib/posts/<tipo>/media/<slug>/`.
-
-## Modos sin GitHub
-
-- `npm run dev:admin` (mock, `src/lib/server/eventos/mock.js`) y los previews (modo demo,
-  `src/lib/server/demo/`) no cambian: no hay PR, los «commits» van a una carpeta temporal o a
-  `demo_files` en D1, y la interfaz muestra el link al «commit» como antes.
-
-## Configuración del repo (una vez)
-
-- **Settings → General → Pull Requests → «Allow auto-merge»**: prendido. Sin esto los PRs
-  quedan abiertos esperando un merge a mano.
-- Recomendado: «Automatically delete head branches», para que las ramas `contenido/*` se borren
-  al mergearse.
-- Branch protection de `main`: `ci-ok` obligatorio. El auto-merge espera a ese check.
-- El login pide el scope `public_repo`, que alcanza para ramas, PRs y auto-merge.
+El login sigue pidiendo el scope `public_repo` de GitHub (era para esos commits); bajarlo es una
+decisión aparte (les admins tendrían que volver a aceptar al entrar).

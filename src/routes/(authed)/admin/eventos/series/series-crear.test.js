@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent } from '$lib/server/series/fixtures.js';
-import hardcodedTags from '$lib/utils/hardcodedTags.js';
+import seedTagList from '$lib/server/semilla/etiquetas.json';
 import { importTags } from '$lib/server/etiquetas/importer.js';
 import { loadTagRecords } from '$lib/server/etiquetas/read.js';
 
@@ -26,7 +26,7 @@ beforeEach(async () => {
 	// Las etiquetas, en la base (de donde se leen y donde se guardan).
 	await importTags(
 		t.db,
-		{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
+		{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
 		{ actor: 'admin-de-prueba' }
 	);
 });

@@ -10,6 +10,7 @@
  *   `wiki:` de una página). Datos inventados para lo que se escribe.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { seedRawsByPath } from '$lib/server/semilla/testing.js';
 import YAML from 'yaml';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { FileChangedError } from './cliente.js';
@@ -28,13 +29,11 @@ import { commitTagEdit } from '../admin/tagEditor.js';
 import { planTagRenameInPosts } from '../etiquetas/rename.js';
 import { contentArchiveFiles } from './download.js';
 import { listRevisions } from './revisions.js';
-import hardcodedTags from '$lib/utils/hardcodedTags.js';
+import seedTagList from '$lib/server/semilla/etiquetas.json';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
-const wikiRaws = /** @type {Record<string, string>} */ (
-	import.meta.glob('/src/lib/posts/wiki/*.md', { query: '?raw', import: 'default', eager: true })
-);
+const wikiRaws = /** @type {Record<string, string>} */ (seedRawsByPath('wiki'));
 const wikiFiles = Object.entries(wikiRaws)
 	.map(([p, raw]) => ({ name: p.split('/').pop()?.replace(/\.md$/, '') ?? '', raw }))
 	.filter((f) => !f.name.startsWith('_'))
@@ -63,7 +62,7 @@ async function importEverything() {
 	const amigues = await importAmigues(t.db, amigueFiles, { actor: 'prueba' });
 	const tags = await importTags(
 		t.db,
-		{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)), wikiFiles },
+		{ rawTags: JSON.parse(JSON.stringify(seedTagList)), wikiFiles },
 		{ actor: 'prueba' }
 	);
 	return { amigues, tags };
