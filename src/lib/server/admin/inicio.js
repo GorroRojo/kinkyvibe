@@ -758,8 +758,10 @@ export function activityItems({ orders, audit, checkins, tips }, { limit, titles
 			at: Number(t.approved_at),
 			kind: 'tip',
 			title: `Propina de ${formatARS(Number(t.amount))}`,
-			who: String(t.post_slug),
-			detail: String(t.post_category),
+			// Sin publicación (`post_slug` vacío) = desde fondo.kinkyvibe.ar (migración 0052). Se mira
+			// el slug y no `source` para que la consulta ande igual sin esa migración.
+			who: String(t.post_slug ?? '') || 'Fondo Kinky Vibe',
+			detail: t.post_slug ? String(t.post_category) : 'fondo.kinkyvibe.ar',
 			slug: null,
 			orderId: null,
 			href: '/admin/ajustes/propinas'

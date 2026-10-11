@@ -182,6 +182,9 @@ solo la dirección y los links; el asunto, los textos y el remitente están fijo
   contados solo después de validar. Es grueso a propósito: el límite por mail y por IP lo hace el
   Fondo de su lado.
 - **Logs:** nunca la dirección ni los links; solo el resultado y cuántos links.
+- **El mismo secreto** autentica `GET /api/fondo/propinas-total`, el total de propinas al Fondo de
+  un «mes Fondo» que pide fondo.kinkyvibe.ar para su porcentaje (ver
+  [propinas.md](propinas.md#total-para-el-fondo-get-apifondopropinas-total)).
 
 **Mail a compradores:** se manda en tandas (un Worker tiene un límite de pedidos a otros servicios
 por pedido); la página pide tandas y muestra el progreso.

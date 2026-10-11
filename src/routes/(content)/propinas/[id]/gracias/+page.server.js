@@ -4,6 +4,9 @@
  * pregunta a MP una vez (`recheckTip`). Los parámetros que agrega MP a la URL se ignoran.
  *
  * Anda aunque el interruptor esté apagado: si alguien pagó, que vea el gracias.
+ *
+ * Una propina desde el Fondo (`source = 'fondo'`, `/propinas?de=fondo`) no tiene publicación:
+ * `postPath` es `null` y la página muestra el link de vuelta a fondo.kinkyvibe.ar.
  */
 import { error } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
@@ -23,9 +26,15 @@ export async function load({ params, platform, fetch, setHeaders }) {
 	let tip = db ? await getTip(db, params.id) : null;
 	if (!db || !tip) error(404, 'No encontramos esa propina.');
 	tip = await recheckTip({ db, gateway: await getGateway(fetch), tip });
+	const fromFondo = tip.source === 'fondo';
 	return {
-		tip: { amount: tip.amount, status: tip.status, destination: tip.destination },
+		tip: {
+			amount: tip.amount,
+			status: tip.status,
+			destination: tip.destination,
+			source: fromFondo ? 'fondo' : 'post'
+		},
 		// Siempre una ruta de este sitio armada acá (nunca una URL que venga de afuera).
-		postPath: tipPostPath(tip.post_category, tip.post_slug)
+		postPath: fromFondo ? null : tipPostPath(tip.post_category, tip.post_slug)
 	};
 }
