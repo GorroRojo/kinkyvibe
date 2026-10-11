@@ -4,7 +4,8 @@
  * ANTES de la plantilla común: el texto plano no cambia con ella. Solo tests.
  */
 import * as ticketEmail from '$lib/server/tickets/email.js';
-import { emailCases } from '$lib/server/tickets/email.fixtures.js';
+import * as waitlistEmail from '$lib/server/tickets/waitlistEmail.js';
+import { emailCases, waitlistEmailCases } from '$lib/server/tickets/email.fixtures.js';
 import { buildBuyerMail } from '$lib/server/tickets/buyerMail.js';
 import {
 	buildConfirmCodeEmail,
@@ -20,7 +21,8 @@ const ORIGIN = 'https://kinkyvibe.example';
 const START = '2026-10-10T22:00:00-03:00';
 
 /**
- * [nombre, builder, entrada]. Los de entradas son los mismos casos que email.golden.json.
+ * [nombre, builder, entrada]. Los de entradas (y los de la lista de espera) son los mismos casos
+ * que email.golden.json.
  * @returns {[string, (input: any) => { subject: string, html: string, text: string }, any][]}
  */
 export function allMailCases() {
@@ -30,8 +32,15 @@ export function allMailCases() {
 		/** @type {any} */ (ticketEmail)[fn],
 		input
 	]);
+	/** @type {[string, (input: any) => any, any][]} */
+	const waitlist = waitlistEmailCases().map(([name, fn, input]) => [
+		`tickets/${name}`,
+		/** @type {any} */ (waitlistEmail)[fn],
+		input
+	]);
 	return [
 		...tickets,
+		...waitlist,
 		[
 			'buyer-mail',
 			buildBuyerMail,

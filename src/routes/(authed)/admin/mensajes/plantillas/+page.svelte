@@ -29,6 +29,11 @@
 						<span class="main">
 							<span class="kv-row">
 								<b>{t.label}</b>
+								{#if t.trial}
+									<Badge tone="warn" title="Su interruptor está apagado: todavía no sale"
+										>prueba</Badge
+									>
+								{/if}
 								{#if t.custom}
 									<Badge tone="info">texto propio</Badge>
 								{:else}

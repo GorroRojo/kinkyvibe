@@ -7,6 +7,8 @@ export async function load({ data }) {
 		tickets: data.tickets,
 		// Un lugar vinculado manda sobre el «Dónde» del evento (como en la página del evento).
 		venue: data.venue ?? null,
-		account: data.account
+		account: data.account,
+		// Lista de espera: los alcances agotados donde se puede anotar, o null.
+		waitlist: data.waitlist ?? null
 	};
 }

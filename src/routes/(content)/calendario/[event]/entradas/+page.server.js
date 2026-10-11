@@ -5,6 +5,10 @@
  *
  * Los precios, cupos y medios de pago salen del servidor (`getTicketsView`, frontmatter + D1) y
  * las form actions vuelven a validar todo (ver $lib/server/tickets/checkout.js).
+ *
+ * Lista de espera (interruptor `lista_espera`, docs/tickets.md): con un alcance agotado, la
+ * página muestra «Anotate en la lista de espera» y `?/waitlist` anota el mail
+ * ($lib/server/tickets/waitlistSignup.js). Apagado, `?/waitlist` da 404 y no se ve nada.
  */
 import { error, fail, redirect } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
@@ -17,6 +21,12 @@ import { stripMdPlace } from '$lib/utils/eventPlace.js';
 import { purchaseAccount } from '$lib/server/cuentas/savedBuyer.js';
 import { readWorkshop } from '$lib/server/eventos/partes.js';
 import { coveringTicketSlug } from '$lib/utils/partes.js';
+import { listaEsperaEnabled } from '$lib/server/flags.js';
+import { getEventTickets } from '$lib/server/tickets/events.js';
+import { contactEmail, siteOrigin } from '$lib/server/tickets/index.js';
+import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
+import { signUpForWaitlist, waitlistJoinStates } from '$lib/server/tickets/waitlistSignup.js';
+import { waitlistSender } from '$lib/server/tickets/waitlistMail.js';
 
 /**
  * Talleres en varias partes (docs/talleres-partes.md): si el evento es una parte de un taller con
@@ -58,8 +68,48 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	// para completar «Tus datos». Es de esta persona: la página no se guarda en ningún caché.
 	const account = tickets.open ? await purchaseAccount(db, locals.member) : null;
 	if (account) setHeaders({ 'cache-control': 'private, no-store' });
-	return { tickets, event, venue, account };
+	const waitlist = tickets.open ? null : await waitlistView(platform, params.event, locals);
+	// Con el mail de la cuenta en el formulario, tampoco se guarda en caché (una sola vez: SvelteKit
+	// no deja poner el mismo encabezado dos veces).
+	if (waitlist?.email && !account) setHeaders({ 'cache-control': 'private, no-store' });
+	return { tickets, event, venue, account, waitlist };
 }
+
+/**
+ * Lo que necesita el formulario de la lista de espera: los alcances agotados donde se puede
+ * anotar (con el interruptor prendido y el evento con lista), o `null`. Si algo falla, `null`:
+ * la página de compra nunca se rompe por la lista.
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {string} slug
+ * @param {App.Locals} locals
+ * @returns {Promise<{ scope: 'event' | 'type', types: { id: string, name: string }[],
+ *   email: string } | null>}
+ */
+async function waitlistView(platform, slug, locals) {
+	const db = getDB(platform);
+	if (!db || !(await listaEsperaEnabled(platform))) return null;
+	try {
+		const config = await getEventTickets(slug);
+		if (!config?.waitlist) return null;
+		const open = (await waitlistJoinStates(db, slug, config)).filter((s) => s.state === 'open');
+		if (!open.length) return null;
+		return {
+			scope: config.waitlist.scope,
+			types: open.flatMap((s) => (s.ticketType ? [{ id: s.ticketType, name: s.name ?? '' }] : [])),
+			email: locals.member?.email ?? ''
+		};
+	} catch (e) {
+		console.error('[lista de espera] no se pudo armar el formulario:', e);
+		return null;
+	}
+}
+
+/** @param {FormData} form @param {string} key */
+const field = (form, key) => {
+	const v = form.get(key);
+	return typeof v === 'string' ? v.slice(0, 300).trim() : '';
+};
 
 /** @type {import('./$types').Actions} */
 export const actions = {
@@ -76,5 +126,34 @@ export const actions = {
 		}
 		return buyAction(event);
 	},
-	discount: (event) => discountAction(event)
+	discount: (event) => discountAction(event),
+	// Anotarse en la lista de espera (solo el mail; con cuenta y ese mail, directo a la fila).
+	waitlist: async (event) => {
+		const { params, platform, request, locals, url, fetch } = event;
+		if (!(await listaEsperaEnabled(platform))) error(404, 'No encontrado.');
+		const form = await request.formData();
+		const email = field(form, 'email');
+		const tipo = field(form, 'tipo');
+		/** @param {number} status @param {string} message */
+		const failWith = (status, message) =>
+			fail(status, { waitlist: { error: message, email, tipo } });
+		const db = getDB(platform);
+		if (!db) return failWith(503, 'La lista de espera no está disponible ahora.');
+		const config = await getEventTickets(params.event);
+		if (!config) error(404, 'Este evento no vende entradas por acá.');
+		const r = await signUpForWaitlist({
+			db,
+			eventSlug: params.event,
+			config,
+			ticketType: tipo,
+			email,
+			member: locals.member ?? null,
+			client: await clientHash(clientAddress(event)),
+			send: waitlistSender(db, fetch),
+			origin: siteOrigin(url),
+			contactEmail: contactEmail()
+		});
+		if (!r.ok) return failWith(r.status, r.message);
+		return { waitlist: { ok: true, status: r.status, tipo } };
+	}
 };
