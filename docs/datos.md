@@ -53,7 +53,7 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 | `admin_last_seen`                                 | 0007                                 | "Desde tu última visita" del Inicio                                                         | `src/lib/server/admin/lastSeen.js`                         |
 | `email_templates`                                 | 0008, 0034                           | textos de los mails cambiados desde el panel                                                | `src/lib/server/tickets/templates.js`                      |
 | `event_email_templates`                           | 0034                                 | textos de los mails cambiados solo para un evento                                           | `src/lib/server/tickets/templates.js`                      |
-| `person_notes`                                    | 0009, 0045                           | notas internas sobre personas (por mail; las de una cuenta borrada, por `account_id`)       | `src/lib/server/admin/people.js`                           |
+| `person_notes`                                    | 0009, 0045, 0049                     | notas internas sobre personas (por mail; las de una cuenta borrada, por `account_id`)       | `src/lib/server/admin/people.js`                           |
 | `object_types`, `objects`, `edges`, `objects_fts` | 0012                                 | objetos y relaciones (todavía sin uso en páginas; ver [objetos.md](objetos.md))             | `src/lib/server/objects/` (solo `saveObject()` escribe)    |
 | `integrity_runs`                                  | 0012                                 | resultado del chequeo nocturno de los objetos ("Para revisar")                              | `src/lib/server/objects/integrity.js`                      |
 | `feature_flags`                                   | 0013                                 | interruptores de funciones nuevas (Ajustes → Interruptores)                                 | `src/lib/server/flags.js`                                  |
@@ -61,6 +61,11 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 | `agenda_day_notes`                                | 0030                                 | notas de colores en los días de la Agenda (solo admins; nunca en páginas públicas ni .ics)  | `src/lib/server/admin/dayNotes.js`                         |
 | `review_snapshots`                                | 0047                                 | «Para revisar»: la última revisión del importador de contenido (lo que no se cuenta barato) | `src/lib/server/admin/reviewSnapshots.js`                  |
 | `demo_files`                                      | ninguna                              | solo en previews: los "commits" del modo demo                                               | `src/lib/server/demo/overlay.js`                           |
+
+**Borrados suaves (0049, decisión [0033](decisiones/0033-borrados-recuperables.md)).**
+`signup_fields`, `persona_roles` y `person_notes` tienen `deleted_at` (NULL = está). Borrar desde el
+panel lo marca y escribe la fila de `panel_deletions` (0021) en la misma tanda, para «Recuperar» en
+Actividad; toda consulta de esas tablas lleva `deleted_at IS NULL`. No hay purga.
 
 `demo_files` no es una migración a propósito: producción no la tiene (ver [demo.md](demo.md)).
 
