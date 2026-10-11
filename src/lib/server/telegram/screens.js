@@ -11,7 +11,7 @@
  */
 import { escapeHtml, eventUrl, formatWhen, WINDOW_TEXTS, formatHelp } from './format.js';
 import { truncate } from './keyboards.js';
-import { encodeNav, navId } from './nav.js';
+import { encodeNav, navId, startLink } from './nav.js';
 import { formatARS } from '$lib/utils/money.js';
 
 /** @typedef {import('./format.js').BotEvent} BotEvent */
@@ -97,6 +97,22 @@ export const HOME_TEXT =
 	'(/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.';
 
 /**
+ * «⭐ Lo que sigo» en el inicio, solo con «Lo que sigo» prendido: en privado abre la pantalla; en
+ * un grupo, el chat privado con el bot (lo personal nunca se muestra en un grupo).
+ *
+ * @param {ScreenCtx} ctx
+ * @returns {Button[]}
+ */
+function sigoButton(ctx) {
+	if (!ctx.sigo) return [];
+	if (ctx.chat === 'private') {
+		return [{ text: '⭐ Lo que sigo', callback_data: encodeNav({ screen: 'sigo' }) }];
+	}
+	const link = startLink(ctx.botUsername, 'sigo');
+	return link ? [{ text: '⭐ Lo que sigo ↗', url: link }] : [];
+}
+
+/**
  * `/start` y «🏠 Inicio».
  *
  * @param {ScreenCtx} ctx
@@ -112,7 +128,7 @@ export function homeScreen(ctx) {
 	/** @type {Button[][]} */
 	const rows = [
 		[list('d', 'Hoy'), list('w', 'Semana'), list('f', 'Finde')],
-		[{ text: '🔎 Buscar', callback_data: encodeNav({ screen: 'search' }) }],
+		[{ text: '🔎 Buscar', callback_data: encodeNav({ screen: 'search' }) }, ...sigoButton(ctx)],
 		[
 			{ text: '💗 Fondo', callback_data: encodeNav({ screen: 'fondo' }) },
 			{ text: '❓ Ayuda', callback_data: encodeNav({ screen: 'help' }) }
@@ -444,4 +460,105 @@ export function helpScreen(ctx, { accounts = false } = {}) {
 /** Un aviso con «🏠 Inicio» (evento que ya no está, error…). @param {string} text @returns {Screen} */
 export function noticeScreen(text) {
 	return { text, keyboard: [[homeButton()]] };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Seguir y Lo que sigo (decisión 0034): solo por chat privado vinculado a una cuenta
+// ---------------------------------------------------------------------------------------------
+
+/** @param {ScreenCtx} ctx */
+const sigoLink = (ctx) =>
+	isHttps(ctx.origin)
+		? [[{ text: 'Abrir Mi rincón → Lo que sigo ↗', url: `${ctx.origin}/mi-rincon/sigo` }]]
+		: [];
+
+/**
+ * En un grupo, lo personal no se muestra: se manda al chat privado con el bot.
+ *
+ * @param {string | null} privateLink `t.me/<bot>?start=…`
+ * @returns {Screen}
+ */
+export function privateOnlyScreen(privateLink) {
+	return {
+		text: 'Esto se hace por chat privado con el bot, con tu cuenta conectada.',
+		keyboard: [
+			...(privateLink ? [[{ text: 'Abrir el bot por privado ↗', url: privateLink }]] : []),
+			[homeButton()]
+		]
+	};
+}
+
+/**
+ * Chat privado sin cuenta vinculada: cómo conectarla.
+ *
+ * @param {ScreenCtx} ctx
+ * @returns {Screen}
+ */
+export function unlinkedScreen(ctx) {
+	return {
+		text:
+			'Para seguir etiquetas y series desde acá, conectá este chat con tu cuenta: en Mi rincón → ' +
+			'Lo que sigo tocá «Conectar Telegram» y mandame el código con /vincular.',
+		keyboard: [...sigoLink(ctx), [homeButton()]]
+	};
+}
+
+/**
+ * «Lo que sigo»: los nombres de lo que sigue la cuenta (solo lo que todavía existe).
+ *
+ * @param {string[]} titles
+ * @param {ScreenCtx} ctx
+ * @returns {Screen}
+ */
+export function sigoScreen(titles, ctx) {
+	const MAX = 15;
+	const body = titles.length
+		? titles
+				.slice(0, MAX)
+				.map((t) => `• ${escapeHtml(t)}`)
+				.join('\n') + (titles.length > MAX ? `\n… y ${titles.length - MAX} más.` : '')
+		: 'Todavía no seguís nada. En la tarjeta de un evento tocá «⭐ Seguir».';
+	return {
+		text:
+			`<b>⭐ Lo que seguís</b>\n\n${body}\n\n` +
+			'Qué te avisamos (por mail o por acá) y dejar de seguir: en Mi rincón → Lo que sigo.',
+		keyboard: [...sigoLink(ctx), [homeButton()]]
+	};
+}
+
+/**
+ * «Seguir» de un evento: un botón por etiqueta o serie que se puede seguir (las que ya sigue,
+ * deshabilitadas).
+ *
+ * @param {BotEvent} event
+ * @param {{ key: string, title: string, hash: string, following: boolean }[]} targets
+ * @param {ScreenCtx} ctx
+ * @returns {Screen}
+ */
+export function followScreen(event, targets, ctx) {
+	const id = navId(event.slug);
+	const head = `<b>⭐ Seguir</b>\n\nDe «${escapeHtml(truncate(event.title, 100))}»`;
+	const text = targets.length
+		? `${head} podés seguir:\n\n` +
+			'Te avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, ' +
+			'prendé la columna Telegram en Mi rincón → Lo que sigo.'
+		: `${head} no hay etiquetas para seguir desde acá.`;
+	return {
+		text,
+		keyboard: [
+			...targets.map((t) => [
+				t.following
+					? { text: `✓ Ya seguís ${truncate(t.title, 40)}`, disabled: {} }
+					: {
+							text: `⭐ ${truncate(t.title, 40)}`,
+							callback_data: encodeNav({ screen: 'follow_do', id, tag: t.hash })
+						}
+			]),
+			...sigoLink(ctx),
+			[
+				{ text: '‹ Volver', callback_data: encodeNav({ screen: 'event', id, back: 'n' }) },
+				homeButton()
+			]
+		]
+	};
 }

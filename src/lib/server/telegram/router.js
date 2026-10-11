@@ -30,13 +30,36 @@ import {
 	NOT_FOUND_TEXT,
 	UNAVAILABLE_TEXT,
 	UNKNOWN_TEXT,
-	PICK_EVENT_TEXT
+	PICK_EVENT_TEXT,
+	FOLLOW_ALREADY_TEXT,
+	FOLLOW_FULL_TEXT,
+	FOLLOW_GONE_TEXT,
+	FOLLOW_TOO_MANY_TEXT,
+	followedText
 } from './format.js';
 import { ACCOUNT_COMMAND_NAMES, HANDLED_COMMANDS } from './commands.js';
 import { answerOnly, deliverScreen, singleMethod } from './deliver.js';
-import { decodeNav, findByDeepId, parseStartParam, startLink, startParam } from './nav.js';
+import {
+	decodeNav,
+	encodeNav,
+	findByDeepId,
+	findByNavId,
+	navId,
+	parseStartParam,
+	startLink,
+	startParam
+} from './nav.js';
 import { cardFor, navigate } from './navigate.js';
-import { SEARCH_PROMPT_HEAD, listScreen, noticeScreen, searchResultsScreen } from './screens.js';
+import {
+	SEARCH_PROMPT_HEAD,
+	followScreen,
+	listScreen,
+	noticeScreen,
+	privateOnlyScreen,
+	searchResultsScreen,
+	sigoScreen,
+	unlinkedScreen
+} from './screens.js';
 
 /** @typedef {import('./format.js').BotEvent} BotEvent */
 /** @typedef {import('./deliver.js').BotMethod} BotMethod */
@@ -48,11 +71,13 @@ import { SEARCH_PROMPT_HEAD, listScreen, noticeScreen, searchResultsScreen } fro
 
 /**
  * Lo que el bot puede hacer con las cuentas (fase 2). `chatId` es siempre el del chat privado.
+ * `follows`: «Seguir» y «Lo que sigo» (seguir.js, decisión 0034).
  *
  * @typedef {{
  *   link: (code: string, chatId: number | string) => Promise<'linked' | 'invalid' | 'too_many'>,
  *   unlink: (chatId: number | string) => Promise<boolean>,
- *   setMuted: (chatId: number | string, muted: boolean) => Promise<boolean>
+ *   setMuted: (chatId: number | string, muted: boolean) => Promise<boolean>,
+ *   follows?: import('./seguir.js').BotFollows
  * }} BotAccounts
  */
 
@@ -191,15 +216,97 @@ const isGroup = (chat) => chat?.type === 'group' || chat?.type === 'supergroup';
  *
  * @param {Deps} deps
  * @param {boolean} group
+ * @param {BotAccounts | null} [accounts] con «Lo que sigo» prendido
  * @returns {ScreenCtx}
  */
-function screenCtx(deps, group) {
+function screenCtx(deps, group, accounts = null) {
 	return {
 		origin: deps.origin,
 		chat: group ? 'group' : 'private',
 		now: deps.now ? deps.now() : Date.now(),
-		botUsername: deps.botUsername ?? null
+		botUsername: deps.botUsername ?? null,
+		sigo: Boolean(accounts?.follows)
 	};
+}
+
+/**
+ * El botón «⭐ Seguir» de una tarjeta, solo con «Lo que sigo» prendido: en privado abre las
+ * opciones; en un grupo, el chat privado con el bot (`?start=seguir-<id>`).
+ *
+ * @param {BotEvent} event
+ * @param {ScreenCtx} ctx
+ * @returns {import('./screens.js').Button | null}
+ */
+function followButton(event, ctx) {
+	if (!ctx.sigo) return null;
+	if (ctx.chat === 'private') {
+		return {
+			text: '⭐ Seguir',
+			callback_data: encodeNav({ screen: 'follow', id: navId(event.slug) })
+		};
+	}
+	const link = startLink(ctx.botUsername, startParam({ screen: 'follow', slug: event.slug }));
+	return link ? { text: '⭐ Seguir ↗', url: link } : null;
+}
+
+/**
+ * «Lo que sigo» y «Seguir»: lo único personal. Solo por chat privado, con «Lo que sigo» prendido
+ * y el chat vinculado a una cuenta, mirado en cada mensaje. En un grupo, el link al privado.
+ *
+ * @param {{ screen: 'sigo' } | { screen: 'follow', id?: string, deep?: string }
+ *   | { screen: 'follow_do', id: string, tag: string }} state
+ * @param {number | string} chatId
+ * @param {ScreenCtx} ctx
+ * @param {Deps} deps
+ * @param {BotAccounts | null} accounts
+ * @returns {Promise<{ screen: Screen, toast?: string } | { toast: string }>}
+ */
+async function personalScreen(state, chatId, ctx, deps, accounts) {
+	const follows = accounts?.follows;
+	if (!follows) return { toast: ACCOUNTS_OFF_TEXT };
+	if (ctx.chat === 'group') {
+		return {
+			screen: privateOnlyScreen(startLink(ctx.botUsername, startParam({ screen: 'sigo' })))
+		};
+	}
+	const accountId = await follows.accountFor(chatId);
+	if (!accountId) return { screen: unlinkedScreen(ctx) };
+	if (state.screen === 'sigo') return { screen: sigoScreen(await follows.titles(accountId), ctx) };
+
+	const events = await deps.listUpcoming();
+	const event =
+		'deep' in state && state.deep
+			? findByDeepId(events, state.deep)
+			: findByNavId(events, /** @type {string} */ (state.id));
+	if (!event) return { toast: UNAVAILABLE_TEXT };
+	const targets = await follows.targets(event.slug);
+	/** @type {string | undefined} */
+	let toast;
+	if (state.screen === 'follow_do') {
+		const target = targets.find((t) => t.hash === state.tag);
+		if (!target) return { toast: FOLLOW_GONE_TEXT };
+		const r = await follows.follow(accountId, target.key);
+		toast =
+			r === 'created'
+				? followedText(target.title)
+				: r === 'already'
+					? FOLLOW_ALREADY_TEXT
+					: r === 'too_many'
+						? FOLLOW_TOO_MANY_TEXT
+						: r === 'full'
+							? FOLLOW_FULL_TEXT
+							: FOLLOW_GONE_TEXT;
+	}
+	const following = await follows.following(
+		accountId,
+		targets.map((t) => t.key)
+	);
+	const screen = followScreen(
+		event,
+		targets.map((t) => ({ ...t, following: following.has(t.key) })),
+		ctx
+	);
+	return toast ? { screen, toast } : { screen };
 }
 
 /**
@@ -284,14 +391,24 @@ async function planCallback(callback, deps) {
 		};
 	}
 	try {
-		const ctx = screenCtx(deps, group);
-		const accounts = state.screen === 'help' ? await accountsOf(deps) : null;
-		const result = await navigate(state, ctx, deps, { accounts: Boolean(accounts) });
-		if ('toast' in result) return answerOnly(callbackId, result.toast);
-		return deliverScreen(result.screen, where, {
+		const accounts = await accountsOf(deps);
+		const ctx = screenCtx(deps, group, accounts);
+		const result =
+			state.screen === 'sigo' || state.screen === 'follow' || state.screen === 'follow_do'
+				? await personalScreen(state, chatId, ctx, deps, accounts)
+				: await navigate(state, ctx, deps, {
+						accounts: Boolean(accounts),
+						follow: (event) => followButton(event, ctx)
+					});
+		if (!('screen' in result)) return answerOnly(callbackId, result.toast);
+		const plan = deliverScreen(result.screen, where, {
 			media: Boolean(deps.media),
 			privateLink: privateLinkFor(state, deps)
 		});
+		if ('toast' in result && result.toast && plan.callback) {
+			plan.callback = { ...plan.callback, text: result.toast };
+		}
+		return plan;
 	} catch (error) {
 		console.error('[telegram] error al contestar un botón:', error);
 		return answerOnly(callbackId, ERROR_TEXT);
@@ -305,11 +422,17 @@ async function planCallback(callback, deps) {
  * @param {string} param
  * @param {ScreenCtx} ctx
  * @param {Deps} deps
+ * @param {number | string} chatId
+ * @param {BotAccounts | null} accounts
  * @returns {Promise<Screen | null>}
  */
-async function startScreen(param, ctx, deps) {
+async function startScreen(param, ctx, deps, chatId, accounts) {
 	const target = parseStartParam(param);
 	if (!target) return null;
+	if (target.screen === 'sigo' || target.screen === 'follow') {
+		const r = await personalScreen(target, chatId, ctx, deps, accounts);
+		return 'screen' in r ? r.screen : noticeScreen(r.toast);
+	}
 	if (target.screen === 'list') {
 		const r = await navigate({ screen: 'list', view: target.view, page: 0 }, ctx, deps);
 		return 'screen' in r ? r.screen : null;
@@ -318,7 +441,7 @@ async function startScreen(param, ctx, deps) {
 		const events = await deps.listUpcoming();
 		const event = findByDeepId(events, target.deep);
 		if (!event) return noticeScreen(UNAVAILABLE_TEXT);
-		return cardFor(event, 'n', events, ctx, deps);
+		return cardFor(event, 'n', events, ctx, deps, { follow: followButton(event, ctx) });
 	}
 	if (target.screen === 'fondo' || target.screen === 'search' || target.screen === 'home') {
 		const r = await navigate({ screen: target.screen }, ctx, deps);
@@ -334,12 +457,16 @@ async function startScreen(param, ctx, deps) {
  * @param {any} message
  * @param {ScreenCtx} ctx
  * @param {Deps} deps
+ * @param {BotAccounts | null} accounts
  * @returns {Promise<Screen>}
  */
-async function commandScreen(command, message, ctx, deps) {
+async function commandScreen(command, message, ctx, deps, accounts) {
 	/** @param {NavState} state */
 	const go = async (state) => {
-		const r = await navigate(state, ctx, deps, { accounts: Boolean(await accountsOf(deps)) });
+		const r = await navigate(state, ctx, deps, {
+			accounts: Boolean(accounts),
+			follow: (event) => followButton(event, ctx)
+		});
 		return 'screen' in r ? r.screen : noticeScreen(r.toast);
 	};
 	switch (command.name) {
@@ -350,7 +477,7 @@ async function commandScreen(command, message, ctx, deps) {
 				return textScreen(await accountCommand(linkCommand, message.chat, deps));
 			}
 			if (command.args) {
-				const screen = await startScreen(command.args, ctx, deps);
+				const screen = await startScreen(command.args, ctx, deps, message.chat.id, accounts);
 				if (screen) return screen;
 			}
 			return go({ screen: 'home' });
@@ -377,12 +504,18 @@ async function commandScreen(command, message, ctx, deps) {
 			}
 			const found = matchEvents(events, command.args);
 			if (found.length === 0) return noticeScreen(NOT_FOUND_TEXT);
-			if (found.length === 1) return cardFor(found[0], 'n', events, ctx, deps);
+			if (found.length === 1) {
+				return cardFor(found[0], 'n', events, ctx, deps, { follow: followButton(found[0], ctx) });
+			}
 			return searchResultsScreen(command.args, found, ctx, {
 				head: 'Encontré varios eventos. ¿Cuál querés ver? Tocá uno.'
 			});
 		}
 		default:
+			if (command.name === 'sigo') {
+				const r = await personalScreen({ screen: 'sigo' }, message.chat.id, ctx, deps, accounts);
+				return 'screen' in r ? r.screen : textScreen(r.toast);
+			}
 			if (ACCOUNT_COMMAND_NAMES.has(command.name)) {
 				return textScreen(await accountCommand(command, message.chat, deps));
 			}
@@ -413,19 +546,20 @@ export async function planUpdate(update, deps) {
 	};
 	const send = (/** @type {Screen} */ screen) =>
 		deliverScreen(screen, where, { media: Boolean(deps.media) });
-	const ctx = screenCtx(deps, group);
 
 	try {
 		if (isSearchReply(message)) {
 			const query = message.text.trim().slice(0, 100);
 			const found = matchEvents(await deps.listUpcoming(), query);
-			return send(searchResultsScreen(query, found, ctx));
+			return send(searchResultsScreen(query, found, screenCtx(deps, group)));
 		}
 		const command = parseCommand(message?.text);
 		if (!command) return null;
 		// La lista de comandos vive en commands.js (también la que se registra en Telegram).
 		if (!HANDLED_COMMANDS.has(command.name)) return send(textScreen(UNKNOWN_TEXT));
-		return send(await commandScreen(command, message, ctx, deps));
+		const accounts = await accountsOf(deps);
+		const ctx = screenCtx(deps, group, accounts);
+		return send(await commandScreen(command, message, ctx, deps, accounts));
 	} catch (error) {
 		console.error('[telegram] error al armar la respuesta:', error);
 		return send(textScreen(ERROR_TEXT));
