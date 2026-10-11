@@ -11,8 +11,11 @@ import { render } from 'svelte/server';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { signWebhook } from '$lib/server/tickets/mercadopago.js';
 import TipBlock from '$lib/components/propinas/TipBlock.svelte';
+import PropinasPage from './+page.svelte';
+import GraciasPage from './[id]/gracias/+page.svelte';
 import { isKinkyVibePost } from '$lib/utils/propinas.js';
 import { formatARS } from '$lib/utils/money.js';
+import { textOf } from '$lib/testing/html.js';
 import { runImport } from '$lib/server/contenido/importer.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
@@ -64,12 +67,20 @@ function materialSlug(kv) {
 	throw new Error('no hay publicaciones para la prueba');
 }
 
-/** Módulos con MP configurado (con `fetch` simulado). */
-async function modules() {
+/**
+ * Módulos con MP configurado (con `fetch` simulado). `fondo`: el interruptor `propinas_fondo`
+ * forzado por su variable (`1` prendido, `0` apagado; sin ella, lo que diga la base: apagado).
+ * @param {{ fondo?: '0' | '1' }} [o]
+ */
+async function modules({ fondo } = {}) {
 	vi.resetModules();
 	await seedMaterial();
 	vi.doMock('$env/dynamic/private', () => ({
-		env: { MP_ACCESS_TOKEN: 'TEST-token', MP_WEBHOOK_SECRET: SECRET }
+		env: {
+			MP_ACCESS_TOKEN: 'TEST-token',
+			MP_WEBHOOK_SECRET: SECRET,
+			...(fondo ? { PROPINAS_FONDO_ENABLED: fondo } : {})
+		}
 	}));
 	// El load de /material/<post> también arma las relacionadas y los pronombres de las menciones,
 	// que importan (y compilan con mdsvex) todas las publicaciones del repo: más de 15 s la primera
@@ -86,7 +97,8 @@ async function modules() {
 		material: await import('../material/[post]/+page.server.js'),
 		webhook: await import('../../api/mercadopago/webhook/+server.js'),
 		propinas: await import('$lib/server/propinas/index.js'),
-		posts: await import('$lib/server/propinas/posts.js')
+		posts: await import('$lib/server/propinas/posts.js'),
+		flags: await import('$lib/server/flags.js')
 	};
 }
 
@@ -305,7 +317,7 @@ describe('propinas', () => {
 			await m.gracias.load(fakeEvent({ params: { id: tip.id }, mp }))
 		);
 		expect(data).toEqual({
-			tip: { amount: 1000, status: 'pending', destination: 'fondo' },
+			tip: { amount: 1000, status: 'pending', destination: 'fondo', source: 'post' },
 			postPath: '/calendario/fiesta-de-prueba'
 		});
 		// El mensaje no se muestra en la página pública.
@@ -314,5 +326,153 @@ describe('propinas', () => {
 			m.gracias.load(fakeEvent({ params: { id: 'no-existe' }, mp }))
 		);
 		expect(missing?.status).toBe(404);
+	});
+});
+
+describe('propinas desde el Fondo (?de=fondo)', () => {
+	const mp = () => ({ id: 'pref-f', init_point: 'https://www.mercadopago.com.ar/checkout?f=1' });
+
+	it('apagado (por defecto): `?de=fondo` muestra solo la explicación y el POST da 404', async () => {
+		const m = await modules();
+		m.flags.clearFlagCache();
+		const data = /** @type {any} */ (
+			await m.page.load(fakeEvent({ path: '/propinas?de=fondo&monto=3000' }))
+		);
+		expect(data).toMatchObject({ post: null, fondo: false, monto: null, fondoEnabled: false });
+		const { body } = render(PropinasPage, { props: { data, form: null } });
+		expect(body).toContain('Las propinas se dejan desde el pie de cada publicación');
+		expect(body).not.toContain('<form');
+		const res = /** @type {any} */ (
+			await m.page.actions.default(
+				fakeEvent({ form: { amount: 'otro', custom: '3000', source: 'fondo' }, mp })
+			)
+		);
+		expect(res.status).toBe(404);
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM tips').first())?.n).toBe(0);
+	});
+
+	it('prendido: el formulario para el Fondo, con el `monto` válido ya elegido', async () => {
+		const m = await modules({ fondo: '1' });
+		const data = /** @type {any} */ (
+			await m.page.load(fakeEvent({ path: '/propinas?de=fondo&monto=3000' }))
+		);
+		expect(data).toMatchObject({ post: null, fondo: true, monto: 3000 });
+		const { body } = render(PropinasPage, { props: { data, form: null } });
+		expect(body).toContain('Dejá una propina para el Fondo Kinky Vibe');
+		expect(body).toContain('name="source" value="fondo"');
+		expect(textOf(body)).toContain('para todes. No hace falta cuenta ni dejar tus datos.');
+		expect(body).not.toContain('name="category"');
+		expect(body).not.toContain('name="slug"');
+		// 3000 no es un botón sugerido: «Otro monto» elegido con ese número.
+		expect(body).toMatch(/<input[^>]*value="otro"[^>]*checked/);
+		expect(body).toMatch(/<input[^>]*name="custom"[^>]*value="3000"/);
+		expect(body).toContain('href="https://fondo.kinkyvibe.ar"');
+		// Sin pedir datos de la persona.
+		expect(body).not.toMatch(/name="(email|name|nombre|phone)"/);
+	});
+
+	it('prendido: un `monto` que coincide con un botón elige ese botón; uno inválido se ignora', async () => {
+		const m = await modules({ fondo: '1' });
+		const preset = /** @type {any} */ (
+			await m.page.load(fakeEvent({ path: '/propinas?de=fondo&monto=5000' }))
+		);
+		expect(preset.monto).toBe(5000);
+		const { body } = render(PropinasPage, { props: { data: preset, form: null } });
+		expect(body).toMatch(/<input[^>]*value="5000"[^>]*checked/);
+		expect(body).not.toMatch(/<input[^>]*value="otro"[^>]*checked/);
+		for (const monto of ['100', '999999999', '3.000', 'abc', '-3000', '']) {
+			const data = /** @type {any} */ (
+				await m.page.load(fakeEvent({ path: `/propinas?de=fondo&monto=${monto}` }))
+			);
+			expect(data, monto).toMatchObject({ fondo: true, monto: null });
+			const html = render(PropinasPage, { props: { data, form: null } }).body;
+			// Queda el monto sugerido por defecto, sin «Otro monto» escrito.
+			expect(html).not.toMatch(/<input[^>]*value="otro"[^>]*checked/);
+			expect(html).not.toMatch(/<input[^>]*name="custom"[^>]*value="[^"]+"/);
+		}
+		const without = /** @type {any} */ (
+			await m.page.load(fakeEvent({ path: '/propinas?de=fondo' }))
+		);
+		expect(without).toMatchObject({ fondo: true, monto: null });
+	});
+
+	it('prendido: el servidor valida el monto y guarda la propina con su origen', async () => {
+		const m = await modules({ fondo: '1' });
+		for (const custom of ['499', '500001']) {
+			const bad = /** @type {any} */ (
+				await m.page.actions.default(
+					fakeEvent({ form: { amount: 'otro', custom, source: 'fondo' }, mp })
+				)
+			);
+			expect(bad.status).toBe(400);
+			expect(bad.data.errors.amount).toEqual(expect.any(String));
+			// Vuelve a mostrar el formulario del Fondo con el error.
+			const data = /** @type {any} */ (await m.page.load(fakeEvent({ path: '/propinas' })));
+			const { body } = render(PropinasPage, { props: { data, form: bad.data } });
+			expect(body).toContain('Dejá una propina para el Fondo Kinky Vibe');
+			expect(body).toContain(bad.data.errors.amount);
+		}
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM tips').first())?.n).toBe(0);
+
+		const ok = await thrown(() =>
+			m.page.actions.default(
+				fakeEvent({ form: { amount: 'otro', custom: '3000', source: 'fondo' }, mp })
+			)
+		);
+		expect(ok).toMatchObject({
+			status: 303,
+			location: 'https://www.mercadopago.com.ar/checkout?f=1'
+		});
+		const row = /** @type {any} */ (await t.db.prepare('SELECT * FROM tips').first());
+		expect(row).toMatchObject({
+			amount: 3000,
+			status: 'pending',
+			destination: 'fondo',
+			source: 'fondo',
+			post_slug: ''
+		});
+	});
+
+	it('gracias de una propina desde el Fondo: link de vuelta a fondo.kinkyvibe.ar', async () => {
+		const m = await modules({ fondo: '1' });
+		const tip = await m.propinas.createTip(t.db, {
+			amount: 3000,
+			message: null,
+			category: null,
+			slug: null,
+			source: 'fondo'
+		});
+		await m.propinas.applyTipPayment(t.db, {
+			id: 31,
+			status: 'approved',
+			external_reference: `propina:${tip.id}`,
+			transaction_amount: 3000,
+			currency_id: 'ARS'
+		});
+		const data = /** @type {any} */ (
+			await m.gracias.load(fakeEvent({ params: { id: tip.id }, mp: () => ({ results: [] }) }))
+		);
+		expect(data).toEqual({
+			tip: { amount: 3000, status: 'approved', destination: 'fondo', source: 'fondo' },
+			postPath: null
+		});
+		const { body } = render(GraciasPage, { props: { data } });
+		expect(body).toContain('¡Gracias por tu propina!');
+		expect(textOf(body)).toContain(`Recibimos tus ${formatARS(3000)} para el Fondo Kinky Vibe.`);
+		expect(body).toMatch(
+			/<a[^>]*href="https:\/\/fondo\.kinkyvibe\.ar"[^>]*>Volver al Fondo Kinky Vibe<\/a>/
+		);
+		expect(body).not.toContain('Volver a la publicación');
+		// Una propina de publicación sigue volviendo a la publicación.
+		const post = render(GraciasPage, {
+			props: {
+				data: /** @type {any} */ ({
+					tip: { amount: 1000, status: 'approved', destination: 'fondo', source: 'post' },
+					postPath: '/material/guia'
+				})
+			}
+		}).body;
+		expect(post).toContain('href="/material/guia"');
+		expect(post).not.toContain('Volver al Fondo Kinky Vibe');
 	});
 });

@@ -5,7 +5,7 @@
 import { listEventTickets, listOrders, orderHolders } from '$lib/server/tickets/orders.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { answersByOrder } from '$lib/server/tickets/signupFields.js';
-import { dniTail } from '$lib/server/tickets/door.js';
+import { dniTail, offlineReviewSummary } from '$lib/server/tickets/door.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { dniQueryDigits } from '$lib/admin/orderFormat.js';
 
@@ -74,8 +74,13 @@ export async function eventOrderRows(db, slug, config, now = Date.now()) {
 		confirmedBy: o.confirmed_by,
 		refundedAt: o.refunded_at ?? null,
 		refundedBy: o.refunded_by ?? null,
-		needsReview: o.needs_review ?? null,
-		reviewDetail: o.review_detail ?? null,
+		// Una venta sin conexión que pasó un límite (decisión 0035) también es «para revisar».
+		needsReview: o.needs_review ?? (o.offline_review ? 'door_offline' : null),
+		reviewDetail: o.needs_review
+			? (o.review_detail ?? null)
+			: o.offline_review
+				? offlineReviewSummary(o.offline_review)
+				: null,
 		holders:
 			holdersByOrder.get(o.id) ??
 			(o.holders ? orderHolders(o).map((h) => ({ ...h, checkedIn: false })) : []),

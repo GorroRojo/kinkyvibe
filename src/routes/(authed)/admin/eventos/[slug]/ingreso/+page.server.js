@@ -10,6 +10,8 @@
  *   anticipadas) contesta 409 con `needsConfirmation`; la página pregunta con un diálogo y
  *   reenvía con `override` (ver overrides.js). Pasar un límite queda en el registro.
  * - `sync`: ingresos marcados sin conexión.
+ * - `syncSales`: ventas hechas sin conexión (decisión 0035), en orden, idempotentes (`client_sale_id`)
+ *   y sin perder ninguna por un límite: si pasan uno se guardan igual y quedan en «Para revisar».
  *
  * En una parte (2 en adelante) de un taller con una sola entrada (docs/talleres-partes.md), las
  * entradas son las del taller y el ingreso se marca por parte (`doorContext` → `part`,
@@ -23,13 +25,17 @@ import { getEventTickets } from '$lib/server/tickets/events.js';
 import { extractToken } from '$lib/server/tickets/checkin.js';
 import { checkIn, getCounts, undoCheckIn } from '$lib/server/tickets/orders.js';
 import {
+	MAX_DOOR_SALE,
 	PANEL_ORDER_HARD_MAX,
 	applyQueuedCheckIns,
+	applyQueuedSales,
 	doorCounts,
 	doorSaleLimits,
 	doorSalesOpen,
 	orderRef,
+	parseDoorSale,
 	parseQueue,
+	parseSaleQueue,
 	revealDni,
 	sellAtDoor,
 	ticketCard,
@@ -37,13 +43,7 @@ import {
 } from '$lib/server/tickets/door.js';
 import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
-import {
-	fondoOptionLabel,
-	fondoOptionsFor,
-	isFondoOption,
-	normalizeDni,
-	remainingOf
-} from '$lib/utils/tickets.js';
+import { fondoOptionLabel, fondoOptionsFor, remainingOf } from '$lib/utils/tickets.js';
 import { doorPrice } from '$lib/utils/ticketTiers.js';
 import {
 	applyQueuedPartCheckIns,
@@ -91,6 +91,8 @@ export async function load(event) {
 		doorPrice: config.door?.price ?? '',
 		// Tope técnico de una venta (el máximo por venta, MAX_DOOR_SALE, se puede pasar confirmando).
 		maxOrder: PANEL_ORDER_HARD_MAX,
+		// Máximo por venta (sin conexión se avisa en el celu antes de guardar la venta).
+		maxPerSale: MAX_DOOR_SALE,
 		types: config.types.map((t) => {
 			// En la puerta: el precio en la puerta del tipo o, si no tiene, el del último tramo.
 			const atDoor = doorPrice(t);
@@ -239,6 +241,49 @@ export const actions = {
 		return { sync: { ok: true, results }, counts: await countsFor(db, { ticketSlug, part }) };
 	},
 
+	syncSales: async (event) => {
+		const admin = requireAdmin(event.locals, event.url);
+		const { db, config, part } = await doorContext(event, { fondo: true });
+		const slug = event.params.slug;
+		let raw;
+		try {
+			raw = JSON.parse(String((await event.request.formData()).get('sales') ?? ''));
+		} catch {
+			raw = null;
+		}
+		const items = parseSaleQueue(raw);
+		if (!items) return fail(400, { syncSales: { ok: false, results: [] } });
+		if (part) {
+			// En una parte de un taller no se vende (ver `sell`): se avisa venta por venta, sin borrarlas.
+			return {
+				syncSales: {
+					ok: true,
+					results: items.map((i) => ({
+						id: i.id,
+						result: 'rejected',
+						message: 'En una parte del taller no se vende: cargala en el modo puerta del taller.'
+					}))
+				}
+			};
+		}
+		const origin = siteOrigin(event.url);
+		const results = await applyQueuedSales(db, event.locals, {
+			eventSlug: slug,
+			config,
+			fondoPercent: config.fondoPercent,
+			by: admin.login,
+			items,
+			onSold: async ({ order, tickets, sale }) => {
+				if (!sale.sendEmail) return;
+				await inBackground(
+					sendOrderEmail({ db, order, tickets, origin, fetch: event.fetch }),
+					event.platform
+				);
+			}
+		});
+		return { syncSales: { ok: true, results }, counts: await doorCounts(db, slug) };
+	},
+
 	sell: async (event) => {
 		const admin = requireAdmin(event.locals, event.url);
 		const { db, config, typeNames, part } = await doorContext(event, { fondo: true });
@@ -253,10 +298,6 @@ export const actions = {
 			});
 		}
 		const form = await event.request.formData();
-		const text = (/** @type {string} */ name, max = 120) =>
-			String(form.get(name) ?? '')
-				.trim()
-				.slice(0, max);
 		/** @param {string} message */
 		const bad = (message) => fail(400, { sale: { ok: false, message, tickets: [] } });
 		/** @param {import('$lib/server/tickets/overrides.js').NeedsConfirmation} needsConfirmation */
@@ -265,41 +306,10 @@ export const actions = {
 				sale: { ok: false, message: 'Hace falta confirmar.', needsConfirmation, tickets: [] }
 			});
 
-		const type = config.types.find((t) => t.id === text('type', 64));
-		if (!type) return bad('Elegí un tipo de entrada.');
-		const quantity = Number(text('quantity', 3));
-		if (!Number.isInteger(quantity) || quantity < 1 || quantity > PANEL_ORDER_HARD_MAX) {
-			return bad(`La cantidad tiene que ser de 1 a ${PANEL_ORDER_HARD_MAX}.`);
-		}
-		const method = text('method', 20);
-		if (method !== 'efectivo' && method !== 'transferencia') {
-			return bad('Elegí cómo pagó: efectivo o transferencia.');
-		}
-		const name = text('name');
-		if (!name) return bad('Falta el nombre de quien compra.');
-		const email = text('email', 200).toLowerCase();
-		if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad('El email no es válido.');
-		const dniRaw = text('dni', 20);
-		const dni = dniRaw ? normalizeDni(dniRaw) : null;
-		if (dniRaw && !dni) return bad('El DNI tiene que tener 7 a 9 números.');
-		/** @type {import('$lib/utils/tickets.js').PriceOption | undefined} */
-		let option;
-		/** @type {number | undefined} */
-		let unitPrice;
-		if (type.gorra) {
-			unitPrice = Number(text('amount', 12).replace(/[.\s$]/g, ''));
-			if (!Number.isSafeInteger(unitPrice) || unitPrice < type.gorra.min) {
-				return bad(`El monto por entrada tiene que ser de al menos $ ${type.gorra.min}.`);
-			}
-		} else {
-			const o = text('option', 20);
-			option = isFondoOption(o) ? /** @type {any} */ (o) : undefined;
-			if (option === 'fondo' && !((doorPrice(type)?.fondo ?? 0) > 0)) option = undefined;
-		}
-		const holders = Array.from({ length: quantity }, (_, i) => ({
-			name: text(`holder_${i}`) || name,
-			pronouns: i === 0 ? text('pronouns', 40) : text(`pronouns_${i}`, 40)
-		}));
+		// Los mismos controles que las ventas hechas sin conexión (`parseDoorSale`).
+		const parsed = parseDoorSale(config, (name) => form.get(name));
+		if (!parsed.ok) return bad(parsed.message);
+		const { type, quantity, method, option, unitPrice, holders, buyer } = parsed.sale;
 
 		// Límites (solo anticipadas, cupo, máximo por venta): une admin los puede pasar si confirmó
 		// en el diálogo exactamente estos (la clave viene en `override`).
@@ -314,7 +324,7 @@ export const actions = {
 			type,
 			quantity,
 			holders,
-			buyer: { name, pronouns: text('pronouns', 40), email, dni },
+			buyer,
 			method,
 			option,
 			unitPrice,
@@ -350,7 +360,7 @@ export const actions = {
 			orderId: r.order.id,
 			limits: check.limits
 		});
-		if (email && form.get('send_email') === 'on') {
+		if (parsed.sale.sendEmail) {
 			await inBackground(
 				sendOrderEmail({
 					db,

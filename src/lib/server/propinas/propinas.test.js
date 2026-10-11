@@ -212,6 +212,76 @@ describe('destino (KinkyVibe o el Fondo)', () => {
 	});
 });
 
+describe('origen (publicación o el Fondo, migración 0052)', () => {
+	it('las de una publicación quedan como `post`; las del Fondo, sin publicación', async () => {
+		const post = await newTip();
+		expect(post).toMatchObject({ source: 'post', post_slug: 'guia-de-prueba' });
+		const fondo = await createTip(
+			t.db,
+			{ amount: 3000, message: null, category: null, slug: null, source: 'fondo' },
+			{ now: NOW }
+		);
+		expect(fondo).toMatchObject({
+			amount: 3000,
+			status: 'pending',
+			destination: 'fondo',
+			source: 'fondo',
+			post_category: 'material',
+			post_slug: ''
+		});
+		// Aunque llegue una publicación, una del Fondo no la guarda.
+		const odd = await createTip(t.db, {
+			amount: 1000,
+			message: null,
+			category: 'calendario',
+			slug: 'fiesta',
+			source: 'fondo'
+		});
+		expect(odd).toMatchObject({ source: 'fondo', post_category: 'material', post_slug: '' });
+	});
+
+	it('la base rechaza un origen desconocido (el CHECK de la migración 0052)', async () => {
+		await expect(
+			t.db
+				.prepare(
+					`INSERT INTO tips (id, amount, post_category, post_slug, source, created_at, updated_at)
+					VALUES ('x', 1000, 'material', 'guia', 'otro', 1, 1)`
+				)
+				.run()
+		).rejects.toThrow();
+	});
+
+	it('preferencia sin publicación; panel con una fila del Fondo; CSV con el origen', async () => {
+		const fondo = await createTip(
+			t.db,
+			{ amount: 3000, message: null, category: null, slug: null, source: 'fondo' },
+			{ now: NOW }
+		);
+		const p = buildTipPreference({ tip: fondo, postTitle: null, origin: 'https://kv.test' });
+		expect(p.items[0].title).toBe('Propina para el Fondo Kinky Vibe');
+		const post = await newTip({ amount: 2000 });
+		await applyTipPayment(t.db, payment(fondo, { id: 11, transaction_amount: 3000 }), { now: NOW });
+		await applyTipPayment(t.db, payment(post, { id: 12, transaction_amount: 2000 }), { now: NOW });
+		const s = await tipSummary(t.db);
+		expect(s.byPost).toEqual([
+			{ source: 'fondo', category: 'material', slug: '', count: 1, total: 3000 },
+			{ source: 'post', category: 'material', slug: 'guia-de-prueba', count: 1, total: 2000 }
+		]);
+		// Las dos suman al Fondo (toda propina nueva va al Fondo).
+		expect(await fondoTipTotals(t.db)).toEqual({ count: 2, total: 5000 });
+		const lines = toCsv(await listTips(t.db), TIP_CSV_COLUMNS)
+			.replace('\uFEFF', '')
+			.trim()
+			.split('\r\n');
+		expect(
+			lines.find((l) => l.startsWith(fondo.id))?.endsWith(',Para el Fondo,Fondo (una vez)')
+		).toBe(true);
+		expect(lines.find((l) => l.startsWith(post.id))?.endsWith(',Para el Fondo,Publicación')).toBe(
+			true
+		);
+	});
+});
+
 describe('applyTipPayment (estados que cambia el webhook)', () => {
 	it('se crea pendiente y un pago aprobado la aprueba (una sola vez)', async () => {
 		const tip = await newTip({ message: 'Gracias por la guía' });
@@ -376,8 +446,8 @@ describe('panel: resumen, lista y CSV', () => {
 			{ month: '2026-10', count: 2, total: 3000 }
 		]);
 		expect(s.byPost).toEqual([
-			{ category: 'material', slug: 'guia-a', count: 2, total: 6000 },
-			{ category: 'calendario', slug: 'fiesta', count: 1, total: 2000 }
+			{ source: 'post', category: 'material', slug: 'guia-a', count: 2, total: 6000 },
+			{ source: 'post', category: 'calendario', slug: 'fiesta', count: 1, total: 2000 }
 		]);
 	});
 
@@ -391,7 +461,7 @@ describe('panel: resumen, lista y CSV', () => {
 		const csv = toCsv(all, TIP_CSV_COLUMNS);
 		const lines = csv.replace('﻿', '').trim().split('\r\n');
 		expect(lines[0]).toBe(
-			'id,fecha,aprobada,estado,monto,categoria,publicacion,mensaje,pago_mp,destino'
+			'id,fecha,aprobada,estado,monto,categoria,publicacion,mensaje,pago_mp,destino,origen'
 		);
 		expect(lines).toHaveLength(6);
 		const row = lines.find((l) => l.startsWith(d.id));
@@ -399,9 +469,9 @@ describe('panel: resumen, lista y CSV', () => {
 		// El mensaje lo escribe la persona: no se ejecuta como fórmula en la planilla.
 		expect(row).toContain(`"'=HYPERLINK(""x"")"`);
 		expect(lines.some((l) => l.includes(',Pendiente,700,'))).toBe(true);
-		// Destino al final de cada fila.
-		expect(row?.endsWith(',4,Para el Fondo')).toBe(true);
-		expect(lines.filter((l) => l.endsWith(',Para Kinky Vibe'))).toHaveLength(4);
+		// Destino y origen al final de cada fila.
+		expect(row?.endsWith(',4,Para el Fondo,Publicación')).toBe(true);
+		expect(lines.filter((l) => l.endsWith(',Para Kinky Vibe,Publicación'))).toHaveLength(4);
 		// Fechas en hora de Argentina, no en ISO UTC: aprobada el 1/11 02:30 UTC = 31/10 23:30.
 		expect(lines.find((l) => l.startsWith(a.id))).toContain(',2026-10-31 23:30,');
 		expect(csv).not.toMatch(/\d{2}:\d{2}:\d{2}\.\d{3}Z/);
