@@ -19,6 +19,7 @@ describe('todos los mails usan la plantilla común', () => {
 				'buildBuyerMail',
 				'buildConfirmCodeEmail',
 				'buildFollowEmail',
+				'buildFondoLinkEmail',
 				'buildLoginCodeEmail',
 				'buildNewEditionEmail',
 				'buildProfileInviteEmail',
