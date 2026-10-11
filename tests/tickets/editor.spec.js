@@ -134,7 +134,7 @@ test('crear un evento con 2 tipos de entrada y después cambiar un precio', asyn
 	await edit.locator('#edit-ticket-capacity-1').fill('100');
 	await shots(page, 'tickets-editor-edit', edit);
 	await page.locator('#save').click();
-	await expect(page.locator('p.note[role="status"]')).toContainText('Guardado');
+	await expect(page.locator('#save-result[role="status"]')).toContainText('Guardado');
 
 	const edited = await committed(page.request, slug);
 	expect(edited.meta.tickets[0]).toEqual({

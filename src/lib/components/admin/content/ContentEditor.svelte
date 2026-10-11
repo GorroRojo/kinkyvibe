@@ -10,9 +10,11 @@
 -->
 <script>
 	import Notice from '$lib/components/ui/Notice.svelte';
+	import FormProblems from '$lib/components/admin/event-form/FormProblems.svelte';
+	import { focusField } from '$lib/admin/formProblems.js';
 	import SectionHeading from '$lib/components/admin/event-form/SectionHeading.svelte';
 	import { argFormat } from '$lib/utils/dates.js';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import { lineEndingOf } from '$lib/utils/lineEndings.js';
 	import { browser } from '$app/environment';
 	import { deserialize, enhance } from '$app/forms';
@@ -60,7 +62,7 @@
 	import { canonicalTag, siteTags } from '$lib/utils/adminTags.js';
 	import {
 		buildContentMarkdown,
-		contentProblems,
+		contentProblemItems,
 		duplicateContentForm,
 		fieldsFor,
 		freeContentSlug,
@@ -254,19 +256,25 @@
 		content !== (parseError ? baseRaw : unchangedContent) ||
 		Boolean(upload.name) ||
 		imageTouched;
+	// Cada problema con su campo: «Antes de guardar» linkea a cada uno (formProblems.js).
+	/** @type {import('$lib/admin/formProblems.js').Problem[]} */
+	let problems = [];
 	$: problems = parseError
 		? []
 		: [
-				...contentProblems(category, f),
-				...newPeopleErrors,
-				...(slugError ? [slugError] : []),
-				...(slugCheck && slugCheck.slug === slug && slugCheck.error ? [slugCheck.error] : []),
-				...(upload.error ? [upload.error] : []),
+				...contentProblemItems(category, f),
+				...newPeopleErrors.map((text) => ({ text, field: 'authors-input' })),
+				...(slugError ? [{ text: slugError, field: 'slug-input' }] : []),
+				...(slugCheck && slugCheck.slug === slug && slugCheck.error
+					? [{ text: slugCheck.error, field: 'slug-input' }]
+					: []),
+				...(upload.error ? [{ text: upload.error, field: 'content-image' }] : []),
 				...(category === 'amigues' && isNew && !upload.name
-					? ['Subí una foto o un logo para el perfil.']
+					? [{ text: 'Subí una foto o un logo para el perfil.', field: 'content-image' }]
 					: [])
 			];
-	let showProblems = false;
+	/** «Antes de guardar» se muestra desde que se toca Guardar (las pruebas lo pasan prendido). */
+	export let showProblems = false;
 
 	/* ---------- preview ---------- */
 	let previewHtml = '';
@@ -328,6 +336,15 @@
 		// Un solo envío a la vez.
 		if (saving || redirecting || problems.length || !content || !changed) {
 			cancel();
+			// Con problemas, al primer campo que falta (como al crear un evento); si no se
+			// encuentra, a «Antes de guardar».
+			if (!saving && !redirecting && problems.length)
+				tick().then(() => {
+					if (!focusField(problems[0].field))
+						document
+							.getElementById('save-problems')
+							?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+				});
 			return;
 		}
 		saving = true;
@@ -446,16 +463,15 @@
 		saving={saving || redirecting}
 	>
 		{#if justCreated && !saved}
-			<p class="banner ok" role="status">
-				<CircleCheck size={18} aria-hidden="true" />
-				<span>
+			<div class="saved-notice">
+				<Notice id="created-notice">
 					{justCreated === 'duplicado' ? 'Copia creada' : 'Publicación creada'}.
 					{#if data.savesToDb}{copy.contentCreated}{#if createdPr}{' '}La imagen nueva tarda unos
 							minutos: <PublishStatus pr={createdPr} />{/if}
 					{:else if createdPr}<PublishStatus pr={createdPr} />{:else}{copy.contentCreated}{/if}
 					Podés seguir editándola acá.
-				</span>
-			</p>
+				</Notice>
+			</div>
 		{/if}
 
 		{#if parseError}
@@ -626,21 +642,15 @@
 		{/if}
 
 		{#if showProblems && problems.length}
-			<div class="problems" role="alert">
-				<strong>Antes de guardar:</strong>
-				<ul>
-					{#each problems as p}<li>{p}</li>{/each}
-				</ul>
-			</div>
+			<FormProblems {problems} title="Antes de guardar:" id="save-problems" />
 		{/if}
 		{#if form?.error}<p class="error" role="alert">
 				<CircleAlert size={16} aria-hidden="true" />
 				{form.error}
 			</p>{/if}
 		{#if saved}
-			<p class="banner ok" role="status">
-				<CircleCheck size={18} aria-hidden="true" />
-				<span>
+			<div class="saved-notice">
+				<Notice id="save-result">
 					{argFormat({ hour: 'numeric', minute: 'numeric', second: 'numeric' }).format(
 						new Date(saved.at)
 					)} ·
@@ -649,8 +659,8 @@
 					{:else if saved.publish}<PublishStatus
 							pr={saved.publish}
 						/>{:else}{copy.contentSaved}{/if}
-				</span>
-			</p>
+				</Notice>
+			</div>
 		{/if}
 
 		<FilePreview {content} savesToDb={data.savesToDb} />
@@ -699,17 +709,9 @@
 			font-size: var(--text-base);
 		}
 	}
-	.banner {
-		display: flex;
-		gap: var(--space-2xs);
-		align-items: center;
-		border-radius: var(--radius-m);
-		padding: var(--space-2xs) var(--space-xs);
+	/* el aviso verde de «creada» / «guardado» (Notice), con el espacio de abajo de siempre */
+	.saved-notice {
 		margin: 0 0 1rem;
-		&.ok {
-			background: var(--ok-bg);
-			color: var(--ok);
-		}
 	}
 	.slug {
 		display: flex;

@@ -23,6 +23,8 @@
 	import ScheduleSection from '$lib/components/admin/event-form/ScheduleSection.svelte';
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
+	import FormProblems from '$lib/components/admin/event-form/FormProblems.svelte';
+	import { focusField, isProblem, scheduleField } from '$lib/admin/formProblems.js';
 	import { ONLINE_MISMATCH_TEXT, onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
 	import { draftKey } from '$lib/admin/draft.js';
 	import { formSections } from '$lib/admin/eventForm.js';
@@ -254,21 +256,30 @@
 	let imageTouched = false;
 
 	/* ---------- result ---------- */
+	// Cada problema con su campo: «Antes de guardar» linkea a cada uno (formProblems.js), como al
+	// crear un evento.
+	const fieldId = datosFieldId('editar');
+	/** @type {import('$lib/admin/formProblems.js').Problem[]} */
+	let problems = [];
 	$: problems = parseError
 		? []
-		: /** @type {string[]} */ (
-				[
-					...shownFields
-						.filter((f) => f.required && !values[f.key])
-						.map((f) => `Falta «${f.label}».`),
-					...(isEvent ? scheduleProblems(schedule) : []),
-					mapError,
-					linkError,
-					...tagErrors,
-					...(ticketsTouched ? newTicketErrors : []).map((e) => `Entradas: ${e}`),
-					...newPeopleErrors
-				].filter(Boolean)
-			);
+		: /** @type {unknown[]} */ ([
+				...shownFields
+					.filter((f) => f.required && !values[f.key])
+					.map((f) => ({ text: `Falta «${f.label}».`, field: fieldId(f.key) })),
+				...(isEvent ? scheduleProblems(schedule) : []).map((text) => ({
+					text,
+					field: scheduleField(text, 'edit')
+				})),
+				mapError && { text: mapError, field: fieldId('location_map') },
+				linkError && { text: linkError, field: fieldId('link') },
+				...tagErrors.map((text) => ({ text, field: 'tags-input' })),
+				...(ticketsTouched ? newTicketErrors : []).map((e) => ({
+					text: `Entradas: ${e}`,
+					field: 'edit-tickets'
+				})),
+				...newPeopleErrors.map((text) => ({ text, field: 'authors-input' }))
+			]).filter(isProblem);
 
 	$: content = parseError
 		? rawText
@@ -369,10 +380,13 @@
 			return;
 		}
 		if (hiddenTicketErrors.length) {
-			// Guardar con errores de entradas todavía sin mostrar: se muestran y no se guarda.
+			// Guardar con errores de entradas todavía sin mostrar: se muestran y no se guarda (y se
+			// va al primer campo con problema, como al crear un evento).
 			ticketsTouched = true;
 			cancel();
-			tick().then(() => focusProblems());
+			tick().then(() => {
+				if (!focusField(problems[0]?.field ?? '')) focusProblems();
+			});
 			return;
 		}
 		saving = true;
@@ -541,12 +555,7 @@
 		{/if}
 
 		{#if problems.length}
-			<div class="problems" role="alert" id="save-problems">
-				<strong>Antes de guardar:</strong>
-				<ul>
-					{#each problems as p}<li>{p}</li>{/each}
-				</ul>
-			</div>
+			<FormProblems {problems} title="Antes de guardar:" id="save-problems" />
 		{/if}
 		{#if form?.error}
 			<p class="error" role="alert">{form.error}</p>
@@ -555,13 +564,13 @@
 			<Notice tone="warn">{warning}</Notice>
 		{/each}
 		{#if form?.save}
-			<p class="note" role="status">
-				✅ {form.save}
+			<Notice id="save-result">
+				{form.save}
 				{argDateLog(new Date())}
 				<br />{#if form.savedToDb}Se ve enseguida en el sitio.{:else}<PublishStatus
 						pr={form.publish}
 					/>{/if}
-			</p>
+			</Notice>
 		{/if}
 
 		<FilePreview {content} savesToDb={data.savesToDb} />

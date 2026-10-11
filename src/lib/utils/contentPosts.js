@@ -319,34 +319,50 @@ export function buildContentMarkdown(category, baseRaw, initial, form, opts = {}
 }
 
 /**
- * Problems that block saving, in Spanish.
+ * Problems that block saving, in Spanish, each with the id of the ContentEditor field where it is
+ * fixed (`<key>-input` for the fields, `tags-input`, `authors-input`): the editor lists them as
+ * links to their fields ($lib/admin/formProblems.js).
  * @param {string} category
  * @param {ContentForm} form
+ * @returns {import('$lib/admin/formProblems.js').Problem[]}
  */
-export function contentProblems(category, form) {
-	/** @type {string[]} */
+export function contentProblemItems(category, form) {
+	/** @type {import('$lib/admin/formProblems.js').Problem[]} */
 	const out = [];
+	/** @param {string} text @param {string} field */
+	const add = (text, field) => out.push({ text, field });
 	for (const f of fieldsFor(category)) {
 		const v = form.values[f.key];
-		if (f.required && (v === '' || v === undefined || v === false)) out.push(`Falta «${f.label}».`);
+		const field = `${f.key}-input`;
+		if (f.required && (v === '' || v === undefined || v === false))
+			add(`Falta «${f.label}».`, field);
 		if (f.type === 'date' && typeof v === 'string' && v && !isValidDate(v))
-			out.push(`«${f.label}» no es una fecha válida.`);
+			add(`«${f.label}» no es una fecha válida.`, field);
 		if (f.type === 'url' && typeof v === 'string' && v.trim() && !/^https?:\/\/\S+$/.test(v.trim()))
-			out.push(`«${f.label}» tiene que empezar con https://`);
+			add(`«${f.label}» tiene que empezar con https://`, field);
 		if (f.type === 'email' && typeof v === 'string' && v.trim() && !/^\S+@\S+\.\S+$/.test(v.trim()))
-			out.push(`«${f.label}» no parece un mail.`);
+			add(`«${f.label}» no parece un mail.`, field);
 	}
-	if (!form.tags.filter((t) => t.trim()).length) out.push('Poné al menos una etiqueta.');
+	if (!form.tags.filter((t) => t.trim()).length) add('Poné al menos una etiqueta.', 'tags-input');
 	// The material page lists its authors (and needs the list): every material post has one.
 	if (hasAuthors(category) && !form.authors.filter((x) => x.trim()).length)
-		out.push('Poné al menos une autore.');
+		add('Poné al menos une autore.', 'authors-input');
 	if (
 		category === 'material' &&
 		form.values.redirect === true &&
 		!String(form.values.link ?? '').trim()
 	)
-		out.push('Para ir directo al link hace falta el link.');
+		add('Para ir directo al link hace falta el link.', 'link-input');
 	return out;
+}
+
+/**
+ * Problems that block saving, in Spanish (the texts of `contentProblemItems`).
+ * @param {string} category
+ * @param {ContentForm} form
+ */
+export function contentProblems(category, form) {
+	return contentProblemItems(category, form).map((p) => p.text);
 }
 
 /**

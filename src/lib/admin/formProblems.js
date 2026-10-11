@@ -1,13 +1,15 @@
 /**
- * «Falta completar» de un formulario largo del panel (crear evento): cada problema sabe en qué
- * campo está, así el resumen es una lista de links, el primer campo con problema recibe el foco y
- * los campos con problema llevan `aria-invalid`.
+ * Lo que falta para poder guardar un formulario largo del panel («Falta completar» al crear un
+ * evento, «Antes de guardar» al editar un evento, un material o un perfil de amigue): cada
+ * problema sabe en qué campo está, así el resumen (`FormProblems.svelte`) es una lista de links,
+ * el primer campo con problema recibe el foco y los campos con problema llevan `aria-invalid`.
  *
- * `problemField` (puro) dice el id del campo de un texto de problema conocido; `focusField` y
- * `markInvalid` tocan el DOM.
+ * `scheduleField` y `problemFields` son puros; `focusField` y `markInvalid` tocan el DOM.
  */
 
 /**
+ * `field`: el id del campo (el del input, o el de un fieldset: se enfoca su primer control). Vacío
+ * si el problema no tiene un campo donde arreglarlo (se muestra sin link).
  * @typedef {{ text: string, field: string }} Problem
  */
 
@@ -47,7 +49,8 @@ const visible = (el) => el instanceof HTMLElement && el.offsetParent !== null;
 
 /**
  * Lleva la pantalla al campo y le pone el foco (si el elemento no se puede enfocar, por ejemplo
- * un fieldset, el primer control visible de adentro).
+ * un fieldset, el primer control visible de adentro). Si el campo está dentro de un `<details>`
+ * cerrado (los datos de contacto de un perfil), lo abre primero.
  * @param {string} id
  * @returns {boolean} si encontró el campo
  */
@@ -55,6 +58,8 @@ export function focusField(id) {
 	if (typeof document === 'undefined' || !id) return false;
 	const el = document.getElementById(id);
 	if (!el) return false;
+	for (let d = el.closest('details'); d; d = d.parentElement?.closest('details') ?? null)
+		if (!d.hasAttribute('open')) d.setAttribute('open', '');
 	/** @type {Element | null} */
 	let target = el.matches(FOCUSABLE) && visible(el) ? el : null;
 	if (!target) target = [...el.querySelectorAll(FOCUSABLE)].find(visible) ?? null;
