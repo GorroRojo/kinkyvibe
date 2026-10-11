@@ -129,7 +129,9 @@ eventos, y si el nivel por defecto del lugar es este, su página se ve como "Só
 dirección). La migración 0027 agregó `address` al CHECK de la tabla vieja `event_venues`; en el
 edge, el nivel se valida en código (`isVenuePrivacy`).
 
-En `name`, `area` y `hidden` aparece "Te mandamos la dirección con tu entrada". En todos los
+En `name`, `area` y `hidden` aparece "Te mandamos la dirección con tu entrada" si el evento vende
+entradas en el sitio; si no (no hay entrada que la lleve), no aparece ningún aviso (decisión de
+gorrite, 9/10). En todos los
 niveles **quien compró recibe el lugar completo** (nombre y dirección) en el mail de confirmación,
 en los recordatorios y en la página de su entrada (con la compra aprobada).
 
@@ -143,7 +145,10 @@ Abajo, «Abrir en OpenStreetMap» y el crédito «© colaboradores de OpenStreet
 indicaciones «Cómo llegar» se sacó por pedido de gorrite, 4/10; la sección escrita «Cómo llegar»
 del lugar y «Ver en Google Maps» siguen). Sale solo en "Nombre + dirección"
 y "Sólo dirección": en los demás niveles el servidor no manda `lat`/`lng` (`venueView`; lo prueban
-`venues.test.js` y `VenueLocation.test.js`).
+`venues.test.js` y `VenueLocation.test.js`). En la página del evento va chico en «Cuándo y dónde», arriba de «Ver en
+Google Maps» (y no en un evento cancelado), con «Cómo llegar» y «Accesibilidad» en su propia
+tarjeta más abajo (`src/lib/components/evento/`). Un evento con solo el «Dónde» en texto libre
+no tiene mapa: no se geocodifica ni se inventa una ubicación.
 
 **Sin filtraciones**: el sitemap, el RSS, el `.ics`, `/api/posts` y las imágenes para compartir
 llevan de los perfiles solo lo que muestra `/amigues` a cualquiera (aprobados, no ocultos, con la
@@ -165,9 +170,32 @@ nombre, descripción, etiquetas y, si su nivel por defecto los muestra (`venuePa
 **«Dónde» sin lugar** (sitios de una sola vez que no son un Lugar: una plaza, un bar): el editor de
 eventos tiene «Dónde» (el `location` en texto libre de siempre) y un **link al mapa** opcional
 (`location_map`, solo https de OpenStreetMap o Google Maps; lo valida el guardado). La página del
-evento los muestra («Ver en el mapa») y el `.ics` lleva el texto en `LOCATION` y el link en la
-descripción. Si el evento tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto
-ni el link del `.md`. Todo en `src/lib/utils/eventPlace.js` (`eventPlace`, `checkMapLink`).
+evento los muestra («Ver en el mapa»; con nombre `location_name` y dirección, «Nombre ·
+Dirección», o lo que haya de los dos) y el `.ics` lleva el texto en `LOCATION` y el link en la
+descripción. «Online» solo si el evento es online; sin nada cargado no dice nada (antes decía
+«Online»). Los datos estructurados de schema.org siguen lo mismo (`eventPlaceSchema`). Si el evento
+tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto ni el link del `.md`. Todo en
+`src/lib/utils/eventPlace.js` (`eventPlace`, `eventPlaceSchema`, `checkMapLink`).
+
+**Online o presencial: una sola regla**, `eventMode(meta, { hasVenue })` en `eventPlace.js`
+(`'online' | 'presencial' | ''`; no hay eventos híbridos). En orden: un lugar vinculado manda
+(presencial); `modalidad: online | presencial`; un «Dónde» que dice solo «Online», «Virtual»,
+«Zoom», «Meet»… (`ONLINE_WORDS`, sin importar mayúsculas, tildes ni puntuación), online; cualquier
+otro «Dónde» (nombre o dirección), presencial, aunque tenga la etiqueta Online; sin «Dónde», la
+etiqueta Online (o «virtual»), online; sin nada, `''`. La usan la página («Cuándo y dónde» y su
+ícono), el `.ics`, schema.org, el carrusel y la imagen para compartir (`placeShort`), el panel
+(`online` de la lista de eventos), «Qué falta» y la revisión de «Nuevo evento», «Importar de
+eventos» y el importador de la planilla (`isOnlineWord`). El texto «Nombre · Dirección» es
+`placeLine` (también en los mails y en las partes de un taller).
+
+**La venta de entradas usa la misma regla** (decisión de gorrite): `isOnlineEvent(meta, { hasVenue })`
+(en `eventPlace.js`) es `eventMode(...) === 'online'`, ver [tickets.md](tickets.md#eventos-online).
+La venta lee el lugar vinculado de la base (`eventsWithVenue`) y el editor de entradas usa el
+«Lugar» elegido. Antes tenía su propia regla (`modalidad`, o la etiqueta Online sin `location`) y
+difería en dos casos, que ahora coinciden: la etiqueta Online con solo un nombre de lugar es
+presencial (QR y puerta) y un «Dónde» «Online» sin etiqueta ni `modalidad` es online. Los mails,
+la página de compra y la de cada entrada dicen «Online» cuando la venta lo dice (`salePlaceText`),
+para que coincida con el link en vez del QR.
 
 **Elegir el lugar desde el evento** (pedido de gorrite): el formulario de eventos (crear, duplicar y
 editar) tiene la sección **«📍 Lugar»** (`PlaceSection.svelte` en
@@ -192,6 +220,42 @@ y su nivel con «Cambiar». Código: `src/lib/server/amigues/eventFormVenue.js` 
 sitio no tiene CSP de imágenes en las páginas públicas, así que no hizo falta tocar
 `securityHeaders.js`) y el link "Ver en OpenStreetMap".
 
+**«Buscar en el mapa»** (pedido de gorrite): en el editor de un lugar del panel (Perfiles →
+lugar) y en el de Mi rincón (el lugar que gestiona una cuenta, `/mi-rincon/perfiles/[slug]`), al
+lado de la dirección, un botón que busca la dirección, el barrio y la ciudad (con
+«Argentina» al final) en **Nominatim**, el buscador de OpenStreetMap, y muestra hasta 5
+resultados con una vista previa del mapa (las mismas baldosas que `VenueMap`, sin librerías). El
+punto se ajusta con un clic en la vista previa o con las flechas, y **«Usar esta ubicación»**
+completa la latitud y la longitud; **no se guarda nada hasta guardar el formulario**. Sin
+resultados: «No encontramos esa dirección. Probá agregando la ciudad o el barrio.». Con el botón
+al lado, la explicación de la latitud y la longitud dice que se completan solas (y que se pueden
+corregir a mano); donde no hay botón, sigue explicando cómo copiarlas de openstreetmap.org.
+
+- **La dirección sale del sitio solo cuando alguien aprieta el botón** (une admin o quien gestiona
+  el lugar): se manda a Nominatim (OpenStreetMap) desde el servidor, nunca desde el navegador,
+  nunca sola, nunca para visitantes y nunca para el «Dónde» en texto libre de un evento. La
+  privacidad del lugar no cambia: las coordenadas se siguen mostrando solo en los niveles que
+  muestran la dirección.
+- Endpoints (por POST para que la dirección no quede en URLs; las mismas respuestas y los mismos
+  mensajes):
+  - `POST /admin/geocodificar`: solo admins.
+  - `POST /mi-rincon/geocodificar`: una cuenta con sesión que **gestiona al menos un lugar** (con
+    el permiso de perfiles), así no sirve de buscador gratis para cualquier cuenta. Sin sesión,
+    401; sin lugar, 403 («Buscar en el mapa es para quienes gestionan un lugar.»). Además, **10
+    búsquedas cada 10 minutos por cuenta** (`rate_limits`, bucket `nominatim:a:<hash del id>`; se
+    cuentan también las que salen de la memoria, no las que llegan sin dirección), así una cuenta
+    no se queda con el pedido por segundo del sitio: «Hiciste muchas búsquedas seguidas. Esperá
+    unos minutos y probá de nuevo, o cargá los números a mano.» (429).
+- Política de uso de Nominatim: User-Agent `kinkyvibe/1.0 (+https://kinkyvibe.ar; …)` sin mails,
+  **un pedido por segundo para todo el sitio** (`rate_limits`, bucket `nominatim`, compartido por
+  los dos endpoints; sin base no se pide nada) y las búsquedas repetidas salen de una memoria de
+  24 h del Worker.
+- Código: `src/lib/server/geocode/nominatim.js` (la búsqueda), `src/lib/server/geocode/web.js`
+  (cuerpo, respuestas, mensajes y límite por cuenta), `src/routes/(authed)/admin/geocodificar/`,
+  `src/routes/(content)/mi-rincon/geocodificar/` y
+  `src/lib/components/amigues/VenueGeocoder.svelte` (recibe el endpoint y las clases de cada
+  página; `osmMovePoint` en `src/lib/utils/venues.js` mueve el punto).
+
 **"Ver en Google Maps"** (pedido de gorrite): un link común (sin mapa embebido) en la página del
 evento y en la del lugar, solo en "Nombre + dirección" y "Sólo dirección". Busca el punto si el
 lugar lo tiene y, si no, la dirección; en "Sólo dirección" la búsqueda nunca lleva el nombre
@@ -209,7 +273,8 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   mayúsculas, tildes, espacios, puntuación, «Av.» ni «CABA» / «Ciudad Autónoma de Buenos Aires».
   Un barrio solo («Almagro, CABA») no es una dirección: junta solo eventos sin nombre. Dos grupos
   con el mismo nombre y direcciones distintas quedan aparte (se avisa: ¿se mudó?).
-- Se saltean los eventos online, los que no tienen «Dónde» y los que ya tienen lugar. Si el lugar
+- Se saltean los eventos online (`isOnlinePlace`, la regla de la página), los que no tienen «Dónde»
+  y los que ya tienen lugar. Si el lugar
   ya existe (mismo nombre o misma calle y número), se ofrece vincular sus eventos.
 - **Privacidad** (gorrite: «si está en los eventos, es público»): cada evento queda con el nivel
   que muestra lo mismo que ya mostraba:
@@ -248,6 +313,63 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   evento que ya tiene uno. Va de a tandas y se puede
   repetir; cada lugar creado o vínculo queda en Actividad. Hay CSV de los candidatos.
 
+## Vincular lugares
+
+**Eventos → Lugares → «Vincular lugares»** (`/admin/eventos/lugares/vincular`, solo admins; botón
+en el encabezado de Lugares). Muchos eventos tienen el lugar solo como texto («Dónde»:
+`location_name` / `location`) y no tienen edge `lugar`, así que su página no puede mostrar el mapa.
+Pedido de gorrite: una herramienta que sugiera, para cada «Dónde» escrito, el perfil de lugar que
+probablemente es, para confirmar de a muchos. A diferencia de «Importar de eventos» (que crea
+lugares), esta vincula con los **lugares que ya existen**. Reglas puras en
+`src/lib/utils/venueMatch.js`; lecturas y escrituras en `src/lib/server/amigues/venueLinking.js`.
+
+- **Grupos**: los eventos sin lugar (un vínculo a un lugar borrado no cuenta) y con «Dónde»,
+  juntados con las mismas reglas que «Importar de eventos» (`planVenueImport`: mismo nombre, misma
+  calle y número o mismo link al mapa). Cada grupo muestra cómo lo escribieron, cuántos eventos y
+  desde cuándo hasta cuándo. Se saltean los online y los que no tienen «Dónde».
+- **Sugerencias** (hasta 3 por grupo, con el puntaje y por qué), comparando con cada lugar:
+
+  | Señal                                                                         | Puntaje  |
+  | ----------------------------------------------------------------------------- | -------- |
+  | mismo nombre (el del lugar, su dirección en el sitio o la de su ficha .md)    | 100      |
+  | misma calle y número                                                          | 95       |
+  | mismo punto del mapa (el link del evento a menos de 150 m del lugar)          | 90       |
+  | mismo número y calle parecida                                                 | 80       |
+  | nombre parecido (similitud de letras) o un nombre contiene al otro            | hasta 85 |
+  | dirección parecida (sin número que coincida)                                  | hasta 70 |
+  | mismo nombre pero otra dirección (¿se mudó? ¿otro lugar con el mismo nombre?) | 70       |
+
+  Manda la señal más fuerte y cada señal fuerte de más suma 5 (hasta 100). Se sugieren las de 45
+  o más. Para comparar: sin mayúsculas, tildes ni puntuación; en la dirección, sin «Av.»,
+  «Avenida», «Calle», «Pasaje»…, con «Gral.», «Pte.», «Dr.»… enteros, sin el punto de los miles
+  («1.234») ni el «N°», y sin lo que viene después del número (piso, depto). La primera sugerencia
+  viene **elegida**, y **marcada** para «Vincular todas las marcadas» solo si tiene 85 o más y le
+  gana por 10 o más a la segunda.
+
+- **Otras opciones** por grupo: «Buscar otro lugar» (por nombre, calle o barrio, entre todos los
+  lugares), «Crear lugar nuevo» (abre Perfiles → nuevo con el nombre y la dirección ya escritos:
+  `?tipo=lugar&nombre=…&direccion=…`; después de crearlo, el grupo lo sugiere con «mismo nombre») y
+  «Dejar como texto».
+- **Qué se ve**: con el lugar elegido, la página dice qué eventos se van a ver distinto y por qué
+  (`eventFit`, la misma lista blanca que la página del evento).
+- **Privacidad** (decidido por Claude, a confirmar): cada evento queda con el nivel del lugar,
+  salvo que el evento mostraba menos (por ejemplo, solo el nombre): entonces lleva ese nivel como
+  propio en el edge (`linkPrivacy`). Nunca muestra del lugar más de lo que el lugar deja ver por
+  defecto, aunque el evento mostrara más en su texto.
+- **«Vincular»** (un grupo) y **«Vincular todas las marcadas»** (con confirmación) escriben el edge
+  `lugar` de cada evento con `linkFreeEventVenue` (saveObject() sobre el evento: versión nueva,
+  revisión con `source = 'lugar'`, `content_sources` al día), como el formulario del evento. Cada
+  evento se revisa otra vez al guardar: uno que consiguió lugar en el medio (o quedó como texto) se
+  saltea; repetir es seguro. El «Dónde» escrito **no se toca** (se vuelve a ver si se saca el
+  lugar). Va de a tandas (el máximo de consultas de D1 por pedido); la página repite con lo que
+  falta y muestra lo vinculado, lo salteado y los errores de cada grupo. Cada grupo vinculado queda
+  en Actividad (`venue.bulk_link`, con los eventos y su nivel).
+- **«Dejar como texto»**: los eventos del grupo no se sugieren más. Es una fila por evento en
+  `event_venue_dismissals` (migración 0046; no en el JSON del evento, que le subiría la versión),
+  con la clave de su «Dónde» de ese momento (`placeKeyOf`): si alguien cambia el «Dónde», se
+  vuelve a sugerir. Abajo, «Quedaron como texto» los lista con «Volver a sugerir» (borra las
+  filas). Los dos quedan en Actividad (`venue.link_dismiss`, `venue.link_undismiss`).
+
 ## «Sucede en» es un edge
 
 "Sucede en" es un **edge `lugar`** del evento (evento → perfil de tipo lugar), escrito solo con
@@ -268,6 +390,9 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
 'lugar'`). Si el evento se importó de un `.md` y nadie lo había editado, sigue contando como no
   editado (`content_sources.imported_version` sube con él), así volver a importar su `.md` lo
   sigue actualizando. El guardado del texto (panel o importación) no toca el edge `lugar`.
+- Un evento con lugar **y** la etiqueta «Online» no está claro (¿presencial u online?): el panel lo
+  avisa (editor, ficha y una fila de «Para revisar» en el Inicio) sin cambiar nada. Ver
+  [panel.md](panel.md), «Aviso «Online con lugar»».
 - `eventVenuesStamp` (lo usa el índice de la búsqueda para saber si cambió algo) suma la versión de
   los eventos con lugar: cualquier cambio del vínculo la mueve.
 - **La tabla `event_venues` queda en la base pero nadie la usa** (las migraciones solo agregan).
@@ -277,23 +402,25 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
   la puede borrar cuando todos los eventos estén en la base.
 - Antes (0017 → 0035) era esa tabla, por la dirección del evento, mientras los eventos eran `.md`.
 
-## Tablas (migraciones 0017, 0024 y 0025)
+## Tablas (migraciones 0017, 0024, 0025 y 0046)
 
-| Tabla                | Qué guarda                                                                                                                                                                                                                          |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `profile_sources`    | de qué `.md` vino cada perfil (dirección vieja, SHA-256, versión importada) y la clasificación (propuesta: persona, proyecto o lugar; por qué; confirmada). 0024 rehízo la tabla para que la propuesta diga `proyecto` y no `grupo` |
-| `profile_approvals`  | perfiles aprobados para `/amigues`                                                                                                                                                                                                  |
-| `profile_claims`     | pedidos "Es mi perfil" (pendiente, aprobado, rechazado)                                                                                                                                                                             |
-| `profile_rejections` | lugares de cuentas rechazados (0025): quién, cuándo y el motivo que ve quien lo cargó; «Volver a mandar» o aprobarlo borra la fila                                                                                                  |
-| `event_venues`       | "sucede en" de antes (0017, 0027); desde 0035 es el edge `lugar` del evento y la tabla ya no se usa                                                                                                                                 |
+| Tabla                    | Qué guarda                                                                                                                                                                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `profile_sources`        | de qué `.md` vino cada perfil (dirección vieja, SHA-256, versión importada) y la clasificación (propuesta: persona, proyecto o lugar; por qué; confirmada). 0024 rehízo la tabla para que la propuesta diga `proyecto` y no `grupo` |
+| `profile_approvals`      | perfiles aprobados para `/amigues`                                                                                                                                                                                                  |
+| `profile_claims`         | pedidos "Es mi perfil" (pendiente, aprobado, rechazado)                                                                                                                                                                             |
+| `profile_rejections`     | lugares de cuentas rechazados (0025): quién, cuándo y el motivo que ve quien lo cargó; «Volver a mandar» o aprobarlo borra la fila                                                                                                  |
+| `event_venue_dismissals` | «Dejar como texto» de Vincular lugares (0046): un evento por fila, con la clave de su «Dónde» de entonces; si el «Dónde» cambia, se vuelve a sugerir                                                                                |
+| `event_venues`           | "sucede en" de antes (0017, 0027); desde 0035 es el edge `lugar` del evento y la tabla ya no se usa                                                                                                                                 |
 
 ## Dónde está el código
 
 - `src/lib/server/amigues/`: `importer.js` y `classify.js` (importación y clasificación),
   `profiles.js` (quién ve qué), `pages.js` (lo que arman las páginas), `venues.js` (lugares y
-  privacidad), `claims.js`, `approvals.js`, `editor.js` (editor del panel), `render.js` y
+  privacidad), `claims.js`, `approvals.js`, `editor.js` (editor del panel), `venueImport.js` (Importar de eventos), `venueLinking.js` (Vincular lugares), `render.js` y
   `sanitize.js` (texto en HTML), `review.js` (importar desde el panel y CSV).
-- Reglas puras de privacidad y mapa: `src/lib/utils/venues.js`.
+- Reglas puras de privacidad y mapa: `src/lib/utils/venues.js`; de Vincular lugares (sugerencias):
+  `src/lib/utils/venueMatch.js`.
 - Páginas: `src/routes/(content)/amigues/`; panel: `src/routes/(authed)/admin/comunidad/perfiles/`,
   `admin/eventos/lugares/`, `admin/comunidad/cuentas/perfiles/[id]/` (ficha de un perfil). Componentes: `src/lib/components/amigues/`
   y `src/lib/components/admin/amigues/`.
@@ -301,4 +428,4 @@ lecturas y escrituras en `src/lib/server/amigues/venueImport.js`.
 
 ## Probarlo
 
-`npx vitest run src/lib/server/amigues src/lib/utils/venues.test.js "src/routes/(content)/amigues" "src/routes/(authed)/admin/comunidad/perfiles"`
+`npx vitest run src/lib/server/amigues src/lib/server/geocode src/lib/utils/venues.test.js src/lib/utils/venueMatch.test.js "src/routes/(content)/amigues" "src/routes/(authed)/admin/eventos/lugares" "src/routes/(authed)/admin/comunidad/perfiles" "src/routes/(authed)/admin/geocodificar" "src/routes/(content)/mi-rincon/geocodificar" "src/routes/(content)/mi-rincon/perfiles/geocoder-render.test.js"`

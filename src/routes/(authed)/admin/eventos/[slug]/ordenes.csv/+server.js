@@ -11,18 +11,7 @@ import { listEventTickets, listOrders, orderHolders } from '$lib/server/tickets/
 import { orderReference } from '$lib/utils/tickets.js';
 import { answersByOrder, fieldsForEvent } from '$lib/server/tickets/signupFields.js';
 import { answerColumns, answerFor } from '$lib/utils/signupFields.js';
-
-/**
- * Celda CSV segura: comillas escapadas y sin fórmulas (una celda que empieza con = + - @ se
- * ejecuta en Excel/Sheets; los nombres los escribe quien compra).
- *
- * @param {unknown} value
- */
-function csvCell(value) {
-	let s = value === null || value === undefined ? '' : String(value);
-	if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-	return `"${s.replaceAll('"', '""')}"`;
-}
+import { csvFilename, csvResponse, toCsv } from '$lib/admin/csv.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ locals, url, params, platform }) {
@@ -78,64 +67,61 @@ export async function GET({ locals, url, params, platform }) {
 		'confirmo',
 		...extra.map((c) => c.label)
 	];
-	const lines = [header.map(csvCell).join(',')];
+	// Cada fila es una lista de valores en el orden del encabezado. `toCsv` las escribe seguras
+	// (comillas escapadas, sin fórmulas: los nombres los escribe quien compra) y las fechas en hora
+	// de Argentina (`2026-10-02 22:30`).
+	/** @type {unknown[][]} */
+	const rows = [];
 	for (const o of orders) {
 		const issued = byOrder.get(o.id) ?? [];
 		const people = issued.length
 			? issued.map((t) => ({
 					name: t.holder_name,
 					pronouns: t.holder_pronouns ?? '',
-					checkedIn: t.checked_in_at ? new Date(t.checked_in_at).toISOString() : '',
+					checkedIn: t.checked_in_at ? new Date(t.checked_in_at) : '',
 					code: t.code ?? ''
 				}))
 			: orderHolders(o).map((h) => ({ ...h, checkedIn: '', code: '' }));
 		people.forEach((p, i) => {
 			const first = i === 0;
-			lines.push(
-				[
-					o.id,
-					orderReference(o.id),
-					new Date(o.created_at).toISOString(),
-					o.status,
-					o.payment_method,
-					names[o.ticket_type] ?? o.ticket_type,
-					o.buyer_name,
-					o.buyer_pronouns ?? '',
-					o.buyer_email,
-					o.buyer_dni ?? '',
-					`${i + 1}/${people.length}`,
-					p.code,
-					p.name,
-					p.pronouns,
-					p.checkedIn,
-					first ? o.quantity : '',
-					first ? o.unit_price * o.quantity : '',
-					o.fondo_option,
-					o.fondo_percent ?? '',
-					first ? o.fondo_amount : '',
-					first ? o.fondo_contribution : '',
-					first ? o.subtotal : '',
-					o.discount_code ?? '',
-					first ? o.discount_amount : '',
-					first ? o.surcharge_amount : '',
-					first ? o.total : '',
-					o.mp_payment_id,
-					o.confirmed_by,
-					...extra.map((c) => answerFor(answers.get(o.id), c.id))
-				]
-					.map(csvCell)
-					.join(',')
-			);
+			rows.push([
+				o.id,
+				orderReference(o.id),
+				new Date(o.created_at),
+				o.status,
+				o.payment_method,
+				names[o.ticket_type] ?? o.ticket_type,
+				o.buyer_name,
+				o.buyer_pronouns ?? '',
+				o.buyer_email,
+				o.buyer_dni ?? '',
+				`${i + 1}/${people.length}`,
+				p.code,
+				p.name,
+				p.pronouns,
+				p.checkedIn,
+				first ? o.quantity : '',
+				first ? o.unit_price * o.quantity : '',
+				o.fondo_option,
+				o.fondo_percent ?? '',
+				first ? o.fondo_amount : '',
+				first ? o.fondo_contribution : '',
+				first ? o.subtotal : '',
+				o.discount_code ?? '',
+				first ? o.discount_amount : '',
+				first ? o.surcharge_amount : '',
+				first ? o.total : '',
+				o.mp_payment_id,
+				o.confirmed_by,
+				...extra.map((c) => answerFor(answers.get(o.id), c.id))
+			]);
 		});
 	}
-	// BOM para que Excel reconozca UTF-8 (tildes y ñ).
-	return new Response('\uFEFF' + lines.join('\r\n') + '\r\n', {
-		headers: {
-			'content-type': 'text/csv; charset=utf-8',
-			'content-disposition': `attachment; filename="entradas-${params.slug}.csv"`,
-			'cache-control': 'private, no-store'
-		}
-	});
+	const csv = toCsv(
+		rows,
+		header.map((label, i) => ({ label, value: (/** @type {unknown[]} */ row) => row[i] }))
+	);
+	return csvResponse(csv, csvFilename('entradas', params.slug));
 }
 
 /**

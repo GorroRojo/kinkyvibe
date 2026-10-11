@@ -8,10 +8,14 @@
 	/** @type {readonly import('$lib/utils/series.js').Edition[]} */
 	export let editions = [];
 	export let current = '';
+	/** Cuántas mostrar a la vista; las demás, plegadas en «Ver las N anteriores» (0 = todas). */
+	export let visible = 0;
+	$: shown = visible > 0 ? editions.slice(0, visible) : editions;
+	$: rest = visible > 0 ? editions.slice(visible) : [];
 </script>
 
 <ol class="editions">
-	{#each editions as e (e.slug)}
+	{#each shown as e (e.slug)}
 		<li class:current={e.slug === current} class:cancelled={e.status === 'cancelado'}>
 			<span class="n" aria-label="Edición {e.number}">#{e.number}</span>
 			<a href={e.path} aria-current={e.slug === current ? 'page' : undefined}>{e.title}</a>
@@ -19,6 +23,20 @@
 		</li>
 	{/each}
 </ol>
+{#if rest.length}
+	<details class="more">
+		<summary>Ver {rest.length === 1 ? 'la anterior' : `las ${rest.length} anteriores`}</summary>
+		<ol class="editions">
+			{#each rest as e (e.slug)}
+				<li class:current={e.slug === current} class:cancelled={e.status === 'cancelado'}>
+					<span class="n" aria-label="Edición {e.number}">#{e.number}</span>
+					<a href={e.path} aria-current={e.slug === current ? 'page' : undefined}>{e.title}</a>
+					<time datetime={e.start}>{editionDateLabel(e.start)}</time>
+				</li>
+			{/each}
+		</ol>
+	</details>
+{/if}
 
 <style>
 	.editions {
@@ -62,5 +80,14 @@
 	}
 	.cancelled a {
 		text-decoration: line-through;
+	}
+	.more summary {
+		display: flex;
+		align-items: center;
+		min-height: var(--tap);
+		cursor: pointer;
+		color: var(--2-dark);
+		font-weight: 700;
+		font-size: var(--step--1);
 	}
 </style>

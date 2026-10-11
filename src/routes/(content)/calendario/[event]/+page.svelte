@@ -1,48 +1,57 @@
 <script>
+	/**
+	 * La página pública de un evento (/calendario/<evento>), con el diseño de la maqueta final que
+	 * aprobó gorrite. Regla de oro: **el texto del evento se lee antes de comprar**: en todas las
+	 * pantallas, «Comprar entradas» (o el link de inscripción) va DESPUÉS de «De qué se trata».
+	 *
+	 * Celu (una columna): afiche cuadrado grande → chip de la serie, título, resumen y «por…» →
+	 * aviso (cancelado o ya pasó) → «Cuándo y dónde» (mapa chico arriba de «Ver en Google Maps») →
+	 * el texto entero → comprar (o inscripción) con las partes del taller → compartir → cómo
+	 * llegar → quiénes y etiquetas → la serie → propina (eventos gratis de KinkyVibe) → tarjetas
+	 * de les autores y «Más cosas de…».
+	 *
+	 * Compu (dos columnas): a la derecha todo eso menos el afiche y «Cuándo y dónde», que van a
+	 * la izquierda (el afiche al ancho de la columna), fijos si la columna entra en la pantalla.
+	 *
+	 * Lo que se ve del lugar y de las personas ya viene filtrado por el servidor (+page.server.js).
+	 */
+	import { onMount } from 'svelte';
 	import { userConfig } from '$lib/utils/stores.js';
 	import { relatedPostsFor } from '$lib/utils';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import LDTag from '$lib/components/LDTag.svelte';
-	import Tags from '$lib/components/Tags.svelte';
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
-	import PersonasConRol from '$lib/components/PersonasConRol.svelte';
 	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { showEventTip } from '$lib/utils/propinas.js';
-	import { formatARS } from '$lib/utils/money.js';
-	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
-	import { format } from 'date-fns';
-	import { toArgentina, eventEnd, argDateTimeLong } from '$lib/utils/dates.js';
+	import { eventEnd } from '$lib/utils/dates.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
-	import AddToCalendarButton from '$lib/components/AddToCalendarButton.svelte';
-	import { Globe, MapPin } from '@lucide/svelte';
-	import EventSeries from '$lib/components/series/EventSeries.svelte';
-	import PartesTaller from '$lib/components/PartesTaller.svelte';
-	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
-	import { venueSchema } from '$lib/utils/venues.js';
-	import { eventPlace } from '$lib/utils/eventPlace.js';
+	import { Button, TagChip } from '$lib/components/ui';
+	import PostListItem from '$lib/components/PostListItem.svelte';
+	import AvisoEvento from '$lib/components/evento/AvisoEvento.svelte';
+	import Compra from '$lib/components/evento/Compra.svelte';
+	import CuandoDonde from '$lib/components/evento/CuandoDonde.svelte';
+	import Partes from '$lib/components/evento/Partes.svelte';
+	import Quienes from '$lib/components/evento/Quienes.svelte';
+	import Serie from '$lib/components/evento/Serie.svelte';
+	import { eventPlaceSchema } from '$lib/utils/eventPlace.js';
+	import { isPastEvent, mainSeries, nextEdition, splitUpcomingPast } from '$lib/utils/eventPage.js';
 	import { isWebLink, safeEventLink } from '$lib/utils/eventLink.js';
-	import { MAP_LABEL } from '$lib/utils/icsFeed.js';
+	import { hasVisibleHtml } from '$lib/utils/htmlStrip.js';
 	export let data;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
 	// bloque de estilos del componente.
 	const STYLE_TAG = 'style';
 	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
-	// "Sucede en": si el evento tiene lugar, su privacidad manda
-	// sobre el «Dónde» del .md (`location` y su link al mapa `location_map`; docs/amigues.md).
-	// Lo mismo que el .ics (eventPlace.js). En la tarjeta, el lugar va una sola vez: con lugar,
-	// VenueLocation en su versión chica (con las reglas de cada nivel); sin lugar, el «Dónde».
-	$: place = eventPlace(data.meta, data.venue);
 	// El link de inscripción (`link`): web, mail (`mailto:`), teléfono o página del sitio; con otro
 	// esquema (`javascript:`…) no se muestra (eventLink.js). Solo un link web abre otra pestaña.
 	$: actionLink = safeEventLink(data.meta.link);
 	$: actionLinkTarget = isWebLink(actionLink) ? '_blank' : undefined;
-	$: where = place.text;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
 	/**@type {(s:string|number|Date)=>(string)}*/
@@ -56,36 +65,68 @@
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
 	let loadedPast = false;
-	$: if ($userConfig.show_past_events && data.relatedPastCount > 0 && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)))
-			.catch(() => (loadedPast = false));
+	$: if ($userConfig.show_past_events) showPast();
+	$: cancelled = data.meta.status == 'cancelado';
+	// Un evento que ya terminó: «Este evento ya pasó» (con la próxima edición de la serie, si hay)
+	// y sin la venta (ni «Venta cerrada.»: ya dice que pasó).
+	$: past = isPastEvent(data.meta);
+	$: series = mainSeries(data.series);
+	$: next = nextEdition(data.series);
+	$: buyTitle =
+		data.partes && !data.partes.perPart ? 'Comprar entrada al taller' : 'Comprar entradas';
+	$: showTickets = Boolean(data.tickets) && !cancelled && !(past && !data.tickets?.open);
+	// Sin venta acá: el link de inscripción (`link`/`link_text`), después del texto.
+	$: showLink = !data.tickets && Boolean(actionLink) && !cancelled && !past;
+	// Con venta acá, el link (si tiene `link_text`) sigue al final del texto (docs/tickets.md).
+	$: textLink = Boolean(data.tickets && actionLink && data.meta.link_text);
+	// «De qué se trata» solo si el texto muestra algo: un texto vacío, o con solo espacios o
+	// comentarios, no deja el título sin nada abajo (htmlStrip.js). El texto del .md
+	// (`data.content`) y los interactivos (`data.parts`) siempre muestran algo.
+	$: hasText =
+		data.html === undefined
+			? Boolean(data.content)
+			: Boolean(data.parts?.length) || hasVisibleHtml(data.html);
+	// «por …»: les autores (salvo cuando el evento es el perfil de su única autora).
+	$: authors = /** @type {string[]} */ (data.meta.authors ?? []);
+	$: showAuthors = authors.length > 1 || (authors.length == 1 && authors[0] !== data.meta.postID);
+	// «Cómo llegar» y «Accesibilidad»: solo en el nivel que muestra todo (como VenueLocation).
+	$: howTo =
+		data.venue && data.venue.level === 'public' && (data.venue.howTo || data.venue.accessibility)
+			? data.venue
+			: null;
+	// «Más cosas de…»: lo que viene en orden de fecha; lo que ya pasó, aparte («Pasados»).
+	$: related = splitUpcomingPast(relatedPosts);
+	/** Cuántos pasados se ven (de a 10, para no armar cientos de tarjetas de una). */
+	let pastShown = 10;
+	function showPast() {
+		if (data.relatedPastCount > 0 && !loadedPast) {
+			loadedPast = true;
+			fetchAllPostsClient()
+				.then((posts) => (relatedPosts = relatedPostsFor(data.meta, posts)))
+				.catch(() => (loadedPast = false));
+		}
 	}
-	/** «Agregar a mi calendario» (add-to-calendar-button, en hora argentina). */
-	/** @type {import('svelte').ComponentProps<typeof AddToCalendarButton>['event']} */
-	let calendarEvent;
-	$: calendarEvent = {
-		name: data.meta.title,
-		description: data.meta.summary,
-		startDate: format(toArgentina(data.meta.start), 'yyyy-MM-dd'),
-		startTime: format(toArgentina(data.meta.start), 'HH:mm'),
-		endDate: format(toArgentina(end), 'yyyy-MM-dd'),
-		endTime: format(toArgentina(end), 'HH:mm'),
-		status:
-			/** @type {Record<string, 'CONFIRMED' | 'CANCELLED' | 'TENTATIVE'>} */ ({
-				abierto: 'CONFIRMED',
-				cancelado: 'CANCELLED',
-				anunciado: 'TENTATIVE',
-				agotadas: 'CONFIRMED'
-			})[data.meta.status] ?? 'CONFIRMED',
-		timeZone: 'America/Buenos_Aires',
-		options: ['iCal', 'Apple', 'Outlook.com', 'Google', 'MicrosoftTeams', 'Microsoft365', 'Yahoo'],
-		language: 'es',
-		iCalFileName: 'Sample Event',
-		listStyle: 'overlay',
-		organizer: 'Mel|kinkyvibe@gmail.com'
-	};
+
+	// La columna lateral (compu, a la izquierda): si es más alta que la pantalla, `top` negativo (queda fija
+	// mostrando su final), así nada de la columna queda escondido debajo del borde de la pantalla.
+	/** @type {HTMLElement} */
+	let fixed;
+	let top = '';
+	onMount(() => {
+		if (typeof ResizeObserver === 'undefined') return;
+		const MARGIN = 20;
+		const measure = () => {
+			const h = fixed.getBoundingClientRect().height;
+			top = h + 2 * MARGIN > innerHeight ? `${innerHeight - h - MARGIN}px` : '';
+		};
+		const ro = new ResizeObserver(measure);
+		ro.observe(fixed);
+		addEventListener('resize', measure);
+		return () => {
+			ro.disconnect();
+			removeEventListener('resize', measure);
+		};
+	});
 </script>
 
 <LDTag
@@ -95,24 +136,13 @@
 		name: data.meta.title,
 		startDate: toISO(data.meta.start ?? ''),
 		endDate: toISO(end),
-		// Con lugar o con «Dónde», presencial; sin ninguno de los dos, online.
-		eventAttendanceMode:
-			data.venue || data.meta.location
-				? 'https://schema.org/OfflineEventAttendanceMode'
-				: 'https://schema.org/OnlineEventAttendanceMode',
+		// Con lugar o con «Dónde», presencial; online solo si el evento lo es; sin nada, ni modo
+		// ni lugar (eventPlace.js, lo mismo que «Cuándo y dónde»).
+		...eventPlaceSchema(data.meta, data.venue, isWebLink(actionLink) ? actionLink : undefined),
 		eventStatus:
 			data.meta.status == 'cancelado'
 				? 'https://schema.org/EventCancelled'
 				: 'https://schema.org/EventScheduled',
-		location: data.venue
-			? venueSchema(data.venue)
-			: data.meta.location
-				? {
-						'@type': 'Place',
-						name: data.meta.location_name ?? data.meta.title,
-						address: { '@type': 'PostalAddress', name: data.meta.location }
-					}
-				: { '@type': 'VirtualLocation', url: isWebLink(actionLink) ? actionLink : undefined },
 		image: [data.meta.featured + ''],
 		description: data.meta.summary,
 		organizer: {
@@ -169,126 +199,109 @@
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
 <a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
-<article class="h-entry h-event">
-	<h1 id="title p-name">{data.meta.title}</h1>
-	{#if data.series}<EventSeries series={data.series} part="nav" />{/if}
-	{#if data.partes}<PartesTaller partes={data.partes} part="nav" />{/if}
+<article class="evento h-entry h-event">
+	<header class="cabeza">
+		{#if series}
+			<p class="event-series-chip"><TagChip tag={series.id} href={series.href} /></p>
+		{/if}
+		<h1 class="p-name">{data.meta.title}</h1>
+		{#if data.meta.summary}<p class="resumen p-summary">{data.meta.summary}</p>{/if}
+		{#if showAuthors}
+			<!-- Mientras llegan los perfiles, los nombres sin link. -->
+			<address class="por">
+				por {#await data.authorsProfiles}{#each authors as author, i (i)}{#if i > 0}{i ===
+							authors.length - 1
+								? ' y '
+								: ', '}{/if}<span class="p-author">{author}</span
+						>{/each}{:then authorsProfiles}{#each authors as author, i (i)}{@const profile =
+							authorsProfiles?.find(
+								(/** @type {ProcessedPost} */ a) => a.meta.postID == author
+							)}{#if i > 0}{i === authors.length - 1 ? ' y ' : ', '}{/if}{#if profile}<a
+								rel="author"
+								class="p-author u-url"
+								href={profile.path}>{author}</a
+							>{:else}<span class="p-author">{author}</span>{/if}{/each}{/await}
+			</address>
+		{/if}
+	</header>
 
-	{#if data.meta.authors && (data.meta.authors.length > 1 || (data.meta.authors.length == 1 && data.meta.authors[0] !== data.meta.postID))}
-		{@const authors = data.meta.authors}
-		<address>
-			{#await data.authorsProfiles}
-				{authors.slice(0, authors.length - 1).join(', ') + ' & ' + authors[authors.length - 1]}
-			{:then authorsProfiles}
-				{#each authors as author, i}
-					{@const profile = authorsProfiles?.find(
-						(/** @type {ProcessedPost} */ a) => a.meta.postID == author
-					)}
-					{#if i == authors.length - 1 && i > 0}
-						&nbsp;&
-					{:else if i > 0},
-					{/if}
-					{#if profile}
-						<a rel="author" class="p-author u-url" href={profile.path}>{author}</a>
-					{:else}
-						<span class="p-author">{author}</span>
-					{/if}
-				{/each}
-			{/await}
-		</address>
+	{#if cancelled || past}
+		<div class="nota"><AvisoEvento cancelado={cancelled} next={cancelled ? null : next} /></div>
 	{/if}
 
-	{#if data.meta.status == 'cancelado'}
-		<h1 id="title p-name"><u>CANCELADO</u></h1>
-	{:else}
-		<div class="event-header">
-			{#if data.meta.featured}<img src={data.meta.featured + ''} alt="poster" />{/if}
-			<p class="event-times">
-				<small>desde</small><time class="dt-start" datetime={data.meta.start}
-					>{argDateTimeLong(data.meta.start)}</time
-				>
-				<small>hasta</small><time class="dt-end" datetime={toISO(end)}>{argDateTimeLong(end)}</time>
-			</p>
-			<div class="event-place">
-				<small>en</small>
-				{#if data.venue}
-					<VenueLocation view={data.venue} context="event" compact />
+	<aside class="lateral" aria-label="Afiche, cuándo y dónde">
+		<div class="lateral-fijo" bind:this={fixed} style:--top={top || undefined}>
+			{#if data.meta.featured}
+				<img
+					class="afiche u-photo"
+					src={data.meta.featured + ''}
+					alt="Afiche de {data.meta.title}"
+				/>
+			{/if}
+			<CuandoDonde meta={data.meta} venue={data.venue} mapa={!cancelled} entradas={showTickets} />
+		</div>
+	</aside>
+
+	{#if hasText || textLink}
+		<section class="texto-evento" aria-labelledby="que-titulo">
+			<h2 id="que-titulo">De qué se trata</h2>
+			<div
+				class="content texto e-content"
+				use:addMentionPronouns={(name) =>
+					/** @type {Record<string, string>} */ (data.pronouns)?.[name]}
+			>
+				{#if data.html !== undefined}
+					<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML
+				     libre de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
+					<div class="kv-texto-libre">
+						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+						{@html ownStyle}
+						{#if data.parts}
+							<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
+							<ContentParts parts={data.parts} />
+						{:else}
+							<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+							{@html data.html}
+						{/if}
+					</div>
 				{:else}
-					<p class="md-place">
-						<svelte:component
-							this={where === 'Online' ? Globe : MapPin}
-							size="1.1em"
-							aria-hidden="true"
-						/>
-						<span class="p-location">{where}</span>
-					</p>
-					{#if place.mapUrl}
-						<a class="map-link" href={place.mapUrl} target="_blank" rel="noopener noreferrer"
-							>{MAP_LABEL}</a
-						>
-					{/if}
+					<svelte:component this={data.content} />
+				{/if}
+				{#if textLink}
+					<a
+						href={actionLink}
+						target={actionLinkTarget}
+						rel={actionLinkTarget ? 'noopener' : undefined}
+						class="cta">{data.meta.link_text}</a
+					>
 				{/if}
 			</div>
-			{#if actionLink && !data.tickets}
-				<div class="event-cta">
-					<div class="event-link-wrapper">
-						<a href={actionLink}>{data.meta.link_text ?? 'Inscripción'}</a>
-					</div>
-				</div>
-			{/if}
-		</div>
-		{#if data.tickets}
-			{@const t = data.tickets}
-			{@const price = [
-				t.priceFrom !== null ? `desde ${formatARS(t.priceFrom)}` : '',
-				t.gorraSuggested !== null ? 'a la gorra' : ''
-			]
-				.filter(Boolean)
-				.join(' · ')}
-			<section class="buy-cta" id="entradas" aria-label="Entradas">
-				{#if t.open}
-					<!-- En una parte de un taller con una sola entrada, la entrada es la del taller. -->
-					<a class="buy-button" href="/calendario/{t.slug ?? data.meta.postID}/entradas">
-						<span class="buy-title"
-							>{data.partes && !data.partes.perPart
-								? 'Comprar entrada al taller'
-								: 'Comprar entradas'}</span
-						>
-						<!-- Los espacios van explícitos ({' '}): Svelte saca los del borde de cada {#if},
-						y salía «desde $ 6.400· Quedan 5». -->
-						<span class="buy-meta"
-							>{price}{#if t.left !== null}{#if price}{' '}<strong class="buy-left"
-										>· {leftText(t.left)}</strong
-									>{:else}<strong class="buy-left">{leftText(t.left)}</strong>{/if}{/if}</span
-						>
-					</a>
-					{#if t.closesAt}
-						<p class="buy-when">{saleWindowText({ closesAt: t.closesAt })}.</p>
-					{/if}
-				{:else}
-					<p class="buy-closed">
-						{t.reason === 'soldout'
-							? 'Agotadas.'
-							: t.reason === 'closed'
-								? 'Venta cerrada.'
-								: t.reason === 'notyet' && t.opensAt
-									? `Entradas: ${saleWindowText({ opensAt: t.opensAt })}.`
-									: t.reason === 'cancelled'
-										? 'El evento se canceló: no hay venta de entradas.'
-										: 'La venta online de entradas no está disponible en este momento.'}
-					</p>
-				{/if}
-				{#if t.reason !== 'cancelled' && doorText(t.door)}
-					<p class="buy-when buy-door">{doorText(t.door)}</p>
-				{/if}
-			</section>
-		{/if}
+		</section>
 	{/if}
-	{#if data.partes}<PartesTaller partes={data.partes} part="list" />{/if}
-	<div class="share-row">
-		{#if data.meta.status != 'cancelado'}
-			<AddToCalendarButton event={calendarEvent} />
-		{/if}
+
+	{#if showTickets && data.tickets}
+		<section class="compra" aria-label="Comprar">
+			<Compra tickets={data.tickets} slug={data.meta.postID} title={buyTitle} />
+			{#if data.partes}<Partes partes={data.partes} />{/if}
+		</section>
+	{:else if showLink || data.partes}
+		<section class="compra" aria-label="Inscripción">
+			{#if showLink}
+				<p class="inscripcion">
+					<Button
+						surface="sitio"
+						href={actionLink}
+						target={actionLinkTarget}
+						rel={actionLinkTarget ? 'noopener' : undefined}
+						>{data.meta.link_text || 'Inscripción'}</Button
+					>
+				</p>
+			{/if}
+			{#if data.partes}<Partes partes={data.partes} />{/if}
+		</section>
+	{/if}
+
+	<div class="compartir">
 		<ShareEventButton
 			url={$page.url.origin + '/calendario/' + data.meta.postID}
 			title={data.meta.title}
@@ -296,284 +309,245 @@
 			imagesHref={'/calendario/' + data.meta.postID + '/compartir'}
 		/>
 	</div>
-	{#if data.meta.tags}
-		<div id="tags">
-			<Tags tags={data.meta.tags} />
-		</div>
+
+	{#if howTo}
+		<section class="llegar surface-card" aria-labelledby="llegar-titulo">
+			<h2 id="llegar-titulo">Cómo llegar</h2>
+			{#if howTo.howTo}<p>{howTo.howTo}</p>{/if}
+			{#if howTo.accessibility}
+				<h3>Accesibilidad</h3>
+				<p>{howTo.accessibility}</p>
+			{/if}
+		</section>
 	{/if}
-	{#if data.personas}
-		<div class="content"><PersonasConRol groups={data.personas} /></div>
-	{/if}
-	<div
-		class="content"
-		use:addMentionPronouns={(name) => /** @type {Record<string, string>} */ (data.pronouns)?.[name]}
-	>
-		{#if data.html !== undefined}
-			<!-- Texto de la base, armado en el servidor (src/lib/server/contenido/render.js): HTML libre
-			     de une superadmin, con sus estilos solo adentro, o la lista corta de HTML. -->
-			<div class="kv-texto-libre">
-				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				{@html ownStyle}
-				{#if data.parts}
-					<!-- Con interactivos registrados (decisión 0004): ContentParts. -->
-					<ContentParts parts={data.parts} />
-				{:else}
-					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-					{@html data.html}
-				{/if}
-			</div>
-		{:else}
-			<svelte:component this={data.content} />
-		{/if}
-		{#if actionLink && data.meta.link_text}
-			<a
-				href={actionLink}
-				target={actionLinkTarget}
-				rel={actionLinkTarget ? 'noopener' : undefined}
-				class="cta">{data.meta.link_text}</a
-			>
-		{/if}
-	</div>
-	{#if data.series}
-		<EventSeries series={data.series} part="after" origin={$page.url.origin} />
-	{/if}
+
+	<Quienes groups={data.personas} tags={data.meta.tags ?? []} />
+
+	{#if data.series}<Serie series={data.series} {past} origin={$page.url.origin} />{/if}
+
 	<!-- La propina solo en eventos gratis de KinkyVibe (decisión de gorrite). -->
 	{#if showEventTip(data.meta)}
-		<TipBlock category="calendario" slug={$page.params.event ?? ''} />
+		<div class="propina"><TipBlock category="calendario" slug={$page.params.event ?? ''} /></div>
 	{/if}
 </article>
 
-<hr />
+<div class="pie">
+	<hr />
+	{#if data.meta.authors.length > 0}
+		{#await data.authorsProfiles then authorsData}
+			{#each authorsData ?? [] as { path, meta: author }}
+				<AuthorCallout
+					href={path}
+					image={(author.logo ?? author.photo ?? author.featured) + ''}
+					title={author.title}
+					summary={author.summary}
+				/>
+			{/each}
+		{/await}
+	{/if}
 
-{#if data.meta.authors.length > 0}
-	{#await data.authorsProfiles then authorsData}
-		{#each authorsData ?? [] as { path, meta: author }}
-			<AuthorCallout
-				href={path}
-				image={(author.logo ?? author.photo ?? author.featured) + ''}
-				title={author.title}
-				summary={author.summary}
-			/>
-		{/each}
-	{/await}
-{/if}
+	{#if relatedPosts.length > 0 || data.relatedPastCount > 0}
+		<section class="relacionados" aria-labelledby="mas-titulo">
+			<h2 id="mas-titulo">
+				Más cosas de
+				{data.meta.authors.length == 1
+					? data.meta.authors[0]
+					: [data.meta.authors.slice(0, -1).join(', '), data.meta.authors.slice(-1)[0]].join(' o ')}
+			</h2>
+			{#if related.upcoming.length}
+				<PostList posts={related.upcoming} pastEventsToggle={false} />
+			{/if}
+			{#if data.relatedPastCount > 0 || related.past.length}
+				<section class="related-past" aria-labelledby="related-past-title">
+					<h3 id="related-past-title">Pasados</h3>
+					{#if related.past.length}
+						<ul class="past-list">
+							{#each related.past.slice(0, pastShown) as post (post.path)}
+								<li><PostListItem {post} /></li>
+							{/each}
+						</ul>
+						{#if related.past.length > pastShown}
+							<Button
+								surface="sitio"
+								variant="secondary"
+								class="more-past"
+								on:click={() => (pastShown += 10)}>Ver más pasados</Button
+							>
+						{/if}
+					{:else}
+						<Button surface="sitio" variant="secondary" on:click={showPast} busy={loadedPast}
+							>{loadedPast ? 'Cargando…' : `Ver ${data.relatedPastCount} pasados`}</Button
+						>
+					{/if}
+				</section>
+			{/if}
+		</section>
+	{/if}
+</div>
 
-{#if relatedPosts.length > 0 || data.relatedPastCount > 0}
-	<div class="content">
-		<h3>
-			Más cosas de
-			{data.meta.authors.length == 1
-				? data.meta.authors[0]
-				: [data.meta.authors.slice(0, -1).join(', '), data.meta.authors.slice(-1)[0]].join(' o ')}
-		</h3>
-	</div>
-	<PostList posts={relatedPosts} />
-{/if}
-
-<style lang="scss">
-	/* «Agregar a mi calendario» y «Compartir», del mismo estilo; en pantallas angostas, uno
-	   abajo del otro. */
-	.share-row {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
-		gap: 0.6em;
-		margin-top: 1.2em;
-		padding-inline: var(--space-xs);
+<style>
+	.evento {
+		max-width: 72rem;
+		margin: 0 auto;
+		padding: var(--space-s) var(--space-xs) var(--space-xl);
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: var(--space-m);
 	}
-	#tags {
-		margin-inline: auto;
-		max-width: 70rem;
+	.evento > :global(*) {
+		margin-block: 0;
+	}
+	/* En el celu la columna lateral se desarma: el afiche va primero (arriba del título) y
+	   «Cuándo y dónde» después del aviso, cada uno como una fila más. */
+	.lateral,
+	.lateral-fijo {
+		display: contents;
+	}
+	.afiche {
+		order: -1;
 		width: 100%;
-		margin-top: 2em;
-		justify-content: center;
+		aspect-ratio: 1;
+		object-fit: cover;
+		border-radius: var(--radius-l);
+		box-shadow: var(--shadow-1);
 	}
-	/* Botón "Comprar entradas" (el formulario está en /calendario/<slug>/entradas). */
-	.buy-cta {
-		max-width: 40rem;
-		margin: 1.2em auto 0;
-		padding: 0 var(--space-xs);
-	}
-	.buy-button {
+	.cabeza {
 		display: flex;
 		flex-direction: column;
-		align-items: center;
-		gap: 0.15em;
-		padding: 0.8em 1.2em;
-		border-radius: var(--round);
-		background: var(--1);
-		color: white;
-		text-decoration: none;
-		text-align: center;
-		box-shadow: 0 0.2em 0.8em color-mix(in srgb, var(--1) 40%, transparent);
-		&:hover,
-		&:focus-visible {
-			background: var(--1-dark);
-			color: white;
-			text-decoration: none;
-		}
+		gap: var(--space-2xs);
 	}
-	.buy-title {
-		font-size: var(--step-2);
-		font-weight: bold;
-		line-height: 1.2;
-	}
-	.buy-meta {
-		font-size: var(--step-0);
-	}
-	.buy-left {
-		white-space: nowrap;
-	}
-	.buy-when {
-		text-align: center;
-		margin: 0.4em 0 0;
-		font-size: var(--step--1);
-	}
-	.buy-closed {
-		text-align: center;
-		font-weight: bold;
+	.cabeza > * {
 		margin: 0;
 	}
-	/* ------------------------------------- */
-	.event-header {
-		background: var(--2-dark);
-		color: white;
-
-		--radius: 1em;
-		border-radius: var(--radius);
-		/* overflow: hidden; */
-		display: grid;
-		grid-template-areas: 'title title' 'pic time' 'pic location' 'button button';
-		grid-template-columns: auto 4fr;
-		column-gap: 0.6em;
-		/* Texto más chico que antes (--step-1): la fecha y el lugar entran en menos renglones. */
-		font-size: var(--step-0);
-		line-height: 1.35;
-		margin-inline: auto;
-		margin-top: 1.4em;
-		max-width: min(40rem, calc(100% - 32px));
-		overflow: hidden;
-		box-shadow: var(--shadow);
-		& > * {
-			min-width: 0;
-		}
-
-		img {
-			max-width: 100%;
-			max-height: 100%;
-			/* La misma altura de antes, aunque el texto sea más chico. */
-			height: 12rem;
-			min-width: 0;
-			min-height: 0;
-			grid-area: pic;
-			border-top-left-radius: var(--radius);
-		}
-		/* h1 {
-			grid-area: title;
-		} */
-		small {
-			opacity: 0.7;
-			font-size: var(--step--1);
-			text-transform: uppercase;
-			letter-spacing: 0.06em;
-			margin-top: 0.35em;
-		}
-		time {
-			font-weight: 700;
-		}
-		.event-times {
-			grid-area: time;
-			display: flex;
-			flex-direction: column;
-			margin-block: 0;
-			padding-top: 0.5em;
-			padding-right: 0.5em;
-		}
-		.event-place {
-			grid-area: location;
-			display: flex;
-			flex-direction: column;
-			padding: 0 0.5em 0.6em 0;
-		}
-		.md-place {
-			margin: 0;
-			:global(svg) {
-				vertical-align: -0.15em;
-			}
-		}
-		/* Como el "Ver en Google Maps" de un lugar (VenueLocation). */
-		.map-link {
-			align-self: flex-start;
-			margin-top: 0.3em;
-			padding: 0.3em 0.8em;
-			border: 1px solid currentColor;
-			border-radius: var(--radius-pill);
-			color: inherit;
-			font-size: var(--step--1);
-			text-decoration: none;
-		}
-		.event-cta {
-			align-self: center;
-			justify-self: center;
-			grid-area: button;
-
-			display: flex;
-			flex-direction: row;
-			justify-content: center;
-			background: var(--surface);
-			width: 100%;
-			flex-wrap: wrap;
-			padding: 0.4em;
-			.event-link-wrapper {
-				--base-font-size-l: 18px;
-				--base-font-size-m: 18px;
-				--base-font-size-s: 18px;
-				display: block;
-				padding: var(--space-3xs);
-				position: relative;
-				font-size: var(--base-font-size-m);
-			}
-			a {
-				align-items: center;
-				background-color: var(--1);
-				border: 1px solid var(--1);
-				border-radius: var(--round-pill);
-				color: white;
-				display: flex;
-				font-weight: bold;
-				justify-content: center;
-				line-height: 1.5em;
-				max-width: 350px;
-				min-width: 10em;
-				padding: 0.65em 1em;
-				position: relative;
-				touch-action: manipulation;
-				user-select: none;
-				-webkit-user-select: none;
-				width: 100%;
-				z-index: 1;
-				&:hover {
-					background: var(--1-dark);
-					color: white;
-					text-decoration: unset;
-				}
-			}
-		}
+	.cabeza h1 {
+		width: auto;
+		max-width: none;
+		margin: 0;
+		font-size: var(--text-2xl);
+		line-height: 1.15;
+		text-align: start;
 	}
-	@media (max-width: 500px) {
-		.event-header {
-			grid-template-areas: 'title' 'time' 'location' 'button';
-			column-gap: 0;
-			.event-times {
-				padding-left: 0.5em;
-				padding-bottom: 0.5em;
-			}
-			.event-place {
-				padding-left: 0.5em;
-			}
-			img {
-				display: none;
-			}
+	.resumen {
+		font-size: var(--text-base);
+		color: var(--muted);
+	}
+	.por {
+		width: auto;
+		max-width: none;
+		font-size: var(--text-sm);
+		font-style: normal;
+		text-align: start;
+	}
+	.texto-evento h2,
+	.llegar h2 {
+		margin: 0 0 var(--space-xs);
+		font-size: var(--text-xl);
+	}
+	.llegar h2 {
+		font-size: var(--text-lg);
+	}
+	.texto {
+		margin-top: 0;
+		padding-inline: 0;
+	}
+	.texto > :global(*) {
+		margin-inline: 0;
+	}
+	.compra {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-s);
+	}
+	.inscripcion {
+		margin: 0;
+		text-align: center;
+	}
+	.compartir {
+		display: flex;
+		justify-content: center;
+	}
+	.llegar {
+		font-size: var(--text-sm);
+	}
+	.llegar h3 {
+		margin: var(--space-xs) 0 var(--space-3xs);
+		font-size: var(--text-sm);
+	}
+	.llegar p {
+		margin: 0;
+		white-space: pre-line;
+	}
+	.pie {
+		max-width: 72rem;
+		margin: 0 auto var(--space-xl);
+		padding-inline: var(--space-xs);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-s);
+	}
+	.pie hr {
+		width: 100%;
+	}
+	.relacionados {
+		width: 100%;
+		margin: var(--space-m) auto 0;
+		text-align: center;
+	}
+	.relacionados > h2 {
+		font-size: var(--text-xl);
+	}
+	/* «Más cosas de…»: lo que ya pasó, aparte. */
+	.related-past {
+		max-width: 50rem;
+		margin: var(--space-l) auto 0;
+		text-align: center;
+	}
+	.related-past h3 {
+		margin: 0 0 var(--space-s);
+		font-size: var(--text-lg);
+		color: var(--muted);
+	}
+	.related-past :global(.more-past) {
+		margin-top: var(--space-m);
+	}
+	.past-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-l);
+		margin: 0;
+		padding: 0;
+		text-align: start;
+		list-style: none;
+	}
+	@media (min-width: 900px) {
+		.evento {
+			/* Afiche y «Cuándo y dónde» a la izquierda, el texto a la derecha (gorrite, 9/10). */
+			grid-template-columns: 24rem minmax(0, 1fr);
+			column-gap: var(--space-l);
+			/* La columna lateral ocupa 10 filas aunque haya menos cosas en la otra: sin espacio entre
+			   filas (las filas vacías no suman nada); la separación va como margen. */
+			row-gap: 0;
+		}
+		.evento > :global(*) {
+			grid-column: 2;
+			margin-block: 0 var(--space-m);
+		}
+		.evento > .lateral {
+			display: block;
+			grid-column: 1;
+			grid-row: 1 / span 10;
+		}
+		.lateral-fijo {
+			display: flex;
+			flex-direction: column;
+			gap: var(--space-s);
+			/* Fija: arriba si entra en la pantalla; si es más alta, se desplaza con la página hasta
+			   que se ve su final y ahí queda (`--top`, calculado en onMount). */
+			position: sticky;
+			top: var(--top, var(--space-s));
+		}
+		.afiche {
+			order: 0;
 		}
 	}
 </style>

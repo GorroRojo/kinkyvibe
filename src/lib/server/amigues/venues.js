@@ -119,6 +119,29 @@ export async function eventVenue(db, eventSlug) {
 }
 
 /**
+ * Las direcciones de los eventos que tienen lugar: los mismos que encuentra {@link eventVenue}
+ * (el lugar existe, no está borrado y es un lugar), en una consulta. Para la venta de entradas,
+ * que con lugar trata al evento como presencial, como la página (`isOnlineEvent` de
+ * $lib/utils/eventPlace.js). Con `eventSlug`, solo ese evento.
+ *
+ * @param {D1Database} db
+ * @param {string} [eventSlug]
+ * @returns {Promise<Set<string>>}
+ */
+export async function eventsWithVenue(db, eventSlug) {
+	if (eventSlug !== undefined && !isEventSlug(eventSlug)) return new Set();
+	const { results } = await db
+		.prepare(
+			`SELECT DISTINCT l.event_slug FROM (${lugarLinksSql(`?1 IS NULL OR ${EVENT_POST_SLUG} = ?1`)}) l
+			JOIN objects o ON o.id = l.venue_id
+			WHERE o.type = ?2 AND o.deleted_at IS NULL AND json_extract(o.data, '$.kind') = 'lugar'`
+		)
+		.bind(eventSlug ?? null, PROFILE_TYPE)
+		.all();
+	return new Set(results.map((r) => String(r.event_slug)));
+}
+
+/**
  * Lo que la página pública de un evento puede mostrar de su lugar. `null` si el evento no tiene
  * lugar (la página muestra lo de su .md, como siempre). Si quien mira no puede ver el lugar (oculto,
  * solo con cuenta o sin aprobar), es como el nivel "oculto".
@@ -612,27 +635,41 @@ export async function removeEventVenue(db, eventSlug, { by = 'panel', now = Date
 }
 
 /**
- * Vincula un evento a un lugar solo si no tiene uno vigente (sin lugar, o con uno borrado): lo que
- * usa «Importar de eventos», que nunca pisa un vínculo. `false` si no lo vinculó (ya tenía lugar o
- * el evento no está en la base).
+ * Vincula un evento a un lugar solo si no tiene uno vigente (sin lugar, o con uno borrado). La usan
+ * «Importar de eventos» y «Vincular lugares», que nunca pisan un vínculo. `linked: false` si ya
+ * tenía lugar; `ok: false` con el motivo si no se pudo (el evento no está en la base, el lugar ya
+ * no existe…).
  *
  * @param {D1Database} db
  * @param {{ eventSlug: string, venueId: number, privacy: VenuePrivacy | null, by: string, now?: number }} input
+ * @returns {Promise<{ ok: true, linked: boolean } | { ok: false, message: string }>}
  */
-export async function linkEventVenueIfFree(
+export async function linkFreeEventVenue(
 	db,
 	{ eventSlug, venueId, privacy, by, now = Date.now() }
 ) {
-	if (!isEventSlug(eventSlug)) return false;
+	if (!isEventSlug(eventSlug)) return { ok: false, message: 'Elegí un evento.' };
 	const event = await eventForVenue(db, eventSlug);
-	if (!event) return false;
+	if (!event) return { ok: false, message: NOT_IN_DB };
 	if (event.venueId !== null) {
 		const alive = await db
 			.prepare('SELECT 1 AS ok FROM objects WHERE id = ?1 AND deleted_at IS NULL')
 			.bind(event.venueId)
 			.first();
-		if (alive) return false;
+		if (alive) return { ok: true, linked: false };
 	}
 	const r = await setEventVenue(db, { eventSlug, venueId, privacy, by, now });
-	return r.ok;
+	return r.ok ? { ok: true, linked: true } : r;
+}
+
+/**
+ * {@link linkFreeEventVenue} para quien solo quiere saber si lo vinculó. `false` si no lo vinculó
+ * (ya tenía lugar o el evento no está en la base).
+ *
+ * @param {D1Database} db
+ * @param {{ eventSlug: string, venueId: number, privacy: VenuePrivacy | null, by: string, now?: number }} input
+ */
+export async function linkEventVenueIfFree(db, input) {
+	const r = await linkFreeEventVenue(db, input);
+	return r.ok && r.linked;
 }

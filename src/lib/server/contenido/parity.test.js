@@ -474,9 +474,15 @@ describe('las listas no leen el cuerpo de los posts', () => {
 });
 
 describe('el contador «No listadas» del menú del panel', () => {
-	/** Lo que mostraba antes: el largo de la lista de no listadas. */
+	/**
+	 * Lo que tiene que contar: la lista de no listadas sin los eventos no listados a propósito (el
+	 * contador es de lo que hay que revisar; un evento cuenta solo si es un borrador de la agenda,
+	 * con la marca `borrador: true`). Antes era el largo de la lista entera.
+	 */
 	const fromList = async (/** @type {typeof import('./posts.js')} */ posts) =>
-		(await posts.sitePosts(t.platform, false, true)).length;
+		(await posts.sitePosts(t.platform, false, true)).filter(
+			(/** @type {any} */ p) => p.meta?.category !== 'calendario' || p.meta?.borrador === true
+		).length;
 	/** Lo de ahora: una consulta, sin armar las listas. */
 	const fromQuery = async (/** @type {typeof import('./posts.js')} */ posts) =>
 		runQuery(t.db, await posts.unlistedCountQuery(t.platform));
@@ -522,7 +528,9 @@ describe('el contador «No listadas» del menú del panel', () => {
 			posts = await contenido();
 			expect(await fromQuery(posts)).toBe(await fromList(posts));
 
-			// Un evento listado pasa a no listado.
+			const before = Number(await fromQuery(posts));
+
+			// Un evento listado pasa a no listado a propósito: no hay nada que revisar, no cuenta.
 			const fiesta = await objectOf('fiesta-inventada-2031-01');
 			await saveObject(
 				t.db,
@@ -530,26 +538,41 @@ describe('el contador «No listadas» del menú del panel', () => {
 				{ actor: 'admin-inventade', now: NOW + 1 }
 			);
 			expect(await fromQuery(posts)).toBe(await fromList(posts));
-			const withFiesta = Number(await fromQuery(posts));
+			expect(await fromQuery(posts)).toBe(before);
 
-			// El no listado se oculta: deja de contar.
+			// Con la marca de borrador de la agenda: espera «Confirmar», cuenta.
+			const draft = await objectOf('fiesta-inventada-2031-01');
+			await saveObject(
+				t.db,
+				{
+					...draft,
+					type: 'evento',
+					data: { ...draft.data, extra: { ...(draft.data.extra ?? {}), borrador: true } }
+				},
+				{ actor: 'admin-inventade', now: NOW + 2 }
+			);
+			expect(await fromQuery(posts)).toBe(await fromList(posts));
+			expect(await fromQuery(posts)).toBe(before + 1);
+
+			// Un evento no listado a propósito que se oculta: tampoco cambia nada.
 			const ciclo = await objectOf('ciclo-no-listado-2031-04');
 			await saveObject(
 				t.db,
 				{ id: ciclo.id, version: ciclo.version, type: 'evento', visibility: 'hidden' },
-				{ actor: 'admin-inventade', now: NOW + 2 }
+				{ actor: 'admin-inventade', now: NOW + 3 }
 			);
 			expect(await fromQuery(posts)).toBe(await fromList(posts));
-			expect(await fromQuery(posts)).toBe(withFiesta - 1);
+			expect(await fromQuery(posts)).toBe(before + 1);
 
 			// Borrado: tampoco cuenta, y su .md no vuelve.
 			const borrar = await objectOf('fiesta-inventada-2031-01');
 			await saveObject(
 				t.db,
 				{ id: borrar.id, version: borrar.version, type: 'evento', deleted: true },
-				{ actor: 'admin-inventade', now: NOW + 3 }
+				{ actor: 'admin-inventade', now: NOW + 4 }
 			);
 			expect(await fromQuery(posts)).toBe(await fromList(posts));
+			expect(await fromQuery(posts)).toBe(before);
 		} finally {
 			md.unlisted.splice(md.unlisted.length - extra.length, extra.length);
 		}

@@ -3,9 +3,10 @@
 	 * Confirmar el borrado de una publicación (en la página, sin confirm()): lo que lo impide, lo
 	 * que depende de ella y, si hay dependencias, escribir la dirección. Después: «Deshacer».
 	 */
+	import Notice from '$lib/components/ui/Notice.svelte';
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
-	import { Ban, Trash2, TriangleAlert } from '@lucide/svelte';
+	import { Ban, Trash2 } from '@lucide/svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { undoneMessage } from '$lib/admin/deleteText.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -87,12 +88,12 @@
 		{:else}
 			<Card title="¿Borrar «{data.title}»?" icon={Trash2}>
 				{#if plan.warnings.length}
-					<div class="warn">
-						<p class="head"><TriangleAlert size={18} aria-hidden="true" /> Depende de esto</p>
+					<Notice tone="warn" compact role={null}>
+						<p class="head">Depende de esto</p>
 						<ul class="reasons">
 							{#each plan.warnings as w (w)}<li>{w}</li>{/each}
 						</ul>
-					</div>
+					</Notice>
 				{/if}
 				<ul class="reasons">
 					{#each plan.notes as n (n)}<li>{n}</li>{/each}
@@ -144,16 +145,8 @@
 		color: var(--bad);
 		font-weight: 700;
 	}
-	.warn {
-		background: var(--warn-bg);
-		border-radius: var(--radius-m);
-		padding: var(--space-2xs) var(--space-xs);
-	}
-	.warn .head {
+	.head {
 		margin: 0 0 0.3rem;
 		font-weight: 700;
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
 	}
 </style>

@@ -26,12 +26,19 @@
 		display: flex;
 		justify-content: flex-end;
 	}
-	a {
+	/* `.delete a` y no solo `a`: con la misma especificidad que `.kv-panel a` (panel.scss, color
+	   heredado) ganaba el que llegara último, y el orden del CSS cambia según cómo se arme el
+	   bundle. */
+	.delete a {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35em;
 		color: var(--bad);
 		font-weight: 700;
 		min-height: 2.75rem;
+	}
+	/* Al pasar el mouse, como todos los links del panel. */
+	.delete a:hover {
+		color: var(--accent);
 	}
 </style>

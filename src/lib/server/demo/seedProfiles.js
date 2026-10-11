@@ -15,6 +15,7 @@
  */
 import { saveObject } from '../objects/save.js';
 import { approveNewStatement } from '../amigues/approvals.js';
+import { DEMO_ACCOUNT_MARK, DEMO_PERSONAS } from './personasData.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -32,6 +33,9 @@ export const DEMO_ACCOUNTS = Object.freeze({
 		email: 'demo.crea@example.invalid'
 	}
 });
+
+/** El lugar de prueba que también gestiona «Persona que gestiona un perfil» (./personasData.js). */
+export const MANAGED_VENUE = 'casa-demo-publica';
 
 /**
  * Los lugares, uno por nivel de privacidad. `event` dice a qué evento de prueba se vincula (la
@@ -165,6 +169,22 @@ export async function ensureDemoProfiles(db, { now = Date.now(), tables }) {
 			v.slug,
 			await ensure({ slug: v.slug, title: v.title, data: { kind: 'lugar', ...v.data } })
 		);
+	}
+	// «Persona que gestiona un perfil» también gestiona un lugar, para probar en Mi rincón lo que
+	// solo tiene un lugar («Buscar en el mapa»). La cuenta la crea scripts/demo/n3-cuentas.sql:
+	// solo si está cargada con su id, su mail y la marca (si no, no inserta nada).
+	const manager = DEMO_PERSONAS.find((p) => p.key === 'gestiona-perfil');
+	const managedVenue = ids.get(MANAGED_VENUE);
+	if (manager && managedVenue) {
+		await db
+			.prepare(
+				`INSERT OR IGNORE INTO profile_managers (profile_id, account_id, role, created_at)
+				SELECT ?1, id, 'owner', ?4 FROM accounts
+				WHERE id = ?2 AND email = ?3 AND deleted_at IS NULL
+					AND json_extract(preferences, '$.${DEMO_ACCOUNT_MARK}') = 1`
+			)
+			.bind(managedVenue, manager.id, manager.email, now)
+			.run();
 	}
 	for (const p of DEMO_PROFILES) {
 		const account = p.by ? DEMO_ACCOUNTS[/** @type {'creator'} */ (p.by)] : null;

@@ -68,17 +68,18 @@ const hhmm = (m) => {
  * Chips de estado de una fila (los de `eventBadges`, como en el resto del panel): borrador,
  * cancelado, abierto, anunciado… `state` es lo último (la planilla puede haberlo cambiado);
  * `status`, lo que decía el archivo.
- * @param {Pick<import('./agenda.js').AgendaRow, 'state' | 'status'>} row
+ * @param {Pick<import('./agenda.js').AgendaRow, 'state' | 'status'> & { draft?: boolean }} row
+ *   `draft`: la marca de la agenda (Borrador); sin ella, un no listado es «No listado»
  */
 export function rowBadges(row) {
 	const status =
 		row.state === 'cancelado' ? 'cancelado' : row.status === 'cancelado' ? 'anunciado' : row.status;
-	return eventBadges({ status, unlisted: row.state === 'no-listado' });
+	return eventBadges({ status, unlisted: row.state === 'no-listado', draft: row.draft === true });
 }
 
 /**
  * Tono del chip en el calendario: el del primer chip de estado.
- * @param {Pick<import('./agenda.js').AgendaRow, 'state' | 'status'>} row
+ * @param {Pick<import('./agenda.js').AgendaRow, 'state' | 'status'> & { draft?: boolean }} row
  * @returns {'ok' | 'warn' | 'bad' | 'info' | 'neutral'}
  */
 export function eventTone(row) {

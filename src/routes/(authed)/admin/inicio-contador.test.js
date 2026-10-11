@@ -1,11 +1,13 @@
 /**
- * Inicio del panel: «N cosas para revisar» y el número de la tarjeta "Para revisar" son el mismo
- * que el del botón "Para revisar" de arriba (`panelCounts.review`, ver `reviewCountOf`), aunque la
- * tarjeta tenga más filas (los avisos que el botón no cuenta). Datos inventados.
+ * Inicio del panel: «N cosas para revisar» y el número de la tarjeta "Para revisar" son la
+ * cantidad de filas de la tarjeta (decisión 0030: cada fila cuenta 1, también las que juntan
+ * varias). El botón "Para revisar" de arriba cuenta lo mismo con la misma función (`reviewRows`,
+ * ver src/lib/server/admin/review.test.js e inicio-tanda.test.js). Datos inventados.
  */
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import Page from './+page.svelte';
+import { onlineMismatchItem } from '$lib/server/admin/inicio.js';
 
 /** @param {number} n */
 const rows = (n) =>
@@ -20,13 +22,13 @@ const rows = (n) =>
 		href: `/admin/eventos/evento-inventado-${i}/editar`
 	}));
 
-/** @param {{ review?: number, todo?: number }} opts */
-function inicio({ review, todo = 0 }) {
+/** @param {{ review?: number, todo?: number, extra?: any[] }} opts */
+function inicio({ review, todo = 0, extra = [] }) {
 	const data = /** @type {any} */ ({
 		user: { name: 'Persona Inventada', login: 'persona-inventada' },
 		now: Date.parse('2026-10-02T15:00:00Z'),
 		panelCounts: review === undefined ? {} : { review },
-		todo: rows(todo),
+		todo: [...rows(todo), ...extra],
 		todayEvents: [],
 		upcoming: [],
 		agenda: [],
@@ -44,24 +46,53 @@ function inicio({ review, todo = 0 }) {
 const hello = (body) => body.match(/<header class="hello[\s\S]*?<\/header>/)?.[0] ?? '';
 
 describe('Inicio: la cuenta de "Para revisar"', () => {
-	it('10 filas en la tarjeta y 7 en el botón de arriba: el Inicio dice 7', () => {
-		const body = inicio({ review: 7, todo: 10 });
-		expect(hello(body)).toContain('7 cosas para revisar');
-		expect(body).not.toContain('10 cosas para revisar');
-		// La tarjeta muestra el mismo número.
+	it('10 filas en la tarjeta: el Inicio dice 10, en el saludo y en la tarjeta', () => {
+		const body = inicio({ review: 10, todo: 10 });
+		expect(hello(body)).toContain('10 cosas para revisar');
 		const card = body.slice(body.indexOf('id="para-revisar"'));
-		expect(card).toMatch(/>\s*7\s*</);
-		expect(card).not.toMatch(/>\s*10\s*</);
+		expect(card).toMatch(/>\s*10\s*</);
 	});
 
-	it('sin nada que el botón cuente pero con avisos: «N avisos», no «todo al día»', () => {
-		const body = hello(inicio({ review: 0, todo: 2 }));
-		expect(body).toContain('2 avisos');
-		expect(body).not.toContain('cosas para revisar');
+	it('cuenta las filas de la tarjeta, no lo que diga otro contador', () => {
+		// (El botón de arriba sale de la misma función: no pueden ser distintos. Si lo fueran, la
+		// tarjeta dice lo que muestra.)
+		const body = inicio({ review: 7, todo: 3 });
+		expect(hello(body)).toContain('3 cosas para revisar');
+		expect(body).not.toContain('7 cosas para revisar');
+		const card = body.slice(body.indexOf('id="para-revisar"'));
+		expect(card).toMatch(/>\s*3\s*</);
+	});
+
+	it('las filas que antes eran «avisos» (sin imagen…) también cuentan', () => {
+		const body = hello(inicio({ review: 2, todo: 2 }));
+		expect(body).toContain('2 cosas para revisar');
+		expect(body).not.toContain('avisos');
 		expect(body).not.toContain('todo al día');
+	});
+
+	it('una sola fila, en singular', () => {
+		expect(hello(inicio({ review: 1, todo: 1 }))).toContain('1 cosa para revisar');
 	});
 
 	it('nada de nada: «todo al día»', () => {
 		expect(hello(inicio({ review: 0, todo: 0 }))).toContain('todo al día');
+	});
+});
+
+describe('Inicio: eventos con lugar y etiqueta «Online» en «Para revisar»', () => {
+	it('la fila dice cuántos y lleva a esa lista de Eventos; cuenta 1 en el contador', () => {
+		const item = onlineMismatchItem(2);
+		const body = inicio({ review: 1, extra: [{ kind: 'item', ...item }] });
+		const card = body.slice(body.indexOf('id="para-revisar"'));
+		expect(card).toContain('2 eventos con lugar y etiqueta «Online»');
+		expect(card).toContain('href="/admin/eventos?filtro=online-con-lugar"');
+		// Una fila: cuenta 1 (aunque junte 2 eventos).
+		expect(hello(body)).toContain('1 cosa para revisar');
+	});
+
+	it('uno solo, en singular; ninguno o la cuenta fallada, sin fila', () => {
+		expect(onlineMismatchItem(1)?.title).toBe('1 evento con lugar y etiqueta «Online»');
+		expect(onlineMismatchItem(0)).toBeNull();
+		expect(onlineMismatchItem(null)).toBeNull();
 	});
 });

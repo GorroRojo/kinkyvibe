@@ -57,6 +57,52 @@ describe('secciones de Ajustes y Cuentas', () => {
 	});
 });
 
+describe('Estadísticas: tres pestañas (gorrite, 11/10)', () => {
+	const cmds = buildCommands();
+	/** @param {string} q */
+	const found = (q) => matchCommands(cmds, q, 50).map((c) => c.id);
+	it('cada pestaña está en la paleta con su URL; `g s` sigue llevando a Ventas', () => {
+		/** @param {string} id */
+		const cmd = (id) => cmds.find((c) => c.id === id);
+		expect(cmd('nav:estadisticas')).toMatchObject({
+			label: 'Ventas en el tiempo',
+			hint: 'Estadísticas',
+			href: '/admin/estadisticas/ventas',
+			shortcut: 'g s'
+		});
+		expect(cmd('nav:estadisticas-asistencia')).toMatchObject({
+			label: 'Asistencia',
+			hint: 'Estadísticas',
+			href: '/admin/estadisticas/asistencia'
+		});
+		expect(cmd('nav:estadisticas-visitas')).toMatchObject({
+			label: 'Visitas al sitio',
+			hint: 'Estadísticas',
+			href: '/admin/estadisticas/visitas'
+		});
+		expect(shortcutOf('estadisticas')).toBe('g s');
+		expect(goShortcutHref('s')).toBe('/admin/estadisticas/ventas');
+	});
+	it('se encuentran por lo que muestran', () => {
+		expect(found('estadisticas')).toEqual(
+			expect.arrayContaining([
+				'nav:estadisticas',
+				'nav:estadisticas-asistencia',
+				'nav:estadisticas-visitas'
+			])
+		);
+		for (const q of ['asistencia', 'primera vez', 'vuelven', 'check-in'])
+			expect(found(q), q).toContain('nav:estadisticas-asistencia');
+		for (const q of ['visitas', 'analytics', 'paginas mas vistas', 'embudo'])
+			expect(found(q), q).toContain('nav:estadisticas-visitas');
+		for (const q of ['ventas en el tiempo', 'medios de pago', 'fondo'])
+			expect(found(q), q).toContain('nav:estadisticas');
+		// Visitas no sale buscando cosas de ventas, ni Asistencia buscando visitas.
+		expect(found('medios de pago')).not.toContain('nav:estadisticas-visitas');
+		expect(found('paginas mas vistas')).not.toContain('nav:estadisticas-asistencia');
+	});
+});
+
 describe('matchCommands', () => {
 	const cmds = buildCommands();
 	it('encuentra por nombre, sin tildes, y por palabras extra', () => {
@@ -85,13 +131,81 @@ describe('atajos g + letra', () => {
 		expect(new Set(GO_SHORTCUTS.map((s) => s.id)).size).toBe(GO_SHORTCUTS.length);
 		for (const s of GO_SHORTCUTS) expect(navItem(s.id)).toBeTruthy();
 	});
-	it('g i va al Inicio, g e a Eventos, g a a Actividad', () => {
+	it('g i va al Inicio, g e a Eventos, g a a Asistencia, g h a Actividad', () => {
 		expect(goShortcutHref('i')).toBe('/admin');
 		expect(goShortcutHref('e')).toBe('/admin/eventos');
-		expect(goShortcutHref('a')).toBe('/admin/ajustes/actividad');
+		expect(goShortcutHref('a')).toBe('/admin/estadisticas/asistencia');
+		expect(goShortcutHref('h')).toBe('/admin/ajustes/actividad');
 		expect(goShortcutHref('I')).toBe('/admin');
 		expect(goShortcutHref('z')).toBe(null);
 		expect(shortcutOf('inicio')).toBe('g i');
+	});
+	it('remapeo por frecuencia: cada letra va a su sección', () => {
+		expect(Object.fromEntries(GO_SHORTCUTS.map((s) => [s.key, s.id]))).toEqual({
+			i: 'inicio',
+			e: 'eventos',
+			n: 'eventos-nuevo',
+			g: 'eventos-agenda',
+			c: 'checkin',
+			v: 'entradas',
+			t: 'entradas-transferencias',
+			d: 'entradas-codigos',
+			p: 'personas',
+			f: 'amigues',
+			u: 'cuentas',
+			q: 'etiquetas',
+			m: 'material',
+			s: 'estadisticas',
+			a: 'estadisticas-asistencia',
+			w: 'estadisticas-visitas',
+			h: 'actividad'
+		});
+		expect(goShortcutHref('g')).toBe('/admin/eventos/agenda');
+		expect(goShortcutHref('f')).toBe('/admin/comunidad/perfiles');
+		expect(goShortcutHref('u')).toBe('/admin/comunidad/cuentas');
+		expect(shortcutOf('cuentas')).toBe('g u');
+		expect(goShortcutHref('q')).toBe('/admin/etiquetas');
+		expect(goShortcutHref('m')).toBe('/admin/contenido/material');
+		expect(goShortcutHref('w')).toBe('/admin/estadisticas/visitas');
+	});
+	it('las secciones de todos los días tienen atajo; las que se usan poco, no', () => {
+		for (const id of [
+			'inicio',
+			'eventos',
+			'eventos-agenda',
+			'eventos-nuevo',
+			'checkin',
+			'entradas',
+			'entradas-transferencias',
+			'personas',
+			'amigues',
+			'cuentas',
+			'etiquetas',
+			'material',
+			'estadisticas',
+			'estadisticas-asistencia',
+			'estadisticas-visitas'
+		]) {
+			expect(shortcutOf(id), id).toMatch(/^g [a-z]$/);
+		}
+		expect(shortcutOf('no-listadas')).toBe('');
+		expect(shortcutOf('ajustes-mails')).toBe('');
+	});
+	it('cada atajo va a una sección construida que está en el menú, en el orden del menú', () => {
+		const order = NAV.map((i) => i.id);
+		const idx = GO_SHORTCUTS.map((s) => order.indexOf(s.id));
+		expect(idx).toEqual([...idx].sort((x, y) => x - y));
+		for (const s of GO_SHORTCUTS) {
+			const item = navItem(s.id);
+			expect(item?.soon, s.id).toBe(false);
+			expect(item?.menu, s.id).not.toBe(false);
+			expect(item && navLink(item), s.id).toBeTruthy();
+		}
+	});
+	it('las teclas son una letra minúscula y no pisan / ni ?', () => {
+		for (const s of GO_SHORTCUTS) {
+			expect(s.key).toMatch(/^[a-z]$/);
+		}
 	});
 	it('la hoja de atajos marca las secciones que todavía no existen', () => {
 		const rows = goShortcutRows();
@@ -99,6 +213,25 @@ describe('atajos g + letra', () => {
 			const s = GO_SHORTCUTS.find((x) => x.key === r.keys[1]);
 			const item = s && navItem(s.id);
 			expect(r.available).toBe(Boolean(item && navLink(item)));
+		}
+	});
+});
+
+describe('buscador: palabras de cada sección', () => {
+	it('cada sección del menú tiene palabras para encontrarla (no solo su área)', () => {
+		const navRows = buildCommands().filter((c) => c.id.startsWith('nav:'));
+		const bare = navRows.filter((c) => c.keywords.trim().split(/\s+/).length < 2);
+		expect(bare.map((c) => c.id)).toEqual([]);
+	});
+	it('encuentra secciones por palabras que no están en su nombre', () => {
+		const all = buildCommands();
+		for (const [q, id] of [
+			['pie de mail', 'nav:ajustes-plantillas'],
+			['kinkipedia', 'nav:etiquetas'],
+			['alias', 'nav:ajustes-cobros'],
+			['reembolso', 'nav:entradas']
+		]) {
+			expect(matchCommands(all, q).map((c) => c.id)).toContain(id);
 		}
 	});
 });

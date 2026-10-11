@@ -12,6 +12,8 @@
 	 * @type {Parameters<typeof import('add-to-calendar-button').atcb_action>[0]}
 	 */
 	export let event;
+	/** En segundo plano (un evento que ya pasó): link de texto (`.kv-link`) en vez del botón. */
+	export let quiet = false;
 
 	/** @type {HTMLButtonElement} */
 	let button;
@@ -36,7 +38,12 @@
 	}
 </script>
 
-<button type="button" class="trigger" bind:this={button} on:click={open}>
+<button
+	type="button"
+	class={quiet ? 'kv-link quiet' : 'trigger'}
+	bind:this={button}
+	on:click={open}
+>
 	<CalendarPlus size="20" aria-hidden="true" /> Agregar a mi calendario
 </button>
 
@@ -55,6 +62,10 @@
 		border-radius: var(--radius-pill);
 		padding: 0.45em 1.2em;
 		cursor: pointer;
+	}
+	.quiet {
+		min-height: var(--tap);
+		font-size: var(--text-sm);
 	}
 	.trigger:hover,
 	.trigger:focus-visible {

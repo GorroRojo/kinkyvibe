@@ -3,7 +3,7 @@
  *
  * Variables (ver docs/tickets.md): MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET, RESEND_API_KEY,
  * TICKETS_FROM_EMAIL, TICKETS_REPLY_TO, TICKETS_CONTACT_EMAIL, SITE_URL, TICKETS_TRANSFER_INFO,
- * TICKETS_TRANSFER_HOLD_HOURS, TICKETS_MP_FEE_PERCENT, EMAIL_ALLOWLIST (obligatoria para mandar
+ * TICKETS_MP_FEE_PERCENT, EMAIL_ALLOWLIST (obligatoria para mandar
  * mails desde un preview; ver emailGuard.js). Solo en dev: MP_MOCK, TICKETS_DEV_FIXTURE.
  */
 import { dev } from '$app/environment';
@@ -14,6 +14,7 @@ import {
 	parseFeePercent
 } from '$lib/utils/tickets.js';
 import {
+	buildDateChangeEmail,
 	buildRefundEmail,
 	buildReminderEmail,
 	buildStreamLinkEmail,
@@ -30,7 +31,7 @@ import { isPreviewDeploy } from '../deploy.js';
 import { sha256Hex } from '../hash.js';
 import { trackFunnel } from '../analytics/track.js';
 import { createPreference, findPaymentByOrder, getPayment, refundPayment } from './mercadopago.js';
-import { TRANSFER_HOLD_MS, applyPayment, getOrderTickets, markEmailSent } from './orders.js';
+import { applyPayment, getOrderTickets, markEmailSent } from './orders.js';
 import {
 	DEFAULT_FROM_EMAIL,
 	DEFAULT_REPLY_TO,
@@ -39,7 +40,6 @@ import {
 } from './settings.js';
 import { parseReminders, reminderKey, sendDueReminders } from './reminders.js';
 import { resolveTemplate } from './templates.js';
-import { confirmUrl } from './safeguards.js';
 import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
 import { buyerLocation } from '../amigues/venues.js';
 import {
@@ -51,6 +51,8 @@ import {
 import { mailBatchSize } from './batchSize.js';
 import { withMailFooter } from '../email/layout.js';
 import { runMailQueueWith } from './mailQueue.js';
+import { calendarStamp } from './calendarFile.js';
+import { getDateChange, sendDateChangeBatch } from './dateChange.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
 const DEV_MOCK_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
@@ -141,13 +143,6 @@ export async function transferReady(db) {
  */
 export function transferReadyFromSettings(settings) {
 	return Boolean((settings && transferInfoFromSettings(settings)) || envTransferInfo());
-}
-
-/** Cuánto se reserva el cupo esperando una transferencia (TICKETS_TRANSFER_HOLD_HOURS, 1–240 h). */
-export function transferHoldMs() {
-	const hours = Number(env.TICKETS_TRANSFER_HOLD_HOURS);
-	if (!Number.isFinite(hours) || hours < 1 || hours > 240) return TRANSFER_HOLD_MS;
-	return Math.round(hours * 60 * 60 * 1000);
 }
 
 /** Contacto público de la organización (política de devoluciones, cambios de titular…). */
@@ -303,18 +298,30 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 /**
  * Manda un mail con Resend. Sin RESEND_API_KEY: en dev lo resume en la consola (`simulated`),
  * en producción loguea un error (`failed`). En un preview, solo a EMAIL_ALLOWLIST (emailGuard.js).
+ * `from`: remitente fijo de un mail que no es del sitio de entradas (el del Fondo); sin él, el de
+ * los ajustes, como siempre.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database | null | undefined,
  *   fetch: typeof fetch,
  *   to: string,
- *   message: { subject: string, html: string, text: string },
+ *   message: { subject: string, html: string, text: string,
+ *     attachments?: import('./email.js').MailAttachment[] },
  *   idempotencyKey?: string,
- *   log?: string
+ *   log?: string,
+ *   from?: string
  * }} input
  * @returns {Promise<'sent' | 'simulated' | 'failed'>}
  */
-async function deliver({ db, fetch: fetchFn, to, message: built, idempotencyKey, log = '' }) {
+async function deliver({
+	db,
+	fetch: fetchFn,
+	to,
+	message: built,
+	idempotencyKey,
+	log = '',
+	from: fixedFrom
+}) {
 	// Todo mail pasa por acá: el pie de Ajustes → Mails se pone una sola vez, para todos.
 	const settings = await emailSettings(db);
 	const message = { ...built, html: withMailFooter(built.html, settings.footer) };
@@ -322,7 +329,7 @@ async function deliver({ db, fetch: fetchFn, to, message: built, idempotencyKey,
 	if (!apiKey) {
 		if (dev) {
 			console.log(
-				`[tickets:email simulado] para ${maskEmail(to)} · "${message.subject}"${log ? `\n${log}` : ''}`
+				`[tickets:email simulado] para ${maskEmail(to)} · "${message.subject}"${message.attachments?.length ? ` · adjuntos: ${message.attachments.map((a) => a.filename).join(', ')}` : ''}${log ? `\n${log}` : ''}`
 			);
 			return 'simulated';
 		}
@@ -339,7 +346,8 @@ async function deliver({ db, fetch: fetchFn, to, message: built, idempotencyKey,
 		console.warn(`[tickets] preview sin EMAIL_ALLOWLIST: no se mandó "${message.subject}"`);
 		return 'simulated';
 	}
-	const { from, replyTo } = settings;
+	const { replyTo } = settings;
+	const from = fixedFrom || settings.from;
 	await sendWithResend({
 		fetch: fetchFn,
 		apiKey,
@@ -369,10 +377,40 @@ export function deliverEmail(input) {
  * @param {string} slug
  */
 export async function streamLinkFor(db, slug) {
+	return (await streamLinkInfoFor(db, slug))?.link ?? null;
+}
+
+/**
+ * El link de la transmisión y cuándo se cargó (o `null`), sin romper si falta la tabla. El
+ * `updatedAt` da la versión del .ics de los mails (`calendarStamp` en calendarFile.js).
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ * @returns {Promise<{ link: string, updatedAt: number | null } | null>}
+ */
+async function streamLinkInfoFor(db, slug) {
 	try {
-		return (await getStreamLink(db, slug))?.link ?? null;
+		const row = await getStreamLink(db, slug);
+		return row ? { link: row.link, updatedAt: row.updatedAt } : null;
 	} catch (error) {
 		console.error(`[tickets] no se pudo leer el link de ${slug}:`, error);
+		return null;
+	}
+}
+
+/**
+ * La versión del último cambio de fecha del evento (dateChange.js), o `null`, sin romper si falta
+ * la tabla. Entra en la versión del .ics de los mails (`calendarStamp`): un mail que sale después
+ * de un cambio de fecha no tiene un SEQUENCE más bajo que el del aviso.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ */
+async function dateChangeVersionFor(db, slug) {
+	try {
+		return (await getDateChange(db, slug))?.version ?? null;
+	} catch (error) {
+		console.error(`[tickets] no se pudo leer el cambio de fecha de ${slug}:`, error);
 		return null;
 	}
 }
@@ -408,7 +446,8 @@ export async function sendOrderEmail({
 		const typeName =
 			config?.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type;
 		const online = Boolean(config?.online);
-		const streamLink = online ? await streamLinkFor(db, order.event_slug) : null;
+		const linkInfo = online ? await streamLinkInfoFor(db, order.event_slug) : null;
+		const streamLink = linkInfo?.link ?? null;
 		if (streamLink && (await claimStreamLinkSend(db, { orderId: order.id, link: streamLink }))) {
 			claimedLink = streamLink;
 		}
@@ -419,8 +458,19 @@ export async function sendOrderEmail({
 			order,
 			tickets: list,
 			event: {
+				// Con el slug, el mail lleva adjunto el .ics del evento (calendarFile.js).
+				slug: order.event_slug,
 				title: config?.title || order.event_slug,
 				start: config?.start,
+				end: config?.end,
+				status: config?.status,
+				// Versión del .ics: la misma en los reintentos; «Reenviar» (sin clave), ahora.
+				stamp: calendarStamp({
+					orderCreatedAt: order.created_at,
+					linkUpdatedAt: linkInfo?.updatedAt,
+					dateChangedAt: await dateChangeVersionFor(db, order.event_slug),
+					now: idempotent ? null : Date.now()
+				}),
 				location: venue ? venue.location : config?.location,
 				location_name: venue ? venue.location_name : config?.location_name,
 				online,
@@ -485,7 +535,17 @@ export async function sendStreamLinkEmails({
 	now = Date.now()
 }) {
 	const config = await getEventTickets(eventSlug);
-	const event = { title: config?.title || eventSlug, start: config?.start };
+	// Cuándo se cargó ESTE link (versión del .ics adjunto; si ya cambió, el de la compra).
+	const info = await streamLinkInfoFor(db, eventSlug);
+	const linkUpdatedAt = info?.link === link ? info.updatedAt : null;
+	const dateChangedAt = await dateChangeVersionFor(db, eventSlug);
+	const event = {
+		slug: eventSlug,
+		title: config?.title || eventSlug,
+		start: config?.start,
+		end: config?.end,
+		status: config?.status
+	};
 	// Los primeros 8 bytes del hash del link (cambia si cambia el link).
 	const key = (await sha256Hex(link)).slice(0, 16);
 	const template = await resolveTemplate(db, eventSlug, 'stream');
@@ -499,7 +559,10 @@ export async function sendStreamLinkEmails({
 			const message = buildStreamLinkEmail({
 				order,
 				tickets,
-				event,
+				event: {
+					...event,
+					stamp: calendarStamp({ orderCreatedAt: order.created_at, linkUpdatedAt, dateChangedAt })
+				},
 				link,
 				origin,
 				contactEmail: contactEmail(),
@@ -511,6 +574,84 @@ export async function sendStreamLinkEmails({
 				to: order.buyer_email,
 				message,
 				idempotencyKey: `stream-${order.id}-${key}`
+			});
+			return result !== 'failed';
+		}
+	});
+}
+
+/**
+ * «Avisar a les compradores»: manda una tanda del aviso de cambio de fecha (como mucho `limit`
+ * mails, por defecto el "de a cuántos" de los ajustes) a las órdenes aprobadas de antes del
+ * cambio que todavía no lo recibieron (una vez por orden y versión; ver dateChange.js). Lo que
+ * quede lo sigue el cron ({@link runMailQueue}) si el envío está pedido con
+ * `requestDateChangeSend`. La fecha y el lugar son los de ahora; el .ics, con la versión del
+ * cambio (mismo UID, SEQUENCE más alto).
+ *
+ * @param {{
+ *   db: import('@cloudflare/workers-types').D1Database,
+ *   change: import('./dateChange.js').DateChange,
+ *   origin: string,
+ *   fetch: typeof fetch,
+ *   limit?: number,
+ *   now?: number
+ * }} input
+ */
+export async function sendDateChangeEmails({
+	db,
+	change,
+	origin,
+	fetch: fetchFn,
+	limit,
+	now = Date.now()
+}) {
+	const eventSlug = change.event_slug;
+	const config = await getEventTickets(eventSlug);
+	const online = Boolean(config?.online);
+	const linkInfo = online ? await streamLinkInfoFor(db, eventSlug) : null;
+	const venue = await buyerLocation(db, eventSlug);
+	const template = await resolveTemplate(db, eventSlug, 'date_change');
+	const event = {
+		slug: eventSlug,
+		title: config?.title || eventSlug,
+		start: config?.start ?? change.new_start,
+		end: config ? config.end : change.new_end,
+		status: config?.status,
+		location: venue ? venue.location : config?.location,
+		location_name: venue ? venue.location_name : config?.location_name,
+		online,
+		streamLink: linkInfo?.link ?? null
+	};
+	const previous = change.old_start ? { start: change.old_start, end: change.old_end } : null;
+	return sendDateChangeBatch(db, {
+		change,
+		now,
+		limit: limit ?? mailBatchSize((await getSalesSettings(db)).mail_batch_size),
+		send: async (order) => {
+			const tickets = await getOrderTickets(db, order.id);
+			const message = buildDateChangeEmail({
+				order,
+				tickets,
+				event: {
+					...event,
+					stamp: calendarStamp({
+						orderCreatedAt: order.created_at,
+						linkUpdatedAt: linkInfo?.updatedAt,
+						dateChangedAt: change.version
+					})
+				},
+				previous,
+				typeName: config?.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
+				origin,
+				contactEmail: contactEmail(),
+				template
+			});
+			const result = await deliver({
+				db,
+				fetch: fetchFn,
+				to: order.buyer_email,
+				message,
+				idempotencyKey: `datechange-${order.id}-${change.version}`
 			});
 			return result !== 'failed';
 		}
@@ -549,8 +690,6 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			replyTo: await replyToAddress(db),
 			contactEmail: contactEmail(),
 			origin,
-			confirmUrl: await confirmUrl(db, origin, order.id),
-			fullHoldHours: Math.round(transferHoldMs() / 3600000),
 			template: await resolveTemplate(db, order.event_slug, 'transfer')
 		});
 		const result = await deliver({
@@ -651,8 +790,10 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 			});
 		}
 	}
-	/** @type {Map<string, string | null>} */
+	/** @type {Map<string, { link: string, updatedAt: number | null } | null>} */
 	const links = new Map();
+	/** @type {Map<string, number | null>} */
+	const dateChanges = new Map();
 	/** @type {Map<string, Awaited<ReturnType<typeof buyerLocation>>>} */
 	const venues = new Map();
 	/** @type {Map<string, Record<string, any> | null>} */
@@ -678,7 +819,11 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 			if (part && !info) return false;
 			if (part && !partMetas.has(part)) partMetas.set(part, await getEventMeta(part));
 			const meta = part ? partMetas.get(part) : null;
-			if (config.online && !links.has(e.slug)) links.set(e.slug, await streamLinkFor(db, e.slug));
+			if (config.online && !links.has(e.slug)) {
+				links.set(e.slug, await streamLinkInfoFor(db, e.slug));
+			}
+			const linkInfo = config.online ? (links.get(e.slug) ?? null) : null;
+			if (!dateChanges.has(e.slug)) dateChanges.set(e.slug, await dateChangeVersionFor(db, e.slug));
 			const tickets = await getOrderTickets(db, order.id);
 			if (!venues.has(where)) venues.set(where, await buyerLocation(db, where));
 			const venue = venues.get(where);
@@ -695,8 +840,12 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				tickets,
 				reminder,
 				event: {
+					// Con el slug (el de la parte, si es una), el .ics y el link a Google Calendar.
+					slug: where,
 					title: info ? info.title : config.title || e.slug,
 					start: info ? info.start : config.start,
+					end: part ? (typeof meta?.end === 'string' ? meta.end : undefined) : config.end,
+					status: part ? meta?.status : config.status,
 					location: venue ? venue.location : meta ? meta.location : config.location,
 					location_name: venue
 						? venue.location_name
@@ -704,7 +853,13 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 							? meta.location_name
 							: config.location_name,
 					online: config.online,
-					streamLink: config.online ? (links.get(e.slug) ?? null) : null,
+					streamLink: linkInfo?.link ?? null,
+					stamp: calendarStamp({
+						orderCreatedAt: order.created_at,
+						linkUpdatedAt: linkInfo?.updatedAt,
+						// Una parte de un taller tiene su propia fecha: el cambio del taller no cuenta.
+						dateChangedAt: part ? null : dateChanges.get(e.slug)
+					}),
 					parts: partLists.get(e.slug) ?? null
 				},
 				typeName: config.types.find((t) => t.id === order.ticket_type)?.name ?? order.ticket_type,
@@ -726,8 +881,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 
 /**
  * Una corrida del cron de mails (POST /api/cron/recordatorios, cada 15 minutos): una tanda de
- * recordatorios y, con lo que sobre, de lo que quede de cada "Enviar el link a todes" (ver
- * mailQueue.js). Se puede llamar dos veces a la vez sin duplicar nada (ver sendState.js).
+ * recordatorios y, con lo que sobre, de lo que quede de cada "Enviar el link a todes" y de cada
+ * «Avisar a les compradores» de un cambio de fecha (ver mailQueue.js). Se puede llamar dos veces a la vez sin duplicar nada (ver sendState.js).
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
@@ -742,7 +897,9 @@ export async function runMailQueue({ db, origin, fetch: fetchFn, now = Date.now(
 		limit,
 		sendReminders: (limit) => sendReminderEmails({ db, origin, fetch: fetchFn, now, limit }),
 		sendStreamLink: ({ eventSlug, link, limit }) =>
-			sendStreamLinkEmails({ db, eventSlug, link, origin, fetch: fetchFn, now, limit })
+			sendStreamLinkEmails({ db, eventSlug, link, origin, fetch: fetchFn, now, limit }),
+		sendDateChange: ({ change, limit }) =>
+			sendDateChangeEmails({ db, change, origin, fetch: fetchFn, now, limit })
 	});
 }
 

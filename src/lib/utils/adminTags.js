@@ -166,7 +166,7 @@ export function splitEventTags(tags, tm = siteTags()) {
 
 /**
  * Tag list from the rule controls + the free picker, in the order recent events use
- * (see _event_template.md): idioma, KinkyVibe, precio, lugar, then the rest.
+ * (see src/lib/admin/plantillas/evento.md): idioma, KinkyVibe, precio, lugar, then the rest.
  * @param {{kinkyvibe: boolean, language: string, sign?: boolean, place: string, prices: string[], rest: string[]}} state
  * @param {Tags} [tm]
  * @returns {string[]}

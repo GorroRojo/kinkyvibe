@@ -2,8 +2,8 @@
 	/**
 	 * Escáner de QR del modo puerta (antes QrScanner.svelte), con la API BarcodeDetector (Chrome
 	 * en Android, Edge, Samsung Internet). Linterna y cambio de cámara cuando el celu los tiene.
-	 * En navegadores sin soporte (Safari de iPhone) avisa: queda "Escribir código" y "Buscar
-	 * persona", o escanear con la cámara del sistema (abre la entrada con "Marcar ingreso").
+	 * En navegadores sin soporte (Safari de iPhone) avisa: queda escanear con la app Cámara del
+	 * celu (abre la entrada con «Marcar ingreso»), «Escribir código» y «Buscar persona».
 	 *
 	 * Props: `onscan(value)`. Slot: lo que va encima del video, abajo (el resultado).
 	 */
@@ -143,7 +143,9 @@
 	<div class="top">
 		<p class="hint">
 			{#if supported === false}
-				Este navegador no lee QRs: usá "Escribir código" o "Buscar persona".
+				Este navegador no lee QRs (pasa en iPhone). Abrí la app Cámara del celu y apuntá al QR: se
+				abre la entrada con «Marcar ingreso». También podés usar «Escribir código» o «Buscar
+				persona».
 			{:else if running}
 				Apuntá al QR de la entrada
 			{:else}

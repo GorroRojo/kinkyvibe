@@ -118,9 +118,13 @@
 		<p class="empty">{empty}</p>
 	{:else if view === 'chart'}
 		<div class="plot" bind:clientWidth={width}>
+			<!-- El alto va también en style: el layout público tiene un `svg { height: 24px }` global
+			     que, si se entró al panel desde el sitio, achicaba el gráfico (pedido de gorrite, 7/10). -->
 			<svg
 				width={W}
 				{height}
+				style:width="{W}px"
+				style:height="{height}px"
 				viewBox="0 0 {W} {height}"
 				role="img"
 				aria-label="{title}. {rows.length} columnas; la tabla tiene los números."

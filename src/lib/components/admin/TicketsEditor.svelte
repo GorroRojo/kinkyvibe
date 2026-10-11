@@ -10,6 +10,8 @@
 	en una grilla según el ancho del editor (container queries), no de la ventana.
 -->
 <script>
+	import Notice from '$lib/components/ui/Notice.svelte';
+	import SectionHeading from '$lib/components/admin/event-form/SectionHeading.svelte';
 	import { X } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
 	import { LOW_STOCK, formatSaleTime, gorraQuickAmounts, parseAmount } from '$lib/utils/tickets.js';
@@ -32,6 +34,10 @@
 	export let tags = [];
 	/** Dirección actual del evento (modalidad automática). */
 	export let location = '';
+	/** Nombre del lugar en texto libre (modalidad automática). */
+	export let locationName = '';
+	/** ¿Tiene un lugar elegido («Lugar», edge `lugar`)? Entonces es presencial, como en la página. */
+	export let hasVenue = false;
 	/** Vendidas y reservadas por tipo (al editar); `null` = evento nuevo o sin datos. */
 	/** @type {import('$lib/utils/ticketsEditor.js').SalesByType | null} */
 	export let sales = null;
@@ -41,6 +47,20 @@
 	export let errors = [];
 	/** @type {string[]} */
 	export let warnings = [];
+	/**
+	 * Los errores se muestran recién cuando se sale de un campo (o cuando quien llama pide
+	 * `showErrors`, al guardar), no apenas se prende la venta con los campos todavía vacíos.
+	 * `touched` (con bind): ya se salió de algún campo.
+	 */
+	export let touched = false;
+	export let showErrors = false;
+	$: shownErrors = touched || showErrors ? errors : [];
+	/** @param {FocusEvent} e */
+	function onFocusOut(e) {
+		const t = /** @type {HTMLElement | null} */ (e.target);
+		// El interruptor de la venta no cuenta: prenderla no es haber completado nada.
+		if (t && t.getAttribute('role') !== 'switch') touched = true;
+	}
 	export let idPrefix = 'ev';
 	/** Dónde se cargan el alias y los datos para transferir. */
 	export let settingsHref = '/admin/ajustes/cobros';
@@ -61,8 +81,11 @@
 		{ id: 'gorra', label: 'A la gorra' }
 	]);
 	$: fondo = isKinkyVibeEvent({ tags });
-	$: autoOnline = isOnlineEvent({ tags, location });
-	$: online = state.modalidad === 'online' || (state.modalidad === '' && autoOnline);
+	// La regla de la página (`eventMode` de eventPlace.js): con lugar elegido, presencial; si no,
+	// la modalidad elegida; si no, el «Dónde» y la etiqueta Online.
+	$: place = { tags, location, location_name: locationName };
+	$: autoOnline = isOnlineEvent(place, { hasVenue });
+	$: online = isOnlineEvent({ ...place, modalidad: state.modalidad }, { hasVenue });
 	/** @param {string | null} id */
 	const salesFor = (id) => (id && sales ? sales[id] : undefined);
 	/** @param {string | null} id */
@@ -112,8 +135,8 @@
 	};
 </script>
 
-<fieldset class="card tickets" id="{idPrefix}-tickets">
-	<legend>🎟️ Entradas</legend>
+<fieldset class="card tickets" id="{idPrefix}-tickets" on:focusout={onFocusOut}>
+	<SectionHeading section="entradas" />
 
 	<label class="switch">
 		<input
@@ -147,10 +170,10 @@
 
 	{#if state.enabled}
 		{#if salesUnavailable}
-			<p class="warning">
-				⚠️ No pudimos consultar las ventas de este evento: al guardar se vuelve a revisar que no se
+			<Notice tone="warn" compact>
+				No pudimos consultar las ventas de este evento: al guardar se vuelve a revisar que no se
 				rompan compras hechas.
-			</p>
+			</Notice>
 		{/if}
 
 		<ol class="types">
@@ -363,13 +386,13 @@
 				</label>
 			{/each}
 			{#if state.methods.transferencia && transferReady === false}
-				<p class="warning" role="status" id="{idPrefix}-transfer-missing">
-					⚠️ Activaste transferencia pero faltan los datos en <a
+				<Notice tone="warn" compact id="{idPrefix}-transfer-missing">
+					Activaste transferencia pero faltan los datos en <a
 						href={settingsHref}
 						target="_blank"
 						rel="noopener">Ajustes → Cobros</a
 					>: por ahora no se ofrece.
-				</p>
+				</Notice>
 			{:else if state.methods.transferencia}
 				<small
 					>El alias y los datos para transferir se configuran en <a
@@ -424,9 +447,16 @@
 				<option value="online">Online: el link de la transmisión en lugar de QR</option>
 			</select>
 			<small
-				>Automática = online si tiene la etiqueta Online y no tiene dirección. El link de la
-				transmisión se carga en el admin de entradas (nunca en el archivo).</small
+				>Automática = como la página del evento: online si el «Dónde» dice «Online» (o «Zoom»,
+				«Virtual»…), o si no tiene «Dónde» y sí la etiqueta Online. Con un lugar elegido, siempre
+				presencial. El link de la transmisión se carga en el admin de entradas (nunca en el
+				archivo).</small
 			>
+			{#if hasVenue && state.modalidad === 'online'}
+				<Notice tone="warn" inline id="{idPrefix}-modalidad-venue"
+					>Tiene un lugar elegido, así que es presencial: para venderlo como online, sacá el lugar.</Notice
+				>
+			{/if}
 		</label>
 
 		{#if !online}
@@ -483,10 +513,10 @@
 			</label>
 		</details>
 
-		{#each warnings as w}<p class="warning">⚠️ {w}</p>{/each}
-		{#if errors.length}
+		{#each warnings as w}<Notice tone="warn" compact>{w}</Notice>{/each}
+		{#if shownErrors.length}
 			<ul class="errors" id="{idPrefix}-tickets-errors">
-				{#each errors as e}<li class="error">{e}</li>{/each}
+				{#each shownErrors as e}<li class="error">{e}</li>{/each}
 			</ul>
 		{/if}
 	{/if}

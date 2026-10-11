@@ -285,12 +285,20 @@ function describeError(error) {
  * (solo con su nombre), y por último datos y relaciones. No es una sola tanda: si algo falla,
  * lo anterior queda guardado y el error dice qué etiqueta fue.
  *
+ * Cada etiqueta que se borra (suave) puede llevar más sentencias en la MISMA tanda que su borrado
+ * (`onDelete`): el panel pone ahí la fila para «Recuperar» en Actividad
+ * (src/lib/server/admin/deletions.js, `tagDeletionStatement`).
+ *
  * @param {D1Database} db
  * @param {DbTagPlan} plan
- * @param {{ actor: string, now?: number }} ctx
+ * @param {{
+ *   actor: string,
+ *   now?: number,
+ *   onDelete?: (tag: StoredTag, now: number) => Promise<import('@cloudflare/workers-types').D1PreparedStatement[]>
+ * }} ctx
  * @returns {Promise<{ written: number, errors: string[] }>}
  */
-export async function applyDbTagPlan(db, plan, { actor, now = Date.now() }) {
+export async function applyDbTagPlan(db, plan, { actor, now = Date.now(), onDelete }) {
 	/** @type {string[]} */
 	const errors = [];
 	let written = 0;
@@ -328,13 +336,14 @@ export async function applyDbTagPlan(db, plan, { actor, now = Date.now() }) {
 	};
 
 	for (const t of plan.deletes) {
-		const ok = await attempt(t.key, () =>
-			saveObject(
+		const ok = await attempt(t.key, async () => {
+			const extra = onDelete ? await onDelete({ ...t, version: versionOf(t) }, now) : [];
+			return saveObject(
 				db,
 				{ id: t.id, type: TAG_TYPE, version: versionOf(t), deleted: true },
-				{ actor, now }
-			)
-		);
+				{ actor, now, also: () => extra }
+			);
+		});
 		if (ok) ids.delete(t.key);
 	}
 	if (errors.length) return { written, errors };

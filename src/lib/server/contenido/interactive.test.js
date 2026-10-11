@@ -22,6 +22,7 @@ import {
 import { splitMarkdown } from '../amigues/importer.js';
 import { normalizeBody } from './eventos.js';
 import { renderContentBody } from './render.js';
+import { stripHtmlComments } from '../../utils/htmlStrip.js';
 
 const TAG = 'kv-donde-golpear-un-cuerpo';
 const OWN = `<${TAG}></${TAG}>`;
@@ -105,7 +106,7 @@ describe('cómo se ve', () => {
 				parts: [{ html: '<p>a</p>' }, { component: 'kv-desconocido' }, { html: '<p>b</p>' }]
 			}
 		}).body;
-		expect(html.replace(/<!--[^>]*-->/g, '')).toBe('<p>a</p><p>b</p>');
+		expect(stripHtmlComments(html)).toBe('<p>a</p><p>b</p>');
 	});
 });
 

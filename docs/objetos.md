@@ -225,7 +225,7 @@ importación, la lectura (solo la base) y el historial (`object_revisions`):
     rol de `authors:` en lo guardado con la forma de antes (`authors` + `extra.personas`): Autore
     en vez de Organiza (`withPersonaEdges(data, edges, 'material')`). La ficha de una cuenta en el
     panel sigue listando solo los eventos de sus perfiles (`admin/ficha.js`), como antes.
-  - **DECIDIDO POR CLAUDE, A CONFIRMAR** (gorrite), en la 0043: (1) la migración no toca un
+  - **Confirmado por gorrite (5/10)**, en la 0043: (1) la migración no toca un
     material cuya lista única tiene una fila que el tipo no acepta (no es `{ profile o name, role }`,
     o trae otra clave): la 0035 las descartaba en silencio; acá se dejan para el chequeo nocturno,
     como hace la 0042; (2) un perfil oculto también pasa a edge (como en los eventos: la lectura es
@@ -255,7 +255,7 @@ importación, la lectura (solo la base) y el historial (`object_revisions`):
   - Todavía no está la caché derivada en `data.tags` ni el chequeo nocturno `tags_out_of_sync` del
     plan original: las listas leen los edges en la misma consulta que los posts (sin una consulta
     por post), así que no hizo falta.
-  - **DECIDIDO POR CLAUDE, A CONFIRMAR** (gorrite): (1) un alias se guarda como edge al alias
+  - **Confirmado por gorrite (5/10)**: (1) un alias se guarda como edge al alias
     mismo, no a la canónica (así la lista sale idéntica; la limpieza de etiquetas ya resuelve el
     alias al mostrar); (2) el lugar va en `data.at` (como `persona`) y no en `position`, porque
     `saveObject()` numera `position` solo entre los edges y la lista mezcla edges y texto; (3) una
@@ -269,6 +269,24 @@ Una imagen de la biblioteca (archivo en R2, binding `MEDIA`). Cada uso es un edg
 evento → `portada`, material → `portada`, etiqueta (serie) → `imagen`, perfil → `avatar` (uno por
 objeto). Archivo: `src/lib/server/objects/types/imagen.js`; todo el detalle en
 [imagenes.md](imagenes.md).
+
+### `archivo`
+
+Un documento (PDF, ODT, ODS, ODP) o un video (MP4, WebM) de la biblioteca, en el mismo bucket que
+las imágenes (`file/<sha-256>.<ext>`). Tipo hermano de `imagen` para que ningún edge de imagen
+pueda apuntar a uno; sin edges propios: un texto lo enlaza por su dirección. Solo les admins los
+suben. Archivo: `src/lib/server/objects/types/archivo.js`; detalle en [imagenes.md](imagenes.md).
+
+- **Edge `adjunto`** (material → `archivo`, ningún otro tipo lo tiene; confirmado por gorrite,
+  5/10): uno por archivo vivo que el texto del material enlaza (`/media/file/<hash>.<ext>` en
+  `body` o en `link`), en el orden del texto, sin `data`. **Sigue al texto**: es un edge
+  **calculado** (`derived: true` en el tipo): `saveObject()` lo recalcula en cada guardado con
+  `deriveEdges` del tipo (`withDerivedEdges` de `objects/edges.js`): suma los que faltan y saca
+  los que sobran, por cualquier camino de guardado. Quien guarda no lo manda (si lo manda, es un
+  error). Un enlace a un archivo que no existe o está borrado no es edge; los que ya estaban hacia
+  un archivo que se borra quedan hasta el próximo guardado del material (como las etiquetas: solo
+  hay edge hacia lo vivo). Sin migración: el tipo de edge vive en el código y hasta este cambio
+  ningún material enlazaba archivos de la biblioteca.
 
 ### `etiqueta`
 
@@ -285,8 +303,8 @@ todo el detalle (campos, el índice único de `key`, la tabla `tag_sources`) en
    minúsculas, sin espacios ni tildes, y **no se cambia nunca**; el nombre para mostrar (`label`)
    sí.
 2. Declará los campos (`fields`) con las clases de `fields.js`, las relaciones salientes (`edges`:
-   hacia qué tipos, `max`, `required`), reglas entre campos (`check`) si hacen falta y
-   `searchText`. Si un valor de opción cambia de nombre, `normalize` traduce el viejo antes de
+   hacia qué tipos, `max`, `required`; `derived` si el edge sale de los datos, con `deriveEdges`,
+   como `adjunto` del material), reglas entre campos (`check`) si hacen falta y `searchText`. Si un valor de opción cambia de nombre, `normalize` traduce el viejo antes de
    validar (como `grupo` → `proyecto` en `perfil.js`), además de la migración de los datos.
 3. Sumalo a `createRegistry([...])` en `types/index.js`. El registro verifica al importarse que
    las relaciones apunten a tipos que existen.

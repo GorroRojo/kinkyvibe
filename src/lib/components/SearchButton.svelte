@@ -83,9 +83,11 @@
 	.tip {
 		position: absolute;
 		top: calc(100% + 0.6rem);
-		left: 50%;
-		translate: -50% -0.25rem;
-		z-index: 5;
+		/* alineado al botón por la izquierda (centrado se salía de la pantalla) y por encima del
+		   menú y de las filas de la home */
+		left: 0;
+		translate: 0 -0.25rem;
+		z-index: 20;
 		display: flex;
 		align-items: center;
 		gap: 0.5em;
@@ -106,8 +108,7 @@
 		content: '';
 		position: absolute;
 		bottom: 100%;
-		left: 50%;
-		translate: -50% 0;
+		left: 0.6rem;
 		border: 0.35rem solid transparent;
 		border-bottom-color: var(--2-dark);
 	}
@@ -127,7 +128,7 @@
 	.icon:hover .tip,
 	.icon:focus-visible .tip {
 		opacity: 1;
-		translate: -50% 0;
+		translate: 0 0;
 	}
 
 	/* --- FAB (sólo celulares): flota sobre la barra de navegación inferior --- */

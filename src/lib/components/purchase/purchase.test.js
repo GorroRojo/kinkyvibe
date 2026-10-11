@@ -8,6 +8,9 @@ import TicketPurchase from '../TicketPurchase.svelte';
 import StepIndicator from './StepIndicator.svelte';
 import PurchaseSummary from './PurchaseSummary.svelte';
 import { PURCHASE_STEPS } from '$lib/utils/purchaseSteps.js';
+import { stripHtmlComments, stripHtmlTags } from '$lib/utils/htmlStrip.js';
+import { textOf } from '$lib/testing/html.js';
+import { expiryMoment } from '$lib/utils/expiry.js';
 
 /** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
 const tickets = {
@@ -18,7 +21,7 @@ const tickets = {
 	maxQuantity: 20,
 	mock: true,
 	methods: ['mercadopago', 'transferencia'],
-	transferHoldHours: 48,
+	transferUntil: Date.parse('2026-10-14T20:00-03:00'),
 	feeBasisPoints: 200,
 	contactEmail: 'contacto@example.com',
 	online: false,
@@ -87,6 +90,64 @@ describe('PurchaseSummary', () => {
 	});
 });
 
+describe('PurchaseSummary en el celu: una línea y el recargo siempre a la vista', () => {
+	const base = {
+		item: { name: 'General', tier: null },
+		countText: '1 entrada',
+		option: null,
+		surchargePlaceholder: null,
+		total: '$ 15.300'
+	};
+
+	it('la barra dice cuántas entradas y el total en una línea, y despliega el detalle', () => {
+		const { body } = render(PurchaseSummary, {
+			props: {
+				summary: {
+					...base,
+					lines: [{ id: 'entradas', label: 'Entradas (1 × $ 15.000)', amount: '$ 15.000' }]
+				}
+			}
+		});
+		const bar = body.match(/<button[^>]*class="bar[^"]*"[\s\S]*?<\/button>/)?.[0] ?? '';
+		expect(bar).toContain('aria-expanded="false"');
+		expect(bar).toContain('aria-controls="resumen-detalle"');
+		expect(stripHtmlTags(bar).replace(/\s+/g, ' ')).toContain('1 entrada · $ 15.300');
+	});
+
+	it('con recargo de Mercado Pago, la línea va afuera del detalle plegado', () => {
+		const { body } = render(PurchaseSummary, {
+			props: {
+				summary: {
+					...base,
+					lines: [
+						{ id: 'entradas', label: 'Entradas (1 × $ 15.000)', amount: '$ 15.000' },
+						{ id: 'recargo', label: 'Recargo Mercado Pago', amount: '+$ 300' }
+					]
+				}
+			}
+		});
+		const fee = body.indexOf('class="fee');
+		expect(fee).toBeGreaterThan(0);
+		expect(fee).toBeLessThan(body.indexOf('id="resumen-detalle"'));
+		expect(body.slice(fee, body.indexOf('</p>', fee))).toContain('+$ 300');
+	});
+
+	it('con transferencia elegida, la línea guarda su lugar (invisible) para que nada salte', () => {
+		const { body } = render(PurchaseSummary, {
+			props: { summary: { ...base, lines: [], surchargePlaceholder: '+$ 300' } }
+		});
+		expect(body).toMatch(/<p class="fee placeholder[^"]*" aria-hidden="true">/);
+		expect(body).not.toContain('>Incluye el recargo');
+	});
+
+	it('sin recargo (transferencia, gratis), no hay línea', () => {
+		const { body } = render(PurchaseSummary, {
+			props: { summary: { ...base, lines: [] } }
+		});
+		expect(body).not.toContain('class="fee');
+	});
+});
+
 describe('TicketPurchase', () => {
 	it('arranca en «Entradas», con los otros pasos ocultos pero en el formulario', () => {
 		const { body, head } = render(TicketPurchase, { props: { tickets } });
@@ -121,6 +182,20 @@ describe('TicketPurchase', () => {
 		expect(steps(body).map((s) => s.hidden)).toEqual([true, false, true]);
 		expect(body).toContain('Revisá los datos marcados.');
 		expect(body).toContain('Revisá el DNI');
+	});
+
+	it('arranca elegida la entrada más barata de las que se pueden comprar', () => {
+		const types = [
+			{ ...tickets.types[0], id: 'general', name: 'General', price: 15000, fondo: 0 },
+			{ ...tickets.types[0], id: 'anticipada', name: 'Anticipada', price: 12000, fondo: 0 },
+			{ ...tickets.types[0], id: 'agotada', name: 'Agotada', price: 9000, fondo: 0, available: 0 }
+		];
+		const { body } = render(TicketPurchase, { props: { tickets: { ...tickets, types } } });
+		const checked = [...body.matchAll(/<input[^>]*name="type"[^>]*>/g)]
+			.map((m) => m[0])
+			.filter((i) => /\schecked(=|\s|>|\/)/.test(i));
+		expect(checked).toHaveLength(1);
+		expect(checked[0]).toContain('value="anticipada"');
 	});
 
 	it('venta cerrada: sin formulario ni pasos', () => {
@@ -190,13 +265,33 @@ describe('TicketPurchase con cuenta (datos guardados)', () => {
 	});
 });
 
+describe('PayStep: la transferencia dice hasta cuándo se guarda el lugar (decisión 0031)', () => {
+	it('con la fecha y la hora exactas, sin paso de confirmar', async () => {
+		const { default: PayStep } = await import('./PayStep.svelte');
+		const until = Date.now() + 3 * 24 * 3600_000;
+		const { body } = render(PayStep, {
+			props: { tickets: { ...tickets, transferUntil: until }, method: 'transferencia' }
+		});
+		const text = textOf(body).replace(/\s+/g, ' ');
+		const when = expiryMoment(until, Date.now(), {
+			timeZone: 'America/Argentina/Buenos_Aires',
+			until: true
+		});
+		expect(text).toContain(
+			`Sin recargo. Te guardamos el lugar ${when}, hora de Argentina y Uruguay. Transferí y mandanos el comprobante antes de esa hora; si no llega, la reserva se libera.`
+		);
+		expect(text).not.toMatch(/confirm(ando|á) la reserva/i);
+		expect(text).not.toMatch(/\d+ horas/);
+	});
+});
+
 describe('TicketsStep', () => {
 	it('un tipo sin lugar dice «Agotadas» (aunque sea un solo tipo), nunca «Agotada»', async () => {
 		const { default: TicketsStep } = await import('./TicketsStep.svelte');
 		const soldOut = { ...tickets, types: [{ ...tickets.types[0], available: 0, left: 0 }] };
 		const { body } = render(TicketsStep, { props: { tickets: soldOut } });
 		// Sin los comentarios que deja Svelte al renderizar.
-		const html = body.replace(/<!--[^]*?-->/g, '');
+		const html = stripHtmlComments(body);
 		expect(html).toMatch(/<small class="type-left[^"]*">\s*Agotadas\s*<\/small>/);
 		expect(body).not.toMatch(/Agotada(?!s)/);
 	});

@@ -172,8 +172,8 @@ export function fromInput(f, v) {
 const NOT_IN_NEW_EVENT = ['published_date', 'updated_date', 'force_unlisted'];
 
 /**
- * Los campos de la sección «📝 Datos» (DatosSection), los mismos al crear un evento y al editar
- * cualquier publicación. Empieza y Termina no están: van en «📅 ¿Cuándo es?» (ScheduleSection).
+ * Los campos de la sección «Datos» (DatosSection), los mismos al crear un evento y al editar
+ * cualquier publicación. Empieza y Termina no están: van en «Fecha y hora» (ScheduleSection).
  * @param {'nuevo' | 'editar'} mode
  * @param {string} [category]
  * @returns {Field[]}
@@ -201,12 +201,12 @@ export function datosFieldId(mode) {
 
 /**
  * El «Dónde» en texto libre de un evento (`location`, `location_map`, `location_name`): van en la
- * sección «📍 Lugar» (PlaceSection), junto al lugar elegido, no en «📝 Datos».
+ * sección «Lugar» (PlaceSection), junto al lugar elegido, no en «Datos».
  */
 export const PLACE_FIELD_KEYS = Object.freeze(['location', 'location_map', 'location_name']);
 
 /**
- * Los campos de «Datos» separados en los de «📝 Datos» y los del «Dónde» en texto libre (solo en
+ * Los campos de «Datos» separados en los de «Datos» y los del «Dónde» en texto libre (solo en
  * los eventos; las demás categorías quedan como están).
  * @param {Field[]} fields
  * @param {string} [category]

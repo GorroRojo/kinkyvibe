@@ -168,13 +168,16 @@ que se vuelva a prender.
   `/mi-rincon/sigo?/seguir` o `?/dejar` (sin JavaScript, el resultado se ve en Mi rincón).
   `/api/sigo` solo dice si **esta** cuenta lo sigue, nunca quién más.
 
-### Decidido por Claude, a confirmar con gorrite
+### Confirmado por gorrite (5/10)
 
 - Al tocar «Seguir» quedan prendidos «en mi calendario» y «mail cuando se anuncia algo nuevo»; el
   recordatorio, apagado (`DEFAULT_FOLLOW_OPTIONS`).
 - Hasta 300 cosas seguidas por cuenta y 120 cambios por hora.
 - El recordatorio sale cuando faltan 24 horas o menos (no a una hora fija del día anterior).
 - «Avisame» con cuenta deja también «en mi calendario» prendido.
+
+### Decidido por Claude, a confirmar con gorrite
+
 - Los mails de «Lo que sigo» usan su propia clave de firma (`sigo_mail_stop_key`).
 - El calendario personal existe siempre (el interruptor `series` quedó fijo); «Lo que sigo» le
   suma cosas.

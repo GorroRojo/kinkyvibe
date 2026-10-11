@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { undoneMessage } from './deleteText.js';
+import { deletionLabel, undoneMessage } from './deleteText.js';
 
 describe('undoneMessage', () => {
 	it('says whether the delete was cancelled before publishing or restored after', () => {
@@ -12,5 +12,33 @@ describe('undoneMessage', () => {
 		expect(undoneMessage({ mode: 'restored', title: 'Perfil inventado', immediate: true })).toBe(
 			'Listo: «Perfil inventado» vuelve a estar.'
 		);
+	});
+});
+
+describe('deletionLabel', () => {
+	it('names posts by kind and library rows as «Biblioteca · …» (without the file hash)', () => {
+		expect(deletionLabel({ kind: 'calendario', path: 'src/lib/posts/calendario/x.md' })).toEqual({
+			label: 'Evento',
+			library: false
+		});
+		expect(deletionLabel({ kind: 'amigues', path: 'objeto:perfil:3' }).label).toBe('Amigues');
+		expect(deletionLabel({ kind: 'material', path: 'objeto:imagen:12' })).toEqual({
+			label: 'Biblioteca · imagen',
+			library: true
+		});
+		expect(deletionLabel({ kind: 'material', path: 'objeto:archivo:7' }).label).toBe(
+			'Biblioteca · archivo'
+		);
+	});
+
+	it('names tags, series and an event mail text (decisión 0030)', () => {
+		expect(deletionLabel({ kind: 'material', path: 'objeto:etiqueta:4' })).toEqual({
+			label: 'Etiqueta',
+			library: false
+		});
+		expect(deletionLabel({ kind: 'material', path: 'objeto:serie:5' }).label).toBe('Serie');
+		expect(
+			deletionLabel({ kind: 'calendario', path: 'plantilla:fiesta-inventada:tickets' })
+		).toEqual({ label: 'Mail del evento', library: false });
 	});
 });

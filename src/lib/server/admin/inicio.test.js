@@ -417,6 +417,8 @@ describe('upcomingEvents y reviewItems', () => {
 			title: 'Borrador',
 			start: '2026-11-01T19:00-03:00',
 			unlisted: true,
+			// La marca de la agenda: un no listado sin ella no es un borrador.
+			draft: true,
 			unpublished: false,
 			thumb: undefined,
 			location: '',

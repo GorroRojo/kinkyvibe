@@ -1,5 +1,12 @@
 <script>
-	import { checkMapLink } from '$lib/utils/eventPlace.js';
+	import Notice from '$lib/components/ui/Notice.svelte';
+	import SectionHeading from '$lib/components/admin/event-form/SectionHeading.svelte';
+	import { Repeat } from '@lucide/svelte';
+	import { checkMapLink, eventPlace } from '$lib/utils/eventPlace.js';
+	import { publishWarnings } from '$lib/utils/eventMissing.js';
+	import { eventHref } from '$lib/admin/nav.js';
+	import { focusField, isProblem, scheduleField } from '$lib/admin/formProblems.js';
+	import FormProblems from '$lib/components/admin/event-form/FormProblems.svelte';
 	import { eventLinkProblem } from '$lib/utils/eventLink.js';
 	import { enhance, applyAction, deserialize } from '$app/forms';
 	import { tick } from 'svelte';
@@ -243,37 +250,44 @@
 	$: linkProblem = values.link?.trim() ? eventLinkProblem(values.link.trim()) : null;
 	$: linkError = linkProblem ? `Link de inscripción: ${linkProblem}.` : '';
 
-	$: problems = /** @type {string[]} */ (
-		[
-			!values.title.trim() && 'Falta el título.',
-			...scheduleProblems(values),
-			!slug && isValidDate(values.startDate) && 'Falta la dirección de la página.',
-			slugProblem,
-			serverSlugError,
-			mapError,
-			linkError,
-			...tagErrors,
-			...peopleErrors,
-			...ticketsCheck.errors.map((e) => `Entradas: ${e}`)
-		].filter(Boolean)
-	);
+	// Cada problema con su campo: el resumen linkea a cada uno y el primero recibe el foco.
+	/** @type {import('$lib/admin/formProblems.js').Problem[]} */
+	let problemItems = [];
+	$: problemItems = /** @type {unknown[]} */ ([
+		!values.title.trim() && { text: 'Falta el título.', field: 'ev-title' },
+		...scheduleProblems(values).map((text) => ({ text, field: scheduleField(text) })),
+		!slug &&
+			isValidDate(values.startDate) && {
+				text: 'Falta la dirección de la página.',
+				field: 'ev-slug'
+			},
+		slugProblem && { text: slugProblem, field: 'ev-slug' },
+		serverSlugError && { text: serverSlugError, field: 'ev-slug' },
+		mapError && { text: mapError, field: 'ev-location-map' },
+		linkError && { text: linkError, field: 'ev-link' },
+		...tagErrors.map((text) => ({ text, field: 'ev-tags' })),
+		...peopleErrors.map((text) => ({ text, field: 'ev-authors' })),
+		...ticketsCheck.errors.map((e) => ({ text: `Entradas: ${e}`, field: 'ev-tickets' }))
+	]).filter(isProblem);
+	$: problems = problemItems.map((p) => p.text);
 
-	$: generated = build(values, featuredMode, problems.length, tickets);
+	$: generated = build(values, featuredMode, problems.length, tickets, venue.venueId != null);
 	/**
 	 * @param {typeof values} v
 	 * @param {'keep'|'library'|'none'} mode con una imagen de la biblioteca, el archivo no lleva
 	 *   `featured` (la imagen es el edge `portada`)
 	 * @param {number} nProblems
 	 * @param {typeof tickets} tk
+	 * @param {boolean} hasVenue con un lugar elegido, la venta es presencial (escribe `puerta`)
 	 */
-	function build(v, mode, nProblems, tk) {
+	function build(v, mode, nProblems, tk, hasVenue) {
 		if (nProblems) return { md: '', error: '' };
 		try {
 			const md = buildEventMarkdown(sourceRaw, {
 				...v,
 				featuredMode: mode === 'keep' && !sourceImage ? 'keep' : 'none'
 			});
-			return { md: applyTicketsToMarkdown(md, tk, initialTickets), error: '' };
+			return { md: applyTicketsToMarkdown(md, tk, initialTickets, { hasVenue }), error: '' };
 		} catch (e) {
 			return { md: '', error: e instanceof Error ? e.message : String(e) };
 		}
@@ -299,6 +313,30 @@
 		};
 	}
 
+	// «Lugar» de la revisión, sin lugar de la lista: lo que va a mostrar la página («Online» solo
+	// si el evento es online; sin nada, «—»).
+	$: reviewPlace = eventPlace({
+		location: values.location,
+		location_name: values.location_name,
+		tags: splitList(values.tags),
+		modalidad: tickets.enabled ? tickets.modalidad : ''
+	}).text;
+
+	// «Revisar antes de publicar»: los avisos de «Qué falta» de la agenda (no bloquean).
+	$: reviewWarnings = publishWarnings({
+		image: featuredMode !== 'none',
+		summary: values.summary ?? '',
+		location: values.location ?? '',
+		locationName: values.location_name ?? '',
+		tags: splitList(values.tags),
+		modalidad: tickets.enabled ? tickets.modalidad : '',
+		authors: splitList(values.authors),
+		link: values.link ?? '',
+		tickets: tickets.enabled && tickets.types.length > 0,
+		status: values.status,
+		venue: venue.venueId != null
+	});
+
 	/* ---------- steps ---------- */
 	/** @type {'editar'|'revisar'} */
 	let step = 'editar';
@@ -316,7 +354,11 @@
 		checkError = '';
 		if (problems.length || generated.error) {
 			await tick();
-			document.querySelector('.problems')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			// Al primer campo que falta (con el foco); si no se encuentra, al resumen.
+			if (!focusField(problemItems[0]?.field ?? ''))
+				document
+					.querySelector('.problems')
+					?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 			return;
 		}
 		checking = true;
@@ -511,7 +553,7 @@
 					<p class="note" id="done-venue">📍 El lugar quedó elegido para el evento.</p>
 				{/if}
 				{#each form.warnings ?? [] as warning}
-					<p class="warning">⚠️ {warning}</p>
+					<Notice tone="warn">{warning}</Notice>
 				{/each}
 				{#if form.savedToDb}
 					<p class="small">
@@ -535,8 +577,19 @@
 								? ', '
 								: ''}{/each}
 					</p>{/if}
+				{#if form.savedToDb && form.slug}
+					<p class="buttons" id="done-next">
+						<a class="button" href={eventHref(form.slug)}>Abrir el evento</a>
+						<a class="button secondary" href={eventHref(form.slug, 'editar')}>Seguir editando</a>
+					</p>
+				{/if}
 				<p class="buttons">
-					<a class="button" href="/admin/eventos/nuevo" data-sveltekit-reload>Cargar otro evento</a>
+					<a
+						class="button"
+						class:secondary={form.savedToDb && form.slug}
+						href="/admin/eventos/nuevo"
+						data-sveltekit-reload>Cargar otro evento</a
+					>
 					<a
 						class="button secondary"
 						href="/admin/eventos/nuevo?desde={form.slug}"
@@ -587,7 +640,9 @@
 					{#if seriesPrompt}
 						<input type="hidden" name="seriesChoice" value={seriesChoice} />
 						<fieldset class="card series-prompt">
-							<legend>🔁 ¿Es parte de una serie?</legend>
+							<legend class="with-icon"
+								><Repeat size="1em" aria-hidden="true" /> ¿Es parte de una serie?</legend
+							>
 							<p class="hint">
 								El evento original no está en ninguna serie. Si se repite, ponelo en una: así se
 								numeran las ediciones y la gente puede pedir aviso.
@@ -648,7 +703,6 @@
 					/>
 
 					<DatosSection
-						legend="📝 Datos del evento"
 						fields={datosShown}
 						idFor={datosFieldId('nuevo')}
 						errors={linkError ? { link: linkError } : {}}
@@ -682,7 +736,7 @@
 					/>
 
 					<fieldset class="card" id="sec-direccion">
-						<legend>🔗 Dirección de la página</legend>
+						<SectionHeading section="direccion" />
 						<label class="field">
 							<span>Así va a quedar el link del evento</span>
 							<div class="slug">
@@ -733,8 +787,11 @@
 						bind:state={tickets}
 						tags={splitList(values.tags)}
 						location={values.location}
+						locationName={values.location_name}
+						hasVenue={venue.venueId != null}
 						transferReady={data.transferReady}
-						errors={showProblems ? ticketsCheck.errors : []}
+						errors={ticketsCheck.errors}
+						showErrors={showProblems}
 						warnings={ticketsCheck.warnings}
 						idPrefix="ev"
 					/>
@@ -756,7 +813,7 @@
 						>
 					{/if}
 
-					<BodySection bind:value={values.body} legend="📄 Texto largo de la página" id="ev-body">
+					<BodySection bind:value={values.body} id="ev-body">
 						<svelte:fragment slot="hint"
 							>Opcional. Se muestra al entrar al evento. Formato: <code>## Título</code>,
 							<code>- lista</code>, <code>**negrita**</code>.</svelte:fragment
@@ -764,13 +821,12 @@
 					</BodySection>
 
 					{#if showProblems && (problems.length || generated.error)}
-						<div class="problems" role="alert">
-							<strong>Falta completar:</strong>
-							<ul>
-								{#each problems as p}<li>{p}</li>{/each}
-								{#if generated.error}<li>{generated.error}</li>{/if}
-							</ul>
-						</div>
+						<!-- Cada problema lleva a su campo (los campos con problema llevan aria-invalid). -->
+						<FormProblems
+							problems={generated.error
+								? [...problemItems, { text: generated.error, field: '' }]
+								: problemItems}
+						/>
 					{/if}
 					{#if checkError}<p class="error check-error">{checkError}</p>{/if}
 
@@ -788,6 +844,19 @@
 				<!-- ======================= STEP 2 ======================= -->
 				<div class="step" hidden={step !== 'revisar'}>
 					{#if publishError}<p class="error" role="alert">{publishError}</p>{/if}
+					{#if reviewWarnings.length}
+						<div class="review-warnings">
+							<Notice tone="warn" compact id="review-warnings">
+								<strong>Antes de publicar, fijate:</strong>
+								<ul>
+									{#each reviewWarnings as w (w.id + w.label)}
+										<li><strong>{w.label}:</strong> {w.detail}</li>
+									{/each}
+								</ul>
+								<p class="small">Son avisos: podés publicar igual o volver a editar.</p>
+							</Notice>
+						</div>
+					{/if}
 					<p class="hint">Así se va a ver en la lista de eventos:</p>
 					{#if previewPost}
 						<div class="card-preview" aria-hidden="true">
@@ -808,7 +877,7 @@
 							{#if venueChoiceText(venue, venues)}
 								{venueChoiceText(venue, venues)}
 							{:else}
-								{[values.location_name, values.location].filter(Boolean).join(' — ') || 'Online'}
+								{reviewPlace || '—'}
 								{#if values.location_map && !mapError}· con link al mapa{/if}
 							{/if}
 						</dd>
@@ -900,6 +969,26 @@
 </main>
 
 <style lang="scss">
+	.review-warnings {
+		margin-bottom: var(--space-s);
+		:global(ul) {
+			margin: var(--space-3xs) 0;
+			padding-left: 1.2em;
+		}
+		:global(p) {
+			margin: 0;
+		}
+	}
+	/* ícono de Lucide en el título, como los de las secciones (SectionHeading) */
+	.series-prompt > .with-icon {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3xs);
+	}
+	.series-prompt > .with-icon > :global(svg) {
+		flex: none;
+		color: var(--muted);
+	}
 	.series-prompt .choices {
 		display: grid;
 		gap: 0.4rem;

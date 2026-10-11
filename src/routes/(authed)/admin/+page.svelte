@@ -1,5 +1,5 @@
 <script>
-	import { argFormat, argDateLog } from '$lib/utils/dates.js';
+	import { argDateLog, argDateLong, argDateParts, argTime } from '$lib/utils/dates.js';
 	/**
 	 * Inicio del panel: saludo, "Hoy" (si hay un evento hoy), acciones rápidas, plata del mes,
 	 * "para revisar", "desde tu última visita" y todos los próximos eventos; en una columna a la
@@ -18,7 +18,7 @@
 	import GoalProgress from '$lib/components/admin/panel/GoalProgress.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
-	import { navItem, navLink, reviewCountOf } from '$lib/admin/nav.js';
+	import { navItem, navLink } from '$lib/admin/nav.js';
 	import { checkinHref, eventLink } from '$lib/admin/links.js';
 	import { formatARS, formatSignedARS } from '$lib/utils/money.js';
 	import {
@@ -26,17 +26,18 @@
 		ArrowLeftRight,
 		Bell,
 		CalendarDays,
+		DatabaseZap,
 		CalendarPlus,
 		Check,
 		ChevronDown,
 		ChevronRight,
 		FilePen,
 		FileSpreadsheet,
-		GitPullRequest,
 		IdCard,
 		ImageOff,
 		Link,
 		Mail,
+		MapPin,
 		ScanLine,
 		History,
 		Inbox,
@@ -48,7 +49,6 @@
 	export let data;
 	export let form;
 
-	const TZ = 'America/Argentina/Buenos_Aires';
 	const REVIEW_ICONS = /** @type {Record<string, any>} */ ({
 		transfer: ArrowLeftRight,
 		alert: TriangleAlert,
@@ -57,43 +57,30 @@
 		bell: Bell,
 		image: ImageOff,
 		draft: FilePen,
-		pr: GitPullRequest,
-		profile: IdCard
+		profile: IdCard,
+		place: MapPin,
+		tag: Tag,
+		import: DatabaseZap
 	});
 
 	$: user = data.user;
 	$: firstName = String(user?.name || user?.login || '').split(/\s+/)[0];
-	$: todayRaw = new Intl.DateTimeFormat('es-AR', {
-		timeZone: TZ,
-		weekday: 'long',
-		day: 'numeric',
-		month: 'long'
-	}).format(data.now);
+	$: todayRaw = `${argDateParts(data.now)?.weekdayLong}, ${argDateLong(data.now, { year: false })}`;
 	$: todayLabel = todayRaw.charAt(0).toUpperCase() + todayRaw.slice(1);
-	$: todoCount = data.todo.length;
-	// La misma cuenta que el botón "Para revisar" de arriba (`reviewCountOf`, de panelCounts): las
-	// filas de la tarjeta agrupan cosas (3 transferencias son una fila) y suman avisos que el
-	// botón no cuenta (sin imagen, borradores…), así que no se cuentan las filas.
-	$: reviewCount = reviewCountOf(data.panelCounts);
+	// Cuántas cosas hay para revisar: las filas de la tarjeta, cada una cuenta 1 (una fila que junta
+	// varias, como «3 transferencias», también). El botón «Para revisar» de arriba cuenta lo mismo:
+	// las dos salen de `reviewRows` (src/lib/server/admin/review.js, decisión 0030).
+	$: reviewCount = data.todo.length;
 	$: checkinItem = navItem('checkin');
 	$: checkinGeneral = checkinItem ? navLink(checkinItem) : null;
 	$: todayEvent = data.todayEvents.find((e) => e.ticketed) ?? data.todayEvents[0];
 	$: checkinQuick = todayEvent?.ticketed ? checkinHref(todayEvent.slug) : checkinGeneral;
 
-	const dayFmt = new Intl.DateTimeFormat('es-AR', { timeZone: TZ, day: 'numeric' });
-	const monFmt = new Intl.DateTimeFormat('es-AR', { timeZone: TZ, month: 'short' });
-	const wdFmt = new Intl.DateTimeFormat('es-AR', { timeZone: TZ, weekday: 'short' });
-	const timeFmt = argFormat({
-		hour: '2-digit',
-		minute: '2-digit'
-	});
-	const shortFmt = new Intl.DateTimeFormat('es-AR', {
-		timeZone: TZ,
-		day: 'numeric',
-		month: 'short'
-	});
-	/** @param {string} iso */
-	const monthDay = (iso) => shortFmt.format(new Date(iso + 'T12:00:00-03:00'));
+	/** «12 sep». @param {string} iso */
+	const monthDay = (iso) => {
+		const p = argDateParts(iso + 'T12:00:00-03:00');
+		return p ? `${p.day} ${p.month}` : '';
+	};
 
 	/** @param {number} ms */
 	function ago(ms) {
@@ -110,6 +97,7 @@
 	 */
 	function statusBadge(e) {
 		if (e.draft) return { tone: 'neutral', text: 'Borrador' };
+		if (e.unlisted) return { tone: 'neutral', text: 'No listado' };
 		switch (e.status) {
 			case 'cancelado':
 				return { tone: 'bad', text: 'Cancelado' };
@@ -162,8 +150,6 @@
 			·
 			{#if reviewCount}
 				<a href="#para-revisar">{plural(reviewCount, 'cosa para revisar', 'cosas para revisar')}</a>
-			{:else if todoCount}
-				<a href="#para-revisar">{plural(todoCount, 'aviso', 'avisos')}</a>
 			{:else}
 				todo al día
 			{/if}
@@ -178,7 +164,7 @@
 			{#each data.todayEvents as e (e.slug)}
 				<section class="today" aria-label="Hoy">
 					<div class="today-text">
-						<small class="kicker">Hoy · {timeFmt.format(new Date(e.start))}</small>
+						<small class="kicker">Hoy · {argTime(e.start)}</small>
 						<h2>{e.title}</h2>
 						{#if e.location}<p class="place">{e.location}</p>{/if}
 						{#if e.ticketed}
@@ -196,7 +182,7 @@
 					{#if e.ticketed}
 						<a class="checkin-big" href={checkinHref(e.slug)}>
 							<ScanLine size={28} aria-hidden="true" />
-							<span>Abrir check-in</span>
+							<span>Abrir Puerta</span>
 						</a>
 					{/if}
 				</section>
@@ -441,11 +427,12 @@
 					<ul class="events">
 						{#each data.upcoming as e (e.slug)}
 							{@const st = statusBadge(e)}
+							{@const db = argDateParts(e.start)}
 							<li>
 								<div class="date" class:is-today={e.today}>
-									<small>{wdFmt.format(new Date(e.start))}</small>
-									<b>{dayFmt.format(new Date(e.start))}</b>
-									<small>{monFmt.format(new Date(e.start))}</small>
+									<small>{db?.weekday ?? ''}</small>
+									<b>{db?.day ?? ''}</b>
+									<small>{db?.month ?? ''}</small>
 								</div>
 								<div class="ev">
 									<div class="ev-head">
@@ -463,9 +450,9 @@
 										{#if !e.hasImage}<Badge tone="neutral">sin imagen</Badge>{/if}
 									</div>
 									<small class="muted"
-										>{timeFmt.format(new Date(e.start))}{e.location
-											? ` · ${e.location}`
-											: ''}{e.online ? ' · online' : ''}</small
+										>{argTime(e.start)}{e.location ? ` · ${e.location}` : ''}{e.online
+											? ' · online'
+											: ''}</small
 									>
 									{#if e.ticketed}
 										{#if e.salesNotYet && !e.sold}

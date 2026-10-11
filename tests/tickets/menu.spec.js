@@ -48,6 +48,30 @@ test('cada link del menú del panel abre su página', async ({ page }) => {
 	expect(broken).toEqual([]);
 });
 
+test('/admin/estadisticas (la única redirección del panel, gorrite 11/10) lleva a Ventas', async ({
+	page
+}) => {
+	await page.goto('/admin/estadisticas?periodo=30d', { waitUntil: 'domcontentloaded' });
+	const landed = new URL(page.url());
+	expect(landed.pathname).toBe('/admin/estadisticas/ventas');
+	expect(landed.searchParams.get('periodo')).toBe('30d');
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ventas en el tiempo');
+	// Las tres pestañas de Estadísticas, con la actual marcada.
+	const tabs = page.getByRole('navigation', { name: 'Secciones de Estadísticas' });
+	await expect(tabs.getByRole('link')).toHaveText([
+		'Ventas en el tiempo',
+		'Asistencia',
+		'Visitas al sitio'
+	]);
+	await expect(tabs.getByRole('link', { name: 'Ventas en el tiempo' })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+	await expect(
+		page.getByRole('navigation', { name: 'Período' }).getByRole('link', { name: '30 días' })
+	).toHaveAttribute('aria-current', 'true');
+});
+
 test('una dirección del panel que no existe da 404 adentro del panel (con el menú)', async ({
 	page
 }) => {

@@ -8,6 +8,8 @@ import { getDB } from '$lib/server/db';
 import { getEventAdmin, getRepoClient } from '$lib/server/eventos';
 import { dbPostsOnlyClient } from '$lib/server/contenido/repo.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { tagDeletionStatement } from '$lib/server/admin/deletions.js';
+import { SERIES_PARENT } from '$lib/utils/series.js';
 import { commitTagEdit, previewOf } from '$lib/server/admin/tagEditor.js';
 import { FileChangedError, PendingChangeError } from '$lib/server/eventos/github.js';
 import { applyDbTagPlan, dbPreviewOf, planDbTagEdit } from './editor.js';
@@ -94,7 +96,14 @@ export async function saveTagOpsToDb(
 	} catch (e) {
 		return { ok: false, status: 400, error: e instanceof Error ? e.message : String(e) };
 	}
-	const { written, errors } = await applyDbTagPlan(db, plan, { actor: login });
+	const series = seriesIdsOf(records);
+	const { written, errors } = await applyDbTagPlan(db, plan, {
+		actor: login,
+		// Lo que se borra queda para «Recuperar» en Actividad (en la misma tanda que el borrado).
+		onDelete: async (tag, now) => [
+			await tagDeletionStatement(db, tag, { login, now, series: series.has(tag.id) })
+		]
+	});
 	clearTagSourceCache();
 	if (written) {
 		await logAdminAction(db, locals, {
@@ -122,6 +131,34 @@ export async function saveTagOpsToDb(
 		};
 	}
 	return { ok: true, written, summary: plan.summary };
+}
+
+/**
+ * Las etiquetas que son series: hijas o nietas (sin límite) de «evento recurrente», sin los
+ * alias (como `seriesTagIds` de $lib/utils/series.js, pero sobre los registros de la base).
+ * @param {readonly StoredTag[]} records
+ * @returns {Set<number>}
+ */
+export function seriesIdsOf(records) {
+	const byKey = new Map(records.map((r) => [r.key, r]));
+	/** @type {Set<number>} */
+	const out = new Set();
+	for (const r of records) {
+		if (r.aliasOf) continue;
+		const seen = new Set([r.key]);
+		const stack = r.parents.map((p) => p.key);
+		while (stack.length) {
+			const k = /** @type {string} */ (stack.pop());
+			if (k === SERIES_PARENT) {
+				out.add(r.id);
+				break;
+			}
+			if (seen.has(k)) continue;
+			seen.add(k);
+			stack.push(...(byKey.get(k)?.parents.map((p) => p.key) ?? []));
+		}
+	}
+	return out;
 }
 
 /**

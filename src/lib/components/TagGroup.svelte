@@ -1,5 +1,5 @@
 <script>
-	import Tag from './Tag.svelte';
+	import TagChip from './ui/TagChip.svelte';
 	import { tagManager, visibleTags } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
@@ -24,6 +24,8 @@
 			false
 		);
 	}
+	// Las etiquetas tildadas salen de la URL (`?tags=a,b`), como antes.
+	$: filtered = ($page.url.searchParams.get('tags') ?? '').split(',').filter(Boolean);
 	let mounted = false;
 	onMount(() => (mounted = true));
 	let noname =
@@ -33,23 +35,23 @@
 
 <div
 	class="filtergroup"
-	style:--tag-color={tag.getColor() ?? 'inherit'}
+	style:--tag-color={tag.getColor() ?? 'var(--1)'}
 	class:noname
 	class:nested
 	class:gap
 >
 	{#if tag.id && !noname}
 		<span class="groupname">
-			<Tag
-				tag={tag.visible_name + (tag.children && tag.children.length > 0 ? ' »' : '')}
-				icon={tag.icon ?? ''}
+			<!-- Chip compartido (TagChip como casilla, docs/estilo.md, «Chip de etiqueta»). -->
+			<TagChip
+				tag={tag.id}
 				name={tag.id}
-				noBorder
-				isCheckbox
-				onInput={(/** @type {{ target: HTMLInputElement; }} */ evt) => onInput(evt, tag.id)}
-				checked={$page.url.searchParams.has('tags') &&
-					$page.url.searchParams.get('tags')?.split(',').includes(tag.id)}
-			/>
+				checkbox
+				selected={filtered.includes(tag.id)}
+				on:change={(evt) => onInput(/** @type {*} */ (evt), tag.id)}
+				>{#if tag.children && tag.children.length > 0}<span aria-hidden="true">»</span
+					>{/if}</TagChip
+			>
 		</span>
 	{/if}
 	{#if tag.children && tag.children.length > 0 && tag.children.some(isVisible)}
@@ -59,27 +61,16 @@
 				<li>
 					{#if !subTag?.children || subTag.children.length == 0}
 						{#if mounted}
-							<Tag
-								onInput={(/** @type {{ target: HTMLInputElement; }} */ evt) =>
-									onInput(evt, subTag?.id ?? item)}
-								tag={item}
-								icon={subTag.icon ?? ''}
-								isCheckbox
-								checked={$page.url.searchParams.has('tags') &&
-									$page.url.searchParams.get('tags')?.split(',').includes(item)}
-								noBorder
-								--off-background="color-mix(in srgb, white 35%, transparent)"
-								--text-color="color-mix(in srgb, black 25%, var(--tag-color))"
+							<TagChip
+								tag={subTag?.id ?? item}
+								name={subTag?.id ?? item}
+								checkbox
+								selected={filtered.includes(item)}
+								on:change={(evt) => onInput(/** @type {*} */ (evt), subTag?.id ?? item)}
 							/>
 						{:else}
-							<Tag
-								tag={item}
-								icon={subTag.icon ?? ''}
-								--filled-text-color="var(--text-color, var(--tag-color))"
-								--filled-outline="none"
-								--filled-outline-offset="0"
-								--fill-color="transparent"
-							/>
+							<!-- Antes de hidratar: el chip sin casilla (se ve igual, todavía no filtra). -->
+							<TagChip tag={subTag?.id ?? item} />
 						{/if}
 					{:else if subTag}
 						<svelte:self tag={subTag} />
@@ -90,111 +81,74 @@
 	{/if}
 </div>
 
-<style langs="scss">
+<style>
+	/* Cada chip es el compartido (TagChip, `.kv-tag`): acá solo va cómo se ordenan. Una madre
+	   tildada abre sus hijas debajo, con una línea en su color a la izquierda. */
 	.filtergroup {
 		display: flex;
-		border-radius: 0.3em;
 		flex-direction: column;
+		align-items: flex-start;
 		min-width: 0;
-		align-items: stretch;
-		--border-radius: 0.3em;
-		/* colors only: animating everything also animated margins, so checking a tag
-		   made the tree (and the list's anchoring) drift for 100ms */
-		transition-property: background-color, outline-color, box-shadow;
-		transition-duration: 100ms;
-		justify-content: center;
-		flex-wrap: wrap;
-		width: 100%;
-		/* texto y relleno (elegida) en el color de la etiqueta oscurecido, para que se lea sobre
-		   blanco y con texto blanco encima (docs/estilo.md, «Chip de etiqueta») */
-		--text-color: color-mix(in srgb, var(--tag-color) 75%, black);
-		--fill-color: color-mix(in srgb, var(--tag-color) 75%, black);
-		--faded-color: color-mix(in srgb, var(--tag-color) 2%, white);
-		background: var(--faded-color);
+		max-width: 100%;
 	}
-	/* The checkbox lives in the child <Tag> component. Svelte 5 scopes selectors inside :has(),
-	   so the inner part has to be :global() to keep matching it (Svelte 4 left it unscoped). */
-	.filtergroup:has(> .groupname :global(:checked)) {
-		outline: 3px solid var(--tag-color);
-		background: color-mix(in srgb, white 60%, transparent);
-	}
-	:global(.filtergroup:has(li)),
-	:global(.filtergroup:has(span)) {
-		box-shadow: -2px 0 var(--tag-color);
-		outline: 1px solid color-mix(in srgb, var(--tag-color) 10%, transparent);
-	}
-	.filtergroup.nested {
-		outline-color: var(--tag-color);
-	}
-
-	:global(.filterbar > .filtergroup) {
-		outline: 2px solid var(--tag-color);
-		/* box-shadow: 0 0 0em -0em rgba(0, 0, 0, 0.3); */
-	}
-
-	:global(.filterbar .groupitems:has(li)) {
-		margin: 0;
-		opacity: 1;
+	.groupname {
+		display: flex;
+		max-width: 100%;
 	}
 	ul {
-		justify-content: center;
-		flex-wrap: wrap;
+		margin: 0;
 		padding: 0;
 		max-width: 100%;
 	}
+	/* Cada chip conserva su forma de píldora de una línea: no se estira al alto de la fila (si al
+	   lado hay un grupo abierto) ni se achica para partir el texto. Pasa entero a la fila de abajo;
+	   el texto solo se parte si el chip solo ya no entra en el ancho. */
 	li {
 		list-style: none;
-		/* text-align: center; */
 		display: flex;
-		align-items: stretch;
-		/* height: 0; */
+		align-items: flex-start;
+		flex: none;
+		max-width: 100%;
 	}
-	:global(.filtergroup .groupitems li:has(li)),
-	:global(.filtergroup .groupitems li:has(label)) {
-		height: unset;
+	li :global(.kv-tag) {
+		white-space: normal;
 	}
-
-	.groupname {
-		display: flex;
-		justify-content: stretch;
-		flex: 1 1;
-		/* text-align: center; */
-	}
-	:global(.groupname:has(:checked)) {
-		--border-radius: 0.3em 0.3em 0 0;
+	/* Una hija con sus propias hijas abiertas (ella o alguna de abajo tildada) ocupa la fila
+	   entera: su chip arriba y sus hijas debajo, con sangría y la línea de color, igual debajo de
+	   cada madre (una etiqueta puede estar en dos ramas, p. ej. bondage e implementos). Así no
+	   deja a las vecinas desparejas ni parece que sus hijas son de la madre de arriba. El grupo de
+	   adentro es otro TagGroup (svelte:self): Svelte no lo ve, por eso va en :global(). */
+	li:has(> :global(.filtergroup :checked)) {
+		flex-basis: 100%;
 	}
 	.groupitems {
-		flex-direction: column;
-		row-gap: 1px;
-		column-gap: 0.6em;
-		justify-content: stretch;
-	}
-	:global(.groupitems) {
 		display: none;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		gap: var(--space-3xs);
+		margin-block-start: var(--space-3xs);
+		padding-inline-start: var(--space-2xs);
+		border-inline-start: 2px solid var(--tag-color);
 	}
+	/* The checkboxes live in the child <TagChip>. Svelte 5 scopes selectors inside :has(), so the
+	   inner part has to be :global() to keep matching it. */
 	.groupname:has(:global(:checked)) + .groupitems,
-	.groupname:has(:global(span)) + .groupitems,
-	:global(.groupitems:has(:checked)) {
-		display: flex;
-	}
-	:global(.filtergroup:has(:checked)),
-	.filtergroup.noname {
-		margin-block: 0.5em;
-	}
-	.filtergroup.gap {
-		margin-block-end: 0;
-		margin-inline-end: 0.5em;
-	}
+	.groupitems:has(:global(:checked)),
 	.noname > .groupitems {
 		display: flex;
 	}
+	.noname > .groupitems {
+		margin-block-start: 0;
+		padding-inline-start: 0;
+		border-inline-start: 0;
+	}
+	.filtergroup.gap {
+		margin-inline-end: var(--space-2xs);
+	}
 	@container (min-width: 1300px) {
-		.groupname {
-			width: 100%;
-		}
 		.filtergroup.gap {
-			margin-block-end: 0.5em;
 			margin-inline-end: 0;
+			margin-block-end: var(--space-2xs);
 		}
 	}
 </style>

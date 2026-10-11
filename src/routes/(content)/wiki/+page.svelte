@@ -1,6 +1,8 @@
 <script>
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
-	import { wikiTagManager, query } from '$lib/utils/stores';
+	import { wikiTagManager, query, searchOpen } from '$lib/utils/stores';
+	import { SearchX } from '@lucide/svelte';
+	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import { goto } from '$app/navigation';
 	import { freshSiteTags } from '$lib/utils/siteTags.js';
 	import SeriesGrid from '$lib/components/series/SeriesGrid.svelte';
@@ -86,6 +88,9 @@
 					disabled: true
 				}
 			: null;
+	// Sin nada que coincida con lo escrito, en vez de una página vacía: EmptyState y el buscador
+	// de todo el sitio.
+	$: noResults = Boolean($query?.trim()) && wikiSections($wikiTagManager).length === 0;
 	/** Elegir una sugerencia lleva a su página (no queda como chip). */
 	const pick = (/** @type {string[]} */ values, /** @type {string} */ href) => {
 		if (href) goto(href);
@@ -124,11 +129,13 @@
 		<nav class="sections" aria-label="Secciones de la Kinkipedia">
 			<ul>
 				{#if data.series?.length}
-					<li><a href="#series"><span aria-hidden="true">🔁</span> Series</a></li>
+					<li>
+						<a class="tap-target" href="#series"><span aria-hidden="true">🔁</span> Series</a>
+					</li>
 				{/if}
 				{#each sections as sec (sec.id)}
 					<li>
-						<a href={sec.anchor}
+						<a class="tap-target" href={sec.anchor}
 							>{#if sec.icon}<span aria-hidden="true">{sec.icon}</span>
 							{/if}{sec.name}</a
 						>
@@ -138,6 +145,17 @@
 		</nav>
 	{/if}
 
+	{#if noResults}
+		<EmptyState
+			icon={SearchX}
+			title="No encontramos «{$query.trim()}» en la Kinkipedia"
+			text="Probá con otra palabra, o buscalo en todo el sitio: eventos, material y amigues."
+		>
+			<button type="button" class="pill-btn ghost" on:click={() => searchOpen.set(true)}
+				>Buscar en todo el sitio</button
+			>
+		</EmptyState>
+	{/if}
 	<dl>
 		{#key $wikiTagManager}
 			<GlosarioTree />

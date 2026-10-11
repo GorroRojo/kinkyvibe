@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Sección «📍 Lugar» del formulario de eventos (crear y editar): elegir un lugar (perfil de tipo
+	 * Sección «Lugar» del formulario de eventos (crear y editar): elegir un lugar (perfil de tipo
 	 * lugar) y qué se muestra de su dirección en este evento, o escribir el «Dónde» en texto libre.
 	 * Como en las páginas públicas, un lugar elegido manda sobre el texto libre: con un lugar, el
 	 * texto queda plegado («Usar texto libre en vez de un lugar»).
@@ -21,6 +21,8 @@
 	 *   pasarla, `?/editarLugar`). Va por su cuenta (fetch): no manda el formulario del evento ni
 	 *   pierde lo que no se guardó.
 	 */
+	import Notice from '$lib/components/ui/Notice.svelte';
+	import SectionHeading from './SectionHeading.svelte';
 	import { deserialize } from '$app/forms';
 	import { tick } from 'svelte';
 	import { Pencil, Plus, Replace, Undo2, X } from '@lucide/svelte';
@@ -222,7 +224,7 @@
 </script>
 
 <fieldset class="card place" id="sec-lugar">
-	<legend>📍 Lugar</legend>
+	<SectionHeading section="lugar" />
 
 	{#if picker}
 		{#if chosen}
@@ -303,19 +305,19 @@
 				</div>
 			</div>
 			{#if mdAddressShows}
-				<p class="warning">
-					⚠️ El «Dónde» en texto libre tiene una dirección escrita y el archivo es público (el repo
-					es público), aunque la página muestre el lugar según su privacidad. Si el lugar no quiere
-					la dirección pública, borrala de abajo.
-				</p>
+				<Notice tone="warn" compact>
+					El «Dónde» en texto libre tiene una dirección escrita y el archivo es público (el repo es
+					público), aunque la página muestre el lugar según su privacidad. Si el lugar no quiere la
+					dirección pública, borrala de abajo.
+				</Notice>
 			{/if}
 		{:else if missing}
-			<p class="warning" id="{idPrefix}-venue-missing">
-				⚠️ El lugar elegido ya no existe.
+			<Notice tone="warn" compact id="{idPrefix}-venue-missing">
+				El lugar elegido ya no existe.
 				<button type="button" class="kv-link" on:click={unlink}
 					><X size={16} aria-hidden="true" /> Sacar lugar</button
 				>
-			</p>
+			</Notice>
 		{/if}
 
 		{#if searching}

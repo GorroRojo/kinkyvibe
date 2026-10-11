@@ -35,8 +35,8 @@ export const FOLLOW_OPTIONS = Object.freeze(
 /** @typedef {{ telegram_nuevo: boolean, telegram_recordatorio: boolean }} TelegramOptions */
 
 /**
- * Lo que queda prendido al tocar «Seguir» (Decidido por Claude, a confirmar con gorrite): sus
- * eventos en el calendario y un mail cuando se anuncia algo nuevo; el recordatorio, apagado.
+ * Lo que queda prendido al tocar «Seguir» (confirmado por gorrite, 5/10): sus eventos en el
+ * calendario y un mail cuando se anuncia algo nuevo; el recordatorio, apagado.
  *
  * @type {Readonly<FollowOptions>}
  */

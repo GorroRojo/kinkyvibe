@@ -22,7 +22,7 @@
  * repo) cuando no tiene una de la biblioteca; una imagen compartida (`src/lib/assets`) sí.
  */
 import { parseDocument } from 'yaml';
-import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
+import eventTemplate from '$lib/admin/plantillas/evento.md?raw';
 import { allDbEventObjects, bodyHtmlFor, findDbPost } from '$lib/server/contenido/repo.js';
 import { EVENT_CATEGORY, EVENT_TYPE, eventToMeta } from '$lib/server/contenido/eventos.js';
 import { markdownToPost } from '$lib/server/contenido/markdown.js';

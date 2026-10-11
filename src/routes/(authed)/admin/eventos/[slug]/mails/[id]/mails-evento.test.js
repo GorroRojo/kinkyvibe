@@ -1,6 +1,7 @@
 /**
  * Plantillas de mails de un evento (pestaña "Plantillas de mails" de la ficha): solo admins,
- * valida (nada de HTML), guarda solo lo que cambia, "volver a la plantilla general" borra, y la
+ * valida (nada de HTML), guarda solo lo que cambia, "volver a la plantilla general" borra (con
+ * copia para «Recuperar» en Actividad), y la
  * vista previa muestra lo junto (evento → general → código) con el evento de verdad.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,6 +11,7 @@ import { getEventTemplateOverride, saveTemplateOverride } from '$lib/server/tick
 import { runImport } from '$lib/server/contenido/importer.js';
 import { setContentDB } from '$lib/server/contenido/repo.js';
 import { actions, load } from './+page.server.js';
+import { actions as activityActions } from '../../../../ajustes/actividad/+page.server.js';
 import { POST } from './vista-previa/+server.js';
 
 // Evento de prueba del repo que vende entradas (solo en dev/tests, nunca en el sitio publicado),
@@ -137,6 +139,43 @@ describe('plantillas de mails de un evento', () => {
 		const r = /** @type {any} */ (await actions.reset(event({ action: 'reset' })));
 		expect(r).toMatchObject({ ok: true, reset: true });
 		expect(await getEventTemplateOverride(t.db, EVENT, 'reminder')).toBeNull();
+	});
+
+	it('lo que se sacó queda en «Recuperar» de Actividad y vuelve igual', async () => {
+		await actions.save(event({ form: { button: 'Mis entradas', help: 'Traé agua' } }));
+		const r = /** @type {any} */ (await actions.reset(event({ action: 'reset' })));
+		expect(r.message).toMatch(/se recupera desde Ajustes › Actividad/);
+		const row = /** @type {any} */ (
+			await t.db
+				.prepare("SELECT id, kind, slug, title, path FROM panel_deletions WHERE status = 'borrado'")
+				.first()
+		);
+		expect(row).toMatchObject({
+			kind: 'calendario',
+			slug: EVENT,
+			path: `plantilla:${EVENT}:reminder`
+		});
+		expect(row.title).toMatch(/^Mail «.+» de /);
+
+		const body = new FormData();
+		body.set('id', String(row.id));
+		const url = new URL('https://kinkyvibe.ar/admin/ajustes/actividad');
+		const undone = /** @type {any} */ (
+			await activityActions.recuperar(
+				/** @type {any} */ ({
+					locals: { user: ADMIN, user_token: 't' },
+					url,
+					params: {},
+					platform: t.platform,
+					request: new Request(`${url.href}?/recuperar`, { method: 'POST', body })
+				})
+			)
+		);
+		expect(undone.undone).toMatchObject({ mode: 'restored', immediate: true });
+		expect(await getEventTemplateOverride(t.db, EVENT, 'reminder')).toEqual({
+			button: 'Mis entradas',
+			help: 'Traé agua'
+		});
 	});
 
 	it('lo heredado y la vista previa usan la plantilla general', async () => {

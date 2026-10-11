@@ -2,21 +2,10 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
 	import CalendarSubscribe from '$lib/components/series/CalendarSubscribe.svelte';
-	import { TIMEZONE } from '$lib/utils/dates.js';
+	import { argDateLong } from '$lib/utils/dates.js';
 
 	export let data;
 	export let form;
-
-	/** @param {number | null} d */
-	const fmtDate = (d) =>
-		d == null
-			? ''
-			: new Date(d).toLocaleDateString('es-AR', {
-					timeZone: TIMEZONE,
-					day: 'numeric',
-					month: 'long',
-					year: 'numeric'
-				});
 
 	$: newPath = form?.action === 'crear' ? form.path : '';
 </script>
@@ -68,8 +57,8 @@
 			{/if}
 			{#if data.feed && !newPath}
 				<p>
-					Tenés un link activo desde el {fmtDate(data.feed.createdAt)}{data.feed.lastUsedAt
-						? `; tu calendario lo usó por última vez el ${fmtDate(data.feed.lastUsedAt)}`
+					Tenés un link activo desde el {argDateLong(data.feed.createdAt)}{data.feed.lastUsedAt
+						? `; tu calendario lo usó por última vez el ${argDateLong(data.feed.lastUsedAt)}`
 						: ''}.
 				</p>
 			{/if}

@@ -22,6 +22,10 @@
 	import PlaceSection from '$lib/components/admin/event-form/PlaceSection.svelte';
 	import ScheduleSection from '$lib/components/admin/event-form/ScheduleSection.svelte';
 	import TagsSection from '$lib/components/admin/event-form/TagsSection.svelte';
+	import Notice from '$lib/components/ui/Notice.svelte';
+	import FormProblems from '$lib/components/admin/event-form/FormProblems.svelte';
+	import { focusField, isProblem, scheduleField } from '$lib/admin/formProblems.js';
+	import { ONLINE_MISMATCH_TEXT, onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
 	import { draftKey } from '$lib/admin/draft.js';
 	import { formSections } from '$lib/admin/eventForm.js';
 	import {
@@ -115,10 +119,10 @@
 
 	/** @typedef {import('$lib/admin/postFields.js').Field} Field */
 	// Todos los campos (para armar el archivo) y los que se muestran en «Datos»: Empieza y Termina
-	// van en «¿Cuándo es?».
+	// van en «Fecha y hora».
 	const fields = postFields(category);
 	const shownFields = datosFields('editar', category);
-	// En los eventos, el «Dónde» en texto libre va en «📍 Lugar», junto al lugar elegido.
+	// En los eventos, el «Dónde» en texto libre va en «Lugar», junto al lugar elegido.
 	const { datos: datosShown, place: placeShown } = splitPlaceFields(shownFields, category);
 
 	/* ---------- lugar (eventos): edge `lugar` del evento en la base, no en el archivo ---------- */
@@ -182,6 +186,14 @@
 	let freeTags = isEvent ? split.rest : initialTags;
 	$: tags = isEvent ? joinEventTags({ ...tagRules, rest: freeTags }) : freeTags;
 	$: tagErrors = isEvent ? validateEventTags(tags) : [];
+	// Etiqueta «Online» y además un lugar (elegido o en texto libre): solo avisa, no bloquea
+	// guardar ($lib/utils/onlineTagMismatch.js).
+	$: onlineMismatch =
+		isEvent &&
+		onlineTagMismatch(
+			{ tags, location: values.location, location_name: values.location_name },
+			{ hasVenue: venue.venueId != null }
+		);
 
 	const hasAuthors = category !== 'amigues';
 
@@ -230,6 +242,10 @@
 			? validateTicketsForm(initialTickets, { sales: data.sales ?? undefined }).errors
 			: [];
 	$: newTicketErrors = ticketsCheck.errors.filter((e) => !initialTicketErrors.includes(e));
+	// Los errores de entradas se muestran al salir de un campo o al tocar Guardar, no apenas se
+	// prende la venta (TicketsEditor).
+	let ticketsTouched = false;
+	$: hiddenTicketErrors = ticketsTouched ? [] : newTicketErrors;
 
 	/* ---------- image (events only) ---------- */
 	// El selector de imágenes (docs/imagenes.md): la imagen elegida va como edge `portada` en el
@@ -240,23 +256,34 @@
 	let imageTouched = false;
 
 	/* ---------- result ---------- */
+	// Cada problema con su campo: «Antes de guardar» linkea a cada uno (formProblems.js), como al
+	// crear un evento.
+	const fieldId = datosFieldId('editar');
+	/** @type {import('$lib/admin/formProblems.js').Problem[]} */
+	let problems = [];
 	$: problems = parseError
 		? []
-		: /** @type {string[]} */ (
-				[
-					...shownFields
-						.filter((f) => f.required && !values[f.key])
-						.map((f) => `Falta «${f.label}».`),
-					...(isEvent ? scheduleProblems(schedule) : []),
-					mapError,
-					linkError,
-					...tagErrors,
-					...newTicketErrors.map((e) => `Entradas: ${e}`),
-					...newPeopleErrors
-				].filter(Boolean)
-			);
+		: /** @type {unknown[]} */ ([
+				...shownFields
+					.filter((f) => f.required && !values[f.key])
+					.map((f) => ({ text: `Falta «${f.label}».`, field: fieldId(f.key) })),
+				...(isEvent ? scheduleProblems(schedule) : []).map((text) => ({
+					text,
+					field: scheduleField(text, 'edit')
+				})),
+				mapError && { text: mapError, field: fieldId('location_map') },
+				linkError && { text: linkError, field: fieldId('link') },
+				...tagErrors.map((text) => ({ text, field: 'tags-input' })),
+				...(ticketsTouched ? newTicketErrors : []).map((e) => ({
+					text: `Entradas: ${e}`,
+					field: 'edit-tickets'
+				})),
+				...newPeopleErrors.map((text) => ({ text, field: 'authors-input' }))
+			]).filter(isProblem);
 
-	$: content = parseError ? rawText : build(allValues, tags, people, body, imageTouched, tickets);
+	$: content = parseError
+		? rawText
+		: build(allValues, tags, people, body, imageTouched, tickets, venue.venueId != null);
 	/**
 	 * @param {Record<string, any>} v
 	 * @param {string[]} t
@@ -265,8 +292,9 @@
 	 * @param {boolean} [dropFeatured] se eligió o se sacó una imagen en el selector: la vieja del
 	 *   repo (`featured`) se saca (la imagen pasa a ser el edge `portada`)
 	 * @param {typeof tickets} [tk] ticket sales form (events only)
+	 * @param {boolean} [hasVenue] con un lugar elegido, la venta es presencial (escribe `puerta`)
 	 */
-	function build(v, t, ps, b, dropFeatured = false, tk = initialTickets) {
+	function build(v, t, ps, b, dropFeatured = false, tk = initialTickets, hasVenue = false) {
 		/** @type {Record<string, any>} */
 		const changes = {};
 		for (const f of fields) {
@@ -285,7 +313,7 @@
 		if (dropFeatured) changes.featured = REMOVE;
 		try {
 			const md = joinMarkdown(applyFrontmatterChanges(frontmatter, changes), b);
-			return isEvent ? applyTicketsToMarkdown(md, tk, initialTickets) : md;
+			return isEvent ? applyTicketsToMarkdown(md, tk, initialTickets, { hasVenue }) : md;
 		} catch (e) {
 			return '';
 		}
@@ -298,7 +326,10 @@
 				isEvent ? { ...values, ...scheduleToInputs(schedule) } : values,
 				isEvent ? joinEventTags({ ...tagRules, rest: freeTags }) : freeTags,
 				initialPeople,
-				body
+				body,
+				false,
+				initialTickets,
+				savedVenue.venueId != null
 			);
 	// Cambiar solo el «Lugar» también se guarda, por el mismo camino que cualquier cambio: el
 	// archivo va con la fecha de «Actualizado» de hoy (decisión de gorrite), y nada más.
@@ -335,11 +366,27 @@
 			? savedSummary({ savedToDb: form.savedToDb, pr: form.publish })
 			: '';
 
+	/** Lleva a «Antes de guardar» (puede estar arriba o abajo de la barra fija). */
+	function focusProblems() {
+		const box = document.getElementById('save-problems');
+		box?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	}
+
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	function submitSave({ cancel }) {
 		// Un solo envío a la vez (y nada que guardar si está bloqueado).
 		if (saving || !content || problems.length > 0 || !changed) {
 			cancel();
+			return;
+		}
+		if (hiddenTicketErrors.length) {
+			// Guardar con errores de entradas todavía sin mostrar: se muestran y no se guarda (y se
+			// va al primer campo con problema, como al crear un evento).
+			ticketsTouched = true;
+			cancel();
+			tick().then(() => {
+				if (!focusField(problems[0]?.field ?? '')) focusProblems();
+			});
 			return;
 		}
 		saving = true;
@@ -385,6 +432,7 @@
 			category,
 			hasImage: Boolean(image),
 			hasPersonas: hasAuthors,
+			hasPartes: Boolean($$slots.extra) && category === 'calendario',
 			parseError: !!parseError
 		})}
 		draftKey={draftKey(category, postID)}
@@ -473,47 +521,56 @@
 				placeholder={isEvent
 					? 'Buscá una etiqueta: taller, shibari, cine…'
 					: 'Buscá una etiqueta: BDSM, shibari, guía…'}
-			/>
+			>
+				<svelte:fragment slot="before">
+					{#if onlineMismatch}
+						<div class="online-mismatch" id="edit-online-mismatch">
+							<Notice tone="warn">{ONLINE_MISMATCH_TEXT}</Notice>
+						</div>
+					{/if}
+				</svelte:fragment>
+			</TagsSection>
 
 			{#if isEvent}
 				<TicketsEditor
 					bind:state={tickets}
 					{tags}
 					location={values.location}
+					locationName={values.location_name}
+					hasVenue={venue.venueId != null}
 					sales={data.sales}
 					salesUnavailable={data.salesUnavailable}
 					transferReady={data.transferReady ?? null}
 					errors={ticketsCheck.errors}
+					bind:touched={ticketsTouched}
 					warnings={ticketsCheck.warnings}
 					idPrefix="edit"
 				/>
 			{/if}
 
 			<BodySection bind:value={body} />
+
+			<!-- Algo que se guarda por su cuenta (Partes de un taller), en la misma columna. -->
+			<slot name="extra" />
 		{/if}
 
 		{#if problems.length}
-			<div class="problems" role="alert">
-				<strong>Antes de guardar:</strong>
-				<ul>
-					{#each problems as p}<li>{p}</li>{/each}
-				</ul>
-			</div>
+			<FormProblems {problems} title="Antes de guardar:" id="save-problems" />
 		{/if}
 		{#if form?.error}
 			<p class="error" role="alert">{form.error}</p>
 		{/if}
 		{#each form?.warnings ?? [] as warning}
-			<p class="warning" role="alert">⚠️ {warning}</p>
+			<Notice tone="warn">{warning}</Notice>
 		{/each}
 		{#if form?.save}
-			<p class="note" role="status">
-				✅ {form.save}
+			<Notice id="save-result">
+				{form.save}
 				{argDateLog(new Date())}
 				<br />{#if form.savedToDb}Se ve enseguida en el sitio.{:else}<PublishStatus
 						pr={form.publish}
 					/>{/if}
-			</p>
+			</Notice>
 		{/if}
 
 		<FilePreview {content} savesToDb={data.savesToDb} />
@@ -537,7 +594,10 @@
 			{#each Object.entries(venueChoiceFields(venue, venueChanged)) as [name, value] (name)}
 				<input type="hidden" {name} {value} />
 			{/each}
-			{#if problems.length}<small class="blocked">Revisá «Antes de guardar», más arriba.</small
+			{#if problems.length}<small class="blocked"
+					><button type="button" class="link" on:click={focusProblems}
+						>Revisá «Antes de guardar»</button
+					></small
 				>{/if}
 			<SaveStatus {saving} message={savedMessage} />
 			<SaveButton
@@ -555,6 +615,9 @@
 	textarea.raw {
 		font-family: monospace;
 		font-size: var(--step--1);
+	}
+	.online-mismatch {
+		margin-block: var(--space-xs);
 	}
 	.later {
 		display: block;

@@ -8,10 +8,10 @@
 		Heart
 	} from '@lucide/svelte';
 	import { argDate, argDateList, argTime, eventEnd } from '$lib/utils/dates.js';
-	import Tag from './Tag.svelte';
+	import TagChip from './ui/TagChip.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { onMount } from 'svelte';
-	import { tagManager, filteredTags } from '$lib/utils/stores';
+	import { filteredTags } from '$lib/utils/stores';
 	import { ticketCta } from '$lib/utils/ticketCta.js';
 	import { partLabel } from '$lib/utils/partes.js';
 </script>
@@ -187,18 +187,10 @@
 	<div class="tags">
 		<ul class="tagrow">
 			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe' && !$filteredTags.includes(t) /* && !$redundantTags.has(t)*/)] as tag}
-				{@const config = $tagManager.get(tag)}
-				{@const color = config?.getColor() ?? 'var(--color-2,var(--1))'}
-				<li
-					style:--tag-color={color}
-					style:--filled-text-color={'color-mix(in srgb, var(--tag-color) 90%, black)'}
-					style:--filled-outline={'1px solid var(--tag-color)'}
-					style:--fill-color={'color-mix(in srgb, var(--tag-color) 5%, transparent)'}
-					style:--filled-outline-offset={'-2px'}
-					style:--hover-text-decoration={'underline var(--tag-color)'}
-					style:white-space={'nowrap'}
-				>
-					<Tag {tag} icon={config.icon ?? ''} isLink={mounted} />
+				<!-- El chip compartido (TagChip, docs/estilo.md, «Chip de etiqueta»): link recién
+				     después de hidratar, porque es un <a> dentro del <a> de la tarjeta. -->
+				<li>
+					<TagChip {tag} href={mounted ? `/todo?tags=${encodeURIComponent(tag)}` : undefined} />
 				</li>
 			{/each}
 		</ul>
@@ -254,8 +246,9 @@
 		padding: 0;
 		display: flex;
 		font-size: 0.8em;
-		/* padding: 0 0.4em; */
-		overflow-x: scroll;
+		/* en una sola fila, que se desliza de costado (pedido de gorrite, 5/10) */
+		flex-wrap: nowrap;
+		overflow-x: auto;
 		overflow-y: hidden;
 		gap: 0.3em;
 		/* position: absolute; */
@@ -299,12 +292,14 @@
 		/* position: relative; */
 		width: 100%;
 		/* max-width: 900px; */
-		height: 10.5em;
+		/* alto mínimo (no fijo): si las etiquetas no entran en una fila, bajan a otra y la
+		   tarjeta crece, en vez de recortarlas */
+		min-height: 10.5em;
 
 		display: grid;
 		grid-template-areas: 'img title' 'img summary' 'img tags';
 		grid-template-columns: 9em 1fr;
-		grid-template-rows: auto 1fr 2.4em;
+		grid-template-rows: auto 1fr minmax(2.4em, auto);
 		column-gap: 1em;
 		align-items: center;
 
@@ -327,10 +322,10 @@
 		}
 	}
 	.post.calendario {
-		height: 13.5em;
+		min-height: 13.5em;
 	}
 	.post.material {
-		height: 11.5em;
+		min-height: 11.5em;
 	}
 	a h3 {
 		/* display: flex; */
@@ -440,12 +435,20 @@
 		}
 		.post:not(.amigues) {
 			grid-template-areas: 'title title' 'img summary' 'img tags';
-			grid-template-rows: auto 1fr 2em;
+			grid-template-rows: auto 1fr minmax(2em, auto);
+			/* en el celu el botón va en su propia fila, abajo de las etiquetas (al lado las
+			   tapaba) */
 			&:has(.CTA) {
 				grid-template-areas:
-					'title title title'
-					'img summary summary'
-					'img tags cta';
+					'title title'
+					'img summary'
+					'img tags'
+					'img cta';
+				grid-template-rows: auto 1fr minmax(2em, auto) auto;
+				padding-bottom: var(--space-2xs);
+			}
+			.CTA {
+				justify-self: end;
 			}
 			/* &:has(.CTA).noimg {
 				grid-template-areas:

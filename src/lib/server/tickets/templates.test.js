@@ -37,6 +37,51 @@ describe('sin plantilla guardada, los mails no cambian', () => {
 	});
 });
 
+describe('el lugar en los mails (salePlaceText, eventPlace.js)', () => {
+	const order = fixtureOrder();
+	const tickets = fixtureTickets();
+	const base = {
+		order,
+		tickets,
+		typeName: 'General',
+		origin: 'https://kinkyvibe.example',
+		contactEmail: 'c@example.com'
+	};
+	const event = { title: 'Evento', start: '2026-10-10T22:00:00-03:00' };
+
+	it('«Nombre · Dirección», u «Online» si la venta lo trata como online', () => {
+		const place = { location_name: 'Lugar de ejemplo', location: 'Calle Falsa 123' };
+		expect(email.templateVars(order, { ...event, ...place }, 'General').lugar).toBe(
+			'Lugar de ejemplo · Calle Falsa 123'
+		);
+		expect(email.templateVars(order, { ...event, ...place, online: true }, 'General').lugar).toBe(
+			'Online'
+		);
+		const m = email.buildTicketEmail({ ...base, event: { ...event, ...place } });
+		expect(m.text).toContain('Lugar de ejemplo · Calle Falsa 123');
+		const r = email.buildReminderEmail({
+			...base,
+			reminder: { kind: 'hours_before', hours: 3, enabled: true },
+			event: { ...event, online: true }
+		});
+		expect(r.text).toContain('Online');
+	});
+
+	it('el mismo texto en nombre y dirección va una sola vez (antes: «Casa · Casa»)', () => {
+		const same = { ...event, location_name: 'Casa Inventada', location: 'Casa Inventada' };
+		expect(email.templateVars(order, same, 'General').lugar).toBe('Casa Inventada');
+		const m = email.buildTicketEmail({ ...base, event: same });
+		expect(m.text).not.toContain('Casa Inventada · Casa Inventada');
+		const r = email.buildReminderEmail({
+			...base,
+			reminder: { kind: 'hours_before', hours: 3, enabled: true },
+			event: same
+		});
+		expect(r.text).not.toContain('Casa Inventada · Casa Inventada');
+		expect(r.text).toContain('Casa Inventada');
+	});
+});
+
 describe('con plantilla', () => {
 	const order = fixtureOrder();
 	const tickets = fixtureTickets();

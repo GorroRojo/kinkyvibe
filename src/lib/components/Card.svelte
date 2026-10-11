@@ -1,8 +1,9 @@
 <script>
 	import { tagManager } from '$lib/utils/stores';
 	import { onMount } from 'svelte';
-	import Tag from './Tag.svelte';
+	import TagChip from './ui/TagChip.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
+	import { argDateList } from '$lib/utils/dates.js';
 	export let post;
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
@@ -47,17 +48,18 @@
 			</small>
 		{/if}
 	</h3>
+	{#if category == 'calendario' && argDateList(start ?? '')}
+		<!-- la fecha corta de las listas (docs/estilo.md, «Textos») -->
+		<time class="card-date dt-start" datetime={new Date(start ?? '').toISOString()}
+			>{argDateList(start ?? '')}</time
+		>
+	{/if}
 	{#if tags}
 		<ul class="tagrow">
 			{#each removeParents([...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')]) as tag}
-				{@const config = $tagManager.get(tag)}
-				{@const color = config?.getColor() ?? 'var(--color-2,var(--1))'}
-				<li
-					style:--tag-color={color}
-					style:white-space={'nowrap'}
-					style:--hover-text-decoration={'underline white'}
-				>
-					<Tag {tag} icon={config.icon ?? ''} isLink={mounted} />
+				<!-- El chip compartido (TagChip); link recién después de hidratar (un <a> en otro <a>). -->
+				<li>
+					<TagChip {tag} href={mounted ? `/todo?tags=${encodeURIComponent(tag)}` : undefined} />
 				</li>
 			{/each}
 		</ul>
@@ -101,6 +103,14 @@
 		margin: auto auto;
 		padding: 0.5em;
 		text-align: center;
+	}
+	.card-date {
+		margin: -0.3em auto 0.6em;
+		padding-inline: 0.5em;
+		text-align: center;
+		color: var(--muted);
+		font-size: var(--text-sm);
+		font-weight: 700;
 	}
 	.p-pronouns {
 		font-size: 0.6em;
@@ -157,6 +167,7 @@
 		list-style: none;
 		padding: 0;
 		display: flex;
+		gap: var(--space-3xs);
 		font-size: 0.8em;
 		/* padding: 0 0.4em; */
 		overflow-x: scroll;

@@ -1,3 +1,6 @@
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
 	applyNewEventPrefill,
@@ -109,8 +112,15 @@ describe('calendarEvent', () => {
 	it('cancelado y borrador tienen su color', () => {
 		const cancelled = calendarEvent(row({ status: 'cancelado' }), { places: PLACES });
 		expect(cancelled.classNames).toEqual(['kv-ev', 'kv-ev-bad', 'kv-ev-cancelado']);
-		const draft = calendarEvent(row({ force_unlisted: true }), { places: PLACES });
+		// Borrador (con la marca de la agenda): amarillo. Un no listado a propósito ya no se pinta
+		// como borrador: neutro (una sola palabra para cada cosa).
+		const draft = calendarEvent(
+			{ ...row({ force_unlisted: true }), draft: true },
+			{ places: PLACES }
+		);
 		expect(draft.classNames).toEqual(['kv-ev', 'kv-ev-warn']);
+		const unlisted = calendarEvent(row({ force_unlisted: true }), { places: PLACES });
+		expect(unlisted.classNames).toEqual(['kv-ev', 'kv-ev-neutral']);
 	});
 
 	it('una fila movida sin guardar se marca como pendiente (y se puede volver a arrastrar)', () => {
@@ -142,7 +152,8 @@ describe('eventTone', () => {
 		expect(eventTone({ state: 'publicado', status: 'anunciado' })).toBe('info');
 		expect(eventTone({ state: 'cancelado', status: 'abierto' })).toBe('bad');
 		expect(eventTone({ state: 'publicado', status: 'cancelado' })).toBe('info');
-		expect(eventTone({ state: 'no-listado', status: 'abierto' })).toBe('warn');
+		expect(eventTone({ state: 'no-listado', status: 'abierto', draft: true })).toBe('warn');
+		expect(eventTone({ state: 'no-listado', status: 'abierto' })).toBe('neutral');
 		expect(eventTone({ state: 'publicado', status: '' })).toBe('neutral');
 	});
 });
@@ -429,5 +440,50 @@ describe('borradores en el calendario', () => {
 		];
 		expect(draftRows(rows, true).map((r) => r.slug)).toEqual(['borrador']);
 		expect(draftRows(rows, false)).toHaveLength(4);
+	});
+});
+
+describe('@event-calendar/core ≥ 5.16: las fechas ISO con Z (o con offset) se corren de zona', () => {
+	// Desde 5.16 la librería toma una fecha que termina en `Z` como UTC y la corre a la zona del
+	// calendario (la del navegador). Las nuestras van sin zona, así que se ven tal cual: se prueba
+	// con el parser de la propia librería, simulando un navegador en Argentina y otro en Madrid.
+	/** @returns {Promise<(input: any[], offset?: number) => any[]>} */
+	async function libCreateEvents() {
+		const pkg = createRequire(import.meta.url).resolve('@event-calendar/core/package.json');
+		const mod = await import(pathToFileURL(join(dirname(pkg), 'src/lib/events.js')).href);
+		return mod.createEvents;
+	}
+	/** Hora "de pared" que dibuja la librería (guarda los números en los campos UTC). */
+	const wall = (/** @type {Date} */ d) => d.toISOString().slice(0, 16);
+	const ARGENTINA = -180;
+	const MADRID = 120;
+
+	it('un evento de las 21:00 (hora de Argentina) se sigue viendo a las 21:00', async () => {
+		const createEvents = await libCreateEvents();
+		const fromString = calendarEvent(row(), { places: PLACES });
+		// El frontmatter puede llegar como Date (YAML lee los timestamps): tiene que dar lo mismo.
+		const fromDate = calendarEvent(
+			row({
+				start: new Date('2026-12-12T21:00-03:00'),
+				end: new Date('2026-12-13T02:00-03:00')
+			}),
+			{ places: PLACES }
+		);
+		for (const ev of [fromString, fromDate]) {
+			expect(ev.start).not.toMatch(/(?:Z|[+-]\d{2}:?\d{2})$/);
+			expect(ev.end).not.toMatch(/(?:Z|[+-]\d{2}:?\d{2})$/);
+			for (const offset of [ARGENTINA, MADRID]) {
+				const [shown] = createEvents([ev], offset);
+				expect(wall(shown.start)).toBe('2026-12-12T21:00');
+				expect(wall(shown.end)).toBe('2026-12-12T23:59');
+			}
+		}
+	});
+
+	it('control: la misma hora con Z sí se correría (por eso no la mandamos así)', async () => {
+		const createEvents = await libCreateEvents();
+		const withZ = { id: 'z', start: '2026-12-13T00:00:00Z', end: '2026-12-13T01:00:00Z' };
+		expect(wall(createEvents([withZ], ARGENTINA)[0].start)).toBe('2026-12-12T21:00');
+		expect(wall(createEvents([withZ], MADRID)[0].start)).toBe('2026-12-13T02:00');
 	});
 });

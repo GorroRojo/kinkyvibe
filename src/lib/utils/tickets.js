@@ -2,6 +2,8 @@
  * Reglas de entradas que se usan en el servidor Y en el navegador (sin secretos ni base de
  * datos). El navegador las usa solo para mostrar; el servidor siempre recalcula.
  */
+import { argDateParts, argDayMonth, argDeadline, argTime } from './dates.js';
+import { transferRuleText } from './transferDeadline.js';
 
 /**
  * Cuántos bloques de datos por entrada se muestran como máximo en el formulario. No es un
@@ -339,15 +341,23 @@ export function refundPolicy(contactEmail) {
  * Todas las condiciones de compra, en una sola lista con el mismo formato (el formulario las
  * muestra en "Condiciones de compra y devoluciones").
  *
- * @param {{ contactEmail: string, transferHoldHours: number, methods: readonly string[], online?: boolean }} input
+ * `transferUntil`: hasta cuándo se guardaría el lugar si se compra ahora por transferencia
+ * (`transferDeadline`, ms); sin él, solo la regla.
+ *
+ * @param {{ contactEmail: string, transferUntil?: number | null, methods: readonly string[], online?: boolean }} input
  * @returns {string[]}
  */
-export function purchaseConditions({ contactEmail, transferHoldHours, methods, online = false }) {
+export function purchaseConditions({
+	contactEmail,
+	transferUntil = null,
+	methods,
+	online = false
+}) {
 	const list = [
 		'Actividad solo para personas mayores de 18 años.' +
 			(online ? '' : ' Puede pedirse documento en la puerta.'),
 		online
-			? 'Cada entrada es para una persona. El link de la transmisión es personal: no lo compartas.'
+			? 'Cada entrada es para una persona.'
 			: 'Cada entrada tiene un QR y un código que sirven para una sola persona y un solo ingreso.',
 		'Te mandamos las entradas por email apenas se acredita el pago.'
 	];
@@ -358,7 +368,9 @@ export function purchaseConditions({ contactEmail, transferHoldHours, methods, o
 	}
 	if (methods.includes('transferencia')) {
 		holds.push(
-			`Con transferencia te reservamos el lugar ${transferHoldHours} horas mientras mandás el comprobante por mail (confirmando la reserva con el link que te llega por mail; si no, se libera a las 2 horas).`
+			`Con transferencia te guardamos el lugar ${transferRuleText()}, o hasta que empiece el evento si es antes.` +
+				(transferUntil ? ` Si comprás ahora, hasta el ${argDeadline(transferUntil)}.` : '') +
+				' Transferí y mandanos el comprobante antes de esa hora.'
 		);
 	}
 	if (holds.length) list.push(`${holds.join(' ')} Si no se completa el pago, el lugar se libera.`);
@@ -490,20 +502,9 @@ export function parseSaleTime(value, { endOfDay = false } = {}) {
  * @param {number} ms
  */
 export function formatSaleTime(ms) {
-	const parts = Object.fromEntries(
-		new Intl.DateTimeFormat('es-AR', {
-			timeZone: AR_TIMEZONE,
-			weekday: 'long',
-			day: 'numeric',
-			month: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit',
-			hourCycle: 'h23'
-		})
-			.formatToParts(new Date(ms))
-			.map((p) => [p.type, p.value])
-	);
-	return `${parts.weekday} ${parts.day}/${parts.month} a las ${parts.hour}:${parts.minute}`;
+	const p = argDateParts(ms);
+	if (!p) return '';
+	return `${p.weekdayLong} ${argDayMonth(ms)} a las ${argTime(ms)}`;
 }
 
 /**

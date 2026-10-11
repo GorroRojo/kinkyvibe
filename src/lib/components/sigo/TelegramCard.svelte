@@ -10,6 +10,7 @@
 	 */
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import { argDateLong, argTime } from '$lib/utils/dates.js';
 
 	/** @type {import('$lib/server/telegram/web.js').TelegramCardData} */
 	export let telegram;
@@ -28,24 +29,6 @@
 	$: if (result?.error) error = String(result.error);
 	// Ya conectada: el código no hace falta más.
 	$: if (telegram.linked) pending = null;
-
-	/** "21:15", en hora de Argentina. @param {number} ms */
-	const hourOf = (ms) =>
-		new Intl.DateTimeFormat('es-AR', {
-			timeZone: 'America/Argentina/Buenos_Aires',
-			hour: '2-digit',
-			minute: '2-digit',
-			hourCycle: 'h23'
-		}).format(new Date(ms));
-
-	/** "3 de octubre de 2026". @param {number} ms */
-	const dayOf = (ms) =>
-		new Intl.DateTimeFormat('es-AR', {
-			timeZone: 'America/Argentina/Buenos_Aires',
-			day: 'numeric',
-			month: 'long',
-			year: 'numeric'
-		}).format(new Date(ms));
 
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	const submit = () => {
@@ -79,7 +62,7 @@
 
 	{#if telegram.linked}
 		<p class="state" data-state="conectado">
-			<strong>Conectado</strong>{#if telegram.linkedAt}&nbsp;desde el {dayOf(
+			<strong>Conectado</strong>{#if telegram.linkedAt}&nbsp;desde el {argDateLong(
 					telegram.linkedAt
 				)}{/if}. Elegí arriba, en cada cosa que seguís, qué avisos querés por Telegram.
 		</p>
@@ -104,7 +87,7 @@
 			<p><a class="pill-btn small" href={startLink} rel="noopener">Abrir el bot en Telegram</a></p>
 		{/if}
 		<p class="hint">
-			Sirve una sola vez y vence a las {hourOf(pending.expiresAt)}. En grupos el bot no conecta
+			Sirve una sola vez y vence a las {argTime(pending.expiresAt)}. En grupos el bot no conecta
 			cuentas.
 		</p>
 		<p>

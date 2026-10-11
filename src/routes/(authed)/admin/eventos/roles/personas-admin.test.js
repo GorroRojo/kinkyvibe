@@ -272,7 +272,8 @@ describe('compra con preguntas, Órdenes y su CSV', () => {
 		expect(r?.status).toBe(303);
 		const header = (await csvText()).split('\r\n')[0];
 		expect(header).toBe(before);
-		expect(header.split(',').at(-1)).toBe('"confirmo"');
+		// Con `toCsv`, las celdas van entre comillas solo si lo necesitan (antes, todas).
+		expect(header.split(',').at(-1)).toBe('confirmo');
 		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM order_answers').first())?.n).toBe(0);
 	});
 
@@ -315,8 +316,8 @@ describe('compra con preguntas, Órdenes y su CSV', () => {
 		expect(ok?.status).toBe(303);
 		const lines = (await csvText()).split('\r\n');
 		expect(
-			lines[0].endsWith('"confirmo","Quiero recibir novedades","¿Alguna restricción alimentaria?"')
+			lines[0].endsWith('confirmo,Quiero recibir novedades,¿Alguna restricción alimentaria?')
 		).toBe(true);
-		expect(lines[1].endsWith(',"Sí","Sin gluten"')).toBe(true);
+		expect(lines[1].endsWith(',Sí,Sin gluten')).toBe(true);
 	});
 });

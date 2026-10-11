@@ -30,9 +30,8 @@ no hay nada que esperar) y el panel mergea el PR en el momento.
 - Si no se pudo activar el auto-merge (la opción «Allow auto-merge» está apagada en el repo, o
   el token no tiene permiso) el PR queda abierto y el aviso lo dice: alguien con acceso tiene
   que mergearlo a mano.
-- En el Inicio del panel, «Para revisar» lista los PRs de contenido abiertos (ramas
-  `contenido/*`): primero los que fallaron o tienen conflicto, al final los que se están
-  publicando. Se consulta por GraphQL con el token de la persona, con un minuto de cache.
+- «Para revisar» del Inicio ya no lista los PRs de contenido abiertos (decisión 0030: el contenido
+  vive solo en la base).
 
 ## Guardar dos veces seguidas
 

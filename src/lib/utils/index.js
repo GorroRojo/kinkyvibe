@@ -1,7 +1,7 @@
 import '$lib/types.d.js';
 import { isCurrent, relatedPostsFor } from './allPosts';
 import { currentSiteTags } from './siteTags.js';
-import { isMediaPath } from './media.js';
+import { isMediaPath, isPublicMediaUrl } from './media.js';
 
 export { relatedPostsFor };
 
@@ -46,8 +46,9 @@ const assetURLs = import.meta.glob('../assets/*.*', { eager: true, import: 'defa
  * @param {string} assetID
  */
 export const thumbURL = async (category, postID, assetID) => {
-	// Una imagen de la biblioteca (R2, docs/imagenes.md): ya es su dirección.
-	if (isMediaPath(assetID)) return String(assetID);
+	// Una imagen de la biblioteca (R2, docs/imagenes.md): ya es su dirección. También la de una
+	// copia de un evento real en el modo demo, que apunta al sitio público (docs/demo.md).
+	if (isMediaPath(assetID) || isPublicMediaUrl(assetID)) return String(assetID);
 	//check if string is an integer
 	let formats = ['jpeg', 'jfif', 'jpg', 'png', 'webp'];
 	if (('' + assetID).match(/^\d+$/)) {

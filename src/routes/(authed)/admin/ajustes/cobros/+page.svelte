@@ -89,10 +89,16 @@
 		<p class="kv-note">
 			Se suma al pagar con Mercado Pago para que, después de la comisión, llegue el precio de la
 			entrada. La comisión real cambia según el plan y el plazo de acreditación de la cuenta de MP:
-			revisala y ajustala acá (con <code>0</code>, sin recargo). Si un evento tiene
-			<code>mp_fee_percent</code> en su frontmatter, manda ese. Vacío: {feeDefault} % (la variable
-			<code>TICKETS_MP_FEE_PERCENT</code> o, si no está, 2 %).
+			revisala y ajustala acá (con 0, sin recargo). Si un evento tiene su propia comisión (en su
+			editor, en Entradas), manda esa. Vacío: {feeDefault} %.
 		</p>
+		<details class="tech">
+			<summary>Para técnicos</summary>
+			<p class="kv-note">
+				La de cada evento es <code>mp_fee_percent</code> en su frontmatter. Vacío: la variable
+				<code>TICKETS_MP_FEE_PERCENT</code> o, si no está, 2 %.
+			</p>
+		</details>
 	</Card>
 
 	<div class="kv-row">
@@ -107,6 +113,11 @@
 </form>
 
 <style>
+	.tech summary {
+		cursor: pointer;
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
 	.settings {
 		max-width: 48rem;
 	}

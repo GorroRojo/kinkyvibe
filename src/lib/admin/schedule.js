@@ -1,5 +1,5 @@
 /**
- * La fecha y hora de un evento en el formulario («📅 ¿Cuándo es?», ScheduleSection), igual al
+ * La fecha y hora de un evento en el formulario («Fecha y hora», ScheduleSection), igual al
  * crear (/admin/eventos/nuevo) y al editar (PostEditor). El formulario usa día y hora por
  * separado; esto pasa de eso a lo que se guarda y de vuelta, sin cambiar el formato de nada.
  *

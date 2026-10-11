@@ -67,7 +67,12 @@ minuto por isolate. Cada paso cuenta visitas, no personas: si alguien recarga, c
 - `src/lib/server/analytics/report.js`: lo que muestra el panel y el resumen mensual.
 - `migrations/0038_analiticas_mensuales.sql`: tabla `analytics_monthly`.
 - Panel: `src/lib/components/admin/stats/Visits.svelte` en
-  `src/routes/(authed)/admin/estadisticas/`.
+  `src/routes/(authed)/admin/estadisticas/visitas/` (la pestaña **Visitas al sitio**, que no lee
+  las órdenes; Ventas y Asistencia no llaman a Analytics Engine). El período (`?periodo=7d`, `30d`
+  o `90d`; por defecto 30) llega a `loadVisits` como `days`: visitas por día, rankings y los números
+  de arriba son de ese período, y con 7 o 30 días se compara con el período anterior (una consulta
+  más de total; con 90 no, porque Analytics Engine ya no tiene los 90 días de antes). Visitas por
+  mes y «Visitas → compras» siguen siendo de toda la historia.
 
 ### Historia: resumen mensual en D1
 
@@ -77,7 +82,8 @@ curso: total de visitas, top 50 de páginas, orígenes y países, dispositivos y
 Si falla o falta el token, lo escribe en el log y **nunca** hace fallar el backup.
 
 El panel lee de Analytics Engine desde el **primer día del mes anterior** y de D1 los meses de
-antes (sin superponerse). Si Analytics Engine no está configurado o falla, muestra lo que haya
+antes (sin superponerse) para Visitas por mes y el embudo. Por eso el período de la pestaña llega
+hasta **90 días**: más atrás, solo quedan los totales por mes del resumen. Si Analytics Engine no está configurado o falla, muestra lo que haya
 en D1. Los días y meses son de **Argentina** (America/Argentina/Buenos_Aires, UTC−3 todo el año,
 sin horario de verano): una visita a las 22 h del 30/9 cuenta para el 30/9 y para septiembre. La
 API de SQL guarda la hora en UTC: la consulta por día agrupa `timestamp - INTERVAL '3' HOUR` (no
@@ -103,7 +109,7 @@ UTC: el cron vuelve a escribir el mes anterior y el actual, los más viejos qued
    - `CF_ANALYTICS_TOKEN` → **Secret** → el token del paso 3.
    - `CF_ACCOUNT_ID` → **Text** → el id de la cuenta (32 caracteres; está en la página de inicio de
      la cuenta, o con `npx wrangler whoami`). Copialo con el botón de copiar, no a mano.
-5. Abrí **Panel → Estadísticas**: abajo aparece **Visitas al sitio**. Hasta que cargues el paso 4
+5. Abrí **Panel → Estadísticas → Visitas al sitio** (`/admin/estadisticas/visitas`). Hasta que cargues el paso 4
    dice **«Falta configurar las visitas»** con lo que falta. Las visitas se anotan igual desde el
    deploy: no se pierde nada mientras tanto.
 

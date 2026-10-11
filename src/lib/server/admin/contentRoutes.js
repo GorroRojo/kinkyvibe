@@ -44,13 +44,12 @@ import { contentAdminHref } from '$lib/admin/nav.js';
 import { commitSavedToDb, pathExistsMessage, saveCopy } from '$lib/admin/saveCopy.js';
 import { panelSavesToDb } from '$lib/server/contenido/saving.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
-import materialTemplate from '$lib/posts/material/_post_template.md?raw';
+import materialTemplate from '$lib/admin/plantillas/material.md?raw';
 
 /** @type {Record<string, string>} */
 const TEMPLATES = { material: materialTemplate };
 
-const NO_PERMISSION =
-	'No tenés permiso para editar contenido. Probá salir y volver a entrar.';
+const NO_PERMISSION = 'No tenés permiso para editar contenido. Probá salir y volver a entrar.';
 
 /** @param {unknown} e */
 const describe = (e) => (e instanceof Error ? e.message : String(e));

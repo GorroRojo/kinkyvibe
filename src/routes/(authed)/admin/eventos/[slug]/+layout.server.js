@@ -8,6 +8,7 @@ import { splitMarkdown, validateSlug } from '$lib/utils/eventDraft.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { PANEL_VIEWER, readWorkshop } from '$lib/server/eventos/partes.js';
 import { coveringTicketSlug, partLabel, partOf } from '$lib/utils/partes.js';
+import { dateChangeOffer } from '$lib/server/tickets/dateChange.js';
 
 /**
  * Talleres en varias partes (docs/talleres-partes.md): el chip del encabezado («Parte 2 de 3» con
@@ -91,11 +92,25 @@ export async function load({ locals, url, params, platform }) {
 			logDBError('contadores de la ficha del evento', e);
 		}
 	}
+	// «Cambiaste la fecha»: el aviso de arriba de todas las pestañas (dateChange.js), con
+	// «Avisar a les compradores». Solo si hay a quién avisar.
+	/** @type {Awaited<ReturnType<typeof dateChangeOffer>>} */
+	let dateChange = null;
+	if (db && config) {
+		try {
+			dateChange = await dateChangeOffer(db, params.slug, {
+				cancelled: config.status === 'cancelado'
+			});
+		} catch (e) {
+			logDBError('cambio de fecha en la ficha del evento', e);
+		}
+	}
 	const workshop = await workshopChip(db, params.slug);
 	return {
 		event: { ...event, sellsTickets: Boolean(config), online: config?.online ?? event.online },
 		workshop,
 		tabCounts: counts,
+		dateChange,
 		dbAvailable: Boolean(db),
 		// Pestaña Preguntas (preguntas de inscripción).
 		signupFieldsTab: Boolean(db && config)

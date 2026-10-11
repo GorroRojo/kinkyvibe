@@ -20,6 +20,7 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
+	import Notice from '$lib/components/ui/Notice.svelte';
 
 	export let data;
 	export let form;
@@ -63,6 +64,7 @@
 	subtitle="Dónde suceden los eventos: dirección, mapa, accesibilidad, cómo llegar y qué se muestra de la dirección."
 >
 	<svelte:fragment slot="actions">
+		<a class="kv-btn ghost" href="/admin/eventos/lugares/vincular">Vincular lugares</a>
 		<a class="kv-btn ghost" href="/admin/eventos/lugares/importar">Importar de eventos</a>
 		<a class="kv-btn ghost" href="/admin/comunidad/perfiles?tipo=lugar">Ver en Perfiles</a>
 	</svelte:fragment>
@@ -307,9 +309,9 @@
 									<a href="/calendario/{l.eventSlug}">{ev?.title ?? l.eventSlug}</a>
 									{#if !ev}<Badge tone="bad">el evento ya no existe</Badge>{/if}
 									{#if ev?.mdAddress && l.privacy !== 'public'}
-										<small class="warn block"
+										<Notice tone="warn" compact role={null}
 											>Su archivo tiene la dirección escrita (el repo es público): sacala del
-											evento.</small
+											evento.</Notice
 										>
 									{/if}
 								</td>
@@ -368,9 +370,6 @@
 <style>
 	.muted {
 		color: var(--muted);
-	}
-	.warn {
-		color: var(--warn);
 	}
 	.block {
 		display: block;

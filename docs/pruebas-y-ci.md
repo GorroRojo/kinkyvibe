@@ -34,6 +34,20 @@ Fuera de `ci.yml` aparecen además:
 | `Analyze (javascript)`, `Analyze (actions)` | escaneo de seguridad de GitHub (CodeQL) sobre el código y los workflows                  | configuración por defecto de GitHub (no hay archivo en el repo)                           |
 | `CodeQL`                                    | en los PRs, el resumen de ese escaneo: falla si el PR trae una alerta nueva              | ídem                                                                                      |
 
+Además, `ci.yml` tiene el job **`ui-impacto`** (informe de impacto visual,
+[ui-impacto.md](ui-impacto.md)): solo en PRs que tocan estilos o componentes, sube el artifact
+`ui-impacto` con capturas antes y después. Es **solo informativo**: no está en los `needs` de
+`ci-ok` y es el único job con `continue-on-error`, porque no es una prueba.
+
+**Dependabot** (`.github/dependabot.yml`) abre los lunes PRs agrupados de dependencias: uno con
+todas las actualizaciones minor y patch de npm, otro con las de seguridad y otro con las actions
+de los workflows. Cada salto de major llega en su propio PR. Pasan por la misma CI y, como todo
+PR, se mergean solo con la aprobación de gorrite.
+
+Dependabot regenera `package-lock.json` desde cero, y ahí se caen los peers opcionales. Por eso
+`@types/node` (de la versión mayor de `.node-version`) es una devDependency explícita: sin ella,
+svelte-check deja de encontrar `process` y `node:fs` en los tests y el ratchet falla.
+
 `ci-ok` existe para que la protección de `main` pida un solo chequeo: si alguien agrega un job a
 `ci.yml`, lo suma a los `needs` de `ci-ok` y listo, sin tocar la configuración de GitHub.
 
@@ -49,6 +63,8 @@ Detalles de `e2e`:
 
 `npm run lint` es solo ESLint: **no** revisa el formato de Prettier, y la CI tampoco. Para eso,
 `npm run format:check` (todo el repo) o `npx prettier --check docs` (solo la documentación).
+La configuración está en `eslint.config.js` (formato plano; las rutas ignoradas también van ahí,
+ya no hay `.eslintrc` ni `.eslintignore`).
 
 ## Los tipos de pruebas
 
@@ -65,6 +81,10 @@ Detalles de `e2e`:
   `UPDATE_CONTENT_ALLOWLIST=1 npx vitest run src/tests/content.test.js`.
 - **Mails "golden"**: `src/lib/server/tickets/email.golden.json` guarda cómo sale cada mail; si
   cambiás un mail a propósito, actualizá ese archivo en el mismo PR y explicalo.
+- **HTML de componentes**: para leer lo que devuelve `render` usá `textOf` y `withoutComments` de
+  `src/lib/testing/html.js`. No saques etiquetas ni comentarios con expresiones regulares
+  (`/<[^>]*>/`, `/<!--.*?-->/`): CodeQL lo marca como alerta alta aunque sea un test, y el PR queda
+  en rojo.
 
 ### Pruebas con base de datos
 

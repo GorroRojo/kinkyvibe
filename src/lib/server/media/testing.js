@@ -55,3 +55,72 @@ export function solidPng(width, height, rgb = [138, 62, 160]) {
 	}
 	return out;
 }
+
+const enc = (/** @type {string} */ s) => new TextEncoder().encode(s);
+
+/** @param {...Uint8Array} parts */
+function concat(...parts) {
+	const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+	let at = 0;
+	for (const p of parts) {
+		out.set(p, at);
+		at += p.length;
+	}
+	return out;
+}
+
+/**
+ * Un PDF inventado y mínimo (solo la cabecera y un poco de relleno: alcanza para reconocerlo).
+ * @param {number} [size]
+ */
+export function fakePdf(size = 300) {
+	const head = enc('%PDF-1.4\n% documento de prueba\n');
+	const body = new Uint8Array(Math.max(0, size - head.length)).fill(0x20);
+	return concat(head, body);
+}
+
+/**
+ * Un MP4 inventado: la caja `ftyp` con la marca pedida y relleno numerado (para probar rangos).
+ * @param {string} [brand]
+ * @param {number} [size]
+ */
+export function fakeMp4(brand = 'isom', size = 1000) {
+	const head = concat(new Uint8Array([0, 0, 0, 0x18]), enc('ftyp'), enc(brand), new Uint8Array(12));
+	const out = new Uint8Array(Math.max(size, head.length));
+	for (let i = 0; i < out.length; i++) out[i] = i % 251;
+	out.set(head, 0);
+	return out;
+}
+
+/** Un WebM inventado: la cabecera EBML con DocType «webm». */
+export function fakeWebm() {
+	return concat(
+		new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81, 0x01, 0x42, 0x82, 0x84]),
+		enc('webm'),
+		new Uint8Array(40)
+	);
+}
+
+/**
+ * Un zip inventado cuya primera entrada se llama `name` y guarda `content` (sin comprimir, o con
+ * el método 8 si `compressed`). Con `name = 'mimetype'` y un tipo de OpenDocument, es un ODT/ODS/ODP.
+ * @param {string} name
+ * @param {string} content
+ * @param {{ compressed?: boolean }} [opts]
+ */
+export function fakeZip(name, content, { compressed = false } = {}) {
+	const data = enc(content);
+	const header = new Uint8Array(30);
+	const v = new DataView(header.buffer);
+	v.setUint32(0, 0x04034b50, true);
+	v.setUint16(4, 20, true);
+	v.setUint16(8, compressed ? 8 : 0, true);
+	v.setUint32(18, data.length, true);
+	v.setUint32(22, data.length, true);
+	v.setUint16(26, name.length, true);
+	v.setUint16(28, 0, true);
+	return concat(header, enc(name), data, enc('PK\x03\x04'), new Uint8Array(20));
+}
+
+/** Un ODT inventado. */
+export const fakeOdt = () => fakeZip('mimetype', 'application/vnd.oasis.opendocument.text');

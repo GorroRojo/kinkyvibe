@@ -3,6 +3,7 @@
  * inclusivo del sitio. Funciones puras: reciben datos ya listos y devuelven HTML de Telegram
  * (`parse_mode: 'HTML'`), que solo admite unas pocas etiquetas (`<b>`, `<a>`).
  */
+import { argDateList } from '$lib/utils/dates.js';
 
 /**
  * Lo mínimo que el bot sabe de un evento. Nada de lugar, entradas ni datos de compradores.
@@ -12,8 +13,6 @@
 
 /** Telegram corta los mensajes de más de 4096 caracteres: la lista se limita antes. */
 export const LIST_MAX = 8;
-
-const TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
 /**
  * Escapa para el HTML de Telegram, también dentro de un atributo (`href="…"`): las comillas
@@ -30,29 +29,14 @@ export function escapeHtml(text) {
 }
 
 /**
- * "sáb 10 may · 21:00", en hora de Argentina. Vacío si la fecha no se puede leer.
+ * "sáb 10 may · 21:00", en hora de Argentina (`argDateList`, como las listas del sitio; con el año
+ * al final si no es el de este año). Vacío si la fecha no se puede leer.
  *
  * @param {string} iso
+ * @param {string|number|Date} [now]
  */
-export function formatWhen(iso) {
-	const date = new Date(iso);
-	if (Number.isNaN(date.getTime())) return '';
-	const parts = Object.fromEntries(
-		new Intl.DateTimeFormat('es-AR', {
-			timeZone: TIME_ZONE,
-			weekday: 'short',
-			day: 'numeric',
-			month: 'short',
-			hour: '2-digit',
-			minute: '2-digit',
-			hourCycle: 'h23'
-		})
-			.formatToParts(date)
-			.map((p) => [p.type, p.value])
-	);
-	const weekday = String(parts.weekday).replace('.', '');
-	const month = String(parts.month).replace('.', '');
-	return `${weekday} ${parts.day} ${month} · ${parts.hour}:${parts.minute}`;
+export function formatWhen(iso, now = Date.now()) {
+	return argDateList(iso, { now });
 }
 
 /**
@@ -76,10 +60,14 @@ function eventLine(event, origin) {
 /**
  * @param {BotEvent[]} events
  * @param {string} origin
+ * @param {{ title?: string, empty?: string }} [opts] el título (en negrita) y el texto sin eventos
  */
-export function formatEventList(events, origin) {
+export function formatEventList(events, origin, { title = 'Próximos eventos', empty } = {}) {
 	if (events.length === 0) {
-		return `Por ahora no hay eventos próximos. Mirá el calendario en ${escapeHtml(origin)}/calendario`;
+		return (
+			empty ??
+			`Por ahora no hay eventos próximos. Mirá el calendario en ${escapeHtml(origin)}/calendario`
+		);
 	}
 	const shown = events.slice(0, LIST_MAX);
 	const lines = shown.map((e) => eventLine(e, origin));
@@ -88,7 +76,34 @@ export function formatEventList(events, origin) {
 		rest > 0
 			? `\n\nHay ${rest} más en <a href="${escapeHtml(origin)}/calendario">el calendario</a>.`
 			: '';
-	return `<b>Próximos eventos</b>\n\n${lines.join('\n\n')}${more}`;
+	return `<b>${escapeHtml(title)}</b>\n\n${lines.join('\n\n')}${more}`;
+}
+
+/** Título y texto vacío de `/hoy`, `/semana` y `/finde`. */
+export const WINDOW_TEXTS = Object.freeze({
+	hoy: {
+		title: 'Hoy',
+		empty: 'Hoy no hay eventos públicos. Mirá lo que viene con /proximos.'
+	},
+	semana: {
+		title: 'En los próximos 7 días',
+		empty: 'No hay eventos públicos en los próximos 7 días. Mirá lo que viene con /proximos.'
+	},
+	finde: {
+		title: 'Este finde',
+		empty: 'Este finde no hay eventos públicos. Mirá lo que viene con /proximos.'
+	}
+});
+
+/**
+ * La lista de `/hoy`, `/semana` o `/finde`.
+ *
+ * @param {keyof typeof WINDOW_TEXTS} window
+ * @param {BotEvent[]} events ya filtrados por la ventana
+ * @param {string} origin
+ */
+export function formatWindowList(window, events, origin) {
+	return formatEventList(events, origin, WINDOW_TEXTS[window]);
 }
 
 /**
@@ -139,6 +154,7 @@ export function formatHelp(origin, { accounts = false } = {}) {
 	return (
 		'Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n' +
 		'/proximos: los próximos eventos (tocá uno para ver el detalle)\n' +
+		'/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n' +
 		'/evento: elegí un evento de la lista\n' +
 		'/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n' +
 		account +

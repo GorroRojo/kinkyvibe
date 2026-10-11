@@ -7,7 +7,7 @@
 		Heart,
 		CalendarRange,
 		ShoppingCart,
-		ChevronLeft,
+		ChevronRight,
 		Globe
 	} from '@lucide/svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
@@ -20,7 +20,7 @@
 	import SearchLauncher from '$lib/components/SearchLauncher.svelte';
 	import SearchButton from '$lib/components/SearchButton.svelte';
 	import { accountLink } from '$lib/utils/cuentas.js';
-	import { breadcrumbLd, sectionCrumb } from '$lib/utils/navigation.js';
+	import { breadcrumbLd, ownBackLink, sectionCrumb } from '$lib/utils/navigation.js';
 	export let data;
 	$: cuentaLink = accountLink(data);
 	togglePositiveTagFilterFn.update(
@@ -35,6 +35,9 @@
 	// Migas de pan: las visibles y las de datos estructurados salen de lo mismo (sectionCrumb).
 	$: onPost = Boolean($currentPostData && $currentPostData.path == $page.url.pathname);
 	$: crumb = onPost ? sectionCrumb($currentPostData?.category) : null;
+	// «Salir» (Mi rincón o el encabezado) vuelve al inicio con ?salida=1: un aviso corto.
+	let closedNotice = false;
+	$: loggedOut = !closedNotice && !data.member && $page.url.searchParams.get('salida') === '1';
 	$: ldBreadcrumb = onPost ? breadcrumbLd($currentPostData?.category, $page.url.origin) : null;
 </script>
 
@@ -46,6 +49,20 @@
 
 <AgeModal />
 <SearchLauncher />
+
+{#if data.demoMode && !(data.user && data.user.login)}
+	<!-- Preview deploys only (docs/demo.md): afuera del encabezado, en una esquina, así no le
+	     saca lugar (pedido de gorrite, 5/10) -->
+	<nav class="demo-bar" aria-label="Modo demo">
+		<span aria-hidden="true">🧪</span>
+		<span>Entrar como</span>
+		<a href="/login?redirectTo=/admin">admin de prueba</a>
+		{#if !data.member}
+			<!-- Cuentas del público inventadas (src/lib/server/demo/personas.js) -->
+			<a href="/ingresar/demo">persona de prueba</a>
+		{/if}
+	</nav>
+{/if}
 
 <header>
 	<div id="me">
@@ -67,23 +84,24 @@
 				{#await import('$lib/components/UserMenu.svelte') then { default: UserMenu }}
 					<svelte:component this={UserMenu} user={data.user} />
 				{/await}
-			{:else if data.demoMode}
-				<!-- Preview deploys only (docs/demo.md) -->
-				<a href="/login?redirectTo=/admin">🧪 Entrar como admin de prueba</a>
-				{#if !data.member}
-					<!-- Cuentas del público inventadas (src/lib/server/demo/personas.js) -->
-					<a href="/ingresar/demo">🧪 Entrar como persona de prueba</a>
-				{/if}
-			{:else}
+			{/if}
+			<!-- El Fondo: a la vista para todes, también en los previews; con la sesión de admin
+			     abierta no hace falta (pedido de gorrite, 5/10) -->
+			{#if !data.user?.admin}
 				<a href="https://fondo.kinkyvibe.ar" target="_blank">
 					¿Todo gratis?
 					<ArrowRight size="18" />
 				</a>
-				<!-- <a href="/login?redirectTo={$page.url}">Iniciar sesión</a> -->
 			{/if}
 			{#if cuentaLink}
 				<!-- Cuentas del público (docs/cuentas.md) -->
 				<a class="cuenta" href={cuentaLink.href}>{cuentaLink.label}</a>
+			{/if}
+			{#if data.member}
+				<!-- «Salir» también acá, no solo al final de Mi rincón -->
+				<form method="POST" action="/mi-rincon?/salir">
+					<button class="cuenta" type="submit">Salir</button>
+				</form>
 			{/if}
 		</div>
 	</div>
@@ -105,8 +123,9 @@
 		/>
 	</div>
 </header>
-{#if $page.url.pathname != '/'}
-	<div class="breadcrumbs">
+{#if $page.url.pathname != '/' && !ownBackLink($page.url.pathname)}
+	<!-- «Inicio › Calendario» (la flecha apunta hacia adentro, como se lee). -->
+	<nav class="breadcrumbs" aria-label="Migas de pan">
 		<a href={'/'}>
 			{#if !onPost}
 				<ArrowLeft size="20" aria-hidden="true" />
@@ -118,10 +137,16 @@
 			{#if ldBreadcrumb}
 				<LDTag schema={ldBreadcrumb} />
 			{/if}
-			<ChevronLeft size="20" aria-hidden="true" />
+			<ChevronRight size="20" aria-hidden="true" />
 			<a href={crumb.path}>{crumb.name}</a>
 		{/if}
-	</div>
+	</nav>
+{/if}
+{#if loggedOut}
+	<p class="salida" role="status">
+		Saliste de tu cuenta.
+		<button type="button" class="kv-link" on:click={() => (closedNotice = true)}>Cerrar</button>
+	</p>
 {/if}
 {#key $page.url.pathname}
 	<main in:fade={{ duration: 300, delay: 300 }}>
@@ -282,7 +307,68 @@
 		max-width: 11em;
 	}
 
+	.demo-bar {
+		position: fixed;
+		left: var(--space-xs);
+		bottom: var(--space-xs);
+		z-index: 6;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0 var(--space-2xs);
+		max-width: calc(100% - 2 * var(--space-xs));
+		padding: var(--space-3xs) var(--space-xs);
+		border-radius: var(--radius-pill);
+		background: var(--2-tint);
+		color: var(--2-dark);
+		font-size: var(--text-xs);
+		box-shadow: var(--shadow-1);
+	}
+	/* en el celu, arriba de la barra de navegación de abajo */
+	@media (max-width: 680px) {
+		.demo-bar {
+			bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+		}
+	}
+	.demo-bar a {
+		color: var(--2-dark);
+		font-weight: 700;
+	}
+	.salida {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2xs);
+		width: min(40rem, calc(100% - 32px));
+		margin: var(--space-2xs) auto 0;
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-s);
+		background: var(--3-tint);
+		color: var(--3-ink);
+		font-weight: 700;
+	}
+	.salida .kv-link {
+		min-height: var(--tap);
+	}
+	#user form {
+		display: contents;
+	}
 	/* discreto: sin el fondo de los otros botones */
+	#user button.cuenta {
+		border: 0;
+		background: transparent;
+		color: var(--2);
+		font: inherit;
+		font-size: 1.2em;
+		font-weight: 700;
+		min-height: var(--tap);
+		padding-inline: 0.4em;
+		cursor: pointer;
+	}
+	#user button.cuenta:hover {
+		text-decoration: underline;
+	}
 	#user a.cuenta {
 		background: transparent;
 		color: var(--2);

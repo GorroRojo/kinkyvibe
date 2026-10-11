@@ -151,13 +151,31 @@ export async function getEventInfo(slug) {
  * @returns {Promise<import('./config.js').EventTickets | null>}
  */
 export async function getEventTickets(slug, options = {}) {
-	return ticketsOf(slug, await loadMeta(slug), options);
+	const meta = await loadMeta(slug);
+	const withVenue = sellsTickets(meta) ? await eventsWithVenue(slug) : new Set();
+	return ticketsOf(slug, meta, { ...options, hasVenue: withVenue.has(slug) });
+}
+
+/** @param {Record<string, any> | null} meta */
+const sellsTickets = (meta) => meta?.tickets !== undefined && meta?.tickets !== null;
+
+/**
+ * Los eventos con lugar vinculado (`eventsWithVenue` de ../amigues/venues.js; con `slug`, solo
+ * ese): la venta trata a un evento con lugar como presencial, como la página. Vacío sin base.
+ *
+ * @param {string} [slug]
+ * @returns {Promise<Set<string>>}
+ */
+async function eventsWithVenue(slug) {
+	const db = (await import('../contenido/repo.js')).activeContentDB();
+	if (!db) return new Set();
+	return (await import('../amigues/venues.js')).eventsWithVenue(db, slug);
 }
 
 /**
  * @param {string} slug
  * @param {Record<string, any> | null} meta
- * @param {{ fondoPercent?: number | null }} options
+ * @param {{ fondoPercent?: number | null, hasVenue?: boolean }} options
  */
 function ticketsOf(slug, meta, options) {
 	if (!meta) return null;
@@ -180,8 +198,10 @@ function ticketsOf(slug, meta, options) {
  */
 export async function listTicketedEvents(options = {}) {
 	const out = [];
-	for (const { slug, meta } of await listEventMetas()) {
-		const config = ticketsOf(slug, meta, options);
+	const metas = await listEventMetas();
+	const withVenue = metas.some((e) => sellsTickets(e.meta)) ? await eventsWithVenue() : new Set();
+	for (const { slug, meta } of metas) {
+		const config = ticketsOf(slug, meta, { ...options, hasVenue: withVenue.has(slug) });
 		if (config) out.push({ slug, config });
 	}
 	out.sort((a, b) => String(b.config.start ?? '').localeCompare(String(a.config.start ?? '')));

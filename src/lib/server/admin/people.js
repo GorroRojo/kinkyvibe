@@ -60,20 +60,22 @@ export async function personId(email) {
 /**
  * Órdenes aprobadas y reembolsadas con cuántas entradas tuvieron check-in. Sin DNI.
  * @param {D1Database} db
+ * @param {{ since?: number | null }} [opts] `since`: solo las compradas desde ese momento (ms),
+ *   filtrado en SQL (Estadísticas → Ventas con un período).
  * @returns {Promise<PersonOrder[]>}
  */
-export async function loadPeopleOrders(db) {
-	const { results } = await db
-		.prepare(
-			`SELECT o.id, o.event_slug, o.ticket_type, o.quantity, o.total, o.payment_method,
+export async function loadPeopleOrders(db, { since = null } = {}) {
+	const query = db.prepare(
+		`SELECT o.id, o.event_slug, o.ticket_type, o.quantity, o.total, o.payment_method,
 				o.fondo_option, o.fondo_amount, o.fondo_contribution, o.surcharge_amount, o.buyer_name,
 				o.buyer_pronouns,
 				o.buyer_email, o.status, o.created_at,
 				(SELECT COUNT(*) FROM tickets t WHERE t.order_id = o.id AND t.checked_in_at IS NOT NULL)
 					AS checked
-			FROM orders o WHERE o.status IN ${KEPT} ORDER BY o.created_at`
-		)
-		.all();
+			FROM orders o WHERE o.status IN ${KEPT}${since === null ? '' : ' AND o.created_at >= ?1'}
+			ORDER BY o.created_at`
+	);
+	const { results } = await (since === null ? query : query.bind(since)).all();
 	return /** @type {PersonOrder[]} */ (results);
 }
 

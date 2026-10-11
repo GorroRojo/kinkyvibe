@@ -408,7 +408,7 @@ describe('cuentas', () => {
 			form: {}
 		});
 		const r = await thrown(() => m.rincon.actions.salir(event));
-		expect(r).toMatchObject({ status: 303, location: '/' });
+		expect(r).toMatchObject({ status: 303, location: '/?salida=1' });
 		expect(event.jar[m.session.SESSION_COOKIE]).toBeUndefined();
 		expect(await m.session.getSessionAccount(t.db, token)).toBeNull();
 	});

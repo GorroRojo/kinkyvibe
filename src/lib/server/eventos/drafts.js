@@ -31,7 +31,7 @@ import {
 	readAgendaValues
 } from '$lib/utils/agenda.js';
 import { eventMissing, missingInputFromMeta } from '$lib/utils/eventMissing.js';
-import eventTemplate from '$lib/posts/calendario/_event_template.md?raw';
+import eventTemplate from '$lib/admin/plantillas/evento.md?raw';
 import {
 	NEW_EVENT_TEMPLATE,
 	REMOVE,

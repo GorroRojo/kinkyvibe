@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * La grilla de campos de «📝 Datos»: un input por campo, según su tipo (ver `postFields` en
+	 * La grilla de campos de «Datos»: un input por campo, según su tipo (ver `postFields` en
 	 * `$lib/admin/postFields.js` y `fieldsFor` en `$lib/utils/contentPosts.js`). La usan
 	 * DatosSection (crear y editar eventos, editar publicaciones) y ContentEditor.
 	 *
@@ -12,6 +12,8 @@
 	 * - `errors`: error de un campo, por `key`: reemplaza la ayuda y marca el input.
 	 * - Slot: más campos al final de la grilla.
 	 */
+	import Notice from '$lib/components/ui/Notice.svelte';
+
 	/** @type {import('$lib/admin/postFields.js').Field[]} */
 	export let fields = [];
 	/** @type {Record<string, any>} */
@@ -84,7 +86,7 @@
 				{/if}
 				{#if errors[f.key]}<small class="bad">{errors[f.key]}</small>
 				{:else if f.help}<small>{f.help}</small>{/if}
-				{#if warnings[f.key]}<small class="warning">⚠️ {warnings[f.key]}</small>{/if}
+				{#if warnings[f.key]}<Notice tone="warn" inline>{warnings[f.key]}</Notice>{/if}
 			</label>
 		{/if}
 	{/each}

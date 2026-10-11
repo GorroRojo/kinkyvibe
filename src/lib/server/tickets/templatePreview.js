@@ -3,6 +3,7 @@
  * "Mandarme una prueba". Usa los mismos builders que los mails de verdad.
  */
 import {
+	buildDateChangeEmail,
 	buildRefundEmail,
 	buildReminderEmail,
 	buildStreamLinkEmail,
@@ -10,6 +11,7 @@ import {
 	buildTransferEmail
 } from './email.js';
 import { withMailFooter } from '$lib/server/email/layout.js';
+import { transferDeadline } from '$lib/utils/transferDeadline.js';
 
 /** @typedef {import('$lib/utils/emailTemplates.js').TemplateId} TemplateId */
 /** @typedef {import('$lib/utils/emailTemplates.js').TemplateParts} TemplateParts */
@@ -64,7 +66,7 @@ function sampleOrder(now) {
 		email_sent_at: null,
 		created_at: now,
 		updated_at: now,
-		expires_at: now + 2 * 3600000
+		expires_at: transferDeadline(now)
 	});
 }
 
@@ -133,9 +135,7 @@ function buildPreview(
 				event,
 				transferInfo: 'Alias: EJEMPLO.ALIAS (datos de ejemplo)\nTitular: Nombre de ejemplo',
 				replyTo,
-				origin,
-				confirmUrl: `${origin}/entradas/${SAMPLE_ORDER_ID}/confirmar?k=ejemplo`,
-				fullHoldHours: 48
+				origin
 			});
 		case 'stream':
 			return buildStreamLinkEmail({
@@ -155,6 +155,19 @@ function buildPreview(
 			});
 		case 'refund':
 			return buildRefundEmail({ ...common, event });
+		case 'date_change': {
+			const start = Date.parse(event.start);
+			return buildDateChangeEmail({
+				...common,
+				tickets,
+				event,
+				// La fecha de antes, inventada: un día antes y una hora más temprano.
+				previous: Number.isFinite(start)
+					? { start: new Date(start - 25 * 3600000).toISOString() }
+					: null,
+				origin
+			});
+		}
 		default:
 			return withPlaceholderQr(buildTicketEmail({ ...common, tickets, event, origin }));
 	}

@@ -4,7 +4,8 @@
  *
  * - Acciones: todas las secciones del menú (`NAV`) que ya tienen página (también las de
  *   Ajustes, como Interruptores; las "Próximamente" no), más atajos como
- *   "Nuevo código" o "Abrir check-in de hoy".
+ *   "Nuevo código de descuento" o "Abrir la puerta de hoy". Las que no son secciones (crear,
+ *   importar, preferencias) se suman en `paletteActions.js`.
  * - Atajos de dos teclas: `g` y después una letra (`g i` Inicio, `g e` Eventos…). `/` o
  *   Ctrl/⌘+K abren la paleta y `?` muestra la hoja de atajos.
  */
@@ -25,20 +26,32 @@ import { NAV, NAV_AREAS, navItem, navLink } from './nav.js';
  * }} Command
  */
 
-/** `g` + letra → id de NAV. El orden es el de la hoja de atajos. */
+/**
+ * `g` + letra → id de NAV. El orden es el de la hoja de atajos (el del menú). Letras por
+ * frecuencia de uso (remapeo de «atajos visibles»): lo de todos los días tiene atajo, con la
+ * letra de su nombre cuando se puede (`a` Asistencia, `f` perFiles, `u` cUentas, `m` Material,
+ * `q` etiQuetas, `w` web: Visitas al sitio, `h` historial: Actividad, `g g` aGenda). Si cambiás
+ * letras, subí `SHORTCUT_TIP_VERSION` en `shortcutHints.js` para que el aviso de atajos vuelva a
+ * aparecer.
+ */
 export const GO_SHORTCUTS = Object.freeze([
 	{ key: 'i', id: 'inicio' },
 	{ key: 'e', id: 'eventos' },
 	{ key: 'n', id: 'eventos-nuevo' },
+	{ key: 'g', id: 'eventos-agenda' },
 	{ key: 'c', id: 'checkin' },
 	{ key: 'v', id: 'entradas' },
 	{ key: 't', id: 'entradas-transferencias' },
 	{ key: 'd', id: 'entradas-codigos' },
 	{ key: 'p', id: 'personas' },
+	{ key: 'f', id: 'amigues' },
+	{ key: 'u', id: 'cuentas' },
+	{ key: 'q', id: 'etiquetas' },
+	{ key: 'm', id: 'material' },
 	{ key: 's', id: 'estadisticas' },
-	{ key: 'l', id: 'no-listadas' },
-	{ key: 'm', id: 'ajustes-mails' },
-	{ key: 'a', id: 'actividad' }
+	{ key: 'a', id: 'estadisticas-asistencia' },
+	{ key: 'w', id: 'estadisticas-visitas' },
+	{ key: 'h', id: 'actividad' }
 ]);
 
 /** Otras teclas, para la hoja de atajos. */
@@ -62,26 +75,42 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'eventos-series': 'series ediciones recurrente repetir avisame',
 	'ajustes-personas': 'personas roles preguntas inscripcion organiza facilita campos',
 	checkin: 'check-in ingreso puerta qr escanear',
-	entradas: 'ventas entradas plata recaudado',
+	entradas: 'ventas entradas plata recaudado ordenes reembolso reembolsar devolver',
 	'entradas-transferencias': 'transferencias pagos comprobante confirmar',
 	'entradas-codigos': 'codigos descuento cupon',
 	propinas: 'propinas cafecito aportes donaciones',
-	personas: 'personas clientes compradores gente',
-	estadisticas: 'estadisticas graficos tendencias analytics',
-	'no-listadas': 'no listadas borradores ocultas',
+	personas: 'personas clientes compradores gente ficha nota notas internas',
+	estadisticas:
+		'estadisticas graficos tendencias ventas en el tiempo vendidas cobrado por serie medios de pago fondo finanzas',
+	'estadisticas-asistencia':
+		'estadisticas asistencia check-in vinieron primera vez vuelven retorno no vinieron por evento',
+	'estadisticas-visitas':
+		'estadisticas visitas al sitio analytics trafico paginas mas vistas paises dispositivos origen embudo conversion',
+	'no-listadas': 'no listadas borradores ocultas sin listar',
+	biblioteca: 'biblioteca imagenes fotos archivos documentos pdf videos subir borrar sacar media',
 	'contenido-base': 'base de datos importar eventos md archivos migrar coinciden paridad',
-	'ajustes-cobros': 'ajustes cobros alias cbu mercado pago comision',
-	'ajustes-fondo': 'ajustes fondo porcentaje',
-	'ajustes-mails': 'ajustes de mails plantillas recordatorios remitente email envios',
-	'ajustes-plantillas': 'plantillas textos mails email compra recordatorio mensajes',
-	'ajustes-admins': 'admins permisos',
+	'ajustes-cobros':
+		'ajustes cobros alias cbu cvu mercado pago comision transferencia datos bancarios',
+	'ajustes-fondo': 'ajustes fondo porcentaje kinky vibe descuento solidaria',
+	'ajustes-mails':
+		'ajustes de mails plantillas recordatorios remitente email envios pie de mail firma',
+	'ajustes-plantillas':
+		'plantillas textos mails email compra recordatorio mensajes pie de mail asunto',
+	'ajustes-admins': 'admins permisos equipo organizadores github',
 	'ajustes-interruptores': 'ajustes interruptores funciones nuevas prender apagar activar flags',
 	'ajustes-automatizaciones':
 		'ajustes automatizaciones crons cron tareas programadas backup recordatorios mails automaticos bot telegram reglas',
-	cuentas: 'cuentas usuaries publico registradas',
+	cuentas: 'cuentas usuaries publico registradas contraseña entrar sesiones',
 	amigues:
 		'perfiles amigues personas proyectos lugares revisar aprobar pedidos es mi perfil importar fichas',
-	actividad: 'actividad registro auditoria historial quien cambio'
+	actividad: 'actividad registro auditoria historial quien cambio recuperar deshacer borrado',
+	etiquetas: 'etiquetas tags arbol kinkipedia wiki categorias alias renombrar juntar',
+	material: 'material guias articulos nota notas kinkipedia contenido publicaciones',
+	tienda: 'tienda productos merch vender',
+	'lo-que-sigo': 'lo que sigo seguimientos avisos seguir',
+	bandeja: 'bandeja mails recibidos respuestas inbox',
+	colecciones: 'colecciones listas agrupar material',
+	videos: 'videos grabaciones youtube'
 });
 
 /** Ícono (nombre de Lucide, ver SearchBox) de cada sección. */
@@ -101,10 +130,13 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	propinas: 'wallet',
 	personas: 'users',
 	estadisticas: 'chart',
+	'estadisticas-asistencia': 'users',
+	'estadisticas-visitas': 'eye',
 	material: 'book',
 	amigues: 'person',
 	etiquetas: 'tag',
 	'no-listadas': 'eye-off',
+	biblioteca: 'book',
 	'contenido-base': 'book',
 	'ajustes-cobros': 'settings',
 	'ajustes-fondo': 'settings',
@@ -133,8 +165,9 @@ export function shortcutOf(id) {
 }
 
 /**
- * Todas las acciones de la paleta. `today`: eventos de hoy con venta (para "Abrir check-in de
- * hoy"; si no hay, la acción va a elegir evento).
+ * Las acciones de la paleta que salen del menú. `today`: eventos de hoy con venta (para «Abrir la
+ * puerta de hoy»; si no hay, la acción va a elegir evento). La paleta usa `paletteCommands` de
+ * `paletteActions.js`, que suma las demás.
  *
  * @param {{ today?: { slug: string, title: string, href: string }[] }} [opts]
  * @returns {Command[]}
@@ -173,7 +206,8 @@ export function buildCommands({ today = [] } = {}) {
 		hint: 'Códigos',
 		keywords: 'nuevo codigo descuento cupon crear',
 		icon: 'tag',
-		href: '/admin/ventas/codigos'
+		// El formulario de código nuevo está al pie de Códigos.
+		href: '/admin/ventas/codigos#nuevo'
 	});
 
 	for (const item of NAV) {
@@ -239,16 +273,17 @@ export function fold(s) {
  * las que tienen una palabra que empieza igual, después las que lo contienen (en el nombre o en
  * las palabras extra). Con la búsqueda vacía, todas en su orden.
  *
- * @param {Command[]} commands
+ * @template {{ label: string, keywords: string, hint: string }} C
+ * @param {C[]} commands
  * @param {string} q
  * @param {number} [limit]
- * @returns {Command[]}
+ * @returns {C[]}
  */
 export function matchCommands(commands, q, limit = Infinity) {
 	const f = fold(q);
 	if (!f) return commands.slice(0, limit);
 	const words = f.split(' ');
-	/** @type {{ c: Command, rank: number, i: number }[]} */
+	/** @type {{ c: C, rank: number, i: number }[]} */
 	const found = [];
 	commands.forEach((c, i) => {
 		const label = fold(c.label);

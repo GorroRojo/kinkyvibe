@@ -11,7 +11,7 @@
  */
 import { parseDocument } from 'yaml';
 import { splitMarkdown } from './eventDraft.js';
-import { venueLine } from './venues.js';
+import { venueLine, venueSchema } from './venues.js';
 
 /** Largo máximo del link al mapa. */
 export const MAP_LINK_MAX = 500;
@@ -62,19 +62,219 @@ export function checkMapLink(raw) {
 	return site ? { ok: true, url: url.href } : { ok: false, message: MAP_LINK_ERROR };
 }
 
+/** El texto del «Dónde» de un evento online (página, .ics, listas, mails, entradas). */
+export const ONLINE_PLACE_TEXT = 'Online';
+
+/**
+ * Texto para comparar: sin tildes, en minúsculas, sin puntuación y con un solo espacio.
+ * @param {unknown} raw
+ */
+export function normalizePlaceText(raw) {
+	return String(raw ?? '')
+		.normalize('NFD')
+		.replace(/[̀-ͯ]/g, '')
+		.toLowerCase()
+		.replace(/[^\p{L}\p{N}]+/gu, ' ')
+		.trim();
+}
+
+/**
+ * Lo que dice un «Dónde» de un evento online (ya normalizado con {@link normalizePlaceText}). Es
+ * la única lista: la usan la página, la venta, el aviso «Online con lugar», «Importar de
+ * eventos» y el importador de la planilla.
+ */
+export const ONLINE_WORDS = new Set([
+	'online',
+	'virtual',
+	'zoom',
+	'meet',
+	'google meet',
+	'jitsi',
+	'discord',
+	'por zoom',
+	'por meet'
+]);
+
+/**
+ * ¿El texto dice «es online» («Online», «Virtual», «Zoom»…)? Sin importar mayúsculas, tildes,
+ * espacios ni puntuación.
+ * @param {unknown} v
+ */
+export function isOnlineWord(v) {
+	return ONLINE_WORDS.has(normalizePlaceText(v));
+}
+
+/**
+ * Las formas de escribir la etiqueta Online en un evento: «Online» y los alias que acepta el
+ * editor para el lugar (`EVENT_ALIASES` de adminTags.js: «online», «virtual»).
+ */
+const ONLINE_TAGS = new Set(['online', 'virtual']);
+
+/**
+ * ¿Tiene la etiqueta Online? Sin importar mayúsculas, tildes ni espacios.
+ * @param {unknown} tags
+ */
+export function hasOnlineTag(tags) {
+	const list = Array.isArray(tags) ? tags : [];
+	return list.some((t) => ONLINE_TAGS.has(normalizePlaceText(t)));
+}
+
+/** @param {unknown} v */
+const trimmed = (v) => (typeof v === 'string' ? v.trim() : '');
+
+/**
+ * Lo que dice el campo `modalidad` del frontmatter: «online» (u «virtual»), «presencial» o ''
+ * (no dice nada: se decide por el «Dónde» y las etiquetas).
+ * @param {Record<string, any> | null | undefined} meta
+ * @returns {'online' | 'presencial' | ''}
+ */
+export function modalidadOf(meta) {
+	const m = normalizePlaceText(meta?.modalidad);
+	if (m === 'online' || m === 'virtual') return 'online';
+	if (m === 'presencial') return 'presencial';
+	return '';
+}
+
+/**
+ * **La** regla de si un evento es online o presencial (página, .ics, schema.org, listas,
+ * carrusel, imagen para compartir, panel, «Qué falta», «Importar de eventos» y la venta de
+ * entradas, con {@link isOnlineEvent}). En orden:
+ *
+ * 1. un lugar vinculado («Sucede en», `hasVenue`) manda: presencial;
+ * 2. `modalidad: online | presencial` (como en la venta);
+ * 3. un «Dónde» que dice solo «Online», «Virtual», «Zoom»… (`location`, o `location_name` sin
+ *    `location`): online;
+ * 4. cualquier otro «Dónde» (`location` o `location_name`): presencial. Un evento con «Zona
+ *    Inventada | Lugar de Prueba» y la etiqueta Online es presencial (la etiqueta suele quedar de
+ *    otra edición: lo marca `onlineTagMismatch`);
+ * 5. sin «Dónde», la etiqueta Online (o «virtual»): online;
+ * 6. sin nada: '' (no se sabe; no se inventa que es online).
+ *
+ * No hay eventos híbridos en los datos.
+ *
+ * @param {Record<string, any> | null | undefined} meta
+ * @param {{ hasVenue?: boolean }} [opts]
+ * @returns {'online' | 'presencial' | ''}
+ */
+export function eventMode(meta, { hasVenue = false } = {}) {
+	if (hasVenue) return 'presencial';
+	const m = meta ?? {};
+	const modalidad = modalidadOf(m);
+	if (modalidad) return modalidad;
+	const loc = trimmed(m.location);
+	const name = trimmed(m.location_name);
+	if (isOnlineWord(loc) || (!loc && isOnlineWord(name))) return 'online';
+	if (loc || name) return 'presencial';
+	return hasOnlineTag(m.tags) ? 'online' : '';
+}
+
+/**
+ * ¿El evento (sin lugar vinculado) es online? `eventMode(meta) === 'online'`.
+ * @param {Record<string, any>} meta
+ */
+export function isOnlinePlace(meta) {
+	return eventMode(meta) === 'online';
+}
+
+/**
+ * ¿La **venta de entradas** trata al evento como online? Entonces las entradas llevan el link de
+ * la transmisión en lugar de un QR, no hay puerta ni control de ingreso, y los mails y la página
+ * de cada entrada dicen «Online». Es la misma regla que la página: `eventMode(meta, opts) ===
+ * 'online'` (decisión de gorrite: antes la venta tenía su propia regla, la etiqueta Online sin
+ * `location`, que no coincidía en dos casos). Pasale `hasVenue` donde se sabe si el evento tiene
+ * un lugar vinculado (con lugar, presencial).
+ *
+ * @param {Record<string, any> | null | undefined} meta
+ * @param {{ hasVenue?: boolean }} [opts]
+ */
+export function isOnlineEvent(meta, opts) {
+	return eventMode(meta, opts) === 'online';
+}
+
+/**
+ * «Nombre · Dirección» (como un lugar con nombre y dirección, `venueLine`), o lo que haya de los
+ * dos; el mismo texto en los dos, una sola vez. '' sin nada.
+ * @param {unknown} name
+ * @param {unknown} address
+ */
+export function placeLine(name, address) {
+	const n = trimmed(name);
+	const a = trimmed(address);
+	return n && a && n.toLowerCase() !== a.toLowerCase() ? `${n} · ${a}` : n || a;
+}
+
+/**
+ * El lugar en los mails de entradas, la página de compra y la de cada entrada: «Online» si la
+ * venta lo trata como online ({@link isOnlineEvent}, así coincide con el link en vez del QR); si
+ * no, «Nombre · Dirección».
+ * @param {boolean} online lo que dice la venta (`config.online`)
+ * @param {{ location?: unknown, location_name?: unknown } | null | undefined} place
+ */
+export function salePlaceText(online, place) {
+	return online ? ONLINE_PLACE_TEXT : placeLine(place?.location_name, place?.location);
+}
+
+/**
+ * El «Dónde» en pocas palabras (carrusel, imagen para compartir): «Online» si el evento es online
+ * ({@link eventMode}); si no, el nombre del lugar o, sin nombre, la dirección; '' sin nada. Con
+ * lugar vinculado, pasale la meta de {@link venuePlaceMeta}.
+ * @param {Record<string, any>} meta
+ */
+export function placeShort(meta) {
+	if (eventMode(meta) === 'online') return ONLINE_PLACE_TEXT;
+	return trimmed(meta?.location_name) || trimmed(meta?.location);
+}
+
 /**
  * Lo que muestran la página y el .ics: con lugar, el lugar (según su privacidad) y sin link al
- * mapa del .md; sin lugar, el «Dónde» del .md (o «Online») y su link al mapa si es válido.
+ * mapa del .md; sin lugar, el «Dónde» del .md y su link al mapa si es válido: «Nombre ·
+ * Dirección» (como un lugar con nombre y dirección, `venueLine`), o lo que haya de los dos.
+ * «Online» solo si el evento es online (`isOnlinePlace`); sin nada cargado, texto vacío (no se
+ * inventa que es online).
  *
- * @param {{ location?: unknown, location_map?: unknown }} meta
+ * @param {{ location?: unknown, location_name?: unknown, location_map?: unknown, tags?: unknown, modalidad?: unknown }} meta
  * @param {import('./venues.js').VenueView | null} [venue]
  * @returns {{ text: string, mapUrl: string, fromVenue: boolean }}
  */
 export function eventPlace(meta, venue) {
 	if (venue) return { text: venueLine(venue), mapUrl: '', fromVenue: true };
-	const text = typeof meta.location === 'string' ? meta.location.trim() : '';
 	const map = checkMapLink(meta.location_map);
-	return { text: text || 'Online', mapUrl: map.ok ? map.url : '', fromVenue: false };
+	const mapUrl = map.ok ? map.url : '';
+	if (isOnlinePlace(meta)) return { text: ONLINE_PLACE_TEXT, mapUrl, fromVenue: false };
+	return { text: placeLine(meta.location_name, meta.location), mapUrl, fromVenue: false };
+}
+
+/**
+ * El lugar de un evento para sus datos estructurados (schema.org): `eventAttendanceMode` y
+ * `location`, coherentes con lo que muestra la página. Con lugar vinculado, el lugar (lo que su
+ * nivel deja ver); online, `VirtualLocation` (con el link de inscripción si es web); con «Dónde»,
+ * un `Place`; sin nada, sin modo ni lugar (no se dice que es online).
+ *
+ * @param {Record<string, any>} meta
+ * @param {import('./venues.js').VenueView | null | undefined} venue
+ * @param {string} [webLink] el link de inscripción, solo si es web
+ * @returns {{ eventAttendanceMode?: any, location?: any }}
+ */
+export function eventPlaceSchema(meta, venue, webLink) {
+	const OFFLINE = 'https://schema.org/OfflineEventAttendanceMode';
+	if (venue) return { eventAttendanceMode: OFFLINE, location: venueSchema(venue) };
+	if (isOnlinePlace(meta)) {
+		return {
+			eventAttendanceMode: 'https://schema.org/OnlineEventAttendanceMode',
+			location: { '@type': 'VirtualLocation', url: webLink || undefined }
+		};
+	}
+	const name = trimmed(meta.location_name);
+	const address = trimmed(meta.location);
+	if (!name && !address) return {};
+	return {
+		eventAttendanceMode: OFFLINE,
+		location: {
+			'@type': 'Place',
+			name: name || trimmed(meta.title) || address,
+			...(address ? { address: { '@type': 'PostalAddress', name: address } } : {})
+		}
+	};
 }
 
 /**

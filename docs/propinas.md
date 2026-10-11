@@ -74,7 +74,7 @@ simulado (`completeMockCheckout` en `tickets/mock.js`) y el CSV del panel (`$lib
   publicación y las últimas propinas con su destino y su mensaje. Las pestañas Todas / Para
   KinkyVibe / Para el Fondo filtran la lista (`?destino=kinkyvibe|fondo`; los totales no se
   filtran). "CSV" descarga todas (también las pendientes que nunca se pagaron), con la columna
-  `destino` al final.
+  `destino` al final y las fechas (`fecha`, `aprobada`) en hora de Argentina, `2026-10-02 22:30`.
 - **Inicio**: las propinas aprobadas aparecen en la actividad reciente. La tarjeta **Neto del
   fondo** (del mes) suma como aportes, además de los de las entradas solidarias
   (`orders.fondo_contribution`), las propinas "Para el Fondo" **aprobadas** en el mes (por fecha de

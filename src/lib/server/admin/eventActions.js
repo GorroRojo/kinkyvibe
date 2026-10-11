@@ -1,3 +1,4 @@
+import { entradas } from '$lib/utils/plural.js';
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
@@ -7,12 +8,14 @@ import {
 	getGateway,
 	inBackground,
 	sendOrderEmail,
+	sendDateChangeEmails,
 	sendRefundEmail,
 	sendStreamLinkEmails,
-	siteOrigin,
-	transferHoldMs
+	siteOrigin
 } from '$lib/server/tickets/index.js';
 import { reopenTransferFromPanel } from '$lib/server/admin/transfers.js';
+import { orderIdsByDni, revealOrderDni } from '$lib/server/admin/eventOrders.js';
+import { dniQueryDigits } from '$lib/admin/orderFormat.js';
 import {
 	cancelTransfer,
 	clearReview,
@@ -29,6 +32,12 @@ import {
 	requestStreamLinkSend,
 	setStreamLink
 } from '$lib/server/tickets/stream.js';
+import {
+	dateChangeOffer,
+	dismissDateChange,
+	getDateChange,
+	requestDateChangeSend
+} from '$lib/server/tickets/dateChange.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
 
@@ -66,6 +75,31 @@ export const eventTicketActions = {
 				message: done ? 'Marcada como revisada.' : 'Esa orden ya estaba revisada.'
 			}
 		};
+	},
+	// «Mostrar» el DNI completo de una orden de este evento (en la página solo van los últimos 3
+	// dígitos). Como en la ficha de la persona: cada vez queda en Actividad, sin el DNI.
+	dni: async ({ locals, url, params, platform, request }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		const orderId = String((await request.formData()).get('orden') ?? '').slice(0, 64);
+		const key = `orden:${orderId}`;
+		if (!db) return fail(503, { dni: { ok: false, key, message: 'Sin base de datos.' } });
+		if (!orderId) {
+			return fail(400, { dni: { ok: false, key: '', message: 'No sabemos qué DNI mostrar.' } });
+		}
+		const value = await revealOrderDni(db, locals, { slug: params.slug, orderId });
+		if (!value) return fail(404, { dni: { ok: false, key, message: 'No hay DNI.' } });
+		return { dni: { ok: true, key, value } };
+	},
+
+	// Buscador de Órdenes por DNI: el DNI completo no está en la página, así que se busca acá.
+	// Devuelve solo los ids de las órdenes que coinciden (el DNI empieza con esos dígitos).
+	dniSearch: async ({ locals, url, params, platform, request }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		const q = dniQueryDigits((await request.formData()).get('q'));
+		if (!db) return fail(503, { dniSearch: { ids: [] } });
+		return { dniSearch: { ids: await orderIdsByDni(db, params.slug, q) } };
 	},
 	resend: async ({ locals, url, params, platform, request, fetch }) => {
 		requireAdmin(locals, url);
@@ -153,7 +187,7 @@ export const eventTicketActions = {
 				action: 'transfer.confirm',
 				targetType: 'order',
 				targetId: orderId,
-				summary: `Confirmó la transferencia ${ref} (${r.tickets.length} entradas)`,
+				summary: `Confirmó la transferencia ${ref} (${entradas(r.tickets.length)})`,
 				detail: {
 					event: params.slug,
 					tickets: r.tickets.length,
@@ -180,14 +214,14 @@ export const eventTicketActions = {
 			return {
 				transfer: {
 					ok: true,
-					message: `Pago de ${ref} confirmado: se emitieron ${r.tickets.length} entradas y se mandaron a ${confirmed.buyer_email}.`
+					message: `Pago de ${ref} confirmado: se emitieron ${entradas(r.tickets.length)} y se mandaron a ${confirmed.buyer_email}.`
 				}
 			};
 		}
 		/** @type {Record<string, string>} */
 		const messages = {
 			already: `${ref} ya estaba confirmada (no se emitió nada de nuevo).`,
-			'no-capacity': `No se pudo confirmar ${ref}: la reserva venció y ya no hay cupo para ${r.order?.quantity ?? ''} entradas ${type.name}.`,
+			'no-capacity': `No se pudo confirmar ${ref}: la reserva venció y ya no hay cupo para ${entradas(r.order?.quantity ?? 0)} ${type.name}.`,
 			'not-transfer': `${ref} no es una compra por transferencia.`,
 			'not-found': 'No encontramos esa orden.',
 			cancelled: `${ref} está cancelada: no se puede confirmar.`
@@ -266,6 +300,96 @@ export const eventTicketActions = {
 		return r.failed || r.gaveUp
 			? fail(502, { stream: { ok: false, message } })
 			: { stream: { ok: true, message } };
+	},
+
+	// «Avisar a les compradores» (cambio de fecha, dateChange.js): solo a las órdenes aprobadas de
+	// antes del cambio que todavía no recibieron ESTE aviso (`version` del formulario: si hubo
+	// otro cambio después, no se manda y se pide mirar el nuevo). Como «Enviar el link a todes»:
+	// manda una tanda y deja el envío pedido; el resto lo manda el cron. Nunca sale solo: lo pide
+	// este botón, que confirma antes.
+	dateChangeSend: async ({ locals, url, params, platform, request, fetch }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { dateChange: { ok: false, message: 'Sin base de datos.' } });
+		const version = Number((await request.formData()).get('version'));
+		const config = await getEventTickets(params.slug);
+		const change = config ? await getDateChange(db, params.slug) : null;
+		if (!config || !change) {
+			return fail(404, {
+				dateChange: { ok: false, message: 'No hay ningún cambio de fecha para avisar.' }
+			});
+		}
+		if (config.status === 'cancelado') {
+			return fail(409, {
+				dateChange: { ok: false, message: 'El evento está cancelado: no se avisa la fecha.' }
+			});
+		}
+		if (!Number.isSafeInteger(version) || version !== change.version) {
+			return fail(409, {
+				dateChange: {
+					ok: false,
+					message: 'La fecha volvió a cambiar. Revisá el aviso nuevo y volvé a tocar el botón.'
+				}
+			});
+		}
+		await requestDateChangeSend(db, { eventSlug: params.slug, version, by: admin.login });
+		const r = await sendDateChangeEmails({
+			db,
+			change,
+			origin: siteOrigin(url),
+			fetch
+		});
+		const who = (/** @type {number} */ n) => (n === 1 ? '1 persona' : `${n} personas`);
+		if (r.sent || r.failed) {
+			// Sin mails de nadie: solo cuántos.
+			await logAdminAction(db, locals, {
+				action: 'event.date_change.send',
+				targetType: 'event',
+				targetId: params.slug,
+				summary: `Avisó el cambio de fecha a ${who(r.sent)}`,
+				detail: {
+					version,
+					sent: r.sent,
+					failed: r.failed,
+					remaining: r.remaining,
+					from: change.old_start,
+					to: change.new_start
+				}
+			});
+		}
+		const message = dateChangeSendMessage(r, who);
+		return r.failed || r.gaveUp
+			? fail(502, { dateChange: { ok: false, message } })
+			: { dateChange: { ok: true, message } };
+	},
+
+	// «No hace falta avisar»: el aviso de arriba de la ficha deja de mostrarse para este cambio (la
+	// pestaña «Mail a compradores» lo sigue ofreciendo). No manda nada.
+	dateChangeDismiss: async ({ locals, url, params, platform, request }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { dateChange: { ok: false, message: 'Sin base de datos.' } });
+		const version = Number((await request.formData()).get('version'));
+		const offer = await dateChangeOffer(db, params.slug);
+		if (!offer || offer.version !== version) {
+			return fail(409, { dateChange: { ok: false, message: 'Ese cambio de fecha ya no está.' } });
+		}
+		if (await dismissDateChange(db, { eventSlug: params.slug, version })) {
+			await logAdminAction(db, locals, {
+				action: 'event.date_change.dismiss',
+				targetType: 'event',
+				targetId: params.slug,
+				summary: 'Decidió no avisar el cambio de fecha',
+				detail: { version }
+			});
+		}
+		return {
+			dateChange: {
+				ok: true,
+				message:
+					'Listo, no avisamos. Si cambiás de idea, está en «Mail a compradores» → «Avisar el cambio de fecha».'
+			}
+		};
 	},
 
 	// "Reembolsar": Mercado Pago → reembolso total por la API de MP y después se marca la orden;
@@ -379,7 +503,6 @@ export const eventTicketActions = {
 			by: admin.login,
 			orderId,
 			eventSlug: params.slug,
-			holdMs: transferHoldMs(),
 			override: readOverride(form)
 		});
 		const body = {
@@ -415,6 +538,32 @@ export function streamSendMessage(r, who) {
 	}
 	const parts = [];
 	if (r.sent || r.failed) parts.push(`Link enviado a ${who(r.sent)}.`);
+	if (r.failed) parts.push(`No se pudo mandar a ${who(r.failed)}: se reintenta solo.`);
+	if (r.remaining) {
+		parts.push(
+			`Faltan ${who(r.remaining)}: siguen solas en las próximas vueltas del cron (cada 15 minutos), o tocá el botón de nuevo para mandar otra tanda.`
+		);
+	}
+	if (r.gaveUp) {
+		parts.push(
+			`A ${who(r.gaveUp)} no le llegó después de varios intentos (ver logs; tocá el botón para reintentar).`
+		);
+	}
+	return parts.join(' ');
+}
+
+/**
+ * Qué pasó con una tanda de «Avisar a les compradores», para le admin.
+ *
+ * @param {{ sent: number, failed: number, remaining: number, gaveUp: number }} r
+ * @param {(n: number) => string} who
+ */
+export function dateChangeSendMessage(r, who) {
+	if (!r.sent && !r.failed && !r.remaining && !r.gaveUp) {
+		return 'Todes ya tenían este aviso: no se mandó nada.';
+	}
+	const parts = [];
+	if (r.sent || r.failed) parts.push(`Aviso enviado a ${who(r.sent)}.`);
 	if (r.failed) parts.push(`No se pudo mandar a ${who(r.failed)}: se reintenta solo.`);
 	if (r.remaining) {
 		parts.push(

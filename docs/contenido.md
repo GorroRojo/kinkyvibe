@@ -33,7 +33,7 @@ imágenes viejas del repo siguen ahí hasta pasarlas a R2 ([imagenes.md](imagene
 | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Publicaciones                                                          | `src/lib/posts/<categoría>/<slug>.md` (`calendario`, `material`, `amigues`, `wiki`)                                     |
 | Imágenes de cada publicación                                           | `src/lib/posts/<categoría>/media/<slug>/`                                                                               |
-| Plantilla de evento                                                    | `src/lib/posts/calendario/_event_template.md`                                                                           |
+| Plantillas de evento y de material                                     | `src/lib/admin/plantillas/` (`evento.md`, `material.md`)                                                                |
 | Árbol de etiquetas                                                     | `src/lib/utils/hardcodedTags.js` (se edita desde Panel → Etiquetas)                                                     |
 | Páginas públicas                                                       | `src/routes/(content)/` (`calendario`, `material`, `amigues`, `wiki`…)                                                  |
 | Editor de eventos (nuevo, editar, duplicar, agenda, importar planilla) | `src/routes/(authed)/admin/eventos/`, `src/lib/server/eventos/`, `src/lib/utils/eventDraft.js`                          |
@@ -145,7 +145,8 @@ prendido para siempre** y salió de Interruptores (paso 2 de «Contenido solo en
   el texto nombra un interactivo con una etiqueta propia, sola, sin atributos:
   `<kv-donde-golpear-un-cuerpo></kv-donde-golpear-un-cuerpo>`. El registro está en
   `src/lib/utils/interactivos.js` (etiquetas y su forma en los `.md`) y
-  `src/lib/components/interactivos/index.js` (qué componente muestra cada una). Solo las
+  `src/lib/components/interactivos/index.js` (qué componente muestra cada una; los componentes
+  viven en esa misma carpeta). Solo las
   registradas se muestran (también dentro de otro elemento, con `ContentParts.svelte`); cualquier
   otra `<kv-…>` se ve escapada, como texto. La importación pasa la forma del `.md` (componente
   importado en el `<script>`) a la etiqueta, y «Descargar todo» la vuelve a armar. Un interactivo
@@ -163,7 +164,9 @@ prendido para siempre** y salió de Interruptores (paso 2 de «Contenido solo en
   lo que no cambió no se toca, lo editado o borrado en el panel tampoco (lo informa). Sirve para
   una base nueva (un preview) y para traer un `.md` nuevo que llegue por un PR. Un `.md` que no se
   puede importar (frontmatter roto, un componente no registrado, un fin antes del inicio) **no se
-  muestra**: hay que corregirlo e importar de nuevo.
+  muestra**: hay que corregirlo e importar de nuevo. Su lista «Para revisar» es además una fila de
+  «Para revisar» del panel: la página guarda cuántos hay cada vez que se abre (`review_snapshots`,
+  ver [panel.md](panel.md)).
 - **Base local**: `npm run dev` (y `dev:admin`, `dev:tickets`) importa los `.md` a la base local
   antes de arrancar (`scripts/import-content.js`, sin frenar el arranque si falla): eventos,
   material, fichas de amigues y, si la base no tiene etiquetas, las etiquetas con los textos de la
@@ -237,7 +240,9 @@ anterior** (que todavía muestra las fichas `.md`), o enseguida después del nue
 Si el deploy nuevo sale antes de importar, `/amigues` queda vacío y `/wiki/<término>` muestra solo
 la etiqueta hasta correr los pasos 1 y 2 (no se pierde nada: los `.md` siguen en el repo).
 
-#### DECIDIDO POR CLAUDE, A CONFIRMAR (gorrite)
+#### Decisiones de la wiki (confirmadas por gorrite, 5/10)
+
+Propuestas por Claude; **confirmado por gorrite (5/10)**: las seis, tal como están.
 
 1. **La wiki usa el tipo `etiqueta` que ya existía** (su texto de la wiki es el cuerpo de la
    etiqueta, tu diseño en [etiquetas.md](etiquetas.md)); no hay un tipo nuevo. La dirección de una

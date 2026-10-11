@@ -197,17 +197,36 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	// 3 entradas "con el descuento del fondo": el neto es negativo (el fondo puso, nadie aportó).
 	await expect(fondoValue(card, 'Neto del fondo')).toHaveText(/^[−+]?\$\s[\d.]+$/);
 
-	// La pestaña Órdenes de la ficha muestra cada entrada y el DNI de quien compró.
+	// La pestaña Órdenes de la ficha muestra cada entrada y, del DNI de quien compró, solo los
+	// últimos 3 dígitos: el completo con «Mostrar» (queda registrado), nunca en el HTML de entrada.
 	await page.goto(`/admin/eventos/${EVENT}/ordenes`);
 	const order = page.locator('.order', { hasText: buyer.email });
+	await expect(order.getByText(`DNI •••.${buyer.dni.slice(-3)}`)).toBeVisible();
+	const ordersHtml = await page.content();
+	expect(ordersHtml).not.toContain(buyer.dni);
+	expect(ordersHtml).not.toContain(dotted(buyer.dni));
+	await order.getByRole('button', { name: /Mostrar/ }).click();
 	await expect(order.getByText(`DNI ${dotted(buyer.dni)}`)).toBeVisible();
 	for (const p of people) await expect(order.getByRole('cell', { name: p.name })).toBeVisible();
 	await expect(order).toContainText(`recargo MP +${ars(prices.surcharge)}`);
+	// El buscador encuentra la orden por DNI (se busca en el servidor).
+	await page.reload();
+	await page.getByRole('searchbox').fill(buyer.dni.slice(0, 5));
+	await expect(page.locator('.order', { hasText: buyer.email })).toBeVisible();
+	await page.getByRole('searchbox').fill('99999999999');
+	await expect(page.locator('.order', { hasText: buyer.email })).toHaveCount(0);
 
-	// El CSV tiene una fila por entrada, con el DNI de quien compró.
+	// El CSV tiene una fila por entrada, con el DNI de quien compró. Se arma con `toCsv`, que cita
+	// solo las celdas que lo necesitan: se busca la celda entera, con o sin comillas.
 	const csv = await (await page.request.get(`/admin/eventos/${EVENT}/ordenes.csv`)).text();
-	expect(csv).toContain(`"${buyer.dni}"`);
-	for (const p of people) expect(csv).toContain(`"${p.name}"`);
+	const cells = csv
+		.split(/\r\n/)
+		.flatMap((line) => line.split(',').map((c) => c.replace(/^"|"$/g, '')));
+	expect(cells).toContain(buyer.dni);
+	for (const p of people) expect(cells).toContain(p.name);
+	// La fecha de compra va en hora de Argentina (`2026-10-02 22:30`), no en ISO UTC.
+	expect(csv).not.toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/);
+	expect(csv).toMatch(/,\d{4}-\d{2}-\d{2} \d{2}:\d{2},/);
 
 	// Modo puerta: "Escribir código" abre una hoja con el campo y "Validar".
 	await page.goto(`/admin/eventos/${EVENT}/ingreso`, { waitUntil: 'networkidle' });
@@ -237,8 +256,9 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	await validate(ticketUrl);
 	await expect(result).toContainText('Ya ingresó');
 
+	// Escrito a mano y no existe: «Código no encontrado» (no hubo QR; antes decía «QR inválido»).
 	await validate('A'.repeat(43));
-	await expect(result).toContainText('QR inválido');
+	await expect(result).toContainText('Código no encontrado');
 
 	// "Buscar persona": por DNI de quien compró aparecen sus 3 entradas (el DNI, parcial).
 	await page.getByRole('button', { name: 'Buscar persona' }).click();
@@ -568,7 +588,16 @@ test('transferencia (con fondo): datos para transferir → admin confirma → la
 	const pending = page.locator('.transfers .order', { hasText: reference });
 	await expect(pending).toBeVisible();
 	await pending.getByRole('button', { name: 'Confirmar pago' }).click();
-	await expect(page.getByText(`Pago de ${reference} confirmado`)).toBeVisible();
+	// Antes de emitir, una pregunta corta con el nombre y el monto.
+	const ask = page.getByRole('dialog', { name: /¿Confirmar el pago de/ });
+	await expect(ask).toContainText(ars(16000));
+	await expect(ask).toContainText('2 entradas');
+	await ask.getByRole('button', { name: 'Sí, confirmar pago' }).click();
+	// El resultado queda en la misma fila (no arriba de la página) y ya no se puede confirmar.
+	await expect(pending.getByText(`Pago de ${reference} confirmado`)).toBeVisible();
+	await expect(pending.getByRole('button', { name: 'Confirmar pago' })).toHaveCount(0);
+	// Al recargar, ya no está entre las pendientes.
+	await page.reload();
 	await expect(page.locator('.transfers .order', { hasText: reference })).toHaveCount(0);
 
 	// Confirmar de nuevo (p. ej. desde otra pestaña): no emite nada.
@@ -684,9 +713,15 @@ test('el evento de prueba: botón en la página del evento → página de compra
 	await fillBuyer(block);
 	await nextStep(block, 'Pagar');
 	await block.getByLabel(/Transferencia/).check();
-	await expect(block.locator('.method-note.shown')).toContainText(
-		'Confirmando la reserva desde el mail, te guardamos el lugar 48 horas mientras mandás el comprobante por mail'
+	// Hasta cuándo se guarda el lugar, con día y hora (decisión 0031): sin paso de confirmar.
+	const transferNote = block.locator('.method-note.shown');
+	await expect(transferNote).toContainText(
+		/Te guardamos el lugar hasta (el \S+ \d+ de \S+ a las|las) \d\d:\d\d/
 	);
+	await expect(transferNote).toContainText(
+		'Transferí y mandanos el comprobante antes de esa hora; si no llega, la reserva se libera.'
+	);
+	await expect(transferNote).not.toContainText(/confirmando|horas/i);
 	// Condiciones: una sola lista con el mismo formato, devoluciones incluidas.
 	await block.getByText('Condiciones de compra y devoluciones').click();
 	const conditions = block.locator('details.conditions > ul > li');
@@ -812,9 +847,11 @@ test('el formulario sobrevive a una recarga (sessionStorage) y se borra al compr
 	await block.locator('.pay button[type="submit"]').click();
 	await expect(page).toHaveURL(/\/entradas\/[0-9a-f-]{36}\/estado$/);
 	await expect(page.locator('.amount')).toHaveText(ars(26000));
-	// Reserva inicial corta: pide confirmarla desde el mail para guardarla 48 horas.
-	await expect(page.getByText(/te reservamos el lugar\s+2 horas/)).toBeVisible();
-	await expect(page.locator('.confirm-note')).toContainText('48 horas');
+	// La reserva completa desde el principio, con día y hora; nada para confirmar (decisión 0031).
+	await expect(page.locator('.hold-note')).toContainText(
+		/Te guardamos el lugar hasta (el \S+ \d+ de \S+ a las|las) \d\d:\d\d/
+	);
+	await expect(page.getByText(/confirmá tu reserva/i)).toHaveCount(0);
 	await page.goto(BUY_URL, { waitUntil: 'networkidle' });
 	await expect(page.locator('#entradas').getByLabel('Tu nombre')).toHaveValue('');
 });
@@ -887,8 +924,8 @@ test('tres pasos: indicador, validación por paso, foco, volver sin perder nada 
 	await expect(steps.locator('[aria-current="step"]')).toContainText('Entradas');
 	expect(await noHorizontalScroll()).toBe(true);
 
-	// En el celu, el resumen es una barra con el total que se despliega.
-	await expect(block.getByText('Total:')).toBeVisible();
+	// En el celu, el resumen es una barra de una línea («1 entrada · $ …») que se despliega.
+	await expect(block.getByRole('button', { name: /^1 entrada · \$/ })).toBeVisible();
 	await expect(block.getByText(/^Entradas \(1 ×/)).toBeHidden();
 	await block.getByRole('button', { name: /Ver detalle/ }).click();
 	await expect(block.getByRole('button', { name: /Ocultar detalle/ })).toHaveAttribute(
@@ -915,10 +952,10 @@ test('tres pasos: indicador, validación por paso, foco, volver sin perder nada 
 	await nextStep(block, 'Pagar');
 	expect(await noHorizontalScroll()).toBe(true);
 
-	// «Pagar» sin la casilla de +18: no envía.
+	// «Pagar» sin la casilla de +18: no envía (sigue en la dirección del paso 3, `?paso=3`).
 	await block.locator('.pay button[type="submit"]').click();
 	await expect(block.getByText(/Tenés que confirmar que tenés 18 años/)).toBeVisible();
-	await expect(page).toHaveURL(new RegExp(`${BUY_URL}$`));
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}\\?paso=3$`));
 
 	// Volver (con el botón y con el indicador) no pierde nada.
 	await block.getByRole('button', { name: 'Volver a Tus datos' }).click();
@@ -948,4 +985,54 @@ test('elegir el tipo de entrada no cambia de paso: solo «Continuar» lleva a «
 	await expect(stepHeading(block, 'Tus datos')).toBeHidden();
 	await expect(block.getByText('Revisá lo marcado para seguir.')).toHaveCount(0);
 	await nextStep(block, 'Tus datos');
+});
+
+test('cada paso tiene su dirección: «Atrás» vuelve al paso anterior y recargar se queda', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto(`/calendario/${EVENT}`, { waitUntil: 'networkidle' });
+	await page.locator('a.buy-button').click();
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}$`));
+	const block = page.locator('#entradas');
+	await expect(stepHeading(block, 'Entradas')).toBeVisible();
+	await block.getByLabel(TYPES.general.label).check();
+	await nextStep(block, 'Tus datos');
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}\\?paso=2$`));
+	await block.getByLabel('Tu nombre').fill('Persona Atrás');
+	await block.getByLabel('Tus pronombres').fill('elle');
+	await block.getByLabel(/^Email/).fill(`e2e-atras-${Date.now()}@example.com`);
+	await block.getByLabel(/^DNI/).fill('30.222.333');
+	await nextStep(block, 'Pagar');
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}\\?paso=3$`));
+
+	// Recargar en «Pagar» se queda en «Pagar», con lo escrito.
+	await page.reload({ waitUntil: 'networkidle' });
+	await expect(stepHeading(block, 'Pagar')).toBeVisible();
+
+	// «Atrás» del navegador: paso por paso, sin perder nada, y después al evento.
+	await page.goBack();
+	await expect(stepHeading(block, 'Tus datos')).toBeVisible();
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}\\?paso=2$`));
+	await expect(block.getByLabel('Tu nombre')).toHaveValue('Persona Atrás');
+	await page.goBack();
+	await expect(stepHeading(block, 'Entradas')).toBeVisible();
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}$`));
+	await expect(block.getByLabel(TYPES.general.label)).toBeChecked();
+	// «Adelante» también anda.
+	await page.goForward();
+	await expect(stepHeading(block, 'Tus datos')).toBeVisible();
+	await page.goBack();
+	await page.goBack();
+	await expect(page).toHaveURL(new RegExp(`/calendario/${EVENT}$`));
+});
+
+test('una dirección de un paso sin lo anterior completo vuelve al primero que falta', async ({
+	page
+}) => {
+	await page.goto(`${BUY_URL}?paso=3`, { waitUntil: 'networkidle' });
+	const block = page.locator('#entradas');
+	// Arranca con una entrada elegida (la más barata), pero sin «Tus datos»: se queda ahí.
+	await expect(stepHeading(block, 'Tus datos')).toBeVisible();
+	await expect(page).toHaveURL(new RegExp(`${BUY_URL}\\?paso=2$`));
 });

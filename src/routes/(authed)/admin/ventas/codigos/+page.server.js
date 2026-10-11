@@ -13,6 +13,7 @@ import {
 	validateNewCode
 } from '$lib/server/tickets/discounts.js';
 import { listTicketedEvents } from '$lib/server/tickets/events.js';
+import { listEvents } from '$lib/server/eventos/index.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
@@ -32,7 +33,17 @@ export async function load({ locals, url, platform, setHeaders }) {
 			logDBError('list discount codes', error);
 		}
 	}
-	return { codes, events, dbAvailable: Boolean(db), now: Date.now() };
+	// El título de cada evento de un código (también los que ya no venden entradas): nunca la
+	// dirección suelta.
+	const wanted = new Set(codes.map((c) => c.event_slug).filter(Boolean));
+	/** @type {Record<string, string>} */
+	const titles = {};
+	if (wanted.size) {
+		for (const e of await listEvents().catch(() => [])) {
+			if (wanted.has(e.slug)) titles[e.slug] = e.title;
+		}
+	}
+	return { codes, events, titles, dbAvailable: Boolean(db), now: Date.now() };
 }
 
 /** @type {import('./$types').Actions} */

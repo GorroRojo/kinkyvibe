@@ -72,6 +72,12 @@ describe('GET /api/sigo', () => {
 		expect(await thrown(() => m.api.GET(get('cuenta', 'x')))).toMatchObject({ status: 404 });
 	});
 
+	it('sin sesión, un perfil: member false (el botón «Seguir» lleva a /ingresar, como en la wiki)', async () => {
+		const m = await modules();
+		const r = await m.api.GET(get('perfil', '12345'));
+		expect(await r.json()).toEqual({ member: false });
+	});
+
 	it('con sesión: si esta cuenta lo sigue, con la clave canónica', async () => {
 		const m = await modules();
 		const a = await makeAccount(t.db, 'api-a');

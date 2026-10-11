@@ -7,6 +7,7 @@
  * evento) y llega como un mapa slug → estado. Sin mapa (página prerenderizada, sin base), la
  * tarjeta muestra igual el link a /entradas: ahí se ve si quedan.
  */
+import { argDayMonth } from './dates.js';
 
 /**
  * Estado de la venta de un evento para las listas: lo mismo que `open`/`reason` del resumen de la
@@ -44,16 +45,7 @@ export function hasOwnTickets(meta) {
  * @param {number} ms
  */
 export function opensText(ms) {
-	const parts = Object.fromEntries(
-		new Intl.DateTimeFormat('es-AR', {
-			timeZone: 'America/Argentina/Buenos_Aires',
-			day: 'numeric',
-			month: 'numeric'
-		})
-			.formatToParts(new Date(ms))
-			.map((p) => [p.type, p.value])
-	);
-	return `Abre el ${parts.day}/${parts.month}`;
+	return `Abre el ${argDayMonth(ms)}`;
 }
 
 /**

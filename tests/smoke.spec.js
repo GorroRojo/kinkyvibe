@@ -260,6 +260,13 @@ test.describe('errores', () => {
 			expect(res.status()).toBe(404);
 		});
 	}
+
+	// La galería de componentes solo existe en previews y en dev (docs/estilo.md): este build no
+	// tiene rama de deploy, como producción.
+	test('/estilo (galería de componentes) devuelve 404 fuera de un preview', async ({ request }) => {
+		const res = await request.get('/estilo');
+		expect(res.status()).toBe(404);
+	});
 });
 
 test.describe('auth', () => {

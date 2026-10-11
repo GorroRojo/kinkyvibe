@@ -2,7 +2,8 @@
  * Ficha del evento, pestaña Ventas: números (y la meta de venta, si tiene), por tipo, por día,
  * cómo pagaron, Fondo y códigos.
  */
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
+import { eventHref } from '$lib/admin/nav.js';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { totalCapacity } from '$lib/admin/eventFormat.js';
@@ -29,7 +30,10 @@ export async function load({ locals, url, params, platform, setHeaders, fetch })
 	const db = getDB(platform);
 	const fondo = await resolveFondoPercent({ db, fetch });
 	const config = await getEventTickets(params.slug, { fondoPercent: fondo.percent });
-	if (!config) error(404, 'Ese evento no vende entradas.');
+	// Las listas del panel linkean acá a todo evento con `tickets` en su metadata, aunque no venda
+	// de verdad (los de prueba `prueba-entradas-*` en el sitio publicado, una configuración
+	// inválida, uno despublicado): en lugar de un 404, al Resumen de la ficha.
+	if (!config) redirect(303, eventHref(params.slug));
 	if (!db) error(503, 'No hay base de datos disponible.');
 	const now = Date.now();
 	const eventStart = toTime(config.start);

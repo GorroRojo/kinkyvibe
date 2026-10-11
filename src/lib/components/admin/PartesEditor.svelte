@@ -10,8 +10,9 @@
 	 *
 	 * Props: `state` (lo que da `panelParts`, src/lib/server/eventos/partes.js) y `slug`.
 	 */
+	import SectionHeading from '$lib/components/admin/event-form/SectionHeading.svelte';
 	import { deserialize } from '$app/forms';
-	import { ArrowDown, ArrowUp, Plus, X } from '@lucide/svelte';
+	import { ArrowDown, ArrowUp, Plus, Search, X } from '@lucide/svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import { addDays, partDateText, partLabel } from '$lib/utils/partes.js';
 
@@ -35,7 +36,46 @@
 	let busy = false;
 	let message = '';
 	let ok = true;
-	let addSlug = '';
+	// «Sumar un evento que ya existe»: buscador por título (el mismo de la lista de eventos,
+	// `/admin/eventos/lista.json?q=`), en vez de escribir la dirección a mano.
+	let query = '';
+	/** @type {{ slug: string, title: string, start: string }[]} */
+	let results = [];
+	let searching = false;
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let searchTimer;
+	let searchSeq = 0;
+	$: scheduleSearch(query);
+	/** @param {string} q */
+	function scheduleSearch(q) {
+		clearTimeout(searchTimer);
+		const text = q.trim();
+		if (text.length < 2) {
+			results = [];
+			searching = false;
+			return;
+		}
+		searching = true;
+		searchTimer = setTimeout(() => runSearch(text), 250);
+	}
+	/** @param {string} text */
+	async function runSearch(text) {
+		const seq = ++searchSeq;
+		try {
+			const res = await fetch(`/admin/eventos/lista.json?q=${encodeURIComponent(text)}`);
+			const body = res.ok ? await res.json() : { events: [] };
+			if (seq !== searchSeq) return;
+			const taken = new Set([slug, ...order.map((p) => p.slug)]);
+			results = (body.events ?? [])
+				.filter((/** @type {any} */ e) => !taken.has(e.slug))
+				.slice(0, 8)
+				.map((/** @type {any} */ e) => ({ slug: e.slug, title: e.title, start: e.start }));
+		} catch {
+			if (seq === searchSeq) results = [];
+		} finally {
+			if (seq === searchSeq) searching = false;
+		}
+	}
 
 	$: ws = state?.workshop ?? null;
 	// Las partes 2 en adelante, en el orden que se está editando.
@@ -118,7 +158,10 @@
 	async function addExisting(s) {
 		const value = s.trim();
 		if (!value) return;
-		if (await saveList([...order.map((p) => p.slug), value])) addSlug = '';
+		if (await saveList([...order.map((p) => p.slug), value])) {
+			query = '';
+			results = [];
+		}
 	}
 
 	async function create() {
@@ -147,7 +190,7 @@
 </script>
 
 <section class="card partes" id="partes" aria-labelledby="partes-title">
-	<h2 id="partes-title">Partes</h2>
+	<SectionHeading section="partes" as="h2" id="partes-title" />
 
 	{#if !state}
 		<p class="hint">No pudimos leer las partes (¿hay base de datos?).</p>
@@ -175,7 +218,7 @@
 		{#if !ws.workshop.perPart}
 			<p class="hint">
 				La entrada se compra en el taller y vale para todas las partes. El ingreso de esta parte se
-				marca en su propio modo puerta (pestaña Ingreso).
+				marca en su propio modo puerta (pestaña Puerta).
 			</p>
 		{/if}
 	{:else}
@@ -202,7 +245,7 @@
 						<span class="row-actions">
 							{#if !perPart}
 								<a class="small-link" href="/admin/eventos/{encodeURIComponent(p.slug)}/ingreso"
-									>Ingreso</a
+									>Puerta</a
 								>
 							{/if}
 							<button
@@ -313,24 +356,37 @@
 					{/each}
 				</ul>
 			{/if}
-			<div class="fields">
-				<label>
-					<span>Dirección del evento</span>
+			<label class="search" for="partes-buscar">
+				<span>Buscar un evento</span>
+				<span class="search-box">
+					<Search {...icon} />
 					<input
-						type="text"
-						bind:value={addSlug}
-						placeholder="{slug}-parte-2"
+						id="partes-buscar"
+						type="search"
+						bind:value={query}
+						placeholder="Escribí parte del título"
 						autocomplete="off"
 						spellcheck="false"
 					/>
-				</label>
-				<button
-					type="button"
-					class="kv-btn small ghost"
-					on:click={() => addExisting(addSlug)}
-					disabled={busy || !addSlug.trim()}>Sumar como parte {total + 1}</button
-				>
-			</div>
+				</span>
+			</label>
+			{#if results.length}
+				<ul class="suggestions" aria-label="Eventos encontrados">
+					{#each results as r (r.slug)}
+						<li>
+							<button
+								type="button"
+								class="kv-btn small ghost"
+								on:click={() => addExisting(r.slug)}
+								disabled={busy}><Plus {...icon} /> {r.title}</button
+							>
+							<small>{partDateText(r.start)} · sumar como parte {total + 1}</small>
+						</li>
+					{/each}
+				</ul>
+			{:else if query.trim().length >= 2 && !searching}
+				<p class="hint">No encontramos eventos con «{query.trim()}».</p>
+			{/if}
 		</div>
 	{/if}
 
@@ -348,7 +404,8 @@
 		gap: 0.8rem;
 		scroll-margin-top: var(--form-sticky-top, 1rem);
 	}
-	h2 {
+	/* el título (SectionHeading, como en el índice) */
+	.partes > :global(h2) {
 		margin: 0;
 		font-size: 1.25rem;
 	}
@@ -395,12 +452,13 @@
 		align-items: center;
 		gap: 0.2rem;
 	}
+	/* 44px: se tocan con el dedo. */
 	.icon {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 2rem;
-		height: 2rem;
+		width: 2.75rem;
+		height: 2.75rem;
 		border-radius: 50%;
 		border: 1px solid var(--line);
 		background: var(--surface);
@@ -449,6 +507,23 @@
 		flex-direction: column;
 		gap: 0.2rem;
 		font-weight: 700;
+	}
+	.search {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3xs);
+		font-weight: 700;
+		margin-top: var(--space-2xs);
+	}
+	.search-box {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3xs);
+		max-width: 28rem;
+	}
+	.search-box input {
+		flex: 1;
+		font-weight: 400;
 	}
 	.suggestions {
 		list-style: none;

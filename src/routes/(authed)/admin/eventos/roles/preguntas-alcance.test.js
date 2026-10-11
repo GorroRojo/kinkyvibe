@@ -218,8 +218,9 @@ describe('editar una pregunta', () => {
 		);
 		// El CSV muestra la respuesta como se dio (la columna lleva el texto de hoy).
 		const lines = (await csvText()).split('\r\n');
-		expect(lines[0].endsWith('"Elegí tu menú"')).toBe(true);
-		expect(lines[1].endsWith(',"Sin gluten"')).toBe(true);
+		// Con `toCsv`, las celdas van entre comillas solo si lo necesitan (antes, todas).
+		expect(lines[0].endsWith(',Elegí tu menú')).toBe(true);
+		expect(lines[1].endsWith(',Sin gluten')).toBe(true);
 		const stored = await t.db.prepare('SELECT answers FROM order_answers').first();
 		expect(JSON.parse(String(stored?.answers))).toEqual([
 			{ id: field.id, label: '¿Alguna restricción alimentaria?', value: 'Sin gluten' }
@@ -295,10 +296,10 @@ describe('alcance en la compra, Órdenes y su CSV', () => {
 			{ id: perTicket.id, label: '¿Alguna restricción alimentaria?', value: 'Sin TACC', ticket: 2 }
 		]);
 		const lines = (await csvText()).split('\r\n');
-		expect(
-			lines[0].endsWith('"confirmo","¿Alguna restricción alimentaria?","Talle de remera"')
-		).toBe(true);
-		expect(lines[1].endsWith(',"Entrada 1: Vegana | Entrada 2: Sin TACC",""')).toBe(true);
+		expect(lines[0].endsWith(',confirmo,¿Alguna restricción alimentaria?,Talle de remera')).toBe(
+			true
+		);
+		expect(lines[1].endsWith(',Entrada 1: Vegana | Entrada 2: Sin TACC,')).toBe(true);
 	});
 
 	it('VIP: también pide la acotada a VIP', async () => {

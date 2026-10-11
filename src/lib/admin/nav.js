@@ -8,9 +8,12 @@
  * Forma de cada ítem ({@link NavItem}):
  * - `id`: identificador estable (no cambiarlo: lo usan los atajos y el buscador).
  * - `href`: la URL de la sección, siempre /admin/<área>/<sección> (paso 2 del mapa). Las
- *   excepciones: Inicio, Eventos, Check-in (su URL está guardada en los celus de la puerta),
- *   Etiquetas y Estadísticas, que son su propia área. Sin redirecciones desde las URLs viejas:
- *   si una cambia, `adminPaths.test.js` marca cada link interno que quedó apuntando a la vieja.
+ *   excepciones: Inicio, Eventos, Check-in (su URL está guardada en los celus de la puerta) y
+ *   Etiquetas, que es su propia área. Sin redirecciones desde las URLs viejas: si una cambia,
+ *   `adminPaths.test.js` marca cada link interno que quedó apuntando a la vieja.
+ *   **Única excepción** (aprobada por gorrite, 11/10): `/admin/estadisticas` era una página y
+ *   ahora redirige (307) a Ventas (`/admin/estadisticas/ventas`), así los favoritos viejos siguen
+ *   andando (`src/routes/(authed)/admin/estadisticas/+server.js`). No es un ítem del menú.
  * - `icon`: componente de Lucide (el ícono que se muestra, ver `ICON_MODE`).
  * - `emoji`: el mismo ícono como emoji (se usa si `ICON_MODE` es 'emoji').
  * - `label`: nombre en el menú.
@@ -73,6 +76,7 @@ import {
 	CalendarRange,
 	ChartLine,
 	Database,
+	Eye,
 	EyeOff,
 	FileSpreadsheet,
 	FileText,
@@ -81,6 +85,7 @@ import {
 	HandHeart,
 	House,
 	IdCard,
+	Images,
 	Inbox,
 	KeyRound,
 	Landmark,
@@ -100,6 +105,7 @@ import {
 	ToggleRight,
 	Users,
 	Video,
+	UserCheck,
 	Workflow
 } from '@lucide/svelte';
 
@@ -196,9 +202,10 @@ export const REVIEW_LINK = Object.freeze({
 });
 
 /**
- * Cuántas cosas hay "Para revisar": la ÚNICA cuenta, la del botón global (barra de arriba y
- * header del celu) y la del Inicio ("N cosas para revisar" y la tarjeta). Sale de
- * `data.panelCounts` (`panelCounts.js`), así los dos números no pueden ser distintos.
+ * Cuántas cosas hay "Para revisar" en el botón global (barra de arriba y header del celu): las
+ * filas de la tarjeta "Para revisar" del Inicio, cada una cuenta 1. Sale de `data.panelCounts`
+ * (`panelCounts.js`), que arma las filas con la misma función que la tarjeta (`reviewRows` en
+ * src/lib/server/admin/review.js, decisión 0030).
  * @param {Record<string, number> | null | undefined} counts `data.panelCounts`
  * @returns {number}
  */
@@ -443,6 +450,17 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
+		// Todo lo de la biblioteca (R2): imágenes, documentos y videos, con dónde se usa cada cosa,
+		// para buscar, subir y sacar (docs/imagenes.md).
+		id: 'biblioteca',
+		href: '/admin/contenido/biblioteca',
+		icon: Images,
+		emoji: '🖼️',
+		label: 'Biblioteca',
+		area: 'contenido',
+		soon: false
+	},
+	{
 		id: 'no-listadas',
 		href: '/admin/contenido/no-listadas',
 		icon: EyeOff,
@@ -488,13 +506,32 @@ export const NAV = Object.freeze([
 			'aparte de las entradas.'
 	},
 
-	// Estadísticas
+	// Estadísticas: tres pestañas (gorrite, 11/10), cada una con su período en la URL. El id
+	// `estadisticas` queda en Ventas (lo usan el atajo `g s` y el buscador).
 	{
 		id: 'estadisticas',
-		href: '/admin/estadisticas',
+		href: '/admin/estadisticas/ventas',
 		icon: ChartLine,
 		emoji: '📈',
 		label: 'Ventas en el tiempo',
+		area: 'estadisticas',
+		soon: false
+	},
+	{
+		id: 'estadisticas-asistencia',
+		href: '/admin/estadisticas/asistencia',
+		icon: UserCheck,
+		emoji: '🙋',
+		label: 'Asistencia',
+		area: 'estadisticas',
+		soon: false
+	},
+	{
+		id: 'estadisticas-visitas',
+		href: '/admin/estadisticas/visitas',
+		icon: Eye,
+		emoji: '👀',
+		label: 'Visitas al sitio',
 		area: 'estadisticas',
 		soon: false
 	},
@@ -592,6 +629,9 @@ export const NAV = Object.freeze([
  */
 export const EVENT_TABS = Object.freeze([
 	{ id: 'resumen', suffix: '', label: 'Resumen', soon: false },
+	// Editar va segunda (y también es un botón del encabezado): con 10 pestañas, al final quedaba
+	// fuera de la pantalla en el celu y en la compu angosta.
+	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false },
 	{ id: 'ventas', suffix: '/ventas', label: 'Ventas', soon: false },
 	{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes', soon: false },
 	{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias', soon: false },
@@ -601,8 +641,7 @@ export const EVENT_TABS = Object.freeze([
 	// Plantillas de los mails de este evento (lo que cambia sobre Mensajes → Plantillas).
 	{ id: 'mails', suffix: '/mails', label: 'Plantillas de mails', soon: false },
 	// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.
-	{ id: 'preguntas', suffix: '/preguntas', label: 'Preguntas', soon: false },
-	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false }
+	{ id: 'preguntas', suffix: '/preguntas', label: 'Preguntas', soon: false }
 ]);
 
 /**

@@ -1,6 +1,7 @@
 /**
- * Qué imagen es un archivo, mirando sus bytes (nunca el nombre ni lo que dice el navegador): el
- * tipo y, si se puede leer de la cabecera, el ancho y el alto. Sin dependencias: corre en el
+ * Qué es un archivo, mirando sus bytes (nunca el nombre ni lo que dice el navegador): una imagen
+ * (el tipo y, si se puede leer de la cabecera, el ancho y el alto) o un documento o un video de la
+ * biblioteca (PDF, MP4, WebM, ODT, ODS, ODP). Sin dependencias: corre en el
  * Worker, en Node (el script de importación) y en vitest.
  *
  * Solo usa imports relativos.
@@ -104,6 +105,93 @@ export function sniffImage(b) {
 }
 
 /**
+ * @typedef {{ kind: 'documento' | 'video',
+ *   mime: import('../objects/types/archivo.js').FILE_MIMES[number], ext: string }} SniffedFile
+ */
+
+/** Marcas de un MP4 (`ftyp`) que se aceptan como video. Las de imagen (AVIF, HEIC) no. */
+const MP4_BRANDS = new Set([
+	'isom',
+	'iso2',
+	'iso4',
+	'iso5',
+	'iso6',
+	'mp41',
+	'mp42',
+	'avc1',
+	'M4V ',
+	'dash'
+]);
+
+/** Los tipos de OpenDocument que se aceptan, por su entrada `mimetype`. */
+const ODF = Object.freeze({
+	'application/vnd.oasis.opendocument.text': 'odt',
+	'application/vnd.oasis.opendocument.spreadsheet': 'ods',
+	'application/vnd.oasis.opendocument.presentation': 'odp'
+});
+
+/**
+ * Un OpenDocument: un zip cuya PRIMERA entrada se llama `mimetype`, va sin comprimir y dice el
+ * tipo (así lo pide la norma ODF). Cualquier otro zip (un .docx, un .zip con lo que sea) no.
+ * @param {Uint8Array} b
+ */
+function sniffOpenDocument(b) {
+	if (b.length < 38 || !(b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04))
+		return null;
+	const method = u16le(b, 8);
+	const size = b[18] | (b[19] << 8) | (b[20] << 16) | (b[21] << 24);
+	const nameLen = u16le(b, 26);
+	const extraLen = u16le(b, 28);
+	if (method !== 0 || nameLen !== 8 || !ascii(b, 30, 'mimetype')) return null;
+	const start = 30 + nameLen + extraLen;
+	if (size <= 0 || size > 100 || start + size > b.length) return null;
+	const mime = new TextDecoder().decode(b.subarray(start, start + size));
+	const ext = /** @type {Record<string, string>} */ (ODF)[mime];
+	return ext ? /** @type {SniffedFile} */ ({ kind: 'documento', mime, ext }) : null;
+}
+
+/**
+ * Un documento o un video que se acepta en la biblioteca (PDF, MP4, WebM, ODT, ODS, ODP), por
+ * sus bytes; `null` si no es ninguno. HTML, SVG, scripts y zips que no son OpenDocument, no.
+ *
+ * @param {Uint8Array} b
+ * @returns {SniffedFile | null}
+ */
+export function sniffDocument(b) {
+	if (!(b instanceof Uint8Array) || b.length < 12) return null;
+	if (ascii(b, 0, '%PDF-')) return { kind: 'documento', mime: 'application/pdf', ext: 'pdf' };
+	if (ascii(b, 4, 'ftyp')) {
+		const brand = String.fromCharCode(b[8], b[9], b[10], b[11]);
+		return MP4_BRANDS.has(brand) ? { kind: 'video', mime: 'video/mp4', ext: 'mp4' } : null;
+	}
+	// WebM: cabecera EBML con DocType «webm» (en los primeros bytes).
+	if (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) {
+		const head = b.subarray(0, Math.min(b.length, 64));
+		for (let i = 4; i + 6 <= head.length; i++) {
+			// Elemento DocType (0x4282), largo 0x84 (4 bytes), «webm».
+			if (head[i] === 0x42 && head[i + 1] === 0x82 && ascii(head, i + 3, 'webm')) {
+				return { kind: 'video', mime: 'video/webm', ext: 'webm' };
+			}
+		}
+		return null;
+	}
+	return sniffOpenDocument(b);
+}
+
+/**
+ * Qué es un archivo para la biblioteca: una imagen ({@link sniffImage}) o un documento o video
+ * ({@link sniffDocument}); `null` si no se acepta.
+ *
+ * @param {Uint8Array} b
+ * @returns {(SniffedImage & { kind: 'imagen' }) | SniffedFile | null}
+ */
+export function sniffMedia(b) {
+	const image = sniffImage(b);
+	if (image) return { kind: 'imagen', ...image };
+	return sniffDocument(b);
+}
+
+/**
  * SHA-256 en hex de los bytes (Web Crypto: Worker, Node ≥ 20 y vitest).
  * @param {Uint8Array} bytes
  */
@@ -119,6 +207,13 @@ export async function sha256Hex(bytes) {
  * @param {string} ext
  */
 export const mediaKey = (hash, ext) => `img/${hash}.${ext}`;
+
+/**
+ * La clave en R2 de un documento o un video (tipo `archivo`), también por contenido.
+ * @param {string} hash sha-256 en hex
+ * @param {string} ext
+ */
+export const fileKey = (hash, ext) => `file/${hash}.${ext}`;
 
 /** La dirección pública de una clave. @param {string} key */
 export const mediaPath = (key) => `/media/${key}`;

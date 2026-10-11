@@ -15,13 +15,26 @@
 	 * - `value` (bind): la imagen elegida de la biblioteca (`PublicImage`) o null.
 	 * - `legacyUrl`: la imagen vieja del repo, si el objeto todavía no tiene una de la biblioteca.
 	 * - `target`: `evento:<dirección>`… para «De este…» (sin `target`, no hay esa pestaña).
-	 * - `contextLabel`, `legend`, `idPrefix`, `form` (id del formulario del campo oculto).
-	 * - `canDelete`: muestra «Sacar de la biblioteca» (solo admins).
+	 * - `contextLabel`, `idPrefix`, `form` (id del formulario del campo oculto).
+	 * - `legend`: el título (por ejemplo «Imagen del perfil»); sin pasarlo, el de la sección
+	 *   «Imagen» del formulario de eventos, con su ícono (SectionHeading, como en el índice).
+	 * - `canDelete`: «Sacar imágenes de la biblioteca…» en «Buscar» (solo admins): recién ahí cada
+	 *   imagen muestra «Sacar».
+	 * - `canDeleteOwn`: «Borrar imágenes sin usar…» en «Buscar» (Mi rincón: una cuenta ve solo las
+	 *   que subió). Solo las que nada usa muestran «Borrar»; las otras dicen dónde se usan.
 	 * - Evento `change`: se eligió o se sacó una imagen.
 	 */
+	import SectionHeading from '$lib/components/admin/event-form/SectionHeading.svelte';
 	import { createEventDispatcher, onDestroy } from 'svelte';
 	import { askConfirm } from '$lib/admin/confirm.js';
-	import { IMAGE_FIELD, contextHref, imageFieldValue, searchHref } from '$lib/utils/imageChoice.js';
+	import { Trash2 } from '@lucide/svelte';
+	import {
+		IMAGE_FIELD,
+		contextHref,
+		imageFieldValue,
+		searchHref,
+		usageText
+	} from '$lib/utils/imageChoice.js';
 	import { PICKABLE_TYPES, pickProblem, prepareImage } from '$lib/utils/imageResize.js';
 
 	/** @typedef {import('$lib/server/media/library.js').PublicImage} PublicImage */
@@ -33,11 +46,13 @@
 	/** @type {string | null} */
 	export let target = null;
 	export let contextLabel = 'De este evento';
-	export let legend = '🖼️ Imagen';
+	/** @type {string | undefined} */
+	export let legend = undefined;
 	export let idPrefix = 'img';
 	export let name = IMAGE_FIELD;
 	export let form = '';
 	export let canDelete = false;
+	export let canDeleteOwn = false;
 	/** `id` del fieldset (para el índice de secciones). */
 	export let sectionId = 'sec-imagen';
 
@@ -124,8 +139,10 @@
 
 	/* ---------- Buscar y «De este…» ---------- */
 	let q = '';
-	/** @type {PublicImage[] | null} */
+	/** @type {(PublicImage & { usedIn?: string[] })[] | null} */
 	let results = null;
+	/** «Sacar imágenes de la biblioteca…»: recién ahí aparece «Sacar» en cada imagen. */
+	let managing = false;
 	let searching = false;
 	let searchError = '';
 	/** @type {ReturnType<typeof setTimeout> | undefined} */
@@ -194,16 +211,35 @@
 
 	/** @param {PublicImage} image */
 	async function deleteFromLibrary(image) {
-		const ok = await askConfirm({
-			title: `¿Sacar «${image.title}» de la biblioteca?`,
-			text: 'Deja de verse donde se usa.',
-			confirmLabel: 'Sacar',
-			tone: 'danger'
-		});
+		const ok = await askConfirm(
+			canDelete
+				? {
+						title: `¿Sacar «${image.title}» de la biblioteca?`,
+						text: 'Deja de verse donde se usa.',
+						confirmLabel: 'Sacar',
+						tone: 'danger'
+					}
+				: {
+						title: `¿Borrar «${image.title}»?`,
+						text: 'No se usa en ningún lado. Deja de estar entre tus imágenes; si la volvés a subir, vuelve.',
+						confirmLabel: 'Borrar',
+						tone: 'danger'
+					}
+		);
 		if (!ok) return;
 		const res = await fetch(`/imagenes/${image.id}`, { method: 'DELETE' });
 		if (!res.ok) {
-			searchError = 'No se pudo sacar la imagen. Probá de nuevo.';
+			const out = await res.json().catch(() => ({}));
+			searchError =
+				out.error ||
+				(canDelete
+					? 'No se pudo sacar la imagen. Probá de nuevo.'
+					: 'No se pudo borrar la imagen. Probá de nuevo.');
+			// Si resultó que se usa, que lo diga la lista también.
+			if (Array.isArray(out.usedIn) && out.usedIn.length)
+				results = (results ?? []).map((r) =>
+					r.id === image.id ? { ...r, usedIn: out.usedIn } : r
+				);
 			return;
 		}
 		results = (results ?? []).filter((r) => r.id !== image.id);
@@ -226,7 +262,7 @@
 </script>
 
 <fieldset class="card image-picker" id={sectionId}>
-	<legend>{legend}</legend>
+	{#if legend}<legend>{legend}</legend>{:else}<SectionHeading section="imagen" />{/if}
 	<input type="hidden" {name} value={fieldValue} form={form || undefined} />
 	<div class="current">
 		{#if shown}
@@ -346,6 +382,22 @@
 					{q.trim() ? 'No encontramos imágenes con eso.' : 'La biblioteca todavía está vacía.'}
 				</p>
 			{:else}
+				{#if canDelete || canDeleteOwn}
+					<!-- Sacar de la biblioteca: aparte, para no tenerlo debajo de cada imagen. -->
+					<p class="manage">
+						<button
+							type="button"
+							class="kv-link small"
+							aria-pressed={managing}
+							on:click={() => (managing = !managing)}
+							>{managing
+								? 'Listo'
+								: canDelete
+									? 'Sacar imágenes de la biblioteca…'
+									: 'Borrar imágenes sin usar…'}</button
+						>
+					</p>
+				{/if}
 				<ul class="picker-grid">
 					{#each results as image (image.id)}
 						<li>
@@ -358,14 +410,30 @@
 							>
 								<img src={image.url} alt="" loading="lazy" />
 								<span>{image.title}</span>
+								{#if image.usedIn?.length}
+									<small class="used">En {usageText(image.usedIn)}</small>
+								{/if}
 							</button>
-							{#if canDelete}
+							{#if canDelete && managing}
 								<button
 									type="button"
-									class="kv-link small"
+									class="kv-btn small danger"
 									aria-label="Sacar «{image.title}» de la biblioteca"
-									on:click={() => deleteFromLibrary(image)}>Sacar</button
+									on:click={() => deleteFromLibrary(image)}
+									><Trash2 size={14} aria-hidden="true" /> Sacar</button
 								>
+							{:else if canDeleteOwn && managing}
+								{#if image.usedIn?.length}
+									<small class="used">Se usa: no se puede borrar. Primero sacala de ahí.</small>
+								{:else}
+									<button
+										type="button"
+										class="kv-btn small danger"
+										aria-label="Borrar «{image.title}»"
+										on:click={() => deleteFromLibrary(image)}
+										><Trash2 size={14} aria-hidden="true" /> Borrar</button
+									>
+								{/if}
 							{/if}
 						</li>
 					{/each}
@@ -524,6 +592,15 @@
 		min-width: 0;
 	}
 	.fields label,
+	.manage {
+		margin: 0 0 var(--space-2xs);
+		text-align: right;
+	}
+	.used {
+		color: var(--muted);
+		font-size: var(--text-xs);
+		overflow-wrap: anywhere;
+	}
 	.search {
 		display: flex;
 		flex-direction: column;

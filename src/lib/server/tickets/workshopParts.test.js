@@ -215,6 +215,22 @@ describe('workshopPartsList: de dónde sale la lista', () => {
 		]);
 	});
 
+	it('el lugar de cada parte con placeLine (eventPlace.js): el mismo texto, una sola vez', async () => {
+		await workshop();
+		const before = META['taller-inventado-parte-2'];
+		META['taller-inventado-parte-2'] = {
+			location_name: 'Otro Lugar Inventado',
+			location: ' otro lugar inventado '
+		};
+		try {
+			expect((await workshopPartsList(t.db, 'taller-inventado'))?.lines[1]).toBe(
+				'Parte 2 · vie 9 oct · 22:00 · Otro Lugar Inventado'
+			);
+		} finally {
+			META['taller-inventado-parte-2'] = before;
+		}
+	});
+
 	it('«Entradas por parte», una parte o un evento suelto: sin lista', async () => {
 		await workshop();
 		await event('evento-suelto', '2026-10-20T21:00-03:00');

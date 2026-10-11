@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import { planVenueImport } from '$lib/utils/venueImport.js';
 import Page from './+page.svelte';
+import { noticeBefore } from '$lib/testing/html.js';
 
 /** @param {string} slug @param {Record<string, unknown>} place @param {string} start */
 const ev = (slug, place, start) => ({
@@ -65,6 +66,10 @@ describe('/admin/eventos/lugares/importar', () => {
 		expect(checked('b')).toBe(true);
 		expect(checked('c')).toBe(false);
 		expect(body).toContain('Cambiaría: se va a ver con el nombre «Galpón Inventado»');
+		// una nota fija en el aviso amarillo compartido (Notice), sin región que se anuncie
+		const tag = noticeBefore(body, 'Cambiaría: se va a ver con el nombre');
+		expect(tag).toContain('class="kv-notice warn');
+		expect(tag).not.toContain('role=');
 	});
 
 	it('cómo se crean: no listados por defecto, con «Públicos» y la opción de cada lugar', () => {

@@ -16,6 +16,14 @@
  *   trae los eventos: son objetos (solo se escriben con saveObject(), ./seedEvents.js), así que
  *   los carga solo `reloadDemoData`.
  *
+ * Copias de eventos reales: con `fetch`, `reloadDemoData` suma copias de los eventos del sitio
+ * público (./realEvents.js; solo lo que ve cualquier visita, nunca la base de producción). Los
+ * inventados de siempre quedan igual (cubren los casos especiales: venta, agotadas, cancelado,
+ * online, series, talleres en partes, preventas). Sin red, solo los inventados.
+ *
+ * Dónde corre: `reloadDemoData` pide que le digan dónde (`seedTargetProblem`): un preview (con su
+ * rama, que no puede ser `main` ni vacía) o la base local. Si no, no toca nada.
+ *
  * Qué es "de prueba" (y lo único que se borra al recargar): los eventos con slug `demo-*` y todo
  * lo que cuelga de ellos (órdenes, entradas, envíos, avisos, archivos de la capa demo), más las
  * filas marcadas como del seed (`SEED_BY`, `SEED_DETAIL`) y la "última visita" del admin de
@@ -36,6 +44,8 @@
 import { DEMO_FILES_SQL } from './overlay.js';
 import { DEMO_ACCOUNTS, DEMO_VENUES, ensureDemoProfiles } from './seedProfiles.js';
 import { saveDemoEvents } from './seedEvents.js';
+import { loadRealEventCopies } from './realEvents.js';
+import { DEMO_ACCOUNT_MARK, DEMO_PERSONAS } from './personasData.js';
 
 /** Quién "hizo" lo que inserta el seed: sirve para borrarlo en la próxima corrida. */
 export const SEED_BY = 'seed-demo';
@@ -334,6 +344,8 @@ export function people() {
  * @prop {{perfil: string, rol: string}[]} [personas] personas con rol (#139)
  * @prop {string} [puertaPrecio] hay entradas en la puerta, a este precio
  * @prop {boolean} [tiered] tiene tipos con preventas (sus órdenes van aparte: `ticket_tier`)
+ * @prop {string} [partOf] es otra parte del taller con este `slot` (edge `parte` desde el taller,
+ *   docs/talleres-partes.md): no vende, la entrada es la del taller
  * @prop {string} [streamLink]
  * @prop {string} [location]
  * @prop {string} [locationName]
@@ -505,6 +517,47 @@ export function events(today) {
 		body: 'Fiesta **inventada**: los primeros 5 a $ 8.000, los 10 siguientes a $ 9.000 y el resto a $ 10.000. Cuando se agota General, se habilita la Última tanda.'
 	});
 
+	// Casos que siempre quedan, aunque haya copias de eventos reales (docs/demo.md): un evento
+	// cancelado y la segunda parte de un taller (el taller que ya pasó, así no se cruza con el que
+	// viene, al que el informe de impacto visual le agrega su parte). Van al final de la lista y no
+	// tienen órdenes: las órdenes de los demás no cambian.
+	list.push({
+		series: 'fiesta-cancelada',
+		title: 'Fiesta cancelada (demo)',
+		summary: 'EVENTO INVENTADO para probar cómo se ve un evento cancelado.',
+		offset: 12,
+		startTime: '22:00',
+		endTime: '03:00',
+		endNextDay: 1,
+		kv: true,
+		online: false,
+		tags: ['español', 'KinkyVibe', 'pago', 'AMBA', 'evento'],
+		authors: ['KinkyVibe'],
+		status: 'cancelado',
+		location: 'Calle Inventada 900, Ciudad de Buenos Aires',
+		locationName: 'Galpón de Prueba',
+		tickets: [{ id: 'general', name: 'General', price: 11000, capacity: 40 }],
+		body: 'Fiesta **inventada** que se canceló, para probar el estado «cancelado».'
+	});
+	list.push({
+		series: 'taller-cuerdas-1-parte-2',
+		title: 'Taller de cuerdas: nivel 1, parte 2 (demo)',
+		summary: 'EVENTO INVENTADO para probar los talleres en varias partes.',
+		offset: -42,
+		startTime: '15:00',
+		endTime: '18:00',
+		kv: false,
+		online: false,
+		tags: ['español', 'pago', 'AMBA', 'taller', 'cuerdas', 'inicial'],
+		authors: ['KinkyVibe'],
+		status: 'abierto',
+		location: 'Pasaje Ficticio 42, Ciudad de Buenos Aires',
+		locationName: 'Espacio de Ensayo',
+		partOf: 'taller-cuerdas-1-1',
+		tickets: [],
+		body: 'Segunda parte **inventada** del taller de cuerdas: la entrada es la del taller.'
+	});
+
 	/** @type {Map<string, number>} */
 	const perSeries = new Map();
 	return list.map((e) => {
@@ -546,7 +599,7 @@ export function eventMarkdown(e) {
 		lines.push('personas:');
 		for (const p of e.personas) lines.push(`  - perfil: ${p.perfil}`, `    rol: ${p.rol}`);
 	}
-	lines.push('tickets:');
+	if (e.tickets.length) lines.push('tickets:');
 	for (const t of e.tickets) {
 		lines.push(`  - id: ${t.id}`, `    name: ${t.name}`);
 		if (t.gorra) {
@@ -572,7 +625,8 @@ export function eventMarkdown(e) {
 		const open = Date.UTC(y, m - 1, d - (e.offset - e.opensInDays), 12, 0) - AR;
 		lines.push(`tickets_open: ${arIso(open)}`);
 	}
-	lines.push('payment_methods: [mercadopago, transferencia]', '---', '');
+	if (e.tickets.length) lines.push('payment_methods: [mercadopago, transferencia]');
+	lines.push('---', '');
 	const draft = e.draft
 		? '> 📝 Borrador inventado: todavía sin venta, para probar cómo se ve un evento en preparación.\n\n'
 		: '';
@@ -878,7 +932,7 @@ export function buildData({ today, now }) {
 	/** @type {{confirmedTransfer?: Record<string, unknown>, cancelledTransfer?: Record<string, unknown>}} */
 	const story = {};
 	for (const ev of evs) {
-		if (ev.draft || ev.opensInDays || ev.tiered) continue;
+		if (ev.draft || ev.opensInDays || ev.tiered || ev.partOf || ev.status === 'cancelado') continue;
 		if (ev.offset < 0) {
 			fillApproved(ev, ev.series === 'noche-latex' ? 0.5 : ev.online ? 0.2 : 0.5, {
 				checkIn: !ev.online,
@@ -1142,6 +1196,77 @@ function nextOf(d, series) {
 	return d.events
 		.filter((e) => e.series === series && e.offset >= 0 && !e.draft)
 		.sort((a, b) => a.offset - b.offset)[0];
+}
+
+/** Id fijo de la compra de «Persona con entradas» (forma de UUID, prefijo `5eed` como sus cuentas). */
+export const PERSONA_ORDER_ID = '5eed0000-0000-4000-8000-00000000c0a1';
+
+/**
+ * La compra de «Persona con entradas»: una entrada General aprobada para la próxima Noche Látex,
+ * vinculada a la cuenta y con su mail. `INSERT … SELECT … FROM accounts`: si la cuenta de prueba
+ * no está cargada (con ese id, ese mail y la marca), no inserta nada.
+ * @param {SeedData} d
+ */
+function personaPurchaseRows(d) {
+	const persona = DEMO_PERSONAS.find((p) => p.key === 'con-entradas');
+	const ev = nextOf(d, 'noche-latex');
+	const type = ev?.tickets.find((t) => t.price);
+	if (!persona || !ev || !type) return [];
+	const unit = /** @type {number} */ (type.price);
+	const p = price({
+		unit,
+		quantity: 1,
+		option: 'completo',
+		percent: ev.kv ? 20 : null,
+		method: 'transferencia'
+	});
+	const at = d.now - 2 * DAY;
+	const holder = { name: 'Persona con Entradas', pronouns: 'elle' };
+	const order = {
+		id: PERSONA_ORDER_ID,
+		event_slug: ev.slug,
+		ticket_type: type.id,
+		quantity: 1,
+		unit_price: unit,
+		fondo_option: 'completo',
+		...p,
+		buyer_name: holder.name,
+		buyer_pronouns: holder.pronouns,
+		buyer_email: persona.email,
+		buyer_dni: '99000101',
+		status: 'approved',
+		confirmed_by: 'demo',
+		email_sent_at: at + 9 * HOUR,
+		created_at: at,
+		updated_at: at + 9 * HOUR,
+		expires_at: at + 48 * HOUR,
+		account_id: persona.id
+	};
+	const ticket = {
+		id: raw('lower(hex(randomblob(16)))'),
+		order_id: PERSONA_ORDER_ID,
+		event_slug: ev.slug,
+		ticket_type: type.id,
+		holder_name: holder.name,
+		holder_pronouns: holder.pronouns,
+		token: raw('substr(lower(hex(randomblob(22))), 1, 43)'),
+		code: 'PRSNAE'
+	};
+	const account = `FROM accounts WHERE id = ${sql(persona.id)} AND email = ${sql(persona.email)}
+		AND deleted_at IS NULL AND json_extract(preferences, '$.${DEMO_ACCOUNT_MARK}') = 1`;
+	/** @param {string} table @param {Record<string, unknown>} row */
+	const fromAccount = (table, row) => {
+		const cols = Object.keys(row);
+		return `INSERT OR IGNORE INTO ${table} (${cols.join(', ')}) SELECT ${cols.map((c) => sql(row[c])).join(', ')} ${account};`;
+	};
+	return [
+		fromAccount('orders', order),
+		// La entrada, solo si quedó la orden (y no estaba de antes).
+		fromAccount('tickets', ticket).replace(
+			/;$/,
+			` AND EXISTS (SELECT 1 FROM orders WHERE id = ${sql(PERSONA_ORDER_ID)}) AND NOT EXISTS (SELECT 1 FROM tickets WHERE order_id = ${sql(PERSONA_ORDER_ID)});`
+		)
+	];
 }
 
 /**
@@ -1550,6 +1675,18 @@ export const SECTIONS = [
 					})
 				];
 			})
+	},
+	{
+		table: 'orders',
+		requires: ['orders', 'tickets', 'accounts'],
+		optional: true,
+		// La compra de «Persona con entradas» (src/lib/server/demo/personas.js): la cuenta la crea
+		// scripts/demo/n3-cuentas.sql, pero su orden es de un evento `demo-*`, así que el reset de
+		// `orders` de arriba la borraba en cada recarga y Mi rincón quedaba en «Todavía no hay
+		// compras». Se vuelve a cargar acá, para la Noche Látex de hoy, solo si la cuenta de prueba
+		// existe (con su mail y su marca; si no, la foreign key de `account_id` no deja).
+		reset: [],
+		rows: (d) => personaPurchaseRows(d)
 	}
 ];
 
@@ -1640,12 +1777,47 @@ export function demoEventInputs(data) {
 		const ev = nextOf(data, v.event);
 		if (venueId && ev) venueOf.set(ev.slug, venueId);
 	}
-	return data.events.map((e) => ({
-		slot: e.slot,
-		slug: e.slug,
-		markdown: eventMarkdown(e),
-		venueId: venueOf.get(e.slug) ?? null
-	}));
+	// Las partes de un taller van primero: así el taller ya tiene a quién apuntar (edges `parte`).
+	const ordered = [...data.events.filter((e) => e.partOf), ...data.events.filter((e) => !e.partOf)];
+	return ordered.map((e) => {
+		const parts = data.events.filter((p) => p.partOf === e.slot).map((p) => p.slot);
+		return {
+			slot: e.slot,
+			slug: e.slug,
+			markdown: eventMarkdown(e),
+			venueId: venueOf.get(e.slug) ?? null,
+			...(parts.length ? { parts } : {})
+		};
+	});
+}
+
+/**
+ * Dónde puede correr la recarga. Es la segunda llave, además de la del endpoint
+ * (`if (PREVIEW_BUILD && isPreviewDeploy())`): quien llama dice dónde está y, si no es un preview
+ * ni la base local, `reloadDemoData` no toca nada.
+ * - `{ where: 'preview', branch }`: un deploy de preview (`branch` es `__DEPLOY_BRANCH__`): ni
+ *   vacía (local, tests o un `wrangler deploy` a mano) ni `main` (producción).
+ * - `{ where: 'local' }`: la base D1 local de miniflare (scripts/demo/recargar-local.js, el informe
+ *   de impacto visual, las pruebas), que nunca se conecta a Cloudflare.
+ *
+ * @typedef {{ where: 'preview', branch: string } | { where: 'local' }} SeedTarget
+ */
+
+/**
+ * Por qué no se puede recargar ahí, o `null` si se puede.
+ * @param {unknown} target
+ * @returns {string | null}
+ */
+export function seedTargetProblem(target) {
+	const t = /** @type {Partial<{ where: string, branch: unknown }>} */ (target ?? {});
+	if (t.where === 'local') return null;
+	if (t.where === 'preview') {
+		const branch = typeof t.branch === 'string' ? t.branch.trim() : '';
+		if (!branch) return 'no es un deploy de preview (sin rama de deploy)';
+		if (branch === 'main') return 'es producción (rama main)';
+		return null;
+	}
+	return 'falta decir dónde corre (preview o local)';
 }
 
 /**
@@ -1654,10 +1826,18 @@ export function demoEventInputs(data) {
  * Los eventos de prueba son objetos que se reusan de un día para el otro (./seedEvents.js): se
  * guardan con saveObject() después del batch, con sus personas, etiquetas y lugar.
  *
+ * Con `fetch`, además copia eventos del sitio público (./realEvents.js, «Copias de producción» en
+ * docs/demo.md); sin `fetch` (las pruebas, el informe de impacto visual) o si el sitio no
+ * responde, quedan solo los inventados. Los inventados de casos especiales están siempre.
+ *
  * @param {import('@cloudflare/workers-types').D1Database} db
- * @param {{now?: number}} [opts]
+ * @param {SeedTarget & { now?: number, fetch?: typeof fetch | null }} target dónde corre (ver
+ *   {@link seedTargetProblem}): sin eso, no hace nada
  */
-export async function reloadDemoData(db, { now = Date.now() } = {}) {
+export async function reloadDemoData(db, target) {
+	const problem = seedTargetProblem(target);
+	if (problem) throw new Error(`Los datos de prueba no se cargan acá: ${problem}.`);
+	const { now = Date.now(), fetch: fetchImpl = null } = target;
 	// Tablas e índices (un índice dice si está una migración que solo agrega columnas, ver la
 	// sección de preventas).
 	const { results } = await db
@@ -1672,9 +1852,11 @@ export async function reloadDemoData(db, { now = Date.now() } = {}) {
 		data.seriesKeys.set(x.email, `e:${await sha256Hex(`cuentas:email:${x.email}`)}`);
 	}
 	const statements = seedStatements(data, { tables });
+	// Las copias se piden antes de escribir nada: si el sitio tarda, la base no queda a medias.
+	const copies = await loadRealEventCopies(fetchImpl, { now });
 	await db.batch(statements.map((s) => db.prepare(s)));
 	const saved = await saveDemoEvents(db, {
-		events: demoEventInputs(data),
+		events: [...demoEventInputs(data), ...copies.inputs],
 		actor: SEED_BY,
 		now,
 		tables
@@ -1703,6 +1885,7 @@ export async function reloadDemoData(db, { now = Date.now() } = {}) {
 		tonight: tonight ? { slug: tonight.slug, title: tonight.title } : null,
 		venuesLinked: saved.venuesLinked,
 		eventObjects: saved.saved,
+		realEvents: { source: copies.source, copied: copies.copied, fallback: copies.fallback },
 		eventsSkipped: saved.skipped,
 		skipped: SECTIONS.filter((s) => !activeSections(tables).includes(s)).map((s) => s.table),
 		statements: statements.length

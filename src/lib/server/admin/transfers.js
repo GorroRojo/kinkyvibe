@@ -15,6 +15,9 @@
  * rechazo", `reopenTransferFromPanel`): solo si todavía hay lugar en su tipo y su tramo (y le queda
  * un uso a su código de descuento), o pasando el límite con el mismo diálogo.
  */
+import { entradas } from '$lib/utils/plural.js';
+import { argDeadline } from '$lib/utils/dates.js';
+import { transferDeadline } from '$lib/utils/transferDeadline.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import {
@@ -102,7 +105,7 @@ export async function confirmTransferFromPanel({
 			action: 'transfer.confirm',
 			targetType: 'order',
 			targetId: order.id,
-			summary: `Confirmó la transferencia ${ref} (${r.tickets.length} entradas)`,
+			summary: `Confirmó la transferencia ${ref} (${entradas(r.tickets.length)})`,
 			detail: {
 				event: order.event_slug,
 				tickets: r.tickets.length,
@@ -123,7 +126,7 @@ export async function confirmTransferFromPanel({
 			slug: order.event_slug,
 			order: r.order,
 			tickets: r.tickets,
-			message: `Pago de ${ref} confirmado: se emitieron ${r.tickets.length} entradas y se mandaron a ${r.order.buyer_email}.`
+			message: `Pago de ${ref} confirmado: se emitieron ${entradas(r.tickets.length)} y se mandaron a ${r.order.buyer_email}.`
 		};
 	}
 	if (r.result === 'already') {
@@ -140,7 +143,7 @@ export async function confirmTransferFromPanel({
 	}
 	/** @type {Record<string, string>} */
 	const messages = {
-		'no-capacity': `No se pudo confirmar ${ref}: la reserva venció y ya no hay cupo para ${order.quantity} entradas ${type.name}.`,
+		'no-capacity': `No se pudo confirmar ${ref}: la reserva venció y ya no hay cupo para ${entradas(order.quantity)} ${type.name}.`,
 		'not-transfer': `${ref} no es una compra por transferencia.`,
 		'not-found': 'No encontramos esa orden.',
 		cancelled: `${ref} está cancelada: no se puede confirmar.`
@@ -179,7 +182,8 @@ export async function cancelTransferFromPanel({ db, locals, by, orderId, now }) 
 
 /**
  * "Deshacer rechazo": vuelve una transferencia cancelada a "esperando comprobante", con una
- * reserva nueva completa (`holdMs`, la de TICKETS_TRANSFER_HOLD_HOURS) desde ahora. Solo si
+ * reserva nueva contada desde ahora con la misma regla que una compra (`transferDeadline`: 2 días
+ * hábiles después de hoy, o hasta que empiece el evento si es antes; decisión 0031). Solo si
  * todavía hay lugar en su tipo de entrada y en su tramo de preventa; si no, contesta
  * `needsConfirmation` (cuánto se pasa) para el mismo diálogo que confirmar una transferencia
  * tardía. Registra `transfer.reopen` (y `tickets.override` si se pasó un límite). No le manda
@@ -190,7 +194,6 @@ export async function cancelTransferFromPanel({ db, locals, by, orderId, now }) 
  *   locals: App.Locals,
  *   by: string,
  *   orderId: string,
- *   holdMs: number,
  *   eventSlug?: string,
  *   override?: string,
  *   now?: number
@@ -202,7 +205,6 @@ export async function reopenTransferFromPanel({
 	locals,
 	by,
 	orderId,
-	holdMs,
 	eventSlug,
 	override = '',
 	now
@@ -239,6 +241,7 @@ export async function reopenTransferFromPanel({
 			.join(' ')} Podés deshacer el rechazo igual confirmándolo en el aviso.`,
 		needsConfirmation
 	});
+	const holdMs = transferDeadline(at, config?.start ?? null) - at;
 	const check = checkOverride(await reopenLimits(db, { order, type, now: at }), override);
 	if (!check.ok) return ask(check.needsConfirmation);
 	const r = await reopenTransfer(db, {
@@ -275,7 +278,7 @@ export async function reopenTransferFromPanel({
 			status: 200,
 			slug: order.event_slug,
 			order: r.order,
-			message: `${ref} vuelve a esperar el comprobante, con la reserva renovada.`
+			message: `${ref} vuelve a esperar el comprobante, reservada hasta el ${argDeadline(r.order.expires_at)}.`
 		};
 	}
 	if (r.result === 'already') {
@@ -288,7 +291,7 @@ export async function reopenTransferFromPanel({
 	}
 	/** @type {Record<string, string>} */
 	const messages = {
-		'no-capacity': `No se pudo deshacer el rechazo de ${ref}: ya no hay lugar para ${order.quantity} entradas ${type.name}.`,
+		'no-capacity': `No se pudo deshacer el rechazo de ${ref}: ya no hay lugar para ${entradas(order.quantity)} ${type.name}.`,
 		'not-transfer': `${ref} no es una compra por transferencia.`,
 		'not-found': 'No encontramos esa orden.',
 		'not-cancelled': `${ref} no está rechazada: no hay nada que deshacer.`

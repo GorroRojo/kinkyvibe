@@ -5,7 +5,8 @@
  * En un solo `db.batch` (una transacción de D1: o entra todo o nada):
  * 1. da de alta el tipo núcleo en `object_types` si hacía falta;
  * 2. inserta o actualiza el objeto, subiendo `version` en 1;
- * 3. reemplaza los edges salientes de los `kind` que se mandaron;
+ * 3. reemplaza los edges salientes de los `kind` que se mandaron y los que el tipo calcula de
+ *    sus datos (`derived`, p. ej. `adjunto` del material: siguen al texto en cada guardado);
  * 4. escribe las tablas de apoyo del que llama (`also`), por ejemplo quién gestiona un perfil
  *    (`profile_managers`, src/lib/server/cuentas/perfiles.js).
  *
@@ -23,7 +24,7 @@
  * Solo usa imports relativos.
  */
 import { ObjectError, VersionConflictError } from './errors.js';
-import { checkEdgeTargets, normalizeEdges } from './edges.js';
+import { checkEdgeTargets, normalizeEdges, withDerivedEdges } from './edges.js';
 import { OBJECT_COLUMNS, rowToObject } from './read.js';
 import { coreTypes, validateData } from './types/index.js';
 import { DEFAULT_VISIBILITY, VISIBILITIES } from './visibility.js';
@@ -149,7 +150,8 @@ export async function saveObject(
 		throw new ObjectError('invalid', 'Revisá los datos marcados.', { errors });
 	}
 
-	const edges = normalizeEdges(def, input.edges, current?.id ?? null);
+	const edgeInput = await withDerivedEdges(db, def, input.edges, validated.data);
+	const edges = normalizeEdges(def, edgeInput, current?.id ?? null);
 	await checkEdgeTargets(db, def, edges);
 
 	const data = JSON.stringify(validated.data);

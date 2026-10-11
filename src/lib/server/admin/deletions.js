@@ -17,16 +17,32 @@
  * eventos. La fila de `panel_deletions` (con `path` = `objeto:perfil:<id>`) va en la misma tanda,
  * así «Recuperar» de Actividad sirve para los dos. Ver {@link deleteDbProfile}.
  *
+ * Las imágenes y los archivos de la biblioteca (R2) también: sacarlos (admins, Contenido ›
+ * Biblioteca o el selector de imágenes) es el borrado suave del objeto, con su fila acá (`path` =
+ * `objeto:imagen:<id>` u `objeto:archivo:<id>`) para «Recuperar» en Actividad. Ver
+ * {@link deleteLibraryItem}.
+ *
+ * Las etiquetas y las series de la base (borrado suave al sacar un alias o cualquier etiqueta que
+ * un cambio deja afuera, src/lib/server/etiquetas/editor.js) también tienen su fila (`path` =
+ * `objeto:etiqueta:<id>` u `objeto:serie:<id>`) en la misma tanda: ver {@link tagDeletionStatement}.
+ *
+ * El texto propio de un mail de un evento (`event_email_templates`) se borra de verdad al volver a
+ * la plantilla general: antes, una fila guarda la copia (`path` = `plantilla:<evento>:<mail>`) para
+ * «Recuperar». Ver {@link templateDeletionStatement}.
+ *
  * Sin imports de SvelteKit: el cliente del repo, el estado de los PRs y la base llegan como
  * parámetros, así se prueba con fakes. Las rutas están en ./deletionRoutes.js.
  */
 import { profileSlugFor } from '$lib/utils/organizers.js';
 import { parsePersonas } from '$lib/utils/personas.js';
 import { postFilePath } from '$lib/utils/postPaths.js';
+import { TEMPLATE_KEYS } from '$lib/utils/emailTemplates.js';
 import { MEMBER_EDGE, PROFILE_TYPE } from '../cuentas/perfiles.js';
+import { TAG_TYPE } from '../objects/types/etiqueta.js';
 import { revisionStatement } from '../contenido/revisions.js';
 import { VersionConflictError } from '../objects/errors.js';
 import { saveObject } from '../objects/save.js';
+import { deleteImage, findLibraryObject, restoreLibraryItem } from '../media/library.js';
 import { logAdminAction } from './audit.js';
 import { contentMediaDir, gitBlobSha } from './posts.js';
 
@@ -445,6 +461,13 @@ export async function undoDeletion(client, db, actor, id, { pulls = null, now = 
 	// Un perfil que vive solo en la base: se deshace en la base (sin GitHub).
 	const profileId = dbProfileIdOf(d.path);
 	if (profileId !== null) return undoDbProfileDeletion(db, actor, d, profileId, { now });
+	// Una imagen o un archivo de la biblioteca: también se deshace en la base.
+	const libraryId = libraryIdOf(d.path);
+	if (libraryId !== null) return undoLibraryDeletion(db, actor, d, libraryId, { now });
+	// Una etiqueta o una serie, y el texto propio de un mail de un evento: en la base.
+	const tagId = tagIdOf(d.path);
+	if (tagId !== null) return undoTagDeletion(db, actor, d, tagId, { now });
+	if (templateOf(d.path)) return undoTemplateDeletion(db, actor, d, { now });
 
 	const k = DELETABLE[d.kind];
 	const targetId = d.kind === 'calendario' ? d.slug : `${d.kind}/${d.slug}`;
@@ -626,7 +649,7 @@ export function dbProfileDeletionPlan({ slug, dependents: d }) {
 		blockers: [],
 		warnings,
 		notes: [
-			`La página /amigues/${slug} deja de existir al toque (el perfil está solo en la base: no hay cambios en GitHub).`,
+			`La página /amigues/${slug} deja de existir enseguida.`,
 			'Las relaciones (lugar de eventos, personas con rol, integrantes) quedan guardadas: si lo deshacés, vuelven.'
 		],
 		needsTyping: warnings.length > 0,
@@ -772,6 +795,445 @@ async function undoDbProfileDeletion(db, actor, d, profileId, { now = Date.now()
 			targetType: 'profile',
 			targetId: profileId,
 			summary: `Recuperó el perfil «${d.title}» (amigues/${d.slug}, solo en la base)`,
+			detail: { deletion: d.id }
+		},
+		{ now }
+	);
+	return {
+		mode: 'restored',
+		deletion: { ...d, status: 'recuperado' },
+		publish: null,
+		immediate: true
+	};
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/*  Biblioteca: imágenes y archivos (R2)                                                       */
+/* ------------------------------------------------------------------------------------------ */
+
+/**
+ * `panel_deletions.path` de algo de la biblioteca (no es una ruta del repo). La columna `kind`
+ * solo admite 'calendario', 'material' y 'amigues' (migración 0021): estas filas van con
+ * 'material' (es contenido) y lo que las distingue es el `path`; el `slug` es el del objeto (el
+ * hash del archivo, que no choca con la dirección de ningún material).
+ */
+const LIBRARY_PATH = /^objeto:(imagen|archivo):([1-9]\d*)$/;
+
+/** @param {string} type 'imagen' o 'archivo' @param {number} id */
+export const libraryPath = (type, id) => `objeto:${type}:${id}`;
+
+/**
+ * El id del objeto de la biblioteca de un borrado, o `null` si no es de la biblioteca.
+ * @param {string} path
+ */
+export function libraryIdOf(path) {
+	const m = LIBRARY_PATH.exec(path);
+	return m ? Number(m[2]) : null;
+}
+
+/**
+ * Qué se borró, para la lista de «Recuperar»: 'imagen', 'archivo' o `null` (no es de la
+ * biblioteca).
+ * @param {string} path
+ * @returns {'imagen' | 'archivo' | null}
+ */
+export function libraryTypeOf(path) {
+	const m = LIBRARY_PATH.exec(path);
+	return m ? /** @type {'imagen' | 'archivo'} */ (m[1]) : null;
+}
+
+/** @param {string} type */
+const libraryThe = (type) => (type === 'archivo' ? 'el archivo' : 'la imagen');
+
+/**
+ * Saca (borrado suave) una imagen o un archivo de la biblioteca, con su fila de `panel_deletions`
+ * en la MISMA tanda (para «Recuperar» en Actividad) y lo anota en Actividad. Les admins, aunque
+ * se use (la confirmación de la página dice dónde).
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {number} id el objeto
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ deleted: boolean, deletion: number | null }>} `deleted: false` si no existe
+ *   o ya estaba borrado
+ */
+export async function deleteLibraryItem(db, actor, id, { now = Date.now() } = {}) {
+	const content = JSON.stringify({ object: id });
+	const sha = await gitBlobSha(content);
+	/** @type {{ type: string, title: string } | null} */
+	let what = null;
+	const done = await deleteImage(db, id, {
+		actor: actor.login,
+		now,
+		also: (o) => {
+			what = { type: o.type, title: o.title };
+			return [
+				db
+					.prepare(
+						`INSERT INTO panel_deletions
+							(kind, slug, title, path, content, content_sha, media, status, deleted_at, deleted_by)
+						VALUES ('material', ?1, ?2, ?3, ?4, ?5, '[]', 'borrado', ?6, ?7)`
+					)
+					.bind(o.slug, o.title, libraryPath(o.type, o.id), content, sha, now, actor.login)
+			];
+		}
+	});
+	if (!done || !what) return { deleted: false, deletion: null };
+	const { type, title } = /** @type {{ type: string, title: string }} */ (what);
+	const row = await db
+		.prepare(
+			`SELECT id FROM panel_deletions WHERE path = ?1 AND status = 'borrado'
+			ORDER BY id DESC LIMIT 1`
+		)
+		.bind(libraryPath(type, id))
+		.first();
+	const deletion = row ? Number(row.id) : null;
+	await logAdminAction(
+		db,
+		actor.locals,
+		{
+			action: 'library.delete',
+			targetType: 'library',
+			targetId: id,
+			summary: `Sacó ${libraryThe(type)} «${title}» de la biblioteca`,
+			detail: { deletion }
+		},
+		{ now }
+	);
+	return { deleted: true, deletion };
+}
+
+/**
+ * Deshace el borrado de algo de la biblioteca: {@link restoreLibraryItem} con el estado del
+ * borrado en la misma tanda. Si ya había vuelto por otro camino (alguien lo subió de nuevo), el
+ * borrado queda cerrado y es un UndoError.
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {Deletion} d el borrado (status 'borrado')
+ * @param {number} objectId
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ mode: 'restored', deletion: Deletion, publish: null, immediate: true }>}
+ */
+async function undoLibraryDeletion(db, actor, d, objectId, { now = Date.now() } = {}) {
+	const close = db
+		.prepare(
+			`UPDATE panel_deletions SET status = 'recuperado', restored_at = ?2, restored_by = ?3
+			WHERE id = ?1 AND status = 'borrado'`
+		)
+		.bind(d.id, now, actor.login);
+	const done = await restoreLibraryItem(db, objectId, {
+		actor: actor.login,
+		now,
+		also: () => [close]
+	});
+	if (!done) {
+		const o = await findLibraryObject(db, objectId);
+		if (!o) throw new UndoError('Eso ya no existe en la biblioteca.');
+		await close.run();
+		throw new UndoError('Ya estaba de vuelta en la biblioteca.');
+	}
+	const type = libraryTypeOf(d.path) ?? 'imagen';
+	await logAdminAction(
+		db,
+		actor.locals,
+		{
+			action: 'library.restore',
+			targetType: 'library',
+			targetId: objectId,
+			summary: `Recuperó ${libraryThe(type)} «${d.title}» en la biblioteca`,
+			detail: { deletion: d.id }
+		},
+		{ now }
+	);
+	return {
+		mode: 'restored',
+		deletion: { ...d, status: 'recuperado' },
+		publish: null,
+		immediate: true
+	};
+}
+
+/**
+ * «Deshacer» de Contenido › Biblioteca (por el id del objeto): deshace su último borrado abierto
+ * (así sale también de «Recuperar» en Actividad); sin borrado anotado (uno de antes de esto), lo
+ * vuelve igual.
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {number} objectId
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<boolean>} false si no existe o no estaba borrado
+ */
+export async function undoLibraryDeletionOf(db, actor, objectId, { now = Date.now() } = {}) {
+	const row = await db
+		.prepare(
+			`SELECT * FROM panel_deletions WHERE path IN (?1, ?2) AND status = 'borrado'
+			ORDER BY id DESC LIMIT 1`
+		)
+		.bind(libraryPath('imagen', objectId), libraryPath('archivo', objectId))
+		.first();
+	if (!row) return restoreLibraryItem(db, objectId, { actor: actor.login, now });
+	try {
+		await undoLibraryDeletion(db, actor, toDeletion(row), objectId, { now });
+		return true;
+	} catch (e) {
+		if (e instanceof UndoError) return false;
+		throw e;
+	}
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/*  Etiquetas y series (objetos `etiqueta` de la base)                                         */
+/* ------------------------------------------------------------------------------------------ */
+
+/**
+ * `panel_deletions.path` de una etiqueta de la base: `objeto:etiqueta:<id>`, o
+ * `objeto:serie:<id>` si era una serie (hija o nieta de «evento recurrente»), para que «Recuperar»
+ * diga qué era. Como la biblioteca, va con `kind` 'material' (la columna solo admite 'calendario',
+ * 'material' y 'amigues', migración 0021) y lo que la distingue es el `path`. El `slug` es el del
+ * objeto y el `title`, el nombre de la etiqueta.
+ */
+const TAG_PATH = /^objeto:(etiqueta|serie):([1-9]\d*)$/;
+
+/** @param {number} id @param {{ series?: boolean }} [opts] */
+export const tagDeletionPath = (id, { series = false } = {}) =>
+	`objeto:${series ? 'serie' : 'etiqueta'}:${id}`;
+
+/**
+ * El id de la etiqueta de un borrado, o `null` si no es una etiqueta.
+ * @param {string} path
+ */
+export function tagIdOf(path) {
+	const m = TAG_PATH.exec(path);
+	return m ? Number(m[2]) : null;
+}
+
+/**
+ * La fila de `panel_deletions` de una etiqueta que se borra, para la MISMA tanda que el borrado
+ * suave (`also` de saveObject), como los perfiles. Lo anota en Actividad quien guarda el cambio
+ * de etiquetas (`tags.edit`, src/lib/server/etiquetas/panel.js).
+ *
+ * @param {D1Database} db
+ * @param {{ id: number, slug: string, key: string, version: number }} tag como se leyó
+ * @param {{ login: string, now: number, series?: boolean }} meta
+ */
+export async function tagDeletionStatement(db, tag, { login, now, series = false }) {
+	const content = JSON.stringify({ object: tag.id, version: tag.version + 1 });
+	return db
+		.prepare(
+			`INSERT INTO panel_deletions
+				(kind, slug, title, path, content, content_sha, media, status, deleted_at, deleted_by)
+			VALUES ('material', ?1, ?2, ?3, ?4, ?5, '[]', 'borrado', ?6, ?7)`
+		)
+		.bind(
+			tag.slug,
+			tag.key,
+			tagDeletionPath(tag.id, { series }),
+			content,
+			await gitBlobSha(content),
+			now,
+			login
+		);
+}
+
+/**
+ * El borrado como «recuperado», para la misma tanda que lo que se recupera.
+ * @param {D1Database} db
+ * @param {number} id
+ * @param {number} now
+ * @param {string} login
+ */
+const closeDeletion = (db, id, now, login) =>
+	db
+		.prepare(
+			`UPDATE panel_deletions SET status = 'recuperado', restored_at = ?2, restored_by = ?3
+			WHERE id = ?1 AND status = 'borrado'`
+		)
+		.bind(id, now, login);
+
+/**
+ * Deshace el borrado de una etiqueta (o serie): `deleted_at` vuelve a NULL con saveObject(), con
+ * el estado del borrado en la misma tanda. Vuelve con su nombre, sus datos y sus relaciones (las
+ * suyas nunca se fueron: madres, relacionadas, de qué es alias, y las publicaciones que la usan).
+ * Si mientras tanto se creó otra etiqueta con el mismo nombre, no se puede (UndoError).
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {Deletion} d el borrado (status 'borrado')
+ * @param {number} tagId
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ mode: 'restored', deletion: Deletion, publish: null, immediate: true }>}
+ */
+async function undoTagDeletion(db, actor, d, tagId, { now = Date.now() } = {}) {
+	const row = await db
+		.prepare(
+			`SELECT type, version, deleted_at, json_extract(data, '$.key') AS key FROM objects
+			WHERE id = ?1`
+		)
+		.bind(tagId)
+		.first();
+	if (!row || row.type !== TAG_TYPE) throw new UndoError('Esa etiqueta ya no existe en la base.');
+	const close = closeDeletion(db, d.id, now, actor.login);
+	if (row.deleted_at == null) {
+		// Alguien la recuperó por otro camino: el borrado queda cerrado, sin tocar la etiqueta.
+		await close.run();
+		throw new UndoError('Esa etiqueta ya estaba recuperada.');
+	}
+	const taken = await db
+		.prepare(
+			`SELECT 1 FROM objects WHERE type = ?1 AND deleted_at IS NULL
+			AND json_extract(data, '$.key') = ?2 AND id != ?3`
+		)
+		.bind(TAG_TYPE, String(row.key), tagId)
+		.first();
+	if (taken)
+		throw new UndoError(
+			`Ya hay otra etiqueta «${row.key}»: renombrala o fusionala antes de recuperar esta.`
+		);
+	try {
+		await saveObject(
+			db,
+			{ id: tagId, type: TAG_TYPE, version: Number(row.version), deleted: false },
+			{ actor: actor.login, now, also: () => [close] }
+		);
+	} catch (e) {
+		if (e instanceof VersionConflictError)
+			throw new UndoError('La etiqueta cambió mientras tanto. Recargá y probá de nuevo.');
+		throw e;
+	}
+	const series = TAG_PATH.exec(d.path)?.[1] === 'serie';
+	await logAdminAction(
+		db,
+		actor.locals,
+		{
+			action: 'tags.restore',
+			targetType: 'tags',
+			targetId: d.title.slice(0, 120),
+			summary: `Recuperó ${series ? 'la serie' : 'la etiqueta'} «${d.title}»`,
+			detail: { deletion: d.id, object: tagId }
+		},
+		{ now }
+	);
+	return {
+		mode: 'restored',
+		deletion: { ...d, status: 'recuperado' },
+		publish: null,
+		immediate: true
+	};
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/*  El texto propio de un mail de un evento (`event_email_templates`)                          */
+/* ------------------------------------------------------------------------------------------ */
+
+/**
+ * `panel_deletions.path` del texto propio de un mail de un evento: `plantilla:<evento>:<mail>`
+ * (va con `kind` 'calendario' y el `slug` del evento). `content` es la fila tal como estaba (JSON,
+ * solo los textos del mail).
+ */
+const TEMPLATE_PATH = /^plantilla:([^:]+):([a-z_]+)$/;
+
+/** @param {string} eventSlug @param {string} id */
+export const templateDeletionPath = (eventSlug, id) => `plantilla:${eventSlug}:${id}`;
+
+/**
+ * El evento y el mail de un borrado, o `null` si no es el texto de un mail.
+ * @param {string} path
+ * @returns {{ eventSlug: string, id: string } | null}
+ */
+export function templateOf(path) {
+	const m = TEMPLATE_PATH.exec(path);
+	return m ? { eventSlug: m[1], id: m[2] } : null;
+}
+
+/** Las columnas de texto de `event_email_templates` (migración 0034). */
+const TEMPLATE_COLUMNS = TEMPLATE_KEYS;
+
+/**
+ * La fila de `panel_deletions` con la copia del texto propio de un mail de un evento, para la
+ * MISMA tanda que lo borra. Solo se escribe si la fila sigue como se leyó (mismo `updated_at`).
+ *
+ * @param {D1Database} db
+ * @param {{ eventSlug: string, id: string, row: Record<string, unknown>, title: string }} input
+ *   `row`: la fila de `event_email_templates` como se leyó
+ * @param {{ login: string, now: number }} meta
+ */
+export async function templateDeletionStatement(db, { eventSlug, id, row, title }, { login, now }) {
+	/** @type {Record<string, string | null>} */
+	const parts = {};
+	for (const k of TEMPLATE_COLUMNS) parts[k] = row[k] == null ? null : String(row[k]);
+	const content = JSON.stringify(parts);
+	return db
+		.prepare(
+			`INSERT INTO panel_deletions
+				(kind, slug, title, path, content, content_sha, media, status, deleted_at, deleted_by)
+			SELECT 'calendario', ?1, ?2, ?3, ?4, ?5, '[]', 'borrado', ?6, ?7
+			WHERE EXISTS (SELECT 1 FROM event_email_templates
+				WHERE event_slug = ?1 AND id = ?8 AND updated_at = ?9)`
+		)
+		.bind(
+			eventSlug,
+			title.slice(0, 200),
+			templateDeletionPath(eventSlug, id),
+			content,
+			await gitBlobSha(content),
+			now,
+			login,
+			id,
+			Number(row.updated_at)
+		);
+}
+
+/**
+ * Deshace la vuelta a la plantilla general de un mail de un evento: vuelve a poner su texto
+ * propio. Si mientras tanto alguien guardó otro texto para ese mail, no lo pisa (UndoError).
+ *
+ * @param {D1Database} db
+ * @param {{ login: string, locals: Actor['locals'] }} actor
+ * @param {Deletion} d el borrado (status 'borrado')
+ * @param {{ now?: number }} [opts]
+ * @returns {Promise<{ mode: 'restored', deletion: Deletion, publish: null, immediate: true }>}
+ */
+async function undoTemplateDeletion(db, actor, d, { now = Date.now() } = {}) {
+	const what = /** @type {{ eventSlug: string, id: string }} */ (templateOf(d.path));
+	/** @type {Record<string, unknown>} */
+	let parts = {};
+	try {
+		parts = JSON.parse(d.content);
+	} catch {
+		throw new UndoError('La copia de ese mail está dañada: no se puede recuperar.');
+	}
+	const values = TEMPLATE_COLUMNS.map((k) => (parts[k] == null ? null : String(parts[k])));
+	// En una tanda: la fila vuelve (si no hay otra) y, solo si volvió, el borrado se cierra.
+	const [inserted] = await db.batch([
+		db
+			.prepare(
+				`INSERT INTO event_email_templates (event_slug, id, ${TEMPLATE_COLUMNS.join(', ')},
+					updated_at, updated_by)
+				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+				ON CONFLICT (event_slug, id) DO NOTHING`
+			)
+			.bind(what.eventSlug, what.id, ...values, now, actor.login),
+		db
+			.prepare(
+				`UPDATE panel_deletions SET status = 'recuperado', restored_at = ?2, restored_by = ?3
+				WHERE id = ?1 AND status = 'borrado' AND changes() > 0`
+			)
+			.bind(d.id, now, actor.login)
+	]);
+	if (!inserted?.meta?.changes)
+		throw new UndoError(
+			'Ese mail ya tiene otro texto propio guardado: volvé a la plantilla general antes de recuperar este.'
+		);
+	await logAdminAction(
+		db,
+		actor.locals,
+		{
+			action: 'template.event_restore',
+			targetType: 'event_email_template',
+			targetId: `${what.eventSlug}/${what.id}`,
+			summary: `Recuperó el texto propio del mail: ${d.title}`,
 			detail: { deletion: d.id }
 		},
 		{ now }

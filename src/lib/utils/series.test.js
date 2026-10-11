@@ -260,6 +260,8 @@ describe('links', () => {
 	it('editionDateLabel en hora de Argentina', () => {
 		// 23:30 en Argentina es el día siguiente en UTC: tiene que decir el 12
 		expect(editionDateLabel('2026-09-12T23:30-03:00')).toMatch(/^12 /);
+		// La abreviatura del sitio, «sep»: antes decía «12 sept 2026» (lo que da Intl con ICU nuevo).
+		expect(editionDateLabel('2026-09-12T23:30-03:00')).toBe('12 sep 2026');
 		expect(editionDateLabel('no')).toBe('');
 	});
 });

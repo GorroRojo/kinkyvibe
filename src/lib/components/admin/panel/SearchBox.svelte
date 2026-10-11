@@ -1,19 +1,33 @@
 <script>
 	/**
 	 * Buscador global del panel: una paleta de comandos que busca registros (eventos, órdenes
-	 * `KV-…`, entradas por código, códigos de descuento y personas; ver /admin/buscar) y acciones
-	 * (cada sección del menú, "Nuevo código", "Abrir check-in de hoy"...).
+	 * `KV-…`, entradas por código, códigos de descuento, personas, perfiles y etiquetas, sin
+	 * mayúsculas ni tildes; ver /admin/buscar) y acciones (cada sección del menú, «Nuevo código de
+	 * descuento», «Abrir la puerta de hoy», «Para revisar», crear e importar, el tema...; ver
+	 * paletteActions.js). Las acciones van arriba, salvo cuando lo buscado es claramente un
+	 * registro (`recordsFirst`). Del primer evento encontrado salen atajos a sus pestañas.
+	 * Entiende operadores (`#etiqueta`, `@persona`, `e:evento`, `tipo:`, `lugar:`, `hoy`/`finde`,
+	 * `"frase"`, `-palabra`, `>` solo acciones; ver $lib/utils/searchQuery.js): con la lista vacía
+	 * hay una línea con ejemplos, y «Cómo buscar» (al pie, en la hoja de atajos y como acción)
+	 * explica todos, con ejemplos que se pueden tocar.
 	 *
 	 * Interfaz (la usa el layout del panel):
 	 * - prop `compact`: texto corto, para el header del celu;
 	 * - prop `hotkeys`: si esta instancia escucha el teclado (`/` y Ctrl/⌘+K abren la paleta,
 	 *   `g` + letra navega, `?` muestra los atajos). Solo una instancia la tiene en `true`;
-	 * - `open()` exportada, para abrirla desde afuera (bind:this).
+	 * - prop `hideSoon`: si ahora está «Ocultar lo que viene» (para el nombre de la acción);
+	 * - eventos `theme` y `hidesoon`: la persona eligió «Cambiar tema» u «Ocultar/Mostrar lo que
+	 *   viene» (las preferencias las cambia el layout);
+	 * - `open(q?)` y `openHelp()` exportadas, para abrir la paleta (con algo ya escrito o no) o la
+	 *   hoja de atajos desde afuera (bind:this; «Atajos de teclado» del menú lateral y el botón `?`
+	 *   de la barra de arriba);
+	 * - mientras `g` espera su segunda tecla, `goPending` (`$lib/admin/shortcutHints.js`) está en
+	 *   `true` y las pistas «g x» del menú se encienden.
 	 *
 	 * Teclado adentro: ↑/↓ para moverse, Enter para abrir, Esc para cerrar. En el celu la paleta
 	 * ocupa toda la pantalla.
 	 */
-	import { onMount, tick } from 'svelte';
+	import { createEventDispatcher, onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import {
 		ArrowLeftRight,
@@ -21,13 +35,16 @@
 		BookOpen,
 		Calendar,
 		CalendarPlus,
+		ClipboardCheck,
 		MapPin,
 		ChartLine,
 		ExternalLink,
+		Eye,
 		EyeOff,
 		Heart,
 		History,
 		House,
+		IdCard,
 		Key,
 		Keyboard,
 		LoaderCircle,
@@ -38,6 +55,7 @@
 		Search,
 		Settings,
 		Sheet,
+		SunMoon,
 		Tag,
 		Ticket,
 		User,
@@ -49,16 +67,23 @@
 	import { navItem } from '$lib/admin/nav.js';
 	import {
 		OTHER_SHORTCUTS,
-		buildCommands,
 		goShortcutHref,
 		goShortcutRows,
 		matchCommands
 	} from '$lib/admin/commands.js';
+	import { SEARCH_TIPS, paletteCommands, recordsFirst } from '$lib/admin/paletteActions.js';
+	import { allowsKind, hasRecordCriteria, parseSearchQuery } from '$lib/utils/searchQuery.js';
+	import { goPending, isMac } from '$lib/admin/shortcutHints.js';
 
 	/** Texto corto para el header del celu. */
 	export let compact = false;
 	/** Si esta instancia escucha el teclado. */
 	export let hotkeys = true;
+	/** Si ahora están ocultas las secciones «Próximamente» (el nombre de la acción cambia). */
+	export let hideSoon = false;
+
+	/** @type {import('svelte').EventDispatcher<{ theme: null, hidesoon: null }>} */
+	const dispatch = createEventDispatcher();
 
 	const ICONS = /** @type {Record<string, any>} */ ({
 		home: House,
@@ -74,6 +99,7 @@
 		chart: ChartLine,
 		book: BookOpen,
 		heart: Heart,
+		eye: Eye,
 		'eye-off': EyeOff,
 		settings: Settings,
 		mail: Mail,
@@ -87,7 +113,11 @@
 		order: Receipt,
 		ticket: Ticket,
 		person: User,
-		code: Tag
+		code: Tag,
+		profile: IdCard,
+		check: ClipboardCheck,
+		theme: SunMoon,
+		search: Search
 	});
 
 	const uid = Math.random().toString(36).slice(2, 8);
@@ -102,6 +132,8 @@
 	let input;
 	/** @type {HTMLElement | undefined} */
 	let listEl;
+	/** @type {HTMLElement | undefined} */
+	let searchHelpEl;
 
 	let q = '';
 	let active = 0;
@@ -109,7 +141,7 @@
 	let errorText = '';
 	/** @type {{ slug: string, title: string, href: string }[]} */
 	let today = [];
-	/** @type {{ id: string, label: string, items: { id: string, icon: string, title: string, sub: string, href: string }[] }[]} */
+	/** @type {{ id: string, label: string, items: { id: string, icon: string, title: string, sub: string, href: string, exact?: boolean }[] }[]} */
 	let groups = [];
 	/** @type {AbortController | null} */
 	let inflight = null;
@@ -119,12 +151,19 @@
 
 	/**
 	 * @typedef {{ key: string, icon: string, title: string, sub: string, href?: string,
-	 *   external?: boolean, run?: 'help', shortcut?: string, navId?: string }} Row
+	 *   external?: boolean, run?: 'help' | 'search-help' | 'theme' | 'hide-soon', shortcut?: string,
+	 *   navId?: string }} Row
 	 */
 
-	$: commands = buildCommands({ today });
+	$: commands = paletteCommands({ today, hideSoon });
+	// Lo escrito, con sus operadores (#etiqueta, @persona, hoy…).
+	$: pq = parseSearchQuery(q);
+	$: onlyActions = Boolean(pq.kinds?.length) && pq.kinds?.every((k) => k === 'actions');
 	$: actionRows = /** @type {Row[]} */ (
-		matchCommands(commands, q, q.trim() ? 6 : 8).map((c) => ({
+		(allowsKind(pq, 'actions')
+			? matchCommands(commands, pq.actionText, onlyActions ? 12 : q.trim() ? 6 : 8)
+			: []
+		).map((c) => ({
 			key: c.id,
 			icon: c.icon,
 			title: c.label,
@@ -136,22 +175,31 @@
 			navId: c.navId
 		}))
 	);
-	$: sections = [
-		...(actionRows.length ? [{ id: 'actions', label: 'Acciones', rows: actionRows }] : []),
-		...groups.map((g) => ({
-			id: g.id,
-			label: g.label,
-			rows: /** @type {Row[]} */ (g.items.map((i) => ({ ...i, key: i.id })))
-		}))
-	];
+	$: actionSection = actionRows.length
+		? [{ id: 'actions', label: 'Acciones', rows: actionRows }]
+		: [];
+	$: recordSections = groups.map((g) => ({
+		id: g.id,
+		label: g.label,
+		rows: /** @type {Row[]} */ (g.items.map((i) => ({ ...i, key: i.id })))
+	}));
+	// Las acciones van arriba, salvo que lo buscado sea claramente un registro (ver recordsFirst).
+	$: sections = recordsFirst(
+		pq.actionText || q,
+		actionRows.map((r) => r.title),
+		groups
+	)
+		? [...recordSections, ...actionSection]
+		: [...actionSection, ...recordSections];
 	$: flat = sections.flatMap((s) => s.rows);
 	$: if (active >= flat.length) active = Math.max(0, flat.length - 1);
 	$: search(q);
 
-	export async function open() {
+	/** @param {string} [initial] lo que ya aparece escrito */
+	export async function open(initial = '') {
 		if (isOpen) return;
 		isOpen = true;
-		q = '';
+		q = initial;
 		active = 0;
 		groups = [];
 		errorText = '';
@@ -159,15 +207,29 @@
 		await tick();
 		input?.focus();
 		fetchResults('');
+		// Por si ya estaba escrito lo mismo (entonces `$: search(q)` no corre).
+		if (initial) search(initial);
 	}
 	function close() {
 		isOpen = false;
 		if (dialog?.open) dialog.close();
 	}
-	function openHelp() {
+	/** @param {{ searchTips?: boolean }} [opts] `searchTips`: ir directo a «Cómo buscar» */
+	export async function openHelp({ searchTips = false } = {}) {
 		close();
 		helpOpen = true;
 		helpDialog?.showModal?.();
+		if (searchTips) {
+			await tick();
+			searchHelpEl?.scrollIntoView({ block: 'start' });
+			searchHelpEl?.focus({ preventScroll: true });
+		}
+	}
+	/** Un ejemplo de «Cómo buscar»: cierra la ayuda y lo busca. @param {string} example */
+	async function tryExample(example) {
+		closeHelp();
+		await tick();
+		open(example);
 	}
 	function closeHelp() {
 		helpOpen = false;
@@ -179,7 +241,7 @@
 		if (!isOpen) return;
 		clearTimeout(timer);
 		const trimmed = query.trim();
-		if (trimmed.length < 2) {
+		if (!hasRecordCriteria(parseSearchQuery(trimmed))) {
 			groups = [];
 			loading = false;
 			errorText = '';
@@ -228,6 +290,12 @@
 	async function choose(row) {
 		if (!row) return;
 		if (row.run === 'help') return openHelp();
+		if (row.run === 'search-help') return openHelp({ searchTips: true });
+		if (row.run === 'theme' || row.run === 'hide-soon') {
+			close();
+			dispatch(row.run === 'theme' ? 'theme' : 'hidesoon');
+			return;
+		}
 		if (!row.href) return;
 		close();
 		lastQuery = '\u0000';
@@ -272,11 +340,22 @@
 		return n + ri;
 	}
 
+	/** «Ctrl K» o «⌘ K», al lado del `/` (el CSS lo muestra solo en una compu con mouse). */
+	let ctrlK = '';
+
 	onMount(() => {
 		if (!hotkeys) return;
+		ctrlK = isMac() ? '⌘ K' : 'Ctrl K';
 		let pendingG = false;
 		/** @type {ReturnType<typeof setTimeout> | undefined} */
 		let gTimer;
+		/** @param {boolean} on */
+		const setPending = (on) => {
+			pendingG = on;
+			goPending.set(on);
+			clearTimeout(gTimer);
+			if (on) gTimer = setTimeout(() => setPending(false), 1200);
+		};
 		/** @param {KeyboardEvent} e */
 		const onKey = (e) => {
 			const el = /** @type {HTMLElement | null} */ (document.activeElement);
@@ -287,11 +366,16 @@
 				else open();
 				return;
 			}
-			if (typing || e.ctrlKey || e.metaKey || e.altKey || isOpen || helpOpen) return;
+			if (typing || e.ctrlKey || e.metaKey || e.altKey || isOpen || helpOpen) {
+				if (pendingG) setPending(false);
+				return;
+			}
 			if (document.querySelector('dialog[open]')) return;
+			// Dejar `g` apretada repite la tecla: no es `g g`.
+			if (e.repeat) return;
 			if (pendingG) {
-				pendingG = false;
-				clearTimeout(gTimer);
+				if (e.key === 'Shift') return;
+				setPending(false);
 				const href = goShortcutHref(e.key);
 				if (href) {
 					e.preventDefault();
@@ -306,22 +390,25 @@
 				e.preventDefault();
 				openHelp();
 			} else if (e.key === 'g') {
-				pendingG = true;
-				gTimer = setTimeout(() => (pendingG = false), 1200);
+				setPending(true);
 			}
 		};
 		window.addEventListener('keydown', onKey);
 		return () => {
 			window.removeEventListener('keydown', onKey);
-			clearTimeout(gTimer);
+			setPending(false);
 		};
 	});
 </script>
 
-<button type="button" class="search" class:compact on:click={open} aria-haspopup="dialog">
+<button type="button" class="search" class:compact on:click={() => open()} aria-haspopup="dialog">
 	<Search size={18} aria-hidden="true" />
-	<span class="label">{compact ? 'Buscar o hacer…' : 'Buscar personas, eventos o acciones…'}</span>
-	{#if !compact}<kbd>/</kbd>{/if}
+	<span class="label"
+		>{compact
+			? 'Buscar o hacer…'
+			: 'Buscar personas, eventos, perfiles, etiquetas o acciones…'}</span
+	>
+	{#if !compact}<kbd>/</kbd>{#if ctrlK}<kbd class="ck">{ctrlK}</kbd>{/if}{/if}
 </button>
 
 <dialog
@@ -344,7 +431,7 @@
 					bind:value={q}
 					on:keydown={onInputKey}
 					type="search"
-					placeholder="Buscá eventos, KV-…, personas, códigos o una acción"
+					placeholder="Buscá personas, eventos, perfiles, etiquetas, KV-…, códigos o una acción"
 					autocomplete="off"
 					spellcheck="false"
 					role="combobox"
@@ -357,6 +444,17 @@
 				>
 			</div>
 
+			{#if !q.trim()}
+				<p class="tips">
+					Probá <code>#etiqueta</code>, <code>@persona</code>, <code>hoy</code> o
+					<code>"frase"</code>.
+					<button
+						type="button"
+						class="linkish inline"
+						on:click={() => openHelp({ searchTips: true })}>Cómo buscar</button
+					>
+				</p>
+			{/if}
 			<div
 				class="list"
 				id="kv-pal-list-{uid}"
@@ -398,7 +496,11 @@
 				{/each}
 				{#if errorText}
 					<p class="note bad" role="alert">{errorText}</p>
-				{:else if q.trim().length >= 2 && !loading && !groups.length}
+				{:else if pq.kinds && !pq.kinds.length}
+					<p class="note">
+						Esos filtros no van juntos (por ejemplo, una etiqueta y un estado de orden).
+					</p>
+				{:else if hasRecordCriteria(pq) && !loading && !groups.length}
 					<p class="note">No encontramos registros con "{q.trim()}".</p>
 				{:else if q.trim().length === 1}
 					<p class="note">Escribí una letra más para buscar registros.</p>
@@ -409,7 +511,12 @@
 				<span><kbd>↑</kbd><kbd>↓</kbd> moverse</span>
 				<span><kbd>Enter</kbd> abrir</span>
 				<span><kbd>Esc</kbd> cerrar</span>
-				<button type="button" class="linkish" on:click={openHelp}><kbd>?</kbd> atajos</button>
+				<button type="button" class="linkish push" on:click={() => openHelp({ searchTips: true })}
+					>Cómo buscar</button
+				>
+				<button type="button" class="linkish" on:click={() => openHelp()}
+					><kbd>?</kbd> atajos</button
+				>
 			</footer>
 		</div>
 	{/if}
@@ -462,6 +569,34 @@
 					</ul>
 				</section>
 			</div>
+			<section
+				class="tipsbox"
+				bind:this={searchHelpEl}
+				tabindex="-1"
+				aria-labelledby="kv-search-help-{uid}"
+			>
+				<h3 id="kv-search-help-{uid}">Cómo buscar</h3>
+				<p class="lead">
+					Sin tildes ni mayúsculas, y las palabras en cualquier orden. Se pueden combinar: <button
+						type="button"
+						class="ex"
+						on:click={() => tryExample('#shibari finde')}><code>#shibari finde</code></button
+					>. Tocá un ejemplo para probarlo.
+				</p>
+				<ul>
+					{#each SEARCH_TIPS as tip (tip.q)}
+						<li>
+							<span class="exs"
+								><button type="button" class="ex" on:click={() => tryExample(tip.q)}
+									><code>{tip.q}</code></button
+								>{#each tip.also ?? [] as other (other)}<code class="also">{other}</code
+									>{/each}</span
+							>
+							<span>{tip.text}</span>
+						</li>
+					{/each}
+				</ul>
+			</section>
 		</div>
 	{/if}
 </dialog>
@@ -507,6 +642,17 @@
 	}
 	.search kbd {
 		margin-left: auto;
+		flex: none;
+		&.ck {
+			display: none;
+		}
+	}
+	/* La misma consulta que HINTS_MEDIA (shortcutHints.js). */
+	@media (hover: hover) and (pointer: fine) and (min-width: 1100px) {
+		.search kbd.ck {
+			display: inline;
+			margin-left: 0;
+		}
 	}
 	dialog {
 		border: 0;
@@ -654,11 +800,79 @@
 		color: var(--muted);
 		padding: 0;
 		cursor: pointer;
-		margin-left: auto;
 		font-size: inherit;
+		&.push {
+			margin-left: auto;
+		}
+	}
+	.tips {
+		margin: 0;
+		padding: var(--space-3xs) var(--space-xs);
+		border-bottom: 1px solid var(--line);
+		font-size: var(--text-xs);
+		color: var(--muted);
+		code {
+			font-size: inherit;
+		}
+	}
+	.linkish.inline {
+		margin-left: 0.3rem;
+		color: var(--link);
+		text-decoration: underline;
 	}
 	.help {
 		width: min(40rem, calc(100% - 32px));
+		max-height: min(44rem, 90vh);
+	}
+	.helpbox .tipsbox {
+		margin-top: var(--space-xs);
+		border-top: 1px solid var(--line);
+		outline: none;
+		.lead {
+			margin: 0 0 var(--space-2xs);
+			color: var(--muted);
+			font-size: var(--text-xs);
+		}
+		/* Una grilla para toda la lista: los ejemplos a la izquierda, alineados. */
+		ul {
+			display: grid;
+			grid-template-columns: fit-content(17rem) minmax(0, 1fr);
+			gap: var(--space-2xs) var(--space-xs);
+			align-items: baseline;
+		}
+		li {
+			display: contents;
+		}
+		code {
+			white-space: nowrap;
+		}
+		.exs {
+			display: inline-flex;
+			flex-wrap: wrap;
+			align-items: baseline;
+			gap: 0.3rem;
+		}
+		.also {
+			color: var(--muted);
+			font-size: var(--text-xs);
+		}
+	}
+	.ex {
+		border: 0;
+		background: none;
+		padding: 0;
+		cursor: pointer;
+		font: inherit;
+		code {
+			color: var(--link);
+			background: var(--link-bg);
+			border-radius: 0.35em;
+			padding: 0.05em 0.35em;
+		}
+		&:hover code,
+		&:focus-visible code {
+			text-decoration: underline;
+		}
 	}
 	.helpbox {
 		padding: var(--space-xs) var(--space-s) var(--space-s);
@@ -731,6 +945,10 @@
 		}
 		.cols {
 			grid-template-columns: 1fr;
+		}
+		.helpbox .tipsbox ul {
+			grid-template-columns: 1fr;
+			gap: var(--space-3xs);
 		}
 	}
 	@media (prefers-reduced-motion: reduce) {

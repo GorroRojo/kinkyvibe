@@ -2,11 +2,13 @@
 	/**
 	 * Ajustes → Automatizaciones: lo que corre solo, para mirar (todavía no se edita nada acá).
 	 * Cada fila: qué hace, cuándo corre, la última vez y la próxima (si se sabe) y dónde se configura.
+	 * Lo único que se toca: «Actualizar comandos del bot», en la tarjeta del bot.
 	 */
 	import { fmtDateTime, fmtRelative } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
+	import CommandsForm from '$lib/components/admin/telegram/CommandsForm.svelte';
 	import {
 		BellRing,
 		Bot,
@@ -24,6 +26,8 @@
 	} from '@lucide/svelte';
 
 	export let data;
+	/** @type {any} */
+	export let form;
 
 	/** @type {Record<string, any>} */
 	const ICONS = {
@@ -48,7 +52,7 @@
 
 <PageHeader
 	title="Automatizaciones"
-	subtitle="Todo lo que corre solo, en un lugar. Por ahora es para mirar: cada cosa se configura donde dice."
+	subtitle="Todo lo que corre solo, en un lugar. Casi todo es para mirar: cada cosa se configura donde dice."
 />
 
 <div class="kv-stack automations">
@@ -99,10 +103,16 @@
 								</div>
 							{/if}
 						</dl>
+						{#if a.id === 'telegram'}
+							<CommandsForm tokenOk={data.telegramTokenOk} {form} />
+						{/if}
 						{#if a.details.length}
-							<ul class="details">
-								{#each a.details as d}<li>{d}</li>{/each}
-							</ul>
+							<details class="tech">
+								<summary>Para técnicos</summary>
+								<ul class="details">
+									{#each a.details as d}<li>{d}</li>{/each}
+								</ul>
+							</details>
 						{/if}
 						<p class="config"><a href={a.configHref}>Se configura en {a.configLabel} →</a></p>
 					</li>
@@ -116,10 +126,17 @@
 	</Card>
 
 	<p class="kv-note">
-		Los horarios de las tareas programadas están en <code>wrangler.toml</code> y solo corren en producción
-		(los previews no ejecutan crons). «Última vez» sale de lo que quedó guardado en la base: si no salió
-		ningún mail, no hay registro aunque la tarea haya corrido.
+		Las tareas programadas corren solas, solo en el sitio de verdad (no en las versiones de prueba).
+		«Última vez» sale de lo que quedó guardado: si no salió ningún mail, no hay registro aunque la
+		tarea haya corrido.
 	</p>
+	<details class="tech">
+		<summary>Para técnicos</summary>
+		<p class="kv-note">
+			Los horarios están en <code>wrangler.toml</code> (<code>[triggers]</code>); los previews no
+			ejecutan crons.
+		</p>
+	</details>
 </div>
 
 <style>
@@ -185,6 +202,11 @@
 	}
 	.facts dd {
 		margin: 0;
+	}
+	.tech summary {
+		cursor: pointer;
+		color: var(--muted);
+		font-size: var(--text-sm);
 	}
 	.details {
 		margin: 0;

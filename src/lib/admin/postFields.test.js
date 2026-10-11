@@ -83,7 +83,7 @@ describe('datosFields / datosFieldId', () => {
 			'ev-link-text'
 		]);
 	});
-	it('editar un evento: todo menos Empieza y Termina (van en «¿Cuándo es?»)', () => {
+	it('editar un evento: todo menos Empieza y Termina (van en «Fecha y hora»)', () => {
 		expect(datosFields('editar').map((f) => f.key)).toEqual(
 			postFields('calendario')
 				.map((f) => f.key)

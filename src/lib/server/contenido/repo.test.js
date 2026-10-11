@@ -389,6 +389,45 @@ describe('las entradas y el panel leen el evento de la base', () => {
 		);
 		expect(metas.some((m) => m.slug === 'charla-oculta-2031-03')).toBe(false);
 	});
+
+	it('con lugar vinculado, la venta es presencial (como la página)', async () => {
+		const { client } = await setup();
+		const tickets = await import('$lib/server/tickets/events.js');
+		const slug = 'fiesta-inventada-2031-01';
+		// Sin «Dónde» y con la etiqueta Online: online.
+		const p = path(slug);
+		const file = await client.readFile('t', p);
+		await client.commitFiles('t', {
+			files: [
+				{
+					path: p,
+					content: String(file?.raw)
+						.replace(/^location: .*\n/m, '')
+						.replace(/^location_name: .*\n/m, '')
+						.replace('  - AMBA\n', '  - Online\n')
+				}
+			],
+			message: 'x',
+			unchanged: [{ path: p, sha: String(file?.sha) }]
+		});
+		/** @param {{ slug: string, config: { online: boolean } }[]} list */
+		const listed = (list) => list.find((e) => e.slug === slug)?.config.online;
+		expect((await tickets.getEventTickets(slug))?.online).toBe(true);
+		expect(listed(await tickets.listTicketedEvents())).toBe(true);
+		// Con un lugar vinculado: presencial, de a uno y en la lista.
+		const { makeProfile } = await import('$lib/server/amigues/testing.js');
+		const { setEventVenue } = await import('$lib/server/amigues/venues.js');
+		const venue = await makeProfile(t.db, {
+			title: 'Lugar Inventado',
+			kind: 'lugar',
+			data: { address: 'Calle Falsa 123', venue_privacy: 'public' }
+		});
+		expect(
+			await setEventVenue(t.db, { eventSlug: slug, venueId: venue.id, privacy: null, by: 'a' })
+		).toEqual({ ok: true });
+		expect((await tickets.getEventTickets(slug))?.online).toBe(false);
+		expect(listed(await tickets.listTicketedEvents())).toBe(false);
+	});
 });
 
 describe('quién guarda: el login de GitHub en cada guardado del panel', () => {

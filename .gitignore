@@ -16,3 +16,6 @@ src\lib\posts\material\media\donde-y-como-golpear-un-cuerpo\ensamblado.kra~
 .wrangler
 /test-results
 /playwright-report
+
+# Informe de impacto visual (npm run ui:impacto, docs/ui-impacto.md)
+/ui-impacto

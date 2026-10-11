@@ -35,6 +35,13 @@
 	 * /calendario passes whether the month on screen has past events.
 	 * @type {boolean | undefined} */
 	export let pastEventsToggle = undefined;
+	/** Sin búsqueda, cuántos mostrar antes de «Ver más» (0 = todos). El inicio lo usa para que
+	 * el pie de página quede a mano en vez de a 40 pantallas. */
+	export let limit = 0;
+	/** Lo que dice arriba de los resultados (por defecto «N resultados»).
+	 * @type {(n: number) => string} */
+	export let amountLabel = (n) => `${n} ${n == 1 ? 'resultado' : 'resultados'}`;
+	let shownLimit = limit;
 	$: states = ticketStates ?? $page.data?.ticketStates ?? null;
 
 	/**@type ProcessedPost[]*/
@@ -122,10 +129,14 @@
 	}
 	/** @type {Set<string>|null} */
 	let allowed = null;
-	$: allowed = planBatch(tagFilteredPosts, $userConfig.display_type);
+	// Con una búsqueda se ve todo lo que encontró; sin búsqueda, de a `limit`.
+	$: capped = limit > 0 && !searching;
+	$: cappedPosts = capped ? tagFilteredPosts.slice(0, shownLimit) : tagFilteredPosts;
+	$: hiddenCount = tagFilteredPosts.length - cappedPosts.length;
+	$: allowed = planBatch(cappedPosts, $userConfig.display_type);
 	$: shownPosts = allowed
-		? tagFilteredPosts.filter((p) => /**@type {Set<string>}*/ (allowed).has(p.path))
-		: tagFilteredPosts;
+		? cappedPosts.filter((p) => /**@type {Set<string>}*/ (allowed).has(p.path))
+		: cappedPosts;
 	$: (prevShown = shownPosts), (prevDisplay = $userConfig.display_type);
 	onMount(() => {
 		mounted = true;
@@ -270,8 +281,7 @@
 		{#if outerFilteredPosts.length > 0 || searching}
 			<div class="results">
 				<p class="post-amount" aria-live="polite">
-					{tagFilteredPosts.length}
-					{tagFilteredPosts.length == 1 ? 'resultado' : 'resultados'}
+					{amountLabel(tagFilteredPosts.length)}
 				</p>
 				{#if tagFilteredPosts.length == 0}
 					<div class="empty-state">
@@ -300,6 +310,17 @@
 						</li>
 					{/each}
 				</ul>
+				{#if hiddenCount > 0}
+					<div class="more">
+						<button
+							type="button"
+							class="pill-btn ghost"
+							on:click={() => (shownLimit += limit)}
+						>
+							Ver más ({hiddenCount})
+						</button>
+					</div>
+				{/if}
 			</div>
 		{/if}
 	</div>
@@ -323,6 +344,11 @@
 	.results {
 		/* removed items fade out here, absolutely positioned (listMotion.js) */
 		position: relative;
+	}
+	.more {
+		display: flex;
+		justify-content: center;
+		margin-top: var(--space-l);
 	}
 	.post-amount {
 		text-align: right;

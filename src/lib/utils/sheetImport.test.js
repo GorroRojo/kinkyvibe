@@ -33,6 +33,7 @@ import {
 
 const TODAY = '2026-09-29';
 const DIR = new URL('../posts/calendario/', import.meta.url);
+const TEMPLATE = new URL('../admin/plantillas/evento.md', import.meta.url);
 
 /** @param {string} slug */
 const post = (slug) => readFileSync(new URL(`${slug}.md`, DIR), 'utf8');
@@ -497,6 +498,10 @@ describe('proposals', () => {
 			changed: true
 		});
 		expect(placeFields('online', soguita)).toMatchObject({ location: 'Online', changed: true });
+		// Las mismas palabras que la regla de online (isOnlineWord, en eventPlace.js).
+		for (const p of ['Zoom', 'Google Meet', 'por zoom', 'Jitsi', 'Discord', 'Virtual.']) {
+			expect(placeFields(p, soguita), p).toMatchObject({ location: 'Online', changed: true });
+		}
 	});
 });
 
@@ -578,7 +583,7 @@ describe('buildImportedEvent', () => {
 		expect(m.borrador).toBe(true);
 	});
 	it('creates unknown events from the template', () => {
-		const template = readFileSync(new URL('_event_template.md', DIR), 'utf8');
+		const template = readFileSync(TEMPLATE, 'utf8');
 		const { content, notes } = buildImportedEvent(
 			template,
 			{
@@ -623,10 +628,7 @@ describe('buildImportedEvent', () => {
 });
 
 describe('imported drafts follow the event tag rules', () => {
-	const template = readFileSync(
-		new URL('../posts/calendario/_event_template.md', import.meta.url),
-		'utf8'
-	);
+	const template = readFileSync(TEMPLATE, 'utf8');
 	const choice = { title: 'Algo nuevo', date: '2026-10-10', startTime: '20:00', endTime: '22:00' };
 	it('an online row makes the place Online', () => {
 		const src = readFileSync(

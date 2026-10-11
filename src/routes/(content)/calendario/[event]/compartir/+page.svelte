@@ -24,6 +24,7 @@
 		extrasFromSections
 	} from '$lib/utils/shareImage.js';
 	import { renderShareImage, loadImage, canvasToBlob } from '$lib/utils/shareDraw.js';
+	import Notice from '$lib/components/ui/Notice.svelte';
 	import { paletteFromImage, pickRoles, derivePalette, isHex } from '$lib/utils/palette.js';
 	export let data;
 
@@ -272,7 +273,7 @@
 			dispositivo.
 		</p>
 		{#if info.ended}
-			<p class="warning">Ojo: este evento ya pasó.</p>
+			<Notice tone="warn" role={null}>Ojo: este evento ya pasó.</Notice>
 		{/if}
 	</header>
 
@@ -510,10 +511,6 @@
 	}
 	.lead {
 		margin-top: 0;
-	}
-	.warning {
-		font-weight: bold;
-		color: var(--1-dark);
 	}
 	.workspace {
 		display: grid;

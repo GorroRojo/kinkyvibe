@@ -90,6 +90,9 @@ describe('demo guard: the seed only runs in a preview deploy', () => {
 		const gate = src.indexOf('if (PREVIEW_BUILD && isPreviewDeploy())');
 		expect(gate).toBeGreaterThan(-1);
 		expect(src.indexOf("import('$lib/server/demo/seed.js')")).toBeGreaterThan(gate);
+		// Second key: the seed itself is told it runs in a preview, with the compiled deploy branch
+		// (seedTargetProblem refuses `main` and an empty branch; realEvents.test.js).
+		expect(src).toMatch(/reloadDemoData\(db, \{\s*where: 'preview',\s*branch: __DEPLOY_BRANCH__,/);
 	});
 
 	it('nothing else in the app imports the seed or the reload button', () => {
@@ -103,12 +106,12 @@ describe('demo guard: the seed only runs in a preview deploy', () => {
 			const rel = path.relative(ROOT, full);
 			const text = readFileSync(full, 'utf8');
 			const importsSeed =
-				/from\s+['"][^'"]*demo\/(seed|seedProfiles|seedEvents)\.js['"]|import\(\s*['"][^'"]*demo\/(seed|seedEvents)\.js['"]/.test(
+				/from\s+['"][^'"]*demo\/(seed|seedProfiles|seedEvents|realEvents)\.js['"]|import\(\s*['"][^'"]*demo\/(seed|seedEvents|realEvents)\.js['"]/.test(
 					text
 				);
 			const importsButton = /DemoReload\.svelte/.test(text);
 			const allowed = [
-				'src/lib/server/demo/seed.js', // imports ./seedProfiles.js and ./seedEvents.js
+				'src/lib/server/demo/seed.js', // imports ./seedProfiles.js, ./seedEvents.js, ./realEvents.js
 				'src/routes/api/preview-seed/+server.js', // dynamic, inside the gate (above)
 				'src/routes/+layout.svelte' // dynamic, inside `if (PREVIEW)` (below)
 			];
@@ -231,6 +234,7 @@ describe('demo guard: scripts/demo/guard.js (run by CI)', () => {
 			read('src/lib/server/demo/seed.js'),
 			read('src/lib/server/demo/seedProfiles.js'),
 			read('src/lib/server/demo/seedEvents.js'),
+			read('src/lib/server/demo/realEvents.js'),
 			read('src/lib/components/admin/DemoReload.svelte')
 		].join('\n');
 		for (const m of SEED_BUNDLE_MARKERS) expect(sources).toContain(m);

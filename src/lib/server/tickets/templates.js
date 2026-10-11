@@ -15,6 +15,7 @@ import {
 	mergeTemplates,
 	templateDef
 } from '$lib/utils/emailTemplates.js';
+import { templateDeletionStatement } from '$lib/server/admin/deletions.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/utils/emailTemplates.js').TemplateId} TemplateId */
@@ -261,18 +262,19 @@ export async function getEventTemplateOverride(db, eventSlug, id) {
  * @param {string} eventSlug
  * @param {TemplateId} id
  * @param {TemplateParts} value
- * @param {{ by: string, now?: number }} meta
+ * @param {{ by: string, now?: number, title?: string }} meta `title`: cómo se llama en «Recuperar»
+ *   si todo quedó vacío (ver {@link deleteEventTemplateOverride})
  */
 export async function saveEventTemplateOverride(
 	db,
 	eventSlug,
 	id,
 	value,
-	{ by, now = Date.now() }
+	{ by, now = Date.now(), title }
 ) {
 	const cols = TEMPLATE_KEYS.map((k) => orNull(value[k]));
 	if (cols.every((v) => v === null)) {
-		await deleteEventTemplateOverride(db, eventSlug, id);
+		await deleteEventTemplateOverride(db, eventSlug, id, { by, title, now });
 		return false;
 	}
 	await db
@@ -288,18 +290,52 @@ export async function saveEventTemplateOverride(
 }
 
 /**
- * Borra lo que cambia en un mail de un evento. Devuelve si había algo.
+ * Borra lo que cambia en un mail de un evento. Devuelve si había algo. Antes, en la MISMA tanda,
+ * guarda una copia en `panel_deletions` (src/lib/server/admin/deletions.js) para «Recuperar» en
+ * Actividad. Si alguien guarda justo en el medio, se vuelve a leer (sin borrar lo que no se copió).
  *
  * @param {D1Database} db
  * @param {string} eventSlug
  * @param {TemplateId} id
+ * @param {{ by?: string, title?: string, now?: number }} [meta] quién lo borra y cómo se llama en
+ *   «Recuperar» (por defecto, «Mail «<mail>» de <evento>»)
  */
-export async function deleteEventTemplateOverride(db, eventSlug, id) {
-	const res = await db
-		.prepare('DELETE FROM event_email_templates WHERE event_slug = ?1 AND id = ?2')
-		.bind(eventSlug, id)
-		.run();
-	return res.meta.changes > 0;
+export async function deleteEventTemplateOverride(
+	db,
+	eventSlug,
+	id,
+	{ by = 'panel', title, now = Date.now() } = {}
+) {
+	for (let attempt = 0; attempt < 3; attempt++) {
+		const row = await db
+			.prepare(
+				`SELECT ${ALL_COLUMNS}, updated_at FROM event_email_templates
+				WHERE event_slug = ?1 AND id = ?2`
+			)
+			.bind(eventSlug, id)
+			.first();
+		if (!row) return false;
+		const copy = await templateDeletionStatement(
+			db,
+			{
+				eventSlug,
+				id,
+				row,
+				title: title ?? `Mail «${templateDef(id)?.label ?? id}» de ${eventSlug}`
+			},
+			{ login: by, now }
+		);
+		const [, removed] = await db.batch([
+			copy,
+			db
+				.prepare(
+					'DELETE FROM event_email_templates WHERE event_slug = ?1 AND id = ?2 AND updated_at = ?3'
+				)
+				.bind(eventSlug, id, Number(row.updated_at))
+		]);
+		if (removed.meta.changes > 0) return true;
+	}
+	return false;
 }
 
 /**

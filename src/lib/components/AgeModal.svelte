@@ -14,13 +14,13 @@
 			<h2>¿Sos mayor de 18 años?</h2>
 			<div class="button-group">
 				<button
-					class="button"
+					class="button tap-target"
 					on:click={() => {
 						mayorDeEdad = true;
 						localStorage.setItem('mayorDeEdad', '' + mayorDeEdad);
 					}}>Sí</button
 				>
-				<a class="button" href="https://instagram.com/kinkyvibeargentina">No</a>
+				<a class="button tap-target" href="https://instagram.com/kinkyvibeargentina">No</a>
 			</div>
 		</div>
 	</div>

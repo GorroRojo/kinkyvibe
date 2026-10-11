@@ -75,9 +75,9 @@
 			{#if f.forced !== null || f.updatedAt}
 				<p class="state">
 					{#if f.forced === true}
-						<Badge tone="info" icon={Lock}>prendido por {f.envVar}=1</Badge>
+						<Badge tone="info" icon={Lock}>fijo: prendido</Badge>
 					{:else if f.forced === false}
-						<Badge tone="bad" icon={Lock}>apagado por {f.envVar}=0</Badge>
+						<Badge tone="bad" icon={Lock}>fijo: apagado</Badge>
 					{/if}
 					{#if f.updatedAt}
 						<span class="kv-note">
@@ -89,14 +89,29 @@
 			<p class="kv-note">{f.description}</p>
 			{#if f.forced !== null}
 				<p class="kv-note">
-					La variable {f.envVar} (panel de Cloudflare) manda sobre este interruptor mientras exista.
+					Este interruptor está fijo desde la configuración del sitio: cambiarlo acá no hace nada
+					hasta que se saque esa configuración.
 				</p>
+			{/if}
+			{#if f.tech || f.forced !== null}
+				<details class="tech">
+					<summary>Para técnicos</summary>
+					{#if f.tech}<p class="kv-note">{f.tech}</p>{/if}
+					<p class="kv-note">
+						Variable {f.envVar} (panel de Cloudflare): si existe, manda sobre este interruptor.
+					</p>
+				</details>
 			{/if}
 		</Card>
 	{/each}
 </div>
 
 <style>
+	.tech summary {
+		cursor: pointer;
+		color: var(--muted);
+		font-size: var(--text-sm);
+	}
 	.settings {
 		max-width: 48rem;
 	}

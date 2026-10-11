@@ -3,6 +3,7 @@
 	import { tick } from 'svelte';
 	import { writable } from 'svelte/store';
 	import { Search, X } from '@lucide/svelte';
+	import TagChip from './ui/TagChip.svelte';
 	import { filteredTags, searchText, tagManager } from '$lib/utils/stores';
 	import { filterPosts, suggestTags, aliasIndex, canonicalTag } from '$lib/utils/postSearch';
 
@@ -91,15 +92,17 @@
 			<ul class="chips" aria-label="Etiquetas seleccionadas">
 				{#each $filteredTags as id (id)}
 					{@const tag = $tagManager.get(id)}
-					<li class="chip" style:--tag-color={tag?.getColor() ?? 'var(--1)'}>
-						<span>{tag?.icon ?? ''} {tag?.visible_name ?? id}</span>
-						<button
-							type="button"
-							aria-label="Sacar etiqueta {tag?.visible_name ?? id}"
-							on:click|stopPropagation={() => {
-								removeTag(id);
-								inputEl?.focus();
-							}}><X size="0.9em" aria-hidden="true" /></button
+					<!-- El chip compartido, elegido (TagChip `selected`), con su botón para sacarla. -->
+					<li class="chip">
+						<TagChip tag={id} selected
+							><button
+								type="button"
+								aria-label="Sacar etiqueta {tag?.visible_name ?? id}"
+								on:click|stopPropagation={() => {
+									removeTag(id);
+									inputEl?.focus();
+								}}><X size="0.9em" aria-hidden="true" /></button
+							></TagChip
 						>
 					</li>
 				{/each}
@@ -214,22 +217,17 @@
 	.chips {
 		display: contents;
 	}
+	/* el chip es el compartido (`.kv-tag.on`, style.scss); acá solo el lugar del botón de sacar */
 	.chip {
 		list-style: none;
 		display: inline-flex;
 		align-items: center;
-		/* etiqueta elegida: llena con su color oscurecido, texto blanco (como .kv-tag.on) */
-		background: color-mix(in srgb, var(--tag-color) 75%, black);
-		color: white;
-		border-radius: 2em;
-		line-height: 1;
-		padding-left: 0.6em;
 		max-width: 100%;
-		span {
-			padding-block: 0.3em;
+		:global(.kv-tag) {
+			align-self: stretch;
+			max-width: 100%;
+			padding-inline-end: 0;
 			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
 		}
 		button {
 			display: inline-flex;

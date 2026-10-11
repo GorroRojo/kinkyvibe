@@ -10,6 +10,7 @@ import { readWorkshop } from '../eventos/partes.js';
 import { buyerLocation } from '../amigues/venues.js';
 import { getEventMeta } from './events.js';
 import { partLine, partsListTitle } from '../../utils/partes.js';
+import { ONLINE_PLACE_TEXT, placeLine } from '../../utils/eventPlace.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {{ title: string, lines: string[] }} PartsList */
@@ -32,7 +33,9 @@ export async function workshopPartsList(db, slug, { online = false, buyer = true
 		if (!ws || ws.total < 2 || ws.workshop.perPart || ws.workshop.slug !== slug) return null;
 		const lines = [];
 		for (const p of ws.parts) {
-			lines.push(partLine({ ...p, where: online ? 'Online' : await placeOf(db, p.slug, buyer) }));
+			lines.push(
+				partLine({ ...p, where: online ? ONLINE_PLACE_TEXT : await placeOf(db, p.slug, buyer) })
+			);
 		}
 		return { title: partsListTitle(ws.total), lines };
 	} catch (e) {
@@ -51,5 +54,5 @@ export async function workshopPartsList(db, slug, { online = false, buyer = true
  */
 async function placeOf(db, slug, buyer) {
 	const place = (buyer ? await buyerLocation(db, slug) : null) ?? (await getEventMeta(slug));
-	return [place?.location_name, place?.location].filter(Boolean).join(' · ');
+	return placeLine(place?.location_name, place?.location);
 }

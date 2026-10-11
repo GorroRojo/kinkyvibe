@@ -100,13 +100,84 @@ describe('/admin/buscar', () => {
 	it('busca eventos del bundle aunque no haya base de datos', async () => {
 		const res = await call('fiesta', { platform: {} });
 		const body = await res.json();
-		expect(body.groups).toHaveLength(1);
+		// Sin base: los eventos con los atajos a las pestañas del primero (y las etiquetas, que
+		// salen del árbol en memoria; «fiesta» también es una etiqueta). Nada de lo que sale de la
+		// base.
+		expect(
+			body.groups
+				.map((/** @type {any} */ g) => g.id)
+				.filter((/** @type {string} */ id) => id !== 'tags')
+		).toEqual(['events', 'event-tabs']);
 		expect(body.groups[0].id).toBe('events');
 		expect(body.groups[0].items[0]).toMatchObject({
 			title: 'Fiesta Inventada',
 			// La ficha del evento (#106), en su pestaña Ventas.
 			href: '/admin/eventos/fiesta-inventada-2026-10/ventas'
 		});
+	});
+
+	it('del primer evento salen atajos a sus pestañas (vende entradas: Puerta, Órdenes…)', async () => {
+		const body = await (await call('fiesta', { platform: {} })).json();
+		const tabs = body.groups.find((/** @type {any} */ g) => g.id === 'event-tabs');
+		expect(tabs.label).toBe('En «Fiesta Inventada»');
+		expect(tabs.items.map((/** @type {any} */ i) => i.title)).toEqual([
+			'Puerta',
+			'Órdenes',
+			'Mail a compradores',
+			'Ventas',
+			'Duplicar'
+		]);
+		const puerta = new URL(tabs.items[0].href, 'http://localhost');
+		expect(puerta.pathname).toBe('/admin/eventos/fiesta-inventada-2026-10/ingreso');
+	});
+
+	it('«jose» encuentra a «José» y la persona lleva a su ficha', async () => {
+		await insertOrder(t.db, { name: 'José Inventado', email: 'jose.inventado@example.com' });
+		const body = await (await call('jose')).json();
+		const people = body.groups.find((/** @type {any} */ g) => g.id === 'people');
+		expect(people.items.map((/** @type {any} */ i) => i.title)).toEqual(['José Inventado']);
+		const ficha = new URL(people.items[0].href, 'http://localhost');
+		expect(ficha.pathname.startsWith('/admin/comunidad/personas/')).toBe(true);
+		const orders = body.groups.find((/** @type {any} */ g) => g.id === 'orders');
+		expect(orders.items).toHaveLength(1);
+	});
+
+	it('operadores: e:evento + pestaña lleva directo a esa pestaña, primero', async () => {
+		const body = await (await call('e:fiesta puerta', { platform: {} })).json();
+		expect(body.groups.map((/** @type {any} */ g) => g.id)).toEqual(['event-tabs', 'events']);
+		const [puerta] = body.groups[0].items;
+		expect(body.groups[0].items).toHaveLength(1);
+		expect(puerta).toMatchObject({ title: 'Puerta', exact: true });
+		expect(new URL(puerta.href, 'http://localhost').pathname).toBe(
+			'/admin/eventos/fiesta-inventada-2026-10/ingreso'
+		);
+	});
+
+	it('operadores: @persona solo trae personas y perfiles', async () => {
+		await insertOrder(t.db, { name: 'Dana Inventada', email: 'dana@example.com' });
+		const body = await (await call('@dana')).json();
+		expect(body.groups.map((/** @type {any} */ g) => g.id)).toEqual(['people']);
+	});
+
+	it('operadores: hoy trae los eventos de hoy (en hora de Argentina)', async () => {
+		const now = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-10T23:30:00-03:00'));
+		try {
+			const today = await (await call('hoy', { platform: {} })).json();
+			expect(today.groups[0].items.map((/** @type {any} */ i) => i.title)).toEqual([
+				'Fiesta Inventada'
+			]);
+			const tomorrow = await (await call('mañana', { platform: {} })).json();
+			expect(tomorrow.groups).toEqual([]);
+		} finally {
+			now.mockRestore();
+		}
+	});
+
+	it('operadores: solo filtros que no van juntos o solo acciones, sin grupos', async () => {
+		for (const q of ['>fiesta', 'tipo:orden fiesta', 'estado:pendiente #fiesta']) {
+			const body = await (await call(q, { platform: {} })).json();
+			expect(body.groups, q).toEqual([]);
+		}
 	});
 
 	it('búsqueda corta: sin grupos (solo los eventos de hoy)', async () => {

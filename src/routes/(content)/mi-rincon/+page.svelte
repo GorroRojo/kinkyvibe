@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { Trash2 } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
-	import { TIMEZONE, argDateList } from '$lib/utils/dates.js';
+	import { argDateList, argDateLong } from '$lib/utils/dates.js';
 
 	export let data;
 	export let form;
@@ -13,17 +13,6 @@
 		awaiting_transfer: 'Esperando la transferencia',
 		refunded: 'Reembolsada'
 	};
-
-	/** @param {number | string | null} d */
-	const fmtDate = (d) =>
-		d == null
-			? ''
-			: new Date(d).toLocaleDateString('es-AR', {
-					timeZone: TIMEZONE,
-					day: 'numeric',
-					month: 'long',
-					year: 'numeric'
-				});
 
 	let confirmDelete = '';
 
@@ -51,34 +40,34 @@
 <div class="rincon">
 	<h1>Mi rincón</h1>
 
-	<section class="surface-card" aria-labelledby="cuenta-title">
-		<h2 id="cuenta-title">Tu cuenta</h2>
-		<p>Mail: <strong>{data.email}</strong></p>
-		<p class="hint">Con cuenta desde el {fmtDate(data.createdAt)}.</p>
-		{#if form?.action === 'sesiones' && form.error}
-			<p class="error" role="alert">{form.error}</p>
+	<section class="surface-card" aria-labelledby="compras-title">
+		<h2 id="compras-title">Tus compras y entradas</h2>
+		{#if data.ordersError}
+			<p class="error" role="alert">No pudimos cargar tus compras. Probá de nuevo en un rato.</p>
+		{:else if data.orders.length === 0}
+			<p class="hint">Todavía no hay compras con este mail.</p>
+		{:else}
+			<ul class="orders">
+				{#each data.orders as o (o.id)}
+					<li>
+						<a href="/entradas/{o.id}/estado">
+							<strong>{o.event}</strong>
+							{#if o.eventStart}<span class="hint">{argDateList(o.eventStart)}</span>{/if}
+						</a>
+						<span>
+							{o.quantity === 1 ? '1 entrada' : `${o.quantity} entradas`} · {formatARS(o.total)} · {STATUS[
+								o.status
+							] ?? o.status}
+						</span>
+						<span class="hint">Compra {o.reference}, del {argDateLong(o.createdAt)}</span>
+					</li>
+				{/each}
+			</ul>
 		{/if}
-		<div class="row">
-			<form method="POST" action="?/salir">
-				<button class="pill-btn ghost" type="submit">Salir</button>
-			</form>
-			<form method="POST" action="?/salirTodos">
-				<button class="pill-btn ghost" type="submit">Salir en todos lados</button>
-			</form>
-		</div>
 		<p class="hint">
-			"En todos lados" cierra tu sesión en este y en cualquier otro navegador o dispositivo donde
-			hayas entrado. Usalo si entraste en una compu ajena o si perdiste el celu.
+			Acá aparecen las compras hechas con tu mail, también las de antes de tener cuenta.
 		</p>
 	</section>
-
-	{#if data.canHaveProfiles}
-		<section class="surface-card" aria-labelledby="perfiles-title">
-			<h2 id="perfiles-title">Tus perfiles</h2>
-			<p class="hint">Los tuyos y los de proyectos que gestionás.</p>
-			<a class="pill-btn ghost start" href="/mi-rincon/perfiles">Ver y crear perfiles</a>
-		</section>
-	{/if}
 
 	{#if data.sigoOn}
 		<!-- «Lo que sigo» y el calendario personal son una sola cosa: una tarjeta, una página. -->
@@ -98,34 +87,13 @@
 		</section>
 	{/if}
 
-	<section class="surface-card" aria-labelledby="compras-title">
-		<h2 id="compras-title">Tus compras</h2>
-		{#if data.ordersError}
-			<p class="error" role="alert">No pudimos cargar tus compras. Probá de nuevo en un rato.</p>
-		{:else if data.orders.length === 0}
-			<p class="hint">Todavía no hay compras con este mail.</p>
-		{:else}
-			<ul class="orders">
-				{#each data.orders as o (o.id)}
-					<li>
-						<a href="/entradas/{o.id}/estado">
-							<strong>{o.event}</strong>
-							{#if o.eventStart}<span class="hint">{argDateList(o.eventStart)}</span>{/if}
-						</a>
-						<span>
-							{o.quantity === 1 ? '1 entrada' : `${o.quantity} entradas`} · {formatARS(o.total)} · {STATUS[
-								o.status
-							] ?? o.status}
-						</span>
-						<span class="hint">Compra {o.reference}, del {fmtDate(o.createdAt)}</span>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-		<p class="hint">
-			Acá aparecen las compras hechas con tu mail, también las de antes de tener cuenta.
-		</p>
-	</section>
+	{#if data.canHaveProfiles}
+		<section class="surface-card" aria-labelledby="perfiles-title">
+			<h2 id="perfiles-title">Tus perfiles</h2>
+			<p class="hint">Los tuyos y los de proyectos que gestionás.</p>
+			<a class="pill-btn ghost start" href="/mi-rincon/perfiles">Ver y crear perfiles</a>
+		</section>
+	{/if}
 
 	<section class="surface-card" id="mis-datos" aria-labelledby="datos-title">
 		<h2 id="datos-title">Mis datos</h2>
@@ -329,6 +297,27 @@
 		{/if}
 	</section>
 
+	<section class="surface-card" aria-labelledby="cuenta-title">
+		<h2 id="cuenta-title">Tu cuenta</h2>
+		<p>Mail: <strong>{data.email}</strong></p>
+		<p class="hint">Con cuenta desde el {argDateLong(data.createdAt)}.</p>
+		{#if form?.action === 'sesiones' && form.error}
+			<p class="error" role="alert">{form.error}</p>
+		{/if}
+		<div class="row">
+			<form method="POST" action="?/salir">
+				<button class="pill-btn ghost" type="submit">Salir</button>
+			</form>
+			<form method="POST" action="?/salirTodos">
+				<button class="pill-btn ghost" type="submit">Salir en todos lados</button>
+			</form>
+		</div>
+		<p class="hint">
+			"En todos lados" cierra tu sesión en este y en cualquier otro navegador o dispositivo donde
+			hayas entrado. Usalo si entraste en una compu ajena o si perdiste el celu.
+		</p>
+	</section>
+
 	<section class="surface-card danger-zone" aria-labelledby="borrar-title">
 		<h2 id="borrar-title">Borrar tu cuenta</h2>
 		{#if form?.action === 'borrar' && form.error}
@@ -386,7 +375,8 @@
 	.rincon {
 		display: grid;
 		gap: 1em;
-		width: min(40rem, 100%);
+		/* 16px a los costados en el celu, como el resto del sitio */
+		width: min(40rem, calc(100% - 32px));
 		margin: 1.5em auto;
 	}
 	h1 {
@@ -514,8 +504,9 @@
 		flex-wrap: wrap;
 		gap: 0.5em;
 	}
+	/* borrar la cuenta no tiene vuelta atrás: rojo (--error), como su botón .permanent */
 	.danger-zone {
-		border-top: 0.25rem solid var(--1-dark);
+		border-top: 0.25rem solid var(--error);
 	}
 	.ok {
 		color: var(--3-ink);

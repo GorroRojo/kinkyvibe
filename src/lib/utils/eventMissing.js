@@ -8,6 +8,8 @@
  * - `missingSummary`: «Falta: imagen, precio» para un tooltip o un aria-label.
  */
 import { splitEventTags } from './adminTags.js';
+import { eventMode } from './eventPlace.js';
+import { ONLINE_MISMATCH_TEXT, onlineTagMismatch } from './onlineTagMismatch.js';
 
 /**
  * @typedef {object} MissingInput
@@ -16,6 +18,7 @@ import { splitEventTags } from './adminTags.js';
  * @prop {string} location dirección
  * @prop {string} locationName nombre del lugar
  * @prop {string[]} tags etiquetas (región y precio salen de acá)
+ * @prop {string} [modalidad] `modalidad` del frontmatter (online | presencial), si tiene
  * @prop {string[]} authors organizan
  * @prop {string} link link de inscripción
  * @prop {boolean} tickets vende entradas en el sitio (`tickets` en el frontmatter)
@@ -50,18 +53,29 @@ const list = (v) =>
 	(Array.isArray(v) ? v : v ? [v] : []).map((x) => text(x)).filter((x) => x.length > 0);
 
 /**
+ * Lo que mira la regla de online de `MissingInput` (con los nombres del frontmatter).
+ * @param {MissingInput} e
+ */
+const placeMeta = (e) => ({
+	location: text(e.location),
+	location_name: text(e.locationName),
+	tags: list(e.tags),
+	modalidad: text(e.modalidad)
+});
+
+/**
  * Lo que le falta a un evento ([] = está completo).
  * @param {MissingInput} e
  * @returns {MissingItem[]}
  */
 export function eventMissing(e) {
 	const tags = splitEventTags(list(e.tags));
-	const online = tags.place === 'Online';
 	/** @type {Record<MissingId, boolean>} */
 	const missing = {
 		imagen: !e.image,
 		resumen: !text(e.summary),
-		donde: !online && !text(e.location) && !text(e.locationName),
+		// Un evento online (la regla de la página: eventMode, en eventPlace.js) no necesita «Dónde».
+		donde: eventMode(placeMeta(e)) !== 'online' && !text(e.location) && !text(e.locationName),
 		region: !tags.place,
 		precio: !tags.prices.length,
 		inscripcion: !e.tickets && (!text(e.link) || e.status === 'anunciado'),
@@ -83,6 +97,7 @@ export function missingInputFromMeta(meta) {
 		location: text(m.location),
 		locationName: text(m.location_name),
 		tags: list(m.tags),
+		modalidad: text(m.modalidad),
 		authors: list(m.authors),
 		link: text(m.link),
 		tickets: Array.isArray(m.tickets) && m.tickets.length > 0,
@@ -97,4 +112,41 @@ export function missingInputFromMeta(meta) {
 export function missingSummary(items) {
 	if (!items.length) return '';
 	return `Falta: ${items.map((i) => i.label.toLowerCase()).join(', ')}`;
+}
+
+/**
+ * Avisos de «Revisar antes de publicar» (/admin/eventos/nuevo): lo de «Qué falta» más dos cosas
+ * que se escapan seguido. Son avisos, no bloquean: se puede publicar igual.
+ *
+ * - el estado es «Abierto» pero no hay cómo anotarse (ni link ni entradas);
+ * - tiene la etiqueta Online pero también una dirección o un lugar (`onlineTagMismatch`, el
+ *   mismo aviso que el editor y la ficha), o al revés: una región presencial sin lugar.
+ *
+ * @param {MissingInput & { venue?: boolean }} e `venue`: se eligió un lugar de la lista (la
+ *   dirección sale de ahí)
+ * @returns {MissingItem[]}
+ */
+export function publishWarnings(e) {
+	const withVenue = { ...e, locationName: e.venue ? e.locationName || 'lugar' : e.locationName };
+	const items = eventMissing(withVenue);
+	const tags = splitEventTags(list(e.tags));
+	/** @type {MissingItem[]} */
+	const out = items.map((i) => {
+		if (i.id === 'inscripcion' && e.status === 'abierto')
+			return {
+				...i,
+				detail:
+					'Está «Abierto» pero no tiene link de inscripción ni entradas: no hay cómo anotarse.'
+			};
+		if (i.id === 'donde' && tags.place)
+			return {
+				...i,
+				detail: `Tiene la región «${tags.place}» pero no dice dónde.`
+			};
+		return i;
+	});
+	if (onlineTagMismatch(placeMeta(e), { hasVenue: Boolean(e.venue) })) {
+		out.push({ id: 'donde', label: 'Online o presencial', detail: ONLINE_MISMATCH_TEXT });
+	}
+	return out;
 }

@@ -576,6 +576,26 @@ describe('«sucede en» es el edge `lugar` del evento', () => {
 		expect((await m.listEventVenues(t.db)).map((l) => l.eventSlug)).toEqual(['sin-tabla']);
 	});
 
+	it('eventsWithVenue: los eventos que encuentra eventVenue, de una vez o de a uno', async () => {
+		const m = await modules();
+		const v = await venue('hidden');
+		await m.setEventVenue(t.db, { eventSlug: 'con-lugar', venueId: v.id, privacy: null, by: 'a' });
+		const gone = await venue('public', 'Lugar Borrado');
+		await m.setEventVenue(t.db, {
+			eventSlug: 'lugar-borrado',
+			venueId: gone.id,
+			privacy: null,
+			by: 'a'
+		});
+		await t.db.prepare('UPDATE objects SET deleted_at = 1, version = version + 1 WHERE id = ?1').bind(gone.id).run();
+		await makeEvent(t.db, 'sin-lugar');
+		expect([...(await m.eventsWithVenue(t.db))]).toEqual(['con-lugar']);
+		expect([...(await m.eventsWithVenue(t.db, 'con-lugar'))]).toEqual(['con-lugar']);
+		expect((await m.eventsWithVenue(t.db, 'sin-lugar')).size).toBe(0);
+		expect(await m.eventVenue(t.db, 'lugar-borrado')).toBeNull();
+		expect((await m.eventsWithVenue(t.db, 'lugar-borrado')).size).toBe(0);
+	});
+
 	it('un evento que no está en la base no se puede vincular (lo dice)', async () => {
 		const m = await import('./venues.js');
 		const v = await venue('public');

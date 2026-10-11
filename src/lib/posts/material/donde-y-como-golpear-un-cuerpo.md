@@ -27,7 +27,7 @@ featured: 1
 ---
 
 <script>
-  import DondeGolpearUnCuerpo from '$lib/posts/material/media/donde-y-como-golpear-un-cuerpo/DondeGolpearUnCuerpo.svelte'
+  import DondeGolpearUnCuerpo from '$lib/components/interactivos/DondeGolpearUnCuerpo.svelte'
 </script>
 
 <div><DondeGolpearUnCuerpo /></div>

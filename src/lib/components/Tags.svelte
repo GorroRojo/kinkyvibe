@@ -31,8 +31,8 @@
 		gap: var(--space-3xs);
 		padding: 0 0.4em;
 		margin: 0;
-		overflow-x: scroll;
-		overflow-y: hidden;
+		/* sin recortar: los chips se acomodan en filas y su zona de toque (.tap-target) se puede
+		   tocar entera */
 		justify-content: center;
 		list-style: none;
 	}
@@ -40,9 +40,6 @@
 	ul :global(.kv-tag) {
 		font-size: var(--text-sm);
 		padding: 0.25em 0.8em;
-	}
-	ul::-webkit-scrollbar {
-		display: none;
 	}
 	li {
 		display: block;

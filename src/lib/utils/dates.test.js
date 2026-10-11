@@ -6,9 +6,15 @@ import {
 	argDate,
 	argDateList,
 	argDateLog,
+	argDateLong,
+	argDateParts,
+	argDateShort,
+	argDateTimeCsv,
 	argDateTimeLong,
+	argDayMonth,
 	argTime,
 	argWeekdayDay,
+	eventDateList,
 	eventEnd,
 	toArgentina
 } from './dates.js';
@@ -200,5 +206,82 @@ describe('argFormat', () => {
 		expect(argFormat({ timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }).format(night)).toBe(
 			'01:00'
 		);
+	});
+});
+
+// 23:30 del sábado 12/9 en Argentina ya es el domingo 13 en UTC: todas tienen que decir el 12.
+const LATE = '2026-09-12T23:30:00-03:00';
+
+describe('variantes: corta, larga, día/mes, partes y CSV', () => {
+	it('argDateShort: «12 sep 2026» (nunca «sept»)', () => {
+		expect(argDateShort(LATE)).toBe('12 sep 2026');
+		expect(argDateShort(Date.UTC(2026, 0, 5, 15))).toBe('5 ene 2026');
+	});
+
+	it('argDateLong: «12 de septiembre de 2026», sin el año si se pide', () => {
+		expect(argDateLong(LATE)).toBe('12 de septiembre de 2026');
+		expect(argDateLong(LATE, { year: false })).toBe('12 de septiembre');
+	});
+
+	it('argDayMonth: «12/9»', () => {
+		expect(argDayMonth(LATE)).toBe('12/9');
+		expect(argDayMonth('2099-10-06T01:00Z')).toBe('5/10');
+	});
+
+	it('argDateTimeCsv: «2026-10-02 22:30» en hora de Argentina', () => {
+		expect(argDateTimeCsv(Date.UTC(2026, 9, 3, 1, 30))).toBe('2026-10-02 22:30');
+		expect(argDateTimeCsv(new Date('2026-01-05T09:05:00-03:00'))).toBe('2026-01-05 09:05');
+	});
+
+	it('argDateParts: las partes sueltas en hora de Argentina', () => {
+		expect(argDateParts(LATE)).toEqual({
+			weekday: 'sáb',
+			weekdayLong: 'sábado',
+			day: 12,
+			month: 'sep',
+			monthLong: 'septiembre',
+			year: 2026,
+			hours: 23,
+			minutes: 30
+		});
+		expect(argDateParts('no')).toBeNull();
+	});
+
+	it('sin fecha o ilegible: vacío (no «31 de diciembre de 1969»)', () => {
+		for (const fn of [argDateShort, argDateLong, argDayMonth, argDateTimeCsv]) {
+			expect(fn(null)).toBe('');
+			expect(fn(undefined)).toBe('');
+			expect(fn('')).toBe('');
+			expect(fn('no es una fecha')).toBe('');
+		}
+	});
+});
+
+describe('eventDateList (fecha de un evento como la escribe el sitio)', () => {
+	it('con hora: la hora como está escrita', () => {
+		expect(eventDateList('2026-09-12T23:30-03:00')).toBe('sáb 12 sep · 23:30');
+		expect(eventDateList('2026-10-02 9:05')).toBe('vie 2 oct · 09:05');
+	});
+
+	it('sin hora: solo el día', () => {
+		expect(eventDateList('2026-10-03')).toBe('sáb 3 oct');
+	});
+
+	it('el año solo si no es el de `now`', () => {
+		expect(eventDateList('2025-10-03T22:00-03:00', { now: '2026-01-01T12:00-03:00' })).toBe(
+			'vie 3 oct 2025 · 22:00'
+		);
+		expect(eventDateList('2025-10-03T22:00-03:00')).toBe('vie 3 oct · 22:00');
+	});
+
+	it('un Date se lee en hora de Argentina', () => {
+		expect(eventDateList(new Date(LATE))).toBe('sáb 12 sep · 23:30');
+	});
+
+	it('ilegible: vacío', () => {
+		expect(eventDateList('')).toBe('');
+		expect(eventDateList(null)).toBe('');
+		expect(eventDateList('cualquier cosa')).toBe('');
+		expect(eventDateList('2026-13-45')).toBe('');
 	});
 });

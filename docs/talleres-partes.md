@@ -21,8 +21,8 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
   listas públicas (calendario, búsqueda, RSS, sitemap…) ni en su página (404), salvo para les
   admins. La regla está en `partVisibleWhere` de `src/lib/server/objects/visibility.js` y la usan
   las lecturas públicas de `src/lib/server/contenido/posts.js`. Apagada, cada parte tiene su
-  propia visibilidad, como siempre. Una parte nueva no copia la opción. **DECIDIDO POR CLAUDE, A
-  CONFIRMAR** (gorrite): viene apagada (así nada cambia para los talleres que ya existen).
+  propia visibilidad, como siempre. Una parte nueva no copia la opción. **Confirmado por gorrite
+  (5/10)**: viene apagada (así nada cambia para los talleres que ya existen).
 - Las reglas puras (numerar, «Parte N de M», «vie 2 oct · 22:00», de qué evento es la entrada,
   datos de una parte nueva) están en `src/lib/utils/partes.js`.
 
@@ -55,8 +55,10 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
 
 ## Dónde se ve
 
-- **Página del evento:** debajo del título, «Taller en 3 partes» o «Parte 2 de 3 de <taller>»;
-  más abajo, la lista de las partes con su fecha y link (`PartesTaller.svelte`).
+- **Página del evento:** «Taller en 3 partes» o «Parte 2 de 3 de <taller>» y la lista de las
+  partes con su fecha y link (`PartesTaller.svelte`), juntas y pegadas al botón de comprar (o a
+  la inscripción), después del texto; también en un evento que ya pasó
+  (`src/lib/components/evento/Partes.svelte`).
 - **Calendario:** cada parte en su fecha con «Parte N de M» (grilla y lista).
 - **Panel:** en la ficha, un chip «Parte 2 de 3 de «…»» (o «Taller en 3 partes»). En Editar, la
   sección **Partes** (`PartesEditor.svelte`): ordenar y sacar partes (sacar no borra: queda como

@@ -77,6 +77,10 @@
 		overflow-x: visible;
 		border-radius: var(--radius-m);
 
+		/* el ícono y el nombre siempre en una línea (entre 1380 y 1470px el menú se angosta) */
+		& > span {
+			white-space: nowrap;
+		}
 		& > span > span {
 			position: relative;
 			top: 0.2em;
@@ -84,13 +88,15 @@
 		}
 	}
 
-	/* «Estás acá»: violeta sobre lila (la misma regla que el panel). */
+	/* «Estás acá»: tarjeta blanca con sombra y texto violeta, como antes (pedido de gorrite,
+	   5/10; el panel sigue con violeta sobre lila). */
 	.current span {
-		color: var(--2-dark);
-		--color: var(--2-dark);
+		color: var(--2);
+		--color: var(--2);
 	}
 	.current a {
-		background: var(--2-tint);
+		background: var(--surface);
+		box-shadow: var(--shadow);
 	}
 	nav a span {
 		--color: var(--1);

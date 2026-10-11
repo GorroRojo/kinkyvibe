@@ -5,12 +5,15 @@ import {
 	STEP_PAY,
 	STEP_TICKETS,
 	buyerStepErrors,
+	cheapestAvailableType,
 	errorsOutsideStep,
 	firstStepWithErrors,
 	furthestReachable,
 	gorraAmountFor,
 	payStepErrors,
 	purchaseSummary,
+	stepFromParams,
+	stepHref,
 	stepOfField,
 	ticketsStepErrors
 } from './purchaseSteps.js';
@@ -337,5 +340,53 @@ describe('resumen de la compra', () => {
 		const s = summary({ ...base, gorra: true, free: true, type: gorra, count: 1, prices });
 		expect(s.surchargePlaceholder).toBe(null);
 		expect(s.total).toBe('$ 0');
+	});
+});
+
+describe('cada paso con su dirección (?paso=)', () => {
+	it('lee el paso de la dirección (1, 2, 3); cualquier otra cosa es ninguno', () => {
+		const p = (/** @type {string} */ q) => stepFromParams(new URLSearchParams(q));
+		expect(p('')).toBe(null);
+		expect(p('paso=1')).toBe(STEP_TICKETS);
+		expect(p('paso=2')).toBe(STEP_BUYER);
+		expect(p('paso=3')).toBe(STEP_PAY);
+		for (const q of ['paso=0', 'paso=4', 'paso=2a', 'paso=-1', 'paso=', 'paso=10']) {
+			expect(p(q)).toBe(null);
+		}
+	});
+
+	it('arma la dirección de cada paso sin tocar lo demás; el primero, sin ?paso', () => {
+		const url = new URL('http://localhost/calendario/x/entradas?utm=a&paso=3#entradas');
+		expect(stepHref(url, STEP_TICKETS)).toBe('/calendario/x/entradas?utm=a#entradas');
+		expect(stepHref(url, STEP_BUYER)).toBe('/calendario/x/entradas?utm=a&paso=2#entradas');
+		expect(stepHref(new URL('http://localhost/e/entradas'), STEP_PAY)).toBe('/e/entradas?paso=3');
+	});
+});
+
+describe('cheapestAvailableType: el tipo que arranca elegido', () => {
+	/** @param {{ id: string } & Record<string, any>} t */
+	const type = (t) => ({ price: 0, fondo: 0, available: 10, closed: false, gorra: null, ...t });
+
+	it('el más barato de los que se pueden comprar (precio menos el fondo), como el «desde»', () => {
+		expect(
+			cheapestAvailableType([
+				type({ id: 'general', price: 15000, fondo: 3000 }),
+				type({ id: 'anticipada', price: 12000 }),
+				type({ id: 'solidaria', price: 14000, fondo: 4000 })
+			])
+		).toBe('solidaria');
+	});
+
+	it('saltea los agotados y cerrados; con empate, el primero; a la gorra, el sugerido', () => {
+		expect(
+			cheapestAvailableType([
+				type({ id: 'agotada', price: 1000, available: 0 }),
+				type({ id: 'cerrada', price: 1000, closed: true }),
+				type({ id: 'primera', price: 5000 }),
+				type({ id: 'segunda', price: 5000 }),
+				type({ id: 'gorra', gorra: { suggested: 6000 } })
+			])
+		).toBe('primera');
+		expect(cheapestAvailableType([type({ id: 'agotada', available: 0 })])).toBe('');
 	});
 });

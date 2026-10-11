@@ -5,7 +5,10 @@
 	 * sola, sin encabezado ni pestañas.
 	 */
 	import { page } from '$app/stores';
-	import { CalendarDays, Copy, ExternalLink, ImageDown, ReceiptText } from '@lucide/svelte';
+	import { afterNavigate } from '$app/navigation';
+	import DateChangeOffer from '$lib/components/admin/DateChangeOffer.svelte';
+	import { CalendarDays, Copy, ExternalLink, ImageDown, Pencil } from '@lucide/svelte';
+	import Notice from '$lib/components/ui/Notice.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import TagChip from '$lib/components/TagChip.svelte';
@@ -16,10 +19,17 @@
 	export let data;
 
 	const icon = { size: 16, strokeWidth: 2.25, 'aria-hidden': true };
+	/** Lo que contestó «Avisar a les compradores» (se sigue viendo hasta cambiar de página). */
+	/** @type {{ ok: boolean, message: string } | null} */
+	let dateChangeResult = null;
+	afterNavigate(({ type }) => {
+		if (type !== 'form') dateChangeResult = null;
+	});
 	/** Pestañas que solo tienen sentido si el evento vende entradas. */
 	const SALES_TABS = ['ventas', 'ordenes', 'transferencias', 'ingreso', 'codigos', 'mail', 'mails'];
 
 	$: bare = $page.data?.bare === true;
+	$: editing = $page.url.pathname.replace(/\/+$/, '').endsWith('/editar');
 	$: e = data.event;
 	// Parte de un taller con una sola entrada: su modo puerta usa las entradas del taller.
 	$: tabs = EVENT_TABS.filter(
@@ -51,7 +61,7 @@
 {#if bare}
 	<slot />
 {:else}
-	<header class="event-head">
+	<header class="event-head" class:compact={editing}>
 		{#if e.thumb}
 			<img class="cover" src={e.thumb} alt="" />
 		{:else}
@@ -89,6 +99,9 @@
 			</div>
 		</div>
 		<div class="actions">
+			{#if !editing}
+				<a class="kv-btn" href={eventHref(e.slug, 'editar')}><Pencil {...icon} /> Editar</a>
+			{/if}
 			<a class="kv-btn ghost" href="/calendario/{e.slug}" target="_blank" rel="noreferrer"
 				><ExternalLink {...icon} /> Ver página
 				<span class="sr-only">(se abre en otra pestaña)</span></a
@@ -103,13 +116,22 @@
 	</header>
 
 	{#if data.tabCounts.transfers && !$page.url.pathname.endsWith('/transferencias')}
-		<p class="alert" role="status">
-			<ReceiptText size={18} aria-hidden="true" />
-			{data.tabCounts.transfers === 1
-				? 'Hay 1 transferencia esperando confirmación.'
-				: `Hay ${data.tabCounts.transfers} transferencias esperando confirmación.`}
-			<a class="kv-btn small push" href={eventHref(e.slug, 'transferencias')}>Revisar</a>
-		</p>
+		<div class="transfers-notice">
+			<Notice tone="warn">
+				<span
+					>{data.tabCounts.transfers === 1
+						? 'Hay 1 transferencia esperando confirmación.'
+						: `Hay ${data.tabCounts.transfers} transferencias esperando confirmación.`}</span
+				>
+				<a class="kv-btn small push" href={eventHref(e.slug, 'transferencias')}>Revisar</a>
+			</Notice>
+		</div>
+	{/if}
+
+	<!-- «Cambiaste la fecha»: después de guardar el evento con otro inicio o fin, si hay a quién
+	avisar (docs/mails.md). En «Mail a compradores» está su propia tarjeta. -->
+	{#if data.dateChange && (data.dateChange.notice || dateChangeResult) && !$page.url.pathname.endsWith('/mail')}
+		<DateChangeOffer offer={data.dateChange} slug={e.slug} bind:result={dateChangeResult} />
 	{/if}
 
 	<Tabs {tabs} />
@@ -193,16 +215,18 @@
 		flex-wrap: wrap;
 		gap: 0.4rem;
 	}
-	.alert {
+	/* el aviso (Notice) con «Revisar» a la derecha */
+	.transfers-notice {
+		margin: 0 0 1rem;
+	}
+	.transfers-notice :global(.kv-notice) {
+		align-items: center;
+	}
+	.transfers-notice :global(.kv-notice-text) {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--space-2xs);
-		background: var(--warn-bg);
-		color: var(--text);
-		border-radius: var(--card-round);
-		padding: var(--space-2xs) var(--space-xs) var(--space-2xs) var(--space-xs);
-		margin: 0 0 1rem;
 	}
 	.push {
 		margin-left: auto;
@@ -223,6 +247,20 @@
 		.actions {
 			justify-content: flex-end;
 			max-width: 22rem;
+		}
+	}
+	/* Editando en el celu: encabezado de una línea, así el formulario empieza más arriba. */
+	@media (max-width: 640px) {
+		.event-head.compact {
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-areas: 'text';
+			margin-bottom: var(--space-2xs);
+		}
+		.compact .cover,
+		.compact .chips,
+		.compact .where,
+		.compact .actions {
+			display: none;
 		}
 	}
 	@media (max-width: 520px) {

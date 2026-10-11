@@ -292,7 +292,8 @@ export const actions = {
 		} catch (e) {
 			logDBError('cuentas: cerrar sesión', e);
 		}
-		redirect(303, '/');
+		// El inicio muestra «Saliste de tu cuenta» (src/routes/(content)/+layout.svelte).
+		redirect(303, '/?salida=1');
 	},
 
 	// Cierra todas las sesiones de la cuenta, también esta. No pide código: solo saca acceso.

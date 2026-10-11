@@ -6,6 +6,7 @@
 	 * Props: `claims` (AdminClaim de src/lib/server/amigues/claims.js), `result` (respuesta de la
 	 * action), `title`.
 	 */
+	import Notice from '$lib/components/ui/Notice.svelte';
 	import { enhance } from '$app/forms';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { accountHref, profileHref } from '$lib/admin/links.js';
@@ -48,9 +49,9 @@
 					</div>
 					{#if c.message}<blockquote>{c.message}</blockquote>{/if}
 					{#if c.status === 'pending' && !c.canHaveProfiles}
-						<p class="kv-note warn">
+						<Notice tone="warn" compact role={null}>
 							Esa cuenta no tiene el permiso "puede tener perfiles": dáselo antes de aprobar.
-						</p>
+						</Notice>
 					{/if}
 					{#if c.status === 'pending'}
 						<form
@@ -112,9 +113,6 @@
 		border-left: 3px solid var(--field);
 		white-space: pre-line;
 		overflow-wrap: anywhere;
-	}
-	.warn {
-		color: var(--warn);
 	}
 	.muted {
 		color: var(--muted);

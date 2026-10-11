@@ -382,7 +382,7 @@ describe('panel: resumen, lista y CSV', () => {
 	});
 
 	it('la lista deja afuera las pendientes; el CSV las trae, con estado y sin fórmulas', async () => {
-		const { d } = await seed();
+		const { a, d } = await seed();
 		const list = await listTips(t.db);
 		expect(list).toHaveLength(4);
 		expect(list.every((x) => x.status !== 'pending')).toBe(true);
@@ -402,6 +402,9 @@ describe('panel: resumen, lista y CSV', () => {
 		// Destino al final de cada fila.
 		expect(row?.endsWith(',4,Para el Fondo')).toBe(true);
 		expect(lines.filter((l) => l.endsWith(',Para Kinky Vibe'))).toHaveLength(4);
+		// Fechas en hora de Argentina, no en ISO UTC: aprobada el 1/11 02:30 UTC = 31/10 23:30.
+		expect(lines.find((l) => l.startsWith(a.id))).toContain(',2026-10-31 23:30,');
+		expect(csv).not.toMatch(/\d{2}:\d{2}:\d{2}\.\d{3}Z/);
 	});
 
 	it('la lista se filtra por destino', async () => {

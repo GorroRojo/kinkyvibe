@@ -13,11 +13,13 @@ import {
 	googleMapsLink,
 	inheritPrivacyLabel,
 	osmLink,
+	osmMovePoint,
 	osmTiles,
 	parseCoordinate,
 	reviewState,
 	showsAddress,
 	showsVenueLink,
+	venueHasDetails,
 	venueLine,
 	venueSchema,
 	venueView
@@ -256,6 +258,19 @@ describe('mapa de OpenStreetMap', () => {
 			tiles.some((t) => t.left <= 160 && t.left + 256 > 160 && t.top <= 100 && t.top + 256 > 100)
 		).toBe(true);
 	});
+
+	it('osmMovePoint: sin moverse queda igual; a la derecha y abajo, más al este y al sur', () => {
+		expect(osmMovePoint(-34.6, -58.4, 0, 0, 17)).toEqual({ lat: -34.6, lng: -58.4 });
+		const moved = osmMovePoint(-34.6, -58.4, 100, 100, 17);
+		expect(moved.lng).toBeGreaterThan(-58.4);
+		expect(moved.lat).toBeLessThan(-34.6);
+		// 256 px a zoom 17 son 360 / 2^17 grados de longitud.
+		expect(osmMovePoint(-34.6, -58.4, 256, 0, 17).lng).toBeCloseTo(-58.4 + 360 / 2 ** 17, 5);
+		// Ida y vuelta.
+		const back = osmMovePoint(moved.lat, moved.lng, -100, -100, 17);
+		expect(back.lat).toBeCloseTo(-34.6, 5);
+		expect(back.lng).toBeCloseTo(-58.4, 5);
+	});
 });
 
 describe('ubicación en el mapa (panel y Mi rincón)', () => {
@@ -288,5 +303,26 @@ describe('rechazo de lugares que cargan las cuentas', () => {
 		expect(reviewState(true, true)).toBe('approved');
 		expect(reviewState(false, true)).toBe('rejected');
 		expect(reviewState(false, false)).toBe('pending');
+	});
+});
+
+describe('venueHasDetails: «Ver mapa y cómo llegar» en la página del evento', () => {
+	it('con mapa, «Cómo llegar» o «Accesibilidad» según el nivel', () => {
+		expect(venueHasDetails(venueView(venue, 'public', href))).toBe(true);
+		// «Sólo dirección»: el mapa sin el resto
+		expect(venueHasDetails(venueView(venue, 'address', href))).toBe(true);
+		for (const level of /** @type {const} */ (['name', 'area', 'hidden'])) {
+			expect(venueHasDetails(venueView(venue, level, href))).toBe(false);
+		}
+	});
+
+	it('pública sin coordenadas ni textos: no hay nada que plegar', () => {
+		const bare = { title: 'Sala Inventada', data: { address: 'Calle Falsa 1' } };
+		expect(venueHasDetails(venueView(bare, 'public', href))).toBe(false);
+		const howTo = {
+			title: 'Sala',
+			data: { address: 'Calle Falsa 1', how_to_get_there: 'Timbre B' }
+		};
+		expect(venueHasDetails(venueView(howTo, 'public', href))).toBe(true);
 	});
 });

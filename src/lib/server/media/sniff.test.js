@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { mediaKey, mediaPath, sha256Hex, sniffImage } from './sniff.js';
-import { solidPng } from './testing.js';
+import {
+	fileKey,
+	mediaKey,
+	mediaPath,
+	sha256Hex,
+	sniffDocument,
+	sniffImage,
+	sniffMedia
+} from './sniff.js';
+import { fakeMp4, fakeOdt, fakePdf, fakeWebm, fakeZip, solidPng } from './testing.js';
 
 /** Cabeceras mínimas inventadas (solo lo que se lee). */
 const jpeg = () => {
@@ -53,5 +61,73 @@ describe('sniffImage', () => {
 		expect(h).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
 		expect(mediaKey(h, 'webp')).toBe(`img/${h}.webp`);
 		expect(mediaPath(mediaKey(h, 'webp'))).toBe(`/media/img/${h}.webp`);
+	});
+});
+
+describe('sniffDocument (documentos y video de la biblioteca)', () => {
+	const enc = (/** @type {string} */ s) => new TextEncoder().encode(s);
+	it('reconoce PDF, MP4, WebM y OpenDocument (ODT, ODS, ODP) por los bytes', () => {
+		expect(sniffDocument(fakePdf())).toEqual({
+			kind: 'documento',
+			mime: 'application/pdf',
+			ext: 'pdf'
+		});
+		for (const brand of ['isom', 'mp42', 'avc1', 'M4V ']) {
+			expect(sniffDocument(fakeMp4(brand))).toEqual({
+				kind: 'video',
+				mime: 'video/mp4',
+				ext: 'mp4'
+			});
+		}
+		expect(sniffDocument(fakeWebm())).toEqual({ kind: 'video', mime: 'video/webm', ext: 'webm' });
+		expect(sniffDocument(fakeOdt())).toEqual({
+			kind: 'documento',
+			mime: 'application/vnd.oasis.opendocument.text',
+			ext: 'odt'
+		});
+		expect(
+			sniffDocument(fakeZip('mimetype', 'application/vnd.oasis.opendocument.spreadsheet'))
+		).toMatchObject({ ext: 'ods' });
+		expect(
+			sniffDocument(fakeZip('mimetype', 'application/vnd.oasis.opendocument.presentation'))
+		).toMatchObject({ ext: 'odp' });
+	});
+	it('rechaza HTML, SVG, scripts, zips que no son OpenDocument y las imágenes ISO (AVIF)', () => {
+		expect(sniffDocument(enc('<!doctype html><script>alert(1)</script>'))).toBeNull();
+		expect(sniffDocument(enc('<svg xmlns="http://www.w3.org/2000/svg"></svg>'))).toBeNull();
+		expect(sniffDocument(enc('#!/bin/sh\nrm -rf /tmp/x\n'))).toBeNull();
+		expect(sniffDocument(enc('console.log("hola mundo")'))).toBeNull();
+		// Un .docx / .zip cualquiera: la primera entrada no es `mimetype`.
+		expect(sniffDocument(fakeZip('[Content_Types].xml', '<Types/>'))).toBeNull();
+		// `mimetype` con otro tipo, o comprimido (la norma ODF lo pide sin comprimir).
+		expect(sniffDocument(fakeZip('mimetype', 'text/html'))).toBeNull();
+		expect(
+			sniffDocument(fakeZip('mimetype', 'application/vnd.oasis.opendocument.graphics'))
+		).toBeNull();
+		expect(
+			sniffDocument(
+				fakeZip('mimetype', 'application/vnd.oasis.opendocument.text', { compressed: true })
+			)
+		).toBeNull();
+		// Un `ftyp` de imagen o de una marca desconocida.
+		expect(sniffDocument(fakeMp4('avif'))).toBeNull();
+		expect(sniffDocument(fakeMp4('heic'))).toBeNull();
+		// EBML que no es WebM (Matroska).
+		const mkv = fakeWebm();
+		mkv.set(enc('mkvx'), 12);
+		expect(sniffDocument(mkv)).toBeNull();
+		expect(sniffDocument(new Uint8Array())).toBeNull();
+		// Una imagen no es un documento.
+		expect(sniffDocument(solidPng(3, 3))).toBeNull();
+	});
+	it('sniffMedia: imagen o documento/video, con su clase', () => {
+		expect(sniffMedia(solidPng(3, 3))).toMatchObject({ kind: 'imagen', mime: 'image/png' });
+		expect(sniffMedia(fakePdf())).toMatchObject({ kind: 'documento', ext: 'pdf' });
+		expect(sniffMedia(enc('<html></html> y un poco más'))).toBeNull();
+	});
+	it('la clave de un archivo es por contenido, en `file/`', async () => {
+		const h = await sha256Hex(fakePdf());
+		expect(fileKey(h, 'pdf')).toBe(`file/${h}.pdf`);
+		expect(mediaPath(fileKey(h, 'pdf'))).toBe(`/media/file/${h}.pdf`);
 	});
 });

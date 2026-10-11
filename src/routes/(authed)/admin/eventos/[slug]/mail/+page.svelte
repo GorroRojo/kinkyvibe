@@ -6,9 +6,14 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import { shortTime } from '$lib/admin/orderFormat.js';
+	import DateChangeOffer from '$lib/components/admin/DateChangeOffer.svelte';
+	import Notice from '$lib/components/ui/Notice.svelte';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
+	/** Sin JavaScript, «Avisar el cambio de fecha» vuelve acá con su resultado. */
+	/** @type {import('./$types').ActionData & { dateChange?: { ok: boolean, message: string } }} */
+	export let form;
 
 	$: e = data.event;
 	let subject = '';
@@ -90,6 +95,23 @@
 </script>
 
 <svelte:head><title>Mail a compradores · {e.title} · Panel</title></svelte:head>
+
+{#if data.dateChange}
+	<div class="date-change">
+		<Card title="Avisar el cambio de fecha">
+			<DateChangeOffer
+				offer={data.dateChange}
+				slug={e.slug}
+				mode="card"
+				result={form?.dateChange ?? null}
+			/>
+		</Card>
+	</div>
+{:else if form?.dateChange}
+	<div class="date-change">
+		<Notice tone={form.dateChange.ok ? 'ok' : 'error'}>{form.dateChange.message}</Notice>
+	</div>
+{/if}
 
 <div class="grid">
 	<Card title="Mandar un aviso">
@@ -224,6 +246,9 @@
 </Card>
 
 <style>
+	.date-change {
+		margin-bottom: 1rem;
+	}
 	.grid {
 		display: grid;
 		gap: var(--space-xs);

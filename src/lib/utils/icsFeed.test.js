@@ -65,7 +65,8 @@ describe('buildIcsFeed', () => {
 		});
 		const ev = fakeEvent('x', NOW, ['taller'], { authors: ['Org'] });
 		const ics = unfold(buildIcsFeed([ev], { profiles: [profile] }));
-		expect(ics).toContain('ORGANIZER;CN=Org:MAILTO:org@example.com');
+		// ics >= 3.12 entrecomilla el CN (quoted-string válido en RFC 5545 §3.2).
+		expect(ics).toContain('ORGANIZER;CN="Org":MAILTO:org@example.com');
 	});
 });
 

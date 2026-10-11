@@ -10,7 +10,6 @@ import {
 	eventFit,
 	eventShowLevel,
 	importLinks,
-	isOnlinePlace,
 	looksLikeStreetAddress,
 	mapKey,
 	newVenueFor,
@@ -25,6 +24,7 @@ import {
 	venueListing,
 	DEFAULT_VENUE_LISTING
 } from './venueImport.js';
+import { isOnlinePlace } from './eventPlace.js';
 
 /**
  * @param {string} slug
@@ -95,6 +95,15 @@ describe('qué se saltea', () => {
 		expect(isOnlinePlace({ tags: ['Online'] })).toBe(true);
 		expect(isOnlinePlace({ tags: ['Online'], location: 'Calle Falsa 123' })).toBe(false);
 		expect(isOnlinePlace({ modalidad: 'presencial', tags: ['Online'] })).toBe(false);
+		// Lo mismo que la página (eventMode): con la etiqueta y solo un nombre de lugar, presencial
+		// (antes se salteaba como online).
+		expect(isOnlinePlace({ tags: ['Online'], location_name: 'Galpón Inventado' })).toBe(false);
+		expect(readEventPlace({ tags: ['Online'], location_name: 'Galpón Inventado' })).toEqual({
+			name: 'Galpón Inventado',
+			location: '',
+			mapUrl: ''
+		});
+		expect(readEventPlace({ location: 'Zoom' })).toBeNull();
 	});
 
 	it('sin «Dónde» o con un link al mapa que no sirve: nada', () => {

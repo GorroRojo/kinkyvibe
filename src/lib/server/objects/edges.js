@@ -5,6 +5,10 @@
  * `checkEdgeTargets` de acá. Las foreign keys de `edges` (migración 0012) garantizan que los dos
  * extremos existan; el tipo del objeto de origen dice qué `kind` puede tener y hacia qué tipos.
  *
+ * Algunos edges los calcula el tipo a partir de sus datos (`derived` en el tipo, por ejemplo
+ * `adjunto` del material, que sigue al texto): {@link withDerivedEdges} los suma en cada guardado y
+ * quien guarda no los puede mandar.
+ *
  * Al leer, un edge solo se muestra si quien mira puede ver el otro extremo (`getEdges`).
  *
  * Solo usa imports relativos.
@@ -97,6 +101,42 @@ export function normalizeEdges(def, edges, selfId) {
 		out.set(kind, normalized);
 	}
 	if (errors.length) throw new ObjectError('invalid', 'Revisá las relaciones.', { errors });
+	return out;
+}
+
+/**
+ * Suma los edges calculados del tipo (`derived`, con `deriveEdges`) a los que manda quien guarda:
+ * en CADA guardado se reemplazan por lo que dicen los datos (agrega los que faltan, saca los que
+ * sobran). Mandarlos a mano es un error. Un `edges` con formato inválido vuelve tal cual (lo
+ * rechaza {@link normalizeEdges}).
+ *
+ * @param {D1Database} db
+ * @param {import('./types/index.js').CoreType} def
+ * @param {Record<string, EdgeInput[]> | undefined} edges
+ * @param {Record<string, any>} data ya validado
+ * @returns {Promise<Record<string, EdgeInput[]> | undefined>}
+ */
+export async function withDerivedEdges(db, def, edges, data) {
+	const kinds = Object.entries(def.edges ?? {})
+		.filter(([, e]) => e.derived)
+		.map(([kind]) => kind);
+	if (!kinds.length || !def.deriveEdges) return edges;
+	if (edges !== undefined && (!edges || typeof edges !== 'object' || Array.isArray(edges))) {
+		return edges;
+	}
+	const sent = kinds.filter((kind) => edges && kind in edges);
+	if (sent.length) {
+		throw new ObjectError('invalid', 'Revisá las relaciones.', {
+			errors: sent.map((kind) => ({
+				path: `edges.${kind}`,
+				message: `${def.edges?.[kind]?.label}: sale de los datos, no se manda.`
+			}))
+		});
+	}
+	const derived = await def.deriveEdges(db, data);
+	/** @type {Record<string, EdgeInput[]>} */
+	const out = { ...edges };
+	for (const kind of kinds) out[kind] = derived[kind] ?? [];
 	return out;
 }
 

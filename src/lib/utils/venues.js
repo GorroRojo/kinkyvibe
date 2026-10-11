@@ -48,7 +48,7 @@ export const VENUE_PRIVACY_LABELS = Object.freeze({
 /** La opción "sin elegir" del nivel de un lugar (vale el nivel por defecto). */
 export const VENUE_PRIVACY_UNSET_LABEL = `Sin elegir (${VENUE_PRIVACY_LABELS[DEFAULT_VENUE_PRIVACY]})`;
 
-/** Aviso para el público cuando la dirección no se muestra. */
+/** Aviso para el público cuando la dirección no se muestra y el evento vende entradas acá. */
 export const ADDRESS_FOR_BUYERS = 'Te mandamos la dirección con tu entrada.';
 
 /**
@@ -123,12 +123,25 @@ export function venuePageLevel(venueDefault) {
 
 /**
  * ¿En este nivel se ve la dirección (calle y número) y el mapa? Si no, la página del evento avisa
- * que la dirección llega con la entrada ({@link ADDRESS_FOR_BUYERS}).
+ * que la dirección llega con la entrada ({@link ADDRESS_FOR_BUYERS}) si vende entradas; si no
+ * vende, no dice nada (decisión de gorrite, 9/10).
  *
  * @param {VenuePrivacy} level
  */
 export function showsAddress(level) {
 	return level === 'public' || level === 'address';
+}
+
+/**
+ * ¿El lugar tiene algo más que la dirección para mostrar en la página de un evento (el mapa,
+ * «Cómo llegar», «Accesibilidad»)? Es lo que va en «Ver mapa y cómo llegar»
+ * (`VenueLocation` con `part="more"`).
+ *
+ * @param {VenueView} view
+ */
+export function venueHasDetails(view) {
+	const map = showsAddress(view.level) && view.lat !== undefined && view.lng !== undefined;
+	return map || (view.level === 'public' && Boolean(view.howTo || view.accessibility));
 }
 
 /**
@@ -325,6 +338,31 @@ export function osmTiles(lat, lng, { zoom = 16, width = 320, height = 200 } = {}
 		}
 	}
 	return { tiles, zoom };
+}
+
+/**
+ * El punto que queda a `dx`, `dy` píxeles del centro de un mapa de `osmTiles` (la misma
+ * proyección): lo usa la vista previa de «Buscar en el mapa» para mover el punto con un clic o
+ * con las flechas. Redondea a 6 decimales.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ * @param {number} dx píxeles a la derecha (negativo: a la izquierda)
+ * @param {number} dy píxeles hacia abajo (negativo: hacia arriba)
+ * @param {number} [zoom]
+ * @returns {{ lat: number, lng: number }}
+ */
+export function osmMovePoint(lat, lng, dx, dy, zoom = 16) {
+	const size = 256 * 2 ** zoom;
+	const rad = (Math.max(-85.05112878, Math.min(85.05112878, lat)) * Math.PI) / 180;
+	const px = ((lng + 180) / 360) * size + dx;
+	const py = ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * size + dy;
+	let newLng = (px / size) * 360 - 180;
+	newLng = ((((newLng + 180) % 360) + 360) % 360) - 180;
+	const n = Math.PI - (2 * Math.PI * Math.min(Math.max(py, 0), size)) / size;
+	const newLat = (180 / Math.PI) * Math.atan(Math.sinh(n));
+	const round = (/** @type {number} */ v) => Math.round(v * 1e6) / 1e6;
+	return { lat: round(newLat), lng: round(newLng) };
 }
 
 /**

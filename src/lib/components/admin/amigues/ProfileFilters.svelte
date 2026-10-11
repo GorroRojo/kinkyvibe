@@ -23,17 +23,41 @@
 		{ name: 'origen', label: 'Origen', value: origin, options: origins },
 		{ name: 'estado', label: 'Estado', value: state, options: states }
 	].filter((s) => s.options);
+
+	// Filtra mientras se escribe (y al cambiar un filtro): manda el form solo, sin perder el foco.
+	/** @type {ReturnType<typeof setTimeout> | undefined} */
+	let timer;
+	/** @param {Event} e */
+	function autoSubmit(e) {
+		const form = /** @type {HTMLInputElement} */ (e.currentTarget).form;
+		clearTimeout(timer);
+		timer = setTimeout(() => form?.requestSubmit(), e.type === 'input' ? 350 : 0);
+	}
 </script>
 
-<form class="filters" method="GET" role="search">
+<form
+	class="filters"
+	method="GET"
+	role="search"
+	data-sveltekit-keepfocus
+	data-sveltekit-noscroll
+	data-sveltekit-replacestate
+>
 	<label class="kv-field grow">
 		<span>Buscar perfil</span>
-		<input type="search" name="q" value={q} placeholder="Nombre o dirección" autocomplete="off" />
+		<input
+			type="search"
+			name="q"
+			value={q}
+			placeholder="Nombre o dirección"
+			autocomplete="off"
+			on:input={autoSubmit}
+		/>
 	</label>
 	{#each selects as s (s.name)}
 		<label class="kv-field">
 			<span>{s.label}</span>
-			<select name={s.name} value={s.value}>
+			<select name={s.name} value={s.value} on:change={autoSubmit}>
 				<option value="">Todos</option>
 				{#each Object.entries(s.options ?? {}) as [value, label] (value)}
 					<option {value}>{label}</option>

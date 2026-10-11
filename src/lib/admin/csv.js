@@ -3,9 +3,14 @@
  * `toCsv` + `csvResponse` en un endpoint `+server.js`, o `toCsv` + `downloadCsv` en el navegador
  * (ver `CsvButton.svelte`).
  *
+ * Las fechas van en hora de Argentina, `2026-10-02 22:30` (`argDateTimeCsv`): pasá un `Date` y
+ * `csvCell` lo escribe así. Nunca ISO en UTC (una compra de las 22:30 salía al día siguiente).
+ *
  * @template T
  * @typedef {{ key?: keyof T & string, label: string, value?: (row: T) => unknown }} CsvColumn
  */
+
+import { argDateTimeCsv } from '$lib/utils/dates.js';
 
 /**
  * Celdas que Excel/Sheets interpretarían como fórmula (inyección de CSV): se les antepone `'`.
@@ -20,7 +25,7 @@ const FORMULA_START = /^[=+\-@\t\r]/;
 export function csvCell(value) {
 	if (value === null || value === undefined) return '';
 	let s;
-	if (value instanceof Date) s = Number.isNaN(value.getTime()) ? '' : value.toISOString();
+	if (value instanceof Date) s = argDateTimeCsv(value);
 	else if (typeof value === 'number') s = Number.isFinite(value) ? String(value) : '';
 	else if (typeof value === 'boolean') s = value ? 'sí' : 'no';
 	else if (typeof value === 'object') s = JSON.stringify(value);

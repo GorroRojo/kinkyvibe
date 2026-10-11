@@ -18,7 +18,8 @@
 	}
 
 	const title = 'Kinky Vibe';
-	const summary = 'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
+	const summary =
+		'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
 	const canonical = 'https://kinkyvibe.ar';
 	/**@type {LD.Schema}*/
 	const websiteSchema = {
@@ -68,7 +69,7 @@
 	<a rel="me" href="https://web.brid.gy/r/https://kinkyvibe.ar/">fed bridgy</a>
 	<a class="u-url u-uid" href="https://kinkyvibe.ar/">https://kinkyvibe.ar/</a>
 	<img class="profile-pic u-photo" src={kinkyProfilePic} alt="" />
-	<h1 class="profile-name p-name">Kinky Vibe</h1>
+	<p class="profile-name p-name">Kinky Vibe</p>
 	<a
 		target="_blank"
 		class="u-pronouns"
@@ -83,6 +84,9 @@
 	</p>
 </div>
 <main>
+	<!-- El logo del encabezado es la presentación (decisión de gorrite, 5/10): el h1 queda solo
+	     para lectores de pantalla y buscadores. -->
+	<h1 class="visually-hidden">Kinky Vibe</h1>
 	{#if $page.url.searchParams.has('carrousel')}
 		<Carrousel
 			posts={allPosts.filter(
@@ -137,7 +141,8 @@
 		/>
 	</div>
 	<div id="lista"></div>
-	<PostList posts={allPosts} />
+	<!-- el feed largo de a 20: así el pie de página queda a mano -->
+	<PostList posts={allPosts} limit={20} />
 </main>
 
 <style>
@@ -153,7 +158,7 @@
 		margin: auto;
 		display: grid;
 		gap: var(--space-xl);
-		padding-top: var(--space-xl);
+		padding-top: var(--space-s);
 	}
 	.cardrow {
 		width: 100%;

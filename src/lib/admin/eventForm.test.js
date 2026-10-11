@@ -24,7 +24,7 @@ describe('formSections', () => {
 		]);
 	});
 
-	// Noche 4: Editar usa la misma «📅 ¿Cuándo es?» que crear (antes Empieza y Termina estaban en
+	// Noche 4: Editar usa la misma «Fecha y hora» que crear (antes Empieza y Termina estaban en
 	// Datos), así que el índice de Editar empieza con Fecha y hora, como el de crear.
 	it('editar un evento: Fecha y hora primero (como al crear), con imagen y entradas', () => {
 		expect(ids(formSections({ mode: 'editar', category: 'calendario', hasImage: true }))).toEqual([
@@ -188,5 +188,19 @@ describe('borrador del formulario: decidir y comparar', () => {
 		expect(changedKeys(null, { a: 1 })).toEqual(['a']);
 		// Faltar y valer null es lo mismo (pasa por JSON).
 		expect(changedKeys({ a: null }, {})).toEqual([]);
+	});
+});
+
+describe('formSections: Partes', () => {
+	it('editar un evento con la sección Partes: va al final del índice', () => {
+		const list = formSections({ mode: 'editar', category: 'calendario', hasPartes: true });
+		expect(list.at(-1)).toEqual({ id: 'partes', icon: 'partes', label: 'Partes' });
+	});
+	it('sin la sección o en material: no está', () => {
+		const ids = (/** @type {any[]} */ l) => l.map((s) => s.id);
+		expect(ids(formSections({ mode: 'editar', category: 'calendario' }))).not.toContain('partes');
+		expect(
+			ids(formSections({ mode: 'editar', category: 'material', hasPartes: true }))
+		).not.toContain('partes');
 	});
 });

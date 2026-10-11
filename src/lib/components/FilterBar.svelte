@@ -32,7 +32,7 @@
 	<div class="option-group-wrapper">
 		<div class="option-group-title">Ver como</div>
 		<div id="display-type" class="option-group">
-			<label>
+			<label class="tap-target">
 				<input
 					type="radio"
 					name="display-type"
@@ -41,7 +41,7 @@
 					value="list"
 				/>lista
 			</label>
-			<label>
+			<label class="tap-target">
 				<input
 					type="radio"
 					name="display-type"
@@ -55,7 +55,7 @@
 	{#if event_toggle}
 		<div class="option-group-wrapper">
 			<div id="show-past-events" class="option-group">
-				<label>
+				<label class="tap-target">
 					<input
 						type="radio"
 						name="show-past-events"
@@ -64,7 +64,7 @@
 						value={true}
 					/>Mostrar
 				</label>
-				<label>
+				<label class="tap-target">
 					<input
 						type="radio"
 						name="show-past-events"
@@ -181,7 +181,8 @@
 		/* container-type: inline-size; */
 	}
 	.tagfilters {
-		gap: var(--gap);
+		/* entre los chips (TagChip) de cada grupo */
+		gap: var(--space-2xs) var(--space-3xs);
 		display: flex;
 		flex-direction: row;
 		flex-wrap: wrap;
@@ -242,7 +243,8 @@
 	.tag-group-container {
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
+		/* arriba, no centrado: al lado de un grupo abierto, el chip queda en la línea de su madre */
+		justify-content: flex-start;
 		max-width: 100%;
 	}
 	@container (min-width: 1300px) {
@@ -256,9 +258,6 @@
 		.tagfilters {
 			flex-direction: column;
 			max-width: 20rem;
-		}
-		.groupname {
-			width: 100%;
 		}
 	}
 </style>

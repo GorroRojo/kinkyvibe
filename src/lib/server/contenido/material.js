@@ -19,6 +19,7 @@ import {
 } from '../../utils/personasList.js';
 import { toRegisteredTags } from '../../utils/interactivos.js';
 import { freeHtmlNotes, normalizeBody } from './eventos.js';
+import { stripHtmlComments } from '../../utils/htmlStrip.js';
 
 /** @typedef {import('../objects/read.js').StoredObject} StoredObject */
 
@@ -64,7 +65,7 @@ const COMPONENT = /<[A-Z][A-Za-z0-9]*[\s/>]/;
  * @param {string} text el texto ya con las etiquetas del registro
  */
 export function usesUnregisteredComponent(text) {
-	return COMPONENT.test(text.replace(/<!--[\s\S]*?-->/g, ''));
+	return COMPONENT.test(stripHtmlComments(text));
 }
 
 /**
