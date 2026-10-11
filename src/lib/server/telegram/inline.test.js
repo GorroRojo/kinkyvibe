@@ -276,6 +276,21 @@ describe('planInlineQuery', () => {
 		]);
 	});
 
+	it('el mensaje mandado lleva la vista previa grande de la página, arriba del texto', async () => {
+		const source = sourceOf([materialDoc('con-foto')]);
+		const [r] = (await answer({ query: 'material:' }, source)).results;
+		expect(r.input_message_content.link_preview_options).toEqual({
+			url: `${PROD}/material/con-foto`,
+			prefer_large_media: true,
+			show_above_text: true
+		});
+		// Sin https (dev local) Telegram no arma la vista previa: va apagada.
+		const local = await answer({ query: 'material:' }, source, { origin: 'http://localhost:5173' });
+		expect(local.results[0].input_message_content.link_preview_options).toEqual({
+			is_disabled: true
+		});
+	});
+
 	it('la tarjeta de un evento: fecha, lugar público, «Ver en el sitio» y «Entradas» si vende', async () => {
 		const docs = [
 			eventDoc('con-entradas', '2031-01-15T20:00:00-03:00'),
