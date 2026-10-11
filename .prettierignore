@@ -23,6 +23,9 @@ yarn.lock
 # Static assets are served verbatim
 /static
 
+# La semilla de contenido de las bases locales: texto exacto de cada publicación (generada, no a mano).
+/src/lib/server/semilla/*.json
+
 # Fixtures de las pruebas de contenido en la base: el texto exacto importa (hash del .md).
 /src/lib/server/contenido/fixtures
 
