@@ -7,6 +7,8 @@ import { arDay } from '$lib/server/admin/inicio.js';
 import {
 	MAX_QUERY,
 	MIN_QUERY,
+	eventTabActions,
+	eventTabsLabel,
 	groupResults,
 	searchDatabase,
 	searchEvents,
@@ -24,7 +26,9 @@ const SEARCH_RATE_LIMIT = { limit: 120, windowSeconds: 60 };
  * Buscador global del panel (la paleta de comandos). `GET /admin/buscar?q=…` →
  * `{ groups: [{ id, label, items: [{ id, icon, title, sub, href }] }], today: [...] }` (sin
  * repetir la búsqueda: puede ser un DNI).
- * `today`: los eventos de hoy que venden entradas, para la acción "Abrir check-in de hoy".
+ * `today`: los eventos de hoy que venden entradas, para la acción «Abrir la puerta de hoy».
+ * Con eventos encontrados, el primero trae atajos a sus pestañas (Puerta, Órdenes…; grupo
+ * `event-tabs`).
  * Solo admins; con límite por admin. No guarda las búsquedas.
  */
 /** @type {import('./$types').RequestHandler} */
@@ -61,8 +65,12 @@ export async function GET({ locals, url, platform }) {
 	if (q.length < MIN_QUERY) return json({ groups: [], today: todayEvents }, { headers });
 
 	const records = await searchDatabase(db, q, { titles });
+	const found = searchEvents(visible, q, { ticketed });
+	const top = found.length ? visible.find((e) => `event:${e.slug}` === found[0].id) : undefined;
 	const groups = groupResults({
-		events: searchEvents(visible, q, { ticketed }),
+		events: found,
+		eventTabs: top ? eventTabActions(top, { tickets: ticketed.has(top.slug) }) : [],
+		eventTabsLabel: top ? eventTabsLabel(top.title) : undefined,
 		...records,
 		tags: searchTags(currentSiteTags().tagsData(), q)
 	});
