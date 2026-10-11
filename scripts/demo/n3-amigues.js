@@ -1,7 +1,7 @@
 // Datos de demo (INVENTADOS) para probar amigues y lugares en la base D1 LOCAL:
 // - un lugar en cada nivel de privacidad (pública, solo el nombre, solo el barrio, oculta),
-//   cada uno vinculado a un evento del repo (edge `lugar`: el evento tiene que estar importado en
-//   la base local, Contenido → En la base; si no, se avisa y se saltea);
+//   cada uno vinculado a uno de los eventos más nuevos de la base local (edge `lugar`; la base
+//   local tiene los de la semilla de contenido, `npm run db:semilla`);
 // - un proyecto con un integrante que se muestra;
 // - una cuenta con un pedido "Es mi perfil" pendiente;
 // - un perfil nuevo de una cuenta, esperando que une admin lo apruebe.
@@ -10,12 +10,10 @@
 //   npm run dev:admin
 //
 // Se puede correr más de una vez (no duplica). Escribe los perfiles con saveObject(). Nunca toca
-// una base remota (ver scripts/local-d1.js). Para importar también las fichas reales:
-// `npm run amigues:import`.
-import { readdir, readFile } from 'node:fs/promises';
+// una base remota (ver scripts/local-d1.js). Las fichas reales de amigues vienen con la semilla
+// (`npm run db:semilla`).
 import { saveObject, slugify } from '../../src/lib/server/objects/save.js';
 import { approveNewStatement } from '../../src/lib/server/amigues/approvals.js';
-import { parseFrontmatter, splitMarkdown } from '../../src/lib/server/amigues/importer.js';
 import { openLocalD1 } from '../local-d1.js';
 
 const ACTOR = 'demo-n3';
@@ -108,24 +106,17 @@ async function ensureAccount(db, email) {
 
 const { db, dispose } = await openLocalD1();
 try {
-	// Los eventos con la fecha más nueva del repo: uno por lugar.
-	const dir = 'src/lib/posts/calendario';
-	const dated = [];
-	for (const f of await readdir(dir)) {
-		if (!f.endsWith('.md') || f.startsWith('_')) continue;
-		try {
-			const raw = await readFile(`${dir}/${f}`, 'utf8');
-			const meta = parseFrontmatter(splitMarkdown(raw).frontmatter);
-			if (!meta.force_unpublished)
-				dated.push({ slug: f.slice(0, -3), start: String(meta.start ?? '') });
-		} catch {
-			// un frontmatter que el parser estricto no lee: ese evento no se usa para la demo
-		}
-	}
-	const events = dated
-		.sort((a, b) => b.start.localeCompare(a.start))
-		.slice(0, VENUES.length)
-		.map((e) => e.slug);
+	// Los eventos (publicados) con la fecha más nueva de la base local: uno por lugar.
+	const { results: newest } = await db
+		.prepare(
+			`SELECT COALESCE(s.legacy_slug, o.slug) AS slug FROM objects o
+			LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = 'calendario'
+			WHERE o.type = 'evento' AND o.deleted_at IS NULL AND o.visibility = 'public'
+			ORDER BY json_extract(o.data, '$.start') DESC LIMIT ?1`
+		)
+		.bind(VENUES.length)
+		.all();
+	const events = newest.map((r) => String(r.slug));
 	for (const [i, v] of VENUES.entries()) {
 		const slug = slugify(v.title);
 		const id = await ensureProfile(db, {

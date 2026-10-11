@@ -157,6 +157,9 @@ export function formatHelp(origin, { accounts = false } = {}) {
 		'/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n' +
 		'/evento: elegí un evento de la lista\n' +
 		'/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n' +
+		'/buscar: escribí lo que buscás y te muestro lo que encuentre\n' +
+		'/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n' +
+		'/start: el inicio, con botones para todo\n' +
 		account +
 		`\nPara comprar entradas y ver todo lo demás, entrá a ${escapeHtml(origin)}`
 	);
@@ -219,3 +222,16 @@ export const UNAVAILABLE_TEXT = 'Ese evento ya no está disponible.';
 export const UNKNOWN_TEXT = 'No entendí ese comando. Probá con /ayuda.';
 
 export const ERROR_TEXT = 'Algo salió mal de nuestro lado. Probá de nuevo en un rato.';
+
+export const FOLLOW_ALREADY_TEXT = 'Ya lo seguías.';
+
+export const FOLLOW_GONE_TEXT = 'Esa etiqueta ya no está para seguir.';
+
+export const FOLLOW_FULL_TEXT =
+	'Ya seguís el máximo de cosas: dejá de seguir alguna en Mi rincón → Lo que sigo.';
+
+/** @param {string} title */
+export const followedText = (title) => `Listo: ahora seguís ${title}.`.slice(0, 200);
+
+export const FOLLOW_TOO_MANY_TEXT =
+	'Hiciste muchos cambios seguidos. Esperá un rato y probá de nuevo.';

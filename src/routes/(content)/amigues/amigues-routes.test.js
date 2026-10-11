@@ -10,6 +10,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import { importAmigues, mdToProfile } from '$lib/server/amigues/importer.js';
+import { mediaURL } from '$lib/utils';
 import {
 	addManager,
 	makeAccount,
@@ -203,16 +204,18 @@ describe('perfiles de la base', () => {
 		expect((await profilePage(m, 'lacerdapunk')).profile.title).toBe('Kono/lacerdapunk');
 	});
 
-	it('los textos reales con imágenes de mdsvex se ven con sus imágenes', async () => {
+	it('los textos reales con imágenes de su carpeta vieja se ven con sus copias de la biblioteca', async () => {
 		await importAmigues(t.db, files, { actor: 'admin-de-prueba' });
 		const m = await modules();
 		const sole = await profilePage(m, 'soleropebunny');
 		expect(sole.bodyHtml).toContain('href="/material/con-la-soga-al-cuello"');
-		expect(sole.bodyHtml).toMatch(/<img[^>]*\ssrc="[^"]+5\.webp/);
+		const foto = /** @type {string} */ (mediaURL('amigues', 'soleropebunny', '5.webp'));
+		expect(foto).toMatch(/\/media\/img\/[0-9a-f]{64}\.webp$/);
+		expect(sole.bodyHtml).toContain(`src="${foto}"`);
 		expect(sole.bodyHtml).not.toContain('<script');
 		const drux = await profilePage(m, 'Drux');
 		expect(
-			(drux.bodyHtml.match(/<img[^>]*\ssrc="[^"]+\.webp/g) ?? []).length
+			(drux.bodyHtml.match(/<img[^>]*\ssrc="[^"]+\/media\/img\/[0-9a-f]{64}\.webp/g) ?? []).length
 		).toBeGreaterThanOrEqual(20);
 		expect(drux.bodyHtml).not.toMatch(/\{foto\d+\}/);
 	});

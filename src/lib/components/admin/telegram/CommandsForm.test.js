@@ -73,3 +73,14 @@ describe('CommandsForm', () => {
 		expect(text).toContain('no se registró (Telegram respondió 401.)');
 	});
 });
+
+describe('CommandsForm: último registro', () => {
+	it('dice cuándo y si fue automático o manual', () => {
+		const at = Date.parse('2031-01-08T12:30:00-03:00');
+		expect(textOf(html({ tokenOk: true, lastSync: { at, by: 'automático' } }))).toContain(
+			'Último registro: 8/1/31 12:30 (automático)'
+		);
+		expect(textOf(html({ tokenOk: true, lastSync: { at, by: 'manual' } }))).toContain('(manual)');
+		expect(textOf(html({ tokenOk: true }))).toContain('Último registro: todavía ninguno');
+	});
+});

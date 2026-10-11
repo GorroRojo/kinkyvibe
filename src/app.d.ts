@@ -36,6 +36,15 @@ declare global {
 				ANALYTICS?: import('@cloudflare/workers-types').AnalyticsEngineDataset;
 				/** Bucket de R2 de las imágenes del sitio (docs/imagenes.md). Puede faltar (build). */
 				MEDIA?: import('@cloudflare/workers-types').R2Bucket;
+				/** Transformaciones de imágenes (miniaturas de las portadas de `/og/…`). Puede faltar. */
+				IMAGES?: import('@cloudflare/workers-types').ImagesBinding;
+				/** Los archivos estáticos (fuentes y logo de `/og/…`). Puede faltar (`vite dev`). */
+				ASSETS?: import('@cloudflare/workers-types').Fetcher;
+				/**
+				 * El dibujante de las imágenes de vista previa (worker/og.js). Solo en el Worker y solo
+				 * en los pedidos a `/og/…` (lo agrega worker/index.js); en `vite dev` falta.
+				 */
+				OG_RENDER?: import('../worker/og-render.js').OgRenderer;
 			};
 			ctx?: import('@cloudflare/workers-types').ExecutionContext;
 			caches?: import('@cloudflare/workers-types').CacheStorage;

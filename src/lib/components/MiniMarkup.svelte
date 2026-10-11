@@ -1,7 +1,7 @@
 <script>
-	import { page } from "$app/stores";
-	import { tagManager, query } from "$lib/utils/stores";
-	import { tagPagePath } from "$lib/utils/series.js";
+	import { page } from '$app/stores';
+	import { tagManager, query } from '$lib/utils/stores';
+	import { tagPagePath } from '$lib/utils/series.js';
 
 	/**@type {(description:string, query:string)=>Array<{type:string,line:string}>|undefined}*/
 	function parseDescription(description, query) {
@@ -29,7 +29,7 @@
 				} else return { line, type };
 			})
 			.map(({ line, type, href }) => {
-				const nLine = normalize(line+'');
+				const nLine = normalize(line + '');
 				if (query != '' && nLine.includes(nQuery)) {
 					let nParts = nLine.split(nQuery);
 					let k = 0;
@@ -48,7 +48,7 @@
 								? [
 										{ line: p, type, href },
 										{ line: query, type: 'mark' }
-								  ]
+									]
 								: { line: p, type, href }
 						)
 						.flat();

@@ -122,7 +122,7 @@ export function pickRealEvents(posts, { now, max = REAL_EVENTS_MAX }) {
 /**
  * La imagen del evento como URL absoluta del sitio público, o null. Solo imágenes de su biblioteca
  * (la API las da como `/media/img/<hash>.webp`), que el sitio muestra tal cual con
- * `isPublicMediaUrl` (src/lib/utils/media.js). Las imágenes viejas del repo (archivos del bundle)
+ * `isPublicMediaUrl` (src/lib/utils/media.js). Las imágenes con la forma vieja (un `featured` numérico o un nombre de archivo)
  * no se copian: la copia queda sin imagen, como un evento sin portada.
  *
  * @param {unknown} featured

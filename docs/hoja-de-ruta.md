@@ -36,14 +36,15 @@ La cola de las noches, en este orden:
 1. **Seguimiento de #260**: varios grupos del menú lateral abiertos a la vez, y que los recuerde;
    abrir y cerrar todos; el menú se desplaza solo hasta lo elegido; `g u` = Cuentas. S.
 2. **Operadores de búsqueda** (parte 2 del buscador, después de #259). M.
-3. **Sacar los `.md` de las publicaciones**: el contenido vive solo en D1. Necesita una decisión
-   nueva que reemplace lo de «un mes después» de [0004](decisiones/0004-modelo-de-contenido.md).
-   Incluye: avatares de perfiles y referencias a imágenes dentro de los textos pasadas a
-   `/media/...`, el sitio deja de leer archivos, el panel sin GitHub, una semilla inventada para
-   dev, E2E y previews, sacar los importadores, `git rm` de `src/lib/posts` con un tag de git,
-   sacar mdsvex y los assets viejos, y actualizar docs y CI. L, en varios PRs. Bloqueo: correr
-   los pasos de datos en preview y producción es de gorrite; antes de borrar, un chequeo de solo
-   lectura de que producción tiene todo.
+3. **Después de sacar los `.md`** ([0032](decisiones/0032-borrar-los-md.md), PR «limpieza-md»):
+   - gorrite: crear y subir el tag `posts-md-final` en el último commit de `main` con los `.md`
+     (el comando está en el PR). S. Bloqueo: gorrite.
+   - gorrite: `node scripts/subir-archivos.js --target=production` (PDF, video y ODT del material
+     a R2); después, un PR que borra `src/lib/archivos/` y su glob en `render.js`. S. Bloqueo:
+     gorrite.
+   - Código muerto que quedó del panel con GitHub: funciones de `sharedImage.js`, la edición del
+     archivo de etiquetas en `tagConfig.js`, ramas «no se guardó en la base» de la UI, el permiso
+     `public_repo` del login. M.
 4. **Restos chicos** (un PR o dos):
    - borrar `AddToCalendarButton.svelte` y `admin/agenda/ConfirmPrompt.svelte`, que no se usan;
    - sacar el `CF_PAGES_BRANCH` y los comentarios de «mientras siga en Pages» de `deployBranch.js`
@@ -80,6 +81,54 @@ La cola de las noches, en este orden:
     proveedor de pago, rol de organizadore, conector de Claude para el panel, IndieWeb y
     ActivityPub. L cada uno.
 
+## Lanzamiento de entradas
+
+Para vender de verdad en todos los eventos sin sorpresas (gorrite, 11/10). Detalle y contexto en
+[tickets.md](tickets.md#pendientes-antes-de-vender-de-verdad). Bloqueo general: las decisiones de
+gorrite de la primera lista.
+
+**Decisiones de gorrite:**
+
+- Qué pasa con las entradas si un evento se cancela o se reprograma (reembolso, crédito, caso por
+  caso).
+- Tope del Fondo por evento; cuándo cierra la venta; quién puede reembolsar; si hacen falta
+  reembolsos parciales.
+- Plazo de acreditación de Mercado Pago y cargar esa comisión en Ajustes → Cobros.
+- El mínimo legal: aviso de privacidad, datos del proveedor en la compra y, si corresponde, el
+  botón de arrepentimiento (#282).
+
+**Probar antes de abrir:**
+
+- De punta a punta en el sandbox de MP: compra, pago rechazado y reintento, pago después de vencida
+  la reserva, reembolso, contracargo, código de descuento con total muy chico, entrada solidaria con
+  el Fondo. Bloqueo: credenciales de prueba de MP.
+- Una compra real de monto chico con la cuenta de verdad, y su reembolso.
+- Transferencia: reserva → confirmar en el panel → entrada por mail; y una reserva vencida.
+- Mails en Gmail, Hotmail, Yahoo y un mail de trabajo: spam, .ics, recordatorio, aviso de cambio de
+  fecha; revisar SPF, DKIM y DMARC de kinkyvibe.ar.
+- Puerta con los celulares reales (Android y iPhone): escanear, escribir código, buscar persona,
+  vender en efectivo y por transferencia, todo de nuevo sin conexión y con dos celulares a la vez.
+- Cupo en el límite: la última entrada vendida a la vez desde el sitio y la puerta; qué muestra
+  «Para revisar».
+- Cambio de fecha y cancelación de un evento de prueba, con reembolso a todes.
+- Carga chica: 50–100 intentos de compra en pocos minutos contra un preview.
+- Que alguien que no sea gorrite use el panel siguiendo la guía.
+
+**Preparar:**
+
+- Borrar los eventos de prueba; revisar remitente, respuesta y contacto de la política de
+  devoluciones; el webhook de MP apuntando a donde corresponde.
+- Roles: quién revisa transferencias y cada cuánto, quién está en la puerta (y practicó), una
+  segunda persona con acceso a Cloudflare, MP y el panel.
+- Guías cortas: puerta (una página, para el celu), confirmar transferencias, reembolsar, «qué hacer
+  si se cae el sitio».
+- Plan B en papel: exportar la lista de entradas antes de cada evento.
+- Avisos durante una venta: errores de MP, mails que no salieron, cupo pasado.
+- No mergear a `main` mientras hay una venta grande abierta.
+
+**Cómo abrir:** un evento piloto propio y chico → revisar → dos o tres eventos normales → eventos
+de amigues y lanzamientos grandes.
+
 ## Más adelante
 
 ### Sitio público
@@ -103,6 +152,11 @@ La cola de las noches, en este orden:
 - Ícono grande del tipo en el encabezado cuando no hay miniatura (perfiles, series, material,
   lugares). S.
 - Passkeys para las cuentas del público. M–L.
+- Botón grande para comprar afuera: cuando las entradas se venden en otro sitio (link externo),
+  el llamado a la acción tiene el mismo tamaño y peso que «Comprar entradas» (gorrite, 10/10). S.
+- Tiempo de lectura a la medida de cada persona: «leo rápido / normal / despacio» (por ejemplo
+  250 / 200 / 150 palabras por minuto), guardado en el navegador como las otras preferencias, desde
+  la explicación del «X min de lectura» o los ajustes de lectura (#20). S. Después de #274.
 
 ### Entradas
 
@@ -117,10 +171,18 @@ La cola de las noches, en este orden:
 - Probar el modo puerta en celulares reales y con mala señal. S.
 - Preguntas abiertas para les organizadores (reprogramar o cancelar, tope del Fondo por evento,
   si las extras cuentan para el Fondo, cuándo cierra la venta). Bloqueo: gorrite.
+- Promociones de varios eventos: por ejemplo, dos eventos a un precio especial si se compran
+  juntos (gorrite, 10/10). M–L. Bloqueo: diseño (cómo se arma la promo en el panel, cómo se ve al
+  comprar, cómo se reparte el Fondo y los reembolsos).
 
 ### Panel
 
-- Redirecciones 301 cuando cambia la dirección de un objeto. M.
+- Cambiar la dirección (URL) de un evento u otro objeto desde el panel, con redirección 301 desde
+  la vieja. Hoy la dirección se arma al crearlo y no se puede cambiar (gorrite preguntó dónde se
+  cambia, 10/10). M.
+- Invitar a cada amigue a editar su perfil: desde el panel, mandarle un link por mail para que lo
+  gestione desde Mi rincón (con cuenta), sin pasar por les admins para cada cambio (gorrite,
+  11/10). M. Revisar cómo se asigna hoy quién gestiona un perfil (docs/amigues.md).
 - Endurecer lo que muestran las listas públicas de lo público que apunta a objetos privados: la
   prueba «vínculos: direcciones» de `src/routes/privados.test.js` está marcada `it.fails` hasta
   entonces. S–M. Bloqueo: decisión de gorrite (el detalle, por privado).
@@ -151,8 +213,6 @@ La cola de las noches, en este orden:
 - Arreglos de datos en textos viejos (etiquetas HTML sin cerrar, `&nbsp;`, negritas rotas). S.
   Bloqueo: son cambios en producción, desde el panel o con OK de gorrite.
 - Eventos sin imagen y campos vacíos del CMS. Bloqueo: gorrite elige en el panel.
-- Preguntas pendientes del plan de limpieza (mantener «Descargar todo» en `.md`, `hardcodedTags`,
-  `HumanBody.svelte`, la rama del demo). Bloqueo: gorrite.
 - Guardados con colecciones y notas, amigues guardades, «No mostrar que voy» (fase 4). L.
 - Vista de grafo de los objetos, estilo Obsidian. L.
 - Campos de perfil: afiliación, formación, experiencia, habilidades (TODO en `types.d.js`). S.
@@ -161,7 +221,8 @@ La cola de las noches, en este orden:
 
 ### Infraestructura
 
-- Chequeo de Prettier en la CI (`format:check` existe pero no corre). S–M.
+- Prettier en la CI: formatear y sacar de `.prettierignore` la lista temporal de archivos que
+  tocaban ramas abiertas, a medida que esas ramas entren. S.
 - Ordenar GitHub: cerrar issues ya hechos (#15, #27, #66, #67, #68, casi #69) y decidir los PRs
   viejos. S. Bloqueo: gorrite cierra.
 - Dashboard de Cloudflare: borrar el proyecto viejo de Pages y las variables `*_ENABLED` que ya
@@ -179,7 +240,7 @@ Lo grande está en Próximo (7 y 8). Lo que quede de esas auditorías se suma ac
 ## Decidido y descartado
 
 - **AUCH como etiqueta especial** en todos lados (TODO en `PostListItem.svelte`): descartado.
-- Contenido en archivos `.md` como fuente: el contenido vive en D1 (0004 y Próximo 3).
+- Contenido en archivos `.md` como fuente: el contenido vive en D1 (0004 y 0032).
 
 ## Cómo mantenerla
 

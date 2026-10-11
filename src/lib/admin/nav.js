@@ -97,6 +97,7 @@ import {
 	ScanLine,
 	ScrollText,
 	Settings,
+	Share2,
 	ShoppingBag,
 	Sparkles,
 	Tags,
@@ -574,6 +575,17 @@ export const NAV = Object.freeze([
 		icon: Mail,
 		emoji: '✉️',
 		label: 'Mails y envíos',
+		area: 'ajustes',
+		sub: 'comunicacion',
+		soon: false
+	},
+	{
+		// Los textos de la vista previa al compartir un link (docs/compartir.md).
+		id: 'ajustes-vistas-previas',
+		href: '/admin/ajustes/vistas-previas',
+		icon: Share2,
+		emoji: '🔗',
+		label: 'Vistas previas al compartir',
 		area: 'ajustes',
 		sub: 'comunicacion',
 		soon: false

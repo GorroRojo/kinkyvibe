@@ -1,25 +1,24 @@
 /**
  * El viaje archivo → registros → lista para tagsFactory da el mismo árbol que el archivo de hoy,
  * etiqueta por etiqueta (nombre, ícono, color heredado, madres, hijas en orden, relacionadas,
- * alias). Sobre el archivo REAL (src/lib/utils/hardcodedTags.js) y los textos reales de la wiki.
+ * alias). Sobre el archivo REAL (el árbol de la semilla, src/lib/server/semilla/etiquetas.json) y los textos reales de la wiki.
  */
 import { describe, expect, it } from 'vitest';
-import hardcodedTags from '$lib/utils/hardcodedTags.js';
+import { seedRawsByPath } from '$lib/server/semilla/testing.js';
+import seedTagList from '$lib/server/semilla/etiquetas.json';
 import tagsFactory from '$lib/utils/tags.js';
 import { parseWikiFile, recordsToRawTags, tagsToRecords } from './model.js';
 import { coreTypes, validateData } from '../objects/types/index.js';
 import { TAG_TYPE } from '../objects/types/etiqueta.js';
 
-const wikiRaw = /** @type {Record<string, string>} */ (
-	import.meta.glob('/src/lib/posts/wiki/*.md', { query: '?raw', import: 'default', eager: true })
-);
+const wikiRaw = /** @type {Record<string, string>} */ (seedRawsByPath('wiki'));
 const wikiFiles = Object.entries(wikiRaw).map(([p, raw]) => ({
 	name: p.slice(p.lastIndexOf('/') + 1, -3),
 	raw
 }));
 
 /** Copia profunda sin funciones (tagsFactory modifica lo que recibe). */
-const fresh = () => JSON.parse(JSON.stringify(hardcodedTags));
+const fresh = () => JSON.parse(JSON.stringify(seedTagList));
 
 /** @param {TagManager} tm @param {string} id */
 function view(tm, id) {
@@ -54,9 +53,7 @@ describe('tagsToRecords / recordsToRawTags', () => {
 			const expected = view(before, id);
 			// Y una mejora: hoy, si A declara «relacionada con B» y B es una hija no declarada que
 			// aparece después en el archivo (como «sumise»), B no muestra a A. Ahora sí.
-			const declaredBy = hardcodedTags
-				.filter((t) => (t.related ?? []).includes(id))
-				.map((t) => t.id);
+			const declaredBy = seedTagList.filter((t) => (t.related ?? []).includes(id)).map((t) => t.id);
 			expected.related = [...new Set([...expected.related, ...declaredBy])]
 				.filter((r) => !missing.has(r))
 				.sort();

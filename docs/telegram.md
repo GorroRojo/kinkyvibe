@@ -4,37 +4,128 @@ Decisión: [0029](decisiones/0029-bot-de-telegram.md). Es otra **vista** del sit
 el sitio sigue siendo lo que encuentra la gente, el CMS y el lugar donde se paga. El bot lee los
 mismos datos y manda un link para todo lo demás.
 
-## Qué hace (fase 1, solo lectura)
+## Qué hace: navegación por pantallas
 
-- `/start`, `/ayuda`: qué podés pedirle.
-- `/proximos`: los próximos eventos públicos, con link al sitio y un botón «Ver: …» por evento.
-- `/hoy`, `/semana`, `/finde`: lo mismo, solo lo que empieza hoy, en los próximos 7 días (hoy y
-  los 6 que siguen) o este fin de semana (viernes a domingo: de lunes a jueves, el que viene),
-  siempre en hora de Argentina (`src/lib/server/telegram/windows.js`).
-- `/evento`: los próximos eventos como botones, para elegir sin saberse el nombre.
-- `/evento <texto>`: el detalle de un evento (título, fecha y link). Busca sin importar tildes ni
-  mayúsculas, con pedazos de palabra («cuer» encuentra «cuerdas»), por la dirección exacta o por
-  la fecha («sábado», «sab», «octubre», «15/10»). Si hay varios que coinciden, un botón por cada
-  uno.
+Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-bot-seguir-y-token.md).
 
-### Los botones
+- **`/start` es el inicio**: un mensaje con botones `Hoy · Semana · Finde` / `🔎 Buscar · ⭐ Lo
+que sigo` / `💗 Fondo · ❓ Ayuda` / `📅 Calendario` (la Mini App, solo en privado) · `Abrir
+kinkyvibe.ar ↗`. «Lo que sigo» solo aparece con ese interruptor prendido.
+- **Cada botón cambia ese mismo mensaje** (no manda otro). Las listas van de a 5 con
+  «‹ 2/3 ›» (el del medio es un botón deshabilitado, Bot API 10.3) e «🏠 Inicio»; la tarjeta de un
+  evento, «‹ 2/7 ›» entre los eventos de la lista, «‹ Volver» (a la página de la lista que lo
+  tiene) e «🏠 Inicio».
+- **Los comandos son atajos a las mismas pantallas** (no hay dos lógicas): `/hoy`, `/semana`,
+  `/finde`, `/proximos`, `/evento [texto]`, `/buscar`, `/fondo`, `/ayuda`, `/sigo`. `/hoy`,
+  `/semana` y `/finde` siguen siendo hoy, los próximos 7 días y el finde (viernes a domingo), en
+  hora de Argentina (`windows.js`).
+- **La tarjeta de un evento**: foto (la imagen destacada, como URL absoluta) o, sin token o en
+  grupos, vista previa grande del link del evento; el título; la fecha con la entidad `date_time`
+  (Bot API 9.5: Telegram la muestra en el idioma y la hora de quien lee; adentro va el texto en
+  castellano para las apps viejas); el lugar **solo como lo muestra la página pública del evento**
+  (`feedVenues` + `eventPlace`: un lugar oculto dice «Lugar a confirmar», nunca la dirección) y
+  los botones:
+  - «🎟 Comprar en el sitio» (verde, Bot API 9.4) a `/calendario/<evento>/entradas`, o el estado de
+    la venta deshabilitado («Agotadas», «Abre el 5/10»), igual que las tarjetas del calendario;
+    sin entradas acá, «Abrir en el sitio»;
+  - «📅 Agregar al calendario» (link de Google Calendar con título, fecha, link y el lugar público;
+    sin fin cargado, 2 horas);
+  - «🗺 Cómo llegar», solo si la página muestra el mapa (`googleMapsLink` del lugar o el
+    `location_map` del evento);
+  - «⭐ Seguir» (abajo).
+- **Buscar**: un mensaje nuevo que abre «responder» (`force_reply` en el teclado, Bot API 10.3)
+  con «Cancelar». La respuesta trae los eventos que coinciden (el mismo buscador que
+  `/evento <texto>`: título, dirección o fecha). En grupos no abre nada: explica `/evento cuerdas`.
+- **`/fondo`**: cuánto juntó el Fondo este mes, la meta y el descuento de este mes en las
+  entradas. Solo lectura, con la memoria de `tickets/fondoMonth.js` (10 minutos, último valor
+  guardado) y solo los campos de `/api/porcentaje` (issue #265); nada de quiénes aportan ni de
+  propinas.
+- Nada de estado en la base: el botón lleva todo. Un botón viejo (también los `ev:`/`ls` de antes)
+  sigue andando; si el evento ya no está entre los próximos públicos, contesta «Ese evento ya no
+  está disponible.» y no cambia el mensaje.
 
-Son teclados "inline" de Telegram (`src/lib/server/telegram/keyboards.js`):
+### El `callback_data` de cada botón (`nav.js`, hasta 64 bytes)
 
-- Cada botón de un evento lleva `ev:<dirección>` en `callback_data` (o `ev:#<hash corto>` si la
-  dirección no entra en los 64 bytes que admite Telegram o tiene caracteres raros).
-- Al tocarlo, el pedido llega al mismo webhook (con el mismo secreto) y el evento se busca **entre
-  los próximos públicos**, igual que `/proximos`. Si ya no está (pasó, se ocultó o se despublicó),
-  contesta «Ese evento ya no está disponible.» y no cambia el mensaje.
-- Si está, **cambia el mensaje por el detalle** (`editMessageText`), con «Abrir en el sitio» y
-  «« Próximos eventos» para volver a la lista.
-- Telegram acepta **un solo método** como respuesta del webhook. Por eso, al mostrar el detalle no
-  se contesta el botón con `answerCallbackQuery`: el "cargando" del botón se va solo a los pocos
-  segundos. Cuando no hay detalle para mostrar (evento que ya no está, error), se contesta el
-  botón con el aviso en lugar de cambiar el mensaje.
+| Pantalla                                                             | `callback_data`                 |
+| -------------------------------------------------------------------- | ------------------------------- |
+| Inicio                                                               | `h`                             |
+| Lista (`d` hoy, `w` semana, `f` finde, `p` próximos; página desde 0) | `l:<v>:<p>`                     |
+| Tarjeta (`v`: a qué lista vuelve; `n`: al inicio)                    | `e:<id>:<v>`                    |
+| Buscar / Cancelar                                                    | `s` / `sx`                      |
+| Lo que sigo / Fondo / Ayuda                                          | `g` / `fo` / `a`                |
+| Seguir: opciones / seguir una                                        | `f:<id>` / `fy:<id>:<etiqueta>` |
+| Contador (no hace nada)                                              | `x`                             |
 
-No muestra lugares, precios, entradas ni datos de compradores. Todo lo que implique plata o
-cuentas es un link al sitio.
+`id` es la dirección del evento si es simple y tiene hasta 40 bytes; si no, `#<hash>`.
+`<etiqueta>` es un hash corto del nombre, que se busca entre las etiquetas de ese evento.
+
+**Deep links** (`t.me/<bot>?start=…`, solo `A-Za-z0-9_-`): `hoy`, `semana`, `finde`, `proximos`,
+`ev-<id>` (la tarjeta), `seguir-<id>`, `sigo`, `fondo`, `buscar`, `inicio`. El código de vincular
+(8 letras y números) sigue entrando por `?start=<código>`.
+
+### Con token y sin token
+
+- **Con `TELEGRAM_BOT_TOKEN`** (0034): el webhook contesta 200 enseguida y llama a la API en
+  `waitUntil` (`run.js`, siempre por `callTelegramApi`, que nunca muestra el token). Así el botón
+  deja de «cargar» apenas cambia la pantalla, las tarjetas pueden ir con foto (texto → foto con
+  `editMessageMedia`; de foto a texto se borra y se manda de nuevo) y se sabe si algo falló:
+  - 429 (demasiado rápido): el botón contesta «Más despacio 🙂» y no se reintenta;
+  - «message is not modified»: se ignora;
+  - si una edición falla (mensaje borrado, muy viejo, foto que Telegram no pudo bajar), se manda
+    la pantalla de nuevo o la tarjeta sin foto, una sola vez.
+- **Sin token**: como antes, un solo método en el mismo pedido; tarjetas con vista previa grande.
+
+### Grupos y efímeros
+
+En un grupo el bot muestra **solo lo público** (lo mismo que el sitio sin sesión) y no necesita
+ser admin (con el modo privacidad de fábrica solo ve los comandos y las respuestas a él).
+
+- **Comandos efímeros** (Bot API 10.2): en los grupos los comandos se registran con
+  `is_ephemeral` (alcance `all_group_chats`). Si alguien manda `/semana` así, la respuesta también
+  es efímera (`ephemeral_message_parameters` + `reply_parameters.ephemeral_message_id`, dentro de
+  los 15 segundos): **solo la ve quien preguntó**. Sus botones cambian solo su vista
+  (`editEphemeralMessageText`).
+- **Un comando común** (app vieja o escrito a mano): una sola respuesta pública. Tocar un botón de
+  esa respuesta **no la edita para todes**: manda un efímero en su lugar solo para quien tocó
+  (`replace_callback_query_message`, Bot API 10.3).
+- **Si un efímero no se puede** (la app no los soporta, pasaron los 15 segundos): lo más privado
+  posible, contestar el botón con el link al chat privado con el bot (con token; sin token no se
+  puede saber que falló).
+- En grupos no hay fotos (un efímero de foto no puede volver a texto), ni «Buscar» con
+  `force_reply`, ni nada de cuentas: «Lo que sigo» y «Seguir» son links al chat privado.
+- Telegram avisa que un efímero puede no llegar y desaparecer: por eso nada personal en
+  efímeros, aunque los vea una sola persona.
+
+### «Seguir» y «Lo que sigo» (0034)
+
+La primera acción que escribe. Solo con «Lo que sigo» prendido y **por chat privado vinculado a
+una cuenta** (mirado en cada mensaje):
+
+- «⭐ Seguir» en una tarjeta muestra las etiquetas y series de ese evento que se pueden seguir
+  (hasta 5, primero las series; las que ya sigue, deshabilitadas). Tocar una la sigue por el mismo
+  camino que el botón del sitio (`resolveTag` + `follow` de `sigo/follows.js`), con sus topes y
+  sus opciones por defecto (calendario y mail de lo nuevo). Los avisos por Telegram se prenden en
+  Mi rincón → Lo que sigo, como siempre. Dejar de seguir, también ahí.
+- `/sigo` y «⭐ Lo que sigo»: los nombres de lo que sigue la cuenta.
+- Sin chat vinculado: explica cómo conectarlo. En un grupo: link al privado
+  (`?start=seguir-<id>` o `?start=sigo`), sin mirar ninguna cuenta.
+- Como en el sitio, no va al registro de actividad del panel (lo que sigue cada cuenta es
+  privado); queda una línea en el log sin cuenta ni etiqueta.
+
+### La Mini App del calendario (`/telegram/app`)
+
+El calendario del sitio en formato compacto para abrir adentro de Telegram, **sin login**: los
+próximos eventos públicos por día, con el lugar público y el estado de la venta (las mismas
+funciones que `/calendario`).
+
+- Carga `telegram-web-app.js` como dicen las docs y usa los colores del tema de Telegram
+  (`--tg-theme-*`, con los del modo claro de respaldo). En un navegador común también anda.
+- «📲 Agregar a la pantalla de inicio» (`addToHomeScreen`, Bot API 8.0) solo si Telegram dice que
+  se puede y todavía no está.
+- Los links (el evento, comprar) se abren en el navegador, afuera de Telegram (`openLink`): pagar
+  sigue en el sitio, con Mercado Pago.
+- Se abre con el botón «📅 Calendario» del inicio (solo en privado: `web_app` no anda en grupos).
+  El botón de menú del bot sigue siendo la lista de comandos.
 
 ## El menú de comandos (autocompletado)
 
@@ -43,24 +134,25 @@ Cuando alguien escribe «/», Telegram sugiere los comandos que se le registraro
 salen lo que entiende el router y lo que se registra (un test, `commands.test.js`, chequea que
 coincidan).
 
-- **Para todes** (alcance `default`, grupos incluidos): `/proximos` «Los próximos eventos
-  públicos», `/hoy` «Los eventos de hoy», `/semana` «Lo que hay en los próximos 7 días», `/finde`
-  «Lo que hay este fin de semana», `/evento` «Buscá un evento por nombre, fecha o lugar», `/ayuda`
-  «Qué podés pedirme».
-- **En chats privados** (alcance `all_private_chats`): esos y, solo con «Lo que sigo»
-  prendido, `/vincular` «Conectá tu cuenta (código de Mi rincón)», `/silenciar` «Pausá tus avisos
-  por Telegram», `/reanudar` «Volvé a recibir tus avisos», `/desvincular` «Desconectá este chat de
-  tu cuenta». Con «Lo que sigo» apagado contestan «todavía no se puede», así que no se ofrecen.
-- `/start` y `/help` funcionan pero no van en el menú.
-- Sin `language_code`: valen para cualquier idioma de la app.
+- **Para todes** (alcance `default`): `/proximos`, `/hoy`, `/semana`, `/finde`, `/evento`,
+  `/buscar`, `/fondo`, `/ayuda`.
+- **En grupos** (alcance `all_group_chats`): los mismos, **efímeros** (`is_ephemeral`).
+- **En chats privados** (alcance `all_private_chats`): esos y, solo con «Lo que sigo» prendido,
+  `/vincular`, `/sigo`, `/silenciar`, `/reanudar`, `/desvincular`.
+- `/start` y `/help` funcionan pero no van en el menú. Sin `language_code`.
 
-**Para actualizarlos:** Ajustes → Automatizaciones → tarjeta **Bot de Telegram** → **Actualizar
-comandos del bot** (solo admins). Manda los dos `setMyCommands` con el token del bot
-(`TELEGRAM_BOT_TOKEN`) y muestra qué quedó registrado en cada alcance o el error de Telegram (sin
-el token). Se puede tocar las veces que haga falta: cada vez reemplaza la lista. Queda en el
-registro de actividad (`telegram.commands`). Sin el token, avisa y no hace nada. Hay que tocarlo
-después de cambiar la lista en el código o de prender o apagar «Lo que sigo». No hace falta
-`/setcommands` en @BotFather (lo que se cargue ahí se pisa con el botón).
+**Se registran solos**: el cron de cada 15 minutos (`/api/cron/recordatorios`,
+`commandsSync.js`) arma las listas, les saca un hash y lo compara con el último registrado
+(`ticket_settings`, clave `telegram_commands_sync`). Si cambió (otra lista en el código, o se
+prendió o apagó «Lo que sigo») y está el token, manda los tres `setMyCommands`, guarda el hash y
+lo anota en el registro de actividad (`telegram.commands`, «automático»). Si Telegram falla, lo
+loguea sin el token y no guarda el hash: se reintenta en la próxima corrida. Sin token, no hace
+nada. **Ya no hace falta tocar el botón después de cada deploy.**
+
+El botón **Actualizar comandos del bot** (Ajustes → Automatizaciones → tarjeta **Bot de
+Telegram**, solo admins) queda para registrarlos ya: hace lo mismo, lo anota con quién fue y
+guarda el mismo hash. La tarjeta muestra «Último registro: <fecha> (automático/manual)». No hace
+falta `/setcommands` en @BotFather (se pisa).
 
 ## Fase 2: vincular la cuenta y avisos de «Lo que sigo»
 
@@ -91,6 +183,7 @@ chat vinculado y sus códigos.
 - `/silenciar`: pausa **todos** los avisos por Telegram (lo elegido en Lo que sigo queda) hasta
   `/reanudar`.
 - `/reanudar`: vuelve a mandarlos.
+- `/sigo`: lo que sigue la cuenta (y «⭐ Seguir» en las tarjetas, arriba).
 - `/desvincular`: desconecta el chat. También se puede desde la tarjeta («Desconectar Telegram»).
 
 ### Los avisos
@@ -127,7 +220,10 @@ minutos), con estas reglas:
   (con `sitePosts` de `src/lib/server/contenido/posts.js`: de la base o de los `.md`, según
   `contenido_db`). No armar consultas propias ni leer los `.md` o la base desde otro lado.
 - **Nada oculto, no listado ni ya empezado.**
-- **Sin datos de compradores ni de lugares con dirección privada** (0005, 0007, 0029).
+- **Sin datos de compradores ni de lugares con dirección privada** (0005, 0007, 0029): el lugar de
+  una tarjeta sale de las mismas funciones que la página pública del evento.
+- **Nada personal en grupos** (tampoco en efímeros) ni sin chat vinculado; «Seguir» es lo único
+  que escribe (0034).
 - El secreto del webhook se chequea **antes** que el interruptor y en tiempo constante.
 - Todo texto del bot, en español rioplatense con el lenguaje inclusivo del sitio.
 
@@ -138,8 +234,16 @@ minutos), con estas reglas:
 | `src/routes/api/telegram/+server.js`          | La ruta del webhook: junta secreto, interruptor y eventos           |
 | `src/lib/server/telegram/webhook.js`          | Verifica el secreto, lee el update y contesta (probable sin Svelte) |
 | `src/lib/server/telegram/router.js`           | Interpreta el comando o el botón y elige la respuesta               |
+| `src/lib/server/telegram/nav.js`              | El `callback_data` de las pantallas y los deep links                |
+| `src/lib/server/telegram/screens.js`          | Las pantallas (texto y botones), funciones puras                    |
+| `src/lib/server/telegram/navigate.js`         | Qué pantalla va para cada botón                                     |
+| `src/lib/server/telegram/deliver.js`          | Cómo se manda: editar, foto, efímero en grupos                      |
+| `src/lib/server/telegram/run.js`              | Con token: llama a la API (429, «not modified», fallback)           |
+| `src/lib/server/telegram/seguir.js`           | «Seguir» y «Lo que sigo» desde el bot (0034)                        |
+| `src/lib/server/telegram/miniapp.js`          | La Mini App del calendario (`/telegram/app`)                        |
+| `src/lib/server/telegram/commandsSync.js`     | El registro automático del menú «/» (cron)                          |
 | `src/lib/server/telegram/commands.js`         | La lista de comandos y el `setMyCommands` del menú «/»              |
-| `src/lib/server/telegram/keyboards.js`        | Los botones (`callback_data` corto y validado)                      |
+| `src/lib/server/telegram/keyboards.js`        | Los botones de antes (`ev:`/`ls`), que siguen andando               |
 | `src/lib/server/telegram/format.js`           | Los textos (HTML de Telegram), funciones puras                      |
 | `src/lib/server/telegram/events.js`           | De dónde salen los eventos (el único lugar para cambiar)            |
 | `src/lib/server/flags.js`                     | El interruptor `telegram_bot` (`TELEGRAM_BOT_ENABLED`)              |
@@ -150,11 +254,11 @@ minutos), con estas reglas:
 | `src/lib/components/sigo/TelegramCard.svelte` | Fase 2: la tarjeta «Telegram» de Lo que sigo                        |
 | `src/routes/(content)/mi-rincon/telegram/`    | Fase 2: las acciones de la tarjeta (`?/codigo`, `?/desconectar`)    |
 
-El webhook **contesta en el mismo pedido** (Telegram acepta un método de la API como respuesta),
-así que no necesita el token del bot. El token lo usan el cron de la fase 2 para mandar los
-avisos y el botón «Actualizar comandos del bot»; los dos pasan por `send.js`
-(`callTelegramApi`), el único lugar que llama a la API de Telegram. Nunca se loguea ni se
-devuelve la URL (lleva el token) y los errores se muestran sin él.
+Sin token, el webhook **contesta en el mismo pedido** (un método de la API como respuesta). Con el
+token (0034), llama a la API en `waitUntil`. El token también lo usan el cron (avisos y comandos)
+y el botón «Actualizar comandos del bot»; todo pasa por `send.js` (`callTelegramApi`), el único
+lugar que llama a la API de Telegram. Nunca se loguea ni se devuelve la URL (lleva el token) y los
+errores se muestran sin él.
 
 ## Puesta en marcha (la hace gorrite)
 
@@ -164,8 +268,12 @@ devuelve la URL (lleva el token) y los errores se muestran sin él.
 3. Apuntar el webhook del bot a `https://kinkyvibe.ar/api/telegram` con `setWebhook`, pasando ese
    mismo valor como `secret_token`. El token del bot se usa solo en ese paso, desde tu compu.
 4. Prender el interruptor **Bot de Telegram** en Ajustes → Interruptores.
-5. Con el token cargado (fase 2, abajo), tocar **Actualizar comandos del bot** en Ajustes →
-   Automatizaciones para que Telegram sugiera los comandos (arriba, «El menú de comandos»).
+5. Con el token cargado (fase 2, abajo), los comandos se registran solos en la próxima corrida
+   del cron (o ya, con **Actualizar comandos del bot** en Ajustes → Automatizaciones).
+6. Mini App (opcional): en @BotFather → el bot → **Bot Settings → Configure Mini App** (o «Main
+   Mini App»), la URL `https://kinkyvibe.ar/telegram/app`. El botón «📅 Calendario» del inicio
+   anda igual sin eso (abre la misma URL); registrarla suma el botón «Abrir» en el perfil del bot.
+   **No** cambiar el botón de menú: queda la lista de comandos. No hace falta el modo inline.
 
 Apagado, el endpoint contesta 200 sin hacer nada (con un error, Telegram acumularía reintentos).
 
@@ -191,7 +299,9 @@ npx vitest run src/lib/server/telegram src/lib/server/sigo src/lib/components/ad
 
 Los tests usan eventos y chats inventados. Para probar a mano, un POST al endpoint con el header
 `x-telegram-bot-api-secret-token` y un update de ejemplo (`{"message":{"chat":{"id":1},"text":"/proximos"}}`,
-o un botón tocado: `{"callback_query":{"id":"1","data":"ls","message":{"message_id":1,"chat":{"id":1}}}}`).
+o un botón tocado: `{"callback_query":{"id":"1","data":"l:w:0","message":{"message_id":1,"chat":{"id":1}}}}`).
+Sin `TELEGRAM_BOT_TOKEN` la respuesta del POST es el método que se mandaría; con el token cargado,
+no probarlo a mano contra producción (llamaría a la API de verdad).
 
 ## Decisiones (confirmadas por gorrite, 5/10)
 
@@ -217,4 +327,7 @@ Propuestas por Claude; **confirmado por gorrite (5/10)**: todo tal como está es
   `src/lib/server/telegram/events-source.test.js`).
 - ~~Fase 2: vincular un chat con una cuenta y sumar Telegram a "Lo que sigo" (0025).~~ Hecha
   (arriba), con la migración 0033.
+- ~~Navegación por pantallas, efímeros, Seguir, Mini App del calendario.~~ Hecho (0034).
+- Prototipo aparte, sin mergear: la puerta con el escáner de QR de Telegram (rama
+  `claude/telegram-puerta-miniapp`).
 - Fase 3: avisos y estado para organizadores (0029).

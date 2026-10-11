@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import Footer from './Footer.svelte';
+import { OFFICIAL_PROFILES } from '$lib/utils/jsonLd.js';
 
 /** @param {Record<string, unknown>} [data] */
 const html = (data) => render(Footer, { props: { data } }).body;
@@ -55,5 +56,16 @@ describe('Footer', () => {
 
 	it('el aviso de construcción, bien escrito', () => {
 		expect(html()).toContain('Este sitio está en constante construcción.');
+	});
+
+	it('las redes oficiales con rel="me" (las mismas del JSON-LD de la organización)', () => {
+		const body = html();
+		for (const url of OFFICIAL_PROFILES) {
+			const tag = body.match(
+				new RegExp(`<a href="${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>`)
+			);
+			expect(tag, url).not.toBeNull();
+			expect(tag?.[0]).toMatch(/rel="me( noopener)?"/);
+		}
 	});
 });

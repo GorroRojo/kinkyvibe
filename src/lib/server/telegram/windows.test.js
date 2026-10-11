@@ -79,17 +79,25 @@ describe('router: /hoy, /semana, /finde', () => {
 		expect(res.text.startsWith('<b>En los próximos 7 días</b>')).toBe(true);
 		expect(res.text).toContain('Evento inventado martes');
 		expect(res.text).not.toContain('Evento inventado miercoles-siguiente');
-		expect(res.reply_markup.inline_keyboard).toHaveLength(5);
+		// Un botón «Ver» por evento (entran en una página) y «🏠 Inicio».
+		const rows = res.reply_markup.inline_keyboard;
+		expect(
+			rows.filter((/** @type {any} */ r) => r[0].callback_data?.startsWith('e:'))
+		).toHaveLength(5);
+		expect(rows.at(-1)).toEqual([{ text: '🏠 Inicio', callback_data: 'h' }]);
 	});
 
 	it('/finde y /hoy (también con @bot)', async () => {
 		expect((await ask('/finde')).text.startsWith('<b>Este finde</b>')).toBe(true);
 		const hoy = await ask('/hoy@BotDePrueba');
 		expect(hoy.text).toContain('Evento inventado hoy-noche');
-		expect(hoy.reply_markup.inline_keyboard).toHaveLength(1);
+		expect(hoy.reply_markup.inline_keyboard).toEqual([
+			[{ text: 'Ver: Evento inventado hoy-noche', callback_data: 'e:hoy-noche:d' }],
+			[{ text: '🏠 Inicio', callback_data: 'h' }]
+		]);
 	});
 
-	it('sin eventos: lo dice, manda a /proximos y no pone botones', async () => {
+	it('sin eventos: lo dice, manda a /proximos y solo deja volver al inicio', async () => {
 		const res = /** @type {any} */ (
 			await handleUpdate(
 				{ message: { chat: { id: 5 }, text: '/hoy' } },
@@ -97,6 +105,8 @@ describe('router: /hoy, /semana, /finde', () => {
 			)
 		);
 		expect(res.text).toBe('Hoy no hay eventos públicos. Mirá lo que viene con /proximos.');
-		expect(res.reply_markup).toBeUndefined();
+		expect(res.reply_markup).toEqual({
+			inline_keyboard: [[{ text: '🏠 Inicio', callback_data: 'h' }]]
+		});
 	});
 });

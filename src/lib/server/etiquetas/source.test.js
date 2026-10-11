@@ -7,7 +7,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
-import hardcodedTags from '$lib/utils/hardcodedTags.js';
+import { fallbackTagList } from '$lib/utils/tagFallback.js';
 import { importTags } from './importer.js';
 import { clearTagSourceCache, tagManagerOf, tagSourceFrom } from './source.js';
 
@@ -33,8 +33,9 @@ beforeEach(async () => {
 });
 
 describe('tagSourceFrom', () => {
-	it('sin base, o sin etiquetas en la base: el archivo (respaldo)', async () => {
-		expect(await tagSourceFrom(null)).toMatchObject({ fromDb: false, rawTags: hardcodedTags });
+	it('sin base, o sin etiquetas en la base: el árbol de respaldo (vacío en la app; en las pruebas, el de la semilla)', async () => {
+		expect(await tagSourceFrom(null)).toMatchObject({ fromDb: false });
+		expect((await tagSourceFrom(null)).rawTags).toBe(fallbackTagList());
 		expect((await tagSourceFrom(t.db, {})).fromDb).toBe(false);
 	});
 

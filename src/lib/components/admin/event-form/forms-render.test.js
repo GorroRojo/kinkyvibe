@@ -503,7 +503,6 @@ describe('después de guardar: la confirmación según adónde se guardó', () =
 				embedded: true
 			}
 		}).body;
-	const PR = { number: 7, url: 'https://example.invalid/pr/7', state: 'auto' };
 
 	it('Editar, en la base: «Guardado. Se ve enseguida en el sitio.» en la barra', () => {
 		const body = editSaved({ save: 'Guardado', publish: null, savedToDb: true });
@@ -513,16 +512,7 @@ describe('después de guardar: la confirmación según adónde se guardó', () =
 			/<div class="kv-notice ok[^"]*" role="status" id="save-result">[\s\S]*Se ve enseguida en el sitio/
 		);
 		expect(body).not.toContain('✅');
-		expect(body).not.toContain('PR #7');
-	});
-
-	it('Editar, con GitHub: el PR, como siempre', () => {
-		const body = editSaved({ save: 'Guardado', publish: PR, savedToDb: false });
-		expect(body).toMatch(
-			/id="save-status"[\s\S]*Guardado\. Se publica en unos minutos, cuando pasen las pruebas\./
-		);
-		expect(body).toContain('PR #7');
-		expect(body).not.toContain('Se ve enseguida');
+		expect(body).not.toContain('PR #');
 	});
 
 	/** @param {any} form */

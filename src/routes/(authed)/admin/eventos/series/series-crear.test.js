@@ -6,8 +6,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
-import { fakeRequestEvent } from '$lib/server/series/fixtures.js';
-import hardcodedTags from '$lib/utils/hardcodedTags.js';
+import { fakeRequestEvent, thrown } from '$lib/server/series/fixtures.js';
+import seedTagList from '$lib/server/semilla/etiquetas.json';
 import { importTags } from '$lib/server/etiquetas/importer.js';
 import { loadTagRecords } from '$lib/server/etiquetas/read.js';
 
@@ -26,7 +26,7 @@ beforeEach(async () => {
 	// Las etiquetas, en la base (de donde se leen y donde se guardan).
 	await importTags(
 		t.db,
-		{ rawTags: JSON.parse(JSON.stringify(hardcodedTags)) },
+		{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
 		{ actor: 'admin-de-prueba' }
 	);
 });
@@ -124,8 +124,28 @@ describe('Crear serie', () => {
 	it('sin permiso, 403', async () => {
 		const { mod, commits } = await page();
 		expect(
-			await mod.actions.crear(post({ name: 'X' }, { id: 1, login: 'alguien-de-prueba' }))
+			await thrown(() =>
+				mod.actions.crear(post({ name: 'X' }, { id: 1, login: 'alguien-de-prueba' }))
+			)
 		).toMatchObject({ status: 403 });
+		expect(commits).toHaveLength(0);
+	});
+
+	it('el permiso se mira antes que el formulario: sin permiso, 403 aunque el nombre ya exista', async () => {
+		const { mod } = await page();
+		expect(
+			await thrown(() =>
+				mod.actions.crear(post({ name: 'Picantearla' }, { id: 1, login: 'alguien-de-prueba' }))
+			)
+		).toMatchObject({ status: 403 });
+	});
+
+	it('sin sesión: 303 al login, sin crear nada', async () => {
+		const { mod, commits } = await page();
+		expect(await thrown(() => mod.actions.crear(post({ name: 'X' }, null)))).toMatchObject({
+			status: 303
+		});
+		expect((await loadTagRecords(t.db)).some((r) => r.key === 'X')).toBe(false);
 		expect(commits).toHaveLength(0);
 	});
 });

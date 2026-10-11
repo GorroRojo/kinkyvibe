@@ -28,7 +28,8 @@ function resolves(href) {
 
 describe('acciones que no son secciones', () => {
 	it('cada una lleva a una sección o a una página que existe', () => {
-		expect(EXTRA_COMMANDS.length).toBeGreaterThanOrEqual(7);
+		// 6: «Importar etiquetas» se fue con su página (decisión 0032).
+		expect(EXTRA_COMMANDS.length).toBeGreaterThanOrEqual(6);
 		for (const c of EXTRA_COMMANDS) expect(resolves(String(c.href)), c.id).toBe(true);
 	});
 
@@ -57,9 +58,10 @@ describe('acciones que no son secciones', () => {
 		expect(first('para revisar')).toBe('review');
 		expect(first('nuevo material')).toBe('new-material');
 		expect(first('nuevo perfil')).toBe('new-profile');
-		expect(first('importar perfiles')).toBe('import-profiles');
+		// Los importadores de perfiles y etiquetas se fueron con los .md (decisión 0032); de Perfiles
+		// queda la clasificación.
+		expect(first('clasificar perfiles')).toBe('classify-profiles');
 		expect(first('importar lugares')).toBe('import-places');
-		expect(first('importar etiquetas')).toBe('import-tags');
 		expect(first('vincular')).toBe('link-places');
 		expect(first('tema')).toBe('theme');
 		expect(first('modo oscuro')).toBe('theme');

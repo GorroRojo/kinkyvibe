@@ -13,6 +13,8 @@
 
 <style>
 	svg {
+		/* Sin width/height en el svg: sin esto ocuparía todo el ancho. */
+		height: 24px;
 		scale: var(--scale, 1);
 		translate: var(--translate, 0 0);
 		color: var(--color, var(--1));

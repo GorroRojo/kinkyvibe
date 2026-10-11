@@ -5,9 +5,11 @@
 Todo lo que cambia mientras el sitio funciona (órdenes, entradas, ingresos en la puerta,
 códigos de descuento, ajustes del panel, plantillas de mails, notas sobre personas, registro de
 actividad) se guarda en una base de datos **Cloudflare D1** (un SQLite en Cloudflare). Las
-publicaciones (eventos, material, amigues, wiki) **no** están ahí por ahora: son archivos `.md` en
-el repo (ver [contenido.md](contenido.md)). Hay tres copias separadas de la base: la de tu compu,
-la de los previews y la de producción.
+publicaciones (eventos, material, perfiles de amigues, la wiki) y las etiquetas también: son
+objetos de la base (ver [contenido.md](contenido.md) y [objetos.md](objetos.md)); ya no hay `.md`
+en el repo. Hay tres copias separadas de la base: la de tu compu, la de los previews y la de
+producción. La de tu compu y la de las pruebas E2E arrancan con la semilla de contenido público
+(`npm run db:semilla`, `src/lib/server/semilla/`).
 
 ## Lo que nunca se tiene que romper
 
@@ -40,35 +42,35 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 
 ## Las tablas y quién las usa
 
-| Tabla                                             | Migración                            | Para qué                                                                                    | Código                                                     |
-| ------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `rate_limits`                                     | 0001                                 | límites de intentos (sin IPs)                                                               | `src/lib/server/db/rateLimit.js`                           |
-| `orders`, `tickets`                               | 0002 (+0003, 0005, 0010, 0013, 0016) | órdenes y entradas; canal `online` / `puerta` / `manual`; `ticket_tier` (tramo de preventa) | `src/lib/server/tickets/orders.js`, `door.js`, `manual.js` |
-| `discount_codes`                                  | 0002                                 | códigos de descuento                                                                        | `src/lib/server/tickets/discounts.js`                      |
-| `ticket_settings`                                 | 0002                                 | Ajustes de venta (cobros, Fondo, mails, recordatorios)                                      | `src/lib/server/tickets/settings.js`                       |
-| `event_ticket_settings`, `stream_link_sends`      | 0002                                 | link de transmisión por evento y a quién se le mandó                                        | `src/lib/server/tickets/stream.js`                         |
-| `reminder_sends`                                  | 0002                                 | recordatorios ya mandados (no repetir)                                                      | `src/lib/server/tickets/reminders.js`                      |
-| `admin_audit`                                     | 0004                                 | registro de actividad del panel                                                             | `src/lib/server/admin/audit.js`                            |
-| `event_mail_sends`, `event_mail_recipients`       | 0006                                 | "Mail a compradores" de un evento, en tandas                                                | `src/lib/server/tickets/buyerMail.js`                      |
-| `admin_last_seen`                                 | 0007                                 | "Desde tu última visita" del Inicio                                                         | `src/lib/server/admin/lastSeen.js`                         |
-| `email_templates`                                 | 0008, 0034                           | textos de los mails cambiados desde el panel                                                | `src/lib/server/tickets/templates.js`                      |
-| `event_email_templates`                           | 0034                                 | textos de los mails cambiados solo para un evento                                           | `src/lib/server/tickets/templates.js`                      |
-| `person_notes`                                    | 0009, 0045, 0049                     | notas internas sobre personas (por mail; las de una cuenta borrada, por `account_id`)       | `src/lib/server/admin/people.js`                           |
-| `object_types`, `objects`, `edges`, `objects_fts` | 0012                                 | objetos y relaciones (todavía sin uso en páginas; ver [objetos.md](objetos.md))             | `src/lib/server/objects/` (solo `saveObject()` escribe)    |
-| `integrity_runs`                                  | 0012                                 | resultado del chequeo nocturno de los objetos ("Para revisar")                              | `src/lib/server/objects/integrity.js`                      |
-| `feature_flags`                                   | 0013                                 | interruptores de funciones nuevas (Ajustes → Interruptores)                                 | `src/lib/server/flags.js`                                  |
-| `accounts`, `account_sessions`, `login_codes`     | 0013                                 | cuentas del público, sesiones y códigos por mail (ver [cuentas.md](cuentas.md))             | `src/lib/server/cuentas/`                                  |
-| `agenda_day_notes`                                | 0030                                 | notas de colores en los días de la Agenda (solo admins; nunca en páginas públicas ni .ics)  | `src/lib/server/admin/dayNotes.js`                         |
-| `review_snapshots`                                | 0047                                 | «Para revisar»: la última revisión del importador de contenido (lo que no se cuenta barato) | `src/lib/server/admin/reviewSnapshots.js`                  |
-| `event_date_changes`, `date_change_sends`         | 0048                                 | último cambio de fecha de cada evento y a qué orden se le avisó (por versión)               | `src/lib/server/tickets/dateChange.js`                     |
-| `demo_files`                                      | ninguna                              | solo en previews: los "commits" del modo demo                                               | `src/lib/server/demo/overlay.js`                           |
+| Tabla                                             | Migración                            | Para qué                                                                                                                    | Código                                                     |
+| ------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `rate_limits`                                     | 0001                                 | límites de intentos (sin IPs)                                                                                               | `src/lib/server/db/rateLimit.js`                           |
+| `orders`, `tickets`                               | 0002 (+0003, 0005, 0010, 0013, 0016) | órdenes y entradas; canal `online` / `puerta` / `manual`; `ticket_tier` (tramo de preventa)                                 | `src/lib/server/tickets/orders.js`, `door.js`, `manual.js` |
+| `discount_codes`                                  | 0002                                 | códigos de descuento                                                                                                        | `src/lib/server/tickets/discounts.js`                      |
+| `ticket_settings`                                 | 0002                                 | Ajustes del panel (cobros, Fondo, mails, recordatorios; `link_preview_texts`: textos de la vista previa, docs/compartir.md) | `src/lib/server/tickets/settings.js`                       |
+| `event_ticket_settings`, `stream_link_sends`      | 0002                                 | link de transmisión por evento y a quién se le mandó                                                                        | `src/lib/server/tickets/stream.js`                         |
+| `reminder_sends`                                  | 0002                                 | recordatorios ya mandados (no repetir)                                                                                      | `src/lib/server/tickets/reminders.js`                      |
+| `admin_audit`                                     | 0004                                 | registro de actividad del panel                                                                                             | `src/lib/server/admin/audit.js`                            |
+| `event_mail_sends`, `event_mail_recipients`       | 0006                                 | "Mail a compradores" de un evento, en tandas                                                                                | `src/lib/server/tickets/buyerMail.js`                      |
+| `admin_last_seen`                                 | 0007                                 | "Desde tu última visita" del Inicio                                                                                         | `src/lib/server/admin/lastSeen.js`                         |
+| `email_templates`                                 | 0008, 0034                           | textos de los mails cambiados desde el panel                                                                                | `src/lib/server/tickets/templates.js`                      |
+| `event_email_templates`                           | 0034                                 | textos de los mails cambiados solo para un evento                                                                           | `src/lib/server/tickets/templates.js`                      |
+| `person_notes`                                    | 0009, 0045, 0049                     | notas internas sobre personas (por mail; las de una cuenta borrada, por `account_id`)                                       | `src/lib/server/admin/people.js`                           |
+| `object_types`, `objects`, `edges`, `objects_fts` | 0012                                 | objetos y relaciones (todavía sin uso en páginas; ver [objetos.md](objetos.md))                                             | `src/lib/server/objects/` (solo `saveObject()` escribe)    |
+| `integrity_runs`                                  | 0012                                 | resultado del chequeo nocturno de los objetos ("Para revisar")                                                              | `src/lib/server/objects/integrity.js`                      |
+| `feature_flags`                                   | 0013                                 | interruptores de funciones nuevas (Ajustes → Interruptores)                                                                 | `src/lib/server/flags.js`                                  |
+| `accounts`, `account_sessions`, `login_codes`     | 0013                                 | cuentas del público, sesiones y códigos por mail (ver [cuentas.md](cuentas.md))                                             | `src/lib/server/cuentas/`                                  |
+| `agenda_day_notes`                                | 0030                                 | notas de colores en los días de la Agenda (solo admins; nunca en páginas públicas ni .ics)                                  | `src/lib/server/admin/dayNotes.js`                         |
+| `review_snapshots`                                | 0047                                 | sin uso desde la decisión 0032 (era la última revisión del importador de contenido)                                         | ninguno                                                    |
+| `event_date_changes`, `date_change_sends`         | 0048                                 | último cambio de fecha de cada evento y a qué orden se le avisó (por versión)                                               | `src/lib/server/tickets/dateChange.js`                     |
 
 **Borrados suaves (0049, decisión [0033](decisiones/0033-borrados-recuperables.md)).**
 `signup_fields`, `persona_roles` y `person_notes` tienen `deleted_at` (NULL = está). Borrar desde el
 panel lo marca y escribe la fila de `panel_deletions` (0021) en la misma tanda, para «Recuperar» en
 Actividad; toda consulta de esas tablas lleva `deleted_at IS NULL`. No hay purga.
 
-`demo_files` no es una migración a propósito: producción no la tiene (ver [demo.md](demo.md)).
+`demo_files` (solo en la base de los previews, nunca fue una migración) era la capa de "commits"
+del modo demo: desde la decisión 0032 nadie la usa; se puede borrar a mano en el preview.
 
 ## Dónde está el código
 
@@ -118,5 +120,6 @@ son de personas reales: no los copies a issues, PRs ni capturas.
 
 ### Resetear la base de preview
 
-Solo `kinkyvibe-preview`, nunca `kinkyvibe`. Para vaciar los cambios del modo demo:
-`DELETE FROM demo_files;` (ver [demo.md](demo.md)).
+Solo `kinkyvibe-preview`, nunca `kinkyvibe`. Los datos de prueba del modo demo se recargan con
+«Recargar datos de prueba» (ver [demo.md](demo.md)). La tabla vieja `demo_files` ya no se usa:
+`DROP TABLE IF EXISTS demo_files;` la saca.
