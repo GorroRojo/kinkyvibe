@@ -15,12 +15,7 @@ import {
 	reopenTransferFromPanel
 } from '$lib/server/admin/transfers.js';
 import { getEventTickets, isValidEventSlug } from '$lib/server/tickets/events.js';
-import {
-	inBackground,
-	sendOrderEmail,
-	siteOrigin,
-	transferHoldMs
-} from '$lib/server/tickets/index.js';
+import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { readOverride } from '$lib/server/tickets/overrides.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
@@ -151,7 +146,6 @@ export const actions = {
 			locals,
 			by: admin.login,
 			orderId: orderIdOf(form),
-			holdMs: transferHoldMs(),
 			override: readOverride(form)
 		});
 		const body = {

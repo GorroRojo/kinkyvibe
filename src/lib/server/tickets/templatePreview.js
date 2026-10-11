@@ -10,6 +10,7 @@ import {
 	buildTransferEmail
 } from './email.js';
 import { withMailFooter } from '$lib/server/email/layout.js';
+import { transferDeadline } from '$lib/utils/transferDeadline.js';
 
 /** @typedef {import('$lib/utils/emailTemplates.js').TemplateId} TemplateId */
 /** @typedef {import('$lib/utils/emailTemplates.js').TemplateParts} TemplateParts */
@@ -64,7 +65,7 @@ function sampleOrder(now) {
 		email_sent_at: null,
 		created_at: now,
 		updated_at: now,
-		expires_at: now + 2 * 3600000
+		expires_at: transferDeadline(now)
 	});
 }
 
@@ -133,9 +134,7 @@ function buildPreview(
 				event,
 				transferInfo: 'Alias: EJEMPLO.ALIAS (datos de ejemplo)\nTitular: Nombre de ejemplo',
 				replyTo,
-				origin,
-				confirmUrl: `${origin}/entradas/${SAMPLE_ORDER_ID}/confirmar?k=ejemplo`,
-				fullHoldHours: 48
+				origin
 			});
 		case 'stream':
 			return buildStreamLinkEmail({
