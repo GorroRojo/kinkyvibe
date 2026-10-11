@@ -10,6 +10,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GALLERY_BUNDLE_MARKER } from '../../../../scripts/demo/guard.js';
 import { PROTOTIPOS } from './prototipos.js';
 
+// Cargar un prototipo en dev compila su componente (y los íconos de Lucide) en frío: en una
+// máquina cargada pasa los 5 s de siempre. Como los tests de la base, más margen; nada cambia lo
+// que se controla.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
+
 const ROOT = path.resolve(import.meta.dirname, '../../../..');
 const DIR = 'src/routes/estilo/prototipos';
 const read = (/** @type {string} */ rel) => readFileSync(path.join(ROOT, rel), 'utf8');
@@ -29,6 +34,7 @@ const PAGES = [
 const loaders = {
 	[DIR]: () => import('./+page.js'),
 	[`${DIR}/filtros-celu`]: () => import('./filtros-celu/+page.js'),
+	[`${DIR}/filtros-celu-v2`]: () => import('./filtros-celu-v2/+page.js'),
 	[`${DIR}/lista-de-espera`]: () => import('./lista-de-espera/+page.js')
 };
 
@@ -107,6 +113,17 @@ describe('prototipos: solo en previews y en dev', () => {
 				/import Marco from '\.\.?\/Marco\.svelte'/
 			);
 		}
+	});
+});
+
+describe('prototipos: versiones', () => {
+	it('las dos versiones de «Filtros en el celu» se linkean entre sí (para comparar)', () => {
+		expect(read(`${DIR}/filtros-celu/FiltrosCelu.svelte`)).toContain(
+			'href="/estilo/prototipos/filtros-celu-v2"'
+		);
+		expect(read(`${DIR}/filtros-celu-v2/SegundaVersion.svelte`)).toContain(
+			'href="/estilo/prototipos/filtros-celu"'
+		);
 	});
 });
 

@@ -257,6 +257,7 @@ test.describe('errores', () => {
 	for (const path of [
 		'/estilo/prototipos',
 		'/estilo/prototipos/filtros-celu',
+		'/estilo/prototipos/filtros-celu-v2',
 		'/estilo/prototipos/lista-de-espera'
 	]) {
 		test(`${path} (prototipo) devuelve 404 fuera de un preview`, async ({ request }) => {

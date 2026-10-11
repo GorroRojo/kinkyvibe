@@ -8,7 +8,11 @@
 	import { PROTOTIPOS } from './prototipos.js';
 
 	/** @type {Record<string, any>} */
-	const ICONOS = { 'filtros-celu': Filter, 'lista-de-espera': Hourglass };
+	const ICONOS = {
+		'filtros-celu': Filter,
+		'filtros-celu-v2': Filter,
+		'lista-de-espera': Hourglass
+	};
 </script>
 
 <Marco

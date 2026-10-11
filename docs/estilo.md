@@ -189,7 +189,9 @@ galería: solo en dev y en previews, cada `+page.js` con la condición de compil
 `src/routes/estilo/+page.js` y el prototipo importado adentro. Cada uno va en su carpeta de
 `src/routes/estilo/prototipos/`, dentro de `Marco.svelte` (lleva la marca del guard del bundle),
 anotado en `prototipos.js` y con una caja «Para decidir» con las preguntas abiertas; lo
-controlan `src/routes/estilo/prototipos/prototipos.test.js` y `tests/smoke.spec.js`.
+controlan `src/routes/estilo/prototipos/prototipos.test.js` y `tests/smoke.spec.js`. Cuando
+gorrite contesta y hace falta otra vuelta, la nueva va en otra carpeta (`filtros-celu-v2`), la
+anterior queda para comparar (las dos se linkean) y la caja «Para decidir» lista solo lo abierto.
 
 | Concepto                                                                        | Componente                                                                         |
 | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
