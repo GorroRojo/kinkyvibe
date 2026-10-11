@@ -789,14 +789,10 @@
 		persist();
 		counts = localCounts(door.list);
 		saleOpen = false;
-		formEl.reset();
-		// Svelte vuelve a leer los campos enlazados después del `reset` (los radios quedan sin
-		// tildar): recién después se ponen los valores de una venta nueva, así la próxima arranca
-		// en efectivo, tildado.
-		await tick();
+		// Igual que la venta con conexión: vacía el formulario y deja tildado efectivo.
+		saleMethod = resetDoorSaleForm(formEl);
 		saleQty = 1;
 		saleEmail = '';
-		saleMethod = 'efectivo';
 		const cards = queued.sale.tickets;
 		show({ result: 'sold', card: cards[0] ?? null, cards, offline: true, stamp: Date.now() });
 		say('Venta guardada en este celu: se manda sola cuando vuelva la conexión.');
