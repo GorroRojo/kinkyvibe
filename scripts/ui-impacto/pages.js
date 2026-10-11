@@ -179,9 +179,21 @@ export const PAGES = [
 	},
 	{
 		id: 'panel-estadisticas',
-		title: 'Panel: Estadísticas',
+		title: 'Panel: Estadísticas › Ventas en el tiempo',
 		group: 'panel',
-		path: () => '/admin/estadisticas'
+		path: () => '/admin/estadisticas/ventas'
+	},
+	{
+		id: 'panel-estadisticas-asistencia',
+		title: 'Panel: Estadísticas › Asistencia',
+		group: 'panel',
+		path: () => '/admin/estadisticas/asistencia'
+	},
+	{
+		id: 'panel-estadisticas-visitas',
+		title: 'Panel: Estadísticas › Visitas al sitio',
+		group: 'panel',
+		path: () => '/admin/estadisticas/visitas'
 	},
 	// La galería de componentes (docs/estilo.md, «Componentes»): solo existe en dev y en previews,
 	// y el informe corre con `vite dev`. Así un cambio en un componente compartido se ve acá aunque

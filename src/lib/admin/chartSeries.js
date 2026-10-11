@@ -15,6 +15,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Cuántos períodos se muestran en el gráfico general (el de un evento va completo). */
 export const OVERALL_SPAN = Object.freeze({ day: 60, week: 26, month: 12 });
+/** Con un período (`from`), el gráfico general no pasa de esta cantidad de períodos. */
+export const MAX_SPAN = Object.freeze({ day: 400, week: 260, month: 240 });
 
 /**
  * Lunes de la semana de un día (el 1/1/1970 fue jueves).
@@ -53,13 +55,14 @@ const PERIODS = {
 
 /**
  * Ventas agrupadas por día, semana (que empieza el lunes) o mes, con los períodos sin ventas en 0.
- * - General (`slug` vacío): los últimos {@link OVERALL_SPAN} períodos hasta `today`.
+ * - General (`slug` vacío): desde el período de `from` (si viene; lo pasa el filtro de período de
+ *   Estadísticas) o los últimos {@link OVERALL_SPAN} períodos, hasta `today`.
  * - De un evento: desde su primera venta hasta la última.
  * @param {readonly SalesDay[]} days
- * @param {{ bucket: Bucket, slug?: string, today: number }} opts
+ * @param {{ bucket: Bucket, slug?: string, today: number, from?: number | null }} opts
  * @returns {Array<{ start: number, date: string, label: string, tickets: number, revenue: number }>}
  */
-export function bucketSales(days, { bucket, slug = '', today }) {
+export function bucketSales(days, { bucket, slug = '', today, from: since = null }) {
 	const rows = slug ? days.filter((d) => d.slug === slug) : days;
 	const p = PERIODS[bucket];
 	let from;
@@ -70,7 +73,10 @@ export function bucketSales(days, { bucket, slug = '', today }) {
 		to = p.key(Math.max(...rows.map((d) => d.day)));
 	} else {
 		to = p.key(today);
-		from = p.shift(to, -(OVERALL_SPAN[bucket] - 1));
+		from =
+			since !== null
+				? Math.min(Math.max(p.key(since), p.shift(to, -(MAX_SPAN[bucket] - 1))), to)
+				: p.shift(to, -(OVERALL_SPAN[bucket] - 1));
 	}
 	/** @type {Map<number, { start: number, date: string, label: string, tickets: number, revenue: number }>} */
 	const out = new Map();

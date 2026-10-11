@@ -170,6 +170,86 @@ describe('loadVisits', () => {
 		expect(api.calls.some((c) => c.sql.includes("toDateTime('2026-09-01 03:00:00')"))).toBe(true);
 	});
 
+	it('con un período (`days`): visitas por día, rankings y comparación de ese período', async () => {
+		const api = fakeApi(sample);
+		const v = await loadVisits({
+			env,
+			db: null,
+			fetch: api.fetch,
+			now: new Date('2026-10-04T12:00:00Z'),
+			days: 7
+		});
+		expect(v.topDays).toBe(7);
+		// Del 28/9 al 4/10 (días de Argentina).
+		expect(v.daily.map((d) => d.day)).toEqual([
+			'2026-09-28',
+			'2026-09-29',
+			'2026-09-30',
+			'2026-10-01',
+			'2026-10-02',
+			'2026-10-03',
+			'2026-10-04'
+		]);
+		// Los meses «en vivo» siguen completos desde el 1/9 aunque el período sea más corto.
+		expect(v.months.map((m) => [m.month, m.views])).toEqual([
+			['2026-09', 12],
+			['2026-10', 30]
+		]);
+		const ranking = api.calls.filter((c) => c.sql.includes('blob2 AS k'));
+		expect(ranking).toHaveLength(1);
+		expect(ranking[0].sql).toContain("INTERVAL '7' DAY");
+		// Los 7 días anteriores (del 21/9 al 28/9, a la misma hora): un total aparte.
+		const prev = api.calls.find(
+			(c) => c.sql.startsWith('SELECT SUM(_sample_interval) AS n') && c.sql.includes('timestamp <')
+		);
+		expect(prev?.sql).toContain("toDateTime('2026-09-20 12:00:00')");
+		expect(prev?.sql).toContain("toDateTime('2026-09-27 12:00:00')");
+		expect(v.previousViews).toBe(150);
+	});
+
+	it('90 días: la consulta por día arranca hace 90 días; sin comparación (Cloudflare no la tiene)', async () => {
+		const api = fakeApi(sample);
+		const v = await loadVisits({
+			env,
+			db: null,
+			fetch: api.fetch,
+			now: new Date('2026-10-04T12:00:00Z'),
+			days: 90
+		});
+		expect(v.daily).toHaveLength(90);
+		expect(v.daily[0].day).toBe('2026-07-07');
+		expect(api.calls.some((c) => c.sql.includes("toDateTime('2026-07-07 03:00:00')"))).toBe(true);
+		// Julio y agosto en vivo no se suman a Visitas por mes: arranca el 1/9, como siempre.
+		expect(v.months.map((m) => m.month)).toEqual(['2026-09', '2026-10']);
+		expect(v.previousViews).toBeUndefined();
+		expect(api.calls.filter((c) => c.sql.includes('timestamp <'))).toHaveLength(0);
+	});
+
+	it('un período de más de 90 días (o raro) se recorta', async () => {
+		const api = fakeApi(sample);
+		const big = await loadVisits({ env, db: null, fetch: api.fetch, days: 400 });
+		expect(big.topDays).toBe(90);
+		const odd = await loadVisits({ env, db: null, fetch: api.fetch, days: -3 });
+		expect(odd.topDays).toBe(1);
+	});
+
+	it('si falla solo la comparación, el resto se ve igual', async () => {
+		const api = fakeApi((sql) => {
+			if (sql.includes('timestamp <')) throw new Error('caída');
+			return sample(sql);
+		});
+		const v = await loadVisits({
+			env,
+			db: null,
+			fetch: api.fetch,
+			now: new Date('2026-10-04T12:00:00Z'),
+			days: 30
+		});
+		expect(v.error).toBeNull();
+		expect(v.totals.views).toBe(150);
+		expect(v.previousViews).toBeNull();
+	});
+
 	it('si Cloudflare rechaza el token, lo dice (y no tira)', async () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		const fetchFn = /** @type {typeof fetch} */ (

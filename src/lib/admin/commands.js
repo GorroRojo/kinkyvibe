@@ -67,7 +67,12 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'entradas-codigos': 'codigos descuento cupon',
 	propinas: 'propinas cafecito aportes donaciones',
 	personas: 'personas clientes compradores gente ficha nota notas internas',
-	estadisticas: 'estadisticas graficos tendencias analytics',
+	estadisticas:
+		'estadisticas graficos tendencias ventas en el tiempo vendidas cobrado por serie medios de pago fondo finanzas',
+	'estadisticas-asistencia':
+		'estadisticas asistencia check-in vinieron primera vez vuelven retorno no vinieron por evento',
+	'estadisticas-visitas':
+		'estadisticas visitas al sitio analytics trafico paginas mas vistas paises dispositivos origen embudo conversion',
 	'no-listadas': 'no listadas borradores ocultas sin listar',
 	biblioteca: 'biblioteca imagenes fotos archivos documentos pdf videos subir borrar sacar media',
 	'contenido-base': 'base de datos importar eventos md archivos migrar coinciden paridad',
@@ -112,6 +117,8 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	propinas: 'wallet',
 	personas: 'users',
 	estadisticas: 'chart',
+	'estadisticas-asistencia': 'users',
+	'estadisticas-visitas': 'eye',
 	material: 'book',
 	amigues: 'person',
 	etiquetas: 'tag',
