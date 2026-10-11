@@ -7,6 +7,9 @@
  */
 import { expect, test } from '@playwright/test';
 import { AGE_OK } from './helpers.js';
+import { ticketsE2EEvent } from './event.js';
+
+const EVENT = ticketsE2EEvent();
 
 test.beforeEach(async ({ page }) => {
 	await page.addInitScript(AGE_OK);
@@ -119,4 +122,60 @@ test('cada admin elige cómo se ve su panel lateral (y se aplica al cargar)', as
 	await page.getByRole('radio', { name: 'Siempre abierto' }).check();
 	await expect(html).not.toHaveAttribute('data-lateral', /.+/);
 	await expect(side).toBeVisible();
+});
+
+test('ficha del evento: 7 pestañas, Ventas y Mails con sus vistas, y la lista ▾ en el celu', async ({
+	page
+}) => {
+	await page.goto(`/admin/eventos/${EVENT}/ordenes`, { waitUntil: 'networkidle' });
+	const tabs = page.getByRole('navigation', { name: 'Pestañas' });
+	await expect(tabs.getByRole('link')).toHaveText([
+		'Resumen',
+		'Editar',
+		/^Ventas/,
+		'Puerta',
+		'Códigos',
+		'Mails',
+		/^Preguntas/
+	]);
+	// Órdenes es una vista de Ventas: la pestaña Ventas queda marcada.
+	await expect(tabs.getByRole('link', { name: /^Ventas/ })).toHaveAttribute('aria-current', 'page');
+	const views = page.getByRole('navigation', { name: 'Vistas de Ventas' });
+	await expect(views.getByRole('link', { name: /^Órdenes/ })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+	await views.getByRole('link', { name: /^Transferencias/ }).click();
+	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/transferencias$`));
+
+	// Las direcciones de siempre de Mails siguen andando, cada una en su vista.
+	await page.goto(`/admin/eventos/${EVENT}/mails`, { waitUntil: 'networkidle' });
+	await expect(tabs.getByRole('link', { name: 'Mails' })).toHaveAttribute('aria-current', 'page');
+	await expect(
+		page
+			.getByRole('navigation', { name: 'Vistas de Mails' })
+			.getByRole('link', { name: 'Plantillas' })
+	).toHaveAttribute('aria-current', 'page');
+
+	// En el celu: un botón con la pestaña actual que abre la lista entera.
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect(tabs.getByRole('link', { name: 'Resumen', exact: true })).toBeHidden();
+	const toggle = page.getByRole('button', { name: /^Mails/ });
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	const list = page.getByRole('navigation', { name: 'Pestañas' }).getByRole('listitem');
+	await expect(list).toHaveCount(7);
+	await expect(page.getByRole('link', { name: 'Mails' })).toBeFocused();
+	await page.keyboard.press('Escape');
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	await expect(toggle).toBeFocused();
+	await page.keyboard.press('ArrowDown');
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	await page.getByRole('link', { name: 'Códigos' }).click();
+	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/codigos$`));
+	await expect(page.getByRole('button', { name: /^Códigos/ })).toHaveAttribute(
+		'aria-expanded',
+		'false'
+	);
 });

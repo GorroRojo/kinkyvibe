@@ -48,12 +48,35 @@ secciones del grupo, como la que tenía Ajustes (`sectionTabs`).
 **Íconos en las pestañas** (gorrite, 11/10): cada pestaña de sección lleva el mismo ícono que su
 sección en la barra lateral (`sectionTabs` lo saca de `nav.js`), y las de la ficha del evento
 también (`EVENT_TABS`: las que son una sección del menú, con `section`, usan el ícono de esa
-sección: Ventas, Transferencias, Puerta, Códigos, Plantillas de mails, Preguntas; las demás tienen
-uno propio de Lucide). El ícono es `aria-hidden`; el nombre de la pestaña sigue siendo su nombre
+sección: Ventas, Puerta, Códigos, Preguntas; las demás tienen uno propio de Lucide). El ícono es `aria-hidden`; el nombre de la pestaña sigue siendo su nombre
 accesible. En una pantalla angosta (< 600 px), si las pestañas no entran con sus nombres, quedan
 solo los íconos y el nombre de la actual; las otras llevan su nombre en `title` y `aria-label`
 (`$lib/components/ui/Tabs.svelte`). `nav.test.js` controla que cada pestaña tenga el ícono de su
 sección. Las pestañas que son filtros (Próximos/Pasados, Todas/Para aprobar…) no llevan ícono.
+
+**Pestañas de la ficha del evento** (gorrite, 11/10): son 7, Resumen, Editar, Ventas, Puerta,
+Códigos, Mails y Preguntas (`EVENT_TABS`; las de venta solo si el evento vende entradas). **Ventas**
+junta lo que eran tres pestañas y **Mails** lo que eran dos: cada parte es una **vista** de la
+pestaña (`views`), con su URL de siempre, y la ficha las muestra como botones (`.kv-segmented`)
+debajo de las pestañas:
+
+| Pestaña | Vistas (URL)                                                                   |
+| ------- | ------------------------------------------------------------------------------ |
+| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`), Transferencias (`/transferencias`)  |
+| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`) |
+
+Las direcciones no cambiaron (los links de los mails, el buscador y las pruebas siguen andando):
+`eventHref(slug, 'ordenes')` da `/ordenes` como antes, y `eventTabOf(pathname)` dice qué pestaña
+y qué vista marcar (las subpáginas, como `/ordenes/cargar`, cuentan como su vista). La pestaña
+Ventas lleva el número de transferencias esperando confirmación; los botones de Órdenes y
+Transferencias, los suyos.
+
+En el celu (< 600 px) la ficha no muestra la tira de pestañas sino un botón con el ícono y el
+nombre de la pestaña actual y ▾, que abre la lista entera (ícono y nombre, ninguna escondida, sin
+menú «Más»). El botón lleva `aria-expanded`; al abrir, el foco va a la pestaña actual; las flechas,
+Inicio y Fin recorren la lista; Escape la cierra y devuelve el foco al botón; tocar afuera o salir
+con Tab también la cierra. Es la opción `menu` de `$lib/components/ui/Tabs.svelte`; en la compu,
+la tira de siempre. Lo prueba `tests/tickets/menu.spec.js`.
 
 Cada sección vive en **`/admin/<área>/<sección>`**. Las excepciones: Inicio (`/admin`), Puerta
 (`/admin/checkin`, porque esa URL está guardada en los celus de la puerta) y las áreas de una sola
@@ -62,7 +85,7 @@ sección (Etiquetas), que usan la URL del área.
 | Área         | Secciones (URL)                                                                                                                                                                                                                                                                                                         | Para qué                                                                                                                                                                                                                                                                                                                |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | —            | Inicio (`/admin`)                                                                                                                                                                                                                                                                                                       | próximos eventos, para revisar, plata del mes, actividad, "desde tu última visita"                                                                                                                                                                                                                                      |
-| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`), Agenda (`/agenda`, + Importar planilla en `/importar`), Puerta (`/admin/checkin`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                                 | lista y ficha de cada evento (`/admin/eventos/<slug>`, sus pestañas no cambian); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                                  |
+| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`), Agenda (`/agenda`, + Importar planilla en `/importar`), Puerta (`/admin/checkin`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                                 | lista y ficha de cada evento (`/admin/eventos/<slug>`, ver «Pestañas de la ficha del evento»); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                    |
 | Ventas       | Todas las ventas (`/admin/ventas`), Transferencias (`/transferencias`), Códigos (`/codigos`) · próximamente: Tienda (`/tienda`, fase 8)                                                                                                                                                                                 | ventas de todos los eventos, bandeja de transferencias, códigos de descuento                                                                                                                                                                                                                                            |
 | Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`)                                                                                         | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md))                                                                                          |
 | Mensajes     | Plantillas (`/admin/mensajes/plantillas`) · próximamente: Bandeja (`/admin/mensajes`, fase 5), Lo que sigo (`/lo-que-sigo`, fase 2)                                                                                                                                                                                     | textos de los mails ([mails.md](mails.md))                                                                                                                                                                                                                                                                              |

@@ -95,11 +95,9 @@ import {
 	Mail,
 	MapPin,
 	Pencil,
-	ReceiptText,
 	Repeat,
 	ScanLine,
 	ScrollText,
-	Send,
 	Settings,
 	Share2,
 	ShoppingBag,
@@ -643,7 +641,12 @@ export const NAV = Object.freeze([
  * Pestañas de la ficha de un evento (`/admin/eventos/[slug]` + sufijo). `''` es el Resumen.
  * Cada una lleva su ícono: si es la misma cosa que una sección del menú (`section`, el id de un
  * {@link NavItem}), el de esa sección; si no, uno propio del mismo juego (Lucide), con su emoji.
- * @type {readonly { id: string, suffix: string, label: string, soon: boolean, section?: string, icon: NavItem['icon'], emoji: string }[]}
+ *
+ * Son 7 (gorrite, 11/10): Ventas junta Órdenes y Transferencias, y Mails junta «Mail a
+ * compradores» y las plantillas del evento. Cada una de esas partes es una vista (`views`) de la
+ * pestaña, con su propia URL de siempre (los links viejos, los mails y los tests siguen andando);
+ * la ficha las muestra como botones arriba de la página. La primera vista es la de la pestaña.
+ * @type {readonly { id: string, suffix: string, label: string, soon: boolean, section?: string, icon: NavItem['icon'], emoji: string, views?: readonly { id: string, suffix: string, label: string }[] }[]}
  */
 export const EVENT_TABS = Object.freeze(
 	[
@@ -655,24 +658,19 @@ export const EVENT_TABS = Object.freeze(
 			icon: LayoutDashboard,
 			emoji: '📋'
 		},
-		// Editar va segunda (y también es un botón del encabezado): con 10 pestañas, al final quedaba
-		// fuera de la pantalla en el celu y en la compu angosta.
+		// Editar va segunda (y también es un botón del encabezado).
 		{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false, icon: Pencil, emoji: '✏️' },
-		{ id: 'ventas', suffix: '/ventas', label: 'Ventas', soon: false, section: 'entradas' },
 		{
-			id: 'ordenes',
-			suffix: '/ordenes',
-			label: 'Órdenes',
+			id: 'ventas',
+			suffix: '/ventas',
+			label: 'Ventas',
 			soon: false,
-			icon: ReceiptText,
-			emoji: '🧾'
-		},
-		{
-			id: 'transferencias',
-			suffix: '/transferencias',
-			label: 'Transferencias',
-			soon: false,
-			section: 'entradas-transferencias'
+			section: 'entradas',
+			views: [
+				{ id: 'ventas', suffix: '/ventas', label: 'Totales' },
+				{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes' },
+				{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias' }
+			]
 		},
 		{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false, section: 'checkin' },
 		{
@@ -682,21 +680,19 @@ export const EVENT_TABS = Object.freeze(
 			soon: false,
 			section: 'entradas-codigos'
 		},
-		{
-			id: 'mail',
-			suffix: '/mail',
-			label: 'Mail a compradores',
-			soon: false,
-			icon: Send,
-			emoji: '📤'
-		},
-		// Plantillas de los mails de este evento (lo que cambia sobre Mensajes → Plantillas).
+		// Mandar un aviso a quienes compraron y las plantillas de los mails de este evento (lo que
+		// cambia sobre Mensajes → Plantillas).
 		{
 			id: 'mails',
-			suffix: '/mails',
-			label: 'Plantillas de mails',
+			suffix: '/mail',
+			label: 'Mails',
 			soon: false,
-			section: 'ajustes-plantillas'
+			icon: Mail,
+			emoji: '✉️',
+			views: [
+				{ id: 'mail', suffix: '/mail', label: 'Mandar un aviso' },
+				{ id: 'mails', suffix: '/mails', label: 'Plantillas' }
+			]
 		},
 		// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.
 		{
@@ -709,18 +705,51 @@ export const EVENT_TABS = Object.freeze(
 	].map((t) => {
 		// Con `section`, el ícono es el de esa sección del menú (el mismo en la barra lateral y acá).
 		const item = t.section ? NAV.find((i) => i.id === t.section) : undefined;
-		return Object.freeze({ ...t, icon: item?.icon ?? t.icon, emoji: item?.emoji ?? t.emoji ?? '' });
+		return Object.freeze({
+			...t,
+			icon: item?.icon ?? t.icon,
+			emoji: item?.emoji ?? t.emoji ?? '',
+			...(t.views ? { views: Object.freeze(t.views.map((v) => Object.freeze(v))) } : {})
+		});
 	})
 );
 
 /**
- * URL de la ficha de un evento (o de una de sus pestañas).
+ * URL de la ficha de un evento (o de una de sus pestañas o vistas). `tab` es el id de una vista
+ * (`ordenes`, `transferencias`, `mail`, `mails`…) o de una pestaña de {@link EVENT_TABS}; si es
+ * las dos cosas, gana la vista (`mails` son las plantillas, como antes de juntar las pestañas).
  * @param {string} slug
- * @param {string} [tab] id de {@link EVENT_TABS}
+ * @param {string} [tab]
  */
 export function eventHref(slug, tab = 'resumen') {
-	const t = EVENT_TABS.find((x) => x.id === tab);
-	return `/admin/eventos/${encodeURIComponent(slug)}${t?.suffix ?? ''}`;
+	const suffix =
+		EVENT_TABS.flatMap((t) => t.views ?? []).find((v) => v.id === tab)?.suffix ??
+		EVENT_TABS.find((x) => x.id === tab)?.suffix ??
+		'';
+	return `/admin/eventos/${encodeURIComponent(slug)}${suffix}`;
+}
+
+/**
+ * La pestaña (y la vista, si tiene) de una dirección de la ficha de un evento. Las subpáginas
+ * cuentan como su pestaña (`/mails/<id>` es Mails › Plantillas, `/ordenes/cargar` es Ventas ›
+ * Órdenes). `null` si la dirección no es de la ficha o no es de ninguna pestaña. Solo mira la forma
+ * de la dirección (`/admin/eventos/agenda` también le parece un Resumen): usala dentro de la ficha.
+ * @param {string} pathname
+ * @returns {{ tab: (typeof EVENT_TABS)[number], view: { id: string, suffix: string, label: string } | null } | null}
+ */
+export function eventTabOf(pathname) {
+	const m = pathname.replace(/\/+$/, '').match(/^\/admin\/eventos\/[^/]+(\/.*)?$/);
+	if (!m) return null;
+	const rest = m[1] ?? '';
+	/** @param {string} suffix */
+	const within = (suffix) =>
+		suffix === '' ? rest === '' : rest === suffix || rest.startsWith(`${suffix}/`);
+	for (const tab of EVENT_TABS) {
+		const view = tab.views?.find((v) => within(v.suffix));
+		if (view) return { tab, view };
+		if (!tab.views && within(tab.suffix)) return { tab, view: null };
+	}
+	return null;
 }
 
 /**

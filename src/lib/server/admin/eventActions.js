@@ -387,7 +387,7 @@ export const eventTicketActions = {
 			dateChange: {
 				ok: true,
 				message:
-					'Listo, no avisamos. Si cambiás de idea, está en «Mail a compradores» → «Avisar el cambio de fecha».'
+					'Listo, no avisamos. Si cambiás de idea, está en «Mails» → «Mandar un aviso» → «Avisar el cambio de fecha».'
 			}
 		};
 	},
