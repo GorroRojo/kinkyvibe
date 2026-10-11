@@ -20,8 +20,9 @@
  *   proyecto): los lugares van aparte, en "Sucede en" (edge `lugar`, docs/amigues.md).
  *
  * Un perfil que no cumple todo eso no aparece: ni su nombre, ni su link, ni un "perfil oculto".
- * La dirección (slug) sí está en el .md, que es público en el repo: el editor solo ofrece
- * perfiles visibles y aprobados.
+ * Tampoco su dirección (slug): los eventos y el material están en la base (no en .md públicos), y
+ * la metadata pública (`meta.personas`) sale sin los vínculos a perfiles que no cumplen la misma
+ * regla (src/lib/server/contenido/vinculosPublicos.js). El panel y el editor ven la lista entera.
  */
 import { ANON, visibleWhere } from '$lib/server/objects/index.js';
 import { PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';

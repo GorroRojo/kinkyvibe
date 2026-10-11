@@ -20,7 +20,8 @@
  *
  * Las lecturas de acá son internas (panel, importación, listas): traen los edges de cualquier
  * perfil (también oculto o borrado), igual que antes estaba la dirección en el JSON. Qué perfiles
- * se muestran lo sigue decidiendo un solo lugar: src/lib/server/personas/index.js.
+ * se muestran lo sigue decidiendo un solo lugar: src/lib/server/personas/index.js; la metadata
+ * pública sale sin los vínculos a perfiles que no ve cualquiera (./vinculosPublicos.js).
  *
  * Solo imports relativos (la importación se prueba sin Vite).
  */
