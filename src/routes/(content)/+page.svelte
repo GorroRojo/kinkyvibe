@@ -2,6 +2,7 @@
 	import CardRow from '$lib/components/CardRow.svelte';
 	import Carrousel from '$lib/components/Carrousel.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
+	import SeoHead from '$lib/components/SeoHead.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import { page } from '$app/stores';
 	export let data;
@@ -38,31 +39,10 @@
 <svelte:head>
 	<title>Kinky Vibe</title>
 	<link rel="icon" href="/favicon-32x32.png" />
-	<link rel="canonical" href={canonical} />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
-
-	<meta property="og:url" content="/" />
-
-	<meta property="og:title" content={title} />
-	<meta name="twitter:title" content={title} />
-
-	<meta name="description" content={summary} />
-	<meta name="twitter:description" content={summary} />
-	<meta property="og:description" content={summary} />
-
-	<!-- <meta property="og:image" content={data.featured + ''} /> -->
-	<!-- <meta name="twitter:image" content={data.featured + ''} /> -->
-
-	<!-- <meta name="twitter:site" content="@kinkyvibearg" /> -->
-	<!-- <meta name="twitter:card" content="summary_large_image" /> -->
-	<!-- <meta property="og:type" content="article" /> -->
-
-	<!-- <meta property="article:published_time" content={data.published_date?.toString()} /> -->
-	<!-- <meta property="article:modified_time" content={data.updated_date?.toString()} /> -->
-	<!-- <meta property="article:author" content={data.authors?.join(', ')} /> -->
-	<!-- <meta property="article:section" content="" /> -->
-	<!-- <meta property="article:tag" content={data.tags?.join(', ')} /> -->
 </svelte:head>
+<!-- La vista previa al compartir (docs/compartir.md): sin imagen propia, el logo. -->
+<SeoHead {title} description={summary} canonical="/" />
 
 <LDTag schema={websiteSchema} />
 <div class="profile-header h-card p-contact hidden">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { textOf, withoutComments } from './html.js';
+import { metaTags, tagsOf, textOf, withoutComments } from './html.js';
 
 describe('withoutComments', () => {
 	it('saca los comentarios (también vacíos y con «>» adentro)', () => {
@@ -16,5 +16,26 @@ describe('textOf', () => {
 	});
 	it('una etiqueta sin cerrar no deja restos', () => {
 		expect(textOf('texto<script')).toBe('texto');
+	});
+});
+
+describe('tagsOf', () => {
+	it('lee los atributos de cada etiqueta, con comillas dobles, simples o sin valor', () => {
+		const html = `<link rel="canonical" href="https://x.test/a"/><linkx rel="no"><meta name='a' content="b &amp; &quot;c&quot;" hidden>`;
+		expect(tagsOf(html, 'link')).toEqual([{ rel: 'canonical', href: 'https://x.test/a' }]);
+		expect(tagsOf(html, 'meta')).toEqual([{ name: 'a', content: 'b & "c"', hidden: '' }]);
+	});
+	it('no mira adentro de los comentarios', () => {
+		expect(tagsOf('<!-- <meta name="x" content="y"> --><meta name="z">', 'meta')).toEqual([
+			{ name: 'z' }
+		]);
+	});
+});
+
+describe('metaTags', () => {
+	it('junta los content por property o name, repetidos incluidos', () => {
+		const html =
+			'<meta property="og:url" content="1"/><meta property="og:url" content="2"/><meta name="description" content="d"/><meta charset="utf-8">';
+		expect(metaTags(html)).toEqual({ 'og:url': ['1', '2'], description: ['d'] });
 	});
 });

@@ -1,4 +1,5 @@
 <script>
+	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { userConfig } from '$lib/utils/stores.js';
 	import {
 		fetchAllPostsClient,
@@ -81,6 +82,11 @@
 <svelte:head>
 	<title>Calendario · Kinky Vibe</title>
 </svelte:head>
+<!-- La vista previa al compartir (docs/compartir.md). -->
+<SeoHead
+	title="Calendario"
+	description="Talleres, juntadas y eventos cuir, kinky y de BDSM: lo que viene, con fecha, lugar y entradas."
+/>
 
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Calendario</h1>

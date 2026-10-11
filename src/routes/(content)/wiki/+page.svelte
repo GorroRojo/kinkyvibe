@@ -1,4 +1,5 @@
 <script>
+	import SeoHead from '$lib/components/SeoHead.svelte';
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
 	import { wikiTagManager, query, searchOpen } from '$lib/utils/stores';
 	import { SearchX } from '@lucide/svelte';
@@ -101,6 +102,11 @@
 <svelte:head>
 	<title>Kinkipedia - Enciclopedia Fetichista</title>
 </svelte:head>
+<!-- La vista previa al compartir (docs/compartir.md). -->
+<SeoHead
+	title="Kinkipedia"
+	description="Enciclopedia fetichista: qué es cada práctica, rol y término del BDSM y el kink."
+/>
 <article class="content">
 	<h1>Kinkipedia</h1>
 	<p class="callout" style:--callout-color="var(--1-dark)">
