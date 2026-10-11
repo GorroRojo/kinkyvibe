@@ -12,6 +12,7 @@
 		ArrowLeft,
 		CircleCheck,
 		CircleX,
+		CloudCheck,
 		CloudUpload,
 		Ellipsis,
 		Keyboard,
@@ -46,7 +47,8 @@
 		saveDoorState,
 		undoLocal,
 		invalidTitle,
-		markRecentUndone
+		markRecentUndone,
+		doorConnectionNote
 	} from '$lib/admin/doorOffline.js';
 
 	export let data;
@@ -112,6 +114,11 @@
 
 	$: pct = counts.total ? Math.round((counts.inside / counts.total) * 100) : 0;
 	$: pending = door.queue.length;
+	$: connection = doorConnectionNote({
+		online,
+		saved: Boolean(door.savedAt),
+		savedAt: door.savedAt ? hhmm(door.savedAt) : ''
+	});
 
 	/** @param {string} text */
 	function say(text) {
@@ -728,14 +735,12 @@
 			</button>
 		</header>
 
-		{#if !online}
+		{#if !online && connection}
 			<div class="banner offline" role="status">
 				<WifiOff size={20} />
 				<span>
-					<strong>Sin conexión.</strong>
-					{door.list.length
-						? `Validando con la lista guardada (${hhmm(door.savedAt)}).`
-						: 'No hay lista guardada: no se puede validar.'}
+					<strong>{connection.title}</strong>
+					{connection.detail}
 					{#if pending}{pending} {pending === 1 ? 'ingreso' : 'ingresos'} por sincronizar.{/if}
 				</span>
 			</div>
@@ -746,6 +751,11 @@
 				<button type="button" class="link" on:click={sync} disabled={syncing}>
 					{syncing ? 'Sincronizando…' : 'Sincronizar'}
 				</button>
+			</div>
+		{:else if connection}
+			<div class="banner ready" role="status">
+				<CloudCheck size={20} />
+				<span><strong>{connection.title}</strong> {connection.detail}</span>
 			</div>
 		{/if}
 		{#each conflicts as c, i (i)}
@@ -1206,6 +1216,7 @@
 		--accent-dark: hsl(319, 100%, 35%);
 		--link: hsl(262, 100%, 82%);
 		--ok: hsl(165, 70%, 62%);
+		--ok-bg: hsl(165, 40%, 14%);
 		--warn: hsl(50, 100%, 70%);
 		--bad: hsl(330, 100%, 78%);
 		--bad-bg: hsl(325, 55%, 20%);
@@ -1298,6 +1309,14 @@
 	.banner.offline {
 		background: hsl(45, 60%, 17%);
 		color: var(--warn);
+	}
+	.banner.ready {
+		background: var(--ok-bg);
+		font-size: var(--text-xs);
+	}
+	.banner.ready :global(svg) {
+		color: var(--ok);
+		flex: none;
 	}
 	.banner.warn {
 		background: var(--bad-bg);

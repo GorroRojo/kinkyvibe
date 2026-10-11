@@ -10,7 +10,7 @@
 import { eventPlaceSchema } from './eventPlace.js';
 import { KINKYVIBE_TAG } from './propinas.js';
 import { contactItems } from './perfiles.js';
-import { DEFAULT_CONTACT_EMAIL } from './tickets.js';
+import { ORG_CONTACT_EMAIL } from './organization.js';
 
 export const SITE_URL = 'https://kinkyvibe.ar';
 export const SITE_NAME = 'Kinky Vibe';
@@ -105,7 +105,7 @@ export function organizationSchema() {
 		...organizationRef(),
 		description: SITE_DESCRIPTION,
 		logo: `${SITE_URL}/android-chrome-512x512.png`,
-		email: DEFAULT_CONTACT_EMAIL,
+		email: ORG_CONTACT_EMAIL,
 		sameAs: [...OFFICIAL_PROFILES]
 	};
 }

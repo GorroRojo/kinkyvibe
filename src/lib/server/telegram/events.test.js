@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toUpcomingEvents } from './events.js';
+import { toCardInfo, toUpcomingEvents } from './events.js';
 
 const NOW = Date.parse('2031-01-01T00:00:00Z');
 
@@ -51,5 +51,63 @@ describe('toUpcomingEvents', () => {
 				end: '2031-02-03T01:00:00-03:00'
 			}
 		]);
+	});
+});
+
+describe('toCardInfo (lo que la página pública muestra)', () => {
+	const ORIGIN = 'https://ejemplo.test';
+	const meta = {
+		postID: 'ev',
+		category: 'calendario',
+		featured: '/media/afiche-inventado.jpg',
+		location_name: 'Lugar de Prueba',
+		location: 'Calle Falsa 123',
+		location_map: 'https://www.openstreetmap.org/#map=18/-34.6/-58.4'
+	};
+
+	it('sin lugar vinculado: el «Dónde» del .md y su mapa; la imagen como URL absoluta', () => {
+		expect(toCardInfo(meta, { origin: ORIGIN })).toEqual({
+			image: 'https://ejemplo.test/media/afiche-inventado.jpg',
+			place: 'Lugar de Prueba · Calle Falsa 123',
+			mapUrl: 'https://www.openstreetmap.org/#map=18/-34.6/-58.4',
+			ticket: null
+		});
+	});
+
+	it('un lugar oculto manda: ni la dirección del .md ni el mapa', () => {
+		const info = toCardInfo(meta, { origin: ORIGIN, venue: { level: 'hidden' } });
+		expect(info.place).toBe('Lugar a confirmar');
+		expect(JSON.stringify(info)).not.toContain('Calle Falsa');
+		expect(info.mapUrl).toBeUndefined();
+	});
+
+	it('nivel «Sólo Nombre»: el nombre, sin mapa', () => {
+		const info = toCardInfo(meta, {
+			origin: ORIGIN,
+			venue: { level: 'name', name: 'Lugar Inventado', href: '/amigues/x' }
+		});
+		expect(info.place).toBe('Lugar Inventado');
+		expect(info.mapUrl).toBeUndefined();
+	});
+
+	it('si no se pudo leer el lugar, no va ningún lugar', () => {
+		const info = toCardInfo(meta, { origin: ORIGIN, venueFailed: true });
+		expect(info.place).toBeUndefined();
+		expect(info.mapUrl).toBeUndefined();
+	});
+
+	it('con entradas: el mismo estado que las tarjetas del calendario', () => {
+		const withTickets = { ...meta, tickets: [{ name: 'General' }] };
+		expect(toCardInfo(withTickets, { origin: ORIGIN, states: null }).ticket).toEqual({
+			kind: 'buy',
+			href: '/calendario/ev/entradas',
+			text: 'Comprar entradas'
+		});
+		expect(
+			toCardInfo(withTickets, {
+				origin: ORIGIN,
+				states: { ev: { open: false, reason: 'soldout', opensAt: null } }
+			}).ticket
+		).toEqual({ kind: 'note', text: 'Agotadas' });
 	});
 });

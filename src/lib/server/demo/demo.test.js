@@ -53,7 +53,7 @@ describe('startDemoSession', () => {
 			})
 		};
 	}
-	const url = new URL('https://demo.kinkyvibe.pages.dev/login/demo');
+	const url = new URL('https://demo-kinkyvibe.ejemplo.workers.dev/login/demo');
 
 	it('refuses outside previews and sets no cookie', () => {
 		const { jar, cookies } = fakeCookies();

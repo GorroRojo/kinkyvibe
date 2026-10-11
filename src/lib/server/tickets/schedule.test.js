@@ -41,14 +41,13 @@ describe('parseSaleTime', () => {
 		expect(parseSaleTime(new Date(CLOSE))).toBe(CLOSE);
 	});
 
-	it.each([
-		'2026-10-02T00:00:00.000Z',
-		'2026-10-02T00:00:00Z',
-		'2026-10-02T00:00Z'
-	])('%j (una fecha sola que pasó por JSON, como la deja mdsvex) = solo fecha', (value) => {
-		expect(parseSaleTime(value, { endOfDay: true })).toBe(Date.UTC(2026, 9, 3, 2, 59, 59, 999));
-		expect(parseSaleTime(value)).toBe(Date.UTC(2026, 9, 2, 3, 0));
-	});
+	it.each(['2026-10-02T00:00:00.000Z', '2026-10-02T00:00:00Z', '2026-10-02T00:00Z'])(
+		'%j (una fecha sola que pasó por JSON, como la deja mdsvex) = solo fecha',
+		(value) => {
+			expect(parseSaleTime(value, { endOfDay: true })).toBe(Date.UTC(2026, 9, 3, 2, 59, 59, 999));
+			expect(parseSaleTime(value)).toBe(Date.UTC(2026, 9, 2, 3, 0));
+		}
+	);
 
 	it('medianoche con otra zona u otra hora en UTC sigue siendo ese instante', () => {
 		expect(parseSaleTime('2026-10-02T00:00-03:00', { endOfDay: true })).toBe(

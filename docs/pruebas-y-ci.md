@@ -21,7 +21,7 @@ de tiempo: 15 minutos `unit` y `e2e`, 10 `typecheck`.
 
 | Job (nombre en GitHub) | Pasos, en orden                                                                                                                                                                                                                                          | Cómo reproducirlo en tu compu                                                                    |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `unit`                 | **Lint** (`npm run lint`) → **Unit + content tests** (`npx vitest run`)                                                                                                                                                                                  | `npm run lint && npx vitest run`                                                                 |
+| `unit`                 | **Lint** (`npm run lint`) → **Prettier** (`npm run format:check`) → **Unit + content tests** (`npx vitest run`)                                                                                                                                          | `npm run lint && npm run format:check && npx vitest run`                                         |
 | `e2e`                  | **Build** (`npm run build`) → **Worker bundle** (`npx wrangler deploy --dry-run --outdir .wrangler/dry-run`) → instala Chromium (o, si está en caché, solo sus librerías del sistema) → **E2E smoke tests** (`npx playwright test`, con `PW_NO_BUILD=1`) | `npm run build && PW_NO_BUILD=1 npm run test:e2e` (o solo `npm run test:e2e`, que compila antes) |
 | `typecheck`            | **svelte-check ratchet** (`node scripts/svelte-check-ratchet.js`)                                                                                                                                                                                        | `node scripts/svelte-check-ratchet.js`                                                           |
 | **`ci-ok`**            | corre siempre (`if: always()`, en `ubuntu-latest`, sin `npm ci`) y pasa solo si `unit`, `e2e` y `typecheck` terminaron bien (o se saltearon). **Es el único chequeo obligatorio**                                                                        | —                                                                                                |
@@ -61,8 +61,12 @@ Detalles de `e2e`:
 - Chromium se guarda en caché entre corridas, por versión de `@playwright/test`.
 - Si las pruebas fallan, sube `playwright-results` (capturas y trazas) como artifact por 7 días.
 
-`npm run lint` es solo ESLint: **no** revisa el formato de Prettier, y la CI tampoco. Para eso,
-`npm run format:check` (todo el repo) o `npx prettier --check docs` (solo la documentación).
+`npm run lint` es solo ESLint: **no** revisa el formato de Prettier. Eso lo hace el paso
+**Prettier** del job `unit` con `npm run format:check` (todo el repo menos lo que lista
+`.prettierignore`: los posts del CMS, `static/` y otros). Si falla, corré `npm run format` y
+commiteá el resultado. `.prettierignore` tiene además una lista **temporal** de archivos que
+todavía no tienen formato porque los tocan ramas abiertas; cuando esas ramas entran, se formatean
+y se sacan de la lista.
 La configuración está en `eslint.config.js` (formato plano; las rutas ignoradas también van ahí,
 ya no hay `.eslintrc` ni `.eslintignore`).
 
@@ -145,7 +149,7 @@ npm run lint
 npx vitest run
 npm run build
 node scripts/svelte-check-ratchet.js
-npx prettier --check docs      # si tocaste documentación
+npm run format:check          # la CI lo corre (npm run format lo arregla)
 npx playwright test -c playwright.tickets.config.js  # si tocaste entradas o el panel (la CI no lo corre)
 ```
 

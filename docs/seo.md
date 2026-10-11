@@ -14,7 +14,7 @@ guía: `compartir.md` (llega con el PR #257).
   privacidad ([amigues.md](amigues.md)) y del perfil sale solo el contacto público (decisión
   0023). Un lugar oculto no tiene dirección en ningún lado.
 - **Nada de reglas para bots de IA en `robots.txt`**: gorrite las maneja en Cloudflare.
-- `security.txt` usa el contacto público de la organización (`DEFAULT_CONTACT_EMAIL`), nunca uno
+- `security.txt` y los datos estructurados usan el contacto general de la organización (`ORG_CONTACT_EMAIL`, `src/lib/utils/organization.js`), nunca uno
   personal.
 
 ## Dónde está

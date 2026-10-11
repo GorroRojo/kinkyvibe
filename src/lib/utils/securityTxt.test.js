@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SECURITY_TXT_DAYS, securityTxt } from './securityTxt.js';
-import { DEFAULT_CONTACT_EMAIL } from './tickets.js';
+import { ORG_CONTACT_EMAIL } from './organization.js';
 import { GET } from '../../routes/.well-known/security.txt/+server.js';
 
 const NOW = Date.UTC(2031, 0, 15, 13, 45);
@@ -27,7 +27,7 @@ describe('security.txt', () => {
 
 	it('el contacto es el público de la organización, como URI', () => {
 		const contact = Object.fromEntries(fields(securityTxt({ now: NOW }))).Contact;
-		expect(contact).toBe(`mailto:${DEFAULT_CONTACT_EMAIL}`);
+		expect(contact).toBe(`mailto:${ORG_CONTACT_EMAIL}`);
 	});
 
 	it('vence a menos de un año, al principio del día', () => {

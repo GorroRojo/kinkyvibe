@@ -2,13 +2,14 @@
 	/**
 	 * Lista de preguntas de inscripción con su CSV, a qué entradas aplica cada una y cuántas
 	 * veces se pregunta, "Editar" (el mismo formulario, `?/updateField`) y "Borrar"
-	 * (`?/deleteField`). La usan las preguntas generales (Ajustes) y las de un evento.
+	 * (`?/deleteField`, con confirmación; se recupera desde Actividad). La usan las preguntas generales (Ajustes) y las de un evento.
 	 *
 	 * Props: `fields` (SignupField[]), `csvName` (nombre del archivo), `empty` (texto sin
 	 * preguntas), `canDelete` y `canEdit` (default true), `form` (lo que devolvió la acción),
 	 * `types` (los tipos de entrada del evento; vacío en las generales), `idPrefix`.
 	 */
 	import { enhance } from '$app/forms';
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import SignupFieldForm from '$lib/components/admin/SignupFieldForm.svelte';
@@ -47,7 +48,19 @@
 					<small class="kv-note">{scopeText(f, types)}</small>
 				</div>
 				{#if canDelete}
-					<form method="POST" action="?/deleteField" use:enhance>
+					<form
+						method="POST"
+						action="?/deleteField"
+						use:enhance={async ({ cancel }) => {
+							const ok = await askConfirm({
+								title: `¿Borrar la pregunta «${f.label}»?`,
+								text: 'Las respuestas que ya había quedan en las órdenes. Si te equivocás, la recuperás desde Ajustes › Actividad.',
+								confirmLabel: 'Borrar',
+								tone: 'danger'
+							});
+							if (!ok) cancel();
+						}}
+					>
 						<input type="hidden" name="id" value={f.id} />
 						<button class="kv-btn ghost small" type="submit">Borrar</button>
 					</form>

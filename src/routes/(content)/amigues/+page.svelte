@@ -1,5 +1,6 @@
 <script>
 	//@ts-nocheck
+	import ListSeoHead from '$lib/components/ListSeoHead.svelte';
 	import { ArrowRight, Globe } from '@lucide/svelte';
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	export let data;
@@ -34,6 +35,8 @@
 <svelte:head>
 	<title>Emprendimientos y profesionales · Kinky Vibe</title>
 </svelte:head>
+<!-- La vista previa al compartir (docs/compartir.md). -->
+<ListSeoHead section="amigues" card="amigues" kinds={data.kinds} />
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Profesionales y emprendimientos</h1>
 <div class="glosario">

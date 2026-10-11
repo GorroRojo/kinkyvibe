@@ -1,4 +1,6 @@
 <script>
+	import ListSeoHead from '$lib/components/ListSeoHead.svelte';
+	import { linkPreviewOf, upcomingDescription } from '$lib/utils/seo.js';
 	import { userConfig } from '$lib/utils/stores.js';
 	import {
 		fetchAllPostsClient,
@@ -77,11 +79,24 @@
 	$: month_has_past = monthHasPastEvents(calendarioPosts, view_month);
 	// En el celu primero la lista; la grilla del mes, si la piden (en la compu, siempre al lado).
 	let showGrid = false;
+	// Los textos de la vista previa (los del panel; docs/compartir.md).
+	$: previewTexts = linkPreviewOf($page.data).texts;
 </script>
 
 <svelte:head>
 	<title>Calendario · Kinky Vibe</title>
 </svelte:head>
+<!-- La vista previa al compartir (docs/compartir.md). -->
+<ListSeoHead
+	section="calendario"
+	card="calendario"
+	description={upcomingDescription(
+		data.posts,
+		previewTexts['calendario.description'],
+		Date.now(),
+		previewTexts['calendario.upcomingPrefix']
+	)}
+/>
 
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Calendario</h1>

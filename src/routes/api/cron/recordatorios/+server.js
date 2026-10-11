@@ -2,7 +2,8 @@
  * POST /api/cron/recordatorios: manda una tanda de los mails que tocan: recordatorios (ver
  * $lib/server/tickets/reminders.js) y lo que quede de cada "Enviar el link a todes" (ver
  * `runMailQueue` en $lib/server/tickets/index.js). También
- * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js). Lo llama cada 15 minutos el cron
+ * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js) y el registro automático
+ * de los comandos del bot de Telegram (ver $lib/server/telegram/commandsSync.js). Lo llama cada 15 minutos el cron
  * del Worker (src/lib/server/scheduled.js); cada corrida sigue donde quedó la anterior.
  *
  * Protegido con un secreto compartido: header `x-cron-secret` = CRON_SECRET (comparado en
@@ -16,6 +17,7 @@ import { runMailQueue, siteOrigin } from '$lib/server/tickets/index.js';
 import { MIN_CRON_SECRET_LENGTH, isValidCronSecret } from '$lib/server/cron.js';
 import { runSeriesCron } from '$lib/server/series/web.js';
 import { runSigoCron } from '$lib/server/sigo/cron.js';
+import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, platform, url, fetch }) {
@@ -44,8 +46,14 @@ export async function POST({ request, platform, url, fetch }) {
 		} catch (error) {
 			logDBError('cron lo que sigo', error);
 		}
+		// El menú «/» del bot: solo si cambió la lista y hay token. Nunca tira.
+		const telegramCommands = await syncBotCommands({
+			db,
+			token: env.TELEGRAM_BOT_TOKEN,
+			fetch
+		});
 		return json(
-			{ ...r, ...(series ? { series } : {}), ...(sigo ? { sigo } : {}) },
+			{ ...r, ...(series ? { series } : {}), ...(sigo ? { sigo } : {}), telegramCommands },
 			{ headers: { 'cache-control': 'no-store' } }
 		);
 	} catch (error) {
