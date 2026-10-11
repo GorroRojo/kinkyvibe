@@ -253,6 +253,40 @@ ser "Para revisar".
 matcher `src/params/soon.js`) que dice qué va a hacer. Cada persona puede esconderlas con «Ocultar
 lo que viene» en su menú de usuario (en el navegador, con try/catch).
 
+**Atajos de teclado** (en la compu). `/` o Ctrl/⌘+K abren el buscador, `?` la hoja de atajos y
+`g` + una letra va a una sección (`GO_SHORTCUTS` en `src/lib/admin/commands.js`; la hoja de `?`,
+las pistas del menú y los chips del buscador salen de ahí). Las letras van por frecuencia de uso
+(remapeo de «atajos visibles», a confirmar por gorrite):
+
+| Tecla | Sección          | Tecla | Sección             |
+| ----- | ---------------- | ----- | ------------------- |
+| `g i` | Inicio           | `g p` | Personas            |
+| `g e` | Eventos          | `g f` | Perfiles            |
+| `g n` | Cargar evento    | `g q` | Árbol de etiquetas  |
+| `g g` | Agenda           | `g m` | Material            |
+| `g c` | Puerta           | `g s` | Ventas en el tiempo |
+| `g v` | Todas las ventas | `g a` | Asistencia          |
+| `g t` | Transferencias   | `g w` | Visitas al sitio    |
+| `g d` | Códigos          | `g h` | Actividad           |
+
+Cómo se descubren (`src/lib/admin/shortcutHints.js`):
+
+- **Pistas en el menú**: cada sección con atajo muestra «g x» chiquito a la derecha
+  (`NavShortcut.svelte`), solo con `(hover: hover) and (pointer: fine) and (min-width: 1100px)`
+  (`HINTS_MEDIA`): nunca en el celu, la tablet ni el panel "Más". La pista es `aria-hidden`; el
+  link no lleva `aria-keyshortcuts` porque ese atributo no describe secuencias («g e» querría
+  decir «g» o «e»).
+- **Al apretar `g`** las pistas se encienden (color de acento) hasta que llega la segunda tecla, se
+  cancela o pasan 1,2 s (`goPending`, lo maneja el teclado de `SearchBox.svelte`). Dejar `g`
+  apretada no cuenta como `g g`.
+- **Entradas a la hoja de atajos**: «Atajos de teclado ?» al pie de la barra lateral y el botón
+  `?` al lado del avatar (solo con mouse), además de «Ctrl K» (⌘ K en Mac) junto al `/` del
+  buscador.
+- **Aviso de una vez** «¿Sabías que hay atajos?» (`ShortcutTip.svelte`) en la primera visita
+  desde una compu con mouse. «Ver atajos» o «Entendido» lo cierran para siempre en ese navegador
+  (localStorage `kv-panel-tip-atajos`, con try/catch). **Si cambiás las letras, subí
+  `SHORTCUT_TIP_VERSION`** para que el aviso vuelva a aparecer.
+
 **Ciclo de vida de una sección** (documentado también en `nav.js`):
 
 1. **Próximamente**: `soon: true, phase: N, soonText`.
@@ -264,15 +298,15 @@ lo que viene» en su menú de usuario (en el navegador, con try/catch).
 
 ## Dónde está el código
 
-| Qué                                 | Dónde                                                                                    |
-| ----------------------------------- | ---------------------------------------------------------------------------------------- |
-| Páginas                             | `src/routes/(authed)/admin/`                                                             |
-| Lógica del servidor del panel       | `src/lib/server/admin/` (inicio, ventas, personas, búsqueda, auditoría…)                 |
-| Lógica de entradas que usa el panel | `src/lib/server/tickets/` (`overrides.js`, `door.js`, `manual.js`, `checkin.js`…)        |
-| Quién es admin                      | `ADMINS` en `src/lib/server/auth.js` (por id numérico de GitHub); `requireAdmin`         |
-| Login con GitHub                    | `src/routes/login`, `src/routes/callback`, `src/lib/server/session.js`                   |
-| Menú, atajos, tema, borradores      | `src/lib/admin/` (`nav.js`, `navPrefs.js`, `commands.js`, `theme.js`, `draft.js`)        |
-| Componentes y estilos               | `src/lib/components/admin/` (`panel/`, `door/`, `inicio/`…), `src/lib/admin/panel*.scss` |
+| Qué                                 | Dónde                                                                                                 |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Páginas                             | `src/routes/(authed)/admin/`                                                                          |
+| Lógica del servidor del panel       | `src/lib/server/admin/` (inicio, ventas, personas, búsqueda, auditoría…)                              |
+| Lógica de entradas que usa el panel | `src/lib/server/tickets/` (`overrides.js`, `door.js`, `manual.js`, `checkin.js`…)                     |
+| Quién es admin                      | `ADMINS` en `src/lib/server/auth.js` (por id numérico de GitHub); `requireAdmin`                      |
+| Login con GitHub                    | `src/routes/login`, `src/routes/callback`, `src/lib/server/session.js`                                |
+| Menú, atajos, tema, borradores      | `src/lib/admin/` (`nav.js`, `navPrefs.js`, `commands.js`, `shortcutHints.js`, `theme.js`, `draft.js`) |
+| Componentes y estilos               | `src/lib/components/admin/` (`panel/`, `door/`, `inicio/`…), `src/lib/admin/panel*.scss`              |
 
 ## Cómo probar
 

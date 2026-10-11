@@ -131,13 +131,77 @@ describe('atajos g + letra', () => {
 		expect(new Set(GO_SHORTCUTS.map((s) => s.id)).size).toBe(GO_SHORTCUTS.length);
 		for (const s of GO_SHORTCUTS) expect(navItem(s.id)).toBeTruthy();
 	});
-	it('g i va al Inicio, g e a Eventos, g a a Actividad', () => {
+	it('g i va al Inicio, g e a Eventos, g a a Asistencia, g h a Actividad', () => {
 		expect(goShortcutHref('i')).toBe('/admin');
 		expect(goShortcutHref('e')).toBe('/admin/eventos');
-		expect(goShortcutHref('a')).toBe('/admin/ajustes/actividad');
+		expect(goShortcutHref('a')).toBe('/admin/estadisticas/asistencia');
+		expect(goShortcutHref('h')).toBe('/admin/ajustes/actividad');
 		expect(goShortcutHref('I')).toBe('/admin');
 		expect(goShortcutHref('z')).toBe(null);
 		expect(shortcutOf('inicio')).toBe('g i');
+	});
+	it('remapeo por frecuencia: cada letra va a su sección', () => {
+		expect(Object.fromEntries(GO_SHORTCUTS.map((s) => [s.key, s.id]))).toEqual({
+			i: 'inicio',
+			e: 'eventos',
+			n: 'eventos-nuevo',
+			g: 'eventos-agenda',
+			c: 'checkin',
+			v: 'entradas',
+			t: 'entradas-transferencias',
+			d: 'entradas-codigos',
+			p: 'personas',
+			f: 'amigues',
+			q: 'etiquetas',
+			m: 'material',
+			s: 'estadisticas',
+			a: 'estadisticas-asistencia',
+			w: 'estadisticas-visitas',
+			h: 'actividad'
+		});
+		expect(goShortcutHref('g')).toBe('/admin/eventos/agenda');
+		expect(goShortcutHref('f')).toBe('/admin/comunidad/perfiles');
+		expect(goShortcutHref('q')).toBe('/admin/etiquetas');
+		expect(goShortcutHref('m')).toBe('/admin/contenido/material');
+		expect(goShortcutHref('w')).toBe('/admin/estadisticas/visitas');
+	});
+	it('las secciones de todos los días tienen atajo; las que se usan poco, no', () => {
+		for (const id of [
+			'inicio',
+			'eventos',
+			'eventos-agenda',
+			'eventos-nuevo',
+			'checkin',
+			'entradas',
+			'entradas-transferencias',
+			'personas',
+			'amigues',
+			'etiquetas',
+			'material',
+			'estadisticas',
+			'estadisticas-asistencia',
+			'estadisticas-visitas'
+		]) {
+			expect(shortcutOf(id), id).toMatch(/^g [a-z]$/);
+		}
+		expect(shortcutOf('no-listadas')).toBe('');
+		expect(shortcutOf('ajustes-mails')).toBe('');
+	});
+	it('cada atajo va a una sección construida que está en el menú, en el orden del menú', () => {
+		const order = NAV.map((i) => i.id);
+		const idx = GO_SHORTCUTS.map((s) => order.indexOf(s.id));
+		expect(idx).toEqual([...idx].sort((x, y) => x - y));
+		for (const s of GO_SHORTCUTS) {
+			const item = navItem(s.id);
+			expect(item?.soon, s.id).toBe(false);
+			expect(item?.menu, s.id).not.toBe(false);
+			expect(item && navLink(item), s.id).toBeTruthy();
+		}
+	});
+	it('las teclas son una letra minúscula y no pisan / ni ?', () => {
+		for (const s of GO_SHORTCUTS) {
+			expect(s.key).toMatch(/^[a-z]$/);
+		}
 	});
 	it('la hoja de atajos marca las secciones que todavía no existen', () => {
 		const rows = goShortcutRows();

@@ -6,12 +6,14 @@
 	 * localStorage con try/catch; sin storage anda igual). Un grupo cerrado muestra la suma de sus
 	 * contadores.
 	 * Props: `active` (NavItem actual), `counts` (`data.panelCounts`), `flags` (`data.navFlags`),
-	 * `hideSoon` ("Ocultar lo que viene").
+	 * `hideSoon` ("Ocultar lo que viene"). Cada sección con atajo muestra su pista «g x»
+	 * (`NavShortcut`, solo en una compu con mouse).
 	 */
 	import { onMount } from 'svelte';
 	import { ChevronDown } from '@lucide/svelte';
 	import NavIcon from './NavIcon.svelte';
 	import NavEntry from './NavEntry.svelte';
+	import NavShortcut from './NavShortcut.svelte';
 	import {
 		NAV_GROUPS,
 		groupCount,
@@ -62,7 +64,8 @@
 			class="top"
 			class:on={active?.id === item.id}
 			href={item.href}
-			aria-current={active?.id === item.id ? 'page' : undefined}><NavIcon {item} />{item.label}</a
+			aria-current={active?.id === item.id ? 'page' : undefined}
+			><NavIcon {item} />{item.label}<NavShortcut id={item.id} /></a
 		>
 	{/each}
 	{#each [main, foot] as list, i (i)}
