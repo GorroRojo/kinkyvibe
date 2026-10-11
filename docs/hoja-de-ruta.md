@@ -20,7 +20,7 @@ PRs abiertos:
   nuevo mapa de teclas `g`.
 - #261: reserva por transferencia hasta las 20 del segundo día hábil, sin paso de confirmar.
 - #262: registrar los comandos del bot de Telegram (`setMyCommands`) desde el panel.
-- `claude/telegram-seguir-avisos`: seguir desde el bot prende los avisos por Telegram
+- #290: seguir desde el bot prende los avisos por Telegram
   ([0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)).
 
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
