@@ -452,9 +452,9 @@ const AR_OFFSET_MS = 3 * 60 * 60 * 1000;
  * - Un `Date` (algunos lectores de YAML convierten las fechas): si es medianoche UTC exacta se toma
  *   como "solo fecha".
  * - Un texto de medianoche UTC exacta con `Z` (`2026-10-02T00:00:00.000Z`): también "solo fecha".
- *   Es lo que queda de una fecha sola cuando el frontmatter pasa por JSON: mdsvex lee el YAML
- *   (las fechas solas quedan como `Date` a medianoche UTC) y lo escribe con `JSON.stringify` en el
- *   `metadata` del módulo, que es lo que lee `getEventTickets`. Sin esto, `close: 2026-10-03`
+ *   Es lo que queda de una fecha sola cuando el frontmatter pasa por JSON: mdsvex (cuando los
+ *   eventos eran .md, hasta la decisión 0032) leía el YAML (las fechas solas quedan como `Date` a
+ *   medianoche UTC) y lo escribía con `JSON.stringify`; datos importados así lo pueden tener. Sin esto, `close: 2026-10-03`
  *   cerraba el 2/10 a las 21:00 de Argentina, más de un día antes de lo documentado.
  *   Costo: alguien que quisiera cerrar justo a las 21:00 de Argentina del día anterior y lo
  *   escribiera así, en UTC, obtiene el fin del día. Es muy improbable: el editor siempre guarda
