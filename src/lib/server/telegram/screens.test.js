@@ -279,8 +279,8 @@ describe('fondoScreen', () => {
 			{ percent: 30, collected: 120000, goal: 200000, step: 10, updatedAt: NOW },
 			PRIVATE
 		);
-		expect(s.text).toContain('60 % de la meta');
-		expect(s.text).toContain('<b>30 %</b>');
+		expect(s.text).toContain('60 % de la meta');
+		expect(s.text).toContain('<b>30 %</b>');
 		expect(s.text).toMatch(/120\.000/);
 		expect(s.text).toContain('<tg-time');
 		expect(s.keyboard[0][0].url).toBe('https://fondo.kinkyvibe.ar');
@@ -293,6 +293,6 @@ describe('fondoScreen', () => {
 			PRIVATE
 		);
 		expect(stale.text).toContain('mes pasado');
-		expect(stale.text).toContain('0 % de la meta');
+		expect(stale.text).toContain('0 % de la meta');
 	});
 });

@@ -444,8 +444,8 @@ export function fondoScreen(fondo, ctx) {
 	const lines = [
 		'<b>💗 Fondo Kinky Vibe</b>',
 		'',
-		`Este mes juntamos <b>${escapeHtml(formatARS(fondo.collected))}</b> de ${escapeHtml(formatARS(fondo.goal))} (${pct} % de la meta).`,
-		`Descuento del Fondo en las entradas de eventos de Kinky Vibe: <b>${fondo.percent} %</b>.`
+		`Este mes juntamos <b>${escapeHtml(formatARS(fondo.collected))}</b> de ${escapeHtml(formatARS(fondo.goal))} (${pct} % de la meta).`,
+		`Descuento del Fondo en las entradas de eventos de Kinky Vibe: <b>${fondo.percent} %</b>.`
 	];
 	if (fondo.stale) lines.push('', 'Todavía no hay números de este mes: son los del mes pasado.');
 	if (fondo.updatedAt) {
@@ -549,7 +549,7 @@ export function followScreen(event, targets, ctx) {
 	const id = navId(event.slug);
 	const head = `<b>⭐ Seguir</b>\n\nDe «${escapeHtml(truncate(event.title, 100))}»`;
 	const text = targets.length
-		? `${head} podés seguir:\n\n` +
+		? `${head} podés seguir estas etiquetas y series (tocá una):\n\n` +
 			'Te avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, ' +
 			'prendé la columna Telegram en Mi rincón → Lo que sigo.'
 		: `${head} no hay etiquetas para seguir desde acá.`;

@@ -154,7 +154,7 @@ describe('privado', () => {
 		const d = deps();
 		const p = await planUpdate(msg('/fondo'), d);
 		expect(d.fondo).toHaveBeenCalledTimes(1);
-		expect(p?.steps[0].text).toContain('50 % de la meta');
+		expect(p?.steps[0].text).toContain('50 % de la meta');
 	});
 });
 
