@@ -8,6 +8,7 @@
 	/**@type TagID[]*/
 	$: items = $wikiTagManager.get(root).children ?? [];
 </script>
+
 {#each items as item}
 	<GlosarioItem {item} />
 {/each}

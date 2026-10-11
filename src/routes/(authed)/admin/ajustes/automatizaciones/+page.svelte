@@ -104,7 +104,7 @@
 							{/if}
 						</dl>
 						{#if a.id === 'telegram'}
-							<CommandsForm tokenOk={data.telegramTokenOk} {form} />
+							<CommandsForm tokenOk={data.telegramTokenOk} lastSync={data.commandsSync} {form} />
 						{/if}
 						{#if a.details.length}
 							<details class="tech">

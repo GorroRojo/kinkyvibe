@@ -66,6 +66,12 @@ dataset = "kinkyvibe_visitas"
 binding = "MEDIA"
 bucket_name = "kinkyvibe-media"
 
+# Transformaciones de imágenes de Cloudflare (docs/compartir.md): las miniaturas de las portadas
+# del collage de las imágenes de vista previa (`/og/…`). Cada miniatura distinta cuenta una vez
+# por mes en el cupo gratis de 5000. Las imágenes ya dibujadas se guardan en R2 (`og/…` en MEDIA).
+[images]
+binding = "IMAGES"
+
 # Previews (una por rama que no sea main): no heredan nada de producción. Usan la base de
 # prueba y el bucket de imágenes de prueba, y no tienen bucket de backups. Los secrets se cargan
 # en el panel, en «Previews Base»; las variables de texto van acá (si no, cada deploy las pisa).
@@ -89,3 +95,6 @@ migrations_dir = "migrations"
 [[previews.r2_buckets]]
 binding = "MEDIA"
 bucket_name = "kinkyvibe-media-preview"
+
+[previews.images]
+binding = "IMAGES"

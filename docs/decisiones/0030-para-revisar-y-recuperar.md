@@ -2,7 +2,8 @@
 
 - Fecha: 2026-10-09
 - Estado: Aceptada. Completa 0010 (Inicio del panel). La fila del importador de contenido la saca
-  [0032](0032-borrar-los-md.md) (ya no hay importador).
+  [0032](0032-borrar-los-md.md) (ya no hay importador). Lo que seguía permanente (preguntas de
+  inscripción, roles y notas internas) lo reemplaza 0033: ahora se recuperan.
 
 ## Contexto
 
@@ -32,7 +33,7 @@ La auditoría de unificación del panel (9/10) encontró dos cosas:
   mail de un evento («Volver a la plantilla general» o guardar todo vacío), desde «Recuperar» de
   Actividad.
 - Siguen siendo permanentes (sin «Recuperar»): las preguntas de inscripción, los roles y las notas
-  internas de una persona.
+  internas de una persona. (Reemplazado por 0033: también se recuperan.)
 
 ## Descartado
 

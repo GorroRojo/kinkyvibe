@@ -112,6 +112,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   suscripciones (30/9)
 - [0025](0025-lo-que-sigo.md): "Lo que sigo" (1/10)
 - [0029](0029-bot-de-telegram.md): Un bot de Telegram como otra vista del sitio (1/10)
+- [0034](0034-bot-seguir-y-token.md): El bot de Telegram: «Seguir» como primera acción que
+  escribe, y el webhook usa el token (11/10)
 
 ### Panel y CRM
 
@@ -119,3 +121,5 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0010](0010-panel.md): Panel: tema, formularios, Inicio y detalles (30/9)
 - [0030](0030-para-revisar-y-recuperar.md): «Para revisar» cuenta cada fila; etiquetas, series y
   mails por evento se recuperan (9/10)
+- [0033](0033-borrados-recuperables.md): Preguntas de inscripción, roles y notas internas se
+  recuperan (11/10)

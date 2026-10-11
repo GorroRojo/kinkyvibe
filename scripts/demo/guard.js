@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { SEED_BY } from '../../src/lib/server/demo/seed.js';
 import { DEMO_SLOT_KEY } from '../../src/lib/server/demo/seedEvents.js';
 import { COPY_MARK_KEY } from '../../src/lib/server/demo/realEvents.js';
+import { deployBranchFromEnv } from '../../src/lib/server/deployBranch.js';
 
 /**
  * Textos que solo están en el seed (src/lib/server/demo/seed.js, seedProfiles.js, seedEvents.js,
@@ -61,7 +62,7 @@ export function seedMarkersIn(text) {
 function main() {
 	const [cmd, file] = process.argv.slice(2);
 	if (cmd === 'bundle' && file) {
-		const branch = (process.env.WORKERS_CI_BRANCH || process.env.CF_PAGES_BRANCH || '').trim();
+		const branch = deployBranchFromEnv(process.env);
 		if (branch && branch !== 'main') {
 			console.error(`guard bundle: este build es de la rama «${branch}» (preview); no sirve.`);
 			process.exit(1);
