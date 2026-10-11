@@ -147,6 +147,47 @@ transmisión: …», sin «personal, no lo compartas».
 minutos `POST /api/cron/recordatorios`, con el header `x-cron-secret`, al sitio. El sitio decide qué mandar. Por
 defecto: 2 días antes y el mismo día a las 9:00; un evento los apaga con `recordatorios: false`.
 
+### Códigos copiables
+
+Pedido de gorrite (11/10/2026): que Gmail y el celu reconozcan el código de los mails de
+«Código para ingresar» y «Tu código para confirmar» (`src/lib/server/cuentas/email.js`), así se
+copia o se completa solo. Gmail para Android e iOS muestra un botón «Copiar código» abajo del
+asunto (desde septiembre de 2026; en la web todavía no) y, desde iOS 17 y macOS Sonoma, Safari
+ofrece el código que llegó a Mail de Apple en el campo del código.
+
+**Nadie publicó cómo los detectan.** Ni Google ni Apple tienen marcado oficial para códigos en
+mails: el marcado de Gmail (schema.org) no tiene nada para códigos, y la documentación de Apple
+sobre códigos de un solo uso habla solo de SMS. Hay dos borradores de la IETF con un encabezado
+para el código (`One-Time-Code`, de Apple, de 2023 y vencido; `OTP-Token`, de Google, de
+septiembre de 2026), pero ninguno dice que un cliente de mail lo use, así que por ahora no los
+mandamos. Lo que sigue sale de lo que se observa y de las reglas publicadas para SMS:
+
+- **6 cifras, sin letras ni separadores.** El formato de nuestros códigos ya es el más fácil de
+  reconocer (Android, para SMS, busca de 4 a 10 caracteres con al menos una cifra).
+- **«código» en el asunto**: «Tu código para entrar a Kinky Vibe» y «Tu código para confirmar en
+  Kinky Vibe».
+- **El código es lo primero del mail**, solo en su renglón y justo después de una frase con
+  «código» («Tu código para entrar a Kinky Vibe es:»), igual en el HTML (en su recuadro, en
+  monoespaciada) y en el texto plano. Va una sola vez y no hay otro número suelto cerca.
+- **El remitente es del mismo dominio que el sitio** (`kinkyvibe.ar`): Mail de Apple parece no
+  ofrecer códigos de un dominio distinto.
+- Los campos donde se escribe tienen `autocomplete="one-time-code"` e `inputmode="numeric"`.
+- **El código no va en el asunto** a propósito (se ve en las notificaciones del celu;
+  [cuentas.md](cuentas.md#código-por-mail)). Los clientes lo encuentran igual en el cuerpo.
+
+Los demás códigos no se arman así, a propósito: el de cada entrada se dicta en la puerta (y un
+mail puede tener varios), el de descuento ya está aplicado y la referencia de una transferencia
+no es un código para escribir en el sitio. Un botón «Copiar código» ahí confundiría.
+
+`email.test.js` comprueba todo esto, y `mails.text.json` el asunto y el texto plano exactos.
+
+Fuentes: [9to5Google](https://9to5google.com/2026/09/19/gmail-copy-code/) (botón de Gmail),
+[foro de desarrolladores de Apple](https://developer.apple.com/forums/thread/738690) (códigos en
+Mail, dominio), [Google, SMS User Consent](https://developers.google.com/identity/sms-retriever/user-consent/request)
+(formato de SMS), [borrador `One-Time-Code`](https://www.ietf.org/archive/id/draft-wells-origin-bound-one-time-codes-00.html),
+[borrador `OTP-Token`](https://www.ietf.org/archive/id/draft-goto-otp-token-01.html) y
+[acciones de Gmail](https://developers.google.com/workspace/gmail/markup/actions/declaring-actions).
+
 ### Mail del Fondo (tu link)
 
 fondo.kinkyvibe.ar («¿Ya sos Mecenas?», `/mi-link`) no tiene clave de Resend: le pide a este sitio
