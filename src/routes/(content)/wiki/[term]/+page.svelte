@@ -8,11 +8,8 @@
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
-	import { READING_TIME_HINT, readingTimeLabel } from '$lib/utils/readingTime.js';
 	/** @type {any} La página de la wiki (de la base) o la etiqueta sola (+page.js). */
 	export let data;
-	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
-	$: readingTime = data.html ? readingTimeLabel(data.readingMinutes) : '';
 	// Los estilos propios del texto (ya limitados al texto en el servidor). La etiqueta se arma por
 	// partes para que el preprocesador de Svelte no la tome como el bloque de estilos del componente.
 	const STYLE_TAG = 'style';
@@ -113,9 +110,6 @@
 <article class="h-entry wiki" id="title">
 	<div class="content">
 		<GlosarioItem item={data?.tag?.id ?? data?.meta?.wiki} single title />
-		{#if readingTime}
-			<p class="reading-time" title={READING_TIME_HINT}>{readingTime}</p>
-		{/if}
 		{#if data.html}
 			<!-- El texto de la wiki, de la base (src/lib/server/contenido/render.js): HTML libre con sus
 			     estilos solo adentro, o la lista corta de HTML. -->
@@ -189,11 +183,6 @@
 {/if}
 
 <style>
-	.reading-time {
-		margin-block: var(--space-2xs);
-		font-size: var(--text-sm);
-		color: var(--muted);
-	}
 	h2 {
 		text-align: center;
 		width: 100%;

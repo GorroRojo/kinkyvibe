@@ -52,12 +52,12 @@ export function readingMinutes(body, wpm = WORDS_PER_MINUTE) {
 
 /**
  * Debajo de esto el texto entra casi entero en la pantalla y «1 min de lectura» es ruido (un
- * material que es solo un link, una entrada corta de la wiki): la página no lo muestra.
+ * material que es solo un link): la página no lo muestra.
  */
 export const MIN_WORDS_TO_SHOW = 100;
 
 /**
- * Los minutos que muestra la página de un material o de la wiki: los de {@link readingMinutes} si
+ * Los minutos que muestra la página de un material: los de {@link readingMinutes} si
  * el texto tiene al menos {@link MIN_WORDS_TO_SHOW} palabras; si no, 0 (no se muestra).
  * @param {unknown} body markdown o HTML
  * @returns {number}

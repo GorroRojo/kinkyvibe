@@ -105,31 +105,6 @@ describe('/wiki/<término> desde la base', () => {
 		expect(data.content).toBeUndefined();
 	});
 
-	it('«X min de lectura»: del texto de la base, solo si es largo (idea de JorgeT10, PR #46)', async () => {
-		await seed();
-		const m = await modules();
-		// El texto de prueba es corto: no se muestra.
-		expect((await page(m, 'termino-inventado')).readingMinutes).toBe(0);
-		const long = Array.from({ length: 420 }, (_, i) => `palabra${i}`).join(' ');
-		await importTags(
-			t.db,
-			{
-				rawTags: [
-					{ id: 'root', children: ['termino inventado', 'otra inventada', 'BDSM'] },
-					{ id: 'termino inventado' },
-					{ id: 'otra inventada', description: 'Una etiqueta de prueba.' },
-					{ id: 'BDSM' }
-				],
-				wikiFiles: [{ name: 'termino-inventado', raw: WIKI.replace('Un texto de prueba', long) }]
-			},
-			{ actor: 'prueba' }
-		);
-		const m2 = await modules();
-		const data = await page(m2, 'termino-inventado');
-		// 420 palabras + «Qué es» + «que enlaza otra inventada» = 426 → 3 min.
-		expect(data.readingMinutes).toBe(3);
-	});
-
 	it('el glosario y el sitemap leen las páginas de la base', async () => {
 		await seed();
 		const m = await modules();
