@@ -25,6 +25,13 @@ describe('tagsOf', () => {
 		expect(tagsOf(html, 'link')).toEqual([{ rel: 'canonical', href: 'https://x.test/a' }]);
 		expect(tagsOf(html, 'meta')).toEqual([{ name: 'a', content: 'b & "c"', hidden: '' }]);
 	});
+	it('un «>» o un «<meta» adentro de un atributo no corta ni abre etiquetas', () => {
+		const html = `<meta name="a" content="&quot;><meta name=x>"><meta name="b">`;
+		expect(tagsOf(html, 'meta')).toEqual([
+			{ name: 'a', content: '"><meta name=x>' },
+			{ name: 'b' }
+		]);
+	});
 	it('no mira adentro de los comentarios', () => {
 		expect(tagsOf('<!-- <meta name="x" content="y"> --><meta name="z">', 'meta')).toEqual([
 			{ name: 'z' }

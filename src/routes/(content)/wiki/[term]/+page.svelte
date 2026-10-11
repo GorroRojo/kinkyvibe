@@ -9,7 +9,9 @@
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import SeoHead from '$lib/components/SeoHead.svelte';
-	import { tagDescription } from '$lib/utils/seo.js';
+	import { cardImage, tagDescription } from '$lib/utils/seo.js';
+	/** Sin imagen propia, la tarjeta de la Kinkipedia. */
+	const KINKIPEDIA_CARD = cardImage('wiki');
 	/** @type {any} La página de la wiki (de la base) o la etiqueta sola (+page.js). */
 	export let data;
 	// Los estilos propios del texto (ya limitados al texto en el servidor). La etiqueta se arma por
@@ -95,11 +97,12 @@
 	<title>{pageTitle} · Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md): la entrada de la Kinkipedia o, sin entrada,
-     la etiqueta (o la serie) con una descripción genérica. -->
+     la etiqueta (o la serie) con una descripción genérica; sin imagen, la tarjeta de la Kinkipedia. -->
 <SeoHead
 	title={pageTitle}
 	description={data?.meta?.summary || tagDescription(pageTitle)}
-	image={data?.meta?.featured}
+	image={data?.meta?.featured || KINKIPEDIA_CARD.url}
+	imageInfo={data?.meta?.featured ? undefined : KINKIPEDIA_CARD}
 	imageAlt={pageTitle}
 	type={data?.meta ? 'article' : 'website'}
 />

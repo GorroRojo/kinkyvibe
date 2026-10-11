@@ -6,6 +6,7 @@
 import { argDateTimeLong } from './dates.js';
 import { placeShort, venuePlaceMeta } from './eventPlace.js';
 import { isMediaPath } from './media.js';
+import { OG_CARDS, OG_CARD_SIZE, ogCardAlt } from './ogCards.js';
 
 export const SITE_NAME = 'Kinky Vibe';
 export const TWITTER_SITE = '@kinkyvibearg';
@@ -18,17 +19,22 @@ export const LOCALE = 'es_AR';
  */
 
 /**
- * La imagen cuando la página no tiene una propia: una tarjeta de 1200 × 630 con el logo, el nombre
- * y una frase del inicio (unos 75 KB). Está en `static/`, así que su dirección no cambia entre
- * deploys. Se arma con `node scripts/og-default/render.js` (docs/compartir.md).
+ * La imagen cuando la página no tiene una propia: una tarjeta de 1200 × 630 con el logo y la frase
+ * del sitio (src/lib/utils/ogCards.js), en `static/`, así su dirección no cambia entre deploys.
+ * Se dibuja con `node scripts/og-default/render.js` (docs/compartir.md).
  * @type {Readonly<Required<PreviewImage>>}
  */
-export const DEFAULT_IMAGE = Object.freeze({
-	url: '/og-default.png',
-	width: 1200,
-	height: 630,
-	alt: 'Logo de Kinky Vibe y el texto «Información y encuentros cuir LGTBQIA+ kinky y de BDSM. kinkyvibe.ar»'
-});
+export const DEFAULT_IMAGE = cardImage('default');
+
+/**
+ * La tarjeta de una sección (o la por defecto), con sus medidas y su texto alternativo. La
+ * dirección es relativa: {@link previewImage} la vuelve entera.
+ * @param {keyof typeof OG_CARDS} key
+ * @returns {Readonly<Required<PreviewImage>>}
+ */
+export function cardImage(key) {
+	return Object.freeze({ url: '/' + OG_CARDS[key].file, ...OG_CARD_SIZE, alt: ogCardAlt(key) });
+}
 
 /**
  * El sitio de producción: su zona de Cloudflare tiene las transformaciones de imágenes
@@ -226,4 +232,156 @@ export function seoTags({ title, description, url, image, type = 'website', noin
 	return /** @type {Array<['name' | 'property', string, string]>} */ (
 		tags.filter(([, , content]) => typeof content === 'string' && content !== '')
 	);
+}
+
+/** «a», «a y b», «a, b y c». @param {string[]} items */
+export function joinList(items) {
+	if (items.length <= 1) return items.join('');
+	return `${items.slice(0, -1).join(', ')} y ${items[items.length - 1]}`;
+}
+
+/**
+ * Los formatos de material (etiquetas hijas de «formato de material»), en el orden en que se
+ * nombran. El tipo «descargable» se suma aparte («Guía descargable»).
+ */
+export const MATERIAL_FORMATS = Object.freeze([
+	'guía',
+	'artículo',
+	'libro',
+	'fanzine',
+	'checklist',
+	'video'
+]);
+
+/**
+ * La descripción de un material: qué es (por sus etiquetas de formato y «descargable») y su
+ * resumen. «Guía descargable · Un resumen…»
+ * @param {{ tags?: string[], summary?: unknown }} meta
+ * @param {{ get(id: string): { id: string, visible_name?: string } }} [tagManager] para el nombre
+ *   que se ve de cada formato (sin árbol, el id)
+ */
+export function materialDescription(meta, tagManager) {
+	const tags = meta?.tags ?? [];
+	const format = MATERIAL_FORMATS.find((f) => tags.includes(f));
+	const name = format ? (tagManager?.get(format)?.visible_name ?? format) : '';
+	const download = tags.includes('descargable');
+	const kind = name
+		? capitalize(name) + (download ? ' descargable' : '')
+		: download
+			? 'Descargable'
+			: '';
+	return [kind, shortText(meta?.summary, Infinity)].filter(Boolean).join(' · ');
+}
+
+/**
+ * La descripción del calendario: los próximos eventos (hasta 3, por fecha), o `fallback` si no
+ * hay ninguno. Los cancelados no cuentan.
+ * @param {Array<{ meta: Record<string, any> }>} posts
+ * @param {string} fallback
+ * @param {number} [now]
+ */
+export function upcomingDescription(posts, fallback, now = Date.now()) {
+	const next = posts
+		.filter((p) => p.meta?.title && p.meta?.status !== 'cancelado')
+		.map((p) => ({ title: String(p.meta.title), at: new Date(p.meta.start).getTime() }))
+		.filter((p) => Number.isFinite(p.at) && p.at >= now)
+		.sort((a, b) => a.at - b.at)
+		.slice(0, 3)
+		.map((p) => p.title);
+	return next.length ? `Próximos eventos: ${joinList(next)}.` : fallback;
+}
+
+/**
+ * Las listas que se pueden filtrar por la dirección (`?tags=a,b&q=texto`, y `?tipo=` en
+ * Amigues): cómo se llaman y qué listan.
+ */
+export const LIST_SECTIONS = Object.freeze({
+	calendario: { title: 'Calendario', items: 'Eventos' },
+	material: { title: 'Material', items: 'Artículos y descargables' },
+	amigues: { title: 'Amigues', items: 'Profesionales y proyectos' },
+	todo: { title: 'Todo el contenido', items: 'Material, amigues y eventos' }
+});
+
+/** Cuántas etiquetas se nombran como mucho (una dirección puede traer cualquier cosa). */
+const MAX_FILTER_TAGS = 5;
+
+/**
+ * @typedef {object} ListFilters
+ * @property {Array<{ id: string, name: string }>} tags las etiquetas (alias resueltos, sin repetir)
+ * @property {string} text la búsqueda (`?q=`), en una línea
+ * @property {string | null} kind `?tipo=` si es uno de los que la lista conoce
+ * @property {string | null} kindLabel cómo se llama ese tipo («Personas»)
+ */
+
+/**
+ * Los filtros de una lista según su dirección: `?tags=` (separadas por coma; cada alias, su
+ * etiqueta; una desconocida, tal cual), `?q=` y, si la lista los tiene, `?tipo=`.
+ * @param {URL} url
+ * @param {{ get(id: string): { id: string, visible_name?: string } }} tagManager
+ * @param {{ kinds?: Readonly<Record<string, string>> }} [opts] los tipos de la lista (`KIND_FILTERS`)
+ * @returns {ListFilters}
+ */
+export function listFilters(url, tagManager, { kinds } = {}) {
+	/** @type {Map<string, string>} */
+	const tags = new Map();
+	for (const raw of (url.searchParams.get('tags') ?? '').split(',')) {
+		const slug = raw.trim();
+		if (!slug || tags.size >= MAX_FILTER_TAGS) continue;
+		const tag = tagManager.get(slug);
+		const id = tag?.id ?? slug;
+		if (!tags.has(id)) tags.set(id, String(tag?.visible_name ?? id));
+	}
+	const kind = url.searchParams.get('tipo') ?? '';
+	const known = kinds && Object.hasOwn(kinds, kind) ? kind : null;
+	return {
+		tags: [...tags].map(([id, name]) => ({ id, name })),
+		text: shortText(url.searchParams.get('q') ?? '', 60),
+		kind: known,
+		kindLabel: known && kinds ? kinds[known] : null
+	};
+}
+
+/** ¿La lista está filtrada? @param {ListFilters} f */
+export const isFiltered = (f) => f.tags.length > 0 || f.text !== '' || f.kind !== null;
+
+/**
+ * La dirección para `og:url` de una lista filtrada: la página con sus filtros normalizados (las
+ * etiquetas por su id, sin alias ni repetidas; la búsqueda en una línea) y ordenados por nombre,
+ * así el mismo filtro es siempre la misma dirección y la vista previa lo muestra. Sin filtros, la
+ * página sola.
+ * @param {URL} url
+ * @param {ListFilters} filters
+ */
+export function filteredListUrl(url, filters) {
+	/** @type {Array<[string, string]>} */
+	const params = [];
+	if (filters.text) params.push(['q', filters.text]);
+	if (filters.tags.length) params.push(['tags', filters.tags.map((t) => t.id).join(',')]);
+	if (filters.kind) params.push(['tipo', filters.kind]);
+	params.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+	const search = new URLSearchParams(params).toString().split('%2C').join(',');
+	return url.origin + url.pathname + (search ? `?${search}` : '');
+}
+
+/**
+ * Título y descripción de una lista: sin filtros, los de la sección; con filtros, los nombran.
+ * «Amigues · terapia» / «Profesionales y proyectos con la etiqueta terapia.»
+ * @param {keyof typeof LIST_SECTIONS} section
+ * @param {ListFilters} filters
+ * @param {{ title: string, description: string }} plain sin filtros
+ */
+export function listPreview(section, filters, plain) {
+	if (!isFiltered(filters)) return plain;
+	const { title, items } = LIST_SECTIONS[section];
+	const names = filters.tags.map((t) => t.name);
+	const quoted = filters.text ? `«${filters.text}»` : '';
+	const tagsPart = !names.length
+		? ''
+		: names.length === 1
+			? ` con la etiqueta ${names[0]}`
+			: ` con las etiquetas ${joinList(names)}`;
+	return {
+		title: [title, filters.kindLabel ?? '', names.join(', '), quoted].filter(Boolean).join(' · '),
+		description: `${filters.kindLabel ?? items}${tagsPart}${quoted ? ` que mencionan ${quoted}` : ''}.`
+	};
 }

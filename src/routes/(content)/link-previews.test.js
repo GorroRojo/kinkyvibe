@@ -16,6 +16,17 @@ const pageStore = writable({ url: new URL(ORIGIN + '/'), params: {}, data: {} })
 vi.mock('$app/stores', () => ({ page: pageStore }));
 vi.mock('$app/navigation', () => ({ goto: vi.fn(), afterNavigate: vi.fn() }));
 
+// Compilar las páginas lleva unos segundos: se cargan una vez acá, fuera del tiempo de cada prueba.
+await Promise.all([
+	import('./+page.svelte'),
+	import('./calendario/+page.svelte'),
+	import('./amigues/+page.svelte'),
+	import('./calendario/[event]/+page.svelte'),
+	import('./material/[post]/+page.svelte'),
+	import('./wiki/[term]/+page.svelte'),
+	import('./amigues/[profile]/+page.svelte')
+]);
+
 /** @param {string} path @param {string} [origin] */
 function at(path, origin = ORIGIN) {
 	pageStore.set({ url: new URL(origin + path), params: {}, data: { wiki: [] } });
@@ -81,11 +92,15 @@ function expectComplete(meta, head, path) {
 	for (const value of Object.values(meta)) expect(value).not.toContain('undefined');
 }
 
-/** @param {Record<string, string>} meta */
-function expectDefaultImage(meta) {
+/**
+ * La tarjeta de static/ (la por defecto o la de una sección), entera y con sus medidas.
+ * @param {Record<string, string>} meta
+ * @param {string} [file]
+ */
+function expectDefaultImage(meta, file = '/og-default.png') {
 	const image = new URL(meta['og:image']);
 	expect(image.origin).toBe(ORIGIN);
-	expect(image.pathname).toBe('/og-default.png');
+	expect(image.pathname).toBe(file);
 	expect(meta['og:image:width']).toBe('1200');
 	expect(meta['og:image:height']).toBe('630');
 	expect(meta['og:image:alt']).toBeTruthy();
@@ -105,17 +120,93 @@ describe('inicio', () => {
 });
 
 describe('calendario', () => {
-	it('website, con una descripción', async () => {
-		at('/calendario');
+	/** @param {any[]} posts */
+	async function calendarHead(posts, path = '/calendario') {
+		at(path);
 		const { default: Calendario } = await import('./calendario/+page.svelte');
-		const { head } = render(Calendario, {
-			props: { data: /** @type {any} */ ({ posts: [], ticketStates: null }) }
-		});
+		return render(Calendario, {
+			props: { data: /** @type {any} */ ({ posts, ticketStates: null }) }
+		}).head;
+	}
+
+	it('website, con su tarjeta y una frase fija si no hay próximos', async () => {
+		const head = await calendarHead([]);
 		const meta = single(head);
 		expectComplete(meta, head, '/calendario');
 		expect(meta['og:type']).toBe('website');
 		expect(meta['og:title']).toBe('Calendario');
-		expectDefaultImage(meta);
+		expect(meta['og:description']).toMatch(/^Talleres, juntadas y eventos/);
+		expectDefaultImage(meta, '/og-calendario.png');
+		expect(meta['og:image:alt']).toContain('«Calendario»');
+	});
+
+	it('con próximos eventos, los nombra', async () => {
+		/** @param {string} title @param {string} start */
+		const post = (title, start) => ({
+			path: '/calendario/' + title,
+			meta: { title, start, layout: 'calendario', category: 'calendario', tags: [], postID: title }
+		});
+		const head = await calendarHead([
+			post('Taller Inventado', '2026-10-05T20:00:00-03:00'),
+			post('Juntada de Prueba', '2026-10-03T20:00:00-03:00')
+		]);
+		expect(single(head)['og:description']).toBe(
+			'Próximos eventos: Juntada de Prueba y Taller Inventado.'
+		);
+	});
+});
+
+describe('amigues (la lista)', () => {
+	const KINDS = { persona: 'Personas', proyecto: 'Proyectos', lugar: 'Lugares' };
+	/** @param {string} path */
+	async function amiguesHead(path) {
+		at(path);
+		const { default: Amigues } = await import('./amigues/+page.svelte');
+		return render(Amigues, {
+			props: { data: /** @type {any} */ ({ posts: [], kinds: KINDS }) }
+		}).head;
+	}
+
+	it('sin filtros: su tarjeta, og:url igual a la canónica', async () => {
+		const head = await amiguesHead('/amigues');
+		const meta = single(head);
+		expectComplete(meta, head, '/amigues');
+		expectDefaultImage(meta, '/og-amigues.png');
+	});
+
+	it('con ?tags=: la etiqueta en el título y la descripción; og:url guarda el filtro y la canónica no', async () => {
+		const head = await amiguesHead('/amigues?utm_source=x&tags=terapia');
+		const meta = single(head);
+		expect(meta['og:title']).toBe('Amigues · terapia');
+		expect(meta['twitter:title']).toBe('Amigues · terapia');
+		expect(meta['og:description']).toBe('Profesionales y proyectos con la etiqueta terapia.');
+		const og = new URL(meta['og:url']);
+		expect(og.origin + og.pathname).toBe(ORIGIN + '/amigues');
+		expect([...og.searchParams]).toEqual([['tags', 'terapia']]);
+		const canon = new URL(canonical(head));
+		expect(canon.href).toBe(ORIGIN + '/amigues');
+		expect(canon.search).toBe('');
+		expectDefaultImage(meta, '/og-amigues.png');
+	});
+
+	it('?tipo= y varias etiquetas, ordenadas en og:url', async () => {
+		const meta = single(await amiguesHead('/amigues?tipo=persona&tags=terapia,clases'));
+		expect(meta['og:title']).toBe('Amigues · Personas · terapia, clases');
+		expect(meta['og:description']).toBe('Personas con las etiquetas terapia y clases.');
+		const og = new URL(meta['og:url']);
+		expect([...og.searchParams.keys()]).toEqual(['tags', 'tipo']);
+		expect(og.searchParams.get('tags')).toBe('terapia,clases');
+	});
+
+	it('lo que viene en la dirección va escapado (las comillas no cortan el atributo)', async () => {
+		const evil = '"><script>alert(1)</script>';
+		const head = await amiguesHead('/amigues?tags=' + encodeURIComponent(evil));
+		// la comilla va como &quot;: el texto queda adentro del atributo y no abre nada
+		expect(head).not.toContain('"><script>');
+		expect(tagsOf(head, 'script')).toEqual([]);
+		const meta = single(head);
+		expect(meta['og:title']).toBe('Amigues · ' + evil);
+		expect(new URL(meta['og:url']).searchParams.get('tags')).toBe(evil);
 	});
 });
 
@@ -252,7 +343,7 @@ describe('un material', () => {
 						postID: 'guia-inventada',
 						category: 'material',
 						authors: [],
-						tags: [],
+						tags: ['guía', 'descargable'],
 						summary: 'Una guía inventada para las pruebas',
 						featured: COVER
 					},
@@ -269,7 +360,7 @@ describe('un material', () => {
 		expectComplete(meta, head, '/material/guia-inventada');
 		expect(meta['og:type']).toBe('article');
 		expect(meta['og:title']).toBe('Guía Inventada');
-		expect(meta['og:description']).toBe('Una guía inventada para las pruebas');
+		expect(meta['og:description']).toBe('Guía descargable · Una guía inventada para las pruebas');
 		expect(new URL(meta['og:image']).pathname).toBe(COVER);
 		expect(meta['og:image:alt']).toBe('Tapa de la guía');
 	});
@@ -298,7 +389,7 @@ describe('la Kinkipedia', () => {
 		expect(meta['og:type']).toBe('article');
 		expect(meta['og:title']).toBe('Término Inventado');
 		expect(meta['og:description']).toBe('Un término inventado para las pruebas.');
-		expectDefaultImage(meta);
+		expectDefaultImage(meta, '/og-kinkipedia.png');
 	});
 
 	it('una etiqueta sin entrada: website, con su nombre y una descripción', async () => {

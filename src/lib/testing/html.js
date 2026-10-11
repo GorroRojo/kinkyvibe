@@ -60,50 +60,69 @@ const decodeAttr = (s) =>
 const isSeparator = (c) => c === ' ' || c === '\n' || c === '\t' || c === '/';
 
 /**
- * Los atributos de una etiqueta de apertura (lo que va entre el nombre y el `>`), leídos de a un
- * carácter: `name="valor"`, `name='valor'` o `name` solo (valor '').
+ * Los atributos de una etiqueta de apertura, leídos de a un carácter desde `start` (justo después
+ * del nombre) hasta el `>` que la cierra, que no cuenta si está entre comillas (Svelte no escapa
+ * `>` ni `<` adentro de un atributo): `name="valor"`, `name='valor'` o `name` solo (valor '').
  * @param {string} src
- * @returns {Record<string, string>}
+ * @param {number} start
+ * @returns {{ attrs: Record<string, string>, end: number }} `end`: dónde sigue el HTML
  */
-function readAttributes(src) {
+function readAttributes(src, start) {
 	/** @type {Record<string, string>} */
-	const out = {};
-	let i = 0;
+	const attrs = {};
+	let i = start;
 	while (i < src.length) {
 		while (i < src.length && isSeparator(src[i])) i++;
+		if (i >= src.length || src[i] === '>') return { attrs, end: i + 1 };
 		let name = '';
-		while (i < src.length && !isSeparator(src[i]) && src[i] !== '=') name += src[i++];
-		if (!name) break;
+		while (i < src.length && !isSeparator(src[i]) && src[i] !== '=' && src[i] !== '>') {
+			name += src[i++];
+		}
 		if (src[i] !== '=') {
-			out[name] = '';
+			attrs[name] = '';
 			continue;
 		}
 		i++;
 		const quote = src[i] === '"' || src[i] === "'" ? src[i++] : '';
 		let value = '';
-		while (i < src.length && (quote ? src[i] !== quote : !isSeparator(src[i]))) value += src[i++];
+		while (i < src.length && (quote ? src[i] !== quote : !isSeparator(src[i]) && src[i] !== '>')) {
+			value += src[i++];
+		}
 		if (quote) i++;
-		out[name] = decodeAttr(value);
+		attrs[name] = decodeAttr(value);
 	}
-	return out;
+	return { attrs, end: src.length };
 }
 
 /**
  * Los atributos de cada etiqueta `<tag …>` del HTML, en orden (sin mirar adentro de los
- * comentarios). Para leer las `<meta>` y los `<link>` del `<head>` en los tests.
+ * comentarios ni de los atributos de otras etiquetas). Para leer las `<meta>` y los `<link>` del
+ * `<head>` en los tests.
  * @param {string} html
  * @param {string} tag
  * @returns {Record<string, string>[]}
  */
 export function tagsOf(html, tag) {
-	return withoutComments(html)
-		.split(`<${tag}`)
-		.slice(1)
-		.filter((part) => part === '' || isSeparator(part[0]) || part[0] === '>')
-		.map((part) => {
-			const end = part.indexOf('>');
-			return readAttributes(end === -1 ? part : part.slice(0, end));
-		});
+	const src = withoutComments(html);
+	/** @type {Record<string, string>[]} */
+	const out = [];
+	let i = 0;
+	while (i < src.length) {
+		const lt = src.indexOf('<', i);
+		if (lt === -1) break;
+		// el nombre de la etiqueta que empieza acá
+		let j = lt + 1;
+		let name = '';
+		while (j < src.length && !isSeparator(src[j]) && src[j] !== '>') name += src[j++];
+		if (name.startsWith('/') || name === '') {
+			i = lt + 1;
+			continue;
+		}
+		const { attrs, end } = readAttributes(src, j);
+		if (name === tag) out.push(attrs);
+		i = end;
+	}
+	return out;
 }
 
 /**

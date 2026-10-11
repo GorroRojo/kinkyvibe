@@ -1,6 +1,6 @@
 <script>
 	//@ts-nocheck
-	import SeoHead from '$lib/components/SeoHead.svelte';
+	import ListSeoHead from '$lib/components/ListSeoHead.svelte';
 	import { Globe, ArrowRight } from '@lucide/svelte';
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
@@ -26,7 +26,8 @@
 	<title>Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md). -->
-<SeoHead
+<ListSeoHead
+	section="todo"
 	title="Todo el contenido"
 	description="Todo el contenido del sitio en un mismo lugar: calendario, material y amigues."
 />

@@ -1,9 +1,10 @@
 <!doctype html>
 <!--
-	La imagen por defecto de la vista previa al compartir un link (1200 × 630): la que usan las
-	páginas sin imagen propia. Se renderiza con `node scripts/og-default/render.js` a
-	static/og-default.png (ver docs/compartir.md). Colores y tipografía: los del sitio
-	(src/lib/styles/style.scss: --1, --2, --3, --1-tint, Lato).
+	Las tarjetas de la vista previa al compartir un link (1200 × 630): la por defecto y una por
+	sección. No se abre a mano: `node scripts/og-default/render.js` la carga una vez por tarjeta con
+	`?section=<nombre>&tagline=<frase>` (los textos salen de src/lib/utils/ogCards.js) y guarda cada
+	PNG en static/ (ver docs/compartir.md). Colores y tipografía: los del sitio
+	(src/lib/styles/style.scss: --1, --2, --3, --1-tint, Lato). Fondo plano: el PNG pesa poco.
 -->
 <html lang="es">
 	<head>
@@ -36,20 +37,18 @@
 				display: flex;
 				align-items: center;
 				gap: 64px;
-				padding: 0 88px;
-				/* colores planos (como las piezas de KinkyVibe): un PNG liviano, sin degradés */
+				padding: 0 80px;
 				background: var(--2);
 				color: white;
 				font-family: 'Lato', sans-serif;
-				position: relative;
 				overflow: hidden;
 			}
 			/* el círculo del logo no llega al borde del PNG: se agranda un poco y se recorta en
 			   redondo, así no queda un anillo claro alrededor */
 			.logo {
 				flex: none;
-				width: 380px;
-				height: 380px;
+				width: 360px;
+				height: 360px;
 				border-radius: 50%;
 				overflow: hidden;
 			}
@@ -60,28 +59,36 @@
 				transform: scale(1.06);
 			}
 			.text {
+				flex: 1;
+				min-width: 0;
 				display: flex;
 				flex-direction: column;
-				gap: 22px;
+				gap: 24px;
 			}
 			h1 {
 				margin: 0;
-				font-size: 104px;
+				font-size: 92px;
 				font-weight: 700;
-				line-height: 0.95;
-				letter-spacing: -1px;
+				line-height: 1;
+				color: white;
 			}
+			h1:empty {
+				display: none;
+			}
+			/* la frase se achica sola hasta entrar (render.js); arranca grande para una o dos líneas */
 			p {
 				margin: 0;
-				font-size: 34px;
-				font-weight: 400;
-				line-height: 1.3;
+				font-size: 52px;
+				font-weight: 700;
+				line-height: 1.2;
 				color: var(--1-tint);
-				max-width: 560px;
+				text-wrap: balance;
+			}
+			.with-section p {
+				font-weight: 400;
 			}
 			.site {
 				align-self: flex-start;
-				margin-top: 10px;
 				padding: 10px 26px;
 				border-radius: 999px;
 				background: var(--3);
@@ -95,11 +102,18 @@
 		<main class="card">
 			<div class="logo"><img src="../../static/android-chrome-512x512.png" alt="" /></div>
 			<div class="text">
-				<h1>Kinky Vibe</h1>
-				<!-- De la descripción del inicio (src/routes/(content)/+page.svelte). -->
-				<p>Información y encuentros cuir LGTBQIA+ kinky y de BDSM.</p>
+				<h1 id="section"></h1>
+				<p id="tagline"></p>
 				<span class="site">kinkyvibe.ar</span>
 			</div>
 		</main>
+		<script>
+			// Los textos llegan por la dirección; textContent, nunca HTML.
+			const params = new URLSearchParams(location.search);
+			const section = params.get('section') ?? '';
+			document.getElementById('section').textContent = section;
+			document.getElementById('tagline').textContent = params.get('tagline') ?? '';
+			if (section) document.querySelector('.card').classList.add('with-section');
+		</script>
 	</body>
 </html>

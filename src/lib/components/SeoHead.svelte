@@ -9,7 +9,9 @@
 	 * Props: `title`, `description`, `image` (relativa o entera; sin imagen, el logo),
 	 * `imageInfo` (medidas y texto alternativo, si se conocen), `imageAlt` (texto alternativo si
 	 * `imageInfo` no trae), `type` (`website`, `article`, `event`, `profile`), `canonical`
-	 * (relativa o entera; por defecto, la dirección de la página sin `?…`) y `noindex` (no listado).
+	 * (relativa o entera; por defecto, la dirección de la página sin `?…`), `ogUrl` (la dirección
+	 * para `og:url` si no es la canónica: una lista filtrada guarda sus filtros) y `noindex`
+	 * (no listado).
 	 */
 	import { page } from '$app/stores';
 	import { absoluteUrl, canonicalUrl, previewImage, seoTags } from '$lib/utils/seo.js';
@@ -26,13 +28,15 @@
 	export let type = 'website';
 	/** @type {string | null | undefined} */
 	export let canonical = undefined;
+	/** @type {string | null | undefined} */
+	export let ogUrl = undefined;
 	export let noindex = false;
 
 	$: url = absoluteUrl(canonical, $page.url.origin) || canonicalUrl($page.url);
 	$: tags = seoTags({
 		title,
 		description,
-		url,
+		url: absoluteUrl(ogUrl, $page.url.origin) || url,
 		image: previewImage(image, $page.url.origin, imageInfo, imageAlt),
 		type,
 		noindex

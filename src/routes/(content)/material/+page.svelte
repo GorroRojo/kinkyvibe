@@ -1,6 +1,6 @@
 <script>
 	//@ts-nocheck
-	import SeoHead from '$lib/components/SeoHead.svelte';
+	import ListSeoHead from '$lib/components/ListSeoHead.svelte';
 	export let data;
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	import PostList from '$lib/components/PostList.svelte';
@@ -16,9 +16,11 @@
 	<title>Artículos, links y descargables · Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md). -->
-<SeoHead
+<ListSeoHead
+	section="material"
+	card="material"
 	title="Artículos, links y descargables"
-	description="Textos, guías y materiales sobre BDSM y kink para leer y descargar."
+	description="Guías, artículos, fanzines y descargables sobre BDSM y kink para leer y descargar."
 />
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Artículos, links y descargables</h1>

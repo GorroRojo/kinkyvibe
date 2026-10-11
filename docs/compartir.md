@@ -24,14 +24,16 @@ de página y dónde se arma. (La **imagen para compartir** que se descarga desde
 
 ## Dónde está
 
-| Qué                                     | Dónde                                                                                    |
-| --------------------------------------- | ---------------------------------------------------------------------------------------- |
-| El componente (canónica, `og:*`, etc.)  | `src/lib/components/SeoHead.svelte`                                                      |
-| Qué etiquetas, descripción de un evento | `src/lib/utils/seo.js` (`seoTags`, `eventDescription`, `previewImage`)                   |
-| Medidas y texto alternativo de portada  | `cover` de `siteContent` (`src/lib/server/contenido/posts.js`)                           |
-| Perfiles                                | `src/lib/components/amigues/ProfileHead.svelte` (usa `SeoHead`)                          |
-| Imagen por defecto (fuente y script)    | `scripts/og-default/card.html`, `scripts/og-default/render.js` → `static/og-default.png` |
-| Pruebas                                 | `src/lib/utils/seo.test.js`, `src/routes/(content)/link-previews.test.js`                |
+| Qué                                    | Dónde                                                                                                                                                                 |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| El componente (canónica, `og:*`, etc.) | `src/lib/components/SeoHead.svelte`                                                                                                                                   |
+| Listas con filtros                     | `src/lib/components/ListSeoHead.svelte`                                                                                                                               |
+| Qué etiquetas, descripciones, filtros  | `src/lib/utils/seo.js` (`seoTags`, `eventDescription`, `materialDescription`, `upcomingDescription`, `listFilters`, `listPreview`, `filteredListUrl`, `previewImage`) |
+| Frase y tarjetas de `static/`          | `src/lib/utils/ogCards.js` (`SITE_TAGLINE`, `OG_CARDS`)                                                                                                               |
+| Medidas y texto alternativo de portada | `cover` de `siteContent` (`src/lib/server/contenido/posts.js`)                                                                                                        |
+| Perfiles                               | `src/lib/components/amigues/ProfileHead.svelte` (usa `SeoHead`)                                                                                                       |
+| Tarjetas (fuente y script)             | `scripts/og-default/card.html`, `scripts/og-default/render.js` → `static/og-*.png`                                                                                    |
+| Pruebas                                | `src/lib/utils/seo.test.js`, `src/routes/(content)/link-previews.test.js`                                                                                             |
 
 ## Qué pone cada página
 
@@ -40,39 +42,69 @@ Todas: `description`, `og:site_name` (Kinky Vibe), `og:locale` (`es_AR`), `og:ty
 `og:image:width`/`height`/`alt` cuando se saben), `twitter:card` (`summary_large_image`),
 `twitter:site`, `twitter:title`, `twitter:description`, `twitter:image` y `twitter:image:alt`.
 
-| Página                                          | `og:type` | Descripción                                             | Imagen                   |
-| ----------------------------------------------- | --------- | ------------------------------------------------------- | ------------------------ |
-| Inicio                                          | `website` | la del sitio                                            | la tarjeta por defecto   |
-| Calendario, Material, Amigues, Kinkipedia, Todo | `website` | una frase fija por sección                              | la tarjeta por defecto   |
-| Evento (`/calendario/<evento>`)                 | `event`   | «Viernes 2 de octubre de 2026, 15:00 · Lugar · resumen» | la portada (*)           |
-| Material (`/material/<post>`)                   | `article` | el resumen                                              | la portada (*)           |
-| Entrada de la Kinkipedia                        | `article` | el resumen                                              | la tarjeta por defecto   |
-| Etiqueta o serie sin entrada                    | `website` | «Material, amigues y eventos de «X» en Kinky Vibe.»     | la tarjeta por defecto   |
-| Perfil (`/amigues/<perfil>`)                    | `profile` | la bio (sin bio, «X en Amigues de Kinky Vibe.»)         | la imagen del perfil (*) |
+| Página                                            | `og:type` | Título                          | Descripción                                                               | Imagen                                            |
+| ------------------------------------------------- | --------- | ------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------- |
+| Inicio                                            | `website` | Kinky Vibe                      | la del sitio                                                              | tarjeta por defecto                               |
+| Calendario (`/calendario`)                        | `website` | Calendario                      | «Próximos eventos: A, B y C.» (sin próximos, una frase fija)              | tarjeta «Calendario»                              |
+| Material (`/material`)                            | `website` | Artículos, links y descargables | frase fija                                                                | tarjeta «Material»                                |
+| Amigues (`/amigues`)                              | `website` | Emprendimientos y profesionales | frase fija                                                                | tarjeta «Amigues»                                 |
+| Kinkipedia (`/wiki`)                              | `website` | Kinkipedia                      | frase fija                                                                | tarjeta «Kinkipedia»                              |
+| Todo (`/todo`)                                    | `website` | Todo el contenido               | frase fija                                                                | tarjeta por defecto                               |
+| Evento (`/calendario/<evento>`)                   | `event`   | el título                       | «Viernes 2 de octubre de 2026, 15:00 · Lugar · resumen»                   | la portada (*) o la tarjeta por defecto           |
+| Material (`/material/<post>`)                     | `article` | el título                       | «Guía descargable · resumen» (formato y «descargable», por sus etiquetas) | la portada (*) o la tarjeta por defecto           |
+| Entrada de la Kinkipedia (`/wiki/<entrada>`)      | `article` | el título                       | el resumen                                                                | tarjeta «Kinkipedia»                              |
+| Etiqueta o serie sin entrada (`/wiki/<etiqueta>`) | `website` | el nombre                       | «Material, amigues y eventos de «X» en Kinky Vibe.»                       | tarjeta «Kinkipedia»                              |
+| Perfil (`/amigues/<perfil>`)                      | `profile` | el nombre                       | la bio (sin bio, «X en Amigues de Kinky Vibe.»)                           | la imagen del perfil (*) o la tarjeta por defecto |
 
 - La fecha del evento va a la argentina con `argDateTimeLong` (`dates.js`), como «Cuándo y dónde».
   Un evento cancelado empieza con «Cancelado ·». La descripción se corta en 200 caracteres.
+- El material no tiene subtipos propios: qué es sale de sus etiquetas de «formato de material»
+  (guía, artículo, libro, fanzine, checklist, video) y de «descargable» (`MATERIAL_FORMATS`).
 - La portada de la biblioteca trae sus medidas y su texto alternativo; una imagen vieja del repo,
   no (sin `og:image:width`, y el título como texto alternativo).
-- Sin imagen, la tarjeta por defecto (abajo).
 - (*) En producción, una portada pesada va achicada por Cloudflare (abajo).
 
-## La imagen por defecto
+## Listas filtradas
 
-`static/og-default.png`: 1200 × 630, unos 75 KB, con el logo, «Kinky Vibe», una frase de la
-descripción del inicio y `kinkyvibe.ar`, en los colores (`--1`, `--2`, `--3`, `--1-tint`) y la
-tipografía (Lato) del sitio. Fondo plano, sin degradés: así el PNG pesa poco. Se arma desde
-`scripts/og-default/card.html` con Playwright:
+gorrite comparte links como `/amigues?tags=terapia`. Las listas (Calendario, Material, Amigues y
+Todo; la Kinkipedia no filtra por la dirección) leen sus filtros (`?tags=a,b`, `?q=texto` y, en
+Amigues, `?tipo=persona|proyecto|lugar`) y la vista previa los nombra:
+
+- título: «Amigues · terapia», «Amigues · Personas · terapia, clases», «Material · «sogas»»;
+- descripción: «Profesionales y proyectos con la etiqueta terapia.», «Eventos con las etiquetas
+  A y B.», «Lugares que mencionan «sogas».»;
+- cada etiqueta con su nombre visible y los alias resueltos (el árbol de la base); una que no
+  existe va tal cual; como mucho 5. Todo va escapado (Svelte escapa los atributos).
+- **`og:url` guarda los filtros**, normalizados (cada etiqueta por su id, sin alias ni repetidas;
+  la búsqueda en una línea) y ordenados por nombre (`filteredListUrl`): Facebook y WhatsApp toman
+  `og:url` como la dirección de la tarjeta, y si fuera la lista sin filtros mostrarían esa. Lo que
+  no es un filtro (`utm_*`, `viewdate` del calendario) no va.
+- **La canónica, no**: para los buscadores la lista filtrada es la misma página que la lista (si no,
+  serían miles de páginas casi iguales).
+- Estas páginas no se prerenderizan (se arman en cada pedido, ver `+page.server.js`), así que el
+  servidor ve los filtros y no hace falta nada más. Los `load` no leen `url` (para no volver a
+  correr con cada filtro); la vista previa lo lee en el componente.
+
+## Las tarjetas (por defecto y por sección)
+
+`static/og-default.png` y una por sección (`og-calendario.png`, `og-material.png`,
+`og-amigues.png`, `og-kinkipedia.png`): 1200 × 630, entre 70 y 80 KB, con el logo, el nombre de la
+sección (la por defecto no lleva: el logo ya dice Kinky Vibe), la frase del sitio y
+`kinkyvibe.ar`, en los colores (`--1`, `--2`, `--3`, `--1-tint`) y la tipografía (Lato) del sitio.
+Fondo plano, sin degradés: así el PNG pesa poco.
+
+La frase es `SITE_TAGLINE` en `src/lib/utils/ogCards.js` (la oficial de gorrite: «Educación
+crítica, cultura transformativa, y comunidad disidente.»). Se achica sola si es larga; con una o
+dos líneas queda grande. Para cambiarla, o sumar una sección (`OG_CARDS`):
 
 ```sh
-node scripts/og-default/render.js   # escribe static/og-default.png y dice cuánto pesa
+node scripts/og-default/render.js   # dibuja todas en static/ y dice cuánto pesa cada una
 # si los navegadores de Playwright están en otra carpeta:
 PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/og-default/render.js
 ```
 
-Que quede por debajo de unos 200 KB. Si cambia el tamaño, cambiá también `DEFAULT_IMAGE` en
-`src/lib/utils/seo.js`. Como la dirección no cambia, las apps que ya guardaron la vieja la
-siguen mostrando un tiempo.
+El script falla si alguna pasa de 150 KB. Commiteá los PNG. Como las direcciones no cambian, las
+apps que ya guardaron una vieja la siguen mostrando un tiempo.
 
 ## Imágenes y WhatsApp
 
@@ -101,7 +133,7 @@ Cloudflare: `https://kinkyvibe.ar/cdn-cgi/image/width=800,format=jpeg,quality=80
   mes. Con unas 200 portadas (y solo las pesadas se transforman) queda lejos. Pasado el cupo, las
   nuevas dan error 9422 (sin cobrar) y `onerror=redirect` manda a la original.
   Fuente: <https://developers.cloudflare.com/images/pricing/>.
-- La tarjeta por defecto y las imágenes viejas del repo (`/_app/immutable/…`) van tal cual.
+- Las tarjetas y las imágenes viejas del repo (`/_app/immutable/…`) van tal cual.
 
 ## Cómo probar
 

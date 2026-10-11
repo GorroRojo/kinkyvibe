@@ -15,6 +15,8 @@
 	import { page } from '$app/stores';
 	import { argDateLong } from '$lib/utils/dates.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { materialDescription } from '$lib/utils/seo.js';
+	import { tagManager } from '$lib/utils/stores.js';
 	export let data;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
@@ -67,10 +69,10 @@
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
-<!-- La vista previa al compartir (docs/compartir.md). -->
+<!-- La vista previa al compartir (docs/compartir.md): «Guía descargable · resumen». -->
 <SeoHead
 	title={data.meta.title}
-	description={data.meta.summary}
+	description={materialDescription(data.meta, $tagManager)}
 	image={data.meta.featured}
 	imageInfo={data.cover}
 	imageAlt={data.meta.title}

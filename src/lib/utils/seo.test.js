@@ -3,6 +3,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { venueView } from './venues.js';
+import { tagsFactory } from './tags.js';
+import { OG_CARDS, SITE_TAGLINE } from './ogCards.js';
 import {
 	DEFAULT_IMAGE,
 	DESCRIPTION_MAX,
@@ -10,6 +12,14 @@ import {
 	canonicalUrl,
 	eventDescription,
 	SMALL_IMAGE_BYTES,
+	cardImage,
+	filteredListUrl,
+	isFiltered,
+	joinList,
+	listFilters,
+	listPreview,
+	materialDescription,
+	upcomingDescription,
 	previewImage,
 	resizedImageUrl,
 	resizedSize,
@@ -232,6 +242,200 @@ describe('achicar portadas grandes en producción', () => {
 	it('la imagen por defecto nunca se achica', () => {
 		const img = previewImage(undefined, PROD);
 		expect(new URL(img.url).pathname).toBe(DEFAULT_IMAGE.url);
+	});
+});
+
+/** Un árbol de etiquetas inventado: una con nombre visible distinto y un alias. */
+const TAGS = tagsFactory(
+	/** @type {any} */ ([
+		{ id: 'terapia' },
+		{ id: 'cuerdas', visible_name: 'Cuerdas y nudos' },
+		{ id: 'sogas', aliasOf: 'cuerdas' },
+		{ id: 'guía' },
+		{ id: 'descargable' }
+	])
+);
+const KINDS = { persona: 'Personas', proyecto: 'Proyectos', lugar: 'Lugares' };
+/** @param {string} search */
+const at = (search) => new URL('https://sitio.test/amigues' + search);
+
+describe('listFilters', () => {
+	it('sin filtros', () => {
+		const f = listFilters(at(''), TAGS, { kinds: KINDS });
+		expect(f).toEqual({ tags: [], text: '', kind: null, kindLabel: null });
+		expect(isFiltered(f)).toBe(false);
+	});
+
+	it('una etiqueta, con su nombre visible', () => {
+		expect(listFilters(at('?tags=cuerdas'), TAGS).tags).toEqual([
+			{ id: 'cuerdas', name: 'Cuerdas y nudos' }
+		]);
+	});
+
+	it('un alias es su etiqueta, y no se repite', () => {
+		expect(listFilters(at('?tags=sogas,cuerdas'), TAGS).tags).toEqual([
+			{ id: 'cuerdas', name: 'Cuerdas y nudos' }
+		]);
+	});
+
+	it('varias etiquetas, en el orden de la dirección', () => {
+		expect(listFilters(at('?tags=terapia,%20sogas'), TAGS).tags.map((t) => t.id)).toEqual([
+			'terapia',
+			'cuerdas'
+		]);
+	});
+
+	it('una etiqueta desconocida va tal cual', () => {
+		expect(listFilters(at('?tags=no-existe'), TAGS).tags).toEqual([
+			{ id: 'no-existe', name: 'no-existe' }
+		]);
+	});
+
+	it('como mucho 5 etiquetas', () => {
+		expect(listFilters(at('?tags=a,b,c,d,e,f,g'), TAGS).tags).toHaveLength(5);
+	});
+
+	it('?tipo= solo si la lista lo conoce; ?q= en una línea', () => {
+		const f = listFilters(at('?tipo=persona&q=%20cuerdas%0A%20rojas%20'), TAGS, { kinds: KINDS });
+		expect(f).toMatchObject({ kind: 'persona', kindLabel: 'Personas', text: 'cuerdas rojas' });
+		expect(listFilters(at('?tipo=otra'), TAGS, { kinds: KINDS }).kind).toBeNull();
+		expect(listFilters(at('?tipo=persona'), TAGS).kind).toBeNull();
+		expect(listFilters(at('?tipo=toString'), TAGS, { kinds: KINDS }).kind).toBeNull();
+	});
+});
+
+describe('filteredListUrl', () => {
+	it('sin filtros, la página sola', () => {
+		const url = at('?viewdate=2026-10&utm_source=x');
+		expect(filteredListUrl(url, listFilters(url, TAGS))).toBe('https://sitio.test/amigues');
+	});
+
+	it('los filtros normalizados (alias → etiqueta, sin repetir) y ordenados por nombre', () => {
+		const url = at('?tipo=persona&tags=sogas,terapia,cuerdas&utm_source=x&q=%20nudos%20');
+		const out = new URL(filteredListUrl(url, listFilters(url, TAGS, { kinds: KINDS })));
+		expect(out.origin + out.pathname).toBe('https://sitio.test/amigues');
+		expect([...out.searchParams.keys()]).toEqual(['q', 'tags', 'tipo']);
+		expect(out.searchParams.get('tags')).toBe('cuerdas,terapia');
+		expect(out.searchParams.get('q')).toBe('nudos');
+		expect(out.searchParams.get('tipo')).toBe('persona');
+		expect(out.searchParams.has('utm_source')).toBe(false);
+		// la coma queda legible, como la escribe la lista (writeSearchParams)
+		expect(out.search).toBe('?q=nudos&tags=cuerdas,terapia&tipo=persona');
+	});
+
+	it('lo raro de una etiqueta va codificado', () => {
+		const url = at('?tags=' + encodeURIComponent('a&b=c'));
+		const out = new URL(filteredListUrl(url, listFilters(url, TAGS)));
+		expect(out.searchParams.get('tags')).toBe('a&b=c');
+		expect([...out.searchParams.keys()]).toEqual(['tags']);
+	});
+});
+
+describe('listPreview', () => {
+	const plain = { title: 'Amigues', description: 'Sin filtros.' };
+
+	it('sin filtros, el de la sección', () => {
+		expect(listPreview('amigues', listFilters(at(''), TAGS), plain)).toBe(plain);
+	});
+
+	it('una etiqueta', () => {
+		expect(listPreview('amigues', listFilters(at('?tags=terapia'), TAGS), plain)).toEqual({
+			title: 'Amigues · terapia',
+			description: 'Profesionales y proyectos con la etiqueta terapia.'
+		});
+	});
+
+	it('varias etiquetas, con el nombre visible y el alias resuelto', () => {
+		expect(listPreview('calendario', listFilters(at('?tags=terapia,sogas'), TAGS), plain)).toEqual({
+			title: 'Calendario · terapia, Cuerdas y nudos',
+			description: 'Eventos con las etiquetas terapia y Cuerdas y nudos.'
+		});
+	});
+
+	it('tipo y búsqueda', () => {
+		const f = listFilters(at('?tipo=lugar&q=sogas'), TAGS, { kinds: KINDS });
+		expect(listPreview('amigues', f, plain)).toEqual({
+			title: 'Amigues · Lugares · «sogas»',
+			description: 'Lugares que mencionan «sogas».'
+		});
+	});
+
+	it('una etiqueta desconocida, tal cual', () => {
+		expect(listPreview('material', listFilters(at('?tags=xyz'), TAGS), plain).title).toBe(
+			'Material · xyz'
+		);
+	});
+});
+
+describe('materialDescription', () => {
+	it('formato, «descargable» y el resumen', () => {
+		expect(
+			materialDescription({ tags: ['guía', 'descargable'], summary: 'Una guía inventada.' }, TAGS)
+		).toBe('Guía descargable · Una guía inventada.');
+		expect(materialDescription({ tags: ['descargable'], summary: 'Algo.' })).toBe(
+			'Descargable · Algo.'
+		);
+		expect(materialDescription({ tags: ['web'], summary: 'Solo el resumen.' })).toBe(
+			'Solo el resumen.'
+		);
+	});
+});
+
+describe('upcomingDescription', () => {
+	const now = new Date('2026-10-10T12:00:00-03:00').getTime();
+	/** @param {string} title @param {string} start @param {string} [status] */
+	const post = (title, start, status) => ({ meta: { title, start, status } });
+
+	it('los próximos 3, por fecha, sin los pasados ni los cancelados', () => {
+		const posts = [
+			post('Cuarto', '2026-10-30T20:00:00-03:00'),
+			post('Pasado', '2026-10-01T20:00:00-03:00'),
+			post('Segundo', '2026-10-15T20:00:00-03:00'),
+			post('Cancelado', '2026-10-11T20:00:00-03:00', 'cancelado'),
+			post('Primero', '2026-10-12T20:00:00-03:00'),
+			post('Tercero', '2026-10-20T20:00:00-03:00')
+		];
+		expect(upcomingDescription(posts, 'nada', now)).toBe(
+			'Próximos eventos: Primero, Segundo y Tercero.'
+		);
+	});
+
+	it('sin próximos, la frase fija', () => {
+		expect(upcomingDescription([post('Pasado', '2026-10-01')], 'Frase fija.', now)).toBe(
+			'Frase fija.'
+		);
+	});
+});
+
+describe('las tarjetas', () => {
+	it('la por defecto y la de cada sección: 1200 × 630, con la frase en el texto alternativo', () => {
+		for (const key of /** @type {const} */ ([
+			'default',
+			'calendario',
+			'material',
+			'amigues',
+			'wiki'
+		])) {
+			const card = cardImage(key);
+			expect(card.url).toBe('/' + OG_CARDS[key].file);
+			expect(card).toMatchObject({ width: 1200, height: 630 });
+			expect(card.alt).toContain(SITE_TAGLINE);
+			if (OG_CARDS[key].name) expect(card.alt).toContain(`«${OG_CARDS[key].name}»`);
+		}
+		expect(DEFAULT_IMAGE).toEqual(cardImage('default'));
+	});
+
+	it('la frase oficial, tal cual', () => {
+		expect(SITE_TAGLINE).toBe('Educación crítica, cultura transformativa, y comunidad disidente.');
+	});
+
+	it('joinList', () => {
+		expect([
+			joinList([]),
+			joinList(['a']),
+			joinList(['a', 'b']),
+			joinList(['a', 'b', 'c'])
+		]).toEqual(['', 'a', 'a y b', 'a, b y c']);
 	});
 });
 
