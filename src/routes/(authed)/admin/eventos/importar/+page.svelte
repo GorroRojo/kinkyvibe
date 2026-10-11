@@ -5,6 +5,7 @@
 	import ChipCombobox from '$lib/components/admin/ChipCombobox.svelte';
 	import TicketsEditor from '$lib/components/admin/TicketsEditor.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
+	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
 	import '$lib/components/admin/admin.scss';
 	import { formatARS } from '$lib/utils/money.js';
 	import { searchSources, sourceDetail, sourceLabel } from '$lib/utils/sourcePicker.js';
@@ -569,7 +570,13 @@
 
 	/** @param {number} n @param {string} one @param {string} many */
 	const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+	// Lo pegado y lo revisado se pierde al salir (no hay borrador): avisar antes. Al terminar de
+	// guardar, `finish` vacía la planilla y deja de haber cambios.
+	$: unsaved = text.trim() !== '' || items.length > 0;
 </script>
+
+<UnsavedChanges dirty={unsaved} saving={submitting} />
 
 <svelte:head>
 	<title>Importar desde la planilla · KV Admin</title>

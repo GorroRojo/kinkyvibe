@@ -66,7 +66,10 @@ personas:
 - Roles fijos (código, `FIXED_ROLES` en `src/lib/utils/personas.js`): Autore, Traductore, Organiza,
   Produce, Facilita, Monitorea, Enseña, Fotografía, Diseño. Les admins suman más en Eventos →
   Roles y preguntas (tabla `persona_roles`). Sacar uno no toca los `.md`: se sigue mostrando
-  como está escrito, y el editor avisa al guardar.
+  como está escrito, y el editor avisa al guardar. Sacar es un borrado suave (`deleted_at`,
+  migración 0049; decisión [0033](decisiones/0033-borrados-recuperables.md)): pide confirmar, se
+  recupera desde «Recuperar» de Actividad y agregarlo de nuevo con el mismo nombre también lo
+  vuelve.
 - **Una sola sección «Personas»** (pedido de gorrite): «Organizan» / «Autores» y «Personas» se
   editan juntas al crear un evento, al editarlo, en material y en la wiki. Un buscador como el de
   «Organizan» (fichas de amigues, perfiles de la base o un nombre libre → «Agregar») y cada persona
@@ -118,9 +121,17 @@ personas:
 
 | Tabla                  | Qué guarda                                                                 |
 | ---------------------- | -------------------------------------------------------------------------- |
-| `signup_fields`        | cada pregunta; `event_slug` NULL = general                                 |
+| `signup_fields`        | cada pregunta; `event_slug` NULL = general; `deleted_at` = borrada (0049)  |
 | `event_signup_general` | qué generales usa cada evento                                              |
 | `order_answers`        | las respuestas de cada orden (JSON `[{ id, label, value }]`), con la orden |
+
+**Borrar se recupera (migración 0049, decisión
+[0033](decisiones/0033-borrados-recuperables.md)).** «Borrar» pide confirmar y marca `deleted_at`:
+la pregunta deja de verse en las listas, en lo que pregunta la compra y en lo elegido por cada
+evento, y se recupera desde «Recuperar» de Actividad. Las respuestas no se tocan (siguen en Órdenes
+y su CSV, en una columna después de las preguntas actuales). Lo que eligió cada evento de una
+general queda guardado (elegir de nuevo las generales no lo pisa) y vuelve con ella. Las borradas no
+cuentan para el tope, pero recuperar una no lo pasa.
 
 **Alcance y edición (migración 0026).** Cada pregunta se puede **editar** (texto, tipo, opciones,
 obligatoria y alcance) en vez de borrarla y crearla de nuevo; las respuestas ya guardadas quedan

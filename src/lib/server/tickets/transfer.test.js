@@ -2,11 +2,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { buildTicketEmail, buildTransferEmail } from './email.js';
 import { createDiscountCode, listDiscountCodes } from './discounts.js';
+import { transferDeadline } from '$lib/utils/transferDeadline.js';
+import { textOf } from '$lib/testing/html.js';
 import {
-	TRANSFER_HOLD_MS,
-	TRANSFER_INITIAL_HOLD_MS,
 	applyPayment,
-	extendTransferHold,
 	cancelTransfer,
 	checkIn,
 	confirmTransfer,
@@ -34,6 +33,11 @@ beforeEach(async () => {
 const EVENT = 'fiesta-de-prueba';
 const ANTICIPADA = { id: 'anticipada', price: 5000, capacity: 3 };
 const NOW = Date.parse('2026-10-01T12:00:00Z');
+/**
+ * Una reserva fija de prueba (48 h) para los tests del cupo y los vencimientos, que no dependen de
+ * la regla de los días hábiles (esa está en «la reserva vence según los días hábiles»).
+ */
+const TRANSFER_HOLD_MS = 48 * 60 * 60 * 1000;
 
 /** @param {number} n */
 function people(n) {
@@ -55,7 +59,6 @@ async function transfer(o = {}) {
 		method: 'transferencia',
 		discount: o.discount,
 		now: o.now ?? NOW,
-		// La reserva completa (la que queda al confirmarla desde el mail); ver los tests de abajo.
 		holdMs: 'holdMs' in o ? o.holdMs : TRANSFER_HOLD_MS
 	});
 	return r;
@@ -73,29 +76,32 @@ function confirm(orderId, o = {}) {
 	});
 }
 
-describe('reserva inicial corta y confirmación desde el mail', () => {
-	it('sin holdMs la reserva es la inicial; confirmarla la extiende a la completa (una vez, si sigue vigente)', async () => {
+describe('la reserva vence según los días hábiles (decisión 0031)', () => {
+	it('sin holdMs, vence a las 20:00 del segundo día hábil después del día de la compra', async () => {
+		// Jueves 1/10 09:00 en Argentina → viernes 2, sábado 3 a las 20:00.
 		const r = /** @type {any} */ (await transfer({ holdMs: undefined }));
-		expect(r.order.expires_at).toBe(NOW + TRANSFER_INITIAL_HOLD_MS);
-		expect(TRANSFER_INITIAL_HOLD_MS).toBeLessThan(TRANSFER_HOLD_MS);
-		const extended = await extendTransferHold(t.db, r.order.id, TRANSFER_HOLD_MS, NOW + 1000);
-		expect(extended?.expires_at).toBe(NOW + TRANSFER_HOLD_MS);
-		// Repetir no la corre más.
-		expect(
-			(await extendTransferHold(t.db, r.order.id, TRANSFER_HOLD_MS, NOW + 5000))?.expires_at
-		).toBe(NOW + TRANSFER_HOLD_MS);
+		expect(r.order.expires_at).toBe(Date.parse('2026-10-03T20:00-03:00'));
+		expect(r.order.expires_at).toBe(transferDeadline(NOW));
+		// Viernes → martes (el domingo y el lunes no cuentan).
+		const friday = Date.parse('2026-10-02T15:00-03:00');
+		const f = /** @type {any} */ (await transfer({ holdMs: undefined, quantity: 1, now: friday }));
+		expect(f.order.expires_at).toBe(Date.parse('2026-10-06T20:00-03:00'));
 	});
 
-	it('una reserva ya vencida no se puede confirmar', async () => {
-		const r = /** @type {any} */ (await transfer({ holdMs: undefined }));
-		expect(
-			await extendTransferHold(t.db, r.order.id, TRANSFER_HOLD_MS, NOW + TRANSFER_INITIAL_HOLD_MS)
-		).toBeNull();
+	it('vencida la reserva, el lugar se libera', async () => {
+		const r = /** @type {any} */ (await transfer({ holdMs: undefined, quantity: 3 }));
+		const deadline = transferDeadline(NOW);
+		expect(await transfer({ quantity: 1, now: deadline - 1 })).toMatchObject({
+			ok: false,
+			reason: 'soldout'
+		});
+		expect((await transfer({ quantity: 1, now: deadline })).ok).toBe(true);
+		expect((await getOrder(t.db, r.order.id))?.status).toBe('expired');
 	});
 
-	it('el link de confirmación va firmado: otra orden u otra firma no sirven', async () => {
-		const { confirmToken, verifyConfirmToken, confirmUrl } = await import('./safeguards.js');
-		const a = /** @type {any} */ (await transfer({ holdMs: undefined })).order.id;
+	it('el link firmado de los mails viejos sigue verificándose: otra orden u otra firma no sirven', async () => {
+		const { confirmToken, verifyConfirmToken } = await import('./safeguards.js');
+		const a = /** @type {any} */ (await transfer()).order.id;
 		const b = crypto.randomUUID();
 		const tokenA = await confirmToken(t.db, a);
 		expect(tokenA).toMatch(/^[A-Za-z0-9_-]{32}$/);
@@ -110,12 +116,9 @@ describe('reserva inicial corta y confirmación desde el mail', () => {
 			)
 		).toBe(false);
 		expect(await verifyConfirmToken(t.db, a, '')).toBe(false);
-		expect(await confirmUrl(t.db, 'https://kinkyvibe.ar', a)).toBe(
-			`https://kinkyvibe.ar/entradas/${a}/confirmar?k=${tokenA}`
-		);
 	});
 
-	it('el mail pide confirmar la reserva, con el link', async () => {
+	it('el mail dice hasta cuándo se guarda el lugar, con la fecha exacta, y no pide confirmar nada', async () => {
 		const order = /** @type {any} */ (await transfer({ holdMs: undefined })).order;
 		const m = buildTransferEmail({
 			order,
@@ -123,19 +126,29 @@ describe('reserva inicial corta y confirmación desde el mail', () => {
 			typeName: 'Anticipada',
 			transferInfo: 'Alias: EJEMPLO',
 			contactEmail: 'contacto@example.com',
-			origin: 'https://kinkyvibe.ar',
-			confirmUrl: 'https://kinkyvibe.ar/entradas/x/confirmar?k=abc',
-			fullHoldHours: 48
+			origin: 'https://kinkyvibe.ar'
 		});
-		expect(m.html).toContain('Confirmá tu reserva');
-		expect(m.html).toContain('href="https://kinkyvibe.ar/entradas/x/confirmar?k=abc"');
-		expect(m.text).toContain('48 horas: https://kinkyvibe.ar/entradas/x/confirmar?k=abc');
-		expect(m.text).toContain('se libera a las 2 horas');
+		const hold =
+			'Te guardamos el lugar hasta el sábado 3 de octubre a las 20:00 (hora de Argentina y Uruguay). Transferí y mandanos el comprobante antes de esa hora; si no llega, la reserva se libera.';
+		expect(m.text).toContain(hold);
+		expect(textOf(m.html).replace(/\s+/g, ' ')).toContain(hold);
+		for (const body of [m.text, textOf(m.html)]) {
+			expect(body).not.toMatch(/confirm(á|ar) (tu|mi) reserva/i);
+			expect(body).not.toMatch(/\d+ horas?\b/);
+			expect(body).not.toContain('antes de esa fecha');
+		}
+		// Ningún link lleva a /confirmar; el botón lleva al estado de la compra.
+		const hrefs = m.html
+			.split('href="')
+			.slice(1)
+			.map((part) => new URL(part.slice(0, part.indexOf('"')).replaceAll('&amp;', '&')));
+		expect(hrefs.some((u) => u.pathname.endsWith('/confirmar'))).toBe(false);
+		expect(hrefs.map((u) => u.pathname)).toContain(`/entradas/${order.id}/estado`);
 	});
 });
 
 describe('transferencia', () => {
-	it('reserva cupo con estado awaiting_transfer y la reserva larga (48 h)', async () => {
+	it('reserva cupo con estado awaiting_transfer y la reserva que se le pasa', async () => {
 		const r = await transfer();
 		expect(r.ok).toBe(true);
 		const order = /** @type {any} */ (r).order;
@@ -145,7 +158,6 @@ describe('transferencia', () => {
 			total: 10000,
 			expires_at: NOW + TRANSFER_HOLD_MS
 		});
-		expect(TRANSFER_HOLD_MS).toBe(48 * 60 * 60 * 1000);
 		expect((await getCounts(t.db, EVENT, NOW)).get('anticipada')).toMatchObject({
 			held: 2,
 			sold: 0

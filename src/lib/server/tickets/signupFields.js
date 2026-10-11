@@ -9,6 +9,10 @@
  *   les organizadores; ver src/lib/server/personas/organiza.js). Se
  *   escriben en la MISMA tanda que la orden (reserveOrder, `answersStatement`).
  *
+ * Borrar una pregunta es suave (`deleted_at`, migración 0049; decisión 0033): todo lo de acá
+ * saltea las borradas, lo que eligió cada evento queda guardado y «Recuperar» de Actividad la
+ * vuelve a poner (src/lib/server/admin/deletions.js).
+ *
  * Sin base, {@link eventSignupFields} devuelve `[]` y la compra queda como siempre (el
  * interruptor `personas_eventos` quedó prendido para siempre).
  */
@@ -23,6 +27,7 @@ import {
 	parseTicketTypes
 } from '$lib/utils/signupFields.js';
 import { MAX_TICKETS_PER_FORM } from '$lib/utils/tickets.js';
+import { fieldDeletionPath, softDeletionStatement } from '$lib/server/admin/deletions.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').D1PreparedStatement} D1PreparedStatement */
@@ -69,7 +74,8 @@ function rowToField(r) {
 export async function listGeneralFields(db) {
 	const { results } = await db
 		.prepare(
-			`SELECT ${COLUMNS} FROM signup_fields f WHERE f.event_slug IS NULL ORDER BY f.position, f.id`
+			`SELECT ${COLUMNS} FROM signup_fields f WHERE f.event_slug IS NULL AND f.deleted_at IS NULL
+			ORDER BY f.position, f.id`
 		)
 		.all();
 	return results.map(rowToField);
@@ -83,12 +89,18 @@ export async function listGeneralFields(db) {
 export async function listOwnFields(db, slug) {
 	const { results } = await db
 		.prepare(
-			`SELECT ${COLUMNS} FROM signup_fields f WHERE f.event_slug = ?1 ORDER BY f.position, f.id`
+			`SELECT ${COLUMNS} FROM signup_fields f WHERE f.event_slug = ?1 AND f.deleted_at IS NULL
+			ORDER BY f.position, f.id`
 		)
 		.bind(slug)
 		.all();
 	return results.map(rowToField);
 }
+
+/** Lo que eligió un evento, sin las generales borradas (quedan guardadas para cuando vuelvan). */
+const CHOSEN = `FROM event_signup_general g
+	JOIN signup_fields f ON f.id = g.field_id AND f.event_slug IS NULL AND f.deleted_at IS NULL
+	WHERE g.event_slug = ?1 ORDER BY g.position, g.field_id`;
 
 /**
  * Los ids de las generales que usa un evento.
@@ -97,10 +109,7 @@ export async function listOwnFields(db, slug) {
  * @returns {Promise<number[]>}
  */
 export async function chosenGeneralIds(db, slug) {
-	const { results } = await db
-		.prepare('SELECT field_id FROM event_signup_general WHERE event_slug = ?1 ORDER BY position')
-		.bind(slug)
-		.all();
+	const { results } = await db.prepare(`SELECT g.field_id ${CHOSEN}`).bind(slug).all();
 	return results.map((r) => Number(r.field_id));
 }
 
@@ -112,9 +121,7 @@ export async function chosenGeneralIds(db, slug) {
  */
 export async function chosenGeneral(db, slug) {
 	const { results } = await db
-		.prepare(
-			'SELECT field_id, ticket_types FROM event_signup_general WHERE event_slug = ?1 ORDER BY position'
-		)
+		.prepare(`SELECT g.field_id, g.ticket_types ${CHOSEN}`)
 		.bind(slug)
 		.all();
 	return results.map((r) => ({
@@ -137,9 +144,11 @@ export async function fieldsForEvent(db, slug) {
 		.prepare(
 			`SELECT ${BASE_COLUMNS}, g.ticket_types, 0 AS grp, g.position AS ord FROM event_signup_general g
 				JOIN signup_fields f ON f.id = g.field_id AND f.event_slug IS NULL
+					AND f.deleted_at IS NULL
 				WHERE g.event_slug = ?1
 			UNION ALL
-			SELECT ${COLUMNS}, 1 AS grp, f.position AS ord FROM signup_fields f WHERE f.event_slug = ?1
+			SELECT ${COLUMNS}, 1 AS grp, f.position AS ord FROM signup_fields f
+				WHERE f.event_slug = ?1 AND f.deleted_at IS NULL
 			ORDER BY grp, ord, id`
 		)
 		.bind(slug)
@@ -201,7 +210,8 @@ export function readAnswers(form, fields, quantity = 1) {
 }
 
 /**
- * Crea una pregunta (general si `eventSlug` es null). Con tope por evento y de generales.
+ * Crea una pregunta (general si `eventSlug` es null). Con tope por evento y de generales (las
+ * borradas no cuentan; su lugar sí, así una que vuelve no se pisa con otra).
  *
  * @param {D1Database} db
  * @param {string | null} eventSlug
@@ -218,7 +228,7 @@ export async function createField(db, eventSlug, field, { by, now = Date.now() }
 			SELECT ?1, ?2, ?3, ?4, ?5,
 				(SELECT COALESCE(MAX(position), -1) + 1 FROM signup_fields WHERE event_slug IS ?1),
 				?6, ?6, ?7, ?9, ?10
-			WHERE (SELECT COUNT(*) FROM signup_fields WHERE event_slug IS ?1) < ?8
+			WHERE (SELECT COUNT(*) FROM signup_fields WHERE event_slug IS ?1 AND deleted_at IS NULL) < ?8
 			RETURNING id`
 		)
 		.bind(
@@ -260,7 +270,9 @@ export async function createField(db, eventSlug, field, { by, now = Date.now() }
 export async function updateField(db, id, eventSlug, field, { by, now = Date.now() }) {
 	if (!Number.isSafeInteger(id) || id <= 0) return null;
 	const before = await db
-		.prepare('SELECT label FROM signup_fields WHERE id = ?1 AND event_slug IS ?2')
+		.prepare(
+			'SELECT label FROM signup_fields WHERE id = ?1 AND event_slug IS ?2 AND deleted_at IS NULL'
+		)
 		.bind(id, eventSlug)
 		.first();
 	if (!before) return null;
@@ -268,7 +280,7 @@ export async function updateField(db, id, eventSlug, field, { by, now = Date.now
 		.prepare(
 			`UPDATE signup_fields SET label = ?3, kind = ?4, required = ?5, options = ?6,
 				per_ticket = ?7, ticket_types = ?8, updated_at = ?9, updated_by = ?10
-			WHERE id = ?1 AND event_slug IS ?2`
+			WHERE id = ?1 AND event_slug IS ?2 AND deleted_at IS NULL`
 		)
 		.bind(
 			id,
@@ -287,25 +299,52 @@ export async function updateField(db, id, eventSlug, field, { by, now = Date.now
 }
 
 /**
- * Borra una pregunta (de ese evento, o general con `eventSlug` null). Las respuestas ya
- * guardadas quedan (tienen la pregunta copiada). Devuelve la pregunta borrada, o `null`.
+ * Borra (suave) una pregunta (de ese evento, o general con `eventSlug` null): `deleted_at` y, en
+ * la MISMA tanda, su fila de `panel_deletions` para «Recuperar» en Actividad. Las respuestas ya
+ * guardadas quedan (tienen la pregunta copiada) y, si era general, lo que eligió cada evento
+ * también (vuelve con ella). Devuelve la pregunta borrada, o `null`.
  *
  * @param {D1Database} db
  * @param {number} id
  * @param {string | null} eventSlug
+ * @param {{ by?: string, now?: number }} [opts]
  */
-export async function deleteField(db, id, eventSlug) {
+export async function deleteField(db, id, eventSlug, { by = 'panel', now = Date.now() } = {}) {
 	if (!Number.isSafeInteger(id) || id <= 0) return null;
 	const row = await db
-		.prepare('DELETE FROM signup_fields WHERE id = ?1 AND event_slug IS ?2 RETURNING label')
+		.prepare(
+			'SELECT label FROM signup_fields WHERE id = ?1 AND event_slug IS ?2 AND deleted_at IS NULL'
+		)
 		.bind(id, eventSlug)
 		.first();
-	return row ? String(row.label) : null;
+	if (!row) return null;
+	const label = String(row.label);
+	const [res] = await db.batch([
+		db
+			.prepare(
+				`UPDATE signup_fields SET deleted_at = ?3
+				WHERE id = ?1 AND event_slug IS ?2 AND deleted_at IS NULL`
+			)
+			.bind(id, eventSlug, now),
+		await softDeletionStatement(
+			db,
+			{
+				kind: 'calendario',
+				slug: eventSlug ?? '',
+				title: label,
+				path: fieldDeletionPath(id),
+				object: id
+			},
+			{ login: by, now }
+		)
+	]);
+	return res?.meta?.changes ? label : null;
 }
 
 /**
  * Elige qué preguntas generales usa un evento (reemplaza la elección anterior). Los ids que no
- * son de generales se ignoran. Devuelve cuántas quedaron elegidas. `typesById`: a qué tipos de
+ * son de generales (o son de una borrada) se ignoran; lo elegido de una borrada queda guardado,
+ * para cuando vuelva. Devuelve cuántas quedaron elegidas. `typesById`: a qué tipos de
  * entrada aplica cada una en este evento (ya validados; sin entrada o `[]` = todos).
  *
  * @param {D1Database} db
@@ -319,12 +358,18 @@ export async function setChosenGeneral(db, slug, ids, typesById = {}) {
 		MAX_GENERAL_FIELDS
 	);
 	const results = await db.batch([
-		db.prepare('DELETE FROM event_signup_general WHERE event_slug = ?1').bind(slug),
+		db
+			.prepare(
+				`DELETE FROM event_signup_general WHERE event_slug = ?1
+				AND field_id NOT IN (SELECT id FROM signup_fields WHERE deleted_at IS NOT NULL)`
+			)
+			.bind(slug),
 		...unique.map((id, position) =>
 			db
 				.prepare(
 					`INSERT INTO event_signup_general (event_slug, field_id, position, ticket_types)
-					SELECT ?1, id, ?3, ?4 FROM signup_fields WHERE id = ?2 AND event_slug IS NULL`
+					SELECT ?1, id, ?3, ?4 FROM signup_fields
+					WHERE id = ?2 AND event_slug IS NULL AND deleted_at IS NULL`
 				)
 				.bind(slug, id, position, JSON.stringify(parseTicketTypes(typesById[id] ?? [])))
 		)

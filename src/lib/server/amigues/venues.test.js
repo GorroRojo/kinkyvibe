@@ -587,7 +587,10 @@ describe('«sucede en» es el edge `lugar` del evento', () => {
 			privacy: null,
 			by: 'a'
 		});
-		await t.db.prepare('UPDATE objects SET deleted_at = 1, version = version + 1 WHERE id = ?1').bind(gone.id).run();
+		await t.db
+			.prepare('UPDATE objects SET deleted_at = 1, version = version + 1 WHERE id = ?1')
+			.bind(gone.id)
+			.run();
 		await makeEvent(t.db, 'sin-lugar');
 		expect([...(await m.eventsWithVenue(t.db))]).toEqual(['con-lugar']);
 		expect([...(await m.eventsWithVenue(t.db, 'con-lugar'))]).toEqual(['con-lugar']);

@@ -3,8 +3,9 @@
  *
  * - `clientHash`: identifica una conexión (la IP que da Cloudflare) con un hash con sal que rota
  *   cada día. Sirve para los límites por cliente; la IP nunca se guarda ni se loguea.
- * - Confirmación de las reservas por transferencia: el mail lleva un link firmado
- *   (`confirmUrl`) que extiende la reserva inicial corta a la completa.
+ * - La firma de los links «Confirmar mi reserva» de los mails de transferencia viejos. El paso de
+ *   confirmar ya no existe (decisión 0031): la firma solo sirve para que esos links muestren hasta
+ *   cuándo está guardada la reserva (`/entradas/<orden>/confirmar`).
  */
 import { env } from '$env/dynamic/private';
 import { sha256Hex } from '$lib/server/hash.js';
@@ -88,7 +89,8 @@ export function clientAddress(event) {
 }
 
 /**
- * Firma (HMAC-SHA256) de la confirmación de una orden. La clave está en D1 (`ticket_settings`),
+ * Firma (HMAC-SHA256) de la confirmación de una orden (la de los links de los mails viejos; ya no
+ * se manda en mails nuevos). La clave está en D1 (`ticket_settings`),
  * ver $lib/server/signedLinks.js.
  *
  * @param {D1Database} db
@@ -107,15 +109,4 @@ export function confirmToken(db, orderId) {
  */
 export function verifyConfirmToken(db, orderId, token) {
 	return verifyLink(db, CONFIRM_KEY, `confirm:${orderId}`, token);
-}
-
-/**
- * Link del mail para confirmar una reserva por transferencia.
- *
- * @param {D1Database} db
- * @param {string} origin
- * @param {string} orderId
- */
-export async function confirmUrl(db, origin, orderId) {
-	return `${origin}/entradas/${orderId}/confirmar?k=${await confirmToken(db, orderId)}`;
 }

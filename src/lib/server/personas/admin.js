@@ -178,19 +178,20 @@ export async function updateFieldAction(event, eventSlug) {
 }
 
 /**
- * Acción "borrar pregunta" (de ese evento, o general con `eventSlug` null).
+ * Acción "borrar pregunta" (de ese evento, o general con `eventSlug` null). Es un borrado suave
+ * (decisión 0033): se recupera desde Actividad, con lo que eligió cada evento.
  *
  * @param {import('@sveltejs/kit').RequestEvent} event
  * @param {string | null} eventSlug
  */
 export async function deleteFieldAction(event, eventSlug) {
-	const { db } = await requirePersonasAdmin(event);
+	const { admin, db } = await requirePersonasAdmin(event);
 	const form = await event.request.formData();
 	const id = Number(form.get('id'));
 	/** @type {string | null} */
 	let deleted = null;
 	try {
-		deleted = await deleteField(db, id, eventSlug);
+		deleted = await deleteField(db, id, eventSlug, { by: admin.login });
 	} catch (e) {
 		logDBError('borrar pregunta de inscripción', e);
 		return fail(500, { field: { ok: false, message: 'No se pudo borrar. Probá de nuevo.' } });
@@ -206,7 +207,8 @@ export async function deleteFieldAction(event, eventSlug) {
 	return {
 		field: {
 			ok: true,
-			message: 'Pregunta borrada. Las respuestas que ya había quedan en las órdenes.'
+			message:
+				'Pregunta borrada. Las respuestas que ya había quedan en las órdenes. Si te equivocaste, la recuperás desde Actividad.'
 		}
 	};
 }

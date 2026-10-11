@@ -2,7 +2,8 @@
 
 - Fecha: 2026-09-30
 - Estado: Aceptada. Los detalles de preventas y puerta del 1/10 están en
-  [0012](0012-precio-de-puerta-por-tipo.md) a [0016](0016-pago-tardio.md).
+  [0012](0012-precio-de-puerta-por-tipo.md) a [0016](0016-pago-tardio.md). Cuánto dura una
+  reserva por transferencia: [0031](0031-reserva-transferencia-dias-habiles.md).
 
 ## Contexto
 

@@ -9,7 +9,12 @@
 	 * `conflict` ({ version, changes: [{ field, label, theirs }] }), `action` (form action),
 	 * `submitLabel`, `kinds` (tipos que se pueden elegir), `image` (la imagen del perfil para el
 	 * selector de la biblioteca, docs/imagenes.md: `{ current, legacyUrl, target }`; sin pasar, un
-	 * perfil nuevo, que elige su imagen después de crearse).
+	 * perfil nuevo, que elige su imagen después de crearse), `draftKey` (el borrador local de
+	 * UnsavedChanges; vacío, sin borrador) y `saved` (se acaba de guardar bien).
+	 *
+	 * Cambios sin guardar: UnsavedChanges guarda un borrador en este navegador mientras se escribe
+	 * y pregunta antes de salir. «Sin cambios» es lo que llegó del servidor la última vez que se
+	 * guardó bien (o al abrir): si guardar falla, lo escrito sigue contando como cambio.
 	 */
 	import { enhance } from '$app/forms';
 	import { KIND_LABELS, VISIBILITY_OPTIONS } from '$lib/utils/perfiles.js';
@@ -17,6 +22,8 @@
 	import VenueCoordinates from '$lib/components/amigues/VenueCoordinates.svelte';
 	import VenueGeocoder from '$lib/components/amigues/VenueGeocoder.svelte';
 	import ImagePicker from '$lib/components/admin/ImagePicker.svelte';
+	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
+	import { clearDraft } from '$lib/admin/draft.js';
 
 	/** @type {import('$lib/server/amigues/editor.js').ProfileFormValues} */
 	export let values;
@@ -38,8 +45,34 @@
 	$: kind = values.kind;
 	$: version = conflict ? conflict.version : values.version;
 
+	export let draftKey = '';
+	export let saved = false;
+
 	/** @param {string} key */
 	const err = (key) => errors?.[key];
+
+	/** @returns {Storage | null} */
+	function storage() {
+		try {
+			return typeof localStorage === 'undefined' ? null : localStorage;
+		} catch {
+			return null;
+		}
+	}
+
+	/** @type {typeof values | null} */
+	let lastValues = null;
+	let pristine = '';
+	// El padre arma `values` de nuevo con cada respuesta del servidor; las ediciones lo mutan.
+	$: if (values !== lastValues) {
+		if (!lastValues || saved) pristine = JSON.stringify(values);
+		lastValues = values;
+	}
+	$: dirty = JSON.stringify(values) !== pristine;
+	/** @param {any} d */
+	function restore(d) {
+		if (d && typeof d === 'object') values = { ...values, ...d, version: values.version };
+	}
 </script>
 
 {#if conflict}
@@ -58,13 +91,25 @@
 	</div>
 {/if}
 
+<UnsavedChanges
+	{draftKey}
+	base={String(values.version ?? '')}
+	{dirty}
+	snapshot={values}
+	{restore}
+	{saved}
+	saving={busy}
+/>
+
 <form
 	method="POST"
 	{action}
 	class="kv-form"
 	use:enhance={() => {
 		busy = true;
-		return async ({ update }) => {
+		return async ({ result, update }) => {
+			// Crear lleva al editor del perfil nuevo: el borrador de «Perfil nuevo» ya no hace falta.
+			if (result.type === 'redirect') clearDraft(storage(), draftKey);
 			await update({ reset: false });
 			busy = false;
 		};

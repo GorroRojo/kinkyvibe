@@ -201,7 +201,10 @@
 		margin-left: auto;
 		margin-top: 0.2em;
 		scale: 1;
-		transition: background 1000ms 1000ms, color 1000ms 100ms, scale 200ms;
+		transition:
+			background 1000ms 1000ms,
+			color 1000ms 100ms,
+			scale 200ms;
 		text-decoration: none;
 		border-radius: 0.3em;
 	}

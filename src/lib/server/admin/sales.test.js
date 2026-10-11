@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
-import { TRANSFER_HOLD_MS, getCounts, getOrder, reserveOrder } from '$lib/server/tickets/orders.js';
+import { transferDeadline } from '$lib/utils/transferDeadline.js';
+import { getCounts, getOrder, reserveOrder } from '$lib/server/tickets/orders.js';
 import {
 	EXPIRED_TRANSFER_VISIBLE_MS,
 	getAllCounts,
@@ -31,6 +32,8 @@ beforeEach(async () => {
 });
 
 const NOW = Date.parse('2026-10-01T12:00:00Z');
+/** Una reserva fija de prueba (48 h): estos tests no dependen de la regla de los días hábiles. */
+const TRANSFER_HOLD_MS = 48 * 60 * 60 * 1000;
 const GENERAL = { id: 'general', price: 5000, capacity: 3 };
 
 /**
@@ -319,7 +322,6 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 	});
 
 	describe('deshacer rechazo', () => {
-		const HOLD = 48 * 3600_000;
 		/** @param {string} id @param {number} [at] */
 		const reject = (id, at = NOW + 1000) =>
 			cancelTransferFromPanel({ db: t.db, locals, by: 'admin-prueba', orderId: id, now: at });
@@ -333,13 +335,13 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 				locals,
 				by: 'admin-prueba',
 				orderId: o.id,
-				holdMs: HOLD,
 				now: later
 			});
 			expect(r).toMatchObject({ ok: true, slug: 'fiesta-a' });
 			expect(r.order).toMatchObject({
 				status: 'awaiting_transfer',
-				expires_at: later + HOLD,
+				// Una reserva nueva desde `later` con la regla de los días hábiles (decisión 0031).
+				expires_at: transferDeadline(later),
 				confirmed_by: null
 			});
 			// Vuelve a ocupar su lugar y aparece en la bandeja.
@@ -357,7 +359,6 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 				locals,
 				by: 'admin-prueba',
 				orderId: o.id,
-				holdMs: HOLD,
 				now: later + 5
 			});
 			expect(again).toMatchObject({ ok: true });
@@ -375,7 +376,6 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 				locals,
 				by: 'admin-prueba',
 				orderId: o.id,
-				holdMs: HOLD,
 				now: NOW + 3000
 			};
 			const first = await reopenTransferFromPanel(base);
@@ -424,7 +424,6 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 				locals,
 				by: 'admin-prueba',
 				orderId: o.id,
-				holdMs: HOLD,
 				now: NOW + 3000
 			};
 			const first = await reopenTransferFromPanel(base);
@@ -463,7 +462,7 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 				eventSlug: 'fiesta-a',
 				capacity: 3,
 				by: 'admin-prueba',
-				holdMs: HOLD,
+				holdMs: TRANSFER_HOLD_MS,
 				now: NOW + 3000
 			};
 			expect((await reopenTransfer(t.db, input)).result).toBe('no-capacity');
@@ -477,7 +476,7 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 			const other = await reserve('fiesta-a', { now: NOW + 2000 });
 			await withCode(other.id, 2);
 			await approve(other.id);
-			const base = { db: t.db, locals, by: 'admin-prueba', holdMs: HOLD, now: NOW + 3000 };
+			const base = { db: t.db, locals, by: 'admin-prueba', now: NOW + 3000 };
 			expect(await reopenTransferFromPanel({ ...base, orderId: o.id })).toMatchObject({ ok: true });
 			const plain = await reserve('fiesta-a', { method: 'transferencia', now: NOW + 4000 });
 			await reject(plain.id, NOW + 4500);
@@ -489,7 +488,7 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 
 		it('solo transferencias rechazadas, y del evento pedido', async () => {
 			const pending = await reserve('fiesta-a', { method: 'transferencia' });
-			const base = { db: t.db, locals, by: 'x', holdMs: HOLD, now: NOW + 1000 };
+			const base = { db: t.db, locals, by: 'x', now: NOW + 1000 };
 			expect(await reopenTransferFromPanel({ ...base, orderId: pending.id })).toMatchObject({
 				ok: true // ya estaba esperando: nada que hacer
 			});

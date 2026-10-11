@@ -4,6 +4,9 @@
 	 * casilla de +18 y el botón que envía el formulario. El total está en el resumen de la compra
 	 * (PurchaseSummary), siempre a la vista. El medio lo maneja TicketPurchase.svelte (`bind:`).
 	 */
+	import ExpiryTime from '$lib/components/ExpiryTime.svelte';
+	import { TRANSFER_HOLD_AFTER } from '$lib/utils/transferDeadline.js';
+
 	/** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
 	export let tickets;
 	export let method = '';
@@ -46,8 +49,8 @@
 						Pagás en Mercado Pago{#if tickets.feeBasisPoints}, con el recargo de la comisión ({feeText}){/if}.
 						Te reservamos el lugar 20 minutos mientras pagás.
 					{:else}
-						Sin recargo. Confirmando la reserva desde el mail, te guardamos el lugar {tickets.transferHoldHours}
-						horas mientras mandás el comprobante por mail.
+						Sin recargo. Te guardamos el lugar <ExpiryTime at={tickets.transferUntil} until />.
+						{TRANSFER_HOLD_AFTER}
 					{/if}
 				</p>
 			{/each}

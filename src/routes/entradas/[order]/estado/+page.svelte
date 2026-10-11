@@ -3,6 +3,7 @@
 	import { formatARS } from '$lib/utils/money.js';
 	import { fondoOptionLabel } from '$lib/utils/tickets.js';
 	import ExpiryTime from '$lib/components/ExpiryTime.svelte';
+	import { TRANSFER_HOLD_AFTER } from '$lib/utils/transferDeadline.js';
 
 	let { data } = $props();
 
@@ -47,14 +48,18 @@
 	{:else if order.status === 'awaiting_transfer'}
 		<h1>Reservamos tus entradas: falta la transferencia</h1>
 		<p>
-			Transferí <strong class="amount">{formatARS(order.total)}</strong>: te reservamos el lugar
-			{order.holdHours} horas (<strong><ExpiryTime at={order.expiresAt} until /></strong>) mientras
-			mandás el comprobante por mail. Si no llega a tiempo, la reserva se libera.
+			Para confirmar tus entradas, transferí <strong class="amount">{formatARS(order.total)}</strong
+			>.
 		</p>
-		{#if order.confirmPending}
-			<p class="confirm-note">
-				<strong>Confirmá tu reserva</strong> con el link del mail que te mandamos a
-				<strong>{order.email}</strong> para que te guardemos el lugar {order.fullHoldHours} horas.
+		{#if order.holdExpired}
+			<p class="hold-note">
+				La reserva venció <strong><ExpiryTime at={order.expiresAt} /></strong>. Si ya transferiste,
+				mandanos el comprobante igual y lo revisamos.
+			</p>
+		{:else}
+			<p class="hold-note">
+				Te guardamos el lugar <strong><ExpiryTime at={order.expiresAt} until /></strong>.
+				{TRANSFER_HOLD_AFTER}
 			</p>
 		{/if}
 		{#if data.transfer?.info}
@@ -211,7 +216,7 @@
 	.estado-awaiting_transfer {
 		outline-color: var(--4-dark, var(--2));
 	}
-	.confirm-note {
+	.hold-note {
 		background: var(--4-tint);
 		border-radius: var(--round-sm);
 		padding: 0.6em 1em;

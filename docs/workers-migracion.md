@@ -112,18 +112,18 @@ hasta el paso 3. El dominio kinkyvibe.ar sigue en Pages.
 Cargá las mismas que tiene Pages en Production (paso 0). Los secretos como **Secret**, el resto
 como **Text**. Las que usa el código (solo nombres):
 
-| Nombre                                                                                                                                          | Tipo   | Para qué                                                    |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------- |
-| `GITHUB_CLIENT_ID`                                                                                                                              | Text   | Login de admin con GitHub                                   |
-| `GITHUB_CLIENT_SECRET`                                                                                                                          | Secret | Login de admin con GitHub                                   |
-| `MP_ACCESS_TOKEN`                                                                                                                               | Secret | Mercado Pago                                                |
-| `MP_WEBHOOK_SECRET`                                                                                                                             | Secret | Firma de los webhooks de Mercado Pago                       |
-| `RESEND_API_KEY`                                                                                                                                | Secret | Mails                                                       |
-| `CRON_SECRET`                                                                                                                                   | Secret | El mismo valor que hoy (lo usan el cron y `/api/cron/*`)    |
-| `SITE_URL`                                                                                                                                      | Text   | `https://kinkyvibe.ar`                                      |
-| `TICKETS_CLIENT_SALT`                                                                                                                           | Secret | Si está en Pages                                            |
-| `TICKETS_TRANSFER_INFO`                                                                                                                         | Secret | Si está en Pages (datos de transferencia: nunca en el repo) |
-| `TICKETS_FROM_EMAIL`, `TICKETS_REPLY_TO`, `TICKETS_CONTACT_EMAIL`, `TICKETS_TRANSFER_HOLD_HOURS`, `TICKETS_MP_FEE_PERCENT`, `FONDO_PERCENT_URL` | Text   | Si están en Pages                                           |
+| Nombre                                                                                                           | Tipo   | Para qué                                                    |
+| ---------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------- |
+| `GITHUB_CLIENT_ID`                                                                                               | Text   | Login de admin con GitHub                                   |
+| `GITHUB_CLIENT_SECRET`                                                                                           | Secret | Login de admin con GitHub                                   |
+| `MP_ACCESS_TOKEN`                                                                                                | Secret | Mercado Pago                                                |
+| `MP_WEBHOOK_SECRET`                                                                                              | Secret | Firma de los webhooks de Mercado Pago                       |
+| `RESEND_API_KEY`                                                                                                 | Secret | Mails                                                       |
+| `CRON_SECRET`                                                                                                    | Secret | El mismo valor que hoy (lo usan el cron y `/api/cron/*`)    |
+| `SITE_URL`                                                                                                       | Text   | `https://kinkyvibe.ar`                                      |
+| `TICKETS_CLIENT_SALT`                                                                                            | Secret | Si está en Pages                                            |
+| `TICKETS_TRANSFER_INFO`                                                                                          | Secret | Si está en Pages (datos de transferencia: nunca en el repo) |
+| `TICKETS_FROM_EMAIL`, `TICKETS_REPLY_TO`, `TICKETS_CONTACT_EMAIL`, `TICKETS_MP_FEE_PERCENT`, `FONDO_PERCENT_URL` | Text   | Si están en Pages                                           |
 
 `EMAIL_ALLOWLIST` **no** va en producción (es solo para Previews). Detalle de cada variable:
 [`docs/tickets.md`](tickets.md).
