@@ -1,7 +1,9 @@
 /**
  * Email con las entradas, enviado con la API REST de Resend (POST https://api.resend.com/emails).
  */
-import { argDateTimeLong } from '$lib/utils/dates.js';
+import { argDateTimeLong, argDeadline } from '$lib/utils/dates.js';
+import { ARGENTINA_TIME_NOTE } from '$lib/utils/expiry.js';
+import { TRANSFER_HOLD_AFTER, transferHoldText } from '$lib/utils/transferDeadline.js';
 import { formatARS } from '$lib/utils/money.js';
 import { fondoOptionLabel, holdHours, orderReference, refundPolicy } from '$lib/utils/tickets.js';
 import { salePlaceText } from '$lib/utils/eventPlace.js';
@@ -642,6 +644,10 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
  * Email con los datos para transferir (orden `awaiting_transfer`). Sin DNI ni datos de otras
  * entradas: solo lo necesario para pagar.
  *
+ * Hasta cuándo se guarda el lugar (`expires_at`, la regla de los días hábiles de la decisión 0031)
+ * va siempre en un recuadro fijo, con la fecha y la hora exactas: aunque el texto del mail sea
+ * propio, ese dato no se pierde.
+ *
  * @param {{
  *   order: import('./orders.js').Order,
  *   event: { title: string, start?: string, parts?: PartsList | null },
@@ -650,12 +656,8 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
  *   replyTo?: string,
  *   contactEmail: string,
  *   origin: string,
- *   confirmUrl?: string,
- *   fullHoldHours?: number,
  *   template?: Template
  * }} input
- * `confirmUrl`: link para confirmar la reserva, que la extiende a `fullHoldHours` horas desde
- * que se hizo (sin él, el mail no pide confirmar).
  */
 export function buildTransferEmail({
 	order,
@@ -665,79 +667,53 @@ export function buildTransferEmail({
 	replyTo,
 	contactEmail,
 	origin,
-	confirmUrl,
-	fullHoldHours,
 	template
 }) {
 	const policy = policyBlocks(contactEmail);
 	const prices = priceLines(order, typeName);
 	const parts = partsBlocks(event.parts);
 	const ref = orderReference(order.id);
-	const deadline = formatEventDate(new Date(order.expires_at).toISOString());
-	const hours = holdHours(order);
+	const deadline = argDeadline(order.expires_at);
 	const statusUrl = `${origin}/entradas/${order.id}/estado`;
 	const custom = applyTemplate(template, {
 		...templateVars(order, event, typeName),
-		horas: hours,
+		// {{horas}} queda por los textos propios viejos; el dato claro es {{vence}}.
+		horas: holdHours(order),
 		vence: deadline,
 		link_estado: statusUrl
 	});
 	const subject = custom.subject ?? `Datos para transferir · ${event.title} (${ref})`;
 	const where = replyTo ? `respondé este mail o escribinos a ${replyTo}` : 'respondé este mail';
-	const confirm =
-		confirmUrl && fullHoldHours && fullHoldHours > hours
-			? {
-					html: `<p style="background:#fff3c4;border-radius:12px;padding:12px 16px;margin:0 0 16px"><strong>Confirmá tu reserva</strong> para que te guardemos el lugar ${fullHoldHours} horas. Si no la confirmás, se libera a las ${hours} ${hours === 1 ? 'hora' : 'horas'}.</p>`,
-					url: confirmUrl,
-					text: `Confirmá tu reserva para que te guardemos el lugar ${fullHoldHours} horas: ${confirmUrl}\nSi no la confirmás, se libera a las ${hours} ${hours === 1 ? 'hora' : 'horas'}.`
-				}
-			: null;
+	const holdText = transferHoldText(order.expires_at, { note: ARGENTINA_TIME_NOTE });
+	const holdHtml = `<p style="background:#fff3c4;border-radius:12px;padding:12px 16px;margin:0 0 16px">Te guardamos el lugar hasta el <strong>${escapeHtml(deadline)}</strong> (${ARGENTINA_TIME_NOTE}). ${escapeHtml(TRANSFER_HOLD_AFTER)}</p>`;
 	const intro =
 		custom.bodyHtml ??
-		`<p>Hola ${escapeHtml(order.buyer_name)}, para confirmarlas transferí <strong>${formatARS(order.total)}</strong>. Te reservamos el lugar ${hours} ${hours === 1 ? 'hora' : 'horas'} (hasta el <strong>${escapeHtml(deadline)}</strong>) mientras mandás el comprobante por mail.</p>`;
+		`<p>Hola ${escapeHtml(order.buyer_name)}, para confirmar tus entradas transferí <strong>${formatARS(order.total)}</strong>.</p>`;
 	const details = `<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventDate(event.start))}</p>${parts.html}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		<div style="${MAIL_STYLES.box};white-space:pre-line">${escapeHtml(transferInfo)}</div>
 		<p>En el concepto o la descripción de la transferencia poné: <strong style="font-size:18px">${ref}</strong></p>
-		<p>Después, <strong>mandanos el comprobante</strong>: ${escapeHtml(where)}, con la referencia ${ref}. Cuando lo confirmemos te llegan las entradas con su QR por mail.</p>
-		<p>Si no llega el pago antes de esa fecha, la reserva se libera.</p>`;
-	const footer = `<p style="${SMALL}">Número de orden: ${order.id}</p>
-		${policy.html}`;
-	// Con confirmación, el botón es «Confirmar mi reserva» (lo más urgente) y va arriba; el estado
-	// de la compra queda como link. Sin ella, el botón lleva al estado de la compra.
-	const html = confirm
-		? mailLayout({
-				origin,
-				label: custom.label ?? 'Tu reserva',
-				titleHtml: custom.headingHtml ?? 'Reservamos tus entradas',
-				contentHtml: `${intro}
-		${confirm.html}`,
-				button: withLabel({ href: confirm.url, label: 'Confirmar mi reserva' }, custom.button),
-				helpHtml: custom.helpHtml ?? '',
-				afterHtml: `<div style="margin-top:20px">${details}
-		<p><a href="${statusUrl}" style="${MAIL_STYLES.link}">Ver el estado de tu compra</a></p></div>
-		${footer}`,
-				whyHtml: custom.whyHtml ?? WHY_RESERVED,
-				contactEmail
-			})
-		: mailLayout({
-				origin,
-				label: custom.label ?? 'Tu reserva',
-				titleHtml: custom.headingHtml ?? 'Reservamos tus entradas',
-				contentHtml: `${intro}
+		<p>Después, <strong>mandanos el comprobante</strong>: ${escapeHtml(where)}, con la referencia ${ref}. Cuando lo confirmemos te llegan las entradas con su QR por mail.</p>`;
+	const html = mailLayout({
+		origin,
+		label: custom.label ?? 'Tu reserva',
+		titleHtml: custom.headingHtml ?? 'Reservamos tus entradas',
+		contentHtml: `${intro}
+		${holdHtml}
 		${details}`,
-				button: withLabel({ href: statusUrl, label: 'Ver el estado de tu compra' }, custom.button),
-				helpHtml: custom.helpHtml ?? '',
-				afterHtml: footer,
-				whyHtml: custom.whyHtml ?? WHY_RESERVED,
-				contactEmail
-			});
+		button: withLabel({ href: statusUrl, label: 'Ver el estado de tu compra' }, custom.button),
+		helpHtml: custom.helpHtml ?? '',
+		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}</p>
+		${policy.html}`,
+		whyHtml: custom.whyHtml ?? WHY_RESERVED,
+		contactEmail
+	});
 	const text = [
 		custom.headingText ?? 'Reservamos tus entradas',
 		'',
-		custom.bodyText ??
-			`Para confirmarlas transferí ${formatARS(order.total)}. Te reservamos el lugar ${hours} ${hours === 1 ? 'hora' : 'horas'} (hasta el ${deadline}) mientras mandás el comprobante por mail.`,
-		...(confirm ? ['', confirm.text] : []),
+		custom.bodyText ?? `Para confirmar tus entradas transferí ${formatARS(order.total)}.`,
+		'',
+		holdText,
 		...(custom.helpText !== null ? ['', custom.helpText] : []),
 		'',
 		`${event.title}`,
@@ -750,7 +726,6 @@ export function buildTransferEmail({
 		'',
 		`En el concepto de la transferencia poné: ${ref}`,
 		`Después mandanos el comprobante: ${where}, con la referencia ${ref}.`,
-		'Si no llega el pago antes de esa fecha, la reserva se libera.',
 		'',
 		`Estado de tu compra: ${statusUrl}`,
 		`Número de orden: ${order.id}`,

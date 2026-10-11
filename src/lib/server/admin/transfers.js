@@ -16,6 +16,8 @@
  * un uso a su código de descuento), o pasando el límite con el mismo diálogo.
  */
 import { entradas } from '$lib/utils/plural.js';
+import { argDeadline } from '$lib/utils/dates.js';
+import { transferDeadline } from '$lib/utils/transferDeadline.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import {
@@ -180,7 +182,8 @@ export async function cancelTransferFromPanel({ db, locals, by, orderId, now }) 
 
 /**
  * "Deshacer rechazo": vuelve una transferencia cancelada a "esperando comprobante", con una
- * reserva nueva completa (`holdMs`, la de TICKETS_TRANSFER_HOLD_HOURS) desde ahora. Solo si
+ * reserva nueva contada desde ahora con la misma regla que una compra (`transferDeadline`: 2 días
+ * hábiles después de hoy, o hasta que empiece el evento si es antes; decisión 0031). Solo si
  * todavía hay lugar en su tipo de entrada y en su tramo de preventa; si no, contesta
  * `needsConfirmation` (cuánto se pasa) para el mismo diálogo que confirmar una transferencia
  * tardía. Registra `transfer.reopen` (y `tickets.override` si se pasó un límite). No le manda
@@ -191,7 +194,6 @@ export async function cancelTransferFromPanel({ db, locals, by, orderId, now }) 
  *   locals: App.Locals,
  *   by: string,
  *   orderId: string,
- *   holdMs: number,
  *   eventSlug?: string,
  *   override?: string,
  *   now?: number
@@ -203,7 +205,6 @@ export async function reopenTransferFromPanel({
 	locals,
 	by,
 	orderId,
-	holdMs,
 	eventSlug,
 	override = '',
 	now
@@ -240,6 +241,7 @@ export async function reopenTransferFromPanel({
 			.join(' ')} Podés deshacer el rechazo igual confirmándolo en el aviso.`,
 		needsConfirmation
 	});
+	const holdMs = transferDeadline(at, config?.start ?? null) - at;
 	const check = checkOverride(await reopenLimits(db, { order, type, now: at }), override);
 	if (!check.ok) return ask(check.needsConfirmation);
 	const r = await reopenTransfer(db, {
@@ -276,7 +278,7 @@ export async function reopenTransferFromPanel({
 			status: 200,
 			slug: order.event_slug,
 			order: r.order,
-			message: `${ref} vuelve a esperar el comprobante, con la reserva renovada.`
+			message: `${ref} vuelve a esperar el comprobante, reservada hasta el ${argDeadline(r.order.expires_at)}.`
 		};
 	}
 	if (r.result === 'already') {

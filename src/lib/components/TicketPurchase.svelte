@@ -199,7 +199,7 @@
 		prices.subtotal - prices.discount === 0;
 	$: conditions = purchaseConditions({
 		contactEmail: tickets.contactEmail,
-		transferHoldHours: tickets.transferHoldHours,
+		transferUntil: tickets.transferUntil,
 		methods: tickets.methods,
 		online: tickets.online
 	});

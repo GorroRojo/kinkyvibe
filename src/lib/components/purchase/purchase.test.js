@@ -9,6 +9,8 @@ import StepIndicator from './StepIndicator.svelte';
 import PurchaseSummary from './PurchaseSummary.svelte';
 import { PURCHASE_STEPS } from '$lib/utils/purchaseSteps.js';
 import { stripHtmlComments, stripHtmlTags } from '$lib/utils/htmlStrip.js';
+import { textOf } from '$lib/testing/html.js';
+import { expiryMoment } from '$lib/utils/expiry.js';
 
 /** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
 const tickets = {
@@ -19,7 +21,7 @@ const tickets = {
 	maxQuantity: 20,
 	mock: true,
 	methods: ['mercadopago', 'transferencia'],
-	transferHoldHours: 48,
+	transferUntil: Date.parse('2026-10-14T20:00-03:00'),
 	feeBasisPoints: 200,
 	contactEmail: 'contacto@example.com',
 	online: false,
@@ -260,6 +262,26 @@ describe('TicketPurchase con cuenta (datos guardados)', () => {
 		expect(input(body, 'dni')).toContain('value="12"');
 		expect(input(body, 'guardar_datos')).not.toMatch(/\schecked/);
 		expect(input(body, 'recordar_dni')).toMatch(/\schecked/);
+	});
+});
+
+describe('PayStep: la transferencia dice hasta cuándo se guarda el lugar (decisión 0031)', () => {
+	it('con la fecha y la hora exactas, sin paso de confirmar', async () => {
+		const { default: PayStep } = await import('./PayStep.svelte');
+		const until = Date.now() + 3 * 24 * 3600_000;
+		const { body } = render(PayStep, {
+			props: { tickets: { ...tickets, transferUntil: until }, method: 'transferencia' }
+		});
+		const text = textOf(body).replace(/\s+/g, ' ');
+		const when = expiryMoment(until, Date.now(), {
+			timeZone: 'America/Argentina/Buenos_Aires',
+			until: true
+		});
+		expect(text).toContain(
+			`Sin recargo. Te guardamos el lugar ${when}, hora de Argentina y Uruguay. Transferí y mandanos el comprobante antes de esa hora; si no llega, la reserva se libera.`
+		);
+		expect(text).not.toMatch(/confirm(ando|á) la reserva/i);
+		expect(text).not.toMatch(/\d+ horas/);
 	});
 });
 
