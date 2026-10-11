@@ -11,6 +11,7 @@ import { handleWebhook } from '$lib/server/telegram/webhook.js';
 import { eventCardInfo, listUpcomingEvents } from '$lib/server/telegram/events.js';
 import { botAccounts } from '$lib/server/telegram/link.js';
 import { botAdminLink } from '$lib/server/telegram/adminLink.js';
+import { botDoor } from '$lib/server/telegram/puerta.js';
 import { botUsername } from '$lib/server/telegram/web.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 
@@ -18,6 +19,7 @@ import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 export async function POST({ request, url, platform, fetch }) {
 	const db = getDB(platform);
 	const ctx = platform?.ctx;
+	const puerta = Boolean(db && (await isFlagOn(db, 'telegram_puerta')));
 	return handleWebhook({
 		request,
 		secret: env.TELEGRAM_WEBHOOK_SECRET,
@@ -35,6 +37,9 @@ export async function POST({ request, url, platform, fetch }) {
 			db && (await isFlagOn(db, 'lo_que_sigo')) ? botAccounts(db, platform) : null,
 		// La puerta por Telegram (0037): `/start adm_<código>` del panel, con `telegram_puerta`
 		// prendido (no depende de «Lo que sigo»). Apagado, el bot contesta que no se puede.
-		adminLink: db && (await isFlagOn(db, 'telegram_puerta')) ? botAdminLink(db) : null
+		adminLink: db && puerta ? botAdminLink(db) : null,
+		// «🚪 Puerta» en el inicio para les admins vinculades (0037): una consulta por id de
+		// Telegram, solo al mostrar el inicio por chat privado.
+		door: db && puerta ? botDoor(db) : null
 	});
 }

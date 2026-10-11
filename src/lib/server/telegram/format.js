@@ -159,7 +159,7 @@ export function formatHelp(origin, { accounts = false } = {}) {
 		'/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n' +
 		'/buscar: escribí lo que buscás y te muestro lo que encuentre\n' +
 		'/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n' +
-		'/start: el inicio, con botones para todo\n' +
+		'/inicio: volver al inicio, con botones para todo\n' +
 		account +
 		`\nPara comprar entradas y ver todo lo demás, entrá a ${escapeHtml(origin)}`
 	);

@@ -35,9 +35,11 @@ import { formatARS } from '$lib/utils/money.js';
 /**
  * Dónde se va a ver: chat privado o grupo (en un grupo, solo lo público y nada que necesite
  * cuenta), el origen del sitio y, si está, el usuario del bot (para los links al chat privado).
+ * `door`: quien escribe es une admin con el Telegram vinculado y la puerta prendida (solo lo arma
+ * el router, para el inicio por chat privado).
  *
  * @typedef {{ origin: string, chat: 'private' | 'group', now?: number,
- *   botUsername?: string | null, sigo?: boolean }} ScreenCtx
+ *   botUsername?: string | null, sigo?: boolean, door?: boolean }} ScreenCtx
  */
 /**
  * Lo público de la tarjeta de un evento: lo mismo que la página del evento le muestra a cualquiera.
@@ -123,7 +125,8 @@ function sigoButton(ctx) {
 }
 
 /**
- * `/start` y «🏠 Inicio».
+ * `/start`, `/inicio` y «🏠 Inicio». Con `ctx.door` (une admin vinculade, la puerta prendida, chat
+ * privado), suma «🚪 Puerta»: la misma Mini App que el botón de la confirmación del vínculo.
  *
  * @param {ScreenCtx} ctx
  * @returns {Screen}
@@ -145,6 +148,10 @@ export function homeScreen(ctx) {
 		]
 	];
 	if (isHttps(ctx.origin)) {
+		// La puerta (0037): `web_app` solo anda en chats privados, Bot API.
+		if (ctx.door && ctx.chat === 'private') {
+			rows.push([{ text: '🚪 Puerta', web_app: { url: doorAppUrl(ctx.origin) } }]);
+		}
 		/** @type {Button[]} */
 		const last = [];
 		// La Mini App del calendario (`web_app` solo anda en chats privados, Bot API).
