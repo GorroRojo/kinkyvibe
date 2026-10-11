@@ -8,7 +8,11 @@
  *
  * Lista de espera (interruptor `lista_espera`, docs/tickets.md): con un alcance agotado, la
  * página muestra «Anotate en la lista de espera» y `?/waitlist` anota el mail
- * ($lib/server/tickets/waitlistSignup.js). Apagado, `?/waitlist` da 404 y no se ve nada.
+ * ($lib/server/tickets/waitlistSignup.js). Lo que se puede comprar es lo que sobra después de la
+ * fila. Con el link de una oferta (`?lista=<token>`, del mail «Se liberó un lugar»), la página
+ * muestra hasta cuándo le guardamos el lugar y lo que puede comprar esa persona, y el formulario
+ * lleva el token en un campo oculto (`buyAction` lo vuelve a mirar). Apagado, `?/waitlist` da
+ * 404, `lista` no hace nada y no se ve nada.
  */
 import { error, fail, redirect } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
@@ -26,6 +30,7 @@ import { getEventTickets } from '$lib/server/tickets/events.js';
 import { contactEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
 import { signUpForWaitlist, waitlistJoinStates } from '$lib/server/tickets/waitlistSignup.js';
+import { findOffer } from '$lib/server/tickets/waitlistPurchase.js';
 import { waitlistSender } from '$lib/server/tickets/waitlistMail.js';
 
 /**
@@ -45,7 +50,7 @@ async function workshopTickets(platform, slug) {
 }
 
 /** @type {import('./$types').PageServerLoad} */
-export async function load({ params, platform, fetch, locals, setHeaders }) {
+export async function load({ params, platform, fetch, locals, setHeaders, url }) {
 	if (!isValidEventSlug(params.event)) error(404, 'Ese evento no existe.');
 	// El encabezado sale del evento de la base (si no lo tiene, 404); la configuración de las
 	// entradas, también (getTicketsView).
@@ -59,7 +64,13 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	const host = await workshopTickets(platform, params.event);
 	if (host) redirect(307, `/calendario/${host}/entradas`);
 	const db = getDB(platform);
-	const tickets = await getTicketsView(db, params.event, fetch);
+	const waitlistOn = Boolean(db) && (await listaEsperaEnabled(platform));
+	const offer =
+		waitlistOn && db ? await offerView(db, params.event, url.searchParams.get('lista')) : null;
+	const tickets = await getTicketsView(db, params.event, fetch, {
+		waitlist: waitlistOn,
+		offerId: offer?.state === 'valid' ? offer.id : null
+	});
 	if (!tickets) error(404, 'Este evento no vende entradas por acá.');
 	// Como en la página del evento: si tiene lugar, manda sobre el «Dónde» del evento.
 	const venue = await eventPageVenue(db, params.event, locals);
@@ -67,12 +78,48 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	// Con cuenta: nombre, pronombres, DNI guardados y el mail de la cuenta,
 	// para completar «Tus datos». Es de esta persona: la página no se guarda en ningún caché.
 	const account = tickets.open ? await purchaseAccount(db, locals.member) : null;
-	if (account) setHeaders({ 'cache-control': 'private, no-store' });
-	const waitlist = tickets.open ? null : await waitlistView(platform, params.event, locals);
-	// Con el mail de la cuenta en el formulario, tampoco se guarda en caché (una sola vez: SvelteKit
-	// no deja poner el mismo encabezado dos veces).
-	if (waitlist?.email && !account) setHeaders({ 'cache-control': 'private, no-store' });
-	return { tickets, event, venue, account, waitlist };
+	// Quien tiene un lugar guardado ya está en la lista: no se le ofrece anotarse.
+	const waitlist =
+		tickets.open || !waitlistOn || offer?.state === 'valid'
+			? null
+			: await waitlistView(platform, params.event, locals);
+	// Con datos de la cuenta, el mail de la cuenta en el formulario o una oferta de la lista, la
+	// página es de esta persona: no se guarda en ningún caché (una sola vez: SvelteKit no deja
+	// poner el mismo encabezado dos veces).
+	if (account || waitlist?.email || offer) setHeaders({ 'cache-control': 'private, no-store' });
+	return {
+		tickets,
+		event,
+		venue,
+		account,
+		waitlist,
+		offer: offer && {
+			state: offer.state,
+			holdUntil: offer.state === 'valid' ? offer.holdUntil : null,
+			// El token vuelve en el campo oculto del formulario solo si la oferta vale.
+			token: offer.state === 'valid' ? offer.token : ''
+		}
+	};
+}
+
+/**
+ * La oferta del link `?lista=<token>`, o `null` sin el parámetro. Si algo falla, `invalid` (la
+ * página de compra nunca se rompe por la lista).
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ * @param {string | null} token
+ * @returns {Promise<(import('$lib/server/tickets/waitlistPurchase.js').OfferLookup
+ *   & { token: string }) | null>}
+ */
+async function offerView(db, slug, token) {
+	if (token === null) return null;
+	try {
+		return { ...(await findOffer(db, { token, eventSlug: slug, now: Date.now() })), token };
+	} catch (e) {
+		console.error('[lista de espera] no se pudo leer la oferta:', e);
+		return { state: 'invalid', token };
+	}
 }
 
 /**
@@ -88,7 +135,7 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
  */
 async function waitlistView(platform, slug, locals) {
 	const db = getDB(platform);
-	if (!db || !(await listaEsperaEnabled(platform))) return null;
+	if (!db) return null;
 	try {
 		const config = await getEventTickets(slug);
 		if (!config?.waitlist) return null;

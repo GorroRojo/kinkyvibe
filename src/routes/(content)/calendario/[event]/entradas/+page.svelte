@@ -7,10 +7,11 @@
 	import { venueLine } from '$lib/utils/venues.js';
 	import { salePlaceText } from '$lib/utils/eventPlace.js';
 	import WaitlistSignup from '$lib/components/purchase/WaitlistSignup.svelte';
+	import WaitlistOffer from '$lib/components/purchase/WaitlistOffer.svelte';
 
 	/**
 	 * @type {{
-	 *   data: { meta: Record<string, any>, path: string, tickets: import('$lib/server/tickets/checkout.js').TicketsView, venue: import('$lib/utils/venues.js').VenueView | null, account: ReturnType<typeof import('$lib/utils/savedBuyer.js').purchasePrefill> | null, waitlist: { scope: 'event' | 'type', types: { id: string, name: string }[], email: string } | null },
+	 *   data: { meta: Record<string, any>, path: string, tickets: import('$lib/server/tickets/checkout.js').TicketsView, venue: import('$lib/utils/venues.js').VenueView | null, account: ReturnType<typeof import('$lib/utils/savedBuyer.js').purchasePrefill> | null, waitlist: { scope: 'event' | 'type', types: { id: string, name: string }[], email: string } | null, offer: { state: 'valid' | 'used' | 'invalid', holdUntil: number | null, token: string } | null },
 	 *   form: { buy?: any, waitlist?: any } | null
 	 * }}
 	 */
@@ -50,11 +51,16 @@
 		<p class="door">{doorText(data.tickets.door)}</p>
 	{/if}
 
+	{#if data.offer}
+		<WaitlistOffer offer={data.offer} />
+	{/if}
+
 	<TicketPurchase
 		tickets={data.tickets}
 		result={form?.buy}
 		account={data.account}
 		slug={$page.params.event}
+		lista={data.offer ? data.offer.token : null}
 	/>
 
 	{#if data.waitlist || form?.waitlist}
