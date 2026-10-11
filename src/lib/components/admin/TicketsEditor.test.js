@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import TicketsEditor from './TicketsEditor.svelte';
 import { readTicketsForm } from '$lib/utils/ticketsEditor.js';
+import { noticeBefore } from '$lib/testing/html.js';
 
 const WARNING =
 	'Activaste transferencia pero faltan los datos en <a href="/admin/ajustes/cobros" target="_blank" rel="noopener">Ajustes → Cobros</a>: por ahora no se ofrece.';
@@ -84,7 +85,16 @@ describe('TicketsEditor: modalidad automática con la regla de la página', () =
 	});
 
 	it('modalidad online con un lugar elegido: avisa que es presencial', () => {
-		expect(body({ hasVenue: true }, 'online')).toContain('id="ev-modalidad-venue"');
+		const withVenue = body({ hasVenue: true }, 'online');
+		expect(withVenue).toContain('id="ev-modalidad-venue"');
+		// el aviso amarillo compartido, en línea dentro del label (sin «⚠️» en el texto)
+		const text = 'Tiene un lugar elegido, así que es presencial';
+		expect(withVenue).toContain(text);
+		const tag = noticeBefore(withVenue, text);
+		expect(tag.startsWith('<span ')).toBe(true);
+		expect(tag).toContain('class="kv-notice warn');
+		expect(tag).toContain(' inline');
+		expect(withVenue).not.toContain('⚠️');
 		expect(body({}, 'online')).not.toContain('id="ev-modalidad-venue"');
 	});
 });
