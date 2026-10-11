@@ -26,6 +26,10 @@ imágenes viejas del repo siguen ahí hasta pasarlas a R2 ([imagenes.md](imagene
 - **El chequeo del contenido no puede sumar problemas nuevos** (`src/tests/content.test.js`, ver
   [pruebas-y-ci.md](pruebas-y-ci.md)).
 - Los eventos de prueba `prueba-entradas-*` son ocultos y solo venden en `vite dev`.
+- **«Hoy» es el de Argentina.** En `/calendario`, el día marcado como hoy, los días pasados de la
+  grilla y el mes con el que abre salen de la hora de Argentina (`calendarDayFlags`,
+  `defaultCalendarMonth` en `src/lib/utils/allPosts.js`, con `argDate`), nunca de la del servidor
+  (UTC) ni la del navegador de quien mira.
 
 ## Dónde está
 

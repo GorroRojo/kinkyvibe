@@ -1,6 +1,7 @@
 <script>
 	import { userConfig } from '$lib/utils/stores.js';
 	import {
+		defaultCalendarMonth,
 		fetchAllPostsClient,
 		isCurrent,
 		monthCountLabel,
@@ -8,7 +9,7 @@
 	} from '$lib/utils/allPosts';
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import { format, isSameMonth, isPast, addMonths } from 'date-fns';
+	import { format, isSameMonth, isPast } from 'date-fns';
 	import { page } from '$app/stores';
 	import { toArgentina } from '$lib/utils/dates.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
@@ -55,14 +56,8 @@
 
 	// The viewed month lives in the URL (?viewdate=yyyy-MM), not in a module-level store:
 	// a store shared by every request would leak one visitor's month into the next SSR.
-	const now_date = new Date();
-	// if all of this month's events are in the past, open on next month
-	const skip_month = !Object.entries(days).some(
-		([date, posts]) =>
-			isSameMonth(new Date(date + 'T00:00'), now_date) &&
-			posts.some((p) => !isPast(new Date(p.meta.start)))
-	);
-	const default_month = format(skip_month ? addMonths(now_date, 1) : now_date, 'yyyy-MM');
+	// El mes de hoy en hora de Argentina; si todos sus eventos ya empezaron, abre en el siguiente.
+	const default_month = defaultCalendarMonth(days);
 	/** @param {string | null} m */
 	const validMonth = (m) =>
 		!!m && /^\d{4}-\d{2}$/.test(m) && !isNaN(new Date(m + '-01T00:00').getTime());
