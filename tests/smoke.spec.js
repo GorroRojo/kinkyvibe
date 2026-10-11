@@ -253,6 +253,21 @@ test.describe('errores', () => {
 		expect(res.status()).toBeLessThan(500);
 	});
 
+	// Los prototipos (/estilo/prototipos, docs/estilo.md) tampoco existen fuera de un preview.
+	for (const path of [
+		'/estilo/prototipos',
+		'/estilo/prototipos/panel-nav',
+		'/estilo/prototipos/panel-nav/secciones',
+		'/estilo/prototipos/panel-nav/grilla',
+		'/estilo/prototipos/panel-nav/propuesta',
+		'/estilo/prototipos/panel-nav/investigacion'
+	]) {
+		test(`${path} (prototipo) devuelve 404 fuera de un preview`, async ({ request }) => {
+			const res = await request.get(path);
+			expect(res.status()).toBe(404);
+		});
+	}
+
 	// Regression test: missing posts used to bubble up as a 500 instead of a 404.
 	for (const path of ['/calendario/no-existe', '/material/no-existe', '/amigues/no-existe']) {
 		test(`${path} devuelve 404`, async ({ request }) => {
