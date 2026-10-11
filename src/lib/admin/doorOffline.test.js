@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	doorConnectionNote,
 	invalidTitle,
 	markRecentUndone,
 	applySyncResults,
@@ -226,5 +227,41 @@ describe('Puerta: textos y «Deshacer»', () => {
 		expect(next[0]).toMatchObject({ result: 'undone', title: 'Persona Uno · ingreso deshecho' });
 		expect(next[1]).toEqual(recent[1]);
 		expect(next[2]).toEqual(recent[2]);
+	});
+});
+
+describe('doorConnectionNote', () => {
+	it('con conexión y la lista guardada: «Listo para sin conexión», con la hora', () => {
+		const n = doorConnectionNote({ online: true, saved: true, savedAt: '21:40' });
+		expect(n?.kind).toBe('ready');
+		expect(n?.title).toBe('Listo para sin conexión.');
+		expect(n?.detail).toContain('(21:40)');
+		expect(n?.detail).toContain('podés seguir validando');
+	});
+
+	it('con conexión y sin lista todavía: no muestra nada', () => {
+		expect(doorConnectionNote({ online: true, saved: false, savedAt: '' })).toBeNull();
+	});
+
+	it('sin conexión y con lista: qué sigue andando y qué necesita conexión', () => {
+		const n = doorConnectionNote({ online: false, saved: true, savedAt: '22:05' });
+		expect(n?.kind).toBe('offline');
+		expect(n?.title).toBe('Sin conexión.');
+		expect(n?.detail).toContain('Podés seguir validando');
+		expect(n?.detail).toContain('(22:05)');
+		expect(n?.detail).toContain('Vender en la puerta');
+	});
+
+	it('sin conexión y sin lista: no se puede validar, y se baja sola al volver', () => {
+		const n = doorConnectionNote({ online: false, saved: false, savedAt: '' });
+		expect(n?.kind).toBe('offline');
+		expect(n?.detail).toContain('no se puede validar');
+		expect(n?.detail).toContain('se baja sola');
+	});
+
+	it('sin hora no deja paréntesis vacíos', () => {
+		expect(doorConnectionNote({ online: true, saved: true, savedAt: '' })?.detail).not.toContain(
+			'()'
+		);
 	});
 });
