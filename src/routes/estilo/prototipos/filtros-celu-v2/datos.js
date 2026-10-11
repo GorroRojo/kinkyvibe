@@ -26,6 +26,23 @@ const EVENTOS = [
 	['Taller de muestra en LSA', ['taller', 'Online', 'LSA', 'pago'], 11],
 	['Jam de cuerdas inventada', ['jam de cuerdas', 'Presencial', 'Rosario', 'a la gorra'], 12],
 	['Feria de prueba', ['feria', 'Presencial', 'AMBA', 'gratis'], 14],
+	// Muchas etiquetas y nombres largos: para ver el buscador con 5 o más elegidas.
+	[
+		'Charla de prueba con muchas etiquetas',
+		[
+			'charla debate',
+			'Presencial',
+			'AMBA',
+			'gratis',
+			'español',
+			'género y salud sexual',
+			'despatologización',
+			'neurodivergencia',
+			'cuidados posteriores',
+			'antipunitivismo'
+		],
+		15
+	],
 	['Laboratorio de ejemplo', ['laboratorio', 'taller', 'Presencial', 'La Plata', 'pago'], 17],
 	['Perfo de muestra', ['perfo', 'cabaret', 'Presencial', 'AMBA', 'pago'], 19],
 	['Taller de prueba en inglés', ['taller', 'Online', 'inglés', 'pago'], 22],

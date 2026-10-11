@@ -11,6 +11,10 @@
 	 *   cuenta cómo entraría en PostList);
 	 * - en compu, con lugar, el árbol sigue en su columna; la hoja es solo para pantallas angostas;
 	 * - todos los controles de la barra con la misma medida (BarraFiltros).
+	 * Segunda vuelta de gorrite sobre esta versión (ListaV2):
+	 * - con muchas etiquetas elegidas el buscador no se deforma: queda en una línea y las elegidas
+	 *   se deslizan de costado (link de prueba: `?tags=` con cinco o más);
+	 * - «Ver como» y «Eventos pasados» a la misma escala que los chips; «Ver como» con íconos.
 	 *
 	 * Datos inventados y estado local (más los stores de filtros de siempre, que no se guardan).
 	 * Solo en previews y en dev.
@@ -41,6 +45,12 @@
 		{
 			pregunta: '¿La hoja necesita un buscador de etiquetas?',
 			propuesta: 'no: el buscador de arriba de la lista ya sugiere etiquetas.'
+		},
+		{
+			pregunta:
+				'¿Llevamos el arreglo del buscador (una sola línea, las elegidas se deslizan) al buscador de verdad de todas las listas?',
+			propuesta:
+				'sí: hoy, con muchas etiquetas, el buscador del sitio crece en varias líneas y pierde su forma.'
 		},
 		{
 			pregunta: '¿La barra queda fija arriba al bajar por la lista?',

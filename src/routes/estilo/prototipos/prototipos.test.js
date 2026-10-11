@@ -127,6 +127,16 @@ describe('prototipos: versiones', () => {
 	});
 });
 
+describe('prototipos: filtros versión 2', () => {
+	it('«Ver como» con íconos: cada botón con su nombre y su estado elegido', () => {
+		const src = read(`${DIR}/filtros-celu-v2/ListaV2.svelte`);
+		expect(src).toContain('aria-label="Ver como lista"');
+		expect(src).toContain('aria-label="Ver como grilla"');
+		expect(src).toContain("aria-pressed={display === 'list'}");
+		expect(src).toContain("aria-pressed={display === 'grid'}");
+	});
+});
+
 describe('prototipos: datos inventados', () => {
 	it('los mails son de dominios reservados', () => {
 		for (const entry of readdirSync(path.join(ROOT, DIR), {
