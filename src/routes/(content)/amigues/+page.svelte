@@ -36,13 +36,7 @@
 	<title>Emprendimientos y profesionales · Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md). -->
-<ListSeoHead
-	section="amigues"
-	card="amigues"
-	title="Emprendimientos y profesionales"
-	description="Profesionales y emprendimientos amigues: sesiones, clases, terapia, arte y más."
-	kinds={data.kinds}
-/>
+<ListSeoHead section="amigues" card="amigues" kinds={data.kinds} />
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Profesionales y emprendimientos</h1>
 <div class="glosario">

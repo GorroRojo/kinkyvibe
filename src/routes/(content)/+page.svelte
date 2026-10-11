@@ -3,6 +3,7 @@
 	import Carrousel from '$lib/components/Carrousel.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { SITE_TAGLINE } from '$lib/utils/ogCards.js';
 	import PostList from '$lib/components/PostList.svelte';
 	import { page } from '$app/stores';
 	export let data;
@@ -41,8 +42,9 @@
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 </svelte:head>
-<!-- La vista previa al compartir (docs/compartir.md): sin imagen propia, el logo. -->
-<SeoHead {title} description={summary} canonical="/" />
+<!-- La vista previa al compartir (docs/compartir.md): la tarjeta por defecto y, de descripción,
+     la frase oficial del sitio (SITE_TAGLINE). -->
+<SeoHead {title} description={SITE_TAGLINE} canonical="/" />
 
 <LDTag schema={websiteSchema} />
 <div class="profile-header h-card p-contact hidden">

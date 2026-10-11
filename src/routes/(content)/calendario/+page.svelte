@@ -1,6 +1,6 @@
 <script>
 	import ListSeoHead from '$lib/components/ListSeoHead.svelte';
-	import { upcomingDescription } from '$lib/utils/seo.js';
+	import { LIST_SECTIONS, upcomingDescription } from '$lib/utils/seo.js';
 	import { userConfig } from '$lib/utils/stores.js';
 	import {
 		fetchAllPostsClient,
@@ -87,11 +87,7 @@
 <ListSeoHead
 	section="calendario"
 	card="calendario"
-	title="Calendario"
-	description={upcomingDescription(
-		data.posts,
-		'Talleres, juntadas y eventos cuir, kinky y de BDSM: lo que viene, con fecha, lugar y entradas.'
-	)}
+	description={upcomingDescription(data.posts, LIST_SECTIONS.calendario.description)}
 />
 
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->

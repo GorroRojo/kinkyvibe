@@ -3,7 +3,7 @@
  * Open Graph y las de Twitter que arma `SeoHead.svelte`. Sin dependencias del servidor: corre en
  * el servidor, en el navegador y en vitest. Ver docs/compartir.md.
  */
-import { argDateTimeLong } from './dates.js';
+import { argDateTimeLong, argDayMonth } from './dates.js';
 import { placeShort, venuePlaceMeta } from './eventPlace.js';
 import { isMediaPath } from './media.js';
 import { OG_CARDS, OG_CARD_SIZE, ogCardAlt } from './ogCards.js';
@@ -274,32 +274,68 @@ export function materialDescription(meta, tagManager) {
 }
 
 /**
- * La descripción del calendario: los próximos eventos (hasta 3, por fecha), o `fallback` si no
- * hay ninguno. Los cancelados no cuentan.
+ * La descripción del calendario: los próximos eventos (hasta 3, por fecha, con el día a la
+ * argentina) adelante, así entran aunque WhatsApp corte, y después `base` (lo que es la página).
+ * Sin próximos, `base` sola. Los cancelados no cuentan.
+ * «Próximos: Juntada (3/10), Taller (5/10) y Jam (12/10). Talleres, encuentros…»
  * @param {Array<{ meta: Record<string, any> }>} posts
- * @param {string} fallback
+ * @param {string} base
  * @param {number} [now]
  */
-export function upcomingDescription(posts, fallback, now = Date.now()) {
+export function upcomingDescription(posts, base, now = Date.now()) {
 	const next = posts
 		.filter((p) => p.meta?.title && p.meta?.status !== 'cancelado')
 		.map((p) => ({ title: String(p.meta.title), at: new Date(p.meta.start).getTime() }))
 		.filter((p) => Number.isFinite(p.at) && p.at >= now)
 		.sort((a, b) => a.at - b.at)
 		.slice(0, 3)
-		.map((p) => p.title);
-	return next.length ? `Próximos eventos: ${joinList(next)}.` : fallback;
+		.map((p) => `${p.title} (${argDayMonth(p.at)})`);
+	return next.length ? `Próximos: ${joinList(next)}. ${base}` : base;
 }
 
 /**
  * Las listas que se pueden filtrar por la dirección (`?tags=a,b&q=texto`, y `?tipo=` en
- * Amigues): cómo se llaman y qué listan.
+ * Amigues): `title`, el nombre corto (el de las listas filtradas: «Amigues · terapia»);
+ * `heading`, el título de la vista previa sin filtros, que dice qué es la página; `description`,
+ * qué hay (sin filtros, y también después del filtro: «Amigues con la etiqueta terapia. …»), con
+ * el texto de presentación de cada página; e `items`, cómo se llama lo que lista.
  */
 export const LIST_SECTIONS = Object.freeze({
-	calendario: { title: 'Calendario', items: 'Eventos' },
-	material: { title: 'Material', items: 'Artículos y descargables' },
-	amigues: { title: 'Amigues', items: 'Profesionales y proyectos' },
-	todo: { title: 'Todo el contenido', items: 'Material, amigues y eventos' }
+	calendario: {
+		title: 'Calendario',
+		heading: 'Calendario · Próximos talleres, encuentros y eventos cuir, kinky y BDSM',
+		description:
+			'Talleres, encuentros y eventos cuir, kinky y BDSM de Kinky Vibe y la comunidad, con fecha, lugar y entradas.',
+		items: 'Eventos'
+	},
+	material: {
+		title: 'Material',
+		heading: 'Material · Guías, artículos, libros y descargables sobre BDSM y kink',
+		description:
+			'Guías, artículos, libros, fanzines y descargables sobre BDSM y kink, en español e inglés: material inicial para quienes empiezan y por práctica, como cuerdas, impacto o electro.',
+		items: 'Material'
+	},
+	amigues: {
+		title: 'Amigues',
+		heading: 'Amigues · Emprendimientos y profesionales de la comunidad',
+		description:
+			'Profesionales, proyectos y lugares cuir y kinky de la comunidad de Kinky Vibe: sesiones BDSM, clases, terapia, arte, tiendas y más.',
+		items: 'Amigues'
+	},
+	todo: {
+		title: 'Todo el contenido',
+		heading: 'Todo el contenido · Eventos, material y amigues',
+		description:
+			'Todo Kinky Vibe en un mismo lugar: eventos, material y amigues. Filtrá por un tema, como shibari, y encontrá libros, talleres y les profesionales que dan clases.',
+		items: 'Contenido'
+	}
+});
+
+/** La Kinkipedia (sin filtros por la dirección): título y descripción de su vista previa. */
+export const KINKIPEDIA_PREVIEW = Object.freeze({
+	title: 'Kinkipedia · Glosario cuir, kinky y BDSM',
+	description:
+		'Glosario cuir, kinky y BDSM de Kinky Vibe: qué es cada práctica, rol, implemento y término, con su material, eventos y amigues, y las series de encuentros que se repiten.'
 });
 
 /** Cuántas etiquetas se nombran como mucho (una dirección puede traer cualquier cosa). */
@@ -364,15 +400,16 @@ export function filteredListUrl(url, filters) {
 }
 
 /**
- * Título y descripción de una lista: sin filtros, los de la sección; con filtros, los nombran.
- * «Amigues · terapia» / «Profesionales y proyectos con la etiqueta terapia.»
+ * Título y descripción de una lista: sin filtros, `plain` (por defecto, los de la sección); con
+ * filtros, el nombre corto con los filtros y una frase con el filtro antes de la descripción de
+ * la sección. «Amigues · terapia» / «Amigues con la etiqueta terapia. Profesionales, proyectos…»
  * @param {keyof typeof LIST_SECTIONS} section
  * @param {ListFilters} filters
- * @param {{ title: string, description: string }} plain sin filtros
+ * @param {{ title: string, description: string }} [plain] sin filtros
  */
 export function listPreview(section, filters, plain) {
-	if (!isFiltered(filters)) return plain;
-	const { title, items } = LIST_SECTIONS[section];
+	const { title, heading, description, items } = LIST_SECTIONS[section];
+	if (!isFiltered(filters)) return plain ?? { title: heading, description };
 	const names = filters.tags.map((t) => t.name);
 	const quoted = filters.text ? `«${filters.text}»` : '';
 	const tagsPart = !names.length
@@ -382,6 +419,6 @@ export function listPreview(section, filters, plain) {
 			: ` con las etiquetas ${joinList(names)}`;
 	return {
 		title: [title, filters.kindLabel ?? '', names.join(', '), quoted].filter(Boolean).join(' · '),
-		description: `${filters.kindLabel ?? items}${tagsPart}${quoted ? ` que mencionan ${quoted}` : ''}.`
+		description: `${filters.kindLabel ?? items}${tagsPart}${quoted ? ` que mencionan ${quoted}` : ''}. ${description}`
 	};
 }

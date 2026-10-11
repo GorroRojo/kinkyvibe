@@ -10,6 +10,8 @@ import { render } from 'svelte/server';
 import { writable } from 'svelte/store';
 import { metaTags, tagsOf } from '$lib/testing/html.js';
 import { venueView } from '$lib/utils/venues.js';
+import { LIST_SECTIONS } from '$lib/utils/seo.js';
+import { SITE_TAGLINE } from '$lib/utils/ogCards.js';
 
 const ORIGIN = 'https://sitio.test';
 const pageStore = writable({ url: new URL(ORIGIN + '/'), params: {}, data: {} });
@@ -115,6 +117,8 @@ describe('inicio', () => {
 		expectComplete(meta, head, '/');
 		expect(meta['og:type']).toBe('website');
 		expect(meta['og:title']).toBe('Kinky Vibe');
+		// la descripción es la frase oficial del sitio, la misma de las tarjetas
+		expect(meta['og:description']).toBe(SITE_TAGLINE);
 		expectDefaultImage(meta);
 	});
 });
@@ -134,8 +138,10 @@ describe('calendario', () => {
 		const meta = single(head);
 		expectComplete(meta, head, '/calendario');
 		expect(meta['og:type']).toBe('website');
-		expect(meta['og:title']).toBe('Calendario');
-		expect(meta['og:description']).toMatch(/^Talleres, juntadas y eventos/);
+		expect(meta['og:title']).toBe(
+			'Calendario · Próximos talleres, encuentros y eventos cuir, kinky y BDSM'
+		);
+		expect(meta['og:description']).toBe(LIST_SECTIONS.calendario.description);
 		expectDefaultImage(meta, '/og-calendario.png');
 		expect(meta['og:image:alt']).toContain('«Calendario»');
 	});
@@ -151,7 +157,8 @@ describe('calendario', () => {
 			post('Juntada de Prueba', '2026-10-03T20:00:00-03:00')
 		]);
 		expect(single(head)['og:description']).toBe(
-			'Próximos eventos: Juntada de Prueba y Taller Inventado.'
+			'Próximos: Juntada de Prueba (3/10) y Taller Inventado (5/10). ' +
+				LIST_SECTIONS.calendario.description
 		);
 	});
 });
@@ -171,6 +178,8 @@ describe('amigues (la lista)', () => {
 		const head = await amiguesHead('/amigues');
 		const meta = single(head);
 		expectComplete(meta, head, '/amigues');
+		expect(meta['og:title']).toBe('Amigues · Emprendimientos y profesionales de la comunidad');
+		expect(meta['og:description']).toBe(LIST_SECTIONS.amigues.description);
 		expectDefaultImage(meta, '/og-amigues.png');
 	});
 
@@ -179,7 +188,9 @@ describe('amigues (la lista)', () => {
 		const meta = single(head);
 		expect(meta['og:title']).toBe('Amigues · terapia');
 		expect(meta['twitter:title']).toBe('Amigues · terapia');
-		expect(meta['og:description']).toBe('Profesionales y proyectos con la etiqueta terapia.');
+		expect(meta['og:description']).toBe(
+			'Amigues con la etiqueta terapia. ' + LIST_SECTIONS.amigues.description
+		);
 		const og = new URL(meta['og:url']);
 		expect(og.origin + og.pathname).toBe(ORIGIN + '/amigues');
 		expect([...og.searchParams]).toEqual([['tags', 'terapia']]);
@@ -192,7 +203,9 @@ describe('amigues (la lista)', () => {
 	it('?tipo= y varias etiquetas, ordenadas en og:url', async () => {
 		const meta = single(await amiguesHead('/amigues?tipo=persona&tags=terapia,clases'));
 		expect(meta['og:title']).toBe('Amigues · Personas · terapia, clases');
-		expect(meta['og:description']).toBe('Personas con las etiquetas terapia y clases.');
+		expect(meta['og:description']).toBe(
+			'Personas con las etiquetas terapia y clases. ' + LIST_SECTIONS.amigues.description
+		);
 		const og = new URL(meta['og:url']);
 		expect([...og.searchParams.keys()]).toEqual(['tags', 'tipo']);
 		expect(og.searchParams.get('tags')).toBe('terapia,clases');

@@ -24,16 +24,16 @@ de página y dónde se arma. (La **imagen para compartir** que se descarga desde
 
 ## Dónde está
 
-| Qué                                    | Dónde                                                                                                                                                                 |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| El componente (canónica, `og:*`, etc.) | `src/lib/components/SeoHead.svelte`                                                                                                                                   |
-| Listas con filtros                     | `src/lib/components/ListSeoHead.svelte`                                                                                                                               |
-| Qué etiquetas, descripciones, filtros  | `src/lib/utils/seo.js` (`seoTags`, `eventDescription`, `materialDescription`, `upcomingDescription`, `listFilters`, `listPreview`, `filteredListUrl`, `previewImage`) |
-| Frase y tarjetas de `static/`          | `src/lib/utils/ogCards.js` (`SITE_TAGLINE`, `OG_CARDS`)                                                                                                               |
-| Medidas y texto alternativo de portada | `cover` de `siteContent` (`src/lib/server/contenido/posts.js`)                                                                                                        |
-| Perfiles                               | `src/lib/components/amigues/ProfileHead.svelte` (usa `SeoHead`)                                                                                                       |
-| Tarjetas (fuente y script)             | `scripts/og-default/card.html`, `scripts/og-default/render.js` → `static/og-*.png`                                                                                    |
-| Pruebas                                | `src/lib/utils/seo.test.js`, `src/routes/(content)/link-previews.test.js`                                                                                             |
+| Qué                                    | Dónde                                                                                                                                                                                  |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| El componente (canónica, `og:*`, etc.) | `src/lib/components/SeoHead.svelte`                                                                                                                                                    |
+| Listas con filtros                     | `src/lib/components/ListSeoHead.svelte`                                                                                                                                                |
+| Qué etiquetas, descripciones, filtros  | `src/lib/utils/seo.js` (`seoTags`, `eventDescription`, `materialDescription`, `upcomingDescription`, `LIST_SECTIONS`, `listFilters`, `listPreview`, `filteredListUrl`, `previewImage`) |
+| Frase y tarjetas de `static/`          | `src/lib/utils/ogCards.js` (`SITE_TAGLINE`, `OG_CARDS`)                                                                                                                                |
+| Medidas y texto alternativo de portada | `cover` de `siteContent` (`src/lib/server/contenido/posts.js`)                                                                                                                         |
+| Perfiles                               | `src/lib/components/amigues/ProfileHead.svelte` (usa `SeoHead`)                                                                                                                        |
+| Tarjetas (fuente y script)             | `scripts/og-default/card.html`, `scripts/og-default/render.js` → `static/og-*.png`                                                                                                     |
+| Pruebas                                | `src/lib/utils/seo.test.js`, `src/routes/(content)/link-previews.test.js`                                                                                                              |
 
 ## Qué pone cada página
 
@@ -42,20 +42,24 @@ Todas: `description`, `og:site_name` (Kinky Vibe), `og:locale` (`es_AR`), `og:ty
 `og:image:width`/`height`/`alt` cuando se saben), `twitter:card` (`summary_large_image`),
 `twitter:site`, `twitter:title`, `twitter:description`, `twitter:image` y `twitter:image:alt`.
 
-| Página                                            | `og:type` | Título                          | Descripción                                                               | Imagen                                            |
-| ------------------------------------------------- | --------- | ------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------- |
-| Inicio                                            | `website` | Kinky Vibe                      | la del sitio                                                              | tarjeta por defecto                               |
-| Calendario (`/calendario`)                        | `website` | Calendario                      | «Próximos eventos: A, B y C.» (sin próximos, una frase fija)              | tarjeta «Calendario»                              |
-| Material (`/material`)                            | `website` | Artículos, links y descargables | frase fija                                                                | tarjeta «Material»                                |
-| Amigues (`/amigues`)                              | `website` | Emprendimientos y profesionales | frase fija                                                                | tarjeta «Amigues»                                 |
-| Kinkipedia (`/wiki`)                              | `website` | Kinkipedia                      | frase fija                                                                | tarjeta «Kinkipedia»                              |
-| Todo (`/todo`)                                    | `website` | Todo el contenido               | frase fija                                                                | tarjeta por defecto                               |
-| Evento (`/calendario/<evento>`)                   | `event`   | el título                       | «Viernes 2 de octubre de 2026, 15:00 · Lugar · resumen»                   | la portada (*) o la tarjeta por defecto           |
-| Material (`/material/<post>`)                     | `article` | el título                       | «Guía descargable · resumen» (formato y «descargable», por sus etiquetas) | la portada (*) o la tarjeta por defecto           |
-| Entrada de la Kinkipedia (`/wiki/<entrada>`)      | `article` | el título                       | el resumen                                                                | tarjeta «Kinkipedia»                              |
-| Etiqueta o serie sin entrada (`/wiki/<etiqueta>`) | `website` | el nombre                       | «Material, amigues y eventos de «X» en Kinky Vibe.»                       | tarjeta «Kinkipedia»                              |
-| Perfil (`/amigues/<perfil>`)                      | `profile` | el nombre                       | la bio (sin bio, «X en Amigues de Kinky Vibe.»)                           | la imagen del perfil (*) o la tarjeta por defecto |
+| Página                                            | `og:type` | Título                       | Descripción                                                               | Imagen                                            |
+| ------------------------------------------------- | --------- | ---------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------- |
+| Inicio                                            | `website` | Kinky Vibe                   | la frase oficial (`SITE_TAGLINE`)                                         | tarjeta por defecto                               |
+| Calendario (`/calendario`)                        | `website` | `heading` de `LIST_SECTIONS` | «Próximos: A (3/10), B (5/10) y C (12/10).» + la de la sección            | tarjeta «Calendario»                              |
+| Material (`/material`)                            | `website` | `heading` de `LIST_SECTIONS` | la de la sección                                                          | tarjeta «Material»                                |
+| Amigues (`/amigues`)                              | `website` | `heading` de `LIST_SECTIONS` | la de la sección                                                          | tarjeta «Amigues»                                 |
+| Kinkipedia (`/wiki`)                              | `website` | `KINKIPEDIA_PREVIEW`         | `KINKIPEDIA_PREVIEW`                                                      | tarjeta «Kinkipedia»                              |
+| Todo (`/todo`)                                    | `website` | `heading` de `LIST_SECTIONS` | la de la sección                                                          | tarjeta por defecto                               |
+| Evento (`/calendario/<evento>`)                   | `event`   | el título                    | «Viernes 2 de octubre de 2026, 15:00 · Lugar · resumen»                   | la portada (*) o la tarjeta por defecto           |
+| Material (`/material/<post>`)                     | `article` | el título                    | «Guía descargable · resumen» (formato y «descargable», por sus etiquetas) | la portada (*) o la tarjeta por defecto           |
+| Entrada de la Kinkipedia (`/wiki/<entrada>`)      | `article` | el título                    | el resumen                                                                | tarjeta «Kinkipedia»                              |
+| Etiqueta o serie sin entrada (`/wiki/<etiqueta>`) | `website` | el nombre                    | «Material, amigues y eventos de «X» en Kinky Vibe.»                       | tarjeta «Kinkipedia»                              |
+| Perfil (`/amigues/<perfil>`)                      | `profile` | el nombre                    | la bio (sin bio, «X en Amigues de Kinky Vibe.»)                           | la imagen del perfil (*) o la tarjeta por defecto |
 
+- Las secciones dicen qué son, no solo cómo se llaman: el título y la descripción de cada una
+  están en `LIST_SECTIONS` (y `KINKIPEDIA_PREVIEW`) de `seo.js`, sacados del texto de
+  presentación de cada página («Amigues · Emprendimientos y profesionales de la comunidad»). En el
+  calendario, los próximos eventos van adelante, así entran aunque la app corte la descripción.
 - La fecha del evento va a la argentina con `argDateTimeLong` (`dates.js`), como «Cuándo y dónde».
   Un evento cancelado empieza con «Cancelado ·». La descripción se corta en 200 caracteres.
 - El material no tiene subtipos propios: qué es sale de sus etiquetas de «formato de material»
@@ -71,8 +75,9 @@ Todo; la Kinkipedia no filtra por la dirección) leen sus filtros (`?tags=a,b`, 
 Amigues, `?tipo=persona|proyecto|lugar`) y la vista previa los nombra:
 
 - título: «Amigues · terapia», «Amigues · Personas · terapia, clases», «Material · «sogas»»;
-- descripción: «Profesionales y proyectos con la etiqueta terapia.», «Eventos con las etiquetas
-  A y B.», «Lugares que mencionan «sogas».»;
+- descripción: una frase con el filtro y después la de la sección: «Amigues con la etiqueta
+  terapia. Profesionales, proyectos y lugares…», «Eventos con las etiquetas A y B. Talleres…»,
+  «Lugares que mencionan «sogas». Profesionales…» (sin los próximos eventos: no están filtrados);
 - cada etiqueta con su nombre visible y los alias resueltos (el árbol de la base); una que no
   existe va tal cual; como mucho 5. Todo va escapado (Svelte escapa los atributos).
 - **`og:url` guarda los filtros**, normalizados (cada etiqueta por su id, sin alias ni repetidas;

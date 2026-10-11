@@ -1,6 +1,6 @@
 <script>
 	import SeoHead from '$lib/components/SeoHead.svelte';
-	import { cardImage } from '$lib/utils/seo.js';
+	import { KINKIPEDIA_PREVIEW, cardImage } from '$lib/utils/seo.js';
 	const KINKIPEDIA_CARD = cardImage('wiki');
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
 	import { wikiTagManager, query, searchOpen } from '$lib/utils/stores';
@@ -106,8 +106,8 @@
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md). -->
 <SeoHead
-	title="Kinkipedia"
-	description="Enciclopedia fetichista: qué es cada práctica, rol y término del BDSM y el kink."
+	title={KINKIPEDIA_PREVIEW.title}
+	description={KINKIPEDIA_PREVIEW.description}
 	image={KINKIPEDIA_CARD.url}
 	imageInfo={KINKIPEDIA_CARD}
 />

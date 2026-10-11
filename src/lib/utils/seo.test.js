@@ -18,6 +18,8 @@ import {
 	joinList,
 	listFilters,
 	listPreview,
+	LIST_SECTIONS,
+	KINKIPEDIA_PREVIEW,
 	materialDescription,
 	upcomingDescription,
 	previewImage,
@@ -334,21 +336,39 @@ describe('filteredListUrl', () => {
 describe('listPreview', () => {
 	const plain = { title: 'Amigues', description: 'Sin filtros.' };
 
-	it('sin filtros, el de la sección', () => {
+	const AMIGUES = LIST_SECTIONS.amigues.description;
+
+	it('sin filtros, el que le pasan o, si no, el de la sección (que dice qué es la página)', () => {
 		expect(listPreview('amigues', listFilters(at(''), TAGS), plain)).toBe(plain);
+		expect(listPreview('amigues', listFilters(at(''), TAGS))).toEqual({
+			title: 'Amigues · Emprendimientos y profesionales de la comunidad',
+			description: AMIGUES
+		});
 	});
 
-	it('una etiqueta', () => {
+	it('cada sección dice qué es, en pocas palabras', () => {
+		for (const section of /** @type {const} */ (['calendario', 'material', 'amigues', 'todo'])) {
+			const { title, heading, description } = LIST_SECTIONS[section];
+			expect(heading.startsWith(title + ' · ')).toBe(true);
+			expect(description.length).toBeLessThanOrEqual(DESCRIPTION_MAX);
+		}
+		expect(KINKIPEDIA_PREVIEW.title).toBe('Kinkipedia · Glosario cuir, kinky y BDSM');
+		expect(KINKIPEDIA_PREVIEW.description.length).toBeLessThanOrEqual(DESCRIPTION_MAX);
+	});
+
+	it('una etiqueta: el filtro y después la descripción de la sección', () => {
 		expect(listPreview('amigues', listFilters(at('?tags=terapia'), TAGS), plain)).toEqual({
 			title: 'Amigues · terapia',
-			description: 'Profesionales y proyectos con la etiqueta terapia.'
+			description: 'Amigues con la etiqueta terapia. ' + AMIGUES
 		});
 	});
 
 	it('varias etiquetas, con el nombre visible y el alias resuelto', () => {
 		expect(listPreview('calendario', listFilters(at('?tags=terapia,sogas'), TAGS), plain)).toEqual({
 			title: 'Calendario · terapia, Cuerdas y nudos',
-			description: 'Eventos con las etiquetas terapia y Cuerdas y nudos.'
+			description:
+				'Eventos con las etiquetas terapia y Cuerdas y nudos. ' +
+				LIST_SECTIONS.calendario.description
 		});
 	});
 
@@ -356,7 +376,7 @@ describe('listPreview', () => {
 		const f = listFilters(at('?tipo=lugar&q=sogas'), TAGS, { kinds: KINDS });
 		expect(listPreview('amigues', f, plain)).toEqual({
 			title: 'Amigues · Lugares · «sogas»',
-			description: 'Lugares que mencionan «sogas».'
+			description: 'Lugares que mencionan «sogas». ' + AMIGUES
 		});
 	});
 
@@ -395,8 +415,14 @@ describe('upcomingDescription', () => {
 			post('Primero', '2026-10-12T20:00:00-03:00'),
 			post('Tercero', '2026-10-20T20:00:00-03:00')
 		];
-		expect(upcomingDescription(posts, 'nada', now)).toBe(
-			'Próximos eventos: Primero, Segundo y Tercero.'
+		expect(upcomingDescription(posts, 'Qué es la página.', now)).toBe(
+			'Próximos: Primero (12/10), Segundo (15/10) y Tercero (20/10). Qué es la página.'
+		);
+	});
+
+	it('el día va a la argentina (un evento a las 23 h no pasa al día siguiente)', () => {
+		expect(upcomingDescription([post('Noche', '2026-10-17T23:30:00-03:00')], 'Base.', now)).toBe(
+			'Próximos: Noche (17/10). Base.'
 		);
 	});
 
