@@ -241,7 +241,10 @@ describe('handleWebhook: el modo inline', () => {
 	});
 
 	it('sin token: answerInlineQuery en el mismo pedido', async () => {
-		const res = await run({ request: req({ body: inlineBody }), inline: { source: fakeSource } });
+		const res = await run({
+			request: req({ body: inlineBody }),
+			inline: { source: async () => fakeSource() }
+		});
 		const out = await res.json();
 		expect(out).toMatchObject({ method: 'answerInlineQuery', inline_query_id: 'iq-7' });
 		expect(out.results[0].title).toBe('Fiesta inventada');
@@ -254,7 +257,7 @@ describe('handleWebhook: el modo inline', () => {
 		);
 		await run({
 			request: req({ body: inlineBody }),
-			inline: { source: fakeSource },
+			inline: { source: async () => fakeSource() },
 			token: TOKEN,
 			fetch: f
 		});

@@ -50,7 +50,12 @@ const DOCS = [
 const source = makeInlineSource(
 	{
 		raw: { v: 1, docs: DOCS, tags: {} },
-		posts: [{ path: '/material/guia-cuerdas', meta: { category: 'material', featured: IMG } }],
+		posts: [
+			/** @type {any} */ ({
+				path: '/material/guia-cuerdas',
+				meta: { category: 'material', featured: IMG }
+			})
+		],
 		wikiPosts: [],
 		profiles: [
 			{

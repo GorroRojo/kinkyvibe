@@ -58,7 +58,7 @@ export function makeInlineSource(built, { avatars = new Map(), series = new Map(
 	for (const post of built.wikiPosts) add(post.path, { image: imageOf(post.meta.featured) });
 	for (const p of built.profiles ?? []) {
 		add(`/amigues/${p.legacySlug || p.object.slug}`, {
-			image: mediaOf(avatars.get(Number(/** @type {any} */ (p.object).id))),
+			image: mediaOf(avatars.get(Number(p.object.id))),
 			kind: profileKindOf(p.object.data ?? {})
 		});
 	}
