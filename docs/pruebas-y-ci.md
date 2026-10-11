@@ -55,9 +55,10 @@ Detalles de `e2e`:
 
 - El **Worker bundle** empaqueta `worker/index.js` con el build como lo haría el deploy, sin
   subir nada ni necesitar cuenta de Cloudflare. Si falla, el deploy también fallaría.
-- Antes de `vite preview`, `playwright.config.js` corre `scripts/import-content.js`: aplica las
-  migraciones a la base local y le importa los `.md` de eventos y material (el sitio los lee solo
-  de la base). La primera vez tarda ~1-2 minutos; después, segundos.
+- Antes de `vite preview`, `playwright.config.js` corre `scripts/semilla.js`: aplica las
+  migraciones a la base local y le carga la semilla de contenido (`src/lib/server/semilla/`:
+  eventos, material, fichas de amigues, etiquetas y wiki; el sitio los lee solo de la base). La
+  primera vez tarda ~1-2 minutos; después, segundos.
 - Chromium se guarda en caché entre corridas, por versión de `@playwright/test`.
 - Si las pruebas fallan, sube `playwright-results` (capturas y trazas) como artifact por 7 días.
 
@@ -74,11 +75,10 @@ ya no hay `.eslintrc` ni `.eslintignore`).
   corren las de `scripts/**/*.test.js`.
 - `npx vitest run` (o `npm run test:unit`) las corre todas; `npx vitest run src/lib/server/tickets`
   solo una carpeta; `npm run test:unit:watch` las repite al guardar.
-- **Chequeo del contenido** (`src/tests/content.test.js`): revisa todas las publicaciones de
-  `src/lib/posts` (propiedades legibles, fechas con zona horaria, imágenes que existen, autores
-  con perfil…). Los problemas viejos están anotados en `src/tests/content-known-issues.json` y
-  solo falla si aparece uno **nuevo**. Si arreglaste alguno:
-  `UPDATE_CONTENT_ALLOWLIST=1 npx vitest run src/tests/content.test.js`.
+- **Etiquetas en las pruebas**: sin base, el árbol de etiquetas está vacío; `src/tests/setup.js`
+  (en `setupFiles` de `vite.config.js`) pone las de la semilla como respaldo para todas las
+  pruebas. Las que necesitan contenido real lo leen de la semilla (`src/lib/server/semilla/testing.js`).
+  (El viejo chequeo de los `.md`, `src/tests/content.test.js`, se fue con ellos: 0032.)
 - **Mails "golden"**: `src/lib/server/tickets/email.golden.json` guarda cómo sale cada mail; si
   cambiás un mail a propósito, actualizá ese archivo en el mismo PR y explicalo.
 - **HTML de componentes**: para leer lo que devuelve `render` usá `textOf` y `withoutComments` de
@@ -158,9 +158,8 @@ corrido.
 2. Según cuál:
    - **Lint**: `npm run lint` en tu compu muestra lo mismo; arreglalo (o `npm run format` si es
      formato).
-   - **Unit + content tests** (job `unit`): `npx vitest run <archivo>` reproduce. Si es el chequeo del
-     contenido, el mensaje dice qué publicación y qué propiedad.
-   - **Build** (job `e2e`): `npm run build`; suele ser un import roto o un `.md` con propiedades mal escritas.
+   - **Unit tests** (job `unit`): `npx vitest run <archivo>` reproduce.
+   - **Build** (job `e2e`): `npm run build`; suele ser un import roto.
    - **E2E smoke tests**: el job sube `playwright-results` (capturas y trazas) como artifact por
      7 días. Reproducí con `npm run test:e2e`. En CI hay un reintento, así que si falló dos veces
      no es casualidad.

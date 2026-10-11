@@ -6,7 +6,7 @@ Claude sessions, so small, verified PRs matter more than speed.
 ## Stack
 
 - SvelteKit 2 + Svelte 5 in **legacy mode** (no runes in components: `export let`, `$:`, stores).
-  mdsvex for `.md` posts. `adapter-cloudflare` on Cloudflare Workers (the `kinkyvibe` Worker with
+  `adapter-cloudflare` on Cloudflare Workers (the `kinkyvibe` Worker with
   static assets, deployed by Workers Builds: production from `main`, a preview for every other
   branch), D1 database bound as `DB`.
 - Node version: `.node-version`. JavaScript with JSDoc types (only `src/app.d.ts` is TypeScript).
@@ -94,9 +94,11 @@ ratchet. The `ci-ok` job is the single required check; if you add a job, add it 
 
 ## Where things live
 
-- Posts: `src/lib/posts/<category>/<slug>.md` with categories `amigues`, `calendario`,
-  `material`, `wiki`; media in `src/lib/posts/<category>/media/<slug>/`. Posts are edited by
-  non-developers through the admin CMS, so don't reformat them (they're in `.prettierignore`).
+- Content (events, material, profiles, tags and the wiki) lives only in D1, edited by
+  non-developers through the admin CMS; images and files in the R2 library (`docs/contenido.md`,
+  `docs/imagenes.md`). There are no `.md` posts in the repo (decision 0032; git tag
+  `posts-md-final`). Local/E2E databases load the fixed public seed in `src/lib/server/semilla/`
+  (`npm run db:semilla`); don't reformat its JSON (it's in `.prettierignore`).
 - Routes: `src/routes/(content)` public pages, `src/routes/(authed)` admin and editor.
 - Server code: `src/lib/server/` (auth, session, D1 in `db/`). Shared helpers: `src/lib/utils/`.
 - Unit tests next to the code (`*.test.js`); E2E tests in `tests/`.

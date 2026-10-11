@@ -188,6 +188,32 @@ function rehypeSmartypants() {
 const WIKI = /\[\[([^\]:]+)( : [^\]]+)?\]\]/g;
 const OPEN = '\uE000';
 const CLOSE = '\uE001';
+/**
+ * Una arroba escapada (`\@alguien`: no es una mención). micromark saca la barra (CommonMark escapa
+ * la puntuación) y `customRehype` vería una mención; el parser de mdsvex la dejaba y
+ * `customRehype` la respetaba. Se esconde antes del markdown ({@link hideEscapedAt}) y vuelve como
+ * `@` (o `\@` dentro de código, donde la barra se ve) en {@link rehypeRestoreBrackets}.
+ */
+const ESC_AT = '\uE002';
+
+/**
+ * Esconde las `\@` fuera de los bloques de código (ver {@link ESC_AT}).
+ * @param {string} text
+ */
+function hideEscapedAt(text) {
+	let fence = '';
+	return text
+		.split('\n')
+		.map((line) => {
+			const f = /^\s*(```|~~~)/.exec(line);
+			if (f) {
+				fence = fence ? (line.trim().startsWith(fence) ? '' : fence) : f[1];
+				return line;
+			}
+			return fence ? line : line.replaceAll('\\@', ESC_AT);
+		})
+		.join('\n');
+}
 
 /**
  * Los links `[[término]]` / `[[término : texto]]` de la wiki, como los arma `customRehype` en los
@@ -240,17 +266,24 @@ function rehypeWikiLinks() {
 	};
 }
 
-/** Devuelve los corchetes que escondió {@link rehypeWikiLinks}. @returns {(tree: any) => void} */
+/**
+ * Devuelve los corchetes que escondió {@link rehypeWikiLinks} y las arrobas escapadas
+ * ({@link ESC_AT}). @returns {(tree: any) => void}
+ */
 function rehypeRestoreBrackets() {
 	return (tree) => {
-		/** @param {any} node */
-		const walk = (node) => {
+		/** @param {any} node @param {boolean} inCode */
+		const walk = (node, inCode) => {
 			for (const c of node.children ?? []) {
-				if (c.type === 'text') c.value = c.value.replaceAll(OPEN, '[').replaceAll(CLOSE, ']');
-				else walk(c);
+				if (c.type === 'text')
+					c.value = c.value
+						.replaceAll(OPEN, '[')
+						.replaceAll(CLOSE, ']')
+						.replaceAll(ESC_AT, inCode ? '\\@' : '@');
+				else walk(c, inCode || c.tagName === 'code' || c.tagName === 'pre');
 			}
 		};
-		walk(tree);
+		walk(tree, false);
 	};
 }
 
@@ -341,7 +374,7 @@ const processor = PLUGINS.reduce(
 export async function renderFreeBody(body, { resolveMedia = () => undefined, vars = {} } = {}) {
 	const resolved = resolveVars(resolveMediaImports(String(body ?? ''), resolveMedia), vars);
 	const { text, css } = takeBlocks(resolved);
-	const markup = micromark(likeMdsvex(text), {
+	const markup = micromark(hideEscapedAt(likeMdsvex(text)), {
 		allowDangerousHtml: true,
 		extensions: [gfm()],
 		htmlExtensions: [

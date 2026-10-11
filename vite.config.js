@@ -18,7 +18,9 @@ export default defineConfig({
 		assetsInlineLimit: 0
 	},
 	test: {
-		include: ['src/**/*.{test,spec}.{js,ts}', 'scripts/**/*.test.js']
+		include: ['src/**/*.{test,spec}.{js,ts}', 'scripts/**/*.test.js'],
+		// El árbol de etiquetas de respaldo, para las pruebas (src/tests/setup.js).
+		setupFiles: ['src/tests/setup.js']
 	},
 	optimizeDeps: {
 		exclude: ['svelte-codemirror-editor', 'codemirror', '@codemirror/lang-markdown']

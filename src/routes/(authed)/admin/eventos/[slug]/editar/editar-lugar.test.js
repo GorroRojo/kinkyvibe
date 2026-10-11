@@ -9,6 +9,7 @@
  * Repo de mentira, D1 de miniflare y datos inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { metasOf } from '$lib/server/contenido/testing.js';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent, thrown } from '$lib/server/series/fixtures.js';
@@ -265,10 +266,13 @@ describe('guardar en la base', () => {
 		})
 	);
 	const metas = /** @type {Record<string, Record<string, any> | undefined>} */ (
-		import.meta.glob('../../../../../../lib/server/contenido/fixtures/calendario/*.md', {
-			import: 'metadata',
-			eager: true
-		})
+		metasOf(
+			import.meta.glob('../../../../../../lib/server/contenido/fixtures/calendario/*.md', {
+				query: '?raw',
+				import: 'default',
+				eager: true
+			})
+		)
 	);
 	const files = Object.keys(raws)
 		.filter((p) => p.endsWith(`/${FIXTURE}.md`))

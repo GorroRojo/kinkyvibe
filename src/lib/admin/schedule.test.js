@@ -1,5 +1,3 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 import {
@@ -8,6 +6,7 @@ import {
 	readEventFields,
 	splitMarkdown
 } from '$lib/utils/eventDraft.js';
+import { seedFiles } from '$lib/server/semilla/testing.js';
 import { postFields, toInput } from './postFields.js';
 import {
 	endDateFollowingStart,
@@ -18,11 +17,10 @@ import {
 	scheduleToInputs
 } from './schedule.js';
 
-const DIR = 'src/lib/posts/calendario';
-// Los que tienen las propiedades mal escritas se editan como texto (sin esta sección).
-const events = readdirSync(DIR)
-	.filter((f) => f.endsWith('.md') && !f.startsWith('_'))
-	.map((f) => ({ file: f, raw: readFileSync(join(DIR, f), 'utf8') }))
+// Los eventos reales de la semilla de contenido (copia de los .md que había; decisión 0032). Los
+// que tienen las propiedades mal escritas se editan como texto (sin esta sección).
+const events = seedFiles('calendario')
+	.map((f) => ({ file: `${f.legacySlug}.md`, raw: f.raw }))
 	.filter(({ raw }) => {
 		try {
 			return parseDocument(splitMarkdown(raw).frontmatter).errors.length === 0;

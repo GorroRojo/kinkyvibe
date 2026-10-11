@@ -5,6 +5,7 @@
  * idempotencia, que no pisa ni revive lo que se tocó en el panel, y las direcciones viejas.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { seedMetasByPath } from '$lib/server/semilla/testing.js';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import {
 	importAmigues,
@@ -21,10 +22,8 @@ import { saveObject } from '../objects/save.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
-/** Lo que compila mdsvex de cada ficha (la página de hoy muestra esto). */
-const mdsvexMeta = /** @type {Record<string, Record<string, any>>} */ (
-	import.meta.glob('/src/lib/posts/amigues/*.md', { import: 'metadata', eager: true })
-);
+/** Lo que compilaba mdsvex de cada ficha (lo que mostraba la página; guardado en la semilla). */
+const mdsvexMeta = /** @type {Record<string, Record<string, any>>} */ (seedMetasByPath('amigues'));
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;

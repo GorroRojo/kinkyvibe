@@ -306,11 +306,13 @@ en la misma tanda que el borrado; «Recuperar» va por `undoDeletion` (también 
 
 | Qué                                     | Cómo se borra                                    | Fila (`path`)                     | En la lista      |
 | --------------------------------------- | ------------------------------------------------ | --------------------------------- | ---------------- |
-| Eventos y material                      | por el cliente del repo (la base)                | `src/lib/posts/<tipo>/<slug>.md`  | Evento, Material |
+| Eventos y material                      | por el cliente del repo (la base)                | `src/lib/posts/<tipo>/<slug>.md`¹ | Evento, Material |
 | Perfiles                                | borrado suave del objeto                         | `objeto:perfil:<id>`              | Amigues          |
 | Imágenes y archivos de la biblioteca    | borrado suave del objeto                         | `objeto:imagen:<id>`, `…archivo…` | Biblioteca · …   |
 | Etiquetas y series (también los alias)  | borrado suave (Etiquetas: sacar un alias…)       | `objeto:etiqueta:<id>`, `…serie…` | Etiqueta, Serie  |
 | El texto propio de un mail de un evento | se borra la fila; antes, una copia de sus textos | `plantilla:<evento>:<mail>`       | Mail del evento  |
+
+¹ Es solo el nombre de la fila (la forma de siempre): esos archivos ya no están en el repo (0032).
 
 Decisión 0030: las etiquetas, las series y los mails por evento se recuperan. Una etiqueta vuelve
 con sus datos y sus relaciones (nunca se fueron); si mientras tanto se creó otra con el mismo

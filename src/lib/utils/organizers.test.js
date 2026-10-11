@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync } from 'node:fs';
+import { seedFiles } from '$lib/server/semilla/testing.js';
 import {
 	profileSlugFor,
 	findProfile,
@@ -29,9 +29,8 @@ describe('findProfile', () => {
 		expect(findProfile(profiles, '')).toBeUndefined();
 	});
 	it('resolves most organizers of real events to a real profile', () => {
-		const slugs = readdirSync(new URL('../posts/amigues/', import.meta.url))
-			.filter((f) => f.endsWith('.md') && !f.startsWith('_'))
-			.map((f) => ({ slug: f.slice(0, -3), title: f.slice(0, -3) }));
+		// Las fichas reales, de la semilla de contenido (los .md ya no están, decisión 0032).
+		const slugs = seedFiles('amigues').map((f) => ({ slug: f.legacySlug, title: f.legacySlug }));
 		for (const name of [
 			'KinkyVibe',
 			'DemonWeb',
