@@ -113,7 +113,7 @@ La cola de las noches, en este orden:
   los vincula gorrite (o con su OK, probando antes en el demo).
 - Mercado Pago: elegir el plazo de cobro y cargar la comisión real; probar contracargos y pagos
   tardíos en el sandbox. S. Bloqueo: gorrite.
-- Probar el modo puerta en celulares reales y con mala señal; un indicador de «offline listo». S.
+- Probar el modo puerta en celulares reales y con mala señal. S.
 - Preguntas abiertas para les organizadores (reprogramar o cancelar, tope del Fondo por evento,
   si las extras cuentan para el Fondo, cuándo cierra la venta). Bloqueo: gorrite.
 
