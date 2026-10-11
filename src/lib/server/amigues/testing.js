@@ -1,11 +1,20 @@
 /**
- * Utilidades para las pruebas de amigues y lugares (solo Node/vitest, nunca se importa desde la
- * app). Datos inventados; las fichas reales de amigues son públicas a propósito.
+ * Utilidades para las pruebas de amigues y lugares (solo vitest, nunca se importa desde la app).
+ * Datos inventados; las fichas reales de amigues son públicas a propósito (vienen de la semilla de
+ * contenido, src/lib/server/semilla: los .md ya no están en el repo, decisión 0032).
  */
 import { saveObject } from '../objects/save.js';
 import { approveNewStatement } from './approvals.js';
+import seedAmigues from '../semilla/amigues.json';
 
-export { AMIGUES_DIR, readAmigueFiles } from './files.js';
+/**
+ * Las fichas de amigues (las 31 públicas, de la semilla), como las pide `importAmigues`.
+ *
+ * @returns {Promise<{ legacySlug: string, raw: string }[]>}
+ */
+export async function readAmigueFiles() {
+	return structuredClone(seedAmigues);
+}
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 

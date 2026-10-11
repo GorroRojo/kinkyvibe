@@ -21,7 +21,7 @@ import {
 	splitMarkdown,
 	summarizeImport
 } from '../amigues/importer.js';
-import { readAmigueFiles } from '../amigues/files.js';
+import { readAmigueFiles } from '../amigues/testing.js';
 import { makeProfile } from '../amigues/testing.js';
 import { importTags, summarizeTagImport } from '../etiquetas/importer.js';
 import { commitTagEdit } from '../admin/tagEditor.js';

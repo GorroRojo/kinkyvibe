@@ -1,98 +1,29 @@
 <script>
 	/**
-	 * Importar las fichas de amigues a la base y revisar su clasificación (persona, proyecto o lugar).
+	 * Revisar la clasificación de los perfiles que vinieron de las fichas .md (persona, proyecto o
+	 * lugar).
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
-	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 
 	export let data;
 	export let form;
 
-	/** @type {Record<string, string>} */
-	const ACTIONS = {
-		created: 'se crea',
-		updated: 'se actualiza',
-		unchanged: 'sin cambios',
-		skipped_edited: 'editada en el panel: no se pisa',
-		skipped_deleted: 'borrada en el panel: no se revive',
-		error: 'error'
-	};
-	let busy = false;
 	$: pending = data.rows.filter((r) => !r.confirmedAt && !r.deleted).length;
 </script>
 
 <PageHeader
-	title="Importar y clasificar"
-	subtitle="Las fichas .md de amigues pasan a perfiles en la base, con la misma dirección."
+	title="Clasificar perfiles"
+	subtitle="Los perfiles que vinieron de las fichas de amigues: persona, proyecto o lugar."
 	back={{ href: '/admin/comunidad/perfiles', label: 'Perfiles' }}
 />
 
 <div class="kv-stack">
-	<Card title="Importar">
-		<div class="kv-stats">
-			<Stat label="Nuevas" value={data.summary.created} />
-			<Stat label="A actualizar" value={data.summary.updated} />
-			<Stat label="Sin cambios" value={data.summary.unchanged} />
-			<Stat
-				label="No se tocan"
-				value={data.summary.skipped_edited + data.summary.skipped_deleted}
-				sub="editadas o borradas en el panel"
-			/>
-		</div>
-		<p class="kv-note">
-			Se puede correr las veces que haga falta: lo que no cambió no se toca, y lo que se editó o
-			borró en el panel tampoco. Los .md quedan en el repo hasta que confirmes que todo coincide.
-		</p>
-		{#if form?.importResult}
-			{@const r = form.importResult}
-			<p class="kv-flash" role="status">
-				Listo: {r.summary.created} nuevas, {r.summary.updated} actualizadas, {r.summary.unchanged}
-				sin cambios{r.summary.error ? `, ${r.summary.error} con error` : ''}.
-			</p>
-			{#if r.problems.length}
-				<ul class="problems">
-					{#each r.problems as p (p.legacySlug)}
-						<li><code>{p.legacySlug}</code>: {ACTIONS[p.action] ?? p.action} {p.message}</li>
-					{/each}
-				</ul>
-			{/if}
-		{/if}
-		<form
-			method="POST"
-			action="?/importar"
-			use:enhance={() => {
-				busy = true;
-				return async ({ update }) => {
-					await update();
-					busy = false;
-				};
-			}}
-		>
-			<button class="kv-btn" type="submit" disabled={busy}
-				>{busy ? 'Importando…' : 'Importar las fichas'}</button
-			>
-		</form>
-		<details>
-			<summary>Qué va a pasar con cada ficha</summary>
-			<ul class="preview">
-				{#each data.preview as p (p.legacySlug)}
-					<li>
-						<code>{p.legacySlug}</code>
-						{p.title} · {data.kinds[p.kind]} · <strong>{ACTIONS[p.action] ?? p.action}</strong>
-						{#if p.warnings.length}<small class="muted">({p.warnings.join('; ')})</small>{/if}
-						{#if p.message}<small class="kv-error">{p.message}</small>{/if}
-					</li>
-				{/each}
-			</ul>
-		</details>
-	</Card>
-
 	<Card title="Clasificación (a confirmar)">
 		<svelte:fragment slot="actions">
 			<CsvButton href="/admin/comunidad/perfiles/clasificacion.csv" />
@@ -106,7 +37,7 @@
 			<p class="kv-flash" class:bad={!form.confirm.ok} role="status">{form.confirm.message}</p>
 		{/if}
 		{#if !data.rows.length}
-			<p class="kv-note">Todavía no se importó nada.</p>
+			<p class="kv-note">No hay perfiles que hayan venido de las fichas.</p>
 		{:else}
 			<div class="kv-table-wrap">
 				<table class="kv-table">
@@ -155,12 +86,6 @@
 </div>
 
 <style>
-	.problems,
-	.preview {
-		margin: 0.5rem 0 0;
-		padding-left: var(--space-s);
-		font-size: var(--text-sm);
-	}
 	.muted {
 		color: var(--muted);
 	}
@@ -172,10 +97,6 @@
 	}
 	.done {
 		opacity: 0.75;
-	}
-	details summary {
-		cursor: pointer;
-		margin-top: 0.8rem;
 	}
 	select {
 		border-radius: 2em;

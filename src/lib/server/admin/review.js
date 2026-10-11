@@ -15,8 +15,7 @@
  *   publicaciones, que el isolate recuerda mientras la base no cambie).
  * Ninguna pide nada a GitHub: los PRs de contenido ya no son filas (el contenido vive solo en la
  * base, decisión 0030).
- * La lista para revisar del importador de contenido no se calcula acá: sale de lo que guardó la
- * última vez su página (`review_snapshots`, ver ./reviewSnapshots.js).
+ * (La fila del importador de contenido se fue con el importador: decisión 0032.)
  */
 import { dev } from '$app/environment';
 import { rowsOf } from '$lib/server/db/batch.js';
@@ -32,7 +31,6 @@ import {
 } from '$lib/server/tickets/settings.js';
 import { tagIssuesOf, tagRecordsQuery, tagUsageAndWiki } from '$lib/server/etiquetas/review.js';
 import { editEventHref, orderHref, streamHref, transfersHref } from '$lib/admin/links.js';
-import { reviewSnapshotQuery } from './reviewSnapshots.js';
 import {
 	arDay,
 	claimReviewItems,
@@ -58,15 +56,12 @@ import {
 /** @typedef {import('./inicio.js').ReviewRow} ReviewRow */
 /** @typedef {import('$lib/server/eventos/index.js').EventSummary} EventSummary */
 /** @typedef {import('$lib/server/tickets/config.js').EventTickets} EventTickets */
-/** @typedef {import('./reviewSnapshots.js').ReviewSnapshot} ReviewSnapshot */
 /** @typedef {import('$lib/server/etiquetas/review.js').TagIssueCounts} TagIssueCounts */
 
 /** La lista de Eventos con los próximos sin imagen. */
 export const NO_IMAGE_HREF = '/admin/eventos?filtro=sin-imagen';
 /** Etiquetas (su tarjeta «Para revisar» está en la página). */
 export const TAGS_REVIEW_HREF = '/admin/etiquetas';
-/** Contenido → En la base (el importador, con su lista «Para revisar»). */
-export const IMPORT_REVIEW_HREF = '/admin/contenido/base';
 
 /**
  * Los eventos de prueba del repo solo existen en `vite dev`.
@@ -132,8 +127,6 @@ export function reviewQueries(now, { login = '' } = {}) {
 		claims: claimsQuery(),
 		// Eventos con la etiqueta «Online» y además un lugar (los que vienen y los del último mes).
 		onlineMismatch: onlineMismatchCountQuery(now),
-		// La lista para revisar del importador, como quedó la última vez que se abrió su página.
-		importCheck: reviewSnapshotQuery('importacion'),
 		// Las etiquetas de la base, para lo que Etiquetas tiene «Para revisar».
 		tagRecords: login ? tagRecordsQuery(login) : noQuery(null)
 	};
@@ -235,42 +228,6 @@ export function tagReviewItem(tags) {
 	};
 }
 
-/** Cómo se llama cada categoría del importador en el texto de su fila. */
-const IMPORT_LABELS = /** @type {Record<string, [string, string]>} */ ({
-	calendario: ['evento', 'eventos'],
-	material: ['publicación de material', 'publicaciones de material']
-});
-
-/**
- * La fila del importador de contenido: su lista «Para revisar» como quedó la última vez que se
- * abrió Contenido → En la base. Nada si estaba vacía (o nunca se abrió).
- *
- * @param {ReviewSnapshot | null} snapshot
- * @param {{ formatWhen?: (ms: number) => string }} [opts]
- * @returns {ReviewItem | null}
- */
-export function importReviewItem(snapshot, { formatWhen } = {}) {
-	if (!snapshot || snapshot.count <= 0) return null;
-	const n = snapshot.count;
-	const parts = Object.entries(snapshot.detail)
-		.filter(([, v]) => v > 0)
-		.map(([k, v]) => {
-			const [one, many] = IMPORT_LABELS[k] ?? [k, k];
-			return `${v} ${v === 1 ? one : many}`;
-		});
-	const when =
-		formatWhen && snapshot.computedAt ? `revisado ${formatWhen(snapshot.computedAt)}` : '';
-	return {
-		id: 'import-review',
-		tone: 'info',
-		icon: 'import',
-		title: `${n} ${n === 1 ? 'archivo .md para revisar' : 'archivos .md para revisar'} en Contenido → En la base`,
-		text: [...parts, when].filter(Boolean).join(' · '),
-		action: 'Ver',
-		href: IMPORT_REVIEW_HREF
-	};
-}
-
 /**
  * Las filas de «Para revisar», en el orden de la tarjeta. Pura: la usan la tarjeta del Inicio y
  * el contador del menú (que es `rows.length`, ver {@link reviewCount}).
@@ -289,7 +246,6 @@ export function importReviewItem(snapshot, { formatWhen } = {}) {
  *   integrity: import('$lib/server/objects/integrity.js').IntegrityRun | null,
  *   tagRecords: import('$lib/server/etiquetas/editor.js').StoredTag[] | null,
  *   tagUsage: Awaited<ReturnType<typeof tagUsageAndWiki>> | null,
- *   importCheck: ReviewSnapshot | null,
  *   now: number
  * }} facts
  * @returns {ReviewRow[]}
@@ -316,7 +272,6 @@ export function reviewRows(facts) {
 	// Eventos con lugar y etiqueta «Online»: una fila que lleva a esa lista de Eventos.
 	const onlineItem = onlineMismatchItem(facts.onlineMismatch);
 	const tagItem = tagReviewItem(tagIssuesOf(facts.tagRecords, facts.tagUsage));
-	const importItem = importReviewItem(facts.importCheck, { formatWhen });
 	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
 	const rows = groupReviewItems(
 		[
@@ -325,8 +280,7 @@ export function reviewRows(facts) {
 			...(onlineItem ? [onlineItem] : []),
 			...profileReviewItems(facts.newProfiles, { formatWhen }),
 			...claimReviewItems(facts.claims, { formatWhen }),
-			...(tagItem ? [tagItem] : []),
-			...(importItem ? [importItem] : [])
+			...(tagItem ? [tagItem] : [])
 		],
 		{ links: { noImage: NO_IMAGE_HREF } }
 	);

@@ -1,8 +1,8 @@
 /**
  * Lo que comparten las páginas del panel que editan etiquetas (Etiquetas, Eventos → Series, el
  * evento nuevo con serie nueva): las etiquetas se guardan siempre en la base (el interruptor
- * `etiquetas_db` quedó prendido para siempre; ya no hay commits al archivo de etiquetas). Si la
- * base todavía no tiene etiquetas, hay que importarlas primero ({@link NEEDS_IMPORT}).
+ * `etiquetas_db` quedó prendido para siempre; el archivo de etiquetas ya no existe, decisión 0032).
+ * Si la base todavía no tiene etiquetas, no hay nada que editar ({@link NEEDS_IMPORT}).
  */
 import { getDB } from '$lib/server/db';
 import { getEventAdmin, getRepoClient } from '$lib/server/eventos';
@@ -45,8 +45,8 @@ export async function dbRepoAccess(locals) {
 
 /** La base todavía no tiene etiquetas (o no se puede leer): no hay dónde guardar. */
 export const NEEDS_IMPORT =
-	'Las etiquetas todavía no están en la base: importalas primero en Etiquetas → «Importar a la ' +
-	'base» (/admin/etiquetas/importar).';
+	'La base todavía no tiene etiquetas. En una base local, cargá la semilla de contenido ' +
+	'(npm run db:semilla).';
 
 /** Renombrar sin alias sin con qué guardar las publicaciones (no pasa en el panel). */
 export const NEEDS_REPO =

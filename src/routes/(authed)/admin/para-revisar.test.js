@@ -9,7 +9,6 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { insertOrder } from '$lib/server/admin/testRows.js';
 import { panelCounts } from '$lib/server/admin/panelCounts.js';
-import { saveReviewSnapshot } from '$lib/server/admin/reviewSnapshots.js';
 import { createProfile } from '$lib/server/cuentas/perfiles.js';
 import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
 import { recordIntegrityRun } from '$lib/server/objects/integrity.js';
@@ -275,18 +274,6 @@ const CASES = [
 		1
 	],
 	[
-		'el importador encontró cosas para revisar: 1 fila; sin nada, ninguna',
-		async () => {
-			await saveReviewSnapshot(
-				t.db,
-				'importacion',
-				{ count: 7, detail: { calendario: 5, material: 2 } },
-				{ by: 'admin-de-prueba', now: NOW - DAY }
-			);
-		},
-		1
-	],
-	[
 		'de todo un poco',
 		async () => {
 			fake.events = [event('sin-imagen', { thumb: undefined }), event('fiesta')];
@@ -301,7 +288,6 @@ const CASES = [
 			await insertOrder(t.db, { slug: 'fiesta', created: NOW - DAY, needsReview: 'late_payment' });
 			await accountProfile('una-cuenta@example.com');
 			await tag('Suelta Inventada');
-			await saveReviewSnapshot(t.db, 'importacion', { count: 1 }, { by: 'admin-de-prueba' });
 			await recordIntegrityRun(
 				t.db,
 				[{ code: 'dangling_edge', message: 'inventado', edgeId: 7 }],
@@ -309,8 +295,8 @@ const CASES = [
 			);
 		},
 		// transferencia tildada sin datos, la transferencia, la orden, sin imagen, el perfil, las
-		// etiquetas, el importador y el chequeo nocturno.
-		8
+		// etiquetas y el chequeo nocturno. (La fila del importador se fue con él: decisión 0032.)
+		7
 	]
 ];
 
@@ -322,28 +308,8 @@ describe('«Para revisar»: el botón del menú cuenta las filas de la tarjeta d
 		expect(badge).toBe(rows.length);
 	});
 
-	it('sin la tabla de la última revisión (base sin la migración 0047): igual, sin esa fila', async () => {
-		await saveReviewSnapshot(t.db, 'importacion', { count: 3 }, { by: 'admin-de-prueba' });
-		await accountProfile('una-cuenta@example.com');
-		await t.db.prepare('ALTER TABLE review_snapshots RENAME TO review_snapshots_aparte').run();
-		try {
-			const { rows, badge } = await both();
-			expect(rows.map((r) => r.id)).not.toContain('import-review');
-			expect(rows.length).toBe(1);
-			expect(badge).toBe(1);
-		} finally {
-			await t.db.prepare('ALTER TABLE review_snapshots_aparte RENAME TO review_snapshots').run();
-		}
-	});
-
-	it('las filas nuevas dicen qué hay y llevan a su página', async () => {
+	it('la fila de Etiquetas dice qué hay y lleva a su página', async () => {
 		await tag('Suelta Inventada');
-		await saveReviewSnapshot(
-			t.db,
-			'importacion',
-			{ count: 7, detail: { calendario: 5, material: 2 } },
-			{ by: 'admin-de-prueba', now: NOW - 2 * HOUR }
-		);
 		const { rows } = await both();
 		expect(rows.find((r) => r.id === 'tags-review')).toMatchObject({
 			kind: 'item',
@@ -352,13 +318,7 @@ describe('«Para revisar»: el botón del menú cuenta las filas de la tarjeta d
 			action: 'Ver',
 			href: '/admin/etiquetas'
 		});
-		expect(rows.find((r) => r.id === 'import-review')).toMatchObject({
-			kind: 'item',
-			title: '7 archivos .md para revisar en Contenido → En la base',
-			text: '5 eventos · 2 publicaciones de material · revisado mié 30 sep · 10:00',
-			action: 'Ver',
-			href: '/admin/contenido/base'
-		});
+		expect(rows.map((r) => r.id)).not.toContain('import-review');
 	});
 
 	it('no le pide nada a GitHub (los PRs de contenido ya no existen)', async () => {
