@@ -278,7 +278,8 @@ export const EMAIL_TEMPLATES = Object.freeze([
 				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión».'
 			},
 			help: {
-				default: 'Si con la fecha nueva no podés, respondé este mail.'
+				default:
+					'Si con la fecha nueva no podés, respondé este mail y te devolvemos lo que pagaste.'
 			},
 			why: { default: WHY_BOUGHT }
 		}

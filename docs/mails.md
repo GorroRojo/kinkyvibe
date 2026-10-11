@@ -213,7 +213,7 @@ migración `0048_avisar_cambio_fecha.sql`):
   minuto siguiente al guardado, así el `SEQUENCE` es más alto que el de cualquier mail anterior y
   el calendario reemplaza la entrada vieja. En un evento online, el link de la transmisión (recuadro
   y botón) si ya está, como en los demás mails. Plantilla `date_change` (variables: `nombre`,
-  `evento`, `fecha`, `fecha_anterior`, `lugar`, `entradas`).
+  `evento`, `fecha`, `fecha_anterior`, `lugar`, `entradas`). El texto por defecto dice que lo comprado sigue valiendo y, debajo del botón, que si con la fecha nueva no puede, responda el mail y le devolvemos lo que pagó (como la política de devoluciones).
 
 ## Configuración
 
