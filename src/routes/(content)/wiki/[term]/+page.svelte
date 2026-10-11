@@ -6,6 +6,7 @@
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import { wikiTermSchema } from '$lib/utils/jsonLd.js';
+	import FeedLinks from '$lib/components/FeedLinks.svelte';
 	import { tagManager, currentPostData, userConfig } from '$lib/utils/stores.js';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
@@ -188,6 +189,11 @@
 	</div>
 </article>
 {#if relatedPosts.length > 0 || data.relatedPastCount > 0}
+	<!-- Los feeds de la etiqueta (eventos y material; wiki/[term]/feed.atom y feed.json). -->
+	<FeedLinks
+		base={$page.url.pathname}
+		title="{data?.meta?.title ?? data?.tag?.visible_name ?? guessedTitle} · Kinky Vibe"
+	/>
 	<PostList posts={relatedPosts}>
 		<hr />
 		<h2>Materiales, amigues y eventos relevantes</h2>
