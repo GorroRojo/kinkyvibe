@@ -182,6 +182,15 @@ inventados. Solo existe en `npm run dev` y en los deploys de preview (como el mo
 El informe de impacto visual ([ui-impacto.md](ui-impacto.md)) la fotografía, así un cambio en un
 componente se ve aunque ninguna página principal lo use.
 
+**Prototipos** (`/estilo/prototipos`): pantallas clickeables para mirar y decidir antes de hacer
+algo de verdad (la lista de [hoja-de-ruta.md](hoja-de-ruta.md), «Prototipos»), con los
+componentes de acá, datos inventados y estado local (sin base ni servidor). Misma regla que la
+galería: solo en dev y en previews, cada `+page.js` con la condición de compilación de
+`src/routes/estilo/+page.js` y el prototipo importado adentro. Cada uno va en su carpeta de
+`src/routes/estilo/prototipos/`, dentro de `Marco.svelte` (lleva la marca del guard del bundle),
+anotado en `prototipos.js` y con una caja «Para decidir» con las preguntas abiertas; lo
+controlan `src/routes/estilo/prototipos/prototipos.test.js` y `tests/smoke.spec.js`.
+
 | Concepto                                                                        | Componente                                                                         |
 | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | Botón (principal, secundario, destructivo, permanente, chico, solo ícono, link) | `$lib/components/ui/Button.svelte`                                                 |
