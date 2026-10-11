@@ -109,7 +109,7 @@ export async function takenSlugsOnRepo(client, token) {
  *   admin: EventAdmin,
  *   rows: DraftRow[],
  *   today?: string,
- *   describe: (created: CreatedDraft[]) => { message: string, pr: import('./github.js').PublishOptions }
+ *   describe: (created: CreatedDraft[]) => { message: string, pr: import('../contenido/cliente.js').PublishOptions }
  * }} input
  * @returns {Promise<
  *   | { ok: false, rowErrors: Record<number, string> }
@@ -134,7 +134,7 @@ export async function commitDraftEvents({
 
 	/** @type {Record<number, string>} */
 	const rowErrors = {};
-	/** @type {import('./github.js').CommitFile[]} */
+	/** @type {import('../contenido/cliente.js').CommitFile[]} */
 	const files = [];
 	/** @type {CreatedDraft[]} */
 	const created = [];
@@ -235,7 +235,7 @@ export function draftAgendaRow(slug, content) {
  * }} input
  * @returns {Promise<
  *   | { ok: false, status: number, message: string }
- *   | { ok: true, slug: string, title: string, notes: string[], row: ReturnType<typeof draftAgendaRow>, commitUrl: string, publish: import('./github.js').PublishResult | null }
+ *   | { ok: true, slug: string, title: string, notes: string[], row: ReturnType<typeof draftAgendaRow>, commitUrl: string, publish: import('../contenido/cliente.js').PublishResult | null }
  * >}
  */
 export async function createQuickDraft({ client, admin, source, title, date, startTime, endTime }) {

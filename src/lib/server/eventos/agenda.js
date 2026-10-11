@@ -38,13 +38,13 @@ export async function gitBlobSha(text) {
  *   current?: import('$lib/utils/agenda.js').AgendaRow,
  *   changed?: import('$lib/utils/agenda.js').AgendaField[],
  *   commitUrl?: string,
- *   publish?: import('./github.js').PublishResult | null
+ *   publish?: import('../contenido/cliente.js').PublishResult | null
  * }} AgendaSaveResult
  */
 
 /**
  * What happens next with a save that went to a content PR (nothing for the mock / demo modes).
- * @param {import('./github.js').PublishResult | undefined} pr
+ * @param {import('../contenido/cliente.js').PublishResult | null | undefined} pr
  */
 export function publishNote(pr) {
 	if (!pr) return '';
@@ -56,7 +56,7 @@ export function publishNote(pr) {
 
 /**
  * @typedef {{
- *   client: Pick<typeof import('./github.js'), 'getFile' | 'commitFiles'>,
+ *   client: Pick<typeof import('../contenido/cliente.js').sinRepo, 'getFile' | 'commitFiles'>,
  *   token: string,
  *   slug: string,
  *   before: Record<string, unknown>,
@@ -199,7 +199,7 @@ export const AGENDA_BATCH_MAX = 100;
  *   message: string,
  *   results: Array<AgendaSaveResult & { slug: string }>,
  *   commitUrl?: string,
- *   publish?: import('./github.js').PublishResult | null
+ *   publish?: import('../contenido/cliente.js').PublishResult | null
  * }} AgendaBatchResult
  * `ok`: se guardaron todas. `results`: una por fila, en el mismo orden.
  */
@@ -250,7 +250,7 @@ export async function saveAgendaRows({ client, token, author, rows, places }) {
 		ready.push({ index, slug, ...prep });
 	}
 
-	/** @type {{ url: string, pr?: import('./github.js').PublishResult } | null} */
+	/** @type {import('../contenido/cliente.js').CommitResult | null} */
 	let commit = null;
 	if (ready.length) {
 		const message =

@@ -12,7 +12,7 @@ import { CONTENT_CATEGORIES } from '$lib/utils/contentPosts.js';
 /**
  * @typedef {{
  *   getFile: (token: string, path: string) => Promise<string | null>,
- *   commitFiles: (token: string, opts: any) => Promise<import('../contenido/cliente.js').PublishResult>
+ *   commitFiles: (token: string, opts: any) => Promise<import('../contenido/cliente.js').CommitResult>
  * }} PostClient
  */
 

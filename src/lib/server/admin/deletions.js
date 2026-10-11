@@ -50,7 +50,7 @@ import { gitBlobSha } from './posts.js';
 /**
  * @typedef {{
  *   getFile: (token: string, path: string) => Promise<string | null>,
- *   commitFiles: (token: string, opts: any) => Promise<PublishResult & { pr?: any }>
+ *   commitFiles: (token: string, opts: any) => Promise<import('../contenido/cliente.js').CommitResult>
  * }} DeleteClient
  */
 

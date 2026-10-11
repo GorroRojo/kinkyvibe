@@ -34,16 +34,25 @@
  */
 
 /**
- * Lo que devuelve un guardado: en la base, `db` con lo que se guardó (`<categoría>/<dirección>`).
+ * El PR de un guardado, de cuando el panel guardaba en GitHub. Ya no viene nunca (`pr` de
+ * {@link CommitResult} es siempre vacío); el tipo queda para quien todavía lo pasa de largo.
  * @typedef {object} PublishResult
- * @prop {string} [sha]
- * @prop {string} url
- * @prop {string[]} [db]
- * @prop {number} [number] (de cuando el guardado era un PR; ya no viene)
+ * @prop {number} [number]
+ * @prop {string} [url]
  * @prop {string} [branch]
  * @prop {boolean} [stacked]
  * @prop {'auto'|'merged'|'open'} [state]
  * @prop {string} [problem]
+ */
+
+/**
+ * Lo que devuelve un guardado: en la base, `db` con lo que se guardó (`<categoría>/<dirección>`)
+ * y `url`, la página de la publicación.
+ * @typedef {object} CommitResult
+ * @prop {string} [sha]
+ * @prop {string} url
+ * @prop {string[]} [db]
+ * @prop {PublishResult | null} [pr] (siempre vacío: ya no hay PRs)
  */
 
 /** Guardar algo que tenía que no existir (`mustNotExist`) y ya existe. */
@@ -112,7 +121,7 @@ export const sinRepo = Object.freeze({
 	/**
 	 * @param {string} _token
 	 * @param {{ files: CommitFile[], message: string } & Record<string, any>} opts
-	 * @returns {Promise<PublishResult>}
+	 * @returns {Promise<CommitResult>}
 	 */
 	async commitFiles(_token, opts) {
 		const first = opts.files[0];

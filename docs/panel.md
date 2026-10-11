@@ -328,7 +328,7 @@ La paleta (`SearchBox.svelte`) junta **acciones** (en el navegador) y **registro
   orden), personas (a **su ficha**, `personHref`), perfiles (al editor), etiquetas (también por
   sus alias: `aka` o `{ id, aliasOf }` llevan a la etiqueta de verdad), entradas y códigos.
 - **Acciones**: cada sección del menú (`buildCommands`) más las de `paletteActions.js`: «Para
-  revisar», Nuevo material, Nuevo perfil, Importar perfiles, lugares y etiquetas (Importar
+  revisar», Nuevo material, Nuevo perfil, Clasificar perfiles, Importar lugares (Importar
   eventos es «Importar planilla»), Vincular lugares, «Nuevo código de descuento» (abre el
   formulario, `#nuevo`), «Cambiar tema» y «Ocultar/Mostrar lo que viene» (estas dos las cambia el
   layout, por eventos de `SearchBox`).
