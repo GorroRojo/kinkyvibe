@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { doorOptionLabel, doorSaleBreakdown } from './doorSale.js';
+import {
+	DOOR_SALE_DEFAULT_METHOD,
+	doorOptionLabel,
+	doorSaleBreakdown,
+	resetDoorSaleForm
+} from './doorSale.js';
 import { computePrice } from '$lib/utils/tickets.js';
 
 const price = (/** @type {any} */ option, quantity = 1) =>
@@ -35,5 +40,38 @@ describe('doorOptionLabel', () => {
 		expect(doorOptionLabel({ id: 'completo', label: 'Precio completo' }, 'fondo')).toBe(
 			'Precio completo'
 		);
+	});
+});
+
+describe('resetDoorSaleForm', () => {
+	/** Un form mínimo que se resetea como el del navegador: un radio sin atributo `checked` queda sin marcar. */
+	const fakeForm = (/** @type {string} */ marked) => {
+		const radios = ['efectivo', 'transferencia'].map((value) => ({
+			value,
+			checked: value === marked,
+			defaultChecked: false
+		}));
+		const form = {
+			radios,
+			reset() {
+				for (const r of radios) r.checked = r.defaultChecked;
+			},
+			querySelectorAll: (/** @type {string} */ sel) =>
+				sel === 'input[type="radio"][name="method"]' ? radios : []
+		};
+		return form;
+	};
+	const marked = (/** @type {any} */ form) =>
+		form.radios.filter((/** @type {any} */ r) => r.checked).map((/** @type {any} */ r) => r.value);
+
+	it('después de vender en efectivo, efectivo sigue marcado', () => {
+		const form = fakeForm('efectivo');
+		expect(resetDoorSaleForm(/** @type {any} */ (form))).toBe('efectivo');
+		expect(marked(form)).toEqual(['efectivo']);
+	});
+	it('después de vender por transferencia, vuelve al de entrada (efectivo)', () => {
+		const form = fakeForm('transferencia');
+		expect(resetDoorSaleForm(/** @type {any} */ (form))).toBe(DOOR_SALE_DEFAULT_METHOD);
+		expect(marked(form)).toEqual(['efectivo']);
 	});
 });
