@@ -44,6 +44,7 @@ import { ACCOUNT_COMMAND_NAMES, HANDLED_COMMANDS } from './commands.js';
 import { answerOnly, deliverScreen, singleMethod } from './deliver.js';
 import {
 	ADMIN_START_PREFIX,
+	clipQuery,
 	decodeNav,
 	encodeNav,
 	findByDeepId,
@@ -54,6 +55,8 @@ import {
 	startParam
 } from './nav.js';
 import { cardFor, navigate } from './navigate.js';
+import { planInlineQuery, selectInline } from './inline.js';
+import { backToResults, docHash, docScreen, siteResultsScreen } from './siteScreens.js';
 import {
 	SEARCH_PROMPT_HEAD,
 	doorAppUrl,
@@ -98,8 +101,10 @@ import {
  * @typedef {import('./navigate.js').NavDeps & {
  *   accounts?: () => Promise<BotAccounts | null>,
  *   adminLink?: BotAdminLink | null,
+ *   inline?: import('./inline.js').InlineDeps | null,
  *   media?: boolean
  * }} Deps `media`: hay token, así que se pueden usar fotos y varios métodos (run.js).
+ *   `inline`: el modo inline (inline.js); sin él, un `inline_query` no se contesta.
  *   `adminLink`: sin base o con `telegram_puerta` apagado, `null` (el bot contesta que no se
  *   puede).
  */
@@ -265,8 +270,72 @@ function screenCtx(deps, group, accounts = null) {
 		chat: group ? 'group' : 'private',
 		now: deps.now ? deps.now() : Date.now(),
 		botUsername: deps.botUsername ?? null,
-		sigo: Boolean(accounts?.follows)
+		sigo: Boolean(accounts?.follows),
+		site: Boolean(deps.inline)
 	};
+}
+
+/**
+ * Lo que coincide con lo buscado en todo el sitio, en el orden del buscador del sitio: solo lo del
+ * índice público de la búsqueda (inline.js). `null` sin el índice.
+ *
+ * @param {string} query ya recortada (`clipQuery`)
+ * @param {ScreenCtx} ctx
+ * @param {Deps} deps
+ */
+async function siteMatches(query, ctx, deps) {
+	const source = deps.inline ? await deps.inline.source() : null;
+	if (!source) return null;
+	return {
+		source,
+		docs: selectInline(source, { types: null, text: query }, ctx.now ?? Date.now())
+	};
+}
+
+/**
+ * Los resultados de buscar en todo el sitio (eventos, material, Kinkipedia, series y amigues).
+ *
+ * @param {string} rawQuery
+ * @param {number} page
+ * @param {ScreenCtx} ctx
+ * @param {Deps} deps
+ * @returns {Promise<Screen>}
+ */
+async function siteSearchScreen(rawQuery, page, ctx, deps) {
+	const query = clipQuery(rawQuery);
+	const found = query ? await siteMatches(query, ctx, deps) : null;
+	if (!found) return noticeScreen(ERROR_TEXT);
+	return siteResultsScreen(query, found.docs, page, ctx, found.source.extras);
+}
+
+/**
+ * La tarjeta de un resultado: se busca de nuevo lo mismo y se toma la cosa **de esos resultados**
+ * (nunca algo afuera del índice público). Un evento próximo, con su tarjeta de siempre; lo demás
+ * (y un evento que ya pasó), con la tarjeta compacta. Las dos con «‹ Volver» a la página.
+ *
+ * @param {{ hash: string, page: number, query: string }} state
+ * @param {ScreenCtx} ctx
+ * @param {Deps} deps
+ * @returns {Promise<{ screen: Screen } | { toast: string }>}
+ */
+async function siteDocResult(state, ctx, deps) {
+	const found = await siteMatches(state.query, ctx, deps);
+	const doc = found?.docs.find((d) => docHash(d) === state.hash);
+	if (!found || !doc) return { toast: UNAVAILABLE_TEXT };
+	const back = backToResults(state.query, state.page);
+	if (doc.c === 'calendario') {
+		const events = await deps.listUpcoming();
+		const event = events.find((e) => `/calendario/${e.slug}` === doc.h);
+		if (event) {
+			return {
+				screen: await cardFor(event, 'n', events, ctx, deps, {
+					follow: followButton(event, ctx),
+					back
+				})
+			};
+		}
+	}
+	return { screen: docScreen(doc, found.source.extras.get(doc.h), ctx, { back }) };
 }
 
 /**
@@ -434,12 +503,16 @@ async function planCallback(callback, deps) {
 		const accounts = await accountsOf(deps);
 		const ctx = screenCtx(deps, group, accounts);
 		const result =
-			state.screen === 'sigo' || state.screen === 'follow' || state.screen === 'follow_do'
-				? await personalScreen(state, chatId, ctx, deps, accounts)
-				: await navigate(state, ctx, deps, {
-						accounts: Boolean(accounts),
-						follow: (event) => followButton(event, ctx)
-					});
+			state.screen === 'site_results'
+				? { screen: await siteSearchScreen(state.query, state.page, ctx, deps) }
+				: state.screen === 'site_doc'
+					? await siteDocResult(state, ctx, deps)
+					: state.screen === 'sigo' || state.screen === 'follow' || state.screen === 'follow_do'
+						? await personalScreen(state, chatId, ctx, deps, accounts)
+						: await navigate(state, ctx, deps, {
+								accounts: Boolean(accounts),
+								follow: (event) => followButton(event, ctx)
+							});
 		if (!('screen' in result)) return answerOnly(callbackId, result.toast);
 		const plan = deliverScreen(result.screen, where, {
 			media: Boolean(deps.media),
@@ -539,6 +612,8 @@ async function commandScreen(command, message, ctx, deps, accounts) {
 		case 'finde':
 			return go({ screen: 'list', view: 'f', page: 0 });
 		case 'buscar':
+			// Con texto («/buscar cuerdas», también en grupos): los resultados de todo el sitio.
+			if (command.args && deps.inline) return siteSearchScreen(command.args, 0, ctx, deps);
 			return go({ screen: 'search' });
 		case 'fondo':
 			return go({ screen: 'fondo' });
@@ -575,6 +650,7 @@ async function commandScreen(command, message, ctx, deps, accounts) {
  */
 export async function planUpdate(update, deps) {
 	if (update?.callback_query) return planCallback(update.callback_query, deps);
+	if (update?.inline_query) return planInline(update.inline_query, deps);
 	const message = update?.message;
 	const chatId = message?.chat?.id;
 	if (typeof chatId !== 'number' && typeof chatId !== 'string') return null;
@@ -595,8 +671,11 @@ export async function planUpdate(update, deps) {
 	try {
 		if (isSearchReply(message)) {
 			const query = message.text.trim().slice(0, 100);
+			const ctx = screenCtx(deps, group);
+			// Con el índice público: todo el sitio. Sin él, como antes, los próximos eventos.
+			if (deps.inline) return send(await siteSearchScreen(query, 0, ctx, deps));
 			const found = matchEvents(await deps.listUpcoming(), query);
-			return send(searchResultsScreen(query, found, screenCtx(deps, group)));
+			return send(searchResultsScreen(query, found, ctx));
 		}
 		const command = parseCommand(message?.text);
 		if (!command) return null;
@@ -608,6 +687,28 @@ export async function planUpdate(update, deps) {
 	} catch (error) {
 		console.error('[telegram] error al armar la respuesta:', error);
 		return send(textScreen(ERROR_TEXT));
+	}
+}
+
+/**
+ * El modo inline (`@<bot> <texto>` en cualquier chat): solo lo público del índice de la búsqueda
+ * (inline.js). Un error no contesta nada (Telegram muestra la lista vacía).
+ *
+ * @param {any} inlineQuery
+ * @param {Deps} deps
+ * @returns {Promise<BotPlan | null>}
+ */
+async function planInline(inlineQuery, deps) {
+	if (!deps.inline) return null;
+	try {
+		return await planInlineQuery(inlineQuery, {
+			...deps.inline,
+			origin: deps.origin,
+			now: deps.now
+		});
+	} catch (error) {
+		console.error('[telegram] error en el modo inline:', /** @type {Error} */ (error)?.name);
+		return null;
 	}
 }
 

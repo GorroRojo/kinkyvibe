@@ -157,7 +157,7 @@ export function formatHelp(origin, { accounts = false } = {}) {
 		'/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n' +
 		'/evento: elegí un evento de la lista\n' +
 		'/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n' +
-		'/buscar: escribí lo que buscás y te muestro lo que encuentre\n' +
+		'/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n' +
 		'/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n' +
 		'/start: el inicio, con botones para todo\n' +
 		account +
