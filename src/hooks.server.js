@@ -27,8 +27,8 @@ export async function handle({ event, resolve }) {
 	// GitHub). Solo consulta algo si hay cookie de sesión y el interruptor está prendido.
 	await loadMember(event);
 	// DEV ONLY: fake admin session for exercising the admin pages without GitHub. Enabled by
-	// `npm run dev:admin` (Vite mode "admin" loads ADMIN_DEV_MOCK=1 from .env.admin; see
-	// src/lib/server/eventos/mock.js). `import.meta.env.DEV` is the literal `false` in
+	// `npm run dev:admin` (Vite mode "admin" loads ADMIN_DEV_MOCK=1 from .env.admin; the admin
+	// pages save to the local database). `import.meta.env.DEV` is the literal `false` in
 	// `vite build`, so this whole block is removed from production bundles.
 	if (import.meta.env.DEV && env.ADMIN_DEV_MOCK === '1') {
 		const login = env.ADMIN_DEV_MOCK_LOGIN || 'GorroRojo';
@@ -45,8 +45,6 @@ export async function handle({ event, resolve }) {
 	// (false in the production build and locally), so this block is removed from production.
 	// isAdmin also refuses the demo identity outside previews.
 	if (PREVIEW_BUILD) {
-		const { setDemoDB } = await import('$lib/server/demo/index.js');
-		setDemoDB(getDB(event.platform));
 		if (event.cookies.get(DEMO_COOKIE) === '1') {
 			event.locals.user = demoUser();
 			event.locals.user_token = DEMO_TOKEN;

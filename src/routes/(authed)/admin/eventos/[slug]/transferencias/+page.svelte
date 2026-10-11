@@ -12,6 +12,7 @@
 	import { ORDER_STATUS, shortTime } from '$lib/admin/orderFormat.js';
 	import DniReveal from '$lib/components/admin/DniReveal.svelte';
 	import { formatARS } from '$lib/utils/money.js';
+	import { transferRuleText } from '$lib/utils/transferDeadline.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -77,7 +78,8 @@
 		{:else}
 			<p class="muted small">
 				Buscá la referencia en el concepto de la transferencia y el comprobante que mandó la
-				persona. Confirmá solo cuando la plata esté en la cuenta.
+				persona. Confirmá solo cuando la plata esté en la cuenta. Cada reserva dura {transferRuleText()},
+				o hasta que empiece el evento si es antes.
 			</p>
 			<ul class="orders">
 				{#each rows as { row: o, result }, i (o.id)}

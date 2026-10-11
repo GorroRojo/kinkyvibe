@@ -1,7 +1,8 @@
 /**
  * El árbol de etiquetas en uso: UNA sola fuente para todo el sitio (docs/etiquetas.md).
- * La lista de la base (el interruptor `etiquetas_db` quedó fijo); el archivo
- * (src/lib/utils/hardcodedTags.js) solo si la base no tiene etiquetas:
+ * La lista de la base (el interruptor `etiquetas_db` quedó fijo); si no hay base o no tiene
+ * etiquetas, el árbol de respaldo (./tagFallback.js: vacío; el archivo de etiquetas se borró con
+ * los .md, decisión 0032):
  *
  * - en el servidor, `hooks.server.js` la pone al empezar cada pedido (`setSiteTagList`, desde
  *   `siteTagSource`, que la recuerda 30 s por isolate: todos los pedidos de un isolate ven la misma);
@@ -15,7 +16,7 @@
  * `tagsFactory` les agrega funciones a los objetos que recibe: cada árbol se arma sobre una copia,
  * así la lista de la base sigue siendo datos (se manda en la página tal cual).
  */
-import hardcodedTags from './hardcodedTags.js';
+import { fallbackTagList } from './tagFallback.js';
 import tagsFactory from './tags.js';
 
 /** @typedef {import('svelte/store').Writable<TagManager>} TagStore */
@@ -57,7 +58,7 @@ export function fileSiteTags() {
  * @returns {ReadonlyArray<{ id: string } & Record<string, any>>}
  */
 export function currentSiteTagList() {
-	return /** @type {any} */ (current) ?? hardcodedTags;
+	return /** @type {any} */ (current) ?? fallbackTagList();
 }
 
 /** ¿Se está usando la lista de la base? */

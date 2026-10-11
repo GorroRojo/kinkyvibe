@@ -1,12 +1,16 @@
 /**
  * Interactivos registrados (decisión 0004, $lib/utils/interactivos.js): solo las etiquetas del
  * registro se muestran como su componente; cualquier otra `<kv-…>` se ve escapada, como texto.
- * La forma de los .md del repo (componente importado en el `<script>`) va y vuelve sin cambios, y
- * el interactivo real (`donde-y-como-golpear-un-cuerpo`) se ve igual armado desde la base que
- * desde su .md.
+ * La forma de los .md (componente importado en el `<script>`, la de «Descargar todo») va y vuelve
+ * sin cambios con los textos de la semilla (copia de los .md que había), y el interactivo real
+ * (`donde-y-como-golpear-un-cuerpo`) se ve igual armado desde la base que como lo mostraba el
+ * componente que mdsvex compilaba de su .md (guardado en fixtures/material el día que se sacó).
  */
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
+import seedCalendario from '$lib/server/semilla/calendario.json';
+import seedMaterial from '$lib/server/semilla/material.json';
+import compiledReference from './fixtures/material/donde-y-como-golpear-un-cuerpo.html?raw';
 import { rehype } from 'rehype';
 import ContentParts from '$lib/components/ContentParts.svelte';
 import {
@@ -65,9 +69,7 @@ describe('el registro', () => {
 describe('cómo se ve', () => {
 	it('una etiqueta registrada es su componente, aunque esté dentro de otro elemento', async () => {
 		const body = `Antes.\n\n<div class="caja">${OWN}</div>\n\nDespués con **negrita**.`;
-		// Una carpeta sin .md: se arma desde el texto (no con el componente del .md).
 		const r = await renderContentBody({ body, body_html: 'libre' }, 'material', 'sin-md');
-		expect(r.component).toBe(false);
 		expect(r.parts).toBeTruthy();
 		const parts = /** @type {any[]} */ (r.parts);
 		expect(componentsIn(parts)).toEqual([TAG]);
@@ -139,13 +141,10 @@ function normalizeHtml(html) {
 	return rehype().data('settings', { fragment: true }).stringify(tree);
 }
 
-describe('los .md reales', () => {
-	const raws = /** @type {Record<string, string>} */ (
-		import.meta.glob('/src/lib/posts/{calendario,material}/*.md', {
-			query: '?raw',
-			import: 'default',
-			eager: true
-		})
+describe('los textos reales (la semilla, copia de los .md que había)', () => {
+	/** @type {Record<string, string>} */
+	const raws = Object.fromEntries(
+		[...seedCalendario, ...seedMaterial].map((f) => [`${f.legacySlug}.md`, f.raw])
 	);
 
 	it('la forma del .md va a la base y vuelve igual («Descargar todo»)', () => {
@@ -153,44 +152,30 @@ describe('los .md reales', () => {
 		const changed = [];
 		/** @type {string[]} */
 		const different = [];
-		for (const [path, raw] of Object.entries(raws)) {
+		for (const [name, raw] of Object.entries(raws)) {
 			const body = normalizeBody(splitMarkdown(raw).body);
 			const stored = toRegisteredTags(body);
-			if (stored !== body) changed.push(path.split('/').pop() ?? '');
-			if (normalizeBody(toLegacyComponents(stored)) !== body) different.push(path);
+			if (stored !== body) changed.push(name);
+			if (normalizeBody(toLegacyComponents(stored)) !== body) different.push(name);
 		}
 		expect(different).toEqual([]);
 		expect(changed).toEqual(['donde-y-como-golpear-un-cuerpo.md']);
 	});
 
-	it('donde-y-como-golpear-un-cuerpo: desde la base se ve igual que desde su .md', async () => {
-		const path = '/src/lib/posts/material/donde-y-como-golpear-un-cuerpo.md';
-		const stored = toRegisteredTags(normalizeBody(splitMarkdown(raws[path]).body));
+	it('donde-y-como-golpear-un-cuerpo: desde la base se ve igual que su .md compilado', async () => {
+		const stored = toRegisteredTags(
+			normalizeBody(splitMarkdown(raws['donde-y-como-golpear-un-cuerpo.md']).body)
+		);
 		expect(stored.startsWith(`<div>${OWN}</div>`)).toBe(true);
 		expect(stored).not.toContain('<script');
-		// Sin cambios: la página usa el componente del .md (exactamente lo de siempre).
-		const same = await renderContentBody(
+		const fromText = await renderContentBody(
 			{ body: stored, body_html: 'libre' },
 			'material',
 			'donde-y-como-golpear-un-cuerpo'
 		);
-		expect(same.component).toBe(true);
-		// Armado desde el texto (como cuando se edita): mismo HTML que el componente compilado.
-		const fromText = await renderContentBody(
-			{ body: stored, body_html: 'libre' },
-			'material',
-			'otro'
-		);
-		expect(fromText.component).toBe(false);
-		const compiled = /** @type {Record<string, any>} */ (
-			import.meta.glob('/src/lib/posts/material/donde-y-como-golpear-un-cuerpo.md', {
-				import: 'default',
-				eager: true
-			})
-		)[path];
 		const parts = fromText.parts ?? [];
 		expect(normalizeHtml(render(ContentParts, { props: { parts } }).body)).toBe(
-			normalizeHtml(render(compiled).body)
+			normalizeHtml(compiledReference)
 		);
 	});
 });

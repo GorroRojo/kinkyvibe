@@ -5,6 +5,7 @@
  * D1 de miniflare con la importación de verdad.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { seedMetasByPath, seedRawsByPath } from '$lib/server/semilla/testing.js';
 import { createTestDB } from '$lib/server/db/testing.js';
 import { splitMarkdown } from '../amigues/importer.js';
 import { coreTypes } from '../objects/types/index.js';
@@ -15,16 +16,14 @@ import { markdownToPost } from './markdown.js';
 import { metaDiff, normalizeMeta } from './parity.js';
 import { CONTENT_CATEGORIES } from './categories.js';
 
-const metas = /** @type {Record<string, Record<string, any> | undefined>} */ (
-	import.meta.glob('/src/lib/posts/{calendario,material}/*.md', { import: 'metadata', eager: true })
-);
-const raws = /** @type {Record<string, string>} */ (
-	import.meta.glob('/src/lib/posts/{calendario,material}/*.md', {
-		query: '?raw',
-		import: 'default',
-		eager: true
-	})
-);
+const metas = /** @type {Record<string, Record<string, any> | undefined>} */ ({
+	...seedMetasByPath('calendario'),
+	...seedMetasByPath('material')
+});
+const raws = /** @type {Record<string, string>} */ ({
+	...seedRawsByPath('calendario'),
+	...seedRawsByPath('material')
+});
 
 /** @param {string} path */
 const partsOf = (path) => {

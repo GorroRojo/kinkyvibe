@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
 import { seedPosts } from '$lib/server/contenido/testing.js';
-import hardcodedTags from '$lib/utils/hardcodedTags.js';
+import seedTagList from '$lib/server/semilla/etiquetas.json';
 import {
 	DAY,
 	fakeEvent,
@@ -164,7 +164,7 @@ describe('prendido: "Avisame si se repite" de punta a punta', () => {
 		const unsub = String(linkIn(mails[0].message.text, '/avisos/baja/')).split('/').pop() ?? '';
 		// Lo que pone hooks.server.js (las etiquetas de la base): una «base» con otro nombre visible.
 		/** @type {Record<string, any>[]} */
-		const list = JSON.parse(JSON.stringify(hardcodedTags));
+		const list = JSON.parse(JSON.stringify(seedTagList));
 		const serie = list.find((e) => e.id === 'Picantearla');
 		if (serie) serie.visible_name = 'Picantearla en la Base';
 		(await import('$lib/utils/siteTags.js')).setSiteTagList(list);

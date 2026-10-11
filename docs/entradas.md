@@ -90,6 +90,13 @@ borrar un tipo vendido ni apagar la venta.
 **Confirmar una transferencia.** Ventas › Transferencias → Confirmar pago. Si la reserva venció
 y no hay cupo, pide confirmar el pase de límite.
 
+**Cuánto dura una reserva por transferencia.** Hasta las 20:00 (hora de Argentina) del segundo
+día hábil después del día de la compra; los días hábiles son de martes a sábado y el día de la
+compra no cuenta (domingo → miércoles, viernes → martes). Si el evento empieza antes, hasta que
+empieza. No hay paso de confirmar
+([decisión 0031](decisiones/0031-reserva-transferencia-dias-habiles.md); la cuenta está en
+`src/lib/utils/transferDeadline.js`).
+
 **Vender en la puerta / cargar invitaciones.** Check-in → el evento → Vender en puerta; o menú
 "Opciones" → Cargar entradas a mano.
 

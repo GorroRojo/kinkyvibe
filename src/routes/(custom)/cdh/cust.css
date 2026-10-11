@@ -1,9 +1,9 @@
 @font-face {
-    font-family: Retosta;
-    src: url('/fonts/Retosta.otf') format('opentype');
+	font-family: Retosta;
+	src: url('/fonts/Retosta.otf') format('opentype');
 }
 
 body {
-    font-family: 'Retosta', "Lato", sans-serif !important;
-    background:white !important;
+	font-family: 'Retosta', 'Lato', sans-serif !important;
+	background: white !important;
 }

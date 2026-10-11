@@ -91,7 +91,10 @@ Settings → Variables and Secrets). Después, borrarla para que vuelva a mandar
 
 ### Importadores
 
-Todos son idempotentes (lo que no cambió no se toca; lo editado en el panel tampoco) y andan con
+**Ya no existen** ([0032](decisiones/0032-borrar-los-md.md)): los `.md` se borraron del repo y una
+base local se llena con la semilla (`npm run db:semilla`). La tabla queda como historia.
+
+Todos eran idempotentes (lo que no cambió no se toca; lo editado en el panel tampoco) y andan con
 el interruptor apagado. **Primero en preview, después en producción**: cada entorno tiene su base.
 
 | Qué                     | Dónde                                                                    | Local                             |
@@ -118,7 +121,7 @@ Solo nombres; los valores nunca van al repo. Sacados del código (`$env/dynamic/
 | `SITE_URL`                                                                                                                                                                                     | Text          | Sí                                       | **No**                | Se usa el origen del pedido                   |
 | `EMAIL_ALLOWLIST`                                                                                                                                                                              | Secret        | **No**                                   | Sí                    | El preview no manda mails                     |
 | `TICKETS_CLIENT_SALT`, `TICKETS_TRANSFER_INFO`                                                                                                                                                 | Secret        | Si se usan                               | Opcional              | Sal fija / datos de Ajustes de venta          |
-| `TICKETS_FROM_EMAIL`, `TICKETS_REPLY_TO`, `TICKETS_CONTACT_EMAIL`, `TICKETS_TRANSFER_HOLD_HOURS`, `TICKETS_MP_FEE_PERCENT`, `FONDO_PERCENT_URL`                                                | Text          | Opcionales                               | Opcionales            | Valores por defecto                           |
+| `TICKETS_FROM_EMAIL`, `TICKETS_REPLY_TO`, `TICKETS_CONTACT_EMAIL`, `TICKETS_MP_FEE_PERCENT`, `FONDO_PERCENT_URL`                                                                               | Text          | Opcionales                               | Opcionales            | Valores por defecto                           |
 | `CUENTAS_ENABLED`, `SERIES_ENABLED`, `BORRAR_DESDE_PANEL_ENABLED`, `PERFILES_PUBLICOS_ENABLED`, `PERSONAS_EVENTOS_ENABLED`, `PROPINAS_ENABLED`, `ETIQUETAS_DB_ENABLED`, `CONTENIDO_DB_ENABLED` | Text          | **Ausentes** (solo para cortar de golpe) | Ausentes              | Manda el panel                                |
 
 Bindings (vienen de `wrangler.toml`, no del panel): `DB` (D1) y `BACKUPS` (R2, solo producción).

@@ -3,11 +3,10 @@ import { postFilePath } from '$lib/utils/postPaths.js';
 import { withLineEnding } from '$lib/utils/lineEndings.js';
 import { requireAdmin } from '$lib/server/auth';
 import { editorData } from '$lib/server/admin/content.js';
-import { featuredURL, getRepoClient, isMockMode, usesLocalRepo } from '$lib/server/eventos';
+import { featuredURL, getRepoClient, isMockMode } from '$lib/server/eventos';
 import { findImage, imageOf } from '$lib/server/media/library.js';
 import { readImageChoice } from '$lib/utils/imageChoice.js';
 import { resolveEventSlug } from '$lib/server/contenido/posts.js';
-import { PendingChangeError } from '$lib/server/eventos/github.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors } from '$lib/server/tickets/editor.js';
@@ -239,7 +238,6 @@ export const _editActions = {
 			);
 		} catch (e) {
 			console.log(e);
-			if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
 			return fail(502, {
 				error:
 					'No se pudo guardar. Puede que otra persona haya editado esta publicación: copiá tus cambios, recargá la página y volvé a intentar.'
@@ -275,10 +273,10 @@ async function getFileContent(token, path) {
 }
 
 /**
- * Saves a post: a content PR on GitHub (see commitFiles), or the dev mock / demo layer.
+ * Saves a post in the database (through the content client, $lib/server/contenido/repo.js).
  *
- * @param {string} token - The admin's GitHub token.
- * @param {string} path - The path to the file in the repository.
+ * @param {string} token - The admin's GitHub token (not used by the database save).
+ * @param {string} path - The post's path (`src/lib/posts/<category>/<slug>.md`, as the client names it).
  * @param {string} content - The new content of the file.
  * @param {string} sha - The blob sha the editor read (the save fails if it changed meanwhile).
  * @param {string} userName - The user's name
@@ -300,13 +298,12 @@ async function saveFileContent(
 	edges
 ) {
 	const client = await getRepoClient();
-	// The mock's sha is not a blob sha; the mock and the demo layer ignore `unchanged` anyway.
 	return await client.commitFiles(token, {
 		files: [{ path, content }],
 		message: `[admin] ${userName} updated ${category}/${postID}`,
 		actor,
-		// Un evento de la base se compara siempre (su sha es el del texto que se abrió).
-		unchanged: usesLocalRepo() && !sha.match(/^[0-9a-f]{40}$/) ? [] : [{ path, sha }],
+		// Se compara siempre (su sha es el del texto que se abrió).
+		unchanged: [{ path, sha }],
 		pr: { action: 'edita', who: userName },
 		...(edges ? { edges: { [path]: edges } } : {})
 	});

@@ -28,7 +28,7 @@ import { getDB } from '$lib/server/db';
 import { getEventAdmin, getRepoClient, isMockMode } from '$lib/server/eventos';
 import { saveAgendaRow, saveAgendaRows } from '$lib/server/eventos/agenda.js';
 import { confirmDraft, createQuickDraft, duplicableEvents } from '$lib/server/eventos/drafts.js';
-import { PathExistsError } from '$lib/server/eventos/github.js';
+import { PathExistsError } from '$lib/server/contenido/cliente.js';
 import { agendaRows } from '$lib/server/eventos/panel.js';
 import { eventTagGroups } from '$lib/utils/adminTags.js';
 import { validateDayNote } from '$lib/utils/dayNotes.js';

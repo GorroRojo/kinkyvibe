@@ -121,6 +121,9 @@ export async function profilePageData(db, urlSlug, locals, { posts: sitePosts } 
 		// El id del objeto: es lo que guarda «Lo que sigo» (botón «Seguir», docs/lo-que-sigo.md).
 		profileId: object.id,
 		canonical: href,
+		// No listado (no sale en /amigues): el link se puede compartir, pero los buscadores no lo
+		// guardan (`noindex`, docs/compartir.md).
+		unlisted: object.data.unlisted === true,
 		bodyHtml: await renderProfileBody(/** @type {string | undefined} */ (object.data.body), {
 			resolveMedia: (file) => (legacySlug ? mediaURL('amigues', legacySlug, file) : undefined)
 		}),

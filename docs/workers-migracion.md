@@ -47,8 +47,8 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
   - `0 6 * * *` (03:00 en Argentina) → backup de la base a R2 y limpieza de los viejos.
   - Los crons **solo corren en producción**; los Previews no los ejecutan.
 - **Modo demo en los Previews**: `__DEPLOY_BRANCH__` se fija al compilar con `WORKERS_CI_BRANCH`
-  (la pone Workers Builds) o, mientras siga Pages, `CF_PAGES_BRANCH`
-  (`src/lib/server/deployBranch.js`). En `main` (y en local) queda `false` y el modo demo no
+  (la pone Workers Builds; `src/lib/server/deployBranch.js`). `CF_PAGES_BRANCH`, la de Pages,
+  ya no se lee. En `main` (y en local) queda `false` y el modo demo no
   entra en el bundle, igual que hoy.
 - **Backups**: `src/lib/server/backup/` (ver [Backups](#backups-de-la-base)).
 - **Scripts**: `npm run db:restore` (`scripts/d1-restore.js`), `npm run db:migrate:preview`
@@ -112,18 +112,18 @@ hasta el paso 3. El dominio kinkyvibe.ar sigue en Pages.
 Cargá las mismas que tiene Pages en Production (paso 0). Los secretos como **Secret**, el resto
 como **Text**. Las que usa el código (solo nombres):
 
-| Nombre                                                                                                                                          | Tipo   | Para qué                                                    |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------- |
-| `GITHUB_CLIENT_ID`                                                                                                                              | Text   | Login de admin con GitHub                                   |
-| `GITHUB_CLIENT_SECRET`                                                                                                                          | Secret | Login de admin con GitHub                                   |
-| `MP_ACCESS_TOKEN`                                                                                                                               | Secret | Mercado Pago                                                |
-| `MP_WEBHOOK_SECRET`                                                                                                                             | Secret | Firma de los webhooks de Mercado Pago                       |
-| `RESEND_API_KEY`                                                                                                                                | Secret | Mails                                                       |
-| `CRON_SECRET`                                                                                                                                   | Secret | El mismo valor que hoy (lo usan el cron y `/api/cron/*`)    |
-| `SITE_URL`                                                                                                                                      | Text   | `https://kinkyvibe.ar`                                      |
-| `TICKETS_CLIENT_SALT`                                                                                                                           | Secret | Si está en Pages                                            |
-| `TICKETS_TRANSFER_INFO`                                                                                                                         | Secret | Si está en Pages (datos de transferencia: nunca en el repo) |
-| `TICKETS_FROM_EMAIL`, `TICKETS_REPLY_TO`, `TICKETS_CONTACT_EMAIL`, `TICKETS_TRANSFER_HOLD_HOURS`, `TICKETS_MP_FEE_PERCENT`, `FONDO_PERCENT_URL` | Text   | Si están en Pages                                           |
+| Nombre                                                                                                           | Tipo   | Para qué                                                    |
+| ---------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------- |
+| `GITHUB_CLIENT_ID`                                                                                               | Text   | Login de admin con GitHub                                   |
+| `GITHUB_CLIENT_SECRET`                                                                                           | Secret | Login de admin con GitHub                                   |
+| `MP_ACCESS_TOKEN`                                                                                                | Secret | Mercado Pago                                                |
+| `MP_WEBHOOK_SECRET`                                                                                              | Secret | Firma de los webhooks de Mercado Pago                       |
+| `RESEND_API_KEY`                                                                                                 | Secret | Mails                                                       |
+| `CRON_SECRET`                                                                                                    | Secret | El mismo valor que hoy (lo usan el cron y `/api/cron/*`)    |
+| `SITE_URL`                                                                                                       | Text   | `https://kinkyvibe.ar`                                      |
+| `TICKETS_CLIENT_SALT`                                                                                            | Secret | Si está en Pages                                            |
+| `TICKETS_TRANSFER_INFO`                                                                                          | Secret | Si está en Pages (datos de transferencia: nunca en el repo) |
+| `TICKETS_FROM_EMAIL`, `TICKETS_REPLY_TO`, `TICKETS_CONTACT_EMAIL`, `TICKETS_MP_FEE_PERCENT`, `FONDO_PERCENT_URL` | Text   | Si están en Pages                                           |
 
 `EMAIL_ALLOWLIST` **no** va en producción (es solo para Previews). Detalle de cada variable:
 [`docs/tickets.md`](tickets.md).
@@ -308,9 +308,8 @@ hay ninguna así.
 
 - Hecho: borrar `workers/cron/` y actualizar `README.md`, `docs/demo.md` y las guías que
   mencionaban el Worker aparte o Pages.
-- Pendiente: `CLAUDE.md` todavía dice «Cloudflare Pages» (lo cambia gorrite). La lectura de
-  `CF_PAGES_BRANCH` en `src/lib/server/deployBranch.js` sigue (es inofensiva: sin Pages nadie la
-  pone).
+- Hecho: `CLAUDE.md` ya describe el Worker, y `src/lib/server/deployBranch.js` y
+  `scripts/demo/guard.js` ya no leen `CF_PAGES_BRANCH` (solo `WORKERS_CI_BRANCH`).
 - Con el sitio en Workers se pueden sumar Queues (mails), Email Workers (casilla de entrada), etc.
 
 ## Dudas y riesgos conocidos

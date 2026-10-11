@@ -1,15 +1,19 @@
 /**
- * Server helpers for src/routes/(authed)/admin/eventos: authorization, the GitHub client (or its
- * dev mock) and the index of existing events.
+ * Server helpers for src/routes/(authed)/admin/eventos: authorization, the content client and the
+ * index of existing events.
  */
 import { env } from '$env/dynamic/private';
-import * as github from './github.js';
 import { isAdmin } from '$lib/server/auth';
-import { PREVIEW_BUILD } from '$lib/server/deploy.js';
 import { parseEventDate, isNumericFeatured, AR_OFFSET } from '$lib/utils/eventDraft.js';
 import { isMediaPath, isPublicMediaUrl } from '$lib/utils/media.js';
+import {
+	legacyAssetNames,
+	legacyAssetURL,
+	legacyMediaFolders,
+	legacyNumberedURL
+} from '$lib/utils/legacyMedia.js';
 
-import { POSTS_DIR } from './images.js';
+import { POSTS_DIR } from './paths.js';
 
 export { POSTS_DIR };
 
@@ -35,84 +39,37 @@ export function isMockMode() {
 }
 
 /**
- * True when the admin pages don't talk to GitHub: `npm run dev:admin` (the mock) or a preview
- * deploy (demo mode, $lib/server/demo). Then post files are read and saved through
- * getRepoClient() instead of the GitHub contents API.
- */
-export function usesLocalRepo() {
-	return isMockMode() || PREVIEW_BUILD;
-}
-
-/**
- * The GitHub client. Under `npm run dev:admin` (vite dev + ADMIN_DEV_MOCK=1) it returns a mock
- * that reads the local checkout and writes "commits" to a temp folder. `import.meta.env.DEV` is replaced by the literal
- * `false` in `vite build`, so the mock branch (and the mock module) is removed from production.
- * On a preview deploy (PREVIEW_BUILD, also a build-time constant) it returns the demo client:
- * "commits" go to the preview's D1 (`demo_files`), never to GitHub, whoever is logged in.
- * Whichever it is, it goes through withContentDb ($lib/server/contenido/repo.js): events,
- * material, amigues profiles and wiki pages are always read from and saved to the database; only
- * what still lives in the repo (images) reaches this client.
- * @returns {Promise<typeof github>}
+ * El cliente con el que el panel lee y guarda publicaciones: `withContentDb`
+ * ($lib/server/contenido/repo.js) sobre un repo vacío ($lib/server/contenido/cliente.js). Eventos,
+ * material, perfiles de amigues y páginas de la wiki se leen y se guardan solo en la base; nada va
+ * a GitHub (decisión 0032), sea producción, un preview o `npm run dev:admin`.
  */
 export async function getRepoClient() {
-	const { withContentDb } = await import('../contenido/repo.js');
-	if (import.meta.env.DEV && env.ADMIN_DEV_MOCK === '1') {
-		// @ts-ignore
-		return withContentDb({ ...github, ...(await import('./mock.js')) });
-	}
-	if (PREVIEW_BUILD) {
-		const { client } = await import('../demo/index.js');
-		return withContentDb(
-			/** @type {typeof github} */ (/** @type {unknown} */ ({ ...github, ...client }))
-		);
-	}
-	return withContentDb(github);
+	const [{ withContentDb }, { sinRepo }] = await Promise.all([
+		import('../contenido/repo.js'),
+		import('../contenido/cliente.js')
+	]);
+	return withContentDb({ ...sinRepo });
 }
 
 /* ------------------------------------------------------------------------------------------ */
 
-/** Los .md de eventos del repo (solo sus nombres: ver {@link takenSlugsInBundle}). */
-const mdModules = import.meta.glob('/src/lib/posts/calendario/*.md', { import: 'metadata' });
-/** @type {Record<string, string>} */
-const mediaFiles = import.meta.glob(
-	'/src/lib/posts/calendario/media/*/*.{jpeg,jfif,jpg,png,webp}',
-	{
-		eager: true,
-		import: 'default'
-	}
-);
-/** @type {Record<string, string>} */
-const assetFiles = import.meta.glob('/src/lib/assets/*.{jpeg,jfif,jpg,png,webp}', {
-	eager: true,
-	import: 'default'
-});
-
-/** Los archivos de src/lib/assets de este deploy («serie.webp»), ordenados. */
+/** Los archivos que había en src/lib/assets («serie.webp»), ordenados ($lib/utils/legacyMedia.js). */
 export function assetNames() {
-	return Object.keys(assetFiles)
-		.map((p) => p.slice(p.lastIndexOf('/') + 1))
-		.sort((a, b) => a.localeCompare(b));
+	return legacyAssetNames();
 }
 
-/** Same lookup order as thumbURL in $lib/utils. */
-const FORMATS = ['jpeg', 'jfif', 'jpg', 'png', 'webp'];
-
 /**
- * URL of an event's featured image, as bundled in this deploy.
+ * URL of an event's featured image: the library image, or the copy in the library of the old
+ * image (numbered in its media folder, or a file of src/lib/assets; $lib/utils/legacyMedia.js).
  * @param {string} slug
  * @param {string|number|undefined} featured
  */
 export function featuredURL(slug, featured) {
 	if (featured === undefined || featured === null || featured === '') return undefined;
 	if (isMediaPath(featured) || isPublicMediaUrl(featured)) return String(featured);
-	if (isNumericFeatured(featured)) {
-		for (const f of FORMATS) {
-			const url = mediaFiles[`/src/lib/posts/calendario/media/${slug}/${featured}.${f}`];
-			if (url) return url;
-		}
-		return undefined;
-	}
-	return assetFiles[`/src/lib/assets/${featured}`];
+	if (isNumericFeatured(featured)) return legacyNumberedURL('calendario', slug, featured);
+	return legacyAssetURL(String(featured));
 }
 
 /**
@@ -127,6 +84,7 @@ export function featuredURL(slug, featured) {
  * @prop {boolean} unpublished
  * @prop {boolean} [draft] borrador de la agenda (`borrador: true`, ver drafts.js)
  * @prop {string} [thumb]
+ * @prop {string[]} [tags] etiquetas como están en el evento (para `#etiqueta` en el buscador)
  */
 
 /** @param {any} v */
@@ -175,17 +133,16 @@ function summarize(slug, meta) {
 		unlisted: meta.force_unlisted === true,
 		unpublished: meta.force_unpublished === true,
 		draft: meta.borrador === true,
-		thumb: featuredURL(slug, meta.featured)
+		thumb: featuredURL(slug, meta.featured),
+		tags: Array.isArray(meta.tags) ? meta.tags.map(String) : []
 	};
 }
 
 /**
- * Slugs taken in this deploy: event files (the .md kept in the repo as a backup: their address is
- * not reused) and media folders.
+ * Direcciones que un evento nuevo no puede usar aunque la base no las tenga: las de las carpetas de
+ * medios viejas (sus imágenes siguen en la biblioteca con ese nombre: un evento nuevo con esa
+ * dirección heredaría la imagen numerada de otro).
  */
 export function takenSlugsInBundle() {
-	const slugs = new Set();
-	for (const path of Object.keys(mdModules)) slugs.add(path.split('/').pop()?.replace(/\.md$/, ''));
-	for (const path of Object.keys(mediaFiles)) slugs.add(path.split('/').slice(-2)[0]);
-	return [...slugs];
+	return legacyMediaFolders('calendario');
 }

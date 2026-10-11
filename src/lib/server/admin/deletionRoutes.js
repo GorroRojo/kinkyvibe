@@ -2,9 +2,9 @@
  * Load y acciones de /admin/borrar/[kind]/[slug] (confirmar y borrar, deshacer) y la acción
  * «Recuperar» de Actividad. La lógica está en ./deletions.js; esto es el pegamento con SvelteKit.
  *
- * Los perfiles de amigues (todos viven solo en la base, también las fichas importadas) se borran
- * y se deshacen en la base (deleteBackend → 'objects': deleteDbProfile), sin leer ni escribir
- * GitHub; el resto, por el cliente del repo (que guarda los eventos y el material en la base).
+ * Los perfiles de amigues se borran y se deshacen en la base (deleteBackend → 'objects':
+ * deleteDbProfile); los eventos y el material, por el cliente de contenido (que también los guarda
+ * en la base). Nada va a GitHub.
  *
  * Solo admins (loads: requireAdmin redirige o da 403; acciones: lo mismo, más 403 sin token de
  * GitHub). El interruptor `borrar_desde_panel` quedó prendido para siempre.
@@ -12,20 +12,14 @@
 import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
-import { getEventAdmin, getRepoClient, usesLocalRepo } from '$lib/server/eventos';
-import {
-	FileChangedError,
-	PathExistsError,
-	PendingChangeError,
-	closeContentPull
-} from '$lib/server/eventos/github.js';
+import { getEventAdmin, getRepoClient } from '$lib/server/eventos';
+import { FileChangedError, PathExistsError } from '$lib/server/contenido/cliente.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { loadEditableProfile } from '$lib/server/amigues/editor.js';
 import { urlSlugOf } from '$lib/server/amigues/profiles.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/errors.js';
 import { clearTagSourceCache } from '$lib/server/etiquetas/source.js';
 import { authorUsage, contentMetas } from './content.js';
-import { contentPullStatus } from './contentPulls.js';
 import {
 	DELETABLE,
 	UndoError,
@@ -112,16 +106,6 @@ async function actionContext({ locals, url, platform }) {
 	return { actor: { ...admin, locals }, db };
 }
 
-/** Cómo consultar y cerrar PRs: solo con GitHub de verdad (en el mock y la demo no hay PR). */
-function pullOps() {
-	if (usesLocalRepo()) return null;
-	return {
-		/** @param {string} token @param {number} n */
-		status: (token, n) => contentPullStatus(token, n),
-		close: closeContentPull
-	};
-}
-
 /** @type {import('@sveltejs/kit').ServerLoad} */
 export async function deletePageLoad({ locals, url, params, platform, setHeaders }) {
 	requireAdmin(locals, url);
@@ -158,7 +142,7 @@ export async function deletePageLoad({ locals, url, params, platform, setHeaders
 	try {
 		files = await readPostFiles(await getRepoClient(), admin.token, kind, slug);
 	} catch (e) {
-		error(502, 'No pudimos leer la publicación desde GitHub: ' + describe(e));
+		error(502, 'No pudimos leer la publicación: ' + describe(e));
 	}
 	return {
 		kind,
@@ -213,7 +197,7 @@ export async function deleteAction(event) {
 	try {
 		files = await readPostFiles(client, actor.token, kind, slug);
 	} catch (e) {
-		return fail(502, { error: 'No pudimos leer la publicación desde GitHub: ' + describe(e) });
+		return fail(502, { error: 'No pudimos leer la publicación: ' + describe(e) });
 	}
 	if (!files) return fail(404, { error: 'Esa publicación ya no existe (¿la borró alguien más?).' });
 	// Se vuelve a calcular acá: lo que vale es lo que hay ahora, no lo que mostraba la página.
@@ -233,7 +217,6 @@ export async function deleteAction(event) {
 			}
 		};
 	} catch (e) {
-		if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
 		if (e instanceof FileChangedError)
 			return fail(409, {
 				error: 'La publicación cambió mientras tanto. Recargá y probá de nuevo.'
@@ -255,7 +238,7 @@ export async function undoAction(event) {
 	if (!Number.isSafeInteger(id) || id <= 0)
 		return fail(400, { error: 'Falta el borrado a deshacer.' });
 	try {
-		const r = await undoDeletion(await getRepoClient(), db, actor, id, { pulls: pullOps() });
+		const r = await undoDeletion(await getRepoClient(), db, actor, id);
 		// Una etiqueta que vuelve: el árbol que se recuerda por isolate se vuelve a leer.
 		if (tagIdOf(r.deletion.path) !== null) clearTagSourceCache();
 		return {
@@ -275,7 +258,6 @@ export async function undoAction(event) {
 			return fail(409, {
 				error: 'Ya hay otra publicación con esa dirección: no se puede recuperar encima.'
 			});
-		if (e instanceof PendingChangeError) return fail(409, { error: e.message + '.' });
 		console.log(e);
 		return fail(502, { error: 'No se pudo deshacer: ' + describe(e) + '. Probá de nuevo.' });
 	}

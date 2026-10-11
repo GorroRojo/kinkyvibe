@@ -2,6 +2,7 @@ import '$lib/types.d.js';
 import { isCurrent, relatedPostsFor } from './allPosts';
 import { currentSiteTags } from './siteTags.js';
 import { isMediaPath, isPublicMediaUrl } from './media.js';
+import { legacyAssetURL, legacyMediaURL, legacyNumberedURL } from './legacyMedia.js';
 
 export { relatedPostsFor };
 
@@ -29,17 +30,6 @@ export function groupMap(group, fn) {
 	}
 }
 
-// Image URLs are resolved from eager globs (a plain path -> URL map) instead of
-// probing up to five `import()`s per image: no async round trips, and no
-// wrapper JS chunk per image in the client build.
-/** @type {Record<string, string>} */
-const mediaURLs = import.meta.glob('../posts/*/media/*/*.{jpeg,jfif,jpg,png,webp}', {
-	eager: true,
-	import: 'default'
-});
-/** @type {Record<string, string>} */
-const assetURLs = import.meta.glob('../assets/*.*', { eager: true, import: 'default' });
-
 /**
  * @param {"calendario"|"amigues"|"material"|"wiki"} category
  * @param {string} postID
@@ -49,30 +39,22 @@ export const thumbURL = async (category, postID, assetID) => {
 	// Una imagen de la biblioteca (R2, docs/imagenes.md): ya es su dirección. También la de una
 	// copia de un evento real en el modo demo, que apunta al sitio público (docs/demo.md).
 	if (isMediaPath(assetID) || isPublicMediaUrl(assetID)) return String(assetID);
-	//check if string is an integer
-	let formats = ['jpeg', 'jfif', 'jpg', 'png', 'webp'];
-	if (('' + assetID).match(/^\d+$/)) {
-		for (const format of formats) {
-			const url = mediaURLs[`../posts/${category}/media/${postID}/${assetID}.${format}`];
-			if (url !== undefined) return url;
-		}
-		return undefined;
-	} else {
-		let [filename, format] = assetID.split('.');
-		return assetURLs[`../assets/${filename}.${format}`];
-	}
+	// Una imagen vieja (número de la carpeta del post o archivo de src/lib/assets): su copia en la
+	// biblioteca ($lib/utils/legacyMedia.js).
+	if (('' + assetID).match(/^\d+$/)) return legacyNumberedURL(category, postID, assetID);
+	return legacyAssetURL(String(assetID));
 };
 
 /**
- * URL of a file in a post's media folder, by file name ("5.webp", "spoiler.webp"), or undefined.
- * Used by profile bodies stored in the database (their mdsvex image imports name the file).
+ * URL of a file in an old post's media folder, by file name ("5.webp", "spoiler.webp"), or
+ * undefined: its copy in the media library ($lib/utils/legacyMedia.js). Used by the bodies stored
+ * in the database (their old image imports name the file).
  * @param {"calendario"|"amigues"|"material"|"wiki"} category
  * @param {string} postID
  * @param {string} file
  * @returns {string|undefined}
  */
-export const mediaURL = (category, postID, file) =>
-	/^[\w.-]+$/.test(file) ? mediaURLs[`../posts/${category}/media/${postID}/${file}`] : undefined;
+export const mediaURL = (category, postID, file) => legacyMediaURL(category, postID, file);
 
 /**
  * @param {TagManager} [tagManager] por defecto, el árbol en uso (archivo o base, siteTags.js)

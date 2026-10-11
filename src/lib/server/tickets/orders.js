@@ -20,6 +20,7 @@
 
 import { computePrice, remainingOf } from '$lib/utils/tickets.js';
 import { tierKey } from '$lib/utils/ticketTiers.js';
+import { transferDeadline } from '$lib/utils/transferDeadline.js';
 import { toBase64url } from '$lib/utils/base64.js';
 import { HOLDING, checkDiscountCode, discountGuardSql, usesSql } from './discounts.js';
 import { capacityLimit, discountUsesLimit, tierLimit } from './overrides.js';
@@ -61,15 +62,6 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
 
 /** Cuánto dura la reserva de cupo mientras la persona paga con Mercado Pago. */
 export const HOLD_MS = 20 * 60 * 1000;
-
-/** Reserva por defecto mientras se espera una transferencia (TICKETS_TRANSFER_HOLD_HOURS). */
-export const TRANSFER_HOLD_MS = 48 * 60 * 60 * 1000;
-
-/**
- * Reserva inicial de una transferencia: se extiende a la completa cuando quien compra la confirma
- * desde el link del mail (ver `extendTransferHold`).
- */
-export const TRANSFER_INITIAL_HOLD_MS = 2 * 60 * 60 * 1000;
 
 /**
  * Topes de reservas abiertas (pendientes de pago) por evento: por email de quien compra y por
@@ -126,7 +118,9 @@ export function newToken() {
  * el código sigue valiendo y le quedan usos. Todo en UNA sentencia.
  *
  * - `mercadopago` y `gratis` → `pending` (la gratis se aprueba enseguida con `approveFreeOrder`).
- * - `transferencia` → `awaiting_transfer`, con la reserva más larga que se pase en `holdMs`.
+ * - `transferencia` → `awaiting_transfer`. Sin `holdMs`, la reserva vence según `transferDeadline`
+ *   (2 días hábiles después del día de la compra; el checkout además le pasa el comienzo del
+ *   evento, decisión 0031).
  *
  * El total lo calcula acá el servidor (`computePrice`): precio del frontmatter − fondo (o + aporte
  * al fondo, según `option`), menos el descuento, más el recargo de Mercado Pago si se paga con MP.
@@ -196,7 +190,8 @@ export async function reserveOrder(db, input) {
 	// El medio "gratis" es solo para total 0, y un total 0 solo puede ser "gratis".
 	if ((method === 'gratis') !== (prices.total === 0)) return { ok: false, reason: 'method' };
 	if (holders.length !== quantity) throw new Error('Falta la información de alguna entrada');
-	const holdMs = input.holdMs ?? (method === 'transferencia' ? TRANSFER_INITIAL_HOLD_MS : HOLD_MS);
+	const holdMs =
+		input.holdMs ?? (method === 'transferencia' ? transferDeadline(now) - now : HOLD_MS);
 	const limits = input.limits ?? HOLD_LIMITS;
 	const clientHash = input.clientHash ?? null;
 	const status = method === 'transferencia' ? 'awaiting_transfer' : 'pending';
@@ -855,27 +850,6 @@ export async function clearReview(db, orderId, now = Date.now()) {
 		.bind(orderId, now)
 		.run();
 	return res.meta.changes === 1;
-}
-
-/**
- * Quien compró confirmó su reserva por transferencia desde el link del mail: la reserva pasa a
- * durar `fullHoldMs` desde que se creó. Solo si todavía está vigente y esperando la transferencia.
- *
- * @param {D1Database} db
- * @param {string} orderId
- * @param {number} fullHoldMs
- * @param {number} [now]
- * @returns {Promise<Order | null>} la orden extendida, o null si no se pudo
- */
-export async function extendTransferHold(db, orderId, fullHoldMs, now = Date.now()) {
-	const res = await db
-		.prepare(
-			`UPDATE orders SET expires_at = MAX(expires_at, created_at + ?2), updated_at = ?3
-			WHERE id = ?1 AND status = 'awaiting_transfer' AND expires_at > ?3`
-		)
-		.bind(orderId, fullHoldMs, now)
-		.run();
-	return res.meta.changes === 1 ? getOrder(db, orderId) : null;
 }
 
 /**

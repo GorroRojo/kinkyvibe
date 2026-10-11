@@ -46,12 +46,12 @@ describe('routeEmail', () => {
 });
 
 describe('isPreviewDeploy', () => {
-	it('solo las ramas que no son main en Cloudflare Pages', () => {
+	it('solo las ramas que no son main (previews de Workers Builds)', () => {
 		expect(isPreviewDeploy('demo')).toBe(true);
 		expect(isPreviewDeploy('main')).toBe(false);
 		expect(isPreviewDeploy('')).toBe(false);
 	});
-	it('fuera de Pages (tests) no es preview', () => {
+	it('sin rama de deploy (local y tests) no es preview', () => {
 		expect(isPreviewDeploy()).toBe(false);
 	});
 });

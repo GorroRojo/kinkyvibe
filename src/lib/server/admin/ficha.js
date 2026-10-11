@@ -115,7 +115,7 @@ export async function findPersonEmail(db, id) {
 		orders: emails('mails de órdenes', 'SELECT DISTINCT lower(trim(buyer_email)) AS e FROM orders'),
 		notes: emails(
 			'mails de notas',
-			"SELECT DISTINCT lower(trim(email)) AS e FROM person_notes WHERE trim(email) != ''"
+			"SELECT DISTINCT lower(trim(email)) AS e FROM person_notes WHERE trim(email) != '' AND deleted_at IS NULL"
 		),
 		series: emails(
 			'mails de series',
@@ -477,7 +477,7 @@ function fichaQueries(key, extra) {
 			[],
 			hasEmail
 				? `SELECT id, body, created_at, created_by FROM person_notes
-				WHERE lower(trim(email)) = ?1 ORDER BY created_at DESC, id DESC`
+				WHERE lower(trim(email)) = ?1 AND deleted_at IS NULL ORDER BY created_at DESC, id DESC`
 				: null,
 			[key.email],
 			noteRows
@@ -489,6 +489,7 @@ function fichaQueries(key, extra) {
 			[],
 			`SELECT id, body, created_at, created_by FROM person_notes
 			WHERE account_id IS NOT NULL AND account_id IN ${ACC} AND trim(email) = ''
+				AND deleted_at IS NULL
 			ORDER BY created_at DESC, id DESC`,
 			p,
 			noteRows

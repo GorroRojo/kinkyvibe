@@ -12,10 +12,14 @@ vi.mock('$lib/server/tickets/events.js', async (importOriginal) => ({
 	})
 }));
 
+import { transferDeadline } from '$lib/utils/transferDeadline.js';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth.js';
 import { listAudit } from '$lib/server/admin/audit.js';
-import { TRANSFER_HOLD_MS, getOrder, reserveOrder } from '$lib/server/tickets/orders.js';
+import { getOrder, reserveOrder } from '$lib/server/tickets/orders.js';
+
+/** Una reserva fija de prueba (48 h): este test no depende de la regla de los días hábiles. */
+const TRANSFER_HOLD_MS = 48 * 60 * 60 * 1000;
 import { actions } from './+page.server.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
@@ -103,7 +107,9 @@ describe('deshacer el rechazo de una transferencia', () => {
 		expect(r.transfer).toMatchObject({ ok: true });
 		const fresh = await getOrder(t.db, o.id);
 		expect(fresh?.status).toBe('awaiting_transfer');
-		expect(fresh?.expires_at).toBeGreaterThanOrEqual(before + TRANSFER_HOLD_MS);
+		// Reserva nueva desde ahora con la regla de los días hábiles (decisión 0031).
+		expect(fresh?.expires_at).toBeGreaterThanOrEqual(transferDeadline(before));
+		expect(fresh?.expires_at).toBeLessThanOrEqual(transferDeadline(Date.now()));
 		const entries = await listAudit(t.db);
 		expect(entries.map((e) => e.action)).toEqual(['transfer.reopen']);
 		expect(entries[0].actorLogin).toBe(ADMINS[0].login);

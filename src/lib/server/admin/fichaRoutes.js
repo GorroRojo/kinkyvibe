@@ -153,8 +153,9 @@ export function fichaActions(resolve) {
 		},
 
 		/** @param {import('@sveltejs/kit').RequestEvent} event */
+		// Borrar es suave (decisión 0033): se recupera desde Actividad.
 		deleteNote: async (event) => {
-			requireAdmin(event.locals, event.url);
+			const admin = requireAdmin(event.locals, event.url);
 			const o = await open(event, 'note');
 			if (!o.db) return o.failed;
 			const id = Number((await event.request.formData()).get('id'));
@@ -162,7 +163,7 @@ export function fichaActions(resolve) {
 			if (
 				!target ||
 				!Number.isSafeInteger(id) ||
-				!(await deleteNote(o.db, { ...target.where, id }))
+				!(await deleteNote(o.db, { ...target.where, id, by: admin.login }))
 			) {
 				return fail(404, { note: { ok: false, message: 'Esa nota ya no está.' } });
 			}
@@ -173,7 +174,12 @@ export function fichaActions(resolve) {
 					? 'Borró una nota de una persona'
 					: 'Borró una nota de una cuenta borrada'
 			});
-			return { note: { ok: true, message: 'Nota borrada.' } };
+			return {
+				note: {
+					ok: true,
+					message: 'Nota borrada. Si te equivocaste, la recuperás desde Actividad.'
+				}
+			};
 		},
 
 		// «Mostrar» un DNI: el de una orden (`orden`) o el guardado en «Mis datos» (`guardado`).

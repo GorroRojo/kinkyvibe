@@ -13,6 +13,7 @@
 	import { fmtDateTime, fmtRelative } from '$lib/admin/format.js';
 	import { csvFilename } from '$lib/admin/csv.js';
 	import { formatARS } from '$lib/utils/money.js';
+	import { transferRuleText } from '$lib/utils/transferDeadline.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -118,7 +119,7 @@
 		<p class="kv-note">
 			Buscá la referencia (KV-…) en el concepto de la transferencia y el comprobante que mandó la
 			persona. Confirmá solo cuando la plata esté en la cuenta: se emiten las entradas y le llegan
-			por mail.
+			por mail. Cada reserva dura {transferRuleText()}, o hasta que empiece el evento si es antes.
 		</p>
 	</Card>
 
@@ -285,8 +286,9 @@
 		<Card title="Rechazadas en los últimos 7 días ({data.rejected.length})">
 			<p class="kv-note">
 				Si una se canceló por error (o el pago llegó después), deshacé el rechazo: vuelve a esperar
-				el comprobante con la reserva renovada. Solo si todavía hay lugar en su tipo de entrada; si
-				no, te avisamos cuánto se pasa y podés confirmarlo igual (queda en el registro).
+				el comprobante con una reserva nueva, contada desde ese momento con la misma regla. Solo si
+				todavía hay lugar en su tipo de entrada; si no, te avisamos cuánto se pasa y podés
+				confirmarlo igual (queda en el registro).
 			</p>
 			<ul class="list">
 				{#each data.rejected as o (o.id)}

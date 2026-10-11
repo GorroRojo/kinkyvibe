@@ -39,7 +39,6 @@
 <svelte:head>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
-	<meta property="og:url" content={$page.url.href} />
 </svelte:head>
 
 {#if $page.data.demoMode && /^\/(admin|edit)(\/|$)/.test($page.url.pathname)}
