@@ -48,6 +48,7 @@ un evento, y mandarse una prueba.
 | Reembolso                 | al reembolsar (desde el panel o desde Mercado Pago)                     | `refund`   | `buildRefundEmail`                   |
 | Mail a compradores        | une admin lo escribe en la ficha del evento → Mail                      | —          | `buyerMail.js`                       |
 | Código para ingresar      | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —          | `src/lib/server/cuentas/email.js`    |
+| Tu link (Fondo KinkyVibe) | lo pide fondo.kinkyvibe.ar («¿Ya sos Mecenas?», ver abajo)              | —          | `src/lib/server/fondo/email.js`      |
 
 Todo en `src/lib/server/tickets/` salvo que se indique. Las plantillas: definición y variables en
 `src/lib/utils/emailTemplates.js`, lo guardado en D1 en `templates.js`, el editor
@@ -84,9 +85,97 @@ comprueba que cada builder la usa y que el asunto y el texto plano siguen iguale
 transferencia y recordatorios llevan la lista «Las N partes del taller» con la fecha y el lugar de
 cada parte ([talleres-partes.md](talleres-partes.md)); los demás mails no cambian.
 
+**Calendario («Agregalo a tu calendario»):** solo los mails que salen con el pago ya acreditado
+llevan el calendario: «Tus entradas», los **recordatorios** y «Link de la transmisión» («Enviar el
+link a todes», con el `.ics` actualizado: el link como lugar). Abajo de la fecha y el lugar (o del
+link), una línea que dice que va adjunto `<slug>.ics` (un solo evento; en un recordatorio de una
+parte de un taller, el de esa parte) y el link «Agregar a Google Calendar». «Tus entradas» lleva
+además, en el `<head>`, el marcado schema.org `EventReservation` (JSON-LD) para Gmail. El de los
+datos para transferir (la compra todavía no está pagada) no lleva nada de esto ni el link de la
+transmisión. «Mail a compradores» tampoco, por ahora. Todo sale de
+`src/lib/server/tickets/calendarFile.js` (`calendarEvent`: las mismas horas, el mismo lugar y la
+misma descripción) y de `calendarExtras` en `email.js`:
+
+- **El .ics** (`ticketCalendarFile`, con `buildEventIcs` de `src/lib/utils/icsFeed.js`): título,
+  inicio y fin en UTC (la hora argentina bien pasada), el link a la página del evento, el estado y
+  el mismo UID que los calendarios del sitio (`eventUid`), así no se duplica si la persona además
+  está suscripta. `METHOD:PUBLISH` y sin `ATTENDEE`: es un evento para agregar, no una invitación
+  (con `REQUEST` los clientes muestran botones de «Asistiré / No asistiré»). Va a Resend en
+  `attachments` (base64) con `content_type: text/calendar; method=PUBLISH; charset=UTF-8`
+  explícito. Pesa ~1 KB.
+- **Versión (`SEQUENCE` y `DTSTAMP`):** un archivo con el mismo UID y un `SEQUENCE` más alto
+  reemplaza al anterior en el calendario en lugar de duplicarlo. Sin columnas nuevas: el
+  `SEQUENCE` son los minutos desde 1970 de la versión (`calendarSequence` en `icsFeed.js`), y la
+  versión (`calendarStamp`) es la más nueva entre la compra y el último cambio del link de la
+  transmisión. Tiene que ser la misma en cada reintento de un envío: Resend rechaza (409) una clave
+  de idempotencia reusada con otro contenido, así que no puede ser «la hora del envío». Un link
+  nuevo da un `SEQUENCE` más alto; dos mails que dicen lo mismo, el mismo. «Reenviar» desde el
+  panel (sin clave) usa la hora del envío. «Enviar el link a todes» sigue sin repetirle el mail a
+  nadie (`stream_link_sends`, igual que antes).
+- **Lugar:** presencial, el lugar como lo dice el mail (quien compró recibe la dirección completa).
+  Online con el link de la transmisión ya cargado al mandar el mail: ese link como lugar y en la
+  descripción, con «Si el link cambia, te llega por mail.» (el link es el mismo para todes les que
+  compraron). Online sin link todavía: «Online» y que el link llega por mail. El link de la
+  transmisión va **solo** en el mail de quien compró: nunca en un calendario público ni en una
+  página.
+- **Google Calendar** (`googleCalendarUrl`): `calendar.google.com/calendar/render?action=TEMPLATE`
+  con título, las mismas horas UTC, la página del evento (y la nota de online) y el mismo lugar.
+- **Marcado para Gmail** (`eventReservationScript`): número de orden, estado confirmado, solo el
+  nombre de quien compró (nunca mail ni DNI) y el evento con fechas `-03:00`, la página y el lugar
+  (`Place`, o `VirtualLocation` con el link de la transmisión si ya está o la página si no). El
+  JSON va con `<` escapado (`\u003c`) para que nada cierre el `<script>`. **Gmail solo lo muestra a
+  remitentes registrados con Google**
+  ([requisitos](https://developers.google.com/workspace/gmail/markup/registering-with-google): DKIM
+  o SPF alineados con el dominio del remitente, remitente fijo, cientos de mails por día a Gmail y
+  pocas quejas; se pide mandando un mail con el marcado a `schema.whitelisting+sample@gmail.com` y
+  completando el formulario). Hasta entonces Gmail lo ignora, salvo en un mail que una cuenta se
+  manda a sí misma (así se prueba). El .ics no necesita registro.
+- Un evento cancelado no lleva nada de esto, y las vistas previas y `email.golden.json` tampoco
+  (sin `event.slug` el mail sale como siempre).
+
+**El link de la transmisión es el mismo para todes** les que compraron: los mails (entradas,
+«Link de la transmisión», recordatorios) y la página de la entrada lo muestran como «Link de la
+transmisión: …», sin «personal, no lo compartas».
+
 **Recordatorios:** el cron del propio Worker (`src/lib/server/scheduled.js`) le pasa cada 15
 minutos `POST /api/cron/recordatorios`, con el header `x-cron-secret`, al sitio. El sitio decide qué mandar. Por
 defecto: 2 días antes y el mismo día a las 9:00; un evento los apaga con `recordatorios: false`.
+
+### Mail del Fondo (tu link)
+
+fondo.kinkyvibe.ar («¿Ya sos Mecenas?», `/mi-link`) no tiene clave de Resend: le pide a este sitio
+que mande el mail con el link de cada suscripción de une mecenas para elegir cómo aparece en el
+Fondo (issue #265). Es un pedido de servidor a servidor, no un relay genérico: quien llama elige
+solo la dirección y los links; el asunto, los textos y el remitente están fijos en el código.
+
+- **Endpoint:** `POST /api/fondo/mi-link` (`src/routes/api/fondo/mi-link/+server.js`; la lógica en
+  `src/lib/server/fondo/miLink.js`, el mail en `src/lib/server/fondo/email.js`).
+- **Secreto:** header `x-fondo-secret` = `FONDO_MAIL_SECRET`, comparado en tiempo constante (sobre
+  los SHA-256). Es un Secret del Worker `kinkyvibe` con el mismo valor que en el Worker del Fondo;
+  se genera con un comando, nunca se escribe a mano ni va a `wrangler.toml`. Sin él (o con menos de
+  16 caracteres) el endpoint contesta 401 siempre. El secreto se revisa antes de leer el body.
+- **Body:** JSON (`content-type: application/json`), 4 KB como mucho, exactamente
+  `{ "to": "<mail>", "links": [{ "tier": "Casual", "url": "https://fondo.kinkyvibe.ar/gracias?preapproval_id=<hex>" }] }`:
+  - `to`: un mail válido (`normalizeEmail` de cuentas: hasta 254 caracteres, se pasa a minúsculas);
+  - `links`: de 1 a 5;
+  - `tier`: Visitante, Casual, Regular, Sugar, Estrella, Leyenda o Super, tal cual;
+  - `url`: exactamente `https://fondo.kinkyvibe.ar/gracias?preapproval_id=` + hexadecimal (sin
+    otros parámetros), 200 caracteres como mucho;
+  - cualquier otra clave, arriba o en un link, es un 400.
+- **El mail:** remitente `Fondo KinkyVibe <fondo@kinkyvibe.ar>` (no el de entradas de Ajustes;
+  `deliver()` acepta un `from` fijo solo para esto; la dirección de respuesta y el pie siguen siendo
+  los de Ajustes), asunto «Tu link para elegir cómo aparecés en el Fondo KinkyVibe», un botón
+  «Mecenas <nivel>: elegir cómo aparezco» por link y el aviso «No compartas este mail…». Es el único
+  mail con más de un botón (uno por suscripción). Sale por `deliver()`, así que en un preview solo
+  llega a `EMAIL_ALLOWLIST`.
+- **Respuestas** (sin detalles, a lo sumo un código corto): `204` si salió (o se simuló o desvió en
+  un preview), `400` si el pedido no es válido, `401` sin el secreto correcto, `429` (con
+  `Retry-After`) si se pasó el tope, `502` si Resend o `deliver()` fallaron y `503` si no hay base
+  para contar el tope.
+- **Tope:** 30 mails por hora para todo el sitio (`rate_limits` de D1, clave `fondo:mi-link:global`),
+  contados solo después de validar. Es grueso a propósito: el límite por mail y por IP lo hace el
+  Fondo de su lado.
+- **Logs:** nunca la dirección ni los links; solo el resultado y cuántos links.
 
 **Mail a compradores:** se manda en tandas (un Worker tiene un límite de pedidos a otros servicios
 por pedido); la página pide tandas y muestra el progreso.
@@ -101,6 +190,7 @@ por pedido); la página pide tandas y muestra el progreso.
 | Clave de Resend                    | `RESEND_API_KEY`, Secret en Cloudflare. Sin ella no sale ningún mail                            |
 | Dominio                            | `kinkyvibe.ar` verificado en Resend (SPF/DKIM en Cloudflare DNS)                                |
 | Secreto del cron                   | `CRON_SECRET`, Secret del Worker `kinkyvibe` (lo usan el cron y `/api/cron/*`)                  |
+| Secreto del mail del Fondo         | `FONDO_MAIL_SECRET`, Secret del Worker `kinkyvibe` (el mismo valor en el del Fondo)             |
 | Previews                           | `EMAIL_ALLOWLIST` en el entorno Preview de Cloudflare                                           |
 
 Las respuestas a `entradas@kinkyvibe.ar` llegan al Gmail de la organización (Cloudflare Email

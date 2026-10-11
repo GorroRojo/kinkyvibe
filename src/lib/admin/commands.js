@@ -25,20 +25,32 @@ import { NAV, NAV_AREAS, navItem, navLink } from './nav.js';
  * }} Command
  */
 
-/** `g` + letra → id de NAV. El orden es el de la hoja de atajos. */
+/**
+ * `g` + letra → id de NAV. El orden es el de la hoja de atajos (el del menú). Letras por
+ * frecuencia de uso (remapeo de «atajos visibles»): lo de todos los días tiene atajo, con la
+ * letra de su nombre cuando se puede (`a` Asistencia, `f` perFiles, `u` cUentas, `m` Material,
+ * `q` etiQuetas, `w` web: Visitas al sitio, `h` historial: Actividad, `g g` aGenda). Si cambiás
+ * letras, subí `SHORTCUT_TIP_VERSION` en `shortcutHints.js` para que el aviso de atajos vuelva a
+ * aparecer.
+ */
 export const GO_SHORTCUTS = Object.freeze([
 	{ key: 'i', id: 'inicio' },
 	{ key: 'e', id: 'eventos' },
 	{ key: 'n', id: 'eventos-nuevo' },
+	{ key: 'g', id: 'eventos-agenda' },
 	{ key: 'c', id: 'checkin' },
 	{ key: 'v', id: 'entradas' },
 	{ key: 't', id: 'entradas-transferencias' },
 	{ key: 'd', id: 'entradas-codigos' },
 	{ key: 'p', id: 'personas' },
+	{ key: 'f', id: 'amigues' },
+	{ key: 'u', id: 'cuentas' },
+	{ key: 'q', id: 'etiquetas' },
+	{ key: 'm', id: 'material' },
 	{ key: 's', id: 'estadisticas' },
-	{ key: 'l', id: 'no-listadas' },
-	{ key: 'm', id: 'ajustes-mails' },
-	{ key: 'a', id: 'actividad' }
+	{ key: 'a', id: 'estadisticas-asistencia' },
+	{ key: 'w', id: 'estadisticas-visitas' },
+	{ key: 'h', id: 'actividad' }
 ]);
 
 /** Otras teclas, para la hoja de atajos. */
@@ -67,7 +79,12 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'entradas-codigos': 'codigos descuento cupon',
 	propinas: 'propinas cafecito aportes donaciones',
 	personas: 'personas clientes compradores gente ficha nota notas internas',
-	estadisticas: 'estadisticas graficos tendencias analytics',
+	estadisticas:
+		'estadisticas graficos tendencias ventas en el tiempo vendidas cobrado por serie medios de pago fondo finanzas',
+	'estadisticas-asistencia':
+		'estadisticas asistencia check-in vinieron primera vez vuelven retorno no vinieron por evento',
+	'estadisticas-visitas':
+		'estadisticas visitas al sitio analytics trafico paginas mas vistas paises dispositivos origen embudo conversion',
 	'no-listadas': 'no listadas borradores ocultas sin listar',
 	biblioteca: 'biblioteca imagenes fotos archivos documentos pdf videos subir borrar sacar media',
 	'contenido-base': 'base de datos importar eventos md archivos migrar coinciden paridad',
@@ -112,6 +129,8 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	propinas: 'wallet',
 	personas: 'users',
 	estadisticas: 'chart',
+	'estadisticas-asistencia': 'users',
+	'estadisticas-visitas': 'eye',
 	material: 'book',
 	amigues: 'person',
 	etiquetas: 'tag',

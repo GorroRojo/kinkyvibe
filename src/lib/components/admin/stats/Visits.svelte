@@ -1,8 +1,10 @@
 <script>
 	/**
-	 * Visitas anónimas del sitio en Estadísticas (docs/analiticas.md): visitas por día y por mes,
+	 * Visitas anónimas del sitio en Estadísticas → Visitas al sitio (docs/analiticas.md): visitas
+	 * del período (`visits.topDays` días) por día y, de toda la historia, por mes;
 	 * páginas, de dónde llegan, países, dispositivos y, por evento, «visitas → compras» con el
-	 * embudo. Los datos salen de $lib/server/analytics/report.js (`loadVisits`). Sin
+	 * embudo. Los datos salen de $lib/server/analytics/report.js (`loadVisits`). Props: `visits` y
+	 * `period` (opcional: cómo se dice el período, «últimos 30 días»). Sin
 	 * CF_ACCOUNT_ID / CF_ANALYTICS_TOKEN muestra qué falta configurar (y la historia de D1, si hay).
 	 */
 	import { ChartLine } from '@lucide/svelte';
@@ -14,9 +16,12 @@
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import Chart from '$lib/components/admin/charts/Chart.svelte';
+	import { VISITS_MAX_DAYS, changeText } from '$lib/admin/statsPeriod.js';
 
 	/** @type {import('$lib/server/analytics/report.js').VisitsReport} */
 	export let visits;
+	/** @type {string} */
+	export let period = '';
 
 	/** @param {number} x */
 	const pct = (x) => `${Math.round(x * 100)} %`;
@@ -49,6 +54,13 @@
 	$: live = v.configured && !v.error;
 	$: hasHistory = v.months.length > 0;
 	$: devicesTotal = v.devices.reduce((s, d) => s + d.n, 0);
+	$: when = period || `últimos ${v.topDays} días`;
+	$: vsBefore = changeText(v.totals.views, v.previousViews, {
+		id: 'visitas',
+		label: '',
+		days: v.topDays
+	});
+	$: firstDay = v.daily[0]?.day ?? v.liveFrom;
 
 	/** Pasos del embudo que se muestran en la tabla (mismo orden que FUNNEL_STEPS). */
 	/** @type {{ id: 'evento' | 'abrio' | 'datos' | 'pagar' | 'orden' | 'aprobada', label: string }[]} */
@@ -61,8 +73,6 @@
 		{ id: 'aprobada', label: 'Pagaron' }
 	];
 </script>
-
-<h2 class="section">Visitas al sitio</h2>
 
 {#if !v.configured}
 	<Card>
@@ -92,9 +102,13 @@
 
 {#if live}
 	<div class="kv-stats">
-		<Stat label="Visitas" value={v.totals.views} sub="últimos {v.topDays} días" />
+		<Stat
+			label="Visitas"
+			value={v.totals.views}
+			sub={[when, vsBefore].filter(Boolean).join(' · ')}
+		/>
 		<Stat label="Desde el celu" value={pct(v.totals.phoneShare)} sub="de las visitas" />
-		<Stat label="Países" value={v.totals.countries} sub="últimos {v.topDays} días" />
+		<Stat label="Países" value={v.totals.countries} sub={when} />
 	</div>
 {/if}
 
@@ -102,7 +116,7 @@
 	{#if live}
 		<Card title="Visitas por día">
 			<Chart
-				title="Visitas por día desde el {v.liveFrom}"
+				title="Visitas por día desde el {firstDay}"
 				rows={v.daily}
 				x={{ key: 'day', label: 'día', tick: 'label' }}
 				series={[{ key: 'views', label: 'Visitas' }]}
@@ -124,8 +138,8 @@
 				empty="Todavía no hay visitas anotadas."
 			/>
 			<p class="kv-note">
-				Los meses viejos salen del resumen que se guarda cada noche en la base (Cloudflare guarda el
-				detalle unos 3 meses).
+				Toda la historia, sin importar el período elegido. Los meses viejos salen del resumen que se
+				guarda cada noche en la base (Cloudflare guarda el detalle unos 3 meses).
 			</p>
 		</Card>
 	{/if}
@@ -141,7 +155,7 @@
 					/>
 				</svelte:fragment>
 				<BarList
-					label="Visitas por página, últimos {v.topDays} días"
+					label="Visitas por página, {when}"
 					items={v.pages.slice(0, 12).map((p) => ({
 						label: p.key,
 						value: p.n,
@@ -160,7 +174,7 @@
 					/>
 				</svelte:fragment>
 				<BarList
-					label="Visitas por sitio de origen, últimos {v.topDays} días"
+					label="Visitas por sitio de origen, {when}"
 					items={v.sources.slice(0, 12).map((s) => ({
 						label: s.key || 'Directo o desde el mismo sitio',
 						value: s.n,
@@ -171,7 +185,7 @@
 
 			<Card title="Países">
 				<BarList
-					label="Visitas por país, últimos {v.topDays} días"
+					label="Visitas por país, {when}"
 					items={v.countries.slice(0, 12).map((c) => ({
 						label: countryName(c.key),
 						value: c.n,
@@ -182,7 +196,7 @@
 
 			<Card title="Dispositivos">
 				<BarList
-					label="Visitas por tipo de dispositivo, últimos {v.topDays} días"
+					label="Visitas por tipo de dispositivo, {when}"
 					max={1}
 					items={v.devices.map((d) => ({
 						label: DEVICES[d.key] ?? d.key,
@@ -244,16 +258,17 @@
 	{/if}
 
 	<p class="kv-note">
+		Cloudflare guarda el detalle de las visitas unos 3 meses: por eso el período llega hasta
+		{VISITS_MAX_DAYS} días. Más atrás solo quedan los totales por mes («Visitas por mes»). «Visitas →
+		compras» suma toda la historia guardada.
+	</p>
+	<p class="kv-note">
 		Anónimo: sin IP, sin cookies y sin cuentas; no cuenta bots conocidos ni el panel. Qué se guarda
 		y qué no, en <code>docs/analiticas.md</code>.
 	</p>
 </div>
 
 <style>
-	.section {
-		margin: 1.5rem 0 0.8rem;
-		font-size: 1.25rem;
-	}
 	.setup {
 		text-align: left;
 		max-width: 38rem;

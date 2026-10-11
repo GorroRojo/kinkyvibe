@@ -128,7 +128,11 @@ describe('NAV', () => {
 			'/admin/ventas/transferencias',
 			'/admin/ventas/codigos',
 			'/admin/comunidad/personas',
-			'/admin/estadisticas',
+			// /admin/estadisticas se partió en tres pestañas (gorrite, 11/10); la vieja redirige a
+			// Ventas (ver el test de abajo y `estadisticas/redirect.test.js`).
+			'/admin/estadisticas/ventas',
+			'/admin/estadisticas/asistencia',
+			'/admin/estadisticas/visitas',
 			'/admin/ajustes/propinas',
 			'/admin/contenido/material',
 			'/admin/comunidad/perfiles',
@@ -205,7 +209,11 @@ describe('NAV', () => {
 			'colecciones',
 			'videos'
 		]);
-		expect(ids('estadisticas')).toEqual(['estadisticas']);
+		expect(ids('estadisticas')).toEqual([
+			'estadisticas',
+			'estadisticas-asistencia',
+			'estadisticas-visitas'
+		]);
 		expect(ids('ajustes')).toEqual([
 			'ajustes-cobros',
 			'ajustes-fondo',
@@ -248,6 +256,8 @@ describe('NAV', () => {
 		expect(navItem('actividad')).toMatchObject({ area: 'ajustes', sub: 'sistema' });
 		expect(navItem('etiquetas')?.area).toBe('etiquetas');
 		expect(navItem('estadisticas')?.area).toBe('estadisticas');
+		expect(navItem('estadisticas-asistencia')?.area).toBe('estadisticas');
+		expect(navItem('estadisticas-visitas')?.area).toBe('estadisticas');
 		expect(navItem('eventos-lugares')?.area).toBe('eventos');
 	});
 	it('"Roles y preguntas" está en Eventos, en /admin/eventos/roles', () => {
@@ -321,7 +331,9 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 		expect(blocks('ventas')).toEqual([
 			['', ['entradas', 'entradas-transferencias', 'entradas-codigos', 'tienda']]
 		]);
-		expect(blocks('estadisticas')).toEqual([['', ['estadisticas']]]);
+		expect(blocks('estadisticas')).toEqual([
+			['', ['estadisticas', 'estadisticas-asistencia', 'estadisticas-visitas']]
+		]);
 		expect(blocks('comunidad')).toEqual([
 			['', ['personas', 'amigues', 'cuentas']],
 			['Mensajes', ['ajustes-plantillas', 'lo-que-sigo', 'bandeja']]
@@ -371,8 +383,23 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 	});
 	it('los grupos con varias áreas suman sus secciones (sin lo que viene)', () => {
 		expect(labels('/admin/ventas')).toEqual(['Todas las ventas', 'Transferencias', 'Códigos']);
-		// Estadísticas va sola: una sola sección, sin pestañas.
+		// Estadísticas va sola en el menú, pero desde el 11/10 tiene tres secciones (gorrite): lleva
+		// pestañas. /admin/estadisticas ya no es una página (redirige a Ventas): sin pestañas.
 		expect(sectionTabs('/admin/estadisticas')).toBe(null);
+		for (const path of [
+			'/admin/estadisticas/ventas',
+			'/admin/estadisticas/asistencia',
+			'/admin/estadisticas/visitas'
+		]) {
+			expect(sectionTabs(path)).toEqual({
+				label: 'Secciones de Estadísticas',
+				tabs: [
+					{ href: '/admin/estadisticas/ventas', label: 'Ventas en el tiempo' },
+					{ href: '/admin/estadisticas/asistencia', label: 'Asistencia' },
+					{ href: '/admin/estadisticas/visitas', label: 'Visitas al sitio' }
+				]
+			});
+		}
 		expect(labels('/admin/mensajes/plantillas')).toEqual([
 			'Personas',
 			'Perfiles',
@@ -500,6 +527,9 @@ describe('activeNavItem', () => {
 		expect(activeNavItem('/admin/mensajes/plantillas/compra')?.id).toBe('ajustes-plantillas');
 		expect(activeNavItem('/admin/eventos/roles')?.id).toBe('ajustes-personas');
 		expect(activeNavItem('/admin/eventos/series')?.id).toBe('eventos-series');
+		expect(activeNavItem('/admin/estadisticas/ventas')?.id).toBe('estadisticas');
+		expect(activeNavItem('/admin/estadisticas/asistencia')?.id).toBe('estadisticas-asistencia');
+		expect(activeNavItem('/admin/estadisticas/visitas')?.id).toBe('estadisticas-visitas');
 	});
 	it('páginas sin ítem propio marcan su sección', () => {
 		expect(activeNavItem('/admin/ventas/alguno')?.id).toBe('entradas');

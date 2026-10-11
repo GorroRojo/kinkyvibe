@@ -100,6 +100,7 @@
  *   status: string | undefined,
  *   title: string,
  *   start: string | undefined,
+ *   end?: string,
  *   location: string | undefined,
  *   location_name: string | undefined,
  *   goal: import('$lib/utils/salesGoal.js').SalesGoal | null,
@@ -336,6 +337,8 @@ export function parseTicketConfig(meta, options = {}) {
 		status: meta.status,
 		title: String(meta.title ?? ''),
 		start: meta.start instanceof Date ? meta.start.toISOString() : meta.start,
+		// El fin (para el .ics del mail de las entradas; `eventEnd` lo corrige si hace falta).
+		end: meta.end instanceof Date ? meta.end.toISOString() : meta.end,
 		location: meta.location,
 		location_name: meta.location_name,
 		goal: parseSalesGoal(meta[GOAL_KEY])

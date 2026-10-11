@@ -348,7 +348,7 @@ export function purchaseConditions({ contactEmail, transferHoldHours, methods, o
 		'Actividad solo para personas mayores de 18 años.' +
 			(online ? '' : ' Puede pedirse documento en la puerta.'),
 		online
-			? 'Cada entrada es para una persona. El link de la transmisión es personal: no lo compartas.'
+			? 'Cada entrada es para una persona.'
 			: 'Cada entrada tiene un QR y un código que sirven para una sola persona y un solo ingreso.',
 		'Te mandamos las entradas por email apenas se acredita el pago.'
 	];
