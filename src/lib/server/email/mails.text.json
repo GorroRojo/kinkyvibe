@@ -90,5 +90,9 @@
 	"sigo-recordatorio": {
 		"subject": "Mañana: Fiesta <b>de</b> prueba",
 		"text": "Hola:\n\nTe recordamos que se viene este evento:\n\nFiesta <b>de</b> prueba · sábado 10 de octubre de 2026, 22:00\nhttps://kinkyvibe.example/calendario/fiesta-de-prueba\n\nTe llega porque seguís: Ciclo de prueba.\nElegí qué te llega en Mi rincón → Lo que sigo: https://kinkyvibe.example/mi-rincon/sigo\nPara no recibir más mails de lo que seguís: https://kinkyvibe.example/sigo/baja?t=ghi&x=1"
+	},
+	"fondo-mi-link": {
+		"subject": "Tu link para elegir cómo aparecés en el Fondo KinkyVibe",
+		"text": "Hola:\n\nEste es tu link para elegir cómo aparecés en el Fondo KinkyVibe:\n\nMecenas Casual: elegir cómo aparezco\nhttps://fondo.kinkyvibe.ar/gracias?preapproval_id=0a1b2c3d\n\nNo compartas este mail: cualquiera que tenga el link puede cambiar cómo aparecés. Si no lo pediste, podés ignorarlo."
 	}
 }
