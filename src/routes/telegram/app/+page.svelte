@@ -119,6 +119,7 @@
 </main>
 
 <style>
+	:global(html),
 	:global(body) {
 		margin: 0;
 		background: var(--tg-theme-bg-color, #ffffff);
