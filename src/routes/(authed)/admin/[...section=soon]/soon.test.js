@@ -6,11 +6,12 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
 import { ADMINS } from '$lib/server/auth';
-import { NAV, navItem } from '$lib/admin/nav.js';
+import { NAV, navItem, navState, sectionTabs } from '$lib/admin/nav.js';
 import * as route from './+page.server.js';
 import Page from './+page.svelte';
 import SideNav from '$lib/components/admin/panel/SideNav.svelte';
 import MoreAreas from '$lib/components/admin/panel/MoreAreas.svelte';
+import NavEntry from '$lib/components/admin/panel/NavEntry.svelte';
 
 const admin = { id: ADMINS[0].id, login: ADMINS[0].login };
 
@@ -69,26 +70,22 @@ describe('/admin/<sección que viene>', () => {
 describe('menú: lo que viene y "Ocultar lo que viene"', () => {
 	const active = navItem('ajustes-plantillas');
 
-	it('la barra lateral muestra lo que viene (sin link, «Próximamente») y lo oculta si se pide', () => {
-		const shown = render(SideNav, { props: { active, counts: {}, flags: {} } }).body;
-		// Bandeja (/admin/mensajes) viene: se ve, gris y punteada, pero no es un link.
-		expect(shown).not.toContain('href="/admin/mensajes"');
-		expect(shown).toMatch(
-			/<span[^>]*aria-disabled="true"[^>]*>(?:(?!<\/span>\s*<\/span>)[\s\S])*Bandeja/
-		);
-		expect(shown).toMatch(/Bandeja<\/span><span class="tag[^"]*">Próximamente<\/span>/);
-		// Menú simplificado: Mensajes va dentro de Comunidad, que está abierta (la página actual).
-		expect(shown).toMatch(/aria-expanded="true"[^>]*>.*Comunidad/s);
-		expect(shown).toMatch(/<div class="sub[^"]*">Mensajes<\/div>/);
-		expect(shown).toContain('href="/admin/ajustes/interruptores"');
-		expect(shown).toContain('Sistema');
+	// Opción C (decisión 0038): la barra lateral muestra solo las 8 secciones, sin sub-ítems, así
+	// que lo que viene ya no está ahí (sigue en el panel "Más" del celu y en su URL reservada).
+	it('la barra lateral no muestra lo que viene (solo las secciones, sin sub-ítems)', () => {
+		const body = render(SideNav, { props: { active, counts: {}, flags: {} } }).body;
+		expect(body).not.toContain('Bandeja');
+		expect(body).not.toContain('Próximamente');
+		expect(body).not.toContain('href="/admin/mensajes"');
+		// Comunidad (la sección de Plantillas) está marcada como la actual.
+		expect(body).toMatch(/href="\/admin\/comunidad\/personas"[^>]*aria-current="page"/);
+	});
 
-		const hidden = render(SideNav, {
-			props: { active, counts: {}, flags: {}, hideSoon: true }
-		}).body;
-		expect(hidden).not.toContain('Bandeja');
-		expect(hidden).not.toContain('Próximamente');
-		expect(hidden).toContain('href="/admin/mensajes/plantillas"');
+	it('las pestañas de una sección no muestran lo que viene (y siempre llevan a una página)', () => {
+		const tabs = sectionTabs('/admin/mensajes/plantillas')?.tabs ?? [];
+		expect(tabs.map((t) => t.label)).not.toContain('Bandeja');
+		for (const t of tabs)
+			expect(navItem(String(NAV.find((i) => i.href === t.href)?.id))?.soon).toBe(false);
 	});
 
 	it('el panel "Más" lista los grupos con sus próximamente, y sin ellos si se ocultan', () => {
@@ -103,8 +100,9 @@ describe('menú: lo que viene y "Ocultar lo que viene"', () => {
 	// «Interruptor apagado → "prueba"» ya no tiene sección real (`cuentas` quedó prendido para
 	// siempre); el mecanismo lo cubre navState en src/lib/admin/nav.test.js.
 	it('Cuentas ya no dice "prueba" aunque llegue un `cuentas: false` viejo', () => {
-		const body = render(SideNav, {
-			props: { active: navItem('cuentas'), counts: {}, flags: { cuentas: false } }
+		const item = /** @type {import('$lib/admin/nav.js').NavItem} */ (navItem('cuentas'));
+		const body = render(NavEntry, {
+			props: { item, state: navState(item, { cuentas: false }) }
 		}).body;
 		const link = body.match(/<a[^>]*href="\/admin\/comunidad\/cuentas"[^>]*>[\s\S]*?<\/a>/)?.[0];
 		expect(link).toBeTruthy();
