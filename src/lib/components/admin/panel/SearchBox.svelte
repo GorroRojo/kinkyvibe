@@ -1,19 +1,25 @@
 <script>
 	/**
 	 * Buscador global del panel: una paleta de comandos que busca registros (eventos, órdenes
-	 * `KV-…`, entradas por código, códigos de descuento y personas; ver /admin/buscar) y acciones
-	 * (cada sección del menú, "Nuevo código", "Abrir check-in de hoy"...).
+	 * `KV-…`, entradas por código, códigos de descuento, personas, perfiles y etiquetas, sin
+	 * mayúsculas ni tildes; ver /admin/buscar) y acciones (cada sección del menú, «Nuevo código de
+	 * descuento», «Abrir la puerta de hoy», «Para revisar», crear e importar, el tema...; ver
+	 * paletteActions.js). Las acciones van arriba, salvo cuando lo buscado es claramente un
+	 * registro (`recordsFirst`). Del primer evento encontrado salen atajos a sus pestañas.
 	 *
 	 * Interfaz (la usa el layout del panel):
 	 * - prop `compact`: texto corto, para el header del celu;
 	 * - prop `hotkeys`: si esta instancia escucha el teclado (`/` y Ctrl/⌘+K abren la paleta,
 	 *   `g` + letra navega, `?` muestra los atajos). Solo una instancia la tiene en `true`;
+	 * - prop `hideSoon`: si ahora está «Ocultar lo que viene» (para el nombre de la acción);
+	 * - eventos `theme` y `hidesoon`: la persona eligió «Cambiar tema» u «Ocultar/Mostrar lo que
+	 *   viene» (las preferencias las cambia el layout);
 	 * - `open()` exportada, para abrirla desde afuera (bind:this).
 	 *
 	 * Teclado adentro: ↑/↓ para moverse, Enter para abrir, Esc para cerrar. En el celu la paleta
 	 * ocupa toda la pantalla.
 	 */
-	import { onMount, tick } from 'svelte';
+	import { createEventDispatcher, onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import {
 		ArrowLeftRight,
@@ -21,6 +27,7 @@
 		BookOpen,
 		Calendar,
 		CalendarPlus,
+		ClipboardCheck,
 		MapPin,
 		ChartLine,
 		ExternalLink,
@@ -40,6 +47,7 @@
 		Search,
 		Settings,
 		Sheet,
+		SunMoon,
 		Tag,
 		Ticket,
 		User,
@@ -51,16 +59,21 @@
 	import { navItem } from '$lib/admin/nav.js';
 	import {
 		OTHER_SHORTCUTS,
-		buildCommands,
 		goShortcutHref,
 		goShortcutRows,
 		matchCommands
 	} from '$lib/admin/commands.js';
+	import { paletteCommands, recordsFirst } from '$lib/admin/paletteActions.js';
 
 	/** Texto corto para el header del celu. */
 	export let compact = false;
 	/** Si esta instancia escucha el teclado. */
 	export let hotkeys = true;
+	/** Si ahora están ocultas las secciones «Próximamente» (el nombre de la acción cambia). */
+	export let hideSoon = false;
+
+	/** @type {import('svelte').EventDispatcher<{ theme: null, hidesoon: null }>} */
+	const dispatch = createEventDispatcher();
 
 	const ICONS = /** @type {Record<string, any>} */ ({
 		home: House,
@@ -91,7 +104,9 @@
 		ticket: Ticket,
 		person: User,
 		code: Tag,
-		profile: IdCard
+		profile: IdCard,
+		check: ClipboardCheck,
+		theme: SunMoon
 	});
 
 	const uid = Math.random().toString(36).slice(2, 8);
@@ -113,7 +128,7 @@
 	let errorText = '';
 	/** @type {{ slug: string, title: string, href: string }[]} */
 	let today = [];
-	/** @type {{ id: string, label: string, items: { id: string, icon: string, title: string, sub: string, href: string }[] }[]} */
+	/** @type {{ id: string, label: string, items: { id: string, icon: string, title: string, sub: string, href: string, exact?: boolean }[] }[]} */
 	let groups = [];
 	/** @type {AbortController | null} */
 	let inflight = null;
@@ -123,10 +138,11 @@
 
 	/**
 	 * @typedef {{ key: string, icon: string, title: string, sub: string, href?: string,
-	 *   external?: boolean, run?: 'help', shortcut?: string, navId?: string }} Row
+	 *   external?: boolean, run?: 'help' | 'theme' | 'hide-soon', shortcut?: string,
+	 *   navId?: string }} Row
 	 */
 
-	$: commands = buildCommands({ today });
+	$: commands = paletteCommands({ today, hideSoon });
 	$: actionRows = /** @type {Row[]} */ (
 		matchCommands(commands, q, q.trim() ? 6 : 8).map((c) => ({
 			key: c.id,
@@ -140,14 +156,22 @@
 			navId: c.navId
 		}))
 	);
-	$: sections = [
-		...(actionRows.length ? [{ id: 'actions', label: 'Acciones', rows: actionRows }] : []),
-		...groups.map((g) => ({
-			id: g.id,
-			label: g.label,
-			rows: /** @type {Row[]} */ (g.items.map((i) => ({ ...i, key: i.id })))
-		}))
-	];
+	$: actionSection = actionRows.length
+		? [{ id: 'actions', label: 'Acciones', rows: actionRows }]
+		: [];
+	$: recordSections = groups.map((g) => ({
+		id: g.id,
+		label: g.label,
+		rows: /** @type {Row[]} */ (g.items.map((i) => ({ ...i, key: i.id })))
+	}));
+	// Las acciones van arriba, salvo que lo buscado sea claramente un registro (ver recordsFirst).
+	$: sections = recordsFirst(
+		q,
+		actionRows.map((r) => r.title),
+		groups
+	)
+		? [...recordSections, ...actionSection]
+		: [...actionSection, ...recordSections];
 	$: flat = sections.flatMap((s) => s.rows);
 	$: if (active >= flat.length) active = Math.max(0, flat.length - 1);
 	$: search(q);
@@ -232,6 +256,11 @@
 	async function choose(row) {
 		if (!row) return;
 		if (row.run === 'help') return openHelp();
+		if (row.run === 'theme' || row.run === 'hide-soon') {
+			close();
+			dispatch(row.run === 'theme' ? 'theme' : 'hidesoon');
+			return;
+		}
 		if (!row.href) return;
 		close();
 		lastQuery = '\u0000';
@@ -324,7 +353,11 @@
 
 <button type="button" class="search" class:compact on:click={open} aria-haspopup="dialog">
 	<Search size={18} aria-hidden="true" />
-	<span class="label">{compact ? 'Buscar o hacer…' : 'Buscar personas, eventos o acciones…'}</span>
+	<span class="label"
+		>{compact
+			? 'Buscar o hacer…'
+			: 'Buscar personas, eventos, perfiles, etiquetas o acciones…'}</span
+	>
 	{#if !compact}<kbd>/</kbd>{/if}
 </button>
 
@@ -348,7 +381,7 @@
 					bind:value={q}
 					on:keydown={onInputKey}
 					type="search"
-					placeholder="Buscá eventos, KV-…, personas, códigos o una acción"
+					placeholder="Buscá personas, eventos, perfiles, etiquetas, KV-…, códigos o una acción"
 					autocomplete="off"
 					spellcheck="false"
 					role="combobox"

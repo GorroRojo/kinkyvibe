@@ -260,7 +260,7 @@
 
 			<div class="main">
 				<header class="top">
-					<SearchBox />
+					<SearchBox {hideSoon} on:theme={toggleTheme} on:hidesoon={toggleHideSoon} />
 					<a
 						class="review"
 						href={REVIEW_LINK.href}
@@ -315,7 +315,13 @@
 					<a href="/admin" class="mlogo" aria-label="Inicio del panel"
 						><img src={logo} alt="Kinky Vibe" width="44" height="44" /></a
 					>
-					<SearchBox compact hotkeys={false} />
+					<SearchBox
+						compact
+						hotkeys={false}
+						{hideSoon}
+						on:theme={toggleTheme}
+						on:hidesoon={toggleHideSoon}
+					/>
 					<a class="site" href="/" target="_blank" rel="noopener" title="Ver el sitio"
 						>Sitio<ExternalLink size={14} aria-hidden="true" /></a
 					>
