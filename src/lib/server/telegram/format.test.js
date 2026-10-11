@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+	FOLLOW_TELEGRAM_LINE,
 	LIST_MAX,
 	escapeHtml,
 	eventUrl,
 	formatChoices,
 	formatEvent,
+	followedText,
 	formatEventList,
 	formatFollowNotice,
 	formatHelp,
@@ -182,5 +184,23 @@ describe('formatFollowNotice', () => {
 		});
 		expect(text).toContain('Recordatorio');
 		expect(text).toContain('<b>Fiesta inventada</b>');
+	});
+});
+
+describe('followedText', () => {
+	it('sin avisos, solo lo que sigue; con avisos, la línea de cómo apagarlos', () => {
+		expect(followedText('🪢 Cuerdas')).toBe('Listo: ahora seguís 🪢 Cuerdas.');
+		expect(followedText('🪢 Cuerdas', { telegram: true })).toBe(
+			`Listo: ahora seguís 🪢 Cuerdas.\n${FOLLOW_TELEGRAM_LINE}`
+		);
+		expect(FOLLOW_TELEGRAM_LINE).toContain('Mi rincón');
+	});
+
+	it('con un nombre larguísimo corta el nombre, nunca la línea (tope de 200 de Telegram)', () => {
+		const long = 'x'.repeat(400);
+		expect(followedText(long).length).toBeLessThanOrEqual(200);
+		const withLine = followedText(long, { telegram: true });
+		expect(withLine.length).toBeLessThanOrEqual(200);
+		expect(withLine.endsWith(`\n${FOLLOW_TELEGRAM_LINE}`)).toBe(true);
 	});
 });
