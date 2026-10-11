@@ -122,6 +122,10 @@
 					</li>
 				{/each}
 			</ul>
+			<!-- La misma información como tarjeta de contacto (contacto.vcf/+server.js). -->
+			<p class="vcard">
+				<a href="{data.canonical}/contacto.vcf" download>Guardar en tus contactos</a>
+			</p>
 		</section>
 	{/if}
 	{#if data.members}
@@ -180,5 +184,8 @@
 	}
 	.contact a {
 		overflow-wrap: anywhere;
+	}
+	.vcard {
+		font-size: var(--step--1);
 	}
 </style>
