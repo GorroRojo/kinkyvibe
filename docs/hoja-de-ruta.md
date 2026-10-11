@@ -207,9 +207,6 @@ de amigues y lanzamientos grandes.
 - Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir su
   dirección (0037). S. (Abrirla sin volver a vincular: «🚪 Puerta» en el inicio del bot, PR
   `claude/bot-inicio`.)
-- Modo inline y buscar en todo el sitio desde el bot: hecho. Falta que gorrite haga
-  `/setinline` en @BotFather (placeholder «Buscá en Kinky Vibe…») y vuelva a registrar el webhook
-  con `npm run telegram:webhook` (docs/telegram.md, «Modo inline»). S. Bloqueo: gorrite.
 - Bot: recorrer el sitio por secciones («📚 Material», «📖 Kinkipedia», «👥 Amigues» en el inicio,
   con listas y etiquetas), reusando la lista y la tarjeta compacta de `siteScreens.js`. M.
 - Bot: pasar los textos nuevos del modo inline y de la búsqueda (`INLINE_TEXTS` en `inline.js`,

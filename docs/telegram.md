@@ -223,7 +223,9 @@ Código: `inline.js` (la respuesta, funciones puras) e `inlineSource.js` (de dó
   tarjeta del bot: la fecha (`tg-time`), el lugar como lo muestra la página (`feedVenues` +
   `eventPlace`) y el estado de la venta si no se puede comprar. Botones: «Ver en el sitio» y, si el
   evento vende entradas acá y están a la venta, «🎟 Entradas». Solo botones con link (un botón de
-  pantalla no anda en un mensaje inline). HTML escapado (`parse_mode: HTML`).
+  pantalla no anda en un mensaje inline). HTML escapado (`parse_mode: HTML`). Arriba del texto va
+  la vista previa grande del link de la página (su imagen para compartir), igual que la tarjeta del
+  bot (`link_preview_options` con `prefer_large_media` y `show_above_text`); sin https, apagada.
 - **`answerInlineQuery`**: `InlineQueryResultArticle` con `thumbnail_url`, 20 por página con
   `next_offset` (hasta 200 en total), `cache_time` 120 segundos e `is_personal: false` (es lo
   mismo para todes). Sin resultados, un botón arriba («No encontré nada. Probá en el bot») que abre
