@@ -152,6 +152,7 @@ describe('atajos g + letra', () => {
 			d: 'entradas-codigos',
 			p: 'personas',
 			f: 'amigues',
+			u: 'cuentas',
 			q: 'etiquetas',
 			m: 'material',
 			s: 'estadisticas',
@@ -161,6 +162,8 @@ describe('atajos g + letra', () => {
 		});
 		expect(goShortcutHref('g')).toBe('/admin/eventos/agenda');
 		expect(goShortcutHref('f')).toBe('/admin/comunidad/perfiles');
+		expect(goShortcutHref('u')).toBe('/admin/comunidad/cuentas');
+		expect(shortcutOf('cuentas')).toBe('g u');
 		expect(goShortcutHref('q')).toBe('/admin/etiquetas');
 		expect(goShortcutHref('m')).toBe('/admin/contenido/material');
 		expect(goShortcutHref('w')).toBe('/admin/estadisticas/visitas');
@@ -176,6 +179,7 @@ describe('atajos g + letra', () => {
 			'entradas-transferencias',
 			'personas',
 			'amigues',
+			'cuentas',
 			'etiquetas',
 			'material',
 			'estadisticas',

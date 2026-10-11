@@ -260,14 +260,15 @@ las pistas del menú y los chips del buscador salen de ahí). Las letras van por
 
 | Tecla | Sección          | Tecla | Sección             |
 | ----- | ---------------- | ----- | ------------------- |
-| `g i` | Inicio           | `g p` | Personas            |
-| `g e` | Eventos          | `g f` | Perfiles            |
+| `g i` | Inicio           | `g f` | Perfiles            |
+| `g e` | Eventos          | `g u` | Cuentas             |
 | `g n` | Cargar evento    | `g q` | Árbol de etiquetas  |
 | `g g` | Agenda           | `g m` | Material            |
 | `g c` | Puerta           | `g s` | Ventas en el tiempo |
 | `g v` | Todas las ventas | `g a` | Asistencia          |
 | `g t` | Transferencias   | `g w` | Visitas al sitio    |
 | `g d` | Códigos          | `g h` | Actividad           |
+| `g p` | Personas         |       |                     |
 
 Cómo se descubren (`src/lib/admin/shortcutHints.js`):
 
