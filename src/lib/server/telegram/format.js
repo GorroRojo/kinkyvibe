@@ -222,3 +222,16 @@ export const UNAVAILABLE_TEXT = 'Ese evento ya no está disponible.';
 export const UNKNOWN_TEXT = 'No entendí ese comando. Probá con /ayuda.';
 
 export const ERROR_TEXT = 'Algo salió mal de nuestro lado. Probá de nuevo en un rato.';
+
+export const FOLLOW_ALREADY_TEXT = 'Ya lo seguías.';
+
+export const FOLLOW_GONE_TEXT = 'Esa etiqueta ya no está para seguir.';
+
+export const FOLLOW_FULL_TEXT =
+	'Ya seguís el máximo de cosas: dejá de seguir alguna en Mi rincón → Lo que sigo.';
+
+/** @param {string} title */
+export const followedText = (title) => `Listo: ahora seguís ${title}.`.slice(0, 200);
+
+export const FOLLOW_TOO_MANY_TEXT =
+	'Hiciste muchos cambios seguidos. Esperá un rato y probá de nuevo.';

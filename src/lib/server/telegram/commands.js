@@ -31,6 +31,7 @@ export const PUBLIC_COMMANDS = Object.freeze([
 /** Los de la cuenta (fase 2): solo por chat privado y con «Lo que sigo». @type {readonly BotCommand[]} */
 export const ACCOUNT_COMMANDS = Object.freeze([
 	{ command: 'vincular', description: 'Conectá tu cuenta (código de Mi rincón)' },
+	{ command: 'sigo', description: 'Lo que seguís en Lo que sigo' },
 	{ command: 'silenciar', description: 'Pausá tus avisos por Telegram' },
 	{ command: 'reanudar', description: 'Volvé a recibir tus avisos' },
 	{ command: 'desvincular', description: 'Desconectá este chat de tu cuenta' }
@@ -42,13 +43,18 @@ export const ACCOUNT_COMMANDS = Object.freeze([
  */
 export const HIDDEN_COMMANDS = Object.freeze(['start', 'help']);
 
-/** Los nombres de los comandos de la cuenta, para el router. */
-export const ACCOUNT_COMMAND_NAMES = new Set(ACCOUNT_COMMANDS.map((c) => c.command));
+/**
+ * Los nombres de los comandos que cambian la vinculación del chat (`/sigo` es una pantalla: lo
+ * contesta el router aparte).
+ */
+export const ACCOUNT_COMMAND_NAMES = new Set(
+	ACCOUNT_COMMANDS.map((c) => c.command).filter((c) => c !== 'sigo')
+);
 
 /** Todo lo que el router contesta (el resto es «No entendí ese comando»). */
 export const HANDLED_COMMANDS = new Set([
 	...PUBLIC_COMMANDS.map((c) => c.command),
-	...ACCOUNT_COMMAND_NAMES,
+	...ACCOUNT_COMMANDS.map((c) => c.command),
 	...HIDDEN_COMMANDS
 ]);
 

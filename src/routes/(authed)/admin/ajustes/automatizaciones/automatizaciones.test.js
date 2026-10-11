@@ -169,6 +169,7 @@ describe('?/comandos (Actualizar comandos del bot)', () => {
 				{ command: 'fondo', description: 'Cuánto juntó el Fondo Kinky Vibe este mes' },
 				{ command: 'ayuda', description: 'Qué podés pedirme' },
 				{ command: 'vincular', description: 'Conectá tu cuenta (código de Mi rincón)' },
+				{ command: 'sigo', description: 'Lo que seguís en Lo que sigo' },
 				{ command: 'silenciar', description: 'Pausá tus avisos por Telegram' },
 				{ command: 'reanudar', description: 'Volvé a recibir tus avisos' },
 				{ command: 'desvincular', description: 'Desconectá este chat de tu cuenta' }

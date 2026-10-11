@@ -30,6 +30,7 @@ export async function POST({ request, url, platform, fetch }) {
 		token: env.TELEGRAM_BOT_TOKEN,
 		waitUntil: ctx?.waitUntil ? (task) => ctx.waitUntil(task) : undefined,
 		// Fase 2: con «Lo que sigo» prendido (el bot ya está prendido si se llega acá).
-		accounts: async () => (db && (await isFlagOn(db, 'lo_que_sigo')) ? botAccounts(db) : null)
+		accounts: async () =>
+			db && (await isFlagOn(db, 'lo_que_sigo')) ? botAccounts(db, platform) : null
 	});
 }
