@@ -1,15 +1,17 @@
 <script>
 	/**
 	 * Menú de la barra lateral del panel (≥ 900 px): Inicio, los grupos de `$lib/admin/nav.js`
-	 * (`NAV_GROUPS`: cada uno junta una o más áreas) y Ajustes al pie. Los grupos se abren de a
-	 * uno: el de la página actual abierto, y si la persona abre otro se recuerda (`navPrefs.js`,
-	 * localStorage con try/catch; sin storage anda igual). Un grupo cerrado muestra la suma de sus
-	 * contadores.
+	 * (`NAV_GROUPS`: cada uno junta una o más áreas) y Ajustes al pie. Se pueden abrir varios
+	 * grupos a la vez y cada uno recuerda si quedó abierto o cerrado (`navPrefs.js`, localStorage
+	 * con try/catch; sin storage anda igual). El grupo de la página actual siempre se abre al
+	 * cargar. «Abrir todo / Cerrar todo» arriba abre o cierra todos. Un grupo cerrado muestra la
+	 * suma de sus contadores. Al cargar, el link de la página actual se lleva a la vista dentro de
+	 * la barra (que tiene su propio scroll, en el layout).
 	 * Props: `active` (NavItem actual), `counts` (`data.panelCounts`), `flags` (`data.navFlags`),
 	 * `hideSoon` ("Ocultar lo que viene"). Cada sección con atajo muestra su pista «g x»
 	 * (`NavShortcut`, solo en una compu con mouse).
 	 */
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { ChevronDown } from '@lucide/svelte';
 	import NavIcon from './NavIcon.svelte';
 	import NavEntry from './NavEntry.svelte';
@@ -23,7 +25,14 @@
 		navGroupSections,
 		navState
 	} from '$lib/admin/nav.js';
-	import { pickOpenArea, readOpenArea, saveOpenArea } from '$lib/admin/navPrefs.js';
+	import {
+		allGroupsOpen,
+		pickOpenGroups,
+		readOpenGroups,
+		saveOpenGroups,
+		toggleAllGroups,
+		toggleGroup
+	} from '$lib/admin/navPrefs.js';
 
 	/** @type {import('$lib/admin/nav.js').NavItem | undefined} */
 	export let active;
@@ -33,21 +42,30 @@
 	export let flags = {};
 	export let hideSoon = false;
 
-	/** @type {string | null} */
-	let open = pickOpenArea(navGroupOf(active?.area)?.id, null);
+	/** @type {HTMLElement} */
+	let navEl;
+	/** Ids de los grupos abiertos, en el orden del menú. */
+	let open = pickOpenGroups(navGroupOf(active?.area)?.id, null);
 	let mounted = false;
-	onMount(() => {
-		open = pickOpenArea(navGroupOf(active?.area)?.id, navGroupOf(readOpenArea())?.id);
+	onMount(async () => {
+		open = pickOpenGroups(navGroupOf(active?.area)?.id, readOpenGroups());
 		mounted = true;
+		await tick();
+		navEl?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest' });
 	});
-	// Al navegar a otro grupo, se abre ese.
+	// Al navegar a otro grupo, se abre ese (sin cerrar los demás).
 	$: activeGroup = navGroupOf(active?.area)?.id ?? null;
-	$: if (mounted && activeGroup) open = activeGroup;
+	$: if (mounted && activeGroup && !open.includes(activeGroup)) open = [...open, activeGroup];
 
 	/** @param {string} id */
 	function toggle(id) {
-		open = open === id ? null : id;
-		saveOpenArea(open);
+		open = toggleGroup(open, id);
+		saveOpenGroups(open);
+	}
+
+	function toggleAll() {
+		open = toggleAllGroups(open, visibleIds);
+		saveOpenGroups(open);
 	}
 
 	/** @param {import('$lib/admin/nav.js').NavItem} item */
@@ -56,9 +74,14 @@
 	$: opts = { flags, hideSoon };
 	$: main = NAV_GROUPS.filter((g) => !g.foot && navGroupItems(g.id, opts).length);
 	$: foot = NAV_GROUPS.filter((g) => g.foot && navGroupItems(g.id, opts).length);
+	$: visibleIds = [...main, ...foot].map((g) => g.id);
+	$: everyOpen = allGroupsOpen(open, visibleIds);
 </script>
 
-<nav class="sn" aria-label="Secciones del panel">
+<nav class="sn" aria-label="Secciones del panel" bind:this={navEl}>
+	<button type="button" class="all" on:click={toggleAll}
+		>{everyOpen ? 'Cerrar todo' : 'Abrir todo'}</button
+	>
 	{#each navAreaItems(null, opts) as item (item.id)}
 		<a
 			class="top"
@@ -71,7 +94,7 @@
 	{#each [main, foot] as list, i (i)}
 		<div class="areas" class:foot={i === 1}>
 			{#each list as area (area.id)}
-				{@const isOpen = open === area.id}
+				{@const isOpen = open.includes(area.id)}
 				{@const total = groupCount(area.id, counts, opts)}
 				<button
 					type="button"
@@ -108,6 +131,23 @@
 		flex-direction: column;
 		gap: 0.1rem;
 		flex: 1;
+	}
+	/* «Abrir todo / Cerrar todo»: chiquito y discreto, arriba a la derecha. La barra lateral solo
+	   existe en la compu (en el celu está el panel "Más"), así que no aparece en el celu. */
+	.all {
+		align-self: flex-end;
+		border: 0;
+		background: none;
+		font: inherit;
+		font-size: var(--text-xs);
+		color: var(--muted);
+		padding: 0.1rem var(--space-2xs);
+		border-radius: var(--round);
+		cursor: pointer;
+		&:hover {
+			background: var(--surface-2);
+			color: var(--link);
+		}
 	}
 	.areas {
 		display: flex;

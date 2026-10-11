@@ -33,9 +33,8 @@ palabras: «pie de mail», «alias», «reembolso»…, `NAV_KEYWORDS` en `src/l
 
 La lista única de secciones está en `src/lib/admin/nav.js` (menú lateral, barra y panel "Más" del
 celu, botón "Para revisar", página "Próximamente" y buscador salen de ahí). Es el **mapa del panel**
-que aprobó gorrite: Inicio arriba, **7 áreas** que se abren de a una y **Ajustes al pie**. Dentro
-de cada área, las secciones van por frecuencia de uso (lo de todos los días primero) y lo que
-viene, al final.
+que aprobó gorrite: Inicio arriba, **7 áreas** y **Ajustes al pie**. Dentro de cada área, las
+secciones van por frecuencia de uso (lo de todos los días primero) y lo que viene, al final.
 
 **Menú simplificado** (revisión de UI, paso 3): el menú no muestra las 8 áreas sino 6 grupos
 (`NAV_GROUPS` en `nav.js`): Eventos, Ventas, Comunidad (con Mensajes), Contenido (con Etiquetas),
@@ -182,9 +181,22 @@ revisar" del Inicio.
 - **Cuándo se actualiza el botón**: el layout lo calcula al cargar una página del panel y después
   de cada acción (guardar, confirmar una transferencia…), no en cada cambio de página.
 
-**Barra lateral**: las áreas se abren de a una. Se abre la de la página actual; en Inicio, la
-última que abriste (se recuerda en el navegador, `navPrefs.js`; sin storage anda igual). Un área
-cerrada muestra la suma de sus contadores.
+**Barra lateral** (`SideNav.svelte`, solo en la compu; en el celu está el panel "Más"):
+
+- **Varios grupos abiertos a la vez** (gorrite, en el seguimiento de «atajos visibles»; antes se
+  abría uno solo). Cada grupo recuerda si quedó abierto o cerrado en ese navegador
+  (`navPrefs.js`: localStorage `kv-panel-grupos`, la lista de grupos abiertos en JSON, con
+  try/catch; sin storage anda igual pero no recuerda). La clave vieja `kv-panel-area` se lee si
+  no hay otra y se borra al guardar.
+- **Al cargar**, el grupo de la página actual siempre se abre, aunque la persona lo haya cerrado.
+  Sin nada guardado, se abre solo ese (en Inicio, ninguno). Al navegar a otro grupo, se abre sin
+  cerrar los demás.
+- **«Abrir todo / Cerrar todo»** arriba a la derecha: si falta abrir alguno, abre todos; si ya
+  están todos abiertos, cierra todos. Cuentan los grupos que se ven en el menú.
+- **Scroll propio**: la barra es `sticky`, del alto de la pantalla y con `overflow-y: auto`, así
+  que con varios grupos abiertos scrollea sola y no se mueve con la página. Al cargar, el link de
+  la página actual se lleva a la vista (`scrollIntoView({ block: 'nearest' })`).
+- Un grupo cerrado muestra la suma de sus contadores.
 
 **Consultas en tanda** (Inicio y contadores del menú): el Inicio hace **dos** idas a la base
 (`db.batch`) en vez de una por consulta (eran 33): la primera con todo lo que no depende de la

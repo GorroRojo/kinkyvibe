@@ -9,8 +9,9 @@
 	 * solo pone los tokens del panel (`.kv-panel`, con modo oscuro) y la página, sin menús.
 	 *
 	 * Las secciones y sus íconos salen de `$lib/admin/nav.js` (no agregar links a mano acá): la
-	 * barra lateral es `SideNav.svelte` (áreas que se abren de a una) y el panel "Más" del celu,
-	 * `MoreAreas.svelte`. Arriba (y en el header del celu) está el botón global "Para revisar".
+	 * barra lateral es `SideNav.svelte` (varios grupos abiertos a la vez, con scroll propio) y el
+	 * panel "Más" del celu, `MoreAreas.svelte`. Arriba (y en el header del celu) está el botón
+	 * global "Para revisar".
 	 *
 	 * Atajos de teclado (solo en la compu): «Atajos de teclado» al pie de la barra lateral y el
 	 * botón `?` de la barra de arriba abren la hoja de atajos del buscador (`openHelp`), y
@@ -500,10 +501,16 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.1rem;
+		/* Scroll propio: si el menú es más alto que la pantalla, la barra scrollea sola y no se
+		   mueve con la página (SideNav lleva a la vista el link actual al cargar). */
 		position: sticky;
 		top: 0;
 		height: 100vh;
-		overflow: auto;
+		height: 100dvh;
+		max-height: 100vh;
+		max-height: 100dvh;
+		overflow-y: auto;
+		overscroll-behavior: contain;
 	}
 	.brand {
 		display: flex;
