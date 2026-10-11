@@ -10,7 +10,8 @@
  *
  *   node scripts/demo/guard.js bundle <archivo>
  *     Falla si el Worker empaquetado (`wrangler deploy --dry-run`) trae el seed, el botón
- *     «Recargar datos de prueba» o la galería de componentes (/estilo, docs/estilo.md). El build
+ *     «Recargar datos de prueba», la galería de componentes (/estilo, docs/estilo.md) o el
+ *     borrador de la página legal (/legales, docs/legales.md). El build
  *     de CI no tiene rama de deploy, igual que el de producción para estos fines
  *     (`PREVIEW_BUILD` es `false`): esos módulos se eliminan.
  */
@@ -55,6 +56,23 @@ export const GALLERY_BUNDLE_MARKER = 'kv-estilo-galeria';
  */
 export function galleryIn(text) {
 	return text.includes(GALLERY_BUNDLE_MARKER);
+}
+
+/**
+ * Marca de los borradores legales (src/lib/legales/Legales.svelte, `data-kv-legales`): solo existen
+ * en previews y en dev (src/routes/(content)/legales/+page.js) hasta que se publiquen
+ * (docs/legales.md). Si aparece en el bundle de producción, los borradores se colaron.
+ */
+export const LEGALES_BUNDLE_MARKER = 'kv-legales-borrador';
+
+/**
+ * Los borradores legales en un bundle.
+ *
+ * @param {string} text
+ * @returns {boolean}
+ */
+export function legalesIn(text) {
+	return text.includes(LEGALES_BUNDLE_MARKER);
 }
 
 /**
@@ -120,7 +138,15 @@ function main() {
 			);
 			process.exit(1);
 		}
-		console.log('guard bundle: sin datos de prueba ni galería de componentes.');
+		if (legalesIn(readFileSync(file, 'utf8'))) {
+			console.error(
+				'El bundle de producción trae el borrador de la página legal (/legales). Tiene ' +
+					'que importarse solo dentro de la condición de ' +
+					'src/routes/(content)/legales/+page.js (docs/legales.md).'
+			);
+			process.exit(1);
+		}
+		console.log('guard bundle: sin datos de prueba, galería de componentes ni borradores legales.');
 		return;
 	}
 	console.error('Uso: node scripts/demo/guard.js posts | bundle <archivo>');
