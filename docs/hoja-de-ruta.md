@@ -26,7 +26,7 @@ PRs abiertos:
   preview antes del merge (0028).
 - #290: seguir desde el bot prende los avisos por Telegram
   ([0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)).
-- Miniatura de la portada en el recuadro «Hoy» del Inicio del panel (gorrite, 11/10).
+- #296: miniatura de la portada en el recuadro «Hoy» del Inicio del panel (gorrite, 11/10).
 
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
 BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
