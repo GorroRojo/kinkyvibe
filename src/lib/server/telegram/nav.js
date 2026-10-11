@@ -15,11 +15,16 @@
  * | Buscar / cancelar la búsqueda | `s` / `sx`             |
  * | Lo que sigo / Fondo / Ayuda   | `g` / `fo` / `a`       |
  * | Seguir: opciones / seguir     | `f:<id>` / `fy:<id>:<etiqueta>` |
+ * | Resultados de buscar en todo el sitio (página `p`) | `q:<p>:<texto>` |
+ * | Una cosa de esos resultados (vuelve a la página `p`) | `r:<hash>:<p>:<texto>` |
  * | El contador «1/3» (no hace nada) | `x`                 |
  *
  * `v` es la lista: `d` hoy, `w` semana, `f` finde, `p` próximos; en el detalle también `n` (sin
  * lista: vino de una búsqueda o de un link, y «Volver» va al inicio). `id` es la dirección del
  * evento si es corta y simple, si no `#<hash>`; `<etiqueta>` es un hash corto del nombre.
+ * En la búsqueda de todo el sitio, `<texto>` es lo buscado (recortado a {@link SEARCH_QUERY_BYTES}
+ * bytes: así se repite la misma búsqueda) y `<hash>`, un hash corto de la dirección de la cosa,
+ * que se busca **entre los resultados de ese texto** (nunca afuera del índice público).
  * También se entienden los botones de antes (`ev:<id>` y `ls`, keyboards.js).
  */
 import { parseCallbackData as parseLegacy } from './keyboards.js';
@@ -38,6 +43,8 @@ import { parseCallbackData as parseLegacy } from './keyboards.js';
  *   | { screen: 'help' }
  *   | { screen: 'follow', id: string }
  *   | { screen: 'follow_do', id: string, tag: string }
+ *   | { screen: 'site_results', query: string, page: number }
+ *   | { screen: 'site_doc', hash: string, page: number, query: string }
  *   | { screen: 'noop' }
  *   | { screen: 'legacy_event', token: string }} NavState
  */
@@ -50,6 +57,26 @@ export const START_PARAM_MAX = 64;
 
 /** Hasta dónde una dirección de evento va tal cual en un botón (el resto, con hash). */
 export const NAV_SLUG_MAX = 40;
+
+/** Hasta cuántos bytes de lo buscado van en un botón (el resto de los 64, para lo demás). */
+export const SEARCH_QUERY_BYTES = 40;
+
+/**
+ * Lo buscado como va en un botón y como se busca: sin espacios de más y recortado a
+ * {@link SEARCH_QUERY_BYTES} bytes (sin partir una letra).
+ *
+ * @param {unknown} query
+ */
+export function clipQuery(query) {
+	let out = '';
+	for (const ch of String(query ?? '')
+		.trim()
+		.replace(/\s+/g, ' ')) {
+		if (byteLength(out + ch) > SEARCH_QUERY_BYTES) break;
+		out += ch;
+	}
+	return out.trim();
+}
 
 /** Las listas y su comando. */
 export const LIST_VIEWS = Object.freeze({ d: 'hoy', w: 'semana', f: 'finde', p: 'proximos' });
@@ -145,6 +172,12 @@ export function encodeNav(state) {
 		case 'follow_do':
 			data = `fy:${state.id}:${state.tag}`;
 			break;
+		case 'site_results':
+			data = `q:${Math.max(0, Math.floor(state.page))}:${clipQuery(state.query)}`;
+			break;
+		case 'site_doc':
+			data = `r:${state.hash}:${Math.max(0, Math.floor(state.page))}:${clipQuery(state.query)}`;
+			break;
 		default:
 			data = 'x';
 	}
@@ -191,6 +224,20 @@ export function decodeNav(data) {
 	if (kind === 'fy' && parts.length === 3) {
 		const [, id, tag] = parts;
 		return isNavId(id) && TAG_HASH.test(tag) ? { screen: 'follow_do', id, tag } : null;
+	}
+	if (kind === 'q' && parts.length >= 3) {
+		const [, page] = parts;
+		const query = parts.slice(2).join(':');
+		if (!/^\d{1,3}$/.test(page) || !query || clipQuery(query) !== query) return null;
+		return { screen: 'site_results', query, page: +page };
+	}
+	if (kind === 'r' && parts.length >= 4) {
+		const [, hash, page] = parts;
+		const query = parts.slice(3).join(':');
+		if (!TAG_HASH.test(hash) || !/^\d{1,3}$/.test(page) || !query || clipQuery(query) !== query) {
+			return null;
+		}
+		return { screen: 'site_doc', hash, page: +page, query };
 	}
 	// Los botones de antes (mensajes viejos que quedaron en los chats).
 	const legacy = parseLegacy(data);

@@ -39,7 +39,8 @@ import { formatARS } from '$lib/utils/money.js';
  * el router, para el inicio por chat privado).
  *
  * @typedef {{ origin: string, chat: 'private' | 'group', now?: number,
- *   botUsername?: string | null, sigo?: boolean, door?: boolean }} ScreenCtx
+ *   botUsername?: string | null, sigo?: boolean, door?: boolean, site?: boolean }} ScreenCtx
+ *   `site`: Buscar busca en todo el sitio (con el índice público de la búsqueda).
  */
 /**
  * Lo público de la tarjeta de un evento: lo mismo que la página del evento le muestra a cualquiera.
@@ -337,10 +338,17 @@ export function calendarLink(event, origin, place) {
  * @param {CardInfo} info
  * @param {CardNav} nav
  * @param {ScreenCtx} ctx
- * @param {{ follow?: Button | null }} [extra] el botón «Seguir» (lo arma quien sabe de cuentas)
+ * @param {{ follow?: Button | null, back?: Button | null }} [extra] el botón «Seguir» (lo arma
+ *   quien sabe de cuentas) y, sin lista, un «‹ Volver» (a los resultados de una búsqueda)
  * @returns {Screen}
  */
-export function eventScreen(event, info, nav, ctx, { follow = null } = {}) {
+export function eventScreen(
+	event,
+	info,
+	nav,
+	ctx,
+	{ follow = null, back: backButton = null } = {}
+) {
 	const https = isHttps(ctx.origin);
 	const url = eventUrl(ctx.origin, event.slug);
 	const lines = [`<b>${escapeHtml(truncate(event.title, 200))}</b>`];
@@ -385,7 +393,7 @@ export function eventScreen(event, info, nav, ctx, { follow = null } = {}) {
 		if (pager) rows.push(pager);
 		rows.push([backToList(back, Math.floor(index / PAGE_SIZE)), homeButton()]);
 	} else {
-		rows.push([homeButton()]);
+		rows.push(backButton ? [backButton, homeButton()] : [homeButton()]);
 	}
 	const image = info.image && https && info.image.startsWith('https://') ? info.image : undefined;
 	return {
@@ -405,6 +413,9 @@ export const SEARCH_PROMPT_HEAD = '🔎 Escribí qué buscás';
 
 export const SEARCH_PROMPT_TEXT = `${SEARCH_PROMPT_HEAD}: un nombre, «sábado», «15/10», una dirección… Respondé a este mensaje.`;
 
+/** El de buscar en todo el sitio (mismo comienzo: así se reconocen también las respuestas viejas). */
+export const SITE_SEARCH_PROMPT_TEXT = `${SEARCH_PROMPT_HEAD}: un evento, un tema, una persona o un proyecto, un lugar… Respondé a este mensaje.`;
+
 /**
  * Buscar: un mensaje nuevo con `force_reply` (abre «responder») y «Cancelar». En un grupo no se
  * abre nada: se explica cómo buscar con /evento.
@@ -415,12 +426,14 @@ export const SEARCH_PROMPT_TEXT = `${SEARCH_PROMPT_HEAD}: un nombre, «sábado»
 export function searchScreen(ctx) {
 	if (ctx.chat === 'group') {
 		return {
-			text: 'Para buscar acá, escribí /evento y lo que buscás, por ejemplo: /evento cuerdas',
+			text: ctx.site
+				? 'Para buscar acá, escribí /buscar y lo que buscás, por ejemplo: /buscar cuerdas'
+				: 'Para buscar acá, escribí /evento y lo que buscás, por ejemplo: /evento cuerdas',
 			keyboard: [[homeButton()]]
 		};
 	}
 	return {
-		text: SEARCH_PROMPT_TEXT,
+		text: ctx.site ? SITE_SEARCH_PROMPT_TEXT : SEARCH_PROMPT_TEXT,
 		keyboard: [[{ text: 'Cancelar', callback_data: encodeNav({ screen: 'search_cancel' }) }]],
 		forceReply: true
 	};

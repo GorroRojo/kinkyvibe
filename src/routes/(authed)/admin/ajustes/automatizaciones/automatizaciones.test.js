@@ -176,7 +176,10 @@ describe('?/comandos (Actualizar comandos del bot)', () => {
 				{ command: 'semana', description: 'Lo que hay en los próximos 7 días' },
 				{ command: 'finde', description: 'Lo que hay este fin de semana' },
 				{ command: 'evento', description: 'Buscá un evento por nombre, fecha o lugar' },
-				{ command: 'buscar', description: 'Escribí lo que buscás y te muestro los eventos' },
+				{
+					command: 'buscar',
+					description: 'Buscá en todo el sitio: eventos, material, Kinkipedia y amigues'
+				},
 				{ command: 'fondo', description: 'Cuánto juntó el Fondo Kinky Vibe este mes' },
 				{ command: 'ayuda', description: 'Qué podés pedirme' },
 				{ command: 'vincular', description: 'Conectá tu cuenta (código de Mi rincón)' },
