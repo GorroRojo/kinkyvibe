@@ -14,6 +14,7 @@
 	import VenueLocation from './VenueLocation.svelte';
 	import ClaimProfile from './ClaimProfile.svelte';
 	import { KIND_LABELS, contactItems } from '$lib/utils/perfiles.js';
+	import { absoluteUrl } from '$lib/utils/jsonLd.js';
 
 	/** @type {any} */
 	export let data;
@@ -28,6 +29,8 @@
 		(p.authors.length === 1 && p.authors[0].replaceAll(' ', '-') !== p.slug);
 	// El primer link ya va como botón.
 	$: contact = contactItems(p, { skipFirstLink: true });
+	// Para la h-card: todo el contacto público, con el primer link (el botón).
+	$: hcardContact = contactItems(p);
 </script>
 
 <ProfileHead
@@ -54,7 +57,19 @@
 			{#if data.badges.membersOnly}<span>Solo para personas con cuenta</span>{/if}
 		</p>
 	{/if}
-	<ProfileHeader title={p.title} image={p.image} pronoun={p.pronoun} />
+	<ProfileHeader title={p.title} image={p.image} pronoun={p.pronoun}>
+		<!-- Microformats (h-card): la dirección, la bio y el contacto público que la página ya
+		     muestra más abajo, dentro de la tarjeta para que los lectores de h-card los encuentren. -->
+		<data hidden class="u-url u-uid" value={absoluteUrl(data.canonical) ?? data.canonical}></data>
+		{#if p.bio}<data hidden class="p-note" value={p.bio}></data>{/if}
+		{#each hcardContact as c (c.href)}
+			<data
+				hidden
+				class={c.kind === 'email' ? 'u-email' : c.kind === 'tel' ? 'p-tel' : 'u-url'}
+				value={c.kind === 'tel' ? c.href.slice('tel:'.length) : c.href}
+			></data>
+		{/each}
+	</ProfileHeader>
 	<p class="kind">{KIND_LABELS[p.kind] ?? ''}</p>
 	{#if showAuthors}
 		<address>

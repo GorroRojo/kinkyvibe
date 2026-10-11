@@ -167,6 +167,8 @@
 			<p class="event-series-chip"><TagChip tag={series.id} href={series.href} /></p>
 		{/if}
 		<h1 class="p-name">{data.meta.title}</h1>
+		<!-- La dirección del evento para la h-event (el link de arriba queda fuera del article). -->
+		<data hidden class="u-url" value="https://kinkyvibe.ar/calendario/{data.meta.postID}"></data>
 		{#if data.meta.summary}<p class="resumen p-summary">{data.meta.summary}</p>{/if}
 		{#if showAuthors}
 			<!-- Mientras llegan los perfiles, los nombres sin link. -->

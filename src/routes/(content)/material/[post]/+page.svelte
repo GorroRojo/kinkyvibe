@@ -64,7 +64,7 @@
 </svelte:head>
 <article class="h-entry">
 	<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
-	<h1 id="title p-name">{data.meta.title}</h1>
+	<h1 id="title" class="p-name">{data.meta.title}</h1>
 	{#if data.meta.authors && data.meta.authors.length > 0}
 		{@const authors = data.meta.authors}
 		<address>
