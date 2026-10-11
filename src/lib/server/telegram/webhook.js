@@ -39,6 +39,7 @@ export async function isValidWebhookSecret(given, expected) {
  *   listUpcoming: import('./router.js').Deps['listUpcoming'],
  *   accounts?: import('./router.js').Deps['accounts'],
  *   adminLink?: import('./router.js').Deps['adminLink'],
+ *   inline?: import('./router.js').Deps['inline'],
  *   card?: import('./router.js').Deps['card'],
  *   fondo?: import('./router.js').Deps['fondo'],
  *   botUsername?: string | null,
@@ -49,8 +50,9 @@ export async function isValidWebhookSecret(given, expected) {
  * }} args `accounts`: la fase 2 (vincular cuentas); se llama solo para esos comandos y da `null`
  *   con `lo_que_sigo` apagado. `adminLink`: `/start adm_<código>`, vincular el Telegram de une
  *   admin desde el panel (la puerta por Telegram, adminLink.js); `null` con `telegram_puerta`
- *   apagado. `token`: el del bot; con él, el webhook llama a la API. `texts`: lo cambiado en
- *   «Textos del bot» (se lee una vez, después del secreto; todo el pedido lo usa, ver texts.js).
+ *   apagado. `inline`: el modo inline (inline.js), con lo público del índice de la búsqueda.
+ *   `token`: el del bot; con él, el webhook llama a la API. `texts`: lo cambiado en «Textos del
+ *   bot» (se lee una vez, después del secreto; todo el pedido lo usa, ver texts.js).
  */
 export async function handleWebhook({
 	request,
@@ -60,6 +62,7 @@ export async function handleWebhook({
 	listUpcoming,
 	accounts,
 	adminLink,
+	inline,
 	card,
 	fondo,
 	botUsername,
@@ -88,7 +91,7 @@ export async function handleWebhook({
 	} catch {
 		return new Response('bad request', { status: 400 });
 	}
-	const deps = { listUpcoming, origin, accounts, adminLink, card, fondo, botUsername };
+	const deps = { listUpcoming, origin, accounts, adminLink, inline, card, fondo, botUsername };
 	/** @type {import('$lib/utils/botTexts.js').BotTexts} */
 	let overrides = {};
 	try {

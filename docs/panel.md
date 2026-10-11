@@ -125,6 +125,15 @@ Planilla:
   página; después desaparece hasta que el sitio se vuelve a publicar con su commit (unos minutos),
   porque la agenda lee los eventos del deploy.
 
+**«Hoy» en el Inicio**: un recuadro por cada evento de hoy que no sea borrador (hora, título,
+lugar, entradas y «Abrir Puerta»). Si el evento tiene portada, a la izquierda va su miniatura:
+un cuadrado fijo de 64 px (`TodayThumb.svelte`, en `src/lib/components/admin/inicio/`), con
+`alt=""` porque el título está al lado y carga diferida. Sale de `thumb` de `upcomingEvents`
+(`inicio.js`): la misma portada que las tarjetas del sitio. En producción se pide achicada a
+128 × 128 por las transformaciones de Cloudflare (`thumbnailUrl` en `seo.js`, ver
+[compartir.md](compartir.md)); en un preview y en local, la portada tal cual. Sin portada no se
+muestra nada.
+
 **Mover una URL** (regla de gorrite para el paso 2 del mapa): **sin redirecciones** desde la vieja
 (un favorito puede dar "no encontrado", y está bien), pero **nada interno** puede apuntar a ella.
 **Única excepción**, aprobada por gorrite el 11/10: `/admin/estadisticas` redirige (307) a

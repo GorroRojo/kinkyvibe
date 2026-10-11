@@ -33,9 +33,20 @@ kinkyvibe.ar ↗`. «Lo que sigo» solo aparece con ese interruptor prendido.
   - «🗺 Cómo llegar», solo si la página muestra el mapa (`googleMapsLink` del lugar o el
     `location_map` del evento);
   - «⭐ Seguir» (abajo).
-- **Buscar**: un mensaje nuevo que abre «responder» (`force_reply` en el teclado, Bot API 10.3)
-  con «Cancelar». La respuesta trae los eventos que coinciden (el mismo buscador que
-  `/evento <texto>`: título, dirección o fecha). En grupos no abre nada: explica `/evento cuerdas`.
+- **Buscar** busca en **todo el sitio** (eventos, material, Kinkipedia, series y amigues), con el
+  mismo índice y el mismo orden que el buscador del sitio (`/api/search-index.json`, ver «Modo
+  inline» abajo): solo lo que ve une visitante sin cuenta.
+  - «🔎 Buscar» manda un mensaje nuevo que abre «responder» (`force_reply`, Bot API 10.3) con
+    «Cancelar»; la respuesta trae los resultados. `/buscar <texto>` los trae directo (también en
+    grupos; en un grupo, `/buscar` solo explica `/buscar cuerdas`).
+  - La lista va de a 5, cada cosa con el ícono de su tipo (📅 evento, 📚 material, 📖 Kinkipedia o
+    serie, 👥 amigues), «‹ 2/3 ›», «🔎 Buscar otra cosa» e «🏠 Inicio».
+  - Tocar un resultado abre su tarjeta: un evento próximo, la tarjeta de siempre; lo demás (y un
+    evento que ya pasó), una **tarjeta compacta**: título, una o dos líneas (el resumen, o el tipo
+    de perfil), la foto achicada si hay y se puede, «Ver en el sitio», «‹ Volver» (a esa página de
+    resultados) e «🏠 Inicio». La lista y la tarjeta (`siteScreens.js`) están pensadas para las
+    listas por sección que vienen después.
+  - `/evento <texto>` sigue siendo **solo de eventos próximos** (título, dirección o fecha).
 - **`/fondo`**: cuánto juntó el Fondo este mes, la meta y el descuento de este mes en las
   entradas. Solo lectura, con la memoria de `tickets/fondoMonth.js` (10 minutos, último valor
   guardado) y solo los campos de `/api/porcentaje` (issue #265); nada de quiénes aportan ni de
@@ -54,10 +65,15 @@ kinkyvibe.ar ↗`. «Lo que sigo» solo aparece con ese interruptor prendido.
 | Buscar / Cancelar                                                    | `s` / `sx`                      |
 | Lo que sigo / Fondo / Ayuda                                          | `g` / `fo` / `a`                |
 | Seguir: opciones / seguir una                                        | `f:<id>` / `fy:<id>:<etiqueta>` |
+| Buscar en todo el sitio: resultados (página `p`)                     | `q:<p>:<texto>`                 |
+| Buscar en todo el sitio: una cosa (vuelve a la página `p`)           | `r:<hash>:<p>:<texto>`          |
 | Contador (no hace nada)                                              | `x`                             |
 
 `id` es la dirección del evento si es simple y tiene hasta 40 bytes; si no, `#<hash>`.
 `<etiqueta>` es un hash corto del nombre, que se busca entre las etiquetas de ese evento.
+En la búsqueda, `<texto>` es lo buscado recortado a 40 bytes (así cada botón repite la misma
+búsqueda) y `<hash>` un hash corto de la dirección de la cosa, que se busca **entre los resultados
+de ese texto**: un botón armado a mano no puede abrir nada que no esté en el índice público.
 
 **Deep links** (`t.me/<bot>?start=…`, solo `A-Za-z0-9_-`): `hoy`, `semana`, `finde`, `proximos`,
 `ev-<id>` (la tarjeta), `seguir-<id>`, `sigo`, `fondo`, `buscar`, `inicio`. El código de vincular
@@ -173,6 +189,68 @@ del campo que tocás). Cada guardado queda en Actividad (`settings.save`, `teleg
 - Lo que sigue en el código: los datos (títulos, fechas, lugares, links), los símbolos de las
   flechas («‹ 2/3 ›») y el « ↗» que se suma en los grupos. Las páginas de la Mini App y de la
   puerta no son mensajes del bot: sus textos siguen en sus páginas.
+- **Pendiente**: los textos del modo inline y de buscar en todo el sitio (#298: `INLINE_TEXTS`,
+  `SITE_TEXTS`, `SITE_SEARCH_PROMPT_TEXT` y el «Para buscar acá…» de `/buscar` en grupos) siguen
+  en el código; se suman al registro en otro PR.
+
+## Modo inline
+
+En **cualquier chat** (también uno donde el bot no está), escribir `@<bot> <texto>` muestra lo que
+coincide de todo lo público del sitio; elegir un resultado manda una tarjeta compacta en ese chat.
+Código: `inline.js` (la respuesta, funciones puras) e `inlineSource.js` (de dónde sale).
+
+- **Qué busca**: lo mismo que el buscador del sitio, con su mismo índice
+  (`publicSearchIndex` en `src/lib/server/search/publicIndex.js`, el de `/api/search-index.json`,
+  armado una vez por cambio de la base y compartido con el endpoint) y su mismo orden (`search` +
+  `groupHits`: próximos eventos, series, material, amigues, Kinkipedia, eventos pasados).
+- **Prefijos** (opcionales): `evento:`, `material:`, `wiki:` (o `kinkipedia:`, con las series),
+  `serie:`, `amigues:`. Con prefijo y sin texto: todo lo de ese tipo (los eventos, solo los
+  próximos; el material, del más nuevo).
+- **Sin texto**: los próximos eventos (del más cercano) y después 5 materiales recientes.
+- **Cada resultado**: título (con el ícono de la etiqueta en la Kinkipedia y las series), una
+  descripción (la fecha y la zona en los eventos; el resumen en el material y la Kinkipedia; el
+  tipo de perfil en amigues) y la miniatura si hay.
+- **La miniatura** es siempre chiquita (160 × 160, JPEG, por las transformaciones de imágenes de
+  Cloudflare: `/cdn-cgi/image/width=160,height=160,fit=cover,…/media/img/…`), **nunca la imagen
+  entera**: sin `onerror=redirect`, si no se puede achicar no hay miniatura. Solo en producción
+  (`kinkyvibe.ar`, la zona con transformaciones); en un preview o en local, sin miniaturas. Cada
+  miniatura distinta cuenta una vez por mes en el cupo de 5000 (docs/compartir.md): son unas
+  pocas cientos. La foto de la tarjeta compacta del chat (Buscar) es la misma idea, de 480 px.
+- **La tarjeta que se manda**: el título en negrita y una o dos líneas; en un evento, como la
+  tarjeta del bot: la fecha (`tg-time`), el lugar como lo muestra la página (`feedVenues` +
+  `eventPlace`) y el estado de la venta si no se puede comprar. Botones: «Ver en el sitio» y, si el
+  evento vende entradas acá y están a la venta, «🎟 Entradas». Solo botones con link (un botón de
+  pantalla no anda en un mensaje inline). HTML escapado (`parse_mode: HTML`).
+- **`answerInlineQuery`**: `InlineQueryResultArticle` con `thumbnail_url`, 20 por página con
+  `next_offset` (hasta 200 en total), `cache_time` 120 segundos e `is_personal: false` (es lo
+  mismo para todes). Sin resultados, un botón arriba («No encontré nada. Probá en el bot») que abre
+  el bot en privado en Buscar (`start_parameter=buscar`).
+- **Privacidad**: solo lo que hay en el índice público (ni oculto, ni «solo con cuenta», ni sin
+  aprobar, ni no listado, ni borrado; los links a cosas no públicas ya se filtran en los metadatos,
+  #291). Lo de más (imagen, fecha, tipo de perfil, lugar y venta) se busca solo para las direcciones
+  que ya están en el índice, y el lugar de un evento, con las funciones de su página: nunca la calle
+  de un lugar que la oculta. Pruebas: `inline-privacy.test.js` (con la base).
+- **Interruptor**: con `telegram_bot` apagado el webhook contesta 200 sin leer nada, también a los
+  `inline_query`.
+- **Barato**: cada consulta usa el índice ya armado; entre consultas se reusa por 60 segundos sin
+  mirar la base; por página, una lectura de los lugares y una de la venta (recordada 30 segundos)
+  para todos los eventos juntos. Un tope **en memoria** de 30 consultas por minuto por persona (un
+  tope en D1 sería una escritura por letra); pasado, no contesta. Telegram además manda una
+  consulta por pausa al escribir y guarda la respuesta 120 segundos.
+- **Textos**: en `INLINE_TEXTS` (`inline.js`) y `SITE_TEXTS` (`siteScreens.js`), para pasarlos al
+  registro «Textos del bot» cuando esté.
+
+### Puesta en marcha del modo inline (la hace gorrite)
+
+1. En @BotFather: `/setinline`, elegir el bot y poner el placeholder **«Buscá en Kinky Vibe…»**.
+   (`/setinlinefeedback` no hace falta.)
+2. Volver a registrar el webhook para que pida los `inline_query`: desde tu compu,
+   `TELEGRAM_BOT_TOKEN=… TELEGRAM_WEBHOOK_SECRET=… npm run telegram:webhook` (los mismos valores
+   que en Cloudflare; el script los lee de variables de entorno, nunca los muestra, y al final
+   imprime la dirección y los `allowed_updates` que quedaron). Si el webhook se había registrado
+   sin `allowed_updates`, Telegram ya manda los `inline_query`, pero registrarlo así deja la lista
+   explícita. Cada vez que cambie `WEBHOOK_ALLOWED_UPDATES`, repetir este paso.
+3. Probar en cualquier chat: `@<bot>` (los próximos eventos), `@<bot> cuerdas`, `@<bot> wiki:`.
 
 ## El menú de comandos (autocompletado)
 
@@ -182,7 +260,7 @@ salen lo que entiende el router y lo que se registra (un test, `commands.test.js
 coincidan).
 
 - **Para todes** (alcance `default`): `/proximos`, `/hoy`, `/semana`, `/finde`, `/evento`,
-  `/buscar`, `/fondo`, `/ayuda`.
+  `/buscar` («Buscá en todo el sitio: eventos, material, Kinkipedia y amigues»), `/fondo`, `/ayuda`.
 - **En grupos** (alcance `all_group_chats`): los mismos, **efímeros** (`is_ephemeral`).
 - **En chats privados** (alcance `all_private_chats`): esos y, solo con «Lo que sigo» prendido,
   `/vincular`, `/sigo`, `/silenciar`, `/reanudar`, `/desvincular`.
@@ -263,8 +341,9 @@ minutos), con estas reglas:
 
 ## Lo que nunca se tiene que romper
 
-- **Sin reglas propias de visibilidad.** El bot solo muestra lo que le da
-  `src/lib/server/telegram/events.js`, que es el único lugar que sabe cómo se leen los eventos
+- **Sin reglas propias de visibilidad.** Buscar en todo el sitio y el modo inline muestran solo lo
+  del índice público de la búsqueda (`inlineSource.js` → `publicSearchIndex`). Lo demás, solo lo
+  que le da `src/lib/server/telegram/events.js`, que es el único lugar que sabe cómo se leen los eventos
   (con `sitePosts` de `src/lib/server/contenido/posts.js`: de la base o de los `.md`, según
   `contenido_db`). No armar consultas propias ni leer los `.md` o la base desde otro lado.
 - **Nada oculto, no listado ni ya empezado.**
@@ -285,6 +364,11 @@ minutos), con estas reglas:
 | `src/lib/server/telegram/nav.js`              | El `callback_data` de las pantallas y los deep links                |
 | `src/lib/server/telegram/screens.js`          | Las pantallas (texto y botones), funciones puras                    |
 | `src/lib/server/telegram/navigate.js`         | Qué pantalla va para cada botón                                     |
+| `src/lib/server/telegram/siteScreens.js`      | Buscar en todo el sitio: la lista por tipo y la tarjeta compacta    |
+| `src/lib/server/telegram/inline.js`           | El modo inline (`answerInlineQuery`), funciones puras               |
+| `src/lib/server/telegram/inlineSource.js`     | De dónde sale lo que busca el bot: el índice público y sus extras   |
+| `src/lib/server/search/publicIndex.js`        | El índice público de la búsqueda, armado y recordado (con el sitio) |
+| `src/lib/server/telegram/updates.js`          | Los `allowed_updates` del webhook (`npm run telegram:webhook`)      |
 | `src/lib/server/telegram/deliver.js`          | Cómo se manda: editar, foto, efímero en grupos                      |
 | `src/lib/server/telegram/run.js`              | Con token: llama a la API (429, «not modified», fallback)           |
 | `src/lib/server/telegram/seguir.js`           | «Seguir» y «Lo que sigo» desde el bot (0034)                        |
@@ -316,14 +400,20 @@ errores se muestran sin él.
 2. Elegir un secreto largo (16 caracteres o más) y cargarlo como secret `TELEGRAM_WEBHOOK_SECRET`
    en Cloudflare (nunca en el repo).
 3. Apuntar el webhook del bot a `https://kinkyvibe.ar/api/telegram` con `setWebhook`, pasando ese
-   mismo valor como `secret_token`. El token del bot se usa solo en ese paso, desde tu compu.
+   mismo valor como `secret_token` y los `allowed_updates` del código: desde tu compu,
+   `TELEGRAM_BOT_TOKEN=… TELEGRAM_WEBHOOK_SECRET=… npm run telegram:webhook`
+   (`scripts/telegram-webhook.js`, con `WEBHOOK_ALLOWED_UPDATES` de
+   `src/lib/server/telegram/updates.js`: `message`, `callback_query`, `inline_query`). El token
+   del bot se usa solo en ese paso y el script nunca lo muestra.
 4. Prender el interruptor **Bot de Telegram** en Ajustes → Interruptores.
 5. Con el token cargado (fase 2, abajo), los comandos se registran solos en la próxima corrida
    del cron (o ya, con **Actualizar comandos del bot** en Ajustes → Automatizaciones).
 6. Mini App (opcional): en @BotFather → el bot → **Bot Settings → Configure Mini App** (o «Main
    Mini App»), la URL `https://kinkyvibe.ar/telegram/app`. El botón «📅 Calendario» del inicio
    anda igual sin eso (abre la misma URL); registrarla suma el botón «Abrir» en el perfil del bot.
-   **No** cambiar el botón de menú: queda la lista de comandos. No hace falta el modo inline.
+   **No** cambiar el botón de menú: queda la lista de comandos.
+7. Modo inline: ver «Modo inline» abajo (`/setinline` en @BotFather y volver a registrar el
+   webhook con `npm run telegram:webhook`).
 
 Apagado, el endpoint contesta 200 sin hacer nada (con un error, Telegram acumularía reintentos).
 
@@ -349,7 +439,8 @@ npx vitest run src/lib/server/telegram src/lib/utils/botTexts.test.js "src/route
 
 Los tests usan eventos y chats inventados. Para probar a mano, un POST al endpoint con el header
 `x-telegram-bot-api-secret-token` y un update de ejemplo (`{"message":{"chat":{"id":1},"text":"/proximos"}}`,
-o un botón tocado: `{"callback_query":{"id":"1","data":"l:w:0","message":{"message_id":1,"chat":{"id":1}}}}`).
+o un botón tocado: `{"callback_query":{"id":"1","data":"l:w:0","message":{"message_id":1,"chat":{"id":1}}}}`,
+o el modo inline: `{"inline_query":{"id":"1","from":{"id":1},"query":"wiki: cuerdas","offset":""}}`).
 Sin `TELEGRAM_BOT_TOKEN` la respuesta del POST es el método que se mandaría; con el token cargado,
 no probarlo a mano contra producción (llamaría a la API de verdad).
 
@@ -439,4 +530,7 @@ que ahora no se puede.
   `telegram_puerta`.
 - Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir la
   dirección, y un comando o botón para abrirla sin volver a vincular.
+- ~~Modo inline y buscar en todo el sitio.~~ Hecho (arriba).
+- Recorrer el sitio por secciones desde el inicio («📚 Material», «📖 Kinkipedia», «👥 Amigues», con
+  listas y etiquetas), reusando la lista y la tarjeta compacta de `siteScreens.js`.
 - Fase 3: avisos y estado para organizadores (0029).

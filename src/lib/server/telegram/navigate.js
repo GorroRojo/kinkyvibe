@@ -59,7 +59,8 @@ export function eventsForView(view, events, now) {
  * @param {BotEvent[]} events todos los próximos
  * @param {ScreenCtx} ctx
  * @param {NavDeps} deps
- * @param {{ follow?: import('./screens.js').Button | null }} [extra]
+ * @param {{ follow?: import('./screens.js').Button | null,
+ *   back?: import('./screens.js').Button | null }} [extra]
  * @returns {Promise<Screen>}
  */
 export async function cardFor(event, back, events, ctx, deps, extra) {
