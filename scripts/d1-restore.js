@@ -15,6 +15,7 @@
 // ese día) o una clave del bucket (d1/manual/…). Lo que no es archivo se baja del bucket
 // kinkyvibe-backups con `wrangler r2 object get --remote`.
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -95,6 +96,13 @@ export function readStats(sql) {
 	return JSON.parse(line.slice(STATS_COMMENT.length));
 }
 
+/** El ejecutable de wrangler del repo (`node_modules/wrangler/bin/wrangler.js`). */
+export function wranglerBin() {
+	// `wrangler/bin/wrangler.js` no está en los `exports` del paquete: se arma desde su package.json.
+	const pkg = createRequire(import.meta.url).resolve('wrangler/package.json');
+	return path.join(path.dirname(pkg), 'bin', 'wrangler.js');
+}
+
 /** @param {string} name */
 const quoteIdent = (name) => `"${name.replaceAll('"', '""')}"`;
 
@@ -103,11 +111,12 @@ const quoteIdent = (name) => `"${name.replaceAll('"', '""')}"`;
  * @param {{ json?: boolean }} [options]
  */
 function wrangler(args, { json = false } = {}) {
-	const result = spawnSync('npx', ['wrangler', ...args], {
+	// Wrangler corre con el mismo node, sin shell: en Windows `npx` necesita `shell: true` y el
+	// shell parte en los espacios el SQL de `--command` («Unknown arguments: name, FROM, …»).
+	const result = spawnSync(process.execPath, [wranglerBin(), ...args], {
 		stdio: ['ignore', json ? 'pipe' : 'inherit', 'inherit'],
 		encoding: 'utf8',
-		env: { ...process.env, CI: 'true' },
-		shell: process.platform === 'win32'
+		env: { ...process.env, CI: 'true' }
 	});
 	if (result.status !== 0) throw new Error(`Falló: wrangler ${args.join(' ')}`);
 	if (!json) return null;
