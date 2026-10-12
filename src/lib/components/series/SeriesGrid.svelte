@@ -6,7 +6,8 @@
 	 * (groupSeries). Cada tarjeta lleva a la página de la serie (/wiki/<serie>).
 	 * Props: `series` (lo de seriesSummaries, src/lib/server/series/index.js).
 	 */
-	import { CalendarDays, History, Repeat } from '@lucide/svelte';
+	// del sprite de la página (ui/iconSprite.js): se repiten en cada tarjeta
+	import SpriteIcon from '$lib/components/ui/SpriteIcon.svelte';
 	import { editionDateLabel, groupSeries } from '$lib/utils/series.js';
 
 	/**
@@ -41,15 +42,17 @@
 			</a>
 			{#if s.description}<p class="description">{s.description}</p>{/if}
 			<p class="meta">
-				<span class="fact"><Repeat size="1em" aria-hidden="true" /> {editions(s.total)}</span>
+				<span class="fact"><SpriteIcon name="repeat" size="1em" /> {editions(s.total)}</span>
 				{#if s.next}
 					<span class="fact next">
-						<CalendarDays size="1em" aria-hidden="true" /> Próxima:
+						<SpriteIcon name="calendar-days" size="1em" /> Próxima:
 						<a href={s.next.path}>{editionDateLabel(s.next.start)}</a>
 					</span>
 				{:else if s.last}
 					<span class="fact">
-						<History size="1em" aria-hidden="true" /> Última: {editionDateLabel(s.last.start)}
+						<SpriteIcon name="rotate-ccw-clock" size="1em" /> Última: {editionDateLabel(
+							s.last.start
+						)}
 					</span>
 				{/if}
 			</p>

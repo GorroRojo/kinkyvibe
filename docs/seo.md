@@ -123,18 +123,53 @@ No hay CSS en línea (0 bloques `<style>`: todo va en archivos) y el JSON-LD pes
    «Filtrar por etiquetas» armado aunque esté cerrado (20 a 41 KB en las listas; en compu se ve
    siempre) y las marcas de hidratación de Svelte (`<!--[-->`, 22 a 54 KB, no se pueden sacar).
 
+### Peso: lo que ya se hizo (12/10/2026, #334)
+
+Medido con `npm run build` + `vite preview` y la semilla de contenido (`node scripts/semilla.js`),
+antes y después, en KB sin comprimir (gzip entre paréntesis). «Datos» es el `__data.json` de la
+página (lo mismo que va en línea en el HTML).
+
+| Página        | HTML antes   | HTML después | Datos antes | Datos después |
+| ------------- | ------------ | ------------ | ----------- | ------------- |
+| `/`           | 217,7 (41,9) | 210,9 (42,1) | 90,7        | 90,7          |
+| `/calendario` | 310,0 (44,1) | 70,1 (17,9)  | 225,6       | 34,4          |
+| `/material`   | 276,4 (41,3) | 252,1 (41,1) | 71,7        | 71,7          |
+| `/wiki`       | 156,5 (26,9) | 129,0 (27,0) | 49,5        | 49,5          |
+| un evento     | 78,8 (21,8)  | 80,9 (22,3)  | 38,8        | 38,8          |
+| `/wiki/BDSM`  | 285,6 (43,7) | 263,8 (43,1) | 74,5        | 74,5          |
+
+- **`/calendario`, los pasados de a un mes.** Viajan los próximos enteros y, de los pasados, solo
+  los del mes que se abre (con los campos de la grilla, sin el lugar). Al ir a otro mes, la página
+  pide sus pasados a `/api/calendario/pasados?mes=yyyy-MM` (5 minutos de caché, como
+  `/api/posts`) y aparecen en la grilla al llegar. «Mostrar eventos pasados» sigue igual (trae
+  `/api/posts` entero). Código: `src/lib/server/eventos/pasados.js`.
+- **Íconos de las tarjetas en un sprite.** Los de las tarjetas de las listas y los de las series
+  de la Kinkipedia van una vez por página (`iconSprite.js`, en el layout raíz) y cada tarjeta los
+  usa con `<SpriteIcon>` (`<use href>`). Se ven igual (mismas clases de Lucide). Ahorra 20 a 27 KB
+  de HTML en las listas y cuesta unos 2 KB en las páginas sin tarjetas; comprimido casi no cambia
+  (gzip ya comprime lo repetido): lo que gana es un DOM más chico. Si Lucide cambia un dibujo,
+  `iconSprite.test.js` avisa.
+
 ### Para hacer después (ahorro estimado, sin comprimir)
 
-- `/calendario`: los eventos pasados por mes, cuando se piden, en vez de todos en la página:
-  −200 a −250 KB.
-- `siteTags` y la wiki del layout raíz como un JSON aparte con caché del navegador: −30 KB en cada
-  página.
-- Íconos de las tarjetas con un sprite SVG (`<use href>`) o una máscara CSS: −15 a −45 KB en las
-  listas.
-- Hasta 5 etiquetas por tarjeta («+N» para el resto): −20 a −35 KB en `/material` y la wiki.
+- `siteTags` y la wiki del layout raíz como un JSON aparte: **no ahorra en la primera visita** si
+  se hace con un `fetch` en un `load`, porque SvelteKit mete en el HTML lo que se pidió durante el
+  render del servidor, y las etiquetas hacen falta para armar la página (colores, madres). Al
+  navegar dentro del sitio el layout raíz no se vuelve a pedir, así que tampoco ahorra ahí. Solo
+  serviría con las etiquetas en un archivo estático que el navegador guarde (por ejemplo, armado
+  al guardar etiquetas en el panel) y la página esperándolo antes de hidratar. Mucho riesgo para
+  −30 KB; queda en espera.
+- Hasta 5 etiquetas por tarjeta: −20 a −35 KB en `/material` y la wiki. **Cambia lo que se ve**:
+  lo decide gorrite. Opciones: (a) 5 y un «+N» que no hace nada (la tarjeta entera ya es un link);
+  (b) 5 y «+N» que despliega el resto en la tarjeta; (c) solo en las listas largas (`/material`,
+  `/wiki/<etiqueta>`), no en el inicio; (d) dejarlo así.
 - `/wiki/<término>`: las publicaciones relacionadas de a 20: −25 KB de datos y hasta −120 KB de
-  tarjetas en las etiquetas con muchas.
+  tarjetas en las etiquetas con muchas. **Cambia lo que se ve**: lo decide gorrite. Opciones:
+  (a) `limit={20}` en la lista con «Ver más», como el inicio (ahorra tarjetas, no datos);
+  (b) además, el servidor manda 20 y «Ver más» pide las siguientes (ahorra las dos cosas, pero los
+  filtros por etiqueta tendrían que pedir al servidor); (c) dejarlo así.
 - El panel de etiquetas armado recién al abrirlo en celu (en compu sigue visible): −20 a −41 KB.
+- Más íconos al sprite: la flecha del árbol de etiquetas (17 en `/wiki/BDSM`, 6 KB) y los del pie.
 
 ### Lo demás
 
