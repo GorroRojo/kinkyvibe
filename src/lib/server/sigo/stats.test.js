@@ -1,14 +1,14 @@
 /**
  * «Lo que sigo» en números (Mensajes › Lo que sigo del panel) con D1 de miniflare: los totales,
  * los avisos que salieron por tipo, canal y período, el paso de «Avisame si se repite», Telegram
- * y «Lo más seguido». Y la privacidad: nada de lo que devuelve dice quién sigue qué. Datos
- * inventados.
+ * y «Lo más seguido». Y la privacidad: nada de lo que devuelve `followStats` dice quién sigue qué;
+ * eso sale solo de `whoFollows` (para el panel), sin las cuentas borradas. Datos inventados.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { makeAccount, makeProfile } from '$lib/server/amigues/testing.js';
 import tagsFactory from '$lib/utils/tags';
-import { followStats, groupRanking } from './stats.js';
+import { followStats, groupRanking, whoFollows } from './stats.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -291,6 +291,50 @@ describe('followStats', () => {
 			await t?.dispose();
 			t = await createTestDB();
 		}
+	});
+});
+
+describe('whoFollows', () => {
+	it('sin base o sin ranking: null', async () => {
+		expect(await whoFollows(null, { etiqueta: [], perfil: [], lugar: [] })).toBeNull();
+		expect(await whoFollows(t.db, null)).toBeNull();
+	});
+
+	it('quién sigue cada fila de «Lo más seguido» y lo de cada cuenta, sin las borradas', async () => {
+		const w = await seed();
+		const { ranking } = await followStats(t.db, { tags, now: NOW });
+		const who = /** @type {NonNullable<Awaited<ReturnType<typeof whoFollows>>>} */ (
+			await whoFollows(t.db, ranking)
+		);
+		const emails = (/** @type {string} */ k) => who.byTarget[k]?.map((f) => f.email);
+		expect(emails('etiqueta:shibari')).toEqual([w.a.email, w.b.email]);
+		expect(emails(`perfil:${w.oculto.id}`)).toEqual([w.b.email]);
+		expect(emails(`lugar:${w.lugar.id}`)).toEqual([w.c.email]);
+		expect(emails('perfil:999999')).toEqual([w.c.email]);
+		expect(who.byTarget['etiqueta:shibari'][0].href).toBe(`/admin/comunidad/cuentas/${w.a.id}#sigue`);
+		// Cada fila del ranking tiene tantas cuentas como su número.
+		for (const r of [...ranking.etiqueta, ...ranking.perfil, ...ranking.lugar])
+			expect(who.byTarget[`${r.group}:${r.key}`]).toHaveLength(r.count);
+		expect(who.people.map((p) => [p.email, p.count])).toEqual([
+			[w.a.email, 4],
+			[w.b.email, 3],
+			[w.c.email, 2]
+		]);
+		expect(who.people[2].items).toEqual([
+			{ group: 'perfil', title: 'Perfil 999999' },
+			{ group: 'lugar', title: 'Lugar Inventado' }
+		]);
+		expect(JSON.stringify(who)).not.toContain(w.gone.id);
+		expect(JSON.stringify(who)).not.toContain('700000001');
+		expect(who.truncated).toBe(false);
+	});
+
+	it('con más filas que `maxRows` corta y lo dice', async () => {
+		await seed();
+		const { ranking } = await followStats(t.db, { tags, now: NOW });
+		const who = await whoFollows(t.db, ranking, { maxRows: 3 });
+		expect(who?.truncated).toBe(true);
+		expect(who?.people.reduce((s, p) => s + p.count, 0)).toBe(3);
 	});
 });
 

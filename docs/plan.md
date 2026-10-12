@@ -234,14 +234,14 @@ CI) va en la fase 0.
 
 ### Cuentas y perfiles
 
-- `lo-que-sigo-fichas` · fase 2 · sigue · panel · «N cuentas lo siguen» en la ficha de una etiqueta y de un perfil del panel (solo admins, nunca quiénes) (depende de: lo-que-sigo-panel) · [0043](decisiones/0043-lo-que-sigo-en-el-panel.md)
+- `lo-que-sigo-fichas` · fase 2 · sigue · panel · «N cuentas lo siguen» en la ficha de una etiqueta y de un perfil del panel (solo admins; quiénes, en Mensajes › Lo que sigo) (depende de: lo-que-sigo-panel) · [0043](decisiones/0043-lo-que-sigo-en-el-panel.md)
 - `lo-que-sigo-avisos-fallidos` · fase 2 · espera gorrite · panel · Contar los avisos de «Lo que sigo» que fallaron (hoy se borra su fila para reintentar: necesita migración); gorrite decide si hace falta (depende de: lo-que-sigo-panel)
 - `admins-cuenta-normal` · fase 2 · sigue · cuentas · Admins con la cuenta del sitio en vez de GitHub: ser admin como permiso de la cuenta, la lista de admins a la base, migrar lo que guarda ids de GitHub; con decisión propia y por partes, con GitHub de respaldo (gorrite, 11/10)
 - `passkeys` · fase 2 · sigue · cuentas · Passkeys para las cuentas · [cuentas.md](cuentas.md#pendiente-partes-siguientes)
 - `compra-con-cuenta` · fase 2 · espera gorrite · cuentas · Guardar `orders.account_id` al comprar y que `requiere_cuenta` pida ingresar de verdad
 - `amigues-editan-perfil` · fase 2 · sigue · cuentas · Mandarle a cada amigue un link por mail para gestionar su perfil desde Mi rincón (gorrite, 11/10)
 - `sesiones-dispositivos` · fase 2 · algún día · cuentas · Ver dónde hay una sesión abierta y cerrarla
-- `lo-que-sigo-panel` · fase 2 · hecho · panel · Mensajes › Lo que sigo: el estado para mirar (interruptores, números, avisos que salieron, «Avisame», Telegram y «Lo más seguido» con el número exacto, nunca quiénes) · #320, [0043](decisiones/0043-lo-que-sigo-en-el-panel.md), [0025](decisiones/0025-lo-que-sigo.md)
+- `lo-que-sigo-panel` · fase 2 · hecho · panel · Mensajes › Lo que sigo: el estado para mirar (interruptores, números, avisos que salieron, «Avisame», Telegram, «Lo más seguido» arriba con el número exacto y quiénes siguen cada cosa, y «Por persona»; solo admins) · #320, [0043](decisiones/0043-lo-que-sigo-en-el-panel.md), [0025](decisiones/0025-lo-que-sigo.md)
 
 ## Fase 3
 

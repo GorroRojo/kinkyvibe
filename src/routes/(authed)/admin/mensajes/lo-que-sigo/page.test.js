@@ -1,7 +1,9 @@
 /**
  * Mensajes › Lo que sigo (load): solo admins (sin sesión, 303 al login; sin permiso, 403), se ve
- * con el interruptor apagado, trae los números y «Lo más seguido», y nunca llega al navegador quién
- * sigue qué, ni el token o el secreto del bot. D1 de miniflare, datos inventados.
+ * con el interruptor apagado, trae los números y «Lo más seguido» y, solo para admins, quién sigue
+ * cada cosa y lo que sigue cada cuenta (decisión 0043; sin las cuentas borradas). Los números
+ * (`stats`) siguen sin ids ni mails, y nunca llegan los chats, el token o el secreto del bot. D1 de
+ * miniflare, datos inventados.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -57,7 +59,9 @@ async function addFollow(accountId, kind, key) {
 }
 
 describe('/admin/mensajes/lo-que-sigo', () => {
-	it('sin sesión: al login; sin permiso: 403', async () => {
+	it('sin sesión: al login; sin permiso: 403 (aunque haya gente siguiendo cosas)', async () => {
+		const a = await makeAccount(t.db, 'alguien-que-sigue');
+		await addFollow(a.id, 'etiqueta', 'shibari');
 		const { load } = await page();
 		expect(await thrown(() => load(ev(null)))).toMatchObject({ status: 303 });
 		expect(await thrown(() => load(ev({ id: 1, login: 'alguien-de-prueba' })))).toMatchObject({
@@ -73,7 +77,7 @@ describe('/admin/mensajes/lo-que-sigo', () => {
 		expect(data.stats.ranking).toEqual({ etiqueta: [], perfil: [], lugar: [] });
 	});
 
-	it('admins: interruptores, números y lo más seguido; sin quién sigue qué ni secretos', async () => {
+	it('admins: interruptores, números y lo más seguido; los números sin quién, nunca secretos', async () => {
 		await setFlag(t.db, 'lo_que_sigo', true, { by: 'prueba' });
 		await setFlag(t.db, 'telegram_bot', true, { by: 'prueba' });
 		const a = await makeAccount(t.db, 'sigue-en-la-prueba');
@@ -99,9 +103,57 @@ describe('/admin/mensajes/lo-que-sigo', () => {
 		expect(data.stats.ranking.perfil[0]).toMatchObject({ title: 'Perfil De Prueba', count: 1 });
 		expect(data.stats.telegram).toEqual({ linked: 1, muted: 0 });
 
+		// Los números no dicen quién: eso va solo en `followers`.
+		const stats = JSON.stringify(data.stats);
+		for (const x of [a.id, b.id, a.email, b.email]) expect(stats).not.toContain(x);
 		const all = JSON.stringify(data);
-		for (const x of [a.id, b.id, a.email, b.email, '700000099', TOKEN, SECRET])
-			expect(all).not.toContain(x);
+		for (const x of ['700000099', TOKEN, SECRET]) expect(all).not.toContain(x);
+	});
+
+	it('admins: quién sigue cada cosa y lo que sigue cada cuenta, sin las borradas', async () => {
+		const a = await makeAccount(t.db, 'sigue-en-la-prueba');
+		const b = await makeAccount(t.db, 'sigue-tambien');
+		const gone = await makeAccount(t.db, 'cuenta-borrada-de-prueba');
+		const p = await makeProfile(t.db, { title: 'Perfil De Prueba' });
+		const lugar = await makeProfile(t.db, { title: 'Lugar De Prueba', kind: 'lugar' });
+		await addFollow(a.id, 'etiqueta', 'shibari');
+		await addFollow(b.id, 'etiqueta', 'shibari');
+		await addFollow(b.id, 'perfil', String(p.id));
+		await addFollow(b.id, 'perfil', String(lugar.id));
+		await addFollow(gone.id, 'etiqueta', 'shibari');
+		await t.db
+			.prepare(
+				`UPDATE accounts SET deleted_at = ?2, email = NULL, email_verified_at = NULL,
+					password_hash = NULL, preferences = '{}' WHERE id = ?1`
+			)
+			.bind(gone.id, Date.now())
+			.run();
+
+		const data = /** @type {any} */ (await (await page()).load(ev(admin)));
+		const href = (/** @type {string} */ id) => `/admin/comunidad/cuentas/${id}#sigue`;
+		const fa = { id: a.id, email: a.email, href: href(a.id) };
+		const fb = { id: b.id, email: b.email, href: href(b.id) };
+		expect(data.followers.byTarget).toEqual({
+			'etiqueta:shibari': [fb, fa].sort((x, y) => x.email.localeCompare(y.email)),
+			[`perfil:${p.id}`]: [fb],
+			[`lugar:${lugar.id}`]: [fb]
+		});
+		expect(data.followers.people).toEqual([
+			{
+				...fb,
+				count: 3,
+				items: [
+					{ group: 'etiqueta', title: 'shibari' },
+					{ group: 'perfil', title: 'Perfil De Prueba' },
+					{ group: 'lugar', title: 'Lugar De Prueba' }
+				]
+			},
+			{ ...fa, count: 1, items: [{ group: 'etiqueta', title: 'shibari' }] }
+		]);
+		expect(data.followers.truncated).toBe(false);
+		// La cuenta borrada no aparece ni se cuenta.
+		expect(JSON.stringify(data)).not.toContain(gone.id);
+		expect(data.stats.ranking.etiqueta[0]).toMatchObject({ key: 'shibari', count: 2 });
 	});
 
 	it('dice si falta configurar el bot, sin los valores', async () => {

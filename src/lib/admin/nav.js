@@ -449,8 +449,8 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
-		// El estado de «Lo que sigo» para mirar: interruptores, números, avisos que salieron y lo
-		// más seguido (cuántas cuentas, nunca quiénes). Se ve con el interruptor apagado.
+		// El estado de «Lo que sigo» para mirar: interruptores, lo más seguido (cuántas cuentas y
+		// quiénes, solo admins), números y avisos que salieron. Se ve con el interruptor apagado.
 		id: 'lo-que-sigo',
 		href: '/admin/mensajes/lo-que-sigo',
 		icon: Sparkles,

@@ -661,10 +661,12 @@ gráficos.
 ## Lo que sigo
 
 Mensajes › Lo que sigo (`/admin/mensajes/lo-que-sigo`) es **para mirar** el estado de «Lo que
-sigo»: los interruptores, los totales, los avisos que salieron (7 y 30 días y desde el principio,
-por tipo y canal), el paso de «Avisame si se repite», Telegram y **«Lo más seguido»** (cuántas
-cuentas siguen cada etiqueta, perfil o lugar, aunque sea una; nunca quiénes,
-[0043](decisiones/0043-lo-que-sigo-en-el-panel.md)), con links a donde se configura cada cosa. Se
+sigo»: los interruptores, **«Lo más seguido»** justo debajo (cuántas cuentas siguen cada
+etiqueta, perfil o lugar, aunque sea una, y al abrir «Quiénes» las cuentas que la siguen, con link
+a su ficha; [0043](decisiones/0043-lo-que-sigo-en-el-panel.md)), **«Por persona»** (cada cuenta
+con cuántas cosas sigue y cuáles), los totales, los avisos que salieron (7 y 30 días y desde el
+principio, por tipo y canal), el paso de «Avisame si se repite» y Telegram, con links a donde se
+configura cada cosa. Quién sigue qué solo lo ven les admins, en esta página y en las fichas. Se
 ve también con el interruptor apagado. Los números salen de `src/lib/server/sigo/stats.js`;
 detalle en [lo-que-sigo.md](lo-que-sigo.md#en-el-panel). Lo de cada persona está en su ficha
 («Lo que sigue»).
