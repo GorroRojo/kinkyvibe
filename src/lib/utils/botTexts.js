@@ -80,7 +80,8 @@ const V = Object.freeze({
 	nombre: { name: 'nombre', label: 'la etiqueta o serie', sample: '🪢 Cuerdas' },
 	busqueda: { name: 'busqueda', label: 'lo que se buscó', sample: 'cuerdas' },
 	cantidad: { name: 'cantidad', label: 'cuántas cosas son', sample: '12' },
-	etiqueta: { name: 'etiqueta', label: 'el nombre de la etiqueta', sample: 'Cuerdas' }
+	etiqueta: { name: 'etiqueta', label: 'el nombre de la etiqueta', sample: 'Cuerdas' },
+	rama: { name: 'rama', label: 'el nombre de la rama de la Kinkipedia', sample: 'Prácticas' }
 });
 
 /**
@@ -936,6 +937,34 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'toast',
 			'Algo de una sección que ya no está (botón viejo)',
 			'Eso ya no está disponible.'
+		),
+		f(
+			'secciones.rama',
+			'secciones',
+			'line',
+			'Kinkipedia: la rama abierta (va después del título)',
+			'📂 {rama}',
+			{ vars: [V.rama], required: ['rama'] }
+		),
+		f(
+			'secciones.boton_rama',
+			'secciones',
+			'button',
+			'Kinkipedia: el botón de una rama (abre lo de adentro)',
+			'📂 {rama}',
+			{
+				vars: [V.rama],
+				required: ['rama'],
+				help: 'El nombre de la rama se acorta para que el botón entre.'
+			}
+		),
+		f(
+			'secciones.rama_cantidad',
+			'secciones',
+			'line',
+			'Kinkipedia: la línea de una rama en la lista (cuántas cosas tiene adentro)',
+			'Adentro: {cantidad}',
+			{ vars: [V.cantidad] }
 		),
 
 		// -----------------------------------------------------------------------------------------

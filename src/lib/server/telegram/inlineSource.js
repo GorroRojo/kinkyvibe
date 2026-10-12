@@ -25,10 +25,32 @@ import { tagPagePath } from '$lib/utils/series.js';
 export const INLINE_SOURCE_TTL_MS = 60 * 1000;
 
 /**
- * Lo de más de cada dirección del índice. Pura: recibe lo leído (las claves de las imágenes de
- * perfiles por id y de series por etiqueta) y descarta todo lo que no está en el índice.
+ * El árbol de etiquetas, para recorrer la Kinkipedia por ramas (sections.js): de cada etiqueta
+ * (sin los alias), sus madres y su nombre visible. Nada más: qué se muestra lo decide el índice.
  *
- * @param {Pick<BuiltIndex, 'raw' | 'posts' | 'wikiPosts' | 'profiles'>} built
+ * @param {TagManager | undefined} tags
+ * @returns {Map<string, import('./inline.js').TreeTag> | undefined}
+ */
+export function tagTree(tags) {
+	if (!tags) return undefined;
+	/** @type {Map<string, import('./inline.js').TreeTag>} */
+	const tree = new Map();
+	for (const t of tags.tagsData()) {
+		if (!t?.id || t.id === 'root' || t.aliasOf) continue;
+		tree.set(t.id, {
+			parents: Array.isArray(t.parents) ? t.parents.map(String) : [],
+			name: String(t.visible_name ?? t.id)
+		});
+	}
+	return tree;
+}
+
+/**
+ * Lo de más de cada dirección del índice. Pura: recibe lo leído (las claves de las imágenes de
+ * perfiles por id y de series por etiqueta) y descarta todo lo que no está en el índice. Con el
+ * árbol de etiquetas (`built.tags`), suma `tree`.
+ *
+ * @param {Pick<BuiltIndex, 'raw' | 'posts' | 'wikiPosts' | 'profiles'> & { tags?: TagManager }} built
  * @param {{ avatars?: ReadonlyMap<number, string>, series?: ReadonlyMap<string, string> }} [images]
  * @returns {InlineSource}
  */
@@ -66,7 +88,8 @@ export function makeInlineSource(built, { avatars = new Map(), series = new Map(
 		});
 	}
 	for (const [tag, key] of series) add(tagPagePath(tag), { image: mediaOf(key) });
-	return { docs, prepared: prepareIndex(built.raw), extras };
+	const tree = tagTree(built.tags);
+	return { docs, prepared: prepareIndex(built.raw), extras, ...(tree ? { tree } : {}) };
 }
 
 /** @type {WeakMap<BuiltIndex, Promise<InlineSource>>} */

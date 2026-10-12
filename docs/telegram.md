@@ -65,6 +65,16 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
     Ningún evento (para eso, Hoy, Semana, Finde y el calendario).
   - **Orden**, como el sitio: el material del más nuevo (`/material`); la Kinkipedia, amigues y las
     series por nombre (`/wiki`, `/amigues`).
+  - **La Kinkipedia, por las ramas del árbol de etiquetas** (como `/wiki`): arriba, las ramas de
+    arriba de todo que tienen algo («📂 Prácticas», con cuántas cosas tiene adentro) y las entradas
+    sueltas; tocar una rama muestra su entrada (si tiene) y lo de adentro, con «‹ Volver» a la rama
+    madre. Una rama se ve si tiene una entrada o alguna hija (o nieta…) la tiene; una etiqueta con
+    dos madres está en las dos. Cada entrada cuelga de su etiqueta (si dos son de la misma, la de
+    su página es la de la rama y la otra va adentro). La tarjeta vuelve a la rama de la que vino.
+    En vez de «🏷 Filtrar por etiqueta»: las ramas son el filtro. El árbol sale de
+    `publicSearchIndex` (`tags`) y `makeInlineSource` lo pasa como `tree` (madres y nombre de cada
+    etiqueta); sin árbol, la lista por nombre de antes. Textos: «📂 {rama}» (el título y el botón)
+    y «Adentro: {cantidad}», en «Secciones del sitio».
   - **Filtrar**: las etiquetas más usadas de esa sección (las que tienen al menos 2 cosas, hasta
     8, dos por fila, con cuántas), «✖ Sin filtro» para sacarla y «‹ Volver». Si la sección no tiene
     etiquetas para ofrecer, el botón no aparece.
@@ -105,7 +115,9 @@ En la búsqueda, `<texto>` es lo buscado recortado a 40 bytes (así cada botón 
 búsqueda) y `<hash>` un hash corto de la dirección de la cosa, que se busca **entre los resultados
 de ese texto**: un botón armado a mano no puede abrir nada que no esté en el índice público.
 En las secciones, `<s>` es `m` material, `w` Kinkipedia, `a` amigues o `s` series; `<hash>` se
-busca **entre lo de esa sección** y `<etiqueta>` (hash corto de su id), entre sus etiquetas. El más
+busca **entre lo de esa sección** y `<etiqueta>` (hash corto de su id), entre sus etiquetas. En la
+Kinkipedia, `<etiqueta>` es la **rama** abierta (el mismo hash, entre las ramas con algo adentro):
+un botón de filtro de antes abre esa rama si existe, o contesta «Eso ya no está disponible.». El más
 largo (`cd:m:<7>:<999>:<7>`) tiene 24 bytes.
 En Mis entradas, `<hash>` es un hash corto del id de la entrada, que se busca **solo entre las
 entradas de la cuenta vinculada a ese chat**: un botón armado a mano con el de otra entrada

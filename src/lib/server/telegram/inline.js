@@ -40,10 +40,18 @@ import { botText } from './texts.js';
  */
 
 /**
- * La fuente del modo inline: el índice público y sus extras, por dirección.
+ * Una etiqueta del árbol del sitio, para recorrer la Kinkipedia por ramas (sections.js): sus
+ * madres (con `root` si es de arriba de todo) y su nombre visible.
+ *
+ * @typedef {{ parents: readonly string[], name: string }} TreeTag
+ */
+
+/**
+ * La fuente del modo inline: el índice público y sus extras, por dirección. `tree`: el árbol de
+ * etiquetas (por id), si se armó con él; sin árbol, la Kinkipedia del bot es una lista por nombre.
  *
  * @typedef {{ docs: readonly SearchDoc[], prepared: PreparedIndex,
- *   extras: ReadonlyMap<string, InlineExtra> }} InlineSource
+ *   extras: ReadonlyMap<string, InlineExtra>, tree?: ReadonlyMap<string, TreeTag> }} InlineSource
  */
 
 /**

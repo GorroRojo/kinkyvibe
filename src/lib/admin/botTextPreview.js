@@ -251,6 +251,25 @@ export const PREVIEW_SCREENS = Object.freeze([
 		})
 	},
 	{
+		id: 'kinkipedia_rama',
+		label: 'Kinkipedia: una rama del árbol',
+		keys: ['secciones.rama', 'secciones.boton_rama', 'secciones.rama_cantidad'],
+		build: (t) => ({
+			html: [
+				`${t('secciones.titulo_kinkipedia')} · ${t('secciones.rama', { rama: 'Prácticas' })}`,
+				'',
+				`📖 <a href="https://kinkyvibe.ar">${escapeTelegramHtml('Prácticas')}</a>\n${escapeTelegramHtml('Lo que se hace en una escena')}`,
+				'',
+				`📂 <b>${escapeTelegramHtml('Cuerdas')}</b>\n${t('secciones.rama_cantidad', { cantidad: 4 })}`
+			].join('\n'),
+			buttons: [
+				[{ text: '📖 Prácticas' }],
+				[{ text: t('secciones.boton_rama', { rama: 'Cuerdas' }) }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
 		id: 'fondo',
 		label: 'Fondo',
 		keys: [
