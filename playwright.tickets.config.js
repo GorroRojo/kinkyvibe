@@ -12,6 +12,7 @@
  * - TICKETS_TRANSFER_INFO / TICKETS_MP_FEE_PERCENT: datos de transferencia inventados y comisión.
  * - PW_CHROMIUM: ruta a un Chromium ya instalado (opcional).
  * - TICKETS_SHOTS_DIR: carpeta para guardar capturas (opcional).
+ * - LISTA_ESPERA_ENABLED=1: el interruptor de la lista de espera prendido.
  */
 import {
 	MP_FEE_PERCENT,
@@ -43,7 +44,8 @@ const config = {
 		env: {
 			MP_MOCK: '1',
 			ADMIN_DEV_MOCK: '1',
-			// Todas las compras salen de localhost: sin los límites por cliente (hay tests unitarios).
+			// Todas las compras (y las anotaciones a la lista de espera) salen de localhost: sin los
+			// límites por cliente (hay tests unitarios).
 			TICKETS_DEV_RELAX_LIMITS: '1',
 			TICKETS_DEV_FIXTURE: ticketsE2EEvent(),
 			TICKETS_DEV_FIXTURE_GORRA: ticketsE2EGorraEvent(),
@@ -52,6 +54,8 @@ const config = {
 			// Descuento automático del Fondo sin red.
 			FONDO_PERCENT_OVERRIDE: '20',
 			CRON_SECRET: 'e2e-cron-secret-0123456789',
+			// La lista de espera prendida (los eventos de prueba no tienen lista: no les cambia nada).
+			LISTA_ESPERA_ENABLED: '1',
 			MP_ACCESS_TOKEN: '',
 			RESEND_API_KEY: ''
 		}

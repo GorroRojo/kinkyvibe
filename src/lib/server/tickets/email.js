@@ -97,7 +97,7 @@ const SMALL = `margin:16px 0 0;font-size:13px;line-height:1.5;color:${MAIL_COLOR
  * @param {Template} template
  * @param {Record<string, string | number>} vars
  */
-function applyTemplate(template, vars) {
+export function applyTemplate(template, vars) {
 	/** @param {'subject' | 'heading' | 'body' | 'label' | 'button' | 'help' | 'why'} k */
 	const get = (k) => {
 		const v = template?.[k];

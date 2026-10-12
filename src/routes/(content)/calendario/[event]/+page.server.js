@@ -4,6 +4,7 @@ import { siteEvent, sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
 import { isValidEventSlug } from '$lib/server/tickets/events.js';
+import { listaEsperaEnabled } from '$lib/server/flags.js';
 import { eventSeries } from '$lib/server/series/index.js';
 import { seriesAccountState } from '$lib/server/series/web.js';
 import { eventPageVenue, relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
@@ -146,6 +147,9 @@ async function loadPartes(slug, platform, locals) {
  */
 async function loadTickets(slug, platform, fetchFn) {
 	if (!isValidEventSlug(slug)) return null;
-	const view = await getTicketsView(getDB(platform), slug, fetchFn);
+	// Lista de espera: con el interruptor prendido, lo que sobra después de la fila (como /entradas).
+	const view = await getTicketsView(getDB(platform), slug, fetchFn, {
+		waitlist: await listaEsperaEnabled(platform)
+	});
 	return view ? summarizeTickets(view) : null;
 }

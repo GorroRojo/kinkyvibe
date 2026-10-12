@@ -54,6 +54,7 @@
 	import {
 		applyTicketsToMarkdown,
 		goalFields,
+		waitlistFields,
 		readTicketsForm,
 		validateTicketsForm
 	} from '$lib/utils/ticketsEditor.js';
@@ -233,13 +234,19 @@
 	let tickets = readTicketsForm(meta);
 	$: ticketsCheck =
 		isEvent && !parseError
-			? validateTicketsForm(tickets, { sales: data.sales ?? undefined })
+			? validateTicketsForm(tickets, {
+					sales: data.sales ?? undefined,
+					waitlistLive: data.waitlistLive ?? undefined
+				})
 			: { errors: [], warnings: [] };
 	// Lo que el archivo ya tenía mal (por ejemplo, cargado a mano) se muestra pero no bloquea
 	// guardar otros cambios; el servidor hace lo mismo.
 	const initialTicketErrors =
 		isEvent && !parseError
-			? validateTicketsForm(initialTickets, { sales: data.sales ?? undefined }).errors
+			? validateTicketsForm(initialTickets, {
+					sales: data.sales ?? undefined,
+					waitlistLive: data.waitlistLive ?? undefined
+				}).errors
 			: [];
 	$: newTicketErrors = ticketsCheck.errors.filter((e) => !initialTicketErrors.includes(e));
 	// Los errores de entradas se muestran al salir de un campo o al tocar Guardar, no apenas se
@@ -351,7 +358,8 @@
 		if (d.tagRules) tagRules = { ...tagRules, ...d.tagRules };
 		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
 		people = restorePeople(d, people, authorRole);
-		if (d.tickets) tickets = { ...goalFields(undefined), ...d.tickets };
+		if (d.tickets)
+			tickets = { ...goalFields(undefined), ...waitlistFields(undefined), ...d.tickets };
 		if (typeof d.body === 'string') body = d.body;
 		if (typeof d.rawText === 'string') rawText = d.rawText;
 		if (venuePicker && d.venue && typeof d.venue === 'object')
@@ -541,6 +549,8 @@
 					sales={data.sales}
 					salesUnavailable={data.salesUnavailable}
 					transferReady={data.transferReady ?? null}
+					waitlistEnabled={data.waitlistEnabled ?? null}
+					waitlistLive={data.waitlistLive ?? null}
 					errors={ticketsCheck.errors}
 					bind:touched={ticketsTouched}
 					warnings={ticketsCheck.warnings}

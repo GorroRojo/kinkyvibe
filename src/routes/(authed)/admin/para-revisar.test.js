@@ -130,6 +130,29 @@ const tag = (key) =>
 	);
 
 /**
+ * Una anotación de la lista de espera (vencida) con un mail que no salió (`failed`).
+ * @param {string} slug
+ * @param {string} id uuid inventado
+ */
+async function failedWaitlistMail(slug, id) {
+	await t.db
+		.prepare(
+			`INSERT INTO waitlist_entries (id, event_slug, email, status, confirmed_at, offered_at,
+				offer_count, offer_token_hash, ended_at, end_reason, created_at, updated_at)
+			VALUES (?1, ?2, ?3, 'expired', ?4, ?4, 1, NULL, ?4, 'hold_expired', ?4, ?4)`
+		)
+		.bind(id, slug, `fila-${id.slice(0, 4)}@example.com`, NOW - HOUR)
+		.run();
+	await t.db
+		.prepare(
+			`INSERT INTO waitlist_sends (entry_id, kind, round, status, attempts, sent_at)
+			VALUES (?1, 'offer', 1, 'failed', 3, ?2)`
+		)
+		.bind(id, NOW - HOUR)
+		.run();
+}
+
+/**
  * Los escenarios: lo que se siembra y cuántas filas da (el botón tiene que decir lo mismo).
  * @type {Array<[string, () => Promise<void>, number]>}
  */
@@ -297,6 +320,15 @@ const CASES = [
 		// transferencia tildada sin datos, la transferencia, la orden, sin imagen, el perfil, las
 		// etiquetas y el chequeo nocturno. (La fila del importador se fue con él: decisión 0032.)
 		7
+	],
+	[
+		'mails de la lista de espera que no salieron, en 2 eventos: una sola fila',
+		async () => {
+			await failedWaitlistMail('uno', '11111111-1111-4111-8111-111111111111');
+			await failedWaitlistMail('uno', '22222222-2222-4222-8222-222222222222');
+			await failedWaitlistMail('dos', '33333333-3333-4333-8333-333333333333');
+		},
+		1
 	]
 ];
 
@@ -306,6 +338,20 @@ describe('«Para revisar»: el botón del menú cuenta las filas de la tarjeta d
 		const { rows, badge } = await both();
 		expect(rows.length).toBe(expected);
 		expect(badge).toBe(rows.length);
+	});
+
+	it('la fila de la lista de espera cuenta los mails que no salieron y lleva a la pestaña', async () => {
+		await failedWaitlistMail('uno', '11111111-1111-4111-8111-111111111111');
+		await failedWaitlistMail('uno', '22222222-2222-4222-8222-222222222222');
+		const { rows, badge } = await both();
+		expect(rows.find((r) => r.id === 'waitlist-failed')).toMatchObject({
+			title: '2 mails de la lista de espera no salieron',
+			text: 'En la lista de «uno»: revisalos y volvé a probar',
+			href: '/admin/eventos/uno/lista-espera'
+		});
+		expect(badge).toBe(1);
+		// Sin mails en el texto de la fila.
+		expect(JSON.stringify(rows)).not.toContain('@example.com');
 	});
 
 	it('la fila de Etiquetas dice qué hay y lleva a su página', async () => {

@@ -14,6 +14,7 @@
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { botFollows } from './seguir.js';
+import { botTickets } from './tickets.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -199,7 +200,8 @@ export async function setChatMuted(db, chatId, muted, { now = Date.now() } = {})
 
 /**
  * Lo que el bot puede hacer con las cuentas (router.js no sabe de la base). `follows`: «Seguir»
- * y «Lo que sigo» desde el bot (seguir.js, decisión 0034).
+ * y «Lo que sigo» desde el bot (seguir.js, decisión 0034). `tickets`: «🎟 Mis entradas»
+ * (tickets.js).
  *
  * @param {D1Database} db
  * @param {App.Platform | undefined} [platform]
@@ -213,6 +215,7 @@ export function botAccounts(db, platform) {
 		},
 		unlink: (chatId) => unlinkChat(db, chatId),
 		setMuted: (chatId, muted) => setChatMuted(db, chatId, muted),
-		follows: botFollows(db, platform)
+		follows: botFollows(db, platform),
+		tickets: botTickets(db)
 	};
 }

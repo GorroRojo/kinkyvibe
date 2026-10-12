@@ -665,6 +665,7 @@ describe('links a la ficha del evento', () => {
 	it('eventHref arma la URL de cada pestaña', () => {
 		expect(eventHref('picantearla-2026-10')).toBe('/admin/eventos/picantearla-2026-10');
 		expect(eventHref('x', 'ordenes')).toBe('/admin/eventos/x/ordenes');
+		expect(eventHref('x', 'lista-espera')).toBe('/admin/eventos/x/lista-espera');
 	});
 	it('las direcciones de las pestañas que se juntaron siguen siendo las mismas', () => {
 		// Ventas junta Órdenes y Transferencias; Mails junta el aviso y las plantillas (11/10).
@@ -691,7 +692,7 @@ describe('links a la ficha del evento', () => {
 		}
 		const views = (/** @type {string} */ id) =>
 			EVENT_TABS.find((t) => t.id === id)?.views?.map((v) => v.suffix);
-		expect(views('ventas')).toEqual(['/ventas', '/ordenes', '/transferencias']);
+		expect(views('ventas')).toEqual(['/ventas', '/ordenes', '/transferencias', '/lista-espera']);
 		expect(views('mails')).toEqual(['/mail', '/mails']);
 	});
 	it('eventTabOf: la pestaña y la vista de cada dirección (y de sus subpáginas)', () => {
@@ -706,6 +707,7 @@ describe('links a la ficha del evento', () => {
 		expect(of('/admin/eventos/x/ordenes')).toEqual(['ventas', 'ordenes']);
 		expect(of('/admin/eventos/x/ordenes/cargar')).toEqual(['ventas', 'ordenes']);
 		expect(of('/admin/eventos/x/transferencias')).toEqual(['ventas', 'transferencias']);
+		expect(of('/admin/eventos/x/lista-espera')).toEqual(['ventas', 'lista-espera']);
 		expect(of('/admin/eventos/x/ingreso')).toEqual(['ingreso', null]);
 		expect(of('/admin/eventos/x/mail')).toEqual(['mails', 'mail']);
 		expect(of('/admin/eventos/x/mails')).toEqual(['mails', 'mails']);

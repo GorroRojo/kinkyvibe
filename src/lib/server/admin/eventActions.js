@@ -14,6 +14,7 @@ import {
 	siteOrigin
 } from '$lib/server/tickets/index.js';
 import { reopenTransferFromPanel } from '$lib/server/admin/transfers.js';
+import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 import { orderIdsByDni, revealOrderDni } from '$lib/server/admin/eventOrders.js';
 import { dniQueryDigits } from '$lib/admin/orderFormat.js';
 import {
@@ -451,6 +452,14 @@ export const eventTicketActions = {
 				}
 			});
 			await inBackground(sendRefundEmail({ db, order: r.order, fetch }), platform);
+			// Se liberó un lugar: la lista de espera pasa a la próxima persona.
+			queueWaitlistAdvance({
+				platform,
+				db,
+				eventSlug: params.slug,
+				fetch,
+				origin: siteOrigin(url)
+			});
 			return {
 				refund: {
 					ok: true,
@@ -468,7 +477,7 @@ export const eventTicketActions = {
 		});
 	},
 
-	cancel: async ({ locals, url, params, platform, request }) => {
+	cancel: async ({ locals, url, params, platform, request, fetch }) => {
 		const admin = requireAdmin(locals, url);
 		const db = getDB(platform);
 		if (!db) return fail(503, { transfer: { ok: false, message: 'Sin base de datos.' } });
@@ -482,6 +491,13 @@ export const eventTicketActions = {
 				targetId: orderId,
 				summary: `Canceló la transferencia ${ref}`,
 				detail: { event: params.slug }
+			});
+			queueWaitlistAdvance({
+				platform,
+				db,
+				eventSlug: params.slug,
+				fetch,
+				origin: siteOrigin(url)
 			});
 		}
 		return ok

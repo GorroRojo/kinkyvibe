@@ -7,6 +7,7 @@
 	import { formatARS } from '$lib/utils/money.js';
 	import { formatSaleTime, leftText, unitPrice } from '$lib/utils/tickets.js';
 	import { gorraAmountError } from '$lib/utils/purchaseSteps.js';
+	import { waitlistPick } from './waitlistPick.js';
 
 	/** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
 	export let tickets;
@@ -35,6 +36,12 @@
 	export let errors = {};
 	/** @type {import('$lib/server/tickets/checkout.js').AppliedDiscount | null} */
 	export let applied = null;
+	/**
+	 * Tipos agotados en los que se puede anotar en la lista de espera (lista por tipo): su tarjeta
+	 * lleva «Anotate en la lista de espera», que baja al formulario con ese tipo elegido.
+	 * @type {string[]}
+	 */
+	export let waitlistTypes = [];
 
 	$: gorra = selected?.gorra ?? null;
 
@@ -97,9 +104,12 @@
 				</small>
 			{/if}
 			<small class="type-left">
-				{#if t.closed}Venta cerrada{:else if t.waitingFor}Se habilita cuando se agote «{t.waitingFor}»{:else if t.available === 0}Agotadas{:else if t.left !== null}{leftText(
-						t.left
-					)}{#if t.tierLeft}{' '}a este precio{/if}{:else if t.tier?.until}{t.tier.name} hasta el
+				{#if t.closed}Venta cerrada{:else if t.waitingFor}Se habilita cuando se agote «{t.waitingFor}»{:else if t.available === 0}Agotadas{#if waitlistTypes.includes(t.id)}
+						·
+						<a href="#lista-espera" on:click={() => waitlistPick.set(t.id)}
+							>Anotate en la lista de espera</a
+						>{/if}{:else if t.left !== null}{leftText(t.left)}{#if t.tierLeft}{' '}a este precio{/if}{:else if t.tier?.until}{t
+						.tier.name} hasta el
 					{formatSaleTime(t.tier.until)}{:else if t.closesAt}Hasta el {formatSaleTime(
 						t.closesAt
 					)}{/if}

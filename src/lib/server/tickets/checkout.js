@@ -52,6 +52,17 @@ import {
 	setPreference
 } from './orders.js';
 import { clientAddress, clientHash } from './safeguards.js';
+import {
+	WAITLIST_BUY_MESSAGES,
+	findOffer,
+	offerTypeMessage,
+	queueHolders,
+	sharesAfterQueue,
+	waitlistGuard,
+	waitlistShareMessage
+} from './waitlistPurchase.js';
+import { listaEsperaEnabled } from '$lib/server/flags.js';
+import { queueWaitlistAdvance } from './waitlistEngine.js';
 import { eventSignupFields, readAnswers } from './signupFields.js';
 import { saveAfterPurchase } from '$lib/server/cuentas/savedBuyer.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
@@ -189,9 +200,14 @@ const tierView = (eff) =>
  * @param {import('@cloudflare/workers-types').D1Database | null} db
  * @param {string} slug
  * @param {typeof fetch} [fetchFn] para leer el porcentaje automático del Fondo
+ * @param {{ waitlist?: boolean, offerId?: string | null }} [opts]
+ *   Lista de espera (docs/tickets.md): con `waitlist` (el interruptor `lista_espera` prendido),
+ *   lo que se puede comprar es lo que sobra después de la fila (waitlistPurchase.js); con
+ *   `offerId` (la anotación de una oferta vigente, de `findOffer`), lo que sobra después de los
+ *   lugares guardados de otras personas. Sin `waitlist`, la fila no cambia nada.
  * @returns {Promise<TicketsView | null>} `null` si el evento no vende entradas
  */
-export async function getTicketsView(db, slug, fetchFn) {
+export async function getTicketsView(db, slug, fetchFn, opts = {}) {
 	const config = await eventTicketsWithFondo(db, slug, fetchFn);
 	if (!config) return null;
 	const now = Date.now();
@@ -241,6 +257,15 @@ export async function getTicketsView(db, slug, fetchFn) {
 	if (!db || !methods.length) return { ...view, reason: view.reason ?? 'unavailable' };
 	try {
 		const taken = await getTaken(db, slug, now);
+		// Lista de espera: lo que sobra de cada tipo después de la fila (vacío sin lista).
+		const shares =
+			opts.waitlist && config.waitlist
+				? sharesAfterQueue(
+						config,
+						(type) => typeAvailability(config, type, taken, now),
+						await queueHolders(db, slug, now, opts.offerId ?? null)
+					)
+				: new Map();
 		for (const t of view.types) {
 			const type = config.types.find((ct) => ct.id === t.id);
 			if (!type) continue;
@@ -253,7 +278,11 @@ export async function getTicketsView(db, slug, fetchFn) {
 			// Lo que queda (cupo y tramo vigente); un encadenado que espera, 0. Un tipo cerrado por
 			// horario igual dice lo que quedaba (la página muestra "Venta cerrada").
 			const remaining =
-				a.state === 'waiting' ? 0 : a.state === 'closed' ? stockOf(type, taken, now) : a.remaining;
+				a.state === 'waiting'
+					? 0
+					: a.state === 'closed'
+						? stockOf(type, taken, now)
+						: (shares.get(type.id) ?? a.remaining);
 			t.available = Math.min(remaining ?? MAX_TICKETS_PER_FORM, MAX_TICKETS_PER_FORM);
 			t.left = publicLeft(remaining);
 			t.tierLeft = t.left !== null && a.tier?.remaining === remaining;
@@ -352,6 +381,8 @@ function readForm(form) {
 		// Tramo de preventa que vio la persona (solo para avisar si cambió: el precio lo elige el
 		// servidor, nunca este valor).
 		tier: str('tier', 60),
+		// Link de una oferta de la lista de espera (`?lista=<token>`, campo oculto).
+		lista: str('lista', 60).trim(),
 		method: str('method', 30),
 		option: str('option', 30),
 		amount: str('amount', 30),
@@ -525,6 +556,36 @@ export async function buyAction(event) {
 	}
 	const methods = await availableMethods(db, config);
 
+	// Lista de espera (interruptor `lista_espera` y evento con lista; waitlistPurchase.js): el
+	// público compra lo que sobra después de la fila, y quien tiene un lugar guardado compra con el
+	// link de su oferta. Apagado, nada de esto (ni el campo `lista`) cambia la compra.
+	/** @type {import('./waitlistPurchase.js').OfferLookup | null} */
+	let offer = null;
+	let waitlistOn = false;
+	try {
+		waitlistOn = Boolean(config.waitlist) && (await listaEsperaEnabled(platform));
+		if (waitlistOn && values.lista)
+			offer = await findOffer(db, { token: values.lista, eventSlug: params.event, now });
+	} catch (error) {
+		logDBError('waitlist offer', error);
+		return failWith(500, 'No pudimos reservar tus entradas. Probá de nuevo más tarde.');
+	}
+	if (offer && offer.state !== 'valid') {
+		// El formulario vuelve sin el link: la próxima vez compra como el resto.
+		values.lista = '';
+		return failWith(409, WAITLIST_BUY_MESSAGES.offerGone);
+	}
+	const offerId = offer?.state === 'valid' ? offer.id : null;
+	const offerType = offer?.state === 'valid' ? offer.ticketType : null;
+	if (offerType && offerType !== values.type) {
+		const message = offerTypeMessage(
+			config.types.find((t) => t.id === offerType)?.name ?? offerType
+		);
+		return failWith(409, message, { type: message });
+	}
+	/** @type {import('./waitlistPurchase.js').WaitlistGuard | null} */
+	let waitlist = null;
+
 	// Preventas y tipos encadenados: el servidor elige el tramo vigente con lo vendido y reservado
 	// de ahora (el formulario solo dice qué tramo vio, para avisar si cambió el precio).
 	const chosen = config.types.find((t) => t.id === values.type) ?? null;
@@ -542,6 +603,7 @@ export async function buyAction(event) {
 			return failWith(500, 'No pudimos reservar tus entradas. Probá de nuevo más tarde.');
 		}
 		const a = typeAvailability(config, chosen, taken, now);
+		if (waitlistOn) waitlist = waitlistGuard(config, chosen, taken, now, offerId);
 		if (a.state === 'waiting' && a.waitingFor) {
 			const message = `«${chosen.name}» todavía no está a la venta: se habilita cuando se agote «${a.waitingFor.name}».`;
 			return failWith(409, message, { type: message });
@@ -681,6 +743,7 @@ export async function buyAction(event) {
 				method === 'transferencia' ? transferDeadline(now, config.start ?? null) - now : undefined,
 			clientHash: client,
 			answers: valid.answers,
+			waitlist,
 			now
 		});
 	} catch (error) {
@@ -694,6 +757,15 @@ export async function buyAction(event) {
 		}
 		if (reserved.reason === 'method') return failWith(400, 'Elegí un medio de pago.');
 		if (reserved.reason === 'limit') return failWith(429, reserved.message);
+		if (reserved.reason === 'offer') {
+			values.lista = '';
+			return failWith(409, WAITLIST_BUY_MESSAGES.offerGone);
+		}
+		if (reserved.reason === 'waitlist') {
+			if (reserved.available <= 0) return failWith(409, WAITLIST_BUY_MESSAGES.blocked);
+			const message = waitlistShareMessage(reserved.available);
+			return failWith(409, message, { quantity: message });
+		}
 		if (reserved.reason === 'tier') {
 			// Otra compra llenó el tramo (o pasó su fecha) en el medio: no se cobra otro precio sin
 			// avisar. Se vuelve a elegir el tramo con lo de ahora y se pide confirmar de nuevo.
@@ -712,6 +784,8 @@ export async function buyAction(event) {
 					: `Se agotaron las entradas ${valid.type.name}.`;
 			return failWith(409, message, { type: message });
 		}
+		// Con su lugar guardado, pero justo se vendió (la puerta no mira la lista).
+		if (offerId && reserved.available === 0) return failWith(409, WAITLIST_BUY_MESSAGES.soldAtDoor);
 		return failWith(
 			409,
 			reserved.available === null
@@ -784,6 +858,9 @@ export async function buyAction(event) {
 	} catch (error) {
 		console.error(`[tickets] no se pudo crear la preferencia de la orden ${order.id}:`, error);
 		await cancelPendingOrder(db, order.id).catch((e) => logDBError('cancel order', e));
+		// Si era la compra de alguien con su lugar guardado, vuelve a tenerlo (y si no, el lugar
+		// liberado pasa a la lista de espera).
+		queueWaitlistAdvance({ platform, db, eventSlug: params.event, fetch, origin });
 		return failWith(502, 'No pudimos conectar con Mercado Pago. Probá de nuevo en un ratito.');
 	}
 	rememberOrder(cookies, url, order.id);
