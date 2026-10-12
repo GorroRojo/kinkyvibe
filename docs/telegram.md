@@ -699,8 +699,9 @@ primero para admins (después, lo mismo para organizadores con **sus** eventos).
 interruptor **Telegram para admins** (`telegram_admin`, `TELEGRAM_ADMIN_ENABLED`), apagado (0001),
 que además pide el bot prendido. Va en tres PR:
 
-1. **(este) La base y el estado a pedido**: «📊 Estado» y «🔔 Mis avisos».
-2. El resumen diario de ventas y los avisos en el momento (cada venta, cada transferencia).
+1. La base y el estado a pedido: «📊 Estado» y «🔔 Mis avisos» (#315).
+2. **(este) El resumen diario de ventas y los avisos en el momento** (cada venta, cada
+   transferencia): abajo, «Los avisos que salen».
 3. El día del evento (resumen) y los recordatorios (el evento de mañana, falta el lugar o el link).
 
 **Quién**: une admin con el Telegram vinculado desde el panel (el mismo vínculo que la puerta,
@@ -731,11 +732,59 @@ falla la base) el bot le contesta **exactamente lo mismo que a un comando o bot�
 - **🔔 Mis avisos**: cinco tipos (resumen diario, cada venta, cada transferencia, día del evento,
   recordatorios), **todos apagados al empezar**; tocar uno lo prende o lo apaga (✅/⬜). Se guarda
   por id de GitHub en `telegram_admin_notices` (migración `0054`, sin fila = apagado): volver a
-  vincular no borra lo elegido. En este PR **todavía no sale ningún aviso** (la pantalla lo dice);
-  los mandan los PR 2 y 3 con `noticeRecipients` (les admins vinculades que lo prendieron y siguen
-  en `ADMINS`).
+  vincular no borra lo elegido. Ya salen el resumen diario, cada venta y cada transferencia (abajo);
+  el día del evento y los recordatorios, con el PR 3 (la pantalla lo dice).
 - Los textos están en «Textos del bot» (sección «Estado y avisos (admins)»), con sus pantallas en
   la vista previa.
+
+### Los avisos que salen (PR 2, `adminNotify.js`)
+
+Para todos:
+
+- **A quién**: `noticeRecipients` en cada envío: admins con el Telegram vinculado, que **siguen** en
+  `ADMINS` y prendieron ese aviso. Solo por el chat privado con esa persona (el id del chat es el
+  de su usuario). Nadie recibe nada que no prendió.
+- **Interruptores**: nada sale sin el bot (`telegram_bot`) y «Telegram para admins»
+  (`telegram_admin`) prendidos, ni sin `TELEGRAM_BOT_TOKEN`.
+- **Solo cantidades**: el título del evento, el tipo de entrada, el tramo y números. Las funciones
+  que arman los textos ni reciben la orden (`orderSummary` saca cantidad, tipo y tramo), así un
+  campo nuevo de la orden nunca termina en Telegram. Nada de nombres, mails, DNI, titulares ni
+  códigos (`adminNotify.test.js` llena la base con todo eso y lo revisa). Cada aviso trae «Ver en
+  el panel ↗» (`/admin/eventos/<dirección>`).
+- **Nada dos veces**: antes de mandar se toma una fila de `telegram_admin_sent` (migración
+  `0055`, clave `venta:<orden>`, `transferencia:<orden>` o `resumen:<día>:<evento>`); si Telegram
+  falla se suelta (el resumen se reintenta en la corrida siguiente). Si le admin bloqueó al bot, no
+  se reintenta y el vínculo sigue (lo usa la puerta). El cron borra las filas de más de 30 días.
+- Los textos están en «Textos del bot» (sección «Estado y avisos (admins)»), con su vista previa.
+
+**Resumen diario** («☀️ Resumen diario · <evento>»): el cron de cada 15 minutos
+(`POST /api/cron/recordatorios`, `runAdminNoticesCron`) lo manda en su primera corrida desde las
+**9 de Argentina** (`ADMIN_DAILY_HOUR`; nunca en el horario de silencio, de 23 a 9). Uno por
+evento de hoy o próximo (los de «📊 Estado») **que tuvo movimiento** entre las 9 de ayer y las 9 de
+hoy: entradas aprobadas o transferencias nuevas. Sin movimiento, no sale nada. Lleva:
+
+- vendidas desde ayer a las 9 y el total contra el cupo (`23/50`, o solo el número si algún tipo no
+  tiene cupo);
+- transferencias nuevas desde ayer (si hay);
+- reservas sin pagar y cuántas vencen en las próximas 24 horas, transferencias por confirmar,
+  órdenes para revisar y la lista de espera (lo mismo que «📊 Estado»).
+
+«Desde ayer» se cuenta con `updated_at` de las órdenes aprobadas (la tabla no guarda aparte cuándo
+se aprobó): es cuando se aprobó, salvo que algo la haya vuelto a tocar después.
+
+**Cada venta** y **cada transferencia**: en el momento, desde los flujos de compra
+(`queueOrderNotice`, en segundo plano con `waitUntil`; **nunca traba ni hace fallar** una compra o
+una confirmación):
+
+- venta aprobada por Mercado Pago (`processPayment`), entrada gratis (`checkout.js`) y
+  transferencia confirmada desde el panel (en el evento o en Ventas → Transferencias): «🎟 Se vendió
+  1 General (Preventa 1) de **Fiesta X** · 23/50» (vendidas del tipo contra su cupo);
+- orden nueva por transferencia (`checkout.js`): «💸 Transferencia para confirmar: 2 General de
+  **Fiesta X** · 3 por confirmar».
+- Solo las del sitio (canal `online`): las de la puerta y las cargadas a mano las hace une admin.
+- En el horario de silencio salen igual, pero **sin sonido** (`disable_notification`): una venta
+  avisada a las 9 de la mañana ya no sirve.
+- Si Telegram falla en ese momento, ese aviso no se reintenta (el resumen diario la cuenta igual).
 
 ### Puesta en marcha del estado y los avisos (la hace gorrite)
 
@@ -747,6 +796,10 @@ falla la base) el bot le contesta **exactamente lo mismo que a un comando o bot�
    en el bot y probar «📊 Estado» y «🔔 Mis avisos».
 3. Después, en producción. Para cortarlo de golpe: `TELEGRAM_ADMIN_ENABLED=0` o apagar el
    interruptor.
+4. PR 2: **aplicar la migración `0055_telegram_admin_enviados.sql` en producción y en preview antes
+   de mergear** (0028). Solo crea una tabla: anda con el código de `main`. Después, prender
+   «Resumen diario», «Cada venta» o «Cada transferencia» en «🔔 Mis avisos» y probar en un preview
+   (una compra de prueba, o esperar al cron de las 9).
 
 ## Qué sigue
 
