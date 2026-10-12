@@ -10,6 +10,9 @@
 	 * Props: `active` (NavItem actual), `counts` (`data.panelCounts`), `flags` (`data.navFlags`),
 	 * `hideSoon` ("Ocultar lo que viene"). Cada sección con atajo muestra su pista «g x»
 	 * (`NavShortcut`, solo en una compu con mouse).
+	 * Con el panel lateral en «Solo íconos» (`data-lateral="iconos"` en <html>, `sidebarMode.js`)
+	 * los nombres quedan solo para los lectores de pantalla y el layout muestra cada uno como
+	 * cartelito (`data-tip`) al pasar el mouse o con el foco.
 	 */
 	import { onMount, tick } from 'svelte';
 	import { ChevronDown } from '@lucide/svelte';
@@ -88,7 +91,10 @@
 			class:on={active?.id === item.id}
 			href={item.href}
 			aria-current={active?.id === item.id ? 'page' : undefined}
-			><NavIcon {item} />{item.label}<NavShortcut id={item.id} /></a
+			data-tip={item.label}
+			><NavIcon {item} size={18} /><span class="label">{item.label}</span><NavShortcut
+				id={item.id}
+			/></a
 		>
 	{/each}
 	{#each [main, foot] as list, i (i)}
@@ -103,7 +109,8 @@
 					aria-expanded={isOpen}
 					aria-controls="kv-area-{area.id}"
 					on:click={() => toggle(area.id)}
-					><NavIcon item={area} />{area.label}
+					data-tip={area.label}
+					><NavIcon item={area} size={18} /><span class="label">{area.label}</span>
 					{#if total && !isOpen}<span class="count" title="Pendientes">{total}</span>{/if}
 					<span class="chev" aria-hidden="true"><ChevronDown size={16} /></span></button
 				>
@@ -126,10 +133,11 @@
 </nav>
 
 <style lang="scss">
+	/* Compacta (gorrite, 11/10): poco aire entre renglones y todos los íconos de 18 px. */
 	.sn {
 		display: flex;
 		flex-direction: column;
-		gap: 0.1rem;
+		gap: 1px;
 		flex: 1;
 	}
 	/* «Abrir todo / Cerrar todo»: chiquito y discreto, arriba a la derecha. La barra lateral solo
@@ -152,8 +160,8 @@
 	.areas {
 		display: flex;
 		flex-direction: column;
-		gap: 0.1rem;
-		margin-top: 0.5rem;
+		gap: 1px;
+		margin-top: var(--space-3xs);
 		&.foot {
 			margin-top: auto;
 			padding-top: var(--space-2xs);
@@ -165,9 +173,10 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2xs);
-		padding: 0.45rem var(--space-xs);
+		padding: var(--space-3xs) var(--space-xs);
 		border-radius: var(--round);
 		border: 0;
+		position: relative;
 		background: none;
 		text-align: left;
 		width: 100%;
@@ -216,10 +225,16 @@
 			margin-left: 0.3rem;
 		}
 	}
+	.label {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 	.items {
 		display: flex;
 		flex-direction: column;
-		gap: 0.1rem;
+		gap: 1px;
 		padding-bottom: var(--space-3xs);
 		&[hidden] {
 			display: none;
@@ -230,7 +245,45 @@
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--muted);
-		padding: 0.45rem var(--space-xs) 0.1rem var(--space-l);
+		padding: var(--space-3xs) var(--space-xs) 0 var(--space-l);
+	}
+
+	/* «Solo íconos» (en la compu): una franja angosta. Los nombres quedan para los lectores de
+	   pantalla; el cartelito lo pone el layout (`data-tip`). Los contadores, como un puntito. */
+	@media (min-width: 900px) {
+		:global(html[data-lateral='iconos']) {
+			.all,
+			.sub,
+			.chev,
+			.sn :global(.kv-nav-sc) {
+				display: none;
+			}
+			.label {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				overflow: hidden;
+				clip: rect(0 0 0 0);
+			}
+			.top,
+			.area {
+				justify-content: center;
+				padding-inline: 0;
+			}
+			.count {
+				position: absolute;
+				top: 0;
+				right: 0;
+				margin: 0;
+				padding: 0 0.35em;
+				line-height: 1.3;
+			}
+			.items {
+				background: var(--surface-2);
+				border-radius: var(--round);
+				padding-block: var(--space-3xs);
+			}
+		}
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.area .chev {

@@ -85,7 +85,7 @@ export async function applyMigrations(db, dir = MIGRATIONS_DIR) {
 /** Las dos consultas de catálogo de `resetDB` (van juntas en un batch). */
 const RESET_CATALOG = [
 	"SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' AND name != 'd1_migrations'",
-	"SELECT name, type FROM pragma_table_list WHERE schema = 'main'"
+	"SELECT name, type, wr FROM pragma_table_list WHERE schema = 'main'"
 ];
 
 /**
@@ -106,6 +106,17 @@ const errorJSON = (e) =>
 		: { name: 'Error', message: String(e) };
 const RESET_CATALOG = ${JSON.stringify(RESET_CATALOG)};
 const planReset = ${planReset.toString()};
+const planSnapshot = ${planSnapshot.toString()};
+const q = (name) => '"' + String(name).replaceAll('"', '""') + '"';
+// Lo que JSON no representa, marcado como en encodeParam (bytes y números no finitos o -0).
+const encode = (v) =>
+	v instanceof ArrayBuffer
+		? { $b: Array.from(new Uint8Array(v)) }
+		: ArrayBuffer.isView(v)
+			? { $b: Array.from(new Uint8Array(v.buffer, v.byteOffset, v.byteLength)) }
+			: typeof v === 'number' && (!Number.isFinite(v) || Object.is(v, -0))
+				? { $n: String(v) }
+				: v;
 export default {
 	async fetch(request, env) {
 		const db = env.DB;
@@ -117,6 +128,37 @@ export default {
 				const [{ results }, { results: tableList }] = await db.batch(RESET_CATALOG.map((sql) => db.prepare(sql)));
 				const statements = planReset(results, tableList);
 				if (statements.length) await db.batch(statements.map((sql) => db.prepare(sql)));
+			} else if (body.op === 'snapshot') {
+				const [{ results }, { results: tableList }] = await db.batch(RESET_CATALOG.map((sql) => db.prepare(sql)));
+				const plan = planSnapshot(results, tableList);
+				const xinfo = 'SELECT name FROM pragma_table_xinfo(?1) WHERE hidden = 0 ORDER BY cid';
+				const cols = plan.length ? await db.batch(plan.map((p) => db.prepare(xinfo).bind(p.name))) : [];
+				const tables = plan.map((p, i) => ({
+					table: p.name,
+					columns: [...(p.virtual ? ['rowid'] : []), ...cols[i].results.map((r) => String(r.name))]
+				}));
+				const data = tables.length
+					? await db.batch(tables.map((t, i) => db.prepare(
+						'SELECT ' + t.columns.map(q).join(', ') + ' FROM ' + q(t.table) +
+						(plan[i].ordered ? ' ORDER BY rowid' : '')
+					)))
+					: [];
+				value = tables.map((t, i) => ({
+					...t,
+					rows: data[i].results.map((row) => t.columns.map((c) => encode(row[c])))
+				}));
+			} else if (body.op === 'restore') {
+				const [{ results }, { results: tableList }] = await db.batch(RESET_CATALOG.map((sql) => db.prepare(sql)));
+				const statements = planReset(results, tableList).map((sql) => db.prepare(sql));
+				for (const t of body.tables) {
+					if (!t.rows.length) continue;
+					const insert = db.prepare(
+						'INSERT INTO ' + q(t.table) + ' (' + t.columns.map(q).join(', ') + ') VALUES (' +
+						t.columns.map((_, i) => '?' + (i + 1)).join(', ') + ')'
+					);
+					for (const row of t.rows) statements.push(insert.bind(...row.map(revive)));
+				}
+				if (statements.length) await db.batch(statements);
 			} else if (body.op === 'batches') {
 				value = [];
 				for (const sqls of body.batches) value.push(await db.batch(sqls.map((sql) => db.prepare(sql))));
@@ -186,6 +228,9 @@ const kSerialize = Symbol('serialize');
 const kBatches = Symbol('batches');
 /** `resetDB` en un solo pedido, sin exponerlo. */
 const kReset = Symbol('reset');
+/** `snapshotDB` y `restoreDB`, cada uno en un solo pedido, sin exponerlos. */
+const kSnapshot = Symbol('snapshot');
+const kRestore = Symbol('restore');
 
 /** Sentencia preparada de `TestD1Database`: inmutable, como la de D1 (`bind` devuelve otra). */
 class TestD1PreparedStatement {
@@ -279,6 +324,15 @@ class TestD1Database {
 
 	[kReset]() {
 		return this.#send({ op: 'reset' });
+	}
+
+	[kSnapshot]() {
+		return this.#send({ op: 'snapshot' });
+	}
+
+	/** @param {unknown} tables */
+	[kRestore](tables) {
+		return this.#send({ op: 'restore', tables });
 	}
 }
 
@@ -425,6 +479,68 @@ export async function resetDB(db) {
 	);
 	const statements = planReset(results, tableList);
 	if (statements.length) await db.batch(statements.map((sql) => db.prepare(sql)));
+}
+
+/**
+ * Qué tablas guarda `snapshotDB`: las mismas que vacía `planReset` (sin las sombra de FTS5 ni las
+ * FTS con contenido externo, que se llenan solas por sus triggers al insertar en su tabla de
+ * contenido). También se copia tal cual dentro del worker de prueba: sin nada de afuera.
+ *
+ * @param {Record<string, unknown>[]} results tablas (`name`, `sql`) de sqlite_master
+ * @param {Record<string, unknown>[]} tableList `name`, `type`, `wr` de pragma_table_list
+ * @returns {{ name: string, virtual: boolean, ordered: boolean }[]}
+ *   `virtual`: guarda también el `rowid`; `ordered`: se lee por `rowid` (orden de inserción)
+ */
+function planSnapshot(results, tableList) {
+	const info = new Map(tableList.map((r) => [String(r.name), r]));
+	const isVirtual = (/** @type {unknown} */ sql) =>
+		/^\s*CREATE\s+VIRTUAL\s+TABLE/i.test(String(sql));
+	const external = (/** @type {unknown} */ sql) =>
+		isVirtual(sql) && /\bcontent\s*=\s*'[^']+'/i.test(String(sql));
+	return results
+		.filter((r) => info.get(String(r.name))?.type !== 'shadow' && !external(r.sql))
+		.map((r) => {
+			const virtual = isVirtual(r.sql);
+			return {
+				name: String(r.name),
+				virtual,
+				ordered: virtual || !info.get(String(r.name))?.wr
+			};
+		});
+}
+
+/**
+ * @typedef {{ table: string, columns: string[], rows: unknown[][] }[]} DBSnapshot
+ *   Las filas de cada tabla de la app (sin las columnas generadas), listas para `restoreDB`.
+ */
+
+/**
+ * Una copia de todas las filas de la base de prueba, en un solo pedido. Para cuando cada prueba
+ * de un archivo arranca con los mismos datos y armarlos es caro (por ejemplo, importar todas las
+ * etiquetas de la semilla: ~10 s con la máquina cargada): se arman una vez, se guarda la copia y
+ * cada prueba la vuelve a poner con `restoreDB` (un solo pedido), en vez de importarlos de nuevo.
+ * Solo con el D1 de `createTestDB()`.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @returns {Promise<DBSnapshot>}
+ */
+export async function snapshotDB(db) {
+	if (!(db instanceof TestD1Database)) throw new Error('snapshotDB: solo con createTestDB()');
+	return db[kSnapshot]();
+}
+
+/**
+ * Deja la base exactamente con las filas de `snapshot` (de `snapshotDB`): la vacía como
+ * `resetDB` e inserta cada fila con sus mismos ids, todo en una sola tanda (un pedido). Las
+ * columnas generadas y los índices FTS con contenido externo se recalculan solos. Como con
+ * `resetDB`, los AUTOINCREMENT no vuelven atrás: los ids nuevos siguen siendo únicos.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {DBSnapshot} snapshot
+ */
+export async function restoreDB(db, snapshot) {
+	if (!(db instanceof TestD1Database)) throw new Error('restoreDB: solo con createTestDB()');
+	await db[kRestore](snapshot);
 }
 
 /**

@@ -13,10 +13,16 @@
  *    alguien de la lista le corta la puerta aunque el vínculo siga en la base;
  * 4. el ingreso se marca con las mismas funciones que el modo puerta del panel (`extractToken` +
  *    `checkIn`), con el login de le admin.
+ *
+ * La lista de eventos para elegir (`doorEvents`) pide lo mismo (1 a 3) y sale de lo mismo que
+ * /admin/checkin (`listTicketedEvents` + `checkinGroup`): los de hoy y los de los próximos días.
  */
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { extractToken } from '$lib/server/tickets/checkin.js';
 import { checkIn } from '$lib/server/tickets/orders.js';
+import { checkinGroup } from '$lib/server/tickets/door.js';
+import { listTicketedEvents } from '$lib/server/tickets/events.js';
+import { toTime } from '$lib/server/tickets/config.js';
 import { isAdmin } from '$lib/server/auth';
 import { isFlagOn } from '$lib/server/flags.js';
 import { linkedAdmin } from './adminLink.js';
@@ -110,4 +116,55 @@ export async function doorCheckIn({ db, initData, token, eventSlug, code, now })
 				: {})
 		}
 	};
+}
+
+/** Cuántos días para adelante entran en la lista, además de los de hoy. */
+export const DOOR_EVENTS_DAYS = 3;
+
+/** Tope de eventos en la lista (el resto, escribiendo la dirección). */
+export const DOOR_EVENTS_MAX = 20;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * @typedef {{ slug: string, title: string, start: number, today: boolean }} DoorEventChoice
+ */
+
+/**
+ * Los eventos para elegir en la puerta: los de hoy (el mismo día en Argentina o que empezaron hace
+ * menos de 12 horas, como /admin/checkin) y los de los próximos `DOOR_EVENTS_DAYS` días, del más
+ * cercano al más lejano. Sin los online. Solo dirección, título y comienzo. Pura (para los tests).
+ *
+ * @param {{ slug: string, config: { title?: string, start?: unknown, online?: boolean } }[]} events
+ * @param {number} now
+ * @returns {DoorEventChoice[]}
+ */
+export function doorEventChoices(events, now) {
+	/** @type {DoorEventChoice[]} */
+	const out = [];
+	for (const { slug, config } of events) {
+		if (config.online) continue;
+		const start = toTime(config.start);
+		if (start === null) continue;
+		const group = checkinGroup(start, now);
+		const soon = group === 'proximos' && start - now <= DOOR_EVENTS_DAYS * DAY_MS;
+		if (group !== 'hoy' && !soon) continue;
+		out.push({ slug, title: String(config.title || slug), start, today: group === 'hoy' });
+	}
+	return out.sort((a, b) => a.start - b.start).slice(0, DOOR_EVENTS_MAX);
+}
+
+/**
+ * La lista de eventos de la Mini App, con los mismos permisos que marcar un ingreso.
+ *
+ * @param {{ db: D1Database, initData: unknown, token: string | undefined, now?: number,
+ *   list?: () => Promise<{ slug: string, config: { title?: string, start?: unknown,
+ *   online?: boolean } }[]> }} input `list`: de dónde salen (para los tests)
+ * @returns {Promise<{ status: number, body: Record<string, unknown> }>}
+ */
+export async function doorEvents({ db, initData, token, now = Date.now(), list }) {
+	const who = await doorAdmin({ db, initData, token, now });
+	if (!who.ok) return { status: 403, body: { error: 'forbidden', reason: who.reason } };
+	const events = await (list ?? listTicketedEvents)();
+	return { status: 200, body: { events: doorEventChoices(events, now) } };
 }

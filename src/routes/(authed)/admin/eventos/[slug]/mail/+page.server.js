@@ -1,5 +1,5 @@
 /**
- * Ficha del evento, pestaña "Mail a compradores": un aviso a todas las personas con una orden
+ * Ficha del evento, pestaña Mails › Mandar un aviso: un aviso a todas las personas con una orden
  * aprobada (ver $lib/server/tickets/buyerMail.js). Se manda en tandas: la página vuelve a llamar
  * a `?/send` con el mismo id hasta que no queda nadie.
  *

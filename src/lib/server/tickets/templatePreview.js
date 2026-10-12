@@ -96,7 +96,7 @@ function sampleTickets() {
  * @param {{ origin: string, contactEmail: string, replyTo?: string, now?: number,
  *   event?: { title?: string, start?: string, location?: string, location_name?: string },
  *   footer?: import('$lib/server/email/layout.js').MailFooter | null }} ctx
- *   `footer`: el pie de Ajustes → Mails (como lo pone `deliver()` al mandar).
+ *   `footer`: el pie de Mensajes → Configuración (como lo pone `deliver()` al mandar).
  * @returns {{ subject: string, html: string, text: string }}
  */
 export function previewEmail(id, template, ctx) {

@@ -366,64 +366,73 @@ describe('el formulario', () => {
  * Los .md reales: leerlos con el formulario y guardar sin tocar las personas da el mismo texto, y
  * sumar a alguien escribe exactamente lo que escribía «Organizan» (`authors:` con une más).
  */
-describe('todos los posts reales (la semilla de contenido: los .md ya no están, decisión 0032)', () => {
-	/** @type {Record<string, string>} */
-	const raws = {
-		...seedRawsByPath('calendario'),
-		...seedRawsByPath('material'),
-		...seedRawsByPath('wiki')
-	};
-	const posts = Object.entries(raws)
-		.filter(([path]) => !path.split('/').at(-1)?.startsWith('_'))
-		.flatMap(([path, raw]) => {
-			const category = path.split('/').at(-2) ?? '';
-			try {
-				const { frontmatter } = splitMarkdown(raw);
-				const doc = parseDocument(frontmatter);
-				if (doc.errors.length) return []; // el editor los edita como texto
-				const meta = doc.toJS() ?? {};
-				return [{ path, category, frontmatter, meta }];
-			} catch {
-				return []; // los que no se pueden leer se editan como texto
+/**
+ * Estas pruebas recorren todos los posts reales de la semilla: <1 s solas, pero con la máquina
+ * cargada (varias suites a la vez) pasaban los 5 s por defecto. Solo a este bloque.
+ */
+const WHOLE_SEED = { timeout: 30_000 };
+describe(
+	'todos los posts reales (la semilla de contenido: los .md ya no están, decisión 0032)',
+	WHOLE_SEED,
+	() => {
+		/** @type {Record<string, string>} */
+		const raws = {
+			...seedRawsByPath('calendario'),
+			...seedRawsByPath('material'),
+			...seedRawsByPath('wiki')
+		};
+		const posts = Object.entries(raws)
+			.filter(([path]) => !path.split('/').at(-1)?.startsWith('_'))
+			.flatMap(([path, raw]) => {
+				const category = path.split('/').at(-2) ?? '';
+				try {
+					const { frontmatter } = splitMarkdown(raw);
+					const doc = parseDocument(frontmatter);
+					if (doc.errors.length) return []; // el editor los edita como texto
+					const meta = doc.toJS() ?? {};
+					return [{ path, category, frontmatter, meta }];
+				} catch {
+					return []; // los que no se pueden leer se editan como texto
+				}
+			});
+
+		it('hay posts para revisar', () => {
+			expect(posts.length).toBeGreaterThan(100);
+		});
+
+		it('ida y vuelta sin cambios: los mismos authors y personas, el mismo texto', () => {
+			for (const p of posts) {
+				const authors = list(p.meta.authors);
+				const items = formPersonas(authors, p.meta.personas, p.category, { withPersonas: true });
+				const md = personasToMd(items, p.category);
+				expect(md.authors, p.path).toEqual(authors);
+				const changes = formPersonasChanges(items, structuredClone(items), p.category, {
+					withPersonas: true,
+					remove: REMOVE
+				});
+				expect(changes, p.path).toEqual({});
+				// El editor siempre arma el archivo con applyFrontmatterChanges (y lo compara con lo
+				// mismo sin cambios): sin cambios de personas, lo que arma es lo de antes.
+				expect(applyFrontmatterChanges(p.frontmatter, changes), p.path).toBe(
+					applyFrontmatterChanges(p.frontmatter, {})
+				);
 			}
 		});
 
-	it('hay posts para revisar', () => {
-		expect(posts.length).toBeGreaterThan(100);
-	});
-
-	it('ida y vuelta sin cambios: los mismos authors y personas, el mismo texto', () => {
-		for (const p of posts) {
-			const authors = list(p.meta.authors);
-			const items = formPersonas(authors, p.meta.personas, p.category, { withPersonas: true });
-			const md = personasToMd(items, p.category);
-			expect(md.authors, p.path).toEqual(authors);
-			const changes = formPersonasChanges(items, structuredClone(items), p.category, {
-				withPersonas: true,
-				remove: REMOVE
-			});
-			expect(changes, p.path).toEqual({});
-			// El editor siempre arma el archivo con applyFrontmatterChanges (y lo compara con lo
-			// mismo sin cambios): sin cambios de personas, lo que arma es lo de antes.
-			expect(applyFrontmatterChanges(p.frontmatter, changes), p.path).toBe(
-				applyFrontmatterChanges(p.frontmatter, {})
-			);
-		}
-	});
-
-	it('sumar a alguien escribe lo mismo que el viejo «Organizan» / «Autores»', () => {
-		for (const p of posts) {
-			const authors = list(p.meta.authors);
-			const items = formPersonas(authors, p.meta.personas, p.category, { withPersonas: true });
-			const added = [...items, { name: 'Persona Inventada', role: authorRoleOf(p.category) }];
-			const now = applyFrontmatterChanges(
-				p.frontmatter,
-				formPersonasChanges(items, added, p.category, { withPersonas: true, remove: REMOVE })
-			);
-			const before = applyFrontmatterChanges(p.frontmatter, {
-				authors: [...authors, 'Persona Inventada']
-			});
-			expect(now, p.path).toBe(before);
-		}
-	});
-});
+		it('sumar a alguien escribe lo mismo que el viejo «Organizan» / «Autores»', () => {
+			for (const p of posts) {
+				const authors = list(p.meta.authors);
+				const items = formPersonas(authors, p.meta.personas, p.category, { withPersonas: true });
+				const added = [...items, { name: 'Persona Inventada', role: authorRoleOf(p.category) }];
+				const now = applyFrontmatterChanges(
+					p.frontmatter,
+					formPersonasChanges(items, added, p.category, { withPersonas: true, remove: REMOVE })
+				);
+				const before = applyFrontmatterChanges(p.frontmatter, {
+					authors: [...authors, 'Persona Inventada']
+				});
+				expect(now, p.path).toBe(before);
+			}
+		});
+	}
+);

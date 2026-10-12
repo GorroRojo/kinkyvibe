@@ -45,7 +45,11 @@ const editInputs = (raw) => {
 	};
 };
 
-describe('ida y vuelta con los eventos reales', () => {
+/**
+ * Estas pruebas recorren todos los eventos reales de la semilla: ~1 s solas, pero con la máquina
+ * cargada (varias suites a la vez) pasaban los 5 s por defecto. Solo a este bloque.
+ */
+describe('ida y vuelta con los eventos reales', { timeout: 30_000 }, () => {
 	it('hay eventos para probar (y alguno termina al día siguiente)', () => {
 		expect(events.length).toBeGreaterThan(100);
 		const afterMidnight = events.filter(({ raw }) => {

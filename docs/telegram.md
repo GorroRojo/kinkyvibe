@@ -509,9 +509,15 @@ interruptor **Puerta por Telegram** (`telegram_puerta`, `TELEGRAM_PUERTA_ENABLED
 `/telegram/puerta` y su API dan 404, el panel no deja vincular y `/start adm_<código>` contesta
 que ahora no se puede.
 
-- `/telegram/puerta` (opcional `?evento=<dirección>`): abre adentro de Telegram, se escribe la
-  dirección del evento, escanea con el escáner nativo (`showScanQrPopup`) y manda cada código a
-  `/telegram/puerta/api`. Fuera de Telegram no hace nada.
+- `/telegram/puerta` (opcional `?evento=<dirección>`): abre adentro de Telegram, se **elige el
+  evento de una lista** (los de hoy, también los ya empezados, y los de los próximos 3 días; con
+  uno solo hoy, queda elegido), escanea con el escáner nativo (`showScanQrPopup`) y manda cada
+  código a `/telegram/puerta/api`. Fuera de Telegram no hace nada.
+  - La lista la da `/telegram/puerta/eventos` (POST con el `initData`), con **los mismos permisos
+    que marcar** (abajo) y de lo mismo que /admin/checkin (`listTicketedEvents` + `checkinGroup`,
+    sin los online, hasta 20): solo dirección, título y comienzo (`doorEvents` en `puerta.js`).
+  - `?evento=` sigue andando y gana sobre la lista. Para un evento que no está en la lista, «Otro
+    evento: escribir la dirección»; si la lista no carga, queda escribirla, como antes.
 - **Cómo se abre**: con el botón «🚪 Abrir la puerta» que manda el bot cuando confirma el vínculo,
   o con «🚪 Puerta» en el inicio (`/start`, `/inicio`, «🏠 Inicio»). Los dos son el mismo botón
   `web_app` a `/telegram/puerta`, solo en chat privado (`web_app` no anda en grupos).
@@ -572,8 +578,9 @@ que ahora no se puede.
 - ~~Navegación por pantallas, efímeros, Seguir, Mini App del calendario.~~ Hecho (0034).
 - ~~La puerta con el escáner de QR de Telegram.~~ Hecha (0037, arriba), detrás de
   `telegram_puerta`.
-- Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir la
-  dirección. (~~Un botón para abrirla sin volver a vincular~~: «🚪 Puerta» en el inicio.)
+- ~~Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir la
+  dirección, y un botón para abrirla sin volver a vincular.~~ Hecho: la lista en la Mini App y
+  «🚪 Puerta» en el inicio.
 - ~~Modo inline y buscar en todo el sitio.~~ Hecho (arriba).
 - ~~Recorrer el sitio por secciones desde el inicio («📚 Material», «📖 Kinkipedia», «👥 Amigues», con
   listas y etiquetas), reusando la lista y la tarjeta compacta de `siteScreens.js`.~~ Hecho

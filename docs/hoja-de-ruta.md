@@ -190,6 +190,15 @@ de amigues y lanzamientos grandes.
 - Borrar objetos para siempre; campos propios y tipos simples desde el panel. L. Bloqueo: diseño.
 - Pestañas arriba en cada sección (como Ajustes) y un menú más simple. M. Bloqueo: proponer la
   estructura antes.
+- Panel lateral de cada admin: hoy la elección («Siempre abierto», «Solo íconos», «Se oculta»)
+  se guarda por navegador (localStorage por login). Si se suma una tabla de preferencias por admin
+  en la base, pasarla ahí para que siga a la persona en todos sus dispositivos (gorrite, 11/10;
+  PR de íconos en las pestañas). S. Bloqueo: que haga falta una tabla de preferencias.
+- Ficha del evento con 7 pestañas (PR «panel-evento-pestanas»): los atajos del buscador a las
+  pestañas de un evento (`eventTabActions` en `src/lib/server/admin/search.js`) siguen diciendo
+  «Órdenes» y «Mail a compradores» (llevan a la vista correcta). Renombrarlos a «Ventas › Órdenes»
+  y «Mails › Mandar un aviso». S. Bloqueo: que se mergee el trabajo del buscador y ⌘K
+  (`claude/panel-nav-c`), para no pisarse.
 - Más gráficos: mapa de la comunidad, Fondo y finanzas. M.
 - Colaboración en tiempo real con Durable Objects. L.
 - Preguntas de inscripción sugeridas para elegir rápido. S.
@@ -208,15 +217,14 @@ de amigues y lanzamientos grandes.
   cuando un cliente de mail lo use. S.
 - Colas (Queues) para los mails y Email Workers para recibir. L.
 - Newsletter general y por combinación de etiquetas. L.
-- Bandeja de entrada en el panel, mails individuales y masivos (fase 5, CRM). L.
+- Bandeja de entrada en el panel, mails individuales y masivos (fase 5, CRM). L. Cuando esté,
+  va primera en Mensajes: Bandeja, Plantillas, Configuración (gorrite, 11/10; hoy va al final
+  porque lo que viene va al final de su área).
 
 ### Telegram
 
 - Puerta por Telegram, después de #273: prenderla en un preview y probarla con celulares reales
   (vincular, abrir con el botón del bot, escanear); después en producción. S. Bloqueo: gorrite.
-- Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir su
-  dirección (0037). S. (Abrirla sin volver a vincular: «🚪 Puerta» en el inicio del bot, PR
-  `claude/bot-inicio`.)
 - Bot, secciones: filtrar la Kinkipedia por las ramas del árbol de etiquetas (como `/wiki`) en
   lugar de las etiquetas más usadas; y que Series deje afuera las series sin ediciones (como la
   lista de series de `/wiki`; hoy salen las del índice de la búsqueda). S.
@@ -259,6 +267,10 @@ de amigues y lanzamientos grandes.
 - Un solo ingreso con kv-openauth y admins con cuentas del público en lugar de GitHub. L.
 - ¿Sumar kv-fondo a este repo? L. Bloqueo: decisión de gorrite.
 - Push y PWA (#16, #43). M. Bloqueo: decisión de gorrite.
+- Pruebas más rápidas, lo que quedó después del PR «tests-mas-rapidos» (#307, ideas en el PR):
+  cada consulta a la base de prueba son ~5 ms de ida y vuelta a miniflare (2,5 ms sin tocar D1),
+  y `importTags` de la semilla son ~1800 consultas; una base ya migrada copiada por archivo en vez
+  de migrar cada vez; `vitest related` para las sesiones de agentes. S–M cada una.
 
 ### Estándares web y SEO
 

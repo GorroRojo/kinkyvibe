@@ -7,7 +7,7 @@
  * etiqueta): primero cuántas publicaciones cambian, después se guarda al confirmar.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { createTestDB, resetDB, restoreDB, snapshotDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent, thrown } from '$lib/server/series/fixtures.js';
 import seedTagList from '$lib/server/semilla/etiquetas.json';
@@ -36,6 +36,23 @@ afterEach(async () => {
 });
 
 const admin = { id: ADMINS[0].id, login: ADMINS[0].login };
+
+/**
+ * Las etiquetas de la semilla, importadas en la base vacía. La primera vez se importan de verdad
+ * y se copia la base; las siguientes se pone esa copia (`restoreDB`, un solo pedido), que deja
+ * exactamente las mismas filas: importarlas tarda ~10 s con la máquina cargada.
+ * @type {import('$lib/server/db/testing.js').DBSnapshot | undefined}
+ */
+let imported;
+async function importSeedTags() {
+	if (imported) return restoreDB(t.db, imported);
+	await importTags(
+		t.db,
+		{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
+		{ actor: 'admin-de-prueba' }
+	);
+	imported = await snapshotDB(t.db);
+}
 
 /**
  * La página con un repo de mentira detrás de `withContentDb` (como en producción): los eventos se
@@ -127,11 +144,7 @@ describe('Editar serie', () => {
 	});
 
 	it('con la base: se guarda al momento, sin commit', async () => {
-		await importTags(
-			t.db,
-			{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
-			{ actor: 'admin-de-prueba' }
-		);
+		await importSeedTags();
 		const { mod, commits } = await page({});
 		const loaded = /** @type {any} */ (
 			await mod.load(
@@ -162,11 +175,7 @@ describe('Editar serie', () => {
 	});
 
 	it('errores: sin cambios, una etiqueta que no es serie, sin permiso', async () => {
-		await importTags(
-			t.db,
-			{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
-			{ actor: 'admin-de-prueba' }
-		);
+		await importSeedTags();
 		const { mod, commits } = await page({});
 		const current = /** @type {any} */ (
 			await mod.load(
@@ -195,11 +204,7 @@ describe('Editar serie', () => {
 		const RENAME = { ...EDIT, key: 'Picantearla Renombrada' };
 
 		it('con la base: primero cuántas publicaciones cambian; al confirmar, las ediciones y la serie cambian en la base (nada a GitHub)', async () => {
-			await importTags(
-				t.db,
-				{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
-				{ actor: 'admin-de-prueba' }
-			);
+			await importSeedTags();
 			await seedEdition();
 			const { mod, commits, reads } = await page({});
 			const asked = /** @type {any} */ (await mod.actions.editar(post(RENAME)));
@@ -239,11 +244,7 @@ describe('Editar serie', () => {
 		});
 
 		it('con la base y «dejar el alias»: no cambia ninguna publicación', async () => {
-			await importTags(
-				t.db,
-				{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
-				{ actor: 'admin-de-prueba' }
-			);
+			await importSeedTags();
 			const { mod, commits } = await page({});
 			const withAlias = { ...RENAME, keepAlias: '1' };
 			expect(await mod.actions.editar(post(withAlias))).toMatchObject({
