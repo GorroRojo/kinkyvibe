@@ -6,6 +6,7 @@ import {
 	SEARCH_HELP_COMMAND,
 	SEARCH_TIPS,
 	paletteCommands,
+	placeSections,
 	preferenceCommands,
 	recordsFirst
 } from './paletteActions.js';
@@ -127,5 +128,57 @@ describe('«Cómo buscar»', () => {
 				expect(parseSearchQuery(q).operators, q).toBe(true);
 			}
 		}
+	});
+});
+
+describe('placeSections (la paleta sin nada escrito: Fijados y Recientes)', () => {
+	const pinned = [
+		{ href: '/admin/ventas/transferencias', label: 'Transferencias', context: 'Ventas' },
+		{
+			href: '/admin/eventos/fiesta-inventada/ordenes',
+			label: 'Órdenes',
+			context: 'Fiesta inventada'
+		}
+	];
+	const recent = [
+		{ href: '/admin/eventos/agenda', label: 'Agenda', context: 'Eventos' },
+		{ href: '/admin/comunidad/personas/ana-ejemplo', label: 'Ana Ejemplo' }
+	];
+
+	it('primero las fijadas y después las recientes, con los nombres de la barra lateral', () => {
+		const sections = placeSections(pinned, recent);
+		expect(sections.map((s) => [s.id, s.label])).toEqual([
+			['pinned', 'Fijados'],
+			['recent', 'Recientes']
+		]);
+		expect(sections[0].rows.map((r) => [r.title, r.sub, r.href])).toEqual([
+			['Transferencias', 'Ventas', '/admin/ventas/transferencias'],
+			['Órdenes', 'Fiesta inventada', '/admin/eventos/fiesta-inventada/ordenes']
+		]);
+		// Sin contexto, sin línea de abajo.
+		expect(sections[1].rows.map((r) => [r.title, r.sub])).toEqual([
+			['Agenda', 'Eventos'],
+			['Ana Ejemplo', '']
+		]);
+		// El ícono es el de su página (placeIcon), como en la barra.
+		expect(sections.flatMap((s) => s.rows).every((r) => r.place)).toBe(true);
+	});
+
+	it('las claves no se repiten y una fijada no sale también en Recientes', () => {
+		const sections = placeSections(pinned, [...recent, pinned[0]]);
+		const rows = sections.flatMap((s) => s.rows);
+		expect(rows.map((r) => r.href)).toEqual([
+			'/admin/ventas/transferencias',
+			'/admin/eventos/fiesta-inventada/ordenes',
+			'/admin/eventos/agenda',
+			'/admin/comunidad/personas/ana-ejemplo'
+		]);
+		expect(new Set(rows.map((r) => r.key)).size).toBe(rows.length);
+	});
+
+	it('las secciones vacías no van; sin ninguna, nada (la paleta avisa)', () => {
+		expect(placeSections([], recent).map((s) => s.id)).toEqual(['recent']);
+		expect(placeSections(pinned, []).map((s) => s.id)).toEqual(['pinned']);
+		expect(placeSections([], [])).toEqual([]);
 	});
 });
