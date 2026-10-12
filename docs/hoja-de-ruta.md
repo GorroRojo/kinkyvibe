@@ -32,6 +32,9 @@ PRs abiertos:
 - Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
   tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
   directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
+- #324: optimizaciones de datos (plan `datos-2`, `datos-3`, `datos-4`): la marca de la caché una
+  vez por pedido, /amigues recordada sin sesión, los estados de entradas de las listas en una
+  tanda y una sola regla de «se muestra al público» para perfiles y lugares.
 - #297: códigos copiables, los mails de código (ingresar y confirmar) armados para que Gmail y el celu
   reconozcan el código ([mails.md](mails.md#códigos-copiables)).
 
