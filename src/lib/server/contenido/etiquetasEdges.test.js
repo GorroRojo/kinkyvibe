@@ -513,8 +513,9 @@ describe('las listas no hacen una consulta por post', () => {
 		}
 		const three = await countLists();
 		expect(three).toEqual(one);
-		// Las listas públicas: la consulta de la marca y la de los posts (con los edges adentro).
-		expect(one.site).toBe(2);
+		// Las listas públicas: la consulta de la marca, la de los posts (con los edges adentro) y una
+		// para saber qué vínculos ve cualquiera (./vinculosPublicos.js), para todos los posts.
+		expect(one.site).toBe(3);
 		// El panel: la marca, los posts y una para los edges de todos.
 		expect(one.panel).toBe(3);
 		const listed = (await posts.sitePosts(t.platform)).filter((p) =>

@@ -22,6 +22,8 @@ export const DEFAULT_MAIL_ORIGIN = 'https://kinkyvibe.ar';
 export const MAIL_LOGO_PATH = '/android-chrome-192x192.png';
 /** Marca para los tests: todo mail armado con esta plantilla la lleva. */
 export const MAIL_LAYOUT_MARK = 'data-kv-mail="layout"';
+/** Marca del preencabezado oculto (`mailPreheader`). */
+export const MAIL_PREHEADER_MARK = 'data-kv-mail="preheader"';
 
 export const MAIL_COLORS = Object.freeze({
 	page: '#f4eff6',
@@ -67,6 +69,16 @@ export function mailButton({ href, label }) {
 	return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 4px"><tr><td style="border-radius:999px;background:${MAIL_COLORS.pink};">
 <a href="${escapeHtml(href)}" style="display:inline-block;padding:13px 28px;font-family:${FONT};font-size:19px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:999px;">${escapeHtml(label)}</a>
 </td></tr></table>`;
+}
+
+/**
+ * El preencabezado: lo que Gmail y otros muestran en la lista de mails, al lado del asunto. Oculto
+ * en el mail abierto (la forma habitual: `display:none` y sin tamaño, para los clientes que
+ * ignoran `display`). Texto plano, se escapa acá.
+ * @param {string} text
+ */
+export function mailPreheader(text) {
+	return `<div style="display:none;max-height:0;overflow:hidden;opacity:0;font-size:1px;line-height:1px;color:${MAIL_COLORS.page};" ${MAIL_PREHEADER_MARK}>${escapeHtml(text)}</div>`;
 }
 
 /**
@@ -151,6 +163,7 @@ export function withMailFooter(html, footer) {
  *
  * @param {{
  *   origin?: string,
+ *   preheader?: string,
  *   label: string,
  *   titleHtml: string,
  *   contentHtml?: string,
@@ -161,6 +174,8 @@ export function withMailFooter(html, footer) {
  *   contactEmail?: string,
  *   unsubscribeHtml?: string
  * }} input
+ * - `preheader`: texto plano oculto que los clientes muestran en la lista de mails, al lado del
+ *   asunto (sin él, el mail sale como siempre).
  * - `label`: etiqueta gris de arriba («Tus entradas», «Tu código»…), texto plano.
  * - `titleHtml`: el título (h1).
  * - `contentHtml`: los detalles (texto editable de la plantilla, datos del evento, QR…).
@@ -172,6 +187,7 @@ export function withMailFooter(html, footer) {
  */
 export function mailLayout({
 	origin,
+	preheader = '',
 	label,
 	titleHtml,
 	contentHtml = '',
@@ -187,7 +203,7 @@ export function mailLayout({
 	const c = MAIL_COLORS;
 	return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"></head>
 <body style="margin:0;padding:0;background:${c.page};">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${c.page};" ${MAIL_LAYOUT_MARK}><tr><td align="center" style="padding:24px 12px;">
+${preheader ? `${mailPreheader(preheader)}\n` : ''}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${c.page};" ${MAIL_LAYOUT_MARK}><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;font-family:${FONT};color:${c.text};">
 <tr><td align="center" style="padding:0 0 16px;"><img src="${escapeHtml(logo)}" width="56" height="56" alt="Kinky Vibe" style="display:block;margin:0 auto;border:0;border-radius:12px;font-family:${FONT};font-size:18px;font-weight:700;color:${c.pinkText};"></td></tr>
 <tr><td style="background:${c.card};border-radius:16px;padding:28px 24px;border-top:5px solid ${c.pink};font-size:16px;line-height:1.55;color:${c.text};">

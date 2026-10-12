@@ -15,6 +15,7 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import ProfileEditorForm from './ProfileEditorForm.svelte';
+	import { typeIcon } from '$lib/admin/typeIcons.js';
 	import { draftKey } from '$lib/admin/draft.js';
 
 	/** @type {any} */
@@ -23,6 +24,8 @@
 	export let form;
 
 	$: p = data.profile;
+	// Encabezado como la ficha de un evento: la imagen del perfil o, sin imagen, el ícono del tipo.
+	$: headImage = data.image?.current?.url || data.image?.legacyUrl || '';
 	// Después de guardar (o de un error), el formulario muestra lo que volvió del servidor.
 	$: values = structuredClone(form?.perfil?.values ?? data.values);
 	$: created = $page.url.searchParams.get('guardado') === 'creado';
@@ -44,6 +47,8 @@
 	title={p.title}
 	subtitle="/amigues/{p.urlSlug}"
 	back={{ href: '/admin/comunidad/perfiles', label: 'Perfiles' }}
+	image={headImage}
+	icon={typeIcon('perfil', p.kind)}
 >
 	<svelte:fragment slot="meta">
 		<Badge>{data.kinds[p.kind] ?? p.kind}</Badge>

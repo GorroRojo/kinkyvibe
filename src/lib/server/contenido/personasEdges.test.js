@@ -256,6 +256,14 @@ const before = () => {
 	return { title: mapped.title, data: valid.data, visibility: mapped.visibility };
 };
 
+/**
+ * La metadata pública: la del panel sin los vínculos a perfiles que no ve cualquiera (el oculto y
+ * la dirección sin perfil; ./vinculosPublicos.js).
+ * @param {Record<string, any>[]} personas
+ */
+const publicPersonas = (personas) =>
+	personas.filter((p) => !['oculta-inventada', 'no-existe-inventade'].includes(p.perfil));
+
 describe('guardar un evento desde el panel (en la base)', () => {
 	it('los perfiles vivos van a edges `persona`; en `data` quedan los nombres y lo que no es un perfil', async () => {
 		const { colectivo, oculta } = await profiles();
@@ -302,12 +310,15 @@ describe('guardar un evento desde el panel (en la base)', () => {
 		// Las páginas públicas: la del evento y las listas.
 		const posts = await import('./posts.js');
 		const page = /** @type {any} */ (await posts.sitePost(t.platform, 'calendario', SLUG));
-		expect(page.meta.personas).toEqual(eventToMeta(old).personas);
+		const shownPersonas = publicPersonas(eventToMeta(old).personas);
+		expect(shownPersonas.map((/** @type {any} */ p) => p.perfil)).toContain('colectivo-inventado');
+		expect(shownPersonas).toHaveLength(eventToMeta(old).personas.length - 2);
+		expect(page.meta.personas).toEqual(shownPersonas);
 		expect(page.meta.authors).toEqual(eventToMeta(old).authors);
 		const listed = /** @type {any} */ (
 			(await posts.sitePosts(t.platform)).find((p) => p.meta.postID === SLUG)
 		);
-		expect(listed?.meta.personas).toEqual(eventToMeta(old).personas);
+		expect(listed?.meta.personas).toEqual(shownPersonas);
 		// Lo que muestra la página: el perfil oculto y la dirección sin perfil, nunca.
 		const { resolvePersonas } = await import('$lib/server/personas/index.js');
 		const shown = await resolvePersonas(t.db, page.meta.personas, ['Organiza', 'Facilita']);

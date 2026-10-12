@@ -181,7 +181,10 @@ describe('ingresar con código', () => {
 		expect(r).toEqual({ ok: true, email: EMAIL, expiresAt: NOW + CODE_TTL_MS });
 		expect(sent).toHaveLength(1);
 		expect(sent[0].to).toBe(EMAIL);
+		// El código va en el cuerpo, nunca en el asunto (se ve en las notificaciones).
+		expect(sent[0].code).toMatch(/^\d{6}$/);
 		expect(sent[0].subject).not.toMatch(/\d{6}/);
+		expect(sent[0].subject).toBe('Tu código para entrar a Kinky Vibe');
 		expect(await getAccountByEmail(t.db, EMAIL)).toBeNull(); // todavía no hay cuenta
 
 		const v = await verifyCode({
@@ -509,6 +512,7 @@ describe('códigos para confirmar (acciones delicadas de Mi rincón)', () => {
 			now: NOW
 		});
 		expect(r.ok).toBe(true);
+		expect(sent[0].code).toMatch(/^\d{6}$/);
 		expect(sent[0].subject).toBe('Tu código para confirmar en Kinky Vibe');
 		const pwCode = sent[0].code;
 		// No sirve para ingresar ni para borrar.
