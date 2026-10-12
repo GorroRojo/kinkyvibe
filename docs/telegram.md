@@ -9,7 +9,8 @@ mismos datos y manda un link para todo lo demás.
 Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-bot-seguir-y-token.md).
 
 - **`/start` (o `/inicio`) es el inicio**: un mensaje con botones `Hoy · Semana · Finde` /
-  `🔎 Buscar · ⭐ Lo que sigo` / `💗 Fondo · ❓ Ayuda` / `📅 Calendario` (la Mini App, solo en
+  `🔎 Buscar · ⭐ Lo que sigo` / `📚 Material · 📖 Kinkipedia` / `👥 Amigues · 🔁 Series` (las
+  secciones del sitio, abajo) / `💗 Fondo · ❓ Ayuda` / `📅 Calendario` (la Mini App, solo en
   privado) · `Abrir kinkyvibe.ar ↗`. «Lo que sigo» solo aparece con ese interruptor prendido. Para
   les admins con el Telegram vinculado, suma «🚪 Puerta» (abajo, «La puerta por Telegram»).
   `/inicio` es lo mismo que `/start` sin nada, por el mismo camino del router (`/start <código>` y
@@ -47,9 +48,26 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
   - Tocar un resultado abre su tarjeta: un evento próximo, la tarjeta de siempre; lo demás (y un
     evento que ya pasó), una **tarjeta compacta**: título, una o dos líneas (el resumen, o el tipo
     de perfil), la foto achicada si hay y se puede, «Ver en el sitio», «‹ Volver» (a esa página de
-    resultados) e «🏠 Inicio». La lista y la tarjeta (`siteScreens.js`) están pensadas para las
-    listas por sección que vienen después.
+    resultados) e «🏠 Inicio». La lista y la tarjeta (`siteScreens.js`) son las mismas de las
+    secciones (abajo).
   - `/evento <texto>` sigue siendo **solo de eventos próximos** (título, dirección o fecha).
+- **Las secciones del sitio** (`sections.js`): «📚 Material», «📖 Kinkipedia», «👥 Amigues» y
+  «🔁 Series» en el inicio. Cada una es una lista de a 5 con «‹ 2/7 ›» (cada cosa con su línea,
+  como en Buscar), «🏷 Filtrar por etiqueta» e «🏠 Inicio»; tocar algo abre la tarjeta compacta
+  de Buscar con «‹ Volver» (a esa página, con su etiqueta) e «🏠 Inicio».
+  - **Qué muestra**: lo mismo que Buscar, del índice público de la búsqueda (`inlineSource.js`):
+    nada oculto, «solo con cuenta», sin aprobar, no listado ni borrado. Amigues deja afuera además
+    los lugares no listados que el índice tiene porque se llega desde un evento (como `/amigues`).
+    Ningún evento (para eso, Hoy, Semana, Finde y el calendario).
+  - **Orden**, como el sitio: el material del más nuevo (`/material`); la Kinkipedia, amigues y las
+    series por nombre (`/wiki`, `/amigues`).
+  - **Filtrar**: las etiquetas más usadas de esa sección (las que tienen al menos 2 cosas, hasta
+    8, dos por fila, con cuántas), «✖ Sin filtro» para sacarla y «‹ Volver». Si la sección no tiene
+    etiquetas para ofrecer, el botón no aparece.
+  - Un botón viejo o armado a mano solo abre algo **de la lista de esa sección** (y una etiqueta,
+    solo si está en esa sección); si no, «Eso ya no está disponible.» y no cambia el mensaje.
+  - Solo aparecen con el índice (el webhook siempre lo pasa); en grupos andan igual (efímeros, sin
+    fotos), porque es todo público.
 - **`/fondo`**: cuánto juntó el Fondo este mes, la meta y el descuento de este mes en las
   entradas. Solo lectura, con la memoria de `tickets/fondoMonth.js` (10 minutos, último valor
   guardado) y solo los campos de `/api/porcentaje` (issue #265); nada de quiénes aportan ni de
@@ -60,23 +78,29 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
 
 ### El `callback_data` de cada botón (`nav.js`, hasta 64 bytes)
 
-| Pantalla                                                             | `callback_data`                 |
-| -------------------------------------------------------------------- | ------------------------------- |
-| Inicio                                                               | `h`                             |
-| Lista (`d` hoy, `w` semana, `f` finde, `p` próximos; página desde 0) | `l:<v>:<p>`                     |
-| Tarjeta (`v`: a qué lista vuelve; `n`: al inicio)                    | `e:<id>:<v>`                    |
-| Buscar / Cancelar                                                    | `s` / `sx`                      |
-| Lo que sigo / Fondo / Ayuda                                          | `g` / `fo` / `a`                |
-| Seguir: opciones / seguir una                                        | `f:<id>` / `fy:<id>:<etiqueta>` |
-| Buscar en todo el sitio: resultados (página `p`)                     | `q:<p>:<texto>`                 |
-| Buscar en todo el sitio: una cosa (vuelve a la página `p`)           | `r:<hash>:<p>:<texto>`          |
-| Contador (no hace nada)                                              | `x`                             |
+| Pantalla                                                             | `callback_data`                  |
+| -------------------------------------------------------------------- | -------------------------------- |
+| Inicio                                                               | `h`                              |
+| Lista (`d` hoy, `w` semana, `f` finde, `p` próximos; página desde 0) | `l:<v>:<p>`                      |
+| Tarjeta (`v`: a qué lista vuelve; `n`: al inicio)                    | `e:<id>:<v>`                     |
+| Buscar / Cancelar                                                    | `s` / `sx`                       |
+| Lo que sigo / Fondo / Ayuda                                          | `g` / `fo` / `a`                 |
+| Seguir: opciones / seguir una                                        | `f:<id>` / `fy:<id>:<etiqueta>`  |
+| Buscar en todo el sitio: resultados (página `p`)                     | `q:<p>:<texto>`                  |
+| Buscar en todo el sitio: una cosa (vuelve a la página `p`)           | `r:<hash>:<p>:<texto>`           |
+| Una sección (`s`: `m`, `w`, `a`, `s`; página `p`; etiqueta opcional) | `c:<s>:<p>[:<etiqueta>]`         |
+| Las etiquetas de una sección (la elegida, opcional)                  | `ct:<s>[:<etiqueta>]`            |
+| Una cosa de una sección (vuelve a la página `p`, con su etiqueta)    | `cd:<s>:<hash>:<p>[:<etiqueta>]` |
+| Contador (no hace nada)                                              | `x`                              |
 
 `id` es la dirección del evento si es simple y tiene hasta 40 bytes; si no, `#<hash>`.
 `<etiqueta>` es un hash corto del nombre, que se busca entre las etiquetas de ese evento.
 En la búsqueda, `<texto>` es lo buscado recortado a 40 bytes (así cada botón repite la misma
 búsqueda) y `<hash>` un hash corto de la dirección de la cosa, que se busca **entre los resultados
 de ese texto**: un botón armado a mano no puede abrir nada que no esté en el índice público.
+En las secciones, `<s>` es `m` material, `w` Kinkipedia, `a` amigues o `s` series; `<hash>` se
+busca **entre lo de esa sección** y `<etiqueta>` (hash corto de su id), entre sus etiquetas. El más
+largo (`cd:m:<7>:<999>:<7>`) tiene 24 bytes.
 
 **Deep links** (`t.me/<bot>?start=…`, solo `A-Za-z0-9_-`): `hoy`, `semana`, `finde`, `proximos`,
 `ev-<id>` (la tarjeta), `seguir-<id>`, `sigo`, `fondo`, `buscar`, `inicio`. El código de vincular
@@ -190,11 +214,14 @@ del campo que tocás). Cada guardado queda en Actividad (`settings.save`, `teleg
 - **Buscar**: la respuesta se reconoce por el mensaje de Buscar; vale el original y el de ahora,
   así cambiarlo no rompe los que ya se mandaron.
 - Lo que sigue en el código: los datos (títulos, fechas, lugares, links), los símbolos de las
-  flechas («‹ 2/3 ›») y el « ↗» que se suma en los grupos. Las páginas de la Mini App y de la
+  flechas («‹ 2/3 ›»), el «✓ » de la etiqueta elegida, los íconos de cada tipo en las listas
+  (📅 📚 📖 👥) y el « ↗» que se suma en los grupos. Las páginas de la Mini App y de la
   puerta no son mensajes del bot: sus textos siguen en sus páginas.
-- **Pendiente**: los textos del modo inline y de buscar en todo el sitio (#298: `INLINE_TEXTS`,
-  `SITE_TEXTS`, `SITE_SEARCH_PROMPT_TEXT` y el «Para buscar acá…» de `/buscar` en grupos) siguen
-  en el código; se suman al registro en otro PR.
+- **Buscar en todo el sitio y el modo inline** (#298) y **las secciones** tienen sus secciones en
+  el registro («Buscar en todo el sitio y modo inline», «Secciones del sitio»). Los primeros se
+  pasaron con la misma prueba: sus casos se agregaron a `bot.golden.json` con el código de antes y
+  no cambiaron al pasarlos. «‹ Volver», «🏠 Inicio» y «🔎 Buscar otra cosa» son los mismos de
+  siempre.
 
 ## Modo inline
 
@@ -242,8 +269,7 @@ Código: `inline.js` (la respuesta, funciones puras) e `inlineSource.js` (de dó
   para todos los eventos juntos. Un tope **en memoria** de 30 consultas por minuto por persona (un
   tope en D1 sería una escritura por letra); pasado, no contesta. Telegram además manda una
   consulta por pausa al escribir y guarda la respuesta 120 segundos.
-- **Textos**: en `INLINE_TEXTS` (`inline.js`) y `SITE_TEXTS` (`siteScreens.js`), para pasarlos al
-  registro «Textos del bot» cuando esté.
+- **Textos**: en «Textos del bot», sección «Buscar en todo el sitio y modo inline».
 
 ### Puesta en marcha del modo inline (la hace gorrite)
 
@@ -353,8 +379,8 @@ minutos), con estas reglas:
 
 ## Lo que nunca se tiene que romper
 
-- **Sin reglas propias de visibilidad.** Buscar en todo el sitio y el modo inline muestran solo lo
-  del índice público de la búsqueda (`inlineSource.js` → `publicSearchIndex`). Lo demás, solo lo
+- **Sin reglas propias de visibilidad.** Buscar en todo el sitio, las secciones y el modo inline
+  muestran solo lo del índice público de la búsqueda (`inlineSource.js` → `publicSearchIndex`). Lo demás, solo lo
   que le da `src/lib/server/telegram/events.js`, que es el único lugar que sabe cómo se leen los eventos
   (con `sitePosts` de `src/lib/server/contenido/posts.js`: de la base o de los `.md`, según
   `contenido_db`). No armar consultas propias ni leer los `.md` o la base desde otro lado.
@@ -377,6 +403,7 @@ minutos), con estas reglas:
 | `src/lib/server/telegram/screens.js`          | Las pantallas (texto y botones), funciones puras                    |
 | `src/lib/server/telegram/navigate.js`         | Qué pantalla va para cada botón                                     |
 | `src/lib/server/telegram/siteScreens.js`      | Buscar en todo el sitio: la lista por tipo y la tarjeta compacta    |
+| `src/lib/server/telegram/sections.js`         | Las secciones del sitio: listas, etiquetas y su tarjeta, puras      |
 | `src/lib/server/telegram/inline.js`           | El modo inline (`answerInlineQuery`), funciones puras               |
 | `src/lib/server/telegram/inlineSource.js`     | De dónde sale lo que busca el bot: el índice público y sus extras   |
 | `src/lib/server/search/publicIndex.js`        | El índice público de la búsqueda, armado y recordado (con el sitio) |
@@ -555,6 +582,9 @@ que ahora no se puede.
   dirección, y un botón para abrirla sin volver a vincular.~~ Hecho: la lista en la Mini App y
   «🚪 Puerta» en el inicio.
 - ~~Modo inline y buscar en todo el sitio.~~ Hecho (arriba).
-- Recorrer el sitio por secciones desde el inicio («📚 Material», «📖 Kinkipedia», «👥 Amigues», con
-  listas y etiquetas), reusando la lista y la tarjeta compacta de `siteScreens.js`.
+- ~~Recorrer el sitio por secciones desde el inicio («📚 Material», «📖 Kinkipedia», «👥 Amigues», con
+  listas y etiquetas), reusando la lista y la tarjeta compacta de `siteScreens.js`.~~ Hecho
+  (arriba, «Las secciones del sitio»), también «🔁 Series». Pruebas: `router-secciones.test.js` y
+  `inline-privacy.test.js` (con la base).
+- ~~Pasar los textos de #298 a «Textos del bot».~~ Hecho, con la golden.
 - Fase 3: avisos y estado para organizadores (0029).

@@ -33,8 +33,12 @@ import {
 	formatFollowNotice,
 	formatLinked
 } from './format.js';
+import { inlineArticle, inlineCard, inlineDescription } from './inline.js';
+import { makeInlineSource } from './inlineSource.js';
+import { shortHash } from './nav.js';
 import { planUpdate } from './router.js';
 import { runPlan } from './run.js';
+import { docHash, docScreen, siteResultsScreen } from './siteScreens.js';
 import {
 	eventScreen,
 	followScreen,
@@ -71,6 +75,92 @@ export const EVENTS = [
 	},
 	{ slug: 'otra-fiesta', title: 'Otra fiesta', start: '2031-03-01T23:00:00-03:00' }
 ];
+
+/** El índice público de la búsqueda, inventado (buscar en todo el sitio y el modo inline). */
+const SITE_IMG = `https://kinkyvibe.ar/media/img/${'c'.repeat(64)}.webp`;
+/** @type {import('$lib/utils/search').SearchDoc[]} */
+const SITE_DOCS = [
+	{
+		c: 'calendario',
+		h: '/calendario/taller-de-cuerdas',
+		t: 'Taller de cuerdas',
+		d: '2031-01-11T00:00:00.000Z',
+		g: ['cuerdas']
+	},
+	{
+		c: 'calendario',
+		h: '/calendario/cuerdas-pasadas',
+		t: 'Cuerdas pasadas',
+		d: '2030-01-11T00:00:00.000Z',
+		g: ['cuerdas']
+	},
+	{
+		c: 'material',
+		h: '/material/guia-de-cuerdas',
+		t: 'Guía de cuerdas',
+		s: 'Cómo atar <sin apuro> & con "cuidado"',
+		g: ['cuerdas', 'cuidados']
+	},
+	{ c: 'material', h: '/material/cuerdas-sin-resumen', t: 'Cuerdas sin resumen', g: ['cuerdas'] },
+	{ c: 'wiki', h: '/wiki/cuerdas', t: 'Cuerdas', s: 'Atar con cuerdas', i: '🪢', g: ['cuerdas'] },
+	{ c: 'wiki', h: '/wiki/cuerdas-sin-resumen', t: 'Nudos de cuerdas', g: ['cuerdas'] },
+	{
+		c: 'amigues',
+		h: '/amigues/persona-de-cuerdas',
+		t: 'Persona de cuerdas',
+		s: 'Da talleres',
+		g: ['cuerdas']
+	},
+	{
+		c: 'serie',
+		h: '/wiki/noche-de-cuerdas',
+		t: 'Noche de cuerdas',
+		i: '🌙',
+		g: ['noche-de-cuerdas']
+	}
+];
+const SITE_SOURCE = makeInlineSource(
+	{
+		raw: {
+			v: 1,
+			docs: SITE_DOCS,
+			tags: {
+				cuerdas: ['Cuerdas'],
+				cuidados: ['Cuidados'],
+				'noche-de-cuerdas': ['Noche de cuerdas']
+			}
+		},
+		posts: [
+			/** @type {any} */ ({
+				path: '/material/guia-de-cuerdas',
+				meta: { category: 'material', featured: SITE_IMG, published_date: '2030-05-01' }
+			}),
+			/** @type {any} */ ({
+				path: '/material/cuerdas-sin-resumen',
+				meta: { category: 'material', published_date: '2030-04-01' }
+			})
+		],
+		wikiPosts: [],
+		profiles: [
+			{
+				object: {
+					id: 3,
+					slug: 'persona-de-cuerdas',
+					title: 'Persona de cuerdas',
+					data: { kind: 'proyecto' }
+				},
+				legacySlug: null
+			}
+		]
+	},
+	{}
+);
+const EMPTY_SOURCE = makeInlineSource({
+	raw: { v: 1, docs: [], tags: {} },
+	posts: [],
+	wikiPosts: [],
+	profiles: []
+});
 
 const TARGETS = [
 	{ key: 'Serie Inventada', title: 'Serie Inventada', series: true, hash: 'abc12' },
@@ -128,6 +218,29 @@ function deps({ accounts = null, follows = null, adminLink = null, media = false
 		media
 	};
 }
+
+/** Con el índice público (buscar en todo el sitio, el modo inline). @param {any} [o] @param {any} [source] */
+const siteDeps = (o = {}, source = SITE_SOURCE) => ({
+	...deps(o),
+	inline: {
+		source: async () => source,
+		events: async () =>
+			new Map([
+				[
+					'taller-de-cuerdas',
+					{
+						place: 'Lugar <x>',
+						area: 'Barrio',
+						ticket: {
+							kind: 'buy',
+							href: '/calendario/taller-de-cuerdas/entradas',
+							text: 'Entradas'
+						}
+					}
+				]
+			])
+	}
+});
 
 const PRIVATE = { id: 42, type: 'private' };
 const GROUP = { id: -100, type: 'supergroup' };
@@ -290,6 +403,63 @@ export function botCases() {
 		)
 	);
 	add('seguir sin opciones', () => followScreen(EVENTS[1], [], ctx('private')));
+	// Buscar en todo el sitio y el modo inline (#298).
+	const sctx = { ...ctx('private'), site: true };
+	add('sitio: inicio privado', () => homeScreen(sctx));
+	add('sitio: inicio grupo', () => homeScreen({ ...ctx('group'), site: true }));
+	add('sitio: buscar privado', () => searchScreen(sctx));
+	add('sitio: buscar grupo', () => searchScreen({ ...ctx('group'), site: true }));
+	add('sitio: resultados vacío', () => siteResultsScreen('algo <raro>', [], 0, sctx));
+	add('sitio: resultados uno', () =>
+		siteResultsScreen('guía', [SITE_DOCS[2]], 0, sctx, SITE_SOURCE.extras)
+	);
+	add('sitio: resultados pag 0', () =>
+		siteResultsScreen('cuerdas', SITE_DOCS, 0, sctx, SITE_SOURCE.extras)
+	);
+	add('sitio: resultados pag 1', () =>
+		siteResultsScreen('cuerdas', SITE_DOCS, 1, sctx, SITE_SOURCE.extras)
+	);
+	SITE_DOCS.forEach((doc, i) => {
+		const back = { text: '‹ Volver', callback_data: 'q:0:cuerdas' };
+		add(`sitio: tarjeta ${i} ${doc.c}`, () =>
+			docScreen(doc, SITE_SOURCE.extras.get(doc.h), sctx, { back })
+		);
+		add(`sitio: tarjeta ${i} sin https`, () =>
+			docScreen(doc, SITE_SOURCE.extras.get(doc.h), { ...sctx, origin: 'http://localhost' })
+		);
+		add(`inline: descripción ${i}`, () =>
+			inlineDescription(doc, SITE_SOURCE.extras.get(doc.h), undefined, NOW)
+		);
+		add(`inline: artículo ${i}`, () =>
+			inlineArticle(String(i), doc, SITE_SOURCE.extras.get(doc.h), undefined, {
+				origin: 'https://kinkyvibe.ar',
+				now: NOW
+			})
+		);
+	});
+	add('inline: tarjeta evento con venta', () =>
+		inlineCard(
+			SITE_DOCS[0],
+			undefined,
+			{
+				place: 'Lugar',
+				area: 'Barrio',
+				ticket: { kind: 'buy', href: '/calendario/taller-de-cuerdas/entradas', text: 'Entradas' }
+			},
+			{ origin: ORIGIN, now: NOW }
+		)
+	);
+	add('inline: tarjeta evento agotado', () =>
+		inlineCard(
+			SITE_DOCS[0],
+			undefined,
+			{ ticket: { kind: 'note', text: 'Agotadas' } },
+			{ origin: ORIGIN, now: NOW }
+		)
+	);
+	add('inline: tarjeta sin https', () =>
+		inlineCard(SITE_DOCS[2], undefined, undefined, { origin: 'http://localhost', now: NOW })
+	);
 	add('entrega grupo botón', () =>
 		deliverScreen(
 			homeScreen(ctx('group')),
@@ -415,6 +585,62 @@ export function routerCases() {
 			throw new Error('x');
 		}
 	});
+
+	// Buscar en todo el sitio y el modo inline (#298).
+	add('sitio: /buscar', msg('/buscar'), siteDeps());
+	add('sitio: /buscar grupo', msg('/buscar', GROUP), siteDeps());
+	add('sitio: /buscar cuerdas', msg('/buscar cuerdas'), siteDeps());
+	add('sitio: /buscar nada', msg('/buscar zzzz <x>'), siteDeps());
+	add('sitio: botón inicio', cb('h'), siteDeps());
+	add('sitio: botón buscar', cb('s'), siteDeps());
+	add('sitio: botón buscar grupo', cb('s', GROUP), siteDeps({ media: true }));
+	add('sitio: botón página', cb('q:1:cuerdas'), siteDeps());
+	for (const doc of SITE_DOCS) {
+		add(`sitio: botón ${doc.h}`, cb(`r:${docHash(doc)}:1:cuerdas`), siteDeps({ media: true }));
+	}
+	add('sitio: botón que no está', cb('r:zzzzz:0:cuerdas'), siteDeps());
+	add(
+		'sitio: respuesta a buscar',
+		{
+			update_id: 1,
+			message: {
+				chat: PRIVATE,
+				text: 'cuerdas',
+				reply_to_message: {
+					from: { is_bot: true },
+					text: '🔎 Escribí qué buscás: un evento, un tema…'
+				}
+			}
+		},
+		siteDeps()
+	);
+	// Las secciones del sitio (sections.js).
+	for (const section of ['m', 'w', 'a', 's']) {
+		add(`secciones: ${section}`, cb(`c:${section}:0`), siteDeps());
+		add(`secciones: etiquetas ${section}`, cb(`ct:${section}`), siteDeps());
+	}
+	add('secciones: material con etiqueta', cb(`c:m:0:${shortHash('cuerdas')}`), siteDeps());
+	add('secciones: etiquetas con una elegida', cb(`ct:m:${shortHash('cuerdas')}`), siteDeps());
+	add('secciones: etiqueta de otra sección', cb(`c:w:0:${shortHash('cuidados')}`), siteDeps());
+	add('secciones: etiqueta que no está', cb('c:m:0:zzzzz'), siteDeps());
+	add(
+		'secciones: tarjeta',
+		cb(`cd:m:${docHash(SITE_DOCS[2])}:0:${shortHash('cuerdas')}`),
+		siteDeps({ media: true })
+	);
+	add('secciones: tarjeta de otra sección', cb(`cd:a:${docHash(SITE_DOCS[2])}:0`), siteDeps());
+	add('secciones: sin índice', cb('c:m:0'), siteDeps({}, null));
+	let iq = 1000;
+	/** @param {string} name @param {string} query @param {string} [offset] @param {any} [d] */
+	const inlineCase = (name, query, offset = '', d = siteDeps()) =>
+		add(name, { update_id: 1, inline_query: { id: 'iq', from: { id: ++iq }, query, offset } }, d);
+	inlineCase('inline: vacío', '');
+	inlineCase('inline: cuerdas', 'cuerdas');
+	inlineCase('inline: wiki', 'wiki:');
+	inlineCase('inline: material', 'material:');
+	inlineCase('inline: evento', 'evento:');
+	inlineCase('inline: nada', 'zzzz');
+	inlineCase('inline: sitio vacío', '', '', siteDeps({}, EMPTY_SOURCE));
 
 	/** @param {string} name @param {any} plan @param {number} status */
 	const run = (name, plan, status) =>
