@@ -10,9 +10,10 @@ import { eventEnd } from './dates.js';
 import { escapeHtml } from './escape.js';
 import { eventPlace } from './eventPlace.js';
 import { venueLine } from './venues.js';
+import { SITE_URL } from './site.js';
 
 /** Origen de los links de los calendarios (los clientes de calendario no conocen el sitio). */
-export const SITE_ORIGIN = 'https://kinkyvibe.ar';
+export const SITE_ORIGIN = SITE_URL;
 
 /**
  * The HTML description of a calendar event (with the map link of a one-off place, if any).
