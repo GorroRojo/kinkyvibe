@@ -31,6 +31,8 @@ import {
 } from '$lib/server/tickets/settings.js';
 import { tagIssuesOf, tagRecordsQuery, tagUsageAndWiki } from '$lib/server/etiquetas/review.js';
 import { editEventHref, orderHref, streamHref, transfersHref } from '$lib/admin/links.js';
+import { eventHref } from '$lib/admin/nav.js';
+import { failedWaitlistMailsQuery } from '$lib/server/tickets/waitlistAdmin.js';
 import {
 	arDay,
 	claimReviewItems,
@@ -128,7 +130,9 @@ export function reviewQueries(now, { login = '' } = {}) {
 		// Eventos con la etiqueta «Online» y además un lugar (los que vienen y los del último mes).
 		onlineMismatch: onlineMismatchCountQuery(now),
 		// Las etiquetas de la base, para lo que Etiquetas tiene «Para revisar».
-		tagRecords: login ? tagRecordsQuery(login) : noQuery(null)
+		tagRecords: login ? tagRecordsQuery(login) : noQuery(null),
+		// Mails de la lista de espera que no salieron después de los reintentos (null sin la 0053).
+		waitlistFailed: failedWaitlistMailsQuery()
 	};
 }
 
@@ -246,6 +250,7 @@ export function tagReviewItem(tags) {
  *   integrity: import('$lib/server/objects/integrity.js').IntegrityRun | null,
  *   tagRecords: import('$lib/server/etiquetas/editor.js').StoredTag[] | null,
  *   tagUsage: Awaited<ReturnType<typeof tagUsageAndWiki>> | null,
+ *   waitlistFailed?: { count: number, slugs: string[] } | null,
  *   now: number
  * }} facts
  * @returns {ReviewRow[]}
@@ -272,12 +277,14 @@ export function reviewRows(facts) {
 	// Eventos con lugar y etiqueta «Online»: una fila que lleva a esa lista de Eventos.
 	const onlineItem = onlineMismatchItem(facts.onlineMismatch);
 	const tagItem = tagReviewItem(tagIssuesOf(facts.tagRecords, facts.tagUsage));
+	const waitlistItem = waitlistFailedItem(facts.waitlistFailed ?? null, titles);
 	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
 	const rows = groupReviewItems(
 		[
 			...(transferMissing ? [transferMissing] : []),
 			...todoItems,
 			...(onlineItem ? [onlineItem] : []),
+			...(waitlistItem ? [waitlistItem] : []),
 			...profileReviewItems(facts.newProfiles, { formatWhen }),
 			...claimReviewItems(facts.claims, { formatWhen }),
 			...(tagItem ? [tagItem] : [])
@@ -288,6 +295,33 @@ export function reviewRows(facts) {
 	const integrityRow = integrityReviewRow(facts.integrity, { formatWhen });
 	if (integrityRow) rows.push(integrityRow);
 	return rows;
+}
+
+/**
+ * «Para revisar»: una fila con los mails de la lista de espera que no salieron (después de 3
+ * intentos), que lleva a la pestaña «Lista de espera» del evento más reciente (ahí está «Volver a
+ * probar»). Nada si no hay ninguno o si la cuenta falló.
+ *
+ * @param {{ count: number, slugs: string[] } | null} failed
+ * @param {Map<string, string>} titles
+ * @returns {ReviewItem | null}
+ */
+export function waitlistFailedItem(failed, titles) {
+	if (!failed || failed.count <= 0 || !failed.slugs.length) return null;
+	const [slug] = failed.slugs;
+	const where =
+		failed.slugs.length === 1
+			? `de «${titles.get(slug) ?? slug}»`
+			: `de ${failed.slugs.length} eventos`;
+	return {
+		id: 'waitlist-failed',
+		tone: 'bad',
+		icon: 'mail',
+		title: `${failed.count} ${failed.count === 1 ? 'mail de la lista de espera no salió' : 'mails de la lista de espera no salieron'}`,
+		text: `En la lista ${where}: revisalos y volvé a probar`,
+		action: 'Ver',
+		href: eventHref(slug, 'lista-espera')
+	};
 }
 
 /**

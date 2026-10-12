@@ -1,0 +1,149 @@
+<!--
+	«Lista de espera» del editor de eventos, dentro de «Entradas» (TicketsEditor): sin lista, por
+	evento o por tipo de entrada, «Avisar a todes a la vez desde el principio» y, en «Avanzado»,
+	tiempos de reserva propios del evento (vacío = los de Ajustes → Lista de espera). Escribe la
+	clave `lista_espera` ($lib/utils/ticketsEditor.js). Con gente anotada, el editor no deja
+	apagarla ni cambiar el alcance (lo dicen los errores de la venta).
+
+	Props (con bind): `scope`, `allAtOnce`, `custom`, `tiers`. Además `idPrefix`, `enabled` (el
+	interruptor `lista_espera`: `false` avisa que está apagado; `null` no se sabe) y `live` (gente
+	anotada por alcance, para avisar).
+-->
+<script>
+	import Notice from '$lib/components/ui/Notice.svelte';
+	import { WAITLIST_LIMITS } from '$lib/utils/waitlistHold.js';
+
+	/** @type {'' | 'evento' | 'tipo'} */
+	export let scope = '';
+	export let allAtOnce = false;
+	export let custom = false;
+	/** @type {import('$lib/utils/waitlistSettingsForm.js').TierRow[]} */
+	export let tiers = [];
+	export let idPrefix = 'ev';
+	/** @type {boolean | null} */
+	export let enabled = null;
+	/** @type {Record<string, number> | null} */
+	export let live = null;
+
+	$: people = live ? Object.values(live).reduce((a, b) => a + b, 0) : 0;
+	$: if (custom && tiers.length < WAITLIST_LIMITS.maxTiers && tiers.every((r) => r.over || r.hold))
+		tiers = [...tiers, { over: '', hold: '' }];
+</script>
+
+<fieldset class="waitlist" id="{idPrefix}-waitlist">
+	<legend>Lista de espera</legend>
+	<label class="part">
+		<span>Cuando se agota</span>
+		<select
+			id="{idPrefix}-waitlist-scope"
+			bind:value={scope}
+			aria-describedby="{idPrefix}-waitlist-help"
+		>
+			<option value="">Sin lista de espera</option>
+			<option value="evento">Lista por evento (una sola fila)</option>
+			<option value="tipo">Lista por tipo de entrada (una fila por tipo con cupo)</option>
+		</select>
+	</label>
+	<small id="{idPrefix}-waitlist-help"
+		>Cuando se agota, la gente deja su mail. Si se libera un lugar, le avisamos a la primera persona
+		de la fila y se lo guardamos un rato; si no compra, pasa a la siguiente.</small
+	>
+	{#if enabled === false}
+		<Notice tone="warn" compact role={null}
+			>La lista de espera está apagada en Ajustes → Interruptores (prueba): lo que elijas se guarda,
+			pero no se usa hasta prenderla.</Notice
+		>
+	{/if}
+	{#if people > 0}
+		<small class="live"
+			>{people === 1 ? 'Hay 1 persona anotada' : `Hay ${people} personas anotadas`}: para apagarla o
+			cambiar el alcance, cerrá la lista primero (pestaña «Lista de espera»).</small
+		>
+	{/if}
+	{#if scope}
+		<label class="check">
+			<input type="checkbox" id="{idPrefix}-waitlist-all" bind:checked={allAtOnce} />
+			Avisar a todes a la vez desde el principio (se lo queda quien compre primero)
+		</label>
+		<details class="advanced" open={custom}>
+			<summary>Avanzado</summary>
+			<label class="check">
+				<input type="checkbox" id="{idPrefix}-waitlist-custom" bind:checked={custom} />
+				Tiempos de reserva propios de este evento
+			</label>
+			{#if custom}
+				<div class="tiers">
+					<span class="head" aria-hidden="true">Si faltan (horas) o más</span>
+					<span class="head" aria-hidden="true">Se guarda (horas)</span>
+					{#each tiers as r, i (i)}
+						<input
+							id="{idPrefix}-waitlist-over-{i}"
+							bind:value={r.over}
+							inputmode="numeric"
+							aria-label="Tramo {i + 1}: si faltan (horas) o más"
+						/>
+						<input
+							id="{idPrefix}-waitlist-hold-{i}"
+							bind:value={r.hold}
+							inputmode="numeric"
+							aria-label="Tramo {i + 1}: se guarda (horas)"
+						/>
+					{/each}
+				</div>
+				<small
+					>Para sacar un tramo, vacialo. Una reserva dura de 1 a {WAITLIST_LIMITS.maxHoldHours} horas.</small
+				>
+			{:else}
+				<small>Sin tildar: los de Ajustes → Lista de espera.</small>
+			{/if}
+		</details>
+	{/if}
+</fieldset>
+
+<style>
+	.waitlist {
+		border: 0;
+		padding: 0;
+		margin: 0;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.35em;
+	}
+	legend {
+		float: none;
+		padding: 0;
+		margin-bottom: 0.3em;
+		color: var(--1-dark);
+	}
+	.part {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25em;
+		max-width: 26em;
+		min-width: 0;
+	}
+	.part > span {
+		color: var(--1-dark);
+	}
+	.check {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.4em;
+	}
+	.live {
+		font-weight: 700;
+	}
+	.tiers {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 10em));
+		gap: 0.3em 0.6em;
+		margin: 0.3em 0;
+	}
+	.head {
+		font-size: 0.85em;
+	}
+	.tiers input {
+		min-width: 0;
+	}
+</style>

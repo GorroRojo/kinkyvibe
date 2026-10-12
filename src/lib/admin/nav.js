@@ -90,6 +90,7 @@ import {
 	KeyRound,
 	Landmark,
 	Library,
+	ListOrdered,
 	ListPlus,
 	Mail,
 	MapPin,
@@ -570,6 +571,19 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
+		// Lista de espera de las entradas (docs/tickets.md): cuánto se guarda el lugar, el aviso a
+		// todes y el cierre. «Prueba» mientras el interruptor está apagado.
+		id: 'ajustes-lista-espera',
+		href: '/admin/ajustes/lista-espera',
+		icon: ListOrdered,
+		emoji: '🧾',
+		label: 'Lista de espera',
+		area: 'ajustes',
+		sub: 'plata',
+		flag: 'lista_espera',
+		soon: false
+	},
+	{
 		id: 'ajustes-mails',
 		href: '/admin/ajustes/mails',
 		icon: Mail,
@@ -649,6 +663,9 @@ export const EVENT_TABS = Object.freeze([
 	{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias', soon: false },
 	{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false },
 	{ id: 'codigos', suffix: '/codigos', label: 'Códigos', soon: false },
+	// Lista de espera (interruptor `lista_espera`): la ficha la muestra con venta de entradas y
+	// la lista prendida (o el evento con lista o con gente anotada).
+	{ id: 'lista-espera', suffix: '/lista-espera', label: 'Lista de espera', soon: false },
 	{ id: 'mail', suffix: '/mail', label: 'Mail a compradores', soon: false },
 	// Plantillas de los mails de este evento (lo que cambia sobre Mensajes → Plantillas).
 	{ id: 'mails', suffix: '/mails', label: 'Plantillas de mails', soon: false },

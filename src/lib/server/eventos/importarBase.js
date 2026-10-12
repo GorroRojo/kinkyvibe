@@ -46,6 +46,7 @@ import {
 } from '$lib/utils/eventDraft.js';
 import { buildImportedEvent, placeFields } from '$lib/utils/sheetImport.js';
 import { GOAL_KEY } from '$lib/utils/salesGoal.js';
+import { WAITLIST_KEY } from '$lib/utils/waitlistHold.js';
 import {
 	applyTicketsToMarkdown,
 	readTicketsForm,
@@ -87,7 +88,8 @@ export const TICKET_META_KEYS = /** @type {const} */ ([
 	'mp_fee_percent',
 	'puerta',
 	'puerta_precio',
-	GOAL_KEY
+	GOAL_KEY,
+	WAITLIST_KEY
 ]);
 
 /** La plantilla de eventos del repo (o la de respaldo si no se puede leer). */

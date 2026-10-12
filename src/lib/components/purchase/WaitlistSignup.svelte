@@ -3,13 +3,15 @@
 	 * «Anotate en la lista de espera» de la página de compra (interruptor `lista_espera`,
 	 * docs/tickets.md). Solo el mail; manda a `?/waitlist`. Por tipo de entrada, se elige cuál de
 	 * los agotados. Con cuenta, el mail ya viene puesto (y si es el de la cuenta, entra directo a la
-	 * fila). Formulario mínimo: la versión completa en cada tipo agotado viene después.
+	 * fila). Cada tarjeta agotada de la compra lleva «Anotate en la lista de espera», que baja acá
+	 * con ese tipo elegido (`waitlistPick`).
 	 * Props:
 	 * - `waitlist`: `{ scope, types, email }` de la página, o `null` (ya no hay dónde anotarse).
 	 * - `result`: lo que devolvió `?/waitlist` (`{ ok, status }` o `{ error, email, tipo }`).
 	 */
 	import { enhance } from '$app/forms';
 	import { BellRing } from '@lucide/svelte';
+	import { waitlistPick } from './waitlistPick.js';
 
 	/** @type {{ scope: 'event' | 'type', types: { id: string, name: string }[], email: string } | null} */
 	export let waitlist = null;
@@ -22,10 +24,14 @@
 			: 'Te mandamos un mail para confirmar. Abrilo y tocá el botón: sin confirmar no quedás en la lista.'
 		: '';
 	$: email = result?.email ?? waitlist?.email ?? '';
-	$: tipo = result?.tipo ?? waitlist?.types[0]?.id ?? '';
+	$: tipo =
+		($waitlistPick && waitlist?.types.some((t) => t.id === $waitlistPick) ? $waitlistPick : '') ||
+		result?.tipo ||
+		waitlist?.types[0]?.id ||
+		'';
 </script>
 
-<section class="waitlist surface-card" aria-labelledby="waitlist-title">
+<section class="waitlist surface-card" id="lista-espera" aria-labelledby="waitlist-title">
 	<h2 id="waitlist-title"><BellRing size={20} aria-hidden="true" /> Lista de espera</h2>
 	{#if done}
 		<p class="ok" role="status">{done}</p>
@@ -40,7 +46,11 @@
 				{#if waitlist.scope === 'type'}
 					<label>
 						<span>Tipo de entrada</span>
-						<select name="tipo" value={tipo}>
+						<select
+							name="tipo"
+							value={tipo}
+							on:change={(e) => waitlistPick.set(e.currentTarget.value)}
+						>
 							{#each waitlist.types as t (t.id)}
 								<option value={t.id}>{t.name}</option>
 							{/each}

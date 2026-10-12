@@ -218,6 +218,7 @@ describe('NAV', () => {
 			'ajustes-cobros',
 			'ajustes-fondo',
 			'propinas',
+			'ajustes-lista-espera',
 			'ajustes-mails',
 			'ajustes-vistas-previas',
 			'ajustes-admins',
@@ -374,6 +375,7 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 			'Cobros',
 			'Fondo',
 			'Propinas',
+			'Lista de espera',
 			'Mails y envíos',
 			'Vistas previas al compartir',
 			'Admins',
@@ -484,7 +486,8 @@ describe('navLink y navState', () => {
 		}
 	});
 	it('navFlagKeys: los interruptores que usa el menú, sin repetir', () => {
-		expect(navFlagKeys().sort()).toEqual([]);
+		// Ajustes → Lista de espera está «en prueba» mientras su interruptor está apagado.
+		expect(navFlagKeys().sort()).toEqual(['lista_espera']);
 	});
 	it('areaCount suma los contadores de las secciones del área', () => {
 		expect(areaCount('ventas', { transfers: 3 })).toBe(3);
@@ -549,6 +552,7 @@ describe('links a la ficha del evento', () => {
 	it('eventHref arma la URL de cada pestaña', () => {
 		expect(eventHref('picantearla-2026-10')).toBe('/admin/eventos/picantearla-2026-10');
 		expect(eventHref('x', 'ordenes')).toBe('/admin/eventos/x/ordenes');
+		expect(eventHref('x', 'lista-espera')).toBe('/admin/eventos/x/lista-espera');
 	});
 	it('eventPanelLink va a Ventas si el evento vende entradas, si no al Resumen', () => {
 		expect(EVENT_TABS[0].soon).toBe(false);

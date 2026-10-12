@@ -4,15 +4,21 @@
  * resuelven juntos: una lectura de los datos para transferir y UNA consulta a `orders`, nunca una
  * por tarjeta. Usa las mismas reglas que `getTicketsView` (checkout.js), así la tarjeta y la
  * página del evento dicen lo mismo.
+ *
+ * Con la lista de espera prendida (interruptor `lista_espera`), un evento con lista resta la fila
+ * de lo que se puede comprar, como `getTicketsView`: si lo libre es de la fila, la tarjeta dice
+ * agotadas (una consulta más, para todos los eventos con lista juntos).
  */
 import { building } from '$app/environment';
 import { getDB } from '$lib/server/db';
 import { hasOwnTickets } from '$lib/utils/ticketCta.js';
 import { methodsFor, typeBuyableNow } from './checkout.js';
-import { salesState } from './config.js';
+import { salesState, typeAvailability } from './config.js';
 import { getEventTickets } from './events.js';
 import { transferInfo } from './index.js';
 import { getTakenMany } from './orders.js';
+import { isFlagOn } from '$lib/server/flags.js';
+import { queueHoldersMany, sharesAfterQueue } from './waitlistPurchase.js';
 
 /** @typedef {import('$lib/utils/ticketCta.js').ListTicketState} ListTicketState */
 /** @typedef {import('$lib/utils/ticketCta.js').TicketStates} TicketStates */
@@ -101,9 +107,17 @@ async function computeStates(db, slugs, now) {
 		for (const e of withMethods) unavailable(e.slug, e.config);
 		return out;
 	}
+	const holdersBySlug = await listHolders(db, withMethods, now);
 	for (const { slug, config } of withMethods) {
 		const taken = takenBySlug.get(slug) ?? { types: new Map(), tiers: new Map() };
-		const anyLeft = config.types.some((t) => typeBuyableNow(config, t, taken, now));
+		const holders = holdersBySlug.get(slug);
+		// Lo que sobra de cada tipo después de la fila (vacío sin lista o sin nadie en la fila).
+		const shares = holders
+			? sharesAfterQueue(config, (t) => typeAvailability(config, t, taken, now), holders)
+			: new Map();
+		const anyLeft = config.types.some(
+			(t) => typeBuyableNow(config, t, taken, now) && (shares.get(t.id) ?? 1) > 0
+		);
 		out[slug] = {
 			open: anyLeft,
 			reason: anyLeft ? null : 'soldout',
@@ -111,6 +125,27 @@ async function computeStates(db, slugs, now) {
 		};
 	}
 	return out;
+}
+
+/**
+ * La fila de la lista de espera de los eventos con lista (por slug), solo con el interruptor
+ * prendido. Si falla (sin la migración 0053), ninguna: la tarjeta nunca se rompe por la lista.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {{ slug: string, config: import('./config.js').EventTickets }[]} events
+ * @param {number} now
+ * @returns {Promise<Map<string, Map<string, number>>>}
+ */
+async function listHolders(db, events, now) {
+	const slugs = events.filter((e) => e.config.waitlist).map((e) => e.slug);
+	if (!slugs.length) return new Map();
+	try {
+		if (!(await isFlagOn(db, 'lista_espera'))) return new Map();
+		return await queueHoldersMany(db, slugs, now);
+	} catch (error) {
+		console.error('[tickets] no se pudo leer la lista de espera para las listas:', error);
+		return new Map();
+	}
 }
 
 /**
