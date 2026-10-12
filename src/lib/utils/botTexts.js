@@ -44,6 +44,7 @@ export const BOT_TEXT_SECTIONS = Object.freeze([
 	{ id: 'seguir', label: 'Seguir y avisos' },
 	{ id: 'vincular', label: 'Vincular cuenta' },
 	{ id: 'puerta', label: 'Puerta (admins)' },
+	{ id: 'sitio', label: 'Buscar en todo el sitio y modo inline' },
 	{ id: 'errores', label: 'Errores' }
 ]);
 
@@ -75,7 +76,8 @@ const V = Object.freeze({
 	sitio: { name: 'sitio', label: 'la dirección del sitio', sample: 'https://kinkyvibe.ar' },
 	evento: { name: 'evento', label: 'el título del evento', sample: 'Taller de cuerdas' },
 	nombre: { name: 'nombre', label: 'la etiqueta o serie', sample: '🪢 Cuerdas' },
-	busqueda: { name: 'busqueda', label: 'lo que se buscó', sample: 'cuerdas' }
+	busqueda: { name: 'busqueda', label: 'lo que se buscó', sample: 'cuerdas' },
+	cantidad: { name: 'cantidad', label: 'cuántas cosas son', sample: '12' }
 });
 
 /**
@@ -154,7 +156,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'inicio.boton_volver',
 			'inicio',
 			'button',
-			'Botón «Volver» (tarjeta de un evento y Seguir)',
+			'Botón «Volver» (tarjetas, Seguir y las listas del sitio)',
 			'‹ Volver'
 		),
 		f(
@@ -441,7 +443,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'eventos.boton_buscar_otra',
 			'eventos',
 			'button',
-			'Buscar: buscar otra cosa',
+			'Buscar: buscar otra cosa (también en todo el sitio)',
 			'🔎 Buscar otra cosa'
 		),
 
@@ -716,6 +718,101 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'message',
 			'Link de admin con la puerta apagada',
 			'Ahora no se puede vincular una cuenta de admin con el bot.'
+		),
+
+		// -----------------------------------------------------------------------------------------
+		// Buscar en todo el sitio y modo inline (#298)
+		// -----------------------------------------------------------------------------------------
+		f(
+			'sitio.buscar',
+			'sitio',
+			'message',
+			'Buscar en todo el sitio: el mensaje que pide qué buscar',
+			'🔎 Escribí qué buscás: un evento, un tema, una persona o un proyecto, un lugar… Respondé a este mensaje.',
+			{
+				help: 'El bot reconoce la respuesta por este mensaje: cambiarlo no rompe los que ya se mandaron.'
+			}
+		),
+		f(
+			'sitio.buscar_grupo',
+			'sitio',
+			'message',
+			'Buscar en todo el sitio, en un grupo',
+			'Para buscar acá, escribí /buscar y lo que buscás, por ejemplo: /buscar cuerdas'
+		),
+		f(
+			'sitio.encontre_uno',
+			'sitio',
+			'line',
+			'Buscar en todo el sitio: un resultado (el encabezado)',
+			'**Encontré esto para «{busqueda}»**',
+			{ vars: [V.busqueda] }
+		),
+		f(
+			'sitio.encontre',
+			'sitio',
+			'line',
+			'Buscar en todo el sitio: varios resultados (el encabezado)',
+			'**Encontré {cantidad} para «{busqueda}»**',
+			{ vars: [V.cantidad, V.busqueda] }
+		),
+		f(
+			'sitio.sin_resultados',
+			'sitio',
+			'message',
+			'Buscar en todo el sitio: sin resultados',
+			'No encontré nada para «{busqueda}» en el sitio. Probá con otra palabra.',
+			{ vars: [V.busqueda] }
+		),
+		f(
+			'sitio.boton_ver',
+			'sitio',
+			'button',
+			'Tarjeta compacta y modo inline: abrir la página en el sitio',
+			'Ver en el sitio',
+			{ help: 'Sin https (en local) va como link en el texto del mensaje.' }
+		),
+		f(
+			'sitio.boton_entradas',
+			'sitio',
+			'button',
+			'Modo inline: la tarjeta de un evento que vende entradas acá',
+			'🎟 Entradas'
+		),
+		f(
+			'sitio.inline_sin_resultados',
+			'sitio',
+			'button',
+			'Modo inline: el botón arriba cuando no hay resultados (abre el bot)',
+			'No encontré nada. Probá en el bot'
+		),
+		f(
+			'sitio.inline_vacio',
+			'sitio',
+			'button',
+			'Modo inline: el botón arriba cuando el sitio todavía no tiene nada',
+			'Todavía no hay nada para mostrar. Abrí el bot'
+		),
+		f(
+			'sitio.tipo_serie',
+			'sitio',
+			'inline',
+			'La descripción de una serie (sin resumen)',
+			'Serie de eventos'
+		),
+		f(
+			'sitio.tipo_wiki',
+			'sitio',
+			'inline',
+			'La descripción de una entrada de la Kinkipedia sin resumen',
+			'Kinkipedia'
+		),
+		f(
+			'sitio.tipo_material',
+			'sitio',
+			'inline',
+			'La descripción de un material sin resumen',
+			'Material'
 		),
 
 		// -----------------------------------------------------------------------------------------

@@ -104,6 +104,7 @@ describe('/admin/ajustes/textos-bot', () => {
 			'Seguir y avisos',
 			'Vincular cuenta',
 			'Puerta (admins)',
+			'Buscar en todo el sitio y modo inline',
 			'Errores'
 		]);
 	});

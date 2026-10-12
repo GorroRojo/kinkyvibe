@@ -20,6 +20,7 @@ import { PRODUCTION_HOST } from '$lib/utils/seo.js';
 import { escapeHtml, formatWhen } from './format.js';
 import { truncate } from './keyboards.js';
 import { isHttps, tgTime } from './screens.js';
+import { botText } from './texts.js';
 
 /** @typedef {import('$lib/utils/search').SearchDoc} SearchDoc */
 /** @typedef {import('$lib/utils/search').PreparedIndex} PreparedIndex */
@@ -55,26 +56,6 @@ import { isHttps, tgTime } from './screens.js';
  *   events?: (metas: Record<string, any>[]) => Promise<Map<string, InlineEventInfo>>
  * }} InlineDeps `events`: el lugar y la venta de los eventos de la página (events.js).
  */
-
-/**
- * Los textos del modo inline, en un solo lugar (cuando esté el registro «Textos del bot», van ahí).
- */
-export const INLINE_TEXTS = Object.freeze({
-	/** El botón de la tarjeta que abre la página. */
-	viewOnSite: 'Ver en el sitio',
-	/** El botón de la tarjeta de un evento que vende entradas acá. */
-	tickets: '🎟 Entradas',
-	/** El botón arriba de los resultados cuando no hay ninguno (abre el bot en privado). */
-	noResults: 'No encontré nada. Probá en el bot',
-	/** Arriba de los resultados cuando el sitio no tiene nada que mostrar todavía. */
-	nothingYet: 'Todavía no hay nada para mostrar. Abrí el bot',
-	/** La descripción de una serie (sin resumen). */
-	series: 'Serie de eventos',
-	/** La descripción de una entrada de la Kinkipedia sin resumen. */
-	wiki: 'Kinkipedia',
-	/** La descripción de un material sin resumen. */
-	material: 'Material'
-});
 
 /** Resultados por página (Telegram acepta hasta 50). */
 export const INLINE_PAGE = 20;
@@ -236,11 +217,9 @@ export function inlineDescription(doc, extra, event, now, max = 120) {
 		return truncate([kind ?? KIND_LABELS.persona, summary].filter(Boolean).join(' · '), max);
 	}
 	if (summary) return truncate(summary, max);
-	return doc.c === 'serie'
-		? INLINE_TEXTS.series
-		: doc.c === 'wiki'
-			? INLINE_TEXTS.wiki
-			: INLINE_TEXTS.material;
+	if (doc.c === 'serie') return botText('sitio.tipo_serie');
+	if (doc.c === 'wiki') return botText('sitio.tipo_wiki');
+	return botText('sitio.tipo_material');
 }
 
 /**
@@ -276,14 +255,14 @@ export function inlineCard(doc, extra, event, ctx) {
 	const keyboard = [];
 	if (isHttps(ctx.origin)) {
 		/** @type {Button[]} */
-		const row = [{ text: INLINE_TEXTS.viewOnSite, url }];
+		const row = [{ text: botText('sitio.boton_ver'), url }];
 		if (event?.ticket?.kind === 'buy') {
-			row.push({ text: INLINE_TEXTS.tickets, url: `${ctx.origin}${event.ticket.href}` });
+			row.push({ text: botText('sitio.boton_entradas'), url: `${ctx.origin}${event.ticket.href}` });
 		}
 		keyboard.push(row);
 	} else {
 		// Sin https Telegram no acepta botones con link: el link va en el texto.
-		lines.push(`<a href="${escapeHtml(url)}">${escapeHtml(INLINE_TEXTS.viewOnSite)}</a>`);
+		lines.push(`<a href="${escapeHtml(url)}">${escapeHtml(botText('sitio.boton_ver'))}</a>`);
 	}
 	return { text: lines.join('\n'), keyboard };
 }
@@ -434,7 +413,9 @@ export async function planInlineQuery(inlineQuery, deps) {
 	};
 	if (offset === 0 && results.length === 0) {
 		answer.button = {
-			text: query.text || query.types ? INLINE_TEXTS.noResults : INLINE_TEXTS.nothingYet,
+			text: botText(
+				query.text || query.types ? 'sitio.inline_sin_resultados' : 'sitio.inline_vacio'
+			),
 			start_parameter: SEARCH_START
 		};
 	}

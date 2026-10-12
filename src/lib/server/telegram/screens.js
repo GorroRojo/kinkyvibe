@@ -457,12 +457,12 @@ export const SEARCH_PROMPT_TEXT = renderBotText('eventos.buscar');
  */
 export function isSearchPrompt(text) {
 	if (text.startsWith(SEARCH_PROMPT_HEAD)) return true;
-	const current = renderBotTextPlain('eventos.buscar', {}, currentBotTexts()).trim();
-	return Boolean(current) && text.trim() === current;
+	// El de los eventos y el de todo el sitio (#298), como están ahora.
+	return ['eventos.buscar', 'sitio.buscar'].some((key) => {
+		const current = renderBotTextPlain(key, {}, currentBotTexts()).trim();
+		return Boolean(current) && text.trim() === current;
+	});
 }
-
-/** El de buscar en todo el sitio (mismo comienzo: así se reconocen también las respuestas viejas). */
-export const SITE_SEARCH_PROMPT_TEXT = `${SEARCH_PROMPT_HEAD}: un evento, un tema, una persona o un proyecto, un lugar… Respondé a este mensaje.`;
 
 /**
  * Buscar: un mensaje nuevo con `force_reply` (abre «responder») y «Cancelar». En un grupo no se
@@ -474,15 +474,12 @@ export const SITE_SEARCH_PROMPT_TEXT = `${SEARCH_PROMPT_HEAD}: un evento, un tem
 export function searchScreen(ctx) {
 	if (ctx.chat === 'group') {
 		return {
-			// El de todo el sitio (#298) todavía no está en «Textos del bot».
-			text: ctx.site
-				? 'Para buscar acá, escribí /buscar y lo que buscás, por ejemplo: /buscar cuerdas'
-				: botText('eventos.buscar_grupo'),
+			text: botText(ctx.site ? 'sitio.buscar_grupo' : 'eventos.buscar_grupo'),
 			keyboard: [[homeButton()]]
 		};
 	}
 	return {
-		text: ctx.site ? SITE_SEARCH_PROMPT_TEXT : botText('eventos.buscar'),
+		text: botText(ctx.site ? 'sitio.buscar' : 'eventos.buscar'),
 		keyboard: [
 			[
 				{
