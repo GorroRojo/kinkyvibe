@@ -1,8 +1,9 @@
 /**
  * «Lista de espera» en la sección Entradas del editor de eventos: se lee de `lista_espera`, se
  * escribe solo si cambió (una que no se entiende queda como está) y, con gente anotada, no deja
- * apagarla, cambiar el alcance ni sacar el tipo (o su cupo) de una lista por tipo. También los
- * formularios de los tiempos (Ajustes y el bloque del editor). Datos inventados.
+ * apagarla, cambiar el alcance ni sacar el tipo (o su cupo) de una lista por tipo. Los tiempos de
+ * reserva no se eligen por evento (gorrite, 12/10): solo el formulario de Ajustes. Datos
+ * inventados.
  */
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
@@ -12,9 +13,7 @@ import { formatARS } from './money.js';
 import {
 	applyTicketsForm,
 	describeTicketsForm,
-	formWaitlist,
 	readTicketsForm,
-	ticketsFormChanged,
 	validateTicketsForm,
 	waitlistLiveErrors
 } from './ticketsEditor.js';
@@ -52,47 +51,39 @@ function edit(fm, change) {
 }
 
 describe('lista de espera en el formulario de entradas', () => {
-	it('sin `lista_espera`: sin lista; se lee el atajo y el objeto', () => {
-		expect(formOf(FM)).toMatchObject({
-			waitlistScope: '',
-			waitlistAll: false,
-			waitlistCustom: false
-		});
+	it('sin `lista_espera`: sin lista; se lee el atajo y el objeto (sin tiempos propios)', () => {
+		expect(formOf(FM)).toMatchObject({ waitlistScope: '', waitlistAll: false });
 		expect(formOf(`${FM}lista_espera: tipo\n`).waitlistScope).toBe('tipo');
 		const f = formOf(
 			`${FM}lista_espera:\n  alcance: evento\n  todes_a_la_vez: true\n  reservas:\n    - { overHours: 24, holdHours: 3 }\n`
 		);
-		expect(f).toMatchObject({ waitlistScope: 'evento', waitlistAll: true, waitlistCustom: true });
-		expect(tiersFromRows(f.waitlistTiers)).toEqual({
-			ok: true,
-			tiers: [{ overHours: 24, holdHours: 3 }]
-		});
+		expect(f).toMatchObject({ waitlistScope: 'evento', waitlistAll: true });
+		// Los tiempos propios de antes no llegan al formulario: valen los de Ajustes.
+		expect(
+			Object.keys(f)
+				.filter((k) => k.startsWith('waitlist'))
+				.sort()
+		).toEqual(['waitlistAll', 'waitlistScope']);
 	});
 
-	it('se escribe solo si cambió: el atajo, o el objeto con «todes a la vez» y tiempos propios', () => {
+	it('se escribe solo si cambió: el atajo, o el objeto con «todes a la vez»', () => {
 		expect(edit(FM, () => {}).out).toBe(FM);
 		const { out } = edit(FM, (f) => (f.waitlistScope = 'evento'));
 		expect(out).toContain('lista_espera: evento');
 		expect(out).toContain('id: general # no cambiar');
 		expect(parseTicketConfig(metaOf(out))?.waitlist).toEqual({
 			scope: 'event',
-			allAtOnce: false,
-			tiers: null
+			allAtOnce: false
 		});
 
 		const full = edit(FM, (f) => {
 			f.waitlistScope = 'tipo';
 			f.waitlistAll = true;
-			f.waitlistCustom = true;
-			f.waitlistTiers = [
-				{ over: '48', hold: '6' },
-				{ over: '', hold: '' }
-			];
 		}).out;
+		expect(full).toContain('lista_espera:\n  alcance: tipo\n  todes_a_la_vez: true\n');
 		expect(parseTicketConfig(metaOf(full))?.waitlist).toEqual({
 			scope: 'type',
-			allAtOnce: true,
-			tiers: [{ overHours: 48, holdHours: 6 }]
+			allAtOnce: true
 		});
 		// Y se puede volver a sacar.
 		const off = edit(full, (f) => (f.waitlistScope = '')).out;
@@ -107,20 +98,17 @@ describe('lista de espera en el formulario de entradas', () => {
 		);
 	});
 
-	it('cambiar las filas vacías no cuenta como cambio', () => {
-		const initial = formOf(`${FM}lista_espera: evento\n`);
-		const form = structuredClone(initial);
-		form.waitlistTiers = [...form.waitlistTiers, { over: '', hold: '' }];
-		expect(ticketsFormChanged(initial, form)).toBe(false);
-		expect(formWaitlist(form)).toBe('evento');
+	it('unos tiempos propios de antes: quedan en el archivo mientras no se toque la lista', () => {
+		const old = `${FM}lista_espera:\n  alcance: evento\n  reservas:\n    - { overHours: 24, holdHours: 3 }\n`;
+		expect(edit(old, (f) => (f.types[0].price = '12000')).out).toContain('overHours: 24');
+		// Si se cambia la lista, se escribe sin ellos.
+		const changed = edit(old, (f) => (f.waitlistAll = true)).out;
+		expect(changed).toContain('lista_espera:\n  alcance: evento\n  todes_a_la_vez: true\n');
+		expect(changed).not.toContain('reservas');
 	});
 
-	it('valida los tiempos propios y avisa de los tipos sin cupo', () => {
+	it('avisa de los tipos sin cupo', () => {
 		const f = formOf(`${FM}lista_espera: evento\n`);
-		f.waitlistCustom = true;
-		f.waitlistTiers = [{ over: '48', hold: '0' }];
-		expect(validateTicketsForm(f).errors.join(' ')).toContain('Revisá los tiempos de reserva');
-		f.waitlistTiers = [{ over: '48', hold: '6' }];
 		expect(validateTicketsForm(f).errors).toEqual([]);
 		f.types[1].capacity = '';
 		expect(validateTicketsForm(f).warnings.join(' ')).toContain('con un tipo sin cupo');

@@ -112,11 +112,7 @@ describe('holdUntil: tramos por defecto', () => {
 
 describe('holdUntil: ajustes del evento', () => {
 	it('«todes a la vez» avisa a toda la lista desde el principio', () => {
-		const s = effectiveWaitlistSettings(settings, {
-			scope: 'event',
-			allAtOnce: true,
-			tiers: null
-		});
+		const s = effectiveWaitlistSettings(settings, { scope: 'event', allAtOnce: true });
 		expect(s.mode).toBe('all');
 		expect(holdUntil({ now: at(30 * 24 * H), start: START, settings: s })).toEqual({
 			kind: 'broadcast'
@@ -132,25 +128,23 @@ describe('holdUntil: ajustes del evento', () => {
 		});
 	});
 
-	it('los tramos propios del evento reemplazan los de Ajustes', () => {
-		const s = effectiveWaitlistSettings(settings, {
-			scope: 'type',
-			allAtOnce: false,
-			tiers: [
-				{ overHours: 72, holdHours: 6 },
-				{ overHours: 6, holdHours: 1 }
-			]
-		});
+	it('los tramos son siempre los de Ajustes (gorrite, 12/10: no se eligen por evento)', () => {
+		// Un evento con `tiers` de antes (a mano): se ignoran.
+		const s = effectiveWaitlistSettings(
+			settings,
+			/** @type {any} */ ({
+				scope: 'type',
+				allAtOnce: false,
+				tiers: [{ overHours: 72, holdHours: 6 }]
+			})
+		);
 		expect(s.mode).toBe('one');
+		expect(s.tiers).toEqual(settings.tiers);
 		expect(holdUntil({ now: at(10 * 24 * H), start: START, settings: s })).toEqual({
 			kind: 'hold',
-			until: at(10 * 24 * H) + 6 * H
+			until: at(10 * 24 * H) + 24 * H
 		});
-		expect(holdUntil({ now: at(50 * H), start: START, settings: s })).toEqual({
-			kind: 'hold',
-			until: at(50 * H) + H
-		});
-		// Sin tramos propios, los globales; no toca los de Ajustes.
+		// Sin lista del evento, los globales; no toca los de Ajustes.
 		expect(effectiveWaitlistSettings(settings, null).tiers).toEqual(settings.tiers);
 		expect(DEFAULT_WAITLIST_SETTINGS.tiers[0]).toEqual({ overHours: 168, holdHours: 24 });
 	});
@@ -293,15 +287,20 @@ describe('ajustes globales (ticket_settings.waitlist)', () => {
 
 describe('lista del evento (lista_espera)', () => {
 	it('atajos y objeto', () => {
-		expect(parseEventWaitlist('evento')).toEqual({ scope: 'event', allAtOnce: false, tiers: null });
-		expect(parseEventWaitlist(' Tipo ')).toEqual({ scope: 'type', allAtOnce: false, tiers: null });
+		expect(parseEventWaitlist('evento')).toEqual({ scope: 'event', allAtOnce: false });
+		expect(parseEventWaitlist(' Tipo ')).toEqual({ scope: 'type', allAtOnce: false });
 		expect(
 			parseEventWaitlist({
 				alcance: 'tipo',
 				todes_a_la_vez: true,
 				reservas: [{ overHours: 24, holdHours: 4 }]
 			})
-		).toEqual({ scope: 'type', allAtOnce: true, tiers: [{ overHours: 24, holdHours: 4 }] });
+		).toEqual({ scope: 'type', allAtOnce: true });
+		// `reservas` (de antes del 12/10) se ignora, aunque no se entienda.
+		expect(parseEventWaitlist({ alcance: 'evento', reservas: 'mucho' })).toEqual({
+			scope: 'event',
+			allAtOnce: false
+		});
 	});
 
 	it('sin lista o algo que no se entiende: null (nunca frena la venta)', () => {
@@ -316,9 +315,7 @@ describe('lista del evento (lista_espera)', () => {
 			[],
 			{},
 			{ alcance: 'otro' },
-			{ alcance: 'evento', todes_a_la_vez: 'sí' },
-			{ alcance: 'evento', reservas: [{ overHours: 1, holdHours: 0 }] },
-			{ alcance: 'evento', reservas: 'mucho' }
+			{ alcance: 'evento', todes_a_la_vez: 'sí' }
 		])
 			expect(parseEventWaitlist(raw), JSON.stringify(raw)).toBeNull();
 	});

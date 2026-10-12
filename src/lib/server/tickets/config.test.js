@@ -129,11 +129,10 @@ describe('lista de espera (lista_espera)', () => {
 		expect(parseTicketConfig(META)?.waitlist).toBeNull();
 	});
 
-	it('se lee por evento o por tipo, con «todes a la vez» y reservas propias', () => {
+	it('se lee por evento o por tipo, con «todes a la vez»; los tiempos propios se ignoran', () => {
 		expect(parseTicketConfig({ ...META, lista_espera: 'evento' })?.waitlist).toEqual({
 			scope: 'event',
-			allAtOnce: false,
-			tiers: null
+			allAtOnce: false
 		});
 		expect(
 			parseTicketConfig({
@@ -144,7 +143,14 @@ describe('lista de espera (lista_espera)', () => {
 					reservas: [{ overHours: 24, holdHours: 3 }]
 				}
 			})?.waitlist
-		).toEqual({ scope: 'type', allAtOnce: true, tiers: [{ overHours: 24, holdHours: 3 }] });
+		).toEqual({ scope: 'type', allAtOnce: true });
+		// Aun rotos: la lista vale igual (con los tiempos de Ajustes).
+		expect(
+			parseTicketConfig({
+				...META,
+				lista_espera: { alcance: 'tipo', reservas: [{ overHours: 'mucho', holdHours: 2 }] }
+			})?.waitlist
+		).toEqual({ scope: 'type', allAtOnce: false });
 	});
 
 	it('algo que no se entiende cuenta como apagada y nunca frena la venta', () => {
@@ -154,8 +160,7 @@ describe('lista de espera (lista_espera)', () => {
 			42,
 			['evento'],
 			{ alcance: 'todo' },
-			{ alcance: 'evento', todes_a_la_vez: 'quizás' },
-			{ alcance: 'tipo', reservas: [{ overHours: 'mucho', holdHours: 2 }] }
+			{ alcance: 'evento', todes_a_la_vez: 'quizás' }
 		]) {
 			const config = parseTicketConfig({ ...META, lista_espera });
 			expect(config?.waitlist, JSON.stringify(lista_espera)).toBeNull();
