@@ -202,6 +202,11 @@
 						· ingresaron {o.checkedIn}/{o.quantity}
 					{/if}
 				</div>
+				{#if o.priceChange}<p class="admin-note">{o.priceChange}</p>{/if}
+				{#if o.note}
+					<!-- Nota de la carga a mano o de la venta en la puerta (solo en el panel). -->
+					<p class="admin-note"><strong>Nota:</strong> <span class="pre">{o.note}</span></p>
+				{/if}
 				{#if o.holders.length}
 					<div class="kv-table-wrap">
 						<table class="kv-table holders">
@@ -449,6 +454,14 @@
 	}
 	.refund-panel p {
 		margin: 0.2em 0 0.5em;
+	}
+	.admin-note {
+		margin: 0;
+		font-size: var(--text-sm);
+	}
+	.admin-note .pre {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 	}
 	.note {
 		color: var(--muted);

@@ -111,6 +111,10 @@
 		<p class="small">
 			Compró: {card.buyer}{#if card.email}&nbsp;· <span class="email">{card.email}</span>{/if}
 		</p>
+		{#if scan.result === 'sold' && scan.notes?.length}
+			<!-- Venta en la puerta: precio cambiado y nota (solo en el panel). -->
+			{#each scan.notes as line (line)}<p class="small sale-note">{line}</p>{/each}
+		{/if}
 		<p class="small meta">
 			{#if card.dniTail}
 				{#if dni}
@@ -213,6 +217,10 @@
 	.small {
 		font-size: var(--text-sm);
 		overflow-wrap: anywhere;
+	}
+	.sale-note {
+		font-weight: 600;
+		white-space: pre-wrap;
 	}
 	.meta {
 		display: flex;

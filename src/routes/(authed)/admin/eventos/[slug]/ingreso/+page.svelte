@@ -16,6 +16,7 @@
 		CloudUpload,
 		Ellipsis,
 		Keyboard,
+		NotebookPen,
 		RefreshCw,
 		Search,
 		Store,
@@ -36,8 +37,11 @@
 	import { computePrice, defaultFondoOption } from '$lib/utils/tickets.js';
 	import {
 		DOOR_SALE_DEFAULT_METHOD,
+		doorChargedPrice,
 		doorOptionLabel,
+		doorPriceChangeText,
 		doorSaleBreakdown,
+		parseDoorAmount,
 		resetDoorSaleForm
 	} from '$lib/admin/doorSale.js';
 	import { formatARS } from '$lib/utils/money.js';
@@ -695,24 +699,39 @@
 	let saleQty = 1;
 	let saleMethod = DOOR_SALE_DEFAULT_METHOD;
 	let saleOption = '';
+	/** Monto a la gorra o, en un tipo con precio, el precio por entrada (arranca con el de la puerta). */
 	let saleAmount = '';
 	let saleBusy = false;
 	let saleError = '';
 	let saleEmail = '';
+	let noteOpen = false;
 	$: sType = data.types.find((t) => t.id === saleType);
+	// Al cambiar de tipo, el precio por entrada vuelve al de la puerta (en la gorra, vacío).
+	let amountFor = '';
+	$: if (sType && amountFor !== sType.id) {
+		amountFor = sType.id;
+		saleAmount = sType.gorra ? '' : String(sType.price);
+	}
 	$: if (sType && !sType.gorra && !sType.options.some((o) => o.id === saleOption)) {
 		saleOption = sType.fondo > 0 ? 'fondo' : 'completo';
 	}
+	// Lo que se cobra por entrada en un tipo con precio: el de la puerta o el que se escribió.
+	$: charged =
+		sType && !sType.gorra ? doorChargedPrice(sType, saleAmount, data.fondoPercent) : null;
+	$: priceChange =
+		sType && !sType.gorra && charged
+			? doorPriceChangeText({ charged: charged.price, list: sType.price })
+			: '';
 	$: salePrice = saleCalc?.total ?? null;
 	$: saleBreakdown = saleCalc ? doorSaleBreakdown(saleCalc, saleQty) : '';
 	$: saleCalc = (() => {
 		if (!sType) return null;
 		try {
-			const price = sType.gorra ? Number(saleAmount) : sType.price;
+			const price = sType.gorra ? Number(saleAmount) : (charged?.price ?? NaN);
 			if (!Number.isFinite(price) || price < 0) return null;
 			return computePrice({
 				price,
-				fondo: sType.gorra ? 0 : sType.fondo,
+				fondo: sType.gorra ? 0 : (charged?.fondo ?? 0),
 				option: sType.gorra ? 'gorra' : /** @type {any} */ (saleOption),
 				quantity: saleQty,
 				discount: null,
@@ -747,6 +766,10 @@
 		}
 		if (fields.method !== 'efectivo' && fields.method !== 'transferencia') {
 			saleError = 'Elegí cómo pagó: efectivo o transferencia.';
+			return;
+		}
+		if (!sType.gorra && parseDoorAmount(fields.amount) === null) {
+			saleError = 'El precio por entrada tiene que ser un número entero de pesos (0 = sin cargo).';
 			return;
 		}
 		if (!String(fields.name ?? '').trim()) {
@@ -793,13 +816,56 @@
 		persist();
 		counts = localCounts(door.list);
 		saleOpen = false;
+		const notes = saleNotes({
+			note: fields.note,
+			priceChange: sType.gorra
+				? ''
+				: doorPriceChangeText({
+						charged: parseDoorAmount(fields.amount) ?? sType.price,
+						list: sType.price
+					})
+		});
 		// Igual que la venta con conexión: vacía el formulario y deja tildado efectivo.
-		saleMethod = resetDoorSaleForm(formEl);
+		afterSale(formEl);
+		const cards = queued.sale.tickets;
+		show({
+			result: 'sold',
+			card: cards[0] ?? null,
+			cards,
+			offline: true,
+			notes,
+			stamp: Date.now()
+		});
+		say('Venta guardada en este celu: se manda sola cuando vuelva la conexión.');
+	}
+
+	/**
+	 * Lo que el resultado de la venta muestra además de las entradas: el precio cambiado y la nota.
+	 * @param {{ note?: string, priceChange?: string }} sale
+	 */
+	function saleNotes({ note, priceChange }) {
+		const out = [];
+		if (priceChange) out.push(priceChange);
+		const text = String(note ?? '').trim();
+		if (text) out.push(`Nota: ${text}`);
+		return out;
+	}
+
+	/**
+	 * Después de vender: vacía el formulario, deja tildado efectivo, cierra la nota y vuelve al
+	 * precio de la puerta. Svelte vuelve los campos ligados (`bind:`) a su valor inicial un
+	 * microtask después de `form.reset()` (los radios a ninguno, la cantidad a vacío), así que los
+	 * valores de la venta siguiente se ponen después de eso.
+	 * @param {HTMLFormElement} formEl
+	 */
+	async function afterSale(formEl) {
+		resetDoorSaleForm(formEl);
+		noteOpen = false;
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		saleMethod = DOOR_SALE_DEFAULT_METHOD;
 		saleQty = 1;
 		saleEmail = '';
-		const cards = queued.sale.tickets;
-		show({ result: 'sold', card: cards[0] ?? null, cards, offline: true, stamp: Date.now() });
-		say('Venta guardada en este celu: se manda sola cuando vuelva la conexión.');
+		amountFor = '';
 	}
 
 	/** @param {SubmitEvent} e */
@@ -828,13 +894,12 @@
 			if (r.type === 'success' && r.data?.sale?.ok) {
 				const sale = r.data.sale;
 				saleOpen = false;
-				saleMethod = resetDoorSaleForm(formEl);
-				saleQty = 1;
-				saleEmail = '';
+				afterSale(formEl);
 				show({
 					result: 'sold',
 					card: sale.tickets[0] ?? null,
 					cards: sale.tickets,
+					notes: saleNotes(sale),
 					stamp: Date.now()
 				});
 				setCounts(r.data.counts);
@@ -1191,17 +1256,49 @@
 						<span>Monto por entrada (mín. {formatARS(sType.gorra.min)})</span>
 						<input name="amount" inputmode="numeric" bind:value={saleAmount} required />
 					</label>
-				{:else if sType && sType.options.length > 1}
+				{:else if sType}
+					<!-- Arranca con el precio de la puerta; se puede cobrar otro (0 = sin cargo). -->
 					<label class="field">
-						<span>Precio</span>
-						<select name="option" bind:value={saleOption}>
-							{#each sType.options as o (o.id)}<option value={o.id}
-									>{doorOptionLabel(o, defaultFondoOption(sType.fondo))}</option
-								>{/each}
-						</select>
+						<span>Precio por entrada</span>
+						<input
+							name="amount"
+							inputmode="numeric"
+							autocomplete="off"
+							bind:value={saleAmount}
+							defaultValue={String(sType.price)}
+							aria-describedby="sale-price-hint"
+							required
+						/>
 					</label>
 				{/if}
 			</div>
+			{#if sType && !sType.gorra}
+				<p class="muted small" id="sale-price-hint" aria-live="polite">
+					{#if priceChange}
+						<span class="changed">{priceChange}.</span>
+						<button
+							type="button"
+							class="link"
+							on:click={() => (saleAmount = String(sType?.price ?? ''))}
+							>Volver a {formatARS(sType.price)}</button
+						>
+					{:else if charged === null}
+						<span class="changed">Escribí el precio en pesos, sin centavos (0 = sin cargo).</span>
+					{:else}
+						Es el precio de la puerta. Si cobraste otro, cambialo (0 = sin cargo).
+					{/if}
+				</p>
+			{/if}
+			{#if sType && !sType.gorra && sType.options.length > 1}
+				<label class="field">
+					<span>Opción de precio</span>
+					<select name="option" bind:value={saleOption}>
+						{#each sType.options as o (o.id)}<option value={o.id}
+								>{doorOptionLabel(o, defaultFondoOption(sType.fondo))}</option
+							>{/each}
+					</select>
+				</label>
+			{/if}
 			{#if saleBreakdown}
 				<p class="muted small" id="sale-breakdown">{saleBreakdown}</p>
 			{/if}
@@ -1263,11 +1360,24 @@
 					/>
 				{/each}
 			{/if}
+			{#if noteOpen}
+				<label class="field">
+					<span>Nota (opcional; solo se ve en el panel)</span>
+					<!-- svelte-ignore a11y-autofocus (se abre al tocar «Agregar nota») -->
+					<textarea name="note" maxlength={data.noteMax} rows="2" autofocus></textarea>
+				</label>
+			{:else}
+				<button type="button" class="link add-note" on:click={() => (noteOpen = true)}>
+					<NotebookPen size={16} aria-hidden="true" /> Agregar nota
+				</button>
+			{/if}
 			{#if saleError}<p class="error" role="alert">{saleError}</p>{/if}
 			<button type="submit" class="primary" disabled={saleBusy}>
 				{saleBusy
 					? 'Vendiendo…'
-					: `Cobrar ${salePrice === null ? '' : formatARS(salePrice)} y marcar adentro`}
+					: salePrice === 0
+						? 'Registrar sin cargo y marcar adentro'
+						: `Cobrar ${salePrice === null ? '' : formatARS(salePrice)} y marcar adentro`}
 			</button>
 			{#if online}
 				<p class="muted small">
@@ -1323,7 +1433,8 @@
 				{#if purchase.method}
 					<dt>Pago</dt>
 					<dd>
-						{METHOD_TEXT[purchase.method] ?? purchase.method}{purchase.channel === 'puerta'
+						{METHOD_TEXT[purchase.method] ?? purchase.method}{purchase.channel === 'puerta' ||
+						purchase.priceChange
 							? ' · en la puerta'
 							: purchase.channel === 'manual'
 								? ' · cargada a mano'
@@ -1341,8 +1452,12 @@
 					{/if}
 					{#if purchase.surcharge}<dt>Recargo MP</dt>
 						<dd>+ {formatARS(purchase.surcharge)}</dd>{/if}
+					{#if purchase.priceChange}<dt>Precio</dt>
+						<dd>{purchase.priceChange}</dd>{/if}
 					<dt>Total</dt>
-					<dd><strong>{formatARS(purchase.total)}</strong></dd>
+					<dd><strong>{purchase.total === 0 ? 'Sin cargo' : formatARS(purchase.total)}</strong></dd>
+					{#if purchase.note}<dt>Nota</dt>
+						<dd class="pre">{purchase.note}</dd>{/if}
 					<dt>Creada</dt>
 					<dd>{dateTime(purchase.createdAt)}</dd>
 					{#if purchase.paidAt}<dt>Pagada</dt>
@@ -1804,6 +1919,33 @@
 	.primary:disabled {
 		opacity: 0.6;
 		cursor: default;
+	}
+	.changed {
+		color: var(--text);
+		font-weight: 600;
+	}
+	.add-note {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		align-self: flex-start;
+		min-height: 2.75rem;
+	}
+	.field textarea {
+		font: inherit;
+		font-size: var(--text-field);
+		padding: var(--space-2xs) var(--space-xs);
+		border-radius: var(--radius-m);
+		border: 2px solid var(--line);
+		background: var(--surface-2);
+		color: var(--text);
+		width: 100%;
+		box-sizing: border-box;
+		resize: vertical;
+	}
+	.pre {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 	}
 	.methods {
 		border: 0;

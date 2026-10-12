@@ -8,7 +8,8 @@
  * - `reveal`: DNI completo de quien compró (queda en el registro de actividad).
  * - `sell`: "Vender en puerta". Si se pasa algún límite (cupo, máximo por venta, evento solo
  *   anticipadas) contesta 409 con `needsConfirmation`; la página pregunta con un diálogo y
- *   reenvía con `override` (ver overrides.js). Pasar un límite queda en el registro.
+ *   reenvía con `override` (ver overrides.js). Pasar un límite queda en el registro. Se puede
+ *   cobrar otro precio por entrada (`amount`) y dejar una nota (`note`); ver `sellAtDoor`.
  * - `sync`: ingresos marcados sin conexión.
  * - `syncSales`: ventas hechas sin conexión (decisión 0035), en orden, idempotentes (`client_sale_id`)
  *   y sin perder ninguna por un límite: si pasan uno se guardan igual y quedan en «Para revisar».
@@ -28,12 +29,16 @@ import { extractToken } from '$lib/server/tickets/checkin.js';
 import { checkIn, getCounts, undoCheckIn } from '$lib/server/tickets/orders.js';
 import {
 	MAX_DOOR_SALE,
+	ORDER_NOTE_MAX,
 	PANEL_ORDER_HARD_MAX,
 	applyQueuedCheckIns,
 	applyQueuedSales,
 	doorCounts,
+	doorSaleAuditExtra,
+	doorSaleAuditSuffix,
 	doorSaleLimits,
 	doorSalesOpen,
+	orderPriceChangeText,
 	orderRef,
 	parseDoorSale,
 	parseQueue,
@@ -93,6 +98,10 @@ export async function load(event) {
 		counts,
 		waitlist,
 		fondoEnabled: config.fondoEnabled,
+		// Para la cuenta a la vista cuando se cambia el precio (el Fondo con el mismo porcentaje).
+		fondoPercent: config.fondoPercent,
+		// Largo máximo de la nota de la venta (como la de la carga a mano).
+		noteMax: ORDER_NOTE_MAX,
 		// "Vender en puerta" salvo que el evento diga que no hay (`puerta: false`). En una parte de
 		// un taller, nunca (la entrada es del taller entero).
 		doorSales: !part && doorSalesOpen(config),
@@ -317,7 +326,7 @@ export const actions = {
 		// Los mismos controles que las ventas hechas sin conexión (`parseDoorSale`).
 		const parsed = parseDoorSale(config, (name) => form.get(name));
 		if (!parsed.ok) return bad(parsed.message);
-		const { type, quantity, method, option, unitPrice, holders, buyer } = parsed.sale;
+		const { type, quantity, method, option, unitPrice, note, holders, buyer } = parsed.sale;
 
 		// Límites (solo anticipadas, cupo, máximo por venta): une admin los puede pasar si confirmó
 		// en el diálogo exactamente estos (la clave viene en `override`).
@@ -336,6 +345,7 @@ export const actions = {
 			method,
 			option,
 			unitPrice,
+			note,
 			fondoPercent: config.fondoPercent,
 			by: admin.login
 		});
@@ -352,13 +362,14 @@ export const actions = {
 			action: 'order.door_sale',
 			targetType: 'order',
 			targetId: r.order.id,
-			summary: `Vendió en la puerta ${quantity} × ${type.name} (${orderRef(r.order.id)}, ${r.order.payment_method})`,
+			summary: `Vendió en la puerta ${quantity} × ${type.name} (${orderRef(r.order.id)}, ${r.order.payment_method}${doorSaleAuditSuffix(r.order)})`,
 			detail: {
 				event: slug,
 				type: type.id,
 				quantity,
 				method: r.order.payment_method,
 				total: r.order.total,
+				...doorSaleAuditExtra(r.order),
 				...(check.limits.length ? { overrides: check.limits } : {})
 			}
 		});
@@ -392,6 +403,9 @@ export const actions = {
 				message: `Listo: ${quantity} × ${type.name} (${orderRef(r.order.id)}), ya adentro.`,
 				total: r.order.total,
 				method: r.order.payment_method,
+				// Para el resultado de la venta (solo admins: la página es del panel).
+				note: r.order.admin_note ?? '',
+				priceChange: orderPriceChangeText(r.order),
 				tickets: cards
 			},
 			counts: await doorCounts(db, slug)

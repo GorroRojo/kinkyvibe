@@ -72,6 +72,8 @@ CI) va en la fase 0.
 - `boton-comprar-afuera` · fase 0 · hecho · sitio · Cuando las entradas se venden en otro sitio, el botón tiene el mismo peso que «Comprar entradas» (gorrite, 10/10) · #331
 - `tickets-spec-arreglar` · fase 0 · sigue · pruebas · Dos pruebas de `tests/tickets/tickets.spec.js` que no corren en la CI: arregladas en #325 («1 aprobado» en singular; esperar a que cargue la página). Falta sumarlas a la CI
 - `puerta-sin-conexion` · fase 0 · hecho · entradas · Vender en la puerta sin conexión · #286, [0035](decisiones/0035-vender-en-puerta-sin-conexion.md)
+- `puerta-nota-precio` · fase 0 · hecho · entradas · «Vender en puerta» con nota y cualquier precio por entrada, también sin conexión (gorrite, 12/10); migración 0057 · [tickets.md](tickets.md)
+- `puerta-precio-cero-canal` · fase 0 · algún día · entradas · Una venta en la puerta a $ 0 queda con canal `manual` (la base no acepta precio 0 en `puerta`); que quede `puerta` exige reconstruir `orders` sin perder `order_answers` · [tickets.md](tickets.md)
 - `transferencia-dias-habiles` · fase 0 · hecho · entradas · Reserva por transferencia de 2 días hábiles · #261, [0031](decisiones/0031-reserva-transferencia-dias-habiles.md)
 - `aviso-cambio-fecha` · fase 0 · hecho · mails · «Avisar a les compradores» cuando cambia la fecha · #266
 - `ics-en-mail` · fase 0 · hecho · mails · El .ics y Google Calendar en los mails de entradas · #256
