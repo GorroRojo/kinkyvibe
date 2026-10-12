@@ -920,12 +920,13 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		await load(fakeEvent(page.platform));
 		expect(page.trips()).toBe(2);
 		expect(page.stats.batches).toBe(2);
-		// Las sentencias de este escenario (no crecen sin que se note): 19 en la primera tanda (con
-		// la de los eventos «Online» con lugar y las 2 de las etiquetas, de «Para revisar»; la de la
-		// última revisión del importador se fue con él, decisión 0032) y 19 en la segunda (totales, ingresos, links, 3 de envíos
+		// Las sentencias de este escenario (no crecen sin que se note): 20 en la primera tanda (con
+		// la de los eventos «Online» con lugar, las 2 de las etiquetas y la de los mails de la lista
+		// de espera que no salieron, de «Para revisar»; la de la última revisión del importador se
+		// fue con él, decisión 0032) y 19 en la segunda (totales, ingresos, links, 3 de envíos
 		// fallidos, 4 recordatorios vencidos —2 por evento de hoy—, 5 de la última visita y 2 por
 		// evento de hoy para el gráfico).
-		expect(page.stats.prepared).toBe(19 + 19);
+		expect(page.stats.prepared).toBe(20 + 19);
 
 		// El de antes, con las mismas funciones: una ida por consulta (acá sin las de la lista de
 		// eventos, que son de mentira).
@@ -939,11 +940,11 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		await menuCounts(layout.platform);
 		expect(layout.trips()).toBe(2);
 		expect(layout.stats.batches).toBe(2);
-		// Primera tanda: los 5 contadores de siempre (la cuenta de «No listadas» son 2) y las 10 de
+		// Primera tanda: los 5 contadores de siempre (la cuenta de «No listadas» son 2) y las 11 de
 		// «Para revisar» que no dependen de los eventos (con la de los eventos «Online» con lugar, que
-		// es también su contador). Segunda: totales, links, 3 de envíos fallidos y 4 recordatorios
+		// es también su contador, y la de los mails de la lista de espera que no salieron). Segunda: totales, links, 3 de envíos fallidos y 4 recordatorios
 		// vencidos.
-		expect(layout.stats.prepared).toBe(5 + 10 + 9);
+		expect(layout.stats.prepared).toBe(5 + 11 + 9);
 
 		// Sin eventos que vienen con entradas, la segunda tanda no tiene nada: una sola ida.
 		fake.ticketed = [];

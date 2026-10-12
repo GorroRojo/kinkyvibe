@@ -7,6 +7,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { AGE_OK } from './helpers.js';
+import { ticketsE2EEvent } from './event.js';
 
 test.beforeEach(async ({ page }) => {
 	await page.addInitScript(AGE_OK);
@@ -46,6 +47,23 @@ test('cada link del menú del panel abre su página', async ({ page }) => {
 		await expect(menu, href).toBeVisible();
 	}
 	expect(broken).toEqual([]);
+});
+
+test('la ficha de un evento con entradas tiene la pestaña «Lista de espera» y abre', async ({
+	page
+}) => {
+	const slug = ticketsE2EEvent();
+	await page.goto(`/admin/eventos/${slug}`, { waitUntil: 'networkidle' });
+	const tab = page
+		.getByRole('navigation', { name: 'Pestañas' })
+		.getByRole('link', { name: 'Lista de espera', exact: true });
+	await expect(tab).toHaveAttribute('href', `/admin/eventos/${slug}/lista-espera`);
+	const res = await page.goto(`/admin/eventos/${slug}/lista-espera`, {
+		waitUntil: 'domcontentloaded'
+	});
+	expect(res?.status()).toBe(200);
+	// El evento de prueba no tiene lista: la pestaña dice cómo prenderla.
+	await expect(page.getByText('Este evento no tiene lista de espera')).toBeVisible();
 });
 
 test('/admin/estadisticas (la única redirección del panel, gorrite 11/10) lleva a Ventas', async ({

@@ -96,6 +96,8 @@
 	 * @type {string | null}
 	 */
 	export let lista = null;
+	/** Tipos agotados con lista de espera para anotarse (ver TicketsStep). @type {string[]} */
+	export let waitlistTypes = [];
 
 	// Valores iniciales del formulario (a propósito no reactivos: después los maneja la persona).
 	const initial = result?.values ?? {};
@@ -647,6 +649,7 @@
 								{count}
 								{errors}
 								{applied}
+								{waitlistTypes}
 							/>
 						{:else if i === STEP_BUYER}
 							<BuyerStep

@@ -92,6 +92,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'ajustes-cobros':
 		'ajustes cobros alias cbu cvu mercado pago comision transferencia datos bancarios',
 	'ajustes-fondo': 'ajustes fondo porcentaje kinky vibe descuento solidaria',
+	'ajustes-lista-espera':
+		'ajustes lista de espera agotadas fila reserva guardar lugar avisar a todes cierre tiempos',
 	'ajustes-mails':
 		'ajustes de mails plantillas recordatorios remitente email envios pie de mail firma',
 	'ajustes-vistas-previas':
@@ -142,6 +144,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'contenido-base': 'book',
 	'ajustes-cobros': 'settings',
 	'ajustes-fondo': 'settings',
+	'ajustes-lista-espera': 'settings',
 	'ajustes-mails': 'mail',
 	'ajustes-vistas-previas': 'eye',
 	'ajustes-plantillas': 'mail',

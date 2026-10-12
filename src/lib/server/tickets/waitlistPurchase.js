@@ -119,6 +119,37 @@ export async function queueHolders(db, eventSlug, now, entryId = null) {
 }
 
 /**
+ * Como {@link queueHolders} (público), para varios eventos en UNA consulta (las tarjetas de las
+ * listas de eventos): por slug, cuántas personas guardan lugar en cada alcance.
+ *
+ * @param {D1Database} db
+ * @param {string[]} slugs
+ * @param {number} now
+ * @returns {Promise<Map<string, Map<string, number>>>}
+ */
+export async function queueHoldersMany(db, slugs, now) {
+	/** @type {Map<string, Map<string, number>>} */
+	const out = new Map();
+	if (!slugs.length) return out;
+	const { results } = await db
+		.prepare(
+			`SELECT event_slug AS slug, COALESCE(ticket_type, '') AS scope, COUNT(*) AS n
+			FROM waitlist_entries
+			WHERE event_slug IN (SELECT value FROM json_each(?1))
+			AND (status = 'waiting' OR (status = 'offered' AND hold_until > ?2))
+			GROUP BY event_slug, COALESCE(ticket_type, '')`
+		)
+		.bind(JSON.stringify(slugs), now)
+		.all();
+	for (const r of results) {
+		const slug = String(r.slug);
+		if (!out.has(slug)) out.set(slug, new Map());
+		out.get(slug)?.set(String(r.scope), Number(r.n));
+	}
+	return out;
+}
+
+/**
  * Lo que se puede comprar de cada tipo después de la fila. Solo trae los tipos a los que la fila
  * les cambia algo (los demás quedan como están):
  * - por evento: el lugar libre total (los tipos a la venta) menos la fila, y cada tipo acotado a

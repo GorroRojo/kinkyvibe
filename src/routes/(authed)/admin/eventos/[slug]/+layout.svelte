@@ -26,7 +26,16 @@
 		if (type !== 'form') dateChangeResult = null;
 	});
 	/** Pestañas que solo tienen sentido si el evento vende entradas. */
-	const SALES_TABS = ['ventas', 'ordenes', 'transferencias', 'ingreso', 'codigos', 'mail', 'mails'];
+	const SALES_TABS = [
+		'ventas',
+		'ordenes',
+		'transferencias',
+		'ingreso',
+		'codigos',
+		'lista-espera',
+		'mail',
+		'mails'
+	];
 
 	$: bare = $page.data?.bare === true;
 	$: editing = $page.url.pathname.replace(/\/+$/, '').endsWith('/editar');
@@ -40,6 +49,8 @@
 	)
 		// Preguntas de inscripción: con base y venta de entradas.
 		.filter((t) => t.id !== 'preguntas' || data.signupFieldsTab)
+		// Lista de espera: con el interruptor prendido, o si el evento ya tiene lista o gente anotada.
+		.filter((t) => t.id !== 'lista-espera' || data.waitlistTab)
 		// Los eventos online no tienen control de ingreso (las entradas llevan el link).
 		.filter((t) => !(t.id === 'ingreso' && e.online))
 		.map((t) => ({
@@ -50,7 +61,9 @@
 					? data.tabCounts.orders
 					: t.id === 'transferencias'
 						? data.tabCounts.transfers
-						: undefined
+						: t.id === 'lista-espera'
+							? data.tabCounts.waitlist
+							: undefined
 		}));
 	$: when = [shortDate(e.start), timeRange(e.start, e.end)].filter(Boolean).join(' · ');
 	$: where = [e.locationName, e.location && e.location !== e.locationName ? e.location : '']

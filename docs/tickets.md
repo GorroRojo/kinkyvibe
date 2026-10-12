@@ -330,9 +330,9 @@ apagado (o el evento sin lista) la sentencia de la compra es la de siempre y `li
   lo dice arriba y la compra sigue como la del resto). En una lista por tipo, el link es para su
   tipo. Si justo se vendió el lugar en la puerta, se lo dice y la oferta sigue hasta que venza.
 - **La puerta, la carga a mano y la confirmación de transferencias no miran la lista** (venden
-  aunque haya gente esperando, como decidió gorrite; el aviso en la puerta es de la parte 5).
-- La página del evento (botón «Comprar entradas») también resta la fila; las tarjetas de las
-  listas de eventos (`listStates.js`) todavía no.
+  aunque haya gente esperando, como decidió gorrite; solo avisan, ver la parte 5).
+- La página del evento (botón «Comprar entradas») también resta la fila (las tarjetas de las
+  listas de eventos, desde la parte 5).
 
 **Ya está (parte 4, el motor).** Con el interruptor apagado no corre nada (ni la pasada del cron,
 ni los mails, ni los empujones).
@@ -375,10 +375,48 @@ confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas 
   en el editor del evento (más cupo, dejó de estar agotado, otra fecha, cancelado), y los links de
   los mails: salir con un lugar guardado, confirmar y volver a anotarse.
 
-**Lo que falta** (parte 5): el panel (editor, Ajustes, pestaña del evento con sus acciones, que
-también tienen que empujar la lista, y aviso en la puerta), el formulario completo en cada tipo
-agotado, que las tarjetas de las listas de eventos resten la fila y la fila de «Para revisar» para
-los mails de la lista que fallaron.
+**Ya está (parte 5, el panel y la puerta).**
+
+- **Editor del evento** (Entradas → «Lista de espera», `WaitlistField.svelte`; reglas en
+  `src/lib/utils/ticketsEditor.js`): sin lista, por evento o por tipo de entrada; «Avisar a todes a
+  la vez desde el principio»; y en «Avanzado», tiempos de reserva propios (vacío = los de Ajustes).
+  Escribe `lista_espera` solo si cambió (una que no se entiende queda como está; con la venta
+  apagada no se toca, como la meta). **Con gente anotada** (sin confirmar, esperando o con oferta)
+  no deja apagarla, cambiar el alcance, ni borrar o dejar sin cupo el tipo de una lista por tipo:
+  «cerrá la lista primero». Lo controla con las anotaciones de la base (`waitlistLiveErrors`,
+  también al guardar en el servidor), no con el archivo de antes. Avisa si el interruptor está
+  apagado. Duplicar un evento copia la clave (y el importador la lee, `TICKET_META_KEYS`).
+- **Ajustes → Lista de espera** (`/admin/ajustes/lista-espera`, «prueba» mientras el interruptor
+  está apagado): de a une o todes a la vez, los tramos de reserva, desde cuántas horas se avisa a
+  todes y cuántos minutos antes cierra. Se guarda en `ticket_settings.waitlist`; igual a los de por
+  defecto, vacío. Formulario puro en `src/lib/utils/waitlistSettingsForm.js`.
+- **Pestaña «Lista de espera» de la ficha** (`/admin/eventos/<slug>/lista-espera`; se ve con el
+  interruptor prendido, o si el evento tiene lista o gente anotada; el contador son las anotaciones
+  vivas, y el Resumen muestra «Lista de espera: N»): cuentas por alcance (esperando, con lugar
+  guardado hasta HH:MM, avisades a la vez, compraron, terminaron, salieron, sin confirmar), la fila
+  en orden y lo terminado (las últimas 200; el resto en el CSV). Acciones, cada una con
+  confirmación y en el registro de actividad sin mails (`waitlist.*`, solo el id de la anotación y
+  cuentas): «Terminar la reserva y pasar a la siguiente» (`expired` / `admin`, sin mail, y la lista
+  avanza ya), «Sacar de la lista» (si tenía oferta, avanza), «Ofrecer ahora» (`advanceWaitlist`
+  directo, sin el límite del empujón; con el interruptor apagado, no), «Cerrar la lista» (quien
+  espera o tiene oferta → `expired` / `closed` con su mail; sin confirmar se borra; para que nadie
+  más se anote, se apaga en Editar) y «Volver a probar» los mails que no salieron. CSV en
+  `/admin/eventos/<slug>/lista-espera.csv` (con los mails: dato personal). Lecturas en
+  `src/lib/server/tickets/waitlistAdmin.js`.
+- **Puerta y carga a mano:** «Vender en puerta» y «Cargar entradas a mano» muestran una nota que no
+  frena nada (`WaitlistDoorNote.svelte`): «Hay 4 personas en la lista de espera (1 con lugar
+  guardado hasta las 21:30). Podés vender igual; si vendés ese lugar, esa persona puede quedarse
+  sin entrada.» `sellAtDoor` y `createManualOrder` no cambian.
+- **«Para revisar»:** una fila con los mails de la lista que no salieron después de 3 intentos
+  (`waitlist_sends.status = 'failed'`), que lleva a la pestaña del evento (ahí «Volver a probar»).
+- **Tarjetas de las listas de eventos** (`listStates.js`): restan la fila como la página del
+  evento (una consulta más para todos los eventos con lista).
+- **En la compra, por tipo:** cada tipo agotado con lista dice «Agotadas · Anotate en la lista de
+  espera», que baja al formulario con ese tipo elegido.
+
+**Lo que falta antes del PR a `main`** (integración en `claude/lista-espera`): la prueba E2E del
+recorrido entero, la decisión en `docs/decisiones/`, los docs de entradas, datos y mails, y que
+gorrite aplique la 0053 en preview y producción.
 
 ### Horario de la venta
 

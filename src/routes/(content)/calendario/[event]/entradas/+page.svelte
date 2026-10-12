@@ -61,6 +61,7 @@
 		account={data.account}
 		slug={$page.params.event}
 		lista={data.offer ? data.offer.token : null}
+		waitlistTypes={data.waitlist?.scope === 'type' ? data.waitlist.types.map((t) => t.id) : []}
 	/>
 
 	{#if data.waitlist || form?.waitlist}
