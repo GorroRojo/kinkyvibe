@@ -3,20 +3,25 @@
  */
 import { describe, expect, it } from 'vitest';
 import tagsFactory from './tags';
-import { wikiOptions, wikiSections, wikiSuggestions, wikiVisible } from './wikiIndex.js';
+import {
+	filterWikiTree,
+	wikiOptions,
+	wikiSections,
+	wikiSuggestions,
+	wikiVisible
+} from './wikiIndex.js';
 
-const tm = tagsFactory(
-	/** @type {any} */ ([
-		{ id: 'root', children: ['prácticas', 'implementos', 'vacía'] },
-		{ id: 'prácticas', icon: '🪢', children: ['ataduras', 'impacto'] },
-		{ id: 'ataduras', description: 'Atar con cuerdas.', aka: ['bondage'] },
-		{ id: 'impacto', visible_name: 'Juego de impacto' },
-		{ id: 'implementos', description: 'Cosas para jugar.' },
-		{ id: 'vacía', children: ['nada'] },
-		{ id: 'nada' },
-		{ id: 'cuerdas', aliasOf: 'ataduras' }
-	])
-);
+const TREE = /** @type {any} */ ([
+	{ id: 'root', children: ['prácticas', 'implementos', 'vacía'] },
+	{ id: 'prácticas', icon: '🪢', children: ['ataduras', 'impacto'] },
+	{ id: 'ataduras', description: 'Atar con cuerdas.', aka: ['bondage'] },
+	{ id: 'impacto', visible_name: 'Juego de impacto' },
+	{ id: 'implementos', description: 'Cosas para jugar.' },
+	{ id: 'vacía', children: ['nada'] },
+	{ id: 'nada' },
+	{ id: 'cuerdas', aliasOf: 'ataduras' }
+]);
+const tm = tagsFactory(structuredClone(TREE));
 
 describe('wikiVisible / wikiSections', () => {
 	it('se ven las ramas con algo que mostrar (propio o de una hija)', () => {
@@ -54,5 +59,21 @@ describe('wikiOptions / wikiSuggestions', () => {
 			label: 'Juego de impacto'
 		});
 		expect(wikiSuggestions(options, 'practicas', tm)[0]?.value).toBe('/wiki/pr%C3%A1cticas');
+	});
+});
+
+describe('filterWikiTree', () => {
+	const fresh = () => tagsFactory(structuredClone(TREE));
+
+	it('deja lo que coincide (sin tildes ni mayúsculas) y sus madres', () => {
+		const t = filterWikiTree(fresh(), 'CUERDAS');
+		expect(t.tagIDs()).toEqual(expect.arrayContaining(['root', 'prácticas', 'ataduras']));
+		expect(t.tagIDs()).not.toContain('implementos');
+		expect(wikiSections(t).map((s) => s.id)).toEqual(['prácticas']);
+		expect(filterWikiTree(fresh(), 'ÁTAR').tagIDs()).toContain('ataduras');
+	});
+
+	it('sin nada que coincida no queda ninguna sección (la página muestra el EmptyState)', () => {
+		expect(wikiSections(filterWikiTree(fresh(), 'zzzqqq'))).toEqual([]);
 	});
 });
