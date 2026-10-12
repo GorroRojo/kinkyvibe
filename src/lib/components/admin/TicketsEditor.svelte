@@ -389,8 +389,6 @@
 		<WaitlistField
 			bind:scope={state.waitlistScope}
 			bind:allAtOnce={state.waitlistAll}
-			bind:custom={state.waitlistCustom}
-			bind:tiers={state.waitlistTiers}
 			enabled={waitlistEnabled}
 			live={waitlistLive}
 			{idPrefix}

@@ -18,7 +18,7 @@
  * - `meta_venta`: la meta de venta (plata o entradas, ver ./salesGoal.js). Se edita junto con la
  *   venta y solo se escribe con la venta prendida.
  * - `lista_espera`: la lista de espera (ver ./waitlistHold.js): `'evento'`, `'tipo'` o
- *   `{ alcance, todes_a_la_vez, reservas }`. Como la meta, solo se escribe con la venta prendida
+ *   `{ alcance, todes_a_la_vez }` (los tiempos de reserva son los de Ajustes). Como la meta, solo se escribe con la venta prendida
  *   y solo si cambió (una que no se entiende queda como está). Con gente anotada no se puede
  *   apagar, cambiar el alcance ni sacar el tipo (o su cupo) de una lista por tipo.
  * Los horarios se editan como `datetime-local` en hora de Argentina y se guardan con zona
@@ -48,8 +48,7 @@ import {
 	parseSalesGoal,
 	storedSalesGoal
 } from './salesGoal.js';
-import { DEFAULT_WAITLIST_SETTINGS, WAITLIST_KEY, parseEventWaitlist } from './waitlistHold.js';
-import { rowsFromTiers, tiersFromRows } from './waitlistSettingsForm.js';
+import { WAITLIST_KEY, parseEventWaitlist } from './waitlistHold.js';
 
 /** Id de la etiqueta que marca los eventos de KinkyVibe (src/lib/utils/hardcodedTags.js). */
 export const KINKYVIBE_TAG = 'KinkyVibe';
@@ -158,8 +157,6 @@ export { isOnlineEvent };
  * @prop {string} goalValue pesos o cantidad de entradas
  * @prop {'' | 'evento' | 'tipo'} waitlistScope lista de espera (`lista_espera`): '' = sin lista
  * @prop {boolean} waitlistAll «Avisar a todes a la vez desde el principio» (`todes_a_la_vez`)
- * @prop {boolean} waitlistCustom tiempos de reserva propios del evento (si no, los de Ajustes)
- * @prop {import('./waitlistSettingsForm.js').TierRow[]} waitlistTiers los tiempos propios
  */
 
 let keyCounter = 0;
@@ -382,38 +379,26 @@ export function readTicketsForm(meta) {
  * Los campos «Lista de espera» del formulario para una lista guardada (una que no se entiende
  * queda sin lista en el formulario, y el archivo no se toca mientras no se cambie).
  * @param {unknown} raw
- * @returns {Pick<TicketsForm, 'waitlistScope' | 'waitlistAll' | 'waitlistCustom' | 'waitlistTiers'>}
+ * @returns {Pick<TicketsForm, 'waitlistScope' | 'waitlistAll'>}
  */
 export function waitlistFields(raw) {
 	const parsed = parseEventWaitlist(raw);
 	return {
 		waitlistScope: parsed ? (parsed.scope === 'event' ? 'evento' : 'tipo') : '',
-		waitlistAll: parsed?.allAtOnce ?? false,
-		waitlistCustom: Boolean(parsed?.tiers),
-		waitlistTiers: rowsFromTiers(parsed?.tiers ?? DEFAULT_WAITLIST_SETTINGS.tiers)
+		waitlistAll: parsed?.allAtOnce ?? false
 	};
 }
 
 /**
  * La lista de espera del formulario como se guarda (`null` = sin lista): el atajo `'evento'` /
- * `'tipo'`, o el objeto si tiene «todes a la vez» o tiempos propios. Tolera borradores viejos.
- * Con tiempos propios que no se entienden devuelve las filas tal cual (la validación avisa).
+ * `'tipo'`, o el objeto si tiene «todes a la vez». Tolera borradores viejos.
  * @param {Partial<TicketsForm>} f
  * @returns {null | string | Record<string, unknown>}
  */
 export function formWaitlist(f) {
 	const scope = f.waitlistScope;
 	if (scope !== 'evento' && scope !== 'tipo') return null;
-	const tiers = f.waitlistCustom ? tiersFromRows(f.waitlistTiers ?? []) : null;
-	if (!f.waitlistAll && !tiers) return scope;
-	/** @type {Record<string, unknown>} */
-	const out = { alcance: scope };
-	if (f.waitlistAll) out.todes_a_la_vez = true;
-	if (tiers)
-		out.reservas = tiers.ok
-			? tiers.tiers.map((t) => ({ overHours: t.overHours, holdHours: t.holdHours }))
-			: (f.waitlistTiers ?? []).map((r) => ({ ...r }));
-	return out;
+	return f.waitlistAll ? { alcance: scope, todes_a_la_vez: true } : scope;
 }
 
 /**
@@ -650,26 +635,21 @@ export function validateTicketsForm(form, { sales, waitlistLive } = {}) {
 		errors.push(`La nota sobre la puerta es muy larga (hasta ${DOOR_PRICE_MAX} caracteres).`);
 	const goal = goalFromForm(form.goalKind ?? '', form.goalValue ?? '');
 	if (goal.error) errors.push(goal.error);
-	validateWaitlist(form, types, errors, warnings);
+	validateWaitlist(form, types, warnings);
 	errors.push(...waitlistLiveErrors(form, waitlistLive));
 	return { errors, warnings };
 }
 
 /**
- * La lista de espera del formulario: los tiempos propios y lo que conviene saber del alcance.
+ * La lista de espera del formulario: lo que conviene saber del alcance.
  *
  * @param {TicketsForm} form
  * @param {TicketTypeForm[]} types con ids
- * @param {string[]} errors
  * @param {string[]} warnings
  */
-function validateWaitlist(form, types, errors, warnings) {
+function validateWaitlist(form, types, warnings) {
 	const scope = form.waitlistScope ?? '';
 	if (!scope) return;
-	if (form.waitlistCustom) {
-		const tiers = tiersFromRows(form.waitlistTiers ?? []);
-		if (!tiers.ok) errors.push(`Lista de espera: ${tiers.error}`);
-	}
 	const capped = types.filter((t) => t.capacity.trim());
 	if (scope === 'tipo' && !capped.length)
 		warnings.push(

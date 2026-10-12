@@ -49,8 +49,9 @@ export const WAITLIST_LIMITS = Object.freeze({
  * principio («todes a la vez»).
  */
 /**
- * @typedef {{ scope: 'event' | 'type', allAtOnce: boolean, tiers: HoldTier[] | null }} EventWaitlist
- * La lista de un evento (`config.waitlist`). `tiers` null = los de Ajustes.
+ * @typedef {{ scope: 'event' | 'type', allAtOnce: boolean }} EventWaitlist
+ * La lista de un evento (`config.waitlist`). Los tiempos de reserva son siempre los de Ajustes
+ * (gorrite, 12/10: no hace falta configurarlos por evento).
  */
 /**
  * @typedef {{ kind: 'hold', until: number } | { kind: 'broadcast' } | { kind: 'closed' }} HoldResult
@@ -172,10 +173,11 @@ export function waitlistSettingsProblem(raw) {
  * La lista de espera de un evento (`lista_espera` en el frontmatter o en `extra`):
  *
  * - `'evento'` o `'tipo'` (atajo), o
- * - `{ alcance: 'evento' | 'tipo', todes_a_la_vez?: boolean, reservas?: HoldTier[] }`.
+ * - `{ alcance: 'evento' | 'tipo', todes_a_la_vez?: boolean }`.
  *
  * Sin la clave, `false`, o algo que no se entiende: `null` (sin lista). Una lista rota nunca
- * frena la venta: el evento vende como si no tuviera lista.
+ * frena la venta: el evento vende como si no tuviera lista. `reservas` (tiempos propios del
+ * evento, de antes del 12/10) se ignora: valen siempre los de Ajustes.
  *
  * @param {unknown} raw
  * @returns {EventWaitlist | null}
@@ -186,7 +188,7 @@ export function parseEventWaitlist(raw) {
 	const scopeOf = (a) => (a === 'evento' ? 'event' : a === 'tipo' ? 'type' : null);
 	if (typeof raw === 'string') {
 		const scope = scopeOf(raw.trim().toLowerCase());
-		return scope ? { scope, allAtOnce: false, tiers: null } : null;
+		return scope ? { scope, allAtOnce: false } : null;
 	}
 	if (typeof raw !== 'object' || Array.isArray(raw)) return null;
 	const o = /** @type {Record<string, unknown>} */ (raw);
@@ -194,18 +196,12 @@ export function parseEventWaitlist(raw) {
 	if (!scope) return null;
 	const all = o.todes_a_la_vez;
 	if (all !== undefined && all !== null && typeof all !== 'boolean') return null;
-	/** @type {HoldTier[] | null} */
-	let tiers = null;
-	if (o.reservas !== undefined && o.reservas !== null) {
-		tiers = parseHoldTiers(o.reservas);
-		if (!tiers) return null;
-	}
-	return { scope, allAtOnce: all === true, tiers };
+	return { scope, allAtOnce: all === true };
 }
 
 /**
  * Los ajustes que valen para un evento: los globales con lo que el evento cambia («todes a la
- * vez» y sus propios tramos).
+ * vez»; los tramos de reserva son siempre los globales).
  *
  * @param {WaitlistSettings} global
  * @param {EventWaitlist | null | undefined} event
@@ -215,7 +211,7 @@ export function effectiveWaitlistSettings(global, event) {
 	return {
 		...global,
 		mode: event?.allAtOnce ? 'all' : global.mode,
-		tiers: (event?.tiers ?? global.tiers).map((t) => ({ ...t }))
+		tiers: global.tiers.map((t) => ({ ...t }))
 	};
 }
 

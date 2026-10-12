@@ -1,24 +1,20 @@
 <!--
 	«Lista de espera» del editor de eventos, dentro de «Entradas» (TicketsEditor): sin lista, por
-	evento o por tipo de entrada, «Avisar a todes a la vez desde el principio» y, en «Avanzado»,
-	tiempos de reserva propios del evento (vacío = los de Ajustes → Lista de espera). Escribe la
-	clave `lista_espera` ($lib/utils/ticketsEditor.js). Con gente anotada, el editor no deja
+	evento o por tipo de entrada y «Avisar a todes a la vez desde el principio». Los tiempos de
+	reserva son los de Ajustes → Lista de espera (gorrite, 12/10: no se configuran por evento).
+	Escribe la clave `lista_espera` ($lib/utils/ticketsEditor.js). Con gente anotada, el editor no deja
 	apagarla ni cambiar el alcance (lo dicen los errores de la venta).
 
-	Props (con bind): `scope`, `allAtOnce`, `custom`, `tiers`. Además `idPrefix`, `enabled` (el
+	Props (con bind): `scope`, `allAtOnce`. Además `idPrefix`, `enabled` (el
 	interruptor `lista_espera`: `false` avisa que está apagado; `null` no se sabe) y `live` (gente
 	anotada por alcance, para avisar).
 -->
 <script>
 	import Notice from '$lib/components/ui/Notice.svelte';
-	import { WAITLIST_LIMITS } from '$lib/utils/waitlistHold.js';
 
 	/** @type {'' | 'evento' | 'tipo'} */
 	export let scope = '';
 	export let allAtOnce = false;
-	export let custom = false;
-	/** @type {import('$lib/utils/waitlistSettingsForm.js').TierRow[]} */
-	export let tiers = [];
 	export let idPrefix = 'ev';
 	/** @type {boolean | null} */
 	export let enabled = null;
@@ -26,8 +22,6 @@
 	export let live = null;
 
 	$: people = live ? Object.values(live).reduce((a, b) => a + b, 0) : 0;
-	$: if (custom && tiers.length < WAITLIST_LIMITS.maxTiers && tiers.every((r) => r.over || r.hold))
-		tiers = [...tiers, { over: '', hold: '' }];
 </script>
 
 <fieldset class="waitlist" id="{idPrefix}-waitlist">
@@ -65,38 +59,7 @@
 			<input type="checkbox" id="{idPrefix}-waitlist-all" bind:checked={allAtOnce} />
 			Avisar a todes a la vez desde el principio (se lo queda quien compre primero)
 		</label>
-		<details class="advanced" open={custom}>
-			<summary>Avanzado</summary>
-			<label class="check">
-				<input type="checkbox" id="{idPrefix}-waitlist-custom" bind:checked={custom} />
-				Tiempos de reserva propios de este evento
-			</label>
-			{#if custom}
-				<div class="tiers">
-					<span class="head" aria-hidden="true">Si faltan (horas) o más</span>
-					<span class="head" aria-hidden="true">Se guarda (horas)</span>
-					{#each tiers as r, i (i)}
-						<input
-							id="{idPrefix}-waitlist-over-{i}"
-							bind:value={r.over}
-							inputmode="numeric"
-							aria-label="Tramo {i + 1}: si faltan (horas) o más"
-						/>
-						<input
-							id="{idPrefix}-waitlist-hold-{i}"
-							bind:value={r.hold}
-							inputmode="numeric"
-							aria-label="Tramo {i + 1}: se guarda (horas)"
-						/>
-					{/each}
-				</div>
-				<small
-					>Para sacar un tramo, vacialo. Una reserva dura de 1 a {WAITLIST_LIMITS.maxHoldHours} horas.</small
-				>
-			{:else}
-				<small>Sin tildar: los de Ajustes → Lista de espera.</small>
-			{/if}
-		</details>
+		<small>El lugar se guarda el tiempo que dice Ajustes → Lista de espera.</small>
 	{/if}
 </fieldset>
 
@@ -133,17 +96,5 @@
 	}
 	.live {
 		font-weight: 700;
-	}
-	.tiers {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 10em));
-		gap: 0.3em 0.6em;
-		margin: 0.3em 0;
-	}
-	.head {
-		font-size: 0.85em;
-	}
-	.tiers input {
-		min-width: 0;
 	}
 </style>

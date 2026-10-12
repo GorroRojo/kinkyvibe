@@ -44,7 +44,8 @@ const config = {
 		env: {
 			MP_MOCK: '1',
 			ADMIN_DEV_MOCK: '1',
-			// Todas las compras salen de localhost: sin los límites por cliente (hay tests unitarios).
+			// Todas las compras (y las anotaciones a la lista de espera) salen de localhost: sin los
+			// límites por cliente (hay tests unitarios).
 			TICKETS_DEV_RELAX_LIMITS: '1',
 			TICKETS_DEV_FIXTURE: ticketsE2EEvent(),
 			TICKETS_DEV_FIXTURE_GORRA: ticketsE2EGorraEvent(),

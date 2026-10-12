@@ -35,7 +35,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción                    |
 | [release-1.md](release-1.md)                   | Release 1: qué prender, importar y verificar antes de la revisión grande, y rendimiento de los endpoints            |
 | [workers-migracion.md](workers-migracion.md)   | Paso de Cloudflare Pages a Workers (ya hecho), backups nocturnos y cómo restaurar                                   |
-| [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite (0001 a 0035, cada una con su línea en su índice): leelo antes de cambiar un área |
+| [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite (0001 a 0040, cada una con su línea en su índice): leelo antes de cambiar un área |
 
 Otras guías sueltas:
 

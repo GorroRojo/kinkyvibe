@@ -218,8 +218,20 @@ aparecen con la etiqueta «prueba» mientras el interruptor está apagado.
   `sendWaitlistEntryMail` (`waitlistMail.js`): una fila de `waitlist_sends` por anotación, mail y
   ronda, con los estados de los envíos en tandas (`sendState.js`, que ahora también sirve para
   filas por anotación), y la clave de Resend `waitlist-<mail>-<anotación>-<ronda>`
-  (`waitlist-closed-<anotación>` para el cierre). Quién los dispara y cuándo es del motor (parte 4
-  de la lista).
+  (`waitlist-closed-<anotación>` para el cierre).
+- **Quién los dispara** (el motor, `sendWaitlistMails` en `waitlistEngine.js`): no hay cola aparte,
+  lo que falta sale del estado de cada anotación y de `waitlist_sends`. La oferta, a cada oferta
+  vigente sin su mail; el último aviso, con 3 h por delante de una reserva de 12 h o más y la oferta
+  ya mandada; «se venció», si venció la reserva con la oferta ya mandada; «se cerró la lista», al
+  cerrar (cerca del comienzo, fin de la venta, «Cerrar la lista» en el panel) o si se cancela el
+  evento. Los dos últimos, solo si pasó hace menos de 48 h. En el cron van **primero** en la tanda
+  (`runMailQueueWith`, `sendWaitlist`) y comparten el «de a cuántos»; las acciones del panel y los
+  empujones mandan los de ese evento en el momento.
+- **Sin mail:** «Terminar la reserva y pasar a la siguiente» y «Sacar de la lista» (panel), salir
+  con el link, y un tipo de entrada que ya no existe. Si «Terminar la reserva» tiene que avisar,
+  está **a confirmar por gorrite** ([decisión 0040](decisiones/0040-lista-de-espera.md)).
+- **Si no sale** después de 3 intentos: una fila en «Para revisar» que lleva a la pestaña «Lista de
+  espera» del evento, con «Volver a probar».
 - **Links:** confirmar `/lista-de-espera/confirmar/<token>` (48 h); salir
   `/lista-de-espera/salir/<id>.<firma>` y volver `/lista-de-espera/volver/<id>.<firma>`, firmados con
   `waitlist_leave_key` (se crea sola en `ticket_settings`), cada uno con su propio mensaje; la oferta

@@ -101,6 +101,7 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0031](0031-reserva-transferencia-dias-habiles.md): La reserva por transferencia dura 2 días
   hábiles (11/10)
 - [0035](0035-vender-en-puerta-sin-conexion.md): La puerta vende sin conexión (11/10)
+- [0040](0040-lista-de-espera.md): Lista de espera por evento o por tipo de entrada (11/10)
 
 ### Propinas
 
