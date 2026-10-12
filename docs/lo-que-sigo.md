@@ -69,13 +69,57 @@ Antes, en producción: aplicar la migración `0032_lo_que_sigo.sql`
 
 - **Lo que sigue cada cuenta es privado.** No se muestra en ninguna página pública ni a otras
   cuentas, tampoco como «N personas siguen esto». Todas las lecturas de `follows.js` reciben la
-  cuenta y devuelven solo lo suyo.
+  cuenta y devuelven solo lo suyo. En el panel, les admins sí lo ven: en la ficha de cada persona
+  y en Mensajes › Lo que sigo (cuántas cuentas siguen cada cosa y quiénes)
+  ([0043](decisiones/0043-lo-que-sigo-en-el-panel.md), ver [En el panel](#en-el-panel)).
 - **No se guarda ningún mail** en estas tablas: los avisos usan el mail de la cuenta.
 - **Solo se sigue lo que se puede ver**: una etiqueta que existe, o un perfil que la cuenta puede
   ver (con las reglas de visibilidad de los objetos) y que está aprobado para /amigues (o que ella
   gestiona). Si algo seguido deja de existir o de verse, en Mi rincón aparece como «Ya no está
   disponible», sin nombre ni link, y se puede dejar de seguir.
 - **Borrar la cuenta borra lo seguido** (`deleteAccount`).
+
+## En el panel
+
+**Mensajes › Lo que sigo** (`/admin/mensajes/lo-que-sigo`, solo admins) es para mirar: nada de
+ahí cambia lo que sigue alguien. Se ve también con el interruptor apagado, para mirar el estado
+antes de prenderlo (apagado, explica qué pasa al prenderlo). Muestra:
+
+- **Estado**: los interruptores «Lo que sigo» y «Bot de Telegram» (y si al bot le falta el secreto
+  o el token, sin sus valores), con link a Ajustes › Interruptores.
+- **Lo más seguido** (arriba, porque es lo más útil): cada etiqueta o serie, perfil y lugar con
+  cuántas cuentas lo siguen, aunque sea una (sin piso,
+  [0043](decisiones/0043-lo-que-sigo-en-el-panel.md)), con link a su página del panel. Un perfil
+  oculto o borrado, o una etiqueta que ya no está en el árbol, lo dice. Cada una se abre
+  («Quiénes») y lista las cuentas que la siguen (el mail), cada una con link a «Lo que sigue» en
+  su ficha.
+- **Por persona**: cada cuenta con cuántas cosas sigue y cuáles (las que más siguen, primero; 20 y
+  «Ver más»), con link a su ficha.
+- **En números**: cuántas cuentas siguen algo, cuántas cosas seguidas en total y por tipo
+  (etiquetas y series, perfiles, lugares), y cuántas tienen prendido «en mi calendario», «algo
+  nuevo» y «recordatorio», por mail y por Telegram.
+- **Avisos mandados**: en los últimos 7 y 30 días y desde el principio, por tipo (algo nuevo,
+  recordatorio) y canal, y cuándo salió el último. Son los que **salieron**: los que fallan no
+  quedan guardados (se borra su fila para reintentar), así que no se pueden contar sin una
+  migración.
+- **«Avisame si se repite»**: cuántas suscripciones con cuenta ya pasaron a `follows`, cuántas con
+  cuenta faltan pasar (confirmadas; se pasan solas en el cron con el interruptor prendido) y
+  cuántas sin cuenta siguen con el mail.
+- **Telegram**: cuántas cuentas conectaron su chat y cuántas lo tienen en silencio.
+- **Dónde se configura**: Interruptores, Automatizaciones, Series, Textos del bot y «Cómo lo ve
+  una persona» (Mi rincón → Lo que sigo).
+
+Los números salen de `followStats` (`src/lib/server/sigo/stats.js`): solo cuenta, nunca devuelve
+ids de cuentas, mails ni chats (lo prueba `stats.test.js`). Quién sigue qué sale aparte, de
+`whoFollows` (mismo archivo): el mail y el link a la ficha de cada cuenta que existe (las borradas
+no), hasta 5000 filas de `follows` (si hay más, la página avisa que muestra una parte). Lo usa
+solo el `load` de esta página, detrás de `requireAdmin` y sin caché ni referrer; no sale en el
+sitio, en `/api/sigo` ni en el bot. Cada consulta va en su try/catch: una
+tabla que falta deja ese dato en «—». Se calcula en cada visita (una tanda de consultas); si con
+muchas cuentas se pone lento, se puede guardar unos minutos.
+
+Lo de cada persona (qué sigue, con qué avisos, qué le llegó) está en su ficha (Comunidad ›
+Personas o Cuentas › una cuenta → «Lo que sigue»).
 
 ## Cómo funciona
 
@@ -157,6 +201,8 @@ que se vuelva a prender.
 - `src/lib/server/sigo/follows.js`: lecturas y escrituras de `follows` y de las preferencias.
 - `src/lib/server/sigo/targets.js`: qué es cada cosa seguida y si la cuenta la puede seguir.
 - `src/lib/server/sigo/web.js`: el interruptor y la cuenta de la sesión.
+- `src/lib/server/sigo/stats.js`: los números de Mensajes › Lo que sigo (`followStats`: totales y
+  cuántas cuentas siguen cada cosa) y quién sigue qué para esa página (`whoFollows`), con tests.
 - `src/routes/(content)/mi-rincon/sigo/`: la página (acciones `seguir`, `dejar`, `opciones`) y el
   CSV (`sigo.csv`).
 - `src/lib/components/sigo/`: «Agregar» (`FollowAdd.svelte`) y la grilla de opciones de cada cosa
@@ -199,5 +245,6 @@ que se vuelva a prender.
 ## Cómo probar
 
 ```sh
-npx vitest run src/lib/utils/sigo.test.js src/lib/server/sigo "src/routes/(content)/mi-rincon/sigo"
+npx vitest run src/lib/utils/sigo.test.js src/lib/server/sigo "src/routes/(content)/mi-rincon/sigo" \
+  "src/routes/(authed)/admin/mensajes/lo-que-sigo"
 ```
