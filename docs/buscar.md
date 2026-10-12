@@ -157,6 +157,53 @@ En el sitio y el bot estos se buscan como texto (`orden:` no es un operador ahí
    necesita la regla de respaldo.
 4. Sumalo a la guía visible si es de los que ve la gente.
 
+## Hacia dónde va
+
+Dirección acordada con gorrite (12/10), no compromiso: cada paso es su propio PR y se escribe en
+las tablas de arriba cuando se hace. La idea: el poder de Logseq (el sitio es un grafo de objetos
+y relaciones) con la forma de escribir de Twitter (que se lee casi como texto), sin asumir gente
+técnica.
+
+### Cuatro capas, un mismo texto
+
+Todo es texto en la misma caja: se puede copiar, mandar como link o pegar en el bot.
+
+1. **Escribir y listo**: palabras sueltas, con errores de tipeo y otros nombres. La mayoría no sale
+   de acá.
+2. **Tocar en vez de escribir**: chips de filtro (Eventos, Este finde, una etiqueta, un lugar) y
+   autocompletado al escribir `#`, `@` o `algo:`. Tocar un chip escribe el operador en la caja
+   (`evento: finde`): así se aprende la sintaxis sin leer una guía.
+3. **Operadores**: los de arriba, más `#cuerdas,shibari` (una u otra; la coma es el «o» amable),
+   `OR` entre palabras (`impacto OR spanking`), `desde:` y `hasta:` (fechas, como el `since:` de
+   Twitter) y `tiene:pdf`, `tiene:video`, `tiene:imagen`.
+4. **El grafo**:
+   - `[[Mirones]]`: esa cosa exacta, elegida del autocompletado (no el texto «mirones»).
+   - Relaciones como operadores: `serie:[[Mirones]]`, `parte-de:[[…]]`, `organiza:@nombre`,
+     `autore:@nombre`.
+   - `enlaza:[[Consentimiento]]`: lo que enlaza a esa página (la referencia inversa).
+   - **Pregunta abierta**: anidar, como `evento: lugar:(#accesible)` (eventos en lugares con esa
+     etiqueta). Poderoso, pero es donde la gente se pierde; solo si alguien lo necesita.
+
+### Lo mismo, usado en otros lados
+
+- **Consultas vivas en una página**: une editore escribe `{{evento: #shibari desde:hoy}}` en una
+  entrada de la Kinkipedia y la página muestra esa lista, siempre al día.
+- **Seguir una búsqueda**: «Lo que sigo» puede seguir `#cuerdas lugar:palermo`, no solo una
+  etiqueta, y avisar por Telegram cuando aparece algo nuevo que cumple.
+- **Un link**: `/buscar?q=…` abre la misma búsqueda para quien lo toca.
+- Va de la mano con los `[[enlaces]]` en el cuerpo de todos los objetos (Kinkipedia, material,
+  perfiles, eventos) y su «Lo que enlaza acá»: `enlaza:` y `[[ ]]` son esos mismos datos. Las
+  referencias inversas respetan quién puede ver qué (nunca muestran algo oculto ni «solo con
+  cuenta» a quien no lo puede ver).
+
+### En qué orden
+
+1. Esta sintaxis base en los tres buscadores y la guía visible (`buscar-sintaxis-*`,
+   `buscar-guia-visible`).
+2. Chips, autocompletado y los operadores baratos de la capa 3.
+3. El grafo: `[[ ]]`, las relaciones y `enlaza:` (con los enlaces en el cuerpo).
+4. Consultas vivas y seguir una búsqueda.
+
 ## La guía visible
 
 La guía es un resumen de este archivo para quien busca, no otra fuente de verdad: si algo cambia
