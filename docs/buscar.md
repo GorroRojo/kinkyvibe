@@ -6,8 +6,10 @@ si cambiás cómo se busca en cualquier lado, cambiá esto en el mismo PR. La gu
 sitio, el bot o el panel sale de acá (ver «La guía visible», abajo). Por qué es así:
 [0046](decisiones/0046-sintaxis-de-busqueda.md).
 
-> **Estado (12/10):** esto es lo **acordado**, todavía no está hecho en todos lados. La columna
-> «Hoy» de cada tabla dice dónde ya anda. Cuando un PR lo aplica, actualiza esa columna.
+> **Estado (12/10):** esto es la **propuesta** de 0046, todavía sin el OK de gorrite (tres puntos
+> abiertos: la regla de respaldo de las fechas, las formas cortas y qué busca `@nombre`). Tampoco
+> está hecho en todos lados: la columna «Hoy» de cada tabla dice dónde ya anda, y cada PR que lo
+> aplica la actualiza.
 
 ## Los tres buscadores
 
