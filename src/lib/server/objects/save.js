@@ -18,13 +18,23 @@
  * Borrar es "suave" (`deleted: true`, se deshace con `deleted: false`); los edges quedan para
  * poder deshacer. La purga definitiva todavía no existe.
  *
+ * `saveObjects()` guarda varios objetos en UNA tanda (todo o nada), con las mismas reglas y las
+ * mismas sentencias que `saveObject()` uno por uno: para las importaciones grandes (la semilla de
+ * etiquetas), que de a uno eran cientos de idas y vueltas a la base.
+ *
  * Todavía faltan (fase 2, en su PR): historial de revisiones y registro en admin_audit, que van
  * en esta misma tanda.
  *
  * Solo usa imports relativos.
  */
 import { ObjectError, VersionConflictError } from './errors.js';
-import { checkEdgeTargets, normalizeEdges, withDerivedEdges } from './edges.js';
+import {
+	assertEdgeTargets,
+	checkEdgeTargets,
+	edgeTargetRows,
+	normalizeEdges,
+	withDerivedEdges
+} from './edges.js';
 import { OBJECT_COLUMNS, rowToObject } from './read.js';
 import { coreTypes, validateData } from './types/index.js';
 import { DEFAULT_VISIBILITY, VISIBILITIES } from './visibility.js';
@@ -82,15 +92,21 @@ function errorText(error) {
 }
 
 /**
+ * Lo que se va a escribir de un guardado: las validaciones de siempre y las sentencias de su tanda.
+ *
  * @param {D1Database} db
  * @param {SaveInput} input
  * @param {SaveContext} context
- * @returns {Promise<import('./read.js').StoredObject>}
+ * @param {{ prefetched?: Record<string, unknown> | null, deferTargets?: boolean }} [opts]
+ *   `prefetched`: la fila actual ya leída (`null`: no existe), para no volver a leerla;
+ *   `deferTargets`: no verificar los destinos de los edges acá (lo hace quien llama, para todos
+ *   juntos, con {@link assertEdgeTargets})
  */
-export async function saveObject(
+async function planSave(
 	db,
 	input,
-	{ actor, now = Date.now(), registry = coreTypes, also, createdBy }
+	{ actor, now = Date.now(), registry = coreTypes, also, createdBy },
+	{ prefetched, deferTargets = false } = {}
 ) {
 	if (!actor || typeof actor !== 'string') throw new ObjectError('invalid', 'Falta quién guarda.');
 	if (createdBy !== undefined && (typeof createdBy !== 'string' || !createdBy))
@@ -103,10 +119,13 @@ export async function saveObject(
 	let current = null;
 	if (!isNew) {
 		if (!Number.isSafeInteger(input.id)) throw new ObjectError('invalid', 'Id inválido.');
-		const row = await db
-			.prepare(`SELECT ${OBJECT_COLUMNS} FROM objects WHERE id = ?1`)
-			.bind(input.id)
-			.first();
+		const row =
+			prefetched !== undefined
+				? prefetched
+				: await db
+						.prepare(`SELECT ${OBJECT_COLUMNS} FROM objects WHERE id = ?1`)
+						.bind(input.id)
+						.first();
 		if (!row) throw new ObjectError('not_found', 'Ese objeto ya no existe.', { status: 404 });
 		current = rowToObject(row);
 		if (current.type !== def.type) {
@@ -152,7 +171,7 @@ export async function saveObject(
 
 	const edgeInput = await withDerivedEdges(db, def, input.edges, validated.data);
 	const edges = normalizeEdges(def, edgeInput, current?.id ?? null);
-	await checkEdgeTargets(db, def, edges);
+	if (!deferTargets) await checkEdgeTargets(db, def, edges);
 
 	const data = JSON.stringify(validated.data);
 	const searchText = def.searchText?.(validated.data) ?? '';
@@ -238,45 +257,66 @@ export async function saveObject(
 	}
 
 	if (also) batch.push(...also({ id: current?.id ?? null, type: def.type, slug }));
+	return { def, current, edges, batch, objectIndex };
+}
 
+/**
+ * Un error de la tanda de un guardado, con el mensaje de siempre (versión, dirección repetida,
+ * relación rota) o tal cual.
+ *
+ * @param {D1Database} db
+ * @param {unknown} error
+ * @param {SaveInput} input
+ * @param {{ def: import('./types/index.js').CoreType, current: import('./read.js').StoredObject | null }} plan
+ * @returns {Promise<never>}
+ */
+async function saveError(db, error, input, { def, current }) {
+	const text = errorText(error);
+	if (text.includes('objects_version_conflict')) {
+		const row = await db
+			.prepare('SELECT version FROM objects WHERE id = ?1')
+			.bind(current?.id ?? 0)
+			.first();
+		throw new VersionConflictError(
+			/** @type {number} */ (current?.id),
+			/** @type {number} */ (input.version),
+			row ? Number(row.version) : null,
+			error
+		);
+	}
+	if (text.includes('UNIQUE constraint failed: objects.type, objects.slug')) {
+		throw new ObjectError('slug_taken', `Ya hay un ${def.label.toLowerCase()} con esa dirección.`, {
+			status: 409,
+			errors: [{ path: 'slug', message: 'Esa dirección ya está usada.' }],
+			cause: error
+		});
+	}
+	if (text.includes('FOREIGN KEY constraint failed')) {
+		throw new ObjectError(
+			'invalid_reference',
+			'Una de las relaciones apunta a algo que ya no existe.',
+			{
+				cause: error
+			}
+		);
+	}
+	throw error;
+}
+
+/**
+ * @param {D1Database} db
+ * @param {SaveInput} input
+ * @param {SaveContext} context
+ * @returns {Promise<import('./read.js').StoredObject>}
+ */
+export async function saveObject(db, input, context) {
+	const plan = await planSave(db, input, context);
+	const { batch, objectIndex } = plan;
 	let results;
 	try {
 		results = await db.batch(batch);
 	} catch (error) {
-		const text = errorText(error);
-		if (text.includes('objects_version_conflict')) {
-			const row = await db
-				.prepare('SELECT version FROM objects WHERE id = ?1')
-				.bind(current?.id ?? 0)
-				.first();
-			throw new VersionConflictError(
-				/** @type {number} */ (current?.id),
-				/** @type {number} */ (input.version),
-				row ? Number(row.version) : null,
-				error
-			);
-		}
-		if (text.includes('UNIQUE constraint failed: objects.type, objects.slug')) {
-			throw new ObjectError(
-				'slug_taken',
-				`Ya hay un ${def.label.toLowerCase()} con esa dirección.`,
-				{
-					status: 409,
-					errors: [{ path: 'slug', message: 'Esa dirección ya está usada.' }],
-					cause: error
-				}
-			);
-		}
-		if (text.includes('FOREIGN KEY constraint failed')) {
-			throw new ObjectError(
-				'invalid_reference',
-				'Una de las relaciones apunta a algo que ya no existe.',
-				{
-					cause: error
-				}
-			);
-		}
-		throw error;
+		throw await saveError(db, error, input, plan);
 	}
 
 	// RETURNING y no meta.changes: D1 cuenta también lo que escriben los triggers (FTS).
@@ -289,4 +329,95 @@ export async function saveObject(
 		.first();
 	if (!saved) throw new ObjectError('not_found', 'Ese objeto ya no existe.', { status: 404 });
 	return rowToObject(saved);
+}
+
+/**
+ * @typedef {object} SaveItem
+ * @prop {SaveInput} input
+ * @prop {SaveContext['also']} [also] las tablas de apoyo de ESTE objeto (como `also` de saveObject)
+ */
+
+/**
+ * Varios guardados en UNA tanda de la base (una transacción: entra todo o nada), con las mismas
+ * validaciones y las mismas sentencias que {@link saveObject} de a uno. Las lecturas también van
+ * juntas: los objetos que se editan (una consulta) y los destinos de los edges (una consulta).
+ *
+ * Para importaciones grandes. Si algo no pasa (una validación o la tanda), tira y no escribe
+ * nada: quien llama puede volver a guardar de a uno con saveObject() para saber cuál falló y por
+ * qué (el error es el de ese guardado solo).
+ *
+ * Para que valga lo mismo que uno por uno, un mismo objeto no puede estar dos veces y no se borra
+ * ni se deshace un borrado acá (cambiaría lo que ven los guardados que siguen).
+ *
+ * @param {D1Database} db
+ * @param {readonly SaveItem[]} items
+ * @param {Omit<SaveContext, 'also'>} context
+ * @returns {Promise<import('./read.js').StoredObject[]>} en el orden de `items`
+ */
+export async function saveObjects(db, items, context) {
+	if (!items.length) return [];
+	const ids = items.map((i) => i.input?.id).filter((id) => id !== undefined && id !== null);
+	if (new Set(ids).size !== ids.length) {
+		throw new ObjectError('invalid', 'Un mismo objeto no puede guardarse dos veces en una tanda.');
+	}
+	if (items.some((i) => i.input?.deleted !== undefined)) {
+		throw new ObjectError('invalid', 'Borrar o deshacer un borrado va de a uno.');
+	}
+	const safe = ids.filter((id) => Number.isSafeInteger(id));
+	/** @type {Map<number, Record<string, unknown>>} */
+	const rows = new Map();
+	if (safe.length) {
+		const { results } = await db
+			.prepare(
+				`SELECT ${OBJECT_COLUMNS} FROM objects WHERE id IN (SELECT value FROM json_each(?1))`
+			)
+			.bind(JSON.stringify(safe))
+			.all();
+		for (const r of results) rows.set(Number(r.id), r);
+	}
+	/** @type {Awaited<ReturnType<typeof planSave>>[]} */
+	const plans = [];
+	for (const { input, also } of items) {
+		const id = input?.id;
+		plans.push(
+			await planSave(
+				db,
+				input,
+				{ ...context, also },
+				{
+					prefetched: id === undefined || id === null ? undefined : (rows.get(Number(id)) ?? null),
+					deferTargets: true
+				}
+			)
+		);
+	}
+	const targets = await edgeTargetRows(
+		db,
+		plans.flatMap((p) => [...p.edges.values()].flat().map((e) => e.to))
+	);
+	for (const p of plans) assertEdgeTargets(p.def, p.edges, targets);
+
+	/** @type {D1PreparedStatement[]} */
+	const batch = [];
+	const objectIndexes = plans.map((p) => {
+		const at = batch.length + p.objectIndex;
+		batch.push(...p.batch);
+		return at;
+	});
+	const results = await db.batch(batch);
+	const savedIds = objectIndexes.map((at) => {
+		const returned = /** @type {any} */ (results[at].results?.[0]);
+		if (!returned) throw new ObjectError('not_found', 'Ese objeto ya no existe.', { status: 404 });
+		return Number(returned.id);
+	});
+	const { results: saved } = await db
+		.prepare(`SELECT ${OBJECT_COLUMNS} FROM objects WHERE id IN (SELECT value FROM json_each(?1))`)
+		.bind(JSON.stringify(savedIds))
+		.all();
+	const byId = new Map(saved.map((r) => [Number(r.id), rowToObject(r)]));
+	return savedIds.map((id) => {
+		const object = byId.get(id);
+		if (!object) throw new ObjectError('not_found', 'Ese objeto ya no existe.', { status: 404 });
+		return object;
+	});
 }

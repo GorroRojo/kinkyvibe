@@ -118,7 +118,7 @@
 	</div>
 	<div id="lista"></div>
 	<!-- el feed largo de a 20: así el pie de página queda a mano -->
-	<PostList posts={allPosts} limit={20} />
+	<PostList heading="Lo último publicado" posts={allPosts} limit={20} />
 </main>
 
 <style>

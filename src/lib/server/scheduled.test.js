@@ -9,8 +9,10 @@ import {
 	REMINDERS_CRON,
 	handleScheduled,
 	runObjectsIntegrity,
-	runReminders
+	runReminders,
+	runSessionCleanup
 } from './scheduled.js';
+import { STALE_SESSION_MS } from './cuentas/sessionAge.js';
 
 const ctx = /** @type {any} */ ({ waitUntil() {}, passThroughOnException() {} });
 
@@ -195,6 +197,81 @@ describe('integridad de objetos (después del backup)', () => {
 			log.mockRestore();
 		}
 	}, 30_000);
+});
+
+describe('sesiones sin cookie (después del backup)', () => {
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let t;
+	beforeAll(async () => {
+		t = await createTestDB();
+	});
+	afterAll(async () => {
+		await t?.dispose();
+	});
+
+	const DAY = 24 * 60 * 60 * 1000;
+	const now = Date.parse('2026-10-03T06:00:00Z');
+
+	/** @param {string} hash una letra (el hash de prueba es esa letra 64 veces) @param {number} lastSeen */
+	async function session(hash, lastSeen) {
+		await t.db
+			.prepare(
+				`INSERT INTO account_sessions (token_hash, account_id, method, created_at, last_seen_at)
+				VALUES (?1, '00000000-0000-4000-8000-00000000c0de', 'code', ?2, ?2)`
+			)
+			.bind(hash.repeat(64), lastSeen)
+			.run();
+	}
+
+	it('borra solo las que ya no tienen cookie en ningún navegador (más de 401 días sin uso)', async () => {
+		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+		try {
+			await t.db
+				.prepare(
+					`INSERT INTO accounts (id, email, email_verified_at, created_at, updated_at)
+					VALUES ('00000000-0000-4000-8000-00000000c0de', 'cuenta@example.com', 1, 1, 1)`
+				)
+				.run();
+			// La cookie dura 400 días desde que se mandó por última vez (cuando cambia
+			// `last_seen_at`); un día más de margen.
+			expect(STALE_SESSION_MS).toBe(401 * DAY);
+			await session('a', now); // de hoy
+			await session('b', now - 400 * DAY); // la cookie todavía puede estar
+			await session('c', now - STALE_SESSION_MS); // justo en el límite: queda
+			await session('d', now - STALE_SESSION_MS - 1); // ya no tiene cookie
+			await session('e', now - 900 * DAY); // ya no tiene cookie
+			expect(await runSessionCleanup({ DB: t.db }, new Date(now))).toBe(2);
+			const { results } = await t.db
+				.prepare('SELECT substr(token_hash, 1, 1) AS h FROM account_sessions ORDER BY h')
+				.all();
+			expect(results.map((r) => r.h)).toEqual(['a', 'b', 'c']);
+			// En el log, solo cuántas.
+			expect(log).toHaveBeenCalledWith('sesiones viejas: 2 borrada(s)');
+			// Otra vez: nada más que borrar.
+			expect(await runSessionCleanup({ DB: t.db }, new Date(now))).toBe(0);
+		} finally {
+			log.mockRestore();
+		}
+	}, 30_000);
+
+	it('si falla, lo escribe en el log y no tira error', async () => {
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const broken = /** @type {any} */ ({
+			prepare: () => {
+				throw new Error('base caída');
+			}
+		});
+		try {
+			expect(await runSessionCleanup({ DB: broken })).toBeNull();
+			expect(await runSessionCleanup({})).toBeNull();
+			expect(error).toHaveBeenCalledWith(
+				expect.stringContaining('la limpieza falló'),
+				expect.any(Error)
+			);
+		} finally {
+			error.mockRestore();
+		}
+	});
 });
 
 describe('cron desconocido', () => {

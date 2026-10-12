@@ -160,6 +160,20 @@ export function coveringTicketSlug(ws, slug) {
 }
 
 /**
+ * Las partes que cubre la entrada de `slug`: todas las del taller (en orden, el taller incluido)
+ * si `slug` es el taller de un taller con una sola entrada para todas las partes; si no, `null`
+ * (un evento suelto, una parte, o un taller con «Entradas por parte»).
+ *
+ * @param {Workshop | null | undefined} ws
+ * @param {string} slug
+ * @returns {NumberedPart[] | null}
+ */
+export function partsCoveredBy(ws, slug) {
+	if (!ws || ws.total < 2 || ws.workshop.perPart || ws.workshop.slug !== slug) return null;
+	return ws.parts;
+}
+
+/**
  * Las etiquetas «Parte N de M» de un conjunto de talleres, por dirección del evento (para las
  * listas y el calendario).
  *

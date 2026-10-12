@@ -9,7 +9,8 @@
  * - **Estado**: solo cantidades (consultas con `SUM`/`COUNT`, nunca columnas de compradores: ni
  *   nombres, ni mails, ni DNI, ni teléfonos). Lo de cada compra queda en el panel.
  * - **Mis avisos**: qué avisos eligió cada admin (migración 0054). Vienen apagados (sin fila =
- *   apagado). Por ahora solo se guardan: los mandan los PR siguientes (decisión 0041).
+ *   apagado). El resumen diario y los de cada venta y cada transferencia los manda
+ *   adminNotify.js; el día del evento y los recordatorios, el PR 3 (decisión 0041).
  */
 import { isAdmin } from '$lib/server/auth';
 import { isFlagOn } from '$lib/server/flags.js';
@@ -173,9 +174,11 @@ async function waitlistCount(db, slug) {
  * @param {string} slug
  * @param {{ types: import('$lib/server/tickets/config.js').TicketType[] }} config
  * @param {number} now
+ * @param {{ expiringMs?: number }} [opts] `expiringMs`: la ventana de «por vencer» (por defecto,
+ *   {@link EXPIRING_MS}; el resumen diario usa 24 horas)
  * @returns {Promise<EventStatus>}
  */
-export async function eventStatus(db, slug, config, now) {
+export async function eventStatus(db, slug, config, now, { expiringMs = EXPIRING_MS } = {}) {
 	const { results } = await db
 		.prepare(
 			`SELECT ticket_type, ticket_tier,
@@ -185,7 +188,7 @@ export async function eventStatus(db, slug, config, now) {
 					THEN quantity ELSE 0 END) AS expiring
 			FROM orders WHERE event_slug = ?1 GROUP BY ticket_type, ticket_tier`
 		)
-		.bind(slug, now, now + EXPIRING_MS)
+		.bind(slug, now, now + expiringMs)
 		.all();
 	const pending = await db
 		.prepare(
@@ -310,7 +313,7 @@ export async function setAdminNotice(db, githubId, kind, on, { now = Date.now() 
 }
 
 /**
- * A quién mandarle un tipo de aviso (para los PR siguientes): les admins que lo prendieron, con el
+ * A quién mandarle un tipo de aviso (adminNotify.js): les admins que lo prendieron, con el
  * Telegram vinculado y que **siguen** en `ADMINS`. El chat privado con el bot tiene el mismo id
  * que el usuario de Telegram.
  *

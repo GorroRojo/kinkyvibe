@@ -14,7 +14,7 @@
 	 * Escape o elegir una la cierran y el foco vuelve al botón; las flechas recorren la lista. En la
 	 * compu, la tira de siempre (ficha del evento, gorrite 11/10). Desde la parte 2 de la opción C
 	 * lo usan todas las barras de pestañas del panel. El botón es la navegación principal de la
-	 * página en el celu (gorrite, 11/10): ancho entero, con borde y fondo, y una línea chica que
+	 * página en el celu (gorrite, 11/10 y #303): ancho entero, lleno de violeta, y una línea chica que
 	 * dice qué es (`menuCaption`, «Sección» por defecto). Su contador suma el de todas las
 	 * pestañas (lo que hay para revisar en cualquiera de ellas).
 	 * Los links precargan la página al pasar el mouse o con el foco (`data-sveltekit-preload-data`).
@@ -402,15 +402,16 @@
 		align-items: center;
 		gap: 0.45em;
 		width: 100%;
-		/* La navegación principal de la página en el celu: más alta, con borde violeta y fondo lila
-		   (no se confunde con los botones de acción del encabezado). */
+		/* La navegación principal de la página en el celu: más alta y llena de violeta (el color de
+		   «estás acá» del panel), así pesa más que los botones de acción rosas del encabezado, que
+		   son de borde (gorrite, #303). */
 		min-height: calc(var(--tap) + 0.25rem);
 		padding: var(--space-3xs) var(--space-xs);
 		border: 2px solid var(--link);
 		border-radius: var(--round);
-		background: var(--link-bg);
-		box-shadow: var(--shadow-1);
-		color: var(--link);
+		background: var(--link);
+		box-shadow: var(--shadow-2);
+		color: var(--surface);
 		font: inherit;
 		font-size: var(--text-lg, 1.1rem);
 		font-weight: 700;
@@ -423,7 +424,6 @@
 	.toggle-cap {
 		font-size: var(--text-sm);
 		font-weight: 400;
-		color: var(--text);
 	}
 	.toggle-name {
 		flex: 1;
@@ -433,7 +433,6 @@
 		white-space: nowrap;
 	}
 	.tabs-toggle :global(.chev) {
-		color: var(--accent);
 		transition: transform 150ms;
 	}
 	.tabs-toggle[aria-expanded='true'] :global(.chev) {

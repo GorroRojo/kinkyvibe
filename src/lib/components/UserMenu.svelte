@@ -17,8 +17,13 @@
 	} = createDropdownMenu({
 		preventScroll: false
 	});
-	// Los eventos se editan en la ficha del panel; lo demás en /edit (ver $lib/admin/nav.js).
-	$: editHref = contentEditLink($page.url.pathname);
+	// Los eventos se editan en la ficha del panel; lo demás en /edit (ver $lib/admin/nav.js). En la
+	// wiki, el editor es el de la etiqueta que muestra la página (también si se entró por un alias):
+	// la de la entrada (`meta.wiki`) o, sin entrada, la etiqueta resuelta (`data.tag`).
+	$: wikiTag = $page.url.pathname.startsWith('/wiki/')
+		? ($page.data?.meta?.wiki ?? $page.data?.tag?.id ?? null)
+		: null;
+	$: editHref = contentEditLink($page.url.pathname, { wikiTag });
 	$: eventSlug = $page.url.pathname.match(/^\/calendario\/([^/]+)\/?$/)?.[1];
 	$: admin = user.admin === true;
 	// GitHub serves every account's picture at github.com/<login>.png; used when the session has
@@ -47,7 +52,6 @@
 					>
 				{/if}
 				{#if editHref}
-					<!-- TODO handle wikiless wiki links -->
 					<a href={editHref} class="menuitem" use:melt={$item}
 						><SquarePen {...icon} /><span>Editar contenido</span></a
 					>
