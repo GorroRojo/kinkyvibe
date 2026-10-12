@@ -104,43 +104,38 @@ inicio y en las tarjetas de las listas.
 Páginas de producción bajadas una vez (GET, sin tocar nada). Tamaño del HTML y, entre paréntesis,
 comprimido con gzip (lo que viaja es parecido: Cloudflare manda brotli, `/calendario` = 47 KB).
 
-| Página        | HTML   | Datos de SvelteKit | SVG   | Tarjetas    | gzip  |
-| ------------- | ------ | ------------------ | ----- | ----------- | ----- |
-| `/`           | 295 KB | 99 KB              | 30 KB | 20 · 73 KB  | 46 KB |
-| `/calendario` | 432 KB | 284 KB             | 27 KB | 13 · 54 KB  | 55 KB |
-| un evento     | 82 KB  | 35 KB              | 18 KB | —           | 20 KB |
-| `/material`   | 297 KB | 71 KB              | 52 KB | 55 · 170 KB | 42 KB |
-| un material   | 117 KB | 35 KB              | 26 KB | —           | 27 KB |
-| `/amigues`    | 178 KB | 50 KB              | 33 KB | 29 · 76 KB  | 27 KB |
-| `/wiki`       | 162 KB | 48 KB              | 68 KB | —           | 27 KB |
-| `/wiki/BDSM`  | 353 KB | 78 KB              | 62 KB | 59 · 192 KB | 47 KB |
+| Página        | HTML antes   | HTML después | Datos antes | Datos después |
+| ------------- | ------------ | ------------ | ----------- | ------------- |
+| `/calendario` | 310,0 (44,1) | 70,1 (17,9)  | 225,6       | 34,4          |
 
-No hay CSS en línea (0 bloques `<style>`: todo va en archivos) y el JSON-LD pesa menos de 1 KB.
-
-### Las tres causas
-
-1. **Los datos que SvelteKit manda para hidratar.** `/calendario` manda los ~510 eventos
-   (casi todos pasados, ya recortados a 12 campos): 251 KB de 284 KB. Y **cada página** lleva el
-   árbol de etiquetas (`siteTags`, 27 KB) y la lista de la wiki (3 KB) del layout raíz.
-2. **Las tarjetas de las listas: 2,6 a 4,1 KB cada una.** En `/material` (55) y `/wiki/BDSM` (59)
-   son 170 y 192 KB. Adentro: las etiquetas de cada tarjeta (39 y 47 KB en esas páginas) y un
-   ícono SVG por tarjeta (600 a 800 bytes cada uno).
-3. **Lo repetido:** los íconos SVG en línea (27 a 68 KB por página; `/wiki` tiene 128), el panel
-   «Filtrar por etiquetas» armado aunque esté cerrado (20 a 41 KB en las listas; en compu se ve
-   siempre) y las marcas de hidratación de Svelte (`<!--[-->`, 22 a 54 KB, no se pueden sacar).
+- **`/calendario`, los pasados de a un mes.** Viajan los próximos enteros y, de los pasados, solo
+  los del mes que se abre (con los campos de la grilla, sin el lugar). Al ir a otro mes, la página
+  pide sus pasados a `/api/calendario/pasados?mes=yyyy-MM` (5 minutos de caché, como
+  `/api/posts`) y aparecen en la grilla al llegar. «Mostrar eventos pasados» sigue igual (trae
+  `/api/posts` entero). Código: `src/lib/server/eventos/pasados.js`.
 
 ### Para hacer después (ahorro estimado, sin comprimir)
 
-- `/calendario`: los eventos pasados por mes, cuando se piden, en vez de todos en la página:
-  −200 a −250 KB.
-- `siteTags` y la wiki del layout raíz como un JSON aparte con caché del navegador: −30 KB en cada
-  página.
-- Íconos de las tarjetas con un sprite SVG (`<use href>`) o una máscara CSS: −15 a −45 KB en las
-  listas.
-- Hasta 5 etiquetas por tarjeta («+N» para el resto): −20 a −35 KB en `/material` y la wiki.
+- `siteTags` y la wiki del layout raíz como un JSON aparte: **no ahorra en la primera visita** si
+  se hace con un `fetch` en un `load`, porque SvelteKit mete en el HTML lo que se pidió durante el
+  render del servidor, y las etiquetas hacen falta para armar la página (colores, madres). Al
+  navegar dentro del sitio el layout raíz no se vuelve a pedir, así que tampoco ahorra ahí. Solo
+  serviría con las etiquetas en un archivo estático que el navegador guarde (por ejemplo, armado
+  al guardar etiquetas en el panel) y la página esperándolo antes de hidratar. Mucho riesgo para
+  −30 KB; queda en espera.
+- Hasta 5 etiquetas por tarjeta: −20 a −35 KB en `/material` y la wiki. **Cambia lo que se ve**:
+  lo decide gorrite. Opciones: (a) 5 y un «+N» que no hace nada (la tarjeta entera ya es un link);
+  (b) 5 y «+N» que despliega el resto en la tarjeta; (c) solo en las listas largas (`/material`,
+  `/wiki/<etiqueta>`), no en el inicio; (d) dejarlo así.
 - `/wiki/<término>`: las publicaciones relacionadas de a 20: −25 KB de datos y hasta −120 KB de
-  tarjetas en las etiquetas con muchas.
+  tarjetas en las etiquetas con muchas. **Cambia lo que se ve**: lo decide gorrite. Opciones:
+  (a) `limit={20}` en la lista con «Ver más», como el inicio (ahorra tarjetas, no datos);
+  (b) además, el servidor manda 20 y «Ver más» pide las siguientes (ahorra las dos cosas, pero los
+  filtros por etiqueta tendrían que pedir al servidor); (c) dejarlo así.
 - El panel de etiquetas armado recién al abrirlo en celu (en compu sigue visible): −20 a −41 KB.
+- Íconos de las tarjetas con un sprite SVG (`<use href>`) o una máscara CSS: −15 a −45 KB en las
+  listas (comprimido casi no cambia: gzip ya comprime lo repetido; ganaría un DOM más chico).
+  Se probó en #334 y gorrite decidió no hacerlo por ahora.
 
 ### Lo demás
 

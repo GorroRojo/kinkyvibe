@@ -44,6 +44,14 @@ export function calendarDayFlags(date, now = Date.now()) {
 /** El mes de hoy en Argentina, yyyy-MM. @param {number} [now] */
 export const currentMonth = (now = Date.now()) => argDate(now).slice(0, 7);
 
+/**
+ * true si `m` es un mes del calendario, yyyy-MM (como `?viewdate=` de /calendario).
+ * @param {string | null | undefined} m
+ * @returns {m is string}
+ */
+export const isCalendarMonth = (m) =>
+	!!m && /^\d{4}-\d{2}$/.test(m) && !isNaN(new Date(m + '-01T00:00').getTime());
+
 /** @param {string} month yyyy-MM @param {number} n meses (pueden ser negativos) */
 export function shiftCalendarMonth(month, n) {
 	const [y, m] = month.split('-').map(Number);
