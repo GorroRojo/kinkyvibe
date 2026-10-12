@@ -150,13 +150,37 @@ export async function withDerivedEdges(db, def, edges, data) {
 export async function checkEdgeTargets(db, def, edges) {
 	const ids = [...new Set([...edges.values()].flat().map((e) => e.to))];
 	if (!ids.length) return;
+	assertEdgeTargets(def, edges, await edgeTargetRows(db, ids));
+}
+
+/**
+ * El tipo y si está borrado de cada destino (por id), en una consulta: para verificar los de
+ * varios guardados juntos (`saveObjects`).
+ *
+ * @param {D1Database} db
+ * @param {Iterable<number>} ids
+ * @returns {Promise<Map<number, Record<string, unknown>>>}
+ */
+export async function edgeTargetRows(db, ids) {
+	const unique = [...new Set(ids)];
+	if (!unique.length) return new Map();
 	const { results } = await db
 		.prepare(
 			'SELECT id, type, deleted_at FROM objects WHERE id IN (SELECT value FROM json_each(?1))'
 		)
-		.bind(JSON.stringify(ids))
+		.bind(JSON.stringify(unique))
 		.all();
-	const byId = new Map(results.map((r) => [Number(r.id), r]));
+	return new Map(results.map((r) => [Number(r.id), r]));
+}
+
+/**
+ * {@link checkEdgeTargets} con los destinos ya leídos ({@link edgeTargetRows}).
+ *
+ * @param {import('./types/index.js').CoreType} def
+ * @param {Map<string, NormalizedEdge[]>} edges
+ * @param {Map<number, Record<string, unknown>>} byId
+ */
+export function assertEdgeTargets(def, edges, byId) {
 	/** @type {import('./fields.js').FieldError[]} */
 	const errors = [];
 	for (const [kind, list] of edges) {

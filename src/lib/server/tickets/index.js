@@ -8,6 +8,7 @@
  */
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
+import { siteOriginFrom } from '$lib/utils/site.js';
 import {
 	DEFAULT_CONTACT_EMAIL,
 	DEFAULT_MP_FEE_PERCENT,
@@ -245,8 +246,7 @@ export function webhookSecret() {
  * @param {URL} url
  */
 export function siteOrigin(url) {
-	const configured = env.SITE_URL?.trim().replace(/\/+$/, '');
-	return configured || url.origin;
+	return siteOriginFrom(env.SITE_URL, url.origin);
 }
 
 /**

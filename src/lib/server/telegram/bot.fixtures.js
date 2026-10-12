@@ -40,7 +40,9 @@ import {
 	ticketsScreen,
 	ticketsUnlinkedScreen
 } from './misEntradas.js';
+import tagsFactory from '$lib/utils/tags.js';
 import { makeInlineSource } from './inlineSource.js';
+import { miniAppTexts } from './miniapp.js';
 import { shortHash } from './nav.js';
 import { planUpdate } from './router.js';
 import { adminEventsScreen, adminNoticesScreen, adminStatusScreen } from './adminBot.js';
@@ -92,7 +94,7 @@ const SITE_DOCS = [
 		h: '/calendario/taller-de-cuerdas',
 		t: 'Taller de cuerdas',
 		d: '2031-01-11T00:00:00.000Z',
-		g: ['cuerdas']
+		g: ['cuerdas', 'noche-de-cuerdas']
 	},
 	{
 		c: 'calendario',
@@ -162,6 +164,20 @@ const SITE_SOURCE = makeInlineSource(
 	},
 	{}
 );
+/** El mismo índice con el árbol de etiquetas: la Kinkipedia por ramas (sections.js). */
+const TREE_SOURCE = makeInlineSource({
+	raw: { v: 1, docs: SITE_DOCS, tags: {} },
+	posts: [],
+	wikiPosts: [],
+	profiles: [],
+	tags: tagsFactory(
+		/** @type {any} */ ([
+			{ id: 'root', children: ['practicas'] },
+			{ id: 'practicas', visible_name: 'Prácticas', children: ['cuerdas'] },
+			{ id: 'cuerdas', visible_name: 'Cuerdas' }
+		])
+	)
+});
 const EMPTY_SOURCE = makeInlineSource({
 	raw: { v: 1, docs: [], tags: {} },
 	posts: [],
@@ -410,6 +426,9 @@ export function botCases() {
 	const cases = [];
 	/** @param {string} name @param {() => unknown} fn */
 	const add = (name, fn) => cases.push([name, fn]);
+
+	// Los textos de la página de la Mini App del calendario (miniapp.js).
+	add('miniapp: textos', () => miniAppTexts());
 
 	// Constantes y textos sueltos de format.js.
 	add('constantes', () => ({
@@ -820,6 +839,12 @@ export function routerCases() {
 	add('secciones: etiquetas con una elegida', cb(`ct:m:${shortHash('cuerdas')}`), siteDeps());
 	add('secciones: etiqueta de otra sección', cb(`c:w:0:${shortHash('cuidados')}`), siteDeps());
 	add('secciones: etiqueta que no está', cb('c:m:0:zzzzz'), siteDeps());
+	add('secciones: kinkipedia por ramas', cb('c:w:0'), siteDeps({}, TREE_SOURCE));
+	add(
+		'secciones: kinkipedia, una rama',
+		cb(`c:w:0:${shortHash('cuerdas')}`),
+		siteDeps({}, TREE_SOURCE)
+	);
 	add(
 		'secciones: tarjeta',
 		cb(`cd:m:${docHash(SITE_DOCS[2])}:0:${shortHash('cuerdas')}`),

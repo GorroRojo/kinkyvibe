@@ -775,14 +775,24 @@ describe('contraseña', () => {
 		});
 		expect(ok.ok).toBe(true);
 
-		for (let i = 0; i < RATE_LIMITS.passwordClient.limit; i++) {
-			await passwordLogin({
+		// Un mail distinto por intento (así no se llega al límite por mail). El primero no tiene
+		// cuenta: también cuenta para el límite de la conexión. Los demás tienen una contraseña
+		// con hash barato, porque un mail sin cuenta deriva un hash de mentira con las iteraciones
+		// de verdad y 20 de esos hacían lenta la prueba.
+		const n = RATE_LIMITS.passwordClient.limit;
+		for (let i = 1; i < n; i++) {
+			const other = await upsertVerifiedAccount(t.db, `p${i}@example.com`, { now: NOW });
+			await setPassword(t.db, other.id, PW, { iterations: 1000 });
+		}
+		for (let i = 0; i < n; i++) {
+			const r = await passwordLogin({
 				db: t.db,
 				email: `p${i}@example.com`,
 				password: 'x',
 				client: CLIENT,
 				now: later
 			});
+			expect(r).toEqual({ ok: false, status: 400, message: MESSAGES.badLogin });
 		}
 		const perClient = await passwordLogin({
 			db: t.db,

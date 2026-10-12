@@ -42,6 +42,9 @@
 	/** Lo que dice arriba de los resultados (por defecto «N resultados»).
 	 * @type {(n: number) => string} */
 	export let amountLabel = (n) => `${n} ${n == 1 ? 'resultado' : 'resultados'}`;
+	/** Un `h2` solo para lectores de pantalla y buscadores arriba de las tarjetas (que son `h3`), en
+	 * las listas que no tienen otro `h2` antes: así no se salta de `h1` a `h3` (docs/seo.md). */
+	export let heading = '';
 	let shownLimit = limit;
 	/** Ancho de la lista: desde 1300px (el corte del @container de abajo) el árbol de etiquetas va
 	 * en la columna de la izquierda; más angosto, en la hoja de la barra de filtros (TagBar). */
@@ -303,6 +306,7 @@
 				<!-- No Svelte transitions here: in:scale read getComputedStyle and animate:flip read
 				getBoundingClientRect for every <li>, a forced layout per item, and kept the whole
 				list moving for ~1s. `motion` animates only what's on screen, in one pass. -->
+				{#if heading}<h2 class="visually-hidden">{heading}</h2>{/if}
 				<ul id="posts" class={$userConfig.display_type + ' h-feed'} bind:this={listEl}>
 					{#each shownPosts as post (post.path)}
 						<li data-key={post.path}>
