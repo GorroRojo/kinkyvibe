@@ -120,7 +120,7 @@ No hay CSS en línea (0 bloques `<style>`: todo va en archivos) y el JSON-LD pes
    «Filtrar por etiquetas» armado aunque esté cerrado (20 a 41 KB en las listas; en compu se ve
    siempre) y las marcas de hidratación de Svelte (`<!--[-->`, 22 a 54 KB, no se pueden sacar).
 
-### Peso: lo que ya se hizo (12/10/2026)
+### Peso: lo que ya se hizo (12/10/2026, #334)
 
 Medido con `npm run build` + `vite preview` y la semilla de contenido (`node scripts/semilla.js`),
 antes y después, en KB sin comprimir (gzip entre paréntesis). «Datos» es el `__data.json` de la
