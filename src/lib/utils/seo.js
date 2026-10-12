@@ -3,7 +3,7 @@
  * Open Graph y las de Twitter que arma `SeoHead.svelte`. Sin dependencias del servidor: corre en
  * el servidor, en el navegador y en vitest. Ver docs/compartir.md.
  */
-import { argDayMonth } from './dates.js';
+import { argDayMonth, parseSiteDate } from './dates.js';
 import { eventLead } from './eventText.js';
 import { placeShort, venuePlaceMeta } from './eventPlace.js';
 import { isMediaPath } from './media.js';
@@ -343,7 +343,7 @@ export function upcomingDescription(
 ) {
 	const next = posts
 		.filter((p) => p.meta?.title && p.meta?.status !== 'cancelado')
-		.map((p) => ({ title: String(p.meta.title), at: new Date(p.meta.start).getTime() }))
+		.map((p) => ({ title: String(p.meta.title), at: parseSiteDate(p.meta.start).getTime() }))
 		.filter((p) => Number.isFinite(p.at) && p.at >= now)
 		.sort((a, b) => a.at - b.at)
 		.slice(0, 3)

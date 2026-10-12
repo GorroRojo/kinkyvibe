@@ -32,6 +32,7 @@
  * - si Telegram dice que el chat ya no recibe (bloqueó al bot), se desvincula.
  */
 import { signLink, verifyLink } from '$lib/server/signedLinks.js';
+import { parseSiteDate, startsAfter } from '$lib/utils/dates.js';
 import { eventsForFollow } from './calendar.js';
 import { stopAllMail } from './follows.js';
 import { migrateAccountSubscriptions } from './avisame.js';
@@ -42,7 +43,6 @@ import { formatFollowNotice } from '$lib/server/telegram/format.js';
 import { botTextOverrides } from '$lib/server/telegram/texts.js';
 import { isQuietHour } from '$lib/server/telegram/quiet.js';
 import { REMINDER_ORDER_SQL } from '$lib/server/tickets/reminders.js';
-import { startsAfter } from '$lib/utils/dates.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {Pick<ProcessedPost, 'meta' | 'path'>} Post */
@@ -227,7 +227,7 @@ export async function runFollowNotifications({
 	const withTicket = await accountsWithTickets(
 		db,
 		events
-			.filter((p) => new Date(p.meta.start).getTime() - now <= REMINDER_WINDOW_MS)
+			.filter((p) => parseSiteDate(p.meta.start).getTime() - now <= REMINDER_WINDOW_MS)
 			.map((p) => String(p.meta.postID))
 	);
 
@@ -269,7 +269,7 @@ export async function runFollowNotifications({
 			const slug = String(post.meta.postID);
 			const seenAt = firstSeen.get(slug);
 			const isNew = seenAt !== undefined && Number(row.created_at) < seenAt;
-			const start = new Date(post.meta.start).getTime();
+			const start = parseSiteDate(post.meta.start).getTime();
 			// Quien tiene entrada ya recibe los recordatorios de las entradas: el de «Lo que sigo»
 			// (por mail o por Telegram), no.
 			const isSoon =

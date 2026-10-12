@@ -6,6 +6,7 @@
  * Funciones puras, sin imports de SvelteKit: andan en el navegador, en el servidor y en vitest.
  */
 import { foldText } from './text.js';
+import { parseSiteDate } from './dates.js';
 
 const MONTHS = new Set([
 	'enero',
@@ -125,7 +126,7 @@ function monthOf(start) {
 	// La fecha como está escrita (hora de Argentina), no en UTC.
 	const m = /^(\d{4}-\d{2})/.exec(String(start ?? ''));
 	if (m) return m[1];
-	const d = new Date(/** @type {any} */ (start));
+	const d = parseSiteDate(/** @type {any} */ (start));
 	return Number.isFinite(d.getTime()) ? d.toISOString().slice(0, 7) : '';
 }
 

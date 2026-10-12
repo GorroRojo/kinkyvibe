@@ -1,7 +1,7 @@
 // Kept apart from $lib/utils/index.js so list pages can import it without
 // pulling in that module's lookup tables for every post and image.
 import '$lib/types.d.js';
-import { argDate, startsAfter, toArgentina } from './dates.js';
+import { argDate, startsAfter, toArgentina, parseSiteDate } from './dates.js';
 
 /**
  * false for calendar events that already started (PostList hides them unless
@@ -22,7 +22,7 @@ export const isCurrent = (post, now = Date.now()) =>
 export function monthHasPastEvents(posts, month, now = Date.now()) {
 	return posts.some((post) => {
 		if (post.meta.category != 'calendario') return false;
-		const start = new Date(post.meta.start);
+		const start = parseSiteDate(post.meta.start);
 		if (isNaN(start.getTime()) || start.getTime() > now) return false;
 		const local = toArgentina(start);
 		const m = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}`;
@@ -61,7 +61,7 @@ export function defaultCalendarMonth(days, now = Date.now()) {
 	const month = currentMonth(now);
 	const hasUpcoming = Object.entries(days).some(
 		([date, posts]) =>
-			date.slice(0, 7) === month && posts.some((p) => new Date(p.meta.start).getTime() >= now)
+			date.slice(0, 7) === month && posts.some((p) => parseSiteDate(p.meta.start).getTime() >= now)
 	);
 	return hasUpcoming ? month : shiftCalendarMonth(month, 1);
 }

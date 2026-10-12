@@ -7,7 +7,7 @@
 // intercaladas ("GRUPO de APOYO y DISCUSIÓN"), textos inclinados como stickers, destellos
 // de 4 puntas, tramas de puntos y grano. El flyer del evento es la pieza principal.
 
-import { argDate, argDateParts, argDayMonth, argTime } from './dates.js';
+import { argDate, argDateParts, argDayMonth, argTime, parseSiteDate } from './dates.js';
 import { eventMode, placeShort } from './eventPlace.js';
 
 export const SITE = 'kinkyvibe.ar';
@@ -396,9 +396,9 @@ const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
  * @param {Date} [now]
  */
 export function formatEventDate(start, end, now = new Date()) {
-	const s = new Date(start);
+	const s = parseSiteDate(start);
 	if (isNaN(+s)) return { day: '', hours: '', dayShort: '', hoursShort: '', multiDay: false };
-	const e = end && !isNaN(+new Date(end)) ? new Date(end) : null;
+	const e = end && !isNaN(+parseSiteDate(end)) ? parseSiteDate(end) : null;
 	// Con los helpers de dates.js y no con Intl: la salida no depende de los datos de ICU del
 	// entorno (Node, el Worker o el navegador dan «sept» o «sep» según la versión).
 	/** @param {Date} d */
@@ -548,7 +548,7 @@ export function eventInfo(meta) {
 		organizers: joinNames(all),
 		status: meta.status,
 		url: SITE + '/calendario/' + meta.postID,
-		ended: meta.end ? new Date(meta.end) < new Date() : new Date(meta.start) < new Date()
+		ended: meta.end ? parseSiteDate(meta.end) < new Date() : parseSiteDate(meta.start) < new Date()
 	};
 }
 
@@ -762,7 +762,7 @@ export function defaultTexts(meta, extras = {}) {
 	// el llamado va antes del link, en la barra de abajo ("Inscribite en kinkyvibe.ar/…")
 	let cta = 'Más info en';
 	if (meta.link && info.status !== 'cancelado' && !info.ended) {
-		const opening = meta.opening_date ? new Date(meta.opening_date) : null;
+		const opening = meta.opening_date ? parseSiteDate(meta.opening_date) : null;
 		if (opening && !isNaN(+opening) && +opening > Date.now()) {
 			cta = 'Inscripción desde el ' + argDayMonth(opening) + ' en';
 		} else if (info.status === 'abierto') {

@@ -134,7 +134,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `noai-por-post` · fase 0 · algún día · seo · Opción de «noai» por publicación (los robots de IA los maneja gorrite en Cloudflare)
 - `estandares-web` · fase 0 · hecho · seo · JSON-LD, microformatos, rel=me, security.txt, vCard, feeds Atom y JSON · #278, #280
 - `fechas-iso` · fase 0 · hecho · seo · Fechas ISO 8601 válidas en metadatos, JSON-LD y `<time datetime>` · #319, [seo.md](seo.md)
-- `fechas-formateadores` · fase 0 · sigue · sitio · Las fechas de publicación se guardan como `2024-12-06Z-03:00` (no es ISO 8601): los formateadores visibles (`toArgentina`, `argDate*`) siguen leyéndolas con `new Date()`, que no todos los motores entienden; usar `parseSiteDate` o pasar los datos a ISO con una migración (depende de: fechas-iso)
+- `fechas-formateadores` · fase 0 · hecho · sitio · Los formateadores y toda lectura de fechas guardadas usan `parseSiteDate`, que lee cada forma sin `Date.parse` · #332, [seo.md](seo.md)
 
 ### Diseño
 

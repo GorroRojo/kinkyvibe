@@ -6,7 +6,7 @@
  * Sin Svelte ni SvelteKit: se prueba en vitest (icsFeed.test.js).
  */
 import * as ics from 'ics';
-import { eventEnd } from './dates.js';
+import { eventEnd, parseSiteDate } from './dates.js';
 import { escapeHtml } from './escape.js';
 import { eventPlace } from './eventPlace.js';
 import { venueLine } from './venues.js';
@@ -123,7 +123,7 @@ export function buildIcsFeed(posts, opts = {}) {
 		if (post.meta.category != 'calendario') continue;
 		if (post.meta.status == 'cancelado' && !includeCancelled) continue;
 		// one event with a missing/invalid start would make createEvents() fail for the whole feed
-		if (isNaN(new Date(post.meta.start).getTime())) continue;
+		if (isNaN(parseSiteDate(post.meta.start).getTime())) continue;
 		const organizer = post.meta.tags?.includes('KinkyVibe')
 			? 'Kinky Vibe'
 			: (post.meta.authors?.[0] ?? 'Kinky Vibe');
@@ -174,7 +174,7 @@ export function buildIcsFeed(posts, opts = {}) {
  * @returns {string | null} `null` si el evento no tiene una fecha válida (o el paquete falla)
  */
 export function buildEventIcs(ev) {
-	if (!ev.start || isNaN(new Date(ev.start).getTime())) return null;
+	if (!ev.start || isNaN(parseSiteDate(ev.start).getTime())) return null;
 	const url = `${ev.origin ?? SITE_ORIGIN}/calendario/${ev.slug}`;
 	const { value, error } = ics.createEvent({
 		productId: 'kinkyvibe.ar',

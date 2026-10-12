@@ -5,7 +5,7 @@
 	import { Search, X, LoaderCircle } from '@lucide/svelte';
 	import { searchOpen, searchPrefill } from '$lib/utils/stores';
 	import { get } from 'svelte/store';
-	import { argDateList } from '$lib/utils/dates.js';
+	import { argDateList, parseSiteDate } from '$lib/utils/dates.js';
 
 	/** Resultados que se muestran por grupo antes de "Ver más". */
 	const PER_GROUP = 5;
@@ -208,7 +208,7 @@
 	}
 
 	/** @param {string} d */
-	const formatDate = (d) => argDateList(new Date(d));
+	const formatDate = (d) => argDateList(parseSiteDate(d));
 </script>
 
 <svelte:window on:keydown={onWindowKeydown} />

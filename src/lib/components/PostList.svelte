@@ -8,6 +8,7 @@
 		redundantTags,
 		searchText
 	} from '$lib/utils/stores';
+	import { parseSiteDate } from '$lib/utils/dates.js';
 	import { onMount, beforeUpdate, afterUpdate } from 'svelte';
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
@@ -58,7 +59,7 @@
 			// @ts-ignore
 			(!filter || (filter && p[filter.prop] == filter.value)) &&
 			($userConfig.show_past_events ||
-				new Date(p.meta.start).getTime() > Date.now() ||
+				parseSiteDate(p.meta.start).getTime() > Date.now() ||
 				p.meta.category != 'calendario')
 	);
 
