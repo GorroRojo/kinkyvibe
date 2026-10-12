@@ -9,6 +9,7 @@
 	import { pronounLabel } from '$lib/utils/mentions';
 	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { SITE_NAME } from '$lib/utils/seo.js';
+	import { isoDateTime } from '$lib/utils/dates.js';
 
 	export let title = '';
 	/** @type {string | null | undefined} */
@@ -43,8 +44,8 @@
 	<title>{title} {shownPronoun ? `| ${shownPronoun}` : ''}</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
-	<meta property="article:published_time" content={published?.toString()} />
-	<meta property="article:modified_time" content={modified?.toString()} />
+	<meta property="article:published_time" content={isoDateTime(published)} />
+	<meta property="article:modified_time" content={isoDateTime(modified)} />
 	<meta property="article:author" content={authors.join(', ')} />
 	<meta property="article:tag" content={tags.join(', ')} />
 </svelte:head>
