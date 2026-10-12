@@ -53,6 +53,33 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
     de perfil), la foto achicada si hay y se puede, «Ver en el sitio», «‹ Volver» (a esa página de
     resultados) e «🏠 Inicio». La lista y la tarjeta (`siteScreens.js`) son las mismas de las
     secciones (abajo).
+  - **Sin resultados** (`noResults.js`, `searchSuggest.js`), en lugar de solo «No encontré nada»,
+    en este orden y corto para un teléfono:
+    1. **Parecidos** («¿Quisiste decir…?»): hasta 3 botones «🔎 <búsqueda> (<cuántas>)» que buscan
+       eso (`q:0:<texto>`). Salen del mismo índice y el mismo buscador del sitio (`search`,
+       `editDistance`): lo buscado con cada palabra cambiada por la más parecida de un título o una
+       etiqueta (más tolerante que el buscador, que ya perdona un error: 1 letra en palabras de 3
+       o 4, 2 hasta 7, 3 desde 8), cada palabra sola si eran varias («cuerdas zzz» → «cuerdas»), una
+       etiqueta usada con nombre o alias parecido y, si lo buscado es una etiqueta del árbol
+       (`resolveTag`, con alias y sin tildes), primero sus hijas, relacionadas y madres. Solo se
+       ofrece lo que trae algo.
+    2. **La sección más cercana**: donde está la mayoría de lo de esa etiqueta (y sus parientes) o
+       de la primera sugerencia, con el botón de la sección del inicio (ya filtrada por la
+       etiqueta si está en esa sección, `c:<s>:0:<etiqueta>`). Si son eventos, «📅 Calendario»: la
+       Mini App en privado, la lista de próximos en un grupo.
+    3. **Lo que viene**: los 3 próximos eventos del índice, con la línea de la lista de resultados.
+    4. **«⭐ Seguir <etiqueta>»** si lo buscado es una etiqueta (que todavía no tiene nada público),
+       solo por chat privado y con «Lo que sigo» prendido (en un grupo no aparece). Es el mismo
+       `follow` que «Seguir» en una tarjeta (seguir.js, con sus topes y «Algo nuevo» por Telegram,
+       0036). El botón (`sf:<etiqueta>:<texto>`) vuelve a buscar lo mismo y saca la etiqueta **de
+       lo buscado**: uno armado a mano no puede seguir otra cosa, y si la búsqueda ya trae algo
+       contesta «Eso ya no está disponible.». Sin chat vinculado, cómo conectarlo; después de
+       seguirla, el botón queda «✓ Ya seguís <etiqueta>».
+    - Siempre «🔎 Buscar otra cosa · 🏠 Inicio». Si no hay nada para ofrecer, el mensaje de siempre y
+      lo que viene.
+    - El árbol de etiquetas llega por `inline.tags` (`siteTagManager`); si falla, sugiere igual sin
+      parientes ni «Seguir». **No se guarda ni se loguea quién buscó ni qué** (lo prueba
+      `router-sin-resultados.test.js`).
   - `/evento <texto>` sigue siendo **solo de eventos próximos** (título, dirección o fecha).
 - **Las secciones del sitio** (`sections.js`): «📚 Material», «📖 Kinkipedia», «👥 Amigues» y
   «🔁 Series» en el inicio. Cada una es una lista de a 5 con «‹ 2/7 ›» (cada cosa con su línea,
@@ -91,6 +118,7 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
 | Seguir: opciones / seguir una                                        | `f:<id>` / `fy:<id>:<etiqueta>`  |
 | Buscar en todo el sitio: resultados (página `p`)                     | `q:<p>:<texto>`                  |
 | Buscar en todo el sitio: una cosa (vuelve a la página `p`)           | `r:<hash>:<p>:<texto>`           |
+| Buscar sin resultados: seguir la etiqueta buscada                    | `sf:<etiqueta>:<texto>`          |
 | Una sección (`s`: `m`, `w`, `a`, `s`; página `p`; etiqueta opcional) | `c:<s>:<p>[:<etiqueta>]`         |
 | Las etiquetas de una sección (la elegida, opcional)                  | `ct:<s>[:<etiqueta>]`            |
 | Una cosa de una sección (vuelve a la página `p`, con su etiqueta)    | `cd:<s>:<hash>:<p>[:<etiqueta>]` |
@@ -279,6 +307,12 @@ del campo que tocás). Cada guardado queda en Actividad (`settings.save`, `teleg
   pasaron con la misma prueba: sus casos se agregaron a `bot.golden.json` con el código de antes y
   no cambiaron al pasarlos. «‹ Volver», «🏠 Inicio» y «🔎 Buscar otra cosa» son los mismos de
   siempre.
+- **Buscar sin resultados**: sus textos nuevos («¿Quisiste decir…?», el botón de cada parecido,
+  la línea y el botón de «Seguir», «Mientras tanto, lo que viene» y el botón del modo inline con
+  una búsqueda parecida) están en «Buscar en todo el sitio y modo inline», con su vista previa. El
+  «⭐ Seguir» ya seguido usa el de Seguir («✓ Ya seguís …») y la sección, los botones del inicio. En
+  `bot.golden.json` cambió a propósito un solo caso (`router: sitio: /buscar nada`), que ahora
+  suma lo que viene.
 
 ## Modo inline
 
@@ -313,7 +347,9 @@ Código: `inline.js` (la respuesta, funciones puras) e `inlineSource.js` (de dó
 - **`answerInlineQuery`**: `InlineQueryResultArticle` con `thumbnail_url`, 20 por página con
   `next_offset` (hasta 200 en total), `cache_time` 120 segundos e `is_personal: false` (es lo
   mismo para todes). Sin resultados, un botón arriba («No encontré nada. Probá en el bot») que abre
-  el bot en privado en Buscar (`start_parameter=buscar`).
+  el bot en privado en Buscar (`start_parameter=buscar`). Si hay una búsqueda parecida que trae
+  algo (las mismas de Buscar sin resultados, `searchSuggest.js`, con el mismo prefijo), se muestran
+  sus resultados y el botón dice «Nada para «querdaz». Te muestro «cuerdas»».
 - **Privacidad**: solo lo que hay en el índice público (ni oculto, ni «solo con cuenta», ni sin
   aprobar, ni no listado, ni borrado; los links a cosas no públicas ya se filtran en los metadatos,
   #291). Lo de más (imagen, fecha, tipo de perfil, lugar y venta) se busca solo para las direcciones

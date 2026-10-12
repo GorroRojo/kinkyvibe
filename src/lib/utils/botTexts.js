@@ -1013,6 +1013,53 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			{ vars: [V.busqueda] }
 		),
 		f(
+			'sitio.sugerencias',
+			'sitio',
+			'line',
+			'Sin resultados: arriba de las búsquedas parecidas (los botones)',
+			'**¿Quisiste decir…?** Tocá una.'
+		),
+		f(
+			'sitio.boton_sugerencia',
+			'sitio',
+			'button',
+			'Sin resultados: una búsqueda parecida',
+			'🔎 {busqueda} ({cantidad})',
+			{
+				vars: [
+					{ ...V.busqueda, label: 'la búsqueda parecida (hasta 30 letras)' },
+					{ ...V.cantidad, label: 'cuántas cosas trae' }
+				],
+				required: ['busqueda']
+			}
+		),
+		f(
+			'sitio.seguir_etiqueta',
+			'sitio',
+			'line',
+			'Sin resultados: lo buscado es una etiqueta (con «Lo que sigo» prendido, por chat privado)',
+			'Todavía no hay nada con «{nombre}». Seguila y te avisamos cuando aparezca algo.',
+			{ vars: [{ ...V.nombre, label: 'la etiqueta (hasta 40 letras)' }] }
+		),
+		f(
+			'sitio.boton_seguir',
+			'sitio',
+			'button',
+			'Sin resultados: seguir la etiqueta buscada',
+			'⭐ Seguir {nombre}',
+			{
+				vars: [{ ...V.nombre, label: 'la etiqueta (hasta 40 letras)' }],
+				required: ['nombre']
+			}
+		),
+		f(
+			'sitio.proximos',
+			'sitio',
+			'line',
+			'Sin resultados: arriba de los próximos eventos',
+			'**Mientras tanto, lo que viene:**'
+		),
+		f(
 			'sitio.boton_ver',
 			'sitio',
 			'button',
@@ -1033,6 +1080,20 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'button',
 			'Modo inline: el botón arriba cuando no hay resultados (abre el bot)',
 			'No encontré nada. Probá en el bot'
+		),
+		f(
+			'sitio.inline_sugerencia',
+			'sitio',
+			'button',
+			'Modo inline: el botón arriba cuando no hay resultados y se muestran los de una búsqueda parecida (abre el bot)',
+			'Nada para «{busqueda}». Te muestro «{sugerencia}»',
+			{
+				vars: [
+					{ ...V.busqueda, label: 'lo que se buscó (hasta 16 letras)' },
+					{ name: 'sugerencia', label: 'la búsqueda parecida (hasta 16 letras)', sample: 'cuerdas' }
+				],
+				required: ['sugerencia']
+			}
 		),
 		f(
 			'sitio.inline_vacio',
