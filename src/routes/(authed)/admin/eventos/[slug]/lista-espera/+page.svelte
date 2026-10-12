@@ -145,8 +145,10 @@
 					<ul class="counts">
 						{#if s.counts.offered}
 							<li>
-								<b>{s.counts.offered}</b> con lugar guardado{#if s.counts.nextHoldUntil}
-									hasta las {argTime(s.counts.nextHoldUntil)}{/if}
+								<b>{s.counts.offered}</b>
+								{s.counts.nextHoldUntil
+									? `con lugar guardado hasta las ${argTime(s.counts.nextHoldUntil)}`
+									: 'con lugar guardado'}
 							</li>
 						{/if}
 						{#if s.counts.broadcast}<li><b>{s.counts.broadcast}</b> avisades a la vez</li>{/if}
