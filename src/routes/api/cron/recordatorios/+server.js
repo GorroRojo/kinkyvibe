@@ -7,7 +7,9 @@
  * $lib/server/tickets/waitlistEngine.js),
  * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js), el resumen diario de
  * ventas para admins por Telegram (ver $lib/server/telegram/adminNotify.js) y el registro automático
- * de los comandos del bot de Telegram (ver $lib/server/telegram/commandsSync.js). Lo llama cada 15 minutos el cron
+ * de los comandos del bot de Telegram (ver $lib/server/telegram/commandsSync.js) y borra las filas
+ * por persona de las estadísticas de uso del bot de más de 180 días (ver
+ * $lib/server/telegram/uso.js). Lo llama cada 15 minutos el cron
  * del Worker (src/lib/server/scheduled.js); cada corrida sigue donde quedó la anterior.
  *
  * Protegido con un secreto compartido: header `x-cron-secret` = CRON_SECRET (comparado en
@@ -25,6 +27,7 @@ import { listaEsperaEnabled } from '$lib/server/flags.js';
 import { runWaitlistCron, waitlistMailBatch } from '$lib/server/tickets/waitlistEngine.js';
 import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
 import { runAdminNoticesCron } from '$lib/server/telegram/adminNotify.js';
+import { pruneUso } from '$lib/server/telegram/uso.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, platform, url, fetch }) {
@@ -83,6 +86,14 @@ export async function POST({ request, platform, url, fetch }) {
 		} catch (error) {
 			logDBError('cron avisos de admins', error);
 		}
+		// Estadísticas de uso del bot: las filas por persona duran 180 días (también con el
+		// interruptor apagado: lo ya guardado se borra igual). Aparte: si falla, lo demás ya salió.
+		let telegramUsoBorradas = null;
+		try {
+			telegramUsoBorradas = await pruneUso(db, Date.now());
+		} catch (error) {
+			logDBError('cron estadísticas del bot', error);
+		}
 		// El menú «/» del bot: solo si cambió la lista y hay token. Nunca tira.
 		const telegramCommands = await syncBotCommands({
 			db,
@@ -96,6 +107,7 @@ export async function POST({ request, platform, url, fetch }) {
 				...(series ? { series } : {}),
 				...(sigo ? { sigo } : {}),
 				...(telegramAdmin ? { telegramAdmin } : {}),
+				...(telegramUsoBorradas ? { telegramUsoBorradas } : {}),
 				telegramCommands
 			},
 			{ headers: { 'cache-control': 'no-store' } }

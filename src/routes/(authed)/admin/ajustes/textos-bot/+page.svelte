@@ -246,7 +246,7 @@
 				{:else if preview.toast}
 					<div class="toast" role="status">{preview.toast}</div>
 				{:else}
-					<div class="bubble" class:with-photo={preview.qr}>
+					<div class="bubble" class:with-photo={preview.qr} class:rich={preview.rich}>
 						{#if preview.qr}
 							<svg
 								class="qr"
@@ -430,6 +430,21 @@
 	}
 	.tg-text :global(a) {
 		color: #168acd;
+	}
+	/* Mensaje enriquecido: bloques (título, párrafos, pie) en lugar de renglones. */
+	.rich .tg-text {
+		white-space: normal;
+	}
+	.rich .tg-text :global(h3) {
+		margin: 0 0 0.35rem;
+		font-size: 1rem;
+	}
+	.rich .tg-text :global(p) {
+		margin: 0 0 0.45rem;
+	}
+	.rich .tg-text :global(footer) {
+		color: #707579;
+		font-size: 0.75rem;
 	}
 	.keyboard {
 		display: flex;

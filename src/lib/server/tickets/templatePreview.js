@@ -14,6 +14,7 @@ import {
 import {
 	buildWaitlistClosedEmail,
 	buildWaitlistConfirmEmail,
+	buildWaitlistEndedEmail,
 	buildWaitlistExpiredEmail,
 	buildWaitlistOfferEmail,
 	buildWaitlistReminderEmail
@@ -159,6 +160,11 @@ function buildPreview(
 			return buildWaitlistReminderEmail({ ...waitlist, offerUrl, holdUntil: now + 3 * 3600000 });
 		case 'waitlist_expired':
 			return buildWaitlistExpiredEmail({
+				...waitlist,
+				rejoinUrl: `${origin}/lista-de-espera/volver/ejemplo`
+			});
+		case 'waitlist_ended':
+			return buildWaitlistEndedEmail({
 				...waitlist,
 				rejoinUrl: `${origin}/lista-de-espera/volver/ejemplo`
 			});

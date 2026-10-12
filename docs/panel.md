@@ -160,7 +160,7 @@ sección (Etiquetas), que usan la URL del área.
 | Mensajes     | Plantillas (`/admin/mensajes/plantillas`), Configuración (`/configuracion`), Lo que sigo (`/lo-que-sigo`) · próximamente: Bandeja (`/admin/mensajes`, fase 5)                                                                                                                                                                                             | textos de los mails ([mails.md](mails.md)), remitente, pie, recordatorios y envíos en tandas, el estado de «Lo que sigo» en números ([lo-que-sigo.md](lo-que-sigo.md#en-el-panel))                                                                                                                                                |
 | Etiquetas    | Árbol de etiquetas (`/admin/etiquetas`, + Importar a la base en `/importar`)                                                                                                                                                                                                                                                                              | la taxonomía del sitio ([etiquetas.md](etiquetas.md))                                                                                                                                                                                                                                                                             |
 | Contenido    | Material (`/admin/contenido/material`), No listadas (`/no-listadas`) · próximamente: Colecciones (`/colecciones`, fase 4), Videos (`/videos`, fase 7)                                                                                                                                                                                                     | editores de contenido ([contenido.md](contenido.md))                                                                                                                                                                                                                                                                              |
-| Estadísticas | Ventas en el tiempo (`/admin/estadisticas/ventas`), Asistencia (`/asistencia`), Visitas al sitio (`/visitas`); `/admin/estadisticas` redirige a Ventas                                                                                                                                                                                                    | ventas, series, medios de pago y Fondo; quiénes vinieron y vuelven; visitas anónimas del sitio ([analiticas.md](analiticas.md)). Ver «Estadísticas» abajo                                                                                                                                                                         |
+| Estadísticas | Ventas en el tiempo (`/admin/estadisticas/ventas`), Asistencia (`/asistencia`), Visitas al sitio (`/visitas`), Bot de Telegram (`/bot`); `/admin/estadisticas` redirige a Ventas                                                                                                                                                                          | ventas, series, medios de pago y Fondo; quiénes vinieron y vuelven; visitas anónimas del sitio ([analiticas.md](analiticas.md)); uso del bot ([telegram.md](telegram.md)). Ver «Estadísticas» abajo                                                                                                                               |
 | Ajustes      | Portada (`/admin/ajustes`) · Plata: Cobros (`/admin/ajustes/cobros`), Fondo (`/fondo`), Propinas (`/propinas`) · Comunicación: Vistas previas al compartir (`/vistas-previas`), Textos del bot (`/textos-bot`) · Equipo: Admins (`/admins`) · Sistema: Interruptores (`/interruptores`), Automatizaciones (`/automatizaciones`), Actividad (`/actividad`) | datos para transferir y comisión de MP, % del Fondo, propinas, textos de la vista previa al compartir un link, todo lo que dice el bot de Telegram, lista de admins, interruptores, lo que corre solo (crons, mails programados, bot; para mirar, más «Actualizar comandos del bot»), registro (con CSV y "Recuperar" lo borrado) |
 
 **Ficha de una persona** (`/admin/comunidad/personas/<id>`, con un id corto sacado del mail; nunca
@@ -180,8 +180,9 @@ migración 0045, con `email` vacío). Borrar una nota pide confirmar y se recupe
 de ingreso no se pueden atar a una persona y no aparecen. Código: `src/lib/server/admin/ficha.js`
 (una sola tanda de consultas), `fichaRoutes.js` y `src/lib/components/admin/personas/Ficha.svelte`.
 
-**Estadísticas** (tres pestañas, decisión de gorrite del 11/10). Cada pestaña lee **solo su
-fuente** y tiene su período en la URL (`?periodo=`), así un link se puede compartir:
+**Estadísticas** (tres pestañas, decisión de gorrite del 11/10; la cuarta, la del bot, desde el
+12/10). Cada pestaña lee **solo su fuente** y tiene su período en la URL (`?periodo=`), así un link
+se puede compartir:
 
 - **Ventas en el tiempo** (`/admin/estadisticas/ventas`, id `estadisticas`: el atajo `g s` y el
   buscador siguen yendo acá): entradas, cobrado y entrada promedio (con el cambio contra el período
@@ -197,6 +198,13 @@ fuente** y tiene su período en la URL (`?periodo=`), así un link se puede comp
 - **Visitas al sitio** (`/visitas`): las visitas anónimas ([analiticas.md](analiticas.md)), 7 /
   **30** (por defecto) / 90 días. Analytics Engine guarda el detalle unos 3 meses: más atrás solo
   quedan los totales por mes de `analytics_monthly`, y la página lo dice. Nunca lee las órdenes.
+- **Bot de Telegram** (`/bot`): las estadísticas de uso del bot (decisión
+  [0045](decisiones/0045-estadisticas-del-bot.md), [telegram.md](telegram.md) «Estadísticas de
+  uso»): quién lo usó en 7 / **30** (por defecto) / 90 días, con sus interacciones y el último día;
+  los totales por tipo de las últimas 12 semanas; y el detalle de una semana (`?semana=AAAA-Wss`),
+  con lo buscado y las cosas solo desde 5 veces y solo si esa semana lo usaron 5 personas o más
+  (los umbrales, en la consulta). Lee solo las dos tablas del bot (y el vínculo con cuentas y
+  admins); nunca las órdenes.
 
 Ventas y Asistencia nunca llaman a Analytics Engine. `/admin/estadisticas` redirige a Ventas (una de
 las dos redirecciones del panel, ver «Mover una URL»). Código: `src/lib/admin/statsPeriod.js`
@@ -311,7 +319,8 @@ revisar" del Inicio.
   «Lista de espera: N»).
   Cuentas por alcance, la fila en orden, lo terminado y el CSV (con los mails: dato personal).
   Acciones, cada una con su diálogo y en Actividad sin el mail (`waitlist.*`): «Terminar la reserva
-  y pasar a la siguiente», «Sacar de la lista», «Ofrecer ahora», «Cerrar la lista» (termina las
+  y pasar a la siguiente» (el diálogo pregunta si le avisamos por mail, con «Mandarle un mail a …»
+  marcada; Actividad dice «con mail» o «sin mail»; gorrite, 12/10), «Sacar de la lista», «Ofrecer ahora», «Cerrar la lista» (termina las
   anotaciones y además la apaga en el evento: saca `lista_espera` del archivo; gorrite, 12/10) y
   «Volver a probar» los mails que no salieron. Con la lista apagada, la vista avisa y muestra lo
   que quedó.

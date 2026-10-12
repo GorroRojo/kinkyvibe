@@ -109,6 +109,7 @@ describe('/admin/ajustes/textos-bot', () => {
 			'Secciones del sitio (Material, Kinkipedia, Amigues, Series)',
 			'Mis entradas (con el QR para la puerta)',
 			'Mini App del calendario (la página /telegram/app)',
+			'Mensajes enriquecidos y compartir desde la Mini App',
 			'Errores'
 		]);
 	});
@@ -190,6 +191,21 @@ describe('la vista previa', () => {
 		expect(buildPreview('solo', {}, 'eventos.boton_mapa').buttons?.[0][0].text).toBe(
 			'🗺 Cómo llegar'
 		);
+	});
+
+	it('Mensajes enriquecidos y compartir: cada texto tiene su pantalla, con lo escrito', () => {
+		const keys = Object.keys(BOT_TEXT_DEFAULTS).filter((k) => k.startsWith('compartir.'));
+		expect(keys.length).toBeGreaterThan(5);
+		for (const key of keys) expect(screenForKey(key), key).not.toBe('solo');
+		const wiki = buildPreview('rico_wiki', { 'compartir.pie': '{tipo} en la comunidad' });
+		expect(wiki.rich).toBe(true);
+		expect(wiki.html).toContain('<footer>Kinkipedia en la comunidad</footer>');
+		const evento = buildPreview('rico_evento', {
+			'compartir.boton_calendario': 'Ver en el calendario'
+		});
+		expect(evento.buttons?.flat().map((b) => b.text)).toContain('Ver en el calendario');
+		const app = buildPreview('miniapp_compartir', { 'compartir.miniapp_mandado': '<listo>' });
+		expect(app.html).toContain('&lt;listo&gt;');
 	});
 
 	it('Mis entradas: cada texto tiene su pantalla, y la de una entrada lleva el QR de ejemplo', () => {

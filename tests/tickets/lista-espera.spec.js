@@ -300,14 +300,17 @@ test('agotado → anotarse y confirmar → reembolso → oferta → terminar y p
 
 	// Le admin termina esa reserva: pasa a la siguiente persona en el momento.
 	const firstOffer = offerLink(slug, entryOf(slug, first));
-	await confirmAction(
-		page,
-		row(page, first).getByRole('button', { name: 'Terminar la reserva y pasar a la siguiente' }),
-		'¿Terminar su reserva?',
-		'Terminar y pasar a la siguiente'
-	);
+	// El diálogo pregunta si le avisamos por mail, con la casilla marcada de entrada (se deja así).
+	await row(page, first)
+		.getByRole('button', { name: 'Terminar la reserva y pasar a la siguiente' })
+		.click();
+	const ask = page.getByRole('dialog', { name: '¿Terminar su reserva?' });
+	await expect(ask).toContainText('¿Le avisamos por mail?');
+	await expect(ask.getByRole('checkbox', { name: `Mandarle un mail a ${first}` })).toBeChecked();
+	await ask.getByRole('button', { name: 'Terminar y pasar a la siguiente' }).click();
+	await expect(ask).toBeHidden();
 	await expect(page.locator('p.kv-flash[role="status"]')).toContainText(
-		'Listo: terminó su reserva. Le ofrecimos el lugar a la próxima persona.'
+		'Listo: terminó su reserva y le mandamos un mail. Le ofrecimos el lugar a la próxima persona.'
 	);
 	await expect(row(page, second)).toContainText('Con lugar ofrecido');
 	await expect(row(page, first)).toContainText('Terminó');

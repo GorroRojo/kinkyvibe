@@ -289,6 +289,10 @@ El script compara tabla por tabla la cantidad de filas con la que anotó el back
 no coincide. También acepta un archivo ya bajado (`npm run db:restore -- backup.sql.gz --local`)
 o un manual (`d1/manual/…`). Para repetir el simulacro, borrá `.wrangler/restore`.
 
+En PowerShell, `npm run … -- <args>` pierde el `--` y npm se queda con `--local`: corré el script
+directo, `node scripts/d1-restore.js 2026-10-01 --local`. El script llama a wrangler con node, sin
+shell, así que en Windows el SQL de las consultas no se parte en los espacios.
+
 **c) Restaurar de verdad un backup viejo → en una base nueva:**
 
 ```sh

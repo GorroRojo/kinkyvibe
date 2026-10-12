@@ -1,5 +1,5 @@
 /**
- * Mails de la lista de espera (docs/mails.md, «Lista de espera»; docs/tickets.md). Cinco, cada
+ * Mails de la lista de espera (docs/mails.md, «Lista de espera»; docs/tickets.md). Seis, cada
  * uno con su plantilla editable (`waitlist_*` en $lib/utils/emailTemplates.js) y la plantilla
  * común (`mailLayout`):
  *
@@ -8,6 +8,8 @@
  *   la lista a la vez (sin lugar guardado, `holdUntil` null);
  * - último aviso (`waitlist_reminder`), cuando queda poco de un lugar guardado;
  * - se venció tu lugar (`waitlist_expired`), con «Volver a anotarme»;
+ * - terminamos tu lugar (`waitlist_ended`), igual, cuando une admin lo termina desde el panel y
+ *   elige avisarle;
  * - se cerró la lista (`waitlist_closed`), poco antes del comienzo o si se cancela el evento.
  *
  * Todos llevan el link para salir de la lista en el pie (`unsubscribeUrl`). Sin nombre: la lista
@@ -295,17 +297,32 @@ export function buildWaitlistReminderEmail({
  *   unsubscribeUrl: string, origin?: string, contactEmail?: string, template?: Template }} input
  * @returns {Message}
  */
-export function buildWaitlistExpiredEmail({
-	event,
-	typeName = null,
-	rejoinUrl,
-	unsubscribeUrl,
-	origin,
-	contactEmail,
-	template
-}) {
+export function buildWaitlistExpiredEmail(input) {
+	return rejoinMail('waitlist_expired', input);
+}
+
+/**
+ * «Se terminó tu lugar»: une admin terminó desde el panel el lugar que le ofrecimos («Terminar la
+ * reserva y pasar a la siguiente») y eligió avisarle. Como «se venció», con «Volver a anotarme».
+ *
+ * @param {Parameters<typeof buildWaitlistExpiredEmail>[0]} input
+ * @returns {Message}
+ */
+export function buildWaitlistEndedEmail(input) {
+	return rejoinMail('waitlist_ended', input);
+}
+
+/**
+ * @param {'waitlist_expired' | 'waitlist_ended'} id
+ * @param {Parameters<typeof buildWaitlistExpiredEmail>[0]} input
+ * @returns {Message}
+ */
+function rejoinMail(
+	id,
+	{ event, typeName = null, rejoinUrl, unsubscribeUrl, origin, contactEmail, template }
+) {
 	return buildWaitlistMail({
-		id: 'waitlist_expired',
+		id,
 		template,
 		vars: waitlistVars(event, typeName),
 		event,

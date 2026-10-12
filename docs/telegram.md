@@ -281,6 +281,8 @@ funciones que `/calendario`).
   pedido (`miniAppTexts` en `miniapp.js`); como la página se guarda hasta 5 minutos
   (`max-age=300`), un cambio puede tardar eso en verse. Los estados de la venta («Agotadas»…) son
   los del sitio (`ticketCta`).
+- Con `telegram_enriquecido`: «📤 Mandar a un chat» en cada evento y el link directo a un evento
+  (abajo, «Mensajes enriquecidos y compartir»).
 
 ## Textos del bot (lo edita el panel)
 
@@ -295,9 +297,9 @@ del campo que tocás). Cada guardado queda en Actividad (`settings.save`, `teleg
 
 - **Dónde está cada cosa**: los originales, qué es cada uno, sus variables y la validación, en
   `src/lib/utils/botTexts.js` (secciones Inicio y menú, Comandos, Eventos, Seguir y avisos,
-  Vincular cuenta, Puerta, Secciones del sitio, Mis entradas, Mini App del calendario y Errores).
-  El bot pide cada texto con `botText(clave, variables)` (`src/lib/server/telegram/texts.js`); no
-  queda texto para la gente escrito en las pantallas.
+  Vincular cuenta, Puerta, Secciones del sitio, Mis entradas, Mini App del calendario, Mensajes
+  enriquecidos y compartir, y Errores). El bot pide cada texto con `botText(clave, variables)`
+  (`src/lib/server/telegram/texts.js`); no queda texto para la gente escrito en las pantallas.
 - **Dónde se guarda**: en `ticket_settings`, la fila `telegram_bot_texts` (un JSON con solo los
   cambiados), como `link_preview_texts`. Sin tabla nueva ni migración.
 - **Una lectura por pedido**: el webhook lee la fila una vez, después de chequear el secreto, y
@@ -325,7 +327,8 @@ del campo que tocás). Cada guardado queda en Actividad (`settings.save`, `teleg
 - Lo que sigue en el código: los datos (títulos, fechas, lugares, links), los símbolos de las
   flechas («‹ 2/3 ›»), el «✓ » de la etiqueta elegida, los íconos de cada tipo en las listas
   (📅 📚 📖 👥) y el « ↗» que se suma en los grupos. La página de la puerta no es un mensaje del
-  bot: sus textos siguen en su página. Los de la Mini App del calendario sí están (arriba).
+  bot: sus textos siguen en su página. Los de la Mini App del calendario sí están (arriba), y los
+  de «📤 Mandar a un chat» en la sección «Mensajes enriquecidos y compartir».
 - **Buscar en todo el sitio y el modo inline** (#298) y **las secciones** tienen sus secciones en
   el registro («Buscar en todo el sitio y modo inline», «Secciones del sitio»). Los primeros se
   pasaron con la misma prueba: sus casos se agregaron a `bot.golden.json` con el código de antes y
@@ -393,7 +396,8 @@ Código: `inline.js` (la respuesta, funciones puras) e `inlineSource.js` (de dó
 ### Puesta en marcha del modo inline (la hace gorrite)
 
 1. En @BotFather: `/setinline`, elegir el bot y poner el placeholder **«Buscá en Kinky Vibe…»**.
-   (`/setinlinefeedback` no hace falta.)
+   (`/setinlinefeedback` no hace falta para el modo inline; solo para contar los resultados
+   mandados en las estadísticas de uso, abajo.)
 2. Volver a registrar el webhook para que pida los `inline_query`: desde tu compu,
    `TELEGRAM_BOT_TOKEN=… TELEGRAM_WEBHOOK_SECRET=… npm run telegram:webhook` (los mismos valores
    que en Cloudflare; el script los lee de variables de entorno, nunca los muestra, y al final
@@ -401,6 +405,77 @@ Código: `inline.js` (la respuesta, funciones puras) e `inlineSource.js` (de dó
    sin `allowed_updates`, Telegram ya manda los `inline_query`, pero registrarlo así deja la lista
    explícita. Cada vez que cambie `WEBHOOK_ALLOWED_UPDATES`, repetir este paso.
 3. Probar en cualquier chat: `@<bot>` (los próximos eventos), `@<bot> cuerdas`, `@<bot> wiki:`.
+
+## Mensajes enriquecidos y compartir
+
+Pedido de gorrite (Mesa, 12/10): «Mensajes enriquecidos + compartir desde la Mini App». Detrás del
+interruptor **Telegram: mensajes enriquecidos y compartir** (`telegram_enriquecido`,
+`TELEGRAM_ENRIQUECIDO_ENABLED`), apagado (0001), que además pide el bot prendido. Apagado, todo
+sale como antes, byte a byte (la golden no cambia).
+
+### Mensajes enriquecidos (Bot API 10.1–10.3)
+
+Los «rich messages» de Telegram (`sendRichMessage`, `editMessageText` con `rich_message`,
+`InputRichMessageContent` en el modo inline; nombres sacados de core.telegram.org/bots/api, 10.3
+del 24/8/2026) dejan mandar un mensaje armado por bloques. El bot los usa para que **se lea el
+contenido adentro del chat**, sin salir de Telegram (`rich.js`, funciones puras):
+
+- **Qué va**: el título (con su ícono), el resumen en itálica, el texto en párrafos, la fecha
+  (`tg-time`), el lugar y la venta en un evento, y un pie chiquito («Kinkipedia · Kinky Vibe»). Si
+  el texto se cortó, «Esto es el comienzo. El resto está en el sitio…». Los botones son los de
+  siempre: «Ver en el sitio» (y «🎟 Entradas»).
+- **De dónde sale**: del índice público de la búsqueda, lo mismo que Buscar y el modo inline: el
+  título, el resumen y el cuerpo **en texto plano y recortado** (hasta 2500 caracteres en material
+  y Kinkipedia, 400 en eventos: `BODY_MAX` de `siteIndex.js`). Por eso no hay títulos ni listas
+  adentro del texto, y un material largo se lee hasta ahí. Nada que no esté ya en el índice o en
+  la tarjeta de siempre; el lugar, como la página del evento.
+- **Dónde**: en el **modo inline** (Kinkipedia, series, material y eventos; amigues sigue con la
+  tarjeta) y en la **tarjeta compacta** del chat (Buscar y las secciones), por chat privado. En
+  el modo inline no hay foto (Telegram solo acepta archivos ya subidos); en el chat, la foto
+  achicada arriba (`<figure><img>`).
+- **Solo con el token**: así hay vuelta atrás. Si Telegram rechaza el enriquecido (una app que no
+  lo soporte, una foto que no pudo bajar), sale la tarjeta de siempre, una sola vez: en el modo
+  inline, la misma respuesta con las tarjetas de texto; en el chat, la pantalla de texto
+  (`deliver.js`). Sin token, en los grupos y en los efímeros, la de siempre.
+- **«📅 Abrir en el calendario»**: un evento mandado por el modo inline o desde la Mini App suma
+  ese botón, el link directo a la Mini App en ese evento (abajo). Solo con
+  `TELEGRAM_BOT_USERNAME`.
+- **Sin confirmar**: cómo se ve un enriquecido en una app de Telegram vieja. Por eso el
+  interruptor: prenderlo primero en un preview y mirarlo en un par de celus.
+
+### Compartir desde la Mini App del calendario
+
+- **«📤 Mandar a un chat»** en cada evento (solo adentro de Telegram, con el interruptor y el
+  token). La Mini App manda su `initData` y la dirección del evento a `/telegram/app/compartir`; el
+  servidor valida el `initData` (`initData.js`), busca el evento **en el índice público** (y que no
+  haya empezado), arma **la misma tarjeta del modo inline** (enriquecida si se puede) y la guarda
+  con `savePreparedInlineMessage` (Bot API 8.0) para ese usuario de Telegram. La Mini App abre el
+  selector de chats de Telegram con `shareMessage(id)`: la persona elige a quién mandarla. En una
+  app vieja (antes de la 8.0) o si falla, abre el modo inline del bot en el chat que se elija
+  (`switchInlineQuery("evento: <título>")`).
+- No se guarda nada de nadie: el id del usuario va solo en ese pedido a Telegram. Un tope de 30
+  por hora por persona (la tabla de topes, que se limpia sola). Sin interruptor, sin token o sin
+  base, la ruta da 404.
+- **Link directo a un evento**: `t.me/<bot>?startapp=ev-<id>` (el mismo id que los deep links del
+  bot, `miniAppEventLink` en `inline.js`) abre la Mini App con ese evento marcado y a la vista
+  («📌 Te pasaron este evento»). Telegram lo pasa como `tgWebAppStartParam` (y `start_param` en el
+  `initData`); la página lo compara con el de cada evento que muestra (`share.js`), así que un link
+  armado a mano no muestra nada que la página no muestre. **Necesita la Main Mini App registrada en
+  @BotFather** (paso 6 de la puesta en marcha).
+- «Compartir en tu historia» (`shareToStory`): no (gorrite, 12/10).
+- **Textos**: en «Textos del bot», sección «Mensajes enriquecidos y compartir desde la Mini App»,
+  con su vista previa (la Kinkipedia y un evento como mensaje enriquecido, y la Mini App).
+
+### Puesta en marcha (la hace gorrite)
+
+1. Tienen que estar `TELEGRAM_BOT_TOKEN` y `TELEGRAM_BOT_USERNAME` (los mismos de siempre).
+2. Registrar la **Main Mini App** en @BotFather (paso 6 de abajo) con la URL
+   `https://kinkyvibe.ar/telegram/app`: sin eso, «📅 Abrir en el calendario» no abre la Mini App.
+3. Prender **Telegram: mensajes enriquecidos y compartir** primero en un preview, y probar en dos
+   celus (uno con la app al día y otro más viejo): `@<bot> wiki: <algo>`, Buscar → abrir una
+   entrada, y en la Mini App «📤 Mandar a un chat» y tocar «📅 Abrir en el calendario» en lo que
+   llegó. Después, en producción.
+4. Para cortarlo de golpe: `TELEGRAM_ENRIQUECIDO_ENABLED=0` o apagar el interruptor.
 
 ## El menú de comandos (autocompletado)
 
@@ -460,8 +535,9 @@ cuenta con el bot» y el cron no manda nada por Telegram. Trae la migración
 
 En grupos el bot **no** vincula ni toca nada de cuentas (contesta que se hace por chat privado).
 Los intentos de `/vincular` se topean por chat (10 por hora) y pedir códigos, por cuenta (10 por
-hora). No se guarda nada del perfil de Telegram, solo el id del chat. Borrar la cuenta borra el
-chat vinculado y sus códigos.
+hora). Para vincular no se guarda nada del perfil de Telegram, solo el id del chat (las
+estadísticas de uso, abajo, guardan aparte el nombre y el @usuario de quien usa el bot). Borrar la
+cuenta borra el chat vinculado y sus códigos.
 
 ### Comandos de la cuenta (solo por chat privado)
 
@@ -515,6 +591,8 @@ minutos), con estas reglas:
   que escribe (0034).
 - El secreto del webhook se chequea **antes** que el interruptor y en tiempo constante.
 - Todo texto del bot, en español rioplatense con el lenguaje inclusivo del sitio.
+- **Las estadísticas de uso nunca guardan qué miró o buscó cada persona** (0045): quién y cuánto
+  en una tabla, qué se usa sumado por semana en otra, sin ninguna clave ni hora fina en común.
 
 ## Cómo está armado
 
@@ -541,6 +619,12 @@ minutos), con estas reglas:
 | `src/lib/server/telegram/adminBot.js`         | Admins (0041): las pantallas, funciones puras                       |
 | `src/lib/server/telegram/adminData.js`        | Admins (0041): quién es admin, el estado (cantidades), Mis avisos   |
 | `src/lib/server/telegram/miniapp.js`          | La Mini App del calendario (`/telegram/app`)                        |
+| `src/lib/server/telegram/rich.js`             | Los mensajes enriquecidos (Bot API 10.1), funciones puras           |
+| `src/lib/server/telegram/share.js`            | Compartir desde la Mini App y el link directo a un evento           |
+| `src/routes/telegram/app/compartir/`          | `savePreparedInlineMessage` para «📤 Mandar a un chat»              |
+| `src/lib/server/telegram/uso.js`              | Estadísticas de uso: qué se escribe en cada tabla, retención        |
+| `src/lib/server/telegram/usoUpdate.js`        | Estadísticas de uso: quién mandó el update, comando, pantalla       |
+| `src/lib/server/telegram/usoPanel.js`         | Estadísticas de uso: lo que lee el panel (con el umbral)            |
 | `src/lib/server/telegram/commandsSync.js`     | El registro automático del menú «/» (cron)                          |
 | `src/lib/server/telegram/commands.js`         | La lista de comandos y el `setMyCommands` del menú «/»              |
 | `src/lib/server/telegram/keyboards.js`        | Los botones de antes (`ev:`/`ls`), que siguen andando               |
@@ -571,7 +655,8 @@ errores se muestran sin él.
    mismo valor como `secret_token` y los `allowed_updates` del código: desde tu compu,
    `TELEGRAM_BOT_TOKEN=… TELEGRAM_WEBHOOK_SECRET=… npm run telegram:webhook`
    (`scripts/telegram-webhook.js`, con `WEBHOOK_ALLOWED_UPDATES` de
-   `src/lib/server/telegram/updates.js`: `message`, `callback_query`, `inline_query`). El token
+   `src/lib/server/telegram/updates.js`: `message`, `callback_query`, `inline_query`,
+   `chosen_inline_result`). El token
    del bot se usa solo en ese paso y el script nunca lo muestra.
 4. Prender el interruptor **Bot de Telegram** en Ajustes → Interruptores.
 5. Con el token cargado (fase 2, abajo), los comandos se registran solos en la próxima corrida
@@ -680,8 +765,8 @@ que ahora no se puede.
   3. **Desvincular** en el mismo lugar borra el vínculo y los códigos.
   4. Vincular y desvincular quedan en Actividad (`telegram.admin_link`, `telegram.admin_unlink`).
      «Seguir» desde el bot sigue sin registro.
-- De Telegram solo se guarda el id del usuario (ni nombre ni usuario). La lista muestra quién
-  tiene Telegram vinculado.
+- Para el vínculo, de Telegram solo se guarda el id del usuario (ni nombre ni usuario). La lista
+  muestra quién tiene Telegram vinculado.
 - Marca con lo mismo que el modo puerta del panel (`extractToken` + `checkIn`), con el login de le
   admin; contesta solo el resultado y el nombre de la entrada. Tope de 600 escaneos por hora.
 - Solo Telegram Web puede embeberla (`frame-ancestors https://web.telegram.org`).
@@ -808,6 +893,94 @@ una confirmación):
    «Resumen diario», «Cada venta» o «Cada transferencia» en «🔔 Mis avisos» y probar en un preview
    (una compra de prueba, o esperar al cron de las 9).
 
+## Estadísticas de uso (0045)
+
+Pedido de gorrite (12/10), decisión [0045](decisiones/0045-estadisticas-del-bot.md). Detrás del
+interruptor **Telegram: estadísticas de uso** (`telegram_estadisticas`,
+`TELEGRAM_ESTADISTICAS_ENABLED`), apagado (0001); necesita el bot prendido. Se ven en **Panel →
+Estadísticas → Bot de Telegram** (`/admin/estadisticas/bot`, solo admins).
+
+La regla: **nunca se puede saber qué miró o buscó una persona.** Se puede saber quién usa el bot
+y cuánto (solo totales), y para qué se usa, solo sumado.
+
+**Dos tablas que no se pueden cruzar** (migración `0057_telegram_uso.sql`):
+
+- `telegram_uso_personas`: por persona (id de usuario de Telegram) y por día (hora de Argentina),
+  `interacciones` (cuántos updates de esa persona manejó el bot), el nombre y el @usuario. **Nada
+  de qué hizo**: ni tipo de acción, ni búsqueda, ni cosa, ni una hora más fina que el día.
+- `telegram_uso_totales`: por semana ISO (hora de Argentina), `tipo` y `clave`, cuántas veces
+  (`n`). **Ni el id de nadie, ni el día, ni la hora.**
+
+No comparten ninguna clave (una tiene el id y no sabe qué; la otra sabe qué y no tiene id) ni una
+hora fina (una tiene el día; la otra, solo la semana). Las dos son `WITHOUT ROWID`: no queda ni el
+orden en que se insertaron las filas. Y en el panel, el detalle de una semana sale solo si esa
+semana usaron el bot **5 personas o más** (abajo): con menos, lo contado sería de alguien de la
+lista de arriba.
+
+- **Qué es una interacción**: cada update con un usuario (que no sea un bot): un mensaje, un
+  comando, un botón, una consulta inline (Telegram manda una por pausa al escribir), un resultado
+  inline elegido o abrir la Mini App del calendario. La puerta (`/telegram/puerta`) no cuenta.
+- **El nombre**: el `first_name` y el `username` que Telegram manda en cada update (los del último
+  día del período). En el panel, si ese Telegram está vinculado a una cuenta del sitio
+  (`telegram_chats`), se muestra la cuenta (su mail, con link a su ficha: las cuentas no tienen
+  nombre); si es une admin vinculade (`telegram_admin_links`), su login; si no, el nombre de
+  Telegram.
+- **Los tipos** (`USO_TIPOS` en `uso.js`):
+  - `pantalla`: la pantalla de cada botón, sin ids, hashes ni búsquedas (`list:w`, `event`,
+    `section_doc:m`, `admin`…);
+  - `comando`: el nombre del comando (`start`, `buscar`…; uno que no existe, `(otro)`), **nunca lo
+    que viene después** (`/start <código>`, `/vincular <código>`);
+  - `busqueda`: lo buscado en el bot (la respuesta a «🔎 Buscar», `/buscar <texto>`,
+    `/evento <texto>`);
+  - `inline`: lo buscado en el modo inline (solo la primera página: pedir «más» no es otra
+    búsqueda). Las consultas que Telegram contesta desde su caché (120 segundos) no llegan al bot:
+    se cuentan de menos;
+  - `objeto`: una cosa abierta en el bot (la tarjeta de un evento, la tarjeta compacta de Buscar o
+    de una sección), como `evento:<dirección>`, `material:…`, `wiki:…`, `serie:…` o `amigues:…`;
+  - `inline_elegido`: la cosa que alguien mandó desde el modo inline (`chosen_inline_result`);
+  - `miniapp`: abrir la Mini App del calendario (la página manda su `initData` a
+    `POST /telegram/app/uso`, que lo valida con el token);
+  - `seguir` (desde una tarjeta o desde una búsqueda sin resultados), `vincular` (una cuenta o une
+    admin) y `desvincular`.
+- **Lo buscado** se guarda en minúsculas, sin espacios de más y hasta 60 caracteres; vacío,
+  «(vacía)».
+- **Solo lo público**: una cosa se cuenta solo si está en el índice público de la búsqueda (el
+  mismo del bot: nada oculto, «solo con cuenta», sin aprobar, no listado ni borrado) y el sitio la
+  lista (no los lugares no listados a los que lleva un evento); las tarjetas de eventos salen de
+  `listUpcoming`, que ya filtra. Un resultado inline elegido se busca rearmando la misma lista con
+  lo mismo buscado (el id del resultado es su lugar en la lista): si el índice cambió en el medio,
+  puede contar otra cosa pública, nunca una que no lo es.
+- **Una escritura por update**: un solo `db.batch` (la fila de la persona y los contadores), en
+  `waitUntil`, después de armar la respuesta. Nunca la traba ni la cambia: si la base falla, se
+  pierde ese conteo y nada más. Apagado, no se arma nada ni se lee nada de más.
+- **Retención**: el cron de cada 15 minutos (`/api/cron/recordatorios`, `pruneUso`) borra las filas
+  por persona de más de **180 días** (también con el interruptor apagado). Los totales por semana
+  quedan: no tienen a nadie.
+- **El panel**: quién usó el bot en los últimos 7, 30 o 90 días (interacciones y último día, con
+  la tabla ordenable), los totales por tipo de las últimas 12 semanas (siempre) y el detalle de la
+  semana elegida: pantallas y comandos por clave, y lo buscado y las cosas **solo si se contaron 5
+  veces o más esa semana**; lo demás, sumado en «otras (menos de 5 veces)». El umbral está en la
+  consulta (`usoPanel.js`): lo de menos ni sale de la base. Con menos de 5 personas esa semana, no
+  hay detalle (ni se consulta). La página dice en una línea que lo que buscó o miró cada persona
+  nunca se guarda.
+- **Pruebas**: `uso.test.js` (qué lleva cada tabla, que una base caída no cambia la respuesta, que
+  apagado no escribe) y `uso-privacy.test.js` (con la base y las rutas de verdad: nada oculto, no
+  listado ni «solo con cuenta» se cuenta; el umbral en la consulta; apagado no escribe; la Mini
+  App; la retención). `bot.golden.json` no cambió.
+
+### Puesta en marcha de las estadísticas (la hace gorrite)
+
+1. **Aplicar la migración `0057_telegram_uso.sql` en producción y en preview antes de mergear**
+   (0028): `npx wrangler d1 migrations apply <base> --remote`. Solo crea dos tablas y un índice:
+   anda con el código de `main`.
+2. Para contar los resultados mandados desde el modo inline: en @BotFather, `/setinlinefeedback`,
+   elegir el bot y **100 %** (si no, Telegram no manda `chosen_inline_result`). Después, volver a
+   registrar el webhook (`npm run telegram:webhook`, ver «Puesta en marcha del modo inline») para
+   que lo pida. Sin esto, lo demás se cuenta igual.
+3. Prender **Telegram: estadísticas de uso** primero en un preview, usar el bot y mirar
+   Estadísticas → Bot de Telegram. Después, en producción.
+4. Para cortarlo de golpe: `TELEGRAM_ESTADISTICAS_ENABLED=0` o apagar el interruptor.
+
 ## Qué sigue
 
 - ~~Cambiar `events.js` a `sitePosts` cuando `contenido_db` esté en `main`.~~ Hecho: el bot lee
@@ -833,3 +1006,7 @@ una confirmación):
   después lo mismo para organizadores con sus eventos.
 - `/estado` y `/avisos` en el menú «/» solo de les admins vinculades (`setMyCommands` con un
   alcance por chat), si hace falta.
+- ~~Mensajes enriquecidos y compartir desde la Mini App.~~ Hecho (arriba), detrás de
+  `telegram_enriquecido`. Falta probarlo en celus de verdad.
+- Un canal donde el bot publique lo nuevo y «Entrar con Telegram»: no elegidos por ahora
+  (gorrite, 12/10).

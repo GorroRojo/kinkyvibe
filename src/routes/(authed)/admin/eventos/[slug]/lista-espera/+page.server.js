@@ -4,7 +4,9 @@
  * las acciones del panel:
  *
  * - «Terminar la reserva y pasar a la siguiente» (`terminar`): la oferta vigente termina
- *   (`expired`, motivo `admin`) y la lista avanza ya;
+ *   (`expired`, motivo `admin`) y la lista avanza ya. El diálogo pregunta si le avisamos por mail
+ *   (`mail=1`, marcado de entrada; gorrite, 12/10): sale «se terminó tu lugar», con «Volver a
+ *   anotarme», si la lista está prendida y el mail de la oferta había salido;
  * - «Sacar de la lista» (`sacar`): `cancelled` (o borrada si no había confirmado); si tenía un
  *   lugar ofrecido, la lista avanza;
  * - «Ofrecer ahora» (`ofrecer`): una pasada del motor ya, sin esperar al cron ni al límite de un
@@ -13,7 +15,8 @@
  *   nadie más se anota) y nadie más espera (a quien esperaba le llega «se cerró»); gorrite, 12/10;
  * - «Volver a probar los mails» (`reintentar`): los mails que no salieron vuelven a la tanda.
  *
- * Todo queda en el registro de actividad, sin mails (solo el id de la anotación y cuentas). Solo
+ * Todo queda en el registro de actividad, sin direcciones de mail (solo el id de la anotación,
+ * cuentas y, al terminar una reserva, si se le mandó el mail). Solo
  * admins: cada load y cada acción lo controla (los layouts no alcanzan para las acciones).
  */
 import { error, fail } from '@sveltejs/kit';
@@ -33,7 +36,11 @@ import {
 	retryFailedWaitlistMails,
 	waitlistPanel
 } from '$lib/server/tickets/waitlistAdmin.js';
-import { advanceWaitlist, sendWaitlistMails } from '$lib/server/tickets/waitlistEngine.js';
+import {
+	advanceWaitlist,
+	queueEndedMail,
+	sendWaitlistMails
+} from '$lib/server/tickets/waitlistEngine.js';
 import { turnOffEventWaitlist } from '$lib/server/tickets/waitlistOff.js';
 import { waitlistSender } from '$lib/server/tickets/waitlistMail.js';
 
@@ -152,6 +159,38 @@ const offersText = (n) =>
 			: `Les avisamos a ${n} personas.`;
 
 /**
+ * El mail «se terminó tu lugar» al terminar una reserva desde el panel:
+ * - `queued`: pedido (sale ya, con los otros mails del evento, o en la próxima tanda);
+ * - `not_asked`: le admin destildó «Mandarle un mail»;
+ * - `off`: la lista de espera está apagada (no sale ningún mail de la lista);
+ * - `no_offer`: nunca le llegó el mail de la oferta, así que no se le avisa que terminó.
+ * @typedef {'queued' | 'not_asked' | 'off' | 'no_offer'} EndedMail
+ */
+
+/** @type {Record<EndedMail, string>} */
+const ENDED_MAIL_TEXT = {
+	queued: 'Listo: terminó su reserva y le mandamos un mail.',
+	not_asked: 'Listo: terminó su reserva (sin mail).',
+	off: 'Listo: terminó su reserva. No le mandamos un mail: la lista de espera está apagada.',
+	no_offer:
+		'Listo: terminó su reserva. No le mandamos un mail porque nunca le llegó el de la oferta.'
+};
+
+/**
+ * Pide (o no) el mail «se terminó tu lugar» de una reserva recién terminada.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} id
+ * @param {boolean} asked
+ * @returns {Promise<EndedMail>}
+ */
+async function endedMail(db, id, asked) {
+	if (!asked) return 'not_asked';
+	if (!(await isFlagOn(db, 'lista_espera'))) return 'off';
+	return (await queueEndedMail(db, id)) ? 'queued' : 'no_offer';
+}
+
+/**
  * Las acciones sobre una anotación: la busca en este evento y anota lo que pasó.
  *
  * @param {RequestEvent} event
@@ -179,19 +218,26 @@ async function entryAction(event, kind) {
 			}
 		});
 	}
+	// Antes de avanzar: así el mail sale en la misma tanda que la oferta a la siguiente persona.
+	const mail = kind === 'terminar' ? await endedMail(db, id, form.get('mail') === '1') : null;
 	await logAdminAction(db, event.locals, {
 		action: kind === 'terminar' ? 'waitlist.end' : 'waitlist.remove',
 		targetType: 'waitlist_entry',
 		targetId: id,
 		summary:
 			kind === 'terminar'
-				? `Terminó una reserva de la lista de espera de ${event.params.slug}`
+				? `Terminó una reserva de la lista de espera de ${event.params.slug} (${mail === 'queued' ? 'con mail «se terminó tu lugar»' : 'sin mail'})`
 				: `Sacó a alguien de la lista de espera de ${event.params.slug}`,
-		detail: { eventSlug: event.params.slug, ticketType: entry.ticketType, was: ended.was }
+		detail: {
+			eventSlug: event.params.slug,
+			ticketType: entry.ticketType,
+			was: ended.was,
+			...(mail ? { mail } : {})
+		}
 	});
 	// Se liberó un lugar guardado: pasa a la siguiente persona ya.
 	const advanced = ended.was === 'offered' ? await advanceNow(event, db) : null;
-	const base = kind === 'terminar' ? 'Listo: terminó su reserva.' : 'Listo: salió de la lista.';
+	const base = mail ? ENDED_MAIL_TEXT[mail] : 'Listo: salió de la lista.';
 	return {
 		action: { ok: true, message: advanced ? `${base} ${offersText(advanced.offered)}` : base }
 	};

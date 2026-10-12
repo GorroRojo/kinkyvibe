@@ -32,6 +32,7 @@ describe('todos los mails usan la plantilla común', () => {
 				'buildTransferEmail',
 				'buildWaitlistClosedEmail',
 				'buildWaitlistConfirmEmail',
+				'buildWaitlistEndedEmail',
 				'buildWaitlistExpiredEmail',
 				'buildWaitlistOfferEmail',
 				'buildWaitlistReminderEmail'

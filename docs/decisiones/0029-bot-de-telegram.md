@@ -138,3 +138,12 @@ Reglas:
   [0041](0041-telegram-para-admins.md)): «📊 Estado» de la venta y «🔔 Mis avisos», con el vínculo
   de admins de la puerta. Las reglas de acá siguen (privado, permisos en cada mensaje, sin datos de
   compradores). Detalle en [`docs/telegram.md`](../telegram.md).
+
+## Cómo va (12/10, mensajes enriquecidos y compartir)
+
+- Lo elegido por gorrite (Mesa, 12/10): lo que el bot manda del sitio (Kinkipedia, material,
+  eventos) se lee adentro del chat como mensaje enriquecido (Bot API 10.1–10.3), y la Mini App del
+  calendario suma «Mandar a un chat» y un link directo a un evento. Sigue siendo otra vista: todo
+  sale del índice público de la búsqueda, y lo que se manda lo elige la persona (el bot no anuncia
+  nada). Detrás de `telegram_enriquecido`. Un canal de anuncios y «Entrar con Telegram» quedan sin
+  elegir por ahora; «compartir en tu historia», no. Detalle en [`docs/telegram.md`](../telegram.md).
