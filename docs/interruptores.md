@@ -9,7 +9,8 @@ el sitio se ve y anda como antes de esa parte.
 - **Dónde**: Ajustes → Sistema → Interruptores (`/admin/ajustes/interruptores`). Cada cambio queda
   en Actividad.
 - **Tarda hasta 30 segundos** en verse en todo el sitio: cada isolate recuerda el valor un rato
-  (`FLAG_CACHE_MS`).
+  (`FLAG_CACHE_MS`). Lo recordado es el valor ya leído: la lectura en camino se comparte solo
+  dentro del pedido (ver [contenido.md](contenido.md), `readAndKeep`).
 - **Cada entorno tiene los suyos**: se guardan en la tabla `feature_flags` de cada base. Prender
   algo en un preview (base `kinkyvibe-preview`, compartida por todos los previews) no lo prende en
   producción, y al revés. Sin fila en la tabla, apagado.

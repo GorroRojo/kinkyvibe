@@ -12,7 +12,7 @@ vi.mock('$app/server', () => ({
 	}
 }));
 
-import { oncePerRequest } from './perRequest.js';
+import { oncePerRequest, readAndKeep } from './perRequest.js';
 
 /** @param {string} method */
 const request = (method) => ({ request: new Request('https://example.com/', { method }) });
@@ -99,5 +99,51 @@ describe('oncePerRequest', () => {
 		await expect(oncePerRequest(db, 'k', read)).rejects.toThrow('no contestó');
 		expect(await oncePerRequest(db, 'k', read)).toBe('marca');
 		expect(n).toBe(2);
+	});
+});
+
+describe('readAndKeep', () => {
+	/** Una caché de módulo como las de posts.js o flags.js: guarda un valor, nunca la promesa. */
+	function moduleCache() {
+		/** @type {{ value: string } | null} */
+		let kept = null;
+		const scope = {};
+		/** @param {() => Promise<string>} read */
+		const get = (read) =>
+			kept
+				? Promise.resolve(kept.value)
+				: readAndKeep(scope, 'k', read, (value) => {
+						kept = { value };
+					});
+		return { get };
+	}
+
+	it('una lectura de otro pedido que no termina no cuelga al siguiente', async () => {
+		const cache = moduleCache();
+		let n = 0;
+		const read = () => (++n === 1 ? new Promise(() => {}) : Promise.resolve(`valor-${n}`));
+		fake.event = request('GET');
+		void cache.get(read);
+		fake.event = request('GET');
+		const hung = new Promise((resolve) => setTimeout(() => resolve('colgado'), 100));
+		expect(await Promise.race([cache.get(read), hung])).toBe('valor-2');
+		// Lo resuelto queda para los pedidos que siguen (sin otra lectura).
+		fake.event = request('GET');
+		expect(await cache.get(read)).toBe('valor-2');
+		expect(n).toBe(2);
+	});
+
+	it('dentro de un pedido, una sola lectura; un error no se guarda', async () => {
+		const cache = moduleCache();
+		let n = 0;
+		const read = async () => {
+			if (++n === 1) throw new Error('no contestó');
+			return 'ok';
+		};
+		fake.event = request('POST');
+		await expect(cache.get(read)).rejects.toThrow('no contestó');
+		fake.event = request('GET');
+		const [a, b] = await Promise.all([cache.get(read), cache.get(read)]);
+		expect([a, b, n]).toEqual(['ok', 'ok', 2]);
 	});
 });
