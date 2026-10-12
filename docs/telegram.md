@@ -236,6 +236,11 @@ funciones que `/calendario`).
   sigue en el sitio, con Mercado Pago.
 - Se abre con el botón «📅 Calendario» del inicio (solo en privado: `web_app` no anda en grupos).
   El botón de menú del bot sigue siendo la lista de comandos.
+- **Textos**: en «Textos del bot», sección «Mini App del calendario», con su vista previa
+  (aproximada: es una página, no un mensaje). Van sin formato. La página los lee una vez por
+  pedido (`miniAppTexts` en `miniapp.js`); como la página se guarda hasta 5 minutos
+  (`max-age=300`), un cambio puede tardar eso en verse. Los estados de la venta («Agotadas»…) son
+  los del sitio (`ticketCta`).
 
 ## Textos del bot (lo edita el panel)
 
@@ -250,7 +255,7 @@ del campo que tocás). Cada guardado queda en Actividad (`settings.save`, `teleg
 
 - **Dónde está cada cosa**: los originales, qué es cada uno, sus variables y la validación, en
   `src/lib/utils/botTexts.js` (secciones Inicio y menú, Comandos, Eventos, Seguir y avisos,
-  Vincular cuenta, Puerta, Mis entradas y Errores). El bot pide cada texto con `botText(clave, variables)`
+  Vincular cuenta, Puerta, Mis entradas, Mini App del calendario y Errores). El bot pide cada texto con `botText(clave, variables)`
   (`src/lib/server/telegram/texts.js`); no queda texto para la gente escrito en las pantallas.
 - **Dónde se guarda**: en `ticket_settings`, la fila `telegram_bot_texts` (un JSON con solo los
   cambiados), como `link_preview_texts`. Sin tabla nueva ni migración.
@@ -278,8 +283,8 @@ del campo que tocás). Cada guardado queda en Actividad (`settings.save`, `teleg
   así cambiarlo no rompe los que ya se mandaron.
 - Lo que sigue en el código: los datos (títulos, fechas, lugares, links), los símbolos de las
   flechas («‹ 2/3 ›»), el «✓ » de la etiqueta elegida, los íconos de cada tipo en las listas
-  (📅 📚 📖 👥) y el « ↗» que se suma en los grupos. Las páginas de la Mini App y de la
-  puerta no son mensajes del bot: sus textos siguen en sus páginas.
+  (📅 📚 📖 👥) y el « ↗» que se suma en los grupos. La página de la puerta no es un mensaje del
+  bot: sus textos siguen en su página. Los de la Mini App del calendario sí están (arriba).
 - **Buscar en todo el sitio y el modo inline** (#298) y **las secciones** tienen sus secciones en
   el registro («Buscar en todo el sitio y modo inline», «Secciones del sitio»). Los primeros se
   pasaron con la misma prueba: sus casos se agregaron a `bot.golden.json` con el código de antes y

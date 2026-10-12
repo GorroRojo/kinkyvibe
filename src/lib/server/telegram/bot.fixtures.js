@@ -42,6 +42,7 @@ import {
 } from './misEntradas.js';
 import tagsFactory from '$lib/utils/tags.js';
 import { makeInlineSource } from './inlineSource.js';
+import { miniAppTexts } from './miniapp.js';
 import { shortHash } from './nav.js';
 import { planUpdate } from './router.js';
 import { runPlan } from './run.js';
@@ -371,6 +372,9 @@ export function botCases() {
 	const cases = [];
 	/** @param {string} name @param {() => unknown} fn */
 	const add = (name, fn) => cases.push([name, fn]);
+
+	// Los textos de la página de la Mini App del calendario (miniapp.js).
+	add('miniapp: textos', () => miniAppTexts());
 
 	// Constantes y textos sueltos de format.js.
 	add('constantes', () => ({

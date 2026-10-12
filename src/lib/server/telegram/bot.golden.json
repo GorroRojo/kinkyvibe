@@ -8453,5 +8453,15 @@
 		"callback": {
 			"id": "cb"
 		}
+	},
+	"miniapp: textos": {
+		"titulo": "Calendario",
+		"bajada": "Lo que viene en Kinky Vibe. Para comprar entradas se abre el sitio.",
+		"botonInicio": "📲 Agregar a la pantalla de inicio",
+		"agregada": "Listo: quedó en tu pantalla de inicio.",
+		"vacio": "Por ahora no hay eventos próximos.",
+		"cancelado": "Cancelado",
+		"comprar": "Comprar en el sitio",
+		"verTodo": "Ver el calendario completo en el sitio ↗"
 	}
 }

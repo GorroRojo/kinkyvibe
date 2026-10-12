@@ -47,6 +47,7 @@ export const BOT_TEXT_SECTIONS = Object.freeze([
 	{ id: 'sitio', label: 'Buscar en todo el sitio y modo inline' },
 	{ id: 'secciones', label: 'Secciones del sitio (Material, Kinkipedia, Amigues, Series)' },
 	{ id: 'entradas', label: 'Mis entradas (con el QR para la puerta)' },
+	{ id: 'miniapp', label: 'Mini App del calendario (la página /telegram/app)' },
 	{ id: 'errores', label: 'Errores' }
 ]);
 
@@ -104,6 +105,8 @@ const f = (key, section, kind, label, value, opts = {}) => ({
 	...(opts.help ? { help: opts.help } : {}),
 	max: opts.max ?? BOT_TEXT_LIMITS[kind]
 });
+
+const MINIAPP = 'Es la página de la Mini App, no un mensaje: va tal cual, sin formato.';
 
 const GROUP_ARROW = 'En un grupo, el código le suma « ↗» (abre el chat privado con el bot).';
 
@@ -1132,6 +1135,72 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'toast',
 			'Una entrada que ya no está (botón viejo)',
 			'Esa entrada ya no está acá.'
+		),
+
+		// -----------------------------------------------------------------------------------------
+		// Mini App del calendario (/telegram/app): una página, no un mensaje del bot. Texto solo.
+		// -----------------------------------------------------------------------------------------
+		f('miniapp.titulo', 'miniapp', 'inline', 'El título de la página', 'Calendario', {
+			help: `${MINIAPP} También va en la pestaña: «<título> · Kinky Vibe».`,
+			max: 60
+		}),
+		f(
+			'miniapp.bajada',
+			'miniapp',
+			'inline',
+			'La línea abajo del título',
+			'Lo que viene en Kinky Vibe. Para comprar entradas se abre el sitio.',
+			{ help: MINIAPP }
+		),
+		f(
+			'miniapp.boton_inicio',
+			'miniapp',
+			'button',
+			'Botón «agregar a la pantalla de inicio» (solo si Telegram dice que se puede)',
+			'📲 Agregar a la pantalla de inicio',
+			{ help: MINIAPP }
+		),
+		f(
+			'miniapp.agregada',
+			'miniapp',
+			'inline',
+			'Después de agregarla a la pantalla de inicio',
+			'Listo: quedó en tu pantalla de inicio.',
+			{ help: MINIAPP }
+		),
+		f(
+			'miniapp.vacio',
+			'miniapp',
+			'inline',
+			'Sin eventos próximos',
+			'Por ahora no hay eventos próximos.',
+			{ help: MINIAPP }
+		),
+		f(
+			'miniapp.cancelado',
+			'miniapp',
+			'inline',
+			'Un evento cancelado (va después de la hora y el lugar)',
+			'Cancelado',
+			{ help: MINIAPP, max: 60 }
+		),
+		f(
+			'miniapp.boton_comprar',
+			'miniapp',
+			'button',
+			'Botón para comprar entradas (abre el sitio)',
+			'Comprar en el sitio',
+			{
+				help: `${MINIAPP} El código le suma «🎟 » adelante y « ↗» al final. Los otros estados de la venta («Agotadas»…) son los del sitio.`
+			}
+		),
+		f(
+			'miniapp.ver_todo',
+			'miniapp',
+			'inline',
+			'El link del final, al calendario del sitio',
+			'Ver el calendario completo en el sitio ↗',
+			{ help: MINIAPP }
 		),
 
 		// -----------------------------------------------------------------------------------------
