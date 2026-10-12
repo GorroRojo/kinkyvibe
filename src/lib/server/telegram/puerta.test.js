@@ -10,7 +10,14 @@ import { ADMINS } from '$lib/server/auth';
 import { clearFlagCache, setFlag } from '$lib/server/flags.js';
 import { sellAtDoor } from '$lib/server/tickets/door.js';
 import { createAdminLinkCode, consumeAdminLinkCode, unlinkAdminTelegram } from './adminLink.js';
-import { doorAdmin, doorCheckIn, doorEnabled } from './puerta.js';
+import {
+	DOOR_EVENTS_MAX,
+	doorAdmin,
+	doorCheckIn,
+	doorEnabled,
+	doorEventChoices,
+	doorEvents
+} from './puerta.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -182,5 +189,88 @@ describe('doorEnabled (interruptores)', () => {
 		expect(await doorEnabled(t.db)).toBe(false);
 		expect(await doorEnabled(null)).toBe(false);
 		clearFlagCache();
+	});
+});
+
+describe('la lista de eventos de la puerta', () => {
+	const HOUR = 60 * 60 * 1000;
+	const iso = (/** @type {number} */ ms) => new Date(ms).toISOString();
+	// NOW es el 8/1 a las 20 en Argentina.
+	const EVENTS = [
+		{ slug: 'empezo-hace-rato', config: { title: 'Empezó hace rato', start: iso(NOW - 2 * HOUR) } },
+		{ slug: 'hoy-mas-tarde', config: { title: 'Hoy más tarde', start: iso(NOW + 2 * HOUR) } },
+		{ slug: 'online-hoy', config: { title: 'Online', start: iso(NOW + HOUR), online: true } },
+		{ slug: 'en-dos-dias', config: { title: 'En dos días', start: iso(NOW + 48 * HOUR) } },
+		{ slug: 'en-una-semana', config: { title: 'En una semana', start: iso(NOW + 7 * 24 * HOUR) } },
+		{ slug: 'el-mes-pasado', config: { title: 'El mes pasado', start: iso(NOW - 30 * 24 * HOUR) } },
+		{ slug: 'sin-fecha', config: { title: 'Sin fecha' } }
+	];
+
+	it('los de hoy (también los ya empezados) y los de los próximos 3 días, en orden, sin online', () => {
+		expect(doorEventChoices(EVENTS, NOW)).toEqual([
+			{ slug: 'empezo-hace-rato', title: 'Empezó hace rato', start: NOW - 2 * HOUR, today: true },
+			{ slug: 'hoy-mas-tarde', title: 'Hoy más tarde', start: NOW + 2 * HOUR, today: true },
+			{ slug: 'en-dos-dias', title: 'En dos días', start: NOW + 48 * HOUR, today: false }
+		]);
+	});
+
+	it('con un tope', () => {
+		const many = Array.from({ length: DOOR_EVENTS_MAX + 5 }, (_, i) => ({
+			slug: `evento-${i}`,
+			config: { title: `Evento ${i}`, start: iso(NOW + i * 60_000) }
+		}));
+		expect(doorEventChoices(many, NOW)).toHaveLength(DOOR_EVENTS_MAX);
+	});
+
+	it('solo para une admin vinculade: los mismos permisos que marcar', async () => {
+		const list = async () => EVENTS;
+		const none = await doorEvents({
+			db: t.db,
+			initData: initData(5005),
+			token: TOKEN,
+			now: NOW,
+			list
+		});
+		expect(none).toEqual({ status: 403, body: { error: 'forbidden', reason: 'not_linked' } });
+		const bad = await doorEvents({ db: t.db, initData: 'hash=nada', token: TOKEN, now: NOW, list });
+		expect(bad.status).toBe(403);
+		await link(5005);
+		const ok = await doorEvents({
+			db: t.db,
+			initData: initData(5005),
+			token: TOKEN,
+			now: NOW,
+			list
+		});
+		expect(ok.status).toBe(200);
+		expect(/** @type {any[]} */ (ok.body.events).map((e) => e.slug)).toEqual([
+			'empezo-hace-rato',
+			'hoy-mas-tarde',
+			'en-dos-dias'
+		]);
+		// Solo dirección, título, comienzo y si es hoy.
+		for (const e of /** @type {any[]} */ (ok.body.events)) {
+			expect(Object.keys(e).sort()).toEqual(['slug', 'start', 'title', 'today']);
+		}
+	});
+
+	it('sacar a alguien de ADMINS le corta también la lista', async () => {
+		const notAdmin = 999_999_999;
+		expect(ADMINS.some((a) => a.id === notAdmin)).toBe(false);
+		await t.db
+			.prepare(
+				`INSERT INTO telegram_admin_links (telegram_user_id, github_id, github_login, linked_at)
+				VALUES ('5006', ?1, 'ex-admin-inventade', ?2)`
+			)
+			.bind(notAdmin, NOW)
+			.run();
+		const r = await doorEvents({
+			db: t.db,
+			initData: initData(5006),
+			token: TOKEN,
+			now: NOW,
+			list: async () => EVENTS
+		});
+		expect(r).toEqual({ status: 403, body: { error: 'forbidden', reason: 'not_admin' } });
 	});
 });

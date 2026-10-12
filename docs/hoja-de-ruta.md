@@ -215,9 +215,6 @@ de amigues y lanzamientos grandes.
 
 - Puerta por Telegram, después de #273: prenderla en un preview y probarla con celulares reales
   (vincular, abrir con el botón del bot, escanear); después en producción. S. Bloqueo: gorrite.
-- Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir su
-  dirección (0037). S. (Abrirla sin volver a vincular: «🚪 Puerta» en el inicio del bot, PR
-  `claude/bot-inicio`.)
 - Bot: recorrer el sitio por secciones («📚 Material», «📖 Kinkipedia», «👥 Amigues» en el inicio,
   con listas y etiquetas), reusando la lista y la tarjeta compacta de `siteScreens.js`. M.
 - Bot: pasar los textos nuevos del modo inline y de la búsqueda (`INLINE_TEXTS` en `inline.js`,
