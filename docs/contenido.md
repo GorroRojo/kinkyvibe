@@ -204,7 +204,12 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   edge `persona` y el resto va en `data.personas` ([objetos.md](objetos.md)).
 - El panel y las listas públicas recuerdan por isolate lo que leyeron de la base mientras no cambie
   (cuántos hay, su último `updated_at`, el último guardado de `object_revisions`) y, las listas
-  públicas, mientras no cambie el árbol de etiquetas. Las listas públicas leen la metadata **sin el
+  públicas, mientras no cambie el árbol de etiquetas. Esa «marca» de «¿cambió algo?» se consulta
+  **una sola vez por pedido de lectura** (`GET`/`HEAD`): la lista, los no listados, los pronombres
+  y el índice de la búsqueda de un mismo pedido comparten la respuesta
+  (`src/lib/server/db/perRequest.js`). En un `POST` solo se comparte la consulta en camino, así un
+  guardado del pedido se ve al toque; fuera de un pedido (scripts, crons, pruebas), una por
+  llamada. Las listas públicas leen la metadata **sin el
   cuerpo** (`json_remove`); el cuerpo lo pide aparte solo la búsqueda (`siteBodies`).
 
 | Qué                                     | Dónde                                                                  |

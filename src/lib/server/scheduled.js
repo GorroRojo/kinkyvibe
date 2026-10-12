@@ -6,6 +6,8 @@
  * Solo usa imports relativos: worker/index.js lo importa sin pasar por Vite.
  */
 import { nightlyBackup } from './backup/index.js';
+import { deleteStaleSessions } from './cuentas/sessionAge.js';
+import { SITE_URL, siteOriginFrom } from '../utils/site.js';
 import { runAnalyticsRollup } from './analytics/report.js';
 import {
 	checkObjectsIntegrity,
@@ -18,8 +20,8 @@ export const REMINDERS_CRON = '*/15 * * * *';
 /** Backup de la base a R2: todas las noches a las 06:00 UTC (03:00 en Argentina). */
 export const BACKUP_CRON = '0 6 * * *';
 
-/** Origen por defecto para el pedido interno de los recordatorios. */
-export const DEFAULT_ORIGIN = 'https://kinkyvibe.ar';
+/** Origen por defecto para el pedido interno de los recordatorios (src/lib/utils/site.js). */
+export const DEFAULT_ORIGIN = SITE_URL;
 
 /**
  * @typedef {{
@@ -50,7 +52,7 @@ export const DEFAULT_ORIGIN = 'https://kinkyvibe.ar';
  * @param {AppFetch} appFetch
  */
 export async function runReminders(env, ctx, appFetch) {
-	const origin = (env.SITE_URL?.trim() || DEFAULT_ORIGIN).replace(/\/+$/, '');
+	const origin = siteOriginFrom(env.SITE_URL);
 	const url = `${origin}/api/cron/recordatorios`;
 	const response = await appFetch(
 		new Request(url, {
@@ -129,6 +131,30 @@ export async function runObjectsIntegrity(env, now = new Date()) {
 }
 
 /**
+ * Limpieza nocturna de las sesiones de las cuentas que ya no tienen cookie en ningún navegador
+ * (src/lib/server/cuentas/sessionAge.js): no cierra la sesión de nadie. **Nunca hace fallar la
+ * corrida**: si falla, lo escribe en el log y sigue. En el log va solo cuántas borró.
+ *
+ * @param {ScheduledEnv} env
+ * @param {Date} [now]
+ * @returns {Promise<number | null>} cuántas borró, o null si no corrió
+ */
+export async function runSessionCleanup(env, now = new Date()) {
+	try {
+		if (!env.DB) {
+			console.error('sesiones viejas: falta el binding DB; no se limpió');
+			return null;
+		}
+		const deleted = await deleteStaleSessions(env.DB, now.getTime());
+		console.log(`sesiones viejas: ${deleted} borrada(s)`);
+		return deleted;
+	} catch (error) {
+		console.error('sesiones viejas: la limpieza falló (el backup ya se hizo)', error);
+		return null;
+	}
+}
+
+/**
  * El handler `scheduled()`: elige la tarea según el cron que disparó.
  *
  * @param {{ cron: string, scheduledTime: number }} controller
@@ -141,12 +167,14 @@ export async function handleScheduled(controller, env, ctx, appFetch) {
 		case REMINDERS_CRON:
 			return runReminders(env, ctx, appFetch);
 		case BACKUP_CRON: {
-			// Primero el backup (si falla, la corrida falla). El chequeo y el resumen mensual de las
-			// visitas después, y nunca la hacen fallar: lo que encuentra el chequeo queda en "Para
-			// revisar"; el resumen, en `analytics_monthly` (meses de Argentina, docs/analiticas.md).
+			// Primero el backup (si falla, la corrida falla). El chequeo, el resumen mensual de las
+			// visitas y la limpieza de sesiones sin cookie después, y nunca la hacen fallar: lo que
+			// encuentra el chequeo queda en "Para revisar"; el resumen, en `analytics_monthly` (meses
+			// de Argentina, docs/analiticas.md).
 			const backup = await runBackup(env, new Date(controller.scheduledTime));
 			await runObjectsIntegrity(env, new Date(controller.scheduledTime));
 			await runAnalyticsRollup(env, { now: new Date(controller.scheduledTime) });
+			await runSessionCleanup(env, new Date(controller.scheduledTime));
 			return backup;
 		}
 		default:

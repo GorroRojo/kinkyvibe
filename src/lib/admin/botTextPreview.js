@@ -281,6 +281,67 @@ export const PREVIEW_SCREENS = Object.freeze([
 		})
 	},
 	{
+		id: 'kinkipedia_rama',
+		label: 'Kinkipedia: una rama del árbol',
+		keys: ['secciones.rama', 'secciones.boton_rama', 'secciones.rama_cantidad'],
+		build: (t) => ({
+			html: [
+				`${t('secciones.titulo_kinkipedia')} · ${t('secciones.rama', { rama: 'Prácticas' })}`,
+				'',
+				`📖 <a href="https://kinkyvibe.ar">${escapeTelegramHtml('Prácticas')}</a>\n${escapeTelegramHtml('Lo que se hace en una escena')}`,
+				'',
+				`📂 <b>${escapeTelegramHtml('Cuerdas')}</b>\n${t('secciones.rama_cantidad', { cantidad: 4 })}`
+			].join('\n'),
+			buttons: [
+				[{ text: '📖 Prácticas' }],
+				[{ text: t('secciones.boton_rama', { rama: 'Cuerdas' }) }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'miniapp',
+		label: 'Mini App del calendario (la página, aproximada)',
+		keys: [
+			'miniapp.titulo',
+			'miniapp.bajada',
+			'miniapp.boton_inicio',
+			'miniapp.cancelado',
+			'miniapp.boton_comprar',
+			'miniapp.ver_todo'
+		],
+		build: (t) => ({
+			html: [
+				`<b>${escapeTelegramHtml(t('miniapp.titulo'))}</b>`,
+				escapeTelegramHtml(t('miniapp.bajada')),
+				'',
+				'<b>JUEVES 9 DE ENERO</b>',
+				escapeTelegramHtml(`21:00 · ${SAMPLE_EVENTS[0].title}`),
+				escapeTelegramHtml(`23:00 · ${SAMPLE_EVENTS[1].title} · ${t('miniapp.cancelado')}`),
+				'',
+				`<a href="https://kinkyvibe.ar">${escapeTelegramHtml(t('miniapp.ver_todo'))}</a>`
+			].join('\n'),
+			buttons: [
+				[{ text: t('miniapp.boton_inicio'), primary: true }],
+				[{ text: `🎟 ${t('miniapp.boton_comprar')} ↗`, link: true }]
+			]
+		})
+	},
+	{
+		id: 'miniapp_vacia',
+		label: 'Mini App del calendario: sin eventos, y recién agregada a la pantalla de inicio',
+		keys: ['miniapp.vacio', 'miniapp.agregada'],
+		build: (t) => ({
+			html: [
+				`<b>${escapeTelegramHtml(t('miniapp.titulo'))}</b>`,
+				escapeTelegramHtml(t('miniapp.bajada')),
+				escapeTelegramHtml(t('miniapp.agregada')),
+				'',
+				escapeTelegramHtml(t('miniapp.vacio'))
+			].join('\n')
+		})
+	},
+	{
 		id: 'fondo',
 		label: 'Fondo',
 		keys: [

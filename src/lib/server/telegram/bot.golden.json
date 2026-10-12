@@ -9048,5 +9048,155 @@
 			"id": "cb",
 			"text": "Esa entrada ya no está acá."
 		}
+	},
+	"router: secciones: kinkipedia por ramas": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📖 Kinkipedia</b>\n\n📂 <b>Prácticas</b>\nAdentro: 1",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📂 Prácticas",
+								"callback_data": "c:w:0:1dmqz19"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📖 Kinkipedia</b>\n\n📂 <b>Prácticas</b>\nAdentro: 1",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📂 Prácticas",
+								"callback_data": "c:w:0:1dmqz19"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: secciones: kinkipedia, una rama": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📖 Kinkipedia</b> · 📂 Cuerdas\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas\">🪢 Cuerdas</a>\nAtar con cuerdas\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas-sin-resumen\">Nudos de cuerdas</a>\nKinkipedia",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📖 Cuerdas",
+								"callback_data": "cd:w:hkhwdo:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "📖 Nudos de cuerdas",
+								"callback_data": "cd:w:1kxla9p:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:w:0:1dmqz19"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📖 Kinkipedia</b> · 📂 Cuerdas\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas\">🪢 Cuerdas</a>\nAtar con cuerdas\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas-sin-resumen\">Nudos de cuerdas</a>\nKinkipedia",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📖 Cuerdas",
+								"callback_data": "cd:w:hkhwdo:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "📖 Nudos de cuerdas",
+								"callback_data": "cd:w:1kxla9p:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:w:0:1dmqz19"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"miniapp: textos": {
+		"titulo": "Calendario",
+		"bajada": "Lo que viene en Kinky Vibe. Para comprar entradas se abre el sitio.",
+		"botonInicio": "📲 Agregar a la pantalla de inicio",
+		"agregada": "Listo: quedó en tu pantalla de inicio.",
+		"vacio": "Por ahora no hay eventos próximos.",
+		"cancelado": "Cancelado",
+		"comprar": "Comprar en el sitio",
+		"verTodo": "Ver el calendario completo en el sitio ↗"
 	}
 }

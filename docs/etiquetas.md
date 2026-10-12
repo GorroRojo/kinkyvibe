@@ -100,6 +100,11 @@ wiki), para una base local o de pruebas sin etiquetas. Mismo patrón que amigues
   - ícono, color e imagen sin espacios en las puntas.
 - En dos pasos: primero crea las que faltan (solo con su nombre), después datos y relaciones.
 - **Por tandas** (`budget`): una etiqueta cuya madre todavía no se creó espera a la tanda siguiente.
+- **Escribe de a 25** (`IMPORT_CHUNK`) con `saveObjects()`: una transacción y unas pocas consultas
+  por tanda. Con la semilla (306 etiquetas) son 80 consultas en vez de 1835, y en las pruebas pasa
+  de ~4,8 s a ~0,8 s. Si una tanda no entra (una etiqueta inválida, una dirección repetida), no
+  escribió nada y se vuelve a hacer de a una, como antes: cada etiqueta informa lo mismo. La base
+  queda igual que de a una (`chunk: 1`); lo prueba `importer-tandas.test.js`.
 
 Cómo correrlo: `npm run db:semilla` (local; solo carga etiquetas si la base no tiene ninguna).
 `npm run dev` lo hace solo.
