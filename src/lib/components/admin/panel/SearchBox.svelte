@@ -179,6 +179,7 @@
 	 *   external?: boolean, run?: 'help' | 'search-help' | 'theme' | 'hide-soon', shortcut?: string,
 	 *   navId?: string, place?: boolean }} Row
 	 */
+	/** @typedef {{ id: string, label: string, rows: Row[] }} Section */
 
 	$: commands = paletteCommands({ today, hideSoon });
 	// Lo escrito, con sus operadores (#etiqueta, @persona, hoy…).
@@ -209,6 +210,8 @@
 		rows: /** @type {Row[]} */ (g.items.map((i) => ({ ...i, key: i.id })))
 	}));
 	// Las acciones van arriba, salvo que lo buscado sea claramente un registro (ver recordsFirst).
+	/** @type {Section[]} */
+	let searchSections = [];
 	$: searchSections = recordsFirst(
 		pq.actionText || q,
 		actionRows.map((r) => r.title),
@@ -218,11 +221,9 @@
 		: [...actionSection, ...recordSections];
 	// Sin nada escrito: Fijados y Recientes, como en la barra lateral.
 	$: blank = !q.trim();
-	$: sections = blank
-		? /** @type {{ id: string, label: string, rows: Row[] }[]} */ (
-				placeSections(pinnedPlaces, recentPlaces)
-			)
-		: searchSections;
+	/** @type {Section[]} */
+	let sections = [];
+	$: sections = blank ? placeSections(pinnedPlaces, recentPlaces) : searchSections;
 	$: flat = sections.flatMap((s) => s.rows);
 	// Al cambiar lo escrito (también al borrarlo todo), el elegido vuelve a ser el primero.
 	$: resetActive(q);
