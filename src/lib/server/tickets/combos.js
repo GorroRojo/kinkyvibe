@@ -20,7 +20,7 @@
  */
 import { argDeadline } from '$lib/utils/dates.js';
 import { formatARS } from '$lib/utils/money.js';
-import { TICKET_CODE_ALPHABET } from './orders.js';
+import { TICKET_CODE_LENGTH, newTicketCode } from './orders.js';
 import { HOLDING, parseDiscountAmount, parseLocalDate } from './discounts.js';
 import { getEventTickets } from './events.js';
 import { salesState } from './config.js';
@@ -48,26 +48,17 @@ import { salesState } from './config.js';
 
 /** Prefijo de los códigos combo (así se reconocen en la lista de órdenes de B). */
 export const COMBO_CODE_PREFIX = 'COMBO-';
-/** Caracteres al azar después del prefijo: 31⁶ ≈ 887 millones (no se adivinan). */
-export const COMBO_CODE_RANDOM = 6;
+/** Caracteres al azar después del prefijo (los mismos que un código de entrada): 31⁶ ≈ 887 millones. */
+export const COMBO_CODE_RANDOM = TICKET_CODE_LENGTH;
 /** Quién figura como creador de los códigos combo (`discount_codes.created_by`). */
 export const COMBO_CREATED_BY = 'combo';
 
-/** Un código combo nuevo al azar: `COMBO-` + 6 del alfabeto sin ambiguos de las entradas. */
+/**
+ * Un código combo nuevo al azar: `COMBO-` + un código corto como los de las entradas (mismo
+ * alfabeto sin ambiguos y sin sesgo, ver `newTicketCode`).
+ */
 export function newComboCode() {
-	const n = TICKET_CODE_ALPHABET.length;
-	// Se descartan los bytes del último tramo incompleto para que cada carácter salga parejo.
-	const limit = 256 - (256 % n);
-	const length = COMBO_CODE_PREFIX.length + COMBO_CODE_RANDOM;
-	let out = COMBO_CODE_PREFIX;
-	while (out.length < length) {
-		for (const b of crypto.getRandomValues(new Uint8Array(COMBO_CODE_RANDOM))) {
-			if (b >= limit) continue;
-			out += TICKET_CODE_ALPHABET.charAt(Math.floor((b * n) / limit));
-			if (out.length === length) break;
-		}
-	}
-	return out;
+	return COMBO_CODE_PREFIX + newTicketCode();
 }
 
 /**

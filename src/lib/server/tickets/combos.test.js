@@ -263,11 +263,11 @@ describe('generar el código', () => {
 		const spy = vi
 			.spyOn(crypto, 'getRandomValues')
 			.mockImplementationOnce((arr) => {
-				/** @type {Uint8Array} */ (arr).set([255, 254, 253, 252, 251, 250]);
+				/** @type {Uint8Array} */ (arr).fill(255);
 				return arr;
 			})
 			.mockImplementationOnce((arr) => {
-				/** @type {Uint8Array} */ (arr).set([0, 0, 0, 0, 0, 0]);
+				/** @type {Uint8Array} */ (arr).fill(0);
 				return arr;
 			});
 		try {
