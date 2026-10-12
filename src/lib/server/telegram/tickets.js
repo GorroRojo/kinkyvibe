@@ -8,6 +8,8 @@
  */
 import { ordersForAccount } from '$lib/server/cuentas/orders.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
+import { readWorkshop } from '$lib/server/eventos/partes.js';
+import { partsCoveredBy } from '$lib/utils/partes.js';
 import { chatAccount } from './seguir.js';
 import { shortHash } from './nav.js';
 
@@ -15,11 +17,14 @@ import { shortHash } from './nav.js';
 /**
  * Una entrada de la cuenta, con lo que muestra su página (`/entradas/t/<token>`): nunca el DNI ni
  * los datos de quien compró. `id`: un hash corto del id de la entrada (lo que lleva el botón).
+ * `parts`: si es la entrada de un taller en varias partes con una sola entrada
+ * (docs/talleres-partes.md), las fechas de todas sus partes, en orden (el taller es la 1).
  *
+ * @typedef {{ n: number, start: string | null, end: string | null, cancelled: boolean }} BotTicketPart
  * @typedef {{
  *   id: string, token: string, code: string | null, holder: string, pronouns: string,
  *   type: string, slug: string, title: string, start: string | null, end: string | null,
- *   online: boolean, checkedInAt: number | null
+ *   online: boolean, checkedInAt: number | null, parts?: BotTicketPart[] | null
  * }} BotTicket
  */
 /**
@@ -39,8 +44,35 @@ const isoOrNull = (v) => {
 };
 
 /**
+ * Las partes que cubre la entrada de `slug` (las que ve cualquiera, como los mails), o `null` si
+ * no es la de un taller con una sola entrada. Si algo falla, `null`: la entrada sale como un
+ * evento suelto.
+ *
+ * @param {D1Database} db
+ * @param {string} slug
+ * @returns {Promise<BotTicketPart[] | null>}
+ */
+async function ticketParts(db, slug) {
+	try {
+		const parts = partsCoveredBy(await readWorkshop(db, slug), slug);
+		return parts
+			? parts.map((p) => ({
+					n: p.n,
+					start: p.start,
+					end: p.end,
+					cancelled: p.status === 'cancelado'
+				}))
+			: null;
+	} catch {
+		console.error('[telegram] mis entradas: no se pudieron leer las partes de un taller');
+		return null;
+	}
+}
+
+/**
  * Las entradas de las compras aprobadas de la cuenta. Una consulta para las compras y una para
- * todas sus entradas; los datos del evento (título, fecha, tipos), uno por evento.
+ * todas sus entradas; los datos del evento (título, fecha, tipos y las partes de un taller), uno
+ * por evento.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -63,6 +95,8 @@ export async function accountTickets(db, accountId) {
 		.all();
 	/** @type {Map<string, Awaited<ReturnType<typeof getEventTickets>>>} */
 	const configs = new Map();
+	/** @type {Map<string, BotTicketPart[] | null>} */
+	const partsBySlug = new Map();
 	/** @type {BotTicket[]} */
 	const out = [];
 	for (const row of results) {
@@ -75,9 +109,11 @@ export async function accountTickets(db, accountId) {
 				console.error('[telegram] mis entradas: no se pudo leer un evento');
 			}
 			configs.set(slug, config);
+			partsBySlug.set(slug, await ticketParts(db, slug));
 		}
 		const config = configs.get(slug) ?? null;
 		const typeId = String(row.ticket_type);
+		const parts = partsBySlug.get(slug);
 		out.push({
 			id: shortHash(String(row.id)),
 			token: String(row.token),
@@ -90,7 +126,8 @@ export async function accountTickets(db, accountId) {
 			start: isoOrNull(config?.start),
 			end: isoOrNull(config?.end),
 			online: Boolean(config?.online),
-			checkedInAt: row.checked_in_at == null ? null : Number(row.checked_in_at)
+			checkedInAt: row.checked_in_at == null ? null : Number(row.checked_in_at),
+			...(parts ? { parts } : {})
 		});
 	}
 	return out;
