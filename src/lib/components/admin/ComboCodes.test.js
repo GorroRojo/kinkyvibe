@@ -41,7 +41,10 @@ describe('ComboCodes', () => {
 		const out = html({ eventTitle: 'Taller de prueba', combos: [], targets: TARGETS });
 		expect(out).toContain('Combo con otro evento');
 		expect(out).toContain('Taller de prueba');
-		expect(out).toContain('de un solo uso y solo para su email');
+		const text = out.replace(/\s+/g, ' ');
+		expect(text).toContain('de un solo uso y solo para su email');
+		expect(text).toContain('(online, en la puerta o cargada a mano)');
+		expect(text).toContain('Una venta sin email no genera código.');
 		expect(out).toMatch(/<form[^>]*action="\?\/comboSave"/);
 		expect(out).toMatch(/<select[^>]*name="target_slug"/);
 		expect(out).toContain('<option value="fiesta-de-prueba">Fiesta de prueba</option>');

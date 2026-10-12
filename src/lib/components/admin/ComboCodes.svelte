@@ -44,9 +44,9 @@
 
 <Card title="Combo con otro evento">
 	<p class="intro">
-		Quien compre una entrada online de <strong>{eventTitle}</strong> recibe en el mail de sus entradas
-		un código de descuento para el otro evento: de un solo uso y solo para su email. Si la compra se reembolsa,
-		el código deja de valer. Las ventas en la puerta y las cargadas a mano no generan códigos.
+		Quien compre una entrada de <strong>{eventTitle}</strong> (online, en la puerta o cargada a mano)
+		recibe en el mail de sus entradas un código de descuento para el otro evento: de un solo uso y solo
+		para su email. Si la compra se reembolsa, el código deja de valer. Una venta sin email no genera código.
 	</p>
 
 	{#if toggleResult}

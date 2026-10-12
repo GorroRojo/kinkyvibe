@@ -282,13 +282,13 @@ export function comboBlocks(title, combos) {
 	const html = combos
 		.map(
 			(c) => `
-		<div style="${MAIL_STYLES.box}" data-kv-mail="combo"><p style="margin:0 0 6px;font-weight:bold">Un descuento para otro evento</p><p style="margin:0">Con tu entrada a <strong>${escapeHtml(title)}</strong> tenés ${escapeHtml(c.discount)} en <a href="${escapeHtml(c.targetUrl)}" style="${MAIL_STYLES.link}">${escapeHtml(c.targetTitle)}</a>: usá el código</p><p style="margin:8px 0;font-family:'Courier New',monospace;font-size:22px;font-weight:bold;letter-spacing:2px">${escapeHtml(c.code)}</p><p style="margin:0;font-size:13px;color:${MAIL_COLORS.muted}">Es personal: vale para una compra con este mismo email${escapeHtml(until(c))}.</p></div>`
+		<div style="${MAIL_STYLES.box}" data-kv-mail="combo"><p style="margin:0 0 6px;font-weight:bold">Un descuento para otro evento</p><p style="margin:0">Con tu entrada a <strong>${escapeHtml(title)}</strong> tenés ${escapeHtml(c.discount)} en <a href="${escapeHtml(c.targetUrl)}" style="${MAIL_STYLES.link}">${escapeHtml(c.targetTitle)}</a>: usá el código</p><p style="margin:8px 0;font-family:'Courier New',monospace;font-size:22px;font-weight:bold;letter-spacing:2px">${escapeHtml(c.code)}</p><p style="margin:0;font-size:13px;color:${MAIL_COLORS.muted}">Es personal: vale para una compra con este mismo email${escapeHtml(until(c))}. Completá tus datos con este email antes de aplicarlo.</p></div>`
 		)
 		.join('');
 	const text = combos.flatMap((c) => [
 		'',
 		`Un descuento para otro evento: con tu entrada a ${title} tenés ${c.discount} en ${c.targetTitle}. Usá el código ${c.code} (${c.targetUrl}).`,
-		`Es personal: vale para una compra con este mismo email${until(c)}.`
+		`Es personal: vale para una compra con este mismo email${until(c)}. Completá tus datos con este email antes de aplicarlo.`
 	]);
 	return { html, text };
 }

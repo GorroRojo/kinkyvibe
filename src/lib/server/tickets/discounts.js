@@ -55,7 +55,7 @@ export function discountGuardSql(p) {
 			AND (d.starts_at IS NULL OR d.starts_at <= ${p.now})
 			AND (d.ends_at IS NULL OR d.ends_at > ${p.now})
 			AND (d.max_uses IS NULL OR ${usesSql('d.code', p.now)} < d.max_uses)
-			AND (d.buyer_email IS NULL OR d.buyer_email = ${p.email ?? 'NULL'})
+			AND (d.buyer_email IS NULL OR lower(trim(d.buyer_email)) = lower(trim(${p.email ?? 'NULL'})))
 			AND (d.source_order_id IS NULL OR EXISTS (
 				SELECT 1 FROM orders so WHERE so.id = d.source_order_id AND so.status = 'approved'))
 	))`;
@@ -64,9 +64,9 @@ export function discountGuardSql(p) {
 /**
  * ¿Se puede usar este código ahora en este evento?
  *
- * `email`: el de quien compra (minúsculas), si ya lo escribió. Un código combo de otro mail
- * responde "Ese código no existe" (como uno de otro evento); sin `email` («Aplicar» antes de
- * completar «Tus datos») vale, y la compra lo vuelve a mirar con el mail (`discountGuardSql`).
+ * `email`: el de quien compra, si ya lo escribió. Un código combo sin `email` o con otro mail
+ * responde "Ese código no existe" (como uno de otro evento o uno que no existe): el código solo
+ * no dice si existe. La compra lo vuelve a mirar con el mail (`discountGuardSql`).
  *
  * @param {D1Database} db
  * @param {{ code: unknown, eventSlug: string, now?: number, email?: string }} input
@@ -94,7 +94,10 @@ export async function checkDiscountCode(db, { code: raw, eventSlug, now = Date.n
 	if (row.event_slug !== null && row.event_slug !== eventSlug) {
 		return { ok: false, reason: 'other-event', message: 'Ese código no existe.' };
 	}
-	if (row.buyer_email && email && row.buyer_email !== email) {
+	// Código combo: solo con el email de quien lo recibió (sin distinguir mayúsculas ni espacios).
+	// Sin email todavía responde lo mismo que un código que no existe: así el código solo no dice
+	// si existe; la compra lo valida de verdad con el email (`discountGuardSql`).
+	if (row.buyer_email && !sameEmail(row.buyer_email, email)) {
 		return { ok: false, reason: 'other-email', message: 'Ese código no existe.' };
 	}
 	if (row.source_order_id && row.source_status !== 'approved') {
@@ -120,6 +123,17 @@ export async function checkDiscountCode(db, { code: raw, eventSlug, now = Date.n
 	delete discount.uses;
 	delete discount.source_status;
 	return { ok: true, discount };
+}
+
+/**
+ * ¿Es el mismo email? Sin distinguir mayúsculas ni espacios alrededor. Sin email: `false`.
+ *
+ * @param {string} a
+ * @param {string | undefined} b
+ */
+function sameEmail(a, b) {
+	if (!b?.trim()) return false;
+	return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
 /**

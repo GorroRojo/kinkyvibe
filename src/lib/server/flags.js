@@ -94,7 +94,7 @@ export const FLAGS = Object.freeze({
 		label: 'Códigos combo entre eventos',
 		description:
 			'En la pestaña Códigos de un evento se puede armar un combo con otro evento: quien compra ' +
-			'una entrada online del primero recibe en el mail de sus entradas un código de descuento ' +
+			'una entrada del primero (online, en la puerta o cargada a mano) recibe en el mail de sus entradas un código de descuento ' +
 			'para el segundo, de un solo uso y solo para su mail. Si la compra se reembolsa, el código ' +
 			'deja de valer. Apagado, no se arman combos ni se generan códigos nuevos (los que ya se ' +
 			'mandaron siguen valiendo).',

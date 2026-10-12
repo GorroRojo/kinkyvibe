@@ -9,6 +9,8 @@ import { applyDiscount } from '$lib/utils/tickets.js';
 import { formatARS } from '$lib/utils/money.js';
 import { checkDiscountCode, listDiscountCodes } from './discounts.js';
 import { applyPayment, getOrder, refundOrder, reserveOrder } from './orders.js';
+import { sellAtDoor } from './door.js';
+import { createManualOrder } from './manual.js';
 import {
 	COMBO_CODE_PREFIX,
 	comboCodesForOrder,
@@ -37,6 +39,10 @@ const A = 'taller-de-prueba';
 const B = 'fiesta-de-prueba';
 const OTHER = 'otro-evento-de-prueba';
 const GENERAL = { id: 'general', price: 10000, capacity: 100 };
+/** El mismo tipo, completo, para la venta en la puerta y la carga a mano. */
+const GENERAL_TYPE = /** @type {import('./config.js').TicketType} */ (
+	/** @type {unknown} */ ({ ...GENERAL, name: 'General', fondo: 0, gorra: null })
+);
 const NOW = Date.parse('2026-10-12T15:00:00Z');
 const DAY = 24 * 60 * 60 * 1000;
 const BUYER = 'persona.inventada@example.com';
@@ -163,7 +169,7 @@ describe('validateCombo', () => {
 });
 
 describe('generar el código', () => {
-	it('una compra online aprobada de A genera un código personal para B, de un uso', async () => {
+	it('una compra aprobada de A genera un código personal para B, de un uso', async () => {
 		const a = /** @type {any} */ (await buy()).order;
 		const items = await codesFor(a);
 		expect(items).toHaveLength(1);
@@ -200,15 +206,73 @@ describe('generar el código', () => {
 		expect(n).toBe(1);
 	});
 
-	it('no genera nada sin aprobar, en la puerta, cargada a mano ni con el combo apagado', async () => {
+	it('no genera nada sin aprobar, sin email ni con el combo apagado', async () => {
 		const pending = /** @type {any} */ (await buy({ approve: false })).order;
 		expect(await codesFor(pending)).toEqual([]);
 		const approved = /** @type {any} */ (await buy()).order;
-		expect(await codesFor({ ...approved, channel: 'puerta' })).toEqual([]);
-		expect(await codesFor({ ...approved, channel: 'manual' })).toEqual([]);
-		expect(orderEarnsCombos({ status: 'approved', channel: 'online' })).toBe(true);
+		expect(await codesFor({ ...approved, buyer_email: '' })).toEqual([]);
+		expect(orderEarnsCombos({ status: 'approved', buyer_email: BUYER })).toBe(true);
+		expect(orderEarnsCombos({ status: 'approved', buyer_email: '  ' })).toBe(false);
 		await setComboActive(t.db, A, B, false, { by: 'admin-de-prueba', now: NOW });
 		expect(await codesFor(approved)).toEqual([]);
+	});
+
+	it('las ventas en la puerta y las cargadas a mano también generan (gorrite, 12/10)', async () => {
+		const holders = [{ name: 'Persona Inventada', pronouns: '' }];
+		const door = /** @type {any} */ (
+			await sellAtDoor(t.db, {
+				eventSlug: A,
+				type: GENERAL_TYPE,
+				quantity: 1,
+				holders,
+				buyer: { name: 'Persona Inventada', email: 'puerta@example.com' },
+				method: 'efectivo',
+				by: 'admin-de-prueba',
+				now: NOW
+			})
+		);
+		expect(door.order).toMatchObject({ channel: 'puerta', status: 'approved' });
+		const [doorCode] = await codesFor(door.order);
+		expect(doorCode.code.startsWith(COMBO_CODE_PREFIX)).toBe(true);
+		expect(
+			await checkDiscountCode(t.db, {
+				code: doorCode.code,
+				eventSlug: B,
+				email: 'puerta@example.com',
+				now: NOW
+			})
+		).toMatchObject({ ok: true });
+
+		const manual = /** @type {any} */ (
+			await createManualOrder(t.db, {
+				eventSlug: A,
+				type: GENERAL_TYPE,
+				quantity: 1,
+				holders,
+				buyer: { name: 'Persona Inventada', email: 'cortesia@example.com' },
+				method: 'cortesia',
+				amount: 0,
+				by: 'admin-de-prueba',
+				now: NOW
+			})
+		);
+		expect(manual.order).toMatchObject({ channel: 'manual', status: 'approved' });
+		expect(await codesFor(manual.order)).toHaveLength(1);
+
+		// Una venta en la puerta sin email: no hay a quién mandárselo.
+		const anon = /** @type {any} */ (
+			await sellAtDoor(t.db, {
+				eventSlug: A,
+				type: GENERAL_TYPE,
+				quantity: 1,
+				holders,
+				buyer: { name: 'Persona Inventada', email: '' },
+				method: 'efectivo',
+				by: 'admin-de-prueba',
+				now: NOW
+			})
+		);
+		expect(await codesFor(anon.order)).toEqual([]);
 	});
 
 	it('no genera si B ya cerró la venta, se canceló o el combo venció', async () => {
@@ -325,11 +389,30 @@ describe('usar el código en B', () => {
 		expect(await useIn(code, { eventSlug: OTHER })).toMatchObject({ ok: false, reason: 'code' });
 	});
 
-	it('«Aplicar» sin mail todavía lo acepta (la compra lo vuelve a mirar con el mail)', async () => {
-		const { code } = await issued();
+	it('sin email responde lo mismo que un código que no existe (no dice si existe)', async () => {
+		const { a, code } = await issued();
+		const missing = await checkDiscountCode(t.db, { code: 'COMBO-ZZZZZZ', eventSlug: B, now: NOW });
+		expect(missing).toMatchObject({ ok: false, message: 'Ese código no existe.' });
+		for (const email of [undefined, '', '   ']) {
+			const r = await checkDiscountCode(t.db, { code, eventSlug: B, email, now: NOW });
+			expect(r).toMatchObject({ ok: false, message: missing.ok ? '' : missing.message });
+		}
+		// Tampoco cambia la respuesta si ya no vale (reembolsado): sin email, igual que no existir.
+		await refundOrder(t.db, { orderId: a.id, eventSlug: A, by: 'admin-de-prueba', now: NOW });
 		expect(await checkDiscountCode(t.db, { code, eventSlug: B, now: NOW })).toMatchObject({
-			ok: true
+			ok: false,
+			message: 'Ese código no existe.'
 		});
+	});
+
+	it('el email se compara sin distinguir mayúsculas ni espacios', async () => {
+		const { code } = await issued();
+		const typed = '  Persona.Inventada@EXAMPLE.com ';
+		expect(
+			await checkDiscountCode(t.db, { code, eventSlug: B, email: typed, now: NOW })
+		).toMatchObject({ ok: true });
+		// La sentencia de la compra también (aunque llegue sin normalizar).
+		expect(await useIn(code, { email: typed })).toMatchObject({ ok: true });
 	});
 
 	it('es de un solo uso', async () => {

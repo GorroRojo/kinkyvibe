@@ -7,10 +7,11 @@
  * - En la ficha del evento A (pestaña Códigos) un admin arma un combo con el evento B: descuento
  *   (porcentaje o monto fijo, como los códigos) y vencimiento opcional (vacío = hasta que cierre
  *   la venta de B).
- * - Cada compra **online** aprobada de A genera, al mandar el mail de las entradas, un código
+ * - Cada venta aprobada de A (online, en la puerta o cargada a mano) genera, al mandar el mail de
+ *   las entradas, un código
  *   común de descuento (`discount_codes`) para B: un solo uso, solo para el mail de quien compró
  *   (`buyer_email`) y atado a esa orden (`source_order_id`). El mail lleva un bloque con el código.
- *   Las ventas en la puerta y las cargadas a mano no generan códigos.
+ *   Una venta sin email (algunas de la puerta) no genera nada: no hay a quién mandárselo.
  * - Reembolsar la compra de A anula el código si no se usó: `discountGuardSql` y
  *   `checkDiscountCode` (discounts.js) solo lo aceptan mientras la orden de origen siga aprobada.
  *   Si ya se usó, la compra de B queda como está (cada compra es su propia orden: el combo no
@@ -172,13 +173,13 @@ export async function listCombos(db, eventSlug, now = Date.now()) {
 }
 
 /**
- * ¿Esta orden genera códigos combo? Solo las compras online aprobadas: las ventas en la puerta y
- * las cargadas a mano no (no pasan por la página de compra, y suelen ser invitaciones).
+ * ¿Esta orden genera códigos combo? Toda venta aprobada con email, de cualquier canal (online, en
+ * la puerta o cargada a mano; gorrite, 12/10). Sin email no: no hay a quién mandárselo.
  *
- * @param {Pick<import('./orders.js').Order, 'status'> & { channel?: string | null }} order
+ * @param {Pick<import('./orders.js').Order, 'status' | 'buyer_email'>} order
  */
 export function orderEarnsCombos(order) {
-	return order.status === 'approved' && (order.channel ?? 'online') === 'online';
+	return order.status === 'approved' && Boolean(order.buyer_email?.trim());
 }
 
 /**
@@ -280,7 +281,7 @@ async function ensureComboCode(db, order, combo, now) {
 				combo.ends_at,
 				now,
 				COMBO_CREATED_BY,
-				order.buyer_email,
+				order.buyer_email.trim().toLowerCase(),
 				order.id
 			)
 			.run();

@@ -124,7 +124,7 @@ describe('comboBlocks', () => {
 		expect(html).not.toContain('<de>');
 		expect(html).toContain(`href="${ITEM.targetUrl}"`);
 		expect(textOf(html)).toContain(
-			'Es personal: vale para una compra con este mismo email, hasta el sábado 14 de noviembre a las 22:00.'
+			'Es personal: vale para una compra con este mismo email, hasta el sábado 14 de noviembre a las 22:00. Completá tus datos con este email antes de aplicarlo.'
 		);
 		expect(text.join('\n')).toContain('Usá el código COMBO-ABC234');
 		expect(html).not.toContain('@');
