@@ -1,5 +1,5 @@
 /**
- * Ficha del evento, pestaña «Lista de espera» (docs/tickets.md, «Lista de espera»): las cuentas
+ * Ficha del evento, Ventas › Lista de espera (docs/tickets.md, «Lista de espera»): las cuentas
  * por alcance (todo el evento o cada tipo con cupo), la fila en orden y lo que ya terminó, con
  * las acciones del panel:
  *

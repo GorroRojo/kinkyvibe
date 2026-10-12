@@ -128,7 +128,7 @@ se manda sola cuando vuelve ([tickets.md](tickets.md), modo puerta).
 por tipo de entrada (y, si hace falta, «Avisar a todes a la vez desde el principio»). Cuánto se
 guarda el lugar no se elige por evento: es lo de Ajustes → Lista de espera, para todos. La
 fila, las cuentas y las acciones (terminar una reserva, sacar a alguien, ofrecer ahora, cerrar la
-lista) están en la pestaña «Lista de espera» de la ficha. Con gente anotada, el editor no deja
+lista) están en la vista Ventas › Lista de espera de la ficha. Con gente anotada, el editor no deja
 apagarla ni cambiar el alcance: «cerrá la lista primero».
 
 **Reembolsar.** Ficha del evento → Órdenes → Reembolsar… (total; MP o marcar la transferencia como

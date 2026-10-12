@@ -23,6 +23,11 @@ const ROUTE_FILES = ['+page.svelte', '+page.server.js', '+page.js', '+server.js'
 const MATCHERS = { soon: soonMatcher };
 /** Un segmento armado en el momento (`${…}` o `{…}`): coincide con cualquiera. */
 const ANY = '\u0000';
+/**
+ * Las pruebas que leen todos los archivos de código, pruebas y documentos del repo: ~1 s solas,
+ * pero con la máquina cargada (varias suites a la vez) pasaban los 5 s por defecto. Solo a esas.
+ */
+const WHOLE_REPO = { timeout: 30_000 };
 
 /** @param {string} dir @returns {string[]} */
 function walk(dir) {
@@ -145,7 +150,7 @@ describe('direcciones /admin escritas en el código', () => {
 		expect(found).toEqual([`/admin/${ANY}/nuevo`, `/admin/x/${ANY}/y`]);
 	});
 
-	it('cada una lleva a una ruta que existe', () => {
+	it('cada una lleva a una ruta que existe', WHOLE_REPO, () => {
 		/** @type {string[]} */
 		const broken = [];
 		for (const file of walk(SRC)) {
@@ -191,6 +196,15 @@ const REMOVED_TREES = [
 ];
 
 /**
+ * Direcciones viejas que redirigen (excepciones aprobadas por gorrite, docs/panel.md): siguen
+ * andando para los favoritos, pero ningún link nuestro las usa. Cada una con su archivo de
+ * redirección, que es el único que puede nombrarla en el código.
+ */
+const REDIRECTED = {
+	'/admin/ajustes/mails': 'src/routes/(authed)/admin/ajustes/mails/+server.js' // → /admin/mensajes/configuracion
+};
+
+/**
  * Dónde empieza una dirección del panel: no pegada a una palabra (así `lib/server/admin/cuentas.js`
  * no cuenta), salvo después de un dominio (`https://kinkyvibe.ar/admin/…`, `localhost:5173/admin/…`).
  */
@@ -219,7 +233,7 @@ function textFiles() {
  */
 const plainSlashes = (text) => text.replaceAll('\\/', '/').replace(/%2F/gi, '/');
 
-describe('direcciones borradas', () => {
+describe('direcciones borradas', WHOLE_REPO, () => {
 	const files = textFiles().map((f) => ({
 		name: relative(ROOT, f),
 		text: plainSlashes(readFileSync(f, 'utf8'))
@@ -262,6 +276,24 @@ describe('direcciones borradas', () => {
 		expect(re.test("'/admin/cuentas-viejas'")).toBe(false);
 		expect(re.test(plainSlashes('toMatch(/href="\\/admin\\/cuentas"/)'))).toBe(true);
 		expect(re.test(plainSlashes("'/login?redirectTo=%2Fadmin%2Fcuentas%2F3'"))).toBe(true);
+	});
+
+	it('ningún link del código apunta a una dirección que redirige', () => {
+		/** @type {string[]} */
+		const hits = [];
+		for (const file of walk(SRC)) {
+			const name = relative(ROOT, file);
+			if (!/\.(js|svelte)$/.test(file) || /\.test\.js$/.test(file)) continue;
+			for (const [path, owner] of Object.entries(REDIRECTED)) {
+				if (name === owner) continue;
+				if (adminPathsIn(readFileSync(file, 'utf8')).some((p) => p.replace(/\/+$/, '') === path))
+					hits.push(`${name}: ${path}`);
+			}
+		}
+		expect(hits).toEqual([]);
+		// Y la redirección existe.
+		const routes = adminRoutes();
+		for (const path of Object.keys(REDIRECTED)) expect(matchesRoute(path, routes), path).toBe(true);
 	});
 
 	it('ninguna ruta vieja sigue existiendo', () => {

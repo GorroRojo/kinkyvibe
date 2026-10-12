@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { MAIL_LAYOUT_MARK, MAIL_LOGO_PATH, mailLayout } from './layout.js';
+import { MAIL_LAYOUT_MARK, MAIL_LOGO_PATH, MAIL_PREHEADER_MARK, mailLayout } from './layout.js';
 import { allMailCases } from './mails.fixtures.js';
 
 // Asunto y texto plano de cada mail ANTES de la plantilla común (ver mails.fixtures.js).
@@ -114,6 +114,15 @@ describe('mailLayout', () => {
 		expect(html).toContain('href="https://e.example/?a=1&amp;b=&quot;2&quot;"');
 		expect(html).toContain('>Ir &lt;ya&gt;</a>');
 		expect(html).toContain('mailto:a&amp;b@example.com');
+	});
+
+	it('preencabezado: oculto, escapado, primero en el body; sin él, no está', () => {
+		const html = mailLayout({ ...base, preheader: 'Hola <b>vos</b> & todes' });
+		expect(html).toContain(
+			`<body style="margin:0;padding:0;background:#f4eff6;">\n<div style="display:none;max-height:0;overflow:hidden;opacity:0;font-size:1px;line-height:1px;color:#f4eff6;" ${MAIL_PREHEADER_MARK}>Hola &lt;b&gt;vos&lt;/b&gt; &amp; todes</div>\n<table`
+		);
+		expect(mailLayout(base)).not.toContain(MAIL_PREHEADER_MARK);
+		expect(mailLayout({ ...base, preheader: '' })).toBe(mailLayout(base));
 	});
 
 	it('sin botón ni baja, no los dibuja', () => {

@@ -124,7 +124,7 @@ armar una variante nueva en un componente.
 | Campo de texto       | `.kv-input` o `<label class="kv-field">`: rectángulo neutro (borde `--field`, `--radius-s`), 44px, letra de 16px. Con foco, borde rosa. Píldora solo en buscadores (`type="search"`). Grande (~54px, `.large`) solo en el flujo de compra.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Casilla              | `<input type="checkbox">` ya sale con el estilo del sitio (`style.scss`). Va cuando hay un botón Guardar.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | Interruptor          | `<input type="checkbox" role="switch">`: para prender/apagar al instante, sin Guardar (como Ajustes › Interruptores). Feedback: «Guardando…» → «Guardado ✓».                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Uno de N             | `.kv-segmented` (como «Mostrar \| Ocultar» del sitio, más grande, en minúscula normal, 44px). En el panel: `charts/Segmented.svelte`. Si cada opción lleva descripción: tarjetas con radio (`.kv-choice`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Uno de N             | `.kv-segmented` (como «Mostrar \| Ocultar» del sitio, más grande, en minúscula normal, 44px). `.kv-segmented.small`: a la escala de los chips (2rem, `--text-xs`), con `.icon-only` para un botón con solo un ícono (y su `aria-label`). El elegido queda lleno también con el mouse encima (en el celu el hover queda pegado después de tocar). En el panel: `charts/Segmented.svelte`. Si cada opción lleva descripción: tarjetas con radio (`.kv-choice`).                                                                                                                                                                                                                                           |
 | «Estás acá»          | Pestañas (las del evento y las de sección, `Tabs.svelte`): la actual es una **tarjeta blanca** (`--surface` con `--shadow-1`) sobre el fondo gris, con texto violeta (`--link`); decisión de gorrite, 4/10. Menú lateral y menú del sitio: violeta sobre lila (`--link` sobre `--link-bg`; en el sitio `--2-dark` sobre `--2-tint`). El índice «En esta página» del editor (`SectionIndex.svelte`) usa la tarjeta blanca de las pestañas, con íconos de Lucide grises en las otras secciones (gorrite, 9/10).                                                                                                                                                                                           |
 | Tarjeta              | `Card.svelte`: blanca lisa. `status` pone un borde de color a la izquierda (solo si hay un estado); `filled` la llena de color para destacar. La entrada conserva su borde punteado.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Badge                | `Badge.svelte`: **siempre con ícono** (si no pasás `icon`, va el del tono). Muchas para comparar: el color dice qué significa; pocas: que combine con el componente.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -137,7 +137,7 @@ armar una variante nueva en un componente.
 | Hoja del celu        | Se cierra arrastrando hacia abajo **y** con una X: `use:sheetDrag` de `$lib/admin/sheetDragAction.js`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Acción de texto      | `.kv-link`: violeta, subrayado, con ícono adelante. Los «ver más» tienen su propio estilo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Tabla                | `.kv-table` para leer; el estilo de planilla editable solo donde se edita.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Encabezado de página | El de la ficha de evento (imagen, título, fecha, chips, acciones); sin imagen, el ícono grande del tipo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Encabezado de página | El de la ficha de evento (imagen, título, fecha, chips, acciones); sin imagen, el ícono grande del tipo, rosa (`--accent`) sobre un cuadrado blanco (`--surface`) con borde `--line` (gorrite, 11/10).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 Una excepción a los avisos: los carteles de la Puerta (`ingreso`) no son `Notice`. Tienen su
 estilo oscuro propio, el mismo que los de «sin conexión» y «pendientes».
@@ -166,6 +166,38 @@ viejo en tres cosas (ya están en la tabla de arriba):
 
 Íconos: los de [Lucide](https://lucide.dev) (`@lucide/svelte`) en la interfaz. Los emoji quedan
 para el contenido y las etiquetas.
+
+### Barra de filtros de las listas
+
+En todas las listas del sitio (PostList: calendario, material, amigues, el inicio), con la
+elección de gorrite sobre el prototipo «Filtros en el celu» (#283):
+
+- **Arriba, como siempre:** el buscador (`TagSearch`), «Ver como» (lista o grilla, dos íconos de
+  Lucide, `LayoutList` y `LayoutGrid`, con `aria-label`) y «Mostrar \| Ocultar eventos pasados»,
+  los dos a la escala de los chips (`.kv-segmented.small`). En pantalla ancha, en la columna de
+  la izquierda (`FilterBar`).
+- **La barra** (`TagBar`), fija arriba al bajar: «Filtros (N)», los chips de las etiquetas más
+  usadas en lo que se ve (las elegidas primero, hasta 8; `barChips` de `$lib/utils/tagBar.js`),
+  «Más filtros» al final y, abajo, cuántos resultados hay y «Limpiar (N)». Todo mide lo mismo:
+  2rem de alto (el `.pill-btn.small`), el mismo padding, radio en píldora y `--text-xs`, con
+  `.tap-target` para los 44px del dedo.
+- **El árbol de etiquetas** (`TagTree`): en el celu, en una hoja (`Sheet`) que abren «Filtros» y
+  «Más filtros», con el árbol y nada más (sin buscador), armada recién al abrirla. Con la lista de
+  1300px o más (el mismo corte de siempre de PostList), en la columna de la izquierda, sin hoja ni
+  esos dos botones; los chips quedan como atajo. La lista queda donde estuvo siempre (centrada, 50rem) y el árbol cuelga a su izquierda, pegado,
+  con `--space-l` hasta la lista y hasta `--list-tree-w` (16rem) de ancho, con «Ver como» y
+  «Eventos pasados» arriba: no corre la lista (gorrite, al revisar #294). Con la lista de 1300px o
+  más, la celda de la izquierda mide al menos 226px, así que el árbol siempre entra; más angosto,
+  va en la hoja. El buscador y la barra van con la columna de la lista.
+- **El buscador** queda siempre en una línea con su forma de píldora: con muchas etiquetas
+  elegidas, se deslizan de costado en su fila (fundido a la izquierda, la última a la vista) y el
+  campo de texto no baja de 10.5em.
+- Todo lee y escribe `$filteredTags` y `?tags=` como antes (la URL la escribe PostList; el árbol
+  tilda desde ahí).
+
+Lo controlan `src/lib/components/PostList.test.js`, `TagSearch.test.js`,
+`src/lib/utils/tagBar.test.js`, `src/lib/styles/segmented.test.js` y `tests/smoke.spec.js`
+(«barra de filtros de las listas», en un celu y en pantalla ancha).
 
 ## Componentes
 
@@ -205,6 +237,10 @@ componente se ve aunque ninguna página principal lo use.
 | Encabezado de página                                                            | `$lib/components/ui/PageHeader.svelte` (con `image` o `icon`: el de la ficha)      |
 | Estado de un guardado automático                                                | `$lib/components/ui/SaveStatus.svelte`                                             |
 | Tabla para leer                                                                 | `$lib/components/ui/Table.svelte`                                                  |
+
+El ícono grande de cada tipo para `PageHeader` (sin imagen) sale de `typeIcon` en
+`$lib/admin/typeIcons.js`: lo usan la ficha de un perfil (persona, proyecto o lugar) y la de un
+material.
 
 Los imports viejos (`$lib/components/admin/panel/Card.svelte`, `Badge`, `EmptyState`,
 `PageHeader`, `Tabs`, `ConfirmDialog`, `$lib/components/TagChip.svelte` y

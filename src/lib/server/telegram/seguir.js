@@ -8,6 +8,12 @@
  * Desde el bot se siguen las **etiquetas y series de un evento** (las que tienen página en el
  * sitio). Perfiles y lugares, por ahora desde el sitio.
  *
+ * Seguir desde el bot también **prende los avisos por Telegram** de lo nuevo para eso (decisión de
+ * gorrite, 11/10; `BOT_FOLLOW_OPTIONS`), si el chat está vinculado y no está en `/silenciar`. Solo
+ * al empezar a seguir: si ya lo seguía, sus opciones quedan como estaban (puede haber apagado
+ * Telegram en Mi rincón y la base no distingue «nunca lo tocó» de «lo apagó»). Seguir desde el
+ * sitio no los prende y dejar de seguir no los apaga (borra la fila).
+ *
  * Lo que sigue cada cuenta es privado (docs/lo-que-sigo.md): como en el sitio, no va al registro
  * de actividad del panel (que ven les admins); queda una línea en el log sin cuenta ni etiqueta.
  */
@@ -26,10 +32,22 @@ import { shortHash } from './nav.js';
  *   targets: (slug: string) => Promise<FollowTarget[]>,
  *   following: (accountId: string, keys: string[]) => Promise<Set<string>>,
  *   follow: (accountId: string, key: string) =>
- *     Promise<'created' | 'already' | 'not_found' | 'full' | 'too_many'>,
+ *     Promise<'created' | 'created_telegram' | 'already' | 'not_found' | 'full' | 'too_many'>,
  *   titles: (accountId: string) => Promise<string[]>
  * }} BotFollows
  */
+
+/**
+ * Lo que queda prendido al seguir desde el bot: lo mismo que en el sitio más «Algo nuevo» por
+ * Telegram (como el mail de lo nuevo; el recordatorio, apagado en los dos canales).
+ *
+ * @type {Readonly<import('$lib/utils/sigo.js').FollowOptions>}
+ */
+export const BOT_FOLLOW_OPTIONS = Object.freeze({
+	...DEFAULT_FOLLOW_OPTIONS,
+	telegram_nuevo: true,
+	telegram_recordatorio: false
+});
 
 /** Cuántas etiquetas de un evento se ofrecen, como mucho. */
 export const FOLLOW_TARGETS_MAX = 5;
@@ -79,6 +97,21 @@ export async function chatAccount(db, chatId) {
 }
 
 /**
+ * ¿Se pueden prender los avisos por Telegram de esta cuenta? Solo con un chat vinculado y sin
+ * `/silenciar` (pausarlos es apagarlos a propósito: no se pisa).
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ */
+export async function telegramAvisosAllowed(db, accountId) {
+	const row = await db
+		.prepare('SELECT muted FROM telegram_chats WHERE account_id = ?1')
+		.bind(accountId)
+		.first();
+	return Boolean(row) && Number(row?.muted) !== 1;
+}
+
+/**
  * Lo que el bot puede hacer con «Lo que sigo».
  *
  * @param {D1Database} db
@@ -107,11 +140,14 @@ export function botFollows(db, platform) {
 		follow: async (accountId, key) => {
 			const found = resolveTag(await manager(), key);
 			if (!found) return 'not_found';
-			const r = await follow(db, accountId, found.target, { options: DEFAULT_FOLLOW_OPTIONS });
+			const telegram = await telegramAvisosAllowed(db, accountId);
+			const options = telegram ? BOT_FOLLOW_OPTIONS : DEFAULT_FOLLOW_OPTIONS;
+			const r = await follow(db, accountId, found.target, { options });
 			if (r.ok) {
 				// Sin cuenta ni etiqueta: lo que sigue cada cuenta es privado.
 				console.log(`[telegram] seguir desde el bot: ${r.created ? 'nuevo' : 'ya lo seguía'}`);
-				return r.created ? 'created' : 'already';
+				if (!r.created) return 'already';
+				return telegram ? 'created_telegram' : 'created';
 			}
 			return r.status === 429 ? 'too_many' : 'full';
 		},

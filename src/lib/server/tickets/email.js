@@ -851,6 +851,12 @@ export function buildTransferEmail({
  * @typedef {{ filename: string, content: string, content_type: string }} MailAttachment
  */
 
+/**
+ * Encabezados de todos los mails: están en castellano. Gmail a veces los toma por inglés (mails
+ * cortos, con «Kinky Vibe» varias veces) y ofrece traducirlos; el `lang="es"` del HTML ya está.
+ */
+export const MAIL_HEADERS = Object.freeze({ 'Content-Language': 'es' });
+
 /** Cuánto se espera la respuesta de Resend (un envío colgado no puede trabar la request). */
 export const RESEND_TIMEOUT_MS = 10_000;
 
@@ -890,7 +896,8 @@ export async function sendWithResend({
 			html: message.html,
 			text: message.text,
 			...(message.attachments?.length ? { attachments: message.attachments } : {}),
-			...(replyTo ? { reply_to: replyTo } : {})
+			...(replyTo ? { reply_to: replyTo } : {}),
+			headers: MAIL_HEADERS
 		})
 	});
 	if (!res.ok) {

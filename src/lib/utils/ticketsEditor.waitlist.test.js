@@ -129,7 +129,7 @@ describe('con gente anotada, el editor no cambia el alcance', () => {
 		expect(validateTicketsForm(f, { waitlistLive: live }).errors).toEqual([]);
 		f.waitlistScope = 'tipo';
 		expect(validateTicketsForm(f, { waitlistLive: live }).errors).toEqual([
-			'Hay 3 personas en la lista de espera del evento: para apagarla o cambiarla a «por tipo de entrada», cerrá la lista primero (pestaña «Lista de espera» de la ficha).'
+			'Hay 3 personas en la lista de espera del evento: para apagarla o cambiarla a «por tipo de entrada», cerrá la lista primero (Ventas › Lista de espera, en la ficha).'
 		]);
 		f.waitlistScope = '';
 		expect(validateTicketsForm(f, { waitlistLive: live }).errors).toHaveLength(1);
@@ -144,7 +144,7 @@ describe('con gente anotada, el editor no cambia el alcance', () => {
 		expect(waitlistLiveErrors(f, live)).toEqual([]);
 		f.types[1].capacity = '';
 		expect(waitlistLiveErrors(f, live)).toEqual([
-			'«VIP» tiene una persona en su lista de espera: no puede quedar sin cupo; cerrá la lista primero (pestaña «Lista de espera» de la ficha).'
+			'«VIP» tiene una persona en su lista de espera: no puede quedar sin cupo; cerrá la lista primero (Ventas › Lista de espera, en la ficha).'
 		]);
 		f.types = [f.types[0]];
 		expect(waitlistLiveErrors(f, live)[0]).toContain('No se puede borrar el tipo «vip»');

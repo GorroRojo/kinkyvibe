@@ -39,6 +39,7 @@ import { buildFollowEmail } from './email.js';
 import { resolveTarget } from './targets.js';
 import { optionsFromRow, telegramOptionsFromRow } from '$lib/utils/sigo.js';
 import { formatFollowNotice } from '$lib/server/telegram/format.js';
+import { botTextOverrides } from '$lib/server/telegram/texts.js';
 import { isQuietHour } from '$lib/server/telegram/quiet.js';
 import { REMINDER_ORDER_SQL } from '$lib/server/tickets/reminders.js';
 
@@ -188,6 +189,9 @@ export async function runFollowNotifications({
 	// En horario de silencio no se lee nada de Telegram: lo pendiente queda para las 9.
 	const telegramOn = Boolean(telegram) && !quiet;
 	const tg = telegram ? { sent: 0, failed: 0, quiet } : null;
+	// «Textos del bot» (lo cambiado en el panel): se lee una vez, con el primer aviso por Telegram.
+	/** @type {import('$lib/utils/botTexts.js').BotTexts | undefined} */
+	let tgTexts;
 	const events = upcomingEvents(posts, now);
 	const seen = await markEventsSeen(
 		db,
@@ -374,12 +378,16 @@ export async function runFollowNotifications({
 				if (!telegram || !tg || tgBudget <= 0 || !acc.chatId) break;
 				if (!(await claim(accountId, slug, kind, 'telegram'))) continue;
 				tgBudget--;
-				const text = formatFollowNotice({
-					kind,
-					title: String(item.post.meta.title ?? slug),
-					start: String(item.post.meta.start),
-					url: eventUrl
-				});
+				tgTexts ??= await botTextOverrides(db);
+				const text = formatFollowNotice(
+					{
+						kind,
+						title: String(item.post.meta.title ?? slug),
+						start: String(item.post.meta.start),
+						url: eventUrl
+					},
+					tgTexts
+				);
 				const result = await telegram.send(acc.chatId, text);
 				if (result === 'sent') tg.sent++;
 				else if (result === 'blocked') {

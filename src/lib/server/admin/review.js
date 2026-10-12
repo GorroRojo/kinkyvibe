@@ -299,7 +299,7 @@ export function reviewRows(facts) {
 
 /**
  * «Para revisar»: una fila con los mails de la lista de espera que no salieron (después de 3
- * intentos), que lleva a la pestaña «Lista de espera» del evento más reciente (ahí está «Volver a
+ * intentos), que lleva a Ventas › Lista de espera del evento más reciente (ahí está «Volver a
  * probar»). Nada si no hay ninguno o si la cuenta falló.
  *
  * @param {{ count: number, slugs: string[] } | null} failed

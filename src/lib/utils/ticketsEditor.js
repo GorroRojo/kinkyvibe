@@ -679,7 +679,7 @@ export function waitlistLiveErrors(form, live) {
 	/** @type {string[]} */
 	const out = [];
 	const scope = form.enabled ? (form.waitlistScope ?? '') : '';
-	const close = 'cerrá la lista primero (pestaña «Lista de espera» de la ficha)';
+	const close = 'cerrá la lista primero (Ventas › Lista de espera, en la ficha)';
 	for (const [key, n] of Object.entries(live)) {
 		if (!n) continue;
 		if (key === '') {

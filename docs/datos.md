@@ -34,7 +34,7 @@ producción. La de tu compu y la de las pruebas E2E arrancan con la semilla de c
 | Tu compu (`npm run dev`)  | copia simulada en `.wrangler/state/`                                                          | solas, antes de cada `npm run dev*` (`scripts/db-migrate-local.js`)                  |
 | Previews de cada PR       | `kinkyvibe-preview` (el binding `DB` de los Previews está en `[previews]` de `wrangler.toml`) | a mano, cuando un PR trae una migración nueva                                        |
 | Producción (kinkyvibe.ar) | `kinkyvibe` (su id está en `wrangler.toml`)                                                   | a mano, `npm run db:migrate:remote`, **antes** de deployar el código que la necesita |
-| Pruebas (vitest)          | una nueva en memoria por prueba                                                               | solas: `createTestDB()` aplica todas                                                 |
+| Pruebas (vitest)          | una nueva en memoria por archivo de pruebas                                                   | solas: `createTestDB()` aplica todas                                                 |
 
 Las migraciones `0001` a `0010` ya están aplicadas en producción (30/9/2026, antes de mergear el
 panel, #115). Con la migración a Workers los bindings pasan a configurarse distinto: ver
@@ -95,7 +95,8 @@ del modo demo: desde la decisión 0032 nadie la usa; se puede borrar a mano en e
 - `migrations/NNNN_nombre.sql`: el esquema, en orden. Cada archivo explica arriba para qué es.
 - `src/lib/server/db/index.js`: `getDB(platform)` y `logDBError(contexto, error)` (avisa si faltan
   migraciones).
-- `src/lib/server/db/testing.js`: `createTestDB()` y `applyMigrations()` para las pruebas.
+- `src/lib/server/db/testing.js`: `createTestDB()`, `applyMigrations()`, `resetDB()` y
+  `snapshotDB()`/`restoreDB()` (copia de las filas para reusar datos caros) para las pruebas.
 - `wrangler.toml`: el binding `DB`, con `kinkyvibe` en producción y `kinkyvibe-preview` en los
   Previews (bloque `[previews]`). **No tiene `pages_build_output_dir` a propósito**; no se agrega.
 

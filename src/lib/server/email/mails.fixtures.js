@@ -1,7 +1,8 @@
 /**
  * Todos los mails transaccionales con datos inventados, para los tests de la plantilla común
  * (layout.test.js). `mails.text.json` guarda el asunto y el texto plano que devolvía cada builder
- * ANTES de la plantilla común: el texto plano no cambia con ella. Solo tests.
+ * ANTES de la plantilla común: el texto plano no cambia con ella (los de códigos cambiaron después,
+ * a propósito: «Códigos copiables» en docs/mails.md). Solo tests.
  */
 import * as ticketEmail from '$lib/server/tickets/email.js';
 import * as waitlistEmail from '$lib/server/tickets/waitlistEmail.js';

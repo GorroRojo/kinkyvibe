@@ -45,21 +45,54 @@ su área. Es solo el menú: cada sección sigue en su área y en su URL. En la p
 cada sección de un grupo (menos Eventos) el layout pone una barra de pestañas con todas las
 secciones del grupo, como la que tenía Ajustes (`sectionTabs`).
 
+**Íconos en las pestañas** (gorrite, 11/10): cada pestaña de sección lleva el mismo ícono que su
+sección en la barra lateral (`sectionTabs` lo saca de `nav.js`), y las de la ficha del evento
+también (`EVENT_TABS`: las que son una sección del menú, con `section`, usan el ícono de esa
+sección: Ventas, Puerta, Códigos, Preguntas; las demás tienen uno propio de Lucide). El ícono es `aria-hidden`; el nombre de la pestaña sigue siendo su nombre
+accesible. En una pantalla angosta (< 600 px), si las pestañas no entran con sus nombres, quedan
+solo los íconos y el nombre de la actual; las otras llevan su nombre en `title` y `aria-label`
+(`$lib/components/ui/Tabs.svelte`). `nav.test.js` controla que cada pestaña tenga el ícono de su
+sección. Las pestañas que son filtros (Próximos/Pasados, Todas/Para aprobar…) no llevan ícono.
+
+**Pestañas de la ficha del evento** (gorrite, 11/10): son 7, Resumen, Editar, Ventas, Puerta,
+Códigos, Mails y Preguntas (`EVENT_TABS`; las de venta solo si el evento vende entradas). **Ventas**
+junta lo que eran tres pestañas y **Mails** lo que eran dos: cada parte es una **vista** de la
+pestaña (`views`), con su URL de siempre, y la ficha las muestra como botones (`.kv-segmented`)
+debajo de las pestañas:
+
+| Pestaña | Vistas (URL)                                                                                                                |
+| ------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`), Transferencias (`/transferencias`), Lista de espera (`/lista-espera`, ver abajo) |
+| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`)                                              |
+
+Las direcciones no cambiaron (los links de los mails, el buscador y las pruebas siguen andando):
+`eventHref(slug, 'ordenes')` da `/ordenes` como antes, y `eventTabOf(pathname)` dice qué pestaña
+y qué vista marcar (las subpáginas, como `/ordenes/cargar`, cuentan como su vista). La pestaña
+Ventas lleva el número de transferencias esperando confirmación; los botones de Órdenes,
+Transferencias y Lista de espera, los suyos (en la lista, las anotaciones vivas).
+
+En el celu (< 600 px) la ficha no muestra la tira de pestañas sino un botón con el ícono y el
+nombre de la pestaña actual y ▾, que abre la lista entera (ícono y nombre, ninguna escondida, sin
+menú «Más»). El botón lleva `aria-expanded`; al abrir, el foco va a la pestaña actual; las flechas,
+Inicio y Fin recorren la lista; Escape la cierra y devuelve el foco al botón; tocar afuera o salir
+con Tab también la cierra. Es la opción `menu` de `$lib/components/ui/Tabs.svelte`; en la compu,
+la tira de siempre. Lo prueba `tests/tickets/menu.spec.js`.
+
 Cada sección vive en **`/admin/<área>/<sección>`**. Las excepciones: Inicio (`/admin`), Puerta
 (`/admin/checkin`, porque esa URL está guardada en los celus de la puerta) y las áreas de una sola
 sección (Etiquetas), que usan la URL del área.
 
-| Área         | Secciones (URL)                                                                                                                                                                                                                                                                                                         | Para qué                                                                                                                                                                                                                                                                                                                |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| —            | Inicio (`/admin`)                                                                                                                                                                                                                                                                                                       | próximos eventos, para revisar, plata del mes, actividad, "desde tu última visita"                                                                                                                                                                                                                                      |
-| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`), Agenda (`/agenda`, + Importar planilla en `/importar`), Puerta (`/admin/checkin`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                                 | lista y ficha de cada evento (`/admin/eventos/<slug>`, sus pestañas no cambian); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                                  |
-| Ventas       | Todas las ventas (`/admin/ventas`), Transferencias (`/transferencias`), Códigos (`/codigos`) · próximamente: Tienda (`/tienda`, fase 8)                                                                                                                                                                                 | ventas de todos los eventos, bandeja de transferencias, códigos de descuento                                                                                                                                                                                                                                            |
-| Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`)                                                                                         | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md))                                                                                          |
-| Mensajes     | Plantillas (`/admin/mensajes/plantillas`) · próximamente: Bandeja (`/admin/mensajes`, fase 5), Lo que sigo (`/lo-que-sigo`, fase 2)                                                                                                                                                                                     | textos de los mails ([mails.md](mails.md))                                                                                                                                                                                                                                                                              |
-| Etiquetas    | Árbol de etiquetas (`/admin/etiquetas`, + Importar a la base en `/importar`)                                                                                                                                                                                                                                            | la taxonomía del sitio ([etiquetas.md](etiquetas.md))                                                                                                                                                                                                                                                                   |
-| Contenido    | Material (`/admin/contenido/material`), No listadas (`/no-listadas`) · próximamente: Colecciones (`/colecciones`, fase 4), Videos (`/videos`, fase 7)                                                                                                                                                                   | editores de contenido ([contenido.md](contenido.md))                                                                                                                                                                                                                                                                    |
-| Estadísticas | Ventas en el tiempo (`/admin/estadisticas/ventas`), Asistencia (`/asistencia`), Visitas al sitio (`/visitas`); `/admin/estadisticas` redirige a Ventas                                                                                                                                                                  | ventas, series, medios de pago y Fondo; quiénes vinieron y vuelven; visitas anónimas del sitio ([analiticas.md](analiticas.md)). Ver «Estadísticas» abajo                                                                                                                                                               |
-| Ajustes      | Plata: Cobros (`/admin/ajustes/cobros`), Fondo (`/fondo`), Propinas (`/propinas`) · Comunicación: Mails y envíos (`/mails`), Vistas previas al compartir (`/vistas-previas`) · Equipo: Admins (`/admins`) · Sistema: Interruptores (`/interruptores`), Automatizaciones (`/automatizaciones`), Actividad (`/actividad`) | datos para transferir y comisión de MP, % del Fondo, propinas, remitente y recordatorios, textos de la vista previa al compartir un link, lista de admins, interruptores, lo que corre solo (crons, mails programados, bot; para mirar, más «Actualizar comandos del bot»), registro (con CSV y "Recuperar" lo borrado) |
+| Área         | Secciones (URL)                                                                                                                                                                                                                                                                                                                                                                                      | Para qué                                                                                                                                                                                                                                                                                                                          |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| —            | Inicio (`/admin`)                                                                                                                                                                                                                                                                                                                                                                                    | próximos eventos, para revisar, plata del mes, actividad, "desde tu última visita"                                                                                                                                                                                                                                                |
+| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`), Agenda (`/agenda`, + Importar planilla en `/importar`), Puerta (`/admin/checkin`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                                                                                                              | lista y ficha de cada evento (`/admin/eventos/<slug>`, ver «Pestañas de la ficha del evento»); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                              |
+| Ventas       | Todas las ventas (`/admin/ventas`), Transferencias (`/transferencias`), Códigos (`/codigos`) · próximamente: Tienda (`/tienda`, fase 8)                                                                                                                                                                                                                                                              | ventas de todos los eventos, bandeja de transferencias, códigos de descuento                                                                                                                                                                                                                                                      |
+| Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`)                                                                                                                                                                      | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md))                                                                                                    |
+| Mensajes     | Plantillas (`/admin/mensajes/plantillas`), Configuración (`/configuracion`) · próximamente: Bandeja (`/admin/mensajes`, fase 5), Lo que sigo (`/lo-que-sigo`, fase 2)                                                                                                                                                                                                                                | textos de los mails ([mails.md](mails.md)), remitente, pie, recordatorios y envíos en tandas                                                                                                                                                                                                                                      |
+| Etiquetas    | Árbol de etiquetas (`/admin/etiquetas`, + Importar a la base en `/importar`)                                                                                                                                                                                                                                                                                                                         | la taxonomía del sitio ([etiquetas.md](etiquetas.md))                                                                                                                                                                                                                                                                             |
+| Contenido    | Material (`/admin/contenido/material`), No listadas (`/no-listadas`) · próximamente: Colecciones (`/colecciones`, fase 4), Videos (`/videos`, fase 7)                                                                                                                                                                                                                                                | editores de contenido ([contenido.md](contenido.md))                                                                                                                                                                                                                                                                              |
+| Estadísticas | Ventas en el tiempo (`/admin/estadisticas/ventas`), Asistencia (`/asistencia`), Visitas al sitio (`/visitas`); `/admin/estadisticas` redirige a Ventas                                                                                                                                                                                                                                               | ventas, series, medios de pago y Fondo; quiénes vinieron y vuelven; visitas anónimas del sitio ([analiticas.md](analiticas.md)). Ver «Estadísticas» abajo                                                                                                                                                                         |
+| Ajustes      | Plata: Cobros (`/admin/ajustes/cobros`), Fondo (`/fondo`), Propinas (`/propinas`), Lista de espera (`/lista-espera`, «prueba» con el interruptor apagado) · Comunicación: Vistas previas al compartir (`/vistas-previas`), Textos del bot (`/textos-bot`) · Equipo: Admins (`/admins`) · Sistema: Interruptores (`/interruptores`), Automatizaciones (`/automatizaciones`), Actividad (`/actividad`) | datos para transferir y comisión de MP, % del Fondo, propinas, textos de la vista previa al compartir un link, todo lo que dice el bot de Telegram, lista de admins, interruptores, lo que corre solo (crons, mails programados, bot; para mirar, más «Actualizar comandos del bot»), registro (con CSV y "Recuperar" lo borrado) |
 
 **Ficha de una persona** (`/admin/comunidad/personas/<id>`, con un id corto sacado del mail; nunca
 el mail en la URL). Es una sola ficha con todo lo que sabemos de alguien, encontrada por el mail
@@ -96,8 +129,8 @@ fuente** y tiene su período en la URL (`?periodo=`), así un link se puede comp
   **30** (por defecto) / 90 días. Analytics Engine guarda el detalle unos 3 meses: más atrás solo
   quedan los totales por mes de `analytics_monthly`, y la página lo dice. Nunca lee las órdenes.
 
-Ventas y Asistencia nunca llaman a Analytics Engine. `/admin/estadisticas` redirige a Ventas (la
-única redirección del panel, ver «Mover una URL»). Código: `src/lib/admin/statsPeriod.js`
+Ventas y Asistencia nunca llaman a Analytics Engine. `/admin/estadisticas` redirige a Ventas (una de
+las dos redirecciones del panel, ver «Mover una URL»). Código: `src/lib/admin/statsPeriod.js`
 (períodos), `src/lib/server/admin/statsPages.js` (lo que muestra cada pestaña, sobre
 `computeStats` y `charts.js`), `src/lib/components/admin/stats/` (`PeriodFilter`, `Visits`) y
 `src/lib/server/analytics/report.js` (`loadVisits` con `days`).
@@ -125,11 +158,24 @@ Planilla:
   página; después desaparece hasta que el sitio se vuelve a publicar con su commit (unos minutos),
   porque la agenda lee los eventos del deploy.
 
+**«Hoy» en el Inicio**: un recuadro por cada evento de hoy que no sea borrador (hora, título,
+lugar, entradas y «Abrir Puerta»). Si el evento tiene portada, a la izquierda va su miniatura:
+un cuadrado fijo de 64 px (`TodayThumb.svelte`, en `src/lib/components/admin/inicio/`), con
+`alt=""` porque el título está al lado y carga diferida. Sale de `thumb` de `upcomingEvents`
+(`inicio.js`): la misma portada que las tarjetas del sitio. En producción se pide achicada a
+128 × 128 por las transformaciones de Cloudflare (`thumbnailUrl` en `seo.js`, ver
+[compartir.md](compartir.md)); en un preview y en local, la portada tal cual. Sin portada no se
+muestra nada.
+
 **Mover una URL** (regla de gorrite para el paso 2 del mapa): **sin redirecciones** desde la vieja
 (un favorito puede dar "no encontrado", y está bien), pero **nada interno** puede apuntar a ella.
-**Única excepción**, aprobada por gorrite el 11/10: `/admin/estadisticas` redirige (307) a
+**Dos excepciones**, aprobadas por gorrite el 11/10: `/admin/estadisticas` redirige (307) a
 `/admin/estadisticas/ventas` (con el mismo `?periodo=`), porque era una página muy usada y se partió
-en tres pestañas (`src/routes/(authed)/admin/estadisticas/+server.js`). Dos pruebas lo cuidan:
+en tres pestañas (`src/routes/(authed)/admin/estadisticas/+server.js`); y `/admin/ajustes/mails`
+redirige (308, también los formularios abiertos) a Mensajes › Configuración
+(`/admin/mensajes/configuracion`), porque todo lo de mails se juntó en Mensajes
+(`src/routes/(authed)/admin/ajustes/mails/+server.js`). Ningún link nuestro apunta a las viejas
+(lista `REDIRECTED` de `adminPaths.test.js`). Dos pruebas lo cuidan:
 
 - `src/lib/admin/adminPaths.test.js` junta cada `'/admin/…'` escrito en `src/` y verifica que
   exista esa ruta (estática o dinámica); además, que ningún archivo de `src/`, `docs/`, `tests/` ni
@@ -163,8 +209,8 @@ revisar" del Inicio.
 - **Las filas**: «Transferencia» tildada sin datos para
   transferir, transferencias por confirmar (una por evento), órdenes para revisar (pago tardío,
   pago duplicado o una venta en la puerta sin conexión que pasó un límite, decisión 0035), mails que no
-  salieron (hasta 20), mails de la lista de espera que no salieron (una fila, lleva a la pestaña
-  «Lista de espera» del evento más reciente), cupos sobrevendidos, links de transmisión que
+  salieron (hasta 20), mails de la lista de espera que no salieron (una fila, lleva a Ventas ›
+  Lista de espera del evento más reciente), cupos sobrevendidos, links de transmisión que
   faltan, recordatorios que no salieron o fallaron, el link que no le llegó a todes, eventos sin imagen y borradores (juntos si
   son 2 o más), eventos con lugar y etiqueta «Online», perfiles nuevos y pedidos «Es mi perfil»
   (juntos si son 2 o más), **Etiquetas** («N cosas para revisar en Etiquetas»: sin declarar, fuera
@@ -189,9 +235,10 @@ revisar" del Inicio.
 [0040](decisiones/0040-lista-de-espera.md), detalle en
 [tickets.md](tickets.md#lista-de-espera-en-construcción)):
 
-- **Pestaña «Lista de espera» de la ficha del evento** (`/admin/eventos/<slug>/lista-espera`, entre
-  Códigos y Mail a compradores; se ve con el interruptor prendido, o si el evento tiene lista o
-  gente anotada; su contador son las anotaciones vivas y el Resumen muestra «Lista de espera: N»).
+- **Ventas › Lista de espera, en la ficha del evento** (`/admin/eventos/<slug>/lista-espera`, la
+  última vista de Ventas, después de Transferencias; se ve con el interruptor prendido, o si el
+  evento tiene lista o gente anotada; su número son las anotaciones vivas y el Resumen muestra
+  «Lista de espera: N»).
   Cuentas por alcance, la fila en orden, lo terminado y el CSV (con los mails: dato personal).
   Acciones, cada una con su diálogo y en Actividad sin el mail (`waitlist.*`): «Terminar la reserva
   y pasar a la siguiente», «Sacar de la lista», «Ofrecer ahora», «Cerrar la lista» (no la apaga:
@@ -204,6 +251,20 @@ revisar" del Inicio.
   mano» («Hay N personas en la lista de espera… Podés vender igual»).
 
 **Barra lateral** (`SideNav.svelte`, solo en la compu; en el celu está el panel "Más"):
+
+- **Cada admin elige cómo se comporta** (gorrite, 11/10), en el menú de su cuenta (el avatar),
+  «Panel lateral»: **Siempre abierto** (lo de siempre, el default), **Solo íconos** (una franja
+  angosta; el nombre sale como cartelito al pasar el mouse o con el foco del teclado, y sigue en el
+  link para los lectores de pantalla) o **Se oculta** (no ocupa lugar; el botón ☰ de la barra de
+  arriba lo abre encima del contenido; se cierra con la X, Escape, tocando afuera o al navegar).
+  No hay preferencias por admin en la base (les admins están en el código), así que se guarda en
+  **localStorage, por login** (`kv-panel-lateral:<login>`, `src/lib/admin/sidebarMode.js`, con
+  try/catch): vale para ese navegador y sin storage vuelve a «Siempre abierto». Se aplica como
+  `data-lateral` en `<html>` y un script del `<head>` (como el del tema) lo pone antes de pintar,
+  así no se ve la barra equivocada al cargar. En el celu no cambia nada (no hay barra lateral).
+- **Compacta** (gorrite, 11/10): renglones con `--space-3xs` de alto, todos los íconos de 18 px y
+  el logo más chico. Las pestañas también son más bajas en la compu; en el celu tienen 44 px
+  (`--tap`).
 
 - **Varios grupos abiertos a la vez** (gorrite, en el seguimiento de «atajos visibles»; antes se
   abría uno solo). Cada grupo recuerda si quedó abierto o cerrado en ese navegador
@@ -402,15 +463,15 @@ pierde.
 
 ## Dónde está el código
 
-| Qué                                 | Dónde                                                                                                                      |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Páginas                             | `src/routes/(authed)/admin/`                                                                                               |
-| Lógica del servidor del panel       | `src/lib/server/admin/` (inicio, ventas, personas, búsqueda, auditoría…)                                                   |
-| Lógica de entradas que usa el panel | `src/lib/server/tickets/` (`overrides.js`, `door.js`, `manual.js`, `checkin.js`…)                                          |
-| Quién es admin                      | `ADMINS` en `src/lib/server/auth.js` (por id numérico de GitHub); `requireAdmin`                                           |
-| Login con GitHub                    | `src/routes/login`, `src/routes/callback`, `src/lib/server/session.js`                                                     |
-| Menú, atajos, tema, borradores      | `src/lib/admin/` (`nav.js`, `navPrefs.js`, `commands.js`, `paletteActions.js`, `shortcutHints.js`, `theme.js`, `draft.js`) |
-| Componentes y estilos               | `src/lib/components/admin/` (`panel/`, `door/`, `inicio/`…), `src/lib/admin/panel*.scss`                                   |
+| Qué                                 | Dónde                                                                                                                                        |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Páginas                             | `src/routes/(authed)/admin/`                                                                                                                 |
+| Lógica del servidor del panel       | `src/lib/server/admin/` (inicio, ventas, personas, búsqueda, auditoría…)                                                                     |
+| Lógica de entradas que usa el panel | `src/lib/server/tickets/` (`overrides.js`, `door.js`, `manual.js`, `checkin.js`…)                                                            |
+| Quién es admin                      | `ADMINS` en `src/lib/server/auth.js` (por id numérico de GitHub); `requireAdmin`                                                             |
+| Login con GitHub                    | `src/routes/login`, `src/routes/callback`, `src/lib/server/session.js`                                                                       |
+| Menú, atajos, tema, borradores      | `src/lib/admin/` (`nav.js`, `navPrefs.js`, `sidebarMode.js`, `commands.js`, `paletteActions.js`, `shortcutHints.js`, `theme.js`, `draft.js`) |
+| Componentes y estilos               | `src/lib/components/admin/` (`panel/`, `door/`, `inicio/`…), `src/lib/admin/panel*.scss`                                                     |
 
 ## Cómo probar
 
@@ -434,7 +495,8 @@ sin permiso da 403. Lo nuevo sale detrás de un interruptor, apagado (0001; ver
 
 **Agregar une admin.** Hoy es código: sumar `{ id, login }` en `ADMINS` de `auth.js`, con el id
 sacado de `https://api.github.com/users/<login>` (no tipeado a mano). Ajustes › Admins solo lo
-muestra.
+muestra. Ahí mismo cada admin vincula y desvincula su Telegram para la puerta por Telegram
+(«Vincular Telegram», con el interruptor `telegram_puerta`; ver [`telegram.md`](telegram.md)).
 
 **Ver quién hizo algo.** Ajustes › Sistema › Actividad (filtros y CSV).
 
@@ -498,7 +560,7 @@ que corre solo (la única acción es «Actualizar comandos del bot», abajo). La
   chequeo de integridad después). Cada una con la próxima corrida y la última vez: el último mail
   que salió (la base no guarda las vueltas que no mandaron nada) y el último backup de R2 (solo en
   producción; en un preview, la última corrida del chequeo, `integrity_runs`).
-- **Mails que salen solos**: recordatorios de entradas (los configurados en Ajustes → Mails),
+- **Mails que salen solos**: recordatorios de entradas (los configurados en Mensajes → Configuración),
   links de transmisión, avisos de series y de «Lo que sigo» (nuevo y recordatorio), con el último
   envío, los pendientes y los que fallaron (`reminder_sends`, `stream_link_sends`,
   `series_notifications`, `follow_notifications`). «Mail a compradores» no está: sale desde la

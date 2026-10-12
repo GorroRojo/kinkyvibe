@@ -51,7 +51,7 @@
 	{#if people > 0}
 		<small class="live"
 			>{people === 1 ? 'Hay 1 persona anotada' : `Hay ${people} personas anotadas`}: para apagarla o
-			cambiar el alcance, cerrá la lista primero (pestaña «Lista de espera»).</small
+			cambiar el alcance, cerrá la lista primero (Ventas › Lista de espera, en la ficha).</small
 		>
 	{/if}
 	{#if scope}

@@ -1,5 +1,5 @@
 /**
- * La lista de espera en el panel (docs/tickets.md, «Lista de espera»): lo que leen la pestaña
+ * La lista de espera en el panel (docs/tickets.md, «Lista de espera»): lo que leen la vista
  * «Lista de espera» de la ficha del evento, su CSV, la nota de la puerta y de la carga a mano, el
  * editor (que no deja cambiar el alcance con gente anotada) y «Para revisar» (mails que no
  * salieron). Y las acciones del panel que no son un cambio de una sola anotación: cerrar la lista
@@ -118,7 +118,7 @@ const PANEL_ORDER = `CASE e.status WHEN 'offered' THEN 0 WHEN 'waiting' THEN 1
 	COALESCE(e.ended_at, e.updated_at) DESC, e.id`;
 
 /**
- * Todo lo de la pestaña «Lista de espera» de un evento: las cuentas por alcance y las anotaciones
+ * Todo lo de la vista Ventas › Lista de espera de un evento: las cuentas por alcance y las anotaciones
  * (las vivas y compradas todas; de las terminadas, las últimas {@link ENDED_SHOWN}).
  *
  * @param {D1Database} db

@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Pestaña «Lista de espera» de la ficha del evento (ver +page.server.js): cuentas por alcance,
+	 * Ventas › Lista de espera, en la ficha del evento (ver +page.server.js): cuentas por alcance,
 	 * la fila en orden, lo terminado, y las acciones (cada una pide confirmar).
 	 */
 	import { enhance } from '$app/forms';

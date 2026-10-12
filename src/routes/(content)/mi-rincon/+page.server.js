@@ -13,9 +13,12 @@ import { logDBError } from '$lib/server/db';
 import {
 	canHaveProfiles,
 	getAccount,
+	getReadingSpeed,
 	removePassword,
-	setPassword
+	setPassword,
+	setReadingSpeed
 } from '$lib/server/cuentas/accounts.js';
+import { READING_SPEEDS, parseReadingSpeed } from '$lib/utils/readingTime.js';
 import { passwordProblem } from '$lib/server/cuentas/password.js';
 import { ordersForAccount } from '$lib/server/cuentas/orders.js';
 import { SESSION_COOKIE, destroyOtherSessions } from '$lib/server/cuentas/session.js';
@@ -102,6 +105,8 @@ export async function load(event) {
 			dniMasked: maskDni(saved.dni)
 		},
 		savedError,
+		// La velocidad de lectura de la cuenta (null: la de siempre). $lib/utils/readingSpeed.js.
+		readingSpeed: await getReadingSpeed(db, account.id).catch(() => null),
 		orders: orders.map((o) => ({
 			id: o.id,
 			reference: orderReference(o.id),
@@ -243,6 +248,39 @@ export const actions = {
 			return fail(500, { action: 'datos', error: 'No se pudo guardar. Probá de nuevo.' });
 		}
 		return { action: 'datos', message: 'Tus datos quedaron guardados.' };
+	},
+
+	// «Velocidad de lectura»: una de las tres o «Otro» con un número (llevado al rango permitido).
+	// «Predeterminado» saca lo guardado. El sitio la toma al recargar los datos ((content)/+layout.svelte).
+	velocidad: async (event) => {
+		const { db, member } = await requireMember(event);
+		const form = await event.request.formData();
+		const choice = field(form, 'velocidad');
+		const preset = READING_SPEEDS.find((s) => s.id === choice);
+		const wpm = preset
+			? preset.wpm
+			: choice === 'otro'
+				? parseReadingSpeed(field(form, 'otro'))
+				: null;
+		if (wpm === null)
+			return fail(400, {
+				action: 'velocidad',
+				error:
+					choice === 'otro' ? 'Escribí cuántas palabras por minuto leés.' : 'Elegí una velocidad.'
+			});
+		try {
+			const saved = await setReadingSpeed(db, member.id, wpm);
+			return {
+				action: 'velocidad',
+				message:
+					saved === null
+						? 'Listo: volviste a la velocidad normal.'
+						: `Listo: ${saved} palabras por minuto.`
+			};
+		} catch {
+			console.error('[cuentas] no se pudo guardar la velocidad de lectura');
+			return fail(500, { action: 'velocidad', error: 'No se pudo guardar. Probá de nuevo.' });
+		}
 	},
 
 	borrarDato: async (event) => {

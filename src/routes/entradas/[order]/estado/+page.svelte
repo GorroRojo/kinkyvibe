@@ -112,6 +112,16 @@
 	<dl>
 		<dt>Evento</dt>
 		<dd><a href="/calendario/{data.event.slug}">{data.event.title}</a></dd>
+		{#if data.event.parts?.lines.length}
+			<dt>Partes</dt>
+			<dd>
+				<ul class="parts">
+					{#each data.event.parts.lines as line, i (i)}
+						<li>{line}</li>
+					{/each}
+				</ul>
+			</dd>
+		{/if}
 		<dt>Entradas</dt>
 		<dd>{order.quantity} × {order.typeName}</dd>
 		{#if order.fondoOption === 'gorra'}
@@ -212,6 +222,14 @@
 	dd {
 		margin: 0;
 		overflow-wrap: anywhere;
+	}
+	.parts {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.parts li {
+		margin-bottom: 0.15em;
 	}
 	.estado-awaiting_transfer {
 		outline-color: var(--4-dark, var(--2));

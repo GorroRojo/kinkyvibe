@@ -332,6 +332,26 @@ describe('el mail con las entradas', () => {
 		expect(bodies[0].attachments[0].content_type).toBe(ICS_CONTENT_TYPE);
 		expect(bodies[1]).not.toHaveProperty('attachments');
 	});
+
+	it('sendWithResend marca todos los mails en castellano (Content-Language: es)', async () => {
+		/** @type {any[]} */
+		const bodies = [];
+		const fetch = /** @type {any} */ (
+			async (/** @type {string} */ _url, /** @type {RequestInit} */ init) => {
+				bodies.push(JSON.parse(String(init.body)));
+				return new Response('{"id":"x"}', { status: 200 });
+			}
+		);
+		const { subject, html, text } = buildTicketEmail({ ...base, event: EVENT });
+		await sendWithResend({
+			fetch,
+			apiKey: 're_inventada',
+			from: 'a@example.com',
+			to: 'b@example.com',
+			message: { subject, html, text }
+		});
+		expect(bodies[0].headers).toEqual({ 'Content-Language': 'es' });
+	});
 });
 
 describe('SEQUENCE (un archivo posterior reemplaza al anterior)', () => {

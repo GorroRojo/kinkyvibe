@@ -245,7 +245,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 	{
 		id: 'reminder',
 		label: 'Recordatorio',
-		when: 'Antes de cada evento, según Ajustes → Mails → Recordatorios.',
+		when: 'Antes de cada evento, según Mensajes → Configuración → Recordatorios.',
 		fixed:
 			'Evento con fecha y lugar, qué llevar (o el link de la transmisión), la lista de entradas con su link y código, número de orden y política de devoluciones.',
 		vars: [V.nombre, V.evento, V.fecha, V.lugar, V.cuando, V.tipo, V.cantidad, V.entradas],

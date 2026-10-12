@@ -52,7 +52,7 @@ aparte: guarda lugares en la misma cuenta del cupo y la avanza un cron.
   solo su SHA-256. Quien compra con el link puede poner otro mail (comprar para otra persona).
 - **La puerta y la carga a mano no miran la lista** (como siempre: les organizadores tienen el
   control). Solo avisan: «Hay N personas en la lista de espera… Podés vender igual».
-- **El panel:** pestaña «Lista de espera» en la ficha del evento (cuentas, la fila, CSV) con
+- **El panel:** vista «Lista de espera» en la ficha del evento (dentro de Ventas, desde #303) (cuentas, la fila, CSV) con
   «Terminar la reserva y pasar a la siguiente», «Sacar de la lista», «Ofrecer ahora» y «Cerrar la
   lista»; cada una pide confirmar y queda en Actividad sin el mail. Los mails que no salieron son
   una fila de «Para revisar» (0030).
