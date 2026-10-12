@@ -250,7 +250,11 @@ para siempre y salió de Interruptores («Contenido solo en la base», paso 2).
 - **Buscador de la Kinkipedia**: es el selector de etiquetas del sitio (`ChipCombobox` con
   `look="search"` y `searchTagOptions`, como en Lo que sigo): sugiere entradas por nombre, nombre
   visible o alias y al elegir una lleva a `/wiki/<etiqueta>`; lo escrito sigue filtrando el árbol
-  como antes. Arriba, un índice de secciones con anclas (`src/lib/utils/wikiIndex.js`).
+  como antes (`filterWikiTree`). Arriba, un índice de secciones con anclas (todo en
+  `src/lib/utils/wikiIndex.js`). Si ninguna entrada se llama así pero el texto aparece, la lista
+  dice «abajo filtramos el texto»; si no aparece en ningún lado, la lista se cierra y queda el
+  EmptyState, con «Buscar en todo el sitio» que abre el buscador global con lo escrito
+  (`searchPrefill`).
 - **Series hijas** (una edición especial): una serie puede estar dentro de otra («Picantearla:
   Deluxe» dentro de «Picantearla»). Sus eventos llevan **las dos** etiquetas: la de la hija y la de
   la madre, así la página de la madre sigue con todas las ediciones. En Eventos → Series: «Crear
