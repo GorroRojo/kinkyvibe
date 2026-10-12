@@ -931,7 +931,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin',
 			'message',
 			'Mis avisos: la pantalla',
-			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.'
+			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.'
 		),
 		f('admin.aviso_diario', 'admin', 'button', 'Mis avisos: resumen diario', 'Resumen diario', {
 			max: 56,
@@ -967,6 +967,126 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 		f('admin.apagado', 'admin', 'toast', 'Mis avisos: al apagar uno', 'Apagado: {aviso}', {
 			vars: [{ name: 'aviso', label: 'el aviso', sample: 'Resumen diario' }]
 		}),
+		f(
+			'admin.venta',
+			'admin',
+			'line',
+			'Aviso «Cada venta»: una entrada',
+			'🎟 Se vendió {entradas} de **{evento}** · {vendidas}',
+			{
+				vars: [
+					{
+						name: 'entradas',
+						label: 'cuántas, el tipo y el tramo',
+						sample: '1 General (Preventa 1)'
+					},
+					V.evento,
+					{
+						name: 'vendidas',
+						label: 'las vendidas del tipo contra su cupo (o solo las vendidas, sin cupo)',
+						sample: '23/50'
+					}
+				],
+				required: ['entradas', 'evento'],
+				help: 'Solo cantidades: nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.ventas',
+			'admin',
+			'line',
+			'Aviso «Cada venta»: más de una entrada',
+			'🎟 Se vendieron {entradas} de **{evento}** · {vendidas}',
+			{
+				vars: [
+					{
+						name: 'entradas',
+						label: 'cuántas, el tipo y el tramo',
+						sample: '2 General (Preventa 1)'
+					},
+					V.evento,
+					{
+						name: 'vendidas',
+						label: 'las vendidas del tipo contra su cupo (o solo las vendidas, sin cupo)',
+						sample: '25/50'
+					}
+				],
+				required: ['entradas', 'evento'],
+				help: 'Solo cantidades: nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.transferencia',
+			'admin',
+			'line',
+			'Aviso «Cada transferencia»: llegó una para confirmar',
+			'💸 Transferencia para confirmar: {entradas} de **{evento}** · {pendientes} por confirmar',
+			{
+				vars: [
+					{ name: 'entradas', label: 'cuántas, el tipo y el tramo', sample: '2 General' },
+					V.evento,
+					{
+						name: 'pendientes',
+						label: 'cuántas transferencias del evento esperan confirmación',
+						sample: '3'
+					}
+				],
+				required: ['entradas', 'evento'],
+				help: 'Solo cantidades: nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.resumen_titulo',
+			'admin',
+			'line',
+			'Resumen diario: el título (uno por evento)',
+			'☀️ **Resumen diario · {evento}**',
+			{ vars: [V.evento], required: ['evento'] }
+		),
+		f(
+			'admin.resumen_vendidas',
+			'admin',
+			'line',
+			'Resumen diario: lo vendido desde ayer',
+			'🎟 Desde ayer a las {hora}: {cantidad} vendidas · en total: {vendidas}',
+			{
+				vars: [
+					{ name: 'hora', label: 'la hora del resumen', sample: '9:00' },
+					{ name: 'cantidad', label: 'cuántas se vendieron desde ayer', sample: '5' },
+					{
+						name: 'vendidas',
+						label: 'las vendidas del evento contra el cupo (o solo las vendidas, sin cupo)',
+						sample: '23/50'
+					}
+				],
+				required: ['cantidad']
+			}
+		),
+		f(
+			'admin.resumen_transferencias',
+			'admin',
+			'line',
+			'Resumen diario: transferencias que llegaron desde ayer (solo si hay)',
+			'💸 Transferencias nuevas desde ayer: {cantidad}',
+			{
+				vars: [{ name: 'cantidad', label: 'cuántas órdenes', sample: '2' }],
+				required: ['cantidad']
+			}
+		),
+		f(
+			'admin.resumen_reservas',
+			'admin',
+			'line',
+			'Resumen diario: reservas sin pagar (solo si hay)',
+			'⏳ Reservas sin pagar: {cantidad} · vencen en las próximas 24 horas: {por_vencer}',
+			{
+				vars: [
+					{ name: 'cantidad', label: 'cuántas entradas están reservadas', sample: '4' },
+					{ name: 'por_vencer', label: 'cuántas vencen en las próximas 24 horas', sample: '2' }
+				],
+				required: ['cantidad']
+			}
+		),
 
 		// -----------------------------------------------------------------------------------------
 		// Buscar en todo el sitio y modo inline (#298)

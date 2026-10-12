@@ -617,6 +617,58 @@ export const PREVIEW_SCREENS = Object.freeze([
 		build: (t) => ({
 			toast: `${t('admin.prendido', { aviso: t('admin.aviso_diario') })}\n${t('admin.apagado', { aviso: t('admin.aviso_venta') })}`
 		})
+	},
+	{
+		id: 'admin_aviso_venta',
+		label: 'Avisos (admins): cada venta y cada transferencia',
+		keys: ['admin.venta', 'admin.ventas', 'admin.transferencia'],
+		build: (t) => ({
+			html: [
+				t('admin.venta', {
+					entradas: '1 General (Preventa 1)',
+					evento: 'Fiesta de ejemplo',
+					vendidas: '23/50'
+				}),
+				t('admin.ventas', {
+					entradas: '2 General (Preventa 1)',
+					evento: 'Fiesta de ejemplo',
+					vendidas: '25/50'
+				}),
+				t('admin.transferencia', {
+					entradas: '2 General',
+					evento: 'Fiesta de ejemplo',
+					pendientes: 3
+				})
+			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_resumen',
+		label: 'Avisos (admins): el resumen diario de un evento',
+		keys: [
+			'admin.resumen_titulo',
+			'admin.resumen_vendidas',
+			'admin.resumen_transferencias',
+			'admin.resumen_reservas'
+		],
+		build: (t) => ({
+			html: [
+				`${t('admin.resumen_titulo', { evento: 'Fiesta de ejemplo' })}\n📅 sáb 11 ene · 23:00`,
+				[
+					t('admin.resumen_vendidas', { hora: '9:00', cantidad: 5, vendidas: '23/50' }),
+					t('admin.resumen_transferencias', { cantidad: 2 })
+				].join('\n'),
+				[
+					t('admin.resumen_reservas', { cantidad: 4, por_vencer: 2 }),
+					t('admin.transferencias', { cantidad: 2 }),
+					t('admin.revisar', { cantidad: 1 }),
+					t('admin.espera', { cantidad: 5 })
+				].join('\n'),
+				t('admin.pie')
+			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
 	}
 ]);
 

@@ -273,11 +273,14 @@ de amigues y lanzamientos grandes.
   [0041](decisiones/0041-telegram-para-admins.md)): aplicar la migración 0054 en preview y
   producción, prender `telegram_admin` en un preview y probarlo con un Telegram vinculado. S.
   Bloqueo: gorrite.
-- Telegram para admins, PR 2: el resumen diario de ventas y los avisos en el momento (cada venta,
-  cada transferencia que llega), solo a quien los prendió en «🔔 Mis avisos» (`noticeRecipients`),
-  con horario de silencio y clave única por envío; solo cantidades y links (0041). M.
+- Telegram para admins, PR 2 (resumen diario, cada venta y cada transferencia, 0041): aplicar la
+  migración 0055 en preview y producción antes de mergear, y probarlo en un preview con una compra
+  de prueba y el cron de las 9. S. Bloqueo: gorrite.
+- Telegram para admins: guardar cuándo se aprobó cada orden (`approved_at`, necesita migración)
+  para que «vendidas desde ayer» del resumen diario no dependa de `updated_at`. S. Bloqueo: que
+  haga falta.
 - Telegram para admins, PR 3: el resumen del día del evento y los recordatorios (el evento de
-  mañana, falta el lugar o el link de la transmisión) (0041). M. Bloqueo: PR 2.
+  mañana, falta el lugar o el link de la transmisión) (0041). M. Bloqueo: que se mergee el PR 2.
 - Telegram para admins: `/estado` y `/avisos` en el menú «/» solo de les admins vinculades
   (`setMyCommands` con un alcance por chat, desde el cron; borrarlo al desvincular). S. Bloqueo:
   que haga falta.
