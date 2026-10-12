@@ -34,6 +34,7 @@
 	import { Button, TagChip } from '$lib/components/ui';
 	import PostListItem from '$lib/components/PostListItem.svelte';
 	import AvisoEvento from '$lib/components/evento/AvisoEvento.svelte';
+	import BotonCompra from '$lib/components/evento/BotonCompra.svelte';
 	import Compra from '$lib/components/evento/Compra.svelte';
 	import CuandoDonde from '$lib/components/evento/CuandoDonde.svelte';
 	import Partes from '$lib/components/evento/Partes.svelte';
@@ -57,7 +58,8 @@
 	const STYLE_TAG = 'style';
 	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
 	// El link de inscripción (`link`): web, mail (`mailto:`), teléfono o página del sitio; con otro
-	// esquema (`javascript:`…) no se muestra (eventLink.js). Solo un link web abre otra pestaña.
+	// esquema (`javascript:`…) no se muestra (eventLink.js). Solo un link web abre otra pestaña
+	// (y el botón dice a qué sitio lleva).
 	$: actionLink = safeEventLink(data.meta.link);
 	$: actionLinkTarget = isWebLink(actionLink) ? '_blank' : undefined;
 	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
@@ -241,15 +243,15 @@
 	{:else if showLink || data.partes}
 		<section class="compra" aria-label="Inscripción">
 			{#if showLink}
-				<p class="inscripcion">
-					<Button
-						surface="sitio"
+				<!-- El mismo botón grande que «Comprar entradas» (gorrite, 10/10): con entradas en otro
+				     sitio, dice a cuál lleva. -->
+				<div class="inscripcion">
+					<BotonCompra
 						href={actionLink}
-						target={actionLinkTarget}
-						rel={actionLinkTarget ? 'noopener' : undefined}
-						>{data.meta.link_text || 'Inscripción'}</Button
-					>
-				</p>
+						title={data.meta.link_text || 'Inscripción'}
+						external={Boolean(actionLinkTarget)}
+					/>
+				</div>
 			{/if}
 			{#if data.partes}<Partes partes={data.partes} />{/if}
 		</section>
@@ -411,10 +413,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-s);
-	}
-	.inscripcion {
-		margin: 0;
-		text-align: center;
 	}
 	.compartir {
 		display: flex;
