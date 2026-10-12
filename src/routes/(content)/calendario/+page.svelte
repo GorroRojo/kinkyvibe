@@ -113,7 +113,7 @@
 		<CalendarHeader {view_date} {default_month} />
 		<button
 			type="button"
-			class="pill-btn ghost small grid-toggle"
+			class="pill-btn ghost small grid-toggle tap-target"
 			aria-expanded={showGrid}
 			aria-controls="month-grid"
 			on:click={() => (showGrid = !showGrid)}
