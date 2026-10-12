@@ -9,10 +9,15 @@
 	import { byteLength, isFormattedKind } from '$lib/utils/botTexts.js';
 	import {
 		PREVIEW_SCREENS,
+		SAMPLE_QR_SIZE,
 		SINGLE_SCREEN,
 		buildPreview,
+		sampleQrCells,
 		screenForKey
 	} from '$lib/admin/botTextPreview.js';
+
+	/** El QR de mentira de la tarjeta de una entrada (un dibujo, no se puede escanear). */
+	const qrCells = sampleQrCells();
 
 	export let data;
 	export let form;
@@ -239,7 +244,24 @@
 				{:else if preview.toast}
 					<div class="toast" role="status">{preview.toast}</div>
 				{:else}
-					<div class="bubble">
+					<div class="bubble" class:with-photo={preview.qr}>
+						{#if preview.qr}
+							<svg
+								class="qr"
+								viewBox="-2 -2 {SAMPLE_QR_SIZE + 4} {SAMPLE_QR_SIZE + 4}"
+								role="img"
+								aria-label="QR de ejemplo"
+							>
+								<rect
+									x="-2"
+									y="-2"
+									width={SAMPLE_QR_SIZE + 4}
+									height={SAMPLE_QR_SIZE + 4}
+									fill="#fff"
+								/>
+								{#each qrCells as [x, y] (`${x}-${y}`)}<rect {x} {y} width="1" height="1" />{/each}
+							</svg>
+						{/if}
 						<!-- HTML armado por renderBotText: lo escrito sale escapado. -->
 						<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 						<div class="tg-text">{@html preview.html ?? ''}</div>
@@ -386,6 +408,17 @@
 		background: #fff;
 		color: #000;
 		box-shadow: 0 1px 1px rgb(0 0 0 / 0.12);
+	}
+	.bubble.with-photo {
+		padding-top: 0.25rem;
+	}
+	.qr {
+		display: block;
+		width: 100%;
+		max-width: 12rem;
+		margin: 0 auto 0.4rem;
+		border-radius: 0.6rem;
+		fill: #000;
 	}
 	.tg-text {
 		white-space: pre-wrap;

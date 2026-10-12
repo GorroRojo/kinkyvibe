@@ -73,7 +73,7 @@
 	 * @typedef {{
 	 *   error?: string | null,
 	 *   errors?: Record<string, string>,
-	 *   values?: { type?: string, quantity?: string, name?: string, pronouns?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, amount?: string, holders?: HolderValues[], answers?: Record<string, string>, accountForm?: boolean, remember?: boolean, rememberDni?: boolean },
+	 *   values?: { type?: string, quantity?: string, name?: string, pronouns?: string, email?: string, dni?: string, code?: string, method?: string, option?: string, amount?: string, holders?: HolderValues[], answers?: Record<string, string>, accountForm?: boolean, remember?: boolean, rememberDni?: boolean, lista?: string },
 	 *   discount?: import('$lib/server/tickets/checkout.js').AppliedDiscount | null
 	 * } | null} BuyResult
 	 */
@@ -89,9 +89,19 @@
 	export let account = null;
 	/** Slug del evento: solo para el aviso anónimo de los pasos (docs/analiticas.md). */
 	export let slug = '';
+	/**
+	 * Token del link de una oferta de la lista de espera (`?lista=`), si vale: va en un campo
+	 * oculto. `''`: la página miró el link y no vale. `null`: la página no tiene el link (sin
+	 * JavaScript, después de un error la dirección ya no lo trae): el que mandó el formulario.
+	 * @type {string | null}
+	 */
+	export let lista = null;
+	/** Tipos agotados con lista de espera para anotarse (ver TicketsStep). @type {string[]} */
+	export let waitlistTypes = [];
 
 	// Valores iniciales del formulario (a propósito no reactivos: después los maneja la persona).
 	const initial = result?.values ?? {};
+	$: offerToken = lista ?? initial.lista ?? '';
 	// Arranca elegida la más barata de las que se pueden comprar (la del «desde $ …» del evento).
 	let type = initial.type || cheapestAvailableType(tickets.types);
 	let quantity = Math.max(1, Math.trunc(Number(initial.quantity)) || 1);
@@ -602,6 +612,10 @@
 					};
 				}}
 			>
+				{#if offerToken}
+					<!-- El link de la oferta de la lista de espera (buyAction lo vuelve a mirar). -->
+					<input type="hidden" name="lista" value={offerToken} />
+				{/if}
 				{#each PURCHASE_STEPS as s, i (s.id)}
 					<section
 						class="purchase-step"
@@ -635,6 +649,7 @@
 								{count}
 								{errors}
 								{applied}
+								{waitlistTypes}
 							/>
 						{:else if i === STEP_BUYER}
 							<BuyerStep

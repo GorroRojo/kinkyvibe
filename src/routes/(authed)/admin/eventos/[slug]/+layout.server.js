@@ -9,6 +9,8 @@ import { getEventTickets } from '$lib/server/tickets/events.js';
 import { PANEL_VIEWER, readWorkshop } from '$lib/server/eventos/partes.js';
 import { coveringTicketSlug, partLabel, partOf } from '$lib/utils/partes.js';
 import { dateChangeOffer } from '$lib/server/tickets/dateChange.js';
+import { isFlagOn } from '$lib/server/flags.js';
+import { waitlistLiveByScope } from '$lib/server/tickets/waitlistAdmin.js';
 
 /**
  * Talleres en varias partes (docs/talleres-partes.md): el chip del encabezado («Parte 2 de 3» con
@@ -72,7 +74,7 @@ export async function load({ locals, url, params, platform }) {
 	const event = found ?? (await eventFromRepo(locals, params.slug));
 	if (!event) error(404, 'No encontramos ese evento.');
 	const db = getDB(platform);
-	const counts = { orders: 0, transfers: 0, review: 0 };
+	const counts = { orders: 0, transfers: 0, review: 0, waitlist: 0 };
 	if (db && config) {
 		try {
 			const row = await db
@@ -105,6 +107,23 @@ export async function load({ locals, url, params, platform }) {
 			logDBError('cambio de fecha en la ficha del evento', e);
 		}
 	}
+	// Lista de espera: la pestaña (con el interruptor, o si el evento ya tiene lista o gente
+	// anotada) y su contador (las anotaciones vivas). Sin la migración 0053, nada.
+	let waitlistTab = false;
+	if (config) {
+		const flagOn = await isFlagOn(db, 'lista_espera');
+		if (db) {
+			try {
+				counts.waitlist = Object.values(await waitlistLiveByScope(db, params.slug)).reduce(
+					(a, b) => a + b,
+					0
+				);
+			} catch (e) {
+				logDBError('contador de la lista de espera', e);
+			}
+		}
+		waitlistTab = flagOn || Boolean(config.waitlist) || counts.waitlist > 0;
+	}
 	const workshop = await workshopChip(db, params.slug);
 	return {
 		event: { ...event, sellsTickets: Boolean(config), online: config?.online ?? event.online },
@@ -113,6 +132,7 @@ export async function load({ locals, url, params, platform }) {
 		dateChange,
 		dbAvailable: Boolean(db),
 		// Pestaña Preguntas (preguntas de inscripción).
-		signupFieldsTab: Boolean(db && config)
+		signupFieldsTab: Boolean(db && config),
+		waitlistTab
 	};
 }

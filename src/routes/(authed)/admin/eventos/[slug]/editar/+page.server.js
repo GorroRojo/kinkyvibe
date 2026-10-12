@@ -26,6 +26,8 @@ import {
 import { readDbPostFile } from '$lib/server/contenido/repo.js';
 import { postFilePath } from '$lib/utils/postPaths.js';
 import { recordDateChange, scheduleFromFile } from '$lib/server/tickets/dateChange.js';
+import { siteOrigin } from '$lib/server/tickets/index.js';
+import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 
 /**
  * @template {{ params: { slug: string } }} E
@@ -104,6 +106,17 @@ async function saveWithDateChange(event) {
 	const content = db ? (await event.request.clone().formData()).get('content') : null;
 	const before = typeof content === 'string' ? await savedSchedule(event.params.slug) : null;
 	const result = await _editActions.save(asEventEdit(event));
+	// Más cupo, un tipo o un tramo nuevo, dejó de estar agotado, otra fecha de cierre o se
+	// canceló: la lista de espera se mueve (en segundo plano; sin gente en la lista, nada).
+	if (db && result && 'save' in result) {
+		queueWaitlistAdvance({
+			platform: event.platform,
+			db,
+			eventSlug: event.params.slug,
+			fetch: event.fetch,
+			origin: siteOrigin(event.url)
+		});
+	}
 	if (!db || !before || !result || !('save' in result)) return result;
 	try {
 		await recordDateChange(db, {

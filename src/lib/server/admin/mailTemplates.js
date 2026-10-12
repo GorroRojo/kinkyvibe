@@ -5,7 +5,9 @@
 import { env } from '$env/dynamic/private';
 import { contactEmail, emailSettings } from '$lib/server/tickets/index.js';
 import { parseAllowlist } from '$lib/server/tickets/emailGuard.js';
-import { TEMPLATE_KEYS, TEMPLATE_LIMITS } from '$lib/utils/emailTemplates.js';
+import { getDB } from '$lib/server/db';
+import { isFlagOn } from '$lib/server/flags.js';
+import { EMAIL_TEMPLATES, TEMPLATE_KEYS, TEMPLATE_LIMITS } from '$lib/utils/emailTemplates.js';
 
 const EMAIL_RE = /^[^\s@<>()",;]+@[^\s@<>()",;]+\.[^\s@<>()",;]+$/;
 
@@ -73,6 +75,23 @@ export function templateInput(source) {
 	const out = {};
 	for (const k of TEMPLATE_KEYS) {
 		out[k] = String(raw(k) ?? '').slice(0, TEMPLATE_LIMITS[k] + 100);
+	}
+	return out;
+}
+
+/**
+ * Los mails de algo que sale detrás de un interruptor que está apagado (la lista de espera): el
+ * panel los muestra con la etiqueta «prueba» (docs/panel.md, «Ciclo de vida de una sección»).
+ *
+ * @param {App.Platform | undefined} platform
+ * @returns {Promise<Set<import('$lib/utils/emailTemplates.js').TemplateId>>}
+ */
+export async function templateTrials(platform) {
+	const db = getDB(platform);
+	/** @type {Set<import('$lib/utils/emailTemplates.js').TemplateId>} */
+	const out = new Set();
+	for (const t of EMAIL_TEMPLATES) {
+		if (t.flag && !(await isFlagOn(db, t.flag))) out.add(t.id);
 	}
 	return out;
 }

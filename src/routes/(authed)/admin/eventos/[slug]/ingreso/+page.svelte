@@ -30,6 +30,7 @@
 	import DoorResult from '$lib/components/admin/door/DoorResult.svelte';
 	import Sheet from '$lib/components/admin/door/Sheet.svelte';
 	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
+	import WaitlistDoorNote from '$lib/components/admin/WaitlistDoorNote.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { CHECKIN_LIST_PARAM } from '$lib/utils/doorEvents.js';
 	import { computePrice, defaultFondoOption } from '$lib/utils/tickets.js';
@@ -1149,6 +1150,7 @@
 					igual: te vamos a pedir que confirmes y queda en el registro de actividad.
 				</p>
 			{/if}
+			<WaitlistDoorNote summary={data.waitlist} action="vender" />
 			{#if data.doorPrice}<p class="muted small">
 					Nota del evento sobre la puerta: {data.doorPrice}
 				</p>{/if}

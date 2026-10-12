@@ -3,7 +3,7 @@
  * la red.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { sendTelegramMessage, telegramSender } from './send.js';
+import { callTelegramApi, sendTelegramMessage, telegramSender } from './send.js';
 import { argentinaHour, isQuietHour } from './quiet.js';
 
 const TOKEN = '000000:token-inventado-para-pruebas';
@@ -81,5 +81,46 @@ describe('horario de silencio (23 a 9, hora de Argentina)', () => {
 		for (const h of ['23:00', '23:59', '00:00', '03:00', '08:59'])
 			expect(isQuietHour(at(h))).toBe(true);
 		for (const h of ['09:00', '12:00', '22:59']) expect(isQuietHour(at(h))).toBe(false);
+	});
+});
+
+describe('callTelegramApi con un archivo', () => {
+	it('sube la foto por multipart (los objetos, como JSON) y sin loguear el token', async () => {
+		const f = fakeFetch(200);
+		const bytes = new Uint8Array([1, 2, 3]);
+		const r = await callTelegramApi({
+			token: TOKEN,
+			method: 'editMessageMedia',
+			body: {
+				chat_id: 42,
+				message_id: 9,
+				media: { type: 'photo', media: 'attach://qr', caption: 'x' },
+				qr: { upload: bytes, filename: 'entrada.png', type: 'image/png' }
+			},
+			fetch: f
+		});
+		expect(r.ok).toBe(true);
+		const [, init] = f.mock.calls[0];
+		expect(init.headers).toBeUndefined();
+		const form = /** @type {FormData} */ (init.body);
+		expect(form).toBeInstanceOf(FormData);
+		expect(form.get('chat_id')).toBe('42');
+		expect(JSON.parse(String(form.get('media')))).toEqual({
+			type: 'photo',
+			media: 'attach://qr',
+			caption: 'x'
+		});
+		const file = /** @type {File} */ (form.get('qr'));
+		expect(file.name).toBe('entrada.png');
+		expect(file.type).toBe('image/png');
+		expect([...new Uint8Array(await file.arrayBuffer())]).toEqual([1, 2, 3]);
+	});
+
+	it('sin archivos, JSON como siempre', async () => {
+		const f = fakeFetch(200);
+		await callTelegramApi({ token: TOKEN, method: 'sendMessage', body: { a: 1 }, fetch: f });
+		const [, init] = f.mock.calls[0];
+		expect(init.headers).toEqual({ 'content-type': 'application/json' });
+		expect(JSON.parse(init.body)).toEqual({ a: 1 });
 	});
 });

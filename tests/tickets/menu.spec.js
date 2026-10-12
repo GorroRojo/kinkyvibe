@@ -205,6 +205,30 @@ test('«Recientes» en la barra lateral: las páginas que abriste', async ({ pag
 	await expect(recent.getByRole('link', { name: 'Todas las ventas' })).toHaveCount(0);
 });
 
+test('la ficha de un evento con entradas tiene «Lista de espera» como vista de Ventas y abre', async ({
+	page
+}) => {
+	await page.goto(`/admin/eventos/${EVENT}/ventas`, { waitUntil: 'networkidle' });
+	const views = page.getByRole('navigation', { name: 'Vistas de Ventas' });
+	await expect(views.getByRole('link')).toHaveText([
+		'Totales',
+		/^Órdenes/,
+		/^Transferencias/,
+		/^Lista de espera/
+	]);
+	const view = views.getByRole('link', { name: /^Lista de espera/ });
+	await expect(view).toHaveAttribute('href', `/admin/eventos/${EVENT}/lista-espera`);
+	await view.click();
+	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/lista-espera$`));
+	// Es una vista de Ventas: la pestaña Ventas queda marcada, y la vista también.
+	await expect(
+		page.getByRole('navigation', { name: 'Pestañas' }).getByRole('link', { name: /^Ventas/ })
+	).toHaveAttribute('aria-current', 'page');
+	await expect(view).toHaveAttribute('aria-current', 'page');
+	// El evento de prueba no tiene lista: la vista dice cómo prenderla.
+	await expect(page.getByText('Este evento no tiene lista de espera')).toBeVisible();
+});
+
 test('/admin/estadisticas (una de las dos redirecciones del panel, gorrite 11/10) lleva a Ventas', async ({
 	page
 }) => {

@@ -120,7 +120,7 @@ export const actions = {
 		return r.ok ? body : fail(r.status, body);
 	},
 
-	cancel: async ({ locals, url, platform, request }) => {
+	cancel: async ({ locals, url, platform, request, fetch }) => {
 		const admin = requireAdmin(locals, url);
 		const db = getDB(platform);
 		if (!db) return fail(503, { transfer: { ok: false, message: 'Sin base de datos.' } });
@@ -128,7 +128,10 @@ export const actions = {
 			db,
 			locals,
 			by: admin.login,
-			orderId: orderIdOf(await request.formData())
+			orderId: orderIdOf(await request.formData()),
+			platform,
+			fetch,
+			origin: siteOrigin(url)
 		});
 		const body = { transfer: { ok: r.ok, message: r.message } };
 		return r.ok ? body : fail(r.status, body);

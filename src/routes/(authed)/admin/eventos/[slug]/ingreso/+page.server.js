@@ -21,6 +21,8 @@
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { isFlagOn } from '$lib/server/flags.js';
+import { safeWaitlistSummary } from '$lib/server/tickets/waitlistAdmin.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { extractToken } from '$lib/server/tickets/checkin.js';
 import { checkIn, getCounts, undoCheckIn } from '$lib/server/tickets/orders.js';
@@ -70,10 +72,12 @@ export async function load(event) {
 	const admin = requireAdmin(event.locals, event.url);
 	event.setHeaders(NO_STORE);
 	const { db, config, ticketSlug, part } = await doorContext(event, { fondo: true });
-	const [counts, sales, series] = await Promise.all([
+	const [counts, sales, series, waitlist] = await Promise.all([
 		countsFor(db, { ticketSlug, part }),
 		getCounts(db, ticketSlug),
-		doorSeriesLabel(ticketSlug, event.platform)
+		doorSeriesLabel(ticketSlug, event.platform),
+		// La nota de la lista de espera en «Vender en puerta» (no frena la venta).
+		isFlagOn(db, 'lista_espera').then((enabled) => safeWaitlistSummary(db, ticketSlug, { enabled }))
 	]);
 	return {
 		bare: true,
@@ -87,6 +91,7 @@ export async function load(event) {
 		autoOpened: event.url.searchParams.has(DOOR_AUTO_PARAM),
 		login: admin.login,
 		counts,
+		waitlist,
 		fondoEnabled: config.fondoEnabled,
 		// "Vender en puerta" salvo que el evento diga que no hay (`puerta: false`). En una parte de
 		// un taller, nunca (la entrada es del taller entero).

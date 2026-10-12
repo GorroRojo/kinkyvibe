@@ -26,6 +26,7 @@
 	} from '$lib/utils/ticketsEditor.js';
 	import TicketTiersEditor from './TicketTiersEditor.svelte';
 	import SalesGoalField from './SalesGoalField.svelte';
+	import WaitlistField from './WaitlistField.svelte';
 
 	/** @type {import('$lib/utils/ticketsEditor.js').TicketsForm} */
 	export let state;
@@ -71,6 +72,14 @@
 	 * @type {boolean | null}
 	 */
 	export let transferReady = null;
+	/**
+	 * Lista de espera: el interruptor `lista_espera` (`false` = se avisa que está apagado; `null` =
+	 * no se sabe) y la gente anotada por alcance (al editar).
+	 * @type {boolean | null}
+	 */
+	export let waitlistEnabled = null;
+	/** @type {Record<string, number> | null} */
+	export let waitlistLive = null;
 
 	/** @type {Array<'mercadopago' | 'transferencia'>} */
 	const METHODS = ['mercadopago', 'transferencia'];
@@ -376,6 +385,14 @@
 		>
 
 		<SalesGoalField bind:kind={state.goalKind} bind:value={state.goalValue} {idPrefix} />
+
+		<WaitlistField
+			bind:scope={state.waitlistScope}
+			bind:allAtOnce={state.waitlistAll}
+			enabled={waitlistEnabled}
+			live={waitlistLive}
+			{idPrefix}
+		/>
 
 		<fieldset class="group">
 			<legend>Medios de pago <span class="req">*</span></legend>
