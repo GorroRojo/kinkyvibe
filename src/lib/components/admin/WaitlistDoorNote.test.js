@@ -8,11 +8,15 @@ import WaitlistDoorNote from './WaitlistDoorNote.svelte';
 
 /** @param {Record<string, unknown>} props */
 const html = (props) => render(WaitlistDoorNote, { props }).body;
-const text = (/** @type {string} */ h) =>
-	h
-		.replace(/<[^>]+>/g, '')
-		.replace(/\s+/g, ' ')
-		.trim();
+/** El texto del HTML: saca las etiquetas hasta que no quede ninguna (CodeQL pide la vuelta). */
+const text = (/** @type {string} */ h) => {
+	let out = h;
+	for (let prev = ''; prev !== out;) {
+		prev = out;
+		out = out.replace(/<[^>]+>/g, '');
+	}
+	return out.replace(/\s+/g, ' ').trim();
+};
 
 describe('WaitlistDoorNote', () => {
 	it('sin fila (o sin datos), nada', () => {
