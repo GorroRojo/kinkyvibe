@@ -26,6 +26,7 @@ export async function POST({ request, url, platform, fetch }) {
 	const ctx = platform?.ctx;
 	const puerta = Boolean(db && (await isFlagOn(db, 'telegram_puerta')));
 	const admin = Boolean(db && (await isFlagOn(db, 'telegram_admin')));
+	const rich = Boolean(db && (await isFlagOn(db, 'telegram_enriquecido')));
 	return handleWebhook({
 		request,
 		secret: env.TELEGRAM_WEBHOOK_SECRET,
@@ -39,7 +40,9 @@ export async function POST({ request, url, platform, fetch }) {
 		// /api/search-index.json), con el lugar y la venta de los eventos como la tarjeta.
 		inline: {
 			source: () => inlineSource(platform),
-			events: (metas) => inlineEventInfo(platform, metas)
+			events: (metas) => inlineEventInfo(platform, metas),
+			// Mensajes enriquecidos y «📅 Abrir en el calendario» (`telegram_enriquecido`).
+			...(rich ? { rich: true, botUsername: botUsername() } : {})
 		},
 		botUsername: botUsername(),
 		token: env.TELEGRAM_BOT_TOKEN,

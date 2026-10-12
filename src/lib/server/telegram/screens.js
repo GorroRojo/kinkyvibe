@@ -34,9 +34,11 @@ import { formatARS } from '$lib/utils/money.js';
  * (Buscar).
  *
  * @typedef {{ text: string, keyboard: Button[][], photo?: string,
- *   photoFile?: import('./send.js').BotUpload, preview?: string, forceReply?: boolean }} Screen
+ *   photoFile?: import('./send.js').BotUpload, preview?: string, forceReply?: boolean,
+ *   rich?: import('./rich.js').RichMessage }} Screen
  *   `photoFile`: una foto armada acá y subida (el QR de una entrada, «Mis entradas»), en lugar de
- *   una URL.
+ *   una URL. `rich`: la misma pantalla como mensaje enriquecido (rich.js); deliver.js la usa por
+ *   chat privado y con el token, y si Telegram la rechaza manda la de texto.
  */
 /**
  * Dónde se va a ver: chat privado o grupo (en un grupo, solo lo público y nada que necesite
@@ -46,11 +48,12 @@ import { formatARS } from '$lib/utils/money.js';
  *
  * @typedef {{ origin: string, chat: 'private' | 'group', now?: number,
  *   botUsername?: string | null, sigo?: boolean, site?: boolean, door?: boolean,
- *   entradas?: boolean, admin?: boolean }} ScreenCtx
+ *   entradas?: boolean, admin?: boolean, rich?: boolean }} ScreenCtx
  *   `site`: Buscar busca en todo el sitio (con el índice público de la búsqueda). `entradas`:
  *   «🎟 Mis entradas» en el inicio (con las cuentas prendidas, misEntradas.js). `admin`: une
  *   admin vinculade con «Telegram para admins» prendido (el router, solo por chat privado):
- *   «📊 Estado · 🔔 Mis avisos» en el inicio.
+ *   «📊 Estado · 🔔 Mis avisos» en el inicio. `rich`: la tarjeta compacta va también como mensaje
+ *   enriquecido (`telegram_enriquecido`, con el token; rich.js).
  */
 /**
  * Lo público de la tarjeta de un evento: lo mismo que la página del evento le muestra a cualquiera.

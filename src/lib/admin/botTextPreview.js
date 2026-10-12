@@ -10,8 +10,9 @@ import { botTextField, escapeTelegramHtml, renderBotText } from '$lib/utils/botT
  * @typedef {{ text: string, disabled?: boolean, link?: boolean, primary?: boolean,
  *   success?: boolean }} PreviewButton
  * @typedef {{ html?: string, buttons?: PreviewButton[][], toast?: string, qr?: boolean,
- *   commands?: { command: string, description: string }[] }} PreviewScreen
- *   `qr`: la foto de un QR de ejemplo arriba del texto (la tarjeta de una entrada).
+ *   rich?: boolean, commands?: { command: string, description: string }[] }} PreviewScreen
+ *   `qr`: la foto de un QR de ejemplo arriba del texto (la tarjeta de una entrada). `rich`: un
+ *   mensaje enriquecido (títulos, párrafos y pie, en bloques).
  * @typedef {{ id: string, label: string, keys: string[],
  *   build: (t: (key: string, vars?: Record<string, string | number>) => string) => PreviewScreen }} PreviewDef
  */
@@ -20,6 +21,10 @@ const SAMPLE_EVENTS = [
 	{ when: 'vie 10 ene · 21:00', title: 'Taller de ejemplo' },
 	{ when: 'sáb 11 ene · 23:00', title: 'Fiesta de ejemplo' }
 ];
+
+const SAMPLE_BODY =
+	'Un texto de ejemplo que explica la práctica con calma: de qué se trata, cómo se habla antes, ' +
+	'qué cuidados tener y dónde seguir aprendiendo con otres.';
 
 const SAMPLE_DOCS = [
 	{ title: '📚 Guía de ejemplo', line: 'Cómo empezar, paso a paso' },
@@ -214,6 +219,76 @@ export const PREVIEW_SCREENS = Object.freeze([
 				[{ text: t('sitio.boton_ver'), link: true }],
 				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
 			]
+		})
+	},
+	{
+		id: 'rico_wiki',
+		label: 'Mensaje enriquecido: una entrada de la Kinkipedia (tarjeta del bot y modo inline)',
+		keys: ['compartir.sigue', 'compartir.pie'],
+		build: (t) => ({
+			html: [
+				`<h3>${escapeTelegramHtml('📖 Entrada de ejemplo')}</h3>`,
+				`<p><i>${escapeTelegramHtml('Una definición corta de ejemplo.')}</i></p>`,
+				`<p>${escapeTelegramHtml(SAMPLE_BODY)}</p>`,
+				`<p><i>${t('compartir.sigue')}</i></p>`,
+				`<footer>${escapeTelegramHtml(t('compartir.pie', { tipo: t('sitio.tipo_wiki') }))}</footer>`
+			].join(''),
+			rich: true,
+			buttons: [
+				[{ text: t('sitio.boton_ver'), link: true }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'rico_evento',
+		label: 'Mensaje enriquecido: un evento mandado (modo inline o desde la Mini App)',
+		keys: ['compartir.tipo_evento', 'compartir.boton_calendario'],
+		build: (t) => ({
+			html: [
+				`<h3>${escapeTelegramHtml(SAMPLE_EVENTS[0].title)}</h3>`,
+				`<p>📅 ${escapeTelegramHtml(SAMPLE_EVENTS[0].when)}</p>`,
+				`<p>📍 ${escapeTelegramHtml('Barrio de ejemplo')}</p>`,
+				`<p><i>${escapeTelegramHtml('Un resumen de ejemplo del evento.')}</i></p>`,
+				`<footer>${escapeTelegramHtml(t('compartir.pie', { tipo: t('compartir.tipo_evento') }))}</footer>`
+			].join(''),
+			rich: true,
+			buttons: [
+				[
+					{ text: t('sitio.boton_ver'), link: true },
+					{ text: t('sitio.boton_entradas'), link: true }
+				],
+				[{ text: t('compartir.boton_calendario'), link: true }]
+			]
+		})
+	},
+	{
+		id: 'miniapp_compartir',
+		label: 'Mini App del calendario: mandar un evento a un chat (la página, aproximada)',
+		keys: ['compartir.miniapp_boton', 'compartir.miniapp_mandado', 'compartir.miniapp_destacado'],
+		build: (t) => ({
+			html: [
+				`<b>${escapeTelegramHtml(t('compartir.miniapp_destacado'))}</b>`,
+				escapeTelegramHtml(`21:00 · Barrio de ejemplo`),
+				`<b>${escapeTelegramHtml(SAMPLE_EVENTS[0].title)}</b>`,
+				'',
+				escapeTelegramHtml(t('compartir.miniapp_mandado'))
+			].join('\n'),
+			buttons: [[{ text: t('compartir.miniapp_boton') }]]
+		})
+	},
+	{
+		id: 'miniapp_compartir_error',
+		label: 'Mini App del calendario: si no se pudo mandar',
+		keys: ['compartir.miniapp_error'],
+		build: (t) => ({
+			html: [
+				escapeTelegramHtml(`21:00 · Barrio de ejemplo`),
+				`<b>${escapeTelegramHtml(SAMPLE_EVENTS[0].title)}</b>`,
+				'',
+				escapeTelegramHtml(t('compartir.miniapp_error'))
+			].join('\n'),
+			buttons: [[{ text: t('compartir.miniapp_boton') }]]
 		})
 	},
 	{

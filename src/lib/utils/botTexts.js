@@ -48,6 +48,7 @@ export const BOT_TEXT_SECTIONS = Object.freeze([
 	{ id: 'sitio', label: 'Buscar en todo el sitio y modo inline' },
 	{ id: 'secciones', label: 'Secciones del sitio (Material, Kinkipedia, Amigues, Series)' },
 	{ id: 'entradas', label: 'Mis entradas (con el QR para la puerta)' },
+	{ id: 'compartir', label: 'Mensajes enriquecidos y compartir desde la Mini App' },
 	{ id: 'errores', label: 'Errores' }
 ]);
 
@@ -104,6 +105,9 @@ const f = (key, section, kind, label, value, opts = {}) => ({
 	...(opts.help ? { help: opts.help } : {}),
 	max: opts.max ?? BOT_TEXT_LIMITS[kind]
 });
+
+const MINIAPP_PAGE =
+	'Es la página de la Mini App, no un mensaje del bot: va tal cual, sin formato.';
 
 const GROUP_ARROW = 'En un grupo, el código le suma « ↗» (abre el chat privado con el bot).';
 
@@ -1346,6 +1350,81 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'toast',
 			'Una entrada que ya no está (botón viejo)',
 			'Esa entrada ya no está acá.'
+		),
+
+		// -----------------------------------------------------------------------------------------
+		// Mensajes enriquecidos y compartir desde la Mini App (interruptor `telegram_enriquecido`)
+		// -----------------------------------------------------------------------------------------
+		f(
+			'compartir.sigue',
+			'compartir',
+			'line',
+			'Mensaje enriquecido: abajo del texto, cuando es largo y se cortó',
+			'Esto es el comienzo. El resto está en el sitio: tocá «Ver en el sitio».',
+			{ help: 'El texto de la página llega hasta unos 2500 caracteres; si sigue, va esta línea.' }
+		),
+		f(
+			'compartir.pie',
+			'compartir',
+			'inline',
+			'Mensaje enriquecido: el pie (la última línea, chiquita)',
+			'{tipo} · Kinky Vibe',
+			{
+				vars: [
+					{ name: 'tipo', label: 'qué es (Kinkipedia, Material, Evento…)', sample: 'Kinkipedia' }
+				]
+			}
+		),
+		f(
+			'compartir.tipo_evento',
+			'compartir',
+			'inline',
+			'Mensaje enriquecido: qué es, en el pie de un evento',
+			'Evento',
+			{
+				max: 40,
+				help: 'Los otros tipos son los de «Buscar en todo el sitio» (Kinkipedia, Material, Serie de eventos).'
+			}
+		),
+		f(
+			'compartir.boton_calendario',
+			'compartir',
+			'button',
+			'Un evento mandado (modo inline o desde la Mini App): abre la Mini App del calendario en ese evento',
+			'📅 Abrir en el calendario',
+			{ help: 'Solo con el usuario del bot cargado (TELEGRAM_BOT_USERNAME).' }
+		),
+		f(
+			'compartir.miniapp_boton',
+			'compartir',
+			'button',
+			'Mini App del calendario: el botón de cada evento para mandarlo a un chat',
+			'📤 Mandar a un chat',
+			{ help: MINIAPP_PAGE }
+		),
+		f(
+			'compartir.miniapp_mandado',
+			'compartir',
+			'inline',
+			'Mini App del calendario: después de mandar un evento',
+			'Listo, ya lo mandaste.',
+			{ help: MINIAPP_PAGE }
+		),
+		f(
+			'compartir.miniapp_error',
+			'compartir',
+			'inline',
+			'Mini App del calendario: si no se pudo mandar',
+			'No se pudo mandar. Probá de nuevo en un rato.',
+			{ help: MINIAPP_PAGE }
+		),
+		f(
+			'compartir.miniapp_destacado',
+			'compartir',
+			'inline',
+			'Mini App del calendario: arriba del evento cuando se abre desde «Abrir en el calendario»',
+			'📌 Te pasaron este evento',
+			{ help: MINIAPP_PAGE, max: 60 }
 		),
 
 		// -----------------------------------------------------------------------------------------

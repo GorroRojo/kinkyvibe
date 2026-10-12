@@ -14,6 +14,10 @@
  * En los grupos no hay fotos (la tarjeta va con vista previa grande del link: un efímero de foto
  * no puede volver a texto) ni nada que necesite cuenta.
  *
+ * Una pantalla con `rich` (mensaje enriquecido, Bot API 10.1; rich.js) va así solo por chat privado
+ * y con el token: `sendRichMessage` o `editMessageText` con `rich_message`. Si Telegram lo rechaza,
+ * la misma pantalla como texto, una sola vez. En los grupos y sin token, la de texto.
+ *
  * Si algo falla (cliente sin efímeros, mensaje borrado o viejo, foto que Telegram no pudo bajar),
  * `fallback` dice qué probar una sola vez; en un grupo, lo más privado posible: contestar el botón
  * con el link al chat privado con el bot.
@@ -142,6 +146,44 @@ const privateFallback = (privateLink) =>
 		: { text: botText('errores.grupo') };
 
 /**
+ * El plan de una pantalla enriquecida (`screen.rich`), por chat privado y con el token. Si falla:
+ * editando, la misma pantalla como texto en ese mensaje; mandando, un mensaje de texto (sin foto:
+ * puede ser la foto lo que Telegram no pudo bajar).
+ *
+ * @param {import('./rich.js').RichMessage} rich
+ * @param {Screen} screen la de texto (sin `rich`)
+ * @param {Where} where
+ * @returns {BotPlan}
+ */
+function richPlan(rich, screen, where) {
+	const { chatId } = where;
+	/** @type {BotMethod} */
+	const send = {
+		method: 'sendRichMessage',
+		chat_id: chatId,
+		rich_message: rich,
+		...withMarkup(screen)
+	};
+	const callback = where.kind === 'callback' ? { callback: { id: where.callbackId } } : {};
+	if (where.kind === 'callback' && typeof where.messageId === 'number' && !where.isPhoto) {
+		const target = { chat_id: chatId, message_id: where.messageId };
+		return {
+			steps: [{ method: 'editMessageText', ...target, rich_message: rich, ...withMarkup(screen) }],
+			fallback: [
+				{ method: 'editMessageText', ...target, ...textParams(screen), ...withMarkup(screen) }
+			],
+			...callback
+		};
+	}
+	// Una foto no se puede editar a otra cosa que una foto: se borra y se manda de nuevo.
+	const steps =
+		where.kind === 'callback' && typeof where.messageId === 'number'
+			? [{ method: 'deleteMessage', chat_id: chatId, message_id: where.messageId }, send]
+			: [send];
+	return { steps, fallback: [sendText(screen, chatId)], ...callback };
+}
+
+/**
  * El plan para mostrar una pantalla.
  *
  * @param {Screen} screen
@@ -152,6 +194,11 @@ const privateFallback = (privateLink) =>
  */
 export function deliverScreen(screen, where, { media = false, privateLink = null } = {}) {
 	const { chatId, group } = where;
+	if (screen.rich) {
+		const { rich, ...plain } = screen;
+		if (media && !group && !screen.forceReply) return richPlan(rich, plain, where);
+		return deliverScreen(plain, where, { media, privateLink });
+	}
 	if (where.kind === 'command') {
 		if (group && where.ephemeralId && where.userId) {
 			// Comando efímero: la respuesta también, y solo la ve quien preguntó (15 s para

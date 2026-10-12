@@ -160,6 +160,10 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `bot-avisos-apagados` · fase 0 · algún día · bot · Recordar si alguien apagó a propósito los avisos de algo, para que seguirlo de nuevo desde el bot no los prenda (necesita migración) · [0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)
 - `bot-textos-miniapp` · fase 0 · algún día · bot · Los textos de las páginas de la Mini App (calendario y puerta) en «Textos del bot»
 - `bot-visible-sitio` · fase 0 · espera gorrite · bot · Que el bot se vea en el sitio (mención, link desde Mi rincón y el pie, textos de `/start` y `/ayuda`); textos y lugar los elige gorrite
+- `bot-mensajes-enriquecidos` · fase 0 · en curso · bot · Lo que el bot manda del sitio (Kinkipedia, material, eventos) se lee adentro del chat como mensaje enriquecido (Bot API 10.1–10.3), en el modo inline y en la tarjeta compacta, apagado con `telegram_enriquecido` · [telegram.md](telegram.md#mensajes-enriquecidos-y-compartir)
+- `bot-compartir-miniapp` · fase 0 · en curso · bot · Mini App del calendario: «📤 Mandar a un chat» en cada evento y link directo a un evento (`?startapp=`), apagado con `telegram_enriquecido` · [telegram.md](telegram.md#compartir-desde-la-mini-app-del-calendario)
+- `bot-enriquecido-probar` · fase 0 · espera gorrite · bot · Registrar la Main Mini App en @BotFather, prender `telegram_enriquecido` en un preview y mirar los mensajes enriquecidos y «Mandar a un chat» en dos celus (uno con una app vieja) (depende de: bot-mensajes-enriquecidos, bot-compartir-miniapp)
+- `bot-entrar-con-telegram` · fase 0 · algún día · bot · «Entrar con Telegram» (OpenID Connect) para las cuentas: no elegido por ahora (gorrite, 12/10)
 - `bot-navegar-secciones` · fase 0 · hecho · bot · Bot 1/5: recorrer el sitio por secciones · #308
 - `bot-mis-entradas` · fase 0 · hecho · bot · Bot 2/5: «🎟 Mis entradas» con el QR de la puerta · #313
 - `bot-textos` · fase 0 · hecho · bot · «Textos del bot» editables desde Ajustes · #302
@@ -270,7 +274,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `crm` · fase 5 · algún día · mails · Contactos con línea de tiempo, etapas y automatizaciones · [0008](decisiones/0008-crm.md)
 - `newsletter` · fase 5 · algún día · mails · Newsletter general y por combinación de etiquetas
 - `mails-colas` · fase 5 · algún día · infra · Queues para los mails y Email Workers para recibir
-- `bot-canal-anuncios` · fase 5 · espera gorrite · bot · Canal de anuncios de Telegram: si va y qué publica
+- `bot-canal-anuncios` · fase 5 · algún día · bot · Canal de anuncios de Telegram: si va y qué publica; no elegido por ahora (gorrite, 12/10)
 - `proto-conector-claude` · fase 5 · sigue · panel · Prototipo del conector de Claude para el panel (cargar eventos, ver ventas, confirmar transferencias), para mirar y decidir
 
 ## Fase 6
@@ -293,6 +297,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 Para que no vuelvan: si alguien lo propone de nuevo, primero se habla con gorrite.
 
+- `bot-miniapp-historia` · fase 0 · descartado · bot · «Compartir en tu historia» desde la Mini App: no (gorrite, 12/10)
 - `ficha-5-pestanas` · fase 0 · descartado · panel · Ficha del evento con 5 pestañas y «Más»: la reemplazó la de 7 (gorrite, 12/10) · #303
 - `menu-pastilla` · fase 0 · descartado · sitio · Menú de la compu con pastillas · #228
 - `inicio-presentacion` · fase 0 · descartado · sitio · Presentación con texto en la portada: solo el logo del encabezado · #219

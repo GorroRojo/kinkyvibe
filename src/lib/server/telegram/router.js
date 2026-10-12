@@ -340,7 +340,10 @@ function screenCtx(deps, group, accounts = null) {
 		botUsername: deps.botUsername ?? null,
 		sigo: Boolean(accounts?.follows),
 		site: Boolean(deps.inline),
-		entradas: Boolean(accounts?.tickets)
+		entradas: Boolean(accounts?.tickets),
+		// Mensajes enriquecidos (`telegram_enriquecido`): solo con el token, para poder volver a la
+		// tarjeta de siempre si Telegram los rechaza (deliver.js).
+		rich: Boolean(deps.inline?.rich && deps.media)
 	};
 }
 
@@ -928,6 +931,8 @@ async function planInline(inlineQuery, deps) {
 	try {
 		return await planInlineQuery(inlineQuery, {
 			...deps.inline,
+			// Enriquecidos solo con el token: sin él no hay vuelta atrás si Telegram los rechaza.
+			rich: Boolean(deps.inline.rich && deps.media),
 			origin: deps.origin,
 			now: deps.now
 		});
