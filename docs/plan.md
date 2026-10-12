@@ -27,6 +27,10 @@ gorrite, lo de algún día y lo descartado. Reemplaza a la vieja `docs/hoja-de-r
   (completo o de 7 caracteres o más). `scripts/hooks/check-merge.js` bloquea el merge si falta.
 - Los conflictos en este archivo se resuelven a mano: es a propósito un solo archivo.
 - Las decisiones de producto siguen en [decisiones/](decisiones/README.md); acá solo se linkean.
+- **«espera gorrite» siempre tiene tarjeta en la Mesa.** Quien pasa un ítem a ese estado le
+  arma en el mismo momento una tarjeta en la Mesa de trabajo, con contexto y opciones; si no hay
+  pregunta concreta para gorrite, el estado no es «espera gorrite». El repaso de los lunes lista
+  los que no tienen tarjeta.
 - **Nada privado** (el repo es público): ni datos de personas, ni plata ni estrategia, ni
   detalles de seguridad. Un ítem privado lleva su id y «ver Mesa»; el detalle vive en la Mesa de
   trabajo con el mismo id.
@@ -49,8 +53,6 @@ CI) va en la fase 0.
 | 6    | Lo social (algún día)                                                               |
 | 7    | Videos                                                                              |
 | 8    | Tienda                                                                              |
-
-**Abierto con gorrite:** cuál es el próximo bloque grande (`fases-siguiente`).
 
 ## Fase 0
 
@@ -117,7 +119,7 @@ CI) va en la fase 0.
 - `kinkipedia-series-mejor` · fase 0 · espera gorrite · sitio · Kinkipedia más rica y una lista de series mejor armada; falta dirección de gorrite
 - `icono-tipo-series` · fase 0 · hecho · sitio · Ícono grande del tipo en el encabezado cuando no hay miniatura, también en las series · #327
 - `ldtag-plantilla` · fase 0 · hecho · sitio · `LDTag.svelte` tiene datos de una plantilla vieja: borrarlo o pasarlo a datos de Kinky Vibe · #327
-- `missing-tags` · fase 0 · espera gorrite · sitio · `missingTags`: hacerlo andar (los links de descripciones a etiquetas que no existen pasan a texto) o dejarlo
+- `missing-tags` · fase 0 · sigue · sitio · `missingTags` siempre vuelve vacío (lo documenta un `it.fails` en `src/lib/utils/tags.test.js`): hacerlo andar, así los links de descripciones a etiquetas que no existen pasan a texto
 - `prerender-paginas` · fase 0 · algún día · sitio · Prerenderizar páginas de contenido para servirlas como archivos
 - `me-interesa` · fase 0 · algún día · sitio · El botón anónimo «Me interesa» en los eventos, que quedó para más adelante
 - `readme-rutas` · fase 0 · hecho · docs · El README lista `/nosotres` y `/servicios`, que ya no existen · #327
@@ -191,7 +193,7 @@ CI) va en la fase 0.
 - `tickets-ajustes-spec` · fase 0 · hecho · pruebas · `tests/tickets/ajustes.spec.js` buscaba la pestaña «Cobros», que se fue con la portada de Ajustes: ahora entra por la portada y su tarjeta · #330
 - `tests-consultas-batch` · fase 0 · hecho · pruebas · `importTags` de la semilla en tandas de `saveObjects` (1835 → 80 consultas) · #328
 - `ci-duraciones` · fase 0 · sigue · pruebas · Actualizar `scripts/vitest/durations.json` cuando se suman o cambian pruebas lentas, para que las 3 partes sigan parejas
-- `ci-cache-semilla` · fase 0 · espera gorrite · pruebas · Guardar en caché la base ya sembrada de `e2e` (~1 min), con clave por migraciones, semilla e importador
+- `ci-cache-semilla` · fase 0 · sigue · pruebas · Guardar en caché la base ya sembrada de `e2e` (~1 min), con clave por migraciones, semilla e importador
 - `tests-rapidos` · fase 0 · hecho · pruebas · Pruebas y CI más rápidas, `test:related` · #307, #311, #312, #285
 - `prueba-fugas` · fase 0 · hecho · pruebas · Prueba de que lo privado no sale en público · #291
 
@@ -202,7 +204,7 @@ CI) va en la fase 0.
 - `plan-unico` · fase 1 · en curso · plan · Este archivo como único plan, con `plan-lint`, la línea `Plan:` en cada PR y el comentario `Plan revisado contra main` antes de mergear · [pruebas-y-ci.md](pruebas-y-ci.md)
 - `plan-repaso-semanal` · fase 1 · sigue · plan · Repaso semanal del plan (lunes a la mañana): una sesión nueva lo compara con lo mergeado y la Mesa, deja registro y abre un PR de docs o dice «sin cambios»; el vigilante `.github/workflows/repaso-vigilante.yml` (GitHub Action diaria, sin Claude) abre un issue si pasan 8 días sin PR con la etiqueta `repaso-semanal` y lo cierra cuando vuelve a haber uno (depende de: plan-unico)
 - `plan-fuentes-viejas` · fase 1 · sigue · plan · Banner «reemplazado por docs/plan.md» en los artifacts de plan viejos; cerrar #70 y los issues viejos ya mapeados a un id; cerrar #46 (lo reemplazó #274, con crédito); las notas de las sesiones pasan a la Mesa (depende de: plan-unico)
-- `fases-siguiente` · fase 1 · espera gorrite · plan · Cuál es el próximo bloque grande (Lo que sigo, Colecciones, Bandeja, Videos o Tienda)
+- `fases-siguiente` · fase 1 · hecho · plan · El próximo bloque grande es «Lo que sigo» del panel (respondido en la Mesa el 12/10; es `lo-que-sigo-panel`)
 - `hoja-de-ruta` · fase 1 · hecho · plan · La hoja de ruta en el repo; la reemplaza este archivo · #264, #284
 
 ### Infraestructura
@@ -235,7 +237,6 @@ CI) va en la fase 0.
 - `docs-a-confirmar` · fase 2 · sigue · docs · Cerrar los «a confirmar» de los docs que gorrite ya confirmó (por ejemplo en lo-que-sigo.md) y las líneas viejas de tickets.md
 - `markdown-frontmatter` · fase 2 · hecho · contenido · El renderizador corta el encabezado de un texto en cualquier `---`, aunque esté a mitad de línea · #327
 - `textos-viejos-arreglos` · fase 2 · espera gorrite · contenido · Arreglos de datos en textos viejos (etiquetas HTML sin cerrar, `&nbsp;`, negritas rotas): cambios en producción, desde el panel o con OK de gorrite
-- `eventos-sin-imagen` · fase 2 · espera gorrite · contenido · Eventos sin imagen y campos vacíos; gorrite elige en el panel
 - `objetos-pendientes` · fase 2 · sigue · contenido · Revisar lo que queda de «Pendiente» en objetos.md (historial dentro de `saveObject`, borrar `event_venues` cuando todo esté en la base) · [objetos.md](objetos.md)
 - `url-cambiar` · fase 2 · sigue · panel · Cambiar la dirección (URL) de un evento u otro objeto desde el panel, con redirección 301 desde la vieja (necesita migración)
 - `borrar-para-siempre` · fase 2 · algún día · panel · Purga definitiva de lo borrado, por une superadmin
@@ -255,7 +256,7 @@ CI) va en la fase 0.
 - `lo-que-sigo-avisos-fallidos` · fase 2 · espera gorrite · panel · Contar los avisos de «Lo que sigo» que fallaron (hoy se borra su fila para reintentar: necesita migración); gorrite decide si hace falta (depende de: lo-que-sigo-panel)
 - `admins-cuenta-normal` · fase 2 · sigue · cuentas · Admins con la cuenta del sitio en vez de GitHub: ser admin como permiso de la cuenta, la lista de admins a la base, migrar lo que guarda ids de GitHub; con decisión propia y por partes, con GitHub de respaldo (gorrite, 11/10)
 - `passkeys` · fase 2 · sigue · cuentas · Passkeys para las cuentas · [cuentas.md](cuentas.md#pendiente-partes-siguientes)
-- `compra-con-cuenta` · fase 2 · espera gorrite · cuentas · Guardar `orders.account_id` al comprar y que `requiere_cuenta` pida ingresar de verdad
+- `compra-con-cuenta` · fase 2 · sigue · cuentas · Guardar `orders.account_id` al comprar y que `requiere_cuenta` pida ingresar de verdad · [0002](decisiones/0002-cuentas-y-perfiles.md)
 - `amigues-editan-perfil` · fase 2 · sigue · cuentas · Mandarle a cada amigue un link por mail para gestionar su perfil desde Mi rincón (gorrite, 11/10)
 - `sesiones-dispositivos` · fase 2 · algún día · cuentas · Ver dónde hay una sesión abierta y cerrarla
 - `lo-que-sigo-panel` · fase 2 · hecho · panel · Mensajes › Lo que sigo: el estado para mirar (interruptores, números, avisos que salieron, «Avisame», Telegram, «Lo más seguido» arriba con el número exacto y quiénes siguen cada cosa, y «Por persona»; solo admins) · #320, [0043](decisiones/0043-lo-que-sigo-en-el-panel.md), [0025](decisiones/0025-lo-que-sigo.md)
@@ -272,7 +273,7 @@ CI) va en la fase 0.
 - `preguntas-sugeridas` · fase 3 · sigue · panel · Preguntas de inscripción sugeridas para elegir rápido
 - `campos-propios-tipos` · fase 3 · algún día · panel · Campos propios y tipos simples desde el panel; falta diseño
 - `recurrencia-rrule` · fase 3 · algún día · sitio · Recurrencia tipo RRULE (las series y los talleres en partes cubren una parte) · #29
-- `rol-organizadore` · fase 3 · espera gorrite · cuentas · Rol de organizadore con permisos sobre sus eventos; primero un prototipo para mirar y decidir
+- `rol-organizadore` · fase 3 · sigue · cuentas · Rol de organizadore con permisos sobre sus eventos; primero un prototipo para mirar y decidir
 - `bot-organizadores` · fase 3 · sigue · bot · Avisos y estado de venta para organizadores, cada une con sus eventos, reusando lo de admins; nunca datos de compradores (depende de: rol-organizadore) · [0029](decisiones/0029-bot-de-telegram.md), [0041](decisiones/0041-telegram-para-admins.md)
 
 ## Fase 4
@@ -324,3 +325,4 @@ Para que no vuelvan: si alguien lo propone de nuevo, primero se habla con gorrit
 - `serie-por-anio` · fase 3 · descartado · entradas · «Serie por año» para talleres anuales: van como talleres en partes (gorrite, 4/10)
 - `sveltekit-3-parche` · fase 1 · descartado · infra · Parche de cookies o rama para SvelteKit 3 antes de tiempo (gorrite, 9/10)
 - `md-como-fuente` · fase 2 · descartado · contenido · Contenido en archivos `.md` como fuente: vive en D1 · [0004](decisiones/0004-modelo-de-contenido.md), [0032](decisiones/0032-borrar-los-md.md)
+- `eventos-sin-imagen` · fase 2 · descartado · contenido · Eventos sin imagen y campos vacíos: el panel ya tiene el filtro «Sin imagen» y la fila «Para revisar», así que no espera nada de gorrite
