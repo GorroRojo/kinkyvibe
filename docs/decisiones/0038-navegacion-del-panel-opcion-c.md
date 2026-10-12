@@ -3,6 +3,8 @@
 - Fecha: 2026-10-11
 - Estado: Aceptada (parte 1). Cambia el menú de la revisión de UI (paso 3) y el mapa de 0026 en
   un punto: la Puerta pasa a ser un área propia.
+- La parte 2 ([0039](0039-navegacion-del-panel-opcion-c-parte-2.md)) cambia tres puntos: la
+  Puerta sale de la barra lateral, hay «+ Crear» y las pestañas muestran lo que viene.
 
 ## Contexto
 

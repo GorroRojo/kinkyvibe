@@ -15,6 +15,15 @@
 	 * suma a Recientes (`$lib/admin/recentPlaces.js`, en este navegador). Arriba (y en el header
 	 * del celu) está el botón global "Para revisar".
 	 *
+	 * Parte 2 de la opción C (gorrite, 11/10): la Puerta ya no está en la barra lateral (sí en la
+	 * barra de abajo del celu); «Fijados» arriba de Recientes (`$lib/admin/pinnedPlaces.js`, se fijan
+	 * desde Recientes o desde «Ir a…»); «+ Crear ▾» en vez de «+ Cargar evento» (`CreateMenu`);
+	 * las pestañas de sección con contadores y, en el celu, como lista ▾ (`Tabs` con `menu`).
+	 * Más ágil: una barrita arriba de todo mientras carga la página siguiente (`$navigating`), el
+	 * link o botón que se tocó queda «cargando» (`data-pending`) hasta que llega, y los menús
+	 * precargan la página al pasar el mouse (`data-sveltekit-preload-data="hover"`; los `load` del
+	 * panel solo leen, no cambian nada).
+	 *
 	 * Atajos de teclado (solo en la compu): «Atajos de teclado» al pie de la barra lateral y el
 	 * botón `?` de la barra de arriba abren la hoja de atajos del buscador (`openHelp`), y
 	 * `ShortcutTip` los cuenta una vez. Ver `$lib/admin/shortcutHints.js`.
@@ -26,7 +35,7 @@
 	import '$lib/admin/panel.scss';
 	import { onMount, tick } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { navigating, page } from '$app/stores';
 	import {
 		ClipboardCheck,
 		ExternalLink,
@@ -36,7 +45,8 @@
 		LogOut,
 		Menu,
 		Moon,
-		Plus,
+		History,
+		Pin,
 		Sun,
 		SunMoon,
 		X
@@ -48,6 +58,8 @@
 	import ConfirmDialog from '$lib/components/admin/panel/ConfirmDialog.svelte';
 	import NavIcon from '$lib/components/admin/panel/NavIcon.svelte';
 	import SideNav from '$lib/components/admin/panel/SideNav.svelte';
+	import CreateMenu from '$lib/components/admin/panel/CreateMenu.svelte';
+	import PlaceLink from '$lib/components/admin/panel/PlaceLink.svelte';
 	import MoreAreas from '$lib/components/admin/panel/MoreAreas.svelte';
 	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
 	import {
@@ -62,11 +74,19 @@
 	import {
 		addRecent,
 		readRecent,
-		recentLabel,
+		recentParts,
 		saveRecent,
 		shouldRemember,
 		visibleRecent
 	} from '$lib/admin/recentPlaces.js';
+	import {
+		PIN_MAX,
+		addPin,
+		movePin,
+		readPinned,
+		removePin,
+		savePinned
+	} from '$lib/admin/pinnedPlaces.js';
 	import {
 		DEFAULT_THEME,
 		THEME_HEAD_SCRIPT,
@@ -108,22 +128,75 @@
 	/** @type {import('$lib/admin/recentPlaces.js').RecentPlace[]} */
 	let recentAll = [];
 	let recentLoaded = false;
-	$: recent = visibleRecent(recentAll, $page.url.pathname, { flags });
+	/** Fijados (`pinnedPlaces.js`). */
+	/** @type {import('$lib/admin/pinnedPlaces.js').PinnedPlace[]} */
+	let pinned = [];
+	$: pinnedHrefs = pinned.map((p) => p.href);
+	$: recent = visibleRecent(recentAll, $page.url.pathname, { flags, pinned: pinnedHrefs });
+
+	/** @param {import('$lib/admin/recentPlaces.js').RecentPlace} place */
+	function pin(place) {
+		pinned = addPin(pinned, place, { flags });
+		savePinned(user?.login, pinned);
+	}
+	/** @param {string} href */
+	function unpin(href) {
+		pinned = removePin(pinned, href);
+		savePinned(user?.login, pinned);
+	}
+	/** @param {{ from: number, to: number }} m */
+	function movePinned({ from, to }) {
+		pinned = movePin(pinned, from, to);
+		savePinned(user?.login, pinned);
+	}
+
+	/*
+	 * «Cargando»: el link o botón que se tocó queda marcado (`data-pending`, estilo en panel.scss)
+	 * mientras SvelteKit trae la página siguiente; se desmarca al llegar (o si falla). Solo se marca
+	 * si de verdad empezó una navegación (un `#ancla` o un botón que no navega no quedan marcados).
+	 */
+	/** @type {HTMLElement | null} */
+	let pressed = null;
+	/** @type {HTMLElement | null} */
+	let pending = null;
+	/** @param {MouseEvent} e */
+	function notePress(e) {
+		if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+		const el = e.target instanceof Element ? e.target.closest('a[href], button') : null;
+		pressed = el instanceof HTMLElement ? el : null;
+	}
+	function clearPending() {
+		pending?.removeAttribute('data-pending');
+		pending?.removeAttribute('aria-busy');
+		pending = null;
+	}
+	$: if ($navigating && $navigating.type !== 'popstate' && pressed && !pending) {
+		pending = pressed;
+		pending.setAttribute('data-pending', '');
+		pending.setAttribute('aria-busy', 'true');
+	}
+	$: if (!$navigating) {
+		clearPending();
+		pressed = null;
+	}
 
 	/** Suma la página que se acaba de abrir a Recientes (con el título que ya se dibujó). */
 	async function rememberPage() {
 		const { pathname } = $page.url;
 		if (!recentLoaded) {
 			recentAll = readRecent(user?.login);
+			pinned = readPinned(user?.login);
 			recentLoaded = true;
 		}
 		if (!shouldRemember(pathname, { flags, status: $page.status })) return;
 		await tick();
 		const heading = document.querySelector('main h1')?.textContent;
 		const path = pathname.replace(/\/+$/, '') || '/';
+		const parts = recentParts({ pathname: path, heading });
 		recentAll = addRecent(recentAll, {
 			href: path,
-			label: recentLabel({ pathname: path, heading })
+			label: parts.label,
+			...(parts.context ? { context: parts.context } : {})
 		});
 		saveRecent(user?.login, recentAll);
 	}
@@ -175,7 +248,7 @@
 	$: wide = $page.data?.wide === true;
 	$: active = activeNavItem($page.url.pathname);
 	// Pestañas de sección (como las de Ajustes) arriba de cada sección de un grupo del menú.
-	$: tabsHere = sectionTabs($page.url.pathname, { flags });
+	$: tabsHere = sectionTabs($page.url.pathname, { flags, counts, hideSoon });
 	/** @type {Record<string, number>} */
 	$: counts = data.panelCounts ?? {};
 	/** @type {Record<string, boolean>} */
@@ -345,7 +418,11 @@
 
 <svelte:window on:keydown={onKey} />
 
-<div class="kv-panel">
+<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions (solo anota qué se tocó) -->
+<div class="kv-panel" on:click|capture={notePress}>
+	{#if $navigating && !bare}
+		<div class="loadbar" role="progressbar" aria-label="Cargando la página"></div>
+	{/if}
 	<ConfirmDialog />
 	{#if bare}
 		<slot />
@@ -374,7 +451,16 @@
 					<img src={logo} alt="Kinky Vibe" width="64" height="64" />
 					<span class="pill">Panel de admin</span>
 				</a>
-				<SideNav {active} {counts} {flags} {recent} />
+				<SideNav
+					{active}
+					{counts}
+					{flags}
+					{recent}
+					{pinned}
+					on:pin={(e) => pin(e.detail)}
+					on:unpin={(e) => unpin(e.detail)}
+					on:move={(e) => movePinned(e.detail)}
+				/>
 				<div class="foot">
 					<button
 						type="button"
@@ -415,8 +501,12 @@
 					<SearchBox
 						bind:this={searchBox}
 						{hideSoon}
+						pinned={pinnedHrefs}
+						pinFull={pinned.length >= PIN_MAX}
 						on:theme={toggleTheme}
 						on:hidesoon={toggleHideSoon}
+						on:pin={(e) => pin(e.detail)}
+						on:unpin={(e) => unpin(e.detail)}
 					/>
 					<a
 						class="review"
@@ -425,9 +515,7 @@
 						><ClipboardCheck size={18} aria-hidden="true" />{REVIEW_LINK.label}
 						{#if reviewCount}<span class="count">{reviewCount}</span>{/if}</a
 					>
-					<a class="kv-btn" href="/admin/eventos/nuevo"
-						><Plus size={18} strokeWidth={2.5} aria-hidden="true" />Cargar evento</a
-					>
+					<CreateMenu {flags} {hideSoon} />
 					<button
 						type="button"
 						class="keysbtn"
@@ -498,12 +586,17 @@
 						compact
 						hotkeys={false}
 						{hideSoon}
+						pinned={pinnedHrefs}
+						pinFull={pinned.length >= PIN_MAX}
 						on:theme={toggleTheme}
 						on:hidesoon={toggleHideSoon}
+						on:pin={(e) => pin(e.detail)}
+						on:unpin={(e) => unpin(e.detail)}
 					/>
 					<a class="site" href="/" target="_blank" rel="noopener" title="Ver el sitio"
 						>Sitio<ExternalLink size={14} aria-hidden="true" /></a
 					>
+					<CreateMenu compact {flags} {hideSoon} />
 					<a
 						class="mreview"
 						href={REVIEW_LINK.href}
@@ -527,7 +620,7 @@
 				</header>
 
 				<main class="page" class:wide>
-					{#if tabsHere}<Tabs label={tabsHere.label} tabs={tabsHere.tabs} />{/if}
+					{#if tabsHere}<Tabs label={tabsHere.label} tabs={tabsHere.tabs} menu />{/if}
 					<slot />
 				</main>
 			</div>
@@ -545,7 +638,7 @@
 			</div>
 		{/if}
 
-		<nav class="tabbar" aria-label="Secciones principales">
+		<nav class="tabbar" aria-label="Secciones principales" data-sveltekit-preload-data="hover">
 			{#each mobileTabs as tab, i (i)}
 				{#if tab}
 					<a
@@ -617,6 +710,22 @@
 						</div>
 					</div>
 					<MoreAreas {active} {counts} {flags} {hideSoon} />
+					{#if pinned.length || recent.length}
+						<div class="places" data-sveltekit-preload-data="hover">
+							{#if pinned.length}
+								<p class="plabel"><Pin size={14} aria-hidden="true" />Fijados</p>
+								<ul role="list">
+									{#each pinned as p (p.href)}<li><PlaceLink place={p} /></li>{/each}
+								</ul>
+							{/if}
+							{#if recent.length}
+								<p class="plabel"><History size={14} aria-hidden="true" />Recientes</p>
+								<ul role="list">
+									{#each recent.slice(0, 5) as r (r.href)}<li><PlaceLink place={r} /></li>{/each}
+								</ul>
+							{/if}
+						</div>
+					{/if}
 					<div class="sheet-foot">
 						<button
 							type="button"
@@ -1255,6 +1364,80 @@
 			place-items: center;
 			cursor: pointer;
 		}
+	}
+	/* Barrita de carga arriba de todo (mientras llega la página siguiente). Aparece después de un
+	   instante, así una navegación rápida no parpadea. */
+	.loadbar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 3px;
+		z-index: 60;
+		pointer-events: none;
+		overflow: hidden;
+		opacity: 0;
+		animation: loadbar-in 0s 120ms forwards;
+		&::before {
+			content: '';
+			position: absolute;
+			inset: 0;
+			background: var(--link);
+			transform-origin: left;
+			animation: loadbar-grow 8s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
+		}
+	}
+	@keyframes loadbar-in {
+		to {
+			opacity: 1;
+		}
+	}
+	@keyframes loadbar-grow {
+		from {
+			transform: scaleX(0.05);
+		}
+		to {
+			transform: scaleX(0.92);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		/* Sin animaciones (panel.scss las apaga todas): una barra quieta, a medio tono. */
+		.loadbar {
+			opacity: 1;
+		}
+		.loadbar::before {
+			animation: none;
+			transform: scaleX(1);
+			opacity: 0.6;
+		}
+	}
+	/* Fijados y Recientes en el panel «Más» del celu. */
+	.places {
+		margin-top: var(--space-s);
+		ul {
+			list-style: none;
+			margin: 0 0 var(--space-2xs);
+			padding: 0;
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+		}
+		li {
+			display: flex;
+		}
+		:global(.place) {
+			min-height: var(--tap);
+		}
+	}
+	.plabel {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3xs);
+		margin: var(--space-2xs) 0 var(--space-3xs);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--muted);
 	}
 	.sheet-foot {
 		display: flex;

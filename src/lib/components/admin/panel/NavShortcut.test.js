@@ -56,7 +56,9 @@ describe('pistas de atajos en el menú', () => {
 		const { body } = render(SideNav, { props: { active: item('eventos') } });
 		const found = chips(body);
 		const texts = found.map((c) => c.text);
-		for (const id of ['inicio', 'checkin', 'eventos', 'entradas', 'personas', 'material']) {
+		// La Puerta (g c) ya no está en la barra lateral (parte 2); su atajo sigue.
+		expect(texts).not.toContain(shortcutOf('checkin'));
+		for (const id of ['inicio', 'eventos', 'entradas', 'personas', 'material']) {
 			expect(texts).toContain(shortcutOf(id));
 		}
 		for (const c of found) expect(c.tag).toContain('aria-hidden="true"');
