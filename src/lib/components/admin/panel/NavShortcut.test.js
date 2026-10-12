@@ -52,11 +52,13 @@ describe('pistas de atajos en el menú', () => {
 		const { body } = render(NavEntry, { props: { item: item('eventos') } });
 		expect(body).not.toContain('aria-keyshortcuts');
 	});
-	it('la barra lateral muestra la pista de Inicio y de cada sección del grupo abierto', () => {
+	it('la barra lateral muestra la pista de cada sección (la de su primera página)', () => {
 		const { body } = render(SideNav, { props: { active: item('eventos') } });
 		const found = chips(body);
 		const texts = found.map((c) => c.text);
-		for (const id of ['inicio', 'eventos', 'eventos-nuevo', 'eventos-agenda', 'checkin']) {
+		// La Puerta (g c) ya no está en la barra lateral (parte 2); su atajo sigue.
+		expect(texts).not.toContain(shortcutOf('checkin'));
+		for (const id of ['inicio', 'eventos', 'entradas', 'personas', 'material']) {
 			expect(texts).toContain(shortcutOf(id));
 		}
 		for (const c of found) expect(c.tag).toContain('aria-hidden="true"');

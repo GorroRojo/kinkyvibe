@@ -1,9 +1,10 @@
 /**
  * Mapa del panel de admin: la ÚNICA lista de secciones. La usan la barra lateral (desktop), la
  * barra de abajo y el panel "Más" (celu), el botón "Para revisar", la página "Próximamente" y el
- * buscador (`commands.js`). Mapa aprobado por gorrite (decisión 0026, paso 2 del orden): 7 áreas
- * ({@link NAV_AREAS}) más Inicio arriba y Ajustes al pie. Dentro de cada área, las secciones van
- * por frecuencia de uso (lo de todos los días primero) y lo que viene, al final.
+ * buscador (`commands.js`). Mapa aprobado por gorrite (decisión 0026, paso 2 del orden): las áreas
+ * ({@link NAV_AREAS}) más Inicio arriba y Ajustes al pie; desde la opción C (decisión 0038) la
+ * Puerta es un área propia. Dentro de cada área, las secciones van por frecuencia de uso (lo de
+ * todos los días primero) y lo que viene, al final.
  *
  * Forma de cada ítem ({@link NavItem}):
  * - `id`: identificador estable (no cambiarlo: lo usan los atajos y el buscador).
@@ -127,6 +128,7 @@ export const ICON_MODE = 'lucide';
  * @type {readonly { id: string, label: string, icon: NavItem['icon'], emoji: string, foot?: true }[]}
  */
 export const NAV_AREAS = Object.freeze([
+	{ id: 'puerta', label: 'Puerta', icon: ScanLine, emoji: '🚪' },
 	{ id: 'eventos', label: 'Eventos', icon: CalendarRange, emoji: '🎟️' },
 	{ id: 'ventas', label: 'Ventas', icon: Ticket, emoji: '💰' },
 	{ id: 'comunidad', label: 'Comunidad', icon: Users, emoji: '🧑‍🤝‍🧑' },
@@ -140,13 +142,26 @@ export const NAV_AREAS = Object.freeze([
 /**
  * Grupos del menú (barra lateral y panel "Más" del celu): el menú simplificado de la revisión de
  * UI (paso 3). Junta áreas chicas con la que se parecen, así arriba hay menos entradas: Inicio,
- * Eventos, Ventas, Comunidad (con Mensajes), Contenido (con Etiquetas), Estadísticas (sola, por
- * pedido de gorrite) y Ajustes al pie. Es solo cómo se muestra: cada sección sigue en su área y en su URL
+ * Puerta (sola y resaltada, opción C), Eventos, Ventas, Comunidad (con Mensajes), Contenido (con
+ * Etiquetas), Estadísticas (sola, por pedido de gorrite) y Ajustes al pie. En la barra lateral
+ * cada grupo es UNA sección (link a su primera página, {@link sideSections}); sus páginas son las
+ * pestañas de arriba ({@link sectionTabs}). Es solo cómo se muestra: cada sección sigue en su área y en su URL
  * (/admin/<área>/<sección>), y «← Área» sigue llevando a su área. Dentro de un grupo, las
  * secciones del área principal van primero y las de las otras áreas, debajo de su nombre.
- * @type {readonly { id: string, label: string, icon: NavItem['icon'], emoji: string, areas: readonly string[], foot?: true }[]}
+ * @type {readonly { id: string, label: string, icon: NavItem['icon'], emoji: string, areas: readonly string[], foot?: true, highlight?: true, side?: false }[]}
  */
 export const NAV_GROUPS = Object.freeze([
+	{
+		id: 'puerta',
+		label: 'Puerta',
+		icon: ScanLine,
+		emoji: '🚪',
+		areas: ['puerta'],
+		highlight: true,
+		// No va en la barra lateral (gorrite, 11/10, parte 2 de la opción C): está en la barra de
+		// abajo del celu, en «Ir a…», en la pestaña Puerta de cada evento y en el bot. Su URL sigue.
+		side: false
+	},
 	{ id: 'eventos', label: 'Eventos', icon: CalendarRange, emoji: '🎟️', areas: ['eventos'] },
 	{ id: 'ventas', label: 'Ventas', icon: Ticket, emoji: '💰', areas: ['ventas'] },
 	{
@@ -232,6 +247,19 @@ export const NAV = Object.freeze([
 		match: 'exact'
 	},
 
+	// Puerta
+	{
+		id: 'checkin',
+		href: '/admin/checkin',
+		icon: ScanLine,
+		emoji: '🚪',
+		label: 'Puerta',
+		// Sección propia (opción C, decisión 0038): se usa en el celu, con gente esperando.
+		area: 'puerta',
+		soon: false,
+		highlight: true
+	},
+
 	// Eventos
 	{
 		id: 'eventos',
@@ -251,7 +279,10 @@ export const NAV = Object.freeze([
 		label: 'Cargar evento',
 		area: 'eventos',
 		soon: false,
-		highlight: true
+		// Crear es una acción, no un lugar (opción C, decisión 0038): está como botón en Eventos,
+		// en el buscador («Ir a…») y con `g n`, pero no en el menú.
+		menu: false,
+		parent: 'eventos'
 	},
 	{
 		id: 'eventos-agenda',
@@ -273,16 +304,6 @@ export const NAV = Object.freeze([
 		// Se entra desde la Agenda (y desde Inicio); no ocupa lugar en el menú.
 		menu: false,
 		parent: 'eventos-agenda'
-	},
-	{
-		id: 'checkin',
-		href: '/admin/checkin',
-		icon: ScanLine,
-		emoji: '🚪',
-		label: 'Puerta',
-		area: 'eventos',
-		soon: false,
-		highlight: true
 	},
 	{
 		// Series de eventos (docs/decisiones/0005).
@@ -959,26 +980,96 @@ export function navGroupItems(group, opts) {
 }
 
 /**
- * Pestañas de sección (como las de Ajustes): en la página principal de cada sección de un grupo
- * del menú con dos o más secciones, una barra con todas las secciones del grupo, así se pasa de
- * una a otra sin abrir el menú. Las del grupo Eventos no llevan (son herramientas con su propia
- * barra: la lista, la agenda, Puerta…), ni las subpáginas (fichas, formularios), ni lo que viene.
- * `null` si la página no lleva.
- * @param {string} pathname
- * @param {{ flags?: Record<string, boolean> }} [opts]
- * Cada pestaña lleva el ícono de su sección (el mismo que en la barra lateral).
- * @returns {{ label: string, tabs: { href: string, label: string, icon: NavItem['icon'] }[] } | null}
+ * Las secciones de la barra lateral (opción C, decisión 0038): Inicio y un link por grupo del menú
+ * ({@link NAV_GROUPS}, salvo los de `side: false`: la Puerta), sin sub-ítems. Cada una lleva a la primera página de su grupo que existe
+ * (Eventos → /admin/eventos, Comunidad → Personas, Ajustes → Cobros…); las demás páginas del grupo
+ * son pestañas arriba de la página ({@link sectionTabs}). Un grupo sin ninguna página lista (todo
+ * próximamente u oculto) no se muestra. `count` es la suma de los contadores del grupo.
+ *
+ * @param {{ flags?: Record<string, boolean>, counts?: Record<string, number> }} [opts]
+ * @returns {{ id: string, label: string, icon: NavItem['icon'], emoji: string, href: string, root: string, foot: boolean, highlight: boolean, count: number }[]}
  */
-export function sectionTabs(pathname, { flags = {} } = {}) {
+export function sideSections({ flags = {}, counts = {} } = {}) {
+	const inicio = /** @type {NavItem} */ (navItem('inicio'));
+	const out = [
+		{
+			id: inicio.id,
+			label: inicio.label,
+			icon: inicio.icon,
+			emoji: inicio.emoji,
+			href: inicio.href,
+			root: inicio.id,
+			foot: false,
+			highlight: false,
+			count: 0
+		}
+	];
+	for (const g of NAV_GROUPS) {
+		if (g.side === false) continue;
+		const root = navGroupItems(g.id, { flags, hideSoon: true })[0];
+		if (!root) continue;
+		out.push({
+			id: g.id,
+			label: g.label,
+			icon: g.icon,
+			emoji: g.emoji,
+			href: root.href,
+			root: root.id,
+			foot: Boolean(g.foot),
+			highlight: Boolean(g.highlight),
+			count: groupCount(g.id, counts, { flags })
+		});
+	}
+	return out;
+}
+
+/**
+ * La sección de la barra lateral de una página: `'inicio'`, el id de su grupo, o `null`.
+ * @param {NavItem | undefined} item el ítem activo ({@link activeNavItem})
+ * @returns {string | null}
+ */
+export function activeSection(item) {
+	if (!item) return null;
+	if (item.id === 'inicio') return 'inicio';
+	return navGroupOf(item.area)?.id ?? null;
+}
+
+/**
+ * Pestañas de sección (como las de Ajustes): en la página principal de cada sección de un grupo
+ * del menú con dos o más secciones, una barra con todas las secciones del grupo. Con la opción C
+ * (decisión 0038) la barra lateral solo muestra los grupos, así que estas pestañas son el único
+ * menú de las páginas de cada grupo: también Eventos (Eventos, Agenda, Series, Lugares, Roles y
+ * preguntas). No llevan las subpáginas (fichas, formularios) ni la Puerta (es una sola página).
+ * `null` si la página no lleva.
+ *
+ * Parte 2 (gorrite, 11/10): cada pestaña lleva el contador «a revisar» de su sección (el mismo de
+ * la barra lateral y de «Para revisar», `counts` = `data.panelCounts`), y lo que viene va al final,
+ * gris y sin link («Próximamente», `soon: true`), salvo con «Ocultar lo que viene»: el layout pasa
+ * `hideSoon` de cada persona; sin pasarlo, como antes, sin lo que viene.
+ * Cada pestaña lleva el ícono de su sección (el mismo que en la barra lateral).
+ * @param {string} pathname
+ * @param {{ flags?: Record<string, boolean>, counts?: Record<string, number>, hideSoon?: boolean }} [opts]
+ * @returns {{ label: string, tabs: { href: string, label: string, icon: NavItem['icon'], count?: number, soon?: boolean }[] } | null}
+ */
+export function sectionTabs(pathname, { flags = {}, counts = {}, hideSoon = true } = {}) {
 	const path = pathname.replace(/\/+$/, '') || '/';
 	const item = NAV.find((i) => i.href === path && !i.soon && i.menu !== false);
 	const group = navGroupOf(item?.area);
-	if (!item || !group || group.id === 'eventos' || navState(item, flags) === 'hidden') return null;
-	const items = navGroupItems(group.id, { flags, hideSoon: true });
-	if (items.length < 2) return null;
+	if (!item || !group || navState(item, flags) === 'hidden') return null;
+	const items = navGroupItems(group.id, { flags, hideSoon });
+	if (items.filter((i) => !i.soon).length < 2) return null;
 	return {
 		label: `Secciones de ${group.label}`,
-		tabs: items.map((i) => ({ href: i.href, label: i.label, icon: i.icon }))
+		tabs: items.map((i) => {
+			const count = i.counter && !i.soon ? Number(counts[i.counter] ?? 0) || 0 : 0;
+			return {
+				href: i.href,
+				label: i.label,
+				icon: i.icon,
+				...(count ? { count } : {}),
+				...(i.soon ? { soon: true } : {})
+			};
+		})
 	};
 }
 

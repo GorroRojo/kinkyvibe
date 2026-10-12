@@ -17,6 +17,9 @@
  * | Seguir: opciones / seguir     | `f:<id>` / `fy:<id>:<etiqueta>` |
  * | Resultados de buscar en todo el sitio (página `p`) | `q:<p>:<texto>` |
  * | Una cosa de esos resultados (vuelve a la página `p`) | `r:<hash>:<p>:<texto>` |
+ * | Una sección del sitio (página `p`, etiqueta opcional) | `c:<s>:<p>[:<etiqueta>]` |
+ * | Las etiquetas de una sección (la elegida, opcional) | `ct:<s>[:<etiqueta>]` |
+ * | Una cosa de una sección (vuelve a la página `p`) | `cd:<s>:<hash>:<p>[:<etiqueta>]` |
  * | El contador «1/3» (no hace nada) | `x`                 |
  *
  * `v` es la lista: `d` hoy, `w` semana, `f` finde, `p` próximos; en el detalle también `n` (sin
@@ -25,6 +28,9 @@
  * En la búsqueda de todo el sitio, `<texto>` es lo buscado (recortado a {@link SEARCH_QUERY_BYTES}
  * bytes: así se repite la misma búsqueda) y `<hash>`, un hash corto de la dirección de la cosa,
  * que se busca **entre los resultados de ese texto** (nunca afuera del índice público).
+ * En las secciones (sections.js), `<s>` es `m` material, `w` Kinkipedia, `a` amigues o `s` series;
+ * `<hash>` se busca **entre lo de esa sección** y `<etiqueta>` (un hash corto de su id), entre las
+ * etiquetas de lo de esa sección: los dos, solo dentro del índice público.
  * También se entienden los botones de antes (`ev:<id>` y `ls`, keyboards.js).
  */
 import { parseCallbackData as parseLegacy } from './keyboards.js';
@@ -32,6 +38,7 @@ import { parseCallbackData as parseLegacy } from './keyboards.js';
 /** @typedef {import('./format.js').BotEvent} BotEvent */
 /** @typedef {'d' | 'w' | 'f' | 'p'} ListView */
 /** @typedef {ListView | 'n'} BackView */
+/** @typedef {'m' | 'w' | 'a' | 's'} SectionId */
 /**
  * @typedef {{ screen: 'home' }
  *   | { screen: 'list', view: ListView, page: number }
@@ -45,6 +52,9 @@ import { parseCallbackData as parseLegacy } from './keyboards.js';
  *   | { screen: 'follow_do', id: string, tag: string }
  *   | { screen: 'site_results', query: string, page: number }
  *   | { screen: 'site_doc', hash: string, page: number, query: string }
+ *   | { screen: 'section', section: SectionId, page: number, tag?: string }
+ *   | { screen: 'section_tags', section: SectionId, tag?: string }
+ *   | { screen: 'section_doc', section: SectionId, hash: string, page: number, tag?: string }
  *   | { screen: 'noop' }
  *   | { screen: 'legacy_event', token: string }} NavState
  */
@@ -128,6 +138,12 @@ const isNavId = (id) =>
 	typeof id === 'string' &&
 	((SAFE_SLUG.test(id) && byteLength(id) <= NAV_SLUG_MAX) || HASH_ID.test(id));
 
+/** @param {unknown} v @returns {v is SectionId} */
+export const isSectionId = (v) => v === 'm' || v === 'w' || v === 'a' || v === 's';
+
+/** `:<etiqueta>` si hay. @param {string | undefined} tag */
+const tagPart = (tag) => (tag ? `:${tag}` : '');
+
 /** @param {unknown} v @returns {v is ListView} */
 export const isListView = (v) => v === 'd' || v === 'w' || v === 'f' || v === 'p';
 
@@ -177,6 +193,15 @@ export function encodeNav(state) {
 			break;
 		case 'site_doc':
 			data = `r:${state.hash}:${Math.max(0, Math.floor(state.page))}:${clipQuery(state.query)}`;
+			break;
+		case 'section':
+			data = `c:${state.section}:${Math.max(0, Math.floor(state.page))}${tagPart(state.tag)}`;
+			break;
+		case 'section_tags':
+			data = `ct:${state.section}${tagPart(state.tag)}`;
+			break;
+		case 'section_doc':
+			data = `cd:${state.section}:${state.hash}:${Math.max(0, Math.floor(state.page))}${tagPart(state.tag)}`;
 			break;
 		default:
 			data = 'x';
@@ -238,6 +263,23 @@ export function decodeNav(data) {
 			return null;
 		}
 		return { screen: 'site_doc', hash, page: +page, query };
+	}
+	if (kind === 'c' && (parts.length === 3 || parts.length === 4)) {
+		const [, section, page, tag] = parts;
+		if (!isSectionId(section) || !/^\d{1,3}$/.test(page)) return null;
+		if (tag !== undefined && !TAG_HASH.test(tag)) return null;
+		return { screen: 'section', section, page: +page, ...(tag ? { tag } : {}) };
+	}
+	if (kind === 'ct' && (parts.length === 2 || parts.length === 3)) {
+		const [, section, tag] = parts;
+		if (!isSectionId(section) || (tag !== undefined && !TAG_HASH.test(tag))) return null;
+		return { screen: 'section_tags', section, ...(tag ? { tag } : {}) };
+	}
+	if (kind === 'cd' && (parts.length === 4 || parts.length === 5)) {
+		const [, section, hash, page, tag] = parts;
+		if (!isSectionId(section) || !TAG_HASH.test(hash) || !/^\d{1,3}$/.test(page)) return null;
+		if (tag !== undefined && !TAG_HASH.test(tag)) return null;
+		return { screen: 'section_doc', section, hash, page: +page, ...(tag ? { tag } : {}) };
 	}
 	// Los botones de antes (mensajes viejos que quedaron en los chats).
 	const legacy = parseLegacy(data);

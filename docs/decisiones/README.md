@@ -128,3 +128,7 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   mails por evento se recuperan (9/10)
 - [0033](0033-borrados-recuperables.md): Preguntas de inscripción, roles y notas internas se
   recuperan (11/10)
+- [0038](0038-navegacion-del-panel-opcion-c.md): Navegación del panel: opción C (8 secciones,
+  Puerta propia, «Ir a…» y Recientes) (11/10)
+- [0039](0039-navegacion-del-panel-opcion-c-parte-2.md): Navegación del panel, opción C parte 2
+  (Fijados, «+ Crear», Puerta fuera de la barra, pestañas con contadores) (11/10)

@@ -24,6 +24,9 @@ PRs abiertos:
   velocidad de cada persona (navegador y cuenta) (idea de JorgeT10, #46).
 - «Textos del bot» (Ajustes › Comunicación): todo lo que dice el bot de Telegram, editable en el
   panel, sin migración.
+- Bot: recorrer el sitio por secciones desde el inicio (Material, Kinkipedia, Amigues, Series, con
+  páginas y filtro por etiqueta) y los textos de buscar en todo el sitio y del modo inline en
+  «Textos del bot» (PR `claude/bot-secciones`).
 - Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
   tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
   directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
@@ -185,8 +188,19 @@ de amigues y lanzamientos grandes.
   gestione desde Mi rincón (con cuenta), sin pasar por les admins para cada cambio (gorrite,
   11/10). M. Revisar cómo se asigna hoy quién gestiona un perfil (docs/amigues.md).
 - Borrar objetos para siempre; campos propios y tipos simples desde el panel. L. Bloqueo: diseño.
-- Pestañas arriba en cada sección (como Ajustes) y un menú más simple. M. Bloqueo: proponer la
-  estructura antes.
+- Navegación del panel, opción C ([0038](decisiones/0038-navegacion-del-panel-opcion-c.md),
+  [0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)), lo que quedó después de la
+  parte 2 (Fijados, «+ Crear», Puerta fuera de la barra, pestañas con contadores y ▾ en el celu):
+  - Pestañas de la ficha del evento (5 y «Más» en el prototipo; #303 propone 7 con vistas) y dónde
+    van los ajustes de mails. M. Bloqueo: decisión de gorrite (#303).
+  - Ajustes como 4 grupos (Plata, Comunicación, Equipo, Sistema) con tarjetas, como en el
+    prototipo, en vez de 9 pestañas. M. Bloqueo: gorrite.
+  - La Puerta «abierta en el evento de hoy» (el prototipo entra directo al evento del día; hoy
+    `/admin/checkin` muestra la lista para elegir). S. Bloqueo: gorrite.
+  - Fijados y Recientes en el buscador vacío de «Ir a…». S.
+  - Fijados por admin en la base (hoy por navegador), si se suma una tabla de preferencias. M.
+  - Si la barra sin grupos se queda, sacar las funciones de grupos abiertos de `navPrefs.js`
+    (`kv-panel-grupos`) y sus pruebas. S.
 - Panel lateral de cada admin: hoy la elección («Siempre abierto», «Solo íconos», «Se oculta»)
   se guarda por navegador (localStorage por login). Si se suma una tabla de preferencias por admin
   en la base, pasarla ahí para que siga a la persona en todos sus dispositivos (gorrite, 11/10;
@@ -222,18 +236,14 @@ de amigues y lanzamientos grandes.
 
 - Puerta por Telegram, después de #273: prenderla en un preview y probarla con celulares reales
   (vincular, abrir con el botón del bot, escanear); después en producción. S. Bloqueo: gorrite.
-- Bot: recorrer el sitio por secciones («📚 Material», «📖 Kinkipedia», «👥 Amigues» en el inicio,
-  con listas y etiquetas), reusando la lista y la tarjeta compacta de `siteScreens.js`. M.
-- Bot: pasar los textos nuevos del modo inline y de la búsqueda (`INLINE_TEXTS` en `inline.js`,
-  `SITE_TEXTS` en `siteScreens.js`) al registro «Textos del bot» cuando esté en `main`. S.
+- Bot, secciones: filtrar la Kinkipedia por las ramas del árbol de etiquetas (como `/wiki`) en
+  lugar de las etiquetas más usadas; y que Series deje afuera las series sin ediciones (como la
+  lista de series de `/wiki`; hoy salen las del índice de la búsqueda). S.
 - Guardar si alguien apagó a propósito los avisos por Telegram de algo, para que volver a seguirlo
   desde el bot no los prenda de nuevo (hoy la base no lo distingue, 0036). S. Bloqueo: que haga
   falta (necesita migración).
 - Textos del bot: sumar a «Textos del bot» los de `/inicio` y el botón «🚪 Puerta» del inicio
   cuando entre `claude/bot-inicio` (si ese PR entra después). S.
-- Textos del bot: sumar los textos de #298 (`INLINE_TEXTS` de `inline.js`, `SITE_TEXTS` de
-  `siteScreens.js`, `SITE_SEARCH_PROMPT_TEXT` y la descripción nueva de `/buscar`) cuando entren
-  los dos PRs: una entrada por texto en `src/lib/utils/botTexts.js` y `botText` en el código. S.
 - Textos del bot: los textos de las páginas de la Mini App del calendario (`/telegram/app`) y de
   la puerta (`/telegram/puerta`) siguen en el código (son páginas, no mensajes del bot). S.
   Bloqueo: que haga falta.

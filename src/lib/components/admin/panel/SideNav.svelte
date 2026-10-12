@@ -1,41 +1,37 @@
 <script>
 	/**
-	 * Menú de la barra lateral del panel (≥ 900 px): Inicio, los grupos de `$lib/admin/nav.js`
-	 * (`NAV_GROUPS`: cada uno junta una o más áreas) y Ajustes al pie. Se pueden abrir varios
-	 * grupos a la vez y cada uno recuerda si quedó abierto o cerrado (`navPrefs.js`, localStorage
-	 * con try/catch; sin storage anda igual). El grupo de la página actual siempre se abre al
-	 * cargar. «Abrir todo / Cerrar todo» arriba abre o cierra todos. Un grupo cerrado muestra la
-	 * suma de sus contadores. Al cargar, el link de la página actual se lleva a la vista dentro de
-	 * la barra (que tiene su propio scroll, en el layout).
+	 * Menú de la barra lateral del panel (≥ 900 px), opción C (decisión 0038): las secciones con
+	 * ícono y nombre (Inicio, Eventos, Ventas, Comunidad, Contenido, Estadísticas y Ajustes al pie),
+	 * sin sub-ítems. La Puerta no va acá (parte 2, gorrite 11/10: está en la barra de abajo del celu,
+	 * en «Ir a…» y en cada evento). Cada sección lleva a la primera página de su grupo
+	 * (`sideSections` de `$lib/admin/nav.js`); las demás páginas del grupo son las pestañas de arriba
+	 * de la página (`sectionTabs`, en el layout). Cada sección muestra la suma de sus contadores y su
+	 * pista «g x» (`NavShortcut`, solo en una compu con mouse).
+	 *
+	 * Debajo de las secciones:
+	 * - «Fijados» (`pinnedPlaces.js`): las páginas que fijaste con 📌, hasta 7, en tu orden. Se
+	 *   reordenan arrastrando o con «Subir»/«Bajar» (con el teclado: Tab hasta la fila y los botones
+	 *   aparecen); «Soltar» las saca.
+	 * - «Recientes» (`recentPlaces.js`): las últimas páginas que abriste, sin las fijadas, las que
+	 *   entran en el alto de la pantalla, hasta 7. Las que no entran no se muestran (ni se leen ni se
+	 *   enfocan); si no entra ninguna, no aparece el título. Cada una tiene 📌 para fijarla.
+	 * Cada fila: ícono, nombre y una línea chica de contexto (`PlaceLink`).
+	 *
 	 * Props: `active` (NavItem actual), `counts` (`data.panelCounts`), `flags` (`data.navFlags`),
-	 * `hideSoon` ("Ocultar lo que viene"). Cada sección con atajo muestra su pista «g x»
-	 * (`NavShortcut`, solo en una compu con mouse).
+	 * `recent` (las recientes que se muestran, ya sin la actual ni las fijadas), `pinned` (las
+	 * fijadas). Eventos: `pin` (detail: el lugar), `unpin` (detail: href), `move` (detail:
+	 * `{ from, to }`); los maneja el layout, que guarda.
 	 * Con el panel lateral en «Solo íconos» (`data-lateral="iconos"` en <html>, `sidebarMode.js`)
-	 * los nombres quedan solo para los lectores de pantalla y el layout muestra cada uno como
-	 * cartelito (`data-tip`) al pasar el mouse o con el foco.
+	 * los nombres quedan solo para los lectores de pantalla, el layout muestra cada uno como
+	 * cartelito (`data-tip`) al pasar el mouse o con el foco, y Fijados y Recientes no se muestran.
 	 */
-	import { onMount, tick } from 'svelte';
-	import { ChevronDown } from '@lucide/svelte';
+	import { createEventDispatcher, onMount, tick } from 'svelte';
+	import { ChevronDown, ChevronUp, History, Pin, PinOff } from '@lucide/svelte';
 	import NavIcon from './NavIcon.svelte';
-	import NavEntry from './NavEntry.svelte';
 	import NavShortcut from './NavShortcut.svelte';
-	import {
-		NAV_GROUPS,
-		groupCount,
-		navAreaItems,
-		navGroupItems,
-		navGroupOf,
-		navGroupSections,
-		navState
-	} from '$lib/admin/nav.js';
-	import {
-		allGroupsOpen,
-		pickOpenGroups,
-		readOpenGroups,
-		saveOpenGroups,
-		toggleAllGroups,
-		toggleGroup
-	} from '$lib/admin/navPrefs.js';
+	import PlaceLink from './PlaceLink.svelte';
+	import { activeSection, sideSections } from '$lib/admin/nav.js';
+	import { PIN_MAX } from '$lib/admin/pinnedPlaces.js';
 
 	/** @type {import('$lib/admin/nav.js').NavItem | undefined} */
 	export let active;
@@ -43,93 +39,220 @@
 	export let counts = {};
 	/** @type {Record<string, boolean>} */
 	export let flags = {};
-	export let hideSoon = false;
+	/** @type {import('$lib/admin/recentPlaces.js').RecentPlace[]} */
+	export let recent = [];
+	/** @type {import('$lib/admin/recentPlaces.js').RecentPlace[]} */
+	export let pinned = [];
 
-	/** @type {HTMLElement} */
-	let navEl;
-	/** Ids de los grupos abiertos, en el orden del menú. */
-	let open = pickOpenGroups(navGroupOf(active?.area)?.id, null);
-	let mounted = false;
-	onMount(async () => {
-		open = pickOpenGroups(navGroupOf(active?.area)?.id, readOpenGroups());
-		mounted = true;
-		await tick();
-		navEl?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest' });
+	/** @type {import('svelte').EventDispatcher<{ pin: import('$lib/admin/recentPlaces.js').RecentPlace, unpin: string, move: { from: number, to: number } }>} */
+	const dispatch = createEventDispatcher();
+
+	$: sections = sideSections({ flags, counts });
+	$: main = sections.filter((s) => !s.foot);
+	$: foot = sections.filter((s) => s.foot);
+	$: here = activeSection(active);
+	$: full = pinned.length >= PIN_MAX;
+
+	/** @type {HTMLUListElement | undefined} */
+	let recentList;
+	/** Cuántas recientes entran (las demás quedan `visibility: hidden`). */
+	let fit = 0;
+
+	/** Cuenta las filas que entran enteras en el alto que le queda a la lista. */
+	function measure() {
+		if (!recentList) return;
+		const max = recentList.clientHeight;
+		const top = recentList.getBoundingClientRect().top;
+		let n = 0;
+		for (const row of recentList.children) {
+			const r = row.getBoundingClientRect();
+			if (r.bottom - top > max + 0.5) break;
+			n++;
+		}
+		fit = n;
+	}
+
+	onMount(() => {
+		measure();
+		if (typeof ResizeObserver !== 'function' || !recentList) return;
+		const ro = new ResizeObserver(() => measure());
+		ro.observe(recentList);
+		return () => ro.disconnect();
 	});
-	// Al navegar a otro grupo, se abre ese (sin cerrar los demás).
-	$: activeGroup = navGroupOf(active?.area)?.id ?? null;
-	$: if (mounted && activeGroup && !open.includes(activeGroup)) open = [...open, activeGroup];
+	// Cuando cambian las listas (al navegar o al fijar), se vuelve a medir.
+	$: if (recent || pinned) tick().then(measure);
 
-	/** @param {string} id */
-	function toggle(id) {
-		open = toggleGroup(open, id);
-		saveOpenGroups(open);
+	/*
+	 * Arrastrar para reordenar los fijados. `dragFrom`: la fila que se arrastra; `dragOver`: dónde
+	 * caería (se marca con una raya).
+	 */
+	/** @type {number | null} */
+	let dragFrom = null;
+	/** @type {number | null} */
+	let dragOver = null;
+	/** @param {DragEvent} e @param {number} i */
+	function dragStart(e, i) {
+		dragFrom = i;
+		if (e.dataTransfer) {
+			e.dataTransfer.effectAllowed = 'move';
+			e.dataTransfer.setData('text/plain', pinned[i]?.href ?? '');
+		}
+	}
+	/** @param {DragEvent} e @param {number} i */
+	function dragEnter(e, i) {
+		if (dragFrom === null) return;
+		e.preventDefault();
+		dragOver = i;
+	}
+	/** @param {DragEvent} e @param {number} i */
+	function drop(e, i) {
+		if (dragFrom === null) return;
+		e.preventDefault();
+		if (dragFrom !== i) dispatch('move', { from: dragFrom, to: i });
+		dragFrom = dragOver = null;
+	}
+	function dragEnd() {
+		dragFrom = dragOver = null;
 	}
 
-	function toggleAll() {
-		open = toggleAllGroups(open, visibleIds);
-		saveOpenGroups(open);
+	/**
+	 * «Subir»/«Bajar»: mueve y deja el foco en el mismo botón de la fila movida (así se puede
+	 * apretar varias veces seguidas).
+	 * @param {number} i @param {-1 | 1} dir @param {MouseEvent} e
+	 */
+	async function move(i, dir, e) {
+		const which = /** @type {HTMLElement} */ (e.currentTarget).dataset.dir;
+		dispatch('move', { from: i, to: i + dir });
+		await tick();
+		const row = pinnedList?.children[i + dir];
+		/** @type {HTMLButtonElement | null | undefined} */ (
+			row?.querySelector(`button[data-dir="${which}"]:not(:disabled)`) ?? row?.querySelector('a')
+		)?.focus();
 	}
-
-	/** @param {import('$lib/admin/nav.js').NavItem} item */
-	const countOf = (item) => (item.counter ? Number(counts[item.counter] ?? 0) : 0);
-
-	$: opts = { flags, hideSoon };
-	$: main = NAV_GROUPS.filter((g) => !g.foot && navGroupItems(g.id, opts).length);
-	$: foot = NAV_GROUPS.filter((g) => g.foot && navGroupItems(g.id, opts).length);
-	$: visibleIds = [...main, ...foot].map((g) => g.id);
-	$: everyOpen = allGroupsOpen(open, visibleIds);
+	/** @type {HTMLUListElement | undefined} */
+	let pinnedList;
 </script>
 
-<nav class="sn" aria-label="Secciones del panel" bind:this={navEl}>
-	<button type="button" class="all" on:click={toggleAll}
-		>{everyOpen ? 'Cerrar todo' : 'Abrir todo'}</button
-	>
-	{#each navAreaItems(null, opts) as item (item.id)}
-		<a
-			class="top"
-			class:on={active?.id === item.id}
-			href={item.href}
-			aria-current={active?.id === item.id ? 'page' : undefined}
-			data-tip={item.label}
-			><NavIcon {item} size={18} /><span class="label">{item.label}</span><NavShortcut
-				id={item.id}
-			/></a
-		>
-	{/each}
-	{#each [main, foot] as list, i (i)}
-		<div class="areas" class:foot={i === 1}>
-			{#each list as area (area.id)}
-				{@const isOpen = open.includes(area.id)}
-				{@const total = groupCount(area.id, counts, opts)}
-				<button
-					type="button"
-					class="area"
-					class:here={activeGroup === area.id}
-					aria-expanded={isOpen}
-					aria-controls="kv-area-{area.id}"
-					on:click={() => toggle(area.id)}
-					data-tip={area.label}
-					><NavIcon item={area} size={18} /><span class="label">{area.label}</span>
-					{#if total && !isOpen}<span class="count" title="Pendientes">{total}</span>{/if}
-					<span class="chev" aria-hidden="true"><ChevronDown size={16} /></span></button
+<nav class="sn" aria-label="Secciones del panel" data-sveltekit-preload-data="hover">
+	<ul class="secs" role="list">
+		{#each main as s (s.id)}
+			<li>
+				<a
+					class="sec"
+					class:on={here === s.id}
+					class:hl={s.highlight}
+					href={s.href}
+					aria-current={here === s.id ? 'page' : undefined}
+					data-tip={s.label}
+					><NavIcon item={s} size={18} /><span class="label">{s.label}</span>{#if s.count}<span
+							class="count"
+							title="Pendientes">{s.count}</span
+						>{/if}<NavShortcut id={s.root} /></a
 				>
-				<div class="items" id="kv-area-{area.id}" hidden={!isOpen}>
-					{#each navGroupSections(area.id, opts) as section (section.id)}
-						{#if section.label}<div class="sub">{section.label}</div>{/if}
-						{#each section.items as item (item.id)}
-							<NavEntry
-								{item}
-								state={navState(item, flags)}
-								active={active?.id === item.id}
-								count={countOf(item)}
-							/>
-						{/each}
-					{/each}
-				</div>
-			{/each}
+			</li>
+		{/each}
+	</ul>
+
+	{#if pinned.length}
+		<div class="pinned">
+			<p class="rlabel" id="kv-pinned-label"><Pin size={14} aria-hidden="true" />Fijados</p>
+			<ul
+				role="list"
+				aria-labelledby="kv-pinned-label"
+				bind:this={pinnedList}
+				data-sveltekit-preload-data="hover"
+			>
+				{#each pinned as p, i (p.href)}
+					<li
+						class="row"
+						class:dragging={dragFrom === i}
+						class:over={dragOver === i && dragFrom !== null && dragFrom !== i}
+						class:below={dragFrom !== null && dragFrom < i}
+						draggable="true"
+						on:dragstart={(e) => dragStart(e, i)}
+						on:dragenter={(e) => dragEnter(e, i)}
+						on:dragover={(e) => dragEnter(e, i)}
+						on:drop={(e) => drop(e, i)}
+						on:dragend={dragEnd}
+					>
+						<PlaceLink place={p} />
+						<span class="tools">
+							<button
+								type="button"
+								data-dir="up"
+								disabled={i === 0}
+								aria-label="Subir «{p.label}»"
+								title="Subir"
+								on:click={(e) => move(i, -1, e)}><ChevronUp size={14} aria-hidden="true" /></button
+							>
+							<button
+								type="button"
+								data-dir="down"
+								disabled={i === pinned.length - 1}
+								aria-label="Bajar «{p.label}»"
+								title="Bajar"
+								on:click={(e) => move(i, 1, e)}><ChevronDown size={14} aria-hidden="true" /></button
+							>
+							<button
+								type="button"
+								aria-label="Soltar «{p.label}» (sacarla de Fijados)"
+								title="Soltar"
+								on:click={() => dispatch('unpin', p.href)}
+								><PinOff size={14} aria-hidden="true" /></button
+							>
+						</span>
+					</li>
+				{/each}
+			</ul>
 		</div>
-	{/each}
+	{/if}
+
+	<div class="recent" class:empty={!recent.length || fit === 0}>
+		{#if recent.length}
+			<p class="rlabel" id="kv-recent-label">
+				<History size={14} aria-hidden="true" />Recientes
+			</p>
+		{/if}
+		<ul
+			bind:this={recentList}
+			role="list"
+			aria-labelledby={recent.length ? 'kv-recent-label' : undefined}
+			data-sveltekit-preload-data="hover"
+		>
+			{#each recent as r, i (r.href)}
+				<li class="row" class:cut={i >= fit}>
+					<PlaceLink place={r} />
+					<span class="tools">
+						<button
+							type="button"
+							disabled={full}
+							aria-label="Fijar «{r.label}»"
+							title={full ? `Ya tenés ${PIN_MAX} fijados: soltá uno para fijar otro` : 'Fijar'}
+							on:click={() => dispatch('pin', r)}><Pin size={14} aria-hidden="true" /></button
+						>
+					</span>
+				</li>
+			{/each}
+		</ul>
+	</div>
+
+	<ul class="secs foot" role="list">
+		{#each foot as s (s.id)}
+			<li>
+				<a
+					class="sec"
+					class:on={here === s.id}
+					href={s.href}
+					aria-current={here === s.id ? 'page' : undefined}
+					data-tip={s.label}
+					><NavIcon item={s} size={18} /><span class="label">{s.label}</span>{#if s.count}<span
+							class="count"
+							title="Pendientes">{s.count}</span
+						>{/if}<NavShortcut id={s.root} /></a
+				>
+			</li>
+		{/each}
+	</ul>
 </nav>
 
 <style lang="scss">
@@ -137,79 +260,51 @@
 	.sn {
 		display: flex;
 		flex-direction: column;
-		gap: 1px;
 		flex: 1;
 	}
-	/* «Abrir todo / Cerrar todo»: chiquito y discreto, arriba a la derecha. La barra lateral solo
-	   existe en la compu (en el celu está el panel "Más"), así que no aparece en el celu. */
-	.all {
-		align-self: flex-end;
-		border: 0;
-		background: none;
-		font: inherit;
-		font-size: var(--text-xs);
-		color: var(--muted);
-		padding: 0.1rem var(--space-2xs);
-		border-radius: var(--round);
-		cursor: pointer;
-		&:hover {
-			background: var(--surface-2);
-			color: var(--link);
-		}
-	}
-	.areas {
+	ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
 		display: flex;
 		flex-direction: column;
 		gap: 1px;
+	}
+	.secs {
 		margin-top: var(--space-3xs);
 		&.foot {
-			margin-top: auto;
 			padding-top: var(--space-2xs);
 			border-top: 1px solid var(--line);
 		}
 	}
-	.top,
-	.area {
+	.sec {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2xs);
 		padding: var(--space-3xs) var(--space-xs);
 		border-radius: var(--round);
-		border: 0;
 		position: relative;
-		background: none;
-		text-align: left;
-		width: 100%;
 		text-decoration: none;
-		cursor: pointer;
-		font: inherit;
+		color: var(--accent);
 		font-weight: 700;
 		transition: background 100ms;
 		&:hover {
 			background: var(--surface-2);
+			color: var(--accent);
 		}
-	}
-	.top {
-		color: var(--accent);
 		&.on {
 			background: var(--link-bg);
 			color: var(--link);
 		}
-	}
-	.area {
-		color: var(--text);
-		&[aria-expanded='true'],
-		&.here {
-			color: var(--link);
-		}
-		.chev {
-			margin-left: auto;
-			display: grid;
-			color: var(--muted);
-			transition: rotate 150ms;
-		}
-		&[aria-expanded='true'] .chev {
-			rotate: 180deg;
+		/* La Puerta: rosa lleno, como su botón de la barra de abajo del celu. */
+		&.hl:not(.on) {
+			background: var(--accent);
+			color: var(--accent-ink);
+			:global(.kv-nav-sc) {
+				color: var(--accent);
+				background: var(--accent-ink);
+				border-color: transparent;
+			}
 		}
 	}
 	.count {
@@ -221,9 +316,6 @@
 		border-radius: var(--radius-m);
 		padding: 0 0.55em;
 		font-variant-numeric: tabular-nums;
-		+ .chev {
-			margin-left: 0.3rem;
-		}
 	}
 	.label {
 		min-width: 0;
@@ -231,30 +323,116 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.items {
+
+	/* Recientes: ocupa el alto que sobra entre las secciones y Ajustes; muestra las filas que
+	   entran enteras (`measure`) y esconde las demás. */
+	.recent {
+		flex: 1 1 0;
+		min-height: 0;
+		/* Su contenido no cuenta para el alto mínimo de la barra: solo toma lo que sobra. */
+		contain: size;
 		display: flex;
 		flex-direction: column;
-		gap: 1px;
-		padding-bottom: var(--space-3xs);
-		&[hidden] {
-			display: none;
+		margin-block: var(--space-s) var(--space-2xs);
+		overflow: hidden;
+		&.empty .rlabel {
+			visibility: hidden;
+		}
+		ul {
+			flex: 1 1 0;
+			min-height: 0;
+			overflow: hidden;
 		}
 	}
-	.sub {
+	.rlabel {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3xs);
+		margin: 0 0 var(--space-3xs);
+		padding: 0 var(--space-xs);
 		font-size: var(--text-xs);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--muted);
-		padding: var(--space-3xs) var(--space-xs) 0 var(--space-l);
+	}
+	/* Fijados: arriba de Recientes, con su alto (hasta 7). */
+	.pinned {
+		flex: none;
+		margin-top: var(--space-s);
+	}
+	/* Una fila de Fijados o Recientes: el link (PlaceLink) y sus botones, que aparecen al pasar el
+	   mouse o con el foco dentro de la fila. */
+	.row {
+		position: relative;
+		display: flex;
+		align-items: center;
+		border-radius: var(--round);
+	}
+	.tools {
+		position: absolute;
+		right: var(--space-3xs);
+		top: 50%;
+		transform: translateY(-50%);
+		display: none;
+		gap: 1px;
+		background: var(--surface);
+		border-radius: var(--radius-s);
+		box-shadow: var(--shadow-1);
+	}
+	.row:hover .tools,
+	.row:focus-within .tools {
+		display: flex;
+	}
+	.tools button {
+		display: grid;
+		place-items: center;
+		width: 1.6rem;
+		height: 1.6rem;
+		padding: 0;
+		border: 0;
+		border-radius: var(--radius-s);
+		background: none;
+		color: var(--accent);
+		cursor: pointer;
+		&:hover:not(:disabled),
+		&:focus-visible {
+			background: var(--surface-2);
+			color: var(--link);
+		}
+		&:disabled {
+			color: var(--muted);
+			opacity: 0.5;
+			cursor: default;
+		}
+	}
+	.pinned .row {
+		cursor: grab;
+		&.dragging {
+			opacity: 0.45;
+		}
+		/* Dónde cae: una raya violeta arriba (o abajo, si se arrastra hacia abajo). */
+		&.over {
+			box-shadow: inset 0 2px 0 var(--link);
+			&.below {
+				box-shadow: inset 0 -2px 0 var(--link);
+			}
+		}
+	}
+	/* No entra: no se ve, no se lee y no se enfoca. */
+	.cut {
+		visibility: hidden;
 	}
 
 	/* «Solo íconos» (en la compu): una franja angosta. Los nombres quedan para los lectores de
 	   pantalla; el cartelito lo pone el layout (`data-tip`). Los contadores, como un puntito. */
 	@media (min-width: 900px) {
 		:global(html[data-lateral='iconos']) {
-			.all,
-			.sub,
-			.chev,
+			.recent {
+				visibility: hidden;
+			}
+			.pinned {
+				display: none;
+			}
 			.sn :global(.kv-nav-sc) {
 				display: none;
 			}
@@ -265,8 +443,7 @@
 				overflow: hidden;
 				clip: rect(0 0 0 0);
 			}
-			.top,
-			.area {
+			.sec {
 				justify-content: center;
 				padding-inline: 0;
 			}
@@ -278,16 +455,6 @@
 				padding: 0 0.35em;
 				line-height: 1.3;
 			}
-			.items {
-				background: var(--surface-2);
-				border-radius: var(--round);
-				padding-block: var(--space-3xs);
-			}
-		}
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.area .chev {
-			transition: none;
 		}
 	}
 </style>

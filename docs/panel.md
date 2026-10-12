@@ -34,16 +34,68 @@ y etiquetas (y cada sección por sus palabras: «pie de mail», «alias», «ree
 
 La lista única de secciones está en `src/lib/admin/nav.js` (menú lateral, barra y panel "Más" del
 celu, botón "Para revisar", página "Próximamente" y buscador salen de ahí). Es el **mapa del panel**
-que aprobó gorrite: Inicio arriba, **7 áreas** y **Ajustes al pie**. Dentro de cada área, las
+que aprobó gorrite: Inicio arriba, las áreas (desde la opción C, la **Puerta** es un área propia)
+y **Ajustes al pie**. Dentro de cada área, las
 secciones van por frecuencia de uso (lo de todos los días primero) y lo que viene, al final.
 
-**Menú simplificado** (revisión de UI, paso 3): el menú no muestra las 8 áreas sino 6 grupos
-(`NAV_GROUPS` en `nav.js`): Eventos, Ventas, Comunidad (con Mensajes), Contenido (con Etiquetas),
-Estadísticas y Ajustes al pie. Estadísticas va sola, como su propia entrada (gorrite, 4/10: no
-dentro de Ventas). Las secciones de las áreas que se suman van debajo del nombre de
-su área. Es solo el menú: cada sección sigue en su área y en su URL. En la página principal de
-cada sección de un grupo (menos Eventos) el layout pone una barra de pestañas con todas las
-secciones del grupo, como la que tenía Ajustes (`sectionTabs`).
+**Menú simplificado** (revisión de UI, paso 3): el menú no muestra las 9 áreas sino 7 grupos
+(`NAV_GROUPS` en `nav.js`): Puerta, Eventos, Ventas, Comunidad (con Mensajes), Contenido (con
+Etiquetas), Estadísticas y Ajustes al pie. Estadísticas va sola, como su propia entrada (gorrite,
+4/10: no dentro de Ventas). Es solo el menú: cada sección sigue en su área y en su URL.
+
+**Opción C** (gorrite, 11/10; [decisión 0038](decisiones/0038-navegacion-del-panel-opcion-c.md),
+prototipos en `/estilo/prototipos/panel-nav`): la **barra lateral muestra 8 secciones** con ícono
+y nombre, sin sub-ítems: Inicio, **Puerta** (sección propia y resaltada: se usa en el celu, con
+gente esperando), Eventos, Ventas, Comunidad, Contenido, Estadísticas y Ajustes al pie
+(`sideSections` en `nav.js`). Cada una lleva a la primera página de su grupo (Comunidad →
+Personas, Ajustes → Cobros…), y en la página principal de cada sección de un grupo el layout pone
+una barra de **pestañas** con todas las secciones del grupo, como la que tenía Ajustes
+(`sectionTabs`), **también en Eventos** (Eventos, Agenda, Series, Lugares, Roles y preguntas). La
+Puerta, que es una sola página, no lleva. **Crear no está en el menú** (es una acción, no un
+lugar): «Cargar evento» es un botón de la página de Eventos (y del Inicio y de la barra de
+arriba), está en el buscador y tiene `g n`. Sin menú «+ Crear» ni «Más» en la ficha del evento:
+las pestañas de la ficha y los ajustes de mails no cambian (quedan para otra decisión).
+
+**Opción C, parte 2** (gorrite, 11/10; [decisión 0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)):
+
+- **La Puerta sale de la barra lateral** (grupo `puerta` con `side: false`): quedan 7 secciones.
+  Sigue en la barra de abajo del celu, en «Ir a…», en la pestaña Puerta de cada evento y en el bot;
+  su URL no cambia. Como ya no es una sección de la barra, entra en Recientes.
+- **«+ Crear ▾»** reemplaza a «+ Cargar evento» en la barra de arriba (en el celu, un «+» en el
+  header): `CreateMenu.svelte` con los ítems de `src/lib/admin/createMenu.js` (evento, serie
+  —`/admin/eventos/series?crear` abre el formulario—, lugar, eventos desde una planilla, rol,
+  código de descuento, perfil, material y entrada de la Kinkipedia) y lo que viene (producto,
+  colección, video) gris, sin link, con «Próximamente» (sale del `soon` de su sección; con
+  «Ocultar lo que viene», no aparece). Menú accesible: ↓/Enter abren, ↑/↓/Inicio/Fin recorren,
+  Escape cierra y el foco vuelve al botón. Las que no eran ya una acción están en «Ir a…» como
+  «Crear: …» (`createCommands` en `paletteActions.js`).
+- **Pestañas con contadores**: cada pestaña de sección lleva el contador «a revisar» de su sección
+  (`sectionTabs(path, { counts })`, el mismo de la barra lateral y de «Para revisar»); en la ficha
+  del evento, Órdenes muestra las órdenes a revisar y Transferencias las que esperan confirmación
+  (antes Órdenes mostraba el total de órdenes). Lo que viene va al final de las pestañas, gris y
+  sin link, salvo con «Ocultar lo que viene» (sin pasar `hideSoon`, `sectionTabs` sigue sin
+  mostrarlo).
+- **Pestañas en el celu** (< 600 px): todas las barras del panel usan `Tabs` con `menu` (la de
+  sección, la de la ficha del evento y los filtros de Ventas, Perfiles y Propinas): un botón
+  «Sección: Órdenes ▾» de ancho entero, con borde violeta y fondo lila (la navegación principal
+  de la página), que abre la lista; sin tira que se desliza. En la ficha del evento, las acciones
+  del encabezado bajan debajo de las pestañas, más chicas: Editar y «⋯ Acciones» (Ver página,
+  Duplicar, Imagen para compartir). `menuCaption` cambia «Sección» («Pestaña», «Ver»).
+- **Más ágil**: mientras SvelteKit trae la página siguiente (`$navigating`) hay una barrita de 3
+  px arriba de todo (aparece después de 120 ms, así lo rápido no parpadea; quieta con movimiento
+  reducido) y el link o botón que se tocó queda «cargando» (`data-pending` y `aria-busy`, estilo
+  en `panel.scss`) hasta que llega. La barra lateral, las pestañas, la barra de abajo, «+ Crear»,
+  Fijados y Recientes llevan `data-sveltekit-preload-data="hover"` (el `<body>` ya lo tenía para
+  todo el sitio): precargan al pasar el mouse o con el foco. Los `load` del panel solo leen (no
+  marcan nada como visto ni escriben), así que precargar no cambia nada; «Salir» lleva
+  `data-sveltekit-reload` y no se precarga.
+- **Links «volver»**: `areaBackLink` no da link si la página del área es «Próximamente» (como
+  Mensajes, cuya página es la Bandeja). Las secciones que son pestañas hermanas (Series,
+  Transferencias, Códigos) ya no tienen «← Eventos»/«← Ventas»: la pestaña es el camino.
+  `src/routes/(authed)/admin/backLinks.test.js` controla que cada «← …», cada `back={{ href }}` y
+  cada «Volver…» del panel lleve a una página que existe y no es «Próximamente», que los armados
+  con una variable estén revisados, y que ninguna página con pestañas tenga «←» a una hermana.
+- `/admin/eventos` ya no tiene los botones «Agenda» y «Series» en el encabezado (son pestañas).
 
 **Íconos en las pestañas** (gorrite, 11/10): cada pestaña de sección lleva el mismo ícono que su
 sección en la barra lateral (`sectionTabs` lo saca de `nav.js`), y las de la ficha del evento
@@ -85,7 +137,8 @@ sección (Etiquetas), que usan la URL del área.
 | Área         | Secciones (URL)                                                                                                                                                                                                                                                                                                              | Para qué                                                                                                                                                                                                                                                                                                                          |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | —            | Inicio (`/admin`)                                                                                                                                                                                                                                                                                                            | próximos eventos, para revisar, plata del mes, actividad, "desde tu última visita"                                                                                                                                                                                                                                                |
-| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`), Agenda (`/agenda`, + Importar planilla en `/importar`), Puerta (`/admin/checkin`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                                      | lista y ficha de cada evento (`/admin/eventos/<slug>`, ver «Pestañas de la ficha del evento»); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                              |
+| Puerta       | Puerta (`/admin/checkin`)                                                                                                                                                                                                                                                                                                    | elegir el evento y abrir su modo puerta (`/admin/eventos/<slug>/ingreso`)                                                                                                                                                                                                                                                         |
+| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`, fuera del menú: botón en Eventos), Agenda (`/agenda`, + Importar planilla en `/importar`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                               | lista y ficha de cada evento (`/admin/eventos/<slug>`, ver «Pestañas de la ficha del evento»); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                              |
 | Ventas       | Todas las ventas (`/admin/ventas`), Transferencias (`/transferencias`), Códigos (`/codigos`) · próximamente: Tienda (`/tienda`, fase 8)                                                                                                                                                                                      | ventas de todos los eventos, bandeja de transferencias, códigos de descuento                                                                                                                                                                                                                                                      |
 | Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`)                                                                                              | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md))                                                                                                    |
 | Mensajes     | Plantillas (`/admin/mensajes/plantillas`), Configuración (`/configuracion`) · próximamente: Bandeja (`/admin/mensajes`, fase 5), Lo que sigo (`/lo-que-sigo`, fase 2)                                                                                                                                                        | textos de los mails ([mails.md](mails.md)), remitente, pie, recordatorios y envíos en tandas                                                                                                                                                                                                                                      |
@@ -246,20 +299,35 @@ revisar" del Inicio.
   el logo más chico. Las pestañas también son más bajas en la compu; en el celu tienen 44 px
   (`--tap`).
 
-- **Varios grupos abiertos a la vez** (gorrite, en el seguimiento de «atajos visibles»; antes se
-  abría uno solo). Cada grupo recuerda si quedó abierto o cerrado en ese navegador
-  (`navPrefs.js`: localStorage `kv-panel-grupos`, la lista de grupos abiertos en JSON, con
-  try/catch; sin storage anda igual pero no recuerda). La clave vieja `kv-panel-area` se lee si
-  no hay otra y se borra al guardar.
-- **Al cargar**, el grupo de la página actual siempre se abre, aunque la persona lo haya cerrado.
-  Sin nada guardado, se abre solo ese (en Inicio, ninguno). Al navegar a otro grupo, se abre sin
-  cerrar los demás.
-- **«Abrir todo / Cerrar todo»** arriba a la derecha: si falta abrir alguno, abre todos; si ya
-  están todos abiertos, cierra todos. Cuentan los grupos que se ven en el menú.
+- **7 secciones, sin sub-ítems** (opción C, ver arriba; la Puerta salió en la parte 2). La sección de la página actual se marca
+  (también en sus subpáginas: en una ficha de evento, Eventos; en Plantillas, Comunidad). Cada
+  sección muestra la suma de los contadores de su grupo y la pista «g x» de su primera página.
+  Lo que viene («Próximamente») ya no se ve en la barra (sí en las pestañas, en «+ Crear», en el
+  panel "Más" del celu y en su URL reservada); «Ocultar lo que viene» vale para todos ellos. Ya no hay
+  grupos para abrir y cerrar: `navPrefs.js` conserva sus funciones de grupos abiertos (sin uso
+  por ahora; ver la hoja de ruta).
+- **Recientes** (debajo de las secciones): las últimas páginas que abriste, como los «Shortcuts»
+  de Stripe (`src/lib/admin/recentPlaces.js`). Se muestran **las que entran** en el alto de la
+  pantalla, **hasta 7**: `SideNav` mide el lugar que sobra entre las secciones y Ajustes, y las que
+  no entran enteras quedan `visibility: hidden` (no se ven, no se leen, no se enfocan); si no entra
+  ninguna, no aparece el título. No se guardan Inicio, las páginas que ya son una sección de la
+  barra ni las de error, y no se muestra la página en la que estás. El nombre sale del título de
+  la página, en dos partes (`recentParts`): el nombre y una línea chica de contexto («Órdenes» /
+  «Fiesta de Primavera» en una ficha, «Transferencias» / «Ventas», «Ana Ejemplo» / «Personas»),
+  con el ícono de la página (`placeIcon`: el de la pestaña del evento o el de la sección;
+  `PlaceLink.svelte`). Las guardadas antes, sin contexto, se ven con su nombre. Cada una tiene 📌
+  (al pasar el mouse o con el foco) para fijarla. Se guardan en **localStorage, por login** (`kv-panel-recientes:<login>`, con
+  try/catch; sin storage no hay recientes y el menú anda igual): quedan en ese navegador y no salen
+  de ahí. En «Solo íconos» no se muestran; en el celu, las primeras 5 van en el panel «Más».
+- **Fijados** (arriba de Recientes, parte 2): las páginas que fijaste con 📌 desde Recientes o
+  desde «Ir a…» (en cada resultado que lleva a una página del panel, al pasar el mouse o el
+  elegido; con el teclado, Alt+F). Hasta 7 (`PIN_MAX`), en tu orden: se arrastran, o con «Subir» y
+  «Bajar» (con el foco en la fila aparecen sus botones); «Soltar» la saca. No se fijan las
+  «Próximamente» ni las secciones de la barra (`canPin`). Recientes no repite las fijadas. En
+  **localStorage, por login** (`kv-panel-fijados:<login>`, `src/lib/admin/pinnedPlaces.js`, con
+  try/catch). En el celu se ven en el panel «Más» (sin reordenar).
 - **Scroll propio**: la barra es `sticky`, del alto de la pantalla y con `overflow-y: auto`, así
-  que con varios grupos abiertos scrollea sola y no se mueve con la página. Al cargar, el link de
-  la página actual se lleva a la vista (`scrollIntoView({ block: 'nearest' })`).
-- Un grupo cerrado muestra la suma de sus contadores.
+  que si no entra scrollea sola y no se mueve con la página.
 
 **Consultas en tanda** (Inicio y contadores del menú): el Inicio hace **dos** idas a la base
 (`db.batch`) en vez de una por consulta (eran 33): la primera con todo lo que no depende de la
@@ -373,6 +441,13 @@ Cómo se descubren (`src/lib/admin/shortcutHints.js`):
 4. **Descartada**: se borra el ítem.
 
 ## El buscador
+
+**«Ir a… o buscar»** (opción C): el botón de la barra de arriba (y del header del celu) se llama
+así y abre la paleta, igual que `/` y Ctrl/⌘+K desde cualquier lado. Lleva a cualquier página del
+panel escribiendo su nombre (también «Cargar evento» y las de Ajustes) y encuentra eventos por su
+nombre. Es un atajo más, nunca el único camino: todo está también en la barra lateral y sus
+pestañas. Es un `<dialog>` modal (el resto de la página queda inerte, el foco va al campo y vuelve
+al cerrar), con ↑/↓, Enter y Esc.
 
 La paleta (`SearchBox.svelte`) junta **acciones** (en el navegador) y **registros**
 (`GET /admin/buscar`, `src/lib/server/admin/search.js`).
