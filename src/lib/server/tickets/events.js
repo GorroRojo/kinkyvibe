@@ -173,6 +173,51 @@ export async function getEventTickets(slug, options = {}) {
 	return ticketsOf(slug, meta, { ...options, hasVenue: withVenue.has(slug) });
 }
 
+/**
+ * {@link getEventTickets} de varios eventos a la vez (las tarjetas de una lista,
+ * ./listStates.js): por evento, lo mismo que `getEventTickets`, pero con dos consultas para todos
+ * (los eventos y cuáles tienen lugar) en vez de dos por evento.
+ *
+ * @param {readonly string[]} slugs
+ * @param {{ fondoPercent?: number | null }} [options] ver `getEventTickets`
+ * @returns {Promise<Map<string, import('./config.js').EventTickets | null>>}
+ */
+export async function getEventTicketsMany(slugs, options = {}) {
+	const unique = [...new Set(slugs)];
+	// Los mismos que `loadMeta` buscaría en la base (los demás dan `null` sin consultar).
+	const wanted = unique.filter((slug) => isValidEventSlug(slug) && !slug.startsWith('_'));
+	const content = wanted.length
+		? await (await import('../contenido/repo.js')).dbEventMetasFor(wanted)
+		: new Map();
+	/** @type {Map<string, Record<string, any> | null>} */
+	const metas = new Map();
+	for (const slug of unique) metas.set(slug, await loadMeta(slug, content));
+	const selling = unique.filter((slug) => sellsTickets(metas.get(slug) ?? null));
+	const withVenue = selling.length ? await eventsWithVenueAmong(selling) : new Set();
+	/** @type {Map<string, import('./config.js').EventTickets | null>} */
+	const out = new Map();
+	for (const slug of unique) {
+		out.set(
+			slug,
+			ticketsOf(slug, metas.get(slug) ?? null, { ...options, hasVenue: withVenue.has(slug) })
+		);
+	}
+	return out;
+}
+
+/**
+ * Cuáles de `slugs` tienen lugar vinculado (`eventsWithVenueAmong` de ../amigues/venues.js), en
+ * una consulta. Vacío sin base.
+ *
+ * @param {readonly string[]} slugs
+ * @returns {Promise<Set<string>>}
+ */
+async function eventsWithVenueAmong(slugs) {
+	const db = (await import('../contenido/repo.js')).activeContentDB();
+	if (!db) return new Set();
+	return (await import('../amigues/venues.js')).eventsWithVenueAmong(db, slugs);
+}
+
 /** @param {Record<string, any> | null} meta */
 const sellsTickets = (meta) => meta?.tickets !== undefined && meta?.tickets !== null;
 
