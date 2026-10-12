@@ -27,6 +27,10 @@ gorrite, lo de algún día y lo descartado. Reemplaza a la vieja `docs/hoja-de-r
   (completo o de 7 caracteres o más). `scripts/hooks/check-merge.js` bloquea el merge si falta.
 - Los conflictos en este archivo se resuelven a mano: es a propósito un solo archivo.
 - Las decisiones de producto siguen en [decisiones/](decisiones/README.md); acá solo se linkean.
+- **«espera gorrite» siempre tiene tarjeta en la Mesa.** Quien pasa un ítem a ese estado le
+  arma en el mismo momento una tarjeta en la Mesa de trabajo, con contexto y opciones; si no hay
+  pregunta concreta para gorrite, el estado no es «espera gorrite». El repaso de los lunes lista
+  los que no tienen tarjeta.
 - **Nada privado** (el repo es público): ni datos de personas, ni plata ni estrategia, ni
   detalles de seguridad. Un ítem privado lleva su id y «ver Mesa»; el detalle vive en la Mesa de
   trabajo con el mismo id.
@@ -50,22 +54,20 @@ CI) va en la fase 0.
 | 7    | Videos                                                                              |
 | 8    | Tienda                                                                              |
 
-**Abierto con gorrite:** cuál es el próximo bloque grande (`fases-siguiente`) y si «Lo que
-sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
-
 ## Fase 0
 
 ### Entradas y lanzamiento
 
-- `lanzamiento-decisiones` · fase 0 · espera gorrite · entradas · Qué pasa con las entradas si un evento se cancela o se reprograma; tope del Fondo por evento; cuándo cierra la venta; quién puede reembolsar y si hacen falta reembolsos parciales; si las extras cuentan para el Fondo · [tickets.md](tickets.md#preguntas-abiertas-para-les-organizadores)
-- `mp-plazo-comision` · fase 0 · espera gorrite · entradas · Elegir el plazo de acreditación de Mercado Pago y cargar esa comisión en Ajustes › Cobros · [tickets.md](tickets.md#pendientes-antes-de-vender-de-verdad)
-- `lanzamiento-pruebas-mp` · fase 0 · espera gorrite · entradas · De punta a punta en el sandbox de MP: compra, rechazo y reintento, pago con la reserva vencida, reembolso, contracargo, código con total muy chico, entrada con el Fondo. Faltan credenciales de prueba
-- `lanzamiento-compra-real` · fase 0 · espera gorrite · entradas · Una compra real de monto chico con la cuenta de verdad, y su reembolso (depende de: mp-plazo-comision)
+- `lanzamiento-decisiones` · fase 0 · hecho · entradas · Qué pasa con las entradas si un evento se cancela o se reprograma; tope del Fondo por evento; cuándo cierra la venta; quién puede reembolsar y si hacen falta reembolsos parciales; si las extras cuentan para el Fondo (gorrite, 12/10) · #338, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md), [tickets.md](tickets.md#preguntas-para-les-organizadores)
+- `fondo-aportes-entradas` · fase 0 · sigue · entradas · Los aportes de las entradas solidarias aprobadas suman al total del mes del Fondo que lee kv-fondo (`/api/fondo/propinas-total`), igual que las propinas al Fondo y sin nombres; coordinado con kv-fondo en #265 · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
+- `mp-plazo-comision` · fase 0 · hecho · entradas · Elegir en la cuenta de Mercado Pago el plazo más largo que les sirva y cargar esa comisión en Ajustes › Cobros (decidido: el plazo más largo, recargo más bajo para quien compra; gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md), [tickets.md](tickets.md#pendientes-antes-de-vender-de-verdad)
+- `lanzamiento-pruebas-mp` · fase 0 · hecho · entradas · De punta a punta en el sandbox de MP: compra, rechazo y reintento, pago con la reserva vencida, reembolso, contracargo, código con total muy chico, entrada con el Fondo (gorrite, 12/10)
+- `lanzamiento-compra-real` · fase 0 · hecho · entradas · Una compra real de monto chico con la cuenta de verdad, y su reembolso (gorrite, 12/10) (depende de: mp-plazo-comision)
 - `lanzamiento-mails` · fase 0 · sigue · mails · Probar los mails en Gmail, Hotmail, Yahoo y un mail de trabajo (spam, .ics, recordatorio, cambio de fecha) y revisar SPF, DKIM y DMARC
 - `lanzamiento-cupo-carga` · fase 0 · sigue · entradas · La última entrada vendida a la vez desde el sitio y la puerta, qué muestra «Para revisar», y 50–100 intentos de compra en pocos minutos contra un preview
 - `lanzamiento-preparar` · fase 0 · espera gorrite · entradas · Borrar los eventos de prueba, revisar remitente y contacto de devoluciones, el webhook de MP; quién revisa transferencias y quién está en la puerta; una segunda persona con acceso a todo; guías cortas (puerta, transferencias, reembolsos, «si se cae el sitio»); plan B en papel; no mergear durante una venta grande
 - `lanzamiento-avisos-venta` · fase 0 · sigue · entradas · Avisos durante una venta: errores de MP, mails que no salieron, cupo pasado
-- `lanzamiento-piloto` · fase 0 · espera gorrite · entradas · Abrir con un evento piloto propio y chico, después dos o tres normales, después los de amigues (depende de: lanzamiento-decisiones, lanzamiento-pruebas-mp, legales-minimos)
+- `lanzamiento-piloto` · fase 0 · espera gorrite · entradas · Abrir con un evento piloto propio y chico, después dos o tres normales, después los de amigues (depende de: lanzamiento-decisiones, lanzamiento-pruebas-mp)
 - `puerta-celus-reales` · fase 0 · espera gorrite · entradas · La puerta con celulares reales (Android y iPhone): escanear, código, buscar, vender en efectivo y transferencia, sin conexión y con dos celus a la vez
 - `qr-mp-puerta` · fase 0 · sigue · entradas · Cobrar con el QR de Mercado Pago en la puerta (gorrite, 11/10) (depende de: puerta-sin-conexion)
 - `boton-comprar-afuera` · fase 0 · hecho · sitio · Cuando las entradas se venden en otro sitio, el botón tiene el mismo peso que «Comprar entradas» (gorrite, 10/10) · #331
@@ -79,7 +81,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 ### Legales
 
-- `legales-minimos` · fase 0 · espera gorrite · legales · Página `/legales` mínima en borrador (solo previews). Plan cuando gorrite lo retome: bajarla a lo mínimo con la leyenda de la AAIP y los 10 días de arrepentimiento por mail; falta definir quién figura como responsable; inscribir la base y el botón de arrepentimiento, por ahora no · #282 (borrador)
+- `legales-minimos` · fase 0 · espera gorrite · legales · Página `/legales` mínima en borrador (solo previews), después del piloto (gorrite, 12/10). Plan cuando gorrite lo retome: bajarla a lo mínimo con la leyenda de la AAIP y los 10 días de arrepentimiento por mail; falta definir quién figura como responsable; inscribir la base y el botón de arrepentimiento, por ahora no (depende de: lanzamiento-piloto) · #282 (borrador), [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `legales-bot-estadisticas` · fase 0 · espera gorrite · legales · La página de privacidad (`/legales`, todavía en borrador) tiene que contar las estadísticas de uso del bot: quién lo usa y cuánto por día (180 días, con el nombre de Telegram) y, aparte, para qué, solo sumado por semana (depende de: legales-minimos, bot-estadisticas) · [telegram.md](telegram.md#estadísticas-de-uso-0045)
 
 ### Panel
@@ -105,21 +107,20 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 - `ux-auditoria-restos` · fase 0 · hecho · sitio · Lo que seguía abierto de la auditoría de UX del 4/10: anclas del glosario, áreas de toque, migas de pan (ya estaban, #215) y búsqueda vacía de la wiki · #333
 - `wiki-sin-entrada-editar` · fase 0 · hecho · sitio · «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`) · #323
-- `areas-toque-restos` · fase 0 · espera gorrite · sitio · Toques de menos de 44px que piden diseño (más alto o más aire): «Comprar entradas» en las tarjetas de las listas (30px, pegado a las etiquetas), el índice y «Enlace a esta sección» de los textos (22–27px, uno abajo del otro), las series hijas en la Kinkipedia y la línea de madres e hijas de un término (23–25px)
+- `areas-toque-restos` · fase 0 · hecho · sitio · Toques de menos de 44px que pedían diseño: «Comprar entradas» en las tarjetas de las listas mide 44px en el celu (hecho, el botón mismo); el índice y «Enlace a esta sección» de los textos, las series hijas en la Kinkipedia y la línea de madres e hijas de un término quedan como están (gorrite: dejarlo así) · #335
 - `filtros-celu-probar` · fase 0 · sigue · sitio · Probar la barra de filtros en celulares reales y, si va, cerrar el PR de prototipos · #294, #283
 - `filtros-sin-efecto` · fase 0 · sigue · sitio · Esconder etiquetas del filtro que no cambiarían los resultados · #17
-- `lectura-barra-progreso` · fase 0 · espera gorrite · sitio · Barra de progreso de lectura; confirmar que se sigue queriendo · #19
+- `lectura-barra-progreso` · fase 0 · sigue · sitio · Barra de progreso de lectura: una barra fina arriba, solo en los textos largos de Material y Kinkipedia (gorrite, 12/10) · #19, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `lectura-ajustes` · fase 0 · algún día · sitio · Ajustes de lectura: tamaño de letra y tema; falta diseño · #20
 - `textos-desplegables` · fase 0 · sigue · sitio · Secciones desplegables y notas al pie en los textos · #22
 - `fragmentos-reutilizables` · fase 0 · algún día · sitio · Fragmentos reutilizables de publicaciones y del glosario; falta diseño · #23
-- `negociacion-bottoms` · fase 0 · espera gorrite · sitio · Negociación interactiva para bottoms; decisión de contenido · #14, #25
-- `inicio-carrusel` · fase 0 · espera gorrite · sitio · Carrusel en la portada: decidir si la fila de próximos eventos de #227 lo cierra · #15
-- `mapa-direccion-libre` · fase 0 · espera gorrite · sitio · Mapa para eventos con dirección en texto libre (sin lugar cargado); vincular datos de producción lo decide gorrite
+- `negociacion-bottoms` · fase 0 · sigue · sitio · Negociación interactiva para bottoms (gorrite, 12/10); necesita una forma de meter componentes interactivos en los textos guardados en la base; #25 es el prototipo · #14, #25, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
+- `inicio-carrusel` · fase 0 · sigue · sitio · Carrusel en la portada: gorrite lo quiere (12/10) · #15, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
+- `mapa-direccion-libre` · fase 0 · sigue · sitio · Mapa para eventos con dirección en texto libre (sin lugar cargado); vincular datos de producción, lo hace Claude de a tandas, cada una con el OK de gorrite en la Mesa (12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `compartir-imagen-mas` · fase 0 · algún día · sitio · Imagen para compartir: más paletas, apaisado y carrusel, estilo por serie
-- `kinkipedia-series-mejor` · fase 0 · espera gorrite · sitio · Kinkipedia más rica y una lista de series mejor armada; falta dirección de gorrite
 - `icono-tipo-series` · fase 0 · hecho · sitio · Ícono grande del tipo en el encabezado cuando no hay miniatura, también en las series · #327
 - `ldtag-plantilla` · fase 0 · hecho · sitio · `LDTag.svelte` tiene datos de una plantilla vieja: borrarlo o pasarlo a datos de Kinky Vibe · #327
-- `missing-tags` · fase 0 · espera gorrite · sitio · `missingTags`: hacerlo andar (los links de descripciones a etiquetas que no existen pasan a texto) o dejarlo
+- `missing-tags` · fase 0 · sigue · sitio · `missingTags` siempre vuelve vacío (lo documenta un `it.fails` en `src/lib/utils/tags.test.js`): hacerlo andar, así los links de descripciones a etiquetas que no existen pasan a texto
 - `prerender-paginas` · fase 0 · algún día · sitio · Prerenderizar páginas de contenido para servirlas como archivos
 - `me-interesa` · fase 0 · algún día · sitio · El botón anónimo «Me interesa» en los eventos, que quedó para más adelante
 - `readme-rutas` · fase 0 · hecho · docs · El README lista `/nosotres` y `/servicios`, que ya no existen · #327
@@ -164,11 +165,11 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `bot-mis-entradas-partes` · fase 0 · hecho · bot · Mis entradas: un taller de varias partes sigue en «próximas» hasta la última parte · #329
 - `bot-estadisticas` · fase 0 · hecho · bot · Estadísticas de uso del bot (Estadísticas → Bot de Telegram): quién lo usa y cuánto, por persona y día, y aparte, sumado por semana, para qué (pantallas, comandos, búsquedas, cosas públicas, Mini App); nunca qué buscó o miró cada persona; umbral de 5 y retención de 180 días, detrás de `telegram_estadisticas` · #346, [0045](decisiones/0045-estadisticas-del-bot.md)
 - `rincon-compras-partes` · fase 0 · sigue · cuentas · Mi rincón, «Mis compras»: en un taller de varias partes, mostrar la fecha de la próxima parte (hoy muestra la de la parte 1)
-- `bot-mis-entradas-transmision` · fase 0 · espera gorrite · bot · Mis entradas: mandar el link de la transmisión de un evento online por el chat
+- `bot-mis-entradas-transmision` · fase 0 · sigue · bot · Mis entradas: mandar el link de la transmisión de un evento online por el chat; la tarjeta muestra «Ver la transmisión» cuando el link está cargado, con la misma regla que la página de la entrada (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `bot-mis-entradas-probar` · fase 0 · espera gorrite · bot · Probar «Mis entradas» en Telegram con una entrada de prueba (el QR por la API solo se prueba contra el bot de verdad)
 - `bot-avisos-apagados` · fase 0 · algún día · bot · Recordar si alguien apagó a propósito los avisos de algo, para que dejar de seguirlo y volver a seguirlo desde el bot no los prenda (volver a vincular ya no saca `/silenciar`, #321; necesita migración, aplicarla antes del merge, 0028) · [0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)
 - `bot-textos-miniapp` · fase 0 · algún día · bot · Los textos de la página de la puerta (`/telegram/puerta`, solo admins) en «Textos del bot» (los de la Mini App del calendario ya están, #321)
-- `bot-visible-sitio` · fase 0 · espera gorrite · bot · Que el bot se vea en el sitio (mención, link desde Mi rincón y el pie, textos de `/start` y `/ayuda`); textos y lugar los elige gorrite
+- `bot-visible-sitio` · fase 0 · sigue · bot · Que el bot se vea en el sitio, discreto: un link en el pie, una línea en el calendario y la tarjeta de Mi rincón que ya existe; los textos van en un PR con capturas (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `bot-navegar-secciones` · fase 0 · hecho · bot · Bot 1/5: recorrer el sitio por secciones · #308
 - `bot-mis-entradas` · fase 0 · hecho · bot · Bot 2/5: «🎟 Mis entradas» con el QR de la puerta · #313
 - `bot-secciones-ajustes` · fase 0 · hecho · bot · Secciones del bot: Kinkipedia por las ramas del árbol de etiquetas (como `/wiki` y en su orden), Series sin las que no tienen ediciones, volver a vincular no saca `/silenciar` y los textos de la Mini App del calendario en «Textos del bot» · #321
@@ -177,6 +178,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `bot-avisos-admin` · fase 0 · hecho · bot · Telegram para admins: parte 1 («📊 Estado» y «🔔 Mis avisos», apagado con `telegram_admin`) y parte 2 (resumen diario de ventas y avisos en el momento de cada venta y cada transferencia, solo a quien los prendió, con horario de silencio; migración 0055) · #315, #322, [0041](decisiones/0041-telegram-para-admins.md)
 - `bot-textos` · fase 0 · hecho · bot · «Textos del bot» editables desde Ajustes · #302
 - `bot-inline-buscar` · fase 0 · hecho · bot · Modo inline y búsqueda en todo el sitio · #298, #300
+- `bot-inline-vista-chica` · fase 0 · hecho · bot · Lo que se manda con el bot inline lleva la vista previa del link chica, al costado (gorrite, 12/10)
 - `telegram-puerta` · fase 0 · hecho · bot · Puerta por Telegram como Mini App, con vínculo desde el panel · #273, #304
 
 ### Mails
@@ -194,7 +196,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `tickets-ajustes-spec` · fase 0 · hecho · pruebas · `tests/tickets/ajustes.spec.js` buscaba la pestaña «Cobros», que se fue con la portada de Ajustes: ahora entra por la portada y su tarjeta · #330
 - `tests-consultas-batch` · fase 0 · hecho · pruebas · `importTags` de la semilla en tandas de `saveObjects` (1835 → 80 consultas) · #328
 - `ci-duraciones` · fase 0 · sigue · pruebas · Actualizar `scripts/vitest/durations.json` cuando se suman o cambian pruebas lentas, para que las 3 partes sigan parejas
-- `ci-cache-semilla` · fase 0 · espera gorrite · pruebas · Guardar en caché la base ya sembrada de `e2e` (~1 min), con clave por migraciones, semilla e importador
+- `ci-cache-semilla` · fase 0 · sigue · pruebas · Guardar en caché la base ya sembrada de `e2e` (~1 min), con clave por migraciones, semilla e importador
 - `tests-rapidos` · fase 0 · hecho · pruebas · Pruebas y CI más rápidas, `test:related` · #307, #311, #312, #285
 - `prueba-fugas` · fase 0 · hecho · pruebas · Prueba de que lo privado no sale en público · #291
 
@@ -205,7 +207,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `plan-unico` · fase 1 · en curso · plan · Este archivo como único plan, con `plan-lint`, la línea `Plan:` en cada PR y el comentario `Plan revisado contra main` antes de mergear · [pruebas-y-ci.md](pruebas-y-ci.md)
 - `plan-repaso-semanal` · fase 1 · sigue · plan · Repaso semanal del plan (lunes a la mañana): una sesión nueva lo compara con lo mergeado y la Mesa, deja registro y abre un PR de docs o dice «sin cambios»; el vigilante `.github/workflows/repaso-vigilante.yml` (GitHub Action diaria, sin Claude) abre un issue si pasan 8 días sin PR con la etiqueta `repaso-semanal` y lo cierra cuando vuelve a haber uno (depende de: plan-unico)
 - `plan-fuentes-viejas` · fase 1 · sigue · plan · Banner «reemplazado por docs/plan.md» en los artifacts de plan viejos; cerrar #70 y los issues viejos ya mapeados a un id; cerrar #46 (lo reemplazó #274, con crédito); las notas de las sesiones pasan a la Mesa (depende de: plan-unico)
-- `fases-siguiente` · fase 1 · espera gorrite · plan · Cuál es el próximo bloque grande (Lo que sigo, Colecciones, Bandeja, Videos o Tienda)
+- `fases-siguiente` · fase 1 · hecho · plan · El próximo bloque grande es «Lo que sigo» del panel (respondido en la Mesa el 12/10; es `lo-que-sigo-panel`)
 - `hoja-de-ruta` · fase 1 · hecho · plan · La hoja de ruta en el repo; la reemplaza este archivo · #264, #284
 
 ### Infraestructura
@@ -215,8 +217,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `backup-simulacro` · fase 1 · espera gorrite · infra · Simulacro de restaurar un backup en local (`npm run db:restore -- <fecha> --local`)
 - `sveltekit-3` · fase 1 · sigue · infra · Revisar qué pide SvelteKit 3 (rutina del 9/11; gorrite: esperar, sin parches antes)
 - `rss-aviso-sacar` · fase 1 · sigue · infra · Sacar el aviso del RSS el 27/10 (rutina)
-- `kv-fondo-repo` · fase 1 · espera gorrite · infra · ¿Sumar kv-fondo a este repo?
-- `push-pwa` · fase 1 · espera gorrite · infra · Notificaciones push y PWA · #16, #43
+- `push-pwa` · fase 1 · sigue · infra · Notificaciones push y PWA (gorrite, 12/10) · #16, #43, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `errores-alertas` · fase 1 · algún día · infra · Enterarse de los errores de producción: un Worker que mire los registros y avise si falla una compra
 - `vivo-durable-objects` · fase 1 · algún día · infra · Presencia («alguien está editando») y contadores en vivo con un Durable Object
 - `r2-ciclo-vida` · fase 1 · algún día · infra · Regla de R2 que limpie subidas a medias después de un día
@@ -237,13 +238,12 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `restos-limpieza` · fase 2 · sigue · contenido · Restos chicos: la regla de estilo que no alcanza a `.kv-texto-libre` (unas 200 páginas, con antes y después), un solo `foldText` en vez de las copias, un solo helper de imagen de una publicación, renombrar el `isAdmin` de `objects/visibility.js`, el campo de texto `perfil.avatar`
 - `docs-a-confirmar` · fase 2 · sigue · docs · Cerrar los «a confirmar» de los docs que gorrite ya confirmó (por ejemplo en lo-que-sigo.md) y las líneas viejas de tickets.md
 - `markdown-frontmatter` · fase 2 · hecho · contenido · El renderizador corta el encabezado de un texto en cualquier `---`, aunque esté a mitad de línea · #327
-- `textos-viejos-arreglos` · fase 2 · espera gorrite · contenido · Arreglos de datos en textos viejos (etiquetas HTML sin cerrar, `&nbsp;`, negritas rotas): cambios en producción, desde el panel o con OK de gorrite
-- `eventos-sin-imagen` · fase 2 · espera gorrite · contenido · Eventos sin imagen y campos vacíos; gorrite elige en el panel
+- `textos-viejos-arreglos` · fase 2 · sigue · contenido · Arreglos de datos en textos viejos (etiquetas HTML sin cerrar, `&nbsp;`, negritas rotas): cambios en producción, lo hace Claude de a tandas, cada una con el OK de gorrite en la Mesa (12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `objetos-pendientes` · fase 2 · sigue · contenido · Revisar lo que queda de «Pendiente» en objetos.md (historial dentro de `saveObject`, borrar `event_venues` cuando todo esté en la base) · [objetos.md](objetos.md)
 - `url-cambiar` · fase 2 · sigue · panel · Cambiar la dirección (URL) de un evento u otro objeto desde el panel, con redirección 301 desde la vieja (necesita migración)
 - `borrar-para-siempre` · fase 2 · algún día · panel · Purga definitiva de lo borrado, por une superadmin
 - `grafo-objetos` · fase 2 · algún día · contenido · Vista de grafo de los objetos, estilo Obsidian
-- `perfil-campos-cv` · fase 2 · espera gorrite · contenido · Campos de perfil: afiliación, formación, experiencia, habilidades (TODO en `types.d.js`; microformato `h-resume`)
+- `perfil-campos-cv` · fase 2 · algún día · contenido · Campos de perfil: afiliación, formación, experiencia, habilidades (TODO en `types.d.js`; microformato `h-resume`)
 - `datos-1` · fase 2 · sigue · datos · ver Mesa
 - `datos-2-chequeo-por-pedido` · fase 2 · hecho · datos · El «¿cambió algo?» de la caché una sola vez por pedido, y caché para `/amigues` · #324
 - `datos-3-estados-entradas` · fase 2 · hecho · datos · Los estados de entradas de las listas en una sola tanda · #324
@@ -254,12 +254,14 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 ### Cuentas y perfiles
 
-- `lo-que-sigo-panel` · fase 2 · espera gorrite · panel · La página del panel que junta «Lo que sigo» (lo demás ya existe). `nav.js` la marca fase 2; si se renumera lo decide gorrite · nav: lo-que-sigo · [0025](decisiones/0025-lo-que-sigo.md)
+- `lo-que-sigo-fichas` · fase 2 · sigue · panel · «N cuentas lo siguen» en la ficha de una etiqueta y de un perfil del panel (solo admins; quiénes, en Mensajes › Lo que sigo) (depende de: lo-que-sigo-panel) · [0043](decisiones/0043-lo-que-sigo-en-el-panel.md)
+- `lo-que-sigo-avisos-fallidos` · fase 2 · espera gorrite · panel · Contar los avisos de «Lo que sigo» que fallaron (hoy se borra su fila para reintentar: necesita migración); gorrite decide si hace falta (depende de: lo-que-sigo-panel)
 - `admins-cuenta-normal` · fase 2 · sigue · cuentas · Admins con la cuenta del sitio en vez de GitHub: ser admin como permiso de la cuenta, la lista de admins a la base, migrar lo que guarda ids de GitHub; con decisión propia y por partes, con GitHub de respaldo (gorrite, 11/10)
 - `passkeys` · fase 2 · sigue · cuentas · Passkeys para las cuentas · [cuentas.md](cuentas.md#pendiente-partes-siguientes)
-- `compra-con-cuenta` · fase 2 · espera gorrite · cuentas · Guardar `orders.account_id` al comprar y que `requiere_cuenta` pida ingresar de verdad
+- `compra-con-cuenta` · fase 2 · sigue · cuentas · Guardar `orders.account_id` al comprar y que `requiere_cuenta` pida ingresar de verdad · [0002](decisiones/0002-cuentas-y-perfiles.md)
 - `amigues-editan-perfil` · fase 2 · sigue · cuentas · Mandarle a cada amigue un link por mail para gestionar su perfil desde Mi rincón (gorrite, 11/10)
 - `sesiones-dispositivos` · fase 2 · algún día · cuentas · Ver dónde hay una sesión abierta y cerrarla
+- `lo-que-sigo-panel` · fase 2 · hecho · panel · Mensajes › Lo que sigo: el estado para mirar (interruptores, números, avisos que salieron, «Avisame», Telegram, «Lo más seguido» arriba con el número exacto y quiénes siguen cada cosa, y «Por persona»; solo admins) · #320, [0043](decisiones/0043-lo-que-sigo-en-el-panel.md), [0025](decisiones/0025-lo-que-sigo.md)
 
 ## Fase 3
 
@@ -268,12 +270,12 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `lista-espera-mail-terminar` · fase 3 · espera gorrite · entradas · Si «Terminar la reserva y pasar a la siguiente» le manda un mail a esa persona
 - `promos-varios-eventos` · fase 3 · en curso · entradas · Promociones de varios eventos, versión chica (gorrite, 12/10): código combo, la compra de un evento trae en su mail un código personal para otro; detrás de `combo_codigos`, migración 0056 · #340
 - `talleres-partes-mails-preview` · fase 3 · sigue · entradas · Vista previa de los mails de cada parte de un taller en el panel
-- `talleres-viejos-a-partes` · fase 3 · espera gorrite · entradas · Pasar a talleres en partes los talleres viejos de varios días (datos de producción, con OK y probando antes en el demo) · [talleres-partes.md](talleres-partes.md#pendiente)
+- `talleres-viejos-a-partes` · fase 3 · sigue · entradas · Pasar a talleres en partes los talleres viejos de varios días (datos de producción, probando antes en el demo), lo hace Claude de a tandas, cada una con el OK de gorrite en la Mesa (12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md), [talleres-partes.md](talleres-partes.md#pendiente)
 - `pasar-entrada` · fase 3 · algún día · entradas · Pasarle una entrada a otra persona por mail
 - `preguntas-sugeridas` · fase 3 · sigue · panel · Preguntas de inscripción sugeridas para elegir rápido
 - `campos-propios-tipos` · fase 3 · algún día · panel · Campos propios y tipos simples desde el panel; falta diseño
 - `recurrencia-rrule` · fase 3 · algún día · sitio · Recurrencia tipo RRULE (las series y los talleres en partes cubren una parte) · #29
-- `rol-organizadore` · fase 3 · espera gorrite · cuentas · Rol de organizadore con permisos sobre sus eventos; primero un prototipo para mirar y decidir
+- `rol-organizadore` · fase 3 · sigue · cuentas · Rol de organizadore con permisos sobre sus eventos; primero un prototipo para mirar y decidir
 - `bot-organizadores` · fase 3 · sigue · bot · Avisos y estado de venta para organizadores, cada une con sus eventos, reusando lo de admins; nunca datos de compradores (depende de: rol-organizadore) · [0029](decisiones/0029-bot-de-telegram.md), [0041](decisiones/0041-telegram-para-admins.md)
 
 ## Fase 4
@@ -289,7 +291,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `crm` · fase 5 · algún día · mails · Contactos con línea de tiempo, etapas y automatizaciones · [0008](decisiones/0008-crm.md)
 - `newsletter` · fase 5 · algún día · mails · Newsletter general y por combinación de etiquetas
 - `mails-colas` · fase 5 · algún día · infra · Queues para los mails y Email Workers para recibir
-- `bot-canal-anuncios` · fase 5 · espera gorrite · bot · Canal de anuncios de Telegram: si va y qué publica
+- `bot-canal-anuncios` · fase 5 · algún día · bot · Canal de anuncios de Telegram: si va y qué publica
 - `proto-conector-claude` · fase 5 · sigue · panel · Conector de Claude, lo de plata (confirmar transferencias, reembolsos), para mirar y decidir; la lectura y la edición van antes (depende de: conector-claude-edicion)
 
 ## Fase 6
@@ -312,6 +314,8 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 Para que no vuelvan: si alguien lo propone de nuevo, primero se habla con gorrite.
 
+- `kinkipedia-series-mejor` · fase 0 · descartado · sitio · Kinkipedia más rica y una lista de series mejor armada (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
+- `kv-fondo-repo` · fase 1 · descartado · infra · Sumar kv-fondo a este repo: se quedan separados, kv-fondo sigue en su repo privado y hablan por la API (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `ficha-5-pestanas` · fase 0 · descartado · panel · Ficha del evento con 5 pestañas y «Más»: la reemplazó la de 7 (gorrite, 12/10) · #303
 - `menu-pastilla` · fase 0 · descartado · sitio · Menú de la compu con pastillas · #228
 - `inicio-presentacion` · fase 0 · descartado · sitio · Presentación con texto en la portada: solo el logo del encabezado · #219
@@ -325,3 +329,4 @@ Para que no vuelvan: si alguien lo propone de nuevo, primero se habla con gorrit
 - `serie-por-anio` · fase 3 · descartado · entradas · «Serie por año» para talleres anuales: van como talleres en partes (gorrite, 4/10)
 - `sveltekit-3-parche` · fase 1 · descartado · infra · Parche de cookies o rama para SvelteKit 3 antes de tiempo (gorrite, 9/10)
 - `md-como-fuente` · fase 2 · descartado · contenido · Contenido en archivos `.md` como fuente: vive en D1 · [0004](decisiones/0004-modelo-de-contenido.md), [0032](decisiones/0032-borrar-los-md.md)
+- `eventos-sin-imagen` · fase 2 · descartado · contenido · Eventos sin imagen y campos vacíos: el panel ya tiene el filtro «Sin imagen» y la fila «Para revisar», así que no espera nada de gorrite

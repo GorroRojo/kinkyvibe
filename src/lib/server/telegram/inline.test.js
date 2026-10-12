@@ -276,12 +276,12 @@ describe('planInlineQuery', () => {
 		]);
 	});
 
-	it('el mensaje mandado lleva la vista previa grande de la página, arriba del texto', async () => {
+	it('el mensaje mandado lleva la vista previa chica de la página, arriba del texto', async () => {
 		const source = sourceOf([materialDoc('con-foto')]);
 		const [r] = (await answer({ query: 'material:' }, source)).results;
 		expect(r.input_message_content.link_preview_options).toEqual({
 			url: `${PROD}/material/con-foto`,
-			prefer_large_media: true,
+			prefer_small_media: true,
 			show_above_text: true
 		});
 		// Sin https (dev local) Telegram no arma la vista previa: va apagada.

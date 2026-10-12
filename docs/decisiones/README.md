@@ -102,6 +102,9 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   hábiles (11/10)
 - [0035](0035-vender-en-puerta-sin-conexion.md): La puerta vende sin conexión (11/10)
 - [0040](0040-lista-de-espera.md): Lista de espera por evento o por tipo de entrada (11/10)
+- [0044](0044-reglas-de-la-venta-de-entradas.md): Reglas de la venta para el lanzamiento:
+  cancelación, reprogramación, Fondo, cierre, reembolsos y plazo de MP; y otras respuestas del día
+  (12/10)
 
 ### Propinas
 
@@ -122,6 +125,9 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   el bot (11/10)
 - [0041](0041-telegram-para-admins.md): Telegram para admins: estado de la venta y avisos
   (organizadores, más adelante) (12/10)
+- [0043](0043-lo-que-sigo-en-el-panel.md): «Lo que sigo» en el panel: les admins ven lo que sigue
+  cada persona en su ficha y, en Mensajes › Lo que sigo, «Lo más seguido» con el número exacto y
+  quiénes siguen cada cosa (12/10)
 - [0045](0045-estadisticas-del-bot.md): Estadísticas de uso del bot: quién y cuánto, y para qué
   solo sumado (12/10)
 

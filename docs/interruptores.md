@@ -89,7 +89,9 @@ Una base local nueva se llena con la semilla de contenido (`npm run db:semilla`,
 etiquetas y wiki ([contenido.md](contenido.md)). Los importadores del panel ya no existen
 ([0032](decisiones/0032-borrar-los-md.md)).
 
-## Cómo prender `lo_que_sigo` (cuando se mergee)
+## Cómo prender `lo_que_sigo`
 
-Lo que sigo (decisión [0025](decisiones/0025-lo-que-sigo.md)), hoy «Próximamente» en Mensajes.
-El PR está en curso; esta sección se completa cuando esté en `main`.
+Lo que sigo (decisión [0025](decisiones/0025-lo-que-sigo.md)): los pasos están en
+[lo-que-sigo.md](lo-que-sigo.md#cómo-prenderlo). Antes y después de prenderlo, el estado (los
+interruptores, los números y los avisos que salieron) se mira en Mensajes › Lo que sigo
+(`/admin/mensajes/lo-que-sigo`), que se ve también con el interruptor apagado.

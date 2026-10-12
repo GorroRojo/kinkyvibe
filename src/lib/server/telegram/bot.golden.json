@@ -1725,7 +1725,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/calendario/taller-de-cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -1783,7 +1783,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/calendario/cuerdas-pasadas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -1843,7 +1843,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/material/guia-de-cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -1904,7 +1904,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/material/cuerdas-sin-resumen",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -1962,7 +1962,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/wiki/cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -2020,7 +2020,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/wiki/cuerdas-sin-resumen",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -2078,7 +2078,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/amigues/persona-de-cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -2136,7 +2136,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/wiki/noche-de-cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -7022,7 +7022,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7047,7 +7047,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/guia-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7075,7 +7075,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7113,7 +7113,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7138,7 +7138,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/noche-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7163,7 +7163,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7188,7 +7188,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/guia-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7216,7 +7216,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/amigues/persona-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7241,7 +7241,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7266,7 +7266,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7291,7 +7291,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/calendario/cuerdas-pasadas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7329,7 +7329,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7354,7 +7354,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/noche-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7379,7 +7379,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7417,7 +7417,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/guia-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7445,7 +7445,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7483,7 +7483,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
