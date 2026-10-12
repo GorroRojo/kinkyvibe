@@ -103,11 +103,8 @@ describe('noResultsScreen', () => {
 	it('cada botón entra en los 64 bytes y lo entiende la navegación', () => {
 		const long = 'una etiqueta con un nombre larguísimo ññ';
 		const help = noResultsHelp(source, 'shibari', NOW, manager());
-		const screen = noResultsScreen(
-			long,
-			{ ...help, tag: { ...help.tag, title: long.repeat(3) } },
-			ctxOf()
-		);
+		const tag = { key: 'shibari', hash: shortHash('shibari'), title: long.repeat(3) };
+		const screen = noResultsScreen(long, { ...help, tag }, ctxOf());
 		for (const b of buttons(screen)) {
 			if (!b.callback_data) continue;
 			expect(byteLength(b.callback_data)).toBeLessThanOrEqual(CALLBACK_MAX_BYTES);
