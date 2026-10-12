@@ -1,11 +1,12 @@
 <script>
 	/**
-	 * Buscador global del panel: una paleta de comandos que busca registros (eventos, órdenes
-	 * `KV-…`, entradas por código, códigos de descuento, personas, perfiles y etiquetas, sin
-	 * mayúsculas ni tildes; ver /admin/buscar) y acciones (cada sección del menú, «Nuevo código de
-	 * descuento», «Abrir la puerta de hoy», «Para revisar», crear e importar, el tema...; ver
-	 * paletteActions.js). Las acciones van arriba, salvo cuando lo buscado es claramente un
-	 * registro (`recordsFirst`). Del primer evento encontrado salen atajos a sus pestañas.
+	 * «Ir a… o buscar» (opción C, decisión 0038): el buscador global del panel, una paleta de
+	 * comandos que busca registros (eventos, órdenes `KV-…`, entradas por código, códigos de
+	 * descuento, personas, perfiles y etiquetas, sin mayúsculas ni tildes; ver /admin/buscar) y
+	 * acciones (cada sección del menú, «Nuevo código de descuento», «Abrir la puerta de hoy»,
+	 * «Para revisar», crear e importar, el tema...; ver paletteActions.js). Las acciones van
+	 * arriba, salvo cuando lo buscado es claramente un registro (`recordsFirst`). Del primer
+	 * evento encontrado salen atajos a sus pestañas.
 	 * Entiende operadores (`#etiqueta`, `@persona`, `e:evento`, `tipo:`, `lugar:`, `hoy`/`finde`,
 	 * `"frase"`, `-palabra`, `>` solo acciones; ver $lib/utils/searchQuery.js): con la lista vacía
 	 * hay una línea con ejemplos, y «Cómo buscar» (al pie, en la hoja de atajos y como acción)
@@ -404,9 +405,7 @@
 <button type="button" class="search" class:compact on:click={() => open()} aria-haspopup="dialog">
 	<Search size={18} aria-hidden="true" />
 	<span class="label"
-		>{compact
-			? 'Buscar o hacer…'
-			: 'Buscar personas, eventos, perfiles, etiquetas o acciones…'}</span
+		>{compact ? 'Ir a… o buscar' : 'Ir a… o buscar personas, eventos, etiquetas…'}</span
 	>
 	{#if !compact}<kbd>/</kbd>{#if ctrlK}<kbd class="ck">{ctrlK}</kbd>{/if}{/if}
 </button>
@@ -416,7 +415,7 @@
 	class="palette"
 	on:close={() => (isOpen = false)}
 	on:click|self={close}
-	aria-label="Buscar en el panel"
+	aria-label="Ir a… o buscar en el panel"
 >
 	{#if isOpen}
 		<div class="pal">
@@ -431,7 +430,7 @@
 					bind:value={q}
 					on:keydown={onInputKey}
 					type="search"
-					placeholder="Buscá personas, eventos, perfiles, etiquetas, KV-…, códigos o una acción"
+					placeholder="Ir a una página, o buscá personas, eventos, etiquetas, KV-…, códigos"
 					autocomplete="off"
 					spellcheck="false"
 					role="combobox"

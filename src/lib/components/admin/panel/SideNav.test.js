@@ -1,6 +1,6 @@
 /**
- * Barra lateral del panel en el servidor: el grupo de la página actual sale abierto, los demás
- * cerrados (lo guardado en el navegador se suma al cargar), y arriba está «Abrir todo».
+ * Barra lateral del panel en el servidor (opción C, decisión 0038): las 8 secciones con su nombre,
+ * sin sub-ítems ni «Cargar evento», la actual marcada, la Puerta resaltada y «Recientes».
  */
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
@@ -12,38 +12,80 @@ import { textOf } from '$lib/testing/html.js';
 const item = (id) => /** @type {import('$lib/admin/nav.js').NavItem} */ (navItem(id));
 
 /**
- * La etiqueta de apertura del botón de un grupo.
+ * Los links de las secciones: href, si es la actual y si va resaltado.
  * @param {string} html
- * @param {string} group
  */
-function groupButton(html, group) {
-	const at = html.indexOf(`aria-controls="kv-area-${group}"`);
-	if (at === -1) return '';
-	return html.slice(html.lastIndexOf('<button', at), html.indexOf('>', at) + 1);
+function sections(html) {
+	return [...html.matchAll(/<a class="sec[^"]*"[^>]*>/g)].map((m) => ({
+		href: m[0].match(/href="([^"]+)"/)?.[1],
+		current: m[0].includes('aria-current="page"'),
+		highlight: /class="sec[^"]*\bhl\b/.test(m[0])
+	}));
 }
 
 describe('SideNav', () => {
-	it('abre el grupo de la página actual y deja cerrados los demás', () => {
+	it('las 8 secciones, en orden, sin sub-ítems ni acciones', () => {
 		const { body } = render(SideNav, { props: { active: item('entradas') } });
-		expect(groupButton(body, 'ventas')).toContain('aria-expanded="true"');
-		for (const g of ['eventos', 'comunidad', 'contenido', 'estadisticas', 'ajustes']) {
-			expect(groupButton(body, g), g).toContain('aria-expanded="false"');
-		}
+		expect(sections(body).map((s) => s.href)).toEqual([
+			'/admin',
+			'/admin/checkin',
+			'/admin/eventos',
+			'/admin/ventas',
+			'/admin/comunidad/personas',
+			'/admin/contenido/material',
+			'/admin/estadisticas/ventas',
+			'/admin/ajustes/cobros'
+		]);
+		const text = textOf(body);
+		for (const label of ['Inicio', 'Puerta', 'Eventos', 'Ventas', 'Comunidad', 'Ajustes'])
+			expect(text).toContain(label);
+		expect(text).not.toContain('Cargar evento');
+		expect(text).not.toContain('Transferencias');
+		expect(body).not.toContain('Abrir todo');
 	});
 
-	it('en Inicio no abre ningún grupo', () => {
+	it('marca la sección de la página actual (también en una subpágina)', () => {
+		/** @param {string} id */
+		const current = (id) =>
+			sections(render(SideNav, { props: { active: item(id) } }).body)
+				.filter((s) => s.current)
+				.map((s) => s.href);
+		expect(current('entradas-transferencias')).toEqual(['/admin/ventas']);
+		expect(current('ajustes-plantillas')).toEqual(['/admin/comunidad/personas']);
+		expect(current('checkin')).toEqual(['/admin/checkin']);
+		expect(current('inicio')).toEqual(['/admin']);
+		expect(current('actividad')).toEqual(['/admin/ajustes/cobros']);
+	});
+
+	it('la Puerta va resaltada', () => {
 		const { body } = render(SideNav, { props: { active: item('inicio') } });
-		for (const g of ['eventos', 'ventas', 'comunidad', 'ajustes']) {
-			expect(groupButton(body, g), g).toContain('aria-expanded="false"');
-		}
+		expect(
+			sections(body)
+				.filter((s) => s.highlight)
+				.map((s) => s.href)
+		).toEqual(['/admin/checkin']);
 	});
 
-	it('arriba tiene «Abrir todo» (todavía no están todos abiertos)', () => {
-		const { body } = render(SideNav, { props: { active: item('entradas') } });
-		const start = body.indexOf('<button type="button" class="all');
-		expect(start).toBeGreaterThan(-1);
-		expect(textOf(body.slice(start, body.indexOf('</button>', start)))).toBe('Abrir todo');
-		// Antes que el primer grupo.
-		expect(start).toBeLessThan(body.indexOf('kv-area-eventos'));
+	it('cada sección muestra la suma de los contadores de su grupo', () => {
+		const { body } = render(SideNav, {
+			props: { active: item('inicio'), counts: { transfers: 2, unlisted: 5 } }
+		});
+		const ventas = body.slice(body.indexOf('href="/admin/ventas"'));
+		expect(textOf(ventas.slice(0, ventas.indexOf('</a>')))).toContain('2');
+		const contenido = body.slice(body.indexOf('href="/admin/contenido/material"'));
+		expect(textOf(contenido.slice(0, contenido.indexOf('</a>')))).toContain('5');
+	});
+
+	it('«Recientes»: sus links, con título; sin recientes no hay título', () => {
+		const recent = [
+			{ href: '/admin/eventos/fiesta-de-prueba/ordenes', label: 'Fiesta de prueba · Órdenes' },
+			{ href: '/admin/ventas/transferencias', label: 'Transferencias' }
+		];
+		const { body } = render(SideNav, { props: { active: item('inicio'), recent } });
+		expect(textOf(body)).toContain('Recientes');
+		expect(body).toContain('href="/admin/eventos/fiesta-de-prueba/ordenes"');
+		expect(body).toContain('Fiesta de prueba · Órdenes');
+		const empty = render(SideNav, { props: { active: item('inicio') } }).body;
+		expect(textOf(empty)).not.toContain('Recientes');
 	});
 });

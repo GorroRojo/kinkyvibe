@@ -8,14 +8,9 @@
 import { escapeHtml } from './format.js';
 import { truncate } from './keyboards.js';
 import { encodeNav, shortHash } from './nav.js';
-import {
-	CARD_IMAGE_OPTIONS,
-	INLINE_TEXTS,
-	inlineDescription,
-	inlineThumbUrl,
-	titleOf
-} from './inline.js';
+import { CARD_IMAGE_OPTIONS, inlineDescription, inlineThumbUrl, titleOf } from './inline.js';
 import { CAPTION_MAX, isHttps, pagerRow, paginate, tgTime } from './screens.js';
+import { botText } from './texts.js';
 
 /** @typedef {import('$lib/utils/search').SearchDoc} SearchDoc */
 /** @typedef {import('./inline.js').InlineExtra} InlineExtra */
@@ -32,25 +27,17 @@ export const TYPE_EMOJI = Object.freeze({
 	amigues: '👥'
 });
 
-/** Los textos de la búsqueda en todo el sitio (cuando esté el registro «Textos del bot», van ahí). */
-export const SITE_TEXTS = Object.freeze({
-	back: '‹ Volver',
-	again: '🔎 Buscar otra cosa',
-	home: '🏠 Inicio',
-	viewOnSite: INLINE_TEXTS.viewOnSite,
-	/** @param {string} query */
-	none: (query) =>
-		`No encontré nada para «${escapeHtml(truncate(query, 60))}» en el sitio. Probá con otra palabra.`,
-	/** @param {string} query @param {number} count */
-	found: (query, count) =>
-		`<b>Encontré ${count === 1 ? 'esto' : count} para «${escapeHtml(truncate(query, 60))}»</b>`
-});
-
 /** El hash de la dirección de una cosa, para su botón (nav.js). @param {SearchDoc} doc */
 export const docHash = (doc) => shortHash(doc.h);
 
 /** @returns {Button} */
-const homeButton = () => ({ text: SITE_TEXTS.home, callback_data: encodeNav({ screen: 'home' }) });
+export const homeButton = () => ({
+	text: botText('inicio.boton_inicio'),
+	callback_data: encodeNav({ screen: 'home' })
+});
+
+/** Lo buscado como va en un texto (recortado). @param {string} query */
+const busqueda = (query) => truncate(query, 60);
 
 /**
  * Un renglón de la lista: el ícono del tipo y el título con link al sitio; abajo, la fecha (los
@@ -85,12 +72,23 @@ export function docLine(doc, extra, ctx) {
  * @returns {Screen}
  */
 export function siteResultsScreen(query, docs, page, ctx, extras = new Map()) {
-	const again = { text: SITE_TEXTS.again, callback_data: encodeNav({ screen: 'search' }) };
-	if (docs.length === 0)
-		return { text: SITE_TEXTS.none(query), keyboard: [[again], [homeButton()]] };
+	const again = {
+		text: botText('eventos.boton_buscar_otra'),
+		callback_data: encodeNav({ screen: 'search' })
+	};
+	if (docs.length === 0) {
+		return {
+			text: botText('sitio.sin_resultados', { busqueda: busqueda(query) }),
+			keyboard: [[again], [homeButton()]]
+		};
+	}
 	const p = paginate(docs.length, page);
 	const shown = docs.slice(p.from, p.to);
-	const head = `${SITE_TEXTS.found(query, docs.length)}${p.pages > 1 ? ` · ${p.page + 1}/${p.pages}` : ''}`;
+	const found =
+		docs.length === 1
+			? botText('sitio.encontre_uno', { busqueda: busqueda(query) })
+			: botText('sitio.encontre', { cantidad: docs.length, busqueda: busqueda(query) });
+	const head = `${found}${p.pages > 1 ? ` · ${p.page + 1}/${p.pages}` : ''}`;
 	const text = `${head}\n\n${shown.map((d) => docLine(d, extras.get(d.h), ctx)).join('\n\n')}`;
 	/** @type {Button[][]} */
 	const rows = shown.map((d) => [
@@ -115,7 +113,7 @@ export function siteResultsScreen(query, docs, page, ctx, extras = new Map()) {
  * @returns {Button}
  */
 export const backToResults = (query, page) => ({
-	text: SITE_TEXTS.back,
+	text: botText('inicio.boton_volver'),
 	callback_data: encodeNav({ screen: 'site_results', query, page })
 });
 
@@ -144,11 +142,11 @@ export function docScreen(doc, extra, ctx, { back = null } = {}) {
 		if (description) lines.push(escapeHtml(description));
 	}
 	if (!https)
-		lines.push('', `<a href="${escapeHtml(url)}">${escapeHtml(SITE_TEXTS.viewOnSite)}</a>`);
+		lines.push('', `<a href="${escapeHtml(url)}">${escapeHtml(botText('sitio.boton_ver'))}</a>`);
 	const text = lines.join('\n');
 	/** @type {Button[][]} */
 	const rows = [];
-	if (https) rows.push([{ text: SITE_TEXTS.viewOnSite, url }]);
+	if (https) rows.push([{ text: botText('sitio.boton_ver'), url }]);
 	rows.push(back ? [back, homeButton()] : [homeButton()]);
 	const photo = inlineThumbUrl(extra?.image, ctx.origin, CARD_IMAGE_OPTIONS);
 	return {

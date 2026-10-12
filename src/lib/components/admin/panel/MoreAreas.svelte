@@ -2,7 +2,7 @@
 	/**
 	 * Contenido del panel "Más" del celu: la lista de grupos del menú de `$lib/admin/nav.js`
 	 * (`NAV_GROUPS`, con cuántas secciones tiene cada uno y sus contadores) y, al tocar uno, sus
-	 * secciones.
+	 * secciones. Los grupos que ya están enteros en la barra de abajo (la Puerta) no se repiten.
 	 * Props: `active` (NavItem actual), `counts` (`data.panelCounts`), `flags` (`data.navFlags`),
 	 * `hideSoon` ("Ocultar lo que viene").
 	 */
@@ -10,6 +10,7 @@
 	import NavIcon from './NavIcon.svelte';
 	import NavEntry from './NavEntry.svelte';
 	import {
+		MOBILE_TABS,
 		NAV_GROUPS,
 		groupCount,
 		navGroupItems,
@@ -34,11 +35,19 @@
 	const countOf = (item) => (item.counter ? Number(counts[item.counter] ?? 0) : 0);
 
 	$: opts = { flags, hideSoon };
+	// Un grupo que ya está entero en la barra de abajo (la Puerta) no se repite acá.
 	$: areas = NAV_GROUPS.map((g) => {
 		const items = navGroupItems(g.id, opts);
 		const soon = items.filter((i) => i.soon).length;
-		return { area: g, ready: items.length - soon, soon, total: groupCount(g.id, counts, opts) };
-	}).filter((x) => x.ready + x.soon > 0);
+		const inTabbar = items.length > 0 && items.every((i) => MOBILE_TABS.includes(i.id));
+		return {
+			area: g,
+			ready: items.length - soon,
+			soon,
+			total: groupCount(g.id, counts, opts),
+			inTabbar
+		};
+	}).filter((x) => x.ready + x.soon > 0 && !x.inTabbar);
 	$: current = open ? navGroupOf(open) : undefined;
 	$: activeGroup = navGroupOf(active?.area)?.id;
 
