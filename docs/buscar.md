@@ -6,10 +6,9 @@ si cambiás cómo se busca en cualquier lado, cambiá esto en el mismo PR. La gu
 sitio, el bot o el panel sale de acá (ver «La guía visible», abajo). Por qué es así:
 [0046](decisiones/0046-sintaxis-de-busqueda.md).
 
-> **Estado (12/10):** esto es la **propuesta** de 0046, todavía sin el OK de gorrite (tres puntos
-> abiertos: la regla de respaldo de las fechas, las formas cortas y qué busca `@nombre`). Tampoco
-> está hecho en todos lados: la columna «Hoy» de cada tabla dice dónde ya anda, y cada PR que lo
-> aplica la actualiza.
+> **Estado (12/10):** acordado con gorrite ([0046](decisiones/0046-sintaxis-de-busqueda.md)),
+> todavía no hecho en todos lados: la columna «Hoy» de cada tabla dice dónde ya anda, y cada PR que
+> lo aplica la actualiza.
 
 ## Los tres buscadores
 
@@ -234,5 +233,4 @@ acá, se cambia ahí en el mismo PR.
   `/ayuda/buscar`, para poder mandar el link.
 - **Bot**: «🔎 Cómo buscar» en ❓ Ayuda, y una línea en el mensaje de Buscar.
 - **Panel**: la línea de ayuda de la paleta abre todo, incluido «Solo en el panel».
-- Muestra la forma larga y la corta al lado (`evento:` (o `e:`)), salvo que gorrite decida otra
-  cosa en 0046.
+- Muestra la forma larga y la corta al lado (`evento:` (o `e:`)).

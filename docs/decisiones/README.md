@@ -131,7 +131,7 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0045](0045-estadisticas-del-bot.md): Estadísticas de uso del bot: quién y cuánto, y para qué
   solo sumado (12/10)
 - [0046](0046-sintaxis-de-busqueda.md): Una sola forma de escribir una búsqueda en el sitio, el
-  bot y el panel, y dónde se explica (propuesta, 12/10)
+  bot y el panel, y dónde se explica (12/10)
 
 ### Panel y CRM
 

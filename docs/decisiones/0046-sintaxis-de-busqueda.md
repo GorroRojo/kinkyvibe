@@ -1,8 +1,9 @@
 # 0046. Una sola forma de escribir una búsqueda: sitio, bot y panel
 
 - Fecha: 2026-10-12
-- Estado: Propuesta (pedido de gorrite, 12/10: «escribamos primero cuál es la sintaxis, después la
-  aplicamos en todos lados y la ponemos visible»). Falta su OK y las tres preguntas de abajo.
+- Estado: Aceptada (pedido de gorrite, 12/10: «escribamos primero cuál es la sintaxis, después la
+  aplicamos en todos lados y la ponemos visible»; la dirección, las respuestas y el registro de
+  operadores, en la Mesa el mismo día).
 
 ## Contexto
 
@@ -22,15 +23,17 @@ columna «Hoy» de [buscar.md](../buscar.md).
   el mismo PR.
 - **Una guía visible** en cada buscador, que sale de buscar.md (ahí dice dónde va y qué muestra).
 
-## Preguntas para gorrite
+## Lo que respondió gorrite
 
-Están escritas en buscar.md como propuesta; si gorrite dice otra cosa, se cambia ahí.
+Las tres preguntas de la propuesta quedaron así, y están escritas en buscar.md:
 
-1. Las palabras de fecha sueltas en el sitio y el bot, con la regla de respaldo (buscar.md, «Lugar
-   y fechas»).
-2. Las formas cortas de los tipos, y que la guía las muestre al lado de la larga (buscar.md, «Tipo
-   de resultado» y «La guía visible»).
-3. Qué busca `@nombre` en el sitio y el bot (buscar.md, «Etiquetas y personas»).
+1. Las palabras de fecha sueltas (también los meses) son operadores en el sitio y el bot, con la
+   regla de respaldo.
+2. Las formas cortas andan en los tres, y la guía las muestra al lado de la larga.
+3. `@` es un perfil del sitio (con autocompletado), nunca un usuario de Telegram o GitHub.
+
+Además: «las palabras ordenan, los operadores filtran», un operador de un solo tipo implica ese
+tipo, la dirección de «Hacia dónde va» y el registro de operadores.
 
 ## Cómo se aplica
 
