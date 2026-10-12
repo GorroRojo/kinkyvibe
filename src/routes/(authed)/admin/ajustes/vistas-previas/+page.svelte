@@ -4,6 +4,7 @@
 	import { RotateCcw } from '@lucide/svelte';
 	import { fieldErrors } from '$lib/admin/ajustes.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import { areaBackLink } from '$lib/admin/nav.js';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import { listPreview, sectionTexts, shortText, upcomingDescription } from '$lib/utils/seo.js';
 	import { OG_CARDS, ogCardText } from '$lib/utils/ogCards.js';
@@ -77,6 +78,7 @@
 </script>
 
 <PageHeader
+	back={areaBackLink('ajustes-vistas-previas')}
 	title="Vistas previas al compartir"
 	subtitle="Lo que se ve cuando alguien pega un link del sitio en WhatsApp, Telegram, Instagram o X: el título, la descripción y lo que va escrito en la imagen."
 />

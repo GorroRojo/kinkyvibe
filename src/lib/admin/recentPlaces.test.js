@@ -74,7 +74,9 @@ describe('recentPlaces', () => {
 		// La Puerta ya no es una sección de la barra (parte 2): sí entra en Recientes.
 		expect(shouldRemember('/admin/checkin')).toBe(true);
 		expect(shouldRemember('/admin/ventas')).toBe(false);
-		expect(shouldRemember('/admin/ajustes/cobros')).toBe(false);
+		// Ajustes: la barra lleva a su portada (decisión 0042); sus secciones sí entran.
+		expect(shouldRemember('/admin/ajustes')).toBe(false);
+		expect(shouldRemember('/admin/ajustes/cobros')).toBe(true);
 		expect(shouldRemember('/admin/no-existe', { status: 404 })).toBe(false);
 		expect(shouldRemember('/calendario/algo')).toBe(false);
 		expect(shouldRemember('/administrar')).toBe(false);
