@@ -221,7 +221,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 ### Contenido en la base
 
-- `importar-material-script` · fase 2 · hecho · contenido · `scripts/importar-material.js`: carga un paquete privado de borradores de material como no listado, por el camino del panel · #PRNUM, [contenido.md](contenido.md#tareas-comunes)
+- `importar-material-script` · fase 2 · hecho · contenido · `scripts/importar-material.js`: carga un paquete privado de borradores de material como no listado, por el camino del panel · #342, [contenido.md](contenido.md#tareas-comunes)
 - `importar-material-correr` · fase 2 · espera gorrite · contenido · ver Mesa (gorrite corre `node scripts/importar-material.js --target=production` con el paquete) (depende de: importar-material-script)
 - `subir-archivos` · fase 2 · espera gorrite · contenido · gorrite corre `node scripts/subir-archivos.js --target=production` (PDF, video y ODT a la biblioteca); después un PR borra `src/lib/archivos/` y su glob en `render.js` · [contenido.md](contenido.md#lo-que-falta)
 - `codigo-muerto-github` · fase 2 · sigue · contenido · Código que quedó del panel con GitHub: `sharedImage.js`, la edición del archivo de etiquetas en `tagConfig.js`, ramas «no se guardó en la base», el permiso `public_repo` del login, y que el panel guarde objetos sin pasar por «rutas de `.md`» (`getRepoClient`, `withContentDb`, `commitFiles`)
