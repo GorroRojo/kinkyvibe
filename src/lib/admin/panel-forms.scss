@@ -54,6 +54,28 @@
 		border-radius: var(--radius-pill);
 		padding-inline: 1em;
 	}
+	// Grande (`<Field size="large">`, `.kv-field.large`): ~54px y letra más grande, solo en el
+	// flujo de compra. Acá y no en el componente, así le gana a la regla de arriba.
+	.kv-field.large input:not([type='checkbox'], [type='radio']),
+	.kv-field.large select,
+	.kv-field.large textarea {
+		min-height: 3.375rem;
+		font-size: var(--text-base);
+	}
+	// Apagado: se nota que no se puede tocar (fondo gris, texto y borde más claros), y su
+	// etiqueta también (gorrite, 12/10).
+	.kv-field input:not([type='checkbox'], [type='radio']):disabled,
+	.kv-field select:disabled,
+	.kv-field textarea:disabled,
+	.kv-input:disabled {
+		background: var(--bg);
+		color: var(--muted);
+		border-style: dashed;
+		cursor: not-allowed;
+	}
+	.kv-field:has(> :is(input, select, textarea):disabled) > span:first-child {
+		color: var(--muted);
+	}
 	.kv-field textarea {
 		resize: vertical;
 		line-height: 1.45;
@@ -64,6 +86,12 @@
 		gap: var(--space-2xs);
 		min-height: var(--tap);
 		cursor: pointer;
+	}
+	// Casilla o interruptor apagado: el texto también, más claro. (Mientras un interruptor se
+	// guarda queda apagado un momento, pero su texto no cambia: `.saving`.)
+	.kv-check:has(> input:disabled):not(.saving) {
+		color: var(--muted);
+		cursor: not-allowed;
 	}
 	.kv-note {
 		font-size: var(--text-sm);

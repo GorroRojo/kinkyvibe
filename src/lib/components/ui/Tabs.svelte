@@ -28,7 +28,12 @@
 	/** @type {string | undefined} */
 	export let current = undefined;
 	export let label = 'Pestañas';
-	export let menu = false;
+	/**
+	 * `menu` es lo de siempre (gorrite, 12/10): en el celu TODAS las barras de pestañas pasan a la
+	 * lista ▾. `menu={false}` deja la tira que se desliza (con solo íconos si no entran), para un
+	 * caso que de verdad la necesite.
+	 */
+	export let menu = true;
 	/** Qué es la lista, en el botón del celu («Sección: Órdenes»). */
 	export let menuCaption = 'Sección';
 	/**
@@ -143,148 +148,159 @@
 
 <svelte:window on:click={onWindowClick} />
 
-{#if menu}
-	<nav
-		class="tabs-menu"
-		aria-label={label}
-		on:focusout={onFocusOut}
-		data-sveltekit-preload-data="hover"
-	>
-		<button
-			type="button"
-			class="tabs-toggle"
-			bind:this={toggle}
-			aria-expanded={open}
-			aria-controls={listId}
-			on:click={() => (open ? close() : openList())}
-			on:keydown={(ev) => {
-				if (ev.key === 'ArrowDown' && !open) {
-					ev.preventDefault();
-					openList();
-				} else if (ev.key === 'Escape' && open) {
-					ev.preventDefault();
-					close(true);
-				}
-			}}
+<div class="kv-tabs">
+	{#if menu}
+		<nav
+			class="tabs-menu"
+			aria-label={label}
+			on:focusout={onFocusOut}
+			data-sveltekit-preload-data="hover"
 		>
-			{#if currentTab?.icon}<svelte:component
-					this={currentTab.icon}
-					size={16}
-					aria-hidden="true"
-				/>{/if}
-			<span class="toggle-name"
-				><span class="toggle-cap">{menuCaption}:</span>
-				{currentTab ? currentTab.label : label}</span
+			<button
+				type="button"
+				class="tabs-toggle"
+				bind:this={toggle}
+				aria-expanded={open}
+				aria-controls={listId}
+				on:click={() => (open ? close() : openList())}
+				on:keydown={(ev) => {
+					if (ev.key === 'ArrowDown' && !open) {
+						ev.preventDefault();
+						openList();
+					} else if (ev.key === 'Escape' && open) {
+						ev.preventDefault();
+						close(true);
+					}
+				}}
 			>
-			{#if menuCount}<span
-					class="count"
-					title={sumCounts ? 'Para revisar en estas pestañas' : undefined}>{menuCount}</span
-				>{/if}
-			<span class="sr-only">(elegí otra pestaña)</span>
-			<ChevronDown size={18} aria-hidden="true" class="chev" />
-		</button>
-		<!-- svelte-ignore a11y-no-noninteractive-element-interactions (las flechas y Escape) -->
-		<ul class="tabs-list" id={listId} hidden={!open} bind:this={list} on:keydown={onListKey}>
+				{#if currentTab?.icon}<svelte:component
+						this={currentTab.icon}
+						size={16}
+						aria-hidden="true"
+					/>{/if}
+				<span class="toggle-name"
+					><span class="toggle-cap">{menuCaption}:</span>
+					{currentTab ? currentTab.label : label}</span
+				>
+				{#if menuCount}<span
+						class="count"
+						title={sumCounts ? 'Para revisar en estas pestañas' : undefined}>{menuCount}</span
+					>{/if}
+				<span class="sr-only">(elegí otra pestaña)</span>
+				<ChevronDown size={18} aria-hidden="true" class="chev" />
+			</button>
+			<!-- svelte-ignore a11y-no-noninteractive-element-interactions (las flechas y Escape) -->
+			<ul class="tabs-list" id={listId} hidden={!open} bind:this={list} on:keydown={onListKey}>
+				{#each tabs as tab (tab.href)}
+					{@const on = active === tab.href}
+					<li>
+						{#if tab.soon}
+							<span class="item off" aria-disabled="true"
+								>{#if tab.icon}<svelte:component
+										this={tab.icon}
+										size={18}
+										aria-hidden="true"
+									/>{/if}<span>{tab.label} <small>(próximamente)</small></span></span
+							>
+						{:else}
+							<a
+								class="item"
+								class:on
+								href={tab.href}
+								aria-current={on ? 'page' : undefined}
+								on:click={() => close(true)}
+								>{#if tab.icon}<svelte:component
+										this={tab.icon}
+										size={18}
+										aria-hidden="true"
+									/>{/if}<span>{tab.label}</span>{#if tab.count}<span class="count"
+										>{tab.count}</span
+									>{/if}</a
+							>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		</nav>
+	{/if}
+
+	<div
+		class="tabs-wrap"
+		class:has-menu={menu}
+		class:more-left={moreLeft}
+		class:more-right={moreRight}
+	>
+		{#if moreLeft}
+			<button
+				type="button"
+				class="more prev"
+				tabindex="-1"
+				aria-hidden="true"
+				on:click={() => slide(-1)}><ChevronLeft size={18} /></button
+			>
+		{/if}
+		<nav
+			class="tabs"
+			class:icon-only={iconOnly}
+			aria-label={label}
+			bind:this={bar}
+			on:scroll={measure}
+			data-sveltekit-preload-data="hover"
+		>
 			{#each tabs as tab (tab.href)}
 				{@const on = active === tab.href}
-				<li>
-					{#if tab.soon}
-						<span class="item off" aria-disabled="true"
-							>{#if tab.icon}<svelte:component
-									this={tab.icon}
-									size={18}
-									aria-hidden="true"
-								/>{/if}<span>{tab.label} <small>(próximamente)</small></span></span
-						>
-					{:else}
-						<a
-							class="item"
-							class:on
-							href={tab.href}
-							aria-current={on ? 'page' : undefined}
-							on:click={() => close(true)}
-							>{#if tab.icon}<svelte:component
-									this={tab.icon}
-									size={18}
-									aria-hidden="true"
-								/>{/if}<span>{tab.label}</span>{#if tab.count}<span class="count">{tab.count}</span
-								>{/if}</a
-						>
-					{/if}
-				</li>
+				{@const short = iconOnly && !on}
+				{#if tab.soon}
+					<span
+						class="tab off"
+						aria-disabled="true"
+						title={short ? `${tab.label} (próximamente)` : 'Próximamente'}
+						aria-label={short ? tab.label : undefined}
+						>{#if tab.icon}<svelte:component
+								this={tab.icon}
+								size={16}
+								aria-hidden="true"
+							/>{/if}<span class="name" class:short>{tab.label}</span></span
+					>
+				{:else}
+					<a
+						class="tab"
+						class:on
+						href={tab.href}
+						aria-current={on ? 'page' : undefined}
+						title={short ? nameOf(tab) : undefined}
+						aria-label={short ? nameOf(tab) : undefined}
+						>{#if tab.icon}<svelte:component
+								this={tab.icon}
+								size={16}
+								aria-hidden="true"
+							/>{/if}<span class="name" class:short>{tab.label}</span>{#if tab.count}<span
+								class="count">{tab.count}</span
+							>{/if}</a
+					>
+				{/if}
 			{/each}
-		</ul>
-	</nav>
-{/if}
-
-<div
-	class="tabs-wrap"
-	class:has-menu={menu}
-	class:more-left={moreLeft}
-	class:more-right={moreRight}
->
-	{#if moreLeft}
-		<button
-			type="button"
-			class="more prev"
-			tabindex="-1"
-			aria-hidden="true"
-			on:click={() => slide(-1)}><ChevronLeft size={18} /></button
-		>
-	{/if}
-	<nav
-		class="tabs"
-		class:icon-only={iconOnly}
-		aria-label={label}
-		bind:this={bar}
-		on:scroll={measure}
-		data-sveltekit-preload-data="hover"
-	>
-		{#each tabs as tab (tab.href)}
-			{@const on = active === tab.href}
-			{@const short = iconOnly && !on}
-			{#if tab.soon}
-				<span
-					class="tab off"
-					aria-disabled="true"
-					title={short ? `${tab.label} (próximamente)` : 'Próximamente'}
-					aria-label={short ? tab.label : undefined}
-					>{#if tab.icon}<svelte:component this={tab.icon} size={16} aria-hidden="true" />{/if}<span
-						class="name"
-						class:short>{tab.label}</span
-					></span
-				>
-			{:else}
-				<a
-					class="tab"
-					class:on
-					href={tab.href}
-					aria-current={on ? 'page' : undefined}
-					title={short ? nameOf(tab) : undefined}
-					aria-label={short ? nameOf(tab) : undefined}
-					>{#if tab.icon}<svelte:component this={tab.icon} size={16} aria-hidden="true" />{/if}<span
-						class="name"
-						class:short>{tab.label}</span
-					>{#if tab.count}<span class="count">{tab.count}</span>{/if}</a
-				>
-			{/if}
-		{/each}
-	</nav>
-	{#if moreRight}
-		<button
-			type="button"
-			class="more next"
-			tabindex="-1"
-			aria-hidden="true"
-			on:click={() => slide(1)}><ChevronRight size={18} /></button
-		>
-	{/if}
+		</nav>
+		{#if moreRight}
+			<button
+				type="button"
+				class="more next"
+				tabindex="-1"
+				aria-hidden="true"
+				on:click={() => slide(1)}><ChevronRight size={18} /></button
+			>
+		{/if}
+	</div>
 </div>
 
 <style>
+	/* El espacio hasta lo que sigue lo pone la barra solo si algo la sigue: sin un hueco vacío
+	   abajo cuando es lo último de su caja (gorrite, 12/10). */
+	.kv-tabs:not(:last-child) {
+		margin-bottom: var(--space-xs);
+	}
 	.tabs-wrap {
 		position: relative;
-		margin-bottom: 1rem;
 	}
 	/* Fundido en el borde que tiene más pestañas (sirve sobre cualquier fondo). */
 	.more-right .tabs {
@@ -337,9 +353,11 @@
 		padding: var(--space-3xs) var(--space-xs);
 		min-height: 2.25rem;
 		position: relative;
-		border-radius: var(--round);
+		border-radius: var(--radius-m);
 		font-weight: 700;
-		color: var(--accent);
+		/* el rosa legible como texto: 5.4:1 sobre el gris del fondo (el rosa de la marca daba
+		   2.9:1; gorrite, 12/10) */
+		color: var(--accent-text);
 		white-space: nowrap;
 		text-decoration: none;
 		display: inline-flex;
@@ -370,7 +388,7 @@
 		}
 	}
 	a.tab:hover {
-		color: var(--accent);
+		color: var(--accent-text);
 		background: color-mix(in srgb, var(--surface) 55%, transparent);
 	}
 	/* «Estás acá» en las pestañas: tarjeta blanca sobre el fondo gris, texto violeta. */
@@ -387,7 +405,6 @@
 	.tabs-menu {
 		display: none;
 		position: relative;
-		margin-bottom: 1rem;
 	}
 	@media (max-width: 599.98px) {
 		.tabs-menu {
@@ -450,7 +467,7 @@
 		list-style: none;
 		background: var(--surface);
 		border: 1px solid var(--line);
-		border-radius: var(--round);
+		border-radius: var(--radius-m);
 		box-shadow: var(--shadow-2);
 	}
 	.tabs-list[hidden] {
@@ -462,8 +479,8 @@
 		gap: 0.6em;
 		min-height: var(--tap);
 		padding: 0 var(--space-xs);
-		border-radius: var(--round);
-		color: var(--accent);
+		border-radius: var(--radius-s);
+		color: var(--accent-text);
 		font-weight: 700;
 		text-decoration: none;
 	}
@@ -485,6 +502,10 @@
 	.item .count {
 		margin-left: auto;
 	}
+	.item.on .count,
+	.tabs-toggle .count {
+		background: var(--surface);
+	}
 	.sr-only {
 		position: absolute;
 		width: 1px;
@@ -493,9 +514,10 @@
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
 	}
+	/* El contador, en el violeta de la barra (no un amarillo más; gorrite, 12/10). */
 	.count {
-		background: var(--counter);
-		color: var(--counter-ink);
+		background: var(--info-bg);
+		color: var(--info);
 		font-size: var(--text-xs);
 		border-radius: var(--radius-m);
 		padding: 0 0.5em;
