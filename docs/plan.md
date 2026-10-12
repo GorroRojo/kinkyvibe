@@ -170,6 +170,10 @@ CI) va en la fase 0.
 - `bot-avisos-apagados` · fase 0 · algún día · bot · Recordar si alguien apagó a propósito los avisos de algo, para que dejar de seguirlo y volver a seguirlo desde el bot no los prenda (volver a vincular ya no saca `/silenciar`, #321; necesita migración, aplicarla antes del merge, 0028) · [0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)
 - `bot-textos-miniapp` · fase 0 · algún día · bot · Los textos de la página de la puerta (`/telegram/puerta`, solo admins) en «Textos del bot» (los de la Mini App del calendario ya están, #321)
 - `bot-visible-sitio` · fase 0 · sigue · bot · Que el bot se vea en el sitio, discreto: un link en el pie, una línea en el calendario y la tarjeta de Mi rincón que ya existe; los textos van en un PR con capturas (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
+- `bot-mensajes-enriquecidos` · fase 0 · hecho · bot · Lo que el bot manda del sitio (Kinkipedia, material, eventos) se lee adentro del chat como mensaje enriquecido (Bot API 10.1–10.3), en el modo inline y en la tarjeta compacta, apagado con `telegram_enriquecido` · #336, [telegram.md](telegram.md#mensajes-enriquecidos-y-compartir)
+- `bot-compartir-miniapp` · fase 0 · hecho · bot · Mini App del calendario: «📤 Mandar a un chat» en cada evento y link directo a un evento (`?startapp=`), apagado con `telegram_enriquecido` · #336, [telegram.md](telegram.md#compartir-desde-la-mini-app-del-calendario)
+- `bot-enriquecido-probar` · fase 0 · espera gorrite · bot · Registrar la Main Mini App en @BotFather, prender `telegram_enriquecido` en un preview y mirar los mensajes enriquecidos y «Mandar a un chat» en dos celus (uno con una app vieja) (depende de: bot-mensajes-enriquecidos, bot-compartir-miniapp)
+- `bot-entrar-con-telegram` · fase 0 · algún día · bot · «Entrar con Telegram» (OpenID Connect) para las cuentas: no elegido por ahora (gorrite, 12/10)
 - `bot-navegar-secciones` · fase 0 · hecho · bot · Bot 1/5: recorrer el sitio por secciones · #308
 - `bot-mis-entradas` · fase 0 · hecho · bot · Bot 2/5: «🎟 Mis entradas» con el QR de la puerta · #313
 - `bot-secciones-ajustes` · fase 0 · hecho · bot · Secciones del bot: Kinkipedia por las ramas del árbol de etiquetas (como `/wiki` y en su orden), Series sin las que no tienen ediciones, volver a vincular no saca `/silenciar` y los textos de la Mini App del calendario en «Textos del bot» · #321
@@ -314,6 +318,7 @@ CI) va en la fase 0.
 
 Para que no vuelvan: si alguien lo propone de nuevo, primero se habla con gorrite.
 
+- `bot-miniapp-historia` · fase 0 · descartado · bot · «Compartir en tu historia» desde la Mini App: no (gorrite, 12/10)
 - `kinkipedia-series-mejor` · fase 0 · descartado · sitio · Kinkipedia más rica y una lista de series mejor armada (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `kv-fondo-repo` · fase 1 · descartado · infra · Sumar kv-fondo a este repo: se quedan separados, kv-fondo sigue en su repo privado y hablan por la API (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `ficha-5-pestanas` · fase 0 · descartado · panel · Ficha del evento con 5 pestañas y «Más»: la reemplazó la de 7 (gorrite, 12/10) · #303

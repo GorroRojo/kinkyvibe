@@ -28,6 +28,7 @@ export async function POST({ request, url, platform, fetch }) {
 	const ctx = platform?.ctx;
 	const puerta = Boolean(db && (await isFlagOn(db, 'telegram_puerta')));
 	const admin = Boolean(db && (await isFlagOn(db, 'telegram_admin')));
+	const rich = Boolean(db && (await isFlagOn(db, 'telegram_enriquecido')));
 	const stats = Boolean(db && (await isFlagOn(db, 'telegram_estadisticas')));
 	return handleWebhook({
 		request,
@@ -45,7 +46,9 @@ export async function POST({ request, url, platform, fetch }) {
 			events: (metas) => inlineEventInfo(platform, metas),
 			// El árbol de etiquetas (el mismo del sitio): para sugerir parecidas y «Seguir» cuando
 			// una búsqueda no encuentra nada.
-			tags: () => siteTagManager(platform)
+			tags: () => siteTagManager(platform),
+			// Mensajes enriquecidos y «📅 Abrir en el calendario» (`telegram_enriquecido`).
+			...(rich ? { rich: true, botUsername: botUsername() } : {})
 		},
 		botUsername: botUsername(),
 		token: env.TELEGRAM_BOT_TOKEN,

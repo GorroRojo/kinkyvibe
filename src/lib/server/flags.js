@@ -66,6 +66,21 @@ export const FLAGS = Object.freeze({
 			'0054 para «Mis avisos».',
 		envVar: 'TELEGRAM_ADMIN_ENABLED'
 	},
+	telegram_enriquecido: {
+		label: 'Telegram: mensajes enriquecidos y compartir',
+		description:
+			'Cuando el bot manda algo del sitio (una entrada de la Kinkipedia, un material, un evento), ' +
+			'el contenido se lee adentro del chat, con «Ver en el sitio» abajo. En la Mini App del ' +
+			'calendario, cada evento tiene «Mandar a un chat», y el evento mandado trae un botón que ' +
+			'abre el calendario justo en ese evento. Solo lo público, lo mismo que el sitio sin cuenta. ' +
+			'Necesita el bot prendido. Apagado, el bot manda las tarjetas de siempre.',
+		tech:
+			'docs/telegram.md («Mensajes enriquecidos y compartir»). Los mensajes enriquecidos (Bot API ' +
+			'10.1–10.3) salen solo con TELEGRAM_BOT_TOKEN; si Telegram los rechaza, sale la tarjeta de ' +
+			'siempre. Compartir usa savePreparedInlineMessage + shareMessage (Bot API 8.0). «Abrir en el ' +
+			'calendario» necesita TELEGRAM_BOT_USERNAME y la Main Mini App registrada en @BotFather.',
+		envVar: 'TELEGRAM_ENRIQUECIDO_ENABLED'
+	},
 	telegram_estadisticas: {
 		label: 'Telegram: estadísticas de uso',
 		description:
