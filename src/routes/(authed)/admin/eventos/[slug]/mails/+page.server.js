@@ -1,5 +1,5 @@
 /**
- * Ficha del evento, pestaña "Plantillas de mails": los mails que les llegan a quienes compran
+ * Ficha del evento, pestaña Mails › Plantillas: los mails que les llegan a quienes compran
  * para este evento y si cambian algo sobre la plantilla general (Mensajes → Plantillas).
  */
 import { error } from '@sveltejs/kit';

@@ -4,6 +4,7 @@
 	import { Mail, Trash2 } from '@lucide/svelte';
 	import { fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import { areaBackLink } from '$lib/admin/nav.js';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 
 	export let data;
@@ -25,9 +26,20 @@
 </script>
 
 <PageHeader
-	title="Mails"
+	title="Configuración de los mails"
 	subtitle="Remitente, respuesta, pie de los mails, recordatorios antes de cada evento y envíos en tandas."
+	back={areaBackLink('ajustes-mails')}
 />
+<!-- Las plantillas tienen su propia sección (Mensajes › Plantillas): acá solo el link, no otra
+tarjeta para lo mismo. -->
+<p class="kv-note templates-link">
+	<Mail size={16} aria-hidden="true" />
+	<span
+		>El texto de cada mail (asunto, título, lo de arriba) se cambia en <a
+			href="/admin/mensajes/plantillas">Mensajes → Plantillas</a
+		>.</span
+	>
+</p>
 <form
 	class="kv-form settings"
 	method="POST"
@@ -132,18 +144,6 @@
 			Vacíos: «{data.footer.contact}» y «{data.footer.signoff}». La vista previa de las plantillas
 			ya los muestra.
 		</p>
-	</Card>
-
-	<Card title="Plantillas">
-		<p class="kv-note">
-			El asunto, el título y el texto de arriba de cada mail (entradas, datos para transferir,
-			recordatorio, link de la transmisión y reembolso), con vista previa y prueba.
-		</p>
-		<div>
-			<a class="kv-btn ghost" href="/admin/mensajes/plantillas">
-				<Mail size={16} aria-hidden="true" /> Editar las plantillas
-			</a>
-		</div>
 	</Card>
 
 	<Card title="Recordatorios">
@@ -277,6 +277,16 @@
 <style>
 	.settings {
 		max-width: 48rem;
+	}
+	.templates-link {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3xs);
+		max-width: 48rem;
+		margin: 0 0 var(--space-s);
+	}
+	.templates-link :global(svg) {
+		flex: none;
 	}
 	.reminder {
 		display: flex;

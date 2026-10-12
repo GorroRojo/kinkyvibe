@@ -22,7 +22,7 @@ export function checkinHref(slug) {
 }
 
 /**
- * Dónde se ve una orden: la pestaña Órdenes de la ficha, filtrada por la orden si se pasa.
+ * Dónde se ve una orden: Ventas › Órdenes en la ficha, filtrada por la orden si se pasa.
  * @param {string} slug
  * @param {string} [orderId]
  */

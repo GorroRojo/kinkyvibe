@@ -11,9 +11,11 @@
  *   excepciones: Inicio, Eventos, Check-in (su URL está guardada en los celus de la puerta) y
  *   Etiquetas, que es su propia área. Sin redirecciones desde las URLs viejas: si una cambia,
  *   `adminPaths.test.js` marca cada link interno que quedó apuntando a la vieja.
- *   **Única excepción** (aprobada por gorrite, 11/10): `/admin/estadisticas` era una página y
+ *   **Excepciones** (aprobadas por gorrite, 11/10): `/admin/estadisticas` era una página y
  *   ahora redirige (307) a Ventas (`/admin/estadisticas/ventas`), así los favoritos viejos siguen
- *   andando (`src/routes/(authed)/admin/estadisticas/+server.js`). No es un ítem del menú.
+ *   andando (`src/routes/(authed)/admin/estadisticas/+server.js`). No es un ítem del menú. Y
+ *   /admin/ajustes/mails redirige (308) a Mensajes › Configuración
+ *   (`src/routes/(authed)/admin/ajustes/mails/+server.js`).
  * - `icon`: componente de Lucide (el ícono que se muestra, ver `ICON_MODE`).
  * - `emoji`: el mismo ícono como emoji (se usa si `ICON_MODE` es 'emoji').
  * - `label`: nombre en el menú.
@@ -71,6 +73,7 @@
 import {
 	ArrowRightLeft,
 	BookOpen,
+	Bot,
 	CalendarDays,
 	CalendarPlus,
 	CalendarRange,
@@ -89,10 +92,12 @@ import {
 	Inbox,
 	KeyRound,
 	Landmark,
+	LayoutDashboard,
 	Library,
 	ListPlus,
 	Mail,
 	MapPin,
+	Pencil,
 	Repeat,
 	ScanLine,
 	ScrollText,
@@ -403,6 +408,17 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
+		// Remitente, pie, recordatorios y envíos en tandas. Antes era Ajustes › «Mails y envíos»
+		// (/admin/ajustes/mails, que redirige acá; gorrite, 11/10). El id quedó igual (atajos).
+		id: 'ajustes-mails',
+		href: '/admin/mensajes/configuracion',
+		icon: Mail,
+		emoji: '✉️',
+		label: 'Configuración',
+		area: 'mensajes',
+		soon: false
+	},
+	{
 		id: 'lo-que-sigo',
 		href: '/admin/mensajes/lo-que-sigo',
 		icon: Sparkles,
@@ -570,22 +586,23 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
-		id: 'ajustes-mails',
-		href: '/admin/ajustes/mails',
-		icon: Mail,
-		emoji: '✉️',
-		label: 'Mails y envíos',
-		area: 'ajustes',
-		sub: 'comunicacion',
-		soon: false
-	},
-	{
 		// Los textos de la vista previa al compartir un link (docs/compartir.md).
 		id: 'ajustes-vistas-previas',
 		href: '/admin/ajustes/vistas-previas',
 		icon: Share2,
 		emoji: '🔗',
 		label: 'Vistas previas al compartir',
+		area: 'ajustes',
+		sub: 'comunicacion',
+		soon: false
+	},
+	{
+		// Todo lo que dice el bot de Telegram (docs/telegram.md, «Textos del bot»).
+		id: 'ajustes-textos-bot',
+		href: '/admin/ajustes/textos-bot',
+		icon: Bot,
+		emoji: '💬',
+		label: 'Textos del bot',
 		area: 'ajustes',
 		sub: 'comunicacion',
 		soon: false
@@ -637,33 +654,117 @@ export const NAV = Object.freeze([
 
 /**
  * Pestañas de la ficha de un evento (`/admin/eventos/[slug]` + sufijo). `''` es el Resumen.
- * @type {readonly { id: string, suffix: string, label: string, soon: boolean }[]}
+ * Cada una lleva su ícono: si es la misma cosa que una sección del menú (`section`, el id de un
+ * {@link NavItem}), el de esa sección; si no, uno propio del mismo juego (Lucide), con su emoji.
+ *
+ * Son 7 (gorrite, 11/10): Ventas junta Órdenes y Transferencias, y Mails junta «Mail a
+ * compradores» y las plantillas del evento. Cada una de esas partes es una vista (`views`) de la
+ * pestaña, con su propia URL de siempre (los links viejos, los mails y los tests siguen andando);
+ * la ficha las muestra como botones arriba de la página. La primera vista es la de la pestaña.
+ * @type {readonly { id: string, suffix: string, label: string, soon: boolean, section?: string, icon: NavItem['icon'], emoji: string, views?: readonly { id: string, suffix: string, label: string }[] }[]}
  */
-export const EVENT_TABS = Object.freeze([
-	{ id: 'resumen', suffix: '', label: 'Resumen', soon: false },
-	// Editar va segunda (y también es un botón del encabezado): con 10 pestañas, al final quedaba
-	// fuera de la pantalla en el celu y en la compu angosta.
-	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false },
-	{ id: 'ventas', suffix: '/ventas', label: 'Ventas', soon: false },
-	{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes', soon: false },
-	{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias', soon: false },
-	{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false },
-	{ id: 'codigos', suffix: '/codigos', label: 'Códigos', soon: false },
-	{ id: 'mail', suffix: '/mail', label: 'Mail a compradores', soon: false },
-	// Plantillas de los mails de este evento (lo que cambia sobre Mensajes → Plantillas).
-	{ id: 'mails', suffix: '/mails', label: 'Plantillas de mails', soon: false },
-	// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.
-	{ id: 'preguntas', suffix: '/preguntas', label: 'Preguntas', soon: false }
-]);
+export const EVENT_TABS = Object.freeze(
+	[
+		{
+			id: 'resumen',
+			suffix: '',
+			label: 'Resumen',
+			soon: false,
+			icon: LayoutDashboard,
+			emoji: '📋'
+		},
+		// Editar va segunda (y también es un botón del encabezado).
+		{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false, icon: Pencil, emoji: '✏️' },
+		{
+			id: 'ventas',
+			suffix: '/ventas',
+			label: 'Ventas',
+			soon: false,
+			section: 'entradas',
+			views: [
+				{ id: 'ventas', suffix: '/ventas', label: 'Totales' },
+				{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes' },
+				{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias' }
+			]
+		},
+		{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false, section: 'checkin' },
+		{
+			id: 'codigos',
+			suffix: '/codigos',
+			label: 'Códigos',
+			soon: false,
+			section: 'entradas-codigos'
+		},
+		// Mandar un aviso a quienes compraron y las plantillas de los mails de este evento (lo que
+		// cambia sobre Mensajes → Plantillas).
+		{
+			id: 'mails',
+			suffix: '/mail',
+			label: 'Mails',
+			soon: false,
+			icon: Mail,
+			emoji: '✉️',
+			views: [
+				{ id: 'mail', suffix: '/mail', label: 'Mandar un aviso' },
+				{ id: 'mails', suffix: '/mails', label: 'Plantillas' }
+			]
+		},
+		// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.
+		{
+			id: 'preguntas',
+			suffix: '/preguntas',
+			label: 'Preguntas',
+			soon: false,
+			section: 'ajustes-personas'
+		}
+	].map((t) => {
+		// Con `section`, el ícono es el de esa sección del menú (el mismo en la barra lateral y acá).
+		const item = t.section ? NAV.find((i) => i.id === t.section) : undefined;
+		return Object.freeze({
+			...t,
+			icon: item?.icon ?? t.icon,
+			emoji: item?.emoji ?? t.emoji ?? '',
+			...(t.views ? { views: Object.freeze(t.views.map((v) => Object.freeze(v))) } : {})
+		});
+	})
+);
 
 /**
- * URL de la ficha de un evento (o de una de sus pestañas).
+ * URL de la ficha de un evento (o de una de sus pestañas o vistas). `tab` es el id de una vista
+ * (`ordenes`, `transferencias`, `mail`, `mails`…) o de una pestaña de {@link EVENT_TABS}; si es
+ * las dos cosas, gana la vista (`mails` son las plantillas, como antes de juntar las pestañas).
  * @param {string} slug
- * @param {string} [tab] id de {@link EVENT_TABS}
+ * @param {string} [tab]
  */
 export function eventHref(slug, tab = 'resumen') {
-	const t = EVENT_TABS.find((x) => x.id === tab);
-	return `/admin/eventos/${encodeURIComponent(slug)}${t?.suffix ?? ''}`;
+	const suffix =
+		EVENT_TABS.flatMap((t) => t.views ?? []).find((v) => v.id === tab)?.suffix ??
+		EVENT_TABS.find((x) => x.id === tab)?.suffix ??
+		'';
+	return `/admin/eventos/${encodeURIComponent(slug)}${suffix}`;
+}
+
+/**
+ * La pestaña (y la vista, si tiene) de una dirección de la ficha de un evento. Las subpáginas
+ * cuentan como su pestaña (`/mails/<id>` es Mails › Plantillas, `/ordenes/cargar` es Ventas ›
+ * Órdenes). `null` si la dirección no es de la ficha o no es de ninguna pestaña. Solo mira la forma
+ * de la dirección (`/admin/eventos/agenda` también le parece un Resumen): usala dentro de la ficha.
+ * @param {string} pathname
+ * @returns {{ tab: (typeof EVENT_TABS)[number], view: { id: string, suffix: string, label: string } | null } | null}
+ */
+export function eventTabOf(pathname) {
+	const m = pathname.replace(/\/+$/, '').match(/^\/admin\/eventos\/[^/]+(\/.*)?$/);
+	if (!m) return null;
+	const rest = m[1] ?? '';
+	/** @param {string} suffix */
+	const within = (suffix) =>
+		suffix === '' ? rest === '' : rest === suffix || rest.startsWith(`${suffix}/`);
+	for (const tab of EVENT_TABS) {
+		const view = tab.views?.find((v) => within(v.suffix));
+		if (view) return { tab, view };
+		if (!tab.views && within(tab.suffix)) return { tab, view: null };
+	}
+	return null;
 }
 
 /**
@@ -732,7 +833,9 @@ export function areaBackLink(id) {
 	const area = navArea(navItem(id)?.area);
 	if (!area) return null;
 	const root = NAV.find((i) => i.href === `/admin/${area.id}`);
-	return root ? { href: root.href, label: area.label } : null;
+	// Si la página del área todavía no existe («Próximamente», como la Bandeja de Mensajes), no hay
+	// a dónde volver: sin link (gorrite, 11/10: «el botón "Mensajes" no lleva a ningún lado»).
+	return root && !root.soon ? { href: root.href, label: area.label } : null;
 }
 
 /**
@@ -863,7 +966,8 @@ export function navGroupItems(group, opts) {
  * `null` si la página no lleva.
  * @param {string} pathname
  * @param {{ flags?: Record<string, boolean> }} [opts]
- * @returns {{ label: string, tabs: { href: string, label: string }[] } | null}
+ * Cada pestaña lleva el ícono de su sección (el mismo que en la barra lateral).
+ * @returns {{ label: string, tabs: { href: string, label: string, icon: NavItem['icon'] }[] } | null}
  */
 export function sectionTabs(pathname, { flags = {} } = {}) {
 	const path = pathname.replace(/\/+$/, '') || '/';
@@ -874,7 +978,7 @@ export function sectionTabs(pathname, { flags = {} } = {}) {
 	if (items.length < 2) return null;
 	return {
 		label: `Secciones de ${group.label}`,
-		tabs: items.map((i) => ({ href: i.href, label: i.label }))
+		tabs: items.map((i) => ({ href: i.href, label: i.label, icon: i.icon }))
 	};
 }
 
