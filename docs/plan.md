@@ -54,8 +54,6 @@ CI) va en la fase 0.
 | 7    | Videos                                                                              |
 | 8    | Tienda                                                                              |
 
-
-
 ## Fase 0
 
 ### Entradas y lanzamiento
