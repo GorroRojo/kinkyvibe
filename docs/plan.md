@@ -137,7 +137,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 ### Diseño
 
-- `diseno-aprobar-componentes` · fase 0 · hecho · diseño · Revisión de los 9 grupos de `/estilo` por gorrite (paso 3 del sistema de diseño), con lo que pidió cambiar y tablas que se ordenan · #69, #PRNUM, [estilo.md](estilo.md)
+- `diseno-aprobar-componentes` · fase 0 · hecho · diseño · Revisión de los 9 grupos de `/estilo` por gorrite (paso 3 del sistema de diseño), con lo que pidió cambiar y tablas que se ordenan · #69, #341, [estilo.md](estilo.md)
 - `diseno-versiones-publicas` · fase 0 · sigue · diseño · Versiones para el sitio público de Field, Checkbox, Switch, Notice, Card, Badge, Table, el toast de deshacer y el diálogo de confirmar
 - `diseno-envoltorios` · fase 0 · sigue · diseño · Pasar los imports viejos a `$lib/components/ui` y borrar los envoltorios (gorrite, 5/10)
 - `diseno-restos-ui` · fase 0 · sigue · diseño · Revisar lo que quedó del paso 2 de la revisión de UI: links de texto, opciones como tarjetas, chips de monto, tablas editables, el encabezado de evento en otras páginas
