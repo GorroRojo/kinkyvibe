@@ -226,9 +226,9 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `grafo-objetos` · fase 2 · algún día · contenido · Vista de grafo de los objetos, estilo Obsidian
 - `perfil-campos-cv` · fase 2 · espera gorrite · contenido · Campos de perfil: afiliación, formación, experiencia, habilidades (TODO en `types.d.js`; microformato `h-resume`)
 - `datos-1` · fase 2 · sigue · datos · ver Mesa
-- `datos-2-chequeo-por-pedido` · fase 2 · sigue · datos · El «¿cambió algo?» de la caché una sola vez por pedido, y caché para `/amigues`
-- `datos-3-estados-entradas` · fase 2 · sigue · datos · Los estados de entradas de las listas en una sola tanda
-- `datos-4-visibilidad-perfiles` · fase 2 · sigue · datos · Una sola regla de visibilidad para perfiles y lugares (hoy está en 3 lugares)
+- `datos-2-chequeo-por-pedido` · fase 2 · hecho · datos · El «¿cambió algo?» de la caché una sola vez por pedido, y caché para `/amigues` · #324
+- `datos-3-estados-entradas` · fase 2 · hecho · datos · Los estados de entradas de las listas en una sola tanda · #324
+- `datos-4-visibilidad-perfiles` · fase 2 · hecho · datos · Una sola regla de visibilidad para perfiles y lugares (`shownProfileWhere` / `isShownProfile`) · #324
 - `datos-5-ayudas-compartidas` · fase 2 · sigue · datos · Ayudas compartidas: la dirección del sitio, la descripción del evento, «próximo»; limpiar sesiones viejas en el cron
 - `limpieza-md` · fase 2 · hecho · contenido · Contenido solo en la base, sin `.md` ni mdsvex · #275, [0032](decisiones/0032-borrar-los-md.md)
 - `imagenes-r2` · fase 2 · hecho · contenido · Imágenes y archivos en R2 con la biblioteca · #215, #217, #226, #230
