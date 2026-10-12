@@ -30,6 +30,10 @@ cuentas, ver abajo y [cuentas.md](cuentas.md)). Los eventos siguen siendo archiv
    sobre `objects`, `edges` u `object_types`). Si una falla, no se guarda nada.
    `created_by` no cambia al editar; la única excepción es la opción `createdBy`, que usa el
    borrado de una cuenta para dejar sus perfiles con un autore neutro (`cuenta:borrada`).
+   `saveObjects()` (en el mismo archivo) guarda varios en una sola tanda, con las mismas
+   validaciones y sentencias que `saveObject()` de a uno (cada uno con su `also`): para las
+   importaciones grandes. Si uno no pasa, tira sin escribir nada y quien llama vuelve a guardar de
+   a uno. No acepta el mismo objeto dos veces ni borrar (cambiaría lo que ven los que siguen).
 2. **Un solo lugar decide quién ve qué:** `src/lib/server/objects/visibility.js`. Toda lectura
    (página, listado, búsqueda, sitemap, RSS, imágenes para compartir, JSON…) usa `canSee()` o
    `visibleWhere()`, que salen de la misma tabla. Las reglas:
@@ -144,6 +148,45 @@ npx vitest run src/lib/server/objects src/lib/server/backup src/lib/server/sched
 npm run db:migrate:local   # aplica 0012 en tu compu
 npx wrangler d1 execute kinkyvibe --local --command "SELECT id, type, slug, version FROM objects"
 ```
+
+### Lo privado no sale en público
+
+`src/routes/privados.test.js` planta, por los caminos del panel (el editor de eventos y material,
+el de perfiles, Mi rincón, la biblioteca y `saveObject()`), objetos de cada tipo en cada nivel que
+une visitante sin cuenta no puede ver, y revisa que no aparezca nada de ellos (dirección, título,
+textos) en ninguna salida pública. Cada salida tiene un control: algo público del mismo tipo que sí
+tiene que aparecer, para que la prueba no pase por no mostrar nada.
+
+| Tipo                                | Niveles                                                                                 |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| `evento`, `material`                | oculto, solo con cuenta, borrado, no listado (este se abre con su dirección)            |
+| `perfil` (persona, proyecto, lugar) | oculto, solo con cuenta, borrado, sin aprobar (de una cuenta), no listado               |
+| `etiqueta` (y serie)                | oculta, con texto de la wiki y descripción                                              |
+| `imagen`, `archivo`                 | borrados; la portada de un evento oculto (la imagen se sirve, su dirección no se lista) |
+| lugar con dirección                 | cada nivel de `venue_privacy` (del lugar y propio del evento)                           |
+
+Salidas: inicio, `/calendario`, `/material`, `/amigues`, `/todo`, `/wiki`, `/wiki/<etiqueta>`, el
+layout (glosario y árbol de etiquetas de cada página), `sitemap.xml`, `/rss`, los feeds Atom y
+JSON (`/calendario/feed.*`, `/material/feed.*`, `/wiki/<etiqueta>/feed.*`), lo que dibujan las
+imágenes `/og` (`linkPreviewState`), `/calendario.ics`, `/ics/etiqueta/<etiqueta>.ics`,
+`/api/posts`, `/api/search-index.json`, `/api/series/<etiqueta>`; y las direcciones directas
+`/calendario/<evento>` (y `/compartir`, las imágenes para compartir, y `/entradas`),
+`/material/<post>`, `/amigues/<perfil>`, `/wiki/<etiqueta>` (y sus feeds) y `/media/<clave>`, que
+dan 404 a lo que no se puede ver.
+
+También planta datos de personas que nunca son públicos (los mails de las cuentas, una compra de
+un evento público con nombre, mail, DNI y respuestas, y una nota interna) y revisa que no salgan en
+ninguna de esas salidas ni en las páginas de lo público; que la biblioteca (`/imagenes`) dé 404
+sin cuenta, y que `/api/fondo/propinas-total` pida su secreto. **Una salida pública nueva se suma con una línea** en
+`LIST_OUTPUTS` (si lista cosas) o en `DIRECT_OUTPUTS` (si es la dirección de un objeto).
+
+La última parte (lo público que apunta a lo privado: personas, etiquetas y lugar) revisa también
+las direcciones y los nombres internos («vínculos: direcciones»): la metadata pública de un evento
+o un material (`meta.personas`, `meta.tags`) solo lleva vínculos a perfiles y etiquetas que ve
+cualquiera (`src/lib/server/contenido/vinculosPublicos.js`, con la misma regla que sus páginas:
+`visibleWhere(ANON)` y, los perfiles, aprobados; lo no listado cuenta como visible). Las listas y
+las páginas de `src/lib/server/contenido/posts.js` pasan por ahí; el panel y el editor leen con
+`repo.js` y ven la lista entera.
 
 La migración **no se aplica a mano** en preview ni en producción desde un PR: eso lo hace gorrite
 cuando corresponde ([datos.md](datos.md)).
@@ -339,8 +382,6 @@ con `getObject`, `searchObjects`, `getEdges` o `visibleWhere(viewer, alias)` en 
 - Redirecciones 301 al cambiar un slug (P6.4).
 - Purga definitiva de lo borrado.
 - Campos extra y tipos simples desde el panel (`object_types.origin = 'panel'`).
-- Una prueba E2E que plante objetos privados de cada tipo y verifique que no aparecen en
-  listados, búsqueda, sitemap, RSS, imágenes para compartir ni JSON.
 - Migrar los eventos desde los `.md` (P6.2: eventos primero).
 - Borrar la tabla `event_venues` cuando todos los eventos estén en la base (hoy la lee solo la
   importación de un evento nuevo, `legacyVenueEdge`).

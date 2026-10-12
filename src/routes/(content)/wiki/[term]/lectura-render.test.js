@@ -39,7 +39,17 @@ describe('wiki: tiempo de lectura', () => {
 		const label = html.indexOf('3 min de lectura');
 		expect(label).toBeGreaterThan(-1);
 		expect(label).toBeLessThan(html.indexOf('Un texto inventado de la wiki.'));
-		expect(html).toContain('title="Estimado a unas 200 palabras por minuto"');
+		expect(html).toMatch(
+			/<button[^>]*aria-expanded="false"[^>]*aria-describedby="kv-tiempo-de-lectura"/
+		);
+		expect(html).toMatch(
+			/<span(?=[^>]*\bid="kv-tiempo-de-lectura")(?=[^>]*\brole="note")[^>]*>Calculado a unas 200 palabras por minuto, sin contar imágenes ni código<\/span>/
+		);
+		expect(html).toMatch(
+			/<svg[^>]*class="[^"]*lucide-clock[^"]*"[^>]*aria-hidden="true"[\s\S]*?<\/svg>[\s\S]*?3 min de lectura/
+		);
+		// En la explicación, el link para ajustar la velocidad de cada persona.
+		expect(html).toContain('¿Leés más rápido o más lento? Ajustalo');
 	});
 
 	it('texto corto (0), sin dato o sin texto de la wiki: no se muestra', () => {

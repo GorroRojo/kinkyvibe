@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Pestaña "Plantillas de mails" de la ficha del evento: cada mail y si este evento le cambia
+	 * Pestaña Mails › Plantillas de la ficha del evento: cada mail y si este evento le cambia
 	 * algo. Se edita en /admin/eventos/<slug>/mails/<mail>.
 	 */
 	import '$lib/admin/panel-forms.scss';
@@ -32,6 +32,11 @@
 						<span class="main">
 							<span class="kv-row">
 								<b>{t.label}</b>
+								{#if t.trial}
+									<Badge tone="warn" title="Su interruptor está apagado: todavía no sale"
+										>prueba</Badge
+									>
+								{/if}
 								{#if t.changed.length}
 									<Badge tone="info">propio de este evento</Badge>
 								{:else if t.general}

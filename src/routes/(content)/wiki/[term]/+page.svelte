@@ -5,17 +5,18 @@
 	import FollowButton from '$lib/components/FollowButton.svelte';
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
-	import { wikiTermSchema } from '$lib/utils/jsonLd.js';
+	import { tagTermSchema, wikiTermSchema } from '$lib/utils/jsonLd.js';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
 	import { tagManager, currentPostData, userConfig } from '$lib/utils/stores.js';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
+	import ReadingTime from '$lib/components/ReadingTime.svelte';
+	import { readingTimeLabel } from '$lib/utils/readingTime.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { cardImage, linkPreviewOf, tagDescription } from '$lib/utils/seo.js';
 	/** Sin imagen propia, la tarjeta de la Kinkipedia. */
 	$: KINKIPEDIA_CARD = cardImage('wiki', linkPreviewOf($page.data));
-	import { READING_TIME_HINT, readingTimeLabel } from '$lib/utils/readingTime.js';
 	/** @type {any} La página de la wiki (de la base) o la etiqueta sola (+page.js). */
 	export let data;
 	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
@@ -97,7 +98,8 @@
 			.then((posts) => (relatedPosts = posts.filter(isRelated)))
 			.catch(() => (loadedPast = false));
 	}
-	// La entrada como término definido (schema.org, jsonLd.js); sin entrada, nada.
+	// La entrada como término definido (schema.org, jsonLd.js); sin entrada, la etiqueta si tiene
+	// descripción (docs/seo.md); si no, nada.
 	$: termSchema = data?.meta
 		? wikiTermSchema({
 				title: data.meta.title,
@@ -105,7 +107,14 @@
 				path: data.path,
 				aka: $tagManager.get(data.meta.wiki)?.aka
 			})
-		: null;
+		: data?.tag
+			? tagTermSchema({
+					title: pageTitle,
+					description: data.tag.description,
+					path: $page.url.pathname,
+					aka: data.tag.aka
+				})
+			: null;
 </script>
 
 {#if termSchema}<LDTag schema={termSchema} />{/if}
@@ -127,7 +136,9 @@
 	<div class="content">
 		<GlosarioItem item={data?.tag?.id ?? data?.meta?.wiki} single title />
 		{#if readingTime}
-			<p class="reading-time" title={READING_TIME_HINT}>{readingTime}</p>
+			<p class="reading-time">
+				<ReadingTime minutes={data.readingMinutes} words={data.readingWords} />
+			</p>
 		{/if}
 		{#if data.html}
 			<!-- El texto de la wiki, de la base (src/lib/server/contenido/render.js): HTML libre con sus

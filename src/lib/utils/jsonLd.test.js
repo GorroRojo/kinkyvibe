@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ORG_CONTACT_EMAIL } from './organization.js';
 import {
 	ORGANIZATION_ID,
 	OFFICIAL_PROFILES,
@@ -10,6 +11,7 @@ import {
 	materialType,
 	organizationSchema,
 	profileSchema,
+	tagTermSchema,
 	wikiTermSchema
 } from './jsonLd.js';
 import { jsonForScript } from './escape.js';
@@ -47,6 +49,12 @@ describe('isoDate', () => {
 		expect(isoDate('no es fecha')).toBeUndefined();
 		expect(isoDate(undefined)).toBeUndefined();
 	});
+	it('convierte el formato de publicación del sitio (2024-12-06Z-03:00) en ISO 8601 válido', () => {
+		const out = isoDate('2024-12-06Z-03:00');
+		expect(out).toBe('2024-12-06T00:00:00-03:00');
+		expect(Date.parse(/** @type {string} */ (out))).toBe(Date.parse('2024-12-06T03:00:00Z'));
+		expect(isoDate('2030-01-02')).toBe('2030-01-02');
+	});
 });
 
 describe('organizationSchema', () => {
@@ -57,7 +65,7 @@ describe('organizationSchema', () => {
 		expect(o['@id']).toBe(ORGANIZATION_ID);
 		expect(o.sameAs).toEqual([...OFFICIAL_PROFILES]);
 		expect(o.logo).toMatch(/^https:\/\/kinkyvibe\.ar\//);
-		expect(o.email).toMatch(/@/);
+		expect(o.email).toBe(ORG_CONTACT_EMAIL);
 	});
 });
 
@@ -225,6 +233,26 @@ describe('Kinkipedia', () => {
 	});
 	it('sin entrada, nada', () => {
 		expect(wikiTermSchema({ title: undefined, path: '/wiki/x' })).toBeNull();
+	});
+	it('una etiqueta sin entrada pero con descripción: DefinedTerm con la descripción en texto', () => {
+		const t = roundTrip(
+			tagTermSchema({
+				title: 'Etiqueta Inventada',
+				description: 'Se usa con [[cuerdas]] o [[Bondage:ataduras]]\n en general.',
+				path: '/wiki/Etiqueta-Inventada',
+				aka: ['inventada']
+			})
+		);
+		expect(t['@type']).toBe('DefinedTerm');
+		expect(t.name).toBe('Etiqueta Inventada');
+		expect(t.description).toBe('Se usa con cuerdas o ataduras en general.');
+		expect(t.url).toBe('https://kinkyvibe.ar/wiki/Etiqueta-Inventada');
+		expect(t.alternateName).toEqual(['inventada']);
+		expect(t.inDefinedTermSet['@type']).toBe('DefinedTermSet');
+	});
+	it('una etiqueta sin descripción (o vacía), nada', () => {
+		expect(tagTermSchema({ title: 'X', path: '/wiki/X' })).toBeNull();
+		expect(tagTermSchema({ title: 'X', description: '  ', path: '/wiki/X' })).toBeNull();
 	});
 });
 

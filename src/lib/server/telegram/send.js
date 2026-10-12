@@ -21,9 +21,46 @@ const API = 'https://api.telegram.org';
 const scrub = (text, token) => (token ? text.split(token).join('…') : text);
 
 /**
- * Un método cualquiera de la API (POST con JSON). Devuelve si anduvo y, si no, un error corto para
- * mostrar: el código HTTP y la `description` de Telegram, **sin el token**. El token va en la URL
- * (así lo pide Telegram): nunca se loguea ni se devuelve la URL.
+ * Un archivo para subir (una foto armada en el servidor, como el QR de una entrada de «Mis
+ * entradas»). Va como valor de un campo del método (`photo`, o el nombre de `attach://<nombre>`).
+ *
+ * @typedef {{ upload: Uint8Array, filename: string, type: string }} BotUpload
+ */
+
+/** @param {unknown} v @returns {v is BotUpload} */
+export const isUpload = (v) =>
+	typeof v === 'object' && v !== null && /** @type {any} */ (v).upload instanceof Uint8Array;
+
+/**
+ * El cuerpo del pedido: JSON o, si algún campo es un archivo ({@link BotUpload}),
+ * `multipart/form-data` (los objetos van como JSON, como pide Telegram).
+ *
+ * @param {unknown} body
+ * @returns {{ headers?: Record<string, string>, body: string | FormData }}
+ */
+function requestBody(body) {
+	const entries = body && typeof body === 'object' ? Object.entries(body) : [];
+	if (!entries.some(([, v]) => isUpload(v))) {
+		return { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) };
+	}
+	const form = new FormData();
+	for (const [key, value] of entries) {
+		if (value === undefined) continue;
+		if (isUpload(value)) {
+			form.append(key, new Blob([value.upload], { type: value.type }), value.filename);
+		} else {
+			form.append(key, typeof value === 'string' ? value : JSON.stringify(value));
+		}
+	}
+	// Sin content-type: fetch pone el de multipart con su separador.
+	return { body: form };
+}
+
+/**
+ * Un método cualquiera de la API (POST con JSON, o multipart si sube un archivo). Devuelve si
+ * anduvo y, si no, un error corto para mostrar: el código HTTP y la `description` de Telegram,
+ * **sin el token**. El token va en la URL (así lo pide Telegram): nunca se loguea ni se devuelve
+ * la URL.
  *
  * @param {{ token: string, method: string, body: unknown, fetch?: typeof fetch }} input
  * @returns {Promise<{ ok: true, status: number } | { ok: false, status: number | null, error: string, description?: string }>}
@@ -33,8 +70,7 @@ export async function callTelegramApi({ token, method, body, fetch: fetchFn = fe
 	try {
 		res = await fetchFn(`${API}/bot${token}/${method}`, {
 			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify(body)
+			...requestBody(body)
 		});
 	} catch (error) {
 		const name = scrub(String(/** @type {Error} */ (error)?.name ?? 'Error'), token).slice(0, 60);

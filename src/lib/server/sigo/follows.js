@@ -51,7 +51,8 @@ async function withinLimit(db, accountId, now) {
 
 /**
  * Empieza a seguir algo (ya validado con targets.js). Si ya lo seguía, no cambia nada (sus
- * opciones quedan como estaban) y responde `created: false`.
+ * opciones quedan como estaban) y responde `created: false`. Los avisos por Telegram arrancan
+ * apagados salvo que `options` los prenda (solo lo hace «Seguir» desde el bot, telegram/seguir.js).
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -72,8 +73,8 @@ export async function follow(
 	const r = await db
 		.prepare(
 			`INSERT INTO follows (account_id, target_kind, target_key, in_calendar, mail_new,
-				mail_reminder, series_subscription_id, created_at, updated_at)
-			SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8
+				mail_reminder, series_subscription_id, created_at, updated_at, tg_new, tg_reminder)
+			SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8, ?10, ?11
 			WHERE (SELECT COUNT(*) FROM follows WHERE account_id = ?1) < ?9
 			ON CONFLICT (account_id, target_kind, target_key) DO NOTHING`
 		)
@@ -86,7 +87,9 @@ export async function follow(
 			options.recordatorio ? 1 : 0,
 			seriesSubscriptionId,
 			now,
-			MAX_FOLLOWS
+			MAX_FOLLOWS,
+			options.telegram_nuevo ? 1 : 0,
+			options.telegram_recordatorio ? 1 : 0
 		)
 		.run();
 	if (Number(r.meta?.changes ?? 0) === 1) return { ok: true, created: true };

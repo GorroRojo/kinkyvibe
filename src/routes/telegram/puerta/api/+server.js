@@ -1,14 +1,13 @@
 /**
- * PROTOTIPO (no para mergear): POST `{ initData, evento, codigo }` → marca el ingreso. Valida el
- * `initData` (HMAC con el token del bot, `auth_date` reciente) y que sea une admin con la cuenta
- * vinculada, **en cada pedido** ($lib/server/telegram/puerta.js). Sin token, apagado o sin base:
- * 404.
+ * POST `{ initData, evento, codigo }` → marca el ingreso (decisión 0037). Valida el `initData`
+ * (HMAC con el token del bot, `auth_date` reciente) y que sea une admin con el Telegram vinculado
+ * desde el panel, **en cada pedido** ($lib/server/telegram/puerta.js). Sin token, sin base o con
+ * `telegram_bot` o `telegram_puerta` apagado: 404.
  */
 import { error, json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { getDB } from '$lib/server/db';
-import { isFlagOn } from '$lib/server/flags.js';
-import { doorCheckIn } from '$lib/server/telegram/puerta.js';
+import { doorCheckIn, doorEnabled } from '$lib/server/telegram/puerta.js';
 
 const HEADERS = { 'cache-control': 'no-store' };
 
@@ -16,7 +15,7 @@ const HEADERS = { 'cache-control': 'no-store' };
 export async function POST({ request, platform }) {
 	const db = getDB(platform);
 	const token = String(env.TELEGRAM_BOT_TOKEN ?? '').trim();
-	if (!db || !token || !(await isFlagOn(db, 'telegram_bot'))) error(404, 'Not found');
+	if (!db || !token || !(await doorEnabled(db))) error(404, 'Not found');
 	if (Number(request.headers.get('content-length') ?? 0) > 8192) error(413, 'too large');
 	/** @type {any} */
 	let body;
@@ -33,7 +32,6 @@ export async function POST({ request, platform }) {
 		db,
 		initData: body?.initData,
 		token,
-		doorAdmins: env.TELEGRAM_DOOR_ADMINS,
 		eventSlug: slug,
 		code: body?.codigo
 	});

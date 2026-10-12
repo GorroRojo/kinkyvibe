@@ -31,3 +31,22 @@ export function doorSaleBreakdown(p, quantity = 1) {
 export function doorOptionLabel(o, defaultId) {
 	return o.id === defaultId ? `${o.label} (por defecto)` : o.label;
 }
+
+/** El medio de pago que el formulario trae marcado al abrir la página. */
+export const DOOR_SALE_DEFAULT_METHOD = 'efectivo';
+
+/**
+ * Vacía el formulario después de una venta y vuelve a marcar el medio de pago por defecto.
+ * `form.reset()` solo no alcanza: los radios con `bind:group` no tienen el atributo `checked`, así
+ * que el reset los deja a los dos sin marcar y la venta siguiente falla con «Elegí cómo pagó».
+ * @param {HTMLFormElement} form
+ * @returns {string} el medio de pago marcado (para la variable ligada al grupo)
+ */
+export function resetDoorSaleForm(form) {
+	form.reset();
+	const radios = /** @type {NodeListOf<HTMLInputElement>} */ (
+		form.querySelectorAll('input[type="radio"][name="method"]')
+	);
+	for (const r of radios) r.checked = r.value === DOOR_SALE_DEFAULT_METHOD;
+	return DOOR_SALE_DEFAULT_METHOD;
+}

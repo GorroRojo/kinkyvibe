@@ -19,6 +19,7 @@ import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/in
 import { readOverride } from '$lib/server/tickets/overrides.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
+import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
@@ -108,6 +109,15 @@ export const actions = {
 				step: 'aprobada',
 				method: 'transferencia'
 			});
+			// «Cada venta» por Telegram a les admins que lo prendieron (decisión 0041; nunca tira).
+			await queueOrderNotice({
+				db,
+				platform,
+				kind: 'cada_venta',
+				order: r.order,
+				origin: siteOrigin(url),
+				fetch
+			});
 		}
 		const body = {
 			transfer: {
@@ -120,7 +130,7 @@ export const actions = {
 		return r.ok ? body : fail(r.status, body);
 	},
 
-	cancel: async ({ locals, url, platform, request }) => {
+	cancel: async ({ locals, url, platform, request, fetch }) => {
 		const admin = requireAdmin(locals, url);
 		const db = getDB(platform);
 		if (!db) return fail(503, { transfer: { ok: false, message: 'Sin base de datos.' } });
@@ -128,7 +138,10 @@ export const actions = {
 			db,
 			locals,
 			by: admin.login,
-			orderId: orderIdOf(await request.formData())
+			orderId: orderIdOf(await request.formData()),
+			platform,
+			fetch,
+			origin: siteOrigin(url)
 		});
 		const body = { transfer: { ok: r.ok, message: r.message } };
 		return r.ok ? body : fail(r.status, body);

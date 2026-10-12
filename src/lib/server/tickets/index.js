@@ -8,6 +8,7 @@
  */
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
+import { siteOriginFrom } from '$lib/utils/site.js';
 import {
 	DEFAULT_CONTACT_EMAIL,
 	DEFAULT_MP_FEE_PERCENT,
@@ -23,7 +24,7 @@ import {
 	maskEmail,
 	sendWithResend
 } from './email.js';
-import { parseAllowlist, routeEmail } from './emailGuard.js';
+import { parseAllowlist, routeEmail, subjectForLog } from './emailGuard.js';
 import { getEventMeta, getEventTickets, listTicketedEvents } from './events.js';
 import { coveredPartsByWorkshop } from '../eventos/partes.js';
 import { workshopPartsList } from './workshopParts.js';
@@ -40,6 +41,7 @@ import {
 } from './settings.js';
 import { parseReminders, reminderKey, sendDueReminders } from './reminders.js';
 import { resolveTemplate } from './templates.js';
+import { queueWaitlistAdvance } from './waitlistEngine.js';
 import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
 import { buyerLocation } from '../amigues/venues.js';
 import {
@@ -53,6 +55,7 @@ import { withMailFooter } from '../email/layout.js';
 import { runMailQueueWith } from './mailQueue.js';
 import { calendarStamp } from './calendarFile.js';
 import { getDateChange, sendDateChangeBatch } from './dateChange.js';
+import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
 const DEV_MOCK_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
@@ -152,7 +155,7 @@ export function contactEmail() {
 
 /**
  * Remitente y dirección de respuesta de los mails (y adonde se mandan los comprobantes): los de
- * /admin/ajustes/mails o, vacíos, TICKETS_FROM_EMAIL / TICKETS_REPLY_TO, o los de por defecto
+ * /admin/mensajes/configuracion o, vacíos, TICKETS_FROM_EMAIL / TICKETS_REPLY_TO, o los de por defecto
  * ("KinkyVibe <entradas@kinkyvibe.ar>" y entradas@kinkyvibe.ar).
  *
  * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
@@ -243,8 +246,7 @@ export function webhookSecret() {
  * @param {URL} url
  */
 export function siteOrigin(url) {
-	const configured = env.SITE_URL?.trim().replace(/\/+$/, '');
-	return configured || url.origin;
+	return siteOriginFrom(env.SITE_URL, url.origin);
 }
 
 /**
@@ -279,6 +281,20 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 		// el estado llega acá; un reembolso hecho desde nuestro admin ya lo avisó).
 		await inBackground(sendRefundEmail({ db, order: result.order, fetch: fetchFn }), platform);
 	}
+	// Reembolso, contracargo o pago cancelado: se liberó el lugar y la lista de espera pasa a la
+	// próxima persona (en segundo plano; el cron lo garantiza igual).
+	if (
+		result.outcome === 'updated' &&
+		(result.order?.status === 'refunded' || result.order?.status === 'cancelled')
+	) {
+		queueWaitlistAdvance({
+			platform,
+			db,
+			eventSlug: result.order.event_slug,
+			fetch: fetchFn,
+			origin
+		});
+	}
 	if (result.newlyApproved && result.order) {
 		const order = result.order;
 		// Embudo anónimo (docs/analiticas.md): solo el evento y el medio.
@@ -291,6 +307,8 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 		const ctx = platform?.ctx;
 		if (ctx?.waitUntil) ctx.waitUntil(sending);
 		else await sending;
+		// «Cada venta» por Telegram a les admins que lo prendieron (decisión 0041; nunca tira).
+		await queueOrderNotice({ db, platform, kind: 'cada_venta', order, origin, fetch: fetchFn });
 	}
 	return result;
 }
@@ -322,7 +340,7 @@ async function deliver({
 	log = '',
 	from: fixedFrom
 }) {
-	// Todo mail pasa por acá: el pie de Ajustes → Mails se pone una sola vez, para todos.
+	// Todo mail pasa por acá: el pie de Mensajes → Configuración se pone una sola vez, para todos.
 	const settings = await emailSettings(db);
 	const message = { ...built, html: withMailFooter(built.html, settings.footer) };
 	const apiKey = env.RESEND_API_KEY;
@@ -333,7 +351,9 @@ async function deliver({
 			);
 			return 'simulated';
 		}
-		console.error(`[tickets] falta RESEND_API_KEY: no se mandó "${message.subject}"`);
+		console.error(
+			`[tickets] falta RESEND_API_KEY: no se mandó "${subjectForLog(message.subject)}"`
+		);
 		return 'failed';
 	}
 	const route = routeEmail({
@@ -343,7 +363,9 @@ async function deliver({
 		allowlist: parseAllowlist(env.EMAIL_ALLOWLIST)
 	});
 	if (!route) {
-		console.warn(`[tickets] preview sin EMAIL_ALLOWLIST: no se mandó "${message.subject}"`);
+		console.warn(
+			`[tickets] preview sin EMAIL_ALLOWLIST: no se mandó "${subjectForLog(message.subject)}"`
+		);
 		return 'simulated';
 	}
 	const { replyTo } = settings;
@@ -883,18 +905,29 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
  * Una corrida del cron de mails (POST /api/cron/recordatorios, cada 15 minutos): una tanda de
  * recordatorios y, con lo que sobre, de lo que quede de cada "Enviar el link a todes" y de cada
  * «Avisar a les compradores» de un cambio de fecha (ver mailQueue.js). Se puede llamar dos veces a la vez sin duplicar nada (ver sendState.js).
+ * Con `sendWaitlist` (interruptor `lista_espera` prendido; `waitlistMailBatch` de
+ * waitlistEngine.js), los mails de la lista de espera van primero.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
  *   origin: string,
  *   fetch: typeof fetch,
  *   now?: number,
- *   limit?: number
+ *   limit?: number,
+ *   sendWaitlist?: (limit: number) => Promise<{ sent: number, failed: number, remaining: number }>
  * }} input
  */
-export async function runMailQueue({ db, origin, fetch: fetchFn, now = Date.now(), limit }) {
+export async function runMailQueue({
+	db,
+	origin,
+	fetch: fetchFn,
+	now = Date.now(),
+	limit,
+	sendWaitlist
+}) {
 	return runMailQueueWith(db, {
 		limit,
+		...(sendWaitlist ? { sendWaitlist } : {}),
 		sendReminders: (limit) => sendReminderEmails({ db, origin, fetch: fetchFn, now, limit }),
 		sendStreamLink: ({ eventSlug, link, limit }) =>
 			sendStreamLinkEmails({ db, eventSlug, link, origin, fetch: fetchFn, now, limit }),

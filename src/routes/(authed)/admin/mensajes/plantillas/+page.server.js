@@ -1,10 +1,12 @@
 /**
- * Mensajes → Plantillas: los mails que manda el sistema y si tienen texto propio.
+ * Mensajes → Plantillas: los mails que manda el sistema y si tienen texto propio. Los de algo que
+ * sale detrás de un interruptor apagado (la lista de espera) se marcan «prueba» (docs/panel.md).
  */
 import { requireAdmin } from '$lib/server/auth';
 import { getDB, logDBError } from '$lib/server/db';
 import { listTemplateOverrides } from '$lib/server/tickets/templates.js';
 import { EMAIL_TEMPLATES } from '$lib/utils/emailTemplates.js';
+import { templateTrials } from '$lib/server/admin/mailTemplates.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
@@ -18,6 +20,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 	} catch (error) {
 		logDBError('plantillas de mails', error);
 	}
+	const trials = await templateTrials(platform);
 	return {
 		dbAvailable: Boolean(db),
 		templates: EMAIL_TEMPLATES.map((t) => {
@@ -26,6 +29,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 				id: t.id,
 				label: t.label,
 				when: t.when,
+				trial: trials.has(t.id),
 				subject: s?.subject ?? t.defaults.subject,
 				custom: Boolean(s),
 				updatedAt: s?.updatedAt ?? null,

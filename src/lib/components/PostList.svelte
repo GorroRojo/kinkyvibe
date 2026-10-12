@@ -16,6 +16,7 @@
 	import { listMotion } from '$lib/utils/listMotion';
 	import PostListItem from './PostListItem.svelte';
 	import FilterBar from './FilterBar.svelte';
+	import TagBar from './TagBar.svelte';
 	import TagSearch from './TagSearch.svelte';
 	import Card from './Card.svelte';
 	/**
@@ -41,7 +42,14 @@
 	/** Lo que dice arriba de los resultados (por defecto «N resultados»).
 	 * @type {(n: number) => string} */
 	export let amountLabel = (n) => `${n} ${n == 1 ? 'resultado' : 'resultados'}`;
+	/** Un `h2` solo para lectores de pantalla y buscadores arriba de las tarjetas (que son `h3`), en
+	 * las listas que no tienen otro `h2` antes: así no se salta de `h1` a `h3` (docs/seo.md). */
+	export let heading = '';
 	let shownLimit = limit;
+	/** Ancho de la lista: desde 1300px (el corte del @container de abajo) el árbol de etiquetas va
+	 * en la columna de la izquierda; más angosto, en la hoja de la barra de filtros (TagBar). */
+	let width = 0;
+	$: wide = width >= 1300;
 	$: states = ticketStates ?? $page.data?.ticketStates ?? null;
 
 	/**@type ProcessedPost[]*/
@@ -259,7 +267,7 @@
 </script>
 
 <slot />
-<div class="container">
+<div class="container" bind:clientWidth={width}>
 	<div
 		class="postlist"
 		bind:this={controls}
@@ -273,6 +281,7 @@
 		{/if}
 		<div id="filterbar">
 			<FilterBar
+				{wide}
 				event_toggle={pastEventsToggle ??
 					(tagFilteredPosts.length == 0 ||
 						tagFilteredPosts.some((p) => p.meta.category == 'calendario'))}
@@ -280,9 +289,7 @@
 		</div>
 		{#if outerFilteredPosts.length > 0 || searching}
 			<div class="results">
-				<p class="post-amount" aria-live="polite">
-					{amountLabel(tagFilteredPosts.length)}
-				</p>
+				<TagBar posts={tagFilteredPosts} amount={amountLabel(tagFilteredPosts.length)} {wide} />
 				{#if tagFilteredPosts.length == 0}
 					<div class="empty-state">
 						<p>No encontramos nada con esa búsqueda.</p>
@@ -299,6 +306,7 @@
 				<!-- No Svelte transitions here: in:scale read getComputedStyle and animate:flip read
 				getBoundingClientRect for every <li>, a forced layout per item, and kept the whole
 				list moving for ~1s. `motion` animates only what's on screen, in one pass. -->
+				{#if heading}<h2 class="visually-hidden">{heading}</h2>{/if}
 				<ul id="posts" class={$userConfig.display_type + ' h-feed'} bind:this={listEl}>
 					{#each shownPosts as post (post.path)}
 						<li data-key={post.path}>
@@ -345,12 +353,6 @@
 		display: flex;
 		justify-content: center;
 		margin-top: var(--space-l);
-	}
-	.post-amount {
-		text-align: right;
-		max-width: 50rem;
-		margin: 0 auto 1.5em;
-		color: var(--muted);
 	}
 	.empty-state {
 		max-width: 50rem;
@@ -411,9 +413,14 @@
 		width: 100%;
 	}
 	@container (min-width: 1300px) {
+		/* La lista queda donde estuvo siempre (centrada, 50rem; las mismas tres columnas que antes)
+		   y el árbol cuelga a su izquierda, pegado: en la celda de la izquierda, alineado al final,
+		   con --space-l hasta la lista. El árbol no corre la lista. Con 1300px de lista o más, la
+		   celda mide al menos 226px, así que el árbol (hasta --list-tree-w) siempre entra sin
+		   tapar nada; más angosto, va en la hoja de la barra (TagBar). */
 		.postlist {
-			grid-template-areas: 'left' 'main' 'right';
-			grid-template-columns: 1fr 50rem 1fr;
+			/* minmax(0, …): lo que hay en la celda del árbol nunca ensancha su columna ni corre la lista */
+			grid-template-columns: minmax(0, 1fr) minmax(0, 50rem) minmax(0, 1fr);
 			gap: 1em;
 			align-items: start;
 			align-content: start;
@@ -423,15 +430,11 @@
 			width: 100%;
 		}
 		#filterbar {
-			grid-area: left;
 			top: 1em;
 			display: block;
 			height: auto;
 			align-self: start;
 			min-width: 0;
-		}
-		#display-type {
-			margin-bottom: 1em;
 		}
 		/* search above the results, filters in the left column beside both */
 		.search {
@@ -442,6 +445,10 @@
 		#filterbar {
 			grid-column: 1;
 			grid-row: 1 / span 2;
+			justify-self: end;
+			/* la grilla ya pone 1em entre columnas: el resto, hasta --space-l */
+			margin-right: calc(var(--space-l) - 1em);
+			width: min(var(--list-tree-w), 100% - (var(--space-l) - 1em));
 		}
 		.results {
 			grid-column: 2;

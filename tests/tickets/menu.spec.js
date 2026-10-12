@@ -1,12 +1,15 @@
 /**
  * Red de seguridad del mapa del panel (paso 2): cada link del menú lateral abre una página.
  * Las URLs del panel se mudaron sin redirecciones, así que un link viejo daría 404; esta prueba
- * entra a todos (también a los de los grupos cerrados) con la sesión de admin falsa de
+ * entra a todos (las 7 secciones de la barra y las pestañas de cada una) con la sesión de admin falsa de
  * `npm run dev:tickets`. Lo que viene ("Próximamente") no es un link: se ve gris y punteado. La otra mitad de la red es `src/lib/admin/adminPaths.test.js`
  * (cada '/admin/…' escrito en el código lleva a una ruta que existe).
  */
 import { expect, test } from '@playwright/test';
 import { AGE_OK } from './helpers.js';
+import { ticketsE2EEvent } from './event.js';
+
+const EVENT = ticketsE2EEvent();
 
 test.beforeEach(async ({ page }) => {
 	await page.addInitScript(AGE_OK);
@@ -17,23 +20,36 @@ test('cada link del menú del panel abre su página', async ({ page }) => {
 	await page.goto('/admin', { waitUntil: 'networkidle' });
 	const menu = page.getByRole('navigation', { name: 'Secciones del panel' });
 	await expect(menu).toBeVisible();
-	// Todas las áreas están en la página aunque estén cerradas (`hidden`): se leen los href.
-	const hrefs = await menu
-		.locator('a[href^="/admin"]')
-		.evaluateAll((links) => [...new Set(links.map((a) => a.getAttribute('href') ?? ''))]);
-	// Inicio y al menos una sección por área.
-	expect(hrefs.length).toBeGreaterThan(20);
-	// Lo que viene está en el menú, pero sin link.
-	const soon = menu.locator('[aria-disabled="true"]', { hasText: 'Próximamente' });
-	expect(await soon.count()).toBeGreaterThan(0);
-	expect(await menu.locator('a', { hasText: 'Próximamente' }).count()).toBe(0);
-	expect(hrefs).toContain('/admin/ventas');
-	expect(hrefs).toContain('/admin/comunidad/perfiles');
-	expect(hrefs).toContain('/admin/mensajes/plantillas');
+	// Opción C (decisión 0038): la barra lateral tiene las secciones, sin sub-ítems ni acciones;
+	// las demás páginas de cada sección son sus pestañas («Secciones de …»). La Puerta salió de la
+	// barra lateral en la parte 2 (sigue en la barra de abajo del celu).
+	const sections = await menu
+		.locator('a.sec')
+		.evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
+	expect(sections).toEqual([
+		'/admin',
+		'/admin/eventos',
+		'/admin/ventas',
+		'/admin/comunidad/personas',
+		'/admin/contenido/material',
+		'/admin/estadisticas/ventas',
+		// Ajustes lleva a su portada (decisión 0042): sus tarjetas también se recorren abajo.
+		'/admin/ajustes'
+	]);
+	await expect(menu.getByRole('link', { name: 'Cargar evento' })).toHaveCount(0);
+	// Crear un evento sigue siendo un botón de la página de Eventos.
+	await page.goto('/admin/eventos', { waitUntil: 'domcontentloaded' });
+	await expect(page.locator('main').getByRole('link', { name: 'Cargar evento' })).toHaveAttribute(
+		'href',
+		'/admin/eventos/nuevo'
+	);
 
 	/** @type {string[]} */
 	const broken = [];
-	for (const href of hrefs) {
+	const queue = [...sections];
+	const seen = new Set(queue);
+	while (queue.length) {
+		const href = /** @type {string} */ (queue.shift());
 		const res = await page.goto(href, { waitUntil: 'domcontentloaded' });
 		const status = res?.status() ?? 0;
 		// Sin redirecciones: una sección del menú abre en su propia URL.
@@ -44,11 +60,227 @@ test('cada link del menú del panel abre su página', async ({ page }) => {
 		}
 		// El panel (su menú) se dibujó: no es la página de error.
 		await expect(menu, href).toBeVisible();
+		// Las pestañas de la sección también son links del menú: se entra a cada una.
+		const tabs = await page
+			.locator('nav[aria-label^="Secciones de "] a[href^="/admin"]')
+			.evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
+		for (const t of tabs) {
+			if (!seen.has(t)) {
+				seen.add(t);
+				queue.push(t);
+			}
+		}
 	}
+	// La Puerta, aunque no esté en la barra lateral, abre (barra de abajo del celu, «Ir a…»).
+	const door = await page.goto('/admin/checkin', { waitUntil: 'domcontentloaded' });
+	if ((door?.status() ?? 0) >= 400) broken.push(`/admin/checkin → ${door?.status()}`);
 	expect(broken).toEqual([]);
+	// Inicio, las secciones y todas sus pestañas.
+	expect(seen.size).toBeGreaterThan(20);
+	for (const h of [
+		'/admin/eventos/agenda',
+		'/admin/ventas/transferencias',
+		'/admin/comunidad/perfiles',
+		'/admin/mensajes/plantillas',
+		'/admin/etiquetas',
+		'/admin/ajustes/actividad'
+	]) {
+		expect(seen, h).toContain(h);
+	}
 });
 
-test('/admin/estadisticas (la única redirección del panel, gorrite 11/10) lleva a Ventas', async ({
+test('Ajustes: una portada con 4 grupos de tarjetas, sin pestañas, y «← Ajustes» vuelve', async ({
+	page
+}) => {
+	await page.goto('/admin', { waitUntil: 'networkidle' });
+	const menu = page.getByRole('navigation', { name: 'Secciones del panel' });
+	await menu.getByRole('link', { name: 'Ajustes' }).click();
+	await expect(page).toHaveURL(/\/admin\/ajustes$/);
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ajustes');
+	const landing = page.getByRole('navigation', { name: 'Secciones de Ajustes' });
+	await expect(landing.getByRole('heading', { level: 2 })).toHaveText([
+		'Plata',
+		'Comunicación',
+		'Equipo',
+		'Sistema'
+	]);
+	await expect(landing.getByRole('link')).toHaveCount(9);
+	// Cada tarjeta: nombre, qué hay y su línea de estado (Admins siempre la tiene).
+	const admins = landing.getByRole('link', { name: /Admins/ });
+	await expect(admins).toContainText('Quiénes entran al panel');
+	await expect(admins).toContainText(/\d+ admins?/);
+	// La portada no es una barra de pestañas.
+	await expect(page.locator('.tabs-wrap')).toHaveCount(0);
+
+	await landing.getByRole('link', { name: /Interruptores/ }).click();
+	await expect(page).toHaveURL(/\/admin\/ajustes\/interruptores$/);
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Interruptores');
+	// Adentro, sin pestañas de Ajustes: se vuelve con «← Ajustes».
+	await expect(page.locator('nav[aria-label="Secciones de Ajustes"]')).toHaveCount(0);
+	await page.getByRole('link', { name: '← Ajustes' }).click();
+	await expect(page).toHaveURL(/\/admin\/ajustes$/);
+	await expect(landing).toBeVisible();
+
+	// En el celu, tampoco la lista ▾: la portada, una tarjeta debajo de la otra.
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/admin/ajustes/cobros', { waitUntil: 'networkidle' });
+	await expect(page.getByRole('button', { name: /Sección:/ })).toHaveCount(0);
+	await expect(page.getByRole('link', { name: '← Ajustes' })).toBeVisible();
+	// Y en el panel «Más», Ajustes lleva a la portada.
+	await page
+		.getByRole('navigation', { name: 'Secciones principales' })
+		.getByRole('button', { name: 'Más' })
+		.click();
+	await page
+		.getByRole('dialog', { name: 'Todas las secciones' })
+		// La fila del grupo («Ajustes · 9 secciones»), no la de Recientes («Interruptores, Ajustes»).
+		.getByRole('link', { name: /^Ajustes/ })
+		.click();
+	await expect(page).toHaveURL(/\/admin\/ajustes$/);
+});
+
+test('lo que viene sigue en el panel «Más» del celu, sin link', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/admin', { waitUntil: 'networkidle' });
+	await page
+		.getByRole('navigation', { name: 'Secciones principales' })
+		.getByRole('button', { name: 'Más' })
+		.click();
+	const sheet = page.getByRole('dialog', { name: 'Todas las secciones' });
+	await sheet.getByRole('button', { name: /Ventas/ }).click();
+	const soon = sheet.locator('[aria-disabled="true"]', { hasText: 'Próximamente' });
+	expect(await soon.count()).toBeGreaterThan(0);
+	expect(await sheet.locator('a', { hasText: 'Próximamente' }).count()).toBe(0);
+});
+
+test('«Ir a…» (Ctrl+K) abre el buscador, encuentra una página y va con Enter', async ({ page }) => {
+	await page.goto('/admin', { waitUntil: 'networkidle' });
+	await page.keyboard.press('Control+k');
+	const dialog = page.getByRole('dialog', { name: 'Ir a… o buscar en el panel' });
+	await expect(dialog).toBeVisible();
+	const input = dialog.getByRole('combobox');
+	await expect(input).toBeFocused();
+	await input.fill('transferencias');
+	await expect(dialog.getByRole('option').first()).toContainText('Transferencias');
+	await page.keyboard.press('Enter');
+	await expect(page).toHaveURL(/\/admin\/ventas\/transferencias$/);
+	await expect(dialog).toBeHidden();
+	// Esc lo cierra.
+	await page.keyboard.press('Control+k');
+	await expect(dialog).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(dialog).toBeHidden();
+});
+
+test('«Ir a…» sin nada escrito: Fijados y después Recientes, con el teclado', async ({ page }) => {
+	const dialog = page.getByRole('dialog', { name: 'Ir a… o buscar en el panel' });
+	const options = dialog.getByRole('option');
+	// Sin páginas abiertas ni fijadas: un aviso.
+	await page.goto('/admin', { waitUntil: 'networkidle' });
+	await page.keyboard.press('Control+k');
+	await expect(dialog).toContainText('Todavía no tenés páginas fijadas ni recientes');
+	await expect(options).toHaveCount(0);
+	await page.keyboard.press('Escape');
+
+	await page.goto('/admin/ventas/transferencias', { waitUntil: 'networkidle' });
+	await page.goto('/admin/eventos/agenda', { waitUntil: 'networkidle' });
+	await page.goto('/admin/ventas', { waitUntil: 'networkidle' });
+	await page.keyboard.press('Control+k');
+	await expect(dialog.getByText('Recientes', { exact: true })).toBeVisible();
+	await expect(dialog.getByText('Fijados', { exact: true })).toHaveCount(0);
+	// La más nueva arriba, como en la barra lateral.
+	await expect(options.nth(0)).toContainText('Agenda');
+	await expect(options.nth(1)).toContainText('Transferencias');
+	// Alt+F en la elegida la fija: pasa a Fijados, arriba de Recientes.
+	await page.keyboard.press('ArrowDown');
+	await page.keyboard.press('Alt+f');
+	await expect(dialog.getByText('Fijados', { exact: true })).toBeVisible();
+	await expect(options.nth(0)).toContainText('Transferencias');
+	await expect(options.nth(1)).toContainText('Agenda');
+	await expect(dialog.getByRole('button', { name: 'Soltar «Transferencias»' })).toBeAttached();
+	// Al escribir, busca como siempre (sin Fijados ni Recientes).
+	await dialog.getByRole('combobox').fill('codigos');
+	await expect(options.first()).toContainText('Códigos');
+	await expect(dialog.getByText('Fijados', { exact: true })).toHaveCount(0);
+	// Borrar lo escrito vuelve a la lista; Enter abre la elegida.
+	await dialog.getByRole('combobox').fill('');
+	await expect(options.nth(0)).toContainText('Transferencias');
+	await page.keyboard.press('ArrowDown');
+	await page.keyboard.press('Enter');
+	await expect(page).toHaveURL(/\/admin\/eventos\/agenda$/);
+	await expect(dialog).toBeHidden();
+});
+
+test('Puerta: con un solo evento hoy entra directo a su modo puerta, y «Otro evento» vuelve a la lista', async ({
+	page
+}) => {
+	// Solo en dev: el evento de prueba empieza hoy (devFixture en src/lib/server/tickets/events.js).
+	await page
+		.context()
+		.addCookies([{ name: 'kv-dev-hoy', value: EVENT, domain: 'localhost', path: '/' }]);
+	await page.goto('/admin/checkin', { waitUntil: 'networkidle' });
+	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/ingreso\\?hoy$`));
+	const other = page.getByRole('link', { name: 'Otro evento' });
+	await expect(other).toBeVisible();
+	await other.click();
+	// La lista, aunque haya uno solo hoy (sin volver a entrar solo).
+	await expect(page).toHaveURL(/\/admin\/checkin\?lista$/);
+	await expect(page.getByRole('heading', { name: 'Hoy', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Abrir Puerta' }).first()).toHaveAttribute(
+		'href',
+		`/admin/eventos/${EVENT}/ingreso`
+	);
+	// Abierta desde la lista, no muestra «Otro evento» (está en las opciones, como siempre).
+	await page.getByRole('link', { name: 'Abrir Puerta' }).first().click();
+	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/ingreso$`));
+	await expect(page.getByRole('link', { name: 'Otro evento' })).toHaveCount(0);
+
+	// Sin el evento de hoy, la Puerta muestra la lista como antes.
+	await page.context().clearCookies({ name: 'kv-dev-hoy' });
+	await page.goto('/admin/checkin', { waitUntil: 'networkidle' });
+	await expect(page).toHaveURL(/\/admin\/checkin$/);
+	await expect(page.getByRole('heading', { name: 'Puerta', level: 1 })).toBeVisible();
+});
+
+test('«Recientes» en la barra lateral: las páginas que abriste', async ({ page }) => {
+	await page.goto('/admin/ventas/transferencias', { waitUntil: 'networkidle' });
+	await page.goto('/admin/eventos/agenda', { waitUntil: 'networkidle' });
+	const menu = page.getByRole('navigation', { name: 'Secciones del panel' });
+	const recent = menu.getByRole('list', { name: 'Recientes' });
+	// La página actual no se muestra; la anterior, sí.
+	await expect(recent.getByRole('link', { name: 'Transferencias' })).toBeVisible();
+	await expect(recent.getByRole('link', { name: 'Agenda' })).toHaveCount(0);
+	// Una sección de la barra no se repite en Recientes.
+	await page.goto('/admin/ventas', { waitUntil: 'networkidle' });
+	await expect(recent.getByRole('link', { name: 'Agenda' })).toBeVisible();
+	await expect(recent.getByRole('link', { name: 'Todas las ventas' })).toHaveCount(0);
+});
+
+test('la ficha de un evento con entradas tiene «Lista de espera» como vista de Ventas y abre', async ({
+	page
+}) => {
+	await page.goto(`/admin/eventos/${EVENT}/ventas`, { waitUntil: 'networkidle' });
+	const views = page.getByRole('navigation', { name: 'Vistas de Ventas' });
+	await expect(views.getByRole('link')).toHaveText([
+		'Totales',
+		/^Órdenes/,
+		/^Transferencias/,
+		/^Lista de espera/
+	]);
+	const view = views.getByRole('link', { name: /^Lista de espera/ });
+	await expect(view).toHaveAttribute('href', `/admin/eventos/${EVENT}/lista-espera`);
+	await view.click();
+	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/lista-espera$`));
+	// Es una vista de Ventas: la pestaña Ventas queda marcada, y la vista también.
+	await expect(
+		page.getByRole('navigation', { name: 'Pestañas' }).getByRole('link', { name: /^Ventas/ })
+	).toHaveAttribute('aria-current', 'page');
+	await expect(view).toHaveAttribute('aria-current', 'page');
+	// El evento de prueba no tiene lista: la vista dice cómo prenderla.
+	await expect(page.getByText('Este evento no tiene lista de espera')).toBeVisible();
+});
+
+test('/admin/estadisticas (una de las dos redirecciones del panel, gorrite 11/10) lleva a Ventas', async ({
 	page
 }) => {
 	await page.goto('/admin/estadisticas?periodo=30d', { waitUntil: 'domcontentloaded' });
@@ -72,6 +304,26 @@ test('/admin/estadisticas (la única redirección del panel, gorrite 11/10) llev
 	).toHaveAttribute('aria-current', 'true');
 });
 
+test('/admin/ajustes/mails (la otra redirección) lleva a Mensajes › Configuración', async ({
+	page
+}) => {
+	await page.goto('/admin/ajustes/mails', { waitUntil: 'domcontentloaded' });
+	expect(new URL(page.url()).pathname).toBe('/admin/mensajes/configuracion');
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Configuración de los mails');
+	// Las plantillas no son otra tarjeta acá: un link a Mensajes › Plantillas.
+	await expect(page.getByRole('link', { name: 'Mensajes → Plantillas' })).toHaveAttribute(
+		'href',
+		'/admin/mensajes/plantillas'
+	);
+	// Las pestañas del grupo (Comunidad, con Mensajes), con Configuración marcada.
+	const tabs = page.getByRole('navigation', { name: 'Secciones de Comunidad' });
+	await expect(tabs.getByRole('link', { name: 'Configuración' })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+	await expect(tabs.getByRole('link', { name: 'Plantillas' })).toBeVisible();
+});
+
 test('una dirección del panel que no existe da 404 adentro del panel (con el menú)', async ({
 	page
 }) => {
@@ -82,5 +334,298 @@ test('una dirección del panel que no existe da 404 adentro del panel (con el me
 	await expect(page.getByRole('link', { name: 'Volver al Inicio' })).toHaveAttribute(
 		'href',
 		'/admin'
+	);
+});
+
+test('cada admin elige cómo se ve su panel lateral (y se aplica al cargar)', async ({ page }) => {
+	await page.goto('/admin', { waitUntil: 'networkidle' });
+	const html = page.locator('html');
+	const side = page.locator('aside#kv-side');
+	await expect(html).not.toHaveAttribute('data-lateral', /.+/);
+
+	// «Solo íconos»: la franja angosta; los links siguen teniendo su nombre.
+	await page.locator('.usermenu summary').click();
+	await page.getByRole('radio', { name: 'Solo íconos' }).check();
+	await expect(html).toHaveAttribute('data-lateral', 'iconos');
+	expect((await side.boundingBox())?.width ?? 999).toBeLessThan(80);
+	const menu = page.getByRole('navigation', { name: 'Secciones del panel' });
+	await expect(menu.getByRole('link', { name: 'Inicio' })).toBeVisible();
+
+	// Al recargar, el script del <head> lo pone antes de que arranque la página.
+	await page.reload({ waitUntil: 'commit' });
+	await page.waitForSelector('aside#kv-side', { state: 'attached' });
+	await expect(html).toHaveAttribute('data-lateral', 'iconos');
+
+	// «Se oculta»: no se ve hasta tocar el botón de arriba, y Escape lo cierra.
+	await page.waitForLoadState('networkidle');
+	await page.locator('.usermenu summary').click();
+	await page.getByRole('radio', { name: 'Se oculta' }).check();
+	await expect(side).toBeHidden();
+	await page.getByRole('button', { name: 'Abrir el panel lateral' }).click();
+	await expect(side).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(side).toBeHidden();
+
+	// Volver a «Siempre abierto» borra la elección.
+	await page.locator('.usermenu summary').click();
+	await page.getByRole('radio', { name: 'Siempre abierto' }).check();
+	await expect(html).not.toHaveAttribute('data-lateral', /.+/);
+	await expect(side).toBeVisible();
+});
+
+test('«+ Crear ▾»: un menú con todo lo que se crea, con teclado, Escape y el foco de vuelta', async ({
+	page
+}) => {
+	await page.goto('/admin', { waitUntil: 'networkidle' });
+	const top = page.locator('header.top');
+	await expect(top.getByRole('link', { name: 'Cargar evento' })).toHaveCount(0);
+	const button = top.getByRole('button', { name: 'Crear' });
+	await expect(button).toHaveAttribute('aria-expanded', 'false');
+	await button.focus();
+	await page.keyboard.press('ArrowDown');
+	const menu = top.getByRole('menu', { name: 'Crear' });
+	await expect(menu).toBeVisible();
+	await expect(button).toHaveAttribute('aria-expanded', 'true');
+	const first = menu.getByRole('menuitem').first();
+	await expect(first).toBeFocused();
+	await expect(first).toContainText('Evento');
+	// Lo que viene: deshabilitado, con «Próximamente».
+	const soon = menu.locator('[role="menuitem"][aria-disabled="true"]');
+	expect(await soon.count()).toBeGreaterThan(0);
+	await expect(soon.first()).toContainText('Próximamente');
+	// ↓ recorre; Escape cierra y vuelve al botón.
+	await page.keyboard.press('ArrowDown');
+	await expect(menu.getByRole('menuitem').nth(1)).toBeFocused();
+	await page.keyboard.press('Escape');
+	await expect(menu).toBeHidden();
+	await expect(button).toBeFocused();
+	// Elegir uno navega.
+	await button.click();
+	await menu.getByRole('menuitem', { name: /Código de descuento/ }).click();
+	await expect(page).toHaveURL(/\/admin\/ventas\/codigos#nuevo$/);
+	await expect(menu).toBeHidden();
+	// «Serie de eventos» abre el formulario de crear serie.
+	await button.click();
+	await menu.getByRole('menuitem', { name: /Serie de eventos/ }).click();
+	await expect(page).toHaveURL(/\/admin\/eventos\/series\?crear$/);
+	await expect(page.locator('#crear-serie')).toBeVisible();
+});
+
+test('«+ Crear» en el celu: el «+» del header abre el mismo menú', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/admin', { waitUntil: 'networkidle' });
+	const button = page.locator('header.mtop').getByRole('button', { name: 'Crear' });
+	await button.click();
+	const menu = page.locator('header.mtop').getByRole('menu', { name: 'Crear' });
+	await expect(menu).toBeVisible();
+	expect((await menu.boundingBox())?.width ?? 0).toBeGreaterThan(300);
+	await menu.locator('a[role="menuitem"][href="/admin/eventos/nuevo"]').click();
+	await expect(page).toHaveURL(/\/admin\/eventos\/nuevo$/);
+});
+
+test('«Fijados»: se fija desde Recientes y desde «Ir a…», se reordena y se suelta', async ({
+	page
+}) => {
+	await page.goto('/admin/ventas/transferencias', { waitUntil: 'networkidle' });
+	await page.goto('/admin/eventos/agenda', { waitUntil: 'networkidle' });
+	const menu = page.getByRole('navigation', { name: 'Secciones del panel' });
+	const recent = menu.getByRole('list', { name: 'Recientes' });
+	const pinned = menu.getByRole('list', { name: 'Fijados' });
+	await expect(pinned).toHaveCount(0);
+	// 📌 en una reciente (aparece con el mouse encima o con el foco).
+	await recent.getByRole('link', { name: /Transferencias/ }).hover();
+	await recent.getByRole('button', { name: 'Fijar «Transferencias»' }).click();
+	await expect(pinned.getByRole('link', { name: /Transferencias/ })).toBeVisible();
+	// Ya no se repite en Recientes.
+	await expect(recent.getByRole('link', { name: /Transferencias/ })).toHaveCount(0);
+
+	// 📌 desde «Ir a…» con Alt+F en el resultado elegido.
+	await page.keyboard.press('Control+k');
+	const dialog = page.getByRole('dialog', { name: 'Ir a… o buscar en el panel' });
+	await dialog.getByRole('combobox').fill('codigos');
+	await expect(dialog.getByRole('option').first()).toContainText('Códigos');
+	await page.keyboard.press('Alt+f');
+	await expect(dialog.getByRole('button', { name: 'Soltar «Códigos»' })).toBeVisible();
+	// (El primer Escape borra lo escrito, como en todo campo de búsqueda; el segundo cierra.)
+	await page.keyboard.press('Escape');
+	await page.keyboard.press('Escape');
+	await expect(dialog).toBeHidden();
+	await expect(pinned.getByRole('link')).toHaveCount(2);
+	await expect(pinned.getByRole('link').nth(1)).toContainText('Códigos');
+
+	// Subir con el teclado: con el foco en la fila aparecen sus botones (Tab) y Enter.
+	await pinned.getByRole('link', { name: /Códigos/ }).focus();
+	await page.keyboard.press('Tab');
+	await expect(pinned.getByRole('button', { name: 'Subir «Códigos»' })).toBeFocused();
+	await page.keyboard.press('Enter');
+	await expect(pinned.getByRole('link').first()).toContainText('Códigos');
+	// Queda guardado en este navegador.
+	await page.reload({ waitUntil: 'networkidle' });
+	await expect(pinned.getByRole('link').first()).toContainText('Códigos');
+	// Arrastrar la segunda arriba de la primera.
+	await pinned.locator('li').nth(1).dragTo(pinned.locator('li').nth(0));
+	await expect(pinned.getByRole('link').first()).toContainText('Transferencias');
+	// Soltar (Códigos quedó segunda: Subir, Bajar desactivado, Soltar).
+	await pinned.getByRole('link', { name: /Códigos/ }).focus();
+	await page.keyboard.press('Tab');
+	await page.keyboard.press('Tab');
+	await expect(pinned.getByRole('button', { name: /^Soltar «Códigos»/ })).toBeFocused();
+	await page.keyboard.press('Enter');
+	await expect(pinned.getByRole('link')).toHaveCount(1);
+});
+
+test('las pestañas muestran lo que hay para revisar y lo que viene, gris y sin link', async ({
+	page
+}) => {
+	await page.goto('/admin/ventas', { waitUntil: 'networkidle' });
+	const tabs = page.getByRole('navigation', { name: 'Secciones de Ventas' });
+	// Tienda viene (fase 8): se ve, pero no es un link.
+	await expect(tabs.getByText('Tienda')).toBeVisible();
+	await expect(tabs.getByRole('link', { name: /Tienda/ })).toHaveCount(0);
+	// Con «Ocultar lo que viene», no.
+	await page.locator('.usermenu summary').click();
+	await page.getByRole('button', { name: 'Ocultar lo que viene' }).click();
+	await expect(tabs.getByText('Tienda')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Mostrar lo que viene' }).click();
+	// /admin/eventos ya no tiene los botones Agenda y Series (son pestañas).
+	await page.goto('/admin/eventos', { waitUntil: 'networkidle' });
+	const main = page.locator('main');
+	await expect(main.locator('a.kv-btn', { hasText: /^\s*Agenda\s*$/ })).toHaveCount(0);
+	await expect(main.locator('a.kv-btn', { hasText: /^\s*Series\s*$/ })).toHaveCount(0);
+	await expect(
+		page
+			.getByRole('navigation', { name: 'Secciones de Eventos' })
+			.getByRole('link', { name: 'Agenda' })
+	).toBeVisible();
+});
+
+test('en el celu, toda barra de pestañas es una lista ▾ (sin scroll de costado)', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/admin/eventos/series', { waitUntil: 'networkidle' });
+	const nav = page.getByRole('navigation', { name: 'Secciones de Eventos' });
+	const toggle = nav.getByRole('button', { name: /Sección: Series/ });
+	await expect(toggle).toBeVisible();
+	// La tira que se desliza no se ve.
+	await expect(page.locator('.tabs-wrap.has-menu').first()).toBeHidden();
+	await toggle.click();
+	await expect(nav.getByRole('link', { name: 'Series' })).toBeFocused();
+	await page.keyboard.press('Escape');
+	await expect(nav.getByRole('link', { name: 'Agenda' })).toBeHidden();
+	await expect(toggle).toBeFocused();
+	await toggle.click();
+	await nav.getByRole('link', { name: 'Lugares' }).click();
+	await expect(page).toHaveURL(/\/admin\/eventos\/lugares$/);
+	await expect(
+		page.getByRole('navigation', { name: 'Secciones de Eventos' }).getByRole('button', {
+			name: /Sección: Lugares/
+		})
+	).toBeVisible();
+});
+
+test('mientras carga la página siguiente: barrita arriba y el link «cargando»', async ({
+	page
+}) => {
+	await page.goto('/admin', { waitUntil: 'networkidle' });
+	// La página siguiente tarda (se demora su `load`).
+	await page.route('**/admin/eventos/agenda/__data.json*', async (route) => {
+		await new Promise((r) => setTimeout(r, 1500));
+		await route.continue();
+	});
+	await page.goto('/admin/eventos', { waitUntil: 'networkidle' });
+	const agenda = page
+		.getByRole('navigation', { name: 'Secciones de Eventos' })
+		.getByRole('link', { name: 'Agenda' });
+	await agenda.click();
+	await expect(page.locator('.loadbar')).toBeVisible();
+	await expect(agenda).toHaveAttribute('data-pending', '');
+	await expect(agenda).toHaveAttribute('aria-busy', 'true');
+	await expect(page).toHaveURL(/\/admin\/eventos\/agenda$/);
+	await expect(page.locator('.loadbar')).toHaveCount(0);
+	await expect(page.locator('[data-pending]')).toHaveCount(0);
+});
+
+test('ficha del evento en el celu: la pestaña ▾ arriba y las acciones, más chicas, debajo', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto(`/admin/eventos/${EVENT}/transferencias`, {
+		waitUntil: 'networkidle'
+	});
+	const toggle = page.getByRole('navigation', { name: 'Pestañas' }).getByRole('button', {
+		name: /Pestaña: Ventas/
+	});
+	await expect(toggle).toBeVisible();
+	// Las acciones del encabezado no se ven; debajo de la pestaña: Editar y «⋯ Acciones».
+	await expect(page.locator('.event-head .actions')).toBeHidden();
+	const more = page.locator('.mactions');
+	await expect(more.getByRole('link', { name: 'Editar' })).toBeVisible();
+	const toggleBox = await toggle.boundingBox();
+	const moreBox = await more.boundingBox();
+	expect(moreBox?.y ?? 0).toBeGreaterThan(toggleBox?.y ?? 0);
+	// El botón de la pestaña es más alto que los botones de acción.
+	expect(toggleBox?.height ?? 0).toBeGreaterThan(
+		(await more.getByRole('link', { name: 'Editar' }).boundingBox())?.height ?? 99
+	);
+	await more.getByText('Acciones').click();
+	await expect(more.getByRole('link', { name: 'Duplicar' })).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(more.getByRole('link', { name: 'Duplicar' })).toBeHidden();
+});
+
+test('ficha del evento: 7 pestañas, Ventas y Mails con sus vistas, y la lista ▾ en el celu', async ({
+	page
+}) => {
+	await page.goto(`/admin/eventos/${EVENT}/ordenes`, { waitUntil: 'networkidle' });
+	const tabs = page.getByRole('navigation', { name: 'Pestañas' });
+	await expect(tabs.getByRole('link')).toHaveText([
+		'Resumen',
+		'Editar',
+		/^Ventas/,
+		'Puerta',
+		'Códigos',
+		'Mails',
+		/^Preguntas/
+	]);
+	// Órdenes es una vista de Ventas: la pestaña Ventas queda marcada.
+	await expect(tabs.getByRole('link', { name: /^Ventas/ })).toHaveAttribute('aria-current', 'page');
+	const views = page.getByRole('navigation', { name: 'Vistas de Ventas' });
+	await expect(views.getByRole('link', { name: /^Órdenes/ })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+	await views.getByRole('link', { name: /^Transferencias/ }).click();
+	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/transferencias$`));
+
+	// Las direcciones de siempre de Mails siguen andando, cada una en su vista.
+	await page.goto(`/admin/eventos/${EVENT}/mails`, { waitUntil: 'networkidle' });
+	await expect(tabs.getByRole('link', { name: 'Mails' })).toHaveAttribute('aria-current', 'page');
+	await expect(
+		page
+			.getByRole('navigation', { name: 'Vistas de Mails' })
+			.getByRole('link', { name: 'Plantillas' })
+	).toHaveAttribute('aria-current', 'page');
+
+	// En el celu: un botón con la pestaña actual que abre la lista entera.
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect(tabs.getByRole('link', { name: 'Resumen', exact: true })).toBeHidden();
+	const toggle = page.getByRole('button', { name: /Pestaña: Mails/ });
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	const menu = page.getByRole('navigation', { name: 'Pestañas' });
+	await expect(menu.getByRole('listitem')).toHaveCount(7);
+	await expect(menu.getByRole('link', { name: 'Mails', exact: true })).toBeFocused();
+	await page.keyboard.press('Escape');
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	await expect(toggle).toBeFocused();
+	await page.keyboard.press('ArrowDown');
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	await menu.getByRole('link', { name: 'Códigos', exact: true }).click();
+	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/codigos$`));
+	await expect(page.getByRole('button', { name: /Pestaña: Códigos/ })).toHaveAttribute(
+		'aria-expanded',
+		'false'
 	);
 });

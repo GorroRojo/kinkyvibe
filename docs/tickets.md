@@ -66,6 +66,7 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
 - `status: cancelado` o `status: agotadas` cierran la venta.
 - **Cantidad:** un stepper compacto **− n +** al lado de la etiqueta (botones de 42 px, cómodos para el dedo; también se puede tipear), de 1 a `min(disponibles, 20)`: cada entrada lleva su bloque de datos y con más el formulario se vuelve inmanejable en el celu. El servidor rechaza más de 20. Cada entrada tiene su propio QR y su código corto.
 - `transferencia` solo aparece si además hay datos para transferir (en **Ajustes de venta** o, si ahí está vacío, en `TICKETS_TRANSFER_INFO`); `mercadopago`, si hay `MP_ACCESS_TOKEN` (o el mock en dev). Para que no pase en silencio, si un evento tiene tildada «Transferencia» y no hay datos, el editor de eventos (sección Entradas) y el **Inicio** del panel (en «Para revisar», para los eventos que vienen y no están cancelados) avisan «Activaste transferencia pero faltan los datos en Ajustes → Cobros: por ahora no se ofrece», con link a `/admin/ajustes/cobros`. Solo reciben sí/no (`transferReady` / `transferReadyFromSettings` en `src/lib/server/tickets/index.js`), nunca los datos.
+- En la página del evento, un evento sin `tickets` muestra el `link` después del texto con el mismo botón grande que «Comprar entradas» (`BotonCompra.svelte`); si es un link web, se abre en otra pestaña y dice «Se abre en <sitio>».
 - En la página del evento, un evento con `tickets` no muestra el botón de inscripción del `link` (sigue al final del texto si tiene `link_text`): **después del texto** («De qué se trata»: el texto se lee antes de comprar, maqueta final de gorrite) hay un botón grande **Comprar entradas** (`src/lib/components/evento/Compra.svelte`) con el precio "desde" (con el fondo aplicado; "a la gorra" si hay tipos a la gorra) y cuántas quedan si son pocas, que lleva a la página de compra.
 - **Cuántas quedan, en público:** solo se muestra un número cuando un tipo **con cupo** tiene **menos de 10** disponibles ("Quedan 7", "¡Últimas 3!", "¡Última!"; `publicLeft`/`leftText` en `src/lib/utils/tickets.js`); si no, no se muestra ni el cupo ni lo vendido. En el botón de la página del evento, solo si todos los tipos a la venta tienen cupo y entre todos quedan menos de 10. Agotado sigue diciendo "Agotada". La página de compra recibe por tipo `available` acotado a 20 (lo que se puede comprar de una vez), no el cupo real.
 - **Sin cupo** (sin `capacity`): el tipo no se agota nunca. La reserva online, la venta en la puerta y la confirmación de transferencias vencidas no controlan cupo para ese tipo (`?N IS NULL OR …` en la misma sentencia); un pago aprobado tarde no queda "para revisar" por cupo; el admin muestra "vendidas (sin cupo)". `capacity: 0` sí es un cupo (agotado).
@@ -99,15 +100,16 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
 5. **Email** (Resend): datos del evento y un QR por entrada (imagen GIF servida en `/entradas/t/<token>/qr.gif`, porque Gmail no muestra SVG) con su **código corto en grande al lado**, y link a `/entradas/t/<token>`. En eventos online, en lugar de QR: el link de la transmisión si ya está cargado, o el aviso de que llega antes del evento.
 6. **Entrada** (`/entradas/t/<token>`): QR con el **código corto** al lado, en grande (ver abajo), nombre, pronombres, tipo y estado (válida / ya usada / anulada). No muestra datos de otras personas. En eventos online muestra el link de la transmisión cuando está (solo con la compra aprobada).
 7. **Código corto de cada entrada** (`tickets.code`): 6 caracteres de un alfabeto sin ambiguos (`23456789ABCDEFGHJKMNPQRSTUVWXYZ`: sin 0/O, 1/I/L), único por evento (índice único en la base), al azar (31⁶ ≈ 887 millones). Se elige dentro del mismo `INSERT` que emite la entrada entre tres candidatos al azar no usados en el evento, así que un choque nunca hace fallar la aprobación de un pago. Sirve para tipearlo en la puerta si el QR no se puede escanear: el control de ingreso lo acepta con o sin "KV-", espacios o guiones, y lee O como 0 e I/L como 1 (letras que los códigos no usan). No reemplaza al token del QR para ver la entrada: solo lo usan les admins en el control de ingreso.
-8. **Admin** (`/admin/ventas`): vendidas/cupo, reservas y recaudación bruta por tipo, y por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo**; por evento, la ficha `/admin/eventos/<slug>` con pestañas (Resumen, Ventas con ventas por día y cómo pagaron, Órdenes, Transferencias, Códigos, Mail a compradores y Editar): la lista de órdenes, exportar CSV (`/admin/eventos/<slug>/ordenes.csv`) y reenviar el mail. El control de ingreso es el modo puerta (punto 9).
-9. **Modo puerta** (check-in): `/admin/checkin` elige el evento (hoy primero, después los próximos y los de los últimos 60 días, con cuántes entraron) y abre `/admin/eventos/<slug>/ingreso`: pantalla completa y oscura, sin menús del panel (`bare: true`), con la pantalla siempre prendida (Screen Wake Lock, que se vuelve a pedir al volver a la pestaña).
+8. **Admin** (`/admin/ventas`): vendidas/cupo, reservas y recaudación bruta por tipo, y por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo**; por evento, la ficha `/admin/eventos/<slug>` con pestañas (Resumen, Editar, Ventas, Puerta, Códigos, Mails y Preguntas; Ventas tiene las vistas Totales con ventas por día y cómo pagaron, Órdenes y Transferencias, y Mails las vistas Mandar un aviso y Plantillas, ver [panel.md](panel.md)): la lista de órdenes, exportar CSV (`/admin/eventos/<slug>/ordenes.csv`) y reenviar el mail. El control de ingreso es el modo puerta (punto 9).
+9. **Modo puerta** (check-in): `/admin/checkin` elige el evento (hoy primero, después los próximos y los de los últimos 60 días, con cuántes entraron; con un solo evento hoy entra directo a ese, con «Otro evento» para volver a la lista, ver docs/panel.md) y abre `/admin/eventos/<slug>/ingreso`: pantalla completa y oscura, sin menús del panel (`bare: true`), con la pantalla siempre prendida (Screen Wake Lock, que se vuelve a pedir al volver a la pestaña).
    - **Contador** "18 de 31 adentro" con el detalle por tipo, y **escáner** de QR con la cámara (API `BarcodeDetector`: Chrome en Android, Edge), con linterna y cambio de cámara si el celu los tiene. En iPhone (Safari no tiene `BarcodeDetector`) se puede escanear con la cámara del sistema: abre la página de la entrada, que a les admins les muestra el botón "Marcar ingreso" (a quien no es admin no: el form action llama a `requireAdmin`, hay tests).
    - **Resultado** en grande con vibración (y sonido opcional, apagado por defecto): verde "Adelante", amarillo "Ya ingresó" (hora y quién), rosa "Anulada", "De otro evento" o "QR inválido". Muestra la persona, pronombres, tipo, quién compró y su **email**, el **DNI parcial** (últimos 3; al tocarlo se ve completo y queda en el registro de actividad como `order.reveal_dni`, sin el número), el código y **"Primera vez en <serie>"**. "Deshacer" (queda como `checkin.undo`). Tocar el resultado abre la **compra completa**: estado, medio de pago, montos, fondo, descuento, todas las entradas de la orden con su ingreso, fechas y link a la orden.
    - **Serie de un evento** (`src/lib/server/tickets/series.js`): sus etiquetas de serie, las hijas (o nietas) de «evento recurrente», como en las páginas de series. Ya no se adivina por el slug: un evento sin etiqueta de serie no muestra nada. Es la primera vez de la persona si no hay, en ediciones anteriores de la serie (las que van antes en el orden de ediciones, por fecha), una entrada aprobada o con ingreso marcado con el mismo nombre (sin tildes ni mayúsculas) ni, si la entrada es de quien compró, una compra con el mismo email. Si ninguna edición anterior tiene entradas vendidas acá, no se muestra nada.
    - **Escribir código** y **Buscar persona**: el código corto (ver arriba) o el link del QR; y un buscador con sugerencias mientras se escribe (desde 2 letras) por nombre y pronombres de la entrada, nombre, email y DNI de quien compró y código, sin distinguir tildes ni mayúsculas; cada sugerencia dice con qué campo coincidió (el DNI, parcial). Es un combobox accesible (flechas, Enter). Las sugerencias vienen de `GET /admin/eventos/<slug>/ingreso/buscar?q=` (con `requireAdmin`); el filtro se hace en el servidor en JS porque SQLite no ignora tildes. Tocar una persona marca su ingreso.
    - **Últimos escaneos**: los últimos 5 de este celu, con su estado y la hora.
-   - **Sin conexión**: al entrar, el celu baja la lista de entradas del evento (`GET …/ingreso/lista`: hash SHA-256 del token, código, persona, tipo, estado, ingreso, quién compró, email, últimos 3 del DNI y primera vez; nunca el token ni el DNI completo) y la guarda en localStorage. Si se corta la conexión, valida los QR y códigos contra esa lista, marca el ingreso local y lo encola con la hora; un aviso muestra que no hay conexión, qué sigue andando (validar, buscar en la lista guardada) y qué necesita conexión (vender en la puerta, ver el DNI completo), y cuántos ingresos faltan sincronizar. Con conexión, cuando la lista ya quedó guardada, un cartel chico verde dice «Listo para sin conexión» con la hora de la lista, para que quien está en la puerta sepa que puede seguir si se corta (`doorConnectionNote` en `src/lib/admin/doorOffline.js`). Al volver, los manda (acción `?/sync`): el servidor los aplica de forma idempotente (reintentar no duplica) y, si otra persona u otro celu ya había marcado esa entrada, gana el primer ingreso guardado y el celu muestra el conflicto. La hora del celu se acota a los últimos 3 días y a no más que ahora. La página tiene que abrirse con conexión (no hay service worker); si se recarga sin conexión no carga.
-   - **Vender en puerta** (en eventos con `puerta: false`, o pasando el cupo o las 10 entradas por venta, pide confirmar: ver [Pasar límites desde el panel](#pasar-límites-desde-el-panel)): tipo, cantidad (hasta 10 sin confirmar; tope técnico 100), precio (opción del fondo o monto a la gorra), efectivo o transferencia ya recibida, nombre, y opcionales pronombres, DNI, email (y mandarle las entradas por mail) y nombres de las otras personas. Crea una orden **ya aprobada** con `channel = 'puerta'` y `payment_method` `efectivo` o `transferencia` (quien vendió queda en `confirmed_by`), controla el **cupo en la misma sentencia** que la compra online (cuentan aprobadas y reservas vigentes: dos ventas a la vez no se pasan), emite las entradas y las marca adentro, todo en una transacción, y queda en el registro de actividad (`order.door_sale`). No aplica la ventana de venta, los topes por email ni códigos de descuento. Necesita conexión.
+   - **Sin conexión**: al entrar, el celu baja la lista de entradas del evento (`GET …/ingreso/lista`: hash SHA-256 del token, código, persona, tipo, estado, ingreso, quién compró, email, últimos 3 del DNI y primera vez; nunca el token ni el DNI completo) y la guarda en localStorage. Si se corta la conexión, valida los QR y códigos contra esa lista, marca el ingreso local y lo encola con la hora; un aviso muestra que no hay conexión, qué sigue andando (validar, buscar en la lista guardada y vender en la puerta, con la nota de que las ventas se mandan después) y qué necesita conexión (ver el DNI completo), y cuántas ventas e ingresos faltan sincronizar («2 ventas y 1 ingreso por sincronizar»). Con conexión, cuando la lista ya quedó guardada, un cartel chico verde dice «Listo para sin conexión» con la hora de la lista, para que quien está en la puerta sepa que puede seguir si se corta (`doorConnectionNote` en `src/lib/admin/doorOffline.js`). Al volver, los manda (acción `?/sync`): el servidor los aplica de forma idempotente (reintentar no duplica) y, si otra persona u otro celu ya había marcado esa entrada, gana el primer ingreso guardado y el celu muestra el conflicto. La hora del celu se acota a los últimos 3 días y a no más que ahora. La página tiene que abrirse con conexión (no hay service worker); si se recarga sin conexión no carga.
+   - **Vender en puerta** (en eventos con `puerta: false`, o pasando el cupo o las 10 entradas por venta, pide confirmar: ver [Pasar límites desde el panel](#pasar-límites-desde-el-panel)): tipo, cantidad (hasta 10 sin confirmar; tope técnico 100), precio (opción del fondo o monto a la gorra), efectivo o transferencia ya recibida, nombre, y opcionales pronombres, DNI, email (y mandarle las entradas por mail) y nombres de las otras personas. Crea una orden **ya aprobada** con `channel = 'puerta'` y `payment_method` `efectivo` o `transferencia` (quien vendió queda en `confirmed_by`), controla el **cupo en la misma sentencia** que la compra online (cuentan aprobadas y reservas vigentes: dos ventas a la vez no se pasan), emite las entradas y las marca adentro, todo en una transacción, y queda en el registro de actividad (`order.door_sale`). No aplica la ventana de venta, los topes por email ni códigos de descuento.
+   - **Vender en puerta sin conexión** ([decisión 0035](decisiones/0035-vender-en-puerta-sin-conexion.md)): el mismo formulario, sin el DNI (sin conexión no se guarda en el celu) y, con transferencia, con la casilla «Vi que llegó la transferencia». Si con lo que sabe el celu (cupo de cuando había conexión, menos lo vendido sin conexión; 10 por venta; solo anticipadas) se pasaría un límite, avisa con el mismo diálogo, pero se puede guardar igual. La venta queda en la cola del celu (`localStorage`, `queueOfflineSale` en `src/lib/admin/doorOffline.js`) con un id del celu; sus entradas cuentan como adentro en ese celu y se ven como «pendiente de sincronizar». Al volver la conexión (o con «Sincronizar») se mandan **antes que los ingresos y en el orden en que se vendieron** (acción `?/syncSales`, `applyQueuedSales` en `door.js`): cada una pasa por la misma validación (`parseDoorSale`) y la misma función (`sellAtDoor`) que la venta con conexión, con la hora del celu (acotada como la de los ingresos). Es **idempotente**: el id del celu queda en `orders.client_sale_id` (índice único, migración 0051), así que un reintento devuelve la orden que ya existe. **Un límite no frena la venta**: si al sincronizar se pasa el cupo, se agotó el tipo, son más de 10, el evento es solo anticipadas o se canceló, se guarda igual con esos límites en `orders.offline_review`, sale en «Para revisar» («Venta sin conexión de … que pasó un límite», con «Marcar como revisada» en Órdenes) y el celu muestra un aviso. Si el servidor no la puede registrar (por ejemplo, un tipo que ya no existe), el celu la deja a la vista con sus datos («Cargala a mano») hasta que alguien descarta el aviso: nunca se borra sola. Queda en el registro como `order.door_sale` (con `offline: true`) y, si pasó límites, `tickets.override`.
 
 10. **Cargar entradas a mano** (`/admin/eventos/<slug>/ordenes/cargar`; link en el menú "Opciones" del modo puerta): invitaciones, cortesías o pagos que llegaron por otro lado. Tipo, cantidad, nombre y email (opcional) de quien recibe, nombre de cada entrada, **cómo se pagó** (cortesía / invitación, efectivo, transferencia u otro), **monto por entrada** (0 = sin cargo; la cortesía siempre es 0) y una nota opcional (solo en el panel, `orders.admin_note`). Crea una orden **ya aprobada** con `channel = 'manual'` (`createManualOrder` en `src/lib/server/tickets/manual.js`, con la misma sentencia que la venta en la puerta: `insertApprovedOrder` de `door.js`), no marca el ingreso y, si hay email y se tilda, manda las entradas por mail. Total 0 queda como `gratis`. Queda en el registro (`order.manual`). Límites (se pueden pasar confirmando): cupo, 20 por compra y venta cerrada (por horario, del tipo, agotadas o cancelado); "todavía no abrió" no es un límite. Migración 0010: canal `manual`, medio `otro`, precio 0 en las manuales y `admin_note`.
 
@@ -237,6 +239,198 @@ Código: `src/lib/utils/salesGoal.js` (leer, formulario, lo neto, `goalProgress`
 `ticketTotals` y `upcomingEvents` (`admin/inicio.js`), `goal`/`revenue`/`mpFee` en las filas de
 Panel → Eventos (`panelList.js`), y los componentes `GoalProgress.svelte` y `SalesGoalField.svelte`.
 
+### Lista de espera (en construcción)
+
+Cuando un evento (o un tipo de entrada) se agota, la gente se anota en una lista; si se libera un
+lugar, se le avisa por mail a la próxima persona y se le guarda un rato. Detrás del interruptor
+`lista_espera` (apagado, [interruptores.md](interruptores.md)) y de la clave `lista_espera` de cada
+evento. Se construye en partes, en ramas que se juntan en `claude/lista-espera` y entran a `main`
+como un solo PR (decisión [0001](decisiones/0001-ritmo-y-orden.md)). Lo que eligió gorrite está en
+la decisión [0040](decisiones/0040-lista-de-espera.md).
+
+**Ya está (parte 1, datos y reglas).** Nada de esto se ve todavía ni toca la venta.
+
+- Migración `0053_lista_de_espera.sql`: `waitlist_entries` (una fila por anotación) y
+  `waitlist_sends` (mails por ronda). Ver [datos.md](datos.md).
+- Por evento, `lista_espera` en el frontmatter (o en `extra`): `evento` o `tipo` (atajo), o
+  `{ alcance: evento | tipo, todes_a_la_vez: true }`. Queda en `config.waitlist`
+  (`parseTicketConfig`); lo que no se entiende cuenta como sin lista y nunca frena la venta (como
+  `meta_venta`). Los tiempos de reserva no se eligen por evento (gorrite, 12/10): unos `reservas`
+  de antes se ignoran.
+- Tiempos fijos en el código (`WAITLIST_SETTINGS`; gorrite, 12/10: sin página de Ajustes, cambiarlos
+  es un PR; una clave `waitlist` vieja en `ticket_settings` no se lee). De a una persona por vez;
+  la reserva dura 24 h si faltan 7 días o más para el comienzo, 12 h si faltan 48 h o más, 2 h si
+  faltan 6 h o más; con menos de 6 h se le avisa a toda la lista a la vez (sin lugar guardado). La
+  lista cierra en `min(comienzo − 30 min, cierre de la venta)` y ninguna reserva pasa de ahí. Reglas
+  puras en `src/lib/utils/waitlistHold.js` (`holdUntil`).
+- Cambios de estado en `src/lib/server/tickets/waitlist.js`: anotarse (con cuenta y el mail
+  verificado, entra directo a la fila), confirmar por mail, volver a anotarse después de vencer
+  (al final y sin confirmar otra vez), salir, que le saque une admin, terminar, comprar con la
+  oferta y borrar las anotaciones sin confirmar a las 48 h.
+- **Por evento, la fila cuenta contra el lugar libre total del evento** (la suma de lo que queda en
+  sus tipos con cupo), no contra cada tipo: una persona esperando guarda un solo lugar. Por tipo,
+  contra el lugar libre de ese tipo.
+
+**Ya está (parte 2, anotarse, confirmar, salir y los mails).** Con el interruptor apagado no se ve
+nada (las páginas de confirmar y volver y `?/waitlist` dan 404).
+
+- **Anotarse:** `?/waitlist` en la página de compra
+  (`(content)/calendario/[event]/entradas/+page.server.js`, lógica en
+  `src/lib/server/tickets/waitlistSignup.js`). Solo el mail (y, por tipo, cuál). Con una cuenta con
+  sesión y ese mismo mail verificado, entra directo a la fila; si no, le mandamos el mail de
+  confirmar (48 h). La respuesta es la misma esté o no el mail anotado (si ya está en la fila, no se
+  le manda nada). Límites (`WAITLIST_SIGNUP_LIMITS`): 10 pedidos por hora por conexión, 3 mails de
+  confirmar por día a una misma dirección, el tope global de mails de Resend (`accountMailAllowed`)
+  y 5 anotaciones vivas por evento desde una misma conexión. La anotación guarda el `client_hash`
+  (como `orders`, sin IP).
+- **Cuándo se puede** (`waitlistJoinStates`): solo en un alcance agotado; con la venta sin abrir,
+  la lista cerrada (`holdUntil` da `closed`: comienzo − 30 min o cierre de la venta, el del tipo en
+  una lista por tipo) o el evento cancelado, no. `agotadas` a mano cuenta como agotado. La fila
+  cuenta como vendido: por evento, quienes esperan (y los lugares guardados vigentes) se restan del
+  lugar libre total del evento; un tipo sin cupo abierto hace que el evento nunca se agote. La
+  página muestra un formulario mínimo («Lista de espera», `WaitlistSignup.svelte`) debajo de la
+  compra cuando hay dónde anotarse.
+- **Links de los mails** (GET muestra el botón, POST hace el cambio, con `MailLinkCard`):
+  `/lista-de-espera/confirmar/<token>` (entra a la fila; vencido o usado, no),
+  `/lista-de-espera/salir/<id>.<firma>` (sale: `cancelled` por `left`, o se borra si no había
+  confirmado; anda siempre, también con el interruptor apagado) y
+  `/lista-de-espera/volver/<id>.<firma>` («Volver a anotarme» del mail de vencida: al final de la
+  fila sin confirmar, solo si la lista sigue abierta). Salir y volver van firmados con
+  `waitlist_leave_key`, cada uno con su mensaje (`waitlistMail.js`). No se cuentan en las
+  estadísticas (`classify.js`).
+- **Los cinco mails** con sus plantillas editables (`waitlist_confirm`, `waitlist_offer`,
+  `waitlist_reminder`, `waitlist_expired`, `waitlist_closed`), en `waitlistEmail.js`; todos con el
+  link para salir. La oferta lleva el link `/calendario/<slug>/entradas?lista=<token>` (el token lo
+  arma el motor). Ver [mails.md](mails.md#mails-de-la-lista-de-espera).
+- **`waitlist_sends`:** `sendState.js` ahora sirve también para filas por anotación (clave
+  `entry_id` + `kind` + `round`), y `sendWaitlistEntryMail` manda cada mail del cron una sola vez
+  por anotación, mail y ronda.
+
+**Ya está (parte 3, la fila en la compra y la compra con el link de la oferta).** Con el interruptor
+apagado (o el evento sin lista) la sentencia de la compra es la de siempre y `lista` no hace nada.
+
+- **La fila guarda lugares en la compra online** (`src/lib/server/tickets/waitlistPurchase.js`):
+  cada persona que espera y cada una con un lugar guardado vigente guarda un lugar; el público
+  compra lo que sobra. Por evento, contra el lugar libre total (los tipos a la venta; con uno sin
+  límite, el evento no se agota y la fila no guarda nada); por tipo, contra el de ese tipo. Es la
+  misma cuenta que `waitlistJoinStates`: «se puede comprar» y «se puede anotar» nunca dicen las dos
+  cosas a la vez.
+- **En la misma sentencia que crea la orden** (`reserveOrder` con `waitlist`, armado por
+  `waitlistGuard`): por cada tipo del alcance va hasta cuánto puede llegar lo tomado y la sentencia
+  vuelve a contar lo tomado y la fila en el momento, así dos compras a la vez no se pasan. Si no
+  entra por la fila, `reason: 'waitlist'` («Por ahora los lugares que se liberan son para la lista
+  de espera. Anotate y te avisamos.», o «Solo quedan N entradas a la venta…» si sobra algo).
+- **Una reserva vencida deja de guardar en el acto** (`hold_until <= now`), sin esperar al cron,
+  como `expires_at` en las órdenes. El aviso a toda la lista (`hold_until` NULL) no guarda nada:
+  compite con el público.
+- **Comprar con el link de la oferta** (`/calendario/<slug>/entradas?lista=<token>`): la página
+  muestra arriba hasta cuándo le guardamos el lugar (`WaitlistOffer.svelte`) y lo que puede comprar
+  esa persona: todo lo libre menos los lugares guardados vigentes de otras personas. El token va en
+  un campo oculto `lista`; `buyAction` lo vuelve a mirar (`findOffer`), y `reserveOrder` controla
+  que la oferta siga vigente y en la misma tanda pasa la anotación a `purchased` con la orden (un
+  link no se usa dos veces). El mail de quien compra puede ser otro (puede comprar para alguien
+  más). Un link vencido, usado o inventado: «El link de la lista de espera ya no vale…» (la página
+  lo dice arriba y la compra sigue como la del resto). En una lista por tipo, el link es para su
+  tipo. Si justo se vendió el lugar en la puerta, se lo dice y la oferta sigue hasta que venza.
+- **La puerta, la carga a mano y la confirmación de transferencias no miran la lista** (venden
+  aunque haya gente esperando, como decidió gorrite; solo avisan, ver la parte 5).
+- La página del evento (botón «Comprar entradas») también resta la fila (las tarjetas de las
+  listas de eventos, desde la parte 5).
+
+**Ya está (parte 4, el motor).** Con el interruptor apagado no corre nada (ni la pasada del cron,
+ni los mails, ni los empujones).
+
+- **`advanceWaitlist`** (`src/lib/server/tickets/waitlistEngine.js`), una pasada sobre un evento,
+  idempotente: (1) vence las reservas pasadas (`expired`, `hold_expired`); (2) devuelve a
+  `offered` a quien compró con su oferta y no pagó (la orden se canceló, venció o fue rechazada),
+  con el mismo link y el mismo vencimiento, sin tiempo extra; (3) mira lo libre de cada alcance y
+  no ofrece nada si la venta no está abierta (`agotadas` a mano, todavía no abrió); (4) si hay
+  lugar y nadie tiene uno guardado vigente, se lo ofrece a la primera de la fila (`ORDER BY
+confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas a la vez nunca
+  ofrecen dos veces; en el aviso a todes (faltan menos de 6 h, o «todes a la vez»), a toda la fila,
+  sin lugar guardado; (5) pasado el cierre de la lista (comienzo − 30 min o el cierre de la venta)
+  o con el evento cancelado, cierra lo vivo (`closed` / `event_cancelled`), también a quien
+  confirmó después del cierre; (6) borra las anotaciones sin confirmar de más de 48 h. Si el evento
+  ya no vende entradas o no tiene lista, solo hace 1, 2 y 6 (nunca cierra por una configuración que
+  no se pudo leer). Anotaciones de un alcance que ya no existe (tipo borrado o alcance cambiado a
+  mano): `expired` / `type_removed`, sin mail.
+- **El link de la oferta** lleva un token de 256 bits que no se guarda: la firma HMAC de
+  `offer:<id>:<ronda>` con la clave `waitlist_offer_key` (`offerToken`, se crea sola en
+  `ticket_settings`); en la base queda solo su SHA-256. El mail de la oferta, sus reintentos y el
+  último aviso llevan el mismo link.
+- **Cron:** `runWaitlistCron` en `POST /api/cron/recordatorios` (el de cada 15 minutos; no hay
+  cron nuevo), antes de la tanda de mails y en su propio try/catch: pasa por cada evento con
+  anotaciones vivas (o con una compra de oferta abandonada). La respuesta trae `waitlistAdvance`
+  (cuentas) y `waitlist` (la tanda de sus mails).
+- **Mails** (`sendWaitlistMails`): no hay cola aparte, lo que falta sale del estado y de
+  `waitlist_sends` (una vez por anotación, mail y ronda; un fallo se reintenta hasta 3 veces). En
+  orden: la oferta (cada oferta vigente sin su mail), el último aviso (reservas de 12 h o más, con
+  3 h por delante y la oferta ya mandada; nunca en el aviso a todes), «se venció» (con la oferta ya
+  mandada) y «se cerró la lista»; los dos últimos solo si pasó hace menos de 48 h. En el cron van
+  **primero** en la tanda (`runMailQueueWith`, `sendWaitlist`) y comparten el «de a cuántos».
+- **Empujones** (`queueWaitlistAdvance`): en segundo plano (`waitUntil`), como mucho uno por
+  minuto y evento (`hitRateLimit`, `waitlist:advance:<slug>`) y solo si el evento tiene a alguien
+  esperando o con oferta; avanza la lista y manda los mails de ese evento. Lo garantiza el cron;
+  el empujón solo adelanta. Desde: reembolso y cancelación de transferencia en la ficha del evento,
+  cancelación desde la bandeja de transferencias, reembolso / contracargo / pago cancelado de
+  Mercado Pago (`processPayment`), la preferencia de MP que falla (`cancelPendingOrder`), cada
+  carga de la página de compra (las reservas de MP y de transferencia vencen sin aviso), «Guardar»
+  en el editor del evento (más cupo, dejó de estar agotado, otra fecha, cancelado), y los links de
+  los mails: salir con un lugar guardado, confirmar y volver a anotarse.
+
+**Ya está (parte 5, el panel y la puerta).**
+
+- **Editor del evento** (Entradas → «Lista de espera», `WaitlistField.svelte`; reglas en
+  `src/lib/utils/ticketsEditor.js`): sin lista, por evento o por tipo de entrada; «Avisar a todes a
+  la vez desde el principio» (los tiempos de reserva son los de Ajustes; ya no hay «Avanzado»).
+  Escribe `lista_espera` solo si cambió (una que no se entiende queda como está; con la venta
+  apagada no se toca, como la meta). **Con gente anotada** (sin confirmar, esperando o con oferta)
+  no deja apagarla, cambiar el alcance, ni borrar o dejar sin cupo el tipo de una lista por tipo:
+  «cerrá la lista primero». Lo controla con las anotaciones de la base (`waitlistLiveErrors`,
+  también al guardar en el servidor), no con el archivo de antes. Avisa si el interruptor está
+  apagado. Duplicar un evento copia la clave (y el importador la lee, `TICKET_META_KEYS`).
+- **Ventas › Lista de espera, en la ficha** (`/admin/eventos/<slug>/lista-espera`; se ve con el
+  interruptor prendido, o si el evento tiene lista o gente anotada; el contador son las anotaciones
+  vivas, y el Resumen muestra «Lista de espera: N»): cuentas por alcance (esperando, con lugar
+  guardado hasta HH:MM, avisades a la vez, compraron, terminaron, salieron, sin confirmar), la fila
+  en orden y lo terminado (las últimas 200; el resto en el CSV). Acciones, cada una con
+  confirmación y en el registro de actividad sin mails (`waitlist.*`, solo el id de la anotación y
+  cuentas): «Terminar la reserva y pasar a la siguiente» (`expired` / `admin`, sin mail, y la lista
+  avanza ya), «Sacar de la lista» (si tenía oferta, avanza), «Ofrecer ahora» (`advanceWaitlist`
+  directo, sin el límite del empujón; con el interruptor apagado, no), «Cerrar la lista» (quien
+  espera o tiene oferta → `expired` / `closed` con su mail; sin confirmar se borra; y además la
+  apaga: saca `lista_espera` del archivo del evento con `turnOffEventWaitlist`,
+  `src/lib/server/tickets/waitlistOff.js`, antes de cerrar; si no puede, no cierra nada) y «Volver a probar» los mails que no salieron. CSV en
+  `/admin/eventos/<slug>/lista-espera.csv` (con los mails: dato personal). Lecturas en
+  `src/lib/server/tickets/waitlistAdmin.js`.
+- **Puerta y carga a mano:** «Vender en puerta» y «Cargar entradas a mano» muestran una nota que no
+  frena nada (`WaitlistDoorNote.svelte`): «Hay 4 personas en la lista de espera (1 con lugar
+  guardado hasta las 21:30). Podés vender igual; si vendés ese lugar, esa persona puede quedarse
+  sin entrada.» `sellAtDoor` y `createManualOrder` no cambian.
+- **«Para revisar»:** una fila con los mails de la lista que no salieron después de 3 intentos
+  (`waitlist_sends.status = 'failed'`), que lleva a la pestaña del evento (ahí «Volver a probar»).
+- **Tarjetas de las listas de eventos** (`listStates.js`): restan la fila como la página del
+  evento (una consulta más para todos los eventos con lista). La configuración de la venta de
+  todos los eventos de la lista sale en una tanda (`getEventTicketsMany` en `events.js`: los
+  eventos y cuáles tienen lugar, dos consultas para toda la lista; antes, dos por tarjeta).
+- **En la compra, por tipo:** cada tipo agotado con lista dice «Agotadas · Anotate en la lista de
+  espera», que baja al formulario con ese tipo elegido.
+
+**Prueba de punta a punta** (`tests/tickets/lista-espera.spec.js`, con
+`playwright.tickets.config.js`): cada prueba crea su evento (cupo 1, lista por evento); agotar,
+anotarse y confirmar (GET no confirma), la misma respuesta para un mail ya anotado, reembolso, el
+cron ofrece, el público no puede comprar el lugar guardado, «Terminar la reserva» pasa a la
+siguiente (el link viejo ya no vale), compra con el link (después «ya usaste este link»), CSV, la
+nota en la puerta y en la carga a mano, «Sacar de la lista» y «Cerrar la lista» (que además la apaga: el público ya no puede
+anotarse).
+Los mails en dev no muestran los links: la prueba los arma con la base local (el de confirmar,
+cambiando el hash del token por el de uno propio; el de la oferta, con la misma firma que el
+motor). El vencimiento por tiempo (y el paso a la siguiente por el cron) lo cubren las pruebas
+unitarias del motor (`waitlistEngine.test.js`, con reloj fijo).
+
+**Lo que falta antes del merge a `main`:** que gorrite aplique la 0053 en preview y producción
+(0028). Queda abierto si «Terminar la reserva» manda un mail (decisión 0040).
+
 ### Horario de la venta
 
 - `tickets_open` (opcional): antes de ese momento la venta no abrió; la página del evento y la de compra dicen "Abre el jueves 1/10 a las 12:00".
@@ -308,11 +502,11 @@ En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada 
 
 ### Mails y recordatorios
 
-- **Remitente y respuesta:** por defecto `KinkyVibe <entradas@kinkyvibe.ar>` y `entradas@kinkyvibe.ar` (la organización redirige esa dirección a su Gmail con Cloudflare Email Routing). Se cambian en **Ajustes → Mails y plantillas** (donde también se editan los textos de cada mail: ver [mails.md](mails.md)); si ahí están vacíos, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`. El contacto de la política de devoluciones sigue siendo `TICKETS_CONTACT_EMAIL` (kinkyvibe.talleres@gmail.com). Los mails se mandan con Resend (`RESEND_API_KEY`).
-- **Cambio de fecha** (`src/lib/server/tickets/dateChange.js`, migración `0048_avisar_cambio_fecha.sql`): guardar el evento con otro inicio o fin anota el cambio, y la ficha ofrece **Avisar a les compradores** (aviso arriba de las pestañas y tarjeta en «Mail a compradores»). Nunca sale solo: hace falta tocar el botón y confirmar. Le llega una vez por versión a cada orden aprobada de antes del cambio, con la fecha nueva y el `.ics` actualizado (mismo UID, `SEQUENCE` más alto). Ver [mails.md](mails.md).
+- **Remitente y respuesta:** por defecto `KinkyVibe <entradas@kinkyvibe.ar>` y `entradas@kinkyvibe.ar` (la organización redirige esa dirección a su Gmail con Cloudflare Email Routing). Se cambian en **Mensajes → Configuración** (donde también se editan los textos de cada mail: ver [mails.md](mails.md)); si ahí están vacíos, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`. El contacto de la política de devoluciones sigue siendo `TICKETS_CONTACT_EMAIL` (kinkyvibe.talleres@gmail.com). Los mails se mandan con Resend (`RESEND_API_KEY`).
+- **Cambio de fecha** (`src/lib/server/tickets/dateChange.js`, migración `0048_avisar_cambio_fecha.sql`): guardar el evento con otro inicio o fin anota el cambio, y la ficha ofrece **Avisar a les compradores** (aviso arriba de las pestañas y tarjeta en Mails → Mandar un aviso). Nunca sale solo: hace falta tocar el botón y confirmar. Le llega una vez por versión a cada orden aprobada de antes del cambio, con la fecha nueva y el `.ics` actualizado (mismo UID, `SEQUENCE` más alto). Ver [mails.md](mails.md).
 - **Recordatorios** (`src/lib/server/tickets/reminders.js`): lista configurable en Ajustes de venta (activado + cuándo: "N horas antes" del inicio, o "N días antes a las HH:MM" en hora de Argentina, UTC−3 fijo). Por defecto: **2 días antes** (48 h) y **el mismo día a las 9:00**. Un evento no los manda con `recordatorios: false` en el frontmatter. El mail lleva cuándo y dónde, el link y el código de cada entrada o, en eventos online, el link de la transmisión si ya está.
 - **Quién los manda:** `POST /api/cron/recordatorios` con el header `x-cron-secret` = `CRON_SECRET` (comparado en tiempo constante; sin `CRON_SECRET` responde 503). Lo llama cada 15 minutos el cron del propio Worker (`src/lib/server/scheduled.js`, horario en `[triggers]` de `wrangler.toml`), sin salir a internet. Es idempotente: `reminder_sends` (orden + id del recordatorio) se reserva antes de mandar (ver "Envíos en tandas"). Solo a órdenes aprobadas (no canceladas ni reembolsadas), de eventos que no empezaron ni se cancelaron, y compradas antes de la hora del recordatorio.
-- **Envíos en tandas** (`src/lib/server/tickets/sendState.js`, `mailQueue.js`, migración `0011_send_batches.sql`): cada corrida del cron manda como mucho **"Mails por tanda"** (Ajustes → Mails; de 5 a 200, vacío = 40): primero los recordatorios que tocan (del evento más cercano al más lejano) y, con lo que sobre, lo que quede de cada "Enviar el link a todes" y de cada «Avisar a les compradores» (cambio de fecha). Lo demás sigue en la próxima corrida, así un evento grande no se corta por los límites de un pedido del Worker. Cada fila de `reminder_sends` / `stream_link_sends` tiene un estado: `sending` (reservada; si queda así más de 10 minutos, el Worker se cortó y se retoma), `sent`, `retry` (falló: se reintenta en la próxima corrida) o `failed` (falló 3 veces: no se reintenta solo). Dos corridas a la vez no duplican nada (la reserva es atómica) y cada mail lleva además una clave de idempotencia de Resend. Los `failed` aparecen en **Para revisar** del Inicio: los recordatorios con **Reintentar** (vuelven a la cola), el link con un acceso al evento (el botón los reintenta).
+- **Envíos en tandas** (`src/lib/server/tickets/sendState.js`, `mailQueue.js`, migración `0011_send_batches.sql`): cada corrida del cron manda como mucho **"Mails por tanda"** (Mensajes → Configuración; de 5 a 200, vacío = 40): primero los recordatorios que tocan (del evento más cercano al más lejano) y, con lo que sobre, lo que quede de cada "Enviar el link a todes" y de cada «Avisar a les compradores» (cambio de fecha). Lo demás sigue en la próxima corrida, así un evento grande no se corta por los límites de un pedido del Worker. Cada fila de `reminder_sends` / `stream_link_sends` tiene un estado: `sending` (reservada; si queda así más de 10 minutos, el Worker se cortó y se retoma), `sent`, `retry` (falló: se reintenta en la próxima corrida) o `failed` (falló 3 veces: no se reintenta solo). Dos corridas a la vez no duplican nada (la reserva es atómica) y cada mail lleva además una clave de idempotencia de Resend. Los `failed` aparecen en **Para revisar** del Inicio: los recordatorios con **Reintentar** (vuelven a la cola), el link con un acceso al evento (el botón los reintenta).
 
 ### Ajustes de venta
 
@@ -322,7 +516,7 @@ Tres páginas del panel (menú **Ajustes**; `requireAdmin` en cada `load` y acti
   - **Datos para transferir:** Alias, CBU/CVU, Titular y Banco (texto libre; se muestran los campos completos, como "Alias: …" en líneas). Si están todos vacíos se usa `TICKETS_TRANSFER_INFO`; si tampoco hay, no se ofrece transferencia.
   - **Comisión de Mercado Pago** (%): vacío = `TICKETS_MP_FEE_PERCENT` o 2 %. El campo viene completo con el valor que se está usando.
 - **Fondo** (`/admin/ajustes/fondo`): el porcentaje de ahora y un campo para fijarlo a mano (vacío = automático).
-- **Mails y plantillas** (`/admin/ajustes/mails`): remitente, dirección de respuesta, los **recordatorios**, **Mails por tanda** (ver arriba) y, en `/admin/mensajes/plantillas`, el texto de cada mail (tabla `email_templates`; ver [mails.md](mails.md)).
+- **Configuración de los mails** (Mensajes → Configuración, `/admin/mensajes/configuracion`; `/admin/ajustes/mails` redirige ahí): remitente, dirección de respuesta, los **recordatorios**, **Mails por tanda** (ver arriba) y, en `/admin/mensajes/plantillas`, el texto de cada mail (tabla `email_templates`; ver [mails.md](mails.md)).
 
 Además, **Admins** (`/admin/ajustes/admins`) muestra quién puede entrar al panel (la lista de `src/lib/server/auth.js`; por ahora solo lectura).
 
@@ -386,7 +580,7 @@ En producción van en Cloudflare: **Workers & Pages → (proyecto) → Settings 
 | `EMAIL_ALLOWLIST`        | Solo previews. Direcciones (separadas por comas) que pueden recibir mails reales desde un preview; cualquier otra se desvía a la primera, con `[DEMO]` en el asunto. Sin ella, un preview no manda mails. Estado del entorno: `GET /api/preview-status` (solo en previews). |
 | `TICKETS_FROM_EMAIL`     | Respaldo del remitente si en Ajustes de venta está vacío (por defecto `KinkyVibe <entradas@kinkyvibe.ar>`). El dominio tiene que estar verificado en Resend.                                                                                                                |
 | `CRON_SECRET`            | Secret. Clave del cron del Worker para `POST /api/cron/recordatorios` (16 caracteres o más). Sin ella no se mandan recordatorios.                                                                                                                                           |
-| `FONDO_MAIL_SECRET`      | Secret. Clave compartida con fondo.kinkyvibe.ar para `POST /api/fondo/mi-link` (header `x-fondo-secret`, 16 caracteres o más; ver [mails.md](mails.md)). Sin ella ese endpoint contesta 401 siempre.                                                                        |
+| `FONDO_MAIL_SECRET`      | Secret. Clave compartida con fondo.kinkyvibe.ar para `POST /api/fondo/mi-link` y `GET /api/fondo/propinas-total` (header `x-fondo-secret`, 16 caracteres o más; ver [mails.md](mails.md) y [propinas.md](propinas.md)). Sin ella esos endpoints contestan 401 siempre.      |
 | `TICKETS_REPLY_TO`       | Opcional. Respaldo de la dirección de respuesta si en Ajustes de venta está vacía (por defecto `entradas@kinkyvibe.ar`).                                                                                                                                                    |
 | `TICKETS_CONTACT_EMAIL`  | Opcional. Contacto público de la política de devoluciones y cambios de titular. Por defecto `kinkyvibe.talleres@gmail.com`.                                                                                                                                                 |
 | `TICKETS_TRANSFER_INFO`  | Respaldo de los datos para transferir si en Ajustes de venta están vacíos; texto libre, saltos de línea reales o escritos `\n`. **No commitear.**                                                                                                                           |
@@ -397,13 +591,13 @@ En producción van en Cloudflare: **Workers & Pages → (proyecto) → Settings 
 
 Solo en desarrollo (`vite dev`; en el build de producción este código no existe):
 
-| Variable                         | Qué hace                                                                                                                                                                                                                         |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MP_MOCK=1`                      | Usa el Mercado Pago simulado aunque haya `MP_ACCESS_TOKEN`. Sin `MP_ACCESS_TOKEN` también se simula.                                                                                                                             |
-| `TICKETS_DEV_FIXTURE=slug`       | Agrega entradas de prueba (fondo 20 % en todos los tipos: General $10000 sin cupo, Anticipada $8000 cupo 3; MP y transferencia; entradas en la puerta a $ 12.000) a esos eventos sin tocar su archivo. Separar varios con comas. |
-| `TICKETS_DEV_FIXTURE_GORRA=slug` | Lo mismo con un evento online a la gorra (A la gorra: mínimo $1000, sugerido $5000; Libre: mínimo $0, sugerido $3000).                                                                                                           |
-| `FONDO_PERCENT_OVERRIDE=20`      | Porcentaje del Fondo fijo, sin pedirlo a fondo.kinkyvibe.ar (está en `.env.tickets`).                                                                                                                                            |
-| `ADMIN_DEV_MOCK=1`               | Sesión de admin falsa (sin GitHub).                                                                                                                                                                                              |
+| Variable                         | Qué hace                                                                                                                                                                                                                                                                                                                                                              |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MP_MOCK=1`                      | Usa el Mercado Pago simulado aunque haya `MP_ACCESS_TOKEN`. Sin `MP_ACCESS_TOKEN` también se simula.                                                                                                                                                                                                                                                                  |
+| `TICKETS_DEV_FIXTURE=slug`       | Agrega entradas de prueba (fondo 20 % en todos los tipos: General $10000 sin cupo, Anticipada $8000 cupo 3; MP y transferencia; entradas en la puerta a $ 12.000) a esos eventos sin tocar su archivo. Separar varios con comas. Con la cookie `kv-dev-hoy=<slug>`, ese evento empieza hoy a las 23 (para probar la Puerta que entra directo al único evento de hoy). |
+| `TICKETS_DEV_FIXTURE_GORRA=slug` | Lo mismo con un evento online a la gorra (A la gorra: mínimo $1000, sugerido $5000; Libre: mínimo $0, sugerido $3000).                                                                                                                                                                                                                                                |
+| `FONDO_PERCENT_OVERRIDE=20`      | Porcentaje del Fondo fijo, sin pedirlo a fondo.kinkyvibe.ar (está en `.env.tickets`).                                                                                                                                                                                                                                                                                 |
+| `ADMIN_DEV_MOCK=1`               | Sesión de admin falsa (sin GitHub).                                                                                                                                                                                                                                                                                                                                   |
 
 ## Probar en local (sin cuentas de nada)
 

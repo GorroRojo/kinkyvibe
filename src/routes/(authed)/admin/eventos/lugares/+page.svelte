@@ -250,7 +250,7 @@
 				</table>
 			</div>
 		{/if}
-		<form method="POST" action="?/crearPerfil" use:enhance class="new kv-row">
+		<form id="nuevo" method="POST" action="?/crearPerfil" use:enhance class="new kv-row">
 			<input type="hidden" name="kind" value="lugar" />
 			<input type="hidden" name="visibility" value="public" />
 			<input type="hidden" name="version" value="0" />

@@ -38,6 +38,57 @@ export const FLAGS = Object.freeze({
 			'cargar TELEGRAM_WEBHOOK_SECRET y apuntar el webhook del bot a /api/telegram. Los avisos ' +
 			'necesitan el secret TELEGRAM_BOT_TOKEN y la migración 0033.',
 		envVar: 'TELEGRAM_BOT_ENABLED'
+	},
+	telegram_puerta: {
+		label: 'Puerta por Telegram',
+		description:
+			'Les admins pueden marcar ingresos desde Telegram, con el escáner de QR del celular: cada ' +
+			'admin vincula su Telegram en Ajustes → Admins y abre la puerta desde el bot. Solo anda ' +
+			'para admins con el Telegram vinculado. Necesita el bot prendido. Apagado, no se pueden ' +
+			'marcar ingresos desde Telegram (ni vincular, salvo con «Telegram para admins» prendido).',
+		tech:
+			'Mini App /telegram/puerta (docs/telegram.md, decisión 0037). Valida el initData con ' +
+			'TELEGRAM_BOT_TOKEN en cada pedido. Necesita la migración 0050, TELEGRAM_BOT_TOKEN y ' +
+			'TELEGRAM_BOT_USERNAME. Apagado, /telegram/puerta da 404.',
+		envVar: 'TELEGRAM_PUERTA_ENABLED'
+	},
+	telegram_admin: {
+		label: 'Telegram para admins: estado y avisos',
+		description:
+			'Les admins con el Telegram vinculado ven «📊 Estado» en el bot: cuántas entradas se ' +
+			'vendieron de cada evento, reservas por vencer y lo que hay para revisar, solo con ' +
+			'cantidades (nunca datos de compradores). Cada admin elige en «🔔 Mis avisos» qué avisos ' +
+			'quiere recibir (vienen apagados). Necesita el bot prendido. Apagado, nada de esto se ve ' +
+			'y el bot contesta como si no existiera.',
+		tech:
+			'docs/telegram.md («Estado y avisos para admins»), decisión 0041. Vincular el Telegram ' +
+			'(Ajustes → Admins) anda con este o con «Puerta por Telegram». Necesita la migración ' +
+			'0054 para «Mis avisos».',
+		envVar: 'TELEGRAM_ADMIN_ENABLED'
+	},
+	propinas_fondo: {
+		label: 'Donaciones únicas al Fondo',
+		description:
+			'El botón «Una vez» de fondo.kinkyvibe.ar trae a la gente a dejar una propina para el Fondo ' +
+			'Kinky Vibe acá, sin cuenta ni datos, y al terminar les devuelve al Fondo. Apagado, esa ' +
+			'página solo explica que las propinas se dejan desde cada publicación.',
+		tech:
+			'/propinas?de=fondo (y su POST, source = fondo). El total para el Fondo ' +
+			'(GET /api/fondo/propinas-total) no depende de este interruptor. Antes de prenderlo: ' +
+			'migración 0052. docs/propinas.md.',
+		envVar: 'PROPINAS_FONDO_ENABLED'
+	},
+	lista_espera: {
+		label: 'Lista de espera',
+		description:
+			'Cuando un evento (o un tipo de entrada) se agota, la gente se puede anotar en una lista de ' +
+			'espera. Si se libera un lugar, le avisamos por mail a la próxima persona y se lo guardamos ' +
+			'un rato. Se activa por evento, en su editor. Apagado, nada de esto se ve y la venta anda ' +
+			'como siempre. Todavía está en construcción.',
+		tech:
+			'docs/tickets.md, «Lista de espera». Antes de prenderlo: migración 0053. Tablas ' +
+			'waitlist_entries y waitlist_sends; clave `lista_espera` del evento.',
+		envVar: 'LISTA_ESPERA_ENABLED'
 	}
 });
 
@@ -160,6 +211,25 @@ export async function isFlagOn(db, key, { now = Date.now(), envValue } = {}) {
  */
 export function loQueSigoEnabled(platform) {
 	return isFlagOn(getDB(platform), 'lo_que_sigo');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidas las donaciones únicas al Fondo (`/propinas?de=fondo`)?
+ * (docs/propinas.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function propinasFondoEnabled(platform) {
+	return isFlagOn(getDB(platform), 'propinas_fondo');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendida la lista de espera de las entradas? (docs/tickets.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function listaEsperaEnabled(platform) {
+	return isFlagOn(getDB(platform), 'lista_espera');
 }
 
 /**

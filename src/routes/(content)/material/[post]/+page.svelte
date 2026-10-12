@@ -14,11 +14,12 @@
 	import { isKinkyVibePost } from '$lib/utils/propinas.js';
 	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
-	import { argDateLong } from '$lib/utils/dates.js';
+	import { argDateLong, isoDateTime, isoDay } from '$lib/utils/dates.js';
+	import ReadingTime from '$lib/components/ReadingTime.svelte';
+	import { readingTimeLabel } from '$lib/utils/readingTime.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { linkPreviewOf, materialDescription } from '$lib/utils/seo.js';
 	import { tagManager } from '$lib/utils/stores.js';
-	import { READING_TIME_HINT, readingTimeLabel } from '$lib/utils/readingTime.js';
 	export let data;
 	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
 	$: readingTime = readingTimeLabel(data.readingMinutes);
@@ -46,8 +47,8 @@
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 
-	<meta property="article:published_time" content={data.meta.published_date?.toString()} />
-	<meta property="article:modified_time" content={data.meta.updated_date?.toString()} />
+	<meta property="article:published_time" content={isoDateTime(data.meta.published_date)} />
+	<meta property="article:modified_time" content={isoDateTime(data.meta.updated_date)} />
 	<meta property="article:author" content={data.meta.authors?.join(', ')} />
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
@@ -87,17 +88,22 @@
 				{/each}
 			{/await}
 			&ThickSpace;-&ThickSpace;
-			<time datetime={data.meta.published_date?.toString()} class="dt-published">
+			<time datetime={isoDay(data.meta.published_date)} class="dt-published">
 				{argDateLong(data.meta.published_date?.toString())}
 			</time>
 			{#if readingTime}
 				<!-- El «·» va con el texto: en el celu bajan juntos de línea. -->
-				<span class="reading-time" title={READING_TIME_HINT}>·&ThickSpace;{readingTime}</span>
+				<span class="reading-time"
+					>·&ThickSpace;<ReadingTime
+						minutes={data.readingMinutes}
+						words={data.readingWords}
+					/></span
+				>
 			{/if}
 		</address>
 	{:else if readingTime}
 		<address>
-			<span class="reading-time" title={READING_TIME_HINT}>{readingTime}</span>
+			<ReadingTime minutes={data.readingMinutes} words={data.readingWords} />
 		</address>
 	{/if}
 	{#if data.meta.tags}

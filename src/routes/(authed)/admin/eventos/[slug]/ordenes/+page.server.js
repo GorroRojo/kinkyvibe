@@ -1,5 +1,5 @@
 /**
- * Ficha del evento, pestaña Órdenes: todas las órdenes con sus entradas, reenviar el mail,
+ * Ficha del evento, pestaña Ventas › Órdenes: todas las órdenes con sus entradas, reenviar el mail,
  * reembolsar (en dos pasos) y marcar como revisadas las que quedaron para revisar a mano.
  *
  * DNI: la página solo trae los últimos 3 dígitos de cada orden. El completo sale de a uno con la

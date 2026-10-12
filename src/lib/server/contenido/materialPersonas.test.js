@@ -22,6 +22,14 @@ import { dehydrateContent, hydrateContent } from './relaciones.js';
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
 
+/**
+ * La metadata pública: la del panel sin los vínculos a perfiles que no ve cualquiera (el oculto y
+ * la dirección sin perfil; ./vinculosPublicos.js).
+ * @param {Record<string, any>[]} personas
+ */
+const publicPersonas = (personas) =>
+	personas.filter((p) => !['oculta-inventada', 'no-existe-inventade'].includes(p.perfil));
+
 describe('la forma de antes del material (puro)', () => {
 	it('authors + extra.personas con edges pasa a la lista única con el rol Autore', () => {
 		const data = { summary: 'x', authors: ['Uno'], extra: { color: 'violeta' } };
@@ -212,12 +220,15 @@ describe('guardar material desde el panel', () => {
 		expect(materialToMeta(found.object)).toEqual(oldMeta);
 		// La página pública y las listas (de las listas salen también el buscador y el RSS).
 		const page = /** @type {any} */ (await posts.sitePost(t.platform, 'material', SLUG));
-		expect(page.meta.personas).toEqual(oldMeta.personas);
+		const shownPersonas = publicPersonas(oldMeta.personas);
+		expect(shownPersonas.map((/** @type {any} */ p) => p.perfil)).toContain('colectivo-inventado');
+		expect(shownPersonas).toHaveLength(oldMeta.personas.length - 2);
+		expect(page.meta.personas).toEqual(shownPersonas);
 		expect(page.meta.authors).toEqual(oldMeta.authors);
 		const listed = /** @type {any} */ (
 			(await posts.sitePosts(t.platform)).find((p) => p.meta.postID === SLUG)
 		);
-		expect(listed?.meta.personas).toEqual(oldMeta.personas);
+		expect(listed?.meta.personas).toEqual(shownPersonas);
 		expect(listed?.meta.authors).toEqual(oldMeta.authors);
 		// «Descargar todo»: el mismo .md que daba la lista entera en el JSON.
 		const files = await contentArchiveFiles(t.db);

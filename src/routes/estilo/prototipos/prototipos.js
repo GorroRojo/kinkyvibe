@@ -8,9 +8,15 @@
 export const PROTOTIPOS = [
 	{
 		slug: 'filtros-celu',
-		nombre: 'Filtros en el celu',
+		nombre: 'Filtros en el celu (versión 1)',
 		explora:
 			'Una barra fija y corta con las etiquetas más usadas y «Más filtros» en una hoja con buscador, en vez del panel largo de «Filtrar por etiquetas».'
+	},
+	{
+		slug: 'filtros-celu-v2',
+		nombre: 'Filtros en el celu (versión 2)',
+		explora:
+			'Con las respuestas de gorrite: la barra de chips en todas las listas, solo el árbol de etiquetas en la hoja (y solo en pantallas angostas) y todos los controles de la barra del mismo tamaño.'
 	},
 	{
 		slug: 'lista-de-espera',

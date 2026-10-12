@@ -28,24 +28,33 @@ queda marcado con el tag de git `posts-md-final`. Ningún guardado del panel pas
   borradores locales del editor también se marcan como viejos si el texto cambió
   (`src/lib/admin/draft.js`).
 - Los eventos de prueba `prueba-entradas-*` son ocultos y solo venden en `vite dev`.
+- **«Hoy» es el de Argentina.** En `/calendario`, el día marcado como hoy, los días pasados de la
+  grilla y el mes con el que abre salen de la hora de Argentina (`calendarDayFlags`,
+  `defaultCalendarMonth` en `src/lib/utils/allPosts.js`, con `argDate`), nunca de la del servidor
+  (UTC) ni la del navegador de quien mira. Lo mismo el botón «Hoy» de la vista calendario de la
+  agenda del panel (`todayInArgentina`).
+- **`/calendario` trae los pasados de a un mes**: los próximos enteros y, de los pasados, los del
+  mes que abre; los de otro mes los pide al ir a ese mes (`/api/calendario/pasados?mes=yyyy-MM`,
+  `src/lib/server/eventos/pasados.js`; detalles en [seo.md](seo.md)).
 
 ## Dónde está
 
-| Qué                                                                    | Dónde                                                                                                               |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Publicaciones                                                          | En la base (objetos `evento`, `material`, `perfil`, `etiqueta`; [objetos.md](objetos.md))                           |
-| Imágenes                                                               | La biblioteca (R2, [imagenes.md](imagenes.md)); las viejas, por `src/lib/utils/legacyMedia.js`                      |
-| PDF, video y documento viejos del material                             | `src/lib/archivos/material/<carpeta>/` (hasta subirlos a la biblioteca)                                             |
-| Plantillas de evento, material y perfil                                | `src/lib/admin/plantillas/` (`evento.md`, `material.md`, `perfil.md`)                                               |
-| Árbol de etiquetas                                                     | En la base (Panel → Etiquetas, [etiquetas.md](etiquetas.md))                                                        |
-| Semilla de las bases locales (dev, E2E)                                | `src/lib/server/semilla/` (`npm run db:semilla`)                                                                    |
-| Páginas públicas                                                       | `src/routes/(content)/` (`calendario`, `material`, `amigues`, `wiki`…)                                              |
-| Editor de eventos (nuevo, editar, duplicar, agenda, importar planilla) | `src/routes/(authed)/admin/eventos/`, `src/lib/server/eventos/`, `src/lib/utils/eventDraft.js`                      |
-| Editor de material                                                     | `src/routes/(authed)/admin/contenido/material/`, `src/lib/server/admin/contentRoutes.js`, `posts.js`                |
-| Editor de perfiles (amigues)                                           | `src/routes/(authed)/admin/comunidad/perfiles/`, `src/lib/server/admin/amiguesRoutes.js` ([amigues.md](amigues.md)) |
-| Editor de la wiki                                                      | `src/routes/(authed)/admin/etiquetas/wiki/[term]/`, `src/lib/server/etiquetas/wikiEditor.js`                        |
-| Editor genérico (material; amigues y wiki llevan a sus editores)       | `src/routes/(authed)/edit/[category]/[postID]/`                                                                     |
-| Cliente de contenido del panel                                         | `getRepoClient()` en `src/lib/server/eventos/index.js`: `withContentDb` sobre `contenido/cliente.js`                |
+| Qué                                                                    | Dónde                                                                                                                                           |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Publicaciones                                                          | En la base (objetos `evento`, `material`, `perfil`, `etiqueta`; [objetos.md](objetos.md))                                                       |
+| Imágenes                                                               | La biblioteca (R2, [imagenes.md](imagenes.md)); las viejas, por `src/lib/utils/legacyMedia.js`                                                  |
+| PDF, video y documento viejos del material                             | `src/lib/archivos/material/<carpeta>/` (hasta subirlos a la biblioteca)                                                                         |
+| Plantillas de evento, material y perfil                                | `src/lib/admin/plantillas/` (`evento.md`, `material.md`, `perfil.md`)                                                                           |
+| Árbol de etiquetas                                                     | En la base (Panel → Etiquetas, [etiquetas.md](etiquetas.md))                                                                                    |
+| Semilla de las bases locales (dev, E2E)                                | `src/lib/server/semilla/` (`npm run db:semilla`)                                                                                                |
+| Páginas públicas                                                       | `src/routes/(content)/` (`calendario`, `material`, `amigues`, `wiki`…)                                                                          |
+| Listas públicas y sus filtros (buscador, barra de chips, árbol)        | `src/lib/components/PostList.svelte` con `TagSearch`, `FilterBar`, `TagBar` y `TagTree` ([estilo.md](estilo.md#barra-de-filtros-de-las-listas)) |
+| Editor de eventos (nuevo, editar, duplicar, agenda, importar planilla) | `src/routes/(authed)/admin/eventos/`, `src/lib/server/eventos/`, `src/lib/utils/eventDraft.js`                                                  |
+| Editor de material                                                     | `src/routes/(authed)/admin/contenido/material/`, `src/lib/server/admin/contentRoutes.js`, `posts.js`                                            |
+| Editor de perfiles (amigues)                                           | `src/routes/(authed)/admin/comunidad/perfiles/`, `src/lib/server/admin/amiguesRoutes.js` ([amigues.md](amigues.md))                             |
+| Editor de la wiki                                                      | `src/routes/(authed)/admin/etiquetas/wiki/[term]/`, `src/lib/server/etiquetas/wikiEditor.js`                                                    |
+| Editor genérico (material; amigues y wiki llevan a sus editores)       | `src/routes/(authed)/edit/[category]/[postID]/`                                                                                                 |
+| Cliente de contenido del panel                                         | `getRepoClient()` en `src/lib/server/eventos/index.js`: `withContentDb` sobre `contenido/cliente.js`                                            |
 
 ## Cómo probar
 
@@ -110,14 +119,28 @@ listadas.
 la base): los perfiles en Comunidad → Perfiles, la wiki en Etiquetas → cada etiqueta → «Entrada de
 la Kinkipedia» (`/admin/etiquetas/wiki/<dirección>`). No hay otra forma: no quedan archivos.
 
-**Tiempo de lectura** (idea de JorgeT10, PR #46). La página de un material y la de la wiki muestran
-«X min de lectura» junto a la fecha (material) o debajo del título (wiki). Sale del texto guardado
-en la base (`data.body`, no del `.md` ni de lo armado): `src/lib/utils/readingTime.js` lo pasa a
-texto plano con `stripMarkdown` (el del buscador), sin bloques de código, y cuenta ~200 palabras
-por minuto, para arriba. Con menos de 100 palabras no se muestra (un material que es solo un
-link, una entrada corta). Se calcula en cada pedido, al lado del armado del texto (cuesta mucho
-menos que eso): sin columna ni migración. Los eventos no lo muestran (casi todos se leen en menos
-de 2 minutos y lo que importa ahí es cuándo, dónde y las entradas).
+**Tiempo de lectura** (idea de JorgeT10, PR #46). La página de un material y la de la wiki
+(Kinkipedia) muestran «X min de lectura» junto a la fecha (material) o debajo del título (wiki).
+Sale del texto guardado en la base (`data.body`, no del `.md` ni de lo armado):
+`src/lib/utils/readingTime.js` lo pasa a texto plano con `stripMarkdown` (el del buscador), sin
+bloques de código, y cuenta ~200 palabras por minuto, para arriba. Con menos de 100 palabras no se
+muestra (un material que es solo un link, una entrada corta). Se calcula en cada pedido, al lado del
+armado del texto (cuesta mucho menos que eso): sin columna ni migración. Los eventos no lo muestran
+(casi todos se leen en menos de 2 minutos y lo que importa ahí es cuándo, dónde y las entradas). Lo
+dibuja `src/lib/components/ReadingTime.svelte`: un reloj de Lucide (`Clock`, como en «Cuándo y
+dónde») y el texto, que es un botón; al pasar el mouse, con el foco del teclado o al tocarlo (en el
+celu no hay mouse) muestra la explicación de cómo se calcula (`READING_TIME_HINT`: «Calculado a unas
+200 palabras por minuto, sin contar imágenes ni código»), unida al botón con `aria-describedby`.
+
+**Velocidad de cada persona** (pedido de gorrite, en #274). En la explicación, «¿Leés más rápido o
+más lento? Ajustalo» abre las opciones: «Más despacio» (150), «Predeterminado» (200), «Más rápido» (280) u
+«Otro» (de 80 a 600). La elección vale para todo «X min de lectura» del sitio y la explicación pasa
+a decir «Calculado a tu velocidad (N palabras por minuto), sin contar imágenes ni código». Además de
+`readingMinutes`, el servidor manda `readingWords` (las palabras que cuentan; 0 si el texto es
+corto) y el navegador recalcula con `minutesAtSpeed`. Para que nada se mueva, el servidor dibuja
+siempre los minutos de siempre y el navegador los cambia después de hidratar solo si la persona
+eligió otra velocidad. Dónde se guarda (navegador y cuenta) y quién gana al entrar:
+[cuentas.md](cuentas.md), «Velocidad de lectura». También se elige en Mi rincón.
 
 ## En la base (solo la base)
 
@@ -184,7 +207,12 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   edge `persona` y el resto va en `data.personas` ([objetos.md](objetos.md)).
 - El panel y las listas públicas recuerdan por isolate lo que leyeron de la base mientras no cambie
   (cuántos hay, su último `updated_at`, el último guardado de `object_revisions`) y, las listas
-  públicas, mientras no cambie el árbol de etiquetas. Las listas públicas leen la metadata **sin el
+  públicas, mientras no cambie el árbol de etiquetas. Esa «marca» de «¿cambió algo?» se consulta
+  **una sola vez por pedido de lectura** (`GET`/`HEAD`): la lista, los no listados, los pronombres
+  y el índice de la búsqueda de un mismo pedido comparten la respuesta
+  (`src/lib/server/db/perRequest.js`). En un `POST` solo se comparte la consulta en camino, así un
+  guardado del pedido se ve al toque; fuera de un pedido (scripts, crons, pruebas), una por
+  llamada. Las listas públicas leen la metadata **sin el
   cuerpo** (`json_remove`); el cuerpo lo pide aparte solo la búsqueda (`siteBodies`).
 
 | Qué                                     | Dónde                                                                  |

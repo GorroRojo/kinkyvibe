@@ -9,6 +9,8 @@
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
+	import { afterNavigate } from '$app/navigation';
+	import { tick } from 'svelte';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import { Pencil, Plus, Repeat, Tags } from '@lucide/svelte';
 	import SeriesFields from '$lib/components/admin/series/SeriesFields.svelte';
@@ -19,6 +21,7 @@
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import { eventPanelLink } from '$lib/admin/nav.js';
+	import { typeIcon } from '$lib/admin/typeIcons.js';
 	import { editionDateLabel } from '$lib/utils/series.js';
 
 	export let data;
@@ -39,6 +42,14 @@
 	}
 
 	let creating = false;
+	// «+ Crear ▾ › Serie de eventos» lleva a /admin/eventos/series?crear: abre el formulario.
+	afterNavigate(async ({ to }) => {
+		if (!data.canCreate || !to?.url.searchParams.has('crear')) return;
+		prefill = {};
+		creating = true;
+		await tick();
+		document.getElementById('crear-serie')?.scrollIntoView({ block: 'start' });
+	});
 	/**
 	 * Lo que se precarga en «Crear serie». Vacío = el formulario en blanco (se renueva cada vez que
 	 * se abre).
@@ -77,7 +88,6 @@
 <PageHeader
 	title="Series"
 	subtitle="Eventos que se repiten: cada serie es una etiqueta hija de «evento recurrente»."
-	back={{ href: '/admin/eventos', label: 'Eventos' }}
 >
 	<svelte:fragment slot="actions">
 		<CsvButton href="/admin/eventos/series/ediciones.csv" label="CSV de ediciones" />
@@ -171,7 +181,12 @@
 		{#each data.series as s (s.id)}
 			<Card>
 				<div class="head">
-					{#if s.image}<img src={s.image} alt="" width="96" height="96" />{/if}
+					{#if s.image}<img src={s.image} alt="" width="96" height="96" />{:else}<div
+							class="type-icon"
+							aria-hidden="true"
+						>
+							<svelte:component this={typeIcon('serie')} size={40} strokeWidth={1.75} />
+						</div>{/if}
 					<div class="info">
 						<h2>
 							{s.icon}
@@ -342,12 +357,23 @@
 		align-items: flex-start;
 		flex-wrap: wrap;
 	}
-	.head img {
+	.head img,
+	.type-icon {
 		width: 96px;
 		height: 96px;
 		object-fit: cover;
 		border-radius: var(--radius-m);
 		flex: none;
+	}
+	/* Sin imagen, el ícono grande del tipo (como el encabezado de un perfil o un material:
+	   ui/PageHeader.svelte), rosa sobre la superficie con un borde suave. */
+	.type-icon {
+		display: grid;
+		place-items: center;
+		box-sizing: border-box;
+		background: var(--surface, #fff);
+		color: var(--accent, var(--1));
+		border: 1px solid var(--line);
 	}
 	.info {
 		flex: 1 1 14rem;

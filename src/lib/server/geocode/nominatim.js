@@ -11,6 +11,7 @@
  * - guarda los resultados un rato (en la memoria del Worker) para no repetir la misma búsqueda.
  */
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
+import { SITE_URL } from '$lib/utils/site.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {{ lat: number, lng: number, label: string }} GeocodeResult */
@@ -20,7 +21,7 @@ import { hitRateLimit } from '$lib/server/db/rateLimit.js';
  */
 
 export const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
-export const SITE_URL = 'https://kinkyvibe.ar';
+export { SITE_URL };
 export const USER_AGENT = `kinkyvibe/1.0 (+${SITE_URL}; buscador de lugares)`;
 /** Un pedido por segundo para todo el sitio (la política de Nominatim). */
 export const NOMINATIM_RATE_LIMIT = { limit: 1, windowSeconds: 1 };

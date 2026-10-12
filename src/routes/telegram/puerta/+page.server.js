@@ -1,15 +1,16 @@
 /**
- * PROTOTIPO (no para mergear): la puerta desde una Mini App de Telegram. La página no muestra
- * nada sin Telegram; todo lo que importa pasa por `api/+server.js`, que valida el `initData` y
- * los permisos de admin en cada pedido ($lib/server/telegram/puerta.js).
+ * La puerta (control de ingreso) desde una Mini App de Telegram (decisión 0037, docs/telegram.md).
+ * La página no muestra nada sin Telegram; todo lo que importa pasa por `api/+server.js`, que valida
+ * el `initData` y los permisos de admin en cada pedido ($lib/server/telegram/puerta.js). Pide los
+ * interruptores `telegram_bot` y `telegram_puerta`; si no, 404.
  */
 import { error } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
-import { isFlagOn } from '$lib/server/flags.js';
+import { doorEnabled } from '$lib/server/telegram/puerta.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ platform, url, setHeaders }) {
-	if (!(await isFlagOn(getDB(platform), 'telegram_bot'))) error(404, 'Not found');
+	if (!(await doorEnabled(getDB(platform)))) error(404, 'Not found');
 	setHeaders({
 		'cache-control': 'private, no-store',
 		'x-robots-tag': 'noindex',

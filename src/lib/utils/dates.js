@@ -288,3 +288,66 @@ export function eventDateList(start, { now } = {}) {
 	const iso = `${m[1]}T${hh}:${m[3] ?? '00'}:00-03:00`;
 	return argDateList(iso, { time: Boolean(m[2]), now: now ?? iso });
 }
+
+// Machine-readable dates (`<time datetime>`, Open Graph `article:*_time`, JSON-LD). The site stores
+// publication dates as `2024-12-06Z-03:00` (date, a stray `Z` and the offset), which is **not**
+// ISO 8601: printed as-is it gave `article:published_time="2024-12-06Z-03:00"`, and not every JS
+// engine parses it. These helpers turn any site date into valid ISO 8601.
+
+/** A full ISO 8601 date-time with a zone, as these helpers and the site's event dates write it. */
+const ISO_DATETIME_RE =
+	/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+/** The site's date-only format, `2024-12-06Z-03:00` (also `2024-12-06-03:00` or a bare `2024-12-06`). */
+const SITE_DATE_RE = /^(\d{4}-\d{2}-\d{2})Z?([+-]\d{2}:\d{2})?$/;
+
+/**
+ * Reads a site date (`2024-12-06Z-03:00`, `2026-10-02T22:00-03:00`, a bare `2026-10-02`, a
+ * timestamp or a `Date`) as a `Date`, the same in every JS engine. A date without a time is
+ * midnight at its offset (Argentina when it has none). Invalid `Date` if it can't be read.
+ * @param {unknown} d
+ * @returns {Date}
+ */
+export function parseSiteDate(d) {
+	if (d instanceof Date) return new Date(d.getTime());
+	if (typeof d === 'number') return new Date(d);
+	const s = String(d ?? '').trim();
+	const m = s.match(SITE_DATE_RE);
+	if (m) return new Date(`${m[1]}T00:00:00${m[2] ?? '-03:00'}`);
+	return new Date(s ? s : NaN);
+}
+
+/**
+ * A valid ISO 8601 date-time with a zone, for Open Graph (`article:published_time`) and
+ * schema.org: `2024-12-06Z-03:00` → `2024-12-06T00:00:00-03:00`. A string that already is one
+ * (`2026-10-02T22:00-03:00`) is kept as written; anything else is written in Argentina time
+ * (`2026-10-02T22:00:00-03:00`). `undefined` if it can't be read.
+ * @param {unknown} d
+ * @returns {string | undefined}
+ */
+export function isoDateTime(d) {
+	if (typeof d === 'string' && ISO_DATETIME_RE.test(d.trim())) return d.trim();
+	const date = parseSiteDate(d);
+	if (isNaN(date.getTime())) return undefined;
+	return `${argDate(date)}T${argTime(date)}:${pad2(toArgentina(date).getSeconds())}-03:00`;
+}
+
+/**
+ * A valid ISO 8601 calendar date in Argentina time, for a `<time datetime>` that only means a day
+ * (a publication date): `2024-12-06Z-03:00` → `2024-12-06`. `undefined` if it can't be read.
+ * @param {unknown} d
+ * @returns {string | undefined}
+ */
+export function isoDay(d) {
+	const date = parseSiteDate(d);
+	return isNaN(date.getTime()) ? undefined : argDate(date);
+}
+
+/**
+ * «Próximo»: ¿empieza después de `now`? La misma regla en todo el sitio (listas, calendario, bot,
+ * tarjetas de entradas, avisos): una fecha que falta o no se puede leer no es próxima.
+ * @param {string|number|Date|null|undefined} start
+ * @param {number} [now]
+ */
+export function startsAfter(start, now = Date.now()) {
+	return new Date(/** @type {any} */ (start)).getTime() > now;
+}

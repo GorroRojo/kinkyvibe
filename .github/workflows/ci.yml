@@ -2,6 +2,10 @@ name: CI
 
 on:
   pull_request:
+    # `edited`: al cambiar la descripción del PR vuelve a correr todo (el job `plan-pr` la lee y
+    # `ci-ok` tiene que reflejarla). Corre todo, y no solo `plan-pr`, porque la corrida nueva
+    # cancela la anterior (concurrency) y `ci-ok` sale de una sola corrida.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
 
@@ -13,8 +17,59 @@ permissions:
   contents: read
 
 jobs:
-  # Lint + unit tests and build + E2E run in parallel (each on its own runner).
+  # ¿El PR toca solo documentación? Entonces no hace falta correr tests, build ni E2E: alcanza con
+  # el chequeo de formato (job `docs`). En `main` (push) corre todo siempre. «Solo documentación» =
+  # cada archivo cambiado está en docs/, es un .md de la raíz o está en .claude/ (skills, notas).
+  # Nada de eso lo importa el sitio ni lo leen los tests.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.check.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # El merge del PR y su primer padre (la base del PR), para comparar con HEAD^1.
+          fetch-depth: 2
+
+      - name: ¿Solo documentación?
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only HEAD^1 HEAD)
+          echo "$files"
+          if [ -n "$files" ] && ! echo "$files" | grep -qvE '^docs/|^[^/]+\.md$|^\.claude/'; then
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+            echo "Solo documentación: corre el chequeo de formato y se saltean tests, build y E2E." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Para los PRs de solo documentación: el mismo chequeo de formato que `unit`, nada más.
+  docs:
+    needs: changes
+    if: needs.changes.outputs.docs_only == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      - name: Prettier
+        run: npm run format:check
+
+  # Lint y formato (unit), las pruebas en 3 partes (tests), build + E2E y tipos corren en paralelo.
   unit:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -35,10 +90,62 @@ jobs:
       - name: Prettier
         run: npm run format:check
 
-      - name: Unit + content tests
-        run: npx vitest run
+  # Las pruebas de vitest, repartidas en 3 máquinas en paralelo (eran ~7 de los ~8 minutos de CI).
+  # Cada una corre un tercio de los archivos (`--shard`); juntas, todas.
+  tests:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    name: tests (${{ matrix.shard }}/3)
+    steps:
+      - uses: actions/checkout@v7
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      # Cachés de vitest entre corridas (después de `npm ci`, que borra node_modules):
+      # node_modules/.vite/vitest guarda cuánto tardó cada archivo la última vez (los lentos
+      # arrancan primero) y node_modules/.vitest-cache los módulos ya transformados
+      # (`--fsModuleCache`; vitest la vacía sola si cambia package-lock.json). Una por parte: cada
+      # parte corre siempre más o menos los mismos archivos. Los PRs leen la de main.
+      - uses: actions/cache@v6
+        with:
+          path: |
+            node_modules/.vite
+            node_modules/.vitest-cache
+          key: vitest-${{ runner.os }}-${{ matrix.shard }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: vitest-${{ runner.os }}-${{ matrix.shard }}-${{ hashFiles('package-lock.json') }}-
+
+      # El reparto entre las 3 partes es por tiempo (scripts/vitest/sequencer.js, con los tiempos de
+      # scripts/vitest/durations.json), no por cantidad de archivos. Cada parte guarda cuánto tardó
+      # cada archivo y lo sube como artifact `vitest-durations-N`, para actualizar durations.json
+      # (scripts/vitest/merge-durations.js).
+      - name: Unit + content tests
+        run: npx vitest run --shard=${{ matrix.shard }}/3 --fsModuleCache --reporter=default --reporter=./scripts/vitest/durations-reporter.js
+        env:
+          VITEST_DURATIONS_OUT: ${{ runner.temp }}/vitest-durations.json
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: vitest-durations-${{ matrix.shard }}
+          path: ${{ runner.temp }}/vitest-durations.json
+          retention-days: 30
+
+  # Build, Worker empaquetado y pruebas de humo de Playwright. Lo más lento es cargar la semilla en
+  # una base local nueva (~1 minuto): corre al mismo tiempo que el build y que la instalación de
+  # Chromium, que no dependen de ella.
   e2e:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     # 22.04: @playwright/test 1.40 can't install system deps on 24.04.
     runs-on: ubuntu-22.04
     timeout-minutes: 15
@@ -52,19 +159,6 @@ jobs:
 
       - run: npm ci
 
-      - name: Build
-        run: npm run build
-
-      # Empaqueta el Worker (worker/index.js + el build) como lo haría el deploy, sin subir nada
-      # ni necesitar cuenta de Cloudflare.
-      - name: Worker bundle (wrangler dry-run)
-        run: npx wrangler deploy --dry-run --outdir .wrangler/dry-run
-
-      # Este build no tiene rama de deploy, como producción para el modo demo (PREVIEW_BUILD es
-      # false): el seed y el botón «Recargar datos de prueba» no pueden estar en el Worker.
-      - name: No demo seed in the production bundle
-        run: node scripts/demo/guard.js bundle .wrangler/dry-run/index.js
-
       # The browser only changes when @playwright/test does: keep it between runs.
       - name: Playwright version
         id: pw
@@ -76,13 +170,36 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium
 
-      - name: Install Chromium for Playwright
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+      # En paralelo: la semilla (scripts/semilla.js: migraciones + contenido público en
+      # .wrangler/state; Playwright la vuelve a correr antes de servir, pero sobre una base ya
+      # cargada tarda segundos), Chromium (o, si está en caché, solo sus librerías del sistema) y
+      # el build. Si algo falla, muestra su log.
+      - name: Build + seed + Chromium
+        env:
+          PW_CACHE_HIT: ${{ steps.pw-cache.outputs.cache-hit }}
+        run: |
+          node scripts/semilla.js --quiet > "$RUNNER_TEMP/semilla.log" 2>&1 &
+          seed=$!
+          if [ "$PW_CACHE_HIT" = 'true' ]; then
+            npx playwright install-deps chromium > "$RUNNER_TEMP/chromium.log" 2>&1 &
+          else
+            npx playwright install --with-deps chromium > "$RUNNER_TEMP/chromium.log" 2>&1 &
+          fi
+          chromium=$!
+          npm run build
+          if ! wait "$chromium"; then cat "$RUNNER_TEMP/chromium.log"; exit 1; fi
+          if ! wait "$seed"; then cat "$RUNNER_TEMP/semilla.log"; exit 1; fi
+          cat "$RUNNER_TEMP/semilla.log"
 
-      - name: Install Chromium's system libraries
-        if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
+      # Empaqueta el Worker (worker/index.js + el build) como lo haría el deploy, sin subir nada
+      # ni necesitar cuenta de Cloudflare.
+      - name: Worker bundle (wrangler dry-run)
+        run: npx wrangler deploy --dry-run --outdir .wrangler/dry-run
+
+      # Este build no tiene rama de deploy, como producción para el modo demo (PREVIEW_BUILD es
+      # false): el seed y el botón «Recargar datos de prueba» no pueden estar en el Worker.
+      - name: No demo seed in the production bundle
+        run: node scripts/demo/guard.js bundle .wrangler/dry-run/index.js
 
       - name: E2E smoke tests
         run: npx playwright test
@@ -99,6 +216,8 @@ jobs:
   # Fails only if svelte-check reports MORE errors than scripts/svelte-check-baseline.json.
   # Its log lists every current error.
   typecheck:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -184,12 +303,45 @@ jobs:
           path: ui-impacto/
           retention-days: 14
 
+  # docs/plan.md, el plan único: ids, fases, estados, dependencias y que las fases de
+  # src/lib/admin/nav.js coincidan (scripts/plan-lint.js). Sin dependencias: no hace falta npm ci.
+  # Corre también en los PRs de solo documentación.
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
+      - run: node scripts/plan-lint.js
+
+  # La descripción del PR dice a qué ítems del plan corresponde: una línea `Plan: <id>[, <id>]` o
+  # `Plan: ninguno`, con ids que existen en el docs/plan.md del PR (scripts/plan-pr.js). Los PRs de
+  # bots no la necesitan. Solo en pull_request (en `main` se saltea).
+  plan-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
+      - run: node scripts/plan-pr.js
+
   # The single check to require in branch protection. It passes only if every job it needs
   # succeeded (or was skipped), so jobs can be added or renamed without touching the settings.
   # When you add a job above, add it to `needs` here too.
   ci-ok:
     if: always()
-    needs: [unit, e2e, typecheck]
+    needs: [changes, docs, unit, tests, e2e, typecheck, plan, plan-pr]
     runs-on: ubuntu-latest
     steps:
       - name: All required jobs passed

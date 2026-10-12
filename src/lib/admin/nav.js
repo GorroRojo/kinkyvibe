@@ -1,9 +1,10 @@
 /**
  * Mapa del panel de admin: la ÚNICA lista de secciones. La usan la barra lateral (desktop), la
  * barra de abajo y el panel "Más" (celu), el botón "Para revisar", la página "Próximamente" y el
- * buscador (`commands.js`). Mapa aprobado por gorrite (decisión 0026, paso 2 del orden): 7 áreas
- * ({@link NAV_AREAS}) más Inicio arriba y Ajustes al pie. Dentro de cada área, las secciones van
- * por frecuencia de uso (lo de todos los días primero) y lo que viene, al final.
+ * buscador (`commands.js`). Mapa aprobado por gorrite (decisión 0026, paso 2 del orden): las áreas
+ * ({@link NAV_AREAS}) más Inicio arriba y Ajustes al pie; desde la opción C (decisión 0038) la
+ * Puerta es un área propia. Dentro de cada área, las secciones van por frecuencia de uso (lo de
+ * todos los días primero) y lo que viene, al final.
  *
  * Forma de cada ítem ({@link NavItem}):
  * - `id`: identificador estable (no cambiarlo: lo usan los atajos y el buscador).
@@ -11,14 +12,18 @@
  *   excepciones: Inicio, Eventos, Check-in (su URL está guardada en los celus de la puerta) y
  *   Etiquetas, que es su propia área. Sin redirecciones desde las URLs viejas: si una cambia,
  *   `adminPaths.test.js` marca cada link interno que quedó apuntando a la vieja.
- *   **Única excepción** (aprobada por gorrite, 11/10): `/admin/estadisticas` era una página y
+ *   **Excepciones** (aprobadas por gorrite, 11/10): `/admin/estadisticas` era una página y
  *   ahora redirige (307) a Ventas (`/admin/estadisticas/ventas`), así los favoritos viejos siguen
- *   andando (`src/routes/(authed)/admin/estadisticas/+server.js`). No es un ítem del menú.
+ *   andando (`src/routes/(authed)/admin/estadisticas/+server.js`). No es un ítem del menú. Y
+ *   /admin/ajustes/mails redirige (308) a Mensajes › Configuración
+ *   (`src/routes/(authed)/admin/ajustes/mails/+server.js`).
  * - `icon`: componente de Lucide (el ícono que se muestra, ver `ICON_MODE`).
  * - `emoji`: el mismo ícono como emoji (se usa si `ICON_MODE` es 'emoji').
  * - `label`: nombre en el menú.
  * - `area`: `null` (Inicio) o el id de una de las {@link NAV_AREAS}.
- * - `sub` (solo Ajustes): subgrupo de {@link AJUSTES_SUBGROUPS} (Plata, Comunicación…).
+ * - `sub` (solo Ajustes): subgrupo de {@link AJUSTES_SUBGROUPS} (Plata, Comunicación…). Todas
+ *   las secciones de Ajustes lo llevan, menos su portada (`/admin/ajustes`, decisión 0042).
+ * - `desc` (solo Ajustes): qué hay en la sección, en una línea (la tarjeta de la portada).
  * - `soon`: `true` mientras la sección está aprobada pero no construida (ver "Ciclo de vida").
  * - `phase`: fase del plan en la que llega (obligatoria con `soon: true`; el menú muestra
  *   "fase N").
@@ -55,6 +60,7 @@
  *   label: string,
  *   area: string | null,
  *   sub?: string,
+ *   desc?: string,
  *   soon: boolean,
  *   phase?: number,
  *   soonText?: string,
@@ -71,6 +77,7 @@
 import {
 	ArrowRightLeft,
 	BookOpen,
+	Bot,
 	CalendarDays,
 	CalendarPlus,
 	CalendarRange,
@@ -89,10 +96,12 @@ import {
 	Inbox,
 	KeyRound,
 	Landmark,
+	LayoutDashboard,
 	Library,
 	ListPlus,
 	Mail,
 	MapPin,
+	Pencil,
 	Repeat,
 	ScanLine,
 	ScrollText,
@@ -109,6 +118,7 @@ import {
 	UserCheck,
 	Workflow
 } from '@lucide/svelte';
+import { tagSlug } from '$lib/utils/tagSlug.js';
 
 /**
  * Íconos del panel: 'lucide' (los del sitio, @lucide/svelte) o 'emoji'. Cambiar esta línea cambia
@@ -122,6 +132,7 @@ export const ICON_MODE = 'lucide';
  * @type {readonly { id: string, label: string, icon: NavItem['icon'], emoji: string, foot?: true }[]}
  */
 export const NAV_AREAS = Object.freeze([
+	{ id: 'puerta', label: 'Puerta', icon: ScanLine, emoji: '🚪' },
 	{ id: 'eventos', label: 'Eventos', icon: CalendarRange, emoji: '🎟️' },
 	{ id: 'ventas', label: 'Ventas', icon: Ticket, emoji: '💰' },
 	{ id: 'comunidad', label: 'Comunidad', icon: Users, emoji: '🧑‍🤝‍🧑' },
@@ -135,13 +146,30 @@ export const NAV_AREAS = Object.freeze([
 /**
  * Grupos del menú (barra lateral y panel "Más" del celu): el menú simplificado de la revisión de
  * UI (paso 3). Junta áreas chicas con la que se parecen, así arriba hay menos entradas: Inicio,
- * Eventos, Ventas, Comunidad (con Mensajes), Contenido (con Etiquetas), Estadísticas (sola, por
- * pedido de gorrite) y Ajustes al pie. Es solo cómo se muestra: cada sección sigue en su área y en su URL
+ * Puerta (sola y resaltada, opción C), Eventos, Ventas, Comunidad (con Mensajes), Contenido (con
+ * Etiquetas), Estadísticas (sola, por pedido de gorrite) y Ajustes al pie. En la barra lateral
+ * cada grupo es UNA sección (link a su primera página, {@link sideSections}); sus páginas son las
+ * pestañas de arriba ({@link sectionTabs}). Es solo cómo se muestra: cada sección sigue en su área y en su URL
  * (/admin/<área>/<sección>), y «← Área» sigue llevando a su área. Dentro de un grupo, las
  * secciones del área principal van primero y las de las otras áreas, debajo de su nombre.
- * @type {readonly { id: string, label: string, icon: NavItem['icon'], emoji: string, areas: readonly string[], foot?: true }[]}
+ *
+ * `landing` (solo Ajustes, decisión 0042): el id del ítem de la portada del grupo. Un grupo con
+ * portada no lleva pestañas: la barra lateral (y el panel «Más» del celu) llevan a la portada, que
+ * muestra una tarjeta por sección, y cada sección vuelve a ella con «← Ajustes» (`areaBackLink`).
+ * @type {readonly { id: string, label: string, icon: NavItem['icon'], emoji: string, areas: readonly string[], foot?: true, highlight?: true, side?: false, landing?: string }[]}
  */
 export const NAV_GROUPS = Object.freeze([
+	{
+		id: 'puerta',
+		label: 'Puerta',
+		icon: ScanLine,
+		emoji: '🚪',
+		areas: ['puerta'],
+		highlight: true,
+		// No va en la barra lateral (gorrite, 11/10, parte 2 de la opción C): está en la barra de
+		// abajo del celu, en «Ir a…», en la pestaña Puerta de cada evento y en el bot. Su URL sigue.
+		side: false
+	},
 	{ id: 'eventos', label: 'Eventos', icon: CalendarRange, emoji: '🎟️', areas: ['eventos'] },
 	{ id: 'ventas', label: 'Ventas', icon: Ticket, emoji: '💰', areas: ['ventas'] },
 	{
@@ -171,7 +199,9 @@ export const NAV_GROUPS = Object.freeze([
 		icon: Settings,
 		emoji: '⚙️',
 		areas: ['ajustes'],
-		foot: true
+		foot: true,
+		// Una portada con tarjetas por subgrupo en vez de pestañas (gorrite, 12/10, decisión 0042).
+		landing: 'ajustes'
 	}
 ]);
 
@@ -227,6 +257,19 @@ export const NAV = Object.freeze([
 		match: 'exact'
 	},
 
+	// Puerta
+	{
+		id: 'checkin',
+		href: '/admin/checkin',
+		icon: ScanLine,
+		emoji: '🚪',
+		label: 'Puerta',
+		// Sección propia (opción C, decisión 0038): se usa en el celu, con gente esperando.
+		area: 'puerta',
+		soon: false,
+		highlight: true
+	},
+
 	// Eventos
 	{
 		id: 'eventos',
@@ -246,7 +289,10 @@ export const NAV = Object.freeze([
 		label: 'Cargar evento',
 		area: 'eventos',
 		soon: false,
-		highlight: true
+		// Crear es una acción, no un lugar (opción C, decisión 0038): está como botón en Eventos,
+		// en el buscador («Ir a…») y con `g n`, pero no en el menú.
+		menu: false,
+		parent: 'eventos'
 	},
 	{
 		id: 'eventos-agenda',
@@ -268,16 +314,6 @@ export const NAV = Object.freeze([
 		// Se entra desde la Agenda (y desde Inicio); no ocupa lugar en el menú.
 		menu: false,
 		parent: 'eventos-agenda'
-	},
-	{
-		id: 'checkin',
-		href: '/admin/checkin',
-		icon: ScanLine,
-		emoji: '🚪',
-		label: 'Puerta',
-		area: 'eventos',
-		soon: false,
-		highlight: true
 	},
 	{
 		// Series de eventos (docs/decisiones/0005).
@@ -403,17 +439,26 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
+		// Remitente, pie, recordatorios y envíos en tandas. Antes era Ajustes › «Mails y envíos»
+		// (/admin/ajustes/mails, que redirige acá; gorrite, 11/10). El id quedó igual (atajos).
+		id: 'ajustes-mails',
+		href: '/admin/mensajes/configuracion',
+		icon: Mail,
+		emoji: '✉️',
+		label: 'Configuración',
+		area: 'mensajes',
+		soon: false
+	},
+	{
+		// El estado de «Lo que sigo» para mirar: interruptores, números, avisos que salieron y lo
+		// más seguido (cuántas cuentas, nunca quiénes). Se ve con el interruptor apagado.
 		id: 'lo-que-sigo',
 		href: '/admin/mensajes/lo-que-sigo',
 		icon: Sparkles,
 		emoji: '✨',
 		label: 'Lo que sigo',
 		area: 'mensajes',
-		soon: true,
-		phase: 2,
-		soonText:
-			'Qué etiquetas, perfiles y lugares sigue cada persona, para su calendario y sus mails ' +
-			'(anuncios y recordatorios). Incluye a quienes pidieron "Avisame si se repite".'
+		soon: false
 	},
 	{
 		id: 'bandeja',
@@ -539,6 +584,17 @@ export const NAV = Object.freeze([
 
 	// Ajustes (al pie)
 	{
+		// La portada de Ajustes (decisión 0042): una tarjeta por sección, en sus cuatro subgrupos,
+		// con una línea de estado. Es la página del área (la de «← Ajustes»); sin subgrupo.
+		id: 'ajustes',
+		href: '/admin/ajustes',
+		icon: Settings,
+		emoji: '⚙️',
+		label: 'Ajustes',
+		area: 'ajustes',
+		soon: false
+	},
+	{
 		id: 'ajustes-cobros',
 		href: '/admin/ajustes/cobros',
 		icon: Landmark,
@@ -546,6 +602,7 @@ export const NAV = Object.freeze([
 		label: 'Cobros',
 		area: 'ajustes',
 		sub: 'plata',
+		desc: 'Datos para transferir y recargo de Mercado Pago',
 		soon: false
 	},
 	{
@@ -556,6 +613,7 @@ export const NAV = Object.freeze([
 		label: 'Fondo',
 		area: 'ajustes',
 		sub: 'plata',
+		desc: 'Qué parte de cada entrada va al Fondo Kinky Vibe',
 		soon: false
 	},
 	{
@@ -567,16 +625,7 @@ export const NAV = Object.freeze([
 		label: 'Propinas',
 		area: 'ajustes',
 		sub: 'plata',
-		soon: false
-	},
-	{
-		id: 'ajustes-mails',
-		href: '/admin/ajustes/mails',
-		icon: Mail,
-		emoji: '✉️',
-		label: 'Mails y envíos',
-		area: 'ajustes',
-		sub: 'comunicacion',
+		desc: 'Las propinas que entraron, por mes y por publicación',
 		soon: false
 	},
 	{
@@ -588,6 +637,19 @@ export const NAV = Object.freeze([
 		label: 'Vistas previas al compartir',
 		area: 'ajustes',
 		sub: 'comunicacion',
+		desc: 'Cómo se ve un link del sitio en WhatsApp, Telegram o X',
+		soon: false
+	},
+	{
+		// Todo lo que dice el bot de Telegram (docs/telegram.md, «Textos del bot»).
+		id: 'ajustes-textos-bot',
+		href: '/admin/ajustes/textos-bot',
+		icon: Bot,
+		emoji: '💬',
+		label: 'Textos del bot',
+		area: 'ajustes',
+		sub: 'comunicacion',
+		desc: 'Todo lo que dice el bot de Telegram',
 		soon: false
 	},
 	{
@@ -598,6 +660,7 @@ export const NAV = Object.freeze([
 		label: 'Admins',
 		area: 'ajustes',
 		sub: 'equipo',
+		desc: 'Quiénes entran al panel y su Telegram para la puerta',
 		soon: false
 	},
 	{
@@ -608,6 +671,7 @@ export const NAV = Object.freeze([
 		label: 'Interruptores',
 		area: 'ajustes',
 		sub: 'sistema',
+		desc: 'Prender y apagar las funciones nuevas',
 		soon: false
 	},
 	{
@@ -620,6 +684,7 @@ export const NAV = Object.freeze([
 		label: 'Automatizaciones',
 		area: 'ajustes',
 		sub: 'sistema',
+		desc: 'Lo que corre solo: crons, mails programados y el bot',
 		soon: false
 	},
 	{
@@ -631,39 +696,127 @@ export const NAV = Object.freeze([
 		label: 'Actividad',
 		area: 'ajustes',
 		sub: 'sistema',
+		desc: 'Quién cambió qué, con CSV y «Recuperar»',
 		soon: false
 	}
 ]);
 
 /**
  * Pestañas de la ficha de un evento (`/admin/eventos/[slug]` + sufijo). `''` es el Resumen.
- * @type {readonly { id: string, suffix: string, label: string, soon: boolean }[]}
+ * Cada una lleva su ícono: si es la misma cosa que una sección del menú (`section`, el id de un
+ * {@link NavItem}), el de esa sección; si no, uno propio del mismo juego (Lucide), con su emoji.
+ *
+ * Son 7 (gorrite, 11/10): Ventas junta Órdenes y Transferencias, y Mails junta «Mail a
+ * compradores» y las plantillas del evento. Cada una de esas partes es una vista (`views`) de la
+ * pestaña, con su propia URL de siempre (los links viejos, los mails y los tests siguen andando);
+ * la ficha las muestra como botones arriba de la página. La primera vista es la de la pestaña.
+ * @type {readonly { id: string, suffix: string, label: string, soon: boolean, section?: string, icon: NavItem['icon'], emoji: string, views?: readonly { id: string, suffix: string, label: string }[] }[]}
  */
-export const EVENT_TABS = Object.freeze([
-	{ id: 'resumen', suffix: '', label: 'Resumen', soon: false },
-	// Editar va segunda (y también es un botón del encabezado): con 10 pestañas, al final quedaba
-	// fuera de la pantalla en el celu y en la compu angosta.
-	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false },
-	{ id: 'ventas', suffix: '/ventas', label: 'Ventas', soon: false },
-	{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes', soon: false },
-	{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias', soon: false },
-	{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false },
-	{ id: 'codigos', suffix: '/codigos', label: 'Códigos', soon: false },
-	{ id: 'mail', suffix: '/mail', label: 'Mail a compradores', soon: false },
-	// Plantillas de los mails de este evento (lo que cambia sobre Mensajes → Plantillas).
-	{ id: 'mails', suffix: '/mails', label: 'Plantillas de mails', soon: false },
-	// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.
-	{ id: 'preguntas', suffix: '/preguntas', label: 'Preguntas', soon: false }
-]);
+export const EVENT_TABS = Object.freeze(
+	[
+		{
+			id: 'resumen',
+			suffix: '',
+			label: 'Resumen',
+			soon: false,
+			icon: LayoutDashboard,
+			emoji: '📋'
+		},
+		// Editar va segunda (y también es un botón del encabezado).
+		{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false, icon: Pencil, emoji: '✏️' },
+		{
+			id: 'ventas',
+			suffix: '/ventas',
+			label: 'Ventas',
+			soon: false,
+			section: 'entradas',
+			views: [
+				{ id: 'ventas', suffix: '/ventas', label: 'Totales' },
+				{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes' },
+				{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias' },
+				// Lista de espera (interruptor `lista_espera`): la ficha la muestra con la lista
+				// prendida, o si el evento ya tiene lista o gente anotada.
+				{ id: 'lista-espera', suffix: '/lista-espera', label: 'Lista de espera' }
+			]
+		},
+		{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false, section: 'checkin' },
+		{
+			id: 'codigos',
+			suffix: '/codigos',
+			label: 'Códigos',
+			soon: false,
+			section: 'entradas-codigos'
+		},
+		// Mandar un aviso a quienes compraron y las plantillas de los mails de este evento (lo que
+		// cambia sobre Mensajes → Plantillas).
+		{
+			id: 'mails',
+			suffix: '/mail',
+			label: 'Mails',
+			soon: false,
+			icon: Mail,
+			emoji: '✉️',
+			views: [
+				{ id: 'mail', suffix: '/mail', label: 'Mandar un aviso' },
+				{ id: 'mails', suffix: '/mails', label: 'Plantillas' }
+			]
+		},
+		// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.
+		{
+			id: 'preguntas',
+			suffix: '/preguntas',
+			label: 'Preguntas',
+			soon: false,
+			section: 'ajustes-personas'
+		}
+	].map((t) => {
+		// Con `section`, el ícono es el de esa sección del menú (el mismo en la barra lateral y acá).
+		const item = t.section ? NAV.find((i) => i.id === t.section) : undefined;
+		return Object.freeze({
+			...t,
+			icon: item?.icon ?? t.icon,
+			emoji: item?.emoji ?? t.emoji ?? '',
+			...(t.views ? { views: Object.freeze(t.views.map((v) => Object.freeze(v))) } : {})
+		});
+	})
+);
 
 /**
- * URL de la ficha de un evento (o de una de sus pestañas).
+ * URL de la ficha de un evento (o de una de sus pestañas o vistas). `tab` es el id de una vista
+ * (`ordenes`, `transferencias`, `mail`, `mails`…) o de una pestaña de {@link EVENT_TABS}; si es
+ * las dos cosas, gana la vista (`mails` son las plantillas, como antes de juntar las pestañas).
  * @param {string} slug
- * @param {string} [tab] id de {@link EVENT_TABS}
+ * @param {string} [tab]
  */
 export function eventHref(slug, tab = 'resumen') {
-	const t = EVENT_TABS.find((x) => x.id === tab);
-	return `/admin/eventos/${encodeURIComponent(slug)}${t?.suffix ?? ''}`;
+	const suffix =
+		EVENT_TABS.flatMap((t) => t.views ?? []).find((v) => v.id === tab)?.suffix ??
+		EVENT_TABS.find((x) => x.id === tab)?.suffix ??
+		'';
+	return `/admin/eventos/${encodeURIComponent(slug)}${suffix}`;
+}
+
+/**
+ * La pestaña (y la vista, si tiene) de una dirección de la ficha de un evento. Las subpáginas
+ * cuentan como su pestaña (`/mails/<id>` es Mails › Plantillas, `/ordenes/cargar` es Ventas ›
+ * Órdenes). `null` si la dirección no es de la ficha o no es de ninguna pestaña. Solo mira la forma
+ * de la dirección (`/admin/eventos/agenda` también le parece un Resumen): usala dentro de la ficha.
+ * @param {string} pathname
+ * @returns {{ tab: (typeof EVENT_TABS)[number], view: { id: string, suffix: string, label: string } | null } | null}
+ */
+export function eventTabOf(pathname) {
+	const m = pathname.replace(/\/+$/, '').match(/^\/admin\/eventos\/[^/]+(\/.*)?$/);
+	if (!m) return null;
+	const rest = m[1] ?? '';
+	/** @param {string} suffix */
+	const within = (suffix) =>
+		suffix === '' ? rest === '' : rest === suffix || rest.startsWith(`${suffix}/`);
+	for (const tab of EVENT_TABS) {
+		const view = tab.views?.find((v) => within(v.suffix));
+		if (view) return { tab, view };
+		if (!tab.views && within(tab.suffix)) return { tab, view: null };
+	}
+	return null;
 }
 
 /**
@@ -681,15 +834,21 @@ export function eventPanelLink(slug, { tickets = false } = {}) {
  * Editar de la ficha); los perfiles, en Comunidad › Perfiles; las páginas de la wiki, en
  * Etiquetas › Texto de la wiki; el material, en /edit/material/<slug>. `null` si la página no es
  * una publicación editable.
+ *
+ * Una página de la wiki puede venir de un alias o de otra forma de la etiqueta (`/wiki/<alias>`,
+ * `/wiki/rancheadita-kinky` → «Rancheadita Kinky»), con o sin entrada: con `wikiTag` (el id de la
+ * etiqueta que muestra la página), el link va al editor de esa etiqueta, que también escribe la
+ * entrada de un término que todavía no tiene, y no a la dirección tal cual.
  * @param {string} pathname
+ * @param {{ wikiTag?: string | null }} [opts]
  * @returns {string | null}
  */
-export function contentEditLink(pathname) {
+export function contentEditLink(pathname, { wikiTag = null } = {}) {
 	const m = pathname.match(/^\/(amigues|calendario|material|wiki)\/([^/]+)\/?$/);
 	if (!m) return null;
 	if (m[1] === 'calendario') return eventHref(decodeURIComponent(m[2]), 'editar');
 	if (m[1] === 'amigues') return `/admin/comunidad/perfiles/${m[2]}`;
-	if (m[1] === 'wiki') return wikiEditHref(decodeURIComponent(m[2]));
+	if (m[1] === 'wiki') return wikiEditHref(wikiTag ? tagSlug(wikiTag) : decodeURIComponent(m[2]));
 	return `/edit/${m[1]}/${m[2]}`;
 }
 
@@ -732,7 +891,9 @@ export function areaBackLink(id) {
 	const area = navArea(navItem(id)?.area);
 	if (!area) return null;
 	const root = NAV.find((i) => i.href === `/admin/${area.id}`);
-	return root ? { href: root.href, label: area.label } : null;
+	// Si la página del área todavía no existe («Próximamente», como la Bandeja de Mensajes), no hay
+	// a dónde volver: sin link (gorrite, 11/10: «el botón "Mensajes" no lleva a ningún lado»).
+	return root && !root.soon ? { href: root.href, label: area.label } : null;
 }
 
 /**
@@ -798,13 +959,16 @@ export function activeNavItem(pathname) {
 /**
  * Secciones de un área que se muestran en el menú (barra lateral y panel "Más"), en orden: las
  * que existen primero y las que vienen (`soon`) al final. Quedan afuera las de `menu: false`
- * (siguen en `NAV` para el buscador), las `hidden` y, con `hideSoon`, las que vienen.
+ * (siguen en `NAV` para el buscador), las `hidden`, con `hideSoon` las que vienen, y la portada de
+ * un grupo (`landing`, Ajustes: es la página que muestra las demás, no una más).
  *
  * @param {string | null} area
  * @param {{ flags?: Record<string, boolean>, hideSoon?: boolean }} [opts]
  */
 export function navAreaItems(area, { flags = {}, hideSoon = false } = {}) {
-	const items = NAV.filter((i) => i.area === area && i.menu !== false).filter((i) => {
+	const items = NAV.filter(
+		(i) => i.area === area && i.menu !== false && !NAV_GROUPS.some((g) => g.landing === i.id)
+	).filter((i) => {
 		const state = navState(i, flags);
 		return state !== 'hidden' && !(hideSoon && state === 'soon');
 	});
@@ -856,25 +1020,100 @@ export function navGroupItems(group, opts) {
 }
 
 /**
- * Pestañas de sección (como las de Ajustes): en la página principal de cada sección de un grupo
- * del menú con dos o más secciones, una barra con todas las secciones del grupo, así se pasa de
- * una a otra sin abrir el menú. Las del grupo Eventos no llevan (son herramientas con su propia
- * barra: la lista, la agenda, Puerta…), ni las subpáginas (fichas, formularios), ni lo que viene.
- * `null` si la página no lleva.
- * @param {string} pathname
- * @param {{ flags?: Record<string, boolean> }} [opts]
- * @returns {{ label: string, tabs: { href: string, label: string }[] } | null}
+ * Las secciones de la barra lateral (opción C, decisión 0038): Inicio y un link por grupo del menú
+ * ({@link NAV_GROUPS}, salvo los de `side: false`: la Puerta), sin sub-ítems. Cada una lleva a la primera página de su grupo que existe
+ * (Eventos → /admin/eventos, Comunidad → Personas…), o a su portada (Ajustes → /admin/ajustes,
+ * decisión 0042); las demás páginas del grupo
+ * son pestañas arriba de la página ({@link sectionTabs}). Un grupo sin ninguna página lista (todo
+ * próximamente u oculto) no se muestra. `count` es la suma de los contadores del grupo.
+ *
+ * @param {{ flags?: Record<string, boolean>, counts?: Record<string, number> }} [opts]
+ * @returns {{ id: string, label: string, icon: NavItem['icon'], emoji: string, href: string, root: string, foot: boolean, highlight: boolean, count: number }[]}
  */
-export function sectionTabs(pathname, { flags = {} } = {}) {
+export function sideSections({ flags = {}, counts = {} } = {}) {
+	const inicio = /** @type {NavItem} */ (navItem('inicio'));
+	const out = [
+		{
+			id: inicio.id,
+			label: inicio.label,
+			icon: inicio.icon,
+			emoji: inicio.emoji,
+			href: inicio.href,
+			root: inicio.id,
+			foot: false,
+			highlight: false,
+			count: 0
+		}
+	];
+	for (const g of NAV_GROUPS) {
+		if (g.side === false) continue;
+		// Con portada (Ajustes), a la portada; si no, a la primera página del grupo.
+		const root = g.landing ? navItem(g.landing) : navGroupItems(g.id, { flags, hideSoon: true })[0];
+		if (!root) continue;
+		out.push({
+			id: g.id,
+			label: g.label,
+			icon: g.icon,
+			emoji: g.emoji,
+			href: root.href,
+			root: root.id,
+			foot: Boolean(g.foot),
+			highlight: Boolean(g.highlight),
+			count: groupCount(g.id, counts, { flags })
+		});
+	}
+	return out;
+}
+
+/**
+ * La sección de la barra lateral de una página: `'inicio'`, el id de su grupo, o `null`.
+ * @param {NavItem | undefined} item el ítem activo ({@link activeNavItem})
+ * @returns {string | null}
+ */
+export function activeSection(item) {
+	if (!item) return null;
+	if (item.id === 'inicio') return 'inicio';
+	return navGroupOf(item.area)?.id ?? null;
+}
+
+/**
+ * Pestañas de sección: en la página principal de cada sección de un grupo del menú con dos o más
+ * secciones, una barra con todas las secciones del grupo. Con la opción C (decisión 0038) la
+ * barra lateral solo muestra los grupos, así que estas pestañas son el único menú de las páginas
+ * de cada grupo (menos Ajustes, que tiene portada, decisión 0042): también Eventos (Eventos, Agenda, Series, Lugares, Roles y
+ * preguntas). No llevan las subpáginas (fichas, formularios) ni la Puerta (es una sola página).
+ * `null` si la página no lleva.
+ *
+ * Parte 2 (gorrite, 11/10): cada pestaña lleva el contador «a revisar» de su sección (el mismo de
+ * la barra lateral y de «Para revisar», `counts` = `data.panelCounts`), y lo que viene va al final,
+ * gris y sin link («Próximamente», `soon: true`), salvo con «Ocultar lo que viene»: el layout pasa
+ * `hideSoon` de cada persona; sin pasarlo, como antes, sin lo que viene.
+ * Cada pestaña lleva el ícono de su sección (el mismo que en la barra lateral).
+ * @param {string} pathname
+ * @param {{ flags?: Record<string, boolean>, counts?: Record<string, number>, hideSoon?: boolean }} [opts]
+ * @returns {{ label: string, tabs: { href: string, label: string, icon: NavItem['icon'], count?: number, soon?: boolean }[] } | null}
+ */
+export function sectionTabs(pathname, { flags = {}, counts = {}, hideSoon = true } = {}) {
 	const path = pathname.replace(/\/+$/, '') || '/';
 	const item = NAV.find((i) => i.href === path && !i.soon && i.menu !== false);
 	const group = navGroupOf(item?.area);
-	if (!item || !group || group.id === 'eventos' || navState(item, flags) === 'hidden') return null;
-	const items = navGroupItems(group.id, { flags, hideSoon: true });
-	if (items.length < 2) return null;
+	if (!item || !group || navState(item, flags) === 'hidden') return null;
+	// Un grupo con portada (Ajustes, decisión 0042) no lleva pestañas: se vuelve con «← Ajustes».
+	if (group.landing) return null;
+	const items = navGroupItems(group.id, { flags, hideSoon });
+	if (items.filter((i) => !i.soon).length < 2) return null;
 	return {
 		label: `Secciones de ${group.label}`,
-		tabs: items.map((i) => ({ href: i.href, label: i.label }))
+		tabs: items.map((i) => {
+			const count = i.counter && !i.soon ? Number(counts[i.counter] ?? 0) || 0 : 0;
+			return {
+				href: i.href,
+				label: i.label,
+				icon: i.icon,
+				...(count ? { count } : {}),
+				...(i.soon ? { soon: true } : {})
+			};
+		})
 	};
 }
 

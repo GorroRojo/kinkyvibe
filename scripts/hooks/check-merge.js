@@ -9,6 +9,9 @@
 //   - the PR's base branch is not `main` (a stacked PR: merge its parent first),
 //   - the PR is closed or a draft,
 //   - the head commit's checks/statuses are not all successful (or none reported yet),
+//   - the PR changes docs/plan.md and has no comment «Plan revisado contra main <sha>» whose SHA
+//     (full or 7+ characters) is main's current head (the plan diff must be re-read against the
+//     current main before merging; see «Reglas» in docs/plan.md),
 //   - the GitHub API can't be reached (so nothing is verified).
 // Anything that is not a merge exits 0 right away (no decision; the normal permission flow runs).
 //
@@ -25,6 +28,12 @@ export const DEFAULT_REPO = 'kinkyvibe';
 export const BASE_BRANCH = 'main';
 
 const OK_CONCLUSIONS = ['success', 'neutral', 'skipped'];
+
+export const PLAN_FILE = 'docs/plan.md';
+export const PLAN_REVIEW_RE = /Plan revisado contra main\s+`?([0-9a-f]{7,40})\b/gi;
+
+// Pages of 100 read at most for a PR's files or comments (GitHub lists up to 3000 files).
+const MAX_PAGES = 30;
 
 const GH_MERGE_RE = /(?:^|[;&|(\n]|\$\()\s*(?:\w+=\S*\s+)*gh\s+pr\s+merge\b/;
 
@@ -171,6 +180,67 @@ export function decide(pr, status, checks) {
 	return { allow: reasons.length === 0, reasons };
 }
 
+/**
+ * The SHAs named in «Plan revisado contra main <sha>» comments.
+ * @param {{ body?: string | null }[]} comments GET /repos/{o}/{r}/issues/{n}/comments
+ * @returns {string[]}
+ */
+export function planReviewShas(comments) {
+	const shas = [];
+	for (const c of comments ?? []) {
+		for (const m of String(c?.body ?? '').matchAll(PLAN_REVIEW_RE)) shas.push(m[1].toLowerCase());
+	}
+	return shas;
+}
+
+/**
+ * Does the PR change (or rename) docs/plan.md?
+ * @param {{ filename?: string, previous_filename?: string }[]} files GET .../pulls/{n}/files
+ */
+export function touchesPlan(files) {
+	return (files ?? []).some((f) => f?.filename === PLAN_FILE || f?.previous_filename === PLAN_FILE);
+}
+
+/**
+ * If the PR changes docs/plan.md, it needs a «Plan revisado contra main <sha>» comment with main's
+ * current head. Returns the reason to block, or null.
+ * @param {number | string} n PR number
+ * @param {{ filename?: string, previous_filename?: string }[]} files GET .../pulls/{n}/files
+ * @param {{ body?: string | null }[]} comments GET .../issues/{n}/comments
+ * @param {string} mainSha main's current head commit
+ * @returns {string | null}
+ */
+export function planReviewReason(n, files, comments, mainSha) {
+	if (!touchesPlan(files)) return null;
+	const head = String(mainSha ?? '').toLowerCase();
+	if (head && planReviewShas(comments).some((sha) => head.startsWith(sha))) return null;
+	return (
+		`PR #${n} changes ${PLAN_FILE}, and it has no comment «Plan revisado contra main ${head.slice(0, 7)}» ` +
+		`for main's current head (${head}). Re-read the PR's diff of ${PLAN_FILE} against the current ` +
+		`main (for example \`git fetch origin && git diff origin/main...<PR branch> -- ${PLAN_FILE}\`, and ` +
+		`compare it with what main's ${PLAN_FILE} says now), fix anything stale or conflicting, then ` +
+		`leave a comment on the PR with the line «Plan revisado contra main ${head}» and merge again. ` +
+		`If main moves before the merge, re-read and comment again with the new SHA.`
+	);
+}
+
+/**
+ * GET every page of a GitHub list endpoint (per_page=100), up to MAX_PAGES.
+ * @param {(path: string) => Promise<any>} get
+ * @param {string} path without query string
+ * @returns {Promise<any[]>}
+ */
+async function getAll(get, path) {
+	const all = [];
+	for (let page = 1; page <= MAX_PAGES; page++) {
+		const batch = await get(`${path}?per_page=100&page=${page}`);
+		if (!Array.isArray(batch)) break;
+		all.push(...batch);
+		if (batch.length < 100) break;
+	}
+	return all;
+}
+
 function curlJson(url, token) {
 	// The token goes in through stdin (`-H @-`), not argv, so it never shows up in `ps` or in
 	// error messages.
@@ -240,13 +310,24 @@ export async function check(input, get = githubGet) {
 
 	const repoPath = `/repos/${call.owner}/${call.repo}`;
 	let pr, status, checks;
+	/** @type {string | null} */
+	let planReason = null;
 	try {
 		pr = await get(`${repoPath}/pulls/${call.number}`);
 		const sha = pr?.head?.sha;
-		[status, checks] = await Promise.all([
+		let files;
+		[status, checks, files] = await Promise.all([
 			get(`${repoPath}/commits/${sha}/status?per_page=100`),
-			get(`${repoPath}/commits/${sha}/check-runs?per_page=100`)
+			get(`${repoPath}/commits/${sha}/check-runs?per_page=100`),
+			getAll(get, `${repoPath}/pulls/${call.number}/files`)
 		]);
+		if (touchesPlan(files)) {
+			const [main, comments] = await Promise.all([
+				get(`${repoPath}/commits/${BASE_BRANCH}`),
+				getAll(get, `${repoPath}/issues/${call.number}/comments`)
+			]);
+			planReason = planReviewReason(call.number, files, comments, main?.sha);
+		}
 	} catch (e) {
 		return (
 			`Blocked: the merge guard could not reach the GitHub API (${/** @type {Error} */ (e).message}), ` +
@@ -256,7 +337,8 @@ export async function check(input, get = githubGet) {
 	}
 
 	const { allow, reasons } = decide(pr, status, checks);
-	if (allow) return null;
+	if (planReason) reasons.push(planReason);
+	if (allow && !planReason) return null;
 	return ['Blocked by the merge guard (scripts/hooks/check-merge.js):', ...reasons].join('\n- ');
 }
 

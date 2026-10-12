@@ -15,7 +15,8 @@ import {
 	validateTemplate
 } from '$lib/utils/emailTemplates.js';
 import * as email from './email.js';
-import { emailCases, fixtureOrder, fixtureTickets } from './email.fixtures.js';
+import * as waitlistEmail from './waitlistEmail.js';
+import { emailCases, fixtureOrder, fixtureTickets, waitlistEmailCases } from './email.fixtures.js';
 import { previewEmail } from './templatePreview.js';
 import { MAIL_COLORS } from '$lib/server/email/layout.js';
 import {
@@ -34,6 +35,115 @@ describe('sin plantilla guardada, los mails no cambian', () => {
 	it.each(emailCases())('%s: igual byte a byte que antes de las plantillas', (name, fn, input) => {
 		expect(build(fn, input)).toEqual(golden[name]);
 		expect(build(fn, { ...input, template: null })).toEqual(golden[name]);
+	});
+});
+
+describe('lista de espera: los mails y sus plantillas', () => {
+	/** @param {string} fn @param {any} input */
+	const buildW = (fn, input) => /** @type {any} */ (waitlistEmail)[fn](input);
+
+	it.each(waitlistEmailCases())(
+		'%s: sin plantilla guardada, igual a la golden',
+		(name, fn, input) => {
+			expect(golden[name], name).toBeTruthy();
+			expect(buildW(fn, input)).toEqual(golden[name]);
+			expect(buildW(fn, { ...input, template: null })).toEqual(golden[name]);
+			expect(buildW(fn, { ...input, template: {} })).toEqual(golden[name]);
+		}
+	);
+
+	it('sin plantilla, el texto es el original de cada plantilla (sus defaults)', () => {
+		for (const [name, fn, input] of waitlistEmailCases()) {
+			const id = /** @type {any} */ (`waitlist_${name.split('-')[1]}`);
+			const def = /** @type {NonNullable<ReturnType<typeof templateDef>>} */ (templateDef(id));
+			expect(def, name).toBeTruthy();
+			expect(buildW(fn, { ...input, template: def.defaults }), name).toEqual(golden[name]);
+		}
+	});
+
+	it('cada mail lleva el link para salir de la lista (en el pie y en el texto plano)', () => {
+		for (const [name, fn, input] of waitlistEmailCases()) {
+			const m = buildW(fn, input);
+			const footer = m.html.slice(m.html.lastIndexOf('¿Dudas?'));
+			expect(footer, name).toContain(`href="${input.unsubscribeUrl.replaceAll('&', '&amp;')}"`);
+			expect(m.text, name).toContain(input.unsubscribeUrl);
+			// Sin nombre (la lista guarda solo el mail) y sin datos de una compra.
+			expect(m.text, name).not.toMatch(/Hola |Número de orden/);
+		}
+	});
+
+	it('la oferta: con lugar guardado dice hasta cuándo; a toda la lista, que gana quien compre primero', () => {
+		const hold = golden['waitlist-offer'];
+		expect(hold.html).toContain(
+			'Te lo guardamos hasta el <strong>viernes 2 de octubre a las 21:00</strong>'
+		);
+		expect(hold.text).toContain(
+			'Si no podés, no hagas nada: le pasamos el lugar a la próxima persona.'
+		);
+		expect(hold.html).toContain(
+			'href="https://kinkyvibe.example/calendario/fiesta-de-prueba/entradas?lista=abc&amp;x=1"'
+		);
+		expect(hold.text).not.toContain('toda la lista');
+		const all = golden['waitlist-offer-todes'];
+		expect(all.text).toContain(
+			'Le avisamos a toda la lista a la vez: se lo queda quien compre primero.'
+		);
+		expect(all.text).not.toContain('Te lo guardamos');
+		expect(all.text).toContain('Entrada: General');
+		// «Volver a anotarme» en el de vencida; el cierre dice por qué.
+		expect(golden['waitlist-expired'].text).toContain(
+			'Volver a anotarme: https://kinkyvibe.example/lista-de-espera/volver/jkl?x=1&y=2'
+		);
+		expect(golden['waitlist-closed-cancelado'].text).toContain('El evento se canceló.');
+	});
+
+	it('con plantilla: cambian asunto, título, texto, botón y ayuda; el recuadro y los links no', () => {
+		const [, fn, input] = /** @type {[string, string, any]} */ (
+			waitlistEmailCases().find(([n]) => n === 'waitlist-offer')
+		);
+		const m = buildW(fn, {
+			...input,
+			template: {
+				subject: 'Hay lugar en {{evento}} ({{tipo}})',
+				heading: '¡Ahora!',
+				body: 'Hasta el **{{vence}}**.\n\nNo te duermas.',
+				button: 'Quiero',
+				help: 'Dudas: [escribinos](mailto:hola@ejemplo.test).'
+			}
+		});
+		expect(m.subject).toBe('Hay lugar en Fiesta <b>de</b> prueba ()');
+		expect(m.html).toContain('>¡Ahora!</h1>');
+		expect(m.html).toContain('<p>Hasta el <strong>viernes 2 de octubre a las 21:00</strong>.</p>');
+		expect(m.html).toContain('>Quiero</a>');
+		expect(m.html).toContain(
+			`Dudas: <a href="mailto:hola@ejemplo.test" style="color:${TEMPLATE_LINK_COLOR};">escribinos</a>.`
+		);
+		expect(m.html).toContain(
+			'Te lo guardamos hasta el <strong>viernes 2 de octubre a las 21:00</strong>'
+		);
+		expect(m.html).toContain('entradas?lista=abc&amp;x=1');
+		expect(m.text).toContain(
+			'Quiero: https://kinkyvibe.example/calendario/fiesta-de-prueba/entradas?lista=abc&x=1'
+		);
+		expect(m.text).toContain('Dudas: escribinos (mailto:hola@ejemplo.test).');
+		expect(m.text).not.toContain('Si no podés');
+	});
+
+	it('las plantillas de la lista están detrás del interruptor y sus variables existen', () => {
+		const ids = EMAIL_TEMPLATES.filter((t) => t.flag === 'lista_espera').map((t) => t.id);
+		expect(ids).toEqual([
+			'waitlist_confirm',
+			'waitlist_offer',
+			'waitlist_reminder',
+			'waitlist_expired',
+			'waitlist_closed'
+		]);
+		expect(
+			unknownVariables('waitlist_confirm', { body: '{{evento}} {{vence}} {{nombre}}' })
+		).toEqual(['vence', 'nombre']);
+		expect(
+			validateTemplate('waitlist_offer', { subject: 'a', heading: 'b', body: '{{vence}}' }).ok
+		).toBe(true);
 	});
 });
 
@@ -324,18 +434,37 @@ describe('links en las plantillas', () => {
 
 describe('vista previa', () => {
 	it('arma cada mail con datos de ejemplo, con y sin plantilla', () => {
+		// Los mails de la lista de espera no tienen nombre (la lista guarda solo el mail): quien
+		// compró aparece en los que tienen {{nombre}} (todos los de entradas), y el evento de
+		// ejemplo en todos.
+		const named = EMAIL_TEMPLATES.filter((t) => t.vars.some((v) => v.name === 'nombre'));
+		expect(named.map((t) => t.id)).toEqual(
+			expect.arrayContaining(['tickets', 'transfer', 'stream', 'reminder', 'refund', 'date_change'])
+		);
 		for (const t of EMAIL_TEMPLATES) {
 			const ctx = { origin: 'https://kinkyvibe.example', contactEmail: 'c@example.com', now: 0 };
 			const def = previewEmail(t.id, null, ctx);
 			const custom = previewEmail(t.id, { subject: 'S', heading: 'H', body: 'B' }, ctx);
-			expect(def.html).toContain('Persona de Ejemplo');
-			expect(custom.subject).toBe('S');
-			expect(custom.html).toContain('>H</h1>');
+			if (named.includes(t)) expect(def.html, t.id).toContain('Persona de Ejemplo');
+			expect(def.html, t.id).toContain('Fiesta de ejemplo');
+			expect(custom.subject, t.id).toBe('S');
+			expect(custom.html, t.id).toContain('>H</h1>');
 		}
 	});
 });
 
 describe('guardar y restaurar (D1)', () => {
+	// Una base sin migraciones, levantada antes de las pruebas: su arranque (miniflare) no
+	// cuenta para el tiempo límite de la prueba.
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let bare;
+	beforeAll(async () => {
+		bare = await createTestDB({ migrate: false });
+	});
+	afterAll(async () => {
+		await bare?.dispose();
+	});
+
 	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
 	let t;
 	beforeAll(async () => {
@@ -363,13 +492,8 @@ describe('guardar y restaurar (D1)', () => {
 	});
 
 	it('sin la tabla (migración pendiente) o sin base: sin plantilla, sin romper', async () => {
-		const bare = await createTestDB({ migrate: false });
-		try {
-			expect(await getTemplateOverride(bare.db, 'tickets')).toBeNull();
-			expect((await listTemplateOverrides(bare.db)).size).toBe(0);
-		} finally {
-			await bare.dispose();
-		}
+		expect(await getTemplateOverride(bare.db, 'tickets')).toBeNull();
+		expect((await listTemplateOverrides(bare.db)).size).toBe(0);
 		expect(await getTemplateOverride(null, 'tickets')).toBeNull();
 	});
 });

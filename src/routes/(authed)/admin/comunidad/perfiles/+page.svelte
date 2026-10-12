@@ -73,7 +73,7 @@
 	</svelte:fragment>
 </PageHeader>
 
-<Tabs {tabs} {current} />
+<Tabs {tabs} {current} menu menuCaption="Ver" sumCounts={false} />
 
 {#if !data.dbAvailable}
 	<p class="kv-flash bad">No hay base de datos disponible.</p>

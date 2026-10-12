@@ -1,19 +1,24 @@
 <script>
 	/**
 	 * Propinas: total (y por destino: KinkyVibe o el Fondo), por mes y por publicación (solo
-	 * aprobadas) y la lista con CSV, filtrable por destino (`?destino=`).
+	 * aprobadas) y la lista con CSV, filtrable por destino (`?destino=`). Las propinas que llegan
+	 * desde fondo.kinkyvibe.ar (`source = 'fondo'`, «Una vez») no tienen publicación: van en su
+	 * propia fila y sin link.
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { HandCoins } from '@lucide/svelte';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { formatARS } from '$lib/utils/money.js';
 	import {
+		FONDO_SITE_URL,
 		TIP_DESTINATION_LABELS,
+		TIP_SOURCE_LABELS,
 		TIP_STATUS_LABELS,
 		monthLabel,
 		tipPostPath
 	} from '$lib/utils/propinas.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import { areaBackLink } from '$lib/admin/nav.js';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -31,13 +36,22 @@
 		text: formatARS(m.total),
 		sub: m.count === 1 ? '1 propina' : `${m.count} propinas`
 	}));
-	$: posts = (s?.byPost ?? []).map((p) => ({
-		label: p.slug,
-		value: p.total,
-		text: formatARS(p.total),
-		sub: `${p.category} · ${p.count === 1 ? '1 propina' : `${p.count} propinas`}`,
-		href: tipPostPath(p.category, p.slug)
-	}));
+	$: posts = (s?.byPost ?? []).map((p) =>
+		p.source === 'fondo'
+			? {
+					label: TIP_SOURCE_LABELS.fondo,
+					value: p.total,
+					text: formatARS(p.total),
+					sub: `fondo.kinkyvibe.ar · ${tipsText(p.count)}`
+				}
+			: {
+					label: p.slug,
+					value: p.total,
+					text: formatARS(p.total),
+					sub: `${p.category} · ${tipsText(p.count)}`,
+					href: tipPostPath(p.category, p.slug)
+				}
+	);
 
 	$: kv = s?.byDestination.kinkyvibe ?? { count: 0, total: 0 };
 	$: fondo = s?.byDestination.fondo ?? { count: 0, total: 0 };
@@ -52,8 +66,9 @@
 </script>
 
 <PageHeader
+	back={areaBackLink('propinas')}
 	title="Propinas"
-	subtitle="Las que se dejan al pie de las publicaciones de Kinky Vibe. Entran a la misma cuenta de Mercado Pago que las entradas."
+	subtitle="Las que se dejan al pie de las publicaciones de Kinky Vibe y las donaciones «Una vez» de fondo.kinkyvibe.ar. Entran a la misma cuenta de Mercado Pago que las entradas."
 >
 	<svelte:fragment slot="actions">
 		<CsvButton href="/admin/ajustes/propinas/propinas.csv" />
@@ -105,6 +120,9 @@
 	</div>
 
 	<Tabs
+		menu
+		menuCaption="Ver"
+		sumCounts={false}
 		current={filterHref}
 		tabs={[
 			{ href: '/admin/ajustes/propinas', label: 'Todas' },
@@ -144,7 +162,13 @@
 								<td class="small">{fmtDateTime(t.approved_at ?? t.created_at)}</td>
 								<td class="r num">{formatARS(t.amount)}</td>
 								<td class="small">
-									<a href={tipPostPath(t.post_category, t.post_slug)}>{t.post_slug}</a>
+									{#if t.source === 'fondo'}
+										<a href={FONDO_SITE_URL} target="_blank" rel="noopener"
+											>{TIP_SOURCE_LABELS.fondo}</a
+										>
+									{:else}
+										<a href={tipPostPath(t.post_category, t.post_slug)}>{t.post_slug}</a>
+									{/if}
 								</td>
 								<td class="small">
 									{TIP_DESTINATION_LABELS[t.destination] ?? t.destination}

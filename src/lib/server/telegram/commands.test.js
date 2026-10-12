@@ -20,12 +20,16 @@ import { UNKNOWN_TEXT } from './format.js';
 const TOKEN = '000000:token-inventado-para-pruebas';
 
 const PUBLIC = [
+	{ command: 'inicio', description: 'Volver al inicio del bot' },
 	{ command: 'proximos', description: 'Los próximos eventos públicos' },
 	{ command: 'hoy', description: 'Los eventos de hoy' },
 	{ command: 'semana', description: 'Lo que hay en los próximos 7 días' },
 	{ command: 'finde', description: 'Lo que hay este fin de semana' },
 	{ command: 'evento', description: 'Buscá un evento por nombre, fecha o lugar' },
-	{ command: 'buscar', description: 'Escribí lo que buscás y te muestro los eventos' },
+	{
+		command: 'buscar',
+		description: 'Buscá en todo el sitio: eventos, material, Kinkipedia y amigues'
+	},
 	{ command: 'fondo', description: 'Cuánto juntó el Fondo Kinky Vibe este mes' },
 	{ command: 'ayuda', description: 'Qué podés pedirme' }
 ];
@@ -34,6 +38,7 @@ const GROUP = PUBLIC.map((c) => ({ ...c, is_ephemeral: true }));
 const ACCOUNT = [
 	{ command: 'vincular', description: 'Conectá tu cuenta (código de Mi rincón)' },
 	{ command: 'sigo', description: 'Lo que seguís en Lo que sigo' },
+	{ command: 'entradas', description: 'Tus entradas, con el QR para la puerta' },
 	{ command: 'silenciar', description: 'Pausá tus avisos por Telegram' },
 	{ command: 'reanudar', description: 'Volvé a recibir tus avisos' },
 	{ command: 'desvincular', description: 'Desconectá este chat de tu cuenta' }
@@ -63,6 +68,21 @@ describe('la lista', () => {
 			expect(c.description.length).toBeGreaterThan(0);
 			expect(c.description.length).toBeLessThanOrEqual(256);
 		}
+	});
+
+	it('empieza por /inicio (el inicio del bot), en los tres alcances', () => {
+		expect(PUBLIC_COMMANDS[0]).toEqual({
+			command: 'inicio',
+			description: 'Volver al inicio del bot'
+		});
+		for (const accounts of [true, false]) {
+			for (const payload of commandPayloads({ accounts })) {
+				expect(payload.commands[0].command, payload.scope.type).toBe('inicio');
+			}
+		}
+		// `/start` sigue andando, pero no va en el menú.
+		expect(HIDDEN_COMMANDS).toContain('start');
+		expect(PUBLIC_COMMANDS.some((c) => c.command === 'start')).toBe(false);
 	});
 
 	it('lo que entiende el router es lo listado más /start y /help, y viceversa', () => {
@@ -167,6 +187,7 @@ describe('registerBotCommands', () => {
 					scope: 'all_private_chats',
 					label: 'En chats privados',
 					commands: [
+						'inicio',
 						'proximos',
 						'hoy',
 						'semana',
@@ -177,6 +198,7 @@ describe('registerBotCommands', () => {
 						'ayuda',
 						'vincular',
 						'sigo',
+						'entradas',
 						'silenciar',
 						'reanudar',
 						'desvincular'

@@ -21,6 +21,7 @@ import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 import { eventPlace } from '$lib/utils/eventPlace.js';
 import { googleMapsLink } from '$lib/utils/venues.js';
 import { ticketCta } from '$lib/utils/ticketCta.js';
+import { startsAfter } from '$lib/utils/dates.js';
 
 /** @typedef {import('./format.js').BotEvent} BotEvent */
 
@@ -32,7 +33,7 @@ import { ticketCta } from '$lib/utils/ticketCta.js';
 export function toUpcomingEvents(posts, now) {
 	return posts
 		.filter((p) => p.meta?.category === 'calendario' && p.meta?.postID)
-		.filter((p) => new Date(p.meta.start).getTime() > now)
+		.filter((p) => startsAfter(p.meta.start, now))
 		.sort((a, b) => new Date(a.meta.start).getTime() - new Date(b.meta.start).getTime())
 		.map((p) => ({
 			slug: String(p.meta.postID),
@@ -110,4 +111,66 @@ export async function eventCardInfo(platform, slug, origin) {
 	}
 	const states = await ticketStatesFor(platform, [post]);
 	return toCardInfo(post.meta, { origin, venue, venueFailed, states });
+}
+
+/**
+ * El lugar y la venta de varios eventos para el modo inline (inline.js). Pura: con lo ya leído.
+ * El lugar, como la tarjeta (`eventPlace`); la zona, barrio y ciudad del lugar si la página los
+ * muestra (si no, el mismo texto del lugar).
+ *
+ * @param {Record<string, any>} meta
+ * @param {{ venue?: import('$lib/utils/venues.js').VenueView | null, venueFailed?: boolean,
+ *   states?: import('$lib/utils/ticketCta.js').TicketStates | null, now?: number }} ctx
+ *   `now`: un evento que ya empezó no ofrece entradas
+ * @returns {import('./inline.js').InlineEventInfo}
+ */
+export function toInlineEventInfo(
+	meta,
+	{ venue = null, venueFailed = false, states = null, now = Date.now() }
+) {
+	const past = !startsAfter(meta.start, now);
+	/** @type {import('./inline.js').InlineEventInfo} */
+	const info = { ticket: ticketCta(meta, states, { past }) };
+	if (venueFailed) return info;
+	const place = eventPlace(meta, venue).text;
+	if (place) info.place = place;
+	const area = venue ? [venue.area, venue.city].filter(Boolean).join(', ') : '';
+	if (area || place) info.area = area || place;
+	return info;
+}
+
+/**
+ * El lugar y la venta de los eventos de una página de resultados del modo inline: una lectura de
+ * los lugares (`feedVenues`) y una de la venta (`ticketStatesFor`, recordada 30 segundos) para
+ * todos juntos. `metas` son eventos que ya están en el índice público.
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {Record<string, any>[]} metas
+ * @returns {Promise<Map<string, import('./inline.js').InlineEventInfo>>}
+ */
+export async function inlineEventInfo(platform, metas) {
+	const slugs = metas.map((m) => String(m.postID));
+	/** @type {Map<string, import('$lib/utils/venues.js').VenueView>} */
+	let venues = new Map();
+	let venueFailed = false;
+	try {
+		venues = await feedVenues(getDB(platform), slugs);
+	} catch (e) {
+		console.error('[telegram] inline: no se pudo leer el lugar:', /** @type {Error} */ (e)?.name);
+		venueFailed = true;
+	}
+	const states = await ticketStatesFor(
+		platform,
+		metas.map((meta) => ({ meta }))
+	);
+	return new Map(
+		metas.map((meta) => [
+			String(meta.postID),
+			toInlineEventInfo(meta, {
+				venue: venues.get(String(meta.postID)) ?? null,
+				venueFailed,
+				states
+			})
+		])
+	);
 }

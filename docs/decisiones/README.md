@@ -100,6 +100,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0016](0016-pago-tardio.md): Un pago tardío se acepta al precio de la orden (1/10)
 - [0031](0031-reserva-transferencia-dias-habiles.md): La reserva por transferencia dura 2 días
   hábiles (11/10)
+- [0035](0035-vender-en-puerta-sin-conexion.md): La puerta vende sin conexión (11/10)
+- [0040](0040-lista-de-espera.md): Lista de espera por evento o por tipo de entrada (11/10)
 
 ### Propinas
 
@@ -114,6 +116,14 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0029](0029-bot-de-telegram.md): Un bot de Telegram como otra vista del sitio (1/10)
 - [0034](0034-bot-seguir-y-token.md): El bot de Telegram: «Seguir» como primera acción que
   escribe, y el webhook usa el token (11/10)
+- [0036](0036-seguir-en-el-bot-prende-avisos.md): Seguir desde el bot prende los avisos por
+  Telegram (11/10)
+- [0037](0037-puerta-por-telegram.md): La puerta por Telegram: les admins marcan ingresos desde
+  el bot (11/10)
+- [0041](0041-telegram-para-admins.md): Telegram para admins: estado de la venta y avisos
+  (organizadores, más adelante) (12/10)
+- [0043](0043-lo-que-sigo-en-el-panel.md): «Lo que sigo» en el panel: les admins ven lo que sigue
+  cada persona en su ficha y «Lo más seguido» con el número exacto, nunca quiénes (12/10)
 
 ### Panel y CRM
 
@@ -123,3 +133,9 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   mails por evento se recuperan (9/10)
 - [0033](0033-borrados-recuperables.md): Preguntas de inscripción, roles y notas internas se
   recuperan (11/10)
+- [0038](0038-navegacion-del-panel-opcion-c.md): Navegación del panel: opción C (8 secciones,
+  Puerta propia, «Ir a…» y Recientes) (11/10)
+- [0039](0039-navegacion-del-panel-opcion-c-parte-2.md): Navegación del panel, opción C parte 2
+  (Fijados, «+ Crear», Puerta fuera de la barra, pestañas con contadores) (11/10)
+- [0042](0042-ajustes-portada-con-grupos.md): Ajustes: una portada con 4 grupos de tarjetas en vez
+  de pestañas (12/10)

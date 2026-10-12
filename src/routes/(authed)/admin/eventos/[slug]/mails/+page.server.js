@@ -1,5 +1,5 @@
 /**
- * Ficha del evento, pestaña "Plantillas de mails": los mails que les llegan a quienes compran
+ * Ficha del evento, pestaña Mails › Plantillas: los mails que les llegan a quienes compran
  * para este evento y si cambian algo sobre la plantilla general (Mensajes → Plantillas).
  */
 import { error } from '@sveltejs/kit';
@@ -15,6 +15,7 @@ import {
 	TEMPLATE_FIELD_LABELS,
 	TEMPLATE_KEYS
 } from '$lib/utils/emailTemplates.js';
+import { templateTrials } from '$lib/server/admin/mailTemplates.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, params, platform, setHeaders }) {
@@ -34,6 +35,7 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	} catch (e) {
 		logDBError('plantillas de mails del evento', e);
 	}
+	const trials = await templateTrials(platform);
 	return {
 		dbAvailable: Boolean(db),
 		templates: EMAIL_TEMPLATES.map((t) => {
@@ -42,6 +44,8 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 				id: t.id,
 				label: t.label,
 				when: t.when,
+				// Mail de algo detrás de un interruptor apagado: «prueba» (docs/panel.md).
+				trial: trials.has(t.id),
 				// Qué partes cambian para este evento.
 				changed: o
 					? TEMPLATE_KEYS.filter((k) => typeof o[k] === 'string').map(

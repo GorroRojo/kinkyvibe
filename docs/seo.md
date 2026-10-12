@@ -14,7 +14,7 @@ guía: `compartir.md` (llega con el PR #257).
   privacidad ([amigues.md](amigues.md)) y del perfil sale solo el contacto público (decisión
   0023). Un lugar oculto no tiene dirección en ningún lado.
 - **Nada de reglas para bots de IA en `robots.txt`**: gorrite las maneja en Cloudflare.
-- `security.txt` usa el contacto público de la organización (`DEFAULT_CONTACT_EMAIL`), nunca uno
+- `security.txt` y los datos estructurados usan el contacto general de la organización (`ORG_CONTACT_EMAIL`, `src/lib/utils/organization.js`), nunca uno
   personal.
 
 ## Dónde está
@@ -28,6 +28,9 @@ guía: `compartir.md` (llega con el PR #257).
 | `robots.txt`                           | `static/robots.txt` (lo cuida `src/lib/utils/robots.test.js`)                   |
 | Feeds Atom y JSON Feed                 | `src/lib/utils/feeds.js` (el texto), `src/lib/server/feeds.js` (las respuestas) |
 | Sitemap                                | `src/routes/(content)/sitemap.xml/` (sin las publicaciones con `redirect`)      |
+| La dirección del sitio                 | `SITE_URL` y `siteOriginFrom` en `src/lib/utils/site.js` (un solo lugar)        |
+| Un evento en una línea                 | `eventLead` en `src/lib/utils/eventText.js` (vista previa y feeds)              |
+| «Próximo» (empieza después de ahora)   | `startsAfter` en `src/lib/utils/dates.js`                                       |
 
 ### JSON-LD por página
 
@@ -37,12 +40,28 @@ guía: `compartir.md` (llega con el PR #257).
 | Evento             | `Event`: estado, modo (presencial u online), lugar según privacidad, `offers`, organizer |
 | Material           | `Article`; `DigitalDocument` si es descargable; `CreativeWork` si es interactivo         |
 | `/wiki`            | `DefinedTermSet` (la Kinkipedia)                                                         |
-| Entrada de la wiki | `DefinedTerm` con `inDefinedTermSet`                                                     |
+| Entrada de la wiki | `DefinedTerm` con `inDefinedTermSet` (también una etiqueta sin entrada con descripción)  |
 | Perfil             | `ProfilePage` con `Person` (persona), `Organization` (proyecto) o `Place` (lugar)        |
 
 `offers` de un evento: con venta en el sitio, el precio «desde» en ARS, la disponibilidad
 (`InStock`, `SoldOut`, `PreOrder` con `validFrom`) y el link a `/entradas`; sin venta, el link de
 inscripción (precio 0 si tiene la etiqueta `gratis`). Cancelado o pasado: sin oferta.
+
+### Fechas legibles por máquina
+
+Las fechas de publicación se guardan como `2024-12-06Z-03:00`, que **no es ISO 8601** (mezcla `Z`
+y un desfase, y no todos los motores de JS la leen). Nunca se imprimen tal cual en un atributo: los helpers
+de `src/lib/utils/dates.js` las convierten.
+
+| Dónde                                                       | Helper        | Ejemplo                     |
+| ----------------------------------------------------------- | ------------- | --------------------------- |
+| `article:published_time` / `article:modified_time` (OG)     | `isoDateTime` | `2024-12-06T00:00:00-03:00` |
+| JSON-LD (`datePublished`, `dateModified`, `startDate`...)   | `isoDate`     | `2024-12-06T00:00:00-03:00` |
+| `<time datetime>` de una fecha de publicación (solo el día) | `isoDay`      | `2024-12-06`                |
+| `<time datetime>` de un evento (ya viene con hora y zona)   | tal cual      | `2026-10-02T22:00-03:00`    |
+| Sitemap y feeds (`lastmod`, `published`, `updated`)         | `Date`        | `2024-12-06T03:00:00.000Z`  |
+
+Para leer una fecha del sitio igual en cualquier motor de JS: `parseSiteDate`.
 
 ### Feeds
 
@@ -104,30 +123,68 @@ No hay CSS en línea (0 bloques `<style>`: todo va en archivos) y el JSON-LD pes
    «Filtrar por etiquetas» armado aunque esté cerrado (20 a 41 KB en las listas; en compu se ve
    siempre) y las marcas de hidratación de Svelte (`<!--[-->`, 22 a 54 KB, no se pueden sacar).
 
+### Peso: lo que ya se hizo (12/10/2026, #334)
+
+Medido con `npm run build` + `vite preview` y la semilla de contenido (`node scripts/semilla.js`),
+antes y después, en KB sin comprimir (gzip entre paréntesis). «Datos» es el `__data.json` de la
+página (lo mismo que va en línea en el HTML).
+
+| Página        | HTML antes   | HTML después | Datos antes | Datos después |
+| ------------- | ------------ | ------------ | ----------- | ------------- |
+| `/`           | 217,7 (41,9) | 210,9 (42,1) | 90,7        | 90,7          |
+| `/calendario` | 310,0 (44,1) | 70,1 (17,9)  | 225,6       | 34,4          |
+| `/material`   | 276,4 (41,3) | 252,1 (41,1) | 71,7        | 71,7          |
+| `/wiki`       | 156,5 (26,9) | 129,0 (27,0) | 49,5        | 49,5          |
+| un evento     | 78,8 (21,8)  | 80,9 (22,3)  | 38,8        | 38,8          |
+| `/wiki/BDSM`  | 285,6 (43,7) | 263,8 (43,1) | 74,5        | 74,5          |
+
+- **`/calendario`, los pasados de a un mes.** Viajan los próximos enteros y, de los pasados, solo
+  los del mes que se abre (con los campos de la grilla, sin el lugar). Al ir a otro mes, la página
+  pide sus pasados a `/api/calendario/pasados?mes=yyyy-MM` (5 minutos de caché, como
+  `/api/posts`) y aparecen en la grilla al llegar. «Mostrar eventos pasados» sigue igual (trae
+  `/api/posts` entero). Código: `src/lib/server/eventos/pasados.js`.
+- **Íconos de las tarjetas en un sprite.** Los de las tarjetas de las listas y los de las series
+  de la Kinkipedia van una vez por página (`iconSprite.js`, en el layout raíz) y cada tarjeta los
+  usa con `<SpriteIcon>` (`<use href>`). Se ven igual (mismas clases de Lucide). Ahorra 20 a 27 KB
+  de HTML en las listas y cuesta unos 2 KB en las páginas sin tarjetas; comprimido casi no cambia
+  (gzip ya comprime lo repetido): lo que gana es un DOM más chico. Si Lucide cambia un dibujo,
+  `iconSprite.test.js` avisa.
+
 ### Para hacer después (ahorro estimado, sin comprimir)
 
-- `/calendario`: los eventos pasados por mes, cuando se piden, en vez de todos en la página:
-  −200 a −250 KB.
-- `siteTags` y la wiki del layout raíz como un JSON aparte con caché del navegador: −30 KB en cada
-  página.
-- Íconos de las tarjetas con un sprite SVG (`<use href>`) o una máscara CSS: −15 a −45 KB en las
-  listas.
-- Hasta 5 etiquetas por tarjeta («+N» para el resto): −20 a −35 KB en `/material` y la wiki.
+- `siteTags` y la wiki del layout raíz como un JSON aparte: **no ahorra en la primera visita** si
+  se hace con un `fetch` en un `load`, porque SvelteKit mete en el HTML lo que se pidió durante el
+  render del servidor, y las etiquetas hacen falta para armar la página (colores, madres). Al
+  navegar dentro del sitio el layout raíz no se vuelve a pedir, así que tampoco ahorra ahí. Solo
+  serviría con las etiquetas en un archivo estático que el navegador guarde (por ejemplo, armado
+  al guardar etiquetas en el panel) y la página esperándolo antes de hidratar. Mucho riesgo para
+  −30 KB; queda en espera.
+- Hasta 5 etiquetas por tarjeta: −20 a −35 KB en `/material` y la wiki. **Cambia lo que se ve**:
+  lo decide gorrite. Opciones: (a) 5 y un «+N» que no hace nada (la tarjeta entera ya es un link);
+  (b) 5 y «+N» que despliega el resto en la tarjeta; (c) solo en las listas largas (`/material`,
+  `/wiki/<etiqueta>`), no en el inicio; (d) dejarlo así.
 - `/wiki/<término>`: las publicaciones relacionadas de a 20: −25 KB de datos y hasta −120 KB de
-  tarjetas en las etiquetas con muchas.
+  tarjetas en las etiquetas con muchas. **Cambia lo que se ve**: lo decide gorrite. Opciones:
+  (a) `limit={20}` en la lista con «Ver más», como el inicio (ahorra tarjetas, no datos);
+  (b) además, el servidor manda 20 y «Ver más» pide las siguientes (ahorra las dos cosas, pero los
+  filtros por etiqueta tendrían que pedir al servidor); (c) dejarlo así.
 - El panel de etiquetas armado recién al abrirlo en celu (en compu sigue visible): −20 a −41 KB.
+- Más íconos al sprite: la flecha del árbol de etiquetas (17 en `/wiki/BDSM`, 6 KB) y los del pie.
 
 ### Lo demás
 
-- **Títulos repetidos**: los eventos que se repiten tienen el mismo título en cada edición
-  («Jamarada Kinky · Kinky Vibe», «Taller de Humillación · Kinky Vibe») y muchas veces la misma
-  descripción. Convendría sumar el mes al título. Los perfiles no dicen «· Kinky Vibe»
-  («Mem | él»).
+- **Títulos repetidos**: los eventos que se repiten tenían el mismo título en cada edición
+  («Jamarada Kinky · Kinky Vibe») y muchas veces la misma descripción. Ahora el `<title>` de un
+  evento que es parte de una serie suma el mes y el año de esa edición («Jamarada Kinky · octubre
+  2026 · Kinky Vibe»; `eventPageTitle` en `eventPage.js`), salvo que el título ya diga el mes. El
+  `h1` y la vista previa al compartir quedan con el título solo. Los perfiles no dicen «· Kinky
+  Vibe» («Mem | él»).
 - **Descripciones**: faltaban en `/calendario`, `/material`, `/amigues` y `/wiki`, y las
   canónicas solo estaban en el inicio y en los perfiles (relativas). Las arregla el PR de vista
   previa al compartir (#257).
-- **Encabezados**: un solo `h1` por página, bien. En las listas se salta de `h1` a `h3` (las
-  tarjetas son `h3` sin `h2` en el medio).
+- **Encabezados**: un solo `h1` por página, bien. En las listas se saltaba de `h1` a `h3` (las
+  tarjetas son `h3` sin `h2` en el medio): `PostList` lleva un `h2` solo para lectores de
+  pantalla (`heading`) en el inicio, `/calendario`, `/material`, `/amigues` y `/todo`.
 - **Textos alternativos**: todas las imágenes tienen `alt`. Las de las tarjetas van vacías (son
   decorativas: el título está al lado); el afiche del evento dice «Afiche de …». Bien.
 - **Sitemap**: 614 direcciones; 36 eran publicaciones con `redirect` (contestan 307 a un
@@ -136,7 +193,8 @@ No hay CSS en línea (0 bloques `<style>`: todo va en archivos) y el JSON-LD pes
 - **`robots.txt`**: tenía reglas para `/_template`, `/_tags` y `/_glossary`, que ya no existen;
   ahora tiene la línea del sitemap.
 - **Respuestas (AEO)**: las 12 entradas de la wiki arrancan con una definición de una oración
-  («Una conjunción de bondage y disciplina…»), que ahora también va como `DefinedTerm`. Faltaría
-  lo mismo para las etiquetas con descripción pero sin entrada.
+  («Una conjunción de bondage y disciplina…»), que ahora también va como `DefinedTerm`. Las
+  etiquetas con descripción pero sin entrada también: su descripción, en texto, va como
+  `DefinedTerm` (`tagTermSchema` en `jsonLd.js`).
 - **`security.txt`**: el contacto es un mail. GitHub tiene apagado el aviso privado de
   vulnerabilidades del repo; si se prende, se puede sumar como otro `Contact`.

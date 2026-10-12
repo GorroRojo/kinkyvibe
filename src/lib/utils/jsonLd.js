@@ -10,9 +10,13 @@
 import { eventPlaceSchema } from './eventPlace.js';
 import { KINKYVIBE_TAG } from './propinas.js';
 import { contactItems } from './perfiles.js';
-import { DEFAULT_CONTACT_EMAIL } from './tickets.js';
+import { ORG_CONTACT_EMAIL } from './organization.js';
+import { isoDateTime } from './dates.js';
 
-export const SITE_URL = 'https://kinkyvibe.ar';
+import { SITE_URL } from './site.js';
+
+// La dirección del sitio sale de ./site.js (un solo lugar); se reexporta para quien ya la importa de acá.
+export { SITE_URL };
 export const SITE_NAME = 'Kinky Vibe';
 export const SITE_DESCRIPTION =
 	'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';
@@ -63,8 +67,10 @@ function decodeSafe(s) {
 }
 
 /**
- * Una fecha en ISO 8601 (las del sitio ya lo son: se dejan tal cual, con su zona horaria), o nada
- * si no se puede leer.
+ * Una fecha en ISO 8601 válido, o nada si no se puede leer. Las fechas con hora y zona del sitio
+ * (`2026-10-02T22:00-03:00`) y las de solo día (`2026-10-02`) se dejan tal cual; las de
+ * publicación (`2024-12-06Z-03:00`, que no es ISO 8601) pasan a `2024-12-06T00:00:00-03:00`
+ * (`isoDateTime` de dates.js).
  * @param {unknown} d
  * @returns {string | undefined}
  */
@@ -73,7 +79,9 @@ export function isoDate(d) {
 	if (typeof d === 'number')
 		return isNaN(new Date(d).getTime()) ? undefined : new Date(d).toISOString();
 	if (typeof d !== 'string' || !d.trim()) return undefined;
-	return isNaN(new Date(d).getTime()) ? undefined : d.trim();
+	const s = d.trim();
+	if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return isNaN(new Date(s).getTime()) ? undefined : s;
+	return isoDateTime(s);
 }
 
 /** Saca las claves sin valor (`undefined`, `null`, `''`, listas vacías). @param {JsonLd} o */
@@ -105,7 +113,7 @@ export function organizationSchema() {
 		...organizationRef(),
 		description: SITE_DESCRIPTION,
 		logo: `${SITE_URL}/android-chrome-512x512.png`,
-		email: DEFAULT_CONTACT_EMAIL,
+		email: ORG_CONTACT_EMAIL,
 		sameAs: [...OFFICIAL_PROFILES]
 	};
 }
@@ -269,8 +277,8 @@ export function kinkipediaSchema() {
 }
 
 /**
- * Una entrada de la Kinkipedia (/wiki/<término>) como término definido. Sin entrada (solo la
- * etiqueta), nada: la página no tiene una definición que mostrar.
+ * Una entrada de la Kinkipedia (/wiki/<término>) como término definido. Sin entrada, ver
+ * {@link tagTermSchema}.
  * @param {{ title?: string, summary?: string, path?: string, aka?: unknown }} entry
  * @returns {JsonLd | null}
  */
@@ -286,6 +294,26 @@ export function wikiTermSchema({ title, summary, path, aka }) {
 		// Sin `inLanguage`: DefinedTerm no es un CreativeWork (validator.schema.org lo marca).
 		inDefinedTermSet: kinkipediaRef()
 	});
+}
+
+/**
+ * La página de una etiqueta sin entrada de la Kinkipedia como término definido, si la etiqueta
+ * tiene descripción (la que muestra la página arriba de todo): la descripción, en texto, es la
+ * definición. Los links de la descripción (`[[término]]`, `[[término:texto]]`) quedan como su
+ * texto. Sin descripción, nada (la página es solo una lista).
+ * @param {{ title?: string, description?: unknown, path?: string, aka?: unknown }} tag
+ * @returns {JsonLd | null}
+ */
+export function tagTermSchema({ title, description, path, aka }) {
+	const text =
+		typeof description === 'string'
+			? description
+					.replace(/\[\[([^\]]*)\]\]/g, (_, inner) => inner.slice(inner.indexOf(':') + 1))
+					.replace(/\s+/g, ' ')
+					.trim()
+			: '';
+	if (!text) return null;
+	return wikiTermSchema({ title, summary: text, path, aka });
 }
 
 /** El tipo de schema.org de cada clase de perfil (docs/amigues.md). */

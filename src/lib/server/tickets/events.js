@@ -3,6 +3,7 @@
  * forma del frontmatter de un .md, ver $lib/server/contenido/repo.js).
  */
 import { dev } from '$app/environment';
+import { getRequestEvent } from '$app/server';
 import { env } from '$env/dynamic/private';
 import { isKinkyVibeEvent, parseTicketConfig } from './config.js';
 
@@ -28,7 +29,9 @@ const tagsOf = (meta) => (Array.isArray(meta.tags) ? meta.tags : []);
  * - `TICKETS_DEV_FIXTURE=slug1,slug2`: evento presencial de KinkyVibe (se le agrega la etiqueta)
  *   con el descuento automático del Fondo en todos los tipos (General $ 10.000 sin cupo y
  *   Anticipada $ 8.000 con cupo 3), Mercado Pago y transferencia, y entradas en la puerta
- *   ($ 12.000).
+ *   ($ 12.000). Con la cookie `kv-dev-hoy=<slug>` en el pedido, ese evento empieza hoy a las 23
+ *   (hora de Argentina): para probar la Puerta que entra directo al único evento de hoy sin
+ *   cambiar las demás pruebas (tests/tickets/menu.spec.js).
  * - `TICKETS_DEV_FIXTURE_GORRA=slug`: evento online SIN la etiqueta KinkyVibe (se le saca si la
  *   tiene: sin Fondo), "a la gorra" (mínimo $ 1.000, sugerido $ 5.000; y "Libre" con mínimo $ 0,
  *   sugerido $ 3.000) y "Precio fijo" ($ 6.000), Mercado Pago y transferencia.
@@ -70,6 +73,7 @@ function devFixture(slug, meta) {
 		// Evento de KinkyVibe: el descuento del Fondo es el automático (en dev,
 		// FONDO_PERCENT_OVERRIDE=20 de .env.tickets).
 		tags: isKinkyVibeEvent(meta) ? tagsOf(meta) : [...tagsOf(meta), 'KinkyVibe'],
+		...(devTodayCookie() === slug ? { start: `${todayInArgentina()}T23:00:00-03:00` } : {}),
 		puerta: true,
 		puerta_precio: 12000,
 		tickets: [
@@ -78,6 +82,19 @@ function devFixture(slug, meta) {
 		]
 	};
 }
+
+/** DEV ONLY: el slug de la cookie `kv-dev-hoy` del pedido en curso (ver {@link devFixture}). */
+function devTodayCookie() {
+	try {
+		return getRequestEvent().cookies.get('kv-dev-hoy') ?? '';
+	} catch {
+		return '';
+	}
+}
+
+/** La fecha de hoy en Argentina, `AAAA-MM-DD`. */
+const todayInArgentina = () =>
+	new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
 
 /** @typedef {Map<string, Record<string, any> | null>} DbMetas */
 
@@ -154,6 +171,51 @@ export async function getEventTickets(slug, options = {}) {
 	const meta = await loadMeta(slug);
 	const withVenue = sellsTickets(meta) ? await eventsWithVenue(slug) : new Set();
 	return ticketsOf(slug, meta, { ...options, hasVenue: withVenue.has(slug) });
+}
+
+/**
+ * {@link getEventTickets} de varios eventos a la vez (las tarjetas de una lista,
+ * ./listStates.js): por evento, lo mismo que `getEventTickets`, pero con dos consultas para todos
+ * (los eventos y cuáles tienen lugar) en vez de dos por evento.
+ *
+ * @param {readonly string[]} slugs
+ * @param {{ fondoPercent?: number | null }} [options] ver `getEventTickets`
+ * @returns {Promise<Map<string, import('./config.js').EventTickets | null>>}
+ */
+export async function getEventTicketsMany(slugs, options = {}) {
+	const unique = [...new Set(slugs)];
+	// Los mismos que `loadMeta` buscaría en la base (los demás dan `null` sin consultar).
+	const wanted = unique.filter((slug) => isValidEventSlug(slug) && !slug.startsWith('_'));
+	const content = wanted.length
+		? await (await import('../contenido/repo.js')).dbEventMetasFor(wanted)
+		: new Map();
+	/** @type {Map<string, Record<string, any> | null>} */
+	const metas = new Map();
+	for (const slug of unique) metas.set(slug, await loadMeta(slug, content));
+	const selling = unique.filter((slug) => sellsTickets(metas.get(slug) ?? null));
+	const withVenue = selling.length ? await eventsWithVenueAmong(selling) : new Set();
+	/** @type {Map<string, import('./config.js').EventTickets | null>} */
+	const out = new Map();
+	for (const slug of unique) {
+		out.set(
+			slug,
+			ticketsOf(slug, metas.get(slug) ?? null, { ...options, hasVenue: withVenue.has(slug) })
+		);
+	}
+	return out;
+}
+
+/**
+ * Cuáles de `slugs` tienen lugar vinculado (`eventsWithVenueAmong` de ../amigues/venues.js), en
+ * una consulta. Vacío sin base.
+ *
+ * @param {readonly string[]} slugs
+ * @returns {Promise<Set<string>>}
+ */
+async function eventsWithVenueAmong(slugs) {
+	const db = (await import('../contenido/repo.js')).activeContentDB();
+	if (!db) return new Set();
+	return (await import('../amigues/venues.js')).eventsWithVenueAmong(db, slugs);
 }
 
 /** @param {Record<string, any> | null} meta */

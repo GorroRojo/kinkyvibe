@@ -3,14 +3,18 @@
 	import { linkPreviewOf, upcomingDescription } from '$lib/utils/seo.js';
 	import { userConfig } from '$lib/utils/stores.js';
 	import {
+		currentMonth,
+		defaultCalendarMonth,
 		fetchAllPostsClient,
+		isCalendarMonth,
 		isCurrent,
 		monthCountLabel,
 		monthHasPastEvents
 	} from '$lib/utils/allPosts';
+	import { browser } from '$app/environment';
 	import Calendar from '$lib/components/Calendar.svelte';
 	import PostList from '$lib/components/PostList.svelte';
-	import { format, isSameMonth, isPast, addMonths } from 'date-fns';
+	import { format, isSameMonth, isPast } from 'date-fns';
 	import { page } from '$app/stores';
 	import { toArgentina } from '$lib/utils/dates.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
@@ -19,8 +23,8 @@
 	import { partLabel, withPartLabel } from '$lib/utils/partes.js';
 	export let data;
 	let calendarioPosts = data.posts.filter((p) => p.meta.layout == 'calendario');
-	// «Parte N de M» de los talleres en varias partes (lo agrega el servidor; los pasados que se
-	// cargan después vienen sin ella y se les vuelve a poner).
+	// «Parte N de M» de los talleres en varias partes (lo agrega el servidor, también a los pasados
+	// de cada mes; los enteros de /api/posts vienen sin ella y se les vuelve a poner).
 	const partLabels = new Map(
 		calendarioPosts
 			.filter((p) => p.meta.parte)
@@ -42,35 +46,58 @@
 			})
 			.catch(() => (loadedPast = false));
 	}
-	/** @type {Record<string, Array<ProcessedPost & {i: number}>>} */
-	let days = calendarioPosts.reduce((dates, post, i) => {
-		let start_date = format(toArgentina(post.meta.start), 'yyyy-MM-dd');
-		// @ts-ignore
-		if (dates[start_date]) {
+	// De los pasados viene solo el mes que se abrió (data.pastMonth); los de otro mes se piden al ir
+	// a ese mes (docs/seo.md). Después de un mes futuro no hay nada que pedir.
+	const this_month = currentMonth();
+	const pastMonths = new Set([data.pastMonth]);
+	$: if (browser && view_month <= this_month && !pastMonths.has(view_month)) {
+		loadPastMonth(view_month);
+	}
+	/** @param {string} month yyyy-MM */
+	function loadPastMonth(month) {
+		pastMonths.add(month);
+		fetch(`/api/calendario/pasados?mes=${month}`)
+			.then((r) => {
+				if (!r.ok) throw new Error('/api/calendario/pasados: ' + r.status);
+				return r.json();
+			})
+			.then((/** @type {ProcessedPost[]} */ posts) => {
+				for (const p of posts) {
+					if (p.meta.parte) partLabels.set(String(p.meta.postID), p.meta.parte);
+				}
+				if (fullPosts) {
+					// ya están todos (enteros): solo falta su «Parte N de M»
+					calendarioPosts = calendarioPosts.map((p) => withPartLabel(p, partLabels));
+					return;
+				}
+				const known = new Set(calendarioPosts.map((p) => p.path));
+				calendarioPosts = [...calendarioPosts, ...posts.filter((p) => !known.has(p.path))];
+			})
+			.catch(() => pastMonths.delete(month));
+	}
+	/** @param {ProcessedPost[]} posts */
+	const daysOf = (posts) =>
+		posts.reduce((dates, post, i) => {
+			let start_date = format(toArgentina(post.meta.start), 'yyyy-MM-dd');
 			// @ts-ignore
-			dates[start_date].push({ i, ...post });
-		} else {
-			// @ts-ignore
-			dates[start_date] = [{ i, ...post }];
-		}
-		return dates;
-	}, {});
+			if (dates[start_date]) {
+				// @ts-ignore
+				dates[start_date].push({ i, ...post });
+			} else {
+				// @ts-ignore
+				dates[start_date] = [{ i, ...post }];
+			}
+			return dates;
+		}, /** @type {Record<string, Array<ProcessedPost & {i: number}>>} */ ({}));
+	$: days = daysOf(calendarioPosts);
 
 	// The viewed month lives in the URL (?viewdate=yyyy-MM), not in a module-level store:
 	// a store shared by every request would leak one visitor's month into the next SSR.
-	const now_date = new Date();
-	// if all of this month's events are in the past, open on next month
-	const skip_month = !Object.entries(days).some(
-		([date, posts]) =>
-			isSameMonth(new Date(date + 'T00:00'), now_date) &&
-			posts.some((p) => !isPast(new Date(p.meta.start)))
-	);
-	const default_month = format(skip_month ? addMonths(now_date, 1) : now_date, 'yyyy-MM');
-	/** @param {string | null} m */
-	const validMonth = (m) =>
-		!!m && /^\d{4}-\d{2}$/.test(m) && !isNaN(new Date(m + '-01T00:00').getTime());
+	// El mes de hoy en hora de Argentina; si todos sus eventos ya empezaron, abre en el siguiente.
+	// (los próximos ya están todos: los pasados que lleguen después no lo cambian)
+	const default_month = defaultCalendarMonth(daysOf(calendarioPosts));
 	$: viewdate_param = $page.url.searchParams.get('viewdate');
-	$: view_month = validMonth(viewdate_param)
+	$: view_month = isCalendarMonth(viewdate_param)
 		? /** @type {string} */ (viewdate_param)
 		: default_month;
 	// only recomputed when the month string changes, so the grid isn't re-keyed needlessly
@@ -118,7 +145,7 @@
 		<CalendarHeader {view_date} {default_month} />
 		<button
 			type="button"
-			class="pill-btn ghost small grid-toggle"
+			class="pill-btn ghost small grid-toggle tap-target"
 			aria-expanded={showGrid}
 			aria-controls="month-grid"
 			on:click={() => (showGrid = !showGrid)}
@@ -174,6 +201,7 @@
 	</div>
 	<div id="postlist">
 		<PostList
+			heading="Los eventos del mes"
 			filter={{ prop: 'visible', value: true }}
 			pastEventsToggle={month_has_past}
 			amountLabel={(n) => monthCountLabel(view_month, n)}

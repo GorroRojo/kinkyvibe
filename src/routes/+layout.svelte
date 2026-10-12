@@ -8,6 +8,7 @@
 	} from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import { useSiteTags } from '$lib/utils/siteTags.js';
+	import IconSprite from '$lib/components/ui/IconSprite.svelte';
 
 	/** @type {import('./$types').LayoutData} */
 	export let data;
@@ -50,6 +51,9 @@
 		{/if}
 	</p>
 {/if}
+
+<!-- Los íconos que se repiten en las tarjetas, una vez por página (<SpriteIcon>). -->
+<IconSprite />
 
 <slot></slot>
 

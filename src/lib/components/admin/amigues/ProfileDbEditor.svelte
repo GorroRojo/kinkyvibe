@@ -15,8 +15,8 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import ProfileEditorForm from './ProfileEditorForm.svelte';
-	import { draftKey } from '$lib/admin/draft.js';
 	import { typeIcon } from '$lib/admin/typeIcons.js';
+	import { draftKey } from '$lib/admin/draft.js';
 
 	/** @type {any} */
 	export let data;

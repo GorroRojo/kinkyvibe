@@ -2,7 +2,8 @@
 	/**
 	 * Contenido del panel "Más" del celu: la lista de grupos del menú de `$lib/admin/nav.js`
 	 * (`NAV_GROUPS`, con cuántas secciones tiene cada uno y sus contadores) y, al tocar uno, sus
-	 * secciones.
+	 * secciones (un grupo con portada, como Ajustes, lleva a su portada). Los grupos que ya están
+	 * enteros en la barra de abajo (la Puerta) no se repiten.
 	 * Props: `active` (NavItem actual), `counts` (`data.panelCounts`), `flags` (`data.navFlags`),
 	 * `hideSoon` ("Ocultar lo que viene").
 	 */
@@ -10,11 +11,13 @@
 	import NavIcon from './NavIcon.svelte';
 	import NavEntry from './NavEntry.svelte';
 	import {
+		MOBILE_TABS,
 		NAV_GROUPS,
 		groupCount,
 		navGroupItems,
 		navGroupOf,
 		navGroupSections,
+		navItem,
 		navState
 	} from '$lib/admin/nav.js';
 
@@ -34,11 +37,20 @@
 	const countOf = (item) => (item.counter ? Number(counts[item.counter] ?? 0) : 0);
 
 	$: opts = { flags, hideSoon };
+	// Un grupo que ya está entero en la barra de abajo (la Puerta) no se repite acá.
 	$: areas = NAV_GROUPS.map((g) => {
 		const items = navGroupItems(g.id, opts);
 		const soon = items.filter((i) => i.soon).length;
-		return { area: g, ready: items.length - soon, soon, total: groupCount(g.id, counts, opts) };
-	}).filter((x) => x.ready + x.soon > 0);
+		const inTabbar = items.length > 0 && items.every((i) => MOBILE_TABS.includes(i.id));
+		return {
+			area: g,
+			ready: items.length - soon,
+			soon,
+			total: groupCount(g.id, counts, opts),
+			inTabbar,
+			landing: g.landing ? (navItem(g.landing)?.href ?? null) : null
+		};
+	}).filter((x) => x.ready + x.soon > 0 && !x.inTabbar);
 	$: current = open ? navGroupOf(open) : undefined;
 	$: activeGroup = navGroupOf(active?.area)?.id;
 
@@ -75,17 +87,28 @@
 {:else}
 	<div class="rows">
 		{#each areas as x (x.area.id)}
-			<button
-				type="button"
-				class="arow"
-				class:here={activeGroup === x.area.id}
-				on:click={() => (open = x.area.id)}
-				><NavIcon item={x.area} size={22} /><span class="txt"
-					><b>{x.area.label}</b><small>{summary(x.ready, x.soon)}</small></span
-				>{#if x.total}<span class="count">{x.total}</span>{/if}<span class="chev"
-					><ChevronRight size={18} aria-hidden="true" /></span
-				></button
-			>
+			{#if x.landing}
+				<!-- Con portada (Ajustes, decisión 0042): la fila lleva a la portada. -->
+				<a class="arow" class:here={activeGroup === x.area.id} href={x.landing}
+					><NavIcon item={x.area} size={22} /><span class="txt"
+						><b>{x.area.label}</b><small>{summary(x.ready, x.soon)}</small></span
+					>{#if x.total}<span class="count">{x.total}</span>{/if}<span class="chev"
+						><ChevronRight size={18} aria-hidden="true" /></span
+					></a
+				>
+			{:else}
+				<button
+					type="button"
+					class="arow"
+					class:here={activeGroup === x.area.id}
+					on:click={() => (open = x.area.id)}
+					><NavIcon item={x.area} size={22} /><span class="txt"
+						><b>{x.area.label}</b><small>{summary(x.ready, x.soon)}</small></span
+					>{#if x.total}<span class="count">{x.total}</span>{/if}<span class="chev"
+						><ChevronRight size={18} aria-hidden="true" /></span
+					></button
+				>
+			{/if}
 		{/each}
 	</div>
 {/if}
@@ -113,6 +136,7 @@
 		width: 100%;
 		font: inherit;
 		cursor: pointer;
+		text-decoration: none;
 		&.here {
 			box-shadow: inset 0 0 0 2px var(--link);
 		}

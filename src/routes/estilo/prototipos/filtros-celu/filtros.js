@@ -65,3 +65,29 @@ export function sheetGroups(tags, query, info) {
 		tags: list.sort((a, b) => a.localeCompare(b, 'es'))
 	}));
 }
+
+/**
+ * Las etiquetas que muestra el árbol (versión 2: el árbol de hoy, en la hoja o en su columna).
+ * Igual que `getVisibleTags` de PostList, pero sin tocar stores: las que aparecen en lo que se ve,
+ * salvo las que tienen todas las publicaciones (no cambiarían nada), a menos que estén elegidas o
+ * que alguna de sus madres esté elegida.
+ * @param {{ meta: { tags: string[] } }[]} posts lo que se ve ahora (ya filtrado)
+ * @param {string[]} selected
+ * @param {(tag: string) => string[]} parentsOf las madres de cada etiqueta en el árbol
+ * @returns {string[]}
+ */
+export function visibleTagsFor(posts, selected, parentsOf) {
+	/** @type {Map<string, number>} */
+	const counts = new Map();
+	for (const post of posts) {
+		for (const tag of post.meta.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+	}
+	return [...counts.entries()]
+		.filter(
+			([tag, n]) =>
+				n < posts.length ||
+				selected.includes(tag) ||
+				selected.some((s) => parentsOf(tag).includes(s))
+		)
+		.map(([tag]) => tag);
+}

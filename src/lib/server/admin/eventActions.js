@@ -14,6 +14,7 @@ import {
 	siteOrigin
 } from '$lib/server/tickets/index.js';
 import { reopenTransferFromPanel } from '$lib/server/admin/transfers.js';
+import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 import { orderIdsByDni, revealOrderDni } from '$lib/server/admin/eventOrders.js';
 import { dniQueryDigits } from '$lib/admin/orderFormat.js';
 import {
@@ -40,6 +41,7 @@ import {
 } from '$lib/server/tickets/dateChange.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
+import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
 /**
  * Acciones de la venta de entradas de un evento (antes, una página por evento bajo Entradas). Cada pestaña de
@@ -211,6 +213,15 @@ export const eventTicketActions = {
 				}),
 				platform
 			);
+			// «Cada venta» por Telegram a les admins que lo prendieron (decisión 0041; nunca tira).
+			await queueOrderNotice({
+				db,
+				platform,
+				kind: 'cada_venta',
+				order: confirmed,
+				origin: siteOrigin(url),
+				fetch
+			});
 			return {
 				transfer: {
 					ok: true,
@@ -266,7 +277,7 @@ export const eventTicketActions = {
 	},
 
 	// "Enviar el link a todes": solo a las órdenes aprobadas que todavía no recibieron ESTE link.
-	// Manda una tanda ("de a cuántos" de Ajustes → Mails) y deja el envío pedido: el resto lo
+	// Manda una tanda ("de a cuántos" de Mensajes → Configuración) y deja el envío pedido: el resto lo
 	// manda el cron en las próximas vueltas (o otro toque del botón). También reintenta a quienes
 	// habían fallado todos sus intentos.
 	sendLink: async ({ locals, url, params, platform, fetch }) => {
@@ -387,7 +398,7 @@ export const eventTicketActions = {
 			dateChange: {
 				ok: true,
 				message:
-					'Listo, no avisamos. Si cambiás de idea, está en «Mail a compradores» → «Avisar el cambio de fecha».'
+					'Listo, no avisamos. Si cambiás de idea, está en «Mails» → «Mandar un aviso» → «Avisar el cambio de fecha».'
 			}
 		};
 	},
@@ -451,6 +462,14 @@ export const eventTicketActions = {
 				}
 			});
 			await inBackground(sendRefundEmail({ db, order: r.order, fetch }), platform);
+			// Se liberó un lugar: la lista de espera pasa a la próxima persona.
+			queueWaitlistAdvance({
+				platform,
+				db,
+				eventSlug: params.slug,
+				fetch,
+				origin: siteOrigin(url)
+			});
 			return {
 				refund: {
 					ok: true,
@@ -468,7 +487,7 @@ export const eventTicketActions = {
 		});
 	},
 
-	cancel: async ({ locals, url, params, platform, request }) => {
+	cancel: async ({ locals, url, params, platform, request, fetch }) => {
 		const admin = requireAdmin(locals, url);
 		const db = getDB(platform);
 		if (!db) return fail(503, { transfer: { ok: false, message: 'Sin base de datos.' } });
@@ -482,6 +501,13 @@ export const eventTicketActions = {
 				targetId: orderId,
 				summary: `Canceló la transferencia ${ref}`,
 				detail: { event: params.slug }
+			});
+			queueWaitlistAdvance({
+				platform,
+				db,
+				eventSlug: params.slug,
+				fetch,
+				origin: siteOrigin(url)
 			});
 		}
 		return ok

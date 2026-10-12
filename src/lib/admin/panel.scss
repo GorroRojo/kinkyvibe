@@ -441,6 +441,29 @@
 	}
 }
 
+// «Cargando»: el link o botón que se tocó, mientras llega la página siguiente (lo marca el layout
+// del panel con `data-pending`). Un poco apagado, con un brillo que pasa, y el cursor de espera.
+.kv-panel [data-pending] {
+	cursor: progress;
+	opacity: 0.75;
+	background-image: linear-gradient(
+		100deg,
+		transparent 30%,
+		color-mix(in srgb, var(--link) 18%, transparent) 50%,
+		transparent 70%
+	);
+	background-size: 200% 100%;
+	animation: kv-pending 0.9s linear infinite;
+}
+@keyframes kv-pending {
+	from {
+		background-position: 150% 0;
+	}
+	to {
+		background-position: -50% 0;
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.kv-panel * {
 		transition: none !important;

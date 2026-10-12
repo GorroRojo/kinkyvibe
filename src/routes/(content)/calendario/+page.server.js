@@ -1,43 +1,19 @@
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { isCurrent } from '$lib/utils/allPosts';
+import { currentMonth, isCalendarMonth, isCurrent } from '$lib/utils/allPosts';
 import { getDB } from '$lib/server/db';
 import { withVenuePlaces } from '$lib/server/amigues/venues.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
-import { allWorkshops } from '$lib/server/eventos/partes.js';
-import { partLabelsBySlug, withPartLabel } from '$lib/utils/partes.js';
-
-// all the calendar grid (and a collapsed past-events list) uses; the page loads
-// the full posts if the viewer chooses to list past events
-const PAST_EVENT_FIELDS = [
-	'title',
-	'start',
-	'end',
-	'tags',
-	'featured',
-	'status',
-	'layout',
-	'category',
-	'postID',
-	'redirect',
-	'mark',
-	'parte'
-];
-
-/**
- * @param {AnyPostData} meta
- * @returns {AnyPostData}
- */
-const slimMeta = (meta) => {
-	/** @type {Record<string, any>} */
-	const m = meta;
-	return /** @type {AnyPostData} */ (
-		Object.fromEntries(PAST_EVENT_FIELDS.filter((k) => k in m).map((k) => [k, m[k]]))
-	);
-};
+import { isPastIn, partLabelsOrNone, slimPastMeta } from '$lib/server/eventos/pasados.js';
+import { withPartLabel } from '$lib/utils/partes.js';
 
 /** @type {import("./$types").PageServerLoad} */
-export async function load({ platform }) {
+export async function load({ platform, url, untrack }) {
 	const now = Date.now();
+	// De los pasados, solo los del mes que se abre (con solo lo que usa la grilla): los de otro mes
+	// los pide la página a /api/calendario/pasados al ir a ese mes (docs/seo.md). `untrack`: cambiar
+	// de mes no vuelve a correr esto (las pruebas llaman sin él).
+	const asked = (untrack ?? ((fn) => fn()))(() => url.searchParams.get('viewdate'));
+	const pastMonth = isCalendarMonth(asked) ? asked : currentMonth(now);
 	const posts = (await sitePosts(platform)).filter((p) => p.meta.layout == 'calendario');
 	// A la par (cada consulta a la base es una vuelta).
 	const [withVenues, ticketStates, partLabels] = await Promise.all([
@@ -49,21 +25,20 @@ export async function load({ platform }) {
 		// «Comprar entradas» / «Agotadas» en las tarjetas: todos los eventos en una consulta.
 		ticketStatesFor(platform, posts),
 		// Talleres en varias partes: «Parte N de M» en cada parte (docs/talleres-partes.md).
-		allWorkshops(getDB(platform))
-			.then(partLabelsBySlug)
-			.catch((e) => {
-				console.error('[partes] no se pudieron leer los talleres:', e);
-				return new Map();
-			})
+		partLabelsOrNone(getDB(platform))
 	]);
 	const current = new Map(withVenues.map((p) => [p.path, p]));
 	return {
 		posts: posts
-			.map(
-				(p) =>
-					current.get(p.path) ?? /** @type {ProcessedPost} */ ({ ...p, meta: slimMeta(p.meta) })
-			)
+			.flatMap((p) => {
+				const full = current.get(p.path);
+				if (full) return [full];
+				if (!isPastIn(p, pastMonth, now)) return [];
+				return [/** @type {ProcessedPost} */ ({ ...p, meta: slimPastMeta(p.meta) })];
+			})
 			.map((p) => withPartLabel(p, partLabels)),
+		// El mes de los pasados que vinieron (los de los demás, a pedido).
+		pastMonth,
 		ticketStates,
 		// Link a la lista de series de la Kinkipedia (/wiki#series): las series ya no tienen
 		// interruptor.

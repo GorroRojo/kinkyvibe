@@ -19,7 +19,6 @@
 	import { filterPosts } from '$lib/utils/postSearch.js';
 	import { filteredTags, tagManager } from '$lib/utils/stores';
 	import Marco from '../Marco.svelte';
-	import ParaDecidir from '../ParaDecidir.svelte';
 	import { barChips, sheetGroups, tagCounts } from './filtros.js';
 
 	const DAY = 24 * 60 * 60 * 1000;
@@ -114,6 +113,11 @@
 	title="Filtros en el celu"
 	explora="Una barra corta y fija en lugar del panel largo de «Filtrar por etiquetas». Probalo con el ancho de un celu: tocá chips, abrí «Filtros» y buscá una etiqueta."
 >
+	<nav class="versiones" aria-label="Versiones del prototipo">
+		<span aria-current="page">Versión 1</span>
+		<a class="kv-link" href="/estilo/prototipos/filtros-celu-v2">Versión 2</a>
+	</nav>
+
 	<div class="selector">
 		<Segmented options={VISTAS} bind:value={vista} label="Qué mirar" />
 	</div>
@@ -187,33 +191,10 @@
 		{/if}
 	</div>
 
-	<ParaDecidir
-		items={[
-			{
-				pregunta: '¿Qué chips van en la barra?',
-				propuesta:
-					'las 8 etiquetas más usadas en lo que se ve ahora (cambian al filtrar), con las elegidas siempre adelante.'
-			},
-			{
-				pregunta: '¿Varias etiquetas suman o restan?',
-				propuesta: 'como hoy: cada etiqueta elegida achica la lista (tiene que tener todas).'
-			},
-			{
-				pregunta: '¿Dónde van «Ver como lista | grilla» y «Eventos pasados»?',
-				propuesta: '«Eventos pasados» dentro de la hoja; «Ver como» queda afuera de este prototipo.'
-			},
-			{
-				pregunta: '¿La barra queda fija al bajar en todas las listas o solo en el calendario?'
-			},
-			{
-				pregunta: '¿En compu se mantiene el árbol en su columna (como hoy) o va la misma barra?',
-				propuesta: 'solo cambia el celu; en pantallas anchas sigue el árbol.'
-			},
-			{
-				pregunta: '¿El buscador de texto de arriba de la lista se queda aparte o entra en la hoja?'
-			}
-		]}
-	/>
+	<p class="respondida">
+		gorrite ya contestó las preguntas de esta versión. Lo que sigue abierto está en la
+		<a class="kv-link" href="/estilo/prototipos/filtros-celu-v2">versión 2</a>.
+	</p>
 </Marco>
 
 <Sheet bind:open={sheetOpen} title="Filtros">
@@ -272,6 +253,22 @@
 </Sheet>
 
 <style>
+	.versiones {
+		display: flex;
+		gap: var(--space-xs);
+		max-width: 40rem;
+		margin: 0 auto var(--space-s);
+		font-size: var(--text-sm);
+	}
+	.versiones [aria-current] {
+		font-weight: 700;
+	}
+	.respondida {
+		max-width: 40rem;
+		margin: var(--space-m) auto 0;
+		font-size: var(--text-sm);
+		color: var(--muted);
+	}
 	.selector {
 		max-width: 40rem;
 		margin: 0 auto var(--space-s);

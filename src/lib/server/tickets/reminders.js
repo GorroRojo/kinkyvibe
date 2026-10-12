@@ -1,14 +1,14 @@
 /**
  * Recordatorios por mail antes de cada evento con entradas.
  *
- * - Qué recordatorios hay se configura en /admin/ajustes/mails (se guarda como JSON en
+ * - Qué recordatorios hay se configura en /admin/mensajes/configuracion (se guarda como JSON en
  *   `ticket_settings`, clave `reminders`). Cada uno: activado o no, y cuándo:
  *   - `hours_before`: N horas antes del comienzo ("2 días antes" = 48 h);
  *   - `day_at`: N días antes (0 = el mismo día) a una hora fija, en horario de Argentina.
  *   Por defecto: 48 h antes y el mismo día a las 9:00.
  * - Un evento puede no mandarlos con `recordatorios: false` en el frontmatter.
  * - Los manda POST /api/cron/recordatorios (lo llama cada 15 minutos el cron del Worker,
- *   src/lib/server/scheduled.js), en tandas: cada corrida manda como mucho "de a cuántos" (Ajustes → Mails) y
+ *   src/lib/server/scheduled.js), en tandas: cada corrida manda como mucho "de a cuántos" (Mensajes → Configuración) y
  *   la siguiente sigue. Idempotente: `reminder_sends` (orden + id del recordatorio) se reserva
  *   antes de mandar; si el envío falla se reintenta en la próxima corrida, hasta 3 intentos, y
  *   después queda 'failed' y aparece en "Para revisar" (ver sendState.js).

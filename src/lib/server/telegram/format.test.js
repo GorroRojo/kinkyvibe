@@ -1,16 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-	LIST_MAX,
+	FOLLOW_TELEGRAM_LINE,
 	escapeHtml,
 	eventUrl,
-	formatChoices,
-	formatEvent,
-	formatEventList,
+	followedText,
 	formatFollowNotice,
 	formatHelp,
-	formatPickList,
 	formatWhen
 } from './format.js';
+import { docLine } from './siteScreens.js';
 
 const ORIGIN = 'https://ejemplo.test';
 
@@ -22,13 +20,6 @@ beforeEach(() => {
 });
 afterEach(() => {
 	vi.useRealTimers();
-});
-
-/** @param {number} n */
-const fake = (n) => ({
-	slug: `evento-inventado-${n}`,
-	title: `Evento inventado ${n}`,
-	start: '2031-01-10T21:00:00-03:00'
 });
 
 describe('formatWhen', () => {
@@ -66,9 +57,11 @@ describe('escapeHtml', () => {
 	});
 
 	it('un origen con comillas no puede salirse del href', () => {
-		const text = formatEventList(
-			[{ slug: 'x', title: 'T', start: '2031-01-10T21:00:00-03:00' }],
-			'https://ejemplo.test" onclick="x'
+		// Con la línea de una lista del bot (antes, con `formatEventList`, que ya no está).
+		const text = docLine(
+			{ c: 'material', h: '/material/x', t: 'T' },
+			undefined,
+			/** @type {any} */ ({ origin: 'https://ejemplo.test" onclick="x', chat: 'private' })
 		);
 		expect(text).not.toMatch(/href="[^"]*"[^>]*onclick/);
 		expect(text).toContain('&quot;');
@@ -84,69 +77,6 @@ describe('eventUrl', () => {
 
 	it('codifica la dirección', () => {
 		expect(eventUrl(ORIGIN, 'a b?c')).toBe('https://ejemplo.test/calendario/a%20b%3Fc');
-	});
-});
-
-describe('formatEventList', () => {
-	it('lista los eventos con link al sitio', () => {
-		const text = formatEventList([fake(1), fake(2)], ORIGIN);
-		expect(text).toContain('<b>Próximos eventos</b>');
-		expect(text).toContain(
-			'<a href="https://ejemplo.test/calendario/evento-inventado-1">Evento inventado 1</a>'
-		);
-		expect(text).toContain('vie 10 ene · 21:00');
-		expect(text).toContain('Evento inventado 2');
-	});
-
-	it('escapa los títulos', () => {
-		const text = formatEventList(
-			[{ slug: 'x', title: '<script>alert(1)</script>', start: '2031-01-10T21:00:00-03:00' }],
-			ORIGIN
-		);
-		expect(text).not.toContain('<script>');
-		expect(text).toContain('&lt;script&gt;');
-	});
-
-	it('si no hay eventos, manda al calendario', () => {
-		expect(formatEventList([], ORIGIN)).toContain('https://ejemplo.test/calendario');
-	});
-
-	it('muestra hasta LIST_MAX y cuenta el resto', () => {
-		const events = Array.from({ length: LIST_MAX + 3 }, (_, i) => fake(i + 1));
-		const text = formatEventList(events, ORIGIN);
-		expect(text).toContain(`Evento inventado ${LIST_MAX}`);
-		expect(text).not.toContain(`Evento inventado ${LIST_MAX + 1}`);
-		expect(text).toContain('Hay 3 más');
-		expect(text.length).toBeLessThan(4096);
-	});
-});
-
-describe('formatEvent', () => {
-	it('muestra título, fecha y link, sin lugar ni precios', () => {
-		const text = formatEvent(fake(1), ORIGIN);
-		expect(text).toContain('<b>Evento inventado 1</b>');
-		expect(text).toContain('vie 10 ene · 21:00');
-		expect(text).toContain('https://ejemplo.test/calendario/evento-inventado-1');
-	});
-});
-
-describe('formatChoices', () => {
-	it('lista los candidatos', () => {
-		const text = formatChoices([fake(1), fake(2)], ORIGIN);
-		expect(text).toContain('¿Cuál querés ver?');
-		expect(text).toContain('Evento inventado 2');
-	});
-});
-
-describe('formatPickList', () => {
-	it('invita a tocar un evento o a buscarlo', () => {
-		const text = formatPickList([fake(1)], ORIGIN);
-		expect(text).toContain('Tocá el evento que querés ver');
-		expect(text).toContain('Evento inventado 1');
-	});
-
-	it('sin eventos, manda al calendario', () => {
-		expect(formatPickList([], ORIGIN)).toContain('no hay eventos próximos');
 	});
 });
 
@@ -182,5 +112,23 @@ describe('formatFollowNotice', () => {
 		});
 		expect(text).toContain('Recordatorio');
 		expect(text).toContain('<b>Fiesta inventada</b>');
+	});
+});
+
+describe('followedText', () => {
+	it('sin avisos, solo lo que sigue; con avisos, la línea de cómo apagarlos', () => {
+		expect(followedText('🪢 Cuerdas')).toBe('Listo: ahora seguís 🪢 Cuerdas.');
+		expect(followedText('🪢 Cuerdas', { telegram: true })).toBe(
+			`Listo: ahora seguís 🪢 Cuerdas.\n${FOLLOW_TELEGRAM_LINE}`
+		);
+		expect(FOLLOW_TELEGRAM_LINE).toContain('Mi rincón');
+	});
+
+	it('con un nombre larguísimo corta el nombre, nunca la línea (tope de 200 de Telegram)', () => {
+		const long = 'x'.repeat(400);
+		expect(followedText(long).length).toBeLessThanOrEqual(200);
+		const withLine = followedText(long, { telegram: true });
+		expect(withLine.length).toBeLessThanOrEqual(200);
+		expect(withLine.endsWith(`\n${FOLLOW_TELEGRAM_LINE}`)).toBe(true);
 	});
 });

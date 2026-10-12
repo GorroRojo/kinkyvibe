@@ -6,7 +6,7 @@
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { GALLERY_BUNDLE_MARKER, galleryIn } from '../../../scripts/demo/guard.js';
 import { SECCIONES } from './secciones.js';
 
@@ -15,6 +15,21 @@ const read = (/** @type {string} */ rel) => readFileSync(path.join(ROOT, rel), '
 const PAGE = 'src/routes/estilo/+page.js';
 const GATE =
 	"if (import.meta.env.DEV || (__DEPLOY_BRANCH__ !== '' && __DEPLOY_BRANCH__ !== 'main')) {";
+
+/**
+ * La primera vez que se importa la galería, vite compila Galeria.svelte y todos los componentes
+ * del barril (con sus íconos): ~4 s sola y bastante más con la máquina cargada. Eso se hace una
+ * vez en el `beforeAll` (con este tiempo límite, el que antes tenía la prueba); vite guarda lo
+ * compilado y `vi.resetModules()` solo olvida lo ya evaluado, así «en dev, la página carga la
+ * galería» vuelve a importarla de verdad (con `DEV` prendido) en milisegundos, dentro de los 5 s
+ * de siempre. Si la galería no compila, falla el `beforeAll` y con él estas pruebas.
+ */
+const GALLERY_COMPILE_TIMEOUT = 30_000;
+
+beforeAll(async () => {
+	await import('$lib/estilo/Galeria.svelte');
+	vi.resetModules();
+}, GALLERY_COMPILE_TIMEOUT);
 
 afterEach(() => {
 	vi.unstubAllEnvs();

@@ -110,6 +110,7 @@ describe('/wiki/<término> desde la base', () => {
 		const m = await modules();
 		// El texto de prueba es corto: no se muestra.
 		expect((await page(m, 'termino-inventado')).readingMinutes).toBe(0);
+		expect((await page(m, 'termino-inventado')).readingWords).toBe(0);
 		const long = Array.from({ length: 420 }, (_, i) => `palabra${i}`).join(' ');
 		await importTags(
 			t.db,
@@ -128,6 +129,7 @@ describe('/wiki/<término> desde la base', () => {
 		const data = await page(m2, 'termino-inventado');
 		// 420 palabras + «Qué es» + «que enlaza otra inventada» = 426 → 3 min.
 		expect(data.readingMinutes).toBe(3);
+		expect(data.readingWords).toBe(426);
 	});
 
 	it('el glosario y el sitemap leen las páginas de la base', async () => {

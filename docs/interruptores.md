@@ -25,16 +25,25 @@ con su `envVar` y un atajo (`algoEnabled(platform)`), y documentalo en esta guí
 
 ## Los interruptores
 
-| Interruptor (clave)              | Variable               | Qué prende                                                                                                                                                                | Antes de prenderlo                                                                 | Guía                             |
-| -------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------- |
-| Lo que sigo (`lo_que_sigo`)      | `LO_QUE_SIGO_ENABLED`  | con cuenta, seguir etiquetas (y series), perfiles y lugares: «Seguir» en sus páginas y Mi rincón → Lo que sigo, con calendario y mails. Apagado, `/mi-rincon/sigo` da 404 | migración `0032_lo_que_sigo.sql`                                                   | [lo-que-sigo.md](lo-que-sigo.md) |
-| Bot de Telegram (`telegram_bot`) | `TELEGRAM_BOT_ENABLED` | el bot contesta `/proximos` y `/evento`; con «Lo que sigo» prendido, además conecta chats con cuentas y manda esos avisos por Telegram. Apagado, el bot no contesta       | `TELEGRAM_WEBHOOK_SECRET` y el webhook apuntando a `/api/telegram`; migración 0033 | [telegram.md](telegram.md)       |
+| Interruptor (clave)                           | Variable                  | Qué prende                                                                                                                                                                                                                                                                                                                    | Antes de prenderlo                                                                 | Guía                             |
+| --------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------- |
+| Lo que sigo (`lo_que_sigo`)                   | `LO_QUE_SIGO_ENABLED`     | con cuenta, seguir etiquetas (y series), perfiles y lugares: «Seguir» en sus páginas y Mi rincón → Lo que sigo, con calendario y mails. Apagado, `/mi-rincon/sigo` da 404                                                                                                                                                     | migración `0032_lo_que_sigo.sql`                                                   | [lo-que-sigo.md](lo-que-sigo.md) |
+| Bot de Telegram (`telegram_bot`)              | `TELEGRAM_BOT_ENABLED`    | el bot contesta `/proximos` y `/evento`; con «Lo que sigo» prendido, además conecta chats con cuentas y manda esos avisos por Telegram. Apagado, el bot no contesta                                                                                                                                                           | `TELEGRAM_WEBHOOK_SECRET` y el webhook apuntando a `/api/telegram`; migración 0033 | [telegram.md](telegram.md)       |
+| Donaciones únicas al Fondo (`propinas_fondo`) | `PROPINAS_FONDO_ENABLED`  | `/propinas?de=fondo`: el formulario de propina para el Fondo, sin publicación, al que lleva «Una vez» de fondo.kinkyvibe.ar. Apagado, esa página solo explica que las propinas se dejan desde cada publicación (y el POST con `source=fondo` da 404). El total `GET /api/fondo/propinas-total` no depende de este interruptor | migración `0052_propinas_origen.sql`                                               | [propinas.md](propinas.md)       |
+| Puerta por Telegram (`telegram_puerta`)       | `TELEGRAM_PUERTA_ENABLED` | les admins con el Telegram vinculado (Ajustes → Admins → «Vincular Telegram») marcan ingresos desde la Mini App `/telegram/puerta`, con el escáner de QR de Telegram. Pide el bot prendido. Apagado, `/telegram/puerta` da 404 (y no se puede vincular, salvo con `telegram_admin`)                                           | migración 0050; `TELEGRAM_BOT_TOKEN` y `TELEGRAM_BOT_USERNAME`                     | [telegram.md](telegram.md)       |
+| Telegram para admins (`telegram_admin`)       | `TELEGRAM_ADMIN_ENABLED`  | les admins con el Telegram vinculado ven «📊 Estado» (vendidas contra cupo, reservas, lo que hay para revisar; solo cantidades) y eligen sus avisos en «🔔 Mis avisos» (apagados por defecto). Pide el bot prendido. Apagado, el bot contesta como si no existiera                                                            | migración 0054 (para «Mis avisos»)                                                 | [telegram.md](telegram.md)       |
+| Lista de espera (`lista_espera`)              | `LISTA_ESPERA_ENABLED`    | en construcción: cuando un evento o un tipo se agota, la gente se anota en una lista; si se libera un lugar, se le avisa a la próxima persona y se le guarda un rato. Se activa por evento (`lista_espera`). Apagado, la venta anda como siempre                                                                              | migración `0053_lista_de_espera.sql`                                               | [tickets.md](tickets.md)         |
 
 Las migraciones las aplica gorrite antes del merge del código que las necesita
 ([0028](decisiones/0028-migraciones-antes-del-merge.md), [datos.md](datos.md)).
 
 ### Cómo se relacionan
 
+- **`telegram_puerta` + `telegram_bot`**: la puerta por Telegram pide los dos. Con el bot
+  apagado, la puerta no anda aunque su interruptor esté prendido.
+- **`telegram_admin` + `telegram_bot`**: el estado y los avisos para admins piden los dos.
+  Vincular el Telegram de une admin (Ajustes → Admins) anda con `telegram_puerta` o con
+  `telegram_admin`.
 - **`telegram_bot` + `lo_que_sigo`**: vincular un chat con una cuenta (Mi rincón → Lo que sigo) y
   los avisos por Telegram piden los dos prendidos. Solo con `telegram_bot`, el bot contesta
   `/proximos` y `/evento` y nada más.
@@ -76,7 +85,9 @@ Una base local nueva se llena con la semilla de contenido (`npm run db:semilla`,
 etiquetas y wiki ([contenido.md](contenido.md)). Los importadores del panel ya no existen
 ([0032](decisiones/0032-borrar-los-md.md)).
 
-## Cómo prender `lo_que_sigo` (cuando se mergee)
+## Cómo prender `lo_que_sigo`
 
-Lo que sigo (decisión [0025](decisiones/0025-lo-que-sigo.md)), hoy «Próximamente» en Mensajes.
-El PR está en curso; esta sección se completa cuando esté en `main`.
+Lo que sigo (decisión [0025](decisiones/0025-lo-que-sigo.md)): los pasos están en
+[lo-que-sigo.md](lo-que-sigo.md#cómo-prenderlo). Antes y después de prenderlo, el estado (los
+interruptores, los números y los avisos que salieron) se mira en Mensajes › Lo que sigo
+(`/admin/mensajes/lo-que-sigo`), que se ve también con el interruptor apagado.

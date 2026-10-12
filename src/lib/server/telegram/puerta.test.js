@@ -1,15 +1,23 @@
 /**
- * Prototipo de la puerta por Mini App: los permisos se miran en cada pedido (initData válido,
- * chat vinculado, cuenta mapeada a une admin que sigue en ADMINS) y el ingreso usa el mismo
+ * La puerta por Mini App de Telegram: los permisos se miran en cada pedido (initData válido,
+ * Telegram vinculado desde el panel a une admin que sigue en ADMINS) y el ingreso usa el mismo
  * `checkIn` que el panel. Base de prueba, datos inventados, token inventado.
  */
 import { createHmac } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
-import { makeAccount } from '$lib/server/amigues/testing.js';
+import { clearFlagCache, setFlag } from '$lib/server/flags.js';
 import { sellAtDoor } from '$lib/server/tickets/door.js';
-import { doorAdmin, doorCheckIn, parseDoorAdmins } from './puerta.js';
+import { createAdminLinkCode, consumeAdminLinkCode, unlinkAdminTelegram } from './adminLink.js';
+import {
+	DOOR_EVENTS_MAX,
+	doorAdmin,
+	doorCheckIn,
+	doorEnabled,
+	doorEventChoices,
+	doorEvents
+} from './puerta.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -26,7 +34,8 @@ beforeEach(async () => {
 const TOKEN = '123456789:token-inventado-solo-para-pruebas';
 const NOW = Date.parse('2031-01-08T23:00:00Z');
 const EVENT = 'fiesta-de-prueba';
-const ADMIN_LOGIN = ADMINS[0].login;
+const ADMIN = { id: ADMINS[0].id, login: ADMINS[0].login };
+const ADMIN_LOGIN = ADMIN.login;
 
 /** @param {number} userId @param {number} [authDate] */
 function initData(userId, authDate = Math.floor(NOW / 1000) - 30) {
@@ -42,15 +51,19 @@ function initData(userId, authDate = Math.floor(NOW / 1000) - 30) {
 	}).toString();
 }
 
-/** @param {string} accountId @param {number} chatId */
-const link = (accountId, chatId) =>
-	t.db
-		.prepare(
-			`INSERT INTO telegram_chats (account_id, chat_id, linked_at, muted, updated_at)
-			VALUES (?1, ?2, 1, 0, 1)`
-		)
-		.bind(accountId, String(chatId))
-		.run();
+/**
+ * Vincula como desde el panel: código nuevo y `/start adm_<código>` desde ese usuario.
+ *
+ * @param {number} telegramUserId
+ */
+async function link(telegramUserId) {
+	const c = await createAdminLinkCode(t.db, ADMIN, { now: NOW - 60_000 });
+	if (!c.ok) throw new Error('sin código');
+	const r = await consumeAdminLinkCode(t.db, `adm_${c.code}`, telegramUserId, {
+		now: NOW - 30_000
+	});
+	if (!r.ok) throw new Error('no vinculó');
+}
 
 async function ticket() {
 	const r = await sellAtDoor(t.db, {
@@ -68,78 +81,60 @@ async function ticket() {
 	return r.tickets[0];
 }
 
-describe('parseDoorAdmins', () => {
-	it('lee login=cuenta separados por comas e ignora lo raro', () => {
-		const m = parseDoorAdmins(' alguien=abcdef12-3456 , roto, =x, otre=zzzzzzzz ');
-		expect([...m]).toEqual([
-			['abcdef12-3456', 'alguien'],
-			['zzzzzzzz', 'otre']
-		]);
-	});
-});
-
 describe('doorAdmin (en cada pedido)', () => {
-	it('admin con la cuenta vinculada y mapeada: sí', async () => {
-		const a = await makeAccount(t.db, 'puerta-admin');
-		await link(a.id, 5001);
-		const r = await doorAdmin({
-			db: t.db,
-			initData: initData(5001),
-			token: TOKEN,
-			doorAdmins: `${ADMIN_LOGIN}=${a.id}`,
-			now: NOW
-		});
+	it('admin con el Telegram vinculado desde el panel: sí', async () => {
+		await link(5001);
+		const r = await doorAdmin({ db: t.db, initData: initData(5001), token: TOKEN, now: NOW });
 		expect(r).toEqual({ ok: true, login: ADMIN_LOGIN, telegramUserId: 5001 });
 	});
 
 	it('initData inválido o viejo: no, sin mirar la base', async () => {
-		const bad = await doorAdmin({
-			db: t.db,
-			initData: 'auth_date=1',
-			token: TOKEN,
-			doorAdmins: '',
-			now: NOW
-		});
+		const bad = await doorAdmin({ db: t.db, initData: 'auth_date=1', token: TOKEN, now: NOW });
 		expect(bad).toEqual({ ok: false, reason: 'malformed' });
 		const old = await doorAdmin({
 			db: t.db,
 			initData: initData(5001, Math.floor(NOW / 1000) - 7200),
 			token: TOKEN,
-			doorAdmins: '',
 			now: NOW
 		});
 		expect(old).toEqual({ ok: false, reason: 'stale' });
 	});
 
-	it('sin chat vinculado, cuenta que no es admin, login que ya no está en ADMINS o cuenta borrada: no', async () => {
-		const a = await makeAccount(t.db, 'puerta-no-admin');
-		const ask = (/** @type {string} */ doorAdmins) =>
-			doorAdmin({ db: t.db, initData: initData(5002), token: TOKEN, doorAdmins, now: NOW });
-		expect(await ask(`${ADMIN_LOGIN}=${a.id}`)).toEqual({ ok: false, reason: 'not_linked' });
-		await link(a.id, 5002);
-		expect(await ask('')).toEqual({ ok: false, reason: 'not_admin' });
-		expect(await ask(`login-que-no-es-admin=${a.id}`)).toEqual({ ok: false, reason: 'not_admin' });
-		expect((await ask(`${ADMIN_LOGIN}=${a.id}`)).ok).toBe(true);
+	it('firma válida de un usuario de Telegram sin vincular: no', async () => {
+		await link(5001);
+		const r = await doorAdmin({ db: t.db, initData: initData(5002), token: TOKEN, now: NOW });
+		expect(r).toEqual({ ok: false, reason: 'not_linked' });
+	});
+
+	it('vinculade pero ya no está en ADMINS: no (sacarle de la lista le corta la puerta)', async () => {
+		// Una fila que quedó de alguien que era admin (id de GitHub inventado, fuera de ADMINS).
 		await t.db
 			.prepare(
-				'UPDATE accounts SET deleted_at = 1, email = NULL, password_hash = NULL, email_verified_at = NULL WHERE id = ?1'
+				`INSERT INTO telegram_admin_links (telegram_user_id, github_id, github_login, linked_at)
+				VALUES ('5003', 999999999, 'ex-admin-inventade', 1)`
 			)
-			.bind(a.id)
 			.run();
-		expect(await ask(`${ADMIN_LOGIN}=${a.id}`)).toEqual({ ok: false, reason: 'not_linked' });
+		const r = await doorAdmin({ db: t.db, initData: initData(5003), token: TOKEN, now: NOW });
+		expect(r).toEqual({ ok: false, reason: 'not_admin' });
+	});
+
+	it('después de «Desvincular»: no', async () => {
+		await link(5004);
+		const ask = () => doorAdmin({ db: t.db, initData: initData(5004), token: TOKEN, now: NOW });
+		expect((await ask()).ok).toBe(true);
+		await unlinkAdminTelegram(t.db, { user: ADMIN }, { now: NOW });
+		expect(await ask()).toEqual({ ok: false, reason: 'not_linked' });
 	});
 });
 
 describe('doorCheckIn', () => {
 	it('marca el ingreso con el mismo checkIn del panel; la segunda vez dice que ya ingresó', async () => {
-		const a = await makeAccount(t.db, 'puerta-admin-2');
-		await link(a.id, 5003);
+		await link(5003);
 		const tk = await ticket();
 		const input = {
 			db: t.db,
 			initData: initData(5003),
 			token: TOKEN,
-			doorAdmins: `${ADMIN_LOGIN}=${a.id}`,
 			eventSlug: EVENT,
 			code: `https://ejemplo.test/entradas/t/${tk.token}`,
 			now: NOW
@@ -166,7 +161,6 @@ describe('doorCheckIn', () => {
 			db: t.db,
 			initData: initData(5999),
 			token: TOKEN,
-			doorAdmins: '',
 			eventSlug: EVENT,
 			code: tk.token,
 			now: NOW
@@ -177,5 +171,106 @@ describe('doorCheckIn', () => {
 			.bind(tk.id)
 			.first();
 		expect(row?.checked_in_at).toBeNull();
+	});
+});
+
+describe('doorEnabled (interruptores)', () => {
+	it('sale apagada; pide el bot y la puerta prendidos', async () => {
+		clearFlagCache();
+		expect(await doorEnabled(t.db)).toBe(false);
+		await setFlag(t.db, 'telegram_puerta', true, { by: 'prueba' });
+		clearFlagCache();
+		expect(await doorEnabled(t.db)).toBe(false);
+		await setFlag(t.db, 'telegram_bot', true, { by: 'prueba' });
+		clearFlagCache();
+		expect(await doorEnabled(t.db)).toBe(true);
+		await setFlag(t.db, 'telegram_puerta', false, { by: 'prueba' });
+		clearFlagCache();
+		expect(await doorEnabled(t.db)).toBe(false);
+		expect(await doorEnabled(null)).toBe(false);
+		clearFlagCache();
+	});
+});
+
+describe('la lista de eventos de la puerta', () => {
+	const HOUR = 60 * 60 * 1000;
+	const iso = (/** @type {number} */ ms) => new Date(ms).toISOString();
+	// NOW es el 8/1 a las 20 en Argentina.
+	const EVENTS = [
+		{ slug: 'empezo-hace-rato', config: { title: 'Empezó hace rato', start: iso(NOW - 2 * HOUR) } },
+		{ slug: 'hoy-mas-tarde', config: { title: 'Hoy más tarde', start: iso(NOW + 2 * HOUR) } },
+		{ slug: 'online-hoy', config: { title: 'Online', start: iso(NOW + HOUR), online: true } },
+		{ slug: 'en-dos-dias', config: { title: 'En dos días', start: iso(NOW + 48 * HOUR) } },
+		{ slug: 'en-una-semana', config: { title: 'En una semana', start: iso(NOW + 7 * 24 * HOUR) } },
+		{ slug: 'el-mes-pasado', config: { title: 'El mes pasado', start: iso(NOW - 30 * 24 * HOUR) } },
+		{ slug: 'sin-fecha', config: { title: 'Sin fecha' } }
+	];
+
+	it('los de hoy (también los ya empezados) y los de los próximos 3 días, en orden, sin online', () => {
+		expect(doorEventChoices(EVENTS, NOW)).toEqual([
+			{ slug: 'empezo-hace-rato', title: 'Empezó hace rato', start: NOW - 2 * HOUR, today: true },
+			{ slug: 'hoy-mas-tarde', title: 'Hoy más tarde', start: NOW + 2 * HOUR, today: true },
+			{ slug: 'en-dos-dias', title: 'En dos días', start: NOW + 48 * HOUR, today: false }
+		]);
+	});
+
+	it('con un tope', () => {
+		const many = Array.from({ length: DOOR_EVENTS_MAX + 5 }, (_, i) => ({
+			slug: `evento-${i}`,
+			config: { title: `Evento ${i}`, start: iso(NOW + i * 60_000) }
+		}));
+		expect(doorEventChoices(many, NOW)).toHaveLength(DOOR_EVENTS_MAX);
+	});
+
+	it('solo para une admin vinculade: los mismos permisos que marcar', async () => {
+		const list = async () => EVENTS;
+		const none = await doorEvents({
+			db: t.db,
+			initData: initData(5005),
+			token: TOKEN,
+			now: NOW,
+			list
+		});
+		expect(none).toEqual({ status: 403, body: { error: 'forbidden', reason: 'not_linked' } });
+		const bad = await doorEvents({ db: t.db, initData: 'hash=nada', token: TOKEN, now: NOW, list });
+		expect(bad.status).toBe(403);
+		await link(5005);
+		const ok = await doorEvents({
+			db: t.db,
+			initData: initData(5005),
+			token: TOKEN,
+			now: NOW,
+			list
+		});
+		expect(ok.status).toBe(200);
+		expect(/** @type {any[]} */ (ok.body.events).map((e) => e.slug)).toEqual([
+			'empezo-hace-rato',
+			'hoy-mas-tarde',
+			'en-dos-dias'
+		]);
+		// Solo dirección, título, comienzo y si es hoy.
+		for (const e of /** @type {any[]} */ (ok.body.events)) {
+			expect(Object.keys(e).sort()).toEqual(['slug', 'start', 'title', 'today']);
+		}
+	});
+
+	it('sacar a alguien de ADMINS le corta también la lista', async () => {
+		const notAdmin = 999_999_999;
+		expect(ADMINS.some((a) => a.id === notAdmin)).toBe(false);
+		await t.db
+			.prepare(
+				`INSERT INTO telegram_admin_links (telegram_user_id, github_id, github_login, linked_at)
+				VALUES ('5006', ?1, 'ex-admin-inventade', ?2)`
+			)
+			.bind(notAdmin, NOW)
+			.run();
+		const r = await doorEvents({
+			db: t.db,
+			initData: initData(5006),
+			token: TOKEN,
+			now: NOW,
+			list: async () => EVENTS
+		});
+		expect(r).toEqual({ status: 403, body: { error: 'forbidden', reason: 'not_admin' } });
 	});
 });

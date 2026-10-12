@@ -1,7 +1,7 @@
 // Kept apart from $lib/utils/index.js so list pages can import it without
 // pulling in that module's lookup tables for every post and image.
 import '$lib/types.d.js';
-import { toArgentina } from './dates.js';
+import { argDate, startsAfter, toArgentina } from './dates.js';
 
 /**
  * false for calendar events that already started (PostList hides them unless
@@ -10,7 +10,7 @@ import { toArgentina } from './dates.js';
  * @param {number} [now]
  */
 export const isCurrent = (post, now = Date.now()) =>
-	post.meta.category != 'calendario' || new Date(post.meta.start).getTime() > now;
+	post.meta.category != 'calendario' || startsAfter(post.meta.start, now);
 
 /**
  * true if some calendar event of `month` (yyyy-MM, Argentina time) already started: /calendario
@@ -28,6 +28,50 @@ export function monthHasPastEvents(posts, month, now = Date.now()) {
 		const m = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}`;
 		return m == month;
 	});
+}
+
+/**
+ * «Hoy» de la grilla de /calendario, siempre en hora de Argentina: ni la del servidor (UTC) ni la
+ * del navegador de quien mira. `today`: es el día de hoy; `past`: ya terminó (un día anterior).
+ * @param {string} date yyyy-MM-dd (un día de la grilla)
+ * @param {number} [now]
+ */
+export function calendarDayFlags(date, now = Date.now()) {
+	const today = argDate(now);
+	return { today: date === today, past: date < today };
+}
+
+/** El mes de hoy en Argentina, yyyy-MM. @param {number} [now] */
+export const currentMonth = (now = Date.now()) => argDate(now).slice(0, 7);
+
+/**
+ * true si `m` es un mes del calendario, yyyy-MM (como `?viewdate=` de /calendario).
+ * @param {string | null | undefined} m
+ * @returns {m is string}
+ */
+export const isCalendarMonth = (m) =>
+	!!m && /^\d{4}-\d{2}$/.test(m) && !isNaN(new Date(m + '-01T00:00').getTime());
+
+/** @param {string} month yyyy-MM @param {number} n meses (pueden ser negativos) */
+export function shiftCalendarMonth(month, n) {
+	const [y, m] = month.split('-').map(Number);
+	const total = y * 12 + (m - 1) + n;
+	return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`;
+}
+
+/**
+ * El mes con el que abre /calendario sin `?viewdate`: el de hoy (en Argentina), o el siguiente si
+ * todos los eventos de este mes ya empezaron.
+ * @param {Record<string, ProcessedPost[]>} days eventos por día de inicio (yyyy-MM-dd, Argentina)
+ * @param {number} [now]
+ */
+export function defaultCalendarMonth(days, now = Date.now()) {
+	const month = currentMonth(now);
+	const hasUpcoming = Object.entries(days).some(
+		([date, posts]) =>
+			date.slice(0, 7) === month && posts.some((p) => new Date(p.meta.start).getTime() >= now)
+	);
+	return hasUpcoming ? month : shiftCalendarMonth(month, 1);
 }
 
 /**

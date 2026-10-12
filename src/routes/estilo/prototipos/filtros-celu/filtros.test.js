@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { barChips, sheetGroups, tagCounts } from './filtros.js';
+import { barChips, sheetGroups, tagCounts, visibleTagsFor } from './filtros.js';
 
 const post = (/** @type {string[]} */ ...tags) => ({ meta: { tags } });
 const posts = [
@@ -67,5 +67,28 @@ describe('sheetGroups', () => {
 
 	it('sin coincidencias, ningún grupo', () => {
 		expect(sheetGroups(['taller'], 'zzz', info)).toEqual([]);
+	});
+});
+
+describe('visibleTagsFor (el árbol de la versión 2)', () => {
+	const parents = (/** @type {string} */ t) =>
+		/** @type {Record<string, string[]>} */ ({ español: ['idioma'], taller: ['tipo de evento'] })[
+			t
+		] ?? [];
+
+	it('las que aparecen en lo que se ve, sin las que están en todas', () => {
+		expect(visibleTagsFor(posts, [], parents).sort()).toEqual(
+			['taller', 'Online', 'Presencial', 'fiesta', 'a la gorra'].sort()
+		);
+	});
+
+	it('una que está en todas vuelve si está elegida o si su madre está elegida', () => {
+		expect(visibleTagsFor(posts, ['español'], parents)).toContain('español');
+		expect(visibleTagsFor(posts, ['idioma'], parents)).toContain('español');
+		expect(visibleTagsFor(posts, ['tipo de evento'], parents)).not.toContain('español');
+	});
+
+	it('sin publicaciones, ninguna', () => {
+		expect(visibleTagsFor([], [], parents)).toEqual([]);
 	});
 });

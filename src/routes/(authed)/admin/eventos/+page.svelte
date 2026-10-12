@@ -6,10 +6,8 @@
 		ExternalLink,
 		FileSpreadsheet,
 		Pencil,
-		Repeat,
 		Search,
 		SearchX,
-		Table2,
 		X
 	} from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
@@ -32,6 +30,7 @@
 		searchWords
 	} from '$lib/admin/eventList.js';
 	import { todayInArgentina } from '$lib/utils/eventDraft.js';
+	import { thumbnailUrl } from '$lib/utils/seo.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -155,8 +154,6 @@
 >
 	<svelte:fragment slot="actions">
 		<CsvButton href={csvHref} />
-		<a class="kv-btn ghost" href="/admin/eventos/agenda"><Table2 {...icon} /> Agenda</a>
-		<a class="kv-btn ghost" href="/admin/eventos/series"><Repeat {...icon} /> Series</a>
 		<a class="kv-btn ghost" href="/admin/eventos/importar"
 			><FileSpreadsheet {...icon} /> Importar planilla</a
 		>
@@ -241,7 +238,15 @@
 							>{/if}
 					</div>
 					{#if e.thumb}
-						<img class="thumb" src={e.thumb} alt="" loading="lazy" decoding="async" />
+						<img
+							class="thumb"
+							src={thumbnailUrl(e.thumb, $page.url.hostname)}
+							alt=""
+							width="64"
+							height="64"
+							loading="lazy"
+							decoding="async"
+						/>
 					{:else}
 						<div class="thumb noimg" aria-hidden="true"></div>
 					{/if}

@@ -43,8 +43,14 @@ import { escapeHtml } from './escape.js';
  * @typedef {Partial<Record<TemplateKey, string | null>>} TemplateParts
  * @typedef {{ default: string, note?: string }} ExtraDef
  * @typedef {{ id: TemplateId, label: string, when: string, fixed: string, vars: TemplateVar[],
- *   defaults: TemplateText, extras: Partial<Record<ExtraKey, ExtraDef>> }} TemplateDef
- * @typedef {'tickets' | 'transfer' | 'stream' | 'reminder' | 'refund' | 'date_change'} TemplateId
+ *   defaults: TemplateText, extras: Partial<Record<ExtraKey, ExtraDef>>,
+ *   flag?: 'lista_espera' }} TemplateDef
+ * `flag`: el mail es de algo que sale detrás de un interruptor (src/lib/server/flags.js); con el
+ * interruptor apagado, el panel lo marca «prueba» (docs/panel.md).
+ * @typedef {'tickets' | 'transfer' | 'stream' | 'reminder' | 'refund' | 'date_change'
+ *   | WaitlistTemplateId} TemplateId
+ * @typedef {'waitlist_confirm' | 'waitlist_offer' | 'waitlist_reminder' | 'waitlist_expired'
+ *   | 'waitlist_closed'} WaitlistTemplateId
  */
 
 /** Largo máximo de cada parte. */
@@ -79,6 +85,10 @@ export const TEMPLATE_FIELD_LABELS = Object.freeze({
 /** Por qué llegan los mails de entradas (pie de la plantilla común). */
 export const WHY_BOUGHT = 'Te llega porque compraste entradas en kinkyvibe.ar.';
 export const WHY_RESERVED = 'Te llega porque reservaste entradas en kinkyvibe.ar.';
+/** Por qué llegan los mails de la lista de espera. */
+export const WHY_WAITLIST = 'Te llega porque te anotaste en una lista de espera de kinkyvibe.ar.';
+export const WHY_WAITLIST_CONFIRM =
+	'Te llega porque alguien anotó este mail en una lista de espera de kinkyvibe.ar.';
 
 /** @type {Record<string, TemplateVar>} */
 const V = {
@@ -127,8 +137,21 @@ const V = {
 		name: 'cuando',
 		label: '"es hoy", "es en unas horas" o "se acerca"',
 		sample: 'se acerca'
+	},
+	tipo_lista: {
+		name: 'tipo',
+		label: 'tipo de entrada de la lista (vacío si la lista es de todo el evento)',
+		sample: 'General'
+	},
+	vence_lista: {
+		name: 'vence',
+		label: 'hasta cuándo le guardamos el lugar (vacío si se le avisó a toda la lista a la vez)',
+		sample: 'miércoles 15 de octubre a las 20:00'
 	}
 };
+
+/** Lo que dice cada mail de la lista de espera además del texto editable. */
+const WAITLIST_LEAVE_NOTE = 'el link para salir de la lista (abajo de todo)';
 
 /** @type {readonly TemplateDef[]} */
 export const EMAIL_TEMPLATES = Object.freeze([
@@ -222,7 +245,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 	{
 		id: 'reminder',
 		label: 'Recordatorio',
-		when: 'Antes de cada evento, según Ajustes → Mails → Recordatorios.',
+		when: 'Antes de cada evento, según Mensajes → Configuración → Recordatorios.',
 		fixed:
 			'Evento con fecha y lugar, qué llevar (o el link de la transmisión), la lista de entradas con su link y código, número de orden y política de devoluciones.',
 		vars: [V.nombre, V.evento, V.fecha, V.lugar, V.cuando, V.tipo, V.cantidad, V.entradas],
@@ -283,6 +306,111 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			},
 			why: { default: WHY_BOUGHT }
 		}
+	},
+	{
+		id: 'waitlist_confirm',
+		label: 'Lista de espera: confirmar el mail',
+		when: 'Cuando alguien sin cuenta (o con otro mail) se anota en la lista de espera de un evento agotado.',
+		fixed: `El evento con su fecha (y el tipo de entrada, si la lista es por tipo), el botón para confirmar, hasta cuándo vale el link y ${WAITLIST_LEAVE_NOTE}.`,
+		vars: [V.evento, V.fecha, V.tipo_lista],
+		defaults: {
+			subject: 'Confirmá tu lugar en la lista de espera · {{evento}}',
+			heading: 'Confirmá tu mail',
+			body: 'Confirmá tu mail para quedar en la fila de **{{evento}}**. Si se libera un lugar, te avisamos por acá.'
+		},
+		extras: {
+			label: { default: 'Lista de espera' },
+			button: { default: 'Confirmar' },
+			help: {
+				default: '',
+				note: 'Sin texto propio: hasta cuándo vale el link y que, sin confirmar, no quedás en la lista.'
+			},
+			why: { default: WHY_WAITLIST_CONFIRM }
+		},
+		flag: 'lista_espera'
+	},
+	{
+		id: 'waitlist_offer',
+		label: 'Lista de espera: se liberó un lugar',
+		when: 'Cuando se libera un lugar y le toca a esta persona (o, cerca del evento, a toda la lista a la vez).',
+		fixed: `El evento con su fecha, hasta cuándo le guardamos el lugar en un recuadro (o, si se le avisó a toda la lista, que se lo queda quien compre primero), el botón para comprar con su link y ${WAITLIST_LEAVE_NOTE}.`,
+		vars: [V.evento, V.fecha, V.tipo_lista, V.vence_lista],
+		defaults: {
+			subject: 'Se liberó un lugar para {{evento}}',
+			heading: '¡Se liberó un lugar!',
+			body: 'Se liberó un lugar para **{{evento}}**.'
+		},
+		extras: {
+			label: { default: 'Lista de espera' },
+			button: { default: 'Comprar mi entrada' },
+			help: {
+				default: '',
+				note: 'Sin texto propio: «Si no podés, no hagas nada: le pasamos el lugar a la próxima persona» (o, si se le avisó a toda la lista, cómo salir de la lista).'
+			},
+			why: { default: WHY_WAITLIST }
+		},
+		flag: 'lista_espera'
+	},
+	{
+		id: 'waitlist_reminder',
+		label: 'Lista de espera: último aviso',
+		when: 'Cuando faltan 3 horas para que venza un lugar guardado de 12 horas o más (no cuando se le avisa a toda la lista).',
+		fixed: `El evento con su fecha, hasta cuándo le guardamos el lugar en un recuadro, el botón para comprar con su link y ${WAITLIST_LEAVE_NOTE}.`,
+		vars: [V.evento, V.fecha, V.tipo_lista, V.vence_lista],
+		defaults: {
+			subject: 'Último aviso: tu lugar para {{evento}}',
+			heading: 'Tu lugar sigue guardado',
+			body: 'Todavía te guardamos un lugar para **{{evento}}**, pero queda poco.'
+		},
+		extras: {
+			label: { default: 'Lista de espera' },
+			button: { default: 'Comprar mi entrada' },
+			help: {
+				default: 'Si no podés, no hagas nada: le pasamos el lugar a la próxima persona.'
+			},
+			why: { default: WHY_WAITLIST }
+		},
+		flag: 'lista_espera'
+	},
+	{
+		id: 'waitlist_expired',
+		label: 'Lista de espera: se venció tu lugar',
+		when: 'Cuando vence el lugar que le guardamos sin que compre.',
+		fixed: `El evento con su fecha, el botón «Volver a anotarme» (vuelve al final de la fila, sin confirmar de nuevo) y ${WAITLIST_LEAVE_NOTE}.`,
+		vars: [V.evento, V.fecha, V.tipo_lista],
+		defaults: {
+			subject: 'Se venció tu lugar para {{evento}}',
+			heading: 'Se venció tu lugar',
+			body: 'No llegaste a usar el lugar que te guardamos para **{{evento}}**, así que se lo pasamos a la próxima persona de la fila.'
+		},
+		extras: {
+			label: { default: 'Lista de espera' },
+			button: { default: 'Volver a anotarme' },
+			help: {
+				default:
+					'Si todavía querés ir, podés volver a anotarte: quedás al final de la fila, sin confirmar el mail de nuevo.'
+			},
+			why: { default: WHY_WAITLIST }
+		},
+		flag: 'lista_espera'
+	},
+	{
+		id: 'waitlist_closed',
+		label: 'Lista de espera: se cerró la lista',
+		when: 'Cuando la lista cierra (poco antes del comienzo o al cerrar la venta) o se cancela el evento, a quien seguía esperando.',
+		fixed: `Por qué cerró (falta poco para el comienzo, o el evento se canceló), el botón para ver el evento y ${WAITLIST_LEAVE_NOTE}.`,
+		vars: [V.evento, V.fecha, V.tipo_lista],
+		defaults: {
+			subject: 'Se cerró la lista de espera de {{evento}}',
+			heading: 'Se cerró la lista de espera',
+			body: 'La lista de espera de **{{evento}}** se cerró y no llegó a liberarse un lugar para vos. ¡Gracias por la paciencia!'
+		},
+		extras: {
+			label: { default: 'Lista de espera' },
+			button: { default: 'Ver el evento' },
+			why: { default: WHY_WAITLIST }
+		},
+		flag: 'lista_espera'
 	}
 ]);
 

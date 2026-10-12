@@ -12,7 +12,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedRawsByPath } from '$lib/server/semilla/testing.js';
 import YAML from 'yaml';
-import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { createTestDB, resetDB, restoreDB, snapshotDB } from '$lib/server/db/testing.js';
 import { FileChangedError } from './cliente.js';
 import {
 	importAmigues,
@@ -24,7 +24,7 @@ import {
 } from '../amigues/importer.js';
 import { readAmigueFiles } from '../amigues/testing.js';
 import { makeProfile } from '../amigues/testing.js';
-import { importTags, summarizeTagImport } from '../etiquetas/importer.js';
+import { importTags } from '../etiquetas/importer.js';
 import { commitTagEdit } from '../admin/tagEditor.js';
 import { planTagRenameInPosts } from '../etiquetas/rename.js';
 import { contentArchiveFiles } from './download.js';
@@ -57,14 +57,27 @@ afterEach(() => {
 	vi.resetModules();
 });
 
+/**
+ * La primera importación de todo (lo que devolvió y la base como quedó). Importar todo tarda
+ * ~13 s con la máquina cargada: se hace una vez por archivo y las demás pruebas ponen esa copia
+ * de la base (`restoreDB`, exactamente las mismas filas) y reciben lo mismo que devolvió.
+ * @type {{ result: { amigues: Awaited<ReturnType<typeof importAmigues>>, tags: Awaited<ReturnType<typeof importTags>> }, snapshot: import('$lib/server/db/testing.js').DBSnapshot } | undefined}
+ */
+let everything;
+
 /** Todo lo del repo, importado como en una base nueva (Perfiles y Etiquetas → Importar). */
 async function importEverything() {
+	if (everything) {
+		await restoreDB(t.db, everything.snapshot);
+		return structuredClone(everything.result);
+	}
 	const amigues = await importAmigues(t.db, amigueFiles, { actor: 'prueba' });
 	const tags = await importTags(
 		t.db,
 		{ rawTags: JSON.parse(JSON.stringify(seedTagList)), wikiFiles },
 		{ actor: 'prueba' }
 	);
+	everything = { result: structuredClone({ amigues, tags }), snapshot: await snapshotDB(t.db) };
 	return { amigues, tags };
 }
 
@@ -91,8 +104,10 @@ describe('importar todo lo del repo (estricto)', () => {
 	});
 
 	it('cada página de la wiki del repo queda en su etiqueta, con la misma dirección', async () => {
-		const { tags } = await importEverything();
-		expect(summarizeTagImport(tags.results).error).toBe(0);
+		// Que la importación de todas las etiquetas (con estas mismas páginas de la wiki) no tenga
+		// errores lo asegura src/lib/server/etiquetas/importer.test.js («importa todo…»): acá, solo
+		// lo de las fichas.
+		await importEverything();
 		const { listFichas } = await import('./fichas.js');
 		const pages = await listFichas(t.db, 'wiki');
 		expect(wikiFiles.length).toBeGreaterThanOrEqual(12);

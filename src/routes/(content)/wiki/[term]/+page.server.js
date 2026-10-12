@@ -5,7 +5,7 @@ import { relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 import { siteWikiEntry, wikiPost } from '$lib/server/wiki/site.js';
 import { renderContentBody } from '$lib/server/contenido/render.js';
-import { pageReadingMinutes } from '$lib/utils/readingTime.js';
+import { pageReadingMinutes, pageReadingWords } from '$lib/utils/readingTime.js';
 
 /**
  * /wiki/<término>: la página de la wiki de esa etiqueta, desde la base (el texto de la wiki es el
@@ -27,7 +27,7 @@ export async function load({ params, platform }) {
 	const related = await relatedWithVenuePlaces(getDB(platform), current);
 	/**
 	 * La página de la wiki (sin página: nada, y +page.js muestra la etiqueta).
-	 * @type {{ meta?: Record<string, any>, path?: string, html?: string, css?: string, parts?: import('$lib/server/contenido/interactive.js').Part[] | null, readingMinutes?: number }}
+	 * @type {{ meta?: Record<string, any>, path?: string, html?: string, css?: string, parts?: import('$lib/server/contenido/interactive.js').Part[] | null, readingMinutes?: number, readingWords?: number }}
 	 */
 	let page = {};
 	if (entry) {
@@ -46,7 +46,9 @@ export async function load({ params, platform }) {
 			css: body.css,
 			parts: body.parts ?? null,
 			// «X min de lectura» del texto guardado (0 si es corto): $lib/utils/readingTime.js.
-			readingMinutes: pageReadingMinutes(entry.body)
+			readingMinutes: pageReadingMinutes(entry.body),
+			// Las palabras, para recalcular con la velocidad de cada persona en el navegador.
+			readingWords: pageReadingWords(entry.body)
 		};
 	}
 	return {

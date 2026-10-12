@@ -1,11 +1,12 @@
 <script>
 	/**
-	 * Buscador global del panel: una paleta de comandos que busca registros (eventos, órdenes
-	 * `KV-…`, entradas por código, códigos de descuento, personas, perfiles y etiquetas, sin
-	 * mayúsculas ni tildes; ver /admin/buscar) y acciones (cada sección del menú, «Nuevo código de
-	 * descuento», «Abrir la puerta de hoy», «Para revisar», crear e importar, el tema...; ver
-	 * paletteActions.js). Las acciones van arriba, salvo cuando lo buscado es claramente un
-	 * registro (`recordsFirst`). Del primer evento encontrado salen atajos a sus pestañas.
+	 * «Ir a… o buscar» (opción C, decisión 0038): el buscador global del panel, una paleta de
+	 * comandos que busca registros (eventos, órdenes `KV-…`, entradas por código, códigos de
+	 * descuento, personas, perfiles y etiquetas, sin mayúsculas ni tildes; ver /admin/buscar) y
+	 * acciones (cada sección del menú, «Nuevo código de descuento», «Abrir la puerta de hoy»,
+	 * «Para revisar», crear e importar, el tema...; ver paletteActions.js). Las acciones van
+	 * arriba, salvo cuando lo buscado es claramente un registro (`recordsFirst`). Del primer
+	 * evento encontrado salen atajos a sus pestañas.
 	 * Entiende operadores (`#etiqueta`, `@persona`, `e:evento`, `tipo:`, `lugar:`, `hoy`/`finde`,
 	 * `"frase"`, `-palabra`, `>` solo acciones; ver $lib/utils/searchQuery.js): con la lista vacía
 	 * hay una línea con ejemplos, y «Cómo buscar» (al pie, en la hoja de atajos y como acción)
@@ -21,6 +22,13 @@
 	 * - `open(q?)` y `openHelp()` exportadas, para abrir la paleta (con algo ya escrito o no) o la
 	 *   hoja de atajos desde afuera (bind:this; «Atajos de teclado» del menú lateral y el botón `?`
 	 *   de la barra de arriba);
+	 * - prop `pinned` (las URLs fijadas en la barra lateral) y `pinFull` (ya hay 7) y eventos `pin`
+	 *   (detail: `{ href, label, context }`) y `unpin` (detail: href): 📌 en cada resultado que lleva
+	 *   a una página del panel que se puede fijar (`canPin`: no las «Próximamente»), al pasar el
+	 *   mouse o en el elegido; con el teclado, Alt+F fija o suelta el elegido;
+	 * - props `pinnedPlaces` y `recentPlaces` (los Fijados y Recientes de la barra lateral): sin
+	 *   nada escrito, la paleta los lista (`placeSections`, gorrite 12/10), con el teclado como
+	 *   cualquier resultado; al escribir, busca como siempre;
 	 * - mientras `g` espera su segunda tecla, `goPending` (`$lib/admin/shortcutHints.js`) está en
 	 *   `true` y las pistas «g x» del menú se encienden.
 	 *
@@ -50,6 +58,8 @@
 		LoaderCircle,
 		LogOut,
 		Mail,
+		Pin,
+		PinOff,
 		Receipt,
 		ScanLine,
 		Search,
@@ -71,9 +81,16 @@
 		goShortcutRows,
 		matchCommands
 	} from '$lib/admin/commands.js';
-	import { SEARCH_TIPS, paletteCommands, recordsFirst } from '$lib/admin/paletteActions.js';
+	import {
+		SEARCH_TIPS,
+		paletteCommands,
+		placeSections,
+		recordsFirst
+	} from '$lib/admin/paletteActions.js';
 	import { allowsKind, hasRecordCriteria, parseSearchQuery } from '$lib/utils/searchQuery.js';
 	import { goPending, isMac } from '$lib/admin/shortcutHints.js';
+	import { canPin } from '$lib/admin/pinnedPlaces.js';
+	import { placeIcon } from '$lib/admin/recentPlaces.js';
 
 	/** Texto corto para el header del celu. */
 	export let compact = false;
@@ -81,8 +98,16 @@
 	export let hotkeys = true;
 	/** Si ahora están ocultas las secciones «Próximamente» (el nombre de la acción cambia). */
 	export let hideSoon = false;
+	/** Las URLs fijadas en la barra lateral. @type {string[]} */
+	export let pinned = [];
+	/** Si ya hay el máximo de fijados. */
+	export let pinFull = false;
+	/** Los Fijados de la barra lateral. @type {import('$lib/admin/recentPlaces.js').RecentPlace[]} */
+	export let pinnedPlaces = [];
+	/** Los Recientes que muestra la barra lateral. @type {import('$lib/admin/recentPlaces.js').RecentPlace[]} */
+	export let recentPlaces = [];
 
-	/** @type {import('svelte').EventDispatcher<{ theme: null, hidesoon: null }>} */
+	/** @type {import('svelte').EventDispatcher<{ theme: null, hidesoon: null, pin: { href: string, label: string, context?: string }, unpin: string }>} */
 	const dispatch = createEventDispatcher();
 
 	const ICONS = /** @type {Record<string, any>} */ ({
@@ -152,8 +177,9 @@
 	/**
 	 * @typedef {{ key: string, icon: string, title: string, sub: string, href?: string,
 	 *   external?: boolean, run?: 'help' | 'search-help' | 'theme' | 'hide-soon', shortcut?: string,
-	 *   navId?: string }} Row
+	 *   navId?: string, place?: boolean }} Row
 	 */
+	/** @typedef {{ id: string, label: string, rows: Row[] }} Section */
 
 	$: commands = paletteCommands({ today, hideSoon });
 	// Lo escrito, con sus operadores (#etiqueta, @persona, hoy…).
@@ -184,14 +210,27 @@
 		rows: /** @type {Row[]} */ (g.items.map((i) => ({ ...i, key: i.id })))
 	}));
 	// Las acciones van arriba, salvo que lo buscado sea claramente un registro (ver recordsFirst).
-	$: sections = recordsFirst(
+	/** @type {Section[]} */
+	let searchSections = [];
+	$: searchSections = recordsFirst(
 		pq.actionText || q,
 		actionRows.map((r) => r.title),
 		groups
 	)
 		? [...recordSections, ...actionSection]
 		: [...actionSection, ...recordSections];
+	// Sin nada escrito: Fijados y Recientes, como en la barra lateral.
+	$: blank = !q.trim();
+	/** @type {Section[]} */
+	let sections = [];
+	$: sections = blank ? placeSections(pinnedPlaces, recentPlaces) : searchSections;
 	$: flat = sections.flatMap((s) => s.rows);
+	// Al cambiar lo escrito (también al borrarlo todo), el elegido vuelve a ser el primero.
+	$: resetActive(q);
+	/** @param {string} _q */
+	function resetActive(_q) {
+		active = 0;
+	}
 	$: if (active >= flat.length) active = Math.max(0, flat.length - 1);
 	$: search(q);
 
@@ -308,6 +347,24 @@
 		}
 	}
 
+	/** Lo que se acaba de fijar o soltar, para los lectores de pantalla. */
+	let pinNote = '';
+	/** @param {Row} row */
+	const pinnable = (row) => Boolean(row.href && !row.external && !row.run && canPin(row.href));
+	/** @param {Row | undefined} row */
+	function togglePin(row) {
+		if (!row || !pinnable(row) || !row.href) return;
+		if (pinned.includes(row.href)) {
+			dispatch('unpin', row.href);
+			pinNote = `Soltaste «${row.title}».`;
+		} else if (pinFull) {
+			pinNote = 'Ya tenés 7 fijados: soltá uno en la barra lateral para fijar otro.';
+		} else {
+			dispatch('pin', { href: row.href, label: row.title, context: row.sub || undefined });
+			pinNote = `Fijaste «${row.title}» en la barra lateral.`;
+		}
+	}
+
 	/** @param {number} i */
 	async function setActive(i) {
 		if (!flat.length) return;
@@ -329,6 +386,9 @@
 			choose(flat[active]);
 		} else if (e.key === 'Home' && e.ctrlKey) {
 			setActive(0);
+		} else if (e.altKey && e.code === 'KeyF') {
+			e.preventDefault();
+			togglePin(flat[active]);
 		}
 	}
 
@@ -404,9 +464,7 @@
 <button type="button" class="search" class:compact on:click={() => open()} aria-haspopup="dialog">
 	<Search size={18} aria-hidden="true" />
 	<span class="label"
-		>{compact
-			? 'Buscar o hacer…'
-			: 'Buscar personas, eventos, perfiles, etiquetas o acciones…'}</span
+		>{compact ? 'Ir a… o buscar' : 'Ir a… o buscar personas, eventos, etiquetas…'}</span
 	>
 	{#if !compact}<kbd>/</kbd>{#if ctrlK}<kbd class="ck">{ctrlK}</kbd>{/if}{/if}
 </button>
@@ -416,7 +474,7 @@
 	class="palette"
 	on:close={() => (isOpen = false)}
 	on:click|self={close}
-	aria-label="Buscar en el panel"
+	aria-label="Ir a… o buscar en el panel"
 >
 	{#if isOpen}
 		<div class="pal">
@@ -431,7 +489,7 @@
 					bind:value={q}
 					on:keydown={onInputKey}
 					type="search"
-					placeholder="Buscá personas, eventos, perfiles, etiquetas, KV-…, códigos o una acción"
+					placeholder="Ir a una página, o buscá personas, eventos, etiquetas, KV-…, códigos"
 					autocomplete="off"
 					spellcheck="false"
 					role="combobox"
@@ -478,7 +536,10 @@
 							on:mousemove={() => (active = i)}
 						>
 							<span class="oi" aria-hidden="true"
-								>{#if row.navId && navItem(row.navId)}<NavIcon
+								>{#if row.place && row.href}<NavIcon
+										item={placeIcon(row.href)}
+										size={18}
+									/>{:else if row.navId && navItem(row.navId)}<NavIcon
 										item={navItem(row.navId) ?? {}}
 										size={18}
 									/>{:else}<svelte:component
@@ -491,6 +552,26 @@
 								{#if row.sub}<small>{row.sub}</small>{/if}
 							</span>
 							{#if row.shortcut}<kbd class="sc">{row.shortcut}</kbd>{/if}
+							{#if pinnable(row) && row.href}
+								{@const isPinned = pinned.includes(row.href)}
+								<button
+									type="button"
+									class="pin"
+									class:pinned={isPinned}
+									tabindex="-1"
+									aria-label={isPinned ? `Soltar «${row.title}»` : `Fijar «${row.title}»`}
+									title={isPinned
+										? 'Soltar de la barra lateral (Alt F)'
+										: pinFull
+											? 'Ya tenés 7 fijados'
+											: 'Fijar en la barra lateral (Alt F)'}
+									on:click|stopPropagation={() => togglePin(row)}
+									>{#if isPinned}<PinOff size={16} aria-hidden="true" />{:else}<Pin
+											size={16}
+											aria-hidden="true"
+										/>{/if}</button
+								>
+							{/if}
 						</div>
 					{/each}
 				{/each}
@@ -502,14 +583,20 @@
 					</p>
 				{:else if hasRecordCriteria(pq) && !loading && !groups.length}
 					<p class="note">No encontramos registros con "{q.trim()}".</p>
+				{:else if blank && !flat.length}
+					<p class="note">
+						Todavía no tenés páginas fijadas ni recientes. Escribí para ir a una página o buscar.
+					</p>
 				{:else if q.trim().length === 1}
 					<p class="note">Escribí una letra más para buscar registros.</p>
 				{/if}
 			</div>
 
+			<p class="sr-only" aria-live="polite">{pinNote}</p>
 			<footer class="foot">
 				<span><kbd>↑</kbd><kbd>↓</kbd> moverse</span>
 				<span><kbd>Enter</kbd> abrir</span>
+				<span><kbd>Alt</kbd><kbd>F</kbd> fijar</span>
 				<span><kbd>Esc</kbd> cerrar</span>
 				<button type="button" class="linkish push" on:click={() => openHelp({ searchTips: true })}
 					>Cómo buscar</button
@@ -774,6 +861,46 @@
 	}
 	.sc {
 		flex: none;
+	}
+	/* 📌: aparece al pasar el mouse o en el elegido; si ya está fijado, siempre. */
+	.pin {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
+		border: 0;
+		border-radius: var(--radius-s);
+		background: none;
+		color: var(--accent);
+		cursor: pointer;
+		visibility: hidden;
+		&:hover {
+			background: var(--surface);
+			color: var(--link);
+		}
+		&.pinned {
+			visibility: visible;
+			color: var(--link);
+		}
+	}
+	.opt:hover .pin,
+	.opt.on .pin {
+		visibility: visible;
+	}
+	@media (hover: none) {
+		.pin {
+			visibility: visible;
+		}
+	}
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 	.note {
 		margin: 0.6rem;

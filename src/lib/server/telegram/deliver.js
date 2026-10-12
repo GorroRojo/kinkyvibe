@@ -4,7 +4,7 @@
  *
  * | Dónde                                    | Cómo                                                     |
  * | ---------------------------------------- | -------------------------------------------------------- |
- * | Chat privado, comando                    | `sendMessage` (o `sendPhoto` para una tarjeta con foto)   |
+ * | Chat privado, comando                    | `sendMessage` (o `sendPhoto` para una tarjeta con foto, por URL o subida: el QR de una entrada) |
  * | Chat privado, botón                      | Edita el mismo mensaje: `editMessageText` o `editMessageMedia` (texto → foto); de foto a texto, borra y manda de nuevo |
  * | Grupo, comando efímero (Bot API 10.2)    | `sendMessage` efímero: solo lo ve quien preguntó          |
  * | Grupo, comando común                     | Una respuesta pública (solo lo público), nunca una pantalla que edite cualquiera |
@@ -18,6 +18,7 @@
  * `fallback` dice qué probar una sola vez; en un grupo, lo más privado posible: contestar el botón
  * con el link al chat privado con el bot.
  */
+import { botText } from './texts.js';
 
 /** @typedef {import('./screens.js').Screen} Screen */
 /** @typedef {{ method: string } & Record<string, any>} BotMethod */
@@ -93,7 +94,7 @@ const sendText = (screen, chatId) => ({
 const sendPhoto = (screen, chatId) => ({
 	method: 'sendPhoto',
 	chat_id: chatId,
-	photo: screen.photo,
+	photo: screen.photoFile ?? screen.photo,
 	caption: screen.text,
 	parse_mode: 'HTML',
 	...withMarkup(screen)
@@ -107,7 +108,27 @@ const sendPhoto = (screen, chatId) => ({
  * @param {boolean} group
  * @param {boolean} media
  */
-const withPhoto = (screen, group, media) => Boolean(screen.photo && media && !group);
+const withPhoto = (screen, group, media) =>
+	Boolean((screen.photo || screen.photoFile) && media && !group);
+
+/** El nombre del archivo subido en `editMessageMedia` (`attach://qr`). */
+const ATTACH = 'qr';
+
+/**
+ * La foto de `editMessageMedia`: la URL o, si se sube (`photoFile`), `attach://qr` con el archivo
+ * en el campo `qr`.
+ *
+ * @param {Screen} screen
+ */
+const editMedia = (screen) => ({
+	media: {
+		type: 'photo',
+		media: screen.photoFile ? `attach://${ATTACH}` : screen.photo,
+		caption: screen.text,
+		parse_mode: 'HTML'
+	},
+	...(screen.photoFile ? { [ATTACH]: screen.photoFile } : {})
+});
 
 /**
  * El link al chat privado con el bot, para cuando un grupo no deja mostrar la pantalla a una sola
@@ -117,8 +138,8 @@ const withPhoto = (screen, group, media) => Boolean(screen.photo && media && !gr
  */
 const privateFallback = (privateLink) =>
 	privateLink
-		? { text: 'Abrí el bot por privado para ver esto.', url: privateLink }
-		: { text: 'Escribile al bot por privado para ver esto.' };
+		? { text: botText('errores.grupo_link'), url: privateLink }
+		: { text: botText('errores.grupo') };
 
 /**
  * El plan para mostrar una pantalla.
@@ -205,7 +226,7 @@ export function deliverScreen(screen, where, { media = false, privateLink = null
 				{
 					method: 'editMessageMedia',
 					...target,
-					media: { type: 'photo', media: screen.photo, caption: screen.text, parse_mode: 'HTML' },
+					...editMedia(screen),
 					...withMarkup(screen)
 				}
 			],

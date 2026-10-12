@@ -5,11 +5,18 @@
 El sitio manda mails a quienes compran entradas: las entradas con su QR, las instrucciones de una
 transferencia, el link de la transmisión de un evento online, los recordatorios antes del evento,
 el aviso de reembolso, el aviso de cambio de fecha («Avisar a les compradores») y los avisos que
-les admins escriben desde el panel ("Mail a compradores").
+les admins escriben desde el panel ("Mail a compradores", en la ficha del evento → Mails → Mandar un
+aviso).
 Salen con **Resend**, desde `entradas@kinkyvibe.ar` (se cambia en el panel). Les admins pueden
 cambiar el asunto, el título, el texto de arriba y los detalles del diseño (etiqueta, texto del
 botón, línea de ayuda y «por qué te llega») de cada mail sin tocar código, en general o solo para
 un evento, y mandarse una prueba.
+
+**En el panel, todo lo de mails está en Mensajes** (gorrite, 11/10): **Plantillas**
+(`/admin/mensajes/plantillas`, el texto de cada mail) y **Configuración**
+(`/admin/mensajes/configuracion`: remitente, respuesta, pie, recordatorios y envíos en tandas; la
+vieja `/admin/ajustes/mails` redirige ahí). Lo de un evento (mandar un aviso a quienes compraron y
+sus plantillas propias) está en la ficha del evento.
 
 ## Lo que nunca se tiene que romper
 
@@ -47,17 +54,28 @@ un evento, y mandarse una prueba.
 | Tus entradas              | al aprobarse una compra o confirmarse una transferencia; "Reenviar"     | `tickets`     | `buildTicketEmail` en `email.js`        |
 | Reserva por transferencia | al reservar pagando por transferencia                                   | `transfer`    | `buildTransferEmail`                    |
 | Link de la transmisión    | "Enviar el link a todes" en un evento online                            | `stream`      | `buildStreamLinkEmail`, `stream.js`     |
-| Recordatorio              | antes del evento, según Ajustes → Mails y plantillas                    | `reminder`    | `buildReminderEmail`, `reminders.js`    |
+| Recordatorio              | antes del evento, según Mensajes → Configuración                        | `reminder`    | `buildReminderEmail`, `reminders.js`    |
 | Reembolso                 | al reembolsar (desde el panel o desde Mercado Pago)                     | `refund`      | `buildRefundEmail`                      |
 | Cambió la fecha           | «Avisar a les compradores» después de cambiar la fecha de un evento     | `date_change` | `buildDateChangeEmail`, `dateChange.js` |
 | Mail a compradores        | une admin lo escribe en la ficha del evento → Mail                      | —             | `buyerMail.js`                          |
 | Código para ingresar      | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
 | Tu link (Fondo KinkyVibe) | lo pide fondo.kinkyvibe.ar («¿Ya sos Mecenas?», ver abajo)              | —             | `src/lib/server/fondo/email.js`         |
 
+**Lista de espera** (en construcción, interruptor `lista_espera`; ver abajo y
+[tickets.md](tickets.md#lista-de-espera-en-construcción)):
+
+| Mail               | Cuándo sale                                                        | Plantilla           | Código (`waitlistEmail.js`)  |
+| ------------------ | ------------------------------------------------------------------ | ------------------- | ---------------------------- |
+| Confirmá tu mail   | al anotarse sin cuenta (o con otro mail que el de la cuenta)       | `waitlist_confirm`  | `buildWaitlistConfirmEmail`  |
+| Se liberó un lugar | le toca (lugar guardado) o, cerca del evento, a toda la lista      | `waitlist_offer`    | `buildWaitlistOfferEmail`    |
+| Último aviso       | faltan 3 h de un lugar guardado de 12 h o más (no a toda la lista) | `waitlist_reminder` | `buildWaitlistReminderEmail` |
+| Se venció tu lugar | venció el lugar guardado sin comprar; «Volver a anotarme»          | `waitlist_expired`  | `buildWaitlistExpiredEmail`  |
+| Se cerró la lista  | la lista cierra (cerca del comienzo, fin de la venta) o se cancela | `waitlist_closed`   | `buildWaitlistClosedEmail`   |
+
 Todo en `src/lib/server/tickets/` salvo que se indique. Las plantillas: definición y variables en
 `src/lib/utils/emailTemplates.js`, lo guardado en D1 en `templates.js`, el editor
 (`src/lib/components/admin/MailTemplateEditor.svelte`) en `/admin/mensajes/plantillas` y en la
-pestaña **Plantillas de mails** de la ficha de cada evento que vende entradas.
+pestaña **Mails** de la ficha de cada evento que vende entradas (vista **Plantillas**, `/mails`).
 
 **Plantillas por evento.** Cada parte se puede cambiar solo para los mails de un evento
 (`event_email_templates`, migración 0034; una fila por evento y mail, cada parte en NULL = sin
@@ -76,7 +94,7 @@ baja (si el mail la tiene) y «Kinky Vibe · Buenos Aires». Lo editable de las 
 de la tarjeta.
 
 **Pie configurable:** la línea de contacto («¿Dudas? Escribinos a {{contacto}}») y la firma
-(«Kinky Vibe · Buenos Aires») se cambian en Panel → Ajustes → Mails → Pie de los mails
+(«Kinky Vibe · Buenos Aires») se cambian en Panel → Mensajes → Configuración → Pie de los mails
 (`mail_footer_contact` y `mail_footer_signoff` en `ticket_settings`), con el mismo formato seguro
 (negrita y links; `{{contacto}}` es la dirección de contacto con su `mailto:`). Valen para todos
 los mails: los pone `deliver()` al mandar (`withMailFooter` de `layout.js`, que reemplaza solo
@@ -147,6 +165,61 @@ transmisión: …», sin «personal, no lo compartas».
 minutos `POST /api/cron/recordatorios`, con el header `x-cron-secret`, al sitio. El sitio decide qué mandar. Por
 defecto: 2 días antes y el mismo día a las 9:00; un evento los apaga con `recordatorios: false`.
 
+### Códigos copiables
+
+Pedido de gorrite (11/10/2026): que Gmail y el celu reconozcan el código de los mails de
+«Código para ingresar» y «Tu código para confirmar» (`src/lib/server/cuentas/email.js`), así se
+copia o se completa solo. Gmail para Android e iOS muestra un botón «Copiar código» abajo del
+asunto (desde septiembre de 2026; en la web todavía no) y, desde iOS 17 y macOS Sonoma, Safari
+ofrece el código que llegó a Mail de Apple en el campo del código.
+
+**Nadie publicó cómo los detectan.** Ni Google ni Apple tienen marcado oficial para códigos en
+mails: el marcado de Gmail (schema.org) no tiene nada para códigos, y la documentación de Apple
+sobre códigos de un solo uso habla solo de SMS. Hay dos borradores de la IETF con un encabezado
+para el código (`One-Time-Code`, de Apple, de 2023 y vencido; `OTP-Token`, de Google, de
+septiembre de 2026), pero ninguno dice que un cliente de mail lo use, así que por ahora no los
+mandamos. Lo que sigue sale de lo que se observa y de las reglas publicadas para SMS:
+
+- **6 cifras, sin letras ni separadores.** El formato de nuestros códigos ya es el más fácil de
+  reconocer (Android, para SMS, busca de 4 a 10 caracteres con al menos una cifra).
+- **«código» en el asunto, sin el código**: «Tu código para entrar a Kinky Vibe» y «Tu código
+  para confirmar en Kinky Vibe». El código no va en el asunto porque se ve en las notificaciones
+  del celu. Se probó ponerlo al principio («482913 es tu código…»): en dos pruebas de gorrite con
+  mails reales en Gmail para celu (11/10/2026), no apareció «Copiar código» ni con el código en el
+  asunto ni sin él, así que volvió a salir. Igual, los logs de producción y de los previews tapan
+  los números de 6 cifras o más del asunto (`subjectForLog` en `emailGuard.js`), por si alguna vez
+  vuelve.
+- **Un preencabezado en castellano y sin números** (lo que se lee en la lista de mails, oculto en
+  el mail abierto; `preheader` de `mailLayout`).
+- **El código es lo primero del mail**, solo en su renglón y justo después de una frase con
+  «código» («Tu código para entrar a Kinky Vibe es:»), igual en el HTML (en su recuadro, en
+  monoespaciada) y en el texto plano. Va una sola vez y no hay otro número suelto cerca.
+- **El remitente es del mismo dominio que el sitio** (`kinkyvibe.ar`): Mail de Apple parece no
+  ofrecer códigos de un dominio distinto.
+- Los campos donde se escribe tienen `autocomplete="one-time-code"` e `inputmode="numeric"`.
+
+Los demás códigos no se arman así, a propósito: el de cada entrada se dicta en la puerta (y un
+mail puede tener varios), el de descuento ya está aplicado y la referencia de una transferencia
+no es un código para escribir en el sitio. Un botón «Copiar código» ahí confundiría.
+
+`email.test.js` comprueba todo esto, y `mails.text.json` el asunto y el texto plano exactos.
+
+**«Parece que este mensaje está en inglés».** En la misma prueba, Gmail ofreció traducir el mail
+de código, que está en castellano. Google no dice cómo decide el idioma. Lo que vimos: el mail ya
+tenía `<html lang="es">` y ningún texto en inglés salvo «Kinky Vibe» (logo, asunto, cuerpo, firma
+y el nombre del remitente), y es muy corto. Por eso ahora todos los mails salen con el encabezado
+`Content-Language: es` (`MAIL_HEADERS` en `tickets/email.js`, que Resend manda tal cual), y los de
+código con un preencabezado en castellano. En la segunda prueba Gmail siguió ofreciendo traducir:
+no alcanzó. Quedan igual, porque dicen la verdad sobre el mail y no molestan; la causa sigue sin
+saberse.
+
+Fuentes: [9to5Google](https://9to5google.com/2026/09/19/gmail-copy-code/) (botón de Gmail),
+[foro de desarrolladores de Apple](https://developer.apple.com/forums/thread/738690) (códigos en
+Mail, dominio), [Google, SMS User Consent](https://developers.google.com/identity/sms-retriever/user-consent/request)
+(formato de SMS), [borrador `One-Time-Code`](https://www.ietf.org/archive/id/draft-wells-origin-bound-one-time-codes-00.html),
+[borrador `OTP-Token`](https://www.ietf.org/archive/id/draft-goto-otp-token-01.html) y
+[acciones de Gmail](https://developers.google.com/workspace/gmail/markup/actions/declaring-actions).
+
 ### Mail del Fondo (tu link)
 
 fondo.kinkyvibe.ar («¿Ya sos Mecenas?», `/mi-link`) no tiene clave de Resend: le pide a este sitio
@@ -182,6 +255,50 @@ solo la dirección y los links; el asunto, los textos y el remitente están fijo
   contados solo después de validar. Es grueso a propósito: el límite por mail y por IP lo hace el
   Fondo de su lado.
 - **Logs:** nunca la dirección ni los links; solo el resultado y cuántos links.
+- **El mismo secreto** autentica `GET /api/fondo/propinas-total`, el total de propinas al Fondo de
+  un «mes Fondo» que pide fondo.kinkyvibe.ar para su porcentaje (ver
+  [propinas.md](propinas.md#total-para-el-fondo-get-apifondopropinas-total)).
+
+### Mails de la lista de espera
+
+En construcción (interruptor `lista_espera`; [tickets.md](tickets.md#lista-de-espera-en-construcción)).
+Los cinco usan la plantilla común y tienen su plantilla editable (`waitlist_*`, general y por
+evento, como los de entradas); en Mensajes → Plantillas y en la pestaña Mails de cada evento
+aparecen con la etiqueta «prueba» mientras el interruptor está apagado.
+
+- **Sin nombre:** la lista guarda solo el mail. Variables: `evento`, `fecha`, `tipo` (vacío si la
+  lista es de todo el evento) y, en la oferta y el último aviso, `vence` (hasta cuándo se guarda el
+  lugar; vacío si se le avisó a toda la lista).
+- **Lo fijo** (lo pone el código): el evento con su fecha (y el tipo), el recuadro con hasta cuándo
+  se guarda el lugar (o «Le avisamos a toda la lista a la vez: se lo queda quien compre primero»,
+  o por qué cerró la lista), el botón con su link y, en el pie, **el link para salir de la lista**
+  (en todos; en el de confirmar dice «Borrar el pedido ahora»).
+- **Sin plantilla guardada** sale el texto de partida de cada plantilla (sus `defaults`, byte a byte
+  la golden de `email.golden.json`, casos `waitlistEmailCases` de `email.fixtures.js`).
+- **Envío:** el de confirmar sale en el momento por `deliver()` (`waitlistSender`, sin clave de
+  idempotencia, como «Avisame si se repite»). Los otros cuatro los manda el cron con
+  `sendWaitlistEntryMail` (`waitlistMail.js`): una fila de `waitlist_sends` por anotación, mail y
+  ronda, con los estados de los envíos en tandas (`sendState.js`, que ahora también sirve para
+  filas por anotación), y la clave de Resend `waitlist-<mail>-<anotación>-<ronda>`
+  (`waitlist-closed-<anotación>` para el cierre).
+- **Quién los dispara** (el motor, `sendWaitlistMails` en `waitlistEngine.js`): no hay cola aparte,
+  lo que falta sale del estado de cada anotación y de `waitlist_sends`. La oferta, a cada oferta
+  vigente sin su mail; el último aviso, con 3 h por delante de una reserva de 12 h o más y la oferta
+  ya mandada; «se venció», si venció la reserva con la oferta ya mandada; «se cerró la lista», al
+  cerrar (cerca del comienzo, fin de la venta, «Cerrar la lista» en el panel) o si se cancela el
+  evento. Los dos últimos, solo si pasó hace menos de 48 h. En el cron van **primero** en la tanda
+  (`runMailQueueWith`, `sendWaitlist`) y comparten el «de a cuántos»; las acciones del panel y los
+  empujones mandan los de ese evento en el momento.
+- **Sin mail:** «Terminar la reserva y pasar a la siguiente» y «Sacar de la lista» (panel), salir
+  con el link, y un tipo de entrada que ya no existe ([decisión 0040](decisiones/0040-lista-de-espera.md)).
+- **Si no sale** después de 3 intentos: una fila en «Para revisar» que lleva a Ventas › Lista de espera
+  del evento, con «Volver a probar».
+- **Links:** confirmar `/lista-de-espera/confirmar/<token>` (48 h); salir
+  `/lista-de-espera/salir/<id>.<firma>` y volver `/lista-de-espera/volver/<id>.<firma>`, firmados con
+  `waitlist_leave_key` (se crea sola en `ticket_settings`), cada uno con su propio mensaje; la oferta
+  `/calendario/<slug>/entradas?lista=<token>`. GET solo muestra el botón y el POST hace el cambio
+  (`MailLinkCard`), así los antivirus del correo no confirman ni sacan a nadie.
+- **Logs:** nunca el mail; solo el id de la anotación.
 
 **Mail a compradores:** se manda en tandas (un Worker tiene un límite de pedidos a otros servicios
 por pedido); la página pide tandas y muestra el progreso.
@@ -197,7 +314,7 @@ migración `0048_avisar_cambio_fecha.sql`):
 - **Ofrecerlo.** Si hay compras aprobadas (con mail) de antes del cambio, arriba de todas las
   pestañas de la ficha aparece «Cambiaste la fecha. ¿Avisamos a las N personas que compraron?»
   con **Avisar a les compradores** y **No hace falta** (deja de mostrarse). No aparece con el
-  evento cancelado o ya terminado. En **Mail a compradores** está siempre la tarjeta **Avisar el
+  evento cancelado o ya terminado. En **Mails → Mandar un aviso** está siempre la tarjeta **Avisar el
   cambio de fecha**, para usarla más tarde. El botón pide confirmación.
 - **A quiénes.** Cada orden aprobada, con mail, de antes del cambio (las que compraron después ya
   recibieron la fecha nueva en sus entradas). Reembolsadas, canceladas y sin pagar no. Una vez por
@@ -217,16 +334,16 @@ migración `0048_avisar_cambio_fecha.sql`):
 
 ## Configuración
 
-| Qué                                | Dónde                                                                                           |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Remitente y dirección de respuesta | Panel → Ajustes → Mails y plantillas (si está vacío, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`) |
-| Pie de los mails (contacto, firma) | Panel → Ajustes → Mails (vacío = el de siempre)                                                 |
-| Recordatorios (cuándo)             | Panel → Ajustes → Mails y plantillas                                                            |
-| Clave de Resend                    | `RESEND_API_KEY`, Secret en Cloudflare. Sin ella no sale ningún mail                            |
-| Dominio                            | `kinkyvibe.ar` verificado en Resend (SPF/DKIM en Cloudflare DNS)                                |
-| Secreto del cron                   | `CRON_SECRET`, Secret del Worker `kinkyvibe` (lo usan el cron y `/api/cron/*`)                  |
-| Secreto del mail del Fondo         | `FONDO_MAIL_SECRET`, Secret del Worker `kinkyvibe` (el mismo valor en el del Fondo)             |
-| Previews                           | `EMAIL_ALLOWLIST` en el entorno Preview de Cloudflare                                           |
+| Qué                                | Dónde                                                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| Remitente y dirección de respuesta | Panel → Mensajes → Configuración (si está vacío, `TICKETS_FROM_EMAIL` / `TICKETS_REPLY_TO`) |
+| Pie de los mails (contacto, firma) | Panel → Mensajes → Configuración (vacío = el de siempre)                                    |
+| Recordatorios (cuándo)             | Panel → Mensajes → Configuración                                                            |
+| Clave de Resend                    | `RESEND_API_KEY`, Secret en Cloudflare. Sin ella no sale ningún mail                        |
+| Dominio                            | `kinkyvibe.ar` verificado en Resend (SPF/DKIM en Cloudflare DNS)                            |
+| Secreto del cron                   | `CRON_SECRET`, Secret del Worker `kinkyvibe` (lo usan el cron y `/api/cron/*`)              |
+| Secreto del mail del Fondo         | `FONDO_MAIL_SECRET`, Secret del Worker `kinkyvibe` (el mismo valor en el del Fondo)         |
+| Previews                           | `EMAIL_ALLOWLIST` en el entorno Preview de Cloudflare                                       |
 
 Las respuestas a `entradas@kinkyvibe.ar` llegan al Gmail de la organización (Cloudflare Email
 Routing). La bandeja dentro del panel es una decisión tomada (0010) pero todavía no existe.
@@ -247,11 +364,11 @@ Routing). La bandeja dentro del panel es una decisión tomada (0010) pero todav�
 
 ## Tareas comunes
 
-**Cambiar el texto de un mail.** Panel → Ajustes → Mails y plantillas → Plantillas → el mail.
+**Cambiar el texto de un mail.** Panel → Mensajes → Plantillas → el mail.
 Vista previa con datos de ejemplo y "Mandarme una prueba". "Restaurar el original" borra la
 fila y vuelve al del código.
 
-**Cambiar un mail solo para un evento.** Ficha del evento → Plantillas de mails → el mail. Lo
+**Cambiar un mail solo para un evento.** Ficha del evento → Mails → Plantillas → el mail. Lo
 vacío sale como en la plantilla general. "Volver a la plantilla general" borra lo del evento (también guardar todo vacío); antes guarda
 una copia en `panel_deletions`, así se recupera desde Ajustes › Actividad («Recuperar», decisión
 0030).

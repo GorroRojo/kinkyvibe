@@ -2,7 +2,11 @@
  * POST /api/cron/recordatorios: manda una tanda de los mails que tocan: recordatorios (ver
  * $lib/server/tickets/reminders.js) y lo que quede de cada "Enviar el link a todes" (ver
  * `runMailQueue` en $lib/server/tickets/index.js). También
- * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js) y el registro automático
+ * la lista de espera de las entradas (interruptor `lista_espera`: primero avanza la lista de cada
+ * evento con `runWaitlistCron` y sus mails van primero en la tanda; ver
+ * $lib/server/tickets/waitlistEngine.js),
+ * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js), el resumen diario de
+ * ventas para admins por Telegram (ver $lib/server/telegram/adminNotify.js) y el registro automático
  * de los comandos del bot de Telegram (ver $lib/server/telegram/commandsSync.js). Lo llama cada 15 minutos el cron
  * del Worker (src/lib/server/scheduled.js); cada corrida sigue donde quedó la anterior.
  *
@@ -17,7 +21,10 @@ import { runMailQueue, siteOrigin } from '$lib/server/tickets/index.js';
 import { MIN_CRON_SECRET_LENGTH, isValidCronSecret } from '$lib/server/cron.js';
 import { runSeriesCron } from '$lib/server/series/web.js';
 import { runSigoCron } from '$lib/server/sigo/cron.js';
+import { listaEsperaEnabled } from '$lib/server/flags.js';
+import { runWaitlistCron, waitlistMailBatch } from '$lib/server/tickets/waitlistEngine.js';
 import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
+import { runAdminNoticesCron } from '$lib/server/telegram/adminNotify.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, platform, url, fetch }) {
@@ -31,7 +38,24 @@ export async function POST({ request, platform, url, fetch }) {
 	const db = getDB(platform);
 	if (!db) return json({ error: 'sin base de datos' }, { status: 503 });
 	try {
-		const r = await runMailQueue({ db, origin: siteOrigin(url), fetch });
+		// La lista de espera, antes de la tanda (así las ofertas nuevas salen en esta misma
+		// corrida) y aparte: si falla, los demás mails salen igual.
+		let waitlistOn = false;
+		let waitlist = null;
+		try {
+			waitlistOn = await listaEsperaEnabled(platform);
+			waitlist = await runWaitlistCron(db, { enabled: waitlistOn });
+		} catch (error) {
+			logDBError('cron lista de espera', error);
+		}
+		const r = await runMailQueue({
+			db,
+			origin: siteOrigin(url),
+			fetch,
+			...(waitlistOn
+				? { sendWaitlist: waitlistMailBatch({ db, origin: siteOrigin(url), fetch }) }
+				: {})
+		});
 		// Las series van aparte: si fallan, los recordatorios ya salieron y la corrida no se cae.
 		let series = null;
 		try {
@@ -46,6 +70,19 @@ export async function POST({ request, platform, url, fetch }) {
 		} catch (error) {
 			logDBError('cron lo que sigo', error);
 		}
+		// Los avisos de admins por Telegram (decisión 0041): el resumen diario desde las 9 (hora
+		// de Argentina), solo a quien lo prendió. Aparte: si falla, lo demás ya salió.
+		let telegramAdmin = null;
+		try {
+			telegramAdmin = await runAdminNoticesCron({
+				db,
+				origin: siteOrigin(url),
+				token: env.TELEGRAM_BOT_TOKEN,
+				fetch
+			});
+		} catch (error) {
+			logDBError('cron avisos de admins', error);
+		}
 		// El menú «/» del bot: solo si cambió la lista y hay token. Nunca tira.
 		const telegramCommands = await syncBotCommands({
 			db,
@@ -53,7 +90,14 @@ export async function POST({ request, platform, url, fetch }) {
 			fetch
 		});
 		return json(
-			{ ...r, ...(series ? { series } : {}), ...(sigo ? { sigo } : {}), telegramCommands },
+			{
+				...r,
+				...(waitlist ? { waitlistAdvance: waitlist } : {}),
+				...(series ? { series } : {}),
+				...(sigo ? { sigo } : {}),
+				...(telegramAdmin ? { telegramAdmin } : {}),
+				telegramCommands
+			},
 			{ headers: { 'cache-control': 'no-store' } }
 		);
 	} catch (error) {

@@ -56,9 +56,12 @@ describe('tiempo de lectura en la base', () => {
 		const m = await posts();
 		const long = await m.siteContent(t.platform, 'material', 'guia-larga-inventada');
 		expect(long?.readingMinutes).toBe(3);
+		// Las palabras viajan para recalcular con la velocidad de cada persona (450, sin el código).
+		expect(long?.readingWords).toBe(450);
 		expect(long?.html).toContain('palabra0');
 		const short = await m.siteContent(t.platform, 'material', 'guia-corta-inventada');
 		expect(short?.readingMinutes).toBe(0);
+		expect(short?.readingWords).toBe(0);
 	});
 
 	it('los eventos no lo traen', async () => {
@@ -77,5 +80,6 @@ describe('tiempo de lectura en la base', () => {
 		const event = await m.siteEvent(t.platform, 'taller-inventado-2031-06');
 		expect(event).not.toBeNull();
 		expect(event?.readingMinutes).toBeUndefined();
+		expect(event?.readingWords).toBeUndefined();
 	});
 });

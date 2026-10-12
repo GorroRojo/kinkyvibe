@@ -131,7 +131,17 @@ describe('?/comandos (Actualizar comandos del bot)', () => {
 		const { actions } = await page();
 		const r = /** @type {any} */ (await actions.comandos(post(admin)));
 		expect(r.commandsOk).toBe(true);
-		const PUBLIC = ['proximos', 'hoy', 'semana', 'finde', 'evento', 'buscar', 'fondo', 'ayuda'];
+		const PUBLIC = [
+			'inicio',
+			'proximos',
+			'hoy',
+			'semana',
+			'finde',
+			'evento',
+			'buscar',
+			'fondo',
+			'ayuda'
+		];
 		expect(r.commandsResults.map((/** @type {any} */ x) => [x.scope, x.commands])).toEqual([
 			['default', PUBLIC],
 			['all_group_chats', PUBLIC],
@@ -160,16 +170,21 @@ describe('?/comandos (Actualizar comandos del bot)', () => {
 		expect(bodies[2]).toEqual({
 			scope: { type: 'all_private_chats' },
 			commands: [
+				{ command: 'inicio', description: 'Volver al inicio del bot' },
 				{ command: 'proximos', description: 'Los próximos eventos públicos' },
 				{ command: 'hoy', description: 'Los eventos de hoy' },
 				{ command: 'semana', description: 'Lo que hay en los próximos 7 días' },
 				{ command: 'finde', description: 'Lo que hay este fin de semana' },
 				{ command: 'evento', description: 'Buscá un evento por nombre, fecha o lugar' },
-				{ command: 'buscar', description: 'Escribí lo que buscás y te muestro los eventos' },
+				{
+					command: 'buscar',
+					description: 'Buscá en todo el sitio: eventos, material, Kinkipedia y amigues'
+				},
 				{ command: 'fondo', description: 'Cuánto juntó el Fondo Kinky Vibe este mes' },
 				{ command: 'ayuda', description: 'Qué podés pedirme' },
 				{ command: 'vincular', description: 'Conectá tu cuenta (código de Mi rincón)' },
 				{ command: 'sigo', description: 'Lo que seguís en Lo que sigo' },
+				{ command: 'entradas', description: 'Tus entradas, con el QR para la puerta' },
 				{ command: 'silenciar', description: 'Pausá tus avisos por Telegram' },
 				{ command: 'reanudar', description: 'Volvé a recibir tus avisos' },
 				{ command: 'desvincular', description: 'Desconectá este chat de tu cuenta' }

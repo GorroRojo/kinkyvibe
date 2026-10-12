@@ -181,7 +181,10 @@ describe('ingresar con código', () => {
 		expect(r).toEqual({ ok: true, email: EMAIL, expiresAt: NOW + CODE_TTL_MS });
 		expect(sent).toHaveLength(1);
 		expect(sent[0].to).toBe(EMAIL);
+		// El código va en el cuerpo, nunca en el asunto (se ve en las notificaciones).
+		expect(sent[0].code).toMatch(/^\d{6}$/);
 		expect(sent[0].subject).not.toMatch(/\d{6}/);
+		expect(sent[0].subject).toBe('Tu código para entrar a Kinky Vibe');
 		expect(await getAccountByEmail(t.db, EMAIL)).toBeNull(); // todavía no hay cuenta
 
 		const v = await verifyCode({
@@ -509,6 +512,7 @@ describe('códigos para confirmar (acciones delicadas de Mi rincón)', () => {
 			now: NOW
 		});
 		expect(r.ok).toBe(true);
+		expect(sent[0].code).toMatch(/^\d{6}$/);
 		expect(sent[0].subject).toBe('Tu código para confirmar en Kinky Vibe');
 		const pwCode = sent[0].code;
 		// No sirve para ingresar ni para borrar.
@@ -771,14 +775,24 @@ describe('contraseña', () => {
 		});
 		expect(ok.ok).toBe(true);
 
-		for (let i = 0; i < RATE_LIMITS.passwordClient.limit; i++) {
-			await passwordLogin({
+		// Un mail distinto por intento (así no se llega al límite por mail). El primero no tiene
+		// cuenta: también cuenta para el límite de la conexión. Los demás tienen una contraseña
+		// con hash barato, porque un mail sin cuenta deriva un hash de mentira con las iteraciones
+		// de verdad y 20 de esos hacían lenta la prueba.
+		const n = RATE_LIMITS.passwordClient.limit;
+		for (let i = 1; i < n; i++) {
+			const other = await upsertVerifiedAccount(t.db, `p${i}@example.com`, { now: NOW });
+			await setPassword(t.db, other.id, PW, { iterations: 1000 });
+		}
+		for (let i = 0; i < n; i++) {
+			const r = await passwordLogin({
 				db: t.db,
 				email: `p${i}@example.com`,
 				password: 'x',
 				client: CLIENT,
 				now: later
 			});
+			expect(r).toEqual({ ok: false, status: 400, message: MESSAGES.badLogin });
 		}
 		const perClient = await passwordLogin({
 			db: t.db,

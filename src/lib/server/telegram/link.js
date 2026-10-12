@@ -7,6 +7,8 @@
  *    vincula: eso lo decide router.js). Si el código vale, se marca usado en la misma sentencia
  *    que lo lee (dos pedidos a la vez no lo usan dos veces) y el chat queda vinculado.
  * 3. Un chat es de una sola cuenta y una cuenta tiene un solo chat: vincular de nuevo reemplaza.
+ *    Si la cuenta ya tenía un chat en `/silenciar`, sigue en silencio: pausar los avisos es
+ *    apagarlos a propósito y volver a vincular no los prende (como en 0036).
  *
  * No se guarda nada del perfil de Telegram, solo el id del chat. Los intentos de `/vincular` se
  * topean por chat (para que nadie pruebe códigos al azar) y crear códigos, por cuenta.
@@ -14,6 +16,7 @@
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { botFollows } from './seguir.js';
+import { botTickets } from './tickets.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -115,14 +118,18 @@ export async function consumeLinkCode(db, text, chatId, { now = Date.now() } = {
 	if (!row) return { ok: false, reason: 'invalid' };
 	const accountId = String(row.account_id);
 	await db.batch([
-		// Un chat, una cuenta; una cuenta, un chat: lo anterior de cualquiera de los dos se va.
+		// Un chat, una cuenta; una cuenta, un chat: lo anterior de cualquiera de los dos se va (el
+		// chat de otra cuenta, con lo suyo; el de esta cuenta se reemplaza abajo).
 		db
-			.prepare('DELETE FROM telegram_chats WHERE account_id = ?1 OR chat_id = ?2')
+			.prepare('DELETE FROM telegram_chats WHERE chat_id = ?2 AND account_id <> ?1')
 			.bind(accountId, chat),
+		// Vincular de nuevo deja `/silenciar` como estaba: pausar es apagarlos a propósito (0036).
 		db
 			.prepare(
 				`INSERT INTO telegram_chats (account_id, chat_id, linked_at, muted, updated_at)
-				VALUES (?1, ?2, ?3, 0, ?3)`
+				VALUES (?1, ?2, ?3, 0, ?3)
+				ON CONFLICT (account_id) DO UPDATE SET chat_id = excluded.chat_id,
+					linked_at = excluded.linked_at, updated_at = excluded.updated_at`
 			)
 			.bind(accountId, chat, now)
 	]);
@@ -199,7 +206,8 @@ export async function setChatMuted(db, chatId, muted, { now = Date.now() } = {})
 
 /**
  * Lo que el bot puede hacer con las cuentas (router.js no sabe de la base). `follows`: «Seguir»
- * y «Lo que sigo» desde el bot (seguir.js, decisión 0034).
+ * y «Lo que sigo» desde el bot (seguir.js, decisión 0034). `tickets`: «🎟 Mis entradas»
+ * (tickets.js).
  *
  * @param {D1Database} db
  * @param {App.Platform | undefined} [platform]
@@ -213,6 +221,7 @@ export function botAccounts(db, platform) {
 		},
 		unlink: (chatId) => unlinkChat(db, chatId),
 		setMuted: (chatId, muted) => setChatMuted(db, chatId, muted),
-		follows: botFollows(db, platform)
+		follows: botFollows(db, platform),
+		tickets: botTickets(db)
 	};
 }

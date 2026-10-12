@@ -108,6 +108,10 @@
 	--field: color-mix(in srgb, var(--2) 10%, #b9b9b9);
 	/* minimum size of anything tappable on phones */
 	--tap: 2.75rem;
+
+	/** Listas (PostList) en pantalla ancha: el ancho máximo de la columna del árbol de etiquetas,
+	    que cuelga a la izquierda de la lista centrada (sin correrla). **/
+	--list-tree-w: 16rem;
 }
 // Lato 400 y 700 (Google Fonts files via @fontsource/lato 5.3.0, SIL OFL 1.1), self-hosted
 // so pages don't wait on a render-blocking stylesheet from fonts.googleapis.com
@@ -475,6 +479,8 @@ textarea {
 //   <div class="kv-segmented" role="radiogroup" aria-label="…">
 //     <label><input type="radio" name="x" value="a" />Opción</label> …
 //   </div>
+// `.small`: a la escala de los chips (2rem de alto, `--text-xs`), como en las opciones de las
+// listas; un botón con solo un ícono lleva `.icon-only` (y su `aria-label`).
 .kv-segmented {
 	display: inline-flex;
 	flex-wrap: wrap;
@@ -506,12 +512,39 @@ textarea {
 			color: var(--accent-text, var(--1-ink));
 		}
 	}
+	/* El elegido queda lleno también con el mouse encima: antes el :hover de arriba le ganaba y,
+	   en el celu (donde el hover queda pegado después de tocar), la opción recién elegida se
+	   veía sin elegir. */
 	> label:has(input:checked),
 	> [aria-pressed='true'],
 	> [aria-current] {
-		background: var(--accent, var(--1));
-		color: var(--accent-ink, white);
-		font-weight: 700;
+		&,
+		&:hover {
+			background: var(--accent, var(--1));
+			color: var(--accent-ink, white);
+			font-weight: 700;
+		}
+	}
+	&.small {
+		box-sizing: border-box;
+		flex-wrap: nowrap;
+		flex: none;
+		height: 2rem;
+		padding: 2px;
+		gap: 2px;
+		> label,
+		> button,
+		> a {
+			min-height: 0;
+			height: 100%;
+			padding: 0 0.85em;
+			font-size: var(--text-xs);
+			line-height: 1.2;
+		}
+		> .icon-only {
+			width: 2.5rem;
+			padding: 0;
+		}
 	}
 	> label:has(input:focus-visible) {
 		outline: var(--focus-ring);

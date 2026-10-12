@@ -36,10 +36,11 @@ import { NAV, NAV_AREAS, navItem, navLink } from './nav.js';
  */
 export const GO_SHORTCUTS = Object.freeze([
 	{ key: 'i', id: 'inicio' },
+	{ key: 'c', id: 'checkin' },
 	{ key: 'e', id: 'eventos' },
+	// «Cargar evento» ya no está en el menú (es una acción, decisión 0038), pero su atajo sigue.
 	{ key: 'n', id: 'eventos-nuevo' },
 	{ key: 'g', id: 'eventos-agenda' },
-	{ key: 'c', id: 'checkin' },
 	{ key: 'v', id: 'entradas' },
 	{ key: 't', id: 'entradas-transferencias' },
 	{ key: 'd', id: 'entradas-codigos' },
@@ -60,6 +61,7 @@ export const OTHER_SHORTCUTS = Object.freeze([
 	{ keys: ['Ctrl', 'K'], label: 'Buscar desde cualquier lado (⌘ K en Mac)' },
 	{ keys: ['↑', '↓'], label: 'Moverse por los resultados' },
 	{ keys: ['Enter'], label: 'Abrir el resultado elegido' },
+	{ keys: ['Alt', 'F'], label: 'Fijar o soltar el resultado elegido (en la barra lateral)' },
 	{ keys: ['Esc'], label: 'Cerrar la paleta' },
 	{ keys: ['?'], label: 'Mostrar esta hoja de atajos' }
 ]);
@@ -89,6 +91,7 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'no-listadas': 'no listadas borradores ocultas sin listar',
 	biblioteca: 'biblioteca imagenes fotos archivos documentos pdf videos subir borrar sacar media',
 	'contenido-base': 'base de datos importar eventos md archivos migrar coinciden paridad',
+	ajustes: 'ajustes configuracion portada plata comunicacion equipo sistema',
 	'ajustes-cobros':
 		'ajustes cobros alias cbu cvu mercado pago comision transferencia datos bancarios',
 	'ajustes-fondo': 'ajustes fondo porcentaje kinky vibe descuento solidaria',
@@ -98,6 +101,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 		'vistas previas al compartir link whatsapp telegram tarjeta imagen og textos titulo descripcion',
 	'ajustes-plantillas':
 		'plantillas textos mails email compra recordatorio mensajes pie de mail asunto',
+	'ajustes-textos-bot':
+		'textos del bot telegram mensajes botones comandos wording palabras inicio ayuda avisos',
 	'ajustes-admins': 'admins permisos equipo organizadores github',
 	'ajustes-interruptores': 'ajustes interruptores funciones nuevas prender apagar activar flags',
 	'ajustes-automatizaciones':
@@ -109,7 +114,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	etiquetas: 'etiquetas tags arbol kinkipedia wiki categorias alias renombrar juntar',
 	material: 'material guias articulos nota notas kinkipedia contenido publicaciones',
 	tienda: 'tienda productos merch vender',
-	'lo-que-sigo': 'lo que sigo seguimientos avisos seguir',
+	'lo-que-sigo':
+		'lo que sigo seguimientos avisos seguir seguidores mas seguido ranking avisame telegram',
 	bandeja: 'bandeja mails recibidos respuestas inbox',
 	colecciones: 'colecciones listas agrupar material',
 	videos: 'videos grabaciones youtube'
@@ -140,11 +146,13 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'no-listadas': 'eye-off',
 	biblioteca: 'book',
 	'contenido-base': 'book',
+	ajustes: 'settings',
 	'ajustes-cobros': 'settings',
 	'ajustes-fondo': 'settings',
 	'ajustes-mails': 'mail',
 	'ajustes-vistas-previas': 'eye',
 	'ajustes-plantillas': 'mail',
+	'ajustes-textos-bot': 'mail',
 	'ajustes-admins': 'key',
 	'ajustes-interruptores': 'settings',
 	'ajustes-automatizaciones': 'history',

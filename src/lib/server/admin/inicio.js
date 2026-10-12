@@ -315,7 +315,9 @@ export function unsentEmailsQuery(now) {
 }
 
 /**
- * Órdenes marcadas para revisar a mano (pago tardío o duplicado).
+ * Órdenes marcadas para revisar a mano: pago tardío o duplicado (`needs_review`) o una venta en la
+ * puerta hecha sin conexión que pasó un límite al sincronizarse (`offline_review`, migración 0051;
+ * `reason` = 'door_offline'). Dos consultas unidas, cada una por su índice parcial.
  *
  * @param {D1Database | null | undefined} db
  * @returns {Promise<{ id: string, ref: string, slug: string, reason: string, buyerName: string }[]>}
@@ -333,8 +335,12 @@ export function reviewOrdersQuery() {
 		[],
 		(db) => [
 			db.prepare(
-				`SELECT id, event_slug, needs_review, buyer_name FROM orders
-				WHERE needs_review IS NOT NULL ORDER BY updated_at DESC LIMIT 50`
+				`SELECT id, event_slug, needs_review, buyer_name, updated_at FROM orders
+				WHERE needs_review IS NOT NULL
+				UNION ALL
+				SELECT id, event_slug, 'door_offline', buyer_name, updated_at FROM orders
+				WHERE offline_review IS NOT NULL AND needs_review IS NULL
+				ORDER BY updated_at DESC LIMIT 50`
 			)
 		],
 		(results) =>
@@ -758,8 +764,10 @@ export function activityItems({ orders, audit, checkins, tips }, { limit, titles
 			at: Number(t.approved_at),
 			kind: 'tip',
 			title: `Propina de ${formatARS(Number(t.amount))}`,
-			who: String(t.post_slug),
-			detail: String(t.post_category),
+			// Sin publicación (`post_slug` vacío) = desde fondo.kinkyvibe.ar (migración 0052). Se mira
+			// el slug y no `source` para que la consulta ande igual sin esa migración.
+			who: String(t.post_slug ?? '') || 'Fondo Kinky Vibe',
+			detail: t.post_slug ? String(t.post_category) : 'fondo.kinkyvibe.ar',
 			slug: null,
 			orderId: null,
 			href: '/admin/ajustes/propinas'
@@ -844,6 +852,7 @@ export function sinceLastVisitQuery({ since, login = '', titles }) {
  *   unlisted: boolean,
  *   today: boolean,
  *   hasImage: boolean,
+ *   thumb: string,
  *   ticketed: boolean,
  *   online: boolean,
  *   fondoEnabled: boolean,
@@ -952,6 +961,9 @@ export function upcomingEvents({
 			unlisted: e.unlisted,
 			today: day === today,
 			hasImage: Boolean(e.thumb),
+			// La portada, tal como la usan las tarjetas del sitio ('' si no tiene): la miniatura del
+			// recuadro «Hoy» del Inicio (achicada en producción con `thumbnailUrl`, seo.js).
+			thumb: e.thumb ?? '',
 			ticketed: Boolean(config),
 			online: Boolean(config?.online),
 			fondoEnabled: Boolean(config?.fondoEnabled),
@@ -1094,7 +1106,9 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 			title:
 				o.reason === 'duplicate_payment'
 					? `Pago duplicado de ${o.buyerName}`
-					: `Pago tardío de ${o.buyerName} (la reserva había vencido)`,
+					: o.reason === 'door_offline'
+						? `Venta sin conexión de ${o.buyerName} que pasó un límite`
+						: `Pago tardío de ${o.buyerName} (la reserva había vencido)`,
 			text: `${o.ref} · ${title(o.slug)}`,
 			action: 'Ver orden',
 			href: links.order(o.slug, o.id)

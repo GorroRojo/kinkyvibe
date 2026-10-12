@@ -34,7 +34,7 @@ producción. La de tu compu y la de las pruebas E2E arrancan con la semilla de c
 | Tu compu (`npm run dev`)  | copia simulada en `.wrangler/state/`                                                          | solas, antes de cada `npm run dev*` (`scripts/db-migrate-local.js`)                  |
 | Previews de cada PR       | `kinkyvibe-preview` (el binding `DB` de los Previews está en `[previews]` de `wrangler.toml`) | a mano, cuando un PR trae una migración nueva                                        |
 | Producción (kinkyvibe.ar) | `kinkyvibe` (su id está en `wrangler.toml`)                                                   | a mano, `npm run db:migrate:remote`, **antes** de deployar el código que la necesita |
-| Pruebas (vitest)          | una nueva en memoria por prueba                                                               | solas: `createTestDB()` aplica todas                                                 |
+| Pruebas (vitest)          | una nueva en memoria por archivo de pruebas                                                   | solas: `createTestDB()` aplica todas                                                 |
 
 Las migraciones `0001` a `0010` ya están aplicadas en producción (30/9/2026, antes de mergear el
 panel, #115). Con la migración a Workers los bindings pasan a configurarse distinto: ver
@@ -45,7 +45,7 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 | Tabla                                             | Migración                            | Para qué                                                                                                                    | Código                                                     |
 | ------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | `rate_limits`                                     | 0001                                 | límites de intentos (sin IPs)                                                                                               | `src/lib/server/db/rateLimit.js`                           |
-| `orders`, `tickets`                               | 0002 (+0003, 0005, 0010, 0013, 0016) | órdenes y entradas; canal `online` / `puerta` / `manual`; `ticket_tier` (tramo de preventa)                                 | `src/lib/server/tickets/orders.js`, `door.js`, `manual.js` |
+| `orders`, `tickets`                               | 0002 (+0003, 0005, 0010, 0013, 0016) | órdenes y entradas; canal `online` / `puerta` / `manual`; `ticket_tier`; venta sin conexión (0051: `client_sale_id`)        | `src/lib/server/tickets/orders.js`, `door.js`, `manual.js` |
 | `discount_codes`                                  | 0002                                 | códigos de descuento                                                                                                        | `src/lib/server/tickets/discounts.js`                      |
 | `ticket_settings`                                 | 0002                                 | Ajustes del panel (cobros, Fondo, mails, recordatorios; `link_preview_texts`: textos de la vista previa, docs/compartir.md) | `src/lib/server/tickets/settings.js`                       |
 | `event_ticket_settings`, `stream_link_sends`      | 0002                                 | link de transmisión por evento y a quién se le mandó                                                                        | `src/lib/server/tickets/stream.js`                         |
@@ -61,14 +61,32 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 | `feature_flags`                                   | 0013                                 | interruptores de funciones nuevas (Ajustes → Interruptores)                                                                 | `src/lib/server/flags.js`                                  |
 | `accounts`, `account_sessions`, `login_codes`     | 0013                                 | cuentas del público, sesiones y códigos por mail (ver [cuentas.md](cuentas.md))                                             | `src/lib/server/cuentas/`                                  |
 | `agenda_day_notes`                                | 0030                                 | notas de colores en los días de la Agenda (solo admins; nunca en páginas públicas ni .ics)                                  | `src/lib/server/admin/dayNotes.js`                         |
-| `review_snapshots`                                | 0047                                 | «Para revisar»: la última revisión del importador de contenido (lo que no se cuenta barato)                                 | `src/lib/server/admin/reviewSnapshots.js`                  |
-| `demo_files`                                      | ninguna                              | solo en previews: los "commits" del modo demo                                                                               | `src/lib/server/demo/overlay.js`                           |
+| `review_snapshots`                                | 0047                                 | sin uso desde la decisión 0032 (era la última revisión del importador de contenido)                                         | ninguno                                                    |
 | `event_date_changes`, `date_change_sends`         | 0048                                 | último cambio de fecha de cada evento y a qué orden se le avisó (por versión)                                               | `src/lib/server/tickets/dateChange.js`                     |
+| `waitlist_entries`, `waitlist_sends`              | 0053                                 | lista de espera de las entradas (por evento o tipo) y sus mails por ronda; interruptor `lista_espera`, en construcción      | `src/lib/server/tickets/waitlist.js`                       |
 
 **Borrados suaves (0049, decisión [0033](decisiones/0033-borrados-recuperables.md)).**
 `signup_fields`, `persona_roles` y `person_notes` tienen `deleted_at` (NULL = está). Borrar desde el
 panel lo marca y escribe la fila de `panel_deletions` (0021) en la misma tanda, para «Recuperar» en
 Actividad; toda consulta de esas tablas lleva `deleted_at IS NULL`. No hay purga.
+
+**Lista de espera (0053, decisión [0040](decisiones/0040-lista-de-espera.md)).** Una fila de
+`waitlist_entries` por anotación; `ticket_type` NULL es la lista de todo el evento. Viva
+(`pending_confirmation`, `waiting`, `offered`) hay una sola por mail y alcance (índice único
+parcial); al terminar (`purchased`, `expired`, `cancelled`) se puede volver a anotar. El orden de la
+fila es `confirmed_at`. Con `offered`, `hold_until` es hasta cuándo se guarda el lugar (NULL = aviso
+a toda la fila, sin lugar guardado) y `offer_count` la ronda; con `purchased`, `order_id` es la
+orden que hizo con su oferta. `end_reason` dice por qué terminó (`hold_expired`, `left`, `admin`,
+`closed`, `event_cancelled`, `type_removed`) y `ended_by`, le admin si fue desde el panel. Los
+tokens (confirmar y oferta) se guardan solo como SHA-256; `client_hash` como en `orders` (sin IP).
+`waitlist_sends` lleva cada mail del cron una vez por anotación, mail (`offer`, `reminder`,
+`expired`, `closed`) y ronda, con los estados de los envíos en tandas (`sending`, `sent`, `retry`,
+`failed`). Mismo trato que `orders`: sin purga, solo admins, nunca el mail en `admin_audit`; las
+anotaciones sin confirmar se borran a las 48 h. Borrar una anotación borra sus `waitlist_sends`.
+Los tiempos (tramos de reserva, aviso a todes, cierre) son fijos, en el código
+(`WAITLIST_SETTINGS`); una clave `waitlist` que haya quedado en `ticket_settings` no se lee. Ahí sí
+van las claves de los links (`waitlist_leave_key`, `waitlist_offer_key`, se crean solas). Lo de
+cada evento va en su `lista_espera`. Detalle en [tickets.md](tickets.md), «Lista de espera».
 
 `demo_files` (solo en la base de los previews, nunca fue una migración) era la capa de "commits"
 del modo demo: desde la decisión 0032 nadie la usa; se puede borrar a mano en el preview.
@@ -78,7 +96,10 @@ del modo demo: desde la decisión 0032 nadie la usa; se puede borrar a mano en e
 - `migrations/NNNN_nombre.sql`: el esquema, en orden. Cada archivo explica arriba para qué es.
 - `src/lib/server/db/index.js`: `getDB(platform)` y `logDBError(contexto, error)` (avisa si faltan
   migraciones).
-- `src/lib/server/db/testing.js`: `createTestDB()` y `applyMigrations()` para las pruebas.
+- `src/lib/server/db/testing.js`: `createTestDB()`, `applyMigrations()`, `resetDB()` y
+  `snapshotDB()`/`restoreDB()` (copia de las filas para reusar datos caros) para las pruebas;
+  `startTemplateDB()` arma la plantilla migrada que copian las bases de prueba (globalSetup de
+  vitest, ver [pruebas-y-ci.md](pruebas-y-ci.md)).
 - `wrangler.toml`: el binding `DB`, con `kinkyvibe` en producción y `kinkyvibe-preview` en los
   Previews (bloque `[previews]`). **No tiene `pages_build_output_dir` a propósito**; no se agrega.
 

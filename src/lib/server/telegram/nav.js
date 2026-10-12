@@ -15,11 +15,28 @@
  * | Buscar / cancelar la búsqueda | `s` / `sx`             |
  * | Lo que sigo / Fondo / Ayuda   | `g` / `fo` / `a`       |
  * | Seguir: opciones / seguir     | `f:<id>` / `fy:<id>:<etiqueta>` |
+ * | Resultados de buscar en todo el sitio (página `p`) | `q:<p>:<texto>` |
+ * | Una cosa de esos resultados (vuelve a la página `p`) | `r:<hash>:<p>:<texto>` |
+ * | Sin resultados: seguir la etiqueta buscada | `sf:<etiqueta>:<texto>` |
+ * | Una sección del sitio (página `p`, etiqueta opcional) | `c:<s>:<p>[:<etiqueta>]` |
+ * | Las etiquetas de una sección (la elegida, opcional) | `ct:<s>[:<etiqueta>]` |
+ * | Una cosa de una sección (vuelve a la página `p`) | `cd:<s>:<hash>:<p>[:<etiqueta>]` |
+ * | Mis entradas (`u` próximas, `o` pasadas; página `p`) | `t:<v>:<p>`           |
+ * | Una entrada (vuelve a esa lista)  | `tk:<hash>:<v>`        |
  * | El contador «1/3» (no hace nada) | `x`                 |
  *
  * `v` es la lista: `d` hoy, `w` semana, `f` finde, `p` próximos; en el detalle también `n` (sin
  * lista: vino de una búsqueda o de un link, y «Volver» va al inicio). `id` es la dirección del
  * evento si es corta y simple, si no `#<hash>`; `<etiqueta>` es un hash corto del nombre.
+ * En la búsqueda de todo el sitio, `<texto>` es lo buscado (recortado a {@link SEARCH_QUERY_BYTES}
+ * bytes: así se repite la misma búsqueda) y `<hash>`, un hash corto de la dirección de la cosa,
+ * que se busca **entre los resultados de ese texto** (nunca afuera del índice público).
+ * En las secciones (sections.js), `<s>` es `m` material, `w` Kinkipedia, `a` amigues o `s` series;
+ * `<hash>` se busca **entre lo de esa sección** y `<etiqueta>` (un hash corto de su id), entre las
+ * etiquetas de lo de esa sección: los dos, solo dentro del índice público.
+ * En Mis entradas (misEntradas.js), `<hash>` es un hash corto del id de la entrada, que se busca
+ * **entre las entradas de la cuenta vinculada a ese chat**: un botón armado a mano nunca muestra
+ * la entrada de otra cuenta (ni dice si existe).
  * También se entienden los botones de antes (`ev:<id>` y `ls`, keyboards.js).
  */
 import { parseCallbackData as parseLegacy } from './keyboards.js';
@@ -27,6 +44,8 @@ import { parseCallbackData as parseLegacy } from './keyboards.js';
 /** @typedef {import('./format.js').BotEvent} BotEvent */
 /** @typedef {'d' | 'w' | 'f' | 'p'} ListView */
 /** @typedef {ListView | 'n'} BackView */
+/** @typedef {'m' | 'w' | 'a' | 's'} SectionId */
+/** @typedef {'u' | 'o'} TicketsView `u`: las de los próximos eventos; `o`: las pasadas. */
 /**
  * @typedef {{ screen: 'home' }
  *   | { screen: 'list', view: ListView, page: number }
@@ -38,6 +57,14 @@ import { parseCallbackData as parseLegacy } from './keyboards.js';
  *   | { screen: 'help' }
  *   | { screen: 'follow', id: string }
  *   | { screen: 'follow_do', id: string, tag: string }
+ *   | { screen: 'site_results', query: string, page: number }
+ *   | { screen: 'site_doc', hash: string, page: number, query: string }
+ *   | { screen: 'search_follow', tag: string, query: string }
+ *   | { screen: 'section', section: SectionId, page: number, tag?: string }
+ *   | { screen: 'section_tags', section: SectionId, tag?: string }
+ *   | { screen: 'section_doc', section: SectionId, hash: string, page: number, tag?: string }
+ *   | { screen: 'tickets', view: TicketsView, page: number }
+ *   | { screen: 'ticket', id: string, view: TicketsView }
  *   | { screen: 'noop' }
  *   | { screen: 'legacy_event', token: string }} NavState
  */
@@ -50,6 +77,26 @@ export const START_PARAM_MAX = 64;
 
 /** Hasta dónde una dirección de evento va tal cual en un botón (el resto, con hash). */
 export const NAV_SLUG_MAX = 40;
+
+/** Hasta cuántos bytes de lo buscado van en un botón (el resto de los 64, para lo demás). */
+export const SEARCH_QUERY_BYTES = 40;
+
+/**
+ * Lo buscado como va en un botón y como se busca: sin espacios de más y recortado a
+ * {@link SEARCH_QUERY_BYTES} bytes (sin partir una letra).
+ *
+ * @param {unknown} query
+ */
+export function clipQuery(query) {
+	let out = '';
+	for (const ch of String(query ?? '')
+		.trim()
+		.replace(/\s+/g, ' ')) {
+		if (byteLength(out + ch) > SEARCH_QUERY_BYTES) break;
+		out += ch;
+	}
+	return out.trim();
+}
 
 /** Las listas y su comando. */
 export const LIST_VIEWS = Object.freeze({ d: 'hoy', w: 'semana', f: 'finde', p: 'proximos' });
@@ -101,6 +148,15 @@ const isNavId = (id) =>
 	typeof id === 'string' &&
 	((SAFE_SLUG.test(id) && byteLength(id) <= NAV_SLUG_MAX) || HASH_ID.test(id));
 
+/** @param {unknown} v @returns {v is SectionId} */
+export const isSectionId = (v) => v === 'm' || v === 'w' || v === 'a' || v === 's';
+
+/** `:<etiqueta>` si hay. @param {string | undefined} tag */
+const tagPart = (tag) => (tag ? `:${tag}` : '');
+
+/** @param {unknown} v @returns {v is TicketsView} */
+export const isTicketsView = (v) => v === 'u' || v === 'o';
+
 /** @param {unknown} v @returns {v is ListView} */
 export const isListView = (v) => v === 'd' || v === 'w' || v === 'f' || v === 'p';
 
@@ -144,6 +200,30 @@ export function encodeNav(state) {
 			break;
 		case 'follow_do':
 			data = `fy:${state.id}:${state.tag}`;
+			break;
+		case 'site_results':
+			data = `q:${Math.max(0, Math.floor(state.page))}:${clipQuery(state.query)}`;
+			break;
+		case 'site_doc':
+			data = `r:${state.hash}:${Math.max(0, Math.floor(state.page))}:${clipQuery(state.query)}`;
+			break;
+		case 'search_follow':
+			data = `sf:${state.tag}:${clipQuery(state.query)}`;
+			break;
+		case 'section':
+			data = `c:${state.section}:${Math.max(0, Math.floor(state.page))}${tagPart(state.tag)}`;
+			break;
+		case 'section_tags':
+			data = `ct:${state.section}${tagPart(state.tag)}`;
+			break;
+		case 'section_doc':
+			data = `cd:${state.section}:${state.hash}:${Math.max(0, Math.floor(state.page))}${tagPart(state.tag)}`;
+			break;
+		case 'tickets':
+			data = `t:${state.view}:${Math.max(0, Math.floor(state.page))}`;
+			break;
+		case 'ticket':
+			data = `tk:${state.id}:${state.view}`;
 			break;
 		default:
 			data = 'x';
@@ -192,6 +272,53 @@ export function decodeNav(data) {
 		const [, id, tag] = parts;
 		return isNavId(id) && TAG_HASH.test(tag) ? { screen: 'follow_do', id, tag } : null;
 	}
+	if (kind === 'q' && parts.length >= 3) {
+		const [, page] = parts;
+		const query = parts.slice(2).join(':');
+		if (!/^\d{1,3}$/.test(page) || !query || clipQuery(query) !== query) return null;
+		return { screen: 'site_results', query, page: +page };
+	}
+	if (kind === 'r' && parts.length >= 4) {
+		const [, hash, page] = parts;
+		const query = parts.slice(3).join(':');
+		if (!TAG_HASH.test(hash) || !/^\d{1,3}$/.test(page) || !query || clipQuery(query) !== query) {
+			return null;
+		}
+		return { screen: 'site_doc', hash, page: +page, query };
+	}
+	if (kind === 'sf' && parts.length >= 3) {
+		const [, tag] = parts;
+		const query = parts.slice(2).join(':');
+		if (!TAG_HASH.test(tag) || !query || clipQuery(query) !== query) return null;
+		return { screen: 'search_follow', tag, query };
+	}
+	if (kind === 'c' && (parts.length === 3 || parts.length === 4)) {
+		const [, section, page, tag] = parts;
+		if (!isSectionId(section) || !/^\d{1,3}$/.test(page)) return null;
+		if (tag !== undefined && !TAG_HASH.test(tag)) return null;
+		return { screen: 'section', section, page: +page, ...(tag ? { tag } : {}) };
+	}
+	if (kind === 'ct' && (parts.length === 2 || parts.length === 3)) {
+		const [, section, tag] = parts;
+		if (!isSectionId(section) || (tag !== undefined && !TAG_HASH.test(tag))) return null;
+		return { screen: 'section_tags', section, ...(tag ? { tag } : {}) };
+	}
+	if (kind === 'cd' && (parts.length === 4 || parts.length === 5)) {
+		const [, section, hash, page, tag] = parts;
+		if (!isSectionId(section) || !TAG_HASH.test(hash) || !/^\d{1,3}$/.test(page)) return null;
+		if (tag !== undefined && !TAG_HASH.test(tag)) return null;
+		return { screen: 'section_doc', section, hash, page: +page, ...(tag ? { tag } : {}) };
+	}
+	if (kind === 't' && parts.length === 3) {
+		const [, view, page] = parts;
+		if (isTicketsView(view) && /^\d{1,3}$/.test(page))
+			return { screen: 'tickets', view, page: +page };
+		return null;
+	}
+	if (kind === 'tk' && parts.length === 3) {
+		const [, id, view] = parts;
+		return TAG_HASH.test(id) && isTicketsView(view) ? { screen: 'ticket', id, view } : null;
+	}
 	// Los botones de antes (mensajes viejos que quedaron en los chats).
 	const legacy = parseLegacy(data);
 	if (legacy?.kind === 'list') return { screen: 'list', view: 'p', page: 0 };
@@ -204,6 +331,12 @@ export function decodeNav(data) {
 // ---------------------------------------------------------------------------------------------
 
 const DEEP_SLUG = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+
+/**
+ * `?start=adm_<código>`: «Vincular Telegram» del panel (adminLink.js, lo mira router.js antes que
+ * `parseStartParam`). Ningún otro deep link empieza así.
+ */
+export const ADMIN_START_PREFIX = 'adm_';
 
 /**
  * El id de un evento en un deep link (solo `A-Za-z0-9_-`): la dirección si sirve y entra; si no,
@@ -221,7 +354,7 @@ function deepId(slug, room) {
  * (`ev-<id>`) o «Seguir» de un evento (`seguir-<id>`).
  *
  * @param {{ screen: 'list', view: ListView } | { screen: 'event' | 'follow', slug: string }
- *   | { screen: 'sigo' | 'fondo' | 'search' | 'home' }} target
+ *   | { screen: 'sigo' | 'fondo' | 'search' | 'home' | 'tickets' }} target
  */
 export function startParam(target) {
 	switch (target.screen) {
@@ -233,6 +366,9 @@ export function startParam(target) {
 			return `seguir-${deepId(target.slug, START_PARAM_MAX - 7)}`;
 		case 'sigo':
 			return 'sigo';
+		case 'tickets':
+			// No `entradas`: 8 letras es como el código de vincular (router.js lo mira antes).
+			return 'mis-entradas';
 		case 'fondo':
 			return 'fondo';
 		case 'search':
@@ -248,7 +384,7 @@ export function startParam(target) {
  *
  * @param {string} param
  * @returns {{ screen: 'list', view: ListView } | { screen: 'event', deep: string }
- *   | { screen: 'follow', deep: string } | { screen: 'sigo' }
+ *   | { screen: 'follow', deep: string } | { screen: 'sigo' } | { screen: 'tickets' }
  *   | { screen: 'fondo' | 'search' | 'home' } | null}
  */
 export function parseStartParam(param) {
@@ -257,6 +393,7 @@ export function parseStartParam(param) {
 		if (param === name) return { screen: 'list', view: /** @type {ListView} */ (view) };
 	}
 	if (param === 'sigo') return { screen: 'sigo' };
+	if (param === 'mis-entradas') return { screen: 'tickets' };
 	if (param === 'fondo') return { screen: 'fondo' };
 	if (param === 'buscar') return { screen: 'search' };
 	if (param === 'inicio') return { screen: 'home' };

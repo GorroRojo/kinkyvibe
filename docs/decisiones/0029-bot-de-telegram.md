@@ -4,7 +4,8 @@
 - Estado: Aceptada. Fase 1 con código (#175): `/proximos` y `/evento`, interruptor `telegram_bot`.
   Fase 2 en un PR aparte: vincular la cuenta y avisos de «Lo que sigo» (migración 0033).
   Ampliada por [0034](0034-bot-seguir-y-token.md) (11/10): «Seguir» desde el bot y el webhook
-  con token.
+  con token. «Organizadores (más adelante)» empieza por admins: [0041](0041-telegram-para-admins.md)
+  (12/10).
 
 ## Contexto
 
@@ -115,3 +116,25 @@ Reglas:
 - En grupos, comandos y respuestas efímeros (solo los ve quien pregunta), solo lo público.
 - Lo que contradice «Solo lectura» y «contesta en el mismo pedido» (Seguir y el token) está en
   [0034](0034-bot-seguir-y-token.md). Detalle en [`docs/telegram.md`](../telegram.md).
+
+## Cómo va (12/10, secciones)
+
+- Recorrer el sitio por secciones desde el inicio (Material, Kinkipedia, Amigues, Series): listas
+  de a 5, filtro por etiqueta y la tarjeta compacta. Sigue siendo otra vista: todo sale del índice
+  público de la búsqueda, sin reglas propias de visibilidad. Detalle en
+  [`docs/telegram.md`](../telegram.md).
+
+## Cómo va (12/10, Mis entradas)
+
+- «🎟 Mis entradas» (paso 2 de 5 del bot, orden aprobado por gorrite): por chat privado vinculado
+  y con «Lo que sigo» prendido, las entradas de las compras aprobadas de la cuenta (las mismas
+  reglas que Mi rincón) con el QR de la puerta como foto. Solo lectura: no escribe nada. Lo
+  personal sigue solo en el chat privado vinculado, nunca en grupos. Detalle en
+  [`docs/telegram.md`](../telegram.md).
+
+## Cómo va (12/10, admins)
+
+- «Organizadores (más adelante)» empieza por admins (decisión
+  [0041](0041-telegram-para-admins.md)): «📊 Estado» de la venta y «🔔 Mis avisos», con el vínculo
+  de admins de la puerta. Las reglas de acá siguen (privado, permisos en cada mensaje, sin datos de
+  compradores). Detalle en [`docs/telegram.md`](../telegram.md).
