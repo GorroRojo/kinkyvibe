@@ -78,7 +78,9 @@ del modo demo: desde la decisión 0032 nadie la usa; se puede borrar a mano en e
 - `src/lib/server/db/index.js`: `getDB(platform)` y `logDBError(contexto, error)` (avisa si faltan
   migraciones).
 - `src/lib/server/db/testing.js`: `createTestDB()`, `applyMigrations()`, `resetDB()` y
-  `snapshotDB()`/`restoreDB()` (copia de las filas para reusar datos caros) para las pruebas.
+  `snapshotDB()`/`restoreDB()` (copia de las filas para reusar datos caros) para las pruebas;
+  `startTemplateDB()` arma la plantilla migrada que copian las bases de prueba (globalSetup de
+  vitest, ver [pruebas-y-ci.md](pruebas-y-ci.md)).
 - `wrangler.toml`: el binding `DB`, con `kinkyvibe` en producción y `kinkyvibe-preview` en los
   Previews (bloque `[previews]`). **No tiene `pages_build_output_dir` a propósito**; no se agrega.
 

@@ -24,7 +24,9 @@ export default defineConfig({
 		setupFiles: ['src/tests/setup.js'],
 		// Reparte las partes de la CI (`--shard`) por lo que tarda cada archivo
 		// (scripts/vitest/durations.json), no por cantidad de archivos.
-		sequence: { sequencer: DurationSequencer }
+		sequence: { sequencer: DurationSequencer },
+		// La plantilla de la base de prueba, migrada una vez por corrida (src/tests/globalSetup.js).
+		globalSetup: ['src/tests/globalSetup.js']
 	},
 	optimizeDeps: {
 		exclude: ['svelte-codemirror-editor', 'codemirror', '@codemirror/lang-markdown']
