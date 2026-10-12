@@ -115,3 +115,10 @@ Reglas:
 - En grupos, comandos y respuestas efímeros (solo los ve quien pregunta), solo lo público.
 - Lo que contradice «Solo lectura» y «contesta en el mismo pedido» (Seguir y el token) está en
   [0034](0034-bot-seguir-y-token.md). Detalle en [`docs/telegram.md`](../telegram.md).
+
+## Cómo va (12/10, secciones)
+
+- Recorrer el sitio por secciones desde el inicio (Material, Kinkipedia, Amigues, Series): listas
+  de a 5, filtro por etiqueta y la tarjeta compacta. Sigue siendo otra vista: todo sale del índice
+  público de la búsqueda, sin reglas propias de visibilidad. Detalle en
+  [`docs/telegram.md`](../telegram.md).

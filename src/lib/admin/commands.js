@@ -36,10 +36,11 @@ import { NAV, NAV_AREAS, navItem, navLink } from './nav.js';
  */
 export const GO_SHORTCUTS = Object.freeze([
 	{ key: 'i', id: 'inicio' },
+	{ key: 'c', id: 'checkin' },
 	{ key: 'e', id: 'eventos' },
+	// «Cargar evento» ya no está en el menú (es una acción, decisión 0038), pero su atajo sigue.
 	{ key: 'n', id: 'eventos-nuevo' },
 	{ key: 'g', id: 'eventos-agenda' },
-	{ key: 'c', id: 'checkin' },
 	{ key: 'v', id: 'entradas' },
 	{ key: 't', id: 'entradas-transferencias' },
 	{ key: 'd', id: 'entradas-codigos' },

@@ -11,7 +11,6 @@ import {
 	INLINE_CACHE_SECONDS,
 	INLINE_PAGE,
 	INLINE_RATE,
-	INLINE_TEXTS,
 	THUMB_SIZE,
 	inlineThumbUrl,
 	parseInlineQuery,
@@ -21,6 +20,7 @@ import {
 	selectInline
 } from './inline.js';
 import { makeInlineSource } from './inlineSource.js';
+import { renderBotText } from '$lib/utils/botTexts.js';
 
 const NOW = Date.parse('2031-01-10T12:00:00-03:00');
 const PROD = 'https://kinkyvibe.ar';
@@ -272,7 +272,7 @@ describe('planInlineQuery', () => {
 				'Uno &lt;a href=&quot;x&quot;&gt;y&lt;/a&gt; &amp; otro'
 		);
 		expect(r.reply_markup.inline_keyboard).toEqual([
-			[{ text: INLINE_TEXTS.viewOnSite, url: `${PROD}/material/raro` }]
+			[{ text: renderBotText('sitio.boton_ver'), url: `${PROD}/material/raro` }]
 		]);
 	});
 
@@ -340,14 +340,17 @@ describe('planInlineQuery', () => {
 		expect(buy.input_message_content.message_text).toContain('<tg-time unix=');
 		expect(buy.reply_markup.inline_keyboard).toEqual([
 			[
-				{ text: INLINE_TEXTS.viewOnSite, url: `${PROD}/calendario/con-entradas` },
-				{ text: INLINE_TEXTS.tickets, url: `${PROD}/calendario/con-entradas/entradas` }
+				{ text: renderBotText('sitio.boton_ver'), url: `${PROD}/calendario/con-entradas` },
+				{
+					text: renderBotText('sitio.boton_entradas'),
+					url: `${PROD}/calendario/con-entradas/entradas`
+				}
 			]
 		]);
 		expect(soldout.input_message_content.message_text).toContain('🎟 Agotadas');
 		expect(soldout.reply_markup.inline_keyboard[0]).toHaveLength(1);
 		expect(plain.reply_markup.inline_keyboard).toEqual([
-			[{ text: INLINE_TEXTS.viewOnSite, url: `${PROD}/calendario/sin-entradas` }]
+			[{ text: renderBotText('sitio.boton_ver'), url: `${PROD}/calendario/sin-entradas` }]
 		]);
 	});
 
@@ -368,9 +371,15 @@ describe('planInlineQuery', () => {
 	it('sin resultados: la lista vacía con el botón que abre el buscador del bot', async () => {
 		const a = await answer({ query: 'zzzzzz' }, sourceOf([materialDoc('nota')]));
 		expect(a.results).toEqual([]);
-		expect(a.button).toEqual({ text: INLINE_TEXTS.noResults, start_parameter: 'buscar' });
+		expect(a.button).toEqual({
+			text: renderBotText('sitio.inline_sin_resultados'),
+			start_parameter: 'buscar'
+		});
 		const empty = await answer({ query: '' }, sourceOf([]));
-		expect(empty.button).toEqual({ text: INLINE_TEXTS.nothingYet, start_parameter: 'buscar' });
+		expect(empty.button).toEqual({
+			text: renderBotText('sitio.inline_vacio'),
+			start_parameter: 'buscar'
+		});
 	});
 
 	it('un update sin id o sin quién pregunta, o sin fuente: no contesta', async () => {

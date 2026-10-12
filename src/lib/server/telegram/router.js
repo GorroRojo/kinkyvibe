@@ -33,6 +33,7 @@ import {
 import { cardFor, navigate } from './navigate.js';
 import { planInlineQuery, selectInline } from './inline.js';
 import { backToResults, docHash, docScreen, siteResultsScreen } from './siteScreens.js';
+import { sectionDocScreen, sectionScreen, sectionTagsScreen, sectionView } from './sections.js';
 import {
 	doorAppUrl,
 	isSearchPrompt,
@@ -335,6 +336,32 @@ async function siteDocResult(state, ctx, deps) {
 }
 
 /**
+ * Las secciones del sitio (sections.js): la lista, sus etiquetas y la tarjeta de una cosa. Todo
+ * del índice público de la búsqueda; una etiqueta o una cosa que no está en esa sección (botón
+ * viejo o armado a mano) no muestra nada.
+ *
+ * @param {{ screen: 'section', section: import('./nav.js').SectionId, page: number, tag?: string }
+ *   | { screen: 'section_tags', section: import('./nav.js').SectionId, tag?: string }
+ *   | { screen: 'section_doc', section: import('./nav.js').SectionId, hash: string, page: number,
+ *     tag?: string }} state
+ * @param {ScreenCtx} ctx
+ * @param {Deps} deps
+ * @returns {Promise<{ screen: Screen } | { toast: string }>}
+ */
+async function sectionResult(state, ctx, deps) {
+	const source = deps.inline ? await deps.inline.source() : null;
+	if (!source) return { toast: botText('errores.algo_salio_mal') };
+	const view = sectionView(source, state.section, state.tag);
+	if (!view) return { toast: botText('secciones.no_esta') };
+	if (state.screen === 'section_tags') return { screen: sectionTagsScreen(state.section, view) };
+	if (state.screen === 'section') {
+		return { screen: sectionScreen(state.section, view, state.page, ctx, source.extras) };
+	}
+	const screen = sectionDocScreen(state.section, view, state, ctx, source.extras);
+	return screen ? { screen } : { toast: botText('secciones.no_esta') };
+}
+
+/**
  * El contexto del inicio: con `door` si quien escribe puede abrir la puerta (une admin vinculade,
  * los dos interruptores prendidos). Solo por chat privado (`web_app` no anda en grupos) y solo
  * para el inicio: una consulta por id de Telegram, nada más. Si falla, el inicio sale sin el
@@ -529,12 +556,16 @@ async function planCallback(callback, deps) {
 				? { screen: await siteSearchScreen(state.query, state.page, ctx, deps) }
 				: state.screen === 'site_doc'
 					? await siteDocResult(state, ctx, deps)
-					: state.screen === 'sigo' || state.screen === 'follow' || state.screen === 'follow_do'
-						? await personalScreen(state, chatId, ctx, deps, accounts)
-						: await navigate(state, ctx, deps, {
-								accounts: Boolean(accounts),
-								follow: (event) => followButton(event, ctx)
-							});
+					: state.screen === 'section' ||
+						  state.screen === 'section_tags' ||
+						  state.screen === 'section_doc'
+						? await sectionResult(state, ctx, deps)
+						: state.screen === 'sigo' || state.screen === 'follow' || state.screen === 'follow_do'
+							? await personalScreen(state, chatId, ctx, deps, accounts)
+							: await navigate(state, ctx, deps, {
+									accounts: Boolean(accounts),
+									follow: (event) => followButton(event, ctx)
+								});
 		if (!('screen' in result)) return answerOnly(callbackId, result.toast);
 		const plan = deliverScreen(result.screen, where, {
 			media: Boolean(deps.media),

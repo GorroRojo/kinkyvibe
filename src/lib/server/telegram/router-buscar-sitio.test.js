@@ -8,8 +8,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { planUpdate } from './router.js';
 import { clipQuery, decodeNav, encodeNav, SEARCH_QUERY_BYTES, byteLength } from './nav.js';
 import { SEARCH_PROMPT_HEAD } from './screens.js';
-import { docHash, SITE_TEXTS, TYPE_EMOJI } from './siteScreens.js';
-import { CARD_IMAGE_OPTIONS, INLINE_TEXTS, inlineThumbUrl, resetInlineRate } from './inline.js';
+import { docHash, TYPE_EMOJI } from './siteScreens.js';
+import { CARD_IMAGE_OPTIONS, inlineThumbUrl, resetInlineRate } from './inline.js';
+import { renderBotText } from '$lib/utils/botTexts.js';
 import { makeInlineSource } from './inlineSource.js';
 import { UNAVAILABLE_TEXT } from './format.js';
 
@@ -114,7 +115,9 @@ describe('la lista de resultados', () => {
 		const p = await planUpdate(reply('cuerdas'), deps());
 		const step = /** @type {any} */ (p?.steps[0]);
 		expect(step.method).toBe('sendMessage');
-		expect(step.text).toContain(SITE_TEXTS.found('cuerdas', DOCS.length));
+		expect(step.text).toContain(
+			renderBotText('sitio.encontre', { cantidad: DOCS.length, busqueda: 'cuerdas' })
+		);
 		// Próximos, series, material, amigues, Kinkipedia, pasados (groupHits); de a 5.
 		const rows = buttons(step).filter((/** @type {any} */ b) => b.callback_data?.startsWith('r:'));
 		expect(rows.map((/** @type {any} */ b) => b.text)).toEqual([
@@ -128,7 +131,14 @@ describe('la lista de resultados', () => {
 		// El HTML del resumen, escapado.
 		expect(step.text).toContain('Cómo atar sin &lt;apuro&gt; &amp; con cuidado');
 		const texts = buttons(step).map((/** @type {any} */ b) => b.text);
-		expect(texts).toEqual(expect.arrayContaining(['1/2', '›', SITE_TEXTS.again, SITE_TEXTS.home]));
+		expect(texts).toEqual(
+			expect.arrayContaining([
+				'1/2',
+				'›',
+				renderBotText('eventos.boton_buscar_otra'),
+				renderBotText('inicio.boton_inicio')
+			])
+		);
 	});
 
 	it('páginas: «›» lleva lo buscado y la página; la última tiene el que faltaba', async () => {
@@ -157,7 +167,7 @@ describe('la lista de resultados', () => {
 
 	it('nada encontrado: lo dice y ofrece buscar otra cosa', async () => {
 		const step = /** @type {any} */ ((await planUpdate(reply('zzzzzz'), deps()))?.steps[0]);
-		expect(step.text).toBe(SITE_TEXTS.none('zzzzzz'));
+		expect(step.text).toBe(renderBotText('sitio.sin_resultados', { busqueda: 'zzzzzz' }));
 	});
 
 	it('/evento sigue siendo solo de eventos próximos', async () => {
@@ -185,10 +195,10 @@ describe('las tarjetas', () => {
 		expect(step.media.caption).toContain('<b>📚 Guía de cuerdas</b>');
 		expect(step.media.caption).toContain('Cómo atar sin &lt;apuro&gt;');
 		expect(step.reply_markup.inline_keyboard).toEqual([
-			[{ text: INLINE_TEXTS.viewOnSite, url: `${ORIGIN}/material/guia-cuerdas` }],
+			[{ text: renderBotText('sitio.boton_ver'), url: `${ORIGIN}/material/guia-cuerdas` }],
 			[
-				{ text: SITE_TEXTS.back, callback_data: 'q:1:cuerdas' },
-				{ text: SITE_TEXTS.home, callback_data: 'h' }
+				{ text: renderBotText('inicio.boton_volver'), callback_data: 'q:1:cuerdas' },
+				{ text: renderBotText('inicio.boton_inicio'), callback_data: 'h' }
 			]
 		]);
 	});
@@ -211,8 +221,8 @@ describe('las tarjetas', () => {
 		expect(step.text).toContain('Ver todo en el sitio');
 		expect(d.card).toHaveBeenCalled();
 		expect(step.reply_markup.inline_keyboard.at(-1)).toEqual([
-			{ text: SITE_TEXTS.back, callback_data: 'q:0:cuerdas' },
-			{ text: SITE_TEXTS.home, callback_data: 'h' }
+			{ text: renderBotText('inicio.boton_volver'), callback_data: 'q:0:cuerdas' },
+			{ text: renderBotText('inicio.boton_inicio'), callback_data: 'h' }
 		]);
 	});
 

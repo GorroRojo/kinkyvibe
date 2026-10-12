@@ -1,7 +1,7 @@
 /**
  * Red de seguridad del mapa del panel (paso 2): cada link del menú lateral abre una página.
  * Las URLs del panel se mudaron sin redirecciones, así que un link viejo daría 404; esta prueba
- * entra a todos (también a los de los grupos cerrados) con la sesión de admin falsa de
+ * entra a todos (las 8 secciones de la barra y las pestañas de cada una) con la sesión de admin falsa de
  * `npm run dev:tickets`. Lo que viene ("Próximamente") no es un link: se ve gris y punteado. La otra mitad de la red es `src/lib/admin/adminPaths.test.js`
  * (cada '/admin/…' escrito en el código lleva a una ruta que existe).
  */
@@ -20,23 +20,35 @@ test('cada link del menú del panel abre su página', async ({ page }) => {
 	await page.goto('/admin', { waitUntil: 'networkidle' });
 	const menu = page.getByRole('navigation', { name: 'Secciones del panel' });
 	await expect(menu).toBeVisible();
-	// Todas las áreas están en la página aunque estén cerradas (`hidden`): se leen los href.
-	const hrefs = await menu
-		.locator('a[href^="/admin"]')
-		.evaluateAll((links) => [...new Set(links.map((a) => a.getAttribute('href') ?? ''))]);
-	// Inicio y al menos una sección por área.
-	expect(hrefs.length).toBeGreaterThan(20);
-	// Lo que viene está en el menú, pero sin link.
-	const soon = menu.locator('[aria-disabled="true"]', { hasText: 'Próximamente' });
-	expect(await soon.count()).toBeGreaterThan(0);
-	expect(await menu.locator('a', { hasText: 'Próximamente' }).count()).toBe(0);
-	expect(hrefs).toContain('/admin/ventas');
-	expect(hrefs).toContain('/admin/comunidad/perfiles');
-	expect(hrefs).toContain('/admin/mensajes/plantillas');
+	// Opción C (decisión 0038): la barra lateral tiene las 8 secciones, sin sub-ítems ni acciones;
+	// las demás páginas de cada sección son sus pestañas («Secciones de …»).
+	const sections = await menu
+		.locator('a.sec')
+		.evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
+	expect(sections).toEqual([
+		'/admin',
+		'/admin/checkin',
+		'/admin/eventos',
+		'/admin/ventas',
+		'/admin/comunidad/personas',
+		'/admin/contenido/material',
+		'/admin/estadisticas/ventas',
+		'/admin/ajustes/cobros'
+	]);
+	await expect(menu.getByRole('link', { name: 'Cargar evento' })).toHaveCount(0);
+	// Crear un evento sigue siendo un botón de la página de Eventos.
+	await page.goto('/admin/eventos', { waitUntil: 'domcontentloaded' });
+	await expect(page.locator('main').getByRole('link', { name: 'Cargar evento' })).toHaveAttribute(
+		'href',
+		'/admin/eventos/nuevo'
+	);
 
 	/** @type {string[]} */
 	const broken = [];
-	for (const href of hrefs) {
+	const queue = [...sections];
+	const seen = new Set(queue);
+	while (queue.length) {
+		const href = /** @type {string} */ (queue.shift());
 		const res = await page.goto(href, { waitUntil: 'domcontentloaded' });
 		const status = res?.status() ?? 0;
 		// Sin redirecciones: una sección del menú abre en su propia URL.
@@ -47,8 +59,77 @@ test('cada link del menú del panel abre su página', async ({ page }) => {
 		}
 		// El panel (su menú) se dibujó: no es la página de error.
 		await expect(menu, href).toBeVisible();
+		// Las pestañas de la sección también son links del menú: se entra a cada una.
+		const tabs = await page
+			.locator('nav[aria-label^="Secciones de "] a[href^="/admin"]')
+			.evaluateAll((links) => links.map((a) => a.getAttribute('href') ?? ''));
+		for (const t of tabs) {
+			if (!seen.has(t)) {
+				seen.add(t);
+				queue.push(t);
+			}
+		}
 	}
 	expect(broken).toEqual([]);
+	// Inicio, las secciones y todas sus pestañas.
+	expect(seen.size).toBeGreaterThan(20);
+	for (const h of [
+		'/admin/eventos/agenda',
+		'/admin/ventas/transferencias',
+		'/admin/comunidad/perfiles',
+		'/admin/mensajes/plantillas',
+		'/admin/etiquetas',
+		'/admin/ajustes/actividad'
+	]) {
+		expect(seen, h).toContain(h);
+	}
+});
+
+test('lo que viene sigue en el panel «Más» del celu, sin link', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/admin', { waitUntil: 'networkidle' });
+	await page
+		.getByRole('navigation', { name: 'Secciones principales' })
+		.getByRole('button', { name: 'Más' })
+		.click();
+	const sheet = page.getByRole('dialog', { name: 'Todas las secciones' });
+	await sheet.getByRole('button', { name: /Ventas/ }).click();
+	const soon = sheet.locator('[aria-disabled="true"]', { hasText: 'Próximamente' });
+	expect(await soon.count()).toBeGreaterThan(0);
+	expect(await sheet.locator('a', { hasText: 'Próximamente' }).count()).toBe(0);
+});
+
+test('«Ir a…» (Ctrl+K) abre el buscador, encuentra una página y va con Enter', async ({ page }) => {
+	await page.goto('/admin', { waitUntil: 'networkidle' });
+	await page.keyboard.press('Control+k');
+	const dialog = page.getByRole('dialog', { name: 'Ir a… o buscar en el panel' });
+	await expect(dialog).toBeVisible();
+	const input = dialog.getByRole('combobox');
+	await expect(input).toBeFocused();
+	await input.fill('transferencias');
+	await expect(dialog.getByRole('option').first()).toContainText('Transferencias');
+	await page.keyboard.press('Enter');
+	await expect(page).toHaveURL(/\/admin\/ventas\/transferencias$/);
+	await expect(dialog).toBeHidden();
+	// Esc lo cierra.
+	await page.keyboard.press('Control+k');
+	await expect(dialog).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(dialog).toBeHidden();
+});
+
+test('«Recientes» en la barra lateral: las páginas que abriste', async ({ page }) => {
+	await page.goto('/admin/ventas/transferencias', { waitUntil: 'networkidle' });
+	await page.goto('/admin/eventos/agenda', { waitUntil: 'networkidle' });
+	const menu = page.getByRole('navigation', { name: 'Secciones del panel' });
+	const recent = menu.getByRole('list', { name: 'Recientes' });
+	// La página actual no se muestra; la anterior, sí.
+	await expect(recent.getByRole('link', { name: 'Transferencias' })).toBeVisible();
+	await expect(recent.getByRole('link', { name: 'Agenda' })).toHaveCount(0);
+	// Una sección de la barra no se repite en Recientes.
+	await page.goto('/admin/ventas', { waitUntil: 'networkidle' });
+	await expect(recent.getByRole('link', { name: 'Agenda' })).toBeVisible();
+	await expect(recent.getByRole('link', { name: 'Todas las ventas' })).toHaveCount(0);
 });
 
 test('la ficha de un evento con entradas tiene «Lista de espera» como vista de Ventas y abre', async ({

@@ -133,7 +133,34 @@ function sigoButton(ctx) {
 }
 
 /**
- * `/start`, `/inicio` y «🏠 Inicio». Con `ctx.door` (une admin vinculade, la puerta prendida, chat
+ * Las secciones del sitio en el inicio (sections.js): «📚 Material · 📖 Kinkipedia» y «👥 Amigues ·
+ * 🔁 Series». Solo con el índice público de la búsqueda (`ctx.site`), de donde salen sus listas.
+ *
+ * @param {ScreenCtx} ctx
+ * @returns {Button[][]}
+ */
+function sectionRows(ctx) {
+	if (!ctx.site) return [];
+	/** @param {import('./nav.js').SectionId} section @param {string} text @returns {Button} */
+	const button = (section, text) => ({
+		text,
+		callback_data: encodeNav({ screen: 'section', section, page: 0 })
+	});
+	return [
+		[
+			button('m', botText('secciones.boton_material')),
+			button('w', botText('secciones.boton_kinkipedia'))
+		],
+		[
+			button('a', botText('secciones.boton_amigues')),
+			button('s', botText('secciones.boton_series'))
+		]
+	];
+}
+
+/**
+ * `/start`, `/inicio` y «🏠 Inicio». Con el índice público (`ctx.site`), las secciones del sitio.
+ * Con `ctx.door` (une admin vinculade, la puerta prendida, chat
  * privado), suma «🚪 Puerta»: la misma Mini App que el botón de la confirmación del vínculo.
  *
  * @param {ScreenCtx} ctx
@@ -157,6 +184,7 @@ export function homeScreen(ctx) {
 			{ text: botText('inicio.boton_buscar'), callback_data: encodeNav({ screen: 'search' }) },
 			...sigoButton(ctx)
 		],
+		...sectionRows(ctx),
 		[
 			{ text: botText('inicio.boton_fondo'), callback_data: encodeNav({ screen: 'fondo' }) },
 			{ text: botText('inicio.boton_ayuda'), callback_data: encodeNav({ screen: 'help' }) }
@@ -457,12 +485,12 @@ export const SEARCH_PROMPT_TEXT = renderBotText('eventos.buscar');
  */
 export function isSearchPrompt(text) {
 	if (text.startsWith(SEARCH_PROMPT_HEAD)) return true;
-	const current = renderBotTextPlain('eventos.buscar', {}, currentBotTexts()).trim();
-	return Boolean(current) && text.trim() === current;
+	// El de los eventos y el de todo el sitio (#298), como están ahora.
+	return ['eventos.buscar', 'sitio.buscar'].some((key) => {
+		const current = renderBotTextPlain(key, {}, currentBotTexts()).trim();
+		return Boolean(current) && text.trim() === current;
+	});
 }
-
-/** El de buscar en todo el sitio (mismo comienzo: así se reconocen también las respuestas viejas). */
-export const SITE_SEARCH_PROMPT_TEXT = `${SEARCH_PROMPT_HEAD}: un evento, un tema, una persona o un proyecto, un lugar… Respondé a este mensaje.`;
 
 /**
  * Buscar: un mensaje nuevo con `force_reply` (abre «responder») y «Cancelar». En un grupo no se
@@ -474,15 +502,12 @@ export const SITE_SEARCH_PROMPT_TEXT = `${SEARCH_PROMPT_HEAD}: un evento, un tem
 export function searchScreen(ctx) {
 	if (ctx.chat === 'group') {
 		return {
-			// El de todo el sitio (#298) todavía no está en «Textos del bot».
-			text: ctx.site
-				? 'Para buscar acá, escribí /buscar y lo que buscás, por ejemplo: /buscar cuerdas'
-				: botText('eventos.buscar_grupo'),
+			text: botText(ctx.site ? 'sitio.buscar_grupo' : 'eventos.buscar_grupo'),
 			keyboard: [[homeButton()]]
 		};
 	}
 	return {
-		text: ctx.site ? SITE_SEARCH_PROMPT_TEXT : botText('eventos.buscar'),
+		text: botText(ctx.site ? 'sitio.buscar' : 'eventos.buscar'),
 		keyboard: [
 			[
 				{
