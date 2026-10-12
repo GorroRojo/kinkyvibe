@@ -83,9 +83,13 @@ Detalles de `tests`:
   `scripts/vitest/sequencer.js` (en `vite.config.js`, `test.sequence.sequencer`) los reparte por
   lo que tardó cada uno según `scripts/vitest/durations.json`: del más lento al más rápido, cada
   archivo va a la parte que menos suma. Un archivo que no está ahí cuenta como la mediana; cada
-  archivo corre en exactamente una parte aunque los tiempos estén viejos. Para actualizarlos:
-  `npm run test:durations` (corre todas y reescribe el archivo; con rutas, solo esas). Conviene
-  cuando se suman o cambian pruebas lentas.
+  archivo corre en exactamente una parte aunque los tiempos estén viejos. Cada parte sube lo que
+  tardó cada archivo como artifact `vitest-durations-N` (30 días). Para actualizar los tiempos
+  (conviene cuando se suman o cambian pruebas lentas), bajá los tres de una corrida reciente de
+  `main` y juntalos:
+  `gh run download <id> -p 'vitest-durations-*' -D /tmp/tiempos && node scripts/vitest/merge-durations.js /tmp/tiempos/*/vitest-durations.json`.
+  Tienen que ser tiempos de la CI: medidos en otra máquina (`npm run test:durations`) las
+  proporciones cambian y el reparto sale torcido.
 - **Caché**: cada parte guarda y recupera `node_modules/.vite` (cuánto tardó cada archivo la
   última vez: los lentos arrancan primero) y `node_modules/.vitest-cache` (los módulos ya
   transformados, `--fsModuleCache`, solo en la CI). La clave lleva la parte, el hash de

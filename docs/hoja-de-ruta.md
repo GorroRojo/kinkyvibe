@@ -282,8 +282,12 @@ de amigues y lanzamientos grandes.
   cada consulta a la base de prueba son ~5 ms de ida y vuelta a miniflare (2,5 ms sin tocar D1),
   y `importTags` de la semilla son ~1800 consultas; una base ya migrada copiada por archivo en vez
   de migrar cada vez. S–M cada una.
-- CI: actualizar `scripts/vitest/durations.json` (`npm run test:durations`) cuando se sumen o
-  cambien pruebas lentas, para que las 3 partes de `tests` sigan parejas. S.
+- CI: actualizar `scripts/vitest/durations.json` con los artifacts `vitest-durations-*` de `main`
+  (`scripts/vitest/merge-durations.js`) cuando se sumen o cambien pruebas lentas, para que las 3
+  partes de `tests` sigan parejas. S.
+- CI: la semilla en una base nueva (~1 min) es lo más lento de `e2e`. Se podría guardar la base
+  ya cargada en caché, con una clave que cambie si cambian las migraciones, la semilla o el código
+  que la importa. S. Bloqueo: confirmar que se quiere.
 
 ### Estándares web y SEO
 

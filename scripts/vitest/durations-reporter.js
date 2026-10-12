@@ -1,26 +1,53 @@
-// Reporter de vitest que guarda cuánto tardó cada archivo de pruebas en
-// scripts/vitest/durations.json, para repartirlos parejo en la CI (scripts/vitest/sequencer.js).
-//
-//   npm run test:durations             # todas las pruebas; reescribe el archivo entero
-//   npm run test:durations -- <ruta>   # solo esas; actualiza sus tiempos y deja los demás
+// Reporter de vitest que guarda cuánto tardó cada archivo de pruebas, para repartirlos parejo
+// entre las partes de la CI (scripts/vitest/sequencer.js lee scripts/vitest/durations.json).
 //
 // El tiempo de un archivo es el total que vitest le mide (preparar, importar, setupFiles y las
-// pruebas), en segundos con un decimal. Los archivos que ya no existen se sacan.
-// Con VITEST_DURATIONS_OUT=<archivo> escribe ahí en vez de en durations.json (por ejemplo, para
-// juntar los tiempos de cada parte de la CI).
+// pruebas), en segundos con un decimal. Cada parte de la CI lo corre y sube sus tiempos como
+// artifact `vitest-durations-N`; scripts/vitest/merge-durations.js los junta en durations.json.
+// Los tiempos de la CI son los que sirven: en otra máquina (y más con otras cosas corriendo) las
+// proporciones cambian.
+//
+//   VITEST_DURATIONS_OUT=<archivo>   dónde escribir (si no, en scripts/vitest/durations.json)
+//   npm run test:durations           todas las pruebas en tu compu (menos preciso que la CI)
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { relativeKey } from './sequencer.js';
 
-const DURATIONS_FILE =
-	process.env.VITEST_DURATIONS_OUT || fileURLToPath(new URL('./durations.json', import.meta.url));
+export const DURATIONS_FILE = fileURLToPath(new URL('./durations.json', import.meta.url));
+
+/**
+ * Suma `measured` a lo que ya hay en `file` (lo medido gana), saca los archivos que ya no existen
+ * y escribe el resultado ordenado.
+ *
+ * @param {string} file
+ * @param {Record<string, number>} measured
+ * @param {string} root
+ * @returns {number} cuántos archivos quedaron
+ */
+export function writeDurations(file, measured, root) {
+	/** @type {Record<string, number>} */
+	let previous = {};
+	try {
+		previous = JSON.parse(readFileSync(file, 'utf8'));
+	} catch {
+		// primera vez
+	}
+	const merged = { ...previous, ...measured };
+	/** @type {Record<string, number>} */
+	const out = {};
+	for (const name of Object.keys(merged).sort()) {
+		if (existsSync(path.join(root, name))) out[name] = merged[name];
+	}
+	writeFileSync(file, JSON.stringify(out, null, '\t') + '\n');
+	return Object.keys(out).length;
+}
 
 export default class DurationsReporter {
 	/** @type {Record<string, number>} */
 	measured = {};
-	failed = false;
 	root = process.cwd();
+	file = process.env.VITEST_DURATIONS_OUT || DURATIONS_FILE;
 
 	/** @param {import('vitest/node').Vitest} vitest */
 	onInit(vitest) {
@@ -40,22 +67,9 @@ export default class DurationsReporter {
 	}
 
 	onTestRunEnd() {
-		/** @type {Record<string, number>} */
-		let previous = {};
-		try {
-			previous = JSON.parse(readFileSync(DURATIONS_FILE, 'utf8'));
-		} catch {
-			// primera vez
-		}
-		const merged = { ...previous, ...this.measured };
-		/** @type {Record<string, number>} */
-		const out = {};
-		for (const file of Object.keys(merged).sort()) {
-			if (existsSync(path.join(this.root, file))) out[file] = merged[file];
-		}
-		writeFileSync(DURATIONS_FILE, JSON.stringify(out, null, '\t') + '\n');
+		const total = writeDurations(this.file, this.measured, this.root);
 		console.log(
-			`${path.basename(DURATIONS_FILE)}: ${Object.keys(this.measured).length} archivos medidos, ${Object.keys(out).length} en total.`
+			`${path.basename(this.file)}: ${Object.keys(this.measured).length} archivos medidos, ${total} en total.`
 		);
 	}
 }
