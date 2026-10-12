@@ -8,8 +8,8 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | Guía                                           | De qué trata                                                                                                        |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | [incorporacion.md](incorporacion.md)           | Para une desarrolladore nueve: cómo armar el entorno, la arquitectura en una página y cómo se trabaja               |
-| [hoja-de-ruta.md](hoja-de-ruta.md)             | Todo lo que queda por hacer: en curso, la cola de las noches, más adelante por área y lo descartado                 |
-| [pruebas-y-ci.md](pruebas-y-ci.md)             | Los jobs de la CI (`unit`, `e2e`, `typecheck`, `ci-ok`), cómo correr cada prueba y qué hacer si da rojo             |
+| [plan.md](plan.md)                             | El plan único: cada ítem con su fase y su estado, y lo descartado. Cada PR dice qué ítem toca (`Plan:`)             |
+| [pruebas-y-ci.md](pruebas-y-ci.md)             | Los jobs de la CI (`unit`, `e2e`, `plan`, `ci-ok`…), cómo correr cada prueba y qué hacer si da rojo                 |
 | [interruptores.md](interruptores.md)           | Cada interruptor de funciones nuevas: qué prende, de qué depende y cómo prender los que pasan datos a la base       |
 | [panel.md](panel.md)                           | El panel de admin (`/admin`): áreas y URLs, Agenda, permisos, registro de actividad                                 |
 | [entradas.md](entradas.md)                     | Venta de entradas: guía corta con las reglas que no se pueden romper                                                |
