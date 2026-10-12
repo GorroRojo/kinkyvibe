@@ -66,6 +66,7 @@ import { queueWaitlistAdvance } from './waitlistEngine.js';
 import { eventSignupFields, readAnswers } from './signupFields.js';
 import { saveAfterPurchase } from '$lib/server/cuentas/savedBuyer.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
+import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
 /** Cookie httpOnly con las últimas órdenes de este navegador (para ver sus entradas al volver). */
 export const ORDERS_COOKIE = 'kv_orders';
@@ -817,6 +818,15 @@ export async function buyAction(event) {
 			const approved = await approveFreeOrder(db, order);
 			if (approved.newlyApproved) {
 				trackFunnel(platform?.env, { slug: params.event, step: 'aprobada', method });
+				// «Cada venta» por Telegram a les admins que lo prendieron (decisión 0041; nunca tira).
+				await queueOrderNotice({
+					db,
+					platform,
+					kind: 'cada_venta',
+					order: approved.order,
+					origin,
+					fetch
+				});
 			}
 			if (approved.newlyApproved && approved.order && (await mailAllowed(db, order.buyer_email))) {
 				const approvedOrder = approved.order;
@@ -836,6 +846,8 @@ export async function buyAction(event) {
 	if (method === 'transferencia') {
 		if (await mailAllowed(db, order.buyer_email))
 			await inBackground(sendTransferEmail({ db, order, origin, fetch }), platform);
+		// «Cada transferencia» por Telegram a les admins que lo prendieron (decisión 0041).
+		await queueOrderNotice({ db, platform, kind: 'transferencia', order, origin, fetch });
 		rememberOrder(cookies, url, order.id);
 		redirect(303, statusUrl);
 	}

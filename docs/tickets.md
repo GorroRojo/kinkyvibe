@@ -410,7 +410,9 @@ confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas 
 - **«Para revisar»:** una fila con los mails de la lista que no salieron después de 3 intentos
   (`waitlist_sends.status = 'failed'`), que lleva a la pestaña del evento (ahí «Volver a probar»).
 - **Tarjetas de las listas de eventos** (`listStates.js`): restan la fila como la página del
-  evento (una consulta más para todos los eventos con lista).
+  evento (una consulta más para todos los eventos con lista). La configuración de la venta de
+  todos los eventos de la lista sale en una tanda (`getEventTicketsMany` en `events.js`: los
+  eventos y cuáles tienen lugar, dos consultas para toda la lista; antes, dos por tarjeta).
 - **En la compra, por tipo:** cada tipo agotado con lista dice «Agotadas · Anotate en la lista de
   espera», que baja al formulario con ese tipo elegido.
 

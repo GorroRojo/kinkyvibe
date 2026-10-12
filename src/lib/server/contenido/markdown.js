@@ -74,9 +74,10 @@ export function postToMarkdown(category, object, { legacy = false } = {}) {
  */
 function split(raw) {
 	const text = String(raw ?? '').replace(/\r\n?/g, '\n');
-	const m = text.match(/^---[ \t]*\n([\s\S]*?)\n?---[ \t]*(?:\n|$)([\s\S]*)$/);
+	// El `---` que cierra tiene que estar solo en su línea (no al final de un valor: «resumen: a ---»).
+	const m = text.match(/^---[ \t]*\n(?:([\s\S]*?)\n)?---[ \t]*(?:\n|$)([\s\S]*)$/);
 	if (!m) throw new Error('El texto no empieza con un bloque de propiedades entre "---".');
-	return { frontmatter: m[1], body: m[2] };
+	return { frontmatter: m[1] ?? '', body: m[2] };
 }
 
 /**

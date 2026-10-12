@@ -239,8 +239,8 @@ componente se ve aunque ninguna página principal lo use.
 | Tabla para leer                                                                 | `$lib/components/ui/Table.svelte`                                                  |
 
 El ícono grande de cada tipo para `PageHeader` (sin imagen) sale de `typeIcon` en
-`$lib/admin/typeIcons.js`: lo usan la ficha de un perfil (persona, proyecto o lugar) y la de un
-material.
+`$lib/admin/typeIcons.js`: lo usan la ficha de un perfil (persona, proyecto o lugar), la de un
+material y, en Eventos › Series, la tarjeta de una serie sin imagen.
 
 Los imports viejos (`$lib/components/admin/panel/Card.svelte`, `Badge`, `EmptyState`,
 `PageHeader`, `Tabs`, `ConfirmDialog`, `$lib/components/TagChip.svelte` y

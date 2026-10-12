@@ -42,6 +42,7 @@ import { formatFollowNotice } from '$lib/server/telegram/format.js';
 import { botTextOverrides } from '$lib/server/telegram/texts.js';
 import { isQuietHour } from '$lib/server/telegram/quiet.js';
 import { REMINDER_ORDER_SQL } from '$lib/server/tickets/reminders.js';
+import { startsAfter } from '$lib/utils/dates.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {Pick<ProcessedPost, 'meta' | 'path'>} Post */
@@ -108,8 +109,7 @@ export async function stopMailWithToken(db, token, { now = Date.now() } = {}) {
 export function upcomingEvents(posts, now) {
 	return posts.filter((p) => {
 		if (p.meta?.category !== 'calendario' || p.meta.status === 'cancelado') return false;
-		const t = new Date(p.meta.start).getTime();
-		return Number.isFinite(t) && t > now;
+		return startsAfter(p.meta.start, now);
 	});
 }
 

@@ -180,6 +180,51 @@ describe('un chat, una cuenta', () => {
 	});
 });
 
+describe('volver a vincular no prende lo que se apagó a propósito', () => {
+	it('con /silenciar, vincular de nuevo (el mismo chat u otro) sigue en silencio', async () => {
+		const a = await makeAccount(t.db, 'tg-silencio-revincular');
+		await consumeLinkCode(t.db, (await newCode(a.id)).code, CHAT, { now: NOW });
+		await setChatMuted(t.db, CHAT, true);
+		expect(await consumeLinkCode(t.db, (await newCode(a.id)).code, CHAT, { now: NOW + 1 })).toEqual(
+			{ ok: true, accountId: a.id }
+		);
+		expect(await getTelegramLink(t.db, a.id)).toEqual({
+			chatId: String(CHAT),
+			linkedAt: NOW + 1,
+			muted: true
+		});
+		await consumeLinkCode(t.db, (await newCode(a.id)).code, OTRO_CHAT, { now: NOW + 2 });
+		expect(await getTelegramLink(t.db, a.id)).toEqual({
+			chatId: String(OTRO_CHAT),
+			linkedAt: NOW + 2,
+			muted: true
+		});
+		const { results } = await t.db.prepare('SELECT * FROM telegram_chats').all();
+		expect(results).toHaveLength(1);
+	});
+
+	it('sin /silenciar sigue mandando; el silencio de otra cuenta no pasa a la que vincula el chat', async () => {
+		const a = await makeAccount(t.db, 'tg-sin-silencio');
+		const b = await makeAccount(t.db, 'tg-silencio-ajeno');
+		await consumeLinkCode(t.db, (await newCode(a.id)).code, CHAT, { now: NOW });
+		await consumeLinkCode(t.db, (await newCode(a.id)).code, CHAT, { now: NOW + 1 });
+		expect((await getTelegramLink(t.db, a.id))?.muted).toBe(false);
+		await setChatMuted(t.db, CHAT, true);
+		await consumeLinkCode(t.db, (await newCode(b.id)).code, CHAT, { now: NOW + 2 });
+		expect(await getTelegramLink(t.db, a.id)).toBeNull();
+		expect((await getTelegramLink(t.db, b.id))?.muted).toBe(false);
+	});
+
+	it('desvincular y vincular de nuevo empieza de cero (el chat se borró)', async () => {
+		const a = await makeAccount(t.db, 'tg-desvincular-revincular');
+		await consumeLinkCode(t.db, (await newCode(a.id)).code, CHAT, { now: NOW });
+		await setChatMuted(t.db, CHAT, true);
+		await unlinkChat(t.db, CHAT);
+		await consumeLinkCode(t.db, (await newCode(a.id)).code, CHAT, { now: NOW + 1 });
+		expect((await getTelegramLink(t.db, a.id))?.muted).toBe(false);
+	});
+});
+
 describe('desvincular, silenciar y reanudar', () => {
 	it('desde el bot y desde Mi rincón', async () => {
 		const a = await makeAccount(t.db, 'tg-silenciar');

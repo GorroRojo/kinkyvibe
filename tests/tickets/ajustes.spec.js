@@ -37,12 +37,18 @@ test('ajustes de venta: alias y comisión desde el admin, con las variables como
 	page
 }) => {
 	await clearSettings(page);
-	// El menú del panel lleva a Ajustes → Cobros.
-	await expect(page.getByRole('link', { name: /Cobros/ }).first()).toHaveAttribute(
-		'href',
-		'/admin/ajustes/cobros'
-	);
 	await expect(page.getByText('se usan los datos de la variable')).toBeVisible();
+	// El menú del panel lleva a la portada de Ajustes (decisión 0042) y su tarjeta, a Cobros.
+	await page
+		.getByRole('navigation', { name: 'Secciones del panel' })
+		.getByRole('link', { name: 'Ajustes', exact: true })
+		.click();
+	await expect(page).toHaveURL(/\/admin\/ajustes$/);
+	await expect(
+		page
+			.getByRole('navigation', { name: 'Secciones de Ajustes' })
+			.getByRole('link', { name: /Cobros/ })
+	).toHaveAttribute('href', '/admin/ajustes/cobros');
 	// Porcentaje del Fondo de este momento (en las pruebas, FONDO_PERCENT_OVERRIDE=20).
 	await page.goto('/admin/ajustes/fondo', { waitUntil: 'networkidle' });
 	await expect(page.locator('.fondo-now')).toContainText('20 %');

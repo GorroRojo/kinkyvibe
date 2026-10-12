@@ -41,7 +41,7 @@ import {
 	venuePageLevel,
 	venueView
 } from '$lib/utils/venues.js';
-import { isApproved, urlSlugOf, viewerFor } from './profiles.js';
+import { isApproved, isShownProfile, urlSlugOf, viewerFor } from './profiles.js';
 import { textOrNull as s } from '$lib/utils/text.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -142,6 +142,28 @@ export async function eventsWithVenue(db, eventSlug) {
 }
 
 /**
+ * {@link eventsWithVenue} de varios eventos a la vez, en una consulta: cuáles de `slugs` tienen un
+ * lugar vinculado (las tarjetas de una lista, src/lib/server/tickets/events.js).
+ *
+ * @param {D1Database} db
+ * @param {Iterable<string>} slugs
+ * @returns {Promise<Set<string>>}
+ */
+export async function eventsWithVenueAmong(db, slugs) {
+	const want = [...new Set(slugs)].filter(isEventSlug);
+	if (!want.length) return new Set();
+	const { results } = await db
+		.prepare(
+			`SELECT DISTINCT l.event_slug FROM (${lugarLinksSql(`${EVENT_POST_SLUG} IN (SELECT value FROM json_each(?1))`)}) l
+			JOIN objects o ON o.id = l.venue_id
+			WHERE o.type = ?2 AND o.deleted_at IS NULL AND json_extract(o.data, '$.kind') = 'lugar'`
+		)
+		.bind(JSON.stringify(want), PROFILE_TYPE)
+		.all();
+	return new Set(results.map((r) => String(r.event_slug)));
+}
+
+/**
  * Lo que la página pública de un evento puede mostrar de su lugar. `null` si el evento no tiene
  * lugar (la página muestra lo de su .md, como siempre). Si quien mira no puede ver el lugar (oculto,
  * solo con cuenta o sin aprobar), es como el nivel "oculto".
@@ -174,7 +196,8 @@ export async function publicVenueForEvent(db, eventSlug, viewer) {
 function linkedVenueView(link, visible, approved) {
 	const level = effectivePrivacy(link.override, link.venue.data.venue_privacy);
 	if (level === 'hidden') return { level };
-	if (!visible || visible.visibility === 'hidden' || !approved) return { level: 'hidden' };
+	// «Se muestra al público» (la misma regla que las listas de perfiles, ./profiles.js).
+	if (!isShownProfile(visible, approved)) return { level: 'hidden' };
 	return venueView(link.venue, level, `/amigues/${urlSlugOf(link.venue, link.legacySlug)}`);
 }
 

@@ -19,6 +19,7 @@ import { botAdmin } from '$lib/server/telegram/adminData.js';
 import { botUsername } from '$lib/server/telegram/web.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { botTextOverrides } from '$lib/server/telegram/texts.js';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, url, platform, fetch }) {
@@ -39,7 +40,10 @@ export async function POST({ request, url, platform, fetch }) {
 		// /api/search-index.json), con el lugar y la venta de los eventos como la tarjeta.
 		inline: {
 			source: () => inlineSource(platform),
-			events: (metas) => inlineEventInfo(platform, metas)
+			events: (metas) => inlineEventInfo(platform, metas),
+			// El árbol de etiquetas (el mismo del sitio): para sugerir parecidas y «Seguir» cuando
+			// una búsqueda no encuentra nada.
+			tags: () => siteTagManager(platform)
 		},
 		botUsername: botUsername(),
 		token: env.TELEGRAM_BOT_TOKEN,
