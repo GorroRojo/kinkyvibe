@@ -125,7 +125,9 @@ jobs:
       # El reparto entre las 3 partes es por tiempo (scripts/vitest/sequencer.js, con los tiempos de
       # scripts/vitest/durations.json), no por cantidad de archivos.
       - name: Unit + content tests
-        run: npx vitest run --shard=${{ matrix.shard }}/3 --fsModuleCache
+        run: |
+          VITEST_DURATIONS_OUT=$RUNNER_TEMP/d.json npx vitest run --shard=${{ matrix.shard }}/3 --fsModuleCache --reporter=default --reporter=./scripts/vitest/durations-reporter.js
+          echo "DURATIONS-TMP $(node -e 'process.stdout.write(JSON.stringify(require(process.argv[1])))' $RUNNER_TEMP/d.json)"
 
   # Compila una sola vez para las dos partes de `e2e`: build, el Worker empaquetado y la base local
   # con la semilla (lo más lento: ~1 minuto en una base nueva), al mismo tiempo que el build. Sube

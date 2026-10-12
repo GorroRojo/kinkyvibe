@@ -6,12 +6,15 @@
 //
 // El tiempo de un archivo es el total que vitest le mide (preparar, importar, setupFiles y las
 // pruebas), en segundos con un decimal. Los archivos que ya no existen se sacan.
+// Con VITEST_DURATIONS_OUT=<archivo> escribe ahí en vez de en durations.json (por ejemplo, para
+// juntar los tiempos de cada parte de la CI).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { relativeKey } from './sequencer.js';
 
-const DURATIONS_FILE = fileURLToPath(new URL('./durations.json', import.meta.url));
+const DURATIONS_FILE =
+	process.env.VITEST_DURATIONS_OUT || fileURLToPath(new URL('./durations.json', import.meta.url));
 
 export default class DurationsReporter {
 	/** @type {Record<string, number>} */
@@ -52,7 +55,7 @@ export default class DurationsReporter {
 		}
 		writeFileSync(DURATIONS_FILE, JSON.stringify(out, null, '\t') + '\n');
 		console.log(
-			`durations.json: ${Object.keys(this.measured).length} archivos medidos, ${Object.keys(out).length} en total.`
+			`${path.basename(DURATIONS_FILE)}: ${Object.keys(this.measured).length} archivos medidos, ${Object.keys(out).length} en total.`
 		);
 	}
 }
