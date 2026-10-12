@@ -29,6 +29,9 @@ PRs abiertos:
   «Textos del bot» (PR `claude/bot-secciones`).
 - Bot: «🎟 Mis entradas» (paso 2 de 5): las entradas de la cuenta vinculada, con el QR de la
   puerta como foto, «Pasadas» y sus textos en «Textos del bot» (PR `claude/bot-mis-entradas`).
+- Bot, arreglos chicos: la Kinkipedia por las ramas del árbol, Series sin las series sin
+  ediciones, volver a vincular no saca `/silenciar`, los textos de la Mini App en «Textos del bot»
+  y borrar funciones viejas (PR `claude/bot-arreglos-chicos`).
 - Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
   tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
   directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
@@ -248,26 +251,24 @@ de amigues y lanzamientos grandes.
 
 - Puerta por Telegram, después de #273: prenderla en un preview y probarla con celulares reales
   (vincular, abrir con el botón del bot, escanear); después en producción. S. Bloqueo: gorrite.
-- Bot, secciones: filtrar la Kinkipedia por las ramas del árbol de etiquetas (como `/wiki`) en
-  lugar de las etiquetas más usadas; y que Series deje afuera las series sin ediciones (como la
-  lista de series de `/wiki`; hoy salen las del índice de la búsqueda). S.
-- Guardar si alguien apagó a propósito los avisos por Telegram de algo, para que volver a seguirlo
-  desde el bot no los prenda de nuevo (hoy la base no lo distingue, 0036). S. Bloqueo: que haga
-  falta (necesita migración).
+- Guardar si alguien apagó a propósito los avisos por Telegram de algo, para que dejar de seguirlo
+  y volver a seguirlo desde el bot no los prenda de nuevo (hoy la base no lo distingue, 0036; volver
+  a vincular ya no saca `/silenciar`). S. Bloqueo: necesita migración (aplicarla antes del merge,
+  0028).
 - Textos del bot: sumar a «Textos del bot» los de `/inicio` y el botón «🚪 Puerta» del inicio
   cuando entre `claude/bot-inicio` (si ese PR entra después). S.
-- Textos del bot: los textos de las páginas de la Mini App del calendario (`/telegram/app`) y de
-  la puerta (`/telegram/puerta`) siguen en el código (son páginas, no mensajes del bot). S.
-  Bloqueo: que haga falta.
+- Textos del bot: los textos de la página de la puerta (`/telegram/puerta`, solo admins) siguen en
+  el código (los de la Mini App del calendario ya están en «Textos del bot»). S. Bloqueo: que haga
+  falta.
+- Bot, Kinkipedia por ramas: después de mergear, mirarla en Telegram con el árbol de verdad (que
+  las ramas de arriba sean las de `/wiki` y que ninguna quede con un solo hijo de más). S.
+  Bloqueo: gorrite.
 - Bot, Mis entradas: en un taller de varias partes con una sola entrada, que la entrada siga en
   «próximas» hasta la última parte (hoy cuenta la fecha del evento que vende la entrada). S.
 - Bot, Mis entradas: mandar el link de la transmisión de un evento online (hoy la tarjeta manda a
   la página de la entrada, que lo tiene). S. Bloqueo: que gorrite lo quiera en el chat.
 - Bot, Mis entradas: después de mergear, probarlo en Telegram con una entrada de prueba (la foto
   del QR subida por la API solo se puede probar contra el bot de verdad). S. Bloqueo: gorrite.
-- Bot: borrar las funciones de antes que ya no usa el bot (`formatEventList`, `formatEvent`,
-  `formatChoices`, `formatPickList` en `format.js`; `eventListKeyboard` y `eventDetailKeyboard` en
-  `keyboards.js`) y sus pruebas. S.
 
 - Fase 3: avisos y estado para organizadores, nunca datos de compradores
   ([0029](decisiones/0029-bot-de-telegram.md)). L. Bloqueo: el rol de organizadore.

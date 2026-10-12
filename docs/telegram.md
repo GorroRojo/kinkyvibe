@@ -255,8 +255,9 @@ del campo que tocás). Cada guardado queda en Actividad (`settings.save`, `teleg
 
 - **Dónde está cada cosa**: los originales, qué es cada uno, sus variables y la validación, en
   `src/lib/utils/botTexts.js` (secciones Inicio y menú, Comandos, Eventos, Seguir y avisos,
-  Vincular cuenta, Puerta, Mis entradas, Mini App del calendario y Errores). El bot pide cada texto con `botText(clave, variables)`
-  (`src/lib/server/telegram/texts.js`); no queda texto para la gente escrito en las pantallas.
+  Vincular cuenta, Puerta, Secciones del sitio, Mis entradas, Mini App del calendario y Errores).
+  El bot pide cada texto con `botText(clave, variables)` (`src/lib/server/telegram/texts.js`); no
+  queda texto para la gente escrito en las pantallas.
 - **Dónde se guarda**: en `ticket_settings`, la fila `telegram_bot_texts` (un JSON con solo los
   cambiados), como `link_preview_texts`. Sin tabla nueva ni migración.
 - **Una lectura por pedido**: el webhook lee la fila una vez, después de chequear el secreto, y
