@@ -186,7 +186,7 @@ revisar" del Inicio.
   de cada acción (guardar, confirmar una transferencia…), no en cada cambio de página.
 
 **Lista de espera** (en construcción, interruptor `lista_espera`; decisión
-[0039](decisiones/0039-lista-de-espera.md), detalle en
+[0040](decisiones/0040-lista-de-espera.md), detalle en
 [tickets.md](tickets.md#lista-de-espera-en-construcción)):
 
 - **Pestaña «Lista de espera» de la ficha del evento** (`/admin/eventos/<slug>/lista-espera`, entre

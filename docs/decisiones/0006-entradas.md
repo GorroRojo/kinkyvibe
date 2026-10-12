@@ -5,7 +5,7 @@
   [0035](0035-vender-en-puerta-sin-conexion.md). Los detalles de preventas y puerta del 1/10 están en
   [0012](0012-precio-de-puerta-por-tipo.md) a [0016](0016-pago-tardio.md). Cuánto dura una
   reserva por transferencia: [0031](0031-reserva-transferencia-dias-habiles.md). Lista de espera
-  (la puerta y la carga a mano no la miran): [0039](0039-lista-de-espera.md).
+  (la puerta y la carga a mano no la miran): [0040](0040-lista-de-espera.md).
 
 ## Contexto
 

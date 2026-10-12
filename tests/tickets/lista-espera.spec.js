@@ -1,5 +1,5 @@
 /**
- * Lista de espera de punta a punta (interruptor `lista_espera`, docs/entradas.md, decisión 0039),
+ * Lista de espera de punta a punta (interruptor `lista_espera`, docs/entradas.md, decisión 0040),
  * con el admin y Mercado Pago simulados (playwright.tickets.config.js, LISTA_ESPERA_ENABLED=1).
  *
  * Cada prueba crea su propio evento (un solo tipo con cupo 1 y `lista_espera: { alcance: evento }`)

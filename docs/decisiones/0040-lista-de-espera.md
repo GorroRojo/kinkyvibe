@@ -1,4 +1,4 @@
-# 0039. Lista de espera de las entradas
+# 0040. Lista de espera de las entradas
 
 - Fecha: 2026-10-11
 - Estado: Aceptada (respuestas de gorrite del 11/10: «Sí, todas» a lo propuesto, con un cambio en

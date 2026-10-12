@@ -13,7 +13,7 @@ cargo. Les admins ven las ventas en el panel, confirman transferencias, venden e
 invitaciones a mano, reembolsan y controlan el ingreso escaneando el QR con el celu.
 
 **Lista de espera** (en construcción, interruptor `lista_espera`; [decisión
-0039](decisiones/0039-lista-de-espera.md)): cuando un evento o un tipo se agota, la gente deja su
+0040](decisiones/0040-lista-de-espera.md)): cuando un evento o un tipo se agota, la gente deja su
 mail; si se libera un lugar, se lo ofrecemos a la primera persona de la fila y se lo guardamos un
 rato (24, 12 o 2 h según lo que falte; cerca del evento, a toda la fila a la vez).
 
@@ -41,7 +41,7 @@ rato (24, 12 o 2 h según lo que falte; cerca del evento, a toda la fila a la ve
   sincroniza con `sellAtDoor`, en orden, con el id del celu único en la base
   (`orders.client_sale_id`); si pasó un límite se guarda igual y queda en «Para revisar». Con
   conexión, la venta en la puerta sigue igual que siempre.
-- **La lista de espera guarda lugares en la misma sentencia que el cupo** (decisión 0039): cada
+- **La lista de espera guarda lugares en la misma sentencia que el cupo** (decisión 0040): cada
   persona en la fila y cada lugar guardado vigente cuentan como vendidos para el público, y quien
   compra con el link de su oferta pasa a `purchased` en la misma tanda que su orden (un link no se
   usa dos veces). Con el interruptor apagado o el evento sin lista, la sentencia es la de siempre.

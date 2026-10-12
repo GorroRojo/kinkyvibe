@@ -70,7 +70,7 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 panel lo marca y escribe la fila de `panel_deletions` (0021) en la misma tanda, para «Recuperar» en
 Actividad; toda consulta de esas tablas lleva `deleted_at IS NULL`. No hay purga.
 
-**Lista de espera (0053, decisión [0039](decisiones/0039-lista-de-espera.md)).** Una fila de
+**Lista de espera (0053, decisión [0040](decisiones/0040-lista-de-espera.md)).** Una fila de
 `waitlist_entries` por anotación; `ticket_type` NULL es la lista de todo el evento. Viva
 (`pending_confirmation`, `waiting`, `offered`) hay una sola por mail y alcance (índice único
 parcial); al terminar (`purchased`, `expired`, `cancelled`) se puede volver a anotar. El orden de la

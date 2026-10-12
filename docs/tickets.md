@@ -245,7 +245,7 @@ lugar, se le avisa por mail a la próxima persona y se le guarda un rato. Detrá
 `lista_espera` (apagado, [interruptores.md](interruptores.md)) y de la clave `lista_espera` de cada
 evento. Se construye en partes, en ramas que se juntan en `claude/lista-espera` y entran a `main`
 como un solo PR (decisión [0001](decisiones/0001-ritmo-y-orden.md)). Lo que eligió gorrite está en
-la decisión [0039](decisiones/0039-lista-de-espera.md).
+la decisión [0040](decisiones/0040-lista-de-espera.md).
 
 **Ya está (parte 1, datos y reglas).** Nada de esto se ve todavía ni toca la venta.
 
@@ -427,7 +427,7 @@ motor). El vencimiento por tiempo (y el paso a la siguiente por el cron) lo cubr
 unitarias del motor (`waitlistEngine.test.js`, con reloj fijo).
 
 **Lo que falta antes del PR a `main`:** que gorrite aplique la 0053 en preview y producción
-(0028) y responda los dos puntos «a confirmar» de la decisión 0039.
+(0028) y responda los dos puntos «a confirmar» de la decisión 0040.
 
 ### Horario de la venta
 

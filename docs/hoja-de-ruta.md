@@ -24,7 +24,7 @@ PRs abiertos:
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
 BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
 
-Lista de espera ([0039](decisiones/0039-lista-de-espera.md)): todas las partes ya están juntas y
+Lista de espera ([0040](decisiones/0040-lista-de-espera.md)): todas las partes ya están juntas y
 probadas en la rama `claude/lista-espera`, que entra a `main` como un solo PR. Antes: acomodar su
 pestaña a la ficha de 7 pestañas (#303) y que gorrite aplique la migración 0053 en preview y
 producción (0028). Bloqueo: gorrite.
@@ -175,7 +175,7 @@ de amigues y lanzamientos grandes.
 - Lista de espera, después del merge: prender el interruptor `lista_espera` y probarla en un
   evento piloto (anotarse, un reembolso, la oferta y la compra con el link, con mails de verdad).
   S. Bloqueo: gorrite.
-- Lista de espera, dos puntos a confirmar ([0039](decisiones/0039-lista-de-espera.md)): si
+- Lista de espera, dos puntos a confirmar ([0040](decisiones/0040-lista-de-espera.md)): si
   «Terminar la reserva y pasar a la siguiente» le manda un mail a esa persona, y si «Cerrar la
   lista» también la apaga (hoy hay que apagarla en Editar). S cada uno. Bloqueo: gorrite.
 - Promociones de varios eventos: por ejemplo, dos eventos a un precio especial si se compran
