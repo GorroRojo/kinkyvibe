@@ -1,6 +1,7 @@
 <script>
 	import '$lib/admin/panel-forms.scss';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import { areaBackLink } from '$lib/admin/nav.js';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import { enhance } from '$app/forms';
@@ -33,7 +34,11 @@
 	const markFailed = (id) => () => (failed = { ...failed, [id]: true });
 </script>
 
-<PageHeader title="Admins" subtitle="Quién puede entrar al panel." />
+<PageHeader
+	back={areaBackLink('ajustes-admins')}
+	title="Admins"
+	subtitle="Quién puede entrar al panel."
+/>
 <div class="kv-stack settings">
 	<Card padded={false}>
 		<ul class="admins">

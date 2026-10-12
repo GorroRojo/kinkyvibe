@@ -83,7 +83,9 @@ describe('NAV', () => {
 	it('cada sección de Ajustes tiene su subgrupo (Plata, Comunicación, Equipo, Sistema)', () => {
 		const subs = new Set(AJUSTES_SUBGROUPS.map((g) => g.id));
 		for (const i of NAV) {
-			if (i.area === 'ajustes') expect(subs.has(String(i.sub)), i.id).toBe(true);
+			// La portada de Ajustes (decisión 0042) muestra los subgrupos: no está en ninguno.
+			if (i.id === 'ajustes') expect(i.sub, i.id).toBeUndefined();
+			else if (i.area === 'ajustes') expect(subs.has(String(i.sub)), i.id).toBe(true);
 			else expect(i.sub, i.id).toBeUndefined();
 		}
 		expect(navAreaSections('ajustes').map((g) => g.label)).toEqual([
@@ -389,22 +391,26 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 	});
 });
 
-describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
+describe('sectionTabs (pestañas de sección)', () => {
 	/** @param {string} path @param {Record<string, boolean>} [flags] */
 	const labels = (path, flags) => sectionTabs(path, { flags })?.tabs.map((t) => t.label) ?? null;
-	it('Ajustes: todas sus secciones, también Propinas, Automatizaciones y Actividad', () => {
-		expect(labels('/admin/ajustes/cobros')).toEqual([
-			'Cobros',
-			'Fondo',
-			'Propinas',
-			'Vistas previas al compartir',
-			'Textos del bot',
-			'Admins',
-			'Interruptores',
-			'Automatizaciones',
-			'Actividad'
+	it('Ajustes no lleva pestañas: tiene portada con todas sus secciones (decisión 0042)', () => {
+		for (const item of NAV.filter((i) => i.area === 'ajustes')) {
+			expect(sectionTabs(item.href), item.href).toBe(null);
+		}
+		expect(sectionTabs('/admin/ajustes/actividad/')).toBe(null);
+		expect(navGroupOf('ajustes')?.landing).toBe('ajustes');
+		expect(navItem('ajustes')?.href).toBe('/admin/ajustes');
+		// La portada: las mismas secciones que antes eran pestañas, en sus cuatro subgrupos.
+		expect(navAreaSections('ajustes').map((s) => [s.label, s.items.map((i) => i.label)])).toEqual([
+			['Plata', ['Cobros', 'Fondo', 'Propinas']],
+			['Comunicación', ['Vistas previas al compartir', 'Textos del bot']],
+			['Equipo', ['Admins']],
+			['Sistema', ['Interruptores', 'Automatizaciones', 'Actividad']]
 		]);
-		expect(sectionTabs('/admin/ajustes/actividad/')?.label).toBe('Secciones de Ajustes');
+		// Cada tarjeta tiene su línea de qué hay.
+		for (const s of navAreaSections('ajustes'))
+			for (const i of s.items) expect(i.desc, i.id).toBeTruthy();
 	});
 	it('los grupos con varias áreas suman sus secciones (sin lo que viene)', () => {
 		expect(labels('/admin/ventas')).toEqual(['Todas las ventas', 'Transferencias', 'Códigos']);
@@ -453,7 +459,9 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 		]);
 	});
 	it('con el interruptor apagado, lo que da 404 no aparece', () => {
-		expect(labels('/admin/ajustes/cobros', { propinas: false })).toContain('Propinas');
+		const labelsOf = (/** @type {Record<string, boolean>} */ flags) =>
+			navAreaSections('ajustes', { flags }).flatMap((s) => s.items.map((i) => i.label));
+		expect(labelsOf({ propinas: false })).toContain('Propinas');
 	});
 	it('Eventos también lleva pestañas (la barra lateral ya no muestra sus páginas, opción C)', () => {
 		const eventos = ['Eventos', 'Agenda', 'Series', 'Lugares', 'Roles y preguntas'];
@@ -545,7 +553,8 @@ describe('areaBackLink («← Área» arriba del título)', () => {
 		expect(areaBackLink('entradas-codigos')).toEqual({ href: '/admin/ventas', label: 'Ventas' });
 		expect(areaBackLink('inicio')).toBe(null);
 		expect(areaBackLink('no-existe')).toBe(null);
-		expect(areaBackLink('actividad')).toBe(null);
+		// Ajustes tiene portada (decisión 0042): cada sección vuelve a ella.
+		expect(areaBackLink('actividad')).toEqual({ href: '/admin/ajustes', label: 'Ajustes' });
 		// Configuración de los mails se mudó a Mensajes, que todavía no tiene página propia.
 		expect(navItem('ajustes-mails')?.area).toBe('mensajes');
 		expect(areaBackLink('ajustes-mails')).toBe(null);
@@ -800,7 +809,7 @@ describe('barra lateral (opción C: sideSections)', () => {
 		expect(MOBILE_TABS).toContain('checkin');
 		for (const s of secs) expect(s.icon && s.emoji, s.id).toBeTruthy();
 	});
-	it('cada sección lleva a la primera página que existe de su grupo', () => {
+	it('cada sección lleva a la primera página que existe de su grupo (o a su portada)', () => {
 		expect(Object.fromEntries(sideSections().map((s) => [s.id, s.href]))).toEqual({
 			inicio: '/admin',
 			eventos: '/admin/eventos',
@@ -808,7 +817,8 @@ describe('barra lateral (opción C: sideSections)', () => {
 			comunidad: '/admin/comunidad/personas',
 			contenido: '/admin/contenido/material',
 			estadisticas: '/admin/estadisticas/ventas',
-			ajustes: '/admin/ajustes/cobros'
+			// Ajustes, a su portada (decisión 0042).
+			ajustes: '/admin/ajustes'
 		});
 		const pages = new Set(adminPages());
 		for (const s of sideSections()) {
@@ -820,7 +830,7 @@ describe('barra lateral (opción C: sideSections)', () => {
 		const hrefs = sideSections().map((s) => s.href);
 		expect(hrefs).not.toContain('/admin/eventos/nuevo');
 	});
-	it('cada página del menú se alcanza: su sección en la barra y, si hay más de una, su pestaña', () => {
+	it('cada página del menú se alcanza: su sección en la barra y, si hay más de una, su pestaña (o su tarjeta en la portada)', () => {
 		const secs = new Map(sideSections().map((s) => [s.id, s.href]));
 		for (const item of NAV.filter((i) => !i.soon && i.menu !== false)) {
 			// Los grupos fuera de la barra lateral (`side: false`, la Puerta) están en la barra de
@@ -831,10 +841,16 @@ describe('barra lateral (opción C: sideSections)', () => {
 			}
 			const section = activeSection(item);
 			expect(section && secs.has(section), item.id).toBe(true);
+			// Un grupo con portada (Ajustes) muestra una tarjeta por cada sección de su área.
+			const landing = navGroupOf(String(section))?.landing;
 			const reachable =
 				secs.get(String(section)) === item.href ||
 				Boolean(
 					sectionTabs(String(secs.get(String(section))))?.tabs.some((t) => t.href === item.href)
+				) ||
+				Boolean(
+					landing &&
+					navAreaSections(String(item.area)).some((s) => s.items.some((i) => i.id === item.id))
 				);
 			expect(reachable, item.id).toBe(true);
 		}

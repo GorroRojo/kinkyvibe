@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import { areaBackLink } from '$lib/admin/nav.js';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import { Lock } from '@lucide/svelte';
@@ -34,6 +35,7 @@
 </script>
 
 <PageHeader
+	back={areaBackLink('ajustes-interruptores')}
 	title="Interruptores"
 	subtitle="Funciones nuevas: salen apagadas y se prenden desde acá."
 />

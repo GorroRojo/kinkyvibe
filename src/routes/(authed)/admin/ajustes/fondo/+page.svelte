@@ -4,6 +4,7 @@
 	import { fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import { areaBackLink } from '$lib/admin/nav.js';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 
@@ -25,7 +26,11 @@
 	$: source = SOURCES[data.fondo.source] ?? SOURCES.none;
 </script>
 
-<PageHeader title="Fondo" subtitle="Descuento del Fondo Kinky Vibe en las entradas." />
+<PageHeader
+	back={areaBackLink('ajustes-fondo')}
+	title="Fondo"
+	subtitle="Descuento del Fondo Kinky Vibe en las entradas."
+/>
 <form
 	class="kv-form settings"
 	method="POST"
