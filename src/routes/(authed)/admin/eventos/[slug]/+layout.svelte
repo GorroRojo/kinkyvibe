@@ -45,6 +45,7 @@
 		.map((t) => ({
 			href: eventHref(e.slug, t.id),
 			label: t.label,
+			icon: t.icon,
 			count:
 				t.id === 'ordenes'
 					? data.tabCounts.orders

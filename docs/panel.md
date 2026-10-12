@@ -45,6 +45,16 @@ su área. Es solo el menú: cada sección sigue en su área y en su URL. En la p
 cada sección de un grupo (menos Eventos) el layout pone una barra de pestañas con todas las
 secciones del grupo, como la que tenía Ajustes (`sectionTabs`).
 
+**Íconos en las pestañas** (gorrite, 11/10): cada pestaña de sección lleva el mismo ícono que su
+sección en la barra lateral (`sectionTabs` lo saca de `nav.js`), y las de la ficha del evento
+también (`EVENT_TABS`: las que son una sección del menú, con `section`, usan el ícono de esa
+sección: Ventas, Transferencias, Puerta, Códigos, Plantillas de mails, Preguntas; las demás tienen
+uno propio de Lucide). El ícono es `aria-hidden`; el nombre de la pestaña sigue siendo su nombre
+accesible. En una pantalla angosta (< 600 px), si las pestañas no entran con sus nombres, quedan
+solo los íconos y el nombre de la actual; las otras llevan su nombre en `title` y `aria-label`
+(`$lib/components/ui/Tabs.svelte`). `nav.test.js` controla que cada pestaña tenga el ícono de su
+sección. Las pestañas que son filtros (Próximos/Pasados, Todas/Para aprobar…) no llevan ícono.
+
 Cada sección vive en **`/admin/<área>/<sección>`**. Las excepciones: Inicio (`/admin`), Puerta
 (`/admin/checkin`, porque esa URL está guardada en los celus de la puerta) y las áreas de una sola
 sección (Etiquetas), que usan la URL del área.
@@ -194,6 +204,20 @@ revisar" del Inicio.
   de cada acción (guardar, confirmar una transferencia…), no en cada cambio de página.
 
 **Barra lateral** (`SideNav.svelte`, solo en la compu; en el celu está el panel "Más"):
+
+- **Cada admin elige cómo se comporta** (gorrite, 11/10), en el menú de su cuenta (el avatar),
+  «Panel lateral»: **Siempre abierto** (lo de siempre, el default), **Solo íconos** (una franja
+  angosta; el nombre sale como cartelito al pasar el mouse o con el foco del teclado, y sigue en el
+  link para los lectores de pantalla) o **Se oculta** (no ocupa lugar; el botón ☰ de la barra de
+  arriba lo abre encima del contenido; se cierra con la X, Escape, tocando afuera o al navegar).
+  No hay preferencias por admin en la base (les admins están en el código), así que se guarda en
+  **localStorage, por login** (`kv-panel-lateral:<login>`, `src/lib/admin/sidebarMode.js`, con
+  try/catch): vale para ese navegador y sin storage vuelve a «Siempre abierto». Se aplica como
+  `data-lateral` en `<html>` y un script del `<head>` (como el del tema) lo pone antes de pintar,
+  así no se ve la barra equivocada al cargar. En el celu no cambia nada (no hay barra lateral).
+- **Compacta** (gorrite, 11/10): renglones con `--space-3xs` de alto, todos los íconos de 18 px y
+  el logo más chico. Las pestañas también son más bajas en la compu; en el celu tienen 44 px
+  (`--tap`).
 
 - **Varios grupos abiertos a la vez** (gorrite, en el seguimiento de «atajos visibles»; antes se
   abría uno solo). Cada grupo recuerda si quedó abierto o cerrado en ese navegador
@@ -392,15 +416,15 @@ pierde.
 
 ## Dónde está el código
 
-| Qué                                 | Dónde                                                                                                                      |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Páginas                             | `src/routes/(authed)/admin/`                                                                                               |
-| Lógica del servidor del panel       | `src/lib/server/admin/` (inicio, ventas, personas, búsqueda, auditoría…)                                                   |
-| Lógica de entradas que usa el panel | `src/lib/server/tickets/` (`overrides.js`, `door.js`, `manual.js`, `checkin.js`…)                                          |
-| Quién es admin                      | `ADMINS` en `src/lib/server/auth.js` (por id numérico de GitHub); `requireAdmin`                                           |
-| Login con GitHub                    | `src/routes/login`, `src/routes/callback`, `src/lib/server/session.js`                                                     |
-| Menú, atajos, tema, borradores      | `src/lib/admin/` (`nav.js`, `navPrefs.js`, `commands.js`, `paletteActions.js`, `shortcutHints.js`, `theme.js`, `draft.js`) |
-| Componentes y estilos               | `src/lib/components/admin/` (`panel/`, `door/`, `inicio/`…), `src/lib/admin/panel*.scss`                                   |
+| Qué                                 | Dónde                                                                                                                                        |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Páginas                             | `src/routes/(authed)/admin/`                                                                                                                 |
+| Lógica del servidor del panel       | `src/lib/server/admin/` (inicio, ventas, personas, búsqueda, auditoría…)                                                                     |
+| Lógica de entradas que usa el panel | `src/lib/server/tickets/` (`overrides.js`, `door.js`, `manual.js`, `checkin.js`…)                                                            |
+| Quién es admin                      | `ADMINS` en `src/lib/server/auth.js` (por id numérico de GitHub); `requireAdmin`                                                             |
+| Login con GitHub                    | `src/routes/login`, `src/routes/callback`, `src/lib/server/session.js`                                                                       |
+| Menú, atajos, tema, borradores      | `src/lib/admin/` (`nav.js`, `navPrefs.js`, `sidebarMode.js`, `commands.js`, `paletteActions.js`, `shortcutHints.js`, `theme.js`, `draft.js`) |
+| Componentes y estilos               | `src/lib/components/admin/` (`panel/`, `door/`, `inicio/`…), `src/lib/admin/panel*.scss`                                                     |
 
 ## Cómo probar
 

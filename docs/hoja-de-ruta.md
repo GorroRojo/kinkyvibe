@@ -187,6 +187,10 @@ de amigues y lanzamientos grandes.
 - Borrar objetos para siempre; campos propios y tipos simples desde el panel. L. Bloqueo: diseño.
 - Pestañas arriba en cada sección (como Ajustes) y un menú más simple. M. Bloqueo: proponer la
   estructura antes.
+- Panel lateral de cada admin: hoy la elección («Siempre abierto», «Solo íconos», «Se oculta»)
+  se guarda por navegador (localStorage por login). Si se suma una tabla de preferencias por admin
+  en la base, pasarla ahí para que siga a la persona en todos sus dispositivos (gorrite, 11/10;
+  PR de íconos en las pestañas). S. Bloqueo: que haga falta una tabla de preferencias.
 - Más gráficos: mapa de la comunidad, Fondo y finanzas. M.
 - Colaboración en tiempo real con Durable Objects. L.
 - Preguntas de inscripción sugeridas para elegir rápido. S.
