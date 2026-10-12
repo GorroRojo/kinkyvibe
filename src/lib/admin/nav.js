@@ -118,6 +118,7 @@ import {
 	UserCheck,
 	Workflow
 } from '@lucide/svelte';
+import { tagSlug } from '$lib/utils/tagSlug.js';
 
 /**
  * Íconos del panel: 'lucide' (los del sitio, @lucide/svelte) o 'emoji'. Cambiar esta línea cambia
@@ -449,17 +450,15 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
+		// El estado de «Lo que sigo» para mirar: interruptores, lo más seguido (cuántas cuentas y
+		// quiénes, solo admins), números y avisos que salieron. Se ve con el interruptor apagado.
 		id: 'lo-que-sigo',
 		href: '/admin/mensajes/lo-que-sigo',
 		icon: Sparkles,
 		emoji: '✨',
 		label: 'Lo que sigo',
 		area: 'mensajes',
-		soon: true,
-		phase: 2,
-		soonText:
-			'Qué etiquetas, perfiles y lugares sigue cada persona, para su calendario y sus mails ' +
-			'(anuncios y recordatorios). Incluye a quienes pidieron "Avisame si se repite".'
+		soon: false
 	},
 	{
 		id: 'bandeja',
@@ -553,8 +552,8 @@ export const NAV = Object.freeze([
 			'aparte de las entradas.'
 	},
 
-	// Estadísticas: tres pestañas (gorrite, 11/10), cada una con su período en la URL. El id
-	// `estadisticas` queda en Ventas (lo usan el atajo `g s` y el buscador).
+	// Estadísticas: tres pestañas (gorrite, 11/10) y la del bot (12/10), cada una con su período
+	// en la URL. El id `estadisticas` queda en Ventas (lo usan el atajo `g s` y el buscador).
 	{
 		id: 'estadisticas',
 		href: '/admin/estadisticas/ventas',
@@ -579,6 +578,18 @@ export const NAV = Object.freeze([
 		icon: Eye,
 		emoji: '👀',
 		label: 'Visitas al sitio',
+		area: 'estadisticas',
+		soon: false
+	},
+	{
+		// Las estadísticas de uso del bot (decisión 0045, docs/telegram.md): quién lo usa y, aparte
+		// y sumado por semana, para qué. Sin interruptor en el menú: con `telegram_estadisticas`
+		// apagado la página lo dice.
+		id: 'estadisticas-bot',
+		href: '/admin/estadisticas/bot',
+		icon: Bot,
+		emoji: '🤖',
+		label: 'Bot de Telegram',
 		area: 'estadisticas',
 		soon: false
 	},
@@ -835,15 +846,21 @@ export function eventPanelLink(slug, { tickets = false } = {}) {
  * Editar de la ficha); los perfiles, en Comunidad › Perfiles; las páginas de la wiki, en
  * Etiquetas › Texto de la wiki; el material, en /edit/material/<slug>. `null` si la página no es
  * una publicación editable.
+ *
+ * Una página de la wiki puede venir de un alias o de otra forma de la etiqueta (`/wiki/<alias>`,
+ * `/wiki/rancheadita-kinky` → «Rancheadita Kinky»), con o sin entrada: con `wikiTag` (el id de la
+ * etiqueta que muestra la página), el link va al editor de esa etiqueta, que también escribe la
+ * entrada de un término que todavía no tiene, y no a la dirección tal cual.
  * @param {string} pathname
+ * @param {{ wikiTag?: string | null }} [opts]
  * @returns {string | null}
  */
-export function contentEditLink(pathname) {
+export function contentEditLink(pathname, { wikiTag = null } = {}) {
 	const m = pathname.match(/^\/(amigues|calendario|material|wiki)\/([^/]+)\/?$/);
 	if (!m) return null;
 	if (m[1] === 'calendario') return eventHref(decodeURIComponent(m[2]), 'editar');
 	if (m[1] === 'amigues') return `/admin/comunidad/perfiles/${m[2]}`;
-	if (m[1] === 'wiki') return wikiEditHref(decodeURIComponent(m[2]));
+	if (m[1] === 'wiki') return wikiEditHref(wikiTag ? tagSlug(wikiTag) : decodeURIComponent(m[2]));
 	return `/edit/${m[1]}/${m[2]}`;
 }
 

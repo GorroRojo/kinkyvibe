@@ -223,7 +223,8 @@ describe('NAV', () => {
 		expect(ids('estadisticas')).toEqual([
 			'estadisticas',
 			'estadisticas-asistencia',
-			'estadisticas-visitas'
+			'estadisticas-visitas',
+			'estadisticas-bot'
 		]);
 		expect(ids('ajustes')).toEqual([
 			'ajustes-cobros',
@@ -358,7 +359,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 			['', ['entradas', 'entradas-transferencias', 'entradas-codigos', 'tienda']]
 		]);
 		expect(blocks('estadisticas')).toEqual([
-			['', ['estadisticas', 'estadisticas-asistencia', 'estadisticas-visitas']]
+			['', ['estadisticas', 'estadisticas-asistencia', 'estadisticas-visitas', 'estadisticas-bot']]
 		]);
 		expect(blocks('comunidad')).toEqual([
 			['', ['personas', 'amigues', 'cuentas']],
@@ -379,7 +380,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 			navGroupSections('comunidad', { hideSoon: true }).map((s) => [s.label, s.items.length])
 		).toEqual([
 			['', 3],
-			['Mensajes', 2]
+			['Mensajes', 3]
 		]);
 	});
 	it('groupCount suma los contadores de todas sus áreas', () => {
@@ -414,13 +415,15 @@ describe('sectionTabs (pestañas de sección)', () => {
 	});
 	it('los grupos con varias áreas suman sus secciones (sin lo que viene)', () => {
 		expect(labels('/admin/ventas')).toEqual(['Todas las ventas', 'Transferencias', 'Códigos']);
-		// Estadísticas va sola en el menú, pero desde el 11/10 tiene tres secciones (gorrite): lleva
-		// pestañas. /admin/estadisticas ya no es una página (redirige a Ventas): sin pestañas.
+		// Estadísticas va sola en el menú, pero desde el 11/10 tiene varias secciones (gorrite; la
+		// del bot, 12/10): lleva pestañas. /admin/estadisticas ya no es una página (redirige a
+		// Ventas): sin pestañas.
 		expect(sectionTabs('/admin/estadisticas')).toBe(null);
 		for (const path of [
 			'/admin/estadisticas/ventas',
 			'/admin/estadisticas/asistencia',
-			'/admin/estadisticas/visitas'
+			'/admin/estadisticas/visitas',
+			'/admin/estadisticas/bot'
 		]) {
 			expect(sectionTabs(path)).toEqual({
 				label: 'Secciones de Estadísticas',
@@ -439,6 +442,11 @@ describe('sectionTabs (pestañas de sección)', () => {
 						href: '/admin/estadisticas/visitas',
 						label: 'Visitas al sitio',
 						icon: navItem('estadisticas-visitas')?.icon
+					},
+					{
+						href: '/admin/estadisticas/bot',
+						label: 'Bot de Telegram',
+						icon: navItem('estadisticas-bot')?.icon
 					}
 				]
 			});
@@ -448,7 +456,8 @@ describe('sectionTabs (pestañas de sección)', () => {
 			'Perfiles',
 			'Cuentas',
 			'Plantillas',
-			'Configuración'
+			'Configuración',
+			'Lo que sigo'
 		]);
 		expect(labels('/admin/etiquetas')).toEqual([
 			'Material',
@@ -738,6 +747,19 @@ describe('links a la ficha del evento', () => {
 			'/admin/etiquetas/wiki/Rancheadita-Kinky'
 		);
 		expect(contentEditLink('/wiki')).toBeNull();
+	});
+	it('contentEditLink: un término de la wiki sin entrada va al editor de la etiqueta que muestra', () => {
+		// /wiki/<alias> o en otra forma: la página muestra la etiqueta de verdad (data.tag).
+		expect(contentEditLink('/wiki/rancheadita-kinky', { wikiTag: 'Rancheadita Kinky' })).toBe(
+			'/admin/etiquetas/wiki/Rancheadita-Kinky'
+		);
+		expect(contentEditLink('/wiki/un-alias', { wikiTag: 'Bondage' })).toBe(
+			'/admin/etiquetas/wiki/Bondage'
+		);
+		// Sin etiqueta resuelta, la dirección tal cual.
+		expect(contentEditLink('/wiki/algo', { wikiTag: null })).toBe('/admin/etiquetas/wiki/algo');
+		// Solo cambia la wiki.
+		expect(contentEditLink('/material/guia', { wikiTag: 'Bondage' })).toBe('/edit/material/guia');
 	});
 	it('la agenda tiene su ítem', () => {
 		expect(activeNavItem('/admin/eventos/agenda')?.id).toBe('eventos-agenda');

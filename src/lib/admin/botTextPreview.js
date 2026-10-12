@@ -10,8 +10,9 @@ import { botTextField, escapeTelegramHtml, renderBotText } from '$lib/utils/botT
  * @typedef {{ text: string, disabled?: boolean, link?: boolean, primary?: boolean,
  *   success?: boolean }} PreviewButton
  * @typedef {{ html?: string, buttons?: PreviewButton[][], toast?: string, qr?: boolean,
- *   commands?: { command: string, description: string }[] }} PreviewScreen
- *   `qr`: la foto de un QR de ejemplo arriba del texto (la tarjeta de una entrada).
+ *   rich?: boolean, commands?: { command: string, description: string }[] }} PreviewScreen
+ *   `qr`: la foto de un QR de ejemplo arriba del texto (la tarjeta de una entrada). `rich`: un
+ *   mensaje enriquecido (títulos, párrafos y pie, en bloques).
  * @typedef {{ id: string, label: string, keys: string[],
  *   build: (t: (key: string, vars?: Record<string, string | number>) => string) => PreviewScreen }} PreviewDef
  */
@@ -20,6 +21,10 @@ const SAMPLE_EVENTS = [
 	{ when: 'vie 10 ene · 21:00', title: 'Taller de ejemplo' },
 	{ when: 'sáb 11 ene · 23:00', title: 'Fiesta de ejemplo' }
 ];
+
+const SAMPLE_BODY =
+	'Un texto de ejemplo que explica la práctica con calma: de qué se trata, cómo se habla antes, ' +
+	'qué cuidados tener y dónde seguir aprendiendo con otres.';
 
 const SAMPLE_DOCS = [
 	{ title: '📚 Guía de ejemplo', line: 'Cómo empezar, paso a paso' },
@@ -205,6 +210,33 @@ export const PREVIEW_SCREENS = Object.freeze([
 		})
 	},
 	{
+		id: 'sitio_sin_resultados',
+		label: 'Buscar en todo el sitio: sin resultados (con una etiqueta para seguir)',
+		keys: [
+			'sitio.sin_resultados',
+			'sitio.sugerencias',
+			'sitio.boton_sugerencia',
+			'sitio.seguir_etiqueta',
+			'sitio.boton_seguir',
+			'sitio.proximos'
+		],
+		build: (t) => ({
+			html: [
+				t('sitio.sin_resultados', { busqueda: 'shibari' }),
+				t('sitio.sugerencias'),
+				t('sitio.seguir_etiqueta', { nombre: '🪢 Shibari' }),
+				`${t('sitio.proximos')}\n${SAMPLE_EVENTS.map(eventLine).join('\n')}`
+			].join('\n\n'),
+			buttons: [
+				[{ text: t('sitio.boton_sugerencia', { busqueda: 'suspensión', cantidad: 3 }) }],
+				[{ text: t('sitio.boton_sugerencia', { busqueda: 'cuerdas', cantidad: 12 }) }],
+				[{ text: t('sitio.boton_seguir', { nombre: '🪢 Shibari' }) }],
+				[{ text: t('secciones.boton_material') }],
+				[{ text: t('eventos.boton_buscar_otra') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
 		id: 'sitio_tarjeta',
 		label: 'Tarjeta compacta (material, Kinkipedia, amigues, series)',
 		keys: ['sitio.boton_ver', 'sitio.tipo_material', 'sitio.tipo_wiki', 'sitio.tipo_serie'],
@@ -214,6 +246,76 @@ export const PREVIEW_SCREENS = Object.freeze([
 				[{ text: t('sitio.boton_ver'), link: true }],
 				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
 			]
+		})
+	},
+	{
+		id: 'rico_wiki',
+		label: 'Mensaje enriquecido: una entrada de la Kinkipedia (tarjeta del bot y modo inline)',
+		keys: ['compartir.sigue', 'compartir.pie'],
+		build: (t) => ({
+			html: [
+				`<h3>${escapeTelegramHtml('📖 Entrada de ejemplo')}</h3>`,
+				`<p><i>${escapeTelegramHtml('Una definición corta de ejemplo.')}</i></p>`,
+				`<p>${escapeTelegramHtml(SAMPLE_BODY)}</p>`,
+				`<p><i>${t('compartir.sigue')}</i></p>`,
+				`<footer>${escapeTelegramHtml(t('compartir.pie', { tipo: t('sitio.tipo_wiki') }))}</footer>`
+			].join(''),
+			rich: true,
+			buttons: [
+				[{ text: t('sitio.boton_ver'), link: true }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'rico_evento',
+		label: 'Mensaje enriquecido: un evento mandado (modo inline o desde la Mini App)',
+		keys: ['compartir.tipo_evento', 'compartir.boton_calendario'],
+		build: (t) => ({
+			html: [
+				`<h3>${escapeTelegramHtml(SAMPLE_EVENTS[0].title)}</h3>`,
+				`<p>📅 ${escapeTelegramHtml(SAMPLE_EVENTS[0].when)}</p>`,
+				`<p>📍 ${escapeTelegramHtml('Barrio de ejemplo')}</p>`,
+				`<p><i>${escapeTelegramHtml('Un resumen de ejemplo del evento.')}</i></p>`,
+				`<footer>${escapeTelegramHtml(t('compartir.pie', { tipo: t('compartir.tipo_evento') }))}</footer>`
+			].join(''),
+			rich: true,
+			buttons: [
+				[
+					{ text: t('sitio.boton_ver'), link: true },
+					{ text: t('sitio.boton_entradas'), link: true }
+				],
+				[{ text: t('compartir.boton_calendario'), link: true }]
+			]
+		})
+	},
+	{
+		id: 'miniapp_compartir',
+		label: 'Mini App del calendario: mandar un evento a un chat (la página, aproximada)',
+		keys: ['compartir.miniapp_boton', 'compartir.miniapp_mandado', 'compartir.miniapp_destacado'],
+		build: (t) => ({
+			html: [
+				`<b>${escapeTelegramHtml(t('compartir.miniapp_destacado'))}</b>`,
+				escapeTelegramHtml(`21:00 · Barrio de ejemplo`),
+				`<b>${escapeTelegramHtml(SAMPLE_EVENTS[0].title)}</b>`,
+				'',
+				escapeTelegramHtml(t('compartir.miniapp_mandado'))
+			].join('\n'),
+			buttons: [[{ text: t('compartir.miniapp_boton') }]]
+		})
+	},
+	{
+		id: 'miniapp_compartir_error',
+		label: 'Mini App del calendario: si no se pudo mandar',
+		keys: ['compartir.miniapp_error'],
+		build: (t) => ({
+			html: [
+				escapeTelegramHtml(`21:00 · Barrio de ejemplo`),
+				`<b>${escapeTelegramHtml(SAMPLE_EVENTS[0].title)}</b>`,
+				'',
+				escapeTelegramHtml(t('compartir.miniapp_error'))
+			].join('\n'),
+			buttons: [[{ text: t('compartir.miniapp_boton') }]]
 		})
 	},
 	{
@@ -677,6 +779,58 @@ export const PREVIEW_SCREENS = Object.freeze([
 		keys: ['admin.prendido', 'admin.apagado'],
 		build: (t) => ({
 			toast: `${t('admin.prendido', { aviso: t('admin.aviso_diario') })}\n${t('admin.apagado', { aviso: t('admin.aviso_venta') })}`
+		})
+	},
+	{
+		id: 'admin_aviso_venta',
+		label: 'Avisos (admins): cada venta y cada transferencia',
+		keys: ['admin.venta', 'admin.ventas', 'admin.transferencia'],
+		build: (t) => ({
+			html: [
+				t('admin.venta', {
+					entradas: '1 General (Preventa 1)',
+					evento: 'Fiesta de ejemplo',
+					vendidas: '23/50'
+				}),
+				t('admin.ventas', {
+					entradas: '2 General (Preventa 1)',
+					evento: 'Fiesta de ejemplo',
+					vendidas: '25/50'
+				}),
+				t('admin.transferencia', {
+					entradas: '2 General',
+					evento: 'Fiesta de ejemplo',
+					pendientes: 3
+				})
+			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_resumen',
+		label: 'Avisos (admins): el resumen diario de un evento',
+		keys: [
+			'admin.resumen_titulo',
+			'admin.resumen_vendidas',
+			'admin.resumen_transferencias',
+			'admin.resumen_reservas'
+		],
+		build: (t) => ({
+			html: [
+				`${t('admin.resumen_titulo', { evento: 'Fiesta de ejemplo' })}\n📅 sáb 11 ene · 23:00`,
+				[
+					t('admin.resumen_vendidas', { hora: '9:00', cantidad: 5, vendidas: '23/50' }),
+					t('admin.resumen_transferencias', { cantidad: 2 })
+				].join('\n'),
+				[
+					t('admin.resumen_reservas', { cantidad: 4, por_vencer: 2 }),
+					t('admin.transferencias', { cantidad: 2 }),
+					t('admin.revisar', { cantidad: 1 }),
+					t('admin.espera', { cantidad: 5 })
+				].join('\n'),
+				t('admin.pie')
+			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
 		})
 	}
 ]);

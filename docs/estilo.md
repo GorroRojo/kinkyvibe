@@ -96,10 +96,16 @@ son sombras: esos quedan como están.
   permanentes que no se pueden deshacer (borrar para siempre). «Guardado ✓» y «Deshacer» **no**
   van en rojo: siguen en verde (`--ok`) o neutro.
 - **`--placeholder`**: el texto de ejemplo de los inputs. Gris, bastante más claro que el texto
-  real y en cursiva, para que un campo vacío nunca parezca lleno. La regla está una sola vez en
+  real y en cursiva, para que un campo vacío nunca parezca lleno, pero legible: 4.5:1 o más en
+  claro y en oscuro (gorrite, 12/10). La regla está una sola vez en
   `style.scss`; los componentes no la pisan (lo controla `src/tests/placeholders.test.js`).
 - En el panel hay alias propios (`--text`, `--accent`, `--ok`, `--warn`, `--bad`, `--info`…),
-  listados al principio de `panel.scss`.
+  listados al principio de `panel.scss`. Un **estado malo** (agotadas, borrada, error) va en
+  `--error`, también en `Badge` y `Card` con `bad`: un solo color para «malo». `--bad` (rosa
+  oscuro) queda para el botón destructivo y lo que combina con él; el rosa de la marca, para
+  la marca (gorrite, 12/10).
+- **`--scrim`**: el fondo detrás de diálogos y hojas, violeta translúcido en los dos temas (en
+  oscuro, más oscuro).
 
 ## Foco
 
@@ -109,6 +115,15 @@ son sombras: esos quedan como están.
   escribiendo o eligiendo. En el sitio y en el panel.
 - No saques el `outline` sin poner otra señal de foco igual de visible.
 
+## Toque
+
+- En el celu, todo lo que se toca mide al menos 44px (`--tap`). Para algo chico (un chip, un
+  link suelto), `.tap-target` (`style.scss`): agranda la zona sin cambiar lo que se ve.
+- Si esa zona invisible taparía a un vecino, crece el control mismo: «Comprar entradas» en las
+  tarjetas de las listas (`PostListItem`) mide 44px de alto y va centrado cuando tiene su
+  fila, abajo de las etiquetas; en pantalla ancha queda como estaba (gorrite,
+  `areas-toque-restos`).
+
 ## Piezas
 
 Las piezas compartidas, con las decisiones de gorrite de la revisión de UI. Usá estas antes de
@@ -116,7 +131,7 @@ armar una variante nueva en un componente.
 
 | Pieza                | Cómo se usa                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Botón principal      | `.kv-btn` (panel) / `.pill-btn` (sitio): píldora rosa llena, sin sombra 3D ni violeta. El botón de **comprar entradas** es otro y queda distinto.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Botón principal      | `.kv-btn` (panel) / `.pill-btn` (sitio): píldora rosa llena, sin sombra 3D ni violeta. El botón de **comprar entradas** es otro y queda distinto (`evento/BotonCompra.svelte`); el link de inscripción o de entradas en otro sitio usa el mismo, con el ícono de link externo y «Se abre en <sitio>».                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Botón secundario     | `.kv-btn.ghost` / `.pill-btn.ghost`: píldora blanca con borde **y texto** en el rosa de la marca (`--1`, en el panel `--accent`), no el rosa oscuro. Al pasar el mouse: fondo rosa pálido y texto `--1-ink` / `--accent-text`. Decisión de gorrite, 4/10.                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | Destructivo          | `.danger`: rosa oscuro lleno, **con ícono** (por ejemplo `Trash2`). Para lo que se puede deshacer.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | Permanente           | `.permanent`: rojo (`--error`). Solo para lo que no tiene vuelta atrás (borrar para siempre).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
@@ -136,7 +151,7 @@ armar una variante nueva en un componente.
 | Lista vacía          | `EmptyState.svelte`: ícono de Lucide + título + una línea gris (sin emoji). «Próximamente» sigue con su caja punteada.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Hoja del celu        | Se cierra arrastrando hacia abajo **y** con una X: `use:sheetDrag` de `$lib/admin/sheetDragAction.js`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Acción de texto      | `.kv-link`: violeta, subrayado, con ícono adelante. Los «ver más» tienen su propio estilo.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Tabla                | `.kv-table` para leer; el estilo de planilla editable solo donde se edita.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Tabla                | `Table.svelte` (`.kv-table`) para leer; el estilo de planilla editable solo donde se edita. Columnas que se ordenan con `sort` (abajo, «Revisión del 12/10»).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | Encabezado de página | El de la ficha de evento (imagen, título, fecha, chips, acciones); sin imagen, el ícono grande del tipo, rosa (`--accent`) sobre un cuadrado blanco (`--surface`) con borde `--line` (gorrite, 11/10).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 Una excepción a los avisos: los carteles de la Puerta (`ingreso`) no son `Notice`. Tienen su
@@ -163,6 +178,53 @@ viejo en tres cosas (ya están en la tabla de arriba):
      (`SECTION_LABELS` / `formSections` en `$lib/admin/eventForm.js` y `SECTION_ICONS`, con
      `SectionHeading.svelte`): el mismo ícono de Lucide y el mismo nombre («Fecha y hora», no
      «¿Cuándo es?»), sin emoji.
+
+### Revisión de componentes del 12/10 (decisión de gorrite, paso 3)
+
+gorrite revisó los 9 grupos de `/estilo`. Los botones quedaron aprobados como están (el rosa de la
+marca y su contraste no se tocan). En el resto:
+
+- **Etiquetas y badges.** El `Chip` que se toca mide y pesa lo mismo que los otros (`--text-xs`,
+  negrita). `Badge`: radio `--radius-pill`; `bad` en `--error` (el mismo rojo que `Notice` con
+  error) y un tono nuevo, `accent`, para el rosa de la marca cuando se destaca algo que no es malo
+  («Hoy»). En el panel oscuro, la etiqueta elegida va llena del color aclarado con texto oscuro
+  (el relleno oscuro de antes casi no se distinguía del fondo).
+- **Campos.** `Field size="large"` mide ~54px con letra `--text-base` también en el panel. Un
+  campo apagado tiene fondo gris, borde punteado y texto y etiqueta en `--muted`; una casilla o un
+  interruptor apagado, su texto en `--muted`. La etiqueta del interruptor va en letra normal,
+  como la de la casilla. `--placeholder` llega a 4.5:1 en los dos temas.
+- **Selectores.** `ChoiceCard` conserva el violeta de lo elegido; usa el radio de las tarjetas
+  (`--card-round`) y, apagada, se ve clara y con borde punteado. El hover del segmentado es
+  `--seg-hover` (rosa pálido de la marca, no `--bad-bg`), y la galería usa la misma variable.
+- **Pestañas.** En el celu, **todas** las barras de `Tabs` pasan a la lista ▾ (`menu` es lo de
+  siempre; `menu={false}` deja la tira). Las no elegidas en `--accent-text` (5.4:1 sobre el gris),
+  radios de la escala (`--radius-m`, `--radius-s`), sin hueco abajo cuando la barra es lo último
+  de su caja, contador en `--info-bg` / `--info` (no un amarillo más; el de la barra lateral
+  sigue con `--counter`). El «← Eventos» de `PageHeader` lleva `ArrowLeft` de Lucide y se toca
+  en 44px (`.tap-target`).
+- **Tarjetas.** En `Card`, las acciones van a la derecha del título (el título se parte antes de
+  mandar el botón abajo; baja solo si la tarjeta es angosta). El borde de estado es una sombra de
+  adentro: el título queda alineado con el de las tarjetas lisas.
+- **Avisos.** `UndoToast` se ve como `Notice`: su ícono, `--radius-m`, texto en negrita del tono
+  y sin margen propio (el espacio lo pone la página). El texto de `Notice` ok y aviso pasa 4.5:1
+  en claro (`--ok` es `--3-ink`; `--warn`, más oscuro). `SaveStatus` dice «Guardado» con el
+  ícono `Check` de Lucide.
+- **Diálogos y hojas.** La galería muestra `Dialog` en los tres tonos sin tocar nada, y la hoja
+  entera. `--scrim` del mismo violeta en los dos temas.
+- **Tablas: se pueden ordenar.** En `Table`, una columna con `sort` (`'text'`, `'number'` o
+  `'date'`) se ordena tocando su encabezado o con Enter: de menor a mayor, y otra vez al revés,
+  con `aria-sort` y una flechita de Lucide (`ChevronUp`/`ChevronDown`; `ChevronsUpDown` apagada
+  si no está ordenada). Números, fechas y plata se ordenan como valores (`sortValue(row)` da el
+  número de la plata, no el texto «$ 24.000»), el texto en castellano con los números adentro en
+  orden («KV-2» antes que «KV-10»), las celdas vacías al final y el orden es estable
+  (`tableSort.js`). **Solo las filas que ya están en la página**: una lista que se pagina o se
+  corta en el servidor no se ordena (Cuentas ordena solo si llegaron todas, menos de 500). Lo
+  usan Comunidad › Personas, Comunidad › Cuentas y Ventas › Códigos. Las columnas a la derecha
+  (números) y las `nowrap` no se cortan: si no entran, la tabla se desliza de costado. Con
+  `width` en las columnas, la tabla vacía conserva los anchos de la llena.
+
+Las capturas por grupo (`/estilo?grupo=<grupo>`, los de `GRUPOS` en `src/lib/estilo/secciones.js`)
+están en el informe de impacto visual ([ui-impacto.md](ui-impacto.md)).
 
 Íconos: los de [Lucide](https://lucide.dev) (`@lucide/svelte`) en la interfaz. Los emoji quedan
 para el contenido y las etiquetas.
@@ -209,7 +271,7 @@ arriba (el aspecto es el aprobado; no los rediseñes de paso).
 galería: cada componente con su import, cuándo usarlo y cuándo no, y sus estados (normal, hover y
 foco forzados, apagado, error, elegido, vacío), en el aspecto del panel y del sitio, claro y
 oscuro, celu y compu (también por la URL: `?superficie=sitio&tema=oscuro&ancho=celu`), con datos
-inventados. Solo existe en `npm run dev` y en los deploys de preview (como el modo demo,
+inventados (`?grupo=campos` muestra solo un grupo de la revisión). Solo existe en `npm run dev` y en los deploys de preview (como el modo demo,
 [demo.md](demo.md); que también esté en `vite dev`: confirmado por gorrite, 5/10): en producción da 404 y no está en el bundle (lo controlan
 `src/lib/estilo/estiloGuard.test.js`, `tests/smoke.spec.js` y `node scripts/demo/guard.js bundle`).
 El informe de impacto visual ([ui-impacto.md](ui-impacto.md)) la fotografía, así un cambio en un
@@ -239,8 +301,8 @@ componente se ve aunque ninguna página principal lo use.
 | Tabla para leer                                                                 | `$lib/components/ui/Table.svelte`                                                  |
 
 El ícono grande de cada tipo para `PageHeader` (sin imagen) sale de `typeIcon` en
-`$lib/admin/typeIcons.js`: lo usan la ficha de un perfil (persona, proyecto o lugar) y la de un
-material.
+`$lib/admin/typeIcons.js`: lo usan la ficha de un perfil (persona, proyecto o lugar), la de un
+material y, en Eventos › Series, la tarjeta de una serie sin imagen.
 
 Los imports viejos (`$lib/components/admin/panel/Card.svelte`, `Badge`, `EmptyState`,
 `PageHeader`, `Tabs`, `ConfirmDialog`, `$lib/components/TagChip.svelte` y

@@ -88,6 +88,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 		'estadisticas asistencia check-in vinieron primera vez vuelven retorno no vinieron por evento',
 	'estadisticas-visitas':
 		'estadisticas visitas al sitio analytics trafico paginas mas vistas paises dispositivos origen embudo conversion',
+	'estadisticas-bot':
+		'estadisticas bot de telegram uso quien usa busquedas inline mini app pantallas comandos',
 	'no-listadas': 'no listadas borradores ocultas sin listar',
 	biblioteca: 'biblioteca imagenes fotos archivos documentos pdf videos subir borrar sacar media',
 	'contenido-base': 'base de datos importar eventos md archivos migrar coinciden paridad',
@@ -114,7 +116,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	etiquetas: 'etiquetas tags arbol kinkipedia wiki categorias alias renombrar juntar',
 	material: 'material guias articulos nota notas kinkipedia contenido publicaciones',
 	tienda: 'tienda productos merch vender',
-	'lo-que-sigo': 'lo que sigo seguimientos avisos seguir',
+	'lo-que-sigo':
+		'lo que sigo seguimientos avisos seguir seguidores mas seguido ranking avisame telegram',
 	bandeja: 'bandeja mails recibidos respuestas inbox',
 	colecciones: 'colecciones listas agrupar material',
 	videos: 'videos grabaciones youtube'
@@ -139,6 +142,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	estadisticas: 'chart',
 	'estadisticas-asistencia': 'users',
 	'estadisticas-visitas': 'eye',
+	'estadisticas-bot': 'chart',
 	material: 'book',
 	amigues: 'person',
 	etiquetas: 'tag',

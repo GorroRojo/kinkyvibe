@@ -15,11 +15,25 @@
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import { csvFilename } from '$lib/admin/csv.js';
+	import { Table } from '$lib/components/ui';
 
 	export let data;
 
 	/** @param {number | null | undefined} ms */
 	const day = (ms) => (ms ? new Date(ms).toISOString().slice(0, 10) : '');
+	// Se ordena solo si están todas en la página: con 500 o más, el servidor manda las 500 más
+	// nuevas (las demás se buscan por mail) y ordenar esas sería un orden falso.
+	$: complete = data.accounts.length < 500;
+	/** @type {import('$lib/components/ui/tableSort.js').TableColumn[]} */
+	$: tableColumns = [
+		{ key: 'email', label: 'Cuenta', sort: complete && 'text' },
+		{ key: 'createdAt', label: 'Creada', class: 'small', nowrap: true, sort: complete && 'date' },
+		{ key: 'verified', label: 'Mail verificado', class: 'hide-sm small' },
+		{ key: 'hasPassword', label: 'Contraseña', class: 'hide-sm small' },
+		{ key: 'profiles', label: 'Perfiles', align: 'right', sort: complete && 'number' },
+		{ key: 'canHaveProfiles', label: 'Permiso', title: 'Puede tener perfiles' }
+	];
+
 	/** @type {import('$lib/admin/csv.js').CsvColumn<(typeof data.accounts)[number]>[]} */
 	const columns = [
 		{ label: 'email', value: (a) => a.email ?? '' },
@@ -78,38 +92,31 @@
 			title={data.q ? 'No hay cuentas con ese mail' : 'Todavía no hay cuentas'}
 		/>
 	{:else}
-		<div class="kv-table-wrap">
-			<table class="kv-table">
-				<thead>
-					<tr>
-						<th>Cuenta</th>
-						<th>Creada</th>
-						<th class="hide-sm">Mail verificado</th>
-						<th class="hide-sm">Contraseña</th>
-						<th class="r">Perfiles</th>
-						<th><abbr title="Puede tener perfiles">Permiso</abbr></th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each data.accounts as a (a.id)}
-						<tr class:gone={a.deletedAt}>
-							<td>
-								<a class="name" href={accountHref(a.id)}>{a.email ?? 'Cuenta borrada'}</a>
-								{#if a.deletedAt}<Badge tone="bad">borrada {fmtDate(a.deletedAt)}</Badge>{/if}
-							</td>
-							<td class="small">{fmtDate(a.createdAt)}</td>
-							<td class="hide-sm small">{a.verified ? 'Sí' : 'No'}</td>
-							<td class="hide-sm small">{a.hasPassword ? 'Sí' : 'No'}</td>
-							<td class="r num">{a.profiles}</td>
-							<td>
-								{#if a.canHaveProfiles}<Badge tone="ok">sí</Badge>{:else}<span class="muted"
-										>no</span
-									>{/if}
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
+		<div class="accounts">
+			<Table
+				columns={tableColumns}
+				rows={data.accounts}
+				rowKey="id"
+				rowClass={(a) => (a.deletedAt ? 'gone' : '')}
+			>
+				<svelte:fragment slot="cell" let:row={a} let:column>
+					{#if column.key === 'email'}
+						<a class="name" href={accountHref(a.id)}>{a.email ?? 'Cuenta borrada'}</a>
+						{#if a.deletedAt}<Badge tone="bad">borrada {fmtDate(a.deletedAt)}</Badge>{/if}
+					{:else if column.key === 'createdAt'}
+						{fmtDate(a.createdAt)}
+					{:else if column.key === 'verified'}
+						{a.verified ? 'Sí' : 'No'}
+					{:else if column.key === 'hasPassword'}
+						{a.hasPassword ? 'Sí' : 'No'}
+					{:else if column.key === 'profiles'}
+						{a.profiles}
+					{:else if column.key === 'canHaveProfiles'}
+						{#if a.canHaveProfiles}<Badge tone="ok">sí</Badge>{:else}<span class="muted">no</span
+							>{/if}
+					{/if}
+				</svelte:fragment>
+			</Table>
 		</div>
 		{#if data.accounts.length >= 500}
 			<p class="kv-note">Se muestran las 500 más nuevas; buscá por mail para encontrar otras.</p>
@@ -132,14 +139,14 @@
 		overflow-wrap: anywhere;
 		margin-right: 0.3rem;
 	}
-	.gone .name {
+	.accounts :global(.gone .name) {
 		color: var(--muted);
 	}
-	.small {
+	.accounts :global(td.small) {
 		font-size: var(--text-sm);
 	}
 	@media (max-width: 700px) {
-		.hide-sm {
+		.accounts :global(.hide-sm) {
 			display: none;
 		}
 	}

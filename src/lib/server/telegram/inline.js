@@ -21,6 +21,9 @@ import { escapeHtml, formatWhen } from './format.js';
 import { truncate } from './keyboards.js';
 import { isHttps, tgTime } from './screens.js';
 import { botText } from './texts.js';
+import { startLink, startParam } from './nav.js';
+import { richDocMessage } from './rich.js';
+import { suggestSearches } from './searchSuggest.js';
 
 /** @typedef {import('$lib/utils/search').SearchDoc} SearchDoc */
 /** @typedef {import('$lib/utils/search').PreparedIndex} PreparedIndex */
@@ -66,9 +69,30 @@ import { botText } from './texts.js';
 /**
  * @typedef {{
  *   source: () => Promise<InlineSource | null>,
- *   events?: (metas: Record<string, any>[]) => Promise<Map<string, InlineEventInfo>>
- * }} InlineDeps `events`: el lugar y la venta de los eventos de la página (events.js).
+ *   events?: (metas: Record<string, any>[]) => Promise<Map<string, InlineEventInfo>>,
+ *   tags?: () => Promise<TagManager | null>,
+ *   rich?: boolean,
+ *   botUsername?: string | null
+ * }} InlineDeps `events`: el lugar y la venta de los eventos de la página (events.js). `tags`:
+ *   el árbol de etiquetas del sitio, para lo que se ofrece cuando no hay resultados
+ *   (noResults.js: madres, hijas y relacionadas, y «Seguir»). `rich`: con
+ *   `telegram_enriquecido` prendido (y el token, para poder volver a la tarjeta de siempre), los
+ *   resultados van como mensajes enriquecidos (rich.js). `botUsername`: con el interruptor
+ *   prendido, los eventos suman «📅 Abrir en el calendario» (la Mini App en ese evento).
  */
+
+/**
+ * El link que abre la Mini App del calendario (la Main Mini App del bot) en un evento:
+ * `t.me/<bot>?startapp=ev-<id>`, con el mismo id que los deep links del bot (nav.js). La página
+ * lo recibe como `tgWebAppStartParam`. `null` sin el usuario del bot.
+ *
+ * @param {string | null | undefined} botUsername
+ * @param {string} slug
+ */
+export function miniAppEventLink(botUsername, slug) {
+	const link = startLink(botUsername, startParam({ screen: 'event', slug }));
+	return link ? link.replace('?start=', '?startapp=') : null;
+}
 
 /** Resultados por página (Telegram acepta hasta 50). */
 export const INLINE_PAGE = 20;
@@ -122,10 +146,13 @@ export function parseInlineQuery(query) {
 const startOf = (doc) => (doc.d ? Date.parse(doc.d) : NaN);
 
 /**
+ * Los próximos eventos del índice, del más cercano (también para Buscar sin resultados,
+ * noResults.js).
+ *
  * @param {readonly SearchDoc[]} docs
  * @param {number} now
  */
-function upcomingEvents(docs, now) {
+export function upcomingEvents(docs, now) {
 	return docs
 		.filter((d) => d.c === 'calendario' && startOf(d) > now)
 		.sort((a, b) => startOf(a) - startOf(b));
@@ -169,6 +196,23 @@ export function selectInline(source, { types, text }, now) {
 		.filter(allowed)
 		.sort((a, b) => a.t.localeCompare(b.t, 'es'))
 		.slice(0, INLINE_MAX);
+}
+
+/**
+ * Cuando lo buscado no trae nada: lo que trae la primera búsqueda parecida (con el mismo prefijo,
+ * si había), o `null`.
+ *
+ * @param {InlineSource} source
+ * @param {{ types: readonly SearchDoc['c'][] | null, text: string }} query
+ * @param {number} now
+ * @returns {{ query: string, docs: SearchDoc[] } | null}
+ */
+export function similarInline(source, query, now) {
+	for (const s of suggestSearches(source, query.text).suggestions) {
+		const docs = selectInline(source, { types: query.types, text: s.query }, now);
+		if (docs.length) return { query: s.query, docs };
+	}
+	return null;
 }
 
 /** Lado de la miniatura, en píxeles. */
@@ -281,33 +325,40 @@ export function inlineCard(doc, extra, event, ctx) {
 }
 
 /**
- * Un resultado (`InlineQueryResultArticle`).
+ * Un resultado (`InlineQueryResultArticle`). Con `rich`, el mensaje que se manda es enriquecido
+ * (`InputRichMessageContent`, Bot API 10.1: el contenido se lee adentro del chat, sin imágenes por
+ * URL); sin `rich`, o si no hay nada más que el título, la tarjeta de siempre. Con `botUsername`,
+ * un evento suma «📅 Abrir en el calendario».
  *
  * @param {string} id
  * @param {SearchDoc} doc
  * @param {InlineExtra | undefined} extra
  * @param {InlineEventInfo | undefined} event
- * @param {{ origin: string, now: number }} ctx
+ * @param {{ origin: string, now: number, rich?: boolean, botUsername?: string | null }} ctx
  */
 export function inlineArticle(id, doc, extra, event, ctx) {
 	const card = inlineCard(doc, extra, event, ctx);
+	const slug = eventSlugOf(doc);
+	const calendar = slug && isHttps(ctx.origin) ? miniAppEventLink(ctx.botUsername, slug) : null;
+	if (calendar)
+		card.keyboard.push([{ text: botText('compartir.boton_calendario'), url: calendar }]);
+	const rich = ctx.rich ? richDocMessage(doc, { title: titleOf(doc), now: ctx.now, event }) : null;
 	const thumb = inlineThumbUrl(extra?.image, ctx.origin);
-	// Como la tarjeta del bot (deliver.js): la vista previa grande del link (la imagen para compartir
-	// de la página) arriba del texto, así el mensaje mandado también lleva foto (gorrite, 11/10).
-	// Sin https Telegram no arma la vista previa: se apaga.
+	// La vista previa del link (la imagen para compartir de la página) arriba del texto, así el
+	// mensaje mandado también lleva foto (gorrite, 11/10), pero chica, al costado, como cuando une
+	// usuarie achica la vista previa al mandar un link (gorrite, 12/10). Telegram lo toma como
+	// preferencia. Sin https no arma la vista previa: se apaga.
 	const preview = isHttps(ctx.origin)
-		? { url: `${ctx.origin}${doc.h}`, prefer_large_media: true, show_above_text: true }
+		? { url: `${ctx.origin}${doc.h}`, prefer_small_media: true, show_above_text: true }
 		: { is_disabled: true };
 	return {
 		type: 'article',
 		id,
 		title: titleOf(doc),
 		description: inlineDescription(doc, extra, event, ctx.now),
-		input_message_content: {
-			message_text: card.text,
-			parse_mode: 'HTML',
-			link_preview_options: preview
-		},
+		input_message_content: rich
+			? { rich_message: rich }
+			: { message_text: card.text, parse_mode: 'HTML', link_preview_options: preview },
 		...(card.keyboard.length ? { reply_markup: { inline_keyboard: card.keyboard } } : {}),
 		...(thumb
 			? { thumbnail_url: thumb, thumbnail_width: THUMB_SIZE, thumbnail_height: THUMB_SIZE }
@@ -382,7 +433,10 @@ export async function planInlineQuery(inlineQuery, deps) {
 	if (!source) return null;
 
 	const query = parseInlineQuery(inlineQuery.query);
-	const all = selectInline(source, query, now);
+	const found = selectInline(source, query, now);
+	// Sin resultados: lo de la búsqueda parecida que más se acerca (searchSuggest.js), si hay.
+	const similar = found.length === 0 && query.text ? similarInline(source, query, now) : null;
+	const all = similar ? similar.docs : found;
 	const offset = parseOffset(inlineQuery.offset);
 	const page = all.slice(offset, offset + INLINE_PAGE);
 	const next = offset + INLINE_PAGE < all.length ? String(offset + INLINE_PAGE) : '';
@@ -404,33 +458,52 @@ export async function planInlineQuery(inlineQuery, deps) {
 			);
 		}
 	}
-	const ctx = { origin: deps.origin, now };
-	const results = page.map((doc, i) => {
-		const slug = eventSlugOf(doc);
-		return inlineArticle(
-			String(offset + i),
-			doc,
-			source.extras.get(doc.h),
-			slug ? events.get(slug) : undefined,
-			ctx
-		);
-	});
-	/** @type {Record<string, unknown>} */
-	const answer = {
-		method: 'answerInlineQuery',
-		inline_query_id: id,
-		results,
-		cache_time: INLINE_CACHE_SECONDS,
-		is_personal: false,
-		next_offset: next
-	};
-	if (offset === 0 && results.length === 0) {
-		answer.button = {
-			text: botText(
-				query.text || query.types ? 'sitio.inline_sin_resultados' : 'sitio.inline_vacio'
-			),
-			start_parameter: SEARCH_START
+	/** @param {boolean} rich */
+	const answerWith = (rich) => {
+		const ctx = {
+			origin: deps.origin,
+			now,
+			...(rich ? { rich: true } : {}),
+			...(deps.botUsername ? { botUsername: deps.botUsername } : {})
 		};
-	}
-	return { steps: [/** @type {import('./deliver.js').BotMethod} */ (answer)] };
+		const results = page.map((doc, i) => {
+			const slug = eventSlugOf(doc);
+			return inlineArticle(
+				String(offset + i),
+				doc,
+				source.extras.get(doc.h),
+				slug ? events.get(slug) : undefined,
+				ctx
+			);
+		});
+		/** @type {Record<string, unknown>} */
+		const answer = {
+			method: 'answerInlineQuery',
+			inline_query_id: id,
+			results,
+			cache_time: INLINE_CACHE_SECONDS,
+			is_personal: false,
+			next_offset: next
+		};
+		if (similar && offset === 0) {
+			answer.button = {
+				text: botText('sitio.inline_sugerencia', {
+					busqueda: truncate(query.text, 16),
+					sugerencia: truncate(similar.query, 16)
+				}),
+				start_parameter: SEARCH_START
+			};
+		} else if (offset === 0 && results.length === 0) {
+			answer.button = {
+				text: botText(
+					query.text || query.types ? 'sitio.inline_sin_resultados' : 'sitio.inline_vacio'
+				),
+				start_parameter: SEARCH_START
+			};
+		}
+		return /** @type {import('./deliver.js').BotMethod} */ (answer);
+	};
+	// Enriquecidos: si Telegram rechaza la respuesta, la misma con las tarjetas de siempre.
+	if (deps.rich) return { steps: [answerWith(true)], fallback: [answerWith(false)] };
+	return { steps: [answerWith(false)] };
 }

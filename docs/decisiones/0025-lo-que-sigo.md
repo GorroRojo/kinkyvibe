@@ -1,7 +1,8 @@
 # 0025. "Lo que sigo"
 
 - Fecha: 2026-10-01
-- Estado: Aceptada
+- Estado: Aceptada. [0043](0043-lo-que-sigo-en-el-panel.md) aclara qué ven les admins en el
+  panel.
 
 ## Contexto
 

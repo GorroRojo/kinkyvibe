@@ -445,7 +445,7 @@
 										<a class="ev-title" href={eventLink(e.slug, { tickets: e.ticketed })}
 											>{e.title}</a
 										>
-										{#if e.today}<Badge tone="bad">Hoy</Badge>{/if}
+										{#if e.today}<Badge tone="accent">Hoy</Badge>{/if}
 										<Badge tone={st.tone}>{st.text}</Badge>
 										{#if e.fondoEnabled}<Badge tone="info">Fondo</Badge>{/if}
 										{#if e.transfers}<Badge tone="warn"

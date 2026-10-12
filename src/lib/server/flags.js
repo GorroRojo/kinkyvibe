@@ -66,6 +66,34 @@ export const FLAGS = Object.freeze({
 			'0054 para «Mis avisos».',
 		envVar: 'TELEGRAM_ADMIN_ENABLED'
 	},
+	telegram_enriquecido: {
+		label: 'Telegram: mensajes enriquecidos y compartir',
+		description:
+			'Cuando el bot manda algo del sitio (una entrada de la Kinkipedia, un material, un evento), ' +
+			'el contenido se lee adentro del chat, con «Ver en el sitio» abajo. En la Mini App del ' +
+			'calendario, cada evento tiene «Mandar a un chat», y el evento mandado trae un botón que ' +
+			'abre el calendario justo en ese evento. Solo lo público, lo mismo que el sitio sin cuenta. ' +
+			'Necesita el bot prendido. Apagado, el bot manda las tarjetas de siempre.',
+		tech:
+			'docs/telegram.md («Mensajes enriquecidos y compartir»). Los mensajes enriquecidos (Bot API ' +
+			'10.1–10.3) salen solo con TELEGRAM_BOT_TOKEN; si Telegram los rechaza, sale la tarjeta de ' +
+			'siempre. Compartir usa savePreparedInlineMessage + shareMessage (Bot API 8.0). «Abrir en el ' +
+			'calendario» necesita TELEGRAM_BOT_USERNAME y la Main Mini App registrada en @BotFather.',
+		envVar: 'TELEGRAM_ENRIQUECIDO_ENABLED'
+	},
+	telegram_estadisticas: {
+		label: 'Telegram: estadísticas de uso',
+		description:
+			'Cuenta cómo se usa el bot, para Estadísticas → Bot de Telegram: quién lo usa y cuánto (un ' +
+			'número por persona y por día) y, aparte y sumado por semana, qué pantallas, búsquedas y ' +
+			'cosas se usan. Nunca se guarda qué buscó o miró cada persona. Necesita el bot prendido. ' +
+			'Apagado, no se cuenta nada.',
+		tech:
+			'docs/telegram.md («Estadísticas de uso»), decisión 0045. Necesita la migración 0057 ' +
+			'(tablas telegram_uso_personas y telegram_uso_totales). Los resultados inline elegidos ' +
+			'necesitan /setinlinefeedback en @BotFather y volver a registrar el webhook.',
+		envVar: 'TELEGRAM_ESTADISTICAS_ENABLED'
+	},
 	propinas_fondo: {
 		label: 'Donaciones únicas al Fondo',
 		description:
@@ -89,6 +117,20 @@ export const FLAGS = Object.freeze({
 			'docs/tickets.md, «Lista de espera». Antes de prenderlo: migración 0053. Tablas ' +
 			'waitlist_entries y waitlist_sends; clave `lista_espera` del evento.',
 		envVar: 'LISTA_ESPERA_ENABLED'
+	},
+	combo_codigos: {
+		label: 'Códigos combo entre eventos',
+		description:
+			'En la pestaña Códigos de un evento se puede armar un combo con otro evento: quien compra ' +
+			'una entrada del primero (online, en la puerta o cargada a mano) recibe en el mail de sus entradas un código de descuento ' +
+			'para el segundo, de un solo uso y solo para su mail. Si la compra se reembolsa, el código ' +
+			'deja de valer. Apagado, no se arman combos ni se generan códigos nuevos (los que ya se ' +
+			'mandaron siguen valiendo).',
+		tech:
+			'docs/tickets.md, «Códigos combo». Antes de prenderlo: migración 0056 (tabla ' +
+			'ticket_combos y columnas buyer_email y source_order_id de discount_codes). ' +
+			'src/lib/server/tickets/combos.js.',
+		envVar: 'COMBO_CODIGOS_ENABLED'
 	}
 });
 
@@ -230,6 +272,15 @@ export function propinasFondoEnabled(platform) {
  */
 export function listaEsperaEnabled(platform) {
 	return isFlagOn(getDB(platform), 'lista_espera');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidos los códigos combo entre eventos? (docs/tickets.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function comboCodigosEnabled(platform) {
+	return isFlagOn(getDB(platform), 'combo_codigos');
 }
 
 /**

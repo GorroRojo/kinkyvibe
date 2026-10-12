@@ -3,8 +3,9 @@
 	import { fade } from 'svelte/transition';
 	import { goto } from '$app/navigation';
 	import { Search, X, LoaderCircle } from '@lucide/svelte';
-	import { searchOpen } from '$lib/utils/stores';
-	import { argDateList } from '$lib/utils/dates.js';
+	import { searchOpen, searchPrefill } from '$lib/utils/stores';
+	import { get } from 'svelte/store';
+	import { argDateList, parseSiteDate } from '$lib/utils/dates.js';
 
 	/** Resultados que se muestran por grupo antes de "Ver más". */
 	const PER_GROUP = 5;
@@ -103,6 +104,11 @@
 	async function open() {
 		previouslyFocused = document.activeElement;
 		document.body.style.overflow = 'hidden';
+		const prefill = get(searchPrefill);
+		if (prefill) {
+			query = prefill;
+			searchPrefill.set('');
+		}
 		ensureIndex();
 		await tick();
 		input?.focus();
@@ -202,7 +208,7 @@
 	}
 
 	/** @param {string} d */
-	const formatDate = (d) => argDateList(new Date(d));
+	const formatDate = (d) => argDateList(parseSiteDate(d));
 </script>
 
 <svelte:window on:keydown={onWindowKeydown} />

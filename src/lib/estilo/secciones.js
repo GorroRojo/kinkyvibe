@@ -40,7 +40,7 @@ export const SECCIONES = [
 		nombre: 'Tabs',
 		importa: "import { Tabs } from '$lib/components/ui';",
 		cuando:
-			'Pestañas que son direcciones (las del evento, las de una sección). La actual es una tarjeta blanca con texto violeta sobre el fondo gris.',
+			'Pestañas que son direcciones (las del evento, las de una sección). La actual es una tarjeta blanca con texto violeta sobre el fondo gris. En el celu, todas pasan a la lista ▾ (el botón con el nombre de la actual).',
 		cuandoNo:
 			'No para elegir un valor dentro de un formulario (eso es Segmented). El menú lateral y el del sitio tienen su propio «estás acá» (violeta sobre lila).',
 		soloPanel: true
@@ -50,7 +50,7 @@ export const SECCIONES = [
 		nombre: 'Badge',
 		importa: "import { Badge } from '$lib/components/ui';",
 		cuando:
-			'Un estado chiquito: siempre con ícono (si no pasás `icon`, va el del tono). Muchas para comparar: el color dice qué significa; pocas: que combine con el componente.',
+			'Un estado chiquito: siempre con ícono (si no pasás `icon`, va el del tono). Muchas para comparar: el color dice qué significa; pocas: que combine con el componente. «Malo» (`bad`) va en el rojo de los errores, como Notice; `accent` es el rosa de la marca, para destacar.',
 		cuandoNo: 'No para etiquetas del árbol (TagChip) ni como botón: no se toca.',
 		soloPanel: true
 	},
@@ -77,7 +77,7 @@ export const SECCIONES = [
 		nombre: 'Switch',
 		importa: "import { Switch } from '$lib/components/ui';",
 		cuando:
-			'Prender o apagar algo al instante, sin Guardar (como Ajustes › Interruptores), con «Guardando…» → «Guardado ✓» al lado.',
+			'Prender o apagar algo al instante, sin Guardar (como Ajustes › Interruptores), con «Guardando…» → «Guardado» (con el ícono de Lucide) al lado. La etiqueta va en letra normal, como la de Checkbox.',
 		cuandoNo: 'En un formulario con botón Guardar va Checkbox.',
 		soloPanel: true
 	},
@@ -158,7 +158,8 @@ export const SECCIONES = [
 		id: 'savestatus',
 		nombre: 'SaveStatus',
 		importa: "import { SaveStatus } from '$lib/components/ui';",
-		cuando: 'En qué quedó un guardado automático: «Guardando…», «Guardado ✓» o el error, en rojo.',
+		cuando:
+			'En qué quedó un guardado automático: «Guardando…», «Guardado» con el ícono de Lucide (no un «✓» de texto) o el error, en rojo.',
 		cuandoNo:
 			'No para la barra de guardar del formulario de eventos (tiene la suya). No uses rojo para «Guardado».',
 		soloPanel: true
@@ -167,8 +168,28 @@ export const SECCIONES = [
 		id: 'table',
 		nombre: 'Table',
 		importa: "import { Table } from '$lib/components/ui';",
-		cuando: 'Tablas para leer: encabezados violetas, una línea por fila, se desliza en el celu.',
-		cuandoNo: 'El estilo de planilla editable va solo donde se edita.',
+		cuando:
+			'Tablas para leer: encabezados violetas, una línea por fila; si no entra, se desliza de costado (los códigos y la plata no se cortan). Con `sort` en una columna, se ordena tocando su encabezado (números, fechas y plata como valores).',
+		cuandoNo:
+			'El estilo de planilla editable va solo donde se edita. No ordenes una lista que se pagina en el servidor: el orden de la página sería falso.',
 		soloPanel: true
 	}
 ];
+
+/**
+ * Los grupos de la revisión de gorrite (paso 3 del sistema de diseño): qué secciones van juntas.
+ * `/estilo?grupo=<id>` muestra solo las de ese grupo (lo usan las capturas por grupo del informe
+ * de impacto visual, scripts/ui-impacto/pages.js).
+ * @type {Readonly<Record<string, readonly string[]>>}
+ */
+export const GRUPOS = Object.freeze({
+	botones: ['button'],
+	'etiquetas-y-badges': ['chip', 'badge'],
+	campos: ['field', 'checkbox', 'switch'],
+	selectores: ['segmented', 'choice'],
+	'navegacion-y-encabezados': ['tabs', 'pageheader'],
+	'tarjetas-y-vacios': ['card', 'empty'],
+	'avisos-y-guardado': ['notice', 'savestatus'],
+	'dialogos-y-hojas': ['dialog', 'sheet'],
+	tablas: ['table']
+});

@@ -44,7 +44,10 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
   - `*/15 * * * *` → recordatorios: le pasa `POST /api/cron/recordatorios` (con `CRON_SECRET`)
     directo al fetch de SvelteKit, sin salir a internet. Es el mismo endpoint de siempre, así que
     corre la misma función que corría con el Worker aparte.
-  - `0 6 * * *` (03:00 en Argentina) → backup de la base a R2 y limpieza de los viejos.
+  - `0 6 * * *` (03:00 en Argentina) → backup de la base a R2 y limpieza de los viejos. Después,
+    sin hacer fallar la corrida: el chequeo de integridad de los objetos, el resumen mensual de las
+    visitas y la limpieza de las sesiones de cuentas que ya no tienen cookie
+    ([cuentas.md](cuentas.md)).
   - Los crons **solo corren en producción**; los Previews no los ejecutan.
 - **Modo demo en los Previews**: `__DEPLOY_BRANCH__` se fija al compilar con `WORKERS_CI_BRANCH`
   (la pone Workers Builds; `src/lib/server/deployBranch.js`). `CF_PAGES_BRANCH`, la de Pages,
@@ -285,6 +288,10 @@ npx wrangler d1 execute DB --local --persist-to .wrangler/restore --command "SEL
 El script compara tabla por tabla la cantidad de filas con la que anotó el backup y avisa si algo
 no coincide. También acepta un archivo ya bajado (`npm run db:restore -- backup.sql.gz --local`)
 o un manual (`d1/manual/…`). Para repetir el simulacro, borrá `.wrangler/restore`.
+
+En PowerShell, `npm run … -- <args>` pierde el `--` y npm se queda con `--local`: corré el script
+directo, `node scripts/d1-restore.js 2026-10-01 --local`. El script llama a wrangler con node, sin
+shell, así que en Windows el SQL de las consultas no se parte en los espacios.
 
 **c) Restaurar de verdad un backup viejo → en una base nueva:**
 

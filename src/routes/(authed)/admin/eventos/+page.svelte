@@ -30,6 +30,7 @@
 		searchWords
 	} from '$lib/admin/eventList.js';
 	import { todayInArgentina } from '$lib/utils/eventDraft.js';
+	import { thumbnailUrl } from '$lib/utils/seo.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -237,7 +238,15 @@
 							>{/if}
 					</div>
 					{#if e.thumb}
-						<img class="thumb" src={e.thumb} alt="" loading="lazy" decoding="async" />
+						<img
+							class="thumb"
+							src={thumbnailUrl(e.thumb, $page.url.hostname)}
+							alt=""
+							width="64"
+							height="64"
+							loading="lazy"
+							decoding="async"
+						/>
 					{:else}
 						<div class="thumb noimg" aria-hidden="true"></div>
 					{/if}

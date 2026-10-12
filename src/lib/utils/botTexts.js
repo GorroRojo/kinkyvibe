@@ -49,6 +49,7 @@ export const BOT_TEXT_SECTIONS = Object.freeze([
 	{ id: 'secciones', label: 'Secciones del sitio (Material, Kinkipedia, Amigues, Series)' },
 	{ id: 'entradas', label: 'Mis entradas (con el QR para la puerta)' },
 	{ id: 'miniapp', label: 'Mini App del calendario (la página /telegram/app)' },
+	{ id: 'compartir', label: 'Mensajes enriquecidos y compartir desde la Mini App' },
 	{ id: 'errores', label: 'Errores' }
 ]);
 
@@ -935,7 +936,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'admin',
 			'message',
 			'Mis avisos: la pantalla',
-			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.'
+			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.'
 		),
 		f('admin.aviso_diario', 'admin', 'button', 'Mis avisos: resumen diario', 'Resumen diario', {
 			max: 56,
@@ -971,6 +972,126 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 		f('admin.apagado', 'admin', 'toast', 'Mis avisos: al apagar uno', 'Apagado: {aviso}', {
 			vars: [{ name: 'aviso', label: 'el aviso', sample: 'Resumen diario' }]
 		}),
+		f(
+			'admin.venta',
+			'admin',
+			'line',
+			'Aviso «Cada venta»: una entrada',
+			'🎟 Se vendió {entradas} de **{evento}** · {vendidas}',
+			{
+				vars: [
+					{
+						name: 'entradas',
+						label: 'cuántas, el tipo y el tramo',
+						sample: '1 General (Preventa 1)'
+					},
+					V.evento,
+					{
+						name: 'vendidas',
+						label: 'las vendidas del tipo contra su cupo (o solo las vendidas, sin cupo)',
+						sample: '23/50'
+					}
+				],
+				required: ['entradas', 'evento'],
+				help: 'Solo cantidades: nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.ventas',
+			'admin',
+			'line',
+			'Aviso «Cada venta»: más de una entrada',
+			'🎟 Se vendieron {entradas} de **{evento}** · {vendidas}',
+			{
+				vars: [
+					{
+						name: 'entradas',
+						label: 'cuántas, el tipo y el tramo',
+						sample: '2 General (Preventa 1)'
+					},
+					V.evento,
+					{
+						name: 'vendidas',
+						label: 'las vendidas del tipo contra su cupo (o solo las vendidas, sin cupo)',
+						sample: '25/50'
+					}
+				],
+				required: ['entradas', 'evento'],
+				help: 'Solo cantidades: nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.transferencia',
+			'admin',
+			'line',
+			'Aviso «Cada transferencia»: llegó una para confirmar',
+			'💸 Transferencia para confirmar: {entradas} de **{evento}** · {pendientes} por confirmar',
+			{
+				vars: [
+					{ name: 'entradas', label: 'cuántas, el tipo y el tramo', sample: '2 General' },
+					V.evento,
+					{
+						name: 'pendientes',
+						label: 'cuántas transferencias del evento esperan confirmación',
+						sample: '3'
+					}
+				],
+				required: ['entradas', 'evento'],
+				help: 'Solo cantidades: nunca dice quién compró.'
+			}
+		),
+		f(
+			'admin.resumen_titulo',
+			'admin',
+			'line',
+			'Resumen diario: el título (uno por evento)',
+			'☀️ **Resumen diario · {evento}**',
+			{ vars: [V.evento], required: ['evento'] }
+		),
+		f(
+			'admin.resumen_vendidas',
+			'admin',
+			'line',
+			'Resumen diario: lo vendido desde ayer',
+			'🎟 Desde ayer a las {hora}: {cantidad} vendidas · en total: {vendidas}',
+			{
+				vars: [
+					{ name: 'hora', label: 'la hora del resumen', sample: '9:00' },
+					{ name: 'cantidad', label: 'cuántas se vendieron desde ayer', sample: '5' },
+					{
+						name: 'vendidas',
+						label: 'las vendidas del evento contra el cupo (o solo las vendidas, sin cupo)',
+						sample: '23/50'
+					}
+				],
+				required: ['cantidad']
+			}
+		),
+		f(
+			'admin.resumen_transferencias',
+			'admin',
+			'line',
+			'Resumen diario: transferencias que llegaron desde ayer (solo si hay)',
+			'💸 Transferencias nuevas desde ayer: {cantidad}',
+			{
+				vars: [{ name: 'cantidad', label: 'cuántas órdenes', sample: '2' }],
+				required: ['cantidad']
+			}
+		),
+		f(
+			'admin.resumen_reservas',
+			'admin',
+			'line',
+			'Resumen diario: reservas sin pagar (solo si hay)',
+			'⏳ Reservas sin pagar: {cantidad} · vencen en las próximas 24 horas: {por_vencer}',
+			{
+				vars: [
+					{ name: 'cantidad', label: 'cuántas entradas están reservadas', sample: '4' },
+					{ name: 'por_vencer', label: 'cuántas vencen en las próximas 24 horas', sample: '2' }
+				],
+				required: ['cantidad']
+			}
+		),
 
 		// -----------------------------------------------------------------------------------------
 		// Buscar en todo el sitio y modo inline (#298)
@@ -1017,6 +1138,53 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			{ vars: [V.busqueda] }
 		),
 		f(
+			'sitio.sugerencias',
+			'sitio',
+			'line',
+			'Sin resultados: arriba de las búsquedas parecidas (los botones)',
+			'**¿Quisiste decir…?** Tocá una.'
+		),
+		f(
+			'sitio.boton_sugerencia',
+			'sitio',
+			'button',
+			'Sin resultados: una búsqueda parecida',
+			'🔎 {busqueda} ({cantidad})',
+			{
+				vars: [
+					{ ...V.busqueda, label: 'la búsqueda parecida (hasta 30 letras)' },
+					{ ...V.cantidad, label: 'cuántas cosas trae' }
+				],
+				required: ['busqueda']
+			}
+		),
+		f(
+			'sitio.seguir_etiqueta',
+			'sitio',
+			'line',
+			'Sin resultados: lo buscado es una etiqueta (con «Lo que sigo» prendido, por chat privado)',
+			'Todavía no hay nada con «{nombre}». Seguila y te avisamos cuando aparezca algo.',
+			{ vars: [{ ...V.nombre, label: 'la etiqueta (hasta 40 letras)' }] }
+		),
+		f(
+			'sitio.boton_seguir',
+			'sitio',
+			'button',
+			'Sin resultados: seguir la etiqueta buscada',
+			'⭐ Seguir {nombre}',
+			{
+				vars: [{ ...V.nombre, label: 'la etiqueta (hasta 40 letras)' }],
+				required: ['nombre']
+			}
+		),
+		f(
+			'sitio.proximos',
+			'sitio',
+			'line',
+			'Sin resultados: arriba de los próximos eventos',
+			'**Mientras tanto, lo que viene:**'
+		),
+		f(
 			'sitio.boton_ver',
 			'sitio',
 			'button',
@@ -1037,6 +1205,20 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'button',
 			'Modo inline: el botón arriba cuando no hay resultados (abre el bot)',
 			'No encontré nada. Probá en el bot'
+		),
+		f(
+			'sitio.inline_sugerencia',
+			'sitio',
+			'button',
+			'Modo inline: el botón arriba cuando no hay resultados y se muestran los de una búsqueda parecida (abre el bot)',
+			'Nada para «{busqueda}». Te muestro «{sugerencia}»',
+			{
+				vars: [
+					{ ...V.busqueda, label: 'lo que se buscó (hasta 16 letras)' },
+					{ name: 'sugerencia', label: 'la búsqueda parecida (hasta 16 letras)', sample: 'cuerdas' }
+				],
+				required: ['sugerencia']
+			}
 		),
 		f(
 			'sitio.inline_vacio',
@@ -1444,6 +1626,81 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'El link del final, al calendario del sitio',
 			'Ver el calendario completo en el sitio ↗',
 			{ help: MINIAPP }
+		),
+
+		// -----------------------------------------------------------------------------------------
+		// Mensajes enriquecidos y compartir desde la Mini App (interruptor `telegram_enriquecido`)
+		// -----------------------------------------------------------------------------------------
+		f(
+			'compartir.sigue',
+			'compartir',
+			'line',
+			'Mensaje enriquecido: abajo del texto, cuando es largo y se cortó',
+			'Esto es el comienzo. El resto está en el sitio: tocá «Ver en el sitio».',
+			{ help: 'El texto de la página llega hasta unos 2500 caracteres; si sigue, va esta línea.' }
+		),
+		f(
+			'compartir.pie',
+			'compartir',
+			'inline',
+			'Mensaje enriquecido: el pie (la última línea, chiquita)',
+			'{tipo} · Kinky Vibe',
+			{
+				vars: [
+					{ name: 'tipo', label: 'qué es (Kinkipedia, Material, Evento…)', sample: 'Kinkipedia' }
+				]
+			}
+		),
+		f(
+			'compartir.tipo_evento',
+			'compartir',
+			'inline',
+			'Mensaje enriquecido: qué es, en el pie de un evento',
+			'Evento',
+			{
+				max: 40,
+				help: 'Los otros tipos son los de «Buscar en todo el sitio» (Kinkipedia, Material, Serie de eventos).'
+			}
+		),
+		f(
+			'compartir.boton_calendario',
+			'compartir',
+			'button',
+			'Un evento mandado (modo inline o desde la Mini App): abre la Mini App del calendario en ese evento',
+			'📅 Abrir en el calendario',
+			{ help: 'Solo con el usuario del bot cargado (TELEGRAM_BOT_USERNAME).' }
+		),
+		f(
+			'compartir.miniapp_boton',
+			'compartir',
+			'button',
+			'Mini App del calendario: el botón de cada evento para mandarlo a un chat',
+			'📤 Mandar a un chat',
+			{ help: MINIAPP }
+		),
+		f(
+			'compartir.miniapp_mandado',
+			'compartir',
+			'inline',
+			'Mini App del calendario: después de mandar un evento',
+			'Listo, ya lo mandaste.',
+			{ help: MINIAPP }
+		),
+		f(
+			'compartir.miniapp_error',
+			'compartir',
+			'inline',
+			'Mini App del calendario: si no se pudo mandar',
+			'No se pudo mandar. Probá de nuevo en un rato.',
+			{ help: MINIAPP }
+		),
+		f(
+			'compartir.miniapp_destacado',
+			'compartir',
+			'inline',
+			'Mini App del calendario: arriba del evento cuando se abre desde «Abrir en el calendario»',
+			'📌 Te pasaron este evento',
+			{ help: MINIAPP, max: 60 }
 		),
 
 		// -----------------------------------------------------------------------------------------

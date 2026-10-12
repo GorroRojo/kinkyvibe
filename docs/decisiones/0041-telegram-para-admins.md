@@ -63,4 +63,7 @@ cada pedido para la puerta.
 - PR 1: la base y el estado a pedido. «📊 Estado · 🔔 Mis avisos» en el inicio de les admins
   vinculades, `/estado` y `/avisos`. «Mis avisos» ya guarda lo que elige cada admin (los cinco
   tipos: resumen diario, cada venta, cada transferencia, día del evento, recordatorios), con un
-  aviso de que todavía no sale ninguno. Pendientes: los PR 2 y 3.
+  aviso de que todavía no sale ninguno.
+- PR 2: el resumen diario (a las 9 de Argentina, por evento con movimiento) y los avisos de cada
+  venta y cada transferencia (en el momento; en el horario de silencio, sin sonido). Migración
+  `0055_telegram_admin_enviados.sql` (lo ya enviado, para no repetir). Pendiente: el PR 3.

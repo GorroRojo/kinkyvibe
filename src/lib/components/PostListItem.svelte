@@ -7,7 +7,14 @@
 		MousePointerClick,
 		Heart
 	} from '@lucide/svelte';
-	import { argDate, argDateList, argTime, eventEnd, isoDay } from '$lib/utils/dates.js';
+	import {
+		argDate,
+		argDateList,
+		argTime,
+		eventEnd,
+		isoDay,
+		parseSiteDate
+	} from '$lib/utils/dates.js';
 	import TagChip from './ui/TagChip.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { onMount } from 'svelte';
@@ -57,7 +64,7 @@
 	// on phones the colored header has no room for the date *and* "Añadir al Calendario":
 	// the button shows only its icon there
 	let narrow = false;
-	let past = start ? new Date(start).getTime() < Date.now() : false;
+	let past = start ? parseSiteDate(start).getTime() < Date.now() : false;
 	// Si el evento vende entradas acá, «Comprar entradas» (o «Agotadas»…) en lugar de la
 	// inscripción externa.
 	$: tickets = ticketCta(post.meta, ticketStates, { past });
@@ -448,6 +455,17 @@
 			}
 			.CTA {
 				justify-self: end;
+			}
+			/* «Comprar entradas» mide los 44px del dedo (`--tap`) en el botón mismo: un
+			   `.tap-target` invisible taparía las etiquetas de arriba (decisión de gorrite,
+			   `areas-toque-restos`). Los avisos («Agotadas»…) no son botones y quedan como están,
+			   a la derecha. */
+			.CTA:not(.note) {
+				display: inline-flex;
+				align-items: center;
+				min-height: var(--tap);
+				/* centrado en su fila, abajo de las etiquetas (gorrite, al revisar #335) */
+				justify-self: center;
 			}
 			/* &:has(.CTA).noimg {
 				grid-template-areas:
