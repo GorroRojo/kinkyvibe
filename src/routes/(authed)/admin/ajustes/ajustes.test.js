@@ -207,3 +207,32 @@ describe('buildAjustesStatus (Cobros)', () => {
 		expect(cobros(false, [])).toEqual({ text: 'Ningún medio de cobro listo', tone: 'warn' });
 	});
 });
+
+describe('buildAjustesStatus (Fondo)', () => {
+	const base = {
+		flags: null,
+		lastActivity: null,
+		tips: null,
+		automations: null,
+		mpReady: false,
+		now: NOW
+	};
+	const row = (/** @type {string} */ key, /** @type {string} */ value) => ({
+		key,
+		value,
+		updated_at: 1,
+		updated_by: 'x'
+	});
+	const last = row('fondo_percent_last', JSON.stringify({ percent: 12, at: NOW - MIN }));
+	/** @param {Record<string, unknown>[]} settings @param {number | null} [fondoDevPercent] */
+	const fondo = (settings, fondoDevPercent) =>
+		buildAjustesStatus({ ...base, settings, fondoDevPercent })['ajustes-fondo'];
+	it('el orden de resolveFondoPercent: a mano, después el de dev, después el último automático', () => {
+		expect(fondo([row('fondo_percent_override', '10'), last], 20)).toEqual({
+			text: '10 % (fijado a mano)'
+		});
+		expect(fondo([last], 20)).toEqual({ text: '20 % de cada entrada' });
+		expect(fondo([last], null)).toEqual({ text: '12 % de cada entrada' });
+		expect(fondo([], null)).toBeUndefined();
+	});
+});

@@ -2,7 +2,8 @@
  * La línea de estado de cada tarjeta de la portada de Ajustes (`/admin/ajustes`, decisión 0041):
  * «10 % de cada entrada», «2 en prueba», «Todo al día»… Una sección sin un dato barato y claro no
  * lleva línea (mejor nada que adivinar): el Fondo, si no hay uno fijado a mano ni llegó todavía
- * ninguno de fondo.kinkyvibe.ar (la portada no lo va a buscar), o una parte que no se pudo leer.
+ * ninguno de fondo.kinkyvibe.ar (la portada no lo va a buscar; en `vite dev` cuenta
+ * `FONDO_PERCENT_OVERRIDE`, como al vender), o una parte que no se pudo leer.
  *
  * Idas a la base: una tanda ($lib/server/db/batch.js) con los ajustes guardados
  * (`ticket_settings`: cobros, Fondo, textos del bot y de las vistas previas), los interruptores, lo
@@ -14,6 +15,7 @@
  * Nunca muestra datos: de Cobros solo si hay datos para transferir (sí/no), del bot solo si los
  * secretos están cargados (lo resume Automatizaciones), del registro solo cuándo.
  */
+import { dev } from '$app/environment';
 import { fmtRelative } from '$lib/admin/format.js';
 import { ADMINS } from '$lib/server/auth';
 import { rowsOf, runQueries } from '$lib/server/db/batch.js';
@@ -95,8 +97,10 @@ export function effectiveFlags(saved, env) {
  * @param {AjustesData & {
  *   mpReady: boolean,
  *   automations: Awaited<ReturnType<typeof loadAutomations>> | null,
+ *   fondoDevPercent?: number | null,
  *   now: number
- * }} input
+ * }} input `fondoDevPercent`: en `vite dev`, el de `FONDO_PERCENT_OVERRIDE` (como
+ *   `resolveFondoPercent`: va después del fijado a mano y antes de lo automático)
  * @returns {Record<string, AjusteStatus>} por id de sección de `$lib/admin/nav.js`
  */
 export function buildAjustesStatus({
@@ -106,6 +110,7 @@ export function buildAjustesStatus({
 	tips,
 	mpReady,
 	automations,
+	fondoDevPercent = null,
 	now
 }) {
 	/** @type {Record<string, AjusteStatus>} */
@@ -128,6 +133,8 @@ export function buildAjustesStatus({
 		const manual = parsePercent(sales.fondo_percent_override);
 		const last = parsePercent(jsonRow(settings, FONDO_LAST_KEY)?.percent);
 		if (manual !== null) out['ajustes-fondo'] = { text: `${manual} % (fijado a mano)` };
+		else if (fondoDevPercent !== null)
+			out['ajustes-fondo'] = { text: `${fondoDevPercent} % de cada entrada` };
 		else if (last !== null) out['ajustes-fondo'] = { text: `${last} % de cada entrada` };
 
 		const bot = Object.keys(cleanBotTextOverrides(jsonRow(settings, BOT_TEXTS_SETTING))).length;
@@ -230,5 +237,6 @@ export async function loadAjustesStatus({ db, env = {}, mpReady = false, now = D
 			console.error('[admin] portada de Ajustes: automatizaciones', error);
 		}
 	}
-	return buildAjustesStatus({ ...data, flags, mpReady, automations, now });
+	const fondoDevPercent = dev ? parsePercent(env.FONDO_PERCENT_OVERRIDE) : null;
+	return buildAjustesStatus({ ...data, flags, mpReady, automations, fondoDevPercent, now });
 }

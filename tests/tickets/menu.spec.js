@@ -133,7 +133,8 @@ test('Ajustes: una portada con 4 grupos de tarjetas, sin pestañas, y «← Ajus
 		.click();
 	await page
 		.getByRole('dialog', { name: 'Todas las secciones' })
-		.getByRole('link', { name: /Ajustes/ })
+		// La fila del grupo («Ajustes · 9 secciones»), no la de Recientes («Interruptores, Ajustes»).
+		.getByRole('link', { name: /^Ajustes/ })
 		.click();
 	await expect(page).toHaveURL(/\/admin\/ajustes$/);
 });
