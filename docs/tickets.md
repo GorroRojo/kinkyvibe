@@ -188,7 +188,7 @@ Ejemplo: $ 10.000 con 20 % de fondo, 2 entradas solidarias, código 20 %, Mercad
 
 El formulario muestra "Entradas (n × $X) · 💜 Ya descontado: el Fondo cubre $F / 💜 Incluye $A de aporte al Fondo KinkyVibe · Código −$D · Recargo Mercado Pago $Y · Total $Z" y cambia en vivo.
 
-La orden guarda `unit_price` (precio completo), `fondo_option`, `fondo_amount` (fondo usado, ≥ 0, solo con `fondo`), `fondo_contribution` (aporte, ≥ 0, solo con las solidarias), `subtotal`, `discount_code`, `discount_amount`, `surcharge_amount` y `total` (con `CHECK` en la base que obligan a que cierren las cuentas: `migrations/0002_tickets.sql`). `/admin/ventas` muestra por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo** = aportes − fondo usado (solo órdenes aprobadas; con signo: verde "+" si entró más de lo que cubrió el fondo, rojo "−" si el fondo puso más); la página de cada evento, las tres columnas por tipo y en el total; el CSV, `opcion_fondo`, `fondo` y `aporte_fondo`. Si una compra solidaria usa además un código, el aporte guardado es el nominal (el código lo pone la organización: lo tomamos como un costo de la organización, no del fondo; ver preguntas abiertas). Con fondo, aporte, código o recargo, la preferencia de MP lleva un solo ítem por el total (MP no acepta ítems negativos) y el webhook compara lo pagado con `total`.
+La orden guarda `unit_price` (precio completo), `fondo_option`, `fondo_amount` (fondo usado, ≥ 0, solo con `fondo`), `fondo_contribution` (aporte, ≥ 0, solo con las solidarias), `subtotal`, `discount_code`, `discount_amount`, `surcharge_amount` y `total` (con `CHECK` en la base que obligan a que cierren las cuentas: `migrations/0002_tickets.sql`). `/admin/ventas` muestra por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo** = aportes − fondo usado (solo órdenes aprobadas; con signo: verde "+" si entró más de lo que cubrió el fondo, rojo "−" si el fondo puso más); la página de cada evento, las tres columnas por tipo y en el total; el CSV, `opcion_fondo`, `fondo` y `aporte_fondo`. Si una compra solidaria usa además un código, el aporte guardado es el nominal (el código lo pone la organización: lo tomamos como un costo de la organización, no del fondo; decisión [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)). Con fondo, aporte, código o recargo, la preferencia de MP lleva un solo ítem por el total (MP no acepta ítems negativos) y el webhook compara lo pagado con `total`.
 
 ### Meta de venta
 
@@ -463,7 +463,7 @@ Resumen de lo que explica <https://fondo.kinkyvibe.ar> (consultado el 2026-09-29
 - Es un fondo de **Mecenas** (aportes mensuales o de una vez) para que KinkyVibe pueda sostener su trabajo (talleres de sexualidad, kink/BDSM, géneros, reducción de riesgos e historia cuir; fanzines y material digital; eventos con sesiones en vivo, performance, poesía, ferias y cine porno cuir; la comunidad ¡AUCH! con grupos de apoyo y equipo de moderación/monitores; y la tienda y ferias de emprendimientos disidentes) sin cobrarle todo a quien participa.
 - **Cómo baja los precios:** tiene un objetivo mensual (a diciembre de 2025, **$ 4.000.000 por mes**, que se actualiza cada 6 meses por inflación). **Por cada 10 % del objetivo que se recauda, baja un 10 % el precio de todos los talleres, eventos y materiales, para todo el mundo** (no solo para Mecenas). Con el 100 %, todo es gratis. Por eso el descuento del fondo es un porcentaje parejo sobre todo (el mismo para todos los eventos KinkyVibe).
 - **Niveles de Mecenas** (mensual): Visitante $ 1.500, Casual $ 3.000, Regular $ 7.500 (nombre en el sitio), Sugar $ 15.000, Estrella $ 30.000 y Leyenda $ 45.000 (nombre con link); hay "Super Mecenas" y donaciones mayores aparte.
-- El sitio no habla de entradas solidarias: los aportes de las opciones solidaria / muy solidaria / Sugar son una forma más de sumar al fondo desde la compra (el nombre "Sugar" coincide con un nivel). Cómo se refleja ese aporte en el porcentaje del mes es una pregunta abierta.
+- El sitio no habla de entradas solidarias: los aportes de las opciones solidaria / muy solidaria / Sugar son una forma más de sumar al fondo desde la compra (el nombre "Sugar" coincide con un nivel). Esos aportes suman al total del mes del Fondo, igual que las propinas al Fondo, sin anotar a nadie como Mecenas (decisión [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)); falta que `/api/fondo/propinas-total` los sume (`fondo-aportes-entradas` en el [plan](plan.md)).
 
 ### Códigos de descuento
 
@@ -715,16 +715,16 @@ Contrastado el 2026-09-29 con la documentación oficial de Mercado Pago Develope
 **Legal y comercial (Argentina)** — consultar con alguien que sepa; esto es una lista, no asesoramiento:
 
 - **Defensa del Consumidor (Ley 24.240):** datos del proveedor visibles (razón social o nombre, CUIT, domicilio), precio final con impuestos, y el **botón de arrepentimiento** (Res. SCI 424/2020) en la home si se vende online, con su procedimiento. Revisar si aplica a entradas para eventos con fecha (hay excepciones discutidas).
-- **Términos y condiciones** de compra y **política de reembolsos/cambios** (cancelación del evento, reprogramación, no-show, cambio de titular), enlazados desde el bloque de compra. Las condiciones que muestra hoy son un borrador.
+- **Términos y condiciones** de compra y **política de reembolsos/cambios** (cancelación del evento, reprogramación, no-show, cambio de titular), enlazados desde el bloque de compra. Las condiciones que muestra hoy son un borrador. Qué pasa si se cancela o se reprograma ya está decidido ([0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)); el piloto abre sin `/legales`, que se retoma después.
 - **Facturas:** facturas individuales solo a pedido, fuera del sitio (el sitio no emite ni promete facturas).
 - **Datos personales (Ley 25.326):** aviso de privacidad (qué se guarda, para qué, cómo pedir la baja). Ahora también se guarda el DNI de quien compra.
 - Verificación de edad: la casilla +18 es una declaración; el control real es en la puerta.
 
 **Mercado Pago:**
 
-- Elegir el **plazo de acreditación** (dinero disponible al instante con comisión más alta, o a 14/30 días con comisión menor) en la cuenta, y **cargar esa tasa en Ajustes de venta** (por defecto 2 %). Si la comisión real es distinta, la organización recibe un poco más o menos que la base.
+- Elegir el **plazo de acreditación** (dinero disponible al instante con comisión más alta, o a 14/30 días con comisión menor) en la cuenta, y **cargar esa tasa en Ajustes de venta** (por defecto 2 %). gorrite decidió el plazo más largo que les sirva a les organizadores, para que el recargo de quien compra sea el más bajo (decisión [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)); gorrite lo eligió en la cuenta y cargó la comisión el 12/10 (`mp-plazo-comision` en el [plan](plan.md)). Si la comisión real es distinta, la organización recibe un poco más o menos que la base.
 - Monto mínimo de un pago en MP: no verificado (afecta compras con descuentos grandes que dejan un total muy chico).
-- **Reembolsos:** hay botón en el admin (reembolso total). Falta decidir quién puede reembolsar (hoy, cualquier admin) y si hacen falta reembolsos parciales.
+- **Reembolsos:** hay botón en el admin (reembolso total). Reembolsa cualquier admin y queda en Actividad; sin reembolsos parciales desde el panel por ahora: se hacen desde Mercado Pago y se anotan (decisión [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)).
 - Probar contracargos y pagos aprobados después de vencida la reserva (hoy se aceptan y se loguea un aviso).
 
 **Operación:**
@@ -738,11 +738,17 @@ Contrastado el 2026-09-29 con la documentación oficial de Mercado Pago Develope
 
 Idea: que otres productores vendan en el sitio y el dinero vaya directo a su cuenta de MP, con una comisión para KinkyVibe. **Sin verificar contra la documentación actual:** Mercado Pago tiene un modelo _marketplace_ en el que el vendedor vincula su cuenta por **OAuth** (la plataforma obtiene un access token del vendedor), se crean las preferencias con ese token y se indica `marketplace_fee` para la comisión de la plataforma. Habría que confirmar requisitos (aprobación de MP, tipo de cuenta), cómo se renuevan los tokens, cómo se hacen reembolsos y la facturación de cada parte, y guardar los tokens cifrados (no en el repo ni en texto plano).
 
-## Preguntas abiertas para les organizadores
+## Preguntas para les organizadores
 
-- ¿Qué pasa con las entradas si el evento se reprograma o se cancela? ¿Reembolso automático, crédito, o se decide caso por caso?
-- ¿Plazo de acreditación de MP (define la tasa del recargo)?
-- ¿El Fondo KinkyVibe tiene un tope por evento? (hoy no hay tope: cubre todas las entradas vendidas que elijan "con el descuento del fondo").
-- ¿Los aportes de las entradas solidarias / Sugar cuentan para el objetivo mensual del fondo (y para el % de descuento)? ¿Hay que mostrarlos en fondo.kinkyvibe.ar o registrar a esas personas como Mecenas?
-- Si alguien paga una entrada solidaria con un código de descuento, ¿el aporte al fondo es el nominal (lo que se guarda hoy: el código es un costo de la organización) o se reduce en proporción?
-- ¿La venta cierra al empezar el evento o antes? (La venta en puerta ya existe: modo puerta → "Vender en puerta", descuenta del cupo; `puerta: false` la apaga.)
+Respondidas por gorrite el 12/10 (decisión [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)):
+
+- **Evento cancelado:** se le devuelve todo a todes desde el panel (Reembolsar en cada orden), o, si la persona prefiere, un taller grabado, como dice la política de devoluciones. Cancelar el evento no reembolsa solo ni manda un aviso: cada reembolso manda su mail.
+- **Evento reprogramado:** la entrada vale para la nueva fecha (es lo que dice el mail «Cambió la fecha»). Quien no pueda ir pide la devolución con el mismo plazo de siempre: hasta 5 días hábiles antes de la nueva fecha.
+- **Plazo de acreditación de MP:** el más largo que les sirva a les organizadores, para que el recargo de quien compra sea el más bajo. gorrite ya lo eligió en la cuenta y cargó esa comisión en Ajustes › Cobros (12/10).
+- **Tope del Fondo por evento:** sin tope, como hoy (cubre todas las entradas vendidas que elijan «con el descuento del fondo»). El panel muestra el Fondo usado en cada evento; si algún día hace falta un tope, se suma.
+- **Aportes de las entradas solidarias / Sugar:** suman al total del mes del Fondo (y así al % de descuento), igual que las propinas al Fondo, sin anotar a nadie como Mecenas ni mostrarlos con nombre en fondo.kinkyvibe.ar. Falta que `/api/fondo/propinas-total` los sume, coordinado con kv-fondo (issue #265).
+- **Solidaria pagada con un código de descuento:** el aporte es el completo (el código lo pone la organización), como hoy.
+- **Cierre de la venta online:** al empezar el evento, como hoy. Cada evento puede cerrar antes (o cerrar un tipo antes) desde Editar › Entradas, y la puerta sigue vendiendo (modo puerta → «Vender en puerta», descuenta del cupo; `puerta: false` la apaga).
+- **Quién reembolsa:** cualquier admin, como hoy (queda en Actividad como `order.refund`). Sin reembolsos parciales por ahora: se hacen desde Mercado Pago y se anotan.
+
+Sigue abierto: el monto mínimo de un pago en MP (ver [Mercado Pago](#pendientes-antes-de-vender-de-verdad), arriba).
