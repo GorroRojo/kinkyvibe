@@ -396,7 +396,11 @@ cuenta con el bot» y el cron no manda nada por Telegram. Trae la migración
    variable `TELEGRAM_BOT_USERNAME`, la tarjeta tiene además «Abrir el bot en Telegram»
    (`t.me/<bot>?start=<código>`), que manda el código solo (llega como `/start <código>`).
 3. El chat queda vinculado a la cuenta. Un chat es de una sola cuenta y una cuenta tiene un solo
-   chat: vincular de nuevo reemplaza el anterior.
+   chat: vincular de nuevo reemplaza el anterior. Si la cuenta estaba en `/silenciar`, **sigue en
+   silencio** (pausar es apagarlos a propósito, como en
+   [0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)): volver a vincular, desde el mismo
+   chat u otro, no los prende. `/desvincular` borra el chat, así que vincular después empieza de
+   cero. El silencio de otra cuenta que tenía ese chat no pasa a la que lo vincula.
 
 En grupos el bot **no** vincula ni toca nada de cuentas (contesta que se hace por chat privado).
 Los intentos de `/vincular` se topean por chat (10 por hora) y pedir códigos, por cuenta (10 por
