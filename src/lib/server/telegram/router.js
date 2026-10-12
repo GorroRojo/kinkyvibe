@@ -45,6 +45,13 @@ import {
 	sigoScreen,
 	unlinkedScreen
 } from './screens.js';
+import {
+	isPastTicket,
+	ticketScreen,
+	ticketsForView,
+	ticketsScreen,
+	ticketsUnlinkedScreen
+} from './misEntradas.js';
 import { botText } from './texts.js';
 
 /**
@@ -71,8 +78,9 @@ const htmlOf = (key) => escapeHtml(botText(key));
  *   link: (code: string, chatId: number | string) => Promise<'linked' | 'invalid' | 'too_many'>,
  *   unlink: (chatId: number | string) => Promise<boolean>,
  *   setMuted: (chatId: number | string, muted: boolean) => Promise<boolean>,
- *   follows?: import('./seguir.js').BotFollows
- * }} BotAccounts
+ *   follows?: import('./seguir.js').BotFollows,
+ *   tickets?: import('./tickets.js').BotTickets
+ * }} BotAccounts `tickets`: «🎟 Mis entradas» (tickets.js, misEntradas.js).
  */
 
 /**
@@ -268,7 +276,8 @@ function screenCtx(deps, group, accounts = null) {
 		now: deps.now ? deps.now() : Date.now(),
 		botUsername: deps.botUsername ?? null,
 		sigo: Boolean(accounts?.follows),
-		site: Boolean(deps.inline)
+		site: Boolean(deps.inline),
+		entradas: Boolean(accounts?.tickets)
 	};
 }
 
@@ -466,6 +475,43 @@ async function personalScreen(state, chatId, ctx, deps, accounts) {
 }
 
 /**
+ * «🎟 Mis entradas»: la lista y la tarjeta de una entrada. Solo por chat privado vinculado a una
+ * cuenta, mirado en cada mensaje; en un grupo, el link al privado (sin mirar ninguna cuenta). Una
+ * entrada se busca **solo entre las de la cuenta de este chat**: un botón armado a mano con el id
+ * de otra entrada contesta lo mismo que uno viejo («Esa entrada ya no está acá.»).
+ *
+ * @param {{ screen: 'tickets', view: import('./nav.js').TicketsView, page: number }
+ *   | { screen: 'ticket', id: string, view: import('./nav.js').TicketsView }} state
+ * @param {number | string} chatId
+ * @param {ScreenCtx} ctx
+ * @param {Deps} deps
+ * @param {BotAccounts | null} accounts
+ * @returns {Promise<{ screen: Screen } | { toast: string }>}
+ */
+async function ticketsResult(state, chatId, ctx, deps, accounts) {
+	const tickets = accounts?.tickets;
+	if (!tickets) return { toast: botText('vincular.apagado') };
+	if (ctx.chat === 'group') {
+		return {
+			screen: privateOnlyScreen(startLink(ctx.botUsername, startParam({ screen: 'tickets' })))
+		};
+	}
+	const accountId = await tickets.accountFor(chatId);
+	if (!accountId) return { screen: ticketsUnlinkedScreen(ctx) };
+	const all = await tickets.list(accountId);
+	if (state.screen === 'tickets') {
+		return { screen: ticketsScreen(state.view, all, state.page, ctx) };
+	}
+	const ticket = all.find((t) => t.id === state.id);
+	if (!ticket) return { toast: botText('entradas.no_esta') };
+	const now = ctx.now ?? Date.now();
+	// Un botón viejo puede ser de la otra lista (el evento ya pasó): vuelve a la suya.
+	const view = isPastTicket(ticket, now) ? 'o' : 'u';
+	const list = ticketsForView(view, all, now);
+	return { screen: ticketScreen(ticket, view, list, ctx, { qr: Boolean(deps.media) }) };
+}
+
+/**
  * ¿Es la respuesta al mensaje de Buscar? Solo por chat privado.
  *
  * @param {any} message
@@ -562,10 +608,12 @@ async function planCallback(callback, deps) {
 						? await sectionResult(state, ctx, deps)
 						: state.screen === 'sigo' || state.screen === 'follow' || state.screen === 'follow_do'
 							? await personalScreen(state, chatId, ctx, deps, accounts)
-							: await navigate(state, ctx, deps, {
-									accounts: Boolean(accounts),
-									follow: (event) => followButton(event, ctx)
-								});
+							: state.screen === 'tickets' || state.screen === 'ticket'
+								? await ticketsResult(state, chatId, ctx, deps, accounts)
+								: await navigate(state, ctx, deps, {
+										accounts: Boolean(accounts),
+										follow: (event) => followButton(event, ctx)
+									});
 		if (!('screen' in result)) return answerOnly(callbackId, result.toast);
 		const plan = deliverScreen(result.screen, where, {
 			media: Boolean(deps.media),
@@ -599,6 +647,16 @@ async function startScreen(param, ctx, deps, message, accounts) {
 	if (!target) return null;
 	if (target.screen === 'sigo' || target.screen === 'follow') {
 		const r = await personalScreen(target, chatId, ctx, deps, accounts);
+		return 'screen' in r ? r.screen : noticeScreen(escapeHtml(r.toast));
+	}
+	if (target.screen === 'tickets') {
+		const r = await ticketsResult(
+			{ screen: 'tickets', view: 'u', page: 0 },
+			chatId,
+			ctx,
+			deps,
+			accounts
+		);
 		return 'screen' in r ? r.screen : noticeScreen(escapeHtml(r.toast));
 	}
 	if (target.screen === 'list') {
@@ -703,6 +761,16 @@ async function commandScreen(command, message, ctx, deps, accounts) {
 			});
 		}
 		default:
+			if (command.name === 'entradas') {
+				const r = await ticketsResult(
+					{ screen: 'tickets', view: 'u', page: 0 },
+					message.chat.id,
+					ctx,
+					deps,
+					accounts
+				);
+				return 'screen' in r ? r.screen : textScreen(escapeHtml(r.toast));
+			}
 			if (command.name === 'sigo') {
 				const r = await personalScreen({ screen: 'sigo' }, message.chat.id, ctx, deps, accounts);
 				return 'screen' in r ? r.screen : textScreen(escapeHtml(r.toast));
