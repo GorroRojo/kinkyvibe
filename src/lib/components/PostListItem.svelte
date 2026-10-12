@@ -1,5 +1,12 @@
 <script context="module">
-	import SpriteIcon from './ui/SpriteIcon.svelte';
+	import {
+		CalendarRange,
+		BookOpen,
+		ShoppingCart,
+		Download,
+		MousePointerClick,
+		Heart
+	} from '@lucide/svelte';
 	import { argDate, argDateList, argTime, eventEnd, isoDay } from '$lib/utils/dates.js';
 	import TagChip from './ui/TagChip.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
@@ -60,6 +67,10 @@
 		// the calendar button (~290 KB) is only loaded when this item shows one
 		if (link && status == 'abierto' && !past) import('add-to-calendar-button');
 	});
+	let style = `scale:var(--scale,1);
+				 translate:var(--translate,0 0);
+				 display: inline-block;
+				 margin-right: .4em;`;
 </script>
 
 <a
@@ -78,21 +89,20 @@
 >
 	<div class="publication">
 		<div class="icon">
-			<!-- del sprite de la página (ui/iconSprite.js): uno por tarjeta, sin repetir el dibujo -->
 			{#if category == 'calendario'}
-				<SpriteIcon name="calendar-range" />
+				<CalendarRange {style} />
 			{:else if category == 'material'}
 				{#if tags.includes('pago')}
-					<SpriteIcon name="shopping-cart" />
+					<ShoppingCart {style} />
 				{:else if tags.includes('descargable')}
-					<SpriteIcon name="download" />
+					<Download {style} />
 				{:else if tags.includes('interactivo')}
-					<SpriteIcon name="mouse-pointer-click" />
+					<MousePointerClick {style} />
 				{:else}
-					<SpriteIcon name="book-open" />
+					<BookOpen {style} />
 				{/if}
 			{:else}
-				<SpriteIcon name="heart" style="fill:var(--post-color)" strokeWidth="3px" />
+				<Heart style={style + 'fill:var(--post-color);'} strokeWidth="3px" />
 			{/if}
 		</div>
 		{#if category != 'amigues'}
@@ -204,13 +214,6 @@
 </a>
 
 <style lang="scss">
-	/* (antes, en un style="" de cada ícono) */
-	.icon :global(svg) {
-		scale: var(--scale, 1);
-		translate: var(--translate, 0 0);
-		display: inline-block;
-		margin-right: 0.4em;
-	}
 	.post.amigues {
 		border-radius: var(--radius-pill);
 		padding-top: 0;
