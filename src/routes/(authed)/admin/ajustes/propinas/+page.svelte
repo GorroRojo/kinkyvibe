@@ -18,6 +18,7 @@
 		tipPostPath
 	} from '$lib/utils/propinas.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import { areaBackLink } from '$lib/admin/nav.js';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
@@ -65,6 +66,7 @@
 </script>
 
 <PageHeader
+	back={areaBackLink('propinas')}
 	title="Propinas"
 	subtitle="Las que se dejan al pie de las publicaciones de Kinky Vibe y las donaciones «Una vez» de fondo.kinkyvibe.ar. Entran a la misma cuenta de Mercado Pago que las entradas."
 >

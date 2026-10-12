@@ -203,8 +203,9 @@ de amigues y lanzamientos grandes.
 - Navegación del panel, opción C ([0038](decisiones/0038-navegacion-del-panel-opcion-c.md),
   [0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)), lo que quedó después de la
   parte 2 (Fijados, «+ Crear», Puerta fuera de la barra, pestañas con contadores y ▾ en el celu):
-  - Ajustes como 4 grupos (Plata, Comunicación, Equipo, Sistema) con tarjetas, como en el
-    prototipo, en vez de 9 pestañas. M. Bloqueo: gorrite.
+  - Portada de Ajustes ([0042](decisiones/0042-ajustes-portada-con-grupos.md)): línea de estado
+    del Fondo aunque no haya llegado todavía el porcentaje automático (hoy la tarjeta va sin
+    línea; buscarlo haría lenta la portada). S.
   - (Descartado por gorrite, Mesa 12/10: la ficha del evento con 5 pestañas y «Más» del
     prototipo; quedan las 7 pestañas con vistas.)
   - Fijados por admin en la base (hoy por navegador), si se suma una tabla de preferencias. M.

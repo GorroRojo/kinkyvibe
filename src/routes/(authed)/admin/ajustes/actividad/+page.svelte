@@ -1,6 +1,7 @@
 <script>
 	import { argDateLog } from '$lib/utils/dates.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import { areaBackLink } from '$lib/admin/nav.js';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
@@ -38,6 +39,7 @@
 </script>
 
 <PageHeader
+	back={areaBackLink('actividad')}
 	title="Actividad"
 	subtitle="Quién cambió qué en el panel: confirmaciones, reembolsos, códigos, ajustes y publicaciones."
 >
