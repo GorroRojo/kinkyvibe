@@ -206,7 +206,11 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
     componente que mdsvex compilaba de ese `.md`; comparados uno por uno, los 571 eventos y
     materiales y las 12 páginas de la wiki dan el mismo HTML, salvo el embed de Instagram de
     `carrera-de-reyes-2025-04`, que ya no carga el script de Instagram (queda la tarjeta con el
-    link). `freeHtml.test.js` tiene un caso inventado por cada diferencia que hubo;
+    link). `freeHtml.test.js` tiene un caso inventado por cada diferencia que hubo. Dos arreglos
+    de los textos viejos van en el CSS del contenido (`style.scss`, `.content`), no en los
+    datos: el `<object type="application/pdf" width="50rem">` toma el ancho del texto (el
+    atributo solo acepta píxeles) y las notas `<small class="footnote">` van una por línea
+    (`src/tests/textos-viejos.test.js`);
   - lista corta: `amigues/sanitize.js`, como los perfiles.
 - **Imágenes y archivos que un texto importa** (`import foto from './media/<carpeta>/1.webp'`):
   las imágenes, su copia en la biblioteca (`legacyMedia.js`); los PDF, el video y el documento, el
