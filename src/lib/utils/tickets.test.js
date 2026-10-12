@@ -6,6 +6,7 @@ import {
 	LOW_STOCK,
 	defaultFondoOption,
 	doorText,
+	doorPricesText,
 	fondoOptionLabel,
 	fondoOptionsFor,
 	gorraQuickAmounts,
@@ -64,8 +65,44 @@ describe('cupo: lo que queda y lo que se muestra en público', () => {
 		expect(doorText({ on: true, explicit: false, price: '' })).toBeNull();
 		expect(doorText(null)).toBeNull();
 	});
+
+	it('doorText: sin nota, el precio en puerta de los tipos; la nota manda (gorrite, 12/10)', () => {
+		const typesPrice = doorPricesText([{ price: 12000 }]);
+		expect(doorText({ on: true, explicit: true, price: '', typesPrice })).toBe(
+			`También hay entradas en la puerta: ${formatARS(12000)}.`
+		);
+		expect(doorText({ on: true, explicit: true, price: 'solo efectivo', typesPrice })).toBe(
+			'También hay entradas en la puerta: solo efectivo.'
+		);
+		expect(doorText({ on: false, explicit: true, price: '', typesPrice })).toBe(
+			'Solo anticipadas: no hay entradas en la puerta.'
+		);
+		expect(doorText({ on: true, explicit: false, price: '', typesPrice })).toBeNull();
+	});
+
+	it('doorPricesText: el mismo precio que cobra la puerta (doorPrice)', () => {
+		// Sin `door_price`: el precio fijo; con tramos, el del último; con `door_price`, ese.
+		expect(doorPricesText([{ price: 12000 }])).toBe(formatARS(12000));
+		expect(doorPricesText([{ price: 8000, tiers: [{ price: 8000 }, { price: 11000 }] }])).toBe(
+			formatARS(11000)
+		);
+		expect(doorPricesText([{ price: 10000, door: { price: 14000 } }])).toBe(formatARS(14000));
+		// Varios tipos con el mismo precio: uno solo.
+		expect(doorPricesText([{ price: 12000 }, { price: 9000, door: { price: 12000 } }])).toBe(
+			formatARS(12000)
+		);
+		// Varios precios: «desde» el más bajo.
+		expect(doorPricesText([{ price: 12000 }, { price: 9000 }])).toBe(`desde ${formatARS(9000)}`);
+		// A la gorra.
+		const gorra = { price: 0, gorra: { min: 0, suggested: 5000 } };
+		expect(doorPricesText([gorra])).toBe('a la gorra');
+		expect(doorPricesText([{ price: 12000 }, gorra])).toBe(`${formatARS(12000)} o a la gorra`);
+		// Sin cargo en la puerta.
+		expect(doorPricesText([{ price: 10000, door: { price: 0 } }])).toBe('sin cargo');
+		expect(doorPricesText([])).toBe('');
+	});
 });
-import { formatSignedARS } from './money.js';
+import { formatARS, formatSignedARS } from './money.js';
 
 describe('applyDiscount', () => {
 	it('sin descuento', () => {
