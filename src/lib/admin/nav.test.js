@@ -223,7 +223,8 @@ describe('NAV', () => {
 		expect(ids('estadisticas')).toEqual([
 			'estadisticas',
 			'estadisticas-asistencia',
-			'estadisticas-visitas'
+			'estadisticas-visitas',
+			'estadisticas-bot'
 		]);
 		expect(ids('ajustes')).toEqual([
 			'ajustes-cobros',
@@ -358,7 +359,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 			['', ['entradas', 'entradas-transferencias', 'entradas-codigos', 'tienda']]
 		]);
 		expect(blocks('estadisticas')).toEqual([
-			['', ['estadisticas', 'estadisticas-asistencia', 'estadisticas-visitas']]
+			['', ['estadisticas', 'estadisticas-asistencia', 'estadisticas-visitas', 'estadisticas-bot']]
 		]);
 		expect(blocks('comunidad')).toEqual([
 			['', ['personas', 'amigues', 'cuentas']],
@@ -414,13 +415,15 @@ describe('sectionTabs (pestañas de sección)', () => {
 	});
 	it('los grupos con varias áreas suman sus secciones (sin lo que viene)', () => {
 		expect(labels('/admin/ventas')).toEqual(['Todas las ventas', 'Transferencias', 'Códigos']);
-		// Estadísticas va sola en el menú, pero desde el 11/10 tiene tres secciones (gorrite): lleva
-		// pestañas. /admin/estadisticas ya no es una página (redirige a Ventas): sin pestañas.
+		// Estadísticas va sola en el menú, pero desde el 11/10 tiene varias secciones (gorrite; la
+		// del bot, 12/10): lleva pestañas. /admin/estadisticas ya no es una página (redirige a
+		// Ventas): sin pestañas.
 		expect(sectionTabs('/admin/estadisticas')).toBe(null);
 		for (const path of [
 			'/admin/estadisticas/ventas',
 			'/admin/estadisticas/asistencia',
-			'/admin/estadisticas/visitas'
+			'/admin/estadisticas/visitas',
+			'/admin/estadisticas/bot'
 		]) {
 			expect(sectionTabs(path)).toEqual({
 				label: 'Secciones de Estadísticas',
@@ -439,6 +442,11 @@ describe('sectionTabs (pestañas de sección)', () => {
 						href: '/admin/estadisticas/visitas',
 						label: 'Visitas al sitio',
 						icon: navItem('estadisticas-visitas')?.icon
+					},
+					{
+						href: '/admin/estadisticas/bot',
+						label: 'Bot de Telegram',
+						icon: navItem('estadisticas-bot')?.icon
 					}
 				]
 			});

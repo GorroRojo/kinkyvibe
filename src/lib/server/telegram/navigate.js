@@ -18,6 +18,7 @@ import {
 } from './screens.js';
 import { botText } from './texts.js';
 import { eventsInWindow } from './windows.js';
+import { eventKey, trackUso } from './uso.js';
 
 /** @typedef {import('./format.js').BotEvent} BotEvent */
 /** @typedef {import('./nav.js').NavState} NavState */
@@ -31,8 +32,10 @@ import { eventsInWindow } from './windows.js';
  *   now?: () => number,
  *   card?: (event: BotEvent) => Promise<import('./screens.js').CardInfo>,
  *   fondo?: () => Promise<import('./screens.js').FondoNumbers | null>,
- *   botUsername?: string | null
- * }} NavDeps
+ *   botUsername?: string | null,
+ *   usage?: import('./uso.js').UsoRecorder
+ * }} NavDeps `usage`: las estadísticas de uso de este update (uso.js), solo con
+ *   `telegram_estadisticas` prendido.
  */
 /** @typedef {{ screen: Screen } | { toast: string }} NavResult */
 
@@ -64,6 +67,8 @@ export function eventsForView(view, events, now) {
  * @returns {Promise<Screen>}
  */
 export async function cardFor(event, back, events, ctx, deps, extra) {
+	// Estadísticas: la tarjeta de un evento próximo y público (de `listUpcoming`), sin quién.
+	trackUso(deps.usage, 'objeto', eventKey(event));
 	const info = deps.card ? await deps.card(event) : {};
 	const list = back === 'n' ? [] : eventsForView(back, events, ctx.now ?? Date.now());
 	return eventScreen(event, info, { back, list }, ctx, extra);

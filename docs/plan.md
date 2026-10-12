@@ -80,6 +80,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 ### Legales
 
 - `legales-minimos` · fase 0 · espera gorrite · legales · Página `/legales` mínima en borrador (solo previews). Plan cuando gorrite lo retome: bajarla a lo mínimo con la leyenda de la AAIP y los 10 días de arrepentimiento por mail; falta definir quién figura como responsable; inscribir la base y el botón de arrepentimiento, por ahora no · #282 (borrador)
+- `legales-bot-estadisticas` · fase 0 · espera gorrite · legales · La página de privacidad (`/legales`, todavía en borrador) tiene que contar las estadísticas de uso del bot: quién lo usa y cuánto por día (180 días, con el nombre de Telegram) y, aparte, para qué, solo sumado por semana (depende de: legales-minimos, bot-estadisticas) · [telegram.md](telegram.md#estadísticas-de-uso-0045)
 
 ### Panel
 
@@ -151,6 +152,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `bot-avisos-admin-3` · fase 0 · sigue · bot · Telegram para admins, parte 3: el resumen del día del evento y los recordatorios (el evento de mañana, falta el lugar o el link de la transmisión) (depende de: bot-avisos-admin) · [0041](decisiones/0041-telegram-para-admins.md)
 - `bot-avisos-admin-probar` · fase 0 · espera gorrite · bot · Prender `telegram_admin` en un preview y probarlo con un Telegram vinculado (la migración 0054 ya está en preview y producción) (depende de: bot-avisos-admin)
 - `bot-avisos-admin-2-probar` · fase 0 · espera gorrite · bot · Telegram para admins, parte 2: aplicar la migración 0055 en preview y producción antes de mergear #322, y probarlo en un preview con una compra de prueba y el cron de las 9 (depende de: bot-avisos-admin)
+- `bot-estadisticas-prender` · fase 0 · espera gorrite · bot · Estadísticas de uso del bot: aplicar la migración 0057 en preview y producción antes de mergear, `/setinlinefeedback` al 100 % en @BotFather y volver a registrar el webhook (`npm run telegram:webhook`), y prender «Telegram: estadísticas de uso», primero en un preview (depende de: bot-estadisticas) · [telegram.md](telegram.md#puesta-en-marcha-de-las-estadísticas-la-hace-gorrite)
 - `bot-avisos-admin-aprobada` · fase 0 · algún día · bot · Guardar cuándo se aprobó cada orden (`approved_at`, necesita migración) para que «vendidas desde ayer» del resumen diario no dependa de `updated_at`, si hace falta (depende de: bot-avisos-admin)
 - `bot-avisos-admin-menu` · fase 0 · algún día · bot · `/estado` y `/avisos` en el menú «/» solo de les admins vinculades (`setMyCommands` por chat desde el cron; borrarlo al desvincular), si hace falta
 - `bot-busquedas-vacias-panel` · fase 0 · sigue · bot · Contar cuántas búsquedas del bot no encuentran nada, para el panel (sin guardar quién ni qué) (depende de: bot-busquedas-vacias)
@@ -160,6 +162,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `bot-puerta-2` · fase 0 · sigue · bot · Bot 4/5: Puerta por Telegram parte 2 (contador en vivo, escribir el código a mano) (depende de: bot-busquedas-vacias, bot-puerta-probar)
 - `bot-kinkipedia-ramas-probar` · fase 0 · espera gorrite · bot · Mirar en Telegram la Kinkipedia por ramas con el árbol de verdad: que las ramas de arriba sean las de `/wiki` y que ninguna quede con un solo hijo de más (depende de: bot-secciones-ajustes)
 - `bot-mis-entradas-partes` · fase 0 · hecho · bot · Mis entradas: un taller de varias partes sigue en «próximas» hasta la última parte · #329
+- `bot-estadisticas` · fase 0 · hecho · bot · Estadísticas de uso del bot (Estadísticas → Bot de Telegram): quién lo usa y cuánto, por persona y día, y aparte, sumado por semana, para qué (pantallas, comandos, búsquedas, cosas públicas, Mini App); nunca qué buscó o miró cada persona; umbral de 5 y retención de 180 días, detrás de `telegram_estadisticas` · [0045](decisiones/0045-estadisticas-del-bot.md)
 - `rincon-compras-partes` · fase 0 · sigue · cuentas · Mi rincón, «Mis compras»: en un taller de varias partes, mostrar la fecha de la próxima parte (hoy muestra la de la parte 1)
 - `bot-mis-entradas-transmision` · fase 0 · espera gorrite · bot · Mis entradas: mandar el link de la transmisión de un evento online por el chat
 - `bot-mis-entradas-probar` · fase 0 · espera gorrite · bot · Probar «Mis entradas» en Telegram con una entrada de prueba (el QR por la API solo se prueba contra el bot de verdad)
