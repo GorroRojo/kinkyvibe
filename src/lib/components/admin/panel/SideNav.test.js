@@ -34,7 +34,8 @@ describe('SideNav', () => {
 			'/admin/comunidad/personas',
 			'/admin/contenido/material',
 			'/admin/estadisticas/ventas',
-			'/admin/ajustes/cobros'
+			// La portada de Ajustes (decisión 0042).
+			'/admin/ajustes'
 		]);
 		const text = textOf(body);
 		for (const label of ['Inicio', 'Eventos', 'Ventas', 'Comunidad', 'Ajustes'])
@@ -56,7 +57,8 @@ describe('SideNav', () => {
 		// En la Puerta no se marca ninguna (no está en la barra).
 		expect(current('checkin')).toEqual([]);
 		expect(current('inicio')).toEqual(['/admin']);
-		expect(current('actividad')).toEqual(['/admin/ajustes/cobros']);
+		expect(current('actividad')).toEqual(['/admin/ajustes']);
+		expect(current('ajustes')).toEqual(['/admin/ajustes']);
 	});
 
 	it('ninguna sección va resaltada (la Puerta, la única que lo iba, salió de la barra)', () => {

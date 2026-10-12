@@ -8,8 +8,8 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | Guía                                           | De qué trata                                                                                                        |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | [incorporacion.md](incorporacion.md)           | Para une desarrolladore nueve: cómo armar el entorno, la arquitectura en una página y cómo se trabaja               |
-| [hoja-de-ruta.md](hoja-de-ruta.md)             | Todo lo que queda por hacer: en curso, la cola de las noches, más adelante por área y lo descartado                 |
-| [pruebas-y-ci.md](pruebas-y-ci.md)             | Los jobs de la CI (`unit`, `e2e`, `typecheck`, `ci-ok`), cómo correr cada prueba y qué hacer si da rojo             |
+| [plan.md](plan.md)                             | El plan único: cada ítem con su fase y su estado, y lo descartado. Cada PR dice qué ítem toca (`Plan:`)             |
+| [pruebas-y-ci.md](pruebas-y-ci.md)             | Los jobs de la CI (`unit`, `e2e`, `plan`, `ci-ok`…), cómo correr cada prueba y qué hacer si da rojo                 |
 | [interruptores.md](interruptores.md)           | Cada interruptor de funciones nuevas: qué prende, de qué depende y cómo prender los que pasan datos a la base       |
 | [panel.md](panel.md)                           | El panel de admin (`/admin`): áreas y URLs, Agenda, permisos, registro de actividad                                 |
 | [entradas.md](entradas.md)                     | Venta de entradas: guía corta con las reglas que no se pueden romper                                                |
@@ -35,7 +35,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción                    |
 | [release-1.md](release-1.md)                   | Release 1: qué prender, importar y verificar antes de la revisión grande, y rendimiento de los endpoints            |
 | [workers-migracion.md](workers-migracion.md)   | Paso de Cloudflare Pages a Workers (ya hecho), backups nocturnos y cómo restaurar                                   |
-| [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite (0001 a 0040, cada una con su línea en su índice): leelo antes de cambiar un área |
+| [decisiones/](decisiones/README.md)            | Registro de decisiones de gorrite (0001 a 0041, cada una con su línea en su índice): leelo antes de cambiar un área |
 
 Otras guías sueltas:
 

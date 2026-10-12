@@ -1,6 +1,7 @@
 <script>
 	import '$lib/admin/panel-forms.scss';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import { areaBackLink } from '$lib/admin/nav.js';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import { enhance } from '$app/forms';
@@ -33,7 +34,11 @@
 	const markFailed = (id) => () => (failed = { ...failed, [id]: true });
 </script>
 
-<PageHeader title="Admins" subtitle="Quién puede entrar al panel." />
+<PageHeader
+	back={areaBackLink('ajustes-admins')}
+	title="Admins"
+	subtitle="Quién puede entrar al panel."
+/>
 <div class="kv-stack settings">
 	<Card padded={false}>
 		<ul class="admins">
@@ -67,7 +72,7 @@
 			{/each}
 		</ul>
 	</Card>
-	<Card title="Tu Telegram para la puerta">
+	<Card title="Tu Telegram en el bot">
 		{#if form?.telegramMessage}
 			<p class="kv-flash ok" role="status">{form.telegramMessage}</p>
 		{:else if form?.telegramError}
@@ -76,14 +81,15 @@
 		{#if data.telegram.linkedAt}
 			<p class="tg-state" data-state="vinculado">
 				<Badge tone="ok" icon={Send}>Vinculado</Badge>
-				desde el {fmtDateTime(data.telegram.linkedAt)}. Con tu Telegram podés marcar ingresos desde
-				la puerta del bot mientras sigas en esta lista.
+				desde el {fmtDateTime(data.telegram.linkedAt)}. Con tu Telegram podés usar lo de admins en
+				el bot (la puerta y el estado de la venta, según lo que esté prendido) mientras sigas en
+				esta lista.
 			</p>
 			<form method="POST" action="?/desvincularTelegram" use:enhance={submit}>
 				<button class="kv-btn ghost small" type="submit" disabled={busy}>Desvincular</button>
 			</form>
 		{:else if pending}
-			<p>Abrí este link desde el Telegram que vas a usar en la puerta y tocá «Iniciar»:</p>
+			<p>Abrí este link desde el Telegram que vas a usar con el bot y tocá «Iniciar»:</p>
 			<p class="tg-link">
 				<a class="kv-btn small" href={pending.telegramLink} target="_blank" rel="noopener"
 					>Abrir el bot en Telegram</a
@@ -102,8 +108,8 @@
 			</p>
 		{:else}
 			<p class="tg-state" data-state="sin-vincular">
-				Vinculá tu cuenta de Telegram para usar la puerta (control de ingreso) desde el bot. Solo se
-				guarda el número de tu usuario de Telegram.
+				Vinculá tu cuenta de Telegram para usar lo de admins desde el bot: la puerta (control de
+				ingreso) y el estado de la venta. Solo se guarda el número de tu usuario de Telegram.
 			</p>
 			{#if data.telegram.blocked}
 				<p class="kv-note">{data.telegram.blocked}</p>

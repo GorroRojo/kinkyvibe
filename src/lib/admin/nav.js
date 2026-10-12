@@ -21,7 +21,9 @@
  * - `emoji`: el mismo ícono como emoji (se usa si `ICON_MODE` es 'emoji').
  * - `label`: nombre en el menú.
  * - `area`: `null` (Inicio) o el id de una de las {@link NAV_AREAS}.
- * - `sub` (solo Ajustes): subgrupo de {@link AJUSTES_SUBGROUPS} (Plata, Comunicación…).
+ * - `sub` (solo Ajustes): subgrupo de {@link AJUSTES_SUBGROUPS} (Plata, Comunicación…). Todas
+ *   las secciones de Ajustes lo llevan, menos su portada (`/admin/ajustes`, decisión 0042).
+ * - `desc` (solo Ajustes): qué hay en la sección, en una línea (la tarjeta de la portada).
  * - `soon`: `true` mientras la sección está aprobada pero no construida (ver "Ciclo de vida").
  * - `phase`: fase del plan en la que llega (obligatoria con `soon: true`; el menú muestra
  *   "fase N").
@@ -58,6 +60,7 @@
  *   label: string,
  *   area: string | null,
  *   sub?: string,
+ *   desc?: string,
  *   soon: boolean,
  *   phase?: number,
  *   soonText?: string,
@@ -148,7 +151,11 @@ export const NAV_AREAS = Object.freeze([
  * pestañas de arriba ({@link sectionTabs}). Es solo cómo se muestra: cada sección sigue en su área y en su URL
  * (/admin/<área>/<sección>), y «← Área» sigue llevando a su área. Dentro de un grupo, las
  * secciones del área principal van primero y las de las otras áreas, debajo de su nombre.
- * @type {readonly { id: string, label: string, icon: NavItem['icon'], emoji: string, areas: readonly string[], foot?: true, highlight?: true, side?: false }[]}
+ *
+ * `landing` (solo Ajustes, decisión 0042): el id del ítem de la portada del grupo. Un grupo con
+ * portada no lleva pestañas: la barra lateral (y el panel «Más» del celu) llevan a la portada, que
+ * muestra una tarjeta por sección, y cada sección vuelve a ella con «← Ajustes» (`areaBackLink`).
+ * @type {readonly { id: string, label: string, icon: NavItem['icon'], emoji: string, areas: readonly string[], foot?: true, highlight?: true, side?: false, landing?: string }[]}
  */
 export const NAV_GROUPS = Object.freeze([
 	{
@@ -191,7 +198,9 @@ export const NAV_GROUPS = Object.freeze([
 		icon: Settings,
 		emoji: '⚙️',
 		areas: ['ajustes'],
-		foot: true
+		foot: true,
+		// Una portada con tarjetas por subgrupo en vez de pestañas (gorrite, 12/10, decisión 0042).
+		landing: 'ajustes'
 	}
 ]);
 
@@ -576,6 +585,17 @@ export const NAV = Object.freeze([
 
 	// Ajustes (al pie)
 	{
+		// La portada de Ajustes (decisión 0042): una tarjeta por sección, en sus cuatro subgrupos,
+		// con una línea de estado. Es la página del área (la de «← Ajustes»); sin subgrupo.
+		id: 'ajustes',
+		href: '/admin/ajustes',
+		icon: Settings,
+		emoji: '⚙️',
+		label: 'Ajustes',
+		area: 'ajustes',
+		soon: false
+	},
+	{
 		id: 'ajustes-cobros',
 		href: '/admin/ajustes/cobros',
 		icon: Landmark,
@@ -583,6 +603,7 @@ export const NAV = Object.freeze([
 		label: 'Cobros',
 		area: 'ajustes',
 		sub: 'plata',
+		desc: 'Datos para transferir y recargo de Mercado Pago',
 		soon: false
 	},
 	{
@@ -593,6 +614,7 @@ export const NAV = Object.freeze([
 		label: 'Fondo',
 		area: 'ajustes',
 		sub: 'plata',
+		desc: 'Qué parte de cada entrada va al Fondo Kinky Vibe',
 		soon: false
 	},
 	{
@@ -604,6 +626,7 @@ export const NAV = Object.freeze([
 		label: 'Propinas',
 		area: 'ajustes',
 		sub: 'plata',
+		desc: 'Las propinas que entraron, por mes y por publicación',
 		soon: false
 	},
 	{
@@ -615,6 +638,7 @@ export const NAV = Object.freeze([
 		label: 'Vistas previas al compartir',
 		area: 'ajustes',
 		sub: 'comunicacion',
+		desc: 'Cómo se ve un link del sitio en WhatsApp, Telegram o X',
 		soon: false
 	},
 	{
@@ -626,6 +650,7 @@ export const NAV = Object.freeze([
 		label: 'Textos del bot',
 		area: 'ajustes',
 		sub: 'comunicacion',
+		desc: 'Todo lo que dice el bot de Telegram',
 		soon: false
 	},
 	{
@@ -636,6 +661,7 @@ export const NAV = Object.freeze([
 		label: 'Admins',
 		area: 'ajustes',
 		sub: 'equipo',
+		desc: 'Quiénes entran al panel y su Telegram para la puerta',
 		soon: false
 	},
 	{
@@ -646,6 +672,7 @@ export const NAV = Object.freeze([
 		label: 'Interruptores',
 		area: 'ajustes',
 		sub: 'sistema',
+		desc: 'Prender y apagar las funciones nuevas',
 		soon: false
 	},
 	{
@@ -658,6 +685,7 @@ export const NAV = Object.freeze([
 		label: 'Automatizaciones',
 		area: 'ajustes',
 		sub: 'sistema',
+		desc: 'Lo que corre solo: crons, mails programados y el bot',
 		soon: false
 	},
 	{
@@ -669,6 +697,7 @@ export const NAV = Object.freeze([
 		label: 'Actividad',
 		area: 'ajustes',
 		sub: 'sistema',
+		desc: 'Quién cambió qué, con CSV y «Recuperar»',
 		soon: false
 	}
 ]);
@@ -925,13 +954,16 @@ export function activeNavItem(pathname) {
 /**
  * Secciones de un área que se muestran en el menú (barra lateral y panel "Más"), en orden: las
  * que existen primero y las que vienen (`soon`) al final. Quedan afuera las de `menu: false`
- * (siguen en `NAV` para el buscador), las `hidden` y, con `hideSoon`, las que vienen.
+ * (siguen en `NAV` para el buscador), las `hidden`, con `hideSoon` las que vienen, y la portada de
+ * un grupo (`landing`, Ajustes: es la página que muestra las demás, no una más).
  *
  * @param {string | null} area
  * @param {{ flags?: Record<string, boolean>, hideSoon?: boolean }} [opts]
  */
 export function navAreaItems(area, { flags = {}, hideSoon = false } = {}) {
-	const items = NAV.filter((i) => i.area === area && i.menu !== false).filter((i) => {
+	const items = NAV.filter(
+		(i) => i.area === area && i.menu !== false && !NAV_GROUPS.some((g) => g.landing === i.id)
+	).filter((i) => {
 		const state = navState(i, flags);
 		return state !== 'hidden' && !(hideSoon && state === 'soon');
 	});
@@ -985,7 +1017,8 @@ export function navGroupItems(group, opts) {
 /**
  * Las secciones de la barra lateral (opción C, decisión 0038): Inicio y un link por grupo del menú
  * ({@link NAV_GROUPS}, salvo los de `side: false`: la Puerta), sin sub-ítems. Cada una lleva a la primera página de su grupo que existe
- * (Eventos → /admin/eventos, Comunidad → Personas, Ajustes → Cobros…); las demás páginas del grupo
+ * (Eventos → /admin/eventos, Comunidad → Personas…), o a su portada (Ajustes → /admin/ajustes,
+ * decisión 0042); las demás páginas del grupo
  * son pestañas arriba de la página ({@link sectionTabs}). Un grupo sin ninguna página lista (todo
  * próximamente u oculto) no se muestra. `count` es la suma de los contadores del grupo.
  *
@@ -1009,7 +1042,8 @@ export function sideSections({ flags = {}, counts = {} } = {}) {
 	];
 	for (const g of NAV_GROUPS) {
 		if (g.side === false) continue;
-		const root = navGroupItems(g.id, { flags, hideSoon: true })[0];
+		// Con portada (Ajustes), a la portada; si no, a la primera página del grupo.
+		const root = g.landing ? navItem(g.landing) : navGroupItems(g.id, { flags, hideSoon: true })[0];
 		if (!root) continue;
 		out.push({
 			id: g.id,
@@ -1038,10 +1072,10 @@ export function activeSection(item) {
 }
 
 /**
- * Pestañas de sección (como las de Ajustes): en la página principal de cada sección de un grupo
- * del menú con dos o más secciones, una barra con todas las secciones del grupo. Con la opción C
- * (decisión 0038) la barra lateral solo muestra los grupos, así que estas pestañas son el único
- * menú de las páginas de cada grupo: también Eventos (Eventos, Agenda, Series, Lugares, Roles y
+ * Pestañas de sección: en la página principal de cada sección de un grupo del menú con dos o más
+ * secciones, una barra con todas las secciones del grupo. Con la opción C (decisión 0038) la
+ * barra lateral solo muestra los grupos, así que estas pestañas son el único menú de las páginas
+ * de cada grupo (menos Ajustes, que tiene portada, decisión 0042): también Eventos (Eventos, Agenda, Series, Lugares, Roles y
  * preguntas). No llevan las subpáginas (fichas, formularios) ni la Puerta (es una sola página).
  * `null` si la página no lleva.
  *
@@ -1059,6 +1093,8 @@ export function sectionTabs(pathname, { flags = {}, counts = {}, hideSoon = true
 	const item = NAV.find((i) => i.href === path && !i.soon && i.menu !== false);
 	const group = navGroupOf(item?.area);
 	if (!item || !group || navState(item, flags) === 'hidden') return null;
+	// Un grupo con portada (Ajustes, decisión 0042) no lleva pestañas: se vuelve con «← Ajustes».
+	if (group.landing) return null;
 	const items = navGroupItems(group.id, { flags, hideSoon });
 	if (items.filter((i) => !i.soon).length < 2) return null;
 	return {

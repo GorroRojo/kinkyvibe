@@ -54,6 +54,7 @@ import {
 	partDoorCounts,
 	undoPartCheckIn
 } from '$lib/server/tickets/partCheckins.js';
+import { DOOR_AUTO_PARAM } from '$lib/utils/doorEvents.js';
 import { NO_STORE, cachedPrior, doorContext, doorSeriesLabel } from './context.server.js';
 
 /**
@@ -86,6 +87,8 @@ export async function load(event) {
 		// Parte de un taller: «Parte 2 de 3», con las entradas del taller.
 		part,
 		series,
+		// Se abrió solo desde /admin/checkin (era el único evento de hoy): muestra «Otro evento».
+		autoOpened: event.url.searchParams.has(DOOR_AUTO_PARAM),
 		login: admin.login,
 		counts,
 		waitlist,

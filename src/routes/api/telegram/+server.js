@@ -3,7 +3,8 @@
  * `$lib/server/telegram/`; esta ruta solo junta el secreto, los interruptores, los eventos, la
  * tarjeta de cada evento, el modo inline, el Fondo, el token (con él, el webhook llama a la API en
  * `waitUntil`) y, para la fase 2 (vincular cuentas), el vínculo de les admins (la puerta por
- * Telegram) y los textos cambiados en el panel («Textos del bot»), la base.
+ * Telegram), el estado y los avisos para admins (0041) y los textos cambiados en el panel
+ * («Textos del bot»), la base.
  */
 import { env } from '$env/dynamic/private';
 import { isFlagOn } from '$lib/server/flags.js';
@@ -14,6 +15,7 @@ import { inlineSource } from '$lib/server/telegram/inlineSource.js';
 import { botAccounts } from '$lib/server/telegram/link.js';
 import { botAdminLink } from '$lib/server/telegram/adminLink.js';
 import { botDoor } from '$lib/server/telegram/puerta.js';
+import { botAdmin } from '$lib/server/telegram/adminData.js';
 import { botUsername } from '$lib/server/telegram/web.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { botTextOverrides } from '$lib/server/telegram/texts.js';
@@ -23,6 +25,7 @@ export async function POST({ request, url, platform, fetch }) {
 	const db = getDB(platform);
 	const ctx = platform?.ctx;
 	const puerta = Boolean(db && (await isFlagOn(db, 'telegram_puerta')));
+	const admin = Boolean(db && (await isFlagOn(db, 'telegram_admin')));
 	return handleWebhook({
 		request,
 		secret: env.TELEGRAM_WEBHOOK_SECRET,
@@ -46,11 +49,15 @@ export async function POST({ request, url, platform, fetch }) {
 		// Fase 2: con «Lo que sigo» prendido (el bot ya está prendido si se llega acá).
 		accounts: async () =>
 			db && (await isFlagOn(db, 'lo_que_sigo')) ? botAccounts(db, platform) : null,
-		// La puerta por Telegram (0037): `/start adm_<código>` del panel, con `telegram_puerta`
-		// prendido (no depende de «Lo que sigo»). Apagado, el bot contesta que no se puede.
-		adminLink: db && puerta ? botAdminLink(db) : null,
+		// Vincular el Telegram de une admin (0037): `/start adm_<código>` del panel, con
+		// `telegram_puerta` o `telegram_admin` prendido (no depende de «Lo que sigo»). Con los dos
+		// apagados, el bot contesta que no se puede.
+		adminLink: db && (puerta || admin) ? botAdminLink(db) : null,
 		// «🚪 Puerta» en el inicio para les admins vinculades (0037): una consulta por id de
 		// Telegram, solo al mostrar el inicio por chat privado.
-		door: db && puerta ? botDoor(db) : null
+		door: db && puerta ? botDoor(db) : null,
+		// «📊 Estado» y «🔔 Mis avisos» para admins vinculades (0041): quién es admin se mira en
+		// cada mensaje y cada botón de admins (y al mostrar el inicio por privado).
+		admin: db && admin ? botAdmin(db) : null
 	});
 }
