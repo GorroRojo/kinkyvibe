@@ -198,16 +198,17 @@ de amigues y lanzamientos grandes.
   gestione desde Mi rincón (con cuenta), sin pasar por les admins para cada cambio (gorrite,
   11/10). M. Revisar cómo se asigna hoy quién gestiona un perfil (docs/amigues.md).
 - Borrar objetos para siempre; campos propios y tipos simples desde el panel. L. Bloqueo: diseño.
-- Navegación del panel, opción C ([0038](decisiones/0038-navegacion-del-panel-opcion-c.md)),
-  lo que quedó pendiente después de la parte 1 (barra con 8 secciones, Puerta propia, «Ir a…» y
-  Recientes):
-  - Pestañas de la ficha del evento (5 y «Más», o como quede) y dónde van los ajustes de mails. M.
-    Bloqueo: decisión de gorrite.
-  - ¿Sigue el botón «Cargar evento» de la barra de arriba? La parte 1 lo dejó (gorrite dijo que
-    crear queda como botón en Eventos y sin «+ Crear»). S. Bloqueo: gorrite.
-  - Recientes en el celu (hoja «Más») y en el buscador vacío, si se usan en la compu. S.
-  - Lo que viene («Próximamente») ya no se ve en la barra lateral de la compu: decidir si va en
-    las pestañas de cada sección o si alcanza con el celu y el buscador. S. Bloqueo: gorrite.
+- Navegación del panel, opción C ([0038](decisiones/0038-navegacion-del-panel-opcion-c.md),
+  [0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)), lo que quedó después de la
+  parte 2 (Fijados, «+ Crear», Puerta fuera de la barra, pestañas con contadores y ▾ en el celu):
+  - Pestañas de la ficha del evento (5 y «Más» en el prototipo; #303 propone 7 con vistas) y dónde
+    van los ajustes de mails. M. Bloqueo: decisión de gorrite (#303).
+  - Ajustes como 4 grupos (Plata, Comunicación, Equipo, Sistema) con tarjetas, como en el
+    prototipo, en vez de 9 pestañas. M. Bloqueo: gorrite.
+  - La Puerta «abierta en el evento de hoy» (el prototipo entra directo al evento del día; hoy
+    `/admin/checkin` muestra la lista para elegir). S. Bloqueo: gorrite.
+  - Fijados y Recientes en el buscador vacío de «Ir a…». S.
+  - Fijados por admin en la base (hoy por navegador), si se suma una tabla de preferencias. M.
   - Si la barra sin grupos se queda, sacar las funciones de grupos abiertos de `navPrefs.js`
     (`kv-panel-grupos`) y sus pruebas. S.
 - Panel lateral de cada admin: hoy la elección («Siempre abierto», «Solo íconos», «Se oculta»)

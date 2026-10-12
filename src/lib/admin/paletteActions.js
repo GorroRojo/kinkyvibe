@@ -8,6 +8,7 @@
  */
 import { REVIEW_LINK } from './nav.js';
 import { buildCommands, fold } from './commands.js';
+import { createItems } from './createMenu.js';
 
 /**
  * Una acción; `run` dice qué hace la paleta en vez de ir a `href`: la hoja de atajos, la ayuda
@@ -142,16 +143,50 @@ export function preferenceCommands({ hideSoon = false } = {}) {
 	];
 }
 
+/** Ícono de la paleta (nombre de `ICONS` en SearchBox) de cada ítem de «Crear». */
+const CREATE_ICONS = /** @type {Record<string, string>} */ ({
+	evento: 'calendar-plus',
+	serie: 'calendar',
+	lugar: 'map-pin',
+	importar: 'sheet',
+	rol: 'users',
+	codigo: 'tag',
+	perfil: 'profile',
+	material: 'book',
+	kinkipedia: 'tag'
+});
+
+/**
+ * «Crear: …» (las del menú «+ Crear ▾», `createMenu.js`) que no son ya otra acción con la misma
+ * URL (como «Nuevo material» o «Cargar evento»). Lo que viene no está: no hay a dónde ir.
+ * @param {Command[]} existing las acciones que ya hay
+ * @returns {Command[]}
+ */
+export function createCommands(existing) {
+	const hrefs = new Set(existing.map((c) => c.href));
+	return createItems({ hideSoon: true })
+		.filter((c) => c.href && !hrefs.has(c.href))
+		.map((c) => ({
+			id: `create:${c.id}`,
+			label: `Crear: ${c.label}`,
+			hint: c.hint,
+			keywords: c.keywords,
+			icon: CREATE_ICONS[c.id] ?? 'arrow',
+			href: c.href
+		}));
+}
+
 /**
  * Las acciones de la paleta, en orden: las de `buildCommands`, después las de
- * {@link EXTRA_COMMANDS}, «Cómo buscar» y las preferencias.
+ * {@link EXTRA_COMMANDS}, las de «Crear» que faltan, «Cómo buscar» y las preferencias.
  * @param {{ today?: { slug: string, title: string, href: string }[], hideSoon?: boolean }} [opts]
  * @returns {Command[]}
  */
 export function paletteCommands({ today = [], hideSoon = false } = {}) {
+	const base = [...buildCommands({ today }), ...EXTRA_COMMANDS];
 	return [
-		...buildCommands({ today }),
-		...EXTRA_COMMANDS,
+		...base,
+		...createCommands(base),
 		SEARCH_HELP_COMMAND,
 		...preferenceCommands({ hideSoon })
 	];

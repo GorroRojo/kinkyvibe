@@ -118,6 +118,9 @@
 	</div>
 
 	<Tabs
+		menu
+		menuCaption="Ver"
+		sumCounts={false}
 		current={filterHref}
 		tabs={[
 			{ href: '/admin/ajustes/propinas', label: 'Todas' },

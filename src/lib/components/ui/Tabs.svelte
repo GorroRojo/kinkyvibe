@@ -12,7 +12,12 @@
 	 * `menu` (opcional): en el celu (< 600 px), en vez de la tira que se desliza, un botón con el
 	 * nombre de la pestaña actual y ▾ que abre la lista entera (ícono y nombre, ninguna escondida).
 	 * Escape o elegir una la cierran y el foco vuelve al botón; las flechas recorren la lista. En la
-	 * compu, la tira de siempre (ficha del evento, gorrite 11/10).
+	 * compu, la tira de siempre (ficha del evento, gorrite 11/10). Desde la parte 2 de la opción C
+	 * lo usan todas las barras de pestañas del panel. El botón es la navegación principal de la
+	 * página en el celu (gorrite, 11/10): ancho entero, con borde y fondo, y una línea chica que
+	 * dice qué es (`menuCaption`, «Sección» por defecto). Su contador suma el de todas las
+	 * pestañas (lo que hay para revisar en cualquiera de ellas).
+	 * Los links precargan la página al pasar el mouse o con el foco (`data-sveltekit-preload-data`).
 	 */
 	import { onMount, tick } from 'svelte';
 	import { ChevronDown, ChevronLeft, ChevronRight } from '@lucide/svelte';
@@ -24,6 +29,13 @@
 	export let current = undefined;
 	export let label = 'Pestañas';
 	export let menu = false;
+	/** Qué es la lista, en el botón del celu («Sección: Órdenes»). */
+	export let menuCaption = 'Sección';
+	/**
+	 * El contador del botón del celu: la suma de todas las pestañas (contadores «a revisar») o, con
+	 * `false`, el de la actual (filtros como Próximos/Pasados, donde el número es un total).
+	 */
+	export let sumCounts = true;
 	$: active = current ?? $page.url.pathname.replace(/\/+$/, '');
 
 	// Señal de que hay más pestañas de costado (fundido y flecha) cuando no entran todas.
@@ -81,6 +93,9 @@
 	/** @type {HTMLElement | undefined} */
 	let list;
 	$: currentTab = tabs.find((t) => t.href === active);
+	$: menuCount = sumCounts
+		? tabs.reduce((n, t) => n + (t.soon ? 0 : Number(t.count ?? 0) || 0), 0)
+		: Number(currentTab?.count ?? 0) || 0;
 	/** @param {boolean} [focusToggle] */
 	function close(focusToggle = false) {
 		open = false;
@@ -129,7 +144,12 @@
 <svelte:window on:click={onWindowClick} />
 
 {#if menu}
-	<nav class="tabs-menu" aria-label={label} on:focusout={onFocusOut}>
+	<nav
+		class="tabs-menu"
+		aria-label={label}
+		on:focusout={onFocusOut}
+		data-sveltekit-preload-data="hover"
+	>
 		<button
 			type="button"
 			class="tabs-toggle"
@@ -152,8 +172,14 @@
 					size={16}
 					aria-hidden="true"
 				/>{/if}
-			<span class="toggle-name">{currentTab ? currentTab.label : label}</span>
-			{#if currentTab?.count}<span class="count">{currentTab.count}</span>{/if}
+			<span class="toggle-name"
+				><span class="toggle-cap">{menuCaption}:</span>
+				{currentTab ? currentTab.label : label}</span
+			>
+			{#if menuCount}<span
+					class="count"
+					title={sumCounts ? 'Para revisar en estas pestañas' : undefined}>{menuCount}</span
+				>{/if}
 			<span class="sr-only">(elegí otra pestaña)</span>
 			<ChevronDown size={18} aria-hidden="true" class="chev" />
 		</button>
@@ -212,6 +238,7 @@
 		aria-label={label}
 		bind:this={bar}
 		on:scroll={measure}
+		data-sveltekit-preload-data="hover"
 	>
 		{#each tabs as tab (tab.href)}
 			{@const on = active === tab.href}
@@ -375,20 +402,28 @@
 		align-items: center;
 		gap: 0.45em;
 		width: 100%;
-		min-height: var(--tap);
+		/* La navegación principal de la página en el celu: más alta, con borde violeta y fondo lila
+		   (no se confunde con los botones de acción del encabezado). */
+		min-height: calc(var(--tap) + 0.25rem);
 		padding: var(--space-3xs) var(--space-xs);
-		border: 1px solid var(--line);
+		border: 2px solid var(--link);
 		border-radius: var(--round);
-		background: var(--surface);
+		background: var(--link-bg);
 		box-shadow: var(--shadow-1);
 		color: var(--link);
 		font: inherit;
+		font-size: var(--text-lg, 1.1rem);
 		font-weight: 700;
 		text-align: left;
 		cursor: pointer;
 	}
 	.tabs-toggle :global(svg) {
 		flex: none;
+	}
+	.toggle-cap {
+		font-size: var(--text-sm);
+		font-weight: 400;
+		color: var(--text);
 	}
 	.toggle-name {
 		flex: 1;

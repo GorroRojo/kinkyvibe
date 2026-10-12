@@ -131,3 +131,5 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   recuperan (11/10)
 - [0038](0038-navegacion-del-panel-opcion-c.md): Navegación del panel: opción C (8 secciones,
   Puerta propia, «Ir a…» y Recientes) (11/10)
+- [0039](0039-navegacion-del-panel-opcion-c-parte-2.md): Navegación del panel, opción C parte 2
+  (Fijados, «+ Crear», Puerta fuera de la barra, pestañas con contadores) (11/10)

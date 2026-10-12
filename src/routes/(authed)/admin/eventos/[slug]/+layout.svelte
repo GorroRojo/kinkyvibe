@@ -1,16 +1,19 @@
 <script>
 	/**
 	 * Ficha de un evento: encabezado (imagen, título, fecha, lugar, etiquetas y acciones) y las
-	 * pestañas de `EVENT_TABS` (en el celu, un botón con la pestaña actual que abre la lista). Las
+	 * pestañas de `EVENT_TABS` (en el celu, un botón con la pestaña actual que abre la lista, y las
+	 * acciones del encabezado, más chicas, debajo: Editar y «⋯ Acciones»; gorrite, 11/10). Las
 	 * pestañas con vistas (Ventas: Totales, Órdenes, Transferencias, Lista de espera; Mails: Mandar
 	 * un aviso, Plantillas) muestran sus vistas como botones debajo (la lista de espera, solo con el
-	 * interruptor prendido o si el evento ya la usa). Una página con `bare: true` en su load (modo
-	 * puerta) se muestra sola, sin encabezado ni pestañas.
+	 * interruptor prendido o si el evento ya la usa). Las pestañas muestran lo que hay para revisar:
+	 * Ventas, las órdenes a revisar más las transferencias que esperan confirmación (y cada vista, lo
+	 * suyo). Una página con `bare: true` en su load (modo puerta) se muestra sola, sin encabezado ni
+	 * pestañas.
 	 */
 	import { page } from '$app/stores';
 	import { afterNavigate } from '$app/navigation';
 	import DateChangeOffer from '$lib/components/admin/DateChangeOffer.svelte';
-	import { CalendarDays, Copy, ExternalLink, ImageDown, Pencil } from '@lucide/svelte';
+	import { CalendarDays, Copy, Ellipsis, ExternalLink, ImageDown, Pencil } from '@lucide/svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import Tabs from '$lib/components/ui/Tabs.svelte';
@@ -27,7 +30,18 @@
 	let dateChangeResult = null;
 	afterNavigate(({ type }) => {
 		if (type !== 'form') dateChangeResult = null;
+		if (moreActions) moreActions.open = false;
 	});
+	/** «⋯ Acciones» del celu. */
+	/** @type {HTMLDetailsElement | undefined} */
+	let moreActions;
+	/** @param {KeyboardEvent} ev */
+	function moreActionsKey(ev) {
+		if (ev.key !== 'Escape' || !moreActions?.open) return;
+		ev.preventDefault();
+		moreActions.open = false;
+		moreActions.querySelector('summary')?.focus();
+	}
 	/** Pestañas que solo tienen sentido si el evento vende entradas. */
 	const SALES_TABS = ['ventas', 'ingreso', 'codigos', 'mails'];
 
@@ -43,22 +57,24 @@
 	)
 		// Preguntas de inscripción: con base y venta de entradas.
 		.filter((t) => t.id !== 'preguntas' || data.signupFieldsTab)
-		// Lista de espera: con el interruptor prendido, o si el evento ya tiene lista o gente anotada.
-		.filter((t) => t.id !== 'lista-espera' || data.waitlistTab)
 		// Los eventos online no tienen control de ingreso (las entradas llevan el link).
 		.filter((t) => !(t.id === 'ingreso' && e.online))
 		.map((t) => ({
 			href: eventHref(e.slug, t.views?.[0].id ?? t.id),
 			label: t.label,
 			icon: t.icon,
-			// En Ventas, las transferencias que esperan confirmación (lo que hay que mirar).
-			count: t.id === 'ventas' ? data.tabCounts.transfers : undefined
+			// Lo que hay para revisar (como en la barra lateral y «Para revisar»), no los totales: en
+			// Ventas, las órdenes a revisar más las transferencias que esperan confirmación.
+			count:
+				t.id === 'ventas'
+					? data.tabCounts.review + data.tabCounts.transfers || undefined
+					: undefined
 		}));
 	$: here = eventTabOf($page.url.pathname);
 	$: currentTab = here ? eventHref(e.slug, here.tab.views?.[0].id ?? here.tab.id) : undefined;
 	/** @type {Record<string, number>} */
 	$: viewCounts = {
-		ordenes: data.tabCounts.orders,
+		ordenes: data.tabCounts.review,
 		transferencias: data.tabCounts.transfers,
 		'lista-espera': data.tabCounts.waitlist
 	};
@@ -147,7 +163,7 @@
 		<DateChangeOffer offer={data.dateChange} slug={e.slug} bind:result={dateChangeResult} />
 	{/if}
 
-	<Tabs {tabs} current={currentTab} menu />
+	<Tabs {tabs} current={currentTab} menu menuCaption="Pestaña" />
 
 	{#if here?.view && views.length}
 		<nav
@@ -162,6 +178,29 @@
 			{/each}
 		</nav>
 	{/if}
+
+	<!-- En el celu, las acciones del encabezado van acá, más chicas: la pestaña es lo principal. -->
+	<div class="mactions">
+		{#if !editing}
+			<a class="kv-btn ghost small" href={eventHref(e.slug, 'editar')}
+				><Pencil {...icon} /> Editar</a
+			>
+		{/if}
+		<!-- svelte-ignore a11y-no-noninteractive-element-interactions (Escape cierra) -->
+		<details class="more-actions" bind:this={moreActions} on:keydown={moreActionsKey}>
+			<summary class="kv-btn ghost small"><Ellipsis {...icon} /> Acciones</summary>
+			<div class="more-pop">
+				<a href="/calendario/{e.slug}" target="_blank" rel="noreferrer"
+					><ExternalLink {...icon} /> Ver página
+					<span class="sr-only">(se abre en otra pestaña)</span></a
+				>
+				<a href="/admin/eventos/nuevo?desde={encodeURIComponent(e.slug)}"
+					><Copy {...icon} /> Duplicar</a
+				>
+				<a href="/calendario/{e.slug}/compartir"><ImageDown {...icon} /> Imagen para compartir</a>
+			</div>
+		</details>
+	</div>
 
 	<slot />
 {/if}
@@ -297,6 +336,59 @@
 		overflow: hidden;
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
+	}
+	/* Acciones del celu (debajo de las pestañas); en la compu van en el encabezado. */
+	.mactions {
+		display: none;
+	}
+	@media (max-width: 599.98px) {
+		.event-head .actions {
+			display: none;
+		}
+		.mactions {
+			display: flex;
+			gap: var(--space-2xs);
+			align-items: center;
+			margin: calc(-1 * var(--space-2xs)) 0 var(--space-s);
+		}
+	}
+	.more-actions {
+		position: relative;
+	}
+	.more-actions summary {
+		list-style: none;
+		cursor: pointer;
+	}
+	.more-actions summary::-webkit-details-marker {
+		display: none;
+	}
+	.more-pop {
+		position: absolute;
+		left: 0;
+		top: calc(100% + 0.25rem);
+		z-index: 15;
+		min-width: 15rem;
+		display: flex;
+		flex-direction: column;
+		padding: var(--space-3xs);
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: var(--round);
+		box-shadow: var(--shadow-2);
+	}
+	.more-pop a {
+		display: flex;
+		align-items: center;
+		gap: 0.6em;
+		min-height: var(--tap);
+		padding: 0 var(--space-xs);
+		border-radius: var(--radius-s);
+		color: var(--text);
+		text-decoration: none;
+	}
+	.more-pop a:hover,
+	.more-pop a:focus-visible {
+		background: var(--surface-2);
 	}
 	@media (min-width: 1100px) {
 		.event-head {

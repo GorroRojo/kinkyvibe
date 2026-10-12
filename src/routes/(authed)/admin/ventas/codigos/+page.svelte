@@ -59,11 +59,7 @@
 	];
 </script>
 
-<PageHeader
-	title="Códigos de descuento"
-	subtitle="La persona escribe el código al comprar."
-	back={{ href: '/admin/ventas', label: 'Ventas' }}
->
+<PageHeader title="Códigos de descuento" subtitle="La persona escribe el código al comprar.">
 	<svelte:fragment slot="actions">
 		<a class="kv-btn" href="#nuevo"><Plus size={16} aria-hidden="true" /> Nuevo código</a>
 		<CsvButton rows={data.codes} {columns} filename={csvFilename('codigos')} />

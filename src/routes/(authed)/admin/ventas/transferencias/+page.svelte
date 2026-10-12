@@ -91,7 +91,6 @@
 <PageHeader
 	title="Transferencias"
 	subtitle="Compras por transferencia de todos los eventos que esperan el comprobante."
-	back={{ href: '/admin/ventas', label: 'Ventas' }}
 >
 	<svelte:fragment slot="actions">
 		<CsvButton
