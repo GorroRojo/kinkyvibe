@@ -1,0 +1,148 @@
+# Cómo se escribe una búsqueda
+
+La referencia de la sintaxis de búsqueda de kinkyvibe: qué entiende cada buscador, cómo se lee lo
+que se escribe y qué código lo hace. Es la fuente de verdad para quien programa (personas y agentes):
+si cambiás cómo se busca en cualquier lado, cambiá esto en el mismo PR. La guía para quien usa el
+sitio, el bot o el panel sale de acá (ver «La guía visible», abajo). Por qué es así:
+[0046](decisiones/0046-sintaxis-de-busqueda.md).
+
+> **Estado (12/10):** esto es lo **acordado**, todavía no está hecho en todos lados. La columna
+> «Hoy» de cada tabla dice dónde ya anda. Cuando un PR lo aplica, actualiza esa columna.
+
+## Los tres buscadores
+
+| Buscador  | Dónde está                                                  | Qué busca                                                                    | Motor                                                               |
+| --------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| **Sitio** | Ctrl+K o la lupa (`SearchPalette.svelte`)                   | Lo público: eventos, material, amigues, Kinkipedia, series                   | Índice público en el navegador (`$lib/utils/search.js`)             |
+| **Bot**   | Modo inline (`@bot …`) y «🔎 Buscar» (`telegram/inline.js`) | Lo mismo que el sitio                                                        | El mismo índice, en el servidor (`telegram/inlineSource.js`)        |
+| **Panel** | Ctrl+K del panel (`paletteActions.js`, `/admin/buscar`)     | Además: órdenes, personas, perfiles, entradas, códigos, etiquetas y acciones | D1 (`$lib/server/admin/search.js`), con `$lib/utils/searchQuery.js` |
+
+El sitio y el bot tienen que dar **los mismos resultados para lo mismo escrito** (los dos usan el
+índice público y lo que no está listado nunca aparece). El panel busca más cosas y suma operadores
+propios, pero **todo lo que existe en los tres se escribe igual**.
+
+## Cómo se lee lo que se escribe
+
+1. **Se normaliza**: sin mayúsculas ni tildes (`fold()`), así `Mañana` = `manana` y `Sábado` =
+   `sabado`. La `ñ` también se pliega (`ñ` → `n`).
+2. **Se parte en piezas** separadas por espacios. Lo que está entre comillas dobles (`"…"`) es una
+   sola pieza, también como valor (`lugar:"club x"`, `-"sin esto"`); una comilla sin cerrar llega
+   hasta el final.
+3. **Cada pieza se clasifica**, en este orden:
+   - empieza con `-` y tiene algo después → **exclusión** de lo que sigue (palabra, frase, etiqueta
+     u operador);
+   - empieza con `#` → **etiqueta**;
+   - empieza con `@` → **persona**;
+   - es `nombre:` o `nombre:valor` y `nombre` es un operador **de ese buscador** → **operador**. Si
+     es `nombre:` solo y la pieza siguiente no es otro operador, el valor es la pieza siguiente
+     (`evento: cuerdas` = `evento:cuerdas`);
+   - es una palabra de fecha (`hoy`, `manana`, `semana`, `finde`) → **fecha** (ver la regla de
+     respaldo, abajo);
+   - lo demás → **texto**. Un `algo:` que no es un operador se busca como texto (`20:30`,
+     `foo:bar`).
+4. **Todo se combina con Y**: tienen que cumplirse todas las piezas. No hay O ni paréntesis. Dos
+   operadores de tipo distintos (`evento: material:`) suman los tipos (es la única excepción: tipo A
+   o tipo B).
+5. **El orden no importa**, salvo `>` (acciones del panel), que solo cuenta al principio.
+6. **Sin nada escrito** (o solo espacios), cada buscador muestra lo suyo de siempre (el sitio, lo
+   próximo; el bot, su lista; el panel, Recientes y acciones).
+7. **Largo máximo**: 100 caracteres (`QUERY_MAX` del bot; acordado: lo mismo en los tres); lo que
+   sobra se corta antes de leer.
+
+### Texto
+
+| Escribís         | Qué hace                                                                                              | Ejemplo                | Hoy               |
+| ---------------- | ----------------------------------------------------------------------------------------------------- | ---------------------- | ----------------- |
+| palabras sueltas | Tienen que estar todas, en cualquier campo y orden. Sitio y bot: perdona errores de tipeo y prefijos. | `cuerdas suspension`   | sitio, bot, panel |
+| `"frase"`        | Esas palabras juntas y en ese orden.                                                                  | `"reduccion de danos"` | panel             |
+| `-palabra`       | Sin esa palabra. También `-"frase"`, `-#etiqueta`, `-evento:` (sin eventos).                          | `taller -online`       | panel             |
+
+- **Tipeo** (sitio y bot): una palabra coincide exacta (1), como prefijo (0,8) o con errores de
+  tipeo (0,5; 0,4 si además es prefijo), según `matchQuality()`. El panel compara por `LIKE`
+  (contiene), sin errores de tipeo.
+- **Palabras vacías** (sitio y bot): `de`, `la`, `el`… no cuentan, salvo que sean todo lo escrito
+  (`STOPWORDS`). En una frase sí cuentan.
+
+### Etiquetas y personas
+
+| Escribís                  | Qué hace                                                                                                                            | Ejemplo    | Hoy   |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----- |
+| `#etiqueta` o `etiqueta:` | Con esa etiqueta, por su nombre o sus otros nombres (alias). Varias: tienen que estar todas.                                        | `#shibari` | panel |
+| `@nombre`                 | Sitio y bot: lo que esa persona firma (material, Kinkipedia) u organiza (eventos, cuando el dato está). Panel: personas y perfiles. | `@gorrite` | panel |
+
+- La etiqueta se busca **con su árbol**: `#cuerdas` trae también lo etiquetado con una etiqueta
+  hija (como ya hace el bot con `siteTagManager`).
+- `#` solo, o `#` con una etiqueta que no existe, se busca como texto.
+
+### Tipo de resultado
+
+| Escribís                      | Qué hace                                | Hoy                       |
+| ----------------------------- | --------------------------------------- | ------------------------- |
+| `evento:` (`eventos:`, `e:`)  | Solo eventos.                           | bot (al principio), panel |
+| `material:` (`m:`)            | Solo material.                          | bot (al principio)        |
+| `wiki:`, `kinkipedia:` (`w:`) | Solo la Kinkipedia (entradas y series). | bot (al principio)        |
+| `serie:` (`series:`, `s:`)    | Solo series.                            | bot (al principio)        |
+| `amigues:` (`a:`)             | Solo amigues.                           | bot (al principio)        |
+
+- Van en cualquier lugar de lo escrito, con o sin espacio después de los dos puntos, en singular o
+  plural.
+- En el panel, `evento:` además deja poner una palabra de pestaña al final (ver «Solo en el
+  panel»).
+
+### Lugar y fechas (solo eventos)
+
+| Escribís                           | Qué hace                                                            | Ejemplo                           | Hoy   |
+| ---------------------------------- | ------------------------------------------------------------------- | --------------------------------- | ----- |
+| `lugar:`                           | Eventos en ese lugar (el nombre público del lugar).                 | `lugar: palermo`                  | panel |
+| `hoy`, `mañana`, `semana`, `finde` | Eventos en esos días (hora de Argentina). `esta semana` = `semana`. | `finde #cuerdas`                  | panel |
+| `cuando:`                          | Un día de la semana (el próximo) o una fecha `d/m` o `d/m/aaaa`.    | `cuando: sabado`, `cuando: 15/10` | panel |
+
+- Un operador de fecha o de lugar **acota a eventos** aunque no se escriba `evento:`.
+- **Regla de respaldo** (sitio y bot): si una palabra de fecha suelta (`finde`) no deja ningún
+  resultado, se busca como texto, para que «finde» encuentre «Finde de cuerdas». Con `cuando:`
+  nunca se cae a texto. En el panel la fecha manda siempre (como hoy).
+
+### Solo en el panel
+
+| Escribís                      | Qué hace                                                                                                                                             |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `>texto`                      | Solo acciones (tiene que ir al principio).                                                                                                           |
+| `orden:` + texto              | Solo órdenes, por nombre, mail, DNI o referencia `KV-…`.                                                                                             |
+| `orden:pendiente`, `estado:…` | Órdenes en ese estado: `pendiente`, `transferencia`, `aprobada`, `rechazada`, `cancelada`, `reembolsada`, `vencida` (también en plural o masculino). |
+| `tipo:a,b`                    | Solo esos tipos: `orden`, `persona`, `perfil`, `etiqueta`, `entrada`, `codigo`, `accion`, `evento`.                                                  |
+| `evento:latex puerta`         | La palabra de pestaña al final (`puerta`, `ordenes`, `mail`, `ventas`, `duplicar`) lleva directo a esa pestaña del primer evento.                    |
+| una referencia, DNI o código  | `KV-…`, un DNI o el código de una entrada se reconocen solos, sin operador.                                                                          |
+
+En el sitio y el bot estos se buscan como texto (`orden:` no es un operador ahí).
+
+## Qué código lo hace
+
+- **Hoy**: `$lib/utils/searchQuery.js` (`parseSearchQuery`) es el parser del panel;
+  `telegram/inline.js` (`parseInlineQuery`, `INLINE_PREFIXES`) lee solo el prefijo de tipo del
+  bot; el sitio no lee operadores (`queryTerms` en `search.js`).
+- **Acordado**: un solo parser para la base en `$lib/utils/` que usan los tres. El panel lo llama
+  y suma lo suyo (`>`, `orden:`, `estado:`, `tipo:`, pestañas). `parseInlineQuery` y el
+  `queryTerms` del sitio pasan a usarlo.
+- Cada operador lleva tests del parser (lo escrito → lo entendido) y uno de punta a punta por
+  buscador. Los ejemplos de este archivo son casos de test.
+
+## Cómo se suma un operador
+
+1. Agregalo acá: en qué tabla, qué hace, en qué buscadores, un ejemplo.
+2. Si va en los tres, va en el parser común; si es solo del panel, en la parte del panel.
+3. Que no choque con texto común: un nombre de operador que sea una palabra frecuente (`hoy`)
+   necesita la regla de respaldo.
+4. Sumalo a la guía visible si es de los que ve la gente.
+
+## La guía visible
+
+La guía es un resumen de este archivo para quien busca, no otra fuente de verdad: si algo cambia
+acá, se cambia ahí en el mismo PR.
+
+- **Sitio**: «¿Cómo buscar?» debajo del campo del buscador (las tablas de texto, etiquetas, tipo y
+  fechas, con ejemplos que al tocarlos se escriben en el buscador) y la misma guía en
+  `/ayuda/buscar`, para poder mandar el link.
+- **Bot**: «🔎 Cómo buscar» en ❓ Ayuda, y una línea en el mensaje de Buscar.
+- **Panel**: la línea de ayuda de la paleta abre todo, incluido «Solo en el panel».
+- Muestra la forma larga y la corta al lado (`evento:` (o `e:`)), salvo que gorrite decida otra
+  cosa en 0046.
