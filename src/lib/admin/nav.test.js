@@ -9,6 +9,7 @@ import {
 	NAV_GROUPS,
 	REVIEW_LINK,
 	activeNavItem,
+	activeSection,
 	areaBackLink,
 	areaCount,
 	eventHref,
@@ -27,6 +28,7 @@ import {
 	navState,
 	reviewCountOf,
 	sectionTabs,
+	sideSections,
 	soonItemAt
 } from './nav.js';
 import { buildCommands, matchCommands } from './commands.js';
@@ -63,8 +65,9 @@ describe('NAV', () => {
 		for (const i of NAV) expect(i.area === null || areas.has(i.area), i.id).toBe(true);
 		expect(NAV.filter((i) => i.area === null).map((i) => i.id)).toEqual(['inicio']);
 	});
-	it('las 7 áreas aprobadas, en orden, con ícono, y Ajustes al pie', () => {
+	it('las áreas aprobadas, en orden, con ícono, y Ajustes al pie (la Puerta, propia: opción C)', () => {
 		expect(NAV_AREAS.map((a) => a.label)).toEqual([
+			'Puerta',
 			'Eventos',
 			'Ventas',
 			'Comunidad',
@@ -185,11 +188,10 @@ describe('NAV', () => {
 	it('el orden aprobado: por frecuencia de uso dentro de cada área', () => {
 		/** @param {string} a */
 		const ids = (a) => navAreaItems(a).map((i) => i.id);
+		expect(ids('puerta')).toEqual(['checkin']);
 		expect(ids('eventos')).toEqual([
 			'eventos',
-			'eventos-nuevo',
 			'eventos-agenda',
-			'checkin',
 			'eventos-series',
 			'eventos-lugares',
 			'ajustes-personas'
@@ -267,6 +269,16 @@ describe('NAV', () => {
 		expect(navItem('estadisticas-asistencia')?.area).toBe('estadisticas');
 		expect(navItem('estadisticas-visitas')?.area).toBe('estadisticas');
 		expect(navItem('eventos-lugares')?.area).toBe('eventos');
+		expect(navItem('checkin')?.area).toBe('puerta');
+	});
+	it('«Cargar evento» no está en el menú (es una acción, opción C) pero sigue en el buscador', () => {
+		const nuevo = navItem('eventos-nuevo');
+		expect(nuevo).toMatchObject({ menu: false, parent: 'eventos', href: '/admin/eventos/nuevo' });
+		expect(nuevo?.highlight).toBeUndefined();
+		expect(matchCommands(buildCommands(), 'crear evento')[0]).toMatchObject({
+			id: 'nav:eventos-nuevo',
+			href: '/admin/eventos/nuevo'
+		});
 	});
 	it('"Roles y preguntas" está en Eventos, en /admin/eventos/roles', () => {
 		expect(navItem('ajustes-personas')).toMatchObject({
@@ -303,9 +315,11 @@ describe('NAV', () => {
 });
 
 describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
-	it('seis entradas: Eventos, Ventas, Comunidad, Contenido, Estadísticas (sola) y Ajustes al pie', () => {
+	it('siete entradas: Puerta, Eventos, Ventas, Comunidad, Contenido, Estadísticas y Ajustes al pie', () => {
 		// gorrite (4/10): Estadísticas vuelve a ser su propia entrada, fuera de Ventas.
+		// gorrite (11/10, opción C): la Puerta es su propia entrada, resaltada.
 		expect(NAV_GROUPS.map((g) => g.label)).toEqual([
+			'Puerta',
 			'Eventos',
 			'Ventas',
 			'Comunidad',
@@ -314,6 +328,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 			'Ajustes'
 		]);
 		expect(NAV_GROUPS.filter((g) => g.foot).map((g) => g.id)).toEqual(['ajustes']);
+		expect(NAV_GROUPS.filter((g) => g.highlight).map((g) => g.id)).toEqual(['puerta']);
 		for (const g of NAV_GROUPS) expect(g.icon && g.emoji, g.id).toBeTruthy();
 	});
 	it('cada área está en un solo grupo, así ninguna sección del menú se pierde', () => {
@@ -330,6 +345,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 		expect(navGroupOf('mensajes')?.id).toBe('comunidad');
 		expect(navGroupOf('etiquetas')?.id).toBe('contenido');
 		expect(navGroupOf('ajustes')?.id).toBe('ajustes');
+		expect(navGroupOf('puerta')?.id).toBe('puerta');
 		expect(navGroupOf(null)).toBeUndefined();
 		expect(navGroupOf('no-existe')).toBeUndefined();
 	});
@@ -438,7 +454,22 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 	});
 	it('con el interruptor apagado, lo que da 404 no aparece', () => {
 		expect(labels('/admin/ajustes/cobros', { propinas: false })).toContain('Propinas');
-		expect(labels('/admin/eventos/agenda', { series: false })).toBe(null);
+	});
+	it('Eventos también lleva pestañas (la barra lateral ya no muestra sus páginas, opción C)', () => {
+		const eventos = ['Eventos', 'Agenda', 'Series', 'Lugares', 'Roles y preguntas'];
+		for (const path of [
+			'/admin/eventos',
+			'/admin/eventos/agenda',
+			'/admin/eventos/series',
+			'/admin/eventos/lugares',
+			'/admin/eventos/roles'
+		]) {
+			expect(labels(path), path).toEqual(eventos);
+		}
+		expect(sectionTabs('/admin/eventos')?.label).toBe('Secciones de Eventos');
+		// Ni «Cargar evento» (es una acción: botón en Eventos) ni la Puerta (sección propia).
+		expect(labels('/admin/eventos')).not.toContain('Cargar evento');
+		expect(labels('/admin/eventos')).not.toContain('Puerta');
 	});
 	it('cada pestaña lleva el ícono de su sección (el mismo que en la barra lateral)', () => {
 		const paths = NAV.filter((i) => !i.soon && i.menu !== false).map((i) => i.href);
@@ -453,10 +484,11 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 		}
 		expect(checked).toBeGreaterThan(10);
 	});
-	it('no van en Eventos, en Inicio, en subpáginas ni en lo que viene', () => {
+	it('no van en Inicio, en la Puerta (una sola página), en subpáginas ni en lo que viene', () => {
 		expect(sectionTabs('/admin')).toBe(null);
-		expect(sectionTabs('/admin/eventos')).toBe(null);
 		expect(sectionTabs('/admin/checkin')).toBe(null);
+		expect(sectionTabs('/admin/eventos/nuevo')).toBe(null);
+		expect(sectionTabs('/admin/eventos/alguno/ventas')).toBe(null);
 		expect(sectionTabs('/admin/comunidad/personas/123')).toBe(null);
 		expect(sectionTabs('/admin/ventas/tienda')).toBe(null);
 		expect(sectionTabs('/admin/eventos/importar')).toBe(null);
@@ -554,7 +586,8 @@ describe('activeNavItem', () => {
 		expect(activeNavItem('/admin')?.id).toBe('inicio');
 		expect(activeNavItem('/admin/')?.id).toBe('inicio');
 		expect(activeNavItem('/admin/ventas/codigos')?.id).toBe('entradas-codigos');
-		expect(activeNavItem('/admin/eventos/nuevo')?.id).toBe('eventos-nuevo');
+		// «Cargar evento» no está en el menú: su página marca Eventos.
+		expect(activeNavItem('/admin/eventos/nuevo')?.id).toBe('eventos');
 		expect(activeNavItem('/admin/comunidad/cuentas')?.id).toBe('cuentas');
 		expect(activeNavItem('/admin/comunidad/cuentas/00000000-0000-4000-8000-000000000000')?.id).toBe(
 			'cuentas'
@@ -695,5 +728,73 @@ describe('íconos de las pestañas de la ficha del evento', () => {
 		}
 		// Ventas, Puerta y Códigos (Transferencias pasó a ser una vista de Ventas, sin ícono).
 		expect(matched).toBeGreaterThanOrEqual(3);
+	});
+});
+
+describe('barra lateral (opción C: sideSections)', () => {
+	it('las 8 secciones, en orden, con Ajustes al pie y la Puerta resaltada', () => {
+		const secs = sideSections();
+		expect(secs.map((s) => s.label)).toEqual([
+			'Inicio',
+			'Puerta',
+			'Eventos',
+			'Ventas',
+			'Comunidad',
+			'Contenido',
+			'Estadísticas',
+			'Ajustes'
+		]);
+		expect(secs.filter((s) => s.foot).map((s) => s.id)).toEqual(['ajustes']);
+		expect(secs.filter((s) => s.highlight).map((s) => s.id)).toEqual(['puerta']);
+		for (const s of secs) expect(s.icon && s.emoji, s.id).toBeTruthy();
+	});
+	it('cada sección lleva a la primera página que existe de su grupo', () => {
+		expect(Object.fromEntries(sideSections().map((s) => [s.id, s.href]))).toEqual({
+			inicio: '/admin',
+			puerta: '/admin/checkin',
+			eventos: '/admin/eventos',
+			ventas: '/admin/ventas',
+			comunidad: '/admin/comunidad/personas',
+			contenido: '/admin/contenido/material',
+			estadisticas: '/admin/estadisticas/ventas',
+			ajustes: '/admin/ajustes/cobros'
+		});
+		const pages = new Set(adminPages());
+		for (const s of sideSections()) {
+			expect(pages.has(s.href), s.href).toBe(true);
+			expect(navItem(s.root)?.href, s.id).toBe(s.href);
+		}
+	});
+	it('ninguna acción en la barra: «Cargar evento» no está', () => {
+		const hrefs = sideSections().map((s) => s.href);
+		expect(hrefs).not.toContain('/admin/eventos/nuevo');
+	});
+	it('cada página del menú se alcanza: su sección en la barra y, si hay más de una, su pestaña', () => {
+		const secs = new Map(sideSections().map((s) => [s.id, s.href]));
+		for (const item of NAV.filter((i) => !i.soon && i.menu !== false)) {
+			const section = activeSection(item);
+			expect(section && secs.has(section), item.id).toBe(true);
+			const reachable =
+				secs.get(String(section)) === item.href ||
+				Boolean(
+					sectionTabs(String(secs.get(String(section))))?.tabs.some((t) => t.href === item.href)
+				);
+			expect(reachable, item.id).toBe(true);
+		}
+	});
+	it('el contador de cada sección suma el de su grupo', () => {
+		const counts = { transfers: 2, profilesToReview: 3, unlisted: 4 };
+		const by = Object.fromEntries(sideSections({ counts }).map((s) => [s.id, s.count]));
+		expect(by).toMatchObject({ inicio: 0, puerta: 0, ventas: 2, comunidad: 3, contenido: 4 });
+	});
+	it('activeSection: Inicio, el grupo de la página, o null', () => {
+		expect(activeSection(activeNavItem('/admin'))).toBe('inicio');
+		expect(activeSection(activeNavItem('/admin/checkin'))).toBe('puerta');
+		expect(activeSection(activeNavItem('/admin/eventos/alguno/ingreso'))).toBe('eventos');
+		expect(activeSection(activeNavItem('/admin/eventos/nuevo'))).toBe('eventos');
+		expect(activeSection(activeNavItem('/admin/mensajes/plantillas'))).toBe('comunidad');
+		expect(activeSection(activeNavItem('/admin/etiquetas'))).toBe('contenido');
+		expect(activeSection(activeNavItem('/admin/ajustes/admins'))).toBe('ajustes');
+		expect(activeSection(undefined)).toBe(null);
 	});
 });

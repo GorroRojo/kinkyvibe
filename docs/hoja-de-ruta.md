@@ -188,8 +188,18 @@ de amigues y lanzamientos grandes.
   gestione desde Mi rincón (con cuenta), sin pasar por les admins para cada cambio (gorrite,
   11/10). M. Revisar cómo se asigna hoy quién gestiona un perfil (docs/amigues.md).
 - Borrar objetos para siempre; campos propios y tipos simples desde el panel. L. Bloqueo: diseño.
-- Pestañas arriba en cada sección (como Ajustes) y un menú más simple. M. Bloqueo: proponer la
-  estructura antes.
+- Navegación del panel, opción C ([0038](decisiones/0038-navegacion-del-panel-opcion-c.md)),
+  lo que quedó pendiente después de la parte 1 (barra con 8 secciones, Puerta propia, «Ir a…» y
+  Recientes):
+  - Pestañas de la ficha del evento (5 y «Más», o como quede) y dónde van los ajustes de mails. M.
+    Bloqueo: decisión de gorrite.
+  - ¿Sigue el botón «Cargar evento» de la barra de arriba? La parte 1 lo dejó (gorrite dijo que
+    crear queda como botón en Eventos y sin «+ Crear»). S. Bloqueo: gorrite.
+  - Recientes en el celu (hoja «Más») y en el buscador vacío, si se usan en la compu. S.
+  - Lo que viene («Próximamente») ya no se ve en la barra lateral de la compu: decidir si va en
+    las pestañas de cada sección o si alcanza con el celu y el buscador. S. Bloqueo: gorrite.
+  - Si la barra sin grupos se queda, sacar las funciones de grupos abiertos de `navPrefs.js`
+    (`kv-panel-grupos`) y sus pruebas. S.
 - Panel lateral de cada admin: hoy la elección («Siempre abierto», «Solo íconos», «Se oculta»)
   se guarda por navegador (localStorage por login). Si se suma una tabla de preferencias por admin
   en la base, pasarla ahí para que siga a la persona en todos sus dispositivos (gorrite, 11/10;

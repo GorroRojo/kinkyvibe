@@ -1,41 +1,28 @@
 <script>
 	/**
-	 * Menú de la barra lateral del panel (≥ 900 px): Inicio, los grupos de `$lib/admin/nav.js`
-	 * (`NAV_GROUPS`: cada uno junta una o más áreas) y Ajustes al pie. Se pueden abrir varios
-	 * grupos a la vez y cada uno recuerda si quedó abierto o cerrado (`navPrefs.js`, localStorage
-	 * con try/catch; sin storage anda igual). El grupo de la página actual siempre se abre al
-	 * cargar. «Abrir todo / Cerrar todo» arriba abre o cierra todos. Un grupo cerrado muestra la
-	 * suma de sus contadores. Al cargar, el link de la página actual se lleva a la vista dentro de
-	 * la barra (que tiene su propio scroll, en el layout).
+	 * Menú de la barra lateral del panel (≥ 900 px), opción C (decisión 0038): las 8 secciones con
+	 * ícono y nombre (Inicio, Puerta, Eventos, Ventas, Comunidad, Contenido, Estadísticas y Ajustes
+	 * al pie), sin sub-ítems. Cada sección lleva a la primera página de su grupo (`sideSections` de
+	 * `$lib/admin/nav.js`); las demás páginas del grupo son las pestañas de arriba de la página
+	 * (`sectionTabs`, en el layout). La Puerta va resaltada (se usa con gente esperando). Cada
+	 * sección muestra la suma de sus contadores y su pista «g x» (`NavShortcut`, solo en una compu
+	 * con mouse).
+	 *
+	 * Debajo de las secciones, «Recientes»: las últimas páginas que abriste (`recentPlaces.js`, en
+	 * este navegador), las que entran en el alto de la pantalla, hasta 7. Las que no entran no se
+	 * muestran (ni se leen ni se enfocan); si no entra ninguna, no aparece el título.
+	 *
 	 * Props: `active` (NavItem actual), `counts` (`data.panelCounts`), `flags` (`data.navFlags`),
-	 * `hideSoon` ("Ocultar lo que viene"). Cada sección con atajo muestra su pista «g x»
-	 * (`NavShortcut`, solo en una compu con mouse).
+	 * `recent` (las páginas recientes que se muestran, ya sin la actual).
 	 * Con el panel lateral en «Solo íconos» (`data-lateral="iconos"` en <html>, `sidebarMode.js`)
-	 * los nombres quedan solo para los lectores de pantalla y el layout muestra cada uno como
-	 * cartelito (`data-tip`) al pasar el mouse o con el foco.
+	 * los nombres quedan solo para los lectores de pantalla, el layout muestra cada uno como
+	 * cartelito (`data-tip`) al pasar el mouse o con el foco, y Recientes no se muestra.
 	 */
 	import { onMount, tick } from 'svelte';
-	import { ChevronDown } from '@lucide/svelte';
+	import { History } from '@lucide/svelte';
 	import NavIcon from './NavIcon.svelte';
-	import NavEntry from './NavEntry.svelte';
 	import NavShortcut from './NavShortcut.svelte';
-	import {
-		NAV_GROUPS,
-		groupCount,
-		navAreaItems,
-		navGroupItems,
-		navGroupOf,
-		navGroupSections,
-		navState
-	} from '$lib/admin/nav.js';
-	import {
-		allGroupsOpen,
-		pickOpenGroups,
-		readOpenGroups,
-		saveOpenGroups,
-		toggleAllGroups,
-		toggleGroup
-	} from '$lib/admin/navPrefs.js';
+	import { activeSection, sideSections } from '$lib/admin/nav.js';
 
 	/** @type {import('$lib/admin/nav.js').NavItem | undefined} */
 	export let active;
@@ -43,93 +30,100 @@
 	export let counts = {};
 	/** @type {Record<string, boolean>} */
 	export let flags = {};
-	export let hideSoon = false;
+	/** @type {import('$lib/admin/recentPlaces.js').RecentPlace[]} */
+	export let recent = [];
 
-	/** @type {HTMLElement} */
-	let navEl;
-	/** Ids de los grupos abiertos, en el orden del menú. */
-	let open = pickOpenGroups(navGroupOf(active?.area)?.id, null);
-	let mounted = false;
-	onMount(async () => {
-		open = pickOpenGroups(navGroupOf(active?.area)?.id, readOpenGroups());
-		mounted = true;
-		await tick();
-		navEl?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest' });
+	$: sections = sideSections({ flags, counts });
+	$: main = sections.filter((s) => !s.foot);
+	$: foot = sections.filter((s) => s.foot);
+	$: here = activeSection(active);
+
+	/** @type {HTMLUListElement | undefined} */
+	let recentList;
+	/** Cuántas recientes entran (las demás quedan `visibility: hidden`). */
+	let fit = 0;
+
+	/** Cuenta las filas que entran enteras en el alto que le queda a la lista. */
+	function measure() {
+		if (!recentList) return;
+		const max = recentList.clientHeight;
+		const top = recentList.getBoundingClientRect().top;
+		let n = 0;
+		for (const row of recentList.children) {
+			const r = row.getBoundingClientRect();
+			if (r.bottom - top > max + 0.5) break;
+			n++;
+		}
+		fit = n;
+	}
+
+	onMount(() => {
+		measure();
+		if (typeof ResizeObserver !== 'function' || !recentList) return;
+		const ro = new ResizeObserver(() => measure());
+		ro.observe(recentList);
+		return () => ro.disconnect();
 	});
-	// Al navegar a otro grupo, se abre ese (sin cerrar los demás).
-	$: activeGroup = navGroupOf(active?.area)?.id ?? null;
-	$: if (mounted && activeGroup && !open.includes(activeGroup)) open = [...open, activeGroup];
-
-	/** @param {string} id */
-	function toggle(id) {
-		open = toggleGroup(open, id);
-		saveOpenGroups(open);
-	}
-
-	function toggleAll() {
-		open = toggleAllGroups(open, visibleIds);
-		saveOpenGroups(open);
-	}
-
-	/** @param {import('$lib/admin/nav.js').NavItem} item */
-	const countOf = (item) => (item.counter ? Number(counts[item.counter] ?? 0) : 0);
-
-	$: opts = { flags, hideSoon };
-	$: main = NAV_GROUPS.filter((g) => !g.foot && navGroupItems(g.id, opts).length);
-	$: foot = NAV_GROUPS.filter((g) => g.foot && navGroupItems(g.id, opts).length);
-	$: visibleIds = [...main, ...foot].map((g) => g.id);
-	$: everyOpen = allGroupsOpen(open, visibleIds);
+	// Cuando cambia la lista (al navegar), se vuelve a medir.
+	$: if (recent) tick().then(measure);
 </script>
 
-<nav class="sn" aria-label="Secciones del panel" bind:this={navEl}>
-	<button type="button" class="all" on:click={toggleAll}
-		>{everyOpen ? 'Cerrar todo' : 'Abrir todo'}</button
-	>
-	{#each navAreaItems(null, opts) as item (item.id)}
-		<a
-			class="top"
-			class:on={active?.id === item.id}
-			href={item.href}
-			aria-current={active?.id === item.id ? 'page' : undefined}
-			data-tip={item.label}
-			><NavIcon {item} size={18} /><span class="label">{item.label}</span><NavShortcut
-				id={item.id}
-			/></a
-		>
-	{/each}
-	{#each [main, foot] as list, i (i)}
-		<div class="areas" class:foot={i === 1}>
-			{#each list as area (area.id)}
-				{@const isOpen = open.includes(area.id)}
-				{@const total = groupCount(area.id, counts, opts)}
-				<button
-					type="button"
-					class="area"
-					class:here={activeGroup === area.id}
-					aria-expanded={isOpen}
-					aria-controls="kv-area-{area.id}"
-					on:click={() => toggle(area.id)}
-					data-tip={area.label}
-					><NavIcon item={area} size={18} /><span class="label">{area.label}</span>
-					{#if total && !isOpen}<span class="count" title="Pendientes">{total}</span>{/if}
-					<span class="chev" aria-hidden="true"><ChevronDown size={16} /></span></button
+<nav class="sn" aria-label="Secciones del panel">
+	<ul class="secs" role="list">
+		{#each main as s (s.id)}
+			<li>
+				<a
+					class="sec"
+					class:on={here === s.id}
+					class:hl={s.highlight}
+					href={s.href}
+					aria-current={here === s.id ? 'page' : undefined}
+					data-tip={s.label}
+					><NavIcon item={s} size={18} /><span class="label">{s.label}</span>{#if s.count}<span
+							class="count"
+							title="Pendientes">{s.count}</span
+						>{/if}<NavShortcut id={s.root} /></a
 				>
-				<div class="items" id="kv-area-{area.id}" hidden={!isOpen}>
-					{#each navGroupSections(area.id, opts) as section (section.id)}
-						{#if section.label}<div class="sub">{section.label}</div>{/if}
-						{#each section.items as item (item.id)}
-							<NavEntry
-								{item}
-								state={navState(item, flags)}
-								active={active?.id === item.id}
-								count={countOf(item)}
-							/>
-						{/each}
-					{/each}
-				</div>
+			</li>
+		{/each}
+	</ul>
+
+	<div class="recent" class:empty={!recent.length || fit === 0}>
+		{#if recent.length}
+			<p class="rlabel" id="kv-recent-label">
+				<History size={14} aria-hidden="true" />Recientes
+			</p>
+		{/if}
+		<ul
+			bind:this={recentList}
+			role="list"
+			aria-labelledby={recent.length ? 'kv-recent-label' : undefined}
+		>
+			{#each recent as r, i (r.href)}
+				<li class:cut={i >= fit}>
+					<a href={r.href} title={r.label}>{r.label}</a>
+				</li>
 			{/each}
-		</div>
-	{/each}
+		</ul>
+	</div>
+
+	<ul class="secs foot" role="list">
+		{#each foot as s (s.id)}
+			<li>
+				<a
+					class="sec"
+					class:on={here === s.id}
+					href={s.href}
+					aria-current={here === s.id ? 'page' : undefined}
+					data-tip={s.label}
+					><NavIcon item={s} size={18} /><span class="label">{s.label}</span>{#if s.count}<span
+							class="count"
+							title="Pendientes">{s.count}</span
+						>{/if}<NavShortcut id={s.root} /></a
+				>
+			</li>
+		{/each}
+	</ul>
 </nav>
 
 <style lang="scss">
@@ -137,79 +131,51 @@
 	.sn {
 		display: flex;
 		flex-direction: column;
-		gap: 1px;
 		flex: 1;
 	}
-	/* «Abrir todo / Cerrar todo»: chiquito y discreto, arriba a la derecha. La barra lateral solo
-	   existe en la compu (en el celu está el panel "Más"), así que no aparece en el celu. */
-	.all {
-		align-self: flex-end;
-		border: 0;
-		background: none;
-		font: inherit;
-		font-size: var(--text-xs);
-		color: var(--muted);
-		padding: 0.1rem var(--space-2xs);
-		border-radius: var(--round);
-		cursor: pointer;
-		&:hover {
-			background: var(--surface-2);
-			color: var(--link);
-		}
-	}
-	.areas {
+	ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
 		display: flex;
 		flex-direction: column;
 		gap: 1px;
+	}
+	.secs {
 		margin-top: var(--space-3xs);
 		&.foot {
-			margin-top: auto;
 			padding-top: var(--space-2xs);
 			border-top: 1px solid var(--line);
 		}
 	}
-	.top,
-	.area {
+	.sec {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2xs);
 		padding: var(--space-3xs) var(--space-xs);
 		border-radius: var(--round);
-		border: 0;
 		position: relative;
-		background: none;
-		text-align: left;
-		width: 100%;
 		text-decoration: none;
-		cursor: pointer;
-		font: inherit;
+		color: var(--accent);
 		font-weight: 700;
 		transition: background 100ms;
 		&:hover {
 			background: var(--surface-2);
+			color: var(--accent);
 		}
-	}
-	.top {
-		color: var(--accent);
 		&.on {
 			background: var(--link-bg);
 			color: var(--link);
 		}
-	}
-	.area {
-		color: var(--text);
-		&[aria-expanded='true'],
-		&.here {
-			color: var(--link);
-		}
-		.chev {
-			margin-left: auto;
-			display: grid;
-			color: var(--muted);
-			transition: rotate 150ms;
-		}
-		&[aria-expanded='true'] .chev {
-			rotate: 180deg;
+		/* La Puerta: rosa lleno, como su botón de la barra de abajo del celu. */
+		&.hl:not(.on) {
+			background: var(--accent);
+			color: var(--accent-ink);
+			:global(.kv-nav-sc) {
+				color: var(--accent);
+				background: var(--accent-ink);
+				border-color: transparent;
+			}
 		}
 	}
 	.count {
@@ -221,9 +187,6 @@
 		border-radius: var(--radius-m);
 		padding: 0 0.55em;
 		font-variant-numeric: tabular-nums;
-		+ .chev {
-			margin-left: 0.3rem;
-		}
 	}
 	.label {
 		min-width: 0;
@@ -231,30 +194,65 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
-	.items {
+
+	/* Recientes: ocupa el alto que sobra entre las secciones y Ajustes; muestra las filas que
+	   entran enteras (`measure`) y esconde las demás. */
+	.recent {
+		flex: 1 1 0;
+		min-height: 0;
+		/* Su contenido no cuenta para el alto mínimo de la barra: solo toma lo que sobra. */
+		contain: size;
 		display: flex;
 		flex-direction: column;
-		gap: 1px;
-		padding-bottom: var(--space-3xs);
-		&[hidden] {
-			display: none;
+		margin-block: var(--space-s) var(--space-2xs);
+		overflow: hidden;
+		&.empty .rlabel {
+			visibility: hidden;
+		}
+		ul {
+			flex: 1 1 0;
+			min-height: 0;
+			overflow: hidden;
 		}
 	}
-	.sub {
+	.rlabel {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3xs);
+		margin: 0 0 var(--space-3xs);
+		padding: 0 var(--space-xs);
 		font-size: var(--text-xs);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--muted);
-		padding: var(--space-3xs) var(--space-xs) 0 var(--space-l);
+	}
+	.recent a {
+		display: block;
+		padding: 0.2rem var(--space-xs);
+		border-radius: var(--round);
+		font-size: var(--text-xs);
+		color: var(--text);
+		text-decoration: none;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		&:hover {
+			background: var(--surface-2);
+			color: var(--link);
+		}
+	}
+	/* No entra: no se ve, no se lee y no se enfoca. */
+	.cut {
+		visibility: hidden;
 	}
 
 	/* «Solo íconos» (en la compu): una franja angosta. Los nombres quedan para los lectores de
 	   pantalla; el cartelito lo pone el layout (`data-tip`). Los contadores, como un puntito. */
 	@media (min-width: 900px) {
 		:global(html[data-lateral='iconos']) {
-			.all,
-			.sub,
-			.chev,
+			.recent {
+				visibility: hidden;
+			}
 			.sn :global(.kv-nav-sc) {
 				display: none;
 			}
@@ -265,8 +263,7 @@
 				overflow: hidden;
 				clip: rect(0 0 0 0);
 			}
-			.top,
-			.area {
+			.sec {
 				justify-content: center;
 				padding-inline: 0;
 			}
@@ -278,16 +275,6 @@
 				padding: 0 0.35em;
 				line-height: 1.3;
 			}
-			.items {
-				background: var(--surface-2);
-				border-radius: var(--round);
-				padding-block: var(--space-3xs);
-			}
-		}
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.area .chev {
-			transition: none;
 		}
 	}
 </style>

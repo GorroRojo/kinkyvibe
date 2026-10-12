@@ -9,9 +9,11 @@
 	 * solo pone los tokens del panel (`.kv-panel`, con modo oscuro) y la página, sin menús.
 	 *
 	 * Las secciones y sus íconos salen de `$lib/admin/nav.js` (no agregar links a mano acá): la
-	 * barra lateral es `SideNav.svelte` (varios grupos abiertos a la vez, con scroll propio) y el
-	 * panel "Más" del celu, `MoreAreas.svelte`. Arriba (y en el header del celu) está el botón
-	 * global "Para revisar".
+	 * barra lateral es `SideNav.svelte` (opción C, decisión 0038: las 8 secciones, sin sub-ítems,
+	 * y «Recientes», con scroll propio); las páginas de cada sección son las pestañas de arriba
+	 * (`sectionTabs`), y el panel "Más" del celu es `MoreAreas.svelte`. Cada página que se abre se
+	 * suma a Recientes (`$lib/admin/recentPlaces.js`, en este navegador). Arriba (y en el header
+	 * del celu) está el botón global "Para revisar".
 	 *
 	 * Atajos de teclado (solo en la compu): «Atajos de teclado» al pie de la barra lateral y el
 	 * botón `?` de la barra de arriba abren la hoja de atajos del buscador (`openHelp`), y
@@ -58,6 +60,14 @@
 	} from '$lib/admin/nav.js';
 	import { readHideSoon, saveHideSoon } from '$lib/admin/navPrefs.js';
 	import {
+		addRecent,
+		readRecent,
+		recentLabel,
+		saveRecent,
+		shouldRemember,
+		visibleRecent
+	} from '$lib/admin/recentPlaces.js';
+	import {
 		DEFAULT_THEME,
 		THEME_HEAD_SCRIPT,
 		THEME_LABELS,
@@ -94,6 +104,30 @@
 	/** Panel lateral de cada admin (`sidebarMode.js`). */
 	/** @type {import('$lib/admin/sidebarMode.js').SidebarMode} */
 	let sidebarMode = DEFAULT_SIDEBAR_MODE;
+	/** Recientes de la barra lateral (`recentPlaces.js`): todo lo guardado, sin filtrar. */
+	/** @type {import('$lib/admin/recentPlaces.js').RecentPlace[]} */
+	let recentAll = [];
+	let recentLoaded = false;
+	$: recent = visibleRecent(recentAll, $page.url.pathname, { flags });
+
+	/** Suma la página que se acaba de abrir a Recientes (con el título que ya se dibujó). */
+	async function rememberPage() {
+		const { pathname } = $page.url;
+		if (!recentLoaded) {
+			recentAll = readRecent(user?.login);
+			recentLoaded = true;
+		}
+		if (!shouldRemember(pathname, { flags, status: $page.status })) return;
+		await tick();
+		const heading = document.querySelector('main h1')?.textContent;
+		const path = pathname.replace(/\/+$/, '') || '/';
+		recentAll = addRecent(recentAll, {
+			href: path,
+			label: recentLabel({ pathname: path, heading })
+		});
+		saveRecent(user?.login, recentAll);
+	}
+
 	/** «Se oculta»: si está abierto encima del contenido. */
 	let drawerOpen = false;
 	/** @type {HTMLButtonElement | undefined} */
@@ -180,6 +214,7 @@
 		drawerOpen = false;
 		tip = null;
 		if (userMenu) userMenu.open = false;
+		rememberPage();
 	});
 
 	function toggleTheme() {
@@ -339,7 +374,7 @@
 					<img src={logo} alt="Kinky Vibe" width="64" height="64" />
 					<span class="pill">Panel de admin</span>
 				</a>
-				<SideNav {active} {counts} {flags} {hideSoon} />
+				<SideNav {active} {counts} {flags} {recent} />
 				<div class="foot">
 					<button
 						type="button"
