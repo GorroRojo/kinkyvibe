@@ -177,7 +177,6 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `tests-auditoria` · fase 0 · sigue · pruebas · Auditoría de pruebas: acelerar primero, borrar solo con el sí de gorrite por cada una
 - `test-importer-flaky` · fase 0 · sigue · pruebas · `etiquetas/importer.test.js` a veces cuenta un error de más con la máquina cargada: prueba frágil o carrera real (depende de: tests-auditoria)
 - `test-estiloguard-lento` · fase 0 · hecho · pruebas · `estiloGuard` y `series-crear` pasaban el límite de 5 s con la máquina cargada: la preparación cara va en `beforeAll` · #325
-- `test-cuentas-lento` · fase 0 · sigue · pruebas · `cuentas.test.js` «límite de intentos por mail y por conexión» pasó los 5 s con la máquina cargada: ~30 inicios de sesión que derivan la contraseña con las iteraciones de verdad; ver un hash barato sin aflojar lo que prueba
 - `tests-consultas-batch` · fase 0 · sigue · pruebas · `importTags` de la semilla hace ~1800 consultas sueltas: agruparlas en `batch` (también acelera el import de verdad)
 - `ci-duraciones` · fase 0 · sigue · pruebas · Actualizar `scripts/vitest/durations.json` cuando se suman o cambian pruebas lentas, para que las 3 partes sigan parejas
 - `ci-cache-semilla` · fase 0 · espera gorrite · pruebas · Guardar en caché la base ya sembrada de `e2e` (~1 min), con clave por migraciones, semilla e importador
