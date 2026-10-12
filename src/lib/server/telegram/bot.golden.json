@@ -1,0 +1,4061 @@
+{
+	"constantes": {
+		"ACCOUNTS_OFF_TEXT": "Todavía no se puede conectar una cuenta con el bot.",
+		"ADMIN_LINK_INVALID_TEXT": "Ese link no sirve: puede estar vencido (duran 15 minutos), ya usado o incompleto. Generá otro en el panel → Ajustes → Admins → «Vincular Telegram».",
+		"ADMIN_LINK_OFF_TEXT": "Ahora no se puede vincular una cuenta de admin con el bot.",
+		"ERROR_TEXT": "Algo salió mal de nuestro lado. Probá de nuevo en un rato.",
+		"FOLLOW_ALREADY_TEXT": "Ya lo seguías.",
+		"FOLLOW_FULL_TEXT": "Ya seguís el máximo de cosas: dejá de seguir alguna en Mi rincón → Lo que sigo.",
+		"FOLLOW_GONE_TEXT": "Esa etiqueta ya no está para seguir.",
+		"FOLLOW_TOO_MANY_TEXT": "Hiciste muchos cambios seguidos. Esperá un rato y probá de nuevo.",
+		"LINK_ASK_CODE_TEXT": "Mandame el código que aparece en Mi rincón → Lo que sigo → «Conectar Telegram», así: /vincular ABCD-2345",
+		"LINK_INVALID_TEXT": "Ese código no sirve: puede estar mal escrito, ya usado o vencido (duran 15 minutos). Pedí uno nuevo en Mi rincón → Lo que sigo.",
+		"LINK_TOO_MANY_TEXT": "Probaste muchos códigos seguidos. Esperá un rato y probá de nuevo.",
+		"MUTED_TEXT": "Listo: pausé todos los avisos por Telegram. Cuando quieras volver a recibirlos: /reanudar.",
+		"NOT_FOUND_TEXT": "No encontré ese evento entre los próximos. Probá con /proximos para ver la lista.",
+		"NOT_LINKED_TEXT": "Este chat no está conectado a ninguna cuenta. Para conectarlo: /vincular &lt;código&gt;.",
+		"PICK_EVENT_TEXT": "Tocá el evento que querés ver. También podés decirme qué evento buscás, por ejemplo: /evento taller de shibari",
+		"PRIVATE_ONLY_TEXT": "Esto se hace por chat privado con el bot, no en grupos: escribime directamente.",
+		"UNAVAILABLE_TEXT": "Ese evento ya no está disponible.",
+		"UNKNOWN_TEXT": "No entendí ese comando. Probá con /ayuda.",
+		"UNLINKED_TEXT": "Listo: desconecté este chat de tu cuenta. No te va a llegar ningún aviso más por acá.",
+		"UNMUTED_TEXT": "Listo: vas a volver a recibir los avisos que elegiste en Lo que sigo."
+	},
+	"seguido corto": "Listo: ahora seguís 🪢 Cuerdas.",
+	"seguido con telegram": "Listo: ahora seguís 🪢 Cuerdas.\nTe aviso por acá cuando haya algo nuevo. Podés apagarlo en Mi rincón.",
+	"seguido largo con telegram": "Listo: ahora seguís xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx….\nTe aviso por acá cuando haya algo nuevo. Podés apagarlo en Mi rincón.",
+	"seguido largo": "Listo: ahora seguís yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy….",
+	"vinculado": "Listo: este chat quedó conectado a tu cuenta de Kinky Vibe. Elegí qué avisos querés por Telegram en Mi rincón → Lo que sigo: https://ejemplo.test/mi-rincon/sigo\n\nPara pausarlos: /silenciar. Para desconectar: /desvincular.",
+	"admin vinculade": "Listo: este Telegram quedó vinculado a le admin <b>admin-&lt;inventade&gt;</b> del panel, para la puerta. Para desvincularlo: panel → Ajustes → Admins.",
+	"aviso nuevo": "🆕 Se anunció algo nuevo\n\n<b>Fiesta &lt;x&gt;</b>\nsáb 11 ene 2031 · 23:00\nhttps://ejemplo.test/calendario/x?a=1&amp;b=2",
+	"aviso recordatorio": "⏰ Recordatorio: falta poco\n\n<b>Taller</b>\nvie 10 ene 2031 · 21:00\nhttps://ejemplo.test/calendario/y",
+	"comandos sin cuentas": [
+		{
+			"commands": [
+				{
+					"command": "inicio",
+					"description": "Volver al inicio del bot"
+				},
+				{
+					"command": "proximos",
+					"description": "Los próximos eventos públicos"
+				},
+				{
+					"command": "hoy",
+					"description": "Los eventos de hoy"
+				},
+				{
+					"command": "semana",
+					"description": "Lo que hay en los próximos 7 días"
+				},
+				{
+					"command": "finde",
+					"description": "Lo que hay este fin de semana"
+				},
+				{
+					"command": "evento",
+					"description": "Buscá un evento por nombre, fecha o lugar"
+				},
+				{
+					"command": "buscar",
+					"description": "Buscá en todo el sitio: eventos, material, Kinkipedia y amigues"
+				},
+				{
+					"command": "fondo",
+					"description": "Cuánto juntó el Fondo Kinky Vibe este mes"
+				},
+				{
+					"command": "ayuda",
+					"description": "Qué podés pedirme"
+				}
+			],
+			"scope": {
+				"type": "default"
+			}
+		},
+		{
+			"commands": [
+				{
+					"command": "inicio",
+					"description": "Volver al inicio del bot",
+					"is_ephemeral": true
+				},
+				{
+					"command": "proximos",
+					"description": "Los próximos eventos públicos",
+					"is_ephemeral": true
+				},
+				{
+					"command": "hoy",
+					"description": "Los eventos de hoy",
+					"is_ephemeral": true
+				},
+				{
+					"command": "semana",
+					"description": "Lo que hay en los próximos 7 días",
+					"is_ephemeral": true
+				},
+				{
+					"command": "finde",
+					"description": "Lo que hay este fin de semana",
+					"is_ephemeral": true
+				},
+				{
+					"command": "evento",
+					"description": "Buscá un evento por nombre, fecha o lugar",
+					"is_ephemeral": true
+				},
+				{
+					"command": "buscar",
+					"description": "Buscá en todo el sitio: eventos, material, Kinkipedia y amigues",
+					"is_ephemeral": true
+				},
+				{
+					"command": "fondo",
+					"description": "Cuánto juntó el Fondo Kinky Vibe este mes",
+					"is_ephemeral": true
+				},
+				{
+					"command": "ayuda",
+					"description": "Qué podés pedirme",
+					"is_ephemeral": true
+				}
+			],
+			"scope": {
+				"type": "all_group_chats"
+			}
+		},
+		{
+			"commands": [
+				{
+					"command": "inicio",
+					"description": "Volver al inicio del bot"
+				},
+				{
+					"command": "proximos",
+					"description": "Los próximos eventos públicos"
+				},
+				{
+					"command": "hoy",
+					"description": "Los eventos de hoy"
+				},
+				{
+					"command": "semana",
+					"description": "Lo que hay en los próximos 7 días"
+				},
+				{
+					"command": "finde",
+					"description": "Lo que hay este fin de semana"
+				},
+				{
+					"command": "evento",
+					"description": "Buscá un evento por nombre, fecha o lugar"
+				},
+				{
+					"command": "buscar",
+					"description": "Buscá en todo el sitio: eventos, material, Kinkipedia y amigues"
+				},
+				{
+					"command": "fondo",
+					"description": "Cuánto juntó el Fondo Kinky Vibe este mes"
+				},
+				{
+					"command": "ayuda",
+					"description": "Qué podés pedirme"
+				}
+			],
+			"scope": {
+				"type": "all_private_chats"
+			}
+		}
+	],
+	"comandos con cuentas": [
+		{
+			"commands": [
+				{
+					"command": "inicio",
+					"description": "Volver al inicio del bot"
+				},
+				{
+					"command": "proximos",
+					"description": "Los próximos eventos públicos"
+				},
+				{
+					"command": "hoy",
+					"description": "Los eventos de hoy"
+				},
+				{
+					"command": "semana",
+					"description": "Lo que hay en los próximos 7 días"
+				},
+				{
+					"command": "finde",
+					"description": "Lo que hay este fin de semana"
+				},
+				{
+					"command": "evento",
+					"description": "Buscá un evento por nombre, fecha o lugar"
+				},
+				{
+					"command": "buscar",
+					"description": "Buscá en todo el sitio: eventos, material, Kinkipedia y amigues"
+				},
+				{
+					"command": "fondo",
+					"description": "Cuánto juntó el Fondo Kinky Vibe este mes"
+				},
+				{
+					"command": "ayuda",
+					"description": "Qué podés pedirme"
+				}
+			],
+			"scope": {
+				"type": "default"
+			}
+		},
+		{
+			"commands": [
+				{
+					"command": "inicio",
+					"description": "Volver al inicio del bot",
+					"is_ephemeral": true
+				},
+				{
+					"command": "proximos",
+					"description": "Los próximos eventos públicos",
+					"is_ephemeral": true
+				},
+				{
+					"command": "hoy",
+					"description": "Los eventos de hoy",
+					"is_ephemeral": true
+				},
+				{
+					"command": "semana",
+					"description": "Lo que hay en los próximos 7 días",
+					"is_ephemeral": true
+				},
+				{
+					"command": "finde",
+					"description": "Lo que hay este fin de semana",
+					"is_ephemeral": true
+				},
+				{
+					"command": "evento",
+					"description": "Buscá un evento por nombre, fecha o lugar",
+					"is_ephemeral": true
+				},
+				{
+					"command": "buscar",
+					"description": "Buscá en todo el sitio: eventos, material, Kinkipedia y amigues",
+					"is_ephemeral": true
+				},
+				{
+					"command": "fondo",
+					"description": "Cuánto juntó el Fondo Kinky Vibe este mes",
+					"is_ephemeral": true
+				},
+				{
+					"command": "ayuda",
+					"description": "Qué podés pedirme",
+					"is_ephemeral": true
+				}
+			],
+			"scope": {
+				"type": "all_group_chats"
+			}
+		},
+		{
+			"commands": [
+				{
+					"command": "inicio",
+					"description": "Volver al inicio del bot"
+				},
+				{
+					"command": "proximos",
+					"description": "Los próximos eventos públicos"
+				},
+				{
+					"command": "hoy",
+					"description": "Los eventos de hoy"
+				},
+				{
+					"command": "semana",
+					"description": "Lo que hay en los próximos 7 días"
+				},
+				{
+					"command": "finde",
+					"description": "Lo que hay este fin de semana"
+				},
+				{
+					"command": "evento",
+					"description": "Buscá un evento por nombre, fecha o lugar"
+				},
+				{
+					"command": "buscar",
+					"description": "Buscá en todo el sitio: eventos, material, Kinkipedia y amigues"
+				},
+				{
+					"command": "fondo",
+					"description": "Cuánto juntó el Fondo Kinky Vibe este mes"
+				},
+				{
+					"command": "ayuda",
+					"description": "Qué podés pedirme"
+				},
+				{
+					"command": "vincular",
+					"description": "Conectá tu cuenta (código de Mi rincón)"
+				},
+				{
+					"command": "sigo",
+					"description": "Lo que seguís en Lo que sigo"
+				},
+				{
+					"command": "silenciar",
+					"description": "Pausá tus avisos por Telegram"
+				},
+				{
+					"command": "reanudar",
+					"description": "Volvé a recibir tus avisos"
+				},
+				{
+					"command": "desvincular",
+					"description": "Desconectá este chat de tu cuenta"
+				}
+			],
+			"scope": {
+				"type": "all_private_chats"
+			}
+		}
+	],
+	"inicio privado": {
+		"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+		"keyboard": [
+			[
+				{
+					"text": "Hoy",
+					"callback_data": "l:d:0",
+					"style": "primary"
+				},
+				{
+					"text": "Semana",
+					"callback_data": "l:w:0",
+					"style": "primary"
+				},
+				{
+					"text": "Finde",
+					"callback_data": "l:f:0",
+					"style": "primary"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar",
+					"callback_data": "s"
+				},
+				{
+					"text": "⭐ Lo que sigo",
+					"callback_data": "g"
+				}
+			],
+			[
+				{
+					"text": "💗 Fondo",
+					"callback_data": "fo"
+				},
+				{
+					"text": "❓ Ayuda",
+					"callback_data": "a"
+				}
+			],
+			[
+				{
+					"text": "📅 Calendario",
+					"web_app": {
+						"url": "https://ejemplo.test/telegram/app"
+					}
+				},
+				{
+					"text": "Abrir ejemplo.test ↗",
+					"url": "https://ejemplo.test"
+				}
+			]
+		]
+	},
+	"inicio privado sin sigo": {
+		"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+		"keyboard": [
+			[
+				{
+					"text": "Hoy",
+					"callback_data": "l:d:0",
+					"style": "primary"
+				},
+				{
+					"text": "Semana",
+					"callback_data": "l:w:0",
+					"style": "primary"
+				},
+				{
+					"text": "Finde",
+					"callback_data": "l:f:0",
+					"style": "primary"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar",
+					"callback_data": "s"
+				}
+			],
+			[
+				{
+					"text": "💗 Fondo",
+					"callback_data": "fo"
+				},
+				{
+					"text": "❓ Ayuda",
+					"callback_data": "a"
+				}
+			],
+			[
+				{
+					"text": "📅 Calendario",
+					"web_app": {
+						"url": "https://ejemplo.test/telegram/app"
+					}
+				},
+				{
+					"text": "Abrir ejemplo.test ↗",
+					"url": "https://ejemplo.test"
+				}
+			]
+		]
+	},
+	"inicio grupo": {
+		"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+		"keyboard": [
+			[
+				{
+					"text": "Hoy",
+					"callback_data": "l:d:0",
+					"style": "primary"
+				},
+				{
+					"text": "Semana",
+					"callback_data": "l:w:0",
+					"style": "primary"
+				},
+				{
+					"text": "Finde",
+					"callback_data": "l:f:0",
+					"style": "primary"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar",
+					"callback_data": "s"
+				},
+				{
+					"text": "⭐ Lo que sigo ↗",
+					"url": "https://t.me/BotDePrueba?start=sigo"
+				}
+			],
+			[
+				{
+					"text": "💗 Fondo",
+					"callback_data": "fo"
+				},
+				{
+					"text": "❓ Ayuda",
+					"callback_data": "a"
+				}
+			],
+			[
+				{
+					"text": "Abrir ejemplo.test ↗",
+					"url": "https://ejemplo.test"
+				}
+			]
+		]
+	},
+	"inicio sin https": {
+		"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+		"keyboard": [
+			[
+				{
+					"text": "Hoy",
+					"callback_data": "l:d:0",
+					"style": "primary"
+				},
+				{
+					"text": "Semana",
+					"callback_data": "l:w:0",
+					"style": "primary"
+				},
+				{
+					"text": "Finde",
+					"callback_data": "l:f:0",
+					"style": "primary"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar",
+					"callback_data": "s"
+				},
+				{
+					"text": "⭐ Lo que sigo",
+					"callback_data": "g"
+				}
+			],
+			[
+				{
+					"text": "💗 Fondo",
+					"callback_data": "fo"
+				},
+				{
+					"text": "❓ Ayuda",
+					"callback_data": "a"
+				}
+			]
+		]
+	},
+	"lista d vacía": {
+		"text": "Hoy no hay eventos públicos. Mirá lo que viene con /proximos.",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"lista d pag 0": {
+		"text": "<b>Hoy</b> · 1/2\n\n<tg-time unix=\"1925679600\" format=\"wdt\">mié 8 ene · 20:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/hoy-inventado\">Juntada inventada</a>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n\n<tg-time unix=\"1925949600\" format=\"wdt\">sáb 11 ene · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/fiesta-inventada\">Fiesta &lt;inventada&gt; &amp; &quot;más&quot;</a>\n\n<tg-time unix=\"1926709200\" format=\"wdt\">lun 20 ene · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-teatro\">Taller de teatro</a>\n\n<tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/charla-inventada\">Charla inventada</a>",
+		"keyboard": [
+			[
+				{
+					"text": "Ver: Juntada inventada",
+					"callback_data": "e:hoy-inventado:d"
+				}
+			],
+			[
+				{
+					"text": "Ver: Taller de cuerdas",
+					"callback_data": "e:taller-de-cuerdas:d"
+				}
+			],
+			[
+				{
+					"text": "Ver: Fiesta <inventada> & \"más\"",
+					"callback_data": "e:fiesta-inventada:d"
+				}
+			],
+			[
+				{
+					"text": "Ver: Taller de teatro",
+					"callback_data": "e:taller-de-teatro:d"
+				}
+			],
+			[
+				{
+					"text": "Ver: Charla inventada",
+					"callback_data": "e:charla-inventada:d"
+				}
+			],
+			[
+				{
+					"text": "1/2",
+					"disabled": {}
+				},
+				{
+					"text": "›",
+					"callback_data": "l:d:1"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"lista w vacía": {
+		"text": "No hay eventos públicos en los próximos 7 días. Mirá lo que viene con /proximos.",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"lista w pag 0": {
+		"text": "<b>En los próximos 7 días</b> · 1/2\n\n<tg-time unix=\"1925679600\" format=\"wdt\">mié 8 ene · 20:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/hoy-inventado\">Juntada inventada</a>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n\n<tg-time unix=\"1925949600\" format=\"wdt\">sáb 11 ene · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/fiesta-inventada\">Fiesta &lt;inventada&gt; &amp; &quot;más&quot;</a>\n\n<tg-time unix=\"1926709200\" format=\"wdt\">lun 20 ene · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-teatro\">Taller de teatro</a>\n\n<tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/charla-inventada\">Charla inventada</a>",
+		"keyboard": [
+			[
+				{
+					"text": "Ver: Juntada inventada",
+					"callback_data": "e:hoy-inventado:w"
+				}
+			],
+			[
+				{
+					"text": "Ver: Taller de cuerdas",
+					"callback_data": "e:taller-de-cuerdas:w"
+				}
+			],
+			[
+				{
+					"text": "Ver: Fiesta <inventada> & \"más\"",
+					"callback_data": "e:fiesta-inventada:w"
+				}
+			],
+			[
+				{
+					"text": "Ver: Taller de teatro",
+					"callback_data": "e:taller-de-teatro:w"
+				}
+			],
+			[
+				{
+					"text": "Ver: Charla inventada",
+					"callback_data": "e:charla-inventada:w"
+				}
+			],
+			[
+				{
+					"text": "1/2",
+					"disabled": {}
+				},
+				{
+					"text": "›",
+					"callback_data": "l:w:1"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"lista f vacía": {
+		"text": "Este finde no hay eventos públicos. Mirá lo que viene con /proximos.",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"lista f pag 0": {
+		"text": "<b>Este finde</b> · 1/2\n\n<tg-time unix=\"1925679600\" format=\"wdt\">mié 8 ene · 20:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/hoy-inventado\">Juntada inventada</a>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n\n<tg-time unix=\"1925949600\" format=\"wdt\">sáb 11 ene · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/fiesta-inventada\">Fiesta &lt;inventada&gt; &amp; &quot;más&quot;</a>\n\n<tg-time unix=\"1926709200\" format=\"wdt\">lun 20 ene · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-teatro\">Taller de teatro</a>\n\n<tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/charla-inventada\">Charla inventada</a>",
+		"keyboard": [
+			[
+				{
+					"text": "Ver: Juntada inventada",
+					"callback_data": "e:hoy-inventado:f"
+				}
+			],
+			[
+				{
+					"text": "Ver: Taller de cuerdas",
+					"callback_data": "e:taller-de-cuerdas:f"
+				}
+			],
+			[
+				{
+					"text": "Ver: Fiesta <inventada> & \"más\"",
+					"callback_data": "e:fiesta-inventada:f"
+				}
+			],
+			[
+				{
+					"text": "Ver: Taller de teatro",
+					"callback_data": "e:taller-de-teatro:f"
+				}
+			],
+			[
+				{
+					"text": "Ver: Charla inventada",
+					"callback_data": "e:charla-inventada:f"
+				}
+			],
+			[
+				{
+					"text": "1/2",
+					"disabled": {}
+				},
+				{
+					"text": "›",
+					"callback_data": "l:f:1"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"lista p vacía": {
+		"text": "Por ahora no hay eventos próximos. Mirá el calendario en https://ejemplo.test/calendario",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"lista p pag 0": {
+		"text": "<b>Próximos eventos</b> · 1/2\n\n<tg-time unix=\"1925679600\" format=\"wdt\">mié 8 ene · 20:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/hoy-inventado\">Juntada inventada</a>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n\n<tg-time unix=\"1925949600\" format=\"wdt\">sáb 11 ene · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/fiesta-inventada\">Fiesta &lt;inventada&gt; &amp; &quot;más&quot;</a>\n\n<tg-time unix=\"1926709200\" format=\"wdt\">lun 20 ene · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-teatro\">Taller de teatro</a>\n\n<tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/charla-inventada\">Charla inventada</a>",
+		"keyboard": [
+			[
+				{
+					"text": "Ver: Juntada inventada",
+					"callback_data": "e:hoy-inventado:p"
+				}
+			],
+			[
+				{
+					"text": "Ver: Taller de cuerdas",
+					"callback_data": "e:taller-de-cuerdas:p"
+				}
+			],
+			[
+				{
+					"text": "Ver: Fiesta <inventada> & \"más\"",
+					"callback_data": "e:fiesta-inventada:p"
+				}
+			],
+			[
+				{
+					"text": "Ver: Taller de teatro",
+					"callback_data": "e:taller-de-teatro:p"
+				}
+			],
+			[
+				{
+					"text": "Ver: Charla inventada",
+					"callback_data": "e:charla-inventada:p"
+				}
+			],
+			[
+				{
+					"text": "1/2",
+					"disabled": {}
+				},
+				{
+					"text": "›",
+					"callback_data": "l:p:1"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"lista p pag 1": {
+		"text": "<b>Próximos eventos</b> · 2/2\n\n<tg-time unix=\"1928095200\" format=\"wdt\">mié 5 feb · 19:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/jam-inventada\">Jam inventada con un título bastante largo</a>\n\n<tg-time unix=\"1930183200\" format=\"wdt\">sáb 1 mar · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/otra-fiesta\">Otra fiesta</a>",
+		"keyboard": [
+			[
+				{
+					"text": "Ver: Jam inventada con un título bas…",
+					"callback_data": "e:jam-inventada:p"
+				}
+			],
+			[
+				{
+					"text": "Ver: Otra fiesta",
+					"callback_data": "e:otra-fiesta:p"
+				}
+			],
+			[
+				{
+					"text": "‹",
+					"callback_data": "l:p:0"
+				},
+				{
+					"text": "2/2",
+					"disabled": {}
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"lista con intro": {
+		"text": "Tocá el evento que querés ver. También podés decirme qué evento buscás, por ejemplo: /evento taller de shibari\n\n<b>Próximos eventos</b> · 1/2\n\n<tg-time unix=\"1925679600\" format=\"wdt\">mié 8 ene · 20:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/hoy-inventado\">Juntada inventada</a>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n\n<tg-time unix=\"1925949600\" format=\"wdt\">sáb 11 ene · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/fiesta-inventada\">Fiesta &lt;inventada&gt; &amp; &quot;más&quot;</a>\n\n<tg-time unix=\"1926709200\" format=\"wdt\">lun 20 ene · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-teatro\">Taller de teatro</a>\n\n<tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/charla-inventada\">Charla inventada</a>",
+		"keyboard": [
+			[
+				{
+					"text": "Ver: Juntada inventada",
+					"callback_data": "e:hoy-inventado:p"
+				}
+			],
+			[
+				{
+					"text": "Ver: Taller de cuerdas",
+					"callback_data": "e:taller-de-cuerdas:p"
+				}
+			],
+			[
+				{
+					"text": "Ver: Fiesta <inventada> & \"más\"",
+					"callback_data": "e:fiesta-inventada:p"
+				}
+			],
+			[
+				{
+					"text": "Ver: Taller de teatro",
+					"callback_data": "e:taller-de-teatro:p"
+				}
+			],
+			[
+				{
+					"text": "Ver: Charla inventada",
+					"callback_data": "e:charla-inventada:p"
+				}
+			],
+			[
+				{
+					"text": "1/2",
+					"disabled": {}
+				},
+				{
+					"text": "›",
+					"callback_data": "l:p:1"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"búsqueda sin nada": {
+		"text": "No encontré nada para «algo &lt;raro&gt;» entre los próximos eventos.",
+		"keyboard": [
+			[
+				{
+					"text": "🔎 Buscar otra cosa",
+					"callback_data": "s"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"búsqueda uno": {
+		"text": "<b>Encontré esto para «cuerdas»</b>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>",
+		"keyboard": [
+			[
+				{
+					"text": "Ver: Taller de cuerdas",
+					"callback_data": "e:taller-de-cuerdas:n"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar otra cosa",
+					"callback_data": "s"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"búsqueda varios": {
+		"text": "<b>Encontré estos para «taller»</b>\n\n<tg-time unix=\"1925679600\" format=\"wdt\">mié 8 ene · 20:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/hoy-inventado\">Juntada inventada</a>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n\n<tg-time unix=\"1925949600\" format=\"wdt\">sáb 11 ene · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/fiesta-inventada\">Fiesta &lt;inventada&gt; &amp; &quot;más&quot;</a>\n\n<tg-time unix=\"1926709200\" format=\"wdt\">lun 20 ene · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-teatro\">Taller de teatro</a>\n\n<tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/charla-inventada\">Charla inventada</a>\n\n<tg-time unix=\"1928095200\" format=\"wdt\">mié 5 feb · 19:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/jam-inventada\">Jam inventada con un título bastante largo</a>\n\n<tg-time unix=\"1930183200\" format=\"wdt\">sáb 1 mar · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/otra-fiesta\">Otra fiesta</a>",
+		"keyboard": [
+			[
+				{
+					"text": "Ver: Juntada inventada",
+					"callback_data": "e:hoy-inventado:n"
+				}
+			],
+			[
+				{
+					"text": "Ver: Taller de cuerdas",
+					"callback_data": "e:taller-de-cuerdas:n"
+				}
+			],
+			[
+				{
+					"text": "Ver: Fiesta <inventada> & \"más\"",
+					"callback_data": "e:fiesta-inventada:n"
+				}
+			],
+			[
+				{
+					"text": "Ver: Taller de teatro",
+					"callback_data": "e:taller-de-teatro:n"
+				}
+			],
+			[
+				{
+					"text": "Ver: Charla inventada",
+					"callback_data": "e:charla-inventada:n"
+				}
+			],
+			[
+				{
+					"text": "Ver: Jam inventada con un título bas…",
+					"callback_data": "e:jam-inventada:n"
+				}
+			],
+			[
+				{
+					"text": "Ver: Otra fiesta",
+					"callback_data": "e:otra-fiesta:n"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar otra cosa",
+					"callback_data": "s"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"búsqueda varios con head": {
+		"text": "Otra cabeza\n\n<tg-time unix=\"1925679600\" format=\"wdt\">mié 8 ene · 20:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/hoy-inventado\">Juntada inventada</a>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>",
+		"keyboard": [
+			[
+				{
+					"text": "Ver: Juntada inventada",
+					"callback_data": "e:hoy-inventado:n"
+				}
+			],
+			[
+				{
+					"text": "Ver: Taller de cuerdas",
+					"callback_data": "e:taller-de-cuerdas:n"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar otra cosa",
+					"callback_data": "s"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"tarjeta comprar": {
+		"text": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n📍 Lugar &lt;x&gt;\n\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Ver todo en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "🎟 Comprar en el sitio",
+					"url": "https://ejemplo.test/calendario/taller-de-cuerdas/entradas",
+					"style": "success"
+				}
+			],
+			[
+				{
+					"text": "📅 Agregar al calendario",
+					"url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Taller+de+cuerdas&dates=20310111T000000Z%2F20310111T020000Z&details=https%3A%2F%2Fejemplo.test%2Fcalendario%2Ftaller-de-cuerdas&location=Lugar+%3Cx%3E"
+				},
+				{
+					"text": "🗺 Cómo llegar",
+					"url": "https://maps.example/a"
+				}
+			],
+			[
+				{
+					"text": "⭐ Seguir",
+					"callback_data": "f:x"
+				}
+			],
+			[
+				{
+					"text": "‹",
+					"callback_data": "e:hoy-inventado:w"
+				},
+				{
+					"text": "2/4",
+					"disabled": {}
+				},
+				{
+					"text": "›",
+					"callback_data": "e:fiesta-inventada:w"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "l:w:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		],
+		"photo": "https://ejemplo.test/a.jpg",
+		"preview": "https://ejemplo.test/calendario/taller-de-cuerdas"
+	},
+	"tarjeta nota": {
+		"text": "<b>Fiesta &lt;inventada&gt; &amp; &quot;más&quot;</b>\n📅 <tg-time unix=\"1925949600\" format=\"wdt\">sáb 11 ene · 23:00</tg-time>\n📍 Lugar a confirmar\n🎟 Agotadas\n\n<a href=\"https://ejemplo.test/calendario/fiesta-inventada\">Ver todo en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "🎟 Agotadas",
+					"disabled": {}
+				}
+			],
+			[
+				{
+					"text": "📅 Agregar al calendario",
+					"url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Fiesta+%3Cinventada%3E+%26+%22m%C3%A1s%22&dates=20310112T020000Z%2F20310112T040000Z&details=https%3A%2F%2Fejemplo.test%2Fcalendario%2Ffiesta-inventada&location=Lugar+a+confirmar"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		],
+		"preview": "https://ejemplo.test/calendario/fiesta-inventada"
+	},
+	"tarjeta sin entradas": {
+		"text": "<b>Taller de teatro</b>\n📅 <tg-time unix=\"1926709200\" format=\"wdt\">lun 20 ene · 18:00</tg-time>\n\n<a href=\"https://ejemplo.test/calendario/taller-de-teatro\">Ver todo en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "Abrir en el sitio",
+					"url": "https://ejemplo.test/calendario/taller-de-teatro"
+				}
+			],
+			[
+				{
+					"text": "📅 Agregar al calendario",
+					"url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Taller+de+teatro&dates=20310120T210000Z%2F20310120T230000Z&details=https%3A%2F%2Fejemplo.test%2Fcalendario%2Ftaller-de-teatro"
+				}
+			],
+			[
+				{
+					"text": "‹",
+					"callback_data": "e:fiesta-inventada:p"
+				},
+				{
+					"text": "4/7",
+					"disabled": {}
+				},
+				{
+					"text": "›",
+					"callback_data": "e:charla-inventada:p"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "l:p:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		],
+		"preview": "https://ejemplo.test/calendario/taller-de-teatro"
+	},
+	"tarjeta sin https": {
+		"text": "<b>Taller de teatro</b>\n📅 <tg-time unix=\"1926709200\" format=\"wdt\">lun 20 ene · 18:00</tg-time>\n\n<a href=\"http://localhost/calendario/taller-de-teatro\">Ver todo en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"buscar privado": {
+		"text": "🔎 Escribí qué buscás: un nombre, «sábado», «15/10», una dirección… Respondé a este mensaje.",
+		"keyboard": [
+			[
+				{
+					"text": "Cancelar",
+					"callback_data": "sx"
+				}
+			]
+		],
+		"forceReply": true
+	},
+	"buscar grupo": {
+		"text": "Para buscar acá, escribí /evento y lo que buscás, por ejemplo: /evento cuerdas",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"fondo sin números": {
+		"text": "<b>💗 Fondo Kinky Vibe</b>\n\nAhora no pude leer los números del Fondo. Mirálos en fondo.kinkyvibe.ar",
+		"keyboard": [
+			[
+				{
+					"text": "Sumate al Fondo ↗",
+					"url": "https://fondo.kinkyvibe.ar"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"fondo": {
+		"text": "<b>💗 Fondo Kinky Vibe</b>\n\nEste mes juntamos <b>$ 123.456</b> de $ 400.000 (30 % de la meta).\nDescuento del Fondo en las entradas de eventos de Kinky Vibe: <b>12 %</b>.\n\nActualizado: <tg-time unix=\"1925650800\" format=\"wdt\">mié 8 ene · 12:00</tg-time>\n\nEl Fondo baja el precio de las entradas para todes con aportes de la comunidad.",
+		"keyboard": [
+			[
+				{
+					"text": "Sumate al Fondo ↗",
+					"url": "https://fondo.kinkyvibe.ar"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"fondo viejo": {
+		"text": "<b>💗 Fondo Kinky Vibe</b>\n\nEste mes juntamos <b>$ 0</b> de $ 0 (0 % de la meta).\nDescuento del Fondo en las entradas de eventos de Kinky Vibe: <b>8 %</b>.\n\nTodavía no hay números de este mes: son los del mes pasado.\n\nEl Fondo baja el precio de las entradas para todes con aportes de la comunidad.",
+		"keyboard": [
+			[
+				{
+					"text": "Sumate al Fondo ↗",
+					"url": "https://fondo.kinkyvibe.ar"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"ayuda": {
+		"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"ayuda con cuentas": {
+		"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nCon tu cuenta del sitio (por chat privado):\n/vincular &lt;código&gt;: conectá este chat (el código está en Mi rincón → Lo que sigo)\n/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n/desvincular: desconectá este chat\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"aviso": {
+		"text": "Ese evento ya no está disponible.",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"solo privado con link": {
+		"text": "Esto se hace por chat privado con el bot, con tu cuenta conectada.",
+		"keyboard": [
+			[
+				{
+					"text": "Abrir el bot por privado ↗",
+					"url": "https://t.me/BotDePrueba?start=sigo"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"solo privado sin link": {
+		"text": "Esto se hace por chat privado con el bot, con tu cuenta conectada.",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"sin vincular": {
+		"text": "Para seguir etiquetas y series desde acá, conectá este chat con tu cuenta: en Mi rincón → Lo que sigo tocá «Conectar Telegram» y mandame el código con /vincular.",
+		"keyboard": [
+			[
+				{
+					"text": "Abrir Mi rincón → Lo que sigo ↗",
+					"url": "https://ejemplo.test/mi-rincon/sigo"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"lo que sigo vacío": {
+		"text": "<b>⭐ Lo que seguís</b>\n\nTodavía no seguís nada. En la tarjeta de un evento tocá «⭐ Seguir».\n\nQué te avisamos (por mail o por acá) y dejar de seguir: en Mi rincón → Lo que sigo.",
+		"keyboard": [
+			[
+				{
+					"text": "Abrir Mi rincón → Lo que sigo ↗",
+					"url": "https://ejemplo.test/mi-rincon/sigo"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"lo que sigo": {
+		"text": "<b>⭐ Lo que seguís</b>\n\n• Serie &lt;x&gt;\n• 🪢 Cuerdas\n\nQué te avisamos (por mail o por acá) y dejar de seguir: en Mi rincón → Lo que sigo.",
+		"keyboard": [
+			[
+				{
+					"text": "Abrir Mi rincón → Lo que sigo ↗",
+					"url": "https://ejemplo.test/mi-rincon/sigo"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"lo que sigo largo": {
+		"text": "<b>⭐ Lo que seguís</b>\n\n• Cosa 0\n• Cosa 1\n• Cosa 2\n• Cosa 3\n• Cosa 4\n• Cosa 5\n• Cosa 6\n• Cosa 7\n• Cosa 8\n• Cosa 9\n• Cosa 10\n• Cosa 11\n• Cosa 12\n• Cosa 13\n• Cosa 14\n… y 3 más.\n\nQué te avisamos (por mail o por acá) y dejar de seguir: en Mi rincón → Lo que sigo.",
+		"keyboard": [
+			[
+				{
+					"text": "Abrir Mi rincón → Lo que sigo ↗",
+					"url": "https://ejemplo.test/mi-rincon/sigo"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"seguir opciones": {
+		"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+		"keyboard": [
+			[
+				{
+					"text": "⭐ Serie Inventada",
+					"callback_data": "fy:fiesta-inventada:abc12"
+				}
+			],
+			[
+				{
+					"text": "✓ Ya seguís 🪢 Cuerdas",
+					"disabled": {}
+				}
+			],
+			[
+				{
+					"text": "Abrir Mi rincón → Lo que sigo ↗",
+					"url": "https://ejemplo.test/mi-rincon/sigo"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "e:fiesta-inventada:n"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"seguir sin opciones": {
+		"text": "<b>⭐ Seguir</b>\n\nDe «Taller de cuerdas» no hay etiquetas para seguir desde acá.",
+		"keyboard": [
+			[
+				{
+					"text": "Abrir Mi rincón → Lo que sigo ↗",
+					"url": "https://ejemplo.test/mi-rincon/sigo"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "e:taller-de-cuerdas:n"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"entrega grupo botón": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": -100,
+				"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Hoy",
+								"callback_data": "l:d:0",
+								"style": "primary"
+							},
+							{
+								"text": "Semana",
+								"callback_data": "l:w:0",
+								"style": "primary"
+							},
+							{
+								"text": "Finde",
+								"callback_data": "l:f:0",
+								"style": "primary"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							},
+							{
+								"text": "⭐ Lo que sigo ↗",
+								"url": "https://t.me/BotDePrueba?start=sigo"
+							}
+						],
+						[
+							{
+								"text": "💗 Fondo",
+								"callback_data": "fo"
+							},
+							{
+								"text": "❓ Ayuda",
+								"callback_data": "a"
+							}
+						],
+						[
+							{
+								"text": "Abrir ejemplo.test ↗",
+								"url": "https://ejemplo.test"
+							}
+						]
+					]
+				},
+				"ephemeral_message_parameters": {
+					"receiver_user_id": 77,
+					"callback_query_id": "cb",
+					"replace_callback_query_message": true
+				}
+			}
+		],
+		"callback": {
+			"id": "cb",
+			"onFail": {
+				"text": "Abrí el bot por privado para ver esto.",
+				"url": "https://t.me/BotDePrueba?start=inicio"
+			}
+		}
+	},
+	"entrega grupo botón sin link": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": -100,
+				"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Hoy",
+								"callback_data": "l:d:0",
+								"style": "primary"
+							},
+							{
+								"text": "Semana",
+								"callback_data": "l:w:0",
+								"style": "primary"
+							},
+							{
+								"text": "Finde",
+								"callback_data": "l:f:0",
+								"style": "primary"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							},
+							{
+								"text": "⭐ Lo que sigo ↗",
+								"url": "https://t.me/BotDePrueba?start=sigo"
+							}
+						],
+						[
+							{
+								"text": "💗 Fondo",
+								"callback_data": "fo"
+							},
+							{
+								"text": "❓ Ayuda",
+								"callback_data": "a"
+							}
+						],
+						[
+							{
+								"text": "Abrir ejemplo.test ↗",
+								"url": "https://ejemplo.test"
+							}
+						]
+					]
+				},
+				"ephemeral_message_parameters": {
+					"receiver_user_id": 77,
+					"callback_query_id": "cb",
+					"replace_callback_query_message": true
+				}
+			}
+		],
+		"callback": {
+			"id": "cb",
+			"onFail": {
+				"text": "Escribile al bot por privado para ver esto."
+			}
+		}
+	},
+	"router: /start": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Hoy",
+								"callback_data": "l:d:0",
+								"style": "primary"
+							},
+							{
+								"text": "Semana",
+								"callback_data": "l:w:0",
+								"style": "primary"
+							},
+							{
+								"text": "Finde",
+								"callback_data": "l:f:0",
+								"style": "primary"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "💗 Fondo",
+								"callback_data": "fo"
+							},
+							{
+								"text": "❓ Ayuda",
+								"callback_data": "a"
+							}
+						],
+						[
+							{
+								"text": "📅 Calendario",
+								"web_app": {
+									"url": "https://ejemplo.test/telegram/app"
+								}
+							},
+							{
+								"text": "Abrir ejemplo.test ↗",
+								"url": "https://ejemplo.test"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /start grupo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": -100,
+				"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Hoy",
+								"callback_data": "l:d:0",
+								"style": "primary"
+							},
+							{
+								"text": "Semana",
+								"callback_data": "l:w:0",
+								"style": "primary"
+							},
+							{
+								"text": "Finde",
+								"callback_data": "l:f:0",
+								"style": "primary"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "💗 Fondo",
+								"callback_data": "fo"
+							},
+							{
+								"text": "❓ Ayuda",
+								"callback_data": "a"
+							}
+						],
+						[
+							{
+								"text": "Abrir ejemplo.test ↗",
+								"url": "https://ejemplo.test"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /ayuda": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /ayuda con cuentas": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nCon tu cuenta del sitio (por chat privado):\n/vincular &lt;código&gt;: conectá este chat (el código está en Mi rincón → Lo que sigo)\n/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n/desvincular: desconectá este chat\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /hoy": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Hoy</b>\n\n<tg-time unix=\"1925679600\" format=\"wdt\">mié 8 ene · 20:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/hoy-inventado\">Juntada inventada</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver: Juntada inventada",
+								"callback_data": "e:hoy-inventado:d"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /semana": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>En los próximos 7 días</b>\n\n<tg-time unix=\"1925679600\" format=\"wdt\">mié 8 ene · 20:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/hoy-inventado\">Juntada inventada</a>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n\n<tg-time unix=\"1925949600\" format=\"wdt\">sáb 11 ene · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/fiesta-inventada\">Fiesta &lt;inventada&gt; &amp; &quot;más&quot;</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver: Juntada inventada",
+								"callback_data": "e:hoy-inventado:w"
+							}
+						],
+						[
+							{
+								"text": "Ver: Taller de cuerdas",
+								"callback_data": "e:taller-de-cuerdas:w"
+							}
+						],
+						[
+							{
+								"text": "Ver: Fiesta <inventada> & \"más\"",
+								"callback_data": "e:fiesta-inventada:w"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /finde": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Este finde</b>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n\n<tg-time unix=\"1925949600\" format=\"wdt\">sáb 11 ene · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/fiesta-inventada\">Fiesta &lt;inventada&gt; &amp; &quot;más&quot;</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver: Taller de cuerdas",
+								"callback_data": "e:taller-de-cuerdas:f"
+							}
+						],
+						[
+							{
+								"text": "Ver: Fiesta <inventada> & \"más\"",
+								"callback_data": "e:fiesta-inventada:f"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /proximos": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Próximos eventos</b> · 1/2\n\n<tg-time unix=\"1925679600\" format=\"wdt\">mié 8 ene · 20:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/hoy-inventado\">Juntada inventada</a>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n\n<tg-time unix=\"1925949600\" format=\"wdt\">sáb 11 ene · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/fiesta-inventada\">Fiesta &lt;inventada&gt; &amp; &quot;más&quot;</a>\n\n<tg-time unix=\"1926709200\" format=\"wdt\">lun 20 ene · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-teatro\">Taller de teatro</a>\n\n<tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/charla-inventada\">Charla inventada</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver: Juntada inventada",
+								"callback_data": "e:hoy-inventado:p"
+							}
+						],
+						[
+							{
+								"text": "Ver: Taller de cuerdas",
+								"callback_data": "e:taller-de-cuerdas:p"
+							}
+						],
+						[
+							{
+								"text": "Ver: Fiesta <inventada> & \"más\"",
+								"callback_data": "e:fiesta-inventada:p"
+							}
+						],
+						[
+							{
+								"text": "Ver: Taller de teatro",
+								"callback_data": "e:taller-de-teatro:p"
+							}
+						],
+						[
+							{
+								"text": "Ver: Charla inventada",
+								"callback_data": "e:charla-inventada:p"
+							}
+						],
+						[
+							{
+								"text": "1/2",
+								"disabled": {}
+							},
+							{
+								"text": "›",
+								"callback_data": "l:p:1"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /evento": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Tocá el evento que querés ver. También podés decirme qué evento buscás, por ejemplo: /evento taller de shibari\n\n<b>Próximos eventos</b> · 1/2\n\n<tg-time unix=\"1925679600\" format=\"wdt\">mié 8 ene · 20:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/hoy-inventado\">Juntada inventada</a>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n\n<tg-time unix=\"1925949600\" format=\"wdt\">sáb 11 ene · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/fiesta-inventada\">Fiesta &lt;inventada&gt; &amp; &quot;más&quot;</a>\n\n<tg-time unix=\"1926709200\" format=\"wdt\">lun 20 ene · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-teatro\">Taller de teatro</a>\n\n<tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/charla-inventada\">Charla inventada</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver: Juntada inventada",
+								"callback_data": "e:hoy-inventado:p"
+							}
+						],
+						[
+							{
+								"text": "Ver: Taller de cuerdas",
+								"callback_data": "e:taller-de-cuerdas:p"
+							}
+						],
+						[
+							{
+								"text": "Ver: Fiesta <inventada> & \"más\"",
+								"callback_data": "e:fiesta-inventada:p"
+							}
+						],
+						[
+							{
+								"text": "Ver: Taller de teatro",
+								"callback_data": "e:taller-de-teatro:p"
+							}
+						],
+						[
+							{
+								"text": "Ver: Charla inventada",
+								"callback_data": "e:charla-inventada:p"
+							}
+						],
+						[
+							{
+								"text": "1/2",
+								"disabled": {}
+							},
+							{
+								"text": "›",
+								"callback_data": "l:p:1"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /evento varios": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Encontré varios eventos. ¿Cuál querés ver? Tocá uno.\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n\n<tg-time unix=\"1926709200\" format=\"wdt\">lun 20 ene · 18:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-teatro\">Taller de teatro</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver: Taller de cuerdas",
+								"callback_data": "e:taller-de-cuerdas:n"
+							}
+						],
+						[
+							{
+								"text": "Ver: Taller de teatro",
+								"callback_data": "e:taller-de-teatro:n"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar otra cosa",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /evento uno": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n📍 Lugar inventado\n\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Ver todo en el sitio</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
+					"prefer_large_media": true,
+					"show_above_text": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🎟 Comprar en el sitio",
+								"url": "https://ejemplo.test/calendario/x/entradas",
+								"style": "success"
+							}
+						],
+						[
+							{
+								"text": "📅 Agregar al calendario",
+								"url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Taller+de+cuerdas&dates=20310111T000000Z%2F20310111T020000Z&details=https%3A%2F%2Fejemplo.test%2Fcalendario%2Ftaller-de-cuerdas&location=Lugar+inventado"
+							},
+							{
+								"text": "🗺 Cómo llegar",
+								"url": "https://maps.example/x"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /evento uno con seguir": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n📍 Lugar inventado\n\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Ver todo en el sitio</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
+					"prefer_large_media": true,
+					"show_above_text": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🎟 Comprar en el sitio",
+								"url": "https://ejemplo.test/calendario/x/entradas",
+								"style": "success"
+							}
+						],
+						[
+							{
+								"text": "📅 Agregar al calendario",
+								"url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Taller+de+cuerdas&dates=20310111T000000Z%2F20310111T020000Z&details=https%3A%2F%2Fejemplo.test%2Fcalendario%2Ftaller-de-cuerdas&location=Lugar+inventado"
+							},
+							{
+								"text": "🗺 Cómo llegar",
+								"url": "https://maps.example/x"
+							}
+						],
+						[
+							{
+								"text": "⭐ Seguir",
+								"callback_data": "f:taller-de-cuerdas"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /evento uno con seguir grupo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": -100,
+				"text": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n📍 Lugar inventado\n\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Ver todo en el sitio</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
+					"prefer_large_media": true,
+					"show_above_text": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🎟 Comprar en el sitio",
+								"url": "https://ejemplo.test/calendario/x/entradas",
+								"style": "success"
+							}
+						],
+						[
+							{
+								"text": "📅 Agregar al calendario",
+								"url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Taller+de+cuerdas&dates=20310111T000000Z%2F20310111T020000Z&details=https%3A%2F%2Fejemplo.test%2Fcalendario%2Ftaller-de-cuerdas&location=Lugar+inventado"
+							},
+							{
+								"text": "🗺 Cómo llegar",
+								"url": "https://maps.example/x"
+							}
+						],
+						[
+							{
+								"text": "⭐ Seguir ↗",
+								"url": "https://t.me/BotDePrueba?start=seguir-taller-de-cuerdas"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /evento nada": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "No encontré ese evento entre los próximos. Probá con /proximos para ver la lista.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /buscar": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "🔎 Escribí qué buscás: un nombre, «sábado», «15/10», una dirección… Respondé a este mensaje.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Cancelar",
+								"callback_data": "sx"
+							}
+						]
+					],
+					"force_reply": true
+				}
+			}
+		]
+	},
+	"router: /fondo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>💗 Fondo Kinky Vibe</b>\n\nEste mes juntamos <b>$ 150.000</b> de $ 300.000 (50 % de la meta).\nDescuento del Fondo en las entradas de eventos de Kinky Vibe: <b>10 %</b>.\n\nActualizado: <tg-time unix=\"1925650800\" format=\"wdt\">mié 8 ene · 12:00</tg-time>\n\nEl Fondo baja el precio de las entradas para todes con aportes de la comunidad.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Sumate al Fondo ↗",
+								"url": "https://fondo.kinkyvibe.ar"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /xyz": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "No entendí ese comando. Probá con /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: respuesta a buscar": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Encontré esto para «cuerdas»</b>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver: Taller de cuerdas",
+								"callback_data": "e:taller-de-cuerdas:n"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar otra cosa",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /vincular sin cuentas": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Todavía no se puede conectar una cuenta con el bot.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /vincular grupo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": -100,
+				"text": "Esto se hace por chat privado con el bot, no en grupos: escribime directamente.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /vincular sin código": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Mandame el código que aparece en Mi rincón → Lo que sigo → «Conectar Telegram», así: /vincular ABCD-2345",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /vincular bien": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Listo: este chat quedó conectado a tu cuenta de Kinky Vibe. Elegí qué avisos querés por Telegram en Mi rincón → Lo que sigo: https://ejemplo.test/mi-rincon/sigo\n\nPara pausarlos: /silenciar. Para desconectar: /desvincular.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /vincular mal": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Ese código no sirve: puede estar mal escrito, ya usado o vencido (duran 15 minutos). Pedí uno nuevo en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /vincular muchos": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Probaste muchos códigos seguidos. Esperá un rato y probá de nuevo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /start código": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Listo: este chat quedó conectado a tu cuenta de Kinky Vibe. Elegí qué avisos querés por Telegram en Mi rincón → Lo que sigo: https://ejemplo.test/mi-rincon/sigo\n\nPara pausarlos: /silenciar. Para desconectar: /desvincular.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /desvincular": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Listo: desconecté este chat de tu cuenta. No te va a llegar ningún aviso más por acá.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /desvincular sin vínculo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Este chat no está conectado a ninguna cuenta. Para conectarlo: /vincular &lt;código&gt;.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /silenciar": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Listo: pausé todos los avisos por Telegram. Cuando quieras volver a recibirlos: /reanudar.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /reanudar": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Listo: vas a volver a recibir los avisos que elegiste en Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /sigo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>⭐ Lo que seguís</b>\n\n• Serie\n• 🪢 Cuerdas\n\nQué te avisamos (por mail o por acá) y dejar de seguir: en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /sigo sin vincular": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Para seguir etiquetas y series desde acá, conectá este chat con tu cuenta: en Mi rincón → Lo que sigo tocá «Conectar Telegram» y mandame el código con /vincular.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /sigo sin cuentas": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Todavía no se puede conectar una cuenta con el bot.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /sigo grupo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": -100,
+				"text": "Esto se hace por chat privado con el bot, con tu cuenta conectada.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Abrir el bot por privado ↗",
+								"url": "https://t.me/BotDePrueba?start=sigo"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /start sigo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>⭐ Lo que seguís</b>\n\n• Serie\n• 🪢 Cuerdas\n\nQué te avisamos (por mail o por acá) y dejar de seguir: en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /start sigo sin cuentas": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Todavía no se puede conectar una cuenta con el bot.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /start seguir": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /start ev viejo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Ese evento ya no está disponible.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /start adm grupo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": -100,
+				"text": "Esto se hace por chat privado con el bot, no en grupos: escribime directamente.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /start adm apagado": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Ahora no se puede vincular una cuenta de admin con el bot.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /start adm bien": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Listo: este Telegram quedó vinculado a le admin <b>admin-inventade</b> del panel, para la puerta. Para desvincularlo: panel → Ajustes → Admins.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🚪 Abrir la puerta",
+								"web_app": {
+									"url": "https://ejemplo.test/telegram/puerta"
+								}
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /start adm mal": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Ese link no sirve: puede estar vencido (duran 15 minutos), ya usado o incompleto. Generá otro en el panel → Ajustes → Admins → «Vincular Telegram».",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /start adm muchos": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Probaste muchos códigos seguidos. Esperá un rato y probá de nuevo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: botón inicio": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Hoy",
+								"callback_data": "l:d:0",
+								"style": "primary"
+							},
+							{
+								"text": "Semana",
+								"callback_data": "l:w:0",
+								"style": "primary"
+							},
+							{
+								"text": "Finde",
+								"callback_data": "l:f:0",
+								"style": "primary"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "💗 Fondo",
+								"callback_data": "fo"
+							},
+							{
+								"text": "❓ Ayuda",
+								"callback_data": "a"
+							}
+						],
+						[
+							{
+								"text": "📅 Calendario",
+								"web_app": {
+									"url": "https://ejemplo.test/telegram/app"
+								}
+							},
+							{
+								"text": "Abrir ejemplo.test ↗",
+								"url": "https://ejemplo.test"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Hoy",
+								"callback_data": "l:d:0",
+								"style": "primary"
+							},
+							{
+								"text": "Semana",
+								"callback_data": "l:w:0",
+								"style": "primary"
+							},
+							{
+								"text": "Finde",
+								"callback_data": "l:f:0",
+								"style": "primary"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "💗 Fondo",
+								"callback_data": "fo"
+							},
+							{
+								"text": "❓ Ayuda",
+								"callback_data": "a"
+							}
+						],
+						[
+							{
+								"text": "📅 Calendario",
+								"web_app": {
+									"url": "https://ejemplo.test/telegram/app"
+								}
+							},
+							{
+								"text": "Abrir ejemplo.test ↗",
+								"url": "https://ejemplo.test"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: botón inicio con token": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Hoy",
+								"callback_data": "l:d:0",
+								"style": "primary"
+							},
+							{
+								"text": "Semana",
+								"callback_data": "l:w:0",
+								"style": "primary"
+							},
+							{
+								"text": "Finde",
+								"callback_data": "l:f:0",
+								"style": "primary"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "💗 Fondo",
+								"callback_data": "fo"
+							},
+							{
+								"text": "❓ Ayuda",
+								"callback_data": "a"
+							}
+						],
+						[
+							{
+								"text": "📅 Calendario",
+								"web_app": {
+									"url": "https://ejemplo.test/telegram/app"
+								}
+							},
+							{
+								"text": "Abrir ejemplo.test ↗",
+								"url": "https://ejemplo.test"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Hoy",
+								"callback_data": "l:d:0",
+								"style": "primary"
+							},
+							{
+								"text": "Semana",
+								"callback_data": "l:w:0",
+								"style": "primary"
+							},
+							{
+								"text": "Finde",
+								"callback_data": "l:f:0",
+								"style": "primary"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "💗 Fondo",
+								"callback_data": "fo"
+							},
+							{
+								"text": "❓ Ayuda",
+								"callback_data": "a"
+							}
+						],
+						[
+							{
+								"text": "📅 Calendario",
+								"web_app": {
+									"url": "https://ejemplo.test/telegram/app"
+								}
+							},
+							{
+								"text": "Abrir ejemplo.test ↗",
+								"url": "https://ejemplo.test"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: botón lista": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>Próximos eventos</b> · 2/2\n\n<tg-time unix=\"1928095200\" format=\"wdt\">mié 5 feb · 19:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/jam-inventada\">Jam inventada con un título bastante largo</a>\n\n<tg-time unix=\"1930183200\" format=\"wdt\">sáb 1 mar · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/otra-fiesta\">Otra fiesta</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver: Jam inventada con un título bas…",
+								"callback_data": "e:jam-inventada:p"
+							}
+						],
+						[
+							{
+								"text": "Ver: Otra fiesta",
+								"callback_data": "e:otra-fiesta:p"
+							}
+						],
+						[
+							{
+								"text": "‹",
+								"callback_data": "l:p:0"
+							},
+							{
+								"text": "2/2",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Próximos eventos</b> · 2/2\n\n<tg-time unix=\"1928095200\" format=\"wdt\">mié 5 feb · 19:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/jam-inventada\">Jam inventada con un título bastante largo</a>\n\n<tg-time unix=\"1930183200\" format=\"wdt\">sáb 1 mar · 23:00</tg-time>\n<a href=\"https://ejemplo.test/calendario/otra-fiesta\">Otra fiesta</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver: Jam inventada con un título bas…",
+								"callback_data": "e:jam-inventada:p"
+							}
+						],
+						[
+							{
+								"text": "Ver: Otra fiesta",
+								"callback_data": "e:otra-fiesta:p"
+							}
+						],
+						[
+							{
+								"text": "‹",
+								"callback_data": "l:p:0"
+							},
+							{
+								"text": "2/2",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: botón tarjeta": {
+		"steps": [
+			{
+				"method": "editMessageMedia",
+				"chat_id": 42,
+				"message_id": 9,
+				"media": {
+					"type": "photo",
+					"media": "https://ejemplo.test/foto.jpg",
+					"caption": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n📍 Lugar inventado\n\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Ver todo en el sitio</a>",
+					"parse_mode": "HTML"
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🎟 Comprar en el sitio",
+								"url": "https://ejemplo.test/calendario/x/entradas",
+								"style": "success"
+							}
+						],
+						[
+							{
+								"text": "📅 Agregar al calendario",
+								"url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Taller+de+cuerdas&dates=20310111T000000Z%2F20310111T020000Z&details=https%3A%2F%2Fejemplo.test%2Fcalendario%2Ftaller-de-cuerdas&location=Lugar+inventado"
+							},
+							{
+								"text": "🗺 Cómo llegar",
+								"url": "https://maps.example/x"
+							}
+						],
+						[
+							{
+								"text": "⭐ Seguir",
+								"callback_data": "f:taller-de-cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹",
+								"callback_data": "e:hoy-inventado:w"
+							},
+							{
+								"text": "2/3",
+								"disabled": {}
+							},
+							{
+								"text": "›",
+								"callback_data": "e:fiesta-inventada:w"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "l:w:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n📍 Lugar inventado\n\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Ver todo en el sitio</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
+					"prefer_large_media": true,
+					"show_above_text": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🎟 Comprar en el sitio",
+								"url": "https://ejemplo.test/calendario/x/entradas",
+								"style": "success"
+							}
+						],
+						[
+							{
+								"text": "📅 Agregar al calendario",
+								"url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Taller+de+cuerdas&dates=20310111T000000Z%2F20310111T020000Z&details=https%3A%2F%2Fejemplo.test%2Fcalendario%2Ftaller-de-cuerdas&location=Lugar+inventado"
+							},
+							{
+								"text": "🗺 Cómo llegar",
+								"url": "https://maps.example/x"
+							}
+						],
+						[
+							{
+								"text": "⭐ Seguir",
+								"callback_data": "f:taller-de-cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹",
+								"callback_data": "e:hoy-inventado:w"
+							},
+							{
+								"text": "2/3",
+								"disabled": {}
+							},
+							{
+								"text": "›",
+								"callback_data": "e:fiesta-inventada:w"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "l:w:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: botón tarjeta vieja": {
+		"steps": [],
+		"callback": {
+			"id": "cb",
+			"text": "Ese evento ya no está disponible."
+		}
+	},
+	"router: botón roto": {
+		"steps": [],
+		"callback": {
+			"id": "cb",
+			"text": "No entendí ese comando. Probá con /ayuda."
+		}
+	},
+	"router: botón buscar grupo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": -100,
+				"text": "Para buscar acá, escribí /evento y lo que buscás, por ejemplo: /evento cuerdas",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				},
+				"ephemeral_message_parameters": {
+					"receiver_user_id": 77,
+					"callback_query_id": "cb",
+					"replace_callback_query_message": true
+				}
+			}
+		],
+		"callback": {
+			"id": "cb",
+			"onFail": {
+				"text": "Abrí el bot por privado para ver esto.",
+				"url": "https://t.me/BotDePrueba?start=inicio"
+			}
+		}
+	},
+	"router: botón ayuda grupo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": -100,
+				"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				},
+				"ephemeral_message_parameters": {
+					"receiver_user_id": 77,
+					"callback_query_id": "cb",
+					"replace_callback_query_message": true
+				}
+			}
+		],
+		"callback": {
+			"id": "cb",
+			"onFail": {
+				"text": "Abrí el bot por privado para ver esto.",
+				"url": "https://t.me/BotDePrueba?start=inicio"
+			}
+		}
+	},
+	"router: botón seguir": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: botón seguir sin cuentas": {
+		"steps": [],
+		"callback": {
+			"id": "cb",
+			"text": "Todavía no se puede conectar una cuenta con el bot."
+		}
+	},
+	"router: botón seguir una created": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb",
+			"text": "Listo: ahora seguís Serie Inventada."
+		}
+	},
+	"router: botón seguir una created_telegram": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb",
+			"text": "Listo: ahora seguís Serie Inventada.\nTe aviso por acá cuando haya algo nuevo. Podés apagarlo en Mi rincón."
+		}
+	},
+	"router: botón seguir una already": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb",
+			"text": "Ya lo seguías."
+		}
+	},
+	"router: botón seguir una too_many": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb",
+			"text": "Hiciste muchos cambios seguidos. Esperá un rato y probá de nuevo."
+		}
+	},
+	"router: botón seguir una full": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb",
+			"text": "Ya seguís el máximo de cosas: dejá de seguir alguna en Mi rincón → Lo que sigo."
+		}
+	},
+	"router: botón seguir una gone": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>⭐ Seguir</b>\n\nDe «Fiesta &lt;inventada&gt; &amp; &quot;más&quot;» podés seguir estas etiquetas y series (tocá una):\n\nTe avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, prendé la columna Telegram en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⭐ Serie Inventada",
+								"callback_data": "fy:fiesta-inventada:abc12"
+							}
+						],
+						[
+							{
+								"text": "✓ Ya seguís 🪢 Cuerdas",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "e:fiesta-inventada:n"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb",
+			"text": "Esa etiqueta ya no está para seguir."
+		}
+	},
+	"router: botón seguir una que no está": {
+		"steps": [],
+		"callback": {
+			"id": "cb",
+			"text": "Esa etiqueta ya no está para seguir."
+		}
+	},
+	"router: botón seguir grupo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": -100,
+				"text": "Esto se hace por chat privado con el bot, con tu cuenta conectada.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Abrir el bot por privado ↗",
+								"url": "https://t.me/BotDePrueba?start=sigo"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				},
+				"ephemeral_message_parameters": {
+					"receiver_user_id": 77,
+					"callback_query_id": "cb",
+					"replace_callback_query_message": true
+				}
+			}
+		],
+		"callback": {
+			"id": "cb",
+			"onFail": {
+				"text": "Abrí el bot por privado para ver esto.",
+				"url": "https://t.me/BotDePrueba?start=inicio"
+			}
+		}
+	},
+	"router: botón lo que sigo": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>⭐ Lo que seguís</b>\n\n• Serie\n• 🪢 Cuerdas\n\nQué te avisamos (por mail o por acá) y dejar de seguir: en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>⭐ Lo que seguís</b>\n\n• Serie\n• 🪢 Cuerdas\n\nQué te avisamos (por mail o por acá) y dejar de seguir: en Mi rincón → Lo que sigo.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: botón sin chat": {
+		"steps": [],
+		"callback": {
+			"id": "cb",
+			"text": "Ese evento ya no está disponible."
+		}
+	},
+	"router: error": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Algo salió mal de nuestro lado. Probá de nuevo en un rato.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: error botón": {
+		"steps": [],
+		"callback": {
+			"id": "cb",
+			"text": "Algo salió mal de nuestro lado. Probá de nuevo en un rato."
+		}
+	},
+	"router: api lenta": [
+		{
+			"method": "editMessageText",
+			"body": {
+				"chat_id": 1,
+				"message_id": 9,
+				"text": "x"
+			}
+		},
+		{
+			"method": "answerCallbackQuery",
+			"body": {
+				"callback_query_id": "cb",
+				"text": "Más despacio 🙂"
+			}
+		}
+	],
+	"router: api falla": [
+		{
+			"method": "editMessageText",
+			"body": {
+				"chat_id": 1,
+				"message_id": 9,
+				"text": "x"
+			}
+		},
+		{
+			"method": "answerCallbackQuery",
+			"body": {
+				"callback_query_id": "cb",
+				"text": "Algo salió mal de nuestro lado. Probá de nuevo en un rato."
+			}
+		}
+	],
+	"router: api falla con onFail": [
+		{
+			"method": "editMessageText",
+			"body": {
+				"chat_id": 1,
+				"message_id": 9,
+				"text": "x"
+			}
+		},
+		{
+			"method": "answerCallbackQuery",
+			"body": {
+				"callback_query_id": "cb",
+				"text": "Otro",
+				"url": "https://t.me/x"
+			}
+		}
+	]
+}

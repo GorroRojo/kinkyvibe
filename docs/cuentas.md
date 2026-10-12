@@ -5,7 +5,8 @@
 Cualquier persona puede tener una cuenta en el sitio, **opcional**: entra en **"Ingresar"**
 (`/ingresar`) con un código de 6 números que le llega por mail o, si puso una, con su contraseña.
 En **"Mi rincón"** (`/mi-rincon`) ve su mail, sus compras (también las de antes de tener cuenta),
-sus datos guardados para comprar (ver "Datos guardados para la compra"), pone, cambia o saca la
+sus datos guardados para comprar (ver "Datos guardados para la compra"), su velocidad de lectura
+(ver "Velocidad de lectura"), pone, cambia o saca la
 contraseña, cierra sesión (en ese navegador o en todos lados) o borra la
 cuenta. Tocar la contraseña y borrar la
 cuenta piden además un código fresco por mail (ver "Acciones delicadas").
@@ -99,7 +100,9 @@ nada de estas tablas para sumarlas.
   (dos intentos a la vez no pueden pasarse de 5). La comparación es en tiempo constante.
 - El mail sale por el mismo camino que los de entradas (`deliverEmail` →
   `deliver()` de `src/lib/server/tickets/index.js`): Resend, remitente de Ajustes → Mails y el
-  filtro de los previews. El código no va en el asunto.
+  filtro de los previews. El código no va en el asunto (se ve en las notificaciones del celu): se
+  probó ponerlo y, en dos pruebas con mails reales en Gmail, no ayudó (11/10/2026). Cómo va armado
+  para que se pueda copiar: [mails.md](mails.md#códigos-copiables).
 
 ### Límites de intentos (`rate_limits`)
 
@@ -216,6 +219,30 @@ lo que la cuenta tiene guardado, y la persona elige qué se guarda.
 - Código: `src/lib/utils/savedBuyer.js` (reglas puras: qué completar, qué guardar o sacar, editar,
   tapar el DNI) y `src/lib/server/cuentas/savedBuyer.js` (leer, guardar, lo que necesita la página
   de compra y lo que hace `?/buy` al final).
+
+### Velocidad de lectura
+
+Con qué velocidad se calcula el «X min de lectura» de los materiales y la Kinkipedia
+([contenido.md](contenido.md), «Tiempo de lectura»).
+
+- **Opciones:** «Más despacio» (150 palabras por minuto), «Predeterminado» (200, la de siempre), «Más
+  rápido» (280) u «Otro» (un número de 80 a 600; fuera de ese rango se lleva al borde). Elegir
+  «Predeterminado» saca lo guardado.
+- **Dónde se elige:** en la explicación de «X min de lectura» («¿Leés más rápido o más lento?
+  Ajustalo») y en **Mi rincón → «Velocidad de lectura»** (`?/velocidad`).
+- **Dónde se guarda:** sin cuenta, en el navegador (`localStorage`, clave
+  `kv-velocidad-de-lectura`; si el navegador no deja, vale la de siempre). Con cuenta, además en
+  `accounts.preferences`, clave `readingSpeed` (un número), así vale en todos los dispositivos.
+  **Sin migración nueva.** Desde la explicación se guarda con `POST /mi-rincon/velocidad-de-lectura`
+  (solo JSON y con sesión; 401 sin sesión). `deleteAccount()` vacía `preferences`, así que se va
+  con la cuenta.
+- **Al entrar, la de la cuenta gana** sobre la del navegador (y queda también en el navegador). Si
+  la cuenta no eligió ninguna, queda la del navegador. Al salir, queda la del navegador.
+- El layout raíz (`src/routes/+layout.server.js`) manda `readingSpeed` (o `null`) solo con sesión:
+  una lectura de `preferences` cuando se carga el layout.
+- Código: `getReadingSpeed`/`setReadingSpeed` en `src/lib/server/cuentas/accounts.js`, el
+  navegador en `src/lib/utils/readingSpeed.js` y las reglas (rango, recálculo, texto) en
+  `src/lib/utils/readingTime.js`.
 
 ### Evento que pide cuenta (P7.1)
 

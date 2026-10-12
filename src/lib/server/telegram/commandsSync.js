@@ -16,6 +16,7 @@ import { logAdminAction } from '$lib/server/admin/audit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { isFlagOn } from '$lib/server/flags.js';
 import { commandPayloads, registerBotCommands } from './commands.js';
+import { botTextOverrides } from './texts.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {{ hash: string, at: number, by: 'automático' | 'manual' }} CommandsSync */
@@ -27,12 +28,13 @@ export const COMMANDS_SYNC_KEY = 'telegram_commands_sync';
 export const AUTO_ACTOR = 'automático';
 
 /**
- * El hash de lo que se registraría (los tres alcances, en orden).
+ * El hash de lo que se registraría (los tres alcances, en orden). Con las descripciones cambiadas
+ * en «Textos del bot» (`texts`): así, cambiarlas en el panel hace que el cron las registre.
  *
- * @param {{ accounts: boolean }} opts
+ * @param {{ accounts: boolean, texts?: import('$lib/utils/botTexts.js').BotTexts | null }} opts
  */
-export function commandsHash({ accounts }) {
-	return sha256Hex(JSON.stringify(commandPayloads({ accounts })));
+export function commandsHash({ accounts, texts = null }) {
+	return sha256Hex(JSON.stringify(commandPayloads({ accounts, texts })));
 }
 
 /**
@@ -87,10 +89,11 @@ export async function syncBotCommands({ db, token, now = Date.now(), fetch: fetc
 	if (!db) return 'no_db';
 	try {
 		const accounts = await isFlagOn(db, 'lo_que_sigo');
-		const hash = await commandsHash({ accounts });
+		const texts = await botTextOverrides(db);
+		const hash = await commandsHash({ accounts, texts });
 		const stored = await getCommandsSync(db);
 		if (stored?.hash === hash) return 'unchanged';
-		const r = await registerBotCommands({ token: clean, accounts, fetch: fetchFn });
+		const r = await registerBotCommands({ token: clean, accounts, fetch: fetchFn, texts });
 		const results = 'results' in r ? r.results : [];
 		if (!r.ok) {
 			// Los errores ya vienen sin el token (callTelegramApi). Sin guardar: se reintenta.

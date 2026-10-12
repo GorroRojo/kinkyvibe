@@ -20,7 +20,8 @@
  *
  * Las lecturas de acá son internas (deciden qué mostrar, como antes el JSON): traen el `key` de
  * cualquier etiqueta (también oculta o borrada). Qué se muestra de cada etiqueta lo sigue decidiendo
- * el árbol de etiquetas del sitio (`currentSiteTags`).
+ * el árbol de etiquetas del sitio (`currentSiteTags`); la metadata pública sale sin los `key` de
+ * etiquetas que no ve cualquiera (./vinculosPublicos.js).
  *
  * Solo imports relativos (la importación se prueba sin Vite).
  */
