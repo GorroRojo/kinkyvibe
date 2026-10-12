@@ -279,10 +279,15 @@ de amigues y lanzamientos grandes.
 - ¿Sumar kv-fondo a este repo? L. Bloqueo: decisión de gorrite.
 - Push y PWA (#16, #43). M. Bloqueo: decisión de gorrite.
 - Pruebas más rápidas, lo que quedó después de «tests-mas-rapidos» (#307) y «tests-base-plantilla»
-  (plantilla migrada + canal WebSocket con la base de prueba): `vitest related` para las sesiones
-  de agentes. S. Lo que sigue pesando es la cantidad de consultas: `importTags` de la semilla son
-  ~1800 consultas sueltas (ahora ~2 ms cada una en vez de ~6); agruparlas en `batch` también
-  aceleraría el import de verdad. M.
+  (plantilla migrada + canal WebSocket con la base de prueba): lo que sigue pesando es la cantidad
+  de consultas: `importTags` de la semilla son ~1800 consultas sueltas (ahora ~2 ms cada una en vez
+  de ~6); agruparlas en `batch` también aceleraría el import de verdad. M.
+- CI: actualizar `scripts/vitest/durations.json` con los artifacts `vitest-durations-*` de `main`
+  (`scripts/vitest/merge-durations.js`) cuando se sumen o cambien pruebas lentas, para que las 3
+  partes de `tests` sigan parejas. S.
+- CI: la semilla en una base nueva (~1 min) es lo más lento de `e2e`. Se podría guardar la base
+  ya cargada en caché, con una clave que cambie si cambian las migraciones, la semilla o el código
+  que la importa. S. Bloqueo: confirmar que se quiere.
 
 ### Estándares web y SEO
 
