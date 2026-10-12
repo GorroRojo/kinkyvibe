@@ -21,8 +21,8 @@ const config = {
 	testDir: 'tests',
 	// La venta de entradas tiene su propia configuración (dev + mocks): playwright.tickets.config.js
 	testIgnore: ['tickets/**'],
-	// Cada prueba por su cuenta (no comparten estado): así `--shard` reparte pruebas y no archivos
-	// enteros (la CI corre el humo en 2 partes; smoke.spec.js tiene casi todas).
+	// Cada prueba por su cuenta (no comparten estado): los workers se reparten pruebas sueltas y no
+	// archivos enteros (smoke.spec.js tiene casi todas).
 	fullyParallel: true,
 	timeout: 30_000,
 	retries: process.env.CI ? 1 : 0,
