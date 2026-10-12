@@ -26,6 +26,9 @@
 	 *   (detail: `{ href, label, context }`) y `unpin` (detail: href): 📌 en cada resultado que lleva
 	 *   a una página del panel que se puede fijar (`canPin`: no las «Próximamente»), al pasar el
 	 *   mouse o en el elegido; con el teclado, Alt+F fija o suelta el elegido;
+	 * - props `pinnedPlaces` y `recentPlaces` (los Fijados y Recientes de la barra lateral): sin
+	 *   nada escrito, la paleta los lista (`placeSections`, gorrite 12/10), con el teclado como
+	 *   cualquier resultado; al escribir, busca como siempre;
 	 * - mientras `g` espera su segunda tecla, `goPending` (`$lib/admin/shortcutHints.js`) está en
 	 *   `true` y las pistas «g x» del menú se encienden.
 	 *
@@ -78,10 +81,16 @@
 		goShortcutRows,
 		matchCommands
 	} from '$lib/admin/commands.js';
-	import { SEARCH_TIPS, paletteCommands, recordsFirst } from '$lib/admin/paletteActions.js';
+	import {
+		SEARCH_TIPS,
+		paletteCommands,
+		placeSections,
+		recordsFirst
+	} from '$lib/admin/paletteActions.js';
 	import { allowsKind, hasRecordCriteria, parseSearchQuery } from '$lib/utils/searchQuery.js';
 	import { goPending, isMac } from '$lib/admin/shortcutHints.js';
 	import { canPin } from '$lib/admin/pinnedPlaces.js';
+	import { placeIcon } from '$lib/admin/recentPlaces.js';
 
 	/** Texto corto para el header del celu. */
 	export let compact = false;
@@ -93,6 +102,10 @@
 	export let pinned = [];
 	/** Si ya hay el máximo de fijados. */
 	export let pinFull = false;
+	/** Los Fijados de la barra lateral. @type {import('$lib/admin/recentPlaces.js').RecentPlace[]} */
+	export let pinnedPlaces = [];
+	/** Los Recientes que muestra la barra lateral. @type {import('$lib/admin/recentPlaces.js').RecentPlace[]} */
+	export let recentPlaces = [];
 
 	/** @type {import('svelte').EventDispatcher<{ theme: null, hidesoon: null, pin: { href: string, label: string, context?: string }, unpin: string }>} */
 	const dispatch = createEventDispatcher();
@@ -164,8 +177,9 @@
 	/**
 	 * @typedef {{ key: string, icon: string, title: string, sub: string, href?: string,
 	 *   external?: boolean, run?: 'help' | 'search-help' | 'theme' | 'hide-soon', shortcut?: string,
-	 *   navId?: string }} Row
+	 *   navId?: string, place?: boolean }} Row
 	 */
+	/** @typedef {{ id: string, label: string, rows: Row[] }} Section */
 
 	$: commands = paletteCommands({ today, hideSoon });
 	// Lo escrito, con sus operadores (#etiqueta, @persona, hoy…).
@@ -196,14 +210,27 @@
 		rows: /** @type {Row[]} */ (g.items.map((i) => ({ ...i, key: i.id })))
 	}));
 	// Las acciones van arriba, salvo que lo buscado sea claramente un registro (ver recordsFirst).
-	$: sections = recordsFirst(
+	/** @type {Section[]} */
+	let searchSections = [];
+	$: searchSections = recordsFirst(
 		pq.actionText || q,
 		actionRows.map((r) => r.title),
 		groups
 	)
 		? [...recordSections, ...actionSection]
 		: [...actionSection, ...recordSections];
+	// Sin nada escrito: Fijados y Recientes, como en la barra lateral.
+	$: blank = !q.trim();
+	/** @type {Section[]} */
+	let sections = [];
+	$: sections = blank ? placeSections(pinnedPlaces, recentPlaces) : searchSections;
 	$: flat = sections.flatMap((s) => s.rows);
+	// Al cambiar lo escrito (también al borrarlo todo), el elegido vuelve a ser el primero.
+	$: resetActive(q);
+	/** @param {string} _q */
+	function resetActive(_q) {
+		active = 0;
+	}
 	$: if (active >= flat.length) active = Math.max(0, flat.length - 1);
 	$: search(q);
 
@@ -509,7 +536,10 @@
 							on:mousemove={() => (active = i)}
 						>
 							<span class="oi" aria-hidden="true"
-								>{#if row.navId && navItem(row.navId)}<NavIcon
+								>{#if row.place && row.href}<NavIcon
+										item={placeIcon(row.href)}
+										size={18}
+									/>{:else if row.navId && navItem(row.navId)}<NavIcon
 										item={navItem(row.navId) ?? {}}
 										size={18}
 									/>{:else}<svelte:component
@@ -553,6 +583,10 @@
 					</p>
 				{:else if hasRecordCriteria(pq) && !loading && !groups.length}
 					<p class="note">No encontramos registros con "{q.trim()}".</p>
+				{:else if blank && !flat.length}
+					<p class="note">
+						Todavía no tenés páginas fijadas ni recientes. Escribí para ir a una página o buscar.
+					</p>
 				{:else if q.trim().length === 1}
 					<p class="note">Escribí una letra más para buscar registros.</p>
 				{/if}

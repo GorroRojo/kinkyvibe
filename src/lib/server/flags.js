@@ -44,13 +44,27 @@ export const FLAGS = Object.freeze({
 		description:
 			'Les admins pueden marcar ingresos desde Telegram, con el escáner de QR del celular: cada ' +
 			'admin vincula su Telegram en Ajustes → Admins y abre la puerta desde el bot. Solo anda ' +
-			'para admins con el Telegram vinculado. Necesita el bot prendido. Apagado, no se puede ' +
-			'vincular ni marcar ingresos desde Telegram.',
+			'para admins con el Telegram vinculado. Necesita el bot prendido. Apagado, no se pueden ' +
+			'marcar ingresos desde Telegram (ni vincular, salvo con «Telegram para admins» prendido).',
 		tech:
 			'Mini App /telegram/puerta (docs/telegram.md, decisión 0037). Valida el initData con ' +
 			'TELEGRAM_BOT_TOKEN en cada pedido. Necesita la migración 0050, TELEGRAM_BOT_TOKEN y ' +
 			'TELEGRAM_BOT_USERNAME. Apagado, /telegram/puerta da 404.',
 		envVar: 'TELEGRAM_PUERTA_ENABLED'
+	},
+	telegram_admin: {
+		label: 'Telegram para admins: estado y avisos',
+		description:
+			'Les admins con el Telegram vinculado ven «📊 Estado» en el bot: cuántas entradas se ' +
+			'vendieron de cada evento, reservas por vencer y lo que hay para revisar, solo con ' +
+			'cantidades (nunca datos de compradores). Cada admin elige en «🔔 Mis avisos» qué avisos ' +
+			'quiere recibir (vienen apagados). Necesita el bot prendido. Apagado, nada de esto se ve ' +
+			'y el bot contesta como si no existiera.',
+		tech:
+			'docs/telegram.md («Estado y avisos para admins»), decisión 0041. Vincular el Telegram ' +
+			'(Ajustes → Admins) anda con este o con «Puerta por Telegram». Necesita la migración ' +
+			'0054 para «Mis avisos».',
+		envVar: 'TELEGRAM_ADMIN_ENABLED'
 	},
 	propinas_fondo: {
 		label: 'Donaciones únicas al Fondo',

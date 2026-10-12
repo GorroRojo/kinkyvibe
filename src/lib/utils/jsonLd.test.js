@@ -48,6 +48,12 @@ describe('isoDate', () => {
 		expect(isoDate('no es fecha')).toBeUndefined();
 		expect(isoDate(undefined)).toBeUndefined();
 	});
+	it('convierte el formato de publicación del sitio (2024-12-06Z-03:00) en ISO 8601 válido', () => {
+		const out = isoDate('2024-12-06Z-03:00');
+		expect(out).toBe('2024-12-06T00:00:00-03:00');
+		expect(Date.parse(/** @type {string} */ (out))).toBe(Date.parse('2024-12-06T03:00:00Z'));
+		expect(isoDate('2030-01-02')).toBe('2030-01-02');
+	});
 });
 
 describe('organizationSchema', () => {

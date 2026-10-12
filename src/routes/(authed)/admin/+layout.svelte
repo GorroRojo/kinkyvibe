@@ -247,7 +247,7 @@
 	/** Una página con `wide: true` en su load (la agenda) usa todo el ancho, sin el máximo de siempre. */
 	$: wide = $page.data?.wide === true;
 	$: active = activeNavItem($page.url.pathname);
-	// Pestañas de sección (como las de Ajustes) arriba de cada sección de un grupo del menú.
+	// Pestañas de sección arriba de cada sección de un grupo del menú (Ajustes no: tiene portada).
 	$: tabsHere = sectionTabs($page.url.pathname, { flags, counts, hideSoon });
 	/** @type {Record<string, number>} */
 	$: counts = data.panelCounts ?? {};
@@ -503,6 +503,8 @@
 						{hideSoon}
 						pinned={pinnedHrefs}
 						pinFull={pinned.length >= PIN_MAX}
+						pinnedPlaces={pinned}
+						recentPlaces={recent}
 						on:theme={toggleTheme}
 						on:hidesoon={toggleHideSoon}
 						on:pin={(e) => pin(e.detail)}
@@ -588,6 +590,8 @@
 						{hideSoon}
 						pinned={pinnedHrefs}
 						pinFull={pinned.length >= PIN_MAX}
+						pinnedPlaces={pinned}
+						recentPlaces={recent}
 						on:theme={toggleTheme}
 						on:hidesoon={toggleHideSoon}
 						on:pin={(e) => pin(e.detail)}

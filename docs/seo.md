@@ -44,6 +44,22 @@ guía: `compartir.md` (llega con el PR #257).
 (`InStock`, `SoldOut`, `PreOrder` con `validFrom`) y el link a `/entradas`; sin venta, el link de
 inscripción (precio 0 si tiene la etiqueta `gratis`). Cancelado o pasado: sin oferta.
 
+### Fechas legibles por máquina
+
+Las fechas de publicación se guardan como `2024-12-06Z-03:00`, que **no es ISO 8601** (mezcla `Z`
+y un desfase, y no todos los motores de JS la leen). Nunca se imprimen tal cual en un atributo: los helpers
+de `src/lib/utils/dates.js` las convierten.
+
+| Dónde                                                       | Helper        | Ejemplo                     |
+| ----------------------------------------------------------- | ------------- | --------------------------- |
+| `article:published_time` / `article:modified_time` (OG)     | `isoDateTime` | `2024-12-06T00:00:00-03:00` |
+| JSON-LD (`datePublished`, `dateModified`, `startDate`...)   | `isoDate`     | `2024-12-06T00:00:00-03:00` |
+| `<time datetime>` de una fecha de publicación (solo el día) | `isoDay`      | `2024-12-06`                |
+| `<time datetime>` de un evento (ya viene con hora y zona)   | tal cual      | `2026-10-02T22:00-03:00`    |
+| Sitemap y feeds (`lastmod`, `published`, `updated`)         | `Date`        | `2024-12-06T03:00:00.000Z`  |
+
+Para leer una fecha del sitio igual en cualquier motor de JS: `parseSiteDate`.
+
 ### Feeds
 
 | Feed                       | Atom                         | JSON Feed                    |

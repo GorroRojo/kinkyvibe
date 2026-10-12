@@ -83,9 +83,10 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 ### Panel
 
-- `nav-c-puerta-hoy` · fase 0 · sigue · panel · La Puerta abre directo en el evento de hoy si hay uno solo (aprobado por gorrite, 12/10) · [0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)
-- `nav-c-ir-a-recientes` · fase 0 · sigue · panel · «Ir a…» (⌘K) vacío muestra Fijados y Recientes (aprobado por gorrite, 12/10)
-- `ajustes-4-grupos` · fase 0 · en curso · panel · Ajustes como 4 grupos con tarjetas (Plata, Comunicación, Equipo, Sistema) en vez de pestañas (gorrite: «Así, hacelo»)
+- `nav-c-puerta-hoy` · fase 0 · hecho · panel · La Puerta abre directo en el evento de hoy si hay uno solo · #314, [0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)
+- `nav-c-ir-a-recientes` · fase 0 · hecho · panel · «Ir a…» (⌘K) vacío muestra Fijados y Recientes · #314
+- `ajustes-4-grupos` · fase 0 · hecho · panel · Ajustes como portada con 4 grupos de tarjetas (Plata, Comunicación, Equipo, Sistema) en vez de pestañas · #317, [0042](decisiones/0042-ajustes-portada-con-grupos.md)
+- `ajustes-fondo-linea` · fase 0 · sigue · panel · Portada de Ajustes: línea de estado del Fondo aunque todavía no haya llegado el porcentaje automático (hoy la tarjeta va sin línea; buscarlo haría lenta la portada) (depende de: ajustes-4-grupos)
 - `panel-pestanas-celu` · fase 0 · sigue · panel · En el celu, la lista ▾ de pestañas de la ficha se ve menos importante que los botones de acción (gorrite, #303)
 - `buscador-pestanas-nombres` · fase 0 · sigue · panel · Los atajos del buscador a las pestañas de un evento (`eventTabActions`) dicen «Órdenes» y «Mail a compradores»: pasar a «Ventas › Órdenes» y «Mails › Mandar un aviso»
 - `navprefs-grupos-limpiar` · fase 0 · sigue · panel · Sacar de `navPrefs.js` las funciones de grupos abiertos (`kv-panel-grupos`) y sus pruebas, que la barra sin grupos ya no usa
@@ -131,6 +132,8 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `seo-titulos` · fase 0 · sigue · seo · El mes en el título de los eventos repetidos, el salto de `h1` a `h3` en las listas y `DefinedTerm` para etiquetas con descripción · [seo.md](seo.md)
 - `noai-por-post` · fase 0 · algún día · seo · Opción de «noai» por publicación (los robots de IA los maneja gorrite en Cloudflare)
 - `estandares-web` · fase 0 · hecho · seo · JSON-LD, microformatos, rel=me, security.txt, vCard, feeds Atom y JSON · #278, #280
+- `fechas-iso` · fase 0 · hecho · seo · Fechas ISO 8601 válidas en metadatos, JSON-LD y `<time datetime>` · #319, [seo.md](seo.md)
+- `fechas-formateadores` · fase 0 · sigue · sitio · Las fechas de publicación se guardan como `2024-12-06Z-03:00` (no es ISO 8601): los formateadores visibles (`toArgentina`, `argDate*`) siguen leyéndolas con `new Date()`, que no todos los motores entienden; usar `parseSiteDate` o pasar los datos a ISO con una migración (depende de: fechas-iso)
 
 ### Diseño
 
@@ -142,7 +145,10 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 ### Bot de Telegram
 
-- `bot-avisos-admin` · fase 0 · en curso · bot · Avisos del bot para admins, en 4 partes y que cada admin elige; la primera: ajustes y «📊 Estado» de un evento · [0029](decisiones/0029-bot-de-telegram.md)
+- `bot-avisos-admin` · fase 0 · en curso · bot · Telegram para admins: parte 1 («📊 Estado» y «🔔 Mis avisos», apagado con `telegram_admin`) hecha en #315; parte 2 (resumen diario y avisos en el momento, migración 0055) en #322 · [0041](decisiones/0041-telegram-para-admins.md)
+- `bot-avisos-admin-3` · fase 0 · sigue · bot · Telegram para admins, parte 3: el resumen del día del evento y los recordatorios (el evento de mañana, falta el lugar o el link de la transmisión) (depende de: bot-avisos-admin) · [0041](decisiones/0041-telegram-para-admins.md)
+- `bot-avisos-admin-probar` · fase 0 · espera gorrite · bot · Prender `telegram_admin` en un preview y probarlo con un Telegram vinculado (la migración 0054 ya está en preview y producción) (depende de: bot-avisos-admin)
+- `bot-avisos-admin-menu` · fase 0 · algún día · bot · `/estado` y `/avisos` en el menú «/» solo de les admins vinculades (`setMyCommands` por chat desde el cron; borrarlo al desvincular), si hace falta
 - `bot-busquedas-vacias` · fase 0 · sigue · bot · Bot 3/5: qué se busca y no se encuentra (sin guardar quién), en el panel, y sugerencias en vez de «no encontré nada» (depende de: bot-mis-entradas)
 - `bot-puerta-probar` · fase 0 · espera gorrite · bot · Probar la Puerta por Telegram en un preview con celus reales (vincular, abrir, escanear) · [0037](decisiones/0037-puerta-por-telegram.md)
 - `bot-puerta-2` · fase 0 · sigue · bot · Bot 4/5: Puerta por Telegram parte 2 (contador en vivo, escribir el código a mano) (depende de: bot-busquedas-vacias, bot-puerta-probar)
@@ -249,7 +255,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `campos-propios-tipos` · fase 3 · algún día · panel · Campos propios y tipos simples desde el panel; falta diseño
 - `recurrencia-rrule` · fase 3 · algún día · sitio · Recurrencia tipo RRULE (las series y los talleres en partes cubren una parte) · #29
 - `rol-organizadore` · fase 3 · espera gorrite · cuentas · Rol de organizadore con permisos sobre sus eventos; primero un prototipo para mirar y decidir
-- `bot-organizadores` · fase 3 · sigue · bot · Bot 5/5: avisos y estado de venta para organizadores, nunca datos de compradores (depende de: rol-organizadore) · [0029](decisiones/0029-bot-de-telegram.md)
+- `bot-organizadores` · fase 3 · sigue · bot · Avisos y estado de venta para organizadores, cada une con sus eventos, reusando lo de admins; nunca datos de compradores (depende de: rol-organizadore) · [0029](decisiones/0029-bot-de-telegram.md), [0041](decisiones/0041-telegram-para-admins.md)
 
 ## Fase 4
 
