@@ -11,7 +11,7 @@ import { DAY, fakeEvent, fakeSend, insertOrder, linkIn } from '$lib/server/serie
 import tagsFactory from '$lib/utils/tags';
 import { follow, getFollow, setFollowOptions } from './follows.js';
 import { migrateAccountSubscriptions } from './avisame.js';
-import { runFollowNotifications, stopMailWithToken } from './notify.js';
+import { countFailure, runFollowNotifications, stopMailWithToken } from './notify.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -97,6 +97,66 @@ describe('runFollowNotifications', () => {
 		expect(await run({ posts, send, now: NOW + DAY + 3 })).toMatchObject({ sent: 0 });
 		expect(send.sent.at(-1)?.subject).toContain('Mañana');
 		expect(send.sent.at(-1)?.to).toBe(a.email);
+	});
+
+	it('cada mail que falla suma 1 al contador del día y el canal, sin datos de la persona', async () => {
+		const a = await makeAccount(t.db, 'sigo-falla-cuenta');
+		await follow(t.db, a.id, TAG, {
+			now: NOW - DAY,
+			options: { calendario: true, mail_nuevo: false, recordatorio: true }
+		});
+		const posts = [fakeEvent('falla-contada', NOW + 2 * DAY, ['Picantearla'])];
+		const send = fakeSend('failed');
+		await run({ posts, send });
+		expect(await run({ posts, send, now: NOW + DAY + 1 })).toMatchObject({ failed: 1 });
+		expect(await run({ posts, send, now: NOW + DAY + 2 })).toMatchObject({ failed: 1 });
+		send.state.result = 'sent';
+		expect(await run({ posts, send, now: NOW + DAY + 3 })).toMatchObject({ sent: 1 });
+		const { results } = await t.db
+			.prepare('SELECT * FROM follow_notification_failures ORDER BY day, channel, reason')
+			.all();
+		// El 2/6 en Argentina: los dos intentos fallidos, en una sola fila.
+		expect(results).toEqual([{ day: '2026-06-02', channel: 'mail', reason: 'error', failures: 2 }]);
+		const json = JSON.stringify(results);
+		for (const secret of [a.id, a.email, 'falla-contada']) expect(json).not.toContain(secret);
+	});
+
+	it('el día del contador es el de Argentina (a las 23:30 todavía es el mismo día)', async () => {
+		await countFailure(t.db, 'mail', 'error', Date.parse('2026-06-01T23:30:00-03:00'));
+		await countFailure(t.db, 'telegram', 'bloqueado', Date.parse('2026-06-02T00:30:00-03:00'));
+		const { results } = await t.db
+			.prepare(
+				'SELECT day, channel, reason, failures FROM follow_notification_failures ORDER BY day'
+			)
+			.all();
+		expect(results).toEqual([
+			{ day: '2026-06-01', channel: 'mail', reason: 'error', failures: 1 },
+			{ day: '2026-06-02', channel: 'telegram', reason: 'bloqueado', failures: 1 }
+		]);
+	});
+
+	it('sin la tabla de fallos (migración 0058 sin aplicar) no se rompe y se reintenta igual', async () => {
+		const a = await makeAccount(t.db, 'sigo-sin-tabla');
+		await follow(t.db, a.id, TAG, {
+			now: NOW - DAY,
+			options: { calendario: true, mail_nuevo: false, recordatorio: true }
+		});
+		const posts = [fakeEvent('sin-tabla', NOW + 2 * DAY, ['Picantearla'])];
+		await t.db.prepare('DROP TABLE follow_notification_failures').run();
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			const send = fakeSend('failed');
+			await run({ posts, send });
+			expect(await run({ posts, send, now: NOW + DAY + 1 })).toMatchObject({ failed: 1 });
+			expect(error).toHaveBeenCalled();
+			send.state.result = 'sent';
+			expect(await run({ posts, send, now: NOW + DAY + 2 })).toMatchObject({ sent: 1 });
+		} finally {
+			error.mockRestore();
+			// El resto de las pruebas usa la base entera: se arma de nuevo.
+			await t?.dispose();
+			t = await createTestDB();
+		}
 	});
 
 	describe('con entrada para el evento', () => {

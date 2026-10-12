@@ -8,7 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { makeAccount, makeProfile } from '$lib/server/amigues/testing.js';
 import tagsFactory from '$lib/utils/tags';
-import { followStats, groupRanking, whoFollows } from './stats.js';
+import { followStats, groupFailures, groupRanking, whoFollows } from './stats.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -176,6 +176,7 @@ describe('followStats', () => {
 		expect(s.accounts).toBeNull();
 		expect(s.ranking).toBeNull();
 		expect(s.notices).toBeNull();
+		expect(s.failures).toBeNull();
 	});
 
 	it('sin nada seguido: ceros y listas vacías', async () => {
@@ -275,8 +276,62 @@ describe('followStats', () => {
 		for (const row of [...ranking.etiqueta, ...ranking.perfil, ...ranking.lugar])
 			expect(Object.keys(row).sort()).toEqual(allowed);
 		expect(Object.keys(s).sort()).toEqual(
-			['accounts', 'avisame', 'follows', 'notices', 'options', 'ranking', 'telegram'].sort()
+			[
+				'accounts',
+				'avisame',
+				'failures',
+				'follows',
+				'notices',
+				'options',
+				'ranking',
+				'telegram'
+			].sort()
 		);
+	});
+
+	it('avisos que fallaron: 7 y 30 días (hora de Argentina), por canal y los bloqueados', async () => {
+		/** @param {string} day @param {string} channel @param {string} reason @param {number} failures */
+		const addFailures = (day, channel, reason, failures) =>
+			t.db
+				.prepare(
+					`INSERT INTO follow_notification_failures (day, channel, reason, failures)
+					VALUES (?1, ?2, ?3, ?4)`
+				)
+				.bind(day, channel, reason, failures)
+				.run();
+		// NOW es el 1/6 al mediodía en Argentina: 7 días = desde el 26/5; 30 días = desde el 3/5.
+		await addFailures('2026-06-01', 'mail', 'error', 2);
+		await addFailures('2026-05-26', 'telegram', 'error', 1);
+		await addFailures('2026-05-26', 'telegram', 'bloqueado', 3);
+		await addFailures('2026-05-25', 'mail', 'error', 5);
+		await addFailures('2026-05-03', 'telegram', 'bloqueado', 1);
+		await addFailures('2026-05-02', 'mail', 'error', 100);
+		const { failures } = await followStats(t.db, { tags, now: NOW });
+		expect(failures).toEqual({
+			d7: { total: 6, mail: 2, telegram: 4, blocked: 3 },
+			d30: { total: 12, mail: 7, telegram: 5, blocked: 4 }
+		});
+	});
+
+	it('sin avisos que fallaron: ceros', async () => {
+		const { failures } = await followStats(t.db, { tags, now: NOW });
+		expect(failures).toEqual({
+			d7: { total: 0, mail: 0, telegram: 0, blocked: 0 },
+			d30: { total: 0, mail: 0, telegram: 0, blocked: 0 }
+		});
+	});
+
+	it('sin la tabla de fallos (migración 0058 sin aplicar): `failures` en null y lo demás sigue', async () => {
+		await seed();
+		await t.db.prepare('DROP TABLE follow_notification_failures').run();
+		try {
+			const s = await followStats(t.db, { tags, now: NOW });
+			expect(s.failures).toBeNull();
+			expect(s.notices?.nuevo.mail.total).toBe(3);
+		} finally {
+			await t?.dispose();
+			t = await createTestDB();
+		}
 	});
 
 	it('una tabla que falta (migración sin aplicar) deja ese dato en null y lo demás sigue', async () => {
@@ -353,5 +408,22 @@ describe('groupRanking', () => {
 			tags
 		);
 		expect(r).toEqual({ etiqueta: [], perfil: [], lugar: [] });
+	});
+});
+
+describe('groupFailures', () => {
+	it('suma por canal, cuenta los bloqueados solo de Telegram y saltea canales raros', () => {
+		expect(
+			groupFailures([
+				{ channel: 'mail', reason: 'error', d7: 1, d30: 2 },
+				{ channel: 'mail', reason: 'bloqueado', d7: 1, d30: 1 },
+				{ channel: 'telegram', reason: 'bloqueado', d7: 0, d30: 4 },
+				{ channel: 'telegram', reason: 'error', d7: null, d30: 1 },
+				{ channel: 'paloma', reason: 'error', d7: 9, d30: 9 }
+			])
+		).toEqual({
+			d7: { total: 2, mail: 2, telegram: 0, blocked: 0 },
+			d30: { total: 8, mail: 3, telegram: 5, blocked: 4 }
+		});
 	});
 });

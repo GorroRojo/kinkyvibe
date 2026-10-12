@@ -11,6 +11,7 @@ import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent, thrown } from '$lib/server/series/fixtures.js';
 import { makeAccount, makeProfile } from '$lib/server/amigues/testing.js';
 import { setFlag } from '$lib/server/flags.js';
+import { countFailure } from '$lib/server/sigo/notify.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -93,6 +94,8 @@ describe('/admin/mensajes/lo-que-sigo', () => {
 			)
 			.bind(a.id)
 			.run();
+		await countFailure(t.db, 'mail', 'error', Date.now());
+		await countFailure(t.db, 'telegram', 'bloqueado', Date.now());
 
 		const data = /** @type {any} */ (await (await page()).load(ev(admin)));
 		expect(data.flags).toEqual({ lo_que_sigo: true, telegram_bot: true });
@@ -102,6 +105,7 @@ describe('/admin/mensajes/lo-que-sigo', () => {
 		expect(data.stats.ranking.etiqueta[0]).toMatchObject({ key: 'shibari', count: 2 });
 		expect(data.stats.ranking.perfil[0]).toMatchObject({ title: 'Perfil De Prueba', count: 1 });
 		expect(data.stats.telegram).toEqual({ linked: 1, muted: 0 });
+		expect(data.stats.failures.d7).toEqual({ total: 2, mail: 1, telegram: 1, blocked: 1 });
 
 		// Los números no dicen quién: eso va solo en `followers`.
 		const stats = JSON.stringify(data.stats);
