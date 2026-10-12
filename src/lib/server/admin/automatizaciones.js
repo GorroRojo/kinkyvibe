@@ -261,8 +261,8 @@ export async function loadAutomations({
 			state: 'on',
 			stateLabel: 'Corre solo en el sitio de verdad',
 			details: [`Cron: ${REMINDERS_CRON} (UTC)`, 'Los previews no ejecutan crons.'],
-			configHref: '/admin/ajustes/mails',
-			configLabel: 'Mails y envíos'
+			configHref: '/admin/mensajes/configuracion',
+			configLabel: 'Mensajes → Configuración'
 		},
 		{
 			id: 'cron-backup',
@@ -309,8 +309,8 @@ export async function loadAutomations({
 				...reminders.filter((r) => !r.enabled).map((r) => `Desactivado: ${describeReminder(r)}`),
 				...(reminderStats.pending ? [`${reminderStats.pending} en la tanda que sigue`] : [])
 			],
-			configHref: '/admin/ajustes/mails',
-			configLabel: 'Ajustes → Mails'
+			configHref: '/admin/mensajes/configuracion',
+			configLabel: 'Mensajes → Configuración'
 		},
 		{
 			id: 'mail-transmision',

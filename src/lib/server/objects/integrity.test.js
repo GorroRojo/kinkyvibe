@@ -214,6 +214,17 @@ describe('checkObjectsIntegrity (con base)', () => {
 });
 
 describe('integrity_runs: el resultado queda guardado para el panel', () => {
+	// Una base sin migraciones, levantada antes de las pruebas: su arranque (miniflare) no
+	// cuenta para el tiempo límite de la prueba.
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let bare;
+	beforeAll(async () => {
+		bare = await createTestDB({ migrate: false });
+	});
+	afterAll(async () => {
+		await bare?.dispose();
+	});
+
 	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
 	let t;
 	beforeAll(async () => {
@@ -266,12 +277,7 @@ describe('integrity_runs: el resultado queda guardado para el panel', () => {
 	});
 
 	it('sin la migración 0012 devuelve null en vez de tirar error', async () => {
-		const bare = await createTestDB({ migrate: false });
-		try {
-			expect(await lastIntegrityRun(bare.db)).toBeNull();
-			expect(await hasObjectsSchema(bare.db)).toBe(false);
-		} finally {
-			await bare.dispose();
-		}
+		expect(await lastIntegrityRun(bare.db)).toBeNull();
+		expect(await hasObjectsSchema(bare.db)).toBe(false);
 	});
 });

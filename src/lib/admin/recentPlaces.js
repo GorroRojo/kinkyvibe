@@ -107,7 +107,15 @@ export function recentLabel({ pathname, heading }) {
 	if (exact) return clip(exact.label);
 	const ev = path.match(/^\/admin\/eventos\/([^/]+)(\/[^/]+)?$/);
 	if (ev && !NAV.some((i) => i.href === `/admin/eventos/${ev[1]}`)) {
-		const tab = EVENT_TABS.find((t) => t.suffix === (ev[2] ?? ''));
+		// Las pestañas con vistas (Ventas › Órdenes, Mails › Plantillas) se nombran por la vista,
+		// salvo la vista que comparte dirección con su pestaña (Ventas › Totales es «Ventas»).
+		const suffix = ev[2] ?? '';
+		const owner = EVENT_TABS.find((t) => t.views?.some((v) => v.suffix === suffix));
+		const view = owner?.views?.find((v) => v.suffix === suffix);
+		const tab =
+			owner && view
+				? { id: owner.id, label: view.suffix === owner.suffix ? owner.label : view.label }
+				: EVENT_TABS.find((t) => t.suffix === suffix);
 		let name = h;
 		if (!name) {
 			try {

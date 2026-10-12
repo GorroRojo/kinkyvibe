@@ -1,5 +1,6 @@
 /**
- * Ajustes → Mails: remitente y dirección de respuesta de los mails de entradas, el pie de todos
+ * Mensajes → Configuración (antes Ajustes → Mails, /admin/ajustes/mails redirige acá):
+ * remitente y dirección de respuesta de los mails de entradas, el pie de todos
  * los mails (contacto y firma), los recordatorios antes de cada evento y de a cuántos mails se
  * mandan los envíos masivos. En D1 (`ticket_settings`). Solo admins.
  */

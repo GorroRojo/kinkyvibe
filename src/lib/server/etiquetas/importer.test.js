@@ -5,7 +5,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedRawsByPath } from '$lib/server/semilla/testing.js';
-import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { createTestDB, resetDB, restoreDB, snapshotDB } from '$lib/server/db/testing.js';
 import seedTagList from '$lib/server/semilla/etiquetas.json';
 import tagsFactory from '$lib/utils/tags.js';
 import { saveObject } from '../objects/save.js';
@@ -37,6 +37,22 @@ beforeEach(async () => {
 	await resetDB(t.db);
 });
 
+/**
+ * La base justo después de importar `source()` en una base vacía (lo que hace la primera prueba).
+ * Las pruebas que solo la necesitan como punto de partida ponen esa copia (`restoreDB`: exactamente
+ * las mismas filas, en un solo pedido) en vez de importar de nuevo, que tarda ~10 s con la máquina
+ * cargada.
+ * @type {import('$lib/server/db/testing.js').DBSnapshot | undefined}
+ */
+let imported;
+
+/** Como `importTags(t.db, source(), { actor: ACTOR })` en la base vacía, pero de la copia si hay. */
+async function importSource() {
+	if (imported) return restoreDB(t.db, imported);
+	await importTags(t.db, source(), { actor: ACTOR });
+	imported = await snapshotDB(t.db);
+}
+
 /** @param {string} key */
 async function tagByKey(key) {
 	const records = await loadTagRecords(t.db);
@@ -54,6 +70,7 @@ describe('importTags', () => {
 		expect(count).toBe(0); // la vista previa no escribe
 
 		const run = await importTags(t.db, source(), { actor: ACTOR });
+		imported ??= await snapshotDB(t.db);
 		const s = summarizeTagImport(run.results);
 		expect(s).toMatchObject({ created: expected.length, error: 0, pending: 0 });
 
@@ -79,7 +96,7 @@ describe('importTags', () => {
 	});
 
 	it('es idempotente: la segunda vez no cambia nada', async () => {
-		await importTags(t.db, source(), { actor: ACTOR });
+		await importSource();
 		const again = await importTags(t.db, source(), { actor: ACTOR });
 		const s = summarizeTagImport(again.results);
 		expect(s.unchanged).toBe(again.results.length);
@@ -90,7 +107,7 @@ describe('importTags', () => {
 	});
 
 	it('actualiza lo que cambió en el archivo, salvo lo editado o borrado en el panel', async () => {
-		await importTags(t.db, source(), { actor: ACTOR });
+		await importSource();
 		const bondage = /** @type {any} */ (await tagByKey('bondage'));
 		const cine = /** @type {any} */ (await tagByKey('Cine para Sucixs'));
 		// Une admin edita «bondage» y borra «Cine para Sucixs».

@@ -183,6 +183,17 @@ describe('estadísticas', () => {
 });
 
 describe('notas', () => {
+	// Una base sin migraciones, levantada antes de las pruebas: su arranque (miniflare) no
+	// cuenta para el tiempo límite de la prueba.
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let bare;
+	beforeAll(async () => {
+		bare = await createTestDB({ migrate: false });
+	});
+	afterAll(async () => {
+		await bare?.dispose();
+	});
+
 	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
 	let t;
 	beforeAll(async () => {
@@ -216,13 +227,8 @@ describe('notas', () => {
 	});
 
 	it('sin la tabla o sin base: vacío, sin romper', async () => {
-		const bare = await createTestDB({ migrate: false });
-		try {
-			expect(await listNotes(bare.db, 'a@example.com')).toEqual([]);
-			expect((await noteCounts(bare.db)).size).toBe(0);
-		} finally {
-			await bare.dispose();
-		}
+		expect(await listNotes(bare.db, 'a@example.com')).toEqual([]);
+		expect((await noteCounts(bare.db)).size).toBe(0);
 		expect(await listNotes(null, 'a')).toEqual([]);
 	});
 });

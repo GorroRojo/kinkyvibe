@@ -1,27 +1,19 @@
 <script>
 	//@ts-nocheck
-	import {
-		getDate,
-		getDay,
-		getDaysInMonth,
-		isSameMonth,
-		setDate,
-		format,
-		addDays,
-		isPast
-	} from 'date-fns';
+	import { getDay, getDaysInMonth, setDate, format } from 'date-fns';
 	import { scale } from 'svelte/transition';
+	import { calendarDayFlags } from '$lib/utils/allPosts';
 
 	export let start_on_sunday = true;
 	/** @type {Date} first day of the month to show */
 	export let view_date;
-	let today_date = new Date();
+	/** «Ahora» en ms: hoy y los días pasados se calculan en hora de Argentina. */
+	export let now = Date.now();
 	const WEEK_DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 	if (start_on_sunday) {
 		const s = WEEK_DAYS.splice(WEEK_DAYS.length - 1, 1);
 		WEEK_DAYS.unshift(s[0]);
 	}
-	$: view_is_same_month = isSameMonth(view_date, today_date);
 	$: days_in_month = getDaysInMonth(view_date);
 	$: first_week_day = getDay(setDate(view_date, 1)) || (start_on_sunday ? 0 : 7);
 </script>
@@ -43,8 +35,9 @@
 		{#each Array(days_in_month) as _, i}
 			{@const date_og = setDate(view_date, i + 1)}
 			{@const date = format(date_og, 'yyyy-MM-dd')}
-			{@const today = view_is_same_month ? getDate(today_date) === i + 1 : false}
-			{@const past = isPast(addDays(date_og, 1))}
+			{@const flags = calendarDayFlags(date, now)}
+			{@const today = flags.today}
+			{@const past = flags.past}
 			<div class="cell" out:scale={{ duration: 300 }} in:scale={{ delay: 300 }}>
 				<slot {date} {today} {past}>
 					{date_og.toLocaleDateString(undefined, { day: 'numeric' })}

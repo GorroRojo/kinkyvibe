@@ -3,6 +3,12 @@
 	import { Trash2 } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
 	import { argDateList, argDateLong } from '$lib/utils/dates.js';
+	import {
+		READING_SPEEDS,
+		READING_SPEED_MAX,
+		READING_SPEED_MIN,
+		WORDS_PER_MINUTE
+	} from '$lib/utils/readingTime.js';
 
 	export let data;
 	export let form;
@@ -23,6 +29,10 @@
 	$: savedEmpty = !data.saved.name && !data.saved.pronouns && !data.saved.hasDni;
 	/** @type {Record<string, string>} */
 	$: datosErrors = (form?.action === 'datos' && form.errors) || {};
+
+	// «Velocidad de lectura»: la de la cuenta (null: la de siempre). Si no es una de las tres, «Otro».
+	$: speed = data.readingSpeed ?? WORDS_PER_MINUTE;
+	$: speedChoice = READING_SPEEDS.find((s) => s.wpm === speed)?.id ?? 'otro';
 
 	/** Las respuestas de las actions quedan en `form` sin vaciar los otros campos. */
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
@@ -217,6 +227,49 @@
 				</form>
 			{/if}
 		{/if}
+	</section>
+
+	<section class="surface-card" id="velocidad-de-lectura" aria-labelledby="velocidad-title">
+		<h2 id="velocidad-title">Velocidad de lectura</h2>
+		<p class="hint">
+			Con esto calculamos el «X min de lectura» de los materiales y la Kinkipedia. Vale en todos los
+			dispositivos donde entres con tu cuenta. La predeterminada es de {WORDS_PER_MINUTE} palabras por
+			minuto.
+		</p>
+		{#if form?.action === 'velocidad'}
+			{#if form.error}
+				<p class="error" role="alert">{form.error}</p>
+			{:else if form.message}
+				<p class="ok" role="status">{form.message}</p>
+			{/if}
+		{/if}
+		<form method="POST" action="?/velocidad" use:enhance={keep}>
+			<span class="kv-segmented speed-options" role="radiogroup" aria-label="Tu velocidad">
+				{#each READING_SPEEDS as s (s.id)}
+					<label title="{s.wpm} palabras por minuto">
+						<input type="radio" name="velocidad" value={s.id} checked={speedChoice === s.id} />
+						{s.label}
+					</label>
+				{/each}
+				<label>
+					<input type="radio" name="velocidad" value="otro" checked={speedChoice === 'otro'} />
+					Otro
+				</label>
+			</span>
+			<label class="speed-other">
+				<span>Otro: palabras por minuto (de {READING_SPEED_MIN} a {READING_SPEED_MAX})</span>
+				<input
+					name="otro"
+					type="number"
+					inputmode="numeric"
+					min={READING_SPEED_MIN}
+					max={READING_SPEED_MAX}
+					step="10"
+					value={speedChoice === 'otro' ? speed : ''}
+				/>
+			</label>
+			<button class="pill-btn" type="submit">Guardar</button>
+		</form>
 	</section>
 
 	<section class="surface-card" aria-labelledby="pw-title">
@@ -414,6 +467,18 @@
 		border: 1px solid var(--line);
 		border-radius: var(--round-sm);
 		min-height: var(--tap);
+	}
+	.speed-options label {
+		display: inline-flex;
+		width: auto;
+	}
+	.speed-other input {
+		font-size: var(--step-0);
+		padding: 0.5em 0.7em;
+		border: 1px solid var(--line);
+		border-radius: var(--round-sm);
+		min-height: var(--tap);
+		max-width: 8em;
 	}
 	.orders {
 		list-style: none;

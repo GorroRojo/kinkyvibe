@@ -21,7 +21,32 @@
 	import SearchButton from '$lib/components/SearchButton.svelte';
 	import { accountLink } from '$lib/utils/cuentas.js';
 	import { breadcrumbLd, ownBackLink, sectionCrumb } from '$lib/utils/navigation.js';
+	import { browser } from '$app/environment';
+	import { applyAccountSpeedChange, initReadingSpeed } from '$lib/utils/readingSpeed.js';
 	export let data;
+	// La velocidad de lectura de la persona (la de la cuenta gana sobre la del navegador), después de
+	// hidratar: el servidor ya dibujó los minutos de siempre. $lib/utils/readingSpeed.js. Solo
+	// cuando cambia lo de la cuenta (al entrar, salir o guardar en Mi rincón): `data` cambia en cada
+	// navegación y no tiene que pisar lo que se acaba de elegir en la explicación.
+	/** @type {unknown} */
+	let appliedAccountSpeed;
+	let appliedMember = false;
+	let speedStarted = false;
+	$: if (browser) applyAccountSpeed(data.readingSpeed, Boolean(data.member));
+	/** @param {unknown} value @param {boolean} member */
+	function applyAccountSpeed(value, member) {
+		if (speedStarted && value === appliedAccountSpeed && member === appliedMember) return;
+		if (!speedStarted) initReadingSpeed(value);
+		else
+			applyAccountSpeedChange({
+				previous: appliedAccountSpeed,
+				next: value,
+				sameMember: member && appliedMember
+			});
+		speedStarted = true;
+		appliedAccountSpeed = value;
+		appliedMember = member;
+	}
 	$: cuentaLink = accountLink(data);
 	togglePositiveTagFilterFn.update(
 		() =>

@@ -39,6 +39,19 @@ export const FLAGS = Object.freeze({
 			'necesitan el secret TELEGRAM_BOT_TOKEN y la migración 0033.',
 		envVar: 'TELEGRAM_BOT_ENABLED'
 	},
+	telegram_puerta: {
+		label: 'Puerta por Telegram',
+		description:
+			'Les admins pueden marcar ingresos desde Telegram, con el escáner de QR del celular: cada ' +
+			'admin vincula su Telegram en Ajustes → Admins y abre la puerta desde el bot. Solo anda ' +
+			'para admins con el Telegram vinculado. Necesita el bot prendido. Apagado, no se puede ' +
+			'vincular ni marcar ingresos desde Telegram.',
+		tech:
+			'Mini App /telegram/puerta (docs/telegram.md, decisión 0037). Valida el initData con ' +
+			'TELEGRAM_BOT_TOKEN en cada pedido. Necesita la migración 0050, TELEGRAM_BOT_TOKEN y ' +
+			'TELEGRAM_BOT_USERNAME. Apagado, /telegram/puerta da 404.',
+		envVar: 'TELEGRAM_PUERTA_ENABLED'
+	},
 	propinas_fondo: {
 		label: 'Donaciones únicas al Fondo',
 		description:

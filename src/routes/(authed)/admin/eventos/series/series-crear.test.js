@@ -4,7 +4,7 @@
  * commits al archivo de etiquetas). D1 de miniflare para las etiquetas y el registro del panel.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { createTestDB, resetDB, restoreDB, snapshotDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent, thrown } from '$lib/server/series/fixtures.js';
 import seedTagList from '$lib/server/semilla/etiquetas.json';
@@ -21,7 +21,15 @@ beforeAll(async () => {
 afterAll(async () => {
 	await t?.dispose();
 });
+/**
+ * La base recién importada, copiada la primera vez: importar todas las etiquetas de la semilla
+ * tarda ~10 s con la máquina cargada, y cada prueba arranca con exactamente esas filas
+ * (`restoreDB` deja la base igual que después de la importación, en un solo pedido).
+ * @type {import('$lib/server/db/testing.js').DBSnapshot | undefined}
+ */
+let imported;
 beforeEach(async () => {
+	if (imported) return restoreDB(t.db, imported);
 	await resetDB(t.db);
 	// Las etiquetas, en la base (de donde se leen y donde se guardan).
 	await importTags(
@@ -29,6 +37,7 @@ beforeEach(async () => {
 		{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
 		{ actor: 'admin-de-prueba' }
 	);
+	imported = await snapshotDB(t.db);
 });
 afterEach(() => {
 	vi.doUnmock('$env/dynamic/private');

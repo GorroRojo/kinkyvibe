@@ -91,6 +91,27 @@ describe('seguir', () => {
 		expect(p?.callback?.text).toBe('Listo: ahora seguís Serie Inventada.');
 	});
 
+	it('si se prendieron los avisos por Telegram, lo dice en una línea más', async () => {
+		const p = await planUpdate(
+			tap('fy:fiesta-inventada:abc12'),
+			deps(fakeFollows({ followResult: 'created_telegram' }))
+		);
+		expect(p?.callback?.text).toBe(
+			'Listo: ahora seguís Serie Inventada.\n' +
+				'Te aviso por acá cuando haya algo nuevo. Podés apagarlo en Mi rincón.'
+		);
+	});
+
+	it('si no se prendieron (ya los tenía, /silenciar o ya lo seguía), no promete avisos', async () => {
+		for (const followResult of ['created', 'already']) {
+			const p = await planUpdate(
+				tap('fy:fiesta-inventada:abc12'),
+				deps(fakeFollows({ followResult }))
+			);
+			expect(p?.callback?.text).not.toContain('Te aviso');
+		}
+	});
+
 	it('topes del sitio: muchos cambios o demasiadas cosas seguidas', async () => {
 		const many = await planUpdate(
 			tap('fy:fiesta-inventada:abc12'),

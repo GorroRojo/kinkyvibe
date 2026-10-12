@@ -1,8 +1,10 @@
 <script>
 	/**
 	 * Ficha de un evento: encabezado (imagen, título, fecha, lugar, etiquetas y acciones) y las
-	 * pestañas de `EVENT_TABS`. Una página con `bare: true` en su load (modo puerta) se muestra
-	 * sola, sin encabezado ni pestañas.
+	 * pestañas de `EVENT_TABS` (en el celu, un botón con la pestaña actual que abre la lista). Las
+	 * pestañas con vistas (Ventas: Totales, Órdenes, Transferencias; Mails: Mandar un aviso,
+	 * Plantillas) muestran sus vistas como botones debajo. Una página con `bare: true` en su load
+	 * (modo puerta) se muestra sola, sin encabezado ni pestañas.
 	 */
 	import { page } from '$app/stores';
 	import { afterNavigate } from '$app/navigation';
@@ -10,9 +12,9 @@
 	import { CalendarDays, Copy, ExternalLink, ImageDown, Pencil } from '@lucide/svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
-	import Tabs from '$lib/components/admin/panel/Tabs.svelte';
+	import Tabs from '$lib/components/ui/Tabs.svelte';
 	import TagChip from '$lib/components/TagChip.svelte';
-	import { EVENT_TABS, eventHref } from '$lib/admin/nav.js';
+	import { EVENT_TABS, eventHref, eventTabOf } from '$lib/admin/nav.js';
 	import { eventBadges, shortDate, timeRange } from '$lib/admin/eventFormat.js';
 
 	/** @type {import('./$types').LayoutData} */
@@ -26,7 +28,7 @@
 		if (type !== 'form') dateChangeResult = null;
 	});
 	/** Pestañas que solo tienen sentido si el evento vende entradas. */
-	const SALES_TABS = ['ventas', 'ordenes', 'transferencias', 'ingreso', 'codigos', 'mail', 'mails'];
+	const SALES_TABS = ['ventas', 'ingreso', 'codigos', 'mails'];
 
 	$: bare = $page.data?.bare === true;
 	$: editing = $page.url.pathname.replace(/\/+$/, '').endsWith('/editar');
@@ -43,16 +45,16 @@
 		// Los eventos online no tienen control de ingreso (las entradas llevan el link).
 		.filter((t) => !(t.id === 'ingreso' && e.online))
 		.map((t) => ({
-			href: eventHref(e.slug, t.id),
+			href: eventHref(e.slug, t.views?.[0].id ?? t.id),
 			label: t.label,
 			icon: t.icon,
-			count:
-				t.id === 'ordenes'
-					? data.tabCounts.orders
-					: t.id === 'transferencias'
-						? data.tabCounts.transfers
-						: undefined
+			// En Ventas, las transferencias que esperan confirmación (lo que hay que mirar).
+			count: t.id === 'ventas' ? data.tabCounts.transfers : undefined
 		}));
+	$: here = eventTabOf($page.url.pathname);
+	$: currentTab = here ? eventHref(e.slug, here.tab.views?.[0].id ?? here.tab.id) : undefined;
+	/** @type {Record<string, number>} */
+	$: viewCounts = { ordenes: data.tabCounts.orders, transferencias: data.tabCounts.transfers };
 	$: when = [shortDate(e.start), timeRange(e.start, e.end)].filter(Boolean).join(' · ');
 	$: where = [e.locationName, e.location && e.location !== e.locationName ? e.location : '']
 		.filter(Boolean)
@@ -130,12 +132,22 @@
 	{/if}
 
 	<!-- «Cambiaste la fecha»: después de guardar el evento con otro inicio o fin, si hay a quién
-	avisar (docs/mails.md). En «Mail a compradores» está su propia tarjeta. -->
+	avisar (docs/mails.md). En Mails › Mandar un aviso está su propia tarjeta. -->
 	{#if data.dateChange && (data.dateChange.notice || dateChangeResult) && !$page.url.pathname.endsWith('/mail')}
 		<DateChangeOffer offer={data.dateChange} slug={e.slug} bind:result={dateChangeResult} />
 	{/if}
 
-	<Tabs {tabs} />
+	<Tabs {tabs} current={currentTab} menu />
+
+	{#if here?.view && here.tab.views}
+		<nav class="views kv-segmented" aria-label="Vistas de {here.tab.label}">
+			{#each here.tab.views as v (v.id)}
+				<a href={eventHref(e.slug, v.id)} aria-current={here.view.id === v.id ? 'page' : undefined}
+					>{v.label}{#if viewCounts[v.id]}<span class="count">{viewCounts[v.id]}</span>{/if}</a
+				>
+			{/each}
+		</nav>
+	{/if}
 
 	<slot />
 {/if}
@@ -231,6 +243,18 @@
 	}
 	.push {
 		margin-left: auto;
+	}
+	/* Vistas de la pestaña (Ventas, Mails): botones debajo de las pestañas. */
+	.views {
+		margin: -0.25rem 0 1rem;
+	}
+	.views .count {
+		font-size: var(--text-xs);
+		font-weight: 700;
+		border-radius: var(--radius-m);
+		padding: 0 0.5em;
+		background: var(--counter);
+		color: var(--counter-ink);
 	}
 	.sr-only {
 		position: absolute;

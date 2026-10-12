@@ -94,7 +94,7 @@
 	}
 </script>
 
-<svelte:head><title>Mail a compradores · {e.title} · Panel</title></svelte:head>
+<svelte:head><title>Mails · {e.title} · Panel</title></svelte:head>
 
 {#if data.dateChange}
 	<div class="date-change">

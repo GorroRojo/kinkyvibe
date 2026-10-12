@@ -26,16 +26,22 @@ beforeEach(async () => {
 });
 
 describe('interruptores', () => {
+	// Una base sin migraciones, levantada antes de las pruebas: su arranque (miniflare) no
+	// cuenta para el tiempo límite de la prueba.
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let bare;
+	beforeAll(async () => {
+		bare = await createTestDB({ migrate: false });
+	});
+	afterAll(async () => {
+		await bare?.dispose();
+	});
+
 	it('sin fila, sin base o sin tabla: apagado', async () => {
 		expect(await readFlag(t.db, 'lo_que_sigo')).toBe(false);
 		expect(await readFlag(null, 'lo_que_sigo')).toBe(false);
 		expect(await isFlagOn(null, 'lo_que_sigo', { envValue: '' })).toBe(false);
-		const bare = await createTestDB({ migrate: false });
-		try {
-			expect(await readFlag(bare.db, 'lo_que_sigo')).toBe(false);
-		} finally {
-			await bare.dispose();
-		}
+		expect(await readFlag(bare.db, 'lo_que_sigo')).toBe(false);
 	});
 
 	it('se prende y apaga desde la base (y queda quién fue)', async () => {
@@ -109,11 +115,6 @@ describe('interruptores', () => {
 		expect(counted.queries).toBe(2);
 		// Sin la tabla: todos apagados, como readFlag.
 		clearFlagCache();
-		const bare = await createTestDB({ migrate: false });
-		try {
-			expect(await isFlagOn(bare.db, 'lo_que_sigo', { envValue: '' })).toBe(false);
-		} finally {
-			await bare.dispose();
-		}
+		expect(await isFlagOn(bare.db, 'lo_que_sigo', { envValue: '' })).toBe(false);
 	});
 });
