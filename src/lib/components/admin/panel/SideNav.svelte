@@ -1,28 +1,37 @@
 <script>
 	/**
-	 * Menú de la barra lateral del panel (≥ 900 px), opción C (decisión 0038): las 8 secciones con
-	 * ícono y nombre (Inicio, Puerta, Eventos, Ventas, Comunidad, Contenido, Estadísticas y Ajustes
-	 * al pie), sin sub-ítems. Cada sección lleva a la primera página de su grupo (`sideSections` de
-	 * `$lib/admin/nav.js`); las demás páginas del grupo son las pestañas de arriba de la página
-	 * (`sectionTabs`, en el layout). La Puerta va resaltada (se usa con gente esperando). Cada
-	 * sección muestra la suma de sus contadores y su pista «g x» (`NavShortcut`, solo en una compu
-	 * con mouse).
+	 * Menú de la barra lateral del panel (≥ 900 px), opción C (decisión 0038): las secciones con
+	 * ícono y nombre (Inicio, Eventos, Ventas, Comunidad, Contenido, Estadísticas y Ajustes al pie),
+	 * sin sub-ítems. La Puerta no va acá (parte 2, gorrite 11/10: está en la barra de abajo del celu,
+	 * en «Ir a…» y en cada evento). Cada sección lleva a la primera página de su grupo
+	 * (`sideSections` de `$lib/admin/nav.js`); las demás páginas del grupo son las pestañas de arriba
+	 * de la página (`sectionTabs`, en el layout). Cada sección muestra la suma de sus contadores y su
+	 * pista «g x» (`NavShortcut`, solo en una compu con mouse).
 	 *
-	 * Debajo de las secciones, «Recientes»: las últimas páginas que abriste (`recentPlaces.js`, en
-	 * este navegador), las que entran en el alto de la pantalla, hasta 7. Las que no entran no se
-	 * muestran (ni se leen ni se enfocan); si no entra ninguna, no aparece el título.
+	 * Debajo de las secciones:
+	 * - «Fijados» (`pinnedPlaces.js`): las páginas que fijaste con 📌, hasta 7, en tu orden. Se
+	 *   reordenan arrastrando o con «Subir»/«Bajar» (con el teclado: Tab hasta la fila y los botones
+	 *   aparecen); «Soltar» las saca.
+	 * - «Recientes» (`recentPlaces.js`): las últimas páginas que abriste, sin las fijadas, las que
+	 *   entran en el alto de la pantalla, hasta 7. Las que no entran no se muestran (ni se leen ni se
+	 *   enfocan); si no entra ninguna, no aparece el título. Cada una tiene 📌 para fijarla.
+	 * Cada fila: ícono, nombre y una línea chica de contexto (`PlaceLink`).
 	 *
 	 * Props: `active` (NavItem actual), `counts` (`data.panelCounts`), `flags` (`data.navFlags`),
-	 * `recent` (las páginas recientes que se muestran, ya sin la actual).
+	 * `recent` (las recientes que se muestran, ya sin la actual ni las fijadas), `pinned` (las
+	 * fijadas). Eventos: `pin` (detail: el lugar), `unpin` (detail: href), `move` (detail:
+	 * `{ from, to }`); los maneja el layout, que guarda.
 	 * Con el panel lateral en «Solo íconos» (`data-lateral="iconos"` en <html>, `sidebarMode.js`)
 	 * los nombres quedan solo para los lectores de pantalla, el layout muestra cada uno como
-	 * cartelito (`data-tip`) al pasar el mouse o con el foco, y Recientes no se muestra.
+	 * cartelito (`data-tip`) al pasar el mouse o con el foco, y Fijados y Recientes no se muestran.
 	 */
-	import { onMount, tick } from 'svelte';
-	import { History } from '@lucide/svelte';
+	import { createEventDispatcher, onMount, tick } from 'svelte';
+	import { ChevronDown, ChevronUp, History, Pin, PinOff } from '@lucide/svelte';
 	import NavIcon from './NavIcon.svelte';
 	import NavShortcut from './NavShortcut.svelte';
+	import PlaceLink from './PlaceLink.svelte';
 	import { activeSection, sideSections } from '$lib/admin/nav.js';
+	import { PIN_MAX } from '$lib/admin/pinnedPlaces.js';
 
 	/** @type {import('$lib/admin/nav.js').NavItem | undefined} */
 	export let active;
@@ -32,11 +41,17 @@
 	export let flags = {};
 	/** @type {import('$lib/admin/recentPlaces.js').RecentPlace[]} */
 	export let recent = [];
+	/** @type {import('$lib/admin/recentPlaces.js').RecentPlace[]} */
+	export let pinned = [];
+
+	/** @type {import('svelte').EventDispatcher<{ pin: import('$lib/admin/recentPlaces.js').RecentPlace, unpin: string, move: { from: number, to: number } }>} */
+	const dispatch = createEventDispatcher();
 
 	$: sections = sideSections({ flags, counts });
 	$: main = sections.filter((s) => !s.foot);
 	$: foot = sections.filter((s) => s.foot);
 	$: here = activeSection(active);
+	$: full = pinned.length >= PIN_MAX;
 
 	/** @type {HTMLUListElement | undefined} */
 	let recentList;
@@ -64,11 +79,61 @@
 		ro.observe(recentList);
 		return () => ro.disconnect();
 	});
-	// Cuando cambia la lista (al navegar), se vuelve a medir.
-	$: if (recent) tick().then(measure);
+	// Cuando cambian las listas (al navegar o al fijar), se vuelve a medir.
+	$: if (recent || pinned) tick().then(measure);
+
+	/*
+	 * Arrastrar para reordenar los fijados. `dragFrom`: la fila que se arrastra; `dragOver`: dónde
+	 * caería (se marca con una raya).
+	 */
+	/** @type {number | null} */
+	let dragFrom = null;
+	/** @type {number | null} */
+	let dragOver = null;
+	/** @param {DragEvent} e @param {number} i */
+	function dragStart(e, i) {
+		dragFrom = i;
+		if (e.dataTransfer) {
+			e.dataTransfer.effectAllowed = 'move';
+			e.dataTransfer.setData('text/plain', pinned[i]?.href ?? '');
+		}
+	}
+	/** @param {DragEvent} e @param {number} i */
+	function dragEnter(e, i) {
+		if (dragFrom === null) return;
+		e.preventDefault();
+		dragOver = i;
+	}
+	/** @param {DragEvent} e @param {number} i */
+	function drop(e, i) {
+		if (dragFrom === null) return;
+		e.preventDefault();
+		if (dragFrom !== i) dispatch('move', { from: dragFrom, to: i });
+		dragFrom = dragOver = null;
+	}
+	function dragEnd() {
+		dragFrom = dragOver = null;
+	}
+
+	/**
+	 * «Subir»/«Bajar»: mueve y deja el foco en el mismo botón de la fila movida (así se puede
+	 * apretar varias veces seguidas).
+	 * @param {number} i @param {-1 | 1} dir @param {MouseEvent} e
+	 */
+	async function move(i, dir, e) {
+		const which = /** @type {HTMLElement} */ (e.currentTarget).dataset.dir;
+		dispatch('move', { from: i, to: i + dir });
+		await tick();
+		const row = pinnedList?.children[i + dir];
+		/** @type {HTMLButtonElement | null | undefined} */ (
+			row?.querySelector(`button[data-dir="${which}"]:not(:disabled)`) ?? row?.querySelector('a')
+		)?.focus();
+	}
+	/** @type {HTMLUListElement | undefined} */
+	let pinnedList;
 </script>
 
-<nav class="sn" aria-label="Secciones del panel">
+<nav class="sn" aria-label="Secciones del panel" data-sveltekit-preload-data="hover">
 	<ul class="secs" role="list">
 		{#each main as s (s.id)}
 			<li>
@@ -88,6 +153,60 @@
 		{/each}
 	</ul>
 
+	{#if pinned.length}
+		<div class="pinned">
+			<p class="rlabel" id="kv-pinned-label"><Pin size={14} aria-hidden="true" />Fijados</p>
+			<ul
+				role="list"
+				aria-labelledby="kv-pinned-label"
+				bind:this={pinnedList}
+				data-sveltekit-preload-data="hover"
+			>
+				{#each pinned as p, i (p.href)}
+					<li
+						class="row"
+						class:dragging={dragFrom === i}
+						class:over={dragOver === i && dragFrom !== null && dragFrom !== i}
+						class:below={dragFrom !== null && dragFrom < i}
+						draggable="true"
+						on:dragstart={(e) => dragStart(e, i)}
+						on:dragenter={(e) => dragEnter(e, i)}
+						on:dragover={(e) => dragEnter(e, i)}
+						on:drop={(e) => drop(e, i)}
+						on:dragend={dragEnd}
+					>
+						<PlaceLink place={p} />
+						<span class="tools">
+							<button
+								type="button"
+								data-dir="up"
+								disabled={i === 0}
+								aria-label="Subir «{p.label}»"
+								title="Subir"
+								on:click={(e) => move(i, -1, e)}><ChevronUp size={14} aria-hidden="true" /></button
+							>
+							<button
+								type="button"
+								data-dir="down"
+								disabled={i === pinned.length - 1}
+								aria-label="Bajar «{p.label}»"
+								title="Bajar"
+								on:click={(e) => move(i, 1, e)}><ChevronDown size={14} aria-hidden="true" /></button
+							>
+							<button
+								type="button"
+								aria-label="Soltar «{p.label}» (sacarla de Fijados)"
+								title="Soltar"
+								on:click={() => dispatch('unpin', p.href)}
+								><PinOff size={14} aria-hidden="true" /></button
+							>
+						</span>
+					</li>
+				{/each}
+			</ul>
+		</div>
+	{/if}
+
 	<div class="recent" class:empty={!recent.length || fit === 0}>
 		{#if recent.length}
 			<p class="rlabel" id="kv-recent-label">
@@ -98,10 +217,20 @@
 			bind:this={recentList}
 			role="list"
 			aria-labelledby={recent.length ? 'kv-recent-label' : undefined}
+			data-sveltekit-preload-data="hover"
 		>
 			{#each recent as r, i (r.href)}
-				<li class:cut={i >= fit}>
-					<a href={r.href} title={r.label}>{r.label}</a>
+				<li class="row" class:cut={i >= fit}>
+					<PlaceLink place={r} />
+					<span class="tools">
+						<button
+							type="button"
+							disabled={full}
+							aria-label="Fijar «{r.label}»"
+							title={full ? `Ya tenés ${PIN_MAX} fijados: soltá uno para fijar otro` : 'Fijar'}
+							on:click={() => dispatch('pin', r)}><Pin size={14} aria-hidden="true" /></button
+						>
+					</span>
 				</li>
 			{/each}
 		</ul>
@@ -226,19 +355,67 @@
 		letter-spacing: 0.06em;
 		color: var(--muted);
 	}
-	.recent a {
-		display: block;
-		padding: 0.2rem var(--space-xs);
+	/* Fijados: arriba de Recientes, con su alto (hasta 7). */
+	.pinned {
+		flex: none;
+		margin-top: var(--space-s);
+	}
+	/* Una fila de Fijados o Recientes: el link (PlaceLink) y sus botones, que aparecen al pasar el
+	   mouse o con el foco dentro de la fila. */
+	.row {
+		position: relative;
+		display: flex;
+		align-items: center;
 		border-radius: var(--round);
-		font-size: var(--text-xs);
-		color: var(--text);
-		text-decoration: none;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		&:hover {
+	}
+	.tools {
+		position: absolute;
+		right: var(--space-3xs);
+		top: 50%;
+		transform: translateY(-50%);
+		display: none;
+		gap: 1px;
+		background: var(--surface);
+		border-radius: var(--radius-s);
+		box-shadow: var(--shadow-1);
+	}
+	.row:hover .tools,
+	.row:focus-within .tools {
+		display: flex;
+	}
+	.tools button {
+		display: grid;
+		place-items: center;
+		width: 1.6rem;
+		height: 1.6rem;
+		padding: 0;
+		border: 0;
+		border-radius: var(--radius-s);
+		background: none;
+		color: var(--accent);
+		cursor: pointer;
+		&:hover:not(:disabled),
+		&:focus-visible {
 			background: var(--surface-2);
 			color: var(--link);
+		}
+		&:disabled {
+			color: var(--muted);
+			opacity: 0.5;
+			cursor: default;
+		}
+	}
+	.pinned .row {
+		cursor: grab;
+		&.dragging {
+			opacity: 0.45;
+		}
+		/* Dónde cae: una raya violeta arriba (o abajo, si se arrastra hacia abajo). */
+		&.over {
+			box-shadow: inset 0 2px 0 var(--link);
+			&.below {
+				box-shadow: inset 0 -2px 0 var(--link);
+			}
 		}
 	}
 	/* No entra: no se ve, no se lee y no se enfoca. */
@@ -252,6 +429,9 @@
 		:global(html[data-lateral='iconos']) {
 			.recent {
 				visibility: hidden;
+			}
+			.pinned {
+				display: none;
 			}
 			.sn :global(.kv-nav-sc) {
 				display: none;

@@ -22,6 +22,10 @@
 	 * - `open(q?)` y `openHelp()` exportadas, para abrir la paleta (con algo ya escrito o no) o la
 	 *   hoja de atajos desde afuera (bind:this; «Atajos de teclado» del menú lateral y el botón `?`
 	 *   de la barra de arriba);
+	 * - prop `pinned` (las URLs fijadas en la barra lateral) y `pinFull` (ya hay 7) y eventos `pin`
+	 *   (detail: `{ href, label, context }`) y `unpin` (detail: href): 📌 en cada resultado que lleva
+	 *   a una página del panel que se puede fijar (`canPin`: no las «Próximamente»), al pasar el
+	 *   mouse o en el elegido; con el teclado, Alt+F fija o suelta el elegido;
 	 * - mientras `g` espera su segunda tecla, `goPending` (`$lib/admin/shortcutHints.js`) está en
 	 *   `true` y las pistas «g x» del menú se encienden.
 	 *
@@ -51,6 +55,8 @@
 		LoaderCircle,
 		LogOut,
 		Mail,
+		Pin,
+		PinOff,
 		Receipt,
 		ScanLine,
 		Search,
@@ -75,6 +81,7 @@
 	import { SEARCH_TIPS, paletteCommands, recordsFirst } from '$lib/admin/paletteActions.js';
 	import { allowsKind, hasRecordCriteria, parseSearchQuery } from '$lib/utils/searchQuery.js';
 	import { goPending, isMac } from '$lib/admin/shortcutHints.js';
+	import { canPin } from '$lib/admin/pinnedPlaces.js';
 
 	/** Texto corto para el header del celu. */
 	export let compact = false;
@@ -82,8 +89,12 @@
 	export let hotkeys = true;
 	/** Si ahora están ocultas las secciones «Próximamente» (el nombre de la acción cambia). */
 	export let hideSoon = false;
+	/** Las URLs fijadas en la barra lateral. @type {string[]} */
+	export let pinned = [];
+	/** Si ya hay el máximo de fijados. */
+	export let pinFull = false;
 
-	/** @type {import('svelte').EventDispatcher<{ theme: null, hidesoon: null }>} */
+	/** @type {import('svelte').EventDispatcher<{ theme: null, hidesoon: null, pin: { href: string, label: string, context?: string }, unpin: string }>} */
 	const dispatch = createEventDispatcher();
 
 	const ICONS = /** @type {Record<string, any>} */ ({
@@ -309,6 +320,24 @@
 		}
 	}
 
+	/** Lo que se acaba de fijar o soltar, para los lectores de pantalla. */
+	let pinNote = '';
+	/** @param {Row} row */
+	const pinnable = (row) => Boolean(row.href && !row.external && !row.run && canPin(row.href));
+	/** @param {Row | undefined} row */
+	function togglePin(row) {
+		if (!row || !pinnable(row) || !row.href) return;
+		if (pinned.includes(row.href)) {
+			dispatch('unpin', row.href);
+			pinNote = `Soltaste «${row.title}».`;
+		} else if (pinFull) {
+			pinNote = 'Ya tenés 7 fijados: soltá uno en la barra lateral para fijar otro.';
+		} else {
+			dispatch('pin', { href: row.href, label: row.title, context: row.sub || undefined });
+			pinNote = `Fijaste «${row.title}» en la barra lateral.`;
+		}
+	}
+
 	/** @param {number} i */
 	async function setActive(i) {
 		if (!flat.length) return;
@@ -330,6 +359,9 @@
 			choose(flat[active]);
 		} else if (e.key === 'Home' && e.ctrlKey) {
 			setActive(0);
+		} else if (e.altKey && e.code === 'KeyF') {
+			e.preventDefault();
+			togglePin(flat[active]);
 		}
 	}
 
@@ -490,6 +522,26 @@
 								{#if row.sub}<small>{row.sub}</small>{/if}
 							</span>
 							{#if row.shortcut}<kbd class="sc">{row.shortcut}</kbd>{/if}
+							{#if pinnable(row) && row.href}
+								{@const isPinned = pinned.includes(row.href)}
+								<button
+									type="button"
+									class="pin"
+									class:pinned={isPinned}
+									tabindex="-1"
+									aria-label={isPinned ? `Soltar «${row.title}»` : `Fijar «${row.title}»`}
+									title={isPinned
+										? 'Soltar de la barra lateral (Alt F)'
+										: pinFull
+											? 'Ya tenés 7 fijados'
+											: 'Fijar en la barra lateral (Alt F)'}
+									on:click|stopPropagation={() => togglePin(row)}
+									>{#if isPinned}<PinOff size={16} aria-hidden="true" />{:else}<Pin
+											size={16}
+											aria-hidden="true"
+										/>{/if}</button
+								>
+							{/if}
 						</div>
 					{/each}
 				{/each}
@@ -506,9 +558,11 @@
 				{/if}
 			</div>
 
+			<p class="sr-only" aria-live="polite">{pinNote}</p>
 			<footer class="foot">
 				<span><kbd>↑</kbd><kbd>↓</kbd> moverse</span>
 				<span><kbd>Enter</kbd> abrir</span>
+				<span><kbd>Alt</kbd><kbd>F</kbd> fijar</span>
 				<span><kbd>Esc</kbd> cerrar</span>
 				<button type="button" class="linkish push" on:click={() => openHelp({ searchTips: true })}
 					>Cómo buscar</button
@@ -773,6 +827,46 @@
 	}
 	.sc {
 		flex: none;
+	}
+	/* 📌: aparece al pasar el mouse o en el elegido; si ya está fijado, siempre. */
+	.pin {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
+		border: 0;
+		border-radius: var(--radius-s);
+		background: none;
+		color: var(--accent);
+		cursor: pointer;
+		visibility: hidden;
+		&:hover {
+			background: var(--surface);
+			color: var(--link);
+		}
+		&.pinned {
+			visibility: visible;
+			color: var(--link);
+		}
+	}
+	.opt:hover .pin,
+	.opt.on .pin {
+		visibility: visible;
+	}
+	@media (hover: none) {
+		.pin {
+			visibility: visible;
+		}
+	}
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 	.note {
 		margin: 0.6rem;

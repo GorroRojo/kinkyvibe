@@ -476,6 +476,32 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 		}
 		expect(checked).toBeGreaterThan(10);
 	});
+	it('cada pestaña lleva el contador «a revisar» de su sección (como la barra lateral)', () => {
+		const counts = { transfers: 2, profilesToReview: 3, unlisted: 0, review: 9 };
+		const ventas = sectionTabs('/admin/ventas', { counts })?.tabs ?? [];
+		expect(ventas.find((t) => t.label === 'Transferencias')?.count).toBe(2);
+		expect(ventas.find((t) => t.label === 'Todas las ventas')).not.toHaveProperty('count');
+		const comunidad = sectionTabs('/admin/comunidad/personas', { counts })?.tabs ?? [];
+		expect(comunidad.find((t) => t.label === 'Perfiles')?.count).toBe(3);
+		// Un contador en 0 no se muestra.
+		const contenido = sectionTabs('/admin/contenido/material', { counts })?.tabs ?? [];
+		expect(contenido.find((t) => t.label === 'No listadas')).not.toHaveProperty('count');
+	});
+	it('lo que viene: al final, gris y sin contador, salvo con «Ocultar lo que viene»', () => {
+		const shown = sectionTabs('/admin/ventas', { hideSoon: false })?.tabs ?? [];
+		expect(shown.map((t) => t.label)).toEqual([
+			'Todas las ventas',
+			'Transferencias',
+			'Códigos',
+			'Tienda'
+		]);
+		expect(shown.at(-1)).toMatchObject({ href: '/admin/ventas/tienda', soon: true });
+		expect(shown.slice(0, -1).every((t) => !t.soon)).toBe(true);
+		const hidden = sectionTabs('/admin/ventas', { hideSoon: true })?.tabs ?? [];
+		expect(hidden.some((t) => t.soon)).toBe(false);
+		// Sin decir nada, como antes: sin lo que viene.
+		expect(sectionTabs('/admin/ventas')?.tabs.some((t) => t.soon)).toBe(false);
+	});
 	it('no van en Inicio, en la Puerta (una sola página), en subpáginas ni en lo que viene', () => {
 		expect(sectionTabs('/admin')).toBe(null);
 		expect(sectionTabs('/admin/checkin')).toBe(null);
@@ -488,12 +514,21 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 });
 
 describe('areaBackLink («← Área» arriba del título)', () => {
-	it('Plantillas vuelve a Mensajes, su área (no a Ajustes)', () => {
+	it('Plantillas es de Mensajes, pero Mensajes no tiene página todavía (Bandeja): sin link', () => {
+		// Antes de la parte 2 llevaba a /admin/mensajes, que es «Próximamente» (gorrite, 11/10:
+		// «el botón "Mensajes" no lleva a ningún lado»; mismo arreglo que #305).
 		expect(navItem('ajustes-plantillas')?.area).toBe('mensajes');
-		expect(areaBackLink('ajustes-plantillas')).toEqual({
-			href: '/admin/mensajes',
-			label: 'Mensajes'
-		});
+		expect(navItem('bandeja')?.soon).toBe(true);
+		expect(areaBackLink('ajustes-plantillas')).toBe(null);
+	});
+	it('ningún «← Área» lleva a una página «Próximamente» ni a una que no está en el menú', () => {
+		for (const item of NAV) {
+			const back = areaBackLink(item.id);
+			if (!back) continue;
+			const target = NAV.find((i) => i.href === back.href);
+			expect(target, item.id).toBeTruthy();
+			expect(target?.soon, item.id).toBe(false);
+		}
 	});
 	it('Códigos vuelve a Ventas; sin área o sin página del área, null', () => {
 		expect(areaBackLink('entradas-codigos')).toEqual({ href: '/admin/ventas', label: 'Ventas' });
@@ -678,11 +713,10 @@ describe('íconos de las pestañas de la ficha del evento', () => {
 });
 
 describe('barra lateral (opción C: sideSections)', () => {
-	it('las 8 secciones, en orden, con Ajustes al pie y la Puerta resaltada', () => {
+	it('las 7 secciones, en orden, con Ajustes al pie y sin la Puerta (parte 2)', () => {
 		const secs = sideSections();
 		expect(secs.map((s) => s.label)).toEqual([
 			'Inicio',
-			'Puerta',
 			'Eventos',
 			'Ventas',
 			'Comunidad',
@@ -691,13 +725,14 @@ describe('barra lateral (opción C: sideSections)', () => {
 			'Ajustes'
 		]);
 		expect(secs.filter((s) => s.foot).map((s) => s.id)).toEqual(['ajustes']);
-		expect(secs.filter((s) => s.highlight).map((s) => s.id)).toEqual(['puerta']);
+		// La Puerta salió de la barra lateral (gorrite, 11/10): sigue en la barra de abajo del celu.
+		expect(secs.map((s) => s.id)).not.toContain('puerta');
+		expect(MOBILE_TABS).toContain('checkin');
 		for (const s of secs) expect(s.icon && s.emoji, s.id).toBeTruthy();
 	});
 	it('cada sección lleva a la primera página que existe de su grupo', () => {
 		expect(Object.fromEntries(sideSections().map((s) => [s.id, s.href]))).toEqual({
 			inicio: '/admin',
-			puerta: '/admin/checkin',
 			eventos: '/admin/eventos',
 			ventas: '/admin/ventas',
 			comunidad: '/admin/comunidad/personas',
@@ -718,6 +753,12 @@ describe('barra lateral (opción C: sideSections)', () => {
 	it('cada página del menú se alcanza: su sección en la barra y, si hay más de una, su pestaña', () => {
 		const secs = new Map(sideSections().map((s) => [s.id, s.href]));
 		for (const item of NAV.filter((i) => !i.soon && i.menu !== false)) {
+			// Los grupos fuera de la barra lateral (`side: false`, la Puerta) están en la barra de
+			// abajo del celu (y en «Ir a…» y en cada evento).
+			if (navGroupOf(item.area)?.side === false) {
+				expect(MOBILE_TABS, item.id).toContain(item.id);
+				continue;
+			}
 			const section = activeSection(item);
 			expect(section && secs.has(section), item.id).toBe(true);
 			const reachable =
@@ -731,7 +772,7 @@ describe('barra lateral (opción C: sideSections)', () => {
 	it('el contador de cada sección suma el de su grupo', () => {
 		const counts = { transfers: 2, profilesToReview: 3, unlisted: 4 };
 		const by = Object.fromEntries(sideSections({ counts }).map((s) => [s.id, s.count]));
-		expect(by).toMatchObject({ inicio: 0, puerta: 0, ventas: 2, comunidad: 3, contenido: 4 });
+		expect(by).toMatchObject({ inicio: 0, ventas: 2, comunidad: 3, contenido: 4 });
 	});
 	it('activeSection: Inicio, el grupo de la página, o null', () => {
 		expect(activeSection(activeNavItem('/admin'))).toBe('inicio');

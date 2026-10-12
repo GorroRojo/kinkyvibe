@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { EVENT_TABS, navItem } from './nav.js';
 import {
 	RECENT_KEPT,
 	RECENT_SHOWN,
 	addRecent,
 	parseRecent,
+	placeIcon,
 	readRecent,
+	recentParts,
 	recentKey,
 	recentLabel,
 	saveRecent,
@@ -68,7 +71,8 @@ describe('recentPlaces', () => {
 	it('no guarda Inicio, las secciones de la barra, errores ni lo que no es del panel', () => {
 		expect(shouldRemember('/admin')).toBe(false);
 		expect(shouldRemember('/admin/')).toBe(false);
-		expect(shouldRemember('/admin/checkin')).toBe(false);
+		// La Puerta ya no es una sección de la barra (parte 2): sí entra en Recientes.
+		expect(shouldRemember('/admin/checkin')).toBe(true);
 		expect(shouldRemember('/admin/ventas')).toBe(false);
 		expect(shouldRemember('/admin/ajustes/cobros')).toBe(false);
 		expect(shouldRemember('/admin/no-existe', { status: 404 })).toBe(false);
@@ -141,5 +145,59 @@ describe('recentPlaces', () => {
 		});
 		expect(readRecent('ana')).toEqual([]);
 		expect(() => saveRecent('ana', places(2))).not.toThrow();
+	});
+
+	it('el nombre en dos partes (nombre y contexto), para la fila con ícono', () => {
+		expect(
+			recentParts({ pathname: '/admin/eventos/fiesta/ordenes', heading: 'Fiesta de prueba' })
+		).toEqual({ label: 'Órdenes', context: 'Fiesta de prueba' });
+		expect(recentParts({ pathname: '/admin/eventos/fiesta', heading: 'Fiesta de prueba' })).toEqual(
+			{ label: 'Fiesta de prueba', context: 'Evento' }
+		);
+		expect(recentParts({ pathname: '/admin/ventas/transferencias', heading: 'x' })).toEqual({
+			label: 'Transferencias',
+			context: 'Ventas'
+		});
+		expect(recentParts({ pathname: '/admin/eventos/agenda' })).toEqual({
+			label: 'Agenda',
+			context: 'Eventos'
+		});
+		expect(
+			recentParts({ pathname: '/admin/comunidad/personas/123', heading: 'Persona de prueba' })
+		).toEqual({ label: 'Persona de prueba', context: 'Personas' });
+		// Una subpágina de Lugares no es la ficha de un evento.
+		expect(
+			recentParts({ pathname: '/admin/eventos/lugares/importar', heading: 'Importar lugares' })
+		).toEqual({ label: 'Importar lugares', context: 'Lugares' });
+		expect(recentParts({ pathname: '/admin/otra' })).toEqual({ label: 'Panel', context: '' });
+	});
+
+	it('el ícono: el de la pestaña del evento o el de la sección', () => {
+		const ordenes = EVENT_TABS.find((t) => t.id === 'ordenes');
+		expect(placeIcon('/admin/eventos/fiesta/ordenes').icon).toBe(ordenes?.icon);
+		expect(placeIcon('/admin/ventas/transferencias').icon).toBe(
+			navItem('entradas-transferencias')?.icon
+		);
+		expect(placeIcon('/admin/comunidad/personas/12?x=1').icon).toBe(navItem('personas')?.icon);
+		expect(placeIcon('/admin/eventos/agenda').icon).toBe(navItem('eventos-agenda')?.icon);
+		expect(placeIcon('/admin/inventada').icon).toBe(navItem('inicio')?.icon);
+	});
+
+	it('guarda y lee el contexto (y los viejos, sin contexto, siguen andando)', () => {
+		vi.stubGlobal('localStorage', memoryStorage());
+		const list = [
+			{ href: '/admin/eventos/f/ordenes', label: 'Órdenes', context: 'Fiesta' },
+			{ href: '/admin/ventas/codigos', label: 'Códigos' }
+		];
+		saveRecent('ana', list);
+		expect(readRecent('ana')).toEqual(list);
+	});
+
+	it('Recientes no repite lo fijado', () => {
+		const list = places(3);
+		expect(visibleRecent(list, '/admin', { pinned: [list[1].href] }).map((r) => r.href)).toEqual([
+			list[0].href,
+			list[2].href
+		]);
 	});
 });

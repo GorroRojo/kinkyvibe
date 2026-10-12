@@ -61,6 +61,7 @@ export const OTHER_SHORTCUTS = Object.freeze([
 	{ keys: ['Ctrl', 'K'], label: 'Buscar desde cualquier lado (⌘ K en Mac)' },
 	{ keys: ['↑', '↓'], label: 'Moverse por los resultados' },
 	{ keys: ['Enter'], label: 'Abrir el resultado elegido' },
+	{ keys: ['Alt', 'F'], label: 'Fijar o soltar el resultado elegido (en la barra lateral)' },
 	{ keys: ['Esc'], label: 'Cerrar la paleta' },
 	{ keys: ['?'], label: 'Mostrar esta hoja de atajos' }
 ]);

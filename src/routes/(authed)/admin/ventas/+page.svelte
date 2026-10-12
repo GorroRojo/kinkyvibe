@@ -89,6 +89,9 @@
 {/if}
 
 <Tabs
+	menu
+	menuCaption="Ver"
+	sumCounts={false}
 	current={showPast ? '/admin/ventas?ver=pasados' : '/admin/ventas'}
 	tabs={[
 		{ href: '/admin/ventas', label: 'Próximos', count: data.upcoming.length },
