@@ -300,6 +300,10 @@ de amigues y lanzamientos grandes.
   (plantilla migrada + canal WebSocket con la base de prueba): lo que sigue pesando es la cantidad
   de consultas: `importTags` de la semilla son ~1800 consultas sueltas (ahora ~2 ms cada una en vez
   de ~6); agruparlas en `batch` también aceleraría el import de verdad. M.
+- Pruebas: `cuentas.test.js` «límite de intentos por mail y por conexión» pasó los 5 s con la
+  máquina cargada (una vez en una corrida entera local): hace ~30 inicios de sesión y varios
+  derivan la contraseña con las iteraciones de verdad. Ver si se puede usar un hash barato sin
+  aflojar lo que prueba. S.
 - CI: actualizar `scripts/vitest/durations.json` con los artifacts `vitest-durations-*` de `main`
   (`scripts/vitest/merge-durations.js`) cuando se sumen o cambien pruebas lentas, para que las 3
   partes de `tests` sigan parejas. S.
