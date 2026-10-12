@@ -20,7 +20,9 @@ export default defineConfig({
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}', 'scripts/**/*.test.js'],
 		// El árbol de etiquetas de respaldo, para las pruebas (src/tests/setup.js).
-		setupFiles: ['src/tests/setup.js']
+		setupFiles: ['src/tests/setup.js'],
+		// La plantilla de la base de prueba, migrada una vez por corrida (src/tests/globalSetup.js).
+		globalSetup: ['src/tests/globalSetup.js']
 	},
 	optimizeDeps: {
 		exclude: ['svelte-codemirror-editor', 'codemirror', '@codemirror/lang-markdown']

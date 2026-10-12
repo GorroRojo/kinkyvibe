@@ -20,8 +20,9 @@
  * se puede escribir; si no, la carpeta temporal del sistema), que se borra en `dispose()` o al
  * salir del proceso. Mismo motor y mismas consultas: solo cambia dónde está el archivo.
  */
+import { createHash } from 'node:crypto';
 import { accessSync, constants as fsConstants, rmSync } from 'node:fs';
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
@@ -40,18 +41,25 @@ async function readMigrations(dir) {
 		throw error;
 	});
 	const files = entries.filter((f) => f.endsWith('.sql')).sort();
-	const batches = await Promise.all(
-		files.map(async (file) => {
-			const sql = await readFile(path.join(dir, file), 'utf8');
-			return unstable_splitSqlQuery(sql).filter((s) => s.trim());
-		})
-	);
-	return { files, batches };
+	const sqls = await Promise.all(files.map((file) => readFile(path.join(dir, file), 'utf8')));
+	const batches = sqls.map((sql) => unstable_splitSqlQuery(sql).filter((s) => s.trim()));
+	// Huella de los archivos (nombre y contenido), para saber si la plantilla es de estas migraciones.
+	const hash = createHash('sha256');
+	files.forEach((file, i) => hash.update(`${file}\0${sqls[i]}\0`));
+	return { files, batches, hash: hash.digest('hex') };
 }
 
 /** Las migraciones del repo, leídas una sola vez por proceso (los tests no las cambian). */
 /** @type {ReturnType<typeof readMigrations> | undefined} */
 let repoMigrations;
+
+function readRepoMigrations() {
+	repoMigrations ??= readMigrations(MIGRATIONS_DIR).catch((error) => {
+		repoMigrations = undefined;
+		throw error;
+	});
+	return repoMigrations;
+}
 
 /**
  * Aplica cada archivo de migraciones en un `batch` (una transacción), en orden.
@@ -61,16 +69,8 @@ let repoMigrations;
  */
 export async function applyMigrations(db, dir = MIGRATIONS_DIR) {
 	// Solo se cachea el directorio del repo: los tests que arman uno temporal lo pueden cambiar.
-	let migrations;
-	if (dir === MIGRATIONS_DIR) {
-		repoMigrations ??= readMigrations(dir).catch((error) => {
-			repoMigrations = undefined;
-			throw error;
-		});
-		migrations = await repoMigrations;
-	} else {
-		migrations = await readMigrations(dir);
-	}
+	const migrations =
+		dir === MIGRATIONS_DIR ? await readRepoMigrations() : await readMigrations(dir);
 	const batches = migrations.batches.filter((statements) => statements.length);
 	if (db instanceof TestD1Database) {
 		// Lo mismo, pero en un solo pedido al worker: allá corre un `batch` por archivo, en orden, y
@@ -81,6 +81,13 @@ export async function applyMigrations(db, dir = MIGRATIONS_DIR) {
 	}
 	return migrations.files;
 }
+
+/**
+ * Lo más largo (en caracteres de JSON) que viaja en un mensaje del WebSocket. workerd corta mensajes
+ * bastante más grandes (probado: 20 MB pasan, 120 MB cierran el canal); lo que se pasa de esto va
+ * por un pedido HTTP suelto, como antes.
+ */
+const WS_MAX_CHARS = 4 * 1024 * 1024;
 
 /** Las dos consultas de catálogo de `resetDB` (van juntas en un batch). */
 const RESET_CATALOG = [
@@ -117,55 +124,91 @@ const encode = (v) =>
 			: typeof v === 'number' && (!Number.isFinite(v) || Object.is(v, -0))
 				? { $n: String(v) }
 				: v;
+// Lo que no entra en un mensaje del canal (ver WS_MAX_CHARS) queda acá hasta que Node lo pide con
+// un fetch (op 'take'). Un solo isolate: todos los pedidos lo ven.
+const stash = new Map();
+let stashId = 0;
+async function run(db, body) {
+	let value;
+	if (body.op === 'batch') value = await db.batch(body.statements.map((s) => statement(db, s)));
+	else if (body.op === 'reset') {
+		const [{ results }, { results: tableList }] = await db.batch(RESET_CATALOG.map((sql) => db.prepare(sql)));
+		const statements = planReset(results, tableList);
+		if (statements.length) await db.batch(statements.map((sql) => db.prepare(sql)));
+	} else if (body.op === 'snapshot') {
+		const [{ results }, { results: tableList }] = await db.batch(RESET_CATALOG.map((sql) => db.prepare(sql)));
+		const plan = planSnapshot(results, tableList);
+		const xinfo = 'SELECT name FROM pragma_table_xinfo(?1) WHERE hidden = 0 ORDER BY cid';
+		const cols = plan.length ? await db.batch(plan.map((p) => db.prepare(xinfo).bind(p.name))) : [];
+		const tables = plan.map((p, i) => ({
+			table: p.name,
+			columns: [...(p.virtual ? ['rowid'] : []), ...cols[i].results.map((r) => String(r.name))]
+		}));
+		const data = tables.length
+			? await db.batch(tables.map((t, i) => db.prepare(
+				'SELECT ' + t.columns.map(q).join(', ') + ' FROM ' + q(t.table) +
+				(plan[i].ordered ? ' ORDER BY rowid' : '')
+			)))
+			: [];
+		value = tables.map((t, i) => ({
+			...t,
+			rows: data[i].results.map((row) => t.columns.map((c) => encode(row[c])))
+		}));
+	} else if (body.op === 'restore') {
+		const [{ results }, { results: tableList }] = await db.batch(RESET_CATALOG.map((sql) => db.prepare(sql)));
+		const statements = planReset(results, tableList).map((sql) => db.prepare(sql));
+		for (const t of body.tables) {
+			if (!t.rows.length) continue;
+			const insert = db.prepare(
+				'INSERT INTO ' + q(t.table) + ' (' + t.columns.map(q).join(', ') + ') VALUES (' +
+				t.columns.map((_, i) => '?' + (i + 1)).join(', ') + ')'
+			);
+			for (const row of t.rows) statements.push(insert.bind(...row.map(revive)));
+		}
+		if (statements.length) await db.batch(statements);
+	} else if (body.op === 'batches') {
+		value = [];
+		for (const sqls of body.batches) value.push(await db.batch(sqls.map((sql) => db.prepare(sql))));
+	}
+	else if (body.op === 'exec') value = await db.exec(body.sql);
+	else value = await statement(db, body.statement)[body.op](...body.args);
+	return value === undefined ? null : value;
+}
 export default {
 	async fetch(request, env) {
-		const db = env.DB;
+		// Canal persistente: un WebSocket por base, con un id por mensaje (las respuestas pueden
+		// llegar en otro orden, como con pedidos sueltos).
+		if (request.headers.get('upgrade') === 'websocket') {
+			const [client, server] = Object.values(new WebSocketPair());
+			server.accept();
+			server.addEventListener('message', async (event) => {
+				let id;
+				let out;
+				try {
+					const message = JSON.parse(event.data);
+					id = message.id;
+					out = JSON.stringify({ id, value: await run(env.DB, message.body) });
+				} catch (e) {
+					out = JSON.stringify({ id, error: errorJSON(e) });
+				}
+				if (out.length > ${WS_MAX_CHARS}) {
+					const key = ++stashId;
+					stash.set(key, out);
+					out = JSON.stringify({ id, stashed: key });
+				}
+				server.send(out);
+			});
+			server.addEventListener('close', () => server.close());
+			return new Response(null, { status: 101, webSocket: client });
+		}
 		try {
 			const body = await request.json();
-			let value;
-			if (body.op === 'batch') value = await db.batch(body.statements.map((s) => statement(db, s)));
-			else if (body.op === 'reset') {
-				const [{ results }, { results: tableList }] = await db.batch(RESET_CATALOG.map((sql) => db.prepare(sql)));
-				const statements = planReset(results, tableList);
-				if (statements.length) await db.batch(statements.map((sql) => db.prepare(sql)));
-			} else if (body.op === 'snapshot') {
-				const [{ results }, { results: tableList }] = await db.batch(RESET_CATALOG.map((sql) => db.prepare(sql)));
-				const plan = planSnapshot(results, tableList);
-				const xinfo = 'SELECT name FROM pragma_table_xinfo(?1) WHERE hidden = 0 ORDER BY cid';
-				const cols = plan.length ? await db.batch(plan.map((p) => db.prepare(xinfo).bind(p.name))) : [];
-				const tables = plan.map((p, i) => ({
-					table: p.name,
-					columns: [...(p.virtual ? ['rowid'] : []), ...cols[i].results.map((r) => String(r.name))]
-				}));
-				const data = tables.length
-					? await db.batch(tables.map((t, i) => db.prepare(
-						'SELECT ' + t.columns.map(q).join(', ') + ' FROM ' + q(t.table) +
-						(plan[i].ordered ? ' ORDER BY rowid' : '')
-					)))
-					: [];
-				value = tables.map((t, i) => ({
-					...t,
-					rows: data[i].results.map((row) => t.columns.map((c) => encode(row[c])))
-				}));
-			} else if (body.op === 'restore') {
-				const [{ results }, { results: tableList }] = await db.batch(RESET_CATALOG.map((sql) => db.prepare(sql)));
-				const statements = planReset(results, tableList).map((sql) => db.prepare(sql));
-				for (const t of body.tables) {
-					if (!t.rows.length) continue;
-					const insert = db.prepare(
-						'INSERT INTO ' + q(t.table) + ' (' + t.columns.map(q).join(', ') + ') VALUES (' +
-						t.columns.map((_, i) => '?' + (i + 1)).join(', ') + ')'
-					);
-					for (const row of t.rows) statements.push(insert.bind(...row.map(revive)));
-				}
-				if (statements.length) await db.batch(statements);
-			} else if (body.op === 'batches') {
-				value = [];
-				for (const sqls of body.batches) value.push(await db.batch(sqls.map((sql) => db.prepare(sql))));
+			if (body.op === 'take') {
+				const out = stash.get(body.key);
+				stash.delete(body.key);
+				return new Response(out, { headers: { 'content-type': 'application/json' } });
 			}
-			else if (body.op === 'exec') value = await db.exec(body.sql);
-			else value = await statement(db, body.statement)[body.op](...body.args);
-			return Response.json({ value: value === undefined ? null : value });
+			return Response.json({ value: await run(env.DB, body) });
 		} catch (e) {
 			return Response.json({ error: errorJSON(e) });
 		}
@@ -372,9 +415,20 @@ async function makeStorageDir() {
 }
 
 /**
- * @param {{ migrate?: boolean }} [options]
+ * Variable de entorno con la carpeta de la plantilla: una base ya migrada que arma
+ * `startTemplateDB()` (globalSetup de vitest, `src/tests/globalSetup.js`) una vez por corrida.
  */
-export async function createTestDB({ migrate = true } = {}) {
+export const TEMPLATE_ENV = 'KINKYVIBE_TEST_DB_TEMPLATE';
+/** Dentro de la carpeta de la plantilla: los datos de miniflare y la huella de las migraciones. */
+const TEMPLATE_DATA = 'data';
+const TEMPLATE_HASH = 'migrations.sha256';
+
+/**
+ * Levanta miniflare con el worker de prueba sobre `dir` (lo que ya haya ahí, se usa).
+ *
+ * @param {string} dir
+ */
+async function openTestDB(dir) {
 	const { Miniflare, convertV4MiniflareOptions } = loadMiniflare();
 	// `envFiles: []`: sin leer `.dev.vars`/`.env` (como antes con getPlatformProxy). wrangler lo
 	// acepta en tiempo de ejecución aunque sus tipos todavía no lo declaren.
@@ -393,43 +447,221 @@ export async function createTestDB({ migrate = true } = {}) {
 	const bindings = { ...workerOptions };
 	for (const key of ['modulesRules', 'cronTriggers', 'queueConsumers', 'tails', 'streamingTails'])
 		delete bindings[key];
-	const dir = await makeStorageDir();
 	const mf = new Miniflare(
 		convertV4MiniflareOptions({
 			resourcePersistencePath: dir,
 			workers: [{ ...bindings, name: 'kinkyvibe-test-db', modules: true, script: D1_WORKER }]
 		})
 	);
-	const dispose = async () => {
-		try {
-			await mf.dispose();
-		} finally {
-			liveDirs.delete(dir);
-			await rm(dir, { recursive: true, force: true });
-		}
+	/** @param {string} json */
+	const viaFetch = async (json) => {
+		const res = await mf.dispatchFetch('http://test-db.local/', { method: 'POST', body: json });
+		return /** @type {WireResult} */ (await res.json());
 	};
+	// El canal persistente; si no se pudo abrir (o se cayó), cada consulta va en su propio pedido.
+	const channel = await openChannel(mf).catch(() => null);
 	/** @type {Send} */
 	const send = async (body) => {
-		const res = await mf.dispatchFetch('http://test-db.local/', {
-			method: 'POST',
-			body: JSON.stringify(body)
-		});
-		const out = /** @type {{ value?: unknown, error?: SerializedError }} */ (await res.json());
+		const json = JSON.stringify(body);
+		let out =
+			channel?.open && json.length <= WS_MAX_CHARS
+				? await channel.call(json)
+				: await viaFetch(json);
+		if (out.stashed !== undefined)
+			out = await viaFetch(JSON.stringify({ op: 'take', key: out.stashed }));
 		if (out.error) throw reviveError(out.error);
 		return out.value;
 	};
 	const db = /** @type {import('@cloudflare/workers-types').D1Database} */ (
 		/** @type {unknown} */ (new TestD1Database(send))
 	);
+	const dispose = async () => {
+		channel?.close();
+		await mf.dispose();
+	};
+	return { mf, db, dispose };
+}
+
+/**
+ * @typedef {{ value?: unknown, error?: SerializedError, stashed?: number }} WireResult
+ *   Lo que contesta el worker: el valor, el error, o (por el canal) que lo pida con un fetch.
+ */
+
+/**
+ * Abre el WebSocket con el worker de prueba: cada consulta es un mensaje con un id, y la respuesta
+ * vuelve con el mismo id. Mismo worker, mismo D1 y mismas respuestas que con `dispatchFetch`, pero
+ * sin armar un pedido HTTP por consulta (~1,7 ms por consulta en vez de ~6, medido).
+ *
+ * Si el canal se cierra con consultas en vuelo, esas fallan (no se reintentan: podrían haberse
+ * aplicado) y las siguientes van por `dispatchFetch`.
+ *
+ * @param {import('miniflare').Miniflare} mf
+ */
+async function openChannel(mf) {
+	const res = await mf.dispatchFetch('http://test-db.local/', {
+		headers: { upgrade: 'websocket' }
+	});
+	const ws = res.webSocket;
+	if (!ws) return null;
+	ws.accept();
+	/** @type {Map<number, { resolve: (out: WireResult) => void, reject: (e: Error) => void }>} */
+	const pending = new Map();
+	let next = 0;
+	let open = true;
+	/** @param {Error} error */
+	const fail = (error) => {
+		open = false;
+		for (const p of pending.values()) p.reject(error);
+		pending.clear();
+	};
+	ws.addEventListener('message', (event) => {
+		const out = /** @type {WireResult & { id: number }} */ (JSON.parse(String(event.data)));
+		const p = pending.get(out.id);
+		pending.delete(out.id);
+		p?.resolve(out);
+	});
+	ws.addEventListener('close', (event) =>
+		fail(new Error(`testing.js: se cerró el canal con la base de prueba (${event.code})`))
+	);
+	ws.addEventListener('error', () =>
+		fail(new Error('testing.js: falló el canal con la base de prueba'))
+	);
+	return {
+		get open() {
+			return open;
+		},
+		/**
+		 * @param {string} json el cuerpo, ya en JSON
+		 * @returns {Promise<WireResult>}
+		 */
+		call(json) {
+			return new Promise((resolve, reject) => {
+				const id = ++next;
+				pending.set(id, { resolve, reject });
+				ws.send(`{"id":${id},"body":${json}}`);
+			});
+		},
+		close() {
+			if (!open) return;
+			open = false;
+			ws.close();
+		}
+	};
+}
+
+/**
+ * La carpeta de la plantilla, si la hay, ya terminó de armarse y es de estas mismas migraciones.
+ * Si no, `null` (y se migra como siempre).
+ */
+async function readyTemplate() {
+	const dir = process.env[TEMPLATE_ENV];
+	if (!dir) return null;
+	const hash = await readFile(path.join(dir, TEMPLATE_HASH), 'utf8').catch(() => null);
+	if (!hash) return null;
+	return hash === (await readRepoMigrations()).hash ? path.join(dir, TEMPLATE_DATA) : null;
+}
+
+/**
+ * Una base de prueba nueva, aislada (su propio miniflare y su propia carpeta).
+ *
+ * Con `migrate` (lo normal), la base arranca con todas las migraciones de `migrations/`. Si hay
+ * plantilla lista (`startTemplateDB`, una vez por corrida de vitest), en vez de aplicarlas se copia
+ * el SQLite de la plantilla, que es una base migrada igual (lo comprueba `template.test.js`). Si no
+ * hay plantilla, no terminó de armarse, es de otras migraciones o falla la copia, se migra como
+ * siempre. `template: false` fuerza el camino de siempre.
+ *
+ * @param {{ migrate?: boolean, template?: boolean }} [options]
+ */
+export async function createTestDB({ migrate = true, template = true } = {}) {
+	const dir = await makeStorageDir();
+	let fromTemplate = false;
+	if (migrate && template) {
+		const source = await readyTemplate().catch(() => null);
+		if (source) {
+			fromTemplate = await cp(source, dir, { recursive: true }).then(
+				() => true,
+				async () => {
+					// Copia a medias: se vacía y se migra como siempre.
+					await rm(dir, { recursive: true, force: true });
+					await mkdir(dir, { recursive: true });
+					return false;
+				}
+			);
+		}
+	}
+	/** @type {Awaited<ReturnType<typeof openTestDB>>} */
+	let opened;
+	try {
+		opened = await openTestDB(dir);
+	} catch (error) {
+		liveDirs.delete(dir);
+		await rm(dir, { recursive: true, force: true });
+		throw error;
+	}
+	const { mf, db } = opened;
+	const dispose = async () => {
+		try {
+			await opened.dispose();
+		} finally {
+			liveDirs.delete(dir);
+			await rm(dir, { recursive: true, force: true });
+		}
+	};
 	const proxied = /** @type {App.Platform['env']} */ (await mf.getBindings());
 	const env = /** @type {App.Platform['env']} */ ({ ...proxied, DB: db });
-	if (migrate) await applyMigrations(db);
+	if (migrate && !fromTemplate) await applyMigrations(db);
 	return {
 		db,
 		env,
 		/** Plataforma con la forma de `event.platform` en SvelteKit. */
 		platform: /** @type {App.Platform} */ ({ env }),
+		/** Si arrancó de la plantilla (para `template.test.js`). */
+		fromTemplate,
 		dispose
+	};
+}
+
+/**
+ * Arma la plantilla en `target`: migra una base nueva, apaga miniflare (el SQLite queda cerrado y
+ * completo en disco) y recién al final escribe la huella de las migraciones, que es lo que marca
+ * que la plantilla está lista. Si algo falla, no queda huella y nadie la usa.
+ *
+ * @param {string} target carpeta (vacía) de la plantilla
+ */
+export async function buildTemplateDB(target) {
+	const data = path.join(target, TEMPLATE_DATA);
+	await mkdir(data, { recursive: true });
+	const { db, dispose } = await openTestDB(data);
+	let hash;
+	try {
+		await applyMigrations(db);
+		hash = (await readRepoMigrations()).hash;
+	} finally {
+		await dispose();
+	}
+	const tmp = path.join(target, `${TEMPLATE_HASH}.tmp`);
+	await writeFile(tmp, hash);
+	await rename(tmp, path.join(target, TEMPLATE_HASH));
+}
+
+/**
+ * Para el globalSetup de vitest: elige la carpeta de la plantilla, la anuncia en `TEMPLATE_ENV`
+ * (los procesos de las pruebas la heredan) y la arma en segundo plano, sin frenar el arranque: los
+ * archivos que piden una base antes de que esté lista migran como siempre. Devuelve el teardown,
+ * que espera a que termine y la borra.
+ */
+export async function startTemplateDB() {
+	const target = await mkdtemp(path.join(storageRoot(), 'kinkyvibe-test-db-template-'));
+	process.env[TEMPLATE_ENV] = target;
+	const building = buildTemplateDB(target).catch((error) => {
+		console.warn(
+			`testing.js: no se pudo armar la plantilla de la base (se migra en cada archivo): ${error}`
+		);
+	});
+	return async () => {
+		await building;
+		delete process.env[TEMPLATE_ENV];
+		await rm(target, { recursive: true, force: true });
 	};
 }
 
