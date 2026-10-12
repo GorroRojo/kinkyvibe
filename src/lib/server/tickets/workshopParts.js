@@ -9,7 +9,7 @@
 import { readWorkshop } from '../eventos/partes.js';
 import { buyerLocation } from '../amigues/venues.js';
 import { getEventMeta } from './events.js';
-import { partLine, partsListTitle } from '../../utils/partes.js';
+import { partLine, partsCoveredBy, partsListTitle } from '../../utils/partes.js';
 import { ONLINE_PLACE_TEXT, placeLine } from '../../utils/eventPlace.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -30,9 +30,10 @@ import { ONLINE_PLACE_TEXT, placeLine } from '../../utils/eventPlace.js';
 export async function workshopPartsList(db, slug, { online = false, buyer = true } = {}) {
 	try {
 		const ws = await readWorkshop(db, slug);
-		if (!ws || ws.total < 2 || ws.workshop.perPart || ws.workshop.slug !== slug) return null;
+		const parts = partsCoveredBy(ws, slug);
+		if (!ws || !parts) return null;
 		const lines = [];
-		for (const p of ws.parts) {
+		for (const p of parts) {
 			lines.push(
 				partLine({ ...p, where: online ? ONLINE_PLACE_TEXT : await placeOf(db, p.slug, buyer) })
 			);
