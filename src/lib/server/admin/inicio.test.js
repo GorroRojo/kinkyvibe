@@ -1072,6 +1072,17 @@ describe('columna de la derecha: agenda, ventas y actividad', () => {
 });
 
 describe('chequeo nocturno de los datos en "Para revisar"', () => {
+	// Una base sin migraciones, levantada antes de las pruebas: su arranque (miniflare) no
+	// cuenta para el tiempo límite de la prueba.
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let bare;
+	beforeAll(async () => {
+		bare = await createTestDB({ migrate: false });
+	});
+	afterAll(async () => {
+		await bare?.dispose();
+	});
+
 	it('con problemas: una sola fila que se despliega con código y slug', () => {
 		const row = integrityReviewRow(
 			{
@@ -1122,12 +1133,7 @@ describe('chequeo nocturno de los datos en "Para revisar"', () => {
 	it('integrityRun: null sin base, sin corridas o sin la migración 0012 (no tira error)', async () => {
 		expect(await integrityRun(null)).toBeNull();
 		expect(await integrityRun(t.db)).toBeNull();
-		const bare = await createTestDB({ migrate: false });
-		try {
-			expect(await integrityRun(bare.db)).toBeNull();
-		} finally {
-			await bare.dispose();
-		}
+		expect(await integrityRun(bare.db)).toBeNull();
 	}, 30_000);
 
 	it('integrityRun: la última corrida guardada', async () => {
