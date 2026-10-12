@@ -840,6 +840,24 @@ article.wiki {
 	figure {
 		margin-bottom: 3rem;
 	}
+	/* PDFs embebidos en textos viejos: `<object … type="application/pdf" width="50rem"
+	   height="1000px">`. El atributo `width` solo acepta píxeles y el navegador leía «50rem» como
+	   50px (el visor quedaba en una tira). El CSS le gana al atributo. Sin `display`: si el
+	   navegador no muestra el PDF (los celus) el <object> muestra su contenido de respaldo («Ir al
+	   pdf») como texto común, y ahí el alto no se aplica (no queda un hueco vacío). */
+	object[type='application/pdf' i],
+	embed[type='application/pdf' i] {
+		width: 100%;
+		max-width: 50rem;
+		height: min(1000px, 80vh);
+	}
+	/* Notas al pie de textos viejos: `<small class="footnote">`, una debajo de la otra. El propio
+	   texto les pone borde y relleno en su <style>; como <small> es inline, las cajas se pisaban
+	   entre sí y con el texto. */
+	.footnote {
+		display: block;
+		margin-block: 0.75em;
+	}
 	blockquote {
 		font-size: var(--step-0);
 		opacity: 0.9;
