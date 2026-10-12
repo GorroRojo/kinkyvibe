@@ -11,6 +11,7 @@ import { eventPlaceSchema } from './eventPlace.js';
 import { KINKYVIBE_TAG } from './propinas.js';
 import { contactItems } from './perfiles.js';
 import { ORG_CONTACT_EMAIL } from './organization.js';
+import { isoDateTime } from './dates.js';
 
 export const SITE_URL = 'https://kinkyvibe.ar';
 export const SITE_NAME = 'Kinky Vibe';
@@ -63,8 +64,10 @@ function decodeSafe(s) {
 }
 
 /**
- * Una fecha en ISO 8601 (las del sitio ya lo son: se dejan tal cual, con su zona horaria), o nada
- * si no se puede leer.
+ * Una fecha en ISO 8601 válido, o nada si no se puede leer. Las fechas con hora y zona del sitio
+ * (`2026-10-02T22:00-03:00`) y las de solo día (`2026-10-02`) se dejan tal cual; las de
+ * publicación (`2024-12-06Z-03:00`, que no es ISO 8601) pasan a `2024-12-06T00:00:00-03:00`
+ * (`isoDateTime` de dates.js).
  * @param {unknown} d
  * @returns {string | undefined}
  */
@@ -73,7 +76,9 @@ export function isoDate(d) {
 	if (typeof d === 'number')
 		return isNaN(new Date(d).getTime()) ? undefined : new Date(d).toISOString();
 	if (typeof d !== 'string' || !d.trim()) return undefined;
-	return isNaN(new Date(d).getTime()) ? undefined : d.trim();
+	const s = d.trim();
+	if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return isNaN(new Date(s).getTime()) ? undefined : s;
+	return isoDateTime(s);
 }
 
 /** Saca las claves sin valor (`undefined`, `null`, `''`, listas vacías). @param {JsonLd} o */

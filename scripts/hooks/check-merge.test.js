@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { check, decide, parseMergeCall } from './check-merge.js';
+import {
+	check,
+	decide,
+	parseMergeCall,
+	planReviewReason,
+	planReviewShas,
+	touchesPlan
+} from './check-merge.js';
 
 const bash = (command) => ({ tool_name: 'Bash', tool_input: { command } });
 const mcp = (tool_input) => ({ tool_name: 'mcp__github__merge_pull_request', tool_input });
@@ -17,14 +24,28 @@ function run(name, conclusion = 'success', status = 'completed') {
 	return { name, status, conclusion: status === 'completed' ? conclusion : null };
 }
 
+const MAIN_SHA = '0123456789abcdef0123456789abcdef01234567';
+const planFile = { filename: 'docs/plan.md' };
+const codeFile = { filename: 'src/lib/x.js' };
+
 /** Fake GitHub API: routes by path suffix. */
-function fakeApi({ pull = pr(), status = green.status, checks = green.checks } = {}) {
+function fakeApi({
+	pull = pr(),
+	status = green.status,
+	checks = green.checks,
+	files = [codeFile],
+	comments = [],
+	main = { sha: MAIN_SHA }
+} = {}) {
 	const calls = [];
 	const get = async (path) => {
 		calls.push(path);
 		if (/\/pulls\/\d+$/.test(path)) return pull;
 		if (path.includes('/status')) return status;
 		if (path.includes('/check-runs')) return checks;
+		if (/\/pulls\/\d+\/files\?/.test(path)) return files;
+		if (/\/issues\/\d+\/comments\?/.test(path)) return comments;
+		if (path.endsWith('/commits/main')) return main;
 		throw new Error(`unexpected ${path}`);
 	};
 	return { get, calls };
@@ -163,10 +184,13 @@ describe('check (with a mocked GitHub API)', () => {
 	it('allows a green PR into main and queries the head commit', async () => {
 		const api = fakeApi();
 		expect(await check(bash('gh pr merge 7 --squash'), api.get)).toBeNull();
+		// The files are read too (for the docs/plan.md rule); main and the comments only when the
+		// PR touches the plan.
 		expect(api.calls).toEqual([
 			'/repos/GorroRojo/kinkyvibe/pulls/7',
 			'/repos/GorroRojo/kinkyvibe/commits/abc123/status?per_page=100',
-			'/repos/GorroRojo/kinkyvibe/commits/abc123/check-runs?per_page=100'
+			'/repos/GorroRojo/kinkyvibe/commits/abc123/check-runs?per_page=100',
+			'/repos/GorroRojo/kinkyvibe/pulls/7/files?per_page=100&page=1'
 		]);
 	});
 
@@ -193,5 +217,103 @@ describe('check (with a mocked GitHub API)', () => {
 		const msg = await check(bash('gh pr merge 7'), get);
 		expect(msg).toMatch(/could not reach the GitHub API \(HTTP 503\)/);
 		expect(msg).toMatch(/by hand/);
+	});
+});
+
+describe('docs/plan.md review rule', () => {
+	it('finds the SHAs in «Plan revisado contra main <sha>» comments', () => {
+		expect(
+			planReviewShas([
+				{ body: 'Plan revisado contra main 0123456' },
+				{ body: 'LGTM' },
+				{ body: 'Releí.\n\nplan revisado contra main `ABCDEF0123`' },
+				{ body: 'Plan revisado contra main 12345' }, // too short
+				{ body: null }
+			])
+		).toEqual(['0123456', 'abcdef0123']);
+	});
+
+	it('only applies to PRs that change or rename docs/plan.md', () => {
+		expect(touchesPlan([codeFile])).toBe(false);
+		expect(touchesPlan([codeFile, planFile])).toBe(true);
+		expect(touchesPlan([{ filename: 'docs/plan-2.md', previous_filename: 'docs/plan.md' }])).toBe(
+			true
+		);
+		expect(planReviewReason(7, [codeFile], [], MAIN_SHA)).toBeNull();
+	});
+
+	it("allows a comment with main's current head, full or 7+ characters", () => {
+		for (const sha of [MAIN_SHA, MAIN_SHA.slice(0, 7), MAIN_SHA.slice(0, 12).toUpperCase()]) {
+			expect(
+				planReviewReason(7, [planFile], [{ body: `Plan revisado contra main ${sha}` }], MAIN_SHA)
+			).toBeNull();
+		}
+	});
+
+	it('blocks without the comment, or with an old main SHA, and says exactly what to do', () => {
+		const none = planReviewReason(7, [planFile], [{ body: 'LGTM' }], MAIN_SHA);
+		expect(none).toMatch(/PR #7 changes docs\/plan.md/);
+		expect(none).toContain(`Plan revisado contra main ${MAIN_SHA}`);
+		expect(none).toMatch(/git diff origin\/main/);
+		const old = planReviewReason(
+			7,
+			[planFile],
+			[{ body: 'Plan revisado contra main fedcba9876' }],
+			MAIN_SHA
+		);
+		expect(old).toMatch(/no comment/);
+	});
+
+	it('check blocks a green PR that changes the plan without the comment', async () => {
+		const api = fakeApi({ files: [codeFile, planFile] });
+		const msg = await check(bash('gh pr merge 7 --merge'), api.get);
+		expect(msg).toMatch(/^Blocked by the merge guard/);
+		expect(msg).toContain(`Plan revisado contra main ${MAIN_SHA}`);
+		expect(api.calls).toEqual(
+			expect.arrayContaining([
+				'/repos/GorroRojo/kinkyvibe/commits/main',
+				'/repos/GorroRojo/kinkyvibe/issues/7/comments?per_page=100&page=1'
+			])
+		);
+	});
+
+	it("check allows it once the comment names main's current head", async () => {
+		const api = fakeApi({
+			files: [planFile],
+			comments: [{ body: `Plan revisado contra main ${MAIN_SHA.slice(0, 9)}` }]
+		});
+		expect(await check(bash('gh pr merge 7 --merge'), api.get)).toBeNull();
+	});
+
+	it('check keeps the other reasons next to the plan one', async () => {
+		const api = fakeApi({ files: [planFile], pull: pr({ draft: true }) });
+		const msg = await check(bash('gh pr merge 7'), api.get);
+		expect(msg).toMatch(/draft/);
+		expect(msg).toMatch(/changes docs\/plan.md/);
+	});
+
+	it('check reads every page of files and comments', async () => {
+		const many = Array.from({ length: 100 }, (_, i) => ({ filename: `src/f${i}.js` }));
+		const calls = [];
+		const get = async (path) => {
+			calls.push(path);
+			if (/\/pulls\/\d+$/.test(path)) return pr();
+			if (path.includes('/status')) return green.status;
+			if (path.includes('/check-runs')) return green.checks;
+			if (path.includes('/files?')) return path.endsWith('page=1') ? many : [planFile];
+			if (path.includes('/comments?')) return [];
+			if (path.endsWith('/commits/main')) return { sha: MAIN_SHA };
+			throw new Error(`unexpected ${path}`);
+		};
+		expect(await check(bash('gh pr merge 7'), get)).toMatch(/changes docs\/plan.md/);
+		expect(calls).toContain('/repos/GorroRojo/kinkyvibe/pulls/7/files?per_page=100&page=2');
+	});
+
+	it('blocks when the files, comments or main cannot be read', async () => {
+		const get = async (path) => {
+			if (path.includes('/comments?')) throw new Error('HTTP 502');
+			return fakeApi({ files: [planFile] }).get(path);
+		};
+		expect(await check(bash('gh pr merge 7'), get)).toMatch(/could not reach the GitHub API/);
 	});
 });

@@ -12,17 +12,19 @@ PR no entra hasta arreglarlo. Y además, nadie mergea sin que gorrite lo apruebe
 
 ## Qué corre en cada PR
 
-Todo lo de GitHub Actions está en un solo archivo, `.github/workflows/ci.yml` (no hay otros
-workflows). Corre en cada pull request y en cada push a `main`, con permiso de solo lectura sobre
-el repo (`permissions: contents: read`). Si pusheás de nuevo a la misma rama, la corrida anterior
-se cancela (`concurrency`). Los jobs de prueba corren en paralelo, usan Ubuntu 22.04 y la versión
-de Node de `.node-version` (con caché de npm), y arrancan con `npm ci`. Tienen un límite de
-tiempo: 15 minutos `unit`, `tests` y `e2e`, 10 `typecheck`.
+Lo de GitHub Actions que corre en cada PR está en un solo archivo, `.github/workflows/ci.yml`
+(el único otro workflow es el vigilante del repaso, ver abajo, que no corre en PRs). Corre en cada pull request (también cuando se edita su descripción, por el job
+`plan-pr`) y en cada push a `main`, con permiso de solo lectura sobre el repo (`permissions:
+contents: read`). Si pusheás de nuevo a la misma rama o editás la descripción, la corrida anterior
+se cancela (`concurrency`) y vuelve a correr todo. Los jobs de prueba corren en paralelo, usan
+Ubuntu 22.04 y la versión de Node de `.node-version` (con caché de npm), y arrancan con `npm ci`.
+Tienen un límite de tiempo: 15 minutos `unit`, `tests` y `e2e`, 10 `typecheck`.
 
 **PRs de solo documentación** (gorrite, 11/10): el job `changes` mira qué archivos toca el PR. Si
 todos están en `docs/`, son `.md` de la raíz o están en `.claude/`, corre solo `docs` (el chequeo
 de formato) y se saltean `unit`, `tests`, `e2e` y `typecheck`; `ci-ok` igual da verde, porque
-cuenta lo salteado como bien. En `main` (push) corre todo siempre.
+cuenta lo salteado como bien. `plan` y `plan-pr` corren igual. En `main` (push) corre todo
+siempre (salvo `plan-pr`, que es solo de PRs).
 
 | Job (nombre en GitHub)          | Pasos, en orden                                                                                                                                                                                                                                                                                                                          | Cómo reproducirlo en tu compu                                                                    |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
@@ -30,7 +32,9 @@ cuenta lo salteado como bien. En `main` (push) corre todo siempre.
 | `tests (1/3)`, `(2/3)`, `(3/3)` | trae la caché de vitest → **Unit + content tests** repartidas en 3 máquinas por tiempo (`npx vitest run --shard=N/3 --fsModuleCache`): juntas corren todas                                                                                                                                                                               | `npx vitest run` (todas), `npx vitest run --shard=1/3` o `npm run test:related`                  |
 | `e2e`                           | **Build + seed + Chromium** en paralelo (`npm run build`, `node scripts/semilla.js` e instalar Chromium o, si está en caché, solo sus librerías del sistema) → **Worker bundle** (`npx wrangler deploy --dry-run --outdir .wrangler/dry-run`) → guardia del modo demo → **E2E smoke tests** (`npx playwright test`, con `PW_NO_BUILD=1`) | `npm run build && PW_NO_BUILD=1 npm run test:e2e` (o solo `npm run test:e2e`, que compila antes) |
 | `typecheck`                     | **svelte-check ratchet** (`node scripts/svelte-check-ratchet.js`)                                                                                                                                                                                                                                                                        | `node scripts/svelte-check-ratchet.js`                                                           |
-| **`ci-ok`**                     | corre siempre (`if: always()`, en `ubuntu-latest`, sin `npm ci`) y pasa solo si `changes`, `docs`, `unit`, `tests`, `e2e` y `typecheck` terminaron bien (o se saltearon). **Es el único chequeo obligatorio**                                                                                                                            | —                                                                                                |
+| `plan`                          | **plan-lint** (`node scripts/plan-lint.js`, sin `npm ci`): en [plan.md](plan.md), ids únicos y bien escritos, fase y estado en cada ítem, cada uno en la sección de su fase, dependencias que existen y no están en una fase posterior, y las fases de `src/lib/admin/nav.js` iguales a las del plan (ver abajo)                         | `node scripts/plan-lint.js`                                                                      |
+| `plan-pr`                       | solo en PRs: **la línea `Plan:`** de la descripción (`node scripts/plan-pr.js`, lee el evento): `Plan: <id>[, <id>]` con ids que existen en el `plan.md` del PR, o `Plan: ninguno`. Los PRs de bots (Dependabot) no la necesitan                                                                                                         | —                                                                                                |
+| **`ci-ok`**                     | corre siempre (`if: always()`, en `ubuntu-latest`, sin `npm ci`) y pasa solo si `changes`, `docs`, `unit`, `tests`, `e2e`, `typecheck`, `plan` y `plan-pr` terminaron bien (o se saltearon). **Es el único chequeo obligatorio**                                                                                                         | —                                                                                                |
 
 Fuera de `ci.yml` aparecen además:
 
@@ -39,6 +43,13 @@ Fuera de `ci.yml` aparecen además:
 | `Workers Builds: kinkyvibe`                 | Cloudflare compila la rama y publica su preview con link (modo demo, [demo.md](demo.md)) | configurado en Cloudflare (`wrangler.toml`, [workers-migracion.md](workers-migracion.md)) |
 | `Analyze (javascript)`, `Analyze (actions)` | escaneo de seguridad de GitHub (CodeQL) sobre el código y los workflows                  | configuración por defecto de GitHub (no hay archivo en el repo)                           |
 | `CodeQL`                                    | en los PRs, el resumen de ese escaneo: falla si el PR trae una alerta nueva              | ídem                                                                                      |
+
+**El plan y la CI** ([plan.md](plan.md), «Reglas»): `plan` y `plan-pr` corren también en los
+PRs de solo documentación. La relación con el menú del panel: cada sección «Próximamente» de
+`nav.js` (las que tienen `phase`) tiene un ítem en el plan con `nav: <id de la sección>`, y su
+`phase` es la fase de ese ítem. Si cambia la fase de algo del menú, se cambia en los dos lados en
+el mismo PR; si una sección nueva entra con `phase`, entra también su ítem. Si `plan-pr` da rojo,
+alcanza con editar la descripción del PR: la CI vuelve a correr sola.
 
 Además, `ci.yml` tiene el job **`ui-impacto`** (informe de impacto visual,
 [ui-impacto.md](ui-impacto.md)): solo en PRs que tocan estilos o componentes, sube el artifact
@@ -53,6 +64,18 @@ PR, se mergean solo con la aprobación de gorrite.
 Dependabot regenera `package-lock.json` desde cero, y ahí se caen los peers opcionales. Por eso
 `@types/node` (de la versión mayor de `.node-version`) es una devDependency explícita: sin ella,
 svelte-check deja de encontrar `process` y `node:fs` en los tests y el ratchet falla.
+
+**Vigilante del repaso semanal** (`.github/workflows/repaso-vigilante.yml`, ítem
+`plan-repaso-semanal` de [plan.md](plan.md)): no corre en PRs sino todos los días a las 04:23 UTC
+(y a mano desde la pestaña Actions, «Run workflow»), así que no está en los `needs` de `ci-ok`.
+Sin Claude, mira si hay algún PR con la etiqueta `repaso-semanal` creado en los últimos 8 días
+(la rutina de Claude de los lunes lo abre siempre). Si no hay, abre el issue «El repaso semanal
+del plan no corrió» con esa etiqueta, salvo que ya haya uno abierto; si vuelve a haber un PR de
+repaso y el issue sigue abierto, lo cierra con un comentario. Permisos: `contents: read`,
+`issues: write`, `pull-requests: read`. La etiqueta `repaso-semanal` la crea el vigilante la
+primera vez que abre el issue si todavía no existe (también se puede crear a mano en Issues →
+Labels). La lógica está en `scripts/repaso-vigilante.js` (la decisión es una función pura, con
+pruebas en `scripts/repaso-vigilante.test.js`).
 
 `ci-ok` existe para que la protección de `main` pida un solo chequeo: si alguien agrega un job a
 `ci.yml`, lo suma a los `needs` de `ci-ok` y listo, sin tocar la configuración de GitHub.
@@ -210,8 +233,11 @@ que dé verde. `npm run check` corre svelte-check sin trinquete (lo mismo, sin c
 - **Guardia de merge** (`scripts/hooks/check-merge.js`, conectado en `.claude/settings.json`):
   antes de que un agente mergee, pregunta a GitHub por el PR y lo frena si la base no es `main`
   (PR apilado), si está cerrado o en borrador, si algún chequeo no está verde, si usa `--admin` o
-  si no puede verificar. Es una ayuda contra errores; la protección de verdad es la de `main` en
-  GitHub (`ci-ok`).
+  si no puede verificar. También lo frena si el PR cambia `docs/plan.md` y no tiene un
+  comentario `Plan revisado contra main <sha>` con el SHA actual de `main` (completo o de 7
+  caracteres o más): antes de mergear, se relee el diff del plan contra el `main` de ese momento y
+  se deja ese comentario; si `main` se movió, se relee y se comenta de nuevo. Es una ayuda contra
+  errores; la protección de verdad es la de `main` en GitHub (`ci-ok`).
 - **Al arrancar una sesión** (`scripts/hooks/session-start.sh`): corre `npm ci` si falta
   `node_modules` o cambió `package-lock.json`.
 
@@ -227,7 +253,9 @@ npx playwright test -c playwright.tickets.config.js  # si tocaste entradas o el 
 ```
 
 Pegá el resumen de cada uno en la descripción del PR (y si corriste `test:related` o la suite
-entera). No se dice "los tests pasan" sin haberlos corrido. La CI corre siempre la suite entera.
+entera), junto con la línea `Plan: <id>` o `Plan: ninguno` ([plan.md](plan.md)). Si tocaste
+`docs/plan.md` o el `phase` de `nav.js`, corré también `node scripts/plan-lint.js`. No se dice "los
+tests pasan" sin haberlos corrido. La CI corre siempre la suite entera.
 
 ## Cuando algo está en rojo
 
@@ -243,6 +271,10 @@ entera). No se dice "los tests pasan" sin haberlos corrido. La CI corre siempre 
      7 días. Reproducí con `npm run test:e2e`. En CI hay un reintento, así que si falló dos veces
      no es casualidad.
    - **typecheck**: el log lista cada error de tipos; arreglalos (no subas la línea de base).
+   - **plan**: el log lista cada problema de `docs/plan.md` con su línea;
+     `node scripts/plan-lint.js` reproduce.
+   - **plan-pr**: falta la línea `Plan:` en la descripción del PR o nombra un id que no está en
+     el plan. Editá la descripción (o sumá el ítem al plan en el PR).
    - **CodeQL**: lee la alerta en la pestaña Security. Si es un problema real de seguridad, no
      lo detalles en público: arreglalo y avisale a gorrite en privado.
    - **Worker bundle (wrangler dry-run)**: `npm run build && npx wrangler deploy --dry-run --outdir .wrangler/dry-run`

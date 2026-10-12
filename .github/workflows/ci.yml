@@ -2,6 +2,10 @@ name: CI
 
 on:
   pull_request:
+    # `edited`: al cambiar la descripción del PR vuelve a correr todo (el job `plan-pr` la lee y
+    # `ci-ok` tiene que reflejarla). Corre todo, y no solo `plan-pr`, porque la corrida nueva
+    # cancela la anterior (concurrency) y `ci-ok` sale de una sola corrida.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
 
@@ -299,12 +303,45 @@ jobs:
           path: ui-impacto/
           retention-days: 14
 
+  # docs/plan.md, el plan único: ids, fases, estados, dependencias y que las fases de
+  # src/lib/admin/nav.js coincidan (scripts/plan-lint.js). Sin dependencias: no hace falta npm ci.
+  # Corre también en los PRs de solo documentación.
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
+      - run: node scripts/plan-lint.js
+
+  # La descripción del PR dice a qué ítems del plan corresponde: una línea `Plan: <id>[, <id>]` o
+  # `Plan: ninguno`, con ids que existen en el docs/plan.md del PR (scripts/plan-pr.js). Los PRs de
+  # bots no la necesitan. Solo en pull_request (en `main` se saltea).
+  plan-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
+      - run: node scripts/plan-pr.js
+
   # The single check to require in branch protection. It passes only if every job it needs
   # succeeded (or was skipped), so jobs can be added or renamed without touching the settings.
   # When you add a job above, add it to `needs` here too.
   ci-ok:
     if: always()
-    needs: [changes, docs, unit, tests, e2e, typecheck]
+    needs: [changes, docs, unit, tests, e2e, typecheck, plan, plan-pr]
     runs-on: ubuntu-latest
     steps:
       - name: All required jobs passed
