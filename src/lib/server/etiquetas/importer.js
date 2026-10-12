@@ -16,13 +16,17 @@
  *   faltan (solo con su nombre), después les carga datos y relaciones.
  * - `budget`: cuántas escrituras hace como mucho en una corrida (el panel corre por tandas para no
  *   pasarse del límite de consultas de un Worker; vuelve a correr y sigue donde quedó).
+ * - Escribe de a tandas de {@link IMPORT_CHUNK} etiquetas con `saveObjects()` (una transacción y
+ *   unas pocas consultas por tanda, en vez de 2 a 4 por etiqueta). Si una tanda no entra (una
+ *   etiqueta inválida, una dirección repetida…), no escribió nada: esa tanda se vuelve a hacer de a
+ *   una, exactamente como antes, y cada etiqueta informa su resultado.
  *
  * Hoy solo carga la semilla de contenido de las bases locales (src/lib/server/semilla,
  * `npm run db:semilla`) y lo usan las pruebas: el archivo de etiquetas y los .md de la wiki ya no
  * están en el repo (decisión 0032). Solo imports relativos.
  */
 import { ObjectError } from '../objects/errors.js';
-import { saveObject, slugify } from '../objects/save.js';
+import { saveObject, saveObjects, slugify } from '../objects/save.js';
 import { TAG_TYPE } from '../objects/types/etiqueta.js';
 import { sha256 } from '../amigues/importer.js';
 import { recordFingerprint, tagsToRecords } from './model.js';
@@ -35,6 +39,9 @@ export const SCRIPT_ACTOR = 'importacion-etiquetas';
 
 /** Hash de una etiqueta recién creada (solo con su nombre): el segundo paso siempre la completa. */
 const PLACEHOLDER_HASH = '0'.repeat(64);
+
+/** Cuántas etiquetas van en una tanda de `saveObjects()`. */
+export const IMPORT_CHUNK = 25;
 
 /**
  * @typedef {'created' | 'updated' | 'unchanged' | 'skipped_edited' | 'skipped_deleted' | 'skipped_panel' | 'pending' | 'error'} TagImportAction
@@ -119,13 +126,14 @@ function describeError(error) {
  *
  * @param {D1Database} db
  * @param {{ rawTags: readonly Record<string, unknown>[], wikiFiles?: readonly { name: string, raw: string }[] }} source
- * @param {{ actor: string, now?: number, dryRun?: boolean, budget?: number }} opts
+ * @param {{ actor: string, now?: number, dryRun?: boolean, budget?: number, chunk?: number }} opts
+ *   `chunk`: cuántas etiquetas por tanda de `saveObjects()` (1: de a una, como antes)
  * @returns {Promise<{ results: TagImportResult[], warnings: string[], pending: number }>}
  */
 export async function importTags(
 	db,
 	{ rawTags, wikiFiles = [] },
-	{ actor, now = Date.now(), dryRun = false, budget = Infinity }
+	{ actor, now = Date.now(), dryRun = false, budget = Infinity, chunk = IMPORT_CHUNK }
 ) {
 	const { records, warnings } = tagsToRecords(rawTags, wikiFiles);
 	const state = await loadState(db);
@@ -143,9 +151,77 @@ export async function importTags(
 			...extra
 		});
 
+	/**
+	 * Una tanda con saveObjects(), o `null` si no entró (entonces no escribió nada).
+	 * @param {import('../objects/save.js').SaveItem[]} items
+	 */
+	const trySaveAll = async (items) => {
+		try {
+			return await saveObjects(db, items, { actor, now });
+		} catch {
+			return null;
+		}
+	};
+
 	// Paso 1: crear las que faltan, solo con su nombre.
 	/** @type {Set<string>} */
 	const createdNow = new Set();
+	/** @param {TagRecord} r @param {string} slug */
+	const createInput = (r, slug) => ({
+		input: { type: TAG_TYPE, title: r.key, slug, data: { key: r.key } },
+		/** @param {import('../objects/save.js').SavedRef} self */
+		also: (self) => [
+			db
+				.prepare(
+					`INSERT INTO tag_sources (tag_id, source_key, source_hash, imported_version,
+						imported_at, updated_at)
+					SELECT id, ?3, ?4, 1, ?5, ?5 FROM objects WHERE type = ?1 AND slug = ?2`
+				)
+				.bind(self.type, self.slug, r.key, PLACEHOLDER_HASH, now)
+		]
+	});
+	/** @param {TagRecord} r @param {import('../objects/read.js').StoredObject} saved */
+	const created = (r, saved) => {
+		state.slugs.add(saved.slug);
+		state.liveByKey.set(r.key, saved.id);
+		state.byId.set(saved.id, {
+			id: saved.id,
+			slug: saved.slug,
+			version: saved.version,
+			deleted: false,
+			key: r.key
+		});
+		state.sources.set(r.key, { tagId: saved.id, hash: PLACEHOLDER_HASH, importedVersion: 1 });
+		createdNow.add(r.key);
+	};
+	/** De a una, como siempre (también la vuelta de una tanda que no entró). @param {TagRecord} r */
+	const createOne = async (r) => {
+		const slug = freeTagSlug(r.key, state.slugs);
+		try {
+			const { input, also } = createInput(r, slug);
+			created(r, await saveObject(db, input, { actor, now, also }));
+		} catch (error) {
+			report(r, 'error', { message: describeError(error) });
+		}
+	};
+	/** @type {{ r: TagRecord, slug: string }[]} */
+	let toCreate = [];
+	const flushCreates = async () => {
+		const items = toCreate;
+		toCreate = [];
+		if (!items.length) return;
+		// De a una (`chunk` 1) va directo por saveObject(), como siempre.
+		const saved =
+			items.length > 1 ? await trySaveAll(items.map((c) => createInput(c.r, c.slug))) : null;
+		if (saved) {
+			items.forEach((c, i) => created(c.r, saved[i]));
+			return;
+		}
+		// No entró y no escribió nada: las direcciones reservadas vuelven a estar libres y se hace
+		// de a una, como antes.
+		for (const c of items) state.slugs.delete(c.slug);
+		for (const c of items) await createOne(c.r);
+	};
 	for (const r of records) {
 		if (state.sources.has(r.key)) continue;
 		const panelId = state.liveByKey.get(r.key);
@@ -162,46 +238,73 @@ export async function importTags(
 			report(r, 'pending');
 			continue;
 		}
+		writes++;
+		// La dirección queda reservada para las que siguen en la tanda (como si ya estuviera guardada).
 		const slug = freeTagSlug(r.key, state.slugs);
-		try {
-			writes++;
-			const saved = await saveObject(
-				db,
-				{ type: TAG_TYPE, title: r.key, slug, data: { key: r.key } },
-				{
-					actor,
-					now,
-					also: (self) => [
-						db
-							.prepare(
-								`INSERT INTO tag_sources (tag_id, source_key, source_hash, imported_version,
-									imported_at, updated_at)
-								SELECT id, ?3, ?4, 1, ?5, ?5 FROM objects WHERE type = ?1 AND slug = ?2`
-							)
-							.bind(self.type, self.slug, r.key, PLACEHOLDER_HASH, now)
-					]
-				}
-			);
-			state.slugs.add(saved.slug);
-			state.liveByKey.set(r.key, saved.id);
-			state.byId.set(saved.id, {
-				id: saved.id,
-				slug: saved.slug,
-				version: saved.version,
-				deleted: false,
-				key: r.key
-			});
-			state.sources.set(r.key, { tagId: saved.id, hash: PLACEHOLDER_HASH, importedVersion: 1 });
-			createdNow.add(r.key);
-		} catch (error) {
-			report(r, 'error', { message: describeError(error) });
-		}
+		state.slugs.add(slug);
+		toCreate.push({ r, slug });
+		if (toCreate.length >= chunk) await flushCreates();
 	}
+	await flushCreates();
 
 	// Paso 2: datos y relaciones.
 	const pendingKeys = new Set(
 		[...results.values()].filter((x) => x.action === 'pending').map((x) => x.key)
 	);
+	/**
+	 * @typedef {{ r: TagRecord, obj: { id: number, version: number }, hash: string,
+	 *   action: TagImportAction, base: { id: number }, lost: string[],
+	 *   edges: Record<string, import('../objects/edges.js').EdgeInput[]> }} TagUpdate
+	 */
+	/** @param {TagUpdate} u */
+	const updateInput = (u) => ({
+		input: {
+			id: u.obj.id,
+			type: TAG_TYPE,
+			version: u.obj.version,
+			title: u.r.title,
+			data: { key: u.r.key, ...u.r.data },
+			edges: u.edges
+		},
+		also: () => [
+			db
+				.prepare(
+					`UPDATE tag_sources SET source_hash = ?2, imported_version = ?3, updated_at = ?4
+					WHERE tag_id = ?1`
+				)
+				.bind(u.obj.id, u.hash, u.obj.version + 1, now)
+		]
+	});
+	/** @param {TagUpdate} u @param {import('../objects/read.js').StoredObject} saved */
+	const updated = (u, saved) => {
+		u.obj.version = saved.version;
+		report(u.r, u.action, {
+			...u.base,
+			warnings: u.lost.map((k) => `«${k}» no está en la base (borrada o falta): sin esa relación`)
+		});
+	};
+	/** De a una, como siempre (también la vuelta de una tanda que no entró). @param {TagUpdate} u */
+	const updateOne = async (u) => {
+		try {
+			const { input, also } = updateInput(u);
+			updated(u, await saveObject(db, input, { actor, now, also }));
+		} catch (error) {
+			report(u.r, 'error', { ...u.base, message: describeError(error) });
+		}
+	};
+	/** @type {TagUpdate[]} */
+	let toUpdate = [];
+	const flushUpdates = async () => {
+		const items = toUpdate;
+		toUpdate = [];
+		if (!items.length) return;
+		const saved = items.length > 1 ? await trySaveAll(items.map(updateInput)) : null;
+		if (saved) {
+			items.forEach((u, i) => updated(u, saved[i]));
+			return;
+		}
+		for (const u of items) await updateOne(u);
+	};
 	for (const r of records) {
 		if (results.has(r.key)) continue;
 		const src = state.sources.get(r.key);
@@ -270,40 +373,11 @@ export async function importTags(
 			report(r, 'pending', base);
 			continue;
 		}
-		try {
-			writes++;
-			const saved = await saveObject(
-				db,
-				{
-					id: obj.id,
-					type: TAG_TYPE,
-					version: obj.version,
-					title: r.title,
-					data: { key: r.key, ...r.data },
-					edges
-				},
-				{
-					actor,
-					now,
-					also: () => [
-						db
-							.prepare(
-								`UPDATE tag_sources SET source_hash = ?2, imported_version = ?3, updated_at = ?4
-								WHERE tag_id = ?1`
-							)
-							.bind(obj.id, hash, obj.version + 1, now)
-					]
-				}
-			);
-			obj.version = saved.version;
-			report(r, action, {
-				...base,
-				warnings: lost.map((k) => `«${k}» no está en la base (borrada o falta): sin esa relación`)
-			});
-		} catch (error) {
-			report(r, 'error', { ...base, message: describeError(error) });
-		}
+		writes++;
+		toUpdate.push({ r, obj, hash, action, base, lost, edges });
+		if (toUpdate.length >= chunk) await flushUpdates();
 	}
+	await flushUpdates();
 
 	const list = records.map((r) => /** @type {TagImportResult} */ (results.get(r.key)));
 	return { results: list, warnings, pending: list.filter((r) => r.action === 'pending').length };

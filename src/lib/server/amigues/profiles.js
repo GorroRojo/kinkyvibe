@@ -13,6 +13,9 @@
  *   aprobados que quien mira puede ver; quienes gestionan no se muestran nunca;
  * - **lista blanca de campos**: las páginas reciben {@link publicProfile}, nunca el objeto entero
  *   (ni `created_by`, ni el contacto, ni la dirección de un lugar más allá de su nivel).
+ *
+ * «Se muestra al público» (las listas, los integrantes, el lugar de un evento) es UNA regla:
+ * {@link shownProfileWhere} en SQL e {@link isShownProfile} con el objeto ya leído.
  */
 import { getEdges, getObject, ANON } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, forViewer, rowToObject } from '$lib/server/objects/read.js';
@@ -38,6 +41,45 @@ export function viewerFor(locals) {
 	if (locals.user && isAdmin(locals.user)) return { role: 'admin', id: locals.user.login };
 	if (locals.member) return memberViewer(locals.member.id);
 	return ANON;
+}
+
+/**
+ * La parte propia de los perfiles de «se muestra al público», sin quién mira: no está oculto
+ * (`hidden`: tampoco para admins; para eso está el panel) y está aprobado (fila en
+ * `profile_approvals`). Para una consulta que ya filtra por visibilidad (como las listas de
+ * src/lib/server/contenido/posts.js); si no, {@link shownProfileWhere}.
+ *
+ * @param {string} [alias] nombre o alias de la tabla `objects` en la consulta
+ */
+export function shownProfileSql(alias = 'o') {
+	if (!/^[a-z_][a-z0-9_]*$/i.test(alias)) throw new Error(`alias inválido: ${alias}`);
+	return `(${alias}.visibility != 'hidden' AND EXISTS (SELECT 1 FROM profile_approvals shown_pa WHERE shown_pa.profile_id = ${alias}.id))`;
+}
+
+/**
+ * «Se muestra al público», como condición SQL: quien mira lo puede ver (`visibleWhere`), no está
+ * oculto y está aprobado. Es la misma regla que {@link isShownProfile}. Usa `?` sin número, como
+ * `visibleWhere`.
+ *
+ * @param {Viewer} viewer
+ * @param {string} [alias] nombre o alias de la tabla `objects` en la consulta
+ * @returns {{ sql: string, params: string[] }}
+ */
+export function shownProfileWhere(viewer, alias = 'o') {
+	const visible = visibleWhere(viewer, alias);
+	return { sql: `(${visible.sql} AND ${shownProfileSql(alias)})`, params: visible.params };
+}
+
+/**
+ * «Se muestra al público» con lo ya leído: `seen` es el perfil como lo ve quien mira (`getObject`,
+ * `getEdges` o `canSee`; `null` si no lo puede ver) y `approved`, si tiene fila en
+ * `profile_approvals`. La misma regla que {@link shownProfileWhere}.
+ *
+ * @param {{ visibility: string } | null | undefined} seen
+ * @param {boolean} approved
+ */
+export function isShownProfile(seen, approved) {
+	return Boolean(seen) && seen?.visibility !== 'hidden' && approved === true;
 }
 
 /** @param {StoredObject} o @param {string | null} legacySlug */
@@ -156,21 +198,20 @@ export async function findPublicProfile(db, urlSlug, viewer, { accountId } = {})
  * @returns {Promise<{ object: StoredObject, legacySlug: string | null }[]>}
  */
 export async function listPublicProfiles(db, viewer, { kind, unlisted = false } = {}) {
-	const visible = visibleWhere(viewer, 'o');
+	const shown = shownProfileWhere(viewer, 'o');
 	const cols = OBJECT_COLUMNS.split(', ')
 		.map((c) => `o.${c}`)
 		.join(', ');
-	// Solo `?` sin número: visibleWhere agrega los suyos en el medio.
+	// Solo `?` sin número: shownProfileWhere agrega los suyos en el medio.
 	const { results } = await db
 		.prepare(
 			`SELECT ${cols}, s.legacy_slug AS legacy_slug FROM objects o
-			JOIN profile_approvals pa ON pa.profile_id = o.id
 			LEFT JOIN profile_sources s ON s.profile_id = o.id
-			WHERE o.type = ? AND ${visible.sql} AND o.visibility != 'hidden'
+			WHERE o.type = ? AND ${shown.sql}
 			AND COALESCE(json_extract(o.data, '$.unlisted'), 0) = ${unlisted ? 1 : 0}
 			ORDER BY o.title COLLATE NOCASE, o.id LIMIT 1000`
 		)
-		.bind(PROFILE_TYPE, ...visible.params)
+		.bind(PROFILE_TYPE, ...shown.params)
 		.all();
 	// El tipo se filtra con profileKindOf() (lee el viejo `grupo` como proyecto y lo desconocido
 	// como persona), no en el SQL.
@@ -231,9 +272,7 @@ export async function importedLegacySlugs(db) {
 export async function groupMembers(db, group, viewer) {
 	if (profileKindOf(group.data) !== 'proyecto' || group.data.show_members !== true) return null;
 	const edges = await getEdges(db, group.id, viewer, { direction: 'in', kind: MEMBER_EDGE });
-	const people = edges
-		.map((e) => e.object)
-		.filter((o) => profileKindOf(o.data) === 'persona' && o.visibility !== 'hidden');
+	const people = edges.map((e) => e.object).filter((o) => profileKindOf(o.data) === 'persona');
 	if (!people.length) return [];
 	const ids = people.map((o) => o.id);
 	const { results } = await db
@@ -248,8 +287,9 @@ export async function groupMembers(db, group, viewer) {
 	const approved = new Map(
 		results.map((r) => [Number(r.profile_id), r.legacy_slug == null ? null : String(r.legacy_slug)])
 	);
+	// `getEdges` ya filtró por quien mira: falta el resto de «se muestra al público».
 	return people
-		.filter((o) => approved.has(o.id))
+		.filter((o) => isShownProfile(o, approved.has(o.id)))
 		.map((o) => ({ slug: urlSlugOf(o, approved.get(o.id) ?? null), title: o.title }))
 		.sort((a, b) => a.title.localeCompare(b.title, 'es'));
 }

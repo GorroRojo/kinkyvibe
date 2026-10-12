@@ -218,8 +218,9 @@ export function searchEvents(events, q, { limit = 6, ticketed = new Set(), tags 
 export const eventTabsLabel = (title) => `En «${title}»`;
 
 /**
- * Atajos a las pestañas de un evento (el primero que encontró el buscador): Puerta, Órdenes,
- * Mail a compradores y Ventas si vende entradas, y Duplicar siempre (cargar uno nuevo a partir
+ * Atajos a las pestañas de un evento (el primero que encontró el buscador): Puerta,
+ * Ventas › Órdenes, Mails › Mandar un aviso y Ventas si vende entradas (con los nombres de la
+ * barra de la ficha, `EVENT_TABS` en nav.js), y Duplicar siempre (cargar uno nuevo a partir
  * de este, `/admin/eventos/nuevo?desde=`).
  *
  * Con `tab` (`e:latex puerta`), solo esa pestaña, marcada como `exact` (va arriba de todo).
@@ -233,8 +234,8 @@ export function eventTabActions(e, { tickets = false, tab = null } = {}) {
 	const tabs = tickets
 		? [
 				['ingreso', 'scan', 'Puerta', 'control de ingreso'],
-				['ordenes', 'order', 'Órdenes', 'compras de este evento'],
-				['mail', 'mail', 'Mail a compradores', 'mandar un mail a quienes compraron'],
+				['ordenes', 'order', 'Ventas › Órdenes', 'compras de este evento'],
+				['mail', 'mail', 'Mails › Mandar un aviso', 'mandar un mail a quienes compraron'],
 				['ventas', 'wallet', 'Ventas', 'resumen de ventas']
 			]
 		: [];

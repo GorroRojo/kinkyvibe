@@ -66,6 +66,7 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
 - `status: cancelado` o `status: agotadas` cierran la venta.
 - **Cantidad:** un stepper compacto **− n +** al lado de la etiqueta (botones de 42 px, cómodos para el dedo; también se puede tipear), de 1 a `min(disponibles, 20)`: cada entrada lleva su bloque de datos y con más el formulario se vuelve inmanejable en el celu. El servidor rechaza más de 20. Cada entrada tiene su propio QR y su código corto.
 - `transferencia` solo aparece si además hay datos para transferir (en **Ajustes de venta** o, si ahí está vacío, en `TICKETS_TRANSFER_INFO`); `mercadopago`, si hay `MP_ACCESS_TOKEN` (o el mock en dev). Para que no pase en silencio, si un evento tiene tildada «Transferencia» y no hay datos, el editor de eventos (sección Entradas) y el **Inicio** del panel (en «Para revisar», para los eventos que vienen y no están cancelados) avisan «Activaste transferencia pero faltan los datos en Ajustes → Cobros: por ahora no se ofrece», con link a `/admin/ajustes/cobros`. Solo reciben sí/no (`transferReady` / `transferReadyFromSettings` en `src/lib/server/tickets/index.js`), nunca los datos.
+- En la página del evento, un evento sin `tickets` muestra el `link` después del texto con el mismo botón grande que «Comprar entradas» (`BotonCompra.svelte`); si es un link web, se abre en otra pestaña y dice «Se abre en <sitio>».
 - En la página del evento, un evento con `tickets` no muestra el botón de inscripción del `link` (sigue al final del texto si tiene `link_text`): **después del texto** («De qué se trata»: el texto se lee antes de comprar, maqueta final de gorrite) hay un botón grande **Comprar entradas** (`src/lib/components/evento/Compra.svelte`) con el precio "desde" (con el fondo aplicado; "a la gorra" si hay tipos a la gorra) y cuántas quedan si son pocas, que lleva a la página de compra.
 - **Cuántas quedan, en público:** solo se muestra un número cuando un tipo **con cupo** tiene **menos de 10** disponibles ("Quedan 7", "¡Últimas 3!", "¡Última!"; `publicLeft`/`leftText` en `src/lib/utils/tickets.js`); si no, no se muestra ni el cupo ni lo vendido. En el botón de la página del evento, solo si todos los tipos a la venta tienen cupo y entre todos quedan menos de 10. Agotado sigue diciendo "Agotada". La página de compra recibe por tipo `available` acotado a 20 (lo que se puede comprar de una vez), no el cupo real.
 - **Sin cupo** (sin `capacity`): el tipo no se agota nunca. La reserva online, la venta en la puerta y la confirmación de transferencias vencidas no controlan cupo para ese tipo (`?N IS NULL OR …` en la misma sentencia); un pago aprobado tarde no queda "para revisar" por cupo; el admin muestra "vendidas (sin cupo)". `capacity: 0` sí es un cupo (agotado).
@@ -409,7 +410,9 @@ confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas 
 - **«Para revisar»:** una fila con los mails de la lista que no salieron después de 3 intentos
   (`waitlist_sends.status = 'failed'`), que lleva a la pestaña del evento (ahí «Volver a probar»).
 - **Tarjetas de las listas de eventos** (`listStates.js`): restan la fila como la página del
-  evento (una consulta más para todos los eventos con lista).
+  evento (una consulta más para todos los eventos con lista). La configuración de la venta de
+  todos los eventos de la lista sale en una tanda (`getEventTicketsMany` en `events.js`: los
+  eventos y cuáles tienen lugar, dos consultas para toda la lista; antes, dos por tarjeta).
 - **En la compra, por tipo:** cada tipo agotado con lista dice «Agotadas · Anotate en la lista de
   espera», que baja al formulario con ese tipo elegido.
 

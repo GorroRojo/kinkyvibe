@@ -34,7 +34,8 @@ import { siteWikiBodies, siteWikiPosts } from '$lib/server/wiki/site.js';
  *   json: string,
  *   posts: readonly ProcessedPost[],
  *   wikiPosts: readonly ProcessedPost[],
- *   profiles: readonly import('./siteIndex.js').IndexProfile[] | null
+ *   profiles: readonly import('./siteIndex.js').IndexProfile[] | null,
+ *   tags: TagManager
  * }} BuiltIndex
  */
 
@@ -127,6 +128,8 @@ async function buildIndex(tagManager, platform, { profiles }) {
 		json: JSON.stringify(raw),
 		posts,
 		wikiPosts,
-		profiles: profileList ? [...profileList, ...venues] : null
+		profiles: profileList ? [...profileList, ...venues] : null,
+		// El árbol con el que se armó (el bot recorre la Kinkipedia por ramas).
+		tags: tagManager
 	};
 }

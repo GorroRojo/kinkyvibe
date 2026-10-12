@@ -19,6 +19,7 @@ import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/in
 import { readOverride } from '$lib/server/tickets/overrides.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
+import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
@@ -107,6 +108,15 @@ export const actions = {
 				slug: r.order.event_slug,
 				step: 'aprobada',
 				method: 'transferencia'
+			});
+			// «Cada venta» por Telegram a les admins que lo prendieron (decisión 0041; nunca tira).
+			await queueOrderNotice({
+				db,
+				platform,
+				kind: 'cada_venta',
+				order: r.order,
+				origin: siteOrigin(url),
+				fetch
 			});
 		}
 		const body = {

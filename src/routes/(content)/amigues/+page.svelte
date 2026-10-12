@@ -100,7 +100,7 @@
 {/if}
 
 {#key tipo}
-	<PostList posts={shownPosts} />
+	<PostList heading="Todos los perfiles" posts={shownPosts} />
 {/key}
 
 <style lang="scss">

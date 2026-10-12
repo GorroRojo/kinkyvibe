@@ -11,6 +11,7 @@ import {
 	materialType,
 	organizationSchema,
 	profileSchema,
+	tagTermSchema,
 	wikiTermSchema
 } from './jsonLd.js';
 import { jsonForScript } from './escape.js';
@@ -232,6 +233,26 @@ describe('Kinkipedia', () => {
 	});
 	it('sin entrada, nada', () => {
 		expect(wikiTermSchema({ title: undefined, path: '/wiki/x' })).toBeNull();
+	});
+	it('una etiqueta sin entrada pero con descripción: DefinedTerm con la descripción en texto', () => {
+		const t = roundTrip(
+			tagTermSchema({
+				title: 'Etiqueta Inventada',
+				description: 'Se usa con [[cuerdas]] o [[Bondage:ataduras]]\n en general.',
+				path: '/wiki/Etiqueta-Inventada',
+				aka: ['inventada']
+			})
+		);
+		expect(t['@type']).toBe('DefinedTerm');
+		expect(t.name).toBe('Etiqueta Inventada');
+		expect(t.description).toBe('Se usa con cuerdas o ataduras en general.');
+		expect(t.url).toBe('https://kinkyvibe.ar/wiki/Etiqueta-Inventada');
+		expect(t.alternateName).toEqual(['inventada']);
+		expect(t.inDefinedTermSet['@type']).toBe('DefinedTermSet');
+	});
+	it('una etiqueta sin descripción (o vacía), nada', () => {
+		expect(tagTermSchema({ title: 'X', path: '/wiki/X' })).toBeNull();
+		expect(tagTermSchema({ title: 'X', description: '  ', path: '/wiki/X' })).toBeNull();
 	});
 });
 
