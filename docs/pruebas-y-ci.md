@@ -12,8 +12,8 @@ PR no entra hasta arreglarlo. Y además, nadie mergea sin que gorrite lo apruebe
 
 ## Qué corre en cada PR
 
-Todo lo de GitHub Actions está en un solo archivo, `.github/workflows/ci.yml` (no hay otros
-workflows). Corre en cada pull request (también cuando se edita su descripción, por el job
+Lo de GitHub Actions que corre en cada PR está en un solo archivo, `.github/workflows/ci.yml`
+(el único otro workflow es el vigilante del repaso, ver abajo, que no corre en PRs). Corre en cada pull request (también cuando se edita su descripción, por el job
 `plan-pr`) y en cada push a `main`, con permiso de solo lectura sobre el repo (`permissions:
 contents: read`). Si pusheás de nuevo a la misma rama o editás la descripción, la corrida anterior
 se cancela (`concurrency`) y vuelve a correr todo. Los jobs de prueba corren en paralelo, usan
@@ -64,6 +64,18 @@ PR, se mergean solo con la aprobación de gorrite.
 Dependabot regenera `package-lock.json` desde cero, y ahí se caen los peers opcionales. Por eso
 `@types/node` (de la versión mayor de `.node-version`) es una devDependency explícita: sin ella,
 svelte-check deja de encontrar `process` y `node:fs` en los tests y el ratchet falla.
+
+**Vigilante del repaso semanal** (`.github/workflows/repaso-vigilante.yml`, ítem
+`plan-repaso-semanal` de [plan.md](plan.md)): no corre en PRs sino todos los días a las 04:23 UTC
+(y a mano desde la pestaña Actions, «Run workflow»), así que no está en los `needs` de `ci-ok`.
+Sin Claude, mira si hay algún PR con la etiqueta `repaso-semanal` creado en los últimos 8 días
+(la rutina de Claude de los lunes lo abre siempre). Si no hay, abre el issue «El repaso semanal
+del plan no corrió» con esa etiqueta, salvo que ya haya uno abierto; si vuelve a haber un PR de
+repaso y el issue sigue abierto, lo cierra con un comentario. Permisos: `contents: read`,
+`issues: write`, `pull-requests: read`. La etiqueta `repaso-semanal` la crea el vigilante la
+primera vez que abre el issue si todavía no existe (también se puede crear a mano en Issues →
+Labels). La lógica está en `scripts/repaso-vigilante.js` (la decisión es una función pura, con
+pruebas en `scripts/repaso-vigilante.test.js`).
 
 `ci-ok` existe para que la protección de `main` pida un solo chequeo: si alguien agrega un job a
 `ci.yml`, lo suma a los `needs` de `ci-ok` y listo, sin tocar la configuración de GitHub.
