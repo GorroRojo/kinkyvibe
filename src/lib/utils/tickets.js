@@ -4,6 +4,8 @@
  */
 import { argDateParts, argDayMonth, argDeadline, argTime } from './dates.js';
 import { transferRuleText } from './transferDeadline.js';
+import { formatARS } from './money.js';
+import { doorPrice } from './ticketTiers.js';
 
 /**
  * Cuántos bloques de datos por entrada se muestran como máximo en el formulario. No es un
@@ -54,16 +56,46 @@ export function leftText(n) {
  * Qué dice la página pública sobre las entradas en la puerta (`door` de la configuración:
  * `puerta` / `puerta_precio`). `null` (nada) en los eventos online y en los que no tienen
  * `puerta` en el frontmatter (los de antes: se sigue vendiendo en la puerta, sin aviso).
+ * El precio: la nota `puerta_precio` si la hay (manda, es lo que dice el editor que se muestra);
+ * si no, `typesPrice`, el que sale del «Precio en puerta» de los tipos ({@link doorPricesText}).
  *
- * @param {{ on: boolean, explicit?: boolean, price: string } | null | undefined} door
+ * @param {{ on: boolean, explicit?: boolean, price: string, typesPrice?: string }
+ *   | null | undefined} door
  * @returns {string | null}
  */
 export function doorText(door) {
 	if (!door || !door.explicit) return null;
 	if (!door.on) return 'Solo anticipadas: no hay entradas en la puerta.';
-	return door.price
-		? `También hay entradas en la puerta: ${door.price}.`
+	const price = door.price || door.typesPrice;
+	return price
+		? `También hay entradas en la puerta: ${price}.`
 		: 'También hay entradas en la puerta.';
+}
+
+/**
+ * El precio en la puerta para la página pública, sacado de los tipos con `doorPrice` (el mismo
+ * que cobran la puerta y la carga a mano, así no pueden decir cosas distintas): un solo precio,
+ * «$ 12.000»; varios, «desde $ 10.000»; los tipos a la gorra suman «a la gorra» («$ 12.000 o a
+ * la gorra», o solo «a la gorra»). Un único precio 0 (`door_price: 0`), «sin cargo». Sin tipos, ''.
+ *
+ * @param {Parameters<typeof doorPrice>[0][]} types
+ * @returns {string}
+ */
+export function doorPricesText(types) {
+	const prices = [
+		...new Set(types.flatMap((t) => (t.gorra ? [] : [doorPrice(t)?.price ?? t.price])))
+	];
+	const gorra = types.some((t) => t.gorra);
+	const fixed =
+		prices.length === 0
+			? ''
+			: prices.length > 1
+				? `desde ${formatARS(Math.min(...prices))}`
+				: prices[0] === 0
+					? 'sin cargo'
+					: formatARS(prices[0]);
+	if (!gorra) return fixed;
+	return fixed ? `${fixed} o a la gorra` : 'a la gorra';
 }
 
 /** Medios de pago que puede habilitar un evento en su frontmatter. */
