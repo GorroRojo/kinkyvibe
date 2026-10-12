@@ -1371,6 +1371,670 @@
 			]
 		]
 	},
+	"sitio: buscar privado": {
+		"text": "🔎 Escribí qué buscás: un evento, un tema, una persona o un proyecto, un lugar… Respondé a este mensaje.",
+		"keyboard": [
+			[
+				{
+					"text": "Cancelar",
+					"callback_data": "sx"
+				}
+			]
+		],
+		"forceReply": true
+	},
+	"sitio: buscar grupo": {
+		"text": "Para buscar acá, escribí /buscar y lo que buscás, por ejemplo: /buscar cuerdas",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"sitio: resultados vacío": {
+		"text": "No encontré nada para «algo &lt;raro&gt;» en el sitio. Probá con otra palabra.",
+		"keyboard": [
+			[
+				{
+					"text": "🔎 Buscar otra cosa",
+					"callback_data": "s"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"sitio: resultados uno": {
+		"text": "<b>Encontré esto para «guía»</b>\n\n📚 <a href=\"https://ejemplo.test/material/guia-de-cuerdas\">Guía de cuerdas</a>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;",
+		"keyboard": [
+			[
+				{
+					"text": "📚 Guía de cuerdas",
+					"callback_data": "r:rqsubm:0:guía"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar otra cosa",
+					"callback_data": "s"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"sitio: resultados pag 0": {
+		"text": "<b>Encontré 8 para «cuerdas»</b> · 1/2\n\n📅 <a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n\n📅 <a href=\"https://ejemplo.test/calendario/cuerdas-pasadas\">Cuerdas pasadas</a>\n<tg-time unix=\"1894320000\" format=\"wdt\">jue 10 ene 2030 · 21:00</tg-time>\n\n📚 <a href=\"https://ejemplo.test/material/guia-de-cuerdas\">Guía de cuerdas</a>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;\n\n📚 <a href=\"https://ejemplo.test/material/cuerdas-sin-resumen\">Cuerdas sin resumen</a>\nMaterial\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas\">🪢 Cuerdas</a>\nAtar con cuerdas",
+		"keyboard": [
+			[
+				{
+					"text": "📅 Taller de cuerdas",
+					"callback_data": "r:1yjwuuv:0:cuerdas"
+				}
+			],
+			[
+				{
+					"text": "📅 Cuerdas pasadas",
+					"callback_data": "r:fv9ch2:0:cuerdas"
+				}
+			],
+			[
+				{
+					"text": "📚 Guía de cuerdas",
+					"callback_data": "r:rqsubm:0:cuerdas"
+				}
+			],
+			[
+				{
+					"text": "📚 Cuerdas sin resumen",
+					"callback_data": "r:1an49qo:0:cuerdas"
+				}
+			],
+			[
+				{
+					"text": "📖 Cuerdas",
+					"callback_data": "r:hkhwdo:0:cuerdas"
+				}
+			],
+			[
+				{
+					"text": "1/2",
+					"disabled": {}
+				},
+				{
+					"text": "›",
+					"callback_data": "q:1:cuerdas"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar otra cosa",
+					"callback_data": "s"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"sitio: resultados pag 1": {
+		"text": "<b>Encontré 8 para «cuerdas»</b> · 2/2\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas-sin-resumen\">Nudos de cuerdas</a>\nKinkipedia\n\n👥 <a href=\"https://ejemplo.test/amigues/persona-de-cuerdas\">Persona de cuerdas</a>\nProyecto · Da talleres\n\n📖 <a href=\"https://ejemplo.test/wiki/noche-de-cuerdas\">🌙 Noche de cuerdas</a>\nSerie de eventos",
+		"keyboard": [
+			[
+				{
+					"text": "📖 Nudos de cuerdas",
+					"callback_data": "r:1kxla9p:1:cuerdas"
+				}
+			],
+			[
+				{
+					"text": "👥 Persona de cuerdas",
+					"callback_data": "r:pekj4o:1:cuerdas"
+				}
+			],
+			[
+				{
+					"text": "📖 Noche de cuerdas",
+					"callback_data": "r:l5fgdi:1:cuerdas"
+				}
+			],
+			[
+				{
+					"text": "‹",
+					"callback_data": "q:0:cuerdas"
+				},
+				{
+					"text": "2/2",
+					"disabled": {}
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar otra cosa",
+					"callback_data": "s"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"sitio: tarjeta 0 calendario": {
+		"text": "<b>📅 Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>",
+		"keyboard": [
+			[
+				{
+					"text": "Ver en el sitio",
+					"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "q:0:cuerdas"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"sitio: tarjeta 0 sin https": {
+		"text": "<b>📅 Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n\n<a href=\"http://localhost/calendario/taller-de-cuerdas\">Ver en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"inline: descripción 0": "vie 10 ene · 21:00",
+	"inline: artículo 0": {
+		"type": "article",
+		"id": "0",
+		"title": "Taller de cuerdas",
+		"description": "vie 10 ene · 21:00",
+		"input_message_content": {
+			"message_text": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>",
+			"parse_mode": "HTML",
+			"link_preview_options": {
+				"url": "https://kinkyvibe.ar/calendario/taller-de-cuerdas",
+				"prefer_large_media": true,
+				"show_above_text": true
+			}
+		},
+		"reply_markup": {
+			"inline_keyboard": [
+				[
+					{
+						"text": "Ver en el sitio",
+						"url": "https://kinkyvibe.ar/calendario/taller-de-cuerdas"
+					}
+				]
+			]
+		}
+	},
+	"sitio: tarjeta 1 calendario": {
+		"text": "<b>📅 Cuerdas pasadas</b>\n📅 <tg-time unix=\"1894320000\" format=\"wdt\">jue 10 ene 2030 · 21:00</tg-time>",
+		"keyboard": [
+			[
+				{
+					"text": "Ver en el sitio",
+					"url": "https://ejemplo.test/calendario/cuerdas-pasadas"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "q:0:cuerdas"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"sitio: tarjeta 1 sin https": {
+		"text": "<b>📅 Cuerdas pasadas</b>\n📅 <tg-time unix=\"1894320000\" format=\"wdt\">jue 10 ene 2030 · 21:00</tg-time>\n\n<a href=\"http://localhost/calendario/cuerdas-pasadas\">Ver en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"inline: descripción 1": "jue 10 ene 2030 · 21:00",
+	"inline: artículo 1": {
+		"type": "article",
+		"id": "1",
+		"title": "Cuerdas pasadas",
+		"description": "jue 10 ene 2030 · 21:00",
+		"input_message_content": {
+			"message_text": "<b>Cuerdas pasadas</b>\n📅 <tg-time unix=\"1894320000\" format=\"wdt\">jue 10 ene 2030 · 21:00</tg-time>",
+			"parse_mode": "HTML",
+			"link_preview_options": {
+				"url": "https://kinkyvibe.ar/calendario/cuerdas-pasadas",
+				"prefer_large_media": true,
+				"show_above_text": true
+			}
+		},
+		"reply_markup": {
+			"inline_keyboard": [
+				[
+					{
+						"text": "Ver en el sitio",
+						"url": "https://kinkyvibe.ar/calendario/cuerdas-pasadas"
+					}
+				]
+			]
+		}
+	},
+	"sitio: tarjeta 2 material": {
+		"text": "<b>📚 Guía de cuerdas</b>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;",
+		"keyboard": [
+			[
+				{
+					"text": "Ver en el sitio",
+					"url": "https://ejemplo.test/material/guia-de-cuerdas"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "q:0:cuerdas"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		],
+		"photo": "https://kinkyvibe.ar/cdn-cgi/image/width=480,format=jpeg,quality=80/media/img/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.webp"
+	},
+	"sitio: tarjeta 2 sin https": {
+		"text": "<b>📚 Guía de cuerdas</b>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;\n\n<a href=\"http://localhost/material/guia-de-cuerdas\">Ver en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		],
+		"photo": "https://kinkyvibe.ar/cdn-cgi/image/width=480,format=jpeg,quality=80/media/img/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.webp"
+	},
+	"inline: descripción 2": "Cómo atar <sin apuro> & con \"cuidado\"",
+	"inline: artículo 2": {
+		"type": "article",
+		"id": "2",
+		"title": "Guía de cuerdas",
+		"description": "Cómo atar <sin apuro> & con \"cuidado\"",
+		"input_message_content": {
+			"message_text": "<b>Guía de cuerdas</b>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;",
+			"parse_mode": "HTML",
+			"link_preview_options": {
+				"url": "https://kinkyvibe.ar/material/guia-de-cuerdas",
+				"prefer_large_media": true,
+				"show_above_text": true
+			}
+		},
+		"reply_markup": {
+			"inline_keyboard": [
+				[
+					{
+						"text": "Ver en el sitio",
+						"url": "https://kinkyvibe.ar/material/guia-de-cuerdas"
+					}
+				]
+			]
+		},
+		"thumbnail_url": "https://kinkyvibe.ar/cdn-cgi/image/width=160,height=160,fit=cover,format=jpeg,quality=75/media/img/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.webp",
+		"thumbnail_width": 160,
+		"thumbnail_height": 160
+	},
+	"sitio: tarjeta 3 material": {
+		"text": "<b>📚 Cuerdas sin resumen</b>\nMaterial",
+		"keyboard": [
+			[
+				{
+					"text": "Ver en el sitio",
+					"url": "https://ejemplo.test/material/cuerdas-sin-resumen"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "q:0:cuerdas"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"sitio: tarjeta 3 sin https": {
+		"text": "<b>📚 Cuerdas sin resumen</b>\nMaterial\n\n<a href=\"http://localhost/material/cuerdas-sin-resumen\">Ver en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"inline: descripción 3": "Material",
+	"inline: artículo 3": {
+		"type": "article",
+		"id": "3",
+		"title": "Cuerdas sin resumen",
+		"description": "Material",
+		"input_message_content": {
+			"message_text": "<b>Cuerdas sin resumen</b>\nMaterial",
+			"parse_mode": "HTML",
+			"link_preview_options": {
+				"url": "https://kinkyvibe.ar/material/cuerdas-sin-resumen",
+				"prefer_large_media": true,
+				"show_above_text": true
+			}
+		},
+		"reply_markup": {
+			"inline_keyboard": [
+				[
+					{
+						"text": "Ver en el sitio",
+						"url": "https://kinkyvibe.ar/material/cuerdas-sin-resumen"
+					}
+				]
+			]
+		}
+	},
+	"sitio: tarjeta 4 wiki": {
+		"text": "<b>📖 🪢 Cuerdas</b>\nAtar con cuerdas",
+		"keyboard": [
+			[
+				{
+					"text": "Ver en el sitio",
+					"url": "https://ejemplo.test/wiki/cuerdas"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "q:0:cuerdas"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"sitio: tarjeta 4 sin https": {
+		"text": "<b>📖 🪢 Cuerdas</b>\nAtar con cuerdas\n\n<a href=\"http://localhost/wiki/cuerdas\">Ver en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"inline: descripción 4": "Atar con cuerdas",
+	"inline: artículo 4": {
+		"type": "article",
+		"id": "4",
+		"title": "🪢 Cuerdas",
+		"description": "Atar con cuerdas",
+		"input_message_content": {
+			"message_text": "<b>🪢 Cuerdas</b>\nAtar con cuerdas",
+			"parse_mode": "HTML",
+			"link_preview_options": {
+				"url": "https://kinkyvibe.ar/wiki/cuerdas",
+				"prefer_large_media": true,
+				"show_above_text": true
+			}
+		},
+		"reply_markup": {
+			"inline_keyboard": [
+				[
+					{
+						"text": "Ver en el sitio",
+						"url": "https://kinkyvibe.ar/wiki/cuerdas"
+					}
+				]
+			]
+		}
+	},
+	"sitio: tarjeta 5 wiki": {
+		"text": "<b>📖 Nudos de cuerdas</b>\nKinkipedia",
+		"keyboard": [
+			[
+				{
+					"text": "Ver en el sitio",
+					"url": "https://ejemplo.test/wiki/cuerdas-sin-resumen"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "q:0:cuerdas"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"sitio: tarjeta 5 sin https": {
+		"text": "<b>📖 Nudos de cuerdas</b>\nKinkipedia\n\n<a href=\"http://localhost/wiki/cuerdas-sin-resumen\">Ver en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"inline: descripción 5": "Kinkipedia",
+	"inline: artículo 5": {
+		"type": "article",
+		"id": "5",
+		"title": "Nudos de cuerdas",
+		"description": "Kinkipedia",
+		"input_message_content": {
+			"message_text": "<b>Nudos de cuerdas</b>\nKinkipedia",
+			"parse_mode": "HTML",
+			"link_preview_options": {
+				"url": "https://kinkyvibe.ar/wiki/cuerdas-sin-resumen",
+				"prefer_large_media": true,
+				"show_above_text": true
+			}
+		},
+		"reply_markup": {
+			"inline_keyboard": [
+				[
+					{
+						"text": "Ver en el sitio",
+						"url": "https://kinkyvibe.ar/wiki/cuerdas-sin-resumen"
+					}
+				]
+			]
+		}
+	},
+	"sitio: tarjeta 6 amigues": {
+		"text": "<b>👥 Persona de cuerdas</b>\nProyecto · Da talleres",
+		"keyboard": [
+			[
+				{
+					"text": "Ver en el sitio",
+					"url": "https://ejemplo.test/amigues/persona-de-cuerdas"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "q:0:cuerdas"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"sitio: tarjeta 6 sin https": {
+		"text": "<b>👥 Persona de cuerdas</b>\nProyecto · Da talleres\n\n<a href=\"http://localhost/amigues/persona-de-cuerdas\">Ver en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"inline: descripción 6": "Proyecto · Da talleres",
+	"inline: artículo 6": {
+		"type": "article",
+		"id": "6",
+		"title": "Persona de cuerdas",
+		"description": "Proyecto · Da talleres",
+		"input_message_content": {
+			"message_text": "<b>Persona de cuerdas</b>\nProyecto · Da talleres",
+			"parse_mode": "HTML",
+			"link_preview_options": {
+				"url": "https://kinkyvibe.ar/amigues/persona-de-cuerdas",
+				"prefer_large_media": true,
+				"show_above_text": true
+			}
+		},
+		"reply_markup": {
+			"inline_keyboard": [
+				[
+					{
+						"text": "Ver en el sitio",
+						"url": "https://kinkyvibe.ar/amigues/persona-de-cuerdas"
+					}
+				]
+			]
+		}
+	},
+	"sitio: tarjeta 7 serie": {
+		"text": "<b>📖 🌙 Noche de cuerdas</b>\nSerie de eventos",
+		"keyboard": [
+			[
+				{
+					"text": "Ver en el sitio",
+					"url": "https://ejemplo.test/wiki/noche-de-cuerdas"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "q:0:cuerdas"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"sitio: tarjeta 7 sin https": {
+		"text": "<b>📖 🌙 Noche de cuerdas</b>\nSerie de eventos\n\n<a href=\"http://localhost/wiki/noche-de-cuerdas\">Ver en el sitio</a>",
+		"keyboard": [
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"inline: descripción 7": "Serie de eventos",
+	"inline: artículo 7": {
+		"type": "article",
+		"id": "7",
+		"title": "🌙 Noche de cuerdas",
+		"description": "Serie de eventos",
+		"input_message_content": {
+			"message_text": "<b>🌙 Noche de cuerdas</b>\nSerie de eventos",
+			"parse_mode": "HTML",
+			"link_preview_options": {
+				"url": "https://kinkyvibe.ar/wiki/noche-de-cuerdas",
+				"prefer_large_media": true,
+				"show_above_text": true
+			}
+		},
+		"reply_markup": {
+			"inline_keyboard": [
+				[
+					{
+						"text": "Ver en el sitio",
+						"url": "https://kinkyvibe.ar/wiki/noche-de-cuerdas"
+					}
+				]
+			]
+		}
+	},
+	"inline: tarjeta evento con venta": {
+		"text": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n📍 Lugar",
+		"keyboard": [
+			[
+				{
+					"text": "Ver en el sitio",
+					"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
+				},
+				{
+					"text": "🎟 Entradas",
+					"url": "https://ejemplo.test/calendario/taller-de-cuerdas/entradas"
+				}
+			]
+		]
+	},
+	"inline: tarjeta evento agotado": {
+		"text": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n🎟 Agotadas",
+		"keyboard": [
+			[
+				{
+					"text": "Ver en el sitio",
+					"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
+				}
+			]
+		]
+	},
+	"inline: tarjeta sin https": {
+		"text": "<b>Guía de cuerdas</b>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;\n<a href=\"http://localhost/material/guia-de-cuerdas\">Ver en el sitio</a>",
+		"keyboard": []
+	},
 	"entrega grupo botón": {
 		"steps": [
 			{
@@ -4005,6 +4669,1634 @@
 			"id": "cb",
 			"text": "Algo salió mal de nuestro lado. Probá de nuevo en un rato."
 		}
+	},
+	"router: sitio: /buscar": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "🔎 Escribí qué buscás: un evento, un tema, una persona o un proyecto, un lugar… Respondé a este mensaje.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Cancelar",
+								"callback_data": "sx"
+							}
+						]
+					],
+					"force_reply": true
+				}
+			}
+		]
+	},
+	"router: sitio: /buscar grupo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": -100,
+				"text": "Para buscar acá, escribí /buscar y lo que buscás, por ejemplo: /buscar cuerdas",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: sitio: /buscar cuerdas": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Encontré 8 para «cuerdas»</b> · 1/2\n\n📅 <a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n\n📖 <a href=\"https://ejemplo.test/wiki/noche-de-cuerdas\">🌙 Noche de cuerdas</a>\nSerie de eventos\n\n📚 <a href=\"https://ejemplo.test/material/cuerdas-sin-resumen\">Cuerdas sin resumen</a>\nMaterial\n\n📚 <a href=\"https://ejemplo.test/material/guia-de-cuerdas\">Guía de cuerdas</a>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;\n\n👥 <a href=\"https://ejemplo.test/amigues/persona-de-cuerdas\">Persona de cuerdas</a>\nProyecto · Da talleres",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📅 Taller de cuerdas",
+								"callback_data": "r:1yjwuuv:0:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "📖 Noche de cuerdas",
+								"callback_data": "r:l5fgdi:0:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "📚 Cuerdas sin resumen",
+								"callback_data": "r:1an49qo:0:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "📚 Guía de cuerdas",
+								"callback_data": "r:rqsubm:0:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "👥 Persona de cuerdas",
+								"callback_data": "r:pekj4o:0:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "1/2",
+								"disabled": {}
+							},
+							{
+								"text": "›",
+								"callback_data": "q:1:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar otra cosa",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: sitio: /buscar nada": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "No encontré nada para «zzzz &lt;x&gt;» en el sitio. Probá con otra palabra.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🔎 Buscar otra cosa",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: sitio: botón inicio": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Hoy",
+								"callback_data": "l:d:0",
+								"style": "primary"
+							},
+							{
+								"text": "Semana",
+								"callback_data": "l:w:0",
+								"style": "primary"
+							},
+							{
+								"text": "Finde",
+								"callback_data": "l:f:0",
+								"style": "primary"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "💗 Fondo",
+								"callback_data": "fo"
+							},
+							{
+								"text": "❓ Ayuda",
+								"callback_data": "a"
+							}
+						],
+						[
+							{
+								"text": "📅 Calendario",
+								"web_app": {
+									"url": "https://ejemplo.test/telegram/app"
+								}
+							},
+							{
+								"text": "Abrir ejemplo.test ↗",
+								"url": "https://ejemplo.test"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Hoy",
+								"callback_data": "l:d:0",
+								"style": "primary"
+							},
+							{
+								"text": "Semana",
+								"callback_data": "l:w:0",
+								"style": "primary"
+							},
+							{
+								"text": "Finde",
+								"callback_data": "l:f:0",
+								"style": "primary"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "💗 Fondo",
+								"callback_data": "fo"
+							},
+							{
+								"text": "❓ Ayuda",
+								"callback_data": "a"
+							}
+						],
+						[
+							{
+								"text": "📅 Calendario",
+								"web_app": {
+									"url": "https://ejemplo.test/telegram/app"
+								}
+							},
+							{
+								"text": "Abrir ejemplo.test ↗",
+								"url": "https://ejemplo.test"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: sitio: botón buscar": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "🔎 Escribí qué buscás: un evento, un tema, una persona o un proyecto, un lugar… Respondé a este mensaje.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Cancelar",
+								"callback_data": "sx"
+							}
+						]
+					],
+					"force_reply": true
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: sitio: botón buscar grupo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": -100,
+				"text": "Para buscar acá, escribí /buscar y lo que buscás, por ejemplo: /buscar cuerdas",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				},
+				"ephemeral_message_parameters": {
+					"receiver_user_id": 77,
+					"callback_query_id": "cb",
+					"replace_callback_query_message": true
+				}
+			}
+		],
+		"callback": {
+			"id": "cb",
+			"onFail": {
+				"text": "Abrí el bot por privado para ver esto.",
+				"url": "https://t.me/BotDePrueba?start=inicio"
+			}
+		}
+	},
+	"router: sitio: botón página": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>Encontré 8 para «cuerdas»</b> · 2/2\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas\">🪢 Cuerdas</a>\nAtar con cuerdas\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas-sin-resumen\">Nudos de cuerdas</a>\nKinkipedia\n\n📅 <a href=\"https://ejemplo.test/calendario/cuerdas-pasadas\">Cuerdas pasadas</a>\n<tg-time unix=\"1894320000\" format=\"wdt\">jue 10 ene 2030 · 21:00</tg-time>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📖 Cuerdas",
+								"callback_data": "r:hkhwdo:1:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "📖 Nudos de cuerdas",
+								"callback_data": "r:1kxla9p:1:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "📅 Cuerdas pasadas",
+								"callback_data": "r:fv9ch2:1:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹",
+								"callback_data": "q:0:cuerdas"
+							},
+							{
+								"text": "2/2",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar otra cosa",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Encontré 8 para «cuerdas»</b> · 2/2\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas\">🪢 Cuerdas</a>\nAtar con cuerdas\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas-sin-resumen\">Nudos de cuerdas</a>\nKinkipedia\n\n📅 <a href=\"https://ejemplo.test/calendario/cuerdas-pasadas\">Cuerdas pasadas</a>\n<tg-time unix=\"1894320000\" format=\"wdt\">jue 10 ene 2030 · 21:00</tg-time>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📖 Cuerdas",
+								"callback_data": "r:hkhwdo:1:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "📖 Nudos de cuerdas",
+								"callback_data": "r:1kxla9p:1:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "📅 Cuerdas pasadas",
+								"callback_data": "r:fv9ch2:1:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹",
+								"callback_data": "q:0:cuerdas"
+							},
+							{
+								"text": "2/2",
+								"disabled": {}
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar otra cosa",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: sitio: botón /calendario/taller-de-cuerdas": {
+		"steps": [
+			{
+				"method": "editMessageMedia",
+				"chat_id": 42,
+				"message_id": 9,
+				"media": {
+					"type": "photo",
+					"media": "https://ejemplo.test/foto.jpg",
+					"caption": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n📍 Lugar inventado\n\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Ver todo en el sitio</a>",
+					"parse_mode": "HTML"
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🎟 Comprar en el sitio",
+								"url": "https://ejemplo.test/calendario/x/entradas",
+								"style": "success"
+							}
+						],
+						[
+							{
+								"text": "📅 Agregar al calendario",
+								"url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Taller+de+cuerdas&dates=20310111T000000Z%2F20310111T020000Z&details=https%3A%2F%2Fejemplo.test%2Fcalendario%2Ftaller-de-cuerdas&location=Lugar+inventado"
+							},
+							{
+								"text": "🗺 Cómo llegar",
+								"url": "https://maps.example/x"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n📍 Lugar inventado\n\n<a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Ver todo en el sitio</a>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
+					"prefer_large_media": true,
+					"show_above_text": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🎟 Comprar en el sitio",
+								"url": "https://ejemplo.test/calendario/x/entradas",
+								"style": "success"
+							}
+						],
+						[
+							{
+								"text": "📅 Agregar al calendario",
+								"url": "https://calendar.google.com/calendar/render?action=TEMPLATE&text=Taller+de+cuerdas&dates=20310111T000000Z%2F20310111T020000Z&details=https%3A%2F%2Fejemplo.test%2Fcalendario%2Ftaller-de-cuerdas&location=Lugar+inventado"
+							},
+							{
+								"text": "🗺 Cómo llegar",
+								"url": "https://maps.example/x"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: sitio: botón /calendario/cuerdas-pasadas": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📅 Cuerdas pasadas</b>\n📅 <tg-time unix=\"1894320000\" format=\"wdt\">jue 10 ene 2030 · 21:00</tg-time>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/calendario/cuerdas-pasadas"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📅 Cuerdas pasadas</b>\n📅 <tg-time unix=\"1894320000\" format=\"wdt\">jue 10 ene 2030 · 21:00</tg-time>",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/calendario/cuerdas-pasadas"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: sitio: botón /material/guia-de-cuerdas": {
+		"steps": [
+			{
+				"method": "editMessageMedia",
+				"chat_id": 42,
+				"message_id": 9,
+				"media": {
+					"type": "photo",
+					"media": "https://kinkyvibe.ar/cdn-cgi/image/width=480,format=jpeg,quality=80/media/img/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.webp",
+					"caption": "<b>📚 Guía de cuerdas</b>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;",
+					"parse_mode": "HTML"
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/material/guia-de-cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📚 Guía de cuerdas</b>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/material/guia-de-cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: sitio: botón /material/cuerdas-sin-resumen": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📚 Cuerdas sin resumen</b>\nMaterial",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/material/cuerdas-sin-resumen"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📚 Cuerdas sin resumen</b>\nMaterial",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/material/cuerdas-sin-resumen"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: sitio: botón /wiki/cuerdas": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📖 🪢 Cuerdas</b>\nAtar con cuerdas",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/wiki/cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📖 🪢 Cuerdas</b>\nAtar con cuerdas",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/wiki/cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: sitio: botón /wiki/cuerdas-sin-resumen": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📖 Nudos de cuerdas</b>\nKinkipedia",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/wiki/cuerdas-sin-resumen"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📖 Nudos de cuerdas</b>\nKinkipedia",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/wiki/cuerdas-sin-resumen"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: sitio: botón /amigues/persona-de-cuerdas": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>👥 Persona de cuerdas</b>\nProyecto · Da talleres",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/amigues/persona-de-cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>👥 Persona de cuerdas</b>\nProyecto · Da talleres",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/amigues/persona-de-cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: sitio: botón /wiki/noche-de-cuerdas": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📖 🌙 Noche de cuerdas</b>\nSerie de eventos",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/wiki/noche-de-cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📖 🌙 Noche de cuerdas</b>\nSerie de eventos",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/wiki/noche-de-cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "q:1:cuerdas"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: sitio: botón que no está": {
+		"steps": [],
+		"callback": {
+			"id": "cb",
+			"text": "Ese evento ya no está disponible."
+		}
+	},
+	"router: sitio: respuesta a buscar": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Encontré 8 para «cuerdas»</b> · 1/2\n\n📅 <a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n\n📖 <a href=\"https://ejemplo.test/wiki/noche-de-cuerdas\">🌙 Noche de cuerdas</a>\nSerie de eventos\n\n📚 <a href=\"https://ejemplo.test/material/cuerdas-sin-resumen\">Cuerdas sin resumen</a>\nMaterial\n\n📚 <a href=\"https://ejemplo.test/material/guia-de-cuerdas\">Guía de cuerdas</a>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;\n\n👥 <a href=\"https://ejemplo.test/amigues/persona-de-cuerdas\">Persona de cuerdas</a>\nProyecto · Da talleres",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📅 Taller de cuerdas",
+								"callback_data": "r:1yjwuuv:0:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "📖 Noche de cuerdas",
+								"callback_data": "r:l5fgdi:0:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "📚 Cuerdas sin resumen",
+								"callback_data": "r:1an49qo:0:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "📚 Guía de cuerdas",
+								"callback_data": "r:rqsubm:0:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "👥 Persona de cuerdas",
+								"callback_data": "r:pekj4o:0:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "1/2",
+								"disabled": {}
+							},
+							{
+								"text": "›",
+								"callback_data": "q:1:cuerdas"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar otra cosa",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: inline: vacío": {
+		"steps": [
+			{
+				"method": "answerInlineQuery",
+				"inline_query_id": "iq",
+				"results": [
+					{
+						"type": "article",
+						"id": "0",
+						"title": "Taller de cuerdas",
+						"description": "vie 10 ene · 21:00",
+						"input_message_content": {
+							"message_text": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
+									}
+								]
+							]
+						}
+					},
+					{
+						"type": "article",
+						"id": "1",
+						"title": "Guía de cuerdas",
+						"description": "Cómo atar <sin apuro> & con \"cuidado\"",
+						"input_message_content": {
+							"message_text": "<b>Guía de cuerdas</b>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/material/guia-de-cuerdas",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/material/guia-de-cuerdas"
+									}
+								]
+							]
+						},
+						"thumbnail_url": "https://kinkyvibe.ar/cdn-cgi/image/width=160,height=160,fit=cover,format=jpeg,quality=75/media/img/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.webp",
+						"thumbnail_width": 160,
+						"thumbnail_height": 160
+					},
+					{
+						"type": "article",
+						"id": "2",
+						"title": "Cuerdas sin resumen",
+						"description": "Material",
+						"input_message_content": {
+							"message_text": "<b>Cuerdas sin resumen</b>\nMaterial",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/material/cuerdas-sin-resumen",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/material/cuerdas-sin-resumen"
+									}
+								]
+							]
+						}
+					}
+				],
+				"cache_time": 120,
+				"is_personal": false,
+				"next_offset": ""
+			}
+		]
+	},
+	"router: inline: cuerdas": {
+		"steps": [
+			{
+				"method": "answerInlineQuery",
+				"inline_query_id": "iq",
+				"results": [
+					{
+						"type": "article",
+						"id": "0",
+						"title": "Taller de cuerdas",
+						"description": "vie 10 ene · 21:00",
+						"input_message_content": {
+							"message_text": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
+									}
+								]
+							]
+						}
+					},
+					{
+						"type": "article",
+						"id": "1",
+						"title": "🌙 Noche de cuerdas",
+						"description": "Serie de eventos",
+						"input_message_content": {
+							"message_text": "<b>🌙 Noche de cuerdas</b>\nSerie de eventos",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/wiki/noche-de-cuerdas",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/wiki/noche-de-cuerdas"
+									}
+								]
+							]
+						}
+					},
+					{
+						"type": "article",
+						"id": "2",
+						"title": "Cuerdas sin resumen",
+						"description": "Material",
+						"input_message_content": {
+							"message_text": "<b>Cuerdas sin resumen</b>\nMaterial",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/material/cuerdas-sin-resumen",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/material/cuerdas-sin-resumen"
+									}
+								]
+							]
+						}
+					},
+					{
+						"type": "article",
+						"id": "3",
+						"title": "Guía de cuerdas",
+						"description": "Cómo atar <sin apuro> & con \"cuidado\"",
+						"input_message_content": {
+							"message_text": "<b>Guía de cuerdas</b>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/material/guia-de-cuerdas",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/material/guia-de-cuerdas"
+									}
+								]
+							]
+						},
+						"thumbnail_url": "https://kinkyvibe.ar/cdn-cgi/image/width=160,height=160,fit=cover,format=jpeg,quality=75/media/img/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.webp",
+						"thumbnail_width": 160,
+						"thumbnail_height": 160
+					},
+					{
+						"type": "article",
+						"id": "4",
+						"title": "Persona de cuerdas",
+						"description": "Proyecto · Da talleres",
+						"input_message_content": {
+							"message_text": "<b>Persona de cuerdas</b>\nProyecto · Da talleres",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/amigues/persona-de-cuerdas",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/amigues/persona-de-cuerdas"
+									}
+								]
+							]
+						}
+					},
+					{
+						"type": "article",
+						"id": "5",
+						"title": "🪢 Cuerdas",
+						"description": "Atar con cuerdas",
+						"input_message_content": {
+							"message_text": "<b>🪢 Cuerdas</b>\nAtar con cuerdas",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/wiki/cuerdas",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/wiki/cuerdas"
+									}
+								]
+							]
+						}
+					},
+					{
+						"type": "article",
+						"id": "6",
+						"title": "Nudos de cuerdas",
+						"description": "Kinkipedia",
+						"input_message_content": {
+							"message_text": "<b>Nudos de cuerdas</b>\nKinkipedia",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/wiki/cuerdas-sin-resumen",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/wiki/cuerdas-sin-resumen"
+									}
+								]
+							]
+						}
+					},
+					{
+						"type": "article",
+						"id": "7",
+						"title": "Cuerdas pasadas",
+						"description": "jue 10 ene 2030 · 21:00",
+						"input_message_content": {
+							"message_text": "<b>Cuerdas pasadas</b>\n📅 <tg-time unix=\"1894320000\" format=\"wdt\">jue 10 ene 2030 · 21:00</tg-time>",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/calendario/cuerdas-pasadas",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/calendario/cuerdas-pasadas"
+									}
+								]
+							]
+						}
+					}
+				],
+				"cache_time": 120,
+				"is_personal": false,
+				"next_offset": ""
+			}
+		]
+	},
+	"router: inline: wiki": {
+		"steps": [
+			{
+				"method": "answerInlineQuery",
+				"inline_query_id": "iq",
+				"results": [
+					{
+						"type": "article",
+						"id": "0",
+						"title": "🪢 Cuerdas",
+						"description": "Atar con cuerdas",
+						"input_message_content": {
+							"message_text": "<b>🪢 Cuerdas</b>\nAtar con cuerdas",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/wiki/cuerdas",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/wiki/cuerdas"
+									}
+								]
+							]
+						}
+					},
+					{
+						"type": "article",
+						"id": "1",
+						"title": "🌙 Noche de cuerdas",
+						"description": "Serie de eventos",
+						"input_message_content": {
+							"message_text": "<b>🌙 Noche de cuerdas</b>\nSerie de eventos",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/wiki/noche-de-cuerdas",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/wiki/noche-de-cuerdas"
+									}
+								]
+							]
+						}
+					},
+					{
+						"type": "article",
+						"id": "2",
+						"title": "Nudos de cuerdas",
+						"description": "Kinkipedia",
+						"input_message_content": {
+							"message_text": "<b>Nudos de cuerdas</b>\nKinkipedia",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/wiki/cuerdas-sin-resumen",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/wiki/cuerdas-sin-resumen"
+									}
+								]
+							]
+						}
+					}
+				],
+				"cache_time": 120,
+				"is_personal": false,
+				"next_offset": ""
+			}
+		]
+	},
+	"router: inline: material": {
+		"steps": [
+			{
+				"method": "answerInlineQuery",
+				"inline_query_id": "iq",
+				"results": [
+					{
+						"type": "article",
+						"id": "0",
+						"title": "Guía de cuerdas",
+						"description": "Cómo atar <sin apuro> & con \"cuidado\"",
+						"input_message_content": {
+							"message_text": "<b>Guía de cuerdas</b>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/material/guia-de-cuerdas",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/material/guia-de-cuerdas"
+									}
+								]
+							]
+						},
+						"thumbnail_url": "https://kinkyvibe.ar/cdn-cgi/image/width=160,height=160,fit=cover,format=jpeg,quality=75/media/img/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.webp",
+						"thumbnail_width": 160,
+						"thumbnail_height": 160
+					},
+					{
+						"type": "article",
+						"id": "1",
+						"title": "Cuerdas sin resumen",
+						"description": "Material",
+						"input_message_content": {
+							"message_text": "<b>Cuerdas sin resumen</b>\nMaterial",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/material/cuerdas-sin-resumen",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/material/cuerdas-sin-resumen"
+									}
+								]
+							]
+						}
+					}
+				],
+				"cache_time": 120,
+				"is_personal": false,
+				"next_offset": ""
+			}
+		]
+	},
+	"router: inline: evento": {
+		"steps": [
+			{
+				"method": "answerInlineQuery",
+				"inline_query_id": "iq",
+				"results": [
+					{
+						"type": "article",
+						"id": "0",
+						"title": "Taller de cuerdas",
+						"description": "vie 10 ene · 21:00",
+						"input_message_content": {
+							"message_text": "<b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>",
+							"parse_mode": "HTML",
+							"link_preview_options": {
+								"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
+								"prefer_large_media": true,
+								"show_above_text": true
+							}
+						},
+						"reply_markup": {
+							"inline_keyboard": [
+								[
+									{
+										"text": "Ver en el sitio",
+										"url": "https://ejemplo.test/calendario/taller-de-cuerdas"
+									}
+								]
+							]
+						}
+					}
+				],
+				"cache_time": 120,
+				"is_personal": false,
+				"next_offset": ""
+			}
+		]
+	},
+	"router: inline: nada": {
+		"steps": [
+			{
+				"method": "answerInlineQuery",
+				"inline_query_id": "iq",
+				"results": [],
+				"cache_time": 120,
+				"is_personal": false,
+				"next_offset": "",
+				"button": {
+					"text": "No encontré nada. Probá en el bot",
+					"start_parameter": "buscar"
+				}
+			}
+		]
+	},
+	"router: inline: sitio vacío": {
+		"steps": [
+			{
+				"method": "answerInlineQuery",
+				"inline_query_id": "iq",
+				"results": [],
+				"cache_time": 120,
+				"is_personal": false,
+				"next_offset": "",
+				"button": {
+					"text": "Todavía no hay nada para mostrar. Abrí el bot",
+					"start_parameter": "buscar"
+				}
+			}
+		]
 	},
 	"router: api lenta": [
 		{
