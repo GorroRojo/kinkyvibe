@@ -302,7 +302,9 @@ describe('whoFollows', () => {
 
 	it('quién sigue cada fila de «Lo más seguido» y lo de cada cuenta, sin las borradas', async () => {
 		const w = await seed();
-		const { ranking } = await followStats(t.db, { tags, now: NOW });
+		const ranking = /** @type {NonNullable<import('./stats.js').FollowStats['ranking']>} */ (
+			(await followStats(t.db, { tags, now: NOW })).ranking
+		);
 		const who = /** @type {NonNullable<Awaited<ReturnType<typeof whoFollows>>>} */ (
 			await whoFollows(t.db, ranking)
 		);
@@ -311,7 +313,9 @@ describe('whoFollows', () => {
 		expect(emails(`perfil:${w.oculto.id}`)).toEqual([w.b.email]);
 		expect(emails(`lugar:${w.lugar.id}`)).toEqual([w.c.email]);
 		expect(emails('perfil:999999')).toEqual([w.c.email]);
-		expect(who.byTarget['etiqueta:shibari'][0].href).toBe(`/admin/comunidad/cuentas/${w.a.id}#sigue`);
+		expect(who.byTarget['etiqueta:shibari'][0].href).toBe(
+			`/admin/comunidad/cuentas/${w.a.id}#sigue`
+		);
 		// Cada fila del ranking tiene tantas cuentas como su número.
 		for (const r of [...ranking.etiqueta, ...ranking.perfil, ...ranking.lugar])
 			expect(who.byTarget[`${r.group}:${r.key}`]).toHaveLength(r.count);

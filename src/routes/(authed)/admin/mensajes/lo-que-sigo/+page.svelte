@@ -193,8 +193,8 @@
 
 	<Card title="Por persona" icon={Users}>
 		<p class="kv-note">
-			Cada cuenta con cuántas cosas sigue y cuáles (las que más siguen, primero). El mail lleva a
-			su ficha, donde están también sus avisos. Solo lo ven les admins.
+			Cada cuenta con cuántas cosas sigue y cuáles (las que más siguen, primero). El mail lleva a su
+			ficha, donde están también sus avisos. Solo lo ven les admins.
 		</p>
 		{#if !data.followers}
 			<p class="muted">No se pudo armar la lista.</p>
@@ -230,8 +230,8 @@
 			{/if}
 			{#if data.followers.truncated}
 				<p class="kv-note">
-					Hay muchas cosas seguidas: estas listas (y «Quiénes») muestran solo una parte. Lo de
-					cada persona, completo, está en su ficha.
+					Hay muchas cosas seguidas: estas listas (y «Quiénes») muestran solo una parte. Lo de cada
+					persona, completo, está en su ficha.
 				</p>
 			{/if}
 		{/if}
