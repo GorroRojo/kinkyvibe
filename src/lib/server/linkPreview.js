@@ -15,6 +15,7 @@
  * src/lib/server/flags.js): las páginas no consultan la base por esto en cada pedido.
  */
 import { getDB, logDBError } from '$lib/server/db';
+import { readAndKeep } from '$lib/server/db/perRequest.js';
 import { parseSiteDate } from '$lib/utils/dates.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { isMediaPath, isPublicMediaUrl } from '$lib/utils/media.js';
@@ -132,7 +133,11 @@ export async function cardHash(spec) {
  * @property {Partial<Record<OgCardKey, { spec: ReturnType<typeof cardSpec>, hash: string, url: string }>>} cards
  */
 
-/** @type {{ db: D1Database, expires: number, state: Promise<LinkPreviewState> } | null} */
+/**
+ * Lo recordado (solo el estado ya leído: lo que está en camino se comparte solo dentro del pedido,
+ * `readAndKeep` de src/lib/server/db/perRequest.js).
+ * @type {{ db: D1Database, expires: number, state: LinkPreviewState } | null}
+ */
 let cached = null;
 
 /** Olvida lo recordado (al guardar desde el panel, y en las pruebas). */
@@ -176,14 +181,15 @@ async function readState(platform, db) {
 export async function linkPreviewState(platform, now = Date.now()) {
 	const db = getDB(platform);
 	if (!db) return { texts: mergePreviewTexts(), covers: [], cards: {} };
-	if (!cached || cached.db !== db || cached.expires <= now) {
-		const state = readState(platform, db);
-		cached = { db, expires: now + LINK_PREVIEW_CACHE_MS, state };
-		state.catch(() => {
-			if (cached?.state === state) cached = null;
-		});
-	}
-	return cached.state;
+	if (cached && cached.db === db && cached.expires > now) return cached.state;
+	return readAndKeep(
+		db,
+		'link-preview',
+		() => readState(platform, db),
+		(state) => {
+			cached = { db, expires: now + LINK_PREVIEW_CACHE_MS, state };
+		}
+	);
 }
 
 /**

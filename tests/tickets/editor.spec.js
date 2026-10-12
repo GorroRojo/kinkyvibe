@@ -173,3 +173,30 @@ tickets:
 	const body = await res.text();
 	expect(body).toContain('pesos enteros');
 });
+
+// gorrite, 12/10: con errores a la vista (después de salir de un campo), elegir «Preventas»
+// dejaba la tarjeta del tipo como una franja vacía. Era Chromium: si cambian los hijos directos
+// de un <fieldset> (la lista de errores) a la vez que el contenido de un elemento con
+// `container-type` adentro (la tarjeta), ese contenido se queda sin cajas. Por eso lo de la
+// sección va en un <div> propio (TicketsEditor.svelte).
+test('elegir «Preventas» con errores a la vista muestra los tramos', async ({ page }) => {
+	for (const width of [1400, 390]) {
+		await page.setViewportSize({ width, height: 900 });
+		// El evento de prueba de la semilla (General y Anticipada, con precio fijo).
+		await page.goto('/admin/eventos/prueba-entradas-2026-12/editar', { waitUntil: 'networkidle' });
+		const card = page.locator('#edit-tickets');
+		const second = card.locator('li.type').nth(1);
+		// Salir de un campo: desde ahí los errores se muestran.
+		await card.locator('#edit-ticket-name-1').focus();
+		await card.locator('#edit-ticket-name-1').blur();
+		for (const mode of ['Preventas', 'Precio fijo', 'Preventas']) {
+			await second.getByText(mode, { exact: true }).click();
+			await expect(second.getByText('Entrada 2', { exact: true })).toBeVisible();
+			await expect(second.locator('#edit-ticket-name-1')).toBeVisible();
+		}
+		// Los tramos nuevos no tienen precio: hay errores a la vista.
+		await expect(card.locator('#edit-tickets-errors')).toContainText('tramo 1');
+		await expect(second.locator('#edit-tier-1-name-0')).toBeVisible();
+		await expect(second.locator('#edit-tier-1-name-1')).toBeVisible();
+	}
+});

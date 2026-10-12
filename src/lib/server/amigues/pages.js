@@ -8,6 +8,7 @@
 import { currentRelated, mediaURL, relatedPostsFor } from '$lib/utils';
 import { canHaveProfiles } from '$lib/server/cuentas/accounts.js';
 import { contentStampOf } from '$lib/server/contenido/posts.js';
+import { readAndKeep } from '$lib/server/db/perRequest.js';
 import { ANON } from '$lib/server/objects/visibility.js';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
@@ -56,8 +57,9 @@ export async function amiguesListPosts(db, locals, { kind } = {}) {
  * importaciones e imágenes; se lee una vez por pedido) ni el árbol de etiquetas con que se
  * ordenan sus etiquetas. Lo que se recuerda es lo mismo que arma `profilePosts` (la misma
  * función), así que cambia la cantidad de consultas, no lo que se ve. Con sesión no se recuerda:
- * una cuenta o une admin pueden ver más.
- * @type {{ stamp: string, tree: TagManager, posts: Promise<ProcessedPost[]> } | null}
+ * una cuenta o une admin pueden ver más. Solo la lista ya armada: lo que está en camino se
+ * comparte solo dentro del pedido (`readAndKeep`, src/lib/server/db/perRequest.js).
+ * @type {{ stamp: string, tree: TagManager, posts: ProcessedPost[] } | null}
  */
 let anonCache = null;
 
@@ -73,16 +75,20 @@ export function clearAmiguesCache() {
 async function anonProfilePosts(db) {
 	const stamp = await contentStampOf(db);
 	const tree = currentSiteTags();
-	let entry = anonCache;
-	if (entry?.stamp !== stamp || entry.tree !== tree) {
-		const mine = { stamp, tree, posts: profilePosts(db, ANON) };
-		anonCache = entry = mine;
-		mine.posts.catch(() => {
-			if (anonCache === mine) anonCache = null;
-		});
-	}
+	const entry = anonCache;
+	const posts =
+		entry?.stamp === stamp && entry.tree === tree
+			? entry.posts
+			: await readAndKeep(
+					db,
+					`amigues-anon\n${stamp}`,
+					() => profilePosts(db, ANON),
+					(list) => {
+						anonCache = { stamp, tree, posts: list };
+					}
+				);
 	// Una lista nueva en cada pedido (los posts son los mismos: nadie los cambia).
-	return [...(await entry.posts)];
+	return [...posts];
 }
 
 /**

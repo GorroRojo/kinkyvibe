@@ -150,6 +150,10 @@ ya no hay `.eslintrc` ni `.eslintignore`).
   (El viejo chequeo de los `.md`, `src/tests/content.test.js`, se fue con ellos: 0032.)
 - **Mails "golden"**: `src/lib/server/tickets/email.golden.json` guarda cómo sale cada mail; si
   cambiás un mail a propósito, actualizá ese archivo en el mismo PR y explicalo.
+- **Componentes con clics** (`*.dom.test.js`): se montan en jsdom con `@testing-library/svelte`
+  (proyecto `dom` de `vite.config.js`, con el Svelte del navegador); el resto de las pruebas
+  (proyecto `unit`) sigue en Node y renderiza con `svelte/server`. Ejemplo:
+  `src/lib/components/admin/TicketsEditor.dom.test.js`.
 - **HTML de componentes**: para leer lo que devuelve `render` usá `textOf` y `withoutComments` de
   `src/lib/testing/html.js`. No saques etiquetas ni comentarios con expresiones regulares
   (`/<[^>]*>/`, `/<!--.*?-->/`): CodeQL lo marca como alerta alta aunque sea un test, y el PR queda

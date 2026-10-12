@@ -10,6 +10,7 @@
  * letras no hace ni las consultas de «¿cambió algo?».
  */
 import { getDB } from '$lib/server/db';
+import { readAndKeep } from '$lib/server/db/perRequest.js';
 import { publicSearchIndex } from '$lib/server/search/publicIndex.js';
 import { postTime } from '$lib/server/contenido/posts.js';
 import { imageKeysByObject, seriesImageKeys } from '$lib/server/media/library.js';
@@ -95,10 +96,14 @@ export function makeInlineSource(built, { avatars = new Map(), series = new Map(
 	return { docs, prepared: prepareIndex(built.raw), extras, ...(tree ? { tree } : {}) };
 }
 
-/** @type {WeakMap<BuiltIndex, Promise<InlineSource>>} */
+/*
+ * Solo fuentes ya armadas: lo que está en camino se comparte solo dentro del pedido
+ * (`readAndKeep`, src/lib/server/db/perRequest.js).
+ */
+/** @type {WeakMap<BuiltIndex, InlineSource>} */
 const sources = new WeakMap();
 
-/** @type {{ at: number, source: Promise<InlineSource> } | null} */
+/** @type {{ at: number, source: InlineSource } | null} */
 let last = null;
 
 /**
@@ -109,21 +114,25 @@ let last = null;
  * @returns {Promise<InlineSource>}
  */
 export function inlineSource(platform, now = Date.now()) {
-	if (last && now - last.at >= 0 && now - last.at < INLINE_SOURCE_TTL_MS) return last.source;
-	const source = publicSearchIndex(platform).then((built) => {
-		let made = sources.get(built);
-		if (!made) {
-			made = readImages(platform).then((images) => makeInlineSource(built, images));
-			sources.set(built, made);
+	if (last && now - last.at >= 0 && now - last.at < INLINE_SOURCE_TTL_MS)
+		return Promise.resolve(last.source);
+	return readAndKeep(
+		sources,
+		'inline-source',
+		() =>
+			publicSearchIndex(platform).then((built) => {
+				const made = sources.get(built);
+				if (made) return made;
+				return readImages(platform).then((images) => {
+					const source = makeInlineSource(built, images);
+					sources.set(built, source);
+					return source;
+				});
+			}),
+		(source) => {
+			last = { at: now, source };
 		}
-		return made;
-	});
-	const fresh = { at: now, source };
-	last = fresh;
-	source.catch(() => {
-		if (last === fresh) last = null;
-	});
-	return source;
+	);
 }
 
 /** Para las pruebas: olvidar la última fuente. */

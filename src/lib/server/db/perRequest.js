@@ -64,3 +64,31 @@ export function oncePerRequest(db, key, read) {
 	mine.then(keep ? undefined : forget, forget);
 	return mine;
 }
+
+/*
+ * Cachés del isolate (módulos que recuerdan algo entre pedidos): en Cloudflare Workers, una
+ * promesa que depende de I/O que empezó OTRO pedido no es segura. Si ese pedido termina o se corta
+ * antes, la consulta puede no terminar nunca y todos los que la esperaban se cuelgan hasta que
+ * Cloudflare los mata (gorrite, 12/10: GET /admin y GET / colgados minutos con ~40 ms de CPU). Por
+ * eso, entre pedidos se comparte solo un valor YA resuelto; lo que está en camino se comparte solo
+ * dentro del pedido (`oncePerRequest`), y el pedido que necesita un valor nuevo espera su propia
+ * consulta.
+ */
+
+/**
+ * `read()` compartida solo dentro del pedido (como {@link oncePerRequest}); cuando termina bien,
+ * `keep(valor)` lo guarda en la caché del módulo (un valor, nunca la promesa). Un error no se
+ * guarda.
+ *
+ * @template T
+ * @param {object} scope separa las lecturas en camino (la base, o un objeto propio de la caché)
+ * @param {string} key qué se lee
+ * @param {() => Promise<T>} read
+ * @param {(value: T) => void} keep
+ * @returns {Promise<T>}
+ */
+export function readAndKeep(scope, key, read, keep) {
+	const running = oncePerRequest(scope, key, read);
+	running.then(keep, () => {});
+	return running;
+}

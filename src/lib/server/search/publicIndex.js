@@ -11,6 +11,7 @@
  */
 import { dev } from '$app/environment';
 import { getDB } from '$lib/server/db';
+import { readAndKeep } from '$lib/server/db/perRequest.js';
 import { ANON } from '$lib/server/objects/visibility.js';
 import { siteBodies, siteContentStamp, sitePosts } from '$lib/server/contenido/posts.js';
 import {
@@ -39,7 +40,11 @@ import { siteWikiBodies, siteWikiPosts } from '$lib/server/wiki/site.js';
  * }} BuiltIndex
  */
 
-/** @type {WeakMap<TagManager, { key: string, built: Promise<BuiltIndex> }>} */
+/**
+ * Solo índices ya armados: lo que está en camino se comparte solo dentro del pedido
+ * (`readAndKeep`, src/lib/server/db/perRequest.js).
+ * @type {WeakMap<TagManager, { key: string, built: BuiltIndex }>}
+ */
 const indexCache = new WeakMap();
 
 /**
@@ -74,19 +79,16 @@ export async function publicSearchIndex(platform) {
 		profiles ? await profilesStamp(/** @type {any} */ (db)) : null,
 		profiles ? await eventVenuesStamp(/** @type {any} */ (db)) : null
 	]);
-	let entry = dev ? undefined : indexCache.get(tagManager);
-	if (!entry || entry.key !== key) {
-		const built = buildIndex(tagManager, platform, { profiles });
-		const fresh = { key, built };
-		entry = fresh;
-		if (!dev) {
-			indexCache.set(tagManager, fresh);
-			built.catch(() => {
-				if (indexCache.get(tagManager) === fresh) indexCache.delete(tagManager);
-			});
+	const entry = dev ? undefined : indexCache.get(tagManager);
+	if (entry && entry.key === key) return entry.built;
+	return readAndKeep(
+		tagManager,
+		`public-index\n${key}`,
+		() => buildIndex(tagManager, platform, { profiles }),
+		(built) => {
+			if (!dev) indexCache.set(tagManager, { key, built });
 		}
-	}
-	return entry.built;
+	);
 }
 
 /**

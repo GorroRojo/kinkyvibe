@@ -30,7 +30,7 @@ import { pronounLabel } from '$lib/utils/mentions';
 import { isCurrent } from '$lib/utils/allPosts';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { getDB } from '$lib/server/db';
-import { oncePerRequest } from '$lib/server/db/perRequest.js';
+import { oncePerRequest, readAndKeep } from '$lib/server/db/perRequest.js';
 import { ANON, partVisibleWhere, visibleWhere } from '$lib/server/objects/visibility.js';
 import { getObject } from '$lib/server/objects/read.js';
 import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
@@ -89,7 +89,7 @@ const isDbCategory = (p) => Object.hasOwn(CONTENT_CATEGORIES, String(p.meta.cate
  *   unlisted: ProcessedPost[],
  *   paths: Map<number, string>,
  *   profiles: { listed: ProcessedPost[], unlisted: ProcessedPost[] },
- *   bodies?: Promise<Map<string, string>>,
+ *   bodies?: Map<string, string>,
  *   pronouns?: Record<string, string>
  * }} DbState
  *   `profiles`: los perfiles de amigues que ve cualquiera, como posts (src/lib/server/amigues/asPost.js).
@@ -98,7 +98,9 @@ const isDbCategory = (p) => Object.hasOwn(CONTENT_CATEGORIES, String(p.meta.cate
 /**
  * Lo recordado: por la marca de la base y por el árbol de etiquetas con que se limpiaron las
  * etiquetas de cada post (`processPost`): si cambia cualquiera de los dos, se vuelve a armar.
- * @type {{ stamp: string, tree: TagManager, state: Promise<DbState> } | null}
+ * Solo el estado ya armado: lo que está en camino se comparte solo dentro del pedido
+ * (`readAndKeep`, src/lib/server/db/perRequest.js).
+ * @type {{ stamp: string, tree: TagManager, state: DbState } | null}
  */
 let cached = null;
 
@@ -170,12 +172,14 @@ async function dbState(db) {
 	const stamp = await contentStamp(db);
 	const tree = currentSiteTags();
 	if (cached?.stamp === stamp && cached.tree === tree) return cached.state;
-	const state = loadDbState(db, stamp, tree);
-	cached = { stamp, tree, state };
-	state.catch(() => {
-		if (cached?.state === state) cached = null;
-	});
-	return state;
+	return readAndKeep(
+		db,
+		`dbState\n${stamp}`,
+		() => loadDbState(db, stamp, tree),
+		(state) => {
+			cached = { stamp, tree, state };
+		}
+	);
 }
 
 /**
@@ -313,33 +317,43 @@ const DATA_WITHOUT_BODY = `CASE WHEN json_valid(o.data) THEN json_remove(o.data,
  * @param {DbState} state
  * @returns {Promise<Map<string, string>>}
  */
-function stateBodies(db, state) {
-	if (!state.bodies) {
-		const t = marks(TYPES.length);
-		const visible = publicWhere(ANON, 'o');
-		const loading = db
-			.prepare(
-				`SELECT o.id, CASE WHEN json_valid(o.data) AND json_type(o.data, '$.body') = 'text'
-					THEN json_extract(o.data, '$.body') END AS body
-				FROM objects o WHERE o.type IN (${t}) AND ${visible.sql} ORDER BY o.id`
-			)
-			.bind(...TYPES, ...visible.params)
-			.all()
-			.then(({ results }) => {
-				/** @type {Map<string, string>} */
-				const bodies = new Map();
-				for (const r of results) {
-					const path = state.paths.get(Number(r.id));
-					if (path && typeof r.body === 'string' && r.body) bodies.set(path, r.body);
-				}
-				return bodies;
-			});
-		state.bodies = loading;
-		loading.catch(() => {
-			if (state.bodies === loading) delete state.bodies;
+async function stateBodies(db, state) {
+	if (state.bodies) return state.bodies;
+	return readAndKeep(
+		state,
+		'bodies',
+		() => readBodies(db, state),
+		(bodies) => {
+			state.bodies = bodies;
+		}
+	);
+}
+
+/**
+ * @param {D1Database} db
+ * @param {DbState} state
+ * @returns {Promise<Map<string, string>>}
+ */
+function readBodies(db, state) {
+	const t = marks(TYPES.length);
+	const visible = publicWhere(ANON, 'o');
+	return db
+		.prepare(
+			`SELECT o.id, CASE WHEN json_valid(o.data) AND json_type(o.data, '$.body') = 'text'
+				THEN json_extract(o.data, '$.body') END AS body
+			FROM objects o WHERE o.type IN (${t}) AND ${visible.sql} ORDER BY o.id`
+		)
+		.bind(...TYPES, ...visible.params)
+		.all()
+		.then(({ results }) => {
+			/** @type {Map<string, string>} */
+			const bodies = new Map();
+			for (const r of results) {
+				const path = state.paths.get(Number(r.id));
+				if (path && typeof r.body === 'string' && r.body) bodies.set(path, r.body);
+			}
+			return bodies;
 		});
-	}
-	return state.bodies;
 }
 
 /** Orden de las categorías cuando dos publicaciones tienen la misma fecha (como los .md). */

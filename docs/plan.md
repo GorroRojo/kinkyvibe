@@ -77,6 +77,7 @@ CI) va en la fase 0.
 - `aviso-cambio-fecha` · fase 0 · hecho · mails · «Avisar a les compradores» cuando cambia la fecha · #266
 - `ics-en-mail` · fase 0 · hecho · mails · El .ics y Google Calendar en los mails de entradas · #256
 - `aviso-transferencia-sin-datos` · fase 0 · hecho · entradas · Aviso cuando un evento tiene transferencia y faltan los datos de Cobros · #214
+- `entradas-editor-preventas-arreglo` · fase 0 · hecho · entradas · Editor de entradas: keys únicas también con un borrador recuperado (se colgaba: «Sacar» muerto), «Preventas» con errores a la vista ya no deja la tarjeta vacía (Chromium, fieldset y container queries) y «Sacar» desactivado que explica por qué · #348
 - `fondo-propinas-unicas` · fase 0 · hecho · fondo · Donaciones de una vez al Fondo con las propinas, el total del mes para kv-fondo y el mail «tu link» · #287, #268
 
 ### Legales
@@ -105,6 +106,7 @@ CI) va en la fase 0.
 
 ### Sitio público
 
+- `promesas-entre-pedidos` · fase 0 · hecho · sitio · Bug: GET /admin y GET / se colgaban minutos a veces (cachés del isolate que compartían una consulta en camino entre pedidos); ahora entre pedidos solo se comparte lo ya leído · #352
 - `ux-auditoria-restos` · fase 0 · hecho · sitio · Lo que seguía abierto de la auditoría de UX del 4/10: anclas del glosario, áreas de toque, migas de pan (ya estaban, #215) y búsqueda vacía de la wiki · #333
 - `wiki-sin-entrada-editar` · fase 0 · hecho · sitio · «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`) · #323
 - `areas-toque-restos` · fase 0 · hecho · sitio · Toques de menos de 44px que pedían diseño: «Comprar entradas» en las tarjetas de las listas mide 44px en el celu (hecho, el botón mismo); el índice y «Enlace a esta sección» de los textos, las series hijas en la Kinkipedia y la línea de madres e hijas de un término quedan como están (gorrite: dejarlo así) · #335
