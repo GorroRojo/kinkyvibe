@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Pestaña "Plantillas de mails" de la ficha del evento: cada mail y si este evento le cambia
+	 * Pestaña Mails › Plantillas de la ficha del evento: cada mail y si este evento le cambia
 	 * algo. Se edita en /admin/eventos/<slug>/mails/<mail>.
 	 */
 	import '$lib/admin/panel-forms.scss';

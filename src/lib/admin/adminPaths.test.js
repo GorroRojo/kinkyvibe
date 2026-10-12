@@ -196,6 +196,15 @@ const REMOVED_TREES = [
 ];
 
 /**
+ * Direcciones viejas que redirigen (excepciones aprobadas por gorrite, docs/panel.md): siguen
+ * andando para los favoritos, pero ningún link nuestro las usa. Cada una con su archivo de
+ * redirección, que es el único que puede nombrarla en el código.
+ */
+const REDIRECTED = {
+	'/admin/ajustes/mails': 'src/routes/(authed)/admin/ajustes/mails/+server.js' // → /admin/mensajes/configuracion
+};
+
+/**
  * Dónde empieza una dirección del panel: no pegada a una palabra (así `lib/server/admin/cuentas.js`
  * no cuenta), salvo después de un dominio (`https://kinkyvibe.ar/admin/…`, `localhost:5173/admin/…`).
  */
@@ -267,6 +276,24 @@ describe('direcciones borradas', WHOLE_REPO, () => {
 		expect(re.test("'/admin/cuentas-viejas'")).toBe(false);
 		expect(re.test(plainSlashes('toMatch(/href="\\/admin\\/cuentas"/)'))).toBe(true);
 		expect(re.test(plainSlashes("'/login?redirectTo=%2Fadmin%2Fcuentas%2F3'"))).toBe(true);
+	});
+
+	it('ningún link del código apunta a una dirección que redirige', () => {
+		/** @type {string[]} */
+		const hits = [];
+		for (const file of walk(SRC)) {
+			const name = relative(ROOT, file);
+			if (!/\.(js|svelte)$/.test(file) || /\.test\.js$/.test(file)) continue;
+			for (const [path, owner] of Object.entries(REDIRECTED)) {
+				if (name === owner) continue;
+				if (adminPathsIn(readFileSync(file, 'utf8')).some((p) => p.replace(/\/+$/, '') === path))
+					hits.push(`${name}: ${path}`);
+			}
+		}
+		expect(hits).toEqual([]);
+		// Y la redirección existe.
+		const routes = adminRoutes();
+		for (const path of Object.keys(REDIRECTED)) expect(matchesRoute(path, routes), path).toBe(true);
 	});
 
 	it('ninguna ruta vieja sigue existiendo', () => {

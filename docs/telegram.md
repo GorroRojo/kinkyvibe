@@ -8,15 +8,18 @@ mismos datos y manda un link para todo lo demás.
 
 Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-bot-seguir-y-token.md).
 
-- **`/start` es el inicio**: un mensaje con botones `Hoy · Semana · Finde` / `🔎 Buscar · ⭐ Lo
-que sigo` / `💗 Fondo · ❓ Ayuda` / `📅 Calendario` (la Mini App, solo en privado) · `Abrir
-kinkyvibe.ar ↗`. «Lo que sigo» solo aparece con ese interruptor prendido.
+- **`/start` (o `/inicio`) es el inicio**: un mensaje con botones `Hoy · Semana · Finde` /
+  `🔎 Buscar · ⭐ Lo que sigo` / `💗 Fondo · ❓ Ayuda` / `📅 Calendario` (la Mini App, solo en
+  privado) · `Abrir kinkyvibe.ar ↗`. «Lo que sigo» solo aparece con ese interruptor prendido. Para
+  les admins con el Telegram vinculado, suma «🚪 Puerta» (abajo, «La puerta por Telegram»).
+  `/inicio` es lo mismo que `/start` sin nada, por el mismo camino del router (`/start <código>` y
+  `/start adm_<código>` siguen vinculando; `/inicio <algo>` no vincula nada).
 - **Cada botón cambia ese mismo mensaje** (no manda otro). Las listas van de a 5 con
   «‹ 2/3 ›» (el del medio es un botón deshabilitado, Bot API 10.3) e «🏠 Inicio»; la tarjeta de un
   evento, «‹ 2/7 ›» entre los eventos de la lista, «‹ Volver» (a la página de la lista que lo
   tiene) e «🏠 Inicio».
-- **Los comandos son atajos a las mismas pantallas** (no hay dos lógicas): `/hoy`, `/semana`,
-  `/finde`, `/proximos`, `/evento [texto]`, `/buscar`, `/fondo`, `/ayuda`, `/sigo`. `/hoy`,
+- **Los comandos son atajos a las mismas pantallas** (no hay dos lógicas): `/inicio`, `/hoy`,
+  `/semana`, `/finde`, `/proximos`, `/evento [texto]`, `/buscar`, `/fondo`, `/ayuda`, `/sigo`. `/hoy`,
   `/semana` y `/finde` siguen siendo hoy, los próximos 7 días y el finde (viernes a domingo), en
   hora de Argentina (`windows.js`).
 - **La tarjeta de un evento**: foto (la imagen destacada, como URL absoluta) o, sin token o en
@@ -147,6 +150,52 @@ funciones que `/calendario`).
 - Se abre con el botón «📅 Calendario» del inicio (solo en privado: `web_app` no anda en grupos).
   El botón de menú del bot sigue siendo la lista de comandos.
 
+## Textos del bot (lo edita el panel)
+
+Pedido de gorrite (11/10): «¿Dónde puedo editar el wording de todas las cosas del bot?». En
+**Ajustes › Comunicación › Textos del bot** (`/admin/ajustes/textos-bot`, solo admins) está todo
+lo que dice el bot: los mensajes, los botones, los avisos que salen al tocar un botón y las
+descripciones del menú «/». Como «Vistas previas al compartir» y las plantillas de los mails: cada
+texto con su original, «Volver al texto original», sus variables (chips que se suman donde está el
+cursor) y una vista previa que imita un mensaje de Telegram con sus botones (salta a la pantalla
+del campo que tocás). Cada guardado queda en Actividad (`settings.save`, `telegram_bot_texts`) con
+**solo las claves** que cambiaron, nunca el texto.
+
+- **Dónde está cada cosa**: los originales, qué es cada uno, sus variables y la validación, en
+  `src/lib/utils/botTexts.js` (secciones Inicio y menú, Comandos, Eventos, Seguir y avisos,
+  Vincular cuenta, Puerta y Errores). El bot pide cada texto con `botText(clave, variables)`
+  (`src/lib/server/telegram/texts.js`); no queda texto para la gente escrito en las pantallas.
+- **Dónde se guarda**: en `ticket_settings`, la fila `telegram_bot_texts` (un JSON con solo los
+  cambiados), como `link_preview_texts`. Sin tabla nueva ni migración.
+- **Una lectura por pedido**: el webhook lee la fila una vez, después de chequear el secreto, y
+  corre el pedido entero (también lo que sigue en `waitUntil`) con esos textos
+  (`runWithBotTexts`, `AsyncLocalStorage`, como `contenido/author.js`). El cron los lee una vez
+  por corrida para los avisos de Lo que sigo y para el menú «/». Si no se pueden leer, los
+  originales.
+- **Sin nada cambiado, el bot dice lo mismo que antes, byte a byte**: `bot.golden.json` se sacó
+  del código de antes y `texts-golden.test.js` compara cada pantalla, respuesta, aviso y comando.
+- **Formato**: en los mensajes, texto común, `**negrita**` y `[texto](https://…)`; todo lo demás
+  se escapa para el HTML de Telegram (`/vincular <código>` sale tal cual) y algo que parece HTML
+  (`<b>`) no se puede guardar. Los botones, los avisos de un botón y los comandos van sin formato.
+  Las variables van con una llave (`{evento}`); una que no existe, una llave suelta o un `**` sin
+  cerrar no se pueden guardar (el error dice cuál y cuáles se pueden usar). El valor de una
+  variable nunca se vuelve formato ni link. Algunas tienen que quedar (`{evento}` en «Ver: …»).
+- **Límites de Telegram**: botones 64 bytes (los emojis y las tildes ocupan más), avisos de un
+  botón 200 caracteres (el de «Seguir» sigue acortando el nombre para entrar, #290), comandos 256 y
+  mensajes 4096. El `callback_data` de los botones no depende del texto: cambiar un botón no rompe
+  los mensajes viejos.
+- **Comandos**: lo que registra el menú «/» (`setMyCommands`) son las descripciones de acá. Como
+  cambian el hash del registro, el cron las registra solo en la próxima corrida (hasta 15
+  minutos); «Actualizar comandos del bot» las registra ya.
+- **Buscar**: la respuesta se reconoce por el mensaje de Buscar; vale el original y el de ahora,
+  así cambiarlo no rompe los que ya se mandaron.
+- Lo que sigue en el código: los datos (títulos, fechas, lugares, links), los símbolos de las
+  flechas («‹ 2/3 ›») y el « ↗» que se suma en los grupos. Las páginas de la Mini App y de la
+  puerta no son mensajes del bot: sus textos siguen en sus páginas.
+- **Pendiente**: los textos del modo inline y de buscar en todo el sitio (#298: `INLINE_TEXTS`,
+  `SITE_TEXTS`, `SITE_SEARCH_PROMPT_TEXT` y el «Para buscar acá…» de `/buscar` en grupos) siguen
+  en el código; se suman al registro en otro PR.
+
 ## Modo inline
 
 En **cualquier chat** (también uno donde el bot no está), escribir `@<bot> <texto>` muestra lo que
@@ -215,12 +264,14 @@ Cuando alguien escribe «/», Telegram sugiere los comandos que se le registraro
 salen lo que entiende el router y lo que se registra (un test, `commands.test.js`, chequea que
 coincidan).
 
-- **Para todes** (alcance `default`): `/proximos`, `/hoy`, `/semana`, `/finde`, `/evento`,
-  `/buscar` («Buscá en todo el sitio: eventos, material, Kinkipedia y amigues»), `/fondo`, `/ayuda`.
+- **Para todes** (alcance `default`): `/inicio` (primero), `/proximos`, `/hoy`, `/semana`,
+  `/finde`, `/evento`, `/buscar` («Buscá en todo el sitio: eventos, material, Kinkipedia y
+  amigues»), `/fondo`, `/ayuda`.
 - **En grupos** (alcance `all_group_chats`): los mismos, **efímeros** (`is_ephemeral`).
 - **En chats privados** (alcance `all_private_chats`): esos y, solo con «Lo que sigo» prendido,
   `/vincular`, `/sigo`, `/silenciar`, `/reanudar`, `/desvincular`.
-- `/start` y `/help` funcionan pero no van en el menú. Sin `language_code`.
+- `/start` y `/help` funcionan pero no van en el menú: en su lugar están `/inicio` (lo mismo que
+  `/start` sin nada) y `/ayuda`. Sin `language_code`.
 
 **Se registran solos**: el cron de cada 15 minutos (`/api/cron/recordatorios`,
 `commandsSync.js`) arma las listas, les saca un hash y lo compara con el último registrado
@@ -234,6 +285,11 @@ El botón **Actualizar comandos del bot** (Ajustes → Automatizaciones → tarj
 Telegram**, solo admins) queda para registrarlos ya: hace lo mismo, lo anota con quién fue y
 guarda el mismo hash. La tarjeta muestra «Último registro: <fecha> (automático/manual)». No hace
 falta `/setcommands` en @BotFather (se pisa).
+
+**Después de mergear un cambio en la lista** (por ejemplo, cuando se sumó `/inicio`): no hace
+falta hacer nada. El hash de la lista cambia y el cron la registra en los 15 minutos siguientes
+(el botón queda por si se quiere ya). En la app de Telegram puede hacer falta cerrar y abrir el
+chat para ver el menú nuevo.
 
 ## Fase 2: vincular la cuenta y avisos de «Lo que sigo»
 
@@ -333,6 +389,8 @@ minutos), con estas reglas:
 | `src/lib/server/telegram/commands.js`         | La lista de comandos y el `setMyCommands` del menú «/»              |
 | `src/lib/server/telegram/keyboards.js`        | Los botones de antes (`ev:`/`ls`), que siguen andando               |
 | `src/lib/server/telegram/format.js`           | Los textos (HTML de Telegram), funciones puras                      |
+| `src/lib/server/telegram/texts.js`            | «Textos del bot»: lo cambiado en el panel, `botText`, una lectura   |
+| `src/lib/utils/botTexts.js`                   | «Textos del bot»: originales, formato, variables y validación       |
 | `src/lib/server/telegram/events.js`           | De dónde salen los eventos (el único lugar para cambiar)            |
 | `src/lib/server/flags.js`                     | El interruptor `telegram_bot` (`TELEGRAM_BOT_ENABLED`)              |
 | `src/lib/server/telegram/link.js`             | Fase 2: códigos de un solo uso y chats vinculados                   |
@@ -388,7 +446,7 @@ Apagado, el endpoint contesta 200 sin hacer nada (con un error, Telegram acumula
 ## Cómo probarlo
 
 ```bash
-npx vitest run src/lib/server/telegram src/lib/server/sigo src/lib/components/admin/telegram "src/routes/(authed)/admin/ajustes/automatizaciones" src/lib/utils/sigo-telegram.test.js "src/routes/(content)/mi-rincon/telegram"
+npx vitest run src/lib/server/telegram src/lib/utils/botTexts.test.js "src/routes/(authed)/admin/ajustes/textos-bot" src/lib/server/sigo src/lib/components/admin/telegram "src/routes/(authed)/admin/ajustes/automatizaciones" src/lib/utils/sigo-telegram.test.js "src/routes/(content)/mi-rincon/telegram"
 ```
 
 Los tests usan eventos y chats inventados. Para probar a mano, un POST al endpoint con el header
@@ -424,12 +482,23 @@ interruptor **Puerta por Telegram** (`telegram_puerta`, `TELEGRAM_PUERTA_ENABLED
 `/telegram/puerta` y su API dan 404, el panel no deja vincular y `/start adm_<código>` contesta
 que ahora no se puede.
 
-- `/telegram/puerta` (opcional `?evento=<dirección>`): abre adentro de Telegram, se escribe la
-  dirección del evento, escanea con el escáner nativo (`showScanQrPopup`) y manda cada código a
-  `/telegram/puerta/api`. Fuera de Telegram no hace nada.
-- **Cómo se abre**: con el botón «🚪 Abrir la puerta» que manda el bot cuando confirma el vínculo
-  (un botón `web_app`, solo en chat privado). Si se pierde ese mensaje, vincular de nuevo desde el
-  panel lo vuelve a mandar.
+- `/telegram/puerta` (opcional `?evento=<dirección>`): abre adentro de Telegram, se **elige el
+  evento de una lista** (los de hoy, también los ya empezados, y los de los próximos 3 días; con
+  uno solo hoy, queda elegido), escanea con el escáner nativo (`showScanQrPopup`) y manda cada
+  código a `/telegram/puerta/api`. Fuera de Telegram no hace nada.
+  - La lista la da `/telegram/puerta/eventos` (POST con el `initData`), con **los mismos permisos
+    que marcar** (abajo) y de lo mismo que /admin/checkin (`listTicketedEvents` + `checkinGroup`,
+    sin los online, hasta 20): solo dirección, título y comienzo (`doorEvents` en `puerta.js`).
+  - `?evento=` sigue andando y gana sobre la lista. Para un evento que no está en la lista, «Otro
+    evento: escribir la dirección»; si la lista no carga, queda escribirla, como antes.
+- **Cómo se abre**: con el botón «🚪 Abrir la puerta» que manda el bot cuando confirma el vínculo,
+  o con «🚪 Puerta» en el inicio (`/start`, `/inicio`, «🏠 Inicio»). Los dos son el mismo botón
+  `web_app` a `/telegram/puerta`, solo en chat privado (`web_app` no anda en grupos).
+- **«🚪 Puerta» en el inicio** solo si quien escribe es une admin vinculade (`telegram_admin_links`)
+  que **sigue** en `ADMINS`, con `telegram_puerta` y el bot prendidos. Se mira solo al mostrar el
+  inicio por chat privado: una consulta por id del usuario de Telegram (`botDoor` de `puerta.js`,
+  la misma que usa la Mini App). Si falla, el inicio sale sin el botón. Les demás ven el inicio de
+  siempre.
 - En **cada pedido** el servidor (`puerta.js`): valida el `initData` (`initData.js`: HMAC-SHA-256
   con la clave `HMAC-SHA-256("WebAppData", token)`, todos los campos menos `hash` ordenados y
   unidos con `\n`, comparación en tiempo constante, `auth_date` de menos de 1 hora y no del
@@ -482,8 +551,9 @@ que ahora no se puede.
 - ~~Navegación por pantallas, efímeros, Seguir, Mini App del calendario.~~ Hecho (0034).
 - ~~La puerta con el escáner de QR de Telegram.~~ Hecha (0037, arriba), detrás de
   `telegram_puerta`.
-- Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir la
-  dirección, y un comando o botón para abrirla sin volver a vincular.
+- ~~Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir la
+  dirección, y un botón para abrirla sin volver a vincular.~~ Hecho: la lista en la Mini App y
+  «🚪 Puerta» en el inicio.
 - ~~Modo inline y buscar en todo el sitio.~~ Hecho (arriba).
 - Recorrer el sitio por secciones desde el inicio («📚 Material», «📖 Kinkipedia», «👥 Amigues», con
   listas y etiquetas), reusando la lista y la tarjeta compacta de `siteScreens.js`.

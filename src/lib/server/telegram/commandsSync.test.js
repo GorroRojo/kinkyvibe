@@ -6,6 +6,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { setFlag } from '$lib/server/flags.js';
+import { sha256Hex } from '$lib/server/hash.js';
+import { commandPayloads } from './commands.js';
 import {
 	COMMANDS_SYNC_KEY,
 	commandsHash,
@@ -115,6 +117,49 @@ describe('syncBotCommands', () => {
 		expect(privateBody.scope).toEqual({ type: 'all_private_chats' });
 		expect(privateBody.commands.map((/** @type {any} */ c) => c.command)).toContain('vincular');
 		expect((await getCommandsSync(t.db))?.hash).toBe(await commandsHash({ accounts: true }));
+		vi.restoreAllMocks();
+	});
+
+	it('/inicio va primero en los tres alcances, con y sin «Lo que sigo»', async () => {
+		vi.spyOn(console, 'log').mockImplementation(() => {});
+		for (const [i, on] of [false, true].entries()) {
+			await setFlag(t.db, 'lo_que_sigo', on, { by: 'prueba' });
+			const f = fakeFetch();
+			expect(
+				await syncBotCommands({ db: t.db, token: TOKEN, now: NOW + i * 900e3, fetch: f })
+			).toBe('synced');
+			const bodies = f.mock.calls.map(([, init]) => JSON.parse(init.body));
+			expect(bodies.map((b) => b.scope.type)).toEqual([
+				'default',
+				'all_group_chats',
+				'all_private_chats'
+			]);
+			for (const b of bodies) {
+				expect(b.commands[0]).toMatchObject({
+					command: 'inicio',
+					description: 'Volver al inicio del bot'
+				});
+			}
+		}
+		vi.restoreAllMocks();
+	});
+
+	it('lo registrado antes de /inicio cambia el hash: el cron lo vuelve a registrar', async () => {
+		vi.spyOn(console, 'log').mockImplementation(() => {});
+		const withoutInicio = commandPayloads({ accounts: false }).map((p) => ({
+			...p,
+			commands: p.commands.filter((c) => c.command !== 'inicio')
+		}));
+		await storeCommandsSync(
+			t.db,
+			{ hash: await sha256Hex(JSON.stringify(withoutInicio)), at: NOW, by: 'manual' },
+			'admin-de-prueba'
+		);
+		const f = fakeFetch();
+		expect(await syncBotCommands({ db: t.db, token: TOKEN, now: NOW + 900e3, fetch: f })).toBe(
+			'synced'
+		);
+		expect(f).toHaveBeenCalledTimes(3);
 		vi.restoreAllMocks();
 	});
 

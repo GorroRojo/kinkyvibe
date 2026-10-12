@@ -131,7 +131,17 @@ describe('?/comandos (Actualizar comandos del bot)', () => {
 		const { actions } = await page();
 		const r = /** @type {any} */ (await actions.comandos(post(admin)));
 		expect(r.commandsOk).toBe(true);
-		const PUBLIC = ['proximos', 'hoy', 'semana', 'finde', 'evento', 'buscar', 'fondo', 'ayuda'];
+		const PUBLIC = [
+			'inicio',
+			'proximos',
+			'hoy',
+			'semana',
+			'finde',
+			'evento',
+			'buscar',
+			'fondo',
+			'ayuda'
+		];
 		expect(r.commandsResults.map((/** @type {any} */ x) => [x.scope, x.commands])).toEqual([
 			['default', PUBLIC],
 			['all_group_chats', PUBLIC],
@@ -160,6 +170,7 @@ describe('?/comandos (Actualizar comandos del bot)', () => {
 		expect(bodies[2]).toEqual({
 			scope: { type: 'all_private_chats' },
 			commands: [
+				{ command: 'inicio', description: 'Volver al inicio del bot' },
 				{ command: 'proximos', description: 'Los próximos eventos públicos' },
 				{ command: 'hoy', description: 'Los eventos de hoy' },
 				{ command: 'semana', description: 'Lo que hay en los próximos 7 días' },

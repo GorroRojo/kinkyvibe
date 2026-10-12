@@ -8,7 +8,7 @@
 import { escapeHtml } from '$lib/utils/escape.js';
 import { MAIL_STYLES, mailButton, mailLayout } from '$lib/server/email/layout.js';
 
-/** Remitente fijo (no el de entradas de Ajustes → Mails). */
+/** Remitente fijo (no el de entradas de Mensajes → Configuración). */
 export const FONDO_MAIL_FROM = 'Fondo KinkyVibe <fondo@kinkyvibe.ar>';
 
 export const FONDO_MAIL_SUBJECT = 'Tu link para elegir cómo aparecés en el Fondo KinkyVibe';

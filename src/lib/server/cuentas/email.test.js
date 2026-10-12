@@ -18,6 +18,7 @@ describe('mails con código', () => {
 		expect(m.html).toContain(EXPIRES);
 		// Nada del código en el asunto (se ve en las notificaciones).
 		expect(m.subject).not.toContain('123456');
+		expect(m.subject).toBe('Tu código para entrar a Kinky Vibe');
 	});
 
 	it('confirmar una acción: lo mismo', () => {
@@ -40,5 +41,60 @@ describe('mails con código', () => {
 		expect(buildLoginCodeEmail({ code: '1', now: late }).text).toContain(
 			'Vence en 10 minutos (el sábado 3 de octubre a las 00:08, hora de Argentina y Uruguay).'
 		);
+	});
+});
+
+/**
+ * Lo que ayuda a que Gmail («Copiar código») y Mail de Apple detecten el código (docs/mails.md,
+ * «Códigos copiables»): el asunto dice «código» sin el código; en el texto plano y en el
+ * HTML, el código solo en su renglón, primero, justo después de una frase con «código»; y un
+ * preencabezado en castellano, sin números.
+ */
+describe('mails con código: el código se puede detectar y copiar', () => {
+	const cases = /** @type {const} */ ([
+		[
+			'ingresar',
+			buildLoginCodeEmail({ code: '482913', now: NOW }),
+			'Tu código para entrar a Kinky Vibe es:',
+			'Tu código para entrar a Kinky Vibe',
+			'Escribilo en la página donde lo pediste. Sirve una sola vez.'
+		],
+		[
+			'confirmar',
+			buildConfirmCodeEmail({ code: '482913', purpose: 'delete', now: NOW }),
+			'Para confirmar que querés borrar tu cuenta, escribí este código en Mi rincón:',
+			'Tu código para confirmar en Kinky Vibe',
+			'Escribilo en Mi rincón para confirmar. Sirve una sola vez.'
+		]
+	]);
+
+	it.each(cases)('%s: «código» en el asunto, sin el código', (_, m, _intro, subject) => {
+		expect(m.subject).toBe(subject);
+		expect(m.subject).not.toMatch(/\d/);
+	});
+
+	it.each(cases)('%s: preencabezado oculto, en castellano y sin números', (_, m, _i, _s, pre) => {
+		const found = m.html.match(
+			/<body[^>]*>\n<div style="display:none;max-height:0;overflow:hidden;[^"]*" data-kv-mail="preheader">([^<]*)<\/div>/
+		);
+		expect(found?.[1]).toBe(pre);
+		expect(pre).not.toMatch(/\d/);
+	});
+
+	it.each(cases)('%s: texto plano, la frase y el código solo en su renglón', (_, m, intro) => {
+		const lines = m.text.split('\n');
+		expect(lines.slice(0, 3)).toEqual([intro, '', '482913']);
+		// El código aparece una sola vez y ningún otro renglón es solo un número.
+		expect(m.text.split('482913')).toHaveLength(2);
+		expect(lines.filter((l) => /^\d+$/.test(l))).toEqual(['482913']);
+	});
+
+	it.each(cases)('%s: HTML, el código primero y solo en su recuadro', (_, m, intro) => {
+		const body = m.html.slice(m.html.indexOf('</h1>') + '</h1>'.length);
+		const parts = body.match(/^\s*<p>([^<]*)<\/p>\s*<p style="([^"]*)">([^<]*)<\/p>/);
+		expect(parts?.[1]).toBe(intro);
+		expect(parts?.[2]).toContain("font-family:'Courier New',monospace;font-size:32px");
+		expect(parts?.[3]).toBe('482913');
+		expect(m.html.split('482913')).toHaveLength(2);
 	});
 });
