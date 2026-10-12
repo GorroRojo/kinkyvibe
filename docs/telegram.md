@@ -64,18 +64,22 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
     Series deja afuera las series sin ediciones (ningún evento del índice con su etiqueta: no hay
     nada para mostrar), como la lista de series de `/wiki`; Buscar las sigue encontrando.
     Ningún evento (para eso, Hoy, Semana, Finde y el calendario).
-  - **Orden**, como el sitio: el material del más nuevo (`/material`); la Kinkipedia, amigues y las
-    series por nombre (`/wiki`, `/amigues`).
+  - **Orden**, como el sitio: el material del más nuevo (`/material`); amigues y las series por
+    nombre (`/amigues`, `/wiki`); la Kinkipedia, en el orden del árbol de etiquetas de `/wiki`
+    (abajo).
   - **La Kinkipedia, por las ramas del árbol de etiquetas** (como `/wiki`): arriba, las ramas de
     arriba de todo que tienen algo («📂 Prácticas», con cuántas cosas tiene adentro) y las entradas
     sueltas; tocar una rama muestra su entrada (si tiene) y lo de adentro, con «‹ Volver» a la rama
-    madre. Una rama se ve si tiene una entrada o alguna hija (o nieta…) la tiene; una etiqueta con
-    dos madres está en las dos. Cada entrada cuelga de su etiqueta (si dos son de la misma, la de
-    su página es la de la rama y la otra va adentro). La tarjeta vuelve a la rama de la que vino.
-    En vez de «🏷 Filtrar por etiqueta»: las ramas son el filtro. El árbol sale de
-    `publicSearchIndex` (`tags`) y `makeInlineSource` lo pasa como `tree` (madres y nombre de cada
-    etiqueta); sin árbol, la lista por nombre de antes. Textos: «📂 {rama}» (el título y el botón)
-    y «Adentro: {cantidad}», en «Secciones del sitio».
+    madre. Las ramas van en el mismo orden que en `/wiki` (las hijas de cada etiqueta, `children`,
+    como las ordena el panel), no por nombre, también al pasar de página; después, por nombre, las
+    otras entradas de esa etiqueta y, arriba de todo, las sueltas. Una rama se ve si tiene una
+    entrada o alguna hija (o nieta…) la tiene; una etiqueta con dos madres está en las dos. Cada
+    entrada cuelga de su etiqueta (si dos son de la misma, la de su página es la de la rama y la
+    otra va adentro). La tarjeta vuelve a la rama de la que vino. En vez de «🏷 Filtrar por
+    etiqueta»: las ramas son el filtro. El árbol sale de `publicSearchIndex` (`tags`) y
+    `makeInlineSource` lo pasa como `tree` (madres, nombre e hijas en orden de cada etiqueta); sin
+    árbol, la lista por nombre de antes. Textos: «📂 {rama}» (el título y el botón) y «Adentro:
+    {cantidad}», en «Secciones del sitio».
   - **Filtrar**: las etiquetas más usadas de esa sección (las que tienen al menos 2 cosas, hasta
     8, dos por fila, con cuántas), «✖ Sin filtro» para sacarla y «‹ Volver». Si la sección no tiene
     etiquetas para ofrecer, el botón no aparece.

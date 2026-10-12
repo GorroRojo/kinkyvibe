@@ -41,9 +41,10 @@ import { botText } from './texts.js';
 
 /**
  * Una etiqueta del árbol del sitio, para recorrer la Kinkipedia por ramas (sections.js): sus
- * madres (con `root` si es de arriba de todo) y su nombre visible.
+ * madres (con `root` si es de arriba de todo), su nombre visible y sus hijas en el orden del
+ * árbol (el de /wiki).
  *
- * @typedef {{ parents: readonly string[], name: string }} TreeTag
+ * @typedef {{ parents: readonly string[], name: string, children: readonly string[] }} TreeTag
  */
 
 /**

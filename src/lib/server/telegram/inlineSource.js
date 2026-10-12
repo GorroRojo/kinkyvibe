@@ -26,7 +26,9 @@ export const INLINE_SOURCE_TTL_MS = 60 * 1000;
 
 /**
  * El árbol de etiquetas, para recorrer la Kinkipedia por ramas (sections.js): de cada etiqueta
- * (sin los alias), sus madres y su nombre visible. Nada más: qué se muestra lo decide el índice.
+ * (sin los alias), sus madres, su nombre visible y sus hijas en el orden del árbol (`children`,
+ * el mismo que recorre /wiki con GlosarioTree; `root` va con las de arriba de todo). Nada más:
+ * qué se muestra lo decide el índice.
  *
  * @param {TagManager | undefined} tags
  * @returns {Map<string, import('./inline.js').TreeTag> | undefined}
@@ -36,10 +38,11 @@ export function tagTree(tags) {
 	/** @type {Map<string, import('./inline.js').TreeTag>} */
 	const tree = new Map();
 	for (const t of tags.tagsData()) {
-		if (!t?.id || t.id === 'root' || t.aliasOf) continue;
+		if (!t?.id || t.aliasOf) continue;
 		tree.set(t.id, {
-			parents: Array.isArray(t.parents) ? t.parents.map(String) : [],
-			name: String(t.visible_name ?? t.id)
+			parents: t.id !== 'root' && Array.isArray(t.parents) ? t.parents.map(String) : [],
+			name: String(t.visible_name ?? t.id),
+			children: Array.isArray(t.children) ? t.children.map(String) : []
 		});
 	}
 	return tree;
