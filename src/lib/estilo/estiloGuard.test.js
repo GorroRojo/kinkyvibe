@@ -16,6 +16,12 @@ const PAGE = 'src/routes/estilo/+page.js';
 const GATE =
 	"if (import.meta.env.DEV || (__DEPLOY_BRANCH__ !== '' && __DEPLOY_BRANCH__ !== 'main')) {";
 
+/**
+ * La primera vez que se importa la galería, vite compila Galeria.svelte y todos los componentes
+ * del barril (con sus íconos): <1 s sola, pero con la máquina cargada pasaba los 5 s por defecto.
+ */
+const GALLERY_IMPORT_TIMEOUT = 30_000;
+
 afterEach(() => {
 	vi.unstubAllEnvs();
 	vi.resetModules();
@@ -31,7 +37,7 @@ describe('galería /estilo: solo en previews y en dev', () => {
 		await expect(load(/** @type {any} */ ({}))).rejects.toMatchObject({ status: 404 });
 	});
 
-	it('en dev, la página carga la galería', async () => {
+	it('en dev, la página carga la galería', { timeout: GALLERY_IMPORT_TIMEOUT }, async () => {
 		vi.stubEnv('DEV', true);
 		const { load } = await import('../../routes/estilo/+page.js');
 		const data = /** @type {any} */ (await load(/** @type {any} */ ({})));

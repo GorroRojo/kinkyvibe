@@ -108,6 +108,23 @@ export function shouldRemember(pathname, { flags = {}, status = 200 } = {}) {
 }
 
 /**
+ * La pestaña de la ficha de un evento para una dirección (`/ordenes`, `''` es el Resumen). Las
+ * pestañas con vistas (Ventas › Órdenes, Mails › Plantillas) se nombran por la vista, salvo la que
+ * comparte dirección con su pestaña (Ventas › Totales es «Ventas»); el ícono es el de la pestaña.
+ * @param {string} suffix
+ * @returns {{ id: string, label: string, icon: (typeof EVENT_TABS)[number]['icon'], emoji: string } | undefined}
+ */
+function eventTabFor(suffix) {
+	const owner = EVENT_TABS.find((t) => t.views?.some((v) => v.suffix === suffix));
+	const view = owner?.views?.find((v) => v.suffix === suffix);
+	if (owner && view) {
+		const label = view.suffix === owner.suffix ? owner.label : view.label;
+		return { id: owner.id, label, icon: owner.icon, emoji: owner.emoji };
+	}
+	return EVENT_TABS.find((t) => t.suffix === suffix);
+}
+
+/**
  * El nombre de una página para Recientes, armado con el título de la página (su `<h1>`):
  * - la ficha de un evento: el evento y la pestaña («Fiesta de Primavera · Órdenes»);
  * - una sección del menú que no está en la barra (Transferencias, Agenda…): su nombre;
@@ -128,7 +145,7 @@ export function recentLabel({ pathname, heading }) {
 	if (exact) return clip(exact.label);
 	const ev = path.match(/^\/admin\/eventos\/([^/]+)(\/[^/]+)?$/);
 	if (ev && !NAV.some((i) => i.href === `/admin/eventos/${ev[1]}`)) {
-		const tab = EVENT_TABS.find((t) => t.suffix === (ev[2] ?? ''));
+		const tab = eventTabFor(ev[2] ?? '');
 		let name = h;
 		if (!name) {
 			try {
@@ -170,7 +187,7 @@ export function recentParts({ pathname, heading }) {
 	}
 	const ev = path.match(/^\/admin\/eventos\/([^/]+)(\/[^/]+)?$/);
 	if (ev && !NAV.some((i) => i.href === `/admin/eventos/${ev[1]}`)) {
-		const tab = EVENT_TABS.find((t) => t.suffix === (ev[2] ?? ''));
+		const tab = eventTabFor(ev[2] ?? '');
 		let name = h;
 		if (!name) {
 			try {
@@ -197,7 +214,7 @@ export function placeIcon(href) {
 	const path = href.replace(/[?#].*$/, '').replace(/\/+$/, '') || '/';
 	const ev = path.match(/^\/admin\/eventos\/([^/]+)(\/[^/]+)?$/);
 	if (ev && !NAV.some((i) => i.href === `/admin/eventos/${ev[1]}`)) {
-		const tab = EVENT_TABS.find((t) => t.suffix === (ev[2] ?? ''));
+		const tab = eventTabFor(ev[2] ?? '');
 		if (tab) return { icon: tab.icon, emoji: tab.emoji };
 	}
 	const item = activeNavItem(path) ?? navItem('inicio');

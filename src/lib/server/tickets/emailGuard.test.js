@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseAllowlist, routeEmail } from './emailGuard.js';
+import { parseAllowlist, routeEmail, subjectForLog } from './emailGuard.js';
 import { isPreviewDeploy } from '../deploy.js';
 
 describe('parseAllowlist', () => {
@@ -42,6 +42,18 @@ describe('routeEmail', () => {
 			to: 'yo@k.ar',
 			subject: '[desviado] para Alguien@Mail.com · Tus entradas'
 		});
+	});
+});
+
+describe('subjectForLog', () => {
+	it('tapa los códigos (6 cifras o más) y deja el resto igual', () => {
+		expect(subjectForLog('482913 es tu código para entrar a Kinky Vibe')).toBe(
+			'•••••• es tu código para entrar a Kinky Vibe'
+		);
+		expect(subjectForLog('[DEMO] 1234567 es tu código')).toBe('[DEMO] ••••••• es tu código');
+		expect(subjectForLog('Tus entradas para Fiesta 2026 (KV-3F2B8C1E)')).toBe(
+			'Tus entradas para Fiesta 2026 (KV-3F2B8C1E)'
+		);
 	});
 });
 

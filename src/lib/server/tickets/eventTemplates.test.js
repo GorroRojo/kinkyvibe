@@ -302,6 +302,17 @@ describe('vista previa', () => {
 });
 
 describe('guardar por evento y resolver (D1)', () => {
+	// Una base sin migraciones, levantada antes de las pruebas: su arranque (miniflare) no
+	// cuenta para el tiempo límite de la prueba.
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let bare;
+	beforeAll(async () => {
+		bare = await createTestDB({ migrate: false });
+	});
+	afterAll(async () => {
+		await bare?.dispose();
+	});
+
 	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
 	let t;
 	beforeAll(async () => {
@@ -419,25 +430,20 @@ describe('guardar por evento y resolver (D1)', () => {
 	});
 
 	it('sin la migración 0034: la general se sigue leyendo; lo del evento, nada', async () => {
-		const bare = await createTestDB({ migrate: false });
-		try {
-			await bare.db.exec(
-				'CREATE TABLE email_templates (id TEXT PRIMARY KEY NOT NULL, subject TEXT NOT NULL, heading TEXT NOT NULL, body TEXT NOT NULL, updated_at INTEGER NOT NULL, updated_by TEXT NOT NULL)'
-			);
-			await bare.db
-				.prepare(
-					"INSERT INTO email_templates VALUES ('tickets', 'Asunto', 'Título', 'Texto', 1, 'x')"
-				)
-				.run();
-			const v = { subject: 'Asunto', heading: 'Título', body: 'Texto' };
-			expect(await getTemplateOverride(bare.db, 'tickets')).toEqual(v);
-			expect((await listTemplateOverrides(bare.db)).get('tickets')).toMatchObject(v);
-			expect(await getEventTemplateOverride(bare.db, 'fiesta-a', 'tickets')).toBeNull();
-			expect((await listEventTemplateOverrides(bare.db, 'fiesta-a')).size).toBe(0);
-			expect(await resolveTemplate(bare.db, 'fiesta-a', 'tickets')).toEqual(v);
-		} finally {
-			await bare.dispose();
-		}
+		await bare.db.exec(
+			'CREATE TABLE email_templates (id TEXT PRIMARY KEY NOT NULL, subject TEXT NOT NULL, heading TEXT NOT NULL, body TEXT NOT NULL, updated_at INTEGER NOT NULL, updated_by TEXT NOT NULL)'
+		);
+		await bare.db
+			.prepare(
+				"INSERT INTO email_templates VALUES ('tickets', 'Asunto', 'Título', 'Texto', 1, 'x')"
+			)
+			.run();
+		const v = { subject: 'Asunto', heading: 'Título', body: 'Texto' };
+		expect(await getTemplateOverride(bare.db, 'tickets')).toEqual(v);
+		expect((await listTemplateOverrides(bare.db)).get('tickets')).toMatchObject(v);
+		expect(await getEventTemplateOverride(bare.db, 'fiesta-a', 'tickets')).toBeNull();
+		expect((await listEventTemplateOverrides(bare.db, 'fiesta-a')).size).toBe(0);
+		expect(await resolveTemplate(bare.db, 'fiesta-a', 'tickets')).toEqual(v);
 		expect(await resolveTemplate(null, 'fiesta-a', 'tickets')).toBeNull();
 	});
 });

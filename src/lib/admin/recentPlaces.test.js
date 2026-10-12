@@ -173,8 +173,9 @@ describe('recentPlaces', () => {
 	});
 
 	it('el ícono: el de la pestaña del evento o el de la sección', () => {
-		const ordenes = EVENT_TABS.find((t) => t.id === 'ordenes');
-		expect(placeIcon('/admin/eventos/fiesta/ordenes').icon).toBe(ordenes?.icon);
+		// Órdenes es una vista de Ventas: el ícono es el de la pestaña Ventas.
+		const ventas = EVENT_TABS.find((t) => t.id === 'ventas');
+		expect(placeIcon('/admin/eventos/fiesta/ordenes').icon).toBe(ventas?.icon);
 		expect(placeIcon('/admin/ventas/transferencias').icon).toBe(
 			navItem('entradas-transferencias')?.icon
 		);

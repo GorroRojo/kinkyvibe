@@ -37,6 +37,9 @@ const DYNAMIC_BACKS = {
 	// La lista de su categoría (`contentAdminHref`).
 	'src/lib/components/admin/content/ContentEditor.svelte': ['listHref'],
 	// «← Mensajes» y similares: `areaBackLink` (se prueba abajo).
+	'src/routes/(authed)/admin/mensajes/configuracion/+page.svelte': [
+		"areaBackLink('ajustes-mails')"
+	],
 	'src/routes/(authed)/admin/mensajes/plantillas/+page.svelte': [
 		"areaBackLink('ajustes-plantillas')"
 	]

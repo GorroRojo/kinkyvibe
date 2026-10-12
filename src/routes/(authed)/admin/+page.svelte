@@ -8,10 +8,12 @@
 	 * markdown.
 	 */
 	import { enhance } from '$app/forms';
+	import { page } from '$app/stores';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import ActivityFeed from '$lib/components/admin/inicio/ActivityFeed.svelte';
 	import Agenda from '$lib/components/admin/inicio/Agenda.svelte';
 	import SalesCard from '$lib/components/admin/inicio/SalesCard.svelte';
+	import TodayThumb from '$lib/components/admin/inicio/TodayThumb.svelte';
 	import Stat from '$lib/components/admin/panel/Stat.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CapacityBar from '$lib/components/admin/panel/CapacityBar.svelte';
@@ -163,21 +165,25 @@
 		<div class="main-col">
 			{#each data.todayEvents as e (e.slug)}
 				<section class="today" aria-label="Hoy">
-					<div class="today-text">
-						<small class="kicker">Hoy · {argTime(e.start)}</small>
-						<h2>{e.title}</h2>
-						{#if e.location}<p class="place">{e.location}</p>{/if}
-						{#if e.ticketed}
-							<p class="today-nums">
-								<span
-									><b class="num">{e.sold}</b>{e.capacity ? ` / ${e.capacity}` : ''} vendidas</span
-								>
-								{#if e.progress}<span>Meta: <b class="num">{e.progress.text}</b></span>{/if}
-								<span><b class="num">{e.checkedIn}</b> de {e.issued} ingresaron</span>
-							</p>
-						{:else}
-							<p class="today-nums">Este evento no vende entradas por la página.</p>
-						{/if}
+					<div class="today-main">
+						<!-- alt vacío: el título está al lado, en el h2 -->
+						<TodayThumb src={e.thumb} host={$page.url.hostname} />
+						<div class="today-text">
+							<small class="kicker">Hoy · {argTime(e.start)}</small>
+							<h2>{e.title}</h2>
+							{#if e.location}<p class="place">{e.location}</p>{/if}
+							{#if e.ticketed}
+								<p class="today-nums">
+									<span
+										><b class="num">{e.sold}</b>{e.capacity ? ` / ${e.capacity}` : ''} vendidas</span
+									>
+									{#if e.progress}<span>Meta: <b class="num">{e.progress.text}</b></span>{/if}
+									<span><b class="num">{e.checkedIn}</b> de {e.issued} ingresaron</span>
+								</p>
+							{:else}
+								<p class="today-nums">Este evento no vende entradas por la página.</p>
+							{/if}
+						</div>
 					</div>
 					{#if e.ticketed}
 						<a class="checkin-big" href={checkinHref(e.slug)}>
@@ -581,6 +587,17 @@
 			margin: 0.1rem 0;
 			font-size: var(--text-lg);
 		}
+		/* La miniatura (si el evento tiene portada) a la izquierda del texto, arriba. */
+		.today-main {
+			display: flex;
+			gap: var(--space-xs);
+			align-items: flex-start;
+			flex: 1 1 16rem;
+			min-width: 0;
+		}
+		.today-text {
+			min-width: 0;
+		}
 		.kicker {
 			text-transform: uppercase;
 			letter-spacing: 0.08em;
@@ -593,7 +610,7 @@
 		}
 		.today-nums {
 			display: flex;
-			gap: var(--space-s);
+			gap: 0.2rem var(--space-s);
 			flex-wrap: wrap;
 			margin: 0.5rem 0 0;
 			b {

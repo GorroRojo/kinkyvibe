@@ -142,6 +142,17 @@ async function restore(db, sql) {
 }
 
 describe('dump → restore', () => {
+	// Una base vacía (sin migraciones) para restaurar, levantada antes de las pruebas: su arranque
+	// (miniflare) no cuenta para el tiempo límite de la prueba.
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let target;
+	beforeAll(async () => {
+		target = await createTestDB({ migrate: false });
+	});
+	afterAll(async () => {
+		await target?.dispose();
+	});
+
 	it('una base nueva queda con el mismo esquema y exactamente las mismas filas', async () => {
 		const { sql, stats } = await dumpDatabase(source.db, {
 			now: new Date('2026-10-01T06:00:00Z')
@@ -154,38 +165,33 @@ describe('dump → restore', () => {
 			'INSERT INTO "kv_buscar_padre" ("kv_buscar_padre") VALUES (\'rebuild\');'
 		);
 
-		const target = await createTestDB({ migrate: false });
-		try {
-			const { results: empty } = await target.db
-				.prepare("SELECT name FROM sqlite_master WHERE name LIKE 'kv_%'")
-				.all();
-			expect(empty).toEqual([]);
+		const { results: empty } = await target.db
+			.prepare("SELECT name FROM sqlite_master WHERE name LIKE 'kv_%'")
+			.all();
+		expect(empty).toEqual([]);
 
-			await restore(target.db, sql);
+		await restore(target.db, sql);
 
-			const before = await snapshot(source.db);
-			const after = await snapshot(target.db);
-			expect(after.schema).toEqual(before.schema);
-			expect(after.rows).toEqual(before.rows);
-			await assertFtsIntact(target.db);
+		const before = await snapshot(source.db);
+		const after = await snapshot(target.db);
+		expect(after.schema).toEqual(before.schema);
+		expect(after.rows).toEqual(before.rows);
+		await assertFtsIntact(target.db);
 
-			// Las búsquedas de texto completo andan en la copia.
-			const hit = await target.db
-				.prepare("SELECT rowid FROM kv_buscar WHERE kv_buscar MATCH 'todes'")
-				.all();
-			expect(hit.results).toEqual([{ rowid: 9 }]);
-			const hitExt = await target.db
-				.prepare("SELECT rowid FROM kv_buscar_padre WHERE kv_buscar_padre MATCH 'cinco'")
-				.all();
-			expect(hitExt.results).toEqual([{ rowid: 5 }]);
-			// El entero grande no perdió precisión.
-			const big = await target.db
-				.prepare('SELECT CAST(entero AS TEXT) AS e FROM kv_tipos WHERE id = 1')
-				.first();
-			expect(big).toEqual({ e: '9007199254740993' });
-		} finally {
-			await target.dispose();
-		}
+		// Las búsquedas de texto completo andan en la copia.
+		const hit = await target.db
+			.prepare("SELECT rowid FROM kv_buscar WHERE kv_buscar MATCH 'todes'")
+			.all();
+		expect(hit.results).toEqual([{ rowid: 9 }]);
+		const hitExt = await target.db
+			.prepare("SELECT rowid FROM kv_buscar_padre WHERE kv_buscar_padre MATCH 'cinco'")
+			.all();
+		expect(hitExt.results).toEqual([{ rowid: 5 }]);
+		// El entero grande no perdió precisión.
+		const big = await target.db
+			.prepare('SELECT CAST(entero AS TEXT) AS e FROM kv_tipos WHERE id = 1')
+			.first();
+		expect(big).toEqual({ e: '9007199254740993' });
 	});
 
 	it('el volcado es SQL que wrangler puede partir en sentencias', async () => {
@@ -197,6 +203,17 @@ describe('dump → restore', () => {
 });
 
 describe('backup en R2', () => {
+	// Una base vacía (sin migraciones) para restaurar, levantada antes de las pruebas: su arranque
+	// (miniflare) no cuenta para el tiempo límite de la prueba.
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let target;
+	beforeAll(async () => {
+		target = await createTestDB({ migrate: false });
+	});
+	afterAll(async () => {
+		await target?.dispose();
+	});
+
 	it('sube el volcado comprimido con la clave del día y se puede bajar y restaurar', async () => {
 		const bucket = /** @type {import('@cloudflare/workers-types').R2Bucket} */ (source.env.BACKUPS);
 		expect(bucket).toBeTruthy();
@@ -213,14 +230,9 @@ describe('backup en R2', () => {
 		expect(sql).toContain('CREATE TABLE kv_tipos');
 		expect(/** @type {any} */ (object).customMetadata.rows).toBe(String(result.rows));
 
-		const target = await createTestDB({ migrate: false });
-		try {
-			await restore(target.db, sql);
-			expect((await snapshot(target.db)).rows).toEqual((await snapshot(source.db)).rows);
-			await assertFtsIntact(target.db);
-		} finally {
-			await target.dispose();
-		}
+		await restore(target.db, sql);
+		expect((await snapshot(target.db)).rows).toEqual((await snapshot(source.db)).rows);
+		await assertFtsIntact(target.db);
 	});
 
 	it('el manual va aparte y el nocturno borra los viejos según la retención', async () => {

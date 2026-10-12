@@ -2,10 +2,10 @@
 	/**
 	 * «Avisar a les compradores» después de cambiar la fecha de un evento (dateChange.js,
 	 * docs/mails.md). Nunca manda solo: el botón pide confirmación y manda a la acción
-	 * `dateChangeSend` de la pestaña «Mail a compradores» (una tanda; el cron sigue con el resto).
+	 * `dateChangeSend` de Mails › Mandar un aviso (una tanda; el cron sigue con el resto).
 	 *
 	 * - `mode="notice"`: el aviso de arriba de la ficha, con «No hace falta» (deja de mostrarse).
-	 * - `mode="card"`: dentro de «Mail a compradores» («Avisar el cambio de fecha»), siempre que
+	 * - `mode="card"`: dentro de Mails › Mandar un aviso («Avisar el cambio de fecha»), siempre que
 	 *   haya un cambio, también después de «No hace falta» o de avisar.
 	 *
 	 * Sin JavaScript, los formularios van directo a esa pestaña, que muestra el resultado.

@@ -1,5 +1,5 @@
 /**
- * El pie de los mails que se cambia en Ajustes → Mails (`withMailFooter`, layout.js): sin nada
+ * El pie de los mails que se cambia en Mensajes → Configuración (`withMailFooter`, layout.js): sin nada
  * cargado, cada mail sale byte a byte igual; con textos propios, cambian solo la línea de contacto
  * y la firma (el «por qué te llega» de cada plantilla no), con el mismo formato seguro. Lo pone
  * `deliver()` al mandar (lo que se le manda a Resend se captura: no sale nada) y la vista previa.
@@ -105,7 +105,7 @@ describe('withMailFooter', () => {
 	});
 });
 
-describe('Ajustes → Mails: validar el pie', () => {
+describe('Mensajes → Configuración: validar el pie', () => {
 	it('acepta texto, negrita, links y {{contacto}} (solo en la línea de contacto)', () => {
 		expect(
 			validateSalesSettings({

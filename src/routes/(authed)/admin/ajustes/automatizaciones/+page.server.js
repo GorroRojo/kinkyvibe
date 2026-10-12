@@ -13,6 +13,7 @@ import { env } from '$env/dynamic/private';
 import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { registerBotCommands } from '$lib/server/telegram/commands.js';
+import { botTextOverrides } from '$lib/server/telegram/texts.js';
 import {
 	commandsHash,
 	getCommandsSync,
@@ -77,7 +78,9 @@ export const actions = {
 		const db = getDB(platform);
 		// Los de la cuenta solo con «Lo que sigo» (apagado, contestan «todavía no se puede»).
 		const accounts = await isFlagOn(db, 'lo_que_sigo');
-		const r = await registerBotCommands({ token, accounts });
+		// Las descripciones, con lo cambiado en Ajustes → Textos del bot.
+		const texts = await botTextOverrides(db);
+		const r = await registerBotCommands({ token, accounts, texts });
 		const results = 'results' in r ? r.results : [];
 		await logAdminAction(db, locals, {
 			action: 'telegram.commands',
@@ -97,7 +100,7 @@ export const actions = {
 				const now = Date.now();
 				await storeCommandsSync(
 					db,
-					{ hash: await commandsHash({ accounts }), at: now, by: 'manual' },
+					{ hash: await commandsHash({ accounts, texts }), at: now, by: 'manual' },
 					locals.user?.login ?? 'manual'
 				);
 			} catch (error) {

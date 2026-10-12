@@ -9,6 +9,8 @@ import { expect, test } from '@playwright/test';
 import { AGE_OK } from './helpers.js';
 import { ticketsE2EEvent } from './event.js';
 
+const EVENT = ticketsE2EEvent();
+
 test.beforeEach(async ({ page }) => {
 	await page.addInitScript(AGE_OK);
 	await page.setViewportSize({ width: 1280, height: 900 });
@@ -133,7 +135,7 @@ test('«Recientes» en la barra lateral: las páginas que abriste', async ({ pag
 	await expect(recent.getByRole('link', { name: 'Todas las ventas' })).toHaveCount(0);
 });
 
-test('/admin/estadisticas (la única redirección del panel, gorrite 11/10) lleva a Ventas', async ({
+test('/admin/estadisticas (una de las dos redirecciones del panel, gorrite 11/10) lleva a Ventas', async ({
 	page
 }) => {
 	await page.goto('/admin/estadisticas?periodo=30d', { waitUntil: 'domcontentloaded' });
@@ -155,6 +157,26 @@ test('/admin/estadisticas (la única redirección del panel, gorrite 11/10) llev
 	await expect(
 		page.getByRole('navigation', { name: 'Período' }).getByRole('link', { name: '30 días' })
 	).toHaveAttribute('aria-current', 'true');
+});
+
+test('/admin/ajustes/mails (la otra redirección) lleva a Mensajes › Configuración', async ({
+	page
+}) => {
+	await page.goto('/admin/ajustes/mails', { waitUntil: 'domcontentloaded' });
+	expect(new URL(page.url()).pathname).toBe('/admin/mensajes/configuracion');
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Configuración de los mails');
+	// Las plantillas no son otra tarjeta acá: un link a Mensajes › Plantillas.
+	await expect(page.getByRole('link', { name: 'Mensajes → Plantillas' })).toHaveAttribute(
+		'href',
+		'/admin/mensajes/plantillas'
+	);
+	// Las pestañas del grupo (Comunidad, con Mensajes), con Configuración marcada.
+	const tabs = page.getByRole('navigation', { name: 'Secciones de Comunidad' });
+	await expect(tabs.getByRole('link', { name: 'Configuración' })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+	await expect(tabs.getByRole('link', { name: 'Plantillas' })).toBeVisible();
 });
 
 test('una dirección del panel que no existe da 404 adentro del panel (con el menú)', async ({
@@ -383,11 +405,11 @@ test('ficha del evento en el celu: la pestaña ▾ arriba y las acciones, más c
 	page
 }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
-	await page.goto(`/admin/eventos/${ticketsE2EEvent()}/transferencias`, {
+	await page.goto(`/admin/eventos/${EVENT}/transferencias`, {
 		waitUntil: 'networkidle'
 	});
 	const toggle = page.getByRole('navigation', { name: 'Pestañas' }).getByRole('button', {
-		name: /Pestaña: Transferencias/
+		name: /Pestaña: Ventas/
 	});
 	await expect(toggle).toBeVisible();
 	// Las acciones del encabezado no se ven; debajo de la pestaña: Editar y «⋯ Acciones».
@@ -405,4 +427,60 @@ test('ficha del evento en el celu: la pestaña ▾ arriba y las acciones, más c
 	await expect(more.getByRole('link', { name: 'Duplicar' })).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(more.getByRole('link', { name: 'Duplicar' })).toBeHidden();
+});
+
+test('ficha del evento: 7 pestañas, Ventas y Mails con sus vistas, y la lista ▾ en el celu', async ({
+	page
+}) => {
+	await page.goto(`/admin/eventos/${EVENT}/ordenes`, { waitUntil: 'networkidle' });
+	const tabs = page.getByRole('navigation', { name: 'Pestañas' });
+	await expect(tabs.getByRole('link')).toHaveText([
+		'Resumen',
+		'Editar',
+		/^Ventas/,
+		'Puerta',
+		'Códigos',
+		'Mails',
+		/^Preguntas/
+	]);
+	// Órdenes es una vista de Ventas: la pestaña Ventas queda marcada.
+	await expect(tabs.getByRole('link', { name: /^Ventas/ })).toHaveAttribute('aria-current', 'page');
+	const views = page.getByRole('navigation', { name: 'Vistas de Ventas' });
+	await expect(views.getByRole('link', { name: /^Órdenes/ })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+	await views.getByRole('link', { name: /^Transferencias/ }).click();
+	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/transferencias$`));
+
+	// Las direcciones de siempre de Mails siguen andando, cada una en su vista.
+	await page.goto(`/admin/eventos/${EVENT}/mails`, { waitUntil: 'networkidle' });
+	await expect(tabs.getByRole('link', { name: 'Mails' })).toHaveAttribute('aria-current', 'page');
+	await expect(
+		page
+			.getByRole('navigation', { name: 'Vistas de Mails' })
+			.getByRole('link', { name: 'Plantillas' })
+	).toHaveAttribute('aria-current', 'page');
+
+	// En el celu: un botón con la pestaña actual que abre la lista entera.
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect(tabs.getByRole('link', { name: 'Resumen', exact: true })).toBeHidden();
+	const toggle = page.getByRole('button', { name: /Pestaña: Mails/ });
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	const menu = page.getByRole('navigation', { name: 'Pestañas' });
+	await expect(menu.getByRole('listitem')).toHaveCount(7);
+	await expect(menu.getByRole('link', { name: 'Mails', exact: true })).toBeFocused();
+	await page.keyboard.press('Escape');
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	await expect(toggle).toBeFocused();
+	await page.keyboard.press('ArrowDown');
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	await menu.getByRole('link', { name: 'Códigos', exact: true }).click();
+	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/codigos$`));
+	await expect(page.getByRole('button', { name: /Pestaña: Códigos/ })).toHaveAttribute(
+		'aria-expanded',
+		'false'
+	);
 });

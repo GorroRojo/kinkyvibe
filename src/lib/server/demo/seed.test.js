@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { unstable_splitSqlQuery } from 'wrangler';
-import { createTestDB } from '../db/testing.js';
+import { createTestDB, restoreDB, snapshotDB } from '../db/testing.js';
 import { parseTicketConfig } from '../tickets/config.js';
 import { validateEventTags } from '../../utils/adminTags.js';
 import { splitMarkdown } from '../../utils/eventDraft.js';
@@ -36,14 +36,35 @@ const today = '2026-09-30';
 const now = Date.parse('2026-09-30T12:00:00Z');
 const data = buildData({ today, now });
 
+/**
+ * One database for the whole file (it used to be one per block plus one inside a test): each block
+ * starts with `freshDB()`, which leaves it exactly as freshly migrated (`restoreDB` of the copy
+ * taken when it was created, with the rows the migrations insert), the same as a new database.
+ * @type {Awaited<ReturnType<typeof createTestDB>>}
+ */
+let shared;
+/** @type {import('../db/testing.js').DBSnapshot} */
+let migrated;
+beforeAll(async () => {
+	shared = await createTestDB();
+	migrated = await snapshotDB(shared.db);
+});
+afterAll(async () => {
+	await shared?.dispose();
+});
+
+/** The file's database, as freshly migrated (and without content cached from before). */
+async function freshDB() {
+	await restoreDB(shared.db, migrated);
+	(await import('../contenido/posts.js')).clearContentCache();
+	return shared;
+}
+
 describe('demo seed', () => {
 	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
 	let t;
 	beforeAll(async () => {
-		t = await createTestDB();
-	});
-	afterAll(async () => {
-		await t?.dispose();
+		t = await freshDB();
 	});
 
 	/** @param {string} text */
@@ -267,7 +288,7 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
 	let t;
 	beforeAll(async () => {
-		t = await createTestDB();
+		t = await freshDB();
 		// Tables of later migrations (panel). Same shape; no-ops where the migrations exist.
 		await t.db.batch(
 			[
@@ -279,9 +300,6 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 				'CREATE TABLE IF NOT EXISTS event_mail_recipients (send_id TEXT NOT NULL, email TEXT NOT NULL, status TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (send_id, email))'
 			].map((s) => t.db.prepare(s))
 		);
-	});
-	afterAll(async () => {
-		await t?.dispose();
 	});
 
 	/**
@@ -611,9 +629,19 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 		}
 	}, 60000);
 
-	it('skips the tables of migrations the database does not have', async () => {
-		const bare = await createTestDB();
-		try {
+	describe('without a table of a later migration', () => {
+		// Its own database (this test drops a table), started before the test so miniflare's
+		// start-up doesn't count against the test's time limit.
+		/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+		let bare;
+		beforeAll(async () => {
+			bare = await createTestDB();
+		});
+		afterAll(async () => {
+			await bare?.dispose();
+		});
+
+		it('skips the tables of migrations the database does not have', async () => {
 			await bare.db.prepare('DROP TABLE IF EXISTS admin_audit').run();
 			const r = await reloadDemoData(bare.db, {
 				where: 'local',
@@ -621,20 +649,15 @@ describe('reloadDemoData (D1): wipes only demo rows and is idempotent', () => {
 			});
 			expect(r.skipped).toContain('admin_audit');
 			expect(r.orders).toBeGreaterThan(100);
-		} finally {
-			await bare.dispose();
-		}
-	}, 60000);
+		}, 60000);
+	});
 });
 
 describe('demo events as objects (D1): reused from one day to the next', () => {
 	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
 	let t;
 	beforeAll(async () => {
-		t = await createTestDB();
-	});
-	afterAll(async () => {
-		await t?.dispose();
+		t = await freshDB();
 	});
 
 	const day1 = Date.parse('2026-10-01T15:00:00Z');
@@ -769,79 +792,73 @@ describe('demo events as objects (D1): reused from one day to the next', () => {
 	}, 120000);
 
 	it('adopts a demo event imported from a .md, retires stale ones and never touches other events', async () => {
-		const fresh = await createTestDB();
-		const prev = t;
-		t = fresh;
-		try {
-			const { saveObject } = await import('../objects/save.js');
-			const { runImport } = await import('../contenido/importer.js');
-			const plan1 = buildData({ today: todayInArgentina(day1), now: day1 });
-			// Contenido → Importar on a deploy that has the demo .md of day 1 (the `demo` branch).
-			const latex = plan1.events.filter((e) => e.series === 'noche-latex');
-			const imported = await runImport(t.db, 'calendario', mdFiles(latex), { actor: 'demo' });
-			expect(imported.results.map((r) => r.action)).toEqual(latex.map(() => 'created'));
-			const importedIds = imported.results.map((r) => Number(r.objectId));
-			// An event that isn't demo data but whose old .md had the slug of a demo date.
-			const munch = /** @type {any} */ (plan1.events.find((e) => e.slot === 'munch-martes-4'));
-			const other = await saveObject(
-				t.db,
-				{
-					type: 'evento',
-					slug: 'evento-ajeno',
-					title: 'Evento ajeno inventado',
-					data: { summary: 'No es de prueba.', start: '2026-10-20T20:00-03:00' }
-				},
-				{ actor: 'admin-inventade', now: 1 }
-			);
-			await t.db
-				.prepare(
-					`INSERT INTO content_sources (object_id, category, legacy_slug, source_hash,
-						imported_version, imported_at, updated_at) VALUES (?1, 'calendario', ?2, ?3, 1, 1, 1)`
-				)
-				.bind(other.id, munch.slug, 'a'.repeat(64))
-				.run();
-			const otherBefore = await rowOf(other.id);
+		// Starts from a database as fresh as a new one (the previous test left demo data).
+		t = await freshDB();
+		const { saveObject } = await import('../objects/save.js');
+		const { runImport } = await import('../contenido/importer.js');
+		const plan1 = buildData({ today: todayInArgentina(day1), now: day1 });
+		// Contenido → Importar on a deploy that has the demo .md of day 1 (the `demo` branch).
+		const latex = plan1.events.filter((e) => e.series === 'noche-latex');
+		const imported = await runImport(t.db, 'calendario', mdFiles(latex), { actor: 'demo' });
+		expect(imported.results.map((r) => r.action)).toEqual(latex.map(() => 'created'));
+		const importedIds = imported.results.map((r) => Number(r.objectId));
+		// An event that isn't demo data but whose old .md had the slug of a demo date.
+		const munch = /** @type {any} */ (plan1.events.find((e) => e.slot === 'munch-martes-4'));
+		const other = await saveObject(
+			t.db,
+			{
+				type: 'evento',
+				slug: 'evento-ajeno',
+				title: 'Evento ajeno inventado',
+				data: { summary: 'No es de prueba.', start: '2026-10-20T20:00-03:00' }
+			},
+			{ actor: 'admin-inventade', now: 1 }
+		);
+		await t.db
+			.prepare(
+				`INSERT INTO content_sources (object_id, category, legacy_slug, source_hash,
+					imported_version, imported_at, updated_at) VALUES (?1, 'calendario', ?2, ?3, 1, 1, 1)`
+			)
+			.bind(other.id, munch.slug, 'a'.repeat(64))
+			.run();
+		const otherBefore = await rowOf(other.id);
 
-			const r1 = await reloadDemoData(t.db, { where: 'local', now: day1 });
-			// The imported ones became the demo events of their dates (same objects).
-			const ids = await slotIds();
-			expect(latex.map((e) => ids[e.slot])).toEqual(importedIds);
-			expect(await count(`content_sources WHERE object_id IN (${importedIds.join(', ')})`)).toBe(0);
-			// The other event is never touched: that demo date is skipped.
-			expect(r1.eventsSkipped).toEqual([munch.slug]);
-			expect(r1.eventObjects).toBe(19);
-			expect(await rowOf(other.id)).toEqual(otherBefore);
-			expect(await count(`content_sources WHERE object_id = ${other.id}`)).toBe(1);
+		const r1 = await reloadDemoData(t.db, { where: 'local', now: day1 });
+		// The imported ones became the demo events of their dates (same objects).
+		const ids = await slotIds();
+		expect(latex.map((e) => ids[e.slot])).toEqual(importedIds);
+		expect(await count(`content_sources WHERE object_id IN (${importedIds.join(', ')})`)).toBe(0);
+		// The other event is never touched: that demo date is skipped.
+		expect(r1.eventsSkipped).toEqual([munch.slug]);
+		expect(r1.eventObjects).toBe(19);
+		expect(await rowOf(other.id)).toEqual(otherBefore);
+		expect(await count(`content_sources WHERE object_id = ${other.id}`)).toBe(1);
 
-			// A month later, the deploy's .md of that day get imported too: only the last party has
-			// a slug no demo event has yet, so it's created; the seed retires it to take its slug.
-			const at = day1 + 28 * DAY;
-			const plan2 = buildData({ today: todayInArgentina(at), now: at });
-			const latex2 = plan2.events.filter((e) => e.series === 'noche-latex');
-			const again = await runImport(t.db, 'calendario', mdFiles(latex2), { actor: 'demo' });
-			const created = again.results.filter((r) => r.action === 'created');
-			expect(created).toHaveLength(1);
-			const stale = Number(created[0].objectId);
-			const r2 = await reloadDemoData(t.db, { where: 'local', now: at });
-			expect(r2.eventsSkipped).toEqual([]);
-			expect(r2.eventObjects).toBe(20);
-			const gone = /** @type {any} */ (await rowOf(stale));
-			expect(gone.deleted_at).not.toBeNull();
-			expect(gone.slug).not.toBe(created[0].slug);
-			expect(await count(`content_sources WHERE object_id = ${stale}`)).toBe(0);
-			expect((await slotIds())['noche-latex-6']).toBe(ids['noche-latex-6']);
-			const s = await listedSlugs(at);
-			for (const e of plan2.events) expect(e.draft ? s.unlisted : s.listed).toContain(e.slug);
-			expect(await rowOf(other.id)).toEqual(otherBefore);
+		// A month later, the deploy's .md of that day get imported too: only the last party has
+		// a slug no demo event has yet, so it's created; the seed retires it to take its slug.
+		const at = day1 + 28 * DAY;
+		const plan2 = buildData({ today: todayInArgentina(at), now: at });
+		const latex2 = plan2.events.filter((e) => e.series === 'noche-latex');
+		const again = await runImport(t.db, 'calendario', mdFiles(latex2), { actor: 'demo' });
+		const created = again.results.filter((r) => r.action === 'created');
+		expect(created).toHaveLength(1);
+		const stale = Number(created[0].objectId);
+		const r2 = await reloadDemoData(t.db, { where: 'local', now: at });
+		expect(r2.eventsSkipped).toEqual([]);
+		expect(r2.eventObjects).toBe(20);
+		const gone = /** @type {any} */ (await rowOf(stale));
+		expect(gone.deleted_at).not.toBeNull();
+		expect(gone.slug).not.toBe(created[0].slug);
+		expect(await count(`content_sources WHERE object_id = ${stale}`)).toBe(0);
+		expect((await slotIds())['noche-latex-6']).toBe(ids['noche-latex-6']);
+		const s = await listedSlugs(at);
+		for (const e of plan2.events) expect(e.draft ? s.unlisted : s.listed).toContain(e.slug);
+		expect(await rowOf(other.id)).toEqual(otherBefore);
 
-			// From then on, nothing else changes in size.
-			const settled = await counts();
-			await reloadDemoData(t.db, { where: 'local', now: at + DAY });
-			expect(await counts()).toEqual(settled);
-		} finally {
-			t = prev;
-			await fresh.dispose();
-		}
+		// From then on, nothing else changes in size.
+		const settled = await counts();
+		await reloadDemoData(t.db, { where: 'local', now: at + DAY });
+		expect(await counts()).toEqual(settled);
 	}, 120000);
 });
 
@@ -849,10 +866,7 @@ describe('reloadDemoData (D1): the purchase of «Persona con entradas» survives
 	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
 	let t;
 	beforeAll(async () => {
-		t = await createTestDB();
-	});
-	afterAll(async () => {
-		await t?.dispose();
+		t = await freshDB();
 	});
 
 	/** @param {string} file */
@@ -916,10 +930,7 @@ describe('reloadDemoData (D1): «Persona que gestiona un perfil» also manages a
 	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
 	let t;
 	beforeAll(async () => {
-		t = await createTestDB();
-	});
-	afterAll(async () => {
-		await t?.dispose();
+		t = await freshDB();
 	});
 
 	const persona = /** @type {(typeof DEMO_PERSONAS)[number]} */ (

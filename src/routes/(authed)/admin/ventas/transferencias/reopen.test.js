@@ -1,6 +1,8 @@
 /**
- * Bandeja de transferencias: "Deshacer rechazo" de una transferencia cancelada. Solo admins; solo si
- * todavía hay lugar en su tipo (si no, el aviso para pasar el límite); queda en el registro.
+ * "Deshacer rechazo" de una transferencia cancelada, desde las dos puertas que lo ofrecen: la
+ * bandeja de transferencias (Ventas) y la pestaña Transferencias de la ficha del evento. Solo
+ * admins; solo si todavía hay lugar en su tipo (si no, el aviso para pasar el límite); queda en el
+ * registro. Las mismas pruebas para las dos (eran dos archivos casi iguales).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -20,7 +22,8 @@ import { getOrder, reserveOrder } from '$lib/server/tickets/orders.js';
 
 /** Una reserva fija de prueba (48 h): este test no depende de la regla de los días hábiles. */
 const TRANSFER_HOLD_MS = 48 * 60 * 60 * 1000;
-import { actions } from './+page.server.js';
+import { actions as inboxActions } from './+page.server.js';
+import { actions as eventActions } from '../../eventos/[slug]/transferencias/+page.server.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -35,6 +38,22 @@ beforeEach(async () => {
 });
 
 const SLUG = 'fiesta-de-prueba';
+
+/** Las dos puertas: sus actions y lo que les llega en el pedido. */
+const DOORS = [
+	{
+		door: 'bandeja de transferencias (Ventas)',
+		actions: inboxActions,
+		params: {},
+		url: 'http://localhost/admin/ventas/transferencias'
+	},
+	{
+		door: 'ficha del evento, pestaña Transferencias',
+		actions: eventActions,
+		params: { slug: SLUG },
+		url: `http://localhost/admin/eventos/${SLUG}/transferencias`
+	}
+];
 const admin = { user: { id: ADMINS[0].id, login: ADMINS[0].login }, user_token: 'prueba' };
 const notAdmin = { user: { id: 1, login: 'persona-de-prueba' }, user_token: 'prueba' };
 
@@ -67,33 +86,35 @@ async function rejected() {
 }
 
 /**
+ * @param {(typeof DOORS)[number]} door
  * @param {'reopen'} name
  * @param {Record<string, string>} fields
  * @param {any} locals
  */
-async function act(name, fields, locals) {
+async function act(door, name, fields, locals) {
 	const body = new FormData();
 	for (const [k, v] of Object.entries(fields)) body.set(k, v);
 	/** @type {any} */
 	const event = {
+		params: door.params,
 		locals,
 		platform: t.platform,
 		request: new Request('http://localhost/x', { method: 'POST', body }),
-		url: new URL(`http://localhost/admin/ventas/transferencias`),
+		url: new URL(door.url),
 		fetch: async () => new Response('{}', { status: 503 })
 	};
 	try {
-		return /** @type {any} */ (await /** @type {any} */ (actions)[name](event));
+		return /** @type {any} */ (await /** @type {any} */ (door.actions)[name](event));
 	} catch (e) {
 		return { thrown: /** @type {any} */ (e).status };
 	}
 }
 
-describe('deshacer el rechazo de una transferencia', () => {
+describe.each(DOORS)('deshacer el rechazo de una transferencia: $door', (door) => {
 	it('no admin: 403, ni mandando override', async () => {
 		const o = await rejected();
 		expect(
-			await act('reopen', { order: o.id, override: 'capacity:general:2/2' }, notAdmin)
+			await act(door, 'reopen', { order: o.id, override: 'capacity:general:2/2' }, notAdmin)
 		).toEqual({ thrown: 403 });
 		expect((await getOrder(t.db, o.id))?.status).toBe('cancelled');
 		expect(await listAudit(t.db)).toEqual([]);
@@ -102,7 +123,7 @@ describe('deshacer el rechazo de una transferencia', () => {
 	it('con lugar: vuelve a esperar comprobante con la reserva renovada y queda en el registro', async () => {
 		const o = await rejected();
 		const before = Date.now();
-		const r = await act('reopen', { order: o.id }, admin);
+		const r = await act(door, 'reopen', { order: o.id }, admin);
 		expect(r.transfer).toMatchObject({ ok: true });
 		const fresh = await getOrder(t.db, o.id);
 		expect(fresh?.status).toBe('awaiting_transfer');
@@ -118,7 +139,7 @@ describe('deshacer el rechazo de una transferencia', () => {
 		const o = await rejected();
 		const other = await reserve('mercadopago');
 		await t.db.prepare("UPDATE orders SET status = 'approved' WHERE id = ?").bind(other.id).run();
-		const first = await act('reopen', { order: o.id }, admin);
+		const first = await act(door, 'reopen', { order: o.id }, admin);
 		expect(first.status).toBe(409);
 		expect(first.data.transfer.message).toMatch(/No hay lugar/);
 		expect(first.data.transfer.action).toBe('reopen');
@@ -127,7 +148,7 @@ describe('deshacer el rechazo de una transferencia', () => {
 		expect((await getOrder(t.db, o.id))?.status).toBe('cancelled');
 		expect(await listAudit(t.db)).toEqual([]);
 
-		const ok = await act('reopen', { order: o.id, override: nc.key }, admin);
+		const ok = await act(door, 'reopen', { order: o.id, override: nc.key }, admin);
 		expect(ok.transfer).toMatchObject({ ok: true });
 		expect((await getOrder(t.db, o.id))?.status).toBe('awaiting_transfer');
 		expect((await listAudit(t.db)).map((e) => e.action).sort()).toEqual([

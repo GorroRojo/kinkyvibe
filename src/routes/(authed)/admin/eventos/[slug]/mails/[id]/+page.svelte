@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Plantilla de un mail solo para este evento (pestaña "Plantillas de mails" de la ficha). El
+	 * Plantilla de un mail solo para este evento (pestaña Mails › Plantillas de la ficha). El
 	 * editor y la vista previa están en MailTemplateEditor; acá lo vacío = la plantilla general.
 	 */
 	import { page } from '$app/stores';
@@ -14,7 +14,7 @@
 </script>
 
 <section class="head">
-	<a class="back" href="/admin/eventos/{slug}/mails">← Plantillas de mails</a>
+	<a class="back" href="/admin/eventos/{slug}/mails">← Plantillas del evento</a>
 	<h2>
 		{data.def.label}
 		{#if data.saved}<Badge tone="info">propio de este evento</Badge>{:else if data.hasGeneral}<Badge

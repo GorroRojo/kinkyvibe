@@ -15,31 +15,12 @@
  * también cuando se toca un botón viejo. No sabe de la base: lo de las cuentas pasa por
  * `deps.accounts` (link.js). En los grupos, solo lo público (deliver.js: efímeros).
  */
-import {
-	ACCOUNTS_OFF_TEXT,
-	LINK_ASK_CODE_TEXT,
-	LINK_INVALID_TEXT,
-	LINK_TOO_MANY_TEXT,
-	MUTED_TEXT,
-	NOT_LINKED_TEXT,
-	PRIVATE_ONLY_TEXT,
-	UNLINKED_TEXT,
-	UNMUTED_TEXT,
-	formatLinked,
-	ERROR_TEXT,
-	NOT_FOUND_TEXT,
-	UNAVAILABLE_TEXT,
-	UNKNOWN_TEXT,
-	PICK_EVENT_TEXT,
-	FOLLOW_ALREADY_TEXT,
-	FOLLOW_FULL_TEXT,
-	FOLLOW_GONE_TEXT,
-	FOLLOW_TOO_MANY_TEXT,
-	followedText
-} from './format.js';
+import { escapeHtml, formatAdminLinked, formatLinked, followedText } from './format.js';
 import { ACCOUNT_COMMAND_NAMES, HANDLED_COMMANDS } from './commands.js';
 import { answerOnly, deliverScreen, singleMethod } from './deliver.js';
 import {
+	ADMIN_START_PREFIX,
+	clipQuery,
 	decodeNav,
 	encodeNav,
 	findByDeepId,
@@ -50,8 +31,12 @@ import {
 	startParam
 } from './nav.js';
 import { cardFor, navigate } from './navigate.js';
+import { planInlineQuery, selectInline } from './inline.js';
+import { backToResults, docHash, docScreen, siteResultsScreen } from './siteScreens.js';
+import { sectionDocScreen, sectionScreen, sectionTagsScreen, sectionView } from './sections.js';
 import {
-	SEARCH_PROMPT_HEAD,
+	doorAppUrl,
+	isSearchPrompt,
 	followScreen,
 	listScreen,
 	noticeScreen,
@@ -60,6 +45,15 @@ import {
 	sigoScreen,
 	unlinkedScreen
 } from './screens.js';
+import { botText } from './texts.js';
+
+/**
+ * Un texto de «Textos del bot» que también es aviso de un botón (texto solo), para un mensaje:
+ * escapado para el HTML de Telegram.
+ *
+ * @param {string} key
+ */
+const htmlOf = (key) => escapeHtml(botText(key));
 
 /** @typedef {import('./format.js').BotEvent} BotEvent */
 /** @typedef {import('./deliver.js').BotMethod} BotMethod */
@@ -82,10 +76,31 @@ import {
  */
 
 /**
+ * Vincular el Telegram de une admin (la puerta por Telegram, decisión 0037, adminLink.js): recibe
+ * lo que vino después de `/start` (`adm_<código>`) y el id del usuario de Telegram.
+ *
+ * @typedef {(param: string, telegramUserId: number) =>
+ *   Promise<{ linked: string } | 'invalid' | 'too_many'>} BotAdminLink
+ */
+
+/**
+ * ¿Este usuario de Telegram es une admin vinculade que puede abrir la puerta? (puerta.js,
+ * `botDoor`). Para el botón «🚪 Puerta» del inicio.
+ *
+ * @typedef {(telegramUserId: number) => Promise<boolean>} BotDoor
+ */
+
+/**
  * @typedef {import('./navigate.js').NavDeps & {
  *   accounts?: () => Promise<BotAccounts | null>,
+ *   adminLink?: BotAdminLink | null,
+ *   inline?: import('./inline.js').InlineDeps | null,
+ *   door?: BotDoor | null,
  *   media?: boolean
- * }} Deps `media`: hay token, así que se pueden usar fotos y varios métodos (run.js)
+ * }} Deps `media`: hay token, así que se pueden usar fotos y varios métodos (run.js).
+ *   `inline`: el modo inline (inline.js); sin él, un `inline_query` no se contesta.
+ *   `adminLink`: sin base o con `telegram_puerta` apagado, `null` (el bot contesta que no se
+ *   puede). `door`: lo mismo; se llama solo al mostrar el inicio por chat privado.
  */
 
 /** Lo que trae "/start" cuando viene del link con el código (8 letras y números). */
@@ -180,24 +195,51 @@ export function matchEvents(events, query) {
  * @returns {Promise<string>}
  */
 async function accountCommand(command, chat, deps) {
-	if (chat?.type !== 'private') return PRIVATE_ONLY_TEXT;
+	if (chat?.type !== 'private') return botText('vincular.solo_privado');
 	const accounts = deps.accounts ? await deps.accounts() : null;
-	if (!accounts) return ACCOUNTS_OFF_TEXT;
+	if (!accounts) return htmlOf('vincular.apagado');
 	const chatId = chat.id;
+	const notLinked = () => botText('vincular.sin_vincular');
 	switch (command.name) {
 		case 'vincular': {
-			if (!command.args) return LINK_ASK_CODE_TEXT;
+			if (!command.args) return botText('vincular.pedir_codigo');
 			const r = await accounts.link(command.args, chatId);
 			if (r === 'linked') return formatLinked(deps.origin);
-			return r === 'too_many' ? LINK_TOO_MANY_TEXT : LINK_INVALID_TEXT;
+			return botText(r === 'too_many' ? 'vincular.muchos' : 'vincular.codigo_malo');
 		}
 		case 'desvincular':
-			return (await accounts.unlink(chatId)) ? UNLINKED_TEXT : NOT_LINKED_TEXT;
+			return (await accounts.unlink(chatId)) ? botText('vincular.desvinculado') : notLinked();
 		case 'silenciar':
-			return (await accounts.setMuted(chatId, true)) ? MUTED_TEXT : NOT_LINKED_TEXT;
+			return (await accounts.setMuted(chatId, true)) ? botText('vincular.silenciado') : notLinked();
 		default:
-			return (await accounts.setMuted(chatId, false)) ? UNMUTED_TEXT : NOT_LINKED_TEXT;
+			return (await accounts.setMuted(chatId, false)) ? botText('vincular.reanudado') : notLinked();
 	}
+}
+
+/**
+ * `/start adm_<código>`: el link de «Vincular Telegram» del panel (Ajustes → Admins). Solo por
+ * chat privado; no depende de «Lo que sigo» (les admins no tienen cuenta pública). Si sale bien,
+ * la confirmación trae el botón que abre la puerta (Mini App, `web_app` solo anda en privado).
+ *
+ * @param {string} param
+ * @param {any} message
+ * @param {Deps} deps
+ * @returns {Promise<Screen>}
+ */
+async function adminLinkCommand(param, message, deps) {
+	if (message?.chat?.type !== 'private') return textScreen(botText('vincular.solo_privado'));
+	const userId = message?.from?.id;
+	if (!deps.adminLink || typeof userId !== 'number') {
+		return textScreen(botText('puerta.apagada'));
+	}
+	const r = await deps.adminLink(param, userId);
+	if (typeof r === 'object' && r) {
+		return {
+			text: formatAdminLinked(r.linked),
+			keyboard: [[{ text: botText('puerta.boton'), web_app: { url: doorAppUrl(deps.origin) } }]]
+		};
+	}
+	return textScreen(botText(r === 'too_many' ? 'vincular.muchos' : 'puerta.link_malo'));
 }
 
 /**
@@ -225,8 +267,120 @@ function screenCtx(deps, group, accounts = null) {
 		chat: group ? 'group' : 'private',
 		now: deps.now ? deps.now() : Date.now(),
 		botUsername: deps.botUsername ?? null,
-		sigo: Boolean(accounts?.follows)
+		sigo: Boolean(accounts?.follows),
+		site: Boolean(deps.inline)
 	};
+}
+
+/**
+ * Lo que coincide con lo buscado en todo el sitio, en el orden del buscador del sitio: solo lo del
+ * índice público de la búsqueda (inline.js). `null` sin el índice.
+ *
+ * @param {string} query ya recortada (`clipQuery`)
+ * @param {ScreenCtx} ctx
+ * @param {Deps} deps
+ */
+async function siteMatches(query, ctx, deps) {
+	const source = deps.inline ? await deps.inline.source() : null;
+	if (!source) return null;
+	return {
+		source,
+		docs: selectInline(source, { types: null, text: query }, ctx.now ?? Date.now())
+	};
+}
+
+/**
+ * Los resultados de buscar en todo el sitio (eventos, material, Kinkipedia, series y amigues).
+ *
+ * @param {string} rawQuery
+ * @param {number} page
+ * @param {ScreenCtx} ctx
+ * @param {Deps} deps
+ * @returns {Promise<Screen>}
+ */
+async function siteSearchScreen(rawQuery, page, ctx, deps) {
+	const query = clipQuery(rawQuery);
+	const found = query ? await siteMatches(query, ctx, deps) : null;
+	if (!found) return noticeScreen(htmlOf('errores.algo_salio_mal'));
+	return siteResultsScreen(query, found.docs, page, ctx, found.source.extras);
+}
+
+/**
+ * La tarjeta de un resultado: se busca de nuevo lo mismo y se toma la cosa **de esos resultados**
+ * (nunca algo afuera del índice público). Un evento próximo, con su tarjeta de siempre; lo demás
+ * (y un evento que ya pasó), con la tarjeta compacta. Las dos con «‹ Volver» a la página.
+ *
+ * @param {{ hash: string, page: number, query: string }} state
+ * @param {ScreenCtx} ctx
+ * @param {Deps} deps
+ * @returns {Promise<{ screen: Screen } | { toast: string }>}
+ */
+async function siteDocResult(state, ctx, deps) {
+	const found = await siteMatches(state.query, ctx, deps);
+	const doc = found?.docs.find((d) => docHash(d) === state.hash);
+	if (!found || !doc) return { toast: botText('errores.no_disponible') };
+	const back = backToResults(state.query, state.page);
+	if (doc.c === 'calendario') {
+		const events = await deps.listUpcoming();
+		const event = events.find((e) => `/calendario/${e.slug}` === doc.h);
+		if (event) {
+			return {
+				screen: await cardFor(event, 'n', events, ctx, deps, {
+					follow: followButton(event, ctx),
+					back
+				})
+			};
+		}
+	}
+	return { screen: docScreen(doc, found.source.extras.get(doc.h), ctx, { back }) };
+}
+
+/**
+ * Las secciones del sitio (sections.js): la lista, sus etiquetas y la tarjeta de una cosa. Todo
+ * del índice público de la búsqueda; una etiqueta o una cosa que no está en esa sección (botón
+ * viejo o armado a mano) no muestra nada.
+ *
+ * @param {{ screen: 'section', section: import('./nav.js').SectionId, page: number, tag?: string }
+ *   | { screen: 'section_tags', section: import('./nav.js').SectionId, tag?: string }
+ *   | { screen: 'section_doc', section: import('./nav.js').SectionId, hash: string, page: number,
+ *     tag?: string }} state
+ * @param {ScreenCtx} ctx
+ * @param {Deps} deps
+ * @returns {Promise<{ screen: Screen } | { toast: string }>}
+ */
+async function sectionResult(state, ctx, deps) {
+	const source = deps.inline ? await deps.inline.source() : null;
+	if (!source) return { toast: botText('errores.algo_salio_mal') };
+	const view = sectionView(source, state.section, state.tag);
+	if (!view) return { toast: botText('secciones.no_esta') };
+	if (state.screen === 'section_tags') return { screen: sectionTagsScreen(state.section, view) };
+	if (state.screen === 'section') {
+		return { screen: sectionScreen(state.section, view, state.page, ctx, source.extras) };
+	}
+	const screen = sectionDocScreen(state.section, view, state, ctx, source.extras);
+	return screen ? { screen } : { toast: botText('secciones.no_esta') };
+}
+
+/**
+ * El contexto del inicio: con `door` si quien escribe puede abrir la puerta (une admin vinculade,
+ * los dos interruptores prendidos). Solo por chat privado (`web_app` no anda en grupos) y solo
+ * para el inicio: una consulta por id de Telegram, nada más. Si falla, el inicio sale sin el
+ * botón.
+ *
+ * @param {ScreenCtx} ctx
+ * @param {Deps} deps
+ * @param {any} chat
+ * @param {unknown} userId
+ * @returns {Promise<ScreenCtx>}
+ */
+async function homeCtx(ctx, deps, chat, userId) {
+	if (chat?.type !== 'private' || !deps.door || typeof userId !== 'number') return ctx;
+	try {
+		return (await deps.door(userId)) ? { ...ctx, door: true } : ctx;
+	} catch (error) {
+		console.error('[telegram] no se pudo mirar la puerta:', /** @type {Error} */ (error)?.name);
+		return ctx;
+	}
 }
 
 /**
@@ -241,12 +395,12 @@ function followButton(event, ctx) {
 	if (!ctx.sigo) return null;
 	if (ctx.chat === 'private') {
 		return {
-			text: '⭐ Seguir',
+			text: botText('seguir.boton'),
 			callback_data: encodeNav({ screen: 'follow', id: navId(event.slug) })
 		};
 	}
 	const link = startLink(ctx.botUsername, startParam({ screen: 'follow', slug: event.slug }));
-	return link ? { text: '⭐ Seguir ↗', url: link } : null;
+	return link ? { text: `${botText('seguir.boton')} ↗`, url: link } : null;
 }
 
 /**
@@ -263,7 +417,7 @@ function followButton(event, ctx) {
  */
 async function personalScreen(state, chatId, ctx, deps, accounts) {
 	const follows = accounts?.follows;
-	if (!follows) return { toast: ACCOUNTS_OFF_TEXT };
+	if (!follows) return { toast: botText('vincular.apagado') };
 	if (ctx.chat === 'group') {
 		return {
 			screen: privateOnlyScreen(startLink(ctx.botUsername, startParam({ screen: 'sigo' })))
@@ -278,24 +432,26 @@ async function personalScreen(state, chatId, ctx, deps, accounts) {
 		'deep' in state && state.deep
 			? findByDeepId(events, state.deep)
 			: findByNavId(events, /** @type {string} */ (state.id));
-	if (!event) return { toast: UNAVAILABLE_TEXT };
+	if (!event) return { toast: botText('errores.no_disponible') };
 	const targets = await follows.targets(event.slug);
 	/** @type {string | undefined} */
 	let toast;
 	if (state.screen === 'follow_do') {
 		const target = targets.find((t) => t.hash === state.tag);
-		if (!target) return { toast: FOLLOW_GONE_TEXT };
+		if (!target) return { toast: botText('seguir.no_esta') };
 		const r = await follows.follow(accountId, target.key);
 		toast =
-			r === 'created'
-				? followedText(target.title)
-				: r === 'already'
-					? FOLLOW_ALREADY_TEXT
-					: r === 'too_many'
-						? FOLLOW_TOO_MANY_TEXT
-						: r === 'full'
-							? FOLLOW_FULL_TEXT
-							: FOLLOW_GONE_TEXT;
+			r === 'created' || r === 'created_telegram'
+				? followedText(target.title, { telegram: r === 'created_telegram' })
+				: botText(
+						r === 'already'
+							? 'seguir.ya'
+							: r === 'too_many'
+								? 'seguir.muchos'
+								: r === 'full'
+									? 'seguir.lleno'
+									: 'seguir.no_esta'
+					);
 	}
 	const following = await follows.following(
 		accountId,
@@ -322,7 +478,7 @@ function isSearchReply(message) {
 		!message.text.startsWith('/') &&
 		prompt?.from?.is_bot === true &&
 		typeof prompt?.text === 'string' &&
-		prompt.text.startsWith(SEARCH_PROMPT_HEAD)
+		isSearchPrompt(prompt.text)
 	);
 }
 
@@ -361,7 +517,7 @@ async function planCallback(callback, deps) {
 	const message = callback?.message;
 	const chatId = message?.chat?.id;
 	if (typeof chatId !== 'number' && typeof chatId !== 'string') {
-		return answerOnly(callbackId, UNAVAILABLE_TEXT);
+		return answerOnly(callbackId, botText('errores.no_disponible'));
 	}
 	const group = isGroup(message.chat);
 	/** @type {Where} */
@@ -381,7 +537,7 @@ async function planCallback(callback, deps) {
 		isPhoto: Array.isArray(message.photo)
 	};
 	const state = decodeNav(callback?.data);
-	if (!state) return answerOnly(callbackId, UNKNOWN_TEXT);
+	if (!state) return answerOnly(callbackId, botText('errores.no_entendi'));
 	if (state.screen === 'noop') return answerOnly(callbackId);
 	if (state.screen === 'search_cancel') {
 		if (group || !where.messageId) return answerOnly(callbackId);
@@ -392,14 +548,24 @@ async function planCallback(callback, deps) {
 	}
 	try {
 		const accounts = await accountsOf(deps);
-		const ctx = screenCtx(deps, group, accounts);
+		const base = screenCtx(deps, group, accounts);
+		const ctx =
+			state.screen === 'home' ? await homeCtx(base, deps, message.chat, callback?.from?.id) : base;
 		const result =
-			state.screen === 'sigo' || state.screen === 'follow' || state.screen === 'follow_do'
-				? await personalScreen(state, chatId, ctx, deps, accounts)
-				: await navigate(state, ctx, deps, {
-						accounts: Boolean(accounts),
-						follow: (event) => followButton(event, ctx)
-					});
+			state.screen === 'site_results'
+				? { screen: await siteSearchScreen(state.query, state.page, ctx, deps) }
+				: state.screen === 'site_doc'
+					? await siteDocResult(state, ctx, deps)
+					: state.screen === 'section' ||
+						  state.screen === 'section_tags' ||
+						  state.screen === 'section_doc'
+						? await sectionResult(state, ctx, deps)
+						: state.screen === 'sigo' || state.screen === 'follow' || state.screen === 'follow_do'
+							? await personalScreen(state, chatId, ctx, deps, accounts)
+							: await navigate(state, ctx, deps, {
+									accounts: Boolean(accounts),
+									follow: (event) => followButton(event, ctx)
+								});
 		if (!('screen' in result)) return answerOnly(callbackId, result.toast);
 		const plan = deliverScreen(result.screen, where, {
 			media: Boolean(deps.media),
@@ -412,7 +578,7 @@ async function planCallback(callback, deps) {
 		return plan;
 	} catch (error) {
 		console.error('[telegram] error al contestar un botón:', error);
-		return answerOnly(callbackId, ERROR_TEXT);
+		return answerOnly(callbackId, botText('errores.algo_salio_mal'));
 	}
 }
 
@@ -423,16 +589,17 @@ async function planCallback(callback, deps) {
  * @param {string} param
  * @param {ScreenCtx} ctx
  * @param {Deps} deps
- * @param {number | string} chatId
+ * @param {any} message
  * @param {BotAccounts | null} accounts
  * @returns {Promise<Screen | null>}
  */
-async function startScreen(param, ctx, deps, chatId, accounts) {
+async function startScreen(param, ctx, deps, message, accounts) {
+	const chatId = message.chat.id;
 	const target = parseStartParam(param);
 	if (!target) return null;
 	if (target.screen === 'sigo' || target.screen === 'follow') {
 		const r = await personalScreen(target, chatId, ctx, deps, accounts);
-		return 'screen' in r ? r.screen : noticeScreen(r.toast);
+		return 'screen' in r ? r.screen : noticeScreen(escapeHtml(r.toast));
 	}
 	if (target.screen === 'list') {
 		const r = await navigate({ screen: 'list', view: target.view, page: 0 }, ctx, deps);
@@ -441,10 +608,18 @@ async function startScreen(param, ctx, deps, chatId, accounts) {
 	if (target.screen === 'event') {
 		const events = await deps.listUpcoming();
 		const event = findByDeepId(events, target.deep);
-		if (!event) return noticeScreen(UNAVAILABLE_TEXT);
+		if (!event) return noticeScreen(htmlOf('errores.no_disponible'));
 		return cardFor(event, 'n', events, ctx, deps, { follow: followButton(event, ctx) });
 	}
-	if (target.screen === 'fondo' || target.screen === 'search' || target.screen === 'home') {
+	if (target.screen === 'home') {
+		const r = await navigate(
+			target,
+			await homeCtx(ctx, deps, message.chat, message?.from?.id),
+			deps
+		);
+		return 'screen' in r ? r.screen : null;
+	}
+	if (target.screen === 'fondo' || target.screen === 'search') {
 		const r = await navigate({ screen: target.screen }, ctx, deps);
 		return 'screen' in r ? r.screen : null;
 	}
@@ -462,27 +637,34 @@ async function startScreen(param, ctx, deps, chatId, accounts) {
  * @returns {Promise<Screen>}
  */
 async function commandScreen(command, message, ctx, deps, accounts) {
-	/** @param {NavState} state */
-	const go = async (state) => {
-		const r = await navigate(state, ctx, deps, {
+	/** @param {NavState} state @param {ScreenCtx} [where] */
+	const go = async (state, where = ctx) => {
+		const r = await navigate(state, where, deps, {
 			accounts: Boolean(accounts),
 			follow: (event) => followButton(event, ctx)
 		});
-		return 'screen' in r ? r.screen : noticeScreen(r.toast);
+		return 'screen' in r ? r.screen : noticeScreen(escapeHtml(r.toast));
 	};
 	switch (command.name) {
 		case 'start': {
+			// El link de «Vincular Telegram» del panel llega como "/start adm_<código>".
+			if (command.args.startsWith(ADMIN_START_PREFIX)) {
+				return adminLinkCommand(command.args, message, deps);
+			}
 			// El link `t.me/<bot>?start=<código>` de Mi rincón llega como "/start <código>".
 			if (START_CODE.test(command.args)) {
 				const linkCommand = { name: 'vincular', args: command.args };
 				return textScreen(await accountCommand(linkCommand, message.chat, deps));
 			}
 			if (command.args) {
-				const screen = await startScreen(command.args, ctx, deps, message.chat.id, accounts);
+				const screen = await startScreen(command.args, ctx, deps, message, accounts);
 				if (screen) return screen;
 			}
-			return go({ screen: 'home' });
+			return go({ screen: 'home' }, await homeCtx(ctx, deps, message.chat, message?.from?.id));
 		}
+		case 'inicio':
+			// Lo mismo que `/start` sin nada, por el mismo camino (lo que venga después se ignora).
+			return commandScreen({ name: 'start', args: '' }, message, ctx, deps, accounts);
 		case 'ayuda':
 		case 'help':
 			return go({ screen: 'help' });
@@ -495,32 +677,40 @@ async function commandScreen(command, message, ctx, deps, accounts) {
 		case 'finde':
 			return go({ screen: 'list', view: 'f', page: 0 });
 		case 'buscar':
+			// Con texto («/buscar cuerdas», también en grupos): los resultados de todo el sitio.
+			if (command.args && deps.inline) return siteSearchScreen(command.args, 0, ctx, deps);
 			return go({ screen: 'search' });
 		case 'fondo':
 			return go({ screen: 'fondo' });
 		case 'evento': {
 			const events = await deps.listUpcoming();
 			if (!command.args) {
-				return listScreen('p', events, 0, ctx, events.length ? { intro: PICK_EVENT_TEXT } : {});
+				return listScreen(
+					'p',
+					events,
+					0,
+					ctx,
+					events.length ? { intro: botText('eventos.elegir') } : {}
+				);
 			}
 			const found = matchEvents(events, command.args);
-			if (found.length === 0) return noticeScreen(NOT_FOUND_TEXT);
+			if (found.length === 0) return noticeScreen(botText('eventos.no_encontrado'));
 			if (found.length === 1) {
 				return cardFor(found[0], 'n', events, ctx, deps, { follow: followButton(found[0], ctx) });
 			}
 			return searchResultsScreen(command.args, found, ctx, {
-				head: 'Encontré varios eventos. ¿Cuál querés ver? Tocá uno.'
+				head: botText('eventos.varios')
 			});
 		}
 		default:
 			if (command.name === 'sigo') {
 				const r = await personalScreen({ screen: 'sigo' }, message.chat.id, ctx, deps, accounts);
-				return 'screen' in r ? r.screen : textScreen(r.toast);
+				return 'screen' in r ? r.screen : textScreen(escapeHtml(r.toast));
 			}
 			if (ACCOUNT_COMMAND_NAMES.has(command.name)) {
 				return textScreen(await accountCommand(command, message.chat, deps));
 			}
-			return noticeScreen(UNKNOWN_TEXT);
+			return noticeScreen(htmlOf('errores.no_entendi'));
 	}
 }
 
@@ -531,6 +721,7 @@ async function commandScreen(command, message, ctx, deps, accounts) {
  */
 export async function planUpdate(update, deps) {
 	if (update?.callback_query) return planCallback(update.callback_query, deps);
+	if (update?.inline_query) return planInline(update.inline_query, deps);
 	const message = update?.message;
 	const chatId = message?.chat?.id;
 	if (typeof chatId !== 'number' && typeof chatId !== 'string') return null;
@@ -551,19 +742,44 @@ export async function planUpdate(update, deps) {
 	try {
 		if (isSearchReply(message)) {
 			const query = message.text.trim().slice(0, 100);
+			const ctx = screenCtx(deps, group);
+			// Con el índice público: todo el sitio. Sin él, como antes, los próximos eventos.
+			if (deps.inline) return send(await siteSearchScreen(query, 0, ctx, deps));
 			const found = matchEvents(await deps.listUpcoming(), query);
-			return send(searchResultsScreen(query, found, screenCtx(deps, group)));
+			return send(searchResultsScreen(query, found, ctx));
 		}
 		const command = parseCommand(message?.text);
 		if (!command) return null;
 		// La lista de comandos vive en commands.js (también la que se registra en Telegram).
-		if (!HANDLED_COMMANDS.has(command.name)) return send(textScreen(UNKNOWN_TEXT));
+		if (!HANDLED_COMMANDS.has(command.name)) return send(textScreen(htmlOf('errores.no_entendi')));
 		const accounts = await accountsOf(deps);
 		const ctx = screenCtx(deps, group, accounts);
 		return send(await commandScreen(command, message, ctx, deps, accounts));
 	} catch (error) {
 		console.error('[telegram] error al armar la respuesta:', error);
-		return send(textScreen(ERROR_TEXT));
+		return send(textScreen(htmlOf('errores.algo_salio_mal')));
+	}
+}
+
+/**
+ * El modo inline (`@<bot> <texto>` en cualquier chat): solo lo público del índice de la búsqueda
+ * (inline.js). Un error no contesta nada (Telegram muestra la lista vacía).
+ *
+ * @param {any} inlineQuery
+ * @param {Deps} deps
+ * @returns {Promise<BotPlan | null>}
+ */
+async function planInline(inlineQuery, deps) {
+	if (!deps.inline) return null;
+	try {
+		return await planInlineQuery(inlineQuery, {
+			...deps.inline,
+			origin: deps.origin,
+			now: deps.now
+		});
+	} catch (error) {
+		console.error('[telegram] error en el modo inline:', /** @type {Error} */ (error)?.name);
+		return null;
 	}
 }
 

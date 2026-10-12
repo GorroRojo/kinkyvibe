@@ -13,7 +13,8 @@
  * - `deleteMessage` que falla (mensaje de más de 48 h) no corta nada.
  */
 import { callTelegramApi } from './send.js';
-import { ERROR_TEXT } from './format.js';
+import { renderBotText } from '$lib/utils/botTexts.js';
+import { botText } from './texts.js';
 
 /** @typedef {import('./deliver.js').BotPlan} BotPlan */
 /** @typedef {import('./deliver.js').BotMethod} BotMethod */
@@ -22,7 +23,8 @@ import { ERROR_TEXT } from './format.js';
  *   Promise<{ ok: boolean, status: number | null, description?: string }>} TelegramCall
  */
 
-export const SLOW_DOWN_TEXT = 'Más despacio 🙂';
+/** El aviso original cuando Telegram pide ir más despacio (se usa el de este pedido). */
+export const SLOW_DOWN_TEXT = renderBotText('errores.despacio');
 
 /** @param {string | undefined} description */
 export const isNotModified = (description) => /message is not modified/i.test(description ?? '');
@@ -78,9 +80,9 @@ export async function runPlan(plan, call) {
 		const { id, text, url, onFail } = plan.callback;
 		/** @type {Record<string, unknown>} */
 		const answer = { callback_query_id: id };
-		if (outcome === 'slow') answer.text = SLOW_DOWN_TEXT;
+		if (outcome === 'slow') answer.text = botText('errores.despacio');
 		else if (outcome === 'failed') {
-			answer.text = onFail?.text ?? ERROR_TEXT;
+			answer.text = onFail?.text ?? botText('errores.algo_salio_mal');
 			if (onFail?.url) answer.url = onFail.url;
 		} else {
 			if (text) answer.text = text;

@@ -80,6 +80,20 @@
 
 	/** @type {HTMLInputElement} */
 	let inputEl;
+	/** @type {HTMLElement | undefined} */
+	let chipsEl;
+	let chipsOverflow = false;
+	// Las elegidas se deslizan de costado en su fila (ver el estilo): que se vea la última.
+	async function showLastChip() {
+		await tick();
+		// una variable local: asignarle a `chipsEl.scrollLeft` invalidaría `chipsEl` (modo legacy)
+		const el = chipsEl;
+		if (!el) return;
+		el.scrollLeft = el.scrollWidth;
+		// el fundido de la izquierda, solo si hay más de las que entran
+		chipsOverflow = el.scrollWidth > el.clientWidth + 1;
+	}
+	$: ($filteredTags.length, showLastChip());
 </script>
 
 <div class="tag-search">
@@ -89,7 +103,12 @@
 	<div class="field" on:click={() => inputEl?.focus()}>
 		<Search size="1.1em" aria-hidden="true" class="search-icon" />
 		{#if $filteredTags.length > 0}
-			<ul class="chips" aria-label="Etiquetas seleccionadas">
+			<ul
+				class="chips"
+				class:overflow={chipsOverflow}
+				aria-label="Etiquetas seleccionadas"
+				bind:this={chipsEl}
+			>
 				{#each $filteredTags as id (id)}
 					{@const tag = $tagManager.get(id)}
 					<!-- El chip compartido, elegido (TagChip `selected`), con su botón para sacarla. -->
@@ -171,9 +190,13 @@
 		width: 100%;
 		box-sizing: border-box;
 	}
+	/* Una sola línea siempre, con su forma de píldora: con muchas etiquetas elegidas, las elegidas
+	   se deslizan de costado en su propia fila (con un fundido a la izquierda y la última a la
+	   vista) y el campo de texto nunca baja de 10.5em, así se lee «Sumar otra etiqueta…». Antes
+	   crecía en varias líneas y la píldora se deformaba. */
 	.field {
 		display: flex;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
 		align-items: center;
 		gap: 0.3em;
 		background: var(--surface);
@@ -201,8 +224,9 @@
 		height: 2em;
 	}
 	input {
-		flex: 1 1 10em;
-		min-width: 6em;
+		flex: 1 0 10.5em;
+		min-width: 10.5em;
+		text-overflow: ellipsis;
 		border: 0;
 		outline: none;
 		padding: 0.3em 0.2em;
@@ -210,14 +234,25 @@
 		background: transparent;
 	}
 	.chips {
-		display: contents;
+		display: flex;
+		align-items: center;
+		gap: 0.3em;
+		flex: 0 1 auto;
+		min-width: 0;
+		margin: 0;
+		padding: 0;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+	.chips.overflow {
+		mask-image: linear-gradient(to left, black calc(100% - 1.5em), transparent);
 	}
 	/* el chip es el compartido (`.kv-tag.on`, style.scss); acá solo el lugar del botón de sacar */
 	.chip {
 		list-style: none;
 		display: inline-flex;
+		flex: none;
 		align-items: center;
-		max-width: 100%;
 		:global(.kv-tag) {
 			align-self: stretch;
 			max-width: 100%;
