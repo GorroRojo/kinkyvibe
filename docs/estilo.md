@@ -115,6 +115,15 @@ son sombras: esos quedan como están.
   escribiendo o eligiendo. En el sitio y en el panel.
 - No saques el `outline` sin poner otra señal de foco igual de visible.
 
+## Toque
+
+- En el celu, todo lo que se toca mide al menos 44px (`--tap`). Para algo chico (un chip, un
+  link suelto), `.tap-target` (`style.scss`): agranda la zona sin cambiar lo que se ve.
+- Si esa zona invisible taparía a un vecino, crece el control mismo: «Comprar entradas» en las
+  tarjetas de las listas (`PostListItem`) mide 44px de alto y va centrado cuando tiene su
+  fila, abajo de las etiquetas; en pantalla ancha queda como estaba (gorrite,
+  `areas-toque-restos`).
+
 ## Piezas
 
 Las piezas compartidas, con las decisiones de gorrite de la revisión de UI. Usá estas antes de

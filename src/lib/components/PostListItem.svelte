@@ -456,6 +456,17 @@
 			.CTA {
 				justify-self: end;
 			}
+			/* «Comprar entradas» mide los 44px del dedo (`--tap`) en el botón mismo: un
+			   `.tap-target` invisible taparía las etiquetas de arriba (decisión de gorrite,
+			   `areas-toque-restos`). Los avisos («Agotadas»…) no son botones y quedan como están,
+			   a la derecha. */
+			.CTA:not(.note) {
+				display: inline-flex;
+				align-items: center;
+				min-height: var(--tap);
+				/* centrado en su fila, abajo de las etiquetas (gorrite, al revisar #335) */
+				justify-self: center;
+			}
 			/* &:has(.CTA).noimg {
 				grid-template-areas:
 					'title title'
