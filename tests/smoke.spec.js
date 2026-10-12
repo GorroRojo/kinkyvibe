@@ -469,6 +469,12 @@ test.describe('errores', () => {
 		const res = await request.get('/estilo');
 		expect(res.status()).toBe(404);
 	});
+
+	// El borrador legal, lo mismo hasta que se publique (docs/legales.md).
+	test('/legales (borrador legal) devuelve 404 fuera de un preview', async ({ request }) => {
+		const res = await request.get('/legales');
+		expect(res.status()).toBe(404);
+	});
 });
 
 test.describe('auth', () => {

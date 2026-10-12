@@ -32,6 +32,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [seo.md](seo.md)                               | Datos estructurados, microformats, `rel="me"`, `security.txt`, vCard, robots, sitemap y el peso de las páginas      |
 | [estilo.md](estilo.md)                         | Estilo visual: tokens de texto, espacio, radios, sombras, colores y foco, y cuándo usar cada uno                    |
 | [ui-impacto.md](ui-impacto.md)                 | Informe de impacto visual: capturas de las páginas principales antes y después de un cambio, comparadas             |
+| [legales.md](legales.md)                       | Página legal mínima (borrador): qué es obligatorio y qué no, qué revisar y cómo publicarla                          |
 | [demo.md](demo.md)                             | Modo demo de los deploys de preview: entrar como admin de prueba sin tocar el repo ni producción                    |
 | [release-1.md](release-1.md)                   | Release 1: qué prender, importar y verificar antes de la revisión grande, y rendimiento de los endpoints            |
 | [workers-migracion.md](workers-migracion.md)   | Paso de Cloudflare Pages a Workers (ya hecho), backups nocturnos y cómo restaurar                                   |
