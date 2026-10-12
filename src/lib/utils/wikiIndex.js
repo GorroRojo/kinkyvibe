@@ -106,3 +106,47 @@ export function wikiSuggestions(options, query, tm, limit = 8) {
 		detail: [o.group, o.matched ? `también «${o.matched}»` : ''].filter(Boolean).join(' · ')
 	}));
 }
+
+/** Minúsculas y sin tildes, para comparar lo escrito con los textos del árbol. */
+const normalize = (/** @type {string} */ s) =>
+	s
+		.toLowerCase()
+		.replaceAll('á', 'a')
+		.replaceAll('é', 'e')
+		.replaceAll('í', 'i')
+		.replaceAll('ó', 'o')
+		.replaceAll('ú', 'u');
+
+/**
+ * El filtro de texto del buscador de la Kinkipedia: deja las etiquetas cuyo id, nombre,
+ * descripción, alias o relacionadas contienen `q` (sin mayúsculas ni tildes), y las madres de esas
+ * para que el árbol siga armado. MODIFICA `tm`: pasale uno nuevo (`freshSiteTags()`).
+ *
+ * @param {TagManager} tm
+ * @param {string} q
+ * @returns {TagManager}
+ */
+export function filterWikiTree(tm, q) {
+	const needle = normalize(q);
+	const has = (/** @type {string | undefined} */ s) =>
+		s !== undefined && normalize(s).includes(needle);
+	/** @type {string[]} */
+	const drop = [];
+	/** @type {Set<string>} */
+	const keep = new Set();
+	tm.tagsData().forEach((/** @type {ProcessedTag} */ t) => {
+		if (
+			has(t.id) ||
+			has(t.visible_name) ||
+			has(t.description) ||
+			has(t.aka?.join(' ')) ||
+			has(t.related?.join(' '))
+		) {
+			t.getAllParents().forEach((/** @type {string} */ p) => keep.add(p));
+		} else {
+			drop.push(t.id);
+		}
+	});
+	drop.forEach((id) => (keep.has(id) ? null : tm.delete(id)));
+	return tm;
+}

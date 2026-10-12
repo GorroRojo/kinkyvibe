@@ -4,16 +4,19 @@
 	 * el componente de `$lib/components/ui`, su import, cuándo usarlo y cuándo no, y sus estados
 	 * (normal, hover y foco forzados con una clase, apagado, error, elegido, vacío), con datos
 	 * inventados. Arriba: superficie (panel o sitio), tema (claro u oscuro, solo el panel tiene
-	 * oscuro) y ancho (celu o compu). También por la URL: `?superficie=sitio&tema=oscuro&ancho=celu`.
+	 * oscuro) y ancho (celu o compu). También por la URL: `?superficie=sitio&tema=oscuro&ancho=celu`,
+	 * y `?grupo=campos` para ver solo las secciones de un grupo de la revisión (GRUPOS).
 	 *
 	 * SOLO existe en previews y en dev: la importa src/routes/estilo/+page.js dentro de su
 	 * condición de compilación. No la importes desde otro lado (lo controla estiloGuard.test.js).
 	 */
 	import '$lib/admin/panel.scss';
 	import '$lib/admin/panel-forms.scss';
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, setContext } from 'svelte';
+	import { writable } from 'svelte/store';
 	import {
 		CalendarDays,
+		CircleHelp,
 		Copy,
 		ExternalLink,
 		Inbox,
@@ -51,7 +54,7 @@
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 	import Seccion from './Seccion.svelte';
 	import Estado from './Estado.svelte';
-	import { SECCIONES } from './secciones.js';
+	import { GRUPOS, SECCIONES } from './secciones.js';
 
 	/** Marca para `node scripts/demo/guard.js bundle`: si aparece en producción, algo falló. */
 	const MARCA = 'kv-estilo-galeria';
@@ -64,6 +67,10 @@
 	let ancho = 'compu';
 
 	const seccion = Object.fromEntries(SECCIONES.map((s) => [s.id, s]));
+	/** Con `?grupo=`, las secciones que se muestran (Seccion.svelte lo lee del contexto). */
+	/** @type {import('svelte/store').Writable<readonly string[] | null>} */
+	const solo = writable(null);
+	setContext('estilo-solo', solo);
 
 	// Datos inventados.
 	let nombre = 'Persona de Prueba';
@@ -96,18 +103,60 @@
 	const SOLO_PANEL = ['panel'];
 	/** @type {('panel' | 'sitio')[]} */
 	const SITIO_Y_PANEL = ['sitio', 'panel'];
-	/** @type {{ key: string, label: string, align?: 'left' | 'right' }[]} */
+	/** Columnas que se ordenan (texto, número, plata por su valor y fecha), con su ancho. */
+	/** @type {import('$lib/components/ui/tableSort.js').TableColumn[]} */
 	const COLUMNAS = [
-		{ key: 'orden', label: 'Orden' },
-		{ key: 'persona', label: 'Persona' },
-		{ key: 'entradas', label: 'Entradas', align: 'right' },
-		{ key: 'total', label: 'Total', align: 'right' }
+		{ key: 'orden', label: 'Orden', sort: 'text', nowrap: true, width: '7rem' },
+		{ key: 'persona', label: 'Persona', sort: 'text' },
+		{
+			key: 'fecha',
+			label: 'Compra',
+			sort: 'date',
+			sortValue: (r) => r.cuando,
+			nowrap: true,
+			width: '6.5rem'
+		},
+		{ key: 'entradas', label: 'Entradas', align: 'right', sort: 'number', width: '7rem' },
+		{
+			key: 'total',
+			label: 'Total',
+			align: 'right',
+			sort: 'number',
+			sortValue: (r) => r.pesos,
+			width: '7.5rem'
+		}
 	];
 	const FILAS = [
-		{ orden: 'KV-0001', persona: 'Persona de Prueba', entradas: 2, total: '$ 24.000' },
-		{ orden: 'KV-0002', persona: 'Alguien Inventade', entradas: 1, total: '$ 12.000' },
-		{ orden: 'KV-0003', persona: 'Otra Persona', entradas: 3, total: '$ 36.000' }
+		{
+			orden: 'KV-0001',
+			persona: 'Persona de Prueba',
+			fecha: '2/10',
+			cuando: '2026-10-02T21:00:00Z',
+			entradas: 2,
+			total: '$ 24.000',
+			pesos: 24000
+		},
+		{
+			orden: 'KV-0002',
+			persona: 'Alguien Inventade',
+			fecha: '28/9',
+			cuando: '2026-09-28T15:30:00Z',
+			entradas: 1,
+			total: '$ 9.000',
+			pesos: 9000
+		},
+		{
+			orden: 'KV-0010',
+			persona: 'Otra Persona',
+			fecha: '5/10',
+			cuando: '2026-10-05T12:00:00Z',
+			entradas: 10,
+			total: '$ 120.000',
+			pesos: 120000
+		}
 	];
+	/** @type {{ key: string, dir: 'asc' | 'desc' } | null} */
+	let ordenTabla = { key: 'total', dir: 'desc' };
 
 	/** Lo que había en <html data-theme> antes de entrar, para dejarlo igual al salir. */
 	/** @type {string | undefined} */
@@ -120,6 +169,8 @@
 		if (q.get('superficie') === 'sitio') superficie = 'sitio';
 		if (q.get('tema') === 'oscuro') tema = 'oscuro';
 		if (q.get('ancho') === 'celu') ancho = 'celu';
+		const grupo = q.get('grupo');
+		if (grupo && grupo in GRUPOS) solo.set(GRUPOS[grupo]);
 		montada = true;
 	});
 	onDestroy(() => {
@@ -202,7 +253,9 @@
 			</p>
 		{/if}
 		<nav class="indice" aria-label="Componentes">
-			{#each SECCIONES as s (s.id)}<a href="#{s.id}">{s.nombre}</a>{/each}
+			{#each SECCIONES as s (s.id)}{#if !$solo || $solo.includes(s.id)}<a href="#{s.id}"
+						>{s.nombre}</a
+					>{/if}{/each}
 		</nav>
 	</header>
 
@@ -306,6 +359,16 @@
 						<Tabs tabs={TABS} current="/estilo#resumen" label="Ficha del evento (hover)" />
 					</div>
 				</Estado>
+				<Estado label="Celu: lista ▾ (forzado)">
+					<div class="fondo forzar-celu-tabs">
+						<Tabs
+							tabs={TABS}
+							current="/estilo#ordenes"
+							label="Ficha del evento (celu)"
+							menuCaption="Pestaña"
+						/>
+					</div>
+				</Estado>
 			</Seccion>
 
 			<!-- Badge -->
@@ -316,11 +379,13 @@
 					<Badge tone="warn">Por vencer</Badge>
 					<Badge tone="bad">Agotadas</Badge>
 					<Badge tone="info">Venta cerrada</Badge>
+					<Badge tone="accent">Hoy</Badge>
 				</Estado>
 				<Estado label="Llenas">
 					<Badge filled tone="ok">Pagada</Badge>
 					<Badge filled tone="bad">Agotadas</Badge>
 					<Badge filled tone="info">Fondo Kinky Vibe</Badge>
+					<Badge filled tone="accent">Hoy</Badge>
 				</Estado>
 				<Estado label="Ícono propio">
 					<Badge tone="info" icon={Ticket}>2 entradas</Badge>
@@ -521,14 +586,30 @@
 			<Seccion seccion={seccion.dialog}>
 				<!-- El panel lo monta una vez en su layout; acá, para que askConfirm lo use. -->
 				<ConfirmDialog />
-				<Estado label="Maqueta">
-					<Dialog inline title="¿Borrar esta nota?" icon={Trash2} tone="danger">
-						<p>La podés recuperar desde Actividad.</p>
-						<svelte:fragment slot="buttons">
-							<Button variant="secondary">Cancelar</Button>
-							<Button variant="danger" icon={Trash2}>Borrar</Button>
-						</svelte:fragment>
-					</Dialog>
+				<Estado label="Maqueta (los tres tonos)">
+					<div class="grilla dialogos">
+						<Dialog inline title="¿Mandar el mail?" icon={CircleHelp} tone="primary">
+							<p>Les llega a todes les que tienen entrada.</p>
+							<svelte:fragment slot="buttons">
+								<Button variant="secondary">Cancelar</Button>
+								<Button>Mandar</Button>
+							</svelte:fragment>
+						</Dialog>
+						<Dialog inline title="¿Borrar esta nota?" icon={Trash2} tone="danger">
+							<p>La podés recuperar desde Actividad.</p>
+							<svelte:fragment slot="buttons">
+								<Button variant="secondary">Cancelar</Button>
+								<Button variant="danger" icon={Trash2}>Borrar</Button>
+							</svelte:fragment>
+						</Dialog>
+						<Dialog inline title="¿Borrar para siempre?" icon={TriangleAlert} tone="permanent">
+							<p>No tiene vuelta atrás.</p>
+							<svelte:fragment slot="buttons">
+								<Button variant="secondary">Cancelar</Button>
+								<Button variant="permanent" icon={TriangleAlert}>Borrar</Button>
+							</svelte:fragment>
+						</Dialog>
+					</div>
 				</Estado>
 				<Estado label="Probá">
 					<Button variant="secondary" on:click={() => preguntar('primary')}
@@ -556,8 +637,10 @@
 				<Estado label="Maqueta">
 					<div class="hoja-maqueta">
 						<Sheet inline title="Filtros">
-							<Checkbox checked label="Solo con entradas" />
-							<Checkbox label="Incluir pasados" />
+							<div class="casillas">
+								<Checkbox checked label="Solo con entradas" />
+								<Checkbox label="Incluir pasados" />
+							</div>
 						</Sheet>
 					</div>
 				</Estado>
@@ -624,7 +707,13 @@
 
 			<!-- Table -->
 			<Seccion seccion={seccion.table}>
-				<Table caption="Órdenes de prueba" columns={COLUMNAS} rows={FILAS} rowKey="orden" />
+				<Table
+					caption="Órdenes de prueba"
+					columns={COLUMNAS}
+					rows={FILAS}
+					rowKey="orden"
+					bind:sort={ordenTabla}
+				/>
 				<Table caption="Vacía" columns={COLUMNAS} rows={[]} empty="Todavía no hay órdenes." />
 			</Seccion>
 		</div>
@@ -721,7 +810,8 @@
 		border-radius: var(--radius-m);
 		padding: var(--space-3xs) var(--space-2xs);
 		min-width: 0;
-		max-width: 100%;
+		width: 100%;
+		box-sizing: border-box;
 	}
 	.ancho {
 		width: 100%;
@@ -730,7 +820,7 @@
 	.hoja-maqueta {
 		background: var(--scrim, var(--bg));
 		border-radius: var(--radius-m);
-		padding: var(--space-s) var(--space-2xs) 0;
+		padding: var(--space-s) var(--space-2xs);
 		width: 100%;
 		max-width: 34rem;
 	}
@@ -782,7 +872,34 @@
 	.galeria :global(.forzar-hover-tabs a.tab:not(.on)) {
 		background: color-mix(in srgb, var(--surface) 55%, transparent);
 	}
+	/* el mismo fondo que el hover de verdad (`--seg-hover`, style.scss) */
 	.galeria :global(.forzar-hover-seg .kv-segmented > button:nth-child(2)) {
-		background: var(--bad-bg, var(--1-tint));
+		background: var(--seg-hover);
+	}
+	/* La lista ▾ del celu, vista también en la compu (y en «Celu», que no achica la ventana). */
+	.forzar-celu-tabs {
+		width: 100%;
+		max-width: 390px;
+		box-sizing: border-box;
+	}
+	.galeria :global(.forzar-celu-tabs .tabs-menu),
+	.galeria :global(.marco.celu .tabs-menu) {
+		display: block;
+	}
+	.galeria :global(.forzar-celu-tabs .tabs-wrap.has-menu),
+	.galeria :global(.marco.celu .tabs-wrap.has-menu) {
+		display: none;
+	}
+	.dialogos {
+		width: 100%;
+	}
+	.dialogos :global(.kv-dialog) {
+		width: auto;
+		max-width: 100%;
+		box-sizing: border-box;
+	}
+	.casillas {
+		display: flex;
+		flex-direction: column;
 	}
 </style>

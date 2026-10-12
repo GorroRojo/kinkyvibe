@@ -28,6 +28,9 @@ guía: `compartir.md` (llega con el PR #257).
 | `robots.txt`                           | `static/robots.txt` (lo cuida `src/lib/utils/robots.test.js`)                   |
 | Feeds Atom y JSON Feed                 | `src/lib/utils/feeds.js` (el texto), `src/lib/server/feeds.js` (las respuestas) |
 | Sitemap                                | `src/routes/(content)/sitemap.xml/` (sin las publicaciones con `redirect`)      |
+| La dirección del sitio                 | `SITE_URL` y `siteOriginFrom` en `src/lib/utils/site.js` (un solo lugar)        |
+| Un evento en una línea                 | `eventLead` en `src/lib/utils/eventText.js` (vista previa y feeds)              |
+| «Próximo» (empieza después de ahora)   | `startsAfter` en `src/lib/utils/dates.js`                                       |
 
 ### JSON-LD por página
 
@@ -37,7 +40,7 @@ guía: `compartir.md` (llega con el PR #257).
 | Evento             | `Event`: estado, modo (presencial u online), lugar según privacidad, `offers`, organizer |
 | Material           | `Article`; `DigitalDocument` si es descargable; `CreativeWork` si es interactivo         |
 | `/wiki`            | `DefinedTermSet` (la Kinkipedia)                                                         |
-| Entrada de la wiki | `DefinedTerm` con `inDefinedTermSet`                                                     |
+| Entrada de la wiki | `DefinedTerm` con `inDefinedTermSet` (también una etiqueta sin entrada con descripción)  |
 | Perfil             | `ProfilePage` con `Person` (persona), `Organization` (proyecto) o `Place` (lugar)        |
 
 `offers` de un evento: con venta en el sitio, el precio «desde» en ARS, la disponibilidad
@@ -58,7 +61,13 @@ de `src/lib/utils/dates.js` las convierten.
 | `<time datetime>` de un evento (ya viene con hora y zona)   | tal cual      | `2026-10-02T22:00-03:00`    |
 | Sitemap y feeds (`lastmod`, `published`, `updated`)         | `Date`        | `2024-12-06T03:00:00.000Z`  |
 
-Para leer una fecha del sitio igual en cualquier motor de JS: `parseSiteDate`.
+Para leer una fecha del sitio igual en cualquier motor de JS: `parseSiteDate`. Lee cada forma
+guardada campo por campo, sin pasar por `Date.parse` (V8 entiende `2024-12-06Z-03:00`, Safari no):
+`2024-12-06Z-03:00`, `2024-12-06`, `2026-10-02T22:00-03:00` (con o sin segundos, con espacio en vez
+de `T`, hora de un dígito, `Z` o `-0300`). Sin desfase, es hora de Argentina. Todos los formateadores
+de `dates.js` (`toArgentina`, `argDate*`, `eventEnd`) leen con él; en el resto del código, una fecha
+guardada (`start`, `end`, `published_date`, `updated_date`, `opening_date`) se lee con
+`parseSiteDate`, nunca con `new Date(texto)`.
 
 ### Feeds
 
@@ -130,15 +139,18 @@ comprimido con gzip (lo que viaja es parecido: Cloudflare manda brotli, `/calend
 
 ### Lo demás
 
-- **Títulos repetidos**: los eventos que se repiten tienen el mismo título en cada edición
-  («Jamarada Kinky · Kinky Vibe», «Taller de Humillación · Kinky Vibe») y muchas veces la misma
-  descripción. Convendría sumar el mes al título. Los perfiles no dicen «· Kinky Vibe»
-  («Mem | él»).
+- **Títulos repetidos**: los eventos que se repiten tenían el mismo título en cada edición
+  («Jamarada Kinky · Kinky Vibe») y muchas veces la misma descripción. Ahora el `<title>` de un
+  evento que es parte de una serie suma el mes y el año de esa edición («Jamarada Kinky · octubre
+  2026 · Kinky Vibe»; `eventPageTitle` en `eventPage.js`), salvo que el título ya diga el mes. El
+  `h1` y la vista previa al compartir quedan con el título solo. Los perfiles no dicen «· Kinky
+  Vibe» («Mem | él»).
 - **Descripciones**: faltaban en `/calendario`, `/material`, `/amigues` y `/wiki`, y las
   canónicas solo estaban en el inicio y en los perfiles (relativas). Las arregla el PR de vista
   previa al compartir (#257).
-- **Encabezados**: un solo `h1` por página, bien. En las listas se salta de `h1` a `h3` (las
-  tarjetas son `h3` sin `h2` en el medio).
+- **Encabezados**: un solo `h1` por página, bien. En las listas se saltaba de `h1` a `h3` (las
+  tarjetas son `h3` sin `h2` en el medio): `PostList` lleva un `h2` solo para lectores de
+  pantalla (`heading`) en el inicio, `/calendario`, `/material`, `/amigues` y `/todo`.
 - **Textos alternativos**: todas las imágenes tienen `alt`. Las de las tarjetas van vacías (son
   decorativas: el título está al lado); el afiche del evento dice «Afiche de …». Bien.
 - **Sitemap**: 614 direcciones; 36 eran publicaciones con `redirect` (contestan 307 a un
@@ -147,7 +159,8 @@ comprimido con gzip (lo que viaja es parecido: Cloudflare manda brotli, `/calend
 - **`robots.txt`**: tenía reglas para `/_template`, `/_tags` y `/_glossary`, que ya no existen;
   ahora tiene la línea del sitemap.
 - **Respuestas (AEO)**: las 12 entradas de la wiki arrancan con una definición de una oración
-  («Una conjunción de bondage y disciplina…»), que ahora también va como `DefinedTerm`. Faltaría
-  lo mismo para las etiquetas con descripción pero sin entrada.
+  («Una conjunción de bondage y disciplina…»), que ahora también va como `DefinedTerm`. Las
+  etiquetas con descripción pero sin entrada también: su descripción, en texto, va como
+  `DefinedTerm` (`tagTermSchema` en `jsonLd.js`).
 - **`security.txt`**: el contacto es un mail. GitHub tiene apagado el aviso privado de
   vulnerabilidades del repo; si se prende, se puede sumar como otro `Contact`.

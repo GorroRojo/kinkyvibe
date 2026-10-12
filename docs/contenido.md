@@ -115,6 +115,38 @@ GitHub ([etiquetas.md](etiquetas.md)).
 **Ocultar sin borrar.** «No listado» en el editor (`force_unlisted`); se ven en Panel → No
 listadas.
 
+**Importar un paquete de borradores de material.** Un paquete es una carpeta (fuera del repo:
+nunca se sube) con `manifest.json` (`{ version, generado, articulos: [...] }`; cada artículo con
+`slug`, `title`, `summary`, `tags`, `authors`, `body`, `portada: { archivo, alt }`, `notas`,
+`importar` y, opcional, `fecha` AAAA-MM-DD), las portadas y las notas. Las rutas pueden venir con
+`\` (Windows) o `/`. `scripts/importar-material.js` carga cada artículo con `importar: true` como
+material **no listado** por el mismo camino que el panel al crear uno
+(`src/lib/server/contenido/importarMaterial.js`: `mdToMaterial`, `validateData`,
+`dehydrateContent`, `saveObject()` con historial `import` y quien guarda
+`script:importar-material`):
+
+```sh
+node scripts/importar-material.js --paquete=<carpeta> --dry                       # local: qué haría
+node scripts/importar-material.js --paquete=<carpeta>                             # local
+node scripts/importar-material.js --paquete=<carpeta> --target=production --dry   # producción: qué haría
+node scripts/importar-material.js --paquete=<carpeta> --target=production --yes   # pide escribir «produccion»
+```
+
+- El texto va tal cual (como el panel, sin líneas vacías al principio ni espacios al final; si eso
+  cambia algo, lo avisa). `body_html: 'corta'` (la lista corta de HTML; decisión 0004).
+- Fecha (`--fecha`): `original` (por defecto) toma `fecha` del manifiesto o, si no está, la línea
+  `**Fuente:** <url> (AAAA-MM-DD, …)` de las notas (o los ítems de `## Fuentes`; con varias, la más
+  vieja); si no hay, la de hoy y lo avisa. `hoy`: la de hoy.
+- Autores: se buscan entre los perfiles vivos (no lugares) por dirección o nombre, sin tildes ni
+  mayúsculas; el que aparece va como edge `persona` con el rol Autore; el que no (o con más de un
+  perfil posible) queda como nombre y se avisa.
+- Etiquetas: por su `key` (también sin tildes ni mayúsculas); las que no existen se avisan y quedan
+  como texto, nunca se crean (se crean en Panel → Etiquetas y el próximo guardado las une).
+- Solo la portada va a la biblioteca (`storeImage`, con su `alt`; JPG, PNG, WebP, GIF o AVIF) y
+  se une con el edge `portada`. Las demás imágenes del paquete no se suben.
+- Idempotente: una dirección que ya existe (también borrada) no se toca. Al final dice qué creó,
+  qué salteó y qué tuvo problemas (sale con error si hubo problemas).
+
 **Arreglar un evento, un material, un perfil o una página de la wiki.** Desde el panel (se guarda en
 la base): los perfiles en Comunidad → Perfiles, la wiki en Etiquetas → cada etiqueta → «Entrada de
 la Kinkipedia» (`/admin/etiquetas/wiki/<dirección>`). No hay otra forma: no quedan archivos.
@@ -207,7 +239,12 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   edge `persona` y el resto va en `data.personas` ([objetos.md](objetos.md)).
 - El panel y las listas públicas recuerdan por isolate lo que leyeron de la base mientras no cambie
   (cuántos hay, su último `updated_at`, el último guardado de `object_revisions`) y, las listas
-  públicas, mientras no cambie el árbol de etiquetas. Las listas públicas leen la metadata **sin el
+  públicas, mientras no cambie el árbol de etiquetas. Esa «marca» de «¿cambió algo?» se consulta
+  **una sola vez por pedido de lectura** (`GET`/`HEAD`): la lista, los no listados, los pronombres
+  y el índice de la búsqueda de un mismo pedido comparten la respuesta
+  (`src/lib/server/db/perRequest.js`). En un `POST` solo se comparte la consulta en camino, así un
+  guardado del pedido se ve al toque; fuera de un pedido (scripts, crons, pruebas), una por
+  llamada. Las listas públicas leen la metadata **sin el
   cuerpo** (`json_remove`); el cuerpo lo pide aparte solo la búsqueda (`siteBodies`).
 
 | Qué                                     | Dónde                                                                  |

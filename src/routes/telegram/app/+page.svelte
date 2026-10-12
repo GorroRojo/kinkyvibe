@@ -11,6 +11,7 @@
 	 * - Todos los links (el evento, comprar) se abren en el navegador, afuera de Telegram
 	 *   (`openLink`): pagar sigue siendo en el sitio, con Mercado Pago.
 	 * - Sin login ni datos de nadie: solo lo que `/calendario` le muestra a cualquiera.
+	 * - Los textos vienen de «Textos del bot» (`data.texts`, $lib/server/telegram/miniapp.js).
 	 */
 	import { onMount } from 'svelte';
 
@@ -60,26 +61,26 @@
 </script>
 
 <svelte:head>
-	<title>Calendario · Kinky Vibe</title>
+	<title>{data.texts.titulo} · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 	<script src="https://telegram.org/js/telegram-web-app.js?64"></script>
 </svelte:head>
 
 <main class="app">
 	<header>
-		<h1>Calendario</h1>
-		<p class="sub">Lo que viene en Kinky Vibe. Para comprar entradas se abre el sitio.</p>
+		<h1>{data.texts.titulo}</h1>
+		<p class="sub">{data.texts.bajada}</p>
 		{#if canAddHome}
 			<button type="button" class="home" on:click={addHome}>
-				📲 Agregar a la pantalla de inicio
+				{data.texts.botonInicio}
 			</button>
 		{:else if added}
-			<p class="sub">Listo: quedó en tu pantalla de inicio.</p>
+			<p class="sub">{data.texts.agregada}</p>
 		{/if}
 	</header>
 
 	{#if data.days.length === 0}
-		<p class="empty">Por ahora no hay eventos próximos.</p>
+		<p class="empty">{data.texts.vacio}</p>
 	{/if}
 
 	{#each data.days as day (day.day)}
@@ -92,7 +93,8 @@
 					{/if}
 					<div class="body">
 						<p class="meta">
-							{ev.time}{#if ev.place}&nbsp;· {ev.place}{/if}{#if ev.cancelled}&nbsp;· Cancelado{/if}
+							{ev.time}{#if ev.place}&nbsp;· {ev.place}{/if}{#if ev.cancelled}&nbsp;· {data.texts
+									.cancelado}{/if}
 						</p>
 						<h3>
 							<a href={ev.href} on:click={(e) => open(e, ev.href)}>{ev.title}</a>
@@ -113,7 +115,7 @@
 
 	<footer>
 		<a href="/calendario" on:click={(e) => open(e, new URL('/calendario', location.href).href)}>
-			Ver el calendario completo en el sitio ↗
+			{data.texts.verTodo}
 		</a>
 	</footer>
 </main>

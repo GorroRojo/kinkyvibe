@@ -118,6 +118,7 @@ import {
 	UserCheck,
 	Workflow
 } from '@lucide/svelte';
+import { tagSlug } from '$lib/utils/tagSlug.js';
 
 /**
  * Íconos del panel: 'lucide' (los del sitio, @lucide/svelte) o 'emoji'. Cambiar esta línea cambia
@@ -835,15 +836,21 @@ export function eventPanelLink(slug, { tickets = false } = {}) {
  * Editar de la ficha); los perfiles, en Comunidad › Perfiles; las páginas de la wiki, en
  * Etiquetas › Texto de la wiki; el material, en /edit/material/<slug>. `null` si la página no es
  * una publicación editable.
+ *
+ * Una página de la wiki puede venir de un alias o de otra forma de la etiqueta (`/wiki/<alias>`,
+ * `/wiki/rancheadita-kinky` → «Rancheadita Kinky»), con o sin entrada: con `wikiTag` (el id de la
+ * etiqueta que muestra la página), el link va al editor de esa etiqueta, que también escribe la
+ * entrada de un término que todavía no tiene, y no a la dirección tal cual.
  * @param {string} pathname
+ * @param {{ wikiTag?: string | null }} [opts]
  * @returns {string | null}
  */
-export function contentEditLink(pathname) {
+export function contentEditLink(pathname, { wikiTag = null } = {}) {
 	const m = pathname.match(/^\/(amigues|calendario|material|wiki)\/([^/]+)\/?$/);
 	if (!m) return null;
 	if (m[1] === 'calendario') return eventHref(decodeURIComponent(m[2]), 'editar');
 	if (m[1] === 'amigues') return `/admin/comunidad/perfiles/${m[2]}`;
-	if (m[1] === 'wiki') return wikiEditHref(decodeURIComponent(m[2]));
+	if (m[1] === 'wiki') return wikiEditHref(wikiTag ? tagSlug(wikiTag) : decodeURIComponent(m[2]));
 	return `/edit/${m[1]}/${m[2]}`;
 }
 

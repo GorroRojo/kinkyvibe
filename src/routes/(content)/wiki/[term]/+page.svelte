@@ -5,7 +5,7 @@
 	import FollowButton from '$lib/components/FollowButton.svelte';
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
-	import { wikiTermSchema } from '$lib/utils/jsonLd.js';
+	import { tagTermSchema, wikiTermSchema } from '$lib/utils/jsonLd.js';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
 	import { tagManager, currentPostData, userConfig } from '$lib/utils/stores.js';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
@@ -98,7 +98,8 @@
 			.then((posts) => (relatedPosts = posts.filter(isRelated)))
 			.catch(() => (loadedPast = false));
 	}
-	// La entrada como término definido (schema.org, jsonLd.js); sin entrada, nada.
+	// La entrada como término definido (schema.org, jsonLd.js); sin entrada, la etiqueta si tiene
+	// descripción (docs/seo.md); si no, nada.
 	$: termSchema = data?.meta
 		? wikiTermSchema({
 				title: data.meta.title,
@@ -106,7 +107,14 @@
 				path: data.path,
 				aka: $tagManager.get(data.meta.wiki)?.aka
 			})
-		: null;
+		: data?.tag
+			? tagTermSchema({
+					title: pageTitle,
+					description: data.tag.description,
+					path: $page.url.pathname,
+					aka: data.tag.aka
+				})
+			: null;
 </script>
 
 {#if termSchema}<LDTag schema={termSchema} />{/if}

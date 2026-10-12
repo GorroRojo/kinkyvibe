@@ -223,6 +223,7 @@ describe('jsonFeed', () => {
 		expect(json.items[0].date_published).toBe('2031-07-01T03:00:00.000Z');
 		expect(json.items[0].tags).toEqual(['fiesta', 'AMBA']);
 		expect(json.items[1].authors).toEqual([{ name: 'Persona Inventada' }]);
-		expect(json.items[1].date_modified).toBe('2031-06-15T00:00:00.000Z');
+		// una fecha sin hora es un día de Argentina (parseSiteDate): medianoche a las 03:00 UTC
+		expect(json.items[1].date_modified).toBe('2031-06-15T03:00:00.000Z');
 	});
 });

@@ -16,7 +16,7 @@
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import { eventHref } from '$lib/admin/nav.js';
-	import { argDateTimeLong } from '$lib/utils/dates.js';
+	import { argDateTimeLong, parseSiteDate } from '$lib/utils/dates.js';
 
 	/** @type {{ version: number, oldStart: string | null, newStart: string, people: number, orders: number, notified: number, requested: boolean, dismissed: boolean, over: boolean, notice: boolean }} */
 	export let offer;
@@ -38,7 +38,7 @@
 	/** @param {string | null} iso */
 	function when(iso) {
 		if (!iso) return '';
-		const d = new Date(iso);
+		const d = parseSiteDate(iso);
 		return Number.isNaN(d.getTime()) ? iso : argDateTimeLong(d);
 	}
 

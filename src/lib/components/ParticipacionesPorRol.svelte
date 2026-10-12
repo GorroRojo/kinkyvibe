@@ -8,7 +8,7 @@
 	 *
 	 * Props: `groups` ({ rol, items: { title, path, category, date }[] }[]).
 	 */
-	import { argDateList } from '$lib/utils/dates.js';
+	import { argDateList, parseSiteDate } from '$lib/utils/dates.js';
 	import { splitParticipations } from '$lib/utils/eventPage.js';
 
 	/** @type {{ rol: string, items: { title: string, path: string, category: string, date: string | null }[] }[]} */
@@ -22,7 +22,7 @@
 	/** @param {string | null} d */
 	function day(d) {
 		if (!d) return '';
-		const t = new Date(d);
+		const t = parseSiteDate(d);
 		return Number.isNaN(t.getTime()) ? '' : argDateList(t, { time: false });
 	}
 </script>

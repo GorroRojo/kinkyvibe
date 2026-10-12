@@ -16,7 +16,7 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import { format, isSameMonth, isPast } from 'date-fns';
 	import { page } from '$app/stores';
-	import { toArgentina } from '$lib/utils/dates.js';
+	import { toArgentina, parseSiteDate } from '$lib/utils/dates.js';
 	import CalendarHeader from '$lib/components/CalendarHeader.svelte';
 	import CardRow from '$lib/components/CardRow.svelte';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
@@ -133,7 +133,7 @@
 <div class="cardrow">
 	<CardRow
 		items={calendarioPosts
-			.filter((p) => !isPast(new Date(p.meta.start)))
+			.filter((p) => !isPast(parseSiteDate(p.meta.start)))
 			.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))}
 		--color-1="transparent"
 		setId={false}
@@ -145,7 +145,7 @@
 		<CalendarHeader {view_date} {default_month} />
 		<button
 			type="button"
-			class="pill-btn ghost small grid-toggle"
+			class="pill-btn ghost small grid-toggle tap-target"
 			aria-expanded={showGrid}
 			aria-controls="month-grid"
 			on:click={() => (showGrid = !showGrid)}
@@ -174,7 +174,7 @@
 					{#if events}
 						<div class="dot"></div>
 						<!-- sort a copy: sorting `events` in place made featuredEvent depend on render order -->
-						{#each [...events].sort( (a, b) => (new Date(a.meta.start).getTime() > new Date(b.meta.start).getTime() ? 1 : -1) ) as event}
+						{#each [...events].sort( (a, b) => (parseSiteDate(a.meta.start).getTime() > parseSiteDate(b.meta.start).getTime() ? 1 : -1) ) as event}
 							{@const start = toArgentina(event.meta.start)}
 							<a
 								href={event.path}
@@ -201,6 +201,7 @@
 	</div>
 	<div id="postlist">
 		<PostList
+			heading="Los eventos del mes"
 			filter={{ prop: 'visible', value: true }}
 			pastEventsToggle={month_has_past}
 			amountLabel={(n) => monthCountLabel(view_month, n)}

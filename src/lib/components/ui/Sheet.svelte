@@ -81,6 +81,10 @@
 		position: static;
 		margin: 0;
 	}
+	/* En la galería se ve la hoja entera, con sus cuatro esquinas (si no, parecía cortada). */
+	dialog.inline .sheet {
+		border-radius: var(--radius-l);
+	}
 	.sheet {
 		background: var(--surface);
 		border-radius: var(--radius-l) var(--radius-l) 0 0;

@@ -4,6 +4,7 @@
  * próximos eventos (ya filtrados por events.js: públicos y sin empezar) y el instante actual.
  */
 
+import { parseSiteDate } from '$lib/utils/dates.js';
 /** @typedef {import('./format.js').BotEvent} BotEvent */
 /** @typedef {'hoy' | 'semana' | 'finde'} EventWindow */
 
@@ -46,7 +47,7 @@ export function windowDays(window, now) {
 export function eventsInWindow(events, window, now) {
 	const [from, to] = windowDays(window, now);
 	return events.filter((e) => {
-		const start = new Date(e.start).getTime();
+		const start = parseSiteDate(e.start).getTime();
 		if (!Number.isFinite(start)) return false;
 		const day = arDay(start);
 		return day >= from && day <= to;

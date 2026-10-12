@@ -54,6 +54,15 @@ describe('splitMarkdown / joinMarkdown', () => {
 		const { body } = splitMarkdown(post('punto-fijo-2026-09'));
 		expect(body).toBe('');
 	});
+	it('the frontmatter ends at a line that is only `---`, not at a `---` mid-line', () => {
+		const raw = '---\ntitle: Antes ---\nsummary: a --- b\n---\nCuerpo con --- adentro\n';
+		expect(splitMarkdown(raw)).toEqual({
+			frontmatter: 'title: Antes ---\nsummary: a --- b',
+			body: 'Cuerpo con --- adentro\n'
+		});
+		expect(splitMarkdown('---\n---\nCuerpo')).toEqual({ frontmatter: '', body: 'Cuerpo' });
+		expect(() => splitMarkdown('---\ntitle: Sin cierre ---\nCuerpo')).toThrow();
+	});
 	it('rejects files without frontmatter', () => {
 		expect(() => splitMarkdown('# hola')).toThrow();
 		// como el único .md roto que tenía el repo: todo el archivo corrido dos espacios

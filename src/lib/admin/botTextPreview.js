@@ -205,6 +205,33 @@ export const PREVIEW_SCREENS = Object.freeze([
 		})
 	},
 	{
+		id: 'sitio_sin_resultados',
+		label: 'Buscar en todo el sitio: sin resultados (con una etiqueta para seguir)',
+		keys: [
+			'sitio.sin_resultados',
+			'sitio.sugerencias',
+			'sitio.boton_sugerencia',
+			'sitio.seguir_etiqueta',
+			'sitio.boton_seguir',
+			'sitio.proximos'
+		],
+		build: (t) => ({
+			html: [
+				t('sitio.sin_resultados', { busqueda: 'shibari' }),
+				t('sitio.sugerencias'),
+				t('sitio.seguir_etiqueta', { nombre: '🪢 Shibari' }),
+				`${t('sitio.proximos')}\n${SAMPLE_EVENTS.map(eventLine).join('\n')}`
+			].join('\n\n'),
+			buttons: [
+				[{ text: t('sitio.boton_sugerencia', { busqueda: 'suspensión', cantidad: 3 }) }],
+				[{ text: t('sitio.boton_sugerencia', { busqueda: 'cuerdas', cantidad: 12 }) }],
+				[{ text: t('sitio.boton_seguir', { nombre: '🪢 Shibari' }) }],
+				[{ text: t('secciones.boton_material') }],
+				[{ text: t('eventos.boton_buscar_otra') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
 		id: 'sitio_tarjeta',
 		label: 'Tarjeta compacta (material, Kinkipedia, amigues, series)',
 		keys: ['sitio.boton_ver', 'sitio.tipo_material', 'sitio.tipo_wiki', 'sitio.tipo_serie'],
@@ -251,6 +278,67 @@ export const PREVIEW_SCREENS = Object.freeze([
 				],
 				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
 			]
+		})
+	},
+	{
+		id: 'kinkipedia_rama',
+		label: 'Kinkipedia: una rama del árbol',
+		keys: ['secciones.rama', 'secciones.boton_rama', 'secciones.rama_cantidad'],
+		build: (t) => ({
+			html: [
+				`${t('secciones.titulo_kinkipedia')} · ${t('secciones.rama', { rama: 'Prácticas' })}`,
+				'',
+				`📖 <a href="https://kinkyvibe.ar">${escapeTelegramHtml('Prácticas')}</a>\n${escapeTelegramHtml('Lo que se hace en una escena')}`,
+				'',
+				`📂 <b>${escapeTelegramHtml('Cuerdas')}</b>\n${t('secciones.rama_cantidad', { cantidad: 4 })}`
+			].join('\n'),
+			buttons: [
+				[{ text: '📖 Prácticas' }],
+				[{ text: t('secciones.boton_rama', { rama: 'Cuerdas' }) }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'miniapp',
+		label: 'Mini App del calendario (la página, aproximada)',
+		keys: [
+			'miniapp.titulo',
+			'miniapp.bajada',
+			'miniapp.boton_inicio',
+			'miniapp.cancelado',
+			'miniapp.boton_comprar',
+			'miniapp.ver_todo'
+		],
+		build: (t) => ({
+			html: [
+				`<b>${escapeTelegramHtml(t('miniapp.titulo'))}</b>`,
+				escapeTelegramHtml(t('miniapp.bajada')),
+				'',
+				'<b>JUEVES 9 DE ENERO</b>',
+				escapeTelegramHtml(`21:00 · ${SAMPLE_EVENTS[0].title}`),
+				escapeTelegramHtml(`23:00 · ${SAMPLE_EVENTS[1].title} · ${t('miniapp.cancelado')}`),
+				'',
+				`<a href="https://kinkyvibe.ar">${escapeTelegramHtml(t('miniapp.ver_todo'))}</a>`
+			].join('\n'),
+			buttons: [
+				[{ text: t('miniapp.boton_inicio'), primary: true }],
+				[{ text: `🎟 ${t('miniapp.boton_comprar')} ↗`, link: true }]
+			]
+		})
+	},
+	{
+		id: 'miniapp_vacia',
+		label: 'Mini App del calendario: sin eventos, y recién agregada a la pantalla de inicio',
+		keys: ['miniapp.vacio', 'miniapp.agregada'],
+		build: (t) => ({
+			html: [
+				`<b>${escapeTelegramHtml(t('miniapp.titulo'))}</b>`,
+				escapeTelegramHtml(t('miniapp.bajada')),
+				escapeTelegramHtml(t('miniapp.agregada')),
+				'',
+				escapeTelegramHtml(t('miniapp.vacio'))
+			].join('\n')
 		})
 	},
 	{
@@ -616,6 +704,58 @@ export const PREVIEW_SCREENS = Object.freeze([
 		keys: ['admin.prendido', 'admin.apagado'],
 		build: (t) => ({
 			toast: `${t('admin.prendido', { aviso: t('admin.aviso_diario') })}\n${t('admin.apagado', { aviso: t('admin.aviso_venta') })}`
+		})
+	},
+	{
+		id: 'admin_aviso_venta',
+		label: 'Avisos (admins): cada venta y cada transferencia',
+		keys: ['admin.venta', 'admin.ventas', 'admin.transferencia'],
+		build: (t) => ({
+			html: [
+				t('admin.venta', {
+					entradas: '1 General (Preventa 1)',
+					evento: 'Fiesta de ejemplo',
+					vendidas: '23/50'
+				}),
+				t('admin.ventas', {
+					entradas: '2 General (Preventa 1)',
+					evento: 'Fiesta de ejemplo',
+					vendidas: '25/50'
+				}),
+				t('admin.transferencia', {
+					entradas: '2 General',
+					evento: 'Fiesta de ejemplo',
+					pendientes: 3
+				})
+			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
+		})
+	},
+	{
+		id: 'admin_resumen',
+		label: 'Avisos (admins): el resumen diario de un evento',
+		keys: [
+			'admin.resumen_titulo',
+			'admin.resumen_vendidas',
+			'admin.resumen_transferencias',
+			'admin.resumen_reservas'
+		],
+		build: (t) => ({
+			html: [
+				`${t('admin.resumen_titulo', { evento: 'Fiesta de ejemplo' })}\n📅 sáb 11 ene · 23:00`,
+				[
+					t('admin.resumen_vendidas', { hora: '9:00', cantidad: 5, vendidas: '23/50' }),
+					t('admin.resumen_transferencias', { cantidad: 2 })
+				].join('\n'),
+				[
+					t('admin.resumen_reservas', { cantidad: 4, por_vencer: 2 }),
+					t('admin.transferencias', { cantidad: 2 }),
+					t('admin.revisar', { cantidad: 1 }),
+					t('admin.espera', { cantidad: 5 })
+				].join('\n'),
+				t('admin.pie')
+			].join('\n\n'),
+			buttons: [[{ text: t('admin.boton_panel'), link: true }]]
 		})
 	}
 ]);
