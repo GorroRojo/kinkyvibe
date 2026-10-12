@@ -55,6 +55,7 @@ import { withMailFooter } from '../email/layout.js';
 import { runMailQueueWith } from './mailQueue.js';
 import { calendarStamp } from './calendarFile.js';
 import { getDateChange, sendDateChangeBatch } from './dateChange.js';
+import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
 const DEV_MOCK_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
@@ -306,6 +307,8 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 		const ctx = platform?.ctx;
 		if (ctx?.waitUntil) ctx.waitUntil(sending);
 		else await sending;
+		// «Cada venta» por Telegram a les admins que lo prendieron (decisión 0041; nunca tira).
+		await queueOrderNotice({ db, platform, kind: 'cada_venta', order, origin, fetch: fetchFn });
 	}
 	return result;
 }

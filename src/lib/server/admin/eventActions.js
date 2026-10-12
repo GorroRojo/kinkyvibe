@@ -41,6 +41,7 @@ import {
 } from '$lib/server/tickets/dateChange.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
+import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
 /**
  * Acciones de la venta de entradas de un evento (antes, una página por evento bajo Entradas). Cada pestaña de
@@ -212,6 +213,15 @@ export const eventTicketActions = {
 				}),
 				platform
 			);
+			// «Cada venta» por Telegram a les admins que lo prendieron (decisión 0041; nunca tira).
+			await queueOrderNotice({
+				db,
+				platform,
+				kind: 'cada_venta',
+				order: confirmed,
+				origin: siteOrigin(url),
+				fetch
+			});
 			return {
 				transfer: {
 					ok: true,
