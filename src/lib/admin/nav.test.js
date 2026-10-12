@@ -379,7 +379,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 			navGroupSections('comunidad', { hideSoon: true }).map((s) => [s.label, s.items.length])
 		).toEqual([
 			['', 3],
-			['Mensajes', 2]
+			['Mensajes', 3]
 		]);
 	});
 	it('groupCount suma los contadores de todas sus áreas', () => {
@@ -448,7 +448,8 @@ describe('sectionTabs (pestañas de sección)', () => {
 			'Perfiles',
 			'Cuentas',
 			'Plantillas',
-			'Configuración'
+			'Configuración',
+			'Lo que sigo'
 		]);
 		expect(labels('/admin/etiquetas')).toEqual([
 			'Material',

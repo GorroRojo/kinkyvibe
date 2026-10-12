@@ -114,7 +114,8 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	etiquetas: 'etiquetas tags arbol kinkipedia wiki categorias alias renombrar juntar',
 	material: 'material guias articulos nota notas kinkipedia contenido publicaciones',
 	tienda: 'tienda productos merch vender',
-	'lo-que-sigo': 'lo que sigo seguimientos avisos seguir',
+	'lo-que-sigo':
+		'lo que sigo seguimientos avisos seguir seguidores mas seguido ranking avisame telegram',
 	bandeja: 'bandeja mails recibidos respuestas inbox',
 	colecciones: 'colecciones listas agrupar material',
 	videos: 'videos grabaciones youtube'
