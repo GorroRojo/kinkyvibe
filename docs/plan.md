@@ -75,6 +75,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `aviso-cambio-fecha` · fase 0 · hecho · mails · «Avisar a les compradores» cuando cambia la fecha · #266
 - `ics-en-mail` · fase 0 · hecho · mails · El .ics y Google Calendar en los mails de entradas · #256
 - `aviso-transferencia-sin-datos` · fase 0 · hecho · entradas · Aviso cuando un evento tiene transferencia y faltan los datos de Cobros · #214
+- `fondo-propinas-unicas` · fase 0 · hecho · fondo · Donaciones de una vez al Fondo con las propinas, el total del mes para kv-fondo y el mail «tu link» · #287, #268
 
 ### Legales
 
@@ -198,7 +199,6 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `errores-alertas` · fase 1 · algún día · infra · Enterarse de los errores de producción: un Worker que mire los registros y avise si falla una compra
 - `vivo-durable-objects` · fase 1 · algún día · infra · Presencia («alguien está editando») y contadores en vivo con un Durable Object
 - `r2-ciclo-vida` · fase 1 · algún día · infra · Regla de R2 que limpie subidas a medias después de un día
-- `recorrido-codigo` · fase 1 · sigue · infra · Recorrido guiado del código para gorrite, por capítulos (va en la pausa después de la fase 4)
 - `seguridad-endurecer` · fase 1 · espera gorrite · infra · Endurecer la configuración de GitHub y Cloudflare: ver Mesa
 - `auditoria-seguridad` · fase 1 · espera gorrite · infra · Auditoría de seguridad en una sesión aparte de gorrite, antes de la fase 4: ver Mesa
 - `analiticas` · fase 1 · hecho · infra · Visitas y embudo de compra con Workers Analytics Engine · #215
@@ -256,6 +256,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `colecciones` · fase 4 · algún día · contenido · Colecciones, guardados con nota y «No mostrar que voy» · nav: colecciones · [0007](decisiones/0007-amistades-guardados-suscripciones.md)
 - `amistades` · fase 4 · algún día · cuentas · Amistades y qué amistades van a un evento · [0007](decisiones/0007-amistades-guardados-suscripciones.md)
 - `pausa-despues-fase-4` · fase 4 · sigue · plan · Después de la fase 4: unos días solo de feedback, ajustes y arreglos; recién después las fases 5 a 8 (depende de: colecciones)
+- `recorrido-codigo` · fase 4 · sigue · infra · Recorrido guiado del código para gorrite, por capítulos (depende de: pausa-despues-fase-4)
 
 ## Fase 5
 
