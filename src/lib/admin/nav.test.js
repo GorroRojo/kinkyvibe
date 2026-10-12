@@ -83,7 +83,7 @@ describe('NAV', () => {
 	it('cada sección de Ajustes tiene su subgrupo (Plata, Comunicación, Equipo, Sistema)', () => {
 		const subs = new Set(AJUSTES_SUBGROUPS.map((g) => g.id));
 		for (const i of NAV) {
-			// La portada de Ajustes (decisión 0041) muestra los subgrupos: no está en ninguno.
+			// La portada de Ajustes (decisión 0042) muestra los subgrupos: no está en ninguno.
 			if (i.id === 'ajustes') expect(i.sub, i.id).toBeUndefined();
 			else if (i.area === 'ajustes') expect(subs.has(String(i.sub)), i.id).toBe(true);
 			else expect(i.sub, i.id).toBeUndefined();
@@ -394,7 +394,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 describe('sectionTabs (pestañas de sección)', () => {
 	/** @param {string} path @param {Record<string, boolean>} [flags] */
 	const labels = (path, flags) => sectionTabs(path, { flags })?.tabs.map((t) => t.label) ?? null;
-	it('Ajustes no lleva pestañas: tiene portada con todas sus secciones (decisión 0041)', () => {
+	it('Ajustes no lleva pestañas: tiene portada con todas sus secciones (decisión 0042)', () => {
 		for (const item of NAV.filter((i) => i.area === 'ajustes')) {
 			expect(sectionTabs(item.href), item.href).toBe(null);
 		}
@@ -553,7 +553,7 @@ describe('areaBackLink («← Área» arriba del título)', () => {
 		expect(areaBackLink('entradas-codigos')).toEqual({ href: '/admin/ventas', label: 'Ventas' });
 		expect(areaBackLink('inicio')).toBe(null);
 		expect(areaBackLink('no-existe')).toBe(null);
-		// Ajustes tiene portada (decisión 0041): cada sección vuelve a ella.
+		// Ajustes tiene portada (decisión 0042): cada sección vuelve a ella.
 		expect(areaBackLink('actividad')).toEqual({ href: '/admin/ajustes', label: 'Ajustes' });
 		// Configuración de los mails se mudó a Mensajes, que todavía no tiene página propia.
 		expect(navItem('ajustes-mails')?.area).toBe('mensajes');
@@ -804,7 +804,7 @@ describe('barra lateral (opción C: sideSections)', () => {
 			comunidad: '/admin/comunidad/personas',
 			contenido: '/admin/contenido/material',
 			estadisticas: '/admin/estadisticas/ventas',
-			// Ajustes, a su portada (decisión 0041).
+			// Ajustes, a su portada (decisión 0042).
 			ajustes: '/admin/ajustes'
 		});
 		const pages = new Set(adminPages());

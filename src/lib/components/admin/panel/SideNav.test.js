@@ -34,7 +34,7 @@ describe('SideNav', () => {
 			'/admin/comunidad/personas',
 			'/admin/contenido/material',
 			'/admin/estadisticas/ventas',
-			// La portada de Ajustes (decisión 0041).
+			// La portada de Ajustes (decisión 0042).
 			'/admin/ajustes'
 		]);
 		const text = textOf(body);

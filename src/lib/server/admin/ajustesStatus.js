@@ -1,5 +1,5 @@
 /**
- * La línea de estado de cada tarjeta de la portada de Ajustes (`/admin/ajustes`, decisión 0041):
+ * La línea de estado de cada tarjeta de la portada de Ajustes (`/admin/ajustes`, decisión 0042):
  * «10 % de cada entrada», «2 en prueba», «Todo al día»… Una sección sin un dato barato y claro no
  * lleva línea (mejor nada que adivinar): el Fondo, si no hay uno fijado a mano ni llegó todavía
  * ninguno de fondo.kinkyvibe.ar (la portada no lo va a buscar; en `vite dev` cuenta

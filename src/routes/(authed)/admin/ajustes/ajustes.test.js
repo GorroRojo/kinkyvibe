@@ -1,5 +1,5 @@
 /**
- * Ajustes: la portada (decisión 0041). Solo admins; los cuatro subgrupos con sus tarjetas, y la
+ * Ajustes: la portada (decisión 0042). Solo admins; los cuatro subgrupos con sus tarjetas, y la
  * línea de estado de cada una sale de la base en una tanda. D1 de miniflare; datos inventados.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';

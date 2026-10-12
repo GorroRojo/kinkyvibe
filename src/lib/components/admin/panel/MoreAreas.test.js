@@ -22,7 +22,7 @@ describe('MoreAreas', () => {
 		]);
 	});
 
-	it('Ajustes lleva a su portada (decisión 0041); los demás grupos abren sus secciones', () => {
+	it('Ajustes lleva a su portada (decisión 0042); los demás grupos abren sus secciones', () => {
 		const { body } = render(MoreAreas, { props: { active: navItem('inicio') } });
 		const links = [...body.matchAll(/<a[^>]*class="arow[^"]*"[^>]*href="([^"]*)"/g)].map(
 			(m) => m[1]

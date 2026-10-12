@@ -33,7 +33,7 @@ test('cada link del menú del panel abre su página', async ({ page }) => {
 		'/admin/comunidad/personas',
 		'/admin/contenido/material',
 		'/admin/estadisticas/ventas',
-		// Ajustes lleva a su portada (decisión 0041): sus tarjetas también se recorren abajo.
+		// Ajustes lleva a su portada (decisión 0042): sus tarjetas también se recorren abajo.
 		'/admin/ajustes'
 	]);
 	await expect(menu.getByRole('link', { name: 'Cargar evento' })).toHaveCount(0);

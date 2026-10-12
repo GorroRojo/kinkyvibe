@@ -43,7 +43,7 @@ const DYNAMIC_BACKS = {
 	'src/routes/(authed)/admin/mensajes/plantillas/+page.svelte': [
 		"areaBackLink('ajustes-plantillas')"
 	],
-	// «← Ajustes»: la portada de Ajustes (decisión 0041), con `areaBackLink` (se prueba abajo).
+	// «← Ajustes»: la portada de Ajustes (decisión 0042), con `areaBackLink` (se prueba abajo).
 	'src/routes/(authed)/admin/ajustes/actividad/+page.svelte': ["areaBackLink('actividad')"],
 	'src/routes/(authed)/admin/ajustes/admins/+page.svelte': ["areaBackLink('ajustes-admins')"],
 	'src/routes/(authed)/admin/ajustes/automatizaciones/+page.svelte': [
@@ -174,7 +174,7 @@ describe('links «volver» del panel', () => {
 		}
 		// Mensajes todavía no tiene página (la Bandeja viene): Plantillas no tiene «← Mensajes».
 		expect(areaBackLink('ajustes-plantillas')).toBe(null);
-		// Cada sección de Ajustes vuelve a la portada (decisión 0041), y la portada existe.
+		// Cada sección de Ajustes vuelve a la portada (decisión 0042), y la portada existe.
 		for (const item of NAV.filter((i) => i.area === 'ajustes' && i.id !== 'ajustes')) {
 			expect(areaBackLink(item.id), item.id).toEqual({ href: '/admin/ajustes', label: 'Ajustes' });
 		}

@@ -1,4 +1,4 @@
-# 0041. Ajustes: una portada con 4 grupos de tarjetas en vez de pestañas
+# 0042. Ajustes: una portada con 4 grupos de tarjetas en vez de pestañas
 
 - Fecha: 2026-10-12
 - Estado: Aceptada (gorrite, 12/10, en la Mesa, con la maqueta de 4 grupos). Cambia un punto de

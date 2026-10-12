@@ -1,5 +1,5 @@
 /**
- * Ajustes: la portada (decisión 0041). Una tarjeta por sección, en sus cuatro subgrupos (Plata,
+ * Ajustes: la portada (decisión 0042). Una tarjeta por sección, en sus cuatro subgrupos (Plata,
  * Comunicación, Equipo, Sistema, de `$lib/admin/nav.js`), cada una con su línea de estado
  * ($lib/server/admin/ajustesStatus.js: una tanda a la base y lo de Automatizaciones). Solo admins.
  */

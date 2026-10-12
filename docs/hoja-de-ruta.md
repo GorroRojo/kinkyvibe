@@ -205,7 +205,7 @@ de amigues y lanzamientos grandes.
   parte 2 (Fijados, «+ Crear», Puerta fuera de la barra, pestañas con contadores y ▾ en el celu):
   - Pestañas de la ficha del evento (5 y «Más» en el prototipo; #303 propone 7 con vistas) y dónde
     van los ajustes de mails. M. Bloqueo: decisión de gorrite (#303).
-  - Portada de Ajustes ([0041](decisiones/0041-ajustes-portada-con-grupos.md)): línea de estado
+  - Portada de Ajustes ([0042](decisiones/0042-ajustes-portada-con-grupos.md)): línea de estado
     del Fondo aunque no haya llegado todavía el porcentaje automático (hoy la tarjeta va sin
     línea; buscarlo haría lenta la portada). S.
   - La Puerta «abierta en el evento de hoy» (el prototipo entra directo al evento del día; hoy

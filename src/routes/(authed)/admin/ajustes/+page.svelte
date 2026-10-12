@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Ajustes: la portada (decisión 0041). Los subgrupos de `$lib/admin/nav.js` (Plata,
+	 * Ajustes: la portada (decisión 0042). Los subgrupos de `$lib/admin/nav.js` (Plata,
 	 * Comunicación, Equipo, Sistema) con una tarjeta por sección: ícono, nombre, qué hay (`desc`) y
 	 * una línea de estado (`data.status`, de $lib/server/admin/ajustesStatus.js). Cada sección
 	 * vuelve acá con «← Ajustes» (`areaBackLink`).

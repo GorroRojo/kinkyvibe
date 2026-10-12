@@ -57,7 +57,7 @@ arriba), está en el buscador y tiene `g n`. Sin menú «+ Crear» ni «Más» e
 las pestañas de la ficha y los ajustes de mails no cambian (quedan para otra decisión).
 
 **Ajustes: portada con 4 grupos de tarjetas** (gorrite, 12/10;
-[decisión 0041](decisiones/0041-ajustes-portada-con-grupos.md)): «Ajustes» (barra lateral, panel
+[decisión 0042](decisiones/0042-ajustes-portada-con-grupos.md)): «Ajustes» (barra lateral, panel
 «Más» del celu, «Ir a…») lleva a `/admin/ajustes`, una portada con los subgrupos de `nav.js`
 (`AJUSTES_SUBGROUPS`: Plata, Comunicación, Equipo, Sistema) y una tarjeta por sección: el ícono, el
 nombre, qué hay (`desc` del ítem) y una **línea de estado** («Mercado Pago y transferencia», «10 %

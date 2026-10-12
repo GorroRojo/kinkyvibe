@@ -88,7 +88,7 @@
 	<div class="rows">
 		{#each areas as x (x.area.id)}
 			{#if x.landing}
-				<!-- Con portada (Ajustes, decisión 0041): la fila lleva a la portada. -->
+				<!-- Con portada (Ajustes, decisión 0042): la fila lleva a la portada. -->
 				<a class="arow" class:here={activeGroup === x.area.id} href={x.landing}
 					><NavIcon item={x.area} size={22} /><span class="txt"
 						><b>{x.area.label}</b><small>{summary(x.ready, x.soon)}</small></span
