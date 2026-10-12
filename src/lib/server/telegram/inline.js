@@ -23,6 +23,7 @@ import { isHttps, tgTime } from './screens.js';
 import { botText } from './texts.js';
 import { startLink, startParam } from './nav.js';
 import { richDocMessage } from './rich.js';
+import { suggestSearches } from './searchSuggest.js';
 
 /** @typedef {import('$lib/utils/search').SearchDoc} SearchDoc */
 /** @typedef {import('$lib/utils/search').PreparedIndex} PreparedIndex */
@@ -42,10 +43,19 @@ import { richDocMessage } from './rich.js';
  */
 
 /**
- * La fuente del modo inline: el índice público y sus extras, por dirección.
+ * Una etiqueta del árbol del sitio, para recorrer la Kinkipedia por ramas (sections.js): sus
+ * madres (con `root` si es de arriba de todo), su nombre visible y sus hijas en el orden del
+ * árbol (el de /wiki).
+ *
+ * @typedef {{ parents: readonly string[], name: string, children: readonly string[] }} TreeTag
+ */
+
+/**
+ * La fuente del modo inline: el índice público y sus extras, por dirección. `tree`: el árbol de
+ * etiquetas (por id), si se armó con él; sin árbol, la Kinkipedia del bot es una lista por nombre.
  *
  * @typedef {{ docs: readonly SearchDoc[], prepared: PreparedIndex,
- *   extras: ReadonlyMap<string, InlineExtra> }} InlineSource
+ *   extras: ReadonlyMap<string, InlineExtra>, tree?: ReadonlyMap<string, TreeTag> }} InlineSource
  */
 
 /**
@@ -60,11 +70,14 @@ import { richDocMessage } from './rich.js';
  * @typedef {{
  *   source: () => Promise<InlineSource | null>,
  *   events?: (metas: Record<string, any>[]) => Promise<Map<string, InlineEventInfo>>,
+ *   tags?: () => Promise<TagManager | null>,
  *   rich?: boolean,
  *   botUsername?: string | null
- * }} InlineDeps `events`: el lugar y la venta de los eventos de la página (events.js). `rich`:
- *   con `telegram_enriquecido` prendido (y el token, para poder volver a la tarjeta de siempre),
- *   los resultados van como mensajes enriquecidos (rich.js). `botUsername`: con el interruptor
+ * }} InlineDeps `events`: el lugar y la venta de los eventos de la página (events.js). `tags`:
+ *   el árbol de etiquetas del sitio, para lo que se ofrece cuando no hay resultados
+ *   (noResults.js: madres, hijas y relacionadas, y «Seguir»). `rich`: con
+ *   `telegram_enriquecido` prendido (y el token, para poder volver a la tarjeta de siempre), los
+ *   resultados van como mensajes enriquecidos (rich.js). `botUsername`: con el interruptor
  *   prendido, los eventos suman «📅 Abrir en el calendario» (la Mini App en ese evento).
  */
 
@@ -133,10 +146,13 @@ export function parseInlineQuery(query) {
 const startOf = (doc) => (doc.d ? Date.parse(doc.d) : NaN);
 
 /**
+ * Los próximos eventos del índice, del más cercano (también para Buscar sin resultados,
+ * noResults.js).
+ *
  * @param {readonly SearchDoc[]} docs
  * @param {number} now
  */
-function upcomingEvents(docs, now) {
+export function upcomingEvents(docs, now) {
 	return docs
 		.filter((d) => d.c === 'calendario' && startOf(d) > now)
 		.sort((a, b) => startOf(a) - startOf(b));
@@ -180,6 +196,23 @@ export function selectInline(source, { types, text }, now) {
 		.filter(allowed)
 		.sort((a, b) => a.t.localeCompare(b.t, 'es'))
 		.slice(0, INLINE_MAX);
+}
+
+/**
+ * Cuando lo buscado no trae nada: lo que trae la primera búsqueda parecida (con el mismo prefijo,
+ * si había), o `null`.
+ *
+ * @param {InlineSource} source
+ * @param {{ types: readonly SearchDoc['c'][] | null, text: string }} query
+ * @param {number} now
+ * @returns {{ query: string, docs: SearchDoc[] } | null}
+ */
+function similarInline(source, query, now) {
+	for (const s of suggestSearches(source, query.text).suggestions) {
+		const docs = selectInline(source, { types: query.types, text: s.query }, now);
+		if (docs.length) return { query: s.query, docs };
+	}
+	return null;
 }
 
 /** Lado de la miniatura, en píxeles. */
@@ -311,11 +344,12 @@ export function inlineArticle(id, doc, extra, event, ctx) {
 		card.keyboard.push([{ text: botText('compartir.boton_calendario'), url: calendar }]);
 	const rich = ctx.rich ? richDocMessage(doc, { title: titleOf(doc), now: ctx.now, event }) : null;
 	const thumb = inlineThumbUrl(extra?.image, ctx.origin);
-	// Como la tarjeta del bot (deliver.js): la vista previa grande del link (la imagen para compartir
-	// de la página) arriba del texto, así el mensaje mandado también lleva foto (gorrite, 11/10).
-	// Sin https Telegram no arma la vista previa: se apaga.
+	// La vista previa del link (la imagen para compartir de la página) arriba del texto, así el
+	// mensaje mandado también lleva foto (gorrite, 11/10), pero chica, al costado, como cuando une
+	// usuarie achica la vista previa al mandar un link (gorrite, 12/10). Telegram lo toma como
+	// preferencia. Sin https no arma la vista previa: se apaga.
 	const preview = isHttps(ctx.origin)
-		? { url: `${ctx.origin}${doc.h}`, prefer_large_media: true, show_above_text: true }
+		? { url: `${ctx.origin}${doc.h}`, prefer_small_media: true, show_above_text: true }
 		: { is_disabled: true };
 	return {
 		type: 'article',
@@ -399,7 +433,10 @@ export async function planInlineQuery(inlineQuery, deps) {
 	if (!source) return null;
 
 	const query = parseInlineQuery(inlineQuery.query);
-	const all = selectInline(source, query, now);
+	const found = selectInline(source, query, now);
+	// Sin resultados: lo de la búsqueda parecida que más se acerca (searchSuggest.js), si hay.
+	const similar = found.length === 0 && query.text ? similarInline(source, query, now) : null;
+	const all = similar ? similar.docs : found;
 	const offset = parseOffset(inlineQuery.offset);
 	const page = all.slice(offset, offset + INLINE_PAGE);
 	const next = offset + INLINE_PAGE < all.length ? String(offset + INLINE_PAGE) : '';
@@ -448,7 +485,15 @@ export async function planInlineQuery(inlineQuery, deps) {
 			is_personal: false,
 			next_offset: next
 		};
-		if (offset === 0 && results.length === 0) {
+		if (similar && offset === 0) {
+			answer.button = {
+				text: botText('sitio.inline_sugerencia', {
+					busqueda: truncate(query.text, 16),
+					sugerencia: truncate(similar.query, 16)
+				}),
+				start_parameter: SEARCH_START
+			};
+		} else if (offset === 0 && results.length === 0) {
 			answer.button = {
 				text: botText(
 					query.text || query.types ? 'sitio.inline_sin_resultados' : 'sitio.inline_vacio'

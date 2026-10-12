@@ -33,6 +33,7 @@ import {
 import { cardFor, navigate } from './navigate.js';
 import { planInlineQuery, selectInline } from './inline.js';
 import { backToResults, docHash, docScreen, siteResultsScreen } from './siteScreens.js';
+import { noResultsHelp, noResultsScreen, offersFollow } from './noResults.js';
 import { sectionDocScreen, sectionScreen, sectionTagsScreen, sectionView } from './sections.js';
 import {
 	adminRow,
@@ -377,7 +378,78 @@ async function siteSearchScreen(rawQuery, page, ctx, deps) {
 	const query = clipQuery(rawQuery);
 	const found = query ? await siteMatches(query, ctx, deps) : null;
 	if (!found) return noticeScreen(htmlOf('errores.algo_salio_mal'));
+	if (found.docs.length === 0) {
+		const help = noResultsHelp(found.source, query, ctx.now ?? Date.now(), await siteTags(deps));
+		return noResultsScreen(query, help, ctx, { extras: found.source.extras });
+	}
 	return siteResultsScreen(query, found.docs, page, ctx, found.source.extras);
+}
+
+/**
+ * El árbol de etiquetas del sitio, para las sugerencias y «Seguir» de una búsqueda sin
+ * resultados. Si no está o falla, `null` (se sugiere igual, sin madres, hijas ni «Seguir»).
+ *
+ * @param {Deps} deps
+ * @returns {Promise<TagManager | null>}
+ */
+async function siteTags(deps) {
+	if (!deps.inline?.tags) return null;
+	try {
+		return await deps.inline.tags();
+	} catch (error) {
+		console.error(
+			'[telegram] no se pudo leer el árbol de etiquetas:',
+			/** @type {Error} */ (error)?.name
+		);
+		return null;
+	}
+}
+
+/**
+ * «⭐ Seguir» en una búsqueda sin resultados (noResults.js): sigue la etiqueta que es lo buscado,
+ * por el mismo camino que «Seguir» en una tarjeta (`follows.follow`, seguir.js). Solo por chat
+ * privado vinculado, con «Lo que sigo» prendido; la etiqueta se vuelve a sacar de lo buscado (un
+ * botón armado a mano no puede seguir otra cosa). Después, la misma pantalla con «✓ Ya seguís».
+ *
+ * @param {{ tag: string, query: string }} state
+ * @param {number | string} chatId
+ * @param {ScreenCtx} ctx
+ * @param {Deps} deps
+ * @param {BotAccounts | null} accounts
+ * @returns {Promise<{ screen: Screen, toast?: string } | { toast: string }>}
+ */
+async function searchFollowResult(state, chatId, ctx, deps, accounts) {
+	const follows = accounts?.follows;
+	if (!follows) return { toast: botText('vincular.apagado') };
+	if (ctx.chat === 'group') {
+		return {
+			screen: privateOnlyScreen(startLink(ctx.botUsername, startParam({ screen: 'sigo' })))
+		};
+	}
+	const found = await siteMatches(state.query, ctx, deps);
+	if (!found || found.docs.length) return { toast: botText('errores.no_disponible') };
+	const help = noResultsHelp(
+		found.source,
+		state.query,
+		ctx.now ?? Date.now(),
+		await siteTags(deps)
+	);
+	const tag = help.tag;
+	if (!tag || tag.hash !== state.tag || !offersFollow(help, ctx)) {
+		return { toast: botText('seguir.no_esta') };
+	}
+	const accountId = await follows.accountFor(chatId);
+	if (!accountId) return { screen: unlinkedScreen(ctx) };
+	const r = await follows.follow(accountId, tag.key);
+	const toast = followToast(r, tag.title);
+	const following = r === 'created' || r === 'created_telegram' || r === 'already';
+	return {
+		screen: noResultsScreen(state.query, help, ctx, {
+			extras: found.source.extras,
+			following
+		}),
+		toast
+	};
 }
 
 /**
@@ -464,6 +536,27 @@ async function homeCtx(ctx, deps, chat, userId) {
 }
 
 /**
+ * El aviso del botón después de seguir algo (en una tarjeta o en una búsqueda sin resultados).
+ *
+ * @param {Awaited<ReturnType<import('./seguir.js').BotFollows['follow']>>} r
+ * @param {string} title
+ */
+function followToast(r, title) {
+	if (r === 'created' || r === 'created_telegram') {
+		return followedText(title, { telegram: r === 'created_telegram' });
+	}
+	return botText(
+		r === 'already'
+			? 'seguir.ya'
+			: r === 'too_many'
+				? 'seguir.muchos'
+				: r === 'full'
+					? 'seguir.lleno'
+					: 'seguir.no_esta'
+	);
+}
+
+/**
  * El botón «⭐ Seguir» de una tarjeta, solo con «Lo que sigo» prendido: en privado abre las
  * opciones; en un grupo, el chat privado con el bot (`?start=seguir-<id>`).
  *
@@ -519,19 +612,7 @@ async function personalScreen(state, chatId, ctx, deps, accounts) {
 	if (state.screen === 'follow_do') {
 		const target = targets.find((t) => t.hash === state.tag);
 		if (!target) return { toast: botText('seguir.no_esta') };
-		const r = await follows.follow(accountId, target.key);
-		toast =
-			r === 'created' || r === 'created_telegram'
-				? followedText(target.title, { telegram: r === 'created_telegram' })
-				: botText(
-						r === 'already'
-							? 'seguir.ya'
-							: r === 'too_many'
-								? 'seguir.muchos'
-								: r === 'full'
-									? 'seguir.lleno'
-									: 'seguir.no_esta'
-					);
+		toast = followToast(await follows.follow(accountId, target.key), target.title);
 	}
 	const following = await follows.following(
 		accountId,
@@ -676,18 +757,20 @@ async function planCallback(callback, deps) {
 				? { screen: await siteSearchScreen(state.query, state.page, ctx, deps) }
 				: state.screen === 'site_doc'
 					? await siteDocResult(state, ctx, deps)
-					: state.screen === 'section' ||
-						  state.screen === 'section_tags' ||
-						  state.screen === 'section_doc'
-						? await sectionResult(state, ctx, deps)
-						: state.screen === 'sigo' || state.screen === 'follow' || state.screen === 'follow_do'
-							? await personalScreen(state, chatId, ctx, deps, accounts)
-							: state.screen === 'tickets' || state.screen === 'ticket'
-								? await ticketsResult(state, chatId, ctx, deps, accounts)
-								: await navigate(state, ctx, deps, {
-										accounts: Boolean(accounts),
-										follow: (event) => followButton(event, ctx)
-									});
+					: state.screen === 'search_follow'
+						? await searchFollowResult(state, chatId, ctx, deps, accounts)
+						: state.screen === 'section' ||
+							  state.screen === 'section_tags' ||
+							  state.screen === 'section_doc'
+							? await sectionResult(state, ctx, deps)
+							: state.screen === 'sigo' || state.screen === 'follow' || state.screen === 'follow_do'
+								? await personalScreen(state, chatId, ctx, deps, accounts)
+								: state.screen === 'tickets' || state.screen === 'ticket'
+									? await ticketsResult(state, chatId, ctx, deps, accounts)
+									: await navigate(state, ctx, deps, {
+											accounts: Boolean(accounts),
+											follow: (event) => followButton(event, ctx)
+										});
 		if (!('screen' in result)) return answerOnly(callbackId, result.toast);
 		const plan = deliverScreen(result.screen, where, {
 			media: Boolean(deps.media),
@@ -884,9 +967,13 @@ export async function planUpdate(update, deps) {
 	try {
 		if (isSearchReply(message)) {
 			const query = message.text.trim().slice(0, 100);
+			// Con el índice público: todo el sitio (con «Lo que sigo» para ofrecer «Seguir» si no
+			// encuentra nada). Sin él, como antes, los próximos eventos.
+			if (deps.inline) {
+				const ctx = screenCtx(deps, group, await accountsOf(deps));
+				return send(await siteSearchScreen(query, 0, ctx, deps));
+			}
 			const ctx = screenCtx(deps, group);
-			// Con el índice público: todo el sitio. Sin él, como antes, los próximos eventos.
-			if (deps.inline) return send(await siteSearchScreen(query, 0, ctx, deps));
 			const found = matchEvents(await deps.listUpcoming(), query);
 			return send(searchResultsScreen(query, found, ctx));
 		}

@@ -6,14 +6,13 @@
 
 El contenido de las páginas está en los siguientes archivos
 
-| URL           | Archivo                                                                                              |
-| ------------- | ---------------------------------------------------------------------------------------------------- |
-| `/`           | [`/src/routes/+page.svelte`](/src/routes/+page.svelte)                                               |
-| `/nosotres`   | [`/src/routes/(content)/nosotres/+page.svelte`](<`/src/routes/(content)/nosotres/+page.svelte`>)     |
-| `/material`   | [`/src/routes/(content)/material/+page.svelte`](<`/src/routes/(content)/material/+page.svelte`>)     |
-| `/amigues`    | [`/src/routes/(content)/amigues/+page.svelte`](<`/src/routes/(content)/amigues/+page.svelte`>)       |
-| `/calendario` | [`/src/routes/(content)/calendario/+page.svelte`](<`/src/routes/(content)/calendario/+page.svelte`>) |
-| `/servicios`  | [`/src/routes/(content)/servicios/+page.svelte`](<`/src/routes/(content)/servicios/+page.svelte`>)   |
+| URL           | Archivo                                                                                            |
+| ------------- | -------------------------------------------------------------------------------------------------- |
+| `/`           | [`/src/routes/(content)/+page.svelte`](</src/routes/(content)/+page.svelte>)                       |
+| `/material`   | [`/src/routes/(content)/material/+page.svelte`](</src/routes/(content)/material/+page.svelte>)     |
+| `/amigues`    | [`/src/routes/(content)/amigues/+page.svelte`](</src/routes/(content)/amigues/+page.svelte>)       |
+| `/calendario` | [`/src/routes/(content)/calendario/+page.svelte`](</src/routes/(content)/calendario/+page.svelte>) |
+| `/wiki`       | [`/src/routes/(content)/wiki/+page.svelte`](</src/routes/(content)/wiki/+page.svelte>)             |
 
 Son componentes Svelte.
 

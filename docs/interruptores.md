@@ -34,6 +34,7 @@ con su `envVar` y un atajo (`algoEnabled(platform)`), y documentalo en esta guí
 | Telegram para admins (`telegram_admin`)       | `TELEGRAM_ADMIN_ENABLED`       | les admins con el Telegram vinculado ven «📊 Estado» (vendidas contra cupo, reservas, lo que hay para revisar; solo cantidades) y eligen sus avisos en «🔔 Mis avisos» (apagados por defecto). Pide el bot prendido. Apagado, el bot contesta como si no existiera                                                            | migración 0054 (para «Mis avisos»)                                                                            | [telegram.md](telegram.md)       |
 | Telegram enriquecido (`telegram_enriquecido`) | `TELEGRAM_ENRIQUECIDO_ENABLED` | lo que el bot manda del sitio (Kinkipedia, material, eventos) se lee adentro del chat como mensaje enriquecido, con «Ver en el sitio»; «Mandar a un chat» en la Mini App del calendario y «Abrir en el calendario» en los eventos mandados. Pide el bot prendido. Apagado, las tarjetas de siempre                            | `TELEGRAM_BOT_TOKEN`; para «Abrir en el calendario», `TELEGRAM_BOT_USERNAME` y la Main Mini App en @BotFather | [telegram.md](telegram.md)       |
 | Lista de espera (`lista_espera`)              | `LISTA_ESPERA_ENABLED`         | en construcción: cuando un evento o un tipo se agota, la gente se anota en una lista; si se libera un lugar, se le avisa a la próxima persona y se le guarda un rato. Se activa por evento (`lista_espera`). Apagado, la venta anda como siempre                                                                              | migración `0053_lista_de_espera.sql`                                                                          | [tickets.md](tickets.md)         |
+| Códigos combo (`combo_codigos`)               | `COMBO_CODIGOS_ENABLED`        | en la pestaña Códigos de un evento se arma un combo con otro: cada venta del primero (online, puerta o a mano, con email) trae en su mail un código personal (un uso, solo su mail) para el segundo; se anula si la compra se reembolsa. Apagado, no se arman combos ni se generan códigos (los ya mandados siguen valiendo)  | migración `0056_combo_codigos.sql`                                                                            | [tickets.md](tickets.md)         |
 
 Las migraciones las aplica gorrite antes del merge del código que las necesita
 ([0028](decisiones/0028-migraciones-antes-del-merge.md), [datos.md](datos.md)).
@@ -86,7 +87,9 @@ Una base local nueva se llena con la semilla de contenido (`npm run db:semilla`,
 etiquetas y wiki ([contenido.md](contenido.md)). Los importadores del panel ya no existen
 ([0032](decisiones/0032-borrar-los-md.md)).
 
-## Cómo prender `lo_que_sigo` (cuando se mergee)
+## Cómo prender `lo_que_sigo`
 
-Lo que sigo (decisión [0025](decisiones/0025-lo-que-sigo.md)), hoy «Próximamente» en Mensajes.
-El PR está en curso; esta sección se completa cuando esté en `main`.
+Lo que sigo (decisión [0025](decisiones/0025-lo-que-sigo.md)): los pasos están en
+[lo-que-sigo.md](lo-que-sigo.md#cómo-prenderlo). Antes y después de prenderlo, el estado (los
+interruptores, los números y los avisos que salieron) se mira en Mensajes › Lo que sigo
+(`/admin/mensajes/lo-que-sigo`), que se ve también con el interruptor apagado.

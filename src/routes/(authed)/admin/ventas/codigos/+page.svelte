@@ -14,6 +14,7 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
+	import { Table } from '$lib/components/ui';
 
 	export let data;
 	export let form;
@@ -35,11 +36,38 @@
 	}
 	/** @param {string} s @returns {'ok' | 'warn' | 'neutral'} */
 	const tone = (s) => (s === 'Activo' ? 'ok' : s === 'Apagado' ? 'neutral' : 'warn');
+	/** La fila de la tabla, con su tipo. @param {any} row @returns {(typeof data.codes)[number]} */
+	const asCode = (row) => row;
 	/** @param {(typeof data.codes)[number]} c */
 	const valueText = (c) => (c.kind === 'percent' ? `${c.value} %` : formatARS(c.value));
 	/** @param {(typeof data.codes)[number]} c */
 	const eventText = (c) =>
 		c.event_slug ? (titles[c.event_slug] ?? c.event_slug) : 'Todos los eventos';
+
+	// La tabla: todos los códigos ya están en la página, así que se pueden ordenar acá.
+	/** @type {import('$lib/components/ui/tableSort.js').TableColumn[]} */
+	const tableColumns = [
+		{ key: 'code', label: 'Código', sort: 'text' },
+		{ key: 'event', label: 'Evento', sort: 'text', sortValue: (c) => eventText(c) },
+		{
+			key: 'dates',
+			label: 'Vigencia',
+			class: 'small',
+			sort: 'date',
+			sortValue: (c) => c.ends_at ?? c.starts_at
+		},
+		{
+			key: 'uses',
+			label: 'Usos',
+			align: 'right',
+			class: 'small',
+			nowrap: false,
+			sort: 'number',
+			sortValue: (c) => c.approved + c.held
+		},
+		{ key: 'state', label: 'Estado', sort: 'text', sortValue: (c) => codeState(c) },
+		{ key: 'action', label: 'Acción', hideLabel: true }
+	];
 
 	/** @type {import('$lib/admin/csv.js').CsvColumn<(typeof data.codes)[number]>[]} */
 	const columns = [
@@ -178,56 +206,46 @@
 				text="Creá el primero acá arriba."
 			/>
 		{:else}
-			<div class="kv-table-wrap">
-				<table class="kv-table">
-					<thead>
-						<tr>
-							<th>Código</th>
-							<th>Evento</th>
-							<th>Vigencia</th>
-							<th class="r">Usos</th>
-							<th>Estado</th>
-							<th aria-label="Acción"></th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each data.codes as c (c.code)}
-							{@const state = codeState(c)}
-							<tr class="code" class:inactive={state !== 'Activo'}>
-								<td>
-									<b class="name">{c.code}</b>
-									<small class="muted">{valueText(c)} de descuento</small>
-								</td>
-								<td>{eventText(c)}</td>
-								<td class="small">
-									{#if c.starts_at || c.ends_at}
-										{c.starts_at ? `desde ${fmtDateTime(c.starts_at)}` : ''}
-										{c.ends_at ? `hasta ${fmtDateTime(c.ends_at)}` : ''}
-									{:else}
-										<span class="muted">Sin fechas</span>
-									{/if}
-								</td>
-								<td class="r num small">
-									{plural(c.approved, 'aprobado', 'aprobados')}{#if c.held}
-										+ {c.held} en reserva{/if}
-									{c.max_uses !== null ? `de ${c.max_uses}` : '(sin límite)'}
-									{#if c.discounted}<small class="muted">descontado {formatARS(c.discounted)}</small
-										>{/if}
-								</td>
-								<td><Badge tone={tone(state)}>{state}</Badge></td>
-								<td>
-									<form method="POST" action="?/toggle" use:enhance>
-										<input type="hidden" name="code" value={c.code} />
-										<input type="hidden" name="active" value={c.active ? '0' : '1'} />
-										<button type="submit" class="kv-btn ghost">
-											{c.active ? 'Apagar' : 'Prender'}
-										</button>
-									</form>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+			<div class="codes">
+				<Table
+					columns={tableColumns}
+					rows={data.codes}
+					rowKey="code"
+					rowClass={(c) => (codeState(c) === 'Activo' ? 'code' : 'code inactive')}
+				>
+					<svelte:fragment slot="cell" let:row let:column>
+						{@const c = asCode(row)}
+						{#if column.key === 'code'}
+							<b class="name">{c.code}</b>
+							<small class="muted">{valueText(c)} de descuento</small>
+						{:else if column.key === 'event'}
+							{eventText(c)}
+						{:else if column.key === 'dates'}
+							{#if c.starts_at || c.ends_at}
+								{c.starts_at ? `desde ${fmtDateTime(c.starts_at)}` : ''}
+								{c.ends_at ? `hasta ${fmtDateTime(c.ends_at)}` : ''}
+							{:else}
+								<span class="muted">Sin fechas</span>
+							{/if}
+						{:else if column.key === 'uses'}
+							{plural(c.approved, 'aprobado', 'aprobados')}{#if c.held}
+								+ {c.held} en reserva{/if}
+							{c.max_uses !== null ? `de ${c.max_uses}` : '(sin límite)'}
+							{#if c.discounted}<small class="muted">descontado {formatARS(c.discounted)}</small
+								>{/if}
+						{:else if column.key === 'state'}
+							<Badge tone={tone(codeState(c))}>{codeState(c)}</Badge>
+						{:else if column.key === 'action'}
+							<form method="POST" action="?/toggle" use:enhance>
+								<input type="hidden" name="code" value={c.code} />
+								<input type="hidden" name="active" value={c.active ? '0' : '1'} />
+								<button type="submit" class="kv-btn ghost">
+									{c.active ? 'Apagar' : 'Prender'}
+								</button>
+							</form>
+						{/if}
+					</svelte:fragment>
+				</Table>
 			</div>
 		{/if}
 	</Card>
@@ -243,13 +261,13 @@
 		font-family: ui-monospace, monospace;
 		letter-spacing: 0.04em;
 	}
-	td small {
+	.codes :global(td small) {
 		display: block;
 	}
-	.small {
+	.codes :global(td.small) {
 		font-size: var(--text-sm);
 	}
-	tr.inactive td:not(:last-child) {
+	.codes :global(tr.inactive td:not(:last-child)) {
 		opacity: 0.7;
 	}
 	.plain {

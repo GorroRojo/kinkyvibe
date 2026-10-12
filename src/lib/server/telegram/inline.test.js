@@ -276,12 +276,12 @@ describe('planInlineQuery', () => {
 		]);
 	});
 
-	it('el mensaje mandado lleva la vista previa grande de la página, arriba del texto', async () => {
+	it('el mensaje mandado lleva la vista previa chica de la página, arriba del texto', async () => {
 		const source = sourceOf([materialDoc('con-foto')]);
 		const [r] = (await answer({ query: 'material:' }, source)).results;
 		expect(r.input_message_content.link_preview_options).toEqual({
 			url: `${PROD}/material/con-foto`,
-			prefer_large_media: true,
+			prefer_small_media: true,
 			show_above_text: true
 		});
 		// Sin https (dev local) Telegram no arma la vista previa: va apagada.
@@ -380,6 +380,24 @@ describe('planInlineQuery', () => {
 			text: renderBotText('sitio.inline_vacio'),
 			start_parameter: 'buscar'
 		});
+	});
+
+	it('sin resultados pero con una búsqueda parecida: sus resultados, y el botón lo dice', async () => {
+		const docs = [materialDoc('cuerdas', { t: 'Guía de cuerdas' }), materialDoc('nota')];
+		// «querdaz» tiene dos letras cambiadas: el buscador del sitio no lo encuentra.
+		const a = await answer({ query: 'querdaz' }, sourceOf(docs));
+		expect(a.results.map((/** @type {any} */ r) => r.title)).toEqual(['Guía de cuerdas']);
+		expect(a.button).toEqual({
+			text: renderBotText('sitio.inline_sugerencia', {
+				busqueda: 'querdaz',
+				sugerencia: 'cuerdas'
+			}),
+			start_parameter: 'buscar'
+		});
+		// Con un prefijo de otro tipo, lo parecido no cuenta: como antes.
+		const other = await answer({ query: 'amigues: querdaz' }, sourceOf(docs));
+		expect(other.results).toEqual([]);
+		expect(other.button.text).toBe(renderBotText('sitio.inline_sin_resultados'));
 	});
 
 	it('un update sin id o sin quién pregunta, o sin fuente: no contesta', async () => {

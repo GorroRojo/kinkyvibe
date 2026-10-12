@@ -723,6 +723,20 @@ const get = async (mod, event) => {
 	return (await res.text()).replace(/\r\n[ \t]/g, '');
 };
 
+/**
+ * Lo que da `fn` el 15 de marzo de 2099, cuando los eventos plantados (del 1 de ese mes) ya pasaron:
+ * para las salidas de los eventos pasados de un mes (/calendario). Solo cambia la fecha.
+ * @template T @param {() => Promise<T>} fn
+ */
+async function whenPlantedEventsArePast(fn) {
+	vi.useFakeTimers({ now: Date.parse('2099-03-15T12:00:00-03:00'), toFake: ['Date'] });
+	try {
+		return await fn();
+	} finally {
+		vi.useRealTimers();
+	}
+}
+
 /** Los feeds Atom y JSON (imports fijos: Vite no resuelve `[term]` en un import armado). */
 const FEEDS = {
 	atom: {
@@ -749,6 +763,28 @@ const LIST_OUTPUTS = [
 		'/calendario',
 		() =>
 			load(import('./(content)/calendario/+page.server.js'), anonEvent({ path: '/calendario' })),
+		['evento']
+	],
+	[
+		'/calendario?viewdate=2099-03 (los pasados de ese mes)',
+		() =>
+			whenPlantedEventsArePast(() =>
+				load(
+					import('./(content)/calendario/+page.server.js'),
+					anonEvent({ path: '/calendario?viewdate=2099-03' })
+				)
+			),
+		['evento']
+	],
+	[
+		'/api/calendario/pasados?mes=2099-03',
+		() =>
+			whenPlantedEventsArePast(() =>
+				get(
+					import('./api/calendario/pasados/+server.js'),
+					anonEvent({ path: '/api/calendario/pasados?mes=2099-03' })
+				)
+			),
 		['evento']
 	],
 	[

@@ -16,6 +16,7 @@
 	 *   `savePreparedInlineMessage` y acá se abre el selector de chats con `shareMessage`, Bot API
 	 *   8.0; en apps más viejas, el modo inline en el chat que se elija con `switchInlineQuery`), y
 	 *   el evento del link directo (`?startapp=ev-<id>`) queda marcado y a la vista.
+	 * - Los textos vienen de «Textos del bot» (`data.texts`, $lib/server/telegram/miniapp.js).
 	 */
 	import { onMount, tick } from 'svelte';
 
@@ -127,26 +128,26 @@
 </script>
 
 <svelte:head>
-	<title>Calendario · Kinky Vibe</title>
+	<title>{data.texts.titulo} · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 	<script src="https://telegram.org/js/telegram-web-app.js?64"></script>
 </svelte:head>
 
 <main class="app">
 	<header>
-		<h1>Calendario</h1>
-		<p class="sub">Lo que viene en Kinky Vibe. Para comprar entradas se abre el sitio.</p>
+		<h1>{data.texts.titulo}</h1>
+		<p class="sub">{data.texts.bajada}</p>
 		{#if canAddHome}
 			<button type="button" class="home" on:click={addHome}>
-				📲 Agregar a la pantalla de inicio
+				{data.texts.botonInicio}
 			</button>
 		{:else if added}
-			<p class="sub">Listo: quedó en tu pantalla de inicio.</p>
+			<p class="sub">{data.texts.agregada}</p>
 		{/if}
 	</header>
 
 	{#if data.days.length === 0}
-		<p class="empty">Por ahora no hay eventos próximos.</p>
+		<p class="empty">{data.texts.vacio}</p>
 	{/if}
 
 	{#each data.days as day (day.day)}
@@ -162,7 +163,8 @@
 							<p class="focus-note">{data.shareTexts.destacado}</p>
 						{/if}
 						<p class="meta">
-							{ev.time}{#if ev.place}&nbsp;· {ev.place}{/if}{#if ev.cancelled}&nbsp;· Cancelado{/if}
+							{ev.time}{#if ev.place}&nbsp;· {ev.place}{/if}{#if ev.cancelled}&nbsp;· {data.texts
+									.cancelado}{/if}
 						</p>
 						<h3>
 							<a href={ev.href} on:click={(e) => open(e, ev.href)}>{ev.title}</a>
@@ -198,7 +200,7 @@
 
 	<footer>
 		<a href="/calendario" on:click={(e) => open(e, new URL('/calendario', location.href).href)}>
-			Ver el calendario completo en el sitio ↗
+			{data.texts.verTodo}
 		</a>
 	</footer>
 </main>

@@ -108,6 +108,7 @@ describe('/admin/ajustes/textos-bot', () => {
 			'Buscar en todo el sitio y modo inline',
 			'Secciones del sitio (Material, Kinkipedia, Amigues, Series)',
 			'Mis entradas (con el QR para la puerta)',
+			'Mini App del calendario (la página /telegram/app)',
 			'Mensajes enriquecidos y compartir desde la Mini App',
 			'Errores'
 		]);
@@ -224,5 +225,27 @@ describe('la vista previa', () => {
 				.map((b) => b.text)
 		).toContain('🎟 Mis entradas');
 		expect(buildPreview('comandos', {}).commands?.map((c) => c.command)).toContain('entradas');
+	});
+
+	it('Mini App y ramas de la Kinkipedia: cada texto tiene su pantalla, con lo escrito', () => {
+		const keys = Object.keys(BOT_TEXT_DEFAULTS).filter(
+			(k) => k.startsWith('miniapp.') || k.includes('rama')
+		);
+		expect(keys.length).toBe(11);
+		for (const key of keys) expect(screenForKey(key), key).not.toBe('solo');
+		const app = buildPreview('miniapp', {
+			'miniapp.titulo': 'Agenda <de> prueba',
+			'miniapp.boton_comprar': 'Sacá tu entrada'
+		});
+		expect(app.html).toContain('<b>Agenda &lt;de&gt; prueba</b>');
+		expect(app.buttons?.flat().map((b) => b.text)).toContain('🎟 Sacá tu entrada ↗');
+		expect(buildPreview('miniapp_vacia', { 'miniapp.vacio': 'Nada todavía' }).html).toContain(
+			'Nada todavía'
+		);
+		expect(
+			buildPreview('kinkipedia_rama', { 'secciones.boton_rama': 'Abrir {rama}' })
+				.buttons?.flat()
+				.map((b) => b.text)
+		).toContain('Abrir Cuerdas');
 	});
 });

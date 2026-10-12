@@ -8,6 +8,7 @@
  * de la base; pasá `platform`) y el árbol de etiquetas en uso (la base: $lib/utils/siteTags.js).
  */
 import { mediaURL, thumbURL } from '$lib/utils';
+import { parseSiteDate } from '$lib/utils/dates.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { getDB } from '$lib/server/db';
@@ -121,7 +122,7 @@ export async function eventSeries(event, opts = {}) {
 		const nav = editionNav(editions, event.slug);
 		if (!nav) continue;
 		const { upcoming } = splitEditions(editions, now);
-		const started = new Date(event.start ?? editions[nav.index].start).getTime() <= now;
+		const started = parseSiteDate(event.start ?? editions[nav.index].start).getTime() <= now;
 		out.push({
 			...(await seriesHeader(tags, id, images)),
 			number: nav.number,

@@ -74,7 +74,7 @@
 		{/each}
 	</dl>
 </div>
-<PostList posts={allPosts} />
+<PostList heading="Todo lo publicado" posts={allPosts} />
 
 	<style lang="scss">
 	.glosario {

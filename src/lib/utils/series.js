@@ -8,7 +8,7 @@
  * Todo lo de series usa esto.
  */
 
-import { argDateShort } from './dates.js';
+import { argDateShort, startsAfter, parseSiteDate } from './dates.js';
 import { currentSiteTagList } from './siteTags.js';
 import { tagSlug } from './tagSlug.js';
 
@@ -161,11 +161,11 @@ export function seriesEditions(posts, seriesId) {
 			(p) =>
 				p.meta?.category === 'calendario' &&
 				(p.meta.tags ?? []).includes(seriesId) &&
-				Number.isFinite(new Date(p.meta.start).getTime())
+				Number.isFinite(parseSiteDate(p.meta.start).getTime())
 		)
 		.slice()
 		.sort((a, b) => {
-			const d = new Date(a.meta.start).getTime() - new Date(b.meta.start).getTime();
+			const d = parseSiteDate(a.meta.start).getTime() - parseSiteDate(b.meta.start).getTime();
 			return d || String(a.meta.postID).localeCompare(String(b.meta.postID));
 		});
 	/** @type {Edition[]} */
@@ -219,7 +219,7 @@ export function splitEditions(editions, now = Date.now()) {
 	/** @type {Edition[]} */
 	const past = [];
 	for (const e of editions) {
-		if (new Date(e.start).getTime() > now) {
+		if (startsAfter(e.start, now)) {
 			if (e.status !== 'cancelado') upcoming.push(e);
 		} else past.push(e);
 	}
