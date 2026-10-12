@@ -17,7 +17,7 @@
 import { getDB, logDBError } from '$lib/server/db';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { isMediaPath, isPublicMediaUrl } from '$lib/utils/media.js';
-import { mergePreviewTexts } from '$lib/utils/previewTexts.js';
+import { mergePreviewTexts, previewTextOverrides } from '$lib/utils/previewTexts.js';
 import { OG_CARDS, ogCardText } from '$lib/utils/ogCards.js';
 import { COLLAGE_TILES, COLLAGE_VERSION, collageTiles } from '$lib/utils/ogCollage.js';
 
@@ -48,14 +48,8 @@ export async function readPreviewTextOverrides(db) {
 			.bind(PREVIEW_TEXTS_SETTING)
 			.first();
 		if (!row) return none;
-		const parsed = JSON.parse(String(row.value));
-		/** @type {Record<string, string>} */
-		const overrides = {};
-		const merged = mergePreviewTexts(parsed);
-		for (const k of Object.keys(parsed ?? {}))
-			if (merged[k] === parsed[k]) overrides[k] = merged[k];
 		return {
-			overrides,
+			overrides: previewTextOverrides(JSON.parse(String(row.value))),
 			updatedAt: Number(row.updated_at) || null,
 			updatedBy: row.updated_by ? String(row.updated_by) : null
 		};

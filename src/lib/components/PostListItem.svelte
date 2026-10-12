@@ -7,7 +7,7 @@
 		MousePointerClick,
 		Heart
 	} from '@lucide/svelte';
-	import { argDate, argDateList, argTime, eventEnd } from '$lib/utils/dates.js';
+	import { argDate, argDateList, argTime, eventEnd, isoDay } from '$lib/utils/dates.js';
 	import TagChip from './ui/TagChip.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { onMount } from 'svelte';
@@ -116,7 +116,7 @@
 						{authors ? authors.join(', ') : ''}
 					</address>
 					{@html authors && date ? '&ThickSpace;-&ThickSpace;' : ''}
-					<time class="dt-published" datetime={date}>
+					<time class="dt-published" datetime={isoDay(date)}>
 						{date ? argDateList(date, { time: false }) : ''}
 					</time>
 				{/if}
