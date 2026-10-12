@@ -115,12 +115,12 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `mapa-direccion-libre` · fase 0 · espera gorrite · sitio · Mapa para eventos con dirección en texto libre (sin lugar cargado); vincular datos de producción lo decide gorrite
 - `compartir-imagen-mas` · fase 0 · algún día · sitio · Imagen para compartir: más paletas, apaisado y carrusel, estilo por serie
 - `kinkipedia-series-mejor` · fase 0 · espera gorrite · sitio · Kinkipedia más rica y una lista de series mejor armada; falta dirección de gorrite
-- `icono-tipo-series` · fase 0 · sigue · sitio · Ícono grande del tipo en el encabezado cuando no hay miniatura, también en las series
-- `ldtag-plantilla` · fase 0 · sigue · sitio · `LDTag.svelte` tiene datos de una plantilla vieja: borrarlo o pasarlo a datos de Kinky Vibe
+- `icono-tipo-series` · fase 0 · hecho · sitio · Ícono grande del tipo en el encabezado cuando no hay miniatura, también en las series · #327
+- `ldtag-plantilla` · fase 0 · hecho · sitio · `LDTag.svelte` tiene datos de una plantilla vieja: borrarlo o pasarlo a datos de Kinky Vibe · #327
 - `missing-tags` · fase 0 · espera gorrite · sitio · `missingTags`: hacerlo andar (los links de descripciones a etiquetas que no existen pasan a texto) o dejarlo
 - `prerender-paginas` · fase 0 · algún día · sitio · Prerenderizar páginas de contenido para servirlas como archivos
 - `me-interesa` · fase 0 · algún día · sitio · El botón anónimo «Me interesa» en los eventos, que quedó para más adelante
-- `readme-rutas` · fase 0 · sigue · docs · El README lista `/nosotres` y `/servicios`, que ya no existen
+- `readme-rutas` · fase 0 · hecho · docs · El README lista `/nosotres` y `/servicios`, que ya no existen · #327
 - `lectura-tiempo` · fase 0 · hecho · sitio · «X min de lectura» con la velocidad de cada persona · #274, #21, #46
 - `filtros-celu` · fase 0 · hecho · sitio · Barra de filtros con chips y árbol en una hoja en el celu · #294, #18
 - `vistas-previas-links` · fase 0 · hecho · sitio · Vistas previas de links (Collage, textos editables) · #257
@@ -129,7 +129,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 ### Estándares web y SEO
 
 - `seo-peso-paginas` · fase 0 · sigue · seo · Lo de «Para hacer después» en seo.md: pasados del calendario a pedido, `siteTags` aparte, íconos en sprite, menos etiquetas por tarjeta, relacionadas de a 20 · [seo.md](seo.md)
-- `seo-titulos` · fase 0 · sigue · seo · El mes en el título de los eventos repetidos, el salto de `h1` a `h3` en las listas y `DefinedTerm` para etiquetas con descripción · [seo.md](seo.md)
+- `seo-titulos` · fase 0 · hecho · seo · El mes en el título de los eventos repetidos, el salto de `h1` a `h3` en las listas y `DefinedTerm` para etiquetas con descripción · [seo.md](seo.md) · #327
 - `noai-por-post` · fase 0 · algún día · seo · Opción de «noai» por publicación (los robots de IA los maneja gorrite en Cloudflare)
 - `estandares-web` · fase 0 · hecho · seo · JSON-LD, microformatos, rel=me, security.txt, vCard, feeds Atom y JSON · #278, #280
 - `fechas-iso` · fase 0 · hecho · seo · Fechas ISO 8601 válidas en metadatos, JSON-LD y `<time datetime>` · #319, [seo.md](seo.md)
@@ -220,7 +220,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `codigo-muerto-github` · fase 2 · sigue · contenido · Código que quedó del panel con GitHub: `sharedImage.js`, la edición del archivo de etiquetas en `tagConfig.js`, ramas «no se guardó en la base», el permiso `public_repo` del login, y que el panel guarde objetos sin pasar por «rutas de `.md`» (`getRepoClient`, `withContentDb`, `commitFiles`)
 - `restos-limpieza` · fase 2 · sigue · contenido · Restos chicos: la regla de estilo que no alcanza a `.kv-texto-libre` (unas 200 páginas, con antes y después), un solo `foldText` en vez de las copias, un solo helper de imagen de una publicación, renombrar el `isAdmin` de `objects/visibility.js`, el campo de texto `perfil.avatar`
 - `docs-a-confirmar` · fase 2 · sigue · docs · Cerrar los «a confirmar» de los docs que gorrite ya confirmó (por ejemplo en lo-que-sigo.md) y las líneas viejas de tickets.md
-- `markdown-frontmatter` · fase 2 · sigue · contenido · El renderizador corta el encabezado de un texto en cualquier `---`, aunque esté a mitad de línea
+- `markdown-frontmatter` · fase 2 · hecho · contenido · El renderizador corta el encabezado de un texto en cualquier `---`, aunque esté a mitad de línea · #327
 - `textos-viejos-arreglos` · fase 2 · espera gorrite · contenido · Arreglos de datos en textos viejos (etiquetas HTML sin cerrar, `&nbsp;`, negritas rotas): cambios en producción, desde el panel o con OK de gorrite
 - `eventos-sin-imagen` · fase 2 · espera gorrite · contenido · Eventos sin imagen y campos vacíos; gorrite elige en el panel
 - `objetos-pendientes` · fase 2 · sigue · contenido · Revisar lo que queda de «Pendiente» en objetos.md (historial dentro de `saveObject`, borrar `event_venues` cuando todo esté en la base) · [objetos.md](objetos.md)
