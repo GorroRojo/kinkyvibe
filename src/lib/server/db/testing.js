@@ -10,9 +10,15 @@
  * consulta (`prepare` → `bind` → `first`) hacía unas cinco idas y vueltas a workerd, cuatro de ellas
  * sincrónicas (bloquean el event loop con `Atomics.wait`). Con la máquina cargada eso eran decenas
  * de milisegundos por consulta. Ahora `db` es un D1 de prueba (`TestD1Database`) que arma la
- * sentencia en Node y la manda entera en un solo pedido a un worker chiquito que la corre contra el
- * D1 de verdad (el mismo de miniflare, con su SQLite y sus errores). El resto de los bindings
+ * sentencia en Node y la manda entera, como un mensaje por un WebSocket abierto con un worker
+ * chiquito que la corre contra el D1 de verdad (el mismo de miniflare, con su SQLite y sus errores).
+ * Un mensaje cuesta ~2 ms; un pedido HTTP por consulta (`dispatchFetch`, lo de antes) costaba ~6.
+ * Lo que no entra en un mensaje sigue yendo por `dispatchFetch`. El resto de los bindings
  * (`BACKUPS`…) siguen siendo los proxies de miniflare.
+ *
+ * Las migraciones se aplican una sola vez por corrida de vitest, en una plantilla
+ * (`startTemplateDB`, desde `src/tests/globalSetup.js`): cada base nueva copia ese SQLite en vez de
+ * migrar. Si no hay plantilla lista, migra como siempre.
  *
  * Aunque la base arranca vacía, miniflare guarda el SQLite de D1 (y lo de R2) en disco, y cada
  * consulta es una transacción que espera a que el disco confirme: eso eran ~3 ms por consulta.

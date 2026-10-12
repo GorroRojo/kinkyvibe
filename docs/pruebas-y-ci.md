@@ -103,8 +103,20 @@ miniflare), creada vacía con `createTestDB()` de `src/lib/server/db/testing.js`
 **todas las migraciones de `migrations/`**. No necesitan internet ni tocan la base local de
 `npm run dev`. Lo normal es una base por archivo (`beforeAll`) y `resetDB()` en cada `beforeEach`.
 Para que sean rápidas, el archivo de la base vive en `/dev/shm` (en memoria; si no se puede, en
-la carpeta temporal) y cada consulta, las migraciones enteras y cada `resetDB()` son un solo
-pedido al worker de miniflare. Si cada prueba de un archivo arranca con los mismos datos y
+la carpeta temporal), y las consultas viajan por un **WebSocket** abierto con el worker de
+miniflare: cada consulta, cada `batch`, cada `resetDB()` es un mensaje (~2 ms en vez de ~6 ms con
+un pedido HTTP por consulta); lo que no entra en un mensaje (más de 4 M caracteres) va por un
+pedido suelto, igual que antes. Mismo D1 y mismas respuestas por los dos caminos. Las migraciones
+**no se aplican en cada archivo**: el globalSetup de vitest (`src/tests/globalSetup.js`) arma una
+vez por corrida, en segundo plano, una **plantilla** (una base con todas las migraciones), y
+`createTestDB()` copia ese SQLite en la carpeta nueva de cada base. Cada base sigue siendo su propia
+copia, aislada de las demás. Si la plantilla no está lista todavía, no se pudo armar, es de otras
+migraciones (se compara una huella de los archivos de `migrations/`, por ejemplo si cambiás una con
+`vitest` en modo watch) o falla la copia, esa base migra como siempre;
+`createTestDB({ template: false })` fuerza ese camino. `src/lib/server/db/template.test.js`
+comprueba que una base copiada de la plantilla es igual a una migrada archivo por archivo
+(esquema de `sqlite_master`, filas, `sqlite_sequence`) y que la plantilla se usó: si falla, no
+relajes la comparación. Si cada prueba de un archivo arranca con los mismos datos y
 armarlos es caro (por ejemplo, importar todas las etiquetas de la semilla: ~10 s con la máquina
 cargada), se arman una vez, se guarda la copia con `snapshotDB()` y cada prueba la vuelve a poner
 con `restoreDB()` (exactamente las mismas filas, en un solo pedido; ver
