@@ -70,12 +70,22 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 panel lo marca y escribe la fila de `panel_deletions` (0021) en la misma tanda, para «Recuperar» en
 Actividad; toda consulta de esas tablas lleva `deleted_at IS NULL`. No hay purga.
 
-**Lista de espera (0053).** Una fila de `waitlist_entries` por anotación; `ticket_type` NULL es la
-lista de todo el evento. Viva (`pending_confirmation`, `waiting`, `offered`) hay una sola por mail
-y alcance (índice único parcial); al terminar (`expired`, `cancelled`) se puede volver a anotar. Los
-tokens se guardan como SHA-256. Mismo trato que `orders`: sin purga, solo admins, nunca el mail en
-`admin_audit`; las anotaciones sin confirmar se borran a las 48 h. Borrar una anotación borra sus
-`waitlist_sends`. Detalle en [tickets.md](tickets.md), «Lista de espera».
+**Lista de espera (0053, decisión [0039](decisiones/0039-lista-de-espera.md)).** Una fila de
+`waitlist_entries` por anotación; `ticket_type` NULL es la lista de todo el evento. Viva
+(`pending_confirmation`, `waiting`, `offered`) hay una sola por mail y alcance (índice único
+parcial); al terminar (`purchased`, `expired`, `cancelled`) se puede volver a anotar. El orden de la
+fila es `confirmed_at`. Con `offered`, `hold_until` es hasta cuándo se guarda el lugar (NULL = aviso
+a toda la fila, sin lugar guardado) y `offer_count` la ronda; con `purchased`, `order_id` es la
+orden que hizo con su oferta. `end_reason` dice por qué terminó (`hold_expired`, `left`, `admin`,
+`closed`, `event_cancelled`, `type_removed`) y `ended_by`, le admin si fue desde el panel. Los
+tokens (confirmar y oferta) se guardan solo como SHA-256; `client_hash` como en `orders` (sin IP).
+`waitlist_sends` lleva cada mail del cron una vez por anotación, mail (`offer`, `reminder`,
+`expired`, `closed`) y ronda, con los estados de los envíos en tandas (`sending`, `sent`, `retry`,
+`failed`). Mismo trato que `orders`: sin purga, solo admins, nunca el mail en `admin_audit`; las
+anotaciones sin confirmar se borran a las 48 h. Borrar una anotación borra sus `waitlist_sends`.
+Los ajustes no tienen tabla: los globales en `ticket_settings` (`waitlist`, JSON) junto con las
+claves de los links (`waitlist_leave_key`, `waitlist_offer_key`, se crean solas), y los de cada
+evento en su `lista_espera`. Detalle en [tickets.md](tickets.md), «Lista de espera».
 
 `demo_files` (solo en la base de los previews, nunca fue una migración) era la capa de "commits"
 del modo demo: desde la decisión 0032 nadie la usa; se puede borrar a mano en el preview.

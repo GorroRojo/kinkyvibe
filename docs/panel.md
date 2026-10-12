@@ -163,8 +163,9 @@ revisar" del Inicio.
 - **Las filas**: «Transferencia» tildada sin datos para
   transferir, transferencias por confirmar (una por evento), órdenes para revisar (pago tardío,
   pago duplicado o una venta en la puerta sin conexión que pasó un límite, decisión 0035), mails que no
-  salieron (hasta 20), cupos sobrevendidos, links de transmisión que faltan, recordatorios que no
-  salieron o fallaron, el link que no le llegó a todes, eventos sin imagen y borradores (juntos si
+  salieron (hasta 20), mails de la lista de espera que no salieron (una fila, lleva a la pestaña
+  «Lista de espera» del evento más reciente), cupos sobrevendidos, links de transmisión que
+  faltan, recordatorios que no salieron o fallaron, el link que no le llegó a todes, eventos sin imagen y borradores (juntos si
   son 2 o más), eventos con lugar y etiqueta «Online», perfiles nuevos y pedidos «Es mi perfil»
   (juntos si son 2 o más), **Etiquetas** («N cosas para revisar en Etiquetas»: sin declarar, fuera
   del árbol y referencias rotas, lo mismo que las pestañas de su tarjeta «Para revisar»; «Sin usar»
@@ -183,6 +184,24 @@ revisar" del Inicio.
   alguien la abre.
 - **Cuándo se actualiza el botón**: el layout lo calcula al cargar una página del panel y después
   de cada acción (guardar, confirmar una transferencia…), no en cada cambio de página.
+
+**Lista de espera** (en construcción, interruptor `lista_espera`; decisión
+[0039](decisiones/0039-lista-de-espera.md), detalle en
+[tickets.md](tickets.md#lista-de-espera-en-construcción)):
+
+- **Pestaña «Lista de espera» de la ficha del evento** (`/admin/eventos/<slug>/lista-espera`, entre
+  Códigos y Mail a compradores; se ve con el interruptor prendido, o si el evento tiene lista o
+  gente anotada; su contador son las anotaciones vivas y el Resumen muestra «Lista de espera: N»).
+  Cuentas por alcance, la fila en orden, lo terminado y el CSV (con los mails: dato personal).
+  Acciones, cada una con su diálogo y en Actividad sin el mail (`waitlist.*`): «Terminar la reserva
+  y pasar a la siguiente», «Sacar de la lista», «Ofrecer ahora», «Cerrar la lista» (no la apaga:
+  eso es en Editar) y «Volver a probar» los mails que no salieron.
+- **Ajustes → Lista de espera** (`/admin/ajustes/lista-espera`, en Plata; ítem
+  `ajustes-lista-espera` de `nav.js` con `flag: 'lista_espera'`: con el interruptor apagado solo la
+  ven les superadmins, con «prueba»): de a une o todes a la vez, los tramos de reserva, desde
+  cuántas horas se avisa a todes y cuántos minutos antes del comienzo cierra la lista.
+- **Editar → Entradas → «Lista de espera»** y la nota en «Vender en puerta» y «Cargar entradas a
+  mano» («Hay N personas en la lista de espera… Podés vender igual»).
 
 **Barra lateral** (`SideNav.svelte`, solo en la compu; en el celu está el panel "Más"):
 

@@ -15,6 +15,8 @@
  * 404, `lista` no hace nada y no se ve nada.
  */
 import { error, fail, redirect } from '@sveltejs/kit';
+import { dev } from '$app/environment';
+import { env } from '$env/dynamic/private';
 import { getDB } from '$lib/server/db';
 import { isValidEventSlug } from '$lib/server/tickets/events.js';
 import { buyAction, discountAction, getTicketsView } from '$lib/server/tickets/checkout.js';
@@ -193,6 +195,10 @@ export const actions = {
 		if (!db) return failWith(503, 'La lista de espera no está disponible ahora.');
 		const config = await getEventTickets(params.event);
 		if (!config) error(404, 'Este evento no vende entradas por acá.');
+		// DEV ONLY: las pruebas E2E se anotan siempre desde la misma conexión (localhost), como en
+		// la compra (TICKETS_DEV_RELAX_LIMITS): sin el límite por conexión.
+		const relaxed = dev && env.TICKETS_DEV_RELAX_LIMITS === '1';
+		const client = relaxed ? `dev-${crypto.randomUUID()}` : await clientHash(clientAddress(event));
 		const r = await signUpForWaitlist({
 			db,
 			eventSlug: params.event,
@@ -200,7 +206,7 @@ export const actions = {
 			ticketType: tipo,
 			email,
 			member: locals.member ?? null,
-			client: await clientHash(clientAddress(event)),
+			client,
 			send: waitlistSender(db, fetch),
 			origin: siteOrigin(url),
 			contactEmail: contactEmail()

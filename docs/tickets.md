@@ -244,17 +244,18 @@ Cuando un evento (o un tipo de entrada) se agota, la gente se anota en una lista
 lugar, se le avisa por mail a la próxima persona y se le guarda un rato. Detrás del interruptor
 `lista_espera` (apagado, [interruptores.md](interruptores.md)) y de la clave `lista_espera` de cada
 evento. Se construye en partes, en ramas que se juntan en `claude/lista-espera` y entran a `main`
-como un solo PR (decisión [0001](decisiones/0001-ritmo-y-orden.md)); la decisión con lo que eligió
-gorrite se escribe al integrar.
+como un solo PR (decisión [0001](decisiones/0001-ritmo-y-orden.md)). Lo que eligió gorrite está en
+la decisión [0039](decisiones/0039-lista-de-espera.md).
 
 **Ya está (parte 1, datos y reglas).** Nada de esto se ve todavía ni toca la venta.
 
 - Migración `0053_lista_de_espera.sql`: `waitlist_entries` (una fila por anotación) y
   `waitlist_sends` (mails por ronda). Ver [datos.md](datos.md).
 - Por evento, `lista_espera` en el frontmatter (o en `extra`): `evento` o `tipo` (atajo), o
-  `{ alcance: evento | tipo, todes_a_la_vez: true, reservas: [{ overHours, holdHours }] }`. Queda en
-  `config.waitlist` (`parseTicketConfig`); lo que no se entiende cuenta como sin lista y nunca frena
-  la venta (como `meta_venta`).
+  `{ alcance: evento | tipo, todes_a_la_vez: true }`. Queda en `config.waitlist`
+  (`parseTicketConfig`); lo que no se entiende cuenta como sin lista y nunca frena la venta (como
+  `meta_venta`). Los tiempos de reserva no se eligen por evento (gorrite, 12/10): unos `reservas`
+  de antes se ignoran y valen los de Ajustes.
 - Ajustes globales en `ticket_settings`, clave `waitlist` (JSON). Vacío = de a una persona por vez;
   la reserva dura 24 h si faltan 7 días o más para el comienzo, 12 h si faltan 48 h o más, 2 h si
   faltan 6 h o más; con menos de 6 h se le avisa a toda la lista a la vez (sin lugar guardado). La
@@ -379,7 +380,7 @@ confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas 
 
 - **Editor del evento** (Entradas → «Lista de espera», `WaitlistField.svelte`; reglas en
   `src/lib/utils/ticketsEditor.js`): sin lista, por evento o por tipo de entrada; «Avisar a todes a
-  la vez desde el principio»; y en «Avanzado», tiempos de reserva propios (vacío = los de Ajustes).
+  la vez desde el principio» (los tiempos de reserva son los de Ajustes; ya no hay «Avanzado»).
   Escribe `lista_espera` solo si cambió (una que no se entiende queda como está; con la venta
   apagada no se toca, como la meta). **Con gente anotada** (sin confirmar, esperando o con oferta)
   no deja apagarla, cambiar el alcance, ni borrar o dejar sin cupo el tipo de una lista por tipo:
@@ -414,9 +415,19 @@ confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas 
 - **En la compra, por tipo:** cada tipo agotado con lista dice «Agotadas · Anotate en la lista de
   espera», que baja al formulario con ese tipo elegido.
 
-**Lo que falta antes del PR a `main`** (integración en `claude/lista-espera`): la prueba E2E del
-recorrido entero, la decisión en `docs/decisiones/`, los docs de entradas, datos y mails, y que
-gorrite aplique la 0053 en preview y producción.
+**Prueba de punta a punta** (`tests/tickets/lista-espera.spec.js`, con
+`playwright.tickets.config.js`): cada prueba crea su evento (cupo 1, lista por evento); agotar,
+anotarse y confirmar (GET no confirma), la misma respuesta para un mail ya anotado, reembolso, el
+cron ofrece, el público no puede comprar el lugar guardado, «Terminar la reserva» pasa a la
+siguiente (el link viejo ya no vale), compra con el link (después «ya usaste este link»), CSV, la
+nota en la puerta y en la carga a mano, «Sacar de la lista» y «Cerrar la lista» (que no la apaga).
+Los mails en dev no muestran los links: la prueba los arma con la base local (el de confirmar,
+cambiando el hash del token por el de uno propio; el de la oferta, con la misma firma que el
+motor). El vencimiento por tiempo (y el paso a la siguiente por el cron) lo cubren las pruebas
+unitarias del motor (`waitlistEngine.test.js`, con reloj fijo).
+
+**Lo que falta antes del PR a `main`:** que gorrite aplique la 0053 en preview y producción
+(0028) y responda los dos puntos «a confirmar» de la decisión 0039.
 
 ### Horario de la venta
 
