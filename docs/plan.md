@@ -189,6 +189,7 @@ CI) va en la fase 0.
 - `buscar-sintaxis-bot` · fase 0 · sigue · bot · El bot (inline y Buscar) entiende la sintaxis base, no solo el prefijo al principio (depende de: buscar-sintaxis)
 - `buscar-sintaxis-panel` · fase 0 · sigue · panel · El buscador del panel usa el mismo parser para la base (formas largas de tipo, `material:`, `wiki:`…) y suma lo suyo (depende de: buscar-sintaxis)
 - `buscar-guia-visible` · fase 0 · sigue · sitio · «¿Cómo buscar?» en el buscador del sitio y en /ayuda/buscar, «🔎 Cómo buscar» en la Ayuda del bot y la tabla completa en la paleta del panel (depende de: buscar-sintaxis)
+- `enlaces-sintaxis` · fase 0 · hecho · contenido · La sintaxis del cuerpo de todos los objetos (red de páginas enlazadas), escrita en [enlaces.md](enlaces.md) · [0047](decisiones/0047-cuerpos-enlazados.md)
 - `bot-inline-vista-chica` · fase 0 · hecho · bot · Lo que se manda con el bot inline lleva la vista previa del link chica, al costado (gorrite, 12/10)
 - `telegram-puerta` · fase 0 · hecho · bot · Puerta por Telegram como Mini App, con vínculo desde el panel · #273, #304
 
@@ -273,6 +274,12 @@ CI) va en la fase 0.
 - `amigues-editan-perfil` · fase 2 · sigue · cuentas · Mandarle a cada amigue un link por mail para gestionar su perfil desde Mi rincón (gorrite, 11/10)
 - `sesiones-dispositivos` · fase 2 · algún día · cuentas · Ver dónde hay una sesión abierta y cerrarla
 - `lo-que-sigo-panel` · fase 2 · hecho · panel · Mensajes › Lo que sigo: el estado para mirar (interruptores, números, avisos que salieron, «Avisame», Telegram, «Lo más seguido» arriba con el número exacto y quiénes siguen cada cosa, y «Por persona»; solo admins) · #320, [0043](decisiones/0043-lo-que-sigo-en-el-panel.md), [0025](decisiones/0025-lo-que-sigo.md)
+- `enlaces-guardar` · fase 2 · sigue · contenido · Al guardar, los `[[…]]`, `@` y `#` del cuerpo se vuelven relaciones del grafo, por objeto (no por título) (depende de: enlaces-sintaxis)
+- `enlaces-lo-que-enlaza` · fase 2 · sigue · sitio · «Lo que enlaza acá» en cada página, respetando quién puede ver qué (depende de: enlaces-guardar)
+- `enlaces-falta` · fase 2 · sigue · panel · Lista de los enlaces a páginas que no existen («falta») y cuántas veces se enlazan (depende de: enlaces-guardar)
+- `enlaces-markdown` · fase 2 · sigue · contenido · Las extensiones de enlaces.md en el procesador de Markdown: notas al pie, tablas, `[[a\|b]]`, secciones, incrustados, etiquetas, avisos, consultas vivas y directivas (depende de: enlaces-sintaxis)
+- `enlaces-editores` · fase 2 · sigue · panel · Los dos editores: Markdown con autocompletado y vista previa, y uno visual con fichas, con ida y vuelta sin pérdida (depende de: enlaces-markdown)
+- `enlaces-pasar-viejos` · fase 2 · sigue · datos · Pasar los links internos viejos (URL) a `[[…]]`, de a tandas con el OK de gorrite (depende de: enlaces-guardar)
 
 ## Fase 3
 
