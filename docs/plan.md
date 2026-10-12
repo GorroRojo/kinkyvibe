@@ -149,7 +149,9 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `bot-avisos-admin-3` · fase 0 · sigue · bot · Telegram para admins, parte 3: el resumen del día del evento y los recordatorios (el evento de mañana, falta el lugar o el link de la transmisión) (depende de: bot-avisos-admin) · [0041](decisiones/0041-telegram-para-admins.md)
 - `bot-avisos-admin-probar` · fase 0 · espera gorrite · bot · Prender `telegram_admin` en un preview y probarlo con un Telegram vinculado (la migración 0054 ya está en preview y producción) (depende de: bot-avisos-admin)
 - `bot-avisos-admin-menu` · fase 0 · algún día · bot · `/estado` y `/avisos` en el menú «/» solo de les admins vinculades (`setMyCommands` por chat desde el cron; borrarlo al desvincular), si hace falta
-- `bot-busquedas-vacias` · fase 0 · sigue · bot · Bot 3/5: qué se busca y no se encuentra (sin guardar quién), en el panel, y sugerencias en vez de «no encontré nada» (depende de: bot-mis-entradas)
+- `bot-busquedas-vacias-panel` · fase 0 · sigue · bot · Contar cuántas búsquedas del bot no encuentran nada, para el panel (sin guardar quién ni qué) (depende de: bot-busquedas-vacias)
+- `bot-sin-resultados-grupo` · fase 0 · sigue · bot · Sin resultados en un grupo: «⭐ Seguir» la etiqueta buscada como link al chat privado (hoy no aparece; haría falta un deep link nuevo) (depende de: bot-busquedas-vacias)
+- `bot-sin-resultados-tildes` · fase 0 · sigue · bot · Sin resultados: las palabras sugeridas salen como las guarda el índice, sin tildes ni mayúsculas («guia», no «Guía»); mostrarlas como se escriben en el título (depende de: bot-busquedas-vacias)
 - `bot-puerta-probar` · fase 0 · espera gorrite · bot · Probar la Puerta por Telegram en un preview con celus reales (vincular, abrir, escanear) · [0037](decisiones/0037-puerta-por-telegram.md)
 - `bot-puerta-2` · fase 0 · sigue · bot · Bot 4/5: Puerta por Telegram parte 2 (contador en vivo, escribir el código a mano) (depende de: bot-busquedas-vacias, bot-puerta-probar)
 - `bot-kinkipedia-ramas-probar` · fase 0 · espera gorrite · bot · Mirar en Telegram la Kinkipedia por ramas con el árbol de verdad: que las ramas de arriba sean las de `/wiki` y que ninguna quede con un solo hijo de más (depende de: bot-secciones-ajustes)
@@ -163,6 +165,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `bot-mis-entradas` · fase 0 · hecho · bot · Bot 2/5: «🎟 Mis entradas» con el QR de la puerta · #313
 - `bot-secciones-ajustes` · fase 0 · hecho · bot · Secciones del bot: Kinkipedia por las ramas del árbol de etiquetas (como `/wiki` y en su orden), Series sin las que no tienen ediciones, volver a vincular no saca `/silenciar` y los textos de la Mini App del calendario en «Textos del bot» · #321
 - `bot-funciones-viejas` · fase 0 · hecho · bot · Borradas las funciones que el bot ya no usaba (`formatEventList`, `formatEvent`, `formatChoices`, `formatPickList`, `eventListKeyboard`, `eventDetailKeyboard`) y sus pruebas · #321
+- `bot-busquedas-vacias` · fase 0 · hecho · bot · Bot 3/5: sugerencias en vez de «no encontré nada» (búsquedas parecidas, la sección más cercana, lo que viene y «⭐ Seguir» la etiqueta; también en el modo inline) · #318
 - `bot-textos` · fase 0 · hecho · bot · «Textos del bot» editables desde Ajustes · #302
 - `bot-inline-buscar` · fase 0 · hecho · bot · Modo inline y búsqueda en todo el sitio · #298, #300
 - `telegram-puerta` · fase 0 · hecho · bot · Puerta por Telegram como Mini App, con vínculo desde el panel · #273, #304

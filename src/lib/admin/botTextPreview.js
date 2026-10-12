@@ -205,6 +205,33 @@ export const PREVIEW_SCREENS = Object.freeze([
 		})
 	},
 	{
+		id: 'sitio_sin_resultados',
+		label: 'Buscar en todo el sitio: sin resultados (con una etiqueta para seguir)',
+		keys: [
+			'sitio.sin_resultados',
+			'sitio.sugerencias',
+			'sitio.boton_sugerencia',
+			'sitio.seguir_etiqueta',
+			'sitio.boton_seguir',
+			'sitio.proximos'
+		],
+		build: (t) => ({
+			html: [
+				t('sitio.sin_resultados', { busqueda: 'shibari' }),
+				t('sitio.sugerencias'),
+				t('sitio.seguir_etiqueta', { nombre: '🪢 Shibari' }),
+				`${t('sitio.proximos')}\n${SAMPLE_EVENTS.map(eventLine).join('\n')}`
+			].join('\n\n'),
+			buttons: [
+				[{ text: t('sitio.boton_sugerencia', { busqueda: 'suspensión', cantidad: 3 }) }],
+				[{ text: t('sitio.boton_sugerencia', { busqueda: 'cuerdas', cantidad: 12 }) }],
+				[{ text: t('sitio.boton_seguir', { nombre: '🪢 Shibari' }) }],
+				[{ text: t('secciones.boton_material') }],
+				[{ text: t('eventos.boton_buscar_otra') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
 		id: 'sitio_tarjeta',
 		label: 'Tarjeta compacta (material, Kinkipedia, amigues, series)',
 		keys: ['sitio.boton_ver', 'sitio.tipo_material', 'sitio.tipo_wiki', 'sitio.tipo_serie'],

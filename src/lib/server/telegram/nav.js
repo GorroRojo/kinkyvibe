@@ -17,6 +17,7 @@
  * | Seguir: opciones / seguir     | `f:<id>` / `fy:<id>:<etiqueta>` |
  * | Resultados de buscar en todo el sitio (página `p`) | `q:<p>:<texto>` |
  * | Una cosa de esos resultados (vuelve a la página `p`) | `r:<hash>:<p>:<texto>` |
+ * | Sin resultados: seguir la etiqueta buscada | `sf:<etiqueta>:<texto>` |
  * | Una sección del sitio (página `p`, etiqueta opcional) | `c:<s>:<p>[:<etiqueta>]` |
  * | Las etiquetas de una sección (la elegida, opcional) | `ct:<s>[:<etiqueta>]` |
  * | Una cosa de una sección (vuelve a la página `p`) | `cd:<s>:<hash>:<p>[:<etiqueta>]` |
@@ -58,6 +59,7 @@ import { parseCallbackData as parseLegacy } from './keyboards.js';
  *   | { screen: 'follow_do', id: string, tag: string }
  *   | { screen: 'site_results', query: string, page: number }
  *   | { screen: 'site_doc', hash: string, page: number, query: string }
+ *   | { screen: 'search_follow', tag: string, query: string }
  *   | { screen: 'section', section: SectionId, page: number, tag?: string }
  *   | { screen: 'section_tags', section: SectionId, tag?: string }
  *   | { screen: 'section_doc', section: SectionId, hash: string, page: number, tag?: string }
@@ -205,6 +207,9 @@ export function encodeNav(state) {
 		case 'site_doc':
 			data = `r:${state.hash}:${Math.max(0, Math.floor(state.page))}:${clipQuery(state.query)}`;
 			break;
+		case 'search_follow':
+			data = `sf:${state.tag}:${clipQuery(state.query)}`;
+			break;
 		case 'section':
 			data = `c:${state.section}:${Math.max(0, Math.floor(state.page))}${tagPart(state.tag)}`;
 			break;
@@ -280,6 +285,12 @@ export function decodeNav(data) {
 			return null;
 		}
 		return { screen: 'site_doc', hash, page: +page, query };
+	}
+	if (kind === 'sf' && parts.length >= 3) {
+		const [, tag] = parts;
+		const query = parts.slice(2).join(':');
+		if (!TAG_HASH.test(tag) || !query || clipQuery(query) !== query) return null;
+		return { screen: 'search_follow', tag, query };
 	}
 	if (kind === 'c' && (parts.length === 3 || parts.length === 4)) {
 		const [, section, page, tag] = parts;
