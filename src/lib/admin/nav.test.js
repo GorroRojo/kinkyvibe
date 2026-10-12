@@ -730,6 +730,19 @@ describe('links a la ficha del evento', () => {
 		);
 		expect(contentEditLink('/wiki')).toBeNull();
 	});
+	it('contentEditLink: un término de la wiki sin entrada va al editor de la etiqueta que muestra', () => {
+		// /wiki/<alias> o en otra forma: la página muestra la etiqueta de verdad (data.tag).
+		expect(contentEditLink('/wiki/rancheadita-kinky', { wikiTag: 'Rancheadita Kinky' })).toBe(
+			'/admin/etiquetas/wiki/Rancheadita-Kinky'
+		);
+		expect(contentEditLink('/wiki/un-alias', { wikiTag: 'Bondage' })).toBe(
+			'/admin/etiquetas/wiki/Bondage'
+		);
+		// Sin etiqueta resuelta, la dirección tal cual.
+		expect(contentEditLink('/wiki/algo', { wikiTag: null })).toBe('/admin/etiquetas/wiki/algo');
+		// Solo cambia la wiki.
+		expect(contentEditLink('/material/guia', { wikiTag: 'Bondage' })).toBe('/edit/material/guia');
+	});
 	it('la agenda tiene su ítem', () => {
 		expect(activeNavItem('/admin/eventos/agenda')?.id).toBe('eventos-agenda');
 	});

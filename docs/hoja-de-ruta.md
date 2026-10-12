@@ -150,7 +150,6 @@ de amigues y lanzamientos grandes.
 
 - Revisar los hallazgos de la auditoría de UX del 4/10 que siguen abiertos (anclas del glosario,
   áreas de toque, migas de pan, búsqueda vacía de la wiki). M.
-- «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`). S.
 - Barra de filtros de las listas: probarla en celulares reales (Android y iPhone) y, cuando se
   confirme, sacar los prototipos `/estilo/prototipos/filtros-celu` y `filtros-celu-v2`. S.
 - Esconder etiquetas del filtro que no cambiarían los resultados (#17). S–M.
@@ -208,23 +207,13 @@ de amigues y lanzamientos grandes.
   - (Descartado por gorrite, Mesa 12/10: la ficha del evento con 5 pestañas y «Más» del
     prototipo; quedan las 7 pestañas con vistas.)
   - Fijados por admin en la base (hoy por navegador), si se suma una tabla de preferencias. M.
-  - Si la barra sin grupos se queda, sacar las funciones de grupos abiertos de `navPrefs.js`
-    (`kv-panel-grupos`) y sus pruebas. S.
 - Panel lateral de cada admin: hoy la elección («Siempre abierto», «Solo íconos», «Se oculta»)
   se guarda por navegador (localStorage por login). Si se suma una tabla de preferencias por admin
   en la base, pasarla ahí para que siga a la persona en todos sus dispositivos (gorrite, 11/10;
   PR de íconos en las pestañas). S. Bloqueo: que haga falta una tabla de preferencias.
-- Ficha del evento con 7 pestañas (PR «panel-evento-pestanas»): los atajos del buscador a las
-  pestañas de un evento (`eventTabActions` en `src/lib/server/admin/search.js`) siguen diciendo
-  «Órdenes» y «Mail a compradores» (llevan a la vista correcta). Renombrarlos a «Ventas › Órdenes»
-  y «Mails › Mandar un aviso». S. Bloqueo: que se mergee el trabajo del buscador y ⌘K
-  (`claude/panel-nav-c`), para no pisarse.
 - Más gráficos: mapa de la comunidad, Fondo y finanzas. M.
 - Colaboración en tiempo real con Durable Objects. L.
 - Preguntas de inscripción sugeridas para elegir rápido. S.
-- Miniaturas achicadas en las otras listas del panel (Eventos, Contenido): hoy usan la portada
-  entera; el recuadro «Hoy» ya usa `thumbnailUrl` (`seo.js`). En previews y en local no hay
-  transformaciones de Cloudflare, así que ahí siguen enteras. S.
 
 ### Mails
 
