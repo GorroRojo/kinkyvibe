@@ -7,7 +7,7 @@
  * quién las puede ver) y devuelven el texto del feed. Del evento va la fecha, nunca el lugar: así
  * no hay que repetir acá las reglas de privacidad de los lugares.
  */
-import { argDateTimeLong } from './dates.js';
+import { argDateTimeLong, parseSiteDate } from './dates.js';
 import { SITE_NAME, SITE_URL, absoluteUrl } from './jsonLd.js';
 
 /** Cuántas publicaciones lista cada feed (las más nuevas), como /rss. */
@@ -34,7 +34,7 @@ export const FEED_LIMIT = 50;
  */
 export function rfc3339(d) {
 	if (d === undefined || d === null || d === '') return undefined;
-	const date = d instanceof Date ? d : new Date(/** @type {any} */ (d));
+	const date = d instanceof Date ? d : parseSiteDate(/** @type {any} */ (d));
 	return isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 

@@ -58,7 +58,13 @@ de `src/lib/utils/dates.js` las convierten.
 | `<time datetime>` de un evento (ya viene con hora y zona)   | tal cual      | `2026-10-02T22:00-03:00`    |
 | Sitemap y feeds (`lastmod`, `published`, `updated`)         | `Date`        | `2024-12-06T03:00:00.000Z`  |
 
-Para leer una fecha del sitio igual en cualquier motor de JS: `parseSiteDate`.
+Para leer una fecha del sitio igual en cualquier motor de JS: `parseSiteDate`. Lee cada forma
+guardada campo por campo, sin pasar por `Date.parse` (V8 entiende `2024-12-06Z-03:00`, Safari no):
+`2024-12-06Z-03:00`, `2024-12-06`, `2026-10-02T22:00-03:00` (con o sin segundos, con espacio en vez
+de `T`, hora de un dígito, `Z` o `-0300`). Sin desfase, es hora de Argentina. Todos los formateadores
+de `dates.js` (`toArgentina`, `argDate*`, `eventEnd`) leen con él; en el resto del código, una fecha
+guardada (`start`, `end`, `published_date`, `updated_date`, `opening_date`) se lee con
+`parseSiteDate`, nunca con `new Date(texto)`.
 
 ### Feeds
 

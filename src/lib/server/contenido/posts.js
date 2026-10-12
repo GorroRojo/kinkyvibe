@@ -24,6 +24,7 @@
  *   cambio de la base.
  */
 import { error } from '@sveltejs/kit';
+import { parseSiteDate } from '$lib/utils/dates.js';
 import { processPost } from '$lib/utils';
 import { pronounLabel } from '$lib/utils/mentions';
 import { isCurrent } from '$lib/utils/allPosts';
@@ -339,7 +340,7 @@ const CATEGORY_ORDER = ['calendario', 'amigues', 'material', 'wiki'];
 
 /** @param {ProcessedPost} p */
 export const postTime = (p) =>
-	new Date(p.meta?.start ?? p.meta?.updated_date ?? p.meta?.published_date).getTime();
+	parseSiteDate(p.meta?.start ?? p.meta?.updated_date ?? p.meta?.published_date).getTime();
 
 /**
  * El orden de las listas: lo más nuevo primero (inicio de los eventos; actualización o

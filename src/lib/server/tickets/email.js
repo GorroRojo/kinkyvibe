@@ -1,7 +1,13 @@
 /**
  * Email con las entradas, enviado con la API REST de Resend (POST https://api.resend.com/emails).
  */
-import { argDateTimeLong, argDeadline, argTime, eventEnd } from '$lib/utils/dates.js';
+import {
+	argDateTimeLong,
+	argDeadline,
+	argTime,
+	eventEnd,
+	parseSiteDate
+} from '$lib/utils/dates.js';
 import { ARGENTINA_TIME_NOTE } from '$lib/utils/expiry.js';
 import { TRANSFER_HOLD_AFTER, transferHoldText } from '$lib/utils/transferDeadline.js';
 import { formatARS } from '$lib/utils/money.js';
@@ -217,7 +223,7 @@ export function escapeHtml(s) {
  */
 export function formatEventDate(start) {
 	if (!start) return '';
-	const d = new Date(start);
+	const d = parseSiteDate(start);
 	if (Number.isNaN(d.getTime())) return String(start);
 	return argDateTimeLong(d);
 }
@@ -602,7 +608,7 @@ export function buildReminderEmail({
 export function formatEventSchedule(start, end) {
 	const when = formatEventDate(start ?? undefined);
 	if (!start || !end) return when;
-	const s = new Date(start);
+	const s = parseSiteDate(start);
 	const e = eventEnd(start, end);
 	if (Number.isNaN(s.getTime()) || e.getTime() <= s.getTime()) return when;
 	return e.getTime() - s.getTime() < 24 * 60 * 60 * 1000

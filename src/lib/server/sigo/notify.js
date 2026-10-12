@@ -32,6 +32,7 @@
  * - si Telegram dice que el chat ya no recibe (bloqueó al bot), se desvincula.
  */
 import { signLink, verifyLink } from '$lib/server/signedLinks.js';
+import { parseSiteDate } from '$lib/utils/dates.js';
 import { eventsForFollow } from './calendar.js';
 import { stopAllMail } from './follows.js';
 import { migrateAccountSubscriptions } from './avisame.js';
@@ -108,7 +109,7 @@ export async function stopMailWithToken(db, token, { now = Date.now() } = {}) {
 export function upcomingEvents(posts, now) {
 	return posts.filter((p) => {
 		if (p.meta?.category !== 'calendario' || p.meta.status === 'cancelado') return false;
-		const t = new Date(p.meta.start).getTime();
+		const t = parseSiteDate(p.meta.start).getTime();
 		return Number.isFinite(t) && t > now;
 	});
 }
@@ -227,7 +228,7 @@ export async function runFollowNotifications({
 	const withTicket = await accountsWithTickets(
 		db,
 		events
-			.filter((p) => new Date(p.meta.start).getTime() - now <= REMINDER_WINDOW_MS)
+			.filter((p) => parseSiteDate(p.meta.start).getTime() - now <= REMINDER_WINDOW_MS)
 			.map((p) => String(p.meta.postID))
 	);
 
@@ -269,7 +270,7 @@ export async function runFollowNotifications({
 			const slug = String(post.meta.postID);
 			const seenAt = firstSeen.get(slug);
 			const isNew = seenAt !== undefined && Number(row.created_at) < seenAt;
-			const start = new Date(post.meta.start).getTime();
+			const start = parseSiteDate(post.meta.start).getTime();
 			// Quien tiene entrada ya recibe los recordatorios de las entradas: el de «Lo que sigo»
 			// (por mail o por Telegram), no.
 			const isSoon =

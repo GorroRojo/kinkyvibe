@@ -3,6 +3,7 @@
  * admins. Sin datos de personas.
  */
 import { requireAdmin } from '$lib/server/auth';
+import { parseSiteDate } from '$lib/utils/dates.js';
 import { csvFilename, csvResponse, toCsv } from '$lib/admin/csv.js';
 import { allSeries } from '$lib/server/series/index.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
@@ -19,9 +20,9 @@ export async function GET({ locals, url, platform }) {
 		{ label: 'Serie', key: 'series' },
 		{ label: 'Edición', key: 'number' },
 		{ label: 'Título', key: 'title' },
-		{ label: 'Fecha (hora de Argentina)', value: (r) => new Date(r.start) },
+		{ label: 'Fecha (hora de Argentina)', value: (r) => parseSiteDate(r.start) },
 		{ label: 'Estado', key: 'status' },
-		{ label: 'Próxima', value: (r) => new Date(r.start).getTime() > now },
+		{ label: 'Próxima', value: (r) => parseSiteDate(r.start).getTime() > now },
 		{ label: 'Dirección', value: (r) => r.path }
 	]);
 	return csvResponse(csv, csvFilename('series', only, 'ediciones'));

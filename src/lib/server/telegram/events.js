@@ -15,6 +15,7 @@
  * estado de la venta (`ticketStatesFor` + `ticketCta`, como las tarjetas del calendario).
  */
 import { sitePosts } from '$lib/server/contenido/posts.js';
+import { parseSiteDate } from '$lib/utils/dates.js';
 import { getDB } from '$lib/server/db';
 import { feedVenues } from '$lib/server/amigues/venues.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
@@ -32,8 +33,8 @@ import { ticketCta } from '$lib/utils/ticketCta.js';
 export function toUpcomingEvents(posts, now) {
 	return posts
 		.filter((p) => p.meta?.category === 'calendario' && p.meta?.postID)
-		.filter((p) => new Date(p.meta.start).getTime() > now)
-		.sort((a, b) => new Date(a.meta.start).getTime() - new Date(b.meta.start).getTime())
+		.filter((p) => parseSiteDate(p.meta.start).getTime() > now)
+		.sort((a, b) => parseSiteDate(a.meta.start).getTime() - parseSiteDate(b.meta.start).getTime())
 		.map((p) => ({
 			slug: String(p.meta.postID),
 			title: String(p.meta.title ?? p.meta.postID),
@@ -127,7 +128,7 @@ export function toInlineEventInfo(
 	meta,
 	{ venue = null, venueFailed = false, states = null, now = Date.now() }
 ) {
-	const past = !(new Date(meta.start).getTime() > now);
+	const past = !(parseSiteDate(meta.start).getTime() > now);
 	/** @type {import('./inline.js').InlineEventInfo} */
 	const info = { ticket: ticketCta(meta, states, { past }) };
 	if (venueFailed) return info;

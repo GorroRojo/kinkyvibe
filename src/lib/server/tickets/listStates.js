@@ -10,6 +10,7 @@
  * agotadas (una consulta más, para todos los eventos con lista juntos).
  */
 import { building } from '$app/environment';
+import { parseSiteDate } from '$lib/utils/dates.js';
 import { getDB } from '$lib/server/db';
 import { hasOwnTickets } from '$lib/utils/ticketCta.js';
 import { methodsFor, typeBuyableNow } from './checkout.js';
@@ -163,7 +164,7 @@ export async function ticketStatesFor(platform, posts) {
 	if (!db) return null;
 	const now = Date.now();
 	const slugs = posts
-		.filter((p) => hasOwnTickets(p.meta) && new Date(p.meta.start).getTime() > now)
+		.filter((p) => hasOwnTickets(p.meta) && parseSiteDate(p.meta.start).getTime() > now)
 		.map((p) => String(p.meta.postID));
 	if (!slugs.length) return {};
 	try {
