@@ -187,6 +187,11 @@ las pantallas).
   <evento>»), «‹ 2/3 ›», «🕘 Pasadas» (o «🎟 Próximas») e «🏠 Inicio». Una entrada queda en
   «próximas» hasta 12 horas después del fin de su evento (o del comienzo, sin fin): así se puede
   mostrar en la puerta con el evento empezado. Las pasadas, de la más reciente, hasta 30.
+  **Talleres en varias partes** con una sola entrada ([talleres-partes.md](talleres-partes.md)):
+  la entrada vale para todas, así que queda en «próximas» hasta 12 horas después de la última
+  parte (sin las canceladas); la lista y la tarjeta muestran la fecha de la parte que toca, con
+  «· Parte 2 de 3», y la lista se ordena por esa fecha (`partsCoveredBy` decide qué partes cubre,
+  la misma regla que la lista de partes de los mails).
 - **La tarjeta**: el QR **como foto**, el evento, la fecha (`tg-time`), el nombre y los pronombres
   de la entrada, el tipo, el código corto («ABC 234», para dictarlo si el QR no se lee) y si es
   válida o ya se usó (cuándo). Botones: «🔗 Ver la entrada» (su página), «‹ 2/3 ›» entre las
