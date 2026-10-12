@@ -13,11 +13,12 @@
  */
 import { env } from '$env/dynamic/private';
 import { escapeHtml } from '$lib/utils/escape.js';
+import { SITE_URL, siteOriginFrom } from '$lib/utils/site.js';
 import { DEFAULT_CONTACT_EMAIL } from '$lib/utils/tickets.js';
 import { renderInlineHtml } from '$lib/utils/emailTemplates.js';
 
 /** Origen del sitio cuando el builder no recibe uno (ni hay SITE_URL). */
-export const DEFAULT_MAIL_ORIGIN = 'https://kinkyvibe.ar';
+export const DEFAULT_MAIL_ORIGIN = SITE_URL;
 /** Ruta del logo (static/). */
 export const MAIL_LOGO_PATH = '/android-chrome-192x192.png';
 /** Marca para los tests: todo mail armado con esta plantilla la lleva. */
@@ -52,8 +53,7 @@ export const MAIL_STYLES = Object.freeze({
  * @param {string | undefined} origin
  */
 function siteOrigin(origin) {
-	const o = origin?.trim() || env.SITE_URL?.trim() || DEFAULT_MAIL_ORIGIN;
-	return o.replace(/\/+$/, '');
+	return siteOriginFrom(origin, env.SITE_URL);
 }
 
 /** Contacto público (el mismo que `contactEmail()` de tickets/index.js). */

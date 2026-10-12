@@ -1,16 +1,19 @@
 <script>
 	/**
 	 * Etiqueta chica de estado: siempre con ícono, nunca solo texto (decisión de gorrite).
-	 * Props: `tone`: 'neutral' | 'ok' | 'warn' | 'bad' | 'info' (default 'neutral'), `title`,
+	 * Props: `tone`: 'neutral' | 'ok' | 'warn' | 'bad' | 'info' | 'accent' (default 'neutral'),
+	 * `title`. `bad` (agotadas, borrada, cancelada…) va en el rojo de los errores (`--error`), el
+	 * mismo de `Notice` con error: un solo color para «malo» (gorrite, 12/10). `accent` es el rosa
+	 * de la marca, para destacar algo que no es malo (como «Hoy»).
 	 * `filled` (default false: relleno del color, texto blanco, como las etiquetas marcadas),
 	 * `icon` (componente de Lucide; si no se pasa, va el del tono: ✓ ok, ⚠ warn, ! bad, i info,
-	 * ○ neutral). Si el slot ya trae su propio ícono de Lucide, el automático no se muestra.
+	 * ○ neutral y accent). Si el slot ya trae su propio ícono de Lucide, el automático no se muestra.
 	 * Color: cuando se comparan muchas, el tono dice qué significa; cuando son pocas, que combine
 	 * con el componente.
 	 */
 	import { Circle, CircleAlert, CircleCheck, Info, TriangleAlert } from '@lucide/svelte';
 
-	/** @type {'neutral' | 'ok' | 'warn' | 'bad' | 'info'} */
+	/** @type {'neutral' | 'ok' | 'warn' | 'bad' | 'info' | 'accent'} */
 	export let tone = 'neutral';
 	/** @type {string | undefined} */
 	export let title = undefined;
@@ -23,7 +26,8 @@
 		ok: CircleCheck,
 		warn: TriangleAlert,
 		bad: CircleAlert,
-		info: Info
+		info: Info,
+		accent: Circle
 	};
 	$: auto = icon ?? TONE_ICONS[tone] ?? Circle;
 </script>
@@ -41,7 +45,7 @@
 		gap: 0.3em;
 		font-size: var(--text-xs);
 		line-height: 1.2;
-		border-radius: 2em;
+		border-radius: var(--radius-pill);
 		padding: 0.15em 0.6em 0.15em 0.45em;
 		white-space: nowrap;
 		border: 1px solid var(--c);
@@ -62,16 +66,25 @@
 		--c: var(--warn);
 	}
 	.bad {
-		--c: var(--bad);
+		--c: var(--error);
 	}
 	.info {
 		--c: var(--info);
+	}
+	/* el rosa de la marca legible como texto (sin llenar); llena, el rosa de siempre */
+	.accent {
+		--c: var(--accent-text, var(--1-ink));
 	}
 	.filled {
 		background: var(--c);
 		color: var(--surface);
 	}
 	.filled.bad {
+		background: var(--error);
+		border-color: var(--error);
+		color: var(--error-ink, white);
+	}
+	.filled.accent {
 		background: var(--1);
 		border-color: var(--1);
 		color: white;

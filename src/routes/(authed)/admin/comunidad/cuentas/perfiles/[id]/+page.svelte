@@ -64,7 +64,7 @@
 </PageHeader>
 
 {#if deleted && p.deletedAt}
-	<form method="POST" action="?/deshacer" use:enhance={submit('deshacer')}>
+	<form class="undo-form" method="POST" action="?/deshacer" use:enhance={submit('deshacer')}>
 		<input type="hidden" name="id" value={deleted.id} />
 		<!-- El botón Deshacer de UndoToast no tiene `type`: dentro del form, lo envía. -->
 		<UndoToast busy={busy === 'deshacer'} message="Borraste «{deleted.title}»." />
@@ -199,6 +199,9 @@
 {/if}
 
 <style>
+	.undo-form {
+		margin-bottom: var(--space-xs);
+	}
 	.layout {
 		margin-bottom: 1rem;
 	}

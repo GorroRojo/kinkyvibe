@@ -563,7 +563,8 @@ test('código de descuento: 20% con un solo uso, y 100% sin pasar por Mercado Pa
 	await expect(page.getByRole('link', { name: /Ver entrada/ })).toHaveCount(1);
 
 	await page.goto('/admin/ventas/codigos');
-	await expect(page.locator('.code', { hasText: veinte })).toContainText('1 aprobados');
+	// «1 aprobado», en singular (plural() de la página; nunca «1 aprobados»).
+	await expect(page.locator('.code', { hasText: veinte })).toContainText(/(?<!\d)1 aprobado(?!s)/);
 	await expect(page.locator('.code', { hasText: veinte })).toContainText('Sin usos disponibles');
 });
 
@@ -584,7 +585,9 @@ test('transferencia (con fondo): datos para transferir → admin confirma → la
 	expect(reference).toMatch(/^KV-[0-9A-F]{8}$/);
 	const statusUrl = page.url();
 
-	await page.goto(`/admin/eventos/${EVENT}/transferencias`);
+	// Con la página ya hidratada: si se hace clic antes, «Confirmar pago» manda el formulario sin
+	// JavaScript (confirma de una, sin la pregunta) y el diálogo nunca aparece.
+	await page.goto(`/admin/eventos/${EVENT}/transferencias`, { waitUntil: 'networkidle' });
 	const pending = page.locator('.transfers .order', { hasText: reference });
 	await expect(pending).toBeVisible();
 	await pending.getByRole('button', { name: 'Confirmar pago' }).click();

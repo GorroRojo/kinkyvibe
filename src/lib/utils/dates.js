@@ -382,3 +382,13 @@ export function isoDay(d) {
 	const date = parseSiteDate(d);
 	return isNaN(date.getTime()) ? undefined : argDate(date);
 }
+
+/**
+ * «Próximo»: ¿empieza después de `now`? La misma regla en todo el sitio (listas, calendario, bot,
+ * tarjetas de entradas, avisos): una fecha que falta o no se puede leer no es próxima.
+ * @param {string|number|Date|null|undefined} start
+ * @param {number} [now]
+ */
+export function startsAfter(start, now = Date.now()) {
+	return parseSiteDate(/** @type {any} */ (start)).getTime() > now;
+}

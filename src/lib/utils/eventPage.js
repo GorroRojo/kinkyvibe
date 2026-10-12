@@ -5,7 +5,7 @@
  * aparte).
  */
 import { format } from 'date-fns';
-import { eventEnd, toArgentina } from './dates.js';
+import { argDateParts, eventEnd, parseSiteDate, toArgentina } from './dates.js';
 
 /**
  * ¿El evento ya terminó? (Sin fin, el que calcula `eventEnd`.) Una fecha que no se entiende
@@ -37,6 +37,24 @@ export function isPastEvent(meta, now = Date.now()) {
  */
 export function mainSeries(series) {
 	return series?.list?.[0] ?? null;
+}
+
+/**
+ * El título de la pestaña (y de los buscadores) de un evento, sin «· Kinky Vibe»: el de siempre
+ * o, si es parte de una serie, con el mes y el año de esa edición («Jamarada Kinky · octubre
+ * 2026»), para que las ediciones no tengan todas el mismo título (docs/seo.md). Si el título ya
+ * nombra el mes («Picantearla de octubre»), o la fecha no se entiende, queda como está.
+ *
+ * @param {{ title?: string, start?: string | number | Date | null }} meta
+ * @param {{ list?: SeriesInfo[] } | null | undefined} series
+ */
+export function eventPageTitle(meta, series) {
+	const title = String(meta?.title ?? '');
+	if (!mainSeries(series) || !meta?.start) return title;
+	const parts = argDateParts(parseSiteDate(meta.start));
+	if (!parts) return title;
+	if (title.toLocaleLowerCase('es').includes(parts.monthLong)) return title;
+	return `${title} · ${parts.monthLong} ${parts.year}`;
 }
 
 /**

@@ -5,6 +5,7 @@
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
+	import ComboCodes from '$lib/components/admin/ComboCodes.svelte';
 	import { shortTime } from '$lib/admin/orderFormat.js';
 	import { formatARS } from '$lib/utils/money.js';
 
@@ -191,6 +192,16 @@
 			<button type="submit" class="kv-btn">Crear código</button>
 		</form>
 	</Card>
+
+	{#if data.combos}
+		<ComboCodes
+			eventTitle={e.title}
+			combos={data.combos}
+			targets={data.comboTargets}
+			result={form?.combo}
+			toggleResult={form?.comboToggle}
+		/>
+	{/if}
 </div>
 
 <style>

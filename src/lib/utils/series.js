@@ -8,7 +8,7 @@
  * Todo lo de series usa esto.
  */
 
-import { argDateShort, parseSiteDate } from './dates.js';
+import { argDateShort, startsAfter, parseSiteDate } from './dates.js';
 import { currentSiteTagList } from './siteTags.js';
 import { tagSlug } from './tagSlug.js';
 
@@ -219,7 +219,7 @@ export function splitEditions(editions, now = Date.now()) {
 	/** @type {Edition[]} */
 	const past = [];
 	for (const e of editions) {
-		if (parseSiteDate(e.start).getTime() > now) {
+		if (startsAfter(e.start, now)) {
 			if (e.status !== 'cancelado') upcoming.push(e);
 		} else past.push(e);
 	}

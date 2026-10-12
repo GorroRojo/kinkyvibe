@@ -4,12 +4,14 @@
 	 * tarjetas del sitio, que traen «Comprar entradas»). Cada fila lleva a su editor del panel y a
 	 * la página pública.
 	 */
+	import { page } from '$app/stores';
 	import { ExternalLink, EyeOff, Pencil } from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import { dateParts, timeRange } from '$lib/admin/eventFormat.js';
+	import { thumbnailUrl } from '$lib/utils/seo.js';
 
 	/** @type {{ rows: import('$lib/admin/unlisted.js').UnlistedRow[] }} */
 	export let data;
@@ -42,7 +44,15 @@
 						{#if d}<small>{d.weekday}</small><b>{d.day}</b><small>{d.month}</small>{/if}
 					</div>
 					{#if r.thumb}
-						<img class="thumb" src={r.thumb} alt="" loading="lazy" decoding="async" />
+						<img
+							class="thumb"
+							src={thumbnailUrl(r.thumb, $page.url.hostname)}
+							alt=""
+							width="64"
+							height="64"
+							loading="lazy"
+							decoding="async"
+						/>
 					{:else}
 						<div class="thumb noimg" aria-hidden="true"></div>
 					{/if}

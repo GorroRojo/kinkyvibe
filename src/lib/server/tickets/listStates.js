@@ -1,8 +1,9 @@
 /**
  * Estado de la venta de entradas para las listas de eventos (tarjetas de PostListItem: inicio,
  * /calendario, /todo, páginas de etiquetas, "Más cosas de…"). Todos los eventos de la lista se
- * resuelven juntos: una lectura de los datos para transferir y UNA consulta a `orders`, nunca una
- * por tarjeta. Usa las mismas reglas que `getTicketsView` (checkout.js), así la tarjeta y la
+ * resuelven juntos: la configuración de todos en una tanda (los eventos y sus lugares,
+ * `getEventTicketsMany`), una lectura de los datos para transferir y UNA consulta a `orders`, nunca
+ * una por tarjeta. Usa las mismas reglas que `getTicketsView` (checkout.js), así la tarjeta y la
  * página del evento dicen lo mismo.
  *
  * Con la lista de espera prendida (interruptor `lista_espera`), un evento con lista resta la fila
@@ -10,12 +11,12 @@
  * agotadas (una consulta más, para todos los eventos con lista juntos).
  */
 import { building } from '$app/environment';
-import { parseSiteDate } from '$lib/utils/dates.js';
 import { getDB } from '$lib/server/db';
 import { hasOwnTickets } from '$lib/utils/ticketCta.js';
+import { startsAfter } from '$lib/utils/dates.js';
 import { methodsFor, typeBuyableNow } from './checkout.js';
 import { salesState, typeAvailability } from './config.js';
-import { getEventTickets } from './events.js';
+import { getEventTicketsMany } from './events.js';
 import { transferInfo } from './index.js';
 import { getTakenMany } from './orders.js';
 import { isFlagOn } from '$lib/server/flags.js';
@@ -64,12 +65,15 @@ export function getListTicketStates(db, slugs, { now = Date.now(), cacheMs = LIS
  * @returns {Promise<TicketStates>}
  */
 async function computeStates(db, slugs, now) {
-	const configs = (
-		await Promise.all(slugs.map(async (slug) => ({ slug, config: await getEventTickets(slug) })))
-	).filter(
-		/** @returns {e is { slug: string, config: import('./config.js').EventTickets }} */
-		(e) => e.config !== null
-	);
+	// La configuración de todos juntos: dos consultas para toda la lista (los eventos y cuáles tienen
+	// lugar), no dos por tarjeta.
+	const bySlug = await getEventTicketsMany(slugs);
+	const configs = slugs
+		.map((slug) => ({ slug, config: bySlug.get(slug) ?? null }))
+		.filter(
+			/** @returns {e is { slug: string, config: import('./config.js').EventTickets }} */
+			(e) => e.config !== null
+		);
 	/** @type {TicketStates} */
 	const out = {};
 	/** @type {typeof configs} */
@@ -164,7 +168,7 @@ export async function ticketStatesFor(platform, posts) {
 	if (!db) return null;
 	const now = Date.now();
 	const slugs = posts
-		.filter((p) => hasOwnTickets(p.meta) && parseSiteDate(p.meta.start).getTime() > now)
+		.filter((p) => hasOwnTickets(p.meta) && startsAfter(p.meta.start, now))
 		.map((p) => String(p.meta.postID));
 	if (!slugs.length) return {};
 	try {

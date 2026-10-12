@@ -45,6 +45,8 @@ const STATES = [
 	{ screen: 'help' },
 	{ screen: 'follow', id: navId(LONG) },
 	{ screen: 'follow_do', id: navId(EVENTS[0].slug), tag: 'abc1234' },
+	{ screen: 'search_follow', tag: 'abc1234', query: 'shibari' },
+	{ screen: 'search_follow', tag: 'abc1234', query: 'una búsqueda: con dos puntos' },
 	{ screen: 'noop' }
 ];
 
@@ -95,6 +97,25 @@ describe('encodeNav / decodeNav', () => {
 			'ev:<script>'
 		]) {
 			expect(decodeNav(bad), String(bad)).toBeNull();
+		}
+	});
+
+	it('seguir la etiqueta buscada (`sf:`): la búsqueda más larga entra y una rota no', () => {
+		const long = encodeNav({ screen: 'search_follow', tag: 'abc1234', query: 'ñ'.repeat(40) });
+		expect(byteLength(long)).toBeLessThanOrEqual(CALLBACK_MAX_BYTES);
+		expect(decodeNav(long)).toEqual({
+			screen: 'search_follow',
+			tag: 'abc1234',
+			query: 'ñ'.repeat(20)
+		});
+		for (const bad of [
+			'sf:',
+			'sf:abc',
+			'sf::shibari',
+			'sf:ABC!:shibari',
+			`sf:abc:${'x'.repeat(41)}`
+		]) {
+			expect(decodeNav(bad), bad).toBeNull();
 		}
 	});
 

@@ -30,6 +30,7 @@ import { pronounLabel } from '$lib/utils/mentions';
 import { isCurrent } from '$lib/utils/allPosts';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { getDB } from '$lib/server/db';
+import { oncePerRequest } from '$lib/server/db/perRequest.js';
 import { ANON, partVisibleWhere, visibleWhere } from '$lib/server/objects/visibility.js';
 import { getObject } from '$lib/server/objects/read.js';
 import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
@@ -42,7 +43,7 @@ import { publicLinksOf } from './vinculosPublicos.js';
 import { imageOf } from '$lib/server/media/library.js';
 import { mediaPath } from '$lib/server/media/sniff.js';
 import { authorProfilePosts, toPublic } from '$lib/server/amigues/asPost.js';
-import { profileAsPost } from '$lib/server/amigues/profiles.js';
+import { profileAsPost, shownProfileSql } from '$lib/server/amigues/profiles.js';
 import { siteWikiPosts } from '$lib/server/wiki/site.js';
 import { pageReadingMinutes, pageReadingWords } from '$lib/utils/readingTime.js';
 
@@ -108,11 +109,18 @@ export function clearContentCache() {
 
 /**
  * Cuántos objetos de contenido hay y cuándo cambió el último (objetos e importaciones): si no
- * cambió, lo recordado sigue valiendo.
+ * cambió, lo recordado sigue valiendo. Una sola vez por pedido de lectura (la página, su layout,
+ * los pronombres y el índice de la búsqueda la comparten; src/lib/server/db/perRequest.js).
  *
  * @param {D1Database} db
+ * @returns {Promise<string>}
  */
-async function contentStamp(db) {
+function contentStamp(db) {
+	return oncePerRequest(db, 'contentStamp', () => readContentStamp(db));
+}
+
+/** @param {D1Database} db */
+async function readContentStamp(db) {
 	const t = marks(TYPES.length);
 	const c = marks(CATEGORIES.length);
 	const row = await db
@@ -199,8 +207,7 @@ async function loadDbState(db, stamp, tree) {
 			FROM objects o
 			LEFT JOIN content_sources s ON s.object_id = o.id
 			LEFT JOIN profile_sources ps ON ps.profile_id = o.id
-			WHERE (o.type IN (${t}) OR (o.type = 'perfil' AND o.visibility != 'hidden'
-				AND EXISTS (SELECT 1 FROM profile_approvals pa WHERE pa.profile_id = o.id)))
+			WHERE (o.type IN (${t}) OR (o.type = 'perfil' AND ${shownProfileSql('o')}))
 				AND ${visible.sql}
 			ORDER BY o.id`
 		)
@@ -435,8 +442,7 @@ export async function unlistedCountQuery(platform) {
 			db
 				.prepare(
 					`SELECT COUNT(*) AS db FROM objects o
-					JOIN profile_approvals pa ON pa.profile_id = o.id
-					WHERE o.type = 'perfil' AND ${visible.sql} AND o.visibility != 'hidden'
+					WHERE o.type = 'perfil' AND ${visible.sql} AND ${shownProfileSql('o')}
 					AND COALESCE(json_extract(o.data, '$.unlisted'), 0) = 1`
 				)
 				.bind(...visible.params)
@@ -505,6 +511,17 @@ export async function siteBodies(platform) {
 export async function siteContentStamp(platform) {
 	const db = contentDb(platform);
 	return db ? contentStamp(db) : null;
+}
+
+/**
+ * La misma marca, con la base en la mano (/amigues recuerda su lista con ella: cubre los perfiles,
+ * sus aprobaciones e importaciones y las imágenes).
+ *
+ * @param {D1Database} db
+ * @returns {Promise<string>}
+ */
+export function contentStampOf(db) {
+	return contentStamp(db);
 }
 
 /**

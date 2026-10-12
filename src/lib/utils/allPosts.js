@@ -1,7 +1,7 @@
 // Kept apart from $lib/utils/index.js so list pages can import it without
 // pulling in that module's lookup tables for every post and image.
 import '$lib/types.d.js';
-import { argDate, toArgentina, parseSiteDate } from './dates.js';
+import { argDate, startsAfter, toArgentina, parseSiteDate } from './dates.js';
 
 /**
  * false for calendar events that already started (PostList hides them unless
@@ -10,7 +10,7 @@ import { argDate, toArgentina, parseSiteDate } from './dates.js';
  * @param {number} [now]
  */
 export const isCurrent = (post, now = Date.now()) =>
-	post.meta.category != 'calendario' || parseSiteDate(post.meta.start).getTime() > now;
+	post.meta.category != 'calendario' || startsAfter(post.meta.start, now);
 
 /**
  * true if some calendar event of `month` (yyyy-MM, Argentina time) already started: /calendario
