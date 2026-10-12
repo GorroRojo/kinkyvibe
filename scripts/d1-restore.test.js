@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LOCAL_DIR, parseArgs, readStats, resolveSource } from './d1-restore.js';
+import { existsSync } from 'node:fs';
+import {
+	DEFAULT_LOCAL_DIR,
+	parseArgs,
+	readStats,
+	resolveSource,
+	wranglerBin
+} from './d1-restore.js';
 
 describe('parseArgs', () => {
 	it('simulacro local', () => {
@@ -80,5 +87,13 @@ describe('readStats', () => {
 
 	it('sin comentario: null', () => {
 		expect(readStats('SELECT 1;')).toBeNull();
+	});
+});
+
+describe('wranglerBin', () => {
+	it('apunta al wrangler.js del repo (se corre con node, sin shell: en Windows el shell partía el SQL)', () => {
+		const bin = wranglerBin();
+		expect(bin.replaceAll('\\', '/')).toMatch(/node_modules\/wrangler\/bin\/wrangler\.js$/);
+		expect(existsSync(bin)).toBe(true);
 	});
 });
