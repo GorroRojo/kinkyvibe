@@ -440,17 +440,15 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
+		// El estado de «Lo que sigo» para mirar: interruptores, números, avisos que salieron y lo
+		// más seguido (cuántas cuentas, nunca quiénes). Se ve con el interruptor apagado.
 		id: 'lo-que-sigo',
 		href: '/admin/mensajes/lo-que-sigo',
 		icon: Sparkles,
 		emoji: '✨',
 		label: 'Lo que sigo',
 		area: 'mensajes',
-		soon: true,
-		phase: 2,
-		soonText:
-			'Qué etiquetas, perfiles y lugares sigue cada persona, para su calendario y sus mails ' +
-			'(anuncios y recordatorios). Incluye a quienes pidieron "Avisame si se repite".'
+		soon: false
 	},
 	{
 		id: 'bandeja',

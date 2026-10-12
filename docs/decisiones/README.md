@@ -120,6 +120,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   Telegram (11/10)
 - [0037](0037-puerta-por-telegram.md): La puerta por Telegram: les admins marcan ingresos desde
   el bot (11/10)
+- [0043](0043-lo-que-sigo-en-el-panel.md): «Lo que sigo» en el panel: les admins ven lo que sigue
+  cada persona en su ficha y «Lo más seguido» con el número exacto, nunca quiénes (12/10)
 
 ### Panel y CRM
 

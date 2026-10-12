@@ -34,6 +34,9 @@ PRs abiertos:
   directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
 - #297: códigos copiables, los mails de código (ingresar y confirmar) armados para que Gmail y el celu
   reconozcan el código ([mails.md](mails.md#códigos-copiables)).
+- Mensajes › Lo que sigo: el estado de «Lo que sigo» para mirar (interruptores, números, avisos
+  que salieron, «Avisame», Telegram y «Lo más seguido» sin piso), decisión
+  [0043](decisiones/0043-lo-que-sigo-en-el-panel.md) (PR `claude/lo-que-sigo-panel`).
 
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
 BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
@@ -240,6 +243,10 @@ de amigues y lanzamientos grandes.
   cuando un cliente de mail lo use. S.
 - Colas (Queues) para los mails y Email Workers para recibir. L.
 - Newsletter general y por combinación de etiquetas. L.
+- «Lo que sigo» en el panel, después de Mensajes › Lo que sigo: «N cuentas lo siguen» en la ficha
+  de una etiqueta y de un perfil del panel (solo admins, nunca quiénes). S.
+- Contar los avisos de «Lo que sigo» que fallaron (hoy se borra su fila para reintentar: necesita
+  migración). S. Bloqueo: gorrite decide si hace falta.
 - Bandeja de entrada en el panel, mails individuales y masivos (fase 5, CRM). L. Cuando esté,
   va primera en Mensajes: Bandeja, Plantillas, Configuración (gorrite, 11/10; hoy va al final
   porque lo que viene va al final de su área).
