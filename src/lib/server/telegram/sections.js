@@ -11,7 +11,9 @@
  * abrir algo **de la lista de esa sección**.
  *
  * El orden, como el sitio: el material del más nuevo (como /material); la Kinkipedia, amigues y
- * las series por nombre (como /wiki y /amigues). Funciones puras.
+ * las series por nombre (como /wiki y /amigues). Series, como la lista de /wiki, solo las que
+ * tienen alguna edición (un evento del índice con su etiqueta): una serie sin ediciones no tiene
+ * nada para mostrar. Funciones puras.
  */
 import { truncate } from './keyboards.js';
 import { encodeNav, shortHash } from './nav.js';
@@ -64,8 +66,22 @@ export const SECTION_TAGS_MAX = 8;
 export const SECTION_TAG_MIN = 2;
 
 /**
- * Lo de una sección, en el orden del sitio. Solo lo del índice público (y, en Amigues, sin los
- * perfiles no listados).
+ * Las etiquetas que tienen al menos un evento en el índice público (con fecha): las series con
+ * ediciones, como `seriesEditions` del sitio (la etiqueta de la serie, tal cual, en el evento).
+ *
+ * @param {readonly SearchDoc[]} docs
+ * @returns {Set<string>}
+ */
+export function tagsWithEvents(docs) {
+	/** @type {Set<string>} */
+	const out = new Set();
+	for (const d of docs) if (d.c === 'calendario' && d.d) for (const g of d.g ?? []) out.add(g);
+	return out;
+}
+
+/**
+ * Lo de una sección, en el orden del sitio. Solo lo del índice público (en Amigues, sin los
+ * perfiles no listados; en Series, sin las series sin ediciones).
  *
  * @param {InlineSource} source
  * @param {SectionId} section
@@ -73,8 +89,13 @@ export const SECTION_TAG_MIN = 2;
  */
 export function sectionDocs(source, section) {
 	const def = SECTIONS[section];
+	const withEvents = section === 's' ? tagsWithEvents(source.docs) : null;
 	const docs = source.docs.filter(
-		(d) => def.types.includes(d.c) && !(d.c === 'amigues' && source.extras.get(d.h)?.unlisted)
+		(d) =>
+			def.types.includes(d.c) &&
+			!(d.c === 'amigues' && source.extras.get(d.h)?.unlisted) &&
+			// La etiqueta de la serie es la primera (siteIndex.js).
+			!(withEvents && d.c === 'serie' && !withEvents.has(d.g?.[0] ?? ''))
 	);
 	/** @param {SearchDoc} a @param {SearchDoc} b */
 	const byName = (a, b) => a.t.localeCompare(b.t, 'es');

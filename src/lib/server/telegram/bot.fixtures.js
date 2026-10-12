@@ -91,7 +91,7 @@ const SITE_DOCS = [
 		h: '/calendario/taller-de-cuerdas',
 		t: 'Taller de cuerdas',
 		d: '2031-01-11T00:00:00.000Z',
-		g: ['cuerdas']
+		g: ['cuerdas', 'noche-de-cuerdas']
 	},
 	{
 		c: 'calendario',

@@ -60,6 +60,8 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
   - **Qué muestra**: lo mismo que Buscar, del índice público de la búsqueda (`inlineSource.js`):
     nada oculto, «solo con cuenta», sin aprobar, no listado ni borrado. Amigues deja afuera además
     los lugares no listados que el índice tiene porque se llega desde un evento (como `/amigues`).
+    Series deja afuera las series sin ediciones (ningún evento del índice con su etiqueta: no hay
+    nada para mostrar), como la lista de series de `/wiki`; Buscar las sigue encontrando.
     Ningún evento (para eso, Hoy, Semana, Finde y el calendario).
   - **Orden**, como el sitio: el material del más nuevo (`/material`); la Kinkipedia, amigues y las
     series por nombre (`/wiki`, `/amigues`).
