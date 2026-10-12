@@ -84,3 +84,39 @@ test('una dirección del panel que no existe da 404 adentro del panel (con el me
 		'/admin'
 	);
 });
+
+test('cada admin elige cómo se ve su panel lateral (y se aplica al cargar)', async ({ page }) => {
+	await page.goto('/admin', { waitUntil: 'networkidle' });
+	const html = page.locator('html');
+	const side = page.locator('aside#kv-side');
+	await expect(html).not.toHaveAttribute('data-lateral', /.+/);
+
+	// «Solo íconos»: la franja angosta; los links siguen teniendo su nombre.
+	await page.locator('.usermenu summary').click();
+	await page.getByRole('radio', { name: 'Solo íconos' }).check();
+	await expect(html).toHaveAttribute('data-lateral', 'iconos');
+	expect((await side.boundingBox())?.width ?? 999).toBeLessThan(80);
+	const menu = page.getByRole('navigation', { name: 'Secciones del panel' });
+	await expect(menu.getByRole('link', { name: 'Inicio' })).toBeVisible();
+
+	// Al recargar, el script del <head> lo pone antes de que arranque la página.
+	await page.reload({ waitUntil: 'commit' });
+	await page.waitForSelector('aside#kv-side', { state: 'attached' });
+	await expect(html).toHaveAttribute('data-lateral', 'iconos');
+
+	// «Se oculta»: no se ve hasta tocar el botón de arriba, y Escape lo cierra.
+	await page.waitForLoadState('networkidle');
+	await page.locator('.usermenu summary').click();
+	await page.getByRole('radio', { name: 'Se oculta' }).check();
+	await expect(side).toBeHidden();
+	await page.getByRole('button', { name: 'Abrir el panel lateral' }).click();
+	await expect(side).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(side).toBeHidden();
+
+	// Volver a «Siempre abierto» borra la elección.
+	await page.locator('.usermenu summary').click();
+	await page.getByRole('radio', { name: 'Siempre abierto' }).check();
+	await expect(html).not.toHaveAttribute('data-lateral', /.+/);
+	await expect(side).toBeVisible();
+});

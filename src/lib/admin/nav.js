@@ -90,13 +90,17 @@ import {
 	Inbox,
 	KeyRound,
 	Landmark,
+	LayoutDashboard,
 	Library,
 	ListPlus,
 	Mail,
 	MapPin,
+	Pencil,
+	ReceiptText,
 	Repeat,
 	ScanLine,
 	ScrollText,
+	Send,
 	Settings,
 	Share2,
 	ShoppingBag,
@@ -649,24 +653,77 @@ export const NAV = Object.freeze([
 
 /**
  * Pestañas de la ficha de un evento (`/admin/eventos/[slug]` + sufijo). `''` es el Resumen.
- * @type {readonly { id: string, suffix: string, label: string, soon: boolean }[]}
+ * Cada una lleva su ícono: si es la misma cosa que una sección del menú (`section`, el id de un
+ * {@link NavItem}), el de esa sección; si no, uno propio del mismo juego (Lucide), con su emoji.
+ * @type {readonly { id: string, suffix: string, label: string, soon: boolean, section?: string, icon: NavItem['icon'], emoji: string }[]}
  */
-export const EVENT_TABS = Object.freeze([
-	{ id: 'resumen', suffix: '', label: 'Resumen', soon: false },
-	// Editar va segunda (y también es un botón del encabezado): con 10 pestañas, al final quedaba
-	// fuera de la pantalla en el celu y en la compu angosta.
-	{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false },
-	{ id: 'ventas', suffix: '/ventas', label: 'Ventas', soon: false },
-	{ id: 'ordenes', suffix: '/ordenes', label: 'Órdenes', soon: false },
-	{ id: 'transferencias', suffix: '/transferencias', label: 'Transferencias', soon: false },
-	{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false },
-	{ id: 'codigos', suffix: '/codigos', label: 'Códigos', soon: false },
-	{ id: 'mail', suffix: '/mail', label: 'Mail a compradores', soon: false },
-	// Plantillas de los mails de este evento (lo que cambia sobre Mensajes → Plantillas).
-	{ id: 'mails', suffix: '/mails', label: 'Plantillas de mails', soon: false },
-	// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.
-	{ id: 'preguntas', suffix: '/preguntas', label: 'Preguntas', soon: false }
-]);
+export const EVENT_TABS = Object.freeze(
+	[
+		{
+			id: 'resumen',
+			suffix: '',
+			label: 'Resumen',
+			soon: false,
+			icon: LayoutDashboard,
+			emoji: '📋'
+		},
+		// Editar va segunda (y también es un botón del encabezado): con 10 pestañas, al final quedaba
+		// fuera de la pantalla en el celu y en la compu angosta.
+		{ id: 'editar', suffix: '/editar', label: 'Editar', soon: false, icon: Pencil, emoji: '✏️' },
+		{ id: 'ventas', suffix: '/ventas', label: 'Ventas', soon: false, section: 'entradas' },
+		{
+			id: 'ordenes',
+			suffix: '/ordenes',
+			label: 'Órdenes',
+			soon: false,
+			icon: ReceiptText,
+			emoji: '🧾'
+		},
+		{
+			id: 'transferencias',
+			suffix: '/transferencias',
+			label: 'Transferencias',
+			soon: false,
+			section: 'entradas-transferencias'
+		},
+		{ id: 'ingreso', suffix: '/ingreso', label: 'Puerta', soon: false, section: 'checkin' },
+		{
+			id: 'codigos',
+			suffix: '/codigos',
+			label: 'Códigos',
+			soon: false,
+			section: 'entradas-codigos'
+		},
+		{
+			id: 'mail',
+			suffix: '/mail',
+			label: 'Mail a compradores',
+			soon: false,
+			icon: Send,
+			emoji: '📤'
+		},
+		// Plantillas de los mails de este evento (lo que cambia sobre Mensajes → Plantillas).
+		{
+			id: 'mails',
+			suffix: '/mails',
+			label: 'Plantillas de mails',
+			soon: false,
+			section: 'ajustes-plantillas'
+		},
+		// Preguntas de inscripción: la ficha la muestra con base y venta de entradas.
+		{
+			id: 'preguntas',
+			suffix: '/preguntas',
+			label: 'Preguntas',
+			soon: false,
+			section: 'ajustes-personas'
+		}
+	].map((t) => {
+		// Con `section`, el ícono es el de esa sección del menú (el mismo en la barra lateral y acá).
+		const item = t.section ? NAV.find((i) => i.id === t.section) : undefined;
+		return Object.freeze({ ...t, icon: item?.icon ?? t.icon, emoji: item?.emoji ?? t.emoji ?? '' });
+	})
+);
 
 /**
  * URL de la ficha de un evento (o de una de sus pestañas).
@@ -875,7 +932,8 @@ export function navGroupItems(group, opts) {
  * `null` si la página no lleva.
  * @param {string} pathname
  * @param {{ flags?: Record<string, boolean> }} [opts]
- * @returns {{ label: string, tabs: { href: string, label: string }[] } | null}
+ * Cada pestaña lleva el ícono de su sección (el mismo que en la barra lateral).
+ * @returns {{ label: string, tabs: { href: string, label: string, icon: NavItem['icon'] }[] } | null}
  */
 export function sectionTabs(pathname, { flags = {} } = {}) {
 	const path = pathname.replace(/\/+$/, '') || '/';
@@ -886,7 +944,7 @@ export function sectionTabs(pathname, { flags = {} } = {}) {
 	if (items.length < 2) return null;
 	return {
 		label: `Secciones de ${group.label}`,
-		tabs: items.map((i) => ({ href: i.href, label: i.label }))
+		tabs: items.map((i) => ({ href: i.href, label: i.label, icon: i.icon }))
 	};
 }
 

@@ -25,6 +25,7 @@
 		class="{variant} soon"
 		aria-disabled="true"
 		title={item.soonText ? `Próximamente: ${item.soonText}` : 'Próximamente'}
+		data-tip={variant === 'side' ? `${item.label} (próximamente)` : undefined}
 		><NavIcon {item} size={variant === 'side' ? 18 : 20} /><span class="label">{item.label}</span
 		><span class="tag">Próximamente</span></span
 	>
@@ -35,6 +36,7 @@
 		class:on={active}
 		class:hl={variant === 'tile' && item.highlight}
 		aria-current={active ? 'page' : undefined}
+		data-tip={variant === 'side' ? item.label : undefined}
 		><NavIcon {item} size={variant === 'side' ? 18 : 20} /><span class="label">{item.label}</span
 		>{#if state === 'prueba'}<span
 				class="tag prueba"
@@ -61,7 +63,8 @@
 		text-overflow: ellipsis;
 	}
 	.side {
-		padding: 0.38rem var(--space-xs) 0.38rem var(--space-l);
+		position: relative;
+		padding: var(--space-3xs) var(--space-xs) var(--space-3xs) var(--space-l);
 		border-radius: var(--round);
 		font-size: var(--text-sm);
 		transition: background 100ms;
@@ -133,5 +136,33 @@
 	}
 	.tag + .count {
 		margin-left: 0.3rem;
+	}
+	/* «Solo íconos» en la barra lateral (ver SideNav): el nombre, solo para lectores de pantalla. */
+	@media (min-width: 900px) {
+		:global(html[data-lateral='iconos']) {
+			.side {
+				justify-content: center;
+				padding-inline: 0;
+				outline-offset: -3px;
+				.label {
+					position: absolute;
+					width: 1px;
+					height: 1px;
+					overflow: hidden;
+					clip: rect(0 0 0 0);
+				}
+				.tag {
+					display: none;
+				}
+				.count {
+					position: absolute;
+					top: 0;
+					right: 0;
+					margin: 0;
+					padding: 0 0.35em;
+					line-height: 1.3;
+				}
+			}
+		}
 	}
 </style>

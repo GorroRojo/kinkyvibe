@@ -16,9 +16,13 @@
 	 * Atajos de teclado (solo en la compu): «Atajos de teclado» al pie de la barra lateral y el
 	 * botón `?` de la barra de arriba abren la hoja de atajos del buscador (`openHelp`), y
 	 * `ShortcutTip` los cuenta una vez. Ver `$lib/admin/shortcutHints.js`.
+	 *
+	 * Panel lateral (solo en la compu): cada admin elige en el menú de su cuenta si está «Siempre
+	 * abierto», en «Solo íconos» (los nombres salen como cartelito, `data-tip`) o si «Se oculta»
+	 * (un botón de la barra de arriba lo abre encima del contenido). Ver `$lib/admin/sidebarMode.js`.
 	 */
 	import '$lib/admin/panel.scss';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/stores';
 	import {
@@ -62,6 +66,14 @@
 		saveTheme
 	} from '$lib/admin/theme.js';
 	import { SHEET_TAP_SLOP, sheetDragOffset, shouldCloseSheet } from '$lib/admin/sheetDrag.js';
+	import {
+		DEFAULT_SIDEBAR_MODE,
+		SIDEBAR_MODES,
+		SIDEBAR_MODE_LABELS,
+		readSidebarMode,
+		saveSidebarMode,
+		sidebarHeadScript
+	} from '$lib/admin/sidebarMode.js';
 
 	export let data;
 
@@ -78,6 +90,51 @@
 	/** @type {SearchBox | undefined} */
 	let searchBox;
 	const openShortcuts = () => searchBox?.openHelp();
+
+	/** Panel lateral de cada admin (`sidebarMode.js`). */
+	/** @type {import('$lib/admin/sidebarMode.js').SidebarMode} */
+	let sidebarMode = DEFAULT_SIDEBAR_MODE;
+	/** «Se oculta»: si está abierto encima del contenido. */
+	let drawerOpen = false;
+	/** @type {HTMLButtonElement | undefined} */
+	let drawerButton;
+	/** @type {HTMLButtonElement | undefined} */
+	let drawerClose;
+
+	/** @param {import('$lib/admin/sidebarMode.js').SidebarMode} mode */
+	function chooseSidebarMode(mode) {
+		sidebarMode = mode;
+		drawerOpen = false;
+		saveSidebarMode(user?.login, mode);
+	}
+
+	/** @param {boolean} open */
+	async function setDrawer(open) {
+		if (drawerOpen === open) return;
+		drawerOpen = open;
+		await tick();
+		(open ? drawerClose : drawerButton)?.focus();
+	}
+
+	/*
+	 * Cartelito con el nombre de cada link en «Solo íconos» (al pasar el mouse o con el foco). Va
+	 * con `position: fixed` porque la barra tiene scroll propio y cortaría uno absoluto. Es solo
+	 * visual (`aria-hidden`): el nombre ya está en el link, oculto a la vista.
+	 */
+	/** @type {{ text: string, x: number, y: number } | null} */
+	let tip = null;
+	/** @param {Event} e */
+	function showTip(e) {
+		const el = e.target instanceof Element ? e.target.closest('[data-tip]') : null;
+		const rail = document.documentElement.getAttribute('data-lateral') === 'iconos';
+		if (!rail || !(el instanceof HTMLElement) || !el.dataset.tip) {
+			tip = null;
+			return;
+		}
+		const r = el.getBoundingClientRect();
+		tip = { text: el.dataset.tip, x: r.right + 8, y: r.top + r.height / 2 };
+	}
+	const hideTip = () => (tip = null);
 
 	$: bare = $page.data?.bare === true;
 	/** Una página con `wide: true` en su load (la agenda) usa todo el ancho, sin el máximo de siempre. */
@@ -111,10 +168,17 @@
 		theme = readTheme();
 		saveTheme(theme);
 		hideSoon = readHideSoon();
-		return () => document.documentElement.removeAttribute('data-theme');
+		sidebarMode = readSidebarMode(user?.login);
+		saveSidebarMode(user?.login, sidebarMode);
+		return () => {
+			document.documentElement.removeAttribute('data-theme');
+			document.documentElement.removeAttribute('data-lateral');
+		};
 	});
 	afterNavigate(() => {
 		sheetOpen = false;
+		drawerOpen = false;
+		tip = null;
 		if (userMenu) userMenu.open = false;
 	});
 
@@ -214,6 +278,7 @@
 	function onKey(e) {
 		if (e.key === 'Escape') {
 			sheetOpen = false;
+			if (drawerOpen) setDrawer(false);
 			if (userMenu) userMenu.open = false;
 		}
 	}
@@ -237,6 +302,8 @@
 <svelte:head>
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -- string fijo, ver theme.js -->
 	{@html THEME_HEAD_SCRIPT}
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -- solo la clave del login, ver sidebarMode.js -->
+	{@html sidebarHeadScript(data.user?.login)}
 	<title>Panel · Kinky Vibe</title>
 	<meta name="robots" content="noindex" />
 </svelte:head>
@@ -249,26 +316,50 @@
 		<slot />
 	{:else}
 		<div class="app">
-			<aside class="side" aria-label="Secciones del panel">
-				<a class="brand" href="/admin">
+			<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+			<aside
+				class="side"
+				class:open={drawerOpen}
+				id="kv-side"
+				aria-label="Secciones del panel"
+				on:pointerover={showTip}
+				on:focusin={showTip}
+				on:pointerleave={hideTip}
+				on:focusout={hideTip}
+				on:scroll={hideTip}
+			>
+				<button
+					type="button"
+					class="drawer-x"
+					aria-label="Cerrar el panel lateral"
+					bind:this={drawerClose}
+					on:click={() => setDrawer(false)}><X size={20} aria-hidden="true" /></button
+				>
+				<a class="brand" href="/admin" data-tip="Inicio del panel">
 					<img src={logo} alt="Kinky Vibe" width="64" height="64" />
 					<span class="pill">Panel de admin</span>
 				</a>
 				<SideNav {active} {counts} {flags} {hideSoon} />
 				<div class="foot">
-					<button type="button" class="nav" on:click={toggleTheme}
-						><svelte:component
-							this={THEME_ICONS[theme]}
-							size={20}
-							aria-hidden="true"
-						/>{THEME_LABELS[theme].label}</button
+					<button
+						type="button"
+						class="nav"
+						on:click={toggleTheme}
+						data-tip={THEME_LABELS[theme].label}
+						><svelte:component this={THEME_ICONS[theme]} size={18} aria-hidden="true" /><span
+							class="lbl">{THEME_LABELS[theme].label}</span
+						></button
 					>
-					<a class="nav" href="/" target="_blank" rel="noopener"
-						><ExternalLink size={20} aria-hidden="true" />Ver el sitio</a
+					<a class="nav" href="/" target="_blank" rel="noopener" data-tip="Ver el sitio"
+						><ExternalLink size={18} aria-hidden="true" /><span class="lbl">Ver el sitio</span></a
 					>
-					<button type="button" class="nav keys" on:click={openShortcuts}
-						><Keyboard size={20} aria-hidden="true" />Atajos de teclado<kbd aria-hidden="true"
-							>?</kbd
+					<button
+						type="button"
+						class="nav keys"
+						on:click={openShortcuts}
+						data-tip="Atajos de teclado (?)"
+						><Keyboard size={18} aria-hidden="true" /><span class="lbl">Atajos de teclado</span><kbd
+							aria-hidden="true">?</kbd
 						></button
 					>
 				</div>
@@ -276,6 +367,16 @@
 
 			<div class="main">
 				<header class="top">
+					<button
+						type="button"
+						class="drawerbtn"
+						aria-label="Abrir el panel lateral"
+						title="Secciones del panel"
+						aria-expanded={drawerOpen}
+						aria-controls="kv-side"
+						bind:this={drawerButton}
+						on:click={() => setDrawer(!drawerOpen)}><Menu size={20} aria-hidden="true" /></button
+					>
 					<SearchBox
 						bind:this={searchBox}
 						{hideSoon}
@@ -330,6 +431,20 @@
 									aria-hidden="true"
 								/>{hideSoon ? 'Mostrar lo que viene' : 'Ocultar lo que viene'}</button
 							>
+							<fieldset class="lateral">
+								<legend>Panel lateral</legend>
+								{#each SIDEBAR_MODES as mode (mode)}
+									<label
+										><input
+											type="radio"
+											name="kv-lateral"
+											value={mode}
+											checked={sidebarMode === mode}
+											on:change={() => chooseSidebarMode(mode)}
+										/>{SIDEBAR_MODE_LABELS[mode]}</label
+									>
+								{/each}
+							</fieldset>
 							<a href="/" target="_blank" rel="noopener"
 								><ExternalLink size={18} aria-hidden="true" />Ver el sitio</a
 							>
@@ -384,6 +499,16 @@
 		</div>
 
 		<ShortcutTip onShowShortcuts={openShortcuts} />
+
+		{#if drawerOpen}
+			<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+			<div class="drawer-scrim" on:click={() => setDrawer(false)}></div>
+		{/if}
+		{#if tip}
+			<div class="side-tip" aria-hidden="true" style:left="{tip.x}px" style:top="{tip.y}px">
+				{tip.text}
+			</div>
+		{/if}
 
 		<nav class="tabbar" aria-label="Secciones principales">
 			{#each mobileTabs as tab, i (i)}
@@ -523,16 +648,17 @@
 		overflow-y: auto;
 		overscroll-behavior: contain;
 	}
+	/* Compacta (gorrite, 11/10): logo más chico y menos aire entre renglones. */
 	.brand {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 0.4rem;
-		padding: 0 0 var(--space-xs);
+		gap: var(--space-3xs);
+		padding: 0 0 var(--space-2xs);
 		text-decoration: none;
 		img {
-			width: 4rem;
-			height: 4rem;
+			width: 3rem;
+			height: 3rem;
 			object-fit: contain;
 		}
 	}
@@ -547,7 +673,8 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2xs);
-		padding: 0.45rem var(--space-xs);
+		padding: var(--space-3xs) var(--space-xs);
+		position: relative;
 		border-radius: var(--round);
 		border: 0;
 		background: none;
@@ -595,7 +722,7 @@
 		}
 	}
 	.foot {
-		margin-top: 0.5rem;
+		margin-top: var(--space-3xs);
 		border-top: 1px solid var(--line);
 		padding-top: var(--space-2xs);
 		.nav {
@@ -650,6 +777,127 @@
 
 	.main {
 		min-width: 0;
+	}
+
+	/* Panel lateral de cada admin (`data-lateral` en <html>, sidebarMode.js). Sin atributo:
+	   «Siempre abierto». El botón de abrir y la X de cerrar solo existen con «Se oculta». */
+	.drawerbtn,
+	.drawer-x {
+		display: none;
+	}
+	@media (min-width: 900px) {
+		/* «Solo íconos»: una franja angosta; los nombres, para lectores de pantalla y en el
+		   cartelito (.side-tip). */
+		:global(html[data-lateral='iconos']) {
+			.app {
+				grid-template-columns: 3.75rem minmax(0, 1fr);
+			}
+			.side {
+				padding-inline: var(--space-3xs);
+				scrollbar-width: none;
+			}
+			.brand img {
+				width: 2.5rem;
+				height: 2.5rem;
+			}
+			.pill,
+			.foot kbd {
+				display: none;
+			}
+			.lbl {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				overflow: hidden;
+				clip: rect(0 0 0 0);
+			}
+			.nav {
+				justify-content: center;
+				padding-inline: 0;
+			}
+		}
+		/* «Se oculta»: no ocupa lugar; el botón de arriba lo abre encima del contenido. */
+		:global(html[data-lateral='oculto']) {
+			.app {
+				display: block;
+			}
+			.side {
+				position: fixed;
+				left: 0;
+				top: 0;
+				z-index: 30;
+				width: min(18rem, 85vw);
+				transform: translateX(-105%);
+				visibility: hidden;
+				transition:
+					transform 180ms ease-out,
+					visibility 0s 180ms;
+				&.open {
+					transform: none;
+					visibility: visible;
+					transition: transform 180ms ease-out;
+					box-shadow: var(--shadow-2);
+				}
+			}
+			.drawerbtn {
+				display: grid;
+			}
+			.drawer-x {
+				display: grid;
+				align-self: flex-end;
+			}
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.side {
+			transition: none !important;
+		}
+	}
+	.drawerbtn,
+	.drawer-x {
+		flex: none;
+		place-items: center;
+		width: var(--tap);
+		height: var(--tap);
+		border: 0;
+		border-radius: 50%;
+		background: var(--surface);
+		color: var(--accent);
+		cursor: pointer;
+		&:hover {
+			background: var(--surface-2);
+		}
+	}
+	.drawer-x {
+		background: none;
+		width: 2.3rem;
+		height: 2.3rem;
+	}
+	.drawer-scrim {
+		position: fixed;
+		inset: 0;
+		background: var(--scrim);
+		z-index: 29;
+	}
+	.side-tip {
+		position: fixed;
+		z-index: 40;
+		transform: translateY(-50%);
+		pointer-events: none;
+		background: var(--text);
+		color: var(--surface);
+		font-size: var(--text-xs);
+		font-weight: 700;
+		white-space: nowrap;
+		border-radius: var(--radius-s);
+		padding: var(--space-3xs) var(--space-2xs);
+		box-shadow: var(--shadow-1);
+	}
+	@media (max-width: 899.98px) {
+		.side-tip,
+		.drawer-scrim {
+			display: none;
+		}
 	}
 	.top {
 		display: flex;
@@ -709,6 +957,37 @@
 				cursor: pointer;
 				&:hover {
 					background: var(--surface-2);
+				}
+			}
+			.lateral {
+				border: 0;
+				border-top: 1px solid var(--line);
+				border-bottom: 1px solid var(--line);
+				margin: var(--space-3xs) 0;
+				padding: var(--space-3xs) 0;
+				display: flex;
+				flex-direction: column;
+				legend {
+					float: left;
+					width: 100%;
+					padding: var(--space-3xs) var(--space-2xs) 0;
+					font-size: var(--text-xs);
+					color: var(--muted);
+				}
+				label {
+					display: flex;
+					align-items: center;
+					gap: 0.6em;
+					padding: var(--space-3xs) var(--space-2xs);
+					border-radius: var(--radius-s);
+					cursor: pointer;
+					&:hover {
+						background: var(--surface-2);
+					}
+				}
+				input {
+					accent-color: var(--link);
+					margin: 0;
 				}
 			}
 			.who {
