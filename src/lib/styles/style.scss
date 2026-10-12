@@ -101,9 +101,10 @@
 	/* foco: anillo violeta para teclado en todo; borde rosa en los campos de texto */
 	--focus-ring: 2px solid var(--2-dark);
 	--focus-field: var(--1);
-	/* placeholder text in inputs: neutral grey (never pink/violet), ~3.1:1 on white, far below
-	   the value text (--ink, ~12.6:1), so an empty field never looks filled */
-	--placeholder: #929292;
+	/* placeholder text in inputs: neutral grey (never pink/violet), 4.6:1 on white (legible,
+	   AA; gorrite 12/10), still far below the value text (--ink, ~12.6:1) and in italics, so an
+	   empty field never looks filled */
+	--placeholder: #757575;
 	/* borde de los campos de texto, casillas y selects: gris neutro (el foco lo pone rosa) */
 	--field: color-mix(in srgb, var(--2) 10%, #b9b9b9);
 	/* minimum size of anything tappable on phones */
@@ -490,6 +491,9 @@ textarea {
 	border: 1px solid var(--accent, var(--1));
 	border-radius: var(--radius-pill);
 	max-width: 100%;
+	/* Fondo de una opción con el mouse encima: rosa pálido de la marca (no el «malo» --bad-bg).
+	   La galería /estilo usa esta misma variable para su hover forzado. */
+	--seg-hover: color-mix(in srgb, var(--accent, var(--1)) 18%, var(--surface, #fff));
 	> label,
 	> button,
 	> a {
@@ -508,7 +512,7 @@ textarea {
 		cursor: pointer;
 		transition: background 150ms;
 		&:hover {
-			background: var(--bad-bg, var(--1-tint));
+			background: var(--seg-hover);
 			color: var(--accent-text, var(--1-ink));
 		}
 	}
@@ -569,13 +573,25 @@ textarea {
 	align-items: flex-start;
 	min-width: 0;
 	padding: 0.55em 0.8em;
-	border-radius: var(--radius-s);
+	/* es una tarjeta: el radio de las tarjetas (gorrite, 12/10) */
+	border-radius: var(--card-round, var(--radius-l));
 	background: var(--surface);
 	box-shadow: 0 0 0 2px color-mix(in srgb, var(--2) 35%, transparent);
 	cursor: pointer;
 	&:has(input:checked) {
 		box-shadow: 0 0 0 3px var(--2);
 		background: color-mix(in srgb, var(--2) 6%, var(--surface));
+	}
+	/* Apagada: se nota que no se puede elegir (borde punteado y todo más claro). */
+	&:has(input:disabled) {
+		opacity: 0.55;
+		cursor: not-allowed;
+		box-shadow: none;
+		outline: 2px dashed color-mix(in srgb, var(--muted) 45%, transparent);
+		outline-offset: -2px;
+		> input {
+			cursor: not-allowed;
+		}
 	}
 	> input {
 		flex: none;

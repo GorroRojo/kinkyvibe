@@ -116,14 +116,14 @@ describe('/admin/buscar', () => {
 		});
 	});
 
-	it('del primer evento salen atajos a sus pestañas (vende entradas: Puerta, Órdenes…)', async () => {
+	it('del primer evento salen atajos a sus pestañas (vende entradas: Puerta, Ventas › Órdenes…)', async () => {
 		const body = await (await call('fiesta', { platform: {} })).json();
 		const tabs = body.groups.find((/** @type {any} */ g) => g.id === 'event-tabs');
 		expect(tabs.label).toBe('En «Fiesta Inventada»');
 		expect(tabs.items.map((/** @type {any} */ i) => i.title)).toEqual([
 			'Puerta',
-			'Órdenes',
-			'Mail a compradores',
+			'Ventas › Órdenes',
+			'Mails › Mandar un aviso',
 			'Ventas',
 			'Duplicar'
 		]);

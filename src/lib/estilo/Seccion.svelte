@@ -1,10 +1,17 @@
 <script>
 	/**
 	 * Una sección de la galería /estilo: nombre del componente, su import, cuándo usarlo y cuándo
-	 * no. Slot default: los ejemplos (en filas `Estado`).
+	 * no. Slot default: los ejemplos (en filas `Estado`). Con `?grupo=` en la galería, solo se
+	 * muestra si es de ese grupo (contexto `estilo-solo`, que pone Galeria.svelte).
 	 */
+	import { getContext } from 'svelte';
+	import { readable } from 'svelte/store';
 	/** @type {import('./secciones.js').Seccion} */
 	export let seccion;
+
+	/** @type {import('svelte/store').Readable<readonly string[] | null>} */
+	const solo = getContext('estilo-solo') ?? readable(null);
+	$: visible = !$solo || $solo.includes(seccion.id);
 
 	/**
 	 * Texto con `código` entre comillas invertidas, en partes para dibujar.
@@ -13,29 +20,32 @@
 	const partes = (text) => text.split('`').map((t, i) => ({ t, code: i % 2 === 1 }));
 </script>
 
-<section class="seccion" id={seccion.id} aria-labelledby="{seccion.id}-titulo">
-	<header>
-		<h2 id="{seccion.id}-titulo">{seccion.nombre}</h2>
-		<code class="importa">{seccion.importa}</code>
-	</header>
-	<div class="uso">
-		<div>
-			<h3>Cuándo usarlo</h3>
-			<p>
-				{#each partes(seccion.cuando) as p}{#if p.code}<code>{p.t}</code>{:else}{p.t}{/if}{/each}
-			</p>
+{#if visible}
+	<section class="seccion" id={seccion.id} aria-labelledby="{seccion.id}-titulo">
+		<header>
+			<h2 id="{seccion.id}-titulo">{seccion.nombre}</h2>
+			<code class="importa">{seccion.importa}</code>
+		</header>
+		<div class="uso">
+			<div>
+				<h3>Cuándo usarlo</h3>
+				<p>
+					{#each partes(seccion.cuando) as p}{#if p.code}<code>{p.t}</code>{:else}{p.t}{/if}{/each}
+				</p>
+			</div>
+			<div>
+				<h3>Cuándo no</h3>
+				<p>
+					{#each partes(seccion.cuandoNo) as p}{#if p.code}<code>{p.t}</code
+							>{:else}{p.t}{/if}{/each}
+				</p>
+			</div>
 		</div>
-		<div>
-			<h3>Cuándo no</h3>
-			<p>
-				{#each partes(seccion.cuandoNo) as p}{#if p.code}<code>{p.t}</code>{:else}{p.t}{/if}{/each}
-			</p>
+		<div class="ejemplos">
+			<slot />
 		</div>
-	</div>
-	<div class="ejemplos">
-		<slot />
-	</div>
-</section>
+	</section>
+{/if}
 
 <style>
 	.seccion {

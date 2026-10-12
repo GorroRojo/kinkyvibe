@@ -4,9 +4,7 @@
  * (`parse_mode: 'HTML'`), que solo admite unas pocas etiquetas (`<b>`, `<a>`).
  *
  * Las palabras salen de «Textos del bot» (`$lib/utils/botTexts.js`, editables en el panel): cada
- * función pide el texto de este pedido con `botText` (./texts.js). Las funciones de antes que ya no
- * usa el bot (`formatEventList`, `formatEvent`, `formatChoices`, `formatPickList`) quedan con los
- * originales.
+ * función pide el texto de este pedido con `botText` (./texts.js).
  */
 import { argDateList } from '$lib/utils/dates.js';
 import { renderBotText } from '$lib/utils/botTexts.js';
@@ -17,9 +15,6 @@ import { botText } from './texts.js';
  *
  * @typedef {{ slug: string, title: string, start: string, end?: string }} BotEvent
  */
-
-/** Telegram corta los mensajes de más de 4096 caracteres: la lista se limita antes. */
-export const LIST_MAX = 8;
 
 /**
  * Escapa para el HTML de Telegram, también dentro de un atributo (`href="…"`): las comillas
@@ -52,98 +47,6 @@ export function formatWhen(iso, now = Date.now()) {
  */
 export function eventUrl(origin, slug) {
 	return `${origin}/calendario/${encodeURIComponent(slug)}`;
-}
-
-/**
- * @param {BotEvent} event
- * @param {string} origin
- */
-function eventLine(event, origin) {
-	const when = formatWhen(event.start);
-	const link = `<a href="${escapeHtml(eventUrl(origin, event.slug))}">${escapeHtml(event.title)}</a>`;
-	return when ? `${escapeHtml(when)}\n${link}` : link;
-}
-
-/**
- * @param {BotEvent[]} events
- * @param {string} origin
- * @param {{ title?: string, empty?: string }} [opts] el título (en negrita) y el texto sin eventos
- */
-export function formatEventList(events, origin, { title = 'Próximos eventos', empty } = {}) {
-	if (events.length === 0) {
-		return (
-			empty ??
-			`Por ahora no hay eventos próximos. Mirá el calendario en ${escapeHtml(origin)}/calendario`
-		);
-	}
-	const shown = events.slice(0, LIST_MAX);
-	const lines = shown.map((e) => eventLine(e, origin));
-	const rest = events.length - shown.length;
-	const more =
-		rest > 0
-			? `\n\nHay ${rest} más en <a href="${escapeHtml(origin)}/calendario">el calendario</a>.`
-			: '';
-	return `<b>${escapeHtml(title)}</b>\n\n${lines.join('\n\n')}${more}`;
-}
-
-/**
- * Título y texto vacío de `/hoy`, `/semana` y `/finde`, con su original (las pantallas piden los
- * de este pedido con `botText`; ver screens.js).
- */
-export const WINDOW_TEXTS = Object.freeze({
-	hoy: { title: renderBotText('eventos.titulo_hoy'), empty: renderBotText('eventos.vacio_hoy') },
-	semana: {
-		title: renderBotText('eventos.titulo_semana'),
-		empty: renderBotText('eventos.vacio_semana')
-	},
-	finde: {
-		title: renderBotText('eventos.titulo_finde'),
-		empty: renderBotText('eventos.vacio_finde')
-	}
-});
-
-/**
- * La lista de `/hoy`, `/semana` o `/finde`.
- *
- * @param {keyof typeof WINDOW_TEXTS} window
- * @param {BotEvent[]} events ya filtrados por la ventana
- * @param {string} origin
- */
-export function formatWindowList(window, events, origin) {
-	return formatEventList(events, origin, WINDOW_TEXTS[window]);
-}
-
-/**
- * @param {BotEvent} event
- * @param {string} origin
- */
-export function formatEvent(event, origin) {
-	const when = formatWhen(event.start);
-	const head = `<b>${escapeHtml(event.title)}</b>`;
-	const date = when ? `\n${escapeHtml(when)}` : '';
-	return `${head}${date}\n\nEntradas y todos los detalles: ${escapeHtml(eventUrl(origin, event.slug))}`;
-}
-
-/**
- * Varios eventos coinciden con lo que se buscó: se muestran para que elija.
- *
- * @param {BotEvent[]} events
- * @param {string} origin
- */
-export function formatChoices(events, origin) {
-	const lines = events.slice(0, LIST_MAX).map((e) => eventLine(e, origin));
-	return `Encontré varios eventos. ¿Cuál querés ver? Tocá uno.\n\n${lines.join('\n\n')}`;
-}
-
-/**
- * La lista para elegir con botones (`/evento` sin nada).
- *
- * @param {BotEvent[]} events
- * @param {string} origin
- */
-export function formatPickList(events, origin) {
-	if (events.length === 0) return formatEventList(events, origin);
-	return `${PICK_EVENT_TEXT}\n\n${formatEventList(events, origin)}`;
 }
 
 /**
