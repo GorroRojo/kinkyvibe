@@ -7,10 +7,13 @@
  * prendido (tests E2E, `vite dev`), `0` lo fuerza apagado (para cortarlo de golpe desde el panel
  * de Cloudflare si algo sale mal). Vacía o ausente = lo que diga la base.
  *
- * Para no consultar la base en cada página, el valor se recuerda unos segundos por isolate.
+ * Para no consultar la base en cada página, el valor se recuerda unos segundos por isolate. Entre
+ * pedidos se comparten solo valores ya leídos; la lectura en camino, solo dentro del pedido
+ * (`readAndKeep`, src/lib/server/db/perRequest.js: una lectura de otro pedido puede colgar).
  */
 import { env } from '$env/dynamic/private';
 import { getDB, logDBError } from '$lib/server/db';
+import { readAndKeep } from '$lib/server/db/perRequest.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -142,16 +145,12 @@ export const FLAG_CACHE_MS = 30_000;
 /** @type {Map<string, { value: boolean, expires: number }>} */
 const cache = new Map();
 
-/** La lectura de todos los interruptores en curso (la comparten los pedidos que llegan juntos). */
-/** @type {{ db: D1Database, read: Promise<Map<string, boolean>> } | null} */
-let reading = null;
 /** Sube con cada `clearFlagCache`: una lectura que empezó antes no se guarda. */
 let generation = 0;
 
 /** Olvida los valores recordados (al guardar desde el panel, y en los tests). */
 export function clearFlagCache() {
 	cache.clear();
-	reading = null;
 	generation++;
 }
 
@@ -226,23 +225,21 @@ export async function isFlagOn(db, key, { now = Date.now(), envValue } = {}) {
 		return false;
 	}
 	const gen = generation;
-	if (reading?.db !== db) {
-		const read = readAllFlags(db);
-		reading = { db, read };
-		read.finally(() => {
-			if (reading?.read === read) reading = null;
-		});
-	}
-	const all = await reading.read;
-	const value = all.get(key) ?? false;
-	if (gen === generation) {
-		for (const k of Object.keys(FLAGS)) {
-			const fresh = cache.get(k);
-			if (!fresh || fresh.expires <= now)
-				cache.set(k, { value: all.get(k) ?? false, expires: now + FLAG_CACHE_MS });
+	// Una lectura de todos, compartida solo dentro del pedido; lo leído queda para los demás.
+	const all = await readAndKeep(
+		db,
+		'feature-flags',
+		() => readAllFlags(db),
+		(read) => {
+			if (gen !== generation) return;
+			for (const k of Object.keys(FLAGS)) {
+				const fresh = cache.get(k);
+				if (!fresh || fresh.expires <= now)
+					cache.set(k, { value: read.get(k) ?? false, expires: now + FLAG_CACHE_MS });
+			}
 		}
-	}
-	return value;
+	);
+	return all.get(key) ?? false;
 }
 
 /**

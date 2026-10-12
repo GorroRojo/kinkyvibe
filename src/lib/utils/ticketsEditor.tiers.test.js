@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 import { parseTicketConfig } from '$lib/server/tickets/config.js';
+import { ticketsFileErrors } from '$lib/server/tickets/editor.js';
 import { formatARS } from './money.js';
 import {
 	applyTicketsForm,
@@ -130,6 +131,26 @@ describe('leer y escribir tramos y encadenados', () => {
 			{ id: 'preventa-1', name: 'Preventa 1', price: 11000, quantity: 2 },
 			{ id: 'general', name: 'General', price: 12000 }
 		]);
+	});
+
+	it('un tipo que ya vendió se puede pasar a preventas: el servidor lo acepta', () => {
+		const sales = { general: { sold: 7, held: 0 }, ultima: { sold: 2, held: 1 } };
+		const initial = formOf(FM);
+		const form = formOf(FM);
+		form.types[1].mode = 'tiers';
+		form.types[1].tiers = tiersForMode(form.types[1]);
+		form.types[1].tiers[0].price = '11000';
+		form.types[1].tiers[0].quantity = '5';
+		expect(validateTicketsForm(form, { sales }).errors).toEqual([]);
+		const content = `---\n${applyTicketsForm(FM, form, initial)}---\n`;
+		expect(ticketsFileErrors(content, { sales })).toEqual([]);
+		// (y el archivo se leyó: sacar el tipo vendido sí lo frena)
+		const removed = formOf(FM);
+		removed.types = [removed.types[0]];
+		const without = `---\n${applyTicketsForm(FM, removed, initial)}---\n`;
+		expect(ticketsFileErrors(without, { sales }).join(' ')).toMatch(
+			/No se puede borrar el tipo «ultima»/
+		);
 	});
 });
 

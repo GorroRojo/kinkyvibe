@@ -95,6 +95,9 @@
 	$: place = { tags, location, location_name: locationName };
 	$: autoOnline = isOnlineEvent(place, { hasVenue });
 	$: online = isOnlineEvent({ ...place, modalidad: state.modalidad }, { hasVenue });
+	/** Por qué no se puede sacar un tipo que ya vendió (en el botón y a la vista). */
+	const KEEP_TYPE =
+		'Tiene entradas vendidas o reservadas: no se puede sacar; podés cerrarla con el cupo o el cierre propio.';
 	/** @param {string | null} id */
 	const salesFor = (id) => (id && sales ? sales[id] : undefined);
 	/** @param {string | null} id */
@@ -146,401 +149,428 @@
 
 <fieldset class="card tickets" id="{idPrefix}-tickets" on:focusout={onFocusOut}>
 	<SectionHeading section="entradas" />
+	<!-- Todo va en este <div>, así los hijos directos del <fieldset> no cambian nunca: en Chromium,
+	     si cambian (por ejemplo, aparece la lista de errores) a la vez que el contenido de una
+	     tarjeta (`container-type`), la tarjeta se queda sin contenido visible (gorrite, 12/10:
+	     «Preventas» la dejaba como una franja vacía). -->
+	<div class="tickets-body">
+		<label class="switch">
+			<input
+				type="checkbox"
+				role="switch"
+				id="{idPrefix}-tickets-on"
+				checked={state.enabled}
+				on:change={(e) => setEnabled(e.currentTarget.checked)}
+			/>
+			<span>
+				<strong>Vender entradas por el sitio</strong>
+				<small
+					>Con Mercado Pago o transferencia; las entradas llegan por mail con QR. Apagado: se usa el
+					link de inscripción de arriba.</small
+				>
+			</span>
+		</label>
 
-	<label class="switch">
-		<input
-			type="checkbox"
-			role="switch"
-			id="{idPrefix}-tickets-on"
-			checked={state.enabled}
-			on:change={(e) => setEnabled(e.currentTarget.checked)}
-		/>
-		<span>
-			<strong>Vender entradas por el sitio</strong>
-			<small
-				>Con Mercado Pago o transferencia; las entradas llegan por mail con QR. Apagado: se usa el
-				link de inscripción de arriba.</small
-			>
-		</span>
-	</label>
+		<p class="note fondo" id="{idPrefix}-tickets-fondo" aria-live="polite">
+			{#if fondo}
+				💜 Tiene la etiqueta KinkyVibe: se aplica solo el <strong
+					>descuento del Fondo Kinky Vibe</strong
+				>
+				(el porcentaje del mes de fondo.kinkyvibe.ar) y se ofrecen las opciones solidarias. No hay nada
+				que cargar.
+			{:else}
+				Sin la etiqueta KinkyVibe: este evento <strong>no usa el Fondo Kinky Vibe</strong> (se cobra el
+				precio de lista). Para usarlo, prendé «Lo organiza Kinky Vibe» en Etiquetas.
+			{/if}
+		</p>
 
-	<p class="note fondo" id="{idPrefix}-tickets-fondo" aria-live="polite">
-		{#if fondo}
-			💜 Tiene la etiqueta KinkyVibe: se aplica solo el <strong
-				>descuento del Fondo Kinky Vibe</strong
-			>
-			(el porcentaje del mes de fondo.kinkyvibe.ar) y se ofrecen las opciones solidarias. No hay nada
-			que cargar.
-		{:else}
-			Sin la etiqueta KinkyVibe: este evento <strong>no usa el Fondo Kinky Vibe</strong> (se cobra el
-			precio de lista). Para usarlo, prendé «Lo organiza Kinky Vibe» en Etiquetas.
-		{/if}
-	</p>
+		{#if state.enabled}
+			{#if salesUnavailable}
+				<Notice tone="warn" compact>
+					No pudimos consultar las ventas de este evento: al guardar se vuelve a revisar que no se
+					rompan compras hechas.
+				</Notice>
+			{/if}
 
-	{#if state.enabled}
-		{#if salesUnavailable}
-			<Notice tone="warn" compact>
-				No pudimos consultar las ventas de este evento: al guardar se vuelve a revisar que no se
-				rompan compras hechas.
-			</Notice>
-		{/if}
-
-		<ol class="types">
-			{#each state.types as t, i (t.key)}
-				{@const taken = takenFor(t.origId)}
-				{@const s = salesFor(t.origId)}
-				<li class="type">
-					<div class="type-head">
-						<strong>Entrada {i + 1}</strong>
-						{#if t.origId}<small class="id">id: <code>{t.origId}</code></small>{/if}
-						<span class="type-actions">
-							<button
-								type="button"
-								class="icon"
-								on:click={() => move(i, -1)}
-								disabled={i === 0}
-								aria-label="Subir «{t.name || `entrada ${i + 1}`}»">↑</button
-							>
-							<button
-								type="button"
-								class="icon"
-								on:click={() => move(i, 1)}
-								disabled={i === state.types.length - 1}
-								aria-label="Bajar «{t.name || `entrada ${i + 1}`}»">↓</button
-							>
-							<button
-								type="button"
-								class="kv-link remove"
-								on:click={() => removeType(i)}
-								disabled={taken > 0}
-								title={taken > 0 ? 'Ya tiene entradas vendidas o reservadas' : undefined}
-								><X size={16} aria-hidden="true" /> Sacar</button
-							>
-						</span>
-					</div>
-					{#if s && (s.sold || s.held)}
-						<p class="sold">
-							Ya vendidas: <strong>{s.sold}</strong>{#if s.held}{' '}· reservadas: {s.held}{/if}
-						</p>
-					{/if}
-					<div class="type-fields mode-{t.mode}">
-						<label class="field f-name">
-							<span>Nombre <span class="req">*</span></span>
-							<input
-								id="{idPrefix}-ticket-name-{i}"
-								bind:value={t.name}
-								placeholder={i === 0 ? 'Ej.: General' : 'Ej.: Anticipada'}
-								maxlength="60"
-							/>
-						</label>
-						<div class="field f-mode">
-							<span id="{idPrefix}-ticket-mode-label-{i}">Cómo se cobra</span>
-							<div
-								class="pills"
-								role="radiogroup"
-								aria-labelledby="{idPrefix}-ticket-mode-label-{i}"
-							>
-								{#each MODES as m}
-									<label class="pill">
-										<input
-											type="radio"
-											name="{idPrefix}-ticket-mode-{t.key}"
-											value={m.id}
-											bind:group={t.mode}
-											on:change={() => modeChanged(i)}
-										/>
-										<span>{m.label}</span>
-									</label>
-								{/each}
-							</div>
+			<ol class="types">
+				{#each state.types as t, i (t.key)}
+					{@const taken = takenFor(t.origId)}
+					{@const s = salesFor(t.origId)}
+					<li class="type">
+						<div class="type-head">
+							<strong>Entrada {i + 1}</strong>
+							{#if t.origId}<small class="id">id: <code>{t.origId}</code></small>{/if}
+							<span class="type-actions">
+								<button
+									type="button"
+									class="icon"
+									on:click={() => move(i, -1)}
+									disabled={i === 0}
+									aria-label="Subir «{t.name || `entrada ${i + 1}`}»">↑</button
+								>
+								<button
+									type="button"
+									class="icon"
+									on:click={() => move(i, 1)}
+									disabled={i === state.types.length - 1}
+									aria-label="Bajar «{t.name || `entrada ${i + 1}`}»">↓</button
+								>
+								<button
+									type="button"
+									class="kv-link remove"
+									on:click={() => removeType(i)}
+									disabled={taken > 0}
+									title={taken > 0 ? KEEP_TYPE : undefined}
+									aria-describedby={taken > 0 ? `${idPrefix}-ticket-keep-${i}` : undefined}
+									><X size={16} aria-hidden="true" /> Sacar</button
+								>
+							</span>
 						</div>
-						{#if t.mode === 'gorra'}
-							<label class="field f-min">
-								<span>Mínimo ($)</span>
-								<input
-									id="{idPrefix}-ticket-min-{i}"
-									bind:value={t.min}
-									inputmode="numeric"
-									placeholder="Sin mínimo"
-								/>
-								<small>0 = quien no puede pagar, no paga.</small>
-							</label>
-							<label class="field f-sug">
-								<span>Sugerido ($) <span class="req">*</span></span>
-								<input
-									id="{idPrefix}-ticket-suggested-{i}"
-									bind:value={t.suggested}
-									inputmode="numeric"
-									placeholder="Ej.: 5000"
-								/>
-								{#if parseAmount(t.suggested) !== null}
-									<small
-										>Botones: {gorraQuickAmounts(
-											parseAmount(t.min || '0') ?? 0,
-											parseAmount(t.suggested) ?? 0
-										)
-											.map((n) => (n === 0 ? 'Sin cargo' : formatARS(n)))
-											.join(' · ')}</small
-									>
-								{/if}
-							</label>
-						{:else if t.mode === 'tiers'}
-							<div class="field f-tiers">
-								<span
-									>Tramos de preventa <small
-										>(en orden: pasa al siguiente cuando se vende la cantidad o llega la fecha)</small
-									></span
-								>
-								<TicketTiersEditor
-									bind:tiers={t.tiers}
-									taken={s?.tiers ?? {}}
-									idPrefix="{idPrefix}-tier-{i}"
-								/>
-							</div>
-						{:else}
-							<label class="field f-price">
-								<span>Precio ($) <span class="req">*</span></span>
-								<input
-									id="{idPrefix}-ticket-price-{i}"
-									bind:value={t.price}
-									inputmode="numeric"
-									placeholder="Ej.: 10000"
-								/>
-								<small
-									>{money(t.price)
-										? `${money(t.price)}.`
-										: 'Pesos, sin centavos.'}{#if fondo}{' '}Es el precio completo: el descuento del
-										Fondo se calcula solo.{/if}</small
-								>
-							</label>
+						{#if taken > 0}
+							<small class="keep" id="{idPrefix}-ticket-keep-{i}">{KEEP_TYPE}</small>
 						{/if}
-						{#if t.mode !== 'gorra'}
-							<label class="field f-door">
-								<span>Precio en puerta <small>(opcional)</small></span>
-								<input
-									id="{idPrefix}-ticket-door-price-{i}"
-									bind:value={t.doorPrice}
-									inputmode="numeric"
-									placeholder={t.mode === 'tiers' ? 'El del último tramo' : 'El mismo'}
-									aria-describedby="{idPrefix}-ticket-door-help-{i}"
-								/>
-								<small id="{idPrefix}-ticket-door-help-{i}"
-									>{#if t.mode === 'tiers'}Si lo dejás vacío, se cobra el precio del último tramo.{:else}Si
-										lo dejás vacío, se cobra el precio fijo.{/if} Vale para la venta en la puerta y la
-									carga a mano. <span aria-live="polite">{doorPricePreview(t)}</span></small
-								>
-							</label>
+						{#if s && (s.sold || s.held)}
+							<p class="sold">
+								Ya vendidas: <strong>{s.sold}</strong>{#if s.held}{' '}· reservadas: {s.held}{/if}
+							</p>
 						{/if}
-						<label class="field f-cap">
-							<span>Cupo <small>(opcional)</small></span>
-							<input
-								id="{idPrefix}-ticket-capacity-{i}"
-								bind:value={t.capacity}
-								inputmode="numeric"
-								placeholder="Sin límite"
-								aria-describedby="{idPrefix}-ticket-capacity-help-{i}"
-							/>
-							<small id="{idPrefix}-ticket-capacity-help-{i}"
-								>{#if taken}Mínimo {taken} (lo ya vendido o reservado).{:else}Vacío = sin límite. En
-									público solo se ve «quedan N» cuando quedan menos de {LOW_STOCK}.{/if}</small
-							>
-						</label>
-						<label class="field f-close">
-							<span>Cierre propio <small>(opcional)</small></span>
-							<input type="datetime-local" id="{idPrefix}-ticket-close-{i}" bind:value={t.close} />
-							<small
-								>{#if validLocal(t.close)}Este tipo se vende hasta el {describe(
-										t.close
-									)}.{:else}Vacío = cierra con la venta del evento.{/if}</small
-							>
-						</label>
-						{#if state.types.length > 1}
-							<label class="field f-after">
-								<span>Se habilita</span>
-								<select id="{idPrefix}-ticket-after-{i}" bind:value={t.after}>
-									<option value="">Desde que abre la venta</option>
-									{#each state.types as o, k (o.key)}
-										{#if o.key !== t.key}
-											<option value={o.key}
-												>Cuando se agote o cierre «{o.name.trim() || `Entrada ${k + 1}`}»</option
-											>
-										{/if}
+						<div class="type-fields mode-{t.mode}">
+							<label class="field f-name">
+								<span>Nombre <span class="req">*</span></span>
+								<input
+									id="{idPrefix}-ticket-name-{i}"
+									bind:value={t.name}
+									placeholder={i === 0 ? 'Ej.: General' : 'Ej.: Anticipada'}
+									maxlength="60"
+								/>
+							</label>
+							<div class="field f-mode">
+								<span id="{idPrefix}-ticket-mode-label-{i}">Cómo se cobra</span>
+								<div
+									class="pills"
+									role="radiogroup"
+									aria-labelledby="{idPrefix}-ticket-mode-label-{i}"
+								>
+									{#each MODES as m}
+										<label class="pill">
+											<input
+												type="radio"
+												name="{idPrefix}-ticket-mode-{t.key}"
+												value={m.id}
+												bind:group={t.mode}
+												on:change={() => modeChanged(i)}
+											/>
+											<span>{m.label}</span>
+										</label>
 									{/each}
-									{#if t.after.startsWith('missing:')}
-										<option value={t.after}>Cuando se agote «{t.after.slice(8)}» (no existe)</option
+								</div>
+							</div>
+							{#if t.mode === 'gorra'}
+								<label class="field f-min">
+									<span>Mínimo ($)</span>
+									<input
+										id="{idPrefix}-ticket-min-{i}"
+										bind:value={t.min}
+										inputmode="numeric"
+										placeholder="Sin mínimo"
+									/>
+									<small>0 = quien no puede pagar, no paga.</small>
+								</label>
+								<label class="field f-sug">
+									<span>Sugerido ($) <span class="req">*</span></span>
+									<input
+										id="{idPrefix}-ticket-suggested-{i}"
+										bind:value={t.suggested}
+										inputmode="numeric"
+										placeholder="Ej.: 5000"
+									/>
+									{#if parseAmount(t.suggested) !== null}
+										<small
+											>Botones: {gorraQuickAmounts(
+												parseAmount(t.min || '0') ?? 0,
+												parseAmount(t.suggested) ?? 0
+											)
+												.map((n) => (n === 0 ? 'Sin cargo' : formatARS(n)))
+												.join(' · ')}</small
 										>
 									{/if}
-								</select>
-								<small
-									>Por ejemplo, una «Última tanda» que sale a la venta cuando se agota la anterior.</small
+								</label>
+							{:else if t.mode === 'tiers'}
+								<div class="field f-tiers">
+									<span
+										>Tramos de preventa <small
+											>(en orden: pasa al siguiente cuando se vende la cantidad o llega la fecha)</small
+										></span
+									>
+									<TicketTiersEditor
+										bind:tiers={t.tiers}
+										taken={s?.tiers ?? {}}
+										idPrefix="{idPrefix}-tier-{i}"
+									/>
+								</div>
+							{:else}
+								<label class="field f-price">
+									<span>Precio ($) <span class="req">*</span></span>
+									<input
+										id="{idPrefix}-ticket-price-{i}"
+										bind:value={t.price}
+										inputmode="numeric"
+										placeholder="Ej.: 10000"
+									/>
+									<small
+										>{money(t.price)
+											? `${money(t.price)}.`
+											: 'Pesos, sin centavos.'}{#if fondo}{' '}Es el precio completo: el descuento
+											del Fondo se calcula solo.{/if}</small
+									>
+								</label>
+							{/if}
+							{#if t.mode !== 'gorra'}
+								<label class="field f-door">
+									<span>Precio en puerta <small>(opcional)</small></span>
+									<input
+										id="{idPrefix}-ticket-door-price-{i}"
+										bind:value={t.doorPrice}
+										inputmode="numeric"
+										placeholder={t.mode === 'tiers' ? 'El del último tramo' : 'El mismo'}
+										aria-describedby="{idPrefix}-ticket-door-help-{i}"
+									/>
+									<small id="{idPrefix}-ticket-door-help-{i}"
+										>{#if t.mode === 'tiers'}Si lo dejás vacío, se cobra el precio del último tramo.{:else}Si
+											lo dejás vacío, se cobra el precio fijo.{/if} Vale para la venta en la puerta y
+										la carga a mano. <span aria-live="polite">{doorPricePreview(t)}</span></small
+									>
+								</label>
+							{/if}
+							<label class="field f-cap">
+								<span>Cupo <small>(opcional)</small></span>
+								<input
+									id="{idPrefix}-ticket-capacity-{i}"
+									bind:value={t.capacity}
+									inputmode="numeric"
+									placeholder="Sin límite"
+									aria-describedby="{idPrefix}-ticket-capacity-help-{i}"
+								/>
+								<small id="{idPrefix}-ticket-capacity-help-{i}"
+									>{#if taken}Mínimo {taken} (lo ya vendido o reservado).{:else}Vacío = sin límite.
+										En público solo se ve «quedan N» cuando quedan menos de {LOW_STOCK}.{/if}</small
 								>
 							</label>
-						{/if}
-					</div>
-				</li>
-			{/each}
-		</ol>
-		<button type="button" class="button secondary add" id="{idPrefix}-ticket-add" on:click={addType}
-			>+ Agregar tipo de entrada</button
-		>
-
-		<SalesGoalField bind:kind={state.goalKind} bind:value={state.goalValue} {idPrefix} />
-
-		<WaitlistField
-			bind:scope={state.waitlistScope}
-			bind:allAtOnce={state.waitlistAll}
-			enabled={waitlistEnabled}
-			live={waitlistLive}
-			{idPrefix}
-		/>
-
-		<fieldset class="group">
-			<legend>Medios de pago <span class="req">*</span></legend>
-			{#each METHODS as m}
-				<label class="check">
-					<input type="checkbox" id="{idPrefix}-pay-{m}" bind:checked={state.methods[m]} />
-					{PAYMENT_METHOD_LABELS[m]}
-				</label>
-			{/each}
-			{#if state.methods.transferencia && transferReady === false}
-				<Notice tone="warn" compact id="{idPrefix}-transfer-missing">
-					Activaste transferencia pero faltan los datos en <a
-						href={settingsHref}
-						target="_blank"
-						rel="noopener">Ajustes → Cobros</a
-					>: por ahora no se ofrece.
-				</Notice>
-			{:else if state.methods.transferencia}
-				<small
-					>El alias y los datos para transferir se configuran en <a
-						href={settingsHref}
-						target="_blank"
-						rel="noopener">Ajustes de venta</a
-					>.</small
-				>
-			{/if}
-		</fieldset>
-
-		<fieldset class="group">
-			<legend>Horario de la venta <small>(hora de Argentina)</small></legend>
-			<label class="check">
-				<input type="checkbox" id="{idPrefix}-open-custom" bind:checked={state.customOpen} />
-				Abrir la venta en un momento determinado
-			</label>
-			{#if state.customOpen}
-				<label class="field when">
-					<span>Abre</span>
-					<input type="datetime-local" id="{idPrefix}-open-at" bind:value={state.openAt} />
-					{#if validLocal(state.openAt)}<small>Abre el {describe(state.openAt)}.</small>{/if}
-				</label>
-			{:else}
-				<small>Se puede comprar desde que se publica (con el estado «Abierto»).</small>
-			{/if}
-			<label class="check">
-				<input type="checkbox" id="{idPrefix}-close-custom" bind:checked={state.customClose} />
-				Cerrar la venta antes de que empiece el evento
-			</label>
-			{#if state.customClose}
-				<label class="field when">
-					<span>Cierra</span>
-					<input type="datetime-local" id="{idPrefix}-close-at" bind:value={state.closeAt} />
-					{#if validLocal(state.closeAt)}<small>La venta cierra el {describe(state.closeAt)}.</small
-						>{/if}
-				</label>
-			{:else}
-				<small>La venta cierra cuando empieza el evento.</small>
-			{/if}
-			<small
-				>Las compras que ya estaban en curso al cerrar (pagos o transferencias pendientes) se
-				completan igual.</small
+							<label class="field f-close">
+								<span>Cierre propio <small>(opcional)</small></span>
+								<input
+									type="datetime-local"
+									id="{idPrefix}-ticket-close-{i}"
+									bind:value={t.close}
+								/>
+								<small
+									>{#if validLocal(t.close)}Este tipo se vende hasta el {describe(
+											t.close
+										)}.{:else}Vacío = cierra con la venta del evento.{/if}</small
+								>
+							</label>
+							{#if state.types.length > 1}
+								<label class="field f-after">
+									<span>Se habilita</span>
+									<select id="{idPrefix}-ticket-after-{i}" bind:value={t.after}>
+										<option value="">Desde que abre la venta</option>
+										{#each state.types as o, k (o.key)}
+											{#if o.key !== t.key}
+												<option value={o.key}
+													>Cuando se agote o cierre «{o.name.trim() || `Entrada ${k + 1}`}»</option
+												>
+											{/if}
+										{/each}
+										{#if t.after.startsWith('missing:')}
+											<option value={t.after}
+												>Cuando se agote «{t.after.slice(8)}» (no existe)</option
+											>
+										{/if}
+									</select>
+									<small
+										>Por ejemplo, una «Última tanda» que sale a la venta cuando se agota la
+										anterior.</small
+									>
+								</label>
+							{/if}
+						</div>
+					</li>
+				{/each}
+			</ol>
+			<button
+				type="button"
+				class="button secondary add"
+				id="{idPrefix}-ticket-add"
+				on:click={addType}>+ Agregar tipo de entrada</button
 			>
-		</fieldset>
 
-		<label class="field">
-			<span>Modalidad</span>
-			<select id="{idPrefix}-modalidad" bind:value={state.modalidad}>
-				<option value="">Automática: {autoOnline ? 'online' : 'presencial'}</option>
-				<option value="presencial">Presencial: QR y control de ingreso</option>
-				<option value="online">Online: el link de la transmisión en lugar de QR</option>
-			</select>
-			<small
-				>Automática = como la página del evento: online si el «Dónde» dice «Online» (o «Zoom»,
-				«Virtual»…), o si no tiene «Dónde» y sí la etiqueta Online. Con un lugar elegido, siempre
-				presencial. El link de la transmisión se carga en el admin de entradas (nunca en el
-				archivo).</small
-			>
-			{#if hasVenue && state.modalidad === 'online'}
-				<Notice tone="warn" inline id="{idPrefix}-modalidad-venue"
-					>Tiene un lugar elegido, así que es presencial: para venderlo como online, sacá el lugar.</Notice
-				>
-			{/if}
-		</label>
+			<SalesGoalField bind:kind={state.goalKind} bind:value={state.goalValue} {idPrefix} />
 
-		{#if !online}
-			<fieldset class="group door">
-				<legend>Entradas en la puerta</legend>
-				<label class="check">
-					<input type="checkbox" id="{idPrefix}-door" bind:checked={state.door} />
-					Hay entradas en la puerta
-				</label>
-				{#if state.door}
-					<label class="field door-price">
-						<span>Nota sobre la puerta <small>(opcional)</small></span>
-						<input
-							id="{idPrefix}-door-price"
-							bind:value={state.doorPrice}
-							maxlength={DOOR_PRICE_MAX}
-							placeholder="Ej.: $ 12.000, solo efectivo"
-							aria-describedby="{idPrefix}-door-price-hint"
-						/>
-						<small id="{idPrefix}-door-price-hint"
-							>Solo se muestra en la página del evento («También hay entradas en la puerta: …»). Lo
-							que se cobra es el «Precio en puerta» de cada tipo; si la dejás vacía, la página
-							muestra ese precio.</small
-						>
+			<WaitlistField
+				bind:scope={state.waitlistScope}
+				bind:allAtOnce={state.waitlistAll}
+				enabled={waitlistEnabled}
+				live={waitlistLive}
+				{idPrefix}
+			/>
+
+			<fieldset class="group">
+				<legend>Medios de pago <span class="req">*</span></legend>
+				{#each METHODS as m}
+					<label class="check">
+						<input type="checkbox" id="{idPrefix}-pay-{m}" bind:checked={state.methods[m]} />
+						{PAYMENT_METHOD_LABELS[m]}
 					</label>
+				{/each}
+				{#if state.methods.transferencia && transferReady === false}
+					<Notice tone="warn" compact id="{idPrefix}-transfer-missing">
+						Activaste transferencia pero faltan los datos en <a
+							href={settingsHref}
+							target="_blank"
+							rel="noopener">Ajustes → Cobros</a
+						>: por ahora no se ofrece.
+					</Notice>
+				{:else if state.methods.transferencia}
 					<small
-						>La página del evento avisa que también hay entradas en la puerta, y en Puerta se puede
-						«Vender en puerta».{#if !state.doorSet && state.types.some((t) => t.origId)}{' '}(Este
-							evento todavía no lo tenía elegido: al guardar queda prendido.){/if}</small
+						>El alias y los datos para transferir se configuran en <a
+							href={settingsHref}
+							target="_blank"
+							rel="noopener">Ajustes de venta</a
+						>.</small
 					>
-				{:else}
-					<small>La página del evento dice «Solo anticipadas» y Puerta no ofrece vender.</small>
 				{/if}
 			</fieldset>
-		{/if}
 
-		<label class="check">
-			<input type="checkbox" id="{idPrefix}-reminders" bind:checked={state.reminders} />
-			Mandar recordatorios por mail antes del evento
-		</label>
-
-		<details class="advanced" open={Boolean(state.mpFee)}>
-			<summary>Avanzado</summary>
-			<label class="field">
-				<span>Comisión de Mercado Pago para este evento (%)</span>
-				<input
-					id="{idPrefix}-mp-fee"
-					bind:value={state.mpFee}
-					inputmode="decimal"
-					placeholder="la de Ajustes de venta"
-				/>
+			<fieldset class="group">
+				<legend>Horario de la venta <small>(hora de Argentina)</small></legend>
+				<label class="check">
+					<input type="checkbox" id="{idPrefix}-open-custom" bind:checked={state.customOpen} />
+					Abrir la venta en un momento determinado
+				</label>
+				{#if state.customOpen}
+					<label class="field when">
+						<span>Abre</span>
+						<input type="datetime-local" id="{idPrefix}-open-at" bind:value={state.openAt} />
+						{#if validLocal(state.openAt)}<small>Abre el {describe(state.openAt)}.</small>{/if}
+					</label>
+				{:else}
+					<small>Se puede comprar desde que se publica (con el estado «Abierto»).</small>
+				{/if}
+				<label class="check">
+					<input type="checkbox" id="{idPrefix}-close-custom" bind:checked={state.customClose} />
+					Cerrar la venta antes de que empiece el evento
+				</label>
+				{#if state.customClose}
+					<label class="field when">
+						<span>Cierra</span>
+						<input type="datetime-local" id="{idPrefix}-close-at" bind:value={state.closeAt} />
+						{#if validLocal(state.closeAt)}<small
+								>La venta cierra el {describe(state.closeAt)}.</small
+							>{/if}
+					</label>
+				{:else}
+					<small>La venta cierra cuando empieza el evento.</small>
+				{/if}
 				<small
-					>Vacío = la de Ajustes de venta. Se suma como recargo a quien paga con Mercado Pago.</small
+					>Las compras que ya estaban en curso al cerrar (pagos o transferencias pendientes) se
+					completan igual.</small
 				>
-			</label>
-		</details>
+			</fieldset>
 
-		{#each warnings as w}<Notice tone="warn" compact>{w}</Notice>{/each}
-		{#if shownErrors.length}
-			<ul class="errors" id="{idPrefix}-tickets-errors">
-				{#each shownErrors as e}<li class="error">{e}</li>{/each}
-			</ul>
+			<label class="field">
+				<span>Modalidad</span>
+				<select id="{idPrefix}-modalidad" bind:value={state.modalidad}>
+					<option value="">Automática: {autoOnline ? 'online' : 'presencial'}</option>
+					<option value="presencial">Presencial: QR y control de ingreso</option>
+					<option value="online">Online: el link de la transmisión en lugar de QR</option>
+				</select>
+				<small
+					>Automática = como la página del evento: online si el «Dónde» dice «Online» (o «Zoom»,
+					«Virtual»…), o si no tiene «Dónde» y sí la etiqueta Online. Con un lugar elegido, siempre
+					presencial. El link de la transmisión se carga en el admin de entradas (nunca en el
+					archivo).</small
+				>
+				{#if hasVenue && state.modalidad === 'online'}
+					<Notice tone="warn" inline id="{idPrefix}-modalidad-venue"
+						>Tiene un lugar elegido, así que es presencial: para venderlo como online, sacá el
+						lugar.</Notice
+					>
+				{/if}
+			</label>
+
+			{#if !online}
+				<fieldset class="group door">
+					<legend>Entradas en la puerta</legend>
+					<label class="check">
+						<input type="checkbox" id="{idPrefix}-door" bind:checked={state.door} />
+						Hay entradas en la puerta
+					</label>
+					{#if state.door}
+						<label class="field door-price">
+							<span>Nota sobre la puerta <small>(opcional)</small></span>
+							<input
+								id="{idPrefix}-door-price"
+								bind:value={state.doorPrice}
+								maxlength={DOOR_PRICE_MAX}
+								placeholder="Ej.: $ 12.000, solo efectivo"
+								aria-describedby="{idPrefix}-door-price-hint"
+							/>
+							<small id="{idPrefix}-door-price-hint"
+								>Solo se muestra en la página del evento («También hay entradas en la puerta: …»).
+								Lo que se cobra es el «Precio en puerta» de cada tipo; si la dejás vacía, la página
+								muestra ese precio.</small
+							>
+						</label>
+						<small
+							>La página del evento avisa que también hay entradas en la puerta, y en Puerta se
+							puede «Vender en puerta».{#if !state.doorSet && state.types.some((t) => t.origId)}{' '}(Este
+								evento todavía no lo tenía elegido: al guardar queda prendido.){/if}</small
+						>
+					{:else}
+						<small>La página del evento dice «Solo anticipadas» y Puerta no ofrece vender.</small>
+					{/if}
+				</fieldset>
+			{/if}
+
+			<label class="check">
+				<input type="checkbox" id="{idPrefix}-reminders" bind:checked={state.reminders} />
+				Mandar recordatorios por mail antes del evento
+			</label>
+
+			<details class="advanced" open={Boolean(state.mpFee)}>
+				<summary>Avanzado</summary>
+				<label class="field">
+					<span>Comisión de Mercado Pago para este evento (%)</span>
+					<input
+						id="{idPrefix}-mp-fee"
+						bind:value={state.mpFee}
+						inputmode="decimal"
+						placeholder="la de Ajustes de venta"
+					/>
+					<small
+						>Vacío = la de Ajustes de venta. Se suma como recargo a quien paga con Mercado Pago.</small
+					>
+				</label>
+			</details>
+
+			{#each warnings as w}<Notice tone="warn" compact>{w}</Notice>{/each}
+			{#if shownErrors.length}
+				<ul class="errors" id="{idPrefix}-tickets-errors">
+					{#each shownErrors as e}<li class="error">{e}</li>{/each}
+				</ul>
+			{/if}
 		{/if}
-	{/if}
+	</div>
 </fieldset>
 
 <style lang="scss">
+	/* Como el `fieldset.card` de admin.scss (columna con espacio entre los bloques). */
+	.tickets-body {
+		display: flex;
+		flex-direction: column;
+		gap: 0.7em;
+		min-width: 0;
+	}
 	.types {
 		list-style: none;
 		padding: 0;
@@ -588,9 +618,18 @@
 			cursor: default;
 		}
 	}
+	/* Área de toque de 44px aunque se vea como un link. */
+	button.remove {
+		min-height: 44px;
+		padding-inline: 0.4em;
+	}
 	button.remove:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
+	}
+	.keep {
+		margin-top: -0.3em;
+		color: var(--2-dark);
 	}
 	.sold {
 		margin: 0;

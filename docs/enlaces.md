@@ -1,0 +1,128 @@
+# Cómo se escribe el cuerpo de un objeto
+
+La referencia de la sintaxis del cuerpo de todo lo que se escribe en el sitio: entradas de la
+Kinkipedia, material, perfiles (amigues y lugares), eventos y series. Es la fuente de verdad para
+quien programa (personas y agentes): si cambiás cómo se escribe o se dibuja un cuerpo, cambiá esto
+en el mismo PR. Por qué es así: [0047](decisiones/0047-cuerpos-enlazados.md). La sintaxis de
+búsqueda (la que va dentro de una consulta viva) está en [buscar.md](buscar.md).
+
+> **Estado (12/10):** acordado con gorrite, **casi nada hecho todavía**. Hoy anda Markdown con
+> los `[[término : texto]]` viejos (solo a la Kinkipedia) y las menciones `@`. La columna «Hoy»
+> dice qué ya anda; cada PR que suma algo la actualiza.
+
+## La idea
+
+Los cuerpos son una **red de páginas enlazadas**, como en Obsidian, Logseq o Anytype: cada objeto
+puede enlazar a cualquier otro, y cada página muestra **lo que enlaza acá**. La Kinkipedia es la
+más enciclopédica; el material tiene otro tono, pero es la misma red.
+
+**No se inventa una sintaxis**: se toma una ya conocida para cada cosa, **una sola forma de
+escribir cada cosa**:
+
+- la base es **Markdown** ([CommonMark](https://commonmark.org) con las extensiones de
+  [GFM](https://github.github.com/gfm/): notas al pie, tablas);
+- enlaces, incrustados, etiquetas y avisos, como **Obsidian**
+  ([Obsidian Flavored Markdown](https://help.obsidian.md/obsidian-flavored-markdown));
+- componentes (un botón de compra, un mapa) con las **directivas** de la propuesta de CommonMark
+  ([generic directives](https://talk.commonmark.org/t/generic-directives-plugins-syntax/444), con
+  `remark-directive`);
+- y tres cosas nuestras o de otro lado, marcadas abajo.
+
+Lo que esos documentos ya explican no se repite acá: esto dice qué tomamos, qué agregamos y cómo
+lo guarda y lo dibuja el sitio.
+
+## Qué se puede escribir
+
+| Escribís                              | Qué es                                                                                     | De dónde            | Hoy                       |
+| ------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------- | ------------------------- |
+| Markdown (títulos, listas, negrita…)  | Lo de siempre.                                                                             | CommonMark          | sí                        |
+| `texto[^1]` y `[^1]: la nota`         | Nota al pie, con su «volver».                                                              | GFM                 | —                         |
+| tablas                                | Tablas de Markdown.                                                                        | GFM                 | —                         |
+| `[[Consentimiento]]`                  | Enlace a ese objeto (cualquier tipo), por su título o sus otros nombres.                   | Obsidian            | solo a la Kinkipedia      |
+| `[[Consentimiento\|lo que dijimos]]`  | El mismo enlace con otro texto visible.                                                    | Obsidian, MediaWiki | —                         |
+| `[[Consentimiento : lo que dijimos]]` | Lo mismo, la forma vieja del sitio (con espacios alrededor de `:`). Sigue andando siempre. | nuestra             | sí (solo a la Kinkipedia) |
+| `[[Consentimiento#En la práctica]]`   | Enlace a una sección.                                                                      | Obsidian            | —                         |
+| `[[Consentimiento#^a1b2]]`            | Enlace a un párrafo (más adelante).                                                        | Obsidian            | —                         |
+| `![[Taller de cuerdas nivel 1]]`      | El objeto incrustado como tarjeta (un evento con su fecha y su botón, una imagen…).        | Obsidian            | —                         |
+| `#cuerdas`                            | Etiqueta dentro del texto (enlaza a la etiqueta y se la suma al objeto).                   | Obsidian            | —                         |
+| `#[[reducción de daños]]`             | Etiqueta con espacios.                                                                     | Logseq              | —                         |
+| `@nombre`                             | Mención de un perfil del sitio (enlaza a su página).                                       | nuestra             | sí                        |
+| `> [!aviso] Título`                   | Un aviso destacado (tipos: `aviso`, `nota`, `idea`…).                                      | Obsidian            | —                         |
+| bloque ` ```consulta `                | Una lista viva: adentro va una búsqueda ([buscar.md](buscar.md)).                          | Dataview (Obsidian) | —                         |
+| `:nombre[texto]{opciones}`            | Un componente dentro de una oración (`:precio[$ 12.000]{tipo=general}`).                   | directivas          | —                         |
+| `::nombre[texto]{opciones}`           | Un componente en su línea (`::comprar`, `::mapa`, `::galeria`).                            | directivas          | —                         |
+| `:::nombre[título]` … `:::`           | Un bloque que envuelve texto (`:::aviso-de-contenido`, `:::columnas`).                     | directivas          | —                         |
+
+- Un `#` seguido de espacio es un título de Markdown, nunca una etiqueta.
+- `\@` y `\#` escriben el signo sin que sea mención ni etiqueta (`\@` ya anda).
+- Un enlace o una etiqueta dentro de código (`` `[[esto]]` `` o un bloque de código) no se toca.
+- Las directivas son **solo para componentes**: lo que Obsidian ya cubre (enlaces, incrustados,
+  avisos) se escribe como Obsidian. Una directiva que el sitio no conoce muestra su texto tal cual
+  (no se pierde nada).
+- **Lo que no se usa** (para que no haya dos formas de lo mismo): las propiedades `clave:: valor`
+  de Logseq (los datos van en los campos del formulario), `{% %}` de Markdoc (lo cubren las
+  directivas) y `((id))` de Logseq (lo cubre `[[…#^id]]`).
+
+### Las consultas vivas
+
+````md
+```consulta
+evento: #shibari desde:hoy
+```
+````
+
+Se dibuja como la lista de lo que trae esa búsqueda, siempre al día. Cualquier visor de Markdown
+la muestra como un bloque de código, así que no rompe nada. Solo trae lo público (lo mismo que el
+buscador del sitio).
+
+### Los componentes (directivas) que hay
+
+Cada uno se suma a esta tabla cuando se hace:
+
+| Directiva                          | Qué dibuja                                                                 | Hoy |
+| ---------------------------------- | -------------------------------------------------------------------------- | --- |
+| `:precio[…]{tipo=…}`               | El precio de un tipo de entrada, en vivo.                                  | —   |
+| `::comprar{evento=…}`              | El botón de compra con sus estados (agotadas, lista de espera, la puerta). | —   |
+| `::mapa{lugar=…}`                  | El mapa del lugar, con la precisión que deja su privacidad.                | —   |
+| `::galeria{carpeta=…}`             | Una galería de la biblioteca.                                              | —   |
+| `:::aviso-de-contenido[…]` … `:::` | Tapa el texto hasta que se toca «Mostrar».                                 | —   |
+| `:::columnas` … `:::`              | El texto en dos columnas (una en el celu).                                 | —   |
+
+## Cómo lo guarda y lo dibuja el sitio
+
+- **Se guarda Markdown**: es lo que se edita, en los dos editores (abajo).
+- **Los enlaces van a la base**: al guardar, cada `[[…]]`, `![[…]]`, `@` y `#` se resuelve a un
+  objeto y queda como una relación en el grafo (`edges`, con su tipo). De ahí salen «Lo que enlaza
+  acá» y `enlaza:` en la búsqueda.
+- **Apuntan al objeto, no al título**: cambiarle el nombre a una entrada no rompe los enlaces y se
+  ven con el nombre nuevo.
+- **Quién puede ver qué**: un enlace a algo que quien lee no puede ver se dibuja como texto
+  común; «Lo que enlaza acá» nunca muestra algo oculto, «solo con cuenta» o sin aprobar a quien no
+  lo puede ver.
+- **Lo que falta**: un enlace a algo que no existe queda marcado «falta» (se ve, no se rompe). El
+  panel lista todo lo que falta y cuántas veces se enlaza: la lista de qué escribir para hacer
+  crecer la Kinkipedia.
+- **Lo viejo**: los links internos que hoy están como URL (`/wiki/…`, `/material/…`) se pasan a
+  `[[…]]` de a tandas, cada una con el OK de gorrite en la Mesa.
+
+## Los dos editores
+
+Para los dos tipos de gente que escribe, y se pasa de uno al otro cuando se quiere:
+
+- **Markdown con ayuda**: se escribe el texto como está acá, con autocompletado al escribir `[[`,
+  `@`, `#` y `::`, y la vista previa al lado.
+- **Visual**: los enlaces y las menciones son fichas, los incrustados y los componentes son
+  tarjetas, y se insertan desde un menú («Botón de compra», «Aviso de contenido»…).
+- Lo que se guarda es siempre el Markdown. **Ida y vuelta sin pérdida**: pasar de un editor al otro
+  no cambia ni un carácter (lo prueba un test). Es la condición para elegir el editor visual.
+
+## Qué código lo hace
+
+- **Hoy**: `src/lib/server/contenido/freeHtml.js` (los `[[término : texto]]`, `WIKI` y
+  `rehypeWikiLinks`, que arman `/wiki/<término>`), `src/lib/utils/customRehype.js` (menciones y
+  enlaces), `src/lib/utils/markdownPreview.js` (la vista previa del panel) y
+  `src/lib/utils/jsonLd.js` (saca los corchetes para los datos estructurados).
+- **Acordado**: un solo procesador de Markdown con las extensiones de arriba, que usan la página,
+  la vista previa, el bot (los mensajes enriquecidos) y la búsqueda (el texto que se indexa).
+  Cada extensión con sus tests: lo escrito → lo que se dibuja, y lo escrito → las relaciones que se
+  guardan.

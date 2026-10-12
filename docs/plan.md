@@ -78,6 +78,7 @@ CI) va en la fase 0.
 - `aviso-cambio-fecha` · fase 0 · hecho · mails · «Avisar a les compradores» cuando cambia la fecha · #266
 - `ics-en-mail` · fase 0 · hecho · mails · El .ics y Google Calendar en los mails de entradas · #256
 - `aviso-transferencia-sin-datos` · fase 0 · hecho · entradas · Aviso cuando un evento tiene transferencia y faltan los datos de Cobros · #214
+- `entradas-editor-preventas-arreglo` · fase 0 · hecho · entradas · Editor de entradas: keys únicas también con un borrador recuperado (se colgaba: «Sacar» muerto), «Preventas» con errores a la vista ya no deja la tarjeta vacía (Chromium, fieldset y container queries) y «Sacar» desactivado que explica por qué · #348
 - `fondo-propinas-unicas` · fase 0 · hecho · fondo · Donaciones de una vez al Fondo con las propinas, el total del mes para kv-fondo y el mail «tu link» · #287, #268
 
 ### Legales
@@ -106,6 +107,7 @@ CI) va en la fase 0.
 
 ### Sitio público
 
+- `promesas-entre-pedidos` · fase 0 · hecho · sitio · Bug: GET /admin y GET / se colgaban minutos a veces (cachés del isolate que compartían una consulta en camino entre pedidos); ahora entre pedidos solo se comparte lo ya leído · #352
 - `ux-auditoria-restos` · fase 0 · hecho · sitio · Lo que seguía abierto de la auditoría de UX del 4/10: anclas del glosario, áreas de toque, migas de pan (ya estaban, #215) y búsqueda vacía de la wiki · #333
 - `wiki-sin-entrada-editar` · fase 0 · hecho · sitio · «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`) · #323
 - `areas-toque-restos` · fase 0 · hecho · sitio · Toques de menos de 44px que pedían diseño: «Comprar entradas» en las tarjetas de las listas mide 44px en el celu (hecho, el botón mismo); el índice y «Enlace a esta sección» de los textos, las series hijas en la Kinkipedia y la línea de madres e hijas de un término quedan como están (gorrite: dejarlo así) · #335
@@ -188,6 +190,7 @@ CI) va en la fase 0.
 - `buscar-sintaxis-bot` · fase 0 · sigue · bot · El bot (inline y Buscar) entiende la sintaxis base, no solo el prefijo al principio (depende de: buscar-sintaxis)
 - `buscar-sintaxis-panel` · fase 0 · sigue · panel · El buscador del panel usa el mismo parser para la base (formas largas de tipo, `material:`, `wiki:`…) y suma lo suyo (depende de: buscar-sintaxis)
 - `buscar-guia-visible` · fase 0 · sigue · sitio · «¿Cómo buscar?» en el buscador del sitio y en /ayuda/buscar, «🔎 Cómo buscar» en la Ayuda del bot y la tabla completa en la paleta del panel (depende de: buscar-sintaxis)
+- `enlaces-sintaxis` · fase 0 · hecho · contenido · La sintaxis del cuerpo de todos los objetos (red de páginas enlazadas), escrita en [enlaces.md](enlaces.md) · [0047](decisiones/0047-cuerpos-enlazados.md)
 - `bot-inline-vista-chica` · fase 0 · hecho · bot · Lo que se manda con el bot inline lleva la vista previa del link chica, al costado (gorrite, 12/10)
 - `telegram-puerta` · fase 0 · hecho · bot · Puerta por Telegram como Mini App, con vínculo desde el panel · #273, #304
 
@@ -272,6 +275,12 @@ CI) va en la fase 0.
 - `amigues-editan-perfil` · fase 2 · sigue · cuentas · Mandarle a cada amigue un link por mail para gestionar su perfil desde Mi rincón (gorrite, 11/10)
 - `sesiones-dispositivos` · fase 2 · algún día · cuentas · Ver dónde hay una sesión abierta y cerrarla
 - `lo-que-sigo-panel` · fase 2 · hecho · panel · Mensajes › Lo que sigo: el estado para mirar (interruptores, números, avisos que salieron, «Avisame», Telegram, «Lo más seguido» arriba con el número exacto y quiénes siguen cada cosa, y «Por persona»; solo admins) · #320, [0043](decisiones/0043-lo-que-sigo-en-el-panel.md), [0025](decisiones/0025-lo-que-sigo.md)
+- `enlaces-guardar` · fase 2 · sigue · contenido · Al guardar, los `[[…]]`, `@` y `#` del cuerpo se vuelven relaciones del grafo, por objeto (no por título) (depende de: enlaces-sintaxis)
+- `enlaces-lo-que-enlaza` · fase 2 · sigue · sitio · «Lo que enlaza acá» en cada página, respetando quién puede ver qué (depende de: enlaces-guardar)
+- `enlaces-falta` · fase 2 · sigue · panel · Lista de los enlaces a páginas que no existen («falta») y cuántas veces se enlazan (depende de: enlaces-guardar)
+- `enlaces-markdown` · fase 2 · sigue · contenido · Las extensiones de enlaces.md en el procesador de Markdown: notas al pie, tablas, `[[a\|b]]`, secciones, incrustados, etiquetas, avisos, consultas vivas y directivas (depende de: enlaces-sintaxis)
+- `enlaces-editores` · fase 2 · sigue · panel · Los dos editores: Markdown con autocompletado y vista previa, y uno visual con fichas, con ida y vuelta sin pérdida (depende de: enlaces-markdown)
+- `enlaces-pasar-viejos` · fase 2 · sigue · datos · Pasar los links internos viejos (URL) a `[[…]]`, de a tandas con el OK de gorrite (depende de: enlaces-guardar)
 
 ## Fase 3
 
