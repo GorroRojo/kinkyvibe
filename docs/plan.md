@@ -69,7 +69,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `puerta-celus-reales` · fase 0 · espera gorrite · entradas · La puerta con celulares reales (Android y iPhone): escanear, código, buscar, vender en efectivo y transferencia, sin conexión y con dos celus a la vez
 - `qr-mp-puerta` · fase 0 · sigue · entradas · Cobrar con el QR de Mercado Pago en la puerta (gorrite, 11/10) (depende de: puerta-sin-conexion)
 - `boton-comprar-afuera` · fase 0 · sigue · sitio · Cuando las entradas se venden en otro sitio, el botón tiene el mismo peso que «Comprar entradas» (gorrite, 10/10)
-- `tickets-spec-arreglar` · fase 0 · sigue · pruebas · Dos pruebas de `tests/tickets/tickets.spec.js` que no corren en la CI: una espera «1 aprobados» (la prueba está mal) y otra toca antes de que cargue la página. Arreglarlas y sumarlas a la CI
+- `tickets-spec-arreglar` · fase 0 · sigue · pruebas · Dos pruebas de `tests/tickets/tickets.spec.js` que no corren en la CI: arregladas en #325 («1 aprobado» en singular; esperar a que cargue la página). Falta sumarlas a la CI
 - `puerta-sin-conexion` · fase 0 · hecho · entradas · Vender en la puerta sin conexión · #286, [0035](decisiones/0035-vender-en-puerta-sin-conexion.md)
 - `transferencia-dias-habiles` · fase 0 · hecho · entradas · Reserva por transferencia de 2 días hábiles · #261, [0031](decisiones/0031-reserva-transferencia-dias-habiles.md)
 - `aviso-cambio-fecha` · fase 0 · hecho · mails · «Avisar a les compradores» cuando cambia la fecha · #266
@@ -115,12 +115,12 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `mapa-direccion-libre` · fase 0 · espera gorrite · sitio · Mapa para eventos con dirección en texto libre (sin lugar cargado); vincular datos de producción lo decide gorrite
 - `compartir-imagen-mas` · fase 0 · algún día · sitio · Imagen para compartir: más paletas, apaisado y carrusel, estilo por serie
 - `kinkipedia-series-mejor` · fase 0 · espera gorrite · sitio · Kinkipedia más rica y una lista de series mejor armada; falta dirección de gorrite
-- `icono-tipo-series` · fase 0 · sigue · sitio · Ícono grande del tipo en el encabezado cuando no hay miniatura, también en las series
-- `ldtag-plantilla` · fase 0 · sigue · sitio · `LDTag.svelte` tiene datos de una plantilla vieja: borrarlo o pasarlo a datos de Kinky Vibe
+- `icono-tipo-series` · fase 0 · hecho · sitio · Ícono grande del tipo en el encabezado cuando no hay miniatura, también en las series · #327
+- `ldtag-plantilla` · fase 0 · hecho · sitio · `LDTag.svelte` tiene datos de una plantilla vieja: borrarlo o pasarlo a datos de Kinky Vibe · #327
 - `missing-tags` · fase 0 · espera gorrite · sitio · `missingTags`: hacerlo andar (los links de descripciones a etiquetas que no existen pasan a texto) o dejarlo
 - `prerender-paginas` · fase 0 · algún día · sitio · Prerenderizar páginas de contenido para servirlas como archivos
 - `me-interesa` · fase 0 · algún día · sitio · El botón anónimo «Me interesa» en los eventos, que quedó para más adelante
-- `readme-rutas` · fase 0 · sigue · docs · El README lista `/nosotres` y `/servicios`, que ya no existen
+- `readme-rutas` · fase 0 · hecho · docs · El README lista `/nosotres` y `/servicios`, que ya no existen · #327
 - `lectura-tiempo` · fase 0 · hecho · sitio · «X min de lectura» con la velocidad de cada persona · #274, #21, #46
 - `filtros-celu` · fase 0 · hecho · sitio · Barra de filtros con chips y árbol en una hoja en el celu · #294, #18
 - `vistas-previas-links` · fase 0 · hecho · sitio · Vistas previas de links (Collage, textos editables) · #257
@@ -129,7 +129,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 ### Estándares web y SEO
 
 - `seo-peso-paginas` · fase 0 · sigue · seo · Lo de «Para hacer después» en seo.md: pasados del calendario a pedido, `siteTags` aparte, íconos en sprite, menos etiquetas por tarjeta, relacionadas de a 20 · [seo.md](seo.md)
-- `seo-titulos` · fase 0 · sigue · seo · El mes en el título de los eventos repetidos, el salto de `h1` a `h3` en las listas y `DefinedTerm` para etiquetas con descripción · [seo.md](seo.md)
+- `seo-titulos` · fase 0 · hecho · seo · El mes en el título de los eventos repetidos, el salto de `h1` a `h3` en las listas y `DefinedTerm` para etiquetas con descripción · [seo.md](seo.md) · #327
 - `noai-por-post` · fase 0 · algún día · seo · Opción de «noai» por publicación (los robots de IA los maneja gorrite en Cloudflare)
 - `estandares-web` · fase 0 · hecho · seo · JSON-LD, microformatos, rel=me, security.txt, vCard, feeds Atom y JSON · #278, #280
 - `fechas-iso` · fase 0 · hecho · seo · Fechas ISO 8601 válidas en metadatos, JSON-LD y `<time datetime>` · #319, [seo.md](seo.md)
@@ -152,16 +152,17 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `bot-busquedas-vacias` · fase 0 · sigue · bot · Bot 3/5: qué se busca y no se encuentra (sin guardar quién), en el panel, y sugerencias en vez de «no encontré nada» (depende de: bot-mis-entradas)
 - `bot-puerta-probar` · fase 0 · espera gorrite · bot · Probar la Puerta por Telegram en un preview con celus reales (vincular, abrir, escanear) · [0037](decisiones/0037-puerta-por-telegram.md)
 - `bot-puerta-2` · fase 0 · sigue · bot · Bot 4/5: Puerta por Telegram parte 2 (contador en vivo, escribir el código a mano) (depende de: bot-busquedas-vacias, bot-puerta-probar)
-- `bot-secciones-ajustes` · fase 0 · sigue · bot · Secciones del bot: Kinkipedia por el árbol de etiquetas (como `/wiki`) y Series sin las que no tienen ediciones
+- `bot-kinkipedia-ramas-probar` · fase 0 · espera gorrite · bot · Mirar en Telegram la Kinkipedia por ramas con el árbol de verdad: que las ramas de arriba sean las de `/wiki` y que ninguna quede con un solo hijo de más (depende de: bot-secciones-ajustes)
 - `bot-mis-entradas-partes` · fase 0 · sigue · bot · Mis entradas: un taller de varias partes sigue en «próximas» hasta la última parte
 - `bot-mis-entradas-transmision` · fase 0 · espera gorrite · bot · Mis entradas: mandar el link de la transmisión de un evento online por el chat
 - `bot-mis-entradas-probar` · fase 0 · espera gorrite · bot · Probar «Mis entradas» en Telegram con una entrada de prueba (el QR por la API solo se prueba contra el bot de verdad)
-- `bot-funciones-viejas` · fase 0 · sigue · bot · Borrar las funciones que el bot ya no usa (`formatEventList`, `formatEvent`, `formatChoices`, `formatPickList`, `eventListKeyboard`, `eventDetailKeyboard`) y sus pruebas
-- `bot-avisos-apagados` · fase 0 · algún día · bot · Recordar si alguien apagó a propósito los avisos de algo, para que seguirlo de nuevo desde el bot no los prenda (necesita migración) · [0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)
-- `bot-textos-miniapp` · fase 0 · algún día · bot · Los textos de las páginas de la Mini App (calendario y puerta) en «Textos del bot»
+- `bot-avisos-apagados` · fase 0 · algún día · bot · Recordar si alguien apagó a propósito los avisos de algo, para que dejar de seguirlo y volver a seguirlo desde el bot no los prenda (volver a vincular ya no saca `/silenciar`, #321; necesita migración, aplicarla antes del merge, 0028) · [0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)
+- `bot-textos-miniapp` · fase 0 · algún día · bot · Los textos de la página de la puerta (`/telegram/puerta`, solo admins) en «Textos del bot» (los de la Mini App del calendario ya están, #321)
 - `bot-visible-sitio` · fase 0 · espera gorrite · bot · Que el bot se vea en el sitio (mención, link desde Mi rincón y el pie, textos de `/start` y `/ayuda`); textos y lugar los elige gorrite
 - `bot-navegar-secciones` · fase 0 · hecho · bot · Bot 1/5: recorrer el sitio por secciones · #308
 - `bot-mis-entradas` · fase 0 · hecho · bot · Bot 2/5: «🎟 Mis entradas» con el QR de la puerta · #313
+- `bot-secciones-ajustes` · fase 0 · hecho · bot · Secciones del bot: Kinkipedia por las ramas del árbol de etiquetas (como `/wiki` y en su orden), Series sin las que no tienen ediciones, volver a vincular no saca `/silenciar` y los textos de la Mini App del calendario en «Textos del bot» · #321
+- `bot-funciones-viejas` · fase 0 · hecho · bot · Borradas las funciones que el bot ya no usaba (`formatEventList`, `formatEvent`, `formatChoices`, `formatPickList`, `eventListKeyboard`, `eventDetailKeyboard`) y sus pruebas · #321
 - `bot-textos` · fase 0 · hecho · bot · «Textos del bot» editables desde Ajustes · #302
 - `bot-inline-buscar` · fase 0 · hecho · bot · Modo inline y búsqueda en todo el sitio · #298, #300
 - `telegram-puerta` · fase 0 · hecho · bot · Puerta por Telegram como Mini App, con vínculo desde el panel · #273, #304
@@ -176,8 +177,10 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 - `tests-auditoria` · fase 0 · sigue · pruebas · Auditoría de pruebas: acelerar primero, borrar solo con el sí de gorrite por cada una
 - `test-importer-flaky` · fase 0 · sigue · pruebas · `etiquetas/importer.test.js` a veces cuenta un error de más con la máquina cargada: prueba frágil o carrera real (depende de: tests-auditoria)
-- `test-estiloguard-lento` · fase 0 · sigue · pruebas · `estiloGuard` tarda ~6 s con la máquina cargada y pasa el límite de 5 s (depende de: tests-auditoria)
-- `tests-consultas-batch` · fase 0 · sigue · pruebas · `importTags` de la semilla hace ~1800 consultas sueltas: agruparlas en `batch` (también acelera el import de verdad)
+- `test-estiloguard-lento` · fase 0 · hecho · pruebas · `estiloGuard` y `series-crear` pasaban el límite de 5 s con la máquina cargada: la preparación cara va en `beforeAll` · #325
+- `test-cuentas-lento` · fase 0 · hecho · pruebas · `cuentas.test.js` «límite de intentos por mail y por conexión» pasaba los 5 s con la máquina cargada: los mails del límite por conexión tienen cuenta con hash barato (queda uno sin cuenta) · #330
+- `tickets-ajustes-spec` · fase 0 · hecho · pruebas · `tests/tickets/ajustes.spec.js` buscaba la pestaña «Cobros», que se fue con la portada de Ajustes: ahora entra por la portada y su tarjeta · #330
+- `tests-consultas-batch` · fase 0 · hecho · pruebas · `importTags` de la semilla en tandas de `saveObjects` (1835 → 80 consultas) · #328
 - `ci-duraciones` · fase 0 · sigue · pruebas · Actualizar `scripts/vitest/durations.json` cuando se suman o cambian pruebas lentas, para que las 3 partes sigan parejas
 - `ci-cache-semilla` · fase 0 · espera gorrite · pruebas · Guardar en caché la base ya sembrada de `e2e` (~1 min), con clave por migraciones, semilla e importador
 - `tests-rapidos` · fase 0 · hecho · pruebas · Pruebas y CI más rápidas, `test:related` · #307, #311, #312, #285
@@ -188,7 +191,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 ### Plan y forma de trabajo
 
 - `plan-unico` · fase 1 · en curso · plan · Este archivo como único plan, con `plan-lint`, la línea `Plan:` en cada PR y el comentario `Plan revisado contra main` antes de mergear · [pruebas-y-ci.md](pruebas-y-ci.md)
-- `plan-repaso-semanal` · fase 1 · sigue · plan · Repaso semanal del plan (lunes a la mañana): una sesión nueva lo compara con lo mergeado y la Mesa, deja registro y abre un PR de docs o dice «sin cambios»; una GitHub Action abre un issue si pasan 8 días sin repaso (depende de: plan-unico)
+- `plan-repaso-semanal` · fase 1 · sigue · plan · Repaso semanal del plan (lunes a la mañana): una sesión nueva lo compara con lo mergeado y la Mesa, deja registro y abre un PR de docs o dice «sin cambios»; el vigilante `.github/workflows/repaso-vigilante.yml` (GitHub Action diaria, sin Claude) abre un issue si pasan 8 días sin PR con la etiqueta `repaso-semanal` y lo cierra cuando vuelve a haber uno (depende de: plan-unico)
 - `plan-fuentes-viejas` · fase 1 · sigue · plan · Banner «reemplazado por docs/plan.md» en los artifacts de plan viejos; cerrar #70 y los issues viejos ya mapeados a un id; cerrar #46 (lo reemplazó #274, con crédito); las notas de las sesiones pasan a la Mesa (depende de: plan-unico)
 - `fases-siguiente` · fase 1 · espera gorrite · plan · Cuál es el próximo bloque grande (Lo que sigo, Colecciones, Bandeja, Videos o Tienda)
 - `hoja-de-ruta` · fase 1 · hecho · plan · La hoja de ruta en el repo; la reemplaza este archivo · #264, #284
@@ -217,7 +220,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `codigo-muerto-github` · fase 2 · sigue · contenido · Código que quedó del panel con GitHub: `sharedImage.js`, la edición del archivo de etiquetas en `tagConfig.js`, ramas «no se guardó en la base», el permiso `public_repo` del login, y que el panel guarde objetos sin pasar por «rutas de `.md`» (`getRepoClient`, `withContentDb`, `commitFiles`)
 - `restos-limpieza` · fase 2 · sigue · contenido · Restos chicos: la regla de estilo que no alcanza a `.kv-texto-libre` (unas 200 páginas, con antes y después), un solo `foldText` en vez de las copias, un solo helper de imagen de una publicación, renombrar el `isAdmin` de `objects/visibility.js`, el campo de texto `perfil.avatar`
 - `docs-a-confirmar` · fase 2 · sigue · docs · Cerrar los «a confirmar» de los docs que gorrite ya confirmó (por ejemplo en lo-que-sigo.md) y las líneas viejas de tickets.md
-- `markdown-frontmatter` · fase 2 · sigue · contenido · El renderizador corta el encabezado de un texto en cualquier `---`, aunque esté a mitad de línea
+- `markdown-frontmatter` · fase 2 · hecho · contenido · El renderizador corta el encabezado de un texto en cualquier `---`, aunque esté a mitad de línea · #327
 - `textos-viejos-arreglos` · fase 2 · espera gorrite · contenido · Arreglos de datos en textos viejos (etiquetas HTML sin cerrar, `&nbsp;`, negritas rotas): cambios en producción, desde el panel o con OK de gorrite
 - `eventos-sin-imagen` · fase 2 · espera gorrite · contenido · Eventos sin imagen y campos vacíos; gorrite elige en el panel
 - `objetos-pendientes` · fase 2 · sigue · contenido · Revisar lo que queda de «Pendiente» en objetos.md (historial dentro de `saveObject`, borrar `event_venues` cuando todo esté en la base) · [objetos.md](objetos.md)
@@ -226,10 +229,10 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `grafo-objetos` · fase 2 · algún día · contenido · Vista de grafo de los objetos, estilo Obsidian
 - `perfil-campos-cv` · fase 2 · espera gorrite · contenido · Campos de perfil: afiliación, formación, experiencia, habilidades (TODO en `types.d.js`; microformato `h-resume`)
 - `datos-1` · fase 2 · sigue · datos · ver Mesa
-- `datos-2-chequeo-por-pedido` · fase 2 · sigue · datos · El «¿cambió algo?» de la caché una sola vez por pedido, y caché para `/amigues`
-- `datos-3-estados-entradas` · fase 2 · sigue · datos · Los estados de entradas de las listas en una sola tanda
-- `datos-4-visibilidad-perfiles` · fase 2 · sigue · datos · Una sola regla de visibilidad para perfiles y lugares (hoy está en 3 lugares)
-- `datos-5-ayudas-compartidas` · fase 2 · sigue · datos · Ayudas compartidas: la dirección del sitio, la descripción del evento, «próximo»; limpiar sesiones viejas en el cron
+- `datos-2-chequeo-por-pedido` · fase 2 · hecho · datos · El «¿cambió algo?» de la caché una sola vez por pedido, y caché para `/amigues` · #324
+- `datos-3-estados-entradas` · fase 2 · hecho · datos · Los estados de entradas de las listas en una sola tanda · #324
+- `datos-4-visibilidad-perfiles` · fase 2 · hecho · datos · Una sola regla de visibilidad para perfiles y lugares (`shownProfileWhere` / `isShownProfile`) · #324
+- `datos-5-ayudas-compartidas` · fase 2 · hecho · datos · Ayudas compartidas: la dirección del sitio, la descripción del evento, «próximo»; limpiar sesiones viejas en el cron · #328
 - `limpieza-md` · fase 2 · hecho · contenido · Contenido solo en la base, sin `.md` ni mdsvex · #275, [0032](decisiones/0032-borrar-los-md.md)
 - `imagenes-r2` · fase 2 · hecho · contenido · Imágenes y archivos en R2 con la biblioteca · #215, #217, #226, #230
 

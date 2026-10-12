@@ -142,6 +142,15 @@ describe('personas: una sola lista en la base', () => {
 		expect(markdownToEvent('x', text).data.personas).toEqual(LIST);
 	});
 
+	it('un `---` al final de un valor no corta las propiedades (solo la línea que es `---`)', () => {
+		const m = mdToEvent('x', { ...WITH_PERSONAS, title: 'Fiesta Inventada ---' }, 'Hola --- chau');
+		const text = eventToMarkdown({ title: m.title, data: m.data, visibility: m.visibility });
+		const back = markdownToEvent('x', text);
+		expect(back.title).toBe('Fiesta Inventada ---');
+		expect(back.data.personas).toEqual(LIST);
+		expect(String(back.data.body).trim()).toBe('Hola --- chau');
+	});
+
 	it('lo importado con la forma de antes se lee igual (y pasa a la nueva al guardarlo)', () => {
 		const nueva = mdToEvent('x', WITH_PERSONAS, '');
 		const { personas, ...rest } = /** @type {Record<string, any>} */ (nueva.data);

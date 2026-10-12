@@ -7,6 +7,9 @@
  */
 import { currentRelated, mediaURL, relatedPostsFor } from '$lib/utils';
 import { canHaveProfiles } from '$lib/server/cuentas/accounts.js';
+import { contentStampOf } from '$lib/server/contenido/posts.js';
+import { ANON } from '$lib/server/objects/visibility.js';
+import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { claimState } from './claims.js';
 import { findPublicProfile, groupMembers, urlSlugOf, viewerFor } from './profiles.js';
@@ -42,7 +45,44 @@ export { profileImage };
  * @returns {Promise<ProcessedPost[]>}
  */
 export async function amiguesListPosts(db, locals, { kind } = {}) {
-	return profilePosts(db, viewerFor(locals), { kind });
+	const viewer = viewerFor(locals);
+	if (viewer.role !== 'anon' || kind) return profilePosts(db, viewer, { kind });
+	return anonProfilePosts(db);
+}
+
+/**
+ * La lista de /amigues para quien no inició sesión (casi todas las visitas), recordada en el
+ * isolate mientras no cambie la marca del contenido (`contentStampOf`: perfiles, aprobaciones,
+ * importaciones e imágenes; se lee una vez por pedido) ni el árbol de etiquetas con que se
+ * ordenan sus etiquetas. Lo que se recuerda es lo mismo que arma `profilePosts` (la misma
+ * función), así que cambia la cantidad de consultas, no lo que se ve. Con sesión no se recuerda:
+ * una cuenta o une admin pueden ver más.
+ * @type {{ stamp: string, tree: TagManager, posts: Promise<ProcessedPost[]> } | null}
+ */
+let anonCache = null;
+
+/** Olvida la lista recordada de /amigues (tests). */
+export function clearAmiguesCache() {
+	anonCache = null;
+}
+
+/**
+ * @param {D1Database} db
+ * @returns {Promise<ProcessedPost[]>}
+ */
+async function anonProfilePosts(db) {
+	const stamp = await contentStampOf(db);
+	const tree = currentSiteTags();
+	let entry = anonCache;
+	if (entry?.stamp !== stamp || entry.tree !== tree) {
+		const mine = { stamp, tree, posts: profilePosts(db, ANON) };
+		anonCache = entry = mine;
+		mine.posts.catch(() => {
+			if (anonCache === mine) anonCache = null;
+		});
+	}
+	// Una lista nueva en cada pedido (los posts son los mismos: nadie los cambia).
+	return [...(await entry.posts)];
 }
 
 /**

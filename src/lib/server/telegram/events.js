@@ -21,6 +21,7 @@ import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 import { eventPlace } from '$lib/utils/eventPlace.js';
 import { googleMapsLink } from '$lib/utils/venues.js';
 import { ticketCta } from '$lib/utils/ticketCta.js';
+import { startsAfter } from '$lib/utils/dates.js';
 
 /** @typedef {import('./format.js').BotEvent} BotEvent */
 
@@ -32,7 +33,7 @@ import { ticketCta } from '$lib/utils/ticketCta.js';
 export function toUpcomingEvents(posts, now) {
 	return posts
 		.filter((p) => p.meta?.category === 'calendario' && p.meta?.postID)
-		.filter((p) => new Date(p.meta.start).getTime() > now)
+		.filter((p) => startsAfter(p.meta.start, now))
 		.sort((a, b) => new Date(a.meta.start).getTime() - new Date(b.meta.start).getTime())
 		.map((p) => ({
 			slug: String(p.meta.postID),
@@ -127,7 +128,7 @@ export function toInlineEventInfo(
 	meta,
 	{ venue = null, venueFailed = false, states = null, now = Date.now() }
 ) {
-	const past = !(new Date(meta.start).getTime() > now);
+	const past = !startsAfter(meta.start, now);
 	/** @type {import('./inline.js').InlineEventInfo} */
 	const info = { ticket: ticketCta(meta, states, { past }) };
 	if (venueFailed) return info;
