@@ -188,7 +188,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 ### Plan y forma de trabajo
 
 - `plan-unico` · fase 1 · en curso · plan · Este archivo como único plan, con `plan-lint`, la línea `Plan:` en cada PR y el comentario `Plan revisado contra main` antes de mergear · [pruebas-y-ci.md](pruebas-y-ci.md)
-- `plan-repaso-semanal` · fase 1 · sigue · plan · Repaso semanal del plan (lunes a la mañana): una sesión nueva lo compara con lo mergeado y la Mesa, deja registro y abre un PR de docs o dice «sin cambios»; una GitHub Action abre un issue si pasan 8 días sin repaso (depende de: plan-unico)
+- `plan-repaso-semanal` · fase 1 · sigue · plan · Repaso semanal del plan (lunes a la mañana): una sesión nueva lo compara con lo mergeado y la Mesa, deja registro y abre un PR de docs o dice «sin cambios»; el vigilante `.github/workflows/repaso-vigilante.yml` (GitHub Action diaria, sin Claude) abre un issue si pasan 8 días sin PR con la etiqueta `repaso-semanal` y lo cierra cuando vuelve a haber uno (depende de: plan-unico)
 - `plan-fuentes-viejas` · fase 1 · sigue · plan · Banner «reemplazado por docs/plan.md» en los artifacts de plan viejos; cerrar #70 y los issues viejos ya mapeados a un id; cerrar #46 (lo reemplazó #274, con crédito); las notas de las sesiones pasan a la Mesa (depende de: plan-unico)
 - `fases-siguiente` · fase 1 · espera gorrite · plan · Cuál es el próximo bloque grande (Lo que sigo, Colecciones, Bandeja, Videos o Tienda)
 - `hoja-de-ruta` · fase 1 · hecho · plan · La hoja de ruta en el repo; la reemplaza este archivo · #264, #284

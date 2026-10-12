@@ -1,0 +1,42 @@
+# Vigilante del repaso semanal del plan (ítem `plan-repaso-semanal` en docs/plan.md).
+#
+# Independiente de Claude: todos los días mira si hay algún PR con la etiqueta `repaso-semanal`
+# creado en los últimos 8 días. Si no hay, abre el issue «El repaso semanal del plan no corrió»
+# (uno solo); si vuelve a haber y el issue sigue abierto, lo cierra. La lógica está en
+# scripts/repaso-vigilante.js (con tests). No es un chequeo de PR: no va en los `needs` de `ci-ok`.
+name: Repaso vigilante
+
+on:
+  schedule:
+    # 04:23 UTC (01:23 en Argentina), lejos de la rutina de los lunes y de la hora en punto.
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: repaso-vigilante
+  cancel-in-progress: false
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Solo el script y package.json (`"type": "module"`, para importarlo como ESM).
+          sparse-checkout: |
+            /package.json
+            /scripts/repaso-vigilante.js
+          sparse-checkout-cone-mode: false
+
+      - name: ¿Corrió el repaso semanal?
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { run } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/repaso-vigilante.js`);
+            await run({ github, context, core });
