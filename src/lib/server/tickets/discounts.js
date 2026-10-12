@@ -7,6 +7,10 @@
  * - `checkDiscountCode` sirve para el botón "Aplicar" (informativo). La validez real se vuelve a
  *   comprobar DENTRO del `INSERT` que crea la orden (`discountGuardSql`), en la misma sentencia
  *   atómica que el cupo, así que dos compras simultáneas no pueden pasarse de `max_uses`.
+ * - Códigos combo (combos.js, migración 0056): un código con `buyer_email` vale solo para ese
+ *   mail, y uno con `source_order_id` vale solo mientras esa orden (la que lo generó) siga
+ *   aprobada: si se reembolsa, el código deja de valer (si ya se usó, esa compra queda como está).
+ *   No aparecen en las listas de códigos (`listDiscountCodes`): se resumen en su combo.
  */
 import { normalizeCode } from '$lib/utils/tickets.js';
 
@@ -15,8 +19,10 @@ import { normalizeCode } from '$lib/utils/tickets.js';
  * @typedef {{
  *   code: string, kind: 'percent' | 'fixed', value: number, event_slug: string | null,
  *   starts_at: number | null, ends_at: number | null, max_uses: number | null, active: number,
- *   created_at: number, created_by: string
+ *   created_at: number, created_by: string, buyer_email?: string | null,
+ *   source_order_id?: string | null
  * }} DiscountCode
+ * `buyer_email` y `source_order_id`: solo en los códigos combo (ver arriba); `null` en los demás.
  */
 
 /** Estados de orden que ocupan cupo (y un uso de código) mientras `expires_at` no pasó. */
@@ -36,8 +42,10 @@ export function usesSql(code, now) {
 /**
  * Condición SQL: el código sigue valiendo, con el mismo tipo y valor que usamos para calcular
  * el precio, y le queda al menos un uso. Los parámetros son expresiones SQL (p. ej. `?12`).
+ * `email` (el de quien compra, en minúsculas): sin él, un código con `buyer_email` nunca vale.
+ * Un código combo vale solo mientras su orden de origen siga aprobada.
  *
- * @param {{ code: string, kind: string, value: string, event: string, now: string }} p
+ * @param {{ code: string, kind: string, value: string, event: string, now: string, email?: string }} p
  */
 export function discountGuardSql(p) {
 	return `(${p.code} IS NULL OR EXISTS (
@@ -47,34 +55,50 @@ export function discountGuardSql(p) {
 			AND (d.starts_at IS NULL OR d.starts_at <= ${p.now})
 			AND (d.ends_at IS NULL OR d.ends_at > ${p.now})
 			AND (d.max_uses IS NULL OR ${usesSql('d.code', p.now)} < d.max_uses)
+			AND (d.buyer_email IS NULL OR d.buyer_email = ${p.email ?? 'NULL'})
+			AND (d.source_order_id IS NULL OR EXISTS (
+				SELECT 1 FROM orders so WHERE so.id = d.source_order_id AND so.status = 'approved'))
 	))`;
 }
 
 /**
  * ¿Se puede usar este código ahora en este evento?
  *
+ * `email`: el de quien compra (minúsculas), si ya lo escribió. Un código combo de otro mail
+ * responde "Ese código no existe" (como uno de otro evento); sin `email` («Aplicar» antes de
+ * completar «Tus datos») vale, y la compra lo vuelve a mirar con el mail (`discountGuardSql`).
+ *
  * @param {D1Database} db
- * @param {{ code: unknown, eventSlug: string, now?: number }} input
+ * @param {{ code: unknown, eventSlug: string, now?: number, email?: string }} input
  * @returns {Promise<{ ok: true, discount: DiscountCode }
- *   | { ok: false, reason: 'format' | 'unknown' | 'inactive' | 'not-started' | 'ended' | 'other-event' | 'used-up', message: string }>}
+ *   | { ok: false, reason: 'format' | 'unknown' | 'inactive' | 'not-started' | 'ended' | 'other-event' | 'other-email' | 'revoked' | 'used-up', message: string }>}
  */
-export async function checkDiscountCode(db, { code: raw, eventSlug, now = Date.now() }) {
+export async function checkDiscountCode(db, { code: raw, eventSlug, now = Date.now(), email }) {
 	const code = normalizeCode(raw);
 	if (!code) {
 		return { ok: false, reason: 'format', message: 'Ese código no existe.' };
 	}
-	const row = /** @type {(DiscountCode & { uses: number }) | null} */ (
-		await db
-			.prepare(
-				`SELECT d.*, ${usesSql('d.code', '?2')} AS uses FROM discount_codes d WHERE d.code = ?1`
-			)
-			.bind(code, now)
-			.first()
-	);
+	const row =
+		/** @type {(DiscountCode & { uses: number, source_status: string | null }) | null} */ (
+			await db
+				.prepare(
+					`SELECT d.*, ${usesSql('d.code', '?2')} AS uses,
+					(SELECT so.status FROM orders so WHERE so.id = d.source_order_id) AS source_status
+				FROM discount_codes d WHERE d.code = ?1`
+				)
+				.bind(code, now)
+				.first()
+		);
 	// Mismo mensaje para "no existe" y "es de otro evento": no ayuda a adivinar códigos.
 	if (!row) return { ok: false, reason: 'unknown', message: 'Ese código no existe.' };
 	if (row.event_slug !== null && row.event_slug !== eventSlug) {
 		return { ok: false, reason: 'other-event', message: 'Ese código no existe.' };
+	}
+	if (row.buyer_email && email && row.buyer_email !== email) {
+		return { ok: false, reason: 'other-email', message: 'Ese código no existe.' };
+	}
+	if (row.source_order_id && row.source_status !== 'approved') {
+		return { ok: false, reason: 'revoked', message: 'Ese código ya no está activo.' };
 	}
 	if (!row.active)
 		return { ok: false, reason: 'inactive', message: 'Ese código ya no está activo.' };
@@ -91,9 +115,10 @@ export async function checkDiscountCode(db, { code: raw, eventSlug, now = Date.n
 			message: 'Ese código ya se usó todas las veces posibles.'
 		};
 	}
-	/** @type {DiscountCode & { uses?: number }} */
+	/** @type {DiscountCode & { uses?: number, source_status?: string | null }} */
 	const discount = { ...row };
 	delete discount.uses;
+	delete discount.source_status;
 	return { ok: true, discount };
 }
 
@@ -110,15 +135,7 @@ export function validateNewCode(input, eventSlugs) {
 	const errors = {};
 	const code = normalizeCode(input.code);
 	if (!code) errors.code = 'Entre 3 y 32 letras, números, - o _ (sin espacios).';
-	const kind = input.kind === 'percent' || input.kind === 'fixed' ? input.kind : null;
-	if (!kind) errors.kind = 'Elegí porcentaje o monto fijo.';
-	const value = Number(input.value);
-	if (!Number.isSafeInteger(value) || value < 1 || (kind === 'percent' && value > 100)) {
-		errors.value =
-			kind === 'percent'
-				? 'Un número entero entre 1 y 100.'
-				: 'Un monto entero en pesos, mayor a 0.';
-	}
+	const { kind, value } = parseDiscountAmount(input, errors);
 	const eventRaw = String(input.event_slug ?? '');
 	const event_slug = eventRaw === '' ? null : eventRaw;
 	if (event_slug !== null && !eventSlugs.includes(event_slug))
@@ -147,6 +164,27 @@ export function validateNewCode(input, eventSlugs) {
 			max_uses
 		}
 	};
+}
+
+/**
+ * Tipo (`percent` o `fixed`) y valor de un descuento del formulario; anota los errores en
+ * `errors` (`kind`, `value`). Lo comparten los códigos y los combos.
+ *
+ * @param {Record<string, unknown>} input
+ * @param {Record<string, string>} errors
+ * @returns {{ kind: 'percent' | 'fixed' | null, value: number }}
+ */
+export function parseDiscountAmount(input, errors) {
+	const kind = input.kind === 'percent' || input.kind === 'fixed' ? input.kind : null;
+	if (!kind) errors.kind = 'Elegí porcentaje o monto fijo.';
+	const value = Number(input.value);
+	if (!Number.isSafeInteger(value) || value < 1 || (kind === 'percent' && value > 100)) {
+		errors.value =
+			kind === 'percent'
+				? 'Un número entero entre 1 y 100.'
+				: 'Un monto entero en pesos, mayor a 0.';
+	}
+	return { kind, value };
 }
 
 /**
@@ -203,7 +241,8 @@ export async function setDiscountCodeActive(db, code, active) {
 }
 
 /**
- * Todos los códigos (más nuevos primero) con sus usos: aprobados y reservas vigentes.
+ * Todos los códigos (más nuevos primero) con sus usos: aprobados y reservas vigentes. Sin los
+ * códigos combo, que son uno por compra (se resumen en su combo, combos.js).
  *
  * @param {D1Database} db
  * @param {number} [now]
@@ -218,7 +257,7 @@ export async function listDiscountCodes(db, now = Date.now()) {
 					AND o.status IN ${HOLDING} AND o.expires_at > ?1) AS held,
 				(SELECT COALESCE(SUM(o.discount_amount), 0) FROM orders o
 					WHERE o.discount_code = d.code AND o.status = 'approved') AS discounted
-			FROM discount_codes d ORDER BY d.created_at DESC`
+			FROM discount_codes d WHERE d.source_order_id IS NULL ORDER BY d.created_at DESC`
 		)
 		.bind(now)
 		.all();

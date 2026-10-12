@@ -102,6 +102,15 @@ describe('interruptores', () => {
 		expect(listed).toMatchObject({ enabled: true, envVar: 'LISTA_ESPERA_ENABLED' });
 	});
 
+	it('códigos combo: existe, apagado por defecto y con su variable de entorno', async () => {
+		expect(FLAGS.combo_codigos).toMatchObject({ envVar: 'COMBO_CODIGOS_ENABLED' });
+		expect(await isFlagOn(t.db, 'combo_codigos', { envValue: '' })).toBe(false);
+		expect(await isFlagOn(t.db, 'combo_codigos', { envValue: '1' })).toBe(true);
+		await setFlag(t.db, 'combo_codigos', true, { by: 'admin-de-prueba' });
+		expect(await isFlagOn(t.db, 'combo_codigos', { envValue: '' })).toBe(true);
+		expect(await isFlagOn(t.db, 'combo_codigos', { envValue: '0' })).toBe(false);
+	});
+
 	it('los interruptores del menú del panel (flag en nav.js) existen', () => {
 		for (const key of navFlagKeys()) expect(Object.keys(FLAGS), key).toContain(key);
 	});

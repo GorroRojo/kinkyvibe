@@ -89,6 +89,20 @@ export const FLAGS = Object.freeze({
 			'docs/tickets.md, «Lista de espera». Antes de prenderlo: migración 0053. Tablas ' +
 			'waitlist_entries y waitlist_sends; clave `lista_espera` del evento.',
 		envVar: 'LISTA_ESPERA_ENABLED'
+	},
+	combo_codigos: {
+		label: 'Códigos combo entre eventos',
+		description:
+			'En la pestaña Códigos de un evento se puede armar un combo con otro evento: quien compra ' +
+			'una entrada online del primero recibe en el mail de sus entradas un código de descuento ' +
+			'para el segundo, de un solo uso y solo para su mail. Si la compra se reembolsa, el código ' +
+			'deja de valer. Apagado, no se arman combos ni se generan códigos nuevos (los que ya se ' +
+			'mandaron siguen valiendo).',
+		tech:
+			'docs/tickets.md, «Códigos combo». Antes de prenderlo: migración 0056 (tabla ' +
+			'ticket_combos y columnas buyer_email y source_order_id de discount_codes). ' +
+			'src/lib/server/tickets/combos.js.',
+		envVar: 'COMBO_CODIGOS_ENABLED'
 	}
 });
 
@@ -230,6 +244,15 @@ export function propinasFondoEnabled(platform) {
  */
 export function listaEsperaEnabled(platform) {
 	return isFlagOn(getDB(platform), 'lista_espera');
+}
+
+/**
+ * Atajo para las rutas: ¿están prendidos los códigos combo entre eventos? (docs/tickets.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function comboCodigosEnabled(platform) {
+	return isFlagOn(getDB(platform), 'combo_codigos');
 }
 
 /**
