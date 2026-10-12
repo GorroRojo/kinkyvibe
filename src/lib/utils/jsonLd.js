@@ -13,7 +13,10 @@ import { contactItems } from './perfiles.js';
 import { ORG_CONTACT_EMAIL } from './organization.js';
 import { isoDateTime } from './dates.js';
 
-export const SITE_URL = 'https://kinkyvibe.ar';
+import { SITE_URL } from './site.js';
+
+// La dirección del sitio sale de ./site.js (un solo lugar); se reexporta para quien ya la importa de acá.
+export { SITE_URL };
 export const SITE_NAME = 'Kinky Vibe';
 export const SITE_DESCRIPTION =
 	'Divulgación disidente, producción de eventos y talleres, gestión comunitaria y editorial. Información y encuentros cuir LGTBQIA+ kinky y de BDSM.';

@@ -155,6 +155,12 @@ el código por mail sigue andando.
 - Cookie `kvRincon`: token al azar de 256 bits, `HttpOnly`, `Secure` (salvo http://localhost),
   `SameSite=Lax`, 400 días (el máximo de los navegadores). `last_seen_at` se actualiza como
   mucho una vez por día y, cuando pasa, la cookie se vuelve a mandar con 400 días más.
+- **Limpieza en el cron nocturno** (`runSessionCleanup` en `src/lib/server/scheduled.js`, después
+  del backup): borra las filas de sesiones con `last_seen_at` de hace más de 401 días
+  (`src/lib/server/cuentas/sessionAge.js`). Esas ya no tienen cookie en ningún navegador (la
+  cookie dura 400 días desde la última vez que se mandó), así que no se cierra la sesión de nadie:
+  solo se van filas que nunca más se usan. Si falla, lo escribe en el log y la corrida sigue; en el
+  log va solo cuántas borró.
 - En Mi rincón, "Salir en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
   cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
   saca acceso.

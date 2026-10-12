@@ -13,6 +13,7 @@
 import { building } from '$app/environment';
 import { getDB } from '$lib/server/db';
 import { hasOwnTickets } from '$lib/utils/ticketCta.js';
+import { startsAfter } from '$lib/utils/dates.js';
 import { methodsFor, typeBuyableNow } from './checkout.js';
 import { salesState, typeAvailability } from './config.js';
 import { getEventTicketsMany } from './events.js';
@@ -167,7 +168,7 @@ export async function ticketStatesFor(platform, posts) {
 	if (!db) return null;
 	const now = Date.now();
 	const slugs = posts
-		.filter((p) => hasOwnTickets(p.meta) && new Date(p.meta.start).getTime() > now)
+		.filter((p) => hasOwnTickets(p.meta) && startsAfter(p.meta.start, now))
 		.map((p) => String(p.meta.postID));
 	if (!slugs.length) return {};
 	try {
