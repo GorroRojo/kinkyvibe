@@ -136,3 +136,42 @@ describe('snapshotDB / restoreDB', () => {
 		expect(await t.db.prepare('SELECT count(*) AS n FROM objects').first()).toEqual({ n: 0 });
 	});
 });
+
+// Cada consulta viaja por un WebSocket con el worker de prueba; lo que no entra en un mensaje
+// (más de 4 M caracteres de JSON) va por un pedido HTTP suelto. Las respuestas tienen que ser las
+// mismas por los dos caminos.
+describe('el canal con la base de prueba', () => {
+	it('una tanda que no entra en un mensaje llega entera', async () => {
+		const s = 'x'.repeat(900_000);
+		const results = await t.db.batch(
+			Array.from({ length: 5 }, (_, i) =>
+				t.db.prepare('SELECT ?1 AS i, length(?2) AS n').bind(i, s)
+			)
+		);
+		expect(results.map((r) => r.results[0])).toEqual(
+			Array.from({ length: 5 }, (_, i) => ({ i, n: 900_000 }))
+		);
+	});
+
+	it('una respuesta que no entra en un mensaje vuelve entera', async () => {
+		const { results } = await t.db
+			.prepare(
+				"WITH RECURSIVE c(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM c WHERE i < 5000) SELECT i, printf('%.*c', 1000, 'y') AS s FROM c"
+			)
+			.all();
+		expect(results).toHaveLength(5000);
+		expect(results[4999]).toEqual({ i: 5000, s: 'y'.repeat(1000) });
+	});
+
+	it('consultas a la vez: cada una recibe su respuesta, y los errores vuelven como errores', async () => {
+		const values = await Promise.all(
+			Array.from({ length: 50 }, (_, i) => t.db.prepare('SELECT ?1 AS i').bind(i).first('i'))
+		);
+		expect(values).toEqual(Array.from({ length: 50 }, (_, i) => i));
+		await expect(t.db.prepare('SELECT * FROM no_existe').all()).rejects.toThrow(
+			/no such table: no_existe/
+		);
+		// El canal sigue andando después de un error.
+		expect(await t.db.prepare('SELECT 1 AS uno').first()).toEqual({ uno: 1 });
+	});
+});

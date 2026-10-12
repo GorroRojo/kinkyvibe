@@ -278,10 +278,11 @@ de amigues y lanzamientos grandes.
 - Un solo ingreso con kv-openauth y admins con cuentas del público en lugar de GitHub. L.
 - ¿Sumar kv-fondo a este repo? L. Bloqueo: decisión de gorrite.
 - Push y PWA (#16, #43). M. Bloqueo: decisión de gorrite.
-- Pruebas más rápidas, lo que quedó después del PR «tests-mas-rapidos» (#307, ideas en el PR):
-  cada consulta a la base de prueba son ~5 ms de ida y vuelta a miniflare (2,5 ms sin tocar D1),
-  y `importTags` de la semilla son ~1800 consultas; una base ya migrada copiada por archivo en vez
-  de migrar cada vez; `vitest related` para las sesiones de agentes. S–M cada una.
+- Pruebas más rápidas, lo que quedó después de «tests-mas-rapidos» (#307) y «tests-base-plantilla»
+  (plantilla migrada + canal WebSocket con la base de prueba): `vitest related` para las sesiones
+  de agentes. S. Lo que sigue pesando es la cantidad de consultas: `importTags` de la semilla son
+  ~1800 consultas sueltas (ahora ~2 ms cada una en vez de ~6); agruparlas en `batch` también
+  aceleraría el import de verdad. M.
 
 ### Estándares web y SEO
 
