@@ -45,10 +45,14 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
 4. **Todo se combina con Y**: tienen que cumplirse todas las piezas. No hay O ni paréntesis. Dos
    operadores de tipo distintos (`evento: material:`) suman los tipos (es la única excepción: tipo A
    o tipo B).
-5. **El orden no importa**, salvo `>` (acciones del panel), que solo cuenta al principio.
-6. **Sin nada escrito** (o solo espacios), cada buscador muestra lo suyo de siempre (el sitio, lo
+5. **Las palabras ordenan, los operadores filtran.** Una palabra suelta que nombra un tipo
+   (`evento`, `taller`, `material`, `wiki`…) no es obligatoria: sube lo de ese tipo sin sacar lo
+   demás. Así `evento cuerdas palermo` anda sin saber la sintaxis (primero los eventos de cuerdas en
+   Palermo). Los operadores (`evento:`, `#cuerdas`, `lugar:`) sí sacan lo que no cumple.
+6. **El orden no importa**, salvo `>` (acciones del panel), que solo cuenta al principio.
+7. **Sin nada escrito** (o solo espacios), cada buscador muestra lo suyo de siempre (el sitio, lo
    próximo; el bot, su lista; el panel, Recientes y acciones).
-7. **Largo máximo**: 100 caracteres (`QUERY_MAX` del bot; acordado: lo mismo en los tres); lo que
+8. **Largo máximo**: 100 caracteres (`QUERY_MAX` del bot; acordado: lo mismo en los tres); lo que
    sobra se corta antes de leer.
 
 ### Texto
@@ -59,6 +63,15 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
 | `"frase"`        | Esas palabras juntas y en ese orden.                                                                  | `"reduccion de danos"` | panel             |
 | `-palabra`       | Sin esa palabra. También `-"frase"`, `-#etiqueta`, `-evento:` (sin eventos).                          | `taller -online`       | panel             |
 
+- **Dónde se buscan las palabras** (sitio y bot): el título y sus otros nombres, las etiquetas
+  (con sus otros nombres), les autores, el resumen, **todo el cuerpo**, y en un evento también el
+  nombre, el barrio y la ciudad de su lugar (lo público, nunca la calle). Pesa más el título, después
+  las etiquetas y les autores, después el resto. **Falta hoy**: el índice corta el cuerpo (400
+  caracteres en eventos, 2500 en lo demás, `BODY_MAX`) y no está claro que un evento lleve el nombre
+  de su lugar; lo arregla el PR del sitio (`buscar-sintaxis-sitio`).
+- **`-palabra` y `-#etiqueta` no son lo mismo**: `-online` saca todo lo que diga «online» en
+  cualquier lado (también un texto que diga «esto no es online»); `-#online` saca solo lo que tiene
+  esa etiqueta. Casi siempre se quiere lo segundo.
 - **Tipeo** (sitio y bot): una palabra coincide exacta (1), como prefijo (0,8) o con errores de
   tipeo (0,5; 0,4 si además es prefijo), según `matchQuality()`. El panel compara por `LIKE`
   (contiene), sin errores de tipeo.
@@ -75,6 +88,10 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
 - La etiqueta se busca **con su árbol**: `#cuerdas` trae también lo etiquetado con una etiqueta
   hija (como ya hace el bot con `siteTagManager`).
 - `#` solo, o `#` con una etiqueta que no existe, se busca como texto.
+- **`@` es un perfil del sitio** (amigues, autores), por su nombre visible, su dirección
+  (`/amigues/<nombre>`) o sus otros nombres. **No** es un usuario de Telegram ni de GitHub: eso es
+  privado y no entra en la búsqueda pública. Para no tener que saber cómo se llama exacto,
+  escribir `@` abre el autocompletado (`@gor` → elegís a la persona).
 
 ### Tipo de resultado
 
@@ -88,20 +105,24 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
 
 - Van en cualquier lugar de lo escrito, con o sin espacio después de los dos puntos, en singular o
   plural.
+- **Un operador que solo sirve para un tipo ya implica ese tipo**: `lugar:` y los de fecha acotan a
+  eventos sin escribir `evento:` (`lugar:palermo finde`). Vale también para los que se sumen
+  después (por ejemplo uno de quién organiza: `organiza:@nombre #taller hasta:hoy` serían los
+  talleres pasados de esa persona, sin `evento:`).
 - En el panel, `evento:` además deja poner una palabra de pestaña al final (ver «Solo en el
   panel»).
 
 ### Lugar y fechas (solo eventos)
 
-| Escribís                           | Qué hace                                                            | Ejemplo                           | Hoy   |
-| ---------------------------------- | ------------------------------------------------------------------- | --------------------------------- | ----- |
-| `lugar:`                           | Eventos en ese lugar (el nombre público del lugar).                 | `lugar: palermo`                  | panel |
-| `hoy`, `mañana`, `semana`, `finde` | Eventos en esos días (hora de Argentina). `esta semana` = `semana`. | `finde #cuerdas`                  | panel |
-| `cuando:`                          | Un día de la semana (el próximo) o una fecha `d/m` o `d/m/aaaa`.    | `cuando: sabado`, `cuando: 15/10` | panel |
+| Escribís                            | Qué hace                                                                    | Ejemplo                           | Hoy   |
+| ----------------------------------- | --------------------------------------------------------------------------- | --------------------------------- | ----- |
+| `lugar:`                            | Eventos en ese lugar (el nombre público del lugar).                         | `lugar: palermo`                  | panel |
+| `hoy`, `mañana`, `semana`, `finde`  | Eventos en esos días (hora de Argentina). `esta semana` = `semana`.         | `finde #cuerdas`                  | panel |
+| `cuando:`                           | Un día de la semana (el próximo) o una fecha `d/m` o `d/m/aaaa`.            | `cuando: sabado`, `cuando: 15/10` | panel |
+| un mes, `este mes`, `mes que viene` | Eventos de ese mes (el próximo con ese nombre). También `cuando:noviembre`. | `noviembre #cuerdas`              | —     |
 
-- Un operador de fecha o de lugar **acota a eventos** aunque no se escriba `evento:`.
-- **Regla de respaldo** (sitio y bot): si una palabra de fecha suelta (`finde`) no deja ningún
-  resultado, se busca como texto, para que «finde» encuentre «Finde de cuerdas». Con `cuando:`
+- **Regla de respaldo** (sitio y bot): si una palabra de fecha suelta (`finde`, `noviembre`) no
+  deja ningún resultado, se busca como texto, para que «finde» encuentre «Finde de cuerdas». Con `cuando:`
   nunca se cae a texto. En el panel la fecha manda siempre (como hoy).
 
 ### Solo en el panel
