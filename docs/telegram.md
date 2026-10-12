@@ -659,7 +659,7 @@ falla la base) el bot le contesta **exactamente lo mismo que a un comando o bot�
     cuántas vencen en la próxima hora;
   - transferencias por confirmar y órdenes para revisar;
   - la lista de espera (personas esperando o con oferta), solo si la tabla `waitlist_entries`
-    existe (PR #310); si no, esa línea no sale;
+    existe (migración 0053, la lista de espera) y hay alguien; si no, esa línea no sale;
   - «🔄 Actualizar», «Ver en el panel ↗» (`/admin/eventos/<dirección>`) y «‹ Volver».
 - **Solo cantidades**: las consultas son `SUM`/`COUNT` sobre `orders` (y la lista de espera); nunca
   leen nombres, mails, DNI, titulares, códigos ni tokens (`admin-privacy.test.js` llena la base con

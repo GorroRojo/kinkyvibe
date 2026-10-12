@@ -245,29 +245,41 @@ describe('el estado con la base: solo cantidades', () => {
 		expect(text).toContain('⏳ Reservas sin pagar: 3 · vencen en la próxima hora: 1');
 		expect(text).toContain('💸 Transferencias por confirmar: 1');
 		expect(text).toContain('⚠️ Órdenes para revisar: 1');
-		// Sin la tabla de la lista de espera (PR #310 todavía no está), sin esa línea.
+		// Nadie en la lista de espera de este evento: sin esa línea.
 		expect(text).not.toContain('lista de espera');
 	});
 
-	it('con la lista de espera (si la tabla existe): cuántas personas, nunca sus mails', async () => {
-		await t.db
-			.prepare(
-				'CREATE TABLE IF NOT EXISTS waitlist_entries (id TEXT PRIMARY KEY, event_slug TEXT, email TEXT, status TEXT)'
-			)
-			.run();
-		try {
-			for (const [i, status] of ['waiting', 'waiting', 'offered', 'cancelled'].entries()) {
-				await t.db
-					.prepare('INSERT INTO waitlist_entries VALUES (?1, ?2, ?3, ?4)')
-					.bind(`w${i}`, SLUG, 'espera-secreta@example.com', status)
-					.run();
-			}
-			const r = /** @type {any} */ (await planUpdate(tap(`ae:${shortHash(SLUG)}`), deps()));
-			expect(r.steps[0].text).toContain('📝 En la lista de espera: 3');
-			expect(asText([r])).not.toContain('espera-secreta');
-		} finally {
-			await t.db.prepare('DROP TABLE IF EXISTS waitlist_entries').run();
+	it('con la lista de espera: cuántas personas (esperando o con oferta), nunca sus mails', async () => {
+		const hash = 'f'.repeat(64);
+		/** @type {[string, string, string][]} */
+		const rows = [
+			// [status, columnas extra, valores extra]
+			['waiting', '', ''],
+			['waiting', '', ''],
+			['offered', ', offer_token_hash, offered_at', `, '${hash}', ${NOW}`],
+			['pending_confirmation', '', ''],
+			['cancelled', ', end_reason, ended_at', `, 'admin', ${NOW}`]
+		];
+		for (const [i, [status, cols, vals]] of rows.entries()) {
+			const confirmed = status === 'pending_confirmation' ? 'NULL' : String(NOW);
+			const confirm = status === 'pending_confirmation' ? `'${hash}', ${NOW + 1000}` : 'NULL, NULL';
+			await t.db
+				.prepare(
+					`INSERT INTO waitlist_entries (id, event_slug, email, status, confirm_hash,
+						confirm_expires_at, confirmed_at, created_at, updated_at${cols})
+					VALUES (?1, ?2, ?3, ?4, ${confirm}, ${confirmed}, ${NOW}, ${NOW}${vals})`
+				)
+				.bind(
+					`00000000-0000-4000-8000-00000000000${i}`,
+					SLUG,
+					`espera-secreta${i}@example.com`,
+					status
+				)
+				.run();
 		}
+		const r = /** @type {any} */ (await planUpdate(tap(`ae:${shortHash(SLUG)}`), deps()));
+		expect(r.steps[0].text).toContain('📝 En la lista de espera: 3');
+		expect(asText([r])).not.toContain('espera-secreta');
 	});
 
 	it('vinculade pero fuera de ADMINS: nada (lo mismo que un comando o botón que no existe)', async () => {

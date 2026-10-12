@@ -134,7 +134,7 @@ export function adminEventChoices(events, now) {
 
 /**
  * Cuántas personas hay en la lista de espera del evento (esperando o con una oferta abierta), o
- * `null` si la tabla `waitlist_entries` (lista de espera, PR #310) todavía no existe o no se pudo
+ * `null` si la tabla `waitlist_entries` (lista de espera, migración 0053) todavía no existe o no se pudo
  * leer.
  *
  * @param {D1Database} db
