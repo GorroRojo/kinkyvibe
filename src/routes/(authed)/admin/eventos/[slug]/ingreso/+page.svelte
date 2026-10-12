@@ -31,6 +31,7 @@
 	import Sheet from '$lib/components/admin/door/Sheet.svelte';
 	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
+	import { CHECKIN_LIST_PARAM } from '$lib/utils/doorEvents.js';
 	import { computePrice, defaultFondoOption } from '$lib/utils/tickets.js';
 	import {
 		DOOR_SALE_DEFAULT_METHOD,
@@ -93,6 +94,8 @@
 	$: base = `/admin/eventos/${encodeURIComponent(data.slug)}/ingreso`;
 	$: backHref = eventHref(data.slug);
 	$: ordersHref = eventHref(data.slug, 'ordenes');
+	/** La lista de /admin/checkin, aunque haya un solo evento hoy (si no, volvería acá). */
+	const listHref = `/admin/checkin?${CHECKIN_LIST_PARAM}`;
 
 	// --- Estado ---
 	let counts = data.counts;
@@ -864,6 +867,10 @@
 					<p class="part-of"><strong>{data.part.label}</strong> · ingreso de esta parte</p>
 				{/if}
 				<p>Puerta · {wakeOk ? 'la pantalla no se apaga' : 'la pantalla puede apagarse'}</p>
+				{#if data.autoOpened}
+					<!-- Se abrió sola: era el único evento de hoy. -->
+					<p class="auto">Es el único evento de hoy · <a href={listHref}>Otro evento</a></p>
+				{/if}
 			</div>
 			<button type="button" class="round" on:click={() => (menuOpen = true)} aria-label="Opciones">
 				<Ellipsis size={24} />
@@ -1394,7 +1401,7 @@
 			<a class="link-btn" href="/admin/eventos/{encodeURIComponent(data.slug)}/ordenes/cargar"
 				>Cargar entradas a mano (invitaciones, cortesías)</a
 			>
-			<a class="link-btn" href="/admin/checkin">Elegir otro evento</a>
+			<a class="link-btn" href={listHref}>Elegir otro evento</a>
 		</div>
 	</Sheet>
 
@@ -1480,6 +1487,16 @@
 	.heading p {
 		color: var(--muted);
 		font-size: var(--text-sm);
+	}
+	.heading .auto a {
+		color: var(--text);
+		font-weight: 600;
+		text-decoration: underline;
+		text-underline-offset: 0.15em;
+		white-space: nowrap;
+		/* Área de toque cómoda sin mover la línea. */
+		padding: 0.6rem 0.2rem;
+		margin: -0.6rem -0.2rem;
 	}
 	.round {
 		flex: none;

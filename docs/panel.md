@@ -326,6 +326,15 @@ revisar" del Inicio.
   «Próximamente» ni las secciones de la barra (`canPin`). Recientes no repite las fijadas. En
   **localStorage, por login** (`kv-panel-fijados:<login>`, `src/lib/admin/pinnedPlaces.js`, con
   try/catch). En el celu se ven en el panel «Más» (sin reordenar).
+- **La Puerta entra directo al evento de hoy** (gorrite, Mesa 12/10): si hay **exactamente un**
+  evento hoy que la puerta puede operar (presencial, con entradas, `checkinGroup` → `hoy`, la
+  misma regla de la lista), `/admin/checkin` redirige (303) a su modo puerta,
+  `/admin/eventos/<slug>/ingreso?hoy`. Con ninguno o varios, la lista de siempre. En el modo puerta
+  abierto así, debajo del título, «Es el único evento de hoy · **Otro evento**», que lleva a
+  `/admin/checkin?lista`: con `?lista` la lista se muestra siempre (sin bucles: el modo puerta
+  nunca redirige a la lista). «Elegir otro evento» (en las opciones `…`) también va a `?lista`.
+  La regla es `checkinAutoSlug` / `onlyTodaySlug` (`src/lib/utils/doorEvents.js`), la misma con
+  la que la Mini App de Telegram (decisión 0037) ya deja elegido el único evento de hoy.
 - **Scroll propio**: la barra es `sticky`, del alto de la pantalla y con `overflow-y: auto`, así
   que si no entra scrollea sola y no se mueve con la página.
 
@@ -448,6 +457,14 @@ panel escribiendo su nombre (también «Cargar evento» y las de Ajustes) y encu
 nombre. Es un atajo más, nunca el único camino: todo está también en la barra lateral y sus
 pestañas. Es un `<dialog>` modal (el resto de la página queda inerte, el foco va al campo y vuelve
 al cerrar), con ↑/↓, Enter y Esc.
+
+**Sin nada escrito** (gorrite, Mesa 12/10) lista tus **Fijados** y después tus **Recientes**, con
+los mismos nombres, contexto e íconos que la barra lateral (`placeSections` en
+`paletteActions.js`; las recientes sin la página actual ni las fijadas, como en la barra). Se
+eligen con ↑/↓ y Enter como cualquier resultado, y Alt+F (o el 📌) fija o suelta la elegida. Al
+escribir, busca como siempre; al borrar lo escrito, vuelven. Sin ninguna de las dos, un aviso
+(«Todavía no tenés páginas fijadas ni recientes…»). Al cambiar lo escrito, el elegido vuelve a
+ser el primero.
 
 La paleta (`SearchBox.svelte`) junta **acciones** (en el navegador) y **registros**
 (`GET /admin/buscar`, `src/lib/server/admin/search.js`).
