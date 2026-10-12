@@ -95,6 +95,9 @@
 	$: place = { tags, location, location_name: locationName };
 	$: autoOnline = isOnlineEvent(place, { hasVenue });
 	$: online = isOnlineEvent({ ...place, modalidad: state.modalidad }, { hasVenue });
+	/** Por qué no se puede sacar un tipo que ya vendió (en el botón y a la vista). */
+	const KEEP_TYPE =
+		'Tiene entradas vendidas o reservadas: no se puede sacar; podés cerrarla con el cupo o el cierre propio.';
 	/** @param {string | null} id */
 	const salesFor = (id) => (id && sales ? sales[id] : undefined);
 	/** @param {string | null} id */
@@ -213,11 +216,15 @@
 								class="kv-link remove"
 								on:click={() => removeType(i)}
 								disabled={taken > 0}
-								title={taken > 0 ? 'Ya tiene entradas vendidas o reservadas' : undefined}
+								title={taken > 0 ? KEEP_TYPE : undefined}
+								aria-describedby={taken > 0 ? `${idPrefix}-ticket-keep-${i}` : undefined}
 								><X size={16} aria-hidden="true" /> Sacar</button
 							>
 						</span>
 					</div>
+					{#if taken > 0}
+						<small class="keep" id="{idPrefix}-ticket-keep-{i}">{KEEP_TYPE}</small>
+					{/if}
 					{#if s && (s.sold || s.held)}
 						<p class="sold">
 							Ya vendidas: <strong>{s.sold}</strong>{#if s.held}{' '}· reservadas: {s.held}{/if}
@@ -587,9 +594,18 @@
 			cursor: default;
 		}
 	}
+	/* Área de toque de 44px aunque se vea como un link. */
+	button.remove {
+		min-height: 44px;
+		padding-inline: 0.4em;
+	}
 	button.remove:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
+	}
+	.keep {
+		margin-top: -0.3em;
+		color: var(--2-dark);
 	}
 	.sold {
 		margin: 0;
