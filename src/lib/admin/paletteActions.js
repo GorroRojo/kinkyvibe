@@ -11,6 +11,43 @@ import { buildCommands, fold } from './commands.js';
 import { createItems } from './createMenu.js';
 
 /**
+ * Una fila de Fijados o Recientes en la paleta vacía: `place` dice que el ícono es el de su
+ * página (`placeIcon`, como en la barra lateral).
+ * @typedef {{ key: string, icon: string, title: string, sub: string, href: string, place: true }} PlaceRow
+ */
+
+/**
+ * Lo que muestra «Ir a…» sin nada escrito (gorrite, 12/10): las páginas fijadas y después las
+ * recientes, con los mismos nombres que en la barra lateral (`label` en negrita, `context` abajo).
+ * Las secciones vacías no van; sin ninguna de las dos, `[]` (la paleta muestra un aviso).
+ * `recent` ya viene sin las fijadas ni la página actual (`visibleRecent`).
+ * @param {import('./recentPlaces.js').RecentPlace[]} pinned
+ * @param {import('./recentPlaces.js').RecentPlace[]} recent
+ * @returns {{ id: 'pinned' | 'recent', label: string, rows: PlaceRow[] }[]}
+ */
+export function placeSections(pinned, recent) {
+	/** @param {'pin' | 'recent'} kind @returns {(p: import('./recentPlaces.js').RecentPlace) => PlaceRow} */
+	const row = (kind) => (p) => ({
+		key: `${kind}:${p.href}`,
+		icon: '',
+		title: p.label,
+		sub: p.context ?? '',
+		href: p.href,
+		place: true
+	});
+	const pinnedHrefs = new Set(pinned.map((p) => p.href));
+	const sections = [
+		{ id: /** @type {const} */ ('pinned'), label: 'Fijados', rows: pinned.map(row('pin')) },
+		{
+			id: /** @type {const} */ ('recent'),
+			label: 'Recientes',
+			rows: recent.filter((r) => !pinnedHrefs.has(r.href)).map(row('recent'))
+		}
+	];
+	return sections.filter((s) => s.rows.length);
+}
+
+/**
  * Una acción; `run` dice qué hace la paleta en vez de ir a `href`: la hoja de atajos, la ayuda
  * «Cómo buscar», cambiar el tema u ocultar o mostrar lo que viene.
  * @typedef {Omit<import('./commands.js').Command, 'run'> & { run?: 'help' | 'search-help' | 'theme' | 'hide-soon' }} Command

@@ -4,7 +4,8 @@
 - Estado: Aceptada. Fase 1 con código (#175): `/proximos` y `/evento`, interruptor `telegram_bot`.
   Fase 2 en un PR aparte: vincular la cuenta y avisos de «Lo que sigo» (migración 0033).
   Ampliada por [0034](0034-bot-seguir-y-token.md) (11/10): «Seguir» desde el bot y el webhook
-  con token.
+  con token. «Organizadores (más adelante)» empieza por admins: [0041](0041-telegram-para-admins.md)
+  (12/10).
 
 ## Contexto
 
@@ -130,3 +131,10 @@ Reglas:
   reglas que Mi rincón) con el QR de la puerta como foto. Solo lectura: no escribe nada. Lo
   personal sigue solo en el chat privado vinculado, nunca en grupos. Detalle en
   [`docs/telegram.md`](../telegram.md).
+
+## Cómo va (12/10, admins)
+
+- «Organizadores (más adelante)» empieza por admins (decisión
+  [0041](0041-telegram-para-admins.md)): «📊 Estado» de la venta y «🔔 Mis avisos», con el vínculo
+  de admins de la puerta. Las reglas de acá siguen (privado, permisos en cada mensaje, sin datos de
+  compradores). Detalle en [`docs/telegram.md`](../telegram.md).
