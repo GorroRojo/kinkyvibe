@@ -39,7 +39,13 @@
 	import Partes from '$lib/components/evento/Partes.svelte';
 	import Quienes from '$lib/components/evento/Quienes.svelte';
 	import Serie from '$lib/components/evento/Serie.svelte';
-	import { isPastEvent, mainSeries, nextEdition, splitUpcomingPast } from '$lib/utils/eventPage.js';
+	import {
+		eventPageTitle,
+		isPastEvent,
+		mainSeries,
+		nextEdition,
+		splitUpcomingPast
+	} from '$lib/utils/eventPage.js';
 	import { isWebLink, safeEventLink } from '$lib/utils/eventLink.js';
 	import { hasVisibleHtml } from '$lib/utils/htmlStrip.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
@@ -132,7 +138,7 @@
 	})}
 />
 <svelte:head>
-	<title>{data.meta.title} · Kinky Vibe</title>
+	<title>{eventPageTitle(data.meta, data.series)} · Kinky Vibe</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />

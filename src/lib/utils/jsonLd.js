@@ -277,8 +277,8 @@ export function kinkipediaSchema() {
 }
 
 /**
- * Una entrada de la Kinkipedia (/wiki/<término>) como término definido. Sin entrada (solo la
- * etiqueta), nada: la página no tiene una definición que mostrar.
+ * Una entrada de la Kinkipedia (/wiki/<término>) como término definido. Sin entrada, ver
+ * {@link tagTermSchema}.
  * @param {{ title?: string, summary?: string, path?: string, aka?: unknown }} entry
  * @returns {JsonLd | null}
  */
@@ -294,6 +294,26 @@ export function wikiTermSchema({ title, summary, path, aka }) {
 		// Sin `inLanguage`: DefinedTerm no es un CreativeWork (validator.schema.org lo marca).
 		inDefinedTermSet: kinkipediaRef()
 	});
+}
+
+/**
+ * La página de una etiqueta sin entrada de la Kinkipedia como término definido, si la etiqueta
+ * tiene descripción (la que muestra la página arriba de todo): la descripción, en texto, es la
+ * definición. Los links de la descripción (`[[término]]`, `[[término:texto]]`) quedan como su
+ * texto. Sin descripción, nada (la página es solo una lista).
+ * @param {{ title?: string, description?: unknown, path?: string, aka?: unknown }} tag
+ * @returns {JsonLd | null}
+ */
+export function tagTermSchema({ title, description, path, aka }) {
+	const text =
+		typeof description === 'string'
+			? description
+					.replace(/\[\[([^\]]*)\]\]/g, (_, inner) => inner.slice(inner.indexOf(':') + 1))
+					.replace(/\s+/g, ' ')
+					.trim()
+			: '';
+	if (!text) return null;
+	return wikiTermSchema({ title, summary: text, path, aka });
 }
 
 /** El tipo de schema.org de cada clase de perfil (docs/amigues.md). */
