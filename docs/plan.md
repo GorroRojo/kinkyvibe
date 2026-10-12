@@ -69,7 +69,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `puerta-celus-reales` · fase 0 · espera gorrite · entradas · La puerta con celulares reales (Android y iPhone): escanear, código, buscar, vender en efectivo y transferencia, sin conexión y con dos celus a la vez
 - `qr-mp-puerta` · fase 0 · sigue · entradas · Cobrar con el QR de Mercado Pago en la puerta (gorrite, 11/10) (depende de: puerta-sin-conexion)
 - `boton-comprar-afuera` · fase 0 · sigue · sitio · Cuando las entradas se venden en otro sitio, el botón tiene el mismo peso que «Comprar entradas» (gorrite, 10/10)
-- `tickets-spec-arreglar` · fase 0 · sigue · pruebas · Dos pruebas de `tests/tickets/tickets.spec.js` que no corren en la CI: una espera «1 aprobados» (la prueba está mal) y otra toca antes de que cargue la página. Arreglarlas y sumarlas a la CI
+- `tickets-spec-arreglar` · fase 0 · sigue · pruebas · Dos pruebas de `tests/tickets/tickets.spec.js` que no corren en la CI: arregladas en #325 («1 aprobado» en singular; esperar a que cargue la página). Falta sumarlas a la CI
 - `puerta-sin-conexion` · fase 0 · hecho · entradas · Vender en la puerta sin conexión · #286, [0035](decisiones/0035-vender-en-puerta-sin-conexion.md)
 - `transferencia-dias-habiles` · fase 0 · hecho · entradas · Reserva por transferencia de 2 días hábiles · #261, [0031](decisiones/0031-reserva-transferencia-dias-habiles.md)
 - `aviso-cambio-fecha` · fase 0 · hecho · mails · «Avisar a les compradores» cuando cambia la fecha · #266
@@ -177,7 +177,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 - `tests-auditoria` · fase 0 · sigue · pruebas · Auditoría de pruebas: acelerar primero, borrar solo con el sí de gorrite por cada una
 - `test-importer-flaky` · fase 0 · sigue · pruebas · `etiquetas/importer.test.js` a veces cuenta un error de más con la máquina cargada: prueba frágil o carrera real (depende de: tests-auditoria)
-- `test-estiloguard-lento` · fase 0 · sigue · pruebas · `estiloGuard` tarda ~6 s con la máquina cargada y pasa el límite de 5 s (depende de: tests-auditoria)
+- `test-estiloguard-lento` · fase 0 · hecho · pruebas · `estiloGuard` y `series-crear` pasaban el límite de 5 s con la máquina cargada: la preparación cara va en `beforeAll` · #325
 - `tests-consultas-batch` · fase 0 · sigue · pruebas · `importTags` de la semilla hace ~1800 consultas sueltas: agruparlas en `batch` (también acelera el import de verdad)
 - `ci-duraciones` · fase 0 · sigue · pruebas · Actualizar `scripts/vitest/durations.json` cuando se suman o cambian pruebas lentas, para que las 3 partes sigan parejas
 - `ci-cache-semilla` · fase 0 · espera gorrite · pruebas · Guardar en caché la base ya sembrada de `e2e` (~1 min), con clave por migraciones, semilla e importador
