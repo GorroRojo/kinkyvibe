@@ -4,8 +4,7 @@ import {
 	getSalesSettings,
 	saveSalesSettings,
 	transferInfoFromSettings,
-	validateSalesSettings,
-	waitlistSettingsFrom
+	validateSalesSettings
 } from './settings.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
@@ -112,47 +111,5 @@ describe('ajustes de venta', () => {
 	it('sin nada cargado no hay datos de transferencia (se usa la variable de entorno)', async () => {
 		expect(transferInfoFromSettings(await getSalesSettings(t.db))).toBeNull();
 		expect(transferInfoFromSettings(await getSalesSettings(null))).toBeNull();
-	});
-});
-
-describe('ajustes de la lista de espera (waitlist)', () => {
-	it('vacío: los de por defecto (24 h / 12 h / 2 h, aviso a todes a menos de 6 h, cierre a 30 min)', async () => {
-		const s = await getSalesSettings(t.db);
-		expect(s.waitlist).toBe('');
-		expect(waitlistSettingsFrom(s)).toEqual({
-			mode: 'one',
-			tiers: [
-				{ overHours: 168, holdHours: 24 },
-				{ overHours: 48, holdHours: 12 },
-				{ overHours: 6, holdHours: 2 }
-			],
-			broadcastUnderHours: 6,
-			endBeforeStartMinutes: 30
-		});
-	});
-
-	it('se valida, se guarda y se lee; uno roto no se guarda', async () => {
-		const json = JSON.stringify({ mode: 'all', endBeforeStartMinutes: 60 });
-		const r = /** @type {any} */ (validateSalesSettings({ waitlist: ` ${json} ` }));
-		expect(r).toEqual({ ok: true, value: { waitlist: json } });
-		await saveSalesSettings(t.db, r.value, { by: 'admin', now: 10 });
-		expect(waitlistSettingsFrom(await getSalesSettings(t.db))).toMatchObject({
-			mode: 'all',
-			endBeforeStartMinutes: 60,
-			broadcastUnderHours: 6
-		});
-		const bad = /** @type {any} */ (validateSalesSettings({ waitlist: '{"mode":"todes"}' }));
-		expect(bad.ok).toBe(false);
-		expect(Object.keys(bad.errors)).toEqual(['waitlist']);
-		// Un formulario que no lo trae no lo borra.
-		expect(validateSalesSettings({ transfer_alias: 'OTRO' })).toEqual({
-			ok: true,
-			value: { transfer_alias: 'OTRO' }
-		});
-	});
-
-	it('un valor roto guardado a mano: los de por defecto (nunca frena nada)', () => {
-		const s = /** @type {any} */ ({ waitlist: 'no es json' });
-		expect(waitlistSettingsFrom(s).tiers).toHaveLength(3);
 	});
 });

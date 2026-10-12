@@ -131,6 +131,15 @@
 			<a class="kv-btn" href={eventHref(e.slug, 'editar')}>Ir a Editar</a>
 		</EmptyState>
 	{:else}
+		{#if !data.list}
+			<Notice tone="warn" role={null}>
+				<span
+					>La lista de espera está apagada en este evento: nadie se puede anotar. Abajo queda lo que
+					pasó. Se prende de nuevo en <a href={eventHref(e.slug, 'editar')}>Editar → Entradas</a
+					>.</span
+				>
+			</Notice>
+		{/if}
 		<section class="scopes" aria-label="Cuentas de la lista">
 			{#each data.scopes as s (s.key)}
 				<article class="scope">
@@ -180,12 +189,14 @@
 				action="?/cerrar"
 				use:enhance={confirming({
 					title: '¿Cerrar la lista?',
-					text: 'Quien espera o tiene un lugar ofrecido sale de la lista y le llega «se cerró la lista». Quien compró no cambia. Para que nadie más se anote, después apagala en Editar.',
+					text: 'Se apaga la lista en este evento: nadie más se puede anotar. Quien espera o tiene un lugar ofrecido sale de la lista y le llega «se cerró la lista». Quien compró no cambia. Si después la querés de nuevo, prendela en Editar → Entradas.',
 					confirmLabel: 'Cerrar la lista',
 					tone: 'danger'
 				})}
 			>
-				<button class="kv-btn ghost" type="submit" disabled={!anyLive}>Cerrar la lista</button>
+				<button class="kv-btn ghost" type="submit" disabled={!anyLive && !data.list}
+					>Cerrar la lista</button
+				>
 			</form>
 			<CsvButton href="/admin/eventos/{encodeURIComponent(e.slug)}/lista-espera.csv" />
 		</div>

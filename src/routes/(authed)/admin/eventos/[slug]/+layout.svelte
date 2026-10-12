@@ -150,7 +150,11 @@
 	<Tabs {tabs} current={currentTab} menu />
 
 	{#if here?.view && views.length}
-		<nav class="views kv-segmented" aria-label="Vistas de {here.tab.label}">
+		<nav
+			class="views kv-segmented"
+			class:many={views.length > 2}
+			aria-label="Vistas de {here.tab.label}"
+		>
 			{#each views as v (v.id)}
 				<a href={eventHref(e.slug, v.id)} aria-current={here.view.id === v.id ? 'page' : undefined}
 					>{v.label}{#if viewCounts[v.id]}<span class="count">{viewCounts[v.id]}</span>{/if}</a
@@ -257,6 +261,26 @@
 	/* Vistas de la pestaña (Ventas, Mails): botones debajo de las pestañas. */
 	.views {
 		margin: -0.25rem 0 1rem;
+	}
+	/* En el celu, si las vistas no entran en una fila (Ventas con la lista de espera): una grilla
+	   de dos columnas iguales, con las esquinas de una tarjeta en vez de la píldora; si son impares,
+	   la última ocupa la fila entera. Nunca se desliza de costado. */
+	@media (max-width: 599px) {
+		.views.many {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			width: 100%;
+			box-sizing: border-box;
+			border-radius: var(--radius-m);
+		}
+		.views.many > a {
+			border-radius: calc(var(--radius-m) - 0.15rem);
+			padding-inline: 0.5em;
+			text-align: center;
+		}
+		.views.many > a:last-child:nth-child(odd) {
+			grid-column: 1 / -1;
+		}
 	}
 	.views .count {
 		font-size: var(--text-xs);

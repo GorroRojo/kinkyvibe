@@ -22,10 +22,13 @@ import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { emailHash, normalizeEmail } from '$lib/server/cuentas/accounts.js';
 import { accountMailAllowed } from '$lib/server/cuentas/mailCap.js';
-import { effectiveWaitlistSettings, holdUntil } from '$lib/utils/waitlistHold.js';
+import {
+	WAITLIST_SETTINGS,
+	effectiveWaitlistSettings,
+	holdUntil
+} from '$lib/utils/waitlistHold.js';
 import { salesState, typeAvailability, typeClosesAt, typeOpen } from './config.js';
 import { getTaken } from './orders.js';
-import { getSalesSettings, waitlistSettingsFrom } from './settings.js';
 import { resolveTemplate } from './templates.js';
 import {
 	WAITLIST_CONFIRM_TTL_MS,
@@ -41,10 +44,7 @@ import { checkWaitlistLinkToken, waitlistConfirmUrl, waitlistLeaveUrl } from './
 /** @typedef {import('./config.js').EventTickets} EventTickets */
 /** @typedef {import('./waitlistMail.js').WaitlistSend} WaitlistSend */
 
-/**
- * Límites de anotarse (los topes de los ajustes de la lista son otra cosa: `WAITLIST_LIMITS` de
- * $lib/utils/waitlistHold.js).
- */
+/** Límites de anotarse. */
 export const WAITLIST_SIGNUP_LIMITS = Object.freeze({
 	/** Pedidos desde una misma conexión (para cualquier evento y mail). */
 	client: { limit: 10, windowSeconds: 60 * 60 },
@@ -122,10 +122,7 @@ function listClosed(settings, config, salesClose, now) {
 export async function waitlistJoinStates(db, eventSlug, config, now = Date.now()) {
 	const list = config.waitlist;
 	if (!list) return [];
-	const settings = effectiveWaitlistSettings(
-		waitlistSettingsFrom(await getSalesSettings(db)),
-		list
-	);
+	const settings = effectiveWaitlistSettings(WAITLIST_SETTINGS, list);
 	const sales = salesState(config, now);
 	const typed = config.types.filter((t) => t.capacity !== null && t.capacity !== undefined);
 	/** @param {JoinState} state @returns {ScopeState[]} */

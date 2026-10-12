@@ -1,7 +1,7 @@
 <!--
 	«Lista de espera» del editor de eventos, dentro de «Entradas» (TicketsEditor): sin lista, por
 	evento o por tipo de entrada y «Avisar a todes a la vez desde el principio». Los tiempos de
-	reserva son los de Ajustes → Lista de espera (gorrite, 12/10: no se configuran por evento).
+	reserva son fijos (`WAITLIST_SETTINGS`; gorrite, 12/10: no se configuran ni por evento ni en Ajustes).
 	Escribe la clave `lista_espera` ($lib/utils/ticketsEditor.js). Con gente anotada, el editor no deja
 	apagarla ni cambiar el alcance (lo dicen los errores de la venta).
 
@@ -59,7 +59,10 @@
 			<input type="checkbox" id="{idPrefix}-waitlist-all" bind:checked={allAtOnce} />
 			Avisar a todes a la vez desde el principio (se lo queda quien compre primero)
 		</label>
-		<small>El lugar se guarda el tiempo que dice Ajustes → Lista de espera.</small>
+		<small
+			>El lugar se guarda 24 h, 12 h o 2 h según cuánto falte para el comienzo (con menos de 6 h, se
+			les avisa a todes a la vez).</small
+		>
 	{/if}
 </fieldset>
 

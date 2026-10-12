@@ -1,9 +1,10 @@
 /**
- * Lista de espera de las entradas: cuánto se le guarda el lugar a quien le toca, y cómo se leen
- * los ajustes (globales en Ajustes, `ticket_settings` clave `waitlist`; por evento, la clave
- * `lista_espera` del frontmatter / `extra`). docs/tickets.md, «Lista de espera».
+ * Lista de espera de las entradas: cuánto se le guarda el lugar a quien le toca, y cómo se lee la
+ * lista de cada evento (la clave `lista_espera` del frontmatter / `extra`). docs/tickets.md,
+ * «Lista de espera».
  *
- * La reserva se mide contra el comienzo del evento (con los ajustes por defecto):
+ * Los tiempos son fijos, en el código ({@link WAITLIST_SETTINGS}; gorrite, 12/10: cambiarlos es un
+ * PR). La reserva se mide contra el comienzo del evento:
  *   - faltan 7 días o más → 24 h;
  *   - faltan de 48 h a 7 días → 12 h;
  *   - faltan de 6 h a 48 h → 2 h;
@@ -19,20 +20,6 @@ const MINUTE_MS = 60 * 1000;
 
 /** La clave del frontmatter / `extra` del evento. */
 export const WAITLIST_KEY = 'lista_espera';
-
-/** Topes de los ajustes (para atajar un cero de más). */
-export const WAITLIST_LIMITS = Object.freeze({
-	/** Tramos de reserva. */
-	maxTiers: 6,
-	/** «Faltan N horas o más»: hasta un año. */
-	maxOverHours: 24 * 365,
-	/** Una reserva dura de 1 hora a 7 días. */
-	maxHoldHours: 24 * 7,
-	/** El aviso a todes arranca cuando faltan hasta 7 días. */
-	maxBroadcastUnderHours: 24 * 7,
-	/** La lista cierra hasta 24 h antes del comienzo. */
-	maxEndBeforeStartMinutes: 24 * 60
-});
 
 /**
  * @typedef {{ overHours: number, holdHours: number }} HoldTier
@@ -50,18 +37,22 @@ export const WAITLIST_LIMITS = Object.freeze({
  */
 /**
  * @typedef {{ scope: 'event' | 'type', allAtOnce: boolean }} EventWaitlist
- * La lista de un evento (`config.waitlist`). Los tiempos de reserva son siempre los de Ajustes
- * (gorrite, 12/10: no hace falta configurarlos por evento).
+ * La lista de un evento (`config.waitlist`). Los tiempos de reserva son siempre los del código
+ * (gorrite, 12/10: no se configuran ni por evento ni en el panel).
  */
 /**
  * @typedef {{ kind: 'hold', until: number } | { kind: 'broadcast' } | { kind: 'closed' }} HoldResult
  */
 
 /**
+ * Los tiempos de la lista de espera, fijos (gorrite, 12/10: sin página de Ajustes; un valor que
+ * haya quedado guardado en `ticket_settings` se ignora). De a una persona por vez; 24 h / 12 h /
+ * 2 h según cuánto falte; aviso a todes a menos de 6 h; cierre 30 min antes del comienzo.
+ *
  * @type {Readonly<{ mode: 'one' | 'all', tiers: readonly Readonly<HoldTier>[],
  *   broadcastUnderHours: number, endBeforeStartMinutes: number }>}
  */
-export const DEFAULT_WAITLIST_SETTINGS = Object.freeze({
+export const WAITLIST_SETTINGS = Object.freeze({
 	mode: 'one',
 	tiers: Object.freeze([
 		Object.freeze({ overHours: 168, holdHours: 24 }),
@@ -73,103 +64,6 @@ export const DEFAULT_WAITLIST_SETTINGS = Object.freeze({
 });
 
 /**
- * @param {unknown} v
- * @param {number} min
- * @param {number} max
- */
-function intIn(v, min, max) {
-	const n = typeof v === 'string' && v.trim() ? Number(v) : v;
-	return typeof n === 'number' && Number.isInteger(n) && n >= min && n <= max ? n : null;
-}
-
-/**
- * Lee una lista de tramos. `null` si algo no se entiende (vacía, repetida, fuera de rango).
- * Devuelve los tramos ordenados de mayor a menor `overHours`.
- *
- * @param {unknown} raw
- * @returns {HoldTier[] | null}
- */
-export function parseHoldTiers(raw) {
-	if (!Array.isArray(raw) || raw.length === 0 || raw.length > WAITLIST_LIMITS.maxTiers) return null;
-	/** @type {HoldTier[]} */
-	const out = [];
-	for (const t of raw) {
-		if (!t || typeof t !== 'object') return null;
-		const overHours = intIn(t.overHours, 0, WAITLIST_LIMITS.maxOverHours);
-		const holdHours = intIn(t.holdHours, 1, WAITLIST_LIMITS.maxHoldHours);
-		if (overHours === null || holdHours === null) return null;
-		if (out.some((o) => o.overHours === overHours)) return null;
-		out.push({ overHours, holdHours });
-	}
-	return out.sort((a, b) => b.overHours - a.overHours);
-}
-
-/**
- * Los ajustes globales guardados (JSON en `ticket_settings`, clave `waitlist`). Vacío o algo que
- * no se entiende = los de por defecto (nunca frena nada). Un campo que falta usa el de por
- * defecto; uno que está mal invalida todo (mejor los de siempre que una mezcla rara).
- *
- * @param {unknown} raw string JSON (o el objeto ya leído)
- * @returns {WaitlistSettings}
- */
-export function parseWaitlistSettings(raw) {
-	const parsed = readWaitlistSettings(raw);
-	return parsed ?? cloneDefaults();
-}
-
-function cloneDefaults() {
-	return {
-		...DEFAULT_WAITLIST_SETTINGS,
-		tiers: DEFAULT_WAITLIST_SETTINGS.tiers.map((t) => ({ ...t }))
-	};
-}
-
-/**
- * Como {@link parseWaitlistSettings}, pero `null` si no se entiende (vacío sí vale: defaults).
- *
- * @param {unknown} raw
- * @returns {WaitlistSettings | null}
- */
-function readWaitlistSettings(raw) {
-	if (raw === undefined || raw === null || raw === '') return cloneDefaults();
-	let obj = raw;
-	if (typeof raw === 'string') {
-		try {
-			obj = JSON.parse(raw);
-		} catch {
-			return null;
-		}
-	}
-	if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
-	const o = /** @type {Record<string, unknown>} */ (obj);
-	const d = DEFAULT_WAITLIST_SETTINGS;
-	const mode = o.mode === undefined ? d.mode : o.mode;
-	if (mode !== 'one' && mode !== 'all') return null;
-	const tiers = o.tiers === undefined ? d.tiers.map((t) => ({ ...t })) : parseHoldTiers(o.tiers);
-	const broadcastUnderHours =
-		o.broadcastUnderHours === undefined
-			? d.broadcastUnderHours
-			: intIn(o.broadcastUnderHours, 0, WAITLIST_LIMITS.maxBroadcastUnderHours);
-	const endBeforeStartMinutes =
-		o.endBeforeStartMinutes === undefined
-			? d.endBeforeStartMinutes
-			: intIn(o.endBeforeStartMinutes, 0, WAITLIST_LIMITS.maxEndBeforeStartMinutes);
-	if (!tiers || broadcastUnderHours === null || endBeforeStartMinutes === null) return null;
-	return { mode, tiers, broadcastUnderHours, endBeforeStartMinutes };
-}
-
-/**
- * ¿Qué tiene de malo un ajuste global guardado? `null` si está vacío o bien (para el panel).
- *
- * @param {unknown} raw
- */
-export function waitlistSettingsProblem(raw) {
-	return readWaitlistSettings(raw)
-		? null
-		: 'Los ajustes de la lista de espera no se entienden: revisá los tramos (horas enteras), el aviso a todes y el cierre.';
-}
-
-/**
  * La lista de espera de un evento (`lista_espera` en el frontmatter o en `extra`):
  *
  * - `'evento'` o `'tipo'` (atajo), o
@@ -177,7 +71,7 @@ export function waitlistSettingsProblem(raw) {
  *
  * Sin la clave, `false`, o algo que no se entiende: `null` (sin lista). Una lista rota nunca
  * frena la venta: el evento vende como si no tuviera lista. `reservas` (tiempos propios del
- * evento, de antes del 12/10) se ignora: valen siempre los de Ajustes.
+ * evento, de antes del 12/10) se ignora: valen siempre los del código.
  *
  * @param {unknown} raw
  * @returns {EventWaitlist | null}
@@ -200,8 +94,8 @@ export function parseEventWaitlist(raw) {
 }
 
 /**
- * Los ajustes que valen para un evento: los globales con lo que el evento cambia («todes a la
- * vez»; los tramos de reserva son siempre los globales).
+ * Los ajustes que valen para un evento: los fijos ({@link WAITLIST_SETTINGS}) con lo que el
+ * evento cambia («todes a la vez»; los tramos de reserva son siempre los fijos).
  *
  * @param {WaitlistSettings} global
  * @param {EventWaitlist | null | undefined} event

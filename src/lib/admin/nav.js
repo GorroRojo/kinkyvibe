@@ -95,7 +95,6 @@ import {
 	Landmark,
 	LayoutDashboard,
 	Library,
-	ListOrdered,
 	ListPlus,
 	Mail,
 	MapPin,
@@ -602,19 +601,6 @@ export const NAV = Object.freeze([
 		label: 'Propinas',
 		area: 'ajustes',
 		sub: 'plata',
-		soon: false
-	},
-	{
-		// Lista de espera de las entradas (docs/tickets.md): cuánto se guarda el lugar, el aviso a
-		// todes y el cierre. «Prueba» mientras el interruptor está apagado.
-		id: 'ajustes-lista-espera',
-		href: '/admin/ajustes/lista-espera',
-		icon: ListOrdered,
-		emoji: '🧾',
-		label: 'Lista de espera',
-		area: 'ajustes',
-		sub: 'plata',
-		flag: 'lista_espera',
 		soon: false
 	},
 	{

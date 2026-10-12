@@ -3,7 +3,9 @@
 - Fecha: 2026-10-11
 - Estado: Aceptada (respuestas de gorrite del 11/10: «Sí, todas» a lo propuesto, con un cambio en
   la cuenta por evento). Completa 0006 (entradas): la puerta y la carga a mano siguen sin frenar.
-  Dos puntos quedan **a confirmar por gorrite** (abajo).
+  El 12/10 gorrite decidió que «Cerrar la lista» también la apaga y que no hay página de Ajustes
+  (los tiempos son fijos). Queda **a confirmar por gorrite** si «Terminar la reserva» manda un
+  mail (abajo).
 
 ## Contexto
 
@@ -35,11 +37,11 @@ aparte: guarda lugares en la misma cuenta del cupo y la avanza un cron.
   días o más, 12 h si faltan 48 h o más y 2 h si faltan 6 h o más. Con menos de 6 h (o con «avisar
   a todes a la vez» en el evento) se le avisa a toda la fila a la vez, sin lugar guardado: se lo
   queda quien compre primero. La lista cierra 30 minutos antes del comienzo (o al cerrar la venta,
-  si es antes) y ninguna reserva pasa de ahí. Todo se cambia en Ajustes → Lista de espera.
-- **Los tiempos de reserva no se eligen por evento** (gorrite, 12/10: «no hace falta que se pueda
-  configurar los tiempos de reserva»). El editor del evento solo tiene el alcance y «avisar a todes
-  a la vez»; unos `reservas` guardados antes en un evento se ignoran. Si la página Ajustes → Lista
-  de espera también se saca, está por verse (gorrite).
+  si es antes) y ninguna reserva pasa de ahí.
+- **Los tiempos son fijos, en el código** (`WAITLIST_SETTINGS`; gorrite, 12/10: «no hace falta que
+  se pueda configurar los tiempos de reserva», y después, sin página de Ajustes: cambiarlos es un
+  PR). El editor del evento solo tiene el alcance y «avisar a todes a la vez»; unos `reservas`
+  guardados antes en un evento, o una clave `waitlist` en `ticket_settings`, se ignoran.
 - **Una reserva vencida deja de guardar en el acto** (sin esperar al cron), como las órdenes.
 - **Si se le vence la reserva, sale de la lista**, con «Volver a anotarme» en el mail (al final de
   la fila, sin confirmar otra vez).
@@ -52,6 +54,10 @@ aparte: guarda lugares en la misma cuenta del cupo y la avanza un cron.
   solo su SHA-256. Quien compra con el link puede poner otro mail (comprar para otra persona).
 - **La puerta y la carga a mano no miran la lista** (como siempre: les organizadores tienen el
   control). Solo avisan: «Hay N personas en la lista de espera… Podés vender igual».
+- **«Cerrar la lista» termina las anotaciones y apaga la lista en el evento** (gorrite, 12/10), en
+  una sola acción: primero saca `lista_espera` del archivo (si no puede, no cierra nada), después
+  quien espera o tiene un lugar ofrecido termina con el mail «se cerró la lista». Para volver a
+  usarla, se prende en Editar.
 - **El panel:** Ventas › Lista de espera, en la ficha del evento (cuentas, la fila, CSV), con
   «Terminar la reserva y pasar a la siguiente», «Sacar de la lista», «Ofrecer ahora» y «Cerrar la
   lista»; cada una pide confirmar y queda en Actividad sin el mail. Los mails que no salieron son
@@ -65,8 +71,6 @@ aparte: guarda lugares en la misma cuenta del cupo y la avanza un cron.
 
 - **«Terminar la reserva y pasar a la siguiente» no le manda un mail** a esa persona: su link deja
   de servir sin aviso. ¿Hace falta un mail («Terminamos tu reserva»)?
-- **«Cerrar la lista» termina las anotaciones de ahora pero no apaga la lista:** la gente se puede
-  seguir anotando hasta que alguien la apaga en Editar. ¿Cerrar también tendría que apagarla?
 
 ## Descartado
 

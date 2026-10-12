@@ -227,7 +227,6 @@ describe('NAV', () => {
 			'ajustes-cobros',
 			'ajustes-fondo',
 			'propinas',
-			'ajustes-lista-espera',
 			'ajustes-vistas-previas',
 			'ajustes-textos-bot',
 			'ajustes-admins',
@@ -398,7 +397,6 @@ describe('sectionTabs (pestañas de sección, como Ajustes)', () => {
 			'Cobros',
 			'Fondo',
 			'Propinas',
-			'Lista de espera',
 			'Vistas previas al compartir',
 			'Textos del bot',
 			'Admins',
@@ -556,8 +554,7 @@ describe('navLink y navState', () => {
 		}
 	});
 	it('navFlagKeys: los interruptores que usa el menú, sin repetir', () => {
-		// Ajustes → Lista de espera está «en prueba» mientras su interruptor está apagado.
-		expect(navFlagKeys().sort()).toEqual(['lista_espera']);
+		expect(navFlagKeys().sort()).toEqual([]);
 	});
 	it('areaCount suma los contadores de las secciones del área', () => {
 		expect(areaCount('ventas', { transfers: 3 })).toBe(3);

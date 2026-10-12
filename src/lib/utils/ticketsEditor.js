@@ -1047,6 +1047,24 @@ export function applyTicketsToMarkdown(raw, form, initial, opts) {
 }
 
 /**
+ * El archivo completo sin la lista de espera (la clave `lista_espera`): lo que escribe «Cerrar la
+ * lista» del panel para apagarla en ese evento (gorrite, 12/10). Lo demás queda tal cual (con sus
+ * comentarios y el fin de línea del archivo). `null` si el archivo no tenía la clave.
+ *
+ * @param {string} raw
+ * @returns {string | null}
+ */
+export function markdownWithoutWaitlist(raw) {
+	const { frontmatter, body } = splitMarkdown(raw);
+	const doc = parseDocument(frontmatter);
+	if (doc.errors.length) throw new Error(doc.errors[0].message);
+	if (!doc.has(WAITLIST_KEY)) return null;
+	doc.delete(WAITLIST_KEY);
+	const out = joinMarkdown(serializeFrontmatter(doc), body);
+	return /\r\n/.test(raw) ? out.replace(/\n/g, '\r\n') : out;
+}
+
+/**
  * Resumen corto para la revisión: "General $ 10.000 (40) · A la gorra (sugerido $ 5.000, 100)".
  * @param {TicketsForm} form
  * @param {(n: number) => string} formatARS

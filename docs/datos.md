@@ -83,9 +83,10 @@ tokens (confirmar y oferta) se guardan solo como SHA-256; `client_hash` como en 
 `expired`, `closed`) y ronda, con los estados de los envíos en tandas (`sending`, `sent`, `retry`,
 `failed`). Mismo trato que `orders`: sin purga, solo admins, nunca el mail en `admin_audit`; las
 anotaciones sin confirmar se borran a las 48 h. Borrar una anotación borra sus `waitlist_sends`.
-Los ajustes no tienen tabla: los globales en `ticket_settings` (`waitlist`, JSON) junto con las
-claves de los links (`waitlist_leave_key`, `waitlist_offer_key`, se crean solas), y los de cada
-evento en su `lista_espera`. Detalle en [tickets.md](tickets.md), «Lista de espera».
+Los tiempos (tramos de reserva, aviso a todes, cierre) son fijos, en el código
+(`WAITLIST_SETTINGS`); una clave `waitlist` que haya quedado en `ticket_settings` no se lee. Ahí sí
+van las claves de los links (`waitlist_leave_key`, `waitlist_offer_key`, se crean solas). Lo de
+cada evento va en su `lista_espera`. Detalle en [tickets.md](tickets.md), «Lista de espera».
 
 `demo_files` (solo en la base de los previews, nunca fue una migración) era la capa de "commits"
 del modo demo: desde la decisión 0032 nadie la usa; se puede borrar a mano en el preview.

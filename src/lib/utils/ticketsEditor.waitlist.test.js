@@ -2,7 +2,7 @@
  * «Lista de espera» en la sección Entradas del editor de eventos: se lee de `lista_espera`, se
  * escribe solo si cambió (una que no se entiende queda como está) y, con gente anotada, no deja
  * apagarla, cambiar el alcance ni sacar el tipo (o su cupo) de una lista por tipo. Los tiempos de
- * reserva no se eligen por evento (gorrite, 12/10): solo el formulario de Ajustes. Datos
+ * reserva no se eligen por evento ni en el panel (gorrite, 12/10: son fijos, en el código). Datos
  * inventados.
  */
 import { describe, expect, it } from 'vitest';
@@ -13,16 +13,11 @@ import { formatARS } from './money.js';
 import {
 	applyTicketsForm,
 	describeTicketsForm,
+	markdownWithoutWaitlist,
 	readTicketsForm,
 	validateTicketsForm,
 	waitlistLiveErrors
 } from './ticketsEditor.js';
-import {
-	describeTier,
-	rowsFromTiers,
-	tiersFromRows,
-	waitlistSettingsFromForm
-} from './waitlistSettingsForm.js';
 
 const FM = `title: Encuentro inventado
 start: 2031-05-10T20:00-03:00
@@ -169,59 +164,21 @@ describe('con gente anotada, el editor no cambia el alcance', () => {
 	});
 });
 
-describe('los formularios de los tiempos', () => {
-	it('tramos de las filas: ignora las vacías, ordena y rechaza lo raro', () => {
-		expect(
-			tiersFromRows([
-				{ over: '6', hold: '2' },
-				{ over: '', hold: '' },
-				{ over: '168', hold: '24' }
-			])
-		).toEqual({
-			ok: true,
-			tiers: [
-				{ overHours: 168, holdHours: 24 },
-				{ overHours: 6, holdHours: 2 }
-			]
-		});
-		expect(tiersFromRows([{ over: '', hold: '' }]).ok).toBe(false);
-		expect(tiersFromRows([{ over: '6', hold: '1.5' }]).ok).toBe(false);
-		expect(tiersFromRows([{ over: '6', hold: '200' }]).ok).toBe(false);
-		expect(
-			tiersFromRows([
-				{ over: '6', hold: '2' },
-				{ over: '6', hold: '3' }
-			]).ok
-		).toBe(false);
-		expect(rowsFromTiers([{ overHours: 24, holdHours: 3 }])).toEqual([
-			{ over: '24', hold: '3' },
-			{ over: '', hold: '' }
-		]);
-		expect(describeTier({ overHours: 168, holdHours: 24 })).toBe(
-			'Si faltan 7 días o más: se guarda 24 h'
+describe('«Cerrar la lista» la apaga: markdownWithoutWaitlist', () => {
+	it('saca solo `lista_espera` (con sus comentarios, el resto y el texto igual)', () => {
+		const raw = `---\ntitle: Encuentro inventado # no tocar\nlista_espera:\n  alcance: tipo\n  todes_a_la_vez: true\ntickets:\n  - id: general\n    price: 10000\n---\nTexto del evento.\n`;
+		expect(markdownWithoutWaitlist(raw)).toBe(
+			`---\ntitle: Encuentro inventado # no tocar\ntickets:\n  - id: general\n    price: 10000\n---\nTexto del evento.\n`
+		);
+		expect(markdownWithoutWaitlist(`---\ntitle: X\nlista_espera: evento\n---\n`)).toBe(
+			`---\ntitle: X\n---\n`
 		);
 	});
 
-	it('Ajustes: el JSON, vacío si son los de por defecto', () => {
-		const base = {
-			mode: 'one',
-			broadcast_under: '6',
-			end_before: '30',
-			tier_over_0: '168',
-			tier_hold_0: '24',
-			tier_over_1: '48',
-			tier_hold_1: '12',
-			tier_over_2: '6',
-			tier_hold_2: '2'
-		};
-		expect(waitlistSettingsFromForm(base)).toEqual({ ok: true, json: '' });
-		expect(waitlistSettingsFromForm({ ...base, defaults: '1', mode: 'all' })).toEqual({
-			ok: true,
-			json: ''
-		});
-		const r = waitlistSettingsFromForm({ ...base, end_before: '60' });
-		expect(r.ok && JSON.parse(r.json).endBeforeStartMinutes).toBe(60);
-		expect(waitlistSettingsFromForm({ ...base, broadcast_under: '-1' }).ok).toBe(false);
-		expect(waitlistSettingsFromForm({ ...base, end_before: '9999' }).ok).toBe(false);
+	it('mantiene el fin de línea del archivo y da null si no tenía lista', () => {
+		expect(
+			markdownWithoutWaitlist('---\r\ntitle: X\r\nlista_espera: tipo\r\n---\r\nHola\r\n')
+		).toBe('---\r\ntitle: X\r\n---\r\nHola\r\n');
+		expect(markdownWithoutWaitlist('---\ntitle: X\n---\nHola\n')).toBeNull();
 	});
 });

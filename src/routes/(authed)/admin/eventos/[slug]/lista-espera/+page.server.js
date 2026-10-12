@@ -9,7 +9,8 @@
  *   lugar ofrecido, la lista avanza;
  * - «Ofrecer ahora» (`ofrecer`): una pasada del motor ya, sin esperar al cron ni al límite de un
  *   empujón por minuto;
- * - «Cerrar la lista» (`cerrar`): nadie más espera (a quien esperaba le llega «se cerró»);
+ * - «Cerrar la lista» (`cerrar`): la apaga en el evento (saca `lista_espera` del archivo, así
+ *   nadie más se anota) y nadie más espera (a quien esperaba le llega «se cerró»); gorrite, 12/10;
  * - «Volver a probar los mails» (`reintentar`): los mails que no salieron vuelven a la tanda.
  *
  * Todo queda en el registro de actividad, sin mails (solo el id de la anotación y cuentas). Solo
@@ -33,6 +34,7 @@ import {
 	waitlistPanel
 } from '$lib/server/tickets/waitlistAdmin.js';
 import { advanceWaitlist, sendWaitlistMails } from '$lib/server/tickets/waitlistEngine.js';
+import { turnOffEventWaitlist } from '$lib/server/tickets/waitlistOff.js';
 import { waitlistSender } from '$lib/server/tickets/waitlistMail.js';
 
 /** @typedef {import('./$types').RequestEvent} RequestEvent */
@@ -68,7 +70,9 @@ export async function load({ locals, url, params, platform, setHeaders }) {
 	// Alcances con anotaciones que ya no están en la lista (se cambió a mano): también se muestran.
 	const extra = Object.keys(panel?.scopes ?? {})
 		.filter((k) => !scopeList.some((s) => s.key === k))
-		.map((k) => ({ key: k, name: k ? (names[k] ?? k) : 'Todo el evento', orphan: true }));
+		// Con la lista apagada (por ejemplo, después de «Cerrar la lista») no hay con qué comparar:
+		// es lo que quedó, sin la marca «ya no está en la lista».
+		.map((k) => ({ key: k, name: k ? (names[k] ?? k) : 'Todo el evento', orphan: Boolean(list) }));
 	return {
 		enabled,
 		dbAvailable: Boolean(db && panel),
@@ -228,13 +232,28 @@ export const actions = {
 		const { admin, db } = await actionContext(event);
 		if (!db)
 			return fail(503, { action: { ok: false, message: 'No hay base de datos disponible.' } });
+		// Primero se apaga (que nadie más se anote); si no se puede, no se cierra nada.
+		const off = await turnOffEventWaitlist(event.params.slug, {
+			token: event.locals.user_token ?? '',
+			actor: admin.login,
+			userName: admin.name || admin.login
+		});
+		if (!off.ok) {
+			return fail(502, {
+				action: {
+					ok: false,
+					message:
+						'No se pudo apagar la lista en el evento, así que no cerramos nada. Recargá la página y probá de nuevo.'
+				}
+			});
+		}
 		const r = await closeWaitlist(db, event.params.slug, { by: admin.login });
 		await logAdminAction(db, event.locals, {
 			action: 'waitlist.close',
 			targetType: 'event',
 			targetId: event.params.slug,
-			summary: `Cerró la lista de espera de ${event.params.slug}`,
-			detail: r
+			summary: `Cerró y apagó la lista de espera de ${event.params.slug}`,
+			detail: { ...r, turnedOff: off.changed }
 		});
 		// El mail «se cerró la lista» a quien esperaba (solo con el interruptor prendido).
 		if (r.closed && (await isFlagOn(db, 'lista_espera'))) await sendMailsNow(event, db);
@@ -244,8 +263,8 @@ export const actions = {
 				ok: true,
 				message:
 					people === 0
-						? 'La lista ya estaba vacía.'
-						: `Listo: se cerró la lista (${people === 1 ? '1 persona' : `${people} personas`}). Para que nadie más se anote, apagala en Editar.`
+						? 'Listo: la lista quedó apagada (no había nadie anotade).'
+						: `Listo: cerramos y apagamos la lista (${people === 1 ? '1 persona salió' : `${people} personas salieron`}). Nadie más se puede anotar.`
 			}
 		};
 	},

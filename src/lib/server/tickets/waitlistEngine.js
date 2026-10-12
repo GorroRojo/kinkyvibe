@@ -28,7 +28,11 @@ import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { isFlagOn } from '$lib/server/flags.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { signLink } from '$lib/server/signedLinks.js';
-import { effectiveWaitlistSettings, holdUntil } from '$lib/utils/waitlistHold.js';
+import {
+	WAITLIST_SETTINGS,
+	effectiveWaitlistSettings,
+	holdUntil
+} from '$lib/utils/waitlistHold.js';
 import { mailBatchSize } from './batchSize.js';
 import { salesState, typeAvailability, typeClosesAt } from './config.js';
 import { HOLDING } from './discounts.js';
@@ -36,7 +40,7 @@ import { getEventTickets } from './events.js';
 import { contactEmail } from './index.js';
 import { getTaken } from './orders.js';
 import { expireStaleClaims, sendBatch, STALE_CLAIM_MS } from './sendState.js';
-import { getSalesSettings, waitlistSettingsFrom } from './settings.js';
+import { getSalesSettings } from './settings.js';
 import { resolveTemplate } from './templates.js';
 import {
 	buildWaitlistClosedEmail,
@@ -189,10 +193,7 @@ export async function advanceWaitlist(db, input) {
 		return out;
 	}
 
-	const settings = effectiveWaitlistSettings(
-		waitlistSettingsFrom(await getSalesSettings(db)),
-		list
-	);
+	const settings = effectiveWaitlistSettings(WAITLIST_SETTINGS, list);
 	const sales = salesState(config, now);
 	const scopes =
 		list.scope === 'event'

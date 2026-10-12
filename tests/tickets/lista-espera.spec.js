@@ -384,7 +384,8 @@ test('sacar de la lista, la nota en la puerta y cerrar la lista', async ({ page,
 	await expect(row(page, stays)).toContainText('1.º en la fila');
 	expect(entryOf(slug, leaves).status).toBe('cancelled');
 
-	// Cerrar la lista: quien esperaba termina («se cerró la lista»).
+	// Cerrar la lista: quien esperaba termina («se cerró la lista») y la lista se apaga en el
+	// evento (gorrite, 12/10): nadie más se puede anotar.
 	await confirmAction(
 		page,
 		page.getByRole('button', { name: 'Cerrar la lista' }),
@@ -392,15 +393,16 @@ test('sacar de la lista, la nota en la puerta y cerrar la lista', async ({ page,
 		'Cerrar la lista'
 	);
 	await expect(page.locator('p.kv-flash[role="status"]')).toContainText(
-		'Listo: se cerró la lista (1 persona).'
+		'Listo: cerramos y apagamos la lista (1 persona salió). Nadie más se puede anotar.'
 	);
 	await expect(row(page, stays)).toContainText('se cerró la lista');
 	expect(entryOf(slug, stays).status).toBe('expired');
 	await expect(page.locator('.scope .big')).toContainText('0 personas esperando');
+	await expect(page.getByText('La lista de espera está apagada en este evento')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Cerrar la lista' })).toBeDisabled();
 
-	// Cerrar no apaga la lista (eso se hace en Editar): todavía se puede anotar gente nueva.
+	// La página del evento ya no ofrece anotarse (agotado, sin lista).
 	await pub.goto(`/calendario/${slug}/entradas`, { waitUntil: 'networkidle' });
-	await expect(pub.locator('#lista-espera')).toContainText('Están agotadas');
+	await expect(pub.locator('#lista-espera')).toHaveCount(0);
 	await visitor.close();
 });

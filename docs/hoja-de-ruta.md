@@ -38,8 +38,9 @@ BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
 
 Lista de espera ([0040](decisiones/0040-lista-de-espera.md)): todas las partes ya están juntas y
 probadas en la rama `claude/lista-espera`, que entra a `main` como un solo PR (borrador). Su vista
-quedó dentro de Ventas, como Órdenes y Transferencias (#303). Antes del merge, gorrite aplica la
-migración 0053 en preview y producción (0028). Bloqueo: gorrite.
+quedó dentro de Ventas, como Órdenes y Transferencias (#303); «Cerrar la lista» también la apaga y
+no hay página de Ajustes (gorrite, 12/10). Antes del merge, gorrite aplica la migración 0053 en
+preview y producción (0028). Bloqueo: gorrite.
 
 PRs viejos para decidir: #43 (notificaciones push, de boniSantana) y #25 (negociación interactiva
 para bottoms). #46 (tiempo de lectura, de JorgeT10) lo reemplaza #274.
@@ -182,9 +183,8 @@ de amigues y lanzamientos grandes.
 - Lista de espera, después del merge: prender el interruptor `lista_espera` y probarla en un
   evento piloto (anotarse, un reembolso, la oferta y la compra con el link, con mails de verdad).
   S. Bloqueo: gorrite.
-- Lista de espera, dos puntos a confirmar ([0040](decisiones/0040-lista-de-espera.md)): si
-  «Terminar la reserva y pasar a la siguiente» le manda un mail a esa persona, y si «Cerrar la
-  lista» también la apaga (hoy hay que apagarla en Editar). S cada uno. Bloqueo: gorrite.
+- Lista de espera, a confirmar ([0040](decisiones/0040-lista-de-espera.md)): si «Terminar la
+  reserva y pasar a la siguiente» le manda un mail a esa persona. S. Bloqueo: gorrite.
 - Promociones de varios eventos: por ejemplo, dos eventos a un precio especial si se compran
   juntos (gorrite, 10/10). M–L. Bloqueo: diseño (cómo se arma la promo en el panel, cómo se ve al
   comprar, cómo se reparte el Fondo y los reembolsos).

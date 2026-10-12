@@ -1,20 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
-	DEFAULT_WAITLIST_SETTINGS,
+	WAITLIST_SETTINGS,
 	effectiveWaitlistSettings,
 	holdUntil,
 	parseEventWaitlist,
-	parseHoldTiers,
-	parseWaitlistSettings,
 	tierHoldHours,
-	waitlistCutoff,
-	waitlistSettingsProblem
+	waitlistCutoff
 } from './waitlistHold.js';
 
 const H = 60 * 60 * 1000;
 const MIN = 60 * 1000;
 const START = Date.parse('2026-11-14T21:00:00-03:00');
-const settings = parseWaitlistSettings('');
+const settings = effectiveWaitlistSettings(WAITLIST_SETTINGS, null);
 
 /** @param {number} untilStart ms antes del comienzo */
 const at = (untilStart) => START - untilStart;
@@ -121,14 +118,14 @@ describe('holdUntil: ajustes del evento', () => {
 		expect(holdUntil({ now: at(10 * MIN), start: START, settings: s })).toEqual({ kind: 'closed' });
 	});
 
-	it('el modo global «all» también', () => {
-		const s = parseWaitlistSettings({ mode: 'all' });
+	it('con `mode: all` en los ajustes que recibe, también', () => {
+		const s = { ...settings, mode: /** @type {const} */ ('all') };
 		expect(holdUntil({ now: at(30 * 24 * H), start: START, settings: s })).toEqual({
 			kind: 'broadcast'
 		});
 	});
 
-	it('los tramos son siempre los de Ajustes (gorrite, 12/10: no se eligen por evento)', () => {
+	it('los tramos son siempre los fijos (gorrite, 12/10: no se eligen por evento)', () => {
 		// Un evento con `tiers` de antes (a mano): se ignoran.
 		const s = effectiveWaitlistSettings(
 			settings,
@@ -144,13 +141,13 @@ describe('holdUntil: ajustes del evento', () => {
 			kind: 'hold',
 			until: at(10 * 24 * H) + 24 * H
 		});
-		// Sin lista del evento, los globales; no toca los de Ajustes.
+		// Sin lista del evento, los fijos; no toca la constante.
 		expect(effectiveWaitlistSettings(settings, null).tiers).toEqual(settings.tiers);
-		expect(DEFAULT_WAITLIST_SETTINGS.tiers[0]).toEqual({ overHours: 168, holdHours: 24 });
+		expect(WAITLIST_SETTINGS.tiers[0]).toEqual({ overHours: 168, holdHours: 24 });
 	});
 
-	it('cierre y aviso a todes configurables', () => {
-		const s = parseWaitlistSettings({ broadcastUnderHours: 0, endBeforeStartMinutes: 0 });
+	it('holdUntil con otros tiempos (son un parámetro): sin aviso a todes ni margen de cierre', () => {
+		const s = { ...settings, broadcastUnderHours: 0, endBeforeStartMinutes: 0 };
 		// Sin aviso a todes: hasta el comienzo con reserva (cortada en el comienzo).
 		expect(holdUntil({ now: at(H), start: START, settings: s })).toEqual({
 			kind: 'hold',
@@ -177,8 +174,8 @@ describe('holdUntil: propiedades', () => {
 				overHours: k * 24 + Math.floor(rand() * 24),
 				holdHours: 1 + Math.floor(rand() * 48)
 			}));
-			const parsedTiers = parseHoldTiers(tiers);
-			if (!parsedTiers) continue;
+			// Sin repetidos (cada tramo arranca en otro día) y de mayor a menor, como los fijos.
+			const parsedTiers = tiers.sort((a, b) => b.overHours - a.overHours);
 			const s = {
 				mode: /** @type {'one'} */ ('one'),
 				tiers: parsedTiers,
@@ -219,9 +216,9 @@ describe('holdUntil: propiedades', () => {
 	});
 });
 
-describe('ajustes globales (ticket_settings.waitlist)', () => {
-	it('vacío o roto: los de por defecto', () => {
-		const d = {
+describe('los tiempos fijos (WAITLIST_SETTINGS)', () => {
+	it('son los de la decisión 0040 y no se pueden cambiar en tiempo de ejecución', () => {
+		expect(WAITLIST_SETTINGS).toEqual({
 			mode: 'one',
 			tiers: [
 				{ overHours: 168, holdHours: 24 },
@@ -230,58 +227,9 @@ describe('ajustes globales (ticket_settings.waitlist)', () => {
 			],
 			broadcastUnderHours: 6,
 			endBeforeStartMinutes: 30
-		};
-		for (const raw of ['', null, undefined, '{', '[]', '"x"', '{"mode":"otro"}', '{"tiers":[]}'])
-			expect(parseWaitlistSettings(raw)).toEqual(d);
-		// Un campo mal invalida todo (no se mezcla).
-		expect(parseWaitlistSettings('{"mode":"all","endBeforeStartMinutes":-1}')).toEqual(d);
-	});
-
-	it('lee lo guardado y completa lo que falta', () => {
-		expect(
-			parseWaitlistSettings(
-				JSON.stringify({ tiers: [{ overHours: 24, holdHours: 3 }], endBeforeStartMinutes: 60 })
-			)
-		).toEqual({
-			mode: 'one',
-			tiers: [{ overHours: 24, holdHours: 3 }],
-			broadcastUnderHours: 6,
-			endBeforeStartMinutes: 60
 		});
-	});
-
-	it('waitlistSettingsProblem', () => {
-		expect(waitlistSettingsProblem('')).toBeNull();
-		expect(waitlistSettingsProblem('{"mode":"all"}')).toBeNull();
-		expect(waitlistSettingsProblem('{"mode":"todes"}')).toMatch(/no se entienden/);
-		expect(waitlistSettingsProblem('nope')).toMatch(/no se entienden/);
-	});
-
-	it('tramos: ordenados, sin repetidos, enteros y en rango', () => {
-		expect(
-			parseHoldTiers([
-				{ overHours: 6, holdHours: 2 },
-				{ overHours: '48', holdHours: 12 }
-			])
-		).toEqual([
-			{ overHours: 48, holdHours: 12 },
-			{ overHours: 6, holdHours: 2 }
-		]);
-		for (const bad of [
-			[],
-			[{ overHours: 6, holdHours: 0 }],
-			[{ overHours: 6, holdHours: 1.5 }],
-			[{ overHours: -1, holdHours: 2 }],
-			[{ overHours: 6, holdHours: 24 * 8 }],
-			[
-				{ overHours: 6, holdHours: 2 },
-				{ overHours: 6, holdHours: 3 }
-			],
-			Array.from({ length: 7 }, (_, i) => ({ overHours: i, holdHours: 1 })),
-			[null],
-			'6:2'
-		])
-			expect(parseHoldTiers(bad), JSON.stringify(bad)).toBeNull();
+		expect(Object.isFrozen(WAITLIST_SETTINGS)).toBe(true);
+		expect(Object.isFrozen(WAITLIST_SETTINGS.tiers)).toBe(true);
 	});
 });
 

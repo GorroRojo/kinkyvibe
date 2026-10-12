@@ -255,8 +255,9 @@ la decisión [0040](decisiones/0040-lista-de-espera.md).
   `{ alcance: evento | tipo, todes_a_la_vez: true }`. Queda en `config.waitlist`
   (`parseTicketConfig`); lo que no se entiende cuenta como sin lista y nunca frena la venta (como
   `meta_venta`). Los tiempos de reserva no se eligen por evento (gorrite, 12/10): unos `reservas`
-  de antes se ignoran y valen los de Ajustes.
-- Ajustes globales en `ticket_settings`, clave `waitlist` (JSON). Vacío = de a una persona por vez;
+  de antes se ignoran.
+- Tiempos fijos en el código (`WAITLIST_SETTINGS`; gorrite, 12/10: sin página de Ajustes, cambiarlos
+  es un PR; una clave `waitlist` vieja en `ticket_settings` no se lee). De a una persona por vez;
   la reserva dura 24 h si faltan 7 días o más para el comienzo, 12 h si faltan 48 h o más, 2 h si
   faltan 6 h o más; con menos de 6 h se le avisa a toda la lista a la vez (sin lugar guardado). La
   lista cierra en `min(comienzo − 30 min, cierre de la venta)` y ninguna reserva pasa de ahí. Reglas
@@ -387,10 +388,6 @@ confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas 
   «cerrá la lista primero». Lo controla con las anotaciones de la base (`waitlistLiveErrors`,
   también al guardar en el servidor), no con el archivo de antes. Avisa si el interruptor está
   apagado. Duplicar un evento copia la clave (y el importador la lee, `TICKET_META_KEYS`).
-- **Ajustes → Lista de espera** (`/admin/ajustes/lista-espera`, «prueba» mientras el interruptor
-  está apagado): de a une o todes a la vez, los tramos de reserva, desde cuántas horas se avisa a
-  todes y cuántos minutos antes cierra. Se guarda en `ticket_settings.waitlist`; igual a los de por
-  defecto, vacío. Formulario puro en `src/lib/utils/waitlistSettingsForm.js`.
 - **Ventas › Lista de espera, en la ficha** (`/admin/eventos/<slug>/lista-espera`; se ve con el
   interruptor prendido, o si el evento tiene lista o gente anotada; el contador son las anotaciones
   vivas, y el Resumen muestra «Lista de espera: N»): cuentas por alcance (esperando, con lugar
@@ -400,8 +397,9 @@ confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas 
   cuentas): «Terminar la reserva y pasar a la siguiente» (`expired` / `admin`, sin mail, y la lista
   avanza ya), «Sacar de la lista» (si tenía oferta, avanza), «Ofrecer ahora» (`advanceWaitlist`
   directo, sin el límite del empujón; con el interruptor apagado, no), «Cerrar la lista» (quien
-  espera o tiene oferta → `expired` / `closed` con su mail; sin confirmar se borra; para que nadie
-  más se anote, se apaga en Editar) y «Volver a probar» los mails que no salieron. CSV en
+  espera o tiene oferta → `expired` / `closed` con su mail; sin confirmar se borra; y además la
+  apaga: saca `lista_espera` del archivo del evento con `turnOffEventWaitlist`,
+  `src/lib/server/tickets/waitlistOff.js`, antes de cerrar; si no puede, no cierra nada) y «Volver a probar» los mails que no salieron. CSV en
   `/admin/eventos/<slug>/lista-espera.csv` (con los mails: dato personal). Lecturas en
   `src/lib/server/tickets/waitlistAdmin.js`.
 - **Puerta y carga a mano:** «Vender en puerta» y «Cargar entradas a mano» muestran una nota que no
@@ -420,14 +418,15 @@ confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas 
 anotarse y confirmar (GET no confirma), la misma respuesta para un mail ya anotado, reembolso, el
 cron ofrece, el público no puede comprar el lugar guardado, «Terminar la reserva» pasa a la
 siguiente (el link viejo ya no vale), compra con el link (después «ya usaste este link»), CSV, la
-nota en la puerta y en la carga a mano, «Sacar de la lista» y «Cerrar la lista» (que no la apaga).
+nota en la puerta y en la carga a mano, «Sacar de la lista» y «Cerrar la lista» (que además la apaga: el público ya no puede
+anotarse).
 Los mails en dev no muestran los links: la prueba los arma con la base local (el de confirmar,
 cambiando el hash del token por el de uno propio; el de la oferta, con la misma firma que el
 motor). El vencimiento por tiempo (y el paso a la siguiente por el cron) lo cubren las pruebas
 unitarias del motor (`waitlistEngine.test.js`, con reloj fijo).
 
-**Lo que falta antes del PR a `main`:** que gorrite aplique la 0053 en preview y producción
-(0028) y responda los dos puntos «a confirmar» de la decisión 0040.
+**Lo que falta antes del merge a `main`:** que gorrite aplique la 0053 en preview y producción
+(0028). Queda abierto si «Terminar la reserva» manda un mail (decisión 0040).
 
 ### Horario de la venta
 

@@ -290,8 +290,7 @@ aparecen con la etiqueta «prueba» mientras el interruptor está apagado.
   (`runMailQueueWith`, `sendWaitlist`) y comparten el «de a cuántos»; las acciones del panel y los
   empujones mandan los de ese evento en el momento.
 - **Sin mail:** «Terminar la reserva y pasar a la siguiente» y «Sacar de la lista» (panel), salir
-  con el link, y un tipo de entrada que ya no existe. Si «Terminar la reserva» tiene que avisar,
-  está **a confirmar por gorrite** ([decisión 0040](decisiones/0040-lista-de-espera.md)).
+  con el link, y un tipo de entrada que ya no existe ([decisión 0040](decisiones/0040-lista-de-espera.md)).
 - **Si no sale** después de 3 intentos: una fila en «Para revisar» que lleva a Ventas › Lista de espera
   del evento, con «Volver a probar».
 - **Links:** confirmar `/lista-de-espera/confirmar/<token>` (48 h); salir

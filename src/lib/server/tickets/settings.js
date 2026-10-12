@@ -9,7 +9,6 @@ import { parseFeePercent } from '$lib/utils/tickets.js';
 import { safeTextError } from '$lib/utils/emailTemplates.js';
 import { MAX_MAIL_BATCH_SIZE, MIN_MAIL_BATCH_SIZE, parseMailBatchSize } from './batchSize.js';
 import { MAX_REMINDERS, normalizeReminder } from './reminders.js';
-import { parseWaitlistSettings, waitlistSettingsProblem } from '$lib/utils/waitlistHold.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -37,12 +36,7 @@ export const SETTING_KEYS = /** @type {const} */ ([
 	// contacto («¿Dudas? Escribinos a {{contacto}}») y la firma («Kinky Vibe · Buenos Aires»).
 	// Vacío = el texto de siempre.
 	'mail_footer_contact',
-	'mail_footer_signoff',
-	// Lista de espera: JSON con los tramos de reserva, el aviso a todes y el cierre (ver
-	// $lib/utils/waitlistHold.js, `parseWaitlistSettings`). Vacío = los de por defecto
-	// (`DEFAULT_WAITLIST_SETTINGS`: 24 h / 12 h / 2 h, aviso a todes a menos de 6 h, cierre 30 min
-	// antes del comienzo, de a una persona por vez).
-	'waitlist'
+	'mail_footer_signoff'
 ]);
 
 /** Largo máximo de los textos del pie de los mails. */
@@ -183,11 +177,6 @@ export function validateSalesSettings(form) {
 		if (error) errors[key] = error;
 		value[key] = v;
 	}
-	// Lista de espera: el JSON entero (la página de Ajustes lo arma); vacío = los de por defecto.
-	const waitlist = typeof form.waitlist === 'string' ? form.waitlist.trim() : '';
-	const waitlistError = waitlistSettingsProblem(waitlist);
-	if (waitlistError) errors.waitlist = waitlistError;
-	value.waitlist = waitlist;
 	// Recordatorios: filas reminder_kind_<i>, reminder_amount_<i> (horas o días),
 	// reminder_time_<i>, reminder_enabled_<i>, reminder_delete_<i>. Solo si el form las trae.
 	if (form.reminder_kind_0 !== undefined) {
@@ -258,13 +247,4 @@ export function transferInfoFromSettings(settings) {
 		(f) => `${f.label}: ${settings[f.key]}`
 	);
 	return lines.length ? lines.join('\n') : null;
-}
-
-/**
- * Los ajustes de la lista de espera (los de por defecto si están vacíos o no se entienden).
- *
- * @param {SalesSettings} settings
- */
-export function waitlistSettingsFrom(settings) {
-	return parseWaitlistSettings(settings.waitlist);
 }

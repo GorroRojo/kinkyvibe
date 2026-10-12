@@ -1,13 +1,29 @@
 /**
- * Pestaña «Lista de espera» de la ficha del evento, su CSV y Ajustes → Lista de espera: solo
- * admins (cada load, cada acción y el CSV), las acciones (terminar la reserva y pasar a la
- * siguiente, sacar, ofrecer ahora, cerrar, volver a probar los mails), el registro de actividad
+ * Ventas › Lista de espera en la ficha del evento y su CSV: solo admins (cada load, cada acción y
+ * el CSV), las acciones (terminar la reserva y pasar a la siguiente, sacar, ofrecer ahora, cerrar
+ * y apagar, volver a probar los mails), el registro de actividad
  * sin mails y el CSV a salvo de fórmulas. D1 de miniflare; personas inventadas (example.com).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const flag = vi.hoisted(() => ({ on: true }));
 const meta = vi.hoisted(() => /** @type {Record<string, any>} */ ({}));
+// Apagar la lista guarda el archivo del evento (la base de contenido, que acá no está): se
+// simula y se mira con qué se llamó. Lo que escribe en el archivo lo prueba
+// ticketsEditor.waitlist.test.js (`markdownWithoutWaitlist`), y de punta a punta el E2E.
+const turnOff = vi.hoisted(() => ({
+	result: /** @type {{ ok: true, changed: boolean } | { ok: false }} */ ({
+		ok: true,
+		changed: true
+	}),
+	calls: /** @type {unknown[][]} */ ([])
+}));
+vi.mock('$lib/server/tickets/waitlistOff.js', () => ({
+	turnOffEventWaitlist: async (/** @type {unknown[]} */ ...args) => {
+		turnOff.calls.push(args);
+		return turnOff.result;
+	}
+}));
 
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
 vi.mock('$lib/server/flags.js', async (importOriginal) => ({
@@ -32,11 +48,9 @@ vi.mock('$lib/server/tickets/events.js', async (importOriginal) => {
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth.js';
 import { listAudit } from '$lib/server/admin/audit.js';
-import { getSalesSettings } from '$lib/server/tickets/settings.js';
 import { advanceWaitlist } from '$lib/server/tickets/waitlistEngine.js';
 import * as tab from './+page.server.js';
 import * as csv from '../lista-espera.csv/+server.js';
-import * as ajustes from '../../../ajustes/lista-espera/+page.server.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 30_000 });
 
@@ -56,6 +70,8 @@ afterAll(async () => {
 beforeEach(async () => {
 	await resetDB(t.db);
 	flag.on = true;
+	turnOff.result = { ok: true, changed: true };
+	turnOff.calls.length = 0;
 	for (const k of Object.keys(meta)) delete meta[k];
 	Object.assign(meta, {
 		title: 'Fiesta de prueba',
@@ -144,7 +160,7 @@ const statusOf = async (id) =>
 describe('solo admins', () => {
 	const cases = /** @type {const} */ (['terminar', 'sacar', 'ofrecer', 'cerrar', 'reintentar']);
 
-	it('el load de la pestaña, el CSV y Ajustes: sin sesión al login, sin permiso 403', async () => {
+	it('el load de la vista y el CSV: sin sesión al login, sin permiso 403', async () => {
 		for (const [locals, status] of /** @type {const} */ ([
 			[{}, 303],
 			[notAdmin, 403]
@@ -153,14 +169,6 @@ describe('solo admins', () => {
 			expect(await run(() => csv.GET(requestEvent({}, locals, `${TAB}.csv`)))).toEqual({
 				thrown: status
 			});
-			expect(
-				await run(() => ajustes.load(requestEvent({}, locals, '/admin/ajustes/lista-espera')))
-			).toEqual({ thrown: status });
-			expect(
-				await run(() =>
-					ajustes.actions.save(requestEvent({}, locals, '/admin/ajustes/lista-espera'))
-				)
-			).toEqual({ thrown: status });
 		}
 	});
 
@@ -243,13 +251,39 @@ describe('las acciones', () => {
 		expect(await statusOf(id)).toMatchObject({ status: 'offered' });
 	});
 
-	it('«Cerrar la lista»: quien espera termina (closed), sin confirmar se borra, quien compró no cambia', async () => {
+	it('«Cerrar la lista»: la apaga en el evento, quien espera termina (closed), sin confirmar se borra', async () => {
 		const w = await entry();
 		const p = await entry({ status: 'pending_confirmation' });
 		const r = await act('cerrar');
-		expect(r.action.ok).toBe(true);
+		expect(r.action).toEqual({
+			ok: true,
+			message:
+				'Listo: cerramos y apagamos la lista (2 personas salieron). Nadie más se puede anotar.'
+		});
+		expect(turnOff.calls).toEqual([[SLUG, expect.objectContaining({ actor: admin.user.login })]]);
 		expect(await statusOf(w)).toEqual({ status: 'expired', end_reason: 'closed' });
 		expect(await statusOf(p)).toBe(null);
+		const [log] = await listAudit(t.db);
+		expect(log.action).toBe('waitlist.close');
+	});
+
+	it('«Cerrar la lista» sin nadie anotade: igual la apaga', async () => {
+		const r = await act('cerrar');
+		expect(r.action).toEqual({
+			ok: true,
+			message: 'Listo: la lista quedó apagada (no había nadie anotade).'
+		});
+		expect(turnOff.calls).toHaveLength(1);
+	});
+
+	it('«Cerrar la lista»: si no se puede apagar en el evento, no cierra nada', async () => {
+		turnOff.result = { ok: false };
+		const w = await entry();
+		const r = await act('cerrar');
+		expect(r).toMatchObject({ status: 502 });
+		expect(r.data.action.message).toContain('No se pudo apagar la lista');
+		expect(await statusOf(w)).toMatchObject({ status: 'waiting' });
+		expect(await listAudit(t.db)).toEqual([]);
 	});
 
 	it('«Volver a probar»: borra las marcas de los mails que no salieron de este evento', async () => {
@@ -303,61 +337,5 @@ describe('CSV', () => {
 		);
 		expect(lines[1]).toMatch(/^evento,"'=hyperlink\(""x""\)@example\.com",Esperando,1,/);
 		expect(lines[2]).toMatch(/^evento,"con,coma@example\.com",Esperando,2,/);
-	});
-});
-
-describe('Ajustes → Lista de espera', () => {
-	const PATH = '/admin/ajustes/lista-espera';
-	/** @param {Record<string, string>} fields */
-	const save = (fields) => run(() => ajustes.actions.save(requestEvent(fields, admin, PATH)));
-	const base = {
-		mode: 'one',
-		broadcast_under: '6',
-		end_before: '30',
-		tier_over_0: '168',
-		tier_hold_0: '24',
-		tier_over_1: '48',
-		tier_hold_1: '12',
-		tier_over_2: '6',
-		tier_hold_2: '2',
-		tier_over_3: '',
-		tier_hold_3: ''
-	};
-
-	it('guarda los ajustes; iguales a los de por defecto, vacío', async () => {
-		expect(await save({ ...base, mode: 'all', tier_hold_0: '36' })).toMatchObject({ ok: true });
-		const stored = JSON.parse((await getSalesSettings(t.db)).waitlist);
-		expect(stored).toEqual({
-			mode: 'all',
-			tiers: [
-				{ overHours: 168, holdHours: 36 },
-				{ overHours: 48, holdHours: 12 },
-				{ overHours: 6, holdHours: 2 }
-			],
-			broadcastUnderHours: 6,
-			endBeforeStartMinutes: 30
-		});
-		const data = /** @type {any} */ (await ajustes.load(requestEvent({}, admin, PATH)));
-		expect(data.current.mode).toBe('all');
-		expect(data.isDefault).toBe(false);
-
-		expect(await save(base)).toMatchObject({ ok: true });
-		expect((await getSalesSettings(t.db)).waitlist).toBe('');
-		expect(await save({ ...base, mode: 'all', defaults: '1' })).toMatchObject({ ok: true });
-		expect((await getSalesSettings(t.db)).waitlist).toBe('');
-		expect((await listAudit(t.db)).map((e) => e.action)).toEqual([
-			'settings.save',
-			'settings.save',
-			'settings.save'
-		]);
-	});
-
-	it('no guarda tramos que no se entienden', async () => {
-		const r = await save({ ...base, tier_hold_1: '0' });
-		expect(r).toMatchObject({ status: 400 });
-		expect(r.data.error).toContain('Revisá los tiempos de reserva');
-		expect(await save({ ...base, tier_over_1: '168' })).toMatchObject({ status: 400 });
-		expect(await save({ ...base, end_before: 'muchos' })).toMatchObject({ status: 400 });
-		expect((await getSalesSettings(t.db)).waitlist).toBe('');
 	});
 });
