@@ -119,6 +119,7 @@ propios, pero **todo lo que existe en los tres se escribe igual**.
 | `hoy`, `mañana`, `semana`, `finde`  | Eventos en esos días (hora de Argentina). `esta semana` = `semana`.         | `finde #cuerdas`                  | panel |
 | `cuando:`                           | Un día de la semana (el próximo) o una fecha `d/m` o `d/m/aaaa`.            | `cuando: sabado`, `cuando: 15/10` | panel |
 | un mes, `este mes`, `mes que viene` | Eventos de ese mes (el próximo con ese nombre). También `cuando:noviembre`. | `noviembre #cuerdas`              | —     |
+| `cuando:a..b`                       | Un rango de fechas, como en GitHub. Igual que `desde:a hasta:b`.            | `cuando:1/11..30/11`              | —     |
 
 - **Regla de respaldo** (sitio y bot): si una palabra de fecha suelta (`finde`, `noviembre`) no
   deja ningún resultado, se busca como texto, para que «finde» encuentre «Finde de cuerdas». Con `cuando:`
