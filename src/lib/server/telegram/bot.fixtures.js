@@ -45,6 +45,7 @@ import { makeInlineSource } from './inlineSource.js';
 import { miniAppTexts } from './miniapp.js';
 import { shortHash } from './nav.js';
 import { planUpdate } from './router.js';
+import { adminEventsScreen, adminNoticesScreen, adminStatusScreen } from './adminBot.js';
 import { runPlan } from './run.js';
 import { docHash, docScreen, siteResultsScreen } from './siteScreens.js';
 import {
@@ -363,6 +364,59 @@ const cb = (data, chat = PRIVATE) => ({
 	callback_query: { id: 'cb', from: { id: 77 }, data, message: { message_id: 9, chat } }
 });
 
+// Estado y avisos para admins (decisión 0041): eventos y cantidades inventados.
+const ADMIN_CHOICES = [
+	{
+		slug: 'fiesta-inventada',
+		hash: shortHash('fiesta-inventada'),
+		title: 'Fiesta inventada',
+		start: '2031-01-10T23:00:00-03:00',
+		today: false,
+		cancelled: false
+	},
+	{
+		slug: 'taller-de-cuerdas',
+		hash: shortHash('taller-de-cuerdas'),
+		title: 'Taller <de> cuerdas',
+		start: '2031-01-11T19:00:00-03:00',
+		today: false,
+		cancelled: true
+	}
+];
+const ADMIN_STATUS = {
+	types: [
+		{
+			id: 'general',
+			name: 'General',
+			sold: 12,
+			held: 3,
+			capacity: 40,
+			tiers: [
+				{ id: 'p1', name: 'Preventa 1', sold: 10, quantity: 10, current: false },
+				{ id: 'final', name: 'Final', sold: 2, quantity: null, current: true }
+			]
+		},
+		{ id: 'gorra', name: 'A la gorra', sold: 3, held: 0, capacity: null, tiers: [] }
+	],
+	sold: 15,
+	capacity: null,
+	held: 3,
+	expiring: 1,
+	transfers: 2,
+	review: 1,
+	waitlist: 4
+};
+const ADMIN_QUIET = {
+	types: [{ id: 'general', name: 'General', sold: 0, held: 0, capacity: 30, tiers: [] }],
+	sold: 0,
+	capacity: 30,
+	held: 0,
+	expiring: 0,
+	transfers: 0,
+	review: 0,
+	waitlist: null
+};
+
 /**
  * `[nombre, () => salida]`. La salida es JSON (texto, botones, métodos de la API).
  * @returns {Array<[string, () => unknown]>}
@@ -605,6 +659,18 @@ export function botCases() {
 			{ media: true, privateLink: null }
 		)
 	);
+	// Estado y avisos para admins (decisión 0041).
+	add('inicio privado admin', () => homeScreen({ ...ctx('private'), admin: true }));
+	add('inicio grupo admin', () => homeScreen({ ...ctx('group'), admin: true }));
+	add('admin: estado sin eventos', () => adminEventsScreen([], 0, ctx('private')));
+	add('admin: estado lista', () => adminEventsScreen(ADMIN_CHOICES, 0, ctx('private')));
+	add('admin: estado de un evento', () =>
+		adminStatusScreen(ADMIN_CHOICES[0], ADMIN_STATUS, ctx('private'))
+	);
+	add('admin: estado sin pendientes', () =>
+		adminStatusScreen(ADMIN_CHOICES[1], ADMIN_QUIET, ctx('private'))
+	);
+	add('admin: mis avisos', () => adminNoticesScreen(new Set(['cada_venta'])));
 	return cases;
 }
 
@@ -814,6 +880,47 @@ export function routerCases() {
 				return calls;
 			}
 		]);
+	// Estado y avisos para admins (decisión 0041): el chat privado de le admin (mismo id).
+	/** @param {string} text */
+	const adminMsg = (text) => ({
+		update_id: 1,
+		message: { chat: { id: 77, type: 'private' }, from: { id: 77 }, text, message_id: 5 }
+	});
+	/** @param {string} data */
+	const adminCb = (data) => ({
+		update_id: 1,
+		callback_query: {
+			id: 'cb',
+			from: { id: 77 },
+			data,
+			message: { message_id: 9, chat: { id: 77, type: 'private' } }
+		}
+	});
+	/** @param {boolean} isAdmin @param {object} [over] */
+	const withAdmin = (isAdmin, over = {}) => ({
+		...deps(),
+		admin: {
+			who: async () => (isAdmin ? { id: 1, login: 'admin-inventade' } : null),
+			events: async () => ADMIN_CHOICES,
+			status: async () => ADMIN_STATUS,
+			notices: async () => new Set(),
+			setNotice: async () => new Set(['resumen_diario'])
+		},
+		...over
+	});
+	add('/estado admin', adminMsg('/estado'), withAdmin(true));
+	add('/estado no admin', adminMsg('/estado'), withAdmin(false));
+	add('/avisos admin', adminMsg('/avisos'), withAdmin(true));
+	add('/start admin', adminMsg('/start'), withAdmin(true));
+	add('botón estado lista admin', adminCb('ax:0'), withAdmin(true));
+	add('botón estado de un evento admin', adminCb(`ae:${ADMIN_CHOICES[0].hash}`), withAdmin(true));
+	add('botón estado forjado no admin', adminCb(`ae:${ADMIN_CHOICES[0].hash}`), withAdmin(false));
+	add('botón prender aviso admin', adminCb('an:d'), withAdmin(true));
+	add(
+		'/start adm solo estado',
+		adminMsg('/start adm_ABCD2345'),
+		withAdmin(true, { adminLink: async () => ({ linked: 'admin-inventade' }), door: null })
+	);
 	const step = { method: 'editMessageText', chat_id: 1, message_id: 9, text: 'x' };
 	run('api lenta', { steps: [step], callback: { id: 'cb' } }, 429);
 	run('api falla', { steps: [step], callback: { id: 'cb' } }, 400);

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { defaultDoorSlug, doorEventWhen } from './doorEvents.js';
+import {
+	CHECKIN_LIST_PARAM,
+	checkinAutoSlug,
+	defaultDoorSlug,
+	doorEventWhen,
+	onlyTodaySlug
+} from './doorEvents.js';
 
 const at = (/** @type {string} */ iso) => Date.parse(iso);
 const hoy = {
@@ -35,6 +41,31 @@ describe('defaultDoorSlug', () => {
 	it('?evento= gana siempre, aunque no esté en la lista', () => {
 		expect(defaultDoorSlug([hoy], 'feria-inventada')).toBe('feria-inventada');
 		expect(defaultDoorSlug([], 'evento-privado-inventado')).toBe('evento-privado-inventado');
+	});
+});
+
+describe('onlyTodaySlug', () => {
+	it('exactamente uno: ese; ninguno o varios: ninguno', () => {
+		expect(onlyTodaySlug([hoy])).toBe('fiesta-inventada');
+		expect(onlyTodaySlug([])).toBe('');
+		expect(onlyTodaySlug([hoy, otroHoy])).toBe('');
+	});
+});
+
+describe('checkinAutoSlug (la Puerta del panel entra directo al evento de hoy)', () => {
+	const none = new URLSearchParams();
+	it('un solo evento hoy: entra a ese', () => {
+		expect(checkinAutoSlug([hoy], none)).toBe('fiesta-inventada');
+	});
+
+	it('ninguno o varios hoy: muestra la lista', () => {
+		expect(checkinAutoSlug([], none)).toBe('');
+		expect(checkinAutoSlug([hoy, otroHoy], none)).toBe('');
+	});
+
+	it('con ?lista («Otro evento») muestra la lista aunque haya uno solo', () => {
+		expect(checkinAutoSlug([hoy], new URLSearchParams(CHECKIN_LIST_PARAM))).toBe('');
+		expect(checkinAutoSlug([hoy], new URLSearchParams(`${CHECKIN_LIST_PARAM}=1`))).toBe('');
 	});
 });
 

@@ -121,6 +121,76 @@ test('«Ir a…» (Ctrl+K) abre el buscador, encuentra una página y va con Ente
 	await expect(dialog).toBeHidden();
 });
 
+test('«Ir a…» sin nada escrito: Fijados y después Recientes, con el teclado', async ({ page }) => {
+	const dialog = page.getByRole('dialog', { name: 'Ir a… o buscar en el panel' });
+	const options = dialog.getByRole('option');
+	// Sin páginas abiertas ni fijadas: un aviso.
+	await page.goto('/admin', { waitUntil: 'networkidle' });
+	await page.keyboard.press('Control+k');
+	await expect(dialog).toContainText('Todavía no tenés páginas fijadas ni recientes');
+	await expect(options).toHaveCount(0);
+	await page.keyboard.press('Escape');
+
+	await page.goto('/admin/ventas/transferencias', { waitUntil: 'networkidle' });
+	await page.goto('/admin/eventos/agenda', { waitUntil: 'networkidle' });
+	await page.goto('/admin/ventas', { waitUntil: 'networkidle' });
+	await page.keyboard.press('Control+k');
+	await expect(dialog.getByText('Recientes', { exact: true })).toBeVisible();
+	await expect(dialog.getByText('Fijados', { exact: true })).toHaveCount(0);
+	// La más nueva arriba, como en la barra lateral.
+	await expect(options.nth(0)).toContainText('Agenda');
+	await expect(options.nth(1)).toContainText('Transferencias');
+	// Alt+F en la elegida la fija: pasa a Fijados, arriba de Recientes.
+	await page.keyboard.press('ArrowDown');
+	await page.keyboard.press('Alt+f');
+	await expect(dialog.getByText('Fijados', { exact: true })).toBeVisible();
+	await expect(options.nth(0)).toContainText('Transferencias');
+	await expect(options.nth(1)).toContainText('Agenda');
+	await expect(dialog.getByRole('button', { name: 'Soltar «Transferencias»' })).toBeAttached();
+	// Al escribir, busca como siempre (sin Fijados ni Recientes).
+	await dialog.getByRole('combobox').fill('codigos');
+	await expect(options.first()).toContainText('Códigos');
+	await expect(dialog.getByText('Fijados', { exact: true })).toHaveCount(0);
+	// Borrar lo escrito vuelve a la lista; Enter abre la elegida.
+	await dialog.getByRole('combobox').fill('');
+	await expect(options.nth(0)).toContainText('Transferencias');
+	await page.keyboard.press('ArrowDown');
+	await page.keyboard.press('Enter');
+	await expect(page).toHaveURL(/\/admin\/eventos\/agenda$/);
+	await expect(dialog).toBeHidden();
+});
+
+test('Puerta: con un solo evento hoy entra directo a su modo puerta, y «Otro evento» vuelve a la lista', async ({
+	page
+}) => {
+	// Solo en dev: el evento de prueba empieza hoy (devFixture en src/lib/server/tickets/events.js).
+	await page
+		.context()
+		.addCookies([{ name: 'kv-dev-hoy', value: EVENT, domain: 'localhost', path: '/' }]);
+	await page.goto('/admin/checkin', { waitUntil: 'networkidle' });
+	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/ingreso\\?hoy$`));
+	const other = page.getByRole('link', { name: 'Otro evento' });
+	await expect(other).toBeVisible();
+	await other.click();
+	// La lista, aunque haya uno solo hoy (sin volver a entrar solo).
+	await expect(page).toHaveURL(/\/admin\/checkin\?lista$/);
+	await expect(page.getByRole('heading', { name: 'Hoy', exact: true })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Abrir Puerta' }).first()).toHaveAttribute(
+		'href',
+		`/admin/eventos/${EVENT}/ingreso`
+	);
+	// Abierta desde la lista, no muestra «Otro evento» (está en las opciones, como siempre).
+	await page.getByRole('link', { name: 'Abrir Puerta' }).first().click();
+	await expect(page).toHaveURL(new RegExp(`/admin/eventos/${EVENT}/ingreso$`));
+	await expect(page.getByRole('link', { name: 'Otro evento' })).toHaveCount(0);
+
+	// Sin el evento de hoy, la Puerta muestra la lista como antes.
+	await page.context().clearCookies({ name: 'kv-dev-hoy' });
+	await page.goto('/admin/checkin', { waitUntil: 'networkidle' });
+	await expect(page).toHaveURL(/\/admin\/checkin$/);
+	await expect(page.getByRole('heading', { name: 'Puerta', level: 1 })).toBeVisible();
+});
+
 test('«Recientes» en la barra lateral: las páginas que abriste', async ({ page }) => {
 	await page.goto('/admin/ventas/transferencias', { waitUntil: 'networkidle' });
 	await page.goto('/admin/eventos/agenda', { waitUntil: 'networkidle' });

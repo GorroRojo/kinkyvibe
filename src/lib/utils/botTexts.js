@@ -44,6 +44,7 @@ export const BOT_TEXT_SECTIONS = Object.freeze([
 	{ id: 'seguir', label: 'Seguir y avisos' },
 	{ id: 'vincular', label: 'Vincular cuenta' },
 	{ id: 'puerta', label: 'Puerta (admins)' },
+	{ id: 'admin', label: 'Estado y avisos (admins)' },
 	{ id: 'sitio', label: 'Buscar en todo el sitio y modo inline' },
 	{ id: 'secciones', label: 'Secciones del sitio (Material, Kinkipedia, Amigues, Series)' },
 	{ id: 'entradas', label: 'Mis entradas (con el QR para la puerta)' },
@@ -728,6 +729,248 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'Link de admin con la puerta apagada',
 			'Ahora no se puede vincular una cuenta de admin con el bot.'
 		),
+
+		// -----------------------------------------------------------------------------------------
+		// Estado y avisos (admins, decisión 0041)
+		// -----------------------------------------------------------------------------------------
+		f(
+			'admin.boton_estado',
+			'admin',
+			'button',
+			'Botón «Estado» del inicio (solo admins vinculades, en privado)',
+			'📊 Estado'
+		),
+		f(
+			'admin.boton_avisos',
+			'admin',
+			'button',
+			'Botón «Mis avisos» del inicio y del estado (solo admins vinculades)',
+			'🔔 Mis avisos'
+		),
+		f(
+			'admin.elegir',
+			'admin',
+			'message',
+			'Estado: elegir un evento',
+			'**📊 Estado de la venta**\n\nElegí un evento para ver cuántas entradas se vendieron y qué hay para revisar.',
+			{ help: 'Abajo el bot suma la fecha y el título de cada evento.' }
+		),
+		f(
+			'admin.sin_eventos',
+			'admin',
+			'message',
+			'Estado: no hay próximos eventos con entradas',
+			'**📊 Estado de la venta**\n\nNo hay eventos con venta de entradas para hoy ni para los próximos días.'
+		),
+		f('admin.boton_evento', 'admin', 'button', 'Estado: el botón de cada evento', '📊 {evento}', {
+			vars: [V.evento],
+			help: 'El código acorta el título para que el botón entre en 64 bytes.'
+		}),
+		f('admin.cancelado', 'admin', 'inline', 'Estado: marca de un evento cancelado', '❌ Cancelado'),
+		f('admin.titulo', 'admin', 'line', 'Estado de un evento: el título', '**📊 {evento}**', {
+			vars: [V.evento],
+			required: ['evento']
+		}),
+		f(
+			'admin.tipo',
+			'admin',
+			'line',
+			'Estado: un tipo de entrada con cupo',
+			'🎟 **{tipo}**: {vendidas} de {cupo} vendidas',
+			{
+				vars: [
+					{ name: 'tipo', label: 'el tipo de entrada', sample: 'General' },
+					{ name: 'vendidas', label: 'cuántas se vendieron', sample: '12' },
+					{ name: 'cupo', label: 'el cupo del tipo', sample: '40' }
+				],
+				required: ['vendidas']
+			}
+		),
+		f(
+			'admin.tipo_sin_cupo',
+			'admin',
+			'line',
+			'Estado: un tipo de entrada sin cupo',
+			'🎟 **{tipo}**: {vendidas} vendidas (sin cupo)',
+			{
+				vars: [
+					{ name: 'tipo', label: 'el tipo de entrada', sample: 'A la gorra' },
+					{ name: 'vendidas', label: 'cuántas se vendieron', sample: '3' }
+				],
+				required: ['vendidas']
+			}
+		),
+		f(
+			'admin.tramo',
+			'admin',
+			'line',
+			'Estado: un tramo de precio con cantidad',
+			'↳ {tramo}: {vendidas} de {cantidad}',
+			{
+				vars: [
+					{ name: 'tramo', label: 'el nombre del tramo', sample: 'Preventa 1' },
+					{ name: 'vendidas', label: 'cuántas se vendieron', sample: '10' },
+					{ name: 'cantidad', label: 'cuántas tiene el tramo', sample: '10' }
+				],
+				required: ['vendidas']
+			}
+		),
+		f(
+			'admin.tramo_sin_cantidad',
+			'admin',
+			'line',
+			'Estado: un tramo de precio sin cantidad',
+			'↳ {tramo}: {vendidas}',
+			{
+				vars: [
+					{ name: 'tramo', label: 'el nombre del tramo', sample: 'Precio final' },
+					{ name: 'vendidas', label: 'cuántas se vendieron', sample: '2' }
+				],
+				required: ['vendidas']
+			}
+		),
+		f(
+			'admin.tramo_vigente',
+			'admin',
+			'inline',
+			'Estado: marca del tramo que se vende ahora',
+			'← a la venta'
+		),
+		f(
+			'admin.total',
+			'admin',
+			'line',
+			'Estado: el total (todos los tipos con cupo)',
+			'**Total**: {vendidas} de {cupo} vendidas',
+			{
+				vars: [
+					{ name: 'vendidas', label: 'cuántas se vendieron', sample: '15' },
+					{ name: 'cupo', label: 'el cupo de todo el evento', sample: '60' }
+				],
+				required: ['vendidas']
+			}
+		),
+		f(
+			'admin.total_sin_cupo',
+			'admin',
+			'line',
+			'Estado: el total (algún tipo sin cupo)',
+			'**Total**: {vendidas} vendidas',
+			{
+				vars: [{ name: 'vendidas', label: 'cuántas se vendieron', sample: '15' }],
+				required: ['vendidas']
+			}
+		),
+		f(
+			'admin.reservas',
+			'admin',
+			'line',
+			'Estado: reservas sin pagar (solo si hay)',
+			'⏳ Reservas sin pagar: {cantidad} · vencen en la próxima hora: {por_vencer}',
+			{
+				vars: [
+					{ name: 'cantidad', label: 'cuántas entradas están reservadas', sample: '4' },
+					{ name: 'por_vencer', label: 'cuántas vencen en la próxima hora', sample: '1' }
+				],
+				required: ['cantidad']
+			}
+		),
+		f(
+			'admin.transferencias',
+			'admin',
+			'line',
+			'Estado: transferencias por confirmar (solo si hay)',
+			'💸 Transferencias por confirmar: {cantidad}',
+			{
+				vars: [{ name: 'cantidad', label: 'cuántas órdenes', sample: '2' }],
+				required: ['cantidad']
+			}
+		),
+		f(
+			'admin.revisar',
+			'admin',
+			'line',
+			'Estado: órdenes para revisar (solo si hay)',
+			'⚠️ Órdenes para revisar: {cantidad}',
+			{
+				vars: [{ name: 'cantidad', label: 'cuántas órdenes', sample: '1' }],
+				required: ['cantidad']
+			}
+		),
+		f(
+			'admin.espera',
+			'admin',
+			'line',
+			'Estado: personas en la lista de espera (solo si hay)',
+			'📝 En la lista de espera: {cantidad}',
+			{
+				vars: [{ name: 'cantidad', label: 'cuántas personas', sample: '5' }],
+				required: ['cantidad']
+			}
+		),
+		f(
+			'admin.nada_pendiente',
+			'admin',
+			'line',
+			'Estado: sin reservas ni nada para revisar',
+			'✅ Sin reservas sin pagar ni nada para revisar.'
+		),
+		f(
+			'admin.pie',
+			'admin',
+			'line',
+			'Estado: el pie',
+			'Solo cantidades: lo de cada compra está en el panel.'
+		),
+		f('admin.boton_actualizar', 'admin', 'button', 'Estado: actualizar', '🔄 Actualizar'),
+		f(
+			'admin.boton_panel',
+			'admin',
+			'button',
+			'Estado: abrir el evento en el panel',
+			'Ver en el panel ↗'
+		),
+		f(
+			'admin.avisos',
+			'admin',
+			'message',
+			'Mis avisos: la pantalla',
+			'**🔔 Tus avisos de admin**\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• **Resumen diario**: lo vendido en el día, por evento.\n• **Cada venta** y **Cada transferencia**: un aviso en el momento.\n• **Día del evento**: un resumen ese día.\n• **Recordatorios**: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.'
+		),
+		f('admin.aviso_diario', 'admin', 'button', 'Mis avisos: resumen diario', 'Resumen diario', {
+			max: 56,
+			help: 'El bot le suma ✅ o ⬜ adelante.'
+		}),
+		f('admin.aviso_venta', 'admin', 'button', 'Mis avisos: cada venta', 'Cada venta', {
+			max: 56,
+			help: 'El bot le suma ✅ o ⬜ adelante.'
+		}),
+		f(
+			'admin.aviso_transferencia',
+			'admin',
+			'button',
+			'Mis avisos: cada transferencia',
+			'Cada transferencia',
+			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
+		),
+		f('admin.aviso_dia', 'admin', 'button', 'Mis avisos: día del evento', 'Día del evento', {
+			max: 56,
+			help: 'El bot le suma ✅ o ⬜ adelante.'
+		}),
+		f(
+			'admin.aviso_recordatorios',
+			'admin',
+			'button',
+			'Mis avisos: recordatorios',
+			'Recordatorios',
+			{ max: 56, help: 'El bot le suma ✅ o ⬜ adelante.' }
+		),
+		f('admin.prendido', 'admin', 'toast', 'Mis avisos: al prender uno', 'Prendido: {aviso}', {
+			vars: [{ name: 'aviso', label: 'el aviso', sample: 'Resumen diario' }]
+		}),
+		f('admin.apagado', 'admin', 'toast', 'Mis avisos: al apagar uno', 'Apagado: {aviso}', {
+			vars: [{ name: 'aviso', label: 'el aviso', sample: 'Resumen diario' }]
+		}),
 
 		// -----------------------------------------------------------------------------------------
 		// Buscar en todo el sitio y modo inline (#298)

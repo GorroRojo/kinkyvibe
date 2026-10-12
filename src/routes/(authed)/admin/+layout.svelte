@@ -503,6 +503,8 @@
 						{hideSoon}
 						pinned={pinnedHrefs}
 						pinFull={pinned.length >= PIN_MAX}
+						pinnedPlaces={pinned}
+						recentPlaces={recent}
 						on:theme={toggleTheme}
 						on:hidesoon={toggleHideSoon}
 						on:pin={(e) => pin(e.detail)}
@@ -588,6 +590,8 @@
 						{hideSoon}
 						pinned={pinnedHrefs}
 						pinFull={pinned.length >= PIN_MAX}
+						pinnedPlaces={pinned}
+						recentPlaces={recent}
 						on:theme={toggleTheme}
 						on:hidesoon={toggleHideSoon}
 						on:pin={(e) => pin(e.detail)}

@@ -12,8 +12,9 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
   `🔎 Buscar · ⭐ Lo que sigo` / `📚 Material · 📖 Kinkipedia` / `👥 Amigues · 🔁 Series` (las
   secciones del sitio, abajo) / `💗 Fondo · ❓ Ayuda` / `📅 Calendario` (la Mini App, solo en
   privado) · `Abrir kinkyvibe.ar ↗`. «Lo que sigo» y «🎟 Mis entradas» (en su fila, abajo de
-  «Buscar») solo aparecen con «Lo que sigo» prendido. Para
-  les admins con el Telegram vinculado, suma «🚪 Puerta» (abajo, «La puerta por Telegram»).
+  «Buscar») solo aparecen con «Lo que sigo» prendido. Para les admins con el Telegram vinculado,
+  suma «🚪 Puerta» (abajo, «La puerta por Telegram») y «📊 Estado · 🔔 Mis avisos» (abajo, «Estado
+  y avisos para admins»).
   `/inicio` es lo mismo que `/start` sin nada, por el mismo camino del router (`/start <código>` y
   `/start adm_<código>` siguen vinculando; `/inicio <algo>` no vincula nada).
 - **Cada botón cambia ese mismo mensaje** (no manda otro). Las listas van de a 5 con
@@ -108,6 +109,8 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
 | Mis entradas (`u` próximas, `o` pasadas; página `p`)                 | `t:<v>:<p>`                      |
 | Una entrada (vuelve a esa lista)                                     | `tk:<hash>:<v>`                  |
 | Contador (no hace nada)                                              | `x`                              |
+| Admins: Estado, la lista (página `p`) / un evento                    | `ax:<p>` / `ae:<hash>`           |
+| Admins: Mis avisos / prender o apagar uno                            | `an` / `an:<k>`                  |
 
 `id` es la dirección del evento si es simple y tiene hasta 40 bytes; si no, `#<hash>`.
 `<etiqueta>` es un hash corto del nombre, que se busca entre las etiquetas de ese evento.
@@ -118,7 +121,7 @@ En las secciones, `<s>` es `m` material, `w` Kinkipedia, `a` amigues o `s` serie
 busca **entre lo de esa sección** y `<etiqueta>` (hash corto de su id), entre sus etiquetas. En la
 Kinkipedia, `<etiqueta>` es la **rama** abierta (el mismo hash, entre las ramas con algo adentro):
 un botón de filtro de antes abre esa rama si existe, o contesta «Eso ya no está disponible.». El más
-largo (`cd:m:<7>:<999>:<7>`) tiene 24 bytes.
+largo (`cd:m:<7>:<999>:<7>`) tiene 24 bytes. Los de admins viven aparte (`adminNav.js`, abajo).
 En Mis entradas, `<hash>` es un hash corto del id de la entrada, que se busca **solo entre las
 entradas de la cuenta vinculada a ese chat**: un botón armado a mano con el de otra entrada
 contesta «Esa entrada ya no está acá.», lo mismo que un botón viejo. El botón nunca lleva el
@@ -487,6 +490,9 @@ minutos), con estas reglas:
 | `src/lib/server/telegram/seguir.js`           | «Seguir» y «Lo que sigo» desde el bot (0034)                        |
 | `src/lib/server/telegram/tickets.js`          | Mis entradas: las entradas de la cuenta vinculada (la base)         |
 | `src/lib/server/telegram/misEntradas.js`      | Mis entradas: la lista y la tarjeta con el QR, funciones puras      |
+| `src/lib/server/telegram/adminNav.js`         | Admins (0041): los botones de «📊 Estado» y «🔔 Mis avisos»         |
+| `src/lib/server/telegram/adminBot.js`         | Admins (0041): las pantallas, funciones puras                       |
+| `src/lib/server/telegram/adminData.js`        | Admins (0041): quién es admin, el estado (cantidades), Mis avisos   |
 | `src/lib/server/telegram/miniapp.js`          | La Mini App del calendario (`/telegram/app`)                        |
 | `src/lib/server/telegram/commandsSync.js`     | El registro automático del menú «/» (cron)                          |
 | `src/lib/server/telegram/commands.js`         | La lista de comandos y el `setMyCommands` del menú «/»              |
@@ -611,11 +617,13 @@ que ahora no se puede.
   en la base. Si no: 403 (`not_linked` / `not_admin`).
 - **Vincular** (les admins entran con GitHub y no tienen cuenta pública, así que no usa
   `telegram_chats` ni Mi rincón; `adminLink.js`, migración `0050`):
-  1. En el panel, Ajustes → Admins → «Tu Telegram para la puerta» → **Vincular Telegram**: crea un
+  1. En el panel, Ajustes → Admins → «Tu Telegram en el bot» → **Vincular Telegram**: crea un
      código al azar (8 caracteres, 40 bits), de un solo uso, que vence en 15 minutos; se guarda
      solo su SHA-256 (`telegram_admin_link_codes`). Hay uno solo vivo por admin y un tope de 10
      por hora. Muestra el link `t.me/<bot>?start=adm_<código>` y su QR (necesita los
-     interruptores `telegram_bot` y `telegram_puerta` y `TELEGRAM_BOT_USERNAME`).
+     interruptores `telegram_bot` y `telegram_puerta` o `telegram_admin`, y
+     `TELEGRAM_BOT_USERNAME`). La confirmación del bot trae «🚪 Abrir la puerta» solo con la puerta
+     prendida y «📊 Estado · 🔔 Mis avisos» solo con `telegram_admin`.
   2. El bot recibe `/start adm_<código>` **solo por chat privado** (en un grupo contesta que se
      hace por privado). Marca el código usado en la misma sentencia que lo lee, vuelve a chequear
      `isAdmin` y guarda `id de GitHub ↔ id del usuario de Telegram` (una cuenta de Telegram por
@@ -644,6 +652,62 @@ que ahora no se puede.
 5. Para cortarla de golpe: `TELEGRAM_PUERTA_ENABLED=0` en Cloudflare o apagar el interruptor.
    Sacar a alguien de `ADMINS` le corta la puerta aunque siga vinculade.
 
+## Estado y avisos para admins (0041)
+
+Decisión [0041](decisiones/0041-telegram-para-admins.md): lo que 0029 planeaba para organizadores,
+primero para admins (después, lo mismo para organizadores con **sus** eventos). Sale detrás del
+interruptor **Telegram para admins** (`telegram_admin`, `TELEGRAM_ADMIN_ENABLED`), apagado (0001),
+que además pide el bot prendido. Va en tres PR:
+
+1. **(este) La base y el estado a pedido**: «📊 Estado» y «🔔 Mis avisos».
+2. El resumen diario de ventas y los avisos en el momento (cada venta, cada transferencia).
+3. El día del evento (resumen) y los recordatorios (el evento de mañana, falta el lugar o el link).
+
+**Quién**: une admin con el Telegram vinculado desde el panel (el mismo vínculo que la puerta,
+`telegram_admin_links`) que **sigue** en `ADMINS`, mirado **en cada mensaje y cada botón** de
+admins (`adminData.js`, `linkedBotAdmin`), solo por chat privado con esa misma persona (el id del
+chat tiene que ser el del usuario). Sacar a alguien de `ADMINS` o desvincular le corta todo en el
+próximo botón. A cualquier otra persona (sin vincular, en un grupo, con el interruptor apagado o si
+falla la base) el bot le contesta **exactamente lo mismo que a un comando o botón que no existe**
+(«No entendí…»): no dice que hay algo para admins, tampoco con un botón armado a mano
+(`router-admin.test.js`).
+
+- **Dónde**: «📊 Estado · 🔔 Mis avisos» en el inicio de une admin vinculade (por privado) y en la
+  confirmación del vínculo. También `/estado` y `/avisos`, que **no** van en el menú «/» (es el
+  mismo para todes; registrarlos solo para admins, con un alcance por chat, queda para después).
+- **📊 Estado**: los eventos con entradas de hoy y de los próximos días (también no listados y
+  cancelados, hasta 30, de a 5) → por evento:
+  - vendidas contra cupo de cada tipo y, si tiene tramos, de cada tramo (marcando el que se vende
+    ahora) y el total;
+  - reservas sin pagar (Mercado Pago en curso o transferencias esperando; cuentan para el cupo) y
+    cuántas vencen en la próxima hora;
+  - transferencias por confirmar y órdenes para revisar;
+  - la lista de espera (personas esperando o con oferta), solo si la tabla `waitlist_entries`
+    existe (migración 0053, la lista de espera) y hay alguien; si no, esa línea no sale;
+  - «🔄 Actualizar», «Ver en el panel ↗» (`/admin/eventos/<dirección>`) y «‹ Volver».
+- **Solo cantidades**: las consultas son `SUM`/`COUNT` sobre `orders` (y la lista de espera); nunca
+  leen nombres, mails, DNI, titulares, códigos ni tokens (`admin-privacy.test.js` llena la base con
+  todo eso y revisa que no aparezca en ninguna pantalla). Lo de cada compra, en el panel.
+- **🔔 Mis avisos**: cinco tipos (resumen diario, cada venta, cada transferencia, día del evento,
+  recordatorios), **todos apagados al empezar**; tocar uno lo prende o lo apaga (✅/⬜). Se guarda
+  por id de GitHub en `telegram_admin_notices` (migración `0054`, sin fila = apagado): volver a
+  vincular no borra lo elegido. En este PR **todavía no sale ningún aviso** (la pantalla lo dice);
+  los mandan los PR 2 y 3 con `noticeRecipients` (les admins vinculades que lo prendieron y siguen
+  en `ADMINS`).
+- Los textos están en «Textos del bot» (sección «Estado y avisos (admins)»), con sus pantallas en
+  la vista previa.
+
+### Puesta en marcha del estado y los avisos (la hace gorrite)
+
+1. **Aplicar la migración `0054_telegram_admin_avisos.sql` en producción y en preview antes de
+   mergear** (0028): `npx wrangler d1 migrations apply <base> --remote`. Solo crea una tabla: anda
+   con el código de `main`. «📊 Estado» no la necesita; «🔔 Mis avisos», sí.
+2. Prender **Telegram para admins** primero en un preview, con el bot prendido. Vincular el
+   Telegram en Ajustes → Admins (anda con este interruptor o con el de la puerta), tocar «🏠 Inicio»
+   en el bot y probar «📊 Estado» y «🔔 Mis avisos».
+3. Después, en producción. Para cortarlo de golpe: `TELEGRAM_ADMIN_ENABLED=0` o apagar el
+   interruptor.
+
 ## Qué sigue
 
 - ~~Cambiar `events.js` a `sitePosts` cuando `contenido_db` esté en `main`.~~ Hecho: el bot lee
@@ -664,4 +728,8 @@ que ahora no se puede.
   `inline-privacy.test.js` (con la base).
 - ~~Pasar los textos de #298 a «Textos del bot».~~ Hecho, con la golden.
 - ~~«🎟 Mis entradas» con el QR de la puerta.~~ Hecho (arriba).
-- Fase 3: avisos y estado para organizadores (0029).
+- Fase 3: avisos y estado para organizadores (0029). Empezó por admins (0041, arriba): falta el
+  resumen diario y los avisos en el momento (PR 2), el día del evento y los recordatorios (PR 3), y
+  después lo mismo para organizadores con sus eventos.
+- `/estado` y `/avisos` en el menú «/» solo de les admins vinculades (`setMyCommands` con un
+  alcance por chat), si hace falta.
