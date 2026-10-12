@@ -16,6 +16,9 @@ import {
 	argWeekdayDay,
 	eventDateList,
 	eventEnd,
+	isoDateTime,
+	isoDay,
+	parseSiteDate,
 	toArgentina
 } from './dates.js';
 
@@ -283,5 +286,70 @@ describe('eventDateList (fecha de un evento como la escribe el sitio)', () => {
 		expect(eventDateList(null)).toBe('');
 		expect(eventDateList('cualquier cosa')).toBe('');
 		expect(eventDateList('2026-13-45')).toBe('');
+	});
+});
+
+// ISO 8601 estricto: fecha-hora con zona (`Z` **o** un desfase, nunca los dos) o solo la fecha.
+const STRICT_ISO_DATETIME =
+	/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d(:[0-5]\d(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/;
+const STRICT_ISO_DATE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
+describe('parseSiteDate', () => {
+	it('lee el formato de publicación del sitio (2024-12-06Z-03:00) como medianoche en Argentina', () => {
+		expect(parseSiteDate('2024-12-06Z-03:00').toISOString()).toBe('2024-12-06T03:00:00.000Z');
+		expect(parseSiteDate('2024-12-06-03:00').toISOString()).toBe('2024-12-06T03:00:00.000Z');
+		expect(parseSiteDate('2024-12-06').toISOString()).toBe('2024-12-06T03:00:00.000Z');
+	});
+	it('deja igual las fechas con hora y los Date', () => {
+		expect(parseSiteDate('2026-10-02T22:00-03:00').toISOString()).toBe('2026-10-03T01:00:00.000Z');
+		const d = new Date('2026-10-03T01:00:00Z');
+		expect(parseSiteDate(d).getTime()).toBe(d.getTime());
+		expect(parseSiteDate(d.getTime()).getTime()).toBe(d.getTime());
+	});
+	it('da Invalid Date con lo que no es fecha', () => {
+		for (const bad of ['', 'no es fecha', null, undefined])
+			expect(isNaN(parseSiteDate(bad).getTime())).toBe(true);
+	});
+});
+
+describe('isoDateTime', () => {
+	it('convierte el formato de publicación en ISO 8601 válido con el desfase de Argentina', () => {
+		const out = isoDateTime('2025-09-15Z-03:00');
+		expect(out).toBe('2025-09-15T00:00:00-03:00');
+		expect(out).toMatch(STRICT_ISO_DATETIME);
+		expect(out).not.toMatch(/Z[+-]/);
+		// El mismo instante que el JS de V8 ya leía de la fecha vieja.
+		expect(Date.parse(/** @type {string} */ (out))).toBe(Date.parse('2025-09-15T03:00:00Z'));
+	});
+	it('deja tal cual las fechas que ya son ISO 8601 con zona', () => {
+		expect(isoDateTime('2026-10-02T22:00-03:00')).toBe('2026-10-02T22:00-03:00');
+		expect(isoDateTime('2026-10-03T01:00:00.000Z')).toBe('2026-10-03T01:00:00.000Z');
+	});
+	it('escribe en hora argentina un Date, un timestamp o una fecha sin hora', () => {
+		const instant = Date.parse('2026-10-03T01:00:30Z');
+		for (const v of [new Date(instant), instant]) {
+			const out = isoDateTime(v);
+			expect(out).toBe('2026-10-02T22:00:30-03:00');
+			expect(out).toMatch(STRICT_ISO_DATETIME);
+			expect(Date.parse(/** @type {string} */ (out))).toBe(instant);
+		}
+		expect(isoDateTime('2026-10-02')).toBe('2026-10-02T00:00:00-03:00');
+	});
+	it('da undefined con lo que no es fecha', () => {
+		for (const bad of ['', 'no es fecha', null, undefined, new Date(NaN)])
+			expect(isoDateTime(bad)).toBeUndefined();
+	});
+});
+
+describe('isoDay', () => {
+	it('da solo el día en Argentina, como ISO 8601', () => {
+		expect(isoDay('2025-09-15Z-03:00')).toBe('2025-09-15');
+		expect(isoDay('2025-09-15Z-03:00')).toMatch(STRICT_ISO_DATE);
+		expect(isoDay('2026-10-02T22:00-03:00')).toBe('2026-10-02');
+		// 01:00 UTC del 3 todavía es el 2 en Argentina.
+		expect(isoDay(new Date('2026-10-03T01:00:00Z'))).toBe('2026-10-02');
+	});
+	it('da undefined con lo que no es fecha', () => {
+		for (const bad of ['', 'no es fecha', null, undefined]) expect(isoDay(bad)).toBeUndefined();
 	});
 });

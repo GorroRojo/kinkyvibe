@@ -252,6 +252,21 @@ export function mergePreviewTexts(overrides) {
 }
 
 /**
+ * Solo los textos cambiados que valen (los que {@link mergePreviewTexts} usa), a partir de lo
+ * guardado. Un dato viejo o roto da `{}`.
+ * @param {unknown} saved
+ * @returns {Record<string, string>}
+ */
+export function previewTextOverrides(saved) {
+	/** @type {Record<string, string>} */
+	const out = {};
+	if (!saved || typeof saved !== 'object') return out;
+	const merged = mergePreviewTexts(saved);
+	for (const [k, v] of Object.entries(saved)) if (merged[k] === v) out[k] = merged[k];
+	return out;
+}
+
+/**
  * El texto en una línea. Los espacios de adelante se guardan si el original los tiene (el sufijo
  * « descargable» va pegado al formato).
  * @param {Readonly<PreviewTextField>} field

@@ -6,6 +6,7 @@
 	 */
 	import { fmtDateTime, fmtRelative } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import { areaBackLink } from '$lib/admin/nav.js';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CommandsForm from '$lib/components/admin/telegram/CommandsForm.svelte';
@@ -51,6 +52,7 @@
 </script>
 
 <PageHeader
+	back={areaBackLink('ajustes-automatizaciones')}
 	title="Automatizaciones"
 	subtitle="Todo lo que corre solo, en un lugar. Casi todo es para mirar: cada cosa se configura donde dice."
 />
