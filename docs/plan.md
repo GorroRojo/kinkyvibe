@@ -88,10 +88,10 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `ajustes-4-grupos` · fase 0 · hecho · panel · Ajustes como portada con 4 grupos de tarjetas (Plata, Comunicación, Equipo, Sistema) en vez de pestañas · #317, [0042](decisiones/0042-ajustes-portada-con-grupos.md)
 - `ajustes-fondo-linea` · fase 0 · sigue · panel · Portada de Ajustes: línea de estado del Fondo aunque todavía no haya llegado el porcentaje automático (hoy la tarjeta va sin línea; buscarlo haría lenta la portada) (depende de: ajustes-4-grupos)
 - `panel-pestanas-celu` · fase 0 · sigue · panel · En el celu, la lista ▾ de pestañas de la ficha se ve menos importante que los botones de acción (gorrite, #303)
-- `buscador-pestanas-nombres` · fase 0 · sigue · panel · Los atajos del buscador a las pestañas de un evento (`eventTabActions`) dicen «Órdenes» y «Mail a compradores»: pasar a «Ventas › Órdenes» y «Mails › Mandar un aviso»
-- `navprefs-grupos-limpiar` · fase 0 · sigue · panel · Sacar de `navPrefs.js` las funciones de grupos abiertos (`kv-panel-grupos`) y sus pruebas, que la barra sin grupos ya no usa
+- `buscador-pestanas-nombres` · fase 0 · hecho · panel · Los atajos del buscador a las pestañas de un evento (`eventTabActions`) dicen «Órdenes» y «Mail a compradores»: pasar a «Ventas › Órdenes» y «Mails › Mandar un aviso» · #323
+- `navprefs-grupos-limpiar` · fase 0 · hecho · panel · Sacar de `navPrefs.js` las funciones de grupos abiertos (`kv-panel-grupos`) y sus pruebas, que la barra sin grupos ya no usa · #323
 - `panel-prefs-en-base` · fase 0 · algún día · panel · Fijados y el modo del panel lateral por admin en la base (hoy por navegador), si se suma una tabla de preferencias
-- `miniaturas-listas-panel` · fase 0 · sigue · panel · Miniaturas achicadas (`thumbnailUrl`) en Eventos y Contenido, como ya tiene «Hoy»
+- `miniaturas-listas-panel` · fase 0 · hecho · panel · Miniaturas achicadas (`thumbnailUrl`) en Eventos y Contenido, como ya tiene «Hoy» · #323
 - `graficos-mas` · fase 0 · algún día · panel · Más gráficos: mapa de la comunidad, Fondo y finanzas
 - `editor-textos-sitio` · fase 0 · sigue · panel · Un «modo editar textos» para casi todo lo que dice el sitio, visualmente afuera del panel, con el mismo registro de textos del bot y las vistas previas; por partes, y antes decidir qué queda fijo (gorrite, 11/10)
 - `nav-panel-c` · fase 0 · hecho · panel · Navegación del panel opción C, partes 1 y 2 · #301, #309, [0038](decisiones/0038-navegacion-del-panel-opcion-c.md)
@@ -103,7 +103,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 ### Sitio público
 
 - `ux-auditoria-restos` · fase 0 · sigue · sitio · Lo que sigue abierto de la auditoría de UX del 4/10: anclas del glosario, áreas de toque, migas de pan, búsqueda vacía de la wiki
-- `wiki-sin-entrada-editar` · fase 0 · sigue · sitio · «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`)
+- `wiki-sin-entrada-editar` · fase 0 · hecho · sitio · «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`) · #323
 - `filtros-celu-probar` · fase 0 · sigue · sitio · Probar la barra de filtros en celulares reales y, si va, cerrar el PR de prototipos · #294, #283
 - `filtros-sin-efecto` · fase 0 · sigue · sitio · Esconder etiquetas del filtro que no cambiarían los resultados · #17
 - `lectura-barra-progreso` · fase 0 · espera gorrite · sitio · Barra de progreso de lectura; confirmar que se sigue queriendo · #19
