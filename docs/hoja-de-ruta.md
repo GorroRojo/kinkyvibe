@@ -29,6 +29,9 @@ PRs abiertos:
   «Textos del bot» (PR `claude/bot-secciones`).
 - Bot: «🎟 Mis entradas» (paso 2 de 5): las entradas de la cuenta vinculada, con el QR de la
   puerta como foto, «Pasadas» y sus textos en «Textos del bot» (PR `claude/bot-mis-entradas`).
+- Bot: Buscar sin resultados ofrece búsquedas parecidas, la sección más cercana, lo que viene y
+  «⭐ Seguir» si lo buscado es una etiqueta; el modo inline muestra lo de una búsqueda parecida
+  (PR `claude/bot-sin-resultados`).
 - Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
   tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
   directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
@@ -262,6 +265,12 @@ de amigues y lanzamientos grandes.
   la página de la entrada, que lo tiene). S. Bloqueo: que gorrite lo quiera en el chat.
 - Bot, Mis entradas: después de mergear, probarlo en Telegram con una entrada de prueba (la foto
   del QR subida por la API solo se puede probar contra el bot de verdad). S. Bloqueo: gorrite.
+- Bot, sin resultados: en un grupo, «⭐ Seguir» la etiqueta buscada como link al chat privado
+  (hoy no aparece; haría falta un deep link nuevo). S.
+- Bot, sin resultados: las palabras sugeridas salen como las guarda el índice, sin tildes ni
+  mayúsculas («guia», no «Guía»); mostrar cómo se escriben en el título. S.
+- Bot: contar cuántas búsquedas no encuentran nada, para el panel (aparte de «sin resultados»,
+  sin guardar quién ni qué). S.
 - Bot: borrar las funciones de antes que ya no usa el bot (`formatEventList`, `formatEvent`,
   `formatChoices`, `formatPickList` en `format.js`; `eventListKeyboard` y `eventDetailKeyboard` en
   `keyboards.js`) y sus pruebas. S.

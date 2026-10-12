@@ -5186,7 +5186,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "No encontré nada para «zzzz &lt;x&gt;» en el sitio. Probá con otra palabra.",
+				"text": "No encontré nada para «zzzz &lt;x&gt;» en el sitio. Probá con otra palabra.\n\n<b>Mientras tanto, lo que viene:</b>\n📅 <a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -5197,9 +5197,7 @@
 							{
 								"text": "🔎 Buscar otra cosa",
 								"callback_data": "s"
-							}
-						],
-						[
+							},
 							{
 								"text": "🏠 Inicio",
 								"callback_data": "h"
