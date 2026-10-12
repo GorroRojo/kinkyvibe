@@ -205,8 +205,9 @@ de amigues y lanzamientos grandes.
   parte 2 (Fijados, «+ Crear», Puerta fuera de la barra, pestañas con contadores y ▾ en el celu):
   - Pestañas de la ficha del evento (5 y «Más» en el prototipo; #303 propone 7 con vistas) y dónde
     van los ajustes de mails. M. Bloqueo: decisión de gorrite (#303).
-  - Ajustes como 4 grupos (Plata, Comunicación, Equipo, Sistema) con tarjetas, como en el
-    prototipo, en vez de 9 pestañas. M. Bloqueo: gorrite.
+  - Portada de Ajustes ([0041](decisiones/0041-ajustes-portada-con-grupos.md)): línea de estado
+    del Fondo aunque no haya llegado todavía el porcentaje automático (hoy la tarjeta va sin
+    línea; buscarlo haría lenta la portada). S.
   - La Puerta «abierta en el evento de hoy» (el prototipo entra directo al evento del día; hoy
     `/admin/checkin` muestra la lista para elegir). S. Bloqueo: gorrite.
   - Fijados y Recientes en el buscador vacío de «Ir a…». S.
