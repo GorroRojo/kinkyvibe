@@ -316,11 +316,12 @@ export function inlineCard(doc, extra, event, ctx) {
 export function inlineArticle(id, doc, extra, event, ctx) {
 	const card = inlineCard(doc, extra, event, ctx);
 	const thumb = inlineThumbUrl(extra?.image, ctx.origin);
-	// Como la tarjeta del bot (deliver.js): la vista previa grande del link (la imagen para compartir
-	// de la página) arriba del texto, así el mensaje mandado también lleva foto (gorrite, 11/10).
-	// Sin https Telegram no arma la vista previa: se apaga.
+	// La vista previa del link (la imagen para compartir de la página) arriba del texto, así el
+	// mensaje mandado también lleva foto (gorrite, 11/10), pero chica, al costado, como cuando une
+	// usuarie achica la vista previa al mandar un link (gorrite, 12/10). Telegram lo toma como
+	// preferencia. Sin https no arma la vista previa: se apaga.
 	const preview = isHttps(ctx.origin)
-		? { url: `${ctx.origin}${doc.h}`, prefer_large_media: true, show_above_text: true }
+		? { url: `${ctx.origin}${doc.h}`, prefer_small_media: true, show_above_text: true }
 		: { is_disabled: true };
 	return {
 		type: 'article',

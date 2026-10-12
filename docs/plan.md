@@ -173,6 +173,7 @@ CI) va en la fase 0.
 - `bot-avisos-admin` · fase 0 · hecho · bot · Telegram para admins: parte 1 («📊 Estado» y «🔔 Mis avisos», apagado con `telegram_admin`) y parte 2 (resumen diario de ventas y avisos en el momento de cada venta y cada transferencia, solo a quien los prendió, con horario de silencio; migración 0055) · #315, #322, [0041](decisiones/0041-telegram-para-admins.md)
 - `bot-textos` · fase 0 · hecho · bot · «Textos del bot» editables desde Ajustes · #302
 - `bot-inline-buscar` · fase 0 · hecho · bot · Modo inline y búsqueda en todo el sitio · #298, #300
+- `bot-inline-vista-chica` · fase 0 · hecho · bot · Lo que se manda con el bot inline lleva la vista previa del link chica, al costado (gorrite, 12/10)
 - `telegram-puerta` · fase 0 · hecho · bot · Puerta por Telegram como Mini App, con vínculo desde el panel · #273, #304
 
 ### Mails
