@@ -13,6 +13,7 @@
 import { escapeHtml, eventUrl, formatWhen, WINDOW_TEXTS, formatHelp } from './format.js';
 import { truncate } from './keyboards.js';
 import { encodeNav, navId, startLink } from './nav.js';
+import { encodeAdminNav } from './adminNav.js';
 import { botText, currentBotTexts } from './texts.js';
 import { renderBotText, renderBotTextPlain } from '$lib/utils/botTexts.js';
 import { formatARS } from '$lib/utils/money.js';
@@ -42,8 +43,11 @@ import { formatARS } from '$lib/utils/money.js';
  * el router, para el inicio por chat privado).
  *
  * @typedef {{ origin: string, chat: 'private' | 'group', now?: number,
- *   botUsername?: string | null, sigo?: boolean, site?: boolean, door?: boolean }} ScreenCtx
- *   `site`: Buscar busca en todo el sitio (con el índice público de la búsqueda).
+ *   botUsername?: string | null, sigo?: boolean, site?: boolean, door?: boolean,
+ *   admin?: boolean }} ScreenCtx
+ *   `site`: Buscar busca en todo el sitio (con el índice público de la búsqueda). `admin`: une
+ *   admin vinculade con «Telegram para admins» prendido (el router, solo por chat privado):
+ *   «📊 Estado · 🔔 Mis avisos» en el inicio.
  */
 /**
  * Lo público de la tarjeta de un evento: lo mismo que la página del evento le muestra a cualquiera.
@@ -159,9 +163,29 @@ function sectionRows(ctx) {
 }
 
 /**
+ * «📊 Estado · 🔔 Mis avisos» (decisión 0041, adminBot.js): en el inicio de une admin vinculade y
+ * en la confirmación del vínculo.
+ *
+ * @returns {Button[]}
+ */
+export function adminRow() {
+	return [
+		{
+			text: botText('admin.boton_estado'),
+			callback_data: encodeAdminNav({ screen: 'admin_events', page: 0 })
+		},
+		{
+			text: botText('admin.boton_avisos'),
+			callback_data: encodeAdminNav({ screen: 'admin_notices' })
+		}
+	];
+}
+
+/**
  * `/start`, `/inicio` y «🏠 Inicio». Con el índice público (`ctx.site`), las secciones del sitio.
  * Con `ctx.door` (une admin vinculade, la puerta prendida, chat
- * privado), suma «🚪 Puerta»: la misma Mini App que el botón de la confirmación del vínculo.
+ * privado), suma «🚪 Puerta»: la misma Mini App que el botón de la confirmación del vínculo. Con
+ * `ctx.admin` (lo mismo, con «Telegram para admins»), «📊 Estado · 🔔 Mis avisos» (adminBot.js).
  *
  * @param {ScreenCtx} ctx
  * @returns {Screen}
@@ -190,6 +214,8 @@ export function homeScreen(ctx) {
 			{ text: botText('inicio.boton_ayuda'), callback_data: encodeNav({ screen: 'help' }) }
 		]
 	];
+	// Estado y avisos para admins (0041): solo admins vinculades, por chat privado (`ctx.admin`).
+	if (ctx.admin && ctx.chat === 'private') rows.push(adminRow());
 	if (isHttps(ctx.origin)) {
 		// La puerta (0037): `web_app` solo anda en chats privados, Bot API.
 		if (ctx.door && ctx.chat === 'private') {

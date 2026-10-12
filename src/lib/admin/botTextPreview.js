@@ -54,6 +54,8 @@ export const PREVIEW_SCREENS = Object.freeze([
 			'inicio.boton_calendario',
 			'inicio.boton_sitio',
 			'puerta.boton_inicio',
+			'admin.boton_estado',
+			'admin.boton_avisos',
 			'secciones.boton_material',
 			'secciones.boton_kinkipedia',
 			'secciones.boton_amigues',
@@ -71,11 +73,12 @@ export const PREVIEW_SCREENS = Object.freeze([
 				[{ text: t('secciones.boton_material') }, { text: t('secciones.boton_kinkipedia') }],
 				[{ text: t('secciones.boton_amigues') }, { text: t('secciones.boton_series') }],
 				[{ text: t('inicio.boton_fondo') }, { text: t('inicio.boton_ayuda') }],
+				[{ text: t('admin.boton_estado') }, { text: t('admin.boton_avisos') }],
+				[{ text: t('puerta.boton_inicio') }],
 				[
 					{ text: t('inicio.boton_calendario') },
 					{ text: t('inicio.boton_sitio', { sitio: 'kinkyvibe.ar' }), link: true }
-				],
-				[{ text: t('puerta.boton_inicio') }]
+				]
 			]
 		})
 	},
@@ -330,7 +333,129 @@ export const PREVIEW_SCREENS = Object.freeze([
 		keys: ['puerta.listo', 'puerta.boton'],
 		build: (t) => ({
 			html: t('puerta.listo', { login: 'admin-de-prueba' }),
-			buttons: [[{ text: t('puerta.boton') }]]
+			buttons: [
+				[{ text: t('puerta.boton') }],
+				[{ text: t('admin.boton_estado') }, { text: t('admin.boton_avisos') }]
+			]
+		})
+	},
+	{
+		id: 'admin_eventos',
+		label: 'Estado (admins): elegir un evento',
+		keys: ['admin.elegir', 'admin.boton_evento', 'admin.cancelado'],
+		build: (t) => ({
+			html: `${t('admin.elegir')}\n\n${SAMPLE_EVENTS.map(
+				(e, i) =>
+					`${escapeTelegramHtml(e.when)}\n<b>${escapeTelegramHtml(e.title)}</b>${i === 1 ? ` · ${escapeTelegramHtml(t('admin.cancelado'))}` : ''}`
+			).join('\n\n')}`,
+			buttons: [
+				...SAMPLE_EVENTS.map((e) => [{ text: t('admin.boton_evento', { evento: e.title }) }]),
+				[{ text: t('admin.boton_avisos') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'admin_sin_eventos',
+		label: 'Estado (admins): sin próximos eventos con entradas',
+		keys: ['admin.sin_eventos'],
+		build: (t) => ({
+			html: t('admin.sin_eventos'),
+			buttons: [[{ text: t('admin.boton_avisos') }, { text: t('inicio.boton_inicio') }]]
+		})
+	},
+	{
+		id: 'admin_estado',
+		label: 'Estado (admins): un evento',
+		keys: [
+			'admin.titulo',
+			'admin.tipo',
+			'admin.tipo_sin_cupo',
+			'admin.tramo',
+			'admin.tramo_sin_cantidad',
+			'admin.tramo_vigente',
+			'admin.total',
+			'admin.reservas',
+			'admin.transferencias',
+			'admin.revisar',
+			'admin.espera',
+			'admin.pie',
+			'admin.boton_actualizar',
+			'admin.boton_panel'
+		],
+		build: (t) => ({
+			html: [
+				`${t('admin.titulo', { evento: 'Taller de ejemplo' })}\n📅 vie 10 ene · 21:00`,
+				[
+					t('admin.tipo', { tipo: 'General', vendidas: 12, cupo: 40 }),
+					t('admin.tramo', { tramo: 'Preventa 1', vendidas: 10, cantidad: 10 }),
+					`${t('admin.tramo_sin_cantidad', { tramo: 'Precio final', vendidas: 2 })} ${escapeTelegramHtml(t('admin.tramo_vigente'))}`,
+					t('admin.tipo', { tipo: 'Con ayuda del Fondo', vendidas: 3, cupo: 20 }),
+					t('admin.total', { vendidas: 15, cupo: 60 })
+				].join('\n'),
+				[
+					t('admin.reservas', { cantidad: 4, por_vencer: 1 }),
+					t('admin.transferencias', { cantidad: 2 }),
+					t('admin.revisar', { cantidad: 1 }),
+					t('admin.espera', { cantidad: 5 })
+				].join('\n'),
+				t('admin.pie')
+			].join('\n\n'),
+			buttons: [
+				[{ text: t('admin.boton_actualizar') }, { text: t('admin.boton_panel'), link: true }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'admin_estado_vacio',
+		label: 'Estado (admins): un evento sin ventas ni pendientes',
+		keys: ['admin.tipo_sin_cupo', 'admin.total_sin_cupo', 'admin.nada_pendiente'],
+		build: (t) => ({
+			html: [
+				`${t('admin.titulo', { evento: 'Fiesta de ejemplo' })}\n📅 sáb 11 ene · 23:00`,
+				[
+					t('admin.tipo_sin_cupo', { tipo: 'A la gorra', vendidas: 0 }),
+					t('admin.tipo', { tipo: 'General', vendidas: 0, cupo: 50 }),
+					t('admin.total_sin_cupo', { vendidas: 0 })
+				].join('\n'),
+				t('admin.nada_pendiente'),
+				t('admin.pie')
+			].join('\n\n'),
+			buttons: [
+				[{ text: t('admin.boton_actualizar') }, { text: t('admin.boton_panel'), link: true }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'admin_avisos',
+		label: 'Mis avisos (admins)',
+		keys: [
+			'admin.avisos',
+			'admin.aviso_diario',
+			'admin.aviso_venta',
+			'admin.aviso_transferencia',
+			'admin.aviso_dia',
+			'admin.aviso_recordatorios'
+		],
+		build: (t) => ({
+			html: t('admin.avisos'),
+			buttons: [
+				[{ text: `✅ ${t('admin.aviso_diario')}` }],
+				[{ text: `⬜ ${t('admin.aviso_venta')}` }],
+				[{ text: `⬜ ${t('admin.aviso_transferencia')}` }],
+				[{ text: `⬜ ${t('admin.aviso_dia')}` }],
+				[{ text: `⬜ ${t('admin.aviso_recordatorios')}` }],
+				[{ text: t('admin.boton_estado') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'admin_aviso_tocado',
+		label: 'Mis avisos (admins): aviso al prender o apagar uno',
+		keys: ['admin.prendido', 'admin.apagado'],
+		build: (t) => ({
+			toast: `${t('admin.prendido', { aviso: t('admin.aviso_diario') })}\n${t('admin.apagado', { aviso: t('admin.aviso_venta') })}`
 		})
 	}
 ]);

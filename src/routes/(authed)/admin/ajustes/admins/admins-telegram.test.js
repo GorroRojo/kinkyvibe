@@ -124,6 +124,15 @@ describe('/admin/ajustes/admins: Telegram para la puerta', () => {
 		]);
 	});
 
+	it('con la puerta apagada pero «Telegram para admins» prendido, se puede vincular (0041)', async () => {
+		await setFlag(t.db, 'telegram_bot', true, { by: 'prueba' });
+		await setFlag(t.db, 'telegram_admin', true, { by: 'prueba' });
+		const { load, actions } = await page();
+		expect(/** @type {any} */ (await load(ev(admin))).telegram.blocked).toBeNull();
+		const r = /** @type {any} */ (await actions.vincularTelegram(post('vincularTelegram', admin)));
+		expect(r.telegramLink).toMatch(/\?start=adm_[2-9A-HJ-NP-Z]{8}$/);
+	});
+
 	it('sin TELEGRAM_BOT_USERNAME no hay link', async () => {
 		await setFlag(t.db, 'telegram_bot', true, { by: 'prueba' });
 		await setFlag(t.db, 'telegram_puerta', true, { by: 'prueba' });
