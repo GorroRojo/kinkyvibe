@@ -402,7 +402,7 @@ describe('cada venta y cada transferencia', () => {
 	it('sin nadie que lo prendió, ni consulta el evento', async () => {
 		await setAdminNotice(t.db, ADMIN.id, 'cada_venta', false);
 		const sold = await order({ status: 'approved', at: AFTERNOON });
-		const spy = vi.fn(/** @type {any} */ (config));
+		const spy = /** @type {typeof config & import("vitest").Mock} */ (vi.fn(config));
 		expect(
 			await notifyOrder({
 				db: t.db,
