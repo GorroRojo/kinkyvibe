@@ -99,7 +99,7 @@ nada de estas tablas para sumarlas.
 - Cada intento suma al contador en la misma sentencia que busca el código, antes de comparar
   (dos intentos a la vez no pueden pasarse de 5). La comparación es en tiempo constante.
 - El mail sale por el mismo camino que los de entradas (`deliverEmail` →
-  `deliver()` de `src/lib/server/tickets/index.js`): Resend, remitente de Ajustes → Mails y el
+  `deliver()` de `src/lib/server/tickets/index.js`): Resend, remitente de Mensajes → Configuración y el
   filtro de los previews. El código no va en el asunto (se ve en las notificaciones del celu): se
   probó ponerlo y, en dos pruebas con mails reales en Gmail, no ayudó (11/10/2026). Cómo va armado
   para que se pueda copiar: [mails.md](mails.md#códigos-copiables).

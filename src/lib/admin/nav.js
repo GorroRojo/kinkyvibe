@@ -11,9 +11,11 @@
  *   excepciones: Inicio, Eventos, Check-in (su URL está guardada en los celus de la puerta) y
  *   Etiquetas, que es su propia área. Sin redirecciones desde las URLs viejas: si una cambia,
  *   `adminPaths.test.js` marca cada link interno que quedó apuntando a la vieja.
- *   **Única excepción** (aprobada por gorrite, 11/10): `/admin/estadisticas` era una página y
+ *   **Excepciones** (aprobadas por gorrite, 11/10): `/admin/estadisticas` era una página y
  *   ahora redirige (307) a Ventas (`/admin/estadisticas/ventas`), así los favoritos viejos siguen
- *   andando (`src/routes/(authed)/admin/estadisticas/+server.js`). No es un ítem del menú.
+ *   andando (`src/routes/(authed)/admin/estadisticas/+server.js`). No es un ítem del menú. Y
+ *   /admin/ajustes/mails redirige (308) a Mensajes › Configuración
+ *   (`src/routes/(authed)/admin/ajustes/mails/+server.js`).
  * - `icon`: componente de Lucide (el ícono que se muestra, ver `ICON_MODE`).
  * - `emoji`: el mismo ícono como emoji (se usa si `ICON_MODE` es 'emoji').
  * - `label`: nombre en el menú.
@@ -408,6 +410,17 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
+		// Remitente, pie, recordatorios y envíos en tandas. Antes era Ajustes › «Mails y envíos»
+		// (/admin/ajustes/mails, que redirige acá; gorrite, 11/10). El id quedó igual (atajos).
+		id: 'ajustes-mails',
+		href: '/admin/mensajes/configuracion',
+		icon: Mail,
+		emoji: '✉️',
+		label: 'Configuración',
+		area: 'mensajes',
+		soon: false
+	},
+	{
 		id: 'lo-que-sigo',
 		href: '/admin/mensajes/lo-que-sigo',
 		icon: Sparkles,
@@ -572,16 +585,6 @@ export const NAV = Object.freeze([
 		label: 'Propinas',
 		area: 'ajustes',
 		sub: 'plata',
-		soon: false
-	},
-	{
-		id: 'ajustes-mails',
-		href: '/admin/ajustes/mails',
-		icon: Mail,
-		emoji: '✉️',
-		label: 'Mails y envíos',
-		area: 'ajustes',
-		sub: 'comunicacion',
 		soon: false
 	},
 	{
@@ -801,7 +804,9 @@ export function areaBackLink(id) {
 	const area = navArea(navItem(id)?.area);
 	if (!area) return null;
 	const root = NAV.find((i) => i.href === `/admin/${area.id}`);
-	return root ? { href: root.href, label: area.label } : null;
+	// Si la página del área todavía no existe («Próximamente», como la Bandeja de Mensajes), no hay
+	// a dónde volver: sin link (gorrite, 11/10: «el botón "Mensajes" no lleva a ningún lado»).
+	return root && !root.soon ? { href: root.href, label: area.label } : null;
 }
 
 /**

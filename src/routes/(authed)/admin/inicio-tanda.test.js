@@ -262,7 +262,7 @@ async function oldLoad({ locals, url, platform, fetch, setHeaders }) {
 	const integrityRow = integrityReviewRow(integrity, { formatWhen: (ms) => whenLabel(ms, now) });
 	if (integrityRow) todo.push(integrityRow);
 
-	// Los recordatorios se configuran en Ajustes → Mails y plantillas.
+	// Los recordatorios se configuran en Mensajes → Configuración.
 	const remindersItem = navItem('ajustes-mails');
 	const agenda = agendaItems({
 		events,
@@ -275,7 +275,7 @@ async function oldLoad({ locals, url, platform, fetch, setHeaders }) {
 			event: eventLink,
 			orders: (slug) => orderHref(slug),
 			transfers: transfersHref,
-			reminders: (remindersItem && navLink(remindersItem)) || '/admin/ajustes/mails'
+			reminders: (remindersItem && navLink(remindersItem)) || '/admin/mensajes/configuracion'
 		}
 	});
 	const focus = salesFocus(upcoming);
