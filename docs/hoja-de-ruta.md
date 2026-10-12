@@ -206,13 +206,10 @@ de amigues y lanzamientos grandes.
 - Navegación del panel, opción C ([0038](decisiones/0038-navegacion-del-panel-opcion-c.md),
   [0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)), lo que quedó después de la
   parte 2 (Fijados, «+ Crear», Puerta fuera de la barra, pestañas con contadores y ▾ en el celu):
-  - Pestañas de la ficha del evento (5 y «Más» en el prototipo; #303 propone 7 con vistas) y dónde
-    van los ajustes de mails. M. Bloqueo: decisión de gorrite (#303).
   - Ajustes como 4 grupos (Plata, Comunicación, Equipo, Sistema) con tarjetas, como en el
     prototipo, en vez de 9 pestañas. M. Bloqueo: gorrite.
-  - La Puerta «abierta en el evento de hoy» (el prototipo entra directo al evento del día; hoy
-    `/admin/checkin` muestra la lista para elegir). S. Bloqueo: gorrite.
-  - Fijados y Recientes en el buscador vacío de «Ir a…». S.
+  - (Descartado por gorrite, Mesa 12/10: la ficha del evento con 5 pestañas y «Más» del
+    prototipo; quedan las 7 pestañas con vistas.)
   - Fijados por admin en la base (hoy por navegador), si se suma una tabla de preferencias. M.
   - Si la barra sin grupos se queda, sacar las funciones de grupos abiertos de `navPrefs.js`
     (`kv-panel-grupos`) y sus pruebas. S.
@@ -276,8 +273,21 @@ de amigues y lanzamientos grandes.
   `formatChoices`, `formatPickList` en `format.js`; `eventListKeyboard` y `eventDetailKeyboard` en
   `keyboards.js`) y sus pruebas. S.
 
-- Fase 3: avisos y estado para organizadores, nunca datos de compradores
-  ([0029](decisiones/0029-bot-de-telegram.md)). L. Bloqueo: el rol de organizadore.
+- Telegram para admins, PR 1 (base, «📊 Estado» y «🔔 Mis avisos»,
+  [0041](decisiones/0041-telegram-para-admins.md)): aplicar la migración 0054 en preview y
+  producción, prender `telegram_admin` en un preview y probarlo con un Telegram vinculado. S.
+  Bloqueo: gorrite.
+- Telegram para admins, PR 2: el resumen diario de ventas y los avisos en el momento (cada venta,
+  cada transferencia que llega), solo a quien los prendió en «🔔 Mis avisos» (`noticeRecipients`),
+  con horario de silencio y clave única por envío; solo cantidades y links (0041). M.
+- Telegram para admins, PR 3: el resumen del día del evento y los recordatorios (el evento de
+  mañana, falta el lugar o el link de la transmisión) (0041). M. Bloqueo: PR 2.
+- Telegram para admins: `/estado` y `/avisos` en el menú «/» solo de les admins vinculades
+  (`setMyCommands` con un alcance por chat, desde el cron; borrarlo al desvincular). S. Bloqueo:
+  que haga falta.
+- Fase 3: avisos y estado para organizadores, cada une con **sus** eventos, reusando lo de admins
+  (0041; nunca datos de compradores, [0029](decisiones/0029-bot-de-telegram.md)). M. Bloqueo: el
+  rol de organizadore.
 
 ### Contenido
 

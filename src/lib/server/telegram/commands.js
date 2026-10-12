@@ -50,6 +50,14 @@ export const ACCOUNT_COMMANDS = Object.freeze(
 export const HIDDEN_COMMANDS = Object.freeze(['start', 'help']);
 
 /**
+ * Los de admins (decisión 0041): `/estado` y `/avisos`, atajos a «📊 Estado» y «🔔 Mis avisos».
+ * **No** están en `HANDLED_COMMANDS` ni en el menú «/» de nadie: el router los contesta antes,
+ * solo por chat privado y solo a une admin vinculade (mirado en cada mensaje); a cualquier otra
+ * persona le contesta lo mismo que a un comando que no existe («No entendí»).
+ */
+export const ADMIN_COMMAND_NAMES = new Set(['estado', 'avisos']);
+
+/**
  * Los nombres de los comandos que cambian la vinculación del chat (`/sigo` y `/entradas` son
  * pantallas: los contesta el router aparte).
  */

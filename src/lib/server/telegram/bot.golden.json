@@ -2324,6 +2324,255 @@
 			}
 		}
 	},
+	"inicio privado admin": {
+		"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+		"keyboard": [
+			[
+				{
+					"text": "Hoy",
+					"callback_data": "l:d:0",
+					"style": "primary"
+				},
+				{
+					"text": "Semana",
+					"callback_data": "l:w:0",
+					"style": "primary"
+				},
+				{
+					"text": "Finde",
+					"callback_data": "l:f:0",
+					"style": "primary"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar",
+					"callback_data": "s"
+				},
+				{
+					"text": "⭐ Lo que sigo",
+					"callback_data": "g"
+				}
+			],
+			[
+				{
+					"text": "💗 Fondo",
+					"callback_data": "fo"
+				},
+				{
+					"text": "❓ Ayuda",
+					"callback_data": "a"
+				}
+			],
+			[
+				{
+					"text": "📊 Estado",
+					"callback_data": "ax:0"
+				},
+				{
+					"text": "🔔 Mis avisos",
+					"callback_data": "an"
+				}
+			],
+			[
+				{
+					"text": "📅 Calendario",
+					"web_app": {
+						"url": "https://ejemplo.test/telegram/app"
+					}
+				},
+				{
+					"text": "Abrir ejemplo.test ↗",
+					"url": "https://ejemplo.test"
+				}
+			]
+		]
+	},
+	"inicio grupo admin": {
+		"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+		"keyboard": [
+			[
+				{
+					"text": "Hoy",
+					"callback_data": "l:d:0",
+					"style": "primary"
+				},
+				{
+					"text": "Semana",
+					"callback_data": "l:w:0",
+					"style": "primary"
+				},
+				{
+					"text": "Finde",
+					"callback_data": "l:f:0",
+					"style": "primary"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar",
+					"callback_data": "s"
+				},
+				{
+					"text": "⭐ Lo que sigo ↗",
+					"url": "https://t.me/BotDePrueba?start=sigo"
+				}
+			],
+			[
+				{
+					"text": "💗 Fondo",
+					"callback_data": "fo"
+				},
+				{
+					"text": "❓ Ayuda",
+					"callback_data": "a"
+				}
+			],
+			[
+				{
+					"text": "Abrir ejemplo.test ↗",
+					"url": "https://ejemplo.test"
+				}
+			]
+		]
+	},
+	"admin: estado sin eventos": {
+		"text": "<b>📊 Estado de la venta</b>\n\nNo hay eventos con venta de entradas para hoy ni para los próximos días.",
+		"keyboard": [
+			[
+				{
+					"text": "🔔 Mis avisos",
+					"callback_data": "an"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"admin: estado lista": {
+		"text": "<b>📊 Estado de la venta</b>\n\nElegí un evento para ver cuántas entradas se vendieron y qué hay para revisar.\n\n<tg-time unix=\"1925863200\" format=\"wdt\">vie 10 ene · 23:00</tg-time>\n<b>Fiesta inventada</b>\n\n<tg-time unix=\"1925935200\" format=\"wdt\">sáb 11 ene · 19:00</tg-time>\n<b>Taller &lt;de&gt; cuerdas</b> · ❌ Cancelado",
+		"keyboard": [
+			[
+				{
+					"text": "📊 Fiesta inventada",
+					"callback_data": "ae:1lxwhcu"
+				}
+			],
+			[
+				{
+					"text": "📊 Taller <de> cuerdas",
+					"callback_data": "ae:tr48j"
+				}
+			],
+			[
+				{
+					"text": "🔔 Mis avisos",
+					"callback_data": "an"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"admin: estado de un evento": {
+		"text": "<b>📊 Fiesta inventada</b>\n📅 <tg-time unix=\"1925863200\" format=\"wdt\">vie 10 ene · 23:00</tg-time>\n\n🎟 <b>General</b>: 12 de 40 vendidas\n↳ Preventa 1: 10 de 10\n↳ Final: 2 ← a la venta\n🎟 <b>A la gorra</b>: 3 vendidas (sin cupo)\n<b>Total</b>: 15 vendidas\n\n⏳ Reservas sin pagar: 3 · vencen en la próxima hora: 1\n💸 Transferencias por confirmar: 2\n⚠️ Órdenes para revisar: 1\n📝 En la lista de espera: 4\n\nSolo cantidades: lo de cada compra está en el panel.",
+		"keyboard": [
+			[
+				{
+					"text": "🔄 Actualizar",
+					"callback_data": "ae:1lxwhcu"
+				},
+				{
+					"text": "Ver en el panel ↗",
+					"url": "https://ejemplo.test/admin/eventos/fiesta-inventada"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "ax:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"admin: estado sin pendientes": {
+		"text": "<b>📊 Taller &lt;de&gt; cuerdas</b>\n📅 <tg-time unix=\"1925935200\" format=\"wdt\">sáb 11 ene · 19:00</tg-time>\n❌ Cancelado\n\n🎟 <b>General</b>: 0 de 30 vendidas\n\n✅ Sin reservas sin pagar ni nada para revisar.\n\nSolo cantidades: lo de cada compra está en el panel.",
+		"keyboard": [
+			[
+				{
+					"text": "🔄 Actualizar",
+					"callback_data": "ae:tr48j"
+				},
+				{
+					"text": "Ver en el panel ↗",
+					"url": "https://ejemplo.test/admin/eventos/taller-de-cuerdas"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "ax:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"admin: mis avisos": {
+		"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.",
+		"keyboard": [
+			[
+				{
+					"text": "⬜ Resumen diario",
+					"callback_data": "an:d"
+				}
+			],
+			[
+				{
+					"text": "✅ Cada venta",
+					"callback_data": "an:v"
+				}
+			],
+			[
+				{
+					"text": "⬜ Cada transferencia",
+					"callback_data": "an:t"
+				}
+			],
+			[
+				{
+					"text": "⬜ Día del evento",
+					"callback_data": "an:e"
+				}
+			],
+			[
+				{
+					"text": "⬜ Recordatorios",
+					"callback_data": "an:r"
+				}
+			],
+			[
+				{
+					"text": "📊 Estado",
+					"callback_data": "ax:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
 	"router: /start": {
 		"steps": [
 			{
@@ -7286,6 +7535,494 @@
 				"button": {
 					"text": "Todavía no hay nada para mostrar. Abrí el bot",
 					"start_parameter": "buscar"
+				}
+			}
+		]
+	},
+	"router: /estado admin": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 77,
+				"text": "<b>📊 Estado de la venta</b>\n\nElegí un evento para ver cuántas entradas se vendieron y qué hay para revisar.\n\n<tg-time unix=\"1925863200\" format=\"wdt\">vie 10 ene · 23:00</tg-time>\n<b>Fiesta inventada</b>\n\n<tg-time unix=\"1925935200\" format=\"wdt\">sáb 11 ene · 19:00</tg-time>\n<b>Taller &lt;de&gt; cuerdas</b> · ❌ Cancelado",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📊 Fiesta inventada",
+								"callback_data": "ae:1lxwhcu"
+							}
+						],
+						[
+							{
+								"text": "📊 Taller <de> cuerdas",
+								"callback_data": "ae:tr48j"
+							}
+						],
+						[
+							{
+								"text": "🔔 Mis avisos",
+								"callback_data": "an"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /estado no admin": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 77,
+				"text": "No entendí ese comando. Probá con /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /avisos admin": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 77,
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "⬜ Resumen diario",
+								"callback_data": "an:d"
+							}
+						],
+						[
+							{
+								"text": "⬜ Cada venta",
+								"callback_data": "an:v"
+							}
+						],
+						[
+							{
+								"text": "⬜ Cada transferencia",
+								"callback_data": "an:t"
+							}
+						],
+						[
+							{
+								"text": "⬜ Día del evento",
+								"callback_data": "an:e"
+							}
+						],
+						[
+							{
+								"text": "⬜ Recordatorios",
+								"callback_data": "an:r"
+							}
+						],
+						[
+							{
+								"text": "📊 Estado",
+								"callback_data": "ax:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /start admin": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 77,
+				"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Hoy",
+								"callback_data": "l:d:0",
+								"style": "primary"
+							},
+							{
+								"text": "Semana",
+								"callback_data": "l:w:0",
+								"style": "primary"
+							},
+							{
+								"text": "Finde",
+								"callback_data": "l:f:0",
+								"style": "primary"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "💗 Fondo",
+								"callback_data": "fo"
+							},
+							{
+								"text": "❓ Ayuda",
+								"callback_data": "a"
+							}
+						],
+						[
+							{
+								"text": "📊 Estado",
+								"callback_data": "ax:0"
+							},
+							{
+								"text": "🔔 Mis avisos",
+								"callback_data": "an"
+							}
+						],
+						[
+							{
+								"text": "📅 Calendario",
+								"web_app": {
+									"url": "https://ejemplo.test/telegram/app"
+								}
+							},
+							{
+								"text": "Abrir ejemplo.test ↗",
+								"url": "https://ejemplo.test"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: botón estado lista admin": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 77,
+				"message_id": 9,
+				"text": "<b>📊 Estado de la venta</b>\n\nElegí un evento para ver cuántas entradas se vendieron y qué hay para revisar.\n\n<tg-time unix=\"1925863200\" format=\"wdt\">vie 10 ene · 23:00</tg-time>\n<b>Fiesta inventada</b>\n\n<tg-time unix=\"1925935200\" format=\"wdt\">sáb 11 ene · 19:00</tg-time>\n<b>Taller &lt;de&gt; cuerdas</b> · ❌ Cancelado",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📊 Fiesta inventada",
+								"callback_data": "ae:1lxwhcu"
+							}
+						],
+						[
+							{
+								"text": "📊 Taller <de> cuerdas",
+								"callback_data": "ae:tr48j"
+							}
+						],
+						[
+							{
+								"text": "🔔 Mis avisos",
+								"callback_data": "an"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 77,
+				"text": "<b>📊 Estado de la venta</b>\n\nElegí un evento para ver cuántas entradas se vendieron y qué hay para revisar.\n\n<tg-time unix=\"1925863200\" format=\"wdt\">vie 10 ene · 23:00</tg-time>\n<b>Fiesta inventada</b>\n\n<tg-time unix=\"1925935200\" format=\"wdt\">sáb 11 ene · 19:00</tg-time>\n<b>Taller &lt;de&gt; cuerdas</b> · ❌ Cancelado",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📊 Fiesta inventada",
+								"callback_data": "ae:1lxwhcu"
+							}
+						],
+						[
+							{
+								"text": "📊 Taller <de> cuerdas",
+								"callback_data": "ae:tr48j"
+							}
+						],
+						[
+							{
+								"text": "🔔 Mis avisos",
+								"callback_data": "an"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: botón estado de un evento admin": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 77,
+				"message_id": 9,
+				"text": "<b>📊 Fiesta inventada</b>\n📅 <tg-time unix=\"1925863200\" format=\"wdt\">vie 10 ene · 23:00</tg-time>\n\n🎟 <b>General</b>: 12 de 40 vendidas\n↳ Preventa 1: 10 de 10\n↳ Final: 2 ← a la venta\n🎟 <b>A la gorra</b>: 3 vendidas (sin cupo)\n<b>Total</b>: 15 vendidas\n\n⏳ Reservas sin pagar: 3 · vencen en la próxima hora: 1\n💸 Transferencias por confirmar: 2\n⚠️ Órdenes para revisar: 1\n📝 En la lista de espera: 4\n\nSolo cantidades: lo de cada compra está en el panel.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🔄 Actualizar",
+								"callback_data": "ae:1lxwhcu"
+							},
+							{
+								"text": "Ver en el panel ↗",
+								"url": "https://ejemplo.test/admin/eventos/fiesta-inventada"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "ax:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 77,
+				"text": "<b>📊 Fiesta inventada</b>\n📅 <tg-time unix=\"1925863200\" format=\"wdt\">vie 10 ene · 23:00</tg-time>\n\n🎟 <b>General</b>: 12 de 40 vendidas\n↳ Preventa 1: 10 de 10\n↳ Final: 2 ← a la venta\n🎟 <b>A la gorra</b>: 3 vendidas (sin cupo)\n<b>Total</b>: 15 vendidas\n\n⏳ Reservas sin pagar: 3 · vencen en la próxima hora: 1\n💸 Transferencias por confirmar: 2\n⚠️ Órdenes para revisar: 1\n📝 En la lista de espera: 4\n\nSolo cantidades: lo de cada compra está en el panel.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🔄 Actualizar",
+								"callback_data": "ae:1lxwhcu"
+							},
+							{
+								"text": "Ver en el panel ↗",
+								"url": "https://ejemplo.test/admin/eventos/fiesta-inventada"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "ax:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: botón estado forjado no admin": {
+		"steps": [],
+		"callback": {
+			"id": "cb",
+			"text": "No entendí ese comando. Probá con /ayuda."
+		}
+	},
+	"router: botón prender aviso admin": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 77,
+				"message_id": 9,
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "✅ Resumen diario",
+								"callback_data": "an:d"
+							}
+						],
+						[
+							{
+								"text": "⬜ Cada venta",
+								"callback_data": "an:v"
+							}
+						],
+						[
+							{
+								"text": "⬜ Cada transferencia",
+								"callback_data": "an:t"
+							}
+						],
+						[
+							{
+								"text": "⬜ Día del evento",
+								"callback_data": "an:e"
+							}
+						],
+						[
+							{
+								"text": "⬜ Recordatorios",
+								"callback_data": "an:r"
+							}
+						],
+						[
+							{
+								"text": "📊 Estado",
+								"callback_data": "ax:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 77,
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "✅ Resumen diario",
+								"callback_data": "an:d"
+							}
+						],
+						[
+							{
+								"text": "⬜ Cada venta",
+								"callback_data": "an:v"
+							}
+						],
+						[
+							{
+								"text": "⬜ Cada transferencia",
+								"callback_data": "an:t"
+							}
+						],
+						[
+							{
+								"text": "⬜ Día del evento",
+								"callback_data": "an:e"
+							}
+						],
+						[
+							{
+								"text": "⬜ Recordatorios",
+								"callback_data": "an:r"
+							}
+						],
+						[
+							{
+								"text": "📊 Estado",
+								"callback_data": "ax:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb",
+			"text": "Prendido: Resumen diario"
+		}
+	},
+	"router: /start adm solo estado": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 77,
+				"text": "Listo: este Telegram quedó vinculado a le admin <b>admin-inventade</b> del panel, para la puerta. Para desvincularlo: panel → Ajustes → Admins.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📊 Estado",
+								"callback_data": "ax:0"
+							},
+							{
+								"text": "🔔 Mis avisos",
+								"callback_data": "an"
+							}
+						]
+					]
 				}
 			}
 		]

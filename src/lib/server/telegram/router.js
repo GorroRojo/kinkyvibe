@@ -16,7 +16,7 @@
  * `deps.accounts` (link.js). En los grupos, solo lo público (deliver.js: efímeros).
  */
 import { escapeHtml, formatAdminLinked, formatLinked, followedText } from './format.js';
-import { ACCOUNT_COMMAND_NAMES, HANDLED_COMMANDS } from './commands.js';
+import { ACCOUNT_COMMAND_NAMES, ADMIN_COMMAND_NAMES, HANDLED_COMMANDS } from './commands.js';
 import { answerOnly, deliverScreen, singleMethod } from './deliver.js';
 import {
 	ADMIN_START_PREFIX,
@@ -35,6 +35,7 @@ import { planInlineQuery, selectInline } from './inline.js';
 import { backToResults, docHash, docScreen, siteResultsScreen } from './siteScreens.js';
 import { sectionDocScreen, sectionScreen, sectionTagsScreen, sectionView } from './sections.js';
 import {
+	adminRow,
 	doorAppUrl,
 	isSearchPrompt,
 	followScreen,
@@ -53,6 +54,8 @@ import {
 	ticketsUnlinkedScreen
 } from './misEntradas.js';
 import { botText } from './texts.js';
+import { decodeAdminNav } from './adminNav.js';
+import { adminResult } from './adminBot.js';
 
 /**
  * Un texto de «Textos del bot» que también es aviso de un botón (texto solo), para un mensaje:
@@ -104,11 +107,14 @@ const htmlOf = (key) => escapeHtml(botText(key));
  *   adminLink?: BotAdminLink | null,
  *   inline?: import('./inline.js').InlineDeps | null,
  *   door?: BotDoor | null,
+ *   admin?: import('./adminData.js').BotAdmin | null,
  *   media?: boolean
  * }} Deps `media`: hay token, así que se pueden usar fotos y varios métodos (run.js).
  *   `inline`: el modo inline (inline.js); sin él, un `inline_query` no se contesta.
  *   `adminLink`: sin base o con `telegram_puerta` apagado, `null` (el bot contesta que no se
  *   puede). `door`: lo mismo; se llama solo al mostrar el inicio por chat privado.
+ *   `admin`: «📊 Estado» y «🔔 Mis avisos» (decisión 0041, adminData.js); `null` sin base o con
+ *   `telegram_admin` apagado.
  */
 
 /** Lo que trae "/start" cuando viene del link con el código (8 letras y números). */
@@ -242,12 +248,69 @@ async function adminLinkCommand(param, message, deps) {
 	}
 	const r = await deps.adminLink(param, userId);
 	if (typeof r === 'object' && r) {
+		// Vincular anda con la puerta o con «Telegram para admins» prendidos (0037, 0041): cada
+		// botón, solo con lo suyo. `door: null` es la puerta apagada (el webhook siempre lo pasa);
+		// sin `door` (las pruebas de antes), el botón de la puerta como siempre.
 		return {
 			text: formatAdminLinked(r.linked),
-			keyboard: [[{ text: botText('puerta.boton'), web_app: { url: doorAppUrl(deps.origin) } }]]
+			keyboard: [
+				...(deps.door !== null
+					? [[{ text: botText('puerta.boton'), web_app: { url: doorAppUrl(deps.origin) } }]]
+					: []),
+				...(deps.admin ? [adminRow()] : [])
+			]
 		};
 	}
 	return textScreen(botText(r === 'too_many' ? 'vincular.muchos' : 'puerta.link_malo'));
+}
+
+/**
+ * Une admin vinculade con «Telegram para admins» prendido (decisión 0041), mirado **en cada
+ * mensaje y cada botón**: solo por chat privado con esa misma persona (el id del chat privado es
+ * el del usuario), con `deps.admin`, el vínculo y la lista `ADMINS` (adminData.js). Si algo falla,
+ * `null` (como si no fuera admin).
+ *
+ * @param {Deps} deps
+ * @param {any} chat
+ * @param {unknown} userId
+ * @returns {Promise<import('./adminLink.js').AdminIdentity | null>}
+ */
+async function adminFor(deps, chat, userId) {
+	if (!deps.admin || chat?.type !== 'private' || typeof userId !== 'number') return null;
+	if (String(chat.id) !== String(userId)) return null;
+	try {
+		return await deps.admin.who(userId);
+	} catch (error) {
+		console.error('[telegram] no se pudo mirar si es admin:', /** @type {Error} */ (error)?.name);
+		return null;
+	}
+}
+
+/**
+ * Un botón de admins (adminNav.js). A quien no es admin vinculade (o con el interruptor apagado,
+ * o en un grupo) le contesta **lo mismo que a un botón que no es nuestro**: no dice que existe ni
+ * muestra nada, aunque el botón esté armado a mano.
+ *
+ * @param {import('./adminNav.js').AdminNavState} state
+ * @param {any} callback
+ * @param {Where} where
+ * @param {Deps} deps
+ * @returns {Promise<BotPlan>}
+ */
+async function planAdminCallback(state, callback, where, deps) {
+	const callbackId = /** @type {string} */ (callback.id);
+	const who = await adminFor(deps, callback?.message?.chat, callback?.from?.id);
+	if (!who || !deps.admin) return answerOnly(callbackId, botText('errores.no_entendi'));
+	try {
+		const result = await adminResult(state, who, screenCtx(deps, false), deps.admin);
+		if (!('screen' in result)) return answerOnly(callbackId, result.toast);
+		const plan = deliverScreen(result.screen, where, { media: Boolean(deps.media) });
+		if (result.toast && plan.callback) plan.callback = { ...plan.callback, text: result.toast };
+		return plan;
+	} catch (error) {
+		console.error('[telegram] error en lo de admins:', /** @type {Error} */ (error)?.name);
+		return answerOnly(callbackId, botText('errores.algo_salio_mal'));
+	}
 }
 
 /**
@@ -383,13 +446,18 @@ async function sectionResult(state, ctx, deps) {
  * @returns {Promise<ScreenCtx>}
  */
 async function homeCtx(ctx, deps, chat, userId) {
-	if (chat?.type !== 'private' || !deps.door || typeof userId !== 'number') return ctx;
-	try {
-		return (await deps.door(userId)) ? { ...ctx, door: true } : ctx;
-	} catch (error) {
-		console.error('[telegram] no se pudo mirar la puerta:', /** @type {Error} */ (error)?.name);
-		return ctx;
+	if (chat?.type !== 'private' || typeof userId !== 'number') return ctx;
+	/** @type {ScreenCtx} */
+	let out = ctx;
+	if (deps.door) {
+		try {
+			if (await deps.door(userId)) out = { ...out, door: true };
+		} catch (error) {
+			console.error('[telegram] no se pudo mirar la puerta:', /** @type {Error} */ (error)?.name);
+		}
 	}
+	if (deps.admin && (await adminFor(deps, chat, userId))) out = { ...out, admin: true };
+	return out;
 }
 
 /**
@@ -582,6 +650,9 @@ async function planCallback(callback, deps) {
 			: {}),
 		isPhoto: Array.isArray(message.photo)
 	};
+	// Lo de admins, antes que todo: quién toca se mira en cada botón (decisión 0041).
+	const adminState = decodeAdminNav(callback?.data);
+	if (adminState) return planAdminCallback(adminState, callback, where, deps);
 	const state = decodeNav(callback?.data);
 	if (!state) return answerOnly(callbackId, botText('errores.no_entendi'));
 	if (state.screen === 'noop') return answerOnly(callbackId);
@@ -818,6 +889,21 @@ export async function planUpdate(update, deps) {
 		}
 		const command = parseCommand(message?.text);
 		if (!command) return null;
+		// `/estado` y `/avisos`: solo une admin vinculade, por privado (0041). Para cualquier otra
+		// persona, lo mismo que un comando que no existe.
+		if (ADMIN_COMMAND_NAMES.has(command.name)) {
+			const who = await adminFor(deps, message.chat, message?.from?.id);
+			if (!who || !deps.admin) return send(textScreen(htmlOf('errores.no_entendi')));
+			const r = await adminResult(
+				command.name === 'avisos'
+					? { screen: 'admin_notices' }
+					: { screen: 'admin_events', page: 0 },
+				who,
+				screenCtx(deps, false),
+				deps.admin
+			);
+			return send('screen' in r ? r.screen : noticeScreen(escapeHtml(r.toast)));
+		}
 		// La lista de comandos vive en commands.js (también la que se registra en Telegram).
 		if (!HANDLED_COMMANDS.has(command.name)) return send(textScreen(htmlOf('errores.no_entendi')));
 		const accounts = await accountsOf(deps);
