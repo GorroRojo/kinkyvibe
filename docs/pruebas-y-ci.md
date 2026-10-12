@@ -116,7 +116,9 @@ migraciones que reconstruyen tablas tienen su propia prueba con datos
 lenta a propósito (recorre toda la semilla, lee todo el repo, compila la galería), se le sube solo
 a ella (`it('…', { timeout: 30_000 }, …)` o a su `describe`) con un comentario que diga por qué.
 Antes, conviene ver si se puede hacer más rápida (una base por archivo, una copia con
-`restoreDB()`, el reloj de mentira en vez de esperas de verdad).
+`restoreDB()`, el reloj de mentira en vez de esperas de verdad). Las bases de prueba (también las
+sin migraciones, `createTestDB({ migrate: false })`) se levantan en un `beforeAll`, nunca dentro
+de una prueba: el arranque de miniflare contaría para el tiempo límite de la prueba.
 
 **Lo privado no sale en público** (`src/routes/privados.test.js`): planta objetos de cada tipo en
 cada nivel que no ve une visitante (oculto, solo con cuenta, borrado, sin aprobar, no listado, y

@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { unstable_readConfig } from 'wrangler';
-import { createTestDB } from './db/testing.js';
+import { createTestDB, resetDB } from './db/testing.js';
 import { BINDING, DATASET } from './analytics/track.js';
 import { lastIntegrityRun } from './objects/integrity.js';
 import { saveObject } from './objects/save.js';
@@ -94,8 +94,23 @@ describe('backup', () => {
 });
 
 describe('integridad de objetos (después del backup)', () => {
+	// Las bases, levantadas antes de las pruebas (una con migraciones, vaciada antes de cada una, y
+	// otra sin): el arranque de miniflare no cuenta para el tiempo límite de cada prueba.
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let t;
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let bare;
+	beforeAll(async () => {
+		[t, bare] = await Promise.all([createTestDB(), createTestDB({ migrate: false })]);
+	});
+	afterAll(async () => {
+		await Promise.all([t?.dispose(), bare?.dispose()]);
+	});
+	beforeEach(async () => {
+		await resetDB(t.db);
+	});
+
 	it('con problemas NO hace fallar la corrida: los guarda para "Para revisar"', async () => {
-		const t = await createTestDB();
 		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
 		try {
@@ -127,12 +142,10 @@ describe('integridad de objetos (después del backup)', () => {
 		} finally {
 			log.mockRestore();
 			error.mockRestore();
-			await t.dispose();
 		}
 	}, 30_000);
 
 	it('el cron nocturno termina bien (backup OK) aunque el chequeo encuentre problemas', async () => {
-		const t = await createTestDB();
 		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
 		try {
@@ -151,7 +164,6 @@ describe('integridad de objetos (después del backup)', () => {
 		} finally {
 			log.mockRestore();
 			error.mockRestore();
-			await t.dispose();
 		}
 	}, 60_000);
 
@@ -175,14 +187,12 @@ describe('integridad de objetos (después del backup)', () => {
 	});
 
 	it('si la base todavía no tiene la migración 0012, no hace nada', async () => {
-		const t = await createTestDB({ migrate: false });
 		const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 		try {
-			expect(await runObjectsIntegrity({ DB: t.db })).toBeNull();
+			expect(await runObjectsIntegrity({ DB: bare.db })).toBeNull();
 			expect(log).toHaveBeenCalledWith(expect.stringContaining('0012'));
 		} finally {
 			log.mockRestore();
-			await t.dispose();
 		}
 	}, 30_000);
 });

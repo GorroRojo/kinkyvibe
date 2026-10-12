@@ -24,7 +24,7 @@ import {
 } from '../amigues/importer.js';
 import { readAmigueFiles } from '../amigues/testing.js';
 import { makeProfile } from '../amigues/testing.js';
-import { importTags, summarizeTagImport } from '../etiquetas/importer.js';
+import { importTags } from '../etiquetas/importer.js';
 import { commitTagEdit } from '../admin/tagEditor.js';
 import { planTagRenameInPosts } from '../etiquetas/rename.js';
 import { contentArchiveFiles } from './download.js';
@@ -104,8 +104,10 @@ describe('importar todo lo del repo (estricto)', () => {
 	});
 
 	it('cada página de la wiki del repo queda en su etiqueta, con la misma dirección', async () => {
-		const { tags } = await importEverything();
-		expect(summarizeTagImport(tags.results).error).toBe(0);
+		// Que la importación de todas las etiquetas (con estas mismas páginas de la wiki) no tenga
+		// errores lo asegura src/lib/server/etiquetas/importer.test.js («importa todo…»): acá, solo
+		// lo de las fichas.
+		await importEverything();
 		const { listFichas } = await import('./fichas.js');
 		const pages = await listFichas(t.db, 'wiki');
 		expect(wikiFiles.length).toBeGreaterThanOrEqual(12);

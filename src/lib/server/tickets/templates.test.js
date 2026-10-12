@@ -336,6 +336,17 @@ describe('vista previa', () => {
 });
 
 describe('guardar y restaurar (D1)', () => {
+	// Una base sin migraciones, levantada antes de las pruebas: su arranque (miniflare) no
+	// cuenta para el tiempo límite de la prueba.
+	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
+	let bare;
+	beforeAll(async () => {
+		bare = await createTestDB({ migrate: false });
+	});
+	afterAll(async () => {
+		await bare?.dispose();
+	});
+
 	/** @type {Awaited<ReturnType<typeof createTestDB>>} */
 	let t;
 	beforeAll(async () => {
@@ -363,13 +374,8 @@ describe('guardar y restaurar (D1)', () => {
 	});
 
 	it('sin la tabla (migración pendiente) o sin base: sin plantilla, sin romper', async () => {
-		const bare = await createTestDB({ migrate: false });
-		try {
-			expect(await getTemplateOverride(bare.db, 'tickets')).toBeNull();
-			expect((await listTemplateOverrides(bare.db)).size).toBe(0);
-		} finally {
-			await bare.dispose();
-		}
+		expect(await getTemplateOverride(bare.db, 'tickets')).toBeNull();
+		expect((await listTemplateOverrides(bare.db)).size).toBe(0);
 		expect(await getTemplateOverride(null, 'tickets')).toBeNull();
 	});
 });
