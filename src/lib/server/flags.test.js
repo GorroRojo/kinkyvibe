@@ -1,4 +1,16 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// El pedido en curso (`getRequestEvent`): las lecturas en camino se comparten solo dentro de un
+// pedido (src/lib/server/db/perRequest.js).
+const fake = vi.hoisted(() => ({ event: /** @type {any} */ (null) }));
+vi.mock('$app/server', () => ({
+	getRequestEvent: () => {
+		if (!fake.event) throw new Error('fuera de un pedido');
+		return fake.event;
+	}
+}));
+/** Un pedido GET nuevo. */
+const getRequest = () => ({ request: new Request('https://example.com/admin') });
 import { countingDB, createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { navFlagKeys } from '$lib/admin/nav.js';
 import {
@@ -23,6 +35,9 @@ afterAll(async () => {
 beforeEach(async () => {
 	await resetDB(t.db);
 	clearFlagCache();
+});
+afterEach(() => {
+	fake.event = null;
 });
 
 describe('interruptores', () => {
@@ -120,6 +135,7 @@ describe('interruptores', () => {
 		await setFlag(t.db, 'telegram_bot', true, { by: 'admin-de-prueba' });
 		clearFlagCache();
 		const counted = countingDB(t.db);
+		fake.event = getRequest();
 		const now = 5_000_000;
 		const keys = /** @type {(keyof typeof FLAGS)[]} */ (Object.keys(FLAGS));
 		// Todos juntos (como los loads en paralelo) y después uno por uno.
@@ -131,7 +147,8 @@ describe('interruptores', () => {
 		expect(Object.fromEntries(keys.map((k, i) => [k, together[i]]))).toEqual(
 			Object.fromEntries(keys.map((k) => [k, k === 'lo_que_sigo' || k === 'telegram_bot']))
 		);
-		// Cuando vence, otra vez una sola.
+		// Cuando vence, otra vez una sola (en otro pedido).
+		fake.event = getRequest();
 		await Promise.all(
 			keys.map((k) => isFlagOn(counted.db, k, { now: now + FLAG_CACHE_MS, envValue: '' }))
 		);
@@ -139,5 +156,31 @@ describe('interruptores', () => {
 		// Sin la tabla: todos apagados, como readFlag.
 		clearFlagCache();
 		expect(await isFlagOn(bare.db, 'lo_que_sigo', { envValue: '' })).toBe(false);
+	});
+
+	it('una lectura de otro pedido que no termina no cuelga a los demás', async () => {
+		// En Workers, si el pedido que empezó una consulta termina o se corta, la consulta puede no
+		// terminar nunca: el pedido siguiente tiene que hacer la suya (gorrite, 12/10: GET /admin
+		// colgado minutos).
+		let queries = 0;
+		const db = /** @type {any} */ ({
+			prepare: () => ({
+				all: () =>
+					++queries === 1
+						? new Promise(() => {})
+						: Promise.resolve({ results: [{ key: 'lo_que_sigo', enabled: 1 }] })
+			})
+		});
+		fake.event = getRequest();
+		void isFlagOn(db, 'lo_que_sigo', { now: 1, envValue: '' });
+		fake.event = getRequest();
+		const second = isFlagOn(db, 'lo_que_sigo', { now: 2, envValue: '' });
+		const hung = new Promise((resolve) => setTimeout(() => resolve('colgado'), 200));
+		expect(await Promise.race([second, hung])).toBe(true);
+		expect(queries).toBe(2);
+		// Lo leído sí queda para los pedidos que siguen.
+		fake.event = getRequest();
+		expect(await isFlagOn(db, 'lo_que_sigo', { now: 3, envValue: '' })).toBe(true);
+		expect(queries).toBe(2);
 	});
 });

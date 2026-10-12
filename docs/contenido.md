@@ -248,7 +248,12 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   y el índice de la búsqueda de un mismo pedido comparten la respuesta
   (`src/lib/server/db/perRequest.js`). En un `POST` solo se comparte la consulta en camino, así un
   guardado del pedido se ve al toque; fuera de un pedido (scripts, crons, pruebas), una por
-  llamada. Las listas públicas leen la metadata **sin el
+  llamada. **Entre pedidos se comparte solo lo ya leído, nunca una consulta en camino**
+  (`readAndKeep` en `perRequest.js`; lo usan las listas, el panel, los interruptores, las tarjetas
+  de entradas, la vista previa de links, el índice de la búsqueda y el bot): en Workers, si el
+  pedido que empezó una consulta termina o se corta, la consulta puede no terminar nunca, y los
+  pedidos que la esperaban se colgaban minutos (gorrite, 12/10: GET /admin y GET / con ~40 ms de
+  CPU). El pedido que necesita un valor nuevo espera su propia consulta. Las listas públicas leen la metadata **sin el
   cuerpo** (`json_remove`); el cuerpo lo pide aparte solo la búsqueda (`siteBodies`).
 
 | Qué                                     | Dónde                                                                  |

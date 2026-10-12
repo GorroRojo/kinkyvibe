@@ -24,7 +24,7 @@
  * La base de este isolate la registra hooks.server.js en cada pedido ({@link setContentDB}), igual
  * que el modo demo: así el cliente sirve para cualquiera que llame a getRepoClient().
  */
-import { oncePerRequest } from '$lib/server/db/perRequest.js';
+import { oncePerRequest, readAndKeep } from '$lib/server/db/perRequest.js';
 import { FileChangedError, PathExistsError } from './cliente.js';
 import { gitBlobSha } from '$lib/server/admin/posts.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/errors.js';
@@ -302,21 +302,21 @@ export async function allDbPostObjects(db, category) {
 	const cat = CONTENT_CATEGORIES[category];
 	if (!cat) return new Map();
 	const stamp = await postsStamp(db, cat.type, category);
-	let entry = postsCache.get(category);
-	if (entry?.stamp !== stamp) {
-		const rows = readDbPostRows(db, cat.type, category);
-		entry = { stamp, rows };
-		postsCache.set(category, entry);
-		const mine = entry;
-		rows.catch(() => {
-			if (postsCache.get(category) === mine) postsCache.delete(category);
-		});
-	}
+	const entry = postsCache.get(category);
+	const rows =
+		entry?.stamp === stamp
+			? entry.rows
+			: await readAndKeep(
+					db,
+					`postRows\n${category}\n${stamp}`,
+					() => readDbPostRows(db, cat.type, category),
+					(read) => postsCache.set(category, { stamp, rows: read })
+				);
 	/** @type {Map<string, DbPostObject>} */
 	const out = new Map();
 	// Objetos nuevos en cada llamada (como antes: quien llama los puede tocar sin cambiar lo
 	// recordado), armados de las filas tal como vinieron de la base.
-	for (const r of await entry.rows) {
+	for (const r of rows) {
 		const e = asPostObject(category, rowToObject(r), r.legacy_slug ? String(r.legacy_slug) : null);
 		out.set(e.urlSlug, e);
 	}
@@ -333,8 +333,9 @@ const prefixed = (alias) =>
  * Lo que leyó {@link allDbPostObjects} por categoría, mientras la base no cambie (como las listas
  * públicas en ./posts.js): las páginas del panel piden todos los eventos en cada pedido (la lista,
  * el inicio, el editor, la agenda) y leerlos es traer el `data` (con el texto) de cada uno.
- * Se guardan las filas (texto y números, sin objetos compartidos).
- * @type {Map<string, { stamp: string, rows: Promise<Record<string, unknown>[]> }>}
+ * Se guardan las filas (texto y números, sin objetos compartidos), ya leídas: lo que está en camino
+ * se comparte solo dentro del pedido (`readAndKeep`, src/lib/server/db/perRequest.js).
+ * @type {Map<string, { stamp: string, rows: Record<string, unknown>[] }>}
  */
 const postsCache = new Map();
 
