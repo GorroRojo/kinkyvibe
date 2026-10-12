@@ -1,7 +1,7 @@
 <script>
 	/**
-	 * El bloque «Comprar entradas» de la página de un evento: el botón grande (docs/estilo.md: «el
-	 * botón de comprar entradas es otro y queda distinto») que lleva a la página de compra
+	 * El bloque «Comprar entradas» de la página de un evento: el botón grande (BotonCompra.svelte)
+	 * que lleva a la página de compra
 	 * (/calendario/<slug>/entradas), con precio, «Quedan N», cierre de la venta y puerta; con la
 	 * venta cerrada, por qué («Agotadas.», «Venta cerrada.», «Entradas: …», no disponible).
 	 *
@@ -12,6 +12,7 @@
 	 */
 	import { formatARS } from '$lib/utils/money.js';
 	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
+	import BotonCompra from './BotonCompra.svelte';
 
 	/** @type {any} */
 	export let tickets;
@@ -28,16 +29,13 @@
 
 <section class="buy-cta" id="entradas" aria-label="Entradas">
 	{#if tickets.open}
-		<a class="buy-button" href="/calendario/{tickets.slug ?? slug}/entradas">
-			<span class="buy-title">{title}</span>
+		<BotonCompra href="/calendario/{tickets.slug ?? slug}/entradas" {title}>
 			<!-- Los espacios van explícitos ({' '}): Svelte saca los del borde de cada {#if},
 			     y salía «desde $ 6.400· Quedan 5». -->
-			<span class="buy-meta"
-				>{price}{#if tickets.left !== null}{#if price}{' '}<strong class="buy-left"
-							>· {leftText(tickets.left)}</strong
-						>{:else}<strong class="buy-left">{leftText(tickets.left)}</strong>{/if}{/if}</span
-			>
-		</a>
+			{price}{#if tickets.left !== null}{#if price}{' '}<strong class="buy-left"
+						>· {leftText(tickets.left)}</strong
+					>{:else}<strong class="buy-left">{leftText(tickets.left)}</strong>{/if}{/if}
+		</BotonCompra>
 		{#if tickets.closesAt}
 			<p class="buy-when">{saleWindowText({ closesAt: tickets.closesAt })}.</p>
 		{/if}
@@ -63,33 +61,6 @@
 	.buy-cta {
 		width: 100%;
 		margin: 0;
-	}
-	.buy-button {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.15em;
-		padding: 0.8em 1.2em;
-		border-radius: var(--round);
-		background: var(--1);
-		color: white;
-		text-decoration: none;
-		text-align: center;
-		box-shadow: 0 0.2em 0.8em color-mix(in srgb, var(--1) 40%, transparent);
-	}
-	.buy-button:hover,
-	.buy-button:focus-visible {
-		background: var(--1-dark);
-		color: white;
-		text-decoration: none;
-	}
-	.buy-title {
-		font-size: var(--step-2);
-		font-weight: 700;
-		line-height: 1.2;
-	}
-	.buy-meta {
-		font-size: var(--step-0);
 	}
 	.buy-left {
 		white-space: nowrap;

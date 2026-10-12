@@ -108,6 +108,11 @@ existe en desarrollo. Antes de capturar se visita cada página una vez, para que
 
 ## Tareas comunes
 
+- **La galería por grupos**: además de `/estilo` entera (claro, sitio y oscuro), hay una captura
+  por grupo de la revisión de gorrite (`estilo-<grupo>`, `/estilo?grupo=<grupo>`, de `GRUPOS` en
+  `src/lib/estilo/secciones.js`), porque la galería entera pasa los 8000 px en el celu. Un grupo
+  nuevo en `GRUPOS` suma su captura solo.
+
 - **Sumar una página**: una entrada en `PAGES` de `scripts/ui-impacto/pages.js` (`id` corto, que es
   el nombre de las capturas, `title`, `path(ctx)` y, si hace falta, `prepare(page, ctx)` para tocar
   algo antes de la captura). Si necesita datos nuevos, se agregan en `seed.js`. Probala con

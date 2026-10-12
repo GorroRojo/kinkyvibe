@@ -80,9 +80,10 @@ end: 2023-06-02T23:00-03:00
  */
 export function splitMarkdown(raw) {
 	const text = String(raw ?? '').replace(/\r\n?/g, '\n');
-	const m = text.match(/^---[ \t]*\n([\s\S]*?)\n?---[ \t]*(?:\n|$)([\s\S]*)$/);
+	// El `---` que cierra tiene que estar solo en su línea (no al final de un valor: «resumen: a ---»).
+	const m = text.match(/^---[ \t]*\n(?:([\s\S]*?)\n)?---[ \t]*(?:\n|$)([\s\S]*)$/);
 	if (!m) throw new Error('El archivo no empieza con un bloque de propiedades entre "---".');
-	return { frontmatter: m[1], body: m[2] };
+	return { frontmatter: m[1] ?? '', body: m[2] };
 }
 
 /**

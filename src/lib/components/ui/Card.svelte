@@ -43,9 +43,16 @@
 		flex-direction: column;
 		gap: var(--space-2xs);
 	}
-	/* Estado: borde de color a la izquierda. */
+	/* Estado: borde de color a la izquierda. Es una sombra de adentro (no un borde), así el
+	   contenido no se corre: el título queda alineado con el de las tarjetas lisas (gorrite,
+	   12/10). */
 	.card[class*='st-'] {
-		border-left: 0.3rem solid var(--st);
+		box-shadow:
+			inset 0.3rem 0 0 var(--st),
+			var(--shadow);
+	}
+	.card.filled[class*='st-'] {
+		box-shadow: inset 0.3rem 0 0 var(--st);
 	}
 	.st-ok {
 		--st: var(--ok);
@@ -55,9 +62,10 @@
 		--st: var(--warn);
 		--st-bg: var(--warn-bg);
 	}
+	/* «malo» va en el rojo de los errores, como Badge y Notice (un solo color; gorrite, 12/10) */
 	.st-bad {
-		--st: var(--bad);
-		--st-bg: var(--bad-bg);
+		--st: var(--error);
+		--st-bg: var(--error-bg);
 	}
 	.st-info {
 		--st: var(--info);
@@ -75,6 +83,8 @@
 	.padded {
 		padding: var(--space-s) var(--space-s);
 	}
+	/* Las acciones van a la derecha del título; bajan abajo solo si la tarjeta es angosta (el
+	   título se parte en dos líneas antes de mandar el botón abajo, hasta 8rem). */
 	header {
 		display: flex;
 		gap: var(--space-2xs);
@@ -92,6 +102,8 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.4em;
+		flex: 1 1 8rem;
+		min-width: 0;
 	}
 	h2 :global(svg) {
 		color: var(--accent);

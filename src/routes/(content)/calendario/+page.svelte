@@ -169,6 +169,7 @@
 	</div>
 	<div id="postlist">
 		<PostList
+			heading="Los eventos del mes"
 			filter={{ prop: 'visible', value: true }}
 			pastEventsToggle={month_has_past}
 			amountLabel={(n) => monthCountLabel(view_month, n)}

@@ -8,7 +8,10 @@
 	 * Slots: `actions` (botones), `meta` (chips al lado del título; con imagen, debajo), default
 	 * (debajo del subtítulo).
 	 * También pone el <title> de la pestaña del navegador ("<title> · Panel").
+	 * El `back` lleva la flecha de Lucide (no «←» de texto) y se toca en 44px de alto
+	 * (`.tap-target`, sin agrandar lo que se ve; gorrite, 12/10).
 	 */
+	import { ArrowLeft } from '@lucide/svelte';
 	/** @type {string} */
 	export let title;
 	/** @type {string} */
@@ -34,7 +37,9 @@
 			</div>
 		{/if}
 		<div class="cover-text">
-			{#if back}<a class="back" href={back.href}>← {back.label}</a>{/if}
+			{#if back}<a class="back tap-target" href={back.href}
+					><ArrowLeft size={16} aria-hidden="true" />{back.label}</a
+				>{/if}
 			<h1>{title}</h1>
 			{#if subtitle}<p class="sub">{subtitle}</p>{/if}
 			{#if $$slots.meta}<div class="chips"><slot name="meta" /></div>{/if}
@@ -45,7 +50,9 @@
 {:else}
 	<header class="head">
 		<div class="text">
-			{#if back}<a class="back" href={back.href}>← {back.label}</a>{/if}
+			{#if back}<a class="back tap-target" href={back.href}
+					><ArrowLeft size={16} aria-hidden="true" />{back.label}</a
+				>{/if}
 			<div class="row">
 				<h1>{title}</h1>
 				<slot name="meta" />
@@ -85,7 +92,11 @@
 		color: var(--muted);
 	}
 	.back {
-		font-size: var(--text-xs);
+		display: inline-flex;
+		align-items: center;
+		align-self: flex-start;
+		gap: var(--space-3xs);
+		font-size: var(--text-sm);
 		color: var(--muted);
 	}
 	.actions {

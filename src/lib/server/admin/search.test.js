@@ -107,12 +107,12 @@ describe('searchEvents', () => {
 
 describe('eventTabActions', () => {
 	const e = { slug: 'picantearla-2026-10', title: 'Picantearla' };
-	it('con entradas: Puerta, Órdenes, Mail a compradores, Ventas y Duplicar, cada una a su pestaña', () => {
+	it('con entradas: Puerta, Ventas › Órdenes, Mails › Mandar un aviso, Ventas y Duplicar, cada una a su pestaña', () => {
 		const r = eventTabActions(e, { tickets: true });
 		expect(r.map((x) => x.title)).toEqual([
 			'Puerta',
-			'Órdenes',
-			'Mail a compradores',
+			'Ventas › Órdenes',
+			'Mails › Mandar un aviso',
 			'Ventas',
 			'Duplicar'
 		]);

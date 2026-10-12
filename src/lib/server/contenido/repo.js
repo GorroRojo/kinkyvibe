@@ -24,7 +24,7 @@
  * La base de este isolate la registra hooks.server.js en cada pedido ({@link setContentDB}), igual
  * que el modo demo: así el cliente sirve para cualquiera que llame a getRepoClient().
  */
-import { getRequestEvent } from '$app/server';
+import { oncePerRequest } from '$lib/server/db/perRequest.js';
 import { FileChangedError, PathExistsError } from './cliente.js';
 import { gitBlobSha } from '$lib/server/admin/posts.js';
 import { ObjectError, VersionConflictError } from '$lib/server/objects/errors.js';
@@ -185,22 +185,81 @@ export async function findDbPostObject(db, category, slug) {
 	const row = await db
 		.prepare(
 			`SELECT ${OBJECT_COLUMNS}, legacy_slug, persona_edges, tag_edges FROM (
-				SELECT ${prefixed('o')}, s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
-					${tagEdgesColumn('o')} AS tag_edges, 0 AS pri FROM content_sources s
-				JOIN objects o ON o.id = s.object_id AND o.type = ?1
-				WHERE s.category = ?2 AND s.legacy_slug = ?3
-				UNION ALL
-				SELECT ${prefixed('o')}, s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
-					${tagEdgesColumn('o')} AS tag_edges, 1 AS pri FROM objects o
-				LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
-				WHERE o.type = ?1 AND o.slug = ?3
+				${postObjectLookupSql((column) => `${column} = ?3`)}
 			) ORDER BY pri LIMIT 1`
 		)
 		.bind(cat.type, category, slug)
 		.first();
-	if (!row) return null;
-	// El objeto como lo da getObject(): sin la dirección vieja.
-	const { legacy_slug: legacy, persona_edges: personas, tag_edges: tags, ...columns } = row;
+	return row ? postObjectOfRow(category, row) : null;
+}
+
+/**
+ * {@link findDbPostObject} de varias direcciones a la vez, en UNA consulta (las tarjetas de una
+ * lista: src/lib/server/tickets/events.js). Por cada dirección, lo mismo que daría
+ * `findDbPostObject`: primero la dirección vieja, después la del objeto; `null` si no hay ninguno.
+ *
+ * @param {D1Database} db
+ * @param {string} category
+ * @param {Iterable<string>} slugs
+ * @returns {Promise<Map<string, DbPostObject | null>>}
+ */
+export async function findDbPostObjects(db, category, slugs) {
+	const want = [...new Set(slugs)];
+	/** @type {Map<string, DbPostObject | null>} */
+	const out = new Map(want.map((slug) => [slug, null]));
+	const cat = CONTENT_CATEGORIES[category];
+	if (!cat || !want.length) return out;
+	const { results } = await db
+		.prepare(
+			`SELECT ${OBJECT_COLUMNS}, legacy_slug, persona_edges, tag_edges, want FROM (
+				${postObjectLookupSql((column) => `${column} IN (SELECT value FROM json_each(?3))`)}
+			) ORDER BY want, pri`
+		)
+		.bind(cat.type, category, JSON.stringify(want))
+		.all();
+	/** @type {Set<string>} */
+	const decided = new Set();
+	for (const row of results) {
+		const slug = String(row.want);
+		// La primera fila de cada dirección (la de menor `pri`), como el `LIMIT 1` de arriba.
+		if (decided.has(slug)) continue;
+		decided.add(slug);
+		out.set(slug, postObjectOfRow(category, row));
+	}
+	return out;
+}
+
+/**
+ * Las dos formas de encontrar un post por su dirección (`?1` el tipo, `?2` la categoría): por la
+ * dirección vieja de un .md importado (`pri` 0) y por la del objeto (`pri` 1). `want`: la
+ * dirección con la que se encontró cada fila.
+ *
+ * @param {(column: string) => string} match la condición sobre la columna de la dirección
+ */
+function postObjectLookupSql(match) {
+	return `SELECT ${prefixed('o')}, s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
+					${tagEdgesColumn('o')} AS tag_edges, 0 AS pri, s.legacy_slug AS want FROM content_sources s
+				JOIN objects o ON o.id = s.object_id AND o.type = ?1
+				WHERE s.category = ?2 AND ${match('s.legacy_slug')}
+				UNION ALL
+				SELECT ${prefixed('o')}, s.legacy_slug, ${personaEdgesColumn('o')} AS persona_edges,
+					${tagEdgesColumn('o')} AS tag_edges, 1 AS pri, o.slug AS want FROM objects o
+				LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
+				WHERE o.type = ?1 AND ${match('o.slug')}`;
+}
+
+/**
+ * Una fila de {@link postObjectLookupSql} como `DbPostObject` (el objeto como lo da getObject():
+ * sin la dirección vieja), o null si el panel no lo puede ver.
+ *
+ * @param {string} category
+ * @param {Record<string, unknown>} row
+ * @returns {DbPostObject | null}
+ */
+function postObjectOfRow(category, row) {
+	// `want` (la dirección buscada, en la versión de varias) no es del objeto.
+	// eslint-disable-next-line no-unused-vars
+	const { legacy_slug: legacy, persona_edges: personas, tag_edges: tags, want, ...columns } = row;
 	const object = rowToObject(columns);
 	if (!canSee(object, PANEL, { includeDeleted: true })) return null;
 	const seen = forViewer(object, PANEL);
@@ -296,38 +355,13 @@ export function clearDbPostCache() {
  * @returns {Promise<string>}
  */
 function postsStamp(db, type, category) {
-	// Dos lecturas a la par en el MISMO pedido (el Inicio pide los eventos y las entradas a la vez)
-	// comparten la consulta: es la misma respuesta. Solo dentro del pedido: un pedido que acaba de
-	// guardar nunca recibe la respuesta de una consulta que salió antes que su guardado.
-	const request = currentRequest();
-	if (!request) return readPostsStamp(db, type, category);
-	const pending = stampsInFlight.get(request) ?? new Map();
-	stampsInFlight.set(request, pending);
-	const key = `${type}\n${category}`;
-	const running = pending.get(key);
-	if (running) return running;
-	const mine = readPostsStamp(db, type, category);
-	pending.set(key, mine);
-	const forget = () => {
-		if (pending.get(key) === mine) pending.delete(key);
-	};
-	mine.then(forget, forget);
-	return mine;
-}
-
-/**
- * Las consultas de {@link postsStamp} que están en camino, por pedido.
- * @type {WeakMap<object, Map<string, Promise<string>>>}
- */
-const stampsInFlight = new WeakMap();
-
-/** El pedido en curso, o `null` fuera de un pedido (scripts, tests, crons). */
-function currentRequest() {
-	try {
-		return getRequestEvent();
-	} catch {
-		return null;
-	}
+	// Una sola vez por pedido de lectura: el Inicio pide los eventos y las entradas a la vez, y una
+	// página pide la lista más de una vez (src/lib/server/db/perRequest.js). En un pedido que guarda,
+	// solo se comparte la consulta en camino: nunca recibe la respuesta de una consulta que salió
+	// antes que su guardado.
+	return oncePerRequest(db, `postsStamp\n${type}\n${category}`, () =>
+		readPostsStamp(db, type, category)
+	);
 }
 
 /**
@@ -877,6 +911,24 @@ export async function dbEventMeta(slug) {
 	const db = activeContentDB();
 	if (!db) return undefined;
 	return publicMetaOf(await findDbPostObject(db, EVENT_CATEGORY, slug));
+}
+
+/**
+ * {@link dbEventMeta} de varios eventos a la vez, en una consulta (las tarjetas de una lista):
+ * por dirección pedida, lo mismo que daría `dbEventMeta`. `null` sin base.
+ *
+ * @param {Iterable<string>} slugs
+ * @returns {Promise<Map<string, Record<string, any> | null> | null>}
+ */
+export async function dbEventMetasFor(slugs) {
+	const db = activeContentDB();
+	if (!db) return null;
+	/** @type {Map<string, Record<string, any> | null>} */
+	const out = new Map();
+	for (const [slug, e] of await findDbPostObjects(db, EVENT_CATEGORY, slugs)) {
+		out.set(slug, publicMetaOf(e) ?? null);
+	}
+	return out;
 }
 
 /**

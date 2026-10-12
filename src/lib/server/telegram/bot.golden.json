@@ -2529,7 +2529,7 @@
 		]
 	},
 	"admin: mis avisos": {
-		"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.",
+		"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
 		"keyboard": [
 			[
 				{
@@ -5186,7 +5186,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "No encontré nada para «zzzz &lt;x&gt;» en el sitio. Probá con otra palabra.",
+				"text": "No encontré nada para «zzzz &lt;x&gt;» en el sitio. Probá con otra palabra.\n\n<b>Mientras tanto, lo que viene:</b>\n📅 <a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -5197,9 +5197,7 @@
 							{
 								"text": "🔎 Buscar otra cosa",
 								"callback_data": "s"
-							}
-						],
-						[
+							},
 							{
 								"text": "🏠 Inicio",
 								"callback_data": "h"
@@ -7596,7 +7594,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 77,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -7889,7 +7887,7 @@
 				"method": "editMessageText",
 				"chat_id": 77,
 				"message_id": 9,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -7944,7 +7942,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 77,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -9050,5 +9048,155 @@
 			"id": "cb",
 			"text": "Esa entrada ya no está acá."
 		}
+	},
+	"router: secciones: kinkipedia por ramas": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📖 Kinkipedia</b>\n\n📂 <b>Prácticas</b>\nAdentro: 1",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📂 Prácticas",
+								"callback_data": "c:w:0:1dmqz19"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📖 Kinkipedia</b>\n\n📂 <b>Prácticas</b>\nAdentro: 1",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📂 Prácticas",
+								"callback_data": "c:w:0:1dmqz19"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: secciones: kinkipedia, una rama": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📖 Kinkipedia</b> · 📂 Cuerdas\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas\">🪢 Cuerdas</a>\nAtar con cuerdas\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas-sin-resumen\">Nudos de cuerdas</a>\nKinkipedia",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📖 Cuerdas",
+								"callback_data": "cd:w:hkhwdo:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "📖 Nudos de cuerdas",
+								"callback_data": "cd:w:1kxla9p:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:w:0:1dmqz19"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📖 Kinkipedia</b> · 📂 Cuerdas\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas\">🪢 Cuerdas</a>\nAtar con cuerdas\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas-sin-resumen\">Nudos de cuerdas</a>\nKinkipedia",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📖 Cuerdas",
+								"callback_data": "cd:w:hkhwdo:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "📖 Nudos de cuerdas",
+								"callback_data": "cd:w:1kxla9p:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:w:0:1dmqz19"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"miniapp: textos": {
+		"titulo": "Calendario",
+		"bajada": "Lo que viene en Kinky Vibe. Para comprar entradas se abre el sitio.",
+		"botonInicio": "📲 Agregar a la pantalla de inicio",
+		"agregada": "Listo: quedó en tu pantalla de inicio.",
+		"vacio": "Por ahora no hay eventos próximos.",
+		"cancelado": "Cancelado",
+		"comprar": "Comprar en el sitio",
+		"verTodo": "Ver el calendario completo en el sitio ↗"
 	}
 }

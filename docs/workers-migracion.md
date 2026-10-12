@@ -44,7 +44,10 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
   - `*/15 * * * *` → recordatorios: le pasa `POST /api/cron/recordatorios` (con `CRON_SECRET`)
     directo al fetch de SvelteKit, sin salir a internet. Es el mismo endpoint de siempre, así que
     corre la misma función que corría con el Worker aparte.
-  - `0 6 * * *` (03:00 en Argentina) → backup de la base a R2 y limpieza de los viejos.
+  - `0 6 * * *` (03:00 en Argentina) → backup de la base a R2 y limpieza de los viejos. Después,
+    sin hacer fallar la corrida: el chequeo de integridad de los objetos, el resumen mensual de las
+    visitas y la limpieza de las sesiones de cuentas que ya no tienen cookie
+    ([cuentas.md](cuentas.md)).
   - Los crons **solo corren en producción**; los Previews no los ejecutan.
 - **Modo demo en los Previews**: `__DEPLOY_BRANCH__` se fija al compilar con `WORKERS_CI_BRANCH`
   (la pone Workers Builds; `src/lib/server/deployBranch.js`). `CF_PAGES_BRANCH`, la de Pages,

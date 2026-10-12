@@ -47,9 +47,10 @@
 	--accent-text: var(--1-ink);
 	--link: var(--2);
 	--link-bg: color-mix(in srgb, var(--2) 10%, white);
-	--ok: var(--3-dark);
+	// Texto de los avisos ok y warn sobre su fondo: 5.4:1 y 5.3:1 (≥ 4.5:1; gorrite, 12/10).
+	--ok: var(--3-ink);
 	--ok-bg: color-mix(in srgb, var(--3) 14%, white);
-	--warn: color-mix(in srgb, var(--4-dark) 55%, #3a2a00);
+	--warn: color-mix(in srgb, var(--4-dark) 45%, #3a2a00);
 	--warn-bg: color-mix(in srgb, var(--4) 22%, white);
 	--bad: var(--1-dark);
 	--bad-bg: color-mix(in srgb, var(--1) 10%, white);
@@ -58,7 +59,7 @@
 	--counter: var(--4);
 	--counter-ink: #333;
 	--field: color-mix(in srgb, var(--2) 10%, #b9b9b9);
-	--placeholder: #929292;
+	--placeholder: #757575;
 	--bar-track: color-mix(in srgb, var(--2) 8%, #eee);
 	--card-round: var(--radius-l);
 	--shadow-1: 0 0.1em 0.3em rgba(0, 0, 0, 0.1);
@@ -69,6 +70,8 @@
 	--error-bg: hsl(0, 100%, 96%);
 	--error-ink: white;
 	--focus-field: var(--accent);
+	// Fondo detrás de diálogos y hojas: violeta translúcido, en los dos temas (en oscuro, más
+	// oscuro); gorrite, 12/10.
 	--scrim: color-mix(in srgb, var(--2-dark) 30%, transparent);
 }
 
@@ -98,7 +101,8 @@
 	--counter: var(--4);
 	--counter-ink: #333;
 	--field: color-mix(in srgb, var(--2) 25%, #4a474f);
-	--placeholder: #707070;
+	// 4.8:1 sobre --surface (≥ 4.5:1; gorrite, 12/10), bastante más apagado que --text
+	--placeholder: #8c8c8c;
 	--bar-track: color-mix(in srgb, var(--2) 18%, #2a282d);
 	--card-round: var(--radius-l);
 	--shadow-1: 0 0.1em 0.5em rgba(0, 0, 0, 0.45);
@@ -109,7 +113,7 @@
 	--error-bg: color-mix(in srgb, hsl(0, 75%, 40%) 24%, #1a181d);
 	--error-ink: #1a181d;
 	--focus-field: var(--accent);
-	--scrim: rgba(0, 0, 0, 0.55);
+	--scrim: color-mix(in srgb, color-mix(in srgb, var(--2) 18%, black) 65%, transparent);
 	// Las páginas viejas usan los tonos -light como fondo y los -dark como texto: en oscuro se
 	// invierten (mezclas de los mismos colores base del sitio, que no se redefinen).
 	--1-light: color-mix(in srgb, var(--1) 55%, #1a181d);
@@ -123,9 +127,18 @@
 
 	// Chips de etiqueta (.kv-tag, style.scss): sobre el fondo oscuro, el color de la etiqueta
 	// aclarado para el texto y el borde (con los oscuros, como darkblue, el color solo no se ve).
+	// Elegida: llena del color aclarado con texto oscuro (el relleno oscuro de siempre, con
+	// darkblue, casi no se distinguía del fondo; gorrite, 12/10). 5:1 o más contra el fondo y
+	// entre el texto y el relleno, con todos los colores del árbol.
 	.kv-tag {
 		--tag-ink: color-mix(in srgb, var(--tag-color, var(--1)) 45%, white);
 		--tag-line: var(--tag-ink);
+		--tag-fill: var(--tag-ink);
+		&.on,
+		&[aria-pressed='true'],
+		:checked + & {
+			color: var(--bg);
+		}
 	}
 
 	// Los colores de sintaxis por defecto de CodeMirror (azules, violetas y grises oscuros) no se

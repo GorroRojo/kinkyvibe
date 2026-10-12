@@ -184,10 +184,15 @@ migraciones que reconstruyen tablas tienen su propia prueba con datos
 (`src/lib/server/db/migration0010.test.js`). Más en [datos.md](datos.md).
 
 **Tiempos límite**: el de vitest es de 5 s por prueba. No se sube para todas: si una prueba es
-lenta a propósito (recorre toda la semilla, lee todo el repo, compila la galería), se le sube solo
-a ella (`it('…', { timeout: 30_000 }, …)` o a su `describe`) con un comentario que diga por qué.
+lenta a propósito (recorre toda la semilla, lee todo el repo), se le sube solo a ella
+(`it('…', { timeout: 30_000 }, …)` o a su `describe`) con un comentario que diga por qué.
 Antes, conviene ver si se puede hacer más rápida (una base por archivo, una copia con
-`restoreDB()`, el reloj de mentira en vez de esperas de verdad). Las bases de prueba (también las
+`restoreDB()`, el reloj de mentira en vez de esperas de verdad). Lo que es preparación y no lo
+que se prueba va en un `beforeAll` con su tiempo límite, no en la primera prueba: por ejemplo, la
+primera importación de una página o de la galería, que vite transforma (cientos de módulos: varios
+segundos, y más de 15 con la máquina cargada). Vite guarda lo transformado y `vi.resetModules()`
+solo olvida lo ya evaluado, así la prueba la vuelve a importar de verdad (con sus mocks) en
+milisegundos (ver `series-crear.test.js` y `src/lib/estilo/estiloGuard.test.js`). Las bases de prueba (también las
 sin migraciones, `createTestDB({ migrate: false })`) se levantan en un `beforeAll`, nunca dentro
 de una prueba: el arranque de miniflare contaría para el tiempo límite de la prueba.
 
