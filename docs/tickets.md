@@ -238,6 +238,196 @@ Código: `src/lib/utils/salesGoal.js` (leer, formulario, lo neto, `goalProgress`
 `ticketTotals` y `upcomingEvents` (`admin/inicio.js`), `goal`/`revenue`/`mpFee` en las filas de
 Panel → Eventos (`panelList.js`), y los componentes `GoalProgress.svelte` y `SalesGoalField.svelte`.
 
+### Lista de espera (en construcción)
+
+Cuando un evento (o un tipo de entrada) se agota, la gente se anota en una lista; si se libera un
+lugar, se le avisa por mail a la próxima persona y se le guarda un rato. Detrás del interruptor
+`lista_espera` (apagado, [interruptores.md](interruptores.md)) y de la clave `lista_espera` de cada
+evento. Se construye en partes, en ramas que se juntan en `claude/lista-espera` y entran a `main`
+como un solo PR (decisión [0001](decisiones/0001-ritmo-y-orden.md)). Lo que eligió gorrite está en
+la decisión [0040](decisiones/0040-lista-de-espera.md).
+
+**Ya está (parte 1, datos y reglas).** Nada de esto se ve todavía ni toca la venta.
+
+- Migración `0053_lista_de_espera.sql`: `waitlist_entries` (una fila por anotación) y
+  `waitlist_sends` (mails por ronda). Ver [datos.md](datos.md).
+- Por evento, `lista_espera` en el frontmatter (o en `extra`): `evento` o `tipo` (atajo), o
+  `{ alcance: evento | tipo, todes_a_la_vez: true }`. Queda en `config.waitlist`
+  (`parseTicketConfig`); lo que no se entiende cuenta como sin lista y nunca frena la venta (como
+  `meta_venta`). Los tiempos de reserva no se eligen por evento (gorrite, 12/10): unos `reservas`
+  de antes se ignoran.
+- Tiempos fijos en el código (`WAITLIST_SETTINGS`; gorrite, 12/10: sin página de Ajustes, cambiarlos
+  es un PR; una clave `waitlist` vieja en `ticket_settings` no se lee). De a una persona por vez;
+  la reserva dura 24 h si faltan 7 días o más para el comienzo, 12 h si faltan 48 h o más, 2 h si
+  faltan 6 h o más; con menos de 6 h se le avisa a toda la lista a la vez (sin lugar guardado). La
+  lista cierra en `min(comienzo − 30 min, cierre de la venta)` y ninguna reserva pasa de ahí. Reglas
+  puras en `src/lib/utils/waitlistHold.js` (`holdUntil`).
+- Cambios de estado en `src/lib/server/tickets/waitlist.js`: anotarse (con cuenta y el mail
+  verificado, entra directo a la fila), confirmar por mail, volver a anotarse después de vencer
+  (al final y sin confirmar otra vez), salir, que le saque une admin, terminar, comprar con la
+  oferta y borrar las anotaciones sin confirmar a las 48 h.
+- **Por evento, la fila cuenta contra el lugar libre total del evento** (la suma de lo que queda en
+  sus tipos con cupo), no contra cada tipo: una persona esperando guarda un solo lugar. Por tipo,
+  contra el lugar libre de ese tipo.
+
+**Ya está (parte 2, anotarse, confirmar, salir y los mails).** Con el interruptor apagado no se ve
+nada (las páginas de confirmar y volver y `?/waitlist` dan 404).
+
+- **Anotarse:** `?/waitlist` en la página de compra
+  (`(content)/calendario/[event]/entradas/+page.server.js`, lógica en
+  `src/lib/server/tickets/waitlistSignup.js`). Solo el mail (y, por tipo, cuál). Con una cuenta con
+  sesión y ese mismo mail verificado, entra directo a la fila; si no, le mandamos el mail de
+  confirmar (48 h). La respuesta es la misma esté o no el mail anotado (si ya está en la fila, no se
+  le manda nada). Límites (`WAITLIST_SIGNUP_LIMITS`): 10 pedidos por hora por conexión, 3 mails de
+  confirmar por día a una misma dirección, el tope global de mails de Resend (`accountMailAllowed`)
+  y 5 anotaciones vivas por evento desde una misma conexión. La anotación guarda el `client_hash`
+  (como `orders`, sin IP).
+- **Cuándo se puede** (`waitlistJoinStates`): solo en un alcance agotado; con la venta sin abrir,
+  la lista cerrada (`holdUntil` da `closed`: comienzo − 30 min o cierre de la venta, el del tipo en
+  una lista por tipo) o el evento cancelado, no. `agotadas` a mano cuenta como agotado. La fila
+  cuenta como vendido: por evento, quienes esperan (y los lugares guardados vigentes) se restan del
+  lugar libre total del evento; un tipo sin cupo abierto hace que el evento nunca se agote. La
+  página muestra un formulario mínimo («Lista de espera», `WaitlistSignup.svelte`) debajo de la
+  compra cuando hay dónde anotarse.
+- **Links de los mails** (GET muestra el botón, POST hace el cambio, con `MailLinkCard`):
+  `/lista-de-espera/confirmar/<token>` (entra a la fila; vencido o usado, no),
+  `/lista-de-espera/salir/<id>.<firma>` (sale: `cancelled` por `left`, o se borra si no había
+  confirmado; anda siempre, también con el interruptor apagado) y
+  `/lista-de-espera/volver/<id>.<firma>` («Volver a anotarme» del mail de vencida: al final de la
+  fila sin confirmar, solo si la lista sigue abierta). Salir y volver van firmados con
+  `waitlist_leave_key`, cada uno con su mensaje (`waitlistMail.js`). No se cuentan en las
+  estadísticas (`classify.js`).
+- **Los cinco mails** con sus plantillas editables (`waitlist_confirm`, `waitlist_offer`,
+  `waitlist_reminder`, `waitlist_expired`, `waitlist_closed`), en `waitlistEmail.js`; todos con el
+  link para salir. La oferta lleva el link `/calendario/<slug>/entradas?lista=<token>` (el token lo
+  arma el motor). Ver [mails.md](mails.md#mails-de-la-lista-de-espera).
+- **`waitlist_sends`:** `sendState.js` ahora sirve también para filas por anotación (clave
+  `entry_id` + `kind` + `round`), y `sendWaitlistEntryMail` manda cada mail del cron una sola vez
+  por anotación, mail y ronda.
+
+**Ya está (parte 3, la fila en la compra y la compra con el link de la oferta).** Con el interruptor
+apagado (o el evento sin lista) la sentencia de la compra es la de siempre y `lista` no hace nada.
+
+- **La fila guarda lugares en la compra online** (`src/lib/server/tickets/waitlistPurchase.js`):
+  cada persona que espera y cada una con un lugar guardado vigente guarda un lugar; el público
+  compra lo que sobra. Por evento, contra el lugar libre total (los tipos a la venta; con uno sin
+  límite, el evento no se agota y la fila no guarda nada); por tipo, contra el de ese tipo. Es la
+  misma cuenta que `waitlistJoinStates`: «se puede comprar» y «se puede anotar» nunca dicen las dos
+  cosas a la vez.
+- **En la misma sentencia que crea la orden** (`reserveOrder` con `waitlist`, armado por
+  `waitlistGuard`): por cada tipo del alcance va hasta cuánto puede llegar lo tomado y la sentencia
+  vuelve a contar lo tomado y la fila en el momento, así dos compras a la vez no se pasan. Si no
+  entra por la fila, `reason: 'waitlist'` («Por ahora los lugares que se liberan son para la lista
+  de espera. Anotate y te avisamos.», o «Solo quedan N entradas a la venta…» si sobra algo).
+- **Una reserva vencida deja de guardar en el acto** (`hold_until <= now`), sin esperar al cron,
+  como `expires_at` en las órdenes. El aviso a toda la lista (`hold_until` NULL) no guarda nada:
+  compite con el público.
+- **Comprar con el link de la oferta** (`/calendario/<slug>/entradas?lista=<token>`): la página
+  muestra arriba hasta cuándo le guardamos el lugar (`WaitlistOffer.svelte`) y lo que puede comprar
+  esa persona: todo lo libre menos los lugares guardados vigentes de otras personas. El token va en
+  un campo oculto `lista`; `buyAction` lo vuelve a mirar (`findOffer`), y `reserveOrder` controla
+  que la oferta siga vigente y en la misma tanda pasa la anotación a `purchased` con la orden (un
+  link no se usa dos veces). El mail de quien compra puede ser otro (puede comprar para alguien
+  más). Un link vencido, usado o inventado: «El link de la lista de espera ya no vale…» (la página
+  lo dice arriba y la compra sigue como la del resto). En una lista por tipo, el link es para su
+  tipo. Si justo se vendió el lugar en la puerta, se lo dice y la oferta sigue hasta que venza.
+- **La puerta, la carga a mano y la confirmación de transferencias no miran la lista** (venden
+  aunque haya gente esperando, como decidió gorrite; solo avisan, ver la parte 5).
+- La página del evento (botón «Comprar entradas») también resta la fila (las tarjetas de las
+  listas de eventos, desde la parte 5).
+
+**Ya está (parte 4, el motor).** Con el interruptor apagado no corre nada (ni la pasada del cron,
+ni los mails, ni los empujones).
+
+- **`advanceWaitlist`** (`src/lib/server/tickets/waitlistEngine.js`), una pasada sobre un evento,
+  idempotente: (1) vence las reservas pasadas (`expired`, `hold_expired`); (2) devuelve a
+  `offered` a quien compró con su oferta y no pagó (la orden se canceló, venció o fue rechazada),
+  con el mismo link y el mismo vencimiento, sin tiempo extra; (3) mira lo libre de cada alcance y
+  no ofrece nada si la venta no está abierta (`agotadas` a mano, todavía no abrió); (4) si hay
+  lugar y nadie tiene uno guardado vigente, se lo ofrece a la primera de la fila (`ORDER BY
+confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas a la vez nunca
+  ofrecen dos veces; en el aviso a todes (faltan menos de 6 h, o «todes a la vez»), a toda la fila,
+  sin lugar guardado; (5) pasado el cierre de la lista (comienzo − 30 min o el cierre de la venta)
+  o con el evento cancelado, cierra lo vivo (`closed` / `event_cancelled`), también a quien
+  confirmó después del cierre; (6) borra las anotaciones sin confirmar de más de 48 h. Si el evento
+  ya no vende entradas o no tiene lista, solo hace 1, 2 y 6 (nunca cierra por una configuración que
+  no se pudo leer). Anotaciones de un alcance que ya no existe (tipo borrado o alcance cambiado a
+  mano): `expired` / `type_removed`, sin mail.
+- **El link de la oferta** lleva un token de 256 bits que no se guarda: la firma HMAC de
+  `offer:<id>:<ronda>` con la clave `waitlist_offer_key` (`offerToken`, se crea sola en
+  `ticket_settings`); en la base queda solo su SHA-256. El mail de la oferta, sus reintentos y el
+  último aviso llevan el mismo link.
+- **Cron:** `runWaitlistCron` en `POST /api/cron/recordatorios` (el de cada 15 minutos; no hay
+  cron nuevo), antes de la tanda de mails y en su propio try/catch: pasa por cada evento con
+  anotaciones vivas (o con una compra de oferta abandonada). La respuesta trae `waitlistAdvance`
+  (cuentas) y `waitlist` (la tanda de sus mails).
+- **Mails** (`sendWaitlistMails`): no hay cola aparte, lo que falta sale del estado y de
+  `waitlist_sends` (una vez por anotación, mail y ronda; un fallo se reintenta hasta 3 veces). En
+  orden: la oferta (cada oferta vigente sin su mail), el último aviso (reservas de 12 h o más, con
+  3 h por delante y la oferta ya mandada; nunca en el aviso a todes), «se venció» (con la oferta ya
+  mandada) y «se cerró la lista»; los dos últimos solo si pasó hace menos de 48 h. En el cron van
+  **primero** en la tanda (`runMailQueueWith`, `sendWaitlist`) y comparten el «de a cuántos».
+- **Empujones** (`queueWaitlistAdvance`): en segundo plano (`waitUntil`), como mucho uno por
+  minuto y evento (`hitRateLimit`, `waitlist:advance:<slug>`) y solo si el evento tiene a alguien
+  esperando o con oferta; avanza la lista y manda los mails de ese evento. Lo garantiza el cron;
+  el empujón solo adelanta. Desde: reembolso y cancelación de transferencia en la ficha del evento,
+  cancelación desde la bandeja de transferencias, reembolso / contracargo / pago cancelado de
+  Mercado Pago (`processPayment`), la preferencia de MP que falla (`cancelPendingOrder`), cada
+  carga de la página de compra (las reservas de MP y de transferencia vencen sin aviso), «Guardar»
+  en el editor del evento (más cupo, dejó de estar agotado, otra fecha, cancelado), y los links de
+  los mails: salir con un lugar guardado, confirmar y volver a anotarse.
+
+**Ya está (parte 5, el panel y la puerta).**
+
+- **Editor del evento** (Entradas → «Lista de espera», `WaitlistField.svelte`; reglas en
+  `src/lib/utils/ticketsEditor.js`): sin lista, por evento o por tipo de entrada; «Avisar a todes a
+  la vez desde el principio» (los tiempos de reserva son los de Ajustes; ya no hay «Avanzado»).
+  Escribe `lista_espera` solo si cambió (una que no se entiende queda como está; con la venta
+  apagada no se toca, como la meta). **Con gente anotada** (sin confirmar, esperando o con oferta)
+  no deja apagarla, cambiar el alcance, ni borrar o dejar sin cupo el tipo de una lista por tipo:
+  «cerrá la lista primero». Lo controla con las anotaciones de la base (`waitlistLiveErrors`,
+  también al guardar en el servidor), no con el archivo de antes. Avisa si el interruptor está
+  apagado. Duplicar un evento copia la clave (y el importador la lee, `TICKET_META_KEYS`).
+- **Ventas › Lista de espera, en la ficha** (`/admin/eventos/<slug>/lista-espera`; se ve con el
+  interruptor prendido, o si el evento tiene lista o gente anotada; el contador son las anotaciones
+  vivas, y el Resumen muestra «Lista de espera: N»): cuentas por alcance (esperando, con lugar
+  guardado hasta HH:MM, avisades a la vez, compraron, terminaron, salieron, sin confirmar), la fila
+  en orden y lo terminado (las últimas 200; el resto en el CSV). Acciones, cada una con
+  confirmación y en el registro de actividad sin mails (`waitlist.*`, solo el id de la anotación y
+  cuentas): «Terminar la reserva y pasar a la siguiente» (`expired` / `admin`, sin mail, y la lista
+  avanza ya), «Sacar de la lista» (si tenía oferta, avanza), «Ofrecer ahora» (`advanceWaitlist`
+  directo, sin el límite del empujón; con el interruptor apagado, no), «Cerrar la lista» (quien
+  espera o tiene oferta → `expired` / `closed` con su mail; sin confirmar se borra; y además la
+  apaga: saca `lista_espera` del archivo del evento con `turnOffEventWaitlist`,
+  `src/lib/server/tickets/waitlistOff.js`, antes de cerrar; si no puede, no cierra nada) y «Volver a probar» los mails que no salieron. CSV en
+  `/admin/eventos/<slug>/lista-espera.csv` (con los mails: dato personal). Lecturas en
+  `src/lib/server/tickets/waitlistAdmin.js`.
+- **Puerta y carga a mano:** «Vender en puerta» y «Cargar entradas a mano» muestran una nota que no
+  frena nada (`WaitlistDoorNote.svelte`): «Hay 4 personas en la lista de espera (1 con lugar
+  guardado hasta las 21:30). Podés vender igual; si vendés ese lugar, esa persona puede quedarse
+  sin entrada.» `sellAtDoor` y `createManualOrder` no cambian.
+- **«Para revisar»:** una fila con los mails de la lista que no salieron después de 3 intentos
+  (`waitlist_sends.status = 'failed'`), que lleva a la pestaña del evento (ahí «Volver a probar»).
+- **Tarjetas de las listas de eventos** (`listStates.js`): restan la fila como la página del
+  evento (una consulta más para todos los eventos con lista).
+- **En la compra, por tipo:** cada tipo agotado con lista dice «Agotadas · Anotate en la lista de
+  espera», que baja al formulario con ese tipo elegido.
+
+**Prueba de punta a punta** (`tests/tickets/lista-espera.spec.js`, con
+`playwright.tickets.config.js`): cada prueba crea su evento (cupo 1, lista por evento); agotar,
+anotarse y confirmar (GET no confirma), la misma respuesta para un mail ya anotado, reembolso, el
+cron ofrece, el público no puede comprar el lugar guardado, «Terminar la reserva» pasa a la
+siguiente (el link viejo ya no vale), compra con el link (después «ya usaste este link»), CSV, la
+nota en la puerta y en la carga a mano, «Sacar de la lista» y «Cerrar la lista» (que además la apaga: el público ya no puede
+anotarse).
+Los mails en dev no muestran los links: la prueba los arma con la base local (el de confirmar,
+cambiando el hash del token por el de uno propio; el de la oferta, con la misma firma que el
+motor). El vencimiento por tiempo (y el paso a la siguiente por el cron) lo cubren las pruebas
+unitarias del motor (`waitlistEngine.test.js`, con reloj fijo).
+
+**Lo que falta antes del merge a `main`:** que gorrite aplique la 0053 en preview y producción
+(0028). Queda abierto si «Terminar la reserva» manda un mail (decisión 0040).
+
 ### Horario de la venta
 
 - `tickets_open` (opcional): antes de ese momento la venta no abrió; la página del evento y la de compra dicen "Abre el jueves 1/10 a las 12:00".

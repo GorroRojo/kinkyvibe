@@ -61,6 +61,17 @@ sus plantillas propias) está en la ficha del evento.
 | Código para ingresar      | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
 | Tu link (Fondo KinkyVibe) | lo pide fondo.kinkyvibe.ar («¿Ya sos Mecenas?», ver abajo)              | —             | `src/lib/server/fondo/email.js`         |
 
+**Lista de espera** (en construcción, interruptor `lista_espera`; ver abajo y
+[tickets.md](tickets.md#lista-de-espera-en-construcción)):
+
+| Mail               | Cuándo sale                                                        | Plantilla           | Código (`waitlistEmail.js`)  |
+| ------------------ | ------------------------------------------------------------------ | ------------------- | ---------------------------- |
+| Confirmá tu mail   | al anotarse sin cuenta (o con otro mail que el de la cuenta)       | `waitlist_confirm`  | `buildWaitlistConfirmEmail`  |
+| Se liberó un lugar | le toca (lugar guardado) o, cerca del evento, a toda la lista      | `waitlist_offer`    | `buildWaitlistOfferEmail`    |
+| Último aviso       | faltan 3 h de un lugar guardado de 12 h o más (no a toda la lista) | `waitlist_reminder` | `buildWaitlistReminderEmail` |
+| Se venció tu lugar | venció el lugar guardado sin comprar; «Volver a anotarme»          | `waitlist_expired`  | `buildWaitlistExpiredEmail`  |
+| Se cerró la lista  | la lista cierra (cerca del comienzo, fin de la venta) o se cancela | `waitlist_closed`   | `buildWaitlistClosedEmail`   |
+
 Todo en `src/lib/server/tickets/` salvo que se indique. Las plantillas: definición y variables en
 `src/lib/utils/emailTemplates.js`, lo guardado en D1 en `templates.js`, el editor
 (`src/lib/components/admin/MailTemplateEditor.svelte`) en `/admin/mensajes/plantillas` y en la
@@ -247,6 +258,47 @@ solo la dirección y los links; el asunto, los textos y el remitente están fijo
 - **El mismo secreto** autentica `GET /api/fondo/propinas-total`, el total de propinas al Fondo de
   un «mes Fondo» que pide fondo.kinkyvibe.ar para su porcentaje (ver
   [propinas.md](propinas.md#total-para-el-fondo-get-apifondopropinas-total)).
+
+### Mails de la lista de espera
+
+En construcción (interruptor `lista_espera`; [tickets.md](tickets.md#lista-de-espera-en-construcción)).
+Los cinco usan la plantilla común y tienen su plantilla editable (`waitlist_*`, general y por
+evento, como los de entradas); en Mensajes → Plantillas y en la pestaña Mails de cada evento
+aparecen con la etiqueta «prueba» mientras el interruptor está apagado.
+
+- **Sin nombre:** la lista guarda solo el mail. Variables: `evento`, `fecha`, `tipo` (vacío si la
+  lista es de todo el evento) y, en la oferta y el último aviso, `vence` (hasta cuándo se guarda el
+  lugar; vacío si se le avisó a toda la lista).
+- **Lo fijo** (lo pone el código): el evento con su fecha (y el tipo), el recuadro con hasta cuándo
+  se guarda el lugar (o «Le avisamos a toda la lista a la vez: se lo queda quien compre primero»,
+  o por qué cerró la lista), el botón con su link y, en el pie, **el link para salir de la lista**
+  (en todos; en el de confirmar dice «Borrar el pedido ahora»).
+- **Sin plantilla guardada** sale el texto de partida de cada plantilla (sus `defaults`, byte a byte
+  la golden de `email.golden.json`, casos `waitlistEmailCases` de `email.fixtures.js`).
+- **Envío:** el de confirmar sale en el momento por `deliver()` (`waitlistSender`, sin clave de
+  idempotencia, como «Avisame si se repite»). Los otros cuatro los manda el cron con
+  `sendWaitlistEntryMail` (`waitlistMail.js`): una fila de `waitlist_sends` por anotación, mail y
+  ronda, con los estados de los envíos en tandas (`sendState.js`, que ahora también sirve para
+  filas por anotación), y la clave de Resend `waitlist-<mail>-<anotación>-<ronda>`
+  (`waitlist-closed-<anotación>` para el cierre).
+- **Quién los dispara** (el motor, `sendWaitlistMails` en `waitlistEngine.js`): no hay cola aparte,
+  lo que falta sale del estado de cada anotación y de `waitlist_sends`. La oferta, a cada oferta
+  vigente sin su mail; el último aviso, con 3 h por delante de una reserva de 12 h o más y la oferta
+  ya mandada; «se venció», si venció la reserva con la oferta ya mandada; «se cerró la lista», al
+  cerrar (cerca del comienzo, fin de la venta, «Cerrar la lista» en el panel) o si se cancela el
+  evento. Los dos últimos, solo si pasó hace menos de 48 h. En el cron van **primero** en la tanda
+  (`runMailQueueWith`, `sendWaitlist`) y comparten el «de a cuántos»; las acciones del panel y los
+  empujones mandan los de ese evento en el momento.
+- **Sin mail:** «Terminar la reserva y pasar a la siguiente» y «Sacar de la lista» (panel), salir
+  con el link, y un tipo de entrada que ya no existe ([decisión 0040](decisiones/0040-lista-de-espera.md)).
+- **Si no sale** después de 3 intentos: una fila en «Para revisar» que lleva a Ventas › Lista de espera
+  del evento, con «Volver a probar».
+- **Links:** confirmar `/lista-de-espera/confirmar/<token>` (48 h); salir
+  `/lista-de-espera/salir/<id>.<firma>` y volver `/lista-de-espera/volver/<id>.<firma>`, firmados con
+  `waitlist_leave_key` (se crea sola en `ticket_settings`), cada uno con su propio mensaje; la oferta
+  `/calendario/<slug>/entradas?lista=<token>`. GET solo muestra el botón y el POST hace el cambio
+  (`MailLinkCard`), así los antivirus del correo no confirman ni sacan a nadie.
+- **Logs:** nunca el mail; solo el id de la anotación.
 
 **Mail a compradores:** se manda en tandas (un Worker tiene un límite de pedidos a otros servicios
 por pedido); la página pide tandas y muestra el progreso.

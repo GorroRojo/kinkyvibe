@@ -1,6 +1,7 @@
 /**
  * Vista previa de un mail con datos de ejemplo (inventados), para el editor de plantillas y
- * "Mandarme una prueba". Usa los mismos builders que los mails de verdad.
+ * "Mandarme una prueba". Usa los mismos builders que los mails de verdad (también los de la lista
+ * de espera, waitlistEmail.js).
  */
 import {
 	buildDateChangeEmail,
@@ -10,6 +11,13 @@ import {
 	buildTicketEmail,
 	buildTransferEmail
 } from './email.js';
+import {
+	buildWaitlistClosedEmail,
+	buildWaitlistConfirmEmail,
+	buildWaitlistExpiredEmail,
+	buildWaitlistOfferEmail,
+	buildWaitlistReminderEmail
+} from './waitlistEmail.js';
 import { withMailFooter } from '$lib/server/email/layout.js';
 import { transferDeadline } from '$lib/utils/transferDeadline.js';
 
@@ -127,7 +135,39 @@ function buildPreview(
 		location_name: real ? (real.location_name ?? '') : 'Lugar de ejemplo'
 	};
 	const common = { order, typeName: 'General', contactEmail, template };
+	// Lista de espera: sin compra ni nombre (la lista guarda solo el mail); links de ejemplo.
+	const waitlist = {
+		event,
+		typeName: 'General',
+		unsubscribeUrl: `${origin}/lista-de-espera/salir/ejemplo`,
+		origin,
+		contactEmail,
+		template
+	};
+	const offerUrl = `${origin}/calendario/fiesta-de-ejemplo/entradas?lista=ejemplo`;
 	switch (id) {
+		case 'waitlist_confirm':
+			return buildWaitlistConfirmEmail({
+				...waitlist,
+				confirmUrl: `${origin}/lista-de-espera/confirmar/ejemplo`,
+				expiresAt: now + 48 * 3600000,
+				now
+			});
+		case 'waitlist_offer':
+			return buildWaitlistOfferEmail({ ...waitlist, offerUrl, holdUntil: now + 24 * 3600000 });
+		case 'waitlist_reminder':
+			return buildWaitlistReminderEmail({ ...waitlist, offerUrl, holdUntil: now + 3 * 3600000 });
+		case 'waitlist_expired':
+			return buildWaitlistExpiredEmail({
+				...waitlist,
+				rejoinUrl: `${origin}/lista-de-espera/volver/ejemplo`
+			});
+		case 'waitlist_closed':
+			return buildWaitlistClosedEmail({
+				...waitlist,
+				reason: 'closed',
+				eventUrl: `${origin}/calendario/fiesta-de-ejemplo`
+			});
 		case 'transfer':
 			return buildTransferEmail({
 				...common,

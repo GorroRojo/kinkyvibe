@@ -112,16 +112,18 @@ junta lo que eran tres pestañas y **Mails** lo que eran dos: cada parte es una 
 pestaña (`views`), con su URL de siempre, y la ficha las muestra como botones (`.kv-segmented`)
 debajo de las pestañas:
 
-| Pestaña | Vistas (URL)                                                                   |
-| ------- | ------------------------------------------------------------------------------ |
-| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`), Transferencias (`/transferencias`)  |
-| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`) |
+| Pestaña | Vistas (URL)                                                                                                                |
+| ------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Ventas  | Totales (`/ventas`), Órdenes (`/ordenes`), Transferencias (`/transferencias`), Lista de espera (`/lista-espera`, ver abajo) |
+| Mails   | Mandar un aviso (`/mail`), Plantillas (`/mails`, y cada mail en `/mails/<id>`)                                              |
 
 Las direcciones no cambiaron (los links de los mails, el buscador y las pruebas siguen andando):
 `eventHref(slug, 'ordenes')` da `/ordenes` como antes, y `eventTabOf(pathname)` dice qué pestaña
 y qué vista marcar (las subpáginas, como `/ordenes/cargar`, cuentan como su vista). La pestaña
-Ventas lleva el número de transferencias esperando confirmación; los botones de Órdenes y
-Transferencias, los suyos.
+Ventas lleva el número de transferencias esperando confirmación; los botones de Órdenes,
+Transferencias y Lista de espera, los suyos (en la lista, las anotaciones vivas). En el celu,
+con 4 vistas (Ventas con la lista de espera) los botones no entran en una fila: son una grilla de
+dos columnas iguales, sin deslizarse de costado; con 2 o 3, la píldora de siempre.
 
 En el celu (< 600 px) la ficha no muestra la tira de pestañas sino un botón con el ícono y el
 nombre de la pestaña actual y ▾, que abre la lista entera (ícono y nombre, ninguna escondida, sin
@@ -262,8 +264,9 @@ revisar" del Inicio.
 - **Las filas**: «Transferencia» tildada sin datos para
   transferir, transferencias por confirmar (una por evento), órdenes para revisar (pago tardío,
   pago duplicado o una venta en la puerta sin conexión que pasó un límite, decisión 0035), mails que no
-  salieron (hasta 20), cupos sobrevendidos, links de transmisión que faltan, recordatorios que no
-  salieron o fallaron, el link que no le llegó a todes, eventos sin imagen y borradores (juntos si
+  salieron (hasta 20), mails de la lista de espera que no salieron (una fila, lleva a Ventas ›
+  Lista de espera del evento más reciente), cupos sobrevendidos, links de transmisión que
+  faltan, recordatorios que no salieron o fallaron, el link que no le llegó a todes, eventos sin imagen y borradores (juntos si
   son 2 o más), eventos con lugar y etiqueta «Online», perfiles nuevos y pedidos «Es mi perfil»
   (juntos si son 2 o más), **Etiquetas** («N cosas para revisar en Etiquetas»: sin declarar, fuera
   del árbol y referencias rotas, lo mismo que las pestañas de su tarjeta «Para revisar»; «Sin usar»
@@ -282,6 +285,26 @@ revisar" del Inicio.
   alguien la abre.
 - **Cuándo se actualiza el botón**: el layout lo calcula al cargar una página del panel y después
   de cada acción (guardar, confirmar una transferencia…), no en cada cambio de página.
+
+**Lista de espera** (en construcción, interruptor `lista_espera`; decisión
+[0040](decisiones/0040-lista-de-espera.md), detalle en
+[tickets.md](tickets.md#lista-de-espera-en-construcción)):
+
+- **Ventas › Lista de espera, en la ficha del evento** (`/admin/eventos/<slug>/lista-espera`, la
+  última vista de Ventas, después de Transferencias; se ve con el interruptor prendido, o si el
+  evento tiene lista o gente anotada; su número son las anotaciones vivas y el Resumen muestra
+  «Lista de espera: N»).
+  Cuentas por alcance, la fila en orden, lo terminado y el CSV (con los mails: dato personal).
+  Acciones, cada una con su diálogo y en Actividad sin el mail (`waitlist.*`): «Terminar la reserva
+  y pasar a la siguiente», «Sacar de la lista», «Ofrecer ahora», «Cerrar la lista» (termina las
+  anotaciones y además la apaga en el evento: saca `lista_espera` del archivo; gorrite, 12/10) y
+  «Volver a probar» los mails que no salieron. Con la lista apagada, la vista avisa y muestra lo
+  que quedó.
+- **Sin página de Ajustes**: los tiempos de reserva, el aviso a todes y el cierre son fijos, en el
+  código (`WAITLIST_SETTINGS` de `src/lib/utils/waitlistHold.js`; gorrite, 12/10: cambiarlos es un
+  PR).
+- **Editar → Entradas → «Lista de espera»** y la nota en «Vender en puerta» y «Cargar entradas a
+  mano» («Hay N personas en la lista de espera… Podés vender igual»).
 
 **Barra lateral** (`SideNav.svelte`, solo en la compu; en el celu está el panel "Más"):
 

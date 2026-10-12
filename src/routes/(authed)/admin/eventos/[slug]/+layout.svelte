@@ -3,11 +3,12 @@
 	 * Ficha de un evento: encabezado (imagen, título, fecha, lugar, etiquetas y acciones) y las
 	 * pestañas de `EVENT_TABS` (en el celu, un botón con la pestaña actual que abre la lista, y las
 	 * acciones del encabezado, más chicas, debajo: Editar y «⋯ Acciones»; gorrite, 11/10). Las
-	 * pestañas con vistas (Ventas: Totales, Órdenes, Transferencias; Mails: Mandar un aviso,
-	 * Plantillas) muestran sus vistas como botones debajo. Las pestañas muestran lo que hay para
-	 * revisar: Ventas, las órdenes a revisar más las transferencias que esperan confirmación (y cada
-	 * vista, lo suyo). Una página con `bare: true` en su load (modo puerta) se muestra sola, sin
-	 * encabezado ni pestañas.
+	 * pestañas con vistas (Ventas: Totales, Órdenes, Transferencias, Lista de espera; Mails: Mandar
+	 * un aviso, Plantillas) muestran sus vistas como botones debajo (la lista de espera, solo con el
+	 * interruptor prendido o si el evento ya la usa). Las pestañas muestran lo que hay para revisar:
+	 * Ventas, las órdenes a revisar más las transferencias que esperan confirmación (y cada vista, lo
+	 * suyo). Una página con `bare: true` en su load (modo puerta) se muestra sola, sin encabezado ni
+	 * pestañas.
 	 */
 	import { page } from '$app/stores';
 	import { afterNavigate } from '$app/navigation';
@@ -72,7 +73,14 @@
 	$: here = eventTabOf($page.url.pathname);
 	$: currentTab = here ? eventHref(e.slug, here.tab.views?.[0].id ?? here.tab.id) : undefined;
 	/** @type {Record<string, number>} */
-	$: viewCounts = { ordenes: data.tabCounts.review, transferencias: data.tabCounts.transfers };
+	$: viewCounts = {
+		ordenes: data.tabCounts.review,
+		transferencias: data.tabCounts.transfers,
+		'lista-espera': data.tabCounts.waitlist
+	};
+	// Lista de espera (una vista de Ventas): con el interruptor prendido, o si el evento ya tiene
+	// lista o gente anotada.
+	$: views = (here?.tab.views ?? []).filter((v) => v.id !== 'lista-espera' || data.waitlistTab);
 	$: when = [shortDate(e.start), timeRange(e.start, e.end)].filter(Boolean).join(' · ');
 	$: where = [e.locationName, e.location && e.location !== e.locationName ? e.location : '']
 		.filter(Boolean)
@@ -157,9 +165,13 @@
 
 	<Tabs {tabs} current={currentTab} menu menuCaption="Pestaña" />
 
-	{#if here?.view && here.tab.views}
-		<nav class="views kv-segmented" aria-label="Vistas de {here.tab.label}">
-			{#each here.tab.views as v (v.id)}
+	{#if here?.view && views.length}
+		<nav
+			class="views kv-segmented"
+			class:many={views.length > 3}
+			aria-label="Vistas de {here.tab.label}"
+		>
+			{#each views as v (v.id)}
 				<a href={eventHref(e.slug, v.id)} aria-current={here.view.id === v.id ? 'page' : undefined}
 					>{v.label}{#if viewCounts[v.id]}<span class="count">{viewCounts[v.id]}</span>{/if}</a
 				>
@@ -288,6 +300,27 @@
 	/* Vistas de la pestaña (Ventas, Mails): botones debajo de las pestañas. */
 	.views {
 		margin: -0.25rem 0 1rem;
+	}
+	/* En el celu, con 4 vistas o más (no entran en una fila: Ventas con la lista de espera), una
+	   grilla de dos columnas iguales, con las esquinas de una tarjeta en vez de la píldora; si son
+	   impares, la última ocupa la fila entera. Nunca se desliza de costado. Con 2 o 3 vistas (Mails,
+	   Ventas sin la lista) queda la píldora de siempre. */
+	@media (max-width: 599px) {
+		.views.many {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			width: 100%;
+			box-sizing: border-box;
+			border-radius: var(--radius-m);
+		}
+		.views.many > a {
+			border-radius: calc(var(--radius-m) - 0.15rem);
+			padding-inline: 0.5em;
+			text-align: center;
+		}
+		.views.many > a:last-child:nth-child(odd) {
+			grid-column: 1 / -1;
+		}
 	}
 	.views .count {
 		font-size: var(--text-xs);

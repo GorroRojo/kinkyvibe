@@ -12,6 +12,7 @@
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
+	import WaitlistDoorNote from '$lib/components/admin/WaitlistDoorNote.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { formatARS } from '$lib/utils/money.js';
 
@@ -130,6 +131,7 @@
 	<Card>
 		<form method="POST" class="stack" use:enhance={submit}>
 			{#if overrideKey}<input type="hidden" name="override" value={overrideKey} />{/if}
+			<WaitlistDoorNote summary={data.waitlist} action="cargar" />
 
 			<div class="grid2">
 				<label class="field">

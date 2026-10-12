@@ -11,6 +11,8 @@ import { error, fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
 import { getDB } from '$lib/server/db';
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { isFlagOn } from '$lib/server/flags.js';
+import { safeWaitlistSummary } from '$lib/server/tickets/waitlistAdmin.js';
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { salesState, typeOpen } from '$lib/server/tickets/config.js';
 import { PANEL_ORDER_HARD_MAX, orderRef } from '$lib/server/tickets/door.js';
@@ -54,6 +56,11 @@ export async function load(event) {
 	const state = salesState(config, now);
 	return {
 		slug: event.params.slug,
+		// La nota de la lista de espera (no frena la carga).
+		waitlist: await safeWaitlistSummary(db, event.params.slug, {
+			enabled: await isFlagOn(db, 'lista_espera'),
+			now
+		}),
 		title: config.title,
 		online: config.online,
 		// Para avisar antes de enviar (el servidor igual controla y pide confirmar).

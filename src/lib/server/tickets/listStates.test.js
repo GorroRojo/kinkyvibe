@@ -6,6 +6,13 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const flag = vi.hoisted(() => ({ on: false }));
+vi.mock('$lib/server/flags.js', async (importOriginal) => ({
+	.../** @type {object} */ (await importOriginal()),
+	isFlagOn: async (/** @type {any} */ _db, /** @type {string} */ key) =>
+		key === 'lista_espera' ? flag.on : false
+}));
+
 vi.mock('./events.js', async () => {
 	const { parseTicketConfig } = await import('./config.js');
 	const DAY = 24 * 60 * 60 * 1000;
@@ -65,7 +72,13 @@ vi.mock('./events.js', async () => {
 			status: 'agotadas',
 			tickets: [{ id: 'general', name: 'General', price: 5000 }]
 		},
-		'sin-entradas': { ...common, link: 'https://example.com/inscripcion' }
+		'sin-entradas': { ...common, link: 'https://example.com/inscripcion' },
+		// Lista de espera por evento: cupo 3, se precargan 2 (queda 1).
+		'con-fila': {
+			...common,
+			lista_espera: 'evento',
+			tickets: [{ id: 'general', name: 'General', price: 5000, capacity: 3 }]
+		}
 	};
 	return {
 		isValidEventSlug: () => true,
@@ -130,6 +143,7 @@ const SLUGS = [
 ];
 
 beforeEach(async () => {
+	flag.on = false;
 	await resetDB(t.db);
 	// Datos para transferir inventados (así se ofrece la transferencia).
 	await t.db
@@ -144,6 +158,43 @@ beforeEach(async () => {
 	await preload('agotado-encadenado', 'general', 1);
 	await preload('agotado-encadenado', 'ultima', 5);
 	await preload('tipo-cerrado', 'general', 1);
+});
+
+describe('lista de espera (interruptor `lista_espera`)', () => {
+	/** @param {string} id */
+	const waiting = (id) =>
+		t.db
+			.prepare(
+				`INSERT INTO waitlist_entries (id, event_slug, email, status, confirmed_at, created_at,
+					updated_at) VALUES (?1, 'con-fila', ?2, 'waiting', 1, 1, 1)`
+			)
+			.bind(id, `fila-${id.slice(-2)}@example.com`)
+			.run();
+
+	beforeEach(async () => {
+		flag.on = true;
+		await preload('con-fila', 'general', 2);
+	});
+
+	it('la fila se resta de lo libre: si lo que queda es de la fila, la tarjeta dice agotadas', async () => {
+		expect(
+			(await getListTicketStates(t.db, ['con-fila'], { cacheMs: 0 }))['con-fila']
+		).toMatchObject({ open: true });
+		await waiting('00000000-0000-4000-8000-000000000001');
+		const states = await getListTicketStates(t.db, ['con-fila'], { cacheMs: 0 });
+		expect(states['con-fila']).toMatchObject({ open: false, reason: 'soldout' });
+		// Igual que la página del evento con la lista prendida.
+		const view = await getTicketsView(t.db, 'con-fila', noFetch, { waitlist: true });
+		expect(summarizeTickets(/** @type {any} */ (view))).toMatchObject({ open: false });
+	});
+
+	it('con el interruptor apagado, la fila no cambia nada', async () => {
+		await waiting('00000000-0000-4000-8000-000000000002');
+		flag.on = false;
+		expect(
+			(await getListTicketStates(t.db, ['con-fila'], { cacheMs: 0 }))['con-fila']
+		).toMatchObject({ open: true });
+	});
 });
 
 describe('getListTicketStates', () => {

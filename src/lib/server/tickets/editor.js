@@ -11,6 +11,7 @@ import { readTicketsForm, validateTicketsForm } from '$lib/utils/ticketsEditor.j
 import { parseTicketConfig } from './config.js';
 import { getCounts, getTaken } from './orders.js';
 import { tierKey } from '$lib/utils/ticketTiers.js';
+import { waitlistLiveByScope } from './waitlistAdmin.js';
 
 /**
  * Vendidas y reservadas por tipo de un evento, o `null` si no hay base (o falla).
@@ -48,14 +49,34 @@ export async function salesByType(db, slug) {
 }
 
 /**
+ * La gente anotada en la lista de espera del evento por alcance ('' = todo el evento), o `null`
+ * si no hay base o falla (sin la migración 0053): entonces el editor no frena nada por la lista.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null} db
+ * @param {string} slug
+ * @returns {Promise<Record<string, number> | null>}
+ */
+export async function waitlistLiveFor(db, slug) {
+	if (!db) return null;
+	try {
+		return await waitlistLiveByScope(db, slug);
+	} catch (error) {
+		logDBError('editor: lista de espera del evento', error);
+		return null;
+	}
+}
+
+/**
  * Problemas de la venta de entradas de un archivo de evento (vacío = todo bien). Un archivo
  * cuyas propiedades no se pueden leer lo valida el resto del guardado.
  *
  * @param {string} content el archivo completo
- * @param {{ sales?: import('$lib/utils/ticketsEditor.js').SalesByType | null }} [opts]
+ * @param {{ sales?: import('$lib/utils/ticketsEditor.js').SalesByType | null,
+ *   waitlistLive?: Record<string, number> | null }} [opts] `waitlistLive`: la gente anotada en
+ *   la lista de espera (no deja apagarla ni cambiar el alcance)
  * @returns {string[]}
  */
-export function ticketsFileErrors(content, { sales } = {}) {
+export function ticketsFileErrors(content, { sales, waitlistLive } = {}) {
 	/** @type {Record<string, any>} */
 	let meta;
 	try {
@@ -66,7 +87,10 @@ export function ticketsFileErrors(content, { sales } = {}) {
 		return [];
 	}
 	const form = readTicketsForm(meta);
-	const { errors } = validateTicketsForm(form, { sales: sales ?? undefined });
+	const { errors } = validateTicketsForm(form, {
+		sales: sales ?? undefined,
+		waitlistLive: waitlistLive ?? undefined
+	});
 	if (form.enabled && !errors.length) {
 		try {
 			parseTicketConfig(meta);
