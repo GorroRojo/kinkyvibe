@@ -271,7 +271,9 @@ de amigues y lanzamientos grandes.
 - Pruebas más rápidas, lo que quedó después del PR «tests-mas-rapidos» (#307, ideas en el PR):
   cada consulta a la base de prueba son ~5 ms de ida y vuelta a miniflare (2,5 ms sin tocar D1),
   y `importTags` de la semilla son ~1800 consultas; una base ya migrada copiada por archivo en vez
-  de migrar cada vez; `vitest related` para las sesiones de agentes. S–M cada una.
+  de migrar cada vez. S–M cada una.
+- CI: actualizar `scripts/vitest/durations.json` (`npm run test:durations`) cuando se sumen o
+  cambien pruebas lentas, para que las 3 partes de `tests` sigan parejas. S.
 
 ### Estándares web y SEO
 

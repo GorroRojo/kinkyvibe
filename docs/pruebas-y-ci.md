@@ -17,20 +17,21 @@ workflows). Corre en cada pull request y en cada push a `main`, con permiso de s
 el repo (`permissions: contents: read`). Si pusheás de nuevo a la misma rama, la corrida anterior
 se cancela (`concurrency`). Los jobs de prueba corren en paralelo, usan Ubuntu 22.04 y la versión
 de Node de `.node-version` (con caché de npm), y arrancan con `npm ci`. Tienen un límite de
-tiempo: 15 minutos `unit`, `tests` y `e2e`, 10 `typecheck`.
+tiempo: 15 minutos `unit`, `tests`, `build` y `e2e`, 10 `typecheck`.
 
 **PRs de solo documentación** (gorrite, 11/10): el job `changes` mira qué archivos toca el PR. Si
 todos están en `docs/`, son `.md` de la raíz o están en `.claude/`, corre solo `docs` (el chequeo
-de formato) y se saltean `unit`, `tests`, `e2e` y `typecheck`; `ci-ok` igual da verde, porque
+de formato) y se saltean `unit`, `tests`, `build`, `e2e` y `typecheck`; `ci-ok` igual da verde, porque
 cuenta lo salteado como bien. En `main` (push) corre todo siempre.
 
-| Job (nombre en GitHub)          | Pasos, en orden                                                                                                                                                                                                                                          | Cómo reproducirlo en tu compu                                                                    |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `unit`                          | **Lint** (`npm run lint`) → **Prettier** (`npm run format:check`)                                                                                                                                                                                        | `npm run lint && npm run format:check`                                                           |
-| `tests (1/3)`, `(2/3)`, `(3/3)` | **Unit + content tests** repartidas en 3 máquinas (`npx vitest run --shard=N/3`): juntas corren todas                                                                                                                                                    | `npx vitest run` (todas) o `npx vitest run --shard=1/3`                                          |
-| `e2e`                           | **Build** (`npm run build`) → **Worker bundle** (`npx wrangler deploy --dry-run --outdir .wrangler/dry-run`) → instala Chromium (o, si está en caché, solo sus librerías del sistema) → **E2E smoke tests** (`npx playwright test`, con `PW_NO_BUILD=1`) | `npm run build && PW_NO_BUILD=1 npm run test:e2e` (o solo `npm run test:e2e`, que compila antes) |
-| `typecheck`                     | **svelte-check ratchet** (`node scripts/svelte-check-ratchet.js`)                                                                                                                                                                                        | `node scripts/svelte-check-ratchet.js`                                                           |
-| **`ci-ok`**                     | corre siempre (`if: always()`, en `ubuntu-latest`, sin `npm ci`) y pasa solo si `changes`, `docs`, `unit`, `tests`, `e2e` y `typecheck` terminaron bien (o se saltearon). **Es el único chequeo obligatorio**                                            | —                                                                                                |
+| Job (nombre en GitHub)          | Pasos, en orden                                                                                                                                                                                                          | Cómo reproducirlo en tu compu                                                                    |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `unit`                          | **Lint** (`npm run lint`) → **Prettier** (`npm run format:check`)                                                                                                                                                        | `npm run lint && npm run format:check`                                                           |
+| `tests (1/3)`, `(2/3)`, `(3/3)` | trae la caché de vitest → **Unit + content tests** repartidas en 3 máquinas por tiempo (`npx vitest run --shard=N/3 --fsModuleCache`): juntas corren todas                                                               | `npx vitest run` (todas), `npx vitest run --shard=1/3` o `npm run test:related`                  |
+| `build`                         | **Build + seed** (`npm run build` y, al mismo tiempo, `node scripts/semilla.js`) → **Worker bundle** (`npx wrangler deploy --dry-run --outdir .wrangler/dry-run`) → guardia del modo demo → sube el artifact `e2e-build` | `npm run build && node scripts/semilla.js`                                                       |
+| `e2e (1/2)`, `(2/2)`            | baja `e2e-build` → instala Chromium (o, si está en caché, solo sus librerías del sistema) → **E2E smoke tests** en 2 máquinas (`npx playwright test --shard=N/2`, con `PW_NO_BUILD=1`)                                   | `npm run build && PW_NO_BUILD=1 npm run test:e2e` (o solo `npm run test:e2e`, que compila antes) |
+| `typecheck`                     | **svelte-check ratchet** (`node scripts/svelte-check-ratchet.js`)                                                                                                                                                        | `node scripts/svelte-check-ratchet.js`                                                           |
+| **`ci-ok`**                     | corre siempre (`if: always()`, en `ubuntu-latest`, sin `npm ci`) y pasa solo si `changes`, `docs`, `unit`, `tests`, `build`, `e2e` y `typecheck` terminaron bien (o se saltearon). **Es el único chequeo obligatorio**   | —                                                                                                |
 
 Fuera de `ci.yml` aparecen además:
 
@@ -57,16 +58,38 @@ svelte-check deja de encontrar `process` y `node:fs` en los tests y el ratchet f
 `ci-ok` existe para que la protección de `main` pida un solo chequeo: si alguien agrega un job a
 `ci.yml`, lo suma a los `needs` de `ci-ok` y listo, sin tocar la configuración de GitHub.
 
-Detalles de `e2e`:
+Detalles de `build` y `e2e`:
 
+- Se compila **una sola vez**: `build` sube `.svelte-kit/output/` (el build) y `.wrangler/state/` (la base
+  local ya con la semilla) como artifact `e2e-build` (se borra al día), y las dos partes de `e2e`
+  lo bajan. `ui-impacto` no lo usa: compila la base y el PR por su cuenta.
 - El **Worker bundle** empaqueta `worker/index.js` con el build como lo haría el deploy, sin
   subir nada ni necesitar cuenta de Cloudflare. Si falla, el deploy también fallaría.
 - Antes de `vite preview`, `playwright.config.js` corre `scripts/semilla.js`: aplica las
   migraciones a la base local y le carga la semilla de contenido (`src/lib/server/semilla/`:
   eventos, material, fichas de amigues, etiquetas y wiki; el sitio los lee solo de la base). La
-  primera vez tarda ~1-2 minutos; después, segundos.
+  primera vez tarda ~1-2 minutos; después, segundos. Por eso en la CI la primera carga se hace en
+  `build`, en paralelo con el build, y en `e2e` es la segunda (segundos).
+- `playwright.config.js` tiene `fullyParallel: true`: cada prueba es independiente, así
+  `--shard` reparte pruebas sueltas y no archivos enteros (`smoke.spec.js` tiene casi todas).
 - Chromium se guarda en caché entre corridas, por versión de `@playwright/test`.
-- Si las pruebas fallan, sube `playwright-results` (capturas y trazas) como artifact por 7 días.
+- Si las pruebas fallan, cada parte sube `playwright-results-N` (capturas y trazas) como artifact
+  por 7 días.
+
+Detalles de `tests`:
+
+- **Reparto por tiempo**: vitest reparte `--shard` con la misma cantidad de archivos en cada
+  parte, sin mirar cuánto tardan, y una parte terminaba mucho después que las otras.
+  `scripts/vitest/sequencer.js` (en `vite.config.js`, `test.sequence.sequencer`) los reparte por
+  lo que tardó cada uno según `scripts/vitest/durations.json`: del más lento al más rápido, cada
+  archivo va a la parte que menos suma. Un archivo que no está ahí cuenta como la mediana; cada
+  archivo corre en exactamente una parte aunque los tiempos estén viejos. Para actualizarlos:
+  `npm run test:durations` (corre todas y reescribe el archivo; con rutas, solo esas). Conviene
+  cuando se suman o cambian pruebas lentas.
+- **Caché**: cada parte guarda y recupera `node_modules/.vite` (cuánto tardó cada archivo la
+  última vez: los lentos arrancan primero) y `node_modules/.vitest-cache` (los módulos ya
+  transformados, `--fsModuleCache`, solo en la CI). La clave lleva la parte, el hash de
+  `package-lock.json` y el commit; los PRs arrancan de la última de `main`.
 
 `npm run lint` es solo ESLint: **no** revisa el formato de Prettier. Eso lo hace el paso
 **Prettier** del job `unit` con `npm run format:check` (todo el repo menos lo que lista
@@ -85,6 +108,15 @@ ya no hay `.eslintrc` ni `.eslintignore`).
   corren las de `scripts/**/*.test.js`.
 - `npx vitest run` (o `npm run test:unit`) las corre todas; `npx vitest run src/lib/server/tickets`
   solo una carpeta; `npm run test:unit:watch` las repite al guardar.
+- `npm run test:related` (`scripts/test-related.js`) corre solo las relacionadas con lo que
+  cambiaste respecto de `origin/main`: lo commiteado en la rama, lo no commiteado y los archivos
+  nuevos (`vitest related`: las pruebas que importan, directa o indirectamente, algún archivo
+  cambiado, más las pruebas cambiadas). Los borrados se ignoran. Si no cambió nada, no corre
+  nada. Si cambió algo que afecta a todas y vitest no ve como import (`package.json`, el lockfile,
+  `vite.config.js`, `migrations/`, `src/tests/`, `scripts/vitest/`…), corre todas. Lo que va
+  después de `--` le llega a vitest (`npm run test:related -- --maxWorkers=2`);
+  `TEST_RELATED_BASE` cambia la base. Ojo: un archivo que una prueba lee con `readFile` (y no
+  importa) no cuenta como relacionado; la CI igual corre todas.
 - **Etiquetas en las pruebas**: sin base, el árbol de etiquetas está vacío; `src/tests/setup.js`
   (en `setupFiles` de `vite.config.js`) pone las de la semilla como respaldo para todas las
   pruebas. Las que necesitan contenido real lo leen de la semilla (`src/lib/server/semilla/testing.js`).
@@ -171,15 +203,15 @@ que dé verde. `npm run check` corre svelte-check sin trinquete (lo mismo, sin c
 
 ```sh
 npm run lint
-npx vitest run
+npm run test:related          # las pruebas de lo que cambiaste (la CI corre todas: npx vitest run)
 npm run build
 node scripts/svelte-check-ratchet.js
 npm run format:check          # la CI lo corre (npm run format lo arregla)
 npx playwright test -c playwright.tickets.config.js  # si tocaste entradas o el panel (la CI no lo corre)
 ```
 
-Pegá el resumen de cada uno en la descripción del PR. No se dice "los tests pasan" sin haberlos
-corrido.
+Pegá el resumen de cada uno en la descripción del PR (y si corriste `test:related` o la suite
+entera). No se dice "los tests pasan" sin haberlos corrido. La CI corre siempre la suite entera.
 
 ## Cuando algo está en rojo
 
@@ -188,7 +220,8 @@ corrido.
    - **Lint**: `npm run lint` en tu compu muestra lo mismo; arreglalo (o `npm run format` si es
      formato).
    - **Unit tests** (job `unit`): `npx vitest run <archivo>` reproduce.
-   - **Build** (job `e2e`): `npm run build`; suele ser un import roto.
+   - **Build** (job `build`): `npm run build`; suele ser un import roto. Si falla la semilla en el
+     mismo paso, el log la muestra: `node scripts/semilla.js` reproduce.
    - **E2E smoke tests**: el job sube `playwright-results` (capturas y trazas) como artifact por
      7 días. Reproducí con `npm run test:e2e`. En CI hay un reintento, así que si falló dos veces
      no es casualidad.

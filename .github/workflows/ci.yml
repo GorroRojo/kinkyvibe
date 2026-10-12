@@ -62,7 +62,8 @@ jobs:
       - name: Prettier
         run: npm run format:check
 
-  # Lint y formato (unit), las pruebas en 3 partes (tests), build + E2E y tipos corren en paralelo.
+  # Lint y formato (unit), las pruebas en 3 partes (tests), build (y después E2E en 2 partes) y
+  # tipos corren en paralelo.
   unit:
     needs: changes
     if: needs.changes.outputs.docs_only != 'true'
@@ -108,13 +109,30 @@ jobs:
 
       - run: npm ci
 
-      - name: Unit + content tests
-        run: npx vitest run --shard=${{ matrix.shard }}/3
+      # Cachés de vitest entre corridas (después de `npm ci`, que borra node_modules):
+      # node_modules/.vite/vitest guarda cuánto tardó cada archivo la última vez (los lentos
+      # arrancan primero) y node_modules/.vitest-cache los módulos ya transformados
+      # (`--fsModuleCache`; vitest la vacía sola si cambia package-lock.json). Una por parte: cada
+      # parte corre siempre más o menos los mismos archivos. Los PRs leen la de main.
+      - uses: actions/cache@v6
+        with:
+          path: |
+            node_modules/.vite
+            node_modules/.vitest-cache
+          key: vitest-${{ runner.os }}-${{ matrix.shard }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: vitest-${{ runner.os }}-${{ matrix.shard }}-${{ hashFiles('package-lock.json') }}-
 
-  e2e:
+      # El reparto entre las 3 partes es por tiempo (scripts/vitest/sequencer.js, con los tiempos de
+      # scripts/vitest/durations.json), no por cantidad de archivos.
+      - name: Unit + content tests
+        run: npx vitest run --shard=${{ matrix.shard }}/3 --fsModuleCache
+
+  # Compila una sola vez para las dos partes de `e2e`: build, el Worker empaquetado y la base local
+  # con la semilla (lo más lento: ~1 minuto en una base nueva), al mismo tiempo que el build. Sube
+  # todo como artifact `e2e-build`.
+  build:
     needs: changes
     if: needs.changes.outputs.docs_only != 'true'
-    # 22.04: @playwright/test 1.40 can't install system deps on 24.04.
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -127,8 +145,16 @@ jobs:
 
       - run: npm ci
 
-      - name: Build
-        run: npm run build
+      # La semilla (scripts/semilla.js: migraciones + contenido público en .wrangler/state) no
+      # depende del build: corre en paralelo. Playwright la vuelve a correr antes de servir, pero
+      # sobre una base ya cargada tarda segundos.
+      - name: Build + seed the local database
+        run: |
+          node scripts/semilla.js --quiet > semilla.log 2>&1 &
+          seed=$!
+          npm run build
+          if ! wait "$seed"; then cat semilla.log; exit 1; fi
+          cat semilla.log
 
       # Empaqueta el Worker (worker/index.js + el build) como lo haría el deploy, sin subir nada
       # ni necesitar cuenta de Cloudflare.
@@ -139,6 +165,40 @@ jobs:
       # false): el seed y el botón «Recargar datos de prueba» no pueden estar en el Worker.
       - name: No demo seed in the production bundle
         run: node scripts/demo/guard.js bundle .wrangler/dry-run/index.js
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: e2e-build
+          path: |
+            .svelte-kit/output/
+            .wrangler/state/
+          include-hidden-files: true
+          retention-days: 1
+
+  # Las pruebas de humo de Playwright en 2 partes (`--shard`), sobre el build del job `build`.
+  e2e:
+    needs: build
+    # 22.04: @playwright/test 1.40 can't install system deps on 24.04.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    name: e2e (${{ matrix.shard }}/2)
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: e2e-build
 
       # The browser only changes when @playwright/test does: keep it between runs.
       - name: Playwright version
@@ -160,14 +220,14 @@ jobs:
         run: npx playwright install-deps chromium
 
       - name: E2E smoke tests
-        run: npx playwright test
+        run: npx playwright test --shard=${{ matrix.shard }}/2
         env:
           PW_NO_BUILD: '1'
 
       - uses: actions/upload-artifact@v6
         if: failure()
         with:
-          name: playwright-results
+          name: playwright-results-${{ matrix.shard }}
           path: test-results/
           retention-days: 7
 
@@ -266,7 +326,7 @@ jobs:
   # When you add a job above, add it to `needs` here too.
   ci-ok:
     if: always()
-    needs: [changes, docs, unit, tests, e2e, typecheck]
+    needs: [changes, docs, unit, tests, build, e2e, typecheck]
     runs-on: ubuntu-latest
     steps:
       - name: All required jobs passed

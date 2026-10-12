@@ -17,6 +17,8 @@
 		"test:e2e": "playwright test",
 		"test:unit": "vitest run",
 		"test:unit:watch": "vitest",
+		"test:related": "node scripts/test-related.js",
+		"test:durations": "vitest run --reporter=default --reporter=./scripts/vitest/durations-reporter.js",
 		"db:migrate:local": "wrangler d1 migrations apply kinkyvibe --local",
 		"db:migrate:remote": "wrangler d1 migrations apply kinkyvibe --remote",
 		"db:migrate:preview": "node scripts/db-migrate-preview.js",
