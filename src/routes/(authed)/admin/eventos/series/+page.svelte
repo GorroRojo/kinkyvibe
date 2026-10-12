@@ -9,6 +9,8 @@
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
+	import { afterNavigate } from '$app/navigation';
+	import { tick } from 'svelte';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import { Pencil, Plus, Repeat, Tags } from '@lucide/svelte';
 	import SeriesFields from '$lib/components/admin/series/SeriesFields.svelte';
@@ -39,6 +41,14 @@
 	}
 
 	let creating = false;
+	// «+ Crear ▾ › Serie de eventos» lleva a /admin/eventos/series?crear: abre el formulario.
+	afterNavigate(async ({ to }) => {
+		if (!data.canCreate || !to?.url.searchParams.has('crear')) return;
+		prefill = {};
+		creating = true;
+		await tick();
+		document.getElementById('crear-serie')?.scrollIntoView({ block: 'start' });
+	});
 	/**
 	 * Lo que se precarga en «Crear serie». Vacío = el formulario en blanco (se renueva cada vez que
 	 * se abre).
@@ -77,7 +87,6 @@
 <PageHeader
 	title="Series"
 	subtitle="Eventos que se repiten: cada serie es una etiqueta hija de «evento recurrente»."
-	back={{ href: '/admin/eventos', label: 'Eventos' }}
 >
 	<svelte:fragment slot="actions">
 		<CsvButton href="/admin/eventos/series/ediciones.csv" label="CSV de ediciones" />

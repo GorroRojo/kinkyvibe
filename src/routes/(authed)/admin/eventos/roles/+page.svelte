@@ -73,7 +73,7 @@
 				</li>
 			{/each}
 		</ul>
-		<form class="kv-row add-role" method="POST" action="?/addRole" use:enhance>
+		<form id="nuevo-rol" class="kv-row add-role" method="POST" action="?/addRole" use:enhance>
 			<label class="kv-field">
 				<span>Rol nuevo</span>
 				<input

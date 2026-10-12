@@ -56,6 +56,47 @@ lugar): «Cargar evento» es un botón de la página de Eventos (y del Inicio y 
 arriba), está en el buscador y tiene `g n`. Sin menú «+ Crear» ni «Más» en la ficha del evento:
 las pestañas de la ficha y los ajustes de mails no cambian (quedan para otra decisión).
 
+**Opción C, parte 2** (gorrite, 11/10; [decisión 0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)):
+
+- **La Puerta sale de la barra lateral** (grupo `puerta` con `side: false`): quedan 7 secciones.
+  Sigue en la barra de abajo del celu, en «Ir a…», en la pestaña Puerta de cada evento y en el bot;
+  su URL no cambia. Como ya no es una sección de la barra, entra en Recientes.
+- **«+ Crear ▾»** reemplaza a «+ Cargar evento» en la barra de arriba (en el celu, un «+» en el
+  header): `CreateMenu.svelte` con los ítems de `src/lib/admin/createMenu.js` (evento, serie
+  —`/admin/eventos/series?crear` abre el formulario—, lugar, eventos desde una planilla, rol,
+  código de descuento, perfil, material y entrada de la Kinkipedia) y lo que viene (producto,
+  colección, video) gris, sin link, con «Próximamente» (sale del `soon` de su sección; con
+  «Ocultar lo que viene», no aparece). Menú accesible: ↓/Enter abren, ↑/↓/Inicio/Fin recorren,
+  Escape cierra y el foco vuelve al botón. Las que no eran ya una acción están en «Ir a…» como
+  «Crear: …» (`createCommands` en `paletteActions.js`).
+- **Pestañas con contadores**: cada pestaña de sección lleva el contador «a revisar» de su sección
+  (`sectionTabs(path, { counts })`, el mismo de la barra lateral y de «Para revisar»); en la ficha
+  del evento, Órdenes muestra las órdenes a revisar y Transferencias las que esperan confirmación
+  (antes Órdenes mostraba el total de órdenes). Lo que viene va al final de las pestañas, gris y
+  sin link, salvo con «Ocultar lo que viene» (sin pasar `hideSoon`, `sectionTabs` sigue sin
+  mostrarlo).
+- **Pestañas en el celu** (< 600 px): todas las barras del panel usan `Tabs` con `menu` (la de
+  sección, la de la ficha del evento y los filtros de Ventas, Perfiles y Propinas): un botón
+  «Sección: Órdenes ▾» de ancho entero, con borde violeta y fondo lila (la navegación principal
+  de la página), que abre la lista; sin tira que se desliza. En la ficha del evento, las acciones
+  del encabezado bajan debajo de las pestañas, más chicas: Editar y «⋯ Acciones» (Ver página,
+  Duplicar, Imagen para compartir). `menuCaption` cambia «Sección» («Pestaña», «Ver»).
+- **Más ágil**: mientras SvelteKit trae la página siguiente (`$navigating`) hay una barrita de 3
+  px arriba de todo (aparece después de 120 ms, así lo rápido no parpadea; quieta con movimiento
+  reducido) y el link o botón que se tocó queda «cargando» (`data-pending` y `aria-busy`, estilo
+  en `panel.scss`) hasta que llega. La barra lateral, las pestañas, la barra de abajo, «+ Crear»,
+  Fijados y Recientes llevan `data-sveltekit-preload-data="hover"` (el `<body>` ya lo tenía para
+  todo el sitio): precargan al pasar el mouse o con el foco. Los `load` del panel solo leen (no
+  marcan nada como visto ni escriben), así que precargar no cambia nada; «Salir» lleva
+  `data-sveltekit-reload` y no se precarga.
+- **Links «volver»**: `areaBackLink` no da link si la página del área es «Próximamente» (como
+  Mensajes, cuya página es la Bandeja). Las secciones que son pestañas hermanas (Series,
+  Transferencias, Códigos) ya no tienen «← Eventos»/«← Ventas»: la pestaña es el camino.
+  `src/routes/(authed)/admin/backLinks.test.js` controla que cada «← …», cada `back={{ href }}` y
+  cada «Volver…» del panel lleve a una página que existe y no es «Próximamente», que los armados
+  con una variable estén revisados, y que ninguna página con pestañas tenga «←» a una hermana.
+- `/admin/eventos` ya no tiene los botones «Agenda» y «Series» en el encabezado (son pestañas).
+
 **Íconos en las pestañas** (gorrite, 11/10): cada pestaña de sección lleva el mismo ícono que su
 sección en la barra lateral (`sectionTabs` lo saca de `nav.js`), y las de la ficha del evento
 también (`EVENT_TABS`: las que son una sección del menú, con `section`, usan el ícono de esa
@@ -258,11 +299,11 @@ revisar" del Inicio.
   el logo más chico. Las pestañas también son más bajas en la compu; en el celu tienen 44 px
   (`--tap`).
 
-- **8 secciones, sin sub-ítems** (opción C, ver arriba). La sección de la página actual se marca
+- **7 secciones, sin sub-ítems** (opción C, ver arriba; la Puerta salió en la parte 2). La sección de la página actual se marca
   (también en sus subpáginas: en una ficha de evento, Eventos; en Plantillas, Comunidad). Cada
   sección muestra la suma de los contadores de su grupo y la pista «g x» de su primera página.
-  Lo que viene («Próximamente») ya no se ve en la barra (sí en el panel "Más" del celu y en su URL
-  reservada); «Ocultar lo que viene» sigue valiendo para el panel "Más" y el buscador. Ya no hay
+  Lo que viene («Próximamente») ya no se ve en la barra (sí en las pestañas, en «+ Crear», en el
+  panel "Más" del celu y en su URL reservada); «Ocultar lo que viene» vale para todos ellos. Ya no hay
   grupos para abrir y cerrar: `navPrefs.js` conserva sus funciones de grupos abiertos (sin uso
   por ahora; ver la hoja de ruta).
 - **Recientes** (debajo de las secciones): las últimas páginas que abriste, como los «Shortcuts»
@@ -271,10 +312,20 @@ revisar" del Inicio.
   no entran enteras quedan `visibility: hidden` (no se ven, no se leen, no se enfocan); si no entra
   ninguna, no aparece el título. No se guardan Inicio, las páginas que ya son una sección de la
   barra ni las de error, y no se muestra la página en la que estás. El nombre sale del título de
-  la página: «Evento · Pestaña» en una ficha, el nombre de la sección, o «Sección · Título»
-  («Personas · …»). Se guardan en **localStorage, por login** (`kv-panel-recientes:<login>`, con
+  la página, en dos partes (`recentParts`): el nombre y una línea chica de contexto («Órdenes» /
+  «Fiesta de Primavera» en una ficha, «Transferencias» / «Ventas», «Ana Ejemplo» / «Personas»),
+  con el ícono de la página (`placeIcon`: el de la pestaña del evento o el de la sección;
+  `PlaceLink.svelte`). Las guardadas antes, sin contexto, se ven con su nombre. Cada una tiene 📌
+  (al pasar el mouse o con el foco) para fijarla. Se guardan en **localStorage, por login** (`kv-panel-recientes:<login>`, con
   try/catch; sin storage no hay recientes y el menú anda igual): quedan en ese navegador y no salen
-  de ahí. En «Solo íconos» y en el celu no se muestran.
+  de ahí. En «Solo íconos» no se muestran; en el celu, las primeras 5 van en el panel «Más».
+- **Fijados** (arriba de Recientes, parte 2): las páginas que fijaste con 📌 desde Recientes o
+  desde «Ir a…» (en cada resultado que lleva a una página del panel, al pasar el mouse o el
+  elegido; con el teclado, Alt+F). Hasta 7 (`PIN_MAX`), en tu orden: se arrastran, o con «Subir» y
+  «Bajar» (con el foco en la fila aparecen sus botones); «Soltar» la saca. No se fijan las
+  «Próximamente» ni las secciones de la barra (`canPin`). Recientes no repite las fijadas. En
+  **localStorage, por login** (`kv-panel-fijados:<login>`, `src/lib/admin/pinnedPlaces.js`, con
+  try/catch). En el celu se ven en el panel «Más» (sin reordenar).
 - **Scroll propio**: la barra es `sticky`, del alto de la pantalla y con `overflow-y: auto`, así
   que si no entra scrollea sola y no se mueve con la página.
 

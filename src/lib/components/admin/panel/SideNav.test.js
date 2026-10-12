@@ -1,6 +1,7 @@
 /**
- * Barra lateral del panel en el servidor (opción C, decisión 0038): las 8 secciones con su nombre,
- * sin sub-ítems ni «Cargar evento», la actual marcada, la Puerta resaltada y «Recientes».
+ * Barra lateral del panel en el servidor (opción C, decisión 0038): las 7 secciones con su nombre,
+ * sin sub-ítems ni «Cargar evento» ni la Puerta (parte 2), la actual marcada, «Fijados» y
+ * «Recientes».
  */
 import { describe, expect, it } from 'vitest';
 import { render } from 'svelte/server';
@@ -24,11 +25,10 @@ function sections(html) {
 }
 
 describe('SideNav', () => {
-	it('las 8 secciones, en orden, sin sub-ítems ni acciones', () => {
+	it('las 7 secciones, en orden, sin sub-ítems, acciones ni la Puerta', () => {
 		const { body } = render(SideNav, { props: { active: item('entradas') } });
 		expect(sections(body).map((s) => s.href)).toEqual([
 			'/admin',
-			'/admin/checkin',
 			'/admin/eventos',
 			'/admin/ventas',
 			'/admin/comunidad/personas',
@@ -37,8 +37,9 @@ describe('SideNav', () => {
 			'/admin/ajustes/cobros'
 		]);
 		const text = textOf(body);
-		for (const label of ['Inicio', 'Puerta', 'Eventos', 'Ventas', 'Comunidad', 'Ajustes'])
+		for (const label of ['Inicio', 'Eventos', 'Ventas', 'Comunidad', 'Ajustes'])
 			expect(text).toContain(label);
+		expect(body).not.toContain('href="/admin/checkin"');
 		expect(text).not.toContain('Cargar evento');
 		expect(text).not.toContain('Transferencias');
 		expect(body).not.toContain('Abrir todo');
@@ -52,18 +53,15 @@ describe('SideNav', () => {
 				.map((s) => s.href);
 		expect(current('entradas-transferencias')).toEqual(['/admin/ventas']);
 		expect(current('ajustes-plantillas')).toEqual(['/admin/comunidad/personas']);
-		expect(current('checkin')).toEqual(['/admin/checkin']);
+		// En la Puerta no se marca ninguna (no está en la barra).
+		expect(current('checkin')).toEqual([]);
 		expect(current('inicio')).toEqual(['/admin']);
 		expect(current('actividad')).toEqual(['/admin/ajustes/cobros']);
 	});
 
-	it('la Puerta va resaltada', () => {
+	it('ninguna sección va resaltada (la Puerta, la única que lo iba, salió de la barra)', () => {
 		const { body } = render(SideNav, { props: { active: item('inicio') } });
-		expect(
-			sections(body)
-				.filter((s) => s.highlight)
-				.map((s) => s.href)
-		).toEqual(['/admin/checkin']);
+		expect(sections(body).filter((s) => s.highlight)).toEqual([]);
 	});
 
 	it('cada sección muestra la suma de los contadores de su grupo', () => {
@@ -87,5 +85,58 @@ describe('SideNav', () => {
 		expect(body).toContain('Fiesta de prueba · Órdenes');
 		const empty = render(SideNav, { props: { active: item('inicio') } }).body;
 		expect(textOf(empty)).not.toContain('Recientes');
+	});
+
+	it('cada reciente: ícono, nombre y contexto, y su botón «Fijar»', () => {
+		const recent = [
+			{
+				href: '/admin/eventos/fiesta-de-prueba/ordenes',
+				label: 'Órdenes',
+				context: 'Fiesta de prueba'
+			}
+		];
+		const { body } = render(SideNav, { props: { active: item('inicio'), recent } });
+		const row = body.slice(body.indexOf('href="/admin/eventos/fiesta-de-prueba/ordenes"'));
+		expect(row).toMatch(/class="pl[^"]*">Órdenes</);
+		expect(row).toMatch(/class="pc[^"]*">Fiesta de prueba</);
+		expect(row.slice(0, row.indexOf('</svg>'))).toContain('<svg');
+		expect(body).toContain('aria-label="Fijar «Órdenes»"');
+	});
+
+	it('«Fijados» arriba de Recientes, con Subir, Bajar y Soltar (los bordes, desactivados)', () => {
+		const pinned = [
+			{ href: '/admin/ventas/transferencias', label: 'Transferencias', context: 'Ventas' },
+			{ href: '/admin/eventos/agenda', label: 'Agenda', context: 'Eventos' }
+		];
+		const recent = [{ href: '/admin/ventas/codigos', label: 'Códigos' }];
+		const { body } = render(SideNav, { props: { active: item('inicio'), pinned, recent } });
+		const text = textOf(body);
+		expect(text.indexOf('Fijados')).toBeGreaterThan(-1);
+		expect(text.indexOf('Fijados')).toBeLessThan(text.indexOf('Recientes'));
+		expect(body).toMatch(/<button[^>]*disabled[^>]*aria-label="Subir «Transferencias»"/);
+		expect(body).not.toMatch(/<button[^>]*disabled[^>]*aria-label="Bajar «Transferencias»"/);
+		expect(body).toMatch(/<button[^>]*disabled[^>]*aria-label="Bajar «Agenda»"/);
+		expect(body).toContain('aria-label="Soltar «Agenda» (sacarla de Fijados)"');
+		expect(body).toMatch(/<li[^>]*draggable="true"/);
+		// Sin fijados, no hay título.
+		expect(textOf(render(SideNav, { props: { active: item('inicio') } }).body)).not.toContain(
+			'Fijados'
+		);
+	});
+
+	it('con 7 fijados, «Fijar» queda desactivado (y dice por qué)', () => {
+		const pinned = Array.from({ length: 7 }, (_, i) => ({
+			href: `/admin/eventos/ev-${i}`,
+			label: `Evento ${i}`
+		}));
+		const recent = [{ href: '/admin/ventas/codigos', label: 'Códigos' }];
+		const { body } = render(SideNav, { props: { active: item('inicio'), pinned, recent } });
+		expect(body).toMatch(/<button[^>]*disabled[^>]*aria-label="Fijar «Códigos»"/);
+		expect(body).toContain('Ya tenés 7 fijados');
+	});
+
+	it('los links de la barra precargan la página al pasar el mouse', () => {
+		const { body } = render(SideNav, { props: { active: item('inicio') } });
+		expect(body).toMatch(/<nav class="sn[^"]*"[^>]*data-sveltekit-preload-data="hover"/);
 	});
 });
