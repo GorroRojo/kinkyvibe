@@ -27,6 +27,8 @@ PRs abiertos:
 - Bot: recorrer el sitio por secciones desde el inicio (Material, Kinkipedia, Amigues, Series, con
   páginas y filtro por etiqueta) y los textos de buscar en todo el sitio y del modo inline en
   «Textos del bot» (PR `claude/bot-secciones`).
+- Bot: «🎟 Mis entradas» (paso 2 de 5): las entradas de la cuenta vinculada, con el QR de la
+  puerta como foto, «Pasadas» y sus textos en «Textos del bot» (PR `claude/bot-mis-entradas`).
 - Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
   tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
   directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
@@ -257,6 +259,12 @@ de amigues y lanzamientos grandes.
 - Textos del bot: los textos de las páginas de la Mini App del calendario (`/telegram/app`) y de
   la puerta (`/telegram/puerta`) siguen en el código (son páginas, no mensajes del bot). S.
   Bloqueo: que haga falta.
+- Bot, Mis entradas: en un taller de varias partes con una sola entrada, que la entrada siga en
+  «próximas» hasta la última parte (hoy cuenta la fecha del evento que vende la entrada). S.
+- Bot, Mis entradas: mandar el link de la transmisión de un evento online (hoy la tarjeta manda a
+  la página de la entrada, que lo tiene). S. Bloqueo: que gorrite lo quiera en el chat.
+- Bot, Mis entradas: después de mergear, probarlo en Telegram con una entrada de prueba (la foto
+  del QR subida por la API solo se puede probar contra el bot de verdad). S. Bloqueo: gorrite.
 - Bot: borrar las funciones de antes que ya no usa el bot (`formatEventList`, `formatEvent`,
   `formatChoices`, `formatPickList` en `format.js`; `eventListKeyboard` y `eventDetailKeyboard` en
   `keyboards.js`) y sus pruebas. S.
@@ -288,10 +296,16 @@ de amigues y lanzamientos grandes.
 - Un solo ingreso con kv-openauth y admins con cuentas del público en lugar de GitHub. L.
 - ¿Sumar kv-fondo a este repo? L. Bloqueo: decisión de gorrite.
 - Push y PWA (#16, #43). M. Bloqueo: decisión de gorrite.
-- Pruebas más rápidas, lo que quedó después del PR «tests-mas-rapidos» (#307, ideas en el PR):
-  cada consulta a la base de prueba son ~5 ms de ida y vuelta a miniflare (2,5 ms sin tocar D1),
-  y `importTags` de la semilla son ~1800 consultas; una base ya migrada copiada por archivo en vez
-  de migrar cada vez; `vitest related` para las sesiones de agentes. S–M cada una.
+- Pruebas más rápidas, lo que quedó después de «tests-mas-rapidos» (#307) y «tests-base-plantilla»
+  (plantilla migrada + canal WebSocket con la base de prueba): lo que sigue pesando es la cantidad
+  de consultas: `importTags` de la semilla son ~1800 consultas sueltas (ahora ~2 ms cada una en vez
+  de ~6); agruparlas en `batch` también aceleraría el import de verdad. M.
+- CI: actualizar `scripts/vitest/durations.json` con los artifacts `vitest-durations-*` de `main`
+  (`scripts/vitest/merge-durations.js`) cuando se sumen o cambien pruebas lentas, para que las 3
+  partes de `tests` sigan parejas. S.
+- CI: la semilla en una base nueva (~1 min) es lo más lento de `e2e`. Se podría guardar la base
+  ya cargada en caché, con una clave que cambie si cambian las migraciones, la semilla o el código
+  que la importa. S. Bloqueo: confirmar que se quiere.
 
 ### Estándares web y SEO
 

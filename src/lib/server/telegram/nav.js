@@ -20,6 +20,8 @@
  * | Una sección del sitio (página `p`, etiqueta opcional) | `c:<s>:<p>[:<etiqueta>]` |
  * | Las etiquetas de una sección (la elegida, opcional) | `ct:<s>[:<etiqueta>]` |
  * | Una cosa de una sección (vuelve a la página `p`) | `cd:<s>:<hash>:<p>[:<etiqueta>]` |
+ * | Mis entradas (`u` próximas, `o` pasadas; página `p`) | `t:<v>:<p>`           |
+ * | Una entrada (vuelve a esa lista)  | `tk:<hash>:<v>`        |
  * | El contador «1/3» (no hace nada) | `x`                 |
  *
  * `v` es la lista: `d` hoy, `w` semana, `f` finde, `p` próximos; en el detalle también `n` (sin
@@ -31,6 +33,9 @@
  * En las secciones (sections.js), `<s>` es `m` material, `w` Kinkipedia, `a` amigues o `s` series;
  * `<hash>` se busca **entre lo de esa sección** y `<etiqueta>` (un hash corto de su id), entre las
  * etiquetas de lo de esa sección: los dos, solo dentro del índice público.
+ * En Mis entradas (misEntradas.js), `<hash>` es un hash corto del id de la entrada, que se busca
+ * **entre las entradas de la cuenta vinculada a ese chat**: un botón armado a mano nunca muestra
+ * la entrada de otra cuenta (ni dice si existe).
  * También se entienden los botones de antes (`ev:<id>` y `ls`, keyboards.js).
  */
 import { parseCallbackData as parseLegacy } from './keyboards.js';
@@ -39,6 +44,7 @@ import { parseCallbackData as parseLegacy } from './keyboards.js';
 /** @typedef {'d' | 'w' | 'f' | 'p'} ListView */
 /** @typedef {ListView | 'n'} BackView */
 /** @typedef {'m' | 'w' | 'a' | 's'} SectionId */
+/** @typedef {'u' | 'o'} TicketsView `u`: las de los próximos eventos; `o`: las pasadas. */
 /**
  * @typedef {{ screen: 'home' }
  *   | { screen: 'list', view: ListView, page: number }
@@ -55,6 +61,8 @@ import { parseCallbackData as parseLegacy } from './keyboards.js';
  *   | { screen: 'section', section: SectionId, page: number, tag?: string }
  *   | { screen: 'section_tags', section: SectionId, tag?: string }
  *   | { screen: 'section_doc', section: SectionId, hash: string, page: number, tag?: string }
+ *   | { screen: 'tickets', view: TicketsView, page: number }
+ *   | { screen: 'ticket', id: string, view: TicketsView }
  *   | { screen: 'noop' }
  *   | { screen: 'legacy_event', token: string }} NavState
  */
@@ -144,6 +152,9 @@ export const isSectionId = (v) => v === 'm' || v === 'w' || v === 'a' || v === '
 /** `:<etiqueta>` si hay. @param {string | undefined} tag */
 const tagPart = (tag) => (tag ? `:${tag}` : '');
 
+/** @param {unknown} v @returns {v is TicketsView} */
+export const isTicketsView = (v) => v === 'u' || v === 'o';
+
 /** @param {unknown} v @returns {v is ListView} */
 export const isListView = (v) => v === 'd' || v === 'w' || v === 'f' || v === 'p';
 
@@ -202,6 +213,12 @@ export function encodeNav(state) {
 			break;
 		case 'section_doc':
 			data = `cd:${state.section}:${state.hash}:${Math.max(0, Math.floor(state.page))}${tagPart(state.tag)}`;
+			break;
+		case 'tickets':
+			data = `t:${state.view}:${Math.max(0, Math.floor(state.page))}`;
+			break;
+		case 'ticket':
+			data = `tk:${state.id}:${state.view}`;
 			break;
 		default:
 			data = 'x';
@@ -281,6 +298,16 @@ export function decodeNav(data) {
 		if (tag !== undefined && !TAG_HASH.test(tag)) return null;
 		return { screen: 'section_doc', section, hash, page: +page, ...(tag ? { tag } : {}) };
 	}
+	if (kind === 't' && parts.length === 3) {
+		const [, view, page] = parts;
+		if (isTicketsView(view) && /^\d{1,3}$/.test(page))
+			return { screen: 'tickets', view, page: +page };
+		return null;
+	}
+	if (kind === 'tk' && parts.length === 3) {
+		const [, id, view] = parts;
+		return TAG_HASH.test(id) && isTicketsView(view) ? { screen: 'ticket', id, view } : null;
+	}
 	// Los botones de antes (mensajes viejos que quedaron en los chats).
 	const legacy = parseLegacy(data);
 	if (legacy?.kind === 'list') return { screen: 'list', view: 'p', page: 0 };
@@ -316,7 +343,7 @@ function deepId(slug, room) {
  * (`ev-<id>`) o «Seguir» de un evento (`seguir-<id>`).
  *
  * @param {{ screen: 'list', view: ListView } | { screen: 'event' | 'follow', slug: string }
- *   | { screen: 'sigo' | 'fondo' | 'search' | 'home' }} target
+ *   | { screen: 'sigo' | 'fondo' | 'search' | 'home' | 'tickets' }} target
  */
 export function startParam(target) {
 	switch (target.screen) {
@@ -328,6 +355,9 @@ export function startParam(target) {
 			return `seguir-${deepId(target.slug, START_PARAM_MAX - 7)}`;
 		case 'sigo':
 			return 'sigo';
+		case 'tickets':
+			// No `entradas`: 8 letras es como el código de vincular (router.js lo mira antes).
+			return 'mis-entradas';
 		case 'fondo':
 			return 'fondo';
 		case 'search':
@@ -343,7 +373,7 @@ export function startParam(target) {
  *
  * @param {string} param
  * @returns {{ screen: 'list', view: ListView } | { screen: 'event', deep: string }
- *   | { screen: 'follow', deep: string } | { screen: 'sigo' }
+ *   | { screen: 'follow', deep: string } | { screen: 'sigo' } | { screen: 'tickets' }
  *   | { screen: 'fondo' | 'search' | 'home' } | null}
  */
 export function parseStartParam(param) {
@@ -352,6 +382,7 @@ export function parseStartParam(param) {
 		if (param === name) return { screen: 'list', view: /** @type {ListView} */ (view) };
 	}
 	if (param === 'sigo') return { screen: 'sigo' };
+	if (param === 'mis-entradas') return { screen: 'tickets' };
 	if (param === 'fondo') return { screen: 'fondo' };
 	if (param === 'buscar') return { screen: 'search' };
 	if (param === 'inicio') return { screen: 'home' };

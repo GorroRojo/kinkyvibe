@@ -122,3 +122,11 @@ Reglas:
   de a 5, filtro por etiqueta y la tarjeta compacta. Sigue siendo otra vista: todo sale del índice
   público de la búsqueda, sin reglas propias de visibilidad. Detalle en
   [`docs/telegram.md`](../telegram.md).
+
+## Cómo va (12/10, Mis entradas)
+
+- «🎟 Mis entradas» (paso 2 de 5 del bot, orden aprobado por gorrite): por chat privado vinculado
+  y con «Lo que sigo» prendido, las entradas de las compras aprobadas de la cuenta (las mismas
+  reglas que Mi rincón) con el QR de la puerta como foto. Solo lectura: no escribe nada. Lo
+  personal sigue solo en el chat privado vinculado, nunca en grupos. Detalle en
+  [`docs/telegram.md`](../telegram.md).
