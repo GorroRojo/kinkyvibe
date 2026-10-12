@@ -10,6 +10,9 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { planUpdate } from './router.js';
 import { shortHash } from './nav.js';
 import { accountTickets, botTickets } from './tickets.js';
+import { saveObject } from '$lib/server/objects/save.js';
+import { setPerPartTickets, setWorkshopParts } from '$lib/server/eventos/partes.js';
+import { isPastTicket } from './misEntradas.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -205,6 +208,53 @@ describe('accountTickets', () => {
 		});
 		// Sin los datos de quien compró.
 		expect(JSON.stringify(list)).not.toContain('@example.com');
+	});
+
+	it('la entrada de un taller en varias partes trae las fechas de todas (sigue próxima entre partes)', async () => {
+		/** @param {string} slug @param {string} start @param {Record<string, unknown>} [data] */
+		const event = (slug, start, data = {}) =>
+			saveObject(
+				t.db,
+				{
+					type: 'evento',
+					slug,
+					title: `Evento ${slug}`,
+					data: { start, ...data },
+					visibility: 'public'
+				},
+				{ actor: 'admin-de-prueba' }
+			);
+		await event('taller-inventado', '2031-01-10T21:00:00-03:00');
+		await event('taller-inventado-parte-2', '2031-01-17T21:00:00-03:00');
+		await event('taller-inventado-parte-3', '2031-01-24T21:00:00-03:00', { status: 'cancelado' });
+		expect(
+			await setWorkshopParts(t.db, {
+				eventSlug: 'taller-inventado',
+				partSlugs: ['taller-inventado-parte-2', 'taller-inventado-parte-3'],
+				by: 'admin-de-prueba'
+			})
+		).toEqual({ ok: true });
+		const mine = async () =>
+			(await accountTickets(t.db, A)).find((x) => x.holder === 'Persona A Uno');
+		const ticket = await mine();
+		expect(ticket?.parts).toEqual([
+			{ n: 1, start: '2031-01-10T21:00:00-03:00', end: null, cancelled: false },
+			{ n: 2, start: '2031-01-17T21:00:00-03:00', end: null, cancelled: false },
+			{ n: 3, start: '2031-01-24T21:00:00-03:00', end: null, cancelled: true }
+		]);
+		expect(isPastTicket(/** @type {any} */ (ticket), Date.parse('2031-01-12T12:00:00-03:00'))).toBe(
+			false
+		);
+		// Las otras, de eventos sueltos, sin partes.
+		const others = (await accountTickets(t.db, A)).filter((x) => x.holder !== 'Persona A Uno');
+		for (const x of others) expect(x.parts).toBeUndefined();
+		// Con «Entradas por parte», cada parte vende la suya: la entrada del taller es solo de la 1.
+		await setPerPartTickets(t.db, {
+			eventSlug: 'taller-inventado',
+			perPart: true,
+			by: 'admin-de-prueba'
+		});
+		expect((await mine())?.parts).toBeUndefined();
 	});
 
 	it('un mail sin verificar no trae compras; otra cuenta, solo lo suyo', async () => {

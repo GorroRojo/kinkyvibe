@@ -55,6 +55,8 @@ import { withMailFooter } from '../email/layout.js';
 import { runMailQueueWith } from './mailQueue.js';
 import { calendarStamp } from './calendarFile.js';
 import { getDateChange, sendDateChangeBatch } from './dateChange.js';
+import { comboCodesForOrder } from './combos.js';
+import { isFlagOn } from '../flags.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
@@ -503,7 +505,8 @@ export async function sendOrderEmail({
 			typeName,
 			origin,
 			contactEmail: contactEmail(),
-			template: await resolveTemplate(db, order.event_slug, 'tickets')
+			template: await resolveTemplate(db, order.event_slug, 'tickets'),
+			combos: await orderCombos(db, order, origin)
 		});
 		const result = await deliver({
 			db,
@@ -528,6 +531,24 @@ export async function sendOrderEmail({
 			await releaseStreamLinkSend(db, { orderId: order.id, link: claimedLink }).catch(() => {});
 		}
 		return false;
+	}
+}
+
+/**
+ * Los códigos combo de la orden para el mail de las entradas (combos.js), solo con el interruptor
+ * `combo_codigos` prendido. Si algo falla, el mail sale igual, sin el bloque.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {import('./orders.js').Order} order
+ * @param {string} origin
+ */
+async function orderCombos(db, order, origin) {
+	try {
+		if (!(await isFlagOn(db, 'combo_codigos'))) return [];
+		return await comboCodesForOrder(db, order, { origin });
+	} catch (error) {
+		console.error(`[tickets] códigos combo de la orden ${order.id}:`, error);
+		return [];
 	}
 }
 

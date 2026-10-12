@@ -268,6 +268,32 @@ function partsBlocks(parts) {
 }
 
 /**
+ * Bloque «Un descuento para otro evento» con los códigos combo de la compra (combos.js), al
+ * final de las entradas. Sin códigos, nada: el mail sale igual que siempre, byte a byte.
+ *
+ * @param {string} title el evento de esta compra (A)
+ * @param {import('./combos.js').ComboMailItem[] | null | undefined} combos
+ * @returns {{ html: string, text: string[] }}
+ */
+export function comboBlocks(title, combos) {
+	if (!combos?.length) return { html: '', text: [] };
+	const until = (/** @type {import('./combos.js').ComboMailItem} */ c) =>
+		c.until ? `, hasta el ${c.until}` : '';
+	const html = combos
+		.map(
+			(c) => `
+		<div style="${MAIL_STYLES.box}" data-kv-mail="combo"><p style="margin:0 0 6px;font-weight:bold">Un descuento para otro evento</p><p style="margin:0">Con tu entrada a <strong>${escapeHtml(title)}</strong> tenés ${escapeHtml(c.discount)} en <a href="${escapeHtml(c.targetUrl)}" style="${MAIL_STYLES.link}">${escapeHtml(c.targetTitle)}</a>: usá el código</p><p style="margin:8px 0;font-family:'Courier New',monospace;font-size:22px;font-weight:bold;letter-spacing:2px">${escapeHtml(c.code)}</p><p style="margin:0;font-size:13px;color:${MAIL_COLORS.muted}">Es personal: vale para una compra con este mismo email${escapeHtml(until(c))}. Completá tus datos con este email antes de aplicarlo.</p></div>`
+		)
+		.join('');
+	const text = combos.flatMap((c) => [
+		'',
+		`Un descuento para otro evento: con tu entrada a ${title} tenés ${c.discount} en ${c.targetTitle}. Usá el código ${c.code} (${c.targetUrl}).`,
+		`Es personal: vale para una compra con este mismo email${until(c)}. Completá tus datos con este email antes de aplicarlo.`
+	]);
+	return { html, text };
+}
+
+/**
  * Mail con las entradas. En los eventos presenciales, un QR por entrada con su código corto en
  * grande (para tipearlo en la puerta si el QR no se puede escanear). En los online, el link de
  * la transmisión (si ya está cargado; si no, avisa que llega antes del evento).
@@ -281,9 +307,11 @@ function partsBlocks(parts) {
  *   typeName: string,
  *   origin: string,
  *   contactEmail: string,
- *   template?: Template
+ *   template?: Template,
+ *   combos?: import('./combos.js').ComboMailItem[] | null
  * }} input
  * `event.parts`: la lista de partes si es un taller con una sola entrada.
+ * `combos`: los códigos combo de la compra (combos.js), en un bloque después de las entradas.
  * `event.slug`: con él, el mail lleva adjunto `<slug>.ics` (calendarFile.js), una línea
  * «Agregalo a tu calendario» con el link a Google Calendar y el marcado `EventReservation` para
  * Gmail; sin él (vistas previas, golden), sale como siempre. Un evento
@@ -297,7 +325,8 @@ export function buildTicketEmail({
 	typeName,
 	origin,
 	contactEmail,
-	template
+	template,
+	combos
 }) {
 	const title = event.title;
 	const when = formatEventDate(event.start);
@@ -305,6 +334,7 @@ export function buildTicketEmail({
 	const where = salePlaceText(online, event);
 	const custom = applyTemplate(template, templateVars(order, event, typeName));
 	const subject = custom.subject ?? `Tus entradas para ${title}`;
+	const combo = comboBlocks(title, combos);
 	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
 
 	// Nombre y pronombres de cada entrada (nunca el DNI: los mails se reenvían y quedan guardados).
@@ -366,7 +396,7 @@ export function buildTicketEmail({
 			custom.button
 		),
 		helpHtml: custom.helpHtml ?? intro,
-		afterHtml: `${ticketBlocks}
+		afterHtml: `${ticketBlocks}${combo.html}
 		<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
 		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
@@ -396,6 +426,7 @@ export function buildTicketEmail({
 			(l, i) =>
 				`Entrada ${i + 1} (${holder(tickets[i])})${!online && tickets[i].code ? ` · código ${displayCode(tickets[i].code)}` : ''}: ${l}`
 		),
+		...combo.text,
 		'',
 		`Número de orden: ${order.id}`,
 		policy.text

@@ -68,7 +68,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `lanzamiento-piloto` · fase 0 · espera gorrite · entradas · Abrir con un evento piloto propio y chico, después dos o tres normales, después los de amigues (depende de: lanzamiento-decisiones, lanzamiento-pruebas-mp, legales-minimos)
 - `puerta-celus-reales` · fase 0 · espera gorrite · entradas · La puerta con celulares reales (Android y iPhone): escanear, código, buscar, vender en efectivo y transferencia, sin conexión y con dos celus a la vez
 - `qr-mp-puerta` · fase 0 · sigue · entradas · Cobrar con el QR de Mercado Pago en la puerta (gorrite, 11/10) (depende de: puerta-sin-conexion)
-- `boton-comprar-afuera` · fase 0 · sigue · sitio · Cuando las entradas se venden en otro sitio, el botón tiene el mismo peso que «Comprar entradas» (gorrite, 10/10)
+- `boton-comprar-afuera` · fase 0 · hecho · sitio · Cuando las entradas se venden en otro sitio, el botón tiene el mismo peso que «Comprar entradas» (gorrite, 10/10) · #331
 - `tickets-spec-arreglar` · fase 0 · sigue · pruebas · Dos pruebas de `tests/tickets/tickets.spec.js` que no corren en la CI: arregladas en #325 («1 aprobado» en singular; esperar a que cargue la página). Falta sumarlas a la CI
 - `puerta-sin-conexion` · fase 0 · hecho · entradas · Vender en la puerta sin conexión · #286, [0035](decisiones/0035-vender-en-puerta-sin-conexion.md)
 - `transferencia-dias-habiles` · fase 0 · hecho · entradas · Reserva por transferencia de 2 días hábiles · #261, [0031](decisiones/0031-reserva-transferencia-dias-habiles.md)
@@ -87,7 +87,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `nav-c-ir-a-recientes` · fase 0 · hecho · panel · «Ir a…» (⌘K) vacío muestra Fijados y Recientes · #314
 - `ajustes-4-grupos` · fase 0 · hecho · panel · Ajustes como portada con 4 grupos de tarjetas (Plata, Comunicación, Equipo, Sistema) en vez de pestañas · #317, [0042](decisiones/0042-ajustes-portada-con-grupos.md)
 - `ajustes-fondo-linea` · fase 0 · sigue · panel · Portada de Ajustes: línea de estado del Fondo aunque todavía no haya llegado el porcentaje automático (hoy la tarjeta va sin línea; buscarlo haría lenta la portada) (depende de: ajustes-4-grupos)
-- `panel-pestanas-celu` · fase 0 · sigue · panel · En el celu, la lista ▾ de pestañas de la ficha se ve menos importante que los botones de acción (gorrite, #303)
+- `panel-pestanas-celu` · fase 0 · hecho · panel · En el celu, la lista ▾ de pestañas de la ficha se ve menos importante que los botones de acción (gorrite, #303) · #331
 - `buscador-pestanas-nombres` · fase 0 · hecho · panel · Los atajos del buscador a las pestañas de un evento (`eventTabActions`) dicen «Órdenes» y «Mail a compradores»: pasar a «Ventas › Órdenes» y «Mails › Mandar un aviso» · #323
 - `navprefs-grupos-limpiar` · fase 0 · hecho · panel · Sacar de `navPrefs.js` las funciones de grupos abiertos (`kv-panel-grupos`) y sus pruebas, que la barra sin grupos ya no usa · #323
 - `panel-prefs-en-base` · fase 0 · algún día · panel · Fijados y el modo del panel lateral por admin en la base (hoy por navegador), si se suma una tabla de preferencias
@@ -156,7 +156,8 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `bot-puerta-probar` · fase 0 · espera gorrite · bot · Probar la Puerta por Telegram en un preview con celus reales (vincular, abrir, escanear) · [0037](decisiones/0037-puerta-por-telegram.md)
 - `bot-puerta-2` · fase 0 · sigue · bot · Bot 4/5: Puerta por Telegram parte 2 (contador en vivo, escribir el código a mano) (depende de: bot-busquedas-vacias, bot-puerta-probar)
 - `bot-kinkipedia-ramas-probar` · fase 0 · espera gorrite · bot · Mirar en Telegram la Kinkipedia por ramas con el árbol de verdad: que las ramas de arriba sean las de `/wiki` y que ninguna quede con un solo hijo de más (depende de: bot-secciones-ajustes)
-- `bot-mis-entradas-partes` · fase 0 · sigue · bot · Mis entradas: un taller de varias partes sigue en «próximas» hasta la última parte
+- `bot-mis-entradas-partes` · fase 0 · hecho · bot · Mis entradas: un taller de varias partes sigue en «próximas» hasta la última parte · #329
+- `rincon-compras-partes` · fase 0 · sigue · cuentas · Mi rincón, «Mis compras»: en un taller de varias partes, mostrar la fecha de la próxima parte (hoy muestra la de la parte 1)
 - `bot-mis-entradas-transmision` · fase 0 · espera gorrite · bot · Mis entradas: mandar el link de la transmisión de un evento online por el chat
 - `bot-mis-entradas-probar` · fase 0 · espera gorrite · bot · Probar «Mis entradas» en Telegram con una entrada de prueba (el QR por la API solo se prueba contra el bot de verdad)
 - `bot-avisos-apagados` · fase 0 · algún día · bot · Recordar si alguien apagó a propósito los avisos de algo, para que dejar de seguirlo y volver a seguirlo desde el bot no los prenda (volver a vincular ya no saca `/silenciar`, #321; necesita migración, aplicarla antes del merge, 0028) · [0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)
@@ -257,7 +258,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `lista-espera` · fase 3 · hecho · entradas · Lista de espera por evento o tipo de entrada, apagada · #310, [0040](decisiones/0040-lista-de-espera.md)
 - `lista-espera-prender` · fase 3 · espera gorrite · entradas · Prender `lista_espera` y probarla en un evento piloto (anotarse, reembolso, oferta y compra con el link) (depende de: lista-espera)
 - `lista-espera-mail-terminar` · fase 3 · espera gorrite · entradas · Si «Terminar la reserva y pasar a la siguiente» le manda un mail a esa persona
-- `promos-varios-eventos` · fase 3 · espera gorrite · entradas · Promociones de varios eventos (por ejemplo dos a un precio especial); falta diseño (panel, compra, Fondo y reembolsos)
+- `promos-varios-eventos` · fase 3 · en curso · entradas · Promociones de varios eventos, versión chica (gorrite, 12/10): código combo, la compra de un evento trae en su mail un código personal para otro; detrás de `combo_codigos`, migración 0056 · #340
 - `talleres-partes-mails-preview` · fase 3 · sigue · entradas · Vista previa de los mails de cada parte de un taller en el panel
 - `talleres-viejos-a-partes` · fase 3 · espera gorrite · entradas · Pasar a talleres en partes los talleres viejos de varios días (datos de producción, con OK y probando antes en el demo) · [talleres-partes.md](talleres-partes.md#pendiente)
 - `pasar-entrada` · fase 3 · algún día · entradas · Pasarle una entrada a otra persona por mail
