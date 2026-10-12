@@ -180,7 +180,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `test-estiloguard-lento` · fase 0 · hecho · pruebas · `estiloGuard` y `series-crear` pasaban el límite de 5 s con la máquina cargada: la preparación cara va en `beforeAll` · #325
 - `test-cuentas-lento` · fase 0 · hecho · pruebas · `cuentas.test.js` «límite de intentos por mail y por conexión» pasaba los 5 s con la máquina cargada: los mails del límite por conexión tienen cuenta con hash barato (queda uno sin cuenta) · #330
 - `tickets-ajustes-spec` · fase 0 · hecho · pruebas · `tests/tickets/ajustes.spec.js` buscaba la pestaña «Cobros», que se fue con la portada de Ajustes: ahora entra por la portada y su tarjeta · #330
-- `tests-consultas-batch` · fase 0 · sigue · pruebas · `importTags` de la semilla hace ~1800 consultas sueltas: agruparlas en `batch` (también acelera el import de verdad)
+- `tests-consultas-batch` · fase 0 · hecho · pruebas · `importTags` de la semilla en tandas de `saveObjects` (1835 → 80 consultas) · #328
 - `ci-duraciones` · fase 0 · sigue · pruebas · Actualizar `scripts/vitest/durations.json` cuando se suman o cambian pruebas lentas, para que las 3 partes sigan parejas
 - `ci-cache-semilla` · fase 0 · espera gorrite · pruebas · Guardar en caché la base ya sembrada de `e2e` (~1 min), con clave por migraciones, semilla e importador
 - `tests-rapidos` · fase 0 · hecho · pruebas · Pruebas y CI más rápidas, `test:related` · #307, #311, #312, #285
@@ -232,7 +232,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `datos-2-chequeo-por-pedido` · fase 2 · hecho · datos · El «¿cambió algo?» de la caché una sola vez por pedido, y caché para `/amigues` · #324
 - `datos-3-estados-entradas` · fase 2 · hecho · datos · Los estados de entradas de las listas en una sola tanda · #324
 - `datos-4-visibilidad-perfiles` · fase 2 · hecho · datos · Una sola regla de visibilidad para perfiles y lugares (`shownProfileWhere` / `isShownProfile`) · #324
-- `datos-5-ayudas-compartidas` · fase 2 · sigue · datos · Ayudas compartidas: la dirección del sitio, la descripción del evento, «próximo»; limpiar sesiones viejas en el cron
+- `datos-5-ayudas-compartidas` · fase 2 · hecho · datos · Ayudas compartidas: la dirección del sitio, la descripción del evento, «próximo»; limpiar sesiones viejas en el cron · #328
 - `limpieza-md` · fase 2 · hecho · contenido · Contenido solo en la base, sin `.md` ni mdsvex · #275, [0032](decisiones/0032-borrar-los-md.md)
 - `imagenes-r2` · fase 2 · hecho · contenido · Imágenes y archivos en R2 con la biblioteca · #215, #217, #226, #230
 

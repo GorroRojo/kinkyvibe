@@ -13,7 +13,7 @@ import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { withVenuePlaces } from '$lib/server/amigues/venues.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
-import { argDateTimeLong, argTime, toArgentina } from '$lib/utils/dates.js';
+import { argDateTimeLong, argTime, startsAfter, toArgentina } from '$lib/utils/dates.js';
 import { placeShort } from '$lib/utils/eventPlace.js';
 import { ticketCta } from '$lib/utils/ticketCta.js';
 import { renderBotText } from '$lib/utils/botTexts.js';
@@ -75,7 +75,7 @@ export function groupByDay(
 	const days = [];
 	const upcoming = posts
 		.filter((p) => p.meta?.category === 'calendario' && p.meta?.postID)
-		.filter((p) => new Date(p.meta.start).getTime() > now)
+		.filter((p) => startsAfter(p.meta.start, now))
 		.sort((a, b) => new Date(a.meta.start).getTime() - new Date(b.meta.start).getTime())
 		.slice(0, APP_MAX_EVENTS);
 	for (const p of upcoming) {
@@ -120,7 +120,7 @@ export function groupByDay(
 export async function miniAppData(platform, origin, now = Date.now()) {
 	const db = getDB(platform);
 	const posts = (await sitePosts(platform)).filter(
-		(p) => p.meta?.category === 'calendario' && new Date(p.meta.start).getTime() > now
+		(p) => p.meta?.category === 'calendario' && startsAfter(p.meta.start, now)
 	);
 	const [withPlaces, states, overrides] = await Promise.all([
 		withVenuePlaces(db, posts),

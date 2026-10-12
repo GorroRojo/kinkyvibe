@@ -21,6 +21,7 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
+	import { SITE_URL } from '$lib/utils/site.js';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import { csvFilename } from '$lib/admin/csv.js';
@@ -99,7 +100,7 @@
 			value: (r) => (r.unpublished ? 'no publicada' : r.unlisted ? 'no listada' : 'listada')
 		},
 		{ key: 'link', label: 'Link' },
-		{ label: 'URL', value: (r) => `https://kinkyvibe.ar/${category}/${r.slug}` }
+		{ label: 'URL', value: (r) => `${SITE_URL}/${category}/${r.slug}` }
 	];
 </script>
 

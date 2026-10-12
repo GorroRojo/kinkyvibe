@@ -3,7 +3,8 @@
  * Open Graph y las de Twitter que arma `SeoHead.svelte`. Sin dependencias del servidor: corre en
  * el servidor, en el navegador y en vitest. Ver docs/compartir.md.
  */
-import { argDateTimeLong, argDayMonth } from './dates.js';
+import { argDayMonth } from './dates.js';
+import { eventLead } from './eventText.js';
 import { placeShort, venuePlaceMeta } from './eventPlace.js';
 import { isMediaPath } from './media.js';
 import { OG_CARDS, OG_CARD_SIZE, ogCardAlt } from './ogCards.js';
@@ -204,12 +205,8 @@ const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
  * @param {import('./venues.js').VenueView | null | undefined} [venue] el lugar ya filtrado por el servidor
  */
 export function eventDescription(meta, venue) {
-	const when = meta?.start ? capitalize(argDateTimeLong(meta.start)) : '';
 	const where = placeShort(venuePlaceMeta(meta ?? {}, venue));
-	const head = [meta?.status === 'cancelado' ? 'Cancelado' : '', when, where]
-		.filter(Boolean)
-		.join(' · ');
-	return [head, shortText(meta?.summary, Infinity)].filter(Boolean).join(' · ');
+	return eventLead(meta, { capitalized: true, rest: [where, shortText(meta?.summary, Infinity)] });
 }
 
 /**

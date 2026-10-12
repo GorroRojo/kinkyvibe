@@ -30,6 +30,10 @@ cuentas, ver abajo y [cuentas.md](cuentas.md)). Los eventos siguen siendo archiv
    sobre `objects`, `edges` u `object_types`). Si una falla, no se guarda nada.
    `created_by` no cambia al editar; la única excepción es la opción `createdBy`, que usa el
    borrado de una cuenta para dejar sus perfiles con un autore neutro (`cuenta:borrada`).
+   `saveObjects()` (en el mismo archivo) guarda varios en una sola tanda, con las mismas
+   validaciones y sentencias que `saveObject()` de a uno (cada uno con su `also`): para las
+   importaciones grandes. Si uno no pasa, tira sin escribir nada y quien llama vuelve a guardar de
+   a uno. No acepta el mismo objeto dos veces ni borrar (cambiaría lo que ven los que siguen).
 2. **Un solo lugar decide quién ve qué:** `src/lib/server/objects/visibility.js`. Toda lectura
    (página, listado, búsqueda, sitemap, RSS, imágenes para compartir, JSON…) usa `canSee()` o
    `visibleWhere()`, que salen de la misma tabla. Las reglas:
