@@ -218,14 +218,16 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `r2-ciclo-vida` · fase 1 · algún día · infra · Regla de R2 que limpie subidas a medias después de un día
 - `seguridad-endurecer` · fase 1 · espera gorrite · infra · Endurecer la configuración de GitHub y Cloudflare: ver Mesa
 - `auditoria-seguridad` · fase 1 · espera gorrite · infra · Auditoría de seguridad en una sesión aparte de gorrite, antes de la fase 4: ver Mesa
+- `conector-claude-lectura` · fase 1 · sigue · panel · Conector de Claude (MCP) solo de lectura para admins: buscar y leer objetos y listar ventas por slug o nombre, sin SQL a mano ni ids tipeados; detrás de un interruptor, apagado. Va después de los arreglos del acceso de admins que salgan de la auditoría (gorrite, 12/10) (depende de: auditoria-seguridad)
 - `analiticas` · fase 1 · hecho · infra · Visitas y embudo de compra con Workers Analytics Engine · #215
 
 ## Fase 2
 
 ### Contenido en la base
 
+- `conector-claude-edicion` · fase 2 · sigue · panel · Conector de Claude, parte 2: los cambios que se pueden hacer desde el panel (editar campos, crear borradores, vincular un lugar), cada uno por el mismo guardado del panel y con el historial a nombre de Claude; nada de plata ni mails (depende de: conector-claude-lectura)
 - `importar-material-script` · fase 2 · hecho · contenido · `scripts/importar-material.js`: carga un paquete privado de borradores de material como no listado, por el camino del panel · #342, [contenido.md](contenido.md#tareas-comunes)
-- `importar-material-correr` · fase 2 · espera gorrite · contenido · ver Mesa (gorrite corre `node scripts/importar-material.js --target=production` con el paquete) (depende de: importar-material-script)
+- `importar-material-correr` · fase 2 · sigue · contenido · ver Mesa: cargar el paquete de borradores con el conector de Claude cuando esté, en vez del script (gorrite, 12/10) (depende de: importar-material-script, conector-claude-edicion)
 - `subir-archivos` · fase 2 · espera gorrite · contenido · gorrite corre `node scripts/subir-archivos.js --target=production` (PDF, video y ODT a la biblioteca); después un PR borra `src/lib/archivos/` y su glob en `render.js` · [contenido.md](contenido.md#lo-que-falta)
 - `codigo-muerto-github` · fase 2 · sigue · contenido · Código que quedó del panel con GitHub: `sharedImage.js`, la edición del archivo de etiquetas en `tagConfig.js`, ramas «no se guardó en la base», el permiso `public_repo` del login, y que el panel guarde objetos sin pasar por «rutas de `.md`» (`getRepoClient`, `withContentDb`, `commitFiles`)
 - `restos-limpieza` · fase 2 · sigue · contenido · Restos chicos: la regla de estilo que no alcanza a `.kv-texto-libre` (unas 200 páginas, con antes y después), un solo `foldText` en vez de las copias, un solo helper de imagen de una publicación, renombrar el `isAdmin` de `objects/visibility.js`, el campo de texto `perfil.avatar`
@@ -284,7 +286,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `newsletter` · fase 5 · algún día · mails · Newsletter general y por combinación de etiquetas
 - `mails-colas` · fase 5 · algún día · infra · Queues para los mails y Email Workers para recibir
 - `bot-canal-anuncios` · fase 5 · espera gorrite · bot · Canal de anuncios de Telegram: si va y qué publica
-- `proto-conector-claude` · fase 5 · sigue · panel · Prototipo del conector de Claude para el panel (cargar eventos, ver ventas, confirmar transferencias), para mirar y decidir
+- `proto-conector-claude` · fase 5 · sigue · panel · Conector de Claude, lo de plata (confirmar transferencias, reembolsos), para mirar y decidir; la lectura y la edición van antes (depende de: conector-claude-edicion)
 
 ## Fase 6
 
