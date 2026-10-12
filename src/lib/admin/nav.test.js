@@ -12,6 +12,7 @@ import {
 	areaBackLink,
 	areaCount,
 	eventHref,
+	eventTabOf,
 	contentEditLink,
 	eventPanelLink,
 	groupCount,
@@ -587,6 +588,53 @@ describe('links a la ficha del evento', () => {
 		expect(eventHref('picantearla-2026-10')).toBe('/admin/eventos/picantearla-2026-10');
 		expect(eventHref('x', 'ordenes')).toBe('/admin/eventos/x/ordenes');
 	});
+	it('las direcciones de las pestañas que se juntaron siguen siendo las mismas', () => {
+		// Ventas junta Órdenes y Transferencias; Mails junta el aviso y las plantillas (11/10).
+		expect(eventHref('x', 'ventas')).toBe('/admin/eventos/x/ventas');
+		expect(eventHref('x', 'transferencias')).toBe('/admin/eventos/x/transferencias');
+		expect(eventHref('x', 'mail')).toBe('/admin/eventos/x/mail');
+		expect(eventHref('x', 'mails')).toBe('/admin/eventos/x/mails');
+		expect(eventHref('x', 'no-existe')).toBe('/admin/eventos/x');
+	});
+	it('son 7 pestañas, en este orden', () => {
+		expect(EVENT_TABS.map((t) => t.label)).toEqual([
+			'Resumen',
+			'Editar',
+			'Ventas',
+			'Puerta',
+			'Códigos',
+			'Mails',
+			'Preguntas'
+		]);
+	});
+	it('Ventas y Mails tienen vistas; la primera es la de la pestaña', () => {
+		for (const tab of EVENT_TABS.filter((t) => t.views)) {
+			expect(tab.views?.[0].suffix, tab.id).toBe(tab.suffix);
+		}
+		const views = (/** @type {string} */ id) =>
+			EVENT_TABS.find((t) => t.id === id)?.views?.map((v) => v.suffix);
+		expect(views('ventas')).toEqual(['/ventas', '/ordenes', '/transferencias']);
+		expect(views('mails')).toEqual(['/mail', '/mails']);
+	});
+	it('eventTabOf: la pestaña y la vista de cada dirección (y de sus subpáginas)', () => {
+		const of = (/** @type {string} */ path) => {
+			const r = eventTabOf(path);
+			return r && [r.tab.id, r.view?.id ?? null];
+		};
+		expect(of('/admin/eventos/x')).toEqual(['resumen', null]);
+		expect(of('/admin/eventos/x/')).toEqual(['resumen', null]);
+		expect(of('/admin/eventos/x/editar')).toEqual(['editar', null]);
+		expect(of('/admin/eventos/x/ventas')).toEqual(['ventas', 'ventas']);
+		expect(of('/admin/eventos/x/ordenes')).toEqual(['ventas', 'ordenes']);
+		expect(of('/admin/eventos/x/ordenes/cargar')).toEqual(['ventas', 'ordenes']);
+		expect(of('/admin/eventos/x/transferencias')).toEqual(['ventas', 'transferencias']);
+		expect(of('/admin/eventos/x/ingreso')).toEqual(['ingreso', null]);
+		expect(of('/admin/eventos/x/mail')).toEqual(['mails', 'mail']);
+		expect(of('/admin/eventos/x/mails')).toEqual(['mails', 'mails']);
+		expect(of('/admin/eventos/x/mails/confirmacion')).toEqual(['mails', 'mails']);
+		expect(of('/admin/eventos/x/otra')).toBeNull();
+		expect(of('/admin/ventas')).toBeNull();
+	});
 	it('eventPanelLink va a Ventas si el evento vende entradas, si no al Resumen', () => {
 		expect(EVENT_TABS[0].soon).toBe(false);
 		expect(eventPanelLink('x', { tickets: true })).toBe('/admin/eventos/x/ventas');
@@ -625,14 +673,8 @@ describe('íconos de las pestañas de la ficha del evento', () => {
 	});
 	it('las que son una sección del menú usan el ícono de esa sección', () => {
 		const withSection = EVENT_TABS.filter((t) => t.section);
-		expect(withSection.map((t) => t.id)).toEqual([
-			'ventas',
-			'transferencias',
-			'ingreso',
-			'codigos',
-			'mails',
-			'preguntas'
-		]);
+		// Transferencias ya no es una pestaña (es una vista de Ventas) y Mails tiene ícono propio.
+		expect(withSection.map((t) => t.id)).toEqual(['ventas', 'ingreso', 'codigos', 'preguntas']);
 		for (const tab of withSection) {
 			const item = navItem(/** @type {string} */ (tab.section));
 			expect(item, tab.id).toBeTruthy();
@@ -651,7 +693,7 @@ describe('íconos de las pestañas de la ficha del evento', () => {
 				matched++;
 			}
 		}
-		// Ventas, Transferencias, Puerta y Códigos.
-		expect(matched).toBeGreaterThanOrEqual(4);
+		// Ventas, Puerta y Códigos (Transferencias pasó a ser una vista de Ventas, sin ícono).
+		expect(matched).toBeGreaterThanOrEqual(3);
 	});
 });

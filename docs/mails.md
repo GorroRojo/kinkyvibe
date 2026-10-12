@@ -5,7 +5,8 @@
 El sitio manda mails a quienes compran entradas: las entradas con su QR, las instrucciones de una
 transferencia, el link de la transmisión de un evento online, los recordatorios antes del evento,
 el aviso de reembolso, el aviso de cambio de fecha («Avisar a les compradores») y los avisos que
-les admins escriben desde el panel ("Mail a compradores").
+les admins escriben desde el panel ("Mail a compradores", en la ficha del evento → Mails → Mandar un
+aviso).
 Salen con **Resend**, desde `entradas@kinkyvibe.ar` (se cambia en el panel). Les admins pueden
 cambiar el asunto, el título, el texto de arriba y los detalles del diseño (etiqueta, texto del
 botón, línea de ayuda y «por qué te llega») de cada mail sin tocar código, en general o solo para
@@ -63,7 +64,7 @@ sus plantillas propias) está en la ficha del evento.
 Todo en `src/lib/server/tickets/` salvo que se indique. Las plantillas: definición y variables en
 `src/lib/utils/emailTemplates.js`, lo guardado en D1 en `templates.js`, el editor
 (`src/lib/components/admin/MailTemplateEditor.svelte`) en `/admin/mensajes/plantillas` y en la
-pestaña **Plantillas de mails** de la ficha de cada evento que vende entradas.
+pestaña **Mails** de la ficha de cada evento que vende entradas (vista **Plantillas**, `/mails`).
 
 **Plantillas por evento.** Cada parte se puede cambiar solo para los mails de un evento
 (`event_email_templates`, migración 0034; una fila por evento y mail, cada parte en NULL = sin
@@ -261,7 +262,7 @@ migración `0048_avisar_cambio_fecha.sql`):
 - **Ofrecerlo.** Si hay compras aprobadas (con mail) de antes del cambio, arriba de todas las
   pestañas de la ficha aparece «Cambiaste la fecha. ¿Avisamos a las N personas que compraron?»
   con **Avisar a les compradores** y **No hace falta** (deja de mostrarse). No aparece con el
-  evento cancelado o ya terminado. En **Mail a compradores** está siempre la tarjeta **Avisar el
+  evento cancelado o ya terminado. En **Mails → Mandar un aviso** está siempre la tarjeta **Avisar el
   cambio de fecha**, para usarla más tarde. El botón pide confirmación.
 - **A quiénes.** Cada orden aprobada, con mail, de antes del cambio (las que compraron después ya
   recibieron la fecha nueva en sus entradas). Reembolsadas, canceladas y sin pagar no. Una vez por
@@ -315,7 +316,7 @@ Routing). La bandeja dentro del panel es una decisión tomada (0010) pero todav�
 Vista previa con datos de ejemplo y "Mandarme una prueba". "Restaurar el original" borra la
 fila y vuelve al del código.
 
-**Cambiar un mail solo para un evento.** Ficha del evento → Plantillas de mails → el mail. Lo
+**Cambiar un mail solo para un evento.** Ficha del evento → Mails → Plantillas → el mail. Lo
 vacío sale como en la plantilla general. "Volver a la plantilla general" borra lo del evento (también guardar todo vacío); antes guarda
 una copia en `panel_deletions`, así se recupera desde Ajustes › Actividad («Recuperar», decisión
 0030).

@@ -191,6 +191,11 @@ de amigues y lanzamientos grandes.
   se guarda por navegador (localStorage por login). Si se suma una tabla de preferencias por admin
   en la base, pasarla ahí para que siga a la persona en todos sus dispositivos (gorrite, 11/10;
   PR de íconos en las pestañas). S. Bloqueo: que haga falta una tabla de preferencias.
+- Ficha del evento con 7 pestañas (PR «panel-evento-pestanas»): los atajos del buscador a las
+  pestañas de un evento (`eventTabActions` en `src/lib/server/admin/search.js`) siguen diciendo
+  «Órdenes» y «Mail a compradores» (llevan a la vista correcta). Renombrarlos a «Ventas › Órdenes»
+  y «Mails › Mandar un aviso». S. Bloqueo: que se mergee el trabajo del buscador y ⌘K
+  (`claude/panel-nav-c`), para no pisarse.
 - Más gráficos: mapa de la comunidad, Fondo y finanzas. M.
 - Colaboración en tiempo real con Durable Objects. L.
 - Preguntas de inscripción sugeridas para elegir rápido. S.

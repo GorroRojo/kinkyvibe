@@ -1,5 +1,5 @@
 /**
- * Ficha del evento, pestaña Transferencias: confirmar el pago (emite y manda las entradas) o
+ * Ficha del evento, pestaña Ventas › Transferencias: confirmar el pago (emite y manda las entradas) o
  * cancelar la reserva. Se siguen mostrando 7 días las reservas vencidas. Una rechazada (cancelada)
  * de "Resueltas hace poco" se puede volver a esperar comprobante ("Deshacer rechazo").
  */

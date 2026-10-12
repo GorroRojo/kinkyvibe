@@ -9,15 +9,21 @@
 	 * Íconos (`aria-hidden`, de 16 px; el nombre sigue siendo el de la pestaña): si todas tienen y
 	 * en una pantalla angosta (< 600 px) no entran con sus nombres, quedan solo los íconos y el
 	 * nombre de la actual. Las otras muestran su nombre como `title` y lo llevan en `aria-label`.
+	 * `menu` (opcional): en el celu (< 600 px), en vez de la tira que se desliza, un botón con el
+	 * nombre de la pestaña actual y ▾ que abre la lista entera (ícono y nombre, ninguna escondida).
+	 * Escape o elegir una la cierran y el foco vuelve al botón; las flechas recorren la lista. En la
+	 * compu, la tira de siempre (ficha del evento, gorrite 11/10).
 	 */
 	import { onMount, tick } from 'svelte';
-	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
+	import { ChevronDown, ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import { page } from '$app/stores';
+	import { afterNavigate } from '$app/navigation';
 	/** @type {{ href: string, label: string, count?: number, soon?: boolean, icon?: any }[]} */
 	export let tabs = [];
 	/** @type {string | undefined} */
 	export let current = undefined;
 	export let label = 'Pestañas';
+	export let menu = false;
 	$: active = current ?? $page.url.pathname.replace(/\/+$/, '');
 
 	// Señal de que hay más pestañas de costado (fundido y flecha) cuando no entran todas.
@@ -66,9 +72,131 @@
 	}
 	/** @param {{ label: string, count?: number }} tab */
 	const nameOf = (tab) => (tab.count ? `${tab.label} (${tab.count})` : tab.label);
+
+	// Lista del celu (`menu`).
+	const listId = `tabs-menu-${Math.random().toString(36).slice(2, 8)}`;
+	let open = false;
+	/** @type {HTMLButtonElement | undefined} */
+	let toggle;
+	/** @type {HTMLElement | undefined} */
+	let list;
+	$: currentTab = tabs.find((t) => t.href === active);
+	/** @param {boolean} [focusToggle] */
+	function close(focusToggle = false) {
+		open = false;
+		if (focusToggle) toggle?.focus();
+	}
+	async function openList() {
+		open = true;
+		await tick();
+		const links = /** @type {HTMLElement[]} */ ([...(list?.querySelectorAll('a') ?? [])]);
+		(links.find((a) => a.getAttribute('aria-current') === 'page') ?? links[0])?.focus();
+	}
+	afterNavigate(() => {
+		open = false;
+	});
+	/** @param {KeyboardEvent} ev */
+	function onListKey(ev) {
+		if (ev.key === 'Escape') {
+			ev.preventDefault();
+			close(true);
+			return;
+		}
+		if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(ev.key)) return;
+		ev.preventDefault();
+		const links = /** @type {HTMLElement[]} */ ([...(list?.querySelectorAll('a') ?? [])]);
+		const i = links.indexOf(/** @type {HTMLElement} */ (document.activeElement));
+		const next =
+			ev.key === 'Home'
+				? 0
+				: ev.key === 'End'
+					? links.length - 1
+					: (i + (ev.key === 'ArrowDown' ? 1 : -1) + links.length) % links.length;
+		links[next]?.focus();
+	}
+	/** @param {FocusEvent} ev */
+	function onFocusOut(ev) {
+		// El foco se fue a otra parte de la página (con Tab o tocando afuera): se cierra.
+		const to = /** @type {Node | null} */ (ev.relatedTarget);
+		if (open && to && !(/** @type {HTMLElement} */ (ev.currentTarget).contains(to))) open = false;
+	}
+	/** @param {MouseEvent} ev */
+	function onWindowClick(ev) {
+		if (open && !toggle?.parentElement?.contains(/** @type {Node} */ (ev.target))) open = false;
+	}
 </script>
 
-<div class="tabs-wrap" class:more-left={moreLeft} class:more-right={moreRight}>
+<svelte:window on:click={onWindowClick} />
+
+{#if menu}
+	<nav class="tabs-menu" aria-label={label} on:focusout={onFocusOut}>
+		<button
+			type="button"
+			class="tabs-toggle"
+			bind:this={toggle}
+			aria-expanded={open}
+			aria-controls={listId}
+			on:click={() => (open ? close() : openList())}
+			on:keydown={(ev) => {
+				if (ev.key === 'ArrowDown' && !open) {
+					ev.preventDefault();
+					openList();
+				} else if (ev.key === 'Escape' && open) {
+					ev.preventDefault();
+					close(true);
+				}
+			}}
+		>
+			{#if currentTab?.icon}<svelte:component
+					this={currentTab.icon}
+					size={16}
+					aria-hidden="true"
+				/>{/if}
+			<span class="toggle-name">{currentTab ? currentTab.label : label}</span>
+			{#if currentTab?.count}<span class="count">{currentTab.count}</span>{/if}
+			<span class="sr-only">(elegí otra pestaña)</span>
+			<ChevronDown size={18} aria-hidden="true" class="chev" />
+		</button>
+		<!-- svelte-ignore a11y-no-noninteractive-element-interactions (las flechas y Escape) -->
+		<ul class="tabs-list" id={listId} hidden={!open} bind:this={list} on:keydown={onListKey}>
+			{#each tabs as tab (tab.href)}
+				{@const on = active === tab.href}
+				<li>
+					{#if tab.soon}
+						<span class="item off" aria-disabled="true"
+							>{#if tab.icon}<svelte:component
+									this={tab.icon}
+									size={18}
+									aria-hidden="true"
+								/>{/if}<span>{tab.label} <small>(próximamente)</small></span></span
+						>
+					{:else}
+						<a
+							class="item"
+							class:on
+							href={tab.href}
+							aria-current={on ? 'page' : undefined}
+							on:click={() => close(true)}
+							>{#if tab.icon}<svelte:component
+									this={tab.icon}
+									size={18}
+									aria-hidden="true"
+								/>{/if}<span>{tab.label}</span>{#if tab.count}<span class="count">{tab.count}</span
+								>{/if}</a
+						>
+					{/if}
+				</li>
+			{/each}
+		</ul>
+	</nav>
+{/if}
+
+<div
+	class="tabs-wrap"
+	class:has-menu={menu}
+	class:more-left={moreLeft}
+	class:more-right={moreRight}
+>
 	{#if moreLeft}
 		<button
 			type="button"
@@ -227,6 +355,108 @@
 	.tab.off {
 		color: var(--muted);
 		font-weight: 400;
+	}
+	/* Lista del celu (`menu`): en la compu no se ve; en el celu reemplaza a la tira. */
+	.tabs-menu {
+		display: none;
+		position: relative;
+		margin-bottom: 1rem;
+	}
+	@media (max-width: 599.98px) {
+		.tabs-menu {
+			display: block;
+		}
+		.tabs-wrap.has-menu {
+			display: none;
+		}
+	}
+	.tabs-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.45em;
+		width: 100%;
+		min-height: var(--tap);
+		padding: var(--space-3xs) var(--space-xs);
+		border: 1px solid var(--line);
+		border-radius: var(--round);
+		background: var(--surface);
+		box-shadow: var(--shadow-1);
+		color: var(--link);
+		font: inherit;
+		font-weight: 700;
+		text-align: left;
+		cursor: pointer;
+	}
+	.tabs-toggle :global(svg) {
+		flex: none;
+	}
+	.toggle-name {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.tabs-toggle :global(.chev) {
+		color: var(--accent);
+		transition: transform 150ms;
+	}
+	.tabs-toggle[aria-expanded='true'] :global(.chev) {
+		transform: rotate(180deg);
+	}
+	.tabs-list {
+		position: absolute;
+		z-index: 20;
+		top: calc(100% + 0.25rem);
+		left: 0;
+		right: 0;
+		margin: 0;
+		padding: var(--space-3xs);
+		list-style: none;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: var(--round);
+		box-shadow: var(--shadow-2);
+	}
+	.tabs-list[hidden] {
+		display: none;
+	}
+	.item {
+		display: flex;
+		align-items: center;
+		gap: 0.6em;
+		min-height: var(--tap);
+		padding: 0 var(--space-xs);
+		border-radius: var(--round);
+		color: var(--accent);
+		font-weight: 700;
+		text-decoration: none;
+	}
+	.item :global(svg) {
+		flex: none;
+	}
+	a.item:hover,
+	a.item:focus-visible {
+		background: var(--surface-2);
+	}
+	.item.on {
+		color: var(--link);
+		background: var(--link-bg);
+	}
+	.item.off {
+		color: var(--muted);
+		font-weight: 400;
+	}
+	.item .count {
+		margin-left: auto;
+	}
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 	.count {
 		background: var(--counter);
