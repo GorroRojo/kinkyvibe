@@ -10,7 +10,7 @@
  * - todo en español rioplatense con el lenguaje inclusivo del sitio;
  * - las palabras salen de «Textos del bot» (`botText`, editables en el panel): acá solo se arman.
  */
-import { escapeHtml, eventUrl, formatWhen, WINDOW_TEXTS, formatHelp } from './format.js';
+import { escapeHtml, eventUrl, formatWhen, formatHelp } from './format.js';
 import { truncate } from './keyboards.js';
 import { encodeNav, navId, startLink, startParam } from './nav.js';
 import { encodeAdminNav } from './adminNav.js';
@@ -78,14 +78,6 @@ export const CAPTION_MAX = 1024;
 /** La clave de «Textos del bot» de cada lista (`eventos.titulo_<…>` y `eventos.vacio_<…>`). */
 const LIST_TEXT = Object.freeze({ d: 'hoy', w: 'semana', f: 'finde', p: 'proximos' });
 
-/** Títulos de cada lista (los originales; las pantallas usan los de este pedido). */
-export const LIST_TITLES = Object.freeze({
-	d: WINDOW_TEXTS.hoy.title,
-	w: WINDOW_TEXTS.semana.title,
-	f: WINDOW_TEXTS.finde.title,
-	p: renderBotText('eventos.titulo_proximos')
-});
-
 /** @param {string} origin */
 export const isHttps = (origin) => origin.startsWith('https://');
 
@@ -119,9 +111,6 @@ export function tgTime(iso, now) {
 // ---------------------------------------------------------------------------------------------
 // Inicio
 // ---------------------------------------------------------------------------------------------
-
-/** El mensaje de inicio original (la pantalla usa el de este pedido). */
-export const HOME_TEXT = renderBotText('inicio.texto');
 
 /**
  * «⭐ Lo que sigo» en el inicio, solo con «Lo que sigo» prendido: en privado abre la pantalla; en

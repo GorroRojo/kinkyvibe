@@ -5,6 +5,9 @@
  * `sitePosts`), el lugar según su nivel de privacidad (`withVenuePlaces`, como las listas) y el
  * estado de la venta (`ticketStatesFor` + `ticketCta`). Comprar y todo lo demás se abre en el
  * navegador, afuera de Telegram (Mercado Pago no va adentro).
+ *
+ * Sus textos se editan en «Textos del bot» (sección «Mini App del calendario»): la página los lee
+ * con {@link miniAppTexts}; sin nada cambiado, los de siempre.
  */
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
@@ -13,6 +16,8 @@ import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 import { argDateTimeLong, argTime, startsAfter, toArgentina } from '$lib/utils/dates.js';
 import { placeShort } from '$lib/utils/eventPlace.js';
 import { ticketCta } from '$lib/utils/ticketCta.js';
+import { renderBotText } from '$lib/utils/botTexts.js';
+import { botTextOverrides } from './texts.js';
 
 /**
  * @typedef {{ slug: string, title: string, time: string, place: string, image: string | null,
@@ -23,15 +28,49 @@ import { ticketCta } from '$lib/utils/ticketCta.js';
 /** Cuántos eventos muestra, como mucho (el resto, en el sitio). */
 export const APP_MAX_EVENTS = 40;
 
+/** Los textos de la página, por nombre, con su clave de «Textos del bot». */
+const TEXT_KEYS = Object.freeze({
+	titulo: 'miniapp.titulo',
+	bajada: 'miniapp.bajada',
+	botonInicio: 'miniapp.boton_inicio',
+	agregada: 'miniapp.agregada',
+	vacio: 'miniapp.vacio',
+	cancelado: 'miniapp.cancelado',
+	comprar: 'miniapp.boton_comprar',
+	verTodo: 'miniapp.ver_todo'
+});
+
+/** @typedef {Record<keyof typeof TEXT_KEYS, string>} AppTexts */
+
+/**
+ * Los textos de la página: lo cambiado en «Textos del bot» (ya limpio) o el original. Texto solo
+ * (la página lo escapa). Pura.
+ *
+ * @param {import('$lib/utils/botTexts.js').BotTexts | null} [overrides]
+ * @returns {AppTexts}
+ */
+export function miniAppTexts(overrides = null) {
+	return /** @type {AppTexts} */ (
+		Object.fromEntries(
+			Object.entries(TEXT_KEYS).map(([name, key]) => [name, renderBotText(key, {}, overrides)])
+		)
+	);
+}
+
 /**
  * Los próximos eventos agrupados por día (hora de Argentina). Pura (para los tests).
  *
  * @param {{ meta: Record<string, any> }[]} posts ya con el lugar público (`withVenuePlaces`)
  * @param {import('$lib/utils/ticketCta.js').TicketStates | null} states
- * @param {{ now: number, origin: string }} ctx
+ * @param {{ now: number, origin: string, buyText?: string }} ctx `buyText`: el botón de comprar
+ *   (de {@link miniAppTexts}; por defecto, el original)
  * @returns {AppDay[]}
  */
-export function groupByDay(posts, states, { now, origin }) {
+export function groupByDay(
+	posts,
+	states,
+	{ now, origin, buyText = renderBotText(TEXT_KEYS.comprar) }
+) {
 	/** @type {AppDay[]} */
 	const days = [];
 	const upcoming = posts
@@ -57,7 +96,7 @@ export function groupByDay(posts, states, { now, origin }) {
 			href: `${origin}/calendario/${encodeURIComponent(slug)}`,
 			ticket:
 				cta?.kind === 'buy'
-					? { text: 'Comprar en el sitio', href: `${origin}${cta.href}` }
+					? { text: buyText, href: `${origin}${cta.href}` }
 					: cta?.kind === 'note'
 						? { text: cta.text, href: null }
 						: null,
@@ -71,19 +110,23 @@ export function groupByDay(posts, states, { now, origin }) {
 }
 
 /**
- * Lo que necesita la página.
+ * Lo que necesita la página: los días y sus textos (una lectura de «Textos del bot»; si falla,
+ * los originales).
  *
  * @param {App.Platform | undefined} platform
  * @param {string} origin
  * @param {number} [now]
  */
 export async function miniAppData(platform, origin, now = Date.now()) {
+	const db = getDB(platform);
 	const posts = (await sitePosts(platform)).filter(
 		(p) => p.meta?.category === 'calendario' && startsAfter(p.meta.start, now)
 	);
-	const [withPlaces, states] = await Promise.all([
-		withVenuePlaces(getDB(platform), posts),
-		ticketStatesFor(platform, posts)
+	const [withPlaces, states, overrides] = await Promise.all([
+		withVenuePlaces(db, posts),
+		ticketStatesFor(platform, posts),
+		botTextOverrides(db)
 	]);
-	return { days: groupByDay(withPlaces, states, { now, origin }) };
+	const texts = miniAppTexts(overrides);
+	return { days: groupByDay(withPlaces, states, { now, origin, buyText: texts.comprar }), texts };
 }
