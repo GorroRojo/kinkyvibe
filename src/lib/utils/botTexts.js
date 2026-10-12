@@ -47,6 +47,7 @@ export const BOT_TEXT_SECTIONS = Object.freeze([
 	{ id: 'admin', label: 'Estado y avisos (admins)' },
 	{ id: 'sitio', label: 'Buscar en todo el sitio y modo inline' },
 	{ id: 'secciones', label: 'Secciones del sitio (Material, Kinkipedia, Amigues, Series)' },
+	{ id: 'entradas', label: 'Mis entradas (con el QR para la puerta)' },
 	{ id: 'errores', label: 'Errores' }
 ]);
 
@@ -196,6 +197,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'La ayuda: los comandos de la cuenta (va en {cuenta})',
 			'Con tu cuenta del sitio (por chat privado):\n' +
 				'/vincular <código>: conectá este chat (el código está en Mi rincón → Lo que sigo)\n' +
+				'/entradas: tus entradas, con el QR para la puerta\n' +
 				'/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n' +
 				'/desvincular: desconectá este chat'
 		),
@@ -282,6 +284,7 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 		...[
 			['vincular', 'Conectá tu cuenta (código de Mi rincón)'],
 			['sigo', 'Lo que seguís en Lo que sigo'],
+			['entradas', 'Tus entradas, con el QR para la puerta'],
 			['silenciar', 'Pausá tus avisos por Telegram'],
 			['reanudar', 'Volvé a recibir tus avisos'],
 			['desvincular', 'Desconectá este chat de tu cuenta']
@@ -1176,6 +1179,173 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'toast',
 			'Algo de una sección que ya no está (botón viejo)',
 			'Eso ya no está disponible.'
+		),
+
+		// -----------------------------------------------------------------------------------------
+		// Mis entradas
+		// -----------------------------------------------------------------------------------------
+		f(
+			'entradas.boton_inicio',
+			'entradas',
+			'button',
+			'Botón del inicio: Mis entradas',
+			'🎟 Mis entradas',
+			{
+				help: `Solo con «Lo que sigo» prendido. ${GROUP_ARROW}`,
+				max: 60
+			}
+		),
+		f(
+			'entradas.titulo',
+			'entradas',
+			'line',
+			'La lista: el título (las de los próximos eventos)',
+			'**🎟 Tus entradas**'
+		),
+		f(
+			'entradas.titulo_pasadas',
+			'entradas',
+			'line',
+			'La lista: el título (las de eventos que ya pasaron)',
+			'**🕘 Tus entradas pasadas**'
+		),
+		f(
+			'entradas.una',
+			'entradas',
+			'line',
+			'La lista: cuántas entradas hay para un evento (una)',
+			'1 entrada'
+		),
+		f(
+			'entradas.varias',
+			'entradas',
+			'line',
+			'La lista: cuántas entradas hay para un evento (más de una)',
+			'{cantidad} entradas',
+			{ vars: [V.cantidad] }
+		),
+		f(
+			'entradas.vacio',
+			'entradas',
+			'message',
+			'Sin entradas para los próximos eventos',
+			'No tenés entradas para los próximos eventos. Acá aparecen las que se compran con el mail ' +
+				'de tu cuenta.'
+		),
+		f(
+			'entradas.vacio_pasadas',
+			'entradas',
+			'message',
+			'Sin entradas de eventos que ya pasaron',
+			'No tenés entradas de eventos que ya pasaron.'
+		),
+		f(
+			'entradas.boton_entrada',
+			'entradas',
+			'button',
+			'La lista: el botón de cada entrada',
+			'🎟 {titular} · {evento}',
+			{
+				vars: [
+					{ name: 'titular', label: 'el nombre de la entrada', sample: 'Persona de ejemplo' },
+					V.evento
+				],
+				help: 'El nombre y el título se acortan para que el botón entre.'
+			}
+		),
+		f('entradas.boton_pasadas', 'entradas', 'button', 'La lista: ver las pasadas', '🕘 Pasadas'),
+		f(
+			'entradas.boton_proximas',
+			'entradas',
+			'button',
+			'La lista de pasadas: volver a las de los próximos eventos',
+			'🎟 Próximas'
+		),
+		f(
+			'entradas.titular',
+			'entradas',
+			'line',
+			'La entrada: el nombre (y los pronombres)',
+			'👤 {titular}',
+			{
+				vars: [
+					{
+						name: 'titular',
+						label: 'el nombre de la entrada (y sus pronombres)',
+						sample: 'Persona de ejemplo (elle)'
+					}
+				]
+			}
+		),
+		f(
+			'entradas.tipo_codigo',
+			'entradas',
+			'line',
+			'La entrada: el tipo y el código corto',
+			'🎫 {tipo} · código **{codigo}**',
+			{
+				vars: [
+					{ name: 'tipo', label: 'el tipo de entrada', sample: 'General' },
+					{ name: 'codigo', label: 'el código corto (para la puerta)', sample: 'ABC 234' }
+				],
+				required: ['codigo']
+			}
+		),
+		f('entradas.tipo', 'entradas', 'line', 'La entrada: el tipo (sin código corto)', '🎫 {tipo}', {
+			vars: [{ name: 'tipo', label: 'el tipo de entrada', sample: 'General' }]
+		}),
+		f(
+			'entradas.valida',
+			'entradas',
+			'line',
+			'La entrada: válida',
+			'✅ Válida. Mostrá este QR en la puerta (si no se puede escanear, el código).'
+		),
+		f(
+			'entradas.usada',
+			'entradas',
+			'line',
+			'La entrada: ya se usó',
+			'☑️ Ya se usó: ingresó {fecha}.',
+			{
+				vars: [{ name: 'fecha', label: 'cuándo ingresó', sample: 'sáb 11 ene · 23:40', html: true }]
+			}
+		),
+		f(
+			'entradas.online',
+			'entradas',
+			'line',
+			'La entrada de un evento online (no lleva QR)',
+			'💻 Es online: el link de la transmisión está en tu entrada, en el sitio.'
+		),
+		f(
+			'entradas.ver_qr',
+			'entradas',
+			'line',
+			'La entrada sin la foto del QR (si no se pudo mandar)',
+			'Tocá «Ver la entrada» para ver el QR.'
+		),
+		f(
+			'entradas.boton_ver',
+			'entradas',
+			'button',
+			'La entrada: el botón a su página en el sitio (con el QR)',
+			'🔗 Ver la entrada'
+		),
+		f(
+			'entradas.sin_vincular',
+			'entradas',
+			'message',
+			'Mis entradas sin el chat conectado',
+			'Para ver tus entradas acá, conectá este chat con tu cuenta: en Mi rincón → Lo que sigo ' +
+				'tocá «Conectar Telegram» y mandame el código con /vincular.'
+		),
+		f(
+			'entradas.no_esta',
+			'entradas',
+			'toast',
+			'Una entrada que ya no está (botón viejo)',
+			'Esa entrada ya no está acá.'
 		),
 
 		// -----------------------------------------------------------------------------------------

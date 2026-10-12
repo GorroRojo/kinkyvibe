@@ -57,7 +57,8 @@
 		describeTicketsForm,
 		readTicketsForm,
 		validateTicketsForm,
-		goalFields
+		goalFields,
+		waitlistFields
 	} from '$lib/utils/ticketsEditor.js';
 	import { parseDocument } from 'yaml';
 	import {
@@ -474,7 +475,8 @@
 		if (d.tagRules) tagRules = { ...tagRules, ...d.tagRules };
 		if (Array.isArray(d.freeTags)) freeTags = d.freeTags;
 		people = restorePeople(d, people, 'Organiza');
-		if (d.tickets) tickets = { ...goalFields(undefined), ...d.tickets };
+		if (d.tickets)
+			tickets = { ...goalFields(undefined), ...waitlistFields(undefined), ...d.tickets };
 		if (venuePicker && d.venue && typeof d.venue === 'object')
 			venue = venueChoice(d.venue.venueId, d.venue.privacy);
 		if (d.slugEdited && typeof d.slug === 'string') {

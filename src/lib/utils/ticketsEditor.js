@@ -17,6 +17,10 @@
  *   `mp_fee_percent`, `puerta`, `puerta_precio`; y `close` (cierre propio) en cada tipo;
  * - `meta_venta`: la meta de venta (plata o entradas, ver ./salesGoal.js). Se edita junto con la
  *   venta y solo se escribe con la venta prendida.
+ * - `lista_espera`: la lista de espera (ver ./waitlistHold.js): `'evento'`, `'tipo'` o
+ *   `{ alcance, todes_a_la_vez }` (los tiempos de reserva son los de Ajustes). Como la meta, solo se escribe con la venta prendida
+ *   y solo si cambió (una que no se entiende queda como está). Con gente anotada no se puede
+ *   apagar, cambiar el alcance ni sacar el tipo (o su cupo) de una lista por tipo.
  * Los horarios se editan como `datetime-local` en hora de Argentina y se guardan con zona
  * (`2026-10-02T20:00-03:00`).
  * Nada del Fondo: es automático (solo en eventos con la etiqueta KinkyVibe).
@@ -44,6 +48,7 @@ import {
 	parseSalesGoal,
 	storedSalesGoal
 } from './salesGoal.js';
+import { WAITLIST_KEY, parseEventWaitlist } from './waitlistHold.js';
 
 /** Id de la etiqueta que marca los eventos de KinkyVibe (src/lib/utils/hardcodedTags.js). */
 export const KINKYVIBE_TAG = 'KinkyVibe';
@@ -150,6 +155,8 @@ export { isOnlineEvent };
  * @prop {'' | 'plata' | 'entradas'} goalKind meta de venta (`meta_venta`): '' = sin meta (el
  *   panel muestra el avance contra el cupo)
  * @prop {string} goalValue pesos o cantidad de entradas
+ * @prop {'' | 'evento' | 'tipo'} waitlistScope lista de espera (`lista_espera`): '' = sin lista
+ * @prop {boolean} waitlistAll «Avisar a todes a la vez desde el principio» (`todes_a_la_vez`)
  */
 
 let keyCounter = 0;
@@ -363,8 +370,35 @@ export function readTicketsForm(meta) {
 		door: meta?.puerta !== false,
 		doorSet: typeof meta?.puerta === 'boolean',
 		doorPrice: str(meta?.puerta_precio),
-		...goalFields(meta?.[GOAL_KEY])
+		...goalFields(meta?.[GOAL_KEY]),
+		...waitlistFields(meta?.[WAITLIST_KEY])
 	};
+}
+
+/**
+ * Los campos «Lista de espera» del formulario para una lista guardada (una que no se entiende
+ * queda sin lista en el formulario, y el archivo no se toca mientras no se cambie).
+ * @param {unknown} raw
+ * @returns {Pick<TicketsForm, 'waitlistScope' | 'waitlistAll'>}
+ */
+export function waitlistFields(raw) {
+	const parsed = parseEventWaitlist(raw);
+	return {
+		waitlistScope: parsed ? (parsed.scope === 'event' ? 'evento' : 'tipo') : '',
+		waitlistAll: parsed?.allAtOnce ?? false
+	};
+}
+
+/**
+ * La lista de espera del formulario como se guarda (`null` = sin lista): el atajo `'evento'` /
+ * `'tipo'`, o el objeto si tiene «todes a la vez». Tolera borradores viejos.
+ * @param {Partial<TicketsForm>} f
+ * @returns {null | string | Record<string, unknown>}
+ */
+export function formWaitlist(f) {
+	const scope = f.waitlistScope;
+	if (scope !== 'evento' && scope !== 'tipo') return null;
+	return f.waitlistAll ? { alcance: scope, todes_a_la_vez: true } : scope;
 }
 
 /**
@@ -471,10 +505,11 @@ const salesOf = (sales, id) => {
  * existentes y avisa de lo que no las cambia.
  *
  * @param {TicketsForm} form
- * @param {{ sales?: SalesByType }} [opts]
+ * @param {{ sales?: SalesByType, waitlistLive?: Record<string, number> }} [opts] `waitlistLive`:
+ *   las anotaciones vivas de la lista de espera por alcance (ver {@link waitlistLiveErrors})
  * @returns {{ errors: string[], warnings: string[] }}
  */
-export function validateTicketsForm(form, { sales } = {}) {
+export function validateTicketsForm(form, { sales, waitlistLive } = {}) {
 	/** @type {string[]} */
 	const errors = [];
 	/** @type {string[]} */
@@ -485,6 +520,7 @@ export function validateTicketsForm(form, { sales } = {}) {
 			errors.push(
 				`No se puede apagar la venta: ya hay ${entradas(soldTotal)} vendidas o reservadas. Para cortar la venta, cambiá el estado a «Agotadas» o poné una fecha de cierre.`
 			);
+		errors.push(...waitlistLiveErrors(form, waitlistLive));
 		return { errors, warnings };
 	}
 	if (!form.types.length) errors.push('Agregá al menos un tipo de entrada.');
@@ -599,7 +635,76 @@ export function validateTicketsForm(form, { sales } = {}) {
 		errors.push(`La nota sobre la puerta es muy larga (hasta ${DOOR_PRICE_MAX} caracteres).`);
 	const goal = goalFromForm(form.goalKind ?? '', form.goalValue ?? '');
 	if (goal.error) errors.push(goal.error);
+	validateWaitlist(form, types, warnings);
+	errors.push(...waitlistLiveErrors(form, waitlistLive));
 	return { errors, warnings };
+}
+
+/**
+ * La lista de espera del formulario: lo que conviene saber del alcance.
+ *
+ * @param {TicketsForm} form
+ * @param {TicketTypeForm[]} types con ids
+ * @param {string[]} warnings
+ */
+function validateWaitlist(form, types, warnings) {
+	const scope = form.waitlistScope ?? '';
+	if (!scope) return;
+	const capped = types.filter((t) => t.capacity.trim());
+	if (scope === 'tipo' && !capped.length)
+		warnings.push(
+			'Lista de espera por tipo de entrada: solo los tipos con cupo tienen lista, y ninguno tiene cupo.'
+		);
+	if (scope === 'evento' && capped.length < types.length)
+		warnings.push(
+			'Lista de espera por evento: con un tipo sin cupo a la venta, el evento no se agota y nadie se puede anotar.'
+		);
+}
+
+/** @param {number} n */
+const personas = (n) => (n === 1 ? 'una persona' : `${n} personas`);
+
+/**
+ * Con gente anotada (sin confirmar, esperando o con un lugar ofrecido), la lista no se puede
+ * apagar, ni cambiar de alcance, ni sacar el tipo de una lista por tipo (o dejarlo sin cupo).
+ * Mira las anotaciones de la base, no el archivo de antes: así un archivo ya guardado nunca
+ * choca con su propia lista.
+ *
+ * @param {TicketsForm} form
+ * @param {Record<string, number> | undefined} live anotaciones vivas por alcance ('' = evento)
+ * @returns {string[]}
+ */
+export function waitlistLiveErrors(form, live) {
+	if (!live) return [];
+	/** @type {string[]} */
+	const out = [];
+	const scope = form.enabled ? (form.waitlistScope ?? '') : '';
+	const close = 'cerrá la lista primero (Ventas › Lista de espera, en la ficha)';
+	for (const [key, n] of Object.entries(live)) {
+		if (!n) continue;
+		if (key === '') {
+			if (scope !== 'evento')
+				out.push(
+					`Hay ${personas(n)} en la lista de espera del evento: para apagarla o cambiarla a «por tipo de entrada», ${close}.`
+				);
+			continue;
+		}
+		const type = form.types.find((t) => (t.origId ?? t.id) === key);
+		const name = type?.name.trim() || key;
+		if (scope !== 'tipo')
+			out.push(
+				`Hay ${personas(n)} en la lista de espera de «${name}»: para apagarla o cambiarla a «por evento», ${close}.`
+			);
+		else if (!type)
+			out.push(
+				`No se puede borrar el tipo «${name}»: hay ${personas(n)} en su lista de espera; ${close}.`
+			);
+		else if (!type.capacity.trim())
+			out.push(
+				`«${name}» tiene ${personas(n)} en su lista de espera: no puede quedar sin cupo; ${close}.`
+			);
+	}
+	return out;
 }
 
 /**
@@ -734,7 +839,8 @@ function normalized(f) {
 		door: f.enabled ? f.door : true,
 		doorPrice: f.enabled && f.door ? f.doorPrice.trim() : '',
 		// Con la venta apagada, la meta no se escribe (ni se borra).
-		goal: f.enabled ? formGoal(f) : ''
+		goal: f.enabled ? formGoal(f) : '',
+		waitlist: f.enabled ? formWaitlist(f) : null
 	});
 }
 
@@ -901,6 +1007,16 @@ export function applyTicketsForm(frontmatter, form, initial, opts) {
 		if (goal) doc.set(GOAL_KEY, goal);
 		else doc.delete(GOAL_KEY);
 	}
+	/* Lista de espera: solo si cambió (sin lista = sin la clave). */
+	const waitlist = formWaitlist(form);
+	if (JSON.stringify(waitlist) !== JSON.stringify(formWaitlist(initial))) {
+		if (waitlist === null) doc.delete(WAITLIST_KEY);
+		else if (typeof waitlist === 'string') doc.set(WAITLIST_KEY, waitlist);
+		else {
+			const node = doc.createNode(waitlist);
+			doc.set(WAITLIST_KEY, node);
+		}
+	}
 	return serializeFrontmatter(doc);
 }
 
@@ -931,6 +1047,24 @@ export function applyTicketsToMarkdown(raw, form, initial, opts) {
 }
 
 /**
+ * El archivo completo sin la lista de espera (la clave `lista_espera`): lo que escribe «Cerrar la
+ * lista» del panel para apagarla en ese evento (gorrite, 12/10). Lo demás queda tal cual (con sus
+ * comentarios y el fin de línea del archivo). `null` si el archivo no tenía la clave.
+ *
+ * @param {string} raw
+ * @returns {string | null}
+ */
+export function markdownWithoutWaitlist(raw) {
+	const { frontmatter, body } = splitMarkdown(raw);
+	const doc = parseDocument(frontmatter);
+	if (doc.errors.length) throw new Error(doc.errors[0].message);
+	if (!doc.has(WAITLIST_KEY)) return null;
+	doc.delete(WAITLIST_KEY);
+	const out = joinMarkdown(serializeFrontmatter(doc), body);
+	return /\r\n/.test(raw) ? out.replace(/\n/g, '\r\n') : out;
+}
+
+/**
  * Resumen corto para la revisión: "General $ 10.000 (40) · A la gorra (sugerido $ 5.000, 100)".
  * @param {TicketsForm} form
  * @param {(n: number) => string} formatARS
@@ -947,6 +1081,9 @@ export function describeTicketsForm(form, formatARS) {
 					: '';
 	const goal = parseSalesGoal(formGoal(form));
 	const goalText = goal ? ` · Meta: ${describeSalesGoal(goal)}` : '';
+	const waitlistText = form.waitlistScope
+		? ` · Lista de espera ${form.waitlistScope === 'evento' ? 'por evento' : 'por tipo de entrada'}${form.waitlistAll ? ' (todes a la vez)' : ''}`
+		: '';
 	const all = withTypeIds(form.types);
 	return (
 		all
@@ -984,6 +1121,7 @@ export function describeTicketsForm(form, formatARS) {
 			})
 			.join(' · ') +
 		door +
-		goalText
+		goalText +
+		waitlistText
 	);
 }

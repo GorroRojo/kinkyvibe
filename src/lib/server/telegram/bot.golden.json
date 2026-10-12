@@ -312,6 +312,10 @@
 					"description": "Lo que seguís en Lo que sigo"
 				},
 				{
+					"command": "entradas",
+					"description": "Tus entradas, con el QR para la puerta"
+				},
+				{
 					"command": "silenciar",
 					"description": "Pausá tus avisos por Telegram"
 				},
@@ -1200,7 +1204,7 @@
 		]
 	},
 	"ayuda con cuentas": {
-		"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nCon tu cuenta del sitio (por chat privado):\n/vincular &lt;código&gt;: conectá este chat (el código está en Mi rincón → Lo que sigo)\n/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n/desvincular: desconectá este chat\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
+		"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nCon tu cuenta del sitio (por chat privado):\n/vincular &lt;código&gt;: conectá este chat (el código está en Mi rincón → Lo que sigo)\n/entradas: tus entradas, con el QR para la puerta\n/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n/desvincular: desconectá este chat\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
 		"keyboard": [
 			[
 				{
@@ -2715,7 +2719,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nCon tu cuenta del sitio (por chat privado):\n/vincular &lt;código&gt;: conectá este chat (el código está en Mi rincón → Lo que sigo)\n/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n/desvincular: desconectá este chat\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
+				"text": "Hola, soy el bot de Kinky Vibe. Podés pedirme:\n\n/proximos: los próximos eventos (tocá uno para ver el detalle)\n/hoy, /semana, /finde: lo que hay hoy, en los próximos 7 días o este fin de semana\n/evento: elegí un evento de la lista\n/evento &lt;nombre&gt;: buscá un evento por nombre o por fecha (por ejemplo «sábado» o «15/10»)\n/buscar &lt;texto&gt;: buscá en todo el sitio (eventos, material, Kinkipedia y amigues)\n/fondo: cuánto juntó el Fondo Kinky Vibe este mes\n/inicio: volver al inicio, con botones para todo\n\nCon tu cuenta del sitio (por chat privado):\n/vincular &lt;código&gt;: conectá este chat (el código está en Mi rincón → Lo que sigo)\n/entradas: tus entradas, con el QR para la puerta\n/silenciar: pausá todos los avisos · /reanudar: volvé a recibirlos\n/desvincular: desconectá este chat\n\nPara comprar entradas y ver todo lo demás, entrá a https://ejemplo.test",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -8074,5 +8078,977 @@
 				"url": "https://t.me/x"
 			}
 		}
-	]
+	],
+	"entradas: inicio privado": {
+		"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+		"keyboard": [
+			[
+				{
+					"text": "Hoy",
+					"callback_data": "l:d:0",
+					"style": "primary"
+				},
+				{
+					"text": "Semana",
+					"callback_data": "l:w:0",
+					"style": "primary"
+				},
+				{
+					"text": "Finde",
+					"callback_data": "l:f:0",
+					"style": "primary"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar",
+					"callback_data": "s"
+				},
+				{
+					"text": "⭐ Lo que sigo",
+					"callback_data": "g"
+				}
+			],
+			[
+				{
+					"text": "🎟 Mis entradas",
+					"callback_data": "t:u:0"
+				}
+			],
+			[
+				{
+					"text": "💗 Fondo",
+					"callback_data": "fo"
+				},
+				{
+					"text": "❓ Ayuda",
+					"callback_data": "a"
+				}
+			],
+			[
+				{
+					"text": "📅 Calendario",
+					"web_app": {
+						"url": "https://ejemplo.test/telegram/app"
+					}
+				},
+				{
+					"text": "Abrir ejemplo.test ↗",
+					"url": "https://ejemplo.test"
+				}
+			]
+		]
+	},
+	"entradas: inicio grupo": {
+		"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+		"keyboard": [
+			[
+				{
+					"text": "Hoy",
+					"callback_data": "l:d:0",
+					"style": "primary"
+				},
+				{
+					"text": "Semana",
+					"callback_data": "l:w:0",
+					"style": "primary"
+				},
+				{
+					"text": "Finde",
+					"callback_data": "l:f:0",
+					"style": "primary"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar",
+					"callback_data": "s"
+				},
+				{
+					"text": "⭐ Lo que sigo ↗",
+					"url": "https://t.me/BotDePrueba?start=sigo"
+				}
+			],
+			[
+				{
+					"text": "🎟 Mis entradas ↗",
+					"url": "https://t.me/BotDePrueba?start=mis-entradas"
+				}
+			],
+			[
+				{
+					"text": "💗 Fondo",
+					"callback_data": "fo"
+				},
+				{
+					"text": "❓ Ayuda",
+					"callback_data": "a"
+				}
+			],
+			[
+				{
+					"text": "Abrir ejemplo.test ↗",
+					"url": "https://ejemplo.test"
+				}
+			]
+		]
+	},
+	"entradas: inicio grupo sin usuario del bot": {
+		"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+		"keyboard": [
+			[
+				{
+					"text": "Hoy",
+					"callback_data": "l:d:0",
+					"style": "primary"
+				},
+				{
+					"text": "Semana",
+					"callback_data": "l:w:0",
+					"style": "primary"
+				},
+				{
+					"text": "Finde",
+					"callback_data": "l:f:0",
+					"style": "primary"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar",
+					"callback_data": "s"
+				}
+			],
+			[
+				{
+					"text": "💗 Fondo",
+					"callback_data": "fo"
+				},
+				{
+					"text": "❓ Ayuda",
+					"callback_data": "a"
+				}
+			],
+			[
+				{
+					"text": "Abrir ejemplo.test ↗",
+					"url": "https://ejemplo.test"
+				}
+			]
+		]
+	},
+	"entradas: lista": {
+		"text": "<b>🎟 Tus entradas</b>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<b>Taller de cuerdas</b> · 2 entradas\n\n<tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n<b>Charla inventada</b> · 1 entrada",
+		"keyboard": [
+			[
+				{
+					"text": "🎟 Persona Inventada · Taller de cuerdas",
+					"callback_data": "tk:tk1:u"
+				}
+			],
+			[
+				{
+					"text": "🎟 Otra <Persona> Inve… · Taller de cuerdas",
+					"callback_data": "tk:tk2:u"
+				}
+			],
+			[
+				{
+					"text": "🎟 Persona Inventada · Charla inventada",
+					"callback_data": "tk:tk3:u"
+				}
+			],
+			[
+				{
+					"text": "🕘 Pasadas",
+					"callback_data": "t:o:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"entradas: lista vacía": {
+		"text": "No tenés entradas para los próximos eventos. Acá aparecen las que se compran con el mail de tu cuenta.",
+		"keyboard": [
+			[
+				{
+					"text": "🕘 Pasadas",
+					"callback_data": "t:o:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"entradas: lista pag 1": {
+		"text": "<b>🎟 Tus entradas</b> · 2/2\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<b>Taller de cuerdas</b> · 7 entradas",
+		"keyboard": [
+			[
+				{
+					"text": "🎟 Persona 5 · Taller de cuerdas",
+					"callback_data": "tk:m5:u"
+				}
+			],
+			[
+				{
+					"text": "🎟 Persona 6 · Taller de cuerdas",
+					"callback_data": "tk:m6:u"
+				}
+			],
+			[
+				{
+					"text": "‹",
+					"callback_data": "t:u:0"
+				},
+				{
+					"text": "2/2",
+					"disabled": {}
+				}
+			],
+			[
+				{
+					"text": "🕘 Pasadas",
+					"callback_data": "t:o:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"entradas: pasadas": {
+		"text": "<b>🕘 Tus entradas pasadas</b>\n\n<tg-time unix=\"1922407200\" format=\"wdt\">dom 1 dic 2030 · 23:00</tg-time>\n<b>Fiesta pasada</b> · 1 entrada",
+		"keyboard": [
+			[
+				{
+					"text": "🎟 Persona Inventada · Fiesta pasada",
+					"callback_data": "tk:tk4:o"
+				}
+			],
+			[
+				{
+					"text": "🎟 Próximas",
+					"callback_data": "t:u:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"entradas: pasadas vacía": {
+		"text": "No tenés entradas de eventos que ya pasaron.",
+		"keyboard": [
+			[
+				{
+					"text": "🎟 Próximas",
+					"callback_data": "t:u:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"entradas: tarjeta válida": {
+		"text": "🎟 <b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n👤 Persona Inventada (elle)\n🎫 General · código <b>ABC 234</b>\n\n✅ Válida. Mostrá este QR en la puerta (si no se puede escanear, el código).\nTocá «Ver la entrada» para ver el QR.",
+		"keyboard": [
+			[
+				{
+					"text": "🔗 Ver la entrada",
+					"url": "https://ejemplo.test/entradas/t/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+				}
+			],
+			[
+				{
+					"text": "1/3",
+					"disabled": {}
+				},
+				{
+					"text": "›",
+					"callback_data": "tk:tk2:u"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "t:u:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"entradas: tarjeta usada": {
+		"text": "🎟 <b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n👤 Otra &lt;Persona&gt; Inventada\n🎫 Anticipada · código <b>DEF 567</b>\n\n☑️ Ya se usó: ingresó <tg-time unix=\"1925857800\" format=\"wdt\">vie 10 ene · 21:30</tg-time>.",
+		"keyboard": [
+			[
+				{
+					"text": "🔗 Ver la entrada",
+					"url": "https://ejemplo.test/entradas/t/BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+				}
+			],
+			[
+				{
+					"text": "‹",
+					"callback_data": "tk:tk1:u"
+				},
+				{
+					"text": "2/3",
+					"disabled": {}
+				},
+				{
+					"text": "›",
+					"callback_data": "tk:tk3:u"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "t:u:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"entradas: tarjeta online": {
+		"text": "🎟 <b>Charla inventada</b>\n📅 <tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n👤 Persona Inventada\n🎫 A la gorra\n\n💻 Es online: el link de la transmisión está en tu entrada, en el sitio.",
+		"keyboard": [
+			[
+				{
+					"text": "🔗 Ver la entrada",
+					"url": "https://ejemplo.test/entradas/t/CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+				}
+			],
+			[
+				{
+					"text": "‹",
+					"callback_data": "tk:tk2:u"
+				},
+				{
+					"text": "3/3",
+					"disabled": {}
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "t:u:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"entradas: tarjeta sin https": {
+		"text": "🎟 <b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n👤 Persona Inventada (elle)\n🎫 General · código <b>ABC 234</b>\n\n✅ Válida. Mostrá este QR en la puerta (si no se puede escanear, el código).",
+		"keyboard": [
+			[
+				{
+					"text": "1/3",
+					"disabled": {}
+				},
+				{
+					"text": "›",
+					"callback_data": "tk:tk2:u"
+				}
+			],
+			[
+				{
+					"text": "‹ Volver",
+					"callback_data": "t:u:0"
+				},
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"entradas: sin vincular": {
+		"text": "Para ver tus entradas acá, conectá este chat con tu cuenta: en Mi rincón → Lo que sigo tocá «Conectar Telegram» y mandame el código con /vincular.",
+		"keyboard": [
+			[
+				{
+					"text": "Abrir Mi rincón → Lo que sigo ↗",
+					"url": "https://ejemplo.test/mi-rincon/sigo"
+				}
+			],
+			[
+				{
+					"text": "🏠 Inicio",
+					"callback_data": "h"
+				}
+			]
+		]
+	},
+	"router: /entradas": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>🎟 Tus entradas</b>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<b>Taller de cuerdas</b> · 2 entradas\n\n<tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n<b>Charla inventada</b> · 1 entrada",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🎟 Persona Inventada · Taller de cuerdas",
+								"callback_data": "tk:tk1:u"
+							}
+						],
+						[
+							{
+								"text": "🎟 Otra <Persona> Inve… · Taller de cuerdas",
+								"callback_data": "tk:tk2:u"
+							}
+						],
+						[
+							{
+								"text": "🎟 Persona Inventada · Charla inventada",
+								"callback_data": "tk:tk3:u"
+							}
+						],
+						[
+							{
+								"text": "🕘 Pasadas",
+								"callback_data": "t:o:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /entradas sin vincular": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Para ver tus entradas acá, conectá este chat con tu cuenta: en Mi rincón → Lo que sigo tocá «Conectar Telegram» y mandame el código con /vincular.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Abrir Mi rincón → Lo que sigo ↗",
+								"url": "https://ejemplo.test/mi-rincon/sigo"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /entradas sin cuentas": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "Todavía no se puede conectar una cuenta con el bot.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				}
+			}
+		]
+	},
+	"router: /entradas grupo": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": -100,
+				"text": "Esto se hace por chat privado con el bot, con tu cuenta conectada.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Abrir el bot por privado ↗",
+								"url": "https://t.me/BotDePrueba?start=mis-entradas"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: /start mis-entradas": {
+		"steps": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>🎟 Tus entradas</b>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<b>Taller de cuerdas</b> · 2 entradas\n\n<tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n<b>Charla inventada</b> · 1 entrada",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🎟 Persona Inventada · Taller de cuerdas",
+								"callback_data": "tk:tk1:u"
+							}
+						],
+						[
+							{
+								"text": "🎟 Otra <Persona> Inve… · Taller de cuerdas",
+								"callback_data": "tk:tk2:u"
+							}
+						],
+						[
+							{
+								"text": "🎟 Persona Inventada · Charla inventada",
+								"callback_data": "tk:tk3:u"
+							}
+						],
+						[
+							{
+								"text": "🕘 Pasadas",
+								"callback_data": "t:o:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		]
+	},
+	"router: botón inicio con entradas": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Hoy",
+								"callback_data": "l:d:0",
+								"style": "primary"
+							},
+							{
+								"text": "Semana",
+								"callback_data": "l:w:0",
+								"style": "primary"
+							},
+							{
+								"text": "Finde",
+								"callback_data": "l:f:0",
+								"style": "primary"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "🎟 Mis entradas",
+								"callback_data": "t:u:0"
+							}
+						],
+						[
+							{
+								"text": "💗 Fondo",
+								"callback_data": "fo"
+							},
+							{
+								"text": "❓ Ayuda",
+								"callback_data": "a"
+							}
+						],
+						[
+							{
+								"text": "📅 Calendario",
+								"web_app": {
+									"url": "https://ejemplo.test/telegram/app"
+								}
+							},
+							{
+								"text": "Abrir ejemplo.test ↗",
+								"url": "https://ejemplo.test"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Hoy",
+								"callback_data": "l:d:0",
+								"style": "primary"
+							},
+							{
+								"text": "Semana",
+								"callback_data": "l:w:0",
+								"style": "primary"
+							},
+							{
+								"text": "Finde",
+								"callback_data": "l:f:0",
+								"style": "primary"
+							}
+						],
+						[
+							{
+								"text": "🔎 Buscar",
+								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "🎟 Mis entradas",
+								"callback_data": "t:u:0"
+							}
+						],
+						[
+							{
+								"text": "💗 Fondo",
+								"callback_data": "fo"
+							},
+							{
+								"text": "❓ Ayuda",
+								"callback_data": "a"
+							}
+						],
+						[
+							{
+								"text": "📅 Calendario",
+								"web_app": {
+									"url": "https://ejemplo.test/telegram/app"
+								}
+							},
+							{
+								"text": "Abrir ejemplo.test ↗",
+								"url": "https://ejemplo.test"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: botón mis entradas": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>🎟 Tus entradas</b>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<b>Taller de cuerdas</b> · 2 entradas\n\n<tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n<b>Charla inventada</b> · 1 entrada",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🎟 Persona Inventada · Taller de cuerdas",
+								"callback_data": "tk:tk1:u"
+							}
+						],
+						[
+							{
+								"text": "🎟 Otra <Persona> Inve… · Taller de cuerdas",
+								"callback_data": "tk:tk2:u"
+							}
+						],
+						[
+							{
+								"text": "🎟 Persona Inventada · Charla inventada",
+								"callback_data": "tk:tk3:u"
+							}
+						],
+						[
+							{
+								"text": "🕘 Pasadas",
+								"callback_data": "t:o:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>🎟 Tus entradas</b>\n\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n<b>Taller de cuerdas</b> · 2 entradas\n\n<tg-time unix=\"1927746000\" format=\"wdt\">sáb 1 feb · 18:00</tg-time>\n<b>Charla inventada</b> · 1 entrada",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🎟 Persona Inventada · Taller de cuerdas",
+								"callback_data": "tk:tk1:u"
+							}
+						],
+						[
+							{
+								"text": "🎟 Otra <Persona> Inve… · Taller de cuerdas",
+								"callback_data": "tk:tk2:u"
+							}
+						],
+						[
+							{
+								"text": "🎟 Persona Inventada · Charla inventada",
+								"callback_data": "tk:tk3:u"
+							}
+						],
+						[
+							{
+								"text": "🕘 Pasadas",
+								"callback_data": "t:o:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: botón entradas pasadas": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>🕘 Tus entradas pasadas</b>\n\n<tg-time unix=\"1922407200\" format=\"wdt\">dom 1 dic 2030 · 23:00</tg-time>\n<b>Fiesta pasada</b> · 1 entrada",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🎟 Persona Inventada · Fiesta pasada",
+								"callback_data": "tk:tk4:o"
+							}
+						],
+						[
+							{
+								"text": "🎟 Próximas",
+								"callback_data": "t:u:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>🕘 Tus entradas pasadas</b>\n\n<tg-time unix=\"1922407200\" format=\"wdt\">dom 1 dic 2030 · 23:00</tg-time>\n<b>Fiesta pasada</b> · 1 entrada",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🎟 Persona Inventada · Fiesta pasada",
+								"callback_data": "tk:tk4:o"
+							}
+						],
+						[
+							{
+								"text": "🎟 Próximas",
+								"callback_data": "t:u:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: botón una entrada": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "🎟 <b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n👤 Persona Inventada (elle)\n🎫 General · código <b>ABC 234</b>\n\n✅ Válida. Mostrá este QR en la puerta (si no se puede escanear, el código).\nTocá «Ver la entrada» para ver el QR.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🔗 Ver la entrada",
+								"url": "https://ejemplo.test/entradas/t/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+							}
+						],
+						[
+							{
+								"text": "1/3",
+								"disabled": {}
+							},
+							{
+								"text": "›",
+								"callback_data": "tk:tk2:u"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "t:u:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "🎟 <b>Taller de cuerdas</b>\n📅 <tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>\n👤 Persona Inventada (elle)\n🎫 General · código <b>ABC 234</b>\n\n✅ Válida. Mostrá este QR en la puerta (si no se puede escanear, el código).\nTocá «Ver la entrada» para ver el QR.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "🔗 Ver la entrada",
+								"url": "https://ejemplo.test/entradas/t/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+							}
+						],
+						[
+							{
+								"text": "1/3",
+								"disabled": {}
+							},
+							{
+								"text": "›",
+								"callback_data": "tk:tk2:u"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "t:u:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: botón una entrada que no es de la cuenta": {
+		"steps": [],
+		"callback": {
+			"id": "cb",
+			"text": "Esa entrada ya no está acá."
+		}
+	}
 }

@@ -34,6 +34,12 @@ import {
 	formatLinked
 } from './format.js';
 import { inlineArticle, inlineCard, inlineDescription } from './inline.js';
+import {
+	ticketScreen,
+	ticketsForView,
+	ticketsScreen,
+	ticketsUnlinkedScreen
+} from './misEntradas.js';
 import { makeInlineSource } from './inlineSource.js';
 import { shortHash } from './nav.js';
 import { planUpdate } from './router.js';
@@ -168,6 +174,85 @@ const TARGETS = [
 	{ key: 'cuerdas', title: '🪢 Cuerdas', series: false, hash: 'def34' }
 ];
 
+/**
+ * Entradas inventadas de una cuenta inventada (Mis entradas): dos para el taller (una ya usada),
+ * una online, una de un evento que ya pasó y siete para que la lista tenga dos páginas.
+ * @type {import('./tickets.js').BotTicket[]}
+ */
+export const TICKETS = [
+	{
+		id: 'tk1',
+		token: 'A'.repeat(43),
+		code: 'ABC234',
+		holder: 'Persona Inventada',
+		pronouns: 'elle',
+		type: 'General',
+		slug: 'taller-de-cuerdas',
+		title: 'Taller de cuerdas',
+		start: '2031-01-10T21:00:00-03:00',
+		end: null,
+		online: false,
+		checkedInAt: null
+	},
+	{
+		id: 'tk2',
+		token: 'B'.repeat(43),
+		code: 'DEF567',
+		holder: 'Otra <Persona> Inventada',
+		pronouns: '',
+		type: 'Anticipada',
+		slug: 'taller-de-cuerdas',
+		title: 'Taller de cuerdas',
+		start: '2031-01-10T21:00:00-03:00',
+		end: null,
+		online: false,
+		checkedInAt: Date.parse('2031-01-10T21:30:00-03:00')
+	},
+	{
+		id: 'tk3',
+		token: 'C'.repeat(43),
+		code: null,
+		holder: 'Persona Inventada',
+		pronouns: '',
+		type: 'A la gorra',
+		slug: 'charla-inventada',
+		title: 'Charla inventada',
+		start: '2031-02-01T18:00:00-03:00',
+		end: null,
+		online: true,
+		checkedInAt: null
+	},
+	{
+		id: 'tk4',
+		token: 'D'.repeat(43),
+		code: 'GHJ234',
+		holder: 'Persona Inventada',
+		pronouns: '',
+		type: 'General',
+		slug: 'fiesta-pasada',
+		title: 'Fiesta pasada',
+		start: '2030-12-01T23:00:00-03:00',
+		end: '2030-12-02T05:00:00-03:00',
+		online: false,
+		checkedInAt: null
+	}
+];
+/** Muchas entradas para un mismo evento (dos páginas). */
+const MANY_TICKETS = Array.from({ length: 7 }, (_, i) => ({
+	...TICKETS[0],
+	id: `m${i}`,
+	token: String(i).repeat(43),
+	holder: `Persona ${i}`
+}));
+
+/** @param {any} [o] */
+export function fakeTickets({ linked = true, tickets = TICKETS } = {}) {
+	return {
+		accountFor: async () => (linked ? 'cuenta-inventada' : null),
+		list: async () => tickets
+	};
+}
+
 /** @param {'private' | 'group'} chat @param {boolean} [sigo] */
 const ctx = (chat, sigo = true) => ({
 	origin: ORIGIN,
@@ -193,7 +278,13 @@ function fakeFollows({
 }
 
 /** @param {any} [o] */
-function deps({ accounts = null, follows = null, adminLink = null, media = false } = {}) {
+function deps({
+	accounts = null,
+	follows = null,
+	tickets = null,
+	adminLink = null,
+	media = false
+} = {}) {
 	return {
 		listUpcoming: async () => EVENTS,
 		origin: ORIGIN,
@@ -207,12 +298,13 @@ function deps({ accounts = null, follows = null, adminLink = null, media = false
 		}),
 		fondo: async () => ({ percent: 10, collected: 150000, goal: 300000, step: 5, updatedAt: NOW }),
 		accounts: async () =>
-			accounts || follows
+			accounts || follows || tickets
 				? {
 						link: async () => accounts?.link ?? 'linked',
 						unlink: async () => accounts?.linked ?? true,
 						setMuted: async () => accounts?.linked ?? true,
-						...(follows ? { follows } : {})
+						...(follows ? { follows } : {}),
+						...(tickets ? { tickets } : {})
 					}
 				: null,
 		adminLink,
@@ -514,6 +606,26 @@ export function botCases() {
 	add('inline: tarjeta sin https', () =>
 		inlineCard(SITE_DOCS[2], undefined, undefined, { origin: 'http://localhost', now: NOW })
 	);
+	// Mis entradas (misEntradas.js).
+	const ectx = { ...ctx('private'), entradas: true };
+	add('entradas: inicio privado', () => homeScreen(ectx));
+	add('entradas: inicio grupo', () => homeScreen({ ...ctx('group'), entradas: true }));
+	add('entradas: inicio grupo sin usuario del bot', () =>
+		homeScreen({ ...ctx('group'), entradas: true, botUsername: null })
+	);
+	add('entradas: lista', () => ticketsScreen('u', TICKETS, 0, ectx));
+	add('entradas: lista vacía', () => ticketsScreen('u', [], 0, ectx));
+	add('entradas: lista pag 1', () => ticketsScreen('u', MANY_TICKETS, 1, ectx));
+	add('entradas: pasadas', () => ticketsScreen('o', TICKETS, 0, ectx));
+	add('entradas: pasadas vacía', () => ticketsScreen('o', TICKETS.slice(0, 1), 0, ectx));
+	const upcoming = ticketsForView('u', TICKETS, NOW);
+	add('entradas: tarjeta válida', () => ticketScreen(TICKETS[0], 'u', upcoming, ectx));
+	add('entradas: tarjeta usada', () => ticketScreen(TICKETS[1], 'u', upcoming, ectx));
+	add('entradas: tarjeta online', () => ticketScreen(TICKETS[2], 'u', upcoming, ectx));
+	add('entradas: tarjeta sin https', () =>
+		ticketScreen(TICKETS[0], 'u', upcoming, { ...ectx, origin: 'http://localhost' })
+	);
+	add('entradas: sin vincular', () => ticketsUnlinkedScreen(ectx));
 	add('entrega grupo botón', () =>
 		deliverScreen(
 			homeScreen(ctx('group')),
@@ -639,6 +751,25 @@ export function routerCases() {
 	);
 	add('botón lo que sigo', cb('g'), deps({ follows: fakeFollows() }));
 	add('botón sin chat', { update_id: 1, callback_query: { id: 'cb', data: 'h' } });
+	// Mis entradas.
+	add('/entradas', msg('/entradas'), deps({ tickets: fakeTickets() }));
+	add(
+		'/entradas sin vincular',
+		msg('/entradas'),
+		deps({ tickets: fakeTickets({ linked: false }) })
+	);
+	add('/entradas sin cuentas', msg('/entradas'));
+	add('/entradas grupo', msg('/entradas', GROUP), deps({ tickets: fakeTickets() }));
+	add('/start mis-entradas', msg('/start mis-entradas'), deps({ tickets: fakeTickets() }));
+	add('botón inicio con entradas', cb('h'), deps({ tickets: fakeTickets() }));
+	add('botón mis entradas', cb('t:u:0'), deps({ tickets: fakeTickets() }));
+	add('botón entradas pasadas', cb('t:o:0'), deps({ tickets: fakeTickets() }));
+	add('botón una entrada', cb('tk:tk1:u'), deps({ tickets: fakeTickets() }));
+	add(
+		'botón una entrada que no es de la cuenta',
+		cb('tk:zzzz:u'),
+		deps({ tickets: fakeTickets() })
+	);
 	add('error', msg('/proximos'), {
 		...deps(),
 		listUpcoming: async () => {

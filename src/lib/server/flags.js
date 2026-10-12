@@ -77,6 +77,18 @@ export const FLAGS = Object.freeze({
 			'(GET /api/fondo/propinas-total) no depende de este interruptor. Antes de prenderlo: ' +
 			'migración 0052. docs/propinas.md.',
 		envVar: 'PROPINAS_FONDO_ENABLED'
+	},
+	lista_espera: {
+		label: 'Lista de espera',
+		description:
+			'Cuando un evento (o un tipo de entrada) se agota, la gente se puede anotar en una lista de ' +
+			'espera. Si se libera un lugar, le avisamos por mail a la próxima persona y se lo guardamos ' +
+			'un rato. Se activa por evento, en su editor. Apagado, nada de esto se ve y la venta anda ' +
+			'como siempre. Todavía está en construcción.',
+		tech:
+			'docs/tickets.md, «Lista de espera». Antes de prenderlo: migración 0053. Tablas ' +
+			'waitlist_entries y waitlist_sends; clave `lista_espera` del evento.',
+		envVar: 'LISTA_ESPERA_ENABLED'
 	}
 });
 
@@ -209,6 +221,15 @@ export function loQueSigoEnabled(platform) {
  */
 export function propinasFondoEnabled(platform) {
 	return isFlagOn(getDB(platform), 'propinas_fondo');
+}
+
+/**
+ * Atajo para las rutas: ¿está prendida la lista de espera de las entradas? (docs/tickets.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function listaEsperaEnabled(platform) {
+	return isFlagOn(getDB(platform), 'lista_espera');
 }
 
 /**

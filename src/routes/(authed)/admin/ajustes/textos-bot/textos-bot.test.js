@@ -107,6 +107,7 @@ describe('/admin/ajustes/textos-bot', () => {
 			'Estado y avisos (admins)',
 			'Buscar en todo el sitio y modo inline',
 			'Secciones del sitio (Material, Kinkipedia, Amigues, Series)',
+			'Mis entradas (con el QR para la puerta)',
 			'Errores'
 		]);
 	});
@@ -188,5 +189,24 @@ describe('la vista previa', () => {
 		expect(buildPreview('solo', {}, 'eventos.boton_mapa').buttons?.[0][0].text).toBe(
 			'🗺 Cómo llegar'
 		);
+	});
+
+	it('Mis entradas: cada texto tiene su pantalla, y la de una entrada lleva el QR de ejemplo', () => {
+		const keys = Object.keys(BOT_TEXT_DEFAULTS).filter(
+			(k) => k.startsWith('entradas.') && k !== 'entradas.no_esta'
+		);
+		for (const key of keys) expect(screenForKey(key), key).not.toBe('solo');
+		expect(screenForKey('entradas.no_esta')).toBe('solo');
+		const card = buildPreview('entrada', { 'entradas.boton_ver': 'Abrir la entrada' });
+		expect(card.qr).toBe(true);
+		expect(card.html).toContain('Persona de ejemplo (elle)');
+		expect(card.html).toContain('código <b>ABC 234</b>');
+		expect(card.buttons?.[0][0]).toEqual({ text: 'Abrir la entrada', link: true });
+		expect(
+			buildPreview('inicio', {})
+				.buttons?.flat()
+				.map((b) => b.text)
+		).toContain('🎟 Mis entradas');
+		expect(buildPreview('comandos', {}).commands?.map((c) => c.command)).toContain('entradas');
 	});
 });

@@ -25,6 +25,7 @@ import { toBase64url } from '$lib/utils/base64.js';
 import { HOLDING, checkDiscountCode, discountGuardSql, usesSql } from './discounts.js';
 import { capacityLimit, discountUsesLimit, tierLimit } from './overrides.js';
 import { answersStatement } from './signupFields.js';
+import { markPurchasedStatement } from './waitlist.js';
 import { TICKET_CODE_LENGTH, normalizeTicketCode } from '$lib/utils/ticketCode.js';
 import { MP_FEE_SQL } from '$lib/utils/salesGoal.js';
 
@@ -154,13 +155,26 @@ export function newToken() {
  *   holdMs?: number,
  *   clientHash?: string | null,
  *   limits?: typeof HOLD_LIMITS,
- *   answers?: import('$lib/utils/signupFields.js').Answer[]
+ *   answers?: import('$lib/utils/signupFields.js').Answer[],
+ *   waitlist?: import('./waitlistPurchase.js').WaitlistGuard | null
  * }} input
  * Con `type.capacity` `null` (sin cupo) no hay límite de entradas del tipo.
  * `answers`: respuestas a las preguntas de inscripción (ya validadas), en la misma tanda.
  *
+ * Lista de espera (`waitlist`, solo con el interruptor `lista_espera` prendido y el evento con
+ * lista; ver `waitlistGuard` en waitlistPurchase.js): la MISMA sentencia controla que después de
+ * la compra quede lugar libre (en el alcance de la lista) para la fila: las personas que esperan
+ * y las que tienen un lugar guardado vigente. Con `waitlist.entryId` (compra con el link de su
+ * oferta) solo cuentan los lugares guardados de otras personas, la oferta tiene que seguir
+ * vigente, y en la misma tanda la anotación pasa a `purchased` con esta orden (un link no se
+ * puede usar dos veces). Si no entra por la fila: `reason: 'waitlist'` (`available`: cuántas
+ * podría comprar el público ahora); si la oferta ya no vale: `reason: 'offer'`. Sin `waitlist`,
+ * la sentencia es la de siempre.
+ *
  * @returns {Promise<{ ok: true, order: Order }
  *   | { ok: false, reason: 'soldout', available: number | null }
+ *   | { ok: false, reason: 'waitlist', available: number }
+ *   | { ok: false, reason: 'offer' }
  *   | { ok: false, reason: 'limit', message: string }
  *   | { ok: false, reason: 'code', message: string }
  *   | { ok: false, reason: 'tier' }
@@ -202,6 +216,12 @@ export async function reserveOrder(db, input) {
 	const id = crypto.randomUUID();
 	// Respuestas a las preguntas de inscripción: en la misma tanda, solo si la orden entró.
 	const answers = input.answers?.length ? [answersStatement(db, id, input.answers, now)] : [];
+	const guard = input.waitlist ?? null;
+	// Compró con su oferta: la anotación pasa a `purchased` en la misma tanda (solo si la orden
+	// entró y la oferta sigue vigente).
+	const purchased = guard?.entryId
+		? [markPurchasedStatement(db, { entryId: guard.entryId, orderId: id, now })]
+		: [];
 	const [, inserted] = await db.batch([
 		expireStatement(db, eventSlug, now),
 		db
@@ -227,7 +247,7 @@ export async function reserveOrder(db, input) {
 						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?9))
 				) + ?4 <= ?32)
 				AND ${discountGuardSql({ code: '?12', kind: '?13', value: '?14', event: '?2', now: '?9' })}
-				RETURNING *`
+				${guard ? `${WAITLIST_GUARD_SQL}\n\t\t\t\t` : ''}RETURNING *`
 			)
 			.bind(
 				id,
@@ -261,9 +281,11 @@ export async function reserveOrder(db, input) {
 				limits.perEmailOrders,
 				limits.perClientQuantity,
 				tier?.id ?? null,
-				tier?.quantity ?? null
+				tier?.quantity ?? null,
+				...(guard ? [guard.entryId, JSON.stringify(guard.caps), guard.scope] : [])
 			),
-		...answers
+		...answers,
+		...purchased
 	]);
 	const order = /** @type {Order | undefined} */ (inserted.results[0]);
 	if (order) return { ok: true, order };
@@ -283,6 +305,8 @@ export async function reserveOrder(db, input) {
 			return { ok: false, reason: 'code', message: 'El código cambió: aplicalo de nuevo.' };
 		}
 	}
+	if (guard?.entryId && !(await offerStillValid(db, { guard, eventSlug, typeId: type.id, now })))
+		return { ok: false, reason: 'offer' };
 	const counts = await getCounts(db, eventSlug, now);
 	const available = remainingOf(type, counts.get(type.id));
 	if (tier && tier.quantity !== null && available !== 0) {
@@ -290,8 +314,93 @@ export async function reserveOrder(db, input) {
 		const taken = await tierTaken(db, { eventSlug, typeId: type.id, tierId: tier.id, now });
 		if (taken + quantity > tier.quantity) return { ok: false, reason: 'tier' };
 	}
+	if (guard && (available === null || available >= quantity)) {
+		// Había lugar en el tipo: lo que frenó la compra fue la fila.
+		const share = await waitlistShare(db, { guard, eventSlug, now });
+		if (share < quantity) return { ok: false, reason: 'waitlist', available: Math.max(0, share) };
+	}
 	// `null`: sin cupo (no se agotó; algo cambió en el medio, se puede reintentar).
 	return { ok: false, reason: 'soldout', available };
+}
+
+/**
+ * @typedef {{ event: string, now: string, entry: string, caps: string, scope: string }} WaitlistParams
+ * Los números de parámetro de cada dato en la sentencia (`?2`…).
+ */
+
+/**
+ * Lugar libre del alcance de la lista: por cada tipo de `caps` (JSON `{ tipo: cap }`), `cap` menos
+ * lo tomado en vivo (aprobadas + reservas vigentes, como el cupo), nunca menos de 0.
+ * @param {WaitlistParams} p
+ */
+const waitlistFreeSql = (p) => `(SELECT COALESCE(SUM(MAX(0, CAST(j.value AS INTEGER) - (
+		SELECT COALESCE(SUM(o.quantity), 0) FROM orders o
+		WHERE o.event_slug = ${p.event} AND o.ticket_type = j.key
+			AND (o.status = 'approved' OR (o.status IN ${HOLDING} AND o.expires_at > ${p.now}))
+	))), 0) FROM json_each(${p.caps}) j)`;
+
+/**
+ * Lugares que guarda la fila del alcance (`scope`: '' = todo el evento) para quien compra: sin
+ * oferta (`entry` NULL), las personas que esperan y los lugares guardados vigentes; con su
+ * oferta, solo los lugares guardados vigentes de otras personas.
+ * @param {WaitlistParams} p
+ */
+const waitlistHeldSql = (p) => `(SELECT COUNT(*) FROM waitlist_entries w
+	WHERE w.event_slug = ${p.event} AND COALESCE(w.ticket_type, '') = ${p.scope}
+		AND w.id IS NOT ${p.entry}
+		AND ((${p.entry} IS NULL AND w.status = 'waiting')
+			OR (w.status = 'offered' AND w.hold_until > ${p.now})))`;
+
+/** Los parámetros de la lista en la sentencia de `reserveOrder`. @type {WaitlistParams} */
+const RESERVE_PARAMS = { event: '?2', now: '?9', entry: '?33', caps: '?34', scope: '?35' };
+
+/**
+ * La condición de la lista de espera en la sentencia de `reserveOrder` (solo con `waitlist`):
+ * después de la compra (`?4`) tiene que quedar lugar para la fila y, con oferta, la oferta tiene
+ * que seguir vigente y ser de este evento (y de este tipo, en la lista por tipo).
+ */
+const WAITLIST_GUARD_SQL = `AND ${waitlistFreeSql(RESERVE_PARAMS)} - ?4 >= ${waitlistHeldSql(RESERVE_PARAMS)}
+				AND (?33 IS NULL OR EXISTS (SELECT 1 FROM waitlist_entries w
+					WHERE w.id = ?33 AND w.status = 'offered' AND w.event_slug = ?2
+						AND (w.hold_until IS NULL OR w.hold_until > ?9)
+						AND (w.ticket_type IS NULL OR w.ticket_type = ?3)))`;
+
+/**
+ * Cuántas podría comprar ahora quien compra en el alcance de la lista: el lugar libre menos la
+ * fila (puede dar negativo si la fila ya ocupa más de lo libre).
+ *
+ * @param {D1Database} db
+ * @param {{ guard: import('./waitlistPurchase.js').WaitlistGuard, eventSlug: string,
+ *   now: number }} input
+ */
+async function waitlistShare(db, { guard, eventSlug, now }) {
+	/** @type {WaitlistParams} */
+	const p = { event: '?1', now: '?2', entry: '?3', caps: '?4', scope: '?5' };
+	const row = await db
+		.prepare(`SELECT ${waitlistFreeSql(p)} - ${waitlistHeldSql(p)} AS share`)
+		.bind(eventSlug, now, guard.entryId, JSON.stringify(guard.caps), guard.scope)
+		.first();
+	return Number(row?.share ?? 0);
+}
+
+/**
+ * ¿La oferta de `guard.entryId` sigue vigente para este evento y tipo?
+ *
+ * @param {D1Database} db
+ * @param {{ guard: import('./waitlistPurchase.js').WaitlistGuard, eventSlug: string,
+ *   typeId: string, now: number }} input
+ */
+async function offerStillValid(db, { guard, eventSlug, typeId, now }) {
+	const row = await db
+		.prepare(
+			`SELECT 1 AS ok FROM waitlist_entries
+			WHERE id = ?1 AND status = 'offered' AND event_slug = ?2
+				AND (hold_until IS NULL OR hold_until > ?4)
+				AND (ticket_type IS NULL OR ticket_type = ?3)`
+		)
+		.bind(guard.entryId, eventSlug, typeId, now)
+		.first();
+	return Boolean(row);
 }
 
 /**

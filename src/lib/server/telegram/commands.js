@@ -36,7 +36,7 @@ export const PUBLIC_COMMANDS = Object.freeze(
 
 /** Los de la cuenta (fase 2): solo por chat privado y con «Lo que sigo». @type {readonly BotCommand[]} */
 export const ACCOUNT_COMMANDS = Object.freeze(
-	['vincular', 'sigo', 'silenciar', 'reanudar', 'desvincular'].map((command) => ({
+	['vincular', 'sigo', 'entradas', 'silenciar', 'reanudar', 'desvincular'].map((command) => ({
 		command,
 		description: original(command)
 	}))
@@ -58,11 +58,11 @@ export const HIDDEN_COMMANDS = Object.freeze(['start', 'help']);
 export const ADMIN_COMMAND_NAMES = new Set(['estado', 'avisos']);
 
 /**
- * Los nombres de los comandos que cambian la vinculación del chat (`/sigo` es una pantalla: lo
- * contesta el router aparte).
+ * Los nombres de los comandos que cambian la vinculación del chat (`/sigo` y `/entradas` son
+ * pantallas: los contesta el router aparte).
  */
 export const ACCOUNT_COMMAND_NAMES = new Set(
-	ACCOUNT_COMMANDS.map((c) => c.command).filter((c) => c !== 'sigo')
+	ACCOUNT_COMMANDS.map((c) => c.command).filter((c) => c !== 'sigo' && c !== 'entradas')
 );
 
 /** Todo lo que el router contesta (el resto es «No entendí ese comando»). */

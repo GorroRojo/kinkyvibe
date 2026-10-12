@@ -9,7 +9,8 @@ import { readImageChoice } from '$lib/utils/imageChoice.js';
 import { resolveEventSlug } from '$lib/server/contenido/posts.js';
 import { validateEventTags } from '$lib/utils/adminTags.js';
 import { getDB } from '$lib/server/db';
-import { salesByType, ticketsFileErrors } from '$lib/server/tickets/editor.js';
+import { salesByType, ticketsFileErrors, waitlistLiveFor } from '$lib/server/tickets/editor.js';
+import { isFlagOn } from '$lib/server/flags.js';
 import { transferReady } from '$lib/server/tickets/index.js';
 import { placeFileErrors } from '$lib/utils/eventPlace.js';
 import { linkFileErrors } from '$lib/utils/eventLink.js';
@@ -84,6 +85,10 @@ export async function _editLoad({ locals, params, url, platform }) {
 	const sales = isEvent ? await salesByType(getDB(platform), params.postID) : null;
 	return {
 		sales,
+		// Lista de espera: si el interruptor está prendido (el editor avisa si no) y la gente
+		// anotada por alcance (no deja apagarla ni cambiar el alcance con gente anotada).
+		waitlistEnabled: isEvent ? await isFlagOn(getDB(platform), 'lista_espera') : null,
+		waitlistLive: isEvent ? await waitlistLiveFor(getDB(platform), params.postID) : null,
 		// «Lugar» del formulario: los lugares y el elegido (edge `lugar` del evento, no en el archivo).
 		venuePicker: isEvent ? await venuePickerData(getDB(platform), params.postID) : null,
 		salesUnavailable: isEvent && sales === null,
@@ -172,7 +177,8 @@ export const _editActions = {
 				locals.user_token,
 				params,
 				fileContent,
-				await salesByType(getDB(platform), params.postID)
+				await salesByType(getDB(platform), params.postID),
+				await waitlistLiveFor(getDB(platform), params.postID)
 			);
 			if (ticketError) return fail(400, { error: ticketError });
 			// «Dónde»: el link al mapa, si está, https de OpenStreetMap o Google Maps.
@@ -334,9 +340,12 @@ function eventTagError(content) {
  * @param {{category: string, postID: string}} params
  * @param {string} content
  * @param {import('$lib/utils/ticketsEditor.js').SalesByType | null} sales
+ * @param {Record<string, number> | null} [waitlistLive] gente anotada en la lista de espera
  */
-async function newTicketsError(token, params, content, sales) {
-	return newFileErrors(token, params, content, (c) => ticketsFileErrors(c, { sales }));
+async function newTicketsError(token, params, content, sales, waitlistLive = null) {
+	return newFileErrors(token, params, content, (c) =>
+		ticketsFileErrors(c, { sales, waitlistLive })
+	);
 }
 
 /**

@@ -31,6 +31,7 @@ import {
 } from '$lib/server/tickets/orders.js';
 import { checkOverride, logOverride } from '$lib/server/tickets/overrides.js';
 import { orderReference } from '$lib/utils/tickets.js';
+import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/tickets/orders.js').Order} Order */
@@ -152,12 +153,24 @@ export async function confirmTransferFromPanel({
 }
 
 /**
- * Cancela una transferencia que no llegó (libera el cupo y el uso del código).
+ * Cancela una transferencia que no llegó (libera el cupo y el uso del código) y empuja la lista
+ * de espera del evento (`queueWaitlistAdvance`, en segundo plano).
  *
- * @param {{ db: D1Database, locals: App.Locals, by: string, orderId: string, now?: number }} input
+ * @param {{ db: D1Database, locals: App.Locals, by: string, orderId: string, now?: number,
+ *   platform?: App.Platform, fetch?: typeof fetch, origin?: string }} input
+ *   `platform`, `fetch`, `origin`: para el empujón de la lista de espera (y sus mails)
  * @returns {Promise<TransferActionResult>}
  */
-export async function cancelTransferFromPanel({ db, locals, by, orderId, now }) {
+export async function cancelTransferFromPanel({
+	db,
+	locals,
+	by,
+	orderId,
+	now,
+	platform,
+	fetch: fetchFn,
+	origin
+}) {
 	const order = await getOrder(db, orderId);
 	if (!order || order.payment_method !== 'transferencia') {
 		return { ok: false, status: 404, message: 'No encontramos esa transferencia.' };
@@ -177,6 +190,7 @@ export async function cancelTransferFromPanel({ db, locals, by, orderId, now }) 
 		summary: `Canceló la transferencia ${ref}`,
 		detail: { event: order.event_slug }
 	});
+	queueWaitlistAdvance({ platform, db, eventSlug: order.event_slug, fetch: fetchFn, origin });
 	return { ok: true, status: 200, message: `${ref} cancelada: se liberó el cupo.` };
 }
 

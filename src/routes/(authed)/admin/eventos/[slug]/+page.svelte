@@ -7,6 +7,7 @@
 	import DeleteLink from '$lib/components/admin/panel/DeleteLink.svelte';
 	import ConfirmDraft from '$lib/components/admin/agenda/ConfirmDraft.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
+	import Badge from '$lib/components/ui/Badge.svelte';
 	import { ONLINE_MISMATCH_TEXT } from '$lib/utils/onlineTagMismatch.js';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { describeSchedule } from '$lib/utils/eventDraft.js';
@@ -65,6 +66,15 @@
 			<a href="{eventHref(e.slug, 'editar')}#sec-etiquetas">Editar</a>
 		</Notice>
 	</div>
+{/if}
+
+{#if data.tabCounts?.waitlist}
+	<!-- Lista de espera (docs/tickets.md): las anotaciones vivas, con link a su pestaña. -->
+	<p class="waitlist-chip">
+		<a href={eventHref(e.slug, 'lista-espera')}
+			><Badge tone="info">Lista de espera: {data.tabCounts.waitlist}</Badge></a
+		>
+	</p>
 {/if}
 
 <div class="grid">
@@ -203,6 +213,9 @@
 <DeleteLink kind="calendario" slug={e.slug} label="Borrar evento…" />
 
 <style>
+	.waitlist-chip {
+		margin: 0 0 var(--space-xs);
+	}
 	.confirm,
 	.online-mismatch {
 		margin-bottom: 1rem;

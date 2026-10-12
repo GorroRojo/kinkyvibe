@@ -88,6 +88,20 @@ describe('interruptores', () => {
 		).rejects.toThrow(RangeError);
 	});
 
+	it('lista de espera: existe, apagada por defecto y con su variable de entorno', async () => {
+		expect(FLAGS.lista_espera).toMatchObject({
+			label: 'Lista de espera',
+			envVar: 'LISTA_ESPERA_ENABLED'
+		});
+		expect(await isFlagOn(t.db, 'lista_espera', { envValue: '' })).toBe(false);
+		expect(await isFlagOn(t.db, 'lista_espera', { envValue: '1' })).toBe(true);
+		await setFlag(t.db, 'lista_espera', true, { by: 'admin-de-prueba' });
+		expect(await isFlagOn(t.db, 'lista_espera', { envValue: '' })).toBe(true);
+		expect(await isFlagOn(t.db, 'lista_espera', { envValue: '0' })).toBe(false);
+		const listed = (await listFlags(t.db)).find((f) => f.key === 'lista_espera');
+		expect(listed).toMatchObject({ enabled: true, envVar: 'LISTA_ESPERA_ENABLED' });
+	});
+
 	it('los interruptores del menú del panel (flag en nav.js) existen', () => {
 		for (const key of navFlagKeys()) expect(Object.keys(FLAGS), key).toContain(key);
 	});

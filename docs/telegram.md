@@ -11,9 +11,10 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
 - **`/start` (o `/inicio`) es el inicio**: un mensaje con botones `Hoy · Semana · Finde` /
   `🔎 Buscar · ⭐ Lo que sigo` / `📚 Material · 📖 Kinkipedia` / `👥 Amigues · 🔁 Series` (las
   secciones del sitio, abajo) / `💗 Fondo · ❓ Ayuda` / `📅 Calendario` (la Mini App, solo en
-  privado) · `Abrir kinkyvibe.ar ↗`. «Lo que sigo» solo aparece con ese interruptor prendido. Para
-  les admins con el Telegram vinculado, suma «🚪 Puerta» (abajo, «La puerta por Telegram») y
-  «📊 Estado · 🔔 Mis avisos» (abajo, «Estado y avisos para admins»).
+  privado) · `Abrir kinkyvibe.ar ↗`. «Lo que sigo» y «🎟 Mis entradas» (en su fila, abajo de
+  «Buscar») solo aparecen con «Lo que sigo» prendido. Para les admins con el Telegram vinculado,
+  suma «🚪 Puerta» (abajo, «La puerta por Telegram») y «📊 Estado · 🔔 Mis avisos» (abajo, «Estado
+  y avisos para admins»).
   `/inicio` es lo mismo que `/start` sin nada, por el mismo camino del router (`/start <código>` y
   `/start adm_<código>` siguen vinculando; `/inicio <algo>` no vincula nada).
 - **Cada botón cambia ese mismo mensaje** (no manda otro). Las listas van de a 5 con
@@ -21,7 +22,8 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
   evento, «‹ 2/7 ›» entre los eventos de la lista, «‹ Volver» (a la página de la lista que lo
   tiene) e «🏠 Inicio».
 - **Los comandos son atajos a las mismas pantallas** (no hay dos lógicas): `/inicio`, `/hoy`,
-  `/semana`, `/finde`, `/proximos`, `/evento [texto]`, `/buscar`, `/fondo`, `/ayuda`, `/sigo`. `/hoy`,
+  `/semana`, `/finde`, `/proximos`, `/evento [texto]`, `/buscar`, `/fondo`, `/ayuda`, `/sigo`,
+  `/entradas`. `/hoy`,
   `/semana` y `/finde` siguen siendo hoy, los próximos 7 días y el finde (viernes a domingo), en
   hora de Argentina (`windows.js`).
 - **La tarjeta de un evento**: foto (la imagen destacada, como URL absoluta) o, sin token o en
@@ -92,6 +94,8 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
 | Una sección (`s`: `m`, `w`, `a`, `s`; página `p`; etiqueta opcional) | `c:<s>:<p>[:<etiqueta>]`         |
 | Las etiquetas de una sección (la elegida, opcional)                  | `ct:<s>[:<etiqueta>]`            |
 | Una cosa de una sección (vuelve a la página `p`, con su etiqueta)    | `cd:<s>:<hash>:<p>[:<etiqueta>]` |
+| Mis entradas (`u` próximas, `o` pasadas; página `p`)                 | `t:<v>:<p>`                      |
+| Una entrada (vuelve a esa lista)                                     | `tk:<hash>:<v>`                  |
 | Contador (no hace nada)                                              | `x`                              |
 | Admins: Estado, la lista (página `p`) / un evento                    | `ax:<p>` / `ae:<hash>`           |
 | Admins: Mis avisos / prender o apagar uno                            | `an` / `an:<k>`                  |
@@ -104,9 +108,14 @@ de ese texto**: un botón armado a mano no puede abrir nada que no esté en el �
 En las secciones, `<s>` es `m` material, `w` Kinkipedia, `a` amigues o `s` series; `<hash>` se
 busca **entre lo de esa sección** y `<etiqueta>` (hash corto de su id), entre sus etiquetas. El más
 largo (`cd:m:<7>:<999>:<7>`) tiene 24 bytes. Los de admins viven aparte (`adminNav.js`, abajo).
+En Mis entradas, `<hash>` es un hash corto del id de la entrada, que se busca **solo entre las
+entradas de la cuenta vinculada a ese chat**: un botón armado a mano con el de otra entrada
+contesta «Esa entrada ya no está acá.», lo mismo que un botón viejo. El botón nunca lleva el
+token.
 
 **Deep links** (`t.me/<bot>?start=…`, solo `A-Za-z0-9_-`): `hoy`, `semana`, `finde`, `proximos`,
-`ev-<id>` (la tarjeta), `seguir-<id>`, `sigo`, `fondo`, `buscar`, `inicio`. El código de vincular
+`ev-<id>` (la tarjeta), `seguir-<id>`, `sigo`, `mis-entradas`, `fondo`, `buscar`, `inicio`
+(`mis-entradas` y no `entradas`: 8 letras se leería como un código de vincular). El código de vincular
 (8 letras y números) sigue entrando por `?start=<código>`.
 
 ### Con token y sin token
@@ -162,6 +171,46 @@ una cuenta** (mirado en cada mensaje):
 - Como en el sitio, no va al registro de actividad del panel (lo que sigue cada cuenta es
   privado); queda una línea en el log sin cuenta ni etiqueta.
 
+### «🎟 Mis entradas»
+
+Las entradas de la cuenta vinculada, con **el mismo QR** que su página (`/entradas/t/<token>`) y
+el mail: el que escanea la puerta. Solo lectura, con «Lo que sigo» prendido y **por chat privado
+vinculado** (mirado en cada mensaje), como «Lo que sigo» (`tickets.js` lee, `misEntradas.js` arma
+las pantallas).
+
+- **Cuáles**: las de las compras **aprobadas** de la cuenta, con las mismas reglas que Mi rincón
+  (`ordersForAccount`: compradas con la cuenta o con su mail verificado). Nada de reservas por
+  transferencia, reembolsadas ni de otras cuentas. Una consulta para las compras y una para todas
+  sus entradas.
+- **La lista** (`/entradas`, «🎟 Mis entradas» del inicio, `?start=mis-entradas`): de a 5, agrupadas
+  por evento (la fecha, el título y cuántas entradas hay), un botón por entrada («🎟 <nombre> ·
+  <evento>»), «‹ 2/3 ›», «🕘 Pasadas» (o «🎟 Próximas») e «🏠 Inicio». Una entrada queda en
+  «próximas» hasta 12 horas después del fin de su evento (o del comienzo, sin fin): así se puede
+  mostrar en la puerta con el evento empezado. Las pasadas, de la más reciente, hasta 30.
+- **La tarjeta**: el QR **como foto**, el evento, la fecha (`tg-time`), el nombre y los pronombres
+  de la entrada, el tipo, el código corto («ABC 234», para dictarlo si el QR no se lee) y si es
+  válida o ya se usó (cuándo). Botones: «🔗 Ver la entrada» (su página), «‹ 2/3 ›» entre las
+  entradas de esa lista, «‹ Volver» (a la página de la lista que la tiene) e «🏠 Inicio». Nunca el
+  DNI ni los datos de quien compró.
+- **El QR**: el servidor lo arma con lo mismo que la página y el mail (`qrcode-generator`, puro
+  JS, anda en Workers; `qrPng` en `tickets/qr.js` lo da como PNG en blanco y negro) con el mismo
+  texto (`<sitio>/entradas/t/<token>`, que `extractToken` de la puerta entiende) y lo **sube** con
+  `sendPhoto` / `editMessageMedia` (`attach://qr`, multipart en `callTelegramApi`). Se sube y no
+  se manda la URL de `/entradas/t/<token>/qr.gif` porque Telegram trata distinto un GIF por URL y
+  así no depende de que Telegram pueda bajar nada del sitio. Necesita el token del bot; **sin
+  token** (o si Telegram rechaza la foto) la tarjeta sale como texto y «Ver la entrada» abre la
+  página con el QR.
+- **Online**: sin QR (como su página y el mail); el link de la transmisión está en la página de la
+  entrada.
+- **Sin vincular**: cómo conectar la cuenta, con «Abrir Mi rincón → Lo que sigo». **En un grupo**:
+  «Esto se hace por chat privado…» y el link `?start=mis-entradas`, sin mirar ninguna cuenta.
+- **Privacidad**: el token de una entrada va solo en la foto y en el link de su tarjeta, por el
+  chat privado de esa cuenta (como el mail); nunca en un log ni en un `callback_data`. Pruebas:
+  `router-entradas.test.js` (botones armados a mano, grupos, interruptores) y
+  `entradas-privacy.test.js` (con la base: otra cuenta, mail sin verificar, reembolsadas, cuenta
+  borrada).
+- **Textos**: en «Textos del bot», sección «Mis entradas», con sus vistas previas.
+
 ### La Mini App del calendario (`/telegram/app`)
 
 El calendario del sitio en formato compacto para abrir adentro de Telegram, **sin login**: los
@@ -190,7 +239,7 @@ del campo que tocás). Cada guardado queda en Actividad (`settings.save`, `teleg
 
 - **Dónde está cada cosa**: los originales, qué es cada uno, sus variables y la validación, en
   `src/lib/utils/botTexts.js` (secciones Inicio y menú, Comandos, Eventos, Seguir y avisos,
-  Vincular cuenta, Puerta y Errores). El bot pide cada texto con `botText(clave, variables)`
+  Vincular cuenta, Puerta, Mis entradas y Errores). El bot pide cada texto con `botText(clave, variables)`
   (`src/lib/server/telegram/texts.js`); no queda texto para la gente escrito en las pantallas.
 - **Dónde se guarda**: en `ticket_settings`, la fila `telegram_bot_texts` (un JSON con solo los
   cambiados), como `link_preview_texts`. Sin tabla nueva ni migración.
@@ -298,7 +347,7 @@ coincidan).
   amigues»), `/fondo`, `/ayuda`.
 - **En grupos** (alcance `all_group_chats`): los mismos, **efímeros** (`is_ephemeral`).
 - **En chats privados** (alcance `all_private_chats`): esos y, solo con «Lo que sigo» prendido,
-  `/vincular`, `/sigo`, `/silenciar`, `/reanudar`, `/desvincular`.
+  `/vincular`, `/sigo`, `/entradas`, `/silenciar`, `/reanudar`, `/desvincular`.
 - `/start` y `/help` funcionan pero no van en el menú: en su lugar están `/inicio` (lo mismo que
   `/start` sin nada) y `/ayuda`. Sin `language_code`.
 
@@ -350,6 +399,7 @@ chat vinculado y sus códigos.
   `/reanudar`.
 - `/reanudar`: vuelve a mandarlos.
 - `/sigo`: lo que sigue la cuenta (y «⭐ Seguir» en las tarjetas, arriba).
+- `/entradas`: las entradas de la cuenta, con el QR («🎟 Mis entradas», arriba).
 - `/desvincular`: desconecta el chat. También se puede desde la tarjeta («Desconectar Telegram»).
 
 ### Los avisos
@@ -414,6 +464,8 @@ minutos), con estas reglas:
 | `src/lib/server/telegram/deliver.js`          | Cómo se manda: editar, foto, efímero en grupos                      |
 | `src/lib/server/telegram/run.js`              | Con token: llama a la API (429, «not modified», fallback)           |
 | `src/lib/server/telegram/seguir.js`           | «Seguir» y «Lo que sigo» desde el bot (0034)                        |
+| `src/lib/server/telegram/tickets.js`          | Mis entradas: las entradas de la cuenta vinculada (la base)         |
+| `src/lib/server/telegram/misEntradas.js`      | Mis entradas: la lista y la tarjeta con el QR, funciones puras      |
 | `src/lib/server/telegram/adminNav.js`         | Admins (0041): los botones de «📊 Estado» y «🔔 Mis avisos»         |
 | `src/lib/server/telegram/adminBot.js`         | Admins (0041): las pantallas, funciones puras                       |
 | `src/lib/server/telegram/adminData.js`        | Admins (0041): quién es admin, el estado (cantidades), Mis avisos   |
@@ -651,6 +703,7 @@ falla la base) el bot le contesta **exactamente lo mismo que a un comando o bot�
   (arriba, «Las secciones del sitio»), también «🔁 Series». Pruebas: `router-secciones.test.js` y
   `inline-privacy.test.js` (con la base).
 - ~~Pasar los textos de #298 a «Textos del bot».~~ Hecho, con la golden.
+- ~~«🎟 Mis entradas» con el QR de la puerta.~~ Hecho (arriba).
 - Fase 3: avisos y estado para organizadores (0029). Empezó por admins (0041, arriba): falta el
   resumen diario y los avisos en el momento (PR 2), el día del evento y los recordatorios (PR 3), y
   después lo mismo para organizadores con sus eventos.

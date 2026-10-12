@@ -27,6 +27,8 @@ PRs abiertos:
 - Bot: recorrer el sitio por secciones desde el inicio (Material, Kinkipedia, Amigues, Series, con
   páginas y filtro por etiqueta) y los textos de buscar en todo el sitio y del modo inline en
   «Textos del bot» (PR `claude/bot-secciones`).
+- Bot: «🎟 Mis entradas» (paso 2 de 5): las entradas de la cuenta vinculada, con el QR de la
+  puerta como foto, «Pasadas» y sus textos en «Textos del bot» (PR `claude/bot-mis-entradas`).
 - Prueba de que lo privado no sale en público (`src/routes/privados.test.js`): objetos de cada
   tipo y nivel, y datos de personas, en cada lista, feed, JSON, imagen para compartir y dirección
   directa. La metadata pública solo lleva vínculos a objetos que ve cualquiera.
@@ -35,6 +37,12 @@ PRs abiertos:
 
 En otras sesiones, sin PR todavía: «Avisar a les compradores» de un evento, la barra de kv-fondo,
 BIMI para los mails, la agenda de octubre y revisar qué pide SvelteKit 3.
+
+Lista de espera ([0040](decisiones/0040-lista-de-espera.md)): todas las partes ya están juntas y
+probadas en la rama `claude/lista-espera`, que entra a `main` como un solo PR (borrador). Su vista
+quedó dentro de Ventas, como Órdenes y Transferencias (#303); «Cerrar la lista» también la apaga y
+no hay página de Ajustes (gorrite, 12/10). Antes del merge, gorrite aplica la migración 0053 en
+preview y producción (0028). Bloqueo: gorrite.
 
 PRs viejos para decidir: #43 (notificaciones push, de boniSantana) y #25 (negociación interactiva
 para bottoms). #46 (tiempo de lectura, de JorgeT10) lo reemplaza #274.
@@ -85,9 +93,8 @@ La cola de las noches, en este orden:
 10. **Bot de Telegram, fase 1 de lo que sigue**: que se vea en el sitio (mención, link desde Mi
     rincón y el pie, textos de `/start` y `/ayuda`), después de #262. S–M. Bloqueo: textos y
     lugar los elige gorrite.
-11. **Prototipos** (para mirar y decidir, no para prender): lista de espera por evento, segundo
-    proveedor de pago, rol de organizadore, conector de Claude para el panel, IndieWeb y
-    ActivityPub. L cada uno.
+11. **Prototipos** (para mirar y decidir, no para prender): segundo proveedor de pago, rol de
+    organizadore, conector de Claude para el panel, IndieWeb y ActivityPub. L cada uno.
 
 ## Lanzamiento de entradas
 
@@ -175,6 +182,11 @@ de amigues y lanzamientos grandes.
 - Probar el modo puerta en celulares reales y con mala señal. S.
 - Preguntas abiertas para les organizadores (reprogramar o cancelar, tope del Fondo por evento,
   si las extras cuentan para el Fondo, cuándo cierra la venta). Bloqueo: gorrite.
+- Lista de espera, después del merge: prender el interruptor `lista_espera` y probarla en un
+  evento piloto (anotarse, un reembolso, la oferta y la compra con el link, con mails de verdad).
+  S. Bloqueo: gorrite.
+- Lista de espera, a confirmar ([0040](decisiones/0040-lista-de-espera.md)): si «Terminar la
+  reserva y pasar a la siguiente» le manda un mail a esa persona. S. Bloqueo: gorrite.
 - Promociones de varios eventos: por ejemplo, dos eventos a un precio especial si se compran
   juntos (gorrite, 10/10). M–L. Bloqueo: diseño (cómo se arma la promo en el panel, cómo se ve al
   comprar, cómo se reparte el Fondo y los reembolsos).
@@ -247,6 +259,12 @@ de amigues y lanzamientos grandes.
 - Textos del bot: los textos de las páginas de la Mini App del calendario (`/telegram/app`) y de
   la puerta (`/telegram/puerta`) siguen en el código (son páginas, no mensajes del bot). S.
   Bloqueo: que haga falta.
+- Bot, Mis entradas: en un taller de varias partes con una sola entrada, que la entrada siga en
+  «próximas» hasta la última parte (hoy cuenta la fecha del evento que vende la entrada). S.
+- Bot, Mis entradas: mandar el link de la transmisión de un evento online (hoy la tarjeta manda a
+  la página de la entrada, que lo tiene). S. Bloqueo: que gorrite lo quiera en el chat.
+- Bot, Mis entradas: después de mergear, probarlo en Telegram con una entrada de prueba (la foto
+  del QR subida por la API solo se puede probar contra el bot de verdad). S. Bloqueo: gorrite.
 - Bot: borrar las funciones de antes que ya no usa el bot (`formatEventList`, `formatEvent`,
   `formatChoices`, `formatPickList` en `format.js`; `eventListKeyboard` y `eventDetailKeyboard` en
   `keyboards.js`) y sus pruebas. S.

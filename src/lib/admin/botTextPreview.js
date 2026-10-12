@@ -9,8 +9,9 @@ import { botTextField, escapeTelegramHtml, renderBotText } from '$lib/utils/botT
 /**
  * @typedef {{ text: string, disabled?: boolean, link?: boolean, primary?: boolean,
  *   success?: boolean }} PreviewButton
- * @typedef {{ html?: string, buttons?: PreviewButton[][], toast?: string,
+ * @typedef {{ html?: string, buttons?: PreviewButton[][], toast?: string, qr?: boolean,
  *   commands?: { command: string, description: string }[] }} PreviewScreen
+ *   `qr`: la foto de un QR de ejemplo arriba del texto (la tarjeta de una entrada).
  * @typedef {{ id: string, label: string, keys: string[],
  *   build: (t: (key: string, vars?: Record<string, string | number>) => string) => PreviewScreen }} PreviewDef
  */
@@ -49,6 +50,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 			'inicio.boton_finde',
 			'inicio.boton_buscar',
 			'inicio.boton_sigo',
+			'entradas.boton_inicio',
 			'inicio.boton_fondo',
 			'inicio.boton_ayuda',
 			'inicio.boton_calendario',
@@ -70,6 +72,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 					{ text: t('inicio.boton_finde'), primary: true }
 				],
 				[{ text: t('inicio.boton_buscar') }, { text: t('inicio.boton_sigo') }],
+				[{ text: t('entradas.boton_inicio') }],
 				[{ text: t('secciones.boton_material') }, { text: t('secciones.boton_kinkipedia') }],
 				[{ text: t('secciones.boton_amigues') }, { text: t('secciones.boton_series') }],
 				[{ text: t('inicio.boton_fondo') }, { text: t('inicio.boton_ayuda') }],
@@ -111,6 +114,7 @@ export const PREVIEW_SCREENS = Object.freeze([
 				'ayuda',
 				'vincular',
 				'sigo',
+				'entradas',
 				'silenciar',
 				'reanudar',
 				'desvincular'
@@ -314,6 +318,162 @@ export const PREVIEW_SCREENS = Object.freeze([
 		})
 	},
 	{
+		id: 'entradas',
+		label: 'Mis entradas',
+		keys: [
+			'entradas.titulo',
+			'entradas.una',
+			'entradas.varias',
+			'entradas.boton_entrada',
+			'entradas.boton_pasadas'
+		],
+		build: (t) => ({
+			html: [
+				t('entradas.titulo'),
+				'',
+				`${escapeTelegramHtml(SAMPLE_EVENTS[0].when)}\n<b>${escapeTelegramHtml(SAMPLE_EVENTS[0].title)}</b> · ${t('entradas.varias', { cantidad: 2 })}`,
+				'',
+				`${escapeTelegramHtml(SAMPLE_EVENTS[1].when)}\n<b>${escapeTelegramHtml(SAMPLE_EVENTS[1].title)}</b> · ${t('entradas.una')}`
+			].join('\n'),
+			buttons: [
+				[{ text: t('entradas.boton_entrada', { evento: SAMPLE_EVENTS[0].title }) }],
+				[
+					{
+						text: t('entradas.boton_entrada', {
+							titular: 'Otra persona',
+							evento: SAMPLE_EVENTS[0].title
+						})
+					}
+				],
+				[{ text: t('entradas.boton_entrada', { evento: SAMPLE_EVENTS[1].title }) }],
+				[{ text: t('entradas.boton_pasadas') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'entrada',
+		label: 'Mis entradas: una entrada (con el QR)',
+		keys: [
+			'entradas.titular',
+			'entradas.tipo_codigo',
+			'entradas.tipo',
+			'entradas.valida',
+			'entradas.boton_ver'
+		],
+		build: (t) => ({
+			qr: true,
+			html: [
+				`🎟 <b>${escapeTelegramHtml(SAMPLE_EVENTS[0].title)}</b>`,
+				`📅 ${escapeTelegramHtml(SAMPLE_EVENTS[0].when)}`,
+				t('entradas.titular'),
+				t('entradas.tipo_codigo'),
+				'',
+				t('entradas.valida')
+			].join('\n'),
+			buttons: [
+				[{ text: t('entradas.boton_ver'), link: true }],
+				[{ text: '1/3', disabled: true }, { text: '›' }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'entrada_usada',
+		label: 'Mis entradas: una entrada ya usada',
+		keys: ['entradas.usada'],
+		build: (t) => ({
+			qr: true,
+			html: [
+				`🎟 <b>${escapeTelegramHtml(SAMPLE_EVENTS[0].title)}</b>`,
+				`📅 ${escapeTelegramHtml(SAMPLE_EVENTS[0].when)}`,
+				t('entradas.titular'),
+				t('entradas.tipo_codigo'),
+				'',
+				t('entradas.usada')
+			].join('\n'),
+			buttons: [
+				[{ text: t('entradas.boton_ver'), link: true }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'entrada_sin_foto',
+		label: 'Mis entradas: una entrada sin la foto del QR',
+		keys: ['entradas.ver_qr'],
+		build: (t) => ({
+			html: [
+				`🎟 <b>${escapeTelegramHtml(SAMPLE_EVENTS[0].title)}</b>`,
+				`📅 ${escapeTelegramHtml(SAMPLE_EVENTS[0].when)}`,
+				t('entradas.titular'),
+				t('entradas.tipo_codigo'),
+				'',
+				t('entradas.valida'),
+				t('entradas.ver_qr')
+			].join('\n'),
+			buttons: [
+				[{ text: t('entradas.boton_ver'), link: true }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'entrada_online',
+		label: 'Mis entradas: una entrada de un evento online',
+		keys: ['entradas.online'],
+		build: (t) => ({
+			html: [
+				`🎟 <b>${escapeTelegramHtml('Charla online de ejemplo')}</b>`,
+				`📅 ${escapeTelegramHtml(SAMPLE_EVENTS[1].when)}`,
+				t('entradas.titular'),
+				t('entradas.tipo', { tipo: 'A la gorra' }),
+				'',
+				t('entradas.online')
+			].join('\n'),
+			buttons: [
+				[{ text: t('entradas.boton_ver'), link: true }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'entradas_vacio',
+		label: 'Mis entradas: sin entradas',
+		keys: ['entradas.vacio'],
+		build: (t) => ({
+			html: t('entradas.vacio'),
+			buttons: [[{ text: t('entradas.boton_pasadas') }, { text: t('inicio.boton_inicio') }]]
+		})
+	},
+	{
+		id: 'entradas_pasadas',
+		label: 'Mis entradas: las pasadas',
+		keys: ['entradas.titulo_pasadas', 'entradas.vacio_pasadas', 'entradas.boton_proximas'],
+		build: (t) => ({
+			html: [
+				t('entradas.titulo_pasadas'),
+				'',
+				`${escapeTelegramHtml('dom 1 dic · 23:00')}\n<b>${escapeTelegramHtml('Fiesta pasada de ejemplo')}</b> · ${t('entradas.una')}`
+			].join('\n'),
+			buttons: [
+				[{ text: t('entradas.boton_entrada', { evento: 'Fiesta pasada de ejemplo' }) }],
+				[{ text: t('entradas.boton_proximas') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'entradas_sin_vincular',
+		label: 'Mis entradas sin el chat conectado',
+		keys: ['entradas.sin_vincular'],
+		build: (t) => ({
+			html: t('entradas.sin_vincular'),
+			buttons: [
+				[{ text: t('seguir.boton_rincon'), link: true }],
+				[{ text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
 		id: 'aviso',
 		label: 'Aviso por Telegram (algo nuevo)',
 		keys: ['seguir.aviso_nuevo'],
@@ -459,6 +619,47 @@ export const PREVIEW_SCREENS = Object.freeze([
 		})
 	}
 ]);
+
+/** Módulos de un QR de mentira (no se puede escanear): 25 × 25. */
+export const SAMPLE_QR_SIZE = 25;
+
+/**
+ * Los módulos oscuros de un QR de ejemplo, para la vista previa de la tarjeta de una entrada: los
+ * tres cuadrados de las esquinas y el resto al azar (siempre el mismo). Es un dibujo, no un QR.
+ *
+ * @returns {[number, number][]}
+ */
+export function sampleQrCells() {
+	const n = SAMPLE_QR_SIZE;
+	/** @param {number} x @param {number} y */
+	const finder = (x, y) => {
+		for (const [ox, oy] of [
+			[0, 0],
+			[n - 7, 0],
+			[0, n - 7]
+		]) {
+			const dx = x - ox;
+			const dy = y - oy;
+			if (dx >= 0 && dx < 7 && dy >= 0 && dy < 7) {
+				const ring = Math.min(dx, dy, 6 - dx, 6 - dy);
+				return ring !== 1;
+			}
+			if (dx >= -1 && dx <= 7 && dy >= -1 && dy <= 7) return false;
+		}
+		return null;
+	};
+	/** @type {[number, number][]} */
+	const cells = [];
+	let seed = 7;
+	for (let y = 0; y < n; y++) {
+		for (let x = 0; x < n; x++) {
+			seed = (seed * 1103515245 + 12345) % 2147483648;
+			const f = finder(x, y);
+			if (f === true || (f === null && seed % 100 < 45)) cells.push([x, y]);
+		}
+	}
+	return cells;
+}
 
 /** La pantalla «solo este texto», para los que no están en ninguna de arriba. */
 export const SINGLE_SCREEN = 'solo';

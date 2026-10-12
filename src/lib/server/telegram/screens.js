@@ -12,7 +12,7 @@
  */
 import { escapeHtml, eventUrl, formatWhen, WINDOW_TEXTS, formatHelp } from './format.js';
 import { truncate } from './keyboards.js';
-import { encodeNav, navId, startLink } from './nav.js';
+import { encodeNav, navId, startLink, startParam } from './nav.js';
 import { encodeAdminNav } from './adminNav.js';
 import { botText, currentBotTexts } from './texts.js';
 import { renderBotText, renderBotTextPlain } from '$lib/utils/botTexts.js';
@@ -33,8 +33,10 @@ import { formatARS } from '$lib/utils/money.js';
  * el link para la vista previa grande. `forceReply`: va en un mensaje nuevo que abre «responder»
  * (Buscar).
  *
- * @typedef {{ text: string, keyboard: Button[][], photo?: string, preview?: string,
- *   forceReply?: boolean }} Screen
+ * @typedef {{ text: string, keyboard: Button[][], photo?: string,
+ *   photoFile?: import('./send.js').BotUpload, preview?: string, forceReply?: boolean }} Screen
+ *   `photoFile`: una foto armada acá y subida (el QR de una entrada, «Mis entradas»), en lugar de
+ *   una URL.
  */
 /**
  * Dónde se va a ver: chat privado o grupo (en un grupo, solo lo público y nada que necesite
@@ -44,8 +46,9 @@ import { formatARS } from '$lib/utils/money.js';
  *
  * @typedef {{ origin: string, chat: 'private' | 'group', now?: number,
  *   botUsername?: string | null, sigo?: boolean, site?: boolean, door?: boolean,
- *   admin?: boolean }} ScreenCtx
- *   `site`: Buscar busca en todo el sitio (con el índice público de la búsqueda). `admin`: une
+ *   entradas?: boolean, admin?: boolean }} ScreenCtx
+ *   `site`: Buscar busca en todo el sitio (con el índice público de la búsqueda). `entradas`:
+ *   «🎟 Mis entradas» en el inicio (con las cuentas prendidas, misEntradas.js). `admin`: une
  *   admin vinculade con «Telegram para admins» prendido (el router, solo por chat privado):
  *   «📊 Estado · 🔔 Mis avisos» en el inicio.
  */
@@ -137,6 +140,23 @@ function sigoButton(ctx) {
 }
 
 /**
+ * «🎟 Mis entradas» en el inicio (misEntradas.js), con las cuentas prendidas: en privado abre la
+ * lista; en un grupo, el chat privado con el bot (lo personal nunca se muestra en un grupo).
+ *
+ * @param {ScreenCtx} ctx
+ * @returns {Button[][]}
+ */
+function ticketsRow(ctx) {
+	if (!ctx.entradas) return [];
+	const text = botText('entradas.boton_inicio');
+	if (ctx.chat === 'private') {
+		return [[{ text, callback_data: encodeNav({ screen: 'tickets', view: 'u', page: 0 }) }]];
+	}
+	const link = startLink(ctx.botUsername, startParam({ screen: 'tickets' }));
+	return link ? [[{ text: `${text} ↗`, url: link }]] : [];
+}
+
+/**
  * Las secciones del sitio en el inicio (sections.js): «📚 Material · 📖 Kinkipedia» y «👥 Amigues ·
  * 🔁 Series». Solo con el índice público de la búsqueda (`ctx.site`), de donde salen sus listas.
  *
@@ -183,9 +203,10 @@ export function adminRow() {
 
 /**
  * `/start`, `/inicio` y «🏠 Inicio». Con el índice público (`ctx.site`), las secciones del sitio.
- * Con `ctx.door` (une admin vinculade, la puerta prendida, chat
- * privado), suma «🚪 Puerta»: la misma Mini App que el botón de la confirmación del vínculo. Con
- * `ctx.admin` (lo mismo, con «Telegram para admins»), «📊 Estado · 🔔 Mis avisos» (adminBot.js).
+ * Con las cuentas prendidas (`ctx.entradas`), «🎟 Mis entradas». Con `ctx.door` (une admin
+ * vinculade, la puerta prendida, chat privado), suma «🚪 Puerta»: la misma Mini App que el botón
+ * de la confirmación del vínculo. Con `ctx.admin` (lo mismo, con «Telegram para admins»),
+ * «📊 Estado · 🔔 Mis avisos» (adminBot.js).
  *
  * @param {ScreenCtx} ctx
  * @returns {Screen}
@@ -208,6 +229,7 @@ export function homeScreen(ctx) {
 			{ text: botText('inicio.boton_buscar'), callback_data: encodeNav({ screen: 'search' }) },
 			...sigoButton(ctx)
 		],
+		...ticketsRow(ctx),
 		...sectionRows(ctx),
 		[
 			{ text: botText('inicio.boton_fondo'), callback_data: encodeNav({ screen: 'fondo' }) },
