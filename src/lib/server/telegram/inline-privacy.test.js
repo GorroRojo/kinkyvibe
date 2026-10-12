@@ -2,7 +2,8 @@
  * El modo inline con la base (D1 de miniflare; datos inventados): solo lo que ve une visitante sin
  * cuenta. Nada oculto, «solo con cuenta», sin aprobar, no listado ni borrado, en ninguna consulta
  * (vacía, con texto, con prefijo, con el nombre exacto de lo oculto), y el lugar de un evento solo
- * como lo muestra su página (nunca la calle de un lugar que la oculta).
+ * como lo muestra su página (nunca la calle de un lugar que la oculta). Lo mismo en las secciones
+ * del sitio (sections.js): sus listas, sus etiquetas y los botones armados a mano.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -358,5 +359,96 @@ describe('modo inline: solo lo público', () => {
 			expect(p?.steps, href).toEqual([]);
 			expect(JSON.stringify(p), href).not.toContain('Escondid');
 		}
+	});
+});
+
+describe('secciones del sitio: solo lo público', () => {
+	/** Tocar un botón de las secciones, con la base de prueba recién cargada. */
+	async function sectionsDeps() {
+		await inlineDeps();
+		const { planUpdate } = await import('./router.js');
+		const { inlineSource } = await import('./inlineSource.js');
+		const { listUpcomingEvents } = await import('./events.js');
+		const d = {
+			listUpcoming: () => listUpcomingEvents(t.platform, NOW),
+			origin: ORIGIN,
+			now: () => NOW,
+			inline: { source: () => inlineSource(t.platform, NOW) }
+		};
+		/** @param {string} data */
+		return async (data) =>
+			planUpdate(
+				{
+					callback_query: {
+						id: 'cb',
+						from: { id: 9 },
+						data,
+						message: { message_id: 3, chat: { id: 9, type: 'private' } }
+					}
+				},
+				d
+			);
+	}
+
+	it('nada oculto, solo con cuenta, sin aprobar, no listado ni borrado en ninguna lista ni etiqueta', async () => {
+		await seed();
+		const tap = await sectionsDeps();
+		/** @type {unknown[]} */
+		const answers = [];
+		for (const s of ['m', 'w', 'a', 's']) {
+			for (const page of [0, 1, 2]) answers.push(await tap(`c:${s}:${page}`));
+			answers.push(await tap(`ct:${s}`));
+		}
+		const json = JSON.stringify(answers);
+		for (const text of HIDDEN) expect(json, text).not.toContain(text);
+		for (const slug of [
+			'evento-oculto',
+			'evento-no-listado',
+			'evento-borrado',
+			'evento-solo-md',
+			'material-oculto',
+			'material-cuentas',
+			'material-borrado',
+			'p-oculta',
+			'p-cuentas',
+			'p-sin-aprobar',
+			'p-no-listada',
+			'p-borrada',
+			'casa-escondida'
+		]) {
+			expect(json, slug).not.toContain(`/${slug}`);
+		}
+		// Lo visible sí aparece, cada cosa en su sección; ningún evento.
+		expect(JSON.stringify(answers.slice(0, 4))).toContain('Material Visible Inventado');
+		expect(JSON.stringify(answers.slice(8, 12))).toContain('Persona Visible Inventada');
+		expect(json).not.toContain('Evento Visible Inventado');
+	});
+
+	it('un botón armado a mano con la dirección de algo oculto no muestra nada, en ninguna sección', async () => {
+		await seed();
+		const tap = await sectionsDeps();
+		const { shortHash } = await import('./nav.js');
+		for (const href of [
+			'/material/material-oculto',
+			'/material/material-cuentas',
+			'/material/material-borrado',
+			'/amigues/p-oculta',
+			'/amigues/p-cuentas',
+			'/amigues/p-sin-aprobar',
+			'/amigues/p-no-listada',
+			'/amigues/p-borrada',
+			'/amigues/casa-escondida',
+			'/calendario/evento-oculto',
+			'/calendario/evento-visible'
+		]) {
+			for (const s of ['m', 'w', 'a', 's']) {
+				const p = await tap(`cd:${s}:${shortHash(href)}:0`);
+				expect(p?.steps, `${s} ${href}`).toEqual([]);
+				expect(JSON.stringify(p), href).not.toContain('Escondid');
+			}
+		}
+		// Lo visible sí se abre desde su sección.
+		const visible = await tap(`cd:m:${shortHash('/material/material-visible')}:0`);
+		expect(JSON.stringify(visible)).toContain('Material Visible Inventado');
 	});
 });
