@@ -63,7 +63,8 @@ function requestBody(body) {
  * la URL.
  *
  * @param {{ token: string, method: string, body: unknown, fetch?: typeof fetch }} input
- * @returns {Promise<{ ok: true, status: number } | { ok: false, status: number | null, error: string, description?: string }>}
+ * @returns {Promise<{ ok: true, status: number, result?: unknown } | { ok: false, status: number | null, error: string, description?: string }>}
+ *   `result`: lo que devolvió Telegram (por ejemplo, el id de un `savePreparedInlineMessage`).
  */
 export async function callTelegramApi({ token, method, body, fetch: fetchFn = fetch }) {
 	let res;
@@ -84,7 +85,11 @@ export async function callTelegramApi({ token, method, body, fetch: fetchFn = fe
 	} catch {
 		// Sin JSON: queda el código HTTP.
 	}
-	if (res.ok && data?.ok !== false) return { ok: true, status: res.status };
+	if (res.ok && data?.ok !== false) {
+		return data && 'result' in data
+			? { ok: true, status: res.status, result: data.result }
+			: { ok: true, status: res.status };
+	}
 	const description =
 		typeof data?.description === 'string' ? scrub(data.description, token).slice(0, 200) : '';
 	console.error(`[telegram] ${method} respondió ${res.status}`);

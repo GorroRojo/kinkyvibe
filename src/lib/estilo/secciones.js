@@ -131,7 +131,7 @@ export const SECCIONES = [
 		nombre: 'Dialog y askConfirm',
 		importa: "import { Dialog, askConfirm } from '$lib/components/ui';",
 		cuando:
-			'«¿Seguro?»: `askConfirm({ title, text, confirmLabel, tone })`, con `tone` primary, danger o permanent. Dialog solo para un diálogo propio con contenido.',
+			'«¿Seguro?»: `askConfirm({ title, text, confirmLabel, tone })`, con `tone` primary, danger o permanent. Con una casilla («Mandarle un mail»), `check: { label, checked }` y `askConfirmCheck`, que devuelve `{ ok, checked }`. Dialog solo para un diálogo propio con contenido.',
 		cuandoNo:
 			'Nunca `window.confirm`. Para borrar desde el panel, la página de borrar mantiene su escribir para confirmar.',
 		soloPanel: true

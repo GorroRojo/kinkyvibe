@@ -82,6 +82,7 @@ CI) va en la fase 0.
 ### Legales
 
 - `legales-minimos` · fase 0 · espera gorrite · legales · Página `/legales` mínima en borrador (solo previews), después del piloto (gorrite, 12/10). Plan cuando gorrite lo retome: bajarla a lo mínimo con la leyenda de la AAIP y los 10 días de arrepentimiento por mail; falta definir quién figura como responsable; inscribir la base y el botón de arrepentimiento, por ahora no (depende de: lanzamiento-piloto) · #282 (borrador), [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
+- `legales-bot-estadisticas` · fase 0 · espera gorrite · legales · La página de privacidad (`/legales`, todavía en borrador) tiene que contar las estadísticas de uso del bot: quién lo usa y cuánto por día (180 días, con el nombre de Telegram) y, aparte, para qué, solo sumado por semana (depende de: legales-minimos, bot-estadisticas) · [telegram.md](telegram.md#estadísticas-de-uso-0045)
 
 ### Panel
 
@@ -152,6 +153,7 @@ CI) va en la fase 0.
 - `bot-avisos-admin-3` · fase 0 · sigue · bot · Telegram para admins, parte 3: el resumen del día del evento y los recordatorios (el evento de mañana, falta el lugar o el link de la transmisión) (depende de: bot-avisos-admin) · [0041](decisiones/0041-telegram-para-admins.md)
 - `bot-avisos-admin-probar` · fase 0 · espera gorrite · bot · Prender `telegram_admin` en un preview y probarlo con un Telegram vinculado (la migración 0054 ya está en preview y producción) (depende de: bot-avisos-admin)
 - `bot-avisos-admin-2-probar` · fase 0 · espera gorrite · bot · Telegram para admins, parte 2: aplicar la migración 0055 en preview y producción antes de mergear #322, y probarlo en un preview con una compra de prueba y el cron de las 9 (depende de: bot-avisos-admin)
+- `bot-estadisticas-prender` · fase 0 · espera gorrite · bot · Estadísticas de uso del bot: aplicar la migración 0057 en preview y producción antes de mergear, `/setinlinefeedback` al 100 % en @BotFather y volver a registrar el webhook (`npm run telegram:webhook`), y prender «Telegram: estadísticas de uso», primero en un preview (depende de: bot-estadisticas) · [telegram.md](telegram.md#puesta-en-marcha-de-las-estadísticas-la-hace-gorrite)
 - `bot-avisos-admin-aprobada` · fase 0 · algún día · bot · Guardar cuándo se aprobó cada orden (`approved_at`, necesita migración) para que «vendidas desde ayer» del resumen diario no dependa de `updated_at`, si hace falta (depende de: bot-avisos-admin)
 - `bot-avisos-admin-menu` · fase 0 · algún día · bot · `/estado` y `/avisos` en el menú «/» solo de les admins vinculades (`setMyCommands` por chat desde el cron; borrarlo al desvincular), si hace falta
 - `bot-busquedas-vacias-panel` · fase 0 · sigue · bot · Contar cuántas búsquedas del bot no encuentran nada, para el panel (sin guardar quién ni qué) (depende de: bot-busquedas-vacias)
@@ -161,12 +163,17 @@ CI) va en la fase 0.
 - `bot-puerta-2` · fase 0 · sigue · bot · Bot 4/5: Puerta por Telegram parte 2 (contador en vivo, escribir el código a mano) (depende de: bot-busquedas-vacias, bot-puerta-probar)
 - `bot-kinkipedia-ramas-probar` · fase 0 · espera gorrite · bot · Mirar en Telegram la Kinkipedia por ramas con el árbol de verdad: que las ramas de arriba sean las de `/wiki` y que ninguna quede con un solo hijo de más (depende de: bot-secciones-ajustes)
 - `bot-mis-entradas-partes` · fase 0 · hecho · bot · Mis entradas: un taller de varias partes sigue en «próximas» hasta la última parte · #329
+- `bot-estadisticas` · fase 0 · hecho · bot · Estadísticas de uso del bot (Estadísticas → Bot de Telegram): quién lo usa y cuánto, por persona y día, y aparte, sumado por semana, para qué (pantallas, comandos, búsquedas, cosas públicas, Mini App); nunca qué buscó o miró cada persona; umbral de 5 y retención de 180 días, detrás de `telegram_estadisticas` · #346, [0045](decisiones/0045-estadisticas-del-bot.md)
 - `rincon-compras-partes` · fase 0 · sigue · cuentas · Mi rincón, «Mis compras»: en un taller de varias partes, mostrar la fecha de la próxima parte (hoy muestra la de la parte 1)
 - `bot-mis-entradas-transmision` · fase 0 · sigue · bot · Mis entradas: mandar el link de la transmisión de un evento online por el chat; la tarjeta muestra «Ver la transmisión» cuando el link está cargado, con la misma regla que la página de la entrada (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `bot-mis-entradas-probar` · fase 0 · espera gorrite · bot · Probar «Mis entradas» en Telegram con una entrada de prueba (el QR por la API solo se prueba contra el bot de verdad)
 - `bot-avisos-apagados` · fase 0 · algún día · bot · Recordar si alguien apagó a propósito los avisos de algo, para que dejar de seguirlo y volver a seguirlo desde el bot no los prenda (volver a vincular ya no saca `/silenciar`, #321; necesita migración, aplicarla antes del merge, 0028) · [0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)
 - `bot-textos-miniapp` · fase 0 · algún día · bot · Los textos de la página de la puerta (`/telegram/puerta`, solo admins) en «Textos del bot» (los de la Mini App del calendario ya están, #321)
 - `bot-visible-sitio` · fase 0 · sigue · bot · Que el bot se vea en el sitio, discreto: un link en el pie, una línea en el calendario y la tarjeta de Mi rincón que ya existe; los textos van en un PR con capturas (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
+- `bot-mensajes-enriquecidos` · fase 0 · hecho · bot · Lo que el bot manda del sitio (Kinkipedia, material, eventos) se lee adentro del chat como mensaje enriquecido (Bot API 10.1–10.3), en el modo inline y en la tarjeta compacta, apagado con `telegram_enriquecido` · #336, [telegram.md](telegram.md#mensajes-enriquecidos-y-compartir)
+- `bot-compartir-miniapp` · fase 0 · hecho · bot · Mini App del calendario: «📤 Mandar a un chat» en cada evento y link directo a un evento (`?startapp=`), apagado con `telegram_enriquecido` · #336, [telegram.md](telegram.md#compartir-desde-la-mini-app-del-calendario)
+- `bot-enriquecido-probar` · fase 0 · espera gorrite · bot · Registrar la Main Mini App en @BotFather, prender `telegram_enriquecido` en un preview y mirar los mensajes enriquecidos y «Mandar a un chat» en dos celus (uno con una app vieja) (depende de: bot-mensajes-enriquecidos, bot-compartir-miniapp)
+- `bot-entrar-con-telegram` · fase 0 · algún día · bot · «Entrar con Telegram» (OpenID Connect) para las cuentas: no elegido por ahora (gorrite, 12/10)
 - `bot-navegar-secciones` · fase 0 · hecho · bot · Bot 1/5: recorrer el sitio por secciones · #308
 - `bot-mis-entradas` · fase 0 · hecho · bot · Bot 2/5: «🎟 Mis entradas» con el QR de la puerta · #313
 - `bot-secciones-ajustes` · fase 0 · hecho · bot · Secciones del bot: Kinkipedia por las ramas del árbol de etiquetas (como `/wiki` y en su orden), Series sin las que no tienen ediciones, volver a vincular no saca `/silenciar` y los textos de la Mini App del calendario en «Textos del bot» · #321
@@ -264,7 +271,7 @@ CI) va en la fase 0.
 
 - `lista-espera` · fase 3 · hecho · entradas · Lista de espera por evento o tipo de entrada, apagada · #310, [0040](decisiones/0040-lista-de-espera.md)
 - `lista-espera-prender` · fase 3 · espera gorrite · entradas · Prender `lista_espera` y probarla en un evento piloto (anotarse, reembolso, oferta y compra con el link) (depende de: lista-espera)
-- `lista-espera-mail-terminar` · fase 3 · espera gorrite · entradas · Si «Terminar la reserva y pasar a la siguiente» le manda un mail a esa persona
+- `lista-espera-mail-terminar` · fase 3 · hecho · entradas · «Terminar la reserva y pasar a la siguiente» pregunta si le avisamos por mail («se terminó tu lugar», marcado de entrada) (depende de: lista-espera) · #339
 - `promos-varios-eventos` · fase 3 · en curso · entradas · Promociones de varios eventos, versión chica (gorrite, 12/10): código combo, la compra de un evento trae en su mail un código personal para otro; detrás de `combo_codigos`, migración 0056 · #340
 - `talleres-partes-mails-preview` · fase 3 · sigue · entradas · Vista previa de los mails de cada parte de un taller en el panel
 - `talleres-viejos-a-partes` · fase 3 · sigue · entradas · Pasar a talleres en partes los talleres viejos de varios días (datos de producción, probando antes en el demo), lo hace Claude de a tandas, cada una con el OK de gorrite en la Mesa (12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md), [talleres-partes.md](talleres-partes.md#pendiente)
@@ -311,6 +318,7 @@ CI) va en la fase 0.
 
 Para que no vuelvan: si alguien lo propone de nuevo, primero se habla con gorrite.
 
+- `bot-miniapp-historia` · fase 0 · descartado · bot · «Compartir en tu historia» desde la Mini App: no (gorrite, 12/10)
 - `kinkipedia-series-mejor` · fase 0 · descartado · sitio · Kinkipedia más rica y una lista de series mejor armada (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `kv-fondo-repo` · fase 1 · descartado · infra · Sumar kv-fondo a este repo: se quedan separados, kv-fondo sigue en su repo privado y hablan por la API (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `ficha-5-pestanas` · fase 0 · descartado · panel · Ficha del evento con 5 pestañas y «Más»: la reemplazó la de 7 (gorrite, 12/10) · #303

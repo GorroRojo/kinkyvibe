@@ -340,6 +340,11 @@ export function waitlistEmailCases() {
 			{ ...common, rejoinUrl: `${ORIGIN}/lista-de-espera/volver/jkl?x=1&y=2` }
 		],
 		[
+			'waitlist-ended',
+			'buildWaitlistEndedEmail',
+			{ ...common, rejoinUrl: `${ORIGIN}/lista-de-espera/volver/mno?x=1&y=2` }
+		],
+		[
 			'waitlist-closed',
 			'buildWaitlistClosedEmail',
 			{ ...common, reason: 'closed', eventUrl: `${ORIGIN}/calendario/fiesta-de-prueba` }

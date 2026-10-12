@@ -7,8 +7,8 @@
  *   veces se quiera, y dos a la vez nunca ofrecen el mismo lugar dos veces.
  * - {@link runWaitlistCron}: la pasada sobre cada evento con anotaciones vivas, desde el cron de
  *   siempre (`POST /api/cron/recordatorios`, cada 15 minutos; no hay un cron nuevo).
- * - {@link sendWaitlistMails}: los mails de la oferta, el último aviso, la reserva vencida y el
- *   cierre. No hay una cola aparte: lo que falta mandar sale del estado de cada anotación y de
+ * - {@link sendWaitlistMails}: los mails de la oferta, el último aviso, la reserva vencida (o
+ *   terminada por admin, si lo pidió: {@link queueEndedMail}) y el cierre. No hay una cola aparte: lo que falta mandar sale del estado de cada anotación y de
  *   `waitlist_sends` (una fila por anotación, mail y ronda: nunca sale dos veces). En el cron van
  *   primero en la tanda (`runMailQueueWith`): son pocos y urgentes.
  * - {@link queueWaitlistAdvance}: el «empujón» desde donde se libera un lugar (reembolso,
@@ -44,6 +44,7 @@ import { getSalesSettings } from './settings.js';
 import { resolveTemplate } from './templates.js';
 import {
 	buildWaitlistClosedEmail,
+	buildWaitlistEndedEmail,
 	buildWaitlistExpiredEmail,
 	buildWaitlistOfferEmail,
 	buildWaitlistReminderEmail
@@ -488,11 +489,47 @@ const offerSent = `EXISTS (SELECT 1 FROM waitlist_sends s
 	WHERE s.entry_id = e.id AND s.kind = 'offer' AND s.round = e.offer_count AND s.status = 'sent')`;
 
 /**
+ * «Une admin pidió avisarle que terminó su reserva» ({@link queueEndedMail}): la fila de
+ * `waitlist_sends` de esa ronda, puesta antes de mandar.
+ */
+const endedMailAsked = `EXISTS (SELECT 1 FROM waitlist_sends s
+	WHERE s.entry_id = e.id AND s.kind = 'expired' AND s.round = e.offer_count)`;
+
+/**
+ * Pide el mail «se terminó tu lugar» (`waitlist_ended`) para una reserva que une admin terminó
+ * desde el panel («Terminar la reserva y pasar a la siguiente», con «Mandarle un mail»). No hay
+ * columna para eso (sin migración): la marca es la fila del envío en `waitlist_sends` (`expired`,
+ * la ronda de la oferta), en `retry` y sin intentos, que la próxima tanda reserva y manda como
+ * cualquier otra. Sin esa fila, una reserva terminada por admin no recibe mail.
+ *
+ * Solo si terminó por `admin` y el mail de la oferta ya había salido (sin oferta, «se terminó tu
+ * lugar» no se entiende). Devuelve `true` si quedó pedido.
+ *
+ * @param {D1Database} db
+ * @param {string} entryId
+ * @param {number} [now]
+ */
+export async function queueEndedMail(db, entryId, now = Date.now()) {
+	const r = await db
+		.prepare(
+			`INSERT INTO waitlist_sends (entry_id, kind, round, status, attempts, sent_at)
+			SELECT e.id, 'expired', e.offer_count, 'retry', 0, ?2
+			FROM waitlist_entries e
+			WHERE e.id = ?1 AND e.status = 'expired' AND e.end_reason = 'admin' AND ${offerSent}
+			ON CONFLICT (entry_id, kind, round) DO NOTHING`
+		)
+		.bind(entryId, now)
+		.run();
+	return changes(r) === 1;
+}
+
+/**
  * Los mails de la lista que faltan mandar, en orden: ofertas, últimos avisos, vencidas, cierres.
  *
  * - oferta: anotación `offered` vigente sin el mail de esa ronda;
  * - último aviso: reserva de 12 h o más a la que le quedan 3 h o menos, con la oferta ya mandada;
- * - vencida: reserva vencida (`hold_expired`) en las últimas 48 h, con la oferta ya mandada;
+ * - vencida: reserva vencida (`hold_expired`) en las últimas 48 h, con la oferta ya mandada; o
+ *   terminada por admin con el mail pedido ({@link queueEndedMail}, sale «se terminó tu lugar»);
  * - cierre: lista cerrada (`closed` / `event_cancelled`) en las últimas 48 h.
  *
  * @param {D1Database} db
@@ -517,7 +554,8 @@ export async function pendingWaitlistMails(db, { now, eventSlug = null }) {
 			UNION ALL
 			SELECT ${cols}, 'expired', e.offer_count, 3, e.ended_at
 			FROM waitlist_entries e
-			WHERE e.status = 'expired' AND e.end_reason = 'hold_expired' AND e.ended_at > ?6 ${ev}
+			WHERE e.status = 'expired' AND e.ended_at > ?6 ${ev}
+				AND (e.end_reason = 'hold_expired' OR (e.end_reason = 'admin' AND ${endedMailAsked}))
 				AND ${offerSent} AND ${notSent('expired', 'e.offer_count')}
 			UNION ALL
 			SELECT ${cols}, 'closed', 0, 4, e.ended_at
@@ -556,6 +594,13 @@ const TEMPLATE_OF = {
 };
 
 /**
+ * La plantilla de un mail pendiente: «se venció» o, si la terminó une admin, «se terminó».
+ * @param {PendingMail} m
+ */
+const templateOf = (m) =>
+	m.kind === 'expired' && m.end_reason === 'admin' ? 'waitlist_ended' : TEMPLATE_OF[m.kind];
+
+/**
  * Manda una tanda de los mails de la lista (como mucho `limit`), una sola vez por anotación,
  * mail y ronda (`sendBatch` con `waitlist_sends`; un fallo se reintenta en la próxima tanda,
  * hasta 3 veces, y después queda para «Para revisar»).
@@ -583,10 +628,11 @@ export async function sendWaitlistMails(db, input) {
 			);
 		return /** @type {Promise<EventTickets | null>} */ (configs.get(slug));
 	};
-	/** @param {string} slug @param {WaitlistSendKind} kind */
-	const templateFor = (slug, kind) => {
-		const k = `${slug}\n${kind}`;
-		if (!templates.has(k)) templates.set(k, resolveTemplate(db, slug, TEMPLATE_OF[kind]));
+	/** @param {PendingMail} m */
+	const templateFor = (m) => {
+		const id = templateOf(m);
+		const k = `${m.event_slug}\n${id}`;
+		if (!templates.has(k)) templates.set(k, resolveTemplate(db, m.event_slug, id));
 		return /** @type {Promise<import('./email.js').Template>} */ (templates.get(k));
 	};
 	return sendBatch(db, 'waitlist_sends', {
@@ -607,7 +653,7 @@ export async function sendWaitlistMails(db, input) {
 				unsubscribeUrl: await waitlistLeaveUrl(db, origin, m.id),
 				origin,
 				contactEmail: input.contactEmail,
-				template: await templateFor(m.event_slug, m.kind)
+				template: await templateFor(m)
 			};
 			const offerUrl = async () =>
 				waitlistOfferUrl(origin, m.event_slug, await offerToken(db, m.id, m.round));
@@ -625,7 +671,7 @@ export async function sendWaitlistMails(db, input) {
 								holdUntil: /** @type {number} */ (m.hold_until)
 							})
 						: m.kind === 'expired'
-							? buildWaitlistExpiredEmail({
+							? (m.end_reason === 'admin' ? buildWaitlistEndedEmail : buildWaitlistExpiredEmail)({
 									...common,
 									rejoinUrl: await waitlistRejoinUrl(db, origin, m.id)
 								})

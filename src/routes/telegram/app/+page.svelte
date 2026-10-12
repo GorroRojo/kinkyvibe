@@ -11,9 +11,14 @@
 	 * - Todos los links (el evento, comprar) se abren en el navegador, afuera de Telegram
 	 *   (`openLink`): pagar sigue siendo en el sitio, con Mercado Pago.
 	 * - Sin login ni datos de nadie: solo lo que `/calendario` le muestra a cualquiera.
+	 * - Con `telegram_enriquecido` (docs/telegram.md, «Mensajes enriquecidos y compartir»):
+	 *   «📤 Mandar a un chat» en cada evento (el servidor prepara la tarjeta del modo inline con
+	 *   `savePreparedInlineMessage` y acá se abre el selector de chats con `shareMessage`, Bot API
+	 *   8.0; en apps más viejas, el modo inline en el chat que se elija con `switchInlineQuery`), y
+	 *   el evento del link directo (`?startapp=ev-<id>`) queda marcado y a la vista.
 	 * - Los textos vienen de «Textos del bot» (`data.texts`, $lib/server/telegram/miniapp.js).
 	 */
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -22,16 +27,37 @@
 	let tg = null;
 	let canAddHome = false;
 	let added = false;
+	let canShare = false;
+	/** El evento que marca el link directo. @type {string | null} */
+	let focus = data.focus ?? null;
+	/** Cómo fue cada «Mandar a un chat», por evento. @type {Record<string, 'busy' | 'sent' | 'error'>} */
+	let shared = {};
+
+	/** Deja a la vista el evento marcado. */
+	async function showFocus() {
+		if (!focus) return;
+		await tick();
+		document.getElementById(`ev-${focus}`)?.scrollIntoView({ block: 'center' });
+	}
 
 	onMount(() => {
 		tg = /** @type {any} */ (window).Telegram?.WebApp ?? null;
 		if (!tg || !tg.initData) {
 			// Abierto en un navegador común: los links funcionan como siempre.
 			tg = null;
+			showFocus();
 			return;
 		}
 		tg.ready();
 		tg.expand?.();
+		if (!focus) {
+			const param = tg.initDataUnsafe?.start_param;
+			const found = data.days.flatMap((d) => d.events).find((ev) => ev.start === param);
+			focus = found?.slug ?? null;
+		}
+		showFocus();
+		canShare = Boolean(data.share && tg.isVersionAtLeast?.('6.7'));
+		countOpen(tg.initData);
 		if (tg.isVersionAtLeast?.('8.0')) {
 			tg.checkHomeScreenStatus?.((/** @type {string} */ status) => {
 				canAddHome = status === 'missed' || status === 'unknown';
@@ -42,6 +68,22 @@
 			});
 		}
 	});
+
+	/**
+	 * Estadísticas de uso del bot (docs/telegram.md): avisa que se abrió la Mini App. El servidor
+	 * valida el `initData` y, con `telegram_estadisticas` prendido, suma una interacción de esa
+	 * persona y una apertura (sin quién) a los totales de la semana. Si falla, no pasa nada.
+	 *
+	 * @param {string} initData
+	 */
+	function countOpen(initData) {
+		fetch('/telegram/app/uso', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ initData }),
+			keepalive: true
+		}).catch(() => {});
+	}
 
 	/**
 	 * Adentro de Telegram, abrir en el navegador (afuera de la Mini App).
@@ -57,6 +99,48 @@
 
 	function addHome() {
 		tg?.addToHomeScreen?.();
+	}
+
+	/** @param {string} slug */
+	function clearShared(slug) {
+		shared = Object.fromEntries(Object.entries(shared).filter(([k]) => k !== slug));
+	}
+
+	/**
+	 * «Mandar a un chat»: la tarjeta preparada por el servidor y el selector de chats de Telegram;
+	 * si no se puede (app vieja, falló), el modo inline del bot en el chat que se elija.
+	 *
+	 * @param {{ slug: string, title: string }} ev
+	 */
+	async function share(ev) {
+		if (!tg || shared[ev.slug] === 'busy') return;
+		shared = { ...shared, [ev.slug]: 'busy' };
+		if (tg.isVersionAtLeast?.('8.0') && tg.shareMessage) {
+			try {
+				const res = await fetch('/telegram/app/compartir', {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ initData: tg.initData, slug: ev.slug })
+				});
+				const body = res.ok ? await res.json() : null;
+				if (typeof body?.id === 'string') {
+					tg.shareMessage(body.id, (/** @type {boolean} */ sent) => {
+						// Si cerró el selector sin mandar, no es un error.
+						if (sent) shared = { ...shared, [ev.slug]: 'sent' };
+						else clearShared(ev.slug);
+					});
+					return;
+				}
+			} catch {
+				// Sigue con el modo inline.
+			}
+		}
+		if (tg.switchInlineQuery) {
+			clearShared(ev.slug);
+			tg.switchInlineQuery(`evento: ${ev.title}`, ['users', 'groups', 'channels']);
+			return;
+		}
+		shared = { ...shared, [ev.slug]: 'error' };
 	}
 </script>
 
@@ -87,11 +171,14 @@
 		<section>
 			<h2>{day.day}</h2>
 			{#each day.events as ev (ev.slug)}
-				<article class:cancelled={ev.cancelled}>
+				<article id="ev-{ev.slug}" class:cancelled={ev.cancelled} class:focus={focus === ev.slug}>
 					{#if ev.image}
 						<img src={ev.image} alt="" loading="lazy" width="72" height="72" />
 					{/if}
 					<div class="body">
+						{#if focus === ev.slug}
+							<p class="focus-note">{data.shareTexts.destacado}</p>
+						{/if}
 						<p class="meta">
 							{ev.time}{#if ev.place}&nbsp;· {ev.place}{/if}{#if ev.cancelled}&nbsp;· {data.texts
 									.cancelado}{/if}
@@ -106,6 +193,21 @@
 							{:else}
 								<span class="note">🎟 {ev.ticket.text}</span>
 							{/if}
+						{/if}
+						{#if canShare && !ev.cancelled}
+							<div class="share-row">
+								<button
+									type="button"
+									class="share"
+									disabled={shared[ev.slug] === 'busy'}
+									on:click={() => share(ev)}>{data.shareTexts.boton}</button
+								>
+								{#if shared[ev.slug] === 'sent'}
+									<span class="note" role="status">{data.shareTexts.mandado}</span>
+								{:else if shared[ev.slug] === 'error'}
+									<span class="note" role="status">{data.shareTexts.error}</span>
+								{/if}
+							</div>
 						{/if}
 					</div>
 				</article>
@@ -183,6 +285,36 @@
 		margin-bottom: 8px;
 	}
 	article.cancelled {
+		opacity: 0.6;
+	}
+	article.focus {
+		outline: 2px solid var(--button);
+		scroll-margin: 16px;
+	}
+	.focus-note {
+		color: var(--button);
+		font-size: 0.85em;
+		font-weight: 600;
+		margin: 0 0 2px;
+	}
+	.share-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+		margin-top: 6px;
+	}
+	.share {
+		border: 1px solid var(--button);
+		border-radius: 8px;
+		background: transparent;
+		color: var(--button);
+		padding: 4px 10px;
+		font: inherit;
+		font-size: 0.9em;
+		font-weight: 600;
+	}
+	.share:disabled {
 		opacity: 0.6;
 	}
 	img {

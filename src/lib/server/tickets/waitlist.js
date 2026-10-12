@@ -8,8 +8,8 @@
  * - anotarse (`joinWaitlist`): queda `pending_confirmation` con un token para el mail de
  *   confirmar; con una cuenta cuyo mail ya está verificado, entra directo a `waiting`;
  * - confirmar (`confirmWaitlistEntry`): `pending_confirmation` → `waiting`;
- * - volver a anotarse después de que venció su reserva (`rejoinWaitlist`): una anotación nueva,
- *   al final de la fila y sin confirmar otra vez;
+ * - volver a anotarse después de que venció su reserva o se la terminó une admin
+ *   (`rejoinWaitlist`): una anotación nueva, al final de la fila y sin confirmar otra vez;
  * - salir (`leaveWaitlist`) o que le saque une admin (`removeFromWaitlist`): `cancelled`;
  * - terminar una oferta o cerrar (`endWaitlistEntry`): `expired`;
  * - compró con su oferta (`markPurchasedStatement`): `offered` → `purchased`;
@@ -46,6 +46,8 @@ export const EXPIRE_REASONS = /** @type {const} */ ([
 /** @typedef {(typeof EXPIRE_REASONS)[number]} ExpireReason */
 
 const LIVE_SQL = "('pending_confirmation','waiting','offered')";
+/** Desde qué fin se puede volver a anotar con el link: venció, o une admin lo terminó. */
+const REJOIN_SQL = "('hold_expired','admin')";
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
 
 /**
@@ -242,8 +244,8 @@ export async function confirmWaitlistEntry(db, token, now = Date.now()) {
 
 /**
  * Vuelve a anotar, al final de la fila y sin confirmar otra vez, a quien se le venció la reserva
- * (el botón «Volver a anotarme» del mail). Solo desde una anotación `expired` por
- * `hold_expired`. `already` si ya tiene otra anotación viva en ese alcance; `null` si no se puede.
+ * o se la terminó une admin (el botón «Volver a anotarme» de esos mails). Solo desde una
+ * anotación `expired` por `hold_expired` o `admin`. `already` si ya tiene otra anotación viva en ese alcance; `null` si no se puede.
  *
  * @param {D1Database} db
  * @param {string} entryId la anotación que venció
@@ -254,7 +256,7 @@ export async function rejoinWaitlist(db, entryId, now = Date.now()) {
 	const old = await db
 		.prepare(
 			`SELECT event_slug, ticket_type, email, client_hash FROM waitlist_entries
-			WHERE id = ?1 AND status = 'expired' AND end_reason = 'hold_expired'`
+			WHERE id = ?1 AND status = 'expired' AND end_reason IN ${REJOIN_SQL}`
 		)
 		.bind(entryId)
 		.first();
@@ -267,7 +269,7 @@ export async function rejoinWaitlist(db, entryId, now = Date.now()) {
 					client_hash, created_at, updated_at)
 				SELECT ?1, event_slug, ticket_type, email, 'waiting', ?3, client_hash, ?3, ?3
 				FROM waitlist_entries o WHERE o.id = ?2 AND o.status = 'expired'
-					AND o.end_reason = 'hold_expired'
+					AND o.end_reason IN ${REJOIN_SQL}
 					AND NOT EXISTS (SELECT 1 FROM waitlist_entries w
 						WHERE w.event_slug = o.event_slug
 						AND COALESCE(w.ticket_type, '') = COALESCE(o.ticket_type, '')

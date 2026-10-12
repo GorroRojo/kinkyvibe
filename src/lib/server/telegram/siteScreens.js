@@ -11,6 +11,7 @@ import { encodeNav, shortHash } from './nav.js';
 import { CARD_IMAGE_OPTIONS, inlineDescription, inlineThumbUrl, titleOf } from './inline.js';
 import { CAPTION_MAX, isHttps, pagerRow, paginate, tgTime } from './screens.js';
 import { botText } from './texts.js';
+import { richDocMessage } from './rich.js';
 
 /** @typedef {import('$lib/utils/search').SearchDoc} SearchDoc */
 /** @typedef {import('./inline.js').InlineExtra} InlineExtra */
@@ -120,7 +121,8 @@ export const backToResults = (query, page) => ({
 /**
  * La tarjeta compacta de algo que no es un evento próximo (material, Kinkipedia, series, amigues,
  * un evento que ya pasó): título, una o dos líneas, la foto (achicada, solo si se puede) y los
- * botones «Ver en el sitio», «‹ Volver» y «🏠 Inicio».
+ * botones «Ver en el sitio», «‹ Volver» y «🏠 Inicio». Con `ctx.rich` (por chat privado), además
+ * la misma tarjeta como mensaje enriquecido, con el texto entero del índice (rich.js).
  *
  * @param {SearchDoc} doc
  * @param {InlineExtra | undefined} extra
@@ -149,9 +151,18 @@ export function docScreen(doc, extra, ctx, { back = null } = {}) {
 	if (https) rows.push([{ text: botText('sitio.boton_ver'), url }]);
 	rows.push(back ? [back, homeButton()] : [homeButton()]);
 	const photo = inlineThumbUrl(extra?.image, ctx.origin, CARD_IMAGE_OPTIONS);
+	const rich =
+		ctx.rich && https && ctx.chat === 'private'
+			? richDocMessage(doc, {
+					title: `${icon ? `${icon} ` : ''}${titleOf(doc)}`,
+					now,
+					photo
+				})
+			: null;
 	return {
 		text,
 		keyboard: rows,
-		...(photo && text.length <= CAPTION_MAX ? { photo } : {})
+		...(photo && text.length <= CAPTION_MAX ? { photo } : {}),
+		...(rich ? { rich } : {})
 	};
 }

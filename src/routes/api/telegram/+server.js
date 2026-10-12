@@ -4,7 +4,7 @@
  * tarjeta de cada evento, el modo inline, el Fondo, el token (con él, el webhook llama a la API en
  * `waitUntil`) y, para la fase 2 (vincular cuentas), el vínculo de les admins (la puerta por
  * Telegram), el estado y los avisos para admins (0041) y los textos cambiados en el panel
- * («Textos del bot»), la base.
+ * («Textos del bot») y las estadísticas de uso (`telegram_estadisticas`, uso.js), la base.
  */
 import { env } from '$env/dynamic/private';
 import { isFlagOn } from '$lib/server/flags.js';
@@ -20,6 +20,7 @@ import { botUsername } from '$lib/server/telegram/web.js';
 import { resolveFondoMonth } from '$lib/server/tickets/fondoMonth.js';
 import { botTextOverrides } from '$lib/server/telegram/texts.js';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
+import { usoWriter } from '$lib/server/telegram/uso.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, url, platform, fetch }) {
@@ -27,6 +28,8 @@ export async function POST({ request, url, platform, fetch }) {
 	const ctx = platform?.ctx;
 	const puerta = Boolean(db && (await isFlagOn(db, 'telegram_puerta')));
 	const admin = Boolean(db && (await isFlagOn(db, 'telegram_admin')));
+	const rich = Boolean(db && (await isFlagOn(db, 'telegram_enriquecido')));
+	const stats = Boolean(db && (await isFlagOn(db, 'telegram_estadisticas')));
 	return handleWebhook({
 		request,
 		secret: env.TELEGRAM_WEBHOOK_SECRET,
@@ -43,7 +46,9 @@ export async function POST({ request, url, platform, fetch }) {
 			events: (metas) => inlineEventInfo(platform, metas),
 			// El árbol de etiquetas (el mismo del sitio): para sugerir parecidas y «Seguir» cuando
 			// una búsqueda no encuentra nada.
-			tags: () => siteTagManager(platform)
+			tags: () => siteTagManager(platform),
+			// Mensajes enriquecidos y «📅 Abrir en el calendario» (`telegram_enriquecido`).
+			...(rich ? { rich: true, botUsername: botUsername() } : {})
 		},
 		botUsername: botUsername(),
 		token: env.TELEGRAM_BOT_TOKEN,
@@ -62,6 +67,9 @@ export async function POST({ request, url, platform, fetch }) {
 		door: db && puerta ? botDoor(db) : null,
 		// «📊 Estado» y «🔔 Mis avisos» para admins vinculades (0041): quién es admin se mira en
 		// cada mensaje y cada botón de admins (y al mostrar el inicio por privado).
-		admin: db && admin ? botAdmin(db) : null
+		admin: db && admin ? botAdmin(db) : null,
+		// Estadísticas de uso (decisión 0045): quién y cuánto por un lado, qué se usa sumado por
+		// semana por el otro; una tanda por update, en `waitUntil`. Apagado, no se cuenta nada.
+		uso: db && stats ? usoWriter(db) : null
 	});
 }

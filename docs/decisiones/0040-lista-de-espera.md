@@ -4,8 +4,8 @@
 - Estado: Aceptada (respuestas de gorrite del 11/10: «Sí, todas» a lo propuesto, con un cambio en
   la cuenta por evento). Completa 0006 (entradas): la puerta y la carga a mano siguen sin frenar.
   El 12/10 gorrite decidió que «Cerrar la lista» también la apaga y que no hay página de Ajustes
-  (los tiempos son fijos). Queda **a confirmar por gorrite** si «Terminar la reserva» manda un
-  mail (abajo).
+  (los tiempos son fijos). El 12/10 gorrite respondió lo de «Terminar la reserva» (abajo): se
+  pregunta al tocar el botón.
 
 ## Contexto
 
@@ -67,10 +67,13 @@ aparte: guarda lugares en la misma cuenta del cupo y la avanza un cron.
 - **Sin cron nuevo:** la pasada va en el de cada 15 minutos; los cambios que liberan un lugar
   (reembolso, cancelación, pago cancelado, cupo más grande…) dan un empujón para no esperar.
 
-### A confirmar por gorrite
+### Respondido por gorrite (12/10)
 
-- **«Terminar la reserva y pasar a la siguiente» no le manda un mail** a esa persona: su link deja
-  de servir sin aviso. ¿Hace falta un mail («Terminamos tu reserva»)?
+- **«Terminar la reserva y pasar a la siguiente» pregunta** si le avisamos por mail a esa persona
+  (casilla «Mandarle un mail», marcada de entrada). Con la casilla sale «se terminó tu lugar»
+  (`waitlist_ended`, como «se venció», con «Volver a anotarme»); sin ella, su link deja de servir
+  sin aviso. Con la lista apagada no sale ningún mail y el diálogo lo dice. Actividad anota si se
+  pidió el mail. Sin migración (ver [tickets.md](../tickets.md#lista-de-espera-en-construcción)).
 
 ## Descartado
 

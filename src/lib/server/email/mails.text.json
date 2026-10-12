@@ -127,6 +127,10 @@
 		"subject": "Se venció tu lugar para Fiesta <b>de</b> prueba",
 		"text": "Se venció tu lugar\n\nNo llegaste a usar el lugar que te guardamos para Fiesta <b>de</b> prueba, así que se lo pasamos a la próxima persona de la fila.\n\nFiesta <b>de</b> prueba\nsábado 10 de octubre de 2026, 22:00\n\nVolver a anotarme: https://kinkyvibe.example/lista-de-espera/volver/jkl?x=1&y=2\nSi todavía querés ir, podés volver a anotarte: quedás al final de la fila, sin confirmar el mail de nuevo.\n\nPara salir de la lista de espera: https://kinkyvibe.example/lista-de-espera/salir/def?x=1&y=2"
 	},
+	"tickets/waitlist-ended": {
+		"subject": "Se terminó tu lugar para Fiesta <b>de</b> prueba",
+		"text": "Se terminó tu lugar\n\nTerminamos el lugar que te ofrecimos para Fiesta <b>de</b> prueba y se lo pasamos a la próxima persona de la fila. El link para comprar ya no sirve.\n\nFiesta <b>de</b> prueba\nsábado 10 de octubre de 2026, 22:00\n\nVolver a anotarme: https://kinkyvibe.example/lista-de-espera/volver/mno?x=1&y=2\nSi todavía querés ir, podés volver a anotarte: quedás al final de la fila, sin confirmar el mail de nuevo.\n\nPara salir de la lista de espera: https://kinkyvibe.example/lista-de-espera/salir/def?x=1&y=2"
+	},
 	"tickets/waitlist-closed": {
 		"subject": "Se cerró la lista de espera de Fiesta <b>de</b> prueba",
 		"text": "Se cerró la lista de espera\n\nLa lista de espera de Fiesta <b>de</b> prueba se cerró y no llegó a liberarse un lugar para vos. ¡Gracias por la paciencia!\n\nFiesta <b>de</b> prueba\nsábado 10 de octubre de 2026, 22:00\n\nYa no vamos a ofrecer más lugares: falta poco para que empiece o ya cerró la venta.\n\nVer el evento: https://kinkyvibe.example/calendario/fiesta-de-prueba\n\nPara salir de la lista de espera: https://kinkyvibe.example/lista-de-espera/salir/def?x=1&y=2"

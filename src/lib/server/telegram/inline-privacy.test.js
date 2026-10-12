@@ -3,7 +3,9 @@
  * cuenta. Nada oculto, «solo con cuenta», sin aprobar, no listado ni borrado, en ninguna consulta
  * (vacía, con texto, con prefijo, con el nombre exacto de lo oculto), y el lugar de un evento solo
  * como lo muestra su página (nunca la calle de un lugar que la oculta). Lo mismo en las secciones
- * del sitio (sections.js): sus listas, sus etiquetas y los botones armados a mano.
+ * del sitio (sections.js): sus listas, sus etiquetas y los botones armados a mano. Y lo mismo con
+ * los mensajes enriquecidos (rich.js: el texto del índice, nunca el de algo oculto) y al compartir
+ * desde la Mini App (share.js).
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
@@ -96,19 +98,22 @@ const HIDDEN = [
 	'Persona No Listada Escondida',
 	'Persona Borrada Escondida',
 	'Calle Secreta 1234',
-	'persona@example.invalid'
+	'persona@example.invalid',
+	'Cuerpo Secreto Escondido'
 ];
 
 async function seed() {
 	await dbObject('evento', 'evento-visible', 'Evento Visible Inventado', {
-		start: '2031-02-10T20:00:00-03:00'
+		start: '2031-02-10T20:00:00-03:00',
+		body: 'Descripción visible del evento inventado.'
 	});
 	await dbObject(
 		'evento',
 		'evento-oculto',
 		'Evento Oculto Escondido',
 		{
-			start: '2031-02-11T20:00:00-03:00'
+			start: '2031-02-11T20:00:00-03:00',
+			body: 'Cuerpo Secreto Escondido del evento oculto.'
 		},
 		'hidden'
 	);
@@ -122,14 +127,16 @@ async function seed() {
 	await softDelete(borrado);
 
 	await dbObject('material', 'material-visible', 'Material Visible Inventado', {
-		published_date: '2030-05-01'
+		published_date: '2030-05-01',
+		body: 'Texto visible inventado. Se puede leer adentro del chat.'
 	});
 	await dbObject(
 		'material',
 		'material-oculto',
 		'Material Oculto Escondido',
 		{
-			published_date: '2030-05-02'
+			published_date: '2030-05-02',
+			body: 'Cuerpo Secreto Escondido del material oculto.'
 		},
 		'hidden'
 	);
@@ -138,7 +145,8 @@ async function seed() {
 		'material-cuentas',
 		'Material Cuentas Escondido',
 		{
-			published_date: '2030-05-03'
+			published_date: '2030-05-03',
+			body: 'Cuerpo Secreto Escondido del material para cuentas.'
 		},
 		'members'
 	);
@@ -212,13 +220,27 @@ async function inlineDeps() {
 	const { shortHash } = await import('./nav.js');
 	clearInlineSource();
 	resetInlineRate();
+	/** @type {Record<string, unknown>} */
+	let chatMore = {};
 	const chatDeps = {
 		listUpcoming: () => listUpcomingEvents(t.platform, NOW),
 		origin: ORIGIN,
 		now: () => NOW,
-		inline: { source: () => inlineSource(t.platform, NOW) }
+		get media() {
+			return Boolean(chatMore.media);
+		},
+		get inline() {
+			return {
+				source: () => inlineSource(t.platform, NOW),
+				...(chatMore.rich ? { rich: true } : {})
+			};
+		}
 	};
 	return {
+		/** Con mensajes enriquecidos y el token (`telegram_enriquecido`). */
+		richChat: () => {
+			chatMore = { rich: true, media: true };
+		},
 		/** Buscar en todo el sitio desde el chat (`/buscar <texto>`). @param {string} text */
 		chat: async (text) =>
 			planUpdate(
@@ -238,15 +260,19 @@ async function inlineDeps() {
 				},
 				chatDeps
 			),
-		/** @param {string} query @param {string} [offset] */
-		ask: async (query, offset = '') => {
+		/**
+		 * @param {string} query @param {string} [offset]
+		 * @param {Record<string, unknown>} [more] `rich`, `botUsername`
+		 */
+		ask: async (query, offset = '', more = {}) => {
 			const plan = await planInlineQuery(
 				{ id: 'iq', from: { id: 1 }, query, offset },
 				{
 					source: () => inlineSource(t.platform, NOW),
 					events: (metas) => inlineEventInfo(t.platform, metas),
 					origin: ORIGIN,
-					now: () => NOW
+					now: () => NOW,
+					...more
 				}
 			);
 			return /** @type {any} */ (plan?.steps[0]);
@@ -450,5 +476,126 @@ describe('secciones del sitio: solo lo público', () => {
 		// Lo visible sí se abre desde su sección.
 		const visible = await tap(`cd:m:${shortHash('/material/material-visible')}:0`);
 		expect(JSON.stringify(visible)).toContain('Material Visible Inventado');
+	});
+});
+
+describe('mensajes enriquecidos y compartir: solo lo público', () => {
+	const HIDDEN_SLUGS = [
+		'evento-oculto',
+		'evento-no-listado',
+		'evento-borrado',
+		'evento-solo-md',
+		'material-oculto',
+		'material-cuentas',
+		'material-borrado',
+		'p-oculta',
+		'p-cuentas',
+		'p-sin-aprobar',
+		'p-no-listada',
+		'p-borrada',
+		'casa-escondida'
+	];
+
+	it('modo inline enriquecido: nada oculto en ninguna consulta; lo público se lee entero', async () => {
+		await seed();
+		const { ask } = await inlineDeps();
+		const answers = [];
+		for (const q of [
+			'',
+			'escondido',
+			'inventado',
+			'evento:',
+			'material:',
+			'calle secreta',
+			...HIDDEN
+		]) {
+			answers.push(await ask(q, '', { rich: true, botUsername: 'BotInventadoBot' }));
+		}
+		const json = JSON.stringify(answers);
+		for (const text of HIDDEN) expect(json, text).not.toContain(text);
+		for (const slug of HIDDEN_SLUGS) expect(json, slug).not.toContain(`/${slug}`);
+		for (const slug of HIDDEN_SLUGS) expect(json, slug).not.toContain(`startapp=ev-${slug}`);
+		// El texto público sí está, adentro del mensaje enriquecido.
+		const rich = answers
+			.flatMap((a) => a.results)
+			.map((/** @type {any} */ r) => r.input_message_content.rich_message?.html ?? '')
+			.join('\n');
+		expect(rich).toContain('Texto visible inventado.');
+		expect(rich).toContain('Descripción visible del evento inventado.');
+		expect(rich).toContain('Barrio Inventado');
+		expect(json).toContain('startapp=ev-evento-visible');
+	});
+
+	it('la tarjeta enriquecida del chat: lo público entero; lo oculto, ni abriéndolo a mano', async () => {
+		await seed();
+		const { chat, open, richChat } = await inlineDeps();
+		richChat();
+		const visible = JSON.stringify(await open('/material/material-visible', 'visible'));
+		expect(visible).toContain('rich_message');
+		expect(visible).toContain('Texto visible inventado.');
+		const answers = [];
+		for (const q of ['escondido', 'inventado', ...HIDDEN]) {
+			answers.push(
+				JSON.stringify(await chat(`/buscar ${q}`))
+					.split(q)
+					.join('…')
+			);
+		}
+		for (const href of ['/material/material-oculto', '/material/material-cuentas']) {
+			const p = await open(href, 'escondido');
+			expect(p?.steps, href).toEqual([]);
+			answers.push(JSON.stringify(p));
+		}
+		const json = answers.join('\n');
+		for (const text of HIDDEN) expect(json, text).not.toContain(text);
+		for (const slug of HIDDEN_SLUGS) expect(json, slug).not.toContain(`/${slug}`);
+	});
+
+	it('compartir desde la Mini App: solo un evento público y próximo, con el lugar como su página', async () => {
+		await seed();
+		await inlineDeps();
+		const { prepareShare } = await import('./share.js');
+		const { inlineSource } = await import('./inlineSource.js');
+		const { inlineEventInfo } = await import('./events.js');
+		const { createHmac } = await import('node:crypto');
+		const token = '123456789:token-inventado-solo-para-pruebas';
+		const fields = {
+			auth_date: String(Math.floor(NOW / 1000) - 30),
+			user: JSON.stringify({ id: 4242 })
+		};
+		const dcs = Object.entries(fields)
+			.sort(([a], [b]) => a.localeCompare(b))
+			.map(([k, v]) => `${k}=${v}`)
+			.join('\n');
+		const secret = createHmac('sha256', 'WebAppData').update(token).digest();
+		const hash = createHmac('sha256', secret).update(dcs).digest('hex');
+		const initData = new URLSearchParams({ ...fields, hash }).toString();
+		/** @type {any[]} */
+		const sent = [];
+		/** @param {string} slug */
+		const share = (slug) =>
+			prepareShare({
+				initData,
+				slug,
+				token,
+				origin: ORIGIN,
+				now: NOW,
+				source: () => inlineSource(t.platform, NOW),
+				events: (metas) => inlineEventInfo(t.platform, metas),
+				rich: true,
+				call: async (_method, body) => {
+					sent.push(body);
+					return { ok: true, status: 200, result: { id: 'p-1' } };
+				}
+			});
+		for (const slug of ['evento-oculto', 'evento-no-listado', 'evento-borrado', 'evento-solo-md']) {
+			expect(await share(slug), slug).toEqual({ status: 404, body: { error: 'not_found' } });
+		}
+		expect(sent).toEqual([]);
+		expect(await share('evento-visible')).toEqual({ status: 200, body: { id: 'p-1' } });
+		const json = JSON.stringify(sent);
+		expect(json).toContain('Evento Visible Inventado');
+		expect(json).toContain('Barrio Inventado');
+		for (const text of HIDDEN) expect(json, text).not.toContain(text);
 	});
 });
