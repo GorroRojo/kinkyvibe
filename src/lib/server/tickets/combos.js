@@ -55,9 +55,18 @@ export const COMBO_CREATED_BY = 'combo';
 
 /** Un código combo nuevo al azar: `COMBO-` + 6 del alfabeto sin ambiguos de las entradas. */
 export function newComboCode() {
-	const bytes = crypto.getRandomValues(new Uint8Array(COMBO_CODE_RANDOM));
+	const n = TICKET_CODE_ALPHABET.length;
+	// Se descartan los bytes del último tramo incompleto para que cada carácter salga parejo.
+	const limit = 256 - (256 % n);
+	const length = COMBO_CODE_PREFIX.length + COMBO_CODE_RANDOM;
 	let out = COMBO_CODE_PREFIX;
-	for (const b of bytes) out += TICKET_CODE_ALPHABET[b % TICKET_CODE_ALPHABET.length];
+	while (out.length < length) {
+		for (const b of crypto.getRandomValues(new Uint8Array(COMBO_CODE_RANDOM))) {
+			if (b >= limit) continue;
+			out += TICKET_CODE_ALPHABET.charAt(Math.floor((b * n) / limit));
+			if (out.length === length) break;
+		}
+	}
 	return out;
 }
 

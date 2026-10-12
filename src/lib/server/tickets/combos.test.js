@@ -3,7 +3,7 @@
  * de una compra de A, que valga solo en B y solo con el mail de quien compró, que sea de un solo
  * uso y que reembolsar la compra de A lo anule si no se usó. Eventos y personas inventados.
  */
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { applyDiscount } from '$lib/utils/tickets.js';
 import { formatARS } from '$lib/utils/money.js';
@@ -257,6 +257,25 @@ describe('generar el código', () => {
 		expect(comboDiscountText({ kind: 'fixed', value: 1500 })).toBe(
 			`${formatARS(1500)} de descuento`
 		);
+	});
+
+	it('descarta los bytes del tramo incompleto para que el alfabeto salga parejo', () => {
+		const spy = vi
+			.spyOn(crypto, 'getRandomValues')
+			.mockImplementationOnce((arr) => {
+				/** @type {Uint8Array} */ (arr).set([255, 254, 253, 252, 251, 250]);
+				return arr;
+			})
+			.mockImplementationOnce((arr) => {
+				/** @type {Uint8Array} */ (arr).set([0, 0, 0, 0, 0, 0]);
+				return arr;
+			});
+		try {
+			expect(newComboCode()).toBe('COMBO-222222');
+			expect(spy).toHaveBeenCalledTimes(2);
+		} finally {
+			spy.mockRestore();
+		}
 	});
 });
 
