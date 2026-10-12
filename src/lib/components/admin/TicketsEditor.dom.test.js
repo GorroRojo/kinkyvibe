@@ -66,6 +66,22 @@ describe('TicketsEditor en el navegador', () => {
 		expect(t.errors).toEqual([]);
 	});
 
+	it('los hijos directos del <fieldset> no cambian al pasar a «Preventas» con errores a la vista', async () => {
+		// En Chromium, si cambian a la vez los hijos del <fieldset> (aparece o cambia la lista de
+		// errores) y el contenido de una tarjeta (`container-type`), la tarjeta se queda sin
+		// contenido visible (gorrite, 12/10). jsdom no dibuja: acá se prueba la forma que lo evita;
+		// en un navegador de verdad lo prueba tests/tickets/editor.spec.js.
+		const t = setup({ touched: true, errors: [] });
+		const fieldset = /** @type {HTMLElement} */ (document.querySelector('fieldset.tickets'));
+		const before = [...fieldset.children];
+		await fireEvent.click(within(cards()[1]).getByLabelText('Preventas'));
+		await t.rerender({ errors: ['Entrada 2 («Segunda tanda»), tramo 1: falta el precio.'] });
+		expect(fieldset.querySelector('.errors')).toBeTruthy();
+		expect([...fieldset.children]).toEqual(before);
+		t.done();
+		expect(t.errors).toEqual([]);
+	});
+
 	it('«Sacar»: habilitado con 0 vendidas (y saca el tipo); con ventas, desactivado y explica por qué', async () => {
 		const t = setup();
 		const [first, second] = cards();
