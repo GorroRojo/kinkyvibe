@@ -308,6 +308,12 @@ de amigues y lanzamientos grandes.
 
 Lo grande está en Próximo (7 y 8). Lo que quede de esas auditorías se suma acá.
 
+- Las fechas de publicación se guardan como `2024-12-06Z-03:00`, que no es ISO 8601. Los atributos
+  y metadatos ya salen bien (`isoDateTime`/`isoDay` de `dates.js`), pero los formateadores visibles
+  (`toArgentina` y los `argDate*`) siguen leyéndolas con `new Date()`, que no todos los motores de
+  JS entienden: revisar si conviene que usen `parseSiteDate`, o pasar los datos a ISO 8601 con
+  una migración. S.
+
 ## Decidido y descartado
 
 - **AUCH como etiqueta especial** en todos lados (TODO en `PostListItem.svelte`): descartado.
