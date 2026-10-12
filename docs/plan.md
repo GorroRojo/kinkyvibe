@@ -182,7 +182,7 @@ CI) va en la fase 0.
 - `bot-avisos-admin` · fase 0 · hecho · bot · Telegram para admins: parte 1 («📊 Estado» y «🔔 Mis avisos», apagado con `telegram_admin`) y parte 2 (resumen diario de ventas y avisos en el momento de cada venta y cada transferencia, solo a quien los prendió, con horario de silencio; migración 0055) · #315, #322, [0041](decisiones/0041-telegram-para-admins.md)
 - `bot-textos` · fase 0 · hecho · bot · «Textos del bot» editables desde Ajustes · #302
 - `bot-inline-buscar` · fase 0 · hecho · bot · Modo inline y búsqueda en todo el sitio · #298, #300
-- `buscar-sintaxis` · fase 0 · espera gorrite · sitio · Una sola sintaxis de búsqueda para el sitio, el bot y el panel (palabras, "frase", -palabra, #etiqueta, evento:/material:/wiki:/serie:/amigues:, @nombre, lugar:, hoy/finde, cuando:); falta el OK y 3 preguntas · [0046](decisiones/0046-sintaxis-de-busqueda.md)
+- `buscar-sintaxis` · fase 0 · espera gorrite · sitio · Una sola sintaxis de búsqueda para el sitio, el bot y el panel, escrita en [buscar.md](buscar.md); falta el OK y 3 preguntas · [0046](decisiones/0046-sintaxis-de-busqueda.md)
 - `buscar-sintaxis-sitio` · fase 0 · sigue · sitio · El buscador del sitio (Ctrl+K) entiende la sintaxis base (depende de: buscar-sintaxis)
 - `buscar-sintaxis-bot` · fase 0 · sigue · bot · El bot (inline y Buscar) entiende la sintaxis base, no solo el prefijo al principio (depende de: buscar-sintaxis)
 - `buscar-sintaxis-panel` · fase 0 · sigue · panel · El buscador del panel usa el mismo parser para la base (formas largas de tipo, `material:`, `wiki:`…) y suma lo suyo (depende de: buscar-sintaxis)
