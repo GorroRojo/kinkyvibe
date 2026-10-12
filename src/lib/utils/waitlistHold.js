@@ -97,7 +97,8 @@ export function parseEventWaitlist(raw) {
  * Los ajustes que valen para un evento: los fijos ({@link WAITLIST_SETTINGS}) con lo que el
  * evento cambia («todes a la vez»; los tramos de reserva son siempre los fijos).
  *
- * @param {WaitlistSettings} global
+ * @param {Readonly<Omit<WaitlistSettings, 'tiers'>> & { tiers: readonly Readonly<HoldTier>[] }} global
+ *   los fijos ({@link WAITLIST_SETTINGS}) u otros (pruebas)
  * @param {EventWaitlist | null | undefined} event
  * @returns {WaitlistSettings}
  */
