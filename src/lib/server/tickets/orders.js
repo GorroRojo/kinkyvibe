@@ -246,7 +246,7 @@ export async function reserveOrder(db, input) {
 					WHERE event_slug = ?2 AND ticket_type = ?3 AND ticket_tier = ?31
 						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?9))
 				) + ?4 <= ?32)
-				AND ${discountGuardSql({ code: '?12', kind: '?13', value: '?14', event: '?2', now: '?9' })}
+				AND ${discountGuardSql({ code: '?12', kind: '?13', value: '?14', event: '?2', now: '?9', email: '?8' })}
 				${guard ? `${WAITLIST_GUARD_SQL}\n\t\t\t\t` : ''}RETURNING *`
 			)
 			.bind(
@@ -299,7 +299,12 @@ export async function reserveOrder(db, input) {
 	});
 	if (limited) return { ok: false, reason: 'limit', message: limited };
 	if (discount) {
-		const check = await checkDiscountCode(db, { code: discount.code, eventSlug, now });
+		const check = await checkDiscountCode(db, {
+			code: discount.code,
+			eventSlug,
+			now,
+			email: buyer.email
+		});
 		if (!check.ok) return { ok: false, reason: 'code', message: check.message };
 		if (check.discount.kind !== discount.kind || check.discount.value !== discount.value) {
 			return { ok: false, reason: 'code', message: 'El código cambió: aplicalo de nuevo.' };

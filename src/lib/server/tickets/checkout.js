@@ -415,7 +415,24 @@ function describeDiscount(d) {
 		d.kind === 'percent'
 			? `${d.value}% de descuento`
 			: `$ ${d.value.toLocaleString('es-AR')} de descuento`;
-	return { code: d.code, kind: d.kind, value: d.value, message: `Código ${d.code}: ${what}.` };
+	// Código combo (combos.js): nunca decimos para qué mail es (lo vería cualquiera con el código).
+	const personal = d.buyer_email ? ' Es personal: vale con el mismo email al que te llegó.' : '';
+	return {
+		code: d.code,
+		kind: d.kind,
+		value: d.value,
+		message: `Código ${d.code}: ${what}.${personal}`
+	};
+}
+
+/**
+ * El email del formulario como lo guarda la orden (minúsculas, sin espacios), o `undefined` si
+ * todavía no lo escribió (para los códigos combo, que valen solo con un mail).
+ *
+ * @param {string} raw
+ */
+function buyerEmail(raw) {
+	return raw.trim().toLowerCase() || undefined;
 }
 
 /**
@@ -439,7 +456,11 @@ export async function discountAction(event) {
 		const client = await clientHash(clientAddress(event));
 		if (!(await codeAttemptAllowed(db, params.event, client)))
 			return failWith(429, 'Demasiados intentos. Probá en unos minutos.');
-		const check = await checkDiscountCode(db, { code: values.code, eventSlug: params.event });
+		const check = await checkDiscountCode(db, {
+			code: values.code,
+			eventSlug: params.event,
+			email: buyerEmail(values.email)
+		});
 		if (!check.ok) return failWith(400, check.message);
 		return { buy: { error: null, errors: {}, values, discount: describeDiscount(check.discount) } };
 	} catch (error) {
@@ -666,7 +687,11 @@ export async function buyAction(event) {
 					code: 'Demasiados intentos. Probá en unos minutos.'
 				});
 			}
-			const check = await checkDiscountCode(db, { code: values.code, eventSlug: params.event });
+			const check = await checkDiscountCode(db, {
+				code: values.code,
+				eventSlug: params.event,
+				email: buyerEmail(values.email)
+			});
 			if (check.ok) {
 				discount = check.discount;
 				applied = describeDiscount(discount);
