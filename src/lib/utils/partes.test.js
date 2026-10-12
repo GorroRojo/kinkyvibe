@@ -13,6 +13,7 @@ import {
 	partLabel,
 	partLabelsBySlug,
 	partLine,
+	partsCoveredBy,
 	partsListTitle,
 	partOf,
 	sellsPerPart,
@@ -89,6 +90,17 @@ describe('numerar y cubrir', () => {
 		expect(sellsPerPart({ entradas_por_parte: true })).toBe(true);
 		expect(sellsPerPart({ entradas_por_parte: 'true' })).toBe(false);
 		expect(sellsPerPart(null)).toBe(false);
+	});
+
+	it('qué partes cubre la entrada: todas, solo si es la del taller con una sola entrada', () => {
+		expect(partsCoveredBy(taller, 'taller-x')?.map((p) => p.n)).toEqual([1, 2, 3]);
+		expect(partsCoveredBy(taller, 'taller-x-parte-2')).toBeNull();
+		expect(partsCoveredBy(taller, 'otro')).toBeNull();
+		expect(partsCoveredBy(null, 'taller-x')).toBeNull();
+		const porParte = numberParts({ ...info('t', '2026-10-02T22:00-03:00'), perPart: true }, [
+			info('t-parte-2', '2026-10-09T22:00-03:00')
+		]);
+		expect(partsCoveredBy(porParte, 't')).toBeNull();
 	});
 
 	it('etiquetas del calendario por dirección', () => {

@@ -68,7 +68,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `lanzamiento-piloto` · fase 0 · espera gorrite · entradas · Abrir con un evento piloto propio y chico, después dos o tres normales, después los de amigues (depende de: lanzamiento-decisiones, lanzamiento-pruebas-mp, legales-minimos)
 - `puerta-celus-reales` · fase 0 · espera gorrite · entradas · La puerta con celulares reales (Android y iPhone): escanear, código, buscar, vender en efectivo y transferencia, sin conexión y con dos celus a la vez
 - `qr-mp-puerta` · fase 0 · sigue · entradas · Cobrar con el QR de Mercado Pago en la puerta (gorrite, 11/10) (depende de: puerta-sin-conexion)
-- `boton-comprar-afuera` · fase 0 · sigue · sitio · Cuando las entradas se venden en otro sitio, el botón tiene el mismo peso que «Comprar entradas» (gorrite, 10/10)
+- `boton-comprar-afuera` · fase 0 · hecho · sitio · Cuando las entradas se venden en otro sitio, el botón tiene el mismo peso que «Comprar entradas» (gorrite, 10/10) · #331
 - `tickets-spec-arreglar` · fase 0 · sigue · pruebas · Dos pruebas de `tests/tickets/tickets.spec.js` que no corren en la CI: arregladas en #325 («1 aprobado» en singular; esperar a que cargue la página). Falta sumarlas a la CI
 - `puerta-sin-conexion` · fase 0 · hecho · entradas · Vender en la puerta sin conexión · #286, [0035](decisiones/0035-vender-en-puerta-sin-conexion.md)
 - `transferencia-dias-habiles` · fase 0 · hecho · entradas · Reserva por transferencia de 2 días hábiles · #261, [0031](decisiones/0031-reserva-transferencia-dias-habiles.md)
@@ -87,11 +87,11 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `nav-c-ir-a-recientes` · fase 0 · hecho · panel · «Ir a…» (⌘K) vacío muestra Fijados y Recientes · #314
 - `ajustes-4-grupos` · fase 0 · hecho · panel · Ajustes como portada con 4 grupos de tarjetas (Plata, Comunicación, Equipo, Sistema) en vez de pestañas · #317, [0042](decisiones/0042-ajustes-portada-con-grupos.md)
 - `ajustes-fondo-linea` · fase 0 · sigue · panel · Portada de Ajustes: línea de estado del Fondo aunque todavía no haya llegado el porcentaje automático (hoy la tarjeta va sin línea; buscarlo haría lenta la portada) (depende de: ajustes-4-grupos)
-- `panel-pestanas-celu` · fase 0 · sigue · panel · En el celu, la lista ▾ de pestañas de la ficha se ve menos importante que los botones de acción (gorrite, #303)
-- `buscador-pestanas-nombres` · fase 0 · sigue · panel · Los atajos del buscador a las pestañas de un evento (`eventTabActions`) dicen «Órdenes» y «Mail a compradores»: pasar a «Ventas › Órdenes» y «Mails › Mandar un aviso»
-- `navprefs-grupos-limpiar` · fase 0 · sigue · panel · Sacar de `navPrefs.js` las funciones de grupos abiertos (`kv-panel-grupos`) y sus pruebas, que la barra sin grupos ya no usa
+- `panel-pestanas-celu` · fase 0 · hecho · panel · En el celu, la lista ▾ de pestañas de la ficha se ve menos importante que los botones de acción (gorrite, #303) · #331
+- `buscador-pestanas-nombres` · fase 0 · hecho · panel · Los atajos del buscador a las pestañas de un evento (`eventTabActions`) dicen «Órdenes» y «Mail a compradores»: pasar a «Ventas › Órdenes» y «Mails › Mandar un aviso» · #323
+- `navprefs-grupos-limpiar` · fase 0 · hecho · panel · Sacar de `navPrefs.js` las funciones de grupos abiertos (`kv-panel-grupos`) y sus pruebas, que la barra sin grupos ya no usa · #323
 - `panel-prefs-en-base` · fase 0 · algún día · panel · Fijados y el modo del panel lateral por admin en la base (hoy por navegador), si se suma una tabla de preferencias
-- `miniaturas-listas-panel` · fase 0 · sigue · panel · Miniaturas achicadas (`thumbnailUrl`) en Eventos y Contenido, como ya tiene «Hoy»
+- `miniaturas-listas-panel` · fase 0 · hecho · panel · Miniaturas achicadas (`thumbnailUrl`) en Eventos y Contenido, como ya tiene «Hoy» · #323
 - `graficos-mas` · fase 0 · algún día · panel · Más gráficos: mapa de la comunidad, Fondo y finanzas
 - `editor-textos-sitio` · fase 0 · sigue · panel · Un «modo editar textos» para casi todo lo que dice el sitio, visualmente afuera del panel, con el mismo registro de textos del bot y las vistas previas; por partes, y antes decidir qué queda fijo (gorrite, 11/10)
 - `nav-panel-c` · fase 0 · hecho · panel · Navegación del panel opción C, partes 1 y 2 · #301, #309, [0038](decisiones/0038-navegacion-del-panel-opcion-c.md)
@@ -103,7 +103,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 ### Sitio público
 
 - `ux-auditoria-restos` · fase 0 · sigue · sitio · Lo que sigue abierto de la auditoría de UX del 4/10: anclas del glosario, áreas de toque, migas de pan, búsqueda vacía de la wiki
-- `wiki-sin-entrada-editar` · fase 0 · sigue · sitio · «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`)
+- `wiki-sin-entrada-editar` · fase 0 · hecho · sitio · «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`) · #323
 - `filtros-celu-probar` · fase 0 · sigue · sitio · Probar la barra de filtros en celulares reales y, si va, cerrar el PR de prototipos · #294, #283
 - `filtros-sin-efecto` · fase 0 · sigue · sitio · Esconder etiquetas del filtro que no cambiarían los resultados · #17
 - `lectura-barra-progreso` · fase 0 · espera gorrite · sitio · Barra de progreso de lectura; confirmar que se sigue queriendo · #19
@@ -146,15 +146,19 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 ### Bot de Telegram
 
-- `bot-avisos-admin` · fase 0 · en curso · bot · Telegram para admins: parte 1 («📊 Estado» y «🔔 Mis avisos», apagado con `telegram_admin`) hecha en #315; parte 2 (resumen diario y avisos en el momento, migración 0055) en #322 · [0041](decisiones/0041-telegram-para-admins.md)
 - `bot-avisos-admin-3` · fase 0 · sigue · bot · Telegram para admins, parte 3: el resumen del día del evento y los recordatorios (el evento de mañana, falta el lugar o el link de la transmisión) (depende de: bot-avisos-admin) · [0041](decisiones/0041-telegram-para-admins.md)
 - `bot-avisos-admin-probar` · fase 0 · espera gorrite · bot · Prender `telegram_admin` en un preview y probarlo con un Telegram vinculado (la migración 0054 ya está en preview y producción) (depende de: bot-avisos-admin)
+- `bot-avisos-admin-2-probar` · fase 0 · espera gorrite · bot · Telegram para admins, parte 2: aplicar la migración 0055 en preview y producción antes de mergear #322, y probarlo en un preview con una compra de prueba y el cron de las 9 (depende de: bot-avisos-admin)
+- `bot-avisos-admin-aprobada` · fase 0 · algún día · bot · Guardar cuándo se aprobó cada orden (`approved_at`, necesita migración) para que «vendidas desde ayer» del resumen diario no dependa de `updated_at`, si hace falta (depende de: bot-avisos-admin)
 - `bot-avisos-admin-menu` · fase 0 · algún día · bot · `/estado` y `/avisos` en el menú «/» solo de les admins vinculades (`setMyCommands` por chat desde el cron; borrarlo al desvincular), si hace falta
-- `bot-busquedas-vacias` · fase 0 · sigue · bot · Bot 3/5: qué se busca y no se encuentra (sin guardar quién), en el panel, y sugerencias en vez de «no encontré nada» (depende de: bot-mis-entradas)
+- `bot-busquedas-vacias-panel` · fase 0 · sigue · bot · Contar cuántas búsquedas del bot no encuentran nada, para el panel (sin guardar quién ni qué) (depende de: bot-busquedas-vacias)
+- `bot-sin-resultados-grupo` · fase 0 · sigue · bot · Sin resultados en un grupo: «⭐ Seguir» la etiqueta buscada como link al chat privado (hoy no aparece; haría falta un deep link nuevo) (depende de: bot-busquedas-vacias)
+- `bot-sin-resultados-tildes` · fase 0 · sigue · bot · Sin resultados: las palabras sugeridas salen como las guarda el índice, sin tildes ni mayúsculas («guia», no «Guía»); mostrarlas como se escriben en el título (depende de: bot-busquedas-vacias)
 - `bot-puerta-probar` · fase 0 · espera gorrite · bot · Probar la Puerta por Telegram en un preview con celus reales (vincular, abrir, escanear) · [0037](decisiones/0037-puerta-por-telegram.md)
 - `bot-puerta-2` · fase 0 · sigue · bot · Bot 4/5: Puerta por Telegram parte 2 (contador en vivo, escribir el código a mano) (depende de: bot-busquedas-vacias, bot-puerta-probar)
 - `bot-kinkipedia-ramas-probar` · fase 0 · espera gorrite · bot · Mirar en Telegram la Kinkipedia por ramas con el árbol de verdad: que las ramas de arriba sean las de `/wiki` y que ninguna quede con un solo hijo de más (depende de: bot-secciones-ajustes)
-- `bot-mis-entradas-partes` · fase 0 · sigue · bot · Mis entradas: un taller de varias partes sigue en «próximas» hasta la última parte
+- `bot-mis-entradas-partes` · fase 0 · hecho · bot · Mis entradas: un taller de varias partes sigue en «próximas» hasta la última parte · #329
+- `rincon-compras-partes` · fase 0 · sigue · cuentas · Mi rincón, «Mis compras»: en un taller de varias partes, mostrar la fecha de la próxima parte (hoy muestra la de la parte 1)
 - `bot-mis-entradas-transmision` · fase 0 · espera gorrite · bot · Mis entradas: mandar el link de la transmisión de un evento online por el chat
 - `bot-mis-entradas-probar` · fase 0 · espera gorrite · bot · Probar «Mis entradas» en Telegram con una entrada de prueba (el QR por la API solo se prueba contra el bot de verdad)
 - `bot-avisos-apagados` · fase 0 · algún día · bot · Recordar si alguien apagó a propósito los avisos de algo, para que dejar de seguirlo y volver a seguirlo desde el bot no los prenda (volver a vincular ya no saca `/silenciar`, #321; necesita migración, aplicarla antes del merge, 0028) · [0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)
@@ -164,6 +168,8 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `bot-mis-entradas` · fase 0 · hecho · bot · Bot 2/5: «🎟 Mis entradas» con el QR de la puerta · #313
 - `bot-secciones-ajustes` · fase 0 · hecho · bot · Secciones del bot: Kinkipedia por las ramas del árbol de etiquetas (como `/wiki` y en su orden), Series sin las que no tienen ediciones, volver a vincular no saca `/silenciar` y los textos de la Mini App del calendario en «Textos del bot» · #321
 - `bot-funciones-viejas` · fase 0 · hecho · bot · Borradas las funciones que el bot ya no usaba (`formatEventList`, `formatEvent`, `formatChoices`, `formatPickList`, `eventListKeyboard`, `eventDetailKeyboard`) y sus pruebas · #321
+- `bot-busquedas-vacias` · fase 0 · hecho · bot · Bot 3/5: sugerencias en vez de «no encontré nada» (búsquedas parecidas, la sección más cercana, lo que viene y «⭐ Seguir» la etiqueta; también en el modo inline) · #318
+- `bot-avisos-admin` · fase 0 · hecho · bot · Telegram para admins: parte 1 («📊 Estado» y «🔔 Mis avisos», apagado con `telegram_admin`) y parte 2 (resumen diario de ventas y avisos en el momento de cada venta y cada transferencia, solo a quien los prendió, con horario de silencio; migración 0055) · #315, #322, [0041](decisiones/0041-telegram-para-admins.md)
 - `bot-textos` · fase 0 · hecho · bot · «Textos del bot» editables desde Ajustes · #302
 - `bot-inline-buscar` · fase 0 · hecho · bot · Modo inline y búsqueda en todo el sitio · #298, #300
 - `telegram-puerta` · fase 0 · hecho · bot · Puerta por Telegram como Mini App, con vínculo desde el panel · #273, #304
@@ -217,6 +223,8 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 ### Contenido en la base
 
+- `importar-material-script` · fase 2 · hecho · contenido · `scripts/importar-material.js`: carga un paquete privado de borradores de material como no listado, por el camino del panel · #342, [contenido.md](contenido.md#tareas-comunes)
+- `importar-material-correr` · fase 2 · espera gorrite · contenido · ver Mesa (gorrite corre `node scripts/importar-material.js --target=production` con el paquete) (depende de: importar-material-script)
 - `subir-archivos` · fase 2 · espera gorrite · contenido · gorrite corre `node scripts/subir-archivos.js --target=production` (PDF, video y ODT a la biblioteca); después un PR borra `src/lib/archivos/` y su glob en `render.js` · [contenido.md](contenido.md#lo-que-falta)
 - `codigo-muerto-github` · fase 2 · sigue · contenido · Código que quedó del panel con GitHub: `sharedImage.js`, la edición del archivo de etiquetas en `tagConfig.js`, ramas «no se guardó en la base», el permiso `public_repo` del login, y que el panel guarde objetos sin pasar por «rutas de `.md`» (`getRepoClient`, `withContentDb`, `commitFiles`)
 - `restos-limpieza` · fase 2 · sigue · contenido · Restos chicos: la regla de estilo que no alcanza a `.kv-texto-libre` (unas 200 páginas, con antes y después), un solo `foldText` en vez de las copias, un solo helper de imagen de una publicación, renombrar el `isAdmin` de `objects/visibility.js`, el campo de texto `perfil.avatar`
@@ -251,7 +259,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 - `lista-espera` · fase 3 · hecho · entradas · Lista de espera por evento o tipo de entrada, apagada · #310, [0040](decisiones/0040-lista-de-espera.md)
 - `lista-espera-prender` · fase 3 · espera gorrite · entradas · Prender `lista_espera` y probarla en un evento piloto (anotarse, reembolso, oferta y compra con el link) (depende de: lista-espera)
 - `lista-espera-mail-terminar` · fase 3 · espera gorrite · entradas · Si «Terminar la reserva y pasar a la siguiente» le manda un mail a esa persona
-- `promos-varios-eventos` · fase 3 · espera gorrite · entradas · Promociones de varios eventos (por ejemplo dos a un precio especial); falta diseño (panel, compra, Fondo y reembolsos)
+- `promos-varios-eventos` · fase 3 · en curso · entradas · Promociones de varios eventos, versión chica (gorrite, 12/10): código combo, la compra de un evento trae en su mail un código personal para otro; detrás de `combo_codigos`, migración 0056 · #340
 - `talleres-partes-mails-preview` · fase 3 · sigue · entradas · Vista previa de los mails de cada parte de un taller en el panel
 - `talleres-viejos-a-partes` · fase 3 · espera gorrite · entradas · Pasar a talleres en partes los talleres viejos de varios días (datos de producción, con OK y probando antes en el demo) · [talleres-partes.md](talleres-partes.md#pendiente)
 - `pasar-entrada` · fase 3 · algún día · entradas · Pasarle una entrada a otra persona por mail

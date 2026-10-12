@@ -5,6 +5,7 @@
 -->
 <script>
 	import { enhance } from '$app/forms';
+	import { page } from '$app/stores';
 	import {
 		Copy,
 		ExternalLink,
@@ -26,6 +27,7 @@
 	import PublishStatus from '$lib/components/admin/PublishStatus.svelte';
 	import { csvFilename } from '$lib/admin/csv.js';
 	import { contentAdminHref } from '$lib/admin/nav.js';
+	import { thumbnailUrl } from '$lib/utils/seo.js';
 	import { canonicalTag, siteTags } from '$lib/utils/adminTags.js';
 	import { filterContentRows, topTags } from '$lib/utils/contentPosts.js';
 	import TagChip from '$lib/components/TagChip.svelte';
@@ -179,9 +181,14 @@
 			{#each shown as r (r.slug)}
 				<li class="row">
 					<a class="thumb" href="{base}/{r.slug}" tabindex="-1" aria-hidden="true">
-						{#if r.thumb}<img src={r.thumb} alt="" loading="lazy" />{:else}<ImageOff
-								size={20}
-							/>{/if}
+						{#if r.thumb}<img
+								src={thumbnailUrl(r.thumb, $page.url.hostname)}
+								alt=""
+								width="64"
+								height="64"
+								loading="lazy"
+								decoding="async"
+							/>{:else}<ImageOff size={20} />{/if}
 					</a>
 					<div class="main">
 						<div class="line">

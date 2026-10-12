@@ -90,7 +90,7 @@ leer). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene
   mostrarlo).
 - **Pestañas en el celu** (< 600 px): todas las barras del panel usan `Tabs` con `menu` (la de
   sección, la de la ficha del evento y los filtros de Ventas, Perfiles y Propinas): un botón
-  «Sección: Órdenes ▾» de ancho entero, con borde violeta y fondo lila (la navegación principal
+  «Sección: Órdenes ▾» de ancho entero, lleno de violeta (la navegación principal
   de la página), que abre la lista; sin tira que se desliza. En la ficha del evento, las acciones
   del encabezado bajan debajo de las pestañas, más chicas: Editar y «⋯ Acciones» (Ver página,
   Duplicar, Imagen para compartir). `menuCaption` cambia «Sección» («Pestaña», «Ver»). Desde
@@ -234,7 +234,8 @@ un cuadrado fijo de 64 px (`TodayThumb.svelte`, en `src/lib/components/admin/ini
 (`inicio.js`): la misma portada que las tarjetas del sitio. En producción se pide achicada a
 128 × 128 por las transformaciones de Cloudflare (`thumbnailUrl` en `seo.js`, ver
 [compartir.md](compartir.md)); en un preview y en local, la portada tal cual. Sin portada no se
-muestra nada.
+muestra nada. Las listas de Eventos y de Contenido (Material, No listadas) piden sus miniaturas
+igual (`thumbnailUrl`).
 
 **Mover una URL** (regla de gorrite para el paso 2 del mapa): **sin redirecciones** desde la vieja
 (un favorito puede dar "no encontrado", y está bien), pero **nada interno** puede apuntar a ella.
@@ -341,8 +342,7 @@ revisar" del Inicio.
   sección muestra la suma de los contadores de su grupo y la pista «g x» de su primera página.
   Lo que viene («Próximamente») ya no se ve en la barra (sí en las pestañas, en «+ Crear», en el
   panel "Más" del celu y en su URL reservada); «Ocultar lo que viene» vale para todos ellos. Ya no hay
-  grupos para abrir y cerrar: `navPrefs.js` conserva sus funciones de grupos abiertos (sin uso
-  por ahora; ver la hoja de ruta).
+  grupos para abrir y cerrar (`navPrefs.js` solo guarda «Ocultar lo que viene»).
 - **Recientes** (debajo de las secciones): las últimas páginas que abriste, como los «Shortcuts»
   de Stripe (`src/lib/admin/recentPlaces.js`). Se muestran **las que entran** en el alto de la
   pantalla, **hasta 7**: `SideNav` mide el lugar que sobra entre las secciones y Ajustes, y las que
