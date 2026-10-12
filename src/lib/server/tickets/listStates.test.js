@@ -85,6 +85,14 @@ vi.mock('./events.js', async () => {
 		isTestEventSlug: () => false,
 		getEventTickets: async (/** @type {string} */ slug, /** @type {any} */ opts) =>
 			metas[slug]?.tickets ? parseTicketConfig(metas[slug], opts) : null,
+		// La versión en tanda que usa listStates.js: lo mismo, evento por evento.
+		getEventTicketsMany: async (/** @type {string[]} */ slugs, /** @type {any} */ opts) =>
+			new Map(
+				slugs.map((slug) => [
+					slug,
+					metas[slug]?.tickets ? parseTicketConfig(metas[slug], opts) : null
+				])
+			),
 		listTicketedEvents: async () => []
 	};
 });

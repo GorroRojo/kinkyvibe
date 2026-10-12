@@ -90,6 +90,18 @@ Demo con datos inventados: `node scripts/demo/n3-amigues.js` y después `npm run
   cumpleaños y la identidad de género se importan pero no se muestran, como antes.
 - **Quienes gestionan no se muestran nunca**; integrantes de un proyecto, solo con `show_members`,
   solo aceptades, aprobades y visibles para quien mira.
+- **«Se muestra al público» es una sola regla** para perfiles y lugares: quien mira lo puede ver
+  (`visibleWhere`), no está oculto (tampoco para admins: para eso está el panel) y está aprobado.
+  En SQL, `shownProfileWhere` (o `shownProfileSql` si la consulta ya filtra por visibilidad); con
+  el objeto ya leído, `isShownProfile` (los dos en `src/lib/server/amigues/profiles.js`). La usan
+  las listas de /amigues, las listas del sitio y el contador de no listadas
+  (`src/lib/server/contenido/posts.js`), los integrantes de un proyecto y el lugar de un evento
+  (`linkedVenueView` en `venues.js`). La prueba `shown.test.js` compara SQL y JS en todas las
+  combinaciones de visibilidad, aprobación, borrado y quien mira.
+- **/amigues sin sesión se recuerda** por isolate con la marca del contenido (`contentStampOf`:
+  perfiles, aprobaciones, importaciones e imágenes) y el árbol de etiquetas: un pedido que no
+  cambia nada hace una sola consulta (antes, dos). Con sesión se arma cada vez (una cuenta o une
+  admin pueden ver más).
 - **"Es mi perfil" no revela nada**: la misma respuesta haya o no otros pedidos o dueñes; cada
   cuenta ve solo su pedido. Límites: 5 por día por cuenta y 10 por conexión.
 - **El HTML del texto se limpia en el servidor** con `rehype-sanitize` (el esquema de GitHub,

@@ -65,6 +65,8 @@ for (const m of SOURCES.matchAll(
 for (const m of SOURCES.matchAll(/\?\s*'(seguir\.[a-z_]+)'/g)) literal.add(m[1]);
 for (const m of SOURCES.matchAll(/:\s*'(seguir\.[a-z_]+)'/g)) literal.add(m[1]);
 for (const m of SOURCES.matchAll(/'(seguir\.aviso_[a-z]+)'/g)) literal.add(m[1]);
+// Los de la página de la Mini App, por nombre (`TEXT_KEYS` de miniapp.js).
+for (const m of SOURCES.matchAll(/'(miniapp\.[a-z_]+)'/g)) literal.add(m[1]);
 /** Las que se arman: `eventos.titulo_<lista>`, `eventos.vacio_<lista>` y `comandos.<comando>`. */
 const LISTS = ['hoy', 'semana', 'finde', 'proximos'];
 const built = new Set([

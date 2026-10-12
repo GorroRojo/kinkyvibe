@@ -46,7 +46,31 @@ const DOCS = [
 	{ c: 'amigues', h: '/amigues/lugar-no-listado', t: 'Lugar No Listado Inventado' },
 	{ c: 'serie', h: '/wiki/noche-b', t: 'Noche B', i: '🌙', g: ['noche-b'] },
 	{ c: 'serie', h: '/wiki/noche-a', t: 'Noche A', g: ['noche-a'] },
-	{ c: 'calendario', h: '/calendario/evento', t: 'Evento Inventado', d: '2031-01-09T22:00:00.000Z' }
+	// Una serie sin ediciones: no tiene nada para mostrar y no va en la lista (como /wiki).
+	{ c: 'serie', h: '/wiki/noche-sin-ediciones', t: 'Noche C', g: ['noche-sin-ediciones'] },
+	{
+		c: 'calendario',
+		h: '/calendario/evento',
+		t: 'Evento Inventado',
+		d: '2031-01-09T22:00:00.000Z'
+	},
+	// Las ediciones de las series (una ya pasó: igual cuenta, como en el sitio).
+	{
+		c: 'calendario',
+		h: '/calendario/noche-a-1',
+		t: 'Noche A 1',
+		d: '2030-06-01T23:00:00.000Z',
+		g: ['noche-a']
+	},
+	{
+		c: 'calendario',
+		h: '/calendario/noche-b-1',
+		t: 'Noche B 1',
+		d: '2031-02-01T23:00:00.000Z',
+		g: ['noche-b', 'cuerdas']
+	},
+	// Un evento sin fecha no es una edición (como `seriesEditions`).
+	{ c: 'calendario', h: '/calendario/sin-fecha', t: 'Sin fecha', g: ['noche-sin-ediciones'] }
 ];
 
 const source = makeInlineSource(
@@ -188,6 +212,18 @@ describe('cada sección: solo lo suyo, en el orden del sitio', () => {
 		const plan = await screen('c:s:0');
 		expect(step(plan).text).toContain('<b>🔁 Series</b>');
 		expect(itemTitles(plan, 'cd:s:')).toEqual(['📖 Noche A', '📖 Noche B']);
+	});
+
+	it('Series deja afuera las series sin ediciones (como la lista de /wiki)', async () => {
+		const plan = await screen('c:s:0');
+		expect(JSON.stringify(plan)).not.toContain('Noche C');
+		// Ni con un botón viejo o armado a mano.
+		const gone = /** @type {SearchDoc} */ (DOCS.find((d) => d.t === 'Noche C'));
+		const card = await screen(`cd:s:${docHash(gone)}:0`);
+		expect(card.steps).toEqual([]);
+		expect(card.callback.text).toBe(T('secciones.no_esta'));
+		// Buscar la sigue encontrando: es una página del sitio.
+		expect(JSON.stringify(await screen('q:0:noche'))).toContain('Noche C');
 	});
 
 	it('ningún evento en ninguna sección', async () => {
