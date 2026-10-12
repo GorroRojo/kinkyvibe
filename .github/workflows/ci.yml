@@ -126,7 +126,7 @@ jobs:
       - name: Unit + content tests
         run: |
           VITEST_DURATIONS_OUT=$RUNNER_TEMP/d.json npx vitest run --shard=${{ matrix.shard }}/3 --fsModuleCache --reporter=default --reporter=./scripts/vitest/durations-reporter.js
-          echo "::notice title=vitest-durations-tmp::$(node -e 'process.stdout.write(JSON.stringify(require(process.argv[1])))' $RUNNER_TEMP/d.json)"
+          node -e 'const e=Object.entries(require(process.argv[1]));for(let i=0;i<e.length;i+=40)console.log("::notice title=vitest-durations-tmp::"+JSON.stringify(Object.fromEntries(e.slice(i,i+40))))' $RUNNER_TEMP/d.json
 
   # Build, Worker empaquetado y pruebas de humo de Playwright. Lo más lento es cargar la semilla en
   # una base local nueva (~1 minuto): corre al mismo tiempo que el build y que la instalación de
