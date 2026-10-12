@@ -337,6 +337,30 @@ describe('/calendario/<evento>: los botones', () => {
 		expect(art.indexOf('>Inscribirme<')).toBeGreaterThan(art.indexOf('id="que-titulo"'));
 	});
 
+	/** El <a> del botón grande de comprar, entero (con sus atributos). @param {string} html */
+	const buyButton = (html) => {
+		const at = html.lastIndexOf('<a', html.indexOf('class="buy-button'));
+		return html.slice(at, html.indexOf('</a>', at) + 4);
+	};
+
+	// Entradas en otro sitio: el mismo botón grande que «Comprar entradas» (gorrite, 10/10), que
+	// dice a qué sitio lleva y se abre en otra pestaña.
+	it('el link a otro sitio es el botón grande de comprar y dice adónde lleva', () => {
+		const body = page({ link: 'https://www.example.com/entradas', link_text: 'Comprar entradas' });
+		const button = buyButton(body);
+		expect(button).toContain('href="https://www.example.com/entradas"');
+		expect(button).toContain('target="_blank"');
+		expect(text(button)).toBe('Comprar entradas Se abre en example.com');
+	});
+
+	it('un link de mail también es el botón grande, sin «Se abre en»', () => {
+		const body = page({ link: 'mailto:hola@example.com', link_text: 'Escribinos' });
+		const button = buyButton(body);
+		expect(button).toContain('href="mailto:hola@example.com"');
+		expect(button).not.toContain('target=');
+		expect(text(button)).toBe('Escribinos');
+	});
+
 	it('un evento cancelado no ofrece agregarlo al calendario', () => {
 		const body = page({ status: 'cancelado' });
 		expect(body).not.toContain('Agregar a mi calendario');

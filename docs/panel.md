@@ -90,7 +90,7 @@ leer). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene
   mostrarlo).
 - **Pestañas en el celu** (< 600 px): todas las barras del panel usan `Tabs` con `menu` (la de
   sección, la de la ficha del evento y los filtros de Ventas, Perfiles y Propinas): un botón
-  «Sección: Órdenes ▾» de ancho entero, con borde violeta y fondo lila (la navegación principal
+  «Sección: Órdenes ▾» de ancho entero, lleno de violeta (la navegación principal
   de la página), que abre la lista; sin tira que se desliza. En la ficha del evento, las acciones
   del encabezado bajan debajo de las pestañas, más chicas: Editar y «⋯ Acciones» (Ver página,
   Duplicar, Imagen para compartir). `menuCaption` cambia «Sección» («Pestaña», «Ver»).
