@@ -15,7 +15,7 @@
 		isoDay,
 		parseSiteDate
 	} from '$lib/utils/dates.js';
-	import TagChip from './ui/TagChip.svelte';
+	import CardTags from './CardTags.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { onMount } from 'svelte';
 	import { filteredTags } from '$lib/utils/stores';
@@ -61,6 +61,7 @@
 		tags = [...tags.slice(0, indexOfMark), ...tags.slice(indexOfMark + 1)];
 	}
 	let mounted = false;
+	let tagsExpanded = false;
 	// on phones the colored header has no room for the date *and* "Añadir al Calendario":
 	// the button shows only its icon there
 	let narrow = false;
@@ -191,14 +192,13 @@
 		{summary ?? ''}
 	</p>
 	<div class="tags">
-		<ul class="tagrow">
-			{#each [...tags.filter((/**@type string*/ t) => t != 'KinkyVibe' && !$filteredTags.includes(t) /* && !$redundantTags.has(t)*/)] as tag}
-				<!-- El chip compartido (TagChip, docs/estilo.md, «Chip de etiqueta»): link recién
-				     después de hidratar, porque es un <a> dentro del <a> de la tarjeta. -->
-				<li>
-					<TagChip {tag} href={mounted ? `/todo?tags=${encodeURIComponent(tag)}` : undefined} />
-				</li>
-			{/each}
+		<!-- Hasta 5 chips y «+N» para ver el resto (CardTags; docs/seo.md, opción 1b). -->
+		<ul class="tagrow" class:expanded={tagsExpanded}>
+			<CardTags
+				tags={tags.filter((/**@type string*/ t) => t != 'KinkyVibe' && !$filteredTags.includes(t))}
+				linked={mounted}
+				bind:expanded={tagsExpanded}
+			/>
 		</ul>
 	</div>
 	<!-- Client-only: an <a> nested in the card's <a> is invalid HTML, so the browser would
@@ -265,6 +265,11 @@
 	}
 	.tagrow::-webkit-scrollbar {
 		display: none;
+	}
+	/* con «+N» desplegado, todas a la vista: en filas, y la tarjeta crece */
+	.tagrow.expanded {
+		flex-wrap: wrap;
+		overflow-x: visible;
 	}
 	.post:has(.CTA) {
 		grid-template-areas: 'img title title' 'img summary summary' 'img tags cta';

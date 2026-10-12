@@ -407,6 +407,32 @@ test.describe('barra de filtros de las listas', () => {
 	});
 });
 
+test.describe('tarjetas de las listas', () => {
+	// Hasta 5 etiquetas por tarjeta y «+N» (docs/seo.md, opción 1b): despliega el resto en la
+	// tarjeta, con el mouse o con el teclado, sin seguir el link de la tarjeta.
+	test('«+N» despliega las etiquetas en la tarjeta y no navega', async ({ page }) => {
+		await acceptAgeGate(page);
+		await page.goto('/material', { waitUntil: 'networkidle' });
+		const card = page
+			.locator('#posts > li')
+			.filter({ has: page.locator('button.more') })
+			.first();
+		const more = card.locator('button.more');
+		const chips = card.locator('.kv-tag:not(.more)');
+		await expect(more).toHaveAttribute('aria-expanded', 'false');
+		await expect(chips).toHaveCount(5);
+		await more.click();
+		await expect(more).toHaveAttribute('aria-expanded', 'true');
+		expect(await chips.count()).toBeGreaterThan(5);
+		await expect(page).toHaveURL(/\/material(\?.*)?$/);
+		await more.focus();
+		await page.keyboard.press('Enter');
+		await expect(more).toHaveAttribute('aria-expanded', 'false');
+		await expect(chips).toHaveCount(5);
+		await expect(page).toHaveURL(/\/material(\?.*)?$/);
+	});
+});
+
 test.describe('feeds', () => {
 	test('/rss responde con items', async ({ request }) => {
 		const res = await request.get('/rss');

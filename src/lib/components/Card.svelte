@@ -1,7 +1,7 @@
 <script>
 	import { tagManager } from '$lib/utils/stores';
 	import { onMount } from 'svelte';
-	import TagChip from './ui/TagChip.svelte';
+	import CardTags from './CardTags.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { argDateList, parseSiteDate } from '$lib/utils/dates.js';
 	export let post;
@@ -55,13 +55,13 @@
 		>
 	{/if}
 	{#if tags}
+		<!-- Hasta 5 chips y «+N» para ver el resto (CardTags; docs/seo.md, opción 1b); los chips son
+		     links recién después de hidratar (un <a> en otro <a>). -->
 		<ul class="tagrow">
-			{#each removeParents([...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')]) as tag}
-				<!-- El chip compartido (TagChip); link recién después de hidratar (un <a> en otro <a>). -->
-				<li>
-					<TagChip {tag} href={mounted ? `/todo?tags=${encodeURIComponent(tag)}` : undefined} />
-				</li>
-			{/each}
+			<CardTags
+				tags={removeParents([...tags.filter((/**@type string*/ t) => t != 'KinkyVibe')])}
+				linked={mounted}
+			/>
 		</ul>
 	{/if}
 </a>

@@ -132,7 +132,7 @@ CI) va en la fase 0.
 
 - `seo-peso-paginas` · fase 0 · hecho · seo · Peso de las páginas: pasados del calendario de a un mes a pedido · #334, [seo.md](seo.md)
 - `seo-titulos` · fase 0 · hecho · seo · El mes en el título de los eventos repetidos, el salto de `h1` a `h3` en las listas y `DefinedTerm` para etiquetas con descripción · [seo.md](seo.md) · #327
-- `seo-peso-resto` · fase 0 · espera gorrite · seo · Lo que quedó del peso de las páginas: hasta 5 etiquetas por tarjeta y relacionadas de a 20 (cambian lo que se ve: opciones en seo.md), panel de etiquetas armado al abrirlo en celu, `siteTags` aparte (no ahorra sin un archivo estático), íconos de las tarjetas en sprite (gorrite: no por ahora) · [seo.md](seo.md)
+- `seo-peso-resto` · fase 0 · espera gorrite · seo · Lo que quedó del peso de las páginas. Hecho en #PRNUM (gorrite eligió 1b y 2a): hasta 5 etiquetas por tarjeta con «+N» que despliega el resto, y las relacionadas de la wiki de a 20 con «Ver más». Queda: panel de etiquetas armado al abrirlo en celu, `siteTags` aparte (no ahorra sin un archivo estático), íconos de las tarjetas en sprite (gorrite: no por ahora) · [seo.md](seo.md)
 - `noai-por-post` · fase 0 · algún día · seo · Opción de «noai» por publicación (los robots de IA los maneja gorrite en Cloudflare)
 - `estandares-web` · fase 0 · hecho · seo · JSON-LD, microformatos, rel=me, security.txt, vCard, feeds Atom y JSON · #278, #280
 - `fechas-iso` · fase 0 · hecho · seo · Fechas ISO 8601 válidas en metadatos, JSON-LD y `<time datetime>` · #319, [seo.md](seo.md)
