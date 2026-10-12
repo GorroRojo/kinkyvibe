@@ -146,16 +146,36 @@ En el sitio y el bot estos se buscan como texto (`orden:` no es un operador ahí
 - **Acordado**: un solo parser para la base en `$lib/utils/` que usan los tres. El panel lo llama
   y suma lo suyo (`>`, `orden:`, `estado:`, `tipo:`, pestañas). `parseInlineQuery` y el
   `queryTerms` del sitio pasan a usarlo.
+- **El registro de operadores** (acordado con gorrite, 12/10): una sola lista en el código que
+  describe cada operador una vez: su nombre y otras formas de escribirlo, qué filtra, en qué
+  buscadores anda, si es público, un ejemplo y la explicación para la guía. De esa lista salen las
+  tres cosas que hoy se escriben a mano por separado:
+  - **el parser** la lee para saber qué operadores hay;
+  - **las tablas de este archivo y la guía visible** las arma un script desde la lista (nadie las
+    escribe a mano);
+  - **la CI** chequea que este archivo coincida con la lista: si se suma un operador y no se vuelve
+    a armar el documento, falla.
+
+  El dato «público» es un seguro: un operador que no es público (lo del panel: órdenes, personas)
+  no se puede usar en el sitio ni en el bot aunque alguien lo conecte por error. Se arma en el
+  primer PR (`buscar-sintaxis-sitio` o el que vaya primero); hasta entonces, estas tablas se
+  mantienen a mano.
+
 - Cada operador lleva tests del parser (lo escrito → lo entendido) y uno de punta a punta por
-  buscador. Los ejemplos de este archivo son casos de test.
+  buscador. Los ejemplos del registro son casos de test.
 
 ## Cómo se suma un operador
 
-1. Agregalo acá: en qué tabla, qué hace, en qué buscadores, un ejemplo.
-2. Si va en los tres, va en el parser común; si es solo del panel, en la parte del panel.
+Con el registro armado:
+
+1. Sumalo al registro: nombre, otras formas, qué filtra, en qué buscadores, si es público, un
+   ejemplo y su explicación.
+2. Si filtra algo nuevo, implementá ese filtro (en el motor de cada buscador donde anda).
 3. Que no choque con texto común: un nombre de operador que sea una palabra frecuente (`hoy`)
    necesita la regla de respaldo.
-4. Sumalo a la guía visible si es de los que ve la gente.
+4. Volvé a armar este archivo y la guía con el script; la CI lo chequea.
+
+Antes del registro: agregalo a mano en la tabla que corresponde, en el parser y en la guía visible.
 
 ## Hacia dónde va
 
