@@ -266,8 +266,21 @@ de amigues y lanzamientos grandes.
   `formatChoices`, `formatPickList` en `format.js`; `eventListKeyboard` y `eventDetailKeyboard` en
   `keyboards.js`) y sus pruebas. S.
 
-- Fase 3: avisos y estado para organizadores, nunca datos de compradores
-  ([0029](decisiones/0029-bot-de-telegram.md)). L. Bloqueo: el rol de organizadore.
+- Telegram para admins, PR 1 (base, «📊 Estado» y «🔔 Mis avisos»,
+  [0041](decisiones/0041-telegram-para-admins.md)): aplicar la migración 0054 en preview y
+  producción, prender `telegram_admin` en un preview y probarlo con un Telegram vinculado. S.
+  Bloqueo: gorrite.
+- Telegram para admins, PR 2: el resumen diario de ventas y los avisos en el momento (cada venta,
+  cada transferencia que llega), solo a quien los prendió en «🔔 Mis avisos» (`noticeRecipients`),
+  con horario de silencio y clave única por envío; solo cantidades y links (0041). M.
+- Telegram para admins, PR 3: el resumen del día del evento y los recordatorios (el evento de
+  mañana, falta el lugar o el link de la transmisión) (0041). M. Bloqueo: PR 2.
+- Telegram para admins: `/estado` y `/avisos` en el menú «/» solo de les admins vinculades
+  (`setMyCommands` con un alcance por chat, desde el cron; borrarlo al desvincular). S. Bloqueo:
+  que haga falta.
+- Fase 3: avisos y estado para organizadores, cada une con **sus** eventos, reusando lo de admins
+  (0041; nunca datos de compradores, [0029](decisiones/0029-bot-de-telegram.md)). M. Bloqueo: el
+  rol de organizadore.
 
 ### Contenido
 
