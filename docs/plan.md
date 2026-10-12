@@ -102,7 +102,7 @@ sigo» del panel es la fase 2 como dice `nav.js` (`lo-que-sigo-panel`).
 
 ### Sitio público
 
-- `ux-auditoria-restos` · fase 0 · hecho · sitio · Lo que seguía abierto de la auditoría de UX del 4/10: anclas del glosario, áreas de toque, migas de pan (ya estaban, #215) y búsqueda vacía de la wiki · #PRNUM
+- `ux-auditoria-restos` · fase 0 · hecho · sitio · Lo que seguía abierto de la auditoría de UX del 4/10: anclas del glosario, áreas de toque, migas de pan (ya estaban, #215) y búsqueda vacía de la wiki · #333
 - `areas-toque-restos` · fase 0 · espera gorrite · sitio · Toques de menos de 44px que piden diseño (más alto o más aire): «Comprar entradas» en las tarjetas de las listas (30px, pegado a las etiquetas), el índice y «Enlace a esta sección» de los textos (22–27px, uno abajo del otro), las series hijas en la Kinkipedia y la línea de madres e hijas de un término (23–25px)
 - `wiki-sin-entrada-editar` · fase 0 · sigue · sitio · «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`)
 - `filtros-celu-probar` · fase 0 · sigue · sitio · Probar la barra de filtros en celulares reales y, si va, cerrar el PR de prototipos · #294, #283
