@@ -552,8 +552,8 @@ export const NAV = Object.freeze([
 			'aparte de las entradas.'
 	},
 
-	// Estadísticas: tres pestañas (gorrite, 11/10), cada una con su período en la URL. El id
-	// `estadisticas` queda en Ventas (lo usan el atajo `g s` y el buscador).
+	// Estadísticas: tres pestañas (gorrite, 11/10) y la del bot (12/10), cada una con su período
+	// en la URL. El id `estadisticas` queda en Ventas (lo usan el atajo `g s` y el buscador).
 	{
 		id: 'estadisticas',
 		href: '/admin/estadisticas/ventas',
@@ -578,6 +578,18 @@ export const NAV = Object.freeze([
 		icon: Eye,
 		emoji: '👀',
 		label: 'Visitas al sitio',
+		area: 'estadisticas',
+		soon: false
+	},
+	{
+		// Las estadísticas de uso del bot (decisión 0045, docs/telegram.md): quién lo usa y, aparte
+		// y sumado por semana, para qué. Sin interruptor en el menú: con `telegram_estadisticas`
+		// apagado la página lo dice.
+		id: 'estadisticas-bot',
+		href: '/admin/estadisticas/bot',
+		icon: Bot,
+		emoji: '🤖',
+		label: 'Bot de Telegram',
 		area: 'estadisticas',
 		soon: false
 	},

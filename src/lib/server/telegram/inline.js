@@ -187,7 +187,7 @@ export function selectInline(source, { types, text }, now) {
  * @param {number} now
  * @returns {{ query: string, docs: SearchDoc[] } | null}
  */
-function similarInline(source, query, now) {
+export function similarInline(source, query, now) {
 	for (const s of suggestSearches(source, query.text).suggestions) {
 		const docs = selectInline(source, { types: query.types, text: s.query }, now);
 		if (docs.length) return { query: s.query, docs };

@@ -393,7 +393,8 @@ Código: `inline.js` (la respuesta, funciones puras) e `inlineSource.js` (de dó
 ### Puesta en marcha del modo inline (la hace gorrite)
 
 1. En @BotFather: `/setinline`, elegir el bot y poner el placeholder **«Buscá en Kinky Vibe…»**.
-   (`/setinlinefeedback` no hace falta.)
+   (`/setinlinefeedback` no hace falta para el modo inline; solo para contar los resultados
+   mandados en las estadísticas de uso, abajo.)
 2. Volver a registrar el webhook para que pida los `inline_query`: desde tu compu,
    `TELEGRAM_BOT_TOKEN=… TELEGRAM_WEBHOOK_SECRET=… npm run telegram:webhook` (los mismos valores
    que en Cloudflare; el script los lee de variables de entorno, nunca los muestra, y al final
@@ -460,8 +461,9 @@ cuenta con el bot» y el cron no manda nada por Telegram. Trae la migración
 
 En grupos el bot **no** vincula ni toca nada de cuentas (contesta que se hace por chat privado).
 Los intentos de `/vincular` se topean por chat (10 por hora) y pedir códigos, por cuenta (10 por
-hora). No se guarda nada del perfil de Telegram, solo el id del chat. Borrar la cuenta borra el
-chat vinculado y sus códigos.
+hora). Para vincular no se guarda nada del perfil de Telegram, solo el id del chat (las
+estadísticas de uso, abajo, guardan aparte el nombre y el @usuario de quien usa el bot). Borrar la
+cuenta borra el chat vinculado y sus códigos.
 
 ### Comandos de la cuenta (solo por chat privado)
 
@@ -515,6 +517,8 @@ minutos), con estas reglas:
   que escribe (0034).
 - El secreto del webhook se chequea **antes** que el interruptor y en tiempo constante.
 - Todo texto del bot, en español rioplatense con el lenguaje inclusivo del sitio.
+- **Las estadísticas de uso nunca guardan qué miró o buscó cada persona** (0045): quién y cuánto
+  en una tabla, qué se usa sumado por semana en otra, sin ninguna clave ni hora fina en común.
 
 ## Cómo está armado
 
@@ -541,6 +545,9 @@ minutos), con estas reglas:
 | `src/lib/server/telegram/adminBot.js`         | Admins (0041): las pantallas, funciones puras                       |
 | `src/lib/server/telegram/adminData.js`        | Admins (0041): quién es admin, el estado (cantidades), Mis avisos   |
 | `src/lib/server/telegram/miniapp.js`          | La Mini App del calendario (`/telegram/app`)                        |
+| `src/lib/server/telegram/uso.js`              | Estadísticas de uso: qué se escribe en cada tabla, retención        |
+| `src/lib/server/telegram/usoUpdate.js`        | Estadísticas de uso: quién mandó el update, comando, pantalla       |
+| `src/lib/server/telegram/usoPanel.js`         | Estadísticas de uso: lo que lee el panel (con el umbral)            |
 | `src/lib/server/telegram/commandsSync.js`     | El registro automático del menú «/» (cron)                          |
 | `src/lib/server/telegram/commands.js`         | La lista de comandos y el `setMyCommands` del menú «/»              |
 | `src/lib/server/telegram/keyboards.js`        | Los botones de antes (`ev:`/`ls`), que siguen andando               |
@@ -571,7 +578,8 @@ errores se muestran sin él.
    mismo valor como `secret_token` y los `allowed_updates` del código: desde tu compu,
    `TELEGRAM_BOT_TOKEN=… TELEGRAM_WEBHOOK_SECRET=… npm run telegram:webhook`
    (`scripts/telegram-webhook.js`, con `WEBHOOK_ALLOWED_UPDATES` de
-   `src/lib/server/telegram/updates.js`: `message`, `callback_query`, `inline_query`). El token
+   `src/lib/server/telegram/updates.js`: `message`, `callback_query`, `inline_query`,
+   `chosen_inline_result`). El token
    del bot se usa solo en ese paso y el script nunca lo muestra.
 4. Prender el interruptor **Bot de Telegram** en Ajustes → Interruptores.
 5. Con el token cargado (fase 2, abajo), los comandos se registran solos en la próxima corrida
@@ -680,8 +688,8 @@ que ahora no se puede.
   3. **Desvincular** en el mismo lugar borra el vínculo y los códigos.
   4. Vincular y desvincular quedan en Actividad (`telegram.admin_link`, `telegram.admin_unlink`).
      «Seguir» desde el bot sigue sin registro.
-- De Telegram solo se guarda el id del usuario (ni nombre ni usuario). La lista muestra quién
-  tiene Telegram vinculado.
+- Para el vínculo, de Telegram solo se guarda el id del usuario (ni nombre ni usuario). La lista
+  muestra quién tiene Telegram vinculado.
 - Marca con lo mismo que el modo puerta del panel (`extractToken` + `checkIn`), con el login de le
   admin; contesta solo el resultado y el nombre de la entrada. Tope de 600 escaneos por hora.
 - Solo Telegram Web puede embeberla (`frame-ancestors https://web.telegram.org`).
@@ -807,6 +815,94 @@ una confirmación):
    de mergear** (0028). Solo crea una tabla: anda con el código de `main`. Después, prender
    «Resumen diario», «Cada venta» o «Cada transferencia» en «🔔 Mis avisos» y probar en un preview
    (una compra de prueba, o esperar al cron de las 9).
+
+## Estadísticas de uso (0045)
+
+Pedido de gorrite (12/10), decisión [0045](decisiones/0045-estadisticas-del-bot.md). Detrás del
+interruptor **Telegram: estadísticas de uso** (`telegram_estadisticas`,
+`TELEGRAM_ESTADISTICAS_ENABLED`), apagado (0001); necesita el bot prendido. Se ven en **Panel →
+Estadísticas → Bot de Telegram** (`/admin/estadisticas/bot`, solo admins).
+
+La regla: **nunca se puede saber qué miró o buscó una persona.** Se puede saber quién usa el bot
+y cuánto (solo totales), y para qué se usa, solo sumado.
+
+**Dos tablas que no se pueden cruzar** (migración `0057_telegram_uso.sql`):
+
+- `telegram_uso_personas`: por persona (id de usuario de Telegram) y por día (hora de Argentina),
+  `interacciones` (cuántos updates de esa persona manejó el bot), el nombre y el @usuario. **Nada
+  de qué hizo**: ni tipo de acción, ni búsqueda, ni cosa, ni una hora más fina que el día.
+- `telegram_uso_totales`: por semana ISO (hora de Argentina), `tipo` y `clave`, cuántas veces
+  (`n`). **Ni el id de nadie, ni el día, ni la hora.**
+
+No comparten ninguna clave (una tiene el id y no sabe qué; la otra sabe qué y no tiene id) ni una
+hora fina (una tiene el día; la otra, solo la semana). Las dos son `WITHOUT ROWID`: no queda ni el
+orden en que se insertaron las filas. Y en el panel, el detalle de una semana sale solo si esa
+semana usaron el bot **5 personas o más** (abajo): con menos, lo contado sería de alguien de la
+lista de arriba.
+
+- **Qué es una interacción**: cada update con un usuario (que no sea un bot): un mensaje, un
+  comando, un botón, una consulta inline (Telegram manda una por pausa al escribir), un resultado
+  inline elegido o abrir la Mini App del calendario. La puerta (`/telegram/puerta`) no cuenta.
+- **El nombre**: el `first_name` y el `username` que Telegram manda en cada update (los del último
+  día del período). En el panel, si ese Telegram está vinculado a una cuenta del sitio
+  (`telegram_chats`), se muestra la cuenta (su mail, con link a su ficha: las cuentas no tienen
+  nombre); si es une admin vinculade (`telegram_admin_links`), su login; si no, el nombre de
+  Telegram.
+- **Los tipos** (`USO_TIPOS` en `uso.js`):
+  - `pantalla`: la pantalla de cada botón, sin ids, hashes ni búsquedas (`list:w`, `event`,
+    `section_doc:m`, `admin`…);
+  - `comando`: el nombre del comando (`start`, `buscar`…; uno que no existe, `(otro)`), **nunca lo
+    que viene después** (`/start <código>`, `/vincular <código>`);
+  - `busqueda`: lo buscado en el bot (la respuesta a «🔎 Buscar», `/buscar <texto>`,
+    `/evento <texto>`);
+  - `inline`: lo buscado en el modo inline (solo la primera página: pedir «más» no es otra
+    búsqueda). Las consultas que Telegram contesta desde su caché (120 segundos) no llegan al bot:
+    se cuentan de menos;
+  - `objeto`: una cosa abierta en el bot (la tarjeta de un evento, la tarjeta compacta de Buscar o
+    de una sección), como `evento:<dirección>`, `material:…`, `wiki:…`, `serie:…` o `amigues:…`;
+  - `inline_elegido`: la cosa que alguien mandó desde el modo inline (`chosen_inline_result`);
+  - `miniapp`: abrir la Mini App del calendario (la página manda su `initData` a
+    `POST /telegram/app/uso`, que lo valida con el token);
+  - `seguir` (desde una tarjeta o desde una búsqueda sin resultados), `vincular` (una cuenta o une
+    admin) y `desvincular`.
+- **Lo buscado** se guarda en minúsculas, sin espacios de más y hasta 60 caracteres; vacío,
+  «(vacía)».
+- **Solo lo público**: una cosa se cuenta solo si está en el índice público de la búsqueda (el
+  mismo del bot: nada oculto, «solo con cuenta», sin aprobar, no listado ni borrado) y el sitio la
+  lista (no los lugares no listados a los que lleva un evento); las tarjetas de eventos salen de
+  `listUpcoming`, que ya filtra. Un resultado inline elegido se busca rearmando la misma lista con
+  lo mismo buscado (el id del resultado es su lugar en la lista): si el índice cambió en el medio,
+  puede contar otra cosa pública, nunca una que no lo es.
+- **Una escritura por update**: un solo `db.batch` (la fila de la persona y los contadores), en
+  `waitUntil`, después de armar la respuesta. Nunca la traba ni la cambia: si la base falla, se
+  pierde ese conteo y nada más. Apagado, no se arma nada ni se lee nada de más.
+- **Retención**: el cron de cada 15 minutos (`/api/cron/recordatorios`, `pruneUso`) borra las filas
+  por persona de más de **180 días** (también con el interruptor apagado). Los totales por semana
+  quedan: no tienen a nadie.
+- **El panel**: quién usó el bot en los últimos 7, 30 o 90 días (interacciones y último día, con
+  la tabla ordenable), los totales por tipo de las últimas 12 semanas (siempre) y el detalle de la
+  semana elegida: pantallas y comandos por clave, y lo buscado y las cosas **solo si se contaron 5
+  veces o más esa semana**; lo demás, sumado en «otras (menos de 5 veces)». El umbral está en la
+  consulta (`usoPanel.js`): lo de menos ni sale de la base. Con menos de 5 personas esa semana, no
+  hay detalle (ni se consulta). La página dice en una línea que lo que buscó o miró cada persona
+  nunca se guarda.
+- **Pruebas**: `uso.test.js` (qué lleva cada tabla, que una base caída no cambia la respuesta, que
+  apagado no escribe) y `uso-privacy.test.js` (con la base y las rutas de verdad: nada oculto, no
+  listado ni «solo con cuenta» se cuenta; el umbral en la consulta; apagado no escribe; la Mini
+  App; la retención). `bot.golden.json` no cambió.
+
+### Puesta en marcha de las estadísticas (la hace gorrite)
+
+1. **Aplicar la migración `0057_telegram_uso.sql` en producción y en preview antes de mergear**
+   (0028): `npx wrangler d1 migrations apply <base> --remote`. Solo crea dos tablas y un índice:
+   anda con el código de `main`.
+2. Para contar los resultados mandados desde el modo inline: en @BotFather, `/setinlinefeedback`,
+   elegir el bot y **100 %** (si no, Telegram no manda `chosen_inline_result`). Después, volver a
+   registrar el webhook (`npm run telegram:webhook`, ver «Puesta en marcha del modo inline») para
+   que lo pida. Sin esto, lo demás se cuenta igual.
+3. Prender **Telegram: estadísticas de uso** primero en un preview, usar el bot y mirar
+   Estadísticas → Bot de Telegram. Después, en producción.
+4. Para cortarlo de golpe: `TELEGRAM_ESTADISTICAS_ENABLED=0` o apagar el interruptor.
 
 ## Qué sigue
 

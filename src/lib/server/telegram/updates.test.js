@@ -8,6 +8,10 @@ describe('allowed_updates del webhook', () => {
 		);
 	});
 
+	it('pide los resultados inline elegidos (estadísticas de uso)', () => {
+		expect(WEBHOOK_ALLOWED_UPDATES).toContain('chosen_inline_result');
+	});
+
 	it('setWebhook lleva la dirección, el secreto y esa lista', () => {
 		const params = setWebhookParams({ secret: 'un-secreto-de-prueba-largo' });
 		expect(params).toEqual({

@@ -66,6 +66,19 @@ export const FLAGS = Object.freeze({
 			'0054 para «Mis avisos».',
 		envVar: 'TELEGRAM_ADMIN_ENABLED'
 	},
+	telegram_estadisticas: {
+		label: 'Telegram: estadísticas de uso',
+		description:
+			'Cuenta cómo se usa el bot, para Estadísticas → Bot de Telegram: quién lo usa y cuánto (un ' +
+			'número por persona y por día) y, aparte y sumado por semana, qué pantallas, búsquedas y ' +
+			'cosas se usan. Nunca se guarda qué buscó o miró cada persona. Necesita el bot prendido. ' +
+			'Apagado, no se cuenta nada.',
+		tech:
+			'docs/telegram.md («Estadísticas de uso»), decisión 0045. Necesita la migración 0057 ' +
+			'(tablas telegram_uso_personas y telegram_uso_totales). Los resultados inline elegidos ' +
+			'necesitan /setinlinefeedback en @BotFather y volver a registrar el webhook.',
+		envVar: 'TELEGRAM_ESTADISTICAS_ENABLED'
+	},
 	propinas_fondo: {
 		label: 'Donaciones únicas al Fondo',
 		description:

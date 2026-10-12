@@ -32,6 +32,7 @@
 		}
 		tg.ready();
 		tg.expand?.();
+		countOpen(tg.initData);
 		if (tg.isVersionAtLeast?.('8.0')) {
 			tg.checkHomeScreenStatus?.((/** @type {string} */ status) => {
 				canAddHome = status === 'missed' || status === 'unknown';
@@ -42,6 +43,22 @@
 			});
 		}
 	});
+
+	/**
+	 * Estadísticas de uso del bot (docs/telegram.md): avisa que se abrió la Mini App. El servidor
+	 * valida el `initData` y, con `telegram_estadisticas` prendido, suma una interacción de esa
+	 * persona y una apertura (sin quién) a los totales de la semana. Si falla, no pasa nada.
+	 *
+	 * @param {string} initData
+	 */
+	function countOpen(initData) {
+		fetch('/telegram/app/uso', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ initData }),
+			keepalive: true
+		}).catch(() => {});
+	}
 
 	/**
 	 * Adentro de Telegram, abrir en el navegador (afuera de la Mini App).
