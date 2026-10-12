@@ -17,6 +17,7 @@
  * Todo es privado: `no-store`, `noindex`, y nada de otra cuenta.
  */
 import { fail } from '@sveltejs/kit';
+import { parseSiteDate } from '$lib/utils/dates.js';
 import { safeRedirect } from '$lib/server/auth.js';
 import { logDBError } from '$lib/server/db';
 import { siteTagManager } from '$lib/server/etiquetas/source.js';
@@ -70,7 +71,7 @@ async function actionContext(event) {
 async function nextEvents(platform) {
 	const posts = await sitePosts(platform);
 	return upcomingEvents(posts, Date.now()).sort(
-		(a, b) => new Date(a.meta.start).getTime() - new Date(b.meta.start).getTime()
+		(a, b) => parseSiteDate(a.meta.start).getTime() - parseSiteDate(b.meta.start).getTime()
 	);
 }
 

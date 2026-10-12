@@ -165,9 +165,18 @@ describe('la lista de resultados', () => {
 		expect(JSON.stringify(hint)).toContain('/buscar cuerdas');
 	});
 
-	it('nada encontrado: lo dice y ofrece buscar otra cosa', async () => {
+	it('nada encontrado: lo dice, muestra lo que viene y ofrece buscar otra cosa', async () => {
+		// Lo demás que ofrece (parecidos, sección, «Seguir»): router-sin-resultados.test.js.
 		const step = /** @type {any} */ ((await planUpdate(reply('zzzzzz'), deps()))?.steps[0]);
-		expect(step.text).toBe(renderBotText('sitio.sin_resultados', { busqueda: 'zzzzzz' }));
+		expect(
+			step.text.startsWith(renderBotText('sitio.sin_resultados', { busqueda: 'zzzzzz' }))
+		).toBe(true);
+		expect(step.text).toContain(renderBotText('sitio.proximos'));
+		expect(step.text).toContain('Taller de cuerdas');
+		expect(step.reply_markup.inline_keyboard.at(-1)).toEqual([
+			{ text: renderBotText('eventos.boton_buscar_otra'), callback_data: 's' },
+			{ text: renderBotText('inicio.boton_inicio'), callback_data: 'h' }
+		]);
 	});
 
 	it('/evento sigue siendo solo de eventos próximos', async () => {

@@ -120,11 +120,12 @@ export function wikiToMarkdown(key, data) {
  */
 export function markdownToWiki(raw) {
 	const text = String(raw ?? '').replace(/\r\n?/g, '\n');
-	const m = text.match(/^---[ \t]*\n([\s\S]*?)\n?---[ \t]*(?:\n|$)([\s\S]*)$/);
+	// El `---` que cierra tiene que estar solo en su línea (no al final de un valor: «resumen: a ---»).
+	const m = text.match(/^---[ \t]*\n(?:([\s\S]*?)\n)?---[ \t]*(?:\n|$)([\s\S]*)$/);
 	if (!m) throw new Error('El texto no empieza con un bloque de propiedades entre "---".');
 	let meta;
 	try {
-		meta = m[1].trim() ? YAML.parse(m[1], { schema: 'failsafe' }) : {};
+		meta = m[1]?.trim() ? YAML.parse(m[1], { schema: 'failsafe' }) : {};
 	} catch (e) {
 		throw new Error(
 			'Las propiedades tienen un error de formato: ' +

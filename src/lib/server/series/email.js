@@ -4,7 +4,7 @@
  */
 import { escapeHtml } from '$lib/server/tickets/email.js';
 import { MAIL_STYLES, mailLayout } from '$lib/server/email/layout.js';
-import { argDateTimeLong } from '$lib/utils/dates.js';
+import { argDateTimeLong, parseSiteDate } from '$lib/utils/dates.js';
 import { expiresInText } from '$lib/utils/expiry.js';
 
 /** @typedef {{ subject: string, html: string, text: string }} Message */
@@ -13,7 +13,7 @@ const SMALL = 'font-size:14px;color:#625b68';
 
 /** @param {string} start */
 export function editionDate(start) {
-	const d = new Date(start);
+	const d = parseSiteDate(start);
 	if (Number.isNaN(d.getTime())) return '';
 	return argDateTimeLong(d);
 }

@@ -6,15 +6,10 @@
  * El id no da acceso a nada: al tocarlo, el bot lo busca **entre los próximos eventos públicos**
  * (los de `events.js`), así que un id viejo o inventado da «ya no está disponible».
  */
-import { eventUrl } from './format.js';
-
 /** @typedef {import('./format.js').BotEvent} BotEvent */
 
 /** Límite de Telegram para `callback_data`, en bytes. */
 export const CALLBACK_DATA_MAX_BYTES = 64;
-
-/** Botones de eventos por mensaje (igual que la lista de texto). */
-export const KEYBOARD_MAX = 8;
 
 const EVENT_PREFIX = 'ev:';
 /** `callback_data` del botón que vuelve a la lista de próximos. */
@@ -98,36 +93,4 @@ export function truncate(text, max) {
 				.slice(0, max - 1)
 				.join('')
 				.trimEnd()}…`;
-}
-
-/**
- * Un botón «Ver: <título>» por evento, uno por fila.
- *
- * @param {BotEvent[]} events
- */
-export function eventListKeyboard(events) {
-	return {
-		inline_keyboard: events
-			.slice(0, KEYBOARD_MAX)
-			.map((e) => [
-				{ text: `Ver: ${truncate(e.title, 32)}`, callback_data: eventCallbackData(e.slug) }
-			])
-	};
-}
-
-/**
- * Debajo del detalle: abrir en el sitio (solo con https, Telegram rechaza otros links en botones)
- * y volver a la lista.
- *
- * @param {BotEvent} event
- * @param {string} origin
- */
-export function eventDetailKeyboard(event, origin) {
-	/** @type {Array<Array<Record<string, string>>>} */
-	const rows = [];
-	if (origin.startsWith('https://')) {
-		rows.push([{ text: 'Abrir en el sitio', url: eventUrl(origin, event.slug) }]);
-	}
-	rows.push([{ text: '« Próximos eventos', callback_data: LIST_CALLBACK }]);
-	return { inline_keyboard: rows };
 }

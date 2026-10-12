@@ -15,6 +15,7 @@
  * src/lib/server/flags.js): las páginas no consultan la base por esto en cada pedido.
  */
 import { getDB, logDBError } from '$lib/server/db';
+import { parseSiteDate } from '$lib/utils/dates.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { isMediaPath, isPublicMediaUrl } from '$lib/utils/media.js';
 import { mergePreviewTexts, previewTextOverrides } from '$lib/utils/previewTexts.js';
@@ -96,7 +97,7 @@ export async function savePreviewTextOverrides(db, overrides, { by, now = Date.n
 export function collageCovers(posts, now = Date.now()) {
 	const events = posts
 		.filter((p) => p.meta?.layout === 'calendario' && p.meta?.status !== 'cancelado')
-		.map((p) => ({ src: p.meta.featured, at: new Date(p.meta.start).getTime() }))
+		.map((p) => ({ src: p.meta.featured, at: parseSiteDate(p.meta.start).getTime() }))
 		.filter((e) => (isMediaPath(e.src) || isPublicMediaUrl(e.src)) && Number.isFinite(e.at));
 	const upcoming = events.filter((e) => e.at >= now).sort((a, b) => a.at - b.at);
 	const past = events.filter((e) => e.at < now).sort((a, b) => b.at - a.at);

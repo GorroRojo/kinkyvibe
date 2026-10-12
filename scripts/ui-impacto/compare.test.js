@@ -271,6 +271,15 @@ describe('pages', () => {
 		for (const id of ids) expect(id).toMatch(/^[a-z0-9-]+$/);
 	});
 
+	it('una captura por grupo de la galería (/estilo?grupo=)', async () => {
+		const { GRUPOS } = await import('../../src/lib/estilo/secciones.js');
+		for (const grupo of Object.keys(GRUPOS)) {
+			const def = PAGES.find((p) => p.id === `estilo-${grupo}`);
+			expect(def?.group).toBe('estilo');
+			expect(def?.path({})).toBe(`/estilo?grupo=${grupo}`);
+		}
+	});
+
 	it('celu 390×844 y compu 1280×800', () => {
 		expect(VIEWPORTS.map((v) => [v.id, v.width, v.height])).toEqual([
 			['celu', 390, 844],

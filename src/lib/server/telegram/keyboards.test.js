@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	CALLBACK_DATA_MAX_BYTES,
-	KEYBOARD_MAX,
 	eventCallbackData,
-	eventListKeyboard,
 	eventToken,
 	findByToken,
 	parseCallbackData,
@@ -68,24 +66,6 @@ describe('parseCallbackData', () => {
 		]) {
 			expect(parseCallbackData(d)).toBeNull();
 		}
-	});
-});
-
-describe('eventListKeyboard', () => {
-	it('un botón por evento, hasta KEYBOARD_MAX', () => {
-		const events = Array.from({ length: KEYBOARD_MAX + 2 }, (_, i) => fake(i + 1));
-		const kb = eventListKeyboard(events);
-		expect(kb.inline_keyboard).toHaveLength(KEYBOARD_MAX);
-		expect(kb.inline_keyboard[0]).toEqual([
-			{ text: 'Ver: Evento inventado 1', callback_data: 'ev:evento-inventado-1' }
-		]);
-	});
-
-	it('acorta los títulos largos', () => {
-		const kb = eventListKeyboard([
-			{ ...fake(1), title: 'Un título larguísimo inventado para la prueba' }
-		]);
-		expect(kb.inline_keyboard[0][0].text).toBe('Ver: Un título larguísimo inventado…');
 	});
 });
 

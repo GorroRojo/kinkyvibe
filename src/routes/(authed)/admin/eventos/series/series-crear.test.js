@@ -4,41 +4,54 @@
  * commits al archivo de etiquetas). D1 de miniflare para las etiquetas y el registro del panel.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createTestDB, resetDB, restoreDB, snapshotDB } from '$lib/server/db/testing.js';
+import { createTestDB, restoreDB, snapshotDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
 import { fakeRequestEvent, thrown } from '$lib/server/series/fixtures.js';
 import seedTagList from '$lib/server/semilla/etiquetas.json';
 import { importTags } from '$lib/server/etiquetas/importer.js';
 import { loadTagRecords } from '$lib/server/etiquetas/read.js';
 
-vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
+/**
+ * Lo caro se hace una vez, en el `beforeAll` (con su propio tiempo límite, porque con la máquina
+ * cargada tarda): importar todas las etiquetas de la semilla (~6 s sola, más de 10 s cargada) y la
+ * primera transformación de la página y todo lo que importa (~340 módulos: ~8 s sola, más de 15 s
+ * cargada). Antes las dos caían dentro de la primera prueba y su `beforeEach`, que pasaban los
+ * 30 s con la máquina cargada. Cada prueba arranca de la copia (`restoreDB`, un solo pedido) y
+ * vuelve a evaluar la página con sus mocks (`page()`), que con lo transformado en caché tarda
+ * ~0,1 s: entran en los 5 s de siempre. El tiempo límite del `beforeAll` es la suma de los dos
+ * que tenían antes la importación y la primera prueba (30 s cada uno).
+ */
+const SETUP_TIMEOUT = 60_000;
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
+/**
+ * La base recién importada (`restoreDB` deja la base igual que después de la importación).
+ * @type {import('$lib/server/db/testing.js').DBSnapshot}
+ */
+let imported;
 beforeAll(async () => {
-	t = await createTestDB();
-});
+	// Las dos cosas a la vez: la importación espera a la base (otro proceso, workerd) y la
+	// transformación la hace vite en el proceso principal de vitest.
+	const seeded = (async () => {
+		t = await createTestDB();
+		// Las etiquetas, en la base (de donde se leen y donde se guardan).
+		await importTags(
+			t.db,
+			{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
+			{ actor: 'admin-de-prueba' }
+		);
+		imported = await snapshotDB(t.db);
+	})();
+	// Transforma la página una vez (vite guarda lo transformado; `vi.resetModules()` solo olvida
+	// los módulos ya evaluados, así cada `page()` vuelve a evaluarla con sus mocks).
+	await Promise.all([seeded, import('./+page.server.js')]);
+	vi.resetModules();
+}, SETUP_TIMEOUT);
 afterAll(async () => {
 	await t?.dispose();
 });
-/**
- * La base recién importada, copiada la primera vez: importar todas las etiquetas de la semilla
- * tarda ~10 s con la máquina cargada, y cada prueba arranca con exactamente esas filas
- * (`restoreDB` deja la base igual que después de la importación, en un solo pedido).
- * @type {import('$lib/server/db/testing.js').DBSnapshot | undefined}
- */
-let imported;
-beforeEach(async () => {
-	if (imported) return restoreDB(t.db, imported);
-	await resetDB(t.db);
-	// Las etiquetas, en la base (de donde se leen y donde se guardan).
-	await importTags(
-		t.db,
-		{ rawTags: JSON.parse(JSON.stringify(seedTagList)) },
-		{ actor: 'admin-de-prueba' }
-	);
-	imported = await snapshotDB(t.db);
-});
+beforeEach(() => restoreDB(t.db, imported));
 afterEach(() => {
 	vi.doUnmock('$env/dynamic/private');
 	vi.doUnmock('$lib/server/eventos');

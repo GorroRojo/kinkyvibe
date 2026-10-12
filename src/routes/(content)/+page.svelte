@@ -1,5 +1,6 @@
 <script>
 	import CardRow from '$lib/components/CardRow.svelte';
+	import { parseSiteDate } from '$lib/utils/dates.js';
 	import Carrousel from '$lib/components/Carrousel.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import SeoHead from '$lib/components/SeoHead.svelte';
@@ -67,7 +68,7 @@
 		<Carrousel
 			posts={allPosts.filter(
 				(/** @type {{ meta: AnyPostData; }} */ p) =>
-					p.meta.category == 'calendario' && new Date(p.meta.start).getTime() > Date.now()
+					p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
 			)}
 		/>
 	{/if}
@@ -79,7 +80,7 @@
 			items={allPosts
 				.filter(
 					(/** @type {{ meta: AnyPostData; }} */ p) =>
-						p.meta.category == 'calendario' && new Date(p.meta.start).getTime() > Date.now()
+						p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
 				)
 				.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))
 				.slice(0, 9)}
@@ -118,7 +119,7 @@
 	</div>
 	<div id="lista"></div>
 	<!-- el feed largo de a 20: así el pie de página queda a mano -->
-	<PostList posts={allPosts} limit={20} />
+	<PostList heading="Lo último publicado" posts={allPosts} limit={20} />
 </main>
 
 <style>

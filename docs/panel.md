@@ -90,10 +90,11 @@ leer). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene
   mostrarlo).
 - **Pestañas en el celu** (< 600 px): todas las barras del panel usan `Tabs` con `menu` (la de
   sección, la de la ficha del evento y los filtros de Ventas, Perfiles y Propinas): un botón
-  «Sección: Órdenes ▾» de ancho entero, con borde violeta y fondo lila (la navegación principal
+  «Sección: Órdenes ▾» de ancho entero, lleno de violeta (la navegación principal
   de la página), que abre la lista; sin tira que se desliza. En la ficha del evento, las acciones
   del encabezado bajan debajo de las pestañas, más chicas: Editar y «⋯ Acciones» (Ver página,
-  Duplicar, Imagen para compartir). `menuCaption` cambia «Sección» («Pestaña», «Ver»).
+  Duplicar, Imagen para compartir). `menuCaption` cambia «Sección» («Pestaña», «Ver»). Desde
+  el 12/10 `menu` es lo de siempre en `Tabs`: una barra nueva también pasa a la lista (gorrite).
 - **Más ágil**: mientras SvelteKit trae la página siguiente (`$navigating`) hay una barrita de 3
   px arriba de todo (aparece después de 120 ms, así lo rápido no parpadea; quieta con movimiento
   reducido) y el link o botón que se tocó queda «cargando» (`data-pending` y `aria-busy`, estilo
@@ -156,7 +157,7 @@ sección (Etiquetas), que usan la URL del área.
 | Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`, fuera del menú: botón en Eventos), Agenda (`/agenda`, + Importar planilla en `/importar`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                                                            | lista y ficha de cada evento (`/admin/eventos/<slug>`, ver «Pestañas de la ficha del evento»); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                              |
 | Ventas       | Todas las ventas (`/admin/ventas`), Transferencias (`/transferencias`), Códigos (`/codigos`) · próximamente: Tienda (`/tienda`, fase 8)                                                                                                                                                                                                                   | ventas de todos los eventos, bandeja de transferencias, códigos de descuento                                                                                                                                                                                                                                                      |
 | Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`)                                                                                                                           | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md))                                                                                                    |
-| Mensajes     | Plantillas (`/admin/mensajes/plantillas`), Configuración (`/configuracion`) · próximamente: Bandeja (`/admin/mensajes`, fase 5), Lo que sigo (`/lo-que-sigo`, fase 2)                                                                                                                                                                                     | textos de los mails ([mails.md](mails.md)), remitente, pie, recordatorios y envíos en tandas                                                                                                                                                                                                                                      |
+| Mensajes     | Plantillas (`/admin/mensajes/plantillas`), Configuración (`/configuracion`), Lo que sigo (`/lo-que-sigo`) · próximamente: Bandeja (`/admin/mensajes`, fase 5)                                                                                                                                                                                             | textos de los mails ([mails.md](mails.md)), remitente, pie, recordatorios y envíos en tandas, el estado de «Lo que sigo» en números ([lo-que-sigo.md](lo-que-sigo.md#en-el-panel))                                                                                                                                                |
 | Etiquetas    | Árbol de etiquetas (`/admin/etiquetas`, + Importar a la base en `/importar`)                                                                                                                                                                                                                                                                              | la taxonomía del sitio ([etiquetas.md](etiquetas.md))                                                                                                                                                                                                                                                                             |
 | Contenido    | Material (`/admin/contenido/material`), No listadas (`/no-listadas`) · próximamente: Colecciones (`/colecciones`, fase 4), Videos (`/videos`, fase 7)                                                                                                                                                                                                     | editores de contenido ([contenido.md](contenido.md))                                                                                                                                                                                                                                                                              |
 | Estadísticas | Ventas en el tiempo (`/admin/estadisticas/ventas`), Asistencia (`/asistencia`), Visitas al sitio (`/visitas`); `/admin/estadisticas` redirige a Ventas                                                                                                                                                                                                    | ventas, series, medios de pago y Fondo; quiénes vinieron y vuelven; visitas anónimas del sitio ([analiticas.md](analiticas.md)). Ver «Estadísticas» abajo                                                                                                                                                                         |
@@ -233,7 +234,8 @@ un cuadrado fijo de 64 px (`TodayThumb.svelte`, en `src/lib/components/admin/ini
 (`inicio.js`): la misma portada que las tarjetas del sitio. En producción se pide achicada a
 128 × 128 por las transformaciones de Cloudflare (`thumbnailUrl` en `seo.js`, ver
 [compartir.md](compartir.md)); en un preview y en local, la portada tal cual. Sin portada no se
-muestra nada.
+muestra nada. Las listas de Eventos y de Contenido (Material, No listadas) piden sus miniaturas
+igual (`thumbnailUrl`).
 
 **Mover una URL** (regla de gorrite para el paso 2 del mapa): **sin redirecciones** desde la vieja
 (un favorito puede dar "no encontrado", y está bien), pero **nada interno** puede apuntar a ella.
@@ -340,8 +342,7 @@ revisar" del Inicio.
   sección muestra la suma de los contadores de su grupo y la pista «g x» de su primera página.
   Lo que viene («Próximamente») ya no se ve en la barra (sí en las pestañas, en «+ Crear», en el
   panel "Más" del celu y en su URL reservada); «Ocultar lo que viene» vale para todos ellos. Ya no hay
-  grupos para abrir y cerrar: `navPrefs.js` conserva sus funciones de grupos abiertos (sin uso
-  por ahora; ver la hoja de ruta).
+  grupos para abrir y cerrar (`navPrefs.js` solo guarda «Ocultar lo que viene»).
 - **Recientes** (debajo de las secciones): las últimas páginas que abriste, como los «Shortcuts»
   de Stripe (`src/lib/admin/recentPlaces.js`). Se muestran **las que entran** en el alto de la
   pantalla, **hasta 7**: `SideNav` mide el lugar que sobra entre las secciones y Ajustes, y las que
@@ -657,6 +658,19 @@ permiso". Queda en Actividad. Sacarlo no borra sus perfiles: solo deja de verlos
 Decisiones 0002, 0003, 0008 y 0010: niveles de permiso (superadmins → organizadores), bandeja de mails dentro del panel,
 el panel como CRM, formularios nuevos (edición larga con índice, compra en tres pasos) y más
 gráficos.
+
+## Lo que sigo
+
+Mensajes › Lo que sigo (`/admin/mensajes/lo-que-sigo`) es **para mirar** el estado de «Lo que
+sigo»: los interruptores, **«Lo más seguido»** justo debajo (cuántas cuentas siguen cada
+etiqueta, perfil o lugar, aunque sea una, y al abrir «Quiénes» las cuentas que la siguen, con link
+a su ficha; [0043](decisiones/0043-lo-que-sigo-en-el-panel.md)), **«Por persona»** (cada cuenta
+con cuántas cosas sigue y cuáles), los totales, los avisos que salieron (7 y 30 días y desde el
+principio, por tipo y canal), el paso de «Avisame si se repite» y Telegram, con links a donde se
+configura cada cosa. Quién sigue qué solo lo ven les admins, en esta página y en las fichas. Se
+ve también con el interruptor apagado. Los números salen de `src/lib/server/sigo/stats.js`;
+detalle en [lo-que-sigo.md](lo-que-sigo.md#en-el-panel). Lo de cada persona está en su ficha
+(«Lo que sigue»).
 
 ## Automatizaciones
 
