@@ -21,6 +21,9 @@ const config = {
 	testDir: 'tests',
 	// La venta de entradas tiene su propia configuración (dev + mocks): playwright.tickets.config.js
 	testIgnore: ['tickets/**'],
+	// Cada prueba por su cuenta (no comparten estado): los workers se reparten pruebas sueltas y no
+	// archivos enteros (smoke.spec.js tiene casi todas).
+	fullyParallel: true,
 	timeout: 30_000,
 	retries: process.env.CI ? 1 : 0,
 	reporter: process.env.CI ? [['list'], ['github']] : 'list',
