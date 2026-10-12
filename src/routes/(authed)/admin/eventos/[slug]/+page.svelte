@@ -188,7 +188,7 @@
 						<p class="muted small">
 							Solo le escribe a quien todavía no recibió este link (tocarlo dos veces no manda nada
 							de nuevo). Si cambiás el link, se puede mandar el nuevo a todes. Manda de a tandas (<a
-								href="/admin/ajustes/mails">Ajustes → Mails</a
+								href="/admin/mensajes/configuracion">Mensajes → Configuración</a
 							>): si son muches, el resto sale solo en las próximas vueltas del cron.
 						</p>
 					{/if}

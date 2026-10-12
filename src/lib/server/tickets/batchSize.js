@@ -2,7 +2,7 @@
  * "De a cuántos": cuántos mails manda como mucho cada corrida del cron (recordatorios y lo que
  * quede de "Enviar el link a todes") y cada toque de ese botón. Cada mail es un pedido a Resend y
  * un Worker tiene límites por pedido: en tandas, un evento grande no corta el envío a la mitad.
- * Se edita en Ajustes → Mails (`ticket_settings`, clave `mail_batch_size`; vacío = el de por
+ * Se edita en Mensajes → Configuración (`ticket_settings`, clave `mail_batch_size`; vacío = el de por
  * defecto).
  */
 

@@ -214,15 +214,14 @@ de amigues y lanzamientos grandes.
   cuando un cliente de mail lo use. S.
 - Colas (Queues) para los mails y Email Workers para recibir. L.
 - Newsletter general y por combinación de etiquetas. L.
-- Bandeja de entrada en el panel, mails individuales y masivos (fase 5, CRM). L.
+- Bandeja de entrada en el panel, mails individuales y masivos (fase 5, CRM). L. Cuando esté,
+  va primera en Mensajes: Bandeja, Plantillas, Configuración (gorrite, 11/10; hoy va al final
+  porque lo que viene va al final de su área).
 
 ### Telegram
 
 - Puerta por Telegram, después de #273: prenderla en un preview y probarla con celulares reales
   (vincular, abrir con el botón del bot, escanear); después en producción. S. Bloqueo: gorrite.
-- Puerta por Telegram: elegir el evento de una lista (los de hoy) en lugar de escribir su
-  dirección (0037). S. (Abrirla sin volver a vincular: «🚪 Puerta» en el inicio del bot, PR
-  `claude/bot-inicio`.)
 - Bot: recorrer el sitio por secciones («📚 Material», «📖 Kinkipedia», «👥 Amigues» en el inicio,
   con listas y etiquetas), reusando la lista y la tarjeta compacta de `siteScreens.js`. M.
 - Bot: pasar los textos nuevos del modo inline y de la búsqueda (`INLINE_TEXTS` en `inline.js`,

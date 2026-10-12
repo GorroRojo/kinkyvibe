@@ -51,7 +51,7 @@ test('cada link del menú del panel abre su página', async ({ page }) => {
 	expect(broken).toEqual([]);
 });
 
-test('/admin/estadisticas (la única redirección del panel, gorrite 11/10) lleva a Ventas', async ({
+test('/admin/estadisticas (una de las dos redirecciones del panel, gorrite 11/10) lleva a Ventas', async ({
 	page
 }) => {
 	await page.goto('/admin/estadisticas?periodo=30d', { waitUntil: 'domcontentloaded' });
@@ -73,6 +73,26 @@ test('/admin/estadisticas (la única redirección del panel, gorrite 11/10) llev
 	await expect(
 		page.getByRole('navigation', { name: 'Período' }).getByRole('link', { name: '30 días' })
 	).toHaveAttribute('aria-current', 'true');
+});
+
+test('/admin/ajustes/mails (la otra redirección) lleva a Mensajes › Configuración', async ({
+	page
+}) => {
+	await page.goto('/admin/ajustes/mails', { waitUntil: 'domcontentloaded' });
+	expect(new URL(page.url()).pathname).toBe('/admin/mensajes/configuracion');
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Configuración de los mails');
+	// Las plantillas no son otra tarjeta acá: un link a Mensajes › Plantillas.
+	await expect(page.getByRole('link', { name: 'Mensajes → Plantillas' })).toHaveAttribute(
+		'href',
+		'/admin/mensajes/plantillas'
+	);
+	// Las pestañas del grupo (Comunidad, con Mensajes), con Configuración marcada.
+	const tabs = page.getByRole('navigation', { name: 'Secciones de Comunidad' });
+	await expect(tabs.getByRole('link', { name: 'Configuración' })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+	await expect(tabs.getByRole('link', { name: 'Plantillas' })).toBeVisible();
 });
 
 test('una dirección del panel que no existe da 404 adentro del panel (con el menú)', async ({

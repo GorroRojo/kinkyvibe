@@ -119,7 +119,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	// «Para revisar»: las mismas filas que cuenta el botón del menú (panelCounts.js).
 	const todo = reviewRows({ ...s1, ...outside, upcoming, ticketed, titles, now });
 
-	// Los recordatorios se configuran en Ajustes → Mails y plantillas.
+	// Los recordatorios se configuran en Mensajes → Configuración.
 	const remindersItem = navItem('ajustes-mails');
 	const agenda = agendaItems({
 		events,
@@ -132,7 +132,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 			event: eventLink,
 			orders: (slug) => orderHref(slug),
 			transfers: transfersHref,
-			reminders: (remindersItem && navLink(remindersItem)) || '/admin/ajustes/mails'
+			reminders: (remindersItem && navLink(remindersItem)) || '/admin/mensajes/configuracion'
 		}
 	});
 	const focus = salesFocus(upcoming);

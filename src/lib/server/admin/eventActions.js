@@ -266,7 +266,7 @@ export const eventTicketActions = {
 	},
 
 	// "Enviar el link a todes": solo a las órdenes aprobadas que todavía no recibieron ESTE link.
-	// Manda una tanda ("de a cuántos" de Ajustes → Mails) y deja el envío pedido: el resto lo
+	// Manda una tanda ("de a cuántos" de Mensajes → Configuración) y deja el envío pedido: el resto lo
 	// manda el cron en las próximas vueltas (o otro toque del botón). También reintenta a quienes
 	// habían fallado todos sus intentos.
 	sendLink: async ({ locals, url, params, platform, fetch }) => {
