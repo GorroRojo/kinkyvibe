@@ -120,6 +120,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   Telegram (11/10)
 - [0037](0037-puerta-por-telegram.md): La puerta por Telegram: les admins marcan ingresos desde
   el bot (11/10)
+- [0041](0041-telegram-para-admins.md): Telegram para admins: estado de la venta y avisos
+  (organizadores, más adelante) (12/10)
 
 ### Panel y CRM
 
@@ -133,3 +135,5 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
   Puerta propia, «Ir a…» y Recientes) (11/10)
 - [0039](0039-navegacion-del-panel-opcion-c-parte-2.md): Navegación del panel, opción C parte 2
   (Fijados, «+ Crear», Puerta fuera de la barra, pestañas con contadores) (11/10)
+- [0042](0042-ajustes-portada-con-grupos.md): Ajustes: una portada con 4 grupos de tarjetas en vez
+  de pestañas (12/10)

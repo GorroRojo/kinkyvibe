@@ -33,7 +33,8 @@ test('cada link del menú del panel abre su página', async ({ page }) => {
 		'/admin/comunidad/personas',
 		'/admin/contenido/material',
 		'/admin/estadisticas/ventas',
-		'/admin/ajustes/cobros'
+		// Ajustes lleva a su portada (decisión 0042): sus tarjetas también se recorren abajo.
+		'/admin/ajustes'
 	]);
 	await expect(menu.getByRole('link', { name: 'Cargar evento' })).toHaveCount(0);
 	// Crear un evento sigue siendo un botón de la página de Eventos.
@@ -86,6 +87,56 @@ test('cada link del menú del panel abre su página', async ({ page }) => {
 	]) {
 		expect(seen, h).toContain(h);
 	}
+});
+
+test('Ajustes: una portada con 4 grupos de tarjetas, sin pestañas, y «← Ajustes» vuelve', async ({
+	page
+}) => {
+	await page.goto('/admin', { waitUntil: 'networkidle' });
+	const menu = page.getByRole('navigation', { name: 'Secciones del panel' });
+	await menu.getByRole('link', { name: 'Ajustes' }).click();
+	await expect(page).toHaveURL(/\/admin\/ajustes$/);
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ajustes');
+	const landing = page.getByRole('navigation', { name: 'Secciones de Ajustes' });
+	await expect(landing.getByRole('heading', { level: 2 })).toHaveText([
+		'Plata',
+		'Comunicación',
+		'Equipo',
+		'Sistema'
+	]);
+	await expect(landing.getByRole('link')).toHaveCount(9);
+	// Cada tarjeta: nombre, qué hay y su línea de estado (Admins siempre la tiene).
+	const admins = landing.getByRole('link', { name: /Admins/ });
+	await expect(admins).toContainText('Quiénes entran al panel');
+	await expect(admins).toContainText(/\d+ admins?/);
+	// La portada no es una barra de pestañas.
+	await expect(page.locator('.tabs-wrap')).toHaveCount(0);
+
+	await landing.getByRole('link', { name: /Interruptores/ }).click();
+	await expect(page).toHaveURL(/\/admin\/ajustes\/interruptores$/);
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Interruptores');
+	// Adentro, sin pestañas de Ajustes: se vuelve con «← Ajustes».
+	await expect(page.locator('nav[aria-label="Secciones de Ajustes"]')).toHaveCount(0);
+	await page.getByRole('link', { name: '← Ajustes' }).click();
+	await expect(page).toHaveURL(/\/admin\/ajustes$/);
+	await expect(landing).toBeVisible();
+
+	// En el celu, tampoco la lista ▾: la portada, una tarjeta debajo de la otra.
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/admin/ajustes/cobros', { waitUntil: 'networkidle' });
+	await expect(page.getByRole('button', { name: /Sección:/ })).toHaveCount(0);
+	await expect(page.getByRole('link', { name: '← Ajustes' })).toBeVisible();
+	// Y en el panel «Más», Ajustes lleva a la portada.
+	await page
+		.getByRole('navigation', { name: 'Secciones principales' })
+		.getByRole('button', { name: 'Más' })
+		.click();
+	await page
+		.getByRole('dialog', { name: 'Todas las secciones' })
+		// La fila del grupo («Ajustes · 9 secciones»), no la de Recientes («Interruptores, Ajustes»).
+		.getByRole('link', { name: /^Ajustes/ })
+		.click();
+	await expect(page).toHaveURL(/\/admin\/ajustes$/);
 });
 
 test('lo que viene sigue en el panel «Más» del celu, sin link', async ({ page }) => {

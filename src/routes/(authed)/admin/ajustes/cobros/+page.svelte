@@ -4,6 +4,7 @@
 	import { fieldErrors, fieldValue } from '$lib/admin/ajustes.js';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import { areaBackLink } from '$lib/admin/nav.js';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 
 	export let data;
@@ -19,7 +20,11 @@
 		form && 'values' in form ? value('mp_fee_percent') : value('mp_fee_percent') || feeDefault;
 </script>
 
-<PageHeader title="Cobros" subtitle="Datos para transferir y recargo de Mercado Pago." />
+<PageHeader
+	back={areaBackLink('ajustes-cobros')}
+	title="Cobros"
+	subtitle="Datos para transferir y recargo de Mercado Pago."
+/>
 <form
 	class="kv-form settings"
 	method="POST"
