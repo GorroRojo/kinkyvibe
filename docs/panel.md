@@ -121,7 +121,9 @@ Las direcciones no cambiaron (los links de los mails, el buscador y las pruebas 
 `eventHref(slug, 'ordenes')` da `/ordenes` como antes, y `eventTabOf(pathname)` dice qué pestaña
 y qué vista marcar (las subpáginas, como `/ordenes/cargar`, cuentan como su vista). La pestaña
 Ventas lleva el número de transferencias esperando confirmación; los botones de Órdenes,
-Transferencias y Lista de espera, los suyos (en la lista, las anotaciones vivas).
+Transferencias y Lista de espera, los suyos (en la lista, las anotaciones vivas). En el celu,
+con 4 vistas (Ventas con la lista de espera) los botones no entran en una fila: son una grilla de
+dos columnas iguales, sin deslizarse de costado; con 2 o 3, la píldora de siempre.
 
 En el celu (< 600 px) la ficha no muestra la tira de pestañas sino un botón con el ícono y el
 nombre de la pestaña actual y ▾, que abre la lista entera (ícono y nombre, ninguna escondida, sin

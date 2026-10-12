@@ -168,7 +168,7 @@
 	{#if here?.view && views.length}
 		<nav
 			class="views kv-segmented"
-			class:many={views.length > 2}
+			class:many={views.length > 3}
 			aria-label="Vistas de {here.tab.label}"
 		>
 			{#each views as v (v.id)}
@@ -301,9 +301,10 @@
 	.views {
 		margin: -0.25rem 0 1rem;
 	}
-	/* En el celu, si las vistas no entran en una fila (Ventas con la lista de espera): una grilla
-	   de dos columnas iguales, con las esquinas de una tarjeta en vez de la píldora; si son impares,
-	   la última ocupa la fila entera. Nunca se desliza de costado. */
+	/* En el celu, con 4 vistas o más (no entran en una fila: Ventas con la lista de espera), una
+	   grilla de dos columnas iguales, con las esquinas de una tarjeta en vez de la píldora; si son
+	   impares, la última ocupa la fila entera. Nunca se desliza de costado. Con 2 o 3 vistas (Mails,
+	   Ventas sin la lista) queda la píldora de siempre. */
 	@media (max-width: 599px) {
 		.views.many {
 			display: grid;

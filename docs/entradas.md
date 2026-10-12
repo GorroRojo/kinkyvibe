@@ -127,9 +127,9 @@ se manda sola cuando vuelve ([tickets.md](tickets.md), modo puerta).
 **Prender la lista de espera de un evento.** Editar → Entradas → «Lista de espera»: por evento o
 por tipo de entrada (y, si hace falta, «Avisar a todes a la vez desde el principio»). Cuánto se
 guarda el lugar no se elige (ni por evento ni en el panel): es fijo, para todos (24 h, 12 h o 2 h
-según cuánto falte; con menos de 6 h, aviso a todes a la vez). La
-fila, las cuentas y las acciones (terminar una reserva, sacar a alguien, ofrecer ahora, cerrar la
-lista, que además la apaga) están en la vista Ventas › Lista de espera de la ficha. Con gente anotada, el editor no deja
+según cuánto falte; con menos de 6 h, aviso a todes a la vez). La fila, las cuentas y las
+acciones (terminar una reserva, sacar a alguien, ofrecer ahora, cerrar la lista, que además la
+apaga) están en la vista Ventas › Lista de espera de la ficha. Con gente anotada, el editor no deja
 apagarla ni cambiar el alcance: «cerrá la lista primero».
 
 **Reembolsar.** Ficha del evento → Órdenes → Reembolsar… (total; MP o marcar la transferencia como
