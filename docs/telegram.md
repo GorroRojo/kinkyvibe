@@ -53,6 +53,33 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
     de perfil), la foto achicada si hay y se puede, «Ver en el sitio», «‹ Volver» (a esa página de
     resultados) e «🏠 Inicio». La lista y la tarjeta (`siteScreens.js`) son las mismas de las
     secciones (abajo).
+  - **Sin resultados** (`noResults.js`, `searchSuggest.js`), en lugar de solo «No encontré nada»,
+    en este orden y corto para un teléfono:
+    1. **Parecidos** («¿Quisiste decir…?»): hasta 3 botones «🔎 <búsqueda> (<cuántas>)» que buscan
+       eso (`q:0:<texto>`). Salen del mismo índice y el mismo buscador del sitio (`search`,
+       `editDistance`): lo buscado con cada palabra cambiada por la más parecida de un título o una
+       etiqueta (más tolerante que el buscador, que ya perdona un error: 1 letra en palabras de 3
+       o 4, 2 hasta 7, 3 desde 8), cada palabra sola si eran varias («cuerdas zzz» → «cuerdas»), una
+       etiqueta usada con nombre o alias parecido y, si lo buscado es una etiqueta del árbol
+       (`resolveTag`, con alias y sin tildes), primero sus hijas, relacionadas y madres. Solo se
+       ofrece lo que trae algo.
+    2. **La sección más cercana**: donde está la mayoría de lo de esa etiqueta (y sus parientes) o
+       de la primera sugerencia, con el botón de la sección del inicio (ya filtrada por la
+       etiqueta si está en esa sección, `c:<s>:0:<etiqueta>`). Si son eventos, «📅 Calendario»: la
+       Mini App en privado, la lista de próximos en un grupo.
+    3. **Lo que viene**: los 3 próximos eventos del índice, con la línea de la lista de resultados.
+    4. **«⭐ Seguir <etiqueta>»** si lo buscado es una etiqueta (que todavía no tiene nada público),
+       solo por chat privado y con «Lo que sigo» prendido (en un grupo no aparece). Es el mismo
+       `follow` que «Seguir» en una tarjeta (seguir.js, con sus topes y «Algo nuevo» por Telegram,
+       0036). El botón (`sf:<etiqueta>:<texto>`) vuelve a buscar lo mismo y saca la etiqueta **de
+       lo buscado**: uno armado a mano no puede seguir otra cosa, y si la búsqueda ya trae algo
+       contesta «Eso ya no está disponible.». Sin chat vinculado, cómo conectarlo; después de
+       seguirla, el botón queda «✓ Ya seguís <etiqueta>».
+    - Siempre «🔎 Buscar otra cosa · 🏠 Inicio». Si no hay nada para ofrecer, el mensaje de siempre y
+      lo que viene.
+    - El árbol de etiquetas llega por `inline.tags` (`siteTagManager`); si falla, sugiere igual sin
+      parientes ni «Seguir». **No se guarda ni se loguea quién buscó ni qué** (lo prueba
+      `router-sin-resultados.test.js`).
   - `/evento <texto>` sigue siendo **solo de eventos próximos** (título, dirección o fecha).
 - **Las secciones del sitio** (`sections.js`): «📚 Material», «📖 Kinkipedia», «👥 Amigues» y
   «🔁 Series» en el inicio. Cada una es una lista de a 5 con «‹ 2/7 ›» (cada cosa con su línea,
@@ -107,6 +134,7 @@ Decisiones [0029](decisiones/0029-bot-de-telegram.md) y [0034](decisiones/0034-b
 | Seguir: opciones / seguir una                                        | `f:<id>` / `fy:<id>:<etiqueta>`  |
 | Buscar en todo el sitio: resultados (página `p`)                     | `q:<p>:<texto>`                  |
 | Buscar en todo el sitio: una cosa (vuelve a la página `p`)           | `r:<hash>:<p>:<texto>`           |
+| Buscar sin resultados: seguir la etiqueta buscada                    | `sf:<etiqueta>:<texto>`          |
 | Una sección (`s`: `m`, `w`, `a`, `s`; página `p`; etiqueta opcional) | `c:<s>:<p>[:<etiqueta>]`         |
 | Las etiquetas de una sección (la elegida, opcional)                  | `ct:<s>[:<etiqueta>]`            |
 | Una cosa de una sección (vuelve a la página `p`, con su etiqueta)    | `cd:<s>:<hash>:<p>[:<etiqueta>]` |
@@ -205,6 +233,11 @@ las pantallas).
   <evento>»), «‹ 2/3 ›», «🕘 Pasadas» (o «🎟 Próximas») e «🏠 Inicio». Una entrada queda en
   «próximas» hasta 12 horas después del fin de su evento (o del comienzo, sin fin): así se puede
   mostrar en la puerta con el evento empezado. Las pasadas, de la más reciente, hasta 30.
+  **Talleres en varias partes** con una sola entrada ([talleres-partes.md](talleres-partes.md)):
+  la entrada vale para todas, así que queda en «próximas» hasta 12 horas después de la última
+  parte (sin las canceladas); la lista y la tarjeta muestran la fecha de la parte que toca, con
+  «· Parte 2 de 3», y la lista se ordena por esa fecha (`partsCoveredBy` decide qué partes cubre,
+  la misma regla que la lista de partes de los mails).
 - **La tarjeta**: el QR **como foto**, el evento, la fecha (`tg-time`), el nombre y los pronombres
   de la entrada, el tipo, el código corto («ABC 234», para dictarlo si el QR no se lee) y si es
   válida o ya se usó (cuándo). Botones: «🔗 Ver la entrada» (su página), «‹ 2/3 ›» entre las
@@ -298,6 +331,12 @@ del campo que tocás). Cada guardado queda en Actividad (`settings.save`, `teleg
   pasaron con la misma prueba: sus casos se agregaron a `bot.golden.json` con el código de antes y
   no cambiaron al pasarlos. «‹ Volver», «🏠 Inicio» y «🔎 Buscar otra cosa» son los mismos de
   siempre.
+- **Buscar sin resultados**: sus textos nuevos («¿Quisiste decir…?», el botón de cada parecido,
+  la línea y el botón de «Seguir», «Mientras tanto, lo que viene» y el botón del modo inline con
+  una búsqueda parecida) están en «Buscar en todo el sitio y modo inline», con su vista previa. El
+  «⭐ Seguir» ya seguido usa el de Seguir («✓ Ya seguís …») y la sección, los botones del inicio. En
+  `bot.golden.json` cambió a propósito un solo caso (`router: sitio: /buscar nada`), que ahora
+  suma lo que viene.
 
 ## Modo inline
 
@@ -327,12 +366,16 @@ Código: `inline.js` (la respuesta, funciones puras) e `inlineSource.js` (de dó
   `eventPlace`) y el estado de la venta si no se puede comprar. Botones: «Ver en el sitio» y, si el
   evento vende entradas acá y están a la venta, «🎟 Entradas». Solo botones con link (un botón de
   pantalla no anda en un mensaje inline). HTML escapado (`parse_mode: HTML`). Arriba del texto va
-  la vista previa grande del link de la página (su imagen para compartir), igual que la tarjeta del
-  bot (`link_preview_options` con `prefer_large_media` y `show_above_text`); sin https, apagada.
+  la vista previa del link de la página (su imagen para compartir), chica y al costado, como cuando
+  une usuarie la achica al mandar un link (`link_preview_options` con `prefer_small_media` y
+  `show_above_text`; gorrite, 12/10). La tarjeta del bot en su chat sigue con la grande. Sin
+  https, apagada.
 - **`answerInlineQuery`**: `InlineQueryResultArticle` con `thumbnail_url`, 20 por página con
   `next_offset` (hasta 200 en total), `cache_time` 120 segundos e `is_personal: false` (es lo
   mismo para todes). Sin resultados, un botón arriba («No encontré nada. Probá en el bot») que abre
-  el bot en privado en Buscar (`start_parameter=buscar`).
+  el bot en privado en Buscar (`start_parameter=buscar`). Si hay una búsqueda parecida que trae
+  algo (las mismas de Buscar sin resultados, `searchSuggest.js`, con el mismo prefijo), se muestran
+  sus resultados y el botón dice «Nada para «querdaz». Te muestro «cuerdas»».
 - **Privacidad**: solo lo que hay en el índice público (ni oculto, ni «solo con cuenta», ni sin
   aprobar, ni no listado, ni borrado; los links a cosas no públicas ya se filtran en los metadatos,
   #291). Lo de más (imagen, fecha, tipo de perfil, lugar y venta) se busca solo para las direcciones
@@ -663,8 +706,9 @@ primero para admins (después, lo mismo para organizadores con **sus** eventos).
 interruptor **Telegram para admins** (`telegram_admin`, `TELEGRAM_ADMIN_ENABLED`), apagado (0001),
 que además pide el bot prendido. Va en tres PR:
 
-1. **(este) La base y el estado a pedido**: «📊 Estado» y «🔔 Mis avisos».
-2. El resumen diario de ventas y los avisos en el momento (cada venta, cada transferencia).
+1. La base y el estado a pedido: «📊 Estado» y «🔔 Mis avisos» (#315).
+2. **(este) El resumen diario de ventas y los avisos en el momento** (cada venta, cada
+   transferencia): abajo, «Los avisos que salen».
 3. El día del evento (resumen) y los recordatorios (el evento de mañana, falta el lugar o el link).
 
 **Quién**: une admin con el Telegram vinculado desde el panel (el mismo vínculo que la puerta,
@@ -695,11 +739,59 @@ falla la base) el bot le contesta **exactamente lo mismo que a un comando o bot�
 - **🔔 Mis avisos**: cinco tipos (resumen diario, cada venta, cada transferencia, día del evento,
   recordatorios), **todos apagados al empezar**; tocar uno lo prende o lo apaga (✅/⬜). Se guarda
   por id de GitHub en `telegram_admin_notices` (migración `0054`, sin fila = apagado): volver a
-  vincular no borra lo elegido. En este PR **todavía no sale ningún aviso** (la pantalla lo dice);
-  los mandan los PR 2 y 3 con `noticeRecipients` (les admins vinculades que lo prendieron y siguen
-  en `ADMINS`).
+  vincular no borra lo elegido. Ya salen el resumen diario, cada venta y cada transferencia (abajo);
+  el día del evento y los recordatorios, con el PR 3 (la pantalla lo dice).
 - Los textos están en «Textos del bot» (sección «Estado y avisos (admins)»), con sus pantallas en
   la vista previa.
+
+### Los avisos que salen (PR 2, `adminNotify.js`)
+
+Para todos:
+
+- **A quién**: `noticeRecipients` en cada envío: admins con el Telegram vinculado, que **siguen** en
+  `ADMINS` y prendieron ese aviso. Solo por el chat privado con esa persona (el id del chat es el
+  de su usuario). Nadie recibe nada que no prendió.
+- **Interruptores**: nada sale sin el bot (`telegram_bot`) y «Telegram para admins»
+  (`telegram_admin`) prendidos, ni sin `TELEGRAM_BOT_TOKEN`.
+- **Solo cantidades**: el título del evento, el tipo de entrada, el tramo y números. Las funciones
+  que arman los textos ni reciben la orden (`orderSummary` saca cantidad, tipo y tramo), así un
+  campo nuevo de la orden nunca termina en Telegram. Nada de nombres, mails, DNI, titulares ni
+  códigos (`adminNotify.test.js` llena la base con todo eso y lo revisa). Cada aviso trae «Ver en
+  el panel ↗» (`/admin/eventos/<dirección>`).
+- **Nada dos veces**: antes de mandar se toma una fila de `telegram_admin_sent` (migración
+  `0055`, clave `venta:<orden>`, `transferencia:<orden>` o `resumen:<día>:<evento>`); si Telegram
+  falla se suelta (el resumen se reintenta en la corrida siguiente). Si le admin bloqueó al bot, no
+  se reintenta y el vínculo sigue (lo usa la puerta). El cron borra las filas de más de 30 días.
+- Los textos están en «Textos del bot» (sección «Estado y avisos (admins)»), con su vista previa.
+
+**Resumen diario** («☀️ Resumen diario · <evento>»): el cron de cada 15 minutos
+(`POST /api/cron/recordatorios`, `runAdminNoticesCron`) lo manda en su primera corrida desde las
+**9 de Argentina** (`ADMIN_DAILY_HOUR`; nunca en el horario de silencio, de 23 a 9). Uno por
+evento de hoy o próximo (los de «📊 Estado») **que tuvo movimiento** entre las 9 de ayer y las 9 de
+hoy: entradas aprobadas o transferencias nuevas. Sin movimiento, no sale nada. Lleva:
+
+- vendidas desde ayer a las 9 y el total contra el cupo (`23/50`, o solo el número si algún tipo no
+  tiene cupo);
+- transferencias nuevas desde ayer (si hay);
+- reservas sin pagar y cuántas vencen en las próximas 24 horas, transferencias por confirmar,
+  órdenes para revisar y la lista de espera (lo mismo que «📊 Estado»).
+
+«Desde ayer» se cuenta con `updated_at` de las órdenes aprobadas (la tabla no guarda aparte cuándo
+se aprobó): es cuando se aprobó, salvo que algo la haya vuelto a tocar después.
+
+**Cada venta** y **cada transferencia**: en el momento, desde los flujos de compra
+(`queueOrderNotice`, en segundo plano con `waitUntil`; **nunca traba ni hace fallar** una compra o
+una confirmación):
+
+- venta aprobada por Mercado Pago (`processPayment`), entrada gratis (`checkout.js`) y
+  transferencia confirmada desde el panel (en el evento o en Ventas → Transferencias): «🎟 Se vendió
+  1 General (Preventa 1) de **Fiesta X** · 23/50» (vendidas del tipo contra su cupo);
+- orden nueva por transferencia (`checkout.js`): «💸 Transferencia para confirmar: 2 General de
+  **Fiesta X** · 3 por confirmar».
+- Solo las del sitio (canal `online`): las de la puerta y las cargadas a mano las hace une admin.
+- En el horario de silencio salen igual, pero **sin sonido** (`disable_notification`): una venta
+  avisada a las 9 de la mañana ya no sirve.
+- Si Telegram falla en ese momento, ese aviso no se reintenta (el resumen diario la cuenta igual).
 
 ### Puesta en marcha del estado y los avisos (la hace gorrite)
 
@@ -711,6 +803,10 @@ falla la base) el bot le contesta **exactamente lo mismo que a un comando o bot�
    en el bot y probar «📊 Estado» y «🔔 Mis avisos».
 3. Después, en producción. Para cortarlo de golpe: `TELEGRAM_ADMIN_ENABLED=0` o apagar el
    interruptor.
+4. PR 2: **aplicar la migración `0055_telegram_admin_enviados.sql` en producción y en preview antes
+   de mergear** (0028). Solo crea una tabla: anda con el código de `main`. Después, prender
+   «Resumen diario», «Cada venta» o «Cada transferencia» en «🔔 Mis avisos» y probar en un preview
+   (una compra de prueba, o esperar al cron de las 9).
 
 ## Qué sigue
 

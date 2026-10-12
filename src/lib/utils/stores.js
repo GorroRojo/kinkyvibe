@@ -34,6 +34,11 @@ export const query = writable('');
 /** Si el buscador global (SearchPalette) está abierto. */
 export const searchOpen = writable(false);
 
+/** Texto con el que abrir el buscador global (lo lee y lo vacía SearchPalette al abrirse). Lo usa
+ * «Buscar en todo el sitio» de la Kinkipedia sin resultados, para no tener que escribirlo de nuevo.
+ * @type {import('svelte/store').Writable<string>} */
+export const searchPrefill = writable('');
+
 /** Free-text part of the PostList search (the tags part is `filteredTags`).
  * @type {import('svelte/store').Writable<string>} */
 export const searchText = writable('');

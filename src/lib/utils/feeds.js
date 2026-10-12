@@ -7,7 +7,8 @@
  * quién las puede ver) y devuelven el texto del feed. Del evento va la fecha, nunca el lugar: así
  * no hay que repetir acá las reglas de privacidad de los lugares.
  */
-import { argDateTimeLong } from './dates.js';
+import { eventLead } from './eventText.js';
+import { parseSiteDate } from './dates.js';
 import { SITE_NAME, SITE_URL, absoluteUrl } from './jsonLd.js';
 
 /** Cuántas publicaciones lista cada feed (las más nuevas), como /rss. */
@@ -34,7 +35,7 @@ export const FEED_LIMIT = 50;
  */
 export function rfc3339(d) {
 	if (d === undefined || d === null || d === '') return undefined;
-	const date = d instanceof Date ? d : new Date(/** @type {any} */ (d));
+	const date = d instanceof Date ? d : parseSiteDate(/** @type {any} */ (d));
 	return isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
@@ -72,13 +73,8 @@ export function feedEntry(post, now = Date.now()) {
 	const published = rfc3339(meta.published_date) ?? rfc3339(meta.start);
 	const updated = rfc3339(meta.updated_date) ?? published ?? new Date(now).toISOString();
 	let summary = typeof meta.summary === 'string' ? meta.summary.trim() : '';
-	if (meta.category === 'calendario') {
-		const when = argDateTimeLong(meta.start);
-		const prefix = [meta.status === 'cancelado' ? 'Cancelado' : '', when]
-			.filter(Boolean)
-			.join(' · ');
-		summary = [prefix, summary].filter(Boolean).join(' · ');
-	}
+	// Del evento, «Cancelado» y la fecha adelante, como la vista previa al compartir (./eventText.js).
+	if (meta.category === 'calendario') summary = eventLead(meta, { rest: [summary] });
 	return {
 		id: url,
 		url,

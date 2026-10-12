@@ -288,7 +288,9 @@
 </div>
 
 {#if last}
-	<UndoToast message="Guardaste «{last.title}»." busy={undoing} on:undo={undo} />
+	<div class="undo-row">
+		<UndoToast message="Guardaste «{last.title}»." busy={undoing} on:undo={undo} />
+	</div>
 {/if}
 
 <!-- La tabla es más ancha y más alta que la pantalla: se desliza adentro (con el encabezado y la
@@ -505,6 +507,9 @@
 		justify-content: flex-end;
 		gap: var(--space-2xs);
 		margin-bottom: 0.8rem;
+	}
+	.undo-row {
+		margin-bottom: var(--space-xs);
 	}
 	.sheet-box {
 		contain: inline-size;

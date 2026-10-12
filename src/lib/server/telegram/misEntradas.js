@@ -16,8 +16,12 @@
  *
  * Una entrada queda en «próximas» hasta 12 horas después de que termina su evento (o de que
  * empieza, si no tiene fin): así se puede mostrar en la puerta aunque el evento ya haya empezado.
+ * La de un taller en varias partes con una sola entrada (docs/talleres-partes.md) vale para todas:
+ * queda en «próximas» hasta 12 horas después de su última parte (sin las canceladas), y la lista
+ * y la tarjeta muestran la fecha de la parte que toca, con «Parte 2 de 3».
  */
 import { eventEnd } from '$lib/utils/dates.js';
+import { partLabel } from '$lib/utils/partes.js';
 import { qrPng } from '$lib/server/tickets/qr.js';
 import { escapeHtml } from './format.js';
 import { truncate } from './keyboards.js';
@@ -52,19 +56,76 @@ const homeButton = () => ({
  */
 export const ticketQrText = (origin, token) => `${origin}/entradas/t/${token}`;
 
-/** @param {BotTicket} t */
-const startMs = (t) => (t.start ? Date.parse(t.start) : NaN);
+/**
+ * Una fecha de la entrada: la del evento o la de una parte del taller (`n`, de `total`).
+ *
+ * @typedef {{ start: string | null, end: string | null, n?: number, total?: number }} TicketDate
+ */
+
+/** @param {{ start: string | null }} d */
+const startMs = (d) => (d.start ? Date.parse(d.start) : NaN);
 
 /**
- * ¿La entrada es de un evento que ya pasó? Sin fecha (un evento que ya no está), sí.
+ * ¿Esa fecha ya pasó (más las 12 horas)? Sin fecha (un evento que ya no está), sí.
+ *
+ * @param {TicketDate} d
+ * @param {number} now
+ */
+function isPastDate(d, now) {
+	if (!d.start || !Number.isFinite(startMs(d))) return true;
+	const end = eventEnd(d.start, d.end ?? undefined).getTime();
+	return (Number.isFinite(end) ? end : startMs(d)) + TICKET_GRACE_MS < now;
+}
+
+/**
+ * Las fechas que cubre la entrada, de la primera a la última: las de las partes del taller (sin
+ * las canceladas) o, si no es un taller (o están todas canceladas), la del evento.
+ *
+ * @param {BotTicket} t
+ * @returns {TicketDate[]}
+ */
+function ticketDates(t) {
+	const total = t.parts?.length ?? 0;
+	const parts = (t.parts ?? [])
+		.filter((p) => !p.cancelled && Number.isFinite(startMs(p)))
+		.map((p) => ({ start: p.start, end: p.end, n: p.n, total }))
+		.sort((a, b) => startMs(a) - startMs(b));
+	return parts.length ? parts : [{ start: t.start, end: t.end }];
+}
+
+/**
+ * La fecha que toca mostrar: la primera parte que todavía no pasó o, si pasaron todas, la última.
+ *
+ * @param {BotTicket} t
+ * @param {number} now
+ * @returns {TicketDate}
+ */
+export function ticketDate(t, now) {
+	const dates = ticketDates(t);
+	return dates.find((d) => !isPastDate(d, now)) ?? dates[dates.length - 1];
+}
+
+/**
+ * ¿La entrada es de un evento que ya pasó? La de un taller, cuando pasó su última parte. Sin
+ * fecha (un evento que ya no está), sí.
  *
  * @param {BotTicket} t
  * @param {number} now
  */
 export function isPastTicket(t, now) {
-	if (!t.start || !Number.isFinite(startMs(t))) return true;
-	const end = eventEnd(t.start, t.end ?? undefined).getTime();
-	return (Number.isFinite(end) ? end : startMs(t)) + TICKET_GRACE_MS < now;
+	return ticketDates(t).every((d) => isPastDate(d, now));
+}
+
+/**
+ * La fecha de la entrada como `tg-time`, con «· Parte 2 de 3» si es de un taller; `''` sin fecha.
+ *
+ * @param {BotTicket} t
+ * @param {ScreenCtx} ctx
+ */
+function ticketWhen(t, ctx) {
+	const d = ticketDate(t, ctx.now ?? Date.now());
+	const when = d.start ? tgTime(d.start, ctx.now) : '';
+	return when && d.n && d.total ? `${when} · ${partLabel(d.n, d.total)}` : when;
 }
 
 /**
@@ -78,10 +139,12 @@ export function isPastTicket(t, now) {
  */
 export function ticketsForView(view, tickets, now) {
 	const past = view === 'o';
-	const chosen = tickets.map((t, i) => ({ t, i })).filter(({ t }) => isPastTicket(t, now) === past);
+	const chosen = tickets
+		.map((t, i) => ({ t, i, at: startMs(ticketDate(t, now)) }))
+		.filter(({ t }) => isPastTicket(t, now) === past);
 	chosen.sort((a, b) => {
-		const sa = startMs(a.t);
-		const sb = startMs(b.t);
+		const sa = a.at;
+		const sb = b.at;
 		const byDate = (Number.isFinite(sa) ? sa : 0) - (Number.isFinite(sb) ? sb : 0);
 		if (byDate) return past ? -byDate : byDate;
 		if (a.t.slug !== b.t.slug) return a.t.slug < b.t.slug ? -1 : 1;
@@ -109,14 +172,15 @@ const otherViewButton = (view) =>
 			};
 
 /**
- * Un evento en la lista: la fecha (`date_time`), el título y cuántas entradas tiene ahí.
+ * Un evento en la lista: la fecha (`date_time`; en un taller, la de la parte que toca), el título y
+ * cuántas entradas tiene ahí.
  *
  * @param {BotTicket} first
  * @param {number} count
  * @param {ScreenCtx} ctx
  */
 function eventBlock(first, count, ctx) {
-	const when = first.start ? tgTime(first.start, ctx.now) : '';
+	const when = ticketWhen(first, ctx);
 	const howMany =
 		count === 1 ? botText('entradas.una') : botText('entradas.varias', { cantidad: count });
 	const head = `<b>${escapeHtml(truncate(first.title, 120))}</b> · ${howMany}`;
@@ -192,7 +256,7 @@ export function ticketScreen(ticket, view, list, ctx, { qr = false } = {}) {
 	const https = isHttps(ctx.origin);
 	const photo = qr && !ticket.online;
 	const lines = [`🎟 <b>${escapeHtml(truncate(ticket.title, 200))}</b>`];
-	const when = ticket.start ? tgTime(ticket.start, ctx.now) : '';
+	const when = ticketWhen(ticket, ctx);
 	if (when) lines.push(`📅 ${when}`);
 	const holder = ticket.pronouns ? `${ticket.holder} (${ticket.pronouns})` : ticket.holder;
 	if (holder) lines.push(botText('entradas.titular', { titular: truncate(holder, 120) }));

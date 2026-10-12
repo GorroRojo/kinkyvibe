@@ -71,7 +71,8 @@ describe('placeholders legibles', () => {
 		expect(isGrey(ph)).toBe(true);
 		const ink = root.match(/--ink:\s*(#[0-9a-f]{3,6})/i)?.[1] ?? '#333';
 		const surface = '#ffffff';
-		expect(contrast(ph, surface)).toBeGreaterThanOrEqual(3);
+		// legible: AA para texto (gorrite, 12/10)
+		expect(contrast(ph, surface)).toBeGreaterThanOrEqual(4.5);
 		expect(contrast(ph, surface)).toBeLessThan(contrast(ink, surface) - 3);
 	});
 
@@ -82,10 +83,12 @@ describe('placeholders legibles', () => {
 		expect(dark, '--placeholder en @mixin dark').toBeDefined();
 		if (!light || !dark) return;
 		expect(isGrey(light) && isGrey(dark)).toBe(true);
-		expect(contrast(light, '#ffffff')).toBeGreaterThanOrEqual(3);
+		expect(contrast(light, '#ffffff')).toBeGreaterThanOrEqual(4.5);
 		expect(contrast(light, '#ffffff')).toBeLessThan(contrast('#333333', '#ffffff') - 3);
 		// base of the dark surfaces in panel.scss; --text is #eee there
-		expect(contrast(dark, '#1a181d')).toBeGreaterThanOrEqual(3);
+		expect(contrast(dark, '#1a181d')).toBeGreaterThanOrEqual(4.5);
+		// and on the (slightly lighter) dark --surface of the inputs: color-mix(--2 12%, #1a181d)
+		expect(contrast(dark, '#261c37')).toBeGreaterThanOrEqual(4.5);
 		expect(contrast(dark, '#1a181d')).toBeLessThan(contrast('#eeeeee', '#1a181d') - 3);
 	});
 

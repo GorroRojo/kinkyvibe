@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import TagChip from './ui/TagChip.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
-	import { argDateList } from '$lib/utils/dates.js';
+	import { argDateList, parseSiteDate } from '$lib/utils/dates.js';
 	export let post;
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
@@ -25,7 +25,7 @@
 
 <a
 	{href}
-	class:past={new Date(start ?? '').getTime() < Date.now()}
+	class:past={parseSiteDate(start ?? '').getTime() < Date.now()}
 	class="card {mark ? 'mark' : ''} {category} {{
 		amigues: 'h-card',
 		calendario: 'h-event',
@@ -50,7 +50,7 @@
 	</h3>
 	{#if category == 'calendario' && argDateList(start ?? '')}
 		<!-- la fecha corta de las listas (docs/estilo.md, «Textos») -->
-		<time class="card-date dt-start" datetime={new Date(start ?? '').toISOString()}
+		<time class="card-date dt-start" datetime={parseSiteDate(start ?? '').toISOString()}
 			>{argDateList(start ?? '')}</time
 		>
 	{/if}

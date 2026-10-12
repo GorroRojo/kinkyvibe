@@ -1725,7 +1725,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/calendario/taller-de-cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -1783,7 +1783,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/calendario/cuerdas-pasadas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -1843,7 +1843,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/material/guia-de-cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -1904,7 +1904,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/material/cuerdas-sin-resumen",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -1962,7 +1962,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/wiki/cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -2020,7 +2020,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/wiki/cuerdas-sin-resumen",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -2078,7 +2078,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/amigues/persona-de-cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -2136,7 +2136,7 @@
 			"parse_mode": "HTML",
 			"link_preview_options": {
 				"url": "https://kinkyvibe.ar/wiki/noche-de-cuerdas",
-				"prefer_large_media": true,
+				"prefer_small_media": true,
 				"show_above_text": true
 			}
 		},
@@ -2529,7 +2529,7 @@
 		]
 	},
 	"admin: mis avisos": {
-		"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.",
+		"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
 		"keyboard": [
 			[
 				{
@@ -5186,7 +5186,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 42,
-				"text": "No encontré nada para «zzzz &lt;x&gt;» en el sitio. Probá con otra palabra.",
+				"text": "No encontré nada para «zzzz &lt;x&gt;» en el sitio. Probá con otra palabra.\n\n<b>Mientras tanto, lo que viene:</b>\n📅 <a href=\"https://ejemplo.test/calendario/taller-de-cuerdas\">Taller de cuerdas</a>\n<tg-time unix=\"1925856000\" format=\"wdt\">vie 10 ene · 21:00</tg-time>",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -5197,9 +5197,7 @@
 							{
 								"text": "🔎 Buscar otra cosa",
 								"callback_data": "s"
-							}
-						],
-						[
+							},
 							{
 								"text": "🏠 Inicio",
 								"callback_data": "h"
@@ -7024,7 +7022,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7049,7 +7047,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/guia-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7077,7 +7075,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7115,7 +7113,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7140,7 +7138,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/noche-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7165,7 +7163,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7190,7 +7188,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/guia-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7218,7 +7216,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/amigues/persona-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7243,7 +7241,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7268,7 +7266,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7293,7 +7291,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/calendario/cuerdas-pasadas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7331,7 +7329,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7356,7 +7354,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/noche-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7381,7 +7379,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/wiki/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7419,7 +7417,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/guia-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7447,7 +7445,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/material/cuerdas-sin-resumen",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7485,7 +7483,7 @@
 							"parse_mode": "HTML",
 							"link_preview_options": {
 								"url": "https://ejemplo.test/calendario/taller-de-cuerdas",
-								"prefer_large_media": true,
+								"prefer_small_media": true,
 								"show_above_text": true
 							}
 						},
@@ -7596,7 +7594,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 77,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -7889,7 +7887,7 @@
 				"method": "editMessageText",
 				"chat_id": 77,
 				"message_id": 9,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true
@@ -7944,7 +7942,7 @@
 			{
 				"method": "sendMessage",
 				"chat_id": 77,
-				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nTodavía no sale ninguno: van a empezar a llegar a medida que estén listos. Solo cantidades y links, nunca datos de quienes compran.",
+				"text": "<b>🔔 Tus avisos de admin</b>\n\nElegí qué querés que te avise el bot por acá. Vienen todos apagados y los cambiás cuando quieras.\n\n• <b>Resumen diario</b>: lo vendido en el día, por evento.\n• <b>Cada venta</b> y <b>Cada transferencia</b>: un aviso en el momento.\n• <b>Día del evento</b>: un resumen ese día.\n• <b>Recordatorios</b>: el evento de mañana, o si falta el lugar o el link de la transmisión.\n\nPor ahora salen el resumen diario (a las 9, hora de Argentina), cada venta y cada transferencia; el día del evento y los recordatorios llegan más adelante. Solo cantidades y links, nunca datos de quienes compran.",
 				"parse_mode": "HTML",
 				"link_preview_options": {
 					"is_disabled": true

@@ -7,74 +7,35 @@
 	$: KINKIPEDIA_CARD = cardImage('wiki', lp);
 	$: KINKIPEDIA_PREVIEW = kinkipediaPreview(lp.texts);
 	import GlosarioTree from '$lib/components/GlosarioTree.svelte';
-	import { wikiTagManager, query, searchOpen } from '$lib/utils/stores';
+	import { wikiTagManager, query, searchOpen, searchPrefill } from '$lib/utils/stores';
 	import { SearchX } from '@lucide/svelte';
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import { goto } from '$app/navigation';
 	import { freshSiteTags } from '$lib/utils/siteTags.js';
 	import SeriesGrid from '$lib/components/series/SeriesGrid.svelte';
 	import ChipCombobox from '$lib/components/admin/ChipCombobox.svelte';
-	import { wikiOptions, wikiSections, wikiSuggestions } from '$lib/utils/wikiIndex.js';
+	import {
+		filterWikiTree,
+		wikiOptions,
+		wikiSections,
+		wikiSuggestions
+	} from '$lib/utils/wikiIndex.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
 
 	query.set('');
 
-	/**
-	 * @param {string | undefined} a
-	 * @param {string} q
-	 */
-	function includesNormalized(a, q) {
-		if (a === undefined) {
-			return false;
-		}
-		let normalize = (/** @type {string} */ s) =>
-			s
-				.toLowerCase()
-				.replaceAll('á', 'a')
-				.replaceAll('é', 'e')
-				.replaceAll('í', 'i')
-				.replaceAll('ó', 'o')
-				.replaceAll('ú', 'u');
-		return normalize(a).includes(normalize(q));
+	/** El árbol filtrado con lo último escrito (lo usan el árbol de abajo y la lista del buscador,
+	 * así no importa cuál pregunte primero). */
+	let filtered = { q: '', tree: freshSiteTags() };
+	/** @param {string} q */
+	function filteredTree(q) {
+		if (filtered.q !== q) filtered = { q, tree: filterWikiTree(freshSiteTags(), q) };
+		return filtered.tree;
 	}
 	query.subscribe((newQuery) => {
-		if (newQuery == undefined || newQuery.trim() == '') {
-			wikiTagManager.update(() => freshSiteTags());
-			// $page.url.searchParams.delete('q');
-		} else {
-			// $page.url.searchParams.set('q', newQuery);
-			wikiTagManager.update((wtm) => {
-				/**@type {TagID[]}*/
-				let del = [];
-				let temp = freshSiteTags();
-				/**@type TagID[]*/
-				let include = [];
-				temp.tagsData().forEach((t) => {
-					// console.log(t, newQuery);
-					if (
-						!includesNormalized(t.id, newQuery) &&
-						!includesNormalized(t.visible_name, newQuery) &&
-						!includesNormalized(t.description, newQuery) &&
-						!includesNormalized(t.aka?.join(' '), newQuery) &&
-						!includesNormalized(t.related?.join(' '), newQuery)
-					) {
-						// console.log('i.n. ', includesNormalized(t.id, newQuery), t.id, newQuery);
-						// console.log('deleting', t.id);
-						del.push(t.id);
-					} else {
-						include.push(...t.getAllParents());
-					}
-				});
-				if (del.length > 0) {
-					// console.log(temp.entries().length);
-					del.forEach((t) => (!include.includes(t) ? temp.delete(t) : null));
-					// console.log(temp.entries().length);
-					return temp;
-				} else return wtm;
-			});
-		}
+		wikiTagManager.update(() => (newQuery?.trim() ? filteredTree(newQuery) : freshSiteTags()));
 	});
 	// El índice y el buscador salen del árbol entero (no del filtrado mientras se escribe).
 	const fullTree = freshSiteTags();
@@ -82,13 +43,15 @@
 	const options = wikiOptions(fullTree);
 	/** «Ir a una entrada»: el buscador de etiquetas del sitio (ChipCombobox, como en Lo que sigo). */
 	const search = (/** @type {string} */ q) => wikiSuggestions(options, q, fullTree);
-	/** Sin coincidencias, lo dice en vez de cerrar la lista (como el buscador de las listas). */
+	/** Sin coincidencias, lo dice en vez de cerrar la lista (como el buscador de las listas). Si
+	 * tampoco hay texto que coincida, la lista se cierra: abajo lo dice el EmptyState (si no, la
+	 * lista lo tapaba y prometía un filtro que no encontró nada). */
 	const extra = (
 		/** @type {string} */ q,
 		/** @type {string[]} */ _v,
 		/** @type {unknown[]} */ found
 	) =>
-		q.trim() && !found.length
+		q.trim() && !found.length && wikiSections(filteredTree(q)).length > 0
 			? {
 					value: '',
 					label: `Ninguna entrada se llama «${q.trim()}»: abajo filtramos el texto.`,
@@ -167,8 +130,13 @@
 			title="No encontramos «{$query.trim()}» en la Kinkipedia"
 			text="Probá con otra palabra, o buscalo en todo el sitio: eventos, material y amigues."
 		>
-			<button type="button" class="pill-btn ghost" on:click={() => searchOpen.set(true)}
-				>Buscar en todo el sitio</button
+			<button
+				type="button"
+				class="pill-btn ghost"
+				on:click={() => {
+					searchPrefill.set($query.trim());
+					searchOpen.set(true);
+				}}>Buscar en todo el sitio</button
 			>
 		</EmptyState>
 	{/if}

@@ -3,9 +3,10 @@
 	 * Barras horizontales (CSS) para rankings: una fila por ítem con etiqueta, barra y valor.
 	 * Un solo color (el violeta del sitio). Tooltip nativo con el detalle.
 	 * Props: `items`: { label, value, text?, sub?, title?, href? }[]; `max` (opcional; si no, el
-	 * mayor valor); `label` (texto accesible de la lista).
+	 * mayor valor); `label` (texto accesible de la lista). `id` (opcional) es para quien usa el slot.
+	 * Slot `detail` (opcional, `let:item`): algo más debajo de cada fila (p. ej. un <details>).
 	 */
-	/** @type {{ label: string, value: number, text?: string, sub?: string, title?: string, href?: string }[]} */
+	/** @type {{ label: string, value: number, text?: string, sub?: string, title?: string, href?: string, id?: string }[]} */
 	export let items = [];
 	/** @type {number | undefined} */
 	export let max = undefined;
@@ -27,6 +28,7 @@
 				<i style="width:{Math.max(0, Math.min(100, (i.value / top) * 100))}%"></i>
 			</div>
 			{#if i.sub}<small class="muted">{i.sub}</small>{/if}
+			<slot name="detail" item={i} />
 		</li>
 	{/each}
 </ul>
