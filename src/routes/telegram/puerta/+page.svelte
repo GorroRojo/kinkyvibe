@@ -3,8 +3,13 @@
 	 * La puerta con el escáner de QR de Telegram (`showScanQrPopup`, core.telegram.org/bots/webapps;
 	 * decisión 0037). Cada código escaneado va a `api`, que valida el `initData` y los permisos en
 	 * el servidor. Fuera de Telegram no hace nada.
+	 *
+	 * El evento se elige de una lista (los de hoy y los de los próximos días, de `eventos`, con los
+	 * mismos permisos); con uno solo hoy, queda elegido. `?evento=` sigue andando y, para uno que no
+	 * está en la lista, se puede escribir la dirección.
 	 */
 	import { onMount } from 'svelte';
+	import { defaultDoorSlug, doorEventWhen } from '$lib/utils/doorEvents.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -15,6 +20,12 @@
 	/** @type {{ tone: 'ok' | 'warn' | 'error', text: string } | null} */
 	let last = null;
 	let busy = false;
+	/** @type {import('$lib/utils/doorEvents.js').DoorEvent[]} */
+	let events = [];
+	/** @type {'loading' | 'ready' | 'error'} */
+	let listState = 'loading';
+	/** Escribir la dirección a mano (un evento que no está en la lista). */
+	let typing = false;
 
 	/** @type {Record<string, { tone: 'ok' | 'warn' | 'error', text: string }>} */
 	const RESULTS = {
@@ -30,8 +41,35 @@
 		if (app?.initData) {
 			tg = app;
 			tg.ready();
+			loadEvents();
 		}
 	});
+
+	async function loadEvents() {
+		try {
+			const res = await fetch('/telegram/puerta/eventos', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ initData: tg.initData })
+			});
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok || !Array.isArray(body.events)) throw new Error('lista');
+			events = body.events;
+			slug = defaultDoorSlug(events, slug);
+			typing = Boolean(slug) && !events.some((e) => e.slug === slug);
+			listState = 'ready';
+		} catch {
+			// Sin lista: queda escribir la dirección, como antes.
+			listState = 'error';
+			typing = true;
+		}
+	}
+
+	/** @param {string} value */
+	function pick(value) {
+		slug = value;
+		last = null;
+	}
 
 	/** @param {string} code */
 	async function send(code) {
@@ -91,10 +129,50 @@
 			Admins).
 		</p>
 	{:else}
-		<label>
-			Evento (dirección)
-			<input bind:value={slug} autocomplete="off" spellcheck="false" />
-		</label>
+		{#if listState === 'loading'}
+			<p class="hint">Buscando los eventos de hoy…</p>
+		{:else if listState === 'ready'}
+			{#if events.length}
+				<fieldset>
+					<legend>Evento</legend>
+					{#each events as event (event.slug)}
+						<button
+							type="button"
+							class="event"
+							class:selected={!typing && slug === event.slug}
+							aria-pressed={!typing && slug === event.slug}
+							on:click={() => {
+								typing = false;
+								pick(event.slug);
+							}}
+						>
+							<span class="when">{doorEventWhen(event)}</span>
+							<span>{event.title}</span>
+						</button>
+					{/each}
+				</fieldset>
+			{:else}
+				<p class="hint">No hay eventos con entradas hoy ni en los próximos días.</p>
+			{/if}
+			{#if !typing}
+				<button
+					type="button"
+					class="link"
+					on:click={() => {
+						typing = true;
+						pick('');
+					}}>Otro evento: escribir la dirección</button
+				>
+			{/if}
+		{:else}
+			<p class="hint">No pude traer la lista de eventos: escribí la dirección.</p>
+		{/if}
+		{#if typing}
+			<label>
+				Evento (dirección)
+				<input bind:value={slug} autocomplete="off" spellcheck="false" />
+			</label>
+		{/if}
 		<button type="button" on:click={scan} disabled={busy || !slug}>📷 Escanear entrada</button>
 		{#if last}
 			<p class="result {last.tone}" role="status">{last.text}</p>
@@ -114,6 +192,43 @@
 		padding: 16px;
 		max-width: 480px;
 		margin: 0 auto;
+	}
+	fieldset {
+		border: 0;
+		padding: 0;
+		margin: 12px 0;
+		display: grid;
+		gap: 8px;
+	}
+	legend {
+		margin-bottom: 4px;
+	}
+	.event {
+		display: grid;
+		gap: 2px;
+		text-align: left;
+		font-weight: 400;
+		background: var(--tg-theme-secondary-bg-color, #f2f2f2);
+		color: var(--tg-theme-text-color, #1a1a1a);
+		border: 2px solid transparent;
+	}
+	.event.selected {
+		border-color: var(--tg-theme-button-color, #d61f8a);
+		font-weight: 600;
+	}
+	.when {
+		font-size: 14px;
+		color: var(--tg-theme-hint-color, #666);
+	}
+	.link {
+		background: none;
+		color: var(--tg-theme-link-color, #d61f8a);
+		padding: 8px 0;
+		font-weight: 400;
+		text-decoration: underline;
+	}
+	.hint {
+		color: var(--tg-theme-hint-color, #666);
 	}
 	label {
 		display: grid;
