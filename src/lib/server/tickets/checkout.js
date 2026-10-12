@@ -66,6 +66,7 @@ import { queueWaitlistAdvance } from './waitlistEngine.js';
 import { eventSignupFields, readAnswers } from './signupFields.js';
 import { saveAfterPurchase } from '$lib/server/cuentas/savedBuyer.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
+import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
 /** Cookie httpOnly con las últimas órdenes de este navegador (para ver sus entradas al volver). */
 export const ORDERS_COOKIE = 'kv_orders';
@@ -414,7 +415,24 @@ function describeDiscount(d) {
 		d.kind === 'percent'
 			? `${d.value}% de descuento`
 			: `$ ${d.value.toLocaleString('es-AR')} de descuento`;
-	return { code: d.code, kind: d.kind, value: d.value, message: `Código ${d.code}: ${what}.` };
+	// Código combo (combos.js): nunca decimos para qué mail es (lo vería cualquiera con el código).
+	const personal = d.buyer_email ? ' Es personal: vale con el mismo email al que te llegó.' : '';
+	return {
+		code: d.code,
+		kind: d.kind,
+		value: d.value,
+		message: `Código ${d.code}: ${what}.${personal}`
+	};
+}
+
+/**
+ * El email del formulario como lo guarda la orden (minúsculas, sin espacios), o `undefined` si
+ * todavía no lo escribió (para los códigos combo, que valen solo con un mail).
+ *
+ * @param {string} raw
+ */
+function buyerEmail(raw) {
+	return raw.trim().toLowerCase() || undefined;
 }
 
 /**
@@ -438,7 +456,11 @@ export async function discountAction(event) {
 		const client = await clientHash(clientAddress(event));
 		if (!(await codeAttemptAllowed(db, params.event, client)))
 			return failWith(429, 'Demasiados intentos. Probá en unos minutos.');
-		const check = await checkDiscountCode(db, { code: values.code, eventSlug: params.event });
+		const check = await checkDiscountCode(db, {
+			code: values.code,
+			eventSlug: params.event,
+			email: buyerEmail(values.email)
+		});
 		if (!check.ok) return failWith(400, check.message);
 		return { buy: { error: null, errors: {}, values, discount: describeDiscount(check.discount) } };
 	} catch (error) {
@@ -665,7 +687,11 @@ export async function buyAction(event) {
 					code: 'Demasiados intentos. Probá en unos minutos.'
 				});
 			}
-			const check = await checkDiscountCode(db, { code: values.code, eventSlug: params.event });
+			const check = await checkDiscountCode(db, {
+				code: values.code,
+				eventSlug: params.event,
+				email: buyerEmail(values.email)
+			});
 			if (check.ok) {
 				discount = check.discount;
 				applied = describeDiscount(discount);
@@ -817,6 +843,15 @@ export async function buyAction(event) {
 			const approved = await approveFreeOrder(db, order);
 			if (approved.newlyApproved) {
 				trackFunnel(platform?.env, { slug: params.event, step: 'aprobada', method });
+				// «Cada venta» por Telegram a les admins que lo prendieron (decisión 0041; nunca tira).
+				await queueOrderNotice({
+					db,
+					platform,
+					kind: 'cada_venta',
+					order: approved.order,
+					origin,
+					fetch
+				});
 			}
 			if (approved.newlyApproved && approved.order && (await mailAllowed(db, order.buyer_email))) {
 				const approvedOrder = approved.order;
@@ -836,6 +871,8 @@ export async function buyAction(event) {
 	if (method === 'transferencia') {
 		if (await mailAllowed(db, order.buyer_email))
 			await inBackground(sendTransferEmail({ db, order, origin, fetch }), platform);
+		// «Cada transferencia» por Telegram a les admins que lo prendieron (decisión 0041).
+		await queueOrderNotice({ db, platform, kind: 'transferencia', order, origin, fetch });
 		rememberOrder(cookies, url, order.id);
 		redirect(303, statusUrl);
 	}

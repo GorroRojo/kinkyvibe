@@ -7,17 +7,20 @@
  *   (con 400 días más) cada vez que se actualiza `last_seen_at`: mientras la persona entre al
  *   sitio de vez en cuando, no se cae.
  * - La cookie lleva un token al azar de 256 bits; en la base solo está su SHA-256.
+ * - El cron nocturno borra las sesiones que ya no tienen cookie en ningún navegador (más de 401
+ *   días sin `last_seen_at`; ver ./sessionAge.js): no cierra la sesión de nadie.
  * - Cookie httpOnly, Secure (salvo http://localhost) y SameSite=Lax.
  */
 import { sha256Hex } from '$lib/server/hash.js';
 import { randomToken } from './crypto.js';
+import { SESSION_COOKIE_MAX_AGE } from './sessionAge.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {'code' | 'password' | 'passkey'} LoginMethod */
 
 export const SESSION_COOKIE = 'kvRincon';
-/** Lo más que aceptan los navegadores (Chrome topea en 400 días). */
-export const SESSION_COOKIE_MAX_AGE = 400 * 24 * 60 * 60;
+/** Lo más que aceptan los navegadores (Chrome topea en 400 días); ver ./sessionAge.js. */
+export { SESSION_COOKIE_MAX_AGE };
 /** `last_seen_at` se actualiza como mucho una vez cada tanto, para no escribir en cada página. */
 export const LAST_SEEN_EVERY_MS = 24 * 60 * 60 * 1000;
 

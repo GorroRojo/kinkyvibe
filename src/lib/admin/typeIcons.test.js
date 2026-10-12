@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { BookOpen, CalendarDays, MapPin, User, Users } from '@lucide/svelte';
+import { BookOpen, CalendarDays, MapPin, Repeat, User, Users } from '@lucide/svelte';
 import { typeIcon } from './typeIcons.js';
 
 describe('typeIcon', () => {
-	it('evento y material', () => {
+	it('evento, serie y material', () => {
 		expect(typeIcon('evento')).toBe(CalendarDays);
+		expect(typeIcon('serie')).toBe(Repeat);
 		expect(typeIcon('material')).toBe(BookOpen);
 	});
 

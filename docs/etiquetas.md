@@ -100,6 +100,11 @@ wiki), para una base local o de pruebas sin etiquetas. Mismo patrón que amigues
   - ícono, color e imagen sin espacios en las puntas.
 - En dos pasos: primero crea las que faltan (solo con su nombre), después datos y relaciones.
 - **Por tandas** (`budget`): una etiqueta cuya madre todavía no se creó espera a la tanda siguiente.
+- **Escribe de a 25** (`IMPORT_CHUNK`) con `saveObjects()`: una transacción y unas pocas consultas
+  por tanda. Con la semilla (306 etiquetas) son 80 consultas en vez de 1835, y en las pruebas pasa
+  de ~4,8 s a ~0,8 s. Si una tanda no entra (una etiqueta inválida, una dirección repetida), no
+  escribió nada y se vuelve a hacer de a una, como antes: cada etiqueta informa lo mismo. La base
+  queda igual que de a una (`chunk: 1`); lo prueba `importer-tandas.test.js`.
 
 Cómo correrlo: `npm run db:semilla` (local; solo carga etiquetas si la base no tiene ninguna).
 `npm run dev` lo hace solo.
@@ -245,7 +250,11 @@ para siempre y salió de Interruptores («Contenido solo en la base», paso 2).
 - **Buscador de la Kinkipedia**: es el selector de etiquetas del sitio (`ChipCombobox` con
   `look="search"` y `searchTagOptions`, como en Lo que sigo): sugiere entradas por nombre, nombre
   visible o alias y al elegir una lleva a `/wiki/<etiqueta>`; lo escrito sigue filtrando el árbol
-  como antes. Arriba, un índice de secciones con anclas (`src/lib/utils/wikiIndex.js`).
+  como antes (`filterWikiTree`). Arriba, un índice de secciones con anclas (todo en
+  `src/lib/utils/wikiIndex.js`). Si ninguna entrada se llama así pero el texto aparece, la lista
+  dice «abajo filtramos el texto»; si no aparece en ningún lado, la lista se cierra y queda el
+  EmptyState, con «Buscar en todo el sitio» que abre el buscador global con lo escrito
+  (`searchPrefill`).
 - **Series hijas** (una edición especial): una serie puede estar dentro de otra («Picantearla:
   Deluxe» dentro de «Picantearla»). Sus eventos llevan **las dos** etiquetas: la de la hija y la de
   la madre, así la página de la madre sigue con todas las ediciones. En Eventos → Series: «Crear

@@ -28,6 +28,9 @@ guía: `compartir.md` (llega con el PR #257).
 | `robots.txt`                           | `static/robots.txt` (lo cuida `src/lib/utils/robots.test.js`)                   |
 | Feeds Atom y JSON Feed                 | `src/lib/utils/feeds.js` (el texto), `src/lib/server/feeds.js` (las respuestas) |
 | Sitemap                                | `src/routes/(content)/sitemap.xml/` (sin las publicaciones con `redirect`)      |
+| La dirección del sitio                 | `SITE_URL` y `siteOriginFrom` en `src/lib/utils/site.js` (un solo lugar)        |
+| Un evento en una línea                 | `eventLead` en `src/lib/utils/eventText.js` (vista previa y feeds)              |
+| «Próximo» (empieza después de ahora)   | `startsAfter` en `src/lib/utils/dates.js`                                       |
 
 ### JSON-LD por página
 
@@ -37,7 +40,7 @@ guía: `compartir.md` (llega con el PR #257).
 | Evento             | `Event`: estado, modo (presencial u online), lugar según privacidad, `offers`, organizer |
 | Material           | `Article`; `DigitalDocument` si es descargable; `CreativeWork` si es interactivo         |
 | `/wiki`            | `DefinedTermSet` (la Kinkipedia)                                                         |
-| Entrada de la wiki | `DefinedTerm` con `inDefinedTermSet`                                                     |
+| Entrada de la wiki | `DefinedTerm` con `inDefinedTermSet` (también una etiqueta sin entrada con descripción)  |
 | Perfil             | `ProfilePage` con `Person` (persona), `Organization` (proyecto) o `Place` (lugar)        |
 
 `offers` de un evento: con venta en el sitio, el precio «desde» en ARS, la disponibilidad
@@ -58,7 +61,13 @@ de `src/lib/utils/dates.js` las convierten.
 | `<time datetime>` de un evento (ya viene con hora y zona)   | tal cual      | `2026-10-02T22:00-03:00`    |
 | Sitemap y feeds (`lastmod`, `published`, `updated`)         | `Date`        | `2024-12-06T03:00:00.000Z`  |
 
-Para leer una fecha del sitio igual en cualquier motor de JS: `parseSiteDate`.
+Para leer una fecha del sitio igual en cualquier motor de JS: `parseSiteDate`. Lee cada forma
+guardada campo por campo, sin pasar por `Date.parse` (V8 entiende `2024-12-06Z-03:00`, Safari no):
+`2024-12-06Z-03:00`, `2024-12-06`, `2026-10-02T22:00-03:00` (con o sin segundos, con espacio en vez
+de `T`, hora de un dígito, `Z` o `-0300`). Sin desfase, es hora de Argentina. Todos los formateadores
+de `dates.js` (`toArgentina`, `argDate*`, `eventEnd`) leen con él; en el resto del código, una fecha
+guardada (`start`, `end`, `published_date`, `updated_date`, `opening_date`) se lee con
+`parseSiteDate`, nunca con `new Date(texto)`.
 
 ### Feeds
 
@@ -95,55 +104,53 @@ inicio y en las tarjetas de las listas.
 Páginas de producción bajadas una vez (GET, sin tocar nada). Tamaño del HTML y, entre paréntesis,
 comprimido con gzip (lo que viaja es parecido: Cloudflare manda brotli, `/calendario` = 47 KB).
 
-| Página        | HTML   | Datos de SvelteKit | SVG   | Tarjetas    | gzip  |
-| ------------- | ------ | ------------------ | ----- | ----------- | ----- |
-| `/`           | 295 KB | 99 KB              | 30 KB | 20 · 73 KB  | 46 KB |
-| `/calendario` | 432 KB | 284 KB             | 27 KB | 13 · 54 KB  | 55 KB |
-| un evento     | 82 KB  | 35 KB              | 18 KB | —           | 20 KB |
-| `/material`   | 297 KB | 71 KB              | 52 KB | 55 · 170 KB | 42 KB |
-| un material   | 117 KB | 35 KB              | 26 KB | —           | 27 KB |
-| `/amigues`    | 178 KB | 50 KB              | 33 KB | 29 · 76 KB  | 27 KB |
-| `/wiki`       | 162 KB | 48 KB              | 68 KB | —           | 27 KB |
-| `/wiki/BDSM`  | 353 KB | 78 KB              | 62 KB | 59 · 192 KB | 47 KB |
+| Página        | HTML antes   | HTML después | Datos antes | Datos después |
+| ------------- | ------------ | ------------ | ----------- | ------------- |
+| `/calendario` | 310,0 (44,1) | 70,1 (17,9)  | 225,6       | 34,4          |
 
-No hay CSS en línea (0 bloques `<style>`: todo va en archivos) y el JSON-LD pesa menos de 1 KB.
-
-### Las tres causas
-
-1. **Los datos que SvelteKit manda para hidratar.** `/calendario` manda los ~510 eventos
-   (casi todos pasados, ya recortados a 12 campos): 251 KB de 284 KB. Y **cada página** lleva el
-   árbol de etiquetas (`siteTags`, 27 KB) y la lista de la wiki (3 KB) del layout raíz.
-2. **Las tarjetas de las listas: 2,6 a 4,1 KB cada una.** En `/material` (55) y `/wiki/BDSM` (59)
-   son 170 y 192 KB. Adentro: las etiquetas de cada tarjeta (39 y 47 KB en esas páginas) y un
-   ícono SVG por tarjeta (600 a 800 bytes cada uno).
-3. **Lo repetido:** los íconos SVG en línea (27 a 68 KB por página; `/wiki` tiene 128), el panel
-   «Filtrar por etiquetas» armado aunque esté cerrado (20 a 41 KB en las listas; en compu se ve
-   siempre) y las marcas de hidratación de Svelte (`<!--[-->`, 22 a 54 KB, no se pueden sacar).
+- **`/calendario`, los pasados de a un mes.** Viajan los próximos enteros y, de los pasados, solo
+  los del mes que se abre (con los campos de la grilla, sin el lugar). Al ir a otro mes, la página
+  pide sus pasados a `/api/calendario/pasados?mes=yyyy-MM` (5 minutos de caché, como
+  `/api/posts`) y aparecen en la grilla al llegar. «Mostrar eventos pasados» sigue igual (trae
+  `/api/posts` entero). Código: `src/lib/server/eventos/pasados.js`.
 
 ### Para hacer después (ahorro estimado, sin comprimir)
 
-- `/calendario`: los eventos pasados por mes, cuando se piden, en vez de todos en la página:
-  −200 a −250 KB.
-- `siteTags` y la wiki del layout raíz como un JSON aparte con caché del navegador: −30 KB en cada
-  página.
-- Íconos de las tarjetas con un sprite SVG (`<use href>`) o una máscara CSS: −15 a −45 KB en las
-  listas.
-- Hasta 5 etiquetas por tarjeta («+N» para el resto): −20 a −35 KB en `/material` y la wiki.
+- `siteTags` y la wiki del layout raíz como un JSON aparte: **no ahorra en la primera visita** si
+  se hace con un `fetch` en un `load`, porque SvelteKit mete en el HTML lo que se pidió durante el
+  render del servidor, y las etiquetas hacen falta para armar la página (colores, madres). Al
+  navegar dentro del sitio el layout raíz no se vuelve a pedir, así que tampoco ahorra ahí. Solo
+  serviría con las etiquetas en un archivo estático que el navegador guarde (por ejemplo, armado
+  al guardar etiquetas en el panel) y la página esperándolo antes de hidratar. Mucho riesgo para
+  −30 KB; queda en espera.
+- Hasta 5 etiquetas por tarjeta: −20 a −35 KB en `/material` y la wiki. **Cambia lo que se ve**:
+  lo decide gorrite. Opciones: (a) 5 y un «+N» que no hace nada (la tarjeta entera ya es un link);
+  (b) 5 y «+N» que despliega el resto en la tarjeta; (c) solo en las listas largas (`/material`,
+  `/wiki/<etiqueta>`), no en el inicio; (d) dejarlo así.
 - `/wiki/<término>`: las publicaciones relacionadas de a 20: −25 KB de datos y hasta −120 KB de
-  tarjetas en las etiquetas con muchas.
+  tarjetas en las etiquetas con muchas. **Cambia lo que se ve**: lo decide gorrite. Opciones:
+  (a) `limit={20}` en la lista con «Ver más», como el inicio (ahorra tarjetas, no datos);
+  (b) además, el servidor manda 20 y «Ver más» pide las siguientes (ahorra las dos cosas, pero los
+  filtros por etiqueta tendrían que pedir al servidor); (c) dejarlo así.
 - El panel de etiquetas armado recién al abrirlo en celu (en compu sigue visible): −20 a −41 KB.
+- Íconos de las tarjetas con un sprite SVG (`<use href>`) o una máscara CSS: −15 a −45 KB en las
+  listas (comprimido casi no cambia: gzip ya comprime lo repetido; ganaría un DOM más chico).
+  Se probó en #334 y gorrite decidió no hacerlo por ahora.
 
 ### Lo demás
 
-- **Títulos repetidos**: los eventos que se repiten tienen el mismo título en cada edición
-  («Jamarada Kinky · Kinky Vibe», «Taller de Humillación · Kinky Vibe») y muchas veces la misma
-  descripción. Convendría sumar el mes al título. Los perfiles no dicen «· Kinky Vibe»
-  («Mem | él»).
+- **Títulos repetidos**: los eventos que se repiten tenían el mismo título en cada edición
+  («Jamarada Kinky · Kinky Vibe») y muchas veces la misma descripción. Ahora el `<title>` de un
+  evento que es parte de una serie suma el mes y el año de esa edición («Jamarada Kinky · octubre
+  2026 · Kinky Vibe»; `eventPageTitle` en `eventPage.js`), salvo que el título ya diga el mes. El
+  `h1` y la vista previa al compartir quedan con el título solo. Los perfiles no dicen «· Kinky
+  Vibe» («Mem | él»).
 - **Descripciones**: faltaban en `/calendario`, `/material`, `/amigues` y `/wiki`, y las
   canónicas solo estaban en el inicio y en los perfiles (relativas). Las arregla el PR de vista
   previa al compartir (#257).
-- **Encabezados**: un solo `h1` por página, bien. En las listas se salta de `h1` a `h3` (las
-  tarjetas son `h3` sin `h2` en el medio).
+- **Encabezados**: un solo `h1` por página, bien. En las listas se saltaba de `h1` a `h3` (las
+  tarjetas son `h3` sin `h2` en el medio): `PostList` lleva un `h2` solo para lectores de
+  pantalla (`heading`) en el inicio, `/calendario`, `/material`, `/amigues` y `/todo`.
 - **Textos alternativos**: todas las imágenes tienen `alt`. Las de las tarjetas van vacías (son
   decorativas: el título está al lado); el afiche del evento dice «Afiche de …». Bien.
 - **Sitemap**: 614 direcciones; 36 eran publicaciones con `redirect` (contestan 307 a un
@@ -152,7 +159,8 @@ No hay CSS en línea (0 bloques `<style>`: todo va en archivos) y el JSON-LD pes
 - **`robots.txt`**: tenía reglas para `/_template`, `/_tags` y `/_glossary`, que ya no existen;
   ahora tiene la línea del sitemap.
 - **Respuestas (AEO)**: las 12 entradas de la wiki arrancan con una definición de una oración
-  («Una conjunción de bondage y disciplina…»), que ahora también va como `DefinedTerm`. Faltaría
-  lo mismo para las etiquetas con descripción pero sin entrada.
+  («Una conjunción de bondage y disciplina…»), que ahora también va como `DefinedTerm`. Las
+  etiquetas con descripción pero sin entrada también: su descripción, en texto, va como
+  `DefinedTerm` (`tagTermSchema` en `jsonLd.js`).
 - **`security.txt`**: el contacto es un mail. GitHub tiene apagado el aviso privado de
   vulnerabilidades del repo; si se prende, se puede sumar como otro `Contact`.

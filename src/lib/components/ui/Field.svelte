@@ -6,8 +6,10 @@
 	/**
 	 * Campo de texto con su etiqueta, ayuda y error (`.kv-field` de $lib/admin/panel-forms.scss):
 	 * rectángulo neutro de 44px con letra de 16px, borde rosa con foco, borde rojo con error.
-	 * Píldora solo si es buscador (`type="search"`). Grande (`size="large"`, ~54px) solo en el flujo
-	 * de compra. Por ahora tiene el aspecto del panel (va dentro de `.kv-panel`).
+	 * Píldora solo si es buscador (`type="search"`). Grande (`size="large"`, ~54px y letra de
+	 * `--text-base`, `.kv-field.large` de panel-forms.scss) solo en el flujo de compra. Apagado
+	 * (`disabled`): fondo gris, borde punteado y la etiqueta más clara. Por ahora tiene el aspecto
+	 * del panel (va dentro de `.kv-panel`).
 	 *
 	 * Props: `label`, `help` (texto gris abajo), `error` (texto rojo abajo; marca el campo con
 	 * `aria-invalid`), `size`: 'normal' | 'large', `type` ('text', 'search', 'email', 'number',
@@ -95,12 +97,3 @@
 	{#if error}<small class="kv-error" id={errorId}>{error}</small>{/if}
 	{#if help}<small id={helpId}>{help}</small>{/if}
 </label>
-
-<style>
-	/* Grande, como `.kv-input.large` del panel: solo en el flujo de compra. */
-	label.large input,
-	label.large textarea {
-		min-height: 3.375rem;
-		font-size: var(--text-base);
-	}
-</style>

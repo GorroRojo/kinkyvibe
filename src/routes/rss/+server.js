@@ -1,4 +1,5 @@
 import { sitePosts } from '$lib/server/contenido/posts.js';
+import { parseSiteDate } from '$lib/utils/dates.js';
 const siteURL = 'https://kinkyvibe.ar';
 const siteTitle = 'Kinky Vibe';
 const siteDescription =
@@ -32,7 +33,7 @@ const FEED_LIMIT = 50;
 export const GET = async (event) => {
 	const allPosts = await sitePosts(event?.platform);
 	const time = (/** @type {ProcessedPost} */ p) =>
-		new Date(p.meta.published_date ?? '').getTime() || 0;
+		parseSiteDate(p.meta.published_date ?? '').getTime() || 0;
 	const sortedPosts = allPosts.sort((a, b) => time(b) - time(a));
 
 	const body = render(sortedPosts.slice(0, FEED_LIMIT));

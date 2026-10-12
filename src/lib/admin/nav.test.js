@@ -379,7 +379,7 @@ describe('menú simplificado (NAV_GROUPS, revisión de UI paso 3)', () => {
 			navGroupSections('comunidad', { hideSoon: true }).map((s) => [s.label, s.items.length])
 		).toEqual([
 			['', 3],
-			['Mensajes', 2]
+			['Mensajes', 3]
 		]);
 	});
 	it('groupCount suma los contadores de todas sus áreas', () => {
@@ -448,7 +448,8 @@ describe('sectionTabs (pestañas de sección)', () => {
 			'Perfiles',
 			'Cuentas',
 			'Plantillas',
-			'Configuración'
+			'Configuración',
+			'Lo que sigo'
 		]);
 		expect(labels('/admin/etiquetas')).toEqual([
 			'Material',
@@ -738,6 +739,19 @@ describe('links a la ficha del evento', () => {
 			'/admin/etiquetas/wiki/Rancheadita-Kinky'
 		);
 		expect(contentEditLink('/wiki')).toBeNull();
+	});
+	it('contentEditLink: un término de la wiki sin entrada va al editor de la etiqueta que muestra', () => {
+		// /wiki/<alias> o en otra forma: la página muestra la etiqueta de verdad (data.tag).
+		expect(contentEditLink('/wiki/rancheadita-kinky', { wikiTag: 'Rancheadita Kinky' })).toBe(
+			'/admin/etiquetas/wiki/Rancheadita-Kinky'
+		);
+		expect(contentEditLink('/wiki/un-alias', { wikiTag: 'Bondage' })).toBe(
+			'/admin/etiquetas/wiki/Bondage'
+		);
+		// Sin etiqueta resuelta, la dirección tal cual.
+		expect(contentEditLink('/wiki/algo', { wikiTag: null })).toBe('/admin/etiquetas/wiki/algo');
+		// Solo cambia la wiki.
+		expect(contentEditLink('/material/guia', { wikiTag: 'Bondage' })).toBe('/edit/material/guia');
 	});
 	it('la agenda tiene su ítem', () => {
 		expect(activeNavItem('/admin/eventos/agenda')?.id).toBe('eventos-agenda');

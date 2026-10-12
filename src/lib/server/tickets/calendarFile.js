@@ -16,7 +16,7 @@
  */
 import { buildEventIcs } from '$lib/utils/icsFeed.js';
 import { salePlaceText } from '$lib/utils/eventPlace.js';
-import { eventEnd } from '$lib/utils/dates.js';
+import { eventEnd, parseSiteDate } from '$lib/utils/dates.js';
 
 /** Lo que dice el .ics de un evento online que todavía no tiene el link de la transmisión. */
 export const ONLINE_ICS_NOTE =
@@ -78,7 +78,7 @@ export function calendarStamp({ orderCreatedAt, linkUpdatedAt, dateChangedAt, no
  */
 export function calendarEvent(event) {
 	if (!event.start) return null;
-	const start = new Date(event.start);
+	const start = parseSiteDate(event.start);
 	if (Number.isNaN(start.getTime())) return null;
 	const end = eventEnd(event.start, event.end ?? undefined);
 	const online = Boolean(event.online);

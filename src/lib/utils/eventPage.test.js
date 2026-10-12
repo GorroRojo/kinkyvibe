@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	CALENDAR_OPTIONS,
 	calendarButtonEvent,
+	eventPageTitle,
 	isPastEvent,
 	mainSeries,
 	nextEdition,
@@ -57,6 +58,27 @@ describe('la serie del evento', () => {
 		expect(nextEdition(series)).toBe(next);
 		expect(nextEdition({ list: [series.list[0]] })).toBeNull();
 		expect(nextEdition(null)).toBeNull();
+	});
+});
+
+describe('eventPageTitle', () => {
+	const series = { list: [{ id: 'Serie Uno', name: 'Serie Uno', href: '/wiki/Serie-Uno' }] };
+
+	it('en una serie suma el mes y el año de la edición (en hora de Argentina)', () => {
+		const meta = { title: 'Noche Inventada', start: '2026-10-02T22:00-03:00' };
+		expect(eventPageTitle(meta, series)).toBe('Noche Inventada · octubre 2026');
+		// 31/12 a las 23:00 en Argentina ya es 1/1 en UTC: sigue siendo diciembre.
+		const fin = { title: 'Noche Inventada', start: '2026-12-31T23:00-03:00' };
+		expect(eventPageTitle(fin, series)).toBe('Noche Inventada · diciembre 2026');
+	});
+
+	it('sin serie, sin fecha o si el título ya dice el mes, queda igual', () => {
+		const meta = { title: 'Noche Inventada', start: '2026-10-02T22:00-03:00' };
+		expect(eventPageTitle(meta, null)).toBe('Noche Inventada');
+		expect(eventPageTitle(meta, { list: [] })).toBe('Noche Inventada');
+		expect(eventPageTitle({ title: 'Noche Inventada' }, series)).toBe('Noche Inventada');
+		expect(eventPageTitle({ ...meta, start: 'cualquier cosa' }, series)).toBe('Noche Inventada');
+		expect(eventPageTitle({ ...meta, title: 'Noche de Octubre' }, series)).toBe('Noche de Octubre');
 	});
 });
 
