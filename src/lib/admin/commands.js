@@ -91,6 +91,7 @@ const NAV_KEYWORDS = /** @type {Record<string, string>} */ ({
 	'no-listadas': 'no listadas borradores ocultas sin listar',
 	biblioteca: 'biblioteca imagenes fotos archivos documentos pdf videos subir borrar sacar media',
 	'contenido-base': 'base de datos importar eventos md archivos migrar coinciden paridad',
+	ajustes: 'ajustes configuracion portada plata comunicacion equipo sistema',
 	'ajustes-cobros':
 		'ajustes cobros alias cbu cvu mercado pago comision transferencia datos bancarios',
 	'ajustes-fondo': 'ajustes fondo porcentaje kinky vibe descuento solidaria',
@@ -144,6 +145,7 @@ export const NAV_ICONS = /** @type {Record<string, string>} */ ({
 	'no-listadas': 'eye-off',
 	biblioteca: 'book',
 	'contenido-base': 'book',
+	ajustes: 'settings',
 	'ajustes-cobros': 'settings',
 	'ajustes-fondo': 'settings',
 	'ajustes-mails': 'mail',

@@ -2,7 +2,8 @@
 	/**
 	 * Contenido del panel "Más" del celu: la lista de grupos del menú de `$lib/admin/nav.js`
 	 * (`NAV_GROUPS`, con cuántas secciones tiene cada uno y sus contadores) y, al tocar uno, sus
-	 * secciones. Los grupos que ya están enteros en la barra de abajo (la Puerta) no se repiten.
+	 * secciones (un grupo con portada, como Ajustes, lleva a su portada). Los grupos que ya están
+	 * enteros en la barra de abajo (la Puerta) no se repiten.
 	 * Props: `active` (NavItem actual), `counts` (`data.panelCounts`), `flags` (`data.navFlags`),
 	 * `hideSoon` ("Ocultar lo que viene").
 	 */
@@ -16,6 +17,7 @@
 		navGroupItems,
 		navGroupOf,
 		navGroupSections,
+		navItem,
 		navState
 	} from '$lib/admin/nav.js';
 
@@ -45,7 +47,8 @@
 			ready: items.length - soon,
 			soon,
 			total: groupCount(g.id, counts, opts),
-			inTabbar
+			inTabbar,
+			landing: g.landing ? (navItem(g.landing)?.href ?? null) : null
 		};
 	}).filter((x) => x.ready + x.soon > 0 && !x.inTabbar);
 	$: current = open ? navGroupOf(open) : undefined;
@@ -84,17 +87,28 @@
 {:else}
 	<div class="rows">
 		{#each areas as x (x.area.id)}
-			<button
-				type="button"
-				class="arow"
-				class:here={activeGroup === x.area.id}
-				on:click={() => (open = x.area.id)}
-				><NavIcon item={x.area} size={22} /><span class="txt"
-					><b>{x.area.label}</b><small>{summary(x.ready, x.soon)}</small></span
-				>{#if x.total}<span class="count">{x.total}</span>{/if}<span class="chev"
-					><ChevronRight size={18} aria-hidden="true" /></span
-				></button
-			>
+			{#if x.landing}
+				<!-- Con portada (Ajustes, decisión 0041): la fila lleva a la portada. -->
+				<a class="arow" class:here={activeGroup === x.area.id} href={x.landing}
+					><NavIcon item={x.area} size={22} /><span class="txt"
+						><b>{x.area.label}</b><small>{summary(x.ready, x.soon)}</small></span
+					>{#if x.total}<span class="count">{x.total}</span>{/if}<span class="chev"
+						><ChevronRight size={18} aria-hidden="true" /></span
+					></a
+				>
+			{:else}
+				<button
+					type="button"
+					class="arow"
+					class:here={activeGroup === x.area.id}
+					on:click={() => (open = x.area.id)}
+					><NavIcon item={x.area} size={22} /><span class="txt"
+						><b>{x.area.label}</b><small>{summary(x.ready, x.soon)}</small></span
+					>{#if x.total}<span class="count">{x.total}</span>{/if}<span class="chev"
+						><ChevronRight size={18} aria-hidden="true" /></span
+					></button
+				>
+			{/if}
 		{/each}
 	</div>
 {/if}
@@ -122,6 +136,7 @@
 		width: 100%;
 		font: inherit;
 		cursor: pointer;
+		text-decoration: none;
 		&.here {
 			box-shadow: inset 0 0 0 2px var(--link);
 		}

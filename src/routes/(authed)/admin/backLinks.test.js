@@ -42,6 +42,24 @@ const DYNAMIC_BACKS = {
 	],
 	'src/routes/(authed)/admin/mensajes/plantillas/+page.svelte': [
 		"areaBackLink('ajustes-plantillas')"
+	],
+	// «← Ajustes»: la portada de Ajustes (decisión 0041), con `areaBackLink` (se prueba abajo).
+	'src/routes/(authed)/admin/ajustes/actividad/+page.svelte': ["areaBackLink('actividad')"],
+	'src/routes/(authed)/admin/ajustes/admins/+page.svelte': ["areaBackLink('ajustes-admins')"],
+	'src/routes/(authed)/admin/ajustes/automatizaciones/+page.svelte': [
+		"areaBackLink('ajustes-automatizaciones')"
+	],
+	'src/routes/(authed)/admin/ajustes/cobros/+page.svelte': ["areaBackLink('ajustes-cobros')"],
+	'src/routes/(authed)/admin/ajustes/fondo/+page.svelte': ["areaBackLink('ajustes-fondo')"],
+	'src/routes/(authed)/admin/ajustes/interruptores/+page.svelte': [
+		"areaBackLink('ajustes-interruptores')"
+	],
+	'src/routes/(authed)/admin/ajustes/propinas/+page.svelte': ["areaBackLink('propinas')"],
+	'src/routes/(authed)/admin/ajustes/textos-bot/+page.svelte': [
+		"areaBackLink('ajustes-textos-bot')"
+	],
+	'src/routes/(authed)/admin/ajustes/vistas-previas/+page.svelte': [
+		"areaBackLink('ajustes-vistas-previas')"
 	]
 };
 
@@ -156,6 +174,11 @@ describe('links «volver» del panel', () => {
 		}
 		// Mensajes todavía no tiene página (la Bandeja viene): Plantillas no tiene «← Mensajes».
 		expect(areaBackLink('ajustes-plantillas')).toBe(null);
+		// Cada sección de Ajustes vuelve a la portada (decisión 0041), y la portada existe.
+		for (const item of NAV.filter((i) => i.area === 'ajustes' && i.id !== 'ajustes')) {
+			expect(areaBackLink(item.id), item.id).toEqual({ href: '/admin/ajustes', label: 'Ajustes' });
+		}
+		expect(existingPage('/admin/ajustes')).toBe(true);
 	});
 
 	it('las secciones de la barra y todas las pestañas llevan a páginas que existen', () => {

@@ -21,4 +21,13 @@ describe('MoreAreas', () => {
 			'Ajustes'
 		]);
 	});
+
+	it('Ajustes lleva a su portada (decisión 0041); los demás grupos abren sus secciones', () => {
+		const { body } = render(MoreAreas, { props: { active: navItem('inicio') } });
+		const links = [...body.matchAll(/<a[^>]*class="arow[^"]*"[^>]*href="([^"]*)"/g)].map(
+			(m) => m[1]
+		);
+		expect(links).toEqual(['/admin/ajustes']);
+		expect([...body.matchAll(/<button[^>]*class="arow/g)].length).toBe(5);
+	});
 });

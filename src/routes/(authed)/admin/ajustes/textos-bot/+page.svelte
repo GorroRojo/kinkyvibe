@@ -4,6 +4,7 @@
 	import { RotateCcw } from '@lucide/svelte';
 	import { fieldErrors } from '$lib/admin/ajustes.js';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
+	import { areaBackLink } from '$lib/admin/nav.js';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import { argDateTimeLong } from '$lib/utils/dates.js';
 	import { byteLength, isFormattedKind } from '$lib/utils/botTexts.js';
@@ -78,6 +79,7 @@
 </script>
 
 <PageHeader
+	back={areaBackLink('ajustes-textos-bot')}
 	title="Textos del bot"
 	subtitle="Todo lo que dice el bot de Telegram: los mensajes, los botones, los avisos que salen al tocar un botón y las descripciones del menú «/»."
 />

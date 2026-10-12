@@ -51,7 +51,9 @@ describe('pinnedPlaces (Fijados)', () => {
 		for (const soon of NAV.filter((i) => i.soon)) expect(canPin(soon.href), soon.id).toBe(false);
 		expect(canPin('/admin')).toBe(false);
 		expect(canPin('/admin/ventas')).toBe(false);
-		expect(canPin('/admin/ajustes/cobros')).toBe(false);
+		// Ajustes: la barra lleva a su portada (decisión 0041); sus secciones sí se fijan.
+		expect(canPin('/admin/ajustes')).toBe(false);
+		expect(canPin('/admin/ajustes/cobros')).toBe(true);
 		expect(canPin('/calendario/algo')).toBe(false);
 		expect(canPin('//otro.sitio/admin')).toBe(false);
 		expect(canPin('https://otro.sitio/admin')).toBe(false);

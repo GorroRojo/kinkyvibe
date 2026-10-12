@@ -1,6 +1,6 @@
 /**
- * Ayudas para los formularios de Ajustes. Las pestañas de Ajustes (y de las otras secciones) las
- * pone el layout del panel: `sectionTabs` de `$lib/admin/nav.js`.
+ * Ayudas para los formularios de Ajustes. Las pestañas de las secciones (Ajustes no lleva: tiene
+ * portada, decisión 0041) las pone el layout del panel: `sectionTabs` de `$lib/admin/nav.js`.
  */
 
 /**
