@@ -219,7 +219,9 @@
 		base={$page.url.pathname}
 		title="{data?.meta?.title ?? data?.tag?.visible_name ?? guessedTitle} · Kinky Vibe"
 	/>
-	<PostList posts={relatedPosts}>
+	<!-- De a 20 con «Ver más», como el inicio (docs/seo.md, opción 2a): los datos llegan enteros y
+	     una búsqueda o un filtro por etiqueta mira la lista entera, no solo las 20 que se ven. -->
+	<PostList posts={relatedPosts} limit={20}>
 		<hr />
 		<h2>Materiales, amigues y eventos relevantes</h2>
 	</PostList>

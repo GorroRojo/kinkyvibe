@@ -181,19 +181,48 @@ comprimido con gzip (lo que viaja es parecido: Cloudflare manda brotli, `/calend
   serviría con las etiquetas en un archivo estático que el navegador guarde (por ejemplo, armado
   al guardar etiquetas en el panel) y la página esperándolo antes de hidratar. Mucho riesgo para
   −30 KB; queda en espera.
-- Hasta 5 etiquetas por tarjeta: −20 a −35 KB en `/material` y la wiki. **Cambia lo que se ve**:
-  lo decide gorrite. Opciones: (a) 5 y un «+N» que no hace nada (la tarjeta entera ya es un link);
-  (b) 5 y «+N» que despliega el resto en la tarjeta; (c) solo en las listas largas (`/material`,
-  `/wiki/<etiqueta>`), no en el inicio; (d) dejarlo así.
-- `/wiki/<término>`: las publicaciones relacionadas de a 20: −25 KB de datos y hasta −120 KB de
-  tarjetas en las etiquetas con muchas. **Cambia lo que se ve**: lo decide gorrite. Opciones:
-  (a) `limit={20}` en la lista con «Ver más», como el inicio (ahorra tarjetas, no datos);
-  (b) además, el servidor manda 20 y «Ver más» pide las siguientes (ahorra las dos cosas, pero los
-  filtros por etiqueta tendrían que pedir al servidor); (c) dejarlo así.
+- ~~Hasta 5 etiquetas por tarjeta~~ **Hecho, opción (b)** (gorrite eligió 1b). Las opciones eran:
+  (a) 5 y un «+N» que no hace nada (la tarjeta entera ya es un link); (b) 5 y «+N» que despliega
+  el resto en la tarjeta; (c) solo en las listas largas (`/material`, `/wiki/<etiqueta>`), no en
+  el inicio; (d) dejarlo así. Ver «Hasta 5 etiquetas y relacionadas de a 20», abajo.
+- ~~`/wiki/<término>`: las publicaciones relacionadas de a 20~~ **Hecho, opción (a)** (gorrite
+  eligió 2a). Las opciones eran: (a) `limit={20}` en la lista con «Ver más», como el inicio
+  (ahorra tarjetas, no datos); (b) además, el servidor manda 20 y «Ver más» pide las siguientes
+  (ahorra las dos cosas, pero los filtros por etiqueta tendrían que pedir al servidor); (c)
+  dejarlo así.
 - El panel de etiquetas armado recién al abrirlo en celu (en compu sigue visible): −20 a −41 KB.
 - Íconos de las tarjetas con un sprite SVG (`<use href>`) o una máscara CSS: −15 a −45 KB en las
   listas (comprimido casi no cambia: gzip ya comprime lo repetido; ganaría un DOM más chico).
   Se probó en #334 y gorrite decidió no hacerlo por ahora.
+
+### Hasta 5 etiquetas y relacionadas de a 20
+
+- **Tarjetas** (`PostListItem` y `Card`, por `CardTags.svelte` y `cardTags.js`): hasta 5 chips y
+  un «+N» que despliega el resto en la tarjeta. Es un `<button>` de verdad adentro del link de la
+  tarjeta: cancela el click (no navega), se usa con Tab y Enter/Espacio, dice `aria-expanded` y
+  se lee «+N etiquetas más»; desplegado muestra «−» («Ver menos etiquetas»). Mide lo que un chip
+  y tiene `.tap-target` (44px para el dedo), como los chips. En la lista, desplegada, la fila de
+  chips pasa a varias líneas; en la grilla sigue en una fila que se desliza.
+- **`/wiki/<término>`**: `PostList` con `limit={20}` y «Ver más (N)», como el inicio. Los datos
+  llegan enteros del servidor.
+- **La búsqueda y los filtros no dependen de lo que se ve**: `filterPosts` (postSearch.js), el
+  árbol, los chips de la barra y el buscador leen `post.meta.tags` enteras. Con una búsqueda
+  (etiqueta o texto), `PostList` filtra la lista entera y muestra todo lo que encuentra, sin el
+  límite de 20; al despejarla vuelve a lo que se veía antes (las 20, o más si se tocó «Ver más»).
+
+Medido con la semilla pública (`npm run build` + `vite preview`, HTML del servidor; entre
+paréntesis, con gzip; en KB). Los datos de la página no cambian (la opción 2b no se hizo):
+
+| Página          | Tarjetas antes → después | HTML antes   | HTML después |
+| --------------- | ------------------------ | ------------ | ------------ |
+| `/material`     | 55 → 55                  | 284,6 (41,7) | 275,4 (41,0) |
+| `/wiki/BDSM`    | 53 → 20                  | 294,0 (44,2) | 187,9 (36,4) |
+| `/wiki/español` | 81 → 20                  | 367,8 (53,0) | 186,7 (38,8) |
+| `/` (el inicio) | 20 → 20                  | 224,5 (42,6) | 218,7 (41,9) |
+
+En `/material` el ahorro es menor que lo estimado (−9 KB y no −20 a −35): en la semilla, la
+mayor parte del material tiene 6 o 7 etiquetas (sin contar KinkyVibe), así que cada tarjeta
+esconde 1 o 2 chips.
 
 ### Lo demás
 
