@@ -93,7 +93,8 @@ leer). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene
   «Sección: Órdenes ▾» de ancho entero, lleno de violeta (la navegación principal
   de la página), que abre la lista; sin tira que se desliza. En la ficha del evento, las acciones
   del encabezado bajan debajo de las pestañas, más chicas: Editar y «⋯ Acciones» (Ver página,
-  Duplicar, Imagen para compartir). `menuCaption` cambia «Sección» («Pestaña», «Ver»).
+  Duplicar, Imagen para compartir). `menuCaption` cambia «Sección» («Pestaña», «Ver»). Desde
+  el 12/10 `menu` es lo de siempre en `Tabs`: una barra nueva también pasa a la lista (gorrite).
 - **Más ágil**: mientras SvelteKit trae la página siguiente (`$navigating`) hay una barrita de 3
   px arriba de todo (aparece después de 120 ms, así lo rápido no parpadea; quieta con movimiento
   reducido) y el link o botón que se tocó queda «cargando» (`data-pending` y `aria-busy`, estilo

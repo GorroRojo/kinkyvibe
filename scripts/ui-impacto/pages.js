@@ -5,6 +5,8 @@
 // `prepare(page, ctx)` hace lo que haga falta antes de la captura (tocar un botón, completar un
 // formulario con datos inventados) y `member: true` entra como la persona de prueba.
 
+import { GRUPOS } from '../../src/lib/estilo/secciones.js';
+
 /** @typedef {import('@playwright/test').Page} Page */
 /**
  * @typedef {{
@@ -215,5 +217,14 @@ export const PAGES = [
 		title: 'Galería de componentes (/estilo, panel oscuro)',
 		group: 'estilo',
 		path: () => '/estilo?tema=oscuro'
-	}
+	},
+	// Un grupo de la revisión de gorrite por captura (`/estilo?grupo=…`, paso 4 del sistema de
+	// diseño): la galería entera pasa los 8000 px de alto en el celu y se corta; así cada grupo se
+	// ve entero, en claro. (Una base sin `?grupo=` muestra la galería entera.)
+	...Object.keys(GRUPOS).map((grupo) => ({
+		id: `estilo-${grupo}`,
+		title: `Galería: ${grupo.replaceAll('-', ' ')}`,
+		group: /** @type {const} */ ('estilo'),
+		path: () => `/estilo?grupo=${grupo}`
+	}))
 ];

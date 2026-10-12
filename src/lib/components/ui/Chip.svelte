@@ -57,8 +57,16 @@
 {/if}
 
 <style>
+	/* El chip que se toca mide y pesa lo mismo que los otros (gorrite, 12/10): sin esto, la letra
+	   de los botones del panel (`font: inherit`, `color: inherit`) le ganaba al `.kv-tag`. */
 	.chip-btn {
 		font-family: inherit;
+		font-size: var(--text-xs);
+		font-weight: 700;
+		line-height: 1.4;
 		cursor: pointer;
+	}
+	.chip-btn:not([aria-pressed='true']) {
+		color: var(--tag-ink);
 	}
 </style>

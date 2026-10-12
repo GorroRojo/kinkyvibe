@@ -7,7 +7,8 @@
 	 * Props: `checked` (bind:checked), `disabled`, `name`, `value`, `label` (texto visible; también
 	 * es el nombre accesible), `onLabel` / `offLabel` (opcionales: «Prendido» / «Apagado» al lado),
 	 * `status`: '' | 'saving' | 'saved' | 'error' (ver SaveStatus), `error` (texto del error).
-	 * Evento: `change`.
+	 * Evento: `change`. La etiqueta va en letra normal, como la de `Checkbox` (gorrite, 12/10);
+	 * apagado, más clara.
 	 */
 	import '$lib/admin/panel-forms.scss';
 	import SaveStatus from './SaveStatus.svelte';
@@ -32,7 +33,7 @@
 	$: stateText = checked ? onLabel : offLabel;
 </script>
 
-<label class="kv-check switch">
+<label class="kv-check switch" class:saving={status === 'saving'}>
 	<input
 		type="checkbox"
 		role="switch"
@@ -46,9 +47,3 @@
 	<span>{stateText || label}</span>
 	<SaveStatus {status} {error} />
 </label>
-
-<style>
-	.switch {
-		font-weight: 700;
-	}
-</style>
