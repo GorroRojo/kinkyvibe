@@ -309,7 +309,8 @@ revisar" del Inicio.
   «Lista de espera: N»).
   Cuentas por alcance, la fila en orden, lo terminado y el CSV (con los mails: dato personal).
   Acciones, cada una con su diálogo y en Actividad sin el mail (`waitlist.*`): «Terminar la reserva
-  y pasar a la siguiente», «Sacar de la lista», «Ofrecer ahora», «Cerrar la lista» (termina las
+  y pasar a la siguiente» (el diálogo pregunta si le avisamos por mail, con «Mandarle un mail a …»
+  marcada; Actividad dice «con mail» o «sin mail»; gorrite, 12/10), «Sacar de la lista», «Ofrecer ahora», «Cerrar la lista» (termina las
   anotaciones y además la apaga en el evento: saca `lista_espera` del archivo; gorrite, 12/10) y
   «Volver a probar» los mails que no salieron. Con la lista apagada, la vista avisa y muestra lo
   que quedó.

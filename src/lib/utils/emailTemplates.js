@@ -50,7 +50,7 @@ import { escapeHtml } from './escape.js';
  * @typedef {'tickets' | 'transfer' | 'stream' | 'reminder' | 'refund' | 'date_change'
  *   | WaitlistTemplateId} TemplateId
  * @typedef {'waitlist_confirm' | 'waitlist_offer' | 'waitlist_reminder' | 'waitlist_expired'
- *   | 'waitlist_closed'} WaitlistTemplateId
+ *   | 'waitlist_ended' | 'waitlist_closed'} WaitlistTemplateId
  */
 
 /** Largo máximo de cada parte. */
@@ -382,6 +382,28 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			subject: 'Se venció tu lugar para {{evento}}',
 			heading: 'Se venció tu lugar',
 			body: 'No llegaste a usar el lugar que te guardamos para **{{evento}}**, así que se lo pasamos a la próxima persona de la fila.'
+		},
+		extras: {
+			label: { default: 'Lista de espera' },
+			button: { default: 'Volver a anotarme' },
+			help: {
+				default:
+					'Si todavía querés ir, podés volver a anotarte: quedás al final de la fila, sin confirmar el mail de nuevo.'
+			},
+			why: { default: WHY_WAITLIST }
+		},
+		flag: 'lista_espera'
+	},
+	{
+		id: 'waitlist_ended',
+		label: 'Lista de espera: terminamos tu lugar',
+		when: 'Cuando une admin termina desde el panel el lugar que le ofrecimos («Terminar la reserva y pasar a la siguiente») y elige avisarle por mail.',
+		fixed: `El evento con su fecha, el botón «Volver a anotarme» (vuelve al final de la fila, sin confirmar de nuevo) y ${WAITLIST_LEAVE_NOTE}.`,
+		vars: [V.evento, V.fecha, V.tipo_lista],
+		defaults: {
+			subject: 'Se terminó tu lugar para {{evento}}',
+			heading: 'Se terminó tu lugar',
+			body: 'Terminamos el lugar que te ofrecimos para **{{evento}}** y se lo pasamos a la próxima persona de la fila. El link para comprar ya no sirve.'
 		},
 		extras: {
 			label: { default: 'Lista de espera' },

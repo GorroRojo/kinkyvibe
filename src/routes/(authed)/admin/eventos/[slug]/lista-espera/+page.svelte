@@ -7,6 +7,7 @@
 	import { BellRing, ListOrdered } from '@lucide/svelte';
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import { eventHref } from '$lib/admin/nav.js';
+	import { endHoldSubmit } from '$lib/admin/waitlistConfirm.js';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import CsvButton from '$lib/components/admin/panel/CsvButton.svelte';
@@ -233,14 +234,10 @@
 									<form
 										method="POST"
 										action="?/terminar"
-										use:enhance={confirming({
-											title: '¿Terminar su reserva?',
-											text: 'Su link deja de servir y el lugar pasa a la próxima persona de la fila. No le llega un mail.',
-											confirmLabel: 'Terminar y pasar a la siguiente',
-											tone: 'danger'
-										})}
+										use:enhance={endHoldSubmit({ email: x.email, mailsOn: data.enabled })}
 									>
 										<input type="hidden" name="id" value={x.id} />
+										<input type="hidden" name="mail" value="1" />
 										<button class="kv-btn small" type="submit"
 											>Terminar la reserva y pasar a la siguiente</button
 										>

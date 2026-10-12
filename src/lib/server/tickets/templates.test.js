@@ -136,6 +136,7 @@ describe('lista de espera: los mails y sus plantillas', () => {
 			'waitlist_offer',
 			'waitlist_reminder',
 			'waitlist_expired',
+			'waitlist_ended',
 			'waitlist_closed'
 		]);
 		expect(

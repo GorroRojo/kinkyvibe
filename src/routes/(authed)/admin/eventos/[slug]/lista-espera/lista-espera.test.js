@@ -222,6 +222,100 @@ describe('las acciones', () => {
 		expect(await act('terminar', { id: first })).toMatchObject({ status: 409 });
 	});
 
+	describe('«Terminar la reserva»: el mail «se terminó tu lugar»', () => {
+		/** Una persona con un lugar ofrecido y el mail de la oferta ya mandado, y otra esperando. */
+		async function offeredWithMail() {
+			const first = await entry({ email: 'primera@example.com' });
+			const second = await entry({ email: 'segunda@example.com' });
+			await advanceWaitlist(t.db, { eventSlug: SLUG });
+			await markSent(first, 'offer', 1);
+			return { first, second };
+		}
+		/** @param {string} id @param {string} kind @param {number} round */
+		const markSent = (id, kind, round) =>
+			t.db
+				.prepare(
+					`INSERT INTO waitlist_sends (entry_id, kind, round, status, attempts, sent_at)
+					VALUES (?1, ?2, ?3, 'sent', 1, ?4)`
+				)
+				.bind(id, kind, round, Date.now())
+				.run();
+		/** El envío de «se terminó» de esa anotación (o null). @param {string} id */
+		const endedSend = (id) =>
+			t.db
+				.prepare(
+					"SELECT round, status FROM waitlist_sends WHERE entry_id = ?1 AND kind = 'expired'"
+				)
+				.bind(id)
+				.first();
+		const lastLog = async () => (await listAudit(t.db))[0];
+
+		it('con «Mandarle un mail»: sale el mail (en la misma tanda que la oferta a la siguiente)', async () => {
+			const { first, second } = await offeredWithMail();
+			const r = await act('terminar', { id: first, mail: '1' });
+			expect(r.action.ok).toBe(true);
+			expect(r.action.message).toBe(
+				'Listo: terminó su reserva y le mandamos un mail. Le ofrecimos el lugar a la próxima persona.'
+			);
+			expect(await statusOf(first)).toEqual({ status: 'expired', end_reason: 'admin' });
+			expect(await statusOf(second)).toMatchObject({ status: 'offered' });
+			// Sin Resend en las pruebas el envío se simula: queda como mandado.
+			expect(await endedSend(first)).toEqual({ round: 1, status: 'sent' });
+			const log = await lastLog();
+			expect(log.summary).toContain('(con mail «se terminó tu lugar»)');
+			expect(log.detail).toMatchObject({ mail: 'queued' });
+		});
+
+		it('sin «Mandarle un mail»: no sale nada y queda anotado', async () => {
+			const { first } = await offeredWithMail();
+			const r = await act('terminar', { id: first });
+			expect(r.action.message).toMatch(/^Listo: terminó su reserva \(sin mail\)\./);
+			expect(await endedSend(first)).toBe(null);
+			const log = await lastLog();
+			expect(log.summary).toContain('(sin mail)');
+			expect(log.detail).toMatchObject({ mail: 'not_asked' });
+		});
+
+		it('con la lista de espera apagada no sale ningún mail, aunque se pida', async () => {
+			const { first } = await offeredWithMail();
+			flag.on = false;
+			const r = await act('terminar', { id: first, mail: '1' });
+			expect(r.action).toEqual({
+				ok: true,
+				message:
+					'Listo: terminó su reserva. No le mandamos un mail: la lista de espera está apagada.'
+			});
+			expect(await statusOf(first)).toEqual({ status: 'expired', end_reason: 'admin' });
+			expect(await endedSend(first)).toBe(null);
+			expect((await lastLog()).detail).toMatchObject({ mail: 'off' });
+		});
+
+		it('si nunca le llegó el mail de la oferta, no se le avisa que terminó', async () => {
+			const first = await entry();
+			await advanceWaitlist(t.db, { eventSlug: SLUG });
+			const r = await act('terminar', { id: first, mail: '1' });
+			expect(r.action.message).toContain('nunca le llegó el de la oferta');
+			expect(await endedSend(first)).toBe(null);
+		});
+
+		it('«Volver a probar» no borra un «se terminó» que no salió: lo vuelve a la tanda', async () => {
+			const { first } = await offeredWithMail();
+			flag.on = false; // nada sale ahora: el envío fallido se pone a mano
+			await act('terminar', { id: first });
+			await t.db
+				.prepare(
+					`INSERT INTO waitlist_sends (entry_id, kind, round, status, attempts, sent_at)
+					VALUES (?1, 'expired', 1, 'failed', 3, ?2)`
+				)
+				.bind(first, Date.now())
+				.run();
+			flag.on = true;
+			expect((await act('reintentar')).action.ok).toBe(true);
+			// Volvió a la tanda y, con la lista prendida, salió.
+			expect(await endedSend(first)).toEqual({ round: 1, status: 'sent' });
+		});
+	});
+
 	it('«Sacar de la lista»: cancelled (o borrada si no confirmó)', async () => {
 		const w = await entry();
 		const p = await entry({ status: 'pending_confirmation' });

@@ -64,13 +64,14 @@ sus plantillas propias) está en la ficha del evento.
 **Lista de espera** (en construcción, interruptor `lista_espera`; ver abajo y
 [tickets.md](tickets.md#lista-de-espera-en-construcción)):
 
-| Mail               | Cuándo sale                                                        | Plantilla           | Código (`waitlistEmail.js`)  |
-| ------------------ | ------------------------------------------------------------------ | ------------------- | ---------------------------- |
-| Confirmá tu mail   | al anotarse sin cuenta (o con otro mail que el de la cuenta)       | `waitlist_confirm`  | `buildWaitlistConfirmEmail`  |
-| Se liberó un lugar | le toca (lugar guardado) o, cerca del evento, a toda la lista      | `waitlist_offer`    | `buildWaitlistOfferEmail`    |
-| Último aviso       | faltan 3 h de un lugar guardado de 12 h o más (no a toda la lista) | `waitlist_reminder` | `buildWaitlistReminderEmail` |
-| Se venció tu lugar | venció el lugar guardado sin comprar; «Volver a anotarme»          | `waitlist_expired`  | `buildWaitlistExpiredEmail`  |
-| Se cerró la lista  | la lista cierra (cerca del comienzo, fin de la venta) o se cancela | `waitlist_closed`   | `buildWaitlistClosedEmail`   |
+| Mail                | Cuándo sale                                                        | Plantilla           | Código (`waitlistEmail.js`)  |
+| ------------------- | ------------------------------------------------------------------ | ------------------- | ---------------------------- |
+| Confirmá tu mail    | al anotarse sin cuenta (o con otro mail que el de la cuenta)       | `waitlist_confirm`  | `buildWaitlistConfirmEmail`  |
+| Se liberó un lugar  | le toca (lugar guardado) o, cerca del evento, a toda la lista      | `waitlist_offer`    | `buildWaitlistOfferEmail`    |
+| Último aviso        | faltan 3 h de un lugar guardado de 12 h o más (no a toda la lista) | `waitlist_reminder` | `buildWaitlistReminderEmail` |
+| Se venció tu lugar  | venció el lugar guardado sin comprar; «Volver a anotarme»          | `waitlist_expired`  | `buildWaitlistExpiredEmail`  |
+| Se terminó tu lugar | une admin terminó la reserva desde el panel y eligió avisarle      | `waitlist_ended`    | `buildWaitlistEndedEmail`    |
+| Se cerró la lista   | la lista cierra (cerca del comienzo, fin de la venta) o se cancela | `waitlist_closed`   | `buildWaitlistClosedEmail`   |
 
 Todo en `src/lib/server/tickets/` salvo que se indique. Las plantillas: definición y variables en
 `src/lib/utils/emailTemplates.js`, lo guardado en D1 en `templates.js`, el editor
@@ -262,7 +263,7 @@ solo la dirección y los links; el asunto, los textos y el remitente están fijo
 ### Mails de la lista de espera
 
 En construcción (interruptor `lista_espera`; [tickets.md](tickets.md#lista-de-espera-en-construcción)).
-Los cinco usan la plantilla común y tienen su plantilla editable (`waitlist_*`, general y por
+Los seis usan la plantilla común y tienen su plantilla editable (`waitlist_*`, general y por
 evento, como los de entradas); en Mensajes → Plantillas y en la pestaña Mails de cada evento
 aparecen con la etiqueta «prueba» mientras el interruptor está apagado.
 
@@ -284,12 +285,16 @@ aparecen con la etiqueta «prueba» mientras el interruptor está apagado.
 - **Quién los dispara** (el motor, `sendWaitlistMails` en `waitlistEngine.js`): no hay cola aparte,
   lo que falta sale del estado de cada anotación y de `waitlist_sends`. La oferta, a cada oferta
   vigente sin su mail; el último aviso, con 3 h por delante de una reserva de 12 h o más y la oferta
-  ya mandada; «se venció», si venció la reserva con la oferta ya mandada; «se cerró la lista», al
+  ya mandada; «se venció», si venció la reserva con la oferta ya mandada; «se terminó tu lugar»
+  (`waitlist_ended`, mismo envío `expired` y mismo «Volver a anotarme»), si une admin terminó la
+  reserva con «Mandarle un mail» marcada y la oferta ya había salido (el pedido es la fila de
+  `waitlist_sends`, `queueEndedMail`); «se cerró la lista», al
   cerrar (cerca del comienzo, fin de la venta, «Cerrar la lista» en el panel) o si se cancela el
   evento. Los dos últimos, solo si pasó hace menos de 48 h. En el cron van **primero** en la tanda
   (`runMailQueueWith`, `sendWaitlist`) y comparten el «de a cuántos»; las acciones del panel y los
   empujones mandan los de ese evento en el momento.
-- **Sin mail:** «Terminar la reserva y pasar a la siguiente» y «Sacar de la lista» (panel), salir
+- **Sin mail:** «Terminar la reserva y pasar a la siguiente» con la casilla destildada (o con la
+  lista apagada), «Sacar de la lista» (panel), salir
   con el link, y un tipo de entrada que ya no existe ([decisión 0040](decisiones/0040-lista-de-espera.md)).
 - **Si no sale** después de 3 intentos: una fila en «Para revisar» que lleva a Ventas › Lista de espera
   del evento, con «Volver a probar».

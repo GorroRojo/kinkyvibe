@@ -72,12 +72,13 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { getEventTickets } from './events.js';
 import { runMailQueueWith } from './mailQueue.js';
 import { HOLD_MS, getTaken, reserveOrder } from './orders.js';
-import { leaveWaitlist } from './waitlist.js';
+import { endWaitlistEntry, leaveWaitlist } from './waitlist.js';
 import {
 	ENDED_MAIL_WINDOW_MS,
 	advanceWaitlist,
 	offerToken,
 	pendingWaitlistMails,
+	queueEndedMail,
 	queueWaitlistAdvance,
 	runWaitlistCron,
 	sendWaitlistMails
@@ -280,6 +281,42 @@ describe('ofrecer de a una persona', () => {
 				(m) => m.kind === 'expired'
 			)
 		).toEqual([]);
+	});
+
+	it('una reserva terminada por admin recibe «se terminó tu lugar» solo si se pidió', async () => {
+		const freed = await soldOutThenOneFree('lejos');
+		const asked = await waiting('lejos');
+		await refund(freed.id);
+		await advanceWaitlist(t.db, { eventSlug: 'lejos', now: NOW });
+		const { send, sent } = fakeSend();
+		// Sin el mail de la oferta no se puede pedir.
+		await endWaitlistEntry(t.db, asked, { reason: 'admin', by: 'admin-de-prueba', now: NOW });
+		expect(await queueEndedMail(t.db, asked, NOW)).toBe(false);
+		await t.db.prepare('DELETE FROM waitlist_entries').run();
+
+		const freed2 = await soldOutThenOneFree('manana');
+		const a = await waiting('manana');
+		const b = await waiting('manana');
+		await refund(freed2.id);
+		await advanceWaitlist(t.db, { eventSlug: 'manana', now: NOW });
+		await mails(NOW, send);
+		await endWaitlistEntry(t.db, a, { reason: 'admin', by: 'admin-de-prueba', now: NOW + MIN });
+		// Sin pedirlo, no sale nada.
+		expect(
+			(await pendingWaitlistMails(t.db, { now: NOW + MIN })).filter((m) => m.kind === 'expired')
+		).toEqual([]);
+		expect(await queueEndedMail(t.db, a, NOW + MIN)).toBe(true);
+		// Pedirlo otra vez no duplica nada.
+		expect(await queueEndedMail(t.db, a, NOW + MIN)).toBe(false);
+		await advanceWaitlist(t.db, { eventSlug: 'manana', now: NOW + MIN });
+		await mails(NOW + 2 * MIN, send);
+		await mails(NOW + 3 * MIN, send);
+		const ended = sent.filter((m) => m.key?.startsWith('waitlist-expired-'));
+		expect(ended.map((m) => [m.key, m.subject])).toEqual([
+			[`waitlist-expired-${a}-1`, 'Se terminó tu lugar para Evento de prueba']
+		]);
+		expect(ended[0].text).toContain('/lista-de-espera/volver/');
+		expect(sent.filter((m) => m.key === `waitlist-offer-${b}-1`)).toHaveLength(1);
 	});
 
 	it('si quien tenía el lugar guardado sale de la lista, se le ofrece a quien sigue', async () => {

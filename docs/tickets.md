@@ -293,12 +293,13 @@ nada (las páginas de confirmar y volver y `?/waitlist` dan 404).
   `/lista-de-espera/confirmar/<token>` (entra a la fila; vencido o usado, no),
   `/lista-de-espera/salir/<id>.<firma>` (sale: `cancelled` por `left`, o se borra si no había
   confirmado; anda siempre, también con el interruptor apagado) y
-  `/lista-de-espera/volver/<id>.<firma>` («Volver a anotarme» del mail de vencida: al final de la
-  fila sin confirmar, solo si la lista sigue abierta). Salir y volver van firmados con
+  `/lista-de-espera/volver/<id>.<firma>` («Volver a anotarme» del mail de vencida o de terminada
+  por admin: al final de la fila sin confirmar, solo si la lista sigue abierta). Salir y volver van firmados con
   `waitlist_leave_key`, cada uno con su mensaje (`waitlistMail.js`). No se cuentan en las
   estadísticas (`classify.js`).
-- **Los cinco mails** con sus plantillas editables (`waitlist_confirm`, `waitlist_offer`,
-  `waitlist_reminder`, `waitlist_expired`, `waitlist_closed`), en `waitlistEmail.js`; todos con el
+- **Los seis mails** con sus plantillas editables (`waitlist_confirm`, `waitlist_offer`,
+  `waitlist_reminder`, `waitlist_expired`, `waitlist_ended`, `waitlist_closed`), en
+  `waitlistEmail.js`; todos con el
   link para salir. La oferta lleva el link `/calendario/<slug>/entradas?lista=<token>` (el token lo
   arma el motor). Ver [mails.md](mails.md#mails-de-la-lista-de-espera).
 - **`waitlist_sends`:** `sendState.js` ahora sirve también para filas por anotación (clave
@@ -394,8 +395,9 @@ confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas 
   guardado hasta HH:MM, avisades a la vez, compraron, terminaron, salieron, sin confirmar), la fila
   en orden y lo terminado (las últimas 200; el resto en el CSV). Acciones, cada una con
   confirmación y en el registro de actividad sin mails (`waitlist.*`, solo el id de la anotación y
-  cuentas): «Terminar la reserva y pasar a la siguiente» (`expired` / `admin`, sin mail, y la lista
-  avanza ya), «Sacar de la lista» (si tenía oferta, avanza), «Ofrecer ahora» (`advanceWaitlist`
+  cuentas): «Terminar la reserva y pasar a la siguiente» (`expired` / `admin`, y la lista avanza
+  ya; el diálogo pregunta «¿Le avisamos por mail?» con la casilla «Mandarle un mail» marcada, y
+  con la casilla sale «se terminó tu lugar», ver abajo; Actividad dice «con mail» o «sin mail»), «Sacar de la lista» (si tenía oferta, avanza), «Ofrecer ahora» (`advanceWaitlist`
   directo, sin el límite del empujón; con el interruptor apagado, no), «Cerrar la lista» (quien
   espera o tiene oferta → `expired` / `closed` con su mail; sin confirmar se borra; y además la
   apaga: saca `lista_espera` del archivo del evento con `turnOffEventWaitlist`,
@@ -426,7 +428,15 @@ motor). El vencimiento por tiempo (y el paso a la siguiente por el cron) lo cubr
 unitarias del motor (`waitlistEngine.test.js`, con reloj fijo).
 
 **Lo que falta antes del merge a `main`:** que gorrite aplique la 0053 en preview y producción
-(0028). Queda abierto si «Terminar la reserva» manda un mail (decisión 0040).
+(0028).
+
+**«Se terminó tu lugar»** (`waitlist_ended`, gorrite 12/10): al terminar una reserva desde el
+panel, le admin elige si avisarle (casilla marcada de entrada; `src/lib/admin/waitlistConfirm.js`).
+Sin migración: el pedido es la fila del envío en `waitlist_sends` (`expired`, la ronda de la oferta,
+en `retry` y sin intentos; `queueEndedMail` en `waitlistEngine.js`), y la tanda manda «se terminó»
+en vez de «se venció» cuando el motivo es `admin`. No sale con la lista de espera apagada (el
+diálogo no muestra la casilla y lo dice), ni si nunca salió el mail de la oferta. «Volver a probar»
+no borra esa fila (la vuelve a `retry`), y su «Volver a anotarme» anda igual que el de vencida.
 
 ### Horario de la venta
 
