@@ -20,6 +20,15 @@ const SAMPLE_EVENTS = [
 	{ when: 'sáb 11 ene · 23:00', title: 'Fiesta de ejemplo' }
 ];
 
+const SAMPLE_DOCS = [
+	{ title: '📚 Guía de ejemplo', line: 'Cómo empezar, paso a paso' },
+	{ title: '📚 Otra guía de ejemplo', line: 'Material' }
+];
+
+/** @param {{ title: string, line: string }} d */
+const docLine = (d) =>
+	`<a href="https://kinkyvibe.ar">${escapeTelegramHtml(d.title)}</a>\n${escapeTelegramHtml(d.line)}`;
+
 /** @param {{ when: string, title: string }} e */
 const eventLine = (e) =>
 	`${escapeTelegramHtml(e.when)}\n<a href="https://kinkyvibe.ar">${escapeTelegramHtml(e.title)}</a>`;
@@ -44,7 +53,11 @@ export const PREVIEW_SCREENS = Object.freeze([
 			'inicio.boton_ayuda',
 			'inicio.boton_calendario',
 			'inicio.boton_sitio',
-			'puerta.boton_inicio'
+			'puerta.boton_inicio',
+			'secciones.boton_material',
+			'secciones.boton_kinkipedia',
+			'secciones.boton_amigues',
+			'secciones.boton_series'
 		],
 		build: (t) => ({
 			html: t('inicio.texto'),
@@ -55,6 +68,8 @@ export const PREVIEW_SCREENS = Object.freeze([
 					{ text: t('inicio.boton_finde'), primary: true }
 				],
 				[{ text: t('inicio.boton_buscar') }, { text: t('inicio.boton_sigo') }],
+				[{ text: t('secciones.boton_material') }, { text: t('secciones.boton_kinkipedia') }],
+				[{ text: t('secciones.boton_amigues') }, { text: t('secciones.boton_series') }],
 				[{ text: t('inicio.boton_fondo') }, { text: t('inicio.boton_ayuda') }],
 				[
 					{ text: t('inicio.boton_calendario') },
@@ -157,6 +172,77 @@ export const PREVIEW_SCREENS = Object.freeze([
 				...SAMPLE_EVENTS.map((e) => [{ text: t('eventos.boton_ver', { evento: e.title }) }]),
 				[{ text: t('eventos.boton_buscar_otra') }],
 				[{ text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'sitio_buscar',
+		label: 'Buscar en todo el sitio',
+		keys: ['sitio.buscar'],
+		build: (t) => ({
+			html: t('sitio.buscar'),
+			buttons: [[{ text: t('eventos.boton_cancelar') }]]
+		})
+	},
+	{
+		id: 'sitio_resultados',
+		label: 'Resultados de buscar en todo el sitio',
+		keys: ['sitio.encontre', 'sitio.encontre_uno'],
+		build: (t) => ({
+			html: `${t('sitio.encontre', { busqueda: 'cuerdas', cantidad: 2 })}\n\n${SAMPLE_DOCS.map(docLine).join('\n\n')}`,
+			buttons: [
+				...SAMPLE_DOCS.map((d) => [{ text: d.title }]),
+				[{ text: t('eventos.boton_buscar_otra') }],
+				[{ text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'sitio_tarjeta',
+		label: 'Tarjeta compacta (material, Kinkipedia, amigues, series)',
+		keys: ['sitio.boton_ver', 'sitio.tipo_material', 'sitio.tipo_wiki', 'sitio.tipo_serie'],
+		build: (t) => ({
+			html: `<b>📚 Guía de ejemplo</b>\n${escapeTelegramHtml(t('sitio.tipo_material'))}`,
+			buttons: [
+				[{ text: t('sitio.boton_ver'), link: true }],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'seccion',
+		label: 'Una sección (Material, filtrada por una etiqueta)',
+		keys: [
+			'secciones.titulo_material',
+			'secciones.titulo_kinkipedia',
+			'secciones.titulo_amigues',
+			'secciones.titulo_series',
+			'secciones.con_etiqueta',
+			'secciones.boton_filtrar',
+			'secciones.boton_sin_filtro'
+		],
+		build: (t) => ({
+			html: `${t('secciones.titulo_material')} · ${t('secciones.con_etiqueta')} · 1/3\n\n${SAMPLE_DOCS.map(docLine).join('\n\n')}`,
+			buttons: [
+				...SAMPLE_DOCS.map((d) => [{ text: d.title }]),
+				[{ text: '1/3', disabled: true }, { text: '›' }],
+				[{ text: t('secciones.boton_filtrar') }, { text: t('secciones.boton_sin_filtro') }],
+				[{ text: t('inicio.boton_inicio') }]
+			]
+		})
+	},
+	{
+		id: 'etiquetas',
+		label: 'Una sección: elegir una etiqueta',
+		keys: ['secciones.elegir_etiqueta', 'secciones.boton_etiqueta'],
+		build: (t) => ({
+			html: `${t('secciones.titulo_material')}\n\n${t('secciones.elegir_etiqueta')}`,
+			buttons: [
+				[
+					{ text: t('secciones.boton_etiqueta', { etiqueta: 'Cuerdas', cantidad: 12 }) },
+					{ text: t('secciones.boton_etiqueta', { etiqueta: 'Cuidados', cantidad: 5 }) }
+				],
+				[{ text: t('inicio.boton_volver') }, { text: t('inicio.boton_inicio') }]
 			]
 		})
 	},

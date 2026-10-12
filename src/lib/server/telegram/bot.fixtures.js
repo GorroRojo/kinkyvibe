@@ -35,6 +35,7 @@ import {
 } from './format.js';
 import { inlineArticle, inlineCard, inlineDescription } from './inline.js';
 import { makeInlineSource } from './inlineSource.js';
+import { shortHash } from './nav.js';
 import { planUpdate } from './router.js';
 import { runPlan } from './run.js';
 import { docHash, docScreen, siteResultsScreen } from './siteScreens.js';
@@ -404,6 +405,8 @@ export function botCases() {
 	add('seguir sin opciones', () => followScreen(EVENTS[1], [], ctx('private')));
 	// Buscar en todo el sitio y el modo inline (#298).
 	const sctx = { ...ctx('private'), site: true };
+	add('sitio: inicio privado', () => homeScreen(sctx));
+	add('sitio: inicio grupo', () => homeScreen({ ...ctx('group'), site: true }));
 	add('sitio: buscar privado', () => searchScreen(sctx));
 	add('sitio: buscar grupo', () => searchScreen({ ...ctx('group'), site: true }));
 	add('sitio: resultados vacío', () => siteResultsScreen('algo <raro>', [], 0, sctx));
@@ -611,6 +614,22 @@ export function routerCases() {
 		},
 		siteDeps()
 	);
+	// Las secciones del sitio (sections.js).
+	for (const section of ['m', 'w', 'a', 's']) {
+		add(`secciones: ${section}`, cb(`c:${section}:0`), siteDeps());
+		add(`secciones: etiquetas ${section}`, cb(`ct:${section}`), siteDeps());
+	}
+	add('secciones: material con etiqueta', cb(`c:m:0:${shortHash('cuerdas')}`), siteDeps());
+	add('secciones: etiquetas con una elegida', cb(`ct:m:${shortHash('cuerdas')}`), siteDeps());
+	add('secciones: etiqueta de otra sección', cb(`c:w:0:${shortHash('cuidados')}`), siteDeps());
+	add('secciones: etiqueta que no está', cb('c:m:0:zzzzz'), siteDeps());
+	add(
+		'secciones: tarjeta',
+		cb(`cd:m:${docHash(SITE_DOCS[2])}:0:${shortHash('cuerdas')}`),
+		siteDeps({ media: true })
+	);
+	add('secciones: tarjeta de otra sección', cb(`cd:a:${docHash(SITE_DOCS[2])}:0`), siteDeps());
+	add('secciones: sin índice', cb('c:m:0'), siteDeps({}, null));
 	let iq = 1000;
 	/** @param {string} name @param {string} query @param {string} [offset] @param {any} [d] */
 	const inlineCase = (name, query, offset = '', d = siteDeps()) =>

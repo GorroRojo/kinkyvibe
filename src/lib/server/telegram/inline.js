@@ -32,7 +32,11 @@ import { botText } from './texts.js';
  * dirección que usa el sitio), la fecha para ordenar el material, el tipo de un perfil y, de un
  * evento, su metadata (para el lugar y la venta, con las funciones de la página).
  *
- * @typedef {{ image?: string, time?: number, kind?: string, meta?: Record<string, any> }} InlineExtra
+ * `unlisted`: un perfil no listado (un lugar al que lleva un evento): sale buscando, nunca en la
+ * lista de la sección Amigues (sections.js).
+ *
+ * @typedef {{ image?: string, time?: number, kind?: string, meta?: Record<string, any>,
+ *   unlisted?: boolean }} InlineExtra
  */
 
 /**

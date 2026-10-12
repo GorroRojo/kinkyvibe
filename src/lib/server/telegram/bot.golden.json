@@ -1371,6 +1371,148 @@
 			]
 		]
 	},
+	"sitio: inicio privado": {
+		"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+		"keyboard": [
+			[
+				{
+					"text": "Hoy",
+					"callback_data": "l:d:0",
+					"style": "primary"
+				},
+				{
+					"text": "Semana",
+					"callback_data": "l:w:0",
+					"style": "primary"
+				},
+				{
+					"text": "Finde",
+					"callback_data": "l:f:0",
+					"style": "primary"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar",
+					"callback_data": "s"
+				},
+				{
+					"text": "⭐ Lo que sigo",
+					"callback_data": "g"
+				}
+			],
+			[
+				{
+					"text": "📚 Material",
+					"callback_data": "c:m:0"
+				},
+				{
+					"text": "📖 Kinkipedia",
+					"callback_data": "c:w:0"
+				}
+			],
+			[
+				{
+					"text": "👥 Amigues",
+					"callback_data": "c:a:0"
+				},
+				{
+					"text": "🔁 Series",
+					"callback_data": "c:s:0"
+				}
+			],
+			[
+				{
+					"text": "💗 Fondo",
+					"callback_data": "fo"
+				},
+				{
+					"text": "❓ Ayuda",
+					"callback_data": "a"
+				}
+			],
+			[
+				{
+					"text": "📅 Calendario",
+					"web_app": {
+						"url": "https://ejemplo.test/telegram/app"
+					}
+				},
+				{
+					"text": "Abrir ejemplo.test ↗",
+					"url": "https://ejemplo.test"
+				}
+			]
+		]
+	},
+	"sitio: inicio grupo": {
+		"text": "<b>Hola, soy el bot de Kinky Vibe</b> 🖤\n\nPodés pedirme lo que hay hoy, esta semana o el finde: tocá un botón o escribí un comando (/semana, /proximos, /evento &lt;nombre&gt;). Para todo lo demás, /ayuda.",
+		"keyboard": [
+			[
+				{
+					"text": "Hoy",
+					"callback_data": "l:d:0",
+					"style": "primary"
+				},
+				{
+					"text": "Semana",
+					"callback_data": "l:w:0",
+					"style": "primary"
+				},
+				{
+					"text": "Finde",
+					"callback_data": "l:f:0",
+					"style": "primary"
+				}
+			],
+			[
+				{
+					"text": "🔎 Buscar",
+					"callback_data": "s"
+				},
+				{
+					"text": "⭐ Lo que sigo ↗",
+					"url": "https://t.me/BotDePrueba?start=sigo"
+				}
+			],
+			[
+				{
+					"text": "📚 Material",
+					"callback_data": "c:m:0"
+				},
+				{
+					"text": "📖 Kinkipedia",
+					"callback_data": "c:w:0"
+				}
+			],
+			[
+				{
+					"text": "👥 Amigues",
+					"callback_data": "c:a:0"
+				},
+				{
+					"text": "🔁 Series",
+					"callback_data": "c:s:0"
+				}
+			],
+			[
+				{
+					"text": "💗 Fondo",
+					"callback_data": "fo"
+				},
+				{
+					"text": "❓ Ayuda",
+					"callback_data": "a"
+				}
+			],
+			[
+				{
+					"text": "Abrir ejemplo.test ↗",
+					"url": "https://ejemplo.test"
+				}
+			]
+		]
+	},
 	"sitio: buscar privado": {
 		"text": "🔎 Escribí qué buscás: un evento, un tema, una persona o un proyecto, un lugar… Respondé a este mensaje.",
 		"keyboard": [
@@ -4853,6 +4995,26 @@
 						],
 						[
 							{
+								"text": "📚 Material",
+								"callback_data": "c:m:0"
+							},
+							{
+								"text": "📖 Kinkipedia",
+								"callback_data": "c:w:0"
+							}
+						],
+						[
+							{
+								"text": "👥 Amigues",
+								"callback_data": "c:a:0"
+							},
+							{
+								"text": "🔁 Series",
+								"callback_data": "c:s:0"
+							}
+						],
+						[
+							{
 								"text": "💗 Fondo",
 								"callback_data": "fo"
 							},
@@ -4909,6 +5071,26 @@
 							{
 								"text": "🔎 Buscar",
 								"callback_data": "s"
+							}
+						],
+						[
+							{
+								"text": "📚 Material",
+								"callback_data": "c:m:0"
+							},
+							{
+								"text": "📖 Kinkipedia",
+								"callback_data": "c:w:0"
+							}
+						],
+						[
+							{
+								"text": "👥 Amigues",
+								"callback_data": "c:a:0"
+							},
+							{
+								"text": "🔁 Series",
+								"callback_data": "c:s:0"
 							}
 						],
 						[
@@ -5766,6 +5948,812 @@
 				}
 			}
 		]
+	},
+	"router: secciones: m": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📚 Material</b>\n\n📚 <a href=\"https://ejemplo.test/material/guia-de-cuerdas\">Guía de cuerdas</a>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;\n\n📚 <a href=\"https://ejemplo.test/material/cuerdas-sin-resumen\">Cuerdas sin resumen</a>\nMaterial",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📚 Guía de cuerdas",
+								"callback_data": "cd:m:rqsubm:0"
+							}
+						],
+						[
+							{
+								"text": "📚 Cuerdas sin resumen",
+								"callback_data": "cd:m:1an49qo:0"
+							}
+						],
+						[
+							{
+								"text": "🏷 Filtrar por etiqueta",
+								"callback_data": "ct:m"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📚 Material</b>\n\n📚 <a href=\"https://ejemplo.test/material/guia-de-cuerdas\">Guía de cuerdas</a>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;\n\n📚 <a href=\"https://ejemplo.test/material/cuerdas-sin-resumen\">Cuerdas sin resumen</a>\nMaterial",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📚 Guía de cuerdas",
+								"callback_data": "cd:m:rqsubm:0"
+							}
+						],
+						[
+							{
+								"text": "📚 Cuerdas sin resumen",
+								"callback_data": "cd:m:1an49qo:0"
+							}
+						],
+						[
+							{
+								"text": "🏷 Filtrar por etiqueta",
+								"callback_data": "ct:m"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: secciones: etiquetas m": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📚 Material</b>\n\nElegí una etiqueta para ver solo lo que la tiene:",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Cuerdas · 2",
+								"callback_data": "c:m:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:m:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📚 Material</b>\n\nElegí una etiqueta para ver solo lo que la tiene:",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Cuerdas · 2",
+								"callback_data": "c:m:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:m:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: secciones: w": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📖 Kinkipedia</b>\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas\">🪢 Cuerdas</a>\nAtar con cuerdas\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas-sin-resumen\">Nudos de cuerdas</a>\nKinkipedia",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📖 Cuerdas",
+								"callback_data": "cd:w:hkhwdo:0"
+							}
+						],
+						[
+							{
+								"text": "📖 Nudos de cuerdas",
+								"callback_data": "cd:w:1kxla9p:0"
+							}
+						],
+						[
+							{
+								"text": "🏷 Filtrar por etiqueta",
+								"callback_data": "ct:w"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📖 Kinkipedia</b>\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas\">🪢 Cuerdas</a>\nAtar con cuerdas\n\n📖 <a href=\"https://ejemplo.test/wiki/cuerdas-sin-resumen\">Nudos de cuerdas</a>\nKinkipedia",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📖 Cuerdas",
+								"callback_data": "cd:w:hkhwdo:0"
+							}
+						],
+						[
+							{
+								"text": "📖 Nudos de cuerdas",
+								"callback_data": "cd:w:1kxla9p:0"
+							}
+						],
+						[
+							{
+								"text": "🏷 Filtrar por etiqueta",
+								"callback_data": "ct:w"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: secciones: etiquetas w": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📖 Kinkipedia</b>\n\nElegí una etiqueta para ver solo lo que la tiene:",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Cuerdas · 2",
+								"callback_data": "c:w:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:w:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📖 Kinkipedia</b>\n\nElegí una etiqueta para ver solo lo que la tiene:",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Cuerdas · 2",
+								"callback_data": "c:w:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:w:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: secciones: a": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>👥 Amigues</b>\n\n👥 <a href=\"https://ejemplo.test/amigues/persona-de-cuerdas\">Persona de cuerdas</a>\nProyecto · Da talleres",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "👥 Persona de cuerdas",
+								"callback_data": "cd:a:pekj4o:0"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>👥 Amigues</b>\n\n👥 <a href=\"https://ejemplo.test/amigues/persona-de-cuerdas\">Persona de cuerdas</a>\nProyecto · Da talleres",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "👥 Persona de cuerdas",
+								"callback_data": "cd:a:pekj4o:0"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: secciones: etiquetas a": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>👥 Amigues</b>\n\nTodavía no hay etiquetas para filtrar acá.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:a:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>👥 Amigues</b>\n\nTodavía no hay etiquetas para filtrar acá.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:a:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: secciones: s": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>🔁 Series</b>\n\n📖 <a href=\"https://ejemplo.test/wiki/noche-de-cuerdas\">🌙 Noche de cuerdas</a>\nSerie de eventos",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📖 Noche de cuerdas",
+								"callback_data": "cd:s:l5fgdi:0"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>🔁 Series</b>\n\n📖 <a href=\"https://ejemplo.test/wiki/noche-de-cuerdas\">🌙 Noche de cuerdas</a>\nSerie de eventos",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📖 Noche de cuerdas",
+								"callback_data": "cd:s:l5fgdi:0"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: secciones: etiquetas s": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>🔁 Series</b>\n\nTodavía no hay etiquetas para filtrar acá.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:s:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>🔁 Series</b>\n\nTodavía no hay etiquetas para filtrar acá.",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:s:0"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: secciones: material con etiqueta": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📚 Material</b> · 🏷 Cuerdas\n\n📚 <a href=\"https://ejemplo.test/material/guia-de-cuerdas\">Guía de cuerdas</a>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;\n\n📚 <a href=\"https://ejemplo.test/material/cuerdas-sin-resumen\">Cuerdas sin resumen</a>\nMaterial",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📚 Guía de cuerdas",
+								"callback_data": "cd:m:rqsubm:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "📚 Cuerdas sin resumen",
+								"callback_data": "cd:m:1an49qo:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "🏷 Filtrar por etiqueta",
+								"callback_data": "ct:m:113adxu"
+							},
+							{
+								"text": "✖ Sin filtro",
+								"callback_data": "c:m:0"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📚 Material</b> · 🏷 Cuerdas\n\n📚 <a href=\"https://ejemplo.test/material/guia-de-cuerdas\">Guía de cuerdas</a>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;\n\n📚 <a href=\"https://ejemplo.test/material/cuerdas-sin-resumen\">Cuerdas sin resumen</a>\nMaterial",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "📚 Guía de cuerdas",
+								"callback_data": "cd:m:rqsubm:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "📚 Cuerdas sin resumen",
+								"callback_data": "cd:m:1an49qo:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "🏷 Filtrar por etiqueta",
+								"callback_data": "ct:m:113adxu"
+							},
+							{
+								"text": "✖ Sin filtro",
+								"callback_data": "c:m:0"
+							}
+						],
+						[
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: secciones: etiquetas con una elegida": {
+		"steps": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📚 Material</b> · 🏷 Cuerdas\n\nElegí una etiqueta para ver solo lo que la tiene:",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "✓ Cuerdas · 2",
+								"callback_data": "c:m:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "✖ Sin filtro",
+								"callback_data": "c:m:0"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:m:0:113adxu"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "sendMessage",
+				"chat_id": 42,
+				"text": "<b>📚 Material</b> · 🏷 Cuerdas\n\nElegí una etiqueta para ver solo lo que la tiene:",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "✓ Cuerdas · 2",
+								"callback_data": "c:m:0:113adxu"
+							}
+						],
+						[
+							{
+								"text": "✖ Sin filtro",
+								"callback_data": "c:m:0"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:m:0:113adxu"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: secciones: etiqueta de otra sección": {
+		"steps": [],
+		"callback": {
+			"id": "cb",
+			"text": "Eso ya no está disponible."
+		}
+	},
+	"router: secciones: etiqueta que no está": {
+		"steps": [],
+		"callback": {
+			"id": "cb",
+			"text": "Eso ya no está disponible."
+		}
+	},
+	"router: secciones: tarjeta": {
+		"steps": [
+			{
+				"method": "editMessageMedia",
+				"chat_id": 42,
+				"message_id": 9,
+				"media": {
+					"type": "photo",
+					"media": "https://kinkyvibe.ar/cdn-cgi/image/width=480,format=jpeg,quality=80/media/img/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc.webp",
+					"caption": "<b>📚 Guía de cuerdas</b>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;",
+					"parse_mode": "HTML"
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/material/guia-de-cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:m:0:113adxu"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"fallback": [
+			{
+				"method": "editMessageText",
+				"chat_id": 42,
+				"message_id": 9,
+				"text": "<b>📚 Guía de cuerdas</b>\nCómo atar &lt;sin apuro&gt; &amp; con &quot;cuidado&quot;",
+				"parse_mode": "HTML",
+				"link_preview_options": {
+					"is_disabled": true
+				},
+				"reply_markup": {
+					"inline_keyboard": [
+						[
+							{
+								"text": "Ver en el sitio",
+								"url": "https://ejemplo.test/material/guia-de-cuerdas"
+							}
+						],
+						[
+							{
+								"text": "‹ Volver",
+								"callback_data": "c:m:0:113adxu"
+							},
+							{
+								"text": "🏠 Inicio",
+								"callback_data": "h"
+							}
+						]
+					]
+				}
+			}
+		],
+		"callback": {
+			"id": "cb"
+		}
+	},
+	"router: secciones: tarjeta de otra sección": {
+		"steps": [],
+		"callback": {
+			"id": "cb",
+			"text": "Eso ya no está disponible."
+		}
+	},
+	"router: secciones: sin índice": {
+		"steps": [],
+		"callback": {
+			"id": "cb",
+			"text": "Algo salió mal de nuestro lado. Probá de nuevo en un rato."
+		}
 	},
 	"router: inline: vacío": {
 		"steps": [

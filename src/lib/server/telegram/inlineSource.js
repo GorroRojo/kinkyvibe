@@ -59,7 +59,10 @@ export function makeInlineSource(built, { avatars = new Map(), series = new Map(
 	for (const p of built.profiles ?? []) {
 		add(`/amigues/${p.legacySlug || p.object.slug}`, {
 			image: mediaOf(avatars.get(Number(p.object.id))),
-			kind: profileKindOf(p.object.data ?? {})
+			kind: profileKindOf(p.object.data ?? {}),
+			// Un lugar no listado al que lleva un evento: se encuentra buscando, pero no va en la
+			// lista de Amigues (como /amigues).
+			...(p.object.data?.unlisted ? { unlisted: true } : {})
 		});
 	}
 	for (const [tag, key] of series) add(tagPagePath(tag), { image: mediaOf(key) });

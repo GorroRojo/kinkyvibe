@@ -45,6 +45,7 @@ export const BOT_TEXT_SECTIONS = Object.freeze([
 	{ id: 'vincular', label: 'Vincular cuenta' },
 	{ id: 'puerta', label: 'Puerta (admins)' },
 	{ id: 'sitio', label: 'Buscar en todo el sitio y modo inline' },
+	{ id: 'secciones', label: 'Secciones del sitio (Material, Kinkipedia, Amigues, Series)' },
 	{ id: 'errores', label: 'Errores' }
 ]);
 
@@ -77,7 +78,8 @@ const V = Object.freeze({
 	evento: { name: 'evento', label: 'el título del evento', sample: 'Taller de cuerdas' },
 	nombre: { name: 'nombre', label: 'la etiqueta o serie', sample: '🪢 Cuerdas' },
 	busqueda: { name: 'busqueda', label: 'lo que se buscó', sample: 'cuerdas' },
-	cantidad: { name: 'cantidad', label: 'cuántas cosas son', sample: '12' }
+	cantidad: { name: 'cantidad', label: 'cuántas cosas son', sample: '12' },
+	etiqueta: { name: 'etiqueta', label: 'el nombre de la etiqueta', sample: 'Cuerdas' }
 });
 
 /**
@@ -813,6 +815,124 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'inline',
 			'La descripción de un material sin resumen',
 			'Material'
+		),
+
+		// -----------------------------------------------------------------------------------------
+		// Secciones del sitio
+		// -----------------------------------------------------------------------------------------
+		f(
+			'secciones.boton_material',
+			'secciones',
+			'button',
+			'Botón del inicio: Material',
+			'📚 Material'
+		),
+		f(
+			'secciones.boton_kinkipedia',
+			'secciones',
+			'button',
+			'Botón del inicio: Kinkipedia',
+			'📖 Kinkipedia'
+		),
+		f('secciones.boton_amigues', 'secciones', 'button', 'Botón del inicio: Amigues', '👥 Amigues'),
+		f('secciones.boton_series', 'secciones', 'button', 'Botón del inicio: Series', '🔁 Series'),
+		f(
+			'secciones.titulo_material',
+			'secciones',
+			'line',
+			'Material: el título de la lista',
+			'**📚 Material**'
+		),
+		f(
+			'secciones.titulo_kinkipedia',
+			'secciones',
+			'line',
+			'Kinkipedia: el título de la lista',
+			'**📖 Kinkipedia**'
+		),
+		f(
+			'secciones.titulo_amigues',
+			'secciones',
+			'line',
+			'Amigues: el título de la lista',
+			'**👥 Amigues**'
+		),
+		f(
+			'secciones.titulo_series',
+			'secciones',
+			'line',
+			'Series: el título de la lista',
+			'**🔁 Series**'
+		),
+		f(
+			'secciones.con_etiqueta',
+			'secciones',
+			'line',
+			'Una lista filtrada: la etiqueta (va después del título)',
+			'🏷 {etiqueta}',
+			{ vars: [V.etiqueta] }
+		),
+		f(
+			'secciones.vacio',
+			'secciones',
+			'message',
+			'Una sección sin nada para mostrar',
+			'Todavía no hay nada para mostrar acá.'
+		),
+		f(
+			'secciones.vacio_etiqueta',
+			'secciones',
+			'message',
+			'Una sección filtrada sin nada con esa etiqueta',
+			'No hay nada con la etiqueta «{etiqueta}» acá.',
+			{ vars: [V.etiqueta] }
+		),
+		f(
+			'secciones.boton_filtrar',
+			'secciones',
+			'button',
+			'Botón de la lista: elegir una etiqueta',
+			'🏷 Filtrar por etiqueta'
+		),
+		f(
+			'secciones.boton_sin_filtro',
+			'secciones',
+			'button',
+			'Botón para sacar el filtro (en la lista y en las etiquetas)',
+			'✖ Sin filtro'
+		),
+		f(
+			'secciones.elegir_etiqueta',
+			'secciones',
+			'message',
+			'Las etiquetas de una sección (va abajo del título)',
+			'Elegí una etiqueta para ver solo lo que la tiene:'
+		),
+		f(
+			'secciones.sin_etiquetas',
+			'secciones',
+			'message',
+			'Una sección sin etiquetas para filtrar',
+			'Todavía no hay etiquetas para filtrar acá.'
+		),
+		f(
+			'secciones.boton_etiqueta',
+			'secciones',
+			'button',
+			'Botón de una etiqueta (con cuántas cosas la tienen)',
+			'{etiqueta} · {cantidad}',
+			{
+				vars: [V.etiqueta, V.cantidad],
+				required: ['etiqueta'],
+				help: 'El nombre de la etiqueta se acorta para que el botón entre.'
+			}
+		),
+		f(
+			'secciones.no_esta',
+			'secciones',
+			'toast',
+			'Algo de una sección que ya no está (botón viejo)',
+			'Eso ya no está disponible.'
 		),
 
 		// -----------------------------------------------------------------------------------------

@@ -133,7 +133,34 @@ function sigoButton(ctx) {
 }
 
 /**
- * `/start`, `/inicio` y «🏠 Inicio». Con `ctx.door` (une admin vinculade, la puerta prendida, chat
+ * Las secciones del sitio en el inicio (sections.js): «📚 Material · 📖 Kinkipedia» y «👥 Amigues ·
+ * 🔁 Series». Solo con el índice público de la búsqueda (`ctx.site`), de donde salen sus listas.
+ *
+ * @param {ScreenCtx} ctx
+ * @returns {Button[][]}
+ */
+function sectionRows(ctx) {
+	if (!ctx.site) return [];
+	/** @param {import('./nav.js').SectionId} section @param {string} text @returns {Button} */
+	const button = (section, text) => ({
+		text,
+		callback_data: encodeNav({ screen: 'section', section, page: 0 })
+	});
+	return [
+		[
+			button('m', botText('secciones.boton_material')),
+			button('w', botText('secciones.boton_kinkipedia'))
+		],
+		[
+			button('a', botText('secciones.boton_amigues')),
+			button('s', botText('secciones.boton_series'))
+		]
+	];
+}
+
+/**
+ * `/start`, `/inicio` y «🏠 Inicio». Con el índice público (`ctx.site`), las secciones del sitio.
+ * Con `ctx.door` (une admin vinculade, la puerta prendida, chat
  * privado), suma «🚪 Puerta»: la misma Mini App que el botón de la confirmación del vínculo.
  *
  * @param {ScreenCtx} ctx
@@ -157,6 +184,7 @@ export function homeScreen(ctx) {
 			{ text: botText('inicio.boton_buscar'), callback_data: encodeNav({ screen: 'search' }) },
 			...sigoButton(ctx)
 		],
+		...sectionRows(ctx),
 		[
 			{ text: botText('inicio.boton_fondo'), callback_data: encodeNav({ screen: 'fondo' }) },
 			{ text: botText('inicio.boton_ayuda'), callback_data: encodeNav({ screen: 'help' }) }
