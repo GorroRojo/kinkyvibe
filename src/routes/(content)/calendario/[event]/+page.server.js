@@ -3,7 +3,8 @@ import { currentRelated, relatedPostsFor } from '$lib/utils';
 import { siteEvent, sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
-import { isValidEventSlug } from '$lib/server/tickets/events.js';
+import { getEventTickets, isValidEventSlug } from '$lib/server/tickets/events.js';
+import { waitlistJoinStates } from '$lib/server/tickets/waitlistSignup.js';
 import { listaEsperaEnabled } from '$lib/server/flags.js';
 import { eventSeries } from '$lib/server/series/index.js';
 import { seriesAccountState } from '$lib/server/series/web.js';
@@ -148,8 +149,32 @@ async function loadPartes(slug, platform, locals) {
 async function loadTickets(slug, platform, fetchFn) {
 	if (!isValidEventSlug(slug)) return null;
 	// Lista de espera: con el interruptor prendido, lo que sobra después de la fila (como /entradas).
-	const view = await getTicketsView(getDB(platform), slug, fetchFn, {
-		waitlist: await listaEsperaEnabled(platform)
-	});
-	return view ? summarizeTickets(view) : null;
+	const db = getDB(platform);
+	const waitlistOn = await listaEsperaEnabled(platform);
+	const view = await getTicketsView(db, slug, fetchFn, { waitlist: waitlistOn });
+	if (!view) return null;
+	const summary = summarizeTickets(view);
+	// Agotadas con lista: el botón lleva al formulario de la página de compra («Agotadas · Anotate
+	// en la lista de espera»). Solo se suma `waitlist` cuando hay dónde anotarse (la misma cuenta
+	// que el formulario de /entradas); si no, el resumen queda como siempre.
+	if (waitlistOn && db && !view.open && (await canJoinWaitlist(db, slug)))
+		return { ...summary, waitlist: true };
+	return summary;
+}
+
+/**
+ * ¿Hay algún alcance agotado de la lista de espera donde anotarse? Como el formulario de
+ * /entradas (`waitlistView`): si algo falla, no (la página del evento nunca se rompe por la lista).
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ */
+async function canJoinWaitlist(db, slug) {
+	try {
+		const config = await getEventTickets(slug);
+		if (!config?.waitlist) return false;
+		return (await waitlistJoinStates(db, slug, config)).some((s) => s.state === 'open');
+	} catch (e) {
+		console.error('[lista de espera] no se pudo ver si hay dónde anotarse:', e);
+		return false;
+	}
 }

@@ -419,6 +419,13 @@ confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas 
   eventos y cuáles tienen lugar, dos consultas para toda la lista; antes, dos por tarjeta).
 - **En la compra, por tipo:** cada tipo agotado con lista dice «Agotadas · Anotate en la lista de
   espera», que baja al formulario con ese tipo elegido.
+- **En la página del evento** (gorrite, 12/10): agotado y con dónde anotarse (la misma cuenta que
+  el formulario de la compra, `waitlistJoinStates` con algún alcance `open`), el bloque de compra
+  (`Compra.svelte`) muestra en vez de «Agotadas.» el botón grande «Agotadas · Anotate en la lista
+  de espera», que lleva a `/calendario/<slug>/entradas#lista-espera`. La carga
+  (`calendario/[event]/+page.server.js`) suma `waitlist: true` al resumen de la venta solo en ese
+  caso; con el interruptor apagado, el evento sin lista o nada donde anotarse, la página queda
+  igual que antes. Antes el formulario solo se encontraba entrando a la página de compra.
 
 **Prueba de punta a punta** (`tests/tickets/lista-espera.spec.js`, con
 `playwright.tickets.config.js`): cada prueba crea su evento (cupo 1, lista por evento); agotar,
