@@ -136,7 +136,7 @@ CI) va en la fase 0.
 
 - `seo-peso-paginas` · fase 0 · hecho · seo · Peso de las páginas: pasados del calendario de a un mes a pedido · #334, [seo.md](seo.md)
 - `seo-titulos` · fase 0 · hecho · seo · El mes en el título de los eventos repetidos, el salto de `h1` a `h3` en las listas y `DefinedTerm` para etiquetas con descripción · [seo.md](seo.md) · #327
-- `tarjetas-lcp` · fase 0 · hecho · seo · Las primeras tarjetas del inicio cargan su imagen enseguida (el LCP arrancaba ~2 s tarde por `lazy`) · [seo.md](seo.md)
+- `tarjetas-lcp` · fase 0 · hecho · seo · Las primeras tarjetas del inicio cargan su imagen enseguida (el LCP arrancaba ~2 s tarde por `lazy`) · #356, [seo.md](seo.md)
 - `tarjetas-imagen-chica` · fase 0 · sigue · seo · Copia chica de cada imagen para las tarjetas, hecha al subirla (sin usar el cupo de transformaciones de Cloudflare) y una pasada por las que ya están: ~3 MB menos en el inicio · [seo.md](seo.md)
 - `seo-peso-resto` · fase 0 · espera gorrite · seo · Lo que quedó del peso de las páginas: hasta 5 etiquetas por tarjeta y relacionadas de a 20 (cambian lo que se ve: opciones en seo.md), panel de etiquetas armado al abrirlo en celu, `siteTags` aparte (no ahorra sin un archivo estático), íconos de las tarjetas en sprite (gorrite: no por ahora) · [seo.md](seo.md)
 - `noai-por-post` · fase 0 · algún día · seo · Opción de «noai» por publicación (los robots de IA los maneja gorrite en Cloudflare)
