@@ -86,6 +86,7 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { listAudit } from '$lib/server/admin/audit.js';
 import { confirmTransferFromPanel } from '$lib/server/admin/transfers.js';
 import { computePrice } from '$lib/utils/tickets.js';
+import { formatARS } from '$lib/utils/money.js';
 import { buyAction, getTicketsView, summarizeTickets, tierLeftMessage } from './checkout.js';
 import { parseTicketConfig, withTier } from './config.js';
 import { doorSaleLimits, sellAtDoor } from './door.js';
@@ -697,5 +698,8 @@ describe('entradas en la puerta: interruptor por evento', () => {
 		// Precio pleno (el del último tramo) y sin tramo: la preventa sigue intacta.
 		expect(r.ok && r.order).toMatchObject({ unit_price: 10000, ticket_tier: null });
 		expect((await view('preventa')).types[0]).toMatchObject({ tier: { id: 'p1' }, available: 3 });
+		// La línea pública de la puerta sale de los mismos precios (sin nota `puerta_precio`): General
+		// $ 10.000 (el último tramo), Última tanda $ 12.000 y Libre $ 5.000, así que «desde $ 5.000».
+		expect((await view('preventa')).door).toMatchObject({ typesPrice: `desde ${formatARS(5000)}` });
 	});
 });

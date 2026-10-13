@@ -72,6 +72,7 @@ CI) va en la fase 0.
 - `qr-mp-puerta` · fase 0 · sigue · entradas · Cobrar con el QR de Mercado Pago en la puerta (gorrite, 11/10) (depende de: puerta-sin-conexion)
 - `boton-comprar-afuera` · fase 0 · hecho · sitio · Cuando las entradas se venden en otro sitio, el botón tiene el mismo peso que «Comprar entradas» (gorrite, 10/10) · #331
 - `formularios-mail-origen` · fase 0 · hecho · sitio · «Confirmar» y los otros botones de los links de los mails daban «Cross-site POST form submissions are forbidden» (no-referrer manda `Origin: null`): same-origin, y confirmar se manda solo al abrir (gorrite, 12/10) · #355
+- `puerta-precio-publico` · fase 0 · hecho · entradas · «También hay entradas en la puerta» muestra el precio en puerta de los tipos (uno, «desde» o «a la gorra») cuando no hay nota (gorrite, 12/10) · #354
 - `tickets-spec-arreglar` · fase 0 · sigue · pruebas · Dos pruebas de `tests/tickets/tickets.spec.js` que no corren en la CI: arregladas en #325 («1 aprobado» en singular; esperar a que cargue la página). Falta sumarlas a la CI
 - `puerta-sin-conexion` · fase 0 · hecho · entradas · Vender en la puerta sin conexión · #286, [0035](decisiones/0035-vender-en-puerta-sin-conexion.md)
 - `transferencia-dias-habiles` · fase 0 · hecho · entradas · Reserva por transferencia de 2 días hábiles · #261, [0031](decisiones/0031-reserva-transferencia-dias-habiles.md)
@@ -136,6 +137,8 @@ CI) va en la fase 0.
 
 - `seo-peso-paginas` · fase 0 · hecho · seo · Peso de las páginas: pasados del calendario de a un mes a pedido · #334, [seo.md](seo.md)
 - `seo-titulos` · fase 0 · hecho · seo · El mes en el título de los eventos repetidos, el salto de `h1` a `h3` en las listas y `DefinedTerm` para etiquetas con descripción · [seo.md](seo.md) · #327
+- `tarjetas-lcp` · fase 0 · hecho · seo · Las primeras tarjetas del inicio cargan su imagen enseguida (el LCP arrancaba ~2 s tarde por `lazy`) · #356, [seo.md](seo.md)
+- `tarjetas-imagen-chica` · fase 0 · sigue · seo · Copia chica de cada imagen para las tarjetas, hecha al subirla (sin usar el cupo de transformaciones de Cloudflare) y una pasada por las que ya están: ~3 MB menos en el inicio · [seo.md](seo.md)
 - `seo-peso-resto` · fase 0 · espera gorrite · seo · Lo que quedó del peso de las páginas: hasta 5 etiquetas por tarjeta y relacionadas de a 20 (cambian lo que se ve: opciones en seo.md), panel de etiquetas armado al abrirlo en celu, `siteTags` aparte (no ahorra sin un archivo estático), íconos de las tarjetas en sprite (gorrite: no por ahora) · [seo.md](seo.md)
 - `noai-por-post` · fase 0 · algún día · seo · Opción de «noai» por publicación (los robots de IA los maneja gorrite en Cloudflare)
 - `estandares-web` · fase 0 · hecho · seo · JSON-LD, microformatos, rel=me, security.txt, vCard, feeds Atom y JSON · #278, #280
@@ -190,6 +193,7 @@ CI) va en la fase 0.
 - `buscar-sintaxis-bot` · fase 0 · sigue · bot · El bot (inline y Buscar) entiende la sintaxis base, no solo el prefijo al principio (depende de: buscar-sintaxis)
 - `buscar-sintaxis-panel` · fase 0 · sigue · panel · El buscador del panel usa el mismo parser para la base (formas largas de tipo, `material:`, `wiki:`…) y suma lo suyo (depende de: buscar-sintaxis)
 - `buscar-guia-visible` · fase 0 · sigue · sitio · «¿Cómo buscar?» en el buscador del sitio y en /ayuda/buscar, «🔎 Cómo buscar» en la Ayuda del bot y la tabla completa en la paleta del panel (depende de: buscar-sintaxis)
+- `enlaces-sintaxis` · fase 0 · hecho · contenido · La sintaxis del cuerpo de todos los objetos (red de páginas enlazadas), escrita en [enlaces.md](enlaces.md) · [0047](decisiones/0047-cuerpos-enlazados.md)
 - `bot-inline-vista-chica` · fase 0 · hecho · bot · Lo que se manda con el bot inline lleva la vista previa del link chica, al costado (gorrite, 12/10)
 - `telegram-puerta` · fase 0 · hecho · bot · Puerta por Telegram como Mini App, con vínculo desde el panel · #273, #304
 
@@ -274,6 +278,12 @@ CI) va en la fase 0.
 - `amigues-editan-perfil` · fase 2 · sigue · cuentas · Mandarle a cada amigue un link por mail para gestionar su perfil desde Mi rincón (gorrite, 11/10)
 - `sesiones-dispositivos` · fase 2 · algún día · cuentas · Ver dónde hay una sesión abierta y cerrarla
 - `lo-que-sigo-panel` · fase 2 · hecho · panel · Mensajes › Lo que sigo: el estado para mirar (interruptores, números, avisos que salieron, «Avisame», Telegram, «Lo más seguido» arriba con el número exacto y quiénes siguen cada cosa, y «Por persona»; solo admins) · #320, [0043](decisiones/0043-lo-que-sigo-en-el-panel.md), [0025](decisiones/0025-lo-que-sigo.md)
+- `enlaces-guardar` · fase 2 · sigue · contenido · Al guardar, los `[[…]]`, `@` y `#` del cuerpo se vuelven relaciones del grafo, por objeto (no por título) (depende de: enlaces-sintaxis)
+- `enlaces-lo-que-enlaza` · fase 2 · sigue · sitio · «Lo que enlaza acá» en cada página, respetando quién puede ver qué (depende de: enlaces-guardar)
+- `enlaces-falta` · fase 2 · sigue · panel · Lista de los enlaces a páginas que no existen («falta») y cuántas veces se enlazan (depende de: enlaces-guardar)
+- `enlaces-markdown` · fase 2 · sigue · contenido · Las extensiones de enlaces.md en el procesador de Markdown: notas al pie, tablas, `[[a\|b]]`, secciones, incrustados, etiquetas, avisos, consultas vivas y directivas (depende de: enlaces-sintaxis)
+- `enlaces-editores` · fase 2 · sigue · panel · Los dos editores: Markdown con autocompletado y vista previa, y uno visual con fichas, con ida y vuelta sin pérdida (depende de: enlaces-markdown)
+- `enlaces-pasar-viejos` · fase 2 · sigue · datos · Pasar los links internos viejos (URL) a `[[…]]`, de a tandas con el OK de gorrite (depende de: enlaces-guardar)
 
 ## Fase 3
 

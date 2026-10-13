@@ -77,6 +77,7 @@
 			index="0"
 			id="calendario"
 			title="Talleres y eventos"
+			eager={4}
 			items={allPosts
 				.filter(
 					(/** @type {{ meta: AnyPostData; }} */ p) =>

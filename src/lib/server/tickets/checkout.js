@@ -14,6 +14,7 @@ import {
 	LOW_STOCK,
 	MAX_TICKETS_PER_FORM,
 	computePrice,
+	doorPricesText,
 	formatSaleTime,
 	publicLeft
 } from '$lib/utils/tickets.js';
@@ -105,7 +106,7 @@ export const CHECKOUT_RATE_LIMITS = {
  *   online: boolean,
  *   fondoEnabled: boolean,
  *   fondoPercent: number | null,
- *   door: { on: boolean, explicit: boolean, price: string } | null,
+ *   door: { on: boolean, explicit: boolean, price: string, typesPrice?: string } | null,
  *   types: { id: string, name: string, price: number, fondo: number, available: number,
  *     left: number | null, gorra: { min: number, suggested: number } | null,
  *     closesAt: number | null, closed: boolean,
@@ -232,7 +233,12 @@ export async function getTicketsView(db, slug, fetchFn, opts = {}) {
 		online: config.online,
 		fondoEnabled: config.fondoEnabled,
 		fondoPercent: config.fondoPercent,
-		door: config.door,
+		// La puerta, con el precio que sale del «Precio en puerta» de los tipos (lo que cobra la
+		// puerta) para la línea pública; la nota `puerta_precio`, si la hay, manda (doorText). Sin
+		// puerta, como siempre.
+		door: config.door?.on
+			? { ...config.door, typesPrice: doorPricesText(config.types) }
+			: config.door,
 		types: config.types.map((t) => {
 			const a = typeAvailability(config, t, noSales, now);
 			const eff = withTier(t, a.tier?.tier);

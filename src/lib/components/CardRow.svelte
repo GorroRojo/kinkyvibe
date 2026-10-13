@@ -8,6 +8,8 @@
 	export let href = undefined;
 	export let index = undefined;
 	export let setId = true;
+	/** Cuántas tarjetas del principio cargan su imagen enseguida (la primera, con prioridad). */
+	export let eager = 0;
 	// Without an index the old offset evaluated to NaN (i.e. no vertical movement); keep that
 	// explicitly, since Svelte 5's Web Animations based transitions warn about NaN keyframes.
 	$: flyY = index === undefined ? 0 : ((index % 2) - 0.5) * 2 * 200;
@@ -27,7 +29,7 @@
 	<ul class="cardrow">
 		{#each items as post, i}
 			<li class="cardcontainer">
-				<Card {setId} {post} />
+				<Card {setId} {post} eager={i < eager} priority={eager > 0 && i == 0} />
 			</li>
 		{/each}
 	</ul>

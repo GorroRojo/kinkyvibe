@@ -517,7 +517,8 @@
 							/>
 							<small id="{idPrefix}-door-price-hint"
 								>Solo se muestra en la página del evento («También hay entradas en la puerta: …»).
-								Lo que se cobra es el «Precio en puerta» de cada tipo.</small
+								Lo que se cobra es el «Precio en puerta» de cada tipo; si la dejás vacía, la página
+								muestra ese precio.</small
 							>
 						</label>
 						<small
