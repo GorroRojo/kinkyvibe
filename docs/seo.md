@@ -111,6 +111,8 @@ mediana). No hay datos de personas reales (el sitio tiene poco tráfico para el 
   (5000 por mes; ver «Imágenes y WhatsApp» en [compartir.md](compartir.md)).
 - El tiempo del servidor no apareció como problema (TTFB 10 ms en esa corrida).
 - Los errores de consola que marca son del script de Cloudflare Web Analytics, no del sitio.
+- Para ver que sigue andando: `curl -s https://kinkyvibe.ar/ | grep -o '<img[^>]*card-img[^>]*>' | head -5`
+  muestra las primeras con `loading="eager"` y la primera con `fetchpriority="high"`.
 
 ## Cómo probarlo
 
