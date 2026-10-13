@@ -56,7 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: npm
@@ -75,7 +75,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: npm
@@ -105,7 +105,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: npm
@@ -134,7 +134,7 @@ jobs:
         env:
           VITEST_DURATIONS_OUT: ${{ runner.temp }}/vitest-durations.json
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: vitest-durations-${{ matrix.shard }}
           path: ${{ runner.temp }}/vitest-durations.json
@@ -152,7 +152,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: npm
@@ -206,7 +206,7 @@ jobs:
         env:
           PW_NO_BUILD: '1'
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-results
@@ -223,7 +223,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
           cache: npm
@@ -261,7 +261,7 @@ jobs:
             echo "Sin cambios en estilos ni componentes: no hace falta el informe de impacto visual." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         if: steps.changes.outputs.run == 'true'
         with:
           node-version-file: .node-version
@@ -296,7 +296,7 @@ jobs:
         env:
           UI_IMPACTO_ARTIFACT_NOTE: 'El informe completo (base | nuevo | diferencias) está en el artifact **ui-impacto** de esta corrida: bajalo, descomprimilo y abrí `index.html`.'
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always() && steps.changes.outputs.run == 'true'
         with:
           name: ui-impacto
@@ -312,7 +312,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
 
@@ -330,7 +330,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
 
