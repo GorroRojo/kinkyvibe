@@ -89,6 +89,31 @@ que repetir las reglas de privacidad. Cada página los anuncia con `<link rel="a
 `u-url`, `p-note`, `u-email`, `p-tel` en elementos `<data hidden>`), `h-card` de Kinky Vibe en el
 inicio y en las tarjetas de las listas.
 
+## Velocidad (PageSpeed, 12/10/2026)
+
+La línea de base, medida por gorrite con [PageSpeed Insights](https://pagespeed.web.dev/) en el
+inicio (una sola corrida de Lighthouse; varía ±5–10 puntos: para comparar, tres corridas y la
+mediana). No hay datos de personas reales (el sitio tiene poco tráfico para el informe de Chrome).
+
+| Inicio     | Puntaje | FCP   | LCP   | TBT    | CLS   | Peso     |
+| ---------- | ------- | ----- | ----- | ------ | ----- | -------- |
+| Celu       | 81      | 2,0 s | 4,1 s | 80 ms  | 0,002 | 3907 KiB |
+| Computador | 88      | 0,4 s | 1,4 s | 170 ms | 0,001 | —        |
+
+- **El LCP es la imagen de la primera tarjeta de eventos**, y arrancaba a bajarse ~2 s tarde
+  porque todas las tarjetas tenían `loading="lazy"` (el navegador espera al layout). Ahora la
+  primera fila del inicio carga sus primeras 4 imágenes enseguida y la primera con
+  `fetchpriority="high"` (`eager` en `CardRow.svelte` y `Card.svelte`); las demás siguen `lazy`.
+- **Las imágenes de las tarjetas son de tamaño completo** (hasta 2000 px; una de 1,6 MB) para
+  tarjetas de 420 × 420: ~3,1 MB de los 3,9 MB. Lo que sigue (`tarjetas-imagen-chica` en el
+  plan): una copia chica de cada imagen hecha **al subirla** (en el navegador, como la de 2000 px)
+  y una pasada única por las que ya están. Así no usa el cupo de transformaciones de Cloudflare
+  (5000 por mes; ver «Imágenes y WhatsApp» en [compartir.md](compartir.md)).
+- El tiempo del servidor no apareció como problema (TTFB 10 ms en esa corrida).
+- Los errores de consola que marca son del script de Cloudflare Web Analytics, no del sitio.
+- Para ver que sigue andando: `curl -s https://kinkyvibe.ar/ | grep -o '<img[^>]*card-img[^>]*>' | head -5`
+  muestra las primeras con `loading="eager"` y la primera con `fetchpriority="high"`.
+
 ## Cómo probarlo
 
 - `npx vitest run src/lib/utils/jsonLd.test.js src/lib/utils/vcard.test.js src/lib/utils/securityTxt.test.js src/lib/utils/robots.test.js src/lib/utils/feeds.test.js src/lib/server/feeds.test.js`

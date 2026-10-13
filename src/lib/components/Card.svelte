@@ -12,6 +12,10 @@
 		mark
 	} = post;
 	export let setId = true;
+	// Las primeras tarjetas de la página se piden enseguida: con `lazy` el navegador espera al
+	// layout y la imagen más grande (el LCP) arrancaba ~2 s tarde (docs/seo.md, «Velocidad»).
+	export let eager = false;
+	export let priority = false;
 	mark = tags.includes('KinkyVibe') ? 'Kinky Vibe' : undefined;
 	let mounted = false;
 	onMount(() => (mounted = true));
@@ -38,7 +42,13 @@
 	{#if mark}
 		<span class="card-mark">{mark}</span>
 	{/if}
-	<img class="card-img u-featured placeholder-gradient" {src} alt="" loading="lazy" />
+	<img
+		class="card-img u-featured placeholder-gradient"
+		{src}
+		alt=""
+		loading={eager ? 'eager' : 'lazy'}
+		fetchpriority={priority ? 'high' : undefined}
+	/>
 	<h3 class="p-name">
 		{title}
 		{#if pronounDisplay(pronoun)}
