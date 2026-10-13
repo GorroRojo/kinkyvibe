@@ -18,7 +18,9 @@ import { getGateway } from '$lib/server/tickets/index.js';
 export async function load({ params, platform, fetch, setHeaders }) {
 	// El id de la propina va en la URL: que no se indexe, no se filtre por Referer ni se cachee.
 	setHeaders({
-		'referrer-policy': 'no-referrer',
+		// same-origin y no no-referrer: con no-referrer el POST del formulario sale con `Origin: null` y
+		// SvelteKit lo rechaza («Cross-site POST form submissions are forbidden»). Afuera no se manda nada.
+		'referrer-policy': 'same-origin',
 		'x-robots-tag': 'noindex, nofollow',
 		'cache-control': 'private, no-store'
 	});

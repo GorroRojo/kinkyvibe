@@ -71,6 +71,7 @@ CI) va en la fase 0.
 - `puerta-celus-reales` · fase 0 · espera gorrite · entradas · La puerta con celulares reales (Android y iPhone): escanear, código, buscar, vender en efectivo y transferencia, sin conexión y con dos celus a la vez
 - `qr-mp-puerta` · fase 0 · sigue · entradas · Cobrar con el QR de Mercado Pago en la puerta (gorrite, 11/10) (depende de: puerta-sin-conexion)
 - `boton-comprar-afuera` · fase 0 · hecho · sitio · Cuando las entradas se venden en otro sitio, el botón tiene el mismo peso que «Comprar entradas» (gorrite, 10/10) · #331
+- `formularios-mail-origen` · fase 0 · hecho · sitio · «Confirmar» y los otros botones de los links de los mails daban «Cross-site POST form submissions are forbidden» (no-referrer manda `Origin: null`): same-origin, y confirmar se manda solo al abrir (gorrite, 12/10) · #355
 - `puerta-precio-publico` · fase 0 · hecho · entradas · «También hay entradas en la puerta» muestra el precio en puerta de los tipos (uno, «desde» o «a la gorra») cuando no hay nota (gorrite, 12/10) · #354
 - `tickets-spec-arreglar` · fase 0 · sigue · pruebas · Dos pruebas de `tests/tickets/tickets.spec.js` que no corren en la CI: arregladas en #325 («1 aprobado» en singular; esperar a que cargue la página). Falta sumarlas a la CI
 - `puerta-sin-conexion` · fase 0 · hecho · entradas · Vender en la puerta sin conexión · #286, [0035](decisiones/0035-vender-en-puerta-sin-conexion.md)

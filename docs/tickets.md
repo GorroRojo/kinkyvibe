@@ -290,7 +290,9 @@ nada (las páginas de confirmar y volver y `?/waitlist` dan 404).
   lugar libre total del evento; un tipo sin cupo abierto hace que el evento nunca se agote. La
   página muestra un formulario mínimo («Lista de espera», `WaitlistSignup.svelte`) debajo de la
   compra cuando hay dónde anotarse.
-- **Links de los mails** (GET muestra el botón, POST hace el cambio, con `MailLinkCard`):
+- **Links de los mails** (GET muestra el botón, POST hace el cambio, con `MailLinkCard`; en un
+  navegador, confirmar se manda solo una vez al abrir; `Referrer-Policy: same-origin`, ver
+  [mails.md](mails.md)):
   `/lista-de-espera/confirmar/<token>` (entra a la fila; vencido o usado, no),
   `/lista-de-espera/salir/<id>.<firma>` (sale: `cancelled` por `left`, o se borra si no había
   confirmado; anda siempre, también con el interruptor apagado) y
@@ -691,7 +693,7 @@ npx wrangler d1 execute kinkyvibe --remote --command "SELECT event_slug, status,
 - **Sobreventa:** reserva atómica (ver arriba); test con 30 compras concurrentes. Los tramos de preventa se controlan en la misma sentencia (tests de carrera con filas precargadas en `tiers.test.js`). Un pago de Mercado Pago aprobado después de vencida la reserva se acepta (la plata entró), pero si con eso el tipo pasa su cupo la orden queda **para revisar** (`needs_review = 'late_payment'`); otro pago aprobado para una orden ya pagada queda como `duplicate_payment` (posible cobro doble). Las dos se ven en `/admin/ventas` y en la página del evento ("⚠️ Para revisar", con "Marcar como revisada").
 - **Reservas y abuso:** límites en capas en `?/buy` (`CHECKOUT_RATE_LIMITS` en `checkout.js`): primero por cliente (hash con sal de la conexión que rota cada día, `safeguards.js`; la IP no se guarda; una IPv6 cuenta por su red /64), un techo general holgado por evento y por email. Topes de reservas abiertas a la vez por evento (`HOLD_LIMITS` en `orders.js`, en la misma sentencia atómica que el cupo): por email (2 reservas y 20 entradas) y por cliente (40 entradas). Las transferencias arrancan con una reserva corta que se extiende al confirmarla desde el mail. Como mucho 3 mails de reserva o de entradas gratis por hora a una misma dirección. Los nombres no aceptan links ni caracteres de control. `TICKETS_CLIENT_SALT` (opcional, secreto) hace secreta la sal del hash de cliente.
 - **Eventos de prueba:** los `prueba-entradas-*` del repo solo venden en `vite dev` (`isTestEventSlug` en `events.js`); en el sitio publicado no tienen venta.
-- **Tokens:** 256 bits aleatorios (`crypto.getRandomValues`), únicos; el check-in es un único `UPDATE` condicional (dos escaneos simultáneos: gana uno). Las páginas con tokens o ids de orden mandan `Referrer-Policy: no-referrer`, `noindex` y `no-store`.
+- **Tokens:** 256 bits aleatorios (`crypto.getRandomValues`), únicos; el check-in es un único `UPDATE` condicional (dos escaneos simultáneos: gana uno). Las páginas con tokens o ids de orden mandan `Referrer-Policy: no-referrer`, `noindex` y `no-store`; las que tienen un formulario POST común (sin `use:enhance`), como los links de los mails y el gracias de las propinas, van con `same-origin` (con no-referrer el POST sale con `Origin: null` y SvelteKit lo rechaza; ver [mails.md](mails.md)).
 - **Admin:** cada `load`, cada form action y el CSV llaman a `requireAdmin` en el servidor (las form actions y los `+server.js` no pasan por el layout).
 - **Mocks:** detrás de `dev` de `$app/environment`, que es `false` en el build: el módulo del mock, la sesión falsa y el fixture no llegan al worker de producción.
 - **CSV:** se arma con `toCsv`/`csvResponse` (`$lib/admin/csv.js`), como los demás del panel: celdas que empiezan con `= + - @` se escapan (inyección de fórmulas) y las fechas (`fecha`, `ingreso`) van en hora de Argentina, `2026-10-02 22:30`.
