@@ -204,11 +204,16 @@ async function joinAndConfirm(page, slug, email) {
 	await expect(box.getByRole('status')).toContainText('Te mandamos un mail para confirmar');
 	expect(entryOf(slug, email).status).toBe('pending_confirmation');
 
-	await page.goto(confirmLink(slug, email), { waitUntil: 'networkidle' });
-	await expect(page.getByRole('heading', { name: 'Confirmá tu lugar en la fila' })).toBeVisible();
-	// GET solo muestra el botón (los antivirus del correo abren los links): sigue sin confirmar.
+	const link = confirmLink(slug, email);
+	// GET sin JavaScript (lo que hacen los antivirus del correo): solo muestra el botón, sigue sin
+	// confirmar.
+	const scan = await page.request.get(link);
+	expect(scan.ok()).toBe(true);
+	expect(await scan.text()).toContain('Confirmá tu lugar en la fila');
 	expect(entryOf(slug, email).status).toBe('pending_confirmation');
-	await page.getByRole('button', { name: 'Confirmar' }).click();
+	// En un navegador de verdad la página manda el formulario sola, una vez (el botón queda por si
+	// no hay JavaScript; gorrite, 12/10).
+	await page.goto(link);
 	await expect(page.getByText(/Listo: estás en la lista de espera/)).toBeVisible();
 	expect(entryOf(slug, email).status).toBe('waiting');
 }

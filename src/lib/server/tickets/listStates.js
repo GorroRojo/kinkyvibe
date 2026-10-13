@@ -12,6 +12,7 @@
  */
 import { building } from '$app/environment';
 import { getDB } from '$lib/server/db';
+import { readAndKeep } from '$lib/server/db/perRequest.js';
 import { hasOwnTickets } from '$lib/utils/ticketCta.js';
 import { startsAfter } from '$lib/utils/dates.js';
 import { methodsFor, typeBuyableNow } from './checkout.js';
@@ -31,7 +32,11 @@ import { queueHoldersMany, sharesAfterQueue } from './waitlistPurchase.js';
  */
 export const LIST_CACHE_MS = 30 * 1000;
 
-/** @type {Map<string, { at: number, value: Promise<TicketStates> }>} */
+/**
+ * Solo resultados ya calculados: lo que está en camino se comparte solo dentro del pedido
+ * (`readAndKeep`, src/lib/server/db/perRequest.js).
+ * @type {Map<string, { at: number, value: TicketStates }>}
+ */
 const cache = new Map();
 const CACHE_MAX_KEYS = 50;
 
@@ -49,13 +54,17 @@ export function getListTicketStates(db, slugs, { now = Date.now(), cacheMs = LIS
 	if (!cacheMs) return computeStates(db, unique, now);
 	const key = unique.join('\n');
 	const hit = cache.get(key);
-	if (hit && now - hit.at < cacheMs) return hit.value;
-	const value = computeStates(db, unique, now);
-	if (cache.size >= CACHE_MAX_KEYS) cache.clear();
-	cache.set(key, { at: now, value });
+	if (hit && now - hit.at < cacheMs) return Promise.resolve(hit.value);
 	// Un error no se guarda.
-	value.catch(() => cache.delete(key));
-	return value;
+	return readAndKeep(
+		db,
+		`list-ticket-states\n${key}`,
+		() => computeStates(db, unique, now),
+		(value) => {
+			if (cache.size >= CACHE_MAX_KEYS) cache.clear();
+			cache.set(key, { at: now, value });
+		}
+	);
 }
 
 /**

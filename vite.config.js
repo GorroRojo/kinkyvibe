@@ -1,5 +1,5 @@
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import { deployBranchFromEnv } from './src/lib/server/deployBranch.js';
 import { lucideDeepImports } from './scripts/vite/lucide-deep-imports.js';
 import DurationSequencer from './scripts/vitest/sequencer.js';
@@ -19,14 +19,32 @@ export default defineConfig({
 		assetsInlineLimit: 0
 	},
 	test: {
-		include: ['src/**/*.{test,spec}.{js,ts}', 'scripts/**/*.test.js'],
 		// El árbol de etiquetas de respaldo, para las pruebas (src/tests/setup.js).
 		setupFiles: ['src/tests/setup.js'],
 		// Reparte las partes de la CI (`--shard`) por lo que tarda cada archivo
 		// (scripts/vitest/durations.json), no por cantidad de archivos.
 		sequence: { sequencer: DurationSequencer },
 		// La plantilla de la base de prueba, migrada una vez por corrida (src/tests/globalSetup.js).
-		globalSetup: ['src/tests/globalSetup.js']
+		globalSetup: ['src/tests/globalSetup.js'],
+		// `include` va en cada proyecto: con `extends: true` las listas se suman.
+		projects: [
+			// Casi todas: en Node, y los componentes con el render del servidor (`svelte/server`).
+			{
+				extends: true,
+				test: {
+					name: 'unit',
+					include: ['src/**/*.{test,spec}.{js,ts}', 'scripts/**/*.test.js'],
+					exclude: [...configDefaults.exclude, 'src/**/*.dom.test.js']
+				}
+			},
+			// Componentes montados en un DOM (jsdom + @testing-library/svelte) para probar clics:
+			// `*.dom.test.js`, con el Svelte del navegador (la condición `browser`).
+			{
+				extends: true,
+				resolve: { conditions: ['browser'] },
+				test: { name: 'dom', include: ['src/**/*.dom.test.js'], environment: 'jsdom' }
+			}
+		]
 	},
 	optimizeDeps: {
 		exclude: ['svelte-codemirror-editor', 'codemirror', '@codemirror/lang-markdown']

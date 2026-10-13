@@ -303,6 +303,14 @@ aparecen con la etiqueta «prueba» mientras el interruptor está apagado.
   `waitlist_leave_key` (se crea sola en `ticket_settings`), cada uno con su propio mensaje; la oferta
   `/calendario/<slug>/entradas?lista=<token>`. GET solo muestra el botón y el POST hace el cambio
   (`MailLinkCard`), así los antivirus del correo no confirman ni sacan a nadie.
+- **Las páginas de los links de los mails** (`MailLinkCard`: avisos de series, «Lo que sigo», lista
+  de espera) van con `Referrer-Policy: same-origin`, nunca `no-referrer`: con no-referrer el
+  navegador manda el POST de un formulario común con `Origin: null` y SvelteKit lo rechaza
+  («Cross-site POST form submissions are forbidden»; gorrite, 12/10). Afuera no se manda nada
+  igual. Lo controla `src/routes/referrer-forms.test.js` para todo el sitio. Las de confirmar
+  (`auto`) mandan el formulario solas una vez al abrirse en un navegador (los antivirus casi nunca
+  corren JavaScript; el GET nunca cambia nada y el botón queda por si no hay JavaScript); salir,
+  darse de baja y volver a anotarse siguen pidiendo el botón.
 - **Logs:** nunca el mail; solo el id de la anotación.
 
 **Mail a compradores:** se manda en tandas (un Worker tiene un límite de pedidos a otros servicios

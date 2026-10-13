@@ -159,8 +159,16 @@ export { isOnlineEvent };
  * @prop {boolean} waitlistAll «Avisar a todes a la vez desde el principio» (`todes_a_la_vez`)
  */
 
+/*
+ * Las `key` locales (las del `{#each}` keyed de tipos y tramos) tienen que ser únicas también
+ * contra las de un borrador recuperado (draft.js), que se armaron en otra carga de la página. Un
+ * contador solo («t1», «t2»…) vuelve a empezar en cada carga: al recuperar un borrador con «t5» y
+ * agregar un tipo, salía otro «t5», el `{#each}` tiraba `each_key_duplicate` y el editor quedaba
+ * colgado («Sacar» no hacía nada, tarjetas vacías). Por eso llevan un prefijo distinto por carga.
+ */
+const keyPrefix = `t${Math.random().toString(36).slice(2, 8)}-`;
 let keyCounter = 0;
-const newKey = () => `t${++keyCounter}`;
+const newKey = () => `${keyPrefix}${++keyCounter}`;
 
 /** @param {unknown} v */
 const str = (v) => (v === undefined || v === null ? '' : String(v));

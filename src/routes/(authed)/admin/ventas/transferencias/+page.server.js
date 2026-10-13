@@ -24,7 +24,9 @@ import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, platform, setHeaders }) {
 	requireAdmin(locals, url);
-	setHeaders({ 'cache-control': 'private, no-store', 'referrer-policy': 'no-referrer' });
+	// same-origin y no no-referrer: el «Sí, confirmar igual» sin JavaScript es un POST común, y con
+	// no-referrer sale con `Origin: null` y SvelteKit lo rechaza. Afuera no se manda nada.
+	setHeaders({ 'cache-control': 'private, no-store', 'referrer-policy': 'same-origin' });
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
 	const now = Date.now();
