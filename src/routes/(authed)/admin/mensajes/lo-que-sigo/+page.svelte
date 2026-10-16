@@ -316,9 +316,23 @@
 		{:else}
 			<p class="muted">No se pudieron contar los avisos.</p>
 		{/if}
+		{#if s.failures}
+			{@const f7 = s.failures.d7}
+			<p class="last" data-testid="sigo-fallidos">
+				Avisos que fallaron: <strong class="num">{num(f7.total)}</strong> en los últimos 7 días{#if f7.total}{' '}(por
+					mail: <span class="num">{num(f7.mail)}</span>; por Telegram:
+					<span class="num">{num(f7.telegram)}</span>{#if f7.blocked}, <span class="num"
+							>{num(f7.blocked)}</span
+						> porque el chat ya no recibe{/if}){/if}.
+				<span class="muted">En 30 días: <span class="num">{num(s.failures.d30.total)}</span>.</span>
+			</p>
+		{:else if data.dbAvailable}
+			<p class="muted">No se pudieron contar los avisos que fallaron.</p>
+		{/if}
 		<p class="kv-note">
-			Cuenta los avisos que salieron, no los que llegaron. Los que fallan no quedan guardados: se
-			vuelven a intentar en la vuelta siguiente.
+			Cuenta los avisos que salieron, no los que llegaron. Los que fallan se cuentan aparte y se
+			vuelven a intentar en la vuelta siguiente; si Telegram dice que el chat ya no recibe (bloqueó
+			al bot o borró el chat), se desvincula y no se reintenta.
 		</p>
 		<p class="config">
 			<a href="/admin/ajustes/automatizaciones"

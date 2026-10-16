@@ -15,7 +15,9 @@
  *      las próximas 24 horas y la cuenta no tiene entrada para ese evento (esa ya recibe los
  *      recordatorios de las entradas, $lib/server/tickets/reminders.js).
  *    La fila de `follow_notifications` se toma antes de mandar y se suelta si el mail falla (se
- *    reintenta en la próxima). Resend recibe además una clave de idempotencia.
+ *    reintenta en la próxima). Resend recibe además una clave de idempotencia. Cada aviso que
+ *    falla (mail o Telegram) suma 1 en `follow_notification_failures`, un contador por día,
+ *    canal y motivo sin ningún dato de personas (`countFailure`; el panel lo muestra).
  *
  * El mail va al de la cuenta; no dice nada de otras cuentas. Lleva el link para apagar todos los
  * mails de «Lo que sigo» (sin entrar) y el de Mi rincón → Lo que sigo.
@@ -43,12 +45,20 @@ import { formatFollowNotice } from '$lib/server/telegram/format.js';
 import { botTextOverrides } from '$lib/server/telegram/texts.js';
 import { isQuietHour } from '$lib/server/telegram/quiet.js';
 import { REMINDER_ORDER_SQL } from '$lib/server/tickets/reminders.js';
+import { argentinaDay } from '$lib/server/tickets/stats.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {Pick<ProcessedPost, 'meta' | 'path'>} Post */
 /** @typedef {(to: string, message: import('./email.js').Message, idempotencyKey: string) => Promise<'sent' | 'simulated' | 'failed'>} FollowSend */
 
 /** @typedef {'mail' | 'telegram'} Channel */
+
+/**
+ * Por qué falló un aviso: `error` (no salió, se reintenta) o `bloqueado` (Telegram dijo que el
+ * chat ya no recibe; se desvincula y no se reintenta).
+ *
+ * @typedef {'error' | 'bloqueado'} FailureReason
+ */
 
 /** Avisos por Telegram por corrida, como mucho (aparte de los mails). */
 export const TELEGRAM_NOTIFY_BATCH = 50;
@@ -98,6 +108,31 @@ export async function stopMailWithToken(db, token, { now = Date.now() } = {}) {
 	if (!accountId) return null;
 	await stopAllMail(db, accountId, { now });
 	return accountId;
+}
+
+/**
+ * Suma un aviso que falló al contador del día (hora de Argentina), canal y motivo. No guarda
+ * nada de la persona ni del evento. Si la tabla falta (migración 0058 sin aplicar) o la base
+ * falla, no hace nada: contar nunca frena los avisos ni el reintento.
+ *
+ * @param {D1Database} db
+ * @param {Channel} channel
+ * @param {FailureReason} reason
+ * @param {number} now
+ */
+export async function countFailure(db, channel, reason, now) {
+	try {
+		await db
+			.prepare(
+				`INSERT INTO follow_notification_failures (day, channel, reason, failures)
+				VALUES (?1, ?2, ?3, 1)
+				ON CONFLICT (day, channel, reason) DO UPDATE SET failures = failures + 1`
+			)
+			.bind(argentinaDay(now), channel, reason)
+			.run();
+	} catch (error) {
+		console.error('[sigo] no se pudo contar un aviso que falló:', error);
+	}
 }
 
 /**
@@ -372,6 +407,7 @@ export async function runFollowNotifications({
 				if (result === 'failed') {
 					failed++;
 					await release(accountId, slug, kind, 'mail');
+					await countFailure(db, 'mail', 'error', now);
 				} else sent++;
 			}
 			for (const kind of item.kinds.telegram) {
@@ -398,9 +434,11 @@ export async function runFollowNotifications({
 						.bind(accountId, acc.chatId)
 						.run();
 					acc.chatId = null;
+					await countFailure(db, 'telegram', 'bloqueado', now);
 				} else {
 					tg.failed++;
 					await release(accountId, slug, kind, 'telegram');
+					await countFailure(db, 'telegram', 'error', now);
 				}
 			}
 		}

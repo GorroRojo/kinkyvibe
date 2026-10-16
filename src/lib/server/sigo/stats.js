@@ -13,6 +13,7 @@
  */
 import { normalizeProfileKind } from '$lib/server/objects/types/perfil.js';
 import { accountHref, profileHref } from '$lib/admin/links.js';
+import { argentinaDay } from '$lib/server/tickets/stats.js';
 import { resolveTag } from './targets.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -49,6 +50,13 @@ const DAY = 24 * 60 * 60 * 1000;
  */
 
 /**
+ * Avisos que fallaron en un período: en total, por canal y, de Telegram, cuántos porque el chat
+ * ya no recibe (`blocked`, ya contados en `telegram`).
+ *
+ * @typedef {{ total: number, mail: number, telegram: number, blocked: number }} FailureCounts
+ */
+
+/**
  * @typedef {{
  *   accounts: number | null,
  *   follows: { total: number, etiqueta: number, perfil: number, lugar: number } | null,
@@ -56,6 +64,7 @@ const DAY = 24 * 60 * 60 * 1000;
  *     tgReminder: number } | null,
  *   notices: { nuevo: { mail: NoticeCounts, telegram: NoticeCounts },
  *     recordatorio: { mail: NoticeCounts, telegram: NoticeCounts }, last: number | null } | null,
+ *   failures: { d7: FailureCounts, d30: FailureCounts } | null,
  *   avisame: { migrated: number | null, pendingWithAccount: number | null,
  *     withoutAccount: number | null },
  *   telegram: { linked: number, muted: number } | null,
@@ -105,6 +114,31 @@ async function orNull(fn) {
 /** @returns {NoticeCounts} */
 const zero = () => ({ d7: 0, d30: 0, total: 0 });
 
+/** @returns {FailureCounts} */
+const zeroFailures = () => ({ total: 0, mail: 0, telegram: 0, blocked: 0 });
+
+/**
+ * Las filas de `follow_notification_failures` (por canal y motivo, con lo de 7 y 30 días) →
+ * los números del panel.
+ *
+ * @param {Record<string, unknown>[]} rows
+ * @returns {{ d7: FailureCounts, d30: FailureCounts }}
+ */
+export function groupFailures(rows) {
+	const out = { d7: zeroFailures(), d30: zeroFailures() };
+	for (const r of rows) {
+		const channel = r.channel === 'telegram' ? 'telegram' : r.channel === 'mail' ? 'mail' : null;
+		if (!channel) continue;
+		for (const period of /** @type {const} */ (['d7', 'd30'])) {
+			const count = n(r[period]);
+			out[period][channel] += count;
+			out[period].total += count;
+			if (channel === 'telegram' && r.reason === 'bloqueado') out[period].blocked += count;
+		}
+	}
+	return out;
+}
+
 /**
  * Lo que sigue la gente, en números (ver arriba: sin quién; eso es `whoFollows`).
  *
@@ -120,6 +154,7 @@ export async function followStats(db, { tags, now = Date.now() }) {
 			follows: null,
 			options: null,
 			notices: null,
+			failures: null,
 			avisame: { migrated: null, pendingWithAccount: null, withoutAccount: null },
 			telegram: null,
 			ranking: null
@@ -128,7 +163,10 @@ export async function followStats(db, { tags, now = Date.now() }) {
 	// Solo las cuentas que existen (como el paso de «Avisame»): borrar una cuenta ya borra lo
 	// que seguía, esto es por las dudas.
 	const LIVE = 'JOIN accounts a ON a.id = f.account_id AND a.deleted_at IS NULL';
-	const [totals, rankRows, notices, migrated, pending, withoutAccount, telegram] =
+	// Los días (hora de Argentina) de los últimos 7 y 30, hoy incluido.
+	const since7 = argentinaDay(now - 6 * DAY);
+	const since30 = argentinaDay(now - 29 * DAY);
+	const [totals, rankRows, notices, failures, migrated, pending, withoutAccount, telegram] =
 		await Promise.all([
 			orNull(() =>
 				db
@@ -166,6 +204,20 @@ export async function followStats(db, { tags, now = Date.now() }) {
 						FROM follow_notifications GROUP BY kind, channel`
 					)
 					.bind(now - 30 * DAY, now - 7 * DAY)
+					.all();
+				return results;
+			}),
+			// Los avisos que fallaron (migración 0058; sin la tabla, `null`).
+			orNull(async () => {
+				const { results } = await db
+					.prepare(
+						`SELECT channel, reason,
+							SUM(CASE WHEN day >= ?1 THEN failures ELSE 0 END) AS d7,
+							SUM(failures) AS d30
+						FROM follow_notification_failures WHERE day >= ?2
+						GROUP BY channel, reason`
+					)
+					.bind(since7, since30)
 					.all();
 				return results;
 			}),
@@ -241,6 +293,7 @@ export async function followStats(db, { tags, now = Date.now() }) {
 				}
 			: null,
 		notices: noticeStats,
+		failures: failures ? groupFailures(failures) : null,
 		avisame: {
 			migrated: migrated ? n(migrated.n) : null,
 			pendingWithAccount: pending ? n(pending.n) : null,
