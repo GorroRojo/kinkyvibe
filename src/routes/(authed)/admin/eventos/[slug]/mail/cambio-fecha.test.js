@@ -21,6 +21,9 @@ const EVENT = 'prueba-entradas-2026-12';
 const ADMIN = { id: 4594048, login: 'GorroRojo', name: null, avatar_url: '' };
 const BEFORE = { start: '2026-12-05T21:00-03:00', end: '2026-12-06T02:00-03:00' };
 const AFTER = { start: '2026-12-12T21:00-03:00', end: '2026-12-13T02:00-03:00' };
+// Una fecha fija antes de las dos: sin `now`, pasado el evento `dateChangeOffer` ya no ofrece avisar
+// y estos tests empezarían a fallar solos.
+const NOW = Date.parse('2026-10-01T12:00Z');
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -130,7 +133,7 @@ describe('«Avisar a les compradores»', () => {
 			expect(isHttpError(notAdmin) && notAdmin.status).toBe(403);
 		}
 		expect(await sends()).toBe(0);
-		expect(await dateChangeOffer(t.db, EVENT)).toMatchObject({
+		expect(await dateChangeOffer(t.db, EVENT, { now: NOW })).toMatchObject({
 			requested: false,
 			dismissed: false,
 			notice: true
@@ -173,7 +176,7 @@ describe('«Avisar a les compradores»', () => {
 		const logged = JSON.stringify(results[0]);
 		expect(logged).not.toContain('a@example.com');
 		expect(logged).not.toContain('b@example.com');
-		expect(await dateChangeOffer(t.db, EVENT)).toMatchObject({
+		expect(await dateChangeOffer(t.db, EVENT, { now: NOW })).toMatchObject({
 			requested: true,
 			notified: 2,
 			people: 0,
@@ -189,7 +192,7 @@ describe('«Avisar a les compradores»', () => {
 		);
 		expect(r.dateChange.ok).toBe(true);
 		expect(await sends()).toBe(0);
-		expect(await dateChangeOffer(t.db, EVENT)).toMatchObject({
+		expect(await dateChangeOffer(t.db, EVENT, { now: NOW })).toMatchObject({
 			dismissed: true,
 			notice: false,
 			people: 1
