@@ -332,6 +332,9 @@ describe('validatePurchase', () => {
 			pronouns: i === 0 ? 'elle' : 'ella'
 		}));
 	const ok = {
+		// Una fecha fija antes del evento (META.start, 17/10/2026): sin `now`, validatePurchase usa
+		// Date.now() y estos tests fallarían con «La venta ya cerró» pasada esa fecha.
+		now: Date.parse('2026-10-01T12:00Z'),
 		type: 'anticipada',
 		quantity: '3',
 		buyer: { name: 'Ale Prueba', pronouns: 'elle', email: ' Ale@Example.COM ', dni: '20.111.222' },
@@ -463,6 +466,9 @@ describe('a la gorra', () => {
 		parseTicketConfig(GORRA, { fondoPercent: 20 })
 	);
 	const ok = {
+		// Una fecha fija antes del evento (META.start, 17/10/2026): sin `now`, validatePurchase usa
+		// Date.now() y estos tests fallarían con «La venta ya cerró» pasada esa fecha.
+		now: Date.parse('2026-10-01T12:00Z'),
 		type: 'gorra',
 		quantity: '2',
 		buyer: { name: 'Ale Prueba', pronouns: 'elle', email: 'ale@example.com', dni: '20111222' },
@@ -635,6 +641,9 @@ describe('el Fondo solo aplica a eventos con la etiqueta KinkyVibe', () => {
 		parseTicketConfig({ ...META, tags: ['AMBA', 'pago'], tickets }, { fondoPercent: 20 })
 	);
 	const ok = {
+		// Una fecha fija antes del evento (META.start, 17/10/2026): sin `now`, validatePurchase usa
+		// Date.now() y estos tests fallarían con «La venta ya cerró» pasada esa fecha.
+		now: Date.parse('2026-10-01T12:00Z'),
 		type: 'general',
 		quantity: '1',
 		buyer: { name: 'Ale Prueba', pronouns: 'elle', email: 'ale@example.com', dni: '20111222' },
