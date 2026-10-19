@@ -103,6 +103,14 @@ const run = (o) =>
 		...o
 	});
 
+/** Las filas del contador de avisos que fallaron. */
+async function failureRows() {
+	const { results } = await t.db
+		.prepare('SELECT * FROM follow_notification_failures ORDER BY day, channel, reason')
+		.all();
+	return results;
+}
+
 describe('las casillas de Telegram en follows', () => {
 	it('se guardan aparte de options y no cambian si el formulario no las trae', async () => {
 		const a = await account('tg-opciones', { telegram_recordatorio: true }, { chat: null });
@@ -281,6 +289,9 @@ describe('cuando Telegram no recibe', () => {
 		expect(await run({ posts, telegram: tg, now: NOW + 2000 })).toMatchObject({
 			telegram: { sent: 0 }
 		});
+		expect(await failureRows()).toEqual([
+			{ day: '2031-03-03', channel: 'telegram', reason: 'error', failures: 1 }
+		]);
 	});
 
 	it('si bloqueó al bot, se desvincula el chat y no se insiste', async () => {
@@ -295,6 +306,10 @@ describe('cuando Telegram no recibe', () => {
 		expect(await getTelegramLink(t.db, a.id)).toBeNull();
 		await run({ posts, telegram: tg, now: NOW + 1000 });
 		expect(tg.sent).toHaveLength(1);
+		// Se cuenta aparte, como «bloqueado» (y una sola vez: no se insiste).
+		expect(await failureRows()).toEqual([
+			{ day: '2031-03-03', channel: 'telegram', reason: 'bloqueado', failures: 1 }
+		]);
 	});
 
 	it('el tope por corrida de Telegram es aparte del de mails', async () => {

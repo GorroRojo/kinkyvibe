@@ -99,9 +99,11 @@ antes de prenderlo (apagado, explica qué pasa al prenderlo). Muestra:
   (etiquetas y series, perfiles, lugares), y cuántas tienen prendido «en mi calendario», «algo
   nuevo» y «recordatorio», por mail y por Telegram.
 - **Avisos mandados**: en los últimos 7 y 30 días y desde el principio, por tipo (algo nuevo,
-  recordatorio) y canal, y cuándo salió el último. Son los que **salieron**: los que fallan no
-  quedan guardados (se borra su fila para reintentar), así que no se pueden contar sin una
-  migración.
+  recordatorio) y canal, y cuándo salió el último. Son los que **salieron**. Debajo, **«Avisos que
+  fallaron: N en los últimos 7 días»**, por canal (mail, Telegram y, de Telegram, cuántos porque
+  el chat ya no recibe) y el total de 30 días. Sale del contador `follow_notification_failures`
+  (migración 0058, ver «Avisos que fallaron» abajo); sin la migración dice «No se pudieron contar
+  los avisos que fallaron» y lo demás se ve igual.
 - **«Avisame si se repite»**: cuántas suscripciones con cuenta ya pasaron a `follows`, cuántas con
   cuenta faltan pasar (confirmadas; se pasan solas en el cron con el interruptor prendido) y
   cuántas sin cuenta siguen con el mail.
@@ -173,6 +175,19 @@ prendido. Van al mail de la cuenta, uno por cuenta, evento y tipo
 Cada mail lleva el link a Mi rincón → Lo que sigo y otro para no recibir más mails de lo que sigue
 (`/avisos/sigo/<cuenta>.<firma>`, sin entrar y aunque el interruptor esté apagado; apaga los
 dos mails de todo, lo seguido y el calendario quedan). Hasta 50 mails por corrida.
+
+#### Avisos que fallaron (`migrations/0058_sigo_avisos_fallidos.sql`)
+
+La fila de `follow_notifications` se toma antes de mandar; si el aviso no sale, se borra para
+reintentarlo en la próxima corrida (eso no cambia). Para saber cuántos fallan, cada fallo suma 1
+en `follow_notification_failures` (`countFailure` en `notify.js`): un contador por **día** (hora
+de Argentina), **canal** (`mail`, `telegram`) y **motivo** (`error`: Resend o Telegram dijeron que
+no, o no se pudo llamar, y se reintenta; `bloqueado`: Telegram dijo que el chat ya no recibe, se
+desvincula y no se reintenta). **No guarda nada de personas** (ni cuenta, ni mail, ni chat, ni
+evento, ni el texto del error): como mucho 4 filas por día, así que no hace falta borrarlas. Un
+aviso que falla tres veces seguidas cuenta tres (son tres intentos). Si la tabla falta (migración
+sin aplicar), contar no hace nada (try/catch con una línea en el log) y los avisos y el reintento
+siguen igual.
 
 ### «Avisame si se repite» (`src/lib/server/sigo/avisame.js`)
 
