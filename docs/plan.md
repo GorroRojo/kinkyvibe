@@ -4,6 +4,8 @@ El plan de kinkyvibe en un solo archivo: lo que está en curso, lo que sigue, lo
 gorrite, lo de algún día y lo descartado. Reemplaza a la vieja `docs/hoja-de-ruta.md`, al issue
 #70 y a los artifacts de plan. Si algo no está acá, no está en el plan.
 
+Último repaso: 2026-10-19
+
 ## Reglas
 
 - **Cada ítem es una línea** con este formato (lo controla `scripts/plan-lint.js` en la CI):
@@ -65,10 +67,11 @@ CI) va en la fase 0.
 - `lanzamiento-compra-real` · fase 0 · hecho · entradas · Una compra real de monto chico con la cuenta de verdad, y su reembolso (gorrite, 12/10) (depende de: mp-plazo-comision)
 - `lanzamiento-mails` · fase 0 · sigue · mails · Probar los mails en Gmail, Hotmail, Yahoo y un mail de trabajo (spam, .ics, recordatorio, cambio de fecha) y revisar SPF, DKIM y DMARC
 - `lanzamiento-cupo-carga` · fase 0 · sigue · entradas · La última entrada vendida a la vez desde el sitio y la puerta, qué muestra «Para revisar», y 50–100 intentos de compra en pocos minutos contra un preview
-- `lanzamiento-preparar` · fase 0 · espera gorrite · entradas · Borrar los eventos de prueba, revisar remitente y contacto de devoluciones, el webhook de MP; quién revisa transferencias y quién está en la puerta; una segunda persona con acceso a todo; guías cortas (puerta, transferencias, reembolsos, «si se cae el sitio»); plan B en papel; no mergear durante una venta grande
+- `lanzamiento-preparar` · fase 0 · hecho · entradas · Borrar los eventos de prueba, revisar remitente y contacto de devoluciones, el webhook de MP; quién revisa transferencias y quién está en la puerta; una segunda persona con acceso a todo; guías cortas (puerta, transferencias, reembolsos, «si se cae el sitio»); plan B en papel; no mergear durante una venta grande (hecho, con la segunda persona ya admin; gorrite, 12/10)
 - `lanzamiento-avisos-venta` · fase 0 · sigue · entradas · Avisos durante una venta: errores de MP, mails que no salieron, cupo pasado
-- `lanzamiento-piloto` · fase 0 · espera gorrite · entradas · Abrir con un evento piloto propio y chico, después dos o tres normales, después los de amigues (depende de: lanzamiento-decisiones, lanzamiento-pruebas-mp)
-- `puerta-celus-reales` · fase 0 · espera gorrite · entradas · La puerta con celulares reales (Android y iPhone): escanear, código, buscar, vender en efectivo y transferencia, sin conexión y con dos celus a la vez
+- `lanzamiento-piloto` · fase 0 · hecho · entradas · Abrir con un evento piloto propio y chico, después dos o tres normales, después los de amigues; el piloto ya vendió y anduvo bien (gorrite, 12/10) (depende de: lanzamiento-decisiones, lanzamiento-pruebas-mp)
+- `puerta-celus-reales` · fase 0 · hecho · entradas · La puerta con celulares reales (Android y iPhone): escanear, código, buscar, vender en efectivo y transferencia, sin conexión y con dos celus a la vez (gorrite, 12/10)
+- `puerta-nota-precio-libre` · fase 0 · sigue · entradas · Al vender en la puerta, poder sumar una nota y cobrar cualquier precio (gorrite, 12/10, al probar la puerta) (depende de: puerta-celus-reales)
 - `qr-mp-puerta` · fase 0 · sigue · entradas · Cobrar con el QR de Mercado Pago en la puerta (gorrite, 11/10) (depende de: puerta-sin-conexion)
 - `boton-comprar-afuera` · fase 0 · hecho · sitio · Cuando las entradas se venden en otro sitio, el botón tiene el mismo peso que «Comprar entradas» (gorrite, 10/10) · #331
 - `lista-espera-boton-evento` · fase 0 · hecho · entradas · La página de un evento agotado con lista lleva a anotarse (antes solo se podía desde la página de compra) (gorrite, 12/10) · #351
@@ -140,7 +143,7 @@ CI) va en la fase 0.
 - `seo-titulos` · fase 0 · hecho · seo · El mes en el título de los eventos repetidos, el salto de `h1` a `h3` en las listas y `DefinedTerm` para etiquetas con descripción · [seo.md](seo.md) · #327
 - `tarjetas-lcp` · fase 0 · hecho · seo · Las primeras tarjetas del inicio cargan su imagen enseguida (el LCP arrancaba ~2 s tarde por `lazy`) · #356, [seo.md](seo.md)
 - `tarjetas-imagen-chica` · fase 0 · sigue · seo · Copia chica de cada imagen para las tarjetas, hecha al subirla (sin usar el cupo de transformaciones de Cloudflare) y una pasada por las que ya están: ~3 MB menos en el inicio · [seo.md](seo.md)
-- `seo-peso-resto` · fase 0 · espera gorrite · seo · Lo que quedó del peso de las páginas: hasta 5 etiquetas por tarjeta y relacionadas de a 20 (cambian lo que se ve: opciones en seo.md), panel de etiquetas armado al abrirlo en celu, `siteTags` aparte (no ahorra sin un archivo estático), íconos de las tarjetas en sprite (gorrite: no por ahora) · [seo.md](seo.md)
+- `seo-peso-resto` · fase 0 · sigue · seo · Lo que quedó del peso de las páginas: hasta 5 etiquetas por tarjeta con un «+N» que despliega el resto y relacionadas de a 20 (opciones 1b y 2a de seo.md; que la búsqueda no se rompa si las etiquetas no están cargadas; gorrite, 12/10), panel de etiquetas armado al abrirlo en celu, `siteTags` aparte (no ahorra sin un archivo estático), íconos de las tarjetas en sprite (gorrite: no por ahora) · [seo.md](seo.md)
 - `noai-por-post` · fase 0 · algún día · seo · Opción de «noai» por publicación (los robots de IA los maneja gorrite en Cloudflare)
 - `estandares-web` · fase 0 · hecho · seo · JSON-LD, microformatos, rel=me, security.txt, vCard, feeds Atom y JSON · #278, #280
 - `fechas-iso` · fase 0 · hecho · seo · Fechas ISO 8601 válidas en metadatos, JSON-LD y `<time datetime>` · #319, [seo.md](seo.md)
@@ -158,28 +161,28 @@ CI) va en la fase 0.
 ### Bot de Telegram
 
 - `bot-avisos-admin-3` · fase 0 · sigue · bot · Telegram para admins, parte 3: el resumen del día del evento y los recordatorios (el evento de mañana, falta el lugar o el link de la transmisión) (depende de: bot-avisos-admin) · [0041](decisiones/0041-telegram-para-admins.md)
-- `bot-avisos-admin-probar` · fase 0 · espera gorrite · bot · Prender `telegram_admin` en un preview y probarlo con un Telegram vinculado (la migración 0054 ya está en preview y producción) (depende de: bot-avisos-admin)
-- `bot-avisos-admin-2-probar` · fase 0 · espera gorrite · bot · Telegram para admins, parte 2: aplicar la migración 0055 en preview y producción antes de mergear #322, y probarlo en un preview con una compra de prueba y el cron de las 9 (depende de: bot-avisos-admin)
-- `bot-estadisticas-prender` · fase 0 · espera gorrite · bot · Estadísticas de uso del bot: aplicar la migración 0057 en preview y producción antes de mergear, `/setinlinefeedback` al 100 % en @BotFather y volver a registrar el webhook (`npm run telegram:webhook`), y prender «Telegram: estadísticas de uso», primero en un preview (depende de: bot-estadisticas) · [telegram.md](telegram.md#puesta-en-marcha-de-las-estadísticas-la-hace-gorrite)
+- `bot-avisos-admin-probar` · fase 0 · hecho · bot · Prender `telegram_admin` en un preview y probarlo con un Telegram vinculado (la migración 0054 ya está en preview y producción) (depende de: bot-avisos-admin)
+- `bot-avisos-admin-2-probar` · fase 0 · hecho · bot · Telegram para admins, parte 2: aplicar la migración 0055 en preview y producción antes de mergear #322, y probarlo en un preview con una compra de prueba y el cron de las 9 (depende de: bot-avisos-admin)
+- `bot-estadisticas-prender` · fase 0 · hecho · bot · Estadísticas de uso del bot: aplicar la migración 0057 en preview y producción antes de mergear, `/setinlinefeedback` al 100 % en @BotFather y volver a registrar el webhook (`npm run telegram:webhook`), y prender «Telegram: estadísticas de uso», primero en un preview (depende de: bot-estadisticas) · [telegram.md](telegram.md#puesta-en-marcha-de-las-estadísticas-la-hace-gorrite)
 - `bot-avisos-admin-aprobada` · fase 0 · algún día · bot · Guardar cuándo se aprobó cada orden (`approved_at`, necesita migración) para que «vendidas desde ayer» del resumen diario no dependa de `updated_at`, si hace falta (depende de: bot-avisos-admin)
 - `bot-avisos-admin-menu` · fase 0 · algún día · bot · `/estado` y `/avisos` en el menú «/» solo de les admins vinculades (`setMyCommands` por chat desde el cron; borrarlo al desvincular), si hace falta
 - `bot-busquedas-vacias-panel` · fase 0 · sigue · bot · Contar cuántas búsquedas del bot no encuentran nada, para el panel (sin guardar quién ni qué) (depende de: bot-busquedas-vacias)
 - `bot-sin-resultados-grupo` · fase 0 · sigue · bot · Sin resultados en un grupo: «⭐ Seguir» la etiqueta buscada como link al chat privado (hoy no aparece; haría falta un deep link nuevo) (depende de: bot-busquedas-vacias)
 - `bot-sin-resultados-tildes` · fase 0 · sigue · bot · Sin resultados: las palabras sugeridas salen como las guarda el índice, sin tildes ni mayúsculas («guia», no «Guía»); mostrarlas como se escriben en el título (depende de: bot-busquedas-vacias)
-- `bot-puerta-probar` · fase 0 · espera gorrite · bot · Probar la Puerta por Telegram en un preview con celus reales (vincular, abrir, escanear) · [0037](decisiones/0037-puerta-por-telegram.md)
+- `bot-puerta-probar` · fase 0 · espera gorrite · bot · Probar la Puerta por Telegram en un preview con celus reales (vincular, abrir, escanear); gorrite lo prueba en el próximo evento, sin bot de prueba (12/10) · [0037](decisiones/0037-puerta-por-telegram.md)
 - `bot-puerta-2` · fase 0 · sigue · bot · Bot 4/5: Puerta por Telegram parte 2 (contador en vivo, escribir el código a mano) (depende de: bot-busquedas-vacias, bot-puerta-probar)
-- `bot-kinkipedia-ramas-probar` · fase 0 · espera gorrite · bot · Mirar en Telegram la Kinkipedia por ramas con el árbol de verdad: que las ramas de arriba sean las de `/wiki` y que ninguna quede con un solo hijo de más (depende de: bot-secciones-ajustes)
+- `bot-kinkipedia-ramas-probar` · fase 0 · hecho · bot · Mirar en Telegram la Kinkipedia por ramas con el árbol de verdad: que las ramas de arriba sean las de `/wiki` y que ninguna quede con un solo hijo de más (depende de: bot-secciones-ajustes)
 - `bot-mis-entradas-partes` · fase 0 · hecho · bot · Mis entradas: un taller de varias partes sigue en «próximas» hasta la última parte · #329
 - `bot-estadisticas` · fase 0 · hecho · bot · Estadísticas de uso del bot (Estadísticas → Bot de Telegram): quién lo usa y cuánto, por persona y día, y aparte, sumado por semana, para qué (pantallas, comandos, búsquedas, cosas públicas, Mini App); nunca qué buscó o miró cada persona; umbral de 5 y retención de 180 días, detrás de `telegram_estadisticas` · #346, [0045](decisiones/0045-estadisticas-del-bot.md)
 - `rincon-compras-partes` · fase 0 · sigue · cuentas · Mi rincón, «Mis compras»: en un taller de varias partes, mostrar la fecha de la próxima parte (hoy muestra la de la parte 1)
 - `bot-mis-entradas-transmision` · fase 0 · sigue · bot · Mis entradas: mandar el link de la transmisión de un evento online por el chat; la tarjeta muestra «Ver la transmisión» cuando el link está cargado, con la misma regla que la página de la entrada (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
-- `bot-mis-entradas-probar` · fase 0 · espera gorrite · bot · Probar «Mis entradas» en Telegram con una entrada de prueba (el QR por la API solo se prueba contra el bot de verdad)
+- `bot-mis-entradas-probar` · fase 0 · hecho · bot · Probar «Mis entradas» en Telegram con una entrada de prueba (el QR por la API solo se prueba contra el bot de verdad)
 - `bot-avisos-apagados` · fase 0 · algún día · bot · Recordar si alguien apagó a propósito los avisos de algo, para que dejar de seguirlo y volver a seguirlo desde el bot no los prenda (volver a vincular ya no saca `/silenciar`, #321; necesita migración, aplicarla antes del merge, 0028) · [0036](decisiones/0036-seguir-en-el-bot-prende-avisos.md)
 - `bot-textos-miniapp` · fase 0 · algún día · bot · Los textos de la página de la puerta (`/telegram/puerta`, solo admins) en «Textos del bot» (los de la Mini App del calendario ya están, #321)
 - `bot-visible-sitio` · fase 0 · sigue · bot · Que el bot se vea en el sitio, discreto: un link en el pie, una línea en el calendario y la tarjeta de Mi rincón que ya existe; los textos van en un PR con capturas (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `bot-mensajes-enriquecidos` · fase 0 · hecho · bot · Lo que el bot manda del sitio (Kinkipedia, material, eventos) se lee adentro del chat como mensaje enriquecido (Bot API 10.1–10.3), en el modo inline y en la tarjeta compacta, apagado con `telegram_enriquecido` · #336, [telegram.md](telegram.md#mensajes-enriquecidos-y-compartir)
 - `bot-compartir-miniapp` · fase 0 · hecho · bot · Mini App del calendario: «📤 Mandar a un chat» en cada evento y link directo a un evento (`?startapp=`), apagado con `telegram_enriquecido` · #336, [telegram.md](telegram.md#compartir-desde-la-mini-app-del-calendario)
-- `bot-enriquecido-probar` · fase 0 · espera gorrite · bot · Registrar la Main Mini App en @BotFather, prender `telegram_enriquecido` en un preview y mirar los mensajes enriquecidos y «Mandar a un chat» en dos celus (uno con una app vieja) (depende de: bot-mensajes-enriquecidos, bot-compartir-miniapp)
+- `bot-enriquecido-probar` · fase 0 · hecho · bot · Registrar la Main Mini App en @BotFather, prender `telegram_enriquecido` en un preview y mirar los mensajes enriquecidos y «Mandar a un chat» en dos celus (uno con una app vieja) (depende de: bot-mensajes-enriquecidos, bot-compartir-miniapp)
 - `bot-entrar-con-telegram` · fase 0 · algún día · bot · «Entrar con Telegram» (OpenID Connect) para las cuentas: no elegido por ahora (gorrite, 12/10)
 - `bot-navegar-secciones` · fase 0 · hecho · bot · Bot 1/5: recorrer el sitio por secciones · #308
 - `bot-mis-entradas` · fase 0 · hecho · bot · Bot 2/5: «🎟 Mis entradas» con el QR de la puerta · #313
@@ -201,7 +204,7 @@ CI) va en la fase 0.
 ### Mails
 
 - `mails-codigo-seguimiento` · fase 0 · sigue · mails · Códigos copiables: probar en un iPhone con Mail de Apple, averiguar por qué Gmail toma el mail por inglés y sumar `OTP-Token` u `One-Time-Code` cuando un cliente lo use · #297, [mails.md](mails.md#códigos-copiables)
-- `gmail-tarjeta-evento` · fase 0 · espera gorrite · mails · Tarjeta de evento en Gmail: registrarse con Google y revisar el volumen de envío; gorrite manda el formulario
+- `gmail-tarjeta-evento` · fase 0 · algún día · mails · Tarjeta de evento en Gmail: registrarse con Google y revisar el volumen de envío; gorrite manda el formulario (gorrite: después, 12/10)
 - `bimi` · fase 0 · algún día · mails · BIMI para los mails (gorrite: más adelante)
 
 ### Pruebas y CI
@@ -230,8 +233,8 @@ CI) va en la fase 0.
 ### Infraestructura
 
 - `prettier-ignore-temporal` · fase 1 · sigue · infra · Formatear y sacar de `.prettierignore` la lista temporal de archivos que tocaban ramas abiertas
-- `cf-dashboard-limpiar` · fase 1 · espera gorrite · infra · Dashboard de Cloudflare: borrar el proyecto viejo de Pages y las variables `*_ENABLED` que ya no hacen nada
-- `backup-simulacro` · fase 1 · espera gorrite · infra · Simulacro de restaurar un backup en local (`npm run db:restore -- <fecha> --local`)
+- `cf-dashboard-limpiar` · fase 1 · hecho · infra · Dashboard de Cloudflare: borrar las variables `*_ENABLED` que ya no hacen nada; el proyecto viejo de Pages queda por las dudas (gorrite, 12/10)
+- `backup-simulacro` · fase 1 · hecho · infra · Simulacro de restaurar un backup en local (`node scripts/d1-restore.js <fecha> --local`): corrió en Windows, igual que el backup (gorrite, 12/10) · #345
 - `sveltekit-3` · fase 1 · sigue · infra · Revisar qué pide SvelteKit 3 (rutina del 9/11; gorrite: esperar, sin parches antes)
 - `rss-aviso-sacar` · fase 1 · sigue · infra · Sacar el aviso del RSS el 27/10 (rutina)
 - `push-pwa` · fase 1 · sigue · infra · Notificaciones push y PWA (gorrite, 12/10) · #16, #43, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
@@ -250,7 +253,8 @@ CI) va en la fase 0.
 - `conector-claude-edicion` · fase 2 · sigue · panel · Conector de Claude, parte 2: los cambios que se pueden hacer desde el panel (editar campos, crear borradores, vincular un lugar), cada uno por el mismo guardado del panel y con el historial a nombre de Claude; nada de plata ni mails (depende de: conector-claude-lectura)
 - `importar-material-script` · fase 2 · hecho · contenido · `scripts/importar-material.js`: carga un paquete privado de borradores de material como no listado, por el camino del panel · #342, [contenido.md](contenido.md#tareas-comunes)
 - `importar-material-correr` · fase 2 · sigue · contenido · ver Mesa: cargar el paquete de borradores con el conector de Claude cuando esté, en vez del script (gorrite, 12/10) (depende de: importar-material-script, conector-claude-edicion)
-- `subir-archivos` · fase 2 · espera gorrite · contenido · gorrite corre `node scripts/subir-archivos.js --target=production` (PDF, video y ODT a la biblioteca); después un PR borra `src/lib/archivos/` y su glob en `render.js` · [contenido.md](contenido.md#lo-que-falta)
+- `subir-archivos` · fase 2 · hecho · contenido · gorrite corre `node scripts/subir-archivos.js --target=production` (PDF, video y ODT a la biblioteca): corrido en preview y producción (12/10) · [contenido.md](contenido.md#lo-que-falta)
+- `archivos-borrar` · fase 2 · sigue · contenido · Un PR que borra `src/lib/archivos/` y su glob en `render.js`, ahora que los archivos están en la biblioteca (depende de: subir-archivos)
 - `codigo-muerto-github` · fase 2 · sigue · contenido · Código que quedó del panel con GitHub: `sharedImage.js`, la edición del archivo de etiquetas en `tagConfig.js`, ramas «no se guardó en la base», el permiso `public_repo` del login, y que el panel guarde objetos sin pasar por «rutas de `.md`» (`getRepoClient`, `withContentDb`, `commitFiles`)
 - `restos-limpieza` · fase 2 · sigue · contenido · Restos chicos: la regla de estilo que no alcanza a `.kv-texto-libre` (unas 200 páginas, con antes y después), un solo `foldText` en vez de las copias, un solo helper de imagen de una publicación, renombrar el `isAdmin` de `objects/visibility.js`, el campo de texto `perfil.avatar`
 - `docs-a-confirmar` · fase 2 · sigue · docs · Cerrar los «a confirmar» de los docs que gorrite ya confirmó (por ejemplo en lo-que-sigo.md) y las líneas viejas de tickets.md
@@ -272,7 +276,7 @@ CI) va en la fase 0.
 ### Cuentas y perfiles
 
 - `lo-que-sigo-fichas` · fase 2 · sigue · panel · «N cuentas lo siguen» en la ficha de una etiqueta y de un perfil del panel (solo admins; quiénes, en Mensajes › Lo que sigo) (depende de: lo-que-sigo-panel) · [0043](decisiones/0043-lo-que-sigo-en-el-panel.md)
-- `lo-que-sigo-avisos-fallidos` · fase 2 · espera gorrite · panel · Contar los avisos de «Lo que sigo» que fallaron (hoy se borra su fila para reintentar: necesita migración); gorrite decide si hace falta (depende de: lo-que-sigo-panel)
+- `lo-que-sigo-avisos-fallidos` · fase 2 · en curso · panel · Contar los avisos de «Lo que sigo» que fallaron (hoy se borra su fila para reintentar: necesita migración; gorrite: sí, contalos, 12/10) (depende de: lo-que-sigo-panel) · #347
 - `admins-cuenta-normal` · fase 2 · sigue · cuentas · Admins con la cuenta del sitio en vez de GitHub: ser admin como permiso de la cuenta, la lista de admins a la base, migrar lo que guarda ids de GitHub; con decisión propia y por partes, con GitHub de respaldo (gorrite, 11/10)
 - `passkeys` · fase 2 · sigue · cuentas · Passkeys para las cuentas · [cuentas.md](cuentas.md#pendiente-partes-siguientes)
 - `compra-con-cuenta` · fase 2 · sigue · cuentas · Guardar `orders.account_id` al comprar y que `requiere_cuenta` pida ingresar de verdad · [0002](decisiones/0002-cuentas-y-perfiles.md)
@@ -289,9 +293,9 @@ CI) va en la fase 0.
 ## Fase 3
 
 - `lista-espera` · fase 3 · hecho · entradas · Lista de espera por evento o tipo de entrada, apagada · #310, [0040](decisiones/0040-lista-de-espera.md)
-- `lista-espera-prender` · fase 3 · espera gorrite · entradas · Prender `lista_espera` y probarla en un evento piloto (anotarse, reembolso, oferta y compra con el link) (depende de: lista-espera)
+- `lista-espera-prender` · fase 3 · espera gorrite · entradas · Prender `lista_espera` (ya prendido en producción y probado en un preview) y probarla en un evento real (anotarse, reembolso, oferta y compra con el link) (depende de: lista-espera)
 - `lista-espera-mail-terminar` · fase 3 · hecho · entradas · «Terminar la reserva y pasar a la siguiente» pregunta si le avisamos por mail («se terminó tu lugar», marcado de entrada) (depende de: lista-espera) · #339
-- `promos-varios-eventos` · fase 3 · en curso · entradas · Promociones de varios eventos, versión chica (gorrite, 12/10): código combo, la compra de un evento trae en su mail un código personal para otro; detrás de `combo_codigos`, migración 0056 · #340
+- `promos-varios-eventos` · fase 3 · hecho · entradas · Promociones de varios eventos, versión chica (gorrite, 12/10): código combo, la compra de un evento trae en su mail un código personal para otro; detrás de `combo_codigos`, migración 0056 · #340
 - `talleres-partes-mails-preview` · fase 3 · sigue · entradas · Vista previa de los mails de cada parte de un taller en el panel
 - `talleres-viejos-a-partes` · fase 3 · sigue · entradas · Pasar a talleres en partes los talleres viejos de varios días (datos de producción, probando antes en el demo), lo hace Claude de a tandas, cada una con el OK de gorrite en la Mesa (12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md), [talleres-partes.md](talleres-partes.md#pendiente)
 - `pasar-entrada` · fase 3 · algún día · entradas · Pasarle una entrada a otra persona por mail
@@ -326,7 +330,6 @@ CI) va en la fase 0.
 
 - `videos` · fase 7 · algún día · contenido · Videos con Cloudflare Stream y links firmados; el cobro separado del proveedor de las entradas · nav: videos · [0009](decisiones/0009-infraestructura.md)
 - `proto-segundo-pago` · fase 7 · sigue · entradas · Prototipo de un segundo proveedor de pago (de reserva para las entradas, y para lo que no puede ir por Mercado Pago)
-- `negocio-1` · fase 7 · espera gorrite · plan · ver Mesa
 - `negocio-2` · fase 7 · espera gorrite · plan · ver Mesa
 
 ## Fase 8
@@ -337,6 +340,7 @@ CI) va en la fase 0.
 
 Para que no vuelvan: si alguien lo propone de nuevo, primero se habla con gorrite.
 
+- `negocio-1` · fase 7 · descartado · plan · ver Mesa (gorrite, 12/10)
 - `bot-miniapp-historia` · fase 0 · descartado · bot · «Compartir en tu historia» desde la Mini App: no (gorrite, 12/10)
 - `kinkipedia-series-mejor` · fase 0 · descartado · sitio · Kinkipedia más rica y una lista de series mejor armada (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
 - `kv-fondo-repo` · fase 1 · descartado · infra · Sumar kv-fondo a este repo: se quedan separados, kv-fondo sigue en su repo privado y hablan por la API (gorrite, 12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
