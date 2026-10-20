@@ -19,7 +19,15 @@
  * Privacidad: el DNI completo nunca va en la lista sin conexión ni en el escaneo (solo los
  * últimos 3 dígitos); se pide aparte y se registra quién lo vio.
  */
-import { computePrice, isFondoOption, normalizeDni, remainingOf } from '$lib/utils/tickets.js';
+import {
+	ORDER_MAX_MESSAGE,
+	computePrice,
+	exceedsOrderMax,
+	isFondoOption,
+	normalizeDni,
+	parseAmount,
+	remainingOf
+} from '$lib/utils/tickets.js';
 import { doorPrice } from '$lib/utils/ticketTiers.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { sha256Hex } from '$lib/server/hash.js';
@@ -672,10 +680,17 @@ export function parseDoorSale(config, get) {
 	/** @type {number | undefined} */
 	let unitPrice;
 	if (type.gorra) {
-		unitPrice = Number(text('amount', 12).replace(/[.\s$]/g, ''));
-		if (!Number.isSafeInteger(unitPrice) || unitPrice < type.gorra.min) {
+		// El mismo criterio que la compra online (`parseAmount`): «5.000», «$ 5.000» y «5000,00»
+		// son 5000; «5000.00» o «5.5» no se adivinan (antes «5000.00» quedaba en $ 500.000).
+		const amount = parseAmount(text('amount', 14));
+		if (amount === null) {
+			return bad('Escribí el monto por entrada en pesos, sin centavos (por ejemplo 5.000).');
+		}
+		if (amount < type.gorra.min) {
 			return bad(`El monto por entrada tiene que ser de al menos $ ${type.gorra.min}.`);
 		}
+		if (exceedsOrderMax(amount, quantity)) return bad(ORDER_MAX_MESSAGE);
+		unitPrice = amount;
 	} else {
 		const o = text('option', 20);
 		option = isFondoOption(o) ? /** @type {any} */ (o) : undefined;

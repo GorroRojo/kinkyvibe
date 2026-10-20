@@ -217,6 +217,17 @@ describe('cargar entradas a mano', () => {
 		expect(r.order).toMatchObject({ total: 5000, method: 'otro' });
 	});
 
+	it('el monto se lee como en la compra online: «5000.00» no queda en $ 500.000', async () => {
+		const r = await load({ method: 'efectivo', amount: '5000.00' });
+		expect(r).toMatchObject({
+			status: 400,
+			data: { message: expect.stringMatching(/sin centavos/) }
+		});
+		expect(await sold()).toBe(0);
+		const ok = await load({ method: 'efectivo', amount: '5000,00' });
+		expect(ok.order).toMatchObject({ total: 5000 });
+	});
+
 	it('no admin: no carga', async () => {
 		expect(await load({ override: 'x' }, notAdmin)).toEqual({ thrown: 403 });
 		expect(await sold()).toBe(0);
