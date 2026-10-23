@@ -165,7 +165,9 @@
 						value={values.value ?? ''}
 						aria-invalid={errors.value ? 'true' : undefined}
 					/>
-					{#if kind === 'percent'}<small>100 = entrada sin cargo.</small>{/if}
+					{#if kind === 'percent'}<small
+							>100 = compra sin cargo (todas las entradas de esa compra).</small
+						>{/if}
 					{#if errors.value}<small class="kv-error">{errors.value}</small>{/if}
 				</label>
 				<label class="kv-field">
@@ -178,7 +180,7 @@
 						inputmode="numeric"
 						value={values.max_uses ?? ''}
 					/>
-					<small>Cantidad de compras que pueden usarlo. Vacío: sin límite.</small>
+					<small>Cantidad de compras (no de entradas) que pueden usarlo. Vacío: sin límite.</small>
 					{#if errors.max_uses}<small class="kv-error">{errors.max_uses}</small>{/if}
 				</label>
 				<label class="kv-field">

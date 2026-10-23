@@ -77,6 +77,7 @@ CI) va en la fase 0.
 - `lista-espera-boton-evento` · fase 0 · hecho · entradas · La página de un evento agotado con lista lleva a anotarse (antes solo se podía desde la página de compra) (gorrite, 12/10) · #351
 - `formularios-mail-origen` · fase 0 · hecho · sitio · «Confirmar» y los otros botones de los links de los mails daban «Cross-site POST form submissions are forbidden» (no-referrer manda `Origin: null`): same-origin, y confirmar se manda solo al abrir (gorrite, 12/10) · #355
 - `puerta-precio-publico` · fase 0 · hecho · entradas · «También hay entradas en la puerta» muestra el precio en puerta de los tipos (uno, «desde» o «a la gorra») cuando no hay nota (gorrite, 12/10) · #354
+- `codigos-tope-entradas` · fase 0 · espera gorrite · entradas · Códigos de descuento: un uso es una compra entera, no una entrada. El panel ya lo dice; falta, con el OK de gorrite, un tope de entradas por código (y contar usos sin depender de mayúsculas) antes de prender `combo_codigos` · ver Mesa
 - `tickets-spec-arreglar` · fase 0 · sigue · pruebas · Dos pruebas de `tests/tickets/tickets.spec.js` que no corren en la CI: arregladas en #325 («1 aprobado» en singular; esperar a que cargue la página). Falta sumarlas a la CI
 - `puerta-sin-conexion` · fase 0 · hecho · entradas · Vender en la puerta sin conexión · #286, [0035](decisiones/0035-vender-en-puerta-sin-conexion.md)
 - `transferencia-dias-habiles` · fase 0 · hecho · entradas · Reserva por transferencia de 2 días hábiles · #261, [0031](decisiones/0031-reserva-transferencia-dias-habiles.md)
