@@ -33,7 +33,12 @@
 	import WaitlistDoorNote from '$lib/components/admin/WaitlistDoorNote.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { CHECKIN_LIST_PARAM } from '$lib/utils/doorEvents.js';
-	import { computePrice, defaultFondoOption, parseAmount } from '$lib/utils/tickets.js';
+	import {
+		FREE_DOOR_MESSAGE,
+		computePrice,
+		defaultFondoOption,
+		parseAmount
+	} from '$lib/utils/tickets.js';
 	import {
 		DOOR_SALE_DEFAULT_METHOD,
 		doorOptionLabel,
@@ -741,6 +746,11 @@
 		delete fields.override;
 		if (!sType) {
 			saleError = 'Elegí un tipo de entrada.';
+			return;
+		}
+		// Precio 0 en la puerta: el servidor no la registraría al sincronizar.
+		if (!sType.gorra && sType.price === 0) {
+			saleError = FREE_DOOR_MESSAGE;
 			return;
 		}
 		const quantity = Number(fields.quantity);

@@ -11,6 +11,7 @@ import { PURCHASE_STEPS } from '$lib/utils/purchaseSteps.js';
 import { stripHtmlComments, stripHtmlTags } from '$lib/utils/htmlStrip.js';
 import { textOf } from '$lib/testing/html.js';
 import { expiryMoment } from '$lib/utils/expiry.js';
+import { withFondoPercent } from '$lib/utils/tickets.js';
 
 /** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
 const tickets = {
@@ -196,6 +197,33 @@ describe('TicketPurchase', () => {
 			.filter((i) => /\schecked(=|\s|>|\/)/.test(i));
 		expect(checked).toHaveLength(1);
 		expect(checked[0]).toContain('value="anticipada"');
+	});
+
+	it('manda el porcentaje del Fondo que se ve solo con el descuento del fondo elegido', () => {
+		const hidden = (/** @type {string} */ body) =>
+			body.match(/<input[^>]*name="fondo_percent"[^>]*>/)?.[0] ?? null;
+		// Por defecto, con el descuento del fondo (el servidor avisa si cambió antes de cobrar).
+		expect(hidden(render(TicketPurchase, { props: { tickets } }).body)).toContain('value="20"');
+		// Con el porcentaje que contestó el servidor (withFondoPercent), el nuevo y sus precios.
+		const updated = render(TicketPurchase, {
+			props: { tickets: withFondoPercent(tickets, 10) }
+		}).body;
+		expect(hidden(updated)).toContain('value="10"');
+		expect(textOf(updated)).toMatch(/el fondo cubre \$\s1\.000 de cada entrada/);
+		// Precio completo o solidaria: el Fondo no cambia lo que se cobra, no se manda.
+		const full = render(TicketPurchase, {
+			props: {
+				tickets,
+				result: { error: null, errors: {}, values: { type: 'general', option: 'completo' } }
+			}
+		}).body;
+		expect(hidden(full)).toBeNull();
+		// Sin Fondo (evento que no es de KinkyVibe), tampoco.
+		const noFondo = { ...tickets, fondoEnabled: false, fondoPercent: null };
+		const types = [{ ...tickets.types[0], fondo: 0 }];
+		expect(
+			hidden(render(TicketPurchase, { props: { tickets: { ...noFondo, types } } }).body)
+		).toBeNull();
 	});
 
 	it('venta cerrada: sin formulario ni pasos', () => {

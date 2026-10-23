@@ -30,6 +30,12 @@ export function remainingOf(type, counts) {
 export const LOW_STOCK = 10;
 
 /**
+ * Un tipo con precio 0 en la puerta (no a la gorra): la puerta no lo vende (`sellAtDoor` da
+ * `free-door`), con y sin conexión se dice esto.
+ */
+export const FREE_DOOR_MESSAGE = 'Esta entrada es sin cargo en la puerta: cargala a mano.';
+
+/**
  * Lo que se muestra en público de lo que queda: el número solo si el tipo tiene cupo y quedan
  * menos de `LOW_STOCK` (y alguna). Si no, `null` (no se muestran números: ni el cupo ni lo
  * vendido). Agotado (0) se muestra aparte.
@@ -233,6 +239,38 @@ export function defaultFondoOption(fondo) {
  */
 export function fondoOptionsFor(fondo) {
 	return FONDO_OPTIONS.filter((o) => o.id !== 'fondo' || fondo > 0);
+}
+
+/**
+ * La página de compra con otro porcentaje del Fondo: el que contestó el servidor al comprar
+ * (`form.buy.fondoPercent`), por si cambió desde que se cargó la página. Recalcula lo que cubre
+ * el fondo en cada tipo con precio (como `config.js`: `round(precio × % / 100)`), así el
+ * formulario muestra y vuelve a mandar el porcentaje que se va a cobrar sin recargar. Sin un
+ * porcentaje válido, sin Fondo o con el mismo, devuelve la vista como estaba.
+ *
+ * @template {{ fondoEnabled: boolean, fondoPercent: number | null,
+ *   types: { price: number, fondo: number, gorra: unknown }[] }} V
+ * @param {V} view
+ * @param {unknown} percent
+ * @returns {V}
+ */
+export function withFondoPercent(view, percent) {
+	if (
+		!view.fondoEnabled ||
+		typeof percent !== 'number' ||
+		!Number.isInteger(percent) ||
+		percent < 0 ||
+		percent > 100 ||
+		percent === view.fondoPercent
+	)
+		return view;
+	return {
+		...view,
+		fondoPercent: percent,
+		types: view.types.map((t) =>
+			t.gorra ? t : { ...t, fondo: Math.round((t.price * percent) / 100) }
+		)
+	};
 }
 
 /**

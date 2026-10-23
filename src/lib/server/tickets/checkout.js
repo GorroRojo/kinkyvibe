@@ -388,6 +388,9 @@ function readForm(form) {
 		// Tramo de preventa que vio la persona (solo para avisar si cambió: el precio lo elige el
 		// servidor, nunca este valor).
 		tier: str('tier', 60),
+		// Porcentaje del Fondo que vio la persona (lo mismo: solo para avisar si cambió). Vacío si
+		// no eligió el descuento del fondo o el formulario es de antes de este campo.
+		fondoPercent: str('fondo_percent', 5).trim(),
 		// Link de una oferta de la lista de espera (`?lista=<token>`, campo oculto).
 		lista: str('lista', 60).trim(),
 		method: str('method', 30),
@@ -539,6 +542,15 @@ function priceChangedMessage(type, tier) {
 }
 
 /**
+ * "El descuento del Fondo cambió": el porcentaje vigente no es el que vio la persona.
+ *
+ * @param {number} percent el porcentaje de ahora
+ */
+export function fondoChangedMessage(percent) {
+	return `El descuento del Fondo cambió: ahora es ${percent} %. Revisá el total y volvé a confirmar.`;
+}
+
+/**
  * Pidió más de lo que queda en el tramo vigente.
  *
  * @param {string} tierName
@@ -561,9 +573,24 @@ export async function buyAction(event) {
 	const values = readForm(form);
 	/** @type {AppliedDiscount | null} */
 	let applied = null;
+	/**
+	 * Porcentaje del Fondo con el que se cobraría ahora (en los eventos con Fondo, una vez leída la
+	 * configuración): va en cada respuesta con error para que el formulario muestre esos precios
+	 * (`withFondoPercent`) y no vuelva a mandar uno viejo.
+	 * @type {number | undefined}
+	 */
+	let fondoPercent;
 	/** @param {number} status @param {string} error @param {Record<string, string>} [errors] */
 	const failWith = (status, error, errors = {}) =>
-		fail(status, { buy: { error, errors, values, discount: applied } });
+		fail(status, {
+			buy: {
+				error,
+				errors,
+				values,
+				discount: applied,
+				...(fondoPercent !== undefined && { fondoPercent })
+			}
+		});
 
 	if (!db) return failWith(503, 'La venta de entradas no está disponible ahora.');
 	// DEV ONLY: las pruebas E2E compran todo desde la misma conexión (localhost).
@@ -580,6 +607,7 @@ export async function buyAction(event) {
 	// El precio se calcula acá, al crear la orden, con el porcentaje del Fondo de este momento.
 	const config = await eventTicketsWithFondo(db, params.event, fetch);
 	if (!config) return failWith(404, 'Este evento no vende entradas por acá.');
+	if (config.fondoEnabled && config.fondoPercent !== null) fondoPercent = config.fondoPercent;
 	// Un solo "ahora" para el horario, el tramo vigente y la reserva (los bordes de fecha de un
 	// tramo no pueden caer entre una cosa y la otra).
 	const now = Date.now();
@@ -658,6 +686,16 @@ export async function buyAction(event) {
 			if (values.tier !== a.tier.tier.id) {
 				const message = priceChangedMessage(chosen, a.tier.tier);
 				return failWith(409, message, { type: message });
+			}
+		}
+		// El Fondo, igual: el porcentaje puede cambiar entre que se cargó la página y la compra (sale
+		// de fondo.kinkyvibe.ar). Si el formulario dice que vio otro, no se cobra sin avisar; la
+		// respuesta lleva el de ahora, así confirmar de nuevo pasa sin recargar. Sin el campo
+		// (formularios viejos, sin el descuento del fondo elegido) no se frena nada.
+		if (fondoPercent !== undefined && !chosen.gorra && values.fondoPercent !== '') {
+			if (Number(values.fondoPercent) !== fondoPercent) {
+				const message = fondoChangedMessage(fondoPercent);
+				return failWith(409, message, { option: message });
 			}
 		}
 	}

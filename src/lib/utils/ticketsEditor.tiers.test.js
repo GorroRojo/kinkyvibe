@@ -325,4 +325,29 @@ tickets:
 		form.types[0].doorPrice = 'doce mil';
 		expect(validateTicketsForm(form).errors.join(' ')).toContain('precio en puerta');
 	});
+
+	it('un precio en puerta de $ 0 no se guarda (la puerta no vende sin cargo)', () => {
+		const form = readTicketsForm(
+			/** @type {any} */ ({ tickets: [{ id: 'general', name: 'General', price: 10000 }] })
+		);
+		form.types[0].doorPrice = '0';
+		expect(validateTicketsForm(form).errors.join(' ')).toContain(
+			'el precio en puerta no puede ser $ 0'
+		);
+		// Al guardar, el servidor usa la misma validación.
+		const file = `---
+title: Fiesta de prueba
+start: 2026-12-12T21:00-03:00
+tickets:
+  - id: general
+    name: General
+    price: 10000
+    door_price: 0
+---
+`;
+		expect(ticketsFileErrors(file).join(' ')).toContain('el precio en puerta no puede ser $ 0');
+		// Vacío sigue valiendo: se cobra el precio de siempre.
+		form.types[0].doorPrice = '';
+		expect(validateTicketsForm(form).errors).toEqual([]);
+	});
 });

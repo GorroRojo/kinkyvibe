@@ -20,6 +20,7 @@
  * últimos 3 dígitos); se pide aparte y se registra quién lo vio.
  */
 import {
+	FREE_DOOR_MESSAGE,
 	ORDER_MAX_MESSAGE,
 	computePrice,
 	exceedsOrderMax,
@@ -577,7 +578,8 @@ export async function insertApprovedOrder(db, input) {
  * }} input
  * @returns {Promise<{ ok: true, order: Order, tickets: Ticket[] }
  *   | { ok: false, reason: 'soldout', available: number | null }
- *   | { ok: false, reason: 'no-door' }>}
+ *   | { ok: false, reason: 'no-door' }
+ *   | { ok: false, reason: 'free-door' }>}
  */
 export async function sellAtDoor(db, input) {
 	const { eventSlug, type, quantity, holders, buyer, by, now = Date.now() } = input;
@@ -587,11 +589,14 @@ export async function sellAtDoor(db, input) {
 	const gorra = Boolean(type.gorra);
 	const atDoor = doorPrice(type);
 	const price = gorra || !atDoor ? Number(input.unitPrice) : atDoor.price;
-	// Un `door_price: 0` (entrada sin cargo en la puerta) vale; un precio fijo es siempre ≥ 1.
+	// La configuración acepta `door_price: 0`, pero la puerta no vende sin cargo: la orden no se
+	// puede guardar (un precio 0 fuera de «a la gorra»). Se avisa antes de tocar la base, para que
+	// la carguen a mano. Un precio fijo es siempre ≥ 1.
 	const min = gorra ? (type.gorra?.min ?? 0) : atDoor?.source === 'door' ? 0 : 1;
 	if (!Number.isSafeInteger(price) || price < min) {
 		throw new Error('Precio por entrada inválido');
 	}
+	if (!gorra && price === 0) return { ok: false, reason: 'free-door' };
 	const prices = computePrice({
 		price,
 		fondo: gorra || !atDoor ? 0 : atDoor.fondo,
@@ -920,8 +925,12 @@ export async function applyQueuedSales(db, locals, input) {
 			continue;
 		}
 		if (!r.ok) {
-			// Con `override` no pasa (no se controla el cupo ni la puerta), pero por las dudas.
-			out.push({ id: item.id, result: 'rejected', message: 'No se pudo registrar.' });
+			// Con `override` el cupo y la puerta no frenan; una entrada sin cargo en la puerta, sí.
+			out.push({
+				id: item.id,
+				result: 'rejected',
+				message: r.reason === 'free-door' ? FREE_DOOR_MESSAGE : 'No se pudo registrar.'
+			});
 			continue;
 		}
 		// La venta se registra con el precio y el % del Fondo de ahora, no con los de cuando se

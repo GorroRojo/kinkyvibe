@@ -70,6 +70,11 @@
 	<!-- Tramo de preventa que se está viendo: el servidor elige el precio, esto solo sirve para
 	     avisar si cambió antes de cobrar. -->
 	<input type="hidden" name="tier" value={selected?.tier?.id ?? ''} />
+	<!-- Porcentaje del Fondo que se ve (solo con el descuento del fondo elegido): lo mismo, el
+	     servidor avisa si cambió antes de cobrar. -->
+	{#if tickets.fondoEnabled && selected && !selected.gorra && selected.fondo > 0 && chosenOption.id === 'fondo'}
+		<input type="hidden" name="fondo_percent" value={tickets.fondoPercent ?? ''} />
+	{/if}
 	{#each tickets.types as t (t.id)}
 		<label class="type" class:soldout={t.available === 0 || t.closed}>
 			<input
