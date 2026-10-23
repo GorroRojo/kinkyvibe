@@ -81,7 +81,8 @@ import {
 	queueEndedMail,
 	queueWaitlistAdvance,
 	runWaitlistCron,
-	sendWaitlistMails
+	sendWaitlistMails,
+	waitlistEventsToSweep
 } from './waitlistEngine.js';
 import { findOffer, waitlistGuard } from './waitlistPurchase.js';
 
@@ -536,6 +537,38 @@ describe('compra con la oferta que no se pagó', () => {
 		const r = await advanceWaitlist(t.db, { eventSlug: 'lejos', now: deadline });
 		expect(r.restored).toBe(0);
 		expect((await row(id))?.status).toBe('purchased');
+	});
+
+	it('una orden rechazada sigue guardando el lugar hasta que vence: no vuelve antes', async () => {
+		const { id, next, order, at } = await offeredAndBought();
+		await t.db.prepare("UPDATE orders SET status = 'rejected' WHERE id = ?1").bind(order.id).run();
+		// Sin nadie más vivo en la lista, el cron no tiene por qué mirar el evento.
+		await t.db
+			.prepare(
+				"UPDATE waitlist_entries SET status = 'cancelled', end_reason = 'left', ended_at = ?2 WHERE id = ?1"
+			)
+			.bind(next, at)
+			.run();
+		const before = at + HOLD_MS - MIN;
+		expect(await waitlistEventsToSweep(t.db, before)).toEqual([]);
+		expect((await advanceWaitlist(t.db, { eventSlug: 'lejos', now: before })).restored).toBe(0);
+		expect(await row(id)).toMatchObject({ status: 'purchased', order_id: order.id });
+		// Vencida la reserva rechazada, sí vuelve.
+		const later = at + HOLD_MS + MIN;
+		expect(await waitlistEventsToSweep(t.db, later)).toEqual(['lejos']);
+		expect((await advanceWaitlist(t.db, { eventSlug: 'lejos', now: later })).restored).toBe(1);
+		expect(await row(id)).toMatchObject({ status: 'offered', order_id: null });
+	});
+
+	it('rechazada y después aprobada (reintento del pago): queda comprada con su orden', async () => {
+		const { id, order, at } = await offeredAndBought();
+		await t.db.prepare("UPDATE orders SET status = 'rejected' WHERE id = ?1").bind(order.id).run();
+		expect((await advanceWaitlist(t.db, { eventSlug: 'lejos', now: at + MIN })).restored).toBe(0);
+		await t.db.prepare("UPDATE orders SET status = 'approved' WHERE id = ?1").bind(order.id).run();
+		expect((await advanceWaitlist(t.db, { eventSlug: 'lejos', now: at + 2 * MIN })).restored).toBe(
+			0
+		);
+		expect(await row(id)).toMatchObject({ status: 'purchased', order_id: order.id });
 	});
 
 	it('mientras la orden sigue vigente, no vuelve', async () => {
