@@ -345,8 +345,9 @@ ni los mails, ni los empujones).
 
 - **`advanceWaitlist`** (`src/lib/server/tickets/waitlistEngine.js`), una pasada sobre un evento,
   idempotente: (1) vence las reservas pasadas (`expired`, `hold_expired`); (2) devuelve a
-  `offered` a quien compró con su oferta y no pagó (la orden se canceló, venció o fue rechazada),
-  con el mismo link y el mismo vencimiento, sin tiempo extra; (3) mira lo libre de cada alcance y
+  `offered` a quien compró con su oferta y no pagó (la orden se canceló o venció), con el mismo
+  link y el mismo vencimiento, sin tiempo extra; una orden rechazada de Mercado Pago sigue
+  guardando su lugar hasta que vence (se puede reintentar el pago), así que vuelve recién ahí; (3) mira lo libre de cada alcance y
   no ofrece nada si la venta no está abierta (`agotadas` a mano, todavía no abrió); (4) si hay
   lugar y nadie tiene uno guardado vigente, se lo ofrece a la primera de la fila (`ORDER BY
 confirmed_at, id`) con una sola sentencia que vuelve a mirar todo: dos corridas a la vez nunca
