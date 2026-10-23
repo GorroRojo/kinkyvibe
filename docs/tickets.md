@@ -489,7 +489,7 @@ Resumen de lo que explica <https://fondo.kinkyvibe.ar> (consultado el 2026-09-29
 
 ### Códigos de descuento
 
-Admin en `/admin/ventas/codigos` (link desde `/admin/ventas` y el panel): lista con usos, crear, activar/desactivar. Cada código: texto (sin distinguir mayúsculas), porcentaje o monto fijo, evento (o todos), vigencia opcional desde/hasta (hora de Argentina), usos máximos opcionales.
+Admin en `/admin/ventas/codigos` (link desde `/admin/ventas` y el panel): lista con usos, crear, activar/desactivar. Cada código: texto (sin distinguir mayúsculas), porcentaje o monto fijo, evento (o todos), vigencia opcional desde/hasta (hora de Argentina), usos máximos opcionales. **Un uso es una compra entera, no una entrada**: un código de 100 % deja sin cargo todas las entradas de esa compra, y «usos máximos» cuenta compras (el panel lo dice al crearlo).
 
 - Un **uso** es una compra (no una entrada) aprobada o con la reserva vigente; si la reserva vence o se cancela, el uso se libera.
 - "Aplicar" es informativo. Al crear la orden el código se **vuelve a validar dentro del mismo `INSERT`** que reserva el cupo (activo, vigente, del evento, mismo tipo/valor, usos < máximo), así que compras simultáneas no se pasan de `max_uses` (test con 25 compras concurrentes).

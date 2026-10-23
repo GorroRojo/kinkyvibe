@@ -161,7 +161,9 @@
 					inputmode="numeric"
 					value={values.value ?? ''}
 				/>
-				{#if kind === 'percent'}<small>100 = entrada sin cargo.</small>{/if}
+				{#if kind === 'percent'}<small
+						>100 = compra sin cargo (todas las entradas de esa compra).</small
+					>{/if}
 				{#if errors.value}<small class="error">{errors.value}</small>{/if}
 			</label>
 			<div class="row">
