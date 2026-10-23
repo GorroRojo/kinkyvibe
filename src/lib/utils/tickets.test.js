@@ -23,7 +23,8 @@ import {
 	purchaseConditions,
 	refundPolicy,
 	remainingOf,
-	unitPrice
+	unitPrice,
+	withFondoPercent
 } from './tickets.js';
 
 describe('cupo: lo que queda y lo que se muestra en público', () => {
@@ -549,5 +550,36 @@ describe('a la gorra: botones rápidos y tope técnico', () => {
 		expect(exceedsOrderMax(50_000_000, 2)).toBe(false);
 		expect(exceedsOrderMax(50_000_001, 2)).toBe(true);
 		expect(exceedsOrderMax(1_000_000, 20)).toBe(false);
+	});
+});
+
+describe('withFondoPercent', () => {
+	const view = {
+		fondoEnabled: true,
+		fondoPercent: 20,
+		types: [
+			{ id: 'general', price: 10000, fondo: 2000, gorra: null },
+			{ id: 'gorra', price: 0, fondo: 0, gorra: { min: 0, suggested: 5000 } }
+		]
+	};
+
+	it('recalcula lo que cubre el fondo con el porcentaje que contestó el servidor', () => {
+		const v = withFondoPercent(view, 10);
+		expect(v.fondoPercent).toBe(10);
+		expect(v.types[0]).toMatchObject({ price: 10000, fondo: 1000 });
+		// A la gorra no tiene fondo.
+		expect(v.types[1]).toBe(view.types[1]);
+		expect(withFondoPercent(view, 0).types[0].fondo).toBe(0);
+		// Redondeado al peso, como config.js.
+		const odd = { ...view, types: [{ ...view.types[0], price: 10005 }] };
+		expect(withFondoPercent(odd, 10).types[0].fondo).toBe(1001);
+	});
+
+	it('sin porcentaje válido, sin Fondo o con el mismo, deja la vista como estaba', () => {
+		for (const p of [undefined, null, '10', 10.5, -10, 110, 20]) {
+			expect(withFondoPercent(view, p)).toBe(view);
+		}
+		const noFondo = { ...view, fondoEnabled: false, fondoPercent: null };
+		expect(withFondoPercent(noFondo, 10)).toBe(noFondo);
 	});
 });
