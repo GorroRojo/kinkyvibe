@@ -158,6 +158,8 @@ export async function advanceWaitlist(db, input) {
 	);
 
 	// 2. Compras con la oferta que no se pagaron: vuelve la misma oferta (mismo link y ronda).
+	// Una orden rechazada (MP) sigue guardando su lugar hasta que vence (se puede reintentar el
+	// pago): vuelve recién entonces, por la rama de `HOLDING` vencido.
 	out.restored = changes(
 		await db
 			.prepare(
@@ -165,7 +167,7 @@ export async function advanceWaitlist(db, input) {
 				WHERE event_slug = ?1 AND status = 'purchased' AND offer_token_hash IS NOT NULL
 					AND (hold_until IS NULL OR hold_until > ?2)
 					AND EXISTS (SELECT 1 FROM orders o WHERE o.id = waitlist_entries.order_id
-						AND (o.status IN ('cancelled', 'expired', 'rejected')
+						AND (o.status IN ('cancelled', 'expired')
 							OR (o.status IN ${HOLDING} AND o.expires_at <= ?2)))`
 			)
 			.bind(eventSlug, now)
@@ -421,7 +423,7 @@ export async function waitlistEventsToSweep(db, now) {
 			WHERE status IN ('pending_confirmation', 'waiting', 'offered')
 				OR (status = 'purchased' AND (hold_until IS NULL OR hold_until > ?1)
 					AND EXISTS (SELECT 1 FROM orders o WHERE o.id = waitlist_entries.order_id
-						AND (o.status IN ('cancelled', 'expired', 'rejected')
+						AND (o.status IN ('cancelled', 'expired')
 							OR (o.status IN ${HOLDING} AND o.expires_at <= ?1))))
 			ORDER BY event_slug`
 		)
