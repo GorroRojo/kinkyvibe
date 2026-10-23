@@ -236,6 +236,38 @@ export function fondoOptionsFor(fondo) {
 }
 
 /**
+ * La página de compra con otro porcentaje del Fondo: el que contestó el servidor al comprar
+ * (`form.buy.fondoPercent`), por si cambió desde que se cargó la página. Recalcula lo que cubre
+ * el fondo en cada tipo con precio (como `config.js`: `round(precio × % / 100)`), así el
+ * formulario muestra y vuelve a mandar el porcentaje que se va a cobrar sin recargar. Sin un
+ * porcentaje válido, sin Fondo o con el mismo, devuelve la vista como estaba.
+ *
+ * @template {{ fondoEnabled: boolean, fondoPercent: number | null,
+ *   types: { price: number, fondo: number, gorra: unknown }[] }} V
+ * @param {V} view
+ * @param {unknown} percent
+ * @returns {V}
+ */
+export function withFondoPercent(view, percent) {
+	if (
+		!view.fondoEnabled ||
+		typeof percent !== 'number' ||
+		!Number.isInteger(percent) ||
+		percent < 0 ||
+		percent > 100 ||
+		percent === view.fondoPercent
+	)
+		return view;
+	return {
+		...view,
+		fondoPercent: percent,
+		types: view.types.map((t) =>
+			t.gorra ? t : { ...t, fondo: Math.round((t.price * percent) / 100) }
+		)
+	};
+}
+
+/**
  * Precio de UNA entrada según la opción: `fondo` que se descuenta y `contribution` que se suma
  * (porcentaje sobre el precio completo, redondeado al peso: 0,5 hacia arriba).
  *
