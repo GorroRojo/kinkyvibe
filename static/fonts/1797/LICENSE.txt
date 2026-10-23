@@ -1,0 +1,9 @@
+1797 (Neue_Haut)
+© 2018 by Claustro Comfama San Ignacio, licensed under CC BY 4.0
+(https://creativecommons.org/licenses/by/4.0/). Designer: Santiago Arango García
+(be.net/santiagoarango).
+
+1797-medium.woff2 and 1797-italic.woff2 are subsets of 1797-MEDIUM.otf and 1797-ITALIC.otf
+(Basic Latin, Latin-1 with Spanish letters, typographic quotes and dashes), converted to WOFF2
+with fontTools. No other changes. Used only by the admin page that prints event flyers
+(/admin/eventos/agenda-impresa, see docs/panel.md).

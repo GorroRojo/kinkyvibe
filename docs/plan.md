@@ -95,6 +95,7 @@ CI) va en la fase 0.
 
 ### Panel
 
+- `agenda-impresa` · fase 0 · en curso · panel · Agenda impresa: volantes A4 (4 A6, 2 A5 o 1 A4) para repartir con los próximos eventos, con el diseño de gorrite; ícono y subtítulo de la serie, lugar con su privacidad y precio, todo editable en la página sin guardar nada · [panel.md](panel.md#agenda-impresa)
 - `nav-c-puerta-hoy` · fase 0 · hecho · panel · La Puerta abre directo en el evento de hoy si hay uno solo · #314, [0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)
 - `nav-c-ir-a-recientes` · fase 0 · hecho · panel · «Ir a…» (⌘K) vacío muestra Fijados y Recientes · #314
 - `ajustes-4-grupos` · fase 0 · hecho · panel · Ajustes como portada con 4 grupos de tarjetas (Plata, Comunicación, Equipo, Sistema) en vez de pestañas · #317, [0042](decisiones/0042-ajustes-portada-con-grupos.md)
@@ -301,6 +302,7 @@ CI) va en la fase 0.
 - `talleres-partes-mails-preview` · fase 3 · sigue · entradas · Vista previa de los mails de cada parte de un taller en el panel
 - `talleres-viejos-a-partes` · fase 3 · sigue · entradas · Pasar a talleres en partes los talleres viejos de varios días (datos de producción, probando antes en el demo), lo hace Claude de a tandas, cada una con el OK de gorrite en la Mesa (12/10) · [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md), [talleres-partes.md](talleres-partes.md#pendiente)
 - `pasar-entrada` · fase 3 · algún día · entradas · Pasarle una entrada a otra persona por mail
+- `encuesta-post-evento` · fase 3 · sigue · mails · Encuesta automática después de cada evento (pedido de gorrite): a quién, cuándo, preguntas, anónima o no, respuestas en el panel, se apaga por evento
 - `preguntas-sugeridas` · fase 3 · sigue · panel · Preguntas de inscripción sugeridas para elegir rápido
 - `campos-propios-tipos` · fase 3 · algún día · panel · Campos propios y tipos simples desde el panel; falta diseño
 - `recurrencia-rrule` · fase 3 · algún día · sitio · Recurrencia tipo RRULE (las series y los talleres en partes cubren una parte) · #29

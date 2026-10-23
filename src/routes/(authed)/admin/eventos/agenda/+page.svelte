@@ -1,7 +1,14 @@
 <script>
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import { onMount } from 'svelte';
-	import { FileSpreadsheet, FilePen, FlaskConical, Plus, StickyNote } from '@lucide/svelte';
+	import {
+		FileSpreadsheet,
+		FilePen,
+		FlaskConical,
+		Plus,
+		Printer,
+		StickyNote
+	} from '@lucide/svelte';
 	import PageHeader from '$lib/components/admin/panel/PageHeader.svelte';
 	import UndoToast from '$lib/components/admin/panel/UndoToast.svelte';
 	import UnsavedChanges from '$lib/components/admin/panel/UnsavedChanges.svelte';
@@ -349,6 +356,9 @@
 	<svelte:fragment slot="actions">
 		<a class="kv-btn ghost" href="/admin/eventos/importar"
 			><FileSpreadsheet size={16} aria-hidden="true" /> Importar planilla</a
+		>
+		<a class="kv-btn ghost" href="/admin/eventos/agenda-impresa"
+			><Printer size={16} aria-hidden="true" /> Agenda impresa</a
 		>
 		{#if data.notesEnabled}
 			<button class="kv-btn ghost" type="button" on:click={() => addNote(data.today)}

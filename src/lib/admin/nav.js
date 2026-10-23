@@ -102,6 +102,7 @@ import {
 	Mail,
 	MapPin,
 	Pencil,
+	Printer,
 	Repeat,
 	ScanLine,
 	ScrollText,
@@ -312,6 +313,19 @@ export const NAV = Object.freeze([
 		area: 'eventos',
 		soon: false,
 		// Se entra desde la Agenda (y desde Inicio); no ocupa lugar en el menú.
+		menu: false,
+		parent: 'eventos-agenda'
+	},
+	{
+		// Volantes para imprimir con los próximos eventos (docs/panel.md#agenda-impresa).
+		id: 'eventos-agenda-impresa',
+		href: '/admin/eventos/agenda-impresa',
+		icon: Printer,
+		emoji: '🖨️',
+		label: 'Agenda impresa',
+		area: 'eventos',
+		soon: false,
+		// Se entra desde la Agenda (y el buscador); no ocupa lugar en el menú.
 		menu: false,
 		parent: 'eventos-agenda'
 	},
