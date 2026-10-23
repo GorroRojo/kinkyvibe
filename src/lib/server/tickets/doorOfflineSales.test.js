@@ -324,3 +324,51 @@ describe('sin cambios con conexión', () => {
 		expect(r).toMatchObject({ ok: false, reason: 'soldout' });
 	});
 });
+
+describe('parseDoorSale: el monto a la gorra se lee como en la compra online', () => {
+	const GORRA = {
+		...LIBRE,
+		id: 'gorra',
+		name: 'A la gorra',
+		gorra: { min: 1000, suggested: 5000 }
+	};
+	const GORRA_CONFIG = /** @type {any} */ ({ types: [GORRA], door: { on: true }, status: '' });
+	/** @param {string} amount @param {string} [quantity] */
+	const parse = (amount, quantity = '1') =>
+		parseDoorSale(
+			GORRA_CONFIG,
+			(name) =>
+				/** @type {Record<string, string>} */ ({
+					type: 'gorra',
+					quantity,
+					method: 'efectivo',
+					name: 'Persona Inventada',
+					amount
+				})[name]
+		);
+
+	it('«5.000», «$ 5.000», «5000» y «5000,00» son $ 5.000', () => {
+		for (const amount of ['5.000', '$ 5.000', '5000', '5000,00']) {
+			const r = parse(amount);
+			expect(r.ok, amount).toBe(true);
+			if (r.ok) expect(r.sale.unitPrice, amount).toBe(5000);
+		}
+	});
+
+	it('«5000.00» y «5.5» no se adivinan (antes «5000.00» quedaba en $ 500.000)', () => {
+		for (const amount of ['5000.00', '5.5']) {
+			const r = parse(amount);
+			expect(r.ok, amount).toBe(false);
+			if (!r.ok) expect(r.message).toMatch(/sin centavos/);
+		}
+	});
+
+	it('respeta el mínimo y el tope técnico de la compra', () => {
+		const low = parse('500');
+		expect(low.ok).toBe(false);
+		if (!low.ok) expect(low.message).toMatch(/al menos/);
+		const huge = parse('60.000.000', '2');
+		expect(huge.ok).toBe(false);
+		if (!huge.ok) expect(huge.message).toMatch(/error de tipeo/);
+	});
+});
