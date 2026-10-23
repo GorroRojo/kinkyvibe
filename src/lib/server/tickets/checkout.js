@@ -442,6 +442,17 @@ function buyerEmail(raw) {
 }
 
 /**
+ * Cantidad de entradas del formulario, si es un entero positivo (si no, `undefined`: el código no
+ * mira su tope de entradas y la cantidad la valida la compra).
+ *
+ * @param {string} raw
+ */
+function formQuantity(raw) {
+	const n = Number(raw);
+	return Number.isSafeInteger(n) && n >= 1 ? n : undefined;
+}
+
+/**
  * Form action `?/discount` (botón "Aplicar"): dice si el código sirve para este evento y
  * cuánto descuenta. Es solo informativo; `?/buy` vuelve a validar todo.
  *
@@ -465,7 +476,8 @@ export async function discountAction(event) {
 		const check = await checkDiscountCode(db, {
 			code: values.code,
 			eventSlug: params.event,
-			email: buyerEmail(values.email)
+			email: buyerEmail(values.email),
+			quantity: formQuantity(values.quantity)
 		});
 		if (!check.ok) return failWith(400, check.message);
 		return { buy: { error: null, errors: {}, values, discount: describeDiscount(check.discount) } };
@@ -696,7 +708,8 @@ export async function buyAction(event) {
 			const check = await checkDiscountCode(db, {
 				code: values.code,
 				eventSlug: params.event,
-				email: buyerEmail(values.email)
+				email: buyerEmail(values.email),
+				quantity: valid.ok ? valid.quantity : formQuantity(values.quantity)
 			});
 			if (check.ok) {
 				discount = check.discount;

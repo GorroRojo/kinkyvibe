@@ -3,7 +3,10 @@
  *
  * - El código no distingue mayúsculas: se guarda y se compara en mayúsculas.
  * - Un "uso" es una orden con ese código que está aprobada o todavía tiene la reserva vigente
- *   (igual que el cupo). Si la reserva vence o se cancela, el uso se libera.
+ *   (igual que el cupo). Si la reserva vence o se cancela, el uso se libera. Los usos se cuentan
+ *   sin distinguir mayúsculas (`COLLATE NOCASE`), por si alguna orden guardó el código distinto.
+ * - `max_tickets` (migración 0058): cuántas entradas puede tener, como mucho, una compra con el
+ *   código (`NULL` = sin tope). Los códigos combo tienen 1.
  * - `checkDiscountCode` sirve para el botón "Aplicar" (informativo). La validez real se vuelve a
  *   comprobar DENTRO del `INSERT` que crea la orden (`discountGuardSql`), en la misma sentencia
  *   atómica que el cupo, así que dos compras simultáneas no pueden pasarse de `max_uses`.
@@ -12,15 +15,16 @@
  *   aprobada: si se reembolsa, el código deja de valer (si ya se usó, esa compra queda como está).
  *   No aparecen en las listas de códigos (`listDiscountCodes`): se resumen en su combo.
  */
+import { entradas } from '$lib/utils/plural.js';
 import { normalizeCode } from '$lib/utils/tickets.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /**
  * @typedef {{
  *   code: string, kind: 'percent' | 'fixed', value: number, event_slug: string | null,
- *   starts_at: number | null, ends_at: number | null, max_uses: number | null, active: number,
- *   created_at: number, created_by: string, buyer_email?: string | null,
- *   source_order_id?: string | null
+ *   starts_at: number | null, ends_at: number | null, max_uses: number | null,
+ *   max_tickets: number | null, active: number, created_at: number, created_by: string,
+ *   buyer_email?: string | null, source_order_id?: string | null
  * }} DiscountCode
  * `buyer_email` y `source_order_id`: solo en los códigos combo (ver arriba); `null` en los demás.
  */
@@ -35,17 +39,19 @@ export const HOLDING = "('pending', 'rejected', 'awaiting_transfer')";
  * @param {string} now
  */
 export function usesSql(code, now) {
-	return `(SELECT COUNT(*) FROM orders ou WHERE ou.discount_code = ${code}
+	return `(SELECT COUNT(*) FROM orders ou WHERE ou.discount_code = ${code} COLLATE NOCASE
 		AND (ou.status = 'approved' OR (ou.status IN ${HOLDING} AND ou.expires_at > ${now})))`;
 }
 
 /**
  * Condición SQL: el código sigue valiendo, con el mismo tipo y valor que usamos para calcular
- * el precio, y le queda al menos un uso. Los parámetros son expresiones SQL (p. ej. `?12`).
+ * el precio, le queda al menos un uso y la compra no pasa de su tope de entradas (`qty`, la
+ * cantidad de la orden). Los parámetros son expresiones SQL (p. ej. `?12`).
  * `email` (el de quien compra, en minúsculas): sin él, un código con `buyer_email` nunca vale.
  * Un código combo vale solo mientras su orden de origen siga aprobada.
  *
- * @param {{ code: string, kind: string, value: string, event: string, now: string, email?: string }} p
+ * @param {{ code: string, kind: string, value: string, event: string, now: string, qty: string,
+ *   email?: string }} p
  */
 export function discountGuardSql(p) {
 	return `(${p.code} IS NULL OR EXISTS (
@@ -55,6 +61,7 @@ export function discountGuardSql(p) {
 			AND (d.starts_at IS NULL OR d.starts_at <= ${p.now})
 			AND (d.ends_at IS NULL OR d.ends_at > ${p.now})
 			AND (d.max_uses IS NULL OR ${usesSql('d.code', p.now)} < d.max_uses)
+			AND (d.max_tickets IS NULL OR ${p.qty} <= d.max_tickets)
 			AND (d.buyer_email IS NULL OR lower(trim(d.buyer_email)) = lower(trim(${p.email ?? 'NULL'})))
 			AND (d.source_order_id IS NULL OR EXISTS (
 				SELECT 1 FROM orders so WHERE so.id = d.source_order_id AND so.status = 'approved'))
@@ -68,12 +75,17 @@ export function discountGuardSql(p) {
  * responde "Ese código no existe" (como uno de otro evento o uno que no existe): el código solo
  * no dice si existe. La compra lo vuelve a mirar con el mail (`discountGuardSql`).
  *
+ * `quantity`: cuántas entradas lleva la compra, si se sabe; sin ella no se mira `max_tickets`.
+ *
  * @param {D1Database} db
- * @param {{ code: unknown, eventSlug: string, now?: number, email?: string }} input
+ * @param {{ code: unknown, eventSlug: string, now?: number, email?: string, quantity?: number }} input
  * @returns {Promise<{ ok: true, discount: DiscountCode }
- *   | { ok: false, reason: 'format' | 'unknown' | 'inactive' | 'not-started' | 'ended' | 'other-event' | 'other-email' | 'revoked' | 'used-up', message: string }>}
+ *   | { ok: false, reason: 'format' | 'unknown' | 'inactive' | 'not-started' | 'ended' | 'other-event' | 'other-email' | 'revoked' | 'used-up' | 'too-many', message: string }>}
  */
-export async function checkDiscountCode(db, { code: raw, eventSlug, now = Date.now(), email }) {
+export async function checkDiscountCode(
+	db,
+	{ code: raw, eventSlug, now = Date.now(), email, quantity }
+) {
 	const code = normalizeCode(raw);
 	if (!code) {
 		return { ok: false, reason: 'format', message: 'Ese código no existe.' };
@@ -118,11 +130,23 @@ export async function checkDiscountCode(db, { code: raw, eventSlug, now = Date.n
 			message: 'Ese código ya se usó todas las veces posibles.'
 		};
 	}
+	if (row.max_tickets !== null && quantity !== undefined && quantity > row.max_tickets) {
+		return { ok: false, reason: 'too-many', message: tooManyMessage(row.max_tickets) };
+	}
 	/** @type {DiscountCode & { uses?: number, source_status?: string | null }} */
 	const discount = { ...row };
 	delete discount.uses;
 	delete discount.source_status;
 	return { ok: true, discount };
+}
+
+/**
+ * Mensaje para una compra con más entradas de las que cubre el código.
+ *
+ * @param {number} max
+ */
+export function tooManyMessage(max) {
+	return `Ese código vale para hasta ${entradas(max)} por compra.`;
 }
 
 /**
@@ -165,6 +189,11 @@ export function validateNewCode(input, eventSlugs) {
 	if (max_uses !== null && (!Number.isSafeInteger(max_uses) || max_uses < 1)) {
 		errors.max_uses = 'Un número entero mayor a 0, o vacío para sin límite.';
 	}
+	const ticketsRaw = String(input.max_tickets ?? '').trim();
+	const max_tickets = ticketsRaw === '' ? null : Number(ticketsRaw);
+	if (max_tickets !== null && (!Number.isSafeInteger(max_tickets) || max_tickets < 1)) {
+		errors.max_tickets = 'Un número entero mayor a 0, o vacío para sin límite.';
+	}
 	if (Object.keys(errors).length || !code || !kind) return { ok: false, errors };
 	return {
 		ok: true,
@@ -175,7 +204,8 @@ export function validateNewCode(input, eventSlugs) {
 			event_slug,
 			starts_at: starts_at || null,
 			ends_at: ends_at || null,
-			max_uses
+			max_uses,
+			max_tickets
 		}
 	};
 }
@@ -215,7 +245,8 @@ export function parseLocalDate(raw) {
 
 /**
  * @param {D1Database} db
- * @param {Omit<DiscountCode, 'active' | 'created_at' | 'created_by'>} code
+ * @param {Omit<DiscountCode, 'active' | 'created_at' | 'created_by' | 'max_tickets'>
+ *   & { max_tickets?: number | null }} code `max_tickets` sin dar: sin tope
  * @param {{ by: string, now?: number }} meta
  * @returns {Promise<boolean>} `false` si el código ya existía
  */
@@ -223,8 +254,8 @@ export async function createDiscountCode(db, code, { by, now = Date.now() }) {
 	const res = await db
 		.prepare(
 			`INSERT INTO discount_codes (code, kind, value, event_slug, starts_at, ends_at, max_uses,
-				active, created_at, created_by)
-			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?9) ON CONFLICT (code) DO NOTHING`
+				active, created_at, created_by, max_tickets)
+			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?9, ?10) ON CONFLICT (code) DO NOTHING`
 		)
 		.bind(
 			code.code,
@@ -235,7 +266,8 @@ export async function createDiscountCode(db, code, { by, now = Date.now() }) {
 			code.ends_at,
 			code.max_uses,
 			now,
-			by
+			by,
+			code.max_tickets ?? null
 		)
 		.run();
 	return res.meta.changes === 1;
@@ -266,11 +298,12 @@ export async function listDiscountCodes(db, now = Date.now()) {
 	const { results } = await db
 		.prepare(
 			`SELECT d.*,
-				(SELECT COUNT(*) FROM orders o WHERE o.discount_code = d.code AND o.status = 'approved') AS approved,
-				(SELECT COUNT(*) FROM orders o WHERE o.discount_code = d.code
+				(SELECT COUNT(*) FROM orders o WHERE o.discount_code = d.code COLLATE NOCASE
+					AND o.status = 'approved') AS approved,
+				(SELECT COUNT(*) FROM orders o WHERE o.discount_code = d.code COLLATE NOCASE
 					AND o.status IN ${HOLDING} AND o.expires_at > ?1) AS held,
 				(SELECT COALESCE(SUM(o.discount_amount), 0) FROM orders o
-					WHERE o.discount_code = d.code AND o.status = 'approved') AS discounted
+					WHERE o.discount_code = d.code COLLATE NOCASE AND o.status = 'approved') AS discounted
 			FROM discount_codes d WHERE d.source_order_id IS NULL ORDER BY d.created_at DESC`
 		)
 		.bind(now)

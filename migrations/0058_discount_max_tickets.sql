@@ -1,0 +1,12 @@
+-- Migration number: 0058 	 Tope de entradas por compra en los códigos de descuento.
+--
+-- Pedido de gorrite («Sí, con combos de 1 entrada»); docs/tickets.md («Códigos de descuento»).
+-- Un «uso» de un código es una compra entera (hasta 20 entradas), así que un código de cortesía
+-- al 100 % pensado para una persona cubría una compra de varias. `max_tickets` es cuántas entradas
+-- puede tener, como mucho, una compra con ese código (lo mira `discountGuardSql` dentro del mismo
+-- INSERT de la orden). Los códigos combo (migración 0056) se generan con `max_tickets = 1`.
+--
+-- Solo agrega una columna que acepta NULL: los códigos que ya existen quedan en NULL (sin tope,
+-- como hasta ahora) y el código que ya está en `main` no la lee ni la escribe (decisión 0028), así
+-- que se aplica en producción antes de mergear.
+ALTER TABLE discount_codes ADD COLUMN max_tickets INTEGER CHECK (max_tickets IS NULL OR max_tickets >= 1);

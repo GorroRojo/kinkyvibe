@@ -270,8 +270,8 @@ async function ensureComboCode(db, order, combo, now) {
 		await db
 			.prepare(
 				`INSERT INTO discount_codes (code, kind, value, event_slug, starts_at, ends_at, max_uses,
-					active, created_at, created_by, buyer_email, source_order_id)
-				VALUES (?1, ?2, ?3, ?4, NULL, ?5, 1, 1, ?6, ?7, ?8, ?9) ON CONFLICT DO NOTHING`
+					max_tickets, active, created_at, created_by, buyer_email, source_order_id)
+				VALUES (?1, ?2, ?3, ?4, NULL, ?5, 1, 1, 1, ?6, ?7, ?8, ?9) ON CONFLICT DO NOTHING`
 			)
 			.bind(
 				newComboCode(),
