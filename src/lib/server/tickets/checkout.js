@@ -197,6 +197,22 @@ const tierView = (eff) =>
 	eff.tier ? { id: eff.tier.id, name: eff.tier.name, until: eff.tier.until } : null;
 
 /**
+ * El tramo vigente de un tipo para la respuesta de `?/buy` con error (`withCurrentTier`).
+ *
+ * @param {import('./config.js').TicketType} type
+ * @param {import('$lib/utils/ticketTiers.js').Tier} tier
+ * @returns {import('$lib/utils/tickets.js').CurrentTier}
+ */
+const tierInfo = (type, tier) => ({
+	type: type.id,
+	id: tier.id,
+	name: tier.name,
+	until: tier.until,
+	price: tier.price,
+	fondo: tier.fondo
+});
+
+/**
  * Datos públicos del bloque de compra (sin datos de otras personas).
  *
  * @param {import('@cloudflare/workers-types').D1Database | null} db
@@ -580,6 +596,13 @@ export async function buyAction(event) {
 	 * @type {number | undefined}
 	 */
 	let fondoPercent;
+	/**
+	 * Tramo vigente del tipo elegido (en los tipos con preventas, una vez elegido): va en cada
+	 * respuesta con error, igual que el Fondo, para que el formulario muestre ese precio y mande
+	 * ese tramo (`withCurrentTier`) en vez del que se vio al cargar la página.
+	 * @type {import('$lib/utils/tickets.js').CurrentTier | undefined}
+	 */
+	let currentTier;
 	/** @param {number} status @param {string} error @param {Record<string, string>} [errors] */
 	const failWith = (status, error, errors = {}) =>
 		fail(status, {
@@ -588,7 +611,8 @@ export async function buyAction(event) {
 				errors,
 				values,
 				discount: applied,
-				...(fondoPercent !== undefined && { fondoPercent })
+				...(fondoPercent !== undefined && { fondoPercent }),
+				...(currentTier !== undefined && { tier: currentTier })
 			}
 		});
 
@@ -683,6 +707,7 @@ export async function buyAction(event) {
 			}
 			effective = withTier(chosen, a.tier.tier);
 			tierRemaining = a.tier.remaining;
+			currentTier = tierInfo(chosen, a.tier.tier);
 			if (values.tier !== a.tier.tier.id) {
 				const message = priceChangedMessage(chosen, a.tier.tier);
 				return failWith(409, message, { type: message });
@@ -861,6 +886,7 @@ export async function buyAction(event) {
 			} catch (error) {
 				logDBError('tickets taken', error);
 			}
+			if (again?.tier && chosen) currentTier = tierInfo(chosen, again.tier.tier);
 			const message =
 				again?.tier && chosen
 					? `Se terminó «${valid.type.tier?.name ?? ''}» mientras comprabas. ${priceChangedMessage(chosen, again.tier.tier)}`

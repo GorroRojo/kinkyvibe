@@ -274,6 +274,74 @@ export function withFondoPercent(view, percent) {
 }
 
 /**
+ * El tramo vigente de un tipo, como lo contesta `?/buy` con error (`form.buy.tier`; ver
+ * `buyAction`): el tipo y el tramo con su precio y lo que cubre el fondo.
+ *
+ * @typedef {{ type: string, id: string, name: string, until: number | null, price: number,
+ *   fondo: number }} CurrentTier
+ */
+
+/** @param {unknown} n */
+const isAmount = (n) => typeof n === 'number' && Number.isInteger(n) && n >= 0;
+
+/**
+ * La página de compra con el tramo de preventa que contestó el servidor al comprar, por si cambió
+ * desde que se cargó la página (otra compra llenó el tramo o pasó su fecha): ese tipo pasa a
+ * mostrar el tramo y el precio de ahora, así confirmar de nuevo manda ese tramo sin recargar. El
+ * "a este precio" del "Quedan N" era del tramo anterior: se saca. Sin un tramo válido, para un
+ * tipo sin tramos o con el mismo, devuelve la vista como estaba.
+ *
+ * @template {{ types: { id: string, price: number, fondo: number,
+ *   tier?: { id: string, name: string, until: number | null } | null,
+ *   tierLeft?: boolean }[] }} V
+ * @param {V} view
+ * @param {unknown} tier
+ * @returns {V}
+ */
+export function withCurrentTier(view, tier) {
+	if (!tier || typeof tier !== 'object') return view;
+	const t = /** @type {Record<string, unknown>} */ (tier);
+	if (
+		typeof t.type !== 'string' ||
+		typeof t.id !== 'string' ||
+		!t.id ||
+		typeof t.name !== 'string' ||
+		!(t.until === null || typeof t.until === 'number') ||
+		!isAmount(t.price) ||
+		!isAmount(t.fondo) ||
+		Number(t.fondo) > Number(t.price)
+	)
+		return view;
+	const current = view.types.find((x) => x.id === t.type);
+	if (!current?.tier) return view;
+	if (current.tier.id === t.id && current.price === t.price && current.fondo === t.fondo)
+		return view;
+	const next = {
+		price: Number(t.price),
+		fondo: Number(t.fondo),
+		tier: { id: t.id, name: t.name, until: /** @type {number | null} */ (t.until) },
+		tierLeft: false
+	};
+	return { ...view, types: view.types.map((x) => (x === current ? { ...x, ...next } : x)) };
+}
+
+/**
+ * Lo que muestra la página de compra después de un `?/buy` con error (SvelteKit no vuelve a
+ * cargar la página): el tramo y el porcentaje del Fondo que contestó el servidor.
+ *
+ * @template {{ fondoEnabled: boolean, fondoPercent: number | null,
+ *   types: { id: string, price: number, fondo: number, gorra: unknown,
+ *     tier?: { id: string, name: string, until: number | null } | null,
+ *     tierLeft?: boolean }[] }} V
+ * @param {V} view
+ * @param {Record<string, unknown> | null | undefined} buy `form.buy` (usa `tier` y `fondoPercent`)
+ * @returns {V}
+ */
+export function ticketsAfterBuy(view, buy) {
+	return withFondoPercent(withCurrentTier(view, buy?.tier), buy?.fondoPercent);
+}
+
+/**
  * Precio de UNA entrada según la opción: `fondo` que se descuenta y `contribution` que se suma
  * (porcentaje sobre el precio completo, redondeado al peso: 0,5 hacia arriba).
  *

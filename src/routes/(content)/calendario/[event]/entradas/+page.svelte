@@ -2,7 +2,7 @@
 	import { argDateTimeLong } from '$lib/utils/dates.js';
 	import TicketPurchase from '$lib/components/TicketPurchase.svelte';
 	import { currentPostData } from '$lib/utils/stores.js';
-	import { doorText, withFondoPercent } from '$lib/utils/tickets.js';
+	import { doorText, ticketsAfterBuy } from '$lib/utils/tickets.js';
 	import { page } from '$app/stores';
 	import { venueLine } from '$lib/utils/venues.js';
 	import { salePlaceText } from '$lib/utils/eventPlace.js';
@@ -21,9 +21,10 @@
 		currentPostData.set({ category: 'calendario', path: $page.url.pathname });
 	});
 
-	// Si al comprar el porcentaje del Fondo ya era otro, el servidor contesta con el de ahora: la
-	// página muestra esos precios sin recargar (y confirmar de nuevo manda ese porcentaje).
-	let tickets = $derived(withFondoPercent(data.tickets, form?.buy?.fondoPercent));
+	// Si al comprar el porcentaje del Fondo o el tramo de preventa ya eran otros, el servidor
+	// contesta con los de ahora: la página muestra esos precios sin recargar (y confirmar de nuevo
+	// manda ese porcentaje y ese tramo).
+	let tickets = $derived(ticketsAfterBuy(data.tickets, form?.buy));
 
 	let when = $derived(data.meta.start ? argDateTimeLong(data.meta.start) : '');
 	// Con lugar vinculado, el lugar según su privacidad (nunca el «Dónde» del .md).
