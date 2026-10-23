@@ -115,7 +115,10 @@
 	let syncing = false;
 	/** @type {{ holder: string, result: string, at: number | null, by: string | null }[]} */
 	let conflicts = [];
-	/** Ventas sin conexión que al sincronizarse pasaron un límite (quedaron en «Para revisar»). */
+	/**
+	 * Ventas sin conexión que al sincronizarse pasaron un límite o quedaron registradas con otro
+	 * total que el que se cobró (quedaron en «Para revisar»).
+	 */
 	/** @type {{ buyer: string, ref: string, review: string[] }[]} */
 	let saleWarnings = [];
 	/** @type {string} */
@@ -928,7 +931,7 @@
 				<span>
 					Se registró la venta sin conexión de <strong>{w.buyer}</strong>{w.ref
 						? ` (${w.ref})`
-						: ''}, pero pasó un límite: {w.review.join(' ')} Quedó en «Para revisar».
+						: ''}, pero hay algo para revisar: {w.review.join(' ')} Quedó en «Para revisar».
 				</span>
 				<button
 					type="button"

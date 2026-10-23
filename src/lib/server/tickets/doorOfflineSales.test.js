@@ -279,6 +279,68 @@ describe('applyQueuedSales (ventas sin conexión)', () => {
 		expect(await allOrders()).toHaveLength(0);
 	});
 
+	describe('el total que cobró el celu', () => {
+		// Con Fondo 10 %: el celu cobró $ 16.800 con el precio de cuando se vendió; ahora el
+		// servidor la registra con el precio de ahora.
+		const CON_FONDO = { ...LIBRE, id: 'con-fondo', name: 'Con Fondo', price: 15000, fondo: 10 };
+		const FONDO_CONFIG = { ...CONFIG, types: [...CONFIG.types, CON_FONDO] };
+		/** @param {Record<string, string>} f */
+		const fondoSale = (f) => sale('venta-0001', { type: 'con-fondo', option: 'fondo', ...f });
+
+		it('si se registra con otro total, queda para revisar con los dos montos (sin corregirlo)', async () => {
+			const [r] = await apply([fondoSale({ charged_total: '16800' })], { config: FONDO_CONFIG });
+			const [o] = await allOrders();
+			expect(o.total).not.toBe(16800);
+			expect(r.result).toBe('ok');
+			expect(r.review).toHaveLength(1);
+			expect(r.review?.[0]).toMatch(/^Se cobró \$\s16\.800; quedó registrada en \$\s/);
+			expect(o.offline_review).not.toBeNull();
+			expect(JSON.parse(o.offline_review)).toEqual([
+				{ kind: 'price', charged: 16800, recorded: o.total }
+			]);
+			expect(await reviewOrders(t.db)).toEqual([
+				expect.objectContaining({ id: o.id, reason: 'door_offline' })
+			]);
+			// Un reintento devuelve el mismo aviso.
+			const [again] = await apply([fondoSale({ charged_total: '16800' })], {
+				config: FONDO_CONFIG
+			});
+			expect(again).toMatchObject({ result: 'duplicate', review: r.review });
+		});
+
+		it('se suma a los límites que pasó', async () => {
+			await apply([sale('venta-0001', { quantity: '3' })]);
+			const [r] = await apply([sale('venta-0002', { charged_total: '7000' })]);
+			expect(r.review).toHaveLength(2);
+			const [, o] = await allOrders();
+			expect(JSON.parse(o.offline_review).map((/** @type {any} */ l) => l.kind)).toEqual([
+				'capacity',
+				'price'
+			]);
+		});
+
+		it('si es el mismo total, no avisa', async () => {
+			const first = await apply([fondoSale({})], { config: FONDO_CONFIG });
+			const total = String(first[0].total);
+			await resetDB(t.db);
+			const [r] = await apply([fondoSale({ charged_total: total })], { config: FONDO_CONFIG });
+			expect(r).toMatchObject({ result: 'ok', review: [] });
+			expect((await allOrders())[0].offline_review).toBeNull();
+		});
+
+		it('sin el campo (un celu con la versión anterior) o con algo que no es un monto: como siempre', async () => {
+			const r = await apply(
+				[
+					fondoSale({}),
+					sale('venta-0002', { type: 'con-fondo', option: 'fondo', charged_total: 'mucho' })
+				],
+				{ config: FONDO_CONFIG }
+			);
+			expect(r.map((x) => x.review)).toEqual([[], []]);
+			expect((await allOrders()).map((o) => o.offline_review)).toEqual([null, null]);
+		});
+	});
+
 	it('la hora del celu se acota: nunca en el futuro ni más vieja que el máximo', async () => {
 		await apply([
 			sale('venta-0001', {}, NOW + 3_600_000),

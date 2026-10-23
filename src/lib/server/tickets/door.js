@@ -718,9 +718,23 @@ export function parseDoorSale(config, get) {
 /** Cuántas ventas sin conexión se sincronizan por pedido como máximo. */
 export const SALE_QUEUE_MAX_ITEMS = 100;
 
-/** Campos de una venta sin conexión que se aceptan (los del formulario de «Vender en puerta»). */
+/**
+ * Campos de una venta sin conexión que se aceptan: los del formulario de «Vender en puerta» y
+ * `charged_total`, el total que cobró el celu (para avisar si se registra con otro).
+ */
 const SALE_FIELD_RE =
-	/^(type|quantity|method|option|amount|name|pronouns|email|send_email|transfer_seen|holder_\d{1,3}|pronouns_\d{1,3})$/;
+	/^(type|quantity|method|option|amount|name|pronouns|email|send_email|transfer_seen|charged_total|holder_\d{1,3}|pronouns_\d{1,3})$/;
+
+/**
+ * El total que cobró el celu (`charged_total`), si vino y es un entero ≥ 0. Un celu con una
+ * versión vieja no lo manda: `null`, y no se compara.
+ * @param {string | undefined} raw
+ */
+function chargedTotal(raw) {
+	if (raw === undefined || !/^\d{1,12}$/.test(raw)) return null;
+	const n = Number(raw);
+	return Number.isSafeInteger(n) ? n : null;
+}
 
 /**
  * Una venta hecha sin conexión, esperando para sincronizar: el id que le puso el celu, la hora
@@ -910,6 +924,21 @@ export async function applyQueuedSales(db, locals, input) {
 			out.push({ id: item.id, result: 'rejected', message: 'No se pudo registrar.' });
 			continue;
 		}
+		// La venta se registra con el precio y el % del Fondo de ahora, no con los de cuando se
+		// vendió. Si el total no es el que cobró el celu, no se corrige solo: queda en «Para
+		// revisar» con los dos montos.
+		const charged = chargedTotal(item.fields.charged_total);
+		/** @type {import('./overrides.js').ExceededLimit[]} */
+		const review =
+			charged !== null && charged !== r.order.total
+				? [...limits, { kind: 'price', charged, recorded: r.order.total }]
+				: limits;
+		if (review.length > limits.length) {
+			await db
+				.prepare('UPDATE orders SET offline_review = ?2 WHERE id = ?1')
+				.bind(r.order.id, JSON.stringify(review))
+				.run();
+		}
 		await logAdminAction(db, locals, {
 			action: 'order.door_sale',
 			targetType: 'order',
@@ -926,7 +955,8 @@ export async function applyQueuedSales(db, locals, input) {
 				...(sale.method === 'transferencia'
 					? { transferSeen: item.fields.transfer_seen === 'on' }
 					: {}),
-				...(limits.length ? { overrides: limits } : {})
+				...(limits.length ? { overrides: limits } : {}),
+				...(review.length > limits.length ? { charged } : {})
 			}
 		});
 		await logOverride(db, locals, {
@@ -946,7 +976,7 @@ export async function applyQueuedSales(db, locals, input) {
 			type: sale.type.name,
 			total: r.order.total,
 			method: r.order.payment_method,
-			review: limits.map((l) => limitMessage(l))
+			review: review.map((l) => limitMessage(l))
 		});
 	}
 	return out;

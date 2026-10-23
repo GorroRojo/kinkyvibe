@@ -1107,7 +1107,7 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 				o.reason === 'duplicate_payment'
 					? `Pago duplicado de ${o.buyerName}`
 					: o.reason === 'door_offline'
-						? `Venta sin conexión de ${o.buyerName} que pasó un límite`
+						? `Venta sin conexión de ${o.buyerName} para revisar`
 						: `Pago tardío de ${o.buyerName} (la reserva había vencido)`,
 			text: `${o.ref} · ${title(o.slug)}`,
 			action: 'Ver orden',

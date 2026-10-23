@@ -368,6 +368,18 @@ describe('ventas sin conexión', () => {
 		expect(loadDoorState(storage, 'fiesta').sales).toEqual(state.sales);
 	});
 
+	it('guarda lo que se cobró (charged_total) para compararlo al sincronizar', () => {
+		expect(queue(emptyDoorState(), 'venta-0001').sale.fields.charged_total).toBe('16000');
+		expect(queue(emptyDoorState(), 'venta-0002', { total: 0 }).sale.fields.charged_total).toBe('0');
+		// Sin un total calculado no se manda nada (no se puede comparar).
+		const none = queue(emptyDoorState(), 'venta-0003', {
+			total: null,
+			fields: { ...FIELDS, charged_total: '5' }
+		});
+		expect(none.sale.fields).not.toHaveProperty('charged_total');
+		expect(salesPayload(none.state.sales)[0].fields).not.toHaveProperty('charged_total');
+	});
+
 	it('lo guardado antes de esta versión (sin ventas) sigue cargando', () => {
 		const storage = /** @type {Storage} */ (
 			/** @type {unknown} */ ({
