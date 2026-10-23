@@ -45,7 +45,12 @@ import {
 } from '$lib/server/tickets/door.js';
 import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
-import { fondoOptionLabel, fondoOptionsFor, remainingOf } from '$lib/utils/tickets.js';
+import {
+	FREE_DOOR_MESSAGE,
+	fondoOptionLabel,
+	fondoOptionsFor,
+	remainingOf
+} from '$lib/utils/tickets.js';
 import { doorPrice } from '$lib/utils/ticketTiers.js';
 import {
 	applyQueuedPartCheckIns,
@@ -339,6 +344,7 @@ export const actions = {
 			fondoPercent: config.fondoPercent,
 			by: admin.login
 		});
+		if (!r.ok && r.reason === 'free-door') return bad(FREE_DOOR_MESSAGE);
 		if (!r.ok) {
 			// Algo cambió entre el control y la venta (otra venta al mismo tiempo): se vuelve a
 			// preguntar con los límites de ahora.

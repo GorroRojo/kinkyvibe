@@ -198,6 +198,18 @@ describe('sellAtDoor', () => {
 		expect(await t.db.prepare('SELECT COUNT(*) AS n FROM tickets').first()).toMatchObject({ n: 0 });
 	});
 
+	it('precio 0 en la puerta (no a la gorra): no vende, avisa y no toca la base', async () => {
+		const sinCargo = { ...GENERAL, id: 'invitade', door: { price: 0, fondo: 0 } };
+		expect(await sell({ type: sinCargo })).toEqual({ ok: false, reason: 'free-door' });
+		// También pasando límites (como las ventas sin conexión al sincronizar).
+		expect(await sell({ type: sinCargo, override: true, quantity: 2 })).toEqual({
+			ok: false,
+			reason: 'free-door'
+		});
+		expect(await t.db.prepare('SELECT COUNT(*) AS n FROM orders').first()).toMatchObject({ n: 0 });
+		expect(await t.db.prepare('SELECT COUNT(*) AS n FROM tickets').first()).toMatchObject({ n: 0 });
+	});
+
 	it('un tipo sin cupo (capacity null) vende sin límite', async () => {
 		const libre = { ...GENERAL, id: 'libre', capacity: null };
 		for (let i = 0; i < 3; i++) expect((await sell({ type: libre, quantity: 5 })).ok).toBe(true);

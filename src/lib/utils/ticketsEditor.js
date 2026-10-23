@@ -574,7 +574,13 @@ export function validateTicketsForm(form, { sales, waitlistLive } = {}) {
 			const p = parseAmount(door);
 			if (p === null)
 				errors.push(
-					`${label}: el precio en puerta tiene que ser en pesos enteros (0 o más), o quedar vacío.`
+					`${label}: el precio en puerta tiene que ser en pesos enteros, mayor a 0, o quedar vacío.`
+				);
+			// La puerta no vende entradas sin cargo (la orden no se puede guardar): esas se cargan a
+			// mano. La configuración ya guardada con `door_price: 0` se sigue leyendo (config.js).
+			else if (p === 0)
+				errors.push(
+					`${label}: el precio en puerta no puede ser $ 0: en la puerta no se venden entradas sin cargo. Dejalo vacío para cobrar el precio de siempre, o cargá esas entradas a mano.`
 				);
 			else if (p > ORDER_MAX_TOTAL)
 				errors.push(`${label}: el precio en puerta es demasiado alto (¿sobra un cero?).`);

@@ -279,6 +279,21 @@ describe('applyQueuedSales (ventas sin conexión)', () => {
 		expect(await allOrders()).toHaveLength(0);
 	});
 
+	it('un tipo con precio 0 en la puerta: no la registra y dice que se cargue a mano', async () => {
+		const sinCargo = { ...LIBRE, id: 'invitade', name: 'Invitade', door: { price: 0, fondo: 0 } };
+		const r = await apply([sale('venta-0001', { type: 'invitade' })], {
+			config: { ...CONFIG, types: [...CONFIG.types, sinCargo] }
+		});
+		expect(r).toEqual([
+			{
+				id: 'venta-0001',
+				result: 'rejected',
+				message: 'Esta entrada es sin cargo en la puerta: cargala a mano.'
+			}
+		]);
+		expect(await allOrders()).toHaveLength(0);
+	});
+
 	it('la hora del celu se acota: nunca en el futuro ni más vieja que el máximo', async () => {
 		await apply([
 			sale('venta-0001', {}, NOW + 3_600_000),

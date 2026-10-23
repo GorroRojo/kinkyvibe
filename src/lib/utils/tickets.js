@@ -30,6 +30,12 @@ export function remainingOf(type, counts) {
 export const LOW_STOCK = 10;
 
 /**
+ * Un tipo con precio 0 en la puerta (no a la gorra): la puerta no lo vende (`sellAtDoor` da
+ * `free-door`), con y sin conexión se dice esto.
+ */
+export const FREE_DOOR_MESSAGE = 'Esta entrada es sin cargo en la puerta: cargala a mano.';
+
+/**
  * Lo que se muestra en público de lo que queda: el número solo si el tipo tiene cupo y quedan
  * menos de `LOW_STOCK` (y alguna). Si no, `null` (no se muestran números: ni el cupo ni lo
  * vendido). Agotado (0) se muestra aparte.
