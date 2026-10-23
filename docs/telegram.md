@@ -873,6 +873,11 @@ una confirmación):
   1 General (Preventa 1) de **Fiesta X** · 23/50» (vendidas del tipo contra su cupo);
 - orden nueva por transferencia (`checkout.js`): «💸 Transferencia para confirmar: 2 General de
   **Fiesta X** · 3 por confirmar».
+- contracargo de Mercado Pago (`processPayment`, pago `charged_back`): «⚠️ Contracargo en Mercado
+  Pago: orden KV-1A2B3C4D de **Fiesta X** ($ 10.000). El banco revirtió el pago; las entradas
+  quedaron anuladas.» No tiene interruptor propio: les llega a quienes prendieron **«Cada
+  venta»** (clave `contracargo:<orden>`, aparte de la de la venta). Solo la referencia, el evento y
+  el total; nunca quién compró.
 - Solo las del sitio (canal `online`): las de la puerta y las cargadas a mano las hace une admin.
 - En el horario de silencio salen igual, pero **sin sonido** (`disable_notification`): una venta
   avisada a las 9 de la mañana ya no sirve.

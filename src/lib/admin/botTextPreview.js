@@ -783,8 +783,8 @@ export const PREVIEW_SCREENS = Object.freeze([
 	},
 	{
 		id: 'admin_aviso_venta',
-		label: 'Avisos (admins): cada venta y cada transferencia',
-		keys: ['admin.venta', 'admin.ventas', 'admin.transferencia'],
+		label: 'Avisos (admins): cada venta, cada transferencia y los contracargos',
+		keys: ['admin.venta', 'admin.ventas', 'admin.transferencia', 'admin.contracargo'],
 		build: (t) => ({
 			html: [
 				t('admin.venta', {
@@ -801,6 +801,11 @@ export const PREVIEW_SCREENS = Object.freeze([
 					entradas: '2 General',
 					evento: 'Fiesta de ejemplo',
 					pendientes: 3
+				}),
+				t('admin.contracargo', {
+					orden: 'KV-1A2B3C4D',
+					evento: 'Fiesta de ejemplo',
+					monto: '$ 10.000'
 				})
 			].join('\n\n'),
 			buttons: [[{ text: t('admin.boton_panel'), link: true }]]

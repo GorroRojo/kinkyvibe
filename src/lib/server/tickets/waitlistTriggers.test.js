@@ -12,6 +12,16 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 const nudges = vi.hoisted(() => ({ calls: /** @type {any[]} */ ([]) }));
 const envVars = vi.hoisted(() => /** @type {Record<string, string>} */ ({}));
+const adminNotices = vi.hoisted(() => ({ calls: /** @type {any[]} */ ([]) }));
+
+// Los avisos a admins por Telegram (adminNotify.test.js prueba qué dicen y a quién llegan): acá
+// solo se mira cuáles se piden.
+vi.mock('$lib/server/telegram/adminNotify.js', async (importOriginal) => ({
+	.../** @type {object} */ (await importOriginal()),
+	queueOrderNotice: async (/** @type {any} */ input) => {
+		adminNotices.calls.push(input);
+	}
+}));
 
 vi.mock('$lib/server/tickets/waitlistEngine.js', async (importOriginal) => ({
 	.../** @type {object} */ (await importOriginal()),
@@ -81,6 +91,7 @@ afterAll(async () => {
 beforeEach(async () => {
 	await resetDB(t.db);
 	nudges.calls.length = 0;
+	adminNotices.calls.length = 0;
 	for (const k of Object.keys(envVars)) delete envVars[k];
 });
 
@@ -248,9 +259,10 @@ describe('Mercado Pago', () => {
 		expectNudged();
 		expect(subjects).toHaveLength(1);
 		expect(subjects[0]).toMatch(/reembols/i);
+		expect(adminNotices.calls.filter((c) => c.kind === 'contracargo')).toHaveLength(0);
 	});
 
-	it('contracargo: queda reembolsada y empuja la lista, pero no se manda el mail de reembolso', async () => {
+	it('contracargo: queda reembolsada, empuja la lista y avisa a les admins, pero no manda el mail de reembolso', async () => {
 		envVars.RESEND_API_KEY = 're_inventada';
 		const o = await order('mercadopago');
 		await applyPayment(t.db, payment(o, 'approved', 7005));
@@ -272,6 +284,10 @@ describe('Mercado Pago', () => {
 		expect(chargeback).toContain(o.id);
 		expect(chargeback).toContain('7005');
 		expect(chargeback).not.toContain('@');
+		// Les admins se enteran por Telegram (el aviso de contracargo, con esta orden).
+		const notices = adminNotices.calls.filter((c) => c.kind === 'contracargo');
+		expect(notices).toHaveLength(1);
+		expect(notices[0].order).toMatchObject({ id: o.id, status: 'refunded' });
 	});
 
 	it('un pago aprobado no empuja', async () => {
