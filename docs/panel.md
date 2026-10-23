@@ -286,7 +286,8 @@ revisar" del Inicio.
   comprueban que el botón dice lo mismo que la tarjeta.
 - **Las filas**: «Transferencia» tildada sin datos para
   transferir, transferencias por confirmar (una por evento), órdenes para revisar (pago tardío,
-  pago duplicado o una venta en la puerta sin conexión que pasó un límite, decisión 0035), mails que no
+  pago duplicado o una venta en la puerta sin conexión que pasó un límite o quedó registrada con otro total que el
+  que se cobró, decisión 0035), mails que no
   salieron (hasta 20), mails de la lista de espera que no salieron (una fila, lleva a Ventas ›
   Lista de espera del evento más reciente), cupos sobrevendidos, links de transmisión que
   faltan, recordatorios que no salieron o fallaron, el link que no le llegó a todes, eventos sin imagen y borradores (juntos si

@@ -51,7 +51,7 @@
 	const REVIEW = {
 		late_payment: 'pago tardío',
 		duplicate_payment: 'pago duplicado',
-		door_offline: 'venta sin conexión que pasó un límite'
+		door_offline: 'venta sin conexión para revisar'
 	};
 	/** @type {Record<string, string>} */
 	const CLAIM = { pending: 'pendiente', approved: 'aprobado', rejected: 'rechazado' };
