@@ -337,8 +337,9 @@
 									/>
 									<small id="{idPrefix}-ticket-door-help-{i}"
 										>{#if t.mode === 'tiers'}Si lo dejás vacío, se cobra el precio del último tramo.{:else}Si
-											lo dejás vacío, se cobra el precio fijo.{/if} Vale para la venta en la puerta y
-										la carga a mano. <span aria-live="polite">{doorPricePreview(t)}</span></small
+											lo dejás vacío, se cobra el precio fijo.{/if} Mayor a $ 0: las entradas sin cargo
+										se cargan a mano. Vale para la venta en la puerta y la carga a mano.
+										<span aria-live="polite">{doorPricePreview(t)}</span></small
 									>
 								</label>
 							{/if}
