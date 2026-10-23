@@ -78,6 +78,7 @@
 		{ label: 'desde', value: (c) => (c.starts_at ? new Date(c.starts_at).toISOString() : '') },
 		{ label: 'hasta', value: (c) => (c.ends_at ? new Date(c.ends_at).toISOString() : '') },
 		{ label: 'usos_max', value: (c) => c.max_uses ?? '' },
+		{ label: 'entradas_por_compra', value: (c) => c.max_tickets ?? '' },
 		{ label: 'aprobados', key: 'approved' },
 		{ label: 'en_reserva', key: 'held' },
 		{ label: 'descontado', key: 'discounted' },
@@ -184,6 +185,20 @@
 					{#if errors.max_uses}<small class="kv-error">{errors.max_uses}</small>{/if}
 				</label>
 				<label class="kv-field">
+					<span>Entradas por compra (opcional)</span>
+					<input
+						name="max_tickets"
+						type="number"
+						min="1"
+						step="1"
+						inputmode="numeric"
+						value={values.max_tickets ?? ''}
+						aria-invalid={errors.max_tickets ? 'true' : undefined}
+					/>
+					<small>Cuántas entradas puede cubrir el código en una compra. Vacío: sin límite.</small>
+					{#if errors.max_tickets}<small class="kv-error">{errors.max_tickets}</small>{/if}
+				</label>
+				<label class="kv-field">
 					<span>Válido desde (opcional)</span>
 					<input name="starts_at" type="datetime-local" value={values.starts_at ?? ''} />
 					{#if errors.starts_at}<small class="kv-error">{errors.starts_at}</small>{/if}
@@ -233,6 +248,9 @@
 							{plural(c.approved, 'aprobado', 'aprobados')}{#if c.held}
 								+ {c.held} en reserva{/if}
 							{c.max_uses !== null ? `de ${c.max_uses}` : '(sin límite)'}
+							{#if c.max_tickets !== null}<small class="muted"
+									>hasta {plural(c.max_tickets, 'entrada')} por compra</small
+								>{/if}
 							{#if c.discounted}<small class="muted">descontado {formatARS(c.discounted)}</small
 								>{/if}
 						{:else if column.key === 'state'}

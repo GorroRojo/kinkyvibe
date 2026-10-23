@@ -274,6 +274,87 @@ describe('órdenes con código', () => {
 	});
 });
 
+describe('max_tickets (entradas por compra)', () => {
+	const discount = { code: 'UNA', kind: /** @type {const} */ ('percent'), value: 100 };
+	/** @param {number} quantity */
+	const reserve = (quantity) =>
+		reserveOrder(t.db, {
+			eventSlug: EVENT,
+			type: GENERAL,
+			quantity,
+			holders: people(quantity),
+			buyer: { name: 'Persona', email: 'a@example.com', dni: '40000000' },
+			method: 'gratis',
+			discount,
+			now: NOW
+		});
+
+	it('checkDiscountCode: más entradas que el tope → too-many; sin cantidad no mira', async () => {
+		await code({ code: 'UNA', value: 100, max_tickets: 1 });
+		const at = (/** @type {number | undefined} */ quantity) =>
+			checkDiscountCode(t.db, { code: 'una', eventSlug: EVENT, now: NOW, quantity });
+		expect(await at(2)).toEqual({
+			ok: false,
+			reason: 'too-many',
+			message: 'Ese código vale para hasta 1 entrada por compra.'
+		});
+		expect(await at(1)).toMatchObject({ ok: true, discount: { code: 'UNA', max_tickets: 1 } });
+		expect(await at(undefined)).toMatchObject({ ok: true });
+	});
+
+	it('el plural del mensaje', async () => {
+		await code({ code: 'DOS', max_tickets: 2 });
+		expect(
+			await checkDiscountCode(t.db, { code: 'DOS', eventSlug: EVENT, now: NOW, quantity: 3 })
+		).toMatchObject({ message: 'Ese código vale para hasta 2 entradas por compra.' });
+	});
+
+	it('el INSERT de la orden no deja pasar una compra con más entradas', async () => {
+		await code({ code: 'UNA', value: 100, max_tickets: 1 });
+		expect(await reserve(2)).toEqual({
+			ok: false,
+			reason: 'code',
+			message: 'Ese código vale para hasta 1 entrada por compra.'
+		});
+		expect(await listDiscountCodes(t.db, NOW)).toMatchObject([{ approved: 0, held: 0 }]);
+		expect(await reserve(1)).toMatchObject({ ok: true, order: { quantity: 1, total: 0 } });
+	});
+
+	it('un código sin tope sigue cubriendo toda la compra', async () => {
+		await code({ code: 'UNA', value: 100 });
+		expect(
+			await checkDiscountCode(t.db, { code: 'UNA', eventSlug: EVENT, now: NOW, quantity: 20 })
+		).toMatchObject({ ok: true, discount: { max_tickets: null } });
+		expect(await reserve(5)).toMatchObject({ ok: true, order: { quantity: 5, total: 0 } });
+	});
+});
+
+describe('usos sin distinguir mayúsculas', () => {
+	it('una orden guardada con el código en minúsculas cuenta como uso', async () => {
+		await code({ max_uses: 1 });
+		const r = /** @type {any} */ (await buyWithCode({ quantity: 1 }));
+		expect(r.ok).toBe(true);
+		await t.db
+			.prepare('UPDATE orders SET discount_code = ?2 WHERE id = ?1')
+			.bind(r.order.id, 'prueba20')
+			.run();
+		expect(await listDiscountCodes(t.db, NOW)).toMatchObject([{ held: 1 }]);
+		expect(
+			await checkDiscountCode(t.db, { code: 'PRUEBA20', eventSlug: EVENT, now: NOW })
+		).toMatchObject({ ok: false, reason: 'used-up' });
+		const again = await reserveOrder(t.db, {
+			eventSlug: EVENT,
+			type: GENERAL,
+			quantity: 1,
+			holders: people(1),
+			buyer: { name: 'Persona', email: 'b@example.com', dni: '40000000' },
+			discount: { code: 'PRUEBA20', kind: 'percent', value: 20 },
+			now: NOW
+		});
+		expect(again).toMatchObject({ ok: false, reason: 'code' });
+	});
+});
+
 describe('total 0 (código de 100%)', () => {
 	it('se emite sin Mercado Pago, una sola vez aunque se repita', async () => {
 		await code({ code: 'GRATIS', value: 100, max_uses: 1 });
@@ -345,7 +426,8 @@ describe('validateNewCode (formulario del admin)', () => {
 				event_slug: null,
 				starts_at: null,
 				ends_at: null,
-				max_uses: null
+				max_uses: null,
+				max_tickets: null
 			}
 		});
 	});
@@ -367,6 +449,21 @@ describe('validateNewCode (formulario del admin)', () => {
 			value: { event_slug: EVENT, max_uses: 5, starts_at: Date.parse('2026-12-01T23:00:00Z') }
 		});
 	});
+	it('max_tickets: entero opcional', () => {
+		const base = { code: 'UNA', kind: 'percent', value: '100' };
+		expect(validateNewCode({ ...base, max_tickets: '1' }, slugs)).toMatchObject({
+			ok: true,
+			value: { max_tickets: 1 }
+		});
+		expect(validateNewCode({ ...base, max_tickets: ' ' }, slugs)).toMatchObject({
+			ok: true,
+			value: { max_tickets: null }
+		});
+		expect(validateNewCode({ ...base, max_tickets: '-2' }, slugs)).toMatchObject({
+			ok: false,
+			errors: { max_tickets: 'Un número entero mayor a 0, o vacío para sin límite.' }
+		});
+	});
 	it.each([
 		[{ code: 'a' }, 'code'],
 		[{ kind: 'regalo' }, 'kind'],
@@ -376,7 +473,9 @@ describe('validateNewCode (formulario del admin)', () => {
 		[{ event_slug: 'no-existe' }, 'event_slug'],
 		[{ starts_at: '2026-12-02T00:00', ends_at: '2026-12-01T00:00' }, 'ends_at'],
 		[{ ends_at: 'mañana' }, 'ends_at'],
-		[{ max_uses: '0' }, 'max_uses']
+		[{ max_uses: '0' }, 'max_uses'],
+		[{ max_tickets: '0' }, 'max_tickets'],
+		[{ max_tickets: '1.5' }, 'max_tickets']
 	])('errores %#', (patch, field) => {
 		const r = validateNewCode({ code: 'OK20', kind: 'percent', value: '20', ...patch }, slugs);
 		expect(r.ok).toBe(false);

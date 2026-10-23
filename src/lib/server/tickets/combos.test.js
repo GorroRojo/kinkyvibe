@@ -191,6 +191,7 @@ describe('generar el código', () => {
 			kind: 'percent',
 			value: 25,
 			max_uses: 1,
+			max_tickets: 1,
 			buyer_email: BUYER,
 			source_order_id: a.id,
 			created_by: 'combo'
@@ -419,6 +420,31 @@ describe('usar el código en B', () => {
 		const { code } = await issued();
 		expect((await useIn(code)).ok).toBe(true);
 		expect(await useIn(code)).toMatchObject({ ok: false, reason: 'code' });
+	});
+
+	it('cubre una sola entrada por compra (max_tickets 1)', async () => {
+		const { code } = await issued();
+		expect(
+			await checkDiscountCode(t.db, { code, eventSlug: B, email: BUYER, now: NOW, quantity: 2 })
+		).toMatchObject({
+			ok: false,
+			reason: 'too-many',
+			message: 'Ese código vale para hasta 1 entrada por compra.'
+		});
+		const two = await reserveOrder(t.db, {
+			eventSlug: B,
+			type: GENERAL,
+			quantity: 2,
+			holders: [
+				{ name: 'Persona Inventada', pronouns: '' },
+				{ name: 'Otra Persona', pronouns: '' }
+			],
+			buyer: { name: 'Persona Inventada', email: BUYER, dni: '40000000' },
+			discount: { code, kind: 'percent', value: 25 },
+			now: NOW
+		});
+		expect(two).toMatchObject({ ok: false, reason: 'code' });
+		expect((await useIn(code)).ok).toBe(true);
 	});
 
 	it('no aparece en las listas de códigos comunes', async () => {
