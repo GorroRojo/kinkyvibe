@@ -33,7 +33,7 @@
 	import WaitlistDoorNote from '$lib/components/admin/WaitlistDoorNote.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { CHECKIN_LIST_PARAM } from '$lib/utils/doorEvents.js';
-	import { computePrice, defaultFondoOption } from '$lib/utils/tickets.js';
+	import { computePrice, defaultFondoOption, parseAmount } from '$lib/utils/tickets.js';
 	import {
 		DOOR_SALE_DEFAULT_METHOD,
 		doorOptionLabel,
@@ -708,7 +708,7 @@
 	$: saleCalc = (() => {
 		if (!sType) return null;
 		try {
-			const price = sType.gorra ? Number(saleAmount) : sType.price;
+			const price = sType.gorra ? (parseAmount(saleAmount) ?? NaN) : sType.price;
 			if (!Number.isFinite(price) || price < 0) return null;
 			return computePrice({
 				price,
