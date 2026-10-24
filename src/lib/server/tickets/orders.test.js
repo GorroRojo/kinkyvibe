@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
+import { searchRows } from './checkin.js';
 import { buildPreference } from './mercadopago.js';
 import {
 	HOLD_MS,
@@ -650,6 +651,21 @@ describe('buscador del control de ingreso', () => {
 		expect(byCode[0]).toMatchObject({ id: tickets[1].id, match: { field: 'code', value: code } });
 		// Comienzo del código (3 o más).
 		expect((await searchTickets(t.db, EVENT, code.slice(0, 3)))[0].match?.field).toBe('code');
+	});
+
+	it('las sugerencias (searchRows) traen solo los últimos 3 del DNI, también buscando por el completo', async () => {
+		const tickets = await seed();
+		for (const q of ['31222333', '31.222.333', '31.222']) {
+			const rows = searchRows(await searchTickets(t.db, EVENT, q), {});
+			expect(rows.map((r) => r.id).sort()).toEqual(tickets.map((tk) => tk.id).sort());
+			for (const r of rows) {
+				expect(r.match).toEqual({ field: 'dni', label: 'DNI', value: '333' });
+				expect(r).not.toHaveProperty('dni');
+				// Ningún tramo de 4 dígitos seguidos del DNI en lo que viaja al celu.
+				const sent = JSON.stringify(r);
+				for (let i = 0; i + 4 <= 8; i++) expect(sent).not.toContain('31222333'.slice(i, i + 4));
+			}
+		}
 	});
 
 	it('pocos resultados con `limit`, y nada de órdenes no aprobadas', async () => {

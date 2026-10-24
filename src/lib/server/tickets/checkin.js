@@ -2,6 +2,7 @@
  * Control de ingreso: qué se acepta en el campo "Código de la entrada" y cómo se muestran los
  * resultados del buscador (sugerencias del modo puerta, /admin/eventos/<slug>/ingreso).
  */
+import { dniTail } from './door.js';
 import { SEARCH_FIELD_LABELS, normalizeTicketCode, tokenByCode } from './orders.js';
 
 /**
@@ -33,7 +34,10 @@ export async function extractToken(db, slug, raw) {
 }
 
 /**
- * Resultados del buscador (lo mismo que ya ve une admin en la lista de órdenes).
+ * Resultados del buscador (lo mismo que ya ve une admin en la lista de órdenes). Del DNI viajan
+ * solo los últimos 3 dígitos, los que muestra la sugerencia («coincide con DNI: •••.333»): la
+ * búsqueda por DNI completo se hace en el servidor (`searchTickets`) y verlo entero es la acción
+ * «ver completo», que queda en el registro de actividad.
  *
  * @param {import('./orders.js').TicketSearchResult[]} found
  * @param {Record<string, string>} names
@@ -46,13 +50,16 @@ export function searchRows(found, names) {
 		holder: t.holder_name,
 		pronouns: t.holder_pronouns ?? '',
 		buyer: t.buyer_name,
-		dni: t.buyer_dni ?? '',
 		email: t.buyer_email,
 		type: names[t.ticket_type] ?? t.ticket_type,
 		checkedInAt: t.checked_in_at,
 		checkedInBy: t.checked_in_by,
 		match: t.match
-			? { field: t.match.field, label: SEARCH_FIELD_LABELS[t.match.field], value: t.match.value }
+			? {
+					field: t.match.field,
+					label: SEARCH_FIELD_LABELS[t.match.field],
+					value: t.match.field === 'dni' ? dniTail(t.match.value) : t.match.value
+				}
 			: null
 	}));
 }
