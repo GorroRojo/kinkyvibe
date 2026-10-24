@@ -13,6 +13,12 @@
  */
 import { venueLine, venueSchema } from './venues.js';
 
+/**
+ * Texto del link al mapa (página y .ics). Está acá y no en icsFeed.js (que lo reexporta) para que
+ * la página del evento no baje el paquete `ics`.
+ */
+export const MAP_LABEL = 'Ver en el mapa';
+
 /** Largo máximo del link al mapa. */
 export const MAP_LINK_MAX = 500;
 
