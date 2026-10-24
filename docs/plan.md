@@ -265,7 +265,7 @@ CI) va en la fase 0.
 - `conector-claude-lectura` · fase 1 · sigue · panel · Conector de Claude (MCP) solo de lectura para admins: buscar y leer objetos y listar ventas por slug o nombre, sin SQL a mano ni ids tipeados; detrás de un interruptor, apagado. Va después de los arreglos del acceso de admins que salgan de la auditoría (gorrite, 12/10) (depende de: auditoria-seguridad)
 - `analiticas` · fase 1 · hecho · infra · Visitas y embudo de compra con Workers Analytics Engine · #215
 - `perf-js-interactivo` · fase 1 · hecho · infra · Los trazos del SVG del interactivo «Dónde y con qué golpear un cuerpo» ya no van en el JavaScript de todas las páginas con texto: el servidor se los pasa como props solo a la publicación que lo usa (unos 108 KB gz menos en eventos, material y wiki) · #389
-- `perf-puerta-olas` · fase 1 · hecho · infra · Menos idas y vueltas a D1 en la puerta y en la página de cada entrada: `readWorkshop` (las partes del taller) en una sola tanda en vez de tres consultas en fila, la venta del evento junto con las partes, y después de marcar el ingreso la entrada, la primera vez en la serie y los contadores juntos (escaneo: 4 olas en vez de 10; entrada: 3 en vez de 7) · [talleres-partes.md](talleres-partes.md)
+- `perf-puerta-olas` · fase 1 · hecho · infra · Menos idas y vueltas a D1 en la puerta y en la página de cada entrada: `readWorkshop` (las partes del taller) en una sola tanda en vez de tres consultas en fila, la venta del evento junto con las partes, y después de marcar el ingreso la entrada, la primera vez en la serie y los contadores juntos (escaneo: 4 olas en vez de 10; entrada: 3 en vez de 7) · [talleres-partes.md](talleres-partes.md) · #403
 
 ## Fase 2
 
