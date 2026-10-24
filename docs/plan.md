@@ -111,7 +111,7 @@ CI) va en la fase 0.
 - `panel-pestanas-celu` · fase 0 · hecho · panel · En el celu, la lista ▾ de pestañas de la ficha se ve menos importante que los botones de acción (gorrite, #303) · #331
 - `buscador-pestanas-nombres` · fase 0 · hecho · panel · Los atajos del buscador a las pestañas de un evento (`eventTabActions`) dicen «Órdenes» y «Mail a compradores»: pasar a «Ventas › Órdenes» y «Mails › Mandar un aviso» · #323
 - `navprefs-grupos-limpiar` · fase 0 · hecho · panel · Sacar de `navPrefs.js` las funciones de grupos abiertos (`kv-panel-grupos`) y sus pruebas, que la barra sin grupos ya no usa · #323
-- `login-sin-permisos` · fase 0 · hecho · panel · El login de admins no le pide permisos a GitHub (antes pedía `public_repo`, de cuando el panel guardaba en el repo): solo lee el id de la cuenta · [panel.md](panel.md)
+- `login-sin-permisos` · fase 0 · hecho · panel · El login de admins no le pide permisos a GitHub (antes pedía `public_repo`, de cuando el panel guardaba en el repo): solo lee el id de la cuenta · #382, [panel.md](panel.md)
 - `panel-prefs-en-base` · fase 0 · algún día · panel · Fijados y el modo del panel lateral por admin en la base (hoy por navegador), si se suma una tabla de preferencias
 - `miniaturas-listas-panel` · fase 0 · hecho · panel · Miniaturas achicadas (`thumbnailUrl`) en Eventos y Contenido, como ya tiene «Hoy» · #323
 - `graficos-mas` · fase 0 · algún día · panel · Más gráficos: mapa de la comunidad, Fondo y finanzas
