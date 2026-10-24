@@ -253,6 +253,7 @@ CI) va en la fase 0.
 - `cf-dashboard-limpiar` · fase 1 · hecho · infra · Dashboard de Cloudflare: borrar las variables `*_ENABLED` que ya no hacen nada; el proyecto viejo de Pages queda por las dudas (gorrite, 12/10)
 - `backup-simulacro` · fase 1 · hecho · infra · Simulacro de restaurar un backup en local (`node scripts/d1-restore.js <fecha> --local`): corrió en Windows, igual que el backup (gorrite, 12/10) · #345
 - `perf-placement` · fase 1 · hecho · infra · Smart Placement: el Worker corre cerca de la base D1 cuando conviene (`[placement] mode = "smart"`); se mide el tiempo hasta el primer byte desde Argentina antes y después, y se saca si alguna página empeora · [workers-migracion.md](workers-migracion.md#ubicación-del-worker-smart-placement)
+- `perf-calendar-button` · fase 1 · hecho · infra · «Añadir al calendario» en las tarjetas de las listas: un botón común del servidor que baja la librería del menú (`add-to-calendar-button`, 59 KB gz) recién al tocarlo, en vez de bajarla al montar cada tarjeta de un evento abierto
 - `sveltekit-3` · fase 1 · sigue · infra · Revisar qué pide SvelteKit 3 (rutina del 9/11; gorrite: esperar, sin parches antes)
 - `rss-aviso-sacar` · fase 1 · sigue · infra · Sacar el aviso del RSS el 27/10 (rutina)
 - `push-pwa` · fase 1 · sigue · infra · Notificaciones push y PWA (gorrite, 12/10) · #16, #43, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
