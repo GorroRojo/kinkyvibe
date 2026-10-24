@@ -1041,6 +1041,22 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			}
 		),
 		f(
+			'admin.contracargo',
+			'admin',
+			'line',
+			'Aviso «Cada venta»: un contracargo de Mercado Pago',
+			'⚠️ Contracargo en Mercado Pago: orden {orden} de **{evento}** ({monto}). El banco revirtió el pago; las entradas quedaron anuladas.',
+			{
+				vars: [
+					{ name: 'orden', label: 'la referencia de la orden', sample: 'KV-1A2B3C4D' },
+					V.evento,
+					{ name: 'monto', label: 'el total de la orden', sample: '$ 10.000' }
+				],
+				required: ['orden', 'evento'],
+				help: 'Les llega a quienes prendieron «Cada venta». Nunca dice quién compró.'
+			}
+		),
+		f(
 			'admin.resumen_titulo',
 			'admin',
 			'line',

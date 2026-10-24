@@ -12,6 +12,16 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 const nudges = vi.hoisted(() => ({ calls: /** @type {any[]} */ ([]) }));
 const envVars = vi.hoisted(() => /** @type {Record<string, string>} */ ({}));
+const adminNotices = vi.hoisted(() => ({ calls: /** @type {any[]} */ ([]) }));
+
+// Los avisos a admins por Telegram (adminNotify.test.js prueba qué dicen y a quién llegan): acá
+// solo se mira cuáles se piden.
+vi.mock('$lib/server/telegram/adminNotify.js', async (importOriginal) => ({
+	.../** @type {object} */ (await importOriginal()),
+	queueOrderNotice: async (/** @type {any} */ input) => {
+		adminNotices.calls.push(input);
+	}
+}));
 
 vi.mock('$lib/server/tickets/waitlistEngine.js', async (importOriginal) => ({
 	.../** @type {object} */ (await importOriginal()),
@@ -59,7 +69,7 @@ import { eventTicketActions } from '$lib/server/admin/eventActions.js';
 import { cancelTransferFromPanel } from '$lib/server/admin/transfers.js';
 import { buyAction } from './checkout.js';
 import { processPayment } from './index.js';
-import { applyPayment, reserveOrder } from './orders.js';
+import { applyPayment, getOrder, reserveOrder } from './orders.js';
 import { endWaitlistEntry, joinWaitlist } from './waitlist.js';
 import { offerToken } from './waitlistEngine.js';
 import { waitlistLeaveUrl, waitlistRejoinUrl } from './waitlistMail.js';
@@ -81,6 +91,7 @@ afterAll(async () => {
 beforeEach(async () => {
 	await resetDB(t.db);
 	nudges.calls.length = 0;
+	adminNotices.calls.length = 0;
 	for (const k of Object.keys(envVars)) delete envVars[k];
 });
 
@@ -214,6 +225,69 @@ describe('Mercado Pago', () => {
 		err.mockRestore();
 		log.mockRestore();
 		expectNudged();
+	});
+
+	/**
+	 * Un fetch que captura lo que se le mandaría a Resend (no sale nada).
+	 * @returns {{ fetch: any, subjects: string[] }}
+	 */
+	function resendSpy() {
+		/** @type {string[]} */
+		const subjects = [];
+		const fetch = async (/** @type {any} */ url, /** @type {any} */ init) => {
+			if (String(url).startsWith('https://api.resend.com/')) {
+				subjects.push(JSON.parse(init.body).subject);
+				return new Response('{"id":"inventado"}', { status: 200 });
+			}
+			return new Response('{}', { status: 503 });
+		};
+		return { fetch, subjects };
+	}
+
+	it('reembolso desde el panel de MP: queda reembolsada y se manda el mail', async () => {
+		envVars.RESEND_API_KEY = 're_inventada';
+		const o = await order('mercadopago');
+		await applyPayment(t.db, payment(o, 'approved', 7004));
+		const { fetch, subjects } = resendSpy();
+		await processPayment({
+			db: t.db,
+			payment: payment(o, 'refunded', 7004),
+			origin: 'https://kinkyvibe.ar',
+			fetch
+		});
+		expect((await getOrder(t.db, o.id))?.status).toBe('refunded');
+		expectNudged();
+		expect(subjects).toHaveLength(1);
+		expect(subjects[0]).toMatch(/reembols/i);
+		expect(adminNotices.calls.filter((c) => c.kind === 'contracargo')).toHaveLength(0);
+	});
+
+	it('contracargo: queda reembolsada, empuja la lista y avisa a les admins, pero no manda el mail de reembolso', async () => {
+		envVars.RESEND_API_KEY = 're_inventada';
+		const o = await order('mercadopago');
+		await applyPayment(t.db, payment(o, 'approved', 7005));
+		const { fetch, subjects } = resendSpy();
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		await processPayment({
+			db: t.db,
+			payment: payment(o, 'charged_back', 7005),
+			origin: 'https://kinkyvibe.ar',
+			fetch
+		});
+		const warnings = warn.mock.calls.map((c) => String(c[0]));
+		warn.mockRestore();
+		expect((await getOrder(t.db, o.id))?.status).toBe('refunded');
+		expectNudged();
+		expect(subjects).toHaveLength(0);
+		// El aviso en el log nombra la orden y el pago, sin datos de quien compró.
+		const chargeback = warnings.find((w) => w.includes('contracargo'));
+		expect(chargeback).toContain(o.id);
+		expect(chargeback).toContain('7005');
+		expect(chargeback).not.toContain('@');
+		// Les admins se enteran por Telegram (el aviso de contracargo, con esta orden).
+		const notices = adminNotices.calls.filter((c) => c.kind === 'contracargo');
+		expect(notices).toHaveLength(1);
+		expect(notices[0].order).toMatchObject({ id: o.id, status: 'refunded' });
 	});
 
 	it('un pago aprobado no empuja', async () => {
