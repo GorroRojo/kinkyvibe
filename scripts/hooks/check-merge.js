@@ -137,6 +137,27 @@ export function parseMergeCall(input) {
 }
 
 /**
+ * The newest run of each check, by name. Re-running CI on the same commit (a new push of the PR
+ * description re-triggers it, and `concurrency` cancels the run in flight) leaves the old,
+ * cancelled or failed runs on the head commit next to the new ones; only the latest one says
+ * whether that check passes. A run that hasn't started yet counts as the newest (it blocks until
+ * it finishes). Ties fall back to the higher id.
+ * @param {{ name?: string, id?: number, started_at?: string | null }[]} runs
+ */
+export function latestRuns(runs) {
+	/** @param {{ id?: number, started_at?: string | null }} r */
+	const when = (r) => (r.started_at ? Date.parse(r.started_at) : Infinity);
+	/** @type {Map<string, any>} */
+	const byName = new Map();
+	for (const r of runs) {
+		const prev = byName.get(r.name ?? '');
+		if (!prev || when(r) > when(prev) || (when(r) === when(prev) && (r.id ?? 0) > (prev.id ?? 0)))
+			byName.set(r.name ?? '', r);
+	}
+	return [...byName.values()];
+}
+
+/**
  * Decide whether a merge may go ahead, from GitHub API responses.
  * @param {object} pr        GET /repos/{o}/{r}/pulls/{n}
  * @param {object} status    GET /repos/{o}/{r}/commits/{sha}/status  (combined commit status)
@@ -159,7 +180,7 @@ export function decide(pr, status, checks) {
 	if (pr?.draft) reasons.push(`PR #${n} is a draft.`);
 
 	const statuses = status?.statuses ?? [];
-	const runs = checks?.check_runs ?? [];
+	const runs = latestRuns(checks?.check_runs ?? []);
 
 	const badStatuses = statuses
 		.filter((s) => s.state !== 'success')
