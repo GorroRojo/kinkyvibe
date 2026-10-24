@@ -265,7 +265,7 @@ CI) va en la fase 0.
 - `conector-claude-lectura` · fase 1 · sigue · panel · Conector de Claude (MCP) solo de lectura para admins: buscar y leer objetos y listar ventas por slug o nombre, sin SQL a mano ni ids tipeados; detrás de un interruptor, apagado. Va después de los arreglos del acceso de admins que salgan de la auditoría (gorrite, 12/10) (depende de: auditoria-seguridad)
 - `analiticas` · fase 1 · hecho · infra · Visitas y embudo de compra con Workers Analytics Engine · #215
 - `perf-js-interactivo` · fase 1 · hecho · infra · Los trazos del SVG del interactivo «Dónde y con qué golpear un cuerpo» ya no van en el JavaScript de todas las páginas con texto: el servidor se los pasa como props solo a la publicación que lo usa (unos 108 KB gz menos en eventos, material y wiki) · #389
-- `perf-estado-compra` · fase 1 · hecho · infra · Página de estado de una compra: después de leer la orden, lo demás se lee junto (8 olas a D1 en vez de 11 con un taller en partes, 5 en vez de 8 esperando la transferencia), y el sondeo mientras se espera el pago recarga solo la orden (no las etiquetas del layout), cada vez más espaciado (5, 10, 20 y 30 s; 8 veces en vez de 24) · [tickets.md](tickets.md)
+- `perf-estado-compra` · fase 1 · hecho · infra · Página de estado de una compra: después de leer la orden, lo demás se lee junto (8 olas a D1 en vez de 11 con un taller en partes, 5 en vez de 8 esperando la transferencia), y el sondeo mientras se espera el pago recarga solo la orden (no las etiquetas del layout), cada vez más espaciado (5, 10, 20 y 30 s; 8 veces en vez de 24) · [tickets.md](tickets.md) · #401
 
 ## Fase 2
 
