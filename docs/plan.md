@@ -111,6 +111,7 @@ CI) va en la fase 0.
 - `panel-pestanas-celu` · fase 0 · hecho · panel · En el celu, la lista ▾ de pestañas de la ficha se ve menos importante que los botones de acción (gorrite, #303) · #331
 - `buscador-pestanas-nombres` · fase 0 · hecho · panel · Los atajos del buscador a las pestañas de un evento (`eventTabActions`) dicen «Órdenes» y «Mail a compradores»: pasar a «Ventas › Órdenes» y «Mails › Mandar un aviso» · #323
 - `navprefs-grupos-limpiar` · fase 0 · hecho · panel · Sacar de `navPrefs.js` las funciones de grupos abiertos (`kv-panel-grupos`) y sus pruebas, que la barra sin grupos ya no usa · #323
+- `login-sin-permisos` · fase 0 · hecho · panel · El login de admins no le pide permisos a GitHub (antes pedía `public_repo`, de cuando el panel guardaba en el repo): solo lee el id de la cuenta · [panel.md](panel.md)
 - `panel-prefs-en-base` · fase 0 · algún día · panel · Fijados y el modo del panel lateral por admin en la base (hoy por navegador), si se suma una tabla de preferencias
 - `miniaturas-listas-panel` · fase 0 · hecho · panel · Miniaturas achicadas (`thumbnailUrl`) en Eventos y Contenido, como ya tiene «Hoy» · #323
 - `graficos-mas` · fase 0 · algún día · panel · Más gráficos: mapa de la comunidad, Fondo y finanzas
@@ -266,7 +267,7 @@ CI) va en la fase 0.
 - `importar-material-correr` · fase 2 · sigue · contenido · ver Mesa: cargar el paquete de borradores con el conector de Claude cuando esté, en vez del script (gorrite, 12/10) (depende de: importar-material-script, conector-claude-edicion)
 - `subir-archivos` · fase 2 · hecho · contenido · gorrite corre `node scripts/subir-archivos.js --target=production` (PDF, video y ODT a la biblioteca): corrido en preview y producción (12/10) · [contenido.md](contenido.md#lo-que-falta)
 - `archivos-borrar` · fase 2 · sigue · contenido · Un PR que borra `src/lib/archivos/` y su glob en `render.js`, ahora que los archivos están en la biblioteca (depende de: subir-archivos)
-- `codigo-muerto-github` · fase 2 · sigue · contenido · Código que quedó del panel con GitHub: `sharedImage.js`, la edición del archivo de etiquetas en `tagConfig.js`, ramas «no se guardó en la base», el permiso `public_repo` del login, y que el panel guarde objetos sin pasar por «rutas de `.md`» (`getRepoClient`, `withContentDb`, `commitFiles`)
+- `codigo-muerto-github` · fase 2 · sigue · contenido · Código que quedó del panel con GitHub: `sharedImage.js`, la edición del archivo de etiquetas en `tagConfig.js`, ramas «no se guardó en la base», y que el panel guarde objetos sin pasar por «rutas de `.md`» (`getRepoClient`, `withContentDb`, `commitFiles`)
 - `restos-limpieza` · fase 2 · sigue · contenido · Restos chicos: la regla de estilo que no alcanza a `.kv-texto-libre` (unas 200 páginas, con antes y después), un solo `foldText` en vez de las copias, un solo helper de imagen de una publicación, renombrar el `isAdmin` de `objects/visibility.js`, el campo de texto `perfil.avatar`
 - `docs-a-confirmar` · fase 2 · sigue · docs · Cerrar los «a confirmar» de los docs que gorrite ya confirmó (por ejemplo en lo-que-sigo.md) y las líneas viejas de tickets.md
 - `markdown-frontmatter` · fase 2 · hecho · contenido · El renderizador corta el encabezado de un texto en cualquier `---`, aunque esté a mitad de línea · #327

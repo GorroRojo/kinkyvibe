@@ -26,5 +26,5 @@ solo en la base» los textos pasaron a la base y, con la decisión
 se borraron del repo. El último commit de `main` con los `.md` está marcado con el tag
 `posts-md-final`.
 
-El login sigue pidiendo el scope `public_repo` de GitHub (era para esos commits); bajarlo es una
-decisión aparte (les admins tendrían que volver a aceptar al entrar).
+El login pedía el scope `public_repo` de GitHub para esos commits. Ya no pide ninguno: el token
+solo sirve para leer el id de la cuenta (`GET /user`).
