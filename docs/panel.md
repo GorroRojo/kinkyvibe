@@ -154,7 +154,7 @@ sección (Etiquetas), que usan la URL del área.
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | —            | Inicio (`/admin`)                                                                                                                                                                                                                                                                                                                                         | próximos eventos, para revisar, plata del mes, actividad, "desde tu última visita"                                                                                                                                                                                                                                                |
 | Puerta       | Puerta (`/admin/checkin`)                                                                                                                                                                                                                                                                                                                                 | elegir el evento y abrir su modo puerta (`/admin/eventos/<slug>/ingreso`)                                                                                                                                                                                                                                                         |
-| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`, fuera del menú: botón en Eventos), Agenda (`/agenda`, + Importar planilla en `/importar`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                                                            | lista y ficha de cada evento (`/admin/eventos/<slug>`, ver «Pestañas de la ficha del evento»); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                              |
+| Eventos      | Eventos (`/admin/eventos`), Cargar evento (`/nuevo`, fuera del menú: botón en Eventos), Agenda (`/agenda`, + Importar planilla en `/importar` y Agenda impresa en `/agenda-impresa`), Series (`/series`), Lugares (`/lugares`, + Vincular lugares en `/vincular` e Importar de eventos en `/importar`), Roles y preguntas (`/roles`)                      | lista y ficha de cada evento (`/admin/eventos/<slug>`, ver «Pestañas de la ficha del evento»); modo puerta; series; lugares; roles de personas en eventos y preguntas de inscripción                                                                                                                                              |
 | Ventas       | Todas las ventas (`/admin/ventas`), Transferencias (`/transferencias`), Códigos (`/codigos`) · próximamente: Tienda (`/tienda`, fase 8)                                                                                                                                                                                                                   | ventas de todos los eventos, bandeja de transferencias, códigos de descuento                                                                                                                                                                                                                                                      |
 | Comunidad    | Personas (`/admin/comunidad/personas`), Perfiles (`/perfiles`: la única lista de perfiles, con los lugares en su filtro; decisión de gorrite del 1/10), Cuentas (`/cuentas`; la ficha de un perfil es `/cuentas/perfiles/<id>`)                                                                                                                           | quienes compraron (con notas), todos los perfiles (fichas de /amigues, de cuentas y del panel; filtros, CSV, «Para aprobar», pedidos "Es mi perfil"), cuentas del público ([cuentas.md](cuentas.md), [amigues.md](amigues.md))                                                                                                    |
 | Mensajes     | Plantillas (`/admin/mensajes/plantillas`), Configuración (`/configuracion`), Lo que sigo (`/lo-que-sigo`) · próximamente: Bandeja (`/admin/mensajes`, fase 5)                                                                                                                                                                                             | textos de los mails ([mails.md](mails.md)), remitente, pie, recordatorios y envíos en tandas, el estado de «Lo que sigo» en números ([lo-que-sigo.md](lo-que-sigo.md#en-el-panel))                                                                                                                                                |
@@ -497,6 +497,40 @@ Cómo se descubren (`src/lib/admin/shortcutHints.js`):
    apagado la página da 404, `hiddenWhenOff: true` y no se muestra.
 3. **Lista**: se prende el interruptor; cuando el interruptor desaparece, se borra `flag`.
 4. **Descartada**: se borra el ítem.
+
+## Agenda impresa
+
+**Agenda impresa** (`/admin/eventos/agenda-impresa`, botón en la Agenda y «Ir a…»): arma la hoja
+A4 de volantes para repartir en papel, con el diseño de gorrite (4 volantes A6 para cortar, en
+blanco y negro). Es una pantalla propia sin el menú del panel (`bare: true`), así al imprimir sale
+solo la hoja: se imprime o se guarda como PDF desde el navegador (márgenes «Ninguno» y «Gráficos
+de fondo» prendido). **Solo lee**: no escribe en la base y lo que se cambia en la página no se
+guarda en ningún lado.
+
+- **Qué eventos**: los publicados y listados de un rango de días (por defecto hoy y los 13
+  siguientes; `?desde=AAAA-MM-DD&hasta=AAAA-MM-DD`), sin los cancelados. Se tildan cuáles van y se
+  ordenan con ↑ ↓; en un volante entran 4 (con más, avisa y van los primeros 4).
+- **Qué sale de los datos** (`src/lib/utils/agendaImpresa.js`, puro y con pruebas; los junta
+  `src/lib/server/eventos/agendaImpresa.js`):
+  - fecha y hora en hora de Argentina, «sábado 26 de julio. 20:00 hs» (el diseño lleva «hs»);
+  - el lugar **como lo ve cualquiera** (`feedVenues`): nunca una dirección que el nivel del lugar
+    no muestra. Con «Sólo barrio», «San Telmo (dirección x privado)»; online, «Online»; sin lugar
+    vinculado, el «Dónde» en texto libre. Solo en el volante, «Ciudad Autónoma de Buenos Aires»
+    (y «C.A.B.A.», «Capital Federal») se acorta a «CABA» (`shortenCity`); el sitio no cambia;
+  - el precio con las reglas del precio en la puerta (`doorPricesText`): «Entrada: $ 16.500»,
+    «Desde $ 10.000», «A la gorra», «Gratis»; sin entradas por el sitio, las etiquetas «Gratis» o
+    «a la gorra», o la línea no va;
+  - el ícono y el subtítulo de la **serie** del evento (el emoji de la etiqueta y la primera
+    oración de su descripción, si es corta); sin serie, ✨ y sin subtítulo.
+- **Qué se cambia a mano** (por evento): ícono, subtítulo, lugar y precio; y de la hoja, el
+  encabezado, el pie, cuántos volantes por A4 (4 = A6, 2 = A5 apaisado, 1 = A4), el fondo y un QR
+  al calendario (`qrSvg`, el mismo de las entradas).
+- **Fondo y letra**: el fondo de dibujos (`static/agenda-impresa/fondo.svg`) se sacó del archivo
+  del diseño (una imagen con su máscara, que le da el trazo fino) y se pasó a vectores; va con el
+  tamaño, la posición y la transparencia (33 %) del PDF. La letra es «1797» (Neue_Haut, © 2018 Claustro
+  Comfama San Ignacio, diseño de Santiago Arango García, **CC BY 4.0**), recortada a latín y
+  español en `static/fonts/1797/` con su `LICENSE.txt`; se carga solo en esta página. El logo es el
+  del sitio (`src/routes/logo.png`) pasado a blanco y negro con un filtro.
 
 ## El buscador
 
