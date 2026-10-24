@@ -9,8 +9,8 @@
  * - Control de versión: si alguien guardó la etiqueta mientras se editaba, no se guarda nada y la
  *   página lo avisa, con lo escrito intacto.
  * - Cómo se muestra el texto (`wiki_body_html`): como en los eventos, si no cambió queda como
- *   estaba; si cambió, HTML libre si guarda une superadmin (todes les admins del panel, decisión
- *   0003) y la lista corta si no.
+ *   estaba (sin valor: la lista corta); si cambió, HTML libre si guarda une superadmin (todes les
+ *   admins del panel, decisión 0003) y la lista corta si no.
  */
 import { VersionConflictError, ObjectError } from '$lib/server/objects/errors.js';
 import { saveObject } from '$lib/server/objects/save.js';

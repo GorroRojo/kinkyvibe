@@ -32,8 +32,9 @@ export async function load({ params, platform }) {
 	let page = {};
 	if (entry) {
 		const post = wikiPost(entry, tags);
-		// Lo importado del repo (o guardado por une superadmin) con HTML libre, como lo armaba mdsvex;
-		// lo demás, con la lista corta (src/lib/server/contenido/render.js).
+		// Con `wiki_body_html: 'libre'` guardado (lo importado o lo que guardó une superadmin), HTML
+		// libre, como lo armaba mdsvex; lo demás (sin valor también), con la lista corta
+		// (src/lib/server/contenido/render.js).
 		const body = await renderContentBody(
 			{ body: entry.body, body_html: entry.bodyHtml },
 			'wiki',
