@@ -120,7 +120,7 @@ CI) va en la fase 0.
 - `panel-iconos-lateral` · fase 0 · hecho · panel · Íconos en las pestañas y modo del panel lateral por admin · #293
 - `estadisticas-pestanas` · fase 0 · hecho · panel · Estadísticas en pestañas (Ventas, Asistencia, Visitas) · #258
 - `buscador-panel` · fase 0 · hecho · panel · Buscador del panel: tildes, acciones y operadores · #259, #269
-- `moderar-ocultar` · fase 0 · hecho · panel · «Ocultar» un perfil desde el panel también le saca la aprobación para /amigues: si quien lo gestiona lo vuelve a hacer público desde Mi rincón, no reaparece hasta que une admin lo apruebe de nuevo · [amigues.md](amigues.md)
+- `moderar-ocultar` · fase 0 · hecho · panel · «Ocultar» un perfil desde el panel también le saca la aprobación para /amigues: si quien lo gestiona lo vuelve a hacer público desde Mi rincón, no reaparece hasta que une admin lo apruebe de nuevo · #385, [amigues.md](amigues.md)
 
 ### Sitio público
 
