@@ -29,7 +29,7 @@ Cada visita o paso es un "punto" con estas columnas, y nada más:
 «celu / tablet / compu»), cookies, la cuenta o la sesión, el mail, el id de la orden, la query
 string (UTM, `fbclid`, tokens…), la ruta del Referer ni la ciudad. Las visitas del panel, la API,
 los login, «Mi rincón» y las rutas con tokens (`/entradas/…`, `/avisos/confirmar|baja|sigo/…`,
-`/propinas/<id>`) no se cuentan.
+`/lista-de-espera/…`, `/mails/…`, `/propinas/<id>`) no se cuentan.
 
 ### Qué cuenta como visita
 
