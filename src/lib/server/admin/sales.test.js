@@ -15,7 +15,13 @@ vi.mock('$lib/server/tickets/events.js', () => ({
 	getEventTickets: vi.fn(async (/** @type {string} */ slug) =>
 		slug === 'fiesta-a' || slug === 'fiesta-b'
 			? { title: slug, types: [{ id: 'general', name: 'General', price: 5000, capacity: 3 }] }
-			: null
+			: slug === 'fiesta-cancelada'
+				? {
+						title: slug,
+						status: 'cancelado',
+						types: [{ id: 'general', name: 'General', price: 5000, capacity: 3 }]
+					}
+				: null
 	)
 }));
 
@@ -303,6 +309,48 @@ describe('confirmar y cancelar desde la bandeja', async () => {
 		expect(r).toMatchObject({ ok: true });
 		expect(r.needsConfirmation).toBeUndefined();
 		expect(await audit()).toEqual([{ action: 'transfer.confirm', target_id: late.id }]);
+	});
+
+	it('evento cancelado: pide confirmar («El evento está cancelado.»); con la clave confirma y lo anota', async () => {
+		const o = await reserve('fiesta-cancelada', { method: 'transferencia' });
+		const sendMail = vi.fn(async () => {});
+		const base = { db: t.db, locals, by: 'admin-prueba', orderId: o.id, sendMail, now: NOW + 1000 };
+		const first = await confirmTransferFromPanel(base);
+		expect(first).toMatchObject({ ok: false, status: 409 });
+		expect(first.needsConfirmation?.limits).toEqual([
+			{ kind: 'closed', reason: 'cancelled', message: 'El evento está cancelado.' }
+		]);
+		// No se cancela ni se confirma sola: sigue esperando comprobante.
+		expect((await getOrder(t.db, o.id))?.status).toBe('awaiting_transfer');
+		expect(sendMail).not.toHaveBeenCalled();
+		expect(await audit()).toEqual([]);
+
+		const r = await confirmTransferFromPanel({ ...base, override: first.needsConfirmation?.key });
+		expect(r).toMatchObject({ ok: true, slug: 'fiesta-cancelada' });
+		expect(sendMail).toHaveBeenCalledTimes(1);
+		expect(await audit()).toEqual([
+			{ action: 'transfer.confirm', target_id: o.id },
+			{ action: 'tickets.override', target_id: o.id }
+		]);
+		// Un segundo click sobre la ya confirmada no vuelve a preguntar.
+		const again = await confirmTransferFromPanel({ ...base, now: NOW + 2000 });
+		expect(again).toMatchObject({ ok: true });
+		expect(again.message).toMatch(/ya estaba confirmada/);
+	});
+
+	it('evento cancelado y vencida sin cupo: pregunta las dos cosas; confirmar solo «cancelado» no pasa el cupo', async () => {
+		const late = await reserve('fiesta-cancelada', { method: 'transferencia', quantity: 2 });
+		const after = NOW + TRANSFER_HOLD_MS + 1;
+		await approve((await reserve('fiesta-cancelada', { quantity: 3, now: after })).id);
+		const base = { db: t.db, locals, by: 'admin-prueba', orderId: late.id, now: after };
+		const first = await confirmTransferFromPanel(base);
+		expect(first.needsConfirmation?.limits.map((l) => l.kind)).toEqual(['capacity', 'closed']);
+		// La clave de «evento cancelado» sola no alcanza: hay que confirmar también el cupo.
+		const onlyCancelled = await confirmTransferFromPanel({ ...base, override: 'closed:cancelled' });
+		expect(onlyCancelled.status).toBe(409);
+		expect((await getOrder(t.db, late.id))?.status).not.toBe('approved');
+		const r = await confirmTransferFromPanel({ ...base, override: first.needsConfirmation?.key });
+		expect(r).toMatchObject({ ok: true });
 	});
 
 	it('cancela; una orden de Mercado Pago o inexistente no', async () => {

@@ -171,6 +171,17 @@ export function noDoorLimit(config) {
 	return config?.door?.on === false ? { kind: 'no_door' } : null;
 }
 
+/**
+ * Evento cancelado (`status: cancelado`), para lo que no pasa por `salesState` (confirmar una
+ * transferencia: el evento se canceló mientras esperaba el comprobante). Mismo límite y mismo
+ * texto que la venta cerrada por cancelación («El evento está cancelado.»).
+ * @param {{ status?: string } | null | undefined} config
+ * @returns {ExceededLimit | null}
+ */
+export function cancelledLimit(config) {
+	return config?.status === 'cancelado' ? { kind: 'closed', reason: 'cancelled' } : null;
+}
+
 /** @param {number} n */
 const plural = (n) => (n === 1 ? '1 entrada' : `${n} entradas`);
 

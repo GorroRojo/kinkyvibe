@@ -5,10 +5,12 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const fake = vi.hoisted(() => ({ status: /** @type {string | undefined} */ (undefined) }));
 vi.mock('$lib/server/tickets/events.js', async (importOriginal) => ({
 	.../** @type {any} */ (await importOriginal()),
 	getEventTickets: async () => ({
 		title: 'Fiesta de prueba',
+		status: fake.status,
 		types: [{ id: 'general', name: 'General', price: 5000, capacity: 2 }]
 	})
 }));
@@ -32,6 +34,7 @@ afterAll(async () => {
 });
 beforeEach(async () => {
 	await resetDB(t.db);
+	fake.status = undefined;
 });
 
 const SLUG = 'fiesta-de-prueba';
@@ -108,5 +111,34 @@ describe('confirmar una transferencia que pasa el cupo', () => {
 		const entries = await listAudit(t.db);
 		expect(entries.map((e) => e.action).sort()).toEqual(['tickets.override', 'transfer.confirm']);
 		expect(entries.find((e) => e.action === 'tickets.override')?.actorLogin).toBe(ADMINS[0].login);
+	});
+});
+
+describe('confirmar una transferencia de un evento cancelado', () => {
+	it('pregunta antes («El evento está cancelado.») y no cambia nada; con la clave confirma', async () => {
+		fake.status = 'cancelado';
+		const order = /** @type {any} */ (
+			await reserveOrder(t.db, {
+				eventSlug: SLUG,
+				type: { id: 'general', price: 5000, capacity: 2 },
+				quantity: 1,
+				holders: [{ name: 'Persona Uno', pronouns: 'elle' }],
+				buyer: { name: 'Persona Uno', email: 'cancelado@example.com', dni: '30111222' },
+				method: 'transferencia',
+				holdMs: TRANSFER_HOLD_MS,
+				now: Date.now()
+			})
+		).order;
+		const first = await confirm({ order: order.id }, admin);
+		expect(first.status).toBe(409);
+		const nc = first.data.transfer.needsConfirmation;
+		expect(nc.limits).toEqual([
+			{ kind: 'closed', reason: 'cancelled', message: 'El evento está cancelado.' }
+		]);
+		expect((await getOrder(t.db, order.id))?.status).toBe('awaiting_transfer');
+
+		const ok = await confirm({ order: order.id, override: nc.key }, admin);
+		expect(ok.transfer).toMatchObject({ ok: true });
+		expect((await getOrder(t.db, order.id))?.status).toBe('approved');
 	});
 });

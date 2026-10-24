@@ -275,6 +275,50 @@ export function pendingTransfersQuery(now) {
 }
 
 /**
+ * @typedef {{ slug: string, approved: number, approvedTotal: number, transfers: number }} CancelledLeftovers
+ */
+
+/**
+ * Lo que queda por devolver de los eventos cancelados (decisión 0044: se devuelve todo desde el
+ * panel): órdenes aprobadas (no reembolsadas) con su total, y transferencias esperando comprobante
+ * todavía vigentes. Solo los eventos con algo de eso; sin mirar la fecha (un evento que ya pasó
+ * sigue apareciendo mientras quede algo). Sin eventos cancelados, no va a la base.
+ *
+ * @param {string[]} slugs los eventos con `status: cancelado`
+ * @param {number} now
+ * @returns {BatchQuery<CancelledLeftovers[]>}
+ */
+export function cancelledLeftoversQuery(slugs, now) {
+	return query(
+		'eventos cancelados con órdenes',
+		[],
+		(db) =>
+			slugs.length
+				? [
+						db
+							.prepare(
+								`SELECT event_slug,
+					SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approved,
+					SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) AS approved_total,
+					SUM(CASE WHEN status = 'awaiting_transfer' THEN 1 ELSE 0 END) AS transfers
+				FROM orders WHERE event_slug IN (${placeholders(slugs)})
+					AND (status = 'approved' OR (status = 'awaiting_transfer' AND expires_at > ?))
+				GROUP BY event_slug ORDER BY event_slug`
+							)
+							.bind(...slugs, now)
+					]
+				: [],
+		(results) =>
+			rowsOf(results).map((r) => ({
+				slug: String(r.event_slug),
+				approved: Number(r.approved ?? 0),
+				approvedTotal: Number(r.approved_total ?? 0),
+				transfers: Number(r.transfers ?? 0)
+			}))
+	);
+}
+
+/**
  * Órdenes aprobadas cuyo mail con las entradas no salió (`email_sent_at` vacío), más viejas que
  * {@link EMAIL_GRACE_MS}.
  *
