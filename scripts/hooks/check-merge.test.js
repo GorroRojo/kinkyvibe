@@ -185,6 +185,28 @@ describe('decide', () => {
 		expect(decide(pr(), green.status, queued).reasons[0]).toContain('e2e=queued');
 	});
 
+	it('ignores a cancelled matrix job that was never expanded (template name)', () => {
+		const checks = {
+			check_runs: [
+				{
+					...run('tests (${{ matrix.shard }}/3)', 'cancelled'),
+					started_at: '2026-10-24T14:52:56Z'
+				},
+				{ ...run('tests (1/3)'), started_at: '2026-10-24T14:57:30Z' },
+				{ ...run('ci-ok'), started_at: '2026-10-24T15:05:00Z' }
+			]
+		};
+		expect(decide(pr(), green.status, checks).allow).toBe(true);
+		// A template-named job that FAILED (not cancelled) still blocks.
+		const failed = {
+			check_runs: [
+				...checks.check_runs,
+				{ ...run('x (${{ matrix.y }})', 'failure'), started_at: '2026-10-24T15:06:00Z' }
+			]
+		};
+		expect(decide(pr(), green.status, failed).allow).toBe(false);
+	});
+
 	it('latestRuns keeps one run per name, the newest (ties by id)', () => {
 		const r = latestRuns([
 			{ name: 'a', id: 1, started_at: '2026-01-01T00:00:00Z' },

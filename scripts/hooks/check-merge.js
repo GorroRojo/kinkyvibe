@@ -145,6 +145,10 @@ export function parseMergeCall(input) {
  * @param {{ name?: string, id?: number, started_at?: string | null }[]} runs
  */
 export function latestRuns(runs) {
+	// A matrix job cancelled before GitHub expands it keeps its template name
+	// («tests (${{ matrix.shard }}/3)»). No later run will ever carry that name, so a cancelled one
+	// would block forever; the expanded jobs of the newer run are the ones that count.
+	runs = runs.filter((r) => !(r.conclusion === 'cancelled' && /\$\{\{/.test(r.name ?? '')));
 	/** @param {{ id?: number, started_at?: string | null }} r */
 	const when = (r) => (r.started_at ? Date.parse(r.started_at) : Infinity);
 	/** @type {Map<string, any>} */
