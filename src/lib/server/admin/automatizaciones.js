@@ -108,6 +108,28 @@ async function firstOrNull(db, sql, params = []) {
 	}
 }
 
+/**
+ * Desde cuántas horas un backup (o un chequeo) cuenta como viejo: corre una vez por noche, así que
+ * 36 h quiere decir que por lo menos una noche no corrió.
+ */
+export const BACKUP_STALE_HOURS = 36;
+const HOUR = 60 * MINUTE;
+
+/**
+ * Si la última corrida es más vieja que {@link BACKUP_STALE_HOURS} (o no hay), el texto del aviso;
+ * si no, `null`.
+ *
+ * @param {number | null} at
+ * @param {number} now
+ * @param {string} what  «backup», «chequeo»
+ * @returns {string | null}
+ */
+export function staleLabel(at, now, what) {
+	if (at === null) return `No se encontró ningún ${what} nocturno`;
+	const hours = Math.floor((now - at) / HOUR);
+	return hours >= BACKUP_STALE_HOURS ? `El último ${what} tiene ${hours} horas` : null;
+}
+
 /** @param {unknown} v */
 const msOrNull = (v) =>
 	v === null || v === undefined || !Number.isFinite(Number(v)) ? null : Number(v);
@@ -245,6 +267,16 @@ export async function loadAutomations({
 	);
 	const integrityAt = msOrNull(integrity?.ran_at);
 	const backupAt = backup?.at ?? null;
+	const integrityProblems = integrity ? countOf(integrity.problem_count) : 0;
+	// Solo donde corre el cron nocturno (producción, el único con el bucket): un backup que falta o
+	// que tiene más de 36 h quiere decir que alguna noche no corrió. Lo mismo el chequeo, si hay.
+	const backupStale = backups ? staleLabel(backupAt, now, 'backup') : null;
+	const integrityStale =
+		backups && integrityAt !== null ? staleLabel(integrityAt, now, 'chequeo') : null;
+	const backupWarning =
+		backupStale ??
+		integrityStale ??
+		(integrityProblems > 0 ? `El último chequeo encontró ${integrityProblems} problema(s)` : null);
 
 	/** @type {Automation[]} */
 	const crons = [
@@ -275,14 +307,19 @@ export async function loadAutomations({
 			lastRun: backupAt ?? integrityAt,
 			lastRunLabel: backupAt ? 'Último backup' : 'Último chequeo (corre después del backup)',
 			nextRun: backupNext,
-			state: integrity && countOf(integrity.problem_count) > 0 ? 'warn' : 'on',
-			stateLabel:
-				integrity && countOf(integrity.problem_count) > 0
-					? `El último chequeo encontró ${countOf(integrity.problem_count)} problema(s)`
-					: 'Corre solo en el sitio de verdad',
+			state: backupWarning ? 'warn' : 'on',
+			stateLabel: backupWarning ?? 'Corre solo en el sitio de verdad',
 			details: [
 				`Cron: ${BACKUP_CRON} (UTC)`,
-				backup ? `Archivo: ${backup.key}` : 'El bucket de backups solo existe en producción.'
+				backup
+					? `Archivo: ${backup.key}`
+					: backups
+						? 'No se encontró ningún backup nocturno en el bucket.'
+						: 'El bucket de backups solo existe en producción.',
+				// Si el aviso es por la fecha, los problemas del chequeo no se pierden.
+				...(integrityProblems > 0 && (backupStale || integrityStale)
+					? [`El último chequeo encontró ${integrityProblems} problema(s)`]
+					: [])
 			],
 			configHref: '/admin#para-revisar',
 			configLabel: 'Para revisar'

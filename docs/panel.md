@@ -731,7 +731,10 @@ que corre solo (la única acción es «Actualizar comandos del bot», abajo). La
   `src/lib/server/scheduled.js`): la vuelta de mails cada 15 minutos y el backup nocturno (con el
   chequeo de integridad después). Cada una con la próxima corrida y la última vez: el último mail
   que salió (la base no guarda las vueltas que no mandaron nada) y el último backup de R2 (solo en
-  producción; en un preview, la última corrida del chequeo, `integrity_runs`).
+  producción; en un preview, la última corrida del chequeo, `integrity_runs`). En producción, si
+  no hay ningún backup nocturno o el último tiene más de 36 horas (alguna noche no corrió), el
+  backup queda en amarillo con «El último backup tiene N horas»; lo mismo si el último chequeo
+  tiene más de 36 horas.
 - **Mails que salen solos**: recordatorios de entradas (los configurados en Mensajes → Configuración),
   links de transmisión, avisos de series y de «Lo que sigo» (nuevo y recordatorio), con el último
   envío, los pendientes y los que fallaron (`reminder_sends`, `stream_link_sends`,
