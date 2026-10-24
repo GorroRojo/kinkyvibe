@@ -156,9 +156,13 @@ export function newToken() {
  *   clientHash?: string | null,
  *   limits?: typeof HOLD_LIMITS,
  *   answers?: import('$lib/utils/signupFields.js').Answer[],
- *   waitlist?: import('./waitlistPurchase.js').WaitlistGuard | null
+ *   waitlist?: import('./waitlistPurchase.js').WaitlistGuard | null,
+ *   freeOnce?: boolean
  * }} input
  * Con `type.capacity` `null` (sin cupo) no hay límite de entradas del tipo.
+ * `freeOnce` (entradas gratis con un mail que no es el de la cuenta con sesión): la MISMA
+ * sentencia controla que ese mail no tenga otra orden gratis aprobada o reservada en el evento; si
+ * la tiene, `reason: 'free'`.
  * `answers`: respuestas a las preguntas de inscripción (ya validadas), en la misma tanda.
  *
  * Lista de espera (`waitlist`, solo con el interruptor `lista_espera` prendido y el evento con
@@ -178,6 +182,7 @@ export function newToken() {
  *   | { ok: false, reason: 'limit', message: string }
  *   | { ok: false, reason: 'code', message: string }
  *   | { ok: false, reason: 'tier' }
+ *   | { ok: false, reason: 'free' }
  *   | { ok: false, reason: 'method' }>}
  */
 export async function reserveOrder(db, input) {
@@ -247,7 +252,7 @@ export async function reserveOrder(db, input) {
 						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?9))
 				) + ?4 <= ?32)
 				AND ${discountGuardSql({ code: '?12', kind: '?13', value: '?14', event: '?2', now: '?9', qty: '?4', email: '?8' })}
-				${guard ? `${WAITLIST_GUARD_SQL}\n\t\t\t\t` : ''}RETURNING *`
+				${input.freeOnce ? `${FREE_ONCE_SQL}\n\t\t\t\t` : ''}${guard ? `${WAITLIST_GUARD_SQL}\n\t\t\t\t` : ''}RETURNING *`
 			)
 			.bind(
 				id,
@@ -289,6 +294,8 @@ export async function reserveOrder(db, input) {
 	]);
 	const order = /** @type {Order | undefined} */ (inserted.results[0]);
 	if (order) return { ok: true, order };
+	if (input.freeOnce && (await hasFreeOrder(db, { eventSlug, email: buyer.email, now })))
+		return { ok: false, reason: 'free' };
 	const limited = await holdLimitMessage(db, {
 		eventSlug,
 		email: buyer.email,
@@ -370,6 +377,15 @@ const WAITLIST_GUARD_SQL = `AND ${waitlistFreeSql(RESERVE_PARAMS)} - ?4 >= ${wai
 					WHERE w.id = ?33 AND w.status = 'offered' AND w.event_slug = ?2
 						AND (w.hold_until IS NULL OR w.hold_until > ?9)
 						AND (w.ticket_type IS NULL OR w.ticket_type = ?3)))`;
+
+/**
+ * La condición de `freeOnce` en la sentencia de `reserveOrder`: el mail (`?8`) no tiene otra orden
+ * gratis aprobada o reservada vigente en el evento (`?2`, ahora `?9`). En la misma sentencia, así
+ * dos pedidos a la vez no sacan dos.
+ */
+const FREE_ONCE_SQL = `AND NOT EXISTS (SELECT 1 FROM orders o
+					WHERE o.event_slug = ?2 AND o.buyer_email = ?8 AND o.payment_method = 'gratis'
+						AND (o.status = 'approved' OR (o.status IN ${HOLDING} AND o.expires_at > ?9)))`;
 
 /**
  * Cuántas podría comprar ahora quien compra en el alcance de la lista: el lugar libre menos la
@@ -492,6 +508,26 @@ export async function getTakenMany(db, eventSlugs, now = Date.now()) {
 function openHoldsSql(where, what) {
 	return `(SELECT COALESCE(${what}, 0) FROM orders
 		WHERE event_slug = ?2 AND ${where} AND status IN ${HOLDING} AND expires_at > ?9)`;
+}
+
+/**
+ * ¿Este mail ya tiene una orden gratis aprobada o reservada en el evento? Lo mismo que mira
+ * {@link FREE_ONCE_SQL} (para decir por qué no entró la reserva).
+ *
+ * @param {D1Database} db
+ * @param {{ eventSlug: string, email: string, now: number }} input
+ */
+async function hasFreeOrder(db, { eventSlug, email, now }) {
+	const row = await db
+		.prepare(
+			`SELECT 1 AS x FROM orders
+			WHERE event_slug = ?1 AND buyer_email = ?2 AND payment_method = 'gratis'
+				AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?3))
+			LIMIT 1`
+		)
+		.bind(eventSlug, email, now)
+		.first();
+	return Boolean(row);
 }
 
 /**
