@@ -33,7 +33,17 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
   `/calendario/<parte>/entradas` redirige ahí.
 - **«Entradas por parte»** (casilla en la sección Partes): `entradas_por_parte: true` en el `extra`
   del taller, junto con el resto de la configuración de entradas. Cada parte vende la suya (se
-  configura en su ficha) y nada de lo de abajo aplica.
+  configura en su ficha) y nada de lo de abajo aplica, salvo la pregunta con entradas vendidas.
+- **Con entradas vendidas, pregunta antes.** Prender «Entradas por parte» con entradas vendidas
+  del taller, apagarlo con entradas vendidas de las partes, o sumar como parte (con una sola
+  entrada) un evento que ya vendió, deja entradas pagas que no valen en la puerta y cupo que se
+  podría vender dos veces. Sin `confirm: true`, `setPerPartTickets` y `setWorkshopParts`
+  contestan `needsConfirm` con «‹evento› ya tiene N entradas vendidas: si cambiás esto, dejan de
+  valer en la puerta. ¿Cambiar igual?» y no guardan; la sección Partes lo muestra con «Cambiar
+  igual» (vuelve a mandar con `confirm`) o «No cambiar» (la casilla vuelve a como estaba). Lo
+  confirmado queda en la actividad (`event.parts_with_sales`). Cuenta `soldCount`, con la misma
+  regla del cupo: órdenes aprobadas o con la reserva vigente (`HOLDING`,
+  `src/lib/server/tickets/holding.js`). Reordenar o sacar partes no pregunta.
 - **Ingreso por parte:** el modo puerta de cada parte (2 en adelante) usa las entradas del taller y
   marca el ingreso en `ticket_part_checkins` (migración `0039`, una fila por entrada y parte;
   `src/lib/server/tickets/partCheckins.js`). El de la parte 1 sigue siendo
