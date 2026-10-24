@@ -257,7 +257,7 @@ CI) va en la fase 0.
 - `sveltekit-3` · fase 1 · sigue · infra · Revisar qué pide SvelteKit 3 (rutina del 9/11; gorrite: esperar, sin parches antes)
 - `rss-aviso-sacar` · fase 1 · sigue · infra · Sacar el aviso del RSS el 27/10 (rutina)
 - `push-pwa` · fase 1 · sigue · infra · Notificaciones push y PWA (gorrite, 12/10) · #16, #43, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
-- `errores-alertas` · fase 1 · sigue · infra · Enterarse de los errores de producción. Hecho: cada error que no es un 404 deja una línea JSON en los logs con un código corto, y la página de un error 5xx lo muestra para que nos lo pasen (`src/lib/server/errorLog.js`). Falta: un Worker que mire los registros y avise si falla una compra · [workers-migracion.md](workers-migracion.md#cómo-está-armado-para-quien-programa)
+- `errores-alertas` · fase 1 · sigue · infra · Enterarse de los errores de producción. Hecho: cada error que no es un 404 deja una línea JSON en los logs con un código corto, y la página de un error 5xx lo muestra para que nos lo pasen (`src/lib/server/errorLog.js`). Falta: un Worker que mire los registros y avise si falla una compra · #404 · [workers-migracion.md](workers-migracion.md#cómo-está-armado-para-quien-programa)
 - `vivo-durable-objects` · fase 1 · algún día · infra · Presencia («alguien está editando») y contadores en vivo con un Durable Object
 - `r2-ciclo-vida` · fase 1 · algún día · infra · Regla de R2 que limpie subidas a medias después de un día
 - `seguridad-endurecer` · fase 1 · espera gorrite · infra · Endurecer la configuración de GitHub y Cloudflare: ver Mesa
