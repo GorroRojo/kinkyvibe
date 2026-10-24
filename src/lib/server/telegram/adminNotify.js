@@ -1,7 +1,8 @@
 /**
  * Los avisos para admins por Telegram, PR 2 (decisión 0041, docs/telegram.md «Estado y avisos
  * para admins»): el **resumen diario** de ventas y los avisos **de cada venta** y **de cada
- * transferencia**. El día del evento y los recordatorios son del PR 3.
+ * transferencia**, y el de un **contracargo** de Mercado Pago (le llega a quien prendió «Cada
+ * venta»). El día del evento y los recordatorios son del PR 3.
  *
  * Reglas (las de 0029 y 0041):
  *
@@ -26,6 +27,8 @@ import { adminBotEnabled, adminEventChoices, eventStatus, noticeRecipients } fro
 import { isHttps, tgTime } from './screens.js';
 import { callTelegramApi } from './send.js';
 import { botText, botTextOverrides } from './texts.js';
+import { formatARS } from '$lib/utils/money.js';
+import { orderReference } from '$lib/utils/tickets.js';
 import { argentinaHour, isQuietHour } from './quiet.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -159,6 +162,21 @@ export function transferNoticeText({ summary, eventTitle, pending }, overrides) 
 	return botText(
 		'admin.transferencia',
 		{ entradas: ticketsPhrase(summary), evento: eventTitle, pendientes: pending },
+		overrides
+	);
+}
+
+/**
+ * «⚠️ Contracargo en Mercado Pago: orden KV-1A2B3C4D de Fiesta X ($ 10.000). …». Solo la
+ * referencia de la orden, el evento y el total: nunca quién compró.
+ *
+ * @param {{ reference: string, eventTitle: string, amount: string }} input
+ * @param {BotTexts | null} [overrides]
+ */
+export function chargebackNoticeText({ reference, eventTitle, amount }, overrides) {
+	return botText(
+		'admin.contracargo',
+		{ orden: reference, evento: eventTitle, monto: amount },
 		overrides
 	);
 }
@@ -357,15 +375,18 @@ async function deliverOnce({ db, send, key, message, now, recipients }) {
 // Cada venta y cada transferencia
 // ---------------------------------------------------------------------------------------------
 
-/** @typedef {'cada_venta' | 'transferencia'} OrderNoticeKind */
+/** @typedef {'cada_venta' | 'transferencia' | 'contracargo'} OrderNoticeKind */
 
 /**
  * El aviso de una orden a les admins que lo prendieron: «cada venta» cuando se aprueba, «cada
- * transferencia» cuando llega una para confirmar. Solo de las ventas por el sitio (canal
- * `online`): las de la puerta y las cargadas a mano las hace une admin.
+ * transferencia» cuando llega una para confirmar, y un contracargo de Mercado Pago (el banco de
+ * quien compró revirtió el pago) a quienes prendieron «cada venta»: no tiene interruptor propio.
+ * Solo de las ventas por el sitio (canal `online`): las de la puerta y las cargadas a mano las
+ * hace une admin.
  *
  * @param {{ db: D1Database, kind: OrderNoticeKind,
- *   order: Pick<Order, 'id' | 'event_slug' | 'ticket_type' | 'ticket_tier' | 'quantity' | 'channel'>,
+ *   order: Pick<Order, 'id' | 'event_slug' | 'ticket_type' | 'ticket_tier' | 'quantity' | 'channel'>
+ *     & Partial<Pick<Order, 'total'>>,
  *   origin: string, send: AdminSend, now?: number, overrides?: BotTexts | null,
  *   config?: typeof getEventTickets }} input
  * @returns {Promise<{ sent: number, failed: number, skipped: number } | null>} `null`: no había
@@ -382,7 +403,7 @@ export async function notifyOrder({
 	config = getEventTickets
 }) {
 	if ((order.channel ?? 'online') !== 'online') return null;
-	const recipients = await noticeRecipients(db, kind);
+	const recipients = await noticeRecipients(db, kind === 'contracargo' ? 'cada_venta' : kind);
 	if (recipients.length === 0) return null;
 	const tickets = await config(order.event_slug);
 	if (!tickets) return null;
@@ -403,6 +424,15 @@ export async function notifyOrder({
 			{ summary, eventTitle, sold: Number(row?.n ?? 0), capacity: type?.capacity ?? null },
 			overrides
 		);
+	} else if (kind === 'contracargo') {
+		text = chargebackNoticeText(
+			{
+				reference: orderReference(order.id),
+				eventTitle,
+				amount: formatARS(Number(order.total) || 0)
+			},
+			overrides
+		);
 	} else {
 		const row = await db
 			.prepare(
@@ -415,7 +445,7 @@ export async function notifyOrder({
 	return deliverOnce({
 		db,
 		send,
-		key: `${kind === 'cada_venta' ? 'venta' : 'transferencia'}:${order.id}`,
+		key: `${kind === 'cada_venta' ? 'venta' : kind}:${order.id}`,
 		message: { text, panelUrl: panelUrl(origin, order.event_slug), silent: isQuietHour(now) },
 		now,
 		recipients

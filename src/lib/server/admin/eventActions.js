@@ -13,7 +13,7 @@ import {
 	sendStreamLinkEmails,
 	siteOrigin
 } from '$lib/server/tickets/index.js';
-import { reopenTransferFromPanel } from '$lib/server/admin/transfers.js';
+import { confirmLimits, reopenTransferFromPanel } from '$lib/server/admin/transfers.js';
 import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 import { orderIdsByDni, revealOrderDni } from '$lib/server/admin/eventOrders.js';
 import { dniQueryDigits } from '$lib/admin/orderFormat.js';
@@ -23,8 +23,7 @@ import {
 	confirmTransfer,
 	getOrder,
 	refundOrder,
-	orderTier,
-	transferLimits
+	orderTier
 } from '$lib/server/tickets/orders.js';
 import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
 import {
@@ -167,7 +166,10 @@ export const eventTicketActions = {
 					needsConfirmation
 				}
 			});
-		const check = checkOverride(await transferLimits(db, { order, type, now }), readOverride(form));
+		// Cupo / tramo de una reserva vencida y, si el evento está cancelado, «El evento está
+		// cancelado.» (se puede confirmar igual; nunca se cancela ni reembolsa sola: decisión 0044).
+		const found = await confirmLimits(db, { order, type, config, now });
+		const check = checkOverride(found.all, readOverride(form));
 		if (!check.ok) return ask(check.needsConfirmation);
 		const r = await confirmTransfer(db, {
 			orderId,
@@ -175,7 +177,8 @@ export const eventTicketActions = {
 			capacity: type.capacity,
 			tierQuantity: orderTier(order, type)?.quantity ?? null,
 			by: admin.login,
-			override: check.override,
+			// Pasar el cupo solo si lo confirmado incluía un límite de lugar.
+			override: check.override && found.place.length > 0,
 			now
 		});
 		if (r.result === 'confirmed' && r.order) {
@@ -240,7 +243,7 @@ export const eventTicketActions = {
 		if (r.result === 'already') return { transfer: { ok: true, message: messages.already } };
 		if (r.result === 'no-capacity') {
 			// Se ocupó el último lugar entre el control y la confirmación: se vuelve a preguntar.
-			const again = checkOverride(await transferLimits(db, { order, type, now }), '');
+			const again = checkOverride((await confirmLimits(db, { order, type, config, now })).all, '');
 			if (!again.ok) return ask(again.needsConfirmation);
 		}
 		return fail(409, { transfer: { ok: false, message: messages[r.result] } });

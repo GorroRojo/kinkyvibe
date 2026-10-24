@@ -72,12 +72,13 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	const [events, ticketedList] = await Promise.all([listEvents(), listTicketedEvents()]);
 	// Los eventos de prueba del repo solo existen en `vite dev`.
 	const skip = skipReviewEvent;
-	const { ticketed, titles, today, soonTicketed, reminderEvents } = reviewEventContext({
-		events,
-		ticketedList,
-		now,
-		skip
-	});
+	const { ticketed, titles, today, soonTicketed, reminderEvents, cancelledSlugs } =
+		reviewEventContext({
+			events,
+			ticketedList,
+			now,
+			skip
+		});
 	// El bloque de ventas elige su evento con los totales, pero los que puede elegir se saben ya:
 	// su tendencia va en la segunda tanda, con los totales.
 	const focusSlugs = salesFocusSlugs(upcomingEvents({ events, ticketed, now, skip }));
@@ -88,7 +89,13 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	// Segunda: lo que depende de la lista de eventos o de la primera tanda (la última visita, los
 	// ajustes de los recordatorios).
 	const s2 = await runQueries(db, {
-		...reviewEventQueries({ soonTicketed, reminderEvents, settings: s1.settings, now }),
+		...reviewEventQueries({
+			soonTicketed,
+			reminderEvents,
+			settings: s1.settings,
+			cancelledSlugs,
+			now
+		}),
 		checkins: checkinTotalsQuery(
 			soonTicketed.filter((s) => arDay(ticketed.get(s)?.start ?? '') === today)
 		),
@@ -99,7 +106,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 			focusSlugs.map((slug) => [`trend:${slug}`, eventSalesTrendQuery(slug, now)])
 		)
 	});
-	const { totals, checkins, streamLinks, stuck, reminders, since } = s2;
+	const { totals, checkins, streamLinks, stuck, reminders, since, cancelled } = s2;
 	const { transfers, review, money, seen, expiring } = s1;
 	const [fondo, outside] = await others;
 
@@ -117,7 +124,7 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		skip
 	});
 	// «Para revisar»: las mismas filas que cuenta el botón del menú (panelCounts.js).
-	const todo = reviewRows({ ...s1, ...outside, upcoming, ticketed, titles, now });
+	const todo = reviewRows({ ...s1, ...outside, upcoming, ticketed, titles, cancelled, now });
 
 	// Los recordatorios se configuran en Mensajes → Configuración.
 	const remindersItem = navItem('ajustes-mails');
