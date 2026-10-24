@@ -15,6 +15,12 @@ como eventos sueltos (`…-2024-11` y `…-2024-11-parte-2`) sin nada que los un
   solo las partes de un evento importado de un `.md` no lo marca como editado (como el lugar).
 - Los dos eventos tienen que estar en la base. Las lecturas públicas solo muestran las partes que
   quien mira puede ver (`visibleWhere`); un taller oculto no muestra sus partes.
+- `readWorkshop` (el taller de un evento con sus partes numeradas) corre en cada escaneo de la
+  puerta, en la página de cada entrada y en la del estado de una compra: es **una sola ida y
+  vuelta a D1** (una tanda con el evento, su taller y las partes, que buscan el evento por su
+  dirección adentro del SQL). Da lo mismo que leerlo en tres pasos; lo comparan los tests de
+  `partes-una-vuelta.test.js`. El lugar de cada parte (en mails y páginas) se lee para todas a la
+  vez.
 - **«Si ocultás el taller, ocultar también sus partes»** (casilla en la sección Partes):
   `ocultar_partes: true` en el `extra` del taller (como `entradas_por_parte`). Prendida, una parte
   se ve solo si quien mira también ve el taller: con el taller oculto, sus partes no salen en las
