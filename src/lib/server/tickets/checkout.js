@@ -197,6 +197,22 @@ const tierView = (eff) =>
 	eff.tier ? { id: eff.tier.id, name: eff.tier.name, until: eff.tier.until } : null;
 
 /**
+ * El tramo vigente de un tipo para la respuesta de `?/buy` con error (`withCurrentTier`).
+ *
+ * @param {import('./config.js').TicketType} type
+ * @param {import('$lib/utils/ticketTiers.js').Tier} tier
+ * @returns {import('$lib/utils/tickets.js').CurrentTier}
+ */
+const tierInfo = (type, tier) => ({
+	type: type.id,
+	id: tier.id,
+	name: tier.name,
+	until: tier.until,
+	price: tier.price,
+	fondo: tier.fondo
+});
+
+/**
  * Datos públicos del bloque de compra (sin datos de otras personas).
  *
  * @param {import('@cloudflare/workers-types').D1Database | null} db
@@ -388,6 +404,9 @@ function readForm(form) {
 		// Tramo de preventa que vio la persona (solo para avisar si cambió: el precio lo elige el
 		// servidor, nunca este valor).
 		tier: str('tier', 60),
+		// Porcentaje del Fondo que vio la persona (lo mismo: solo para avisar si cambió). Vacío si
+		// no eligió el descuento del fondo o el formulario es de antes de este campo.
+		fondoPercent: str('fondo_percent', 5).trim(),
 		// Link de una oferta de la lista de espera (`?lista=<token>`, campo oculto).
 		lista: str('lista', 60).trim(),
 		method: str('method', 30),
@@ -442,6 +461,17 @@ function buyerEmail(raw) {
 }
 
 /**
+ * Cantidad de entradas del formulario, si es un entero positivo (si no, `undefined`: el código no
+ * mira su tope de entradas y la cantidad la valida la compra).
+ *
+ * @param {string} raw
+ */
+function formQuantity(raw) {
+	const n = Number(raw);
+	return Number.isSafeInteger(n) && n >= 1 ? n : undefined;
+}
+
+/**
  * Form action `?/discount` (botón "Aplicar"): dice si el código sirve para este evento y
  * cuánto descuenta. Es solo informativo; `?/buy` vuelve a validar todo.
  *
@@ -465,7 +495,8 @@ export async function discountAction(event) {
 		const check = await checkDiscountCode(db, {
 			code: values.code,
 			eventSlug: params.event,
-			email: buyerEmail(values.email)
+			email: buyerEmail(values.email),
+			quantity: formQuantity(values.quantity)
 		});
 		if (!check.ok) return failWith(400, check.message);
 		return { buy: { error: null, errors: {}, values, discount: describeDiscount(check.discount) } };
@@ -527,6 +558,15 @@ function priceChangedMessage(type, tier) {
 }
 
 /**
+ * "El descuento del Fondo cambió": el porcentaje vigente no es el que vio la persona.
+ *
+ * @param {number} percent el porcentaje de ahora
+ */
+export function fondoChangedMessage(percent) {
+	return `El descuento del Fondo cambió: ahora es ${percent} %. Revisá el total y volvé a confirmar.`;
+}
+
+/**
  * Pidió más de lo que queda en el tramo vigente.
  *
  * @param {string} tierName
@@ -549,9 +589,32 @@ export async function buyAction(event) {
 	const values = readForm(form);
 	/** @type {AppliedDiscount | null} */
 	let applied = null;
+	/**
+	 * Porcentaje del Fondo con el que se cobraría ahora (en los eventos con Fondo, una vez leída la
+	 * configuración): va en cada respuesta con error para que el formulario muestre esos precios
+	 * (`withFondoPercent`) y no vuelva a mandar uno viejo.
+	 * @type {number | undefined}
+	 */
+	let fondoPercent;
+	/**
+	 * Tramo vigente del tipo elegido (en los tipos con preventas, una vez elegido): va en cada
+	 * respuesta con error, igual que el Fondo, para que el formulario muestre ese precio y mande
+	 * ese tramo (`withCurrentTier`) en vez del que se vio al cargar la página.
+	 * @type {import('$lib/utils/tickets.js').CurrentTier | undefined}
+	 */
+	let currentTier;
 	/** @param {number} status @param {string} error @param {Record<string, string>} [errors] */
 	const failWith = (status, error, errors = {}) =>
-		fail(status, { buy: { error, errors, values, discount: applied } });
+		fail(status, {
+			buy: {
+				error,
+				errors,
+				values,
+				discount: applied,
+				...(fondoPercent !== undefined && { fondoPercent }),
+				...(currentTier !== undefined && { tier: currentTier })
+			}
+		});
 
 	if (!db) return failWith(503, 'La venta de entradas no está disponible ahora.');
 	// DEV ONLY: las pruebas E2E compran todo desde la misma conexión (localhost).
@@ -568,6 +631,7 @@ export async function buyAction(event) {
 	// El precio se calcula acá, al crear la orden, con el porcentaje del Fondo de este momento.
 	const config = await eventTicketsWithFondo(db, params.event, fetch);
 	if (!config) return failWith(404, 'Este evento no vende entradas por acá.');
+	if (config.fondoEnabled && config.fondoPercent !== null) fondoPercent = config.fondoPercent;
 	// Un solo "ahora" para el horario, el tramo vigente y la reserva (los bordes de fecha de un
 	// tramo no pueden caer entre una cosa y la otra).
 	const now = Date.now();
@@ -643,9 +707,20 @@ export async function buyAction(event) {
 			}
 			effective = withTier(chosen, a.tier.tier);
 			tierRemaining = a.tier.remaining;
+			currentTier = tierInfo(chosen, a.tier.tier);
 			if (values.tier !== a.tier.tier.id) {
 				const message = priceChangedMessage(chosen, a.tier.tier);
 				return failWith(409, message, { type: message });
+			}
+		}
+		// El Fondo, igual: el porcentaje puede cambiar entre que se cargó la página y la compra (sale
+		// de fondo.kinkyvibe.ar). Si el formulario dice que vio otro, no se cobra sin avisar; la
+		// respuesta lleva el de ahora, así confirmar de nuevo pasa sin recargar. Sin el campo
+		// (formularios viejos, sin el descuento del fondo elegido) no se frena nada.
+		if (fondoPercent !== undefined && !chosen.gorra && values.fondoPercent !== '') {
+			if (Number(values.fondoPercent) !== fondoPercent) {
+				const message = fondoChangedMessage(fondoPercent);
+				return failWith(409, message, { option: message });
 			}
 		}
 	}
@@ -696,7 +771,8 @@ export async function buyAction(event) {
 			const check = await checkDiscountCode(db, {
 				code: values.code,
 				eventSlug: params.event,
-				email: buyerEmail(values.email)
+				email: buyerEmail(values.email),
+				quantity: valid.ok ? valid.quantity : formQuantity(values.quantity)
 			});
 			if (check.ok) {
 				discount = check.discount;
@@ -810,6 +886,7 @@ export async function buyAction(event) {
 			} catch (error) {
 				logDBError('tickets taken', error);
 			}
+			if (again?.tier && chosen) currentTier = tierInfo(chosen, again.tier.tier);
 			const message =
 				again?.tier && chosen
 					? `Se terminó «${valid.type.tier?.name ?? ''}» mientras comprabas. ${priceChangedMessage(chosen, again.tier.tier)}`

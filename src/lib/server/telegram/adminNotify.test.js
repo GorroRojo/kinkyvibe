@@ -22,6 +22,7 @@ const {
 	ADMIN_DAILY_HOUR,
 	SENT_KEEP_MS,
 	argentinaDate,
+	chargebackNoticeText,
 	claimNotice,
 	dailySummaryText,
 	dailyWindow,
@@ -251,6 +252,18 @@ describe('los textos: solo cantidades', () => {
 		).toBe('💸 Transferencia para confirmar: 2 General de <b>Fiesta X</b> · 3 por confirmar');
 	});
 
+	it('contracargo: la referencia de la orden, el evento y el total', () => {
+		expect(
+			chargebackNoticeText({
+				reference: 'KV-1A2B3C4D',
+				eventTitle: 'Fiesta X',
+				amount: '$ 10.000'
+			})
+		).toBe(
+			'⚠️ Contracargo en Mercado Pago: orden KV-1A2B3C4D de <b>Fiesta X</b> ($ 10.000). El banco revirtió el pago; las entradas quedaron anuladas.'
+		);
+	});
+
 	it('escapa el título del evento', () => {
 		const text = saleNoticeText({
 			summary,
@@ -357,6 +370,40 @@ describe('cada venta y cada transferencia', () => {
 		await notifyOrder({ ...args, order: other, send: blocked.send });
 		await notifyOrder({ ...args, order: other, send: ok.send });
 		expect(ok.sent).toHaveLength(1);
+	});
+
+	it('un contracargo llega a quien prendió «Cada venta», una sola vez y sin datos de quien compra', async () => {
+		const back = await order({ quantity: 2, status: 'refunded', at: AFTERNOON });
+		const tg = telegram();
+		const args = {
+			db: t.db,
+			kind: /** @type {const} */ ('contracargo'),
+			order: back,
+			origin: ORIGIN,
+			now: AFTERNOON,
+			config
+		};
+		expect(await notifyOrder({ ...args, send: tg.send })).toEqual({
+			sent: 1,
+			failed: 0,
+			skipped: 0
+		});
+		expect(tg.sent.map((m) => m.chatId)).toEqual([String(ADMIN_TG)]);
+		expect(tg.sent[0].text).toMatch(
+			new RegExp(
+				`^⚠️ Contracargo en Mercado Pago: orden KV-${back.id.slice(0, 8).toUpperCase()} de <b>Fiesta inventada</b> \\(\\$\\s2\\.000\\)\\. El banco revirtió el pago; las entradas quedaron anuladas\\.$`
+			)
+		);
+		expect(tg.sent[0].panelUrl).toBe(`${ORIGIN}/admin/eventos/${SLUG}`);
+		expectNoSecrets(JSON.stringify(tg.sent));
+		// No se confunde con el aviso de la venta de la misma orden, y no sale dos veces.
+		expect(await notifyOrder({ ...args, send: tg.send })).toEqual({
+			sent: 0,
+			failed: 0,
+			skipped: 1
+		});
+		const sale = await notifyOrder({ ...args, kind: 'cada_venta', send: tg.send });
+		expect(sale?.sent).toBe(1);
 	});
 
 	it('las ventas de la puerta y las cargadas a mano no avisan', async () => {

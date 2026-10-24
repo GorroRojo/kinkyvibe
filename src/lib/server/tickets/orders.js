@@ -246,7 +246,7 @@ export async function reserveOrder(db, input) {
 					WHERE event_slug = ?2 AND ticket_type = ?3 AND ticket_tier = ?31
 						AND (status = 'approved' OR (status IN ${HOLDING} AND expires_at > ?9))
 				) + ?4 <= ?32)
-				AND ${discountGuardSql({ code: '?12', kind: '?13', value: '?14', event: '?2', now: '?9', email: '?8' })}
+				AND ${discountGuardSql({ code: '?12', kind: '?13', value: '?14', event: '?2', now: '?9', qty: '?4', email: '?8' })}
 				${guard ? `${WAITLIST_GUARD_SQL}\n\t\t\t\t` : ''}RETURNING *`
 			)
 			.bind(
@@ -303,7 +303,8 @@ export async function reserveOrder(db, input) {
 			code: discount.code,
 			eventSlug,
 			now,
-			email: buyer.email
+			email: buyer.email,
+			quantity
 		});
 		if (!check.ok) return { ok: false, reason: 'code', message: check.message };
 		if (check.discount.kind !== discount.kind || check.discount.value !== discount.value) {
@@ -1380,7 +1381,7 @@ export async function reopenLimits(db, { order, type, now = Date.now() }) {
 			await db
 				.prepare(
 					`SELECT d.max_uses, ${usesSql('d.code', '?2')} AS uses FROM discount_codes d
-					WHERE d.code = ?1 AND d.max_uses IS NOT NULL`
+					WHERE d.code = ?1 COLLATE NOCASE AND d.max_uses IS NOT NULL`
 				)
 				.bind(order.discount_code, now)
 				.first()
@@ -1524,7 +1525,7 @@ export async function reopenTransfer(
 						AND (o3.status = 'approved' OR (o3.status IN ${HOLDING} AND o3.expires_at > ?2))
 				) + orders.quantity <= ?6) AND (orders.discount_code IS NULL OR NOT EXISTS (
 					SELECT 1 FROM discount_codes d
-					WHERE d.code = orders.discount_code AND d.max_uses IS NOT NULL
+					WHERE d.code = orders.discount_code COLLATE NOCASE AND d.max_uses IS NOT NULL
 						AND ${usesSql('d.code', '?2')} >= d.max_uses
 				)))
 			)`

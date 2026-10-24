@@ -8,6 +8,7 @@
 	import ComboCodes from '$lib/components/admin/ComboCodes.svelte';
 	import { shortTime } from '$lib/admin/orderFormat.js';
 	import { formatARS } from '$lib/utils/money.js';
+	import { entradas } from '$lib/utils/plural.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -41,6 +42,7 @@
 		{ label: 'aprobados', key: 'approved' },
 		{ label: 'en reserva', key: 'held' },
 		{ label: 'máximo', value: (c) => c.max_uses ?? '' },
+		{ label: 'entradas por compra', value: (c) => c.max_tickets ?? '' },
 		{ label: 'descontado', key: 'discounted' },
 		{ label: 'creado por', key: 'created_by' }
 	];
@@ -83,7 +85,11 @@
 											· hasta {shortTime(c.ends_at)}{/if}</small
 									>
 								</td>
-								<td>{discount(c)}</td>
+								<td
+									>{discount(c)}{#if c.max_tickets !== null}<small class="muted block"
+											>hasta {entradas(c.max_tickets)}</small
+										>{/if}</td
+								>
 								<td class="r num"
 									>{c.approved}{#if c.held}+{c.held}{/if}{c.max_uses !== null
 										? ` / ${c.max_uses}`
@@ -190,6 +196,19 @@
 				/>
 				<small>Un uso es una compra (no una entrada). Vacío: sin límite.</small>
 				{#if errors.max_uses}<small class="error">{errors.max_uses}</small>{/if}
+			</label>
+			<label class="field">
+				<span>Entradas por compra (opcional)</span>
+				<input
+					name="max_tickets"
+					type="number"
+					min="1"
+					step="1"
+					inputmode="numeric"
+					value={values.max_tickets ?? ''}
+				/>
+				<small>Cuántas entradas puede cubrir el código en una compra. Vacío: sin límite.</small>
+				{#if errors.max_tickets}<small class="error">{errors.max_tickets}</small>{/if}
 			</label>
 			<button type="submit" class="kv-btn">Crear código</button>
 		</form>

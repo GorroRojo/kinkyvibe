@@ -13,6 +13,7 @@ import { createProfile } from '$lib/server/cuentas/perfiles.js';
 import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
 import { recordIntegrityRun } from '$lib/server/objects/integrity.js';
 import { saveObject } from '$lib/server/objects/save.js';
+import { formatARS } from '$lib/utils/money.js';
 import { load } from './+page.server.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
@@ -352,6 +353,100 @@ describe('«Para revisar»: el botón del menú cuenta las filas de la tarjeta d
 		expect(badge).toBe(1);
 		// Sin mails en el texto de la fila.
 		expect(JSON.stringify(rows)).not.toContain('@example.com');
+	});
+
+	describe('evento cancelado con algo por devolver (decisión 0044)', () => {
+		// Ya pasó: igual aparece mientras quede algo por resolver.
+		const PAST = '2026-09-20T21:00-03:00';
+		const cancelled = () => {
+			fake.events = [event('cancelada', { start: PAST, status: 'cancelado' })];
+			fake.ticketed = [
+				{ slug: 'cancelada', config: tickets({ status: 'cancelado', start: PAST }) }
+			];
+		};
+
+		it('una orden aprobada y una transferencia pendiente: una fila con N, M y el monto', async () => {
+			cancelled();
+			await insertOrder(t.db, { slug: 'cancelada', created: NOW - 20 * DAY });
+			await insertOrder(t.db, {
+				slug: 'cancelada',
+				status: 'awaiting_transfer',
+				method: 'transferencia',
+				created: NOW - HOUR,
+				expires: NOW + DAY
+			});
+			// Lo resuelto no cuenta: una reembolsada y una transferencia vencida.
+			await insertOrder(t.db, { slug: 'cancelada', status: 'refunded', created: NOW - 20 * DAY });
+			await insertOrder(t.db, {
+				slug: 'cancelada',
+				status: 'awaiting_transfer',
+				method: 'transferencia',
+				created: NOW - 5 * DAY,
+				expires: NOW - DAY
+			});
+			const { rows, badge } = await both();
+			expect(rows.find((r) => r.id === 'cancelled-cancelada')).toMatchObject({
+				kind: 'item',
+				tone: 'bad',
+				title: `Evento Inventado cancelada está cancelado: 1 orden aprobada (${formatARS(10000)}) y 1 transferencia pendiente`,
+				action: 'Ver órdenes',
+				href: '/admin/eventos/cancelada/ordenes'
+			});
+			// Más la fila de siempre de la transferencia esperando confirmación.
+			expect(rows.map((r) => r.id).sort()).toEqual(['cancelled-cancelada', 'transfer-cancelada']);
+			expect(badge).toBe(rows.length);
+			// Solo avisa: no reembolsa ni cancela nada.
+			const { results } = await t.db
+				.prepare("SELECT status FROM orders WHERE event_slug = 'cancelada' ORDER BY status")
+				.all();
+			expect(results.map((r) => r.status)).toEqual([
+				'approved',
+				'awaiting_transfer',
+				'awaiting_transfer',
+				'refunded'
+			]);
+		});
+
+		it('varias aprobadas, sin transferencias: suma los totales, en plural', async () => {
+			cancelled();
+			await insertOrder(t.db, { slug: 'cancelada', created: NOW - 20 * DAY });
+			await insertOrder(t.db, { slug: 'cancelada', quantity: 2, created: NOW - 20 * DAY });
+			const { rows } = await both();
+			expect(rows.find((r) => r.id === 'cancelled-cancelada')?.title).toBe(
+				`Evento Inventado cancelada está cancelado: 2 órdenes aprobadas (${formatARS(30000)})`
+			);
+		});
+
+		it('solo transferencias pendientes: lleva a Transferencias', async () => {
+			cancelled();
+			await insertOrder(t.db, {
+				slug: 'cancelada',
+				status: 'awaiting_transfer',
+				method: 'transferencia',
+				created: NOW - HOUR,
+				expires: NOW + DAY
+			});
+			const { rows } = await both();
+			expect(rows.find((r) => r.id === 'cancelled-cancelada')).toMatchObject({
+				title: 'Evento Inventado cancelada está cancelado: 1 transferencia pendiente',
+				text: 'Cancelá las transferencias que esperan comprobante',
+				href: '/admin/eventos/cancelada/transferencias'
+			});
+		});
+
+		it('cancelado sin órdenes (o con todo devuelto): sin fila', async () => {
+			cancelled();
+			expect((await both()).rows).toEqual([]);
+			await insertOrder(t.db, { slug: 'cancelada', status: 'refunded', created: NOW - 20 * DAY });
+			expect((await both()).rows).toEqual([]);
+		});
+
+		it('un evento que no está cancelado no tiene esa fila', async () => {
+			fake.events = [event('fiesta', { start: PAST })];
+			fake.ticketed = [{ slug: 'fiesta', config: tickets({ start: PAST }) }];
+			await insertOrder(t.db, { slug: 'fiesta', created: NOW - 20 * DAY });
+			expect((await both()).rows).toEqual([]);
+		});
 	});
 
 	it('la fila de Etiquetas dice qué hay y lleva a su página', async () => {

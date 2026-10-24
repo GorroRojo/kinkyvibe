@@ -453,12 +453,18 @@ export function offlineSaleLimits({ type, quantity, doorSales, maxPerSale, sales
  *   id: string, now: number, by: string, fields: Record<string, string>,
  *   type: { id: string, name: string }, quantity: number, total: number | null,
  *   holders: { name: string, pronouns: string }[]
- * }} sale `fields`: los del formulario (el DNI no se guarda)
+ * }} sale `fields`: los del formulario (el DNI no se guarda); `total`: lo que se cobró, que
+ *   viaja como `charged_total`
  * @returns {{ state: DoorState, sale: QueuedSale }}
  */
 export function queueOfflineSale(state, { id, now, by, fields, type, quantity, total, holders }) {
 	const kept = { ...fields };
 	delete kept.dni;
+	// Lo que se cobró de verdad (el total que vio quien vendió): si al sincronizar el servidor la
+	// registra con otro total (cambió el precio o el % del Fondo), queda en «Para revisar».
+	if (Number.isSafeInteger(total) && /** @type {number} */ (total) >= 0) {
+		kept.charged_total = String(total);
+	} else delete kept.charged_total;
 	const buyer = String(kept.name ?? '').trim();
 	const method = kept.method === 'transferencia' ? 'transferencia' : 'efectivo';
 	/** @type {OfflineTicket[]} */

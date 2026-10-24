@@ -279,9 +279,27 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 		console.warn(`[tickets] pago ${payment.id} sin orden conocida`);
 	}
 	if (result.outcome === 'updated' && result.order?.status === 'refunded') {
-		// Reembolso hecho desde el panel de MP (o contracargo): avisar una vez (solo quien cambió
-		// el estado llega acá; un reembolso hecho desde nuestro admin ya lo avisó).
-		await inBackground(sendRefundEmail({ db, order: result.order, fetch: fetchFn }), platform);
+		if (payment.status === 'charged_back') {
+			// Contracargo: el banco de quien compró revirtió el cobro, no se lo devolvimos nosotres.
+			// La orden queda reembolsada igual, pero el mail «Reembolsamos tu compra» sería falso:
+			// no se manda nada y queda el aviso en el log (sin datos personales) para revisarlo. Les
+			// admins que prendieron «Cada venta» en Telegram reciben un aviso (nunca tira).
+			console.warn(
+				`[tickets] contracargo del pago ${payment.id} en la orden ${result.order.id}: queda reembolsada, sin mail de reembolso`
+			);
+			await queueOrderNotice({
+				db,
+				platform,
+				kind: 'contracargo',
+				order: result.order,
+				origin,
+				fetch: fetchFn
+			});
+		} else {
+			// Reembolso hecho desde el panel de MP: avisar una vez (solo quien cambió el estado
+			// llega acá; un reembolso hecho desde nuestro admin ya lo avisó).
+			await inBackground(sendRefundEmail({ db, order: result.order, fetch: fetchFn }), platform);
+		}
 	}
 	// Reembolso, contracargo o pago cancelado: se liberó el lugar y la lista de espera pasa a la
 	// próxima persona (en segundo plano; el cron lo garantiza igual).

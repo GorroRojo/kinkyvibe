@@ -285,8 +285,11 @@ revisar" del Inicio.
   pide algo a GitHub. Los tests `para-revisar.test.js` e `inicio-tanda.test.js` siembran casos y
   comprueban que el botón dice lo mismo que la tarjeta.
 - **Las filas**: «Transferencia» tildada sin datos para
-  transferir, transferencias por confirmar (una por evento), órdenes para revisar (pago tardío,
-  pago duplicado o una venta en la puerta sin conexión que pasó un límite, decisión 0035), mails que no
+  transferir, eventos cancelados con algo por devolver (una por evento: órdenes aprobadas sin
+  reembolsar y transferencias vigentes, aunque el evento ya haya pasado; decisión 0044),
+  transferencias por confirmar (una por evento), órdenes para revisar (pago tardío,
+  pago duplicado o una venta en la puerta sin conexión que pasó un límite o quedó registrada con otro total que el
+  que se cobró, decisión 0035), mails que no
   salieron (hasta 20), mails de la lista de espera que no salieron (una fila, lleva a Ventas ›
   Lista de espera del evento más reciente), cupos sobrevendidos, links de transmisión que
   faltan, recordatorios que no salieron o fallaron, el link que no le llegó a todes, eventos sin imagen y borradores (juntos si

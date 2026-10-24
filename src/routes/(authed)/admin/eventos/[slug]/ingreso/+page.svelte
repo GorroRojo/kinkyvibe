@@ -33,7 +33,12 @@
 	import WaitlistDoorNote from '$lib/components/admin/WaitlistDoorNote.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { CHECKIN_LIST_PARAM } from '$lib/utils/doorEvents.js';
-	import { computePrice, defaultFondoOption, parseAmount } from '$lib/utils/tickets.js';
+	import {
+		FREE_DOOR_MESSAGE,
+		computePrice,
+		defaultFondoOption,
+		parseAmount
+	} from '$lib/utils/tickets.js';
 	import {
 		DOOR_SALE_DEFAULT_METHOD,
 		doorOptionLabel,
@@ -115,7 +120,10 @@
 	let syncing = false;
 	/** @type {{ holder: string, result: string, at: number | null, by: string | null }[]} */
 	let conflicts = [];
-	/** Ventas sin conexión que al sincronizarse pasaron un límite (quedaron en «Para revisar»). */
+	/**
+	 * Ventas sin conexión que al sincronizarse pasaron un límite o quedaron registradas con otro
+	 * total que el que se cobró (quedaron en «Para revisar»).
+	 */
 	/** @type {{ buyer: string, ref: string, review: string[] }[]} */
 	let saleWarnings = [];
 	/** @type {string} */
@@ -740,6 +748,11 @@
 			saleError = 'Elegí un tipo de entrada.';
 			return;
 		}
+		// Precio 0 en la puerta: el servidor no la registraría al sincronizar.
+		if (!sType.gorra && sType.price === 0) {
+			saleError = FREE_DOOR_MESSAGE;
+			return;
+		}
 		const quantity = Number(fields.quantity);
 		if (!Number.isInteger(quantity) || quantity < 1 || quantity > data.maxOrder) {
 			saleError = `La cantidad tiene que ser de 1 a ${data.maxOrder}.`;
@@ -928,7 +941,7 @@
 				<span>
 					Se registró la venta sin conexión de <strong>{w.buyer}</strong>{w.ref
 						? ` (${w.ref})`
-						: ''}, pero pasó un límite: {w.review.join(' ')} Quedó en «Para revisar».
+						: ''}, pero hay algo para revisar: {w.review.join(' ')} Quedó en «Para revisar».
 				</span>
 				<button
 					type="button"

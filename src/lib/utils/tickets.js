@@ -30,6 +30,12 @@ export function remainingOf(type, counts) {
 export const LOW_STOCK = 10;
 
 /**
+ * Un tipo con precio 0 en la puerta (no a la gorra): la puerta no lo vende (`sellAtDoor` da
+ * `free-door`), con y sin conexión se dice esto.
+ */
+export const FREE_DOOR_MESSAGE = 'Esta entrada es sin cargo en la puerta: cargala a mano.';
+
+/**
  * Lo que se muestra en público de lo que queda: el número solo si el tipo tiene cupo y quedan
  * menos de `LOW_STOCK` (y alguna). Si no, `null` (no se muestran números: ni el cupo ni lo
  * vendido). Agotado (0) se muestra aparte.
@@ -233,6 +239,106 @@ export function defaultFondoOption(fondo) {
  */
 export function fondoOptionsFor(fondo) {
 	return FONDO_OPTIONS.filter((o) => o.id !== 'fondo' || fondo > 0);
+}
+
+/**
+ * La página de compra con otro porcentaje del Fondo: el que contestó el servidor al comprar
+ * (`form.buy.fondoPercent`), por si cambió desde que se cargó la página. Recalcula lo que cubre
+ * el fondo en cada tipo con precio (como `config.js`: `round(precio × % / 100)`), así el
+ * formulario muestra y vuelve a mandar el porcentaje que se va a cobrar sin recargar. Sin un
+ * porcentaje válido, sin Fondo o con el mismo, devuelve la vista como estaba.
+ *
+ * @template {{ fondoEnabled: boolean, fondoPercent: number | null,
+ *   types: { price: number, fondo: number, gorra: unknown }[] }} V
+ * @param {V} view
+ * @param {unknown} percent
+ * @returns {V}
+ */
+export function withFondoPercent(view, percent) {
+	if (
+		!view.fondoEnabled ||
+		typeof percent !== 'number' ||
+		!Number.isInteger(percent) ||
+		percent < 0 ||
+		percent > 100 ||
+		percent === view.fondoPercent
+	)
+		return view;
+	return {
+		...view,
+		fondoPercent: percent,
+		types: view.types.map((t) =>
+			t.gorra ? t : { ...t, fondo: Math.round((t.price * percent) / 100) }
+		)
+	};
+}
+
+/**
+ * El tramo vigente de un tipo, como lo contesta `?/buy` con error (`form.buy.tier`; ver
+ * `buyAction`): el tipo y el tramo con su precio y lo que cubre el fondo.
+ *
+ * @typedef {{ type: string, id: string, name: string, until: number | null, price: number,
+ *   fondo: number }} CurrentTier
+ */
+
+/** @param {unknown} n */
+const isAmount = (n) => typeof n === 'number' && Number.isInteger(n) && n >= 0;
+
+/**
+ * La página de compra con el tramo de preventa que contestó el servidor al comprar, por si cambió
+ * desde que se cargó la página (otra compra llenó el tramo o pasó su fecha): ese tipo pasa a
+ * mostrar el tramo y el precio de ahora, así confirmar de nuevo manda ese tramo sin recargar. El
+ * "a este precio" del "Quedan N" era del tramo anterior: se saca. Sin un tramo válido, para un
+ * tipo sin tramos o con el mismo, devuelve la vista como estaba.
+ *
+ * @template {{ types: { id: string, price: number, fondo: number,
+ *   tier?: { id: string, name: string, until: number | null } | null,
+ *   tierLeft?: boolean }[] }} V
+ * @param {V} view
+ * @param {unknown} tier
+ * @returns {V}
+ */
+export function withCurrentTier(view, tier) {
+	if (!tier || typeof tier !== 'object') return view;
+	const t = /** @type {Record<string, unknown>} */ (tier);
+	if (
+		typeof t.type !== 'string' ||
+		typeof t.id !== 'string' ||
+		!t.id ||
+		typeof t.name !== 'string' ||
+		!(t.until === null || typeof t.until === 'number') ||
+		!isAmount(t.price) ||
+		!isAmount(t.fondo) ||
+		Number(t.fondo) > Number(t.price)
+	)
+		return view;
+	const current = view.types.find((x) => x.id === t.type);
+	if (!current?.tier) return view;
+	if (current.tier.id === t.id && current.price === t.price && current.fondo === t.fondo)
+		return view;
+	const next = {
+		price: Number(t.price),
+		fondo: Number(t.fondo),
+		tier: { id: t.id, name: t.name, until: /** @type {number | null} */ (t.until) },
+		tierLeft: false
+	};
+	return { ...view, types: view.types.map((x) => (x === current ? { ...x, ...next } : x)) };
+}
+
+/**
+ * Lo que muestra la página de compra después de un `?/buy` con error (SvelteKit no vuelve a
+ * cargar la página): el tramo y el porcentaje del Fondo que contestó el servidor.
+ *
+ * @template {{ fondoEnabled: boolean, fondoPercent: number | null,
+ *   types: { id: string, price: number, fondo: number, gorra: unknown,
+ *     tier?: { id: string, name: string, until: number | null } | null,
+ *     tierLeft?: boolean }[] }} V
+ * @param {V} view
+ * @param {Record<string, unknown> | null | undefined} buy `form.buy` (usa `tier` y `fondoPercent`)
+ * @returns {V}
+ */
+export function ticketsAfterBuy(view, buy) {
+	return withFondoPercent(withCurrentTier(view, buy?.tier), buy?.fondoPercent);
 }
 
 /**

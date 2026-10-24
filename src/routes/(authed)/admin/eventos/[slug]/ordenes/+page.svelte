@@ -118,8 +118,9 @@
 						Llegó otro pago aprobado (Mercado Pago n.° {o.reviewDetail}) para esta orden, que ya
 						estaba pagada: posible cobro doble. Revisalo en Mercado Pago y reembolsá el que sobre.
 					{:else if o.needsReview === 'door_offline'}
-						Venta en la puerta hecha sin conexión: al sincronizarse pasó un límite ({o.reviewDetail}).
-						Se guardó igual; decidí si queda así o se reembolsa.
+						Venta en la puerta hecha sin conexión: al sincronizarse pasó un límite o quedó
+						registrada con otro total que el que se cobró ({o.reviewDetail}). Se guardó igual;
+						decidí si queda así o se reembolsa.
 					{/if}
 					<form method="POST" action="?/reviewed" use:enhance>
 						<input type="hidden" name="order" value={o.id} />

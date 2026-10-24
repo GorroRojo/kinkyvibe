@@ -924,9 +924,10 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		// la de los eventos «Online» con lugar, las 2 de las etiquetas y la de los mails de la lista
 		// de espera que no salieron, de «Para revisar»; la de la última revisión del importador se
 		// fue con él, decisión 0032) y 19 en la segunda (totales, ingresos, links, 3 de envíos
-		// fallidos, 4 recordatorios vencidos —2 por evento de hoy—, 5 de la última visita y 2 por
-		// evento de hoy para el gráfico).
-		expect(page.stats.prepared).toBe(20 + 19);
+		// fallidos, 4 recordatorios vencidos —2 por evento de hoy—, 5 de la última visita, 2 por
+		// evento de hoy para el gráfico y 1 de lo que queda por devolver de los eventos cancelados,
+		// porque el escenario tiene uno).
+		expect(page.stats.prepared).toBe(20 + 20);
 
 		// El de antes, con las mismas funciones: una ida por consulta (acá sin las de la lista de
 		// eventos, que son de mentira).
@@ -942,9 +943,9 @@ describe('Inicio en tanda: cuántas idas a la base', () => {
 		expect(layout.stats.batches).toBe(2);
 		// Primera tanda: los 5 contadores de siempre (la cuenta de «No listadas» son 2) y las 11 de
 		// «Para revisar» que no dependen de los eventos (con la de los eventos «Online» con lugar, que
-		// es también su contador, y la de los mails de la lista de espera que no salieron). Segunda: totales, links, 3 de envíos fallidos y 4 recordatorios
-		// vencidos.
-		expect(layout.stats.prepared).toBe(5 + 11 + 9);
+		// es también su contador, y la de los mails de la lista de espera que no salieron). Segunda: totales, links, 3 de envíos fallidos, 4 recordatorios
+		// vencidos y lo que queda por devolver del evento cancelado.
+		expect(layout.stats.prepared).toBe(5 + 11 + 10);
 
 		// Sin eventos que vienen con entradas, la segunda tanda no tiene nada: una sola ida.
 		fake.ticketed = [];

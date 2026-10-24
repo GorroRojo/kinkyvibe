@@ -19,6 +19,7 @@
  * les pasa `override: true` desde el servidor.
  */
 import { logAdminAction } from '$lib/server/admin/audit.js';
+import { formatARS } from '$lib/utils/money.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -38,6 +39,9 @@ import { logAdminAction } from '$lib/server/admin/audit.js';
  *   cuentan; `after`: con esta orden; `over`: cuántos de más.
  * - `not_active`: el tipo está encadenado y todavía no se habilitó (`after`: se habilita cuando se
  *   agote o cierre `afterName`).
+ * - `price`: no es un límite que se pasa sino un aviso de una venta en la puerta sin conexión: el
+ *   celu cobró `charged` y, al sincronizarse con el precio y el Fondo de ese momento, quedó
+ *   registrada en `recorded` (solo en `offline_review`, nunca pide confirmar).
  *
  * @typedef {{ kind: 'capacity', type: string, typeName: string, capacity: number,
  *     before: number, after: number, over: number }
@@ -49,7 +53,8 @@ import { logAdminAction } from '$lib/server/admin/audit.js';
  *     quantity: number, before: number, after: number, over: number }
  *   | { kind: 'discount_uses', code: string, maxUses: number, before: number, after: number,
  *     over: number }
- *   | { kind: 'not_active', type: string, typeName: string, afterName: string }} ExceededLimit
+ *   | { kind: 'not_active', type: string, typeName: string, afterName: string }
+ *   | { kind: 'price', charged: number, recorded: number }} ExceededLimit
  */
 
 /**
@@ -166,6 +171,17 @@ export function noDoorLimit(config) {
 	return config?.door?.on === false ? { kind: 'no_door' } : null;
 }
 
+/**
+ * Evento cancelado (`status: cancelado`), para lo que no pasa por `salesState` (confirmar una
+ * transferencia: el evento se canceló mientras esperaba el comprobante). Mismo límite y mismo
+ * texto que la venta cerrada por cancelación («El evento está cancelado.»).
+ * @param {{ status?: string } | null | undefined} config
+ * @returns {ExceededLimit | null}
+ */
+export function cancelledLimit(config) {
+	return config?.status === 'cancelado' ? { kind: 'closed', reason: 'cancelled' } : null;
+}
+
 /** @param {number} n */
 const plural = (n) => (n === 1 ? '1 entrada' : `${n} entradas`);
 
@@ -196,6 +212,8 @@ export function limitMessage(limit) {
 			return `El código ${limit.code} ya se usó ${limit.before} de ${limit.maxUses} veces: quedaría en ${limit.after} / ${limit.maxUses}.`;
 		case 'not_active':
 			return `«${limit.typeName}» todavía no se habilitó: se habilita cuando se agote o cierre «${limit.afterName}».`;
+		case 'price':
+			return `Se cobró ${formatARS(limit.charged)}; quedó registrada en ${formatARS(limit.recorded)}.`;
 	}
 }
 
@@ -222,6 +240,8 @@ export function limitSummary(limit) {
 			return `usos del código ${limit.code} +${limit.over} (${limit.after} / ${limit.maxUses})`;
 		case 'not_active':
 			return `«${limit.typeName}» antes de habilitarse`;
+		case 'price':
+			return `se cobró ${formatARS(limit.charged)}; quedó registrada en ${formatARS(limit.recorded)}`;
 	}
 }
 
@@ -247,6 +267,8 @@ export function overrideKey(limits) {
 					return `discount_uses:${l.code}:${l.after}/${l.maxUses}`;
 				case 'not_active':
 					return `not_active:${l.type}`;
+				case 'price':
+					return `price:${l.charged}/${l.recorded}`;
 			}
 		})
 		.sort()

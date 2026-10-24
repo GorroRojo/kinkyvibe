@@ -26,8 +26,9 @@ import {
  *
  * Idas a la base (tandas, ver $lib/server/db/batch.js): una con los contadores y lo de «Para
  * revisar» que no depende de los eventos, a la par de la lista de eventos (que el isolate recuerda
- * mientras la base no cambie); y, solo si hay eventos que vienen con entradas, otra con lo que
- * depende de ellos (totales, links, envíos y recordatorios). Las mismas consultas que el Inicio.
+ * mientras la base no cambie); y, solo si hay eventos que vienen con entradas (o cancelados),
+ * otra con lo que depende de ellos (totales, links, envíos, recordatorios y lo que queda por
+ * devolver de los cancelados). Las mismas consultas que el Inicio.
  *
  * `review` (el botón «Para revisar») es la cantidad de filas de la tarjeta del Inicio: las arma
  * `reviewRows` (review.js), la misma función que usa la tarjeta (decisión 0030).
@@ -87,15 +88,16 @@ export async function panelCounts(platform, now = Date.now(), { locals } = {}) {
 	if (onlineMismatch !== null) counts.onlineMismatch = onlineMismatch;
 
 	const [events, ticketedList] = await eventLists;
-	const { ticketed, titles, soonTicketed, reminderEvents } = reviewEventContext({
+	const { ticketed, titles, soonTicketed, reminderEvents, cancelledSlugs } = reviewEventContext({
 		events,
 		ticketedList,
 		now
 	});
-	// Segunda tanda (sin sentencias si no hay eventos que vienen con entradas: no va a la base).
-	const { totals, streamLinks, stuck, reminders } = await runQueries(
+	// Segunda tanda (sin sentencias si no hay eventos que vienen con entradas ni cancelados: no va
+	// a la base).
+	const { totals, streamLinks, stuck, reminders, cancelled } = await runQueries(
 		db,
-		reviewEventQueries({ soonTicketed, reminderEvents, settings: s1.settings, now })
+		reviewEventQueries({ soonTicketed, reminderEvents, settings: s1.settings, cancelledSlugs, now })
 	);
 	const upcoming = upcomingEvents({
 		events,
@@ -112,7 +114,7 @@ export async function panelCounts(platform, now = Date.now(), { locals } = {}) {
 	});
 	// Botón global «Para revisar»: las filas de la tarjeta del Inicio, armadas igual.
 	counts.review = reviewCount(
-		reviewRows({ ...s1, ...(await outside), upcoming, ticketed, titles, now })
+		reviewRows({ ...s1, ...(await outside), upcoming, ticketed, titles, cancelled, now })
 	);
 	return counts;
 }
