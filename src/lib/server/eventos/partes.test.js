@@ -17,7 +17,8 @@ import {
 	readWorkshop,
 	setHideParts,
 	setPerPartTickets,
-	setWorkshopParts
+	setWorkshopParts,
+	soldCount
 } from './partes.js';
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
@@ -266,6 +267,167 @@ describe('parte nueva y entradas', () => {
 			workshop: null,
 			suggestions: []
 		});
+	});
+});
+
+describe('con entradas vendidas, pregunta antes', () => {
+	const NOW = Date.parse('2026-09-01T12:00:00-03:00');
+	let seq = 0;
+
+	/**
+	 * Una orden inventada de $ 10.000 (sin personas reales).
+	 *
+	 * @param {string} slug
+	 * @param {{ status?: string, quantity?: number, expiresAt?: number }} [o]
+	 */
+	async function order(slug, o = {}) {
+		const q = o.quantity ?? 1;
+		await t.db
+			.prepare(
+				`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal, total,
+					buyer_name, buyer_email, status, created_at, updated_at, expires_at)
+				VALUES (?1, ?2, 'general', ?3, 10000, ?4, ?4, 'Persona Inventada',
+					'persona@example.com', ?5, ?6, ?6, ?7)`
+			)
+			.bind(
+				`00000000-0000-4000-9000-${String(++seq).padStart(12, '0')}`,
+				slug,
+				q,
+				10000 * q,
+				o.status ?? 'approved',
+				NOW - 1000,
+				o.expiresAt ?? NOW - 1000
+			)
+			.run();
+	}
+
+	/** @param {string} slug */
+	async function dataOf(slug) {
+		return (await t.db.prepare('SELECT data FROM objects WHERE slug = ?1').bind(slug).first())
+			?.data;
+	}
+
+	it('soldCount cuenta lo mismo que el cupo: aprobadas y reservas vigentes', async () => {
+		await order('taller', { quantity: 2 });
+		await order('taller', { status: 'pending', expiresAt: NOW + 60_000 });
+		await order('taller', { status: 'pending', expiresAt: NOW - 60_000 }); // vencida
+		await order('taller', { status: 'cancelled' });
+		await order('otro');
+		expect(await soldCount(t.db, ['taller'], NOW)).toBe(3);
+		expect(await soldCount(t.db, ['taller', 'otro'], NOW)).toBe(4);
+		expect(await soldCount(t.db, [], NOW)).toBe(0);
+	});
+
+	it('prender «Entradas por parte» con ventas del taller pide confirmar; confirmado, guarda', async () => {
+		await event('taller', '2026-10-02T22:00-03:00', { title: 'Taller inventado' });
+		await event('taller-parte-2', '2026-10-09T22:00-03:00');
+		await setWorkshopParts(t.db, { eventSlug: 'taller', partSlugs: ['taller-parte-2'], by: BY });
+		await order('taller');
+
+		const asked = await setPerPartTickets(t.db, {
+			eventSlug: 'taller',
+			perPart: true,
+			by: BY,
+			now: NOW
+		});
+		expect(asked).toEqual({
+			ok: false,
+			needsConfirm: true,
+			message:
+				'«Taller inventado» ya tiene 1 entrada vendida: si cambiás esto, deja de valer en la puerta. ¿Cambiar igual?'
+		});
+		expect((await readWorkshop(t.db, 'taller'))?.workshop.perPart).toBe(false);
+		const before = await dataOf('taller');
+
+		expect(
+			await setPerPartTickets(t.db, {
+				eventSlug: 'taller',
+				perPart: true,
+				by: BY,
+				now: NOW,
+				confirm: true
+			})
+		).toEqual({ ok: true, sold: 1 });
+		expect((await readWorkshop(t.db, 'taller'))?.workshop.perPart).toBe(true);
+		expect(await dataOf('taller')).not.toBe(before);
+	});
+
+	it('apagarlo mira las ventas de las partes, no las del taller', async () => {
+		await event('taller', '2026-10-02T22:00-03:00', {
+			title: 'Taller inventado',
+			data: { extra: { entradas_por_parte: true } }
+		});
+		await event('taller-parte-2', '2026-10-09T22:00-03:00');
+		await setWorkshopParts(t.db, { eventSlug: 'taller', partSlugs: ['taller-parte-2'], by: BY });
+		await order('taller-parte-2', { quantity: 2 });
+
+		expect(
+			await setPerPartTickets(t.db, { eventSlug: 'taller', perPart: false, by: BY, now: NOW })
+		).toEqual({
+			ok: false,
+			needsConfirm: true,
+			message:
+				'Las partes de «Taller inventado» ya tienen 2 entradas vendidas: si cambiás esto, dejan de valer en la puerta. ¿Cambiar igual?'
+		});
+		expect((await readWorkshop(t.db, 'taller'))?.workshop.perPart).toBe(true);
+	});
+
+	it('sumar como parte un evento con ventas pide confirmar; confirmado, lo suma', async () => {
+		await event('taller', '2026-10-02T22:00-03:00');
+		await event('suelto', '2026-10-09T22:00-03:00', { title: 'Encuentro suelto' });
+		await order('suelto');
+
+		const asked = await setWorkshopParts(t.db, {
+			eventSlug: 'taller',
+			partSlugs: ['suelto'],
+			by: BY,
+			now: NOW
+		});
+		expect(asked).toMatchObject({ ok: false, needsConfirm: true });
+		expect(/** @type {any} */ (asked).message).toContain('«Encuentro suelto» ya tiene 1 entrada');
+		expect(await readWorkshop(t.db, 'taller', PANEL_VIEWER)).toBeNull();
+
+		expect(
+			await setWorkshopParts(t.db, {
+				eventSlug: 'taller',
+				partSlugs: ['suelto'],
+				by: BY,
+				now: NOW,
+				confirm: true
+			})
+		).toEqual({ ok: true, sold: 1 });
+		expect((await readWorkshop(t.db, 'taller', PANEL_VIEWER))?.total).toBe(2);
+
+		// Una parte que ya estaba no vuelve a preguntar (reordenar o sumar otra sin ventas).
+		await event('otro', '2026-10-16T22:00-03:00');
+		expect(
+			await setWorkshopParts(t.db, {
+				eventSlug: 'taller',
+				partSlugs: ['otro', 'suelto'],
+				by: BY,
+				now: NOW
+			})
+		).toEqual({ ok: true });
+	});
+
+	it('sin ventas, todo sigue igual (no pregunta)', async () => {
+		await event('taller', '2026-10-02T22:00-03:00');
+		await event('taller-parte-2', '2026-10-09T22:00-03:00');
+		await order('taller', { status: 'pending', expiresAt: NOW - 60_000 }); // reserva vencida
+		expect(
+			await setWorkshopParts(t.db, {
+				eventSlug: 'taller',
+				partSlugs: ['taller-parte-2'],
+				by: BY,
+				now: NOW
+			})
+		).toEqual({ ok: true });
+		expect(
+			await setPerPartTickets(t.db, { eventSlug: 'taller', perPart: true, by: BY, now: NOW })
+		).toEqual({ ok: true });
+		expect(
+			await setPerPartTickets(t.db, { eventSlug: 'taller', perPart: false, by: BY, now: NOW })
+		).toEqual({ ok: true });
 	});
 });
 

@@ -12,8 +12,8 @@ import { EMAIL_TEMPLATES, TEMPLATE_KEYS, TEMPLATE_LIMITS } from '$lib/utils/emai
 const EMAIL_RE = /^[^\s@<>()",;]+@[^\s@<>()",;]+\.[^\s@<>()",;]+$/;
 
 /**
- * El email público de la cuenta de GitHub de le admin (o `null`). El login pide solo
- * `public_repo`, así que es el email público del perfil, si lo puso.
+ * El email público de la cuenta de GitHub de le admin (o `null`). El login no le pide permisos
+ * a GitHub, así que es el email público del perfil, si lo puso.
  *
  * @param {string} token
  * @param {typeof fetch} fetchFn
