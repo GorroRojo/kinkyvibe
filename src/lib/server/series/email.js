@@ -3,7 +3,7 @@
  * una edición nueva. Los dos llevan el link para darse de baja.
  */
 import { escapeHtml } from '$lib/server/tickets/email.js';
-import { MAIL_STYLES, mailLayout } from '$lib/server/email/layout.js';
+import { MAIL_STYLES, mailLayout, mailOptOut } from '$lib/server/email/layout.js';
 import { argDateTimeLong, parseSiteDate } from '$lib/utils/dates.js';
 import { expiresInText } from '$lib/utils/expiry.js';
 
@@ -22,8 +22,9 @@ export function editionDate(start) {
  * `expiresAt`: cuándo vence el link. En el mail va con la hora de Argentina (no sabemos la zona de
  * quien lo lee; src/lib/utils/expiry.js).
  * `origin`: del sitio, para el logo (sin él, SITE_URL o el de producción).
+ * `optOutUrl`: el link «No fui yo» (email/suppressions.js), en el pie.
  * @param {{ seriesName: string, confirmUrl: string, unsubscribeUrl: string, expiresAt: number,
- *   now: number, origin?: string }} input
+ *   now: number, origin?: string, optOutUrl?: string | null }} input
  * @returns {Message}
  */
 export function buildSeriesConfirmEmail({
@@ -32,9 +33,11 @@ export function buildSeriesConfirmEmail({
 	unsubscribeUrl,
 	expiresAt,
 	now,
-	origin
+	origin,
+	optOutUrl = null
 }) {
 	const vence = expiresInText(expiresAt, now, { lowercase: true });
+	const optOut = mailOptOut(optOutUrl, '¿No te anotaste vos?');
 	const subject = `Confirmá el aviso de ${seriesName}`;
 	const text = [
 		'Hola:',
@@ -45,7 +48,8 @@ export function buildSeriesConfirmEmail({
 		`El link ${vence}.`,
 		'',
 		'Si no lo pediste vos, ignorá este mail: sin confirmar no te llega nada.',
-		`Para borrar el pedido ahora: ${unsubscribeUrl}`
+		`Para borrar el pedido ahora: ${unsubscribeUrl}`,
+		...optOut.text
 	].join('\n');
 	const html = mailLayout({
 		origin,
@@ -56,7 +60,8 @@ export function buildSeriesConfirmEmail({
 		button: { href: confirmUrl, label: 'Confirmar el aviso' },
 		helpHtml: `El link ${escapeHtml(vence)}. Si no lo pediste vos, ignorá este mail: sin confirmar no te llega nada.`,
 		whyHtml: `Te llega porque alguien pidió avisos de ${escapeHtml(seriesName)} con este mail.`,
-		unsubscribeHtml: `<a href="${escapeHtml(unsubscribeUrl)}" style="${MAIL_STYLES.link}">Borrar el pedido ahora</a>`
+		unsubscribeHtml: `<a href="${escapeHtml(unsubscribeUrl)}" style="${MAIL_STYLES.link}">Borrar el pedido ahora</a>`,
+		optOutHtml: optOut.html
 	});
 	return { subject, html, text };
 }

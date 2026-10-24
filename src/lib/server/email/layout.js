@@ -159,6 +159,28 @@ export function withMailFooter(html, footer) {
 }
 
 /**
+ * La línea «No fui yo» del pie de los mails a una dirección que nadie confirmó (entradas gratis,
+ * reservas por transferencia, confirmar la lista de espera o «Avisame si se repite»; ver
+ * src/lib/server/email/suppressions.js). `question` según el mail («¿No te anotaste vos?»). Sin
+ * `url`, nada (el mail sale como siempre).
+ *
+ * @param {string | null | undefined} url el link firmado (`optOutUrl`)
+ * @param {string} question
+ * @returns {{ html: string, text: string[] }} `text`: las líneas para el final del texto plano
+ */
+export function mailOptOut(url, question) {
+	if (!url) return { html: '', text: [] };
+	const lead = `${question} Alguien escribió tu mail por error.`;
+	return {
+		html: `${escapeHtml(lead)} <a href="${escapeHtml(url)}" style="color:${MAIL_COLORS.link};">Tocá acá</a> y no te mandamos más mails de Kinky Vibe a esta dirección.`,
+		text: [
+			'',
+			`${lead} Para que no te mandemos más mails de Kinky Vibe a esta dirección, entrá a: ${url}`
+		]
+	};
+}
+
+/**
  * Arma el mail completo.
  *
  * @param {{
@@ -172,7 +194,8 @@ export function withMailFooter(html, footer) {
  *   afterHtml?: string,
  *   whyHtml: string,
  *   contactEmail?: string,
- *   unsubscribeHtml?: string
+ *   unsubscribeHtml?: string,
+ *   optOutHtml?: string
  * }} input
  * - `preheader`: texto plano oculto que los clientes muestran en la lista de mails, al lado del
  *   asunto (sin él, el mail sale como siempre).
@@ -184,6 +207,8 @@ export function withMailFooter(html, footer) {
  * - `afterHtml`: lo que va al final de la tarjeta (número de orden, política de devoluciones).
  * - `whyHtml`: por qué te llega, en el pie.
  * - `unsubscribeHtml`: el link para darse de baja, en el pie (solo los mails que lo tienen).
+ * - `optOutHtml`: «¿No fuiste vos?…», en el pie, de los mails a una dirección sin confirmar
+ *   ({@link mailOptOut}).
  */
 export function mailLayout({
 	origin,
@@ -196,7 +221,8 @@ export function mailLayout({
 	afterHtml = '',
 	whyHtml,
 	contactEmail,
-	unsubscribeHtml = ''
+	unsubscribeHtml = '',
+	optOutHtml = ''
 }) {
 	const logo = `${siteOrigin(origin)}${MAIL_LOGO_PATH}`;
 	const contact = contactEmail || defaultMailContact();
@@ -217,7 +243,7 @@ ${afterHtml}
 <tr><td style="padding:18px 8px 0;font-size:13px;line-height:1.5;color:${c.muted};text-align:center;">
 ${whyHtml}<br>
 ¿Dudas? Escribinos a ${contactLink(contact)}<br>
-${unsubscribeHtml ? `${unsubscribeHtml}<br>` : ''}${signoffSpan(escapeHtml(DEFAULT_MAIL_FOOTER.signoff))}
+${unsubscribeHtml ? `${unsubscribeHtml}<br>` : ''}${optOutHtml ? `${optOutHtml}<br>` : ''}${signoffSpan(escapeHtml(DEFAULT_MAIL_FOOTER.signoff))}
 </td></tr>
 </table></td></tr></table></body></html>`;
 }

@@ -12,8 +12,7 @@ import { getDB } from '$lib/server/db';
 import { salesByType, ticketsFileErrors, waitlistLiveFor } from '$lib/server/tickets/editor.js';
 import { isFlagOn } from '$lib/server/flags.js';
 import { transferReady } from '$lib/server/tickets/index.js';
-import { placeFileErrors } from '$lib/utils/eventPlace.js';
-import { linkFileErrors } from '$lib/utils/eventLink.js';
+import { linkFileErrors, placeFileErrors } from '$lib/server/eventos/fileErrors.js';
 import {
 	checkVenueChoice,
 	createVenueForEventAction,

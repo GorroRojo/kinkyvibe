@@ -56,8 +56,14 @@ function toVenueRow(r) {
 	};
 }
 
-/** Condición SQL: `o` es un lugar vivo sin aprobar. */
-const UNAPPROVED_VENUE = `o.type = ?1 AND o.deleted_at IS NULL AND json_extract(o.data, '$.kind') = 'lugar'
+/**
+ * Condición SQL: `o` es un lugar vivo, no oculto y sin aprobar. Los ocultos quedan afuera de
+ * "Para aprobar" y "Rechazados" (como el estado «oculto» de Perfiles, `LIVE_SHOWN` en
+ * admin/cuentas.js): ocultar le saca la aprobación (`hideProfile`), y aprobarlo desde acá no lo
+ * volvería a mostrar.
+ */
+const UNAPPROVED_VENUE = `o.type = ?1 AND o.deleted_at IS NULL AND o.visibility != 'hidden'
+	AND json_extract(o.data, '$.kind') = 'lugar'
 	AND NOT EXISTS (SELECT 1 FROM profile_approvals ap WHERE ap.profile_id = o.id)`;
 
 const VENUE_COLUMNS = OBJECT_COLUMNS.split(', ')
@@ -65,7 +71,7 @@ const VENUE_COLUMNS = OBJECT_COLUMNS.split(', ')
 	.join(', ');
 
 /**
- * Los lugares sin aprobar ni rechazar (no borrados), del más viejo al más nuevo (el que más
+ * Los lugares sin aprobar ni rechazar (no borrados ni ocultos), del más viejo al más nuevo (el que más
  * espera, primero).
  *
  * @param {D1Database} db
@@ -85,7 +91,7 @@ export async function listPendingVenues(db) {
 }
 
 /**
- * Los lugares rechazados (sin aprobar, no borrados), del rechazo más nuevo al más viejo, con
+ * Los lugares rechazados (sin aprobar, no borrados ni ocultos), del rechazo más nuevo al más viejo, con
  * cuándo, quién (login de le admin) y el motivo. Para la tarjeta "Rechazados" del panel (solo
  * admins): desde ahí se pueden aprobar.
  *

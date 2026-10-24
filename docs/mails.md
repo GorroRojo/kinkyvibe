@@ -44,6 +44,8 @@ sus plantillas propias) está en la ficha del evento.
   armar el mail. El valor de una variable nunca se vuelve link. En el asunto no se interpretan.
 - **"Mandarme una prueba" solo va a direcciones de la organización** (el email público de GitHub
   de le admin, la de respuesta, el contacto y las de `EMAIL_ALLOWLIST`), nunca a una cualquiera.
+- **«No fui yo» se respeta.** Una dirección que usó el link «No fui yo» no recibe más mails que no
+  sean de una compra pagada (ver [abajo](#no-fui-yo)). Los de una compra pagada salen siempre.
 - El DNI nunca va en un mail. Los tokens de las entradas no se loguean completos.
 - Un mail que falla no frena la compra: se loguea y se puede reenviar desde el panel.
 
@@ -220,6 +222,43 @@ Mail, dominio), [Google, SMS User Consent](https://developers.google.com/identit
 (formato de SMS), [borrador `One-Time-Code`](https://www.ietf.org/archive/id/draft-wells-origin-bound-one-time-codes-00.html),
 [borrador `OTP-Token`](https://www.ietf.org/archive/id/draft-goto-otp-token-01.html) y
 [acciones de Gmail](https://developers.google.com/workspace/gmail/markup/actions/declaring-actions).
+
+### No fui yo
+
+Varios formularios públicos le mandan un mail a la dirección que escribe quien los llena, sin
+confirmarla antes: entradas gratis, reservas por transferencia, el de confirmar de la lista de
+espera y el de confirmar «Avisame si se repite». Quien lo recibe tiene que poder decir «no fui yo».
+Todo en `src/lib/server/email/suppressions.js`; la tabla es `email_suppressions` (migración
+`0060_email_suppressions.sql`).
+
+- **El link:** esos cuatro mails llevan en el pie (después de la baja, antes de la firma) «¿No
+  pediste vos estas entradas? / ¿No reservaste vos? / ¿No te anotaste vos? Alguien escribió tu mail
+  por error. Tocá acá y no te mandamos más mails de Kinky Vibe a esta dirección.» (`mailOptOut` de
+  `layout.js`; en el texto plano, con la dirección). Lo pone el código: no se edita en las
+  plantillas. Las entradas gratis llevan la línea en «Tus entradas» solo si la orden es `gratis`.
+- **La dirección del link:** `/mails/no-fui-yo/<hash>.<firma>`. El hash es `emailHash` de las
+  cuentas (el mismo de los límites; nunca el mail) y la firma, de `signedLinks.js` con la clave
+  `mail_opt_out_key` (se crea sola en `ticket_settings`). Un link tocado no sirve.
+- **La página:** GET solo muestra el botón «No quiero más mails» (`MailLinkCard`, con
+  `Referrer-Policy: same-origin`, como los otros links de mails) y el POST anota el hash. Dos veces
+  es lo mismo que una. Las visitas no se cuentan en las analíticas.
+- **Qué deja de salir** (`deliver()` con `optOut`): todo mail que no es de una compra pagada. Los
+  de una orden gratis o de una reserva sin pagar (entradas, datos para transferir, recordatorios,
+  link de la transmisión, cambio de fecha, «Mail a compradores» si la persona no tiene ninguna orden
+  paga en el evento), todos los de la lista de espera, los de series y los de «Lo que sigo». Un mail
+  cortado vuelve como `simulated` (no se reintenta) y se loguea sin la dirección; si no se puede
+  leer la tabla, no sale (`failed`, se reintenta). La orden o la anotación se crean igual: las
+  entradas gratis quedan aprobadas.
+- **Qué sale siempre:** los de una compra pagada (entradas, recordatorios, reembolsos y demás de
+  una orden que no es `gratis`, `isFreeOrder`), los códigos para entrar a Mi rincón, el mail del
+  Fondo y las pruebas de las plantillas.
+- **Tope por dirección sin confirmar** (`UNCONFIRMED_MAIL_CAP`, 5 por día): suma los cuatro
+  formularios para una misma dirección (`rate_limits`, clave con el hash), además de los límites de
+  cada uno. No cuenta si la dirección es la de la cuenta con sesión. Si la base falla, no sale.
+- **Entradas gratis, una por mail y evento**, salvo con la cuenta de ese mail (ver
+  [tickets.md](tickets.md)). El «por qué te llega» de los mails de una orden gratis dice «Te llega
+  porque se pidieron entradas gratis con este mail en kinkyvibe.ar.» (`WHY_FREE`), no «porque
+  compraste».
 
 ### Mail del Fondo (tu link)
 
