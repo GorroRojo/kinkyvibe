@@ -58,7 +58,11 @@ import {
 import { approveProfile, approvalOf } from '$lib/server/amigues/approvals.js';
 import { hideProfile } from '$lib/server/admin/cuentas.js';
 import { findPublicProfile, listPublicProfiles } from '$lib/server/amigues/profiles.js';
-import { listPendingVenues } from '$lib/server/amigues/pendingVenues.js';
+import {
+	listPendingVenues,
+	listRejectedVenues,
+	rejectPendingVenue
+} from '$lib/server/amigues/pendingVenues.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -1680,6 +1684,37 @@ describe('ocultar desde el panel', () => {
 
 		await approveProfile(t.db, p.id, 'admin-de-prueba');
 		expect(await findPublicProfile(t.db, p.slug, ANON)).not.toBeNull();
+	});
+
+	it('un lugar oculto no aparece en «Para aprobar» ni en «Rechazados» de Eventos › Lugares', async () => {
+		const a = await account('carga-lugar');
+		const hiddenVenue = await create(a.id, { kind: 'lugar', title: 'Lugar Oculto Inventado' });
+		const shownVenue = await create(a.id, { kind: 'lugar', title: 'Lugar Visible Inventado' });
+		const rejectedVenue = await create(a.id, { kind: 'lugar', title: 'Lugar Rechazado Inventado' });
+		await approveProfile(t.db, hiddenVenue.id, 'admin-de-prueba');
+		ok(await rejectPendingVenue(t.db, rejectedVenue.id, { by: 'admin-de-prueba', now: NOW }));
+
+		// Ocultar saca la aprobación, pero el lugar no vuelve a «Para aprobar».
+		await hideProfile(
+			t.db,
+			hiddenVenue.id,
+			hiddenVenue.version,
+			{ login: 'admin-de-prueba' },
+			opts
+		);
+		await hideProfile(
+			t.db,
+			rejectedVenue.id,
+			rejectedVenue.version,
+			{ login: 'admin-de-prueba' },
+			opts
+		);
+		expect(await approvalOf(t.db, hiddenVenue.id)).toBeNull();
+		const pending = await listPendingVenues(t.db);
+		expect(pending.map((v) => v.title)).toEqual(['Lugar Visible Inventado']);
+		expect(pending).toHaveLength(1);
+		expect((await listRejectedVenues(t.db)).map((v) => v.id)).not.toContain(rejectedVenue.id);
+		expect(shownVenue.visibility).not.toBe('hidden');
 	});
 
 	it('si la versión cambió en el medio, no oculta ni saca la aprobación', async () => {
