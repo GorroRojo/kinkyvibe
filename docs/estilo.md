@@ -10,6 +10,10 @@ El panel de admin redefine los de color y sombra para su tema oscuro en
 - En los componentes no van px/rem sueltos para letra, `gap` o `padding`: usá un token. Si ningún
   token sirve, mejor preguntar antes que inventar un tamaño.
 - Pesos de letra: **400 y 700**, nada más (Lato no tiene 600; el navegador lo dibuja como 700).
+- Lato es propia (`src/lib/styles/fonts/`, los `@font-face` de `style.scss`). Las dos latin
+  (400 y 700) se precargan desde `src/routes/+layout.svelte`, importadas con `?url` para que el
+  preload tenga la misma URL con hash que el CSS: si cambiás un archivo de letra o agregás un
+  peso, cambialo en los dos lados (lo controla una prueba de `tests/smoke.spec.js`).
 - Colores nuevos no: mezclá los del sitio con `color-mix` o usá los alias de abajo.
 - Si agregás un token de color o sombra, dale también su valor oscuro en `@mixin dark` del panel.
 - Los textos del contenido (en la base, y la semilla `src/lib/server/semilla/*.json`) no se

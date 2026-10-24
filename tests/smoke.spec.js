@@ -486,6 +486,50 @@ test.describe('auth', () => {
 });
 
 test.describe('experiencia', () => {
+	// Las dos Lato latin (400 y 700) se piden con el HTML (`<link rel="preload">` en el layout
+	// raíz), con la misma URL con hash que el @font-face del CSS: si no coinciden, el navegador baja
+	// cada letra dos veces.
+	test('las letras Lato latin se precargan con la URL del CSS', async ({ page, request }) => {
+		const html = await (await request.get('/material')).text();
+		const preloads = [...html.matchAll(/<link\b[^>]*rel="preload"[^>]*>/g)]
+			.map((m) => m[0])
+			.filter((tag) => /as="font"/.test(tag));
+		expect(preloads).toHaveLength(2);
+		const hrefs = preloads.map((tag) => {
+			expect(tag).toContain('type="font/woff2"');
+			expect(tag).toMatch(/\bcrossorigin\b/);
+			return /href="([^"]+)"/.exec(tag)?.[1] ?? '';
+		});
+		expect(hrefs.map((h) => /lato-latin-(\d+)-normal\.[\w-]+\.woff2$/.exec(h)?.[1])).toEqual([
+			'400',
+			'700'
+		]);
+
+		const fonts = [];
+		page.on('request', (r) => {
+			if (r.url().endsWith('.woff2')) fonts.push(new URL(r.url()).pathname);
+		});
+		await acceptAgeGate(page);
+		await page.goto('/material', { waitUntil: 'networkidle' });
+		await page.evaluate(() => document.fonts.ready);
+		// las precargadas son las que usa la página, y cada una se pide una sola vez
+		for (const href of hrefs)
+			expect(fonts.filter((f) => f === new URL(href, page.url()).pathname)).toHaveLength(1);
+		const usedByCss = await page.evaluate(() =>
+			[...document.styleSheets].flatMap((sheet) => {
+				try {
+					return [...sheet.cssRules]
+						.filter((r) => r instanceof CSSFontFaceRule)
+						.map((r) => /url\("?([^")]+)"?\)/.exec(r.style.getPropertyValue('src'))?.[1] ?? '')
+						.map((u) => new URL(u, sheet.href ?? location.href).pathname);
+				} catch {
+					return [];
+				}
+			})
+		);
+		for (const href of hrefs) expect(usedByCss).toContain(new URL(href, page.url()).pathname);
+	});
+
 	test('el aviso de +18 aparece en la primera visita y se puede cerrar', async ({ page }) => {
 		await page.goto('/');
 		const modal = page.getByRole('heading', { name: '¿Sos mayor de 18 años?' });
