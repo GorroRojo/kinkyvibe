@@ -55,7 +55,8 @@ import {
 	updateProfile,
 	accountVenueData
 } from './perfiles.js';
-import { approveProfile } from '$lib/server/amigues/approvals.js';
+import { approveProfile, approvalOf } from '$lib/server/amigues/approvals.js';
+import { hideProfile } from '$lib/server/admin/cuentas.js';
 import { findPublicProfile, listPublicProfiles } from '$lib/server/amigues/profiles.js';
 import { listPendingVenues } from '$lib/server/amigues/pendingVenues.js';
 
@@ -1648,5 +1649,48 @@ describe('lugares desde las cuentas (decisión de gorrite, 0022)', () => {
 		);
 		expect(bad).toMatchObject({ ok: false, status: 400 });
 		expect(bad.ok === false && Object.keys(bad.errors ?? {})).toContain('venue_privacy');
+	});
+});
+
+describe('ocultar desde el panel', () => {
+	it('saca la aprobación: si quien lo gestiona lo vuelve a hacer público, no reaparece', async () => {
+		const a = await account('gestiona');
+		const p = await create(a.id, { kind: 'persona', title: 'Persona Inventada' });
+		await approveProfile(t.db, p.id, 'admin-de-prueba');
+		expect(await findPublicProfile(t.db, p.slug, ANON)).not.toBeNull();
+
+		const hidden = await hideProfile(t.db, p.id, p.version, { login: 'admin-de-prueba' }, opts);
+		expect(hidden.visibility).toBe('hidden');
+		expect(await approvalOf(t.db, p.id)).toBeNull();
+
+		// Mi rincón sigue editando: puede volver a ponerlo público…
+		const saved = ok(
+			await updateProfile(
+				t.db,
+				a.id,
+				p.slug,
+				{ version: hidden.version, title: p.title, visibility: 'public' },
+				opts
+			)
+		);
+		expect(saved.profile.visibility).toBe('public');
+		// …pero no aparece hasta que une admin lo apruebe de nuevo.
+		expect(await findPublicProfile(t.db, p.slug, ANON)).toBeNull();
+		expect((await listPublicProfiles(t.db, ANON)).map((r) => r.object.id)).not.toContain(p.id);
+
+		await approveProfile(t.db, p.id, 'admin-de-prueba');
+		expect(await findPublicProfile(t.db, p.slug, ANON)).not.toBeNull();
+	});
+
+	it('si la versión cambió en el medio, no oculta ni saca la aprobación', async () => {
+		const a = await account('gestiona');
+		const p = await create(a.id, { kind: 'persona', title: 'Persona Inventada' });
+		await approveProfile(t.db, p.id, 'admin-de-prueba');
+		ok(await updateProfile(t.db, a.id, p.slug, { version: p.version, title: 'Otro Nombre' }, opts));
+		await expect(
+			hideProfile(t.db, p.id, p.version, { login: 'admin-de-prueba' }, opts)
+		).rejects.toThrow();
+		expect(await approvalOf(t.db, p.id)).not.toBeNull();
+		expect(await findPublicProfile(t.db, p.slug, ANON)).not.toBeNull();
 	});
 });

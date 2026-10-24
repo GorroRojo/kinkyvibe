@@ -324,7 +324,8 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
   rechazado, oculto, borrado, sin revisar), CSV de lo que se ve y las pestañas «Para aprobar» y
   «Pedidos "Es mi perfil"». Cada fila abre el editor del perfil; el link «ficha» (y los borrados)
   van a la ficha (`/admin/comunidad/cuentas/perfiles/[id]`): marcar como revisado, aprobar para /amigues,
-  **ocultar** (visibilidad `hidden`) o **borrar** (suave), las dos por `saveObject()` con la
+  **ocultar** (visibilidad `hidden`, y le saca la aprobación para /amigues: ver
+  [amigues.md](amigues.md)) o **borrar** (suave), las dos por `saveObject()` con la
   versión que se abrió (si alguien lo cambió en el medio, 409 y no se guarda nada). Los filtros y
   el origen/estado de cada perfil son puros, en `src/lib/admin/perfiles.js`.
 - **Inicio:** "Se creó una cuenta nueva" y "Se creó el perfil «…» (persona/proyecto)" aparecen en la
