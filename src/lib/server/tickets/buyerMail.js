@@ -147,22 +147,28 @@ export async function getBuyerMail(db, id) {
 
 /**
  * Personas a las que les llega un aviso del evento: una por email (en minúsculas), con el
- * nombre de su orden aprobada más nueva.
+ * nombre de su orden aprobada más nueva. `paid`: si alguna de sus órdenes no es gratis (si no, el
+ * aviso respeta «No fui yo», email/suppressions.js).
  *
  * @param {D1Database} db
  * @param {string} eventSlug
- * @returns {Promise<{ email: string, name: string }[]>}
+ * @returns {Promise<{ email: string, name: string, paid: boolean }[]>}
  */
 export async function buyerMailAudience(db, eventSlug) {
 	const { results } = await db
 		.prepare(
-			`SELECT LOWER(buyer_email) AS email, buyer_name AS name, MAX(created_at) AS last
+			`SELECT LOWER(buyer_email) AS email, buyer_name AS name, MAX(created_at) AS last,
+				SUM(payment_method <> 'gratis') AS paid
 			FROM orders WHERE event_slug = ?1 AND status = 'approved'
 			GROUP BY LOWER(buyer_email) ORDER BY last`
 		)
 		.bind(eventSlug)
 		.all();
-	return results.map((r) => ({ email: String(r.email), name: String(r.name ?? '') }));
+	return results.map((r) => ({
+		email: String(r.email),
+		name: String(r.name ?? ''),
+		paid: Number(r.paid) > 0
+	}));
 }
 
 /**
@@ -228,7 +234,7 @@ async function finishRecipient(db, { sendId, email, ok, now = Date.now() }) {
  * @param {D1Database} db
  * @param {{
  *   send: BuyerMailSend,
- *   deliver: (recipient: { email: string, name: string }) => Promise<boolean>,
+ *   deliver: (recipient: { email: string, name: string, paid?: boolean }) => Promise<boolean>,
  *   limit?: number,
  *   now?: number
  * }} input

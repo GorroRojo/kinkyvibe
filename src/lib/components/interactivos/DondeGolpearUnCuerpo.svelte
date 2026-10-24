@@ -1,5 +1,11 @@
 <script>
-	import svgData from './svgData.js';
+	/**
+	 * Los trazos del cuerpo. Los pone el servidor en las partes del texto
+	 * ($lib/server/contenido/interactive.js), solo en la página que lo usa: así no viajan en el
+	 * JavaScript de todas las páginas.
+	 * @type {{ d: string, name: string }[]}
+	 */
+	export let svgData = [];
 	/**@type Record<string, Record<string, string>>*/
 	const seguridad = {
 		flogger: {

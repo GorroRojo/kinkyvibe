@@ -116,6 +116,7 @@ describe('isTrackedPath', () => {
 		'/lista-de-espera/confirmar/token-falso',
 		'/lista-de-espera/salir/token-falso',
 		'/lista-de-espera/volver/token-falso',
+		'/mails/no-fui-yo/token-falso',
 		'/propinas/id-falso',
 		'/mi-rincon',
 		'/ingresar',

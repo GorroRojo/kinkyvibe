@@ -3,7 +3,8 @@
 	«partes» que arma el servidor (src/lib/server/contenido/interactive.js). El HTML va tal cual
 	(ya está armado y limpio en el servidor), cada interactivo es su componente del registro
 	($lib/components/interactivos) y un elemento que contiene un interactivo se arma acá, con sus
-	partes adentro. Una etiqueta que no está en el registro no se muestra.
+	partes adentro. Una etiqueta que no está en el registro no se muestra. Las props de un
+	interactivo (por ejemplo los trazos de su SVG) también vienen del servidor, en su parte.
 -->
 <script>
 	import { interactiveComponent } from '$lib/components/interactivos/index.js';
@@ -19,7 +20,7 @@
 		{@html part.html}
 	{:else if 'component' in part}
 		{#if interactiveComponent(part.component)}
-			<svelte:component this={interactiveComponent(part.component)} />
+			<svelte:component this={interactiveComponent(part.component)} {...part.props} />
 		{/if}
 	{:else}
 		<svelte:element this={part.element} {...part.attrs}>

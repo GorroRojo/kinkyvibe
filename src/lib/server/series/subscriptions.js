@@ -10,8 +10,10 @@
  *
  * Darse de baja borra la fila. El link de baja va firmado ($lib/server/signedLinks.js), así se
  * puede poner en cada mail sin guardar otro token. Los mensajes nunca dicen si un mail ya estaba
- * suscripto. Límites con db/rateLimit.js (por conexión, por mail y el tope global de mails de
- * cuentas, que comparte la cuenta de Resend).
+ * suscripto. Límites con db/rateLimit.js (por conexión, por mail, el tope global de mails de
+ * cuentas, que comparte la cuenta de Resend, y el tope de mails a una dirección sin confirmar
+ * entre todos los formularios, email/suppressions.js). El mail de confirmar lleva el link «No fui
+ * yo» y no sale a una dirección que lo usó.
  */
 import {
 	avisameViaSigo,
@@ -26,6 +28,7 @@ import { signLink, verifyLink } from '$lib/server/signedLinks.js';
 import { emailHash, normalizeEmail } from '$lib/server/cuentas/accounts.js';
 import { randomToken } from '$lib/server/cuentas/crypto.js';
 import { accountMailAllowed } from '$lib/server/cuentas/mailCap.js';
+import { optOutUrl, unconfirmedMailAllowed } from '$lib/server/email/suppressions.js';
 import { buildSeriesConfirmEmail } from './email.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -129,6 +132,7 @@ export async function subscribeEmail({
 	// Ya confirmada: no se manda nada y se responde igual (no se revela quién está suscripte).
 	if (existing && existing.confirmed_at != null) return { ok: true, status: 'pending' };
 	if (!(await allowed(db, `series:sub:e:${hash}`, SUBSCRIBE_LIMITS.email, now))) return tooMany;
+	if (!(await unconfirmedMailAllowed(db, email, now))) return tooMany;
 	if (!(await accountMailAllowed(db, now)))
 		return { ok: false, status: 429, message: SERIES_MESSAGES.mailBusy };
 
@@ -160,7 +164,8 @@ export async function subscribeEmail({
 		unsubscribeUrl: await unsubscribeUrl(db, origin, id),
 		expiresAt: now + CONFIRM_TTL_MS,
 		now,
-		origin
+		origin,
+		optOutUrl: await optOutUrl(db, origin, email)
 	});
 	const result = await send(email, message);
 	if (result === 'failed') return { ok: false, status: 502, message: SERIES_MESSAGES.mailFailed };

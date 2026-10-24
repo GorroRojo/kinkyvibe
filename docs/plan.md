@@ -124,6 +124,7 @@ CI) va en la fase 0.
 - `estadisticas-pestanas` · fase 0 · hecho · panel · Estadísticas en pestañas (Ventas, Asistencia, Visitas) · #258
 - `buscador-panel` · fase 0 · hecho · panel · Buscador del panel: tildes, acciones y operadores · #259, #269
 - `moderar-ocultar` · fase 0 · hecho · panel · «Ocultar» un perfil desde el panel también le saca la aprobación para /amigues: si quien lo gestiona lo vuelve a hacer público desde Mi rincón, no reaparece hasta que une admin lo apruebe de nuevo · #385, [amigues.md](amigues.md)
+- `lugares-ocultos-fuera-de-aprobar` · fase 0 · hecho · panel · Un lugar oculto ya no aparece en Eventos › Lugares › «Para aprobar» ni en «Rechazados»: ocultar le saca la aprobación, pero aprobarlo desde ahí no lo volvía a mostrar · #390, [amigues.md](amigues.md)
 
 ### Sitio público
 
@@ -219,6 +220,7 @@ CI) va en la fase 0.
 
 ### Mails
 
+- `mails-no-fui-yo` · fase 0 · sigue · mails · «No fui yo»: los mails que van a una dirección que nadie confirmó (entradas gratis, reservas por transferencia, confirmar la lista de espera y «Avisame si se repite») llevan un link para no recibir más mails que no sean de una compra pagada (migración 0060), con un tope por día por dirección entre esos formularios y una orden gratis por mail y evento salvo con la cuenta de ese mail. Falta la parte 2: que Mi rincón no muestre las órdenes gratis hechas con un mail sin confirmar · #388, [mails.md](mails.md#no-fui-yo)
 - `mails-codigo-seguimiento` · fase 0 · sigue · mails · Códigos copiables: probar en un iPhone con Mail de Apple, averiguar por qué Gmail toma el mail por inglés y sumar `OTP-Token` u `One-Time-Code` cuando un cliente lo use · #297, [mails.md](mails.md#códigos-copiables)
 - `gmail-tarjeta-evento` · fase 0 · algún día · mails · Tarjeta de evento en Gmail: registrarse con Google y revisar el volumen de envío; gorrite manda el formulario (gorrite: después, 12/10)
 - `bimi` · fase 0 · algún día · mails · BIMI para los mails (gorrite: más adelante)
@@ -263,6 +265,7 @@ CI) va en la fase 0.
 - `conector-claude-lectura` · fase 1 · sigue · panel · Conector de Claude (MCP) solo de lectura para admins: buscar y leer objetos y listar ventas por slug o nombre, sin SQL a mano ni ids tipeados; detrás de un interruptor, apagado. Va después de los arreglos del acceso de admins que salgan de la auditoría (gorrite, 12/10) (depende de: auditoria-seguridad)
 - `analiticas` · fase 1 · hecho · infra · Visitas y embudo de compra con Workers Analytics Engine · #215
 - `perf-js-yaml` · fase 1 · hecho · infra · La validación del archivo de un evento al guardar (`placeFileErrors`, `linkFileErrors`) pasa al servidor (`src/lib/server/eventos/fileErrors.js`): las páginas públicas ya no bajan el paquete `yaml` · #391
+- `perf-js-interactivo` · fase 1 · hecho · infra · Los trazos del SVG del interactivo «Dónde y con qué golpear un cuerpo» ya no van en el JavaScript de todas las páginas con texto: el servidor se los pasa como props solo a la publicación que lo usa (unos 108 KB gz menos en eventos, material y wiki) · #389
 
 ## Fase 2
 
