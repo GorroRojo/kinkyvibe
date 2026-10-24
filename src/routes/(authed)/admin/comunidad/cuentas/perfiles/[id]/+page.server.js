@@ -104,7 +104,8 @@ export const actions = {
 		return { perfil: { ok: true, message: 'Listo: marcado como revisado.' } };
 	},
 
-	// Ocultar: visibilidad `hidden` (lo ven solo admins y quienes lo gestionan, en Mi rincón).
+	// Ocultar: visibilidad `hidden` (lo ven solo admins y quienes lo gestionan, en Mi rincón) y sin
+	// la aprobación para /amigues (ver hideProfile).
 	ocultar: async (event) => {
 		const t = await target(event);
 		if (t.failure) return t.failure;

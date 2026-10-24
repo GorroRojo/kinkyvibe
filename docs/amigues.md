@@ -16,12 +16,20 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   admin lo aprueba (la cuenta pasa a ser dueñe) o lo rechaza.
 - **Aprobación**: un perfil nuevo creado por una cuenta aparece en `/amigues` recién cuando une
   admin lo aprueba. Hasta entonces lo ven solo quienes lo gestionan y les admins.
+- **Ocultar desde el panel** (la ficha del perfil, `hideProfile` en
+  `src/lib/server/admin/cuentas.js`): lo pone oculto y, en la misma tanda de `saveObject()`, le
+  saca la aprobación (la misma sentencia que «Sacar de Amigues», `unapproveStatement` en
+  `src/lib/server/amigues/approvals.js`). Quien lo gestiona lo sigue editando en Mi rincón, pero si
+  le vuelve a cambiar la visibilidad no reaparece hasta que une admin lo apruebe de nuevo (queda
+  «para aprobar»).
 - **Lugares desde las cuentas** (decisión de gorrite,
   [0022](decisiones/0022-lugares-desde-cuentas.md)): una cuenta con el permiso de perfiles crea un
   lugar en Mi rincón → Perfiles y completa su dirección. No aparece en el sitio (ni en `/amigues`,
   ni en su página, ni en los eventos) hasta que une admin lo aprueba en **Eventos → Lugares →
   "Para aprobar"** (lista con CSV; aprobar o rechazar, que lo borra). Los que crea une admin y los
-  importados nacen aprobados. Código: `src/lib/server/amigues/pendingVenues.js`.
+  importados nacen aprobados. Un lugar oculto no está en "Para aprobar" ni en "Rechazados" (ocultar
+  le saca la aprobación, pero aprobarlo ahí no lo volvería a mostrar). Código:
+  `src/lib/server/amigues/pendingVenues.js`.
 - **Lugares**: dirección, barrio, ciudad, ubicación (lat/lng), accesibilidad, cómo llegar, mapa de
   OpenStreetMap y sus eventos. **Privacidad de la dirección** por lugar con cambio por evento.
 - Panel: **Perfiles** (`/admin/comunidad/perfiles`) es la única lista de perfiles (decisión de gorrite del

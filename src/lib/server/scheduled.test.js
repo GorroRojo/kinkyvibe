@@ -45,6 +45,11 @@ describe('wrangler.toml', () => {
 		]);
 	});
 
+	it('Smart Placement prendido (el Worker corre cerca de la base cuando conviene)', () => {
+		const config = unstable_readConfig({ config: 'wrangler.toml' });
+		expect(config.placement?.mode).toBe('smart');
+	});
+
 	it('visitas anónimas: Analytics Engine solo en producción, con el dataset del código', () => {
 		const config = unstable_readConfig({ config: 'wrangler.toml' });
 		expect(config.analytics_engine_datasets).toEqual([
