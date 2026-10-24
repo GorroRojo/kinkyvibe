@@ -525,6 +525,8 @@ El porcentaje del Fondo KinkyVibe se lee de `GET https://fondo.kinkyvibe.ar/api/
 
 No hay porcentaje por evento ni monto por tipo (`fondo_percent` y `fondo` en el frontmatter se ignoran): siempre es este porcentaje. Solo aplica a eventos con la etiqueta KinkyVibe.
 
+El porcentaje se busca solo si el evento vende entradas y usa el Fondo, y a la par de la lectura de su lugar: el evento se lee una sola vez (`eventTicketsWithFondo` en `src/lib/server/tickets/checkout.js`, con `options.fondo` de `getEventTickets`). Lo prueba `venta-consultas.test.js`, que fija cuántas consultas y cuántas tandas en fila hace la venta (la base está lejos: cada consulta que espera a otra es una ida y vuelta).
+
 `fondo = round(precio × porcentaje / 100)` por entrada, en todos los tipos con precio (no en los a la gorra) de los eventos KinkyVibe. El precio que se muestra y el que se cobra se calculan en el servidor; el que se cobra, al crear la orden, que guarda el porcentaje usado en `orders.fondo_percent` (columna `orders.fondo_percent`; también en el CSV, `porcentaje_fondo`). Ajustes de venta muestra "Descuento del Fondo ahora: X %", de dónde sale y cuándo se actualizó.
 
 **El porcentaje que se cobra es el que se vio.** Como con los tramos de preventa, el formulario manda el porcentaje que mostró (`fondo_percent`, campo oculto, solo con «Con el descuento del fondo» elegido) **solo para avisar**: si no coincide con el vigente al comprar, `?/buy` no reserva y contesta 409 «El descuento del Fondo cambió: ahora es X %. Revisá el total y volvé a confirmar.». Toda respuesta con error de `?/buy` en un evento con Fondo lleva el porcentaje de ahora (`fondoPercent`) y la página de compra rearma los precios con él (`withFondoPercent` en `src/lib/utils/tickets.js`), así confirmar de nuevo pasa sin recargar. Sin el campo (o vacío: formularios viejos, precio completo o solidarias, eventos sin Fondo) no se frena nada.
@@ -549,7 +551,7 @@ En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada 
 
 ### Ajustes de venta
 
-Tres páginas del panel (menú **Ajustes**; `requireAdmin` en cada `load` y action) sobre la misma tabla de D1 (`ticket_settings`). Cada una guarda solo sus campos (no borra los de las otras):
+Tres páginas del panel (menú **Ajustes**; `requireAdmin` en cada `load` y action) sobre la misma tabla de D1 (`ticket_settings`). Cada una guarda solo sus campos (no borra los de las otras). `getSalesSettings` los lee una sola vez por pedido de lectura (la venta los pide para el Fondo, la transferencia y la comisión); en un `POST` solo se comparte la lectura en camino, así lo leído después de guardar es lo nuevo (`oncePerRequest`):
 
 - **Cobros** (`/admin/ajustes/cobros`):
   - **Datos para transferir:** Alias, CBU/CVU, Titular y Banco (texto libre; se muestran los campos completos, como "Alias: …" en líneas). Si están todos vacíos se usa `TICKETS_TRANSFER_INFO`; si tampoco hay, no se ofrece transferencia.

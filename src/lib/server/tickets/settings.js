@@ -9,6 +9,7 @@ import { parseFeePercent } from '$lib/utils/tickets.js';
 import { safeTextError } from '$lib/utils/emailTemplates.js';
 import { MAX_MAIL_BATCH_SIZE, MIN_MAIL_BATCH_SIZE, parseMailBatchSize } from './batchSize.js';
 import { MAX_REMINDERS, normalizeReminder } from './reminders.js';
+import { oncePerRequest } from '$lib/server/db/perRequest.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -70,13 +71,21 @@ function empty() {
 }
 
 /**
- * Lee los ajustes (vacíos si no hay base o todavía no se aplicó la migración).
+ * Lee los ajustes (vacíos si no hay base o todavía no se aplicó la migración). Una sola consulta
+ * por pedido de lectura (la venta los pide varias veces: el Fondo, la transferencia, la comisión);
+ * en los demás pedidos, solo se comparte la que está en camino, así lo leído después de guardar
+ * es lo nuevo (`oncePerRequest`, src/lib/server/db/perRequest.js). Cada llamada recibe su copia.
  *
  * @param {D1Database | null | undefined} db
  * @returns {Promise<SalesSettings & { updatedAt: number | null, updatedBy: string | null }>}
  */
 export async function getSalesSettings(db) {
 	if (!db) return readSalesSettings([]);
+	return { ...(await oncePerRequest(db, 'salesSettings', () => readSettings(db))) };
+}
+
+/** @param {D1Database} db */
+async function readSettings(db) {
 	try {
 		const { results } = await salesSettingsStatement(db).all();
 		return readSalesSettings(results);
