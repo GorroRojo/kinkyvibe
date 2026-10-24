@@ -17,9 +17,9 @@ export const actions = {
 		cookies.set('oauthRedirectTo', redirectTo, opts);
 		const params = new URLSearchParams({
 			client_id: env.GITHUB_CLIENT_ID ?? '',
-			state,
-			// The site only reads and commits to the public GorroRojo/kinkyvibe repo.
-			scope: 'public_repo'
+			// No `scope`: the token is only used to read the user's id (GET /user). Since decision
+			// 0032 the panel never writes to GitHub, so it asks for no permissions.
+			state
 		});
 		redirect(302, `${target}?${params}`);
 	}
