@@ -366,8 +366,10 @@
 			</form>
 		</div>
 		<p class="hint">
-			"En todos lados" cierra tu sesión en este y en cualquier otro navegador o dispositivo donde
-			hayas entrado. Usalo si entraste en una compu ajena o si perdiste el celu.
+			"En todos lados" cierra tu sesión en este y en cualquier otro navegador o dispositivo,
+			desconecta el Telegram vinculado y anula el link de tu calendario (si lo usás, después creá
+			uno nuevo). Usalo si entraste en una compu ajena, si perdiste el celu o si otra persona pudo
+			usar tu cuenta.
 		</p>
 	</section>
 

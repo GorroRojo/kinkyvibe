@@ -547,7 +547,10 @@ cuenta borra el chat vinculado y sus códigos.
 - `/reanudar`: vuelve a mandarlos.
 - `/sigo`: lo que sigue la cuenta (y «⭐ Seguir» en las tarjetas, arriba).
 - `/entradas`: las entradas de la cuenta, con el QR («🎟 Mis entradas», arriba).
-- `/desvincular`: desconecta el chat. También se puede desde la tarjeta («Desconectar Telegram»).
+- `/desvincular`: desconecta el chat. También se puede desde la tarjeta («Desconectar Telegram»)
+  o con «Salir en todos lados» en Mi rincón, que además cierra todas las sesiones web y anula el
+  link del calendario (ver [cuentas.md](cuentas.md#sesiones-srclibservercuentassessionjs)).
+  Cambiar la contraseña no desconecta el chat.
 
 ### Los avisos
 

@@ -161,9 +161,18 @@ el código por mail sigue andando.
   cookie dura 400 días desde la última vez que se mandó), así que no se cierra la sesión de nadie:
   solo se van filas que nunca más se usan. Si falla, lo escribe en el log y la corrida sigue; en el
   log va solo cuántas borró.
-- En Mi rincón, "Salir en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
-  cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
-  saca acceso.
+- En Mi rincón, "Salir en todos lados" (`?/salirTodos`) corta todo lo que da acceso a la cuenta
+  sin la sesión web: desconecta el chat de Telegram vinculado y borra sus códigos pendientes
+  (`unlinkAccount`, `src/lib/server/telegram/link.js`), anula el link personal del calendario
+  (`revokeFeeds`, `src/lib/server/series/feeds.js`; si lo usa, crea uno nuevo) y al final cierra
+  todas las sesiones de la cuenta, también la de ese navegador. Vuelve a `/ingresar` con un aviso.
+  No pide código: solo saca acceso.
+- Qué corta cada acción:
+  - **Salir**: solo la sesión de ese navegador.
+  - **Salir en todos lados**: todas las sesiones, el Telegram vinculado y el link del calendario.
+  - **Poner, cambiar o sacar la contraseña**: las otras sesiones (la actual sigue); Telegram y el
+    link del calendario quedan como estaban.
+  - **Borrar la cuenta**: todo eso y más (ver "Al borrar la cuenta", arriba).
 - `hooks.server.js` carga `locals.member` (`{ id, email }`) solo si hay cookie (y base).
 
 ### Otras protecciones
@@ -545,8 +554,9 @@ actualizá esta lista.
   `SHA-256` del mail con un prefijo fijo: con acceso a la base, se puede confirmar si un mail
   adivinado está ahí. Para que "no se guarda el mail" valga también contra eso, habría que usar
   un HMAC con una clave secreta del entorno.
-- **Sesiones sin vencimiento** (P7.11). Para cortar todo: "Salir en todos lados" o cambiar
-  o sacar la contraseña. Con una sesión abierta ajena se pueden ver los datos guardados (también
+- **Sesiones sin vencimiento** (P7.11). Para cortar todo: "Salir en todos lados" (también
+  desconecta Telegram y anula el link del calendario). Cambiar o sacar la contraseña cierra las
+  otras sesiones web, pero no toca Telegram ni el calendario. Con una sesión abierta ajena se pueden ver los datos guardados (también
   el DNI, si se guardó): «Mostrar» no pide código por mail.
 - **El nombre del proyecto va en el aviso de invitación.** Lo escribe quien gestiona el proyecto y llega
   con el remitente del sitio. Va escapado, pero algunos programas de mail convierten en link un

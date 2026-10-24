@@ -197,6 +197,13 @@ describe('Mi rincón: orden y borrar la cuenta', () => {
 		expect(at('action="?/salir"')).toBeLessThan(at('id="borrar-title"'));
 	});
 
+	it('«Salir en todos lados» avisa que también desconecta Telegram y anula el calendario', () => {
+		const html = page().replace(/\s+/g, ' ');
+		expect(html).toContain('action="?/salirTodos"');
+		expect(html).toContain('desconecta el Telegram vinculado');
+		expect(html).toContain('anula el link de tu calendario');
+	});
+
 	it('el botón que borra la cuenta es rojo (.permanent); el paso del código no', () => {
 		const first = page();
 		expect(first).not.toMatch(/class="pill-btn permanent"/);

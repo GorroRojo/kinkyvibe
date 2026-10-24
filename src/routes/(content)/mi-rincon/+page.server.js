@@ -1,7 +1,8 @@
 /**
  * "Mi rincón": la cuenta del público (docs/cuentas.md). Mail, contraseña (poner, cambiar,
  * sacar), compras de ese mail (solo lectura), «Mis datos» (lo guardado para la compra: ver,
- * cambiar, borrar), cerrar sesión (acá o en todos lados) y borrar la cuenta. Sin
+ * cambiar, borrar), cerrar sesión (acá o en todos lados: eso también
+ * desconecta Telegram y anula el link del calendario) y borrar la cuenta. Sin
  * sesión, lleva a /ingresar.
  *
  * La sesión dura para siempre, así que tocar la contraseña y borrar la cuenta piden además un
@@ -33,6 +34,8 @@ import { getEventInfo } from '$lib/server/tickets/events.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { sigoEnabled } from '$lib/server/sigo/web.js';
 import { getSavedBuyer, setSavedBuyer } from '$lib/server/cuentas/savedBuyer.js';
+import { unlinkAccount } from '$lib/server/telegram/link.js';
+import { revokeFeeds } from '$lib/server/series/feeds.js';
 import {
 	editSavedBuyer,
 	isSavedBuyerField,
@@ -338,6 +341,11 @@ export const actions = {
 	salirTodos: async (event) => {
 		const { db, member } = await requireMember(event);
 		try {
+			// Corta todo lo que sigue andando sin la sesión web: el chat de Telegram vinculado
+			// (y sus códigos pendientes) y el link personal del calendario. Las sesiones al final,
+			// así si algo falla en el medio se puede volver a probar desde acá.
+			await unlinkAccount(db, member.id);
+			await revokeFeeds(db, member.id);
 			await destroyOtherSessions(db, member.id, undefined);
 			await endSession(event, db);
 		} catch (e) {

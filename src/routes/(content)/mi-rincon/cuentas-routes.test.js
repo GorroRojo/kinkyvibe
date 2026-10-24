@@ -338,6 +338,69 @@ describe('cuentas', () => {
 		expect(await m.session.getSessionAccount(t.db, strangerToken)).not.toBeNull();
 	});
 
+	it('cerrar sesión en todos lados también desconecta Telegram y anula el link del calendario', async () => {
+		const m = await modules();
+		const { createLinkCode } = await import('$lib/server/telegram/link.js');
+		const { createFeedToken } = await import('$lib/server/series/feeds.js');
+		const { account, ev } = await signedIn(m);
+		const stranger = await m.accounts.upsertVerifiedAccount(t.db, 'otra.persona@example.com');
+		for (const [id, chat] of [
+			[account.id, '1001'],
+			[stranger.id, '1002']
+		]) {
+			await t.db
+				.prepare(
+					'INSERT INTO telegram_chats (account_id, chat_id, linked_at, muted, updated_at) VALUES (?1, ?2, 1, 0, 1)'
+				)
+				.bind(id, chat)
+				.run();
+			await createLinkCode(t.db, id);
+			await createFeedToken(t.db, id);
+		}
+		const tables = ['telegram_chats', 'telegram_link_codes', 'calendar_feeds'];
+		/** @param {string} id */
+		const rows = async (id) =>
+			Promise.all(
+				tables.map(async (table) => {
+					const r = await t.db
+						.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE account_id = ?1`)
+						.bind(id)
+						.first();
+					return Number(r?.n);
+				})
+			);
+		expect(await rows(account.id)).toEqual([1, 1, 1]);
+
+		const r = await thrown(() => m.rincon.actions.salirTodos(ev({})));
+		expect(r).toMatchObject({ status: 303, location: '/ingresar?salida=todas' });
+		expect(await rows(account.id)).toEqual([0, 0, 0]);
+		expect(await rows(stranger.id)).toEqual([1, 1, 1]);
+	});
+
+	it('cambiar la contraseña no toca Telegram ni el link del calendario', async () => {
+		const m = await modules();
+		const { createFeedToken } = await import('$lib/server/series/feeds.js');
+		const { account, ev, confirmCode } = await signedIn(m);
+		await t.db
+			.prepare(
+				"INSERT INTO telegram_chats (account_id, chat_id, linked_at, muted, updated_at) VALUES (?1, '1001', 1, 0, 1)"
+			)
+			.bind(account.id)
+			.run();
+		await createFeedToken(t.db, account.id);
+		const code = await confirmCode('password');
+		expect(
+			await m.rincon.actions.contrasena(ev({ code, password: PW, confirm: PW }))
+		).toMatchObject({ action: 'contrasena' });
+		for (const table of ['telegram_chats', 'calendar_feeds']) {
+			const r = await t.db
+				.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE account_id = ?1`)
+				.bind(account.id)
+				.first();
+			expect(Number(r?.n), table).toBe(1);
+		}
+	});
+
 	it('borrar: pide «borrar» y un código fresco de borrar', async () => {
 		const m = await modules();
 		const { account, token, ev, confirmCode } = await signedIn(m);
