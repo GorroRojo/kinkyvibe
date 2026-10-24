@@ -119,6 +119,26 @@ export function flyerPlaceText(meta, venue) {
 	return trimmed(meta?.location) || trimmed(meta?.location_name);
 }
 
+/**
+ * Las formas largas de nombrar la Ciudad de Buenos Aires que se acortan a «CABA» en el volante.
+ * Sin importar mayúsculas; «Autónoma» con o sin tilde; «C.A.B.A.» con o sin el último punto.
+ */
+const CABA_RE =
+	/\bciudad\s+aut[oó]noma\s+de\s+buenos\s+aires\b|\bc\.\s?a\.\s?b\.\s?a\b\.?|\bcapital\s+federal\b/giu;
+
+/**
+ * Acorta «Ciudad Autónoma de Buenos Aires» (y «Ciudad Autonoma de Buenos Aires», «C.A.B.A.»,
+ * «Capital Federal») a «CABA», para que una dirección larga entre en el volante. Solo para el
+ * volante: no cambia los datos ni lo que muestra el sitio. También junta espacios repetidos.
+ * @param {string} text
+ */
+export function shortenCity(text) {
+	return String(text ?? '')
+		.replace(CABA_RE, 'CABA')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
 /** @param {string} s */
 const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -186,7 +206,7 @@ export function flyerRow(event, { now = Date.now() } = {}) {
 		date: flyerDateLine(event.start),
 		icon: trimmed(event.series?.icon) || FALLBACK_ICON,
 		subtitle: seriesSubtitle(event.series?.description),
-		place: flyerPlaceText({ ...event.meta, tags: event.tags }, event.venue),
+		place: shortenCity(flyerPlaceText({ ...event.meta, tags: event.tags }, event.venue)),
 		price: flyerPriceText(event.types, event.tags, now)
 	};
 }

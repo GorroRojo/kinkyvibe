@@ -515,7 +515,8 @@ guarda en ningún lado.
   - fecha y hora en hora de Argentina, «sábado 26 de julio. 20:00 hs» (el diseño lleva «hs»);
   - el lugar **como lo ve cualquiera** (`feedVenues`): nunca una dirección que el nivel del lugar
     no muestra. Con «Sólo barrio», «San Telmo (dirección x privado)»; online, «Online»; sin lugar
-    vinculado, el «Dónde» en texto libre;
+    vinculado, el «Dónde» en texto libre. Solo en el volante, «Ciudad Autónoma de Buenos Aires»
+    (y «C.A.B.A.», «Capital Federal») se acorta a «CABA» (`shortenCity`); el sitio no cambia;
   - el precio con las reglas del precio en la puerta (`doorPricesText`): «Entrada: $ 16.500»,
     «Desde $ 10.000», «A la gorra», «Gratis»; sin entradas por el sitio, las etiquetas «Gratis» o
     «a la gorra», o la línea no va;
@@ -525,7 +526,8 @@ guarda en ningún lado.
   encabezado, el pie, cuántos volantes por A4 (4 = A6, 2 = A5 apaisado, 1 = A4), el fondo y un QR
   al calendario (`qrSvg`, el mismo de las entradas).
 - **Fondo y letra**: el fondo de dibujos (`static/agenda-impresa/fondo.svg`) se sacó del archivo
-  del diseño (una imagen) y se pasó a vectores. La letra es «1797» (Neue_Haut, © 2018 Claustro
+  del diseño (una imagen con su máscara, que le da el trazo fino) y se pasó a vectores; va con el
+  tamaño, la posición y la transparencia (33 %) del PDF. La letra es «1797» (Neue_Haut, © 2018 Claustro
   Comfama San Ignacio, diseño de Santiago Arango García, **CC BY 4.0**), recortada a latín y
   español en `static/fonts/1797/` con su `LICENSE.txt`; se carga solo en esta página. El logo es el
   del sitio (`src/routes/logo.png`) pasado a blanco y negro con un filtro.

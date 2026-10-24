@@ -10,6 +10,7 @@ import {
 	inRange,
 	parseRange,
 	seriesSubtitle,
+	shortenCity,
 	withOverrides
 } from './agendaImpresa.js';
 
@@ -80,6 +81,37 @@ describe('flyerPlaceText', () => {
 			address: 'Calle Falsa 123'
 		});
 		expect(flyerPlaceText({}, leaky)).not.toContain('Falsa');
+	});
+});
+
+describe('shortenCity', () => {
+	it('acorta las formas largas de la Ciudad de Buenos Aires a CABA', () => {
+		expect(shortenCity('Calle Falsa 123, Ciudad Autónoma de Buenos Aires')).toBe(
+			'Calle Falsa 123, CABA'
+		);
+		expect(shortenCity('Calle Falsa 123, Barrio Inventado.  ciudad autonoma de buenos aires')).toBe(
+			'Calle Falsa 123, Barrio Inventado. CABA'
+		);
+		expect(shortenCity('Calle Falsa 123, C.A.B.A.')).toBe('Calle Falsa 123, CABA');
+		expect(shortenCity('Calle Falsa 123, C.A.B.A')).toBe('Calle Falsa 123, CABA');
+		expect(shortenCity('Calle Falsa 123 (Capital Federal)')).toBe('Calle Falsa 123 (CABA)');
+	});
+	it('no toca el resto', () => {
+		expect(shortenCity('Calle Falsa 123, Córdoba')).toBe('Calle Falsa 123, Córdoba');
+		expect(shortenCity('Provincia de Buenos Aires')).toBe('Provincia de Buenos Aires');
+		expect(shortenCity('CABA')).toBe('CABA');
+		expect(shortenCity('')).toBe('');
+	});
+	it('el volante la usa en el lugar; un lugar cambiado a mano queda como se escribió', () => {
+		const event = {
+			slug: 'evento-de-prueba',
+			title: 'Evento de Prueba',
+			start: '2026-07-26T20:00:00-03:00',
+			meta: { location: 'Calle Falsa 123, Ciudad Autónoma de Buenos Aires' }
+		};
+		const row = flyerRow(event, { now: NOW });
+		expect(row.place).toBe('Calle Falsa 123, CABA');
+		expect(withOverrides(row, { place: 'Capital Federal' }).place).toBe('Capital Federal');
 	});
 });
 

@@ -509,7 +509,8 @@
 		print-color-adjust: exact;
 		-webkit-print-color-adjust: exact;
 	}
-	/* El fondo de dibujos (sacado del diseño, docs/panel.md#agenda-impresa): lila, suave. */
+	/* El fondo de dibujos (sacado del diseño, docs/panel.md#agenda-impresa): lila, suave, con el
+	   trazo fino, el tamaño, la posición y la transparencia (33 %) del PDF del diseño. */
 	.sheet.bg::before {
 		content: '';
 		position: absolute;
@@ -517,7 +518,7 @@
 		background: url('/agenda-impresa/fondo.svg') no-repeat;
 		background-size: calc(var(--sheet-w) * 1.53);
 		background-position: calc(var(--sheet-w) * -0.264) 0;
-		opacity: 0.3;
+		opacity: 0.33;
 		pointer-events: none;
 	}
 	.cut {
@@ -553,12 +554,12 @@
 	.f-head {
 		display: flex;
 		align-items: center;
-		gap: 1.2em;
-		padding: 8em 9em 0 10.5em;
+		gap: 0.8em;
+		padding: 8em 8em 0 10.5em;
 	}
 	.f-logo {
-		width: 14em;
-		height: 14em;
+		width: 15.5em;
+		height: 15.5em;
 		flex: none;
 		/* El logo rosa del sitio, en blanco y negro: el círculo negro y las letras blancas. */
 		filter: grayscale(1) brightness(0.6) contrast(8);
@@ -576,7 +577,7 @@
 		flex: 1;
 		text-align: center;
 		text-transform: uppercase;
-		font-size: 4.2em;
+		font-size: 4.5em;
 		line-height: 1.05;
 	}
 	.f-events {
@@ -629,16 +630,16 @@
 		gap: 1.8em;
 	}
 	.f-name {
-		font-size: 6.2em;
+		font-size: 6.6em;
 		text-transform: uppercase;
 		line-height: 0.95;
 		overflow-wrap: anywhere;
 	}
 	.f-name.long {
-		font-size: 5em;
+		font-size: 5.4em;
 	}
 	.f-name.longer {
-		font-size: 4.2em;
+		font-size: 4.6em;
 	}
 	.f-sub {
 		font-style: italic;
@@ -648,10 +649,10 @@
 	}
 	.f-line {
 		margin: 0;
-		/* 3,4 mm, en la medida de esta letra (4,4 mm) */
-		padding-left: 0.77em;
-		font-size: 4.4em;
-		line-height: 1.12;
+		/* 3,4 mm, en la medida de esta letra (5 mm) */
+		padding-left: 0.68em;
+		font-size: 5em;
+		line-height: 1.05;
 		text-transform: uppercase;
 	}
 	/* «SAN TELMO (dirección x privado)»: la nota entre paréntesis va como se escribió. */
