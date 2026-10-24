@@ -24,6 +24,7 @@ import { markEditionsSeen, runSeriesNotifications } from './notify.js';
 import { accountForFeed, createFeedToken, feedInfo, revokeFeeds, ticketedSlugs } from './feeds.js';
 import { eventSeries, seriesPage, seriesSummaries } from './index.js';
 import { DAY, fakeEvent, fakeSend, fakeSeriesPosts, insertOrder, linkIn } from './fixtures.js';
+import { OPT_OUT_PATH, UNCONFIRMED_MAIL_CAP } from '$lib/server/email/suppressions.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -166,6 +167,23 @@ describe('límites (db/rateLimit.js)', () => {
 			status: 429
 		});
 		expect(send.sent).toHaveLength(0);
+	});
+	it('tope de mails a una dirección sin confirmar, entre todos los formularios: 429', async () => {
+		await fillBucket(`mail:sin-confirmar:${await emailHash(EMAIL)}`, UNCONFIRMED_MAIL_CAP);
+		const send = fakeSend();
+		expect(await subscribe({ send, client: 'otra-conexion' })).toMatchObject({
+			ok: false,
+			status: 429
+		});
+		expect(send.sent).toHaveLength(0);
+	});
+	it('el mail de confirmar lleva el link «No fui yo» en el pie', async () => {
+		const send = fakeSend();
+		await subscribe({ send });
+		expect(String(linkIn(send.sent[0].text, OPT_OUT_PATH))).toMatch(
+			new RegExp(`^${ORIGIN}${OPT_OUT_PATH}[0-9a-f]{64}\\.[A-Za-z0-9_-]{32}$`)
+		);
+		expect(send.sent[0].text).toContain('¿No te anotaste vos?');
 	});
 	it('tope global de mails (el de cuentas): 429', async () => {
 		await fillBucket('cuentas:mail:global', { limit: 300, windowSeconds: 3600 });

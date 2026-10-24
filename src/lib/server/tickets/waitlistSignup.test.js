@@ -7,6 +7,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
 import { fakeSend, insertOrder, linkIn } from '$lib/server/series/fixtures.js';
+import {
+	OPT_OUT_PATH,
+	UNCONFIRMED_MAIL_CAP,
+	suppressionHash
+} from '$lib/server/email/suppressions.js';
 import { parseTicketConfig } from './config.js';
 import { WAITLIST_CONFIRM_TTL_MS, endWaitlistEntry, joinWaitlist } from './waitlist.js';
 import { waitlistLeaveUrl, waitlistRejoinUrl } from './waitlistMail.js';
@@ -222,6 +227,35 @@ describe('signUpForWaitlist', () => {
 			/\/confirmar\/[A-Za-z0-9_-]{43}$/
 		);
 		expect(linkIn(mail.text, '/lista-de-espera/salir/')).toBeTruthy();
+	});
+
+	it('el mail de confirmar lleva el link «No fui yo» en el pie', async () => {
+		const send = fakeSend();
+		await signUp({ send });
+		const link = String(linkIn(send.sent[0].text, OPT_OUT_PATH));
+		expect(link.startsWith(`${ORIGIN}${OPT_OUT_PATH}`)).toBe(true);
+		expect(send.sent[0].text).toContain('¿No te anotaste vos? Alguien escribió tu mail por error.');
+		expect(send.sent[0].html).toContain('no te mandamos más mails de Kinky Vibe a esta dirección');
+	});
+
+	it('el tope de mails a una dirección sin confirmar (entre formularios) frena el mail', async () => {
+		const hash = await suppressionHash(EMAIL);
+		const s = Math.floor(NOW / 1000);
+		await t.db
+			.prepare('INSERT INTO rate_limits (bucket, window_start, hits) VALUES (?1, ?2, ?3)')
+			.bind(
+				`mail:sin-confirmar:${hash}`,
+				s - (s % UNCONFIRMED_MAIL_CAP.windowSeconds),
+				UNCONFIRMED_MAIL_CAP.limit
+			)
+			.run();
+		const send = fakeSend();
+		expect(await signUp({ send })).toEqual({
+			ok: false,
+			status: 429,
+			message: WAITLIST_MESSAGES.tooMany
+		});
+		expect(send.sent).toHaveLength(0);
 	});
 
 	it('la misma respuesta esté o no el mail anotado; si ya está en la fila, no se le manda nada', async () => {
