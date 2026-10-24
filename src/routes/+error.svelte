@@ -45,6 +45,8 @@
 	$: copy = COPY[status] ?? (status >= 500 ? COPY['5xx'] : COPY['4xx']);
 	// Los mensajes de SvelteKit (en inglés) no se muestran; los 5xx, solo en desarrollo.
 	$: detail = errorDetail({ status, message: $page.error?.message, dev });
+	// El código del error en los registros (src/lib/server/errorLog.js), para que nos lo pasen.
+	$: errorId = status >= 500 ? ($page.error?.id ?? '') : '';
 	$: loginHref = `/login?redirectTo=${encodeURIComponent($page.url.pathname + $page.url.search)}`;
 
 	let canGoBack = false;
@@ -78,6 +80,9 @@
 		<p class="body">{copy.body}</p>
 		{#if detail}
 			<p class="detail">{detail}</p>
+		{/if}
+		{#if errorId}
+			<p class="error-id">Si nos escribís, pasanos este código: <code>{errorId}</code></p>
 		{/if}
 
 		<div class="actions">
@@ -162,6 +167,15 @@
 		border-radius: var(--radius-s);
 		background: color-mix(in srgb, var(--1-light) 12%, transparent);
 		font-size: var(--step--1, 0.95rem);
+	}
+	.error-id {
+		margin: 1rem auto 0;
+		font-size: var(--step--1, 0.95rem);
+		color: var(--2-dark);
+	}
+	.error-id code {
+		font-weight: bold;
+		user-select: all;
 	}
 	.actions {
 		display: flex;

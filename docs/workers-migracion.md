@@ -54,6 +54,10 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
   ya no se lee. En `main` (y en local) queda `false` y el modo demo no
   entra en el bundle, igual que hoy.
 - **Backups**: `src/lib/server/backup/` (ver [Backups](#backups-de-la-base)).
+- **Errores con código**: `handleError` (`src/lib/server/errorLog.js`) deja, por cada error que no
+  es un 404, una línea JSON en los logs (`"area":"error"`, con `id`, estado, método, ruta, el
+  `cf-ray` del pedido, el mensaje y el principio del stack). La página de un error 5xx muestra ese
+  `id` («pasanos este código»): se busca en **Observability → Logs** y aparece el error exacto.
 - **Scripts**: `npm run db:restore` (`scripts/d1-restore.js`), `npm run db:migrate:preview`
   (migraciones en la base de los Previews), `npm run preview:worker` (el build de producción en
   el runtime de Workers, con `--test-scheduled`).
