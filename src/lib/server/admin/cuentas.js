@@ -20,6 +20,7 @@ import { LEGACY_PROJECT_KIND, profileKindOf } from '$lib/server/objects/types/pe
 import { DELETED_ACTOR, PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { rowsOf, runQuery } from '$lib/server/db/batch.js';
 import { PROFILE_KIND_FILTERS, profileOrigin } from '$lib/admin/perfiles.js';
+import { unapproveStatement } from '$lib/server/amigues/approvals.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -464,7 +465,9 @@ export async function getProfileDetail(db, id, viewer) {
 
 /**
  * Oculta un perfil (visibilidad `hidden`: lo ven solo admins; quienes lo gestionan lo siguen
- * viendo en Mi rincón). Con `saveObject()` y la versión que se abrió.
+ * viendo en Mi rincón). Con `saveObject()` y la versión que se abrió. En la misma tanda le saca la
+ * aprobación (como «Sacar de Amigues»): si quien lo gestiona le vuelve a cambiar la visibilidad
+ * desde Mi rincón, no reaparece hasta que une admin lo apruebe de nuevo.
  *
  * @param {D1Database} db
  * @param {number} id
@@ -476,7 +479,7 @@ export function hideProfile(db, id, version, user, { now = Date.now() } = {}) {
 	return saveObject(
 		db,
 		{ id, type: PROFILE_TYPE, version, visibility: 'hidden' },
-		{ actor: user.login, now }
+		{ actor: user.login, now, also: () => [unapproveStatement(db, id)] }
 	);
 }
 
