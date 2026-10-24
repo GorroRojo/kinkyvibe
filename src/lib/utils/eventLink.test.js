@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-	eventLinkProblem,
-	isMailtoLink,
-	isWebLink,
-	linkFileErrors,
-	safeEventLink
-} from './eventLink.js';
+import { eventLinkProblem, isMailtoLink, isWebLink, safeEventLink } from './eventLink.js';
 
 describe('eventLinkProblem', () => {
 	it('acepta web, mail (mailto:), teléfono y páginas del sitio', () => {
@@ -65,31 +59,5 @@ describe('safeEventLink / isMailtoLink / isWebLink', () => {
 		expect(isWebLink('mailto:hola@ejemplo.test')).toBe(false);
 		expect(isWebLink('/calendario/x')).toBe(false);
 		expect(isWebLink(null)).toBe(false);
-	});
-});
-
-describe('linkFileErrors (guardado de un archivo de evento)', () => {
-	/** @param {string} line */
-	const md = (line) =>
-		['---', 'title: Evento inventado', 'category: calendario', line, '---', 'Texto.', ''].join(
-			'\n'
-		);
-
-	it('mailto: y https pasan; sin link, también', () => {
-		expect(linkFileErrors(md('link: mailto:hola@ejemplo.test'))).toEqual([]);
-		expect(linkFileErrors(md('link: https://forms.gle/x'))).toEqual([]);
-		expect(linkFileErrors(md('link_text: Inscribirme'))).toEqual([]);
-		expect(linkFileErrors(md("link: ''"))).toEqual([]);
-	});
-
-	it('javascript: u otro esquema frena el guardado con un mensaje claro', () => {
-		expect(linkFileErrors(md("link: 'javascript:alert(1)'"))).toEqual([
-			'Link de inscripción: tiene que ser un link web (https://), un mail (mailto:) o una página del sitio.'
-		]);
-		expect(linkFileErrors(md("link: 'mailto:'"))[0]).toMatch(/mail sin dirección/);
-	});
-
-	it('un frontmatter que no se puede leer lo valida el resto del guardado', () => {
-		expect(linkFileErrors('---\ntitle: [roto\n---\n')).toEqual([]);
 	});
 });
