@@ -65,7 +65,7 @@ export async function load({ params, url, platform, fetch, cookies }) {
 
 	const current = order;
 	const config = await getEventTickets(current.event_slug);
-	const mine = rememberedOrders(cookies).includes(current.id);
+	const mine = (await rememberedOrders(db, cookies)).includes(current.id);
 	const tickets =
 		mine && current.status === 'approved'
 			? (await getOrderTickets(db, current.id)).map((t) => ({ token: t.token }))

@@ -5,8 +5,9 @@
 `/admin` es donde la organización maneja el sitio sin tocar código: cargar y editar eventos,
 material y amigues, ver las ventas, confirmar transferencias, controlar el ingreso en la puerta,
 mandar mails a quienes compraron, ajustar cobros, el Fondo y los textos de los mails, y ver quién
-cambió qué. Se entra con la cuenta de GitHub (solo las cuentas de la lista de admins). Anda en la
-compu y en el celu, arranca en tema claro y tiene un buscador (`/` o Ctrl/⌘+K, ver
+cambió qué. Se entra con la cuenta de GitHub (solo las cuentas de la lista de admins; el login no
+le pide permisos a GitHub, solo lee el id de la cuenta). Anda en la compu y en el celu, arranca
+en tema claro y tiene un buscador (`/` o Ctrl/⌘+K, ver
 [El buscador](#el-buscador)) que encuentra eventos, órdenes, entradas, códigos, personas, perfiles
 y etiquetas (y cada sección por sus palabras: «pie de mail», «alias», «reembolso»…,
 `NAV_KEYWORDS` en `src/lib/admin/commands.js`).

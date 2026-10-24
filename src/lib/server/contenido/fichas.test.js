@@ -407,7 +407,7 @@ describe('el cliente del repo: amigues y la wiki, solo en la base', () => {
 				.first()
 		);
 		expect(JSON.parse(tag.data).wiki_tags).toEqual(['Etiqueta Nueva']);
-		// El texto no cambió: sigue como estaba (lo importado, HTML libre sin marca).
-		expect(JSON.parse(tag.data).wiki_body_html).toBeUndefined();
+		// El texto no cambió: sigue como estaba (lo importado, con HTML libre guardado).
+		expect(JSON.parse(tag.data).wiki_body_html).toBe('libre');
 	});
 });

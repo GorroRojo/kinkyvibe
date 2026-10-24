@@ -63,7 +63,7 @@ Archivo: `src/lib/server/objects/types/etiqueta.js`.
 | `wiki_summary`   | `longtext` | `summary` del `.md` de la wiki                                                    |
 | `wiki_authors`   | `list`     | `authors` del `.md` de la wiki                                                    |
 | `wiki_tags`      | `list`     | `tags` del `.md` de la wiki (otras etiquetas que nombra la página)                |
-| `wiki_body_html` | `option`   | cómo se muestra el texto: `libre` o `corta` (sin valor: lo importado, HTML libre) |
+| `wiki_body_html` | `option`   | cómo se muestra el texto: `libre` o `corta` (sin valor: la lista corta)           |
 
 | Relación          | Hacia    | Qué es hoy                                                                     |
 | ----------------- | -------- | ------------------------------------------------------------------------------ |
@@ -207,8 +207,8 @@ El texto de la wiki de cada etiqueta (`body`, `wiki_title`, `wiki_summary`, `wik
   (`siteTagSource`, recordado 30 s por isolate): el glosario del layout, `/wiki`, el buscador, el
   sitemap y «Participa en» no suman consultas. `/wiki/<término>` resuelve la etiqueta como toda
   dirección de etiqueta (también un alias) y arma el texto en el servidor
-  (`renderContentBody`: HTML libre como lo armaba mdsvex, con `[[enlaces]]`, anclas e índice; la
-  lista corta si `wiki_body_html` es `corta`). **Ya no se prerenderiza** (`prerender = false`): la
+  (`renderContentBody`: HTML libre como lo armaba mdsvex, con `[[enlaces]]`, anclas e índice, si
+  `wiki_body_html` es `libre`; si no, la lista corta). **Ya no se prerenderiza** (`prerender = false`): la
   base no se puede leer al compilar.
 - **Editar**: Etiquetas → cada etiqueta → «Editar/Escribir la entrada de la Kinkipedia»
   (`/admin/etiquetas/wiki/<dirección>`, `src/lib/server/etiquetas/wikiEditor.js`): en la base al
@@ -216,7 +216,7 @@ El texto de la wiki de cada etiqueta (`body`, `wiki_title`, `wiki_summary`, `wik
   versión. Cambia solo el texto de la wiki (ni el nombre, ni las relaciones, ni la descripción).
   «Sacar la entrada» le saca el texto (queda en el historial). `/edit/wiki/<…>` lleva ahí.
 - **Cómo se muestra** (`wiki_body_html`, como `body_html` de los eventos): si el texto no cambió,
-  como estaba; si cambió, HTML libre si guarda une superadmin (todes les admins del panel, decisión 0003) y la lista corta si no. Sin valor (lo importado del repo): HTML libre.
+  como estaba; si cambió, HTML libre si guarda une superadmin (todes les admins del panel, decisión 0003) y la lista corta si no. Sin valor: la lista corta (lo importado guarda `libre`; la migración 0059 lo escribió en las páginas que ya estaban).
 - **Semilla**: el importador de etiquetas (arriba) carga la wiki de `semilla/wiki.json` en una base
   local o de pruebas.
 

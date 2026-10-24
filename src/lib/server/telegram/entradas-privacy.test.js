@@ -249,11 +249,15 @@ describe('accountTickets', () => {
 		const others = (await accountTickets(t.db, A)).filter((x) => x.holder !== 'Persona A Uno');
 		for (const x of others) expect(x.parts).toBeUndefined();
 		// Con «Entradas por parte», cada parte vende la suya: la entrada del taller es solo de la 1.
-		await setPerPartTickets(t.db, {
-			eventSlug: 'taller-inventado',
-			perPart: true,
-			by: 'admin-de-prueba'
-		});
+		// El taller ya vendió, así que hay que confirmar (eventos/partes.js).
+		expect(
+			await setPerPartTickets(t.db, {
+				eventSlug: 'taller-inventado',
+				perPart: true,
+				by: 'admin-de-prueba',
+				confirm: true
+			})
+		).toMatchObject({ ok: true });
 		expect((await mine())?.parts).toBeUndefined();
 	});
 

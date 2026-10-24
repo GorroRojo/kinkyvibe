@@ -38,7 +38,9 @@ export const WIKI_FIELDS = Object.freeze([
  *   bodyHtml: 'libre' | 'corta'
  * }} WikiEntry
  *   `slug`: la dirección de la página (`tagSlug(key)`: espacios → guiones, como los nombres de los
- *   .md de la wiki). `bodyHtml`: sin valor guardado, `libre` (lo importado del repo).
+ *   .md de la wiki). `bodyHtml`: sin valor guardado, `corta` (la lista corta; el HTML libre tiene que
+ *   estar guardado: lo importado lo guarda el importador y la migración 0059 lo puso en las páginas
+ *   que ya estaban).
  */
 
 /**
@@ -67,7 +69,7 @@ export function wikiEntryOf(key, title, data) {
 		authors: strList(data.wiki_authors),
 		tags: strList(data.wiki_tags),
 		body: String(data.body ?? '').trimEnd(),
-		bodyHtml: data.wiki_body_html === 'corta' ? 'corta' : 'libre'
+		bodyHtml: data.wiki_body_html === 'libre' ? 'libre' : 'corta'
 	};
 }
 
@@ -172,7 +174,8 @@ export function withWikiPage(current, page, bodyHtml) {
 
 /**
  * Cómo se muestra el texto que se guarda (como `bodyHtmlFor` de los eventos): si el texto no
- * cambió, como estaba; si cambió, HTML libre si lo guarda une superadmin y la lista corta si no.
+ * cambió, como estaba (sin valor guardado: la lista corta); si cambió, HTML libre si lo guarda une
+ * superadmin y la lista corta si no.
  *
  * @param {Record<string, unknown>} current los datos de la etiqueta antes de guardar
  * @param {string} body el texto nuevo
@@ -183,8 +186,8 @@ export function wikiBodyHtmlFor(current, body, superadmin) {
 	const text = str(body);
 	if (!text) return undefined;
 	if (str(current.body) === text) {
-		const kept = current.wiki_body_html;
-		return kept === 'corta' || kept === 'libre' ? kept : undefined;
+		// Sin valor guardado es la lista corta (como se muestra): queda escrito.
+		return current.wiki_body_html === 'libre' ? 'libre' : 'corta';
 	}
 	return superadmin ? 'libre' : 'corta';
 }

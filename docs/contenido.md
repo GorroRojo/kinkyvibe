@@ -211,7 +211,9 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
     datos: el `<object type="application/pdf" width="50rem">` toma el ancho del texto (el
     atributo solo acepta píxeles) y las notas `<small class="footnote">` van una por línea
     (`src/tests/textos-viejos.test.js`);
-  - lista corta: `amigues/sanitize.js`, como los perfiles.
+  - lista corta: `amigues/sanitize.js`, como los perfiles (imágenes solo de la biblioteca propia,
+    `/media/…`; ver [amigues.md](amigues.md)). Es también lo que se usa sin valor guardado: el
+    HTML libre tiene que estar escrito (`body_html: 'libre'`; en la wiki, `wiki_body_html`).
 - **Imágenes y archivos que un texto importa** (`import foto from './media/<carpeta>/1.webp'`):
   las imágenes, su copia en la biblioteca (`legacyMedia.js`); los PDF, el video y el documento, el
   archivo de `src/lib/archivos/` (`contentMediaURL` en `render.js`).
@@ -297,7 +299,8 @@ Propuestas por Claude; **confirmado por gorrite (5/10)**: las seis, tal como est
    etiqueta, tu diseño en [etiquetas.md](etiquetas.md)); no hay un tipo nuevo. La dirección de una
    página es la de su etiqueta (`tagSlug(key)`, igual a los nombres de los `.md`); un alias lleva a
    la página de la etiqueta. Dos campos nuevos (opcionales, sin migración): `wiki_tags` y
-   `wiki_body_html` (sin valor = lo importado, HTML libre).
+   `wiki_body_html` (sin valor = la lista corta; lo importado guarda `libre`, y la migración 0059
+   lo escribió en las páginas que ya estaban, que antes eran «sin valor = HTML libre»).
 2. **Editor de la wiki con campos** (título, resumen, autores, etiquetas, texto), no el texto crudo
    del `.md`; «Sacar la entrada» saca el texto y deja la etiqueta.
 3. **Las listas del sitio** (`sitePosts`: `/todo`, el sitemap, `/api/posts`, «Más cosas de…») llevan
