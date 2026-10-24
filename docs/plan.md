@@ -262,7 +262,7 @@ CI) va en la fase 0.
 - `auditoria-seguridad` · fase 1 · espera gorrite · infra · Auditoría de seguridad en una sesión aparte de gorrite, antes de la fase 4: ver Mesa
 - `conector-claude-lectura` · fase 1 · sigue · panel · Conector de Claude (MCP) solo de lectura para admins: buscar y leer objetos y listar ventas por slug o nombre, sin SQL a mano ni ids tipeados; detrás de un interruptor, apagado. Va después de los arreglos del acceso de admins que salgan de la auditoría (gorrite, 12/10) (depende de: auditoria-seguridad)
 - `analiticas` · fase 1 · hecho · infra · Visitas y embudo de compra con Workers Analytics Engine · #215
-- `perf-js-ics` · fase 1 · hecho · infra · El texto «Ver en el mapa» (`MAP_LABEL`) vive en `eventPlace.js`: la página del evento ya no baja el paquete `ics`
+- `perf-js-ics` · fase 1 · hecho · infra · El texto «Ver en el mapa» (`MAP_LABEL`) vive en `eventPlace.js`: la página del evento ya no baja el paquete `ics` · #392
 
 ## Fase 2
 
