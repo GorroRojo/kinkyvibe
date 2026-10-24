@@ -17,6 +17,7 @@
  */
 import { entradas } from '$lib/utils/plural.js';
 import { normalizeCode } from '$lib/utils/tickets.js';
+import { HOLDING } from './holding.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /**
@@ -29,8 +30,8 @@ import { normalizeCode } from '$lib/utils/tickets.js';
  * `buyer_email` y `source_order_id`: solo en los códigos combo (ver arriba); `null` en los demás.
  */
 
-/** Estados de orden que ocupan cupo (y un uso de código) mientras `expires_at` no pasó. */
-export const HOLDING = "('pending', 'rejected', 'awaiting_transfer')";
+/** Estados de orden que ocupan cupo (y un uso de código) mientras `expires_at` no pasó (holding.js). */
+export { HOLDING };
 
 /**
  * Subconsulta: usos vigentes de un código. `code` y `now` son expresiones SQL.
