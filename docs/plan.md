@@ -262,6 +262,7 @@ CI) va en la fase 0.
 - `auditoria-seguridad` · fase 1 · espera gorrite · infra · Auditoría de seguridad en una sesión aparte de gorrite, antes de la fase 4: ver Mesa
 - `conector-claude-lectura` · fase 1 · sigue · panel · Conector de Claude (MCP) solo de lectura para admins: buscar y leer objetos y listar ventas por slug o nombre, sin SQL a mano ni ids tipeados; detrás de un interruptor, apagado. Va después de los arreglos del acceso de admins que salgan de la auditoría (gorrite, 12/10) (depende de: auditoria-seguridad)
 - `analiticas` · fase 1 · hecho · infra · Visitas y embudo de compra con Workers Analytics Engine · #215
+- `perf-js-barrel` · fase 1 · hecho · infra · La página del evento importa `Button` y `TagChip` por su archivo y ESLint no deja usar el barril `$lib/components/ui` en las páginas públicas ni en sus componentes (todos los componentes, estilos y partes del panel que bajaban sin usarse)
 
 ## Fase 2
 
