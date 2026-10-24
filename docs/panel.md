@@ -453,7 +453,10 @@ ser "Para revisar".
 `soon: true, phase: N` y un `soonText`. Se ven al final de su área, grises y punteadas, con
 «Próximamente», y **no son links** (no hay nada que abrir todavía); su URL reservada igual abre una sola página genérica "Próximamente" (`[...section=soon]`, con el
 matcher `src/params/soon.js`) que dice qué va a hacer. Cada persona puede esconderlas con «Ocultar
-lo que viene» en su menú de usuario (en el navegador, con try/catch).
+lo que viene» en su menú de usuario (en el navegador, con try/catch). El matcher va en el
+JavaScript de todas las páginas del sitio, así que no importa `nav.js` (con sus íconos): mira la
+lista de URLs de `src/lib/admin/soonSections.js`, que `nav.test.js` compara con las secciones
+`soon: true` de `nav.js`. Al sumar, construir o sacar una, se cambian las dos.
 
 **Atajos de teclado** (en la compu). `/` o Ctrl/⌘+K abren el buscador, `?` la hoja de atajos y
 `g` + una letra va a una sección (`GO_SHORTCUTS` en `src/lib/admin/commands.js`; la hoja de `?`,
