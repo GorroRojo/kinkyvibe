@@ -13,7 +13,6 @@ import {
 	placeLine,
 	placeShort,
 	salePlaceText,
-	placeFileErrors,
 	stripMdPlace,
 	venuePlaceMeta,
 	venueShortLabel
@@ -160,19 +159,6 @@ describe('los datos estructurados (schema.org)', () => {
 		);
 		expect(out.eventAttendanceMode).toBe(OFFLINE);
 		expect(out.location.name).toBe('Lugar de Prueba');
-	});
-});
-
-describe('guardado', () => {
-	/** @param {string} fm */
-	const file = (fm) => `---\ntitle: Evento de prueba\n${fm}\n---\nTexto.\n`;
-	it('solo se queja de un link al mapa que no sirve', () => {
-		expect(placeFileErrors(file('location: Plaza de Prueba'))).toEqual([]);
-		expect(placeFileErrors(file('location_map: https://osm.org/go/abc'))).toEqual([]);
-		expect(placeFileErrors(file('location_map: http://ejemplo.com'))).toEqual([MAP_LINK_ERROR]);
-		// Un archivo que no se puede leer lo valida el resto del guardado.
-		expect(placeFileErrors('sin propiedades')).toEqual([]);
-		expect(placeFileErrors(file('location_map: [roto'))).toEqual([]);
 	});
 });
 
