@@ -24,7 +24,9 @@ import {
 	refundPolicy,
 	remainingOf,
 	unitPrice,
-	withFondoPercent
+	withFondoPercent,
+	withCurrentTier,
+	ticketsAfterBuy
 } from './tickets.js';
 
 describe('cupo: lo que queda y lo que se muestra en público', () => {
@@ -581,5 +583,71 @@ describe('withFondoPercent', () => {
 		}
 		const noFondo = { ...view, fondoEnabled: false, fondoPercent: null };
 		expect(withFondoPercent(noFondo, 10)).toBe(noFondo);
+	});
+});
+
+describe('withCurrentTier / ticketsAfterBuy', () => {
+	const view = {
+		fondoEnabled: true,
+		fondoPercent: 20,
+		types: [
+			{
+				id: 'general',
+				price: 8000,
+				fondo: 1600,
+				gorra: null,
+				left: 3,
+				tierLeft: true,
+				tier: { id: 'p1', name: 'Preventa 1', until: null }
+			},
+			{ id: 'libre', price: 5000, fondo: 1000, gorra: null, tier: null }
+		]
+	};
+	const p2 = {
+		type: 'general',
+		id: 'p2',
+		name: 'Preventa 2',
+		until: null,
+		price: 9000,
+		fondo: 1800
+	};
+
+	it('el tipo pasa al tramo que contestó el servidor, con su precio (y sin "a este precio")', () => {
+		const v = withCurrentTier(view, p2);
+		expect(v.types[0]).toMatchObject({
+			price: 9000,
+			fondo: 1800,
+			tier: { id: 'p2', name: 'Preventa 2', until: null },
+			tierLeft: false
+		});
+		expect(v.types[1]).toBe(view.types[1]);
+	});
+
+	it('sin un tramo válido, para un tipo sin tramos o con el mismo, deja la vista como estaba', () => {
+		const same = { ...p2, id: 'p1', name: 'Preventa 1', price: 8000, fondo: 1600 };
+		for (const t of [
+			undefined,
+			null,
+			'p2',
+			same,
+			{ ...p2, type: 'libre' },
+			{ ...p2, type: 'otro' },
+			{ ...p2, id: '' },
+			{ ...p2, price: '9000' },
+			{ ...p2, price: -1 },
+			{ ...p2, fondo: 9001 },
+			{ ...p2, until: 'mañana' }
+		]) {
+			expect(withCurrentTier(view, t)).toBe(view);
+		}
+	});
+
+	it('después de un error, el tramo y el porcentaje del Fondo que contestó el servidor', () => {
+		expect(ticketsAfterBuy(view, null)).toBe(view);
+		expect(ticketsAfterBuy(view, { error: 'x' })).toBe(view);
+		const v = ticketsAfterBuy(view, { tier: p2, fondoPercent: 10 });
+		expect(v.fondoPercent).toBe(10);
+		expect(v.types[0]).toMatchObject({ price: 9000, fondo: 900, tier: { id: 'p2' } });
+		expect(v.types[1]).toMatchObject({ price: 5000, fondo: 500 });
 	});
 });

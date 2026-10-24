@@ -440,10 +440,27 @@ describe('compra (?/buy) con preventas', () => {
 		const r = await buy('preventa', { tier: 'p1' });
 		expect(r.status).toBe(409);
 		expect(r.data.buy.errors.type).toMatch(/El precio cambió.*Preventa 2.*\$\s9\.000/);
+		// La respuesta trae el tramo de ahora, para que el formulario muestre ese precio y lo mande
+		// al confirmar de nuevo (SvelteKit no vuelve a cargar la página después de un error).
+		expect(r.data.buy.tier).toMatchObject({
+			type: 'general',
+			id: 'p2',
+			name: 'Preventa 2',
+			price: 9000
+		});
 		const forged = await buy('preventa', { tier: 'inventado' });
 		expect(forged.status).toBe(409);
 		const ok = await buy('preventa', { tier: 'p2' });
 		expect(await orderOf(ok)).toMatchObject({ ticket_tier: 'p2', unit_price: 9000 });
+	});
+
+	it('las respuestas con error de un tipo con tramos traen el tramo vigente; sin tramos, no', async () => {
+		const bad = await buy('preventa', { tier: 'p1', name: '' });
+		expect(bad.status).toBe(400);
+		expect(bad.data.buy.tier).toMatchObject({ type: 'general', id: 'p1', price: 8000 });
+		const plain = await buy('preventa', { type: 'libre', tier: '', name: '' });
+		expect(plain.status).toBe(400);
+		expect(plain.data.buy).not.toHaveProperty('tier');
 	});
 
 	it('pedir más de lo que queda en el tramo: compra lo que queda y el resto en otra compra', async () => {

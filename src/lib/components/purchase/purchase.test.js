@@ -11,7 +11,7 @@ import { PURCHASE_STEPS } from '$lib/utils/purchaseSteps.js';
 import { stripHtmlComments, stripHtmlTags } from '$lib/utils/htmlStrip.js';
 import { textOf } from '$lib/testing/html.js';
 import { expiryMoment } from '$lib/utils/expiry.js';
-import { withFondoPercent } from '$lib/utils/tickets.js';
+import { ticketsAfterBuy, withFondoPercent } from '$lib/utils/tickets.js';
 
 /** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
 const tickets = {
@@ -224,6 +224,38 @@ describe('TicketPurchase', () => {
 		expect(
 			hidden(render(TicketPurchase, { props: { tickets: { ...noFondo, types } } }).body)
 		).toBeNull();
+	});
+
+	it('después de «El precio cambió», muestra y manda el tramo que contestó el servidor', () => {
+		const hidden = (/** @type {string} */ body) =>
+			body.match(/<input[^>]*name="tier"[^>]*>/)?.[0] ?? null;
+		const withTiers = {
+			...tickets,
+			types: [
+				{
+					...tickets.types[0],
+					price: 8000,
+					fondo: 1600,
+					tier: { id: 'p1', name: 'Preventa 1', until: null }
+				}
+			]
+		};
+		expect(hidden(render(TicketPurchase, { props: { tickets: withTiers } }).body)).toContain(
+			'value="p1"'
+		);
+		// Lo que contesta `?/buy` con el 409 (SvelteKit no vuelve a cargar la página).
+		const buy = {
+			error: 'El precio cambió',
+			errors: { type: 'El precio cambió' },
+			values: { type: 'general', tier: 'p1', quantity: '1' },
+			tier: { type: 'general', id: 'p2', name: 'Preventa 2', until: null, price: 9000, fondo: 1800 }
+		};
+		const after = render(TicketPurchase, {
+			props: { tickets: ticketsAfterBuy(withTiers, buy), result: buy }
+		}).body;
+		expect(hidden(after)).toContain('value="p2"');
+		expect(textOf(after)).toContain('Preventa 2');
+		expect(textOf(after)).toMatch(/\$\s9\.000/);
 	});
 
 	it('venta cerrada: sin formulario ni pasos', () => {
