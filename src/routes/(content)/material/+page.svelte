@@ -77,9 +77,11 @@
 	</dl>
 </div>
 
+<!-- De a 24 con «Ver más» (como el inicio y /todo); con una búsqueda se ve todo. -->
 <PostList
 	heading="Todo el material"
 	posts={data.posts.filter((p) => p.meta.layout == 'material')}
+	limit={24}
 />
 
 <style lang="scss">
