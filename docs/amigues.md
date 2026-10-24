@@ -16,6 +16,12 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   admin lo aprueba (la cuenta pasa a ser dueñe) o lo rechaza.
 - **Aprobación**: un perfil nuevo creado por una cuenta aparece en `/amigues` recién cuando une
   admin lo aprueba. Hasta entonces lo ven solo quienes lo gestionan y les admins.
+- **Ocultar desde el panel** (la ficha del perfil, `hideProfile` en
+  `src/lib/server/admin/cuentas.js`): lo pone oculto y, en la misma tanda de `saveObject()`, le
+  saca la aprobación (la misma sentencia que «Sacar de Amigues», `unapproveStatement` en
+  `src/lib/server/amigues/approvals.js`). Quien lo gestiona lo sigue editando en Mi rincón, pero si
+  le vuelve a cambiar la visibilidad no reaparece hasta que une admin lo apruebe de nuevo (queda
+  «para aprobar»).
 - **Lugares desde las cuentas** (decisión de gorrite,
   [0022](decisiones/0022-lugares-desde-cuentas.md)): una cuenta con el permiso de perfiles crea un
   lugar en Mi rincón → Perfiles y completa su dirección. No aparece en el sitio (ni en `/amigues`,
@@ -106,7 +112,11 @@ Demo con datos inventados: `node scripts/demo/n3-amigues.js` y después `npm run
   cuenta ve solo su pedido. Límites: 5 por día por cuenta y 10 por conexión.
 - **El HTML del texto se limpia en el servidor** con `rehype-sanitize` (el esquema de GitHub,
   ajustado en `src/lib/server/amigues/sanitize.js`, el único lugar que lo decide): lista corta de
-  etiquetas; sin scripts, estilos, `on…`, `javascript:` ni `data:`; `id`/`name` con prefijo.
+  etiquetas; sin scripts, estilos, `on…`, `javascript:`, `data:`, `accesskey` ni `tabindex`;
+  `id`/`name` con prefijo. Las imágenes (`<img src>`) solo de la biblioteca propia, como la imagen
+  del perfil: `/media/…` (fuera de producción, también la misma imagen en
+  `https://kinkyvibe.ar/media/img/…`, como las imágenes viejas de `legacyMedia.js`); una imagen
+  de otro sitio queda sin `src`.
 - **La dirección de un lugar nunca sale de su nivel** (abajo).
 - **Los datos estructurados y la tarjeta de contacto tampoco**: el JSON-LD (`ProfilePage`), la
   h-card y `/amigues/<perfil>/contacto.vcf` usan solo lo que muestra la página (el contacto de

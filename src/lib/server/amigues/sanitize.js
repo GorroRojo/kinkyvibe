@@ -10,15 +10,39 @@
  *   (`wikilink` y `mention` en links, `p-pronouns` en `<small>`);
  * - se sacan CON su contenido: script, style, template, noscript, iframe, object, svg y math;
  * - todo lo demás que no está en el esquema se saca (las etiquetas desconocidas dejan su texto).
- *   Nada de `style`, `on…`, `srcdoc`, `javascript:` ni `data:`.
+ *   Nada de `style`, `on…`, `srcdoc`, `javascript:` ni `data:`, ni `accessKey`/`tabIndex`.
  *
  * Después de limpiar, {@link rehypeProfileLinks} ajusta lo que el sitio quiere en todos los textos:
  * los links a otros sitios abren aparte sin `opener`/`referrer` y con `nofollow`, las imágenes cargan
- * de a poco y un `<h1>` pasa a `<h2>` (el `<h1>` de la página es el nombre del perfil).
+ * de a poco (y solo de la biblioteca propia, `/media/…`: una imagen de otro sitio pierde su `src`,
+ * como las imágenes de perfil) y un `<h1>` pasa a `<h2>` (el `<h1>` de la página es el nombre del
+ * perfil).
  */
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import { isPublicMediaUrl } from '../../utils/media.js';
 
 const STRIP = ['script', 'style', 'template', 'noscript', 'iframe', 'object', 'svg', 'math'];
+
+/** Atributos globales del esquema de base que los textos no usan. */
+const NO_GLOBAL = ['accessKey', 'tabIndex'];
+
+/**
+ * Una imagen de la biblioteca propia (docs/imagenes.md): la dirección del sitio (`/media/…`) o,
+ * fuera de producción, la misma imagen en el sitio público (`isPublicMediaUrl`, como las imágenes
+ * viejas de legacyMedia.js). Nada de otros sitios ni direcciones como `//otro.sitio/…`.
+ */
+const OWN_MEDIA = /^\/media\/(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9][A-Za-z0-9/_.-]*$/;
+
+/**
+ * ¿Es el `src` de una imagen que se puede dejar? Solo imágenes de la biblioteca propia.
+ *
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+export function isOwnImageSrc(value) {
+	if (typeof value !== 'string') return false;
+	return OWN_MEDIA.test(value) || isPublicMediaUrl(value);
+}
 
 /** El esquema de los textos de perfiles. */
 export const PROFILE_SCHEMA = Object.freeze({
@@ -27,6 +51,8 @@ export const PROFILE_SCHEMA = Object.freeze({
 	strip: [...new Set([...(defaultSchema.strip ?? []), ...STRIP])],
 	attributes: {
 		...defaultSchema.attributes,
+		// Los atributos de todas las etiquetas, sin los que cambian el teclado de la página.
+		'*': (defaultSchema.attributes?.['*'] ?? []).filter((a) => !NO_GLOBAL.includes(String(a))),
 		a: [...(defaultSchema.attributes?.a ?? []), ['className', 'wikilink', 'mention']],
 		small: [['className', 'p-pronouns']]
 	},
@@ -96,7 +122,10 @@ export function rehypeProfileLinks() {
 					props.rel = ['noopener', 'noreferrer', 'nofollow'];
 				}
 			}
-			if (el.tagName === 'img') props.loading = 'lazy';
+			if (el.tagName === 'img') {
+				if (!isOwnImageSrc(props.src)) delete props.src;
+				props.loading = 'lazy';
+			}
 		});
 }
 

@@ -117,6 +117,8 @@ describe('tagsToRecords / recordsToRawTags', () => {
 			// (intercambio-de-poder.md no tiene cuerpo todavía: queda sin `body`, con su título)
 			expect(r?.data.body ?? '').toBe(w.body);
 			expect(r?.data.wiki_title).toBe(w.title);
+			// Con texto, queda guardado que se muestra con HTML libre (sin valor sería la lista corta).
+			expect(r?.data.wiki_body_html).toBe(w.body ? 'libre' : undefined);
 		}
 		const edad = records.find((r) => r.key === 'edad');
 		expect(edad?.data.wiki_title).toBe('Juegos con la edad');

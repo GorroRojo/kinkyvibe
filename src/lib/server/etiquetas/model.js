@@ -208,7 +208,12 @@ export function tagsToRecords(rawTags, wikiFiles = []) {
 		if (r.data.body !== undefined) {
 			warnings.push(`«${key}» tiene dos textos de la wiki: queda wiki/${file.name}.md`);
 		}
-		if (w.body) r.data.body = w.body;
+		if (w.body) {
+			r.data.body = w.body;
+			// Los textos de la wiki que vienen de los .md (la semilla) se muestran con HTML libre, como
+			// los armaba mdsvex; queda escrito, porque sin valor es la lista corta (wikiPages.js).
+			r.data.wiki_body_html = 'libre';
+		}
 		if (w.title) r.data.wiki_title = w.title;
 		if (w.summary) r.data.wiki_summary = w.summary;
 		if (w.authors.length) r.data.wiki_authors = w.authors;

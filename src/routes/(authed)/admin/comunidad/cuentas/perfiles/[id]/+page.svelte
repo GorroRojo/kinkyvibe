@@ -190,8 +190,9 @@
 		</div>
 		<p class="kv-note">
 			Aprobar lo muestra en /amigues (si su visibilidad lo deja) y lo saca de "Para revisar".
-			Ocultar o borrar también lo saca de "Para revisar". Oculto, lo ven solo les admins y quienes
-			lo gestionan (en Mi rincón, donde pueden volver a cambiar la visibilidad).
+			Ocultar o borrar también lo saca de "Para revisar". Ocultar lo saca del sitio y de Amigues:
+			oculto, lo ven solo les admins y quienes lo gestionan (en Mi rincón). Si quien lo gestiona le
+			cambia la visibilidad, no vuelve a aparecer hasta que une admin lo apruebe de nuevo.
 		</p>
 		<!-- Borrar: uno solo, el de la página del perfil (se recupera desde Actividad). -->
 		<DeleteLink kind="amigues" slug={data.urlSlug} label="Borrar el perfil…" />

@@ -58,6 +58,19 @@ export async function approveProfile(db, profileId, by, { now = Date.now() } = {
 }
 
 /**
+ * La sentencia que saca la aprobación de un perfil. La usan «Sacar de Amigues» y, en la tanda de
+ * saveObject() (opción `also`), «Ocultar» del panel: así, si quien lo gestiona le vuelve a cambiar
+ * la visibilidad, no reaparece hasta que une admin lo apruebe de nuevo.
+ *
+ * @param {D1Database} db
+ * @param {number} profileId
+ * @returns {D1PreparedStatement}
+ */
+export function unapproveStatement(db, profileId) {
+	return db.prepare('DELETE FROM profile_approvals WHERE profile_id = ?1').bind(profileId);
+}
+
+/**
  * Saca un perfil de /amigues (deja de estar aprobado). No lo oculta ni lo borra.
  *
  * @param {D1Database} db
@@ -65,10 +78,7 @@ export async function approveProfile(db, profileId, by, { now = Date.now() } = {
  * @returns {Promise<boolean>} si cambió algo
  */
 export async function unapproveProfile(db, profileId) {
-	const r = await db
-		.prepare('DELETE FROM profile_approvals WHERE profile_id = ?1')
-		.bind(profileId)
-		.run();
+	const r = await unapproveStatement(db, profileId).run();
 	return r.meta.changes > 0;
 }
 

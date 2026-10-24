@@ -78,7 +78,8 @@ const etiqueta = {
 		// `tags:` del .md de la wiki (otras etiquetas que nombra la página).
 		wiki_tags: { kind: 'list', label: 'Etiquetas de la wiki', max: 60 },
 		// Cómo se muestra el texto de la wiki (como `body_html` de los eventos y el material,
-		// src/lib/server/contenido/render.js). Sin valor: lo importado del .md del repo (HTML libre).
+		// src/lib/server/contenido/render.js). Sin valor: la lista corta (lo importado guarda `libre`;
+		// migración 0059 para las páginas que ya estaban).
 		wiki_body_html: {
 			kind: 'option',
 			label: 'HTML del texto de la wiki',

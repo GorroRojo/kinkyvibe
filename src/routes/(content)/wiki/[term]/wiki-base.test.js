@@ -132,6 +132,51 @@ describe('/wiki/<término> desde la base', () => {
 		expect(data.readingWords).toBe(426);
 	});
 
+	it('cómo se muestra el texto: libre si está guardado así; sin valor, la lista corta', async () => {
+		await importTags(
+			t.db,
+			{
+				rawTags: [{ id: 'root', children: ['termino inventado'] }, { id: 'termino inventado' }],
+				wikiFiles: [
+					{
+						name: 'termino-inventado',
+						raw: WIKI.replace(
+							'Un texto de prueba',
+							'<span style="color: darkred" tabindex="1">Un texto de prueba</span>'
+						)
+					}
+				]
+			},
+			{ actor: 'prueba' }
+		);
+		const tagData = async () =>
+			JSON.parse(
+				String(
+					await t.db
+						.prepare(
+							"SELECT data FROM objects WHERE type = 'etiqueta' AND json_extract(data, '$.key') = 'termino inventado'"
+						)
+						.first('data')
+				)
+			);
+		// Lo importado queda guardado como HTML libre y se ve tal cual.
+		expect((await tagData()).wiki_body_html).toBe('libre');
+		const libre = await page(await modules(), 'termino-inventado');
+		expect(libre.html).toContain('style="color: darkred"');
+
+		// Sin valor guardado: la lista corta (se va el `style`, queda el texto).
+		await t.db
+			.prepare(
+				"UPDATE objects SET data = json_remove(data, '$.wiki_body_html'), version = version + 1 WHERE type = 'etiqueta' AND json_extract(data, '$.key') = 'termino inventado'"
+			)
+			.run();
+		expect((await tagData()).wiki_body_html).toBeUndefined();
+		const corta = await page(await modules(), 'termino-inventado');
+		expect(corta.html).toContain('Un texto de prueba');
+		expect(corta.html).not.toContain('style=');
+		expect(corta.html).not.toContain('tabindex');
+	});
+
 	it('el glosario y el sitemap leen las páginas de la base', async () => {
 		await seed();
 		const m = await modules();
