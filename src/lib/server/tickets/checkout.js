@@ -9,6 +9,7 @@ import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { getDB, logDBError } from '$lib/server/db';
 import { sha256Hex } from '$lib/server/hash.js';
+import { signLink, verifyLink } from '$lib/server/signedLinks.js';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import {
 	LOW_STOCK,
@@ -69,8 +70,15 @@ import { saveAfterPurchase } from '$lib/server/cuentas/savedBuyer.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
-/** Cookie httpOnly con las últimas órdenes de este navegador (para ver sus entradas al volver). */
+/**
+ * Cookie httpOnly con las últimas órdenes de este navegador (para ver sus entradas al volver).
+ * Cada entrada es `<orden>.<firma>` (firma de `signLink` con `ORDERS_COOKIE_KEY`) y van separadas
+ * por `~`: el servidor solo cuenta las que firmó él.
+ */
 export const ORDERS_COOKIE = 'kv_orders';
+/** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
+const ORDERS_COOKIE_KEY = 'orders_cookie_key';
+const ORDERS_COOKIE_SIG_LENGTH = 16;
 const MAX_REMEMBERED_ORDERS = 5;
 
 /**
@@ -357,23 +365,55 @@ export function summarizeTickets(view) {
 }
 
 /**
- * Órdenes recordadas por este navegador.
+ * La entrada de la cookie de órdenes para `orderId`: `<orden>.<firma>`.
  *
- * @param {import('@sveltejs/kit').Cookies} cookies
- * @returns {string[]}
+ * @param {D1Database} db
+ * @param {string} orderId
  */
-export function rememberedOrders(cookies) {
-	return (cookies.get(ORDERS_COOKIE) ?? '').split('.').filter(isValidOrderId);
+export async function signedOrderEntry(db, orderId) {
+	return `${orderId}.${await signLink(db, ORDERS_COOKIE_KEY, orderId, ORDERS_COOKIE_SIG_LENGTH)}`;
 }
 
 /**
+ * Órdenes recordadas por este navegador: solo las entradas con la firma que puso el servidor
+ * (las que no la tienen, como las de la cookie vieja sin firmar, se ignoran).
+ *
+ * @param {D1Database} db
+ * @param {import('@sveltejs/kit').Cookies} cookies
+ * @returns {Promise<string[]>}
+ */
+export async function rememberedOrders(db, cookies) {
+	const entries = (cookies.get(ORDERS_COOKIE) ?? '').split('~').slice(0, MAX_REMEMBERED_ORDERS);
+	/** @type {string[]} */
+	const ids = [];
+	for (const entry of entries) {
+		const [id, sig, ...rest] = entry.split('.');
+		if (rest.length || !isValidOrderId(id) || ids.includes(id)) continue;
+		if (await verifyLink(db, ORDERS_COOKIE_KEY, id, sig, ORDERS_COOKIE_SIG_LENGTH)) ids.push(id);
+	}
+	return ids;
+}
+
+/**
+ * @param {D1Database} db
  * @param {import('@sveltejs/kit').Cookies} cookies
  * @param {URL} url
  * @param {string} orderId
  */
-function rememberOrder(cookies, url, orderId) {
-	const ids = [orderId, ...rememberedOrders(cookies).filter((id) => id !== orderId)];
-	cookies.set(ORDERS_COOKIE, ids.slice(0, MAX_REMEMBERED_ORDERS).join('.'), {
+async function rememberOrder(db, cookies, url, orderId) {
+	/** @type {string[]} */
+	let entries;
+	try {
+		const ids = [orderId, ...(await rememberedOrders(db, cookies)).filter((id) => id !== orderId)];
+		entries = await Promise.all(
+			ids.slice(0, MAX_REMEMBERED_ORDERS).map((id) => signedOrderEntry(db, id))
+		);
+	} catch (error) {
+		// Sin la cookie la compra sigue igual: solo no se ven las entradas al volver.
+		logDBError('remember order', error);
+		return;
+	}
+	cookies.set(ORDERS_COOKIE, entries.join('~'), {
 		path: '/entradas',
 		httpOnly: true,
 		sameSite: 'lax',
@@ -947,7 +987,7 @@ export async function buyAction(event) {
 			logDBError('approve free order', error);
 			return failWith(500, 'No pudimos emitir tus entradas. Probá de nuevo más tarde.');
 		}
-		rememberOrder(cookies, url, order.id);
+		await rememberOrder(db, cookies, url, order.id);
 		redirect(303, statusUrl);
 	}
 
@@ -956,7 +996,7 @@ export async function buyAction(event) {
 			await inBackground(sendTransferEmail({ db, order, origin, fetch }), platform);
 		// «Cada transferencia» por Telegram a les admins que lo prendieron (decisión 0041).
 		await queueOrderNotice({ db, platform, kind: 'transferencia', order, origin, fetch });
-		rememberOrder(cookies, url, order.id);
+		await rememberOrder(db, cookies, url, order.id);
 		redirect(303, statusUrl);
 	}
 
@@ -983,6 +1023,6 @@ export async function buyAction(event) {
 		queueWaitlistAdvance({ platform, db, eventSlug: params.event, fetch, origin });
 		return failWith(502, 'No pudimos conectar con Mercado Pago. Probá de nuevo en un ratito.');
 	}
-	rememberOrder(cookies, url, order.id);
+	await rememberOrder(db, cookies, url, order.id);
 	redirect(303, checkoutUrl);
 }
