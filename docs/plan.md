@@ -218,6 +218,7 @@ CI) va en la fase 0.
 
 ### Mails
 
+- `mails-no-fui-yo` · fase 0 · sigue · mails · «No fui yo»: los mails que van a una dirección que nadie confirmó (entradas gratis, reservas por transferencia, confirmar la lista de espera y «Avisame si se repite») llevan un link para no recibir más mails que no sean de una compra pagada (migración 0060), con un tope por día por dirección entre esos formularios y una orden gratis por mail y evento salvo con la cuenta de ese mail. Falta la parte 2: que Mi rincón no muestre las órdenes gratis hechas con un mail sin confirmar · [mails.md](mails.md#no-fui-yo)
 - `mails-codigo-seguimiento` · fase 0 · sigue · mails · Códigos copiables: probar en un iPhone con Mail de Apple, averiguar por qué Gmail toma el mail por inglés y sumar `OTP-Token` u `One-Time-Code` cuando un cliente lo use · #297, [mails.md](mails.md#códigos-copiables)
 - `gmail-tarjeta-evento` · fase 0 · algún día · mails · Tarjeta de evento en Gmail: registrarse con Google y revisar el volumen de envío; gorrite manda el formulario (gorrite: después, 12/10)
 - `bimi` · fase 0 · algún día · mails · BIMI para los mails (gorrite: más adelante)

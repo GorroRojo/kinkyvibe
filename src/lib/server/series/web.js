@@ -35,7 +35,8 @@ export async function requireSeriesDB(platform) {
 export function seriesSender(db, fetchFn) {
 	return async (to, message, idempotencyKey) => {
 		try {
-			return await deliverEmail({ db, fetch: fetchFn, to, message, idempotencyKey });
+			// Ninguno es de una compra: respetan «No fui yo» (email/suppressions.js).
+			return await deliverEmail({ db, fetch: fetchFn, to, message, idempotencyKey, optOut: true });
 		} catch (e) {
 			console.error('[series] no se pudo mandar el mail:', e);
 			return 'failed';
