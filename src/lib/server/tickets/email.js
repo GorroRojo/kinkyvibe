@@ -404,7 +404,7 @@ export function buildTicketEmail({
 		origin,
 		label: custom.label ?? 'Tus entradas',
 		titleHtml: custom.headingHtml ?? '¡Ya tenés tus entradas!',
-		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por tu compra.</p>`}
+		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por ${order.payment_method === 'gratis' ? 'anotarte' : 'tu compra'}.</p>`}
 		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}${cal.html}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		${online && event.streamLink ? streamLinkBlock(event.streamLink) : ''}`,

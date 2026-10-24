@@ -242,6 +242,14 @@ describe('con plantilla', () => {
 		expect(m.text).toContain(`Número de orden: ${order.id}`);
 	});
 
+	it('sin plantilla, una orden gratis agradece que se anotó, no la compra', () => {
+		const m = email.buildTicketEmail({ ...base, order: { ...order, payment_method: 'gratis' } });
+		expect(m.html).toContain('gracias por anotarte.</p>');
+		expect(m.html).not.toContain('gracias por tu compra');
+		const paid = email.buildTicketEmail(base);
+		expect(paid.html).toContain('gracias por tu compra.</p>');
+	});
+
 	it('cada builder usa su plantilla', () => {
 		const tpl = { subject: 'Asunto {{evento}}', heading: 'Título', body: 'Cuerpo {{nombre}}' };
 		for (const [name, fn, input] of emailCases()) {
