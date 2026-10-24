@@ -1,5 +1,7 @@
+import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { buildIcsFeed, feedLocation, icsResponse } from './icsFeed.js';
+import { MAP_LABEL, buildIcsFeed, feedLocation, icsResponse } from './icsFeed.js';
+import { MAP_LABEL as PLACE_MAP_LABEL } from './eventPlace.js';
 import { DAY, fakeEvent } from '../server/series/fixtures.js';
 
 const NOW = Date.parse('2026-06-01T12:00:00-03:00');
@@ -177,5 +179,28 @@ describe('«Dónde» con link al mapa (lugar de una sola vez)', () => {
 		const ics = unfold(buildIcsFeed([/** @type {any} */ (bad)]));
 		expect(ics).not.toContain('ejemplo.com');
 		expect(ics).not.toContain('Ver en el mapa');
+	});
+});
+
+describe('la página del evento no baja el paquete ics', () => {
+	it('MAP_LABEL es el mismo texto en eventPlace.js y en icsFeed.js', () => {
+		expect(MAP_LABEL).toBe('Ver en el mapa');
+		expect(MAP_LABEL).toBe(PLACE_MAP_LABEL);
+	});
+
+	it('ningún componente importa icsFeed.js ni ics', () => {
+		const root = new URL('../../', import.meta.url);
+		/** @param {URL} dir @returns {URL[]} */
+		const svelteFiles = (dir) =>
+			fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+				if (e.isDirectory()) return svelteFiles(new URL(`${e.name}/`, dir));
+				return e.name.endsWith('.svelte') ? [new URL(e.name, dir)] : [];
+			});
+		const importers = svelteFiles(root)
+			.filter((f) =>
+				/from\s+['"](?:[^'"]*\/icsFeed(?:\.js)?|ics)['"]/.test(fs.readFileSync(f, 'utf8'))
+			)
+			.map((f) => f.pathname.slice(root.pathname.length));
+		expect(importers).toEqual([]);
 	});
 });
