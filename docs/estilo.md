@@ -11,9 +11,12 @@ El panel de admin redefine los de color y sombra para su tema oscuro en
   token sirve, mejor preguntar antes que inventar un tamaño.
 - Pesos de letra: **400 y 700**, nada más (Lato no tiene 600; el navegador lo dibuja como 700).
 - Lato es propia (`src/lib/styles/fonts/`, los `@font-face` de `style.scss`). Las dos latin
-  (400 y 700) se precargan desde `src/routes/+layout.svelte`, importadas con `?url` para que el
-  preload tenga la misma URL con hash que el CSS: si cambiás un archivo de letra o agregás un
-  peso, cambialo en los dos lados (lo controla una prueba de `tests/smoke.spec.js`).
+  (400 y 700) se precargan con la opción `preload` de SvelteKit (`src/lib/server/preload.js`, en
+  `hooks.server.js`): van en la cabecera `Link` de cada página, antes que el JS y con la URL con
+  hash del CSS. Un `<link rel="preload">` en el `<svelte:head>` del layout quedaba después de los
+  ~80 módulos de JS, con su misma prioridad, y en Chrome las letras llegaban más tarde que sin
+  precarga. Si cambiás un archivo de letra o agregás un peso, revisá `PRELOADED_FONT` (lo controla
+  una prueba de `tests/smoke.spec.js`).
 - Colores nuevos no: mezclá los del sitio con `color-mix` o usá los alias de abajo.
 - Si agregás un token de color o sombra, dale también su valor oscuro en `@mixin dark` del panel.
 - Los textos del contenido (en la base, y la semilla `src/lib/server/semilla/*.json`) no se

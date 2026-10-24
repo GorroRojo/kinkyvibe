@@ -486,24 +486,28 @@ test.describe('auth', () => {
 });
 
 test.describe('experiencia', () => {
-	// Las dos Lato latin (400 y 700) se piden con el HTML (`<link rel="preload">` en el layout
-	// raíz), con la misma URL con hash que el @font-face del CSS: si no coinciden, el navegador baja
-	// cada letra dos veces.
+	// Las dos Lato latin (400 y 700) se piden con la respuesta de la página: la precarga de SvelteKit
+	// ($lib/server/preload.js) las pone en la cabecera `Link` (en las páginas que no se prerenderizan
+	// no va un `<link>` en el HTML), antes que el JS y con la misma URL con hash que el @font-face del
+	// CSS: si no coinciden, el navegador baja cada letra dos veces.
 	test('las letras Lato latin se precargan con la URL del CSS', async ({ page, request }) => {
-		const html = await (await request.get('/material')).text();
-		const preloads = [...html.matchAll(/<link\b[^>]*rel="preload"[^>]*>/g)]
-			.map((m) => m[0])
-			.filter((tag) => /as="font"/.test(tag));
+		const res = await request.get('/material');
+		const links = (res.headers()['link'] ?? '').split(/,\s*(?=<)/);
+		const preloads = links.filter((l) => /rel="preload"/.test(l) && /as="font"/.test(l));
 		expect(preloads).toHaveLength(2);
-		const hrefs = preloads.map((tag) => {
-			expect(tag).toContain('type="font/woff2"');
-			expect(tag).toMatch(/\bcrossorigin\b/);
-			return /href="([^"]+)"/.exec(tag)?.[1] ?? '';
+		const hrefs = preloads.map((l) => {
+			expect(l).toContain('type="font/woff2"');
+			expect(l).toMatch(/;\s*crossorigin\b/);
+			return /^<([^>]+)>/.exec(l)?.[1] ?? '';
 		});
 		expect(hrefs.map((h) => /lato-latin-(\d+)-normal\.[\w-]+\.woff2$/.exec(h)?.[1])).toEqual([
 			'400',
 			'700'
 		]);
+		// antes que el JS (si van después, en Chrome esperan detrás de los ~80 módulos)
+		const firstModule = links.findIndex((l) => /rel="modulepreload"/.test(l));
+		expect(firstModule).toBeGreaterThan(-1);
+		expect(links.indexOf(preloads[1])).toBeLessThan(firstModule);
 
 		const fonts = [];
 		page.on('request', (r) => {

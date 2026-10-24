@@ -8,10 +8,6 @@
 	} from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import { useSiteTags } from '$lib/utils/siteTags.js';
-	// Lato latin 400 y 700 (las de style.scss): con `?url` Vite da la misma URL con hash que usa el
-	// @font-face, así el preload y el CSS piden el mismo archivo.
-	import lato400 from '$lib/styles/fonts/lato-latin-400-normal.woff2?url';
-	import lato700 from '$lib/styles/fonts/lato-latin-700-normal.woff2?url';
 
 	/** @type {import('./$types').LayoutData} */
 	export let data;
@@ -41,11 +37,6 @@
 </script>
 
 <svelte:head>
-	<!-- Las dos letras de casi todo el texto se piden ya con el HTML, sin esperar a que llegue y se
-	     lea el CSS: menos tiempo con la letra de reemplazo y menos salto al cambiar (`font-display`
-	     sigue en `swap`). Solo las latin: las latin-ext casi nunca hacen falta. -->
-	<link rel="preload" as="font" type="font/woff2" href={lato400} crossorigin="anonymous" />
-	<link rel="preload" as="font" type="font/woff2" href={lato700} crossorigin="anonymous" />
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 </svelte:head>
