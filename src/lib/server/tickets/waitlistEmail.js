@@ -21,7 +21,7 @@
 import { argDeadline } from '$lib/utils/dates.js';
 import { ARGENTINA_TIME_NOTE, expiresInText } from '$lib/utils/expiry.js';
 import { mergeTemplates, templateDef } from '$lib/utils/emailTemplates.js';
-import { MAIL_STYLES, mailLayout } from '$lib/server/email/layout.js';
+import { MAIL_STYLES, mailLayout, mailOptOut } from '$lib/server/email/layout.js';
 import { applyTemplate, escapeHtml, formatEventDate } from './email.js';
 
 /** @typedef {{ subject: string, html: string, text: string }} Message */
@@ -113,9 +113,11 @@ const leaveHtml = (url, label = 'Salir de la lista de espera') =>
  *   unsubscribeLabel?: string,
  *   unsubscribeText?: string,
  *   origin?: string,
- *   contactEmail?: string
+ *   contactEmail?: string,
+ *   optOut?: { html: string, text: string[] }
  * }} input
  * `helpHtml`/`helpText`: la ayuda del código si la plantilla no trae una (vacía = sin ayuda).
+ * `optOut`: la línea «No fui yo» del pie (`mailOptOut`), solo en el de confirmar.
  * @returns {Message}
  */
 function buildWaitlistMail({
@@ -133,7 +135,8 @@ function buildWaitlistMail({
 	unsubscribeLabel,
 	unsubscribeText = 'Para salir de la lista de espera',
 	origin,
-	contactEmail
+	contactEmail,
+	optOut = { html: '', text: [] }
 }) {
 	const c = applyTemplate(partsFor(id, template), vars);
 	const block = eventBlock(event, typeName);
@@ -151,7 +154,8 @@ function buildWaitlistMail({
 		helpHtml: help,
 		whyHtml: /** @type {string} */ (c.whyHtml),
 		contactEmail,
-		unsubscribeHtml: leaveHtml(unsubscribeUrl, unsubscribeLabel)
+		unsubscribeHtml: leaveHtml(unsubscribeUrl, unsubscribeLabel),
+		optOutHtml: optOut.html
 	});
 	const text = [
 		c.headingText,
@@ -163,7 +167,8 @@ function buildWaitlistMail({
 		...(button && buttonLabel ? ['', `${buttonLabel}: ${button.href}`] : []),
 		...(helpPlain ? [helpPlain] : []),
 		'',
-		`${unsubscribeText}: ${unsubscribeUrl}`
+		`${unsubscribeText}: ${unsubscribeUrl}`,
+		...optOut.text
 	].join('\n');
 	return { subject: /** @type {string} */ (c.subject), html, text };
 }
@@ -172,9 +177,11 @@ function buildWaitlistMail({
  * «Confirmá tu mail»: el link para entrar a la fila (vale hasta `expiresAt`). El link del pie
  * borra el pedido.
  *
+ * `optOutUrl`: el link «No fui yo» (email/suppressions.js), en el pie.
+ *
  * @param {{ event: WaitlistEvent, typeName?: string | null, confirmUrl: string,
  *   unsubscribeUrl: string, expiresAt: number, now: number, origin?: string,
- *   contactEmail?: string, template?: Template }} input
+ *   contactEmail?: string, template?: Template, optOutUrl?: string | null }} input
  * @returns {Message}
  */
 export function buildWaitlistConfirmEmail({
@@ -186,7 +193,8 @@ export function buildWaitlistConfirmEmail({
 	now,
 	origin,
 	contactEmail,
-	template
+	template,
+	optOutUrl = null
 }) {
 	const help = `El link ${expiresInText(expiresAt, now, { lowercase: true })}. Si no lo pediste vos, ignorá este mail: sin confirmar no quedás en la lista.`;
 	return buildWaitlistMail({
@@ -202,7 +210,8 @@ export function buildWaitlistConfirmEmail({
 		unsubscribeLabel: 'Borrar el pedido ahora',
 		unsubscribeText: 'Para borrar el pedido ahora',
 		origin,
-		contactEmail
+		contactEmail,
+		optOut: mailOptOut(optOutUrl, '¿No te anotaste vos?')
 	});
 }
 

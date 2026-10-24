@@ -52,6 +52,7 @@ import {
 } from './stream.js';
 import { mailBatchSize } from './batchSize.js';
 import { withMailFooter } from '../email/layout.js';
+import { isFreeOrder, isSuppressed, optOutUrl } from '../email/suppressions.js';
 import { runMailQueueWith } from './mailQueue.js';
 import { calendarStamp } from './calendarFile.js';
 import { getDateChange, sendDateChangeBatch } from './dateChange.js';
@@ -338,6 +339,10 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  * en producción loguea un error (`failed`). En un preview, solo a EMAIL_ALLOWLIST (emailGuard.js).
  * `from`: remitente fijo de un mail que no es del sitio de entradas (el del Fondo); sin él, el de
  * los ajustes, como siempre.
+ * `optOut`: un mail que no es de una compra pagada (entradas gratis, reservas por transferencia,
+ * lista de espera, avisos de series…): si la dirección dijo «No fui yo» (email/suppressions.js), no
+ * sale y vuelve `simulated` (como enviado: no se reintenta). Si no se puede leer la base, no sale
+ * (`failed`). Los de una compra pagada no lo llevan y salen siempre.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database | null | undefined,
@@ -347,7 +352,8 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  *     attachments?: import('./email.js').MailAttachment[] },
  *   idempotencyKey?: string,
  *   log?: string,
- *   from?: string
+ *   from?: string,
+ *   optOut?: boolean
  * }} input
  * @returns {Promise<'sent' | 'simulated' | 'failed'>}
  */
@@ -358,8 +364,21 @@ async function deliver({
 	message: built,
 	idempotencyKey,
 	log = '',
-	from: fixedFrom
+	from: fixedFrom,
+	optOut = false
 }) {
+	if (optOut) {
+		try {
+			if (!db) throw new Error('sin base');
+			if (await isSuppressed(db, to)) {
+				console.log(`[mails] «No fui yo»: no se manda "${subjectForLog(built.subject)}"`);
+				return 'simulated';
+			}
+		} catch (error) {
+			console.error('[mails] no se pudo revisar «No fui yo»: no se manda', error);
+			return 'failed';
+		}
+	}
 	// Todo mail pasa por acá: el pie de Mensajes → Configuración se pone una sola vez, para todos.
 	const settings = await emailSettings(db);
 	const message = { ...built, html: withMailFooter(built.html, settings.footer) };
@@ -499,6 +518,8 @@ export async function sendOrderEmail({
 		const message = buildTicketEmail({
 			order,
 			tickets: list,
+			// Entradas gratis: el pie lleva «¿No pediste vos estas entradas?» (email/suppressions.js).
+			optOutUrl: isFreeOrder(order) ? await optOutUrl(db, origin, order.buyer_email) : null,
 			event: {
 				// Con el slug, el mail lleva adjunto el .ics del evento (calendarFile.js).
 				slug: order.event_slug,
@@ -532,6 +553,7 @@ export async function sendOrderEmail({
 			to: order.buyer_email,
 			message,
 			idempotencyKey: idempotent ? `tickets-${order.id}` : undefined,
+			optOut: isFreeOrder(order),
 			// Nunca logueamos el token completo: con él se entra al evento.
 			log: list
 				.map((t) => `  ${origin}/entradas/t/${t.token.slice(0, 6)}… (${t.code ?? 'sin código'})`)
@@ -634,7 +656,8 @@ export async function sendStreamLinkEmails({
 				fetch: fetchFn,
 				to: order.buyer_email,
 				message,
-				idempotencyKey: `stream-${order.id}-${key}`
+				idempotencyKey: `stream-${order.id}-${key}`,
+				optOut: isFreeOrder(order)
 			});
 			return result !== 'failed';
 		}
@@ -712,7 +735,8 @@ export async function sendDateChangeEmails({
 				fetch: fetchFn,
 				to: order.buyer_email,
 				message,
-				idempotencyKey: `datechange-${order.id}-${change.version}`
+				idempotencyKey: `datechange-${order.id}-${change.version}`,
+				optOut: isFreeOrder(order)
 			});
 			return result !== 'failed';
 		}
@@ -751,14 +775,17 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			replyTo: await replyToAddress(db),
 			contactEmail: contactEmail(),
 			origin,
-			template: await resolveTemplate(db, order.event_slug, 'transfer')
+			template: await resolveTemplate(db, order.event_slug, 'transfer'),
+			// Todavía no está pagada: el pie lleva «¿No reservaste vos?» (email/suppressions.js).
+			optOutUrl: await optOutUrl(db, origin, order.buyer_email)
 		});
 		const result = await deliver({
 			db,
 			fetch: fetchFn,
 			to: order.buyer_email,
 			message,
-			idempotencyKey: `transfer-${order.id}`
+			idempotencyKey: `transfer-${order.id}`,
+			optOut: true
 		});
 		return result === 'sent';
 	} catch (error) {
@@ -789,7 +816,8 @@ export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
 			fetch: fetchFn,
 			to: order.buyer_email,
 			message,
-			idempotencyKey: `refund-${order.id}`
+			idempotencyKey: `refund-${order.id}`,
+			optOut: isFreeOrder(order)
 		});
 		return result !== 'failed';
 	} catch (error) {
@@ -933,7 +961,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				fetch: fetchFn,
 				to: order.buyer_email,
 				message,
-				idempotencyKey: `reminder-${order.id}-${reminderKey(reminder, part ?? undefined)}`
+				idempotencyKey: `reminder-${order.id}-${reminderKey(reminder, part ?? undefined)}`,
+				optOut: isFreeOrder(order)
 			});
 			return result !== 'failed';
 		}
@@ -1013,7 +1042,8 @@ export async function deliverBuyerMailBatch({ db, send, fetch: fetchFn, limit })
 				fetch: fetchFn,
 				to: recipient.email,
 				message,
-				idempotencyKey: `buyer-mail-${send.id}-${who}`
+				idempotencyKey: `buyer-mail-${send.id}-${who}`,
+				optOut: !recipient.paid
 			});
 			return result !== 'failed';
 		}

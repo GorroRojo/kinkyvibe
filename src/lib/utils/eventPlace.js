@@ -8,10 +8,16 @@
  * muestran el lugar según su privacidad y no se usa ni el `location` ni el `location_map` del .md.
  *
  * Funciones puras: las usan la página del evento, los calendarios .ics, el editor y el guardado.
+ * Sin `yaml` (la página pública lo bajaría entero): la validación del archivo completo para el
+ * guardado está en $lib/server/eventos/fileErrors.js.
  */
-import { parseDocument } from 'yaml';
-import { splitMarkdown } from './eventDraft.js';
 import { venueLine, venueSchema } from './venues.js';
+
+/**
+ * Texto del link al mapa (página y .ics). Está acá y no en icsFeed.js (que lo reexporta) para que
+ * la página del evento no baje el paquete `ics`.
+ */
+export const MAP_LABEL = 'Ver en el mapa';
 
 /** Largo máximo del link al mapa. */
 export const MAP_LINK_MAX = 500;
@@ -275,27 +281,6 @@ export function eventPlaceSchema(meta, venue, webLink) {
 			...(address ? { address: { '@type': 'PostalAddress', name: address } } : {})
 		}
 	};
-}
-
-/**
- * Problemas del «Dónde» de un archivo de evento, para el guardado (vacío = todo bien). Un archivo
- * cuyas propiedades no se pueden leer lo valida el resto del guardado.
- * @param {string} content el archivo completo
- * @returns {string[]}
- */
-export function placeFileErrors(content) {
-	/** @type {Record<string, any>} */
-	let meta;
-	try {
-		const doc = parseDocument(splitMarkdown(content).frontmatter);
-		if (doc.errors.length) return [];
-		meta = doc.toJS() ?? {};
-	} catch {
-		return [];
-	}
-	if (meta.location_map === undefined || meta.location_map === null) return [];
-	const map = checkMapLink(String(meta.location_map));
-	return map.ok ? [] : [map.message];
 }
 
 /** Los campos del «Dónde» del .md (texto libre de quien edita). */

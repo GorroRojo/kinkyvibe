@@ -22,8 +22,7 @@
 	import VenueLocation from '$lib/components/amigues/VenueLocation.svelte';
 	import VenueMap from '$lib/components/amigues/VenueMap.svelte';
 	import { googleMapsLink, showsAddress } from '$lib/utils/venues.js';
-	import { eventMode, eventPlace } from '$lib/utils/eventPlace.js';
-	import { MAP_LABEL } from '$lib/utils/icsFeed.js';
+	import { MAP_LABEL, eventMode, eventPlace } from '$lib/utils/eventPlace.js';
 	import { argDateTimeLong, argTime, eventEnd } from '$lib/utils/dates.js';
 
 	/** @type {Record<string, any>} */
