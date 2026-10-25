@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import { currentRelated, relatedPostsFor } from '$lib/utils';
 import { peekSitePost, siteEvent, sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
 import {
 	getTicketsView,
 	prefetchTicketsView,
@@ -100,7 +101,7 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
  */
 function askEarly(slug, platform, locals, waitlistOn, now) {
 	const db = getDB(platform);
-	if (!db || locals.user || locals.member) return;
+	if (!db || !batchesReads(db) || locals.user || locals.member) return;
 	const guess = peekSitePost('calendario', slug);
 	if (!guess) return;
 	const meta = guess.post.meta;

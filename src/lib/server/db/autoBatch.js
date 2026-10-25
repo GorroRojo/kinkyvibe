@@ -56,6 +56,18 @@ const isRead = (/** @type {string} */ sql) => /^\s*select\b/i.test(sql);
 
 /** La sentencia de la app detrás de una nuestra. */
 const INNER = Symbol('autoBatch.inner');
+/** En un envoltorio: ¿junta las lecturas del pedido en curso? */
+const BATCHING = Symbol('autoBatch.batching');
+
+/**
+ * ¿Esta base junta las lecturas del pedido en curso? Para quien adelanta consultas que solo
+ * convienen si van en la misma ida y la de después recibe lo ya leído (sin tandas, adelantar es
+ * consultar de más).
+ * @param {unknown} db
+ */
+export function batchesReads(db) {
+	return Boolean(db && /** @type {any} */ (db)[BATCHING]);
+}
 
 /**
  * La clave de una lectura para no repetirla en el pedido, o `null` si sus parámetros no se pueden
@@ -260,6 +272,7 @@ export function autoBatcher(scope) {
 		const target = /** @type {D1Database} */ (/** @type {unknown} */ (db));
 		const wrapper = new Proxy(/** @type {any} */ (db), {
 			get(t, prop) {
+				if (prop === BATCHING) return current() !== null;
 				if (prop === 'prepare') {
 					return (/** @type {string} */ sql) => statement(target, t.prepare(sql), sql, []);
 				}

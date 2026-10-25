@@ -4,7 +4,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { countingDB, createTestDB } from './testing.js';
-import { autoBatcher } from './autoBatch.js';
+import { autoBatcher, batchesReads } from './autoBatch.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -125,6 +125,14 @@ describe('autoBatcher', () => {
 		const b = db.prepare(byId).bind(1).first('nombre');
 		expect([await a, await b]).toEqual(['uno', 'uno']);
 		expect(counted.queries).toBe(2);
+	});
+
+	it('batchesReads: solo el envoltorio, y solo dentro de un pedido de lectura', () => {
+		const { db, scope } = setup();
+		expect(batchesReads(db)).toBe(true);
+		expect(batchesReads(t.db)).toBe(false);
+		scope.current = null;
+		expect(batchesReads(db)).toBe(false);
 	});
 
 	it('el mismo envoltorio para el mismo binding', () => {

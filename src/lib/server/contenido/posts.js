@@ -34,6 +34,7 @@ import { isCurrent } from '$lib/utils/allPosts';
 import { currentSiteTagList, currentSiteTags } from '$lib/utils/siteTags.js';
 import { getDB } from '$lib/server/db';
 import { oncePerRequest, readAndKeep } from '$lib/server/db/perRequest.js';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
 import { ANON, canSee, partVisibleWhere, visibleWhere } from '$lib/server/objects/visibility.js';
 import { OBJECT_COLUMNS, forViewer, rowToObject } from '$lib/server/objects/read.js';
 import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
@@ -809,7 +810,8 @@ function askEarly(db, cat, category, slug, viewer) {
 	const cover = imageOfFrom(db, from, 'portada', viewer).catch(() => null);
 	// Con un 404 nadie los espera: que un error no quede sin atender.
 	edges.catch(() => {});
-	const hint = cached?.state.hints?.get(`${category}/${slug}`);
+	// Adelantar solo conviene con tandas (la consulta de después recibe lo ya leído).
+	const hint = batchesReads(db) ? cached?.state.hints?.get(`${category}/${slug}`) : undefined;
 	if (hint) {
 		if (hint.refs.slugs.length || hint.refs.keys.length)
 			publicLinkTargets(db, hint.refs).catch(() => {});
