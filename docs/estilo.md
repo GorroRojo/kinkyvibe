@@ -164,6 +164,13 @@ armar una variante nueva en un componente.
 Una excepción a los avisos: los carteles de la Puerta (`ingreso`) no son `Notice`. Tienen su
 estilo oscuro propio, el mismo que los de «sin conexión» y «pendientes».
 
+**Barra de carga.** Mientras llega la página siguiente al navegar, una barrita de 3px arriba de
+todo: en el sitio, rosa de la marca (`--1`, `LoadingBar.svelte` en el layout del sitio); en el
+panel, violeta (`--link`, en `admin/+layout.svelte`). Aparece solo si la navegación tarda (más de
+150 ms en el sitio), así una rápida no parpadea. Crece rápido y cada vez más lento, sin llegar al
+final; con «reducir movimiento», queda quieta y entera. Es un `progressbar` sin valor con
+`aria-label="Cargando la página"`.
+
 ### Ajustes del 4/10 (decisión de gorrite)
 
 Comparando el encabezado del evento antes y después de la revisión, gorrite prefirió el aspecto
