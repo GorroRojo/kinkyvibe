@@ -20,6 +20,16 @@ describe('Server-Timing', () => {
 		expect(r.headers.get('server-timing')).toBe('app;dur=120, iso;desc="n=1 age=0s"');
 	});
 
+	it('suma la parte de la base (d1) entre app e iso', () => {
+		const clock = fakeClock();
+		const finish = startServerTiming(clock);
+		clock.advance(80);
+		const r = finish(new Response('ok'), 'd1;dur=55;desc="3 consultas en 2 idas"');
+		expect(r.headers.get('server-timing')).toBe(
+			'app;dur=80, d1;dur=55;desc="3 consultas en 2 idas", iso;desc="n=1 age=0s"'
+		);
+	});
+
 	it('cuenta los pedidos del isolate y su edad en segundos', () => {
 		const clock = fakeClock();
 		startServerTiming(clock)(new Response('a'));
