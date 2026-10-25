@@ -12,7 +12,8 @@
  * no se lista hasta que la cuenta dice «Sí, son mías» (o la pidió con la sesión de esa cuenta);
  * mientras tanto va en «¿Son tuyas?» ({@link unconfirmedFreeOrders}). Con «No es mía» deja de
  * mostrarse para esa cuenta. Lo elegido va en `free_order_choices` (migración 0061). Las compras
- * pagas se ven siempre.
+ * pagas se ven siempre, y también las gratis que cargan les admins (la puerta, la carga a mano:
+ * `channel` distinto de `online`) y las de antes de la migración ({@link FREE_ORDER_CHOICES_SINCE}).
  */
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -30,6 +31,34 @@ export const VISIBLE_STATUSES = /** @type {const} */ ([
  *   status: string, payment_method: string, created_at: number
  * }} AccountOrder
  */
+
+/**
+ * La clave de `ticket_settings` con el momento (ms) desde el que se pregunta: la escribe la
+ * migración 0061 al aplicarse, con la hora de la base. Las órdenes de antes se ven como siempre.
+ * Sin la fila, no se pregunta por ninguna (lo seguro: nada desaparece).
+ */
+export const FREE_ORDER_CHOICES_SINCE = 'free_order_choices_since';
+
+/**
+ * SQL: la orden `alias` es de las que se preguntan si llegan solo por el mail. Gratis, del
+ * formulario público (`channel = 'online'`) y de después de la migración. Nunca da NULL.
+ *
+ * @param {string} alias
+ */
+export const askFreeOrderSql = (alias) =>
+	`(${alias}.payment_method = 'gratis' AND ${alias}.channel = 'online' AND ${alias}.created_at >=
+		COALESCE((SELECT CAST(value AS INTEGER) FROM ticket_settings
+			WHERE key = '${FREE_ORDER_CHOICES_SINCE}'), ${Number.MAX_SAFE_INTEGER}))`;
+
+/**
+ * SQL: la cuenta `account` dijo «Sí, son mías» sobre la orden `alias`.
+ *
+ * @param {string} alias
+ * @param {string} account expresión SQL con el id de la cuenta
+ */
+export const saidMineSql = (alias, account) =>
+	`EXISTS (SELECT 1 FROM free_order_choices c
+		WHERE c.account_id = ${account} AND c.order_id = ${alias}.id AND c.mine = 1)`;
 
 const COLUMNS = `id, event_slug, ticket_type, quantity, total, status, payment_method, created_at`;
 const STATUSES_SQL = VISIBLE_STATUSES.map((s) => `'${s}'`).join(', ');
@@ -84,10 +113,7 @@ export async function ordersForAccount(db, accountId, { limit = 100 } = {}) {
 			UNION
 			SELECT ${COLUMNS} FROM orders o WHERE ?2 IS NOT NULL AND lower(buyer_email) = ?2
 				AND status IN (${STATUSES_SQL})
-				AND (payment_method <> 'gratis' OR EXISTS (
-					SELECT 1 FROM free_order_choices c
-					WHERE c.account_id = ?1 AND c.order_id = o.id AND c.mine = 1
-				))
+				AND (NOT ${askFreeOrderSql('o')} OR ${saidMineSql('o', '?1')})
 			ORDER BY created_at DESC
 			LIMIT ?3`
 		)
@@ -111,7 +137,7 @@ export async function unconfirmedFreeOrders(db, accountId, { limit = 100 } = {})
 	const { results } = await db
 		.prepare(
 			`SELECT ${COLUMNS} FROM orders o WHERE lower(buyer_email) = ?2
-				AND status IN (${STATUSES_SQL}) AND payment_method = 'gratis'
+				AND status IN (${STATUSES_SQL}) AND ${askFreeOrderSql('o')}
 				AND (account_id IS NULL OR account_id <> ?1)
 				AND NOT EXISTS (
 					SELECT 1 FROM free_order_choices c WHERE c.account_id = ?1 AND c.order_id = o.id
@@ -126,8 +152,8 @@ export async function unconfirmedFreeOrders(db, accountId, { limit = 100 } = {})
 
 /**
  * Anota lo que eligió la cuenta sobre una orden gratis: `mine` = «Sí, son mías» (pasa a la lista
- * de siempre) o «No es mía» (deja de mostrarse). Solo vale para una orden gratis con el mail
- * verificado de la cuenta; si no, devuelve `false` y no escribe nada. Elegir de nuevo cambia lo
+ * de siempre) o «No es mía» (deja de mostrarse). Solo vale para una orden de las que se preguntan
+ * ({@link askFreeOrderSql}) con el mail verificado de la cuenta; si no, devuelve `false` y no escribe nada. Elegir de nuevo cambia lo
  * elegido. También la usa la compra con sesión ({@link markFreeOrderMine}).
  *
  * @param {D1Database} db
@@ -141,7 +167,7 @@ export async function chooseFreeOrder(db, { accountId, orderId, mine, now = Date
 		.prepare(
 			`INSERT INTO free_order_choices (account_id, order_id, mine, created_at)
 			SELECT ?1, o.id, ?3, ?4 FROM orders o
-			WHERE o.id = ?2 AND o.payment_method = 'gratis' AND lower(o.buyer_email) = ?5
+			WHERE o.id = ?2 AND ${askFreeOrderSql('o')} AND lower(o.buyer_email) = ?5
 			ON CONFLICT (account_id, order_id) DO UPDATE SET mine = excluded.mine,
 				created_at = excluded.created_at
 			RETURNING order_id`

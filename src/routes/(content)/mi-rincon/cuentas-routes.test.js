@@ -273,6 +273,13 @@ describe('cuentas', () => {
 				)
 				.bind(id, slug, EMAIL)
 				.run();
+		// Desde cuándo se pregunta (lo escribe la migración 0061): antes de estas órdenes.
+		await t.db
+			.prepare(
+				`INSERT INTO ticket_settings (key, value, updated_at, updated_by)
+				VALUES ('free_order_choices_since', '0', 1, 'test')`
+			)
+			.run();
 		const ONE = '00000000-0000-4000-8000-0000000000f1';
 		const TWO = '00000000-0000-4000-8000-0000000000f2';
 		await freeOrder(ONE, 'evento-uno');

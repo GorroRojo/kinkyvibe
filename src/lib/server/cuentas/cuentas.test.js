@@ -2,6 +2,8 @@
  * Cuentas del público contra un D1 de miniflare: códigos, límites, contraseñas, sesiones,
  * borrado y compras por mail verificado. Datos inventados (dominio example.com).
  */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import {
@@ -85,7 +87,7 @@ let orderSeq = 0;
 /**
  * Orden mínima válida (datos inventados).
  * @param {{ email: string, status?: string, accountId?: string | null, createdAt?: number,
- *   slug?: string, method?: string }} o
+ *   slug?: string, method?: string, channel?: string }} o
  */
 async function insertOrder({
 	email,
@@ -93,18 +95,29 @@ async function insertOrder({
 	accountId = null,
 	createdAt = NOW,
 	slug = 'evento-de-prueba',
-	method = 'mercadopago'
+	method = 'mercadopago',
+	channel = 'online'
 }) {
 	const id = `00000000-0000-4000-8000-${String(++orderSeq).padStart(12, '0')}`;
 	await t.db
 		.prepare(
 			`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal, total,
 				buyer_name, buyer_email, status, created_at, updated_at, expires_at, account_id,
-				payment_method, fondo_option)
+				payment_method, fondo_option, channel)
 			VALUES (?1, ?2, 'general', 1, ?7, ?7, ?7, 'Persona de Prueba', ?3, ?4, ?5, ?5, ?5, ?6, ?8,
-				CASE WHEN ?8 = 'gratis' THEN 'gorra' ELSE 'completo' END)`
+				CASE WHEN ?8 = 'gratis' THEN 'gorra' ELSE 'completo' END, ?9)`
 		)
-		.bind(id, slug, email, status, createdAt, accountId, method === 'gratis' ? 0 : 1000, method)
+		.bind(
+			id,
+			slug,
+			email,
+			status,
+			createdAt,
+			accountId,
+			method === 'gratis' ? 0 : 1000,
+			method,
+			channel
+		)
 		.run();
 	return id;
 }
@@ -977,6 +990,18 @@ describe('compras de la cuenta', () => {
 });
 
 describe('«¿Son tuyas?»: órdenes gratis hechas sin la sesión de la cuenta («No fui yo», parte 2)', () => {
+	/** Desde cuándo se pregunta (lo escribe la migración 0061 al aplicarse). */
+	const SINCE = NOW - 10_000;
+	/** @param {number} since */
+	const setSince = (since) =>
+		t.db
+			.prepare(
+				`INSERT INTO ticket_settings (key, value, updated_at, updated_by)
+				VALUES ('free_order_choices_since', ?1, 1, 'test')`
+			)
+			.bind(String(since))
+			.run();
+	beforeEach(() => setSince(SINCE));
 	/** @param {string} accountId */
 	const ids = async (accountId) => ({
 		list: (await ordersForAccount(t.db, accountId)).map((o) => o.id),
@@ -1060,6 +1085,58 @@ describe('«¿Son tuyas?»: órdenes gratis hechas sin la sesión de la cuenta (
 			await chooseFreeOrder(t.db, { accountId: one.id, orderId: free, mine: true, now: NOW })
 		).toBe(false);
 		expect(await ids(one.id)).toEqual({ list: [], unconfirmed: [] });
+	});
+
+	it('las de antes de la migración se ven como siempre y no se pueden elegir', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const old = await insertOrder({ email: EMAIL, method: 'gratis', createdAt: SINCE - 1 });
+		const fresh = await insertOrder({ email: EMAIL, method: 'gratis', createdAt: SINCE });
+		expect(await ids(account.id)).toEqual({ list: [old], unconfirmed: [fresh] });
+		expect(
+			await chooseFreeOrder(t.db, { accountId: account.id, orderId: old, mine: false, now: NOW })
+		).toBe(false);
+		expect(await ids(account.id)).toEqual({ list: [old], unconfirmed: [fresh] });
+	});
+
+	it('la migración 0061 pone el corte justo después de la orden más nueva que haya', async () => {
+		await t.db.prepare("DELETE FROM ticket_settings WHERE key = 'free_order_choices_since'").run();
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const before = await insertOrder({ email: EMAIL, method: 'gratis', createdAt: NOW - 5 });
+		await insertOrder({ email: 'otra.persona@example.com', createdAt: NOW });
+		const sql = readFileSync(
+			fileURLToPath(new URL('../../../../migrations/0061_free_order_choices.sql', import.meta.url)),
+			'utf8'
+		);
+		const insert = sql.slice(sql.indexOf('INSERT OR IGNORE INTO ticket_settings'));
+		await t.db.prepare(insert).run();
+		const row = await t.db
+			.prepare("SELECT value FROM ticket_settings WHERE key = 'free_order_choices_since'")
+			.first();
+		expect(row?.value).toBe(String(NOW + 1));
+		const after = await insertOrder({ email: EMAIL, method: 'gratis', createdAt: NOW + 1 });
+		expect(await ids(account.id)).toEqual({ list: [before], unconfirmed: [after] });
+	});
+
+	it('sin la fila de la migración no se pregunta por ninguna (todo se ve como antes)', async () => {
+		await t.db.prepare("DELETE FROM ticket_settings WHERE key = 'free_order_choices_since'").run();
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const free = await insertOrder({ email: EMAIL, method: 'gratis' });
+		expect(await ids(account.id)).toEqual({ list: [free], unconfirmed: [] });
+	});
+
+	it('las gratis que cargan les admins (puerta, carga a mano) se ven siempre', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const door = await insertOrder({
+			email: EMAIL,
+			method: 'gratis',
+			channel: 'puerta',
+			createdAt: NOW - 1
+		});
+		const manual = await insertOrder({ email: EMAIL, method: 'gratis', channel: 'manual' });
+		expect(await ids(account.id)).toEqual({ list: [manual, door], unconfirmed: [] });
+		expect(
+			await chooseFreeOrder(t.db, { accountId: account.id, orderId: manual, mine: false, now: NOW })
+		).toBe(false);
 	});
 
 	it('al borrar la cuenta se borra lo elegido; una cuenta nueva con ese mail vuelve a preguntar', async () => {

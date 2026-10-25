@@ -22,6 +22,11 @@ del bot y en su calendario personal), aunque nunca la hubiera pedido. La parte 1
 - Lo pedido con la sesión de la cuenta de ese mail cuenta como «Sí» desde la compra.
 - Las compras pagas (Mercado Pago, transferencia) se ven siempre, sin preguntar: alguien que paga
   con un mail ajeno no gana nada.
+- Las gratis que cargan les admins (la puerta, la carga a mano) se ven siempre: no las escribe el
+  público.
+- Las de antes de aplicar la migración 0061 se ven como siempre (no se le pregunta a nadie por lo
+  viejo). El momento lo escribe la propia migración en `ticket_settings`.
+- «Ya tenés entrada» de «Lo que sigo» sigue la misma regla.
 - Lo elegido se guarda aparte (`free_order_choices`, migración 0061), por cuenta y orden; al borrar
   la cuenta, se borra.
 

@@ -429,6 +429,14 @@ describe('entradas gratis y mails a direcciones sin confirmar', () => {
 	});
 
 	it('Mi rincón: la gratis pedida con la sesión de esa cuenta va a la lista; sin sesión, a «¿Son tuyas?»', async () => {
+		// Desde cuándo se pregunta (lo escribe la migración 0061): antes de estas órdenes.
+		await t.db
+			.prepare(
+				`INSERT INTO ticket_settings (key, value, updated_at, updated_by)
+				VALUES ('free_order_choices_since', ?1, 1, 'test')`
+			)
+			.bind(String(Date.now() - 1000))
+			.run();
 		const account = await upsertVerifiedAccount(t.db, 'con.cuenta@example.com', {
 			now: Date.now()
 		});

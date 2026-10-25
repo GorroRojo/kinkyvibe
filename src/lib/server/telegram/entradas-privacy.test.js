@@ -289,6 +289,14 @@ describe('accountTickets: entradas gratis pedidas sin la sesión de la cuenta (�
 	const holders = async (account) => (await accountTickets(t.db, account)).map((x) => x.holder);
 
 	it('no salen hasta «Sí, son mías»; con «No es mía», nunca; las pagas, siempre', async () => {
+		// Desde cuándo se pregunta (lo escribe la migración 0061): antes de estas órdenes.
+		await t.db
+			.prepare(
+				`INSERT INTO ticket_settings (key, value, updated_at, updated_by)
+					VALUES ('free_order_choices_since', ?1, 1, 'test')`
+			)
+			.bind(String(NOW - 1000))
+			.run();
 		const free = await order({
 			email: MAIL_B,
 			free: true,
