@@ -7,9 +7,10 @@
  * Vale: una dirección web (`https://`, `http://`), un mail (`mailto:` con una dirección), un
  * teléfono (`tel:`) o una página del sitio («/calendario/…», «#entradas»). Cualquier otro esquema
  * (`javascript:`, `data:`, `vbscript:`, `file:`…) se rechaza y la página no lo muestra.
+ *
+ * Sin `yaml` (la página pública lo bajaría entero): la validación del archivo completo para el
+ * guardado está en $lib/server/eventos/fileErrors.js.
  */
-import { parseDocument } from 'yaml';
-import { splitMarkdown } from './eventDraft.js';
 
 /** Esquemas aceptados en un link absoluto. */
 export const EVENT_LINK_PROTOCOLS = Object.freeze(['https:', 'http:', 'mailto:', 'tel:']);
@@ -84,26 +85,4 @@ export function isMailtoLink(raw) {
  */
 export function isWebLink(raw) {
 	return typeof raw === 'string' && /^https?:\/\//i.test(raw.trim());
-}
-
-/**
- * Problemas del link de un archivo de evento, para el guardado (vacío = todo bien). Un archivo
- * cuyas propiedades no se pueden leer lo valida el resto del guardado.
- *
- * @param {string} content el archivo completo
- * @returns {string[]}
- */
-export function linkFileErrors(content) {
-	/** @type {Record<string, any>} */
-	let meta;
-	try {
-		const doc = parseDocument(splitMarkdown(content).frontmatter);
-		if (doc.errors.length) return [];
-		meta = doc.toJS() ?? {};
-	} catch {
-		return [];
-	}
-	if (meta.link === undefined || meta.link === null || meta.link === '') return [];
-	const problem = eventLinkProblem(String(meta.link).trim());
-	return problem ? [`Link de inscripción: ${problem}.`] : [];
 }

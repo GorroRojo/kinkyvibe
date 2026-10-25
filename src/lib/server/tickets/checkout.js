@@ -69,6 +69,7 @@ import { eventSignupFields, readAnswers } from './signupFields.js';
 import { saveAfterPurchase } from '$lib/server/cuentas/savedBuyer.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
+import { unconfirmedMailAllowed } from '$lib/server/email/suppressions.js';
 
 /**
  * Cookie httpOnly con las últimas órdenes de este navegador (para ver sus entradas al volver).
@@ -95,7 +96,11 @@ export const CHECKOUT_RATE_LIMITS = {
 	email: { limit: 5, windowSeconds: 10 * 60 },
 	/** Códigos de descuento probados por cliente y evento (en `?/discount` y en `?/buy`). */
 	code: { limit: 20, windowSeconds: 10 * 60 },
-	/** Mails de reserva o de entradas gratis a una misma dirección. */
+	/**
+	 * Mails de reserva o de entradas gratis a una misma dirección. Si la dirección no es la de la
+	 * cuenta con sesión, además cuenta para el tope entre formularios (`UNCONFIRMED_MAIL_CAP`,
+	 * email/suppressions.js).
+	 */
 	mail: { limit: 3, windowSeconds: 60 * 60 }
 };
 
@@ -566,25 +571,36 @@ async function codeAttemptAllowed(db, slug, client) {
 }
 
 /**
- * ¿Se le puede mandar otro mail (reserva o entradas gratis) a esta dirección ahora?
+ * ¿Se le puede mandar otro mail (reserva o entradas gratis) a esta dirección ahora? Una dirección
+ * que no es la de la cuenta con sesión (`confirmed: false`: la escribió quien llenó el formulario)
+ * además cuenta para el tope entre formularios, y si la base falla no se manda (la orden queda
+ * igual y el mail se puede reenviar desde el panel).
  *
  * @param {import('@cloudflare/workers-types').D1Database} db
  * @param {string} email
+ * @param {boolean} confirmed
  */
-async function mailAllowed(db, email) {
+async function mailAllowed(db, email, confirmed) {
 	try {
 		const limit = await hitRateLimit(
 			db,
 			`tickets:mail:${await sha256Hex(email)}`,
 			CHECKOUT_RATE_LIMITS.mail
 		);
-		if (!limit.allowed) console.warn('[tickets] límite de mails a una dirección: no se manda');
-		return limit.allowed;
+		if (!limit.allowed) {
+			console.warn('[tickets] límite de mails a una dirección: no se manda');
+			return false;
+		}
 	} catch (error) {
 		logDBError('mail rate limit', error);
-		return true;
+		return confirmed;
 	}
+	return confirmed || (await unconfirmedMailAllowed(db, email));
 }
+
+/** Entradas gratis: una orden por mail y evento, salvo con la cuenta de ese mail. */
+export const FREE_ONCE_MESSAGE =
+	'Con este mail ya se pidieron entradas gratis para este evento. Si es tu mail, entrá a tu cuenta con ese mail para pedir más.';
 
 /**
  * "El precio cambió" (preventas): el tramo vigente no es el que vio la persona.
@@ -856,6 +872,14 @@ export async function buyAction(event) {
 		return failWith(503, 'El pago por transferencia no está disponible ahora.');
 	}
 
+	// ¿El mail es el de la cuenta con sesión? Si no, lo escribió quien llenó el formulario y nadie
+	// lo confirmó: entradas gratis, una orden por mail y evento, y los mails cuentan para el tope
+	// entre formularios (email/suppressions.js).
+	const member = event.locals?.member;
+	const confirmedEmail = Boolean(
+		member && member.email.trim().toLowerCase() === valid.buyer.email.trim().toLowerCase()
+	);
+
 	/** @type {Awaited<ReturnType<typeof reserveOrder>>} */
 	let reserved;
 	try {
@@ -894,6 +918,7 @@ export async function buyAction(event) {
 			clientHash: client,
 			answers: valid.answers,
 			waitlist,
+			freeOnce: method === 'gratis' && !confirmedEmail,
 			now
 		});
 	} catch (error) {
@@ -907,6 +932,7 @@ export async function buyAction(event) {
 		}
 		if (reserved.reason === 'method') return failWith(400, 'Elegí un medio de pago.');
 		if (reserved.reason === 'limit') return failWith(429, reserved.message);
+		if (reserved.reason === 'free') return failWith(409, FREE_ONCE_MESSAGE);
 		if (reserved.reason === 'offer') {
 			values.lista = '';
 			return failWith(409, WAITLIST_BUY_MESSAGES.offerGone);
@@ -953,7 +979,6 @@ export async function buyAction(event) {
 	// Embudo anónimo (docs/analiticas.md): solo el evento y el medio, nada de la orden.
 	trackFunnel(platform?.env, { slug: params.event, step: 'orden', method });
 	// Compra con cuenta: guarda o saca los datos según las casillas (nunca frena la compra).
-	const member = event.locals?.member;
 	if (member && values.accountForm) {
 		await saveAfterPurchase(db, member.id, valid.buyer, {
 			remember: values.remember,
@@ -978,7 +1003,11 @@ export async function buyAction(event) {
 					fetch
 				});
 			}
-			if (approved.newlyApproved && approved.order && (await mailAllowed(db, order.buyer_email))) {
+			if (
+				approved.newlyApproved &&
+				approved.order &&
+				(await mailAllowed(db, order.buyer_email, confirmedEmail))
+			) {
 				const approvedOrder = approved.order;
 				await inBackground(
 					sendOrderEmail({ db, order: approvedOrder, tickets: approved.tickets, origin, fetch }),
@@ -994,7 +1023,7 @@ export async function buyAction(event) {
 	}
 
 	if (method === 'transferencia') {
-		if (await mailAllowed(db, order.buyer_email))
+		if (await mailAllowed(db, order.buyer_email, confirmedEmail))
 			await inBackground(sendTransferEmail({ db, order, origin, fetch }), platform);
 		// «Cada transferencia» por Telegram a les admins que lo prendieron (decisión 0041).
 		await queueOrderNotice({ db, platform, kind: 'transferencia', order, origin, fetch });

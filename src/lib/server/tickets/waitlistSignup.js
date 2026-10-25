@@ -9,8 +9,11 @@
  * - La respuesta es la misma esté o no ese mail en la lista (nunca se revela quién está anotade).
  * - Límites, como en «Avisame si se repite» (series/subscriptions.js): por conexión, mails de
  *   confirmar a una misma dirección por día, el tope global de mails de Resend
- *   (`accountMailAllowed`) y anotaciones vivas por evento desde una misma conexión
- *   ({@link WAITLIST_SIGNUP_LIMITS}).
+ *   (`accountMailAllowed`), anotaciones vivas por evento desde una misma conexión
+ *   ({@link WAITLIST_SIGNUP_LIMITS}) y el tope de mails a una dirección sin confirmar entre todos
+ *   los formularios (`unconfirmedMailAllowed`, email/suppressions.js).
+ * - El mail de confirmar lleva el link «No fui yo» y no sale a una dirección que lo usó (la
+ *   anotación queda igual, sin confirmar).
  * - Se puede anotar solo en un alcance agotado ({@link waitlistJoinStates}): el evento entero
  *   (`alcance: evento`) o un tipo con cupo (`alcance: tipo`). La fila cuenta como vendido: por
  *   evento, contra el lugar libre total del evento (respuesta 2 de gorrite); por tipo, contra el
@@ -22,6 +25,7 @@ import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { emailHash, normalizeEmail } from '$lib/server/cuentas/accounts.js';
 import { accountMailAllowed } from '$lib/server/cuentas/mailCap.js';
+import { optOutUrl, unconfirmedMailAllowed } from '$lib/server/email/suppressions.js';
 import {
 	WAITLIST_SETTINGS,
 	effectiveWaitlistSettings,
@@ -282,6 +286,7 @@ export async function signUpForWaitlist({
 		))
 	)
 		return tooMany;
+	if (!(await unconfirmedMailAllowed(db, email, now))) return tooMany;
 	if (!(await accountMailAllowed(db, now)))
 		return { ok: false, status: 429, message: WAITLIST_MESSAGES.mailBusy };
 
@@ -297,7 +302,8 @@ export async function signUpForWaitlist({
 		now,
 		origin,
 		contactEmail,
-		template: await resolveTemplate(db, eventSlug, 'waitlist_confirm')
+		template: await resolveTemplate(db, eventSlug, 'waitlist_confirm'),
+		optOutUrl: await optOutUrl(db, origin, email)
 	});
 	const result = await send(email, message);
 	if (result === 'failed') return { ok: false, status: 502, message: WAITLIST_MESSAGES.mailFailed };

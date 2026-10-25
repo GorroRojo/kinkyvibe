@@ -27,7 +27,9 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   lugar en Mi rincón → Perfiles y completa su dirección. No aparece en el sitio (ni en `/amigues`,
   ni en su página, ni en los eventos) hasta que une admin lo aprueba en **Eventos → Lugares →
   "Para aprobar"** (lista con CSV; aprobar o rechazar, que lo borra). Los que crea une admin y los
-  importados nacen aprobados. Código: `src/lib/server/amigues/pendingVenues.js`.
+  importados nacen aprobados. Un lugar oculto no está en "Para aprobar" ni en "Rechazados" (ocultar
+  le saca la aprobación, pero aprobarlo ahí no lo volvería a mostrar). Código:
+  `src/lib/server/amigues/pendingVenues.js`.
 - **Lugares**: dirección, barrio, ciudad, ubicación (lat/lng), accesibilidad, cómo llegar, mapa de
   OpenStreetMap y sus eventos. **Privacidad de la dirección** por lugar con cambio por evento.
 - Panel: **Perfiles** (`/admin/comunidad/perfiles`) es la única lista de perfiles (decisión de gorrite del

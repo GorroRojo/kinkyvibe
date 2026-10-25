@@ -44,7 +44,9 @@
  * 1. **Próximamente**: el plan está aprobado y tiene fase. `soon: true, phase: N, soonText`. Se ve
  *    gris y punteada al final de su área, con "fase N"; su `href` queda reservado y abre la página
  *    genérica "Próximamente" (`src/routes/(authed)/admin/[...section=soon]`). Cada persona puede
- *    ocultarlas con "Ocultar lo que viene" (menú de usuario).
+ *    ocultarlas con "Ocultar lo que viene" (menú de usuario). Su `href` va también en
+ *    `SOON_HREFS` ($lib/admin/soonSections.js, la lista sin íconos del matcher; nav.test.js
+ *    controla que coincidan).
  * 2. **En prueba**: la página existe pero su interruptor está apagado. `soon: false, flag: 'x'`.
  *    Solo la ven les superadmins, con la etiqueta "prueba" (hoy todes les admins son superadmins,
  *    así que la ven todes). Si con el interruptor apagado la página da 404, `hiddenWhenOff: true`.

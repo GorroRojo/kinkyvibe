@@ -8,7 +8,7 @@
 import * as ics from 'ics';
 import { eventEnd, parseSiteDate } from './dates.js';
 import { escapeHtml } from './escape.js';
-import { eventPlace } from './eventPlace.js';
+import { MAP_LABEL, eventPlace } from './eventPlace.js';
 import { venueLine } from './venues.js';
 import { SITE_URL } from './site.js';
 
@@ -27,8 +27,8 @@ export function eventHtml(postPath, summary, mapUrl = '') {
 	return `<!DOCTYPE html><html><body><p><a href="${link}">${link}</a></p><p>${escapeHtml(summary)}</p>${map}</body></html>`;
 }
 
-/** Texto del link al mapa (página y .ics). */
-export const MAP_LABEL = 'Ver en el mapa';
+// El texto del link al mapa vive en eventPlace.js (la página lo usa sin bajar el paquete `ics`).
+export { MAP_LABEL };
 
 /**
  * La descripción en texto de un evento: el link, el resumen y, si es un lugar de una sola vez con
