@@ -16,6 +16,7 @@ import tagsFactory from '$lib/utils/tags.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { FLAG_CACHE_MS } from '$lib/server/flags.js';
 import { useSiteTags } from '$lib/utils/siteTags.js';
+import { splitTagList } from '$lib/utils/tagDetails.js';
 import { tagManager, wikiTagManager } from '$lib/utils/stores.js';
 import { recordsToRawTags } from './model.js';
 import { loadTagRecords } from './read.js';
@@ -102,6 +103,29 @@ export async function tagSourceFrom(db, { now = Date.now() } = {}) {
  */
 export function siteTagSource(platform) {
 	return tagSourceFrom(getDB(platform));
+}
+
+/**
+ * Lo que manda el layout raíz en cada página: el árbol liviano de la base (sin descripciones,
+ * relacionadas ni imágenes: $lib/utils/tagDetails.js), o `null` sin etiquetas en la base.
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export async function siteTagsForPages(platform) {
+	const source = await siteTagSource(platform);
+	return source.fromDb ? splitTagList(source.rawTags).slim : null;
+}
+
+/**
+ * Los detalles de las etiquetas (descripción, relacionadas, imagen) para las páginas que los
+ * muestran (`data.siteTagDetails`: el layout raíz los junta con el árbol), o `null` sin etiquetas
+ * en la base.
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export async function siteTagDetails(platform) {
+	const source = await siteTagSource(platform);
+	return source.fromDb ? splitTagList(source.rawTags).details : null;
 }
 
 /** @type {WeakMap<object, TagManager>} */

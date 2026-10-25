@@ -3,7 +3,8 @@ import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
 import { relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
-import { siteWikiEntry, wikiPost } from '$lib/server/wiki/site.js';
+import { siteWikiEntry, siteWikiPosts, wikiPost } from '$lib/server/wiki/site.js';
+import { siteTagDetails } from '$lib/server/etiquetas/source.js';
 import { renderContentBody } from '$lib/server/contenido/render.js';
 import { pageReadingMinutes, pageReadingWords } from '$lib/utils/readingTime.js';
 import { seriesTagInfo } from '$lib/server/series/web.js';
@@ -58,13 +59,25 @@ export async function load({ params, platform, locals }) {
 			readingWords: pageReadingWords(entry.body)
 		};
 	}
-	const [ticketStates, seriesInfo, follow] = await Promise.all([
+	const [ticketStates, seriesInfo, follow, wiki, details] = await Promise.all([
 		// «Comprar entradas» / «Agotadas» en las tarjetas.
 		ticketStatesFor(platform, related.relatedPosts),
 		seriesTagInfo(platform, locals, key, { tags, posts }).catch(logged('series')),
-		followButtonState({ platform, locals }, 'etiqueta', key, { tags }).catch(logged('sigo'))
+		followButtonState({ platform, locals }, 'etiqueta', key, { tags }).catch(logged('sigo')),
+		// El glosario de la página: las páginas de la wiki y las descripciones y relacionadas de las
+		// etiquetas (el layout raíz manda el árbol liviano: $lib/utils/tagDetails.js).
+		siteWikiPosts(platform),
+		siteTagDetails(platform)
 	]);
-	return { ...page, ...related, ticketStates, seriesInfo, follow };
+	return {
+		...page,
+		...related,
+		ticketStates,
+		seriesInfo,
+		follow,
+		wiki,
+		siteTagDetails: details
+	};
 }
 
 /**
