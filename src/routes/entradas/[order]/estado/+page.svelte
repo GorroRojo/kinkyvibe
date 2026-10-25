@@ -1,25 +1,40 @@
 <script>
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 	import { formatARS } from '$lib/utils/money.js';
 	import { fondoOptionLabel } from '$lib/utils/tickets.js';
 	import ExpiryTime from '$lib/components/ExpiryTime.svelte';
 	import { TRANSFER_HOLD_AFTER } from '$lib/utils/transferDeadline.js';
+	import { nextOrderPollDelay } from '$lib/utils/orderPolling.js';
 
 	let { data } = $props();
 
 	let order = $derived(data.order);
 	let waiting = $derived(order.status === 'pending');
 
-	// Mientras esperamos la confirmación, volvemos a consultar cada 5 segundos (hasta 2 minutos).
+	// Mientras esperamos la confirmación, volvemos a consultar cada vez más espaciado (5, 10, 20 y
+	// después 30 segundos; 8 veces, unos 3 minutos: `nextOrderPollDelay`). Solo se recarga la orden
+	// (`kv:orden`), no el layout del sitio.
 	$effect(() => {
 		if (!waiting) return;
-		let tries = 0;
-		const id = setInterval(() => {
-			tries++;
-			if (tries > 24) clearInterval(id);
-			else invalidateAll();
-		}, 5000);
-		return () => clearInterval(id);
+		let done = 0;
+		let stopped = false;
+		/** @type {ReturnType<typeof setTimeout> | undefined} */
+		let id;
+		const schedule = () => {
+			const delay = nextOrderPollDelay(done);
+			if (stopped || delay === null) return;
+			id = setTimeout(async () => {
+				done++;
+				// Si una consulta falla (sin conexión), sigue con la próxima.
+				await invalidate('kv:orden').catch(() => {});
+				schedule();
+			}, delay);
+		};
+		schedule();
+		return () => {
+			stopped = true;
+			clearTimeout(id);
+		};
 	});
 </script>
 
