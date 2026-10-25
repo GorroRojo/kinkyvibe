@@ -124,3 +124,24 @@ export function fakeZip(name, content, { compressed = false } = {}) {
 
 /** Un ODT inventado. */
 export const fakeOdt = () => fakeZip('mimetype', 'application/vnd.oasis.opendocument.text');
+
+/**
+ * Un WEBP inventado: solo la cabecera VP8X con el ancho y el alto (alcanza para reconocerlo y
+ * leer sus medidas) y relleno con `seed`, para que dos copias de la misma medida sean distintas.
+ * @param {number} width
+ * @param {number} height
+ * @param {number} [seed]
+ */
+export function fakeWebp(width, height, seed = 0) {
+	const out = new Uint8Array(64);
+	out.set(enc('RIFF'), 0);
+	new DataView(out.buffer).setUint32(4, out.length - 8, true);
+	out.set(enc('WEBPVP8X'), 8);
+	out[16] = 10;
+	const w = width - 1;
+	const h = height - 1;
+	out.set([w & 0xff, (w >> 8) & 0xff, (w >> 16) & 0xff], 24);
+	out.set([h & 0xff, (h >> 8) & 0xff, (h >> 16) & 0xff], 27);
+	out.fill(seed & 0xff, 30);
+	return out;
+}

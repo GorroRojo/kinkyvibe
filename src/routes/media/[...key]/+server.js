@@ -11,20 +11,29 @@
  *   ODT, ODS y ODP: `attachment` (se descargan).
  * - Pedidos de una parte (`Range`), para adelantar un video: 206 con `Content-Range`, 416 si el
  *   rango está fuera del archivo; `Accept-Ranges: bytes` en todas las respuestas.
+ * - Las copias chicas de las tarjetas (`img/<hash>-360.webp`, `-720.webp`; $lib/utils/mediaCopies.js):
+ *   la copia si está en R2 (en caché para siempre, como el original) y, si todavía no está (una
+ *   imagen de antes de la pasada de scripts/copias-chicas.js), una redirección al original que se
+ *   guarda solo {@link MISSING_COPY_CACHE}, así la copia se ve apenas exista.
  */
 import { error } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
-import { IMMUTABLE_CACHE, servableMedia } from '$lib/server/media/library.js';
+import { IMMUTABLE_CACHE, servableCopy, servableMedia } from '$lib/server/media/library.js';
 import { contentRange, disposition, parseRange } from '$lib/server/media/range.js';
 import { MEDIA_KEY } from '$lib/server/objects/types/imagen.js';
 import { FILE_KEY } from '$lib/server/objects/types/archivo.js';
+import { COPY_KEY } from '$lib/utils/mediaCopies.js';
 
 /** Una imagen (o un archivo que se descarga) nunca corre nada, aunque alguien lo abra solo. */
 const SANDBOX = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
 
+/** Cuánto se guarda la redirección de una copia que todavía no existe: una hora. */
+const MISSING_COPY_CACHE = 'public, max-age=3600';
+
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ params, platform, request }) {
 	const key = params.key;
+	if (COPY_KEY.test(key)) return serveCopy(key, platform, request);
 	const isImage = MEDIA_KEY.test(key);
 	if (!isImage && !FILE_KEY.test(key)) error(404, 'No existe.');
 	const db = getDB(platform);
@@ -64,6 +73,40 @@ export async function GET({ params, platform, request }) {
 		headers.set('Content-Range', contentRange(range, object.size));
 		headers.set('Content-Length', String(range.length));
 		return new Response(/** @type {any} */ (object.body), { status: 206, headers });
+	}
+	headers.set('Content-Length', String(object.size));
+	return new Response(/** @type {any} */ (object.body), { headers });
+}
+
+/**
+ * Una copia chica: la copia de R2, o una redirección al original si todavía no está.
+ * @param {string} key
+ * @param {App.Platform | undefined} platform
+ * @param {Request} request
+ */
+async function serveCopy(key, platform, request) {
+	const db = getDB(platform);
+	const bucket = platform?.env?.MEDIA;
+	if (!db || !bucket) error(404, 'No existe.');
+	const found = await servableCopy(db, key);
+	if (!found) error(404, 'No existe.');
+	const etag = `"${key.slice(key.indexOf('/') + 1, key.lastIndexOf('.'))}"`;
+	const headers = new Headers({
+		'Content-Type': 'image/webp',
+		'Cache-Control': IMMUTABLE_CACHE,
+		ETag: etag,
+		'X-Content-Type-Options': 'nosniff',
+		'Content-Security-Policy': SANDBOX
+	});
+	if (request.headers.get('if-none-match') === etag) {
+		return new Response(null, { status: 304, headers });
+	}
+	const object = await bucket.get(key);
+	if (!object) {
+		return new Response(null, {
+			status: 302,
+			headers: { Location: `/media/${found.original}`, 'Cache-Control': MISSING_COPY_CACHE }
+		});
 	}
 	headers.set('Content-Length', String(object.size));
 	return new Response(/** @type {any} */ (object.body), { headers });

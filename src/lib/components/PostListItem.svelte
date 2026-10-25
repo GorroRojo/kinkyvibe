@@ -21,6 +21,7 @@
 	import { filteredTags } from '$lib/utils/stores';
 	import { ticketCta } from '$lib/utils/ticketCta.js';
 	import { partLabel } from '$lib/utils/partes.js';
+	import { smallSrcset } from '$lib/utils/mediaCopies.js';
 </script>
 
 <script>
@@ -175,7 +176,14 @@
 			<span class="job-title">{job_title ?? ''}</span>
 		{/if}
 	</div>
-	{#if src}<img {src} alt="" loading="lazy" decoding="async" />{/if}
+	<!-- la copia chica de 360 px si la imagen es de la biblioteca (docs/imagenes.md) -->
+	{#if src}<img
+			{src}
+			srcset={smallSrcset(src) || undefined}
+			alt=""
+			loading="lazy"
+			decoding="async"
+		/>{/if}
 	<h3>
 		{title}
 		{#if parte}

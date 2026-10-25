@@ -21,6 +21,7 @@ import { FILE_KEY } from '../objects/types/archivo.js';
 import { fileKey, mediaKey, mediaPath, sha256Hex, sniffDocument, sniffImage } from './sniff.js';
 import { usageText } from '../../utils/imageChoice.js';
 import { MAX_FILE_BYTES, fileSizeProblem } from '../../utils/libraryFiles.js';
+import { MAX_COPY_BYTES, copyKey, copySize, parseCopyKey } from '../../utils/mediaCopies.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('@cloudflare/workers-types').R2Bucket} R2Bucket */
@@ -193,12 +194,17 @@ async function findBySlug(db, slug, type = IMAGE_TYPE) {
  * subido otra vez es la misma imagen (si estaba borrada, vuelve; si no tenía texto alternativo y
  * ahora lo trae, se le suma).
  *
+ * Las copias chicas para las tarjetas (`copies`, hechas en el navegador; $lib/utils/mediaCopies.js)
+ * se guardan solo si el original llegó a R2 recién ahora (la primera subida de ese archivo) y si
+ * son WEBP con las medidas que corresponden; una copia que no cumple se ignora sin frenar la subida
+ * (la tarjeta usa el original). Nunca se pisa nada que ya esté en R2.
+ *
  * @param {D1Database} db
  * @param {R2Bucket | undefined | null} bucket
  * @param {{ bytes: Uint8Array, name?: string, alt?: string, title?: string, width?: number,
- *   height?: number, sourcePath?: string }} file
+ *   height?: number, sourcePath?: string, copies?: { side: number, bytes: Uint8Array }[] }} file
  * @param {{ actor: string, now?: number }} ctx
- * @returns {Promise<{ image: PublicImage, created: boolean }>}
+ * @returns {Promise<{ image: PublicImage, created: boolean, copies: number[] }>}
  */
 export async function storeImage(db, bucket, file, { actor, now = Date.now() }) {
 	if (!bucket) throw new ImageError(503, 'Todavía no hay dónde guardar imágenes en este sitio.');
@@ -221,10 +227,15 @@ export async function storeImage(db, bucket, file, { actor, now = Date.now() }) 
 	const key = mediaKey(hash, sniffed.ext);
 	const alt = String(file.alt ?? '').trim();
 
+	const width = sniffed.width ?? positive(file.width);
+	const height = sniffed.height ?? positive(file.height);
+	/** @type {number[]} */
+	let copies = [];
 	if (!(await bucket.head(key))) {
 		await bucket.put(key, bytes, {
 			httpMetadata: { contentType: sniffed.mime, cacheControl: IMMUTABLE_CACHE }
 		});
+		copies = await storeCopies(bucket, key, { width, height }, file.copies ?? []);
 	}
 
 	const existing = await findBySlug(db, hash);
@@ -232,7 +243,7 @@ export async function storeImage(db, bucket, file, { actor, now = Date.now() }) 
 		const d = /** @type {Record<string, any>} */ (existing.data);
 		const addAlt = alt && !d.alt;
 		if (existing.deleted_at === null && !addAlt)
-			return { image: publicImage(existing), created: false };
+			return { image: publicImage(existing), created: false, copies };
 		const saved = await saveObject(
 			db,
 			{
@@ -244,11 +255,9 @@ export async function storeImage(db, bucket, file, { actor, now = Date.now() }) 
 			},
 			{ actor, now }
 		);
-		return { image: publicImage(saved), created: false };
+		return { image: publicImage(saved), created: false, copies };
 	}
 
-	const width = sniffed.width ?? positive(file.width);
-	const height = sniffed.height ?? positive(file.height);
 	const saved = await saveObject(
 		db,
 		{
@@ -268,7 +277,53 @@ export async function storeImage(db, bucket, file, { actor, now = Date.now() }) 
 		},
 		{ actor, now }
 	);
-	return { image: publicImage(saved), created: true };
+	return { image: publicImage(saved), created: true, copies };
+}
+
+/**
+ * ¿Es esta copia chica la que corresponde al original? Un WEBP de las medidas de
+ * `copySize(original, side)` (±1 px, por cómo redondea cada navegador) y de peso razonable.
+ * @param {Uint8Array} bytes
+ * @param {number} side
+ * @param {{ width?: number, height?: number }} original
+ */
+export function validCopy(bytes, side, original) {
+	if (!(bytes instanceof Uint8Array) || bytes.length === 0 || bytes.length > MAX_COPY_BYTES)
+		return false;
+	if (!original.width || !original.height) return false;
+	const sniffed = sniffImage(bytes);
+	if (sniffed?.mime !== 'image/webp' || !sniffed.width || !sniffed.height) return false;
+	const want = copySize(original.width, original.height, side);
+	return Math.abs(sniffed.width - want.width) <= 1 && Math.abs(sniffed.height - want.height) <= 1;
+}
+
+/**
+ * Guarda las copias chicas que llegaron con la subida de un original nuevo (las que valen y no
+ * están ya en R2). Devuelve los lados guardados.
+ * @param {R2Bucket} bucket
+ * @param {string} originalKey
+ * @param {{ width?: number, height?: number }} original
+ * @param {{ side: number, bytes: Uint8Array }[]} copies
+ * @returns {Promise<number[]>}
+ */
+async function storeCopies(bucket, originalKey, original, copies) {
+	/** @type {number[]} */
+	const stored = [];
+	for (const c of copies) {
+		const key = copyKey(originalKey, c.side);
+		if (!key || stored.includes(c.side) || !validCopy(c.bytes, c.side, original)) continue;
+		try {
+			if (await bucket.head(key)) continue;
+			await bucket.put(key, c.bytes, {
+				httpMetadata: { contentType: 'image/webp', cacheControl: IMMUTABLE_CACHE }
+			});
+			stored.push(c.side);
+		} catch (e) {
+			// Sin la copia, la tarjeta usa el original: la subida sigue.
+			console.log('imagenes: no se pudo guardar una copia chica', e);
+		}
+	}
+	return stored;
 }
 
 /** @param {unknown} n */
@@ -719,6 +774,22 @@ export async function servableImage(db, key) {
 	const o = await findBySlug(db, slug);
 	if (!o || o.data.key !== key || !canSee(o, ANON)) return null;
 	return publicImage(o);
+}
+
+/**
+ * Para servir la copia chica `img/<hash>-<lado>.webp` (docs/imagenes.md): la clave del original si
+ * su imagen la puede ver cualquiera (no borrada) y puede tener copias (no es un GIF); `null` si no.
+ * @param {D1Database} db
+ * @param {string} key
+ * @returns {Promise<{ original: string } | null>}
+ */
+export async function servableCopy(db, key) {
+	const copy = parseCopyKey(key);
+	if (!copy) return null;
+	const o = await findBySlug(db, copy.hash);
+	if (!o || !canSee(o, ANON)) return null;
+	const original = String(o.data.key ?? '');
+	return copyKey(original, copy.side) === key ? { original } : null;
 }
 
 /**
