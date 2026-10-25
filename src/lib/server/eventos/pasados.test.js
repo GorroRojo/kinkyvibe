@@ -3,7 +3,14 @@
  * mes (en hora de Argentina), con solo los campos de la grilla (nunca el lugar). Datos inventados.
  */
 import { describe, expect, it } from 'vitest';
-import { PAST_EVENT_FIELDS, isPastIn, pastEventsOf, slimPastMeta } from './pasados.js';
+import {
+	PAST_EVENT_FIELDS,
+	firstEventMonth,
+	fullPastEventsOf,
+	isPastIn,
+	pastEventsOf,
+	slimPastMeta
+} from './pasados.js';
 
 const NOW = Date.parse('2026-10-12T15:00:00-03:00');
 
@@ -71,5 +78,28 @@ describe('slimPastMeta', () => {
 		expect(
 			slimPastMeta(/** @type {any} */ ({ title: 'T', location: 'X', parte: { n: 1, m: 2 } }))
 		).toEqual({ title: 'T', parte: { n: 1, m: 2 } });
+	});
+});
+
+describe('fullPastEventsOf', () => {
+	it('los mismos que pastEventsOf, enteros (para la lista)', () => {
+		expect(fullPastEventsOf(posts, '2026-10', NOW)).toEqual([posts[1]]);
+		expect(fullPastEventsOf(posts, '2026-09', NOW)).toEqual([posts[3]]);
+		expect(fullPastEventsOf(posts, '2026-11', NOW)).toEqual([]);
+	});
+});
+
+describe('firstEventMonth', () => {
+	it('el mes del evento más viejo, en hora de Argentina', () => {
+		expect(firstEventMonth(posts)).toBe('2025-03');
+		// el 31/12 a las 22 en Argentina ya es 2025 en UTC: es diciembre de 2024
+		expect(firstEventMonth([...posts, event('fin-de-2024', '2024-12-31T22:00-03:00')])).toBe(
+			'2024-12'
+		);
+	});
+
+	it('sin eventos con fecha: null', () => {
+		expect(firstEventMonth([])).toBeNull();
+		expect(firstEventMonth([event('rara', 'no-es-fecha')])).toBeNull();
 	});
 });

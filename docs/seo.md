@@ -146,8 +146,13 @@ comprimido con gzip (lo que viaja es parecido: Cloudflare manda brotli, `/calend
 - **`/calendario`, los pasados de a un mes.** Viajan los próximos enteros y, de los pasados, solo
   los del mes que se abre (con los campos de la grilla, sin el lugar). Al ir a otro mes, la página
   pide sus pasados a `/api/calendario/pasados?mes=yyyy-MM` (5 minutos de caché, como
-  `/api/posts`) y aparecen en la grilla al llegar. «Mostrar eventos pasados» sigue igual (trae
-  `/api/posts` entero). Código: `src/lib/server/eventos/pasados.js`.
+  `/api/posts`) y aparecen en la grilla al llegar. «Mostrar eventos pasados» también va de a un
+  mes: trae enteros solo los pasados del mes que se ve (`/api/calendario/pasados?mes=yyyy-MM&enteros=1`,
+  con el lugar vinculado como `/api/posts`) y, al cambiar de mes, los de ese mes; antes bajaba
+  `/api/posts` entero. Abajo de la lista, «Mostrar el mes anterior» sigue con el mes de antes (la
+  dirección de siempre, `?viewdate=yyyy-MM`, como las flechas) hasta el del evento más viejo
+  (`firstMonth` de la carga). Solo aparece con los pasados a la vista, así que el HTML del servidor
+  (lo que leen los buscadores) no cambia. Código: `src/lib/server/eventos/pasados.js`.
 
 - **`/todo`, `/material` y `/amigues`, de a 24 tarjetas.** Mostraban todas juntas (85, 55 y 30
   en la base local, con unas 620, 435 y 220 etiquetas) y la página tardaba en responder al

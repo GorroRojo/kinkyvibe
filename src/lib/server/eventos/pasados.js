@@ -5,7 +5,8 @@
  *
  * De un pasado va solo lo que usan la grilla del mes y el botón «Mostrar eventos pasados»
  * (nunca el lugar: así no hay que repetir las reglas de privacidad); la lista los muestra enteros
- * recién cuando alguien pide verlos (/api/posts).
+ * recién cuando alguien pide verlos, también de a un mes (/api/calendario/pasados?enteros=1, con
+ * el lugar como en /api/posts). Antes «Mostrar eventos pasados» bajaba /api/posts entero.
  */
 import { argDate } from '$lib/utils/dates.js';
 import { isCurrent } from '$lib/utils/allPosts';
@@ -64,6 +65,35 @@ export function pastEventsOf(posts, month, now = Date.now()) {
 	return posts
 		.filter((p) => isPastIn(p, month, now))
 		.map((p) => /** @type {ProcessedPost} */ ({ ...p, meta: slimPastMeta(p.meta) }));
+}
+
+/**
+ * Los eventos de `month` que ya empezaron, enteros (para la lista con «Mostrar eventos pasados»),
+ * en el orden de `posts`. El lugar vinculado lo pone quien llama (`withVenuePlaces`).
+ * @param {ProcessedPost[]} posts los del calendario
+ * @param {string} month yyyy-MM
+ * @param {number} [now]
+ * @returns {ProcessedPost[]}
+ */
+export function fullPastEventsOf(posts, month, now = Date.now()) {
+	return posts.filter((p) => isPastIn(p, month, now));
+}
+
+/**
+ * El mes (yyyy-MM, hora de Argentina) del evento más viejo, o `null` si no hay ninguno con fecha:
+ * hasta ahí ofrece la lista «Mostrar el mes anterior».
+ * @param {ProcessedPost[]} posts los del calendario
+ * @returns {string | null}
+ */
+export function firstEventMonth(posts) {
+	let first = null;
+	for (const p of posts) {
+		const start = new Date(p.meta.start);
+		if (isNaN(start.getTime())) continue;
+		const month = argDate(start).slice(0, 7);
+		if (first === null || month < first) first = month;
+	}
+	return first;
 }
 
 /**
