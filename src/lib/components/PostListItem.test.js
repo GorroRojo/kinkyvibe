@@ -71,8 +71,8 @@ describe('PostListItem: venta de entradas', () => {
 		});
 		expect(cta(html)).toBeNull();
 		expect(html).not.toContain('Comprar entradas');
-		// El botón de calendario sigue igual (evento con link y abierto).
-		expect(html).toContain('<add-to-calendar-button');
+		// El botón de calendario sigue (evento con link y abierto).
+		expect(html).toMatch(/<button[^>]*class="add-cal[\s"]/);
 	});
 
 	it('evento terminado: ni botón ni aviso', () => {
@@ -101,5 +101,41 @@ describe('PostListItem: etiquetas', () => {
 		expect(chips).toEqual(['etiqueta inventada', 'otra inventada']);
 		expect(html).not.toMatch(/class="tag\b/);
 		expect(html).not.toMatch(/<a [^>]*rel="tag"/);
+	});
+});
+
+/*
+ * «Añadir al calendario»: un <button> común del servidor (la librería del menú se baja recién al
+ * tocarlo, ver PostListItem.dom.test.js). Solo en eventos abiertos que vienen, con link.
+ */
+describe('PostListItem: «Añadir al calendario»', () => {
+	const abierto = () => post({ tickets: undefined, link: 'https://example.com/inscripcion' });
+	/** El <button> del calendario, entero, o undefined. @param {string} html */
+	const calButton = (html) => html.match(/<button[^>]*class="add-cal[\s"][^>]*>/)?.[0];
+
+	it('un botón con su nombre accesible, sin el elemento de la librería', () => {
+		const html = body({ post: abierto() });
+		const button = calButton(html);
+		expect(button).toBeDefined();
+		expect(button).toContain('type="button"');
+		expect(button).toContain('aria-label="Añadir al calendario"');
+		expect(html).not.toContain('<add-to-calendar-button');
+	});
+
+	it('cancelado, agotado o terminado: no va', () => {
+		for (const extra of [
+			{ status: 'cancelado' },
+			{ status: 'agotadas' },
+			{ start: '2001-01-01T20:00-03:00', end: '2001-01-01T22:00-03:00' }
+		]) {
+			const html = body({
+				post: post({ tickets: undefined, link: 'https://example.com/inscripcion', ...extra })
+			});
+			expect(calButton(html)).toBeUndefined();
+		}
+	});
+
+	it('sin link de inscripción: no va (como antes)', () => {
+		expect(calButton(body({ post: post({ tickets: undefined }) }))).toBeUndefined();
 	});
 });

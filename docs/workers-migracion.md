@@ -230,6 +230,37 @@ la región explícita.
   (`curl -w "%{time_starttransfer}"`, mediana de 5).
 - **Volver atrás:** borrar la sección `[placement]` de `wrangler.toml`.
 
+## Caché de 1 minuto para quien no tiene sesión
+
+Decisión [0049](decisiones/0049-cache-de-1-minuto-sin-sesion.md). `worker/index.js` envuelve al
+Worker de SvelteKit con `withEdgeCache` (`src/lib/server/edgeCache.js`): las páginas públicas que
+pide alguien **sin ninguna cookie del sitio** se guardan 1 minuto en la caché de Cloudflare
+(`caches.default`, por centro de datos). Quien tiene sesión (cuenta o admin), o cualquier cookie
+que no sea de Cloudflare, siempre recibe la página recién hecha. Las reglas exactas (rutas, query
+string, respuestas) están en la decisión y en el archivo.
+
+No va en los hooks con `s-maxage`: el adapter busca en su caché por URL antes de los hooks y le
+serviría la página anónima a quien tiene sesión. La clave es propia (`/__kv-edge-cache/<versión del
+build><ruta>?<query>`), así que cada deploy empieza de cero. El navegador recibe el mismo
+`cache-control` que sin caché (no guarda la página por su cuenta). Los Previews (`workers.dev`) y
+local nunca la usan.
+
+- **Verificar:** el header `x-kv-cache` dice `HIT`, `MISS` o `BYPASS`. Hay que pedir HTML con GET
+  (`curl -I` hace HEAD y da `BYPASS`):
+
+  ```sh
+  # dos veces seguidas: la primera MISS (o HIT), la segunda HIT
+  curl -s -o /dev/null -D - -H 'accept: text/html' https://kinkyvibe.ar/calendario | grep -i x-kv-cache
+  # con una cookie de sesión (cualquier valor): siempre BYPASS
+  curl -s -o /dev/null -D - -H 'accept: text/html' -H 'cookie: kvRincon=x' https://kinkyvibe.ar/calendario | grep -i x-kv-cache
+  ```
+
+- **Apagar sin deploy:** en el panel, Worker kinkyvibe → Settings → Variables and Secrets, sumar
+  la variable de texto `KV_EDGE_CACHE` = `off` (todo pasa a `BYPASS`). Lo ya guardado vence solo
+  en 1 minuto. Para volver a prenderla, borrar la variable.
+- **Sacarla del todo:** en `worker/index.js`, llamar a `app.fetch` directo en vez de
+  `withEdgeCache`.
+
 ## Volver atrás (rollback)
 
 Si algo sale mal después del paso 8:
