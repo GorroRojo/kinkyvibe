@@ -193,10 +193,16 @@
 	<aside class="lateral" aria-label="Afiche, cuándo y dónde">
 		<div class="lateral-fijo" bind:this={fixed} style:--top={top || undefined}>
 			{#if data.meta.featured}
+				<!-- El afiche es lo más grande de la página (su LCP): se pide primero, y con las medidas
+				     de la portada de la biblioteca (si las tiene) el navegador le guarda el lugar antes
+				     de que llegue el CSS. El tamaño en pantalla lo sigue mandando `.afiche`. -->
 				<img
 					class="afiche u-photo"
 					src={data.meta.featured + ''}
 					alt="Afiche de {data.meta.title}"
+					width={data.cover?.width || undefined}
+					height={data.cover?.height || undefined}
+					fetchpriority="high"
 				/>
 			{/if}
 			<CuandoDonde meta={data.meta} venue={data.venue} mapa={!cancelled} entradas={showTickets} />

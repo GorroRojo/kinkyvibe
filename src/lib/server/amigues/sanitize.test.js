@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { rehype } from 'rehype';
-import { isOwnImageSrc, rehypeProfileHtml } from './sanitize.js';
+import { isOwnImageSrc, rehypeProfileHtml, rehypeProfilePageHtml } from './sanitize.js';
 
 const processor = rehype().data('settings', { fragment: true }).use(rehypeProfileHtml).freeze();
 
@@ -39,6 +39,39 @@ describe('lista corta: imágenes', () => {
 		const html = await clean(`<img src="/media/img/${SHA}.webp" alt="">`);
 		expect(html).toContain(`src="/media/img/${SHA}.webp"`);
 		expect(html).toContain('loading="lazy"');
+	});
+
+	it('en el texto de un perfil, la primera imagen se pide primero y las demás cargan de a poco', async () => {
+		const profilePage = rehype()
+			.data('settings', { fragment: true })
+			.use(rehypeProfilePageHtml)
+			.freeze();
+		const html = String(
+			await profilePage.process(
+				`<p><img src="https://other.example/x.png" alt="ajena"></p>` +
+					`<p><img src="/media/img/${SHA}.webp" alt="una"></p>` +
+					`<p><img src="/media/img/${'b'.repeat(64)}.webp" alt="dos"></p>`
+			)
+		);
+		const imgs = html.match(/<img[^>]*>/g) ?? [];
+		expect(imgs).toHaveLength(3);
+		// la de otro sitio pierde su src y no cuenta como «la primera»
+		expect(imgs[0]).not.toContain('src=');
+		expect(imgs[0]).toContain('loading="lazy"');
+		expect(imgs[1]).toContain('alt="una"');
+		expect(imgs[1]).toContain('fetchpriority="high"');
+		expect(imgs[1]).not.toContain('loading=');
+		expect(imgs[2]).toContain('alt="dos"');
+		expect(imgs[2]).toContain('loading="lazy"');
+		expect(imgs[2]).not.toContain('fetchpriority');
+	});
+
+	it('fuera de un perfil (eventos, material, wiki) todas cargan de a poco', async () => {
+		const html = await clean(
+			`<img src="/media/img/${SHA}.webp" alt="una"><img src="/media/img/${SHA}.webp" alt="dos">`
+		);
+		expect(html.match(/loading="lazy"/g)).toHaveLength(2);
+		expect(html).not.toContain('fetchpriority');
 	});
 
 	it('la misma imagen en el sitio público (fuera de producción) queda', async () => {
