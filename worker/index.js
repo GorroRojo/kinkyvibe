@@ -17,7 +17,7 @@
  * ruta de SvelteKit en `platform.env.OG_RENDER`, solo en esos pedidos.
  *
  * Las páginas públicas para quien no tiene sesión se guardan 1 minuto en la caché de Cloudflare
- * (decisión 0048, src/lib/server/edgeCache.js). Va acá y no en los hooks: el adapter busca en su
+ * (decisión 0049, src/lib/server/edgeCache.js). Va acá y no en los hooks: el adapter busca en su
  * propia caché por URL antes de los hooks, y le serviría la página anónima a quien tiene sesión.
  * La clave lleva la versión del build de SvelteKit, así que cada deploy empieza de cero. Se apaga
  * sin deploy con la variable `KV_EDGE_CACHE = "off"` en el panel.

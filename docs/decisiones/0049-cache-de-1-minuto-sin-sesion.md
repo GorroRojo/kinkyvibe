@@ -1,4 +1,4 @@
-# 0048. Caché de 1 minuto para quien no tiene sesión
+# 0049. Caché de 1 minuto para quien no tiene sesión
 
 - Fecha: 2026-10-25
 - Estado: Aceptada (gorrite, 25/10, en el chat).

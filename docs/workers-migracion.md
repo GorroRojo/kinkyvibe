@@ -232,7 +232,7 @@ la región explícita.
 
 ## Caché de 1 minuto para quien no tiene sesión
 
-Decisión [0048](decisiones/0048-cache-de-1-minuto-sin-sesion.md). `worker/index.js` envuelve al
+Decisión [0049](decisiones/0049-cache-de-1-minuto-sin-sesion.md). `worker/index.js` envuelve al
 Worker de SvelteKit con `withEdgeCache` (`src/lib/server/edgeCache.js`): las páginas públicas que
 pide alguien **sin ninguna cookie del sitio** se guardan 1 minuto en la caché de Cloudflare
 (`caches.default`, por centro de datos). Quien tiene sesión (cuenta o admin), o cualquier cookie

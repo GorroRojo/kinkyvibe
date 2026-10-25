@@ -1,5 +1,5 @@
 /**
- * Caché de 1 minuto de las páginas públicas para quien no tiene sesión (decisión 0048,
+ * Caché de 1 minuto de las páginas públicas para quien no tiene sesión (decisión 0049,
  * docs/workers-migracion.md «Caché de 1 minuto para quien no tiene sesión»).
  *
  * La usa worker/index.js alrededor del Worker de SvelteKit. No va en los hooks a propósito: el

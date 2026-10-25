@@ -65,7 +65,7 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 ### Infraestructura
 
 - [0009](0009-infraestructura.md): Infraestructura, backups, pagos y documentación (30/9)
-- [0048](0048-cache-de-1-minuto-sin-sesion.md): Caché de 1 minuto para quien no tiene sesión;
+- [0049](0049-cache-de-1-minuto-sin-sesion.md): Caché de 1 minuto para quien no tiene sesión;
   quien tiene sesión siempre ve la página recién hecha (25/10)
 
 ### Cuentas, perfiles y permisos
