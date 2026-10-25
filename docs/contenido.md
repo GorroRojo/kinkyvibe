@@ -20,9 +20,9 @@ queda marcado con el tag de git `posts-md-final`. Ningún guardado del panel pas
 - **Las imágenes viejas siguen viéndose**: lo que en la base todavía nombra una imagen de una
   carpeta `media/` o de `src/lib/assets` se resuelve con su copia en la biblioteca
   (`src/lib/utils/legacyMedia.js`, [imagenes.md](imagenes.md)).
-- **Los PDF, el video y el documento del material** (`src/lib/archivos/`) todavía no están en la
-  biblioteca: se sirven desde el build con su dirección de siempre. No se borran hasta subirlos
-  (`scripts/subir-archivos.js`).
+- **Los PDF, el video y el documento del material** están en la biblioteca (objetos `archivo`,
+  `/media/file/…`) y sus textos ya los enlazan así; el repo no guarda copia
+  ([imagenes.md](imagenes.md#los-pdf-y-el-video-del-material)).
 - **Guardar no pisa lo de otra persona.** El panel manda el sha del texto que abrió (el del texto
   que arma la base); si cambió en el medio, avisa (`FileChangedError`) en vez de pisar. Los
   borradores locales del editor también se marcan como viejos si el texto cambió
@@ -57,7 +57,7 @@ queda marcado con el tag de git `posts-md-final`. Ningún guardado del panel pas
 | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Publicaciones                                                          | En la base (objetos `evento`, `material`, `perfil`, `etiqueta`; [objetos.md](objetos.md))                                                       |
 | Imágenes                                                               | La biblioteca (R2, [imagenes.md](imagenes.md)); las viejas, por `src/lib/utils/legacyMedia.js`                                                  |
-| PDF, video y documento viejos del material                             | `src/lib/archivos/material/<carpeta>/` (hasta subirlos a la biblioteca)                                                                         |
+| PDF, video y documento viejos del material                             | La biblioteca (objetos `archivo`, `/media/file/…`)                                                                                              |
 | Plantillas de evento, material y perfil                                | `src/lib/admin/plantillas/` (`evento.md`, `material.md`, `perfil.md`)                                                                           |
 | Árbol de etiquetas                                                     | En la base (Panel → Etiquetas, [etiquetas.md](etiquetas.md))                                                                                    |
 | Semilla de las bases locales (dev, E2E)                                | `src/lib/server/semilla/` (`npm run db:semilla`)                                                                                                |
@@ -235,9 +235,10 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   - lista corta: `amigues/sanitize.js`, como los perfiles (imágenes solo de la biblioteca propia,
     `/media/…`; ver [amigues.md](amigues.md)). Es también lo que se usa sin valor guardado: el
     HTML libre tiene que estar escrito (`body_html: 'libre'`; en la wiki, `wiki_body_html`).
-- **Imágenes y archivos que un texto importa** (`import foto from './media/<carpeta>/1.webp'`):
-  las imágenes, su copia en la biblioteca (`legacyMedia.js`); los PDF, el video y el documento, el
-  archivo de `src/lib/archivos/` (`contentMediaURL` en `render.js`).
+- **Imágenes que un texto importa** (`import foto from './media/<carpeta>/1.webp'`): su copia en
+  la biblioteca (`legacyMedia.js`, `contentMediaURL` en `render.js`). Los PDF, el video y el
+  documento viejos ya no se importan: los textos los enlazan por su dirección de la biblioteca
+  (`/media/file/…`).
 - **Interactivos** (decisión 0004: «se hacen en código, como componente registrado»): en la base,
   el texto nombra un interactivo con una etiqueta propia, sola, sin atributos:
   `<kv-donde-golpear-un-cuerpo></kv-donde-golpear-un-cuerpo>`. El registro está en
@@ -349,8 +350,5 @@ Propuestas por Claude; **confirmado por gorrite (5/10)**: las seis, tal como est
 
 ## Lo que falta
 
-- Subir a la biblioteca los PDF, el video y el documento de `src/lib/archivos/` y reescribir los
-  textos que los importan (`scripts/subir-archivos.js`, lo corre gorrite; después se borra la
-  carpeta).
 - Que el panel guarde objetos directamente en vez de hablar en «rutas de `.md`» (el refactor
   profundo del plan de limpieza: `getRepoClient`, `withContentDb`, `commitFiles`).

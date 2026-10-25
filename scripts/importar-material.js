@@ -98,7 +98,7 @@ async function confirmProduction() {
 
 /**
  * Las bindings DB y MEDIA de local (miniflare, .wrangler/state) o de preview o producción
- * (remotas), como scripts/subir-archivos.js.
+ * (remotas).
  * @param {ReturnType<typeof parseArgs>} opts
  * @returns {Promise<{ db: any, bucket: any, dispose: () => Promise<void> }>}
  */
