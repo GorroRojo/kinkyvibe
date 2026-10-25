@@ -272,8 +272,9 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   (cuántos hay, su último `updated_at`, el último guardado de `object_revisions`) y, las listas
   públicas, mientras no cambie el árbol de etiquetas. Esa «marca» de «¿cambió algo?» se consulta
   **una sola vez por pedido de lectura** (`GET`/`HEAD`): la lista, los no listados, los pronombres
-  y el índice de la búsqueda de un mismo pedido comparten la respuesta
-  (`src/lib/server/db/perRequest.js`). En un `POST` solo se comparte la consulta en camino, así un
+  y el índice de la búsqueda de un mismo pedido comparten la respuesta, también entre el layout y
+  la página (`src/lib/server/db/perRequest.js`; la clave es el `Request` del pedido, porque cada
+  `load` recibe su propia copia del evento). En un `POST` solo se comparte la consulta en camino, así un
   guardado del pedido se ve al toque; fuera de un pedido (scripts, crons, pruebas), una por
   llamada. **Entre pedidos se comparte solo lo ya leído, nunca una consulta en camino**
   (`readAndKeep` en `perRequest.js`; lo usan las listas, el panel, los interruptores, las tarjetas
