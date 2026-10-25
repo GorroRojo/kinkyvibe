@@ -479,8 +479,17 @@ export const postTime = (p) =>
  * @param {ProcessedPost} b
  */
 export function comparePosts(a, b) {
-	const ta = postTime(a);
-	const tb = postTime(b);
+	return compareByTime(a, b, postTime(a), postTime(b));
+}
+
+/**
+ * {@link comparePosts} con las fechas ya leídas.
+ * @param {ProcessedPost} a
+ * @param {ProcessedPost} b
+ * @param {number} ta
+ * @param {number} tb
+ */
+function compareByTime(a, b, ta, tb) {
 	if (ta !== tb && !(Number.isNaN(ta) && Number.isNaN(tb))) {
 		if (Number.isNaN(ta)) return 1;
 		if (Number.isNaN(tb)) return -1;
@@ -500,7 +509,29 @@ export function comparePosts(a, b) {
  * @param {ProcessedPost[]} fromDb
  */
 export function mergePosts(profiles, fromDb) {
-	return [...profiles.filter((p) => !isDbCategory(p)), ...fromDb].sort(comparePosts);
+	const all = [...profiles.filter((p) => !isDbCategory(p)), ...fromDb];
+	// La fecha de cada post se lee una vez (y no en cada comparación del orden: con ~600 posts eran
+	// miles de `parseSiteDate`). Mismo orden que `comparePosts`.
+	const times = new Map(all.map((p) => [p, postTime(p)]));
+	return all.sort((a, b) => compareByTime(a, b, times.get(a) ?? NaN, times.get(b) ?? NaN));
+}
+
+/**
+ * Las listas ya ordenadas de cada estado (`listed` y `unlisted`): mientras la base no cambie, el
+ * mismo estado sirve muchos pedidos del isolate y el orden no cambia.
+ * @type {WeakMap<DbState, { listed?: ProcessedPost[], unlisted?: ProcessedPost[] }>}
+ */
+const mergedOf = new WeakMap();
+
+/**
+ * @param {DbState} state
+ * @param {boolean} unlisted
+ */
+function mergedFor(state, unlisted) {
+	let merged = mergedOf.get(state);
+	if (!merged) mergedOf.set(state, (merged = {}));
+	if (unlisted) return (merged.unlisted ??= mergePosts(state.profiles.unlisted, state.unlisted));
+	return (merged.listed ??= mergePosts(state.profiles.listed, state.listed));
 }
 
 /**
@@ -518,9 +549,9 @@ export async function sitePosts(platform, wiki = false, unlisted = false) {
 	const db = contentDb(platform);
 	if (!db) return [];
 	const state = await dbState(db);
-	const posts = unlisted
-		? mergePosts(state.profiles.unlisted, state.unlisted)
-		: mergePosts(state.profiles.listed, state.listed);
+	// Una copia de la lista ordenada del estado: quien la recibe puede cambiarla sin tocar la de
+	// los próximos pedidos.
+	const posts = mergedFor(state, unlisted).slice();
 	stateOfList.set(posts, state);
 	return posts;
 }
