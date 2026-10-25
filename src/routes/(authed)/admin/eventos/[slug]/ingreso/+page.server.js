@@ -157,18 +157,24 @@ async function checkinAction(event) {
 			}
 		};
 	}
-	const found = r.ticket ? await ticketWithBuyer(db, { id: r.ticket.id }) : null;
-	const full =
-		found && part
-			? (
-					await overlayPartCheckins(db, part.slug, [found], {
-						id: 'id',
-						at: 'checked_in_at',
-						by: 'checked_in_by'
-					})
-				)[0]
-			: found;
-	const prior = await cachedPrior(db, slug, event.platform);
+	// La entrada con quien compró, la primera vez en la serie y los contadores, juntos.
+	const [full, prior, counts] = await Promise.all([
+		r.ticket
+			? ticketWithBuyer(db, { id: r.ticket.id }).then(async (found) =>
+					found && part
+						? (
+								await overlayPartCheckins(db, part.slug, [found], {
+									id: 'id',
+									at: 'checked_in_at',
+									by: 'checked_in_by'
+								})
+							)[0]
+						: found
+				)
+			: null,
+		cachedPrior(db, slug, event.platform),
+		countsFor(db, { ticketSlug, part })
+	]);
 	return {
 		checkin: {
 			result: r.result,
@@ -176,7 +182,7 @@ async function checkinAction(event) {
 			card: full ? ticketCard(full, { typeNames, prior }) : null,
 			otherEvent: null
 		},
-		counts: await countsFor(db, { ticketSlug, part })
+		counts
 	};
 }
 

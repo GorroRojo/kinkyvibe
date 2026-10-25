@@ -40,7 +40,9 @@ export default [
 				...globals.es2021,
 				...globals.node,
 				// Constantes que define vite.config.js al compilar.
-				__DEPLOY_BRANCH__: 'readonly'
+				__DEPLOY_BRANCH__: 'readonly',
+				__LATEST_MIGRATION__: 'readonly',
+				__BUILD_SHA__: 'readonly'
 			}
 		},
 		rules: {

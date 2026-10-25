@@ -3,6 +3,10 @@
 declare global {
 	/** Rama del deploy (Workers Builds o Pages; '' en local). Ver src/lib/server/deploy.js. */
 	const __DEPLOY_BRANCH__: string;
+	/** La última migración de migrations/ al compilar (vite.config.js, src/lib/server/buildInfo.js). */
+	const __LATEST_MIGRATION__: string;
+	/** El commit del build (Workers Builds; '' en local). Ver src/lib/server/buildInfo.js. */
+	const __BUILD_SHA__: string;
 	namespace App {
 		interface Locals {
 			/** Verified against GitHub in hooks.server.js; never read from client cookies. */
@@ -23,7 +27,12 @@ declare global {
 			 */
 			member?: { id: string; email: string };
 		}
-		// interface Error {}
+		/** Lo que llega a la página de error (src/lib/server/errorLog.js). */
+		interface Error {
+			message: string;
+			/** Código corto del error en los registros (no en los 404). */
+			id?: string;
+		}
 		// interface Locals {}
 		// interface PageData {}
 		interface Platform {

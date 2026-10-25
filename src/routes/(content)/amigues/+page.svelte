@@ -13,15 +13,15 @@
 	let pinned = ['DemonWeb', 'TallarinesConTuco', 'Gorro_Rojo', 'KinkyVibe', 'AUCH'];
 	let amiguesPosts = data.posts
 		.filter((p) => p.meta.layout == 'amigues')
-		.sort((a, b) => {
-			if (pinned.includes(a.meta.postID)) {
-				if (pinned.includes(b.meta.postID)) {
-					return pinned.indexOf(a.meta.postID) - pinned.indexOf(b.meta.postID);
-				} else {
-					return -1;
-				}
-			} else return 0;
-		});
+		// Los fijados primero, en su orden; el resto como vino. (Antes devolvía 0 cuando solo `b`
+		// era fijado, y según cómo ordenara el navegador un fijado podía quedar más abajo: con la
+		// lista de a 24 quedaría escondido detrás de «Ver más».)
+		.sort((a, b) => pinRank(a) - pinRank(b));
+	/** @param {{ meta: { postID?: string } }} p */
+	function pinRank(p) {
+		const i = pinned.indexOf(p.meta.postID ?? '');
+		return i < 0 ? pinned.length : i;
+	}
 
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
 	// Con los perfiles de la base: filtro por tipo (`?tipo=`).
@@ -100,7 +100,8 @@
 {/if}
 
 {#key tipo}
-	<PostList heading="Todos los perfiles" posts={shownPosts} />
+	<!-- De a 24 con «Ver más» (como el inicio y /todo); con una búsqueda se ve todo. -->
+	<PostList heading="Todos los perfiles" posts={shownPosts} limit={24} />
 {/key}
 
 <style lang="scss">

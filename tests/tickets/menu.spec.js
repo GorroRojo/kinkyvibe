@@ -89,6 +89,13 @@ test('cada link del menú del panel abre su página', async ({ page }) => {
 	}
 });
 
+/**
+ * El «← Ajustes» del encabezado de una página de Ajustes (no el link de la barra lateral).
+ * @param {import('@playwright/test').Page} page
+ */
+const backToAjustes = (page) =>
+	page.locator('main header').getByRole('link', { name: 'Ajustes', exact: true });
+
 test('Ajustes: una portada con 4 grupos de tarjetas, sin pestañas, y «← Ajustes» vuelve', async ({
 	page
 }) => {
@@ -115,9 +122,12 @@ test('Ajustes: una portada con 4 grupos de tarjetas, sin pestañas, y «← Ajus
 	await landing.getByRole('link', { name: /Interruptores/ }).click();
 	await expect(page).toHaveURL(/\/admin\/ajustes\/interruptores$/);
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Interruptores');
-	// Adentro, sin pestañas de Ajustes: se vuelve con «← Ajustes».
+	// Adentro, sin pestañas de Ajustes: se vuelve con «← Ajustes». La flecha es un ícono de Lucide
+	// con aria-hidden (PageHeader, gorrite 12/10), así que el nombre del link es solo «Ajustes»; se
+	// busca en el encabezado de la página para no confundirlo con el de la barra lateral.
 	await expect(page.locator('nav[aria-label="Secciones de Ajustes"]')).toHaveCount(0);
-	await page.getByRole('link', { name: '← Ajustes' }).click();
+	await expect(backToAjustes(page)).toHaveAttribute('href', '/admin/ajustes');
+	await backToAjustes(page).click();
 	await expect(page).toHaveURL(/\/admin\/ajustes$/);
 	await expect(landing).toBeVisible();
 
@@ -125,7 +135,7 @@ test('Ajustes: una portada con 4 grupos de tarjetas, sin pestañas, y «← Ajus
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto('/admin/ajustes/cobros', { waitUntil: 'networkidle' });
 	await expect(page.getByRole('button', { name: /Sección:/ })).toHaveCount(0);
-	await expect(page.getByRole('link', { name: '← Ajustes' })).toBeVisible();
+	await expect(backToAjustes(page)).toBeVisible();
 	// Y en el panel «Más», Ajustes lleva a la portada.
 	await page
 		.getByRole('navigation', { name: 'Secciones principales' })
@@ -288,12 +298,14 @@ test('/admin/estadisticas (una de las dos redirecciones del panel, gorrite 11/10
 	expect(landed.pathname).toBe('/admin/estadisticas/ventas');
 	expect(landed.searchParams.get('periodo')).toBe('30d');
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ventas en el tiempo');
-	// Las tres pestañas de Estadísticas, con la actual marcada.
+	// Las cuatro pestañas de Estadísticas (la del bot de Telegram se sumó en nav.js), con la actual
+	// marcada.
 	const tabs = page.getByRole('navigation', { name: 'Secciones de Estadísticas' });
 	await expect(tabs.getByRole('link')).toHaveText([
 		'Ventas en el tiempo',
 		'Asistencia',
-		'Visitas al sitio'
+		'Visitas al sitio',
+		'Bot de Telegram'
 	]);
 	await expect(tabs.getByRole('link', { name: 'Ventas en el tiempo' })).toHaveAttribute(
 		'aria-current',

@@ -12,9 +12,9 @@
  * - **Solo la base**: una dirección de evento o material que la base no tiene es 404, aunque haya
  *   un .md en el repo (los .md quedan como respaldo hasta que se borren; 0004). Sin base (por
  *   ejemplo en el build), no hay eventos ni material.
- * - Toda lectura de `objects` pasa por la visibilidad (`visibleWhere`/`getObject`): las listas,
- *   con la vista anónima (son las mismas para todes y se guardan en memoria); la página de cada
- *   post, con quien mira (les admins ven los ocultos).
+ * - Toda lectura de `objects` pasa por la visibilidad (`visibleWhere`, o `canSee` como en
+ *   `getObject`): las listas, con la vista anónima (son las mismas para todes y se guardan en
+ *   memoria); la página de cada post, con quien mira (les admins ven los ocultos).
  * - La metadata (listas y páginas) lleva solo los vínculos (`personas`, `tags`) a perfiles y
  *   etiquetas que ve cualquiera (./vinculosPublicos.js). El panel lee con ./repo.js: ve todo.
  * - Las listas se recuerdan por isolate mientras la base no cambie: cada pedido mira solo cuántos
@@ -31,8 +31,8 @@ import { isCurrent } from '$lib/utils/allPosts';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { getDB } from '$lib/server/db';
 import { oncePerRequest, readAndKeep } from '$lib/server/db/perRequest.js';
-import { ANON, partVisibleWhere, visibleWhere } from '$lib/server/objects/visibility.js';
-import { getObject } from '$lib/server/objects/read.js';
+import { ANON, canSee, partVisibleWhere, visibleWhere } from '$lib/server/objects/visibility.js';
+import { OBJECT_COLUMNS, forViewer, rowToObject } from '$lib/server/objects/read.js';
 import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
 import { EVENT_CATEGORY } from './eventos.js';
 import { renderContentBody } from './render.js';
@@ -539,6 +539,36 @@ export function contentStampOf(db) {
 }
 
 /**
+ * A qué objeto lleva una dirección (la de {@link resolveContentSlug}): dos búsquedas por índices
+ * únicos ((category, legacy_slug) y (type, slug)); con un `OR` entre las dos tablas, SQLite
+ * recorría todos los posts del tipo. Solo `?` sin número (se puede meter dentro de otra consulta):
+ * los parámetros, {@link resolveContentParams}.
+ */
+const RESOLVE_CONTENT_SQL = `SELECT id, legacy_slug FROM (
+	SELECT o.id, s.legacy_slug, 0 AS pri FROM content_sources s
+	JOIN objects o ON o.id = s.object_id AND o.type = ?
+	WHERE s.category = ? AND s.legacy_slug = ?
+	UNION ALL
+	SELECT o.id, s.legacy_slug, 1 AS pri FROM objects o
+	LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?
+	WHERE o.type = ? AND o.slug = ?
+) ORDER BY pri LIMIT 1`;
+
+/**
+ * @param {{ type: string }} cat
+ * @param {string} category
+ * @param {string} slug
+ */
+const resolveContentParams = (cat, category, slug) => [
+	cat.type,
+	category,
+	slug,
+	category,
+	cat.type,
+	slug
+];
+
+/**
  * A qué objeto lleva una dirección de una categoría (sin mirar visibilidad: es para decidir el
  * camino). Primero la dirección vieja de un .md importado (`todo-kink-…-BDSM-cuir`), después la
  * del objeto.
@@ -551,21 +581,9 @@ export function contentStampOf(db) {
 export async function resolveContentSlug(db, category, slug) {
 	const cat = CONTENT_CATEGORIES[category];
 	if (!cat) return null;
-	// Dos búsquedas por índices únicos ((category, legacy_slug) y (type, slug)); con un `OR` entre
-	// las dos tablas, SQLite recorría todos los posts del tipo.
 	const row = await db
-		.prepare(
-			`SELECT id, legacy_slug FROM (
-				SELECT o.id, s.legacy_slug, 0 AS pri FROM content_sources s
-				JOIN objects o ON o.id = s.object_id AND o.type = ?1
-				WHERE s.category = ?2 AND s.legacy_slug = ?3
-				UNION ALL
-				SELECT o.id, s.legacy_slug, 1 AS pri FROM objects o
-				LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
-				WHERE o.type = ?1 AND o.slug = ?3
-			) ORDER BY pri LIMIT 1`
-		)
-		.bind(cat.type, category, slug)
+		.prepare(RESOLVE_CONTENT_SQL)
+		.bind(...resolveContentParams(cat, category, slug))
 		.first();
 	if (!row) return null;
 	return { id: Number(row.id), legacySlug: row.legacy_slug ? String(row.legacy_slug) : null };
@@ -606,43 +624,56 @@ export async function siteContent(
 	const cat = CONTENT_CATEGORIES[category];
 	const db = cat ? contentDb(platform) : null;
 	if (!db || !cat) return null;
-	const ref = await resolveContentSlug(db, category, slug);
-	if (!ref) return null;
-	const found = await getObject(db, { id: ref.id }, viewer);
-	if (!found) return null;
-	// Una parte de un taller que oculta sus partes, como el taller (docs/talleres-partes.md). Sus
-	// relaciones y su portada se leen a la par (la base está lejos: cada consulta que espera a otra
-	// es una ida y vuelta) y se descartan si no se puede ver.
+	// La dirección, el objeto y si es una parte de un taller que oculta sus partes (como el taller,
+	// docs/talleres-partes.md), en una consulta: la base está lejos y cada consulta que espera a
+	// otra es una ida y vuelta. Lo mismo que `resolveContentSlug` + `getObject` + esa regla.
 	const part = partVisibleWhere(viewer, 'o');
-	const [partOk, hydrated, cover] = await Promise.all([
-		db
-			.prepare(`SELECT 1 AS ok FROM objects o WHERE o.id = ? AND ${part.sql}`)
-			.bind(found.id, ...part.params)
-			.first(),
-		// Un error acá cuenta solo si la parte se puede ver (antes ni se leía).
-		hydrateContent(db, [found]).then(
-			([object]) => ({ object }),
-			(error) => ({ error })
-		),
+	const row = await db
+		.prepare(
+			`SELECT r.legacy_slug AS ref_legacy_slug, ${OBJECT_COLUMNS.split(', ')
+				.map((c) => `o.${c}`)
+				.join(', ')}, (${part.sql}) AS part_ok
+			FROM (${RESOLVE_CONTENT_SQL}) r JOIN objects o ON o.id = r.id`
+		)
+		.bind(...part.params, ...resolveContentParams(cat, category, slug))
+		.first();
+	if (!row) return null;
+	const stored = rowToObject(row);
+	if (!canSee(stored, viewer) || !row.part_ok) return null;
+	const found = forViewer(stored, viewer);
+	const legacySlug = row.ref_legacy_slug ? String(row.ref_legacy_slug) : null;
+	// Sus relaciones y su portada, a la par.
+	const [[object], cover] = await Promise.all([
+		hydrateContent(db, [found]),
 		imageOf(db, found.id, 'portada', viewer).catch(() => null)
 	]);
-	if (!partOk) return null;
-	if ('error' in hydrated) throw hydrated.error;
-	const { object } = hydrated;
-	const postID = ref.legacySlug ?? object.slug;
+	const postID = legacySlug ?? object.slug;
+	const baseMeta = cat.toMeta(object);
 	// Sin los vínculos a lo que no ve cualquiera, para todes (también con cuenta o admin): es la
-	// página pública. El panel lee con ./repo.js.
-	const [meta] = await publicLinksOf(db, [cat.toMeta(object)]);
+	// página pública. El panel lee con ./repo.js. A la par, les autores con perfil (de la base,
+	// como los ve quien mira): «Por …» y sus tarjetas (los vínculos públicos no tocan `authors`).
+	const [linked, authors] = await Promise.all([
+		publicLinksOf(db, [baseMeta]).then(
+			([meta]) => ({ meta }),
+			(error) => ({ error })
+		),
+		shallow
+			? null
+			: authorProfilePosts(db, baseMeta.authors, { postID, viewer }).then(
+					(list) => ({ list }),
+					(error) => ({ error })
+				)
+	]);
+	// Los errores, en el orden de antes: primero el de los vínculos.
+	if ('error' in linked) throw linked.error;
+	if (authors && 'error' in authors) throw authors.error;
 	const post = await processPost(
 		undefined,
 		postID,
-		/** @type {any} */ (withCover(meta, cover?.key)),
+		/** @type {any} */ (withCover(linked.meta, cover?.key)),
 		shallow
 	);
-	// Les autores con perfil (de la base, como los ve quien mira): «Por …» y sus tarjetas.
-	if (!shallow) {
-		post.authorsProfiles = await authorProfilePosts(db, post.meta.authors, { postID, viewer });
-	}
+	if (authors) post.authorsProfiles = authors.list;
 	// «X min de lectura» del material, del texto guardado ($lib/utils/readingTime.js).
 	const reading =
 		category === 'material' && !shallow

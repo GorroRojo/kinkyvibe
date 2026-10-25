@@ -74,7 +74,9 @@
 		{/each}
 	</dl>
 </div>
-<PostList heading="Todo lo publicado" posts={allPosts} />
+<!-- De a 24 tarjetas con «Ver más», como el inicio: con todas juntas (casi 100, con cientos de
+     etiquetas) la página tardaba en responder al cargar. Con una búsqueda se ve todo. -->
+<PostList heading="Todo lo publicado" posts={allPosts} limit={24} />
 
 	<style lang="scss">
 	.glosario {

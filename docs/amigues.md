@@ -110,6 +110,14 @@ Demo con datos inventados: `node scripts/demo/n3-amigues.js` y después `npm run
   perfiles, aprobaciones, importaciones e imágenes) y el árbol de etiquetas: un pedido que no
   cambia nada hace una sola consulta (antes, dos). Con sesión se arma cada vez (una cuenta o une
   admin pueden ver más).
+- **La página de un perfil no espera de a una consulta** (la base está lejos: cada consulta que
+  espera a otra es una ida y vuelta). La dirección (primero la vieja de una ficha importada,
+  después la del objeto), el perfil, si está aprobado, su imagen y el rol de la cuenta salen en
+  una consulta (`findPublicProfile`, que es `findPublicProfiles` con una dirección); la lista de
+  publicaciones, a la par. Después, a la par: les autores (todes en una consulta), los
+  integrantes (con su aprobación, en una), los eventos de un lugar, "Es mi perfil", «Participa
+  en» y lo demás. Quién ve qué no cambia. `perfil-consultas.test.js` (al lado de la ruta) fija
+  cuántas consultas y tandas en fila hace, sin sesión, con cuenta y como admin.
 - **"Es mi perfil" no revela nada**: la misma respuesta haya o no otros pedidos o dueñes; cada
   cuenta ve solo su pedido. Límites: 5 por día por cuenta y 10 por conexión.
 - **El HTML del texto se limpia en el servidor** con `rehype-sanitize` (el esquema de GitHub,

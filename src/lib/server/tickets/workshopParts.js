@@ -22,9 +22,11 @@ import { ONLINE_PLACE_TEXT, placeLine } from '../../utils/eventPlace.js';
  *
  * @param {D1Database | null | undefined} db
  * @param {string} slug
- * @param {{ online?: boolean, buyer?: boolean }} [options]
- * `online`: el lugar de cada parte es «Online». `buyer`: quien mira compró (con la compra
- * aprobada), así que ve el lugar completo aunque en el sitio no se muestre (como en el mail).
+ * @param {{ online?: boolean | Promise<boolean>, buyer?: boolean }} [options]
+ * `online`: el lugar de cada parte es «Online» (puede venir como promesa, para leer las partes
+ * mientras se lee la venta del evento: se espera recién para los lugares). `buyer`: quien mira
+ * compró (con la compra aprobada), así que ve el lugar completo aunque en el sitio no se muestre
+ * (como en el mail).
  * @returns {Promise<PartsList | null>}
  */
 export async function workshopPartsList(db, slug, { online = false, buyer = true } = {}) {
@@ -32,12 +34,13 @@ export async function workshopPartsList(db, slug, { online = false, buyer = true
 		const ws = await readWorkshop(db, slug);
 		const parts = partsCoveredBy(ws, slug);
 		if (!ws || !parts) return null;
-		const lines = [];
-		for (const p of parts) {
-			lines.push(
-				partLine({ ...p, where: online ? ONLINE_PLACE_TEXT : await placeOf(db, p.slug, buyer) })
-			);
-		}
+		const isOnline = await online;
+		// El lugar de cada parte, todas a la vez (cada una es su propia consulta).
+		const lines = await Promise.all(
+			parts.map(async (p) =>
+				partLine({ ...p, where: isOnline ? ONLINE_PLACE_TEXT : await placeOf(db, p.slug, buyer) })
+			)
+		);
 		return { title: partsListTitle(ws.total), lines };
 	} catch (e) {
 		console.error(`[entradas] no se pudo leer las partes del taller ${slug}:`, e);

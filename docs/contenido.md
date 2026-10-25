@@ -39,6 +39,11 @@ queda marcado con el tag de git `posts-md-final`. Ningún guardado del panel pas
   evento (no dependen de él) y solo se muestran si quien mira puede ver el evento (si no, 404).
   `evento-consultas.test.js` (al lado de la ruta) fija cuántas consultas y cuántas tandas en fila
   hace (`countingDB`, con `waves`).
+- **La página de un material tampoco.** La lista de publicaciones sale a la par del material; con
+  el material ya leído (y visto: si no, 404 o la redirección, como siempre), "Más cosas de…" con
+  sus lugares, su venta, los pronombres y las personas (con los roles a la par de los perfiles)
+  salen a la par. `material-consultas.test.js` (al lado de la ruta) fija cuántas consultas y
+  tandas en fila hace, en frío y en caliente.
 - **`/calendario` trae los pasados de a un mes**: los próximos enteros y, de los pasados, los del
   mes que abre; los de otro mes los pide al ir a ese mes (`/api/calendario/pasados?mes=yyyy-MM`,
   `src/lib/server/eventos/pasados.js`; detalles en [seo.md](seo.md)).
@@ -191,9 +196,10 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   entradas y la puerta (`tickets/events.js`), el panel (lista, ficha, agenda, No listadas,
   Lugares) y los crons leen **solo la base** (convertida al mismo `ProcessedPost` que daba un
   `.md`). Una dirección que la base no tiene es 404. Sin base no hay eventos.
-- **La página de un evento o un material** (`siteContent`): la dirección, el objeto y, a la par,
-  si es una parte oculta, sus relaciones y su portada (se descartan si no se puede ver); después
-  les autores con perfil, todes en una consulta (`findPublicProfiles` en
+- **La página de un evento o un material** (`siteContent`): la dirección, el objeto y si es una
+  parte oculta, en una consulta (lo mismo que `resolveContentSlug` + `getObject` + esa regla);
+  después, a la par, sus relaciones y su portada; y al final, a la par, los vínculos públicos de
+  la metadata y les autores con perfil, todes en una consulta (`findPublicProfiles` en
   `src/lib/server/amigues/profiles.js`, lo mismo que `findPublicProfile` dirección por dirección).
   La base está lejos: cada consulta que espera a otra es una ida y vuelta.
   `siteContent-consultas.test.js` fija cuántas consultas y tandas en fila hace.
