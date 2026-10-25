@@ -491,7 +491,20 @@ async function dateChangeVersionFor(db, slug) {
  * }} input
  * @returns {Promise<boolean>} si se envió
  */
-export async function sendOrderEmail({
+export async function sendOrderEmail(input) {
+	return (await sendOrderEmailResult(input)) === 'sent';
+}
+
+/**
+ * {@link sendOrderEmail} con el resultado de `deliver()`: `sent` (salió y quedó marcado),
+ * `simulated` (no salió a propósito: «No fui yo», preview sin EMAIL_ALLOWLIST o dev sin clave) o
+ * `failed`. Lo usa el reintento del cron (unsentOrders.js) para no volver a tomar una orden
+ * cortada a propósito.
+ *
+ * @param {Parameters<typeof sendOrderEmail>[0]} input
+ * @returns {Promise<'sent' | 'simulated' | 'failed'>}
+ */
+export async function sendOrderEmailResult({
 	db,
 	order,
 	tickets,
@@ -562,15 +575,15 @@ export async function sendOrderEmail({
 		if (result === 'failed' && claimedLink) {
 			await releaseStreamLinkSend(db, { orderId: order.id, link: claimedLink });
 		}
-		if (result !== 'sent') return false;
+		if (result !== 'sent') return result;
 		await markEmailSent(db, order.id);
-		return true;
+		return 'sent';
 	} catch (error) {
 		console.error(`[tickets] no se pudo mandar el email de la orden ${order.id}:`, error);
 		if (claimedLink) {
 			await releaseStreamLinkSend(db, { orderId: order.id, link: claimedLink }).catch(() => {});
 		}
-		return false;
+		return 'failed';
 	}
 }
 
