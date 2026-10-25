@@ -19,7 +19,7 @@ const { default: Rincon } = await import('./+page.svelte');
 const { default: Calendario } = await import('./calendario/+page.svelte');
 const { default: Sigo } = await import('./sigo/+page.svelte');
 
-/** @param {{ sigoOn: boolean, readingSpeed?: number | null }} flags */
+/** @param {{ sigoOn: boolean, readingSpeed?: number | null, unconfirmed?: any[] }} flags */
 const rincon = (flags) =>
 	render(Rincon, {
 		props: /** @type {any} */ ({
@@ -32,6 +32,7 @@ const rincon = (flags) =>
 				saved: { name: '', pronouns: '', hasDni: false, dniMasked: '' },
 				savedError: false,
 				orders: [],
+				unconfirmed: [],
 				...flags
 			},
 			form: null
@@ -63,6 +64,38 @@ const count = (html, href) => hrefs(html).filter((h) => h === href).length;
 
 /** Las tarjetas de Mi rincón (sus títulos). @param {string} html */
 const cards = (html) => [...html.matchAll(/<h2 id="[^"]+"[^>]*>([^<]+)<\/h2>/g)].map((m) => m[1]);
+
+describe('Mi rincón: «¿Son tuyas?» («No fui yo», parte 2)', () => {
+	it('sin órdenes gratis por confirmar, no aparece', () => {
+		expect(rincon({ sigoOn: false })).not.toContain('¿Son tuyas?');
+	});
+	it('con una, el bloque con «Sí, son mías» y «No es mía» (una sola acción, con la orden)', () => {
+		const html = rincon({
+			sigoOn: false,
+			unconfirmed: [
+				{
+					id: 'orden-inventada',
+					reference: 'ABC123',
+					event: 'Fiesta inventada',
+					eventStart: null,
+					quantity: 2,
+					total: 0,
+					status: 'approved',
+					createdAt: 0
+				}
+			]
+		});
+		expect(html).toContain('¿Son tuyas?');
+		expect(html).toContain('Fiesta inventada');
+		expect(html).toContain('2 entradas gratis');
+		expect(html).toContain('action="?/elegirOrden"');
+		expect(html).toContain('value="orden-inventada"');
+		expect(html).toContain('Sí, son mías');
+		expect(html).toContain('No es mía');
+		// Va dentro de «Tus compras y entradas», no es otra tarjeta.
+		expect(cards(html)[0]).toBe('Tus compras y entradas');
+	});
+});
 
 describe('Mi rincón con «Lo que sigo» apagado: como siempre', () => {
 	it('la tarjeta «Tu calendario» lleva a Mi rincón → Calendario; nada de Lo que sigo', () => {

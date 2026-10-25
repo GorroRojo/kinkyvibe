@@ -13,6 +13,7 @@ import { accountTickets, botTickets } from './tickets.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import { setPerPartTickets, setWorkshopParts } from '$lib/server/eventos/partes.js';
 import { isPastTicket } from './misEntradas.js';
+import { chooseFreeOrder } from '$lib/server/cuentas/orders.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -57,23 +58,39 @@ let seq = 0;
  * Una compra con sus entradas.
  *
  * @param {{ account?: string | null, email: string, status?: string, slug?: string,
- *   tickets: { id: string, token: string, holder: string }[] }} o
+ *   free?: boolean, tickets: { id: string, token: string, holder: string }[] }} o
  */
 async function order({
 	account = null,
 	email,
 	status = 'approved',
 	slug = 'taller-inventado',
+	free = false,
 	tickets
 }) {
 	const id = `00000000-0000-4000-9000-${String(++seq).padStart(12, '0')}`;
+	const price = free ? 0 : 1000;
 	await t.db
 		.prepare(
 			`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal, total,
-				buyer_name, buyer_email, status, created_at, updated_at, expires_at, account_id)
-			VALUES (?1, ?2, 'general', ?3, 1000, ?4, ?4, 'Persona Inventada', ?5, ?6, ?7, ?7, ?7, ?8)`
+				buyer_name, buyer_email, status, created_at, updated_at, expires_at, account_id,
+				payment_method, fondo_option)
+			VALUES (?1, ?2, 'general', ?3, ?9, ?4, ?4, 'Persona Inventada', ?5, ?6, ?7, ?7, ?7, ?8,
+				?10, ?11)`
 		)
-		.bind(id, slug, tickets.length, 1000 * tickets.length, email, status, NOW - seq, account)
+		.bind(
+			id,
+			slug,
+			tickets.length,
+			price * tickets.length,
+			email,
+			status,
+			NOW - seq,
+			account,
+			price,
+			free ? 'gratis' : 'mercadopago',
+			free ? 'gorra' : 'completo'
+		)
 		.run();
 	for (const [i, tk] of tickets.entries()) {
 		await t.db
@@ -264,6 +281,44 @@ describe('accountTickets', () => {
 	it('un mail sin verificar no trae compras; otra cuenta, solo lo suyo', async () => {
 		expect(await accountTickets(t.db, C)).toEqual([]);
 		expect((await accountTickets(t.db, B)).map((x) => x.token)).toEqual([tok('f')]);
+	});
+});
+
+describe('accountTickets: entradas gratis pedidas sin la sesión de la cuenta («No fui yo», parte 2)', () => {
+	/** @param {string} account */
+	const holders = async (account) => (await accountTickets(t.db, account)).map((x) => x.holder);
+
+	it('no salen hasta «Sí, son mías»; con «No es mía», nunca; las pagas, siempre', async () => {
+		const free = await order({
+			email: MAIL_B,
+			free: true,
+			slug: 'fiesta-inventada',
+			tickets: [{ id: 'ticket-b2', token: tok('h'), holder: 'Persona B Gratis' }]
+		});
+		const other = await order({
+			email: MAIL_B,
+			free: true,
+			tickets: [{ id: 'ticket-b3', token: tok('i'), holder: 'Persona B Otra Gratis' }]
+		});
+		const paid = await order({
+			email: MAIL_B,
+			tickets: [{ id: 'ticket-b4', token: tok('j'), holder: 'Persona B Paga' }]
+		});
+		expect(paid).toBeTruthy();
+		expect((await holders(B)).sort()).toEqual(['Persona B Paga', 'Persona B Uno']);
+
+		await chooseFreeOrder(t.db, { accountId: B, orderId: free, mine: true, now: NOW });
+		await chooseFreeOrder(t.db, { accountId: B, orderId: other, mine: false, now: NOW });
+		expect((await holders(B)).sort()).toEqual([
+			'Persona B Gratis',
+			'Persona B Paga',
+			'Persona B Uno'
+		]);
+		// Y en el chat, lo mismo.
+		const out = sent(await planUpdate(msg('/entradas', 43), deps()));
+		expect(out).toContain(shortHash('ticket-b2'));
+		expect(out).not.toContain(shortHash('ticket-b3'));
+		expect(out).not.toContain(tok('i'));
 	});
 });
 

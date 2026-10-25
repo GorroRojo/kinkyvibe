@@ -40,6 +40,8 @@ import { createDiscountCode } from './discounts.js';
 import { HOLD_LIMITS, getCounts, reserveOrder } from './orders.js';
 import { clientHash, clientNetwork } from './safeguards.js';
 import { transferDeadline } from '$lib/utils/transferDeadline.js';
+import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
+import { ordersForAccount, unconfirmedFreeOrders } from '$lib/server/cuentas/orders.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -424,6 +426,29 @@ describe('entradas gratis y mails a direcciones sin confirmar', () => {
 		);
 		expect(notMine.status).toBe(409);
 		// (Más intentos con este mail chocarían con el límite de órdenes por mail cada 10 minutos.)
+	});
+
+	it('Mi rincón: la gratis pedida con la sesión de esa cuenta va a la lista; sin sesión, a «¿Son tuyas?»', async () => {
+		const account = await upsertVerifiedAccount(t.db, 'con.cuenta@example.com', {
+			now: Date.now()
+		});
+		const member = { id: account.id, email: account.email };
+		const withSession = await post(
+			buyAction,
+			free('con.cuenta@example.com'),
+			'198.51.100.21',
+			'evento',
+			member
+		);
+		const without = await post(buyAction, free('con.cuenta@example.com'), '198.51.100.22', 'otro');
+		/** @param {string} redirect */
+		const idOf = (redirect) => redirect.split('/')[2];
+		expect((await ordersForAccount(t.db, account.id)).map((o) => o.id)).toEqual([
+			idOf(withSession.redirect)
+		]);
+		expect((await unconfirmedFreeOrders(t.db, account.id)).map((o) => o.id)).toEqual([
+			idOf(without.redirect)
+		]);
 	});
 
 	it('«No fui yo»: la orden gratis se crea y aprueba, pero no sale el mail', async () => {

@@ -1,8 +1,8 @@
 /**
  * "Mi rincón": la cuenta del público (docs/cuentas.md). Mail, contraseña (poner, cambiar,
- * sacar), compras de ese mail (solo lectura), «Mis datos» (lo guardado para la compra: ver,
- * cambiar, borrar), cerrar sesión (acá o en todos lados) y borrar la cuenta. Sin
- * sesión, lleva a /ingresar.
+ * sacar), compras de ese mail (solo lectura, con «¿Son tuyas?» para las gratis hechas sin
+ * sesión), «Mis datos» (lo guardado para la compra: ver, cambiar, borrar), cerrar sesión (acá o
+ * en todos lados) y borrar la cuenta. Sin sesión, lleva a /ingresar.
  *
  * La sesión dura para siempre, así que tocar la contraseña y borrar la cuenta piden además un
  * código fresco por mail, del mismo `purpose` que la acción (?/confirmar lo manda; la acción lo
@@ -20,7 +20,11 @@ import {
 } from '$lib/server/cuentas/accounts.js';
 import { READING_SPEEDS, parseReadingSpeed } from '$lib/utils/readingTime.js';
 import { passwordProblem } from '$lib/server/cuentas/password.js';
-import { ordersForAccount } from '$lib/server/cuentas/orders.js';
+import {
+	chooseFreeOrder,
+	ordersForAccount,
+	unconfirmedFreeOrders
+} from '$lib/server/cuentas/orders.js';
 import { SESSION_COOKIE, destroyOtherSessions } from '$lib/server/cuentas/session.js';
 import {
 	checkConfirmCode,
@@ -67,9 +71,13 @@ export async function load(event) {
 		redirect(303, LOGIN);
 	}
 	let orders = /** @type {Awaited<ReturnType<typeof ordersForAccount>>} */ ([]);
+	// «¿Son tuyas?»: entradas gratis pedidas con este mail sin la sesión de la cuenta («No fui yo»,
+	// parte 2). No van en la lista hasta que la persona dice que son suyas.
+	let unconfirmed = /** @type {Awaited<ReturnType<typeof unconfirmedFreeOrders>>} */ ([]);
 	let ordersError = false;
 	try {
 		orders = await ordersForAccount(db, account.id);
+		unconfirmed = await unconfirmedFreeOrders(db, account.id);
 	} catch (e) {
 		logDBError('cuentas: compras', e);
 		ordersError = true;
@@ -85,9 +93,20 @@ export async function load(event) {
 	}
 	/** @type {Map<string, { title: string, start: string | null } | null>} */
 	const events = new Map();
-	for (const o of orders) {
+	for (const o of [...orders, ...unconfirmed]) {
 		if (!events.has(o.event_slug)) events.set(o.event_slug, await getEventInfo(o.event_slug));
 	}
+	/** @param {(typeof orders)[number]} o */
+	const listed = (o) => ({
+		id: o.id,
+		reference: orderReference(o.id),
+		event: events.get(o.event_slug)?.title ?? o.event_slug,
+		eventStart: events.get(o.event_slug)?.start ?? null,
+		quantity: o.quantity,
+		total: o.total,
+		status: o.status,
+		createdAt: o.created_at
+	});
 	return {
 		email: account.email,
 		hasPassword: account.has_password,
@@ -107,16 +126,8 @@ export async function load(event) {
 		savedError,
 		// La velocidad de lectura de la cuenta (null: la de siempre). $lib/utils/readingSpeed.js.
 		readingSpeed: await getReadingSpeed(db, account.id).catch(() => null),
-		orders: orders.map((o) => ({
-			id: o.id,
-			reference: orderReference(o.id),
-			event: events.get(o.event_slug)?.title ?? o.event_slug,
-			eventStart: events.get(o.event_slug)?.start ?? null,
-			quantity: o.quantity,
-			total: o.total,
-			status: o.status,
-			createdAt: o.created_at
-		}))
+		orders: orders.map(listed),
+		unconfirmed: unconfirmed.map(listed)
 	};
 }
 
@@ -321,6 +332,30 @@ export const actions = {
 			console.error('[cuentas] no se pudieron leer los datos guardados');
 			return fail(500, { action: 'datos', error: 'No se pudo. Probá de nuevo.' });
 		}
+	},
+
+	// «¿Son tuyas?»: «Sí, son mías» (mine=1) la pasa a la lista; «No es mía» (mine=0) la saca.
+	elegirOrden: async (event) => {
+		const { db, member } = await requireMember(event);
+		const form = await event.request.formData();
+		const orderId = field(form, 'orden');
+		const mine = field(form, 'mine');
+		if (!orderId || (mine !== '1' && mine !== '0'))
+			return fail(400, { action: 'elegirOrden', error: 'No sabemos qué elegiste.' });
+		try {
+			const ok = await chooseFreeOrder(db, { accountId: member.id, orderId, mine: mine === '1' });
+			if (!ok) return fail(404, { action: 'elegirOrden', error: 'No encontramos esas entradas.' });
+		} catch (e) {
+			logDBError('cuentas: elegir orden gratis', e);
+			return fail(500, { action: 'elegirOrden', error: 'No se pudo. Probá de nuevo.' });
+		}
+		return {
+			action: 'elegirOrden',
+			message:
+				mine === '1'
+					? 'Listo: las sumamos a tus compras y entradas.'
+					: 'Listo: no te las mostramos más.'
+		};
 	},
 
 	salir: async (event) => {

@@ -71,6 +71,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0002](0002-cuentas-y-perfiles.md): Cuentas y perfiles (30/9)
 - [0003](0003-superadmins-y-permisos.md): Superadmins y permisos (30/9)
 - [0019](0019-proyecto.md): "Proyecto" reemplaza a "grupo" (1/10)
+- [0048](0048-entradas-gratis-sin-sesion-se-preguntan.md): Las entradas gratis pedidas sin la
+  sesión de la cuenta se preguntan en Mi rincón («¿Son tuyas?») (25/10)
 
 ### Contenido, objetos y etiquetas
 
