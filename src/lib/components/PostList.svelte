@@ -37,8 +37,9 @@
 	 * /calendario passes whether the month on screen has past events.
 	 * @type {boolean | undefined} */
 	export let pastEventsToggle = undefined;
-	/** Sin búsqueda, cuántos mostrar antes de «Ver más» (0 = todos). El inicio lo usa para que
-	 * el pie de página quede a mano en vez de a 40 pantallas. */
+	/** Sin texto en la búsqueda, cuántos mostrar antes de «Ver más» (0 = todos); también con
+	 * etiquetas elegidas. El inicio lo usa para que el pie de página quede a mano en vez de a 40
+	 * pantallas. */
 	export let limit = 0;
 	/** Lo que dice arriba de los resultados (por defecto «N resultados»).
 	 * @type {(n: number) => string} */
@@ -138,8 +139,11 @@
 	}
 	/** @type {Set<string>|null} */
 	let allowed = null;
-	// Con una búsqueda se ve todo lo que encontró; sin búsqueda, de a `limit`.
-	$: capped = limit > 0 && !searching;
+	// Con texto en la búsqueda se ve todo lo que encontró; sin texto (aunque haya etiquetas
+	// elegidas, también desde `?tags=`), de a `limit`. Cambiar las etiquetas vuelve a los primeros.
+	$: capped = limit > 0 && $searchText.trim() == '';
+	$: tagsKey = $filteredTags.join(',');
+	$: (tagsKey, (shownLimit = limit));
 	$: cappedPosts = capped ? tagFilteredPosts.slice(0, shownLimit) : tagFilteredPosts;
 	$: hiddenCount = tagFilteredPosts.length - cappedPosts.length;
 	$: allowed = planBatch(cappedPosts, $userConfig.display_type);

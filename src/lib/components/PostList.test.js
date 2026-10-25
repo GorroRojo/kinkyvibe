@@ -1,6 +1,6 @@
 /**
- * PostList con `limit` (el feed del inicio): sin búsqueda muestra los primeros y «Ver más (N)»;
- * sin `limit`, todos. Y Card muestra la fecha corta de los eventos. Render del servidor, datos
+ * PostList con `limit` (el feed del inicio): sin texto en la búsqueda (aunque haya etiquetas
+ * elegidas) muestra los primeros y «Ver más (N)»; con texto o sin `limit`, todos. Y Card muestra la fecha corta de los eventos. Render del servidor, datos
  * inventados.
  */
 import { describe, expect, it, vi } from 'vitest';
@@ -37,6 +37,25 @@ describe('PostList limit', () => {
 		expect(html).toContain('Ver más (10)');
 		// el total sigue diciendo todos
 		expect(html).toContain('30');
+	});
+
+	it('con etiquetas elegidas, también de a `limit`; con texto en la búsqueda, todo', async () => {
+		const { filteredTags, searchText } = await import('$lib/utils/stores');
+		const all = posts.map((p) => ({ ...p, meta: { ...p.meta, tags: ['taller'] } }));
+		filteredTags.set(['taller']);
+		let html = render(PostList, { props: /** @type {any} */ ({ posts: all, limit: 20 }) }).body;
+		expect(items(html)).toBe(20);
+		expect(html).toContain('Ver más (10)');
+		searchText.set('Nota inventada');
+		html = render(PostList, { props: /** @type {any} */ ({ posts: all, limit: 20 }) }).body;
+		expect(items(html)).toBe(30);
+		expect(html).not.toContain('Ver más');
+		// (El buscador del render del servidor deja el texto vacío: se vuelve a poner.)
+		filteredTags.set([]);
+		searchText.set('Nota inventada');
+		html = render(PostList, { props: /** @type {any} */ ({ posts: all, limit: 20 }) }).body;
+		expect(items(html)).toBe(30);
+		searchText.set('');
 	});
 
 	it('sin limit, todos y sin «Ver más»', () => {

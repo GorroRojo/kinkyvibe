@@ -141,10 +141,11 @@ comprimido con gzip (lo que viaja es parecido: Cloudflare manda brotli, `/calend
 
 - **`/todo`, `/material` y `/amigues`, de a 24 tarjetas.** Mostraban todas juntas (85, 55 y 30
   en la base local, con unas 620, 435 y 220 etiquetas) y la página tardaba en responder al
-  cargar. Ahora, como el inicio (`limit` de `PostList`), 24 y «Ver más (N)»; con etiquetas o
-  texto en la búsqueda (también desde `?tags=`) se ve todo lo que encontró. En `/amigues` los
-  perfiles fijados siguen primero. HTML en la base local: `/todo` 376,7 → 201,1 KB (53,2 → 39,8
-  gz), `/material` 278,9 → 185,9 KB (40,8 → 34,5), `/amigues` 170,8 → 156,0 KB (29,6 → 28,6).
+  cargar. Ahora, como el inicio (`limit` de `PostList`), 24 y «Ver más (N)», también con
+  etiquetas elegidas (también desde `?tags=`; cambiar las etiquetas vuelve a las primeras 24);
+  con texto en la búsqueda se ve todo lo que encontró. En `/amigues` los perfiles fijados siguen
+  primero. HTML en la base local: `/todo` 376,7 → 201,1 KB (53,2 → 39,8 gz), `/material` 278,9 →
+  185,9 KB (40,8 → 34,5), `/amigues` 170,8 → 156,0 KB (29,6 → 28,6).
   Los datos de la página no cambian (siguen viajando todas, para buscar sin pedir nada).
 
 ### Para hacer después (ahorro estimado, sin comprimir)
