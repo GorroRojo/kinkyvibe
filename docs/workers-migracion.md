@@ -225,23 +225,30 @@ en el historial de git).
 
 ## Ubicación del Worker
 
-La base D1 vive en el este de EE. UU. (ENAM) y no tiene réplicas en Sudamérica. Sin ubicación, el
-Worker corre en el centro de datos de quien visita (Buenos Aires) y cada consulta que espera a la
-anterior cruza el continente (~130 ms). Una página de evento hace muchas seguidas.
+La base D1 vive en el este de EE. UU. (ENAM) y no tiene réplicas en Sudamérica. `wrangler.toml` no
+tiene `[placement]`, a propósito: el Worker corre en el centro de datos de quien visita (desde
+Buenos Aires, EZE). Así la caché de 1 minuto y los archivos responden desde ahí, y cada consulta a
+la base que espera a la anterior cruza el continente (~130 ms). Por eso las consultas de un pedido
+van en tanda (`src/lib/server/db/autoBatch.js`) y cada página trata de hacer las menos idas en fila
+posibles (`Server-Timing`: `d1;desc="N consultas en M idas"`).
 
-`wrangler.toml` fija `[placement] region = "aws:us-east-1"`: el Worker corre en el centro de datos
-de Cloudflare más cercano a esa región, al lado de la base. Los archivos estáticos se sirven siempre
-desde el centro de datos más cercano a quien visita. Solo afecta los pedidos web, no los crons.
+Cómo se llegó acá:
 
-Primero se probó `mode = "smart"` (24/10): Cloudflare mandó los pedidos a San José (oeste de
-EE. UU.), más lejos de la base, y desde EE. UU. las páginas pesadas tardaron 0,2–0,5 s más. Por eso
-la región explícita.
+- 24/10: `mode = "smart"` mandó los pedidos a San José (oeste de EE. UU.), más lejos de la base;
+  desde EE. UU. las páginas pesadas tardaron 0,2–0,5 s más.
+- 24/10–25/10: región fija `region = "aws:us-east-1"`, al lado de la base. La página de un evento,
+  que entonces hacía ~19 idas en fila, bajó de 1,7 s a ~0,6 s desde Buenos Aires; las livianas
+  subieron ~0,1–0,4 s.
+- 25/10, con las páginas ya en 2–4 idas: dos horas sin ubicación, medido desde Buenos Aires contra
+  las corridas del día con región fija. Inicio 0,87 → 0,38 s, /calendario 0,66 → 0,37 s, /material
+  0,40 → 0,23 s, /amigues 0,39 → 0,27 s, wiki 0,51 → 0,38 s, perfil 0,44 → 0,37 s, material igual
+  (0,71 → 0,73 s) y evento 0,60 → 0,68 s. gorrite decidió dejarlo sin ubicación (#449 y este PR).
 
-- **Verificar:** el header `cf-placement` dice `remote-XXX` si el pedido se movió (debería ser un
-  centro de datos del este, p. ej. IAD) y `local-XXX` si no.
-- **Medir:** tiempo hasta el primer byte de las mismas páginas antes y después, desde Argentina
-  (`curl -w "%{time_starttransfer}"`, mediana de 5).
-- **Volver atrás:** borrar la sección `[placement]` de `wrangler.toml`.
+- **Verificar:** sin `[placement]` no hay header `cf-placement`.
+- **Medir:** tiempo hasta el primer byte de las mismas páginas desde Argentina
+  (`curl -w "%{time_starttransfer}"`) y las idas en `Server-Timing`.
+- **Volver a la región fija:** en `wrangler.toml`, `[placement]` con `region = "aws:us-east-1"`, y el
+  test de `scheduled.test.js` que lo verifica.
 
 ## Caché de 1 minuto para quien no tiene sesión
 

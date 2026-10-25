@@ -33,16 +33,13 @@ binding = "ASSETS"
 [observability]
 enabled = true
 
-# Ubicación del Worker (docs/workers-migracion.md, «Ubicación del Worker»): corre al lado de la
-# base D1, que está en el este de EE. UU. (ENAM). Con `mode = "smart"` Cloudflare lo mandaba a
-# San José (oeste), más lejos de la base; la pista explícita de región lo fija cerca. Las páginas que
-# hacen muchas consultas seguidas son las que más ganan. Se verifica con el header `cf-placement`.
-# Para volver atrás, borrar esta sección.
-# EXPERIMENTO (gorrite, 25/10): 2 horas sin ubicación fija, para medir desde Buenos Aires si ahora
-# que las páginas hacen menos idas a la base conviene correr cerca de quien visita. Vuelve con el PR
-# que lo restaura.
-# [placement]
-# region = "aws:us-east-1"
+# Ubicación del Worker (docs/workers-migracion.md, «Ubicación del Worker»): sin `[placement]`, a
+# propósito. El Worker corre en el centro de datos de quien visita: la caché de 1 minuto responde
+# desde ahí y las páginas livianas tardan menos. Se midió desde Buenos Aires el 25/10 contra la
+# región fija `aws:us-east-1` (al lado de la base): 6 de 8 páginas más rápidas, una igual y la del
+# evento ~0,08 s más lenta, porque todavía hace varias idas en fila a la base (decisión de gorrite).
+# Las consultas van en tanda (src/lib/server/db/autoBatch.js) para que cada página cruce a la base
+# las menos veces posible. Para volver a la región fija: `[placement]` + `region = "aws:us-east-1"`.
 
 # Crons (UTC). Tienen que coincidir con src/lib/server/scheduled.js (lo verifica un test).
 # - cada 15 minutos: recordatorios de entradas;
