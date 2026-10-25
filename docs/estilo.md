@@ -278,13 +278,18 @@ elección de gorrite sobre el prototipo «Filtros en el celu» (#283):
   va en la hoja. El buscador y la barra van con la columna de la lista.
 - **El buscador** queda siempre en una línea con su forma de píldora: con muchas etiquetas
   elegidas, se deslizan de costado en su fila (fundido a la izquierda, la última a la vista) y el
-  campo de texto no baja de 10.5em.
+  campo de texto no baja de 10.5em. Es un combobox propio, sin librerías (antes @melt-ui, que
+  sumaba unos 23 KB gz a cada lista): las teclas y el mouse están descritos al principio de
+  `TagSearch.svelte`; el menú flota al final de `<body>` con la ubicación de siempre (abajo a la
+  izquierda del campo, a 6 px; si no entra, a la derecha o arriba) y se cierra al tocar afuera
+  (`src/lib/utils/popover.js`).
 - Todo lee y escribe `$filteredTags` y `?tags=` como antes (la URL la escribe PostList; el árbol
   tilda desde ahí).
 
 Lo controlan `src/lib/components/PostList.test.js`, `TagSearch.test.js`,
-`src/lib/utils/tagBar.test.js`, `src/lib/styles/segmented.test.js` y `tests/smoke.spec.js`
-(«barra de filtros de las listas», en un celu y en pantalla ancha).
+`src/lib/utils/tagBar.test.js`, `src/lib/utils/popover.test.js`, `src/lib/styles/segmented.test.js`,
+`tests/smoke.spec.js` («barra de filtros de las listas», en un celu y en pantalla ancha) y
+`tests/buscador-etiquetas.spec.js` (el buscador con el teclado y con el mouse, y el glosario).
 
 ## Componentes
 
