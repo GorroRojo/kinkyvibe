@@ -74,6 +74,17 @@ export function getListTicketStates(db, slugs, { now = Date.now(), cacheMs = LIS
  * @returns {Promise<TicketStates>}
  */
 async function computeStates(db, slugs, now) {
+	// Todo lo que se lee, a la par y por dirección (con las tandas automáticas, en una sola ida,
+	// src/lib/server/db/autoBatch.js): la configuración, los datos para transferir, lo vendido y la
+	// fila. Lo vendido y la fila se preguntan de todos los eventos, aunque después solo importen los
+	// que venden (y la fila, los que tienen lista): antes cada paso esperaba al anterior (cinco idas
+	// en fila).
+	const reads = {
+		transfer: transferInfo(db),
+		taken: getTakenMany(db, slugs, now),
+		holders: queueFor(db, slugs, now)
+	};
+	for (const p of Object.values(reads)) p.catch(() => {});
 	// La configuración de todos juntos: dos consultas para toda la lista (los eventos y cuáles tienen
 	// lugar), no dos por tarjeta.
 	const bySlug = await getEventTicketsMany(slugs);
@@ -100,7 +111,7 @@ async function computeStates(db, slugs, now) {
 
 	// Los datos para transferir son de toda la venta: se leen una vez.
 	const transfer = selling.some((e) => e.config.paymentMethods.includes('transferencia'))
-		? Boolean(await transferInfo(db))
+		? Boolean(await reads.transfer)
 		: false;
 	const withMethods = selling.filter((e) => {
 		if (methodsFor(e.config, transfer).length) return true;
@@ -111,17 +122,17 @@ async function computeStates(db, slugs, now) {
 
 	let takenBySlug;
 	try {
-		takenBySlug = await getTakenMany(
-			db,
-			withMethods.map((e) => e.slug),
-			now
-		);
+		takenBySlug = await reads.taken;
 	} catch (error) {
 		console.error('[tickets] no se pudo leer la venta para las listas:', error);
 		for (const e of withMethods) unavailable(e.slug, e.config);
 		return out;
 	}
-	const holdersBySlug = await listHolders(db, withMethods, now);
+	const queue = await reads.holders;
+	// La fila solo cuenta en los eventos con lista.
+	const holdersBySlug = new Map(
+		withMethods.filter((e) => e.config.waitlist).map((e) => [e.slug, queue.get(e.slug)])
+	);
 	for (const { slug, config } of withMethods) {
 		const taken = takenBySlug.get(slug) ?? { types: new Map(), tiers: new Map() };
 		const holders = holdersBySlug.get(slug);
@@ -142,20 +153,22 @@ async function computeStates(db, slugs, now) {
 }
 
 /**
- * La fila de la lista de espera de los eventos con lista (por slug), solo con el interruptor
- * prendido. Si falla (sin la migración 0053), ninguna: la tarjeta nunca se rompe por la lista.
+ * La fila de la lista de espera de `slugs` (por slug), solo con el interruptor prendido: el
+ * interruptor y la fila a la par. Si falla (sin la migración 0053), ninguna: la tarjeta nunca se
+ * rompe por la lista.
  *
  * @param {import('@cloudflare/workers-types').D1Database} db
- * @param {{ slug: string, config: import('./config.js').EventTickets }[]} events
+ * @param {string[]} slugs
  * @param {number} now
  * @returns {Promise<Map<string, Map<string, number>>>}
  */
-async function listHolders(db, events, now) {
-	const slugs = events.filter((e) => e.config.waitlist).map((e) => e.slug);
-	if (!slugs.length) return new Map();
+async function queueFor(db, slugs, now) {
 	try {
-		if (!(await isFlagOn(db, 'lista_espera'))) return new Map();
-		return await queueHoldersMany(db, slugs, now);
+		const [on, holders] = await Promise.all([
+			isFlagOn(db, 'lista_espera'),
+			queueHoldersMany(db, slugs, now)
+		]);
+		return on ? holders : new Map();
 	} catch (error) {
 		console.error('[tickets] no se pudo leer la lista de espera para las listas:', error);
 		return new Map();
