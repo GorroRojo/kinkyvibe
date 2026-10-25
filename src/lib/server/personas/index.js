@@ -247,8 +247,17 @@ export async function contentForProfilePage(platform, slug, loadPosts) {
 	try {
 		const db = await enabledDB(platform);
 		if (!db) return null;
-		const found = await resolveProfileContent(db, slug, await loadPosts(), await listRoles(db));
-		return found?.groups.length ? found.groups : null;
+		// Las publicaciones, los roles y si el perfil es público, a la par (lo mismo que
+		// `resolveProfileContent`; la base está lejos: cada consulta que espera a otra es una ida y
+		// vuelta).
+		const [posts, roles, profiles] = await Promise.all([
+			loadPosts(),
+			listRoles(db),
+			publicProfilesBySlug(db, [slug])
+		]);
+		if (!profiles.get(slug)) return null;
+		const groups = contentByRole(posts, slug, roles);
+		return groups.length ? groups : null;
 	} catch (error) {
 		logDBError('publicaciones del perfil', error);
 		return null;
