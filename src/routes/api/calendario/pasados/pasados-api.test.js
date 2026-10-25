@@ -22,15 +22,15 @@ beforeAll(async () => {
 		t.db,
 		[
 			// el 31/8 a las 23:59 en Argentina ya es 1/9 en UTC: es de agosto
-			fakeEvent('fin-de-agosto', '2026-08-31T23:59-03:00', ['taller']),
+			fakeEvent('fin-de-agosto', Date.parse('2026-08-31T23:59-03:00'), ['taller']),
 			// el 30/9 a las 22 en Argentina ya es 1/10 en UTC: es de septiembre
-			fakeEvent('fin-de-septiembre', '2026-09-30T22:00-03:00', ['taller']),
+			fakeEvent('fin-de-septiembre', Date.parse('2026-09-30T22:00-03:00'), ['taller']),
 			// el 1/10 a las 0:30 en Argentina (3:30 UTC): es de octubre
-			fakeEvent('inicio-de-octubre', '2026-10-01T00:30-03:00', ['taller']),
-			fakeEvent('octubre-pasado', '2026-10-03T20:00-03:00', ['taller'], {
+			fakeEvent('inicio-de-octubre', Date.parse('2026-10-01T00:30-03:00'), ['taller']),
+			fakeEvent('octubre-pasado', Date.parse('2026-10-03T20:00-03:00'), ['taller'], {
 				location: 'Calle Inventada 123'
 			}),
-			fakeEvent('octubre-proximo', '2026-10-20T20:00-03:00', ['taller'])
+			fakeEvent('octubre-proximo', Date.parse('2026-10-20T20:00-03:00'), ['taller'])
 		],
 		{ now: NOW - 90 * 86_400_000 }
 	);
