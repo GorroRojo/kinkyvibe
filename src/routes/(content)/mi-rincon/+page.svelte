@@ -52,6 +52,41 @@
 
 	<section class="surface-card" aria-labelledby="compras-title">
 		<h2 id="compras-title">Tus compras y entradas</h2>
+		{#if form?.action === 'elegirOrden'}
+			{#if form.error}
+				<p class="error" role="alert">{form.error}</p>
+			{:else if form.message}
+				<p class="ok" role="status">{form.message}</p>
+			{/if}
+		{/if}
+		{#if !data.ordersError && data.unconfirmed?.length}
+			<!-- «No fui yo», parte 2: entradas gratis pedidas con este mail sin tu sesión. -->
+			<div class="unconfirmed" role="group" aria-labelledby="son-tuyas-title">
+				<h3 id="son-tuyas-title">¿Son tuyas?</h3>
+				<p class="hint">
+					Alguien pidió estas entradas gratis con tu mail sin entrar a tu cuenta. Si las pediste
+					vos, las sumamos a tu lista; si no, no te las mostramos más.
+				</p>
+				<ul class="orders">
+					{#each data.unconfirmed as o (o.id)}
+						<li>
+							<strong>{o.event}</strong>
+							<span>
+								{o.quantity === 1 ? '1 entrada gratis' : `${o.quantity} entradas gratis`}
+								{#if o.eventStart}· {argDateList(o.eventStart)}{/if}
+							</span>
+							<span class="hint">Pedido {o.reference}, del {argDateLong(o.createdAt)}</span>
+							<form method="POST" action="?/elegirOrden" class="choices" use:enhance={keep}>
+								<input type="hidden" name="orden" value={o.id} />
+								<button class="pill-btn" type="submit" name="mine" value="1">Sí, son mías</button>
+								<button class="pill-btn ghost" type="submit" name="mine" value="0">No es mía</button
+								>
+							</form>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
 		{#if data.ordersError}
 			<p class="error" role="alert">No pudimos cargar tus compras. Probá de nuevo en un rato.</p>
 		{:else if data.orders.length === 0}
@@ -75,7 +110,8 @@
 			</ul>
 		{/if}
 		<p class="hint">
-			Acá aparecen las compras hechas con tu mail, también las de antes de tener cuenta.
+			Acá aparecen las compras hechas con tu mail, también las de antes de tener cuenta. Las
+			entradas gratis pedidas sin entrar a tu cuenta te las preguntamos antes.
 		</p>
 	</section>
 
@@ -492,6 +528,23 @@
 		gap: 0.15em;
 		padding-bottom: 0.8em;
 		border-bottom: 1px solid var(--line);
+	}
+	.unconfirmed {
+		display: grid;
+		gap: 0.5em;
+		margin-bottom: 1.2em;
+		padding: 0.8em;
+		border: 1px solid var(--line);
+		border-radius: var(--round-sm);
+	}
+	.unconfirmed h3 {
+		margin: 0;
+	}
+	.choices {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5em;
+		margin-top: 0.3em;
 	}
 	.orders a {
 		display: flex;
