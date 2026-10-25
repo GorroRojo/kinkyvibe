@@ -16,17 +16,23 @@ async function acceptAgeGate(page) {
 }
 
 /** Collects console errors and uncaught exceptions of the page. */
-function collectErrors(page) {
+function collectErrors(page, baseURL) {
 	const errors = [];
 	page.on('pageerror', (e) => errors.push(String(e)));
-	// (las imágenes de afuera no cargan en el entorno de pruebas: eso no es un error de la página)
-	page.on(
-		'console',
-		(m) =>
-			m.type() === 'error' &&
-			!m.text().startsWith('Failed to load resource') &&
-			errors.push(m.text())
-	);
+	page.on('console', (m) => {
+		if (m.type() !== 'error') return;
+		// Lo de afuera (imágenes, analíticas) falla o lo bloquea CORS según la red: como en
+		// smoke.spec.js, solo cuentan los errores de recursos del sitio (la primera URL del
+		// mensaje, o dónde se registró).
+		const own = (/** @type {string} */ u) => !!baseURL && u.startsWith(baseURL);
+		const url = m.location()?.url ?? '';
+		const resource = m.text().match(/https?:\/\/[^\s'")]+/)?.[0];
+		if (url && !own(url)) return;
+		if (resource && !own(resource)) return;
+		// una imagen de la semilla que no está en el entorno de pruebas
+		if (m.text().startsWith('Failed to load resource')) return;
+		errors.push(m.text());
+	});
 	return errors;
 }
 
@@ -43,8 +49,11 @@ test('el layout de todas las páginas manda el árbol sin descripciones ni pági
 	expect(data).not.toContain('/wiki/BDSM');
 });
 
-test('buscador de etiquetas: escribir, elegir con Enter y con un clic', async ({ page }) => {
-	const errors = collectErrors(page);
+test('buscador de etiquetas: escribir, elegir con Enter y con un clic', async ({
+	page,
+	baseURL
+}) => {
+	const errors = collectErrors(page, baseURL);
 	await page.goto('/material', { waitUntil: 'networkidle' });
 	const input = page.getByRole('combobox', { name: 'Buscar por etiquetas o texto' });
 	await input.click();
@@ -83,8 +92,11 @@ test('buscador de etiquetas: escribir, elegir con Enter y con un clic', async ({
 	expect(errors).toEqual([]);
 });
 
-test('la Kinkipedia: el glosario muestra descripciones y «Ver también»', async ({ page }) => {
-	const errors = collectErrors(page);
+test('la Kinkipedia: el glosario muestra descripciones y «Ver también»', async ({
+	page,
+	baseURL
+}) => {
+	const errors = collectErrors(page, baseURL);
 	await page.goto('/wiki/BDSM', { waitUntil: 'networkidle' });
 	const self = page.locator('.all.single .self');
 	await expect(self).toContainText('Una conjunción de');
@@ -93,9 +105,10 @@ test('la Kinkipedia: el glosario muestra descripciones y «Ver también»', asyn
 });
 
 test('al navegar desde una página sin detalles, la Kinkipedia los recibe con su página', async ({
-	page
+	page,
+	baseURL
 }) => {
-	const errors = collectErrors(page);
+	const errors = collectErrors(page, baseURL);
 	await page.goto('/calendario', { waitUntil: 'networkidle' });
 	// navegación del lado del cliente (sin recargar): el layout raíz no se vuelve a pedir
 	await page.locator('nav a[href="/wiki"]').first().click();
