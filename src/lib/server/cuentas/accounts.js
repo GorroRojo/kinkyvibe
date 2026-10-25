@@ -200,6 +200,8 @@ export async function deleteAccount(db, accountId, { now = Date.now() } = {}) {
 	const hash = await emailHash(account.email);
 	await db.batch([
 		db.prepare('UPDATE orders SET account_id = NULL WHERE account_id = ?1').bind(accountId),
+		// Lo elegido sobre las órdenes gratis («¿Son tuyas?», migración 0061).
+		db.prepare('DELETE FROM free_order_choices WHERE account_id = ?1').bind(accountId),
 		db.prepare('DELETE FROM account_sessions WHERE account_id = ?1').bind(accountId),
 		db.prepare('DELETE FROM login_codes WHERE email_hash = ?1').bind(hash),
 		// «Lo que sigo» (migración 0032): lo seguido y los avisos ya mandados son de la persona.

@@ -259,8 +259,62 @@ describe('cuentas', () => {
 			email: EMAIL,
 			hasPassword: false,
 			orders: [],
+			unconfirmed: [],
 			ordersError: false
 		});
+	});
+
+	it('«¿Son tuyas?»: la gratis pedida sin sesión espera; «Sí» la suma y «No es mía» la saca', async () => {
+		const m = await modules();
+		const { ev } = await signedIn(m);
+		/** @param {string} id @param {string} slug */
+		const freeOrder = (id, slug) =>
+			t.db
+				.prepare(
+					`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal, total,
+						buyer_name, buyer_email, status, created_at, updated_at, expires_at, payment_method,
+						fondo_option)
+					VALUES (?1, ?2, 'general', 1, 0, 0, 0, 'Persona Inventada', ?3, 'approved', 1, 1, 1,
+						'gratis', 'gorra')`
+				)
+				.bind(id, slug, EMAIL)
+				.run();
+		// Desde cuándo se pregunta (lo escribe la migración 0061): antes de estas órdenes.
+		await t.db
+			.prepare(
+				`INSERT INTO ticket_settings (key, value, updated_at, updated_by)
+				VALUES ('free_order_choices_since', '0', 1, 'test')`
+			)
+			.run();
+		const ONE = '00000000-0000-4000-8000-0000000000f1';
+		const TWO = '00000000-0000-4000-8000-0000000000f2';
+		await freeOrder(ONE, 'evento-uno');
+		await freeOrder(TWO, 'evento-dos');
+		const before = /** @type {any} */ (await m.rincon.load(ev()));
+		expect(before.orders).toEqual([]);
+		expect(before.unconfirmed.map((/** @type {any} */ o) => o.id).sort()).toEqual([ONE, TWO]);
+
+		expect(await m.rincon.actions.elegirOrden(ev({ orden: ONE, mine: '1' }))).toEqual({
+			action: 'elegirOrden',
+			message: 'Listo: las sumamos a tus compras y entradas.'
+		});
+		expect(await m.rincon.actions.elegirOrden(ev({ orden: TWO, mine: '0' }))).toEqual({
+			action: 'elegirOrden',
+			message: 'Listo: no te las mostramos más.'
+		});
+		const after = /** @type {any} */ (await m.rincon.load(ev()));
+		expect(after.orders.map((/** @type {any} */ o) => o.id)).toEqual([ONE]);
+		expect(after.unconfirmed).toEqual([]);
+
+		// Una orden que no es de este mail, o un valor raro: nada.
+		const bad = /** @type {any} */ (
+			await m.rincon.actions.elegirOrden(ev({ orden: 'no-existe', mine: '1' }))
+		);
+		expect(bad.status).toBe(404);
+		const odd = /** @type {any} */ (
+			await m.rincon.actions.elegirOrden(ev({ orden: ONE, mine: 'x' }))
+		);
+		expect(odd.status).toBe(400);
 	});
 
 	it('contraseña: sin código fresco no se pone, cambia ni saca', async () => {

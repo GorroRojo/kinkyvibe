@@ -1,8 +1,8 @@
 /**
  * "Mi rincón": la cuenta del público (docs/cuentas.md). Mail, contraseña (poner, cambiar,
- * sacar), compras de ese mail (solo lectura), «Mis datos» (lo guardado para la compra: ver,
- * cambiar, borrar), cerrar sesión (acá o en todos lados) y borrar la cuenta. Sin
- * sesión, lleva a /ingresar.
+ * sacar), compras de ese mail (solo lectura, con «¿Son tuyas?» para las gratis hechas sin
+ * sesión), «Mis datos» (lo guardado para la compra: ver, cambiar, borrar), cerrar sesión (acá o
+ * en todos lados) y borrar la cuenta. Sin sesión, lleva a /ingresar.
  *
  * La sesión dura para siempre, así que tocar la contraseña y borrar la cuenta piden además un
  * código fresco por mail, del mismo `purpose` que la acción (?/confirmar lo manda; la acción lo
@@ -20,7 +20,12 @@ import {
 } from '$lib/server/cuentas/accounts.js';
 import { READING_SPEEDS, parseReadingSpeed } from '$lib/utils/readingTime.js';
 import { passwordProblem } from '$lib/server/cuentas/password.js';
-import { ordersForAccount } from '$lib/server/cuentas/orders.js';
+import {
+	chooseFreeOrder,
+	ordersForAccount,
+	verifiedEmail,
+	unconfirmedFreeOrders
+} from '$lib/server/cuentas/orders.js';
 import { SESSION_COOKIE, destroyOtherSessions } from '$lib/server/cuentas/session.js';
 import {
 	checkConfirmCode,
@@ -65,13 +70,26 @@ export async function load(event) {
 	// y el permiso de perfiles ya vinieron con la sesión (`locals.member`, getSessionAccount).
 	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed] = await Promise.all([
 		getAccount(db, member.id),
-		ordersForAccount(db, member.id).then(
-			(orders) => ({ orders, error: false }),
-			(e) => {
-				logDBError('cuentas: compras', e);
-				return { orders: [], error: true };
-			}
-		),
+		// «¿Son tuyas?»: entradas gratis pedidas con este mail sin la sesión de la cuenta («No fui yo»,
+		// parte 2). No van en la lista hasta que la persona dice que son suyas.
+		verifiedEmail(db, member.id)
+			.then((email) =>
+				Promise.all([
+					ordersForAccount(db, member.id, { email }),
+					unconfirmedFreeOrders(db, member.id, { email })
+				])
+			)
+			.then(
+				([orders, unconfirmed]) => ({ orders, unconfirmed, error: false }),
+				(e) => {
+					logDBError('cuentas: compras', e);
+					return {
+						orders: /** @type {Awaited<ReturnType<typeof ordersForAccount>>} */ ([]),
+						unconfirmed: /** @type {Awaited<ReturnType<typeof unconfirmedFreeOrders>>} */ ([]),
+						error: true
+					};
+				}
+			),
 		// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
 		getSavedBuyer(db, member.id).then(
 			(saved) => ({ saved, error: false }),
@@ -95,13 +113,24 @@ export async function load(event) {
 		await endSession(event, db);
 		redirect(303, LOGIN);
 	}
-	const { orders, error: ordersError } = ordersRead;
+	const { orders, unconfirmed, error: ordersError } = ordersRead;
 	const { saved, error: savedError } = savedRead;
 	// El título y la fecha de cada evento de las compras, todos a la par.
-	const slugs = [...new Set(orders.map((o) => o.event_slug))];
+	const slugs = [...new Set([...orders, ...unconfirmed].map((o) => o.event_slug))];
 	const infos = await Promise.all(slugs.map((slug) => getEventInfo(slug)));
 	/** @type {Map<string, { title: string, start: string | null } | null>} */
 	const events = new Map(slugs.map((slug, i) => [slug, infos[i]]));
+	/** @param {(typeof orders)[number]} o */
+	const listed = (o) => ({
+		id: o.id,
+		reference: orderReference(o.id),
+		event: events.get(o.event_slug)?.title ?? o.event_slug,
+		eventStart: events.get(o.event_slug)?.start ?? null,
+		quantity: o.quantity,
+		total: o.total,
+		status: o.status,
+		createdAt: o.created_at
+	});
 	return {
 		email: account.email,
 		hasPassword: account.has_password,
@@ -119,16 +148,8 @@ export async function load(event) {
 		savedError,
 		// La velocidad de lectura de la cuenta (null: la de siempre). $lib/utils/readingSpeed.js.
 		readingSpeed,
-		orders: orders.map((o) => ({
-			id: o.id,
-			reference: orderReference(o.id),
-			event: events.get(o.event_slug)?.title ?? o.event_slug,
-			eventStart: events.get(o.event_slug)?.start ?? null,
-			quantity: o.quantity,
-			total: o.total,
-			status: o.status,
-			createdAt: o.created_at
-		}))
+		orders: orders.map(listed),
+		unconfirmed: unconfirmed.map(listed)
 	};
 }
 
@@ -335,6 +356,30 @@ export const actions = {
 			console.error('[cuentas] no se pudieron leer los datos guardados');
 			return fail(500, { action: 'datos', error: 'No se pudo. Probá de nuevo.' });
 		}
+	},
+
+	// «¿Son tuyas?»: «Sí, son mías» (mine=1) la pasa a la lista; «No es mía» (mine=0) la saca.
+	elegirOrden: async (event) => {
+		const { db, member } = await requireMember(event);
+		const form = await event.request.formData();
+		const orderId = field(form, 'orden');
+		const mine = field(form, 'mine');
+		if (!orderId || (mine !== '1' && mine !== '0'))
+			return fail(400, { action: 'elegirOrden', error: 'No sabemos qué elegiste.' });
+		try {
+			const ok = await chooseFreeOrder(db, { accountId: member.id, orderId, mine: mine === '1' });
+			if (!ok) return fail(404, { action: 'elegirOrden', error: 'No encontramos esas entradas.' });
+		} catch (e) {
+			logDBError('cuentas: elegir orden gratis', e);
+			return fail(500, { action: 'elegirOrden', error: 'No se pudo. Probá de nuevo.' });
+		}
+		return {
+			action: 'elegirOrden',
+			message:
+				mine === '1'
+					? 'Listo: las sumamos a tus compras y entradas.'
+					: 'Listo: no te las mostramos más.'
+		};
 	},
 
 	salir: async (event) => {
