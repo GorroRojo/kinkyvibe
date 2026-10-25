@@ -896,24 +896,7 @@ export async function applyPayment(db, payment, { now = Date.now(), capacityOf }
 			// Aprobar y emitir las entradas en la misma transacción.
 			const [res] = await db.batch([update, ...issueTicketsStatements(db, order)]);
 			if (res.meta.changes === 1) {
-				let updated = /** @type {Order} */ (await getOrder(db, order.id));
-				const late =
-					current.status === 'expired' ||
-					current.status === 'cancelled' ||
-					(current.status !== 'approved' && current.expires_at <= now);
-				if (late && (await overCapacity(db, updated, capacityOf, now))) {
-					console.error(
-						`[tickets] la orden ${order.id} se pagó con la reserva vencida y ya no había cupo: queda para revisar`
-					);
-					await flagOrder(db, order.id, 'late_payment', paymentId, now);
-					updated = /** @type {Order} */ (await getOrder(db, order.id));
-				}
-				return {
-					outcome: 'updated',
-					order: updated,
-					newlyApproved: true,
-					tickets: await getOrderTickets(db, order.id)
-				};
+				return afterApproval(db, current, { paymentId, now, capacityOf });
 			}
 		}
 		const fresh = await getOrder(db, order.id);
@@ -921,6 +904,71 @@ export async function applyPayment(db, payment, { now = Date.now(), capacityOf }
 		current = fresh;
 	}
 	return { outcome: 'unchanged', order: current, newlyApproved: false, tickets: [] };
+}
+
+/**
+ * Lo que sigue a aprobar una orden en {@link applyPayment}: releerla, revisar el cupo si el pago
+ * llegó tarde y leer las entradas. La orden ya quedó aprobada y con sus entradas (en la misma
+ * transacción), así que si una de estas lecturas falla se loguea y se devuelve igual el resultado
+ * de la aprobación: el webhook contesta 2xx y Mercado Pago no reintenta algo que ya se hizo. Sin
+ * la orden releída, va la de antes con el estado nuevo; sin las entradas, `[]` (el mail las lee
+ * solo, y si tampoco puede, lo reintenta el cron: unsentOrders.js). Si no se pudo revisar el cupo
+ * de un pago tardío, se marca para revisar (como cuando no se sabe el cupo).
+ *
+ * @param {D1Database} db
+ * @param {Order} previous la orden como estaba antes de aprobarla
+ * @param {{ paymentId: string, now: number, capacityOf?: (order: Order) => Promise<number | null> }} options
+ * @returns {Promise<{ outcome: 'updated', order: Order, newlyApproved: true, tickets: Ticket[] }>}
+ */
+async function afterApproval(db, previous, { paymentId, now, capacityOf }) {
+	const id = previous.id;
+	/** @type {Order} */
+	let updated = { ...previous, status: 'approved', mp_payment_id: paymentId, updated_at: now };
+	try {
+		updated = (await getOrder(db, id)) ?? updated;
+	} catch (error) {
+		console.error(`[tickets] la orden ${id} quedó aprobada pero no se pudo releer:`, error);
+	}
+	const late =
+		previous.status === 'expired' ||
+		previous.status === 'cancelled' ||
+		(previous.status !== 'approved' && previous.expires_at <= now);
+	if (late) {
+		let flag = false;
+		try {
+			flag = await overCapacity(db, updated, capacityOf, now);
+			if (flag) {
+				console.error(
+					`[tickets] la orden ${id} se pagó con la reserva vencida y ya no había cupo: queda para revisar`
+				);
+			}
+		} catch (error) {
+			console.error(
+				`[tickets] la orden ${id} se pagó con la reserva vencida y no se pudo revisar el cupo: queda para revisar`,
+				error
+			);
+			flag = true;
+		}
+		if (flag) {
+			try {
+				await flagOrder(db, id, 'late_payment', paymentId, now);
+				updated = (await getOrder(db, id)) ?? updated;
+			} catch (error) {
+				console.error(`[tickets] no se pudo marcar la orden ${id} para revisar:`, error);
+			}
+		}
+	}
+	/** @type {Ticket[]} */
+	let tickets = [];
+	try {
+		tickets = await getOrderTickets(db, id);
+	} catch (error) {
+		console.error(
+			`[tickets] la orden ${id} quedó aprobada pero no se pudieron leer las entradas:`,
+			error
+		);
+	}
+	return { outcome: 'updated', order: updated, newlyApproved: true, tickets };
 }
 
 /**
