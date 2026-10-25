@@ -10,6 +10,7 @@ import {
 	copyUrl,
 	missingCopies,
 	parseCopyKey,
+	posterSrcset,
 	smallSrcset
 } from './mediaCopies.js';
 
@@ -69,7 +70,34 @@ describe('srcset de las tarjetas y las listas', () => {
 		]) {
 			expect(cardSrcset(src)).toBe('');
 			expect(smallSrcset(src)).toBe('');
+			expect(posterSrcset(src, { width: 1080, height: 1350 })).toBe('');
 		}
+	});
+});
+
+describe('srcset del afiche de un evento', () => {
+	const src = `/media/img/${A}.webp`;
+	it('las copias y el original, anotados por su lado corto (el cuadrado recorta al centro)', () => {
+		// vertical: el lado corto es el ancho
+		expect(posterSrcset(src, { width: 1080, height: 1350 })).toBe(
+			`/media/img/${A}-360.webp 360w, /media/img/${A}-720.webp 720w, ${src} 1080w`
+		);
+		// apaisada: el lado corto es el alto
+		expect(posterSrcset(src, { width: 2000, height: 1125 })).toBe(
+			`/media/img/${A}-360.webp 360w, /media/img/${A}-720.webp 720w, ${src} 1125w`
+		);
+	});
+	it('un original chico: nunca anota más que lo que mide y no repite un lado', () => {
+		expect(posterSrcset(src, { width: 600, height: 800 })).toBe(
+			`/media/img/${A}-360.webp 360w, /media/img/${A}-720.webp 600w`
+		);
+		expect(posterSrcset(src, { width: 300, height: 300 })).toBe(`/media/img/${A}-360.webp 300w`);
+	});
+	it('sin medidas (portada vieja): solo las copias', () => {
+		const copies = `/media/img/${A}-360.webp 360w, /media/img/${A}-720.webp 720w`;
+		expect(posterSrcset(src)).toBe(copies);
+		expect(posterSrcset(src, null)).toBe(copies);
+		expect(posterSrcset(src, { width: null, height: 900 })).toBe(copies);
 	});
 });
 
