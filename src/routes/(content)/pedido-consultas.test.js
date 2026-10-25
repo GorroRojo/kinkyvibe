@@ -97,7 +97,7 @@ const BOUNDS = {
 	'/wiki/BDSM': { frío: 6, caliente: 1, tibio: 4 }, // (10, 2, 8); con solo las tandas, (8, 2, 6)
 	[`/calendario/${EVENT}`]: { frío: 4, caliente: 1, tibio: 2 }, // (20, 15, 18); con solo las tandas, (4, 3, 4)
 	'/material/6-tips-para-tops': { frío: 4, caliente: 1, tibio: 2 }, // (10, 6, 8); con solo las tandas, (4, 3, 4)
-	'/amigues/autore-inventade': { frío: 5, caliente: 2, tibio: 3 } // (10, 5, 8)
+	'/amigues/autore-inventade': { frío: 5, caliente: 1, tibio: 3 } // (10, 5, 8); con solo las tandas, (5, 2, 3)
 };
 
 /**
