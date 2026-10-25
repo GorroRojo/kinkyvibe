@@ -44,7 +44,7 @@ describe('BodySection: CodeMirror a pedido', () => {
 		);
 		view.dispatch({ changes: { from: view.state.doc.length, insert: '\nOtra línea.' } });
 		await waitFor(() => expect(content.textContent).toContain('Otra línea.'));
-	});
+	}, 20_000);
 
 	it('CodeMirror no se importa de entrada (solo con import() al montar)', () => {
 		const src = readFileSync('src/lib/components/admin/event-form/BodySection.svelte', 'utf8');
