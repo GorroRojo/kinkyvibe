@@ -43,6 +43,7 @@ import {
 } from '$lib/utils/venues.js';
 import { isApproved, isShownProfile, urlSlugOf, viewerFor } from './profiles.js';
 import { textOrNull as s } from '$lib/utils/text.js';
+import { eventIdsWithSlugSql } from '$lib/server/eventos/eventSlugIds.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -101,7 +102,7 @@ export async function eventVenue(db, eventSlug) {
 	const row = await db
 		.prepare(
 			`SELECT ${cols}, l.privacy AS ev_privacy, s.legacy_slug AS legacy_slug
-			FROM (${lugarLinksSql(`${EVENT_POST_SLUG} = ?1`)}) l
+			FROM (${lugarLinksSql(`ev.id IN (${eventIdsWithSlugSql('?1')})`)}) l
 			JOIN objects o ON o.id = l.venue_id
 			LEFT JOIN profile_sources s ON s.profile_id = o.id
 			WHERE o.type = ?2 AND o.deleted_at IS NULL`
