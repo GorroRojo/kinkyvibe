@@ -188,16 +188,18 @@ export function typeBuyableNow(config, type, taken, now) {
  * Configuración de entradas del evento con el porcentaje del Fondo vigente. El porcentaje (una
  * lectura de D1 y, cada tanto, un pedido a fondo.kinkyvibe.ar con hasta 3 s de espera) se busca
  * solo si el evento vende entradas y usa el Fondo: la página de cualquier evento pasa por acá.
+ * El evento se lee una sola vez y el porcentaje se busca a la par de su lugar
+ * (`options.fondo` de `getEventTickets`).
  *
  * @param {import('@cloudflare/workers-types').D1Database | null} db
  * @param {string} slug
  * @param {typeof fetch} [fetchFn]
  */
 export async function eventTicketsWithFondo(db, slug, fetchFn) {
-	const base = await getEventTickets(slug);
-	if (!base?.fondoEnabled) return base;
-	const fondo = await resolveFondoPercent({ db, fetch: fetchFn });
-	return getEventTickets(slug, { fondoPercent: fondo.percent });
+	return getEventTickets(slug, {
+		fondo: async (base) =>
+			base.fondoEnabled ? (await resolveFondoPercent({ db, fetch: fetchFn })).percent : undefined
+	});
 }
 
 /**
