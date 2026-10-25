@@ -39,7 +39,7 @@ import { markdownToPost, postToMarkdown } from './markdown.js';
 import { revisionStatement } from './revisions.js';
 import { personaEdgesColumn, personaEdgesFromColumn } from './personasEdges.js';
 import { linkedTagKeysOf, tagEdgesColumn, tagEdgesFromColumn } from './etiquetasEdges.js';
-import { contentEdgesOf, dehydrateContent, withContentEdges } from './relaciones.js';
+import { contentEdgesFrom, dehydrateContent, withContentEdges } from './relaciones.js';
 import {
 	applyFichaWrite,
 	fichaCategoryOfDir,
@@ -396,21 +396,21 @@ async function readPostsStamp(db, type, category) {
  */
 async function readDbPostRows(db, type, category) {
 	// Panel (solo admins): ve todo, también lo oculto y lo borrado.
-	const { results } = await db
-		.prepare(
-			`SELECT ${prefixed('o')}, s.legacy_slug FROM objects o
-			LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
-			WHERE o.type = ?1`
-		)
-		.bind(type, category)
-		.all();
 	// Con las listas de personas y de etiquetas enteras (los perfiles y las etiquetas son edges:
-	// ./relaciones.js), en una consulta para todos. Guardar un edge pasa por saveObject(), que
-	// cambia `updated_at`: la marca de arriba lo nota.
-	const linked = await contentEdgesOf(
-		db,
-		results.map((r) => Number(r.id))
-	);
+	// ./relaciones.js), en una consulta para todos, a la par de la de los objetos: los edges de los
+	// objetos de este tipo (los mismos ids que trae la primera). Guardar un edge pasa por
+	// saveObject(), que cambia `updated_at`: la marca de arriba lo nota.
+	const [{ results }, linked] = await Promise.all([
+		db
+			.prepare(
+				`SELECT ${prefixed('o')}, s.legacy_slug FROM objects o
+				LEFT JOIN content_sources s ON s.object_id = o.id AND s.category = ?2
+				WHERE o.type = ?1`
+			)
+			.bind(type, category)
+			.all(),
+		contentEdgesFrom(db, { sql: 'SELECT id FROM objects WHERE type = ?', params: [type] })
+	]);
 	if (!linked.size) return results;
 	return results.map((r) => {
 		const edges = linked.get(Number(r.id));

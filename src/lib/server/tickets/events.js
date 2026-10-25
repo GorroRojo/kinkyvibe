@@ -174,16 +174,19 @@ export async function getEventInfo(slug) {
  * @returns {Promise<import('./config.js').EventTickets | null>}
  */
 export async function getEventTickets(slug, { fondo, ...options } = {}) {
+	// Si tiene lugar, a la par del evento (con las tandas automáticas, en la misma ida): solo se usa
+	// si vende entradas (si no, ni su error cuenta).
+	const venue = speculative(eventsWithVenue(slug));
 	const meta = await loadMeta(slug);
 	if (!sellsTickets(meta)) return ticketsOf(slug, meta, { ...options, hasVenue: false });
 	if (!fondo) {
-		const withVenue = await eventsWithVenue(slug);
+		const withVenue = await venue;
 		return ticketsOf(slug, meta, { ...options, hasVenue: withVenue.has(slug) });
 	}
 	// `parseTicketConfig` es pura: sin el lugar alcanza para saber si es válida y si usa el Fondo.
 	const draft = ticketsOf(slug, meta, options);
 	if (!draft) return null;
-	const [withVenue, fondoPercent] = await Promise.all([eventsWithVenue(slug), fondo(draft)]);
+	const [withVenue, fondoPercent] = await Promise.all([venue, fondo(draft)]);
 	return ticketsOf(slug, meta, {
 		...options,
 		...(fondoPercent === undefined ? {} : { fondoPercent }),
@@ -239,6 +242,18 @@ async function eventsWithVenueAmong(slugs) {
 	return (await import('../amigues/venues.js')).eventsWithVenueAmong(db, slugs);
 }
 
+/**
+ * Una lectura que sale antes de saber si hace falta: si falla y nadie la espera, no queda como
+ * rechazo sin atender; quien la espera recibe el mismo error que antes.
+ * @template T
+ * @param {Promise<T>} promise
+ * @returns {Promise<T>}
+ */
+function speculative(promise) {
+	promise.catch(() => {});
+	return promise;
+}
+
 /** @param {Record<string, any> | null} meta */
 const sellsTickets = (meta) => meta?.tickets !== undefined && meta?.tickets !== null;
 
@@ -281,8 +296,11 @@ function ticketsOf(slug, meta, options) {
  */
 export async function listTicketedEvents(options = {}) {
 	const out = [];
+	// Los eventos con lugar, a la par de la lista (ver {@link getEventTickets}): solo se usan si
+	// alguno vende entradas.
+	const venues = speculative(eventsWithVenue());
 	const metas = await listEventMetas();
-	const withVenue = metas.some((e) => sellsTickets(e.meta)) ? await eventsWithVenue() : new Set();
+	const withVenue = metas.some((e) => sellsTickets(e.meta)) ? await venues : new Set();
 	for (const { slug, meta } of metas) {
 		const config = ticketsOf(slug, meta, { ...options, hasVenue: withVenue.has(slug) });
 		if (config) out.push({ slug, config });

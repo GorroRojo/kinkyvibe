@@ -191,10 +191,15 @@ export async function listFichas(db, category) {
 export async function fichaMetas(db) {
 	/** @type {{ category: FichaCategory, slug: string, meta: Record<string, unknown> }[]} */
 	const out = [];
-	for (const f of await listFichas(db, 'amigues')) {
+	// Las dos listas a la par (una no depende de la otra).
+	const [profiles, wikiPages] = await Promise.all([
+		listFichas(db, 'amigues'),
+		listFichas(db, 'wiki')
+	]);
+	for (const f of profiles) {
 		out.push({ category: 'amigues', slug: f.slug, meta: profileToMeta(f.object) });
 	}
-	for (const f of await listFichas(db, 'wiki')) {
+	for (const f of wikiPages) {
 		const e = wikiEntryOf(String(f.object.data.key), f.object.title, f.object.data);
 		out.push({
 			category: 'wiki',
