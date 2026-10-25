@@ -786,11 +786,38 @@ export async function restoreDB(db, snapshot) {
  * `all`, `run` o `raw` es una, y cada `batch` también es una (una sola vuelta a la base). Guarda
  * el SQL y lo que devolvió cada una, para ver cuánto viaja desde la base.
  *
+ * `waves`: cuántas tandas en fila (cada consulta que sale después de que terminó otra está una
+ * tanda más atrás; las que salen a la par, en la misma). En D1 lejos, cada tanda es una ida y
+ * vuelta que se espera. Con `delayMs`, cada consulta tarda eso de más, para que lo que sale a la
+ * par no se cuente como en fila por el ruido del D1 local.
+ *
  * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {{ delayMs?: number }} [opts]
  */
-export function countingDB(db) {
-	/** @type {{ sql: string, result: unknown }[]} */
+export function countingDB(db, { delayMs = 0 } = {}) {
+	/** @type {{ sql: string, result: unknown, wave: number }[]} */
 	const log = [];
+	// La tanda más honda de las consultas que ya terminaron, y la más honda de todas.
+	let doneWave = 0;
+	let maxWave = 0;
+	/**
+	 * @template T
+	 * @param {string} sql
+	 * @param {() => Promise<T>} run
+	 * @returns {Promise<T>}
+	 */
+	const timed = async (sql, run) => {
+		const wave = doneWave + 1;
+		maxWave = Math.max(maxWave, wave);
+		if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
+		try {
+			const result = await run();
+			log.push({ sql, result, wave });
+			return result;
+		} finally {
+			doneWave = Math.max(doneWave, wave);
+		}
+	};
 	const RAW = Symbol('statement');
 	/** @type {WeakMap<object, string>} */
 	const sqlOf = new WeakMap();
@@ -807,11 +834,7 @@ export function countingDB(db) {
 					return (/** @type {unknown[]} */ ...args) => wrap(target.bind(...args), sql);
 				}
 				if (prop === 'first' || prop === 'all' || prop === 'run' || prop === 'raw') {
-					return async (/** @type {unknown[]} */ ...args) => {
-						const result = await target[prop](...args);
-						log.push({ sql, result });
-						return result;
-					};
+					return (/** @type {unknown[]} */ ...args) => timed(sql, () => target[prop](...args));
 				}
 				const value = target[prop];
 				return typeof value === 'function' ? value.bind(target) : value;
@@ -827,11 +850,10 @@ export function countingDB(db) {
 					return (/** @type {string} */ sql) => wrap(target.prepare(sql), sql);
 				}
 				if (prop === 'batch') {
-					return async (/** @type {any[]} */ statements) => {
-						const result = await target.batch(statements.map((s) => s[RAW] ?? s));
-						log.push({ sql: statements.map((s) => sqlOf.get(s) ?? '?').join(';\n'), result });
-						return result;
-					};
+					return (/** @type {any[]} */ statements) =>
+						timed(statements.map((s) => sqlOf.get(s) ?? '?').join(';\n'), () =>
+							target.batch(statements.map((s) => s[RAW] ?? s))
+						);
 				}
 				const value = /** @type {any} */ (target)[prop];
 				return typeof value === 'function' ? value.bind(target) : value;
@@ -847,8 +869,14 @@ export function countingDB(db) {
 		},
 		/** Cuánto devolvieron (largo del JSON de los resultados). */
 		bytes: () => log.reduce((n, q) => n + JSON.stringify(q.result ?? null).length, 0),
+		/** Cuántas tandas en fila desde el último `reset` (ver arriba). */
+		get waves() {
+			return maxWave;
+		},
 		reset: () => {
 			log.length = 0;
+			doneWave = 0;
+			maxWave = 0;
 		}
 	};
 }

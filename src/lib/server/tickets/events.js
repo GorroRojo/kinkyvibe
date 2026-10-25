@@ -163,14 +163,32 @@ export async function getEventInfo(slug) {
  * `options.fondoPercent`: el porcentaje del Fondo (`resolveFondoPercent`), que usan los eventos
  * con la etiqueta KinkyVibe. Hace falta donde se muestran o cobran precios.
  *
+ * `options.fondo`: en vez del porcentaje, quién lo busca si hace falta (`eventTicketsWithFondo`
+ * en ./checkout.js). Se llama solo si el evento vende entradas y su configuración es válida, con
+ * esa configuración sin el lugar (solo cambia `online`) y sin porcentaje, y corre a la par de la
+ * lectura del lugar: el evento se lee una sola vez. Lo que devuelve es el `fondoPercent`.
+ *
  * @param {string} slug
- * @param {{ fondoPercent?: number | null }} [options]
+ * @param {{ fondoPercent?: number | null,
+ *   fondo?: (config: import('./config.js').EventTickets) => Promise<number | null | undefined> }} [options]
  * @returns {Promise<import('./config.js').EventTickets | null>}
  */
-export async function getEventTickets(slug, options = {}) {
+export async function getEventTickets(slug, { fondo, ...options } = {}) {
 	const meta = await loadMeta(slug);
-	const withVenue = sellsTickets(meta) ? await eventsWithVenue(slug) : new Set();
-	return ticketsOf(slug, meta, { ...options, hasVenue: withVenue.has(slug) });
+	if (!sellsTickets(meta)) return ticketsOf(slug, meta, { ...options, hasVenue: false });
+	if (!fondo) {
+		const withVenue = await eventsWithVenue(slug);
+		return ticketsOf(slug, meta, { ...options, hasVenue: withVenue.has(slug) });
+	}
+	// `parseTicketConfig` es pura: sin el lugar alcanza para saber si es válida y si usa el Fondo.
+	const draft = ticketsOf(slug, meta, options);
+	if (!draft) return null;
+	const [withVenue, fondoPercent] = await Promise.all([eventsWithVenue(slug), fondo(draft)]);
+	return ticketsOf(slug, meta, {
+		...options,
+		...(fondoPercent === undefined ? {} : { fondoPercent }),
+		hasVenue: withVenue.has(slug)
+	});
 }
 
 /**

@@ -31,7 +31,8 @@
 	import { page } from '$app/stores';
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
-	import { Button, TagChip } from '$lib/components/ui';
+	import Button from '$lib/components/ui/Button.svelte';
+	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import PostListItem from '$lib/components/PostListItem.svelte';
 	import AvisoEvento from '$lib/components/evento/AvisoEvento.svelte';
 	import BotonCompra from '$lib/components/evento/BotonCompra.svelte';

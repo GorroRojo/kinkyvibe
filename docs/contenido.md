@@ -33,6 +33,12 @@ queda marcado con el tag de git `posts-md-final`. Ningún guardado del panel pas
   `defaultCalendarMonth` en `src/lib/utils/allPosts.js`, con `argDate`), nunca de la del servidor
   (UTC) ni la del navegador de quien mira. Lo mismo el botón «Hoy» de la vista calendario de la
   agenda del panel (`todayInArgentina`).
+- **La página de un evento no espera de a una consulta.** La base está lejos (en el este de
+  EE. UU.): cada consulta que espera a la anterior es una ida y vuelta más. La venta, las partes
+  del taller, el lugar y el interruptor de la lista de espera salen a la par de la lectura del
+  evento (no dependen de él) y solo se muestran si quien mira puede ver el evento (si no, 404).
+  `evento-consultas.test.js` (al lado de la ruta) fija cuántas consultas y cuántas tandas en fila
+  hace (`countingDB`, con `waves`).
 - **`/calendario` trae los pasados de a un mes**: los próximos enteros y, de los pasados, los del
   mes que abre; los de otro mes los pide al ir a ese mes (`/api/calendario/pasados?mes=yyyy-MM`,
   `src/lib/server/eventos/pasados.js`; detalles en [seo.md](seo.md)).
@@ -185,6 +191,12 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   entradas y la puerta (`tickets/events.js`), el panel (lista, ficha, agenda, No listadas,
   Lugares) y los crons leen **solo la base** (convertida al mismo `ProcessedPost` que daba un
   `.md`). Una dirección que la base no tiene es 404. Sin base no hay eventos.
+- **La página de un evento o un material** (`siteContent`): la dirección, el objeto y, a la par,
+  si es una parte oculta, sus relaciones y su portada (se descartan si no se puede ver); después
+  les autores con perfil, todes en una consulta (`findPublicProfiles` en
+  `src/lib/server/amigues/profiles.js`, lo mismo que `findPublicProfile` dirección por dirección).
+  La base está lejos: cada consulta que espera a otra es una ida y vuelta.
+  `siteContent-consultas.test.js` fija cuántas consultas y tandas en fila hace.
 - **Guardar** (`src/lib/server/contenido/repo.js`, `withContentDb`): todo lo que el panel escribe
   pasa por el cliente de contenido (`getRepoClient()`), que habla en rutas de los viejos `.md`
   (`src/lib/posts/<categoría>/<dirección>.md`) y las lleva a la base (editor, cargar y duplicar,
@@ -224,7 +236,11 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   `src/lib/components/interactivos/index.js` (qué componente muestra cada una; los componentes
   viven en esa misma carpeta). Solo las registradas se muestran (también dentro de otro elemento,
   con `ContentParts.svelte`); cualquier otra `<kv-…>` se ve escapada, como texto. Un interactivo
-  nuevo necesita un PR. Hoy hay uno: `donde-y-como-golpear-un-cuerpo`.
+  nuevo necesita un PR. Hoy hay uno: `donde-y-como-golpear-un-cuerpo`. Los datos grandes de un
+  interactivo (los trazos de su SVG) no van en el componente: el servidor se los pasa como props
+  en su parte (`INTERACTIVE_PROPS` en `src/lib/server/contenido/interactive.js`, los datos en
+  `src/lib/server/contenido/interactivos/`), así viajan solo en la página que lo usa y no en el
+  JavaScript de todas las páginas con texto.
 - **Descargar todo** (botón en Contenido → En la base, `descargar.tar`,
   `src/lib/server/contenido/download.js`): los eventos, el material, los perfiles de amigues
   (`amigues/<dirección>.md`) y las páginas de la wiki (`wiki/<dirección>.md`) de la base como `.md`

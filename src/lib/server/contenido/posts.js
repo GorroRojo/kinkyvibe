@@ -610,16 +610,26 @@ export async function siteContent(
 	if (!ref) return null;
 	const found = await getObject(db, { id: ref.id }, viewer);
 	if (!found) return null;
-	// Una parte de un taller que oculta sus partes, como el taller (docs/talleres-partes.md).
+	// Una parte de un taller que oculta sus partes, como el taller (docs/talleres-partes.md). Sus
+	// relaciones y su portada se leen a la par (la base está lejos: cada consulta que espera a otra
+	// es una ida y vuelta) y se descartan si no se puede ver.
 	const part = partVisibleWhere(viewer, 'o');
-	const partOk = await db
-		.prepare(`SELECT 1 AS ok FROM objects o WHERE o.id = ? AND ${part.sql}`)
-		.bind(found.id, ...part.params)
-		.first();
+	const [partOk, hydrated, cover] = await Promise.all([
+		db
+			.prepare(`SELECT 1 AS ok FROM objects o WHERE o.id = ? AND ${part.sql}`)
+			.bind(found.id, ...part.params)
+			.first(),
+		// Un error acá cuenta solo si la parte se puede ver (antes ni se leía).
+		hydrateContent(db, [found]).then(
+			([object]) => ({ object }),
+			(error) => ({ error })
+		),
+		imageOf(db, found.id, 'portada', viewer).catch(() => null)
+	]);
 	if (!partOk) return null;
-	const [object] = await hydrateContent(db, [found]);
+	if ('error' in hydrated) throw hydrated.error;
+	const { object } = hydrated;
 	const postID = ref.legacySlug ?? object.slug;
-	const cover = await imageOf(db, object.id, 'portada', viewer).catch(() => null);
 	// Sin los vínculos a lo que no ve cualquiera, para todes (también con cuenta o admin): es la
 	// página pública. El panel lee con ./repo.js.
 	const [meta] = await publicLinksOf(db, [cat.toMeta(object)]);

@@ -85,6 +85,9 @@ export const TEMPLATE_FIELD_LABELS = Object.freeze({
 /** Por qué llegan los mails de entradas (pie de la plantilla común). */
 export const WHY_BOUGHT = 'Te llega porque compraste entradas en kinkyvibe.ar.';
 export const WHY_RESERVED = 'Te llega porque reservaste entradas en kinkyvibe.ar.';
+/** Por qué llegan los mails de entradas gratis (nadie compró: alguien las pidió con este mail). */
+export const WHY_FREE =
+	'Te llega porque se pidieron entradas gratis con este mail en kinkyvibe.ar.';
 /** Por qué llegan los mails de la lista de espera. */
 export const WHY_WAITLIST = 'Te llega porque te anotaste en una lista de espera de kinkyvibe.ar.';
 export const WHY_WAITLIST_CONFIRM =
