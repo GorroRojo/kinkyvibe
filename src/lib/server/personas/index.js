@@ -273,14 +273,17 @@ export async function contentForProfilePage(platform, slug, loadPosts) {
  * @returns {Promise<{ roles: string[], profiles: PublicProfileRef[] } | null>}
  */
 export async function editorPersonas(platform) {
-	const roles = await activeRoles(platform);
-	if (!roles) return null;
-	try {
-		return { roles, profiles: await pickableProfiles(/** @type {D1Database} */ (getDB(platform))) };
-	} catch (error) {
-		logDBError('perfiles para el editor', error);
-		return { roles, profiles: [] };
-	}
+	const db = getDB(platform);
+	if (!db) return null;
+	// Los roles y los perfiles a la par (una ida); `listRoles` no tira.
+	const [roles, profiles] = await Promise.all([
+		listRoles(db),
+		pickableProfiles(db).catch((error) => {
+			logDBError('perfiles para el editor', error);
+			return [];
+		})
+	]);
+	return { roles, profiles };
 }
 
 /**
