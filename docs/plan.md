@@ -257,7 +257,7 @@ CI) va en la fase 0.
 - `sveltekit-3` · fase 1 · sigue · infra · Revisar qué pide SvelteKit 3 (rutina del 9/11; gorrite: esperar, sin parches antes)
 - `rss-aviso-sacar` · fase 1 · sigue · infra · Sacar el aviso del RSS el 27/10 (rutina)
 - `push-pwa` · fase 1 · sigue · infra · Notificaciones push y PWA (gorrite, 12/10) · #16, #43, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
-- `vigilante-produccion` · fase 1 · hecho · infra · Vigilante de producción: una GitHub Action, cada 30 minutos y sin Claude, pide la portada, `/calendario`, `/calendario.ics` y `/api/health` (si existe); si fallan dos veces seguidas abre el issue «Producción no responde» asignado al dueño del repo y lo cierra cuando vuelve · [pruebas-y-ci.md](pruebas-y-ci.md)
+- `vigilante-produccion` · fase 1 · hecho · infra · Vigilante de producción: una GitHub Action, cada 30 minutos y sin Claude, pide la portada, `/calendario`, `/calendario.ics` y `/api/health` (si existe); si fallan dos veces seguidas abre el issue «Producción no responde» asignado al dueño del repo y lo cierra cuando vuelve · [pruebas-y-ci.md](pruebas-y-ci.md) · #410
 - `errores-alertas` · fase 1 · algún día · infra · Enterarse de los errores de producción: un Worker que mire los registros y avise si falla una compra (que el sitio entero no responda ya lo avisa `vigilante-produccion`)
 - `vivo-durable-objects` · fase 1 · algún día · infra · Presencia («alguien está editando») y contadores en vivo con un Durable Object
 - `r2-ciclo-vida` · fase 1 · algún día · infra · Regla de R2 que limpie subidas a medias después de un día
