@@ -1,14 +1,17 @@
 <script>
 	/**
 	 * «Seguir» de «Lo que sigo» (docs/lo-que-sigo.md) en la página de una etiqueta o un perfil.
-	 * Pregunta a /api/sigo al cargar (la página puede estar prerenderizada): con `lo_que_sigo`
-	 * apagado (404) no muestra nada. Sin sesión, lleva a /ingresar y vuelve acá. Con
+	 * La página de una etiqueta o un perfil lo trae con la carga (`info`: followButtonState en
+	 * $lib/server/sigo/button.js), así sale con la página y no la mueve al llegar; si no lo trae
+	 * (la de un evento), pregunta a /api/sigo al cargar. Con `lo_que_sigo` apagado (`null` o 404)
+	 * no muestra nada. Sin sesión, lleva a /ingresar y vuelve acá. Con
 	 * sesión, manda a /mi-rincon/sigo (?/seguir o ?/dejar); con JavaScript cambia acá mismo, sin
 	 * JavaScript muestra el resultado en Mi rincón → Lo que sigo.
 	 * Props: `kind` (`etiqueta` o `perfil`), `key` (nombre de la etiqueta o id del perfil),
 	 * `name` (cómo se llama, para el texto), `label` (el texto del botón, «Seguir» si no se pasa)
 	 * e `inline` (en una fila de botones, como «Agregar a mi calendario» en la página de un evento:
-	 * sin el ancho ni el margen propios).
+	 * sin el ancho ni el margen propios), `info` (lo de la carga, o `null` si no va el botón) y
+	 * `path` (la ruta de la página, para volver después de entrar).
 	 */
 	import { onMount } from 'svelte';
 	import { enhance } from '$app/forms';
@@ -23,9 +26,11 @@
 	export let label = 'Seguir';
 	export let inline = false;
 
-	/** @type {null | { member: false } | { member: true, kind: string, key: string, following: boolean }} */
-	let info = null;
-	let here = '/';
+	/** @type {undefined | null | { member: false } | { member: true, kind: string, key: string, following: boolean }} */
+	export let info = undefined;
+	export let path = '';
+	let here = path || '/';
+	$: if (path) here = path;
 	let busy = false;
 	/** @type {'' | 'seguir' | 'dejar'} */
 	let message = '';
@@ -33,7 +38,8 @@
 
 	onMount(async () => {
 		here = location.pathname + location.search;
-		if (!key) return;
+		// Ya vino con la página (o la página sabe que no va): no se pregunta.
+		if (info !== undefined || !key) return;
 		try {
 			const qs = new URLSearchParams({ tipo: kind, clave: key });
 			const r = await fetch(`/api/sigo?${qs}`);

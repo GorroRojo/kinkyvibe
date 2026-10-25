@@ -73,13 +73,14 @@ export function resolveTag(tags, key) {
 export async function resolveProfile(db, accountId, key) {
 	const id = Number(key);
 	if (!Number.isSafeInteger(id) || id <= 0) return null;
-	const object = await getObject(db, { id }, memberViewer(accountId));
+	// A la par (la base está lejos: cada consulta en fila es una ida y vuelta más).
+	const [object, approved, legacy] = await Promise.all([
+		getObject(db, { id }, memberViewer(accountId)),
+		isApproved(db, id),
+		db.prepare('SELECT legacy_slug FROM profile_sources WHERE profile_id = ?1').bind(id).first()
+	]);
 	if (!object || object.type !== PROFILE_TYPE) return null;
-	if (!(await isApproved(db, id)) && !(await managerRole(db, accountId, id))) return null;
-	const legacy = await db
-		.prepare('SELECT legacy_slug FROM profile_sources WHERE profile_id = ?1')
-		.bind(id)
-		.first();
+	if (!approved && !(await managerRole(db, accountId, id))) return null;
 	const legacySlug = legacy?.legacy_slug == null ? null : String(legacy.legacy_slug);
 	const profileKind = profileKindOf(object.data);
 	return {
