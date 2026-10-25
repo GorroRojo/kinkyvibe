@@ -23,7 +23,12 @@ declare global {
 			 */
 			member?: { id: string; email: string };
 		}
-		// interface Error {}
+		/** Lo que llega a la página de error (src/lib/server/errorLog.js). */
+		interface Error {
+			message: string;
+			/** Código corto del error en los registros (no en los 404). */
+			id?: string;
+		}
 		// interface Locals {}
 		// interface PageData {}
 		interface Platform {
