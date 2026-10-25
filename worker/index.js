@@ -24,14 +24,18 @@
  * La clave lleva la versión del build de SvelteKit, así que cada deploy empieza de cero. Se apaga
  * sin deploy con la variable `KV_EDGE_CACHE = "off"` en el panel.
  *
- * Toda respuesta lleva `Server-Timing` (cuánto tardó el Worker y si el isolate es nuevo;
- * src/lib/server/serverTiming.js), para medir desde afuera.
+ * Toda respuesta lleva `Server-Timing` (cuánto tardó el Worker, cuántas consultas hizo a D1 y cuánto
+ * esperó a la base, y si el isolate es nuevo; src/lib/server/serverTiming.js y d1Timing.js), para
+ * medir desde afuera. Para contar las consultas, el binding `DB` que recibe SvelteKit va envuelto
+ * (siempre el mismo envoltorio) y cada pedido corre con su contador en `d1Context`.
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
 import app from '../.svelte-kit/cloudflare/_worker.js';
 import { handleScheduled } from '../src/lib/server/scheduled.js';
 import { trackPageView } from '../src/lib/server/analytics/track.js';
 import { withEdgeCache } from '../src/lib/server/edgeCache.js';
 import { startServerTiming } from '../src/lib/server/serverTiming.js';
+import { createD1Stats, d1ServerTiming, d1Timer } from '../src/lib/server/d1Timing.js';
 import buildVersion from '../.svelte-kit/cloudflare/_app/version.json';
 
 /**
@@ -41,6 +45,10 @@ import buildVersion from '../.svelte-kit/cloudflare/_app/version.json';
  */
 const renderOg = async (tree, opts) => (await import('./og.js')).renderOg(tree, opts);
 
+/** El contador de consultas a D1 del pedido en curso (src/lib/server/d1Timing.js). */
+const d1Context = new AsyncLocalStorage();
+const timedDB = d1Timer(() => /** @type {any} */ (d1Context.getStore()));
+
 export default {
 	/**
 	 * @param {Request} request
@@ -49,11 +57,13 @@ export default {
 	 */
 	async fetch(request, env, ctx) {
 		const timing = startServerTiming();
+		const d1 = createD1Stats();
 		const og = new URL(request.url).pathname.startsWith('/og/');
+		const appEnv = { ...env, DB: timedDB(env.DB), ...(og ? { OG_RENDER: renderOg } : {}) };
 		const response = await withEdgeCache(
 			request,
 			ctx,
-			() => app.fetch(request, og ? { ...env, OG_RENDER: renderOg } : env, ctx),
+			() => d1Context.run(d1, () => app.fetch(request, appEnv, ctx)),
 			{
 				cache: typeof caches === 'undefined' ? undefined : /** @type {any} */ (caches).default,
 				version: buildVersion.version,
@@ -62,7 +72,7 @@ export default {
 		);
 		// Sincrónico y nunca tira (writeDataPoint no espera la red). No lee el cuerpo.
 		trackPageView(request, response, env);
-		return timing(response);
+		return timing(response, d1ServerTiming(d1));
 	},
 
 	/**
