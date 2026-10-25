@@ -791,12 +791,16 @@ export async function restoreDB(db, snapshot) {
  * vuelta que se espera. Con `delayMs`, cada consulta tarda eso de más, para que lo que sale a la
  * par no se cuente como en fila por el ruido del D1 local.
  *
+ * `trace`: cada consulta guarda en `from` las funciones de la app que la pidieron (`describe()`).
+ *
  * @param {import('@cloudflare/workers-types').D1Database} db
- * @param {{ delayMs?: number }} [opts]
+ * @param {{ delayMs?: number, trace?: boolean }} [opts]
  */
-export function countingDB(db, { delayMs = 0 } = {}) {
-	/** @type {{ sql: string, result: unknown, wave: number }[]} */
+export function countingDB(db, { delayMs = 0, trace = false } = {}) {
+	/** @type {{ sql: string, result: unknown, wave: number, from?: string }[]} */
 	const log = [];
+	// Las sentencias (una tanda, `batch`, lleva varias en una ida).
+	let statements = 0;
 	// La tanda más honda de las consultas que ya terminaron, y la más honda de todas.
 	let doneWave = 0;
 	let maxWave = 0;
@@ -809,10 +813,11 @@ export function countingDB(db, { delayMs = 0 } = {}) {
 	const timed = async (sql, run) => {
 		const wave = doneWave + 1;
 		maxWave = Math.max(maxWave, wave);
+		const from = trace ? callers(new Error().stack) : undefined;
 		if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
 		try {
 			const result = await run();
-			log.push({ sql, result, wave });
+			log.push({ sql, result, wave, ...(from ? { from } : {}) });
 			return result;
 		} finally {
 			doneWave = Math.max(doneWave, wave);
@@ -834,7 +839,10 @@ export function countingDB(db, { delayMs = 0 } = {}) {
 					return (/** @type {unknown[]} */ ...args) => wrap(target.bind(...args), sql);
 				}
 				if (prop === 'first' || prop === 'all' || prop === 'run' || prop === 'raw') {
-					return (/** @type {unknown[]} */ ...args) => timed(sql, () => target[prop](...args));
+					return (/** @type {unknown[]} */ ...args) => {
+						statements++;
+						return timed(sql, () => target[prop](...args));
+					};
 				}
 				const value = target[prop];
 				return typeof value === 'function' ? value.bind(target) : value;
@@ -850,10 +858,12 @@ export function countingDB(db, { delayMs = 0 } = {}) {
 					return (/** @type {string} */ sql) => wrap(target.prepare(sql), sql);
 				}
 				if (prop === 'batch') {
-					return (/** @type {any[]} */ statements) =>
-						timed(statements.map((s) => sqlOf.get(s) ?? '?').join(';\n'), () =>
-							target.batch(statements.map((s) => s[RAW] ?? s))
+					return (/** @type {any[]} */ list) => {
+						statements += list.length;
+						return timed(list.map((s) => sqlOf.get(s) ?? '?').join(';\n'), () =>
+							target.batch(list.map((s) => s[RAW] ?? s))
 						);
+					};
 				}
 				const value = /** @type {any} */ (target)[prop];
 				return typeof value === 'function' ? value.bind(target) : value;
@@ -863,9 +873,13 @@ export function countingDB(db, { delayMs = 0 } = {}) {
 	return {
 		db: counted,
 		log,
-		/** Cuántas consultas desde el último `reset`. */
+		/** Cuántas consultas desde el último `reset` (una tanda, `batch`, es una: una ida). */
 		get queries() {
 			return log.length;
+		},
+		/** Cuántas sentencias (las de una tanda, cada una). */
+		get statements() {
+			return statements;
 		},
 		/** Cuánto devolvieron (largo del JSON de los resultados). */
 		bytes: () => log.reduce((n, q) => n + JSON.stringify(q.result ?? null).length, 0),
@@ -875,8 +889,35 @@ export function countingDB(db, { delayMs = 0 } = {}) {
 		},
 		reset: () => {
 			log.length = 0;
+			statements = 0;
 			doneWave = 0;
 			maxWave = 0;
-		}
+		},
+		/** Las consultas por tanda, una línea cada una (con `trace`, quién la pidió). */
+		describe: () =>
+			log
+				.slice()
+				.sort((a, b) => a.wave - b.wave)
+				.map(
+					(q) =>
+						`  ${q.wave}. ${q.sql.replace(/\s+/g, ' ').slice(0, 90)}${q.from ? `\n       ← ${q.from}` : ''}`
+				)
+				.join('\n')
 	};
+}
+
+/**
+ * Las funciones de la app que pidieron una consulta (de la pila), sin las de este archivo ni las
+ * de node_modules: «quién la pidió», para {@link countingDB} con `trace`.
+ * @param {string | undefined} stack
+ */
+function callers(stack) {
+	return (stack ?? '')
+		.split('\n')
+		.slice(1)
+		.map((line) => line.match(/at (?:async )?(\S+) \((?:.*?\/)?(src\/.+?):\d+:\d+\)$/))
+		.filter((m) => m && !m[2].endsWith('db/testing.js'))
+		.slice(0, 4)
+		.map((m) => `${m?.[1]} (${m?.[2]?.split('/').pop()})`)
+		.join(' ← ');
 }
