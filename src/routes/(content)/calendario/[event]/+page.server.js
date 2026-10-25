@@ -20,6 +20,27 @@ import { mentionPronouns } from '$lib/server/pronouns';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
+	// Lo que no depende del evento ya leído sale a la par de su lectura: la base está lejos y cada
+	// consulta que espera a otra es una ida y vuelta más. Nada de esto se muestra hasta saber que
+	// quien mira puede ver el evento (si no, 404 y se descarta).
+	const waitlistOn = listaEsperaEnabled(platform);
+	const early = {
+		ownTickets: loadTickets(params.event, platform, fetch, waitlistOn),
+		// "Sucede en": el lugar según su privacidad (docs/amigues.md); `null` si no tiene lugar.
+		venue: eventPageVenue(getDB(platform), params.event, locals),
+		// Talleres en varias partes: el taller y sus partes (`null` si no es parte de ninguno).
+		partes: loadPartes(params.event, platform, locals)
+	};
+	// Una parte de un taller con una sola entrada: el botón de compra es el del taller (si la
+	// entrada es la de este mismo evento, ya está en camino).
+	const partTickets = early.partes.then((partes) =>
+		partes?.ticketSlug && partes.ticketSlug !== params.event
+			? loadTickets(partes.ticketSlug, platform, fetch, waitlistOn)
+			: undefined
+	);
+	// Con un 404 (o si falla la lectura del evento) nadie las espera: que un error suyo no quede
+	// sin atender. Más abajo se esperan las originales, que siguen tirando como antes.
+	for (const p of [waitlistOn, partTickets, ...Object.values(early)]) p.catch(() => {});
 	// El evento de la base (con su texto ya armado); si la base no lo tiene, o quien mira no lo
 	// puede ver, 404. La lista de publicaciones (para relacionados y series) se lee a la par.
 	const [post, posts] = await Promise.all([
@@ -29,22 +50,19 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	if (!post) error(404, 'Not found');
 	// Un evento oculto solo lo ven les admins: que no quede en ninguna caché compartida.
 	if (post.meta.force_unpublished) setHeaders({ 'cache-control': 'private, no-store' });
-	const [related, ownTickets, series, venue, personas, partes, pronouns] = await Promise.all([
-		loadRelated(post, posts, platform),
-		loadTickets(params.event, platform, fetch),
-		loadSeries(post, platform, locals, posts),
-		// "Sucede en": el lugar según su privacidad (docs/amigues.md); `null` si no tiene lugar.
-		eventPageVenue(getDB(platform), params.event, locals),
-		loadPersonas(post, platform),
-		// Talleres en varias partes: el taller y sus partes (`null` si no es parte de ninguno).
-		loadPartes(params.event, platform, locals),
-		// Los pronombres de las @menciones del texto (de los perfiles de la base).
-		mentionPronouns(platform, posts).catch(() => ({}))
-	]);
-	// Una parte de un taller con una sola entrada: el botón de compra es el del taller.
-	const tickets = partes?.ticketSlug
-		? await loadTickets(partes.ticketSlug, platform, fetch)
-		: ownTickets;
+	const [related, ownTickets, series, venue, personas, partes, pronouns, workshopTickets] =
+		await Promise.all([
+			loadRelated(post, posts, platform),
+			early.ownTickets,
+			loadSeries(post, platform, locals, posts),
+			early.venue,
+			loadPersonas(post, platform),
+			early.partes,
+			// Los pronombres de las @menciones del texto (de los perfiles de la base).
+			mentionPronouns(platform, posts).catch(() => ({})),
+			partTickets
+		]);
+	const tickets = workshopTickets === undefined ? ownTickets : workshopTickets;
 	return {
 		...related,
 		tickets: tickets ? { ...tickets, slug: partes?.ticketSlug ?? params.event } : null,
@@ -145,12 +163,13 @@ async function loadPartes(slug, platform, locals) {
  * @param {string} slug
  * @param {App.Platform|undefined} platform
  * @param {typeof fetch} fetchFn
+ * @param {Promise<boolean>} waitlistFlag el interruptor de la lista de espera (`listaEsperaEnabled`)
  */
-async function loadTickets(slug, platform, fetchFn) {
+async function loadTickets(slug, platform, fetchFn, waitlistFlag) {
 	if (!isValidEventSlug(slug)) return null;
 	// Lista de espera: con el interruptor prendido, lo que sobra después de la fila (como /entradas).
 	const db = getDB(platform);
-	const waitlistOn = await listaEsperaEnabled(platform);
+	const waitlistOn = await waitlistFlag;
 	const view = await getTicketsView(db, slug, fetchFn, { waitlist: waitlistOn });
 	if (!view) return null;
 	const summary = summarizeTickets(view);

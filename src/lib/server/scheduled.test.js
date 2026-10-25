@@ -45,9 +45,9 @@ describe('wrangler.toml', () => {
 		]);
 	});
 
-	it('Smart Placement prendido (el Worker corre cerca de la base cuando conviene)', () => {
+	it('el Worker corre al lado de la base D1 (este de EE. UU.)', () => {
 		const config = unstable_readConfig({ config: 'wrangler.toml' });
-		expect(config.placement?.mode).toBe('smart');
+		expect(/** @type {any} */ (config.placement)?.region).toBe('aws:us-east-1');
 	});
 
 	it('visitas anónimas: Analytics Engine solo en producción, con el dataset del código', () => {

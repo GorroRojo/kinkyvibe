@@ -8,7 +8,12 @@ import { canonicalTags, thumbURL } from '$lib/utils';
 import { imageKeysByObject } from '$lib/server/media/library.js';
 import { mediaPath } from '$lib/server/media/sniff.js';
 import { ANON } from '$lib/server/objects/visibility.js';
-import { findPublicProfile, listPublicProfiles, profileAsPost, publicProfile } from './profiles.js';
+import {
+	findPublicProfiles,
+	listPublicProfiles,
+	profileAsPost,
+	publicProfile
+} from './profiles.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -84,16 +89,20 @@ export async function profilePosts(db, viewer, { kind, unlisted = false, tagMana
  */
 export async function authorProfilePosts(db, authors, { postID, viewer = ANON } = {}) {
 	if (!db || !Array.isArray(authors)) return [];
+	const slugs = authors
+		.filter((a) => typeof a === 'string' && a.trim())
+		.map((a) => a.replaceAll(' ', '-'))
+		.filter((slug) => slug !== postID);
+	if (!slugs.length) return [];
+	// Todes en una consulta (antes, cuatro por autore, una detrás de otra).
+	const found = await findPublicProfiles(db, slugs, viewer).catch(() => new Map());
 	/** @type {ProcessedPost[]} */
 	const out = [];
-	for (const author of authors) {
-		if (typeof author !== 'string' || !author.trim()) continue;
-		const slug = author.replaceAll(' ', '-');
-		if (slug === postID) continue;
-		const found = await findPublicProfile(db, slug, viewer).catch(() => null);
-		if (!found) continue;
+	for (const slug of slugs) {
+		const profile = found.get(slug);
+		if (!profile) continue;
 		const post = profileAsPost(
-			await toPublic(found.object, found.legacySlug, found.avatarKey ?? undefined)
+			await toPublic(profile.object, profile.legacySlug, profile.avatarKey ?? undefined)
 		);
 		// Las tarjetas comparan con el nombre como está escrito en `authors:`.
 		out.push({ ...post, meta: { ...post.meta, postID: slug } });

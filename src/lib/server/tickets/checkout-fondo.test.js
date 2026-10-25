@@ -23,8 +23,16 @@ vi.mock('./events.js', async () => {
 	return {
 		isValidEventSlug: () => true,
 		isTestEventSlug: () => false,
-		getEventTickets: async (/** @type {string} */ slug, /** @type {any} */ opts) =>
-			metas[slug] ? parseTicketConfig(metas[slug], opts) : null,
+		// Como el de verdad: con `fondo`, lo llama con la configuración sin porcentaje y usa lo que
+		// devuelve (si no devuelve nada, sin porcentaje).
+		getEventTickets: async (/** @type {string} */ slug, /** @type {any} */ opts = {}) => {
+			const meta = metas[slug];
+			if (!meta) return null;
+			const { fondo, ...rest } = opts;
+			if (!fondo) return parseTicketConfig(meta, rest);
+			const fondoPercent = await fondo(parseTicketConfig(meta, rest));
+			return parseTicketConfig(meta, fondoPercent === undefined ? rest : { ...rest, fondoPercent });
+		},
 		listTicketedEvents: async () => []
 	};
 });

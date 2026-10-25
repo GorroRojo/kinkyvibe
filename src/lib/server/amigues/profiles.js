@@ -188,6 +188,68 @@ export async function findPublicProfile(db, urlSlug, viewer, { accountId } = {})
 }
 
 /**
+ * {@link findPublicProfile} de varias direcciones en UNA consulta (les autores de un evento o un
+ * material): por cada dirección, lo mismo que daría `findPublicProfile(db, slug, viewer)` (sin
+ * cuenta): primero la dirección vieja de una ficha importada, después la del objeto; si quien mira
+ * no lo ve, no es un perfil o no está aprobado (salvo admins), no está en el resultado.
+ *
+ * @param {D1Database} db
+ * @param {readonly string[]} urlSlugs
+ * @param {Viewer} viewer
+ * @returns {Promise<Map<string, { object: StoredObject, legacySlug: string | null, approved: boolean, role: null, avatarKey: string | null }>>}
+ */
+export async function findPublicProfiles(db, urlSlugs, viewer) {
+	/** @type {Map<string, { object: StoredObject, legacySlug: string | null, approved: boolean, role: null, avatarKey: string | null }>} */
+	const out = new Map();
+	// Las mismas direcciones que acepta `resolveProfileSlug`.
+	const wanted = [
+		...new Set(urlSlugs.filter((u) => typeof u === 'string' && u && u.length <= 100))
+	];
+	if (!wanted.length) return out;
+	const cols = OBJECT_COLUMNS.split(', ');
+	const vo = visibleWhere(viewer, 'o');
+	const vi = visibleWhere(ANON, 'i');
+	// Solo `?` sin número: visibleWhere agrega los suyos en el medio. A qué perfil lleva cada
+	// dirección se decide sin mirar visibilidad (como `resolveProfileSlug`); después, si se ve.
+	const { results } = await db
+		.prepare(
+			`SELECT r.url_slug, r.legacy_slug AS ref_legacy_slug, ${cols.map((c) => `o.${c}`).join(', ')},
+				EXISTS (SELECT 1 FROM profile_approvals WHERE profile_id = o.id) AS approved,
+				(SELECT json_extract(i.data, '$.key') FROM edges e
+					JOIN objects i ON i.id = e.to_id AND i.type = 'imagen'
+					WHERE e.from_id = o.id AND e.kind = 'avatar' AND ${vi.sql}
+					ORDER BY e.position LIMIT 1) AS avatar_key
+			FROM (
+				SELECT w.value AS url_slug,
+					COALESCE(ls.profile_id, os.id) AS id,
+					CASE WHEN ls.profile_id IS NOT NULL THEN w.value ELSE ss.legacy_slug END AS legacy_slug
+				FROM json_each(?) w
+				LEFT JOIN profile_sources ls ON ls.legacy_slug = w.value
+				LEFT JOIN objects os ON ls.profile_id IS NULL AND os.type = ? AND os.slug = w.value
+				LEFT JOIN profile_sources ss ON ss.profile_id = os.id
+			) r
+			JOIN objects o ON o.id = r.id
+			WHERE o.type = ? AND ${vo.sql}`
+		)
+		.bind(...vi.params, JSON.stringify(wanted), PROFILE_TYPE, PROFILE_TYPE, ...vo.params)
+		.all();
+	for (const r of results) {
+		const approved = Boolean(r.approved);
+		// Sin aprobar: solo admins (quienes lo gestionan lo ven con su cuenta, en su página).
+		if (!approved && viewer.role !== 'admin') continue;
+		const row = Object.fromEntries(cols.map((c) => [c, r[c]]));
+		out.set(String(r.url_slug), {
+			object: forViewer(rowToObject(row), viewer),
+			legacySlug: r.ref_legacy_slug == null ? null : String(r.ref_legacy_slug),
+			approved,
+			role: null,
+			avatarKey: typeof r.avatar_key === 'string' ? r.avatar_key : null
+		});
+	}
+	return out;
+}
+
+/**
  * Los perfiles de /amigues: aprobados, no ocultos, no "no listados" y que quien mira puede ver.
  * Con `unlisted`, al revés: los aprobados y no ocultos marcados «no listado» (la cuenta de «No
  * listadas» y su lista).

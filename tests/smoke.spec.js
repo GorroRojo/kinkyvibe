@@ -497,6 +497,37 @@ test.describe('experiencia', () => {
 		await expect(modal).toBeHidden();
 	});
 
+	// Al navegar, la página nueva aparece con un fundido corto y sin espera (antes eran 300 ms de
+	// espera más 300 ms de fundido: más de medio segundo en blanco). Svelte arma la espera como una
+	// animación vacía que dura lo que la espera y después el fundido, las dos con
+	// `Element.animate`: se anotan las de <main> en vez de mirar el reloj, así no depende del
+	// tiempo.
+	test('al navegar, la página aparece enseguida (fundido corto y sin espera)', async ({ page }) => {
+		await acceptAgeGate(page);
+		await page.addInitScript(() => {
+			window.__mainAnimations = [];
+			const original = Element.prototype.animate;
+			Element.prototype.animate = function (keyframes, options) {
+				if (this.tagName === 'MAIN')
+					window.__mainAnimations.push(typeof options === 'number' ? options : options?.duration);
+				return original.call(this, keyframes, options);
+			};
+		});
+		await page.goto('/', { waitUntil: 'networkidle' });
+		await page
+			.locator('header')
+			.getByRole('link', { name: /Calendario/ })
+			.first()
+			.click();
+		await expect(page).toHaveURL(/\/calendario$/);
+		await expect(page).toHaveTitle(/^Calendario · Kinky Vibe$/);
+		await expect.poll(() => page.evaluate(() => window.__mainAnimations.length)).toBe(2);
+		const [delay, duration] = await page.evaluate(() => window.__mainAnimations);
+		expect(delay).toBe(0);
+		expect(duration).toBeGreaterThan(0);
+		expect(duration).toBeLessThanOrEqual(200);
+	});
+
 	test('la home no tira errores de consola', async ({ page, baseURL }) => {
 		const errors = [];
 		page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
