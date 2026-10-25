@@ -14,7 +14,9 @@
  * Las imágenes de vista previa (`/og/…`, docs/compartir.md) se dibujan con WebAssembly, que en
  * Workers solo se puede usar como módulo que sube wrangler: Vite (que arma el Worker de
  * SvelteKit) no lo puede importar. Por eso el dibujante vive acá (worker/og.js) y le llega a la
- * ruta de SvelteKit en `platform.env.OG_RENDER`, solo en esos pedidos.
+ * ruta de SvelteKit en `platform.env.OG_RENDER`, solo en esos pedidos. Se importa la primera vez que
+ * se dibuja una tarjeta (`renderOg`, abajo), no al arrancar: satori, resvg y sus tablas se
+ * inicializan solo en un pedido que dibuja, y un isolate nuevo que atiende una página no los paga.
  *
  * Las páginas públicas para quien no tiene sesión se guardan 1 minuto en la caché de Cloudflare
  * (decisión 0049, src/lib/server/edgeCache.js). Va acá y no en los hooks: el adapter busca en su
@@ -30,8 +32,14 @@ import { handleScheduled } from '../src/lib/server/scheduled.js';
 import { trackPageView } from '../src/lib/server/analytics/track.js';
 import { withEdgeCache } from '../src/lib/server/edgeCache.js';
 import { startServerTiming } from '../src/lib/server/serverTiming.js';
-import { renderOg } from './og.js';
 import buildVersion from '../.svelte-kit/cloudflare/_app/version.json';
+
+/**
+ * El dibujante de worker/og.js, importado recién al usarlo (ver arriba). El import dinámico no va a
+ * la red: wrangler lo empaqueta en el mismo archivo y solo posterga la inicialización del módulo.
+ * @type {import('./og-render.js').OgRenderer}
+ */
+const renderOg = async (tree, opts) => (await import('./og.js')).renderOg(tree, opts);
 
 export default {
 	/**
