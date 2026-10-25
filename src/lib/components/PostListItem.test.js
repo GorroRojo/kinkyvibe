@@ -139,3 +139,26 @@ describe('PostListItem: «Añadir al calendario»', () => {
 		expect(calButton(body({ post: post({ tickets: undefined }) }))).toBeUndefined();
 	});
 });
+
+describe('PostListItem: la copia chica de la imagen', () => {
+	const H = 'a'.repeat(64);
+	/** @param {string} html */
+	const img = (html) => html.match(/<img[^>]*>/)?.[0] ?? '';
+
+	it('una imagen de la biblioteca: el original en `src` y la copia de 360 px en `srcset`', () => {
+		const tag = img(body({ post: post({ featured: `/media/img/${H}.jpg` }) }));
+		expect(tag).toContain(`src="/media/img/${H}.jpg"`);
+		expect(tag).toContain(`srcset="/media/img/${H}-360.webp 1x"`);
+	});
+
+	it('una imagen que no es de la biblioteca (o un GIF): solo `src`', () => {
+		for (const featured of [
+			'https://kinkyvibe.ar/media/img/' + H + '.jpg',
+			`/media/img/${H}.gif`
+		]) {
+			const tag = img(body({ post: post({ featured }) }));
+			expect(tag).toContain(`src="${featured}"`);
+			expect(tag).not.toContain('srcset');
+		}
+	});
+});

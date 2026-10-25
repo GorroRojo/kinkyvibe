@@ -8,7 +8,14 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth.js';
 import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
 import { saveObject } from '$lib/server/objects/save.js';
-import { fakeMp4, fakeOdt, fakePdf, fakeZip, solidPng } from '$lib/server/media/testing.js';
+import {
+	fakeMp4,
+	fakeOdt,
+	fakePdf,
+	fakeWebp,
+	fakeZip,
+	solidPng
+} from '$lib/server/media/testing.js';
 import { MAX_FILE_BYTES } from '$lib/utils/libraryFiles.js';
 import * as library from './+server.js';
 import * as one from './[id]/+server.js';
@@ -196,6 +203,42 @@ describe('subir', () => {
 		).toBe(404);
 		// El archivo queda en R2 (barato; se puede deshacer subiéndola de nuevo).
 		expect(await /** @type {any} */ (t.env.MEDIA).head(key)).not.toBeNull();
+	});
+
+	it('las copias chicas llegan con la subida y se sirven; sin copia, redirige al original', async () => {
+		const get = (/** @type {string} */ key, headers = {}) =>
+			media.GET(ev(anon, { path: `/media/${key}`, params: { key }, headers }));
+		// Con copias (las que hace el navegador al subir).
+		const form = upload(fakeWebp(1600, 2000, 1));
+		form.set('copy360', new File([fakeWebp(360, 450, 1)], 'copia-360.webp'));
+		form.set('copy720', new File([fakeWebp(720, 900, 1)], 'copia-720.webp'));
+		const { image } = await (await library.POST(ev(admin, { method: 'POST', form }))).json();
+		const small = image.key.replace(/\.webp$/, '-360.webp');
+		const served = await get(small);
+		expect(served.status).toBe(200);
+		expect(served.headers.get('content-type')).toBe('image/webp');
+		expect(served.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+		expect(served.headers.get('x-content-type-options')).toBe('nosniff');
+		expect(new Uint8Array(await served.arrayBuffer())).toEqual(fakeWebp(360, 450, 1));
+		const etag = served.headers.get('etag') ?? '';
+		expect((await get(small, { 'if-none-match': etag })).status).toBe(304);
+
+		// Sin copias (una imagen de antes de la pasada): redirige al original, por un rato.
+		const old = await (
+			await library.POST(ev(admin, { method: 'POST', form: upload(solidPng(30, 20)) }))
+		).json();
+		const missing = old.image.key.replace(/\.png$/, '-720.webp');
+		const redirect = await get(missing);
+		expect(redirect.status).toBe(302);
+		expect(redirect.headers.get('location')).toBe(`/media/${old.image.key}`);
+		expect(redirect.headers.get('cache-control')).toBe('public, max-age=3600');
+
+		// Sacada: ni copia ni redirección.
+		expect((await one.DELETE(delEv(admin, image.id))).status).toBe(200);
+		expect(await status(() => get(small))).toBe(404);
+		// La copia de una imagen que no existe, o con un lado raro: 404.
+		expect(await status(() => get(`img/${'d'.repeat(64)}-360.webp`))).toBe(404);
+		expect(await status(() => get(`img/${'d'.repeat(64)}-500.webp`))).toBe(404);
 	});
 
 	it('/media/<clave> rechaza claves que no son de la biblioteca', async () => {
