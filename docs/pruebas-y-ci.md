@@ -191,6 +191,14 @@ ya no hay `.eslintrc` ni `.eslintignore`).
   `src/lib/testing/html.js`. No saques etiquetas ni comentarios con expresiones regulares
   (`/<[^>]*>/`, `/<!--.*?-->/`): CodeQL lo marca como alerta alta aunque sea un test, y el PR queda
   en rojo.
+- **Mediciones a pedido** (`*.medir.js`): no son pruebas de la CI ni corren con `npx vitest run`
+  (tardan minutos); tienen su propia configuración (`vitest.medir.config.js`) y su script. Hoy
+  hay una: `npm run medir:panel` (`src/routes/(authed)/admin/panel-consultas.medir.js`, ~2 min)
+  arma un GET de une admin a ~50 páginas del panel (hooks y layouts incluidos) y imprime, por
+  página, cuántas idas a D1 y cuántas tandas en fila hace en frío, en caliente y al navegar, con
+  las tandas automáticas y sin; falla si una página hace más tandas en fila que su tope.
+  `KV_CONSULTAS=detalle` imprime además cada tanda. Corrélo antes y después si tu PR toca lo que
+  leen los loads del panel, y pegá las filas que cambiaron en el PR.
 
 ### Pruebas con base de datos
 
