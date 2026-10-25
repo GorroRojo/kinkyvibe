@@ -64,6 +64,23 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
   `account_id` de la cuenta o si su `buyer_email` (sin importar mayúsculas) es el mail verificado.
   Solo lectura: no se modifica ninguna orden. Se muestran las aprobadas, las que esperan la
   transferencia y las reembolsadas.
+- **Las entradas gratis pedidas sin la sesión de la cuenta se preguntan** (decisión
+  [0048](decisiones/0048-entradas-gratis-sin-sesion-se-preguntan.md), «No fui yo» parte 2 en
+  [mails.md](mails.md#no-fui-yo)): cualquiera puede escribir un mail ajeno en el formulario de
+  entradas gratis. Una orden `gratis` que llega solo por el mail (sin el `account_id` de la cuenta)
+  no va en la lista de Mi rincón, ni en «Mis entradas» del bot, ni en el calendario personal: va
+  arriba, en el bloque «¿Son tuyas?», con «Sí, son mías» (pasa a la lista) y «No es mía» (no se
+  muestra más para esa cuenta). Lo pedido con la sesión de la cuenta de ese mail ya cuenta como
+  «Sí» (`markFreeOrderMine`, desde la compra). Las compras pagas (Mercado Pago, transferencia) se
+  ven siempre, y también las gratis que cargan les admins (la puerta, la carga a mano: `channel`
+  distinto de `online`). Tampoco se pregunta por las de antes de la migración 0061: al aplicarse,
+  escribe en `ticket_settings` la clave `free_order_choices_since` con la hora de la base, y solo
+  se preguntan las creadas desde ese momento (sin la fila, ninguna: todo se ve como antes). Los
+  avisos de «Lo que sigo» («ya tenés entrada», `accountsWithTickets`) siguen la misma regla.
+  Código: `ordersForAccount`, `unconfirmedFreeOrders` y `chooseFreeOrder` en
+  `src/lib/server/cuentas/orders.js`; la acción `?/elegirOrden` de Mi rincón. Lo elegido va en
+  `free_order_choices` (migración 0061: cuenta, orden, `mine` 1 o 0); no se toca la orden. Al
+  borrar la cuenta se borra lo elegido.
 
 ## Cómo funciona
 
@@ -76,6 +93,9 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 | `login_codes`       | hash del mail, para qué es (`purpose`), hash del código, intentos, vencimiento y uso                                                          |
 | `feature_flags`     | los interruptores del panel (`cuentas` fue el primero; quedó fijo)                                                                            |
 | `orders.account_id` | columna nueva, para la compra con cuenta que viene; `ON DELETE SET NULL`                                                                      |
+
+Después: `free_order_choices` (migración 0061), lo que eligió cada cuenta sobre una orden gratis
+que le llegó por el mail («¿Son tuyas?», arriba).
 
 Sin "nombre para mostrar" (P7.3): los nombres van a ir en los perfiles. Las **passkeys** van a
 ir en una tabla propia (`account_passkeys`, apuntando a `accounts.id`); no hace falta cambiar
