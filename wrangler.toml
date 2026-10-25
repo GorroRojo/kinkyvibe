@@ -33,13 +33,13 @@ binding = "ASSETS"
 [observability]
 enabled = true
 
-# Smart Placement (docs/workers-migracion.md, «Ubicación del Worker»): Cloudflare corre el Worker
-# cerca de la base D1 (este de EE. UU.) cuando eso es más rápido que correrlo cerca de quien
-# visita, y si no lo deja donde está. Las páginas que hacen muchas consultas seguidas (un evento,
-# un material, un perfil) son las que más ganan. Se verifica con el header `cf-placement`
-# (`remote-XXX` = se movió). Para volver atrás, borrar esta sección.
+# Ubicación del Worker (docs/workers-migracion.md, «Ubicación del Worker»): corre al lado de la
+# base D1, que está en el este de EE. UU. (ENAM). Con `mode = "smart"` Cloudflare lo mandaba a
+# San José (oeste), más lejos de la base; la pista explícita de región lo fija cerca. Las páginas que
+# hacen muchas consultas seguidas son las que más ganan. Se verifica con el header `cf-placement`.
+# Para volver atrás, borrar esta sección.
 [placement]
-mode = "smart"
+region = "aws:us-east-1"
 
 # Crons (UTC). Tienen que coincidir con src/lib/server/scheduled.js (lo verifica un test).
 # - cada 15 minutos: recordatorios de entradas;
