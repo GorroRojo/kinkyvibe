@@ -1,8 +1,12 @@
 import { error } from '@sveltejs/kit';
 import { currentRelated, relatedPostsFor } from '$lib/utils';
-import { siteEvent, sitePosts } from '$lib/server/contenido/posts.js';
+import { peekSitePost, siteEvent, sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
-import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
+import {
+	getTicketsView,
+	prefetchTicketsView,
+	summarizeTickets
+} from '$lib/server/tickets/checkout.js';
 import { getEventTickets, isValidEventSlug } from '$lib/server/tickets/events.js';
 import { waitlistJoinStates } from '$lib/server/tickets/waitlistSignup.js';
 import { listaEsperaEnabled } from '$lib/server/flags.js';
@@ -17,6 +21,7 @@ import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 import { readWorkshop } from '$lib/server/eventos/partes.js';
 import { coveringTicketSlug, partOf } from '$lib/utils/partes.js';
 import { mentionPronouns } from '$lib/server/pronouns';
+import { hasOwnTickets } from '$lib/utils/ticketCta.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
@@ -24,8 +29,11 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	// consulta que espera a otra es una ida y vuelta más. Nada de esto se muestra hasta saber que
 	// quien mira puede ver el evento (si no, 404 y se descarta).
 	const waitlistOn = listaEsperaEnabled(platform);
+	// El momento de la venta: el mismo para lo adelantado (`askEarly`) y para la lectura de verdad.
+	const now = Date.now();
+	askEarly(params.event, platform, locals, waitlistOn, now);
 	const early = {
-		ownTickets: loadTickets(params.event, platform, fetch, waitlistOn),
+		ownTickets: loadTickets(params.event, platform, fetch, waitlistOn, now),
 		// "Sucede en": el lugar según su privacidad (docs/amigues.md); `null` si no tiene lugar.
 		venue: eventPageVenue(getDB(platform), params.event, locals),
 		// Talleres en varias partes: el taller y sus partes (`null` si no es parte de ninguno).
@@ -35,7 +43,7 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	// entrada es la de este mismo evento, ya está en camino).
 	const partTickets = early.partes.then((partes) =>
 		partes?.ticketSlug && partes.ticketSlug !== params.event
-			? loadTickets(partes.ticketSlug, platform, fetch, waitlistOn)
+			? loadTickets(partes.ticketSlug, platform, fetch, waitlistOn, now)
 			: undefined
 	);
 	// Con un 404 (o si falla la lectura del evento) nadie las espera: que un error suyo no quede
@@ -74,6 +82,33 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		// Con lugar, el «Dónde» del evento no sale del servidor.
 		post: venue ? { ...post, meta: stripMdPlace(post.meta) } : post
 	};
+}
+
+/**
+ * Lo que la página pregunta después de leer el evento y la lista, adelantado con lo que ya sabe
+ * este isolate del evento (las listas armadas la última vez, `peekSitePost`): los lugares de los
+ * relacionados, las personas y, si vende entradas, lo que lee la venta. Son las mismas consultas
+ * que salen después; con las tandas automáticas (src/lib/server/db/autoBatch.js) van en la misma
+ * ida que la lectura del evento, y las de después reciben lo ya leído. Si el evento cambió y la
+ * pregunta de verdad es otra, sale aparte, como siempre: esto nunca decide qué se muestra. Sin
+ * sesión solamente (con sesión, quien mira cambia las respuestas).
+ * @param {string} slug
+ * @param {App.Platform | undefined} platform
+ * @param {App.Locals} locals
+ * @param {Promise<boolean>} waitlistOn
+ * @param {number} now
+ */
+function askEarly(slug, platform, locals, waitlistOn, now) {
+	const db = getDB(platform);
+	if (!db || locals.user || locals.member) return;
+	const guess = peekSitePost('calendario', slug);
+	if (!guess) return;
+	const meta = guess.post.meta;
+	const quiet = (/** @type {Promise<unknown>} */ p) => p.catch(() => {});
+	quiet(relatedWithVenuePlaces(db, currentRelated(relatedPostsFor(meta, guess.posts))));
+	quiet(personasForPage(platform, meta));
+	if (hasOwnTickets(meta) && isValidEventSlug(slug))
+		prefetchTicketsView(db, slug, now, { waitlist: waitlistOn });
 }
 
 /**
@@ -164,8 +199,9 @@ async function loadPartes(slug, platform, locals) {
  * @param {App.Platform|undefined} platform
  * @param {typeof fetch} fetchFn
  * @param {Promise<boolean>} waitlistFlag el interruptor de la lista de espera (`listaEsperaEnabled`)
+ * @param {number} now el momento de la venta
  */
-async function loadTickets(slug, platform, fetchFn, waitlistFlag) {
+async function loadTickets(slug, platform, fetchFn, waitlistFlag, now) {
 	if (!isValidEventSlug(slug)) return null;
 	// Lista de espera: con el interruptor prendido, lo que sobra después de la fila (como /entradas).
 	const db = getDB(platform);
@@ -174,6 +210,7 @@ async function loadTickets(slug, platform, fetchFn, waitlistFlag) {
 	// esperar a fondo.kinkyvibe.ar; se actualiza en segundo plano (tickets/fondo.js).
 	const ctx = platform?.ctx;
 	const view = await getTicketsView(db, slug, fetchFn, {
+		now,
 		waitlist: waitlistOn,
 		fondo: ctx?.waitUntil ? { staleOk: true, waitUntil: (task) => ctx.waitUntil(task) } : {}
 	});

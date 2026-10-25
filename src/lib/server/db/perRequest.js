@@ -42,6 +42,15 @@ function currentRequest() {
 }
 
 /**
+ * El pedido de lectura en curso (`GET`/`HEAD`, su `Request`), o `null` en otro pedido o fuera de
+ * uno: las tandas automáticas (./autoBatch.js) solo juntan lecturas de estos pedidos.
+ */
+export function currentReadRequest() {
+	const request = currentRequest();
+	return request && READ_ONLY.has(String(request.method ?? '').toUpperCase()) ? request : null;
+}
+
+/**
  * `read()` una vez por pedido de lectura (ver arriba), o compartida mientras está en camino en
  * los demás pedidos. Si falla, se olvida: la próxima llamada vuelve a consultar.
  *

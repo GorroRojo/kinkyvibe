@@ -66,6 +66,8 @@ import {
 import { listaEsperaEnabled } from '$lib/server/flags.js';
 import { queueWaitlistAdvance } from './waitlistEngine.js';
 import { eventSignupFields, readAnswers } from './signupFields.js';
+import { getSalesSettings } from './settings.js';
+import { eventsWithVenue } from '$lib/server/amigues/venues.js';
 import { saveAfterPurchase } from '$lib/server/cuentas/savedBuyer.js';
 import { markFreeOrderMine } from '$lib/server/cuentas/orders.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
@@ -273,12 +275,36 @@ async function salesReads(db, slug, config, now, opts) {
 }
 
 /**
+ * Adelanta lo que {@link getTicketsView} va a leer de la base para `slug` sin esperar a su
+ * configuración (con las tandas automáticas, va en la misma ida que la lectura del evento;
+ * src/lib/server/db/autoBatch.js): lo vendido, la fila de la lista de espera (con `waitlist`), los
+ * ajustes de venta, las preguntas de inscripción y si tiene lugar. Las mismas consultas, con el
+ * mismo `now`: después, `getTicketsView` recibe lo ya leído. No devuelve nada ni decide nada; si
+ * el evento no vende entradas, se leyó de más. Para la página del evento, cuando las listas dicen
+ * que vende.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null} db
+ * @param {string} slug
+ * @param {number} now
+ * @param {{ waitlist?: Promise<boolean> }} [opts]
+ */
+export function prefetchTicketsView(db, slug, now, { waitlist } = {}) {
+	if (!db) return;
+	const quiet = (/** @type {Promise<unknown>} */ p) => p.catch(() => {});
+	quiet(getTaken(db, slug, now));
+	quiet(getSalesSettings(db));
+	quiet(eventSignupFields(db, slug));
+	quiet(eventsWithVenue(db, slug));
+	if (waitlist) quiet(waitlist.then((on) => (on ? queueHolders(db, slug, now, null) : null)));
+}
+
+/**
  * Datos públicos del bloque de compra (sin datos de otras personas).
  *
  * @param {import('@cloudflare/workers-types').D1Database | null} db
  * @param {string} slug
  * @param {typeof fetch} [fetchFn] para leer el porcentaje automático del Fondo
- * @param {{ waitlist?: boolean, offerId?: string | null,
+ * @param {{ waitlist?: boolean, offerId?: string | null, now?: number,
  *   fondo?: { staleOk?: boolean, waitUntil?: (task: Promise<unknown>) => void } }} [opts]
  *   Lista de espera (docs/tickets.md): con `waitlist` (el interruptor `lista_espera` prendido),
  *   lo que se puede comprar es lo que sobra después de la fila (waitlistPurchase.js); con
@@ -287,10 +313,12 @@ async function salesReads(db, slug, config, now, opts) {
  *   `fondo`: solo para las páginas que muestran el precio sin vender (la del evento): el
  *   porcentaje del Fondo conocido, sin esperar a la API (`eventTicketsWithFondo`). La página de
  *   compra y `?/buy` no lo pasan.
+ *   `now`: el momento de la venta (por defecto, ahora); con el mismo de
+ *   {@link prefetchTicketsView}, lo adelantado es lo que se lee.
  * @returns {Promise<TicketsView | null>} `null` si el evento no vende entradas
  */
 export async function getTicketsView(db, slug, fetchFn, opts = {}) {
-	const now = Date.now();
+	const now = opts.now ?? Date.now();
 	/** @type {ReturnType<typeof salesReads> | undefined} */
 	let reads;
 	// Apenas se sabe que vende entradas, lo que no depende del lugar ni del Fondo sale a la par

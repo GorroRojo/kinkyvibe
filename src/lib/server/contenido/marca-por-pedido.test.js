@@ -117,7 +117,8 @@ describe('/amigues sin sesión, recordada por la marca', () => {
 				})
 			)
 		);
-		return { posts: /** @type {ProcessedPost[]} */ (page.posts), queries: counted.log.length };
+		// Sentencias, no idas: con las tandas automáticas (../db/autoBatch.js) varias van en una.
+		return { posts: /** @type {ProcessedPost[]} */ (page.posts), queries: counted.statements };
 	}
 
 	it('el segundo pedido hace una sola consulta y muestra lo mismo que sin recordar', async () => {
