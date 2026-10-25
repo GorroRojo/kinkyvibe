@@ -9,13 +9,17 @@
  *    registrado, o un elemento que contiene un componente (por ejemplo el `<div>` de
  *    `<div><kv-…></kv-…></div>`), con sus partes adentro. La página las muestra con
  *    $lib/components/ContentParts.svelte, que solo conoce los componentes del registro.
+ * 3. Los datos grandes de un interactivo (los trazos de un SVG) no van en su componente sino acá
+ *    ({@link INTERACTIVE_PROPS}): viajan como `props` de su parte, solo en la página que lo usa, y
+ *    no en el JavaScript de todas las páginas que pueden mostrar un texto.
  */
 import { rehype } from 'rehype';
 import { markInteractive } from '$lib/utils/interactivos.js';
+import svgData from './interactivos/svgData.js';
 
 /**
  * @typedef {{ html: string }
- *   | { component: string }
+ *   | { component: string, props?: Record<string, unknown> }
  *   | { element: string, attrs: Record<string, string>, children: Part[] }} Part
  */
 
@@ -33,6 +37,27 @@ export function markBody(body) {
 	const nonce = crypto.randomUUID().replace(/-/g, '');
 	const { text, tags } = markInteractive(body, (_, i) => `kvinteractivo${nonce}n${i}x`);
 	return { text, tags, marker: new RegExp(`kvinteractivo${nonce}n(\\d+)x`, 'g') };
+}
+
+/**
+ * Las props que el servidor le pasa a cada interactivo registrado, por etiqueta. Solo lo que el
+ * componente usa (de los trazos, `d` y `name`).
+ * @type {Readonly<Record<string, () => Record<string, unknown>>>}
+ */
+export const INTERACTIVE_PROPS = Object.freeze({
+	'kv-donde-golpear-un-cuerpo': () => ({
+		svgData: svgData.map(({ d, name }) => ({ d, name }))
+	})
+});
+
+/**
+ * La parte de un interactivo registrado, con sus props si tiene.
+ * @param {string} tag
+ * @returns {Part}
+ */
+export function componentPart(tag) {
+	const props = Object.hasOwn(INTERACTIVE_PROPS, tag) ? INTERACTIVE_PROPS[tag]() : undefined;
+	return props ? { component: tag, props } : { component: tag };
 }
 
 const processor = rehype().data('settings', { fragment: true });
@@ -110,7 +135,7 @@ function toParts(nodes, marked) {
 			for (let m = re.exec(node.value); m; m = re.exec(node.value)) {
 				pushHtml(stringify({ type: 'text', value: node.value.slice(last, m.index) }));
 				const tag = marked.tags[Number(m[1])];
-				if (tag) parts.push({ component: tag });
+				if (tag) parts.push(componentPart(tag));
 				last = m.index + m[0].length;
 			}
 			pushHtml(stringify({ type: 'text', value: node.value.slice(last) }));

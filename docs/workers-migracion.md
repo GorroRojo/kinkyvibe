@@ -210,24 +210,25 @@ en el historial de git).
 (producción y previews). Dejá el proyecto un par de semanas por si hay que volver; después
 **Settings → Delete project**.
 
-## Ubicación del Worker (Smart Placement)
+## Ubicación del Worker
 
-La base D1 vive en el este de EE. UU. y no tiene réplicas en Sudamérica. Sin ubicación, el Worker
-corre en el centro de datos de quien visita (Buenos Aires) y cada consulta que espera a la anterior
-cruza el continente (~130 ms). Una página de evento hace muchas seguidas.
+La base D1 vive en el este de EE. UU. (ENAM) y no tiene réplicas en Sudamérica. Sin ubicación, el
+Worker corre en el centro de datos de quien visita (Buenos Aires) y cada consulta que espera a la
+anterior cruza el continente (~130 ms). Una página de evento hace muchas seguidas.
 
-`wrangler.toml` prende `[placement] mode = "smart"`: Cloudflare mide y, si correr el Worker cerca
-de la base es bastante más rápido, manda el pedido allá; si no (páginas con una o dos consultas),
-lo deja cerca de quien visita. Los archivos estáticos se sirven siempre desde el centro de datos
-más cercano. Solo afecta los pedidos web, no los crons.
+`wrangler.toml` fija `[placement] region = "aws:us-east-1"`: el Worker corre en el centro de datos
+de Cloudflare más cercano a esa región, al lado de la base. Los archivos estáticos se sirven siempre
+desde el centro de datos más cercano a quien visita. Solo afecta los pedidos web, no los crons.
 
-- **Verificar:** el header `cf-placement` dice `remote-XXX` si el pedido se movió y `local-XXX` si
-  no. Tarda hasta 15 minutos después de publicar.
+Primero se probó `mode = "smart"` (24/10): Cloudflare mandó los pedidos a San José (oeste de
+EE. UU.), más lejos de la base, y desde EE. UU. las páginas pesadas tardaron 0,2–0,5 s más. Por eso
+la región explícita.
+
+- **Verificar:** el header `cf-placement` dice `remote-XXX` si el pedido se movió (debería ser un
+  centro de datos del este, p. ej. IAD) y `local-XXX` si no.
 - **Medir:** tiempo hasta el primer byte de las mismas páginas antes y después, desde Argentina
   (`curl -w "%{time_starttransfer}"`, mediana de 5).
 - **Volver atrás:** borrar la sección `[placement]` de `wrangler.toml`.
-- Alternativa si nunca se mueve: `region = "aws:us-east-1"` en la misma sección (fuerza la
-  ubicación; excluye `mode`).
 
 ## Volver atrás (rollback)
 

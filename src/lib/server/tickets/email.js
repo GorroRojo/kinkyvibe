@@ -15,13 +15,14 @@ import { fondoOptionLabel, holdHours, orderReference, refundPolicy } from '$lib/
 import { salePlaceText } from '$lib/utils/eventPlace.js';
 import {
 	WHY_BOUGHT,
+	WHY_FREE,
 	WHY_RESERVED,
 	renderBlockHtml,
 	renderInlineHtml,
 	renderPlain,
 	templateDef
 } from '$lib/utils/emailTemplates.js';
-import { MAIL_COLORS, MAIL_STYLES, mailLayout } from '$lib/server/email/layout.js';
+import { MAIL_COLORS, MAIL_STYLES, mailLayout, mailOptOut } from '$lib/server/email/layout.js';
 import {
 	eventReservationScript,
 	googleCalendarUrl,
@@ -79,6 +80,14 @@ function calendarExtras({ order, event, online, origin, markup = false }) {
 			attachments: [resendAttachment(calendar)]
 		})
 	};
+}
+
+/**
+ * «Por qué te llega» de los mails de una orden: una orden gratis no se compró.
+ * @param {{ payment_method: string }} order
+ */
+function whyFor(order) {
+	return order.payment_method === 'gratis' ? WHY_FREE : WHY_BOUGHT;
 }
 
 /** Línea chica del final de la tarjeta (número de orden, ayuda). */
@@ -314,9 +323,11 @@ export function comboBlocks(title, combos) {
  *   origin: string,
  *   contactEmail: string,
  *   template?: Template,
- *   combos?: import('./combos.js').ComboMailItem[] | null
+ *   combos?: import('./combos.js').ComboMailItem[] | null,
+ *   optOutUrl?: string | null
  * }} input
  * `event.parts`: la lista de partes si es un taller con una sola entrada.
+ * `optOutUrl`: el link «No fui yo» (entradas gratis; email/suppressions.js), en el pie.
  * `combos`: los códigos combo de la compra (combos.js), en un bloque después de las entradas.
  * `event.slug`: con él, el mail lleva adjunto `<slug>.ics` (calendarFile.js), una línea
  * «Agregalo a tu calendario» con el link a Google Calendar y el marcado `EventReservation` para
@@ -332,9 +343,11 @@ export function buildTicketEmail({
 	origin,
 	contactEmail,
 	template,
-	combos
+	combos,
+	optOutUrl = null
 }) {
 	const title = event.title;
+	const optOut = mailOptOut(optOutUrl, '¿No pediste vos estas entradas?');
 	const when = formatEventDate(event.start);
 	const online = Boolean(event.online);
 	const where = salePlaceText(online, event);
@@ -391,7 +404,7 @@ export function buildTicketEmail({
 		origin,
 		label: custom.label ?? 'Tus entradas',
 		titleHtml: custom.headingHtml ?? '¡Ya tenés tus entradas!',
-		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por tu compra.</p>`}
+		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por ${order.payment_method === 'gratis' ? 'anotarte' : 'tu compra'}.</p>`}
 		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}${cal.html}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		${online && event.streamLink ? streamLinkBlock(event.streamLink) : ''}`,
@@ -405,8 +418,9 @@ export function buildTicketEmail({
 		afterHtml: `${ticketBlocks}${combo.html}
 		<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
-		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
-		contactEmail
+		whyHtml: custom.whyHtml ?? whyFor(order),
+		contactEmail,
+		optOutHtml: optOut.html
 	});
 
 	const text = [
@@ -435,7 +449,8 @@ export function buildTicketEmail({
 		...combo.text,
 		'',
 		`Número de orden: ${order.id}`,
-		policy.text
+		policy.text,
+		...optOut.text
 	]
 		.filter((l) => l !== undefined)
 		.join('\n');
@@ -498,7 +513,7 @@ export function buildStreamLinkEmail({
 		helpHtml: custom.helpHtml ?? ticketLinksHtml,
 		afterHtml: `${custom.helpHtml !== null && ticketLinksHtml ? `<p style="${SMALL}">${ticketLinksHtml}</p>` : ''}<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
-		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
+		whyHtml: custom.whyHtml ?? whyFor(order),
 		contactEmail
 	});
 	const text = [
@@ -598,7 +613,7 @@ export function buildReminderEmail({
 		helpHtml: custom.helpHtml ?? '',
 		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
-		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
+		whyHtml: custom.whyHtml ?? whyFor(order),
 		contactEmail
 	});
 	const text = [
@@ -715,7 +730,7 @@ export function buildDateChangeEmail({
 		helpHtml: custom.helpHtml ?? escapeHtml(help),
 		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
-		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
+		whyHtml: custom.whyHtml ?? whyFor(order),
 		contactEmail
 	});
 	const text = [
@@ -805,8 +820,10 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
  *   replyTo?: string,
  *   contactEmail: string,
  *   origin: string,
- *   template?: Template
+ *   template?: Template,
+ *   optOutUrl?: string | null
  * }} input
+ * `optOutUrl`: el link «No fui yo» (email/suppressions.js), en el pie.
  */
 export function buildTransferEmail({
 	order,
@@ -816,12 +833,14 @@ export function buildTransferEmail({
 	replyTo,
 	contactEmail,
 	origin,
-	template
+	template,
+	optOutUrl = null
 }) {
 	const policy = policyBlocks(contactEmail);
 	const prices = priceLines(order, typeName);
 	const parts = partsBlocks(event.parts);
 	const ref = orderReference(order.id);
+	const optOut = mailOptOut(optOutUrl, '¿No reservaste vos?');
 	const deadline = argDeadline(order.expires_at);
 	const statusUrl = `${origin}/entradas/${order.id}/estado`;
 	const custom = applyTemplate(template, {
@@ -855,7 +874,8 @@ export function buildTransferEmail({
 		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}</p>
 		${policy.html}`,
 		whyHtml: custom.whyHtml ?? WHY_RESERVED,
-		contactEmail
+		contactEmail,
+		optOutHtml: optOut.html
 	});
 	const text = [
 		custom.headingText ?? 'Reservamos tus entradas',
@@ -878,7 +898,8 @@ export function buildTransferEmail({
 		'',
 		`Estado de tu compra: ${statusUrl}`,
 		`Número de orden: ${order.id}`,
-		policy.text
+		policy.text,
+		...optOut.text
 	].join('\n');
 	return { subject, html, text };
 }

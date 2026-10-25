@@ -124,6 +124,7 @@ CI) va en la fase 0.
 - `estadisticas-pestanas` · fase 0 · hecho · panel · Estadísticas en pestañas (Ventas, Asistencia, Visitas) · #258
 - `buscador-panel` · fase 0 · hecho · panel · Buscador del panel: tildes, acciones y operadores · #259, #269
 - `moderar-ocultar` · fase 0 · hecho · panel · «Ocultar» un perfil desde el panel también le saca la aprobación para /amigues: si quien lo gestiona lo vuelve a hacer público desde Mi rincón, no reaparece hasta que une admin lo apruebe de nuevo · #385, [amigues.md](amigues.md)
+- `lugares-ocultos-fuera-de-aprobar` · fase 0 · hecho · panel · Un lugar oculto ya no aparece en Eventos › Lugares › «Para aprobar» ni en «Rechazados»: ocultar le saca la aprobación, pero aprobarlo desde ahí no lo volvía a mostrar · #390, [amigues.md](amigues.md)
 
 ### Sitio público
 
@@ -219,6 +220,7 @@ CI) va en la fase 0.
 
 ### Mails
 
+- `mails-no-fui-yo` · fase 0 · sigue · mails · «No fui yo»: los mails que van a una dirección que nadie confirmó (entradas gratis, reservas por transferencia, confirmar la lista de espera y «Avisame si se repite») llevan un link para no recibir más mails que no sean de una compra pagada (migración 0060), con un tope por día por dirección entre esos formularios y una orden gratis por mail y evento salvo con la cuenta de ese mail. Falta la parte 2: que Mi rincón no muestre las órdenes gratis hechas con un mail sin confirmar · #388, [mails.md](mails.md#no-fui-yo)
 - `mails-codigo-seguimiento` · fase 0 · sigue · mails · Códigos copiables: probar en un iPhone con Mail de Apple, averiguar por qué Gmail toma el mail por inglés y sumar `OTP-Token` u `One-Time-Code` cuando un cliente lo use · #297, [mails.md](mails.md#códigos-copiables)
 - `gmail-tarjeta-evento` · fase 0 · algún día · mails · Tarjeta de evento en Gmail: registrarse con Google y revisar el volumen de envío; gorrite manda el formulario (gorrite: después, 12/10)
 - `bimi` · fase 0 · algún día · mails · BIMI para los mails (gorrite: más adelante)
@@ -251,8 +253,8 @@ CI) va en la fase 0.
 - `prettier-ignore-temporal` · fase 1 · sigue · infra · Formatear y sacar de `.prettierignore` la lista temporal de archivos que tocaban ramas abiertas
 - `cf-dashboard-limpiar` · fase 1 · hecho · infra · Dashboard de Cloudflare: borrar las variables `*_ENABLED` que ya no hacen nada; el proyecto viejo de Pages queda por las dudas (gorrite, 12/10)
 - `backup-simulacro` · fase 1 · hecho · infra · Simulacro de restaurar un backup en local (`node scripts/d1-restore.js <fecha> --local`): corrió en Windows, igual que el backup (gorrite, 12/10) · #345
-- `perf-placement` · fase 1 · hecho · infra · Smart Placement: el Worker corre cerca de la base D1 cuando conviene (`[placement] mode = "smart"`); se mide el tiempo hasta el primer byte desde Argentina antes y después, y se saca si alguna página empeora · [workers-migracion.md](workers-migracion.md#ubicación-del-worker-smart-placement)
-- `perf-evento-olas` · fase 1 · hecho · infra · La página de un evento lee la base en menos tandas en fila (la base está lejos: cada consulta que espera a otra es una ida y vuelta): la venta, las partes y el lugar a la par del evento; la configuración de la venta leída una vez, con el Fondo a la par del lugar, y los ajustes de venta una vez por pedido; el evento con sus relaciones y su portada a la par, y sus autores en una consulta · #395, #396, #397, [contenido.md](contenido.md#en-la-base-solo-la-base)
+- `perf-placement` · fase 1 · hecho · infra · El Worker corre al lado de la base D1 (`[placement] region = "aws:us-east-1"`); `mode = "smart"` lo mandaba a San José, más lejos. Se mide el tiempo hasta el primer byte desde Argentina antes y después, y se saca si alguna página empeora · #387, [workers-migracion.md](workers-migracion.md#ubicación-del-worker)
+- `perf-evento-olas` · fase 1 · sigue · infra · La página de un evento lee la base en menos tandas en fila (la base está lejos: cada consulta que espera a otra es una ida y vuelta): la venta, las partes y el lugar a la par del evento, y el evento con sus autores en menos consultas; falta la configuración de la venta leída una vez · #395, #396, #397, [contenido.md](contenido.md#lo-que-nunca-se-tiene-que-romper)
 - `sveltekit-3` · fase 1 · sigue · infra · Revisar qué pide SvelteKit 3 (rutina del 9/11; gorrite: esperar, sin parches antes)
 - `rss-aviso-sacar` · fase 1 · sigue · infra · Sacar el aviso del RSS el 27/10 (rutina)
 - `push-pwa` · fase 1 · sigue · infra · Notificaciones push y PWA (gorrite, 12/10) · #16, #43, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
@@ -263,6 +265,11 @@ CI) va en la fase 0.
 - `auditoria-seguridad` · fase 1 · espera gorrite · infra · Auditoría de seguridad en una sesión aparte de gorrite, antes de la fase 4: ver Mesa
 - `conector-claude-lectura` · fase 1 · sigue · panel · Conector de Claude (MCP) solo de lectura para admins: buscar y leer objetos y listar ventas por slug o nombre, sin SQL a mano ni ids tipeados; detrás de un interruptor, apagado. Va después de los arreglos del acceso de admins que salgan de la auditoría (gorrite, 12/10) (depende de: auditoria-seguridad)
 - `analiticas` · fase 1 · hecho · infra · Visitas y embudo de compra con Workers Analytics Engine · #215
+- `perf-js-matcher` · fase 1 · hecho · infra · El matcher de las secciones «Próximamente» (`src/params/soon.js`) usa una lista de URLs sin íconos (`soonSections.js`, comparada con `nav.js` en una prueba): todas las páginas dejan de bajar el menú del panel · #394
+- `perf-js-barrel` · fase 1 · hecho · infra · La página del evento importa `Button` y `TagChip` por su archivo y ESLint no deja usar el barril `$lib/components/ui` en las páginas públicas ni en sus componentes (todos los componentes, estilos y partes del panel que bajaban sin usarse) · #393
+- `perf-js-ics` · fase 1 · hecho · infra · El texto «Ver en el mapa» (`MAP_LABEL`) vive en `eventPlace.js`: la página del evento ya no baja el paquete `ics` · #392
+- `perf-js-yaml` · fase 1 · hecho · infra · La validación del archivo de un evento al guardar (`placeFileErrors`, `linkFileErrors`) pasa al servidor (`src/lib/server/eventos/fileErrors.js`): las páginas públicas ya no bajan el paquete `yaml` · #391
+- `perf-js-interactivo` · fase 1 · hecho · infra · Los trazos del SVG del interactivo «Dónde y con qué golpear un cuerpo» ya no van en el JavaScript de todas las páginas con texto: el servidor se los pasa como props solo a la publicación que lo usa (unos 108 KB gz menos en eventos, material y wiki) · #389
 
 ## Fase 2
 

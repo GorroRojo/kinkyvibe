@@ -47,5 +47,34 @@ export default [
 			// Unused parameters often document a callback signature; only flag unused bindings.
 			'no-unused-vars': ['error', { args: 'none' }]
 		}
+	},
+	{
+		// Las páginas públicas y los componentes que usan importan cada componente de la interfaz por
+		// su archivo: el barril trae todos, con sus estilos y partes del panel (docs/estilo.md).
+		files: ['src/routes/(content)/**', 'src/lib/components/**'],
+		ignores: ['src/lib/components/admin/**', 'src/lib/components/ui/**'],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					// Nombres exactos: `$lib/components/ui/Button.svelte` y compañía siguen valiendo.
+					paths: [
+						'$lib/components/ui',
+						'$lib/components/ui/index',
+						'$lib/components/ui/index.js',
+						'./ui',
+						'./ui/index.js',
+						'../ui',
+						'../ui/index.js',
+						'../../ui',
+						'../../ui/index.js'
+					].map((name) => ({
+						name,
+						message:
+							"En las páginas públicas, cada componente por su archivo: import Button from '$lib/components/ui/Button.svelte' (docs/estilo.md, «Componentes»)."
+					}))
+				}
+			]
+		}
 	}
 ];
