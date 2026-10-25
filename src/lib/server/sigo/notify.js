@@ -43,6 +43,7 @@ import { formatFollowNotice } from '$lib/server/telegram/format.js';
 import { botTextOverrides } from '$lib/server/telegram/texts.js';
 import { isQuietHour } from '$lib/server/telegram/quiet.js';
 import { REMINDER_ORDER_SQL } from '$lib/server/tickets/reminders.js';
+import { askFreeOrderSql, saidMineSql } from '$lib/server/cuentas/orders.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {Pick<ProcessedPost, 'meta' | 'path'>} Post */
@@ -141,7 +142,8 @@ export async function markEventsSeen(db, slugs, now) {
  * Qué cuentas tienen entrada para qué eventos, en una sola consulta: órdenes que cuentan para
  * los recordatorios de las entradas ({@link REMINDER_ORDER_SQL}) con el `account_id` de la cuenta
  * o con su mail (sin importar mayúsculas: el recordatorio de las entradas va a ese mismo mail).
- * Devuelve claves `<cuenta>\u0000<evento>`.
+ * Una gratis pedida sin la sesión de la cuenta cuenta solo después de «Sí, son mías» (como Mi
+ * rincón, cuentas/orders.js). Devuelve claves `<cuenta>\u0000<evento>`.
  *
  * @param {D1Database} db
  * @param {readonly string[]} slugs
@@ -159,7 +161,8 @@ export async function accountsWithTickets(db, slugs) {
 			SELECT a.id AS account_id, o.event_slug FROM orders o
 			JOIN accounts a ON lower(a.email) = lower(o.buyer_email)
 			WHERE o.event_slug IN (SELECT value FROM json_each(?1)) AND ${REMINDER_ORDER_SQL}
-				AND a.deleted_at IS NULL AND a.email IS NOT NULL`
+				AND a.deleted_at IS NULL AND a.email IS NOT NULL
+				AND (NOT ${askFreeOrderSql('o')} OR ${saidMineSql('o', 'a.id')})`
 		)
 		.bind(JSON.stringify(slugs))
 		.all();
