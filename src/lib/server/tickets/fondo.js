@@ -16,6 +16,11 @@
  * 4. el último que se obtuvo bien, guardado en D1 (`ticket_settings`) — si la API no responde;
  * 5. 0.
  * Nunca frena la venta: si todo falla, se vende sin descuento del fondo y se loguea un aviso.
+ *
+ * Las páginas que solo muestran el precio (la página del evento) piden `staleOk`: si la memoria
+ * venció, usan el último porcentaje conocido (el de la memoria o el guardado en D1) sin esperar a
+ * fondo.kinkyvibe.ar, y lo actualizan en segundo plano (`waitUntil`). La compra (`?/buy`) y la
+ * página de compra esperan el valor de siempre: si cambió, «El descuento del Fondo cambió» avisa.
  */
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
@@ -37,11 +42,14 @@ const TIMEOUT_MS = 3000;
 let memo = null;
 /** @type {number} */
 let failedAt = -Infinity;
+/** Cuándo empezó la última actualización en segundo plano (`staleOk`): una a la vez por isolate. */
+let refreshingAt = -Infinity;
 
 /** Para los tests. */
 export function resetFondoMemo() {
 	memo = null;
 	failedAt = -Infinity;
+	refreshingAt = -Infinity;
 }
 
 /**
@@ -126,14 +134,22 @@ async function storePercent(db, percent, now) {
 /**
  * Porcentaje del Fondo que se aplica ahora (a los eventos con la etiqueta KinkyVibe).
  *
- * @param {{ db?: D1Database | null, fetch?: typeof fetch, now?: number, url?: string }} [options]
+ * Con `staleOk` y `waitUntil` (solo para mostrar, nunca para cobrar): si la memoria de 10 minutos
+ * venció pero hay un porcentaje conocido (la memoria vencida o el último guardado en D1), lo
+ * devuelve sin esperar a la API y la consulta en segundo plano con `waitUntil`. Sin porcentaje
+ * conocido, espera a la API como siempre.
+ *
+ * @param {{ db?: D1Database | null, fetch?: typeof fetch, now?: number, url?: string,
+ *   staleOk?: boolean, waitUntil?: (task: Promise<unknown>) => void }} [options]
  * @returns {Promise<FondoPercent>}
  */
 export async function resolveFondoPercent({
 	db,
 	fetch: fetchFn = fetch,
 	now = Date.now(),
-	url
+	url,
+	staleOk = false,
+	waitUntil
 } = {}) {
 	try {
 		const admin = parsePercent((await getSalesSettings(db)).fondo_percent_override);
@@ -148,24 +164,66 @@ export async function resolveFondoPercent({
 	if (memo && now - memo.at < MEMO_MS) {
 		return { percent: memo.percent, source: 'live', updatedAt: memo.at };
 	}
-	if (now - failedAt >= FAILURE_MEMO_MS) {
-		const live = await fetchLivePercent(
-			fetchFn,
-			url ?? (env.FONDO_PERCENT_URL || DEFAULT_FONDO_PERCENT_URL)
-		);
-		if (live !== null) {
-			const changed = memo?.percent !== live;
-			memo = { percent: live, at: now };
-			const stored = await getStoredPercent(db);
-			// Se guarda si cambió o cada tanto (para que "última actualización" diga algo útil).
-			if (changed || !stored || stored.percent !== live || now - stored.at >= MEMO_MS) {
-				await storePercent(db, live, now);
+	const apiUrl = url ?? (env.FONDO_PERCENT_URL || DEFAULT_FONDO_PERCENT_URL);
+	if (staleOk && waitUntil) {
+		const known = memo
+			? { percent: memo.percent, source: /** @type {const} */ ('live'), at: memo.at }
+			: await storedAsKnown(db);
+		if (known) {
+			// Una sola actualización en camino por isolate (dura como mucho el timeout de la API).
+			if (now - failedAt >= FAILURE_MEMO_MS && now - refreshingAt >= TIMEOUT_MS + 1000) {
+				refreshingAt = now;
+				waitUntil(
+					refreshLive(db, fetchFn, apiUrl, now).finally(() => {
+						refreshingAt = -Infinity;
+					})
+				);
 			}
-			return { percent: live, source: 'live', updatedAt: now };
+			return { percent: known.percent, source: known.source, updatedAt: known.at };
 		}
-		failedAt = now;
+	}
+	if (now - failedAt >= FAILURE_MEMO_MS) {
+		const live = await refreshLive(db, fetchFn, apiUrl, now);
+		if (live !== null) return { percent: live, source: 'live', updatedAt: now };
 	}
 	const stored = await getStoredPercent(db);
 	if (stored) return { percent: stored.percent, source: 'stored', updatedAt: stored.at };
 	return { percent: 0, source: 'none', updatedAt: null };
+}
+
+/**
+ * El último porcentaje guardado en D1, como porcentaje conocido.
+ * @param {D1Database | null | undefined} db
+ */
+async function storedAsKnown(db) {
+	const stored = await getStoredPercent(db);
+	return stored
+		? { percent: stored.percent, source: /** @type {const} */ ('stored'), at: stored.at }
+		: null;
+}
+
+/**
+ * Pide el porcentaje a la API; si responde, lo recuerda en el isolate y lo guarda en D1 (si
+ * cambió o cada tanto). Si no, anota la falla (un minuto sin volver a pedir) y da `null`.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {typeof fetch} fetchFn
+ * @param {string} apiUrl
+ * @param {number} now
+ * @returns {Promise<number | null>}
+ */
+async function refreshLive(db, fetchFn, apiUrl, now) {
+	const live = await fetchLivePercent(fetchFn, apiUrl);
+	if (live === null) {
+		failedAt = now;
+		return null;
+	}
+	const changed = memo?.percent !== live;
+	memo = { percent: live, at: now };
+	const stored = await getStoredPercent(db);
+	// Se guarda si cambió o cada tanto (para que "última actualización" diga algo útil).
+	if (changed || !stored || stored.percent !== live || now - stored.at >= MEMO_MS) {
+		await storePercent(db, live, now);
+	}
+	return live;
 }

@@ -108,6 +108,7 @@ async function modules({ sigo, extra } = {}) {
 		icsMine: await import('../../ics/mio/[token].ics/+server.js'),
 		calendario: await import('../mi-rincon/calendario/+page.server.js'),
 		calendarioPublico: await import('../calendario/+page.server.js'),
+		wiki: await import('../wiki/[term]/+page.server.js'),
 		web: await import('$lib/server/series/web.js')
 	};
 }
@@ -291,6 +292,46 @@ describe('prendido: páginas', () => {
 		expect(await thrown(() => m.api.GET(ev({ params: { tag: 'no-existe-nada' } })))).toMatchObject({
 			status: 404
 		});
+	});
+});
+
+describe('/wiki/<etiqueta>: lo de series y «Seguir» vienen con la página', () => {
+	it('lo mismo que /api/series y /api/sigo, sin pedirlo después', async () => {
+		const m = await modules({ sigo: '1' });
+		const account = await upsertVerifiedAccount(t.db, EMAIL);
+		const member = { id: account.id, email: EMAIL };
+		for (const who of [undefined, member]) {
+			const page = /** @type {any} */ (
+				await m.wiki.load(
+					ev({ member: who, path: '/wiki/Picantearla', params: { term: 'Picantearla' } })
+				)
+			);
+			const api = await (
+				await m.api.GET(ev({ member: who, params: { tag: 'Picantearla' } }))
+			).json();
+			expect(page.seriesInfo).toEqual(api);
+			expect(page.seriesInfo.series.id).toBe('Picantearla');
+			expect(page.follow).toEqual(
+				who
+					? { member: true, kind: 'etiqueta', key: 'Picantearla', following: false }
+					: { member: false }
+			);
+		}
+		// Sin nada de series: `null` (el bloque no se muestra y tampoco se pide).
+		const none = /** @type {any} */ (
+			await m.wiki.load(ev({ path: '/wiki/no-existe-nada', params: { term: 'no-existe-nada' } }))
+		);
+		expect(none.seriesInfo).toBeNull();
+		expect(none.follow).toBeNull();
+	});
+
+	it('con «Lo que sigo» apagado, `follow` es null (sin botón)', async () => {
+		const m = await modules();
+		const page = /** @type {any} */ (
+			await m.wiki.load(ev({ path: '/wiki/Picantearla', params: { term: 'Picantearla' } }))
+		);
+		expect(page.follow).toBeNull();
+		expect(page.seriesInfo.series.id).toBe('Picantearla');
 	});
 });
 

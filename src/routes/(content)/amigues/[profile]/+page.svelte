@@ -25,8 +25,15 @@
 />
 <a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 <DbProfile {data} claimResult={form?.claim} url={$page.url.href} />
-<!-- «Lo que sigo» (interruptor `lo_que_sigo`): apagado, /api/sigo da 404 y no se ve -->
-<FollowButton kind="perfil" key={String(data.profileId)} name={data.profile?.title ?? ''} />
+<!-- «Lo que sigo» (interruptor `lo_que_sigo`): apagado, `data.follow` es null y no se ve. Viene con
+     la página (+page.server.js), así no se mueve cuando llega. -->
+<FollowButton
+	kind="perfil"
+	key={String(data.profileId)}
+	name={data.profile?.title ?? ''}
+	info={data.follow}
+	path={$page.url.pathname + $page.url.search}
+/>
 {#if data.participa}
 	<div class="content"><ParticipacionesPorRol groups={data.participa} /></div>
 {/if}

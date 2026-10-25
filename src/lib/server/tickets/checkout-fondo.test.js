@@ -145,7 +145,7 @@ describe('compra (?/buy): el porcentaje del Fondo que se cobra es el que se vio'
 		/** @type {any} */
 		const event = {
 			params: { event: slug },
-			platform: t.platform,
+			platform: { ...t.platform, ctx: { waitUntil: () => {} } },
 			request: new Request('http://localhost/x', { method: 'POST', body }),
 			url: new URL(`http://localhost/calendario/${slug}/entradas`),
 			fetch: liveFetch,
@@ -207,6 +207,39 @@ describe('compra (?/buy): el porcentaje del Fondo que se cobra es el que se vio'
 	it('con el mismo porcentaje, compra', async () => {
 		const r = await buy('con-fondo', { fondo_percent: '20' });
 		expect(await orderOf(r)).toMatchObject({ fondo_percent: 20, fondo_amount: 2000, total: 8000 });
+	});
+
+	it('la página del evento (staleOk) no espera a la API; la compra sí, y avisa si cambió', async () => {
+		// Se vio 20 % (queda guardado en D1); después fondo.kinkyvibe.ar pasa a 10 %, lento.
+		await getTicketsView(t.db, 'con-fondo', liveFetch);
+		fondoChangesTo(10);
+		/** @type {() => void} */
+		let release = () => {};
+		const gate = new Promise((r) => (release = () => r(undefined)));
+		const slow = vi.fn(async () => {
+			await gate;
+			return liveFetch();
+		});
+		/** @type {Promise<unknown>[]} */
+		const tasks = [];
+		const waitUntil = (/** @type {Promise<unknown>} */ p) => void tasks.push(p);
+		const view = await getTicketsView(t.db, 'con-fondo', /** @type {any} */ (slow), {
+			fondo: { staleOk: true, waitUntil }
+		});
+		// Contestó sin esperar: el último porcentaje conocido.
+		expect(view?.fondoPercent).toBe(20);
+		expect(slow).toHaveBeenCalledTimes(1);
+		release();
+		await Promise.all(tasks);
+
+		// Guardado ahora: 10 %. La API pasa a 15 %: la compra espera el valor de ahora (aunque la
+		// plataforma tenga waitUntil), no usa el guardado, y avisa.
+		fondoChangesTo(15);
+		const r = await buy('con-fondo', { fondo_percent: '10' });
+		expect(r.status).toBe(409);
+		expect(r.data.buy.error).toBe(fondoChangedMessage(15));
+		expect(r.data.buy.fondoPercent).toBe(15);
+		expect(await orderCount()).toBe(0);
 	});
 
 	it('un evento sin Fondo no mira el campo', async () => {
