@@ -229,6 +229,17 @@ npx playwright test -c playwright.tickets.config.js  # entradas, editor de event
 Variables útiles: `PW_CHROMIUM_PATH` (humo) o `PW_CHROMIUM` (entradas) para usar un Chromium ya
 instalado; `TICKETS_SHOTS_DIR` para guardar capturas.
 
+**Si fallan pruebas del panel con «Failed to fetch dynamically imported module»** (y en la traza
+`net::ERR_INSUFFICIENT_RESOURCES` o `net::ERR_ABORTED`), casi seguro es poco disco libre, no el
+panel: Playwright abre Chromium con `--disable-dev-shm-usage`, así que su memoria compartida va a
+archivos en `/tmp`, y recorrer muchas páginas de `vite dev` (cientos de módulos sueltos cada una)
+llega a ocupar varios GB. Si `/tmp` se llena, Chromium deja de pedir módulos. Pasa en máquinas con
+poco disco libre (las sesiones de Claude en la nube, con varias corriendo a la vez). Solución:
+mandar los temporales de Chromium a `/dev/shm` si es grande (`df -h /dev/shm`):
+`mkdir -p /dev/shm/pw-tmp && TMPDIR=/dev/shm/pw-tmp npx playwright test -c playwright.tickets.config.js`.
+Tampoco corras `vitest` en la misma carpeta mientras corre el juego de entradas: reescribe
+`.svelte-kit/generated` y el `vite dev` de las pruebas recarga las páginas.
+
 ### Tipos (svelte-check con trinquete)
 
 `node scripts/svelte-check-ratchet.js` corre svelte-check y compara con
