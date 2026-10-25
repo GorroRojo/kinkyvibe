@@ -118,6 +118,7 @@ CI) va en la fase 0.
 - `panel-prefs-en-base` · fase 0 · algún día · panel · Fijados y el modo del panel lateral por admin en la base (hoy por navegador), si se suma una tabla de preferencias
 - `miniaturas-listas-panel` · fase 0 · hecho · panel · Miniaturas achicadas (`thumbnailUrl`) en Eventos y Contenido, como ya tiene «Hoy» · #323
 - `graficos-mas` · fase 0 · algún día · panel · Más gráficos: mapa de la comunidad, Fondo y finanzas
+- `queermoji` · fase 0 · algún día · diseño · Sumar los Queermoji (emojis queer de pronouns.page) o algo parecido: dónde se usan en el sitio y con qué licencia, a definir (gorrite, 25/10) · [queermoji.pronouns.page](https://queermoji.pronouns.page/)
 - `editor-textos-sitio` · fase 0 · sigue · panel · Un «modo editar textos» para casi todo lo que dice el sitio, visualmente afuera del panel, con el mismo registro de textos del bot y las vistas previas; por partes, y antes decidir qué queda fijo (gorrite, 11/10)
 - `nav-panel-c` · fase 0 · hecho · panel · Navegación del panel opción C, partes 1 y 2 · #301, #309, [0038](decisiones/0038-navegacion-del-panel-opcion-c.md)
 - `ficha-evento-7-pestanas` · fase 0 · hecho · panel · Ficha del evento con 7 pestañas y ▾ en el celu; mails a Mensajes · #303, #305
