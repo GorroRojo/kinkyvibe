@@ -119,6 +119,15 @@ mediana). No hay datos de personas reales (el sitio tiene poco tráfico para el 
 - **En `/calendario`** la imagen de la primera tarjeta también es el LCP: sus dos primeras tarjetas
   cargan enseguida (`eager={2}`) y la prioridad va a la primera tarjeta **con** imagen (en todas
   las filas con `eager`, también la del inicio).
+- **En la página de un evento** el LCP es el afiche: lleva `fetchpriority="high"` y, si es una
+  portada de la biblioteca, su `width`/`height` (de `data.cover`, sin otra consulta; el tamaño en
+  pantalla lo sigue mandando el CSS). **En la página de un perfil**, la primera imagen de su texto
+  (la primera que queda con `src`) no es `lazy` y lleva `fetchpriority="high"`; las demás siguen
+  `lazy` (`rehypeProfileLinks` con `firstImageEager`, src/lib/server/amigues/sanitize.js). En los
+  textos de eventos, material y wiki todas siguen `lazy` (en un evento manda el afiche). Medido en
+  local (25/10, Lighthouse celu, 15 corridas alternadas): el pedido de la imagen arranca antes
+  (afiche ~243 → ~97 ms; imagen del perfil ~383 → ~78 ms), pero el LCP simulado no cambió
+  (evento ~6,3 s, perfil ~4,6 s, dentro del ruido): lo domina la descarga de la imagen.
 - El tiempo del servidor no apareció como problema (TTFB 10 ms en esa corrida).
 - Los errores de consola que marca son del script de Cloudflare Web Analytics, no del sitio.
 - Para ver que sigue andando: `curl -s https://kinkyvibe.ar/ | grep -o '<img[^>]*card-img[^>]*>' | head -5`
