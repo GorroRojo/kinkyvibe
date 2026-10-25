@@ -225,7 +225,8 @@ vinculado** (mirado en cada mensaje), como «Lo que sigo» (`tickets.js` lee, `m
 las pantallas).
 
 - **Cuáles**: las de las compras **aprobadas** de la cuenta, con las mismas reglas que Mi rincón
-  (`ordersForAccount`: compradas con la cuenta o con su mail verificado). Nada de reservas por
+  (`ordersForAccount`: compradas con la cuenta o con su mail verificado; una gratis pedida sin la
+  sesión de esa cuenta, solo después de «Sí, son mías» en Mi rincón). Nada de reservas por
   transferencia, reembolsadas ni de otras cuentas. Una consulta para las compras y una para todas
   sus entradas.
 - **La lista** (`/entradas`, «🎟 Mis entradas» del inicio, `?start=mis-entradas`): de a 5, agrupadas
