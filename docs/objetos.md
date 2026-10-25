@@ -81,6 +81,13 @@ cuentas, ver abajo y [cuentas.md](cuentas.md)). Los eventos siguen siendo archiv
 - `data` es un JSON validado en código por el tipo. Las claves que el tipo no conoce se rechazan
   (así un campo que se deja de usar aparece en el chequeo nocturno en vez de quedar escondido).
 - `search_text` lo arma el tipo al guardar (`searchText`), para buscar por más que el título.
+- Los índices de `edges`: el único `(from_id, kind, to_id)` (los vínculos de un objeto),
+  `edges_to (to_id, kind)` («¿qué apunta a este objeto?») y `edges_kind_from (kind, from_id)`
+  (migración `0062`: todos los vínculos de una clase, como la marca de los lugares de los eventos).
+- La dirección de la página de un evento es `coalesce(content_sources.legacy_slug, objects.slug)`;
+  para buscar un evento por esa dirección, `eventIdsWithSlugSql`
+  (`src/lib/server/eventos/eventSlugIds.js`) la busca por índice en vez de comparar la expresión
+  (que recorre todos los eventos).
 - Si un campo de `data` se usa para filtrar u ordenar mucho, se "promueve" a columna con una
   migración (columna generada + índice), nunca a mano. SQLite tiene un límite de columnas por
   tabla: no se promueve todo.
