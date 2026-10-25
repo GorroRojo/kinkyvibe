@@ -25,7 +25,7 @@
  *   la metadata. El cuerpo lo lee aparte el índice de la búsqueda (`siteBodies`), una vez por
  *   cambio de la base.
  */
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { version } from '$app/environment';
 import { parseSiteDate } from '$lib/utils/dates.js';
 import { processPost } from '$lib/utils';
@@ -748,17 +748,21 @@ export function resolveEventSlug(db, slug) {
  * Un post (evento o material) de la base para su página, o `null` si la base no lo tiene o quien
  * mira no lo puede ver (→ 404).
  *
+ * Con `followRedirect` (la página de un material), un material que redirige (`redirect` con
+ * `link`, por ejemplo a la tienda) tira la redirección 307 apenas leído el objeto: sin leer sus
+ * relaciones, su portada, sus autores ni armar el texto (una tanda a la base en vez de cuatro).
+ *
  * @param {App.Platform | undefined} platform
  * @param {string} category
  * @param {string} slug
- * @param {{ viewer?: Viewer, shallow?: boolean, html?: boolean }} [opts]
+ * @param {{ viewer?: Viewer, shallow?: boolean, html?: boolean, followRedirect?: boolean }} [opts]
  * @returns {Promise<SitePost | null>}
  */
 export async function siteContent(
 	platform,
 	category,
 	slug,
-	{ viewer = ANON, shallow = false, html = true } = {}
+	{ viewer = ANON, shallow = false, html = true, followRedirect = false } = {}
 ) {
 	const cat = CONTENT_CATEGORIES[category];
 	const db = cat ? contentDb(platform) : null;
@@ -780,6 +784,14 @@ export async function siteContent(
 	const stored = rowToObject(row);
 	if (!canSee(stored, viewer) || !row.part_ok) return null;
 	const found = forViewer(stored, viewer);
+	if (followRedirect && category === 'material') {
+		// `redirect` y `link` salen tal cual de `data` (`materialToMeta`): no dependen de las
+		// relaciones ni de la portada.
+		const light = cat.toMeta(found);
+		// Uno oculto (solo admins) sigue el camino de siempre: la página le pone `no-store`.
+		if (light.redirect && !light.force_unpublished && typeof light.link === 'string' && light.link)
+			redirect(307, light.link);
+	}
 	const legacySlug = row.ref_legacy_slug ? String(row.ref_legacy_slug) : null;
 	// Sus relaciones y su portada, a la par.
 	const [[object], cover] = await Promise.all([

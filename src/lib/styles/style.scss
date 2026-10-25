@@ -158,12 +158,62 @@
 		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
 		U+A720-A7FF;
 }
+// Respaldo con las medidas de Lato: mientras llega Lato (`font-display: swap`) el texto sale en
+// Arial (o Roboto en Android) agrandada o achicada para ocupar lo mismo, así al cambiar de letra
+// las líneas no se corren (docs/estilo.md, «Lo que no se rompe»). Los números salen de los
+// archivos: el ancho promedio de las letras de Lato y del respaldo (pesado por cuánto aparece cada
+// letra en los textos de la semilla) da `size-adjust`; el alto de Lato (hhea: 1974 y 426 de 2000,
+// sin interlineado extra) dividido por ese `size-adjust`, los `*-override`. Arial se midió con
+// Liberation Sans, que tiene sus mismas medidas. Un peso por cara: Lato Bold es más angosta que
+// Arial Bold.
+@font-face {
+	font-family: 'Lato Fallback';
+	font-style: normal;
+	font-weight: 400;
+	src: local('Arial'), local('ArialMT'), local('Liberation Sans'), local('LiberationSans');
+	size-adjust: 95.86%;
+	ascent-override: 102.96%;
+	descent-override: 22.22%;
+	line-gap-override: 0%;
+}
+@font-face {
+	font-family: 'Lato Fallback';
+	font-style: normal;
+	font-weight: 700;
+	src:
+		local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'),
+		local('LiberationSans-Bold');
+	size-adjust: 91.53%;
+	ascent-override: 107.83%;
+	descent-override: 23.27%;
+	line-gap-override: 0%;
+}
+@font-face {
+	font-family: 'Lato Fallback Roboto';
+	font-style: normal;
+	font-weight: 400;
+	src: local('Roboto'), local('Roboto-Regular');
+	size-adjust: 96.74%;
+	ascent-override: 102.03%;
+	descent-override: 22.02%;
+	line-gap-override: 0%;
+}
+@font-face {
+	font-family: 'Lato Fallback Roboto';
+	font-style: normal;
+	font-weight: 700;
+	src: local('Roboto Bold'), local('Roboto-Bold');
+	size-adjust: 97.37%;
+	ascent-override: 101.37%;
+	descent-override: 21.88%;
+	line-gap-override: 0%;
+}
 body {
 	scroll-behavior: smooth;
 	margin: 0;
 	background: var(--bg);
 	color: var(--ink);
-	font-family: 'Lato', sans-serif;
+	font-family: 'Lato', 'Lato Fallback', 'Lato Fallback Roboto', sans-serif;
 	// font-size: var(--step-0);
 	position: relative;
 	min-height: 99vh;

@@ -71,8 +71,8 @@ describe('PostListItem: venta de entradas', () => {
 		});
 		expect(cta(html)).toBeNull();
 		expect(html).not.toContain('Comprar entradas');
-		// El botón de calendario sigue (evento con link y abierto).
-		expect(html).toMatch(/<button[^>]*class="add-cal[\s"]/);
+		// Sin «Añadir al calendario» en la tarjeta (ver abajo).
+		expect(html).not.toContain('add-cal');
 	});
 
 	it('evento terminado: ni botón ni aviso', () => {
@@ -105,38 +105,28 @@ describe('PostListItem: etiquetas', () => {
 });
 
 /*
- * «Añadir al calendario»: un <button> común del servidor (la librería del menú se baja recién al
- * tocarlo, ver PostListItem.dom.test.js). Solo en eventos abiertos que vienen, con link.
+ * «Añadir al calendario» ya no va en las tarjetas de las listas (gorrite, 25/10): antes, un
+ * <button> en los eventos abiertos con link de inscripción. Ninguna tarjeta lo tiene, tampoco el
+ * elemento de la librería.
  */
-describe('PostListItem: «Añadir al calendario»', () => {
-	const abierto = () => post({ tickets: undefined, link: 'https://example.com/inscripcion' });
-	/** El <button> del calendario, entero, o undefined. @param {string} html */
-	const calButton = (html) => html.match(/<button[^>]*class="add-cal[\s"][^>]*>/)?.[0];
-
-	it('un botón con su nombre accesible, sin el elemento de la librería', () => {
-		const html = body({ post: abierto() });
-		const button = calButton(html);
-		expect(button).toBeDefined();
-		expect(button).toContain('type="button"');
-		expect(button).toContain('aria-label="Añadir al calendario"');
-		expect(html).not.toContain('<add-to-calendar-button');
-	});
-
-	it('cancelado, agotado o terminado: no va', () => {
+describe('PostListItem: sin «Añadir al calendario»', () => {
+	it('ningún evento lo muestra (abierto con link, cancelado, agotado, terminado, sin link)', () => {
 		for (const extra of [
-			{ status: 'cancelado' },
-			{ status: 'agotadas' },
-			{ start: '2001-01-01T20:00-03:00', end: '2001-01-01T22:00-03:00' }
+			{ link: 'https://example.com/inscripcion' },
+			{ link: 'https://example.com/inscripcion', status: 'cancelado' },
+			{ link: 'https://example.com/inscripcion', status: 'agotadas' },
+			{
+				link: 'https://example.com/inscripcion',
+				start: '2001-01-01T20:00-03:00',
+				end: '2001-01-01T22:00-03:00'
+			},
+			{}
 		]) {
-			const html = body({
-				post: post({ tickets: undefined, link: 'https://example.com/inscripcion', ...extra })
-			});
-			expect(calButton(html)).toBeUndefined();
+			const html = body({ post: post({ tickets: undefined, ...extra }) });
+			expect(html).not.toContain('Añadir al calendario');
+			expect(html).not.toContain('add-cal');
+			expect(html).not.toContain('<add-to-calendar-button');
 		}
-	});
-
-	it('sin link de inscripción: no va (como antes)', () => {
-		expect(calButton(body({ post: post({ tickets: undefined }) }))).toBeUndefined();
 	});
 });
 

@@ -17,8 +17,12 @@ export async function load({ params, platform, locals, setHeaders }) {
 	const postsP = sitePosts(platform);
 	postsP.catch(() => {});
 	// El post de la base (con su texto ya armado); si la base no lo tiene, o quien mira no lo puede
-	// ver, 404.
-	const found = await siteContent(platform, 'material', params.post, { viewer: viewerFor(locals) });
+	// ver, 404. Si redirige (a la tienda, por ejemplo), la redirección sale apenas leído el objeto
+	// (`followRedirect`), sin leer ni armar lo demás.
+	const found = await siteContent(platform, 'material', params.post, {
+		viewer: viewerFor(locals),
+		followRedirect: true
+	});
 	if (!found) error(404, 'Not found');
 	if (found.meta.force_unpublished) setHeaders({ 'cache-control': 'private, no-store' });
 	const { html, css, parts, ...post } = found;

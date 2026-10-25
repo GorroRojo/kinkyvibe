@@ -3,7 +3,12 @@ import { currentMonth, isCalendarMonth, isCurrent } from '$lib/utils/allPosts';
 import { getDB } from '$lib/server/db';
 import { withVenuePlaces } from '$lib/server/amigues/venues.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
-import { isPastIn, partLabelsOrNone, slimPastMeta } from '$lib/server/eventos/pasados.js';
+import {
+	firstEventMonth,
+	isPastIn,
+	partLabelsOrNone,
+	slimPastMeta
+} from '$lib/server/eventos/pasados.js';
 import { withPartLabel } from '$lib/utils/partes.js';
 
 /** @type {import("./$types").PageServerLoad} */
@@ -39,6 +44,8 @@ export async function load({ platform, url, untrack }) {
 			.map((p) => withPartLabel(p, partLabels)),
 		// El mes de los pasados que vinieron (los de los demás, a pedido).
 		pastMonth,
+		// El mes del evento más viejo: hasta ahí llega «Mostrar el mes anterior».
+		firstMonth: firstEventMonth(posts),
 		ticketStates,
 		// Link a la lista de series de la Kinkipedia (/wiki#series): las series ya no tienen
 		// interruptor.

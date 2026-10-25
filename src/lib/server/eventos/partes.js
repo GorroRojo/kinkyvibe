@@ -34,6 +34,7 @@ import {
 } from '../../utils/partes.js';
 import { dehydrateTags, tagEdgesOf, withTagEdges } from '../contenido/etiquetasEdges.js';
 import { HOLDING } from '../tickets/holding.js';
+import { eventIdsWithSlugSql } from './eventSlugIds.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('../objects/visibility.js').Viewer} Viewer */
@@ -122,8 +123,11 @@ export async function findEventRow(db, slug) {
 	if (typeof slug !== 'string' || !slug) return null;
 	const row = await db
 		.prepare(
-			`SELECT ${eventCols('ev', 'cs')} FROM objects ev ${eventJoin('ev', 'cs')}
-			WHERE ev.type = ?2 AND (cs.legacy_slug = ?1 OR (cs.legacy_slug IS NULL AND ev.slug = ?1))
+			// Empieza por los ids con esa dirección (`CROSS JOIN` fija el orden): si no, SQLite
+			// recorre todos los eventos.
+			`SELECT ${eventCols('ev', 'cs')} FROM (${eventIdsWithSlugSql('?1')}) slug_ids
+			CROSS JOIN objects ev ON ev.id = slug_ids.id ${eventJoin('ev', 'cs')}
+			WHERE ev.type = ?2
 			ORDER BY cs.legacy_slug IS NULL LIMIT 1`
 		)
 		.bind(slug, EVENT_TYPE)
