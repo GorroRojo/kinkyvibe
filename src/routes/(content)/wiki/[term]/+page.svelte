@@ -155,14 +155,22 @@
 			</div>
 		{/if}
 	</div>
-	<!-- «Lo que sigo» (interruptor `lo_que_sigo`): apagado, /api/sigo da 404 y no se ve -->
+	<!-- «Lo que sigo» (interruptor `lo_que_sigo`): apagado, `data.follow` es null y no se ve.
+	     Viene con la página (+page.server.js), así no se mueve cuando llega. -->
 	<FollowButton
 		kind="etiqueta"
 		key={data?.tag?.id ?? data?.meta?.wiki ?? ''}
 		name={data?.tag?.visible_name ?? data?.tag?.id ?? data?.meta?.wiki ?? ''}
+		info={data.follow}
+		path={$page.url.pathname + $page.url.search}
 	/>
-	<!-- sin nada de series para esta etiqueta, /api/series da 404 y no se muestra nada -->
-	<SeriesTagBlock tag={data?.tag?.id ?? data?.meta?.wiki ?? ''} />
+	<!-- sin nada de series para esta etiqueta, `data.seriesInfo` es null y no se muestra nada -->
+	<SeriesTagBlock
+		tag={data?.tag?.id ?? data?.meta?.wiki ?? ''}
+		info={data.seriesInfo}
+		path={$page.url.pathname}
+		origin={$page.url.origin}
+	/>
 	<hr />
 	<div class="lineage">
 		<div class="ascendance">

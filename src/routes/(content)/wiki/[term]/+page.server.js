@@ -6,6 +6,8 @@ import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 import { siteWikiEntry, wikiPost } from '$lib/server/wiki/site.js';
 import { renderContentBody } from '$lib/server/contenido/render.js';
 import { pageReadingMinutes, pageReadingWords } from '$lib/utils/readingTime.js';
+import { seriesTagInfo } from '$lib/server/series/web.js';
+import { followButtonState } from '$lib/server/sigo/button.js';
 
 /**
  * /wiki/<término>: la página de la wiki de esa etiqueta, desde la base (el texto de la wiki es el
@@ -14,9 +16,13 @@ import { pageReadingMinutes, pageReadingWords } from '$lib/utils/readingTime.js'
  * etiqueta (+page.js). Los .md de src/lib/posts/wiki/ quedan solo como respaldo: el sitio no los
  * lee.
  *
+ * Lo de series de la etiqueta y el botón «Seguir» vienen con la página (`seriesInfo`, `follow`),
+ * así no se piden al cargar y la página no se mueve cuando llegan. Si algo de eso falla, la página
+ * sale igual sin ellos (`undefined`), y los componentes lo piden como antes.
+ *
  * @type {import("./$types").PageServerLoad}
  */
-export async function load({ params, platform }) {
+export async function load({ params, platform, locals }) {
 	const { entry, key, tags } = await siteWikiEntry(platform, params.term);
 	const children = tags.get(key)?.getAllChildren() ?? [];
 	const posts = await sitePosts(platform);
@@ -52,10 +58,24 @@ export async function load({ params, platform }) {
 			readingWords: pageReadingWords(entry.body)
 		};
 	}
-	return {
-		...page,
-		...related,
+	const [ticketStates, seriesInfo, follow] = await Promise.all([
 		// «Comprar entradas» / «Agotadas» en las tarjetas.
-		ticketStates: await ticketStatesFor(platform, related.relatedPosts)
+		ticketStatesFor(platform, related.relatedPosts),
+		seriesTagInfo(platform, locals, key, { tags, posts }).catch(logged('series')),
+		followButtonState({ platform, locals }, 'etiqueta', key, { tags }).catch(logged('sigo'))
+	]);
+	return { ...page, ...related, ticketStates, seriesInfo, follow };
+}
+
+/**
+ * Lo opcional de la página: si falla, sale sin eso (`undefined`) y el componente lo pide solo.
+ *
+ * @param {string} what
+ */
+function logged(what) {
+	/** @param {unknown} e */
+	return (e) => {
+		console.error(`[wiki] ${what}:`, e);
+		return undefined;
 	};
 }

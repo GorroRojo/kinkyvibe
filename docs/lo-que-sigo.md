@@ -208,9 +208,11 @@ que se vuelva a prender.
 - `src/lib/components/sigo/`: «Agregar» (`FollowAdd.svelte`) y la grilla de opciones de cada cosa
   seguida (`FollowOptions.svelte`).
 - `src/lib/components/FollowButton.svelte`: el botón «Seguir» en `/wiki/<etiqueta>` y en
-  `/amigues/<perfil>` (solo perfiles de la base). Pregunta a `GET /api/sigo?tipo=&clave=` al cargar,
-  porque la página de una etiqueta puede estar prerenderizada: con el interruptor apagado da 404 y
-  el botón no aparece. Sin sesión lleva a `/ingresar` y vuelve a la página; en las series, quien no
+  `/amigues/<perfil>` (solo perfiles de la base). Esas dos páginas lo traen con la carga
+  (`data.follow`, `followButtonState` en `src/lib/server/sigo/button.js`), así el botón sale con la
+  página y no la mueve al llegar; la de un evento (que no lo trae) pregunta a
+  `GET /api/sigo?tipo=&clave=` al cargar, que usa la misma función. Con el interruptor apagado es
+  `null` (o 404) y el botón no aparece. Sin sesión lleva a `/ingresar` y vuelve a la página; en las series, quien no
   tiene cuenta sigue teniendo «Avisame si se repite» solo con el mail. Con sesión manda a
   `/mi-rincon/sigo?/seguir` o `?/dejar` (sin JavaScript, el resultado se ve en Mi rincón).
   `/api/sigo` solo dice si **esta** cuenta lo sigue, nunca quién más.
