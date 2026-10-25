@@ -15,11 +15,19 @@
  * Workers solo se puede usar como módulo que sube wrangler: Vite (que arma el Worker de
  * SvelteKit) no lo puede importar. Por eso el dibujante vive acá (worker/og.js) y le llega a la
  * ruta de SvelteKit en `platform.env.OG_RENDER`, solo en esos pedidos.
+ *
+ * Las páginas públicas para quien no tiene sesión se guardan 1 minuto en la caché de Cloudflare
+ * (decisión 0048, src/lib/server/edgeCache.js). Va acá y no en los hooks: el adapter busca en su
+ * propia caché por URL antes de los hooks, y le serviría la página anónima a quien tiene sesión.
+ * La clave lleva la versión del build de SvelteKit, así que cada deploy empieza de cero. Se apaga
+ * sin deploy con la variable `KV_EDGE_CACHE = "off"` en el panel.
  */
 import app from '../.svelte-kit/cloudflare/_worker.js';
 import { handleScheduled } from '../src/lib/server/scheduled.js';
 import { trackPageView } from '../src/lib/server/analytics/track.js';
+import { withEdgeCache } from '../src/lib/server/edgeCache.js';
 import { renderOg } from './og.js';
+import buildVersion from '../.svelte-kit/cloudflare/_app/version.json';
 
 export default {
 	/**
@@ -29,7 +37,16 @@ export default {
 	 */
 	async fetch(request, env, ctx) {
 		const og = new URL(request.url).pathname.startsWith('/og/');
-		const response = await app.fetch(request, og ? { ...env, OG_RENDER: renderOg } : env, ctx);
+		const response = await withEdgeCache(
+			request,
+			ctx,
+			() => app.fetch(request, og ? { ...env, OG_RENDER: renderOg } : env, ctx),
+			{
+				cache: typeof caches === 'undefined' ? undefined : /** @type {any} */ (caches).default,
+				version: buildVersion.version,
+				enabled: env.KV_EDGE_CACHE !== 'off'
+			}
+		);
 		// Sincrónico y nunca tira (writeDataPoint no espera la red). No lee el cuerpo.
 		trackPageView(request, response, env);
 		return response;
