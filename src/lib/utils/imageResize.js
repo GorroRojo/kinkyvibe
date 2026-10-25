@@ -4,9 +4,14 @@
  * carga rápido. Si el navegador no puede (un tipo que no sabe dibujar, o no sabe hacer WEBP), o si
  * el resultado pesa más que el original sin haber hecho falta achicarlo, se sube el original.
  *
+ * Del mismo dibujo salen también las dos copias chicas para las tarjetas (WEBP, lado más corto de
+ * 360 y 720 px; $lib/utils/mediaCopies.js), que viajan con la subida. Si no salen, se sube igual
+ * (la tarjeta usa el original hasta la pasada de scripts/copias-chicas.js).
+ *
  * Las cuentas (medidas, qué hacer) son funciones puras y se prueban en vitest; lo que usa el
  * canvas recibe las funciones del navegador como parámetro.
  */
+import { COPY_QUALITY, COPY_SIDES, copySize } from './mediaCopies.js';
 
 /** Lado más largo, en píxeles. */
 export const MAX_SIDE = 2000;
@@ -77,12 +82,24 @@ export function keepConverted(original, converted, scaled) {
 }
 
 /**
+ * @typedef {{ side: number, blob: Blob }} ImageCopy una copia chica (`side`: su lado más corto
+ *   pedido, 360 o 720)
  * @typedef {{ blob: Blob, name: string, width: number | null, height: number | null,
- *   converted: boolean }} PreparedImage
+ *   converted: boolean, copies?: ImageCopy[] }} PreparedImage
  */
 
 /**
- * Achica y pasa a WEBP (en el navegador). Si algo falla, devuelve el original tal cual.
+ * Suma las copias chicas a lo que se sube (`copy360`, `copy720`), si las hay.
+ * @param {FormData} form
+ * @param {PreparedImage} prepared
+ */
+export function appendCopies(form, prepared) {
+	for (const c of prepared.copies ?? []) form.set(`copy${c.side}`, c.blob, `copia-${c.side}.webp`);
+}
+
+/**
+ * Achica y pasa a WEBP (en el navegador), y hace las copias chicas. Si algo falla, devuelve el
+ * original tal cual (sin copias).
  *
  * @param {File} file
  * @param {{ createImageBitmap?: typeof globalThis.createImageBitmap,
@@ -103,21 +120,55 @@ export async function prepareImage(file, env = {}) {
 		if (!ctx) return { ...original, width: bitmap.width, height: bitmap.height };
 		ctx.imageSmoothingQuality = 'high';
 		ctx.drawImage(bitmap, 0, 0, size.width, size.height);
-		const blob = await toWebp(canvas);
-		if (!keepConverted(file, blob, size.scaled)) {
-			return { ...original, width: bitmap.width, height: bitmap.height };
+		const blob = await toWebp(canvas, WEBP_QUALITY);
+		const converted = keepConverted(file, blob, size.scaled);
+		// Las copias se miden contra lo que se sube (el WEBP achicado o el original).
+		const up = converted ? size : { width: bitmap.width, height: bitmap.height };
+		const copies = await makeCopies(bitmap, up, env.makeCanvas ?? defaultCanvas);
+		if (!converted) {
+			return { ...original, width: bitmap.width, height: bitmap.height, copies };
 		}
 		return {
 			blob: /** @type {Blob} */ (blob),
 			name: webpName(file.name),
 			width: size.width,
 			height: size.height,
-			converted: true
+			converted: true,
+			copies
 		};
 	} catch {
 		return original;
 	} finally {
 		bitmap?.close?.();
+	}
+}
+
+/**
+ * Las copias chicas (una por lado de {@link COPY_SIDES}), dibujadas desde la imagen entera. Si
+ * alguna no sale como WEBP, ninguna: la tarjeta usa el original.
+ * @param {ImageBitmap} bitmap
+ * @param {{ width: number, height: number }} up las medidas de lo que se sube
+ * @param {(w: number, h: number) => HTMLCanvasElement | OffscreenCanvas} makeCanvas
+ * @returns {Promise<ImageCopy[]>}
+ */
+async function makeCopies(bitmap, up, makeCanvas) {
+	try {
+		/** @type {ImageCopy[]} */
+		const copies = [];
+		for (const side of COPY_SIDES) {
+			const s = copySize(up.width, up.height, side);
+			const canvas = makeCanvas(s.width, s.height);
+			const ctx = /** @type {CanvasRenderingContext2D | null} */ (canvas.getContext('2d'));
+			if (!ctx) return [];
+			ctx.imageSmoothingQuality = 'high';
+			ctx.drawImage(bitmap, 0, 0, s.width, s.height);
+			const blob = await toWebp(canvas, COPY_QUALITY);
+			if (!blob || blob.type !== 'image/webp' || blob.size === 0) return [];
+			copies.push({ side, blob });
+		}
+		return copies;
+	} catch {
+		return [];
 	}
 }
 
@@ -132,13 +183,14 @@ function defaultCanvas(w, h) {
 
 /**
  * @param {HTMLCanvasElement | OffscreenCanvas} canvas
+ * @param {number} quality
  * @returns {Promise<Blob | null>}
  */
-function toWebp(canvas) {
+function toWebp(canvas, quality) {
 	if ('convertToBlob' in canvas) {
-		return canvas.convertToBlob({ type: 'image/webp', quality: WEBP_QUALITY });
+		return canvas.convertToBlob({ type: 'image/webp', quality });
 	}
 	return new Promise((resolve) =>
-		/** @type {HTMLCanvasElement} */ (canvas).toBlob(resolve, 'image/webp', WEBP_QUALITY)
+		/** @type {HTMLCanvasElement} */ (canvas).toBlob(resolve, 'image/webp', quality)
 	);
 }

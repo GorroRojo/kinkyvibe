@@ -136,7 +136,13 @@ describe('cuentas', () => {
 			cookies: { [m.session.SESSION_COOKIE]: token }
 		});
 		await m.web.loadMember(event);
-		expect(event.locals.member).toEqual({ id: account.id, email: EMAIL });
+		// Con la velocidad de lectura y el permiso de perfiles de la sesión; nada más de la cuenta.
+		expect(event.locals.member).toEqual({
+			id: account.id,
+			email: EMAIL,
+			readingSpeed: null,
+			canHaveProfiles: false
+		});
 		// No toca la sesión de admins.
 		expect(event.locals.user).toBeUndefined();
 		const data = /** @type {any} */ (await m.root.load(event));

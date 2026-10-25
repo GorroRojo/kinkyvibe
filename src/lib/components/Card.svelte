@@ -4,6 +4,7 @@
 	import TagChip from './ui/TagChip.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { argDateList, parseSiteDate } from '$lib/utils/dates.js';
+	import { cardSrcset } from '$lib/utils/mediaCopies.js';
 	export let post;
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
@@ -45,6 +46,7 @@
 	<img
 		class="card-img u-featured placeholder-gradient"
 		{src}
+		srcset={cardSrcset(src) || undefined}
 		alt=""
 		loading={eager ? 'eager' : 'lazy'}
 		fetchpriority={priority ? 'high' : undefined}
