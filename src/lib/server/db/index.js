@@ -6,10 +6,17 @@
  * usa tiene que degradar con gracia (ocultar la funcionalidad, no romper la página).
  */
 
+import { autoBatcher } from './autoBatch.js';
+import { currentReadRequest } from './perRequest.js';
+
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
+/** Las lecturas de cada pedido de lectura, en tandas (./autoBatch.js). */
+const batched = autoBatcher(currentReadRequest);
+
 /**
- * Devuelve el binding D1 o `null` si no está disponible.
+ * Devuelve el binding D1 (con las tandas automáticas de ./autoBatch.js) o `null` si no está
+ * disponible.
  *
  * @param {App.Platform | undefined} platform
  * @returns {D1Database | null}
@@ -17,7 +24,10 @@
 export function getDB(platform) {
 	try {
 		// En rutas prerenderizadas el adapter devuelve un `env` cuyos getters tiran error.
-		return platform?.env?.DB ?? null;
+		const db = platform?.env?.DB ?? null;
+		// Las lecturas de un pedido de lectura van juntas a la base (./autoBatch.js), salvo con
+		// `KV_D1_TANDAS = "off"` en el panel.
+		return db && platform?.env?.KV_D1_TANDAS !== 'off' ? batched(db) : db;
 	} catch {
 		return null;
 	}

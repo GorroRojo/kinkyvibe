@@ -104,8 +104,11 @@ afterAll(async () => {
 async function materialPage(slug, { as = 'anon', warm = false } = {}) {
 	vi.resetModules();
 	const counted = countingDB(t.db, { delayMs: DELAY_MS });
-	(await import('$lib/server/contenido/repo.js')).setContentDB(counted.db);
 	const platform = { env: { ...t.env, DB: counted.db } };
+	// Como hooks.server.js: el contenido se lee con la base de `getDB` (con sus tandas).
+	(await import('$lib/server/contenido/repo.js')).setContentDB(
+		(await import('$lib/server/db')).getDB(platform)
+	);
 	const url = new URL(`/material/${slug}`, 'https://kinkyvibe.ar');
 	fake.event = { request: new Request(url), url, cookies: { get: () => undefined } };
 	// Como cada pedido: hooks.server.js lee el árbol de etiquetas al empezar.

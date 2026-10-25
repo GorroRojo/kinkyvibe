@@ -45,8 +45,15 @@ describe('getDB', () => {
 		expect(getDB(/** @type {any} */ ({ env }))).toBeNull();
 	});
 
-	it('devuelve el binding real', () => {
-		expect(getDB(t.platform)).toBe(t.db);
+	it('devuelve el binding con las tandas automáticas (./autoBatch.js): el mismo envoltorio', async () => {
+		const db = getDB(t.platform);
+		expect(db).not.toBeNull();
+		expect(getDB(t.platform)).toBe(db);
+		expect(await db?.prepare('SELECT 1 AS uno').first('uno')).toBe(1);
+	});
+
+	it('con KV_D1_TANDAS = "off", el binding real', () => {
+		expect(getDB({ env: { ...t.platform.env, KV_D1_TANDAS: 'off' } })).toBe(t.db);
 	});
 });
 

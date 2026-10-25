@@ -312,6 +312,22 @@ Toda respuesta del Worker lleva `Server-Timing` (`src/lib/server/serverTiming.js
 curl -s -o /dev/null -D - https://kinkyvibe.ar/ | grep -i -E 'server-timing|x-kv-cache'
 ```
 
+### Tandas automáticas de D1
+
+En un pedido de lectura (`GET`/`HEAD`), las lecturas (`SELECT`) que salen mientras el Worker no
+espera nada más van juntas en una sola ida (`db.batch`), detrás de `getDB`
+(`src/lib/server/db/autoBatch.js`). Una lectura igual se lee una vez por pedido; una escritura
+manda lo pendiente y olvida lo leído; si la tanda falla, cada consulta se corre sola con su error.
+`POST`, crons y scripts no cambian. En `Server-Timing` se ve como menos idas que consultas.
+
+- **Apagar sin deploy:** variable de texto `KV_D1_TANDAS` = `off` en el panel (como
+  `KV_EDGE_CACHE`).
+- Juntar no saca tandas en fila: lo que depende de una respuesta sale en la tanda siguiente. Para
+  bajar de idas, una página tiene que pedir antes (por la dirección en vez de por el id ya leído,
+  o adelantando lo que se puede saber).
+- Para ver cada tanda y quién pidió cada consulta en las pruebas de cuentas:
+  `KV_CONSULTAS=detalle npx vitest run --silent=false --disableConsoleIntercept <archivo>`.
+
 Un `curl` sin `-H 'accept: text/html'` nunca usa la caché de 1 minuto (`BYPASS`): mide la página
 recién hecha, que es lo que ve quien llega cuando no hay una guardada.
 
