@@ -21,12 +21,13 @@ import {
 	searchImages,
 	seriesImageKeys,
 	imageUsage,
+	servableCopy,
 	servableImage,
 	servableMedia,
 	storeFile,
 	storeImage
 } from './library.js';
-import { fakePdf, fakeZip, solidPng } from './testing.js';
+import { fakePdf, fakeWebp, fakeZip, solidPng } from './testing.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -109,6 +110,112 @@ describe('storeImage', () => {
 		).toBe(0);
 	});
 });
+
+describe('storeImage: copias chicas para las tarjetas', () => {
+	/** @param {string} key */
+	const has = async (key) => (await bucket().head(key)) !== null;
+	/** @param {string} key */
+	const bytesOf = async (key) =>
+		new Uint8Array(await /** @type {any} */ (await bucket().get(key)).arrayBuffer());
+	const copiesFor = (/** @type {number} */ seed = 1) => [
+		{ side: 360, bytes: fakeWebp(360, 450, seed) },
+		{ side: 720, bytes: fakeWebp(720, 900, seed) }
+	];
+
+	it('guarda las copias al lado del original, con la clave del original', async () => {
+		const bytes = fakeWebp(1600, 2000, 9);
+		const { image, copies } = await storeImage(
+			t.db,
+			bucket(),
+			{ bytes, name: 'flyer.webp', alt: 'Flyer inventado', copies: copiesFor() },
+			{ actor: 'admin-prueba' }
+		);
+		expect(copies).toEqual([360, 720]);
+		const base = image.key.replace(/\.webp$/, '');
+		expect(await bytesOf(`${base}-360.webp`)).toEqual(fakeWebp(360, 450, 1));
+		const stored = await bucket().get(`${base}-720.webp`);
+		expect(stored?.httpMetadata?.contentType).toBe('image/webp');
+		expect(stored?.httpMetadata?.cacheControl).toContain('immutable');
+		expect(await servableCopy(t.db, `${base}-720.webp`)).toEqual({ original: image.key });
+	});
+
+	it('ignora las copias que no corresponden, sin frenar la subida', async () => {
+		const bytes = fakeWebp(1600, 2000, 8);
+		const { image, created, copies } = await storeImage(
+			t.db,
+			bucket(),
+			{
+				bytes,
+				name: 'flyer.webp',
+				alt: 'Flyer inventado',
+				copies: [
+					{ side: 360, bytes: fakeWebp(360, 360) }, // otra proporción
+					{ side: 720, bytes: solidPng(720, 900) }, // no es WEBP
+					{ side: 500, bytes: fakeWebp(500, 625) } // un lado que no existe
+				]
+			},
+			{ actor: 'admin-prueba' }
+		);
+		expect(created).toBe(true);
+		expect(copies).toEqual([]);
+		const base = image.key.replace(/\.webp$/, '');
+		expect(await has(`${base}-360.webp`)).toBe(false);
+		expect(await has(`${base}-720.webp`)).toBe(false);
+	});
+
+	it('si el original ya estaba, no suma ni pisa copias (las hace la pasada)', async () => {
+		const bytes = fakeWebp(1600, 2000, 7);
+		const first = await storeImage(
+			t.db,
+			bucket(),
+			{ bytes, name: 'a.webp', alt: 'Inventada' },
+			{ actor: 'admin-prueba' }
+		);
+		const again = await storeImage(
+			t.db,
+			bucket(),
+			{ bytes, name: 'b.webp', alt: 'Inventada', copies: copiesFor(2) },
+			{ actor: 'cuenta:otra' }
+		);
+		expect(again.copies).toEqual([]);
+		expect(await has(first.image.key.replace(/\.webp$/, '-360.webp'))).toBe(false);
+	});
+
+	it('nunca pisa una copia que ya está en R2', async () => {
+		const bytes = fakeWebp(1600, 2000, 6);
+		const hash = hexOf(await crypto.subtle.digest('SHA-256', bytes));
+		const copy = `img/${hash}-360.webp`;
+		const before = fakeWebp(360, 450, 42);
+		await bucket().put(copy, before);
+		const { copies } = await storeImage(
+			t.db,
+			bucket(),
+			{ bytes, name: 'c.webp', alt: 'Inventada', copies: copiesFor(3) },
+			{ actor: 'admin-prueba' }
+		);
+		expect(copies).toEqual([720]);
+		expect(await bytesOf(copy)).toEqual(before);
+	});
+
+	it('servableCopy: solo de una imagen viva y que no sea GIF', async () => {
+		const { image } = await storeImage(
+			t.db,
+			bucket(),
+			{ bytes: fakeWebp(800, 800, 5), name: 'd.webp', alt: 'Inventada' },
+			{ actor: 'admin-prueba' }
+		);
+		const copy = image.key.replace(/\.webp$/, '-360.webp');
+		expect(await servableCopy(t.db, copy)).toEqual({ original: image.key });
+		expect(await deleteImage(t.db, image.id, { actor: 'admin-prueba' })).toBe(true);
+		expect(await servableCopy(t.db, copy)).toBeNull();
+		expect(await servableCopy(t.db, image.key)).toBeNull();
+		expect(await servableCopy(t.db, `img/${'e'.repeat(64)}-360.webp`)).toBeNull();
+	});
+});
+
+/** @param {ArrayBuffer} buf */
+const hexOf = (buf) =>
+	[...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 
 describe('buscar y usos', () => {
 	/** Un evento inventado. @param {string} slug @param {string[]} [tags] */

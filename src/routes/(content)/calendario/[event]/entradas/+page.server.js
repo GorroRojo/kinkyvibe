@@ -55,36 +55,41 @@ async function workshopTickets(platform, slug) {
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders, url }) {
 	if (!isValidEventSlug(params.event)) error(404, 'Ese evento no existe.');
-	// El encabezado sale del evento de la base (si no lo tiene, 404); la configuración de las
-	// entradas, también (getTicketsView).
-	const found = await siteEvent(platform, params.event, {
-		viewer: viewerFor(locals),
-		shallow: true,
-		html: false
-	});
+	const db = getDB(platform);
+	// La base está lejos: lo que no depende de otra cosa se lee a la par. Primero el evento (el
+	// encabezado sale del evento de la base; si no lo tiene, 404), si es una parte de un taller y
+	// el interruptor de la lista de espera.
+	const [found, host, waitlistOn] = await Promise.all([
+		siteEvent(platform, params.event, { viewer: viewerFor(locals), shallow: true, html: false }),
+		workshopTickets(platform, params.event),
+		db ? listaEsperaEnabled(platform) : false
+	]);
+	// En este orden: una parte que no se ve da 404 sin contar de qué taller es.
 	if (!found) error(404, 'Ese evento no existe.');
 	// Una parte de un taller con una sola entrada no vende: la entrada se compra en el taller.
-	const host = await workshopTickets(platform, params.event);
 	if (host) redirect(307, `/calendario/${host}/entradas`);
-	const db = getDB(platform);
-	const waitlistOn = Boolean(db) && (await listaEsperaEnabled(platform));
 	// Las reservas de MP (20 min) y de transferencia vencen sin aviso: si hay gente en la lista,
 	// un empujón en segundo plano (como mucho uno por minuto) le pasa el lugar a quien sigue.
 	if (waitlistOn)
 		queueWaitlistAdvance({ platform, db, eventSlug: params.event, fetch, origin: siteOrigin(url) });
 	const offer =
 		waitlistOn && db ? await offerView(db, params.event, url.searchParams.get('lista')) : null;
-	const tickets = await getTicketsView(db, params.event, fetch, {
-		waitlist: waitlistOn,
-		offerId: offer?.state === 'valid' ? offer.id : null
-	});
+	// La configuración de las entradas (getTicketsView), el lugar y, con cuenta, los datos
+	// guardados, a la par.
+	const [tickets, venue, accountRead] = await Promise.all([
+		getTicketsView(db, params.event, fetch, {
+			waitlist: waitlistOn,
+			offerId: offer?.state === 'valid' ? offer.id : null
+		}),
+		// Como en la página del evento: si tiene lugar, manda sobre el «Dónde» del evento.
+		eventPageVenue(db, params.event, locals),
+		locals.member ? purchaseAccount(db, locals.member) : null
+	]);
 	if (!tickets) error(404, 'Este evento no vende entradas por acá.');
-	// Como en la página del evento: si tiene lugar, manda sobre el «Dónde» del evento.
-	const venue = await eventPageVenue(db, params.event, locals);
 	const event = { meta: venue ? stripMdPlace(found.meta) : found.meta, path: found.path };
-	// Con cuenta: nombre, pronombres, DNI guardados y el mail de la cuenta,
-	// para completar «Tus datos». Es de esta persona: la página no se guarda en ningún caché.
-	const account = tickets.open ? await purchaseAccount(db, locals.member) : null;
+	// Con cuenta: nombre, pronombres, DNI guardados y el mail de la cuenta, para completar «Tus
+	// datos», solo con la venta abierta. Es de esta persona: la página no se guarda en ningún caché.
+	const account = tickets.open ? accountRead : null;
 	// Quien tiene un lugar guardado ya está en la lista: no se le ofrece anotarse.
 	const waitlist =
 		tickets.open || !waitlistOn || offer?.state === 'valid'

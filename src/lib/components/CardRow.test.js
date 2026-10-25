@@ -14,7 +14,7 @@ const post = (i) => ({
 		title: `Nota inventada ${i}`,
 		tags: [],
 		category: 'material',
-		featured: `/media/img/inventada-${i}.webp`
+		featured: `/media/img/${String(i).repeat(64)}.webp`
 	}
 });
 const items = Array.from({ length: 6 }, (_, i) => post(i));
@@ -41,5 +41,39 @@ describe('CardRow eager', () => {
 		const tags = imgs(render(CardRow, { props: { items } }).body);
 		expect(tags.every((t) => t.includes('loading="lazy"'))).toBe(true);
 		expect(tags.some((t) => t.includes('fetchpriority'))).toBe(false);
+	});
+});
+
+describe('CardRow: la imagen de las tarjetas', () => {
+	it('cada tarjeta con la copia de 360 px (1x) y la de 720 px (2x); `src` sigue siendo el original', () => {
+		const tags = imgs(render(CardRow, { props: { items } }).body);
+		const h = '0'.repeat(64);
+		expect(tags[0]).toContain(`src="/media/img/${h}.webp"`);
+		expect(tags[0]).toContain(`srcset="/media/img/${h}-360.webp 1x, /media/img/${h}-720.webp 2x"`);
+	});
+
+	it('sin copias (una imagen que no es de la biblioteca): solo `src`', () => {
+		const other = [{ ...post(0), meta: { ...post(0).meta, featured: '/favicon.png' } }];
+		const [tag] = imgs(render(CardRow, { props: { items: other } }).body);
+		expect(tag).toContain('src="/favicon.png"');
+		expect(tag).not.toContain('srcset');
+	});
+
+	it('la prioridad va a la primera tarjeta CON imagen (el LCP), aunque esté después de las `eager`', () => {
+		const noCover = (/** @type {number} */ i) => ({
+			...post(i),
+			meta: { ...post(i).meta, featured: undefined }
+		});
+		const list = [noCover(0), noCover(1), noCover(2), post(3), post(4)];
+		const tags = imgs(render(CardRow, { props: { items: list, eager: 2 } }).body);
+		expect(tags.map((t) => t.includes('fetchpriority="high"'))).toEqual([
+			false,
+			false,
+			false,
+			true,
+			false
+		]);
+		expect(tags[3]).toContain('loading="eager"');
+		expect(tags[4]).toContain('loading="lazy"');
 	});
 });

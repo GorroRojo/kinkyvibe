@@ -191,14 +191,22 @@ export function typeBuyableNow(config, type, taken, now) {
  * El evento se lee una sola vez y el porcentaje se busca a la par de su lugar
  * (`options.fondo` de `getEventTickets`).
  *
+ * Con `onSale`, se le avisa apenas se sabe que el evento vende entradas (con la configuración sin
+ * el lugar ni el porcentaje), para que lo que no depende de eso salga a la par.
+ *
  * @param {import('@cloudflare/workers-types').D1Database | null} db
  * @param {string} slug
  * @param {typeof fetch} [fetchFn]
+ * @param {(draft: import('./config.js').EventTickets) => void} [onSale]
  */
-export async function eventTicketsWithFondo(db, slug, fetchFn) {
+export async function eventTicketsWithFondo(db, slug, fetchFn, onSale) {
 	return getEventTickets(slug, {
-		fondo: async (base) =>
-			base.fondoEnabled ? (await resolveFondoPercent({ db, fetch: fetchFn })).percent : undefined
+		fondo: async (base) => {
+			onSale?.(base);
+			return base.fondoEnabled
+				? (await resolveFondoPercent({ db, fetch: fetchFn })).percent
+				: undefined;
+		}
 	});
 }
 
@@ -228,6 +236,38 @@ const tierInfo = (type, tier) => ({
 });
 
 /**
+ * Lo que `getTicketsView` lee además de la configuración, todo a la par: los medios de pago, la
+ * comisión (los ajustes de venta se leen una sola vez por pedido, `getSalesSettings`), las
+ * preguntas de inscripción y, con la base, lo vendido y la fila de la lista de espera. Solo
+ * necesita lo que ya dice la configuración sin el lugar ni el Fondo. Un error al leer lo vendido
+ * vuelve como `{ error }` (lo maneja `getTicketsView`), nunca como promesa rechazada.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null} db
+ * @param {string} slug
+ * @param {import('./config.js').EventTickets} config
+ * @param {number} now
+ * @param {{ waitlist?: boolean, offerId?: string | null }} opts
+ */
+async function salesReads(db, slug, config, now, opts) {
+	const withQueue = Boolean(opts.waitlist && config.waitlist);
+	const sold = db
+		? Promise.all([
+				getTaken(db, slug, now),
+				withQueue ? queueHolders(db, slug, now, opts.offerId ?? null) : null
+			]).then(
+				([taken, holders]) => ({ value: { taken, holders } }),
+				(/** @type {unknown} */ error) => ({ error })
+			)
+		: { error: null };
+	const [methods, feeBasisPoints, fields] = await Promise.all([
+		availableMethods(db, config),
+		mpFeeBasisPoints(db, config),
+		eventSignupFields(db, slug)
+	]);
+	return { methods, feeBasisPoints, fields, sold: await sold };
+}
+
+/**
  * Datos públicos del bloque de compra (sin datos de otras personas).
  *
  * @param {import('@cloudflare/workers-types').D1Database | null} db
@@ -241,11 +281,20 @@ const tierInfo = (type, tier) => ({
  * @returns {Promise<TicketsView | null>} `null` si el evento no vende entradas
  */
 export async function getTicketsView(db, slug, fetchFn, opts = {}) {
-	const config = await eventTicketsWithFondo(db, slug, fetchFn);
-	if (!config) return null;
 	const now = Date.now();
+	/** @type {ReturnType<typeof salesReads> | undefined} */
+	let reads;
+	// Apenas se sabe que vende entradas, lo que no depende del lugar ni del Fondo sale a la par
+	// de ellos: la base está lejos y cada consulta que espera a otra es una ida y vuelta más.
+	const config = await eventTicketsWithFondo(db, slug, fetchFn, (draft) => {
+		reads = salesReads(db, slug, draft, now, opts);
+		// Si la configuración falla después, nadie la espera: que no quede un rechazo suelto.
+		reads.catch(() => {});
+	});
+	if (!config) return null;
 	const state = salesState(config, now);
-	const methods = await availableMethods(db, config);
+	const { methods, feeBasisPoints, fields, sold } = await (reads ??
+		salesReads(db, slug, config, now, opts));
 	// Sin la base todavía: el tramo vigente solo por fecha (para mostrar un precio).
 	const noSales = emptyTaken();
 	/** @type {TicketsView} */
@@ -259,7 +308,7 @@ export async function getTicketsView(db, slug, fetchFn, opts = {}) {
 		methods,
 		// Hasta cuándo se guardaría el lugar comprando ahora por transferencia (decisión 0031).
 		transferUntil: transferDeadline(now, config.start ?? null),
-		feeBasisPoints: await mpFeeBasisPoints(db, config),
+		feeBasisPoints,
 		contactEmail: contactEmail(),
 		online: config.online,
 		fondoEnabled: config.fondoEnabled,
@@ -290,20 +339,16 @@ export async function getTicketsView(db, slug, fetchFn, opts = {}) {
 			};
 		}),
 		// Preguntas de inscripción (sin base, ninguna).
-		fields: await eventSignupFields(db, slug)
+		fields
 	};
 	if (!db || !methods.length) return { ...view, reason: view.reason ?? 'unavailable' };
 	try {
-		const taken = await getTaken(db, slug, now);
+		if ('error' in sold) throw sold.error;
+		const { taken, holders } = sold.value;
 		// Lista de espera: lo que sobra de cada tipo después de la fila (vacío sin lista).
-		const shares =
-			opts.waitlist && config.waitlist
-				? sharesAfterQueue(
-						config,
-						(type) => typeAvailability(config, type, taken, now),
-						await queueHolders(db, slug, now, opts.offerId ?? null)
-					)
-				: new Map();
+		const shares = holders
+			? sharesAfterQueue(config, (type) => typeAvailability(config, type, taken, now), holders)
+			: new Map();
 		for (const t of view.types) {
 			const type = config.types.find((ct) => ct.id === t.id);
 			if (!type) continue;

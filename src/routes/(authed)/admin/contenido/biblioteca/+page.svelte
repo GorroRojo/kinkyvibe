@@ -31,7 +31,12 @@
 		askConfirm
 	} from '$lib/components/ui';
 	import { DOCUMENT_ACCEPT, LIBRARY_KINDS, documentPickProblem } from '$lib/utils/libraryFiles.js';
-	import { PICKABLE_TYPES, pickProblem, prepareImage } from '$lib/utils/imageResize.js';
+	import {
+		PICKABLE_TYPES,
+		appendCopies,
+		pickProblem,
+		prepareImage
+	} from '$lib/utils/imageResize.js';
 	import {
 		bibliotecaHref,
 		deleteText,
@@ -237,6 +242,8 @@
 				body.set('alt', alt.trim());
 				if (prepared.width) body.set('width', String(prepared.width));
 				if (prepared.height) body.set('height', String(prepared.height));
+				// Las copias chicas para las tarjetas (docs/imagenes.md).
+				appendCopies(body, prepared);
 			} else {
 				body.set('file', picked, picked.name);
 				body.set('name', title.trim());
