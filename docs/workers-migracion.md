@@ -274,6 +274,22 @@ local nunca la usan.
 - **Sacarla del todo:** en `worker/index.js`, llamar a `app.fetch` directo en vez de
   `withEdgeCache`.
 
+## Cuánto tardó: `Server-Timing`
+
+Toda respuesta del Worker lleva `Server-Timing` (`src/lib/server/serverTiming.js`):
+
+- `app;dur=<ms>`: lo que tardó el Worker. En Workers el reloj solo avanza con la entrada y salida
+  (la base, la caché, fetch): es casi todo espera; armar el HTML (CPU) no suma acá.
+- `iso;desc="n=<pedido> age=<s>"`: el número de pedido del isolate (`n=1`: recién arrancado, sin
+  las listas en memoria) y hace cuánto atendió el primero.
+
+```sh
+curl -s -o /dev/null -D - https://kinkyvibe.ar/ | grep -i -E 'server-timing|x-kv-cache'
+```
+
+Un `curl` sin `-H 'accept: text/html'` nunca usa la caché de 1 minuto (`BYPASS`): mide la página
+recién hecha, que es lo que ve quien llega cuando no hay una guardada.
+
 ## Volver atrás (rollback)
 
 Si algo sale mal después del paso 8:
