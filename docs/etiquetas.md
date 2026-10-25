@@ -110,7 +110,8 @@ Cómo correrlo: `npm run db:semilla` (local; solo carga etiquetas si la base no 
 `npm run dev` lo hace solo.
 
 La lectura (`read.js`, `loadTagRecords`) devuelve las etiquetas que ve quien mira (por defecto el
-público) con sus relaciones, ambas puntas con `visibleWhere()`.
+público) con sus relaciones, ambas puntas con `visibleWhere()`. Las dos consultas (las etiquetas y
+sus relaciones) van en una sola tanda (`db.batch`): una ida y vuelta a la base, no dos en fila.
 
 ## Leer y editar desde la base (paso 3)
 

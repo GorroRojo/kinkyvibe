@@ -106,7 +106,9 @@
 			<!-- fanzines -->
 		</ul>
 		<a id="logo" rel="home" href="/">
-			<img src={logo} alt="Kinky Vibe" />
+			<!-- width y height: las medidas del PNG, así el lugar queda reservado antes de que llegue
+			(el CSS lo achica con height: auto, sin cambiar cómo se ve). -->
+			<img src={logo} alt="Kinky Vibe" width="199" height="192" />
 		</a>
 		<div id="user">
 			{#if data.user && data.user !== undefined && data.user.login !== undefined && data.user.login !== ''}
@@ -283,6 +285,7 @@
 	#logo img {
 		max-width: 10vh;
 		min-width: 2em;
+		height: auto;
 	}
 	#user {
 		grid-area: user;
