@@ -47,7 +47,9 @@ describe('wrangler.toml', () => {
 
 	it('el Worker corre al lado de la base D1 (este de EE. UU.)', () => {
 		const config = unstable_readConfig({ config: 'wrangler.toml' });
-		expect(/** @type {any} */ (config.placement)?.region).toBe('aws:us-east-1');
+		// EXPERIMENTO (25/10): sin ubicación fija por 2 horas; el PR que la restaura vuelve a esperar
+		// `aws:us-east-1`.
+		expect(/** @type {any} */ (config.placement)?.region).toBeUndefined();
 	});
 
 	it('visitas anónimas: Analytics Engine solo en producción, con el dataset del código', () => {
