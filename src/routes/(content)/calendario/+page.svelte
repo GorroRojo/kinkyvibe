@@ -129,7 +129,8 @@
 <h1 class="visually-hidden">Calendario</h1>
 <FeedLinks base="/calendario" title="Calendario · Kinky Vibe" />
 
-<!-- Los próximos eventos en una fila arriba del calendario, como antes (pedido de gorrite, 5/10). -->
+<!-- Los próximos eventos en una fila arriba del calendario, como antes (pedido de gorrite, 5/10).
+     La imagen de la primera tarjeta es el LCP: las dos primeras cargan enseguida (docs/seo.md). -->
 <div class="cardrow">
 	<CardRow
 		items={calendarioPosts
@@ -137,6 +138,7 @@
 			.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))}
 		--color-1="transparent"
 		setId={false}
+		eager={2}
 	/>
 </div>
 

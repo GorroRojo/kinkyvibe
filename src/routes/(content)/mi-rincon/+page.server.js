@@ -61,42 +61,54 @@ async function requireMember(event) {
 export async function load(event) {
 	event.setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const { db, member } = await requireMember(event);
-	const account = await getAccount(db, member.id);
+	// La base está lejos: lo que no depende de otra cosa se lee a la par. La velocidad de lectura
+	// y el permiso de perfiles ya vinieron con la sesión (`locals.member`, getSessionAccount).
+	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed] = await Promise.all([
+		getAccount(db, member.id),
+		ordersForAccount(db, member.id).then(
+			(orders) => ({ orders, error: false }),
+			(e) => {
+				logDBError('cuentas: compras', e);
+				return { orders: [], error: true };
+			}
+		),
+		// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
+		getSavedBuyer(db, member.id).then(
+			(saved) => ({ saved, error: false }),
+			() => {
+				console.error('[cuentas] no se pudieron leer los datos guardados');
+				return {
+					saved: /** @type {import('$lib/utils/savedBuyer.js').SavedBuyer} */ ({}),
+					error: true
+				};
+			}
+		),
+		member.canHaveProfiles ?? canHaveProfiles(db, member.id),
+		// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
+		// calendario personal (docs/lo-que-sigo.md).
+		sigoEnabled(event.platform),
+		member.readingSpeed !== undefined
+			? member.readingSpeed
+			: getReadingSpeed(db, member.id).catch(() => null)
+	]);
 	if (!account) {
 		await endSession(event, db);
 		redirect(303, LOGIN);
 	}
-	let orders = /** @type {Awaited<ReturnType<typeof ordersForAccount>>} */ ([]);
-	let ordersError = false;
-	try {
-		orders = await ordersForAccount(db, account.id);
-	} catch (e) {
-		logDBError('cuentas: compras', e);
-		ordersError = true;
-	}
-	// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
-	let saved = /** @type {import('$lib/utils/savedBuyer.js').SavedBuyer} */ ({});
-	let savedError = false;
-	try {
-		saved = await getSavedBuyer(db, account.id);
-	} catch {
-		console.error('[cuentas] no se pudieron leer los datos guardados');
-		savedError = true;
-	}
+	const { orders, error: ordersError } = ordersRead;
+	const { saved, error: savedError } = savedRead;
+	// El título y la fecha de cada evento de las compras, todos a la par.
+	const slugs = [...new Set(orders.map((o) => o.event_slug))];
+	const infos = await Promise.all(slugs.map((slug) => getEventInfo(slug)));
 	/** @type {Map<string, { title: string, start: string | null } | null>} */
-	const events = new Map();
-	for (const o of orders) {
-		if (!events.has(o.event_slug)) events.set(o.event_slug, await getEventInfo(o.event_slug));
-	}
+	const events = new Map(slugs.map((slug, i) => [slug, infos[i]]));
 	return {
 		email: account.email,
 		hasPassword: account.has_password,
 		createdAt: account.created_at,
 		// Sin el permiso "puede tener perfiles" (lo dan les admins), nada de perfiles a la vista.
-		canHaveProfiles: await canHaveProfiles(db, account.id),
-		// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
-		// calendario personal (docs/lo-que-sigo.md).
-		sigoOn: await sigoEnabled(event.platform),
+		canHaveProfiles: profilesOk,
+		sigoOn,
 		ordersError,
 		saved: {
 			name: saved.name ?? '',
@@ -106,7 +118,7 @@ export async function load(event) {
 		},
 		savedError,
 		// La velocidad de lectura de la cuenta (null: la de siempre). $lib/utils/readingSpeed.js.
-		readingSpeed: await getReadingSpeed(db, account.id).catch(() => null),
+		readingSpeed,
 		orders: orders.map((o) => ({
 			id: o.id,
 			reference: orderReference(o.id),
@@ -270,6 +282,8 @@ export const actions = {
 			});
 		try {
 			const saved = await setReadingSpeed(db, member.id, wpm);
+			// Sin JavaScript, el layout y la página se cargan en este mismo pedido: que vean lo nuevo.
+			member.readingSpeed = saved;
 			return {
 				action: 'velocidad',
 				message:

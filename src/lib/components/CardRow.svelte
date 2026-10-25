@@ -8,8 +8,17 @@
 	export let href = undefined;
 	export let index = undefined;
 	export let setId = true;
-	/** Cuántas tarjetas del principio cargan su imagen enseguida (la primera, con prioridad). */
+	/** Cuántas tarjetas del principio cargan su imagen enseguida (la primera con imagen, con
+	 * prioridad: es el LCP). */
 	export let eager = 0;
+	/** @param {any} post */
+	const hasCover = (post) => {
+		const src = post?.meta?.featured;
+		return Boolean(src) && src !== 'undefined';
+	};
+	// La primera tarjeta CON imagen lleva la prioridad (y carga enseguida aunque esté más allá de
+	// las `eager`): una tarjeta sin imagen no tiene nada que apurar.
+	$: priorityIndex = eager > 0 ? items.findIndex(hasCover) : -1;
 	// Without an index the old offset evaluated to NaN (i.e. no vertical movement); keep that
 	// explicitly, since Svelte 5's Web Animations based transitions warn about NaN keyframes.
 	$: flyY = index === undefined ? 0 : ((index % 2) - 0.5) * 2 * 200;
@@ -29,7 +38,12 @@
 	<ul class="cardrow">
 		{#each items as post, i}
 			<li class="cardcontainer">
-				<Card {setId} {post} eager={i < eager} priority={eager > 0 && i == 0} />
+				<Card
+					{setId}
+					{post}
+					eager={i < eager || i === priorityIndex}
+					priority={i === priorityIndex}
+				/>
 			</li>
 		{/each}
 	</ul>

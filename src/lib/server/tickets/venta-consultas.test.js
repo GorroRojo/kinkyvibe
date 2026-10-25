@@ -112,17 +112,19 @@ describe('la venta de un evento, en pocas tandas', () => {
 		expect(count(/^SELECT id, type, slug, title, data\b/)).toBe(1);
 		expect(count(/^SELECT DISTINCT l\.event_slug/)).toBe(1);
 		// Antes: 12 consultas en 12 tandas (el guardado del porcentaje es solo con el isolate frío).
+		// Lo vendido, la fila, los ajustes y las preguntas salen a la par del lugar y del Fondo.
 		expect(r.queries).toBeLessThanOrEqual(8);
-		expect(r.waves).toBeLessThanOrEqual(7);
+		expect(r.waves).toBeLessThanOrEqual(4);
 	});
 
 	it('sin el Fondo: no lo busca', async () => {
 		const r = await ticketsView('sin-fondo-inventado');
 		expect(r.view).toMatchObject({ open: true, online: true, fondoEnabled: false });
 		expect(r.fetch).not.toHaveBeenCalled();
-		// Antes: 7 consultas en 7 tandas (los ajustes, dos veces).
+		// Antes: 7 consultas en 7 tandas (los ajustes, dos veces). Ahora, el evento y después todo
+		// lo demás a la par.
 		expect(r.queries).toBeLessThanOrEqual(6);
-		expect(r.waves).toBeLessThanOrEqual(6);
+		expect(r.waves).toBeLessThanOrEqual(2);
 	});
 
 	it('sin venta: una consulta (el evento), sin Fondo ni ajustes', async () => {
