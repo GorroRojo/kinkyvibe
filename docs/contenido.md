@@ -33,6 +33,12 @@ queda marcado con el tag de git `posts-md-final`. Ningún guardado del panel pas
   `defaultCalendarMonth` en `src/lib/utils/allPosts.js`, con `argDate`), nunca de la del servidor
   (UTC) ni la del navegador de quien mira. Lo mismo el botón «Hoy» de la vista calendario de la
   agenda del panel (`todayInArgentina`).
+- **La página de un evento no espera de a una consulta.** La base está lejos (en el este de
+  EE. UU.): cada consulta que espera a la anterior es una ida y vuelta más. La venta, las partes
+  del taller, el lugar y el interruptor de la lista de espera salen a la par de la lectura del
+  evento (no dependen de él) y solo se muestran si quien mira puede ver el evento (si no, 404).
+  `evento-consultas.test.js` (al lado de la ruta) fija cuántas consultas y cuántas tandas en fila
+  hace (`countingDB`, con `waves`).
 - **`/calendario` trae los pasados de a un mes**: los próximos enteros y, de los pasados, los del
   mes que abre; los de otro mes los pide al ir a ese mes (`/api/calendario/pasados?mes=yyyy-MM`,
   `src/lib/server/eventos/pasados.js`; detalles en [seo.md](seo.md)).

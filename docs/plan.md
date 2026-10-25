@@ -254,6 +254,7 @@ CI) va en la fase 0.
 - `cf-dashboard-limpiar` · fase 1 · hecho · infra · Dashboard de Cloudflare: borrar las variables `*_ENABLED` que ya no hacen nada; el proyecto viejo de Pages queda por las dudas (gorrite, 12/10)
 - `backup-simulacro` · fase 1 · hecho · infra · Simulacro de restaurar un backup en local (`node scripts/d1-restore.js <fecha> --local`): corrió en Windows, igual que el backup (gorrite, 12/10) · #345
 - `perf-placement` · fase 1 · hecho · infra · El Worker corre al lado de la base D1 (`[placement] region = "aws:us-east-1"`); `mode = "smart"` lo mandaba a San José, más lejos. Se mide el tiempo hasta el primer byte desde Argentina antes y después, y se saca si alguna página empeora · #387, [workers-migracion.md](workers-migracion.md#ubicación-del-worker)
+- `perf-evento-olas` · fase 1 · sigue · infra · La página de un evento lee la base en menos tandas en fila (la base está lejos: cada consulta que espera a otra es una ida y vuelta): la venta, las partes y el lugar a la par del evento; falta la configuración de la venta leída una vez y el evento con sus autores en menos consultas · #395, #396, #397, [contenido.md](contenido.md#lo-que-nunca-se-tiene-que-romper)
 - `sveltekit-3` · fase 1 · sigue · infra · Revisar qué pide SvelteKit 3 (rutina del 9/11; gorrite: esperar, sin parches antes)
 - `rss-aviso-sacar` · fase 1 · sigue · infra · Sacar el aviso del RSS el 27/10 (rutina)
 - `push-pwa` · fase 1 · sigue · infra · Notificaciones push y PWA (gorrite, 12/10) · #16, #43, [0044](decisiones/0044-reglas-de-la-venta-de-entradas.md)
