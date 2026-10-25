@@ -1,7 +1,12 @@
 import { error, fail } from '@sveltejs/kit';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
-import { findProfileForPage, profilePageFrom } from '$lib/server/amigues/pages.js';
+import {
+	askProfilePageEarly,
+	findProfileForPage,
+	profilePageFrom,
+	rememberProfilePage
+} from '$lib/server/amigues/pages.js';
 import { createClaim } from '$lib/server/amigues/claims.js';
 import { resolveProfileSlug } from '$lib/server/amigues/profiles.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
@@ -29,7 +34,13 @@ export async function load({ params, platform, locals, setHeaders }) {
 	// falla, la página falla como antes (también antes de un 404).
 	const postsP = sitePosts(platform);
 	postsP.catch(() => {});
+	const loadPosts = async () => [...(await postsP), ...(await siteWikiPosts(platform))];
+	// Lo que se lee después de encontrar el perfil, adelantado con lo que encontró el pedido
+	// anterior sin sesión (en la misma ida que la búsqueda; las de después reciben lo ya leído).
+	const guess = askProfilePageEarly(db, params.profile, locals, postsP);
+	if (guess) contentForProfilePage(platform, guess.object.slug, loadPosts).catch(() => {});
 	const found = await findProfileForPage(db, params.profile, locals);
+	rememberProfilePage(params.profile, found, locals);
 	if (!found) {
 		await postsP;
 		error(404, 'Not found');
@@ -40,10 +51,7 @@ export async function load({ params, platform, locals, setHeaders }) {
 		postsP.then((posts) => mentionPronouns(platform, posts)),
 		// Eventos y publicaciones que nombran al perfil (por la dirección del objeto), por rol
 		// (solo si el perfil es público; si no, `null`).
-		contentForProfilePage(platform, found.object.slug, async () => [
-			...(await postsP),
-			...(await siteWikiPosts(platform))
-		]),
+		contentForProfilePage(platform, found.object.slug, loadPosts),
 		// «Seguir» (interruptor `lo_que_sigo`).
 		followButtonState({ platform, locals }, 'perfil', String(found.object.id)).catch((e) => {
 			console.error('[amigues] sigo:', e);

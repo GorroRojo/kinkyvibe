@@ -535,6 +535,17 @@ function mergedFor(state, unlisted) {
 }
 
 /**
+ * Para adelantar consultas (nunca para mostrar): la lista listada como la armó este isolate la
+ * última vez, sin preguntar si la base cambió; `null` si todavía no armó ninguna. Quien adelanta
+ * con esto vuelve a preguntar con la lista de verdad (src/lib/server/db/autoBatch.js: si es lo
+ * mismo, no sale otra consulta).
+ * @returns {ProcessedPost[] | null}
+ */
+export function peekListedPosts() {
+	return cached ? mergedFor(cached.state, false) : null;
+}
+
+/**
  * Las publicaciones del sitio, todas de la base: los eventos, el material y los perfiles de
  * amigues listados (o, con `unlisted`, los no listados); con `wiki`, las páginas de la wiki. Sin
  * base, nada.

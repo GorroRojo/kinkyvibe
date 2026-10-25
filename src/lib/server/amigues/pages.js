@@ -7,8 +7,9 @@
  */
 import { currentRelated, mediaURL, relatedPostsFor } from '$lib/utils';
 import { canHaveProfiles } from '$lib/server/cuentas/accounts.js';
-import { contentStampOf } from '$lib/server/contenido/posts.js';
+import { contentStampOf, peekListedPosts } from '$lib/server/contenido/posts.js';
 import { readAndKeep } from '$lib/server/db/perRequest.js';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
 import { ANON } from '$lib/server/objects/visibility.js';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
@@ -135,39 +136,17 @@ export function findProfileForPage(db, urlSlug, locals) {
  */
 export async function profilePageFrom(db, found, locals, { posts: sitePosts } = {}) {
 	const viewer = viewerFor(locals);
-	const accountId = locals.member?.id;
-	const { object, legacySlug, approved, avatarKey, role } = found;
+	const { object, legacySlug, approved, avatarKey } = found;
 	const profile = await toPublic(object, legacySlug, avatarKey ?? undefined);
-	const kind = profileKindOf(object.data);
 	const href = `/amigues/${urlSlugOf(object, legacySlug)}`;
 	const postsP = Promise.resolve(sitePosts ?? []);
 
-	const [related, authors, venue, claim, bodyHtml, members] = await Promise.all([
-		// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento.
-		postsP.then((posts) =>
-			relatedWithVenuePlaces(
-				db,
-				currentRelated(
-					relatedPostsFor(
-						/** @type {any} */ ({
-							category: 'amigues',
-							postID: profile.slug,
-							title: profile.title,
-							authors: profile.authors
-						}),
-						posts
-					)
-				)
-			)
-		),
-		profileAuthors(db, profile, viewer, accountId),
-		kind === 'lugar' ? venuePageEvents(db, object, href, postsP) : null,
-		accountId ? claimOf(db, accountId, object.id, role) : null,
+	const [[related, authors, venue, claim, members], bodyHtml] = await Promise.all([
+		profilePageReads(db, found, locals, profile, postsP),
 		renderProfileBody(/** @type {string | undefined} */ (object.data.body), {
 			resolveMedia: (file) => (legacySlug ? mediaURL('amigues', legacySlug, file) : undefined),
 			firstImageEager: true
-		}),
-		groupMembers(db, object, viewer)
+		})
 	]);
 
 	return {
@@ -196,6 +175,97 @@ export async function profilePageFrom(db, found, locals, { posts: sitePosts } = 
 		claim,
 		private: viewer.role !== 'anon'
 	};
+}
+
+/**
+ * Lo que la página de un perfil lee de la base después de encontrarlo, todo a la par.
+ *
+ * @param {D1Database} db
+ * @param {import('./profiles.js').FoundProfile} found
+ * @param {App.Locals} locals
+ * @param {Awaited<ReturnType<typeof toPublic>>} profile
+ * @param {Promise<ProcessedPost[]>} postsP
+ */
+function profilePageReads(db, found, locals, profile, postsP) {
+	const viewer = viewerFor(locals);
+	const accountId = locals.member?.id;
+	const { object, legacySlug, role } = found;
+	const kind = profileKindOf(object.data);
+	const href = `/amigues/${urlSlugOf(object, legacySlug)}`;
+	return Promise.all([
+		// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento.
+		postsP.then((posts) =>
+			relatedWithVenuePlaces(
+				db,
+				currentRelated(
+					relatedPostsFor(
+						/** @type {any} */ ({
+							category: 'amigues',
+							postID: profile.slug,
+							title: profile.title,
+							authors: profile.authors
+						}),
+						posts
+					)
+				)
+			)
+		),
+		profileAuthors(db, profile, viewer, accountId),
+		kind === 'lugar' ? venuePageEvents(db, object, href, postsP) : null,
+		accountId ? claimOf(db, accountId, object.id, role) : null,
+		groupMembers(db, object, viewer)
+	]);
+}
+
+/**
+ * Lo que vio sin sesión el último pedido de este isolate a cada dirección de perfil: para adelantar
+ * lo que la página lee después de encontrarlo ({@link askProfilePageEarly}). Nunca decide qué se
+ * muestra.
+ * @type {Map<string, import('./profiles.js').FoundProfile>}
+ */
+const pageHints = new Map();
+const PAGE_HINTS_MAX = 200;
+
+/**
+ * Guarda lo encontrado sin sesión para esa dirección (para el próximo pedido del isolate).
+ * @param {string} urlSlug
+ * @param {import('./profiles.js').FoundProfile | null} found
+ * @param {App.Locals} locals
+ */
+export function rememberProfilePage(urlSlug, found, locals) {
+	if (locals.user || locals.member) return;
+	if (!found) {
+		pageHints.delete(urlSlug);
+		return;
+	}
+	if (pageHints.size >= PAGE_HINTS_MAX) pageHints.clear();
+	pageHints.set(urlSlug, found);
+}
+
+/**
+ * Adelanta lo que la página de un perfil lee después de encontrarlo, con lo que encontró el último
+ * pedido sin sesión a esa dirección: con las tandas automáticas (src/lib/server/db/autoBatch.js) va
+ * en la misma ida que la búsqueda del perfil, y las consultas de después (con lo encontrado de
+ * verdad) reciben lo ya leído. Si el perfil cambió, salen aparte, como siempre. Solo sin sesión y
+ * con tandas. Devuelve el perfil adivinado (para que la página adelante lo suyo), o `null`.
+ *
+ * @param {D1Database} db
+ * @param {string} urlSlug
+ * @param {App.Locals} locals
+ * @param {Promise<ProcessedPost[]>} postsP
+ */
+export function askProfilePageEarly(db, urlSlug, locals, postsP) {
+	if (!batchesReads(db) || locals.user || locals.member) return null;
+	const found = pageHints.get(urlSlug);
+	if (!found) return null;
+	// La lista que ya tiene el isolate, sin esperar a saber si cambió (la de verdad sí espera).
+	const known = peekListedPosts();
+	toPublic(found.object, found.legacySlug, found.avatarKey ?? undefined)
+		.then((profile) =>
+			profilePageReads(db, found, locals, profile, known ? Promise.resolve(known) : postsP)
+		)
+		.catch(() => {});
+	return found;
 }
 
 /**
