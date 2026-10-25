@@ -164,8 +164,9 @@ y páginas sin imagen propia), Calendario, Material, Amigues y Kinkipedia.
   wrangler. Vite (que arma el Worker de SvelteKit) no lo puede importar, así que el dibujante vive
   en `worker/og.js` y `worker/index.js` se lo pasa a SvelteKit en `platform.env.OG_RENDER`, solo
   en los pedidos a `/og/…`. Suma unos 3,4 MB al Worker (sin comprimir; 1,2 MB comprimido; el
-  límite es 64 MB) y unos 60–110 ms al arranque medido en local con `wrangler check startup` (el
-  límite es 1 s).
+  límite es 64 MB). `worker/index.js` lo importa recién al dibujar la primera tarjeta (import
+  dinámico, en el mismo archivo): antes se inicializaba al arrancar cada isolate, unos 15 ms de CPU
+  medidos en local con `wrangler check startup` (el límite es 1 s).
 - **Cupo del binding de imágenes**: cada miniatura distinta cuenta una vez por mes dentro de las
   5000 transformaciones gratis (las mismas que las portadas achicadas, abajo). Son 16 por cambio
   de portadas, como mucho.
