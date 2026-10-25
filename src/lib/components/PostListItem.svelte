@@ -5,8 +5,7 @@
 		ShoppingCart,
 		Download,
 		MousePointerClick,
-		Heart,
-		CalendarPlus
+		Heart
 	} from '@lucide/svelte';
 	import { argDateList, argTime, eventEnd, isoDay, parseSiteDate } from '$lib/utils/dates.js';
 	import TagChip from './ui/TagChip.svelte';
@@ -63,29 +62,6 @@
 	onMount(() => {
 		mounted = true;
 	});
-	// «Añadir al calendario»: un botón común del servidor; la librería del menú
-	// (add-to-calendar-button, ~60 KB comprimida) se baja recién al tocarlo, no con cada tarjeta.
-	// Con los mismos datos que arma calendarButtonEvent (eventPage.js, que también se baja al
-	// tocar: trae date-fns). Frena el clic para que la tarjeta (un <a>) no navegue.
-	let calendarLoading = false;
-	/** @param {MouseEvent & { currentTarget: HTMLButtonElement }} event */
-	async function openCalendar(event) {
-		const trigger = event.currentTarget;
-		if (calendarLoading) return;
-		calendarLoading = true;
-		try {
-			const [{ atcb_action }, { calendarButtonEvent }] = await Promise.all([
-				import('add-to-calendar-button'),
-				import('$lib/utils/eventPage.js')
-			]);
-			atcb_action(calendarButtonEvent(post.meta), trigger);
-		} finally {
-			calendarLoading = false;
-		}
-	}
-	// id propio por tarjeta: la librería usa el id del botón para su menú (sin id le pone uno fijo,
-	// repetido en cada tarjeta).
-	const calendarId = 'agendar-' + String(post.meta.postID ?? path).replace(/[^\w-]+/g, '-');
 	let style = `scale:var(--scale,1);
 				 translate:var(--translate,0 0);
 				 display: inline-block;
@@ -138,19 +114,6 @@
 					<time class="dt-published" datetime={isoDay(date)}>
 						{date ? argDateList(date, { time: false }) : ''}
 					</time>
-				{/if}
-				{#if !((status && ['cancelado', 'agotadas'].includes(status)) || past) && link && status && status == 'abierto' && !past}
-					<button
-						type="button"
-						class="add-cal"
-						id={calendarId}
-						aria-label="Añadir al calendario"
-						aria-busy={calendarLoading ? 'true' : undefined}
-						on:click|preventDefault|stopPropagation={openCalendar}
-					>
-						<CalendarPlus aria-hidden="true" />
-						<span class="add-cal-label">Añadir al calendario</span>
-					</button>
 				{/if}
 				{#if (status && ['cancelado', 'agotadas'].includes(status)) || past}
 					<small class="status">
@@ -417,49 +380,6 @@
 	}
 	.calendario .publication {
 		grid-template-columns: 2em 1fr auto;
-	}
-	/* «Añadir al calendario», en la franja de color: blanco sobre el color de la tarjeta */
-	.add-cal {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.3em;
-		height: 100%;
-		padding: 0 0.4em;
-		border: 0;
-		border-radius: var(--round-pill);
-		background: transparent;
-		color: white;
-		font: inherit;
-		font-weight: 700;
-		cursor: pointer;
-		:global(svg) {
-			height: 1.2em;
-			width: 1.2em;
-			flex: none;
-		}
-		&:hover,
-		&:focus-visible {
-			background: rgb(255 255 255 / 0.2);
-		}
-		&:focus-visible {
-			outline: 2px solid white;
-			outline-offset: -2px;
-		}
-		&[aria-busy='true'] {
-			cursor: progress;
-			opacity: 0.7;
-		}
-	}
-	/* si la franja es angosta (el celu, la vista en grilla) no hay lugar para la fecha y el texto:
-	   queda solo el ícono. Mira el ancho de la franja misma (antes, el de la pantalla con
-	   matchMedia). */
-	.calendario .publication {
-		container: franja / inline-size;
-	}
-	@container franja (max-width: 440px) {
-		.add-cal-label {
-			display: none;
-		}
 	}
 	a {
 		color: inherit;
