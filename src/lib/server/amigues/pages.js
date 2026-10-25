@@ -164,7 +164,8 @@ export async function profilePageFrom(db, found, locals, { posts: sitePosts } = 
 		kind === 'lugar' ? venuePageEvents(db, object, href, postsP) : null,
 		accountId ? claimOf(db, accountId, object.id, role) : null,
 		renderProfileBody(/** @type {string | undefined} */ (object.data.body), {
-			resolveMedia: (file) => (legacySlug ? mediaURL('amigues', legacySlug, file) : undefined)
+			resolveMedia: (file) => (legacySlug ? mediaURL('amigues', legacySlug, file) : undefined),
+			firstImageEager: true
 		}),
 		groupMembers(db, object, viewer)
 	]);

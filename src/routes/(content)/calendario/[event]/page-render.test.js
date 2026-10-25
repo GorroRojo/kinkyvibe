@@ -860,3 +860,24 @@ describe('/calendario/<evento>: los datos estructurados (schema.org)', () => {
 		expect(head({ status: 'cancelado' })).toContain('https://schema.org/EventCancelled');
 	});
 });
+
+describe('el afiche (lo más grande de la página, su LCP)', () => {
+	const AFICHE = '/afiche-inventado.png';
+	const poster = (/** @type {string} */ html) => html.match(/<img class="afiche[^>]*>/)?.[0] ?? '';
+
+	it('se pide primero, con las medidas de la portada de la biblioteca', () => {
+		const img = poster(
+			page({ featured: AFICHE }, { cover: { width: 1080, height: 1350, alt: '', size: null } })
+		);
+		expect(img).toContain('fetchpriority="high"');
+		expect(img).toContain('width="1080"');
+		expect(img).toContain('height="1350"');
+	});
+
+	it('sin medidas guardadas (imagen vieja), se pide primero igual y no inventa medidas', () => {
+		const img = poster(page({ featured: AFICHE }, { cover: null }));
+		expect(img).toContain('fetchpriority="high"');
+		expect(img).not.toMatch(/\swidth=/);
+		expect(img).not.toMatch(/\sheight=/);
+	});
+});

@@ -14,7 +14,7 @@
 import { rehype } from 'rehype';
 import customRehype from '$lib/utils/customRehype.js';
 import { renderPreviewHtml } from '$lib/utils/markdownPreview.js';
-import { rehypeProfileHtml } from './sanitize.js';
+import { rehypeProfileHtml, rehypeProfilePageHtml } from './sanitize.js';
 
 /** `import foto from './media/Drux/1.webp'` (también con `$lib/posts/amigues/media/...`). */
 const IMPORT = /import\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"]/g;
@@ -77,22 +77,35 @@ export function resolveMediaImports(body, resolveMedia) {
 		.replace(/\{\s*([A-Za-z_$][\w$]*)\s*\}/g, (all, name) => names.get(name) ?? all);
 }
 
-/** El procesador (se arma una vez). */
-const processor = rehype()
-	.data('settings', { fragment: true })
-	.use(rehypeProfileHtml)
-	// El plugin de mdsvex está tipado para otra versión de unified: es el mismo árbol hast.
-	.use(/** @type {any} */ (customRehype))
-	.freeze();
+/**
+ * Los procesadores (se arman una vez): el de los textos en general y el de la página de un perfil,
+ * que pide primero la primera imagen (./sanitize.js).
+ * @param {import('unified').Preset} preset
+ */
+const makeProcessor = (preset) =>
+	rehype()
+		.data('settings', { fragment: true })
+		.use(preset)
+		// El plugin de mdsvex está tipado para otra versión de unified: es el mismo árbol hast.
+		.use(/** @type {any} */ (customRehype))
+		.freeze();
+const processor = makeProcessor(rehypeProfileHtml);
+const profilePageProcessor = makeProcessor(rehypeProfilePageHtml);
 
 /**
  * @param {string | undefined | null} body markdown (con el HTML corto que usan las fichas)
- * @param {{ resolveMedia?: (file: string, path: string) => string | undefined }} [opts]
+ * @param {{
+ *   resolveMedia?: (file: string, path: string) => string | undefined,
+ *   firstImageEager?: boolean
+ * }} [opts] `firstImageEager`: la página de un perfil (la primera imagen se pide primero)
  * @returns {Promise<string>} HTML limpio
  */
-export async function renderProfileBody(body, { resolveMedia = () => undefined } = {}) {
+export async function renderProfileBody(
+	body,
+	{ resolveMedia = () => undefined, firstImageEager = false } = {}
+) {
 	const text = String(body ?? '').trim();
 	if (!text) return '';
 	const html = renderPreviewHtml(resolveMediaImports(text, resolveMedia));
-	return String(await processor.process(html));
+	return String(await (firstImageEager ? profilePageProcessor : processor).process(html));
 }

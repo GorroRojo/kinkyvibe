@@ -14,7 +14,7 @@
  *
  * Después de limpiar, {@link rehypeProfileLinks} ajusta lo que el sitio quiere en todos los textos:
  * los links a otros sitios abren aparte sin `opener`/`referrer` y con `nofollow`, las imágenes cargan
- * de a poco (y solo de la biblioteca propia, `/media/…`: una imagen de otro sitio pierde su `src`,
+ * de a poco (salvo la primera del texto de un perfil, que se pide primero; y solo de la biblioteca propia, `/media/…`: una imagen de otro sitio pierde su `src`,
  * como las imágenes de perfil) y un `<h1>` pasa a `<h2>` (el `<h1>` de la página es el nombre del
  * perfil).
  */
@@ -106,10 +106,17 @@ function eachElement(node, fn) {
 /**
  * Plugin de unified que va DESPUÉS de limpiar: links externos, imágenes y títulos.
  *
+ * Con `firstImageEager` (el texto de un perfil), la primera imagen que queda con `src` no carga de
+ * a poco y se pide primero (`fetchpriority="high"`): suele ser lo más grande de la página (su LCP).
+ * Las demás siguen cargando de a poco. Sin la opción (eventos, material, wiki), todas de a poco:
+ * en un evento lo primero es el afiche.
+ *
+ * @param {{ firstImageEager?: boolean }} [opts]
  * @returns {(tree: any) => void}
  */
-export function rehypeProfileLinks() {
-	return (tree) =>
+export function rehypeProfileLinks({ firstImageEager = false } = {}) {
+	return (tree) => {
+		let eagerLeft = firstImageEager;
 		eachElement(tree, (el) => {
 			const props = (el.properties ??= {});
 			if (el.tagName === 'h1') el.tagName = 'h2';
@@ -124,9 +131,16 @@ export function rehypeProfileLinks() {
 			}
 			if (el.tagName === 'img') {
 				if (!isOwnImageSrc(props.src)) delete props.src;
-				props.loading = 'lazy';
+				if (eagerLeft && props.src) {
+					eagerLeft = false;
+					delete props.loading;
+					props.fetchPriority = 'high';
+				} else {
+					props.loading = 'lazy';
+				}
 			}
 		});
+	};
 }
 
 /**
@@ -135,4 +149,16 @@ export function rehypeProfileLinks() {
  */
 export const rehypeProfileHtml = {
 	plugins: [[rehypeSanitize, PROFILE_SCHEMA], rehypeProfileLinks]
+};
+
+/**
+ * Lo mismo para el texto de un perfil: la primera imagen se pide primero (ver
+ * {@link rehypeProfileLinks}).
+ * @type {import('unified').Preset}
+ */
+export const rehypeProfilePageHtml = {
+	plugins: [
+		[rehypeSanitize, PROFILE_SCHEMA],
+		[rehypeProfileLinks, { firstImageEager: true }]
+	]
 };
