@@ -17,7 +17,7 @@
  * «Se muestra al público» (las listas, los integrantes, el lugar de un evento) es UNA regla:
  * {@link shownProfileWhere} en SQL e {@link isShownProfile} con el objeto ya leído.
  */
-import { getEdges, getObject, ANON } from '$lib/server/objects/index.js';
+import { ANON } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, forViewer, rowToObject } from '$lib/server/objects/read.js';
 import { visibleWhere } from '$lib/server/objects/visibility.js';
 import { isAdmin } from '$lib/server/auth';
@@ -152,54 +152,43 @@ export async function managerRole(db, accountId, profileId) {
 }
 
 /**
+ * @typedef {{ object: StoredObject, legacySlug: string | null, approved: boolean, role: 'owner' | 'manager' | null, avatarKey: string | null }} FoundProfile
+ *   `role`: el de la cuenta de la sesión, si lo gestiona y tiene el permiso de perfiles.
+ *   `avatarKey`: la clave de su imagen de la biblioteca (edge `avatar`, docs/imagenes.md), si
+ *   tiene una que ve cualquiera
+ */
+
+/**
  * Un perfil para su página pública, si quien mira lo puede ver; si no, `null` (404).
  *
  * @param {D1Database} db
  * @param {string} urlSlug
  * @param {Viewer} viewer
  * @param {{ accountId?: string }} [opts] la cuenta de la sesión, para saber si lo gestiona
- * @returns {Promise<{ object: StoredObject, legacySlug: string | null, approved: boolean, role: 'owner' | 'manager' | null, avatarKey: string | null } | null>}
- *   `avatarKey`: la clave de su imagen de la biblioteca (edge `avatar`, docs/imagenes.md), si
- *   tiene una que ve cualquiera
+ * @returns {Promise<FoundProfile | null>}
  */
 export async function findPublicProfile(db, urlSlug, viewer, { accountId } = {}) {
-	const ref = await resolveProfileSlug(db, urlSlug);
-	if (!ref) return null;
-	const object = await getObject(db, { id: ref.id }, viewer);
-	if (!object || object.type !== PROFILE_TYPE) return null;
-	// Aprobado y su imagen, en una sola consulta.
-	const vi = visibleWhere(ANON, 'i');
-	const row = await db
-		.prepare(
-			`SELECT EXISTS (SELECT 1 FROM profile_approvals WHERE profile_id = ?) AS approved,
-				(SELECT json_extract(i.data, '$.key') FROM edges e
-					JOIN objects i ON i.id = e.to_id AND i.type = 'imagen'
-					WHERE e.from_id = ? AND e.kind = 'avatar' AND ${vi.sql}
-					ORDER BY e.position LIMIT 1) AS avatar_key`
-		)
-		.bind(object.id, object.id, ...vi.params)
-		.first();
-	const approved = Boolean(row?.approved);
-	const avatarKey = typeof row?.avatar_key === 'string' ? row.avatar_key : null;
-	const role = accountId ? await managerRole(db, accountId, object.id) : null;
-	// Sin aprobar: solo admins y quienes lo gestionan.
-	if (!approved && viewer.role !== 'admin' && !role) return null;
-	return { object, legacySlug: ref.legacySlug, approved, role, avatarKey };
+	// Una consulta: la dirección, el perfil, si está aprobado, su imagen y el rol de la cuenta (la
+	// base está lejos: cada consulta que espera a otra es una ida y vuelta).
+	const found = await findPublicProfiles(db, [urlSlug], viewer, { accountId });
+	return found.get(urlSlug) ?? null;
 }
 
 /**
- * {@link findPublicProfile} de varias direcciones en UNA consulta (les autores de un evento o un
- * material): por cada dirección, lo mismo que daría `findPublicProfile(db, slug, viewer)` (sin
- * cuenta): primero la dirección vieja de una ficha importada, después la del objeto; si quien mira
- * no lo ve, no es un perfil o no está aprobado (salvo admins), no está en el resultado.
+ * Varios perfiles para su página pública (o la de quien los nombra: les autores de un evento, un
+ * material o un perfil) en UNA consulta. Por cada dirección: primero la dirección vieja de una
+ * ficha importada (como `resolveProfileSlug`), después la del objeto; si quien mira no lo ve, no
+ * es un perfil o no está aprobado (salvo admins y, con `accountId`, quienes lo gestionan), no
+ * está en el resultado. {@link findPublicProfile} es esto con una sola dirección.
  *
  * @param {D1Database} db
  * @param {readonly string[]} urlSlugs
  * @param {Viewer} viewer
- * @returns {Promise<Map<string, { object: StoredObject, legacySlug: string | null, approved: boolean, role: null, avatarKey: string | null }>>}
+ * @param {{ accountId?: string }} [opts] la cuenta de la sesión, para saber si lo gestiona
+ * @returns {Promise<Map<string, FoundProfile>>}
  */
-export async function findPublicProfiles(db, urlSlugs, viewer) {
-	/** @type {Map<string, { object: StoredObject, legacySlug: string | null, approved: boolean, role: null, avatarKey: string | null }>} */
+export async function findPublicProfiles(db, urlSlugs, viewer, { accountId } = {}) {
+	/** @type {Map<string, FoundProfile>} */
 	const out = new Map();
 	// Las mismas direcciones que acepta `resolveProfileSlug`.
 	const wanted = [
@@ -218,7 +207,10 @@ export async function findPublicProfiles(db, urlSlugs, viewer) {
 				(SELECT json_extract(i.data, '$.key') FROM edges e
 					JOIN objects i ON i.id = e.to_id AND i.type = 'imagen'
 					WHERE e.from_id = o.id AND e.kind = 'avatar' AND ${vi.sql}
-					ORDER BY e.position LIMIT 1) AS avatar_key
+					ORDER BY e.position LIMIT 1) AS avatar_key,
+				(SELECT pm.role FROM profile_managers pm JOIN accounts a ON a.id = pm.account_id
+					WHERE pm.profile_id = o.id AND pm.account_id = ? AND a.deleted_at IS NULL
+					AND a.can_have_profiles = 1) AS manager_role
 			FROM (
 				SELECT w.value AS url_slug,
 					COALESCE(ls.profile_id, os.id) AS id,
@@ -231,18 +223,28 @@ export async function findPublicProfiles(db, urlSlugs, viewer) {
 			JOIN objects o ON o.id = r.id
 			WHERE o.type = ? AND ${vo.sql}`
 		)
-		.bind(...vi.params, JSON.stringify(wanted), PROFILE_TYPE, PROFILE_TYPE, ...vo.params)
+		.bind(
+			...vi.params,
+			// Sin cuenta, ningún rol (como `managerRole`).
+			accountId ? accountId : null,
+			JSON.stringify(wanted),
+			PROFILE_TYPE,
+			PROFILE_TYPE,
+			...vo.params
+		)
 		.all();
 	for (const r of results) {
 		const approved = Boolean(r.approved);
-		// Sin aprobar: solo admins (quienes lo gestionan lo ven con su cuenta, en su página).
-		if (!approved && viewer.role !== 'admin') continue;
+		/** @type {'owner' | 'manager' | null} */
+		const role = r.manager_role == null ? null : r.manager_role === 'owner' ? 'owner' : 'manager';
+		// Sin aprobar: solo admins y quienes lo gestionan.
+		if (!approved && viewer.role !== 'admin' && !role) continue;
 		const row = Object.fromEntries(cols.map((c) => [c, r[c]]));
 		out.set(String(r.url_slug), {
 			object: forViewer(rowToObject(row), viewer),
 			legacySlug: r.ref_legacy_slug == null ? null : String(r.ref_legacy_slug),
 			approved,
-			role: null,
+			role,
 			avatarKey: typeof r.avatar_key === 'string' ? r.avatar_key : null
 		});
 	}
@@ -333,26 +335,35 @@ export async function importedLegacySlugs(db) {
  */
 export async function groupMembers(db, group, viewer) {
 	if (profileKindOf(group.data) !== 'proyecto' || group.data.show_members !== true) return null;
-	const edges = await getEdges(db, group.id, viewer, { direction: 'in', kind: MEMBER_EDGE });
-	const people = edges.map((e) => e.object).filter((o) => profileKindOf(o.data) === 'persona');
-	if (!people.length) return [];
-	const ids = people.map((o) => o.id);
+	// En una consulta (la base está lejos): los edges de integrante que ve quien mira, como
+	// `getEdges(db, group.id, viewer, { direction: 'in', kind: MEMBER_EDGE })`, con si cada perfil
+	// está aprobado y su dirección vieja.
+	const cols = OBJECT_COLUMNS.split(', ');
+	const visibleSelf = visibleWhere(viewer, 's');
+	const visibleOther = visibleWhere(viewer, 'o');
+	// Solo `?` sin número: visibleWhere agrega los suyos en el medio.
 	const { results } = await db
 		.prepare(
-			`SELECT pa.profile_id, s.legacy_slug FROM profile_approvals pa
-			LEFT JOIN profile_sources s ON s.profile_id = pa.profile_id
-			WHERE pa.profile_id IN (SELECT value FROM json_each(?1))`
+			`SELECT ${cols.map((c) => `o.${c}`).join(', ')},
+				EXISTS (SELECT 1 FROM profile_approvals pa WHERE pa.profile_id = o.id) AS approved,
+				(SELECT ps.legacy_slug FROM profile_sources ps WHERE ps.profile_id = o.id) AS legacy_slug
+			FROM edges e
+			JOIN objects s ON s.id = e.to_id
+			JOIN objects o ON o.id = e.from_id
+			WHERE e.to_id = ? AND e.kind = ? AND ${visibleSelf.sql} AND ${visibleOther.sql}
+			ORDER BY e.kind, e.position, e.id`
 		)
-		.bind(JSON.stringify(ids))
+		.bind(group.id, MEMBER_EDGE, ...visibleSelf.params, ...visibleOther.params)
 		.all();
-	/** @type {Map<number, string | null>} */
-	const approved = new Map(
-		results.map((r) => [Number(r.profile_id), r.legacy_slug == null ? null : String(r.legacy_slug)])
-	);
-	// `getEdges` ya filtró por quien mira: falta el resto de «se muestra al público».
-	return people
-		.filter((o) => isShownProfile(o, approved.has(o.id)))
-		.map((o) => ({ slug: urlSlugOf(o, approved.get(o.id) ?? null), title: o.title }))
+	// Ya filtrado por quien mira: falta el resto de «se muestra al público».
+	return results
+		.map((r) => ({
+			o: forViewer(rowToObject(Object.fromEntries(cols.map((c) => [c, r[c]]))), viewer),
+			approved: Boolean(r.approved),
+			legacySlug: r.legacy_slug == null ? null : String(r.legacy_slug)
+		}))
+		.filter(({ o, approved }) => profileKindOf(o.data) === 'persona' && isShownProfile(o, approved))
+		.map(({ o, legacySlug }) => ({ slug: urlSlugOf(o, legacySlug), title: o.title }))
 		.sort((a, b) => a.title.localeCompare(b.title, 'es'));
 }
 

@@ -56,13 +56,25 @@ export const CLAIM_MESSAGES = Object.freeze({
  */
 export async function claimState(db, accountId, profileId) {
 	if (await managerRole(db, accountId, profileId)) return 'manager';
+	return (await hasPendingClaim(db, accountId, profileId)) ? 'pending' : 'none';
+}
+
+/**
+ * ¿Esta cuenta tiene un pedido pendiente para este perfil? (La página de un perfil ya sabe si lo
+ * gestiona: lo pregunta a la par de lo demás.)
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {number} profileId
+ */
+export async function hasPendingClaim(db, accountId, profileId) {
 	const row = await db
 		.prepare(
 			"SELECT 1 AS x FROM profile_claims WHERE profile_id = ?1 AND account_id = ?2 AND status = 'pending'"
 		)
 		.bind(profileId, accountId)
 		.first();
-	return row ? 'pending' : 'none';
+	return Boolean(row);
 }
 
 /**
