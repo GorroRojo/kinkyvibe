@@ -136,6 +136,11 @@ async function materialPage(slug, { as = 'anon', warm = false } = {}) {
 	try {
 		const page = /** @type {any} */ (await load(event));
 		return { page, headers, queries: counted.queries, waves: counted.waves };
+	} catch (e) {
+		// Un 404 o una redirección: con lo que consultó hasta ahí.
+		if (e && typeof e === 'object')
+			Object.assign(e, { queries: counted.queries, waves: counted.waves });
+		throw e;
 	} finally {
 		fake.event = null;
 	}
@@ -211,6 +216,25 @@ describe('la página de un material, en pocas tandas', () => {
 			status: 307,
 			location: 'https://example.com/secreto'
 		});
+	});
+
+	it('un material que lleva a un link redirige apenas leído el material', async () => {
+		/** @type {any} */
+		let thrown;
+		try {
+			await materialPage('link-inventado');
+		} catch (e) {
+			thrown = e;
+		}
+		expect(thrown).toMatchObject({ status: 307, location: 'https://example.com/inventado' });
+		if (process.env.KV_CONSULTAS) {
+			console.info(`[material] redirige: ${thrown.queries} consultas en ${thrown.waves} tandas`);
+		}
+		// Antes: el material entero (relaciones, portada, autores y texto) antes de redirigir: 7
+		// consultas en 3 tandas. Ahora, el material y, a la par, la marca de la lista de
+		// publicaciones (la lista empieza a leerse pero nadie la espera).
+		expect(thrown.queries).toBeLessThanOrEqual(2);
+		expect(thrown.waves).toBeLessThanOrEqual(2);
 	});
 
 	it('un material que no existe sigue dando 404', async () => {

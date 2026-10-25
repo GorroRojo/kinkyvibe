@@ -17,9 +17,11 @@ import { TAG_TYPE } from '../objects/types/etiqueta.js';
  * @returns {Promise<(TagRecord & { id: number, slug: string, version: number })[]>}
  */
 export async function loadTagRecords(db, viewer = ANON) {
-	const [objects, relations] = tagRecordsStatements(db, viewer);
-	const { results: objs } = await objects.all();
-	const { results: edges } = await relations.all();
+	// Las dos consultas en una sola tanda (una ida y vuelta a la base, no dos en fila).
+	const [{ results: objs }, { results: edges }] =
+		/** @type {import('@cloudflare/workers-types').D1Result<Record<string, unknown>>[]} */ (
+			await db.batch(tagRecordsStatements(db, viewer))
+		);
 	return readTagRecords(objs, edges);
 }
 
