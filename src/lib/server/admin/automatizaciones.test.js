@@ -7,11 +7,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { createTestDB, resetDB } from '../db/testing.js';
 import { BACKUP_CRON, REMINDERS_CRON } from '../scheduled.js';
 import {
+	BACKUP_STALE_HOURS,
 	describeCron,
 	lastNightlyBackup,
 	loadAutomations,
 	nextCronRun,
-	parseCron
+	parseCron,
+	staleLabel
 } from './automatizaciones.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
@@ -195,5 +197,86 @@ describe('loadAutomations', () => {
 		const off = await loadAutomations({ flags: { telegram_bot: true }, env: {}, now: NOW });
 		expect(off.telegram.state).toBe('warn');
 		expect(off.telegram.details).toContain('Secreto del webhook: no cargado');
+	});
+});
+
+describe('backup viejo', () => {
+	const HOUR = 3_600_000;
+
+	/**
+	 * Un bucket con un solo backup nocturno subido en `at` (o vacío).
+	 * @param {number | null} at
+	 */
+	function bucketWith(at) {
+		return /** @type {any} */ ({
+			list: async () => ({
+				objects: at === null ? [] : [{ key: 'd1/2026-10-02.sql.gz', uploaded: new Date(at) }],
+				truncated: false
+			})
+		});
+	}
+
+	it('staleLabel: 36 h o más, o ninguno, avisa', () => {
+		expect(BACKUP_STALE_HOURS).toBe(36);
+		expect(staleLabel(NOW - 35 * HOUR, NOW, 'backup')).toBeNull();
+		expect(staleLabel(NOW - 36 * HOUR, NOW, 'backup')).toBe('El último backup tiene 36 horas');
+		expect(staleLabel(null, NOW, 'backup')).toBe('No se encontró ningún backup nocturno');
+	});
+
+	it('con bucket y un backup de hace 6 h: todo bien', async () => {
+		const r = await loadAutomations({ backups: bucketWith(NOW - 6 * HOUR), now: NOW });
+		expect(r.crons[1]).toMatchObject({
+			lastRun: NOW - 6 * HOUR,
+			state: 'on',
+			stateLabel: 'Corre solo en el sitio de verdad'
+		});
+	});
+
+	it('con bucket y el último backup de hace 50 h: aviso con las horas', async () => {
+		const r = await loadAutomations({ backups: bucketWith(NOW - 50 * HOUR), now: NOW });
+		expect(r.crons[1]).toMatchObject({
+			state: 'warn',
+			stateLabel: 'El último backup tiene 50 horas'
+		});
+	});
+
+	it('con bucket y sin ningún backup nocturno: aviso', async () => {
+		const r = await loadAutomations({ backups: bucketWith(null), now: NOW });
+		expect(r.crons[1]).toMatchObject({
+			state: 'warn',
+			stateLabel: 'No se encontró ningún backup nocturno'
+		});
+		expect(r.crons[1].details).toContain('No se encontró ningún backup nocturno en el bucket.');
+	});
+
+	it('backup al día pero el chequeo de hace 40 h: aviso del chequeo', async () => {
+		await t.db
+			.prepare('INSERT INTO integrity_runs (ran_at, problem_count, problems) VALUES (?, 0, ?)')
+			.bind(NOW - 40 * HOUR, '[]')
+			.run();
+		const r = await loadAutomations({ db: t.db, backups: bucketWith(NOW - 6 * HOUR), now: NOW });
+		expect(r.crons[1]).toMatchObject({
+			state: 'warn',
+			stateLabel: 'El último chequeo tiene 40 horas'
+		});
+	});
+
+	it('backup viejo y el chequeo con problemas: manda la fecha y los problemas quedan en el detalle', async () => {
+		await t.db
+			.prepare('INSERT INTO integrity_runs (ran_at, problem_count, problems) VALUES (?, 3, ?)')
+			.bind(NOW - 2 * HOUR, '[]')
+			.run();
+		const r = await loadAutomations({ db: t.db, backups: bucketWith(NOW - 48 * HOUR), now: NOW });
+		expect(r.crons[1].stateLabel).toBe('El último backup tiene 48 horas');
+		expect(r.crons[1].details).toContain('El último chequeo encontró 3 problema(s)');
+	});
+
+	it('sin bucket (preview, local): un chequeo viejo no avisa por la fecha', async () => {
+		await t.db
+			.prepare('INSERT INTO integrity_runs (ran_at, problem_count, problems) VALUES (?, 0, ?)')
+			.bind(NOW - 100 * HOUR, '[]')
+			.run();
+		const r = await loadAutomations({ db: t.db, now: NOW });
+		expect(r.crons[1]).toMatchObject({ state: 'on', lastRun: NOW - 100 * HOUR });
 	});
 });
