@@ -399,7 +399,12 @@ con lo que depende de ellos (totales, links, envíos fallidos, recordatorios). S
 consultas que el Inicio (`reviewQueries` y `reviewEventQueries` en `src/lib/server/admin/review.js`):
 consultas chicas, por índice, que devuelven pocas filas (una por evento, hasta 20 mails, hasta 50
 órdenes…). Fuera de las tandas y a la par: la lista de eventos y el uso de las etiquetas (los posts
-de la base, que el isolate recuerda mientras la base no cambie). Si una
+de la base, que el isolate recuerda mientras la base no cambie). Esas lecturas no esperan una a
+la otra: cada categoría de posts, los perfiles y la wiki van a la par (`allMeta` y `fichaMetas`),
+la lectura de qué eventos tienen lugar sale a la par de la lista (`listTicketedEvents` y
+`getEventTickets`, que la usan solo si hace falta), y en la ficha de un evento, una vez sabida su
+venta, los contadores, el aviso de cambio de fecha, la lista de espera y el chip del taller van
+juntos (el 404 sigue saliendo antes). Lo mide `npm run medir:panel` ([pruebas-y-ci.md](pruebas-y-ci.md)). Si una
 consulta de la tanda falla (por ejemplo, falta una migración), cada una se corre sola con su
 respaldo, como antes. Para sumar algo al Inicio: un `…Query` en `src/lib/server/admin/inicio.js`
 (ver `src/lib/server/db/batch.js`) y una línea en la tanda que corresponda; el test
