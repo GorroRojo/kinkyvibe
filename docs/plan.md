@@ -283,6 +283,19 @@ CI) va en la fase 0.
 - `perf-js-interactivo` · fase 1 · hecho · infra · Los trazos del SVG del interactivo «Dónde y con qué golpear un cuerpo» ya no van en el JavaScript de todas las páginas con texto: el servidor se los pasa como props solo a la publicación que lo usa (unos 108 KB gz menos en eventos, material y wiki) · #389
 - `perf-puerta-olas` · fase 1 · hecho · infra · Menos idas y vueltas a D1 en la puerta y en la página de cada entrada: `readWorkshop` (las partes del taller) en una sola tanda en vez de tres consultas en fila, la venta del evento junto con las partes, y después de marcar el ingreso la entrada, la primera vez en la serie y los contadores juntos (escaneo: 4 olas en vez de 10; entrada: 3 en vez de 7) · [talleres-partes.md](talleres-partes.md) · #403
 - `perf-estado-compra` · fase 1 · hecho · infra · Página de estado de una compra: después de leer la orden, lo demás se lee junto (8 olas a D1 en vez de 11 con un taller en partes, 5 en vez de 8 esperando la transferencia), y el sondeo mientras se espera el pago recarga solo la orden (no las etiquetas del layout), cada vez más espaciado (5, 10, 20 y 30 s; 8 veces en vez de 24) · [tickets.md](tickets.md) · #401
+- `perf-series-ssr` · fase 1 · sigue · infra · La wiki y los perfiles reciben las series y «Seguir» con la página, sin pedirlos al cargar (la página no se mueve) (gorrite, 25/10)
+- `perf-pasados-mes` · fase 1 · sigue · infra · «Mostrar pasados» en /calendario trae los eventos pasados de a un mes (gorrite, 25/10)
+- `perf-barra-carga` · fase 1 · sigue · infra · Una barrita arriba mientras carga la página siguiente al navegar (gorrite, 25/10)
+- `perf-fuente-respaldo` · fase 1 · sigue · infra · Fuente de respaldo con las medidas de Lato, para que la página no salte cuando llega la fuente (gorrite, 25/10)
+- `perf-codemirror-lazy` · fase 1 · sigue · infra · El editor de código del panel se baja recién al abrirlo (gorrite, 25/10)
+- `perf-listas-cache` · fase 1 · sigue · infra · Las listas de publicaciones armadas por isolate se guardan también en la caché de Cloudflare con la marca de contenido como clave
+- `perf-fondo-cache` · fase 1 · sigue · infra · Las páginas muestran el porcentaje del Fondo de una caché corta; la compra sigue esperando el valor fresco (gorrite, 25/10)
+- `perf-calendario-boton-fuera` · fase 1 · sigue · infra · Sacar «Añadir al calendario» de las tarjetas de las listas; queda en la página del evento (gorrite, 25/10)
+- `perf-indice-edges` · fase 1 · sigue · infra · Índice `edges (kind, from_id)` en una migración nueva (gorrite, 25/10)
+- `perf-pulidos` · fase 1 · sigue · infra · Pulidos chicos de la auditoría de rendimiento: medidas del logo, etiquetas en una tanda, /og mira la caché primero, materiales que redirigen leídos livianos, íconos en un solo chunk
+- `perf-tagsearch-propio` · fase 1 · sigue · infra · El buscador de etiquetas y el glosario sin @melt-ui, iguales o mejores (gorrite, 25/10: solo si se verifica)
+- `perf-layout-etiquetas` · fase 1 · sigue · infra · Menos datos de etiquetas y wiki en el layout de todas las páginas, sin romper el buscador (gorrite, 25/10: solo si se verifica)
+- `perf-archivos-r2` · fase 1 · sigue · infra · Los ~57 MB de PDF y MP4 viejos pasan a la biblioteca (R2) con `scripts/subir-archivos.js` y salen del build (gorrite, 25/10)
 
 ## Fase 2
 
