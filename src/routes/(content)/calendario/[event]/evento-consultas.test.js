@@ -179,6 +179,33 @@ async function report(what, cold, slug) {
 		console.info(`[${what}] frío:\n${cold.describe()}\n[${what}] caliente:\n${warm.describe()}`);
 }
 
+describe('en caliente y sin sesión, una sola ida a la base', () => {
+	// Antes (solo con las tandas automáticas): 4 idas en 4 tandas en los tres casos. Antes de las
+	// tandas: 9 consultas en 4 tandas sin venta, 17 en 4 con venta y con la parte de un taller.
+	for (const slug of [
+		'evento-sin-venta-inventado',
+		'taller-inventado',
+		'taller-inventado-parte-2'
+	]) {
+		it(slug, async () => {
+			const r = await eventPage(slug, { warm: true });
+			const plain = await eventPage(slug, { warm: true, batch: false });
+			if (process.env.KV_CONSULTAS) {
+				console.info(
+					`[${slug}, caliente] con tandas: ${r.statements} consultas en ${r.queries} idas, ${r.waves} tandas; ` +
+						`sin tandas: ${plain.queries} idas en ${plain.waves} tandas`
+				);
+			}
+			if (DETAIL) console.info(r.describe());
+			expect(r.queries).toBe(1);
+			expect(r.waves).toBe(1);
+			// Lo mismo que sin tandas: lo adelantado nunca cambia lo que se muestra.
+			expect(r.page).toEqual(plain.page);
+			expect(r.authors).toEqual(plain.authors);
+		});
+	}
+});
+
 describe('la página de un evento, en pocas tandas', () => {
 	it('sin venta de entradas', async () => {
 		const r = await eventPage('evento-sin-venta-inventado');

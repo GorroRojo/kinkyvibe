@@ -11,6 +11,15 @@ import { makeEvent, makeProfile } from '$lib/server/amigues/testing.js';
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 180_000 });
 
+// Para las tandas automáticas: un pedido GET de mentira (sin pedido, una ida por consulta).
+const fake = vi.hoisted(() => ({ event: /** @type {any} */ (null) }));
+vi.mock('$app/server', () => ({
+	getRequestEvent: () => {
+		if (!fake.event) throw new Error('fuera de un pedido');
+		return fake.event;
+	}
+}));
+
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
 const N = 20;
@@ -45,6 +54,15 @@ beforeAll(async () => {
 			title: 'Sin Entradas',
 			start: '2099-02-01T20:00-03:00'
 		},
+		// Con lista de espera (el interruptor se prende abajo): la venta lee también la fila.
+		{
+			...common,
+			postID: 'con-lista-inventado',
+			title: 'Con Lista',
+			start: '2099-02-03T20:00-03:00',
+			lista_espera: 'evento',
+			tickets: [{ id: 'general', name: 'General', price: 4000, capacity: 5 }]
+		},
 		{
 			...common,
 			postID: 'Viejo_Inventado-2099',
@@ -67,6 +85,7 @@ beforeAll(async () => {
 	}
 });
 afterAll(async () => {
+	fake.event = null;
 	await t?.dispose();
 });
 
@@ -87,9 +106,12 @@ describe('estados de la venta de una lista, en una tanda', () => {
 		const twenty = await countFor(N);
 		expect(Object.keys(five.states)).toHaveLength(5);
 		expect(Object.keys(twenty.states)).toHaveLength(N);
-		// Los eventos (1), cuáles tienen lugar (1) y los datos para transferir (1).
+		// Los eventos (1), cuáles tienen lugar (1), los datos para transferir (1), lo vendido (1), el
+		// interruptor de la lista (1) y la fila (1): todo a la par, en una tanda. Antes eran 3, pero en
+		// fila, porque lo vendido y la fila se leían solo después de saber quién vende (acá nadie:
+		// no hay datos para transferir).
 		expect(twenty.queries).toBe(five.queries);
-		expect(twenty.queries).toBeLessThanOrEqual(3);
+		expect(twenty.queries).toBeLessThanOrEqual(6);
 	});
 
 	it('getEventTicketsMany dice lo mismo que getEventTickets, evento por evento', async () => {
@@ -126,5 +148,45 @@ describe('estados de la venta de una lista, en una tanda', () => {
 		const events = await import('./events.js');
 		const many = await events.getEventTicketsMany([slugOf(0), slugOf(1)]);
 		expect([...many.values()]).toEqual([null, null]);
+	});
+});
+
+describe('todo lo que lee la venta de una lista, a la par', () => {
+	it('una tanda (antes, cinco en fila: eventos → lugares → ajustes → vendido → fila)', async () => {
+		const { saveSalesSettings } = await import('./settings.js');
+		await saveSalesSettings(t.db, { transfer_alias: 'alias.inventado' }, { by: 'admin-de-prueba' });
+		const { setFlag } = await import('$lib/server/flags.js');
+		await setFlag(t.db, 'lista_espera', true, { by: 'admin-de-prueba' });
+		const slugs = [slugOf(0), slugOf(1), 'con-lista-inventado', 'sin-entradas-inventado'];
+
+		/** @param {boolean} batch con las tandas automáticas */
+		const run = async (batch) => {
+			vi.resetModules();
+			const counted = countingDB(t.db, { delayMs: 10 });
+			const platform = {
+				env: { ...t.env, DB: counted.db, ...(batch ? {} : { KV_D1_TANDAS: 'off' }) }
+			};
+			const url = new URL('https://kinkyvibe.ar/calendario');
+			fake.event = { request: new Request(url), url };
+			try {
+				const db = /** @type {any} */ ((await import('$lib/server/db')).getDB(platform));
+				(await import('$lib/server/contenido/repo.js')).setContentDB(db);
+				const { getListTicketStates } = await import('./listStates.js');
+				const states = await getListTicketStates(db, slugs, { cacheMs: 0 });
+				return { states, queries: counted.queries, waves: counted.waves };
+			} finally {
+				fake.event = null;
+			}
+		};
+		const batched = await run(true);
+		const plain = await run(false);
+		expect(batched.states).toEqual(plain.states);
+		expect(Object.keys(batched.states).sort()).toEqual(
+			[slugOf(0), slugOf(1), 'con-lista-inventado'].sort()
+		);
+		expect(batched.states['con-lista-inventado']).toMatchObject({ open: true });
+		// Sin tandas, todo a la par igual: una tanda en fila (varias idas).
+		expect(plain.waves).toBe(1);
+		expect(batched).toMatchObject({ queries: 1, waves: 1 });
 	});
 });

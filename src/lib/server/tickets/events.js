@@ -194,7 +194,7 @@ export async function getEventTickets(slug, { fondo, ...options } = {}) {
 /**
  * {@link getEventTickets} de varios eventos a la vez (las tarjetas de una lista,
  * ./listStates.js): por evento, lo mismo que `getEventTickets`, pero con dos consultas para todos
- * (los eventos y cuáles tienen lugar) en vez de dos por evento.
+ * (los eventos y cuáles tienen lugar, a la par) en vez de dos por evento.
  *
  * @param {readonly string[]} slugs
  * @param {{ fondoPercent?: number | null }} [options] ver `getEventTickets`
@@ -204,14 +204,17 @@ export async function getEventTicketsMany(slugs, options = {}) {
 	const unique = [...new Set(slugs)];
 	// Los mismos que `loadMeta` buscaría en la base (los demás dan `null` sin consultar).
 	const wanted = unique.filter((slug) => isValidEventSlug(slug) && !slug.startsWith('_'));
-	const content = wanted.length
-		? await (await import('../contenido/repo.js')).dbEventMetasFor(wanted)
-		: new Map();
+	// Los eventos y cuáles tienen lugar, a la par (con las tandas automáticas, en una ida): el lugar
+	// se pregunta de todos, aunque después solo importe en los que venden.
+	const [content, withVenue] = wanted.length
+		? await Promise.all([
+				import('../contenido/repo.js').then((repo) => repo.dbEventMetasFor(wanted)),
+				eventsWithVenueAmong(wanted)
+			])
+		: [new Map(), new Set()];
 	/** @type {Map<string, Record<string, any> | null>} */
 	const metas = new Map();
 	for (const slug of unique) metas.set(slug, await loadMeta(slug, content));
-	const selling = unique.filter((slug) => sellsTickets(metas.get(slug) ?? null));
-	const withVenue = selling.length ? await eventsWithVenueAmong(selling) : new Set();
 	/** @type {Map<string, import('./config.js').EventTickets | null>} */
 	const out = new Map();
 	for (const slug of unique) {

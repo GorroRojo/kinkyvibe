@@ -31,19 +31,35 @@ import { dehydrateTags, TAG_EDGE, TAG_EDGE_TYPES, withTagEdges } from './etiquet
  * @returns {Promise<Map<number, ContentEdges>>}
  */
 export async function contentEdgesOf(db, ids) {
+	const want = [...new Set(ids)];
+	if (!want.length) return new Map();
+	return contentEdgesFrom(db, {
+		sql: 'SELECT value FROM json_each(?)',
+		params: [JSON.stringify(want)]
+	});
+}
+
+/**
+ * {@link contentEdgesOf} de los objetos que da una subconsulta (`from.sql`, que devuelve ids y usa
+ * solo `?` sin número): así se puede pedir a la par de la lectura del objeto, por su dirección,
+ * sin esperar a saber su id (la página de un post, ./posts.js).
+ *
+ * @param {D1Database} db
+ * @param {{ sql: string, params: unknown[] }} from
+ * @returns {Promise<Map<number, ContentEdges>>}
+ */
+export async function contentEdgesFrom(db, from) {
 	/** @type {Map<number, ContentEdges>} */
 	const out = new Map();
-	const want = [...new Set(ids)];
-	if (!want.length) return out;
 	const { results } = await db
 		.prepare(
 			`SELECT e.from_id, e.kind, e.data, o.slug,
-				CASE WHEN e.kind = ?2 THEN json_extract(o.data, '$.key') END AS key
+				CASE WHEN e.kind = ? THEN json_extract(o.data, '$.key') END AS key
 			FROM edges e JOIN objects o ON o.id = e.to_id
-			WHERE e.kind IN (?1, ?2) AND e.from_id IN (SELECT value FROM json_each(?3))
+			WHERE e.kind IN (?, ?) AND e.from_id IN (${from.sql})
 			ORDER BY e.from_id, e.kind, e.position, e.id`
 		)
-		.bind(PERSONA_EDGE, TAG_EDGE, JSON.stringify(want))
+		.bind(TAG_EDGE, PERSONA_EDGE, TAG_EDGE, ...from.params)
 		.all();
 	for (const r of results) {
 		let data = null;
@@ -59,6 +75,22 @@ export async function contentEdgesOf(db, ids) {
 		out.set(id, entry);
 	}
 	return out;
+}
+
+/**
+ * Pura: el objeto con sus relaciones dentro de `data` (lo mismo que {@link hydrateContent} hace con
+ * cada uno), con los edges ya leídos.
+ *
+ * @template {{ id: number, type: string, data: Record<string, any> }} O
+ * @param {O} object
+ * @param {Map<number, ContentEdges>} edges
+ * @returns {O}
+ */
+export function withEdgesOf(object, edges) {
+	const wanted = PERSONA_EDGE_TYPES.has(object.type) || TAG_EDGE_TYPES.has(object.type);
+	return wanted && edges.has(object.id)
+		? { ...object, data: withContentEdges(object.type, object.data, edges.get(object.id)) }
+		: object;
 }
 
 /**
