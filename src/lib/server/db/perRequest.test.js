@@ -69,6 +69,20 @@ describe('oncePerRequest', () => {
 		expect(c.calls()).toBe(2);
 	});
 
+	it('el layout y la página comparten la lectura (cada `load` ve su copia del evento)', async () => {
+		// SvelteKit le pasa a cada `load` su propia copia del evento (`{ ...event, tracing }`):
+		// `getRequestEvent()` devuelve otro objeto en el layout y en la página, con el mismo `request`.
+		const event = request('GET');
+		const db = {};
+		const c = counter();
+		fake.event = { ...event, tracing: { current: 'layout' } };
+		const fromLayout = oncePerRequest(db, 'k', c.read);
+		fake.event = { ...event, tracing: { current: 'page' } };
+		const fromPage = oncePerRequest(db, 'k', c.read);
+		expect(await Promise.all([fromLayout, fromPage])).toEqual(['marca-1', 'marca-1']);
+		expect(c.calls()).toBe(1);
+	});
+
 	it('fuera de un pedido, una lectura por llamada', async () => {
 		const c = counter();
 		const db = {};
