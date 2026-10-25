@@ -281,20 +281,37 @@ const ADMIN_VIEWER = /** @type {const} */ ({ role: 'admin', id: 'panel' });
  */
 export async function loadEditableProfile(db, urlSlug) {
 	const ref = await resolveProfileSlug(db, urlSlug);
-	if (!ref) return null;
-	const object = await getObject(db, { id: ref.id }, ADMIN_VIEWER);
-	if (!object || object.type !== PROFILE_TYPE) return null;
-	const source = await db
+	return ref ? loadEditableProfileAt(db, ref) : null;
+}
+
+/**
+ * {@link loadEditableProfile} con la dirección ya resuelta. El objeto, su fuente y su aprobación
+ * se piden a la par (una ida); la fuente y la aprobación solo cuentan (también sus errores) si el
+ * objeto es un perfil.
+ *
+ * @param {D1Database} db
+ * @param {{ id: number, legacySlug: string | null }} ref lo de `resolveProfileSlug`
+ */
+export async function loadEditableProfileAt(db, ref) {
+	const objectP = getObject(db, { id: ref.id }, ADMIN_VIEWER);
+	const sourceP = db
 		.prepare(
 			`SELECT legacy_slug, suggested_kind, kind_reason, kind_confirmed_at, kind_confirmed_by,
 				imported_at FROM profile_sources WHERE profile_id = ?1`
 		)
-		.bind(object.id)
+		.bind(ref.id)
 		.first();
+	const approvalP = approvalOf(db, ref.id);
+	sourceP.catch(() => {});
+	approvalP.catch(() => {});
+	const object = await objectP;
+	if (!object || object.type !== PROFILE_TYPE) return null;
+	const source = await sourceP;
+	const approval = await approvalP;
 	return {
 		object,
 		legacySlug: ref.legacySlug,
-		approval: await approvalOf(db, object.id),
+		approval,
 		source: source
 			? {
 					legacySlug: String(source.legacy_slug),

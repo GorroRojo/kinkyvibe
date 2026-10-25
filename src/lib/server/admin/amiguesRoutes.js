@@ -17,12 +17,13 @@ import {
 	confirmKind,
 	createProfileFromPanel,
 	loadEditableProfile,
+	loadEditableProfileAt,
 	profileFormValues,
 	readProfileForm,
 	saveProfileFromPanel
 } from '$lib/server/amigues/editor.js';
 import { approveProfile, unapproveProfile } from '$lib/server/amigues/approvals.js';
-import { urlSlugOf } from '$lib/server/amigues/profiles.js';
+import { resolveProfileSlug, urlSlugOf } from '$lib/server/amigues/profiles.js';
 import { decideClaim } from '$lib/server/amigues/claims.js';
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
@@ -72,15 +73,21 @@ async function dbEditable(platform, urlSlug) {
  * @param {App.Locals} [locals]
  */
 export async function editorPageData(platform, urlSlug, locals) {
-	const editable = await dbEditable(platform, urlSlug);
-	if (!editable) return null;
-	const { object, legacySlug, approval, source } = editable.found;
-	const current = await imageOf(
-		editable.db,
-		object.id,
+	const db = getDB(platform);
+	if (!db) return null;
+	const ref = await resolveProfileSlug(db, urlSlug);
+	if (!ref) return null;
+	// Con el id, todo lo demás a la par (una ida): la imagen solo cuenta si es un perfil.
+	const currentP = imageOf(
+		db,
+		ref.id,
 		'avatar',
 		locals ? adminViewer(locals) : { role: 'admin', id: 'panel' }
 	).catch(() => null);
+	const found = await loadEditableProfileAt(db, ref);
+	if (!found) return null;
+	const { object, legacySlug, approval, source } = found;
+	const current = await currentP;
 	return {
 		editor: /** @type {const} */ ('db'),
 		profile: {
