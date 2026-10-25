@@ -12,6 +12,11 @@ export async function load({ locals, url, platform, setHeaders, fetch }) {
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const db = getDB(platform);
 	const now = Date.now();
+	// Las órdenes a revisar y los contadores no dependen del fondo: salen a la par con él.
+	const [toReview, allCounts] = db
+		? [ordersNeedingReview(db), getAllCounts(db, now)]
+		: [Promise.resolve([]), Promise.resolve(new Map())];
+	const settled = Promise.allSettled([toReview, allCounts]);
 	const fondo = await resolveFondoPercent({ db, fetch });
 	const events = await listTicketedEvents({ fondoPercent: fondo.percent });
 	/** @type {Map<string, number>} */
@@ -19,12 +24,13 @@ export async function load({ locals, url, platform, setHeaders, fetch }) {
 	/** @type {Awaited<ReturnType<typeof getAllCounts>>} */
 	let counts = new Map();
 	if (db) {
-		try {
-			for (const o of await ordersNeedingReview(db))
-				review.set(o.event_slug, (review.get(o.event_slug) ?? 0) + 1);
-			counts = await getAllCounts(db, now);
-		} catch (error) {
-			logDBError('admin ventas', error);
+		// Como antes en fila: si fallan las órdenes a revisar, no hay contadores ni revisión.
+		const [r, c] = await settled;
+		if (r.status === 'rejected') logDBError('admin ventas', r.reason);
+		else {
+			for (const o of r.value) review.set(o.event_slug, (review.get(o.event_slug) ?? 0) + 1);
+			if (c.status === 'rejected') logDBError('admin ventas', c.reason);
+			else counts = c.value;
 		}
 	}
 	const rows = events.map((e) =>

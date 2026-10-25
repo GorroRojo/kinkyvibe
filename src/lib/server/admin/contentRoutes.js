@@ -37,6 +37,7 @@ import { MAX_IMAGE_BYTES, todayInArgentina } from '$lib/utils/eventDraft.js';
 import { contentAdminHref } from '$lib/admin/nav.js';
 import { commitSavedToDb, pathExistsMessage, saveCopy } from '$lib/admin/saveCopy.js';
 import { panelSavesToDb } from '$lib/server/contenido/saving.js';
+import { inOrder } from '$lib/utils/inOrder.js';
 import { activeRoles, editorPersonas, personasFileErrors } from '$lib/server/personas/index.js';
 import materialTemplate from '$lib/admin/plantillas/material.md?raw';
 
@@ -71,17 +72,36 @@ const adminViewer = (locals) =>
  * @param {string | undefined} legacyUrl
  */
 async function materialImage(platform, locals, slug, legacyUrl) {
+	return materialImageOf(slug, await materialLibraryImage(platform, locals, slug), legacyUrl);
+}
+
+/**
+ * La imagen del material en la biblioteca (edge `portada`), o null (sin base, sin dirección o si
+ * no se pudo leer: entonces se muestra la del repo). No depende del texto: sale a la par de él.
+ * @param {App.Platform | undefined} platform
+ * @param {App.Locals} locals
+ * @param {string} slug
+ * @returns {Promise<import('$lib/server/media/library.js').PublicImage | null>}
+ */
+async function materialLibraryImage(platform, locals, slug) {
 	const db = getDB(platform);
-	/** @type {import('$lib/server/media/library.js').PublicImage | null} */
-	let current = null;
-	if (db && slug) {
-		try {
-			const ref = await resolveContentSlug(db, 'material', slug);
-			if (ref) current = await imageOf(db, ref.id, 'portada', adminViewer(locals));
-		} catch {
-			// Sin la de la biblioteca, se muestra la del repo.
-		}
+	if (!db || !slug) return null;
+	try {
+		const ref = await resolveContentSlug(db, 'material', slug);
+		return ref ? await imageOf(db, ref.id, 'portada', adminViewer(locals)) : null;
+	} catch {
+		// Sin la de la biblioteca, se muestra la del repo.
+		return null;
 	}
+}
+
+/**
+ * {@link materialImage} con la de la biblioteca ya leída.
+ * @param {string} slug
+ * @param {import('$lib/server/media/library.js').PublicImage | null} current
+ * @param {string | undefined} legacyUrl
+ */
+function materialImageOf(slug, current, legacyUrl) {
 	return {
 		current,
 		legacyUrl: current ? null : (legacyUrl ?? null),
@@ -186,10 +206,21 @@ export function newLoad(category) {
 		// Lo nuevo de material va a la base (se ve enseguida).
 		const savesToDb = await panelSavesToDb(platform, category);
 		const desde = url.searchParams.get('desde') ?? '';
+		if (desde && !contentPath(category, desde)) throw error(400, 'Esa publicación no existe.');
+		// Lo que no depende de la publicación de origen sale a la par de ella (cada lectura en fila
+		// es una ida); se espera después, así que sus errores (400, 404, 502) salen primero, como antes.
+		const rest = inOrder([
+			takenContentSlugs(category),
+			// Material: el selector de imágenes (docs/imagenes.md).
+			category === 'material' ? materialImage(platform, locals, '', undefined) : null,
+			editorData(category),
+			// Personas con rol en el material (sin base, null).
+			category === 'material' ? editorPersonas(platform) : null
+		]);
+		rest.catch(() => {});
 		/** @type {null | {slug: string, raw: string, title: string}} */
 		let source = null;
 		if (desde) {
-			if (!contentPath(category, desde)) throw error(400, 'Esa publicación no existe.');
 			let post;
 			try {
 				post = await readContentPost(await getRepoClient(), admin.token, category, desde);
@@ -205,6 +236,7 @@ export function newLoad(category) {
 			}
 			source = { slug: desde, raw: post.raw, title };
 		}
+		const [taken, image, editor, personas] = await rest;
 		return {
 			category,
 			mode: /** @type {'nuevo'} */ ('nuevo'),
@@ -213,17 +245,15 @@ export function newLoad(category) {
 			slug: '',
 			source: source && { slug: source.slug, title: source.title },
 			fromTemplate: !source,
-			taken: await takenContentSlugs(category),
+			taken,
 			imageUrl: null,
-			// Material: el selector de imágenes (docs/imagenes.md).
-			image: category === 'material' ? await materialImage(platform, locals, '', undefined) : null,
+			image,
 			today: todayInArgentina(),
 			maxImageBytes: MAX_IMAGE_BYTES,
 			savesToDb,
 			mock: isMockMode(),
-			...(await editorData(category)),
-			// Personas con rol en el material (sin base, null).
-			personas: category === 'material' ? await editorPersonas(platform) : null
+			...editor,
+			personas
 		};
 	};
 }
@@ -243,6 +273,16 @@ export function editLoad(category) {
 			throw error(404, 'Esa publicación no existe.');
 		// El material se guarda en la base (se ve enseguida); amigues, con un PR.
 		const savesToDb = await panelSavesToDb(platform, category, slug);
+		// Lo que no depende del texto sale a la par de él (cada lectura en fila es una ida); se espera
+		// después, así que el 502 y el 404 de la publicación salen primero, como antes.
+		const rest = inOrder([
+			// Material: la imagen de la biblioteca (la vieja del repo sale del texto, más abajo).
+			category === 'material' ? materialLibraryImage(platform, locals, slug) : null,
+			editorData(category),
+			// Personas con rol en el material (sin base, null).
+			category === 'material' ? editorPersonas(platform) : null
+		]);
+		rest.catch(() => {});
 		let post;
 		try {
 			post = await readContentPost(await getRepoClient(), admin.token, category, slug);
@@ -256,6 +296,7 @@ export function editLoad(category) {
 		} catch (e) {
 			// The editor shows the problem and offers the raw text.
 		}
+		const [libraryImage, editor, personas] = await rest;
 		return {
 			category,
 			mode: /** @type {'editar'} */ ('editar'),
@@ -269,10 +310,9 @@ export function editLoad(category) {
 			// Material: el selector de imágenes (docs/imagenes.md).
 			image:
 				category === 'material'
-					? await materialImage(
-							platform,
-							locals,
+					? materialImageOf(
 							slug,
+							libraryImage ?? null,
 							contentImageURL(category, slug, featured) ?? undefined
 						)
 					: null,
@@ -280,9 +320,8 @@ export function editLoad(category) {
 			maxImageBytes: MAX_IMAGE_BYTES,
 			savesToDb,
 			mock: isMockMode(),
-			...(await editorData(category)),
-			// Personas con rol en el material (sin base, null).
-			personas: category === 'material' ? await editorPersonas(platform) : null
+			...editor,
+			personas
 		};
 	};
 }

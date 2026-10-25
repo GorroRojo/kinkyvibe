@@ -41,6 +41,7 @@ import {
 } from '$lib/server/amigues/eventFormVenue.js';
 import { readVenueChoice } from '$lib/utils/venueChoice.js';
 import { duplicableEvents } from '$lib/server/eventos/drafts.js';
+import { inOrder } from '$lib/utils/inOrder.js';
 // The owner's own starting point for new events; NEW_EVENT_TEMPLATE is only a fallback.
 import eventTemplate from '$lib/admin/plantillas/evento.md?raw';
 import {
@@ -86,8 +87,27 @@ export async function load({ locals, url, platform }) {
 	let seriesPrompt = null;
 	// El evento nuevo va a la base (se ve enseguida) y los textos lo dicen.
 	const savesToDb = await panelSavesToDb(platform, 'calendario');
+	if (desde && validateSlug(desde)) throw error(400, 'Ese evento no existe.');
+	const db = getDB(platform);
+	// Lo que no depende del archivo del original sale a la par de él (cada lectura en fila es una
+	// ida); se espera después, así que sus errores (404, 422, 502) salen primero, como antes. Si hay
+	// `desde`, al llegar abajo el original existe (si no, ya salió el error): su lugar, su imagen y
+	// sin «¿Es otra edición…?».
+	const imageP = desde ? sourceImage(db, locals, desde) : null;
+	const rest = inOrder([
+		// Tag usage, amigues profiles and past organizers for the pickers.
+		editorData('calendario'),
+		// Personas con rol: roles y perfiles públicos (sin base, null).
+		editorPersonas(platform),
+		// «¿Es otra edición de un evento que ya existe?» (solo al cargar uno de cero)
+		desde ? [] : duplicableEvents(),
+		// «Lugar»: los lugares para elegir; al duplicar, el del evento original (su edge `lugar`).
+		venuePickerData(db, desde || null),
+		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
+		transferReady(db)
+	]);
+	rest.catch(() => {});
 	if (desde) {
-		if (validateSlug(desde)) throw error(400, 'Ese evento no existe.');
 		const client = await getRepoClient();
 		let raw;
 		try {
@@ -108,7 +128,7 @@ export async function load({ locals, url, platform }) {
 			);
 		}
 		// La imagen de la biblioteca del original (edge `portada`), si tiene; si no, la del repo.
-		const image = await sourceImage(getDB(platform), locals, desde);
+		const image = await imageP;
 		source = {
 			slug: desde,
 			raw,
@@ -120,23 +140,19 @@ export async function load({ locals, url, platform }) {
 		// Si el original no está en una serie, «¿Es parte de una serie?».
 		seriesPrompt = seriesPromptFor(fields, seriesTagIds(siteTags()));
 	}
+	const [editor, personas, duplicables, venuePicker, transfer] = await rest;
 	return {
 		source,
 		seriesPrompt,
-		// Tag usage, amigues profiles and past organizers for the pickers.
-		...(await editorData('calendario')),
-		// Personas con rol: roles y perfiles públicos (sin base, null).
-		personas: await editorPersonas(platform),
+		...editor,
+		personas,
 		template: usableTemplate(eventTemplate) ?? NEW_EVENT_TEMPLATE,
 		today: todayInArgentina(),
 		// ?fecha=&hora=&hasta= (tocar un día en el calendario de la agenda)
 		prefill: readNewEventPrefill(url.searchParams),
-		// «¿Es otra edición de un evento que ya existe?» (solo al cargar uno de cero)
-		duplicables: source ? [] : await duplicableEvents(),
-		// «Lugar»: los lugares para elegir; al duplicar, el del evento original (su edge `lugar`).
-		venuePicker: await venuePickerData(getDB(platform), source?.slug ?? null),
-		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
-		transferReady: await transferReady(getDB(platform)),
+		duplicables,
+		venuePicker,
+		transferReady: transfer,
 		takenSlugs: takenSlugsInBundle(),
 		savesToDb,
 		mock: isMockMode()

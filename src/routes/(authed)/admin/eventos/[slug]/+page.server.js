@@ -16,6 +16,7 @@ import { getEventAdmin, getRepoClient } from '$lib/server/eventos';
 import { confirmDraft } from '$lib/server/eventos/drafts.js';
 import { eventMissing } from '$lib/utils/eventMissing.js';
 import { panelVenueRow } from '$lib/server/amigues/eventFormVenue.js';
+import { getPanelEvent } from '$lib/server/eventos/panel.js';
 import { onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
 
 /** @type {Record<string, string>} */
@@ -30,9 +31,21 @@ const CLOSED_REASON = {
 export async function load({ locals, url, params, platform, parent, setHeaders }) {
 	requireAdmin(locals, url);
 	setHeaders({ 'cache-control': 'private, no-store' });
-	const { event } = await parent();
 	const db = getDB(platform);
-	const config = await getEventTickets(params.slug);
+	// Todo lo que se lee de la base sale a la par (cada lectura en fila es una ida). El evento, sin
+	// `parent()`: en una navegación, `parent()` hace correr los layouts de arriba en fila antes que
+	// esto. Lo mismo que arma el layout de la ficha (getPanelEvent, con `sellsTickets` y `online`
+	// de la venta); solo si no está en este deploy, el del layout (que lo lee del repo o da 404).
+	const settingsP = getSalesSettings(db);
+	settingsP.catch(() => {}); // solo se usa con recordatorios (y ahí se ve su error)
+	const venueP = panelVenueRow(db, params.slug);
+	const [found, config] = await Promise.all([
+		getPanelEvent(params.slug),
+		getEventTickets(params.slug)
+	]);
+	const event = found
+		? { ...found, sellsTickets: Boolean(config), online: config?.online ?? found.online }
+		: (await parent()).event;
 	/** @type {{ id: string, label: string, ok: boolean, detail: string, href?: string }[]} */
 	const checklist = [
 		{
@@ -73,7 +86,7 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 			: 'Este evento tiene `recordatorios: false`: no se mandan.';
 		if (config.reminders) {
 			try {
-				const count = parseReminders((await getSalesSettings(db)).reminders).length;
+				const count = parseReminders((await settingsP).reminders).length;
 				remindersOn = count > 0;
 				if (!count) remindersDetail = 'No hay recordatorios configurados en Ajustes.';
 				else
@@ -90,11 +103,15 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 		});
 		if (config.online && db) {
 			try {
-				const current = await getStreamLink(db, params.slug);
-				const approved = await db
+				// Las dos a la par; si fallan las dos, cuenta el error del link (como en fila).
+				const currentP = getStreamLink(db, params.slug);
+				const approvedP = db
 					.prepare("SELECT COUNT(*) AS n FROM orders WHERE event_slug = ?1 AND status = 'approved'")
 					.bind(params.slug)
 					.first();
+				approvedP.catch(() => {});
+				const current = await currentP;
+				const approved = await approvedP;
 				stream = {
 					link: current?.link ?? null,
 					updatedAt: current?.updatedAt ?? null,
@@ -137,7 +154,7 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 			})
 		: [];
 	// «Lugar»: el vinculado (edge `lugar` del evento, se elige en el formulario del evento).
-	const venue = await panelVenueRow(db, params.slug);
+	const venue = await venueP;
 	// Etiqueta «Online» y además un lugar: un aviso arriba (no cambia nada).
 	const onlineMismatch = onlineTagMismatch(
 		{ tags: event.tags, location: event.location, location_name: event.locationName },
