@@ -436,6 +436,17 @@ test.describe('feeds', () => {
 	});
 });
 
+test.describe('salud', () => {
+	test('/api/health responde 200 con ok true y sin caché', async ({ request }) => {
+		const res = await request.get('/api/health');
+		expect(res.status()).toBe(200);
+		expect(res.headers()['cache-control']).toBe('no-store');
+		const body = await res.json();
+		expect(body.ok).toBe(true);
+		expect(body.db).toBe('ok');
+	});
+});
+
 test.describe('errores', () => {
 	test('/wiki/<término inexistente> no rompe', async ({ request }) => {
 		const res = await request.get('/wiki/esto-no-existe-xyz');

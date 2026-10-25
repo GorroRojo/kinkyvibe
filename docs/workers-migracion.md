@@ -54,6 +54,15 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
   ya no se lee. En `main` (y en local) queda `false` y el modo demo no
   entra en el bundle, igual que hoy.
 - **Backups**: `src/lib/server/backup/` (ver [Backups](#backups-de-la-base)).
+- **Salud**: `GET /api/health` (`src/routes/api/health/+server.js`) responde un JSON con `ok`, `db`,
+  `migrations` y `sha`, sin caché, para un monitor externo o para mirar después de un deploy. `db`:
+  la base responde (`SELECT 1`); sin base, 503. `migrations`: `ok` si la base tiene aplicada la
+  última migración del código (`__LATEST_MIGRATION__`, la lee vite.config.js de `migrations/` al
+  compilar; se mira que esté, no que sea la última, porque la base de producción puede ir
+  adelantada), `atrasada` si falta (503; nunca dice cuál) y `sin registro` si la base no tiene
+  `d1_migrations` (las locales y las de los E2E, que se migran sin wrangler; no es error). `sha`: el
+  commit del build (`WORKERS_CI_COMMIT_SHA`, que pone Workers Builds; vacío en local). No cuenta en
+  las visitas (`/api` está excluido en `src/lib/server/analytics/classify.js`).
 - **Scripts**: `npm run db:restore` (`scripts/d1-restore.js`), `npm run db:migrate:preview`
   (migraciones en la base de los Previews), `npm run preview:worker` (el build de producción en
   el runtime de Workers, con `--test-scheduled`).
