@@ -47,8 +47,8 @@ describe('wrangler.toml', () => {
 
 	it('el Worker corre al lado de la base D1 (este de EE. UU.)', () => {
 		const config = unstable_readConfig({ config: 'wrangler.toml' });
-		// EXPERIMENTO (25/10): sin ubicación fija por 2 horas; el PR que la restaura vuelve a esperar
-		// `aws:us-east-1`.
+		// Sin ubicación fija, a propósito (25/10, medido desde Buenos Aires; docs/workers-migracion.md,
+		// «Ubicación del Worker»): el Worker corre cerca de quien visita.
 		expect(/** @type {any} */ (config.placement)?.region).toBeUndefined();
 	});
 
