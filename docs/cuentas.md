@@ -164,7 +164,13 @@ el código por mail sigue andando.
 - En Mi rincón, "Salir en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
   cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
   saca acceso.
-- `hooks.server.js` carga `locals.member` (`{ id, email }`) solo si hay cookie (y base).
+- `hooks.server.js` carga `locals.member` (`{ id, email, readingSpeed, canHaveProfiles }`) solo
+  si hay cookie (y base). La velocidad de lectura y el permiso de perfiles vienen en la misma
+  consulta que la sesión (`getSessionAccount`), así el layout y Mi rincón no vuelven a leer la
+  fila de la cuenta (la base está lejos: cada consulta es una ida y vuelta). Nunca `preferences`
+  entero: ahí está el DNI guardado, que no viaja en `locals`. Lo prueba
+  `src/routes/(content)/mi-rincon/rincon-consultas.test.js` (Mi rincón con una compra: de 9
+  tandas en fila a 4).
 
 ### Otras protecciones
 
@@ -245,7 +251,9 @@ Con qué velocidad se calcula el «X min de lectura» de los materiales y la Kin
 - **Al entrar, la de la cuenta gana** sobre la del navegador (y queda también en el navegador). Si
   la cuenta no eligió ninguna, queda la del navegador. Al salir, queda la del navegador.
 - El layout raíz (`src/routes/+layout.server.js`) manda `readingSpeed` (o `null`) solo con sesión:
-  una lectura de `preferences` cuando se carga el layout.
+  la que vino con la sesión (`locals.member.readingSpeed`), sin otra consulta. Al guardarla desde
+  Mi rincón (`?/velocidad`), la acción la actualiza también en `locals.member`, así sin JavaScript
+  el layout del mismo pedido ya muestra la nueva.
 - Código: `getReadingSpeed`/`setReadingSpeed` en `src/lib/server/cuentas/accounts.js`, el
   navegador en `src/lib/utils/readingSpeed.js` y las reglas (rango, recálculo, texto) en
   `src/lib/utils/readingTime.js`.

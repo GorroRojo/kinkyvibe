@@ -12,6 +12,8 @@ import { getReadingSpeed } from '$lib/server/cuentas/accounts.js';
  * @param {App.Locals['member']} member
  */
 async function memberReadingSpeed(platform, member) {
+	// Con sesión, ya vino con la cuenta (`locals.member`, getSessionAccount): sin otra consulta.
+	if (member?.readingSpeed !== undefined) return member.readingSpeed;
 	const db = member && getDB(platform);
 	if (!db || !member) return null;
 	try {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	MAX_PICK_BYTES,
+	appendCopies,
 	keepConverted,
 	pickProblem,
 	prepareImage,
@@ -67,11 +68,52 @@ describe('prepareImage', () => {
 		expect(r.blob.type).toBe('image/webp');
 		expect(e.drawn[0][0]).toBe(2000);
 	});
+	it('hace las dos copias chicas (lado más corto 360 y 720) de lo que se sube', async () => {
+		const file = new File([new Uint8Array(5000)], 'flyer.jpg', { type: 'image/jpeg' });
+		const e = env(1600, 2000);
+		const r = await prepareImage(file, e);
+		expect(r).toMatchObject({ width: 1600, height: 2000, converted: true });
+		expect(r.copies?.map((c) => c.side)).toEqual([360, 720]);
+		expect(r.copies?.every((c) => c.blob.type === 'image/webp')).toBe(true);
+		// el dibujo de lo que se sube y el de cada copia, a su medida
+		expect(e.drawn.map(([w, h]) => [w, h])).toEqual([
+			[1600, 2000],
+			[360, 450],
+			[720, 900]
+		]);
+		const form = new FormData();
+		appendCopies(form, r);
+		expect(form.get('copy360')).toBeInstanceOf(Blob);
+		expect(form.get('copy720')).toBeInstanceOf(Blob);
+	});
+	it('si una copia no sale como WEBP, ninguna (y se sube igual)', async () => {
+		const file = new File([new Uint8Array(5000)], 'foto.jpg', { type: 'image/jpeg' });
+		let n = 0;
+		const r = await prepareImage(file, {
+			createImageBitmap: /** @type {any} */ (
+				async () => ({ width: 3000, height: 3000, close() {} })
+			),
+			makeCanvas: /** @type {any} */ (
+				() => ({
+					getContext: () => ({ drawImage() {} }),
+					// la primera (lo que se sube) sale bien; las copias, como PNG
+					convertToBlob: async () =>
+						new Blob([new Uint8Array(10)], { type: n++ === 0 ? 'image/webp' : 'image/png' })
+				})
+			)
+		});
+		expect(r.converted).toBe(true);
+		expect(r.copies).toEqual([]);
+		const form = new FormData();
+		appendCopies(form, r);
+		expect(form.has('copy360')).toBe(false);
+	});
 	it('un GIF (puede ser animado) va tal cual', async () => {
 		const file = new File([new Uint8Array(50)], 'anim.gif', { type: 'image/gif' });
 		const r = await prepareImage(file, env(10, 10));
 		expect(r.blob).toBe(file);
 		expect(r.converted).toBe(false);
+		expect(r.copies).toBeUndefined();
 	});
 	it('si el navegador no puede, sube el original', async () => {
 		const file = new File([new Uint8Array(50)], 'x.png', { type: 'image/png' });
