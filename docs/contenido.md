@@ -191,6 +191,12 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   entradas y la puerta (`tickets/events.js`), el panel (lista, ficha, agenda, No listadas,
   Lugares) y los crons leen **solo la base** (convertida al mismo `ProcessedPost` que daba un
   `.md`). Una dirección que la base no tiene es 404. Sin base no hay eventos.
+- **La página de un evento o un material** (`siteContent`): la dirección, el objeto y, a la par,
+  si es una parte oculta, sus relaciones y su portada (se descartan si no se puede ver); después
+  les autores con perfil, todes en una consulta (`findPublicProfiles` en
+  `src/lib/server/amigues/profiles.js`, lo mismo que `findPublicProfile` dirección por dirección).
+  La base está lejos: cada consulta que espera a otra es una ida y vuelta.
+  `siteContent-consultas.test.js` fija cuántas consultas y tandas en fila hace.
 - **Guardar** (`src/lib/server/contenido/repo.js`, `withContentDb`): todo lo que el panel escribe
   pasa por el cliente de contenido (`getRepoClient()`), que habla en rutas de los viejos `.md`
   (`src/lib/posts/<categoría>/<dirección>.md`) y las lleva a la base (editor, cargar y duplicar,
