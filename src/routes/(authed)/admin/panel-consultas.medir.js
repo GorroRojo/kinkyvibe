@@ -487,10 +487,10 @@ async function measure(spec) {
  * @type {Record<string, { caliente: number, nav: number }>}
  */
 const BOUNDS = {
-	[`/admin/eventos/${EVENT}/editar`]: { caliente: 9, nav: 10 }, // frío 10
-	[`/admin/eventos/${EVENT}`]: { caliente: 4, nav: 4 }, // frío 6
-	'/admin/eventos/nuevo': { caliente: 6, nav: 6 }, // frío 7
-	[`/admin/contenido/material/${MATERIAL}`]: { caliente: 5, nav: 6 }, // frío 6
+	[`/admin/eventos/${EVENT}/editar`]: { caliente: 3, nav: 3 }, // frío 4
+	[`/admin/eventos/${EVENT}`]: { caliente: 2, nav: 3 }, // frío 4
+	'/admin/eventos/nuevo': { caliente: 2, nav: 1 }, // frío 4
+	[`/admin/contenido/material/${MATERIAL}`]: { caliente: 2, nav: 2 }, // frío 4
 	[`/admin/eventos/${EVENT}/ventas`]: { caliente: 2, nav: 3 }, // frío 6
 	[`/admin/eventos/${EVENT}/ordenes`]: { caliente: 2, nav: 3 }, // frío 4
 	[`/admin/eventos/${EVENT}/transferencias`]: { caliente: 2, nav: 3 }, // frío 4
@@ -498,13 +498,13 @@ const BOUNDS = {
 	[`/admin/eventos/${EVENT}/codigos`]: { caliente: 2, nav: 3 }, // frío 4
 	[`/admin/eventos/${EVENT}/lista-espera`]: { caliente: 2, nav: 3 }, // frío 4
 	[`/admin/eventos/${EVENT}/mails`]: { caliente: 2, nav: 3 }, // frío 4
-	[`/admin/comunidad/perfiles/${PROFILE}`]: { caliente: 6, nav: 6 }, // frío 7
+	[`/admin/comunidad/perfiles/${PROFILE}`]: { caliente: 2, nav: 2 }, // frío 4
 	[`/admin/eventos/${EVENT}/ingreso`]: { caliente: 2, nav: 3 }, // frío 8
-	'/admin/contenido/material/nuevo': { caliente: 4, nav: 3 }, // frío 5
-	[`/edit/material/${MATERIAL}`]: { caliente: 4, nav: 4 }, // frío 5
-	'/admin/eventos/series': { caliente: 5, nav: 5 }, // frío 8
+	'/admin/contenido/material/nuevo': { caliente: 2, nav: 1 }, // frío 4
+	[`/edit/material/${MATERIAL}`]: { caliente: 2, nav: 1 }, // frío 4
+	'/admin/eventos/series': { caliente: 2, nav: 2 }, // frío 5
 	'/admin': { caliente: 2, nav: 2 }, // frío 4
-	'/admin/ventas': { caliente: 3, nav: 4 }, // frío 7
+	'/admin/ventas': { caliente: 2, nav: 2 }, // frío 5
 	'/admin/etiquetas': { caliente: 3, nav: 2 }, // frío 4
 	'/admin/ajustes/fondo': { caliente: 2, nav: 1 }, // frío 4
 	'(solo layouts)': { caliente: 2, nav: 0 }, // frío 4
