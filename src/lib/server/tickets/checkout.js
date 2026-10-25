@@ -191,14 +191,20 @@ export function typeBuyableNow(config, type, taken, now) {
  * El evento se lee una sola vez y el porcentaje se busca a la par de su lugar
  * (`options.fondo` de `getEventTickets`).
  *
+ * `fondo.staleOk` (solo para mostrar, nunca en `?/buy`): el último porcentaje conocido sin esperar
+ * a fondo.kinkyvibe.ar, que se consulta en segundo plano con `fondo.waitUntil` (fondo.js).
+ *
  * @param {import('@cloudflare/workers-types').D1Database | null} db
  * @param {string} slug
  * @param {typeof fetch} [fetchFn]
+ * @param {{ staleOk?: boolean, waitUntil?: (task: Promise<unknown>) => void }} [fondo]
  */
-export async function eventTicketsWithFondo(db, slug, fetchFn) {
+export async function eventTicketsWithFondo(db, slug, fetchFn, fondo = {}) {
 	return getEventTickets(slug, {
 		fondo: async (base) =>
-			base.fondoEnabled ? (await resolveFondoPercent({ db, fetch: fetchFn })).percent : undefined
+			base.fondoEnabled
+				? (await resolveFondoPercent({ db, fetch: fetchFn, ...fondo })).percent
+				: undefined
 	});
 }
 
@@ -233,15 +239,19 @@ const tierInfo = (type, tier) => ({
  * @param {import('@cloudflare/workers-types').D1Database | null} db
  * @param {string} slug
  * @param {typeof fetch} [fetchFn] para leer el porcentaje automático del Fondo
- * @param {{ waitlist?: boolean, offerId?: string | null }} [opts]
+ * @param {{ waitlist?: boolean, offerId?: string | null,
+ *   fondo?: { staleOk?: boolean, waitUntil?: (task: Promise<unknown>) => void } }} [opts]
  *   Lista de espera (docs/tickets.md): con `waitlist` (el interruptor `lista_espera` prendido),
  *   lo que se puede comprar es lo que sobra después de la fila (waitlistPurchase.js); con
  *   `offerId` (la anotación de una oferta vigente, de `findOffer`), lo que sobra después de los
  *   lugares guardados de otras personas. Sin `waitlist`, la fila no cambia nada.
+ *   `fondo`: solo para las páginas que muestran el precio sin vender (la del evento): el
+ *   porcentaje del Fondo conocido, sin esperar a la API (`eventTicketsWithFondo`). La página de
+ *   compra y `?/buy` no lo pasan.
  * @returns {Promise<TicketsView | null>} `null` si el evento no vende entradas
  */
 export async function getTicketsView(db, slug, fetchFn, opts = {}) {
-	const config = await eventTicketsWithFondo(db, slug, fetchFn);
+	const config = await eventTicketsWithFondo(db, slug, fetchFn, opts.fondo);
 	if (!config) return null;
 	const now = Date.now();
 	const state = salesState(config, now);

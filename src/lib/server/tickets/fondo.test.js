@@ -128,6 +128,114 @@ describe('porcentaje automático del Fondo', () => {
 	});
 });
 
+/** Un fetch de fondo.kinkyvibe.ar que no contesta hasta `release()`. */
+function gatedFetch(/** @type {number} */ percent) {
+	/** @type {() => void} */
+	let release = () => {};
+	const gate = new Promise((r) => (release = () => r(undefined)));
+	const fn = vi.fn(async () => {
+		await gate;
+		return new Response(JSON.stringify({ percent }));
+	});
+	return { fn, release: () => release() };
+}
+
+describe('staleOk: solo para mostrar, sin esperar a la API', () => {
+	it('con un porcentaje guardado, lo da sin esperar y lo actualiza en segundo plano', async () => {
+		const f = await load();
+		await f.resolveFondoPercent({ db: t.db, fetch: fakeFetch({ percent: 20 }), now: 1000 });
+		const later = 11 * 60000; // la memoria venció
+		const api = gatedFetch(30);
+		/** @type {Promise<unknown>[]} */
+		const tasks = [];
+		/** @param {Promise<unknown>} p */
+		const waitUntil = (p) => void tasks.push(p);
+		const r = await f.resolveFondoPercent({
+			db: t.db,
+			fetch: api.fn,
+			now: later,
+			staleOk: true,
+			waitUntil
+		});
+		// Contestó con la API todavía sin responder.
+		expect(r).toEqual({ percent: 20, source: 'live', updatedAt: 1000 });
+		expect(api.fn).toHaveBeenCalledTimes(1);
+		expect(tasks).toHaveLength(1);
+		// Mientras tanto, otra vista no larga otra actualización.
+		await f.resolveFondoPercent({ db: t.db, fetch: api.fn, now: later, staleOk: true, waitUntil });
+		expect(api.fn).toHaveBeenCalledTimes(1);
+		expect(tasks).toHaveLength(1);
+		api.release();
+		await Promise.all(tasks);
+		// Ya actualizado: memoria y D1.
+		const after = await f.resolveFondoPercent({ db: t.db, fetch: down, now: later + 1 });
+		expect(after).toEqual({ percent: 30, source: 'live', updatedAt: later });
+		expect(await f.getStoredPercent(t.db)).toEqual({ percent: 30, at: later });
+	});
+
+	it('en un isolate nuevo, usa el guardado en D1', async () => {
+		let f = await load();
+		await f.resolveFondoPercent({ db: t.db, fetch: fakeFetch({ percent: 20 }), now: 1000 });
+		f = await load(); // sin la memoria del isolate
+		const api = gatedFetch(30);
+		const tasks = /** @type {Promise<unknown>[]} */ ([]);
+		const r = await f.resolveFondoPercent({
+			db: t.db,
+			fetch: api.fn,
+			now: 2000,
+			staleOk: true,
+			waitUntil: (p) => void tasks.push(p)
+		});
+		expect(r).toEqual({ percent: 20, source: 'stored', updatedAt: 1000 });
+		api.release();
+		await Promise.all(tasks);
+	});
+
+	it('sin porcentaje conocido, sin staleOk o sin waitUntil, espera a la API como siempre', async () => {
+		vi.spyOn(console, 'warn').mockImplementation(() => {});
+		let f = await load();
+		const waitUntil = vi.fn();
+		const fresh = await f.resolveFondoPercent({
+			db: t.db,
+			fetch: fakeFetch({ percent: 20 }),
+			now: 1000,
+			staleOk: true,
+			waitUntil
+		});
+		expect(fresh).toEqual({ percent: 20, source: 'live', updatedAt: 1000 });
+		expect(waitUntil).not.toHaveBeenCalled();
+		const later = 11 * 60000;
+		// La compra (sin staleOk) espera el valor nuevo.
+		const r = await f.resolveFondoPercent({
+			db: t.db,
+			fetch: fakeFetch({ percent: 40 }),
+			now: later
+		});
+		expect(r.percent).toBe(40);
+		// Sin waitUntil (fuera de un Worker), también espera.
+		f = await load();
+		const s = await f.resolveFondoPercent({
+			db: t.db,
+			fetch: fakeFetch({ percent: 50 }),
+			now: later + 1,
+			staleOk: true
+		});
+		expect(s.percent).toBe(50);
+	});
+
+	it('el fijado en Ajustes sigue ganando', async () => {
+		const f = await load();
+		const v = /** @type {any} */ (validateSalesSettings({ fondo_percent_override: '50' })).value;
+		await saveSalesSettings(t.db, v, { by: 'admin' });
+		const api = gatedFetch(30);
+		const waitUntil = vi.fn();
+		const r = await f.resolveFondoPercent({ db: t.db, fetch: api.fn, staleOk: true, waitUntil });
+		expect(r.source).toBe('admin');
+		expect(api.fn).not.toHaveBeenCalled();
+		expect(waitUntil).not.toHaveBeenCalled();
+	});
+});
+
 describe('precedencia y redondeo en la configuración del evento', () => {
 	const META = {
 		title: 'x',
