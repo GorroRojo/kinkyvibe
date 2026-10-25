@@ -19,9 +19,16 @@ declare global {
 			user_token: string;
 			/**
 			 * Cuenta del público con sesión abierta (src/lib/server/cuentas/web.js). Independiente de
-			 * `user` (admins): una persona puede tener las dos, una o ninguna.
+			 * `user` (admins): una persona puede tener las dos, una o ninguna. `readingSpeed` y
+			 * `canHaveProfiles` vienen con la sesión (`getSessionAccount`), para no volver a leer la
+			 * cuenta; sin ellos (otros caminos), se leen de la base. Nunca `preferences` (el DNI).
 			 */
-			member?: { id: string; email: string };
+			member?: {
+				id: string;
+				email: string;
+				readingSpeed?: number | null;
+				canHaveProfiles?: boolean;
+			};
 		}
 		// interface Error {}
 		// interface Locals {}
