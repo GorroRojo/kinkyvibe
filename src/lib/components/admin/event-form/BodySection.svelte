@@ -2,6 +2,9 @@
 	/**
 	 * Sección «Texto» del formulario: el texto de la página en markdown, con CodeMirror. La
 	 * misma al crear un evento (/admin/eventos/nuevo), al editar (PostEditor) y en ContentEditor.
+	 * CodeMirror (~150 KB comprimido) se baja recién cuando se monta la sección (`import()`), no con
+	 * el resto del panel: mientras llega, el texto se ve tal cual en un recuadro del mismo tamaño
+	 * («Cargando el editor…»), y en el servidor sale ese recuadro.
 	 * Con el slot `preview` (ContentEditor) muestra al lado una vista previa; en pantallas angostas,
 	 * con botones «Editar / Vista previa».
 	 *
@@ -12,15 +15,31 @@
 	 * - Slot `hint`: la ayuda de formato (arriba del editor).
 	 * - Slot `preview`: la vista previa (opcional).
 	 */
+	import { onMount } from 'svelte';
 	import SectionHeading from './SectionHeading.svelte';
-	import CodeMirror from 'svelte-codemirror-editor';
-	import { markdown } from '@codemirror/lang-markdown';
 
 	export let value = '';
 	/** @type {string | undefined} */
 	export let id = undefined;
 
-	const lang = markdown();
+	/** El componente de CodeMirror, cuando llegó. @type {any} */
+	let CodeMirror = null;
+	/** @type {any} */
+	let lang = null;
+	let failed = false;
+	onMount(async () => {
+		try {
+			const [cm, md] = await Promise.all([
+				import('svelte-codemirror-editor'),
+				import('@codemirror/lang-markdown')
+			]);
+			lang = md.markdown();
+			CodeMirror = cm.default;
+		} catch (e) {
+			console.error('[editor] no se pudo cargar CodeMirror:', e);
+			failed = true;
+		}
+	});
 	const withPreview = Boolean($$slots.preview);
 	/** @type {'editar'|'vista'} */
 	let pane = 'editar';
@@ -52,7 +71,17 @@
 				>
 			</p>
 			<div class="editor" {id}>
-				<CodeMirror lineWrapping tabSize={4} bind:value {lang} />
+				{#if CodeMirror}
+					<svelte:component this={CodeMirror} lineWrapping tabSize={4} bind:value {lang} />
+				{:else if failed}
+					<!-- Sin CodeMirror (se cortó la conexión): un campo común, así se puede seguir. -->
+					<textarea class="editor-fallback" bind:value aria-label="Texto"></textarea>
+				{:else}
+					<div class="editor-loading">
+						<span class="editor-loading-label" role="status">Cargando el editor…</span>
+						<pre>{value}</pre>
+					</div>
+				{/if}
 			</div>
 		</div>
 		{#if withPreview}
@@ -80,6 +109,36 @@
 			color: var(--muted, inherit);
 			border-color: var(--line, #ddd);
 		}
+	}
+	/* Mientras llega CodeMirror: el mismo recuadro (alto mínimo y máximo, fondo), con el texto. */
+	.editor-loading,
+	.editor-fallback {
+		display: block;
+		width: 100%;
+		min-height: 12rem;
+		max-height: 40rem;
+		overflow: auto;
+		margin: 0;
+		border: 0;
+		padding: var(--space-3xs) var(--space-xs);
+		background: var(--surface, white);
+		color: var(--text, #333);
+	}
+	.editor-loading pre {
+		margin: 0;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		color: var(--muted, inherit);
+	}
+	.editor-loading-label {
+		display: block;
+		font-size: var(--text-xs);
+		color: var(--muted, inherit);
+		margin-bottom: var(--space-3xs);
+	}
+	.editor-fallback {
+		font-family: monospace;
+		resize: vertical;
 	}
 	.panes-toggle {
 		display: none;

@@ -632,6 +632,12 @@ pierde.
 | Menú, atajos, tema, borradores      | `src/lib/admin/` (`nav.js`, `navPrefs.js`, `sidebarMode.js`, `commands.js`, `paletteActions.js`, `shortcutHints.js`, `theme.js`, `draft.js`) |
 | Componentes y estilos               | `src/lib/components/admin/` (`panel/`, `door/`, `inicio/`…), `src/lib/admin/panel*.scss`                                                     |
 
+El editor de texto de los formularios de eventos, material y amigues (CodeMirror, sección «Texto»,
+`src/lib/components/admin/event-form/BodySection.svelte`) se baja recién cuando se monta esa
+sección (`import()`), no con el resto del panel. Mientras llega se ve el texto en un recuadro del
+mismo tamaño con «Cargando el editor…»; si no se puede bajar, queda un campo de texto común. Si
+agregás otro editor pesado, cargalo igual.
+
 ## Cómo probar
 
 ```sh
