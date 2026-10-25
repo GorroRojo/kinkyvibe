@@ -24,24 +24,10 @@ export const FREE_BODY_CLASS = 'kv-texto-libre';
 export const BODY_HTML = /** @type {const} */ (['libre', 'corta']);
 
 /**
- * Los archivos que no son imágenes de las carpetas de medios viejas (PDF, video, documentos), que
- * el material enlaza con `<a href={guia}>`. Todavía no están en la biblioteca: viven en
- * src/lib/archivos/<categoría>/<carpeta>/ (antes, src/lib/posts/<categoría>/media/<carpeta>/) y
- * se sirven desde el build con la misma dirección de siempre (el build la arma con el nombre y el
- * contenido del archivo, no con su carpeta). Para pasarlos a la biblioteca:
- * scripts/subir-archivos.js ($lib/server/media/archivosViejos.js).
- * @type {Record<string, string>}
- */
-const fileURLs = import.meta.glob('/src/lib/archivos/*/*/*.{pdf,mp4,webm,odt}', {
-	eager: true,
-	query: '?url',
-	import: 'default'
-});
-
-/**
- * URL de un archivo de la carpeta de medios vieja de un post (imagen, PDF, video…), o `undefined`.
- * Las imágenes, su copia en la biblioteca ($lib/utils/legacyMedia.js); lo demás, el archivo de
- * src/lib/archivos.
+ * URL de un archivo de la carpeta de medios vieja de un post, o `undefined`: solo las imágenes,
+ * que tienen su copia en la biblioteca ($lib/utils/legacyMedia.js). Los PDF, el video y el
+ * documento viejos del material también están en la biblioteca (`archivo`), pero sus textos ya los
+ * nombran por su dirección `/media/file/…`, así que acá no hacen falta.
  *
  * @param {string} category
  * @param {string} folder
@@ -49,10 +35,7 @@ const fileURLs = import.meta.glob('/src/lib/archivos/*/*/*.{pdf,mp4,webm,odt}', 
  */
 export function contentMediaURL(category, folder, file) {
 	if (!/^[\w.-]+$/.test(file) || !/^[\w.-]+$/.test(folder)) return undefined;
-	return (
-		mediaURL(/** @type {any} */ (category), folder, file) ??
-		fileURLs[`/src/lib/archivos/${category}/${folder}/${file}`]
-	);
+	return mediaURL(/** @type {any} */ (category), folder, file);
 }
 
 /**
