@@ -788,6 +788,17 @@ const LIST_OUTPUTS = [
 		['evento']
 	],
 	[
+		'/api/calendario/pasados?mes=2099-03&enteros=1 (la lista con «Mostrar eventos pasados»)',
+		() =>
+			whenPlantedEventsArePast(() =>
+				get(
+					import('./api/calendario/pasados/+server.js'),
+					anonEvent({ path: '/api/calendario/pasados?mes=2099-03&enteros=1' })
+				)
+			),
+		['evento']
+	],
+	[
 		'/material',
 		() => load(import('./(content)/material/+page.server.js'), anonEvent({ path: '/material' })),
 		['material']

@@ -17,6 +17,17 @@ El panel de admin redefine los de color y sombra para su tema oscuro en
   ~80 módulos de JS, con su misma prioridad, y en Chrome las letras llegaban más tarde que sin
   precarga. Si cambiás un archivo de letra o agregás un peso, revisá `PRELOADED_FONT` (lo controla
   una prueba de `tests/smoke.spec.js`).
+- Mientras llega Lato (`font-display: swap`) el texto sale en una **letra de respaldo con las
+  medidas de Lato**: `'Lato Fallback'` (Arial, o Liberation Sans, que mide igual) y
+  `'Lato Fallback Roboto'` (Android), con `size-adjust`, `ascent-override`, `descent-override` y
+  `line-gap-override` por peso (400 y 700) en `style.scss`. Así, cuando llega Lato, las líneas no
+  cambian y la página no salta (en `/material` a 390px: CLS 0,41 → 0,05 con la letra demorada
+  1,5 s). Donde pidas Lato, poné la lista entera:
+  `'Lato', 'Lato Fallback', 'Lato Fallback Roboto', sans-serif` (lo controla
+  `src/tests/fuente-respaldo.test.js`). Si cambiás los archivos de Lato, recalculá los números: el
+  ancho promedio de las letras (pesado por cuánto aparece cada una en los textos de la semilla)
+  de Lato dividido por el del respaldo da `size-adjust`, y el alto de Lato (hhea) dividido por
+  `size-adjust`, los `*-override`.
 - Colores nuevos no: mezclá los del sitio con `color-mix` o usá los alias de abajo.
 - Si agregás un token de color o sombra, dale también su valor oscuro en `@mixin dark` del panel.
 - Los textos del contenido (en la base, y la semilla `src/lib/server/semilla/*.json`) no se
@@ -163,6 +174,13 @@ armar una variante nueva en un componente.
 
 Una excepción a los avisos: los carteles de la Puerta (`ingreso`) no son `Notice`. Tienen su
 estilo oscuro propio, el mismo que los de «sin conexión» y «pendientes».
+
+**Barra de carga.** Mientras llega la página siguiente al navegar, una barrita de 3px arriba de
+todo: en el sitio, rosa de la marca (`--1`, `LoadingBar.svelte` en el layout del sitio); en el
+panel, violeta (`--link`, en `admin/+layout.svelte`). Aparece solo si la navegación tarda (más de
+150 ms en el sitio), así una rápida no parpadea. Crece rápido y cada vez más lento, sin llegar al
+final; con «reducir movimiento», queda quieta y entera. Es un `progressbar` sin valor con
+`aria-label="Cargando la página"`.
 
 ### Ajustes del 4/10 (decisión de gorrite)
 

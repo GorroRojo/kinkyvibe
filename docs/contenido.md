@@ -43,7 +43,10 @@ queda marcado con el tag de git `posts-md-final`. Ningún guardado del panel pas
   el material ya leído (y visto: si no, 404 o la redirección, como siempre), "Más cosas de…" con
   sus lugares, su venta, los pronombres y las personas (con los roles a la par de los perfiles)
   salen a la par. `material-consultas.test.js` (al lado de la ruta) fija cuántas consultas y
-  tandas en fila hace, en frío y en caliente.
+  tandas en fila hace, en frío y en caliente. Un material que redirige (`redirect` con `link`, por
+  ejemplo a la tienda) redirige apenas leído el objeto (`followRedirect` de `siteContent`), sin
+  leer sus relaciones, su portada ni sus autores ni armar el texto (de 7 consultas en 3 tandas a
+  2); uno oculto (solo admins) sigue el camino de siempre.
 - **`/calendario` trae los pasados de a un mes**: los próximos enteros y, de los pasados, los del
   mes que abre; los de otro mes los pide al ir a ese mes (`/api/calendario/pasados?mes=yyyy-MM`,
   `src/lib/server/eventos/pasados.js`; detalles en [seo.md](seo.md)).

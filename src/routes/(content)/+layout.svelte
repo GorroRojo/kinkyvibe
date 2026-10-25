@@ -17,6 +17,7 @@
 	import { filteredTags, currentPostData, togglePositiveTagFilterFn } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import AgeModal from '$lib/components/AgeModal.svelte';
+	import LoadingBar from '$lib/components/LoadingBar.svelte';
 	import SearchLauncher from '$lib/components/SearchLauncher.svelte';
 	import SearchButton from '$lib/components/SearchButton.svelte';
 	import { accountLink } from '$lib/utils/cuentas.js';
@@ -77,6 +78,8 @@
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 </svelte:head>
 
+<!-- Mientras carga la página siguiente (si tarda más de 150 ms), una barrita arriba. -->
+<LoadingBar />
 <AgeModal />
 <SearchLauncher />
 
@@ -106,7 +109,9 @@
 			<!-- fanzines -->
 		</ul>
 		<a id="logo" rel="home" href="/">
-			<img src={logo} alt="Kinky Vibe" />
+			<!-- width y height: las medidas del PNG, así el lugar queda reservado antes de que llegue
+			(el CSS lo achica con height: auto, sin cambiar cómo se ve). -->
+			<img src={logo} alt="Kinky Vibe" width="199" height="192" />
 		</a>
 		<div id="user">
 			{#if data.user && data.user !== undefined && data.user.login !== undefined && data.user.login !== ''}
@@ -283,6 +288,7 @@
 	#logo img {
 		max-width: 10vh;
 		min-width: 2em;
+		height: auto;
 	}
 	#user {
 		grid-area: user;
