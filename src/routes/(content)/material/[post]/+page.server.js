@@ -7,6 +7,7 @@ import { personasForPage } from '$lib/server/personas/index.js';
 import { getDB } from '$lib/server/db';
 import { relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
+import { askPostPageEarly } from '$lib/server/contenido/adelantar.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, locals, setHeaders }) {
@@ -16,6 +17,9 @@ export async function load({ params, platform, locals, setHeaders }) {
 	// original, que sigue tirando como antes).
 	const postsP = sitePosts(platform);
 	postsP.catch(() => {});
+	// Los lugares de «Más cosas de…» y las personas, adelantados con lo que saben las listas
+	// (src/lib/server/contenido/adelantar.js): en la misma ida que el post.
+	askPostPageEarly(platform, locals, 'material', params.post);
 	// El post de la base (con su texto ya armado); si la base no lo tiene, o quien mira no lo puede
 	// ver, 404. Si redirige (a la tienda, por ejemplo), la redirección sale apenas leído el objeto
 	// (`followRedirect`), sin leer ni armar lo demás.

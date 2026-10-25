@@ -325,6 +325,11 @@ manda lo pendiente y olvida lo leído; si la tanda falla, cada consulta se corre
 - Juntar no saca tandas en fila: lo que depende de una respuesta sale en la tanda siguiente. Para
   bajar de idas, una página tiene que pedir antes (por la dirección en vez de por el id ya leído,
   o adelantando lo que se puede saber).
+- Las páginas de un evento y de un material, sin sesión y con el isolate caliente, van en una
+  ida: piden las relaciones, la portada y el lugar por la dirección, y adelantan lo demás con lo
+  que saben las listas del isolate (`src/lib/server/contenido/adelantar.js`, `peekSitePost`, las
+  pistas de `DbState`). Lo de después recibe lo ya leído; si el post cambió, sale aparte. Nunca
+  decide qué se muestra.
 - Para ver cada tanda y quién pidió cada consulta en las pruebas de cuentas:
   `KV_CONSULTAS=detalle npx vitest run --silent=false --disableConsoleIntercept <archivo>`.
 

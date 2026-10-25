@@ -78,6 +78,21 @@ export async function profilePosts(db, viewer, { kind, unlisted = false, tagMana
 }
 
 /**
+ * Las direcciones de perfil que nombra `authors:` (sin la del mismo post): las que busca
+ * {@link authorProfilePosts}.
+ * @param {unknown} authors
+ * @param {string | undefined} postID
+ * @returns {string[]}
+ */
+export function authorSlugs(authors, postID) {
+	if (!Array.isArray(authors)) return [];
+	return authors
+		.filter((a) => typeof a === 'string' && a.trim())
+		.map((a) => a.replaceAll(' ', '-'))
+		.filter((slug) => slug !== postID);
+}
+
+/**
  * Los perfiles de los autores de un post (`authors:`, por nombre con espacios → guiones, como las
  * fichas .md) que quien mira puede ver, como posts: lo que muestran los eventos y el material
  * («Por …» y las tarjetas de les autores).
@@ -89,10 +104,7 @@ export async function profilePosts(db, viewer, { kind, unlisted = false, tagMana
  */
 export async function authorProfilePosts(db, authors, { postID, viewer = ANON } = {}) {
 	if (!db || !Array.isArray(authors)) return [];
-	const slugs = authors
-		.filter((a) => typeof a === 'string' && a.trim())
-		.map((a) => a.replaceAll(' ', '-'))
-		.filter((slug) => slug !== postID);
+	const slugs = authorSlugs(authors, postID);
 	if (!slugs.length) return [];
 	// Todes en una consulta (antes, cuatro por autore, una detrás de otra).
 	const found = await findPublicProfiles(db, slugs, viewer).catch(() => new Map());

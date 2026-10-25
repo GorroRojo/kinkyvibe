@@ -178,6 +178,9 @@ describe('la página de un material, en pocas tandas', () => {
 				`[material] frío: ${r.queries} consultas en ${r.waves} tandas; caliente: ${warm.queries} en ${warm.waves}`
 			);
 		}
+		// En caliente y sin sesión, una sola ida (con solo las tandas automáticas: 4 en 4).
+		expect(warm.queries).toBe(1);
+		expect(warm.waves).toBe(1);
 		// Antes: 16 consultas en 14 tandas en frío; 11 en 9 en caliente.
 		expect(r.queries).toBeLessThanOrEqual(14);
 		expect(r.waves).toBeLessThanOrEqual(6);

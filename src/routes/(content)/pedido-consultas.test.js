@@ -95,8 +95,8 @@ const BOUNDS = {
 	'/material': { frío: 4, caliente: 1, tibio: 2 }, // (5, 1, 3)
 	'/amigues': { frío: 4, caliente: 1, tibio: 2 }, // (7, 1, 3)
 	'/wiki/BDSM': { frío: 8, caliente: 2, tibio: 6 }, // (10, 2, 8)
-	[`/calendario/${EVENT}`]: { frío: 4, caliente: 3, tibio: 4 }, // (20, 15, 18)
-	'/material/6-tips-para-tops': { frío: 4, caliente: 3, tibio: 4 }, // (10, 6, 8)
+	[`/calendario/${EVENT}`]: { frío: 4, caliente: 1, tibio: 2 }, // (20, 15, 18); con solo las tandas, (4, 3, 4)
+	'/material/6-tips-para-tops': { frío: 4, caliente: 1, tibio: 2 }, // (10, 6, 8); con solo las tandas, (4, 3, 4)
 	'/amigues/autore-inventade': { frío: 5, caliente: 2, tibio: 3 } // (10, 5, 8)
 };
 

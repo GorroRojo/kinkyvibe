@@ -1,8 +1,13 @@
 import { error } from '@sveltejs/kit';
 import { currentRelated, relatedPostsFor } from '$lib/utils';
 import { siteEvent, sitePosts } from '$lib/server/contenido/posts.js';
+import { askPostPageEarly } from '$lib/server/contenido/adelantar.js';
 import { getDB } from '$lib/server/db';
-import { getTicketsView, summarizeTickets } from '$lib/server/tickets/checkout.js';
+import {
+	getTicketsView,
+	prefetchTicketsView,
+	summarizeTickets
+} from '$lib/server/tickets/checkout.js';
 import { getEventTickets, isValidEventSlug } from '$lib/server/tickets/events.js';
 import { waitlistJoinStates } from '$lib/server/tickets/waitlistSignup.js';
 import { listaEsperaEnabled } from '$lib/server/flags.js';
@@ -17,6 +22,7 @@ import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 import { readWorkshop } from '$lib/server/eventos/partes.js';
 import { coveringTicketSlug, partOf } from '$lib/utils/partes.js';
 import { mentionPronouns } from '$lib/server/pronouns';
+import { hasOwnTickets } from '$lib/utils/ticketCta.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
@@ -24,8 +30,11 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	// consulta que espera a otra es una ida y vuelta más. Nada de esto se muestra hasta saber que
 	// quien mira puede ver el evento (si no, 404 y se descarta).
 	const waitlistOn = listaEsperaEnabled(platform);
+	// El momento de la venta: el mismo para lo adelantado (`askEarly`) y para la lectura de verdad.
+	const now = Date.now();
+	askEarly(params.event, platform, locals, waitlistOn, now);
 	const early = {
-		ownTickets: loadTickets(params.event, platform, fetch, waitlistOn),
+		ownTickets: loadTickets(params.event, platform, fetch, waitlistOn, now),
 		// "Sucede en": el lugar según su privacidad (docs/amigues.md); `null` si no tiene lugar.
 		venue: eventPageVenue(getDB(platform), params.event, locals),
 		// Talleres en varias partes: el taller y sus partes (`null` si no es parte de ninguno).
@@ -33,11 +42,12 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	};
 	// Una parte de un taller con una sola entrada: el botón de compra es el del taller (si la
 	// entrada es la de este mismo evento, ya está en camino).
-	const partTickets = early.partes.then((partes) =>
-		partes?.ticketSlug && partes.ticketSlug !== params.event
-			? loadTickets(partes.ticketSlug, platform, fetch, waitlistOn)
-			: undefined
-	);
+	const partTickets = early.partes.then((partes) => {
+		if (!locals.user && !locals.member) rememberPartTickets(params.event, partes?.ticketSlug);
+		return partes?.ticketSlug && partes.ticketSlug !== params.event
+			? loadTickets(partes.ticketSlug, platform, fetch, waitlistOn, now)
+			: undefined;
+	});
 	// Con un 404 (o si falla la lectura del evento) nadie las espera: que un error suyo no quede
 	// sin atender. Más abajo se esperan las originales, que siguen tirando como antes.
 	for (const p of [waitlistOn, partTickets, ...Object.values(early)]) p.catch(() => {});
@@ -74,6 +84,49 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		// Con lugar, el «Dónde» del evento no sale del servidor.
 		post: venue ? { ...post, meta: stripMdPlace(post.meta) } : post
 	};
+}
+
+/**
+ * De qué evento es la entrada de cada parte de un taller con una sola entrada (por dirección de la
+ * parte), según lo que vio sin sesión el último pedido de este isolate. Solo para adelantar la
+ * lectura de la venta del taller (`askEarly`): la de verdad sale de `readWorkshop`.
+ * @type {Map<string, string>}
+ */
+const partTicketHints = new Map();
+const PART_HINTS_MAX = 200;
+
+/**
+ * @param {string} slug
+ * @param {string | null | undefined} ticketSlug
+ */
+function rememberPartTickets(slug, ticketSlug) {
+	if (!ticketSlug || ticketSlug === slug) {
+		partTicketHints.delete(slug);
+		return;
+	}
+	if (partTicketHints.size >= PART_HINTS_MAX) partTicketHints.clear();
+	partTicketHints.set(slug, ticketSlug);
+}
+
+/**
+ * Lo que la página pregunta después de leer el evento, adelantado (src/lib/server/contenido/
+ * adelantar.js): los lugares de los relacionados, las personas y, si vende entradas, lo que lee la
+ * venta; si es una parte de un taller con una sola entrada (lo vio un pedido anterior de este
+ * isolate), lo que lee la venta del taller.
+ * @param {string} slug
+ * @param {App.Platform | undefined} platform
+ * @param {App.Locals} locals
+ * @param {Promise<boolean>} waitlistOn
+ * @param {number} now
+ */
+function askEarly(slug, platform, locals, waitlistOn, now) {
+	const known = askPostPageEarly(platform, locals, 'calendario', slug);
+	if (!known) return;
+	if (hasOwnTickets(known.meta) && isValidEventSlug(slug))
+		prefetchTicketsView(known.db, slug, now, { waitlist: waitlistOn });
+	const workshop = partTicketHints.get(slug);
+	if (workshop && isValidEventSlug(workshop))
+		prefetchTicketsView(known.db, workshop, now, { waitlist: waitlistOn });
 }
 
 /**
@@ -164,8 +217,9 @@ async function loadPartes(slug, platform, locals) {
  * @param {App.Platform|undefined} platform
  * @param {typeof fetch} fetchFn
  * @param {Promise<boolean>} waitlistFlag el interruptor de la lista de espera (`listaEsperaEnabled`)
+ * @param {number} now el momento de la venta
  */
-async function loadTickets(slug, platform, fetchFn, waitlistFlag) {
+async function loadTickets(slug, platform, fetchFn, waitlistFlag, now) {
 	if (!isValidEventSlug(slug)) return null;
 	// Lista de espera: con el interruptor prendido, lo que sobra después de la fila (como /entradas).
 	const db = getDB(platform);
@@ -174,6 +228,7 @@ async function loadTickets(slug, platform, fetchFn, waitlistFlag) {
 	// esperar a fondo.kinkyvibe.ar; se actualiza en segundo plano (tickets/fondo.js).
 	const ctx = platform?.ctx;
 	const view = await getTicketsView(db, slug, fetchFn, {
+		now,
 		waitlist: waitlistOn,
 		fondo: ctx?.waitUntil ? { staleOk: true, waitUntil: (task) => ctx.waitUntil(task) } : {}
 	});

@@ -34,6 +34,7 @@ import { isCurrent } from '$lib/utils/allPosts';
 import { currentSiteTagList, currentSiteTags } from '$lib/utils/siteTags.js';
 import { getDB } from '$lib/server/db';
 import { oncePerRequest, readAndKeep } from '$lib/server/db/perRequest.js';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
 import { ANON, canSee, partVisibleWhere, visibleWhere } from '$lib/server/objects/visibility.js';
 import { OBJECT_COLUMNS, forViewer, rowToObject } from '$lib/server/objects/read.js';
 import { CATEGORY_LIST, CONTENT_CATEGORIES, categoryOfType } from './categories.js';
@@ -41,12 +42,16 @@ import { EVENT_CATEGORY } from './eventos.js';
 import { renderContentBody } from './render.js';
 import { personaEdgesColumn, personaEdgesFromColumn } from './personasEdges.js';
 import { tagEdgesColumn, tagEdgesFromColumn } from './etiquetasEdges.js';
-import { hydrateContent, withContentEdges } from './relaciones.js';
-import { publicLinksOf } from './vinculosPublicos.js';
-import { imageOf } from '$lib/server/media/library.js';
+import { contentEdgesFrom, withContentEdges, withEdgesOf } from './relaciones.js';
+import { linkRefsOf, publicLinkTargets, publicLinksOf } from './vinculosPublicos.js';
+import { imageOfFrom } from '$lib/server/media/library.js';
 import { mediaPath } from '$lib/server/media/sniff.js';
-import { authorProfilePosts, toPublic } from '$lib/server/amigues/asPost.js';
-import { profileAsPost, shownProfileSql } from '$lib/server/amigues/profiles.js';
+import { authorProfilePosts, authorSlugs, toPublic } from '$lib/server/amigues/asPost.js';
+import {
+	findPublicProfiles,
+	profileAsPost,
+	shownProfileSql
+} from '$lib/server/amigues/profiles.js';
 import { siteWikiPosts } from '$lib/server/wiki/site.js';
 import { pageReadingMinutes, pageReadingWords } from '$lib/utils/readingTime.js';
 
@@ -93,9 +98,21 @@ const isDbCategory = (p) => Object.hasOwn(CONTENT_CATEGORIES, String(p.meta.cate
  *   paths: Map<number, string>,
  *   profiles: { listed: ProcessedPost[], unlisted: ProcessedPost[] },
  *   bodies?: Map<string, string>,
- *   pronouns?: Record<string, string>
+ *   pronouns?: Record<string, string>,
+ *   hints?: Map<string, PostHint>
  * }} DbState
  *   `profiles`: los perfiles de amigues que ve cualquiera, como posts (src/lib/server/amigues/asPost.js).
+ *   `hints`: por `<categoría>/<dirección>` (la vieja y la del objeto), lo que la página de cada post
+ *   va a preguntar después de leerlo (ver {@link PostHint}).
+ */
+
+/**
+ * Lo que la página de un post pregunta a la base después de leerlo, sacado de la metadata con que
+ * se armaron las listas (antes de quitar los vínculos que no ve cualquiera): los vínculos a
+ * revisar (`publicLinksOf`) y les autores (`authorProfilePosts`). La página lo pregunta a la par de
+ * la lectura del post (una ida en vez de dos, ./db/autoBatch.js): si el post cambió y la pregunta
+ * de verdad es otra, sale aparte, como siempre. Nunca decide qué se muestra.
+ * @typedef {{ refs: { slugs: string[], keys: string[] }, authors: unknown, postID: string }} PostHint
  */
 
 /**
@@ -255,7 +272,8 @@ async function edgeState(db, stamp, tree) {
 					listed: saved.listed,
 					unlisted: saved.unlisted,
 					paths: new Map(saved.paths),
-					profiles: saved.profiles
+					profiles: saved.profiles,
+					hints: new Map(saved.hints ?? [])
 				};
 			}
 		} catch {
@@ -271,7 +289,8 @@ async function edgeState(db, stamp, tree) {
 			listed: state.listed,
 			unlisted: state.unlisted,
 			paths: [...state.paths],
-			profiles: state.profiles
+			profiles: state.profiles,
+			hints: [...(state.hints ?? [])]
 		});
 		try {
 			await cache.put(
@@ -361,6 +380,15 @@ async function loadDbState(db, stamp, tree) {
 		db,
 		content.map((c) => c.meta)
 	);
+	/** @type {Map<string, PostHint>} */
+	const hints = new Map();
+	for (const { r, meta } of content) {
+		const category = categoryOfType(String(r.type))?.category;
+		const postID = r.legacy_slug ? String(r.legacy_slug) : String(r.slug);
+		const hint = { refs: linkRefsOf(meta), authors: meta.authors, postID };
+		hints.set(`${category}/${r.slug}`, hint);
+		if (r.legacy_slug) hints.set(`${category}/${r.legacy_slug}`, hint);
+	}
 	/** @type {Map<Record<string, unknown>, Record<string, any>>} */
 	const metaOf = new Map(content.map((c, i) => [c.r, metas[i]]));
 	for (const r of rows.results) {
@@ -396,7 +424,7 @@ async function loadDbState(db, stamp, tree) {
 		(post.meta.force_unlisted ? unlisted : listed).push(post);
 		paths.set(Number(r.id), post.path);
 	}
-	return { stamp, listed, unlisted, paths, profiles };
+	return { stamp, listed, unlisted, paths, profiles, hints };
 }
 
 /**
@@ -554,6 +582,25 @@ export async function sitePosts(platform, wiki = false, unlisted = false) {
 	const posts = mergedFor(state, unlisted).slice();
 	stateOfList.set(posts, state);
 	return posts;
+}
+
+/**
+ * Para adelantar consultas (nunca para mostrar): el post `<categoría>/<dirección>` y la lista
+ * listada como las armó este isolate la última vez, sin preguntar si la base cambió. `null` si el
+ * isolate no tiene listas o no lo tiene listado. Quien adelanta con esto vuelve a preguntar con lo
+ * leído de verdad (./db/autoBatch.js: si es lo mismo, no sale otra consulta).
+ *
+ * @param {string} category
+ * @param {string} slug
+ * @returns {{ post: ProcessedPost, posts: ProcessedPost[] } | null}
+ */
+export function peekSitePost(category, slug) {
+	const state = cached?.state;
+	if (!state) return null;
+	const posts = mergedFor(state, false);
+	const path = `/${category}/${slug}`;
+	const post = posts.find((p) => p.path === path) ?? state.unlisted.find((p) => p.path === path);
+	return post ? { post, posts } : null;
 }
 
 /**
@@ -739,6 +786,42 @@ export function resolveEventSlug(db, slug) {
 }
 
 /**
+ * Lo que la página de un post pregunta después de leerlo, pedido a la par de su lectura (con las
+ * tandas automáticas, en la misma ida; ./db/autoBatch.js):
+ * - sus relaciones y su portada, por su dirección (la misma subconsulta que lo encuentra), sin
+ *   esperar a saber su id;
+ * - lo que dice {@link PostHint} de las listas ya armadas en este isolate (los vínculos y les
+ *   autores): las mismas consultas que van a salir después, así la de después es la ya leída.
+ *
+ * Nada de esto se muestra si quien mira no puede ver el post: se lee y se descarta (404).
+ *
+ * @param {D1Database} db
+ * @param {{ type: string }} cat
+ * @param {string} category
+ * @param {string} slug
+ * @param {Viewer} viewer
+ */
+function askEarly(db, cat, category, slug, viewer) {
+	const from = {
+		sql: `SELECT id FROM (${RESOLVE_CONTENT_SQL})`,
+		params: resolveContentParams(cat, category, slug)
+	};
+	const edges = contentEdgesFrom(db, from);
+	const cover = imageOfFrom(db, from, 'portada', viewer).catch(() => null);
+	// Con un 404 nadie los espera: que un error no quede sin atender.
+	edges.catch(() => {});
+	// Adelantar solo conviene con tandas (la consulta de después recibe lo ya leído).
+	const hint = batchesReads(db) ? cached?.state.hints?.get(`${category}/${slug}`) : undefined;
+	if (hint) {
+		if (hint.refs.slugs.length || hint.refs.keys.length)
+			publicLinkTargets(db, hint.refs).catch(() => {});
+		const authors = authorSlugs(hint.authors, hint.postID);
+		if (authors.length) findPublicProfiles(db, authors, viewer).catch(() => {});
+	}
+	return { edges, cover };
+}
+
+/**
  * @typedef {ProcessedPost & import('./render.js').RenderedBody & { cover: import('$lib/utils/seo.js').ImageInfo | null, readingMinutes?: number, readingWords?: number }} SitePost
  *   `readingMinutes` y `readingWords`: solo el material (los eventos son cortos); 0 si el texto es
  *   corto.
@@ -771,6 +854,7 @@ export async function siteContent(
 	// docs/talleres-partes.md), en una consulta: la base está lejos y cada consulta que espera a
 	// otra es una ida y vuelta. Lo mismo que `resolveContentSlug` + `getObject` + esa regla.
 	const part = partVisibleWhere(viewer, 'o');
+	const early = askEarly(db, cat, category, slug, viewer);
 	const row = await db
 		.prepare(
 			`SELECT r.legacy_slug AS ref_legacy_slug, ${OBJECT_COLUMNS.split(', ')
@@ -793,11 +877,9 @@ export async function siteContent(
 			redirect(307, light.link);
 	}
 	const legacySlug = row.ref_legacy_slug ? String(row.ref_legacy_slug) : null;
-	// Sus relaciones y su portada, a la par.
-	const [[object], cover] = await Promise.all([
-		hydrateContent(db, [found]),
-		imageOf(db, found.id, 'portada', viewer).catch(() => null)
-	]);
+	// Sus relaciones y su portada: ya pedidas a la par del objeto (`askEarly`).
+	const [edges, cover] = await Promise.all([early.edges, early.cover]);
+	const object = withEdgesOf(found, edges);
 	const postID = legacySlug ?? object.slug;
 	const baseMeta = cat.toMeta(object);
 	// Sin los vínculos a lo que no ve cualquiera, para todes (también con cuenta o admin): es la
