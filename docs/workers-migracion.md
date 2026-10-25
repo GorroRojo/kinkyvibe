@@ -325,6 +325,9 @@ manda lo pendiente y olvida lo leído; si la tanda falla, cada consulta se corre
 - Juntar no saca tandas en fila: lo que depende de una respuesta sale en la tanda siguiente. Para
   bajar de idas, una página tiene que pedir antes (por la dirección en vez de por el id ya leído,
   o adelantando lo que se puede saber).
+- Los lugares de los eventos (como los ve cualquiera) y las etiquetas «Parte N de M» se recuerdan
+  junto a las listas mientras no cambie la marca del contenido (`fromContentState` en
+  `src/lib/server/contenido/posts.js`): `/`, `/calendario` y la wiki no los vuelven a pedir.
 - Para ver cada tanda y quién pidió cada consulta en las pruebas de cuentas:
   `KV_CONSULTAS=detalle npx vitest run --silent=false --disableConsoleIntercept <archivo>`.
 

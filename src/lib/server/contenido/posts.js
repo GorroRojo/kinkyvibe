@@ -93,9 +93,11 @@ const isDbCategory = (p) => Object.hasOwn(CONTENT_CATEGORIES, String(p.meta.cate
  *   paths: Map<number, string>,
  *   profiles: { listed: ProcessedPost[], unlisted: ProcessedPost[] },
  *   bodies?: Map<string, string>,
- *   pronouns?: Record<string, string>
+ *   pronouns?: Record<string, string>,
+ *   derived?: Map<string, unknown>
  * }} DbState
  *   `profiles`: los perfiles de amigues que ve cualquiera, como posts (src/lib/server/amigues/asPost.js).
+ *   `derived`: lo armado con la base que vale mientras no cambie la marca ({@link fromContentState}).
  */
 
 /**
@@ -652,6 +654,41 @@ export async function siteBodies(platform) {
 	const db = contentDb(platform);
 	if (!db) return new Map();
 	return stateBodies(db, await dbState(db));
+}
+
+/**
+ * Algo armado con la base que cambia solo cuando cambia la marca del contenido (los lugares de los
+ * eventos como los ve cualquiera, las etiquetas «Parte N de M»), recordado junto a las listas de
+ * este isolate: mientras la marca no cambie, sin consultas. `compute(eventSlugs)` lo arma la
+ * primera vez, con las direcciones de los eventos de las listas.
+ *
+ * Solo si el isolate ya tiene las listas de la marca de ahora (no las arma para esto): si no,
+ * `null` y quien llama consulta como siempre. Un error no se recuerda.
+ *
+ * @template T
+ * @param {D1Database} db
+ * @param {string} key qué se arma
+ * @param {(eventSlugs: string[]) => Promise<T>} compute
+ * @returns {Promise<T | null>}
+ */
+export async function fromContentState(db, key, compute) {
+	if (!cached) return null;
+	const stamp = await contentStamp(db);
+	if (cached?.stamp !== stamp || cached.tree !== currentSiteTags()) return null;
+	const state = cached.state;
+	const derived = (state.derived ??= new Map());
+	if (derived.has(key)) return /** @type {T} */ (derived.get(key));
+	const events = [...state.listed, ...state.unlisted]
+		.filter((p) => p.meta?.category === EVENT_CATEGORY)
+		.map((p) => String(p.meta.postID));
+	return readAndKeep(
+		state,
+		`derived\n${key}`,
+		() => compute(events),
+		(value) => {
+			derived.set(key, value);
+		}
+	);
 }
 
 /**

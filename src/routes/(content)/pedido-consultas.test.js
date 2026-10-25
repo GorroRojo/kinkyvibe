@@ -90,11 +90,11 @@ afterEach(() => {
  * @type {Record<string, Record<string, number>>}
  */
 const BOUNDS = {
-	'/': { frío: 7, caliente: 2, tibio: 5 }, // (9, 2, 7)
-	'/calendario': { frío: 7, caliente: 2, tibio: 5 }, // (10, 3, 8)
+	'/': { frío: 7, caliente: 1, tibio: 5 }, // (9, 2, 7); con solo las tandas, (7, 2, 5)
+	'/calendario': { frío: 7, caliente: 1, tibio: 5 }, // (10, 3, 8); con solo las tandas, (7, 2, 5)
 	'/material': { frío: 4, caliente: 1, tibio: 2 }, // (5, 1, 3)
 	'/amigues': { frío: 4, caliente: 1, tibio: 2 }, // (7, 1, 3)
-	'/wiki/BDSM': { frío: 8, caliente: 2, tibio: 6 }, // (10, 2, 8)
+	'/wiki/BDSM': { frío: 8, caliente: 1, tibio: 5 }, // (10, 2, 8); con solo las tandas, (8, 2, 6)
 	[`/calendario/${EVENT}`]: { frío: 4, caliente: 3, tibio: 4 }, // (20, 15, 18)
 	'/material/6-tips-para-tops': { frío: 4, caliente: 3, tibio: 4 }, // (10, 6, 8)
 	'/amigues/autore-inventade': { frío: 5, caliente: 2, tibio: 3 } // (10, 5, 8)

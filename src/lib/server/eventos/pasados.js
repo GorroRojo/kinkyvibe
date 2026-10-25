@@ -97,15 +97,26 @@ export function firstEventMonth(posts) {
 }
 
 /**
+ * Las etiquetas «Parte N de M»: recordadas con la marca del contenido mientras no cambie (guardar
+ * las partes guarda el taller y mueve la marca; src/lib/server/contenido/posts.js,
+ * `fromContentState`), o leídas de la base.
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ */
+async function labelsKnownOrRead(db) {
+	const read = () => allWorkshops(db).then(partLabelsBySlug);
+	if (!db) return read();
+	const { fromContentState } = await import('$lib/server/contenido/posts.js');
+	return (await fromContentState(db, 'partLabels', read)) ?? read();
+}
+
+/**
  * «Parte N de M» de los talleres en varias partes (docs/talleres-partes.md), por slug. Si no se
  * pueden leer, sin etiquetas (la página anda igual).
  * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
  */
 export function partLabelsOrNone(db) {
-	return allWorkshops(db)
-		.then(partLabelsBySlug)
-		.catch((e) => {
-			console.error('[partes] no se pudieron leer los talleres:', e);
-			return new Map();
-		});
+	return labelsKnownOrRead(db).catch((e) => {
+		console.error('[partes] no se pudieron leer los talleres:', e);
+		return new Map();
+	});
 }
