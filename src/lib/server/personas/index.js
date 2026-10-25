@@ -169,7 +169,8 @@ export async function pickableProfiles(db) {
  *
  * @param {D1Database} db
  * @param {unknown} raw `meta.personas`
- * @param {readonly string[]} roles orden de los grupos
+ * @param {readonly string[] | Promise<readonly string[]>} roles orden de los grupos (puede venir
+ *   en camino: se lee a la par de los perfiles)
  * @returns {Promise<PersonasGroup[]>}
  */
 export async function resolvePersonas(db, raw, roles) {
@@ -188,7 +189,7 @@ export async function resolvePersonas(db, raw, roles) {
 		const p = profiles.get(e.perfil);
 		return p ? [{ rol: e.rol, ...p }] : [];
 	});
-	return groupByRole(items, roles).map((g) => ({
+	return groupByRole(items, await roles).map((g) => ({
 		rol: g.rol,
 		items: g.items.map(({ slug, title, kind, href }) => ({ slug, title, kind, href }))
 	}));
@@ -208,7 +209,8 @@ export async function personasForPage(platform, meta) {
 	try {
 		const db = await enabledDB(platform);
 		if (!db) return null;
-		const groups = await resolvePersonas(db, meta?.[PERSONAS_KEY], await listRoles(db));
+		// Los roles, a la par de los perfiles (`listRoles` no tira: con un error, los fijos).
+		const groups = await resolvePersonas(db, meta?.[PERSONAS_KEY], listRoles(db));
 		return groups.length ? groups : null;
 	} catch (error) {
 		logDBError('personas de la página', error);
