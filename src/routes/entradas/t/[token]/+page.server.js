@@ -21,11 +21,23 @@ export async function load({ params, platform, url, locals }) {
 	if (!db) error(503, 'No disponible en este momento.');
 	const ticket = await getTicketByToken(db, params.token);
 	if (!ticket) error(404, 'Entrada no encontrada.');
-	const config = await getEventTickets(ticket.event_slug);
-	const online = Boolean(config?.online);
 	const valid = ticket.order_status === 'approved';
-	// Con la compra aprobada, el lugar completo (aunque en el sitio no se muestre la dirección).
-	const venue = valid && !online ? await buyerLocation(db, ticket.event_slug) : null;
+	// La venta del evento, el lugar y las partes del taller, juntos (cada ida y vuelta a D1 cuenta).
+	const configP = getEventTickets(ticket.event_slug);
+	const onlineP = configP.then((config) => Boolean(config?.online));
+	const [config, buyerVenue, parts, streamLink] = await Promise.all([
+		configP,
+		// Con la compra aprobada, el lugar completo (aunque en el sitio no se muestre la dirección).
+		// Se lee sin esperar a saber si es online; si lo es, no se usa.
+		valid ? buyerLocation(db, ticket.event_slug) : null,
+		// Taller en varias partes con una sola entrada: la fecha y el lugar de cada parte (el lugar
+		// completo solo con la compra aprobada, como el del taller).
+		workshopPartsList(db, ticket.event_slug, { online: onlineP, buyer: valid }),
+		// Eventos online: el link de la transmisión (solo con la compra aprobada), sin QR.
+		onlineP.then((online) => (online && valid ? streamLinkFor(db, ticket.event_slug) : null))
+	]);
+	const online = Boolean(config?.online);
+	const venue = online ? null : buyerVenue;
 	const place = venue ?? config;
 	return {
 		// Nombre y pronombres, nunca el DNI (esta página la ve cualquiera que tenga el QR).
@@ -51,12 +63,9 @@ export async function load({ params, platform, url, locals }) {
 			when: formatEventDate(config?.start),
 			where: salePlaceText(online, place),
 			online,
-			// Taller en varias partes con una sola entrada: la fecha y el lugar de cada parte (el
-			// lugar completo solo con la compra aprobada, como el del taller).
-			parts: await workshopPartsList(db, ticket.event_slug, { online, buyer: valid })
+			parts
 		},
-		// Eventos online: el link de la transmisión (solo con la compra aprobada), sin QR.
-		streamLink: online && valid ? await streamLinkFor(db, ticket.event_slug) : null,
+		streamLink,
 		qr: online ? null : qrSvg(`${siteOrigin(url)}/entradas/t/${params.token}`),
 		isAdmin: isAdmin(locals.user)
 	};
