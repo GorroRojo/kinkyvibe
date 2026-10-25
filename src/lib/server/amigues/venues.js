@@ -215,7 +215,20 @@ function linkedVenueView(link, visible, approved) {
 export async function eventPageVenue(db, eventSlug, locals) {
 	try {
 		if (!db) return null;
-		return await publicVenueForEvent(db, eventSlug, viewerFor(locals));
+		const viewer = viewerFor(locals);
+		// Sin sesión, en una vuelta: el vínculo, el lugar y si está aprobado, por la dirección del
+		// evento (lo mismo que decide `publicVenueForEvent` para ANON, sin esperar a leer el vínculo
+		// para leer el lugar).
+		if (viewer === ANON) {
+			if (!isEventSlug(eventSlug)) return null;
+			const [first] = await anonVenuesWhere(
+				db,
+				`ev.id IN (${eventIdsWithSlugSql('?1')})`,
+				eventSlug
+			);
+			return first?.view ?? null;
+		}
+		return await publicVenueForEvent(db, eventSlug, viewer);
 	} catch (e) {
 		console.error('[calendario] no se pudo leer el lugar del evento', e);
 		return null;
@@ -334,30 +347,39 @@ export async function eventVenuesStamp(db) {
  * @param {Iterable<string>} slugs
  */
 async function anonEventVenues(db, slugs) {
+	const want = [...new Set(slugs)].filter(isEventSlug);
+	if (!want.length) return [];
+	return anonVenuesWhere(
+		db,
+		`${EVENT_POST_SLUG} IN (SELECT value FROM json_each(?1))`,
+		JSON.stringify(want)
+	);
+}
+
+/**
+ * {@link anonEventVenues} de los eventos que elige `where` (sobre `lugarLinksSql`, con un solo
+ * parámetro `?1`).
+ *
+ * @param {D1Database} db
+ * @param {string} where
+ * @param {string} wanted el valor de `?1`
+ */
+async function anonVenuesWhere(db, where, wanted) {
 	/** @type {{ eventSlug: string, view: VenueView, found: { venue: StoredObject, legacySlug: string | null, visible: StoredObject | null, approved: boolean } }[]} */
 	const out = [];
-	const want = [...new Set(slugs)].filter(isEventSlug);
-	if (!want.length) return out;
 	const cols = OBJECT_COLUMNS.split(', ')
 		.map((c) => `o.${c}`)
 		.join(', ');
-	const wanted = JSON.stringify(want);
 	/** @type {import('@cloudflare/workers-types').D1Result<Record<string, unknown>>[]} */
 	const [links, venues] = await db.batch([
-		db
-			.prepare(
-				`${lugarLinksSql(`${EVENT_POST_SLUG} IN (SELECT value FROM json_each(?1))`)}
-				ORDER BY event_slug`
-			)
-			.bind(wanted),
+		db.prepare(`${lugarLinksSql(where)} ORDER BY event_slug`).bind(wanted),
 		db
 			.prepare(
 				`SELECT ${cols}, s.legacy_slug AS legacy_slug,
 					EXISTS (SELECT 1 FROM profile_approvals a WHERE a.profile_id = o.id) AS approved
 				FROM objects o LEFT JOIN profile_sources s ON s.profile_id = o.id
-				WHERE o.id IN (
-					SELECT venue_id FROM (${lugarLinksSql(`${EVENT_POST_SLUG} IN (SELECT value FROM json_each(?1))`)})
-				) AND o.type = ?2 AND o.deleted_at IS NULL`
+				WHERE o.id IN (SELECT venue_id FROM (${lugarLinksSql(where)}))
+					AND o.type = ?2 AND o.deleted_at IS NULL`
 			)
 			.bind(wanted, PROFILE_TYPE)
 	]);

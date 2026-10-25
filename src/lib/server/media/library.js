@@ -664,16 +664,30 @@ export async function contextImages(db, objectId, viewer, { seriesKeys = [] } = 
  * @param {Viewer} viewer
  * @returns {Promise<PublicImage | null>}
  */
-export async function imageOf(db, objectId, kind, viewer) {
+export function imageOf(db, objectId, kind, viewer) {
+	return imageOfFrom(db, { sql: '?', params: [objectId] }, kind, viewer);
+}
+
+/**
+ * {@link imageOf} del objeto que da una subconsulta (`from.sql`, un id; solo `?` sin número): para
+ * pedirla a la par de la lectura del objeto, por su dirección.
+ *
+ * @param {D1Database} db
+ * @param {{ sql: string, params: unknown[] }} from
+ * @param {string} kind
+ * @param {Viewer} viewer
+ * @returns {Promise<PublicImage | null>}
+ */
+export async function imageOfFrom(db, from, kind, viewer) {
 	const vi = visibleWhere(viewer, 'i');
 	const row = await db
 		.prepare(
 			`SELECT ${OBJECT_COLUMNS.split(', ')
 				.map((c) => `i.${c}`)
 				.join(', ')} FROM edges e JOIN objects i ON i.id = e.to_id AND i.type = ?
-			WHERE e.from_id = ? AND e.kind = ? AND ${vi.sql} ORDER BY e.position LIMIT 1`
+			WHERE e.from_id = (${from.sql}) AND e.kind = ? AND ${vi.sql} ORDER BY e.position LIMIT 1`
 		)
-		.bind(IMAGE_TYPE, objectId, kind, ...vi.params)
+		.bind(IMAGE_TYPE, ...from.params, kind, ...vi.params)
 		.first();
 	return row ? publicImage(forViewer(rowToObject(row), viewer)) : null;
 }

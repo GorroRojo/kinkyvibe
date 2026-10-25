@@ -113,9 +113,9 @@ describe('las listas en la caché de Cloudflare', () => {
 		const first = await isolate();
 		expect(cache.puts).toHaveLength(1);
 		expect(log).toHaveBeenCalledWith(expect.stringMatching(/^contenido: listas armadas .* ms$/));
-		// Lo guardado: solo las listas armadas (ni cuerpos ni pronombres).
+		// Lo guardado: solo las listas armadas y sus pistas (ni cuerpos ni pronombres).
 		const saved = JSON.parse([...cache.store.values()][0].body);
-		expect(Object.keys(saved).sort()).toEqual(['listed', 'paths', 'profiles', 'unlisted']);
+		expect(Object.keys(saved).sort()).toEqual(['hints', 'listed', 'paths', 'profiles', 'unlisted']);
 		expect([...cache.store.values()][0].headers.get('cache-control')).toBe('public, max-age=86400');
 		expect(cache.puts[0]).toMatch(/^https:\/\/kinkyvibe\.ar\/__contenido\//);
 
