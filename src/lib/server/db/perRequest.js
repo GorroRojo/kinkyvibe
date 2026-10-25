@@ -19,15 +19,23 @@ import { getRequestEvent } from '$app/server';
 const READ_ONLY = new Set(['GET', 'HEAD']);
 
 /**
- * Lo leído en cada pedido: pedido → base → clave → la consulta (en camino o ya resuelta).
+ * Lo leído en cada pedido: pedido (su `Request`) → base → clave → la consulta (en camino o ya
+ * resuelta).
  * @type {WeakMap<object, WeakMap<object, Map<string, Promise<unknown>>>>}
  */
 const memo = new WeakMap();
 
-/** El pedido en curso, o `null` fuera de un pedido (scripts, tests, crons). */
+/**
+ * El pedido en curso (su `Request`), o `null` fuera de un pedido (scripts, tests, crons).
+ *
+ * La clave es `event.request` y no el `event`: SvelteKit le da a cada `load` (el layout, la página)
+ * una copia propia del evento (`{ ...event, tracing }`), así que con el `event` como clave el
+ * layout y la página no compartían nada y un isolate nuevo leía todo dos veces. El `Request` es el
+ * mismo objeto en todas las copias.
+ */
 function currentRequest() {
 	try {
-		return getRequestEvent();
+		return getRequestEvent()?.request ?? null;
 	} catch {
 		return null;
 	}
@@ -44,10 +52,10 @@ function currentRequest() {
  * @returns {Promise<T>}
  */
 export function oncePerRequest(db, key, read) {
-	const event = currentRequest();
-	if (!event) return read();
-	const byDb = memo.get(event) ?? new WeakMap();
-	memo.set(event, byDb);
+	const request = currentRequest();
+	if (!request) return read();
+	const byDb = memo.get(request) ?? new WeakMap();
+	memo.set(request, byDb);
 	/** @type {Map<string, Promise<unknown>>} */
 	const byKey = byDb.get(db) ?? new Map();
 	byDb.set(db, byKey);
@@ -55,7 +63,7 @@ export function oncePerRequest(db, key, read) {
 	if (running) return /** @type {Promise<T>} */ (running);
 	const mine = read();
 	byKey.set(key, mine);
-	const keep = READ_ONLY.has(String(event.request?.method ?? '').toUpperCase());
+	const keep = READ_ONLY.has(String(request.method ?? '').toUpperCase());
 	const forget = () => {
 		if (byKey.get(key) === mine) byKey.delete(key);
 	};
