@@ -38,8 +38,11 @@ enabled = true
 # San José (oeste), más lejos de la base; la pista explícita de región lo fija cerca. Las páginas que
 # hacen muchas consultas seguidas son las que más ganan. Se verifica con el header `cf-placement`.
 # Para volver atrás, borrar esta sección.
-[placement]
-region = "aws:us-east-1"
+# EXPERIMENTO (gorrite, 25/10): 2 horas sin ubicación fija, para medir desde Buenos Aires si ahora
+# que las páginas hacen menos idas a la base conviene correr cerca de quien visita. Vuelve con el PR
+# que lo restaura.
+# [placement]
+# region = "aws:us-east-1"
 
 # Crons (UTC). Tienen que coincidir con src/lib/server/scheduled.js (lo verifica un test).
 # - cada 15 minutos: recordatorios de entradas;
