@@ -103,12 +103,10 @@ describe('las carpetas de medios viejas', () => {
 		expect(url).toBe(mediaURL('material', 'collares-electricos', '2.webp'));
 	});
 
-	it('un PDF, un video o un documento: el archivo del build', () => {
-		expect(contentMediaURL('material', 'esencia-del-shibari', '1.pdf')).toMatch(/1.*\.pdf$/);
-		expect(contentMediaURL('material', 'con-la-soga-al-cuello', '4.mp4')).toMatch(/4.*\.mp4$/);
-		expect(contentMediaURL('material', 'guia-info-medica-emergencia', '1.odt')).toMatch(
-			/1.*\.odt$/
-		);
+	it('un PDF, un video o un documento viejo: ya no sale del build (está en la biblioteca)', () => {
+		expect(contentMediaURL('material', 'esencia-del-shibari', '1.pdf')).toBeUndefined();
+		expect(contentMediaURL('material', 'con-la-soga-al-cuello', '4.mp4')).toBeUndefined();
+		expect(contentMediaURL('material', 'guia-info-medica-emergencia', '1.odt')).toBeUndefined();
 	});
 
 	it('lo que no existe o no es un nombre de archivo, nada', () => {
@@ -117,17 +115,18 @@ describe('las carpetas de medios viejas', () => {
 		expect(contentMediaURL('material', 'esencia-del-shibari', '../1.pdf')).toBeUndefined();
 	});
 
-	it('un texto de la base que enlaza su PDF con `<a href={guia}>` lo muestra', async () => {
+	it('un texto de la base que importa una imagen de su carpeta la muestra', async () => {
 		const body =
-			"<script>\n  import guia from './media/esencia-del-shibari/1.pdf';\n</script>\n\n<a href={guia}>Ir al pdf</a>";
+			"<script>\n  import foto from './media/collares-electricos/2.webp';\n</script>\n\n<a href={foto}>Ver la foto</a>";
 		const r = await renderContentBody(
 			{ body, body_html: 'libre' },
 			'material',
-			'esencia-del-shibari'
+			'collares-electricos'
 		);
 		const href = /** @type {string} */ (
-			contentMediaURL('material', 'esencia-del-shibari', '1.pdf')
+			contentMediaURL('material', 'collares-electricos', '2.webp')
 		);
+		expect(href).toBeTruthy();
 		expect(r.html).toContain(`href="${href}"`);
 	});
 });

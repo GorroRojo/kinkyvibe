@@ -23,7 +23,7 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 | Achicar en el navegador  | `src/lib/utils/imageResize.js`                                                                            |
 | Copias chicas (tarjetas) | `src/lib/utils/mediaCopies.js`; la pasada por las viejas: `scripts/copias-chicas.js` + `media/copias.js`  |
 | Imágenes viejas del repo | `src/lib/utils/legacyMedia.js` (mapa fijo a su copia en la biblioteca)                                    |
-| PDF y video del material | `scripts/subir-archivos.js` + `src/lib/server/media/archivosViejos.js` (sin correr en producción)         |
+| PDF y video del material | En la biblioteca (`archivo`); ya no hay copia en el repo (ver abajo)                                      |
 
 - **Clave por contenido**: `img/<sha-256>.<ext>`. El mismo archivo subido dos veces es la misma
   imagen (el `slug` del objeto es el hash). Como un archivo nunca cambia, `/media/…` responde con
@@ -95,9 +95,8 @@ que `/media` redirija al original.
 
 ## Documentos y video
 
-gorrite decidió (5/10) que los PDF, el video y el ODT del material vayan a la biblioteca. Este
-paso prepara la biblioteca; **pasar los archivos del repo a R2 y reescribir los textos que los
-enlazan es otro paso** (lo corre gorrite: «Los PDF y el video del material», abajo).
+gorrite decidió (5/10) que los PDF, el video y el ODT del material vayan a la biblioteca. Ya
+están ahí, y los textos que los enlazan, reescritos («Los PDF y el video del material», abajo).
 
 | Tipo                         | Se detecta por los bytes                                            | Se sirve                           |
 | ---------------------------- | ------------------------------------------------------------------- | ---------------------------------- |
@@ -141,9 +140,9 @@ enlazan es otro paso** (lo corre gorrite: «Los PDF y el video del material», a
 - **Enlazar en el material**: en el editor de material, debajo del texto, «📎 Enlazar un archivo de
   la biblioteca»: subir un documento o video (con su nombre) o buscarlo (filtro Todo / Imágenes /
   Documentos / Videos; los documentos y videos con un ícono y su nombre, las imágenes con su
-  miniatura) y «Enlazar» suma `[Nombre](/media/file/<hash>.pdf)` al final del texto. Hoy el
-  material viejo enlaza sus PDF con un `<script>` que importa el archivo del repo y
-  `<a href={guia}>`; `scripts/subir-archivos.js` los reescribe a este enlace. Al guardar, el material queda con su edge
+  miniatura) y «Enlazar» suma `[Nombre](/media/file/<hash>.pdf)` al final del texto. El material
+  viejo, que enlazaba sus PDF con un `<script>` que importaba el archivo del repo, ya usa este
+  enlace (ver «Los PDF y el video del material»). Al guardar, el material queda con su edge
   `adjunto` hacia el archivo (ver arriba).
 - **Borrar**: les admins, con el mismo borrado suave (`DELETE /imagenes/<id>`); el archivo queda en
   R2. «Dónde se usa» (`imageUsage`) cuenta el edge `adjunto` de cada material vivo y, como con las
@@ -255,20 +254,15 @@ dirección es `/media/img/…`; en local, en las pruebas y en los previews, la d
 
 ### Los PDF y el video del material
 
-Los 13 PDF, el video y el documento del material **todavía no están en R2**: siguen en el repo, en
-`src/lib/archivos/material/<carpeta>/<archivo>`, con la misma dirección pública que antes (Vite
-los nombra por su contenido; `render.js` los resuelve para el texto que los importa). Subirlos es
-una escritura en producción, así que lo corre gorrite:
-
-```sh
-node scripts/subir-archivos.js --target=production --dry   # qué haría
-node scripts/subir-archivos.js --target=production --yes   # pide escribir «produccion»
-```
-
-Sube cada archivo a R2 (objeto `archivo` con su `source_path`), reescribe el texto de cada
-material que lo importa a `/media/file/<hash>.<ext>` (con su revisión, fuente `migracion`) y el
-edge `adjunto` sale solo. Idempotente. Después, un PR borra `src/lib/archivos/` y el glob de
-`render.js`. `--target=local` y `--target=preview` lo prueban antes.
+Los 13 PDF, el video y el documento del material **están en la biblioteca** (R2, objetos `archivo`
+con su `source_path`). Los subió una vez un script (corrido en preview y producción el 12/10) que
+además reescribió el texto de cada material que los importaba a `/media/file/<hash>.<ext>` (con su
+revisión, fuente `migracion`), y el edge `adjunto` salió solo. Después se chequeó que los SHA-256
+de los archivos del repo coincidían con los 15 `archivo` de producción, que `/media/file/…` los
+servía y que ningún texto ni la semilla seguían nombrando `$lib/archivos`, así que un PR borró
+`src/lib/archivos/`, su glob en `render.js` y el script (que ya no tenía nada que hacer). Un texto
+viejo que todavía importara `./media/<carpeta>/1.pdf` ya no se resuelve: solo las imágenes tienen
+mapa fijo.
 
 ## Configuración en Cloudflare (gorrite)
 

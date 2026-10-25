@@ -274,12 +274,37 @@ local nunca la usan.
 - **Sacarla del todo:** en `worker/index.js`, llamar a `app.fetch` directo en vez de
   `withEdgeCache`.
 
+## Caché de los archivos estáticos (`_headers`)
+
+Los archivos de `static/` (favicon, íconos, `site.webmanifest`, `og-*.jpg`, `fonts/`) los sirve
+Cloudflare sin pasar por el Worker, con `cache-control: public, max-age=0, must-revalidate` por
+defecto: el navegador pregunta cada vez. El archivo `_headers` de la **raíz del repo** les pone
+`public, max-age=86400` (1 día). Va en la raíz y no en `static/`: el adapter lo copia a
+`.svelte-kit/cloudflare/_headers` y le suma sus reglas de `/_app/` (`/_app/immutable/*` por 1 año);
+si lo encuentra en `static/`, el build falla.
+
+- **Solo archivos estáticos**: Cloudflare no aplica `_headers` a lo que responde el Worker (páginas,
+  rutas, 404), aunque la ruta coincida.
+- **Nunca largo ni `immutable`**: esos nombres no llevan hash; un cambio de favicon tarda hasta un
+  día en verse. Lo que tiene hash ya está en `/_app/immutable/`.
+- **Archivo nuevo en `static/`**: sumarle su regla (o a `DEFAULT_ON_PURPOSE` si debe quedar con el
+  header por defecto, como `robots.txt`). Lo chequea `src/lib/server/staticHeaders.test.js`.
+- **Verificar:** `curl -sI https://kinkyvibe.ar/favicon.ico | grep -i cache-control`.
+
 ## Cuánto tardó: `Server-Timing`
 
 Toda respuesta del Worker lleva `Server-Timing` (`src/lib/server/serverTiming.js`):
 
 - `app;dur=<ms>`: lo que tardó el Worker. En Workers el reloj solo avanza con la entrada y salida
   (la base, la caché, fetch): es casi todo espera; armar el HTML (CPU) no suma acá.
+- `d1;dur=<ms>;desc="<n> consultas en <k> idas"`: lo que le pidió el pedido a D1
+  (`src/lib/server/d1Timing.js`). `n` cuenta sentencias (`first`, `all`, `run`, `raw`, cada
+  sentencia de un `batch`, `exec`) y `k` idas a la base (un `batch` es una sola). `dur` es el tiempo
+  con al menos una en camino: las que van a la par no se suman, así que `app` menos `d1` es lo que
+  tardó el Worker fuera de la base. Una página servida de la caché da `0 consultas`. Cómo cuenta:
+  `worker/index.js` le pasa a SvelteKit el binding `DB` envuelto (el mismo envoltorio para todo el
+  isolate) y corre cada pedido con su propio contador en un `AsyncLocalStorage`; no toca las filas
+  ni lee el SQL. No cuenta lo que sigue después de responder (`waitUntil`) ni los crons.
 - `iso;desc="n=<pedido> age=<s>"`: el número de pedido del isolate (`n=1`: recién arrancado, sin
   las listas en memoria) y hace cuánto atendió el primero.
 

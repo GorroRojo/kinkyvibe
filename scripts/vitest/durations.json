@@ -173,7 +173,6 @@
 	"src/lib/server/geocode/nominatim.test.js": 2,
 	"src/lib/server/hash.test.js": 0,
 	"src/lib/server/linkPreview.test.js": 0.7,
-	"src/lib/server/media/archivosViejos.test.js": 2.7,
 	"src/lib/server/media/library.test.js": 2.9,
 	"src/lib/server/media/range.test.js": 0,
 	"src/lib/server/media/readers.test.js": 3.7,

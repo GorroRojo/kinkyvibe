@@ -297,7 +297,7 @@ CI) va en la fase 0.
 - `perf-pulidos` · fase 1 · sigue · infra · Pulidos chicos de la auditoría de rendimiento: medidas del logo, etiquetas en una tanda, /og mira la caché primero, materiales que redirigen leídos livianos, íconos en un solo chunk
 - `perf-tagsearch-propio` · fase 1 · sigue · infra · El buscador de etiquetas y el glosario sin @melt-ui, iguales o mejores (gorrite, 25/10: solo si se verifica)
 - `perf-layout-etiquetas` · fase 1 · sigue · infra · Menos datos de etiquetas y wiki en el layout de todas las páginas, sin romper el buscador (gorrite, 25/10: solo si se verifica)
-- `perf-archivos-r2` · fase 1 · sigue · infra · Los ~57 MB de PDF y MP4 viejos pasan a la biblioteca (R2) con `scripts/subir-archivos.js` y salen del build (gorrite, 25/10)
+- `perf-archivos-r2` · fase 1 · hecho · infra · Los ~55 MB de PDF, MP4 y ODT viejos ya estaban en la biblioteca (R2, `subir-archivos`): el PR los sacó del build (gorrite, 25/10) · #444
 
 ## Fase 2
 
@@ -307,7 +307,7 @@ CI) va en la fase 0.
 - `importar-material-script` · fase 2 · hecho · contenido · `scripts/importar-material.js`: carga un paquete privado de borradores de material como no listado, por el camino del panel · #342, [contenido.md](contenido.md#tareas-comunes)
 - `importar-material-correr` · fase 2 · sigue · contenido · ver Mesa: cargar el paquete de borradores con el conector de Claude cuando esté, en vez del script (gorrite, 12/10) (depende de: importar-material-script, conector-claude-edicion)
 - `subir-archivos` · fase 2 · hecho · contenido · gorrite corre `node scripts/subir-archivos.js --target=production` (PDF, video y ODT a la biblioteca): corrido en preview y producción (12/10) · [contenido.md](contenido.md#lo-que-falta)
-- `archivos-borrar` · fase 2 · sigue · contenido · Un PR que borra `src/lib/archivos/` y su glob en `render.js`, ahora que los archivos están en la biblioteca (depende de: subir-archivos)
+- `archivos-borrar` · fase 2 · hecho · contenido · Un PR que borra `src/lib/archivos/` y su glob en `render.js`, ahora que los archivos están en la biblioteca (depende de: subir-archivos) · #444, [imagenes.md](imagenes.md#los-pdf-y-el-video-del-material)
 - `codigo-muerto-github` · fase 2 · sigue · contenido · Código que quedó del panel con GitHub: `sharedImage.js`, la edición del archivo de etiquetas en `tagConfig.js`, ramas «no se guardó en la base», y que el panel guarde objetos sin pasar por «rutas de `.md`» (`getRepoClient`, `withContentDb`, `commitFiles`)
 - `restos-limpieza` · fase 2 · sigue · contenido · Restos chicos: la regla de estilo que no alcanza a `.kv-texto-libre` (unas 200 páginas, con antes y después), un solo `foldText` en vez de las copias, un solo helper de imagen de una publicación, renombrar el `isAdmin` de `objects/visibility.js`, el campo de texto `perfil.avatar`
 - `docs-a-confirmar` · fase 2 · sigue · docs · Cerrar los «a confirmar» de los docs que gorrite ya confirmó (por ejemplo en lo-que-sigo.md) y las líneas viejas de tickets.md

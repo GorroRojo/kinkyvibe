@@ -9,6 +9,9 @@
  *   nada en memoria) y hace cuántos segundos atendió el primero. Sirve para separar las vueltas
  *   lentas de un isolate nuevo de las de uno que ya tiene las listas en memoria.
  *
+ * - `d1;dur=<ms>;desc="<n> consultas en <k> idas"` (si el Worker la pasa): la parte de la base
+ *   (src/lib/server/d1Timing.js).
+ *
  * Solo tiempos y contadores: nada de la persona ni del contenido.
  */
 
@@ -26,7 +29,7 @@ export function resetServerTiming() {
 /**
  * Empieza a medir un pedido. Devuelve la función que pone el header en la respuesta.
  * @param {() => number} [clock]
- * @returns {(response: Response) => Response}
+ * @returns {(response: Response, extra?: string) => Response}
  */
 export function startServerTiming(clock = Date.now) {
 	const start = clock();
@@ -34,8 +37,9 @@ export function startServerTiming(clock = Date.now) {
 	served += 1;
 	const n = served;
 	const age = Math.max(0, Math.round((start - firstAt) / 1000));
-	return (response) => {
-		const value = `app;dur=${Math.max(0, clock() - start)}, iso;desc="n=${n} age=${age}s"`;
+	return (response, extra = '') => {
+		const app = `app;dur=${Math.max(0, clock() - start)}`;
+		const value = `${app}, ${extra ? `${extra}, ` : ''}iso;desc="n=${n} age=${age}s"`;
 		try {
 			response.headers.append('server-timing', value);
 			return response;
