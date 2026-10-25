@@ -18,17 +18,20 @@
  * - La metadata (listas y páginas) lleva solo los vínculos (`personas`, `tags`) a perfiles y
  *   etiquetas que ve cualquiera (./vinculosPublicos.js). El panel lee con ./repo.js: ve todo.
  * - Las listas se recuerdan por isolate mientras la base no cambie: cada pedido mira solo cuántos
- *   objetos hay y cuándo cambió el último (una consulta chica, con índice).
+ *   objetos hay y cuándo cambió el último (una consulta chica, con índice). Si el isolate no las
+ *   tiene, las busca en la caché de Cloudflare del centro de datos (`caches.default`), con la marca
+ *   como clave (`edgeState`): un isolate nuevo no las vuelve a armar si otro ya lo hizo.
  * - Las listas no leen el cuerpo de los posts (`data.body`, la mayor parte de lo guardado): solo
  *   la metadata. El cuerpo lo lee aparte el índice de la búsqueda (`siteBodies`), una vez por
  *   cambio de la base.
  */
 import { error } from '@sveltejs/kit';
+import { version } from '$app/environment';
 import { parseSiteDate } from '$lib/utils/dates.js';
 import { processPost } from '$lib/utils';
 import { pronounLabel } from '$lib/utils/mentions';
 import { isCurrent } from '$lib/utils/allPosts';
-import { currentSiteTags } from '$lib/utils/siteTags.js';
+import { currentSiteTagList, currentSiteTags } from '$lib/utils/siteTags.js';
 import { getDB } from '$lib/server/db';
 import { oncePerRequest, readAndKeep } from '$lib/server/db/perRequest.js';
 import { ANON, canSee, partVisibleWhere, visibleWhere } from '$lib/server/objects/visibility.js';
@@ -175,11 +178,116 @@ async function dbState(db) {
 	return readAndKeep(
 		db,
 		`dbState\n${stamp}`,
-		() => loadDbState(db, stamp, tree),
+		() => edgeState(db, stamp, tree),
 		(state) => {
 			cached = { stamp, tree, state };
 		}
 	);
+}
+
+/**
+ * La caché de Cloudflare del centro de datos, o `null` donde no hay (vitest, el build, `vite dev`).
+ * @returns {Cache | null}
+ */
+function edgeCache() {
+	if (typeof caches === 'undefined') return null;
+	const all = /** @type {any} */ (caches);
+	return all.default ?? null;
+}
+
+/** Un día: la clave cambia con la marca, así que un guardado del panel no necesita purgar nada. */
+const EDGE_MAX_AGE = 86400;
+
+/** @type {WeakMap<TagManager, string>} */
+const treeHashes = new WeakMap();
+
+/**
+ * Una huella corta de la lista de etiquetas con que se armó el estado (FNV-1a de su JSON), una vez
+ * por árbol: cada isolate recuerda el árbol 30 s, así que un isolate con el árbol viejo no pisa lo
+ * guardado con el nuevo (ni al revés).
+ * @param {TagManager} tree
+ */
+function treeHash(tree) {
+	let hash = treeHashes.get(tree);
+	if (hash === undefined) {
+		const text = JSON.stringify(currentSiteTagList());
+		let h = 0x811c9dc5;
+		for (let i = 0; i < text.length; i++) {
+			h ^= text.charCodeAt(i);
+			h = Math.imul(h, 0x01000193);
+		}
+		hash = (h >>> 0).toString(36);
+		treeHashes.set(tree, hash);
+	}
+	return hash;
+}
+
+/**
+ * La clave en la caché: la marca, el árbol de etiquetas y la versión del build (un deploy que
+ * cambia cómo se arman las listas no lee lo guardado por el anterior). No es una dirección real.
+ * @param {string} stamp
+ * @param {TagManager} tree
+ */
+export function edgeStateKey(stamp, tree) {
+	return `https://kinkyvibe.ar/__contenido/${encodeURIComponent(stamp)}?t=${treeHash(tree)}&v=${encodeURIComponent(version)}`;
+}
+
+/**
+ * El estado de las listas desde la caché de Cloudflare; si no está, lo arma (`loadDbState`) y lo
+ * guarda. Se guarda solo lo armado de la base (`listed`, `unlisted`, `paths`, `profiles`): los
+ * cuerpos y los pronombres se derivan después, como siempre. Sin caché, como antes.
+ *
+ * @param {D1Database} db
+ * @param {string} stamp
+ * @param {TagManager} tree
+ * @returns {Promise<DbState>}
+ */
+async function edgeState(db, stamp, tree) {
+	const cache = edgeCache();
+	const key = cache ? edgeStateKey(stamp, tree) : '';
+	if (cache) {
+		try {
+			const hit = await cache.match(key);
+			if (hit) {
+				const saved = await hit.json();
+				return {
+					stamp,
+					listed: saved.listed,
+					unlisted: saved.unlisted,
+					paths: new Map(saved.paths),
+					profiles: saved.profiles
+				};
+			}
+		} catch {
+			// Una caché que falla no rompe la página: se arma de la base.
+		}
+	}
+	const start = Date.now();
+	const state = await loadDbState(db, stamp, tree);
+	// Una línea por armado, para los registros del Worker (Workers Logs).
+	console.log(`contenido: listas armadas (marca ${stamp}) en ${Date.now() - start} ms`);
+	if (cache) {
+		const body = JSON.stringify({
+			listed: state.listed,
+			unlisted: state.unlisted,
+			paths: [...state.paths],
+			profiles: state.profiles
+		});
+		try {
+			await cache.put(
+				key,
+				new Response(body, {
+					headers: {
+						'content-type': 'application/json',
+						'cache-control': `public, max-age=${EDGE_MAX_AGE}`
+					}
+				})
+			);
+		} catch {
+			// Sin guardar: el próximo isolate la vuelve a armar.
+		}
+	}
+	return state;
 }
 
 /**
