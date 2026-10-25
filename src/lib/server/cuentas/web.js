@@ -33,7 +33,14 @@ export async function loadMember(event) {
 			event.cookies.delete(SESSION_COOKIE, { path: '/' });
 			return;
 		}
-		event.locals.member = { id: found.id, email: found.email };
+		// Con la velocidad de lectura y el permiso de perfiles de la misma consulta (el layout y Mi
+		// rincón no vuelven a leer la fila). Sin `preferences`: el DNI guardado no pasa por acá.
+		event.locals.member = {
+			id: found.id,
+			email: found.email,
+			readingSpeed: found.readingSpeed,
+			canHaveProfiles: found.canHaveProfiles
+		};
 		// Renueva la cookie (los navegadores la topean en ~400 días; ver session.js).
 		if (found.touched) event.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(event.url));
 	} catch (e) {

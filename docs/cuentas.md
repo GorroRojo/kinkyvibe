@@ -64,6 +64,23 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
   `account_id` de la cuenta o si su `buyer_email` (sin importar mayúsculas) es el mail verificado.
   Solo lectura: no se modifica ninguna orden. Se muestran las aprobadas, las que esperan la
   transferencia y las reembolsadas.
+- **Las entradas gratis pedidas sin la sesión de la cuenta se preguntan** (decisión
+  [0048](decisiones/0048-entradas-gratis-sin-sesion-se-preguntan.md), «No fui yo» parte 2 en
+  [mails.md](mails.md#no-fui-yo)): cualquiera puede escribir un mail ajeno en el formulario de
+  entradas gratis. Una orden `gratis` que llega solo por el mail (sin el `account_id` de la cuenta)
+  no va en la lista de Mi rincón, ni en «Mis entradas» del bot, ni en el calendario personal: va
+  arriba, en el bloque «¿Son tuyas?», con «Sí, son mías» (pasa a la lista) y «No es mía» (no se
+  muestra más para esa cuenta). Lo pedido con la sesión de la cuenta de ese mail ya cuenta como
+  «Sí» (`markFreeOrderMine`, desde la compra). Las compras pagas (Mercado Pago, transferencia) se
+  ven siempre, y también las gratis que cargan les admins (la puerta, la carga a mano: `channel`
+  distinto de `online`). Tampoco se pregunta por las de antes de la migración 0061: al aplicarse,
+  escribe en `ticket_settings` la clave `free_order_choices_since` con la hora de la base, y solo
+  se preguntan las creadas desde ese momento (sin la fila, ninguna: todo se ve como antes). Los
+  avisos de «Lo que sigo» («ya tenés entrada», `accountsWithTickets`) siguen la misma regla.
+  Código: `ordersForAccount`, `unconfirmedFreeOrders` y `chooseFreeOrder` en
+  `src/lib/server/cuentas/orders.js`; la acción `?/elegirOrden` de Mi rincón. Lo elegido va en
+  `free_order_choices` (migración 0061: cuenta, orden, `mine` 1 o 0); no se toca la orden. Al
+  borrar la cuenta se borra lo elegido.
 
 ## Cómo funciona
 
@@ -76,6 +93,9 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 | `login_codes`       | hash del mail, para qué es (`purpose`), hash del código, intentos, vencimiento y uso                                                          |
 | `feature_flags`     | los interruptores del panel (`cuentas` fue el primero; quedó fijo)                                                                            |
 | `orders.account_id` | columna nueva, para la compra con cuenta que viene; `ON DELETE SET NULL`                                                                      |
+
+Después: `free_order_choices` (migración 0061), lo que eligió cada cuenta sobre una orden gratis
+que le llegó por el mail («¿Son tuyas?», arriba).
 
 Sin "nombre para mostrar" (P7.3): los nombres van a ir en los perfiles. Las **passkeys** van a
 ir en una tabla propia (`account_passkeys`, apuntando a `accounts.id`); no hace falta cambiar
@@ -164,7 +184,13 @@ el código por mail sigue andando.
 - En Mi rincón, "Salir en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
   cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
   saca acceso.
-- `hooks.server.js` carga `locals.member` (`{ id, email }`) solo si hay cookie (y base).
+- `hooks.server.js` carga `locals.member` (`{ id, email, readingSpeed, canHaveProfiles }`) solo
+  si hay cookie (y base). La velocidad de lectura y el permiso de perfiles vienen en la misma
+  consulta que la sesión (`getSessionAccount`), así el layout y Mi rincón no vuelven a leer la
+  fila de la cuenta (la base está lejos: cada consulta es una ida y vuelta). Nunca `preferences`
+  entero: ahí está el DNI guardado, que no viaja en `locals`. Lo prueba
+  `src/routes/(content)/mi-rincon/rincon-consultas.test.js` (Mi rincón con una compra: de 9
+  tandas en fila a 4).
 
 ### Otras protecciones
 
@@ -245,7 +271,9 @@ Con qué velocidad se calcula el «X min de lectura» de los materiales y la Kin
 - **Al entrar, la de la cuenta gana** sobre la del navegador (y queda también en el navegador). Si
   la cuenta no eligió ninguna, queda la del navegador. Al salir, queda la del navegador.
 - El layout raíz (`src/routes/+layout.server.js`) manda `readingSpeed` (o `null`) solo con sesión:
-  una lectura de `preferences` cuando se carga el layout.
+  la que vino con la sesión (`locals.member.readingSpeed`), sin otra consulta. Al guardarla desde
+  Mi rincón (`?/velocidad`), la acción la actualiza también en `locals.member`, así sin JavaScript
+  el layout del mismo pedido ya muestra la nueva.
 - Código: `getReadingSpeed`/`setReadingSpeed` en `src/lib/server/cuentas/accounts.js`, el
   navegador en `src/lib/utils/readingSpeed.js` y las reglas (rango, recálculo, texto) en
   `src/lib/utils/readingTime.js`.

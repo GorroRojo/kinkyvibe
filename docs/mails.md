@@ -283,6 +283,13 @@ Todo en `src/lib/server/email/suppressions.js`; la tabla es `email_suppressions`
   [tickets.md](tickets.md)). El «por qué te llega» de los mails de una orden gratis dice «Te llega
   porque se pidieron entradas gratis con este mail en kinkyvibe.ar.» (`WHY_FREE`), no «porque
   compraste».
+- **Parte 2: Mi rincón pregunta** (decisión
+  [0048](decisiones/0048-entradas-gratis-sin-sesion-se-preguntan.md)). Una orden gratis hecha sin
+  la sesión de la cuenta de ese mail no aparece en Mi rincón, en «Mis entradas» del bot ni en el
+  calendario personal hasta que la persona la confirma: Mi rincón la muestra aparte, en «¿Son
+  tuyas?», con «Sí, son mías» y «No es mía» (la esconde para esa cuenta). Las pagas se ven siempre,
+  igual que las gratis que cargan les admins (puerta, carga a mano) y las de antes de la migración.
+  Detalle en [cuentas.md](cuentas.md) (migración 0061, `free_order_choices`).
 
 ### Mail del Fondo (tu link)
 

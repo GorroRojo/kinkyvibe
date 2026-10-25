@@ -1,8 +1,8 @@
 /**
  * "Mi rincón": la cuenta del público (docs/cuentas.md). Mail, contraseña (poner, cambiar,
- * sacar), compras de ese mail (solo lectura), «Mis datos» (lo guardado para la compra: ver,
- * cambiar, borrar), cerrar sesión (acá o en todos lados) y borrar la cuenta. Sin
- * sesión, lleva a /ingresar.
+ * sacar), compras de ese mail (solo lectura, con «¿Son tuyas?» para las gratis hechas sin
+ * sesión), «Mis datos» (lo guardado para la compra: ver, cambiar, borrar), cerrar sesión (acá o
+ * en todos lados) y borrar la cuenta. Sin sesión, lleva a /ingresar.
  *
  * La sesión dura para siempre, así que tocar la contraseña y borrar la cuenta piden además un
  * código fresco por mail, del mismo `purpose` que la acción (?/confirmar lo manda; la acción lo
@@ -20,7 +20,12 @@ import {
 } from '$lib/server/cuentas/accounts.js';
 import { READING_SPEEDS, parseReadingSpeed } from '$lib/utils/readingTime.js';
 import { passwordProblem } from '$lib/server/cuentas/password.js';
-import { ordersForAccount } from '$lib/server/cuentas/orders.js';
+import {
+	chooseFreeOrder,
+	ordersForAccount,
+	verifiedEmail,
+	unconfirmedFreeOrders
+} from '$lib/server/cuentas/orders.js';
 import { SESSION_COOKIE, destroyOtherSessions } from '$lib/server/cuentas/session.js';
 import {
 	checkConfirmCode,
@@ -61,42 +66,78 @@ async function requireMember(event) {
 export async function load(event) {
 	event.setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const { db, member } = await requireMember(event);
-	const account = await getAccount(db, member.id);
+	// La base está lejos: lo que no depende de otra cosa se lee a la par. La velocidad de lectura
+	// y el permiso de perfiles ya vinieron con la sesión (`locals.member`, getSessionAccount).
+	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed] = await Promise.all([
+		getAccount(db, member.id),
+		// «¿Son tuyas?»: entradas gratis pedidas con este mail sin la sesión de la cuenta («No fui yo»,
+		// parte 2). No van en la lista hasta que la persona dice que son suyas.
+		verifiedEmail(db, member.id)
+			.then((email) =>
+				Promise.all([
+					ordersForAccount(db, member.id, { email }),
+					unconfirmedFreeOrders(db, member.id, { email })
+				])
+			)
+			.then(
+				([orders, unconfirmed]) => ({ orders, unconfirmed, error: false }),
+				(e) => {
+					logDBError('cuentas: compras', e);
+					return {
+						orders: /** @type {Awaited<ReturnType<typeof ordersForAccount>>} */ ([]),
+						unconfirmed: /** @type {Awaited<ReturnType<typeof unconfirmedFreeOrders>>} */ ([]),
+						error: true
+					};
+				}
+			),
+		// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
+		getSavedBuyer(db, member.id).then(
+			(saved) => ({ saved, error: false }),
+			() => {
+				console.error('[cuentas] no se pudieron leer los datos guardados');
+				return {
+					saved: /** @type {import('$lib/utils/savedBuyer.js').SavedBuyer} */ ({}),
+					error: true
+				};
+			}
+		),
+		member.canHaveProfiles ?? canHaveProfiles(db, member.id),
+		// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
+		// calendario personal (docs/lo-que-sigo.md).
+		sigoEnabled(event.platform),
+		member.readingSpeed !== undefined
+			? member.readingSpeed
+			: getReadingSpeed(db, member.id).catch(() => null)
+	]);
 	if (!account) {
 		await endSession(event, db);
 		redirect(303, LOGIN);
 	}
-	let orders = /** @type {Awaited<ReturnType<typeof ordersForAccount>>} */ ([]);
-	let ordersError = false;
-	try {
-		orders = await ordersForAccount(db, account.id);
-	} catch (e) {
-		logDBError('cuentas: compras', e);
-		ordersError = true;
-	}
-	// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
-	let saved = /** @type {import('$lib/utils/savedBuyer.js').SavedBuyer} */ ({});
-	let savedError = false;
-	try {
-		saved = await getSavedBuyer(db, account.id);
-	} catch {
-		console.error('[cuentas] no se pudieron leer los datos guardados');
-		savedError = true;
-	}
+	const { orders, unconfirmed, error: ordersError } = ordersRead;
+	const { saved, error: savedError } = savedRead;
+	// El título y la fecha de cada evento de las compras, todos a la par.
+	const slugs = [...new Set([...orders, ...unconfirmed].map((o) => o.event_slug))];
+	const infos = await Promise.all(slugs.map((slug) => getEventInfo(slug)));
 	/** @type {Map<string, { title: string, start: string | null } | null>} */
-	const events = new Map();
-	for (const o of orders) {
-		if (!events.has(o.event_slug)) events.set(o.event_slug, await getEventInfo(o.event_slug));
-	}
+	const events = new Map(slugs.map((slug, i) => [slug, infos[i]]));
+	/** @param {(typeof orders)[number]} o */
+	const listed = (o) => ({
+		id: o.id,
+		reference: orderReference(o.id),
+		event: events.get(o.event_slug)?.title ?? o.event_slug,
+		eventStart: events.get(o.event_slug)?.start ?? null,
+		quantity: o.quantity,
+		total: o.total,
+		status: o.status,
+		createdAt: o.created_at
+	});
 	return {
 		email: account.email,
 		hasPassword: account.has_password,
 		createdAt: account.created_at,
 		// Sin el permiso "puede tener perfiles" (lo dan les admins), nada de perfiles a la vista.
-		canHaveProfiles: await canHaveProfiles(db, account.id),
-		// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
-		// calendario personal (docs/lo-que-sigo.md).
-		sigoOn: await sigoEnabled(event.platform),
+		canHaveProfiles: profilesOk,
+		sigoOn,
 		ordersError,
 		saved: {
 			name: saved.name ?? '',
@@ -106,17 +147,9 @@ export async function load(event) {
 		},
 		savedError,
 		// La velocidad de lectura de la cuenta (null: la de siempre). $lib/utils/readingSpeed.js.
-		readingSpeed: await getReadingSpeed(db, account.id).catch(() => null),
-		orders: orders.map((o) => ({
-			id: o.id,
-			reference: orderReference(o.id),
-			event: events.get(o.event_slug)?.title ?? o.event_slug,
-			eventStart: events.get(o.event_slug)?.start ?? null,
-			quantity: o.quantity,
-			total: o.total,
-			status: o.status,
-			createdAt: o.created_at
-		}))
+		readingSpeed,
+		orders: orders.map(listed),
+		unconfirmed: unconfirmed.map(listed)
 	};
 }
 
@@ -270,6 +303,8 @@ export const actions = {
 			});
 		try {
 			const saved = await setReadingSpeed(db, member.id, wpm);
+			// Sin JavaScript, el layout y la página se cargan en este mismo pedido: que vean lo nuevo.
+			member.readingSpeed = saved;
 			return {
 				action: 'velocidad',
 				message:
@@ -321,6 +356,30 @@ export const actions = {
 			console.error('[cuentas] no se pudieron leer los datos guardados');
 			return fail(500, { action: 'datos', error: 'No se pudo. Probá de nuevo.' });
 		}
+	},
+
+	// «¿Son tuyas?»: «Sí, son mías» (mine=1) la pasa a la lista; «No es mía» (mine=0) la saca.
+	elegirOrden: async (event) => {
+		const { db, member } = await requireMember(event);
+		const form = await event.request.formData();
+		const orderId = field(form, 'orden');
+		const mine = field(form, 'mine');
+		if (!orderId || (mine !== '1' && mine !== '0'))
+			return fail(400, { action: 'elegirOrden', error: 'No sabemos qué elegiste.' });
+		try {
+			const ok = await chooseFreeOrder(db, { accountId: member.id, orderId, mine: mine === '1' });
+			if (!ok) return fail(404, { action: 'elegirOrden', error: 'No encontramos esas entradas.' });
+		} catch (e) {
+			logDBError('cuentas: elegir orden gratis', e);
+			return fail(500, { action: 'elegirOrden', error: 'No se pudo. Probá de nuevo.' });
+		}
+		return {
+			action: 'elegirOrden',
+			message:
+				mine === '1'
+					? 'Listo: las sumamos a tus compras y entradas.'
+					: 'Listo: no te las mostramos más.'
+		};
 	},
 
 	salir: async (event) => {

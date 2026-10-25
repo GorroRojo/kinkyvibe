@@ -12,6 +12,7 @@ import tagsFactory from '$lib/utils/tags';
 import { follow, getFollow, setFollowOptions } from './follows.js';
 import { migrateAccountSubscriptions } from './avisame.js';
 import { runFollowNotifications, stopMailWithToken } from './notify.js';
+import { chooseFreeOrder } from '$lib/server/cuentas/orders.js';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -121,6 +122,52 @@ describe('runFollowNotifications', () => {
 			expect(await run({ posts, send, now: NOW + DAY + 1 })).toMatchObject({ sent: 1 });
 			expect(send.sent.map((m) => m.to)).toEqual([sin.email]);
 			expect(send.sent[0].subject).toContain('Mañana');
+		});
+
+		it('una gratis pedida sin la sesión de la cuenta cuenta solo con «Sí, son mías»', async () => {
+			// Desde cuándo se pregunta (lo escribe la migración 0061).
+			await t.db
+				.prepare(
+					`INSERT INTO ticket_settings (key, value, updated_at, updated_by)
+					VALUES ('free_order_choices_since', ?1, 1, 'test')`
+				)
+				.bind(String(NOW - 1000))
+				.run();
+			/** @param {string} email @param {number} createdAt @param {string} [channel] */
+			const freeOrder = async (email, createdAt, channel = 'online') => {
+				const id = crypto.randomUUID();
+				await t.db
+					.prepare(
+						`INSERT INTO orders (id, event_slug, ticket_type, quantity, unit_price, subtotal,
+							total, buyer_name, buyer_email, status, created_at, updated_at, expires_at,
+							payment_method, fondo_option, channel)
+						VALUES (?1, 'manana', 'general', 1, 0, 0, 0, 'Persona de Prueba', ?2, 'approved',
+							?3, ?3, ?3, 'gratis', 'gorra', ?4)`
+					)
+					.bind(id, email, createdAt, channel)
+					.run();
+				return id;
+			};
+			const sinConfirmar = await makeAccount(t.db, 'sigo-gratis-sin-confirmar');
+			const dijoQueSi = await makeAccount(t.db, 'sigo-gratis-si');
+			const dijoQueNo = await makeAccount(t.db, 'sigo-gratis-no');
+			const vieja = await makeAccount(t.db, 'sigo-gratis-vieja');
+			const puerta = await makeAccount(t.db, 'sigo-gratis-puerta');
+			for (const a of [sinConfirmar, dijoQueSi, dijoQueNo, vieja, puerta])
+				await follow(t.db, a.id, TAG, { now: NOW - DAY, options: REMINDER_ONLY });
+			await freeOrder(sinConfirmar.email, NOW);
+			const si = await freeOrder(dijoQueSi.email, NOW);
+			const no = await freeOrder(dijoQueNo.email, NOW);
+			await freeOrder(vieja.email, NOW - 2000);
+			await freeOrder(puerta.email, NOW, 'puerta');
+			await chooseFreeOrder(t.db, { accountId: dijoQueSi.id, orderId: si, mine: true, now: NOW });
+			await chooseFreeOrder(t.db, { accountId: dijoQueNo.id, orderId: no, mine: false, now: NOW });
+			const posts = [fakeEvent('manana', NOW + 2 * DAY, ['Picantearla'])];
+			const send = fakeSend();
+			expect(await run({ posts, send, now: NOW + DAY + 1 })).toMatchObject({ sent: 2 });
+			expect(send.sent.map((m) => m.to).sort()).toEqual(
+				[dijoQueNo.email, sinConfirmar.email].sort()
+			);
 		});
 
 		it('las órdenes canceladas, reembolsadas o pendientes no cuentan', async () => {
