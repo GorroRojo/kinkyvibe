@@ -144,7 +144,10 @@ y páginas sin imagen propia), Calendario, Material, Amigues y Kinkipedia.
 - **Dirección**: `/og/<tarjeta>/<hash>.jpg`. El hash (16 caracteres del SHA-256) es de lo que va
   en la imagen: el nombre, el subtítulo, las portadas y la versión del dibujo
   (`COLLAGE_VERSION`). Si cambia un texto de la imagen o una portada, cambia la dirección y las
-  apps piden la nueva. Un hash viejo redirige (302) al de ahora.
+  apps piden la nueva. Un hash viejo redirige (302) al de ahora, salvo que esa misma dirección
+  siga en la caché de Cloudflare: lo primero que mira la ruta es la caché, con la dirección pedida,
+  y si está la manda sin leer la base (es la imagen de ese hash, la que se compartió con esa
+  dirección).
 - **Se dibuja una vez**: la respuesta lleva `Cache-Control: public, max-age=31536000, immutable`,
   se guarda en R2 (`og/<tarjeta>-<hash>.jpg` en el bucket `MEDIA`, fuera de `img/` y `file/`, así
   que `/media/…` no la sirve) y en la caché de Cloudflare. Si una portada no se pudo leer, la

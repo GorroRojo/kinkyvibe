@@ -118,7 +118,7 @@
 		justify-content: center;
 		gap: var(--space-m);
 		padding: var(--space-m) var(--space-xs);
-		font-family: 'Lato', sans-serif;
+		font-family: 'Lato', 'Lato Fallback', 'Lato Fallback Roboto', sans-serif;
 	}
 	.logo img {
 		display: block;

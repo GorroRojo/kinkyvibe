@@ -43,7 +43,10 @@ queda marcado con el tag de git `posts-md-final`. Ningún guardado del panel pas
   el material ya leído (y visto: si no, 404 o la redirección, como siempre), "Más cosas de…" con
   sus lugares, su venta, los pronombres y las personas (con los roles a la par de los perfiles)
   salen a la par. `material-consultas.test.js` (al lado de la ruta) fija cuántas consultas y
-  tandas en fila hace, en frío y en caliente.
+  tandas en fila hace, en frío y en caliente. Un material que redirige (`redirect` con `link`, por
+  ejemplo a la tienda) redirige apenas leído el objeto (`followRedirect` de `siteContent`), sin
+  leer sus relaciones, su portada ni sus autores ni armar el texto (de 7 consultas en 3 tandas a
+  2); uno oculto (solo admins) sigue el camino de siempre.
 - **`/calendario` trae los pasados de a un mes**: los próximos enteros y, de los pasados, los del
   mes que abre; los de otro mes los pide al ir a ese mes (`/api/calendario/pasados?mes=yyyy-MM`,
   `src/lib/server/eventos/pasados.js`; detalles en [seo.md](seo.md)).
@@ -279,6 +282,15 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   pedidos que la esperaban se colgaban minutos (gorrite, 12/10: GET /admin y GET / con ~40 ms de
   CPU). El pedido que necesita un valor nuevo espera su propia consulta. Las listas públicas leen la metadata **sin el
   cuerpo** (`json_remove`); el cuerpo lo pide aparte solo la búsqueda (`siteBodies`).
+- Si el isolate no tiene las listas públicas armadas, las busca en la **caché de Cloudflare** del
+  centro de datos (`caches.default`, `edgeState` en `src/lib/server/contenido/posts.js`) antes de
+  armarlas de la base: la clave es la marca de arriba, más una huella del árbol de etiquetas y la
+  versión del build, así que un guardado del panel no necesita purgar nada (la clave cambia sola) y
+  lo viejo vence en un día. Se guardan solo las listas armadas (los eventos y el material listados y
+  no listados, sus direcciones y los perfiles); los cuerpos de la búsqueda y los pronombres se
+  derivan después, como siempre. Cada vez que se arman de la base queda una línea en los registros
+  del Worker (`contenido: listas armadas (marca …) en N ms`). Sin `caches` (vitest, el build,
+  `vite dev`), como antes.
 
 | Qué                                     | Dónde                                                                  |
 | --------------------------------------- | ---------------------------------------------------------------------- |

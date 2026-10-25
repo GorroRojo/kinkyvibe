@@ -21,11 +21,15 @@
  * propia caché por URL antes de los hooks, y le serviría la página anónima a quien tiene sesión.
  * La clave lleva la versión del build de SvelteKit, así que cada deploy empieza de cero. Se apaga
  * sin deploy con la variable `KV_EDGE_CACHE = "off"` en el panel.
+ *
+ * Toda respuesta lleva `Server-Timing` (cuánto tardó el Worker y si el isolate es nuevo;
+ * src/lib/server/serverTiming.js), para medir desde afuera.
  */
 import app from '../.svelte-kit/cloudflare/_worker.js';
 import { handleScheduled } from '../src/lib/server/scheduled.js';
 import { trackPageView } from '../src/lib/server/analytics/track.js';
 import { withEdgeCache } from '../src/lib/server/edgeCache.js';
+import { startServerTiming } from '../src/lib/server/serverTiming.js';
 import { renderOg } from './og.js';
 import buildVersion from '../.svelte-kit/cloudflare/_app/version.json';
 
@@ -36,6 +40,7 @@ export default {
 	 * @param {import('@cloudflare/workers-types').ExecutionContext} ctx
 	 */
 	async fetch(request, env, ctx) {
+		const timing = startServerTiming();
 		const og = new URL(request.url).pathname.startsWith('/og/');
 		const response = await withEdgeCache(
 			request,
@@ -49,7 +54,7 @@ export default {
 		);
 		// Sincrónico y nunca tira (writeDataPoint no espera la red). No lee el cuerpo.
 		trackPageView(request, response, env);
-		return response;
+		return timing(response);
 	},
 
 	/**

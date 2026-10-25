@@ -8,12 +8,16 @@ import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
 import { contentForProfilePage } from '$lib/server/personas/index.js';
 import { siteWikiPosts } from '$lib/server/wiki/site.js';
 import { mentionPronouns } from '$lib/server/pronouns';
+import { followButtonState } from '$lib/server/sigo/button.js';
 
 /**
  * La página de un perfil, solo desde la base («solo base»), con la misma dirección que tenía la
  * ficha .md (/amigues/<slug viejo>). Si la base no tiene un perfil con esa dirección, o quien mira
  * no lo puede ver (oculto, sin aprobar, borrado), 404, aunque el .md siga en el repo (las fichas
  * sin importar se importan primero). Ver docs/amigues.md.
+ *
+ * El botón «Seguir» viene con la página (`follow`), así no se pide al cargar; si falla, sale sin
+ * eso (`undefined`) y el botón lo pide como antes.
  *
  * @type {import("./$types").PageServerLoad}
  */
@@ -30,7 +34,7 @@ export async function load({ params, platform, locals, setHeaders }) {
 		await postsP;
 		error(404, 'Not found');
 	}
-	const [page, pronouns, participa] = await Promise.all([
+	const [page, pronouns, participa, follow] = await Promise.all([
 		profilePageFrom(db, found, locals, { posts: postsP }),
 		// Los pronombres de las @menciones del texto.
 		postsP.then((posts) => mentionPronouns(platform, posts)),
@@ -39,10 +43,15 @@ export async function load({ params, platform, locals, setHeaders }) {
 		contentForProfilePage(platform, found.object.slug, async () => [
 			...(await postsP),
 			...(await siteWikiPosts(platform))
-		])
+		]),
+		// «Seguir» (interruptor `lo_que_sigo`).
+		followButtonState({ platform, locals }, 'perfil', String(found.object.id)).catch((e) => {
+			console.error('[amigues] sigo:', e);
+			return undefined;
+		})
 	]);
 	if (page.private) setHeaders({ 'cache-control': 'private, no-store' });
-	return { ...page, pronouns, participa };
+	return { ...page, pronouns, participa, follow };
 }
 
 /** @type {import("./$types").Actions} */

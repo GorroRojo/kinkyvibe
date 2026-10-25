@@ -110,7 +110,8 @@ Cómo correrlo: `npm run db:semilla` (local; solo carga etiquetas si la base no 
 `npm run dev` lo hace solo.
 
 La lectura (`read.js`, `loadTagRecords`) devuelve las etiquetas que ve quien mira (por defecto el
-público) con sus relaciones, ambas puntas con `visibleWhere()`.
+público) con sus relaciones, ambas puntas con `visibleWhere()`. Las dos consultas (las etiquetas y
+sus relaciones) van en una sola tanda (`db.batch`): una ida y vuelta a la base, no dos en fila.
 
 ## Leer y editar desde la base (paso 3)
 
@@ -251,7 +252,9 @@ para siempre y salió de Interruptores («Contenido solo en la base», paso 2).
   (`IMAGE_KEY`), así que el importador lo copia a la base igual. El selector de Editar solo ofrece
   esos nombres viejos (`legacyAssetNames`); la imagen de un evento se conserva si no se cambia.
 - **Página de la serie**: `/wiki/<serie>`, con su imagen, descripción, próximas y pasadas
-  ediciones (`SeriesTagBlock.svelte`, como antes).
+  ediciones (`SeriesTagBlock.svelte`, como antes). Viene con la carga de la página
+  (`data.seriesInfo`, `seriesTagInfo` en `src/lib/server/series/web.js`), así el bloque sale con la
+  página y no la mueve al llegar; `GET /api/series/<etiqueta>` usa la misma función.
 - **Kinkipedia** (`/wiki`): la sección «Series» (`#series`), con una tarjeta por serie que tiene
   ediciones (imagen o su emoji grande, descripción, cuántas ediciones y la próxima, o la última)
   que lleva a su página (`seriesSummaries`, `SeriesGrid.svelte`). Las **series hijas** van dentro

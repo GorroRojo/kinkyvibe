@@ -34,7 +34,8 @@ async function modules({ sigo = '1' } = {}) {
 	}));
 	return {
 		api: await import('./+server.js'),
-		page: await import('../../(content)/mi-rincon/sigo/+page.server.js')
+		page: await import('../../(content)/mi-rincon/sigo/+page.server.js'),
+		perfil: await import('../../(content)/amigues/[profile]/+page.server.js')
 	};
 }
 
@@ -113,5 +114,55 @@ describe('GET /api/sigo', () => {
 			kind: 'perfil',
 			following: false
 		});
+	});
+});
+
+describe('la página de un perfil trae «Seguir» con la carga (lo mismo que GET /api/sigo)', () => {
+	/**
+	 * @param {any} m
+	 * @param {string} slug
+	 * @param {any} [member]
+	 */
+	const load = async (m, slug, member) =>
+		/** @type {any} */ (
+			await m.perfil.load(
+				fakeRequestEvent({
+					platform: t.platform,
+					path: `/amigues/${slug}`,
+					params: { profile: slug },
+					member
+				})
+			)
+		);
+
+	it('sin sesión, con sesión (y si lo sigue) y apagado', async () => {
+		const m = await modules();
+		const a = await makeAccount(t.db, 'perfil-carga');
+		const venue = await makeProfile(t.db, { title: 'Lugar Inventado', kind: 'lugar' });
+		const slug = String(venue.slug);
+		expect((await load(m, slug)).follow).toEqual({ member: false });
+		const before = await load(m, slug, a);
+		expect(before.follow).toEqual({
+			member: true,
+			kind: 'perfil',
+			key: String(venue.id),
+			following: false
+		});
+		await m.page.actions.seguir(
+			fakeRequestEvent({
+				platform: t.platform,
+				path: '/mi-rincon/sigo',
+				member: a,
+				form: { tipo: 'perfil', clave: String(venue.id) }
+			})
+		);
+		const after = await load(m, slug, a);
+		expect(after.follow).toEqual(
+			await (await m.api.GET(get('perfil', String(venue.id), a))).json()
+		);
+		expect(after.follow.following).toBe(true);
+
+		const off = await modules({ sigo: '0' });
+		expect((await load(off, slug, a)).follow).toBeNull();
 	});
 });

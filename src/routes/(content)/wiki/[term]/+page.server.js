@@ -7,6 +7,8 @@ import { siteWikiEntry, siteWikiPosts, wikiPost } from '$lib/server/wiki/site.js
 import { siteTagDetails } from '$lib/server/etiquetas/source.js';
 import { renderContentBody } from '$lib/server/contenido/render.js';
 import { pageReadingMinutes, pageReadingWords } from '$lib/utils/readingTime.js';
+import { seriesTagInfo } from '$lib/server/series/web.js';
+import { followButtonState } from '$lib/server/sigo/button.js';
 
 /**
  * /wiki/<término>: la página de la wiki de esa etiqueta, desde la base (el texto de la wiki es el
@@ -15,9 +17,13 @@ import { pageReadingMinutes, pageReadingWords } from '$lib/utils/readingTime.js'
  * etiqueta (+page.js). Los .md de src/lib/posts/wiki/ quedan solo como respaldo: el sitio no los
  * lee.
  *
+ * Lo de series de la etiqueta y el botón «Seguir» vienen con la página (`seriesInfo`, `follow`),
+ * así no se piden al cargar y la página no se mueve cuando llegan. Si algo de eso falla, la página
+ * sale igual sin ellos (`undefined`), y los componentes lo piden como antes.
+ *
  * @type {import("./$types").PageServerLoad}
  */
-export async function load({ params, platform }) {
+export async function load({ params, platform, locals }) {
 	const { entry, key, tags } = await siteWikiEntry(platform, params.term);
 	const children = tags.get(key)?.getAllChildren() ?? [];
 	const posts = await sitePosts(platform);
@@ -53,13 +59,36 @@ export async function load({ params, platform }) {
 			readingWords: pageReadingWords(entry.body)
 		};
 	}
-	const [ticketStates, wiki, details] = await Promise.all([
+	const [ticketStates, seriesInfo, follow, wiki, details] = await Promise.all([
 		// «Comprar entradas» / «Agotadas» en las tarjetas.
 		ticketStatesFor(platform, related.relatedPosts),
+		seriesTagInfo(platform, locals, key, { tags, posts }).catch(logged('series')),
+		followButtonState({ platform, locals }, 'etiqueta', key, { tags }).catch(logged('sigo')),
 		// El glosario de la página: las páginas de la wiki y las descripciones y relacionadas de las
 		// etiquetas (el layout raíz manda el árbol liviano: $lib/utils/tagDetails.js).
 		siteWikiPosts(platform),
 		siteTagDetails(platform)
 	]);
-	return { ...page, ...related, ticketStates, wiki, siteTagDetails: details };
+	return {
+		...page,
+		...related,
+		ticketStates,
+		seriesInfo,
+		follow,
+		wiki,
+		siteTagDetails: details
+	};
+}
+
+/**
+ * Lo opcional de la página: si falla, sale sin eso (`undefined`) y el componente lo pide solo.
+ *
+ * @param {string} what
+ */
+function logged(what) {
+	/** @param {unknown} e */
+	return (e) => {
+		console.error(`[wiki] ${what}:`, e);
+		return undefined;
+	};
 }

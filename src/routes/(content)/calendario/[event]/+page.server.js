@@ -170,7 +170,13 @@ async function loadTickets(slug, platform, fetchFn, waitlistFlag) {
 	// Lista de espera: con el interruptor prendido, lo que sobra después de la fila (como /entradas).
 	const db = getDB(platform);
 	const waitlistOn = await waitlistFlag;
-	const view = await getTicketsView(db, slug, fetchFn, { waitlist: waitlistOn });
+	// El precio solo se muestra (se cobra en /entradas): el porcentaje del Fondo conocido, sin
+	// esperar a fondo.kinkyvibe.ar; se actualiza en segundo plano (tickets/fondo.js).
+	const ctx = platform?.ctx;
+	const view = await getTicketsView(db, slug, fetchFn, {
+		waitlist: waitlistOn,
+		fondo: ctx?.waitUntil ? { staleOk: true, waitUntil: (task) => ctx.waitUntil(task) } : {}
+	});
 	if (!view) return null;
 	const summary = summarizeTickets(view);
 	// Agotadas con lista: el botón lleva al formulario de la página de compra («Agotadas · Anotate

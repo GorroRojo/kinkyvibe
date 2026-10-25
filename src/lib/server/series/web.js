@@ -9,6 +9,8 @@ import { siteTagManager } from '$lib/server/etiquetas/source.js';
 import { runSeriesNotifications } from './notify.js';
 import { accountSubscriptions } from './subscriptions.js';
 import { avisameViaSigo } from '$lib/server/sigo/avisame.js';
+import { eventsForTag, seriesPage } from './index.js';
+import { tagFeedPath, tagIdFromSlug } from '$lib/utils/series.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 
@@ -113,4 +115,55 @@ export async function followInvite(platform, locals) {
 	} catch {
 		return false;
 	}
+}
+
+/**
+ * @typedef {{
+ *   series: Awaited<ReturnType<typeof seriesPage>>,
+ *   feed: string | null,
+ *   account: { member: boolean, subscribed: boolean, sigo: boolean, invite: boolean }
+ * }} SeriesTagInfo
+ */
+
+/**
+ * Lo de series de la página de una etiqueta (/wiki/<etiqueta>; lo muestra
+ * $lib/components/series/SeriesTagBlock.svelte): si la etiqueta es una serie, su imagen y sus
+ * ediciones (próximas primero, después las pasadas); si tiene eventos, el link de su calendario
+ * .ics; y si hay una cuenta con sesión, si ya está suscripta a los avisos (y si eso va por «Lo que
+ * sigo»). `null` si no hay nada de series para esa etiqueta. Lo usan la carga de la página (así el
+ * bloque llega con la página) y GET /api/series/<etiqueta>.
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {App.Locals} locals
+ * @param {string} segment la etiqueta: su nombre, un alias o la forma de la URL
+ * @param {{ tags?: TagManager, posts?: ProcessedPost[] }} [loaded] lo que ya leyó quien llama
+ * @returns {Promise<SeriesTagInfo | null>}
+ */
+export async function seriesTagInfo(platform, locals, segment, loaded = {}) {
+	// «Rancheadita-Kinky», «Rancheadita Kinky» o un alias: la misma etiqueta (como /wiki/<término>).
+	const [tags, posts] = await Promise.all([
+		loaded.tags ?? siteTagManager(platform),
+		loaded.posts ?? sitePosts(platform)
+	]);
+	const id = tagIdFromSlug(tags, segment) ?? segment;
+	const [series, events] = await Promise.all([
+		seriesPage(id, { tags, posts }),
+		eventsForTag(id, { tags, posts })
+	]);
+	if (!series && !events.length) return null;
+	const account = series
+		? await seriesAccountState(platform, locals)
+		: { member: false, subscribed: [], sigo: false, invite: await followInvite(platform, locals) };
+	return {
+		series,
+		feed: events.length ? tagFeedPath(id) : null,
+		account: {
+			member: account.member,
+			subscribed: account.subscribed.includes(id),
+			// Con cuenta y «Lo que sigo», «Avisame» es seguir la serie (el botón «Seguir» de la página).
+			sigo: account.sigo,
+			// Sin sesión y con «Lo que sigo»: invitar a entrar para seguir.
+			invite: account.invite
+		}
+	};
 }
