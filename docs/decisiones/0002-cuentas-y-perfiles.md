@@ -2,6 +2,8 @@
 
 - Fecha: 2026-09-30
 - Estado: Aceptada. "Perfil de grupo" pasa a llamarse "Proyecto" ([0019](0019-proyecto.md)).
+  Las entradas gratis pedidas sin la sesión de la cuenta ya no aparecen solas: se preguntan
+  ([0048](0048-entradas-gratis-sin-sesion-se-preguntan.md)).
 
 ## Contexto
 

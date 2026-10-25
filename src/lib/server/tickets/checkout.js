@@ -67,6 +67,7 @@ import { listaEsperaEnabled } from '$lib/server/flags.js';
 import { queueWaitlistAdvance } from './waitlistEngine.js';
 import { eventSignupFields, readAnswers } from './signupFields.js';
 import { saveAfterPurchase } from '$lib/server/cuentas/savedBuyer.js';
+import { markFreeOrderMine } from '$lib/server/cuentas/orders.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 import { unconfirmedMailAllowed } from '$lib/server/email/suppressions.js';
@@ -1034,6 +1035,10 @@ export async function buyAction(event) {
 	const statusUrl = `/entradas/${order.id}/estado`;
 
 	if (method === 'gratis') {
+		// Pedida con la sesión de la cuenta de ese mail: es suya, va directo a la lista de Mi rincón
+		// (si no, queda en «¿Son tuyas?»; «No fui yo», parte 2, en cuentas/orders.js).
+		if (member && confirmedEmail)
+			await markFreeOrderMine(db, { accountId: member.id, orderId: order.id, now });
 		try {
 			const approved = await approveFreeOrder(db, order);
 			if (approved.newlyApproved) {
