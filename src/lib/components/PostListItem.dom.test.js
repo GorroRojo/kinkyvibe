@@ -1,24 +1,15 @@
 // @vitest-environment jsdom
 /**
  * La tarjeta de un evento en la lista, en el navegador (jsdom + @testing-library/svelte): ya no
- * tiene «Añadir al calendario» (gorrite, 25/10), así que ni al montar ni al tocarla se baja la
- * librería del menú (add-to-calendar-button, ~60 KB comprimida).
+ * tiene «Añadir al calendario» (gorrite, 25/10). La librería del menú se sacó del proyecto.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render } from '@testing-library/svelte';
 import { tick } from 'svelte';
-
-const loaded = vi.fn();
-vi.mock('add-to-calendar-button', () => {
-	loaded();
-	return { atcb_action: vi.fn() };
-});
-
-const { default: PostListItem } = await import('./PostListItem.svelte');
+import PostListItem from './PostListItem.svelte';
 
 afterEach(() => {
 	cleanup();
-	vi.clearAllMocks();
 });
 
 const post = {
@@ -38,15 +29,13 @@ const post = {
 };
 
 describe('PostListItem: sin «Añadir al calendario»', () => {
-	it('un evento abierto con link: sin el botón, y la librería no se baja', async () => {
-		const { queryByRole, getByRole, container } = render(PostListItem, { props: { post } });
+	it('un evento abierto con link: sin el botón', async () => {
+		const { queryByRole, getByRole } = render(PostListItem, { props: { post } });
 		await tick();
 		expect(queryByRole('button', { name: 'Añadir al calendario' })).toBeNull();
-		expect(container.querySelector('.add-cal')).toBeNull();
 		// la inscripción externa sigue (se arma al montar)
 		expect(getByRole('link', { name: 'INSCRIPCIÓN' }).getAttribute('href')).toBe(
 			'https://example.com/inscripcion'
 		);
-		expect(loaded).not.toHaveBeenCalled();
 	});
 });

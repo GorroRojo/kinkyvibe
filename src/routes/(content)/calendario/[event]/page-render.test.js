@@ -330,7 +330,6 @@ describe('/calendario/<evento>: los botones', () => {
 		const body = page({ link: 'https://example.com/inscripcion', link_text: 'Inscribirme' });
 		expect(text(block(body, 'compartir'))).toMatch(/^Compartir/);
 		expect(body).not.toContain('Agregar a mi calendario');
-		expect(body).not.toContain('<add-to-calendar-button');
 		// la inscripción no está en «Cuándo y dónde»: va después de «De qué se trata»
 		expect(text(card(body))).not.toContain('Inscribirme');
 		const art = article(body);

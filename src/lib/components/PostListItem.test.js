@@ -72,7 +72,7 @@ describe('PostListItem: venta de entradas', () => {
 		expect(cta(html)).toBeNull();
 		expect(html).not.toContain('Comprar entradas');
 		// Sin «Añadir al calendario» en la tarjeta (ver abajo).
-		expect(html).not.toContain('add-cal');
+		expect(html).not.toContain('Añadir al calendario');
 	});
 
 	it('evento terminado: ni botón ni aviso', () => {
@@ -106,8 +106,7 @@ describe('PostListItem: etiquetas', () => {
 
 /*
  * «Añadir al calendario» ya no va en las tarjetas de las listas (gorrite, 25/10): antes, un
- * <button> en los eventos abiertos con link de inscripción. Ninguna tarjeta lo tiene, tampoco el
- * elemento de la librería.
+ * <button> en los eventos abiertos con link de inscripción. Ninguna tarjeta lo tiene.
  */
 describe('PostListItem: sin «Añadir al calendario»', () => {
 	it('ningún evento lo muestra (abierto con link, cancelado, agotado, terminado, sin link)', () => {
@@ -124,8 +123,6 @@ describe('PostListItem: sin «Añadir al calendario»', () => {
 		]) {
 			const html = body({ post: post({ tickets: undefined, ...extra }) });
 			expect(html).not.toContain('Añadir al calendario');
-			expect(html).not.toContain('add-cal');
-			expect(html).not.toContain('<add-to-calendar-button');
 		}
 	});
 });

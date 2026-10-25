@@ -1,11 +1,9 @@
 /**
  * Piezas puras de la página de un evento (/calendario/<evento>) y de las listas que lo rodean:
- * si el evento ya pasó, la serie que se puede seguir, el menú «Agregar a mi calendario» y cómo se
- * ordenan «Más cosas de…» y «Participa en» (próximos primero, en orden de fecha; los pasados
- * aparte).
+ * si el evento ya pasó, la serie que se puede seguir y cómo se ordenan «Más cosas de…» y
+ * «Participa en» (próximos primero, en orden de fecha; los pasados aparte).
  */
-import { format } from 'date-fns';
-import { argDateParts, eventEnd, parseSiteDate, toArgentina } from './dates.js';
+import { argDateParts, eventEnd, parseSiteDate } from './dates.js';
 
 /**
  * ¿El evento ya terminó? (Sin fin, el que calcula `eventEnd`.) Una fecha que no se entiende
@@ -66,53 +64,6 @@ export function eventPageTitle(meta, series) {
 export function nextEdition(series) {
 	for (const s of series?.list ?? []) if (s.nextUpcoming) return s.nextUpcoming;
 	return null;
-}
-
-/**
- * Las opciones del menú «Agregar a mi calendario» (add-to-calendar-button): Google, el archivo
- * .ics (que abre Apple Calendar y el calendario del celu) y Outlook, con nombres claros (la
- * librería decía «iCal Ficha»). `Apple` y no `iCal`: en iPhone la librería suma Apple si ve
- * iCal, y quedaban dos opciones iguales.
- */
-export const CALENDAR_OPTIONS = Object.freeze([
-	'Google',
-	'Apple|Apple / celu (.ics)',
-	'Outlook.com|Outlook'
-]);
-
-/** @type {Record<string, 'CONFIRMED' | 'CANCELLED' | 'TENTATIVE'>} */
-const CALENDAR_STATUS = {
-	abierto: 'CONFIRMED',
-	cancelado: 'CANCELLED',
-	anunciado: 'TENTATIVE',
-	agotadas: 'CONFIRMED'
-};
-
-/**
- * Los datos de «Agregar a mi calendario» para add-to-calendar-button, en hora argentina. El menú
- * es un diálogo (`listStyle: 'modal'`) con «Cerrar».
- *
- * @param {{ title: string, summary?: string, start: string | number | Date,
- *   end?: string | number | Date | null, status?: string, postID?: string }} meta
- */
-export function calendarButtonEvent(meta) {
-	const end = eventEnd(/** @type {any} */ (meta.start), /** @type {any} */ (meta.end ?? undefined));
-	return {
-		name: meta.title,
-		description: meta.summary,
-		startDate: format(toArgentina(meta.start), 'yyyy-MM-dd'),
-		startTime: format(toArgentina(meta.start), 'HH:mm'),
-		endDate: format(toArgentina(end), 'yyyy-MM-dd'),
-		endTime: format(toArgentina(end), 'HH:mm'),
-		status: CALENDAR_STATUS[meta.status ?? ''] ?? 'CONFIRMED',
-		timeZone: 'America/Buenos_Aires',
-		options: [...CALENDAR_OPTIONS],
-		language: /** @type {const} */ ('es'),
-		customLabels: { close: 'Cerrar' },
-		iCalFileName: meta.postID || meta.title || 'evento',
-		listStyle: /** @type {const} */ ('modal'),
-		organizer: 'Mel|kinkyvibe@gmail.com'
-	};
 }
 
 /**

@@ -1,12 +1,9 @@
 /**
  * La página de un evento y sus listas (pedido de gorrite, revisión de UX del sitio): si ya pasó,
- * la serie para seguir, el menú «Agregar a mi calendario» y el orden de «Más cosas de…» y
- * «Participa en». Datos inventados.
+ * la serie para seguir y el orden de «Más cosas de…» y «Participa en». Datos inventados.
  */
 import { describe, expect, it } from 'vitest';
 import {
-	CALENDAR_OPTIONS,
-	calendarButtonEvent,
 	eventPageTitle,
 	isPastEvent,
 	mainSeries,
@@ -79,45 +76,6 @@ describe('eventPageTitle', () => {
 		expect(eventPageTitle({ title: 'Noche Inventada' }, series)).toBe('Noche Inventada');
 		expect(eventPageTitle({ ...meta, start: 'cualquier cosa' }, series)).toBe('Noche Inventada');
 		expect(eventPageTitle({ ...meta, title: 'Noche de Octubre' }, series)).toBe('Noche de Octubre');
-	});
-});
-
-describe('«Agregar a mi calendario»', () => {
-	const event = calendarButtonEvent({
-		title: 'Taller Inventado',
-		summary: 'Un taller de prueba',
-		start: '2026-10-02T21:30:00-03:00',
-		end: '2026-10-03T01:00:00-03:00',
-		status: 'anunciado',
-		postID: 'taller-inventado'
-	});
-
-	it('tres opciones con nombres claros: Google, Apple / celu (.ics) y Outlook', () => {
-		expect(CALENDAR_OPTIONS).toEqual([
-			'Google',
-			'Apple|Apple / celu (.ics)',
-			'Outlook.com|Outlook'
-		]);
-		expect(event.options).toEqual([...CALENDAR_OPTIONS]);
-		expect(JSON.stringify(event)).not.toMatch(/iCal Ficha|Yahoo|Teams|365/);
-	});
-
-	it('es un diálogo con «Cerrar»', () => {
-		expect(event.listStyle).toBe('modal');
-		expect(event.customLabels).toEqual({ close: 'Cerrar' });
-	});
-
-	it('en hora argentina, con el archivo .ics con el nombre del evento', () => {
-		expect(event).toMatchObject({
-			name: 'Taller Inventado',
-			startDate: '2026-10-02',
-			startTime: '21:30',
-			endDate: '2026-10-03',
-			endTime: '01:00',
-			status: 'TENTATIVE',
-			iCalFileName: 'taller-inventado',
-			language: 'es'
-		});
 	});
 });
 

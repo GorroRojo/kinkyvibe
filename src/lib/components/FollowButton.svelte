@@ -9,8 +9,7 @@
 	 * JavaScript muestra el resultado en Mi rincón → Lo que sigo.
 	 * Props: `kind` (`etiqueta` o `perfil`), `key` (nombre de la etiqueta o id del perfil),
 	 * `name` (cómo se llama, para el texto), `label` (el texto del botón, «Seguir» si no se pasa)
-	 * e `inline` (en una fila de botones, como «Agregar a mi calendario» en la página de un evento:
-	 * sin el ancho ni el margen propios), `info` (lo de la carga, o `null` si no va el botón) y
+	 * e `inline` (en una fila de botones: sin el ancho ni el margen propios), `info` (lo de la carga, o `null` si no va el botón) y
 	 * `path` (la ruta de la página, para volver después de entrar).
 	 */
 	import { onMount } from 'svelte';
