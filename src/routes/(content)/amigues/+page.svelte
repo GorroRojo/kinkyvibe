@@ -59,7 +59,7 @@
 					<button on:click={() => $togglePositiveTagFilterFn(false, termino.id)}>x</button>
 					<dt>
 						{termino.icon ?? ''}{name.charAt(0).toUpperCase() + name.slice(1)}
-						{#if data.wiki.find((w) => w.meta.wiki == termino.id)}
+						{#if data.wikiKeys.includes(termino.id)}
 							<a href="/wiki/{termino.id}" class="gotowiki">
 								<span>
 									<Globe {style} />

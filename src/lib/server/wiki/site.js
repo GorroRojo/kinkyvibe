@@ -8,7 +8,7 @@
  */
 import { canonicalTags } from '$lib/utils';
 import { tagIdFromSlug } from '$lib/utils/tagSlug.js';
-import { siteTagSource, tagManagerOf } from '$lib/server/etiquetas/source.js';
+import { siteTagDetails, siteTagSource, tagManagerOf } from '$lib/server/etiquetas/source.js';
 
 /** @typedef {import('$lib/server/etiquetas/wikiPages.js').WikiEntry} WikiEntry */
 
@@ -58,6 +58,18 @@ export async function siteWikiPosts(platform) {
 	}
 	// Quien llama puede ordenar la lista: una copia.
 	return [...posts];
+}
+
+/**
+ * Para las listas que muestran la descripción de las etiquetas elegidas (/material, /amigues,
+ * /todo): las etiquetas con página de la wiki (el link «Es más complejo») y los detalles de las
+ * etiquetas (el layout raíz manda el árbol liviano: $lib/utils/tagDetails.js).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export async function tagDescriptionsData(platform) {
+	const [wiki, details] = await Promise.all([siteWikiPosts(platform), siteTagDetails(platform)]);
+	return { wikiKeys: wiki.map((p) => String(p.meta.wiki)), siteTagDetails: details };
 }
 
 /**

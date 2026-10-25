@@ -1,7 +1,6 @@
-import { siteWikiPosts } from '$lib/server/wiki/site.js';
 import { isAdmin } from '$lib/server/auth';
 import { isPreviewDeploy } from '$lib/server/deploy.js';
-import { siteTagSource } from '$lib/server/etiquetas/source.js';
+import { siteTagsForPages } from '$lib/server/etiquetas/source.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { getReadingSpeed } from '$lib/server/cuentas/accounts.js';
 
@@ -27,14 +26,13 @@ async function memberReadingSpeed(platform, member) {
 // Don't read `url` here: SvelteKit would then re-run this load whenever the query string
 // changes, e.g. on each PostList search update.
 export const load = async ({ locals, platform }) => {
-	// Las páginas de la wiki (el glosario): de la base, con el árbol de etiquetas (una lectura).
-	const [wiki, tags, readingSpeed] = await Promise.all([
-		siteWikiPosts(platform),
-		siteTagSource(platform),
+	// Las páginas de la wiki ya no van acá: las mandan las páginas que las usan (la Kinkipedia y
+	// los «Es más complejo» de /material, /amigues y /todo).
+	const [siteTags, readingSpeed] = await Promise.all([
+		siteTagsForPages(platform),
 		memberReadingSpeed(platform, locals.member)
 	]);
 	return {
-		wiki,
 		// `admin` only decides which menu links to show; every admin route checks on its own.
 		user: locals.user && { ...locals.user, admin: isAdmin(locals.user) },
 		// Preview deploys: demo mode (docs/demo.md): "Entrar como admin de prueba" and the banner.
@@ -47,6 +45,8 @@ export const load = async ({ locals, platform }) => {
 		readingSpeed,
 		// El árbol de etiquetas de la base (docs/etiquetas.md), para los stores de las páginas
 		// (+layout.svelte). Sin etiquetas en la base: null, y todo usa el archivo de respaldo.
-		siteTags: tags.fromDb ? tags.rawTags : null
+		// Liviano: sin descripciones, relacionadas ni imágenes, que mandan aparte las páginas que
+		// las muestran (`siteTagDetails`, $lib/utils/tagDetails.js).
+		siteTags
 	};
 };

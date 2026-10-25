@@ -67,6 +67,7 @@ async function modules() {
 		server: await import('./+page.server.js'),
 		universal: await import('./+page.js'),
 		layout: await import('../../../+layout.server.js'),
+		index: await import('../+page.server.js'),
 		sitemap: await import('../../sitemap.xml/+server.js')
 	};
 }
@@ -180,10 +181,18 @@ describe('/wiki/<término> desde la base', () => {
 	it('el glosario y el sitemap leen las páginas de la base', async () => {
 		await seed();
 		const m = await modules();
+		// El glosario (/wiki y cada /wiki/<término>) recibe las páginas con su propia página; el
+		// layout raíz ya no las manda en todas las páginas.
+		const index = /** @type {any} */ (
+			await m.index.load(/** @type {any} */ ({ platform: t.platform }))
+		);
+		expect(index.wiki.map((/** @type {any} */ p) => p.path)).toEqual(['/wiki/termino-inventado']);
+		const term = await page(m, 'termino-inventado');
+		expect(term.wiki.map((/** @type {any} */ p) => p.path)).toEqual(['/wiki/termino-inventado']);
 		const layout = /** @type {any} */ (
 			await m.layout.load(/** @type {any} */ ({ locals: {}, platform: t.platform }))
 		);
-		expect(layout.wiki.map((/** @type {any} */ p) => p.path)).toEqual(['/wiki/termino-inventado']);
+		expect(layout.wiki).toBeUndefined();
 		const xml = await (await m.sitemap.GET(/** @type {any} */ ({ platform: t.platform }))).text();
 		expect(xml).toContain('<loc>https://kinkyvibe.ar/wiki/termino-inventado</loc>');
 		// Un .md de la wiki del repo que la base no tiene no aparece.
@@ -207,9 +216,8 @@ describe('/wiki/<término> desde la base', () => {
 			await m.server.load(/** @type {any} */ ({ params: { term: 'BDSM' }, platform: none }))
 		);
 		expect(data.meta).toBeUndefined();
-		const layout = /** @type {any} */ (
-			await m.layout.load(/** @type {any} */ ({ locals: {}, platform: none }))
-		);
-		expect(layout.wiki).toEqual([]);
+		expect(data.wiki).toEqual([]);
+		const index = /** @type {any} */ (await m.index.load(/** @type {any} */ ({ platform: none })));
+		expect(index.wiki).toEqual([]);
 	});
 });

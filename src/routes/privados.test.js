@@ -803,14 +803,17 @@ const LIST_OUTPUTS = [
 		['evento']
 	],
 	[
+		// el glosario: las páginas de la wiki y los detalles de las etiquetas vienen con la página
 		'/wiki',
 		() => load(import('./(content)/wiki/+page.server.js'), anonEvent({ path: '/wiki' })),
-		[]
+		['etiqueta']
 	],
 	[
-		'layout (glosario y etiquetas de cada página)',
+		// el árbol liviano de cada página: sin páginas de la wiki ni descripciones (nada que
+		// controlar de lo público; sí que no salga nada privado)
+		'layout (etiquetas de cada página)',
 		() => load(import('./+layout.server.js'), anonEvent()),
-		['etiqueta']
+		[]
 	],
 	[
 		`/wiki/${PUBLIC_SERIES_SLUG}`,

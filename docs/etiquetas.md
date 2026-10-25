@@ -130,7 +130,14 @@ solo); hasta entonces el árbol está vacío y el editor lo avisa.
     también los stores `tagManager` y `wikiTagManager` del SSR. Todos los pedidos de un isolate
     ven la misma lista (la de los 30 s).
   - En el navegador, el layout raíz manda la lista de la base (`data.siteTags`, solo prendido) y
-    `useSiteTags` la pone en los stores y en `siteTags.js`.
+    `useSiteTags` la pone en los stores y en `siteTags.js`. Va **liviana**
+    (`src/lib/utils/tagDetails.js`): sin `description`, `related` ni `image`, que solo usan la
+    Kinkipedia (`/wiki`, `/wiki/<término>`), las descripciones de las etiquetas elegidas en
+    `/material`, `/amigues` y `/todo`, y el panel. Esas páginas mandan los detalles aparte
+    (`data.siteTagDetails`, `siteTagDetails()` de `source.js`) y el layout raíz los junta con el
+    árbol (`withTagDetails`: se van sumando, así el árbol no se rearma en cada navegación). En el
+    servidor nada cambia: el layout raíz no toca los stores ahí (ya tienen la lista completa del
+    pedido).
   - Lo leen de ahí: la limpieza de etiquetas de cada post (`canonicalTags`/`processPost`,
     `fetchPost`), los listados de posts (`fetchMarkdownPosts`: la lista se procesa una vez y, con la base, se vuelven a limpiar las etiquetas, una vez por árbol), los
     editores del panel (`adminTags.js`: el editor de eventos, «¿Es parte de una serie?» al
@@ -204,8 +211,11 @@ El texto de la wiki de cada etiqueta (`body`, `wiki_title`, `wiki_summary`, `wik
 `.md` de la wiki).
 
 - **Leer**: `src/lib/server/wiki/site.js`. Las páginas vienen con el árbol de etiquetas
-  (`siteTagSource`, recordado 30 s por isolate): el glosario del layout, `/wiki`, el buscador, el
-  sitemap y «Participa en» no suman consultas. `/wiki/<término>` resuelve la etiqueta como toda
+  (`siteTagSource`, recordado 30 s por isolate): el glosario, `/wiki`, el buscador, el
+  sitemap y «Participa en» no suman consultas. Las páginas de la wiki ya no viajan en el layout de
+  todas las páginas: las mandan `/wiki` y `/wiki/<término>` (`wiki`, para el glosario) y
+  `/material`, `/amigues` y `/todo` (`wikiKeys`, para el link «Es más complejo»;
+  `tagDescriptionsData`). `/wiki/<término>` resuelve la etiqueta como toda
   dirección de etiqueta (también un alias) y arma el texto en el servidor
   (`renderContentBody`: HTML libre como lo armaba mdsvex, con `[[enlaces]]`, anclas e índice, si
   `wiki_body_html` es `libre`; si no, la lista corta). **Ya no se prerenderiza** (`prerender = false`): la
