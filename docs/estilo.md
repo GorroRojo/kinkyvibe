@@ -267,6 +267,13 @@ Un componente por concepto, en [`src/lib/components/ui/`](../src/lib/components/
 import: `import { Button, Card } from '$lib/components/ui';`. Envuelven las clases y los tokens de
 arriba (el aspecto es el aprobado; no los rediseñes de paso).
 
+**En las páginas públicas, cada componente por su archivo**:
+`import Button from '$lib/components/ui/Button.svelte';`. El barril (`$lib/components/ui`) trae
+todos los componentes, sus estilos y partes del panel; en el panel da igual, pero en una página
+pública es JavaScript y CSS que se baja y no se usa. ESLint (`no-restricted-imports` en
+`eslint.config.js`) no deja usar el barril en `src/routes/(content)/` ni en `src/lib/components/`
+(salvo `admin/` y `ui/`).
+
 **Antes de crear un componente nuevo, mirá `/estilo` y preguntale a gorrite.** `/estilo` es la
 galería: cada componente con su import, cuándo usarlo y cuándo no, y sus estados (normal, hover y
 foco forzados, apagado, error, elegido, vacío), en el aspecto del panel y del sitio, claro y

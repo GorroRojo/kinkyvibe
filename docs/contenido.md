@@ -230,7 +230,11 @@ son el cuerpo de las etiquetas, [etiquetas.md](etiquetas.md)) también.
   `src/lib/components/interactivos/index.js` (qué componente muestra cada una; los componentes
   viven en esa misma carpeta). Solo las registradas se muestran (también dentro de otro elemento,
   con `ContentParts.svelte`); cualquier otra `<kv-…>` se ve escapada, como texto. Un interactivo
-  nuevo necesita un PR. Hoy hay uno: `donde-y-como-golpear-un-cuerpo`.
+  nuevo necesita un PR. Hoy hay uno: `donde-y-como-golpear-un-cuerpo`. Los datos grandes de un
+  interactivo (los trazos de su SVG) no van en el componente: el servidor se los pasa como props
+  en su parte (`INTERACTIVE_PROPS` en `src/lib/server/contenido/interactive.js`, los datos en
+  `src/lib/server/contenido/interactivos/`), así viajan solo en la página que lo usa y no en el
+  JavaScript de todas las páginas con texto.
 - **Descargar todo** (botón en Contenido → En la base, `descargar.tar`,
   `src/lib/server/contenido/download.js`): los eventos, el material, los perfiles de amigues
   (`amigues/<dirección>.md`) y las páginas de la wiki (`wiki/<dirección>.md`) de la base como `.md`

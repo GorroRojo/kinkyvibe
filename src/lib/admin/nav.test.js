@@ -33,6 +33,7 @@ import {
 } from './nav.js';
 import { buildCommands, matchCommands } from './commands.js';
 import { match as soonMatcher } from '../../params/soon.js';
+import { SOON_HREFS } from './soonSections.js';
 
 /** Las rutas con página (`+page.svelte`) de `src/routes/(authed)/admin`, como URLs. */
 function adminPages() {
@@ -618,6 +619,11 @@ describe('navLink y navState', () => {
 });
 
 describe('páginas "Próximamente"', () => {
+	it('la lista sin íconos del matcher (soonSections.js) es la de las secciones de NAV', () => {
+		expect(new Set(SOON_HREFS)).toEqual(new Set(NAV.filter((i) => i.soon).map((i) => i.href)));
+		expect(SOON_HREFS.length).toBe(new Set(SOON_HREFS).size);
+		expect(Object.isFrozen(SOON_HREFS)).toBe(true);
+	});
 	it('soonItemAt y el matcher solo aceptan las URLs reservadas', () => {
 		for (const i of NAV.filter((x) => x.soon)) {
 			expect(soonItemAt(i.href)?.id).toBe(i.id);
