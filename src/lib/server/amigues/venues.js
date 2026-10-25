@@ -436,7 +436,7 @@ export async function withVenuePlaces(db, posts) {
 	/** @type {Map<string, VenueView>} */
 	let venues;
 	try {
-		venues = await feedVenues(db, slugs);
+		venues = await placesOf(db, slugs);
 	} catch (e) {
 		console.error('[lugares] no se pudieron leer los lugares de los eventos', e);
 		return posts.map((p) => (isEvent(p) ? { ...p, meta: stripMdPlace(p.meta) } : p));
@@ -446,6 +446,30 @@ export async function withVenuePlaces(db, posts) {
 		const venue = isEvent(p) ? venues.get(String(p.meta.postID)) : undefined;
 		return venue ? { ...p, meta: venuePlaceMeta(p.meta, venue) } : p;
 	});
+}
+
+/**
+ * Los lugares de esos eventos como los ve cualquiera ({@link feedVenues}). Los de los eventos de las
+ * listas salen de lo recordado con la marca del contenido (src/lib/server/contenido/posts.js,
+ * `fromContentState`: un vínculo nuevo, un cambio del lugar o de su aprobación mueven la marca), sin
+ * consultas mientras no cambie; los demás, de la base.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {string[]} slugs
+ * @returns {Promise<Map<string, VenueView>>}
+ */
+async function placesOf(db, slugs) {
+	if (!db) return new Map();
+	const { fromContentState } = await import('$lib/server/contenido/posts.js');
+	const known = await fromContentState(db, 'eventVenues', async (events) => ({
+		asked: new Set(events),
+		views: await feedVenues(db, events)
+	}));
+	if (!known) return feedVenues(db, slugs);
+	const missing = slugs.filter((slug) => !known.asked.has(slug));
+	const out = new Map([...known.views].filter(([slug]) => slugs.includes(slug)));
+	if (missing.length) for (const [slug, view] of await feedVenues(db, missing)) out.set(slug, view);
+	return out;
 }
 
 /**
