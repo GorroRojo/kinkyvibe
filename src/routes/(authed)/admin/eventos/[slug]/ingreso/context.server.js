@@ -87,9 +87,19 @@ export async function doorScope(db, slug) {
 export async function doorContext({ params, platform, fetch }, { fondo = false } = {}) {
 	const db = getDB(platform);
 	if (!db) error(503, 'No hay base de datos disponible.');
-	const fondoPercent = fondo ? (await resolveFondoPercent({ db, fetch })).percent : undefined;
+	// La venta del evento se lee junto con las partes del taller, sin esperarlas: casi siempre las
+	// entradas son las del mismo evento. Solo en una parte de un taller con una sola entrada se lee
+	// después la del taller (y la propia no se usa).
+	const fondoP = fondo
+		? resolveFondoPercent({ db, fetch }).then((r) => r.percent)
+		: Promise.resolve(undefined);
+	const ownP = fondoP.then((fondoPercent) => getEventTickets(params.slug, { fondoPercent }));
+	ownP.catch(() => {}); // si no se usa, que un error ahí no quede sin atender
 	const { ticketSlug, part } = await doorScope(db, params.slug);
-	const config = await getEventTickets(ticketSlug, { fondoPercent });
+	const config =
+		ticketSlug === params.slug
+			? await ownP
+			: await getEventTickets(ticketSlug, { fondoPercent: await fondoP });
 	if (!config) error(404, 'Ese evento no vende entradas.');
 	if (config.online) error(404, 'Es un evento online: no tiene control de ingreso.');
 	/** @type {Record<string, string>} */

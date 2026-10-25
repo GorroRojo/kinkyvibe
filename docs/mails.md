@@ -47,7 +47,8 @@ sus plantillas propias) está en la ficha del evento.
 - **«No fui yo» se respeta.** Una dirección que usó el link «No fui yo» no recibe más mails que no
   sean de una compra pagada (ver [abajo](#no-fui-yo)). Los de una compra pagada salen siempre.
 - El DNI nunca va en un mail. Los tokens de las entradas no se loguean completos.
-- Un mail que falla no frena la compra: se loguea y se puede reenviar desde el panel.
+- Un mail que falla no frena la compra: se loguea, el de las entradas lo reintenta el cron (ver
+  [abajo](#reintento-del-mail-de-las-entradas)) y se puede reenviar desde el panel.
 
 ## Los mails
 
@@ -167,6 +168,29 @@ transmisión: …», sin «personal, no lo compartas».
 **Recordatorios:** el cron del propio Worker (`src/lib/server/scheduled.js`) le pasa cada 15
 minutos `POST /api/cron/recordatorios`, con el header `x-cron-secret`, al sitio. El sitio decide qué mandar. Por
 defecto: 2 días antes y el mismo día a las 9:00; un evento los apaga con `recordatorios: false`.
+
+### Reintento del mail de las entradas
+
+El mail con las entradas sale una vez, al aprobarse la orden (en segundo plano). Si ese envío
+falla (Resend caído, un timeout, el Worker que se cortó), la orden queda aprobada con
+`email_sent_at` vacío y el cron de cada 15 minutos (`POST /api/cron/recordatorios`) lo reintenta:
+`resendUnsentOrderEmails` en `src/lib/server/tickets/unsentOrders.js`.
+
+- **Cuáles:** órdenes `approved`, sin `email_sent_at`, con mail, aprobadas hace más de 10 minutos
+  (`EMAIL_GRACE_MS`, el mismo margen del aviso «mails sin enviar» del Inicio) y hace menos de 48 h;
+  las más viejas primero, 5 por corrida. Va aparte de la tanda de mails (no usa su tope) y en su
+  propio try/catch: si falla, lo demás sale igual. La respuesta del cron suma
+  `unsentOrders: { sent, failed }`.
+- **Sin duplicar:** usa `sendOrderEmail` con la clave de siempre (`tickets-<orden>`). Si el primer
+  intento sí había llegado a Resend (un timeout), Resend no lo manda de nuevo. Ojo: Resend guarda
+  las claves 24 h.
+- **Lo cortado a propósito no se reintenta:** una orden gratis a una dirección con «No fui yo» (o un
+  preview sin `EMAIL_ALLOWLIST`, o dev sin clave) vuelve `simulated`; se marca `email_sent_at`, como
+  los envíos en tandas marcan 'sent' lo simulado, y no se vuelve a tomar. Las órdenes gratis pasan
+  además por el tope de mails a una dirección sin confirmar (5 por día): el reintento no lo saltea.
+- **Una dirección que falla siempre** (Resend la rechaza) se intenta como mucho 3 veces por día
+  (`rate_limits`, la clave lleva el id de la orden) y no frena a las demás. Después de 48 h queda
+  en «mails sin enviar» del Inicio para «Reenviar» a mano.
 
 ### Códigos copiables
 
@@ -439,6 +463,14 @@ una copia en `panel_deletions`, así se recupera desde Ajustes › Actividad («
 **Agregar un mail nuevo.** Armalo en `email.js`, mandalo con `deliver()` (nunca directo a
 Resend) y, si es masivo, con una tabla de envíos que reserve a cada destinatarie antes de mandar
 (como `buyerMail.js`). Nueva migración si hace falta tabla ([datos.md](datos.md)).
+
+**A alguien no le llegaron las entradas («no me llegó»).** Buscá la orden en la ficha del evento
+→ Órdenes. Si dice que el mail salió, que revise spam y que la dirección esté bien escrita (si
+está mal, no hay reintento que sirva). Si no salió y la orden tiene menos de 48 h, el cron la
+reintenta sola cada 15 minutos. Si no, «Reenviar» manda las entradas de nuevo (sin clave de
+idempotencia: sale aunque ya hubiera salido). Una orden gratis a una dirección que tocó «No fui
+yo» no sale nunca, tampoco con «Reenviar». Quien compró también ve sus entradas en la página de
+la compra (`/entradas/<orden>/estado`) desde el navegador en que compró.
 
 **Un recordatorio no salió.** Mirá los logs del Worker `kinkyvibe` en Cloudflare
 (**Observability → Logs**, buscar `recordatorios:`): 503 = falta `CRON_SECRET`.

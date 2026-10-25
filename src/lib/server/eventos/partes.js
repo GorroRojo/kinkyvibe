@@ -132,13 +132,14 @@ export async function findEventRow(db, slug) {
 }
 
 /**
- * El taller del que `id` es parte (vivo o no), o `null`.
+ * El taller del que `id` es parte (vivo o no), o `null`. Exportada para los tests (los de
+ * `readWorkshop` comparan con la lectura en tres pasos).
  *
  * @param {D1Database} db
  * @param {number} id
  * @returns {Promise<EventRow | null>}
  */
-async function parentOf(db, id) {
+export async function parentOf(db, id) {
 	const row = await db
 		.prepare(
 			`SELECT ${eventCols('ev', 'cs')} FROM edges e
@@ -152,14 +153,14 @@ async function parentOf(db, id) {
 
 /**
  * Las otras partes del taller `id`, en orden. Con `viewer`, solo las que ve; sin él, todas las
- * que no están borradas (para escribir).
+ * que no están borradas (para escribir). Exportada para los tests, como `parentOf`.
  *
  * @param {D1Database} db
  * @param {number} id
  * @param {Viewer | null} viewer
  * @returns {Promise<EventRow[]>}
  */
-async function childrenOf(db, id, viewer) {
+export async function childrenOf(db, id, viewer) {
 	const vis = viewer ? visibleWhere(viewer, 'ev') : { sql: 'ev.deleted_at IS NULL', params: [] };
 	const { results } = await db
 		.prepare(
@@ -178,19 +179,67 @@ async function childrenOf(db, id, viewer) {
  * solo con lo que `viewer` puede ver; `null` si el evento no es parte de ningún taller (o quien
  * mira no ve el taller, o no ve ninguna otra parte).
  *
+ * Corre en cada escaneo de la puerta, en la página de cada entrada y en la del estado de una
+ * compra, así que es una sola ida y vuelta a D1: una tanda con el evento, su taller y las partes
+ * (estas dos buscan el evento por su dirección adentro del SQL, con la misma regla que
+ * `findEventRow`). Da lo mismo que leer en tres pasos (`findEventRow`, `parentOf` y `childrenOf`
+ * del taller: el padre vivo o, si no hay, el evento), lo que comparan los tests.
+ *
  * @param {D1Database | null | undefined} db
  * @param {string} slug dirección del evento
  * @param {Viewer} [viewer]
  * @returns {Promise<Workshop | null>}
  */
 export async function readWorkshop(db, slug, viewer = ANON) {
-	if (!db) return null;
-	const self = await findEventRow(db, slug);
+	if (!db || typeof slug !== 'string' || !slug) return null;
+	// El id del evento en esa dirección (como `findEventRow`), con `?` sin número: la dirección y
+	// el tipo se pasan cada vez que aparece.
+	const selfId = `(SELECT sev.id FROM objects sev ${eventJoin('sev', 'scs')}
+		WHERE sev.type = ? AND (scs.legacy_slug = ? OR (scs.legacy_slug IS NULL AND sev.slug = ?))
+		ORDER BY scs.legacy_slug IS NULL LIMIT 1)`;
+	const selfParams = [EVENT_TYPE, slug, slug];
+	// El taller del que el evento es parte, si está vivo (`parentOf` pone primero los vivos).
+	const liveParentId = `(SELECT pe.from_id FROM edges pe
+		JOIN objects pev ON pev.id = pe.from_id AND pev.type = ?
+		WHERE pe.kind = ? AND pe.to_id = ${selfId} AND pev.deleted_at IS NULL
+		ORDER BY pe.id LIMIT 1)`;
+	const liveParentParams = [EVENT_TYPE, PARTE_EDGE, ...selfParams];
+	const vis = viewer ? visibleWhere(viewer, 'ev') : { sql: 'ev.deleted_at IS NULL', params: [] };
+	const [selfRes, parentRes, childrenRes] = await db.batch([
+		db
+			.prepare(
+				`SELECT ${eventCols('ev', 'cs')} FROM objects ev ${eventJoin('ev', 'cs')}
+				WHERE ev.type = ?2 AND (cs.legacy_slug = ?1 OR (cs.legacy_slug IS NULL AND ev.slug = ?1))
+				ORDER BY cs.legacy_slug IS NULL LIMIT 1`
+			)
+			.bind(slug, EVENT_TYPE),
+		db
+			.prepare(
+				`SELECT ${eventCols('ev', 'cs')} FROM edges e
+				JOIN objects ev ON ev.id = e.from_id AND ev.type = ? ${eventJoin('ev', 'cs')}
+				WHERE e.kind = ? AND e.to_id = ${selfId}
+				ORDER BY ev.deleted_at IS NOT NULL, e.id LIMIT 1`
+			)
+			.bind(EVENT_TYPE, PARTE_EDGE, ...selfParams),
+		db
+			.prepare(
+				`SELECT ${eventCols('ev', 'cs')} FROM edges e
+				JOIN objects ev ON ev.id = e.to_id AND ev.type = ? ${eventJoin('ev', 'cs')}
+				WHERE e.kind = ? AND e.from_id = coalesce(${liveParentId}, ${selfId}) AND ${vis.sql}
+				ORDER BY e.position, e.id`
+			)
+			.bind(EVENT_TYPE, PARTE_EDGE, ...liveParentParams, ...selfParams, ...vis.params)
+	]);
+	const selfRow = /** @type {Record<string, unknown>[]} */ (selfRes.results)[0];
+	const self = selfRow ? rowOf(selfRow, 'ev') : null;
 	if (!self || !canSee(self, viewer)) return null;
-	const parent = await parentOf(db, self.id);
+	const parentRow = /** @type {Record<string, unknown>[]} */ (parentRes.results)[0];
+	const parent = parentRow ? rowOf(parentRow, 'ev') : null;
 	if (parent && parent.deleted_at === null && !canSee(parent, viewer)) return null;
 	const workshop = parent && parent.deleted_at === null ? parent : self;
-	const children = await childrenOf(db, workshop.id, viewer);
+	const children = /** @type {Record<string, unknown>[]} */ (childrenRes.results).map((r) =>
+		rowOf(r, 'ev')
+	);
 	if (!children.length) return null;
 	return numberParts(workshop, children);
 }

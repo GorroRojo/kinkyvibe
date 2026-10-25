@@ -12,6 +12,7 @@
  * - Cookie httpOnly, Secure (salvo http://localhost) y SameSite=Lax.
  */
 import { sha256Hex } from '$lib/server/hash.js';
+import { parseReadingSpeed } from '$lib/utils/readingTime.js';
 import { randomToken } from './crypto.js';
 import { SESSION_COOKIE_MAX_AGE } from './sessionAge.js';
 
@@ -65,17 +66,27 @@ export async function createSession(db, accountId, method, { now = Date.now() } 
  * La cuenta de la sesión de este token, o `null`. `touched` dice si se actualizó
  * `last_seen_at` (entonces hay que volver a mandar la cookie).
  *
+ * En la misma consulta vienen dos datos de la cuenta que se usan en muchas páginas, para no
+ * volver a leer la fila (la base está lejos: cada consulta es una ida y vuelta): la velocidad de
+ * lectura (`readingSpeed`, como `getReadingSpeed`) y el permiso de tener perfiles
+ * (`canHaveProfiles`, como `canHaveProfiles`). Nunca `preferences` entero: ahí está el DNI
+ * guardado (savedBuyer.js), que no tiene que viajar en `locals`.
+ *
  * @param {D1Database} db
  * @param {string | undefined} token
  * @param {{ now?: number }} [opts]
- * @returns {Promise<{ id: string, email: string, touched: boolean } | null>}
+ * @returns {Promise<{ id: string, email: string, readingSpeed: number | null,
+ *   canHaveProfiles: boolean, touched: boolean } | null>}
  */
 export async function getSessionAccount(db, token, { now = Date.now() } = {}) {
 	if (!token || !TOKEN_RE.test(token)) return null;
 	const hash = await sha256Hex(token);
 	const row = await db
 		.prepare(
-			`SELECT a.id, a.email, s.last_seen_at FROM account_sessions s
+			`SELECT a.id, a.email, s.last_seen_at,
+				json_extract(a.preferences, '$.readingSpeed') AS reading_speed,
+				a.can_have_profiles
+			FROM account_sessions s
 			JOIN accounts a ON a.id = s.account_id
 			WHERE s.token_hash = ?1 AND a.deleted_at IS NULL`
 		)
@@ -90,7 +101,13 @@ export async function getSessionAccount(db, token, { now = Date.now() } = {}) {
 			.run();
 		touched = true;
 	}
-	return { id: String(row.id), email: String(row.email), touched };
+	return {
+		id: String(row.id),
+		email: String(row.email),
+		readingSpeed: parseReadingSpeed(row.reading_speed ?? null),
+		canHaveProfiles: Number(row.can_have_profiles) === 1,
+		touched
+	};
 }
 
 /**

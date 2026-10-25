@@ -183,9 +183,9 @@ archivo (`--all` suma las tablas del panel, `--chunks=dir` lo parte para la API 
 aplicarlo a mano **solo** a la base de un preview o a la local. Ese SQL no trae los eventos de
 prueba (son objetos y solo se escriben con saveObject()): los carga solo el botón.
 
-Además, en un preview la página de error muestra el mensaje del error (`handleError` en
-`src/hooks.server.js`), para diagnosticar sin los logs de Cloudflare. En producción
-`handleError` no existe y SvelteKit usa el suyo, como siempre.
+Además, en un preview la página de error muestra el mensaje del error (`handleError`, armado en
+`src/lib/server/errorLog.js`), para diagnosticar sin los logs de Cloudflare. En producción la
+página muestra el mensaje genérico de siempre (y, en los errores 5xx, el código del error).
 
 ## Cómo se bloquea en producción
 

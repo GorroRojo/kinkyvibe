@@ -1,6 +1,8 @@
+import { readdirSync } from 'node:fs';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { configDefaults, defineConfig } from 'vitest/config';
 import { deployBranchFromEnv } from './src/lib/server/deployBranch.js';
+import { commitShaFromEnv, latestMigrationName } from './src/lib/server/buildInfo.js';
 import { lucideDeepImports } from './scripts/vite/lucide-deep-imports.js';
 import DurationSequencer from './scripts/vitest/sequencer.js';
 
@@ -9,8 +11,14 @@ export default defineConfig({
 	plugins: [sveltekit(), process.env.VITEST ? lucideDeepImports() : null],
 	// Rama del deploy (Workers Builds; '' en local): ver
 	// src/lib/server/deployBranch.js y src/lib/server/deploy.js.
+	// La última migración de migrations/ y el commit del build (Workers Builds; '' en local), para
+	// /api/health: ver src/lib/server/buildInfo.js.
 	define: {
-		__DEPLOY_BRANCH__: JSON.stringify(deployBranchFromEnv(process.env))
+		__DEPLOY_BRANCH__: JSON.stringify(deployBranchFromEnv(process.env)),
+		__LATEST_MIGRATION__: JSON.stringify(
+			latestMigrationName(readdirSync(new URL('./migrations', import.meta.url)))
+		),
+		__BUILD_SHA__: JSON.stringify(commitShaFromEnv(process.env))
 	},
 	assetsInclude: ['**/*.odt'],
 	build: {

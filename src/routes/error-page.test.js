@@ -48,4 +48,28 @@ describe('+error.svelte', () => {
 		expect(body).toContain('Ir al inicio');
 		expect(body).not.toContain('D1_ERROR');
 	});
+
+	it('500 with an id: shows the code to send us', async () => {
+		pageStore.value = {
+			status: 500,
+			error: { message: 'Internal Error', id: 'ab12cd34' },
+			url: new URL('https://kinkyvibe.ar/calendario')
+		};
+		const { default: ErrorPage } = await import('./+error.svelte');
+		const body = render(ErrorPage).body;
+		expect(body).toContain('Si nos escribís, pasanos este código:');
+		expect(body).toContain('ab12cd34');
+	});
+
+	it('4xx with an id: no code (it is our message, not a failure)', async () => {
+		pageStore.value = {
+			status: 403,
+			error: { message: 'Forbidden', id: 'ab12cd34' },
+			url: new URL('https://kinkyvibe.ar/admin')
+		};
+		const { default: ErrorPage } = await import('./+error.svelte');
+		const body = render(ErrorPage).body;
+		expect(body).not.toContain('pasanos este código');
+		expect(body).not.toContain('ab12cd34');
+	});
 });

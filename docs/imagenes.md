@@ -21,6 +21,7 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 | Selector de los editores | `src/lib/components/admin/ImagePicker.svelte`                                                             |
 | Enlazar un archivo       | `src/lib/components/admin/LibraryLinkPicker.svelte`, `src/lib/utils/libraryFiles.js` (editor de material) |
 | Achicar en el navegador  | `src/lib/utils/imageResize.js`                                                                            |
+| Copias chicas (tarjetas) | `src/lib/utils/mediaCopies.js`; la pasada por las viejas: `scripts/copias-chicas.js` + `media/copias.js`  |
 | Imágenes viejas del repo | `src/lib/utils/legacyMedia.js` (mapa fijo a su copia en la biblioteca)                                    |
 | PDF y video del material | `scripts/subir-archivos.js` + `src/lib/server/media/archivosViejos.js` (sin correr en producción)         |
 
@@ -35,6 +36,62 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 - **Todo lo que se sube queda en la biblioteca.** Ya no existe la pregunta «¿para todas las
   ediciones o solo esta?»: para que todas las ediciones usen la misma imagen, se elige la misma
   imagen en cada una (pestaña «De este evento» → las de la serie).
+
+## Copias chicas para las tarjetas
+
+Las tarjetas (13rem × 15em, unos 208 × 240 px), las filas de las listas (~128 px) y el encabezado
+de un perfil mostraban el original (hasta 2000 px y 1,7 MB). Ahora cada imagen tiene, **al lado de
+su original en R2**, dos copias WEBP (calidad 80) con el lado más corto de **360** y **720** px
+(misma proporción; nunca se agranda): `img/<sha-256 del original>-360.webp` y `-720.webp`. Sin el
+cupo de transformaciones de Cloudflare (decidido por gorrite: nada de `/cdn-cgi/image` para esto).
+
+- **Cuándo se hacen**: al subir, en el navegador, del mismo dibujo que la de 2000 px
+  (`prepareImage` en `imageResize.js`; viajan como `copy360` y `copy720`). El servidor
+  (`storeImage`) las guarda solo si el original llegó a R2 recién en esa subida, si son WEBP y si
+  miden lo que tienen que medir (`validCopy`, ±1 px); si no, las ignora sin frenar la subida. Nunca
+  pisa nada que ya esté en R2. Un GIF no tiene copias (puede ser animado).
+- **Por qué el lado más corto**: la tarjeta recorta al centro (`object-fit: cover`) en un recuadro
+  fijo, así que lo que importa es el lado corto, sea la imagen vertical o apaisada. 360 alcanza
+  para 1× (y 1,5×), 720 para 2× y 3×.
+- **Cómo las usan las páginas**: `Card.svelte` lleva `srcset="…-360.webp 1x, …-720.webp 2x"`
+  (`cardSrcset`); `PostListItem.svelte` y `amigues/ProfileHeader.svelte`, solo la de 360 px
+  (`smallSrcset`: alcanza para pantallas de hasta ~2,5× en ~128–160 px, y con una sola densidad la
+  imagen mide lo mismo, así la fila, que se acomoda a la imagen, queda igual). El `src` sigue
+  siendo el original y el CSS no cambia. Solo para direcciones de la biblioteca del mismo sitio
+  (`/media/img/…`); una imagen de otro sitio, un GIF o la dirección entera al sitio público (las
+  de local y los previews) quedan solo con `src`.
+- **Si una copia no existe** (una imagen de antes de la pasada, o una que el navegador no pudo
+  achicar), `/media/img/<hash>-360.webp` responde **302 al original** con
+  `Cache-Control: public, max-age=3600`: se ve igual que antes y, apenas existe la copia, se usa
+  (como mucho una hora después). Una copia que existe se sirve como el original: caché para
+  siempre, `ETag`, `nosniff` y el `sandbox`. Una imagen borrada: 404 también para sus copias.
+- **Cuánto ahorra**: ver «Velocidad» en [seo.md](seo.md).
+
+### La pasada por las imágenes que ya estaban (una vez, la corre gorrite)
+
+`scripts/copias-chicas.js` hace las copias que faltan de todo lo que hay en el bucket (con sharp,
+en Node; la misma versión que ya instalaba wrangler por miniflare, ahora declarada).
+
+- **Solo suma**: lista las claves `img/…`, calcula las copias que faltan (`missingCopies`, que
+  nunca devuelve una clave que ya está) y escribe **solo** `img/<hash>-360.webp` e
+  `img/<hash>-720.webp` nuevas (WEBP, `Cache-Control` para siempre). Antes de cada escritura vuelve
+  a mirar que no esté. No borra ni pisa nada, no toca la base. Idempotente: la segunda vez dice
+  «0 copias que faltan».
+- **Sin `--yes` no escribe**: lista cada copia que escribiría y de qué original.
+
+```sh
+node scripts/copias-chicas.js --target=production         # vista previa: qué escribiría
+node scripts/copias-chicas.js --target=production --yes   # escribe; pide escribir «produccion»
+```
+
+`--target=local` (el R2 de `.wrangler/state`) y `--target=preview` (necesita `wrangler login`)
+sirven para probarlo antes. Si una imagen falla, lo dice y sigue con las demás; correrlo de nuevo
+hace solo lo que faltó.
+
+**Para volver atrás**: las páginas vuelven al original con revertir el PR (las copias en R2 quedan
+sin usar, no molestan). Si hiciera falta borrarlas, son exactamente las claves que terminan en
+`-360.webp` o `-720.webp` dentro de `img/` (los originales nunca tienen guion); borrarlas solo hace
+que `/media` redirija al original.
 
 ## Documentos y video
 
@@ -105,7 +162,8 @@ recorrer toda la biblioteca está Contenido → Biblioteca (abajo). Pestañas:
 
 - **Subir**: se elige un archivo (JPG, PNG, WEBP, GIF o AVIF, hasta 10 MB), se escribe **qué se
   ve** (texto alternativo, obligatorio) y se sube. Antes de subir, el navegador la achica (lado más
-  largo 2000 px) y la pasa a WEBP; si no puede (o un GIF, que puede ser animado), sube el original.
+  largo 2000 px) y la pasa a WEBP, y hace sus dos copias chicas para las tarjetas (arriba); si no
+  puede (o un GIF, que puede ser animado), sube el original.
 - **Buscar**: por nombre o texto alternativo (búsqueda de la base, sin tildes).
 - **De este evento** (o «De este material/serie/perfil»): las imágenes que ya usa ese objeto; en un
   evento, también las de su serie (la etiqueta y las otras ediciones).
@@ -224,7 +282,7 @@ edge `adjunto` sale solo. Idempotente. Después, un PR borra `src/lib/archivos/`
 ## Cómo probar
 
 ```sh
-npx vitest run src/lib/server/media src/routes/imagenes src/lib/utils/imageResize.test.js src/lib/utils/libraryFiles.test.js
+npx vitest run src/lib/server/media src/routes/imagenes src/lib/utils/imageResize.test.js src/lib/utils/libraryFiles.test.js src/lib/utils/mediaCopies.test.js src/lib/components/CardRow.test.js src/lib/components/PostListItem.test.js
 npm run dev:admin   # el bucket MEDIA local lo simula miniflare (.wrangler/state)
 ```
 

@@ -436,6 +436,17 @@ test.describe('feeds', () => {
 	});
 });
 
+test.describe('salud', () => {
+	test('/api/health responde 200 con ok true y sin caché', async ({ request }) => {
+		const res = await request.get('/api/health');
+		expect(res.status()).toBe(200);
+		expect(res.headers()['cache-control']).toBe('no-store');
+		const body = await res.json();
+		expect(body.ok).toBe(true);
+		expect(body.db).toBe('ok');
+	});
+});
+
 test.describe('errores', () => {
 	test('/wiki/<término inexistente> no rompe', async ({ request }) => {
 		const res = await request.get('/wiki/esto-no-existe-xyz');
@@ -486,6 +497,54 @@ test.describe('auth', () => {
 });
 
 test.describe('experiencia', () => {
+	// Las dos Lato latin (400 y 700) se piden con la respuesta de la página: la precarga de SvelteKit
+	// ($lib/server/preload.js) las pone en la cabecera `Link` (en las páginas que no se prerenderizan
+	// no va un `<link>` en el HTML), antes que el JS y con la misma URL con hash que el @font-face del
+	// CSS: si no coinciden, el navegador baja cada letra dos veces.
+	test('las letras Lato latin se precargan con la URL del CSS', async ({ page, request }) => {
+		const res = await request.get('/material');
+		const links = (res.headers()['link'] ?? '').split(/,\s*(?=<)/);
+		const preloads = links.filter((l) => /rel="preload"/.test(l) && /as="font"/.test(l));
+		expect(preloads).toHaveLength(2);
+		const hrefs = preloads.map((l) => {
+			expect(l).toContain('type="font/woff2"');
+			expect(l).toMatch(/;\s*crossorigin\b/);
+			return /^<([^>]+)>/.exec(l)?.[1] ?? '';
+		});
+		expect(hrefs.map((h) => /lato-latin-(\d+)-normal\.[\w-]+\.woff2$/.exec(h)?.[1])).toEqual([
+			'400',
+			'700'
+		]);
+		// antes que el JS (si van después, en Chrome esperan detrás de los ~80 módulos)
+		const firstModule = links.findIndex((l) => /rel="modulepreload"/.test(l));
+		expect(firstModule).toBeGreaterThan(-1);
+		expect(links.indexOf(preloads[1])).toBeLessThan(firstModule);
+
+		const fonts = [];
+		page.on('request', (r) => {
+			if (r.url().endsWith('.woff2')) fonts.push(new URL(r.url()).pathname);
+		});
+		await acceptAgeGate(page);
+		await page.goto('/material', { waitUntil: 'networkidle' });
+		await page.evaluate(() => document.fonts.ready);
+		// las precargadas son las que usa la página, y cada una se pide una sola vez
+		for (const href of hrefs)
+			expect(fonts.filter((f) => f === new URL(href, page.url()).pathname)).toHaveLength(1);
+		const usedByCss = await page.evaluate(() =>
+			[...document.styleSheets].flatMap((sheet) => {
+				try {
+					return [...sheet.cssRules]
+						.filter((r) => r instanceof CSSFontFaceRule)
+						.map((r) => /url\("?([^")]+)"?\)/.exec(r.style.getPropertyValue('src'))?.[1] ?? '')
+						.map((u) => new URL(u, sheet.href ?? location.href).pathname);
+				} catch {
+					return [];
+				}
+			})
+		);
+		for (const href of hrefs) expect(usedByCss).toContain(new URL(href, page.url()).pathname);
+	});
+
 	test('el aviso de +18 aparece en la primera visita y se puede cerrar', async ({ page }) => {
 		await page.goto('/');
 		const modal = page.getByRole('heading', { name: '¿Sos mayor de 18 años?' });
@@ -495,6 +554,37 @@ test.describe('experiencia', () => {
 		await page.reload();
 		await expect(page.getByRole('heading', { level: 2, name: 'Talleres y eventos' })).toBeVisible();
 		await expect(modal).toBeHidden();
+	});
+
+	// Al navegar, la página nueva aparece con un fundido corto y sin espera (antes eran 300 ms de
+	// espera más 300 ms de fundido: más de medio segundo en blanco). Svelte arma la espera como una
+	// animación vacía que dura lo que la espera y después el fundido, las dos con
+	// `Element.animate`: se anotan las de <main> en vez de mirar el reloj, así no depende del
+	// tiempo.
+	test('al navegar, la página aparece enseguida (fundido corto y sin espera)', async ({ page }) => {
+		await acceptAgeGate(page);
+		await page.addInitScript(() => {
+			window.__mainAnimations = [];
+			const original = Element.prototype.animate;
+			Element.prototype.animate = function (keyframes, options) {
+				if (this.tagName === 'MAIN')
+					window.__mainAnimations.push(typeof options === 'number' ? options : options?.duration);
+				return original.call(this, keyframes, options);
+			};
+		});
+		await page.goto('/', { waitUntil: 'networkidle' });
+		await page
+			.locator('header')
+			.getByRole('link', { name: /Calendario/ })
+			.first()
+			.click();
+		await expect(page).toHaveURL(/\/calendario$/);
+		await expect(page).toHaveTitle(/^Calendario · Kinky Vibe$/);
+		await expect.poll(() => page.evaluate(() => window.__mainAnimations.length)).toBe(2);
+		const [delay, duration] = await page.evaluate(() => window.__mainAnimations);
+		expect(delay).toBe(0);
+		expect(duration).toBeGreaterThan(0);
+		expect(duration).toBeLessThanOrEqual(200);
 	});
 
 	test('la home no tira errores de consola', async ({ page, baseURL }) => {

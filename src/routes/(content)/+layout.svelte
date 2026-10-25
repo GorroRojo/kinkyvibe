@@ -64,6 +64,12 @@
 	let closedNotice = false;
 	$: loggedOut = !closedNotice && !data.member && $page.url.searchParams.get('salida') === '1';
 	$: ldBreadcrumb = onPost ? breadcrumbLd($currentPostData?.category, $page.url.origin) : null;
+	// La página nueva aparece con un fundido corto y sin espera: antes eran 300 ms de espera más
+	// 300 ms de fundido, más de medio segundo en blanco en cada navegación. Con «reducir
+	// movimiento» activado en el sistema, sin fundido.
+	const pageFade = {
+		duration: browser && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 150
+	};
 </script>
 
 <svelte:head>
@@ -173,7 +179,7 @@
 	</p>
 {/if}
 {#key $page.url.pathname}
-	<main in:fade={{ duration: 300, delay: 300 }}>
+	<main in:fade={pageFade}>
 		<slot />
 	</main>
 {/key}

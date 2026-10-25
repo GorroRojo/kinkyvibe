@@ -13,7 +13,7 @@ PR no entra hasta arreglarlo. Y además, nadie mergea sin que gorrite lo apruebe
 ## Qué corre en cada PR
 
 Lo de GitHub Actions que corre en cada PR está en un solo archivo, `.github/workflows/ci.yml`
-(el único otro workflow es el vigilante del repaso, ver abajo, que no corre en PRs). Corre en cada pull request (también cuando se edita su descripción, por el job
+(los otros dos workflows son los vigilantes del repaso y de producción, ver abajo, que no corren en PRs). Corre en cada pull request (también cuando se edita su descripción, por el job
 `plan-pr`) y en cada push a `main`, con permiso de solo lectura sobre el repo (`permissions:
 contents: read`). Si pusheás de nuevo a la misma rama o editás la descripción, la corrida anterior
 se cancela (`concurrency`) y vuelve a correr todo. Los jobs de prueba corren en paralelo, usan
@@ -76,6 +76,39 @@ repaso y el issue sigue abierto, lo cierra con un comentario. Permisos: `content
 primera vez que abre el issue si todavía no existe (también se puede crear a mano en Issues →
 Labels). La lógica está en `scripts/repaso-vigilante.js` (la decisión es una función pura, con
 pruebas en `scripts/repaso-vigilante.test.js`).
+
+**Vigilante de producción** (`.github/workflows/vigilante-produccion.yml`, ítem
+`vigilante-produccion` de [plan.md](plan.md)): tampoco corre en PRs ni está en los `needs` de
+`ci-ok`. Cada 30 minutos (a los 17 y 47 de cada hora, UTC), sin Claude ni Cloudflare, pide a
+`https://kinkyvibe.ar`:
+
+- la portada (`/`): HTTP 200 y que diga «Kinky Vibe»;
+- `/calendario`: HTTP 200;
+- `/calendario.ics`: HTTP 200 con `content-type` `text/calendar`;
+- `/api/health`: HTTP 200 con `ok: true`. Mientras esa ruta no exista en producción, un 404 se
+  saltea con una línea en el registro; cualquier otra respuesta mala cuenta como falla.
+
+Si algo falla, espera 60 segundos y vuelve a pedir todo. Si el reintento también falla, abre el
+issue «Producción no responde» con la etiqueta `produccion-caida` y la lista de lo que falló
+(uno solo: si ya hay uno abierto, no abre otro), y lo **asigna al dueño del repo** (gorrite), que
+recibe la notificación de GitHub (por mail o en la app, según su configuración). Una falla suelta
+que el reintento ya no tiene no abre nada. Cuando todo vuelve a responder y el issue sigue
+abierto, lo cierra con un comentario que dice cuándo se recuperó. El job queda en verde aunque el
+sitio esté caído (el aviso es el issue, no un mail de workflow fallido cada media hora).
+Permisos: `contents: read` e `issues: write`. La etiqueta la crea el vigilante la primera vez que
+la necesita.
+
+**Correrlo a mano:** pestaña Actions → «Vigilante de producción» → «Run workflow». Tiene un campo
+opcional con la URL base (por defecto `https://kinkyvibe.ar`); con otra URL (por ejemplo, un
+preview) solo informa en el registro y no abre ni cierra issues. En tu compu, solo los chequeos,
+sin tocar issues:
+
+```sh
+node -e "import('./scripts/vigilante-produccion.js').then(async (m) => console.log(await m.checkSite({ baseUrl: m.DEFAULT_BASE_URL, fetch })))"
+```
+
+La lógica está en `scripts/vigilante-produccion.js` (la decisión de abrir, cerrar o no hacer nada
+es una función pura, con pruebas en `scripts/vigilante-produccion.test.js`).
 
 `ci-ok` existe para que la protección de `main` pida un solo chequeo: si alguien agrega un job a
 `ci.yml`, lo suma a los `needs` de `ci-ok` y listo, sin tocar la configuración de GitHub.
@@ -228,6 +261,17 @@ npx playwright test -c playwright.tickets.config.js  # entradas, editor de event
 
 Variables útiles: `PW_CHROMIUM_PATH` (humo) o `PW_CHROMIUM` (entradas) para usar un Chromium ya
 instalado; `TICKETS_SHOTS_DIR` para guardar capturas.
+
+**Si fallan pruebas del panel con «Failed to fetch dynamically imported module»** (y en la traza
+`net::ERR_INSUFFICIENT_RESOURCES` o `net::ERR_ABORTED`), casi seguro es poco disco libre, no el
+panel: Playwright abre Chromium con `--disable-dev-shm-usage`, así que su memoria compartida va a
+archivos en `/tmp`, y recorrer muchas páginas de `vite dev` (cientos de módulos sueltos cada una)
+llega a ocupar varios GB. Si `/tmp` se llena, Chromium deja de pedir módulos. Pasa en máquinas con
+poco disco libre (las sesiones de Claude en la nube, con varias corriendo a la vez). Solución:
+mandar los temporales de Chromium a `/dev/shm` si es grande (`df -h /dev/shm`):
+`mkdir -p /dev/shm/pw-tmp && TMPDIR=/dev/shm/pw-tmp npx playwright test -c playwright.tickets.config.js`.
+Tampoco corras `vitest` en la misma carpeta mientras corre el juego de entradas: reescribe
+`.svelte-kit/generated` y el `vite dev` de las pruebas recarga las páginas.
 
 ### Tipos (svelte-check con trinquete)
 

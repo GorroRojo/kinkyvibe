@@ -23,6 +23,7 @@ import { passwordProblem } from '$lib/server/cuentas/password.js';
 import {
 	chooseFreeOrder,
 	ordersForAccount,
+	verifiedEmail,
 	unconfirmedFreeOrders
 } from '$lib/server/cuentas/orders.js';
 import { SESSION_COOKIE, destroyOtherSessions } from '$lib/server/cuentas/session.js';
@@ -65,37 +66,60 @@ async function requireMember(event) {
 export async function load(event) {
 	event.setHeaders({ 'cache-control': 'private, no-store', 'x-robots-tag': 'noindex' });
 	const { db, member } = await requireMember(event);
-	const account = await getAccount(db, member.id);
+	// La base está lejos: lo que no depende de otra cosa se lee a la par. La velocidad de lectura
+	// y el permiso de perfiles ya vinieron con la sesión (`locals.member`, getSessionAccount).
+	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed] = await Promise.all([
+		getAccount(db, member.id),
+		// «¿Son tuyas?»: entradas gratis pedidas con este mail sin la sesión de la cuenta («No fui yo»,
+		// parte 2). No van en la lista hasta que la persona dice que son suyas.
+		verifiedEmail(db, member.id)
+			.then((email) =>
+				Promise.all([
+					ordersForAccount(db, member.id, { email }),
+					unconfirmedFreeOrders(db, member.id, { email })
+				])
+			)
+			.then(
+				([orders, unconfirmed]) => ({ orders, unconfirmed, error: false }),
+				(e) => {
+					logDBError('cuentas: compras', e);
+					return {
+						orders: /** @type {Awaited<ReturnType<typeof ordersForAccount>>} */ ([]),
+						unconfirmed: /** @type {Awaited<ReturnType<typeof unconfirmedFreeOrders>>} */ ([]),
+						error: true
+					};
+				}
+			),
+		// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
+		getSavedBuyer(db, member.id).then(
+			(saved) => ({ saved, error: false }),
+			() => {
+				console.error('[cuentas] no se pudieron leer los datos guardados');
+				return {
+					saved: /** @type {import('$lib/utils/savedBuyer.js').SavedBuyer} */ ({}),
+					error: true
+				};
+			}
+		),
+		member.canHaveProfiles ?? canHaveProfiles(db, member.id),
+		// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
+		// calendario personal (docs/lo-que-sigo.md).
+		sigoEnabled(event.platform),
+		member.readingSpeed !== undefined
+			? member.readingSpeed
+			: getReadingSpeed(db, member.id).catch(() => null)
+	]);
 	if (!account) {
 		await endSession(event, db);
 		redirect(303, LOGIN);
 	}
-	let orders = /** @type {Awaited<ReturnType<typeof ordersForAccount>>} */ ([]);
-	// «¿Son tuyas?»: entradas gratis pedidas con este mail sin la sesión de la cuenta («No fui yo»,
-	// parte 2). No van en la lista hasta que la persona dice que son suyas.
-	let unconfirmed = /** @type {Awaited<ReturnType<typeof unconfirmedFreeOrders>>} */ ([]);
-	let ordersError = false;
-	try {
-		orders = await ordersForAccount(db, account.id);
-		unconfirmed = await unconfirmedFreeOrders(db, account.id);
-	} catch (e) {
-		logDBError('cuentas: compras', e);
-		ordersError = true;
-	}
-	// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
-	let saved = /** @type {import('$lib/utils/savedBuyer.js').SavedBuyer} */ ({});
-	let savedError = false;
-	try {
-		saved = await getSavedBuyer(db, account.id);
-	} catch {
-		console.error('[cuentas] no se pudieron leer los datos guardados');
-		savedError = true;
-	}
+	const { orders, unconfirmed, error: ordersError } = ordersRead;
+	const { saved, error: savedError } = savedRead;
+	// El título y la fecha de cada evento de las compras, todos a la par.
+	const slugs = [...new Set([...orders, ...unconfirmed].map((o) => o.event_slug))];
+	const infos = await Promise.all(slugs.map((slug) => getEventInfo(slug)));
 	/** @type {Map<string, { title: string, start: string | null } | null>} */
-	const events = new Map();
-	for (const o of [...orders, ...unconfirmed]) {
-		if (!events.has(o.event_slug)) events.set(o.event_slug, await getEventInfo(o.event_slug));
-	}
+	const events = new Map(slugs.map((slug, i) => [slug, infos[i]]));
 	/** @param {(typeof orders)[number]} o */
 	const listed = (o) => ({
 		id: o.id,
@@ -112,10 +136,8 @@ export async function load(event) {
 		hasPassword: account.has_password,
 		createdAt: account.created_at,
 		// Sin el permiso "puede tener perfiles" (lo dan les admins), nada de perfiles a la vista.
-		canHaveProfiles: await canHaveProfiles(db, account.id),
-		// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
-		// calendario personal (docs/lo-que-sigo.md).
-		sigoOn: await sigoEnabled(event.platform),
+		canHaveProfiles: profilesOk,
+		sigoOn,
 		ordersError,
 		saved: {
 			name: saved.name ?? '',
@@ -125,7 +147,7 @@ export async function load(event) {
 		},
 		savedError,
 		// La velocidad de lectura de la cuenta (null: la de siempre). $lib/utils/readingSpeed.js.
-		readingSpeed: await getReadingSpeed(db, account.id).catch(() => null),
+		readingSpeed,
 		orders: orders.map(listed),
 		unconfirmed: unconfirmed.map(listed)
 	};
@@ -281,6 +303,8 @@ export const actions = {
 			});
 		try {
 			const saved = await setReadingSpeed(db, member.id, wpm);
+			// Sin JavaScript, el layout y la página se cargan en este mismo pedido: que vean lo nuevo.
+			member.readingSpeed = saved;
 			return {
 				action: 'velocidad',
 				message:

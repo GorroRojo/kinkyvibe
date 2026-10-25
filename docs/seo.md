@@ -104,11 +104,21 @@ mediana). No hay datos de personas reales (el sitio tiene poco tráfico para el 
   porque todas las tarjetas tenían `loading="lazy"` (el navegador espera al layout). Ahora la
   primera fila del inicio carga sus primeras 4 imágenes enseguida y la primera con
   `fetchpriority="high"` (`eager` en `CardRow.svelte` y `Card.svelte`); las demás siguen `lazy`.
-- **Las imágenes de las tarjetas son de tamaño completo** (hasta 2000 px; una de 1,6 MB) para
-  tarjetas de 420 × 420: ~3,1 MB de los 3,9 MB. Lo que sigue (`tarjetas-imagen-chica` en el
-  plan): una copia chica de cada imagen hecha **al subirla** (en el navegador, como la de 2000 px)
-  y una pasada única por las que ya están. Así no usa el cupo de transformaciones de Cloudflare
-  (5000 por mes; ver «Imágenes y WhatsApp» en [compartir.md](compartir.md)).
+- **Las imágenes de las tarjetas eran de tamaño completo** (hasta 2000 px; una de 1,6 MB) para
+  tarjetas de 420 × 420: ~3,1 MB de los 3,9 MB. Ahora (`tarjetas-imagen-chica`) cada imagen tiene
+  dos copias WEBP chicas (lado corto de 360 y 720 px) hechas **al subirla** (en el navegador, como
+  la de 2000 px) y una pasada única por las que ya están (`scripts/copias-chicas.js`, la corre
+  gorrite); las tarjetas, las listas y el encabezado de un perfil las piden con `srcset`
+  ([imagenes.md](imagenes.md), «Copias chicas para las tarjetas»). No usa el cupo de
+  transformaciones de Cloudflare (5000 por mes; ver «Imágenes y WhatsApp» en
+  [compartir.md](compartir.md)). Cuentas con las imágenes reales (25/10, todas las imágenes de
+  tarjetas y listas de la página, como si se vieran todas; copias hechas con el mismo script):
+  inicio 6159 KiB → 688 KiB (1×) / 1166 KiB (2× y 3×); `/calendario` 4019 KiB → 194 / 379 KiB; la
+  imagen de la primera tarjeta, 128 KiB → 21 / 57 KiB. Hasta que corra la pasada, las imágenes
+  viejas se ven igual (la copia que falta redirige al original).
+- **En `/calendario`** la imagen de la primera tarjeta también es el LCP: sus dos primeras tarjetas
+  cargan enseguida (`eager={2}`) y la prioridad va a la primera tarjeta **con** imagen (en todas
+  las filas con `eager`, también la del inicio).
 - El tiempo del servidor no apareció como problema (TTFB 10 ms en esa corrida).
 - Los errores de consola que marca son del script de Cloudflare Web Analytics, no del sitio.
 - Para ver que sigue andando: `curl -s https://kinkyvibe.ar/ | grep -o '<img[^>]*card-img[^>]*>' | head -5`
@@ -138,6 +148,14 @@ comprimido con gzip (lo que viaja es parecido: Cloudflare manda brotli, `/calend
   pide sus pasados a `/api/calendario/pasados?mes=yyyy-MM` (5 minutos de caché, como
   `/api/posts`) y aparecen en la grilla al llegar. «Mostrar eventos pasados» sigue igual (trae
   `/api/posts` entero). Código: `src/lib/server/eventos/pasados.js`.
+
+- **`/todo`, `/material` y `/amigues`, de a 24 tarjetas.** Mostraban todas juntas (85, 55 y 30
+  en la base local, con unas 620, 435 y 220 etiquetas) y la página tardaba en responder al
+  cargar. Ahora, como el inicio (`limit` de `PostList`), 24 y «Ver más (N)»; con etiquetas o
+  texto en la búsqueda (también desde `?tags=`) se ve todo lo que encontró. En `/amigues` los
+  perfiles fijados siguen primero. HTML en la base local: `/todo` 376,7 → 201,1 KB (53,2 → 39,8
+  gz), `/material` 278,9 → 185,9 KB (40,8 → 34,5), `/amigues` 170,8 → 156,0 KB (29,6 → 28,6).
+  Los datos de la página no cambian (siguen viajando todas, para buscar sin pedir nada).
 
 ### Para hacer después (ahorro estimado, sin comprimir)
 

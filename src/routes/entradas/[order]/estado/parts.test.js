@@ -96,7 +96,8 @@ async function page(id, cookie) {
 				fetch: () => {
 					throw new Error('no debería llamar afuera');
 				},
-				cookies: { get: () => value }
+				cookies: { get: () => value },
+				depends: () => {}
 			})
 		)
 	);

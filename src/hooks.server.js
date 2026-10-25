@@ -4,19 +4,23 @@ import { TOKEN_COOKIE, adminByLogin, authCookieOptions } from '$lib/server/auth'
 import { getVerifiedUser } from '$lib/server/session';
 import { getDB } from '$lib/server/db';
 import { PREVIEW_BUILD, isPreviewDeploy } from '$lib/server/deploy.js';
+import { buildHandleError } from '$lib/server/errorLog.js';
 import { DEMO_COOKIE, DEMO_TOKEN, demoUser } from '$lib/server/demo/identity.js';
 import { withSecurityHeaders } from '$lib/server/securityHeaders.js';
 import { loadMember } from '$lib/server/cuentas/web.js';
 import { setContentDB } from '$lib/server/contenido/repo.js';
 import { resolveAsPanelAuthor } from '$lib/server/contenido/author.js';
 import { applySiteTags } from '$lib/server/etiquetas/source.js';
+import { withPreload } from '$lib/server/preload.js';
 
 // Cookies from the old login flow. They were client-writable and must never be
 // trusted; delete them if a browser still has them.
 const LEGACY_COOKIES = ['prevToken', 'userLogin', 'userName', 'userAvatarUrl'];
 
 /** @type {import('@sveltejs/kit').Handle} */
-export async function handle({ event, resolve }) {
+export async function handle({ event, resolve: resolvePage }) {
+	// Precarga, además del JS y el CSS, las dos Lato latin ($lib/server/preload.js).
+	const resolve = withPreload(resolvePage);
 	// La base donde el cliente del repo lee y guarda los eventos y el material (es la misma para
 	// todo el isolate, como la del modo demo).
 	setContentDB(getDB(event.platform));
@@ -75,19 +79,8 @@ async function getUser(token) {
 }
 
 /**
- * Solo en previews: el mensaje del error llega a la página de error, para poder diagnosticar el
- * modo demo sin acceso a los logs de Cloudflare (docs/demo.md). En el build de producción
- * `PREVIEW_BUILD` es `false`, así que `handleError` queda `undefined` y SvelteKit usa el suyo, como
- * siempre (mensaje genérico).
- *
- * @type {import('@sveltejs/kit').HandleServerError | undefined}
+ * Cada error (menos los 404) deja una línea JSON en los registros con un código corto que también
+ * ve quien llega a la página de error. Solo en previews, el mensaje del error llega a la página
+ * (docs/demo.md). Ver src/lib/server/errorLog.js.
  */
-export const handleError = PREVIEW_BUILD
-	? ({ error, message, status }) => {
-			console.error(error);
-			// Una dirección que no existe no es un error para diagnosticar: el 404 de siempre.
-			if (!isPreviewDeploy() || status === 404) return { message };
-			const e = /** @type {any} */ (error);
-			return { message: `${message}: ${e?.message ?? e}`.slice(0, 500) };
-		}
-	: undefined;
+export const handleError = buildHandleError({ preview: PREVIEW_BUILD, isPreview: isPreviewDeploy });

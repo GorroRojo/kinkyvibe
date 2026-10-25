@@ -5,22 +5,17 @@
 		ShoppingCart,
 		Download,
 		MousePointerClick,
-		Heart
+		Heart,
+		CalendarPlus
 	} from '@lucide/svelte';
-	import {
-		argDate,
-		argDateList,
-		argTime,
-		eventEnd,
-		isoDay,
-		parseSiteDate
-	} from '$lib/utils/dates.js';
+	import { argDateList, argTime, eventEnd, isoDay, parseSiteDate } from '$lib/utils/dates.js';
 	import TagChip from './ui/TagChip.svelte';
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { onMount } from 'svelte';
 	import { filteredTags } from '$lib/utils/stores';
 	import { ticketCta } from '$lib/utils/ticketCta.js';
 	import { partLabel } from '$lib/utils/partes.js';
+	import { smallSrcset } from '$lib/utils/mediaCopies.js';
 </script>
 
 <script>
@@ -61,19 +56,36 @@
 		tags = [...tags.slice(0, indexOfMark), ...tags.slice(indexOfMark + 1)];
 	}
 	let mounted = false;
-	// on phones the colored header has no room for the date *and* "Añadir al Calendario":
-	// the button shows only its icon there
-	let narrow = false;
 	let past = start ? parseSiteDate(start).getTime() < Date.now() : false;
 	// Si el evento vende entradas acá, «Comprar entradas» (o «Agotadas»…) en lugar de la
 	// inscripción externa.
 	$: tickets = ticketCta(post.meta, ticketStates, { past });
 	onMount(() => {
-		narrow = window.matchMedia('(max-width: 600px)').matches;
 		mounted = true;
-		// the calendar button (~290 KB) is only loaded when this item shows one
-		if (link && status == 'abierto' && !past) import('add-to-calendar-button');
 	});
+	// «Añadir al calendario»: un botón común del servidor; la librería del menú
+	// (add-to-calendar-button, ~60 KB comprimida) se baja recién al tocarlo, no con cada tarjeta.
+	// Con los mismos datos que arma calendarButtonEvent (eventPage.js, que también se baja al
+	// tocar: trae date-fns). Frena el clic para que la tarjeta (un <a>) no navegue.
+	let calendarLoading = false;
+	/** @param {MouseEvent & { currentTarget: HTMLButtonElement }} event */
+	async function openCalendar(event) {
+		const trigger = event.currentTarget;
+		if (calendarLoading) return;
+		calendarLoading = true;
+		try {
+			const [{ atcb_action }, { calendarButtonEvent }] = await Promise.all([
+				import('add-to-calendar-button'),
+				import('$lib/utils/eventPage.js')
+			]);
+			atcb_action(calendarButtonEvent(post.meta), trigger);
+		} finally {
+			calendarLoading = false;
+		}
+	}
+	// id propio por tarjeta: la librería usa el id del botón para su menú (sin id le pone uno fijo,
+	// repetido en cada tarjeta).
+	const calendarId = 'agendar-' + String(post.meta.postID ?? path).replace(/[^\w-]+/g, '-');
 	let style = `scale:var(--scale,1);
 				 translate:var(--translate,0 0);
 				 display: inline-block;
@@ -128,42 +140,17 @@
 					</time>
 				{/if}
 				{#if !((status && ['cancelado', 'agotadas'].includes(status)) || past) && link && status && status == 'abierto' && !past}
-					<add-to-calendar-button
-						style={`
-							--btn-text: white;
-							--keyboard-focus: var(--post-color, var(--2));
-							--btn-background: transparent;
-							--btn-shadow: none;
-							--btn-shadow-hover: none;
-							--list-background: white;
-							--list-background-hover: var(--1-light) ;
-							--list-text-hover: white;
-							--btn-border: none;
-							--list-shadow: 0 0 1em 0 var(--1-light);
-							`}
-						name={title}
-						description={summary}
-						startDate={argDate(start)}
-						startTime={argTime(start)}
-						endDate={argDate(eventEnd(start, end))}
-						endTime={argTime(eventEnd(start, end))}
-						timeZone="America/Buenos_Aires"
-						options="'iCal','Apple','Outlook.com','Google','MicrosoftTeams','Microsoft365','Yahoo'"
-						language="es"
-						iCalFileName="Sample Event"
-						listStyle="overlay"
-						buttonStyle="3d"
-						inline
-						organizer="Mel|kinkyvibe@gmail.com"
-						size="1"
-						hideBackground
-						hideTextLabelButton={narrow ? true : undefined}
-					></add-to-calendar-button>
-					<!-- TODO add authors WITH EMAILS to organizers, otherwise it doesn't let me add organizers -->
-					<!-- label="CUSTOM LABEL" -->
-					<!-- buttonStyle="round" -->
-					<!-- location="World Wide Web" -->
-					<!-- trigger="hover" -->
+					<button
+						type="button"
+						class="add-cal"
+						id={calendarId}
+						aria-label="Añadir al calendario"
+						aria-busy={calendarLoading ? 'true' : undefined}
+						on:click|preventDefault|stopPropagation={openCalendar}
+					>
+						<CalendarPlus aria-hidden="true" />
+						<span class="add-cal-label">Añadir al calendario</span>
+					</button>
 				{/if}
 				{#if (status && ['cancelado', 'agotadas'].includes(status)) || past}
 					<small class="status">
@@ -175,7 +162,14 @@
 			<span class="job-title">{job_title ?? ''}</span>
 		{/if}
 	</div>
-	{#if src}<img {src} alt="" loading="lazy" decoding="async" />{/if}
+	<!-- la copia chica de 360 px si la imagen es de la biblioteca (docs/imagenes.md) -->
+	{#if src}<img
+			{src}
+			srcset={smallSrcset(src) || undefined}
+			alt=""
+			loading="lazy"
+			decoding="async"
+		/>{/if}
 	<h3>
 		{title}
 		{#if parte}
@@ -423,6 +417,49 @@
 	}
 	.calendario .publication {
 		grid-template-columns: 2em 1fr auto;
+	}
+	/* «Añadir al calendario», en la franja de color: blanco sobre el color de la tarjeta */
+	.add-cal {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3em;
+		height: 100%;
+		padding: 0 0.4em;
+		border: 0;
+		border-radius: var(--round-pill);
+		background: transparent;
+		color: white;
+		font: inherit;
+		font-weight: 700;
+		cursor: pointer;
+		:global(svg) {
+			height: 1.2em;
+			width: 1.2em;
+			flex: none;
+		}
+		&:hover,
+		&:focus-visible {
+			background: rgb(255 255 255 / 0.2);
+		}
+		&:focus-visible {
+			outline: 2px solid white;
+			outline-offset: -2px;
+		}
+		&[aria-busy='true'] {
+			cursor: progress;
+			opacity: 0.7;
+		}
+	}
+	/* si la franja es angosta (el celu, la vista en grilla) no hay lugar para la fecha y el texto:
+	   queda solo el ícono. Mira el ancho de la franja misma (antes, el de la pantalla con
+	   matchMedia). */
+	.calendario .publication {
+		container: franja / inline-size;
+	}
+	@container franja (max-width: 440px) {
+		.add-cal-label {
+			display: none;
+		}
 	}
 	a {
 		color: inherit;

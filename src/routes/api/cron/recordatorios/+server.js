@@ -5,6 +5,8 @@
  * la lista de espera de las entradas (interruptor `lista_espera`: primero avanza la lista de cada
  * evento con `runWaitlistCron` y sus mails van primero en la tanda; ver
  * $lib/server/tickets/waitlistEngine.js),
+ * el reintento del mail con las entradas de las órdenes aprobadas cuyo envío falló (ver
+ * $lib/server/tickets/unsentOrders.js),
  * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js), el resumen diario de
  * ventas para admins por Telegram (ver $lib/server/telegram/adminNotify.js) y el registro automático
  * de los comandos del bot de Telegram (ver $lib/server/telegram/commandsSync.js) y borra las filas
@@ -28,6 +30,7 @@ import { runWaitlistCron, waitlistMailBatch } from '$lib/server/tickets/waitlist
 import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
 import { runAdminNoticesCron } from '$lib/server/telegram/adminNotify.js';
 import { pruneUso } from '$lib/server/telegram/uso.js';
+import { resendUnsentOrderEmails } from '$lib/server/tickets/unsentOrders.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, platform, url, fetch }) {
@@ -59,6 +62,15 @@ export async function POST({ request, platform, url, fetch }) {
 				? { sendWaitlist: waitlistMailBatch({ db, origin: siteOrigin(url), fetch }) }
 				: {})
 		});
+		// El mail con las entradas que no salió al aprobarse la orden: aparte de la tanda (tiene su
+		// propio tope) y si falla, lo demás sale igual.
+		let unsentOrders = null;
+		try {
+			const u = await resendUnsentOrderEmails({ db, origin: siteOrigin(url), fetch });
+			unsentOrders = { sent: u.sent, failed: u.failed };
+		} catch (error) {
+			logDBError('cron mails de entradas sin enviar', error);
+		}
 		// Las series van aparte: si fallan, los recordatorios ya salieron y la corrida no se cae.
 		let series = null;
 		try {
@@ -104,6 +116,7 @@ export async function POST({ request, platform, url, fetch }) {
 			{
 				...r,
 				...(waitlist ? { waitlistAdvance: waitlist } : {}),
+				...(unsentOrders ? { unsentOrders } : {}),
 				...(series ? { series } : {}),
 				...(sigo ? { sigo } : {}),
 				...(telegramAdmin ? { telegramAdmin } : {}),

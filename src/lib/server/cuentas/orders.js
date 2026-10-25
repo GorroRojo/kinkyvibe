@@ -71,7 +71,7 @@ const STATUSES_SQL = VISIBLE_STATUSES.map((s) => `'${s}'`).join(', ');
  * @param {string} accountId
  * @returns {Promise<string | null | undefined>}
  */
-async function verifiedEmail(db, accountId) {
+export async function verifiedEmail(db, accountId) {
 	const account = await db
 		.prepare('SELECT email, email_verified_at FROM accounts WHERE id = ?1 AND deleted_at IS NULL')
 		.bind(accountId)
@@ -100,11 +100,12 @@ const toOrder = (r) => ({
  *
  * @param {D1Database} db
  * @param {string} accountId
- * @param {{ limit?: number }} [opts]
+ * @param {{ limit?: number, email?: string | null }} [opts] `email`: el de {@link verifiedEmail},
+ *   si ya se leyó (así la página no vuelve a leer la cuenta)
  * @returns {Promise<AccountOrder[]>}
  */
-export async function ordersForAccount(db, accountId, { limit = 100 } = {}) {
-	const email = await verifiedEmail(db, accountId);
+export async function ordersForAccount(db, accountId, { limit = 100, ...opts } = {}) {
+	const email = 'email' in opts ? opts.email : await verifiedEmail(db, accountId);
 	if (email === undefined) return [];
 	// UNION (y no OR) para que cada mitad use su índice: orders_account y orders_email_lower.
 	const { results } = await db
@@ -128,11 +129,12 @@ export async function ordersForAccount(db, accountId, { limit = 100 } = {}) {
  *
  * @param {D1Database} db
  * @param {string} accountId
- * @param {{ limit?: number }} [opts]
+ * @param {{ limit?: number, email?: string | null }} [opts] `email`: el de {@link verifiedEmail},
+ *   si ya se leyó (así la página no vuelve a leer la cuenta)
  * @returns {Promise<AccountOrder[]>}
  */
-export async function unconfirmedFreeOrders(db, accountId, { limit = 100 } = {}) {
-	const email = await verifiedEmail(db, accountId);
+export async function unconfirmedFreeOrders(db, accountId, { limit = 100, ...opts } = {}) {
+	const email = 'email' in opts ? opts.email : await verifiedEmail(db, accountId);
 	if (!email) return [];
 	const { results } = await db
 		.prepare(

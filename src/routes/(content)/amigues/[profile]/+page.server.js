@@ -1,7 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
-import { profilePageData } from '$lib/server/amigues/pages.js';
+import { findProfileForPage, profilePageFrom } from '$lib/server/amigues/pages.js';
 import { createClaim } from '$lib/server/amigues/claims.js';
 import { resolveProfileSlug } from '$lib/server/amigues/profiles.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
@@ -20,22 +20,29 @@ import { mentionPronouns } from '$lib/server/pronouns';
 export async function load({ params, platform, locals, setHeaders }) {
 	const db = getDB(platform);
 	if (!db) error(404, 'Not found');
-	// Una sola lectura de las publicaciones para toda la página (nadie las modifica).
-	const posts = await sitePosts(platform);
-	const page = await profilePageData(db, params.profile, locals, { posts });
-	if (!page) error(404, 'Not found');
-	if (page.private) setHeaders({ 'cache-control': 'private, no-store' });
-	return {
-		...page,
+	// Una sola lectura de las publicaciones para toda la página (nadie las modifica), a la par del
+	// perfil: la base está lejos y cada consulta que espera a otra es una ida y vuelta más. Si
+	// falla, la página falla como antes (también antes de un 404).
+	const postsP = sitePosts(platform);
+	postsP.catch(() => {});
+	const found = await findProfileForPage(db, params.profile, locals);
+	if (!found) {
+		await postsP;
+		error(404, 'Not found');
+	}
+	const [page, pronouns, participa] = await Promise.all([
+		profilePageFrom(db, found, locals, { posts: postsP }),
 		// Los pronombres de las @menciones del texto.
-		pronouns: await mentionPronouns(platform, posts),
+		postsP.then((posts) => mentionPronouns(platform, posts)),
 		// Eventos y publicaciones que nombran al perfil (por la dirección del objeto), por rol
 		// (solo si el perfil es público; si no, `null`).
-		participa: await contentForProfilePage(platform, page.objectSlug, async () => [
-			...posts,
+		contentForProfilePage(platform, found.object.slug, async () => [
+			...(await postsP),
 			...(await siteWikiPosts(platform))
 		])
-	};
+	]);
+	if (page.private) setHeaders({ 'cache-control': 'private, no-store' });
+	return { ...page, pronouns, participa };
 }
 
 /** @type {import("./$types").Actions} */

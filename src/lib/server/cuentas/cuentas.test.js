@@ -849,7 +849,14 @@ describe('sesiones', () => {
 
 		const tenYears = NOW + 10 * 365 * 24 * 60 * 60 * 1000;
 		const found = await getSessionAccount(t.db, token, { now: tenYears });
-		expect(found).toEqual({ id: account.id, email: EMAIL, touched: true });
+		// Con la velocidad de lectura y el permiso de perfiles (sin elegir / sin permiso).
+		expect(found).toEqual({
+			id: account.id,
+			email: EMAIL,
+			readingSpeed: null,
+			canHaveProfiles: false,
+			touched: true
+		});
 		// last_seen se actualiza como mucho una vez por día.
 		expect((await getSessionAccount(t.db, token, { now: tenYears + 1000 }))?.touched).toBe(false);
 		expect(
