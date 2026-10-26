@@ -1096,7 +1096,9 @@ export async function markEmailSent(db, orderId, now = Date.now(), emailId = nul
  * reenviar»). El mail queda como no enviado hasta que salga a la dirección nueva. `false` si la
  * orden no es de ese evento, no está aprobada o ya tenía esa dirección. Los códigos combo de la
  * orden (combos.js, atados al mail de quien compró) pasan a la dirección nueva, que es la que los
- * recibe. No toca `updated_at` (es la hora de la aprobación para el reintento del cron y el Inicio).
+ * recibe. Limpia el id de Resend y el rebote o la queja (`email_problem`, webhook de Resend): eran
+ * de la dirección vieja, y un aviso tardío de aquel envío no tiene que marcar la nueva. No toca
+ * `updated_at` (es la hora de la aprobación para el reintento del cron y el Inicio).
  *
  * @param {D1Database} db
  * @param {{ orderId: string, eventSlug: string, email: string }} input `email` ya normalizado
@@ -1106,7 +1108,8 @@ export async function updateBuyerEmail(db, { orderId, eventSlug, email }) {
 	const [r] = await db.batch([
 		db
 			.prepare(
-				`UPDATE orders SET buyer_email = ?3, email_sent_at = NULL
+				`UPDATE orders SET buyer_email = ?3, email_sent_at = NULL, email_id = NULL,
+					email_problem = NULL, email_problem_at = NULL
 				WHERE id = ?1 AND event_slug = ?2 AND status = 'approved' AND buyer_email != ?3`
 			)
 			.bind(orderId, eventSlug, email),

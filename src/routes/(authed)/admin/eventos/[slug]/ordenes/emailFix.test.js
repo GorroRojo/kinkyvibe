@@ -170,6 +170,46 @@ describe('Corregir el mail y reenviar', () => {
 		});
 	});
 
+	it('limpia el rebote de la dirección vieja y guarda el id del envío nuevo', async () => {
+		const order = await paidOrder();
+		// Como lo deja el webhook de Resend cuando el mail a la dirección vieja rebotó.
+		await t.db
+			.prepare(
+				`UPDATE orders SET email_id = 'id-viejo', email_problem = 'bounced', email_problem_at = 1
+				WHERE id = ?1`
+			)
+			.bind(order.id)
+			.run();
+		const res = await fix({ order: order.id, email: NEW }, { fetch: resend().fetch });
+		expect(res.emailFix.ok).toBe(true);
+		expect(await getOrder(t.db, order.id)).toMatchObject({
+			buyer_email: NEW,
+			email_id: 'x',
+			email_problem: null,
+			email_problem_at: null
+		});
+	});
+
+	it('si Resend falla, igual se va el rebote de la dirección vieja (y su id)', async () => {
+		const order = await paidOrder();
+		await t.db
+			.prepare(
+				`UPDATE orders SET email_id = 'id-viejo', email_problem = 'bounced', email_problem_at = 1
+				WHERE id = ?1`
+			)
+			.bind(order.id)
+			.run();
+		const res = await fix({ order: order.id, email: NEW }, { fetch: resend(500).fetch });
+		expect(res.status).toBe(502);
+		expect(await getOrder(t.db, order.id)).toMatchObject({
+			buyer_email: NEW,
+			email_sent_at: null,
+			email_id: null,
+			email_problem: null,
+			email_problem_at: null
+		});
+	});
+
 	it('no admin: no cambia ni manda nada', async () => {
 		const order = await paidOrder();
 		const r = resend();

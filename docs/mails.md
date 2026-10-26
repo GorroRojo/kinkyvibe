@@ -416,7 +416,8 @@ Resend avisa por un webhook firmado: `POST /api/resend/webhook`
   Inicio aparece «Rebotó el mail de <nombre>» (o «<nombre> marcó como spam el mail de las
   entradas») durante 14 días, con «Ver orden». «Reenviar» limpia la marca; si vuelve a rebotar,
   Resend avisa de nuevo. Reenviar a una dirección que rebota no sirve: hay que conseguir la
-  dirección bien escrita.
+  dirección bien escrita y cargarla con «Corregir el mail…», que también limpia la marca (y el id
+  de Resend de la dirección vieja).
 - **Seguridad:** la firma es la de Svix (HMAC-SHA256 de `<svix-id>.<svix-timestamp>.<cuerpo>` con
   el secreto `whsec_…`), comparada en tiempo constante; un aviso con la marca de tiempo a más de
   5 minutos del reloj se rechaza (401), y el mismo `svix-id` se procesa una sola vez
@@ -562,9 +563,10 @@ migración `0048_avisar_cambio_fecha.sql`):
 Es la única guía para este caso: seguí los pasos en orden.
 
 1. **¿Salió?** En la ficha del evento → Órdenes, buscá la orden (por nombre, mail o el
-   número de compra `KV-…`) y fijate si el mail figura como enviado. Si no salió y la orden tiene
-   menos de 48 h, el cron la reintenta sola cada 15 minutos
-   ([Reintento del mail de las entradas](#reintento-del-mail-de-las-entradas)).
+   número de compra `KV-…`) y fijate si el mail figura como enviado. Si dice «el mail rebotó» (o
+   «marcó el mail como spam»), Resend ya avisó qué pasó ([Rebotes y quejas](#rebotes-y-quejas)):
+   seguí en el paso 4 o el 5. Si no salió y la orden tiene menos de 48 h, el cron la reintenta sola
+   cada 15 minutos ([Reintento del mail de las entradas](#reintento-del-mail-de-las-entradas)).
 2. **Spam y Promociones.** Pedile que busque en Spam y en Promociones (en Gmail, también en
    «Todos»), por «Tus entradas para» o por el nombre del evento.
 3. **Qué dice Resend.** En Resend → Emails, buscá la dirección y mirá el estado del último mail:
@@ -720,7 +722,8 @@ la orden, que van atados a ese mail) y manda las entradas a la dirección nueva 
 idempotencia propia (`tickets-<orden>-mail-<hora>`: la de siempre ya se usó con la otra
 dirección). A la dirección vieja no le sale nada más: todos los mails leen `buyer_email`. Si la
 nueva tocó «No fui yo», no se cambia ni se manda nada y el panel lo dice. Queda en Ajustes ›
-Actividad («Corrigió el mail de …»), sin ninguna de las dos direcciones. Si Resend falla, la
+Actividad («Corrigió el mail de …»), sin ninguna de las dos direcciones. Borra el rebote o la queja
+de la dirección vieja (`email_problem`) y su `email_id`. Si Resend falla, la
 dirección queda corregida y el mail como no enviado: «Reenviar mail» lo vuelve a intentar. La
 orden que una cuenta veía solo por el mail (`cuentas/orders.js`) pasa a la cuenta de la dirección
 nueva. Que quien compró
