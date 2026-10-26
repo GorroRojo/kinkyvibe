@@ -49,19 +49,19 @@
 	},
 	"login-code": {
 		"subject": "Tu código para entrar a Kinky Vibe",
-		"text": "Tu código para entrar a Kinky Vibe es:\n\n482913\n\nEscribilo en la página donde lo pediste. Vence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\n\nSi no lo pediste vos, ignorá este mail: sin el código nadie puede entrar a tu rincón."
+		"text": "Tu código para entrar a Kinky Vibe es:\n\n482913\n\nEscribilo en la página donde lo pediste. Vence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\nSi pediste más de un código, usá el último: los anteriores ya no sirven.\n\nSi no lo pediste vos, ignorá este mail: sin el código nadie puede entrar a tu rincón."
 	},
 	"confirm-code-password": {
 		"subject": "Tu código para confirmar en Kinky Vibe",
-		"text": "Para confirmar un cambio en la contraseña de tu cuenta, escribí este código en Mi rincón:\n\n482913\n\nVence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\n\nSi no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio."
+		"text": "Para confirmar un cambio en la contraseña de tu cuenta, escribí este código en Mi rincón:\n\n482913\n\nVence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\nSi pediste más de un código, usá el último: los anteriores ya no sirven.\n\nSi no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio."
 	},
 	"confirm-code-delete": {
 		"subject": "Tu código para confirmar en Kinky Vibe",
-		"text": "Para confirmar que querés borrar tu cuenta, escribí este código en Mi rincón:\n\n482913\n\nVence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\n\nSi no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio."
+		"text": "Para confirmar que querés borrar tu cuenta, escribí este código en Mi rincón:\n\n482913\n\nVence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\nSi pediste más de un código, usá el último: los anteriores ya no sirven.\n\nSi no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio."
 	},
 	"confirm-code-grupo": {
 		"subject": "Tu código para confirmar en Kinky Vibe",
-		"text": "Para confirmar un cambio de dueñes o el borrado de un proyecto que gestionás, escribí este código en Mi rincón:\n\n482913\n\nVence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\n\nSi no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio."
+		"text": "Para confirmar un cambio de dueñes o el borrado de un proyecto que gestionás, escribí este código en Mi rincón:\n\n482913\n\nVence en 10 minutos (a las 09:10, hora de Argentina y Uruguay). Sirve una sola vez.\nSi pediste más de un código, usá el último: los anteriores ya no sirven.\n\nSi no fuiste vos, ignorá este mail y no le pases el código a nadie: sin él no se puede hacer el cambio."
 	},
 	"profile-invite": {
 		"subject": "Te invitaron a gestionar un perfil en Kinky Vibe",

@@ -131,7 +131,7 @@ export const eventTicketActions = {
 			resend: {
 				ok: sent,
 				message: sent
-					? `Reenviamos las entradas a ${order.buyer_email}.`
+					? `Le pedimos a Resend que mande las entradas a ${order.buyer_email}. Si no le llegan, fijate en Resend → Suppressions si la dirección está bloqueada.`
 					: 'No se pudo mandar el email (ver logs).'
 			}
 		};
