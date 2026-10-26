@@ -41,8 +41,10 @@
 	}
 	$: next_month = format(addMonths(view_date, 1), 'yyyy-MM');
 	$: prev_month = format(addMonths(view_date, -1), 'yyyy-MM');
-	$: next_linked = isLinkedCalendarMonth(next_month, first_month, last_month);
-	$: prev_linked = isLinkedCalendarMonth(prev_month, first_month, last_month);
+	// The month the page opens on is always reachable, even when every event is before it.
+	$: range_end = last_month && last_month > default_month ? last_month : default_month;
+	$: next_linked = isLinkedCalendarMonth(next_month, first_month, range_end);
+	$: prev_linked = isLinkedCalendarMonth(prev_month, first_month, range_end);
 	const set_next_month = () => show_month(next_month);
 	const set_prev_month = () => show_month(prev_month);
 	const set_today = () => show_month(this_month, true);

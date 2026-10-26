@@ -163,6 +163,15 @@ comprimido con gzip (lo que viaja es parecido: Cloudflare manda brotli, `/calend
   (`firstMonth` de la carga). Solo aparece con los pasados a la vista, así que el HTML del servidor
   (lo que leen los buscadores) no cambia. Código: `src/lib/server/eventos/pasados.js`.
 
+- **`/calendario`, las flechas de mes son links.** «Mes anterior» y «Mes siguiente» son
+  `<a href="/calendario?viewdate=yyyy-MM">` (antes, botones con `goto()`): así los buscadores llegan
+  a cada mes y, desde ahí, a los eventos pasados, sin tocar el sitemap ni la canónica. Solo entre
+  el mes del evento más viejo y el del más nuevo (`firstMonth` y `lastMonth` de la carga; siempre
+  hasta el mes con el que abre la página): fuera de ese rango siguen siendo botones, para no
+  enlazar infinitos meses vacíos. Se ven igual que antes; «Hoy» sigue siendo un botón. Código:
+  `src/lib/components/CalendarHeader.svelte`, `calendarMonthHref` e `isLinkedCalendarMonth` en
+  `src/lib/utils/allPosts.js`.
+
 - **`/todo`, `/material` y `/amigues`, de a 24 tarjetas.** Mostraban todas juntas (85, 55 y 30
   en la base local, con unas 620, 435 y 220 etiquetas) y la página tardaba en responder al
   cargar. Ahora, como el inicio (`limit` de `PostList`), 24 y «Ver más (N)», también con
