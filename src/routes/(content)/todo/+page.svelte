@@ -11,6 +11,10 @@
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
 	import { userConfig } from '$lib/utils/stores';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	import { page } from '$app/stores';
+	import { linkPreviewOf, sectionTexts } from '$lib/utils/seo.js';
+	// El título de la pestaña y el h1, de los textos del panel (docs/compartir.md).
+	$: texts = sectionTexts('todo', linkPreviewOf($page.data).texts);
 	// the server only sends upcoming events; load the rest if past events are shown
 	let allPosts = data.posts;
 	let loadedPast = false;
@@ -23,8 +27,9 @@
 </script>
 
 <svelte:head>
-	<title>Kinky Vibe</title>
+	<title>{texts.heading} · Kinky Vibe</title>
 </svelte:head>
+<h1 class="visually-hidden">{texts.title}</h1>
 <!-- La vista previa al compartir (docs/compartir.md). -->
 <!-- Junta las otras tres listas: los buscadores siguen sus links pero no la guardan (docs/seo.md, «Sitemap»). -->
 <ListSeoHead section="todo" noindex />

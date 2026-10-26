@@ -31,7 +31,7 @@
 </script>
 
 <svelte:head>
-	<title>Kinky Vibe</title>
+	<title>{previewTexts['home.title']}</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 </svelte:head>

@@ -399,6 +399,21 @@ export function wikiTermSchema({ title, summary, path, aka }) {
 }
 
 /**
+ * La descripción de una etiqueta en texto, en una línea: los links (`[[término]]`,
+ * `[[término:texto]]`) quedan como su texto. '' si no hay.
+ * @param {unknown} description
+ * @returns {string}
+ */
+export function plainTagDescription(description) {
+	return typeof description === 'string'
+		? description
+				.replace(/\[\[([^\]]*)\]\]/g, (_, inner) => inner.slice(inner.indexOf(':') + 1))
+				.replace(/\s+/g, ' ')
+				.trim()
+		: '';
+}
+
+/**
  * La página de una etiqueta sin entrada de la Kinkipedia como término definido, si la etiqueta
  * tiene descripción (la que muestra la página arriba de todo): la descripción, en texto, es la
  * definición. Los links de la descripción (`[[término]]`, `[[término:texto]]`) quedan como su
@@ -407,13 +422,7 @@ export function wikiTermSchema({ title, summary, path, aka }) {
  * @returns {JsonLd | null}
  */
 export function tagTermSchema({ title, description, path, aka }) {
-	const text =
-		typeof description === 'string'
-			? description
-					.replace(/\[\[([^\]]*)\]\]/g, (_, inner) => inner.slice(inner.indexOf(':') + 1))
-					.replace(/\s+/g, ' ')
-					.trim()
-			: '';
+	const text = plainTagDescription(description);
 	if (!text) return null;
 	return wikiTermSchema({ title, summary: text, path, aka });
 }

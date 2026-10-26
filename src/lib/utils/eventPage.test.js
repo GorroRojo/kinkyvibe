@@ -59,23 +59,31 @@ describe('la serie del evento', () => {
 });
 
 describe('eventPageTitle', () => {
-	const series = { list: [{ id: 'Serie Uno', name: 'Serie Uno', href: '/wiki/Serie-Uno' }] };
-
-	it('en una serie suma el mes y el año de la edición (en hora de Argentina)', () => {
+	it('suma el día de la edición, en hora de Argentina', () => {
 		const meta = { title: 'Noche Inventada', start: '2026-10-02T22:00-03:00' };
-		expect(eventPageTitle(meta, series)).toBe('Noche Inventada · octubre 2026');
-		// 31/12 a las 23:00 en Argentina ya es 1/1 en UTC: sigue siendo diciembre.
+		expect(eventPageTitle(meta)).toBe('Noche Inventada · 2 de octubre de 2026');
+		// 31/12 a las 23:00 en Argentina ya es 1/1 en UTC: sigue siendo el 31 de diciembre.
 		const fin = { title: 'Noche Inventada', start: '2026-12-31T23:00-03:00' };
-		expect(eventPageTitle(fin, series)).toBe('Noche Inventada · diciembre 2026');
+		expect(eventPageTitle(fin)).toBe('Noche Inventada · 31 de diciembre de 2026');
 	});
 
-	it('sin serie, sin fecha o si el título ya dice el mes, queda igual', () => {
+	it('dos ediciones del mismo mes tienen títulos distintos (sea o no de una serie)', () => {
+		const a = eventPageTitle({ title: 'Jam Semanal', start: '2026-02-03T20:00-03:00' });
+		const b = eventPageTitle({ title: 'Jam Semanal', start: '2026-02-10T20:00-03:00' });
+		expect(a).not.toBe(b);
+	});
+
+	it('sin fecha, con una fecha que no se entiende o si el título ya dice el día, queda igual', () => {
 		const meta = { title: 'Noche Inventada', start: '2026-10-02T22:00-03:00' };
-		expect(eventPageTitle(meta, null)).toBe('Noche Inventada');
-		expect(eventPageTitle(meta, { list: [] })).toBe('Noche Inventada');
-		expect(eventPageTitle({ title: 'Noche Inventada' }, series)).toBe('Noche Inventada');
-		expect(eventPageTitle({ ...meta, start: 'cualquier cosa' }, series)).toBe('Noche Inventada');
-		expect(eventPageTitle({ ...meta, title: 'Noche de Octubre' }, series)).toBe('Noche de Octubre');
+		expect(eventPageTitle({ title: 'Noche Inventada' })).toBe('Noche Inventada');
+		expect(eventPageTitle({ ...meta, start: 'cualquier cosa' })).toBe('Noche Inventada');
+		expect(eventPageTitle({ ...meta, title: 'Fiesta del 2 de Octubre' })).toBe(
+			'Fiesta del 2 de Octubre'
+		);
+		// Nombrar solo el mes no alcanza: las ediciones semanales de ese mes se repetirían.
+		expect(eventPageTitle({ ...meta, title: 'Noche de Octubre' })).toBe(
+			'Noche de Octubre · 2 de octubre de 2026'
+		);
 	});
 });
 

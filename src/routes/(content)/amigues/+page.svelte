@@ -10,6 +10,9 @@
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/stores';
+	import { linkPreviewOf, sectionTexts } from '$lib/utils/seo.js';
+	// El título de la pestaña, de los textos del panel (docs/compartir.md).
+	$: texts = sectionTexts('amigues', linkPreviewOf($page.data).texts);
 	let pinned = ['DemonWeb', 'TallarinesConTuco', 'Gorro_Rojo', 'KinkyVibe', 'AUCH'];
 	let amiguesPosts = data.posts
 		.filter((p) => p.meta.layout == 'amigues')
@@ -33,7 +36,7 @@
 </script>
 
 <svelte:head>
-	<title>Emprendimientos y profesionales · Kinky Vibe</title>
+	<title>{texts.heading} · Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md). -->
 <ListSeoHead section="amigues" card="amigues" kinds={data.kinds} />

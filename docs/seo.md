@@ -270,11 +270,19 @@ cada tarjeta esconde 1 o 2 chips.
 ### Lo demás
 
 - **Títulos repetidos**: los eventos que se repiten tenían el mismo título en cada edición
-  («Jamarada Kinky · Kinky Vibe») y muchas veces la misma descripción. Ahora el `<title>` de un
-  evento que es parte de una serie suma el mes y el año de esa edición («Jamarada Kinky · octubre
-  2026 · Kinky Vibe»; `eventPageTitle` en `eventPage.js`), salvo que el título ya diga el mes. El
-  `h1` y la vista previa al compartir quedan con el título solo. Los perfiles no dicen «· Kinky
-  Vibe» («Mem | él»).
+  («Jamarada Kinky · Kinky Vibe») y muchas veces la misma descripción. Ahora el `<title>` de todo
+  evento con fecha suma el día de esa edición, en hora de Argentina («Jamarada Kinky · 24 de
+  febrero de 2026 · Kinky Vibe»; `eventPageTitle` en `eventPage.js`), sea o no de una serie y
+  aunque haya varias ediciones en el mes, salvo que el título ya diga ese día. Sale solo del
+  evento, sin mirar la serie. El `h1` y la vista previa al compartir quedan con el título solo.
+  Los perfiles no dicen «· Kinky Vibe» («Mem | él»).
+- **Títulos de las listas**: el `<title>` del inicio es `home.title` y el de cada lista es su
+  título del panel más « · Kinky Vibe» (`<lista>.heading`, `wiki.title`; Ajustes › Vistas
+  previas, [compartir.md](compartir.md)), el mismo que `og:title`: así gorrite prueba títulos sin
+  deploy. `/todo` tiene su propio título y un `h1` solo para lectores de pantalla.
+- **Etiquetas con descripción y sin entrada**: la `description` (y `og:description`) es la
+  descripción de la etiqueta en texto (`plainTagDescription` en `jsonLd.js`, sin los `[[ ]]`), y
+  el nombre va con mayúscula inicial, igual en `<title>`, `og:title`, el `h1` y el `DefinedTerm`.
 - **Descripciones**: faltaban en `/calendario`, `/material`, `/amigues` y `/wiki`, y las
   canónicas solo estaban en el inicio y en los perfiles (relativas). Las arregla el PR de vista
   previa al compartir (#257).

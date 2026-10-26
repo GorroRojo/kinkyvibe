@@ -136,7 +136,7 @@
 </script>
 
 <svelte:head>
-	<title>Calendario · Kinky Vibe</title>
+	<title>{previewTexts['calendario.heading']} · Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md). -->
 <ListSeoHead
