@@ -1,8 +1,10 @@
 /**
- * `static/site.webmanifest`: el nombre del sitio, el idioma y el mismo color que el `theme-color`
- * de las páginas (`hsl(319, 90%, 60%)`, en hex porque los manifests no siempre entienden hsl).
+ * `static/site.webmanifest`: el nombre del sitio, el idioma, los íconos (con el `maskable`) y el
+ * mismo color que el `theme-color` de las páginas (`hsl(319, 90%, 60%)`, en hex porque los
+ * manifests no siempre entienden hsl).
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { SITE_NAME } from './seo.js';
 import { SITE_TAGLINE } from './previewTexts.js';
@@ -34,5 +36,23 @@ describe('site.webmanifest', () => {
 
 	it('theme_color es el mismo color que el meta theme-color', () => {
 		expect(manifest.theme_color).toBe(hslToHex(319, 0.9, 0.6));
+	});
+
+	it('tiene los íconos de siempre (`any`) y uno aparte `maskable` de 512 × 512 que existe', async () => {
+		/** @type {{ src: string, sizes: string, type: string, purpose?: string }[]} */
+		const icons = manifest.icons;
+		const plain = icons.filter((i) => (i.purpose ?? 'any') === 'any').map((i) => i.src);
+		expect(plain).toEqual(['/android-chrome-192x192.png', '/android-chrome-512x512.png']);
+
+		const maskable = icons.filter((i) => i.purpose === 'maskable');
+		expect(maskable).toEqual([
+			{ src: '/maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+		]);
+		const file = new URL('../../../static/maskable-512x512.png', import.meta.url);
+		expect(existsSync(file)).toBe(true);
+		const meta = await sharp(file.pathname).metadata();
+		expect([meta.format, meta.width, meta.height]).toEqual(['png', 512, 512]);
+		// Sin transparencia: Android rellena lo transparente con su color y se vería un borde.
+		expect(meta.hasAlpha).toBe(false);
 	});
 });
