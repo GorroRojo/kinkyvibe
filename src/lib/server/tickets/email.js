@@ -936,6 +936,69 @@ export function autoSubmitted(message) {
 /** Cuánto se espera la respuesta de Resend (un envío colgado no puede trabar la request). */
 export const RESEND_TIMEOUT_MS = 10_000;
 
+/** Los `name` del 429 de Resend cuando se terminó el cupo (y no el límite por segundo). */
+export const RESEND_QUOTA_ERRORS = Object.freeze([
+	'daily_quota_exceeded',
+	'monthly_quota_exceeded'
+]);
+/** Tope de la espera del reintento corto después de un 429 por tasa (`retry-after`). */
+export const RESEND_RETRY_MAX_WAIT_MS = 2_000;
+
+/**
+ * Una respuesta de error de Resend: `status` HTTP, `code` (el `name` del cuerpo, como
+ * `rate_limit_exceeded` o `daily_quota_exceeded`) y `retryAfter` en segundos (o `null`).
+ */
+export class ResendError extends Error {
+	/**
+	 * @param {{ status: number, code: string, retryAfter: number | null, body: string }} input
+	 */
+	constructor({ status, code, retryAfter, body }) {
+		super(`Resend → ${status}: ${body}`);
+		this.name = 'ResendError';
+		this.status = status;
+		this.code = code;
+		this.retryAfter = retryAfter;
+	}
+}
+
+/**
+ * Si un error de envío es un «ahora no» de Resend, que no tiene que gastar intentos: `'quota'`
+ * (se terminó el cupo diario o mensual), `'rate'` (demasiados por segundo) o `'server'` (un 5xx).
+ * `null` para cualquier otro error (dirección rechazada, clave mala, timeout…).
+ *
+ * @param {unknown} error
+ * @returns {'quota' | 'rate' | 'server' | null}
+ */
+export function resendBackoff(error) {
+	if (!(error instanceof ResendError)) return null;
+	if (error.status === 429) return RESEND_QUOTA_ERRORS.includes(error.code) ? 'quota' : 'rate';
+	return error.status >= 500 ? 'server' : null;
+}
+
+/** @param {number} ms */
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * El error de una respuesta de Resend que no es 2xx.
+ * @param {Response} res
+ */
+async function resendError(res) {
+	const body = (await res.text().catch(() => '')).slice(0, 300);
+	let code = '';
+	try {
+		code = String(JSON.parse(body)?.name ?? '');
+	} catch {
+		// Sin JSON: queda solo el status.
+	}
+	const seconds = Number(res.headers.get('retry-after'));
+	return new ResendError({
+		status: res.status,
+		code,
+		retryAfter: Number.isFinite(seconds) && seconds >= 0 ? seconds : null,
+		body
+	});
+}
+
 /**
  * @param {{
  *   fetch: typeof fetch,
@@ -946,8 +1009,13 @@ export const RESEND_TIMEOUT_MS = 10_000;
  *   message: { subject: string, html: string, text: string, attachments?: MailAttachment[],
  *     headers?: Record<string, string> },
  *   idempotencyKey?: string,
- *   timeoutMs?: number
- * }} input `message.headers`: cabeceras de este mail, sobre {@link MAIL_HEADERS}.
+ *   timeoutMs?: number,
+ *   wait?: (ms: number) => Promise<unknown>
+ * }} input `message.headers`: cabeceras de este mail, sobre {@link MAIL_HEADERS}. `wait`: la
+ *   espera del reintento corto (para los tests).
+ * @throws {ResendError} si Resend responde con un error (ver {@link resendBackoff}).
+ *   Un 429 por tasa se reintenta una sola vez antes, esperando lo que diga `retry-after` (como
+ *   mucho {@link RESEND_RETRY_MAX_WAIT_MS}): Resend no lo aceptó, así que no se duplica.
  */
 export async function sendWithResend({
 	fetch,
@@ -957,29 +1025,36 @@ export async function sendWithResend({
 	replyTo,
 	message,
 	idempotencyKey,
-	timeoutMs = RESEND_TIMEOUT_MS
+	timeoutMs = RESEND_TIMEOUT_MS,
+	wait = sleep
 }) {
 	/** @type {Record<string, string>} */
 	const headers = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
 	if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
-	const res = await fetch('https://api.resend.com/emails', {
-		method: 'POST',
-		signal: AbortSignal.timeout(timeoutMs),
-		headers,
-		body: JSON.stringify({
-			from,
-			to: [to],
-			subject: message.subject,
-			html: message.html,
-			text: message.text,
-			...(message.attachments?.length ? { attachments: message.attachments } : {}),
-			...(replyTo ? { reply_to: replyTo } : {}),
-			headers: { ...MAIL_HEADERS, ...message.headers }
-		})
+	const body = JSON.stringify({
+		from,
+		to: [to],
+		subject: message.subject,
+		html: message.html,
+		text: message.text,
+		...(message.attachments?.length ? { attachments: message.attachments } : {}),
+		...(replyTo ? { reply_to: replyTo } : {}),
+		headers: { ...MAIL_HEADERS, ...message.headers }
 	});
+	const post = () =>
+		fetch('https://api.resend.com/emails', {
+			method: 'POST',
+			signal: AbortSignal.timeout(timeoutMs),
+			headers,
+			body
+		});
+	let res = await post();
 	if (!res.ok) {
-		const body = (await res.text().catch(() => '')).slice(0, 300);
-		throw new Error(`Resend → ${res.status}: ${body}`);
+		const error = await resendError(res);
+		if (resendBackoff(error) !== 'rate') throw error;
+		await wait(Math.min((error.retryAfter ?? 1) * 1000, RESEND_RETRY_MAX_WAIT_MS));
+		res = await post();
+		if (!res.ok) throw await resendError(res);
 	}
 	return /** @type {{ id?: string }} */ (await res.json().catch(() => ({})));
 }

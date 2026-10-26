@@ -23,8 +23,10 @@ import {
 	buildTransferEmail,
 	autoSubmitted,
 	maskEmail,
+	resendBackoff,
 	sendWithResend
 } from './email.js';
+import { noteResendQuota } from './resendQuota.js';
 import { parseAllowlist, routeEmail, subjectForLog } from './emailGuard.js';
 import { getEventMeta, getEventTickets, listTicketedEvents } from './events.js';
 import { coveredPartsByWorkshop } from '../eventos/partes.js';
@@ -425,15 +427,26 @@ async function deliver({
 	}
 	const { replyTo } = settings;
 	const from = fixedFrom || settings.from;
-	await sendWithResend({
-		fetch: fetchFn,
-		apiKey,
-		from,
-		to: route.to,
-		replyTo,
-		message: { ...message, subject: route.subject },
-		idempotencyKey
-	});
+	try {
+		await sendWithResend({
+			fetch: fetchFn,
+			apiKey,
+			from,
+			to: route.to,
+			replyTo,
+			message: { ...message, subject: route.subject },
+			idempotencyKey
+		});
+	} catch (error) {
+		// Cupo terminado: queda el aviso en «Para revisar» (resendQuota.js). El error sigue: quien
+		// llama decide (las tandas no gastan el intento, ver `resendBackoff`).
+		if (resendBackoff(error) === 'quota') {
+			await noteResendQuota(db, {
+				code: /** @type {import('./email.js').ResendError} */ (error).code
+			});
+		}
+		throw error;
+	}
 	return 'sent';
 }
 
@@ -515,10 +528,11 @@ export async function sendOrderEmail(input) {
  * {@link sendOrderEmail} con el resultado de `deliver()`: `sent` (salió y quedó marcado),
  * `simulated` (no salió a propósito: «No fui yo», preview sin EMAIL_ALLOWLIST o dev sin clave) o
  * `failed`. Lo usa el reintento del cron (unsentOrders.js) para no volver a tomar una orden
- * cortada a propósito.
+ * cortada a propósito. Si Resend dijo «ahora no» (cupo, tasa o un 5xx: `resendBackoff` en
+ * email.js), devuelve eso en vez de `failed`, así el reintento no gasta el intento.
  *
  * @param {Parameters<typeof sendOrderEmail>[0]} input
- * @returns {Promise<'sent' | 'simulated' | 'failed'>}
+ * @returns {Promise<'sent' | 'simulated' | 'failed' | 'quota' | 'rate' | 'server'>}
  */
 export async function sendOrderEmailResult({
 	db,
@@ -599,7 +613,7 @@ export async function sendOrderEmailResult({
 		if (claimedLink) {
 			await releaseStreamLinkSend(db, { orderId: order.id, link: claimedLink }).catch(() => {});
 		}
-		return 'failed';
+		return resendBackoff(error) ?? 'failed';
 	}
 }
 

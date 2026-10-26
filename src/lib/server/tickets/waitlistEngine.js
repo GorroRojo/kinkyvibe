@@ -611,7 +611,7 @@ const templateOf = (m) =>
  * @param {D1Database} db
  * @param {{ limit: number, send: WaitlistSend, origin: string, contactEmail?: string,
  *   now?: number, eventSlug?: string | null, configOf?: ConfigOf }} input
- * @returns {Promise<{ sent: number, failed: number, remaining: number }>}
+ * @returns {Promise<import('./sendState.js').BatchResult>}
  */
 export async function sendWaitlistMails(db, input) {
 	const { limit, send, origin, now = Date.now(), eventSlug = null } = input;
@@ -698,13 +698,13 @@ export async function sendWaitlistMails(db, input) {
  * `runMailQueueWith`), con el envío de siempre (`deliverEmail`).
  *
  * @param {{ db: D1Database, origin: string, fetch: typeof fetch, now?: number }} input
- * @returns {(limit: number) => Promise<{ sent: number, failed: number, remaining: number }>}
+ * @returns {(limit: number) => Promise<import('./sendState.js').BatchResult>}
  */
 export function waitlistMailBatch({ db, origin, fetch: fetchFn, now }) {
 	return (limit) =>
 		sendWaitlistMails(db, {
 			limit,
-			send: waitlistSender(db, fetchFn),
+			send: waitlistSender(db, fetchFn, { batch: true }),
 			origin,
 			contactEmail: contactEmail(),
 			...(now ? { now } : {})
@@ -761,7 +761,7 @@ async function nudge({ platform, db: given, eventSlug, origin, fetch: fetchFn, n
 	if (fetchFn && origin) {
 		await sendWaitlistMails(db, {
 			limit: mailBatchSize((await getSalesSettings(db)).mail_batch_size),
-			send: waitlistSender(db, fetchFn),
+			send: waitlistSender(db, fetchFn, { batch: true }),
 			origin,
 			contactEmail: contactEmail(),
 			eventSlug,

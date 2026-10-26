@@ -73,7 +73,11 @@ export async function POST({ request, platform, url, fetch }) {
 		let unsentOrders = null;
 		try {
 			const u = await resendUnsentOrderEmails({ db, origin: siteOrigin(url), fetch });
-			unsentOrders = { sent: u.sent, failed: u.failed };
+			unsentOrders = {
+				sent: u.sent,
+				failed: u.failed,
+				...(u.stopped ? { stopped: u.stopped } : {})
+			};
 		} catch (error) {
 			logDBError('cron mails de entradas sin enviar', error);
 		}
