@@ -132,7 +132,7 @@ CI) va en la fase 0.
 ### Sitio público
 
 - `promesas-entre-pedidos` · fase 0 · hecho · sitio · Bug: GET /admin y GET / se colgaban minutos a veces (cachés del isolate que compartían una consulta en camino entre pedidos); ahora entre pedidos solo se comparte lo ya leído · #352
-- `ux-auditoria-restos` · fase 0 · hecho · sitio · Lo que seguía abierto de la auditoría de UX del 4/10: anclas del glosario, áreas de toque, migas de pan (ya estaban, #215) y búsqueda vacía de la wiki · #333
+- `ux-auditoria-restos` · fase 0 · hecho · sitio · Lo que seguía abierto de la auditoría de UX del 4/10: anclas del glosario, áreas de toque, migas de pan (ya estaban, #215), búsqueda vacía de la wiki y «Entrar» en vez de «Ingresar» ([0050](decisiones/0050-entrar-no-ingresar.md)) · #333
 - `wiki-sin-entrada-editar` · fase 0 · hecho · sitio · «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`) · #323
 - `wiki-html-default-seguro` · fase 0 · hecho · sitio · El texto de la wiki sin `wiki_body_html` guardado se muestra con la lista corta (como los eventos); la migración 0059 deja `libre` escrito en las páginas que ya estaban. Las imágenes de los textos con la lista corta (perfiles y demás), solo de la biblioteca propia (`/media/…`) · #384
 - `areas-toque-restos` · fase 0 · hecho · sitio · Toques de menos de 44px que pedían diseño: «Comprar entradas» en las tarjetas de las listas mide 44px en el celu (hecho, el botón mismo); el índice y «Enlace a esta sección» de los textos, las series hijas en la Kinkipedia y la línea de madres e hijas de un término quedan como están (gorrite: dejarlo así) · #335
@@ -340,7 +340,7 @@ CI) va en la fase 0.
 - `lo-que-sigo-avisos-fallidos` · fase 2 · en curso · panel · Contar los avisos de «Lo que sigo» que fallaron (hoy se borra su fila para reintentar: necesita migración; gorrite: sí, contalos, 12/10) (depende de: lo-que-sigo-panel) · #347
 - `admins-cuenta-normal` · fase 2 · sigue · cuentas · Admins con la cuenta del sitio en vez de GitHub: ser admin como permiso de la cuenta, la lista de admins a la base, migrar lo que guarda ids de GitHub; con decisión propia y por partes, con GitHub de respaldo (gorrite, 11/10)
 - `passkeys` · fase 2 · sigue · cuentas · Passkeys para las cuentas · [cuentas.md](cuentas.md#pendiente-partes-siguientes)
-- `compra-con-cuenta` · fase 2 · sigue · cuentas · Guardar `orders.account_id` al comprar y que `requiere_cuenta` pida ingresar de verdad · [0002](decisiones/0002-cuentas-y-perfiles.md)
+- `compra-con-cuenta` · fase 2 · sigue · cuentas · Guardar `orders.account_id` al comprar y que `requiere_cuenta` pida entrar de verdad · [0002](decisiones/0002-cuentas-y-perfiles.md)
 - `amigues-editan-perfil` · fase 2 · sigue · cuentas · Mandarle a cada amigue un link por mail para gestionar su perfil desde Mi rincón (gorrite, 11/10)
 - `sesiones-dispositivos` · fase 2 · algún día · cuentas · Ver dónde hay una sesión abierta y cerrarla
 - `lo-que-sigo-panel` · fase 2 · hecho · panel · Mensajes › Lo que sigo: el estado para mirar (interruptores, números, avisos que salieron, «Avisame», Telegram, «Lo más seguido» arriba con el número exacto y quiénes siguen cada cosa, y «Por persona»; solo admins) · #320, [0043](decisiones/0043-lo-que-sigo-en-el-panel.md), [0025](decisiones/0025-lo-que-sigo.md)
