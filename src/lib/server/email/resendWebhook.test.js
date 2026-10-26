@@ -393,6 +393,50 @@ describe('POST /api/resend/webhook', () => {
 		const big = 'x'.repeat(70 * 1024);
 		expect((await call(big, await svixHeaders(big))).status).toBe(413);
 	});
+
+	it('cuerpo en pedazos sin content-length: corta al pasar los 64 KB (413) sin leerlo entero', async () => {
+		const chunk = new TextEncoder().encode('x'.repeat(16 * 1024));
+		let pulled = 0;
+		const stream = new ReadableStream({
+			pull(controller) {
+				// Infinito: si la ruta lo leyera entero, el test no terminaría.
+				pulled++;
+				controller.enqueue(chunk);
+			}
+		});
+		const request = new Request('https://kinkyvibe.example/api/resend/webhook', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json', ...(await svixHeaders('{}')) },
+			body: stream,
+			// @ts-ignore: hace falta en Node para mandar un stream
+			duplex: 'half'
+		});
+		expect(request.headers.get('content-length')).toBeNull();
+		const res = await POST(/** @type {any} */ ({ request, platform: { env: { DB: t.db } } }));
+		expect(res.status).toBe(413);
+		expect(pulled).toBeLessThan(10);
+
+		// Uno chico en pedazos, bien firmado, pasa.
+		const body = JSON.stringify(event('email.delivered'));
+		const bytes = new TextEncoder().encode(body);
+		const small = new ReadableStream({
+			start(controller) {
+				controller.enqueue(bytes.slice(0, 10));
+				controller.enqueue(bytes.slice(10));
+				controller.close();
+			}
+		});
+		const ok = new Request('https://kinkyvibe.example/api/resend/webhook', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json', ...(await svixHeaders(body)) },
+			body: small,
+			// @ts-ignore: hace falta en Node para mandar un stream
+			duplex: 'half'
+		});
+		const r = await POST(/** @type {any} */ ({ request: ok, platform: { env: { DB: t.db } } }));
+		expect(r.status).toBe(200);
+		expect(await r.json()).toEqual({ ok: true, outcome: 'ignored' });
+	});
 });
 
 describe('el mail de las entradas guarda el id de Resend', () => {

@@ -18,6 +18,37 @@ import {
 	verifyWebhook
 } from '$lib/server/email/resendWebhook.js';
 
+/**
+ * El cuerpo como texto, o `null` si pasa de `max` bytes (deja de leer ahí: no lo guarda entero).
+ *
+ * @param {Request} request
+ * @param {number} max
+ */
+async function readCapped(request, max) {
+	if (!request.body) return '';
+	const reader = request.body.getReader();
+	/** @type {Uint8Array[]} */
+	const chunks = [];
+	let size = 0;
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		size += value.byteLength;
+		if (size > max) {
+			await reader.cancel().catch(() => {});
+			return null;
+		}
+		chunks.push(value);
+	}
+	const all = new Uint8Array(size);
+	let at = 0;
+	for (const c of chunks) {
+		all.set(c, at);
+		at += c.byteLength;
+	}
+	return new TextDecoder().decode(all);
+}
+
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, platform }) {
 	const secret = env.RESEND_WEBHOOK_SECRET;
@@ -25,8 +56,9 @@ export async function POST({ request, platform }) {
 
 	if (Number(request.headers.get('content-length') ?? 0) > WEBHOOK_MAX_BYTES)
 		return text('too large', { status: 413 });
-	const body = await request.text();
-	if (body.length > WEBHOOK_MAX_BYTES) return text('too large', { status: 413 });
+	// Sin content-length (chunked) se lee de a pedazos y se corta al pasar el tope.
+	const body = await readCapped(request, WEBHOOK_MAX_BYTES);
+	if (body === null) return text('too large', { status: 413 });
 
 	const svixId = request.headers.get('svix-id');
 	const check = await verifyWebhook({
