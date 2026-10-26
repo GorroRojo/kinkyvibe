@@ -101,7 +101,7 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
 6. **Entrada** (`/entradas/t/<token>`): QR con el **código corto** al lado, en grande (ver abajo), nombre, pronombres, tipo y estado (válida / ya usada / anulada). No muestra datos de otras personas. En eventos online muestra el link de la transmisión cuando está (solo con la compra aprobada).
 7. **Código corto de cada entrada** (`tickets.code`): 6 caracteres de un alfabeto sin ambiguos (`23456789ABCDEFGHJKMNPQRSTUVWXYZ`: sin 0/O, 1/I/L), único por evento (índice único en la base), al azar (31⁶ ≈ 887 millones). Se elige dentro del mismo `INSERT` que emite la entrada entre tres candidatos al azar no usados en el evento, así que un choque nunca hace fallar la aprobación de un pago. Sirve para tipearlo en la puerta si el QR no se puede escanear: el control de ingreso lo acepta con o sin "KV-", espacios o guiones, y lee O como 0 e I/L como 1 (letras que los códigos no usan). No reemplaza al token del QR para ver la entrada: solo lo usan les admins en el control de ingreso.
 8. **Admin** (`/admin/ventas`): vendidas/cupo, reservas y recaudación bruta por tipo, y por evento **Fondo usado**, **Aportes al fondo** y **Neto del fondo**; por evento, la ficha `/admin/eventos/<slug>` con pestañas (Resumen, Editar, Ventas, Puerta, Códigos, Mails y Preguntas; Ventas tiene las vistas Totales con ventas por día y cómo pagaron, Órdenes y Transferencias, y Mails las vistas Mandar un aviso y Plantillas, ver [panel.md](panel.md)): la lista de órdenes, exportar CSV (`/admin/eventos/<slug>/ordenes.csv`) y reenviar el mail. El control de ingreso es el modo puerta (punto 9).
-9. **Modo puerta** (check-in): `/admin/checkin` elige el evento (hoy primero, después los próximos y los de los últimos 60 días, con cuántes entraron; con un solo evento hoy entra directo a ese, con «Otro evento» para volver a la lista, ver docs/panel.md) y abre `/admin/eventos/<slug>/ingreso`: pantalla completa y oscura, sin menús del panel (`bare: true`), con la pantalla siempre prendida (Screen Wake Lock, que se vuelve a pedir al volver a la pestaña).
+9. **Modo puerta** (check-in): `/admin/checkin` elige el evento (hoy primero, después los próximos y los de los últimos 60 días, con cuántes entraron; con un solo evento hoy entra directo a ese, con «Otro evento» para volver a la lista, ver docs/panel.md) y abre `/admin/eventos/<slug>/ingreso`: pantalla completa y oscura, sin menús del panel (`bare: true`), con la pantalla siempre prendida (Screen Wake Lock, que se vuelve a pedir al volver a la pestaña). Arriba, el botón **?** abre la guía para quien está en la puerta ([Puerta: cómo hacerla](#puerta-cómo-hacerla)).
    - **Contador** "18 de 31 adentro" con el detalle por tipo, y **escáner** de QR con la cámara (API `BarcodeDetector`: Chrome en Android, Edge), con linterna y cambio de cámara si el celu los tiene. En iPhone (Safari no tiene `BarcodeDetector`) se puede escanear con la cámara del sistema: abre la página de la entrada, que a les admins les muestra el botón "Marcar ingreso" (a quien no es admin no: el form action llama a `requireAdmin`, hay tests).
    - **Resultado** en grande con vibración (y sonido opcional, apagado por defecto): verde "Adelante", amarillo "Ya ingresó" (hora y quién), rosa "Anulada", "De otro evento" o "QR inválido". Muestra la persona, pronombres, tipo, quién compró y su **email**, el **DNI parcial** (últimos 3; al tocarlo se ve completo y queda en el registro de actividad como `order.reveal_dni`, sin el número), el código y **"Primera vez en <serie>"**. "Deshacer" (queda como `checkin.undo`). Tocar el resultado abre la **compra completa**: estado, medio de pago, montos, fondo, descuento, todas las entradas de la orden con su ingreso, fechas y link a la orden.
    - **Serie de un evento** (`src/lib/server/tickets/series.js`): sus etiquetas de serie, las hijas (o nietas) de «evento recurrente», como en las páginas de series. Ya no se adivina por el slug: un evento sin etiqueta de serie no muestra nada. Es la primera vez de la persona si no hay, en ediciones anteriores de la serie (las que van antes en el orden de ediciones, por fecha), una entrada aprobada o con ingreso marcado con el mismo nombre (sin tildes ni mayúsculas) ni, si la entrada es de quien compró, una compra con el mismo email. Si ninguna edición anterior tiene entradas vendidas acá, no se muestra nada.
@@ -113,6 +113,67 @@ meta_venta: plata:250000 # opcional: la meta de venta del panel (plata:<pesos ne
    - **Vender en puerta sin conexión** ([decisión 0035](decisiones/0035-vender-en-puerta-sin-conexion.md)): el mismo formulario (con el precio por entrada y la nota), sin el DNI (sin conexión no se guarda en el celu) y, con transferencia, con la casilla «Vi que llegó la transferencia». Si con lo que sabe el celu (cupo de cuando había conexión, menos lo vendido sin conexión; 10 por venta; solo anticipadas) se pasaría un límite, avisa con el mismo diálogo, pero se puede guardar igual. La venta queda en la cola del celu (`localStorage`, `queueOfflineSale` en `src/lib/admin/doorOffline.js`) con un id del celu; sus entradas cuentan como adentro en ese celu y se ven como «pendiente de sincronizar». Al volver la conexión (o con «Sincronizar») se mandan **antes que los ingresos y en el orden en que se vendieron** (acción `?/syncSales`, `applyQueuedSales` en `door.js`): cada una pasa por la misma validación (`parseDoorSale`) y la misma función (`sellAtDoor`) que la venta con conexión, con la hora del celu (acotada como la de los ingresos); el precio cambiado y la nota viajan en la venta (`amount` y `note`), se validan otra vez al sincronizar y dan la misma orden que con conexión. Cambiar el precio **no es un límite**: no la manda a «Para revisar». Una venta guardada antes de que existiera el campo (sin `amount`) cobra el precio de la puerta; un precio inválido no se registra y queda a la vista en el celu. Es **idempotente**: el id del celu queda en `orders.client_sale_id` (índice único, migración 0051), así que un reintento devuelve la orden que ya existe. **Un límite no frena la venta**: si al sincronizar se pasa el cupo, se agotó el tipo, son más de 10, el evento es solo anticipadas o se canceló, se guarda igual con esos límites en `orders.offline_review`, sale en «Para revisar» («Venta sin conexión de … para revisar», con «Marcar como revisada» en Órdenes) y el celu muestra un aviso. **El precio es el de cuando se sincroniza**: la venta se registra con el precio en la puerta (salvo que quien vendía haya escrito otro) y el % del Fondo de ese momento, no con los de cuando se vendió. Por eso el celu manda lo que cobró (`charged_total`, el total que vio quien vendía) y, si el servidor la registra con otro total, también queda en `offline_review` (`{ kind: 'price', charged, recorded }`) y en «Para revisar»: «Se cobró $ 16.800; quedó registrada en $ 16.500». No se corrige sola: quien organiza decide. Una venta de un celu con una versión anterior (sin `charged_total`) no se compara. Si el servidor no la puede registrar (por ejemplo, un tipo que ya no existe), el celu la deja a la vista con sus datos («Cargala a mano») hasta que alguien descarta el aviso: nunca se borra sola. Queda en el registro como `order.door_sale` (con `offline: true`) y, si pasó límites, `tickets.override`.
 
 10. **Cargar entradas a mano** (`/admin/eventos/<slug>/ordenes/cargar`; link en el menú "Opciones" del modo puerta): invitaciones, cortesías o pagos que llegaron por otro lado. Tipo, cantidad, nombre y email (opcional) de quien recibe, nombre de cada entrada, **cómo se pagó** (cortesía / invitación, efectivo, transferencia u otro), **monto por entrada** (0 = sin cargo; la cortesía siempre es 0; se lee con `parseAmount`, igual que en la compra online y en la puerta) y una nota opcional (solo en el panel, `orders.admin_note`). Crea una orden **ya aprobada** con `channel = 'manual'` (`createManualOrder` en `src/lib/server/tickets/manual.js`, con la misma sentencia que la venta en la puerta: `insertApprovedOrder` de `door.js`), no marca el ingreso y, si hay email y se tilda, manda las entradas por mail. Total 0 queda como `gratis`. Queda en el registro (`order.manual`). Límites (se pueden pasar confirmando): cupo, 20 por compra y venta cerrada (por horario, del tipo, agotadas o cancelado); "todavía no abrió" no es un límite. Migración 0010: canal `manual`, medio `otro`, precio 0 en las manuales y `admin_note`.
+
+### Puerta: cómo hacerla
+
+La guía corta para quien está en la puerta. En el modo puerta está en el botón **?** de arriba
+(y en «Opciones» → «Cómo hacer la puerta»): es `src/lib/components/admin/door/DoorGuide.svelte`,
+con el mismo texto que acá. Si cambia una, cambiá la otra.
+
+**Antes de abrir**
+
+- Abrí la pantalla **con conexión** y esperá el cartel verde «Listo para sin conexión»: la lista
+  de entradas queda guardada en el celu por si se corta.
+- Celu con batería (o cargador a mano) y el brillo alto. La pantalla no se apaga sola.
+- Plan B en papel: si el celu se queda sin batería, anotá nombre y código de cada persona y
+  cargalo después.
+
+**Escanear**
+
+- Apuntá la cámara al QR de la entrada (en el celu de la persona o impreso).
+- **Verde «Adelante»**: pasa. Si te equivocaste de persona, «Deshacer».
+- **Amarillo «Ya ingresó»**: esa entrada ya se usó (dice a qué hora y quién la marcó). No lo
+  discutas en la fila: pedile el mail de la compra y avisale a une organizadore.
+- **«Anulada», «De otro evento» o «QR inválido»**: no pasa con esa entrada. Probá con «Buscar
+  persona» por si tiene otra a su nombre.
+- En iPhone la cámara de la pantalla no lee QRs: «Escribir código» o «Buscar persona» (les
+  admins también pueden abrir el QR con la app Cámara: la entrada muestra «Marcar ingreso»).
+
+**Escribir código y buscar**
+
+- **Escribir código**: las 6 letras y números de abajo del QR, o el link de la entrada.
+- **Buscar persona**: por el nombre de la entrada, el de quien compró, el mail, el DNI o el
+  código. Antes de marcar, confirmá que es esa persona (con el mail de la compra o los últimos
+  números del DNI).
+- No leas en voz alta el nombre del documento, el DNI ni el mail.
+
+**Vender en la puerta** (si el evento vende en la puerta)
+
+- «Vender en puerta»: tipo, cantidad y cómo pagó (efectivo o una transferencia que ya viste
+  llegar). Las entradas quedan adentro al toque.
+- Si cobraste otro precio, cambialo antes de registrar y anotá el motivo en «Agregar nota».
+- Si pide confirmar (cupo lleno, más de 10 entradas o un evento solo anticipadas), frená y
+  consultalo con une organizadore.
+
+**Sin conexión**
+
+- Si se corta, seguí igual: escanear, escribir el código, buscar en la lista guardada y vender
+  siguen andando. Arriba dice cuánto queda por sincronizar.
+- Cuando vuelve la conexión se manda solo; si no, «Sincronizar». **No cierres la pestaña ni
+  borres los datos del navegador** con cosas pendientes.
+- Si otro celu ya había marcado esa entrada, al sincronizar sale un aviso: cuenta el primer
+  ingreso.
+
+**Si hay un problema**
+
+- La persona no aparece o la entrada no le funciona: no la dejes pasar ni la rechaces sola. Que
+  espere a un costado y llamá a une organizadore.
+- Dudas de edad: se puede pedir documento solo para ver la fecha de nacimiento. El nombre de la
+  entrada no tiene que coincidir con el del documento.
+- Si alguien está mal, se siente insegure o hay una situación de violencia, avisale enseguida a
+  la persona de cuidado del evento.
+- No prestes tu sesión de admin ni el celu con el panel abierto: si hace falta alguien más en la
+  puerta, que lo resuelva une organizadore.
 
 ### Pasar límites desde el panel
 

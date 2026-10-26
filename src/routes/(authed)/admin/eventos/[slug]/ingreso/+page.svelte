@@ -11,6 +11,7 @@
 	import {
 		ArrowLeft,
 		CircleCheck,
+		CircleHelp,
 		CircleX,
 		CloudCheck,
 		CloudUpload,
@@ -29,6 +30,7 @@
 	} from '@lucide/svelte';
 	import DoorScanner from '$lib/components/admin/door/DoorScanner.svelte';
 	import DoorResult from '$lib/components/admin/door/DoorResult.svelte';
+	import DoorGuide from '$lib/components/admin/door/DoorGuide.svelte';
 	import Sheet from '$lib/components/admin/door/Sheet.svelte';
 	import OverrideDialog from '$lib/components/admin/panel/OverrideDialog.svelte';
 	import WaitlistDoorNote from '$lib/components/admin/WaitlistDoorNote.svelte';
@@ -141,6 +143,8 @@
 	let searchOpen = false;
 	let saleOpen = false;
 	let menuOpen = false;
+	/** «Cómo hacer la puerta» (DoorGuide.svelte). */
+	let guideOpen = false;
 	let purchaseOpen = false;
 	/** @type {any} */
 	let purchase = null;
@@ -960,6 +964,14 @@
 					<p class="auto">Es el único evento de hoy · <a href={listHref}>Otro evento</a></p>
 				{/if}
 			</div>
+			<button
+				type="button"
+				class="round"
+				on:click={() => (guideOpen = true)}
+				aria-label="Cómo hacer la puerta"
+			>
+				<CircleHelp size={24} />
+			</button>
 			<button type="button" class="round" on:click={() => (menuOpen = true)} aria-label="Opciones">
 				<Ellipsis size={24} />
 			</button>
@@ -1518,9 +1530,24 @@
 		{/if}
 	</Sheet>
 
+	<!-- Cómo hacer la puerta (la misma guía que docs/tickets.md, «Puerta: cómo hacerla») -->
+	<Sheet bind:open={guideOpen} title="Cómo hacer la puerta">
+		<DoorGuide canSell={data.doorSales} />
+	</Sheet>
+
 	<!-- Opciones -->
 	<Sheet bind:open={menuOpen} title="Opciones">
 		<div class="stack">
+			<button
+				type="button"
+				class="option"
+				on:click={() => {
+					menuOpen = false;
+					guideOpen = true;
+				}}
+			>
+				<CircleHelp size={22} /> Cómo hacer la puerta
+			</button>
 			<button type="button" class="option" on:click={toggleSound} aria-pressed={sound}>
 				{#if sound}<Volume2 size={22} />{:else}<VolumeX size={22} />{/if}
 				Sonido al escanear: {sound ? 'prendido' : 'apagado'}
