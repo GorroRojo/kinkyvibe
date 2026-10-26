@@ -13,7 +13,8 @@ guía: `compartir.md` (llega con el PR #257).
   algo que la página no le muestre a cualquiera: el lugar llega filtrado por su nivel de
   privacidad ([amigues.md](amigues.md)) y del perfil sale solo el contacto público (decisión
   0023). Un lugar oculto no tiene dirección en ningún lado.
-- **Nada de reglas para bots de IA en `robots.txt`**: gorrite las maneja en Cloudflare.
+- **Bots de IA: los que entrenan modelos no entran; los de búsqueda y respuesta, sí** (decisión de
+  gorrite, octubre de 2026). Ver «robots.txt y bots de IA» abajo.
 - `security.txt` y los datos estructurados usan el contacto general de la organización (`ORG_CONTACT_EMAIL`, `src/lib/utils/organization.js`), nunca uno
   personal.
 
@@ -82,6 +83,25 @@ Del evento va la fecha en el resumen (y «Cancelado» si lo está), **nunca el l
 que repetir las reglas de privacidad. Cada página los anuncia con `<link rel="alternate">`
 (`FeedLinks.svelte`); el feed de una etiqueta sin eventos ni material da 404. El RSS de siempre
 (`/rss`, en `app.html`) y los calendarios `.ics` siguen igual.
+
+### robots.txt y bots de IA
+
+`static/robots.txt` tiene dos grupos. El de todos (`*`) deja afuera solo `/auch`. El segundo pone
+`Disallow: /` para los bots que juntan textos para entrenar modelos de IA: `GPTBot` (OpenAI),
+`ClaudeBot` (Anthropic), `Google-Extended` (Gemini; no toca Google Search), `Applebot-Extended`,
+`CCBot` (Common Crawl), `Bytespider` (ByteDance), `meta-externalagent` (Meta) y
+`cohere-training-data-crawler`. Los que buscan o responden en el momento siguen entrando como
+todos, sin grupo propio: `Googlebot`, `Bingbot`, `OAI-SearchBot` y `ChatGPT-User` (ChatGPT),
+`PerplexityBot` y `Perplexity-User`, `Claude-SearchBot` y `Claude-User`. Así el sitio puede
+aparecer (con link) en las respuestas de ChatGPT, Perplexity, Claude y Google sin que sus textos
+entren a un entrenamiento. Lo cuida `robots.test.js`; para sumar uno nuevo, a las dos listas.
+
+`robots.txt` es un pedido, no una barrera: algunos bots (Bytespider, por ejemplo) no le hacen caso.
+**Paso opcional en el panel de Cloudflare (gorrite)**: el ajuste para bloquear bots de IA
+(«Block AI bots», en Security › Bots o en AI Crawl Control, según cómo lo muestre el panel)
+los frena en la red, también a los que no leen `robots.txt`. Antes de prenderlo, revisar en esa
+pantalla que deje pasar a los de búsqueda y respuesta de arriba; si no se puede elegir, dejarlo
+apagado (alcanza `robots.txt`). La misma pantalla muestra qué bots de IA pasan.
 
 ### Microformats
 
