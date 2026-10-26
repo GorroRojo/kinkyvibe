@@ -41,7 +41,7 @@
 </script>
 
 <!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js). -->
-<LDTag schema={materialSchema(data.meta)} />
+<LDTag schema={materialSchema(data.meta, data.authorLinks)} />
 <svelte:head>
 	<title>{data.meta.title} · Kinky Vibe</title>
 	<link rel="icon" href="/favicon-32x32.png" />

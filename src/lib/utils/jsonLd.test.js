@@ -3,7 +3,9 @@ import { ORG_CONTACT_EMAIL } from './organization.js';
 import {
 	ORGANIZATION_ID,
 	OFFICIAL_PROFILES,
+	WEBSITE_ID,
 	absoluteUrl,
+	authorLinksFrom,
 	eventSchema,
 	isoDate,
 	kinkipediaSchema,
@@ -12,6 +14,7 @@ import {
 	organizationSchema,
 	profileSchema,
 	tagTermSchema,
+	websiteSchema,
 	wikiTermSchema
 } from './jsonLd.js';
 import { jsonForScript } from './escape.js';
@@ -45,7 +48,10 @@ describe('absoluteUrl', () => {
 describe('isoDate', () => {
 	it('deja las fechas ISO con su zona y descarta las inválidas', () => {
 		expect(isoDate('2031-08-01T20:00-03:00')).toBe('2031-08-01T20:00-03:00');
-		expect(isoDate(new Date('2031-08-01T23:00:00Z'))).toBe('2031-08-01T23:00:00.000Z');
+		// Un Date (el fin calculado de un evento) va en hora de Argentina, como `startDate`.
+		expect(isoDate(new Date('2031-08-01T23:00:00Z'))).toBe('2031-08-01T20:00:00-03:00');
+		expect(isoDate(Date.UTC(2031, 7, 1, 23))).toBe('2031-08-01T20:00:00-03:00');
+		expect(isoDate(new Date(NaN))).toBeUndefined();
 		expect(isoDate('no es fecha')).toBeUndefined();
 		expect(isoDate(undefined)).toBeUndefined();
 	});
@@ -54,6 +60,20 @@ describe('isoDate', () => {
 		expect(out).toBe('2024-12-06T00:00:00-03:00');
 		expect(Date.parse(/** @type {string} */ (out))).toBe(Date.parse('2024-12-06T03:00:00Z'));
 		expect(isoDate('2030-01-02')).toBe('2030-01-02');
+	});
+});
+
+describe('websiteSchema', () => {
+	it('es un WebSite con el nombre del sitio, otros nombres y la organización como editora', () => {
+		const w = roundTrip(websiteSchema());
+		expect(w['@type']).toBe('WebSite');
+		expect(w['@id']).toBe(WEBSITE_ID);
+		expect(w.name).toBe('Kinky Vibe');
+		expect(w.alternateName).toEqual(['KinkyVibe', 'kinkyvibe.ar']);
+		expect(w.url).toBe('https://kinkyvibe.ar');
+		expect(w.inLanguage).toBe('es-AR');
+		expect(w.publisher['@id']).toBe(ORGANIZATION_ID);
+		expect(w.potentialAction).toBeUndefined();
 	});
 });
 
@@ -138,7 +158,7 @@ describe('eventSchema', () => {
 			tickets: { open: false, reason: 'notyet', priceFrom: 5, opensAt }
 		});
 		expect(notyet.offers.availability).toBe('https://schema.org/PreOrder');
-		expect(notyet.offers.validFrom).toBe(new Date(opensAt).toISOString());
+		expect(notyet.offers.validFrom).toBe('2031-06-30T21:00:00-03:00');
 	});
 
 	it('el link de inscripción como oferta; gratis, precio 0', () => {
@@ -150,11 +170,54 @@ describe('eventSchema', () => {
 			'@type': 'Offer',
 			url: 'https://example.com/inscripcion',
 			price: 0,
-			priceCurrency: 'ARS'
+			priceCurrency: 'ARS',
+			availability: 'https://schema.org/InStock'
 		});
 		expect(
 			eventSchema({ meta: EVENT, webLink: 'https://example.com', past: true }).offers
 		).toBeUndefined();
+	});
+
+	it('el link de inscripción: la disponibilidad sale del estado del evento', () => {
+		const offer = (/** @type {string | undefined} */ status) =>
+			eventSchema({ meta: { ...EVENT, status }, webLink: 'https://example.com/i' }).offers;
+		expect(offer('abierto').availability).toBe('https://schema.org/InStock');
+		expect(offer('agotadas').availability).toBe('https://schema.org/SoldOut');
+		expect(offer('anunciado').availability).toBeUndefined();
+		expect(offer(undefined).availability).toBeUndefined();
+	});
+
+	it('el fin calculado (un Date) va en -03:00, como el comienzo', () => {
+		const e = eventSchema({
+			meta: { ...EVENT, end: undefined },
+			end: new Date('2031-08-02T02:00:00Z')
+		});
+		expect(e.endDate).toBe('2031-08-01T23:00:00-03:00');
+	});
+
+	it('organizer con perfil público: su url y su tipo; sin perfil, solo el nombre', () => {
+		const e = roundTrip(
+			eventSchema({
+				meta: {
+					...EVENT,
+					authors: ['KinkyVibe', 'Persona Inventada', 'Proyecto Inventado', 'Sin Perfil']
+				},
+				authorLinks: [
+					{ name: 'Persona Inventada', path: '/amigues/Persona-Inventada', kind: 'persona' },
+					{ name: 'Proyecto Inventado', path: '/amigues/Proyecto-Inventado', kind: 'proyecto' }
+				]
+			})
+		);
+		expect(e.organizer[0]['@id']).toBe(ORGANIZATION_ID);
+		expect(e.organizer[1]).toEqual({
+			'@type': 'Person',
+			'@id': 'https://kinkyvibe.ar/amigues/Persona-Inventada#perfil',
+			name: 'Persona Inventada',
+			url: 'https://kinkyvibe.ar/amigues/Persona-Inventada'
+		});
+		expect(e.organizer[2]['@type']).toBe('Organization');
+		expect(e.organizer[2].url).toBe('https://kinkyvibe.ar/amigues/Proyecto-Inventado');
+		expect(e.organizer[3]).toEqual({ '@type': 'Person', name: 'Sin Perfil' });
 	});
 
 	it('el lugar oculto no sale; el de solo zona, sin dirección', () => {
@@ -194,16 +257,63 @@ describe('materialSchema', () => {
 		expect(m.url).toBe('https://kinkyvibe.ar/material/guia-inventada');
 		expect(m.author).toEqual({ '@type': 'Person', name: 'Persona Inventada' });
 		expect(m.publisher['@id']).toBe(ORGANIZATION_ID);
+		expect(m.inLanguage).toBe('es-AR');
 		expect(m.datePublished).toBe('2030-01-02');
 		expect(m.keywords).toBe('web, BDSM');
 	});
-	it('descargable: DigitalDocument (sin headline); interactivo: CreativeWork', () => {
+	it('descargable: Article y DigitalDocument, con headline; interactivo: CreativeWork', () => {
 		expect(materialType(['descargable'])).toBe('DigitalDocument');
 		expect(materialType(['interactivo'])).toBe('CreativeWork');
 		const d = materialSchema({ ...MAT, tags: ['descargable'] });
-		expect(d['@type']).toBe('DigitalDocument');
-		expect(d.headline).toBeUndefined();
+		expect(d['@type']).toEqual(['Article', 'DigitalDocument']);
+		expect(d.headline).toBe(MAT.title);
 		expect(d.name).toBe(MAT.title);
+		expect(materialSchema({ ...MAT, tags: ['interactivo'] })['@type']).toBe('CreativeWork');
+	});
+	it('autore con perfil público: su url', () => {
+		const m = materialSchema(MAT, [
+			{ name: 'Persona Inventada', path: '/amigues/Persona-Inventada', kind: 'persona' }
+		]);
+		expect(m.author.url).toBe('https://kinkyvibe.ar/amigues/Persona-Inventada');
+	});
+});
+
+describe('authorLinksFrom', () => {
+	const profile = (/** @type {string} */ slug, kind = 'persona') => ({
+		path: `/amigues/${slug}`,
+		meta: { category: 'amigues', postID: slug, kind }
+	});
+	it('solo les autores con perfil en la lista pública (la que ve cualquiera)', () => {
+		const posts = [
+			profile('Persona-Inventada'),
+			profile('Lugar-Inventado', 'lugar'),
+			// Un evento con la misma dirección no es un perfil.
+			{ path: '/calendario/Sin-Perfil', meta: { category: 'calendario', postID: 'Sin-Perfil' } }
+		];
+		expect(
+			authorLinksFrom(
+				['KinkyVibe', 'Persona Inventada', 'Lugar Inventado', 'Sin Perfil', 'Perfil Oculto'],
+				posts
+			)
+		).toEqual([
+			{ name: 'Persona Inventada', path: '/amigues/Persona-Inventada', kind: 'persona' },
+			{ name: 'Lugar Inventado', path: '/amigues/Lugar-Inventado', kind: 'lugar' }
+		]);
+	});
+	it('sin lista o sin autores, nada; el post mismo no es su autore', () => {
+		expect(authorLinksFrom(undefined, [profile('A')])).toEqual([]);
+		expect(authorLinksFrom(['A'], null)).toEqual([]);
+		expect(authorLinksFrom(['A'], [profile('A')], 'A')).toEqual([]);
+	});
+	it('un lugar como autore: Organization con url y sin @id (allá es un Place)', () => {
+		const m = materialSchema({ title: 'X', postID: 'x', authors: ['Lugar Inventado'] }, [
+			{ name: 'Lugar Inventado', path: '/amigues/Lugar-Inventado', kind: 'lugar' }
+		]);
+		expect(m.author).toEqual({
+			'@type': 'Organization',
+			name: 'Lugar Inventado',
+			url: 'https://kinkyvibe.ar/amigues/Lugar-Inventado'
+		});
 	});
 });
 
@@ -280,6 +390,20 @@ describe('profileSchema', () => {
 		expect(e.email).toBe('persona@example.com');
 		expect(e.telephone).toBe('+541100000000');
 		expect(allText(p)).not.toContain('javascript:');
+	});
+	it('el perfil de KinkyVibe es la organización del sitio (mismo @id)', () => {
+		const p = profileSchema({
+			profile: { title: 'Kinky Vibe', kind: 'proyecto', links: [] },
+			canonical: '/amigues/KinkyVibe'
+		});
+		expect(p.mainEntity['@type']).toBe('Organization');
+		expect(p.mainEntity['@id']).toBe(ORGANIZATION_ID);
+		// Otro perfil con el mismo nombre no lo es: se decide por la dirección.
+		const other = profileSchema({
+			profile: { title: 'Kinky Vibe', kind: 'proyecto', links: [] },
+			canonical: '/amigues/Otro-Proyecto'
+		});
+		expect(other.mainEntity['@id']).toBe('https://kinkyvibe.ar/amigues/Otro-Proyecto#perfil');
 	});
 	it('proyecto: Organization; sin contacto, sin esos campos', () => {
 		const p = profileSchema({

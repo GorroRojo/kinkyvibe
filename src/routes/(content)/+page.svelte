@@ -10,7 +10,7 @@
 	export let data;
 	import { userConfig } from '$lib/utils/stores';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
-	import { organizationSchema } from '$lib/utils/jsonLd.js';
+	import { organizationSchema, websiteSchema } from '$lib/utils/jsonLd.js';
 	// the server only sends upcoming events; load the rest if past events are shown
 	let allPosts = data.posts;
 	let loadedPast = false;
@@ -23,8 +23,10 @@
 
 	// Los textos de la vista previa (los del panel; docs/compartir.md).
 	$: previewTexts = linkPreviewOf($page.data).texts;
-	// La organización (schema.org, jsonLd.js): nombre, logo, contacto público y redes oficiales.
-	const websiteSchema = /** @type {any} */ (organizationSchema());
+	// La organización (schema.org, jsonLd.js): nombre, logo, contacto público y redes oficiales; y
+	// el sitio (WebSite), con el nombre que muestran los buscadores.
+	const organizationLd = /** @type {any} */ (organizationSchema());
+	const websiteLd = /** @type {any} */ (websiteSchema());
 	import kinkyProfilePic from '../logo.png';
 </script>
 
@@ -41,7 +43,8 @@
 	canonical="/"
 />
 
-<LDTag schema={websiteSchema} />
+<LDTag schema={websiteLd} />
+<LDTag schema={organizationLd} />
 <div class="profile-header h-card p-contact hidden">
 	<a rel="me" href="https://web.brid.gy/r/https://kinkyvibe.ar/">fed bridgy</a>
 	<a class="u-url u-uid" href="https://kinkyvibe.ar/">https://kinkyvibe.ar/</a>
