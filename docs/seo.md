@@ -488,8 +488,8 @@ cada tarjeta esconde 1 o 2 chips.
   formulario o a la tienda) y ya no están. Las etiquetas sin entrada de la wiki no están (bien:
   son listas). Las series sí (`/wiki/<serie>`, con la fecha más nueva de sus ediciones), solo si
   tienen alguna edición que ve cualquiera (`sitemap.xml/series.js`).
-- **Series**: la página de una serie (`/wiki/<serie>`) tiene siempre un `h1` (si la etiqueta no
-  tiene descripción, solo para lectores de pantalla: `GlosarioItem`), la descripción «Ediciones de
+- **Series**: la página de una serie (`/wiki/<serie>`) tiene siempre un `h1` visible (aunque la
+  etiqueta no tenga descripción: `GlosarioItem`), la descripción «Ediciones de
   «X» en Kinky Vibe: N fechas, la próxima el …» (`seriesDescription` en `seo.js`; si la etiqueta
   tiene descripción propia, va esa, como en cualquier etiqueta sin entrada) y un
   `EventSeries` con sus ediciones (`seriesSchema` en `jsonLd.js`: nombre, página, fecha y estado;

@@ -528,8 +528,11 @@ describe('una serie (la página de su etiqueta)', () => {
 		expect(head).toContain('"@type": "EventSeries"');
 		expect(head).toContain('/calendario/serie-1');
 		expect(body.match(/<h1[\s>]/g)?.length).toBe(1);
-		// La etiqueta no tiene descripción: el título va solo para lectores de pantalla y buscadores.
-		expect(body).toMatch(/<h1 class="sr-only[^"]*">\s*(<!--[^>]*-->)*\s*Serie Inventada/);
+		// La etiqueta no tiene descripción: el título igual se ve, como cualquier título de la wiki.
+		expect(body).not.toMatch(/<h1 class="sr-only/);
+		expect(body).toMatch(
+			/<div class="itemtitle[^"]*">\s*<h1[^>]*>[^<]*(<!--[^>]*-->\s*)*Serie Inventada/
+		);
 	});
 
 	it('sin datos de la serie: la descripción de siempre y sin EventSeries', async () => {
