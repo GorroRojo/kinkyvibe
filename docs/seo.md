@@ -179,6 +179,18 @@ el árbol que llega al navegador no trae las descripciones y el link no puede ca
 Las tarjetas de las listas y el editor no pasan `wikiTags`: sus chips no cambian (adentro de una
 tarjeta, que ya es un link, no van links nuevos).
 
+### Autoría y contacto
+
+- El pie de todas las páginas públicas, en «Sobre nosotres», lleva «Quiénes somos» (el perfil de
+  Kinky Vibe, `ORG_PROFILE_PATH` en `src/lib/utils/organization.js`) y «Contacto» (un mail a la
+  casilla pública, `DEFAULT_CONTACT_EMAIL` de `src/lib/utils/tickets.js`; `contactLink` en
+  `src/lib/utils/footer.js`).
+- Material: «· actualizado el <fecha>» (`<time class="dt-updated">`) junto a la fecha de
+  publicación, solo si la actualización es de un día posterior (`updatedDay`,
+  `src/lib/utils/autoria.js`). `article:author` va una vez por autore: la dirección de su perfil
+  si la página lo enlaza (los perfiles que quien mira puede ver), si no su nombre
+  (`articleAuthors`).
+
 ### Microformats
 
 `h-event` en eventos, `h-entry` en material y wiki, `h-card` en el encabezado de cada perfil (con

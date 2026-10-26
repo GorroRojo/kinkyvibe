@@ -11,12 +11,15 @@
 		Home,
 		LogIn,
 		UserRound,
-		HandCoins
+		HandCoins,
+		Mail,
+		Users
 	} from '@lucide/svelte';
 	import { siTiktok, siInstagram, siTwitter, siYoutube, siTelegram } from 'simple-icons';
 	import SimpleIcon from '$lib/components/SimpleIcon.svelte';
 	import { accountLink } from '$lib/utils/cuentas.js';
-	import { supportLink } from '$lib/utils/footer.js';
+	import { contactLink, supportLink } from '$lib/utils/footer.js';
+	import { ORG_PROFILE_PATH } from '$lib/utils/organization.js';
 	/**
 	 * Datos del layout raíz (`member`).
 	 * @type {{ member?: boolean }}
@@ -24,6 +27,7 @@
 	export let data = {};
 	$: cuenta = accountLink(data);
 	const apoyo = supportLink();
+	const contacto = contactLink();
 	let style = `scale:var(--scale,1);
 				 translate:var(--translate,0 0);`;
 </script>
@@ -57,6 +61,12 @@
 		<li>
 			<h3>Sobre nosotres</h3>
 			<ul>
+				<li>
+					<a href={ORG_PROFILE_PATH}><Users {style} />Quiénes somos</a>
+				</li>
+				<li>
+					<a href={contacto.href}><Mail {style} />{contacto.label}</a>
+				</li>
 				<li>
 					<a href="https://fondo.kinkyvibe.ar"><ArrowRight {style} />Fondo de Kinky Vibe</a>
 				</li>
