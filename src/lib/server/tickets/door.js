@@ -26,6 +26,7 @@ import {
 	ORDER_MAX_MESSAGE,
 	ORDER_MAX_TOTAL,
 	computePrice,
+	defaultFondoOption,
 	exceedsOrderMax,
 	isFondoOption,
 	normalizeDni,
@@ -697,10 +698,16 @@ export async function sellAtDoor(db, input) {
 	// #374, no se vende y se avisa que se cargue a mano. Si quien vende escribió $ 0 en esta venta,
 	// es sin cargo a propósito: se registra con canal `manual` (ver arriba).
 	if (!gorra && price === 0 && custom === null) return { ok: false, reason: 'free-door' };
+	// Sin opción elegida, la de la pantalla: la que corresponde al precio de la puerta (con Fondo si
+	// ese precio lo tiene; si no, completo). No la del precio cobrado: con otro precio el Fondo se
+	// recalcula y, sin esto, un `door_price` sin Fondo cobraría con el descuento sin que se viera.
+	const option = gorra
+		? 'gorra'
+		: (input.option ?? (atDoor ? defaultFondoOption(atDoor.fondo ?? 0) : undefined));
 	const prices = computePrice({
 		price,
 		fondo: gorra || !charged ? 0 : (charged.fondo ?? 0),
-		option: gorra ? 'gorra' : input.option,
+		option,
 		quantity,
 		discount: null,
 		method: input.method

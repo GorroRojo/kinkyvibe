@@ -288,6 +288,121 @@ describe('venta en la puerta con nota y otro precio', () => {
 	});
 });
 
+describe('opción del Fondo y tramos con otro precio', () => {
+	// Datos inventados. Un tipo con `door_price: 0` (sin Fondo) y uno con tramos.
+	const INVITADE = {
+		...GENERAL,
+		id: 'invitade',
+		name: 'Invitade',
+		door: { price: 0, fondo: 0 }
+	};
+	const TRAMOS = {
+		id: 'tramos',
+		name: 'Con tramos',
+		price: 12000,
+		fondo: 2400,
+		capacity: 5,
+		gorra: null,
+		tiers: [
+			{ id: 'preventa', name: 'Preventa', price: 8000, fondo: 1600, quantity: 3 },
+			{ id: 'general', name: 'General', price: 12000, fondo: 2400 }
+		]
+	};
+	const CFG = /** @type {any} */ ({ ...CONFIG, types: [GENERAL, INVITADE, TRAMOS] });
+
+	/** Valida y vende con conexión con `CFG`. */
+	async function sellWith(/** @type {Record<string, string>} */ f) {
+		const parsed = parseDoorSale(CFG, (name) => f[name]);
+		if (!parsed.ok) throw new Error(parsed.message);
+		const { sale } = parsed;
+		return sellAtDoor(t.db, {
+			eventSlug: EVENT,
+			door: CFG.door,
+			type: sale.type,
+			quantity: sale.quantity,
+			holders: sale.holders,
+			buyer: sale.buyer,
+			method: sale.method,
+			option: sale.option,
+			unitPrice: sale.unitPrice,
+			note: sale.note,
+			fondoPercent: PERCENT,
+			by: 'admin-de-prueba',
+			now: NOW
+		});
+	}
+
+	it('sin `option`, un precio en puerta sin Fondo cobra completo lo escrito (con y sin conexión)', async () => {
+		// Lo que manda un pedido viejo o armado a mano: sin `option`.
+		const f = { type: 'invitade', quantity: '1', method: 'efectivo', name: 'Persona Inventada' };
+		const r = await sellWith({ ...f, amount: '5000' });
+		const expected = {
+			unit_price: 5000,
+			fondo_option: 'completo',
+			fondo_amount: 0,
+			subtotal: 5000,
+			total: 5000,
+			door_list_price: 0,
+			channel: 'puerta'
+		};
+		expect(r.ok && money(r.order)).toMatchObject(expected);
+
+		const [synced] = await applyQueuedSales(t.db, locals, {
+			eventSlug: EVENT,
+			config: CFG,
+			fondoPercent: PERCENT,
+			by: 'admin-de-prueba',
+			items: [{ id: 'venta-celu-0100', at: NOW - 60_000, fields: { ...f, amount: '5000' } }],
+			now: NOW
+		});
+		expect(synced).toMatchObject({ result: 'ok', total: 5000, review: [] });
+		const orders = await allOrders();
+		expect(orders).toHaveLength(2);
+		expect(money(orders[1])).toMatchObject(expected);
+	});
+
+	it('un tipo con tramos acepta otro precio (también 0) y el Fondo sale de ese precio', async () => {
+		const f = {
+			type: 'tramos',
+			quantity: '2',
+			method: 'efectivo',
+			option: 'fondo',
+			name: 'Persona Inventada'
+		};
+		// Sin cambiar: el precio del último tramo, con su Fondo.
+		const same = await sellWith(f);
+		expect(same.ok && money(same.order)).toMatchObject({
+			unit_price: 12000,
+			fondo_amount: 4800,
+			total: 19200,
+			door_list_price: null
+		});
+		// $ 3.000 por entrada: Fondo 20 % = $ 600 → 2 × $ 2.400.
+		const changed = await sellWith({ ...f, amount: '3.000' });
+		expect(changed.ok && money(changed.order)).toMatchObject({
+			unit_price: 3000,
+			fondo_option: 'fondo',
+			fondo_amount: 1200,
+			total: 4800,
+			door_list_price: 12000,
+			channel: 'puerta'
+		});
+		// $ 0: con el precio de un tramo el mínimo es $ 1, pero un precio escrito es como un
+		// `door_price` y vale 0 (sin cargo).
+		const free = await sellWith({ ...f, quantity: '1', amount: '0' }); // cupo 5: 2 + 2 + 1
+		expect(free.ok && money(free.order)).toMatchObject({
+			unit_price: 0,
+			total: 0,
+			payment_method: 'gratis',
+			door_list_price: 12000,
+			channel: 'manual'
+		});
+		// La puerta no gasta lugares de los tramos.
+		const tiers = await t.db.prepare('SELECT ticket_tier FROM orders').all();
+		expect(tiers.results.map((x) => x.ticket_tier)).toEqual([null, null, null]);
+	});
+});
+
 describe('sin conexión: la nota y el precio viajan en la venta encolada', () => {
 	it('se sincroniza con el mismo resultado que con conexión, sin «Para revisar», y un reintento no duplica', async () => {
 		const extra = { amount: '5000', note: NOTE };
