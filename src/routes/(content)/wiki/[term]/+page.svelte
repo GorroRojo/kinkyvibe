@@ -5,7 +5,12 @@
 	import FollowButton from '$lib/components/FollowButton.svelte';
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
-	import { plainTagDescription, tagTermSchema, wikiTermSchema } from '$lib/utils/jsonLd.js';
+	import {
+		plainTagDescription,
+		seriesSchema,
+		tagTermSchema,
+		wikiTermSchema
+	} from '$lib/utils/jsonLd.js';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
 	import { tagManager, userConfig } from '$lib/utils/stores.js';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
@@ -14,7 +19,7 @@
 	import ReadingTime from '$lib/components/ReadingTime.svelte';
 	import { readingTimeLabel } from '$lib/utils/readingTime.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
-	import { cardImage, linkPreviewOf, tagDescription } from '$lib/utils/seo.js';
+	import { cardImage, linkPreviewOf, seriesDescription, tagDescription } from '$lib/utils/seo.js';
 	/** Sin imagen propia, la tarjeta de la Kinkipedia. */
 	$: KINKIPEDIA_CARD = cardImage('wiki', linkPreviewOf($page.data));
 	/** @type {any} La página de la wiki (de la base) o la etiqueta sola (+page.js). */
@@ -102,6 +107,9 @@
 	}
 	// La entrada como término definido (schema.org, jsonLd.js); sin entrada, la etiqueta si tiene
 	// descripción (docs/seo.md); si no, nada.
+	// Una serie (con ediciones que ve cualquiera): su descripción y sus datos estructurados.
+	$: series = data.seriesInfo?.series ?? null;
+	$: seriesLd = series ? seriesSchema(series) : null;
 	$: termSchema = data?.meta
 		? wikiTermSchema({
 				title: data.meta.title,
@@ -120,6 +128,8 @@
 </script>
 
 {#if termSchema}<LDTag schema={termSchema} />{/if}
+<!-- Una serie: `EventSeries` con sus ediciones (solo nombre, página, fecha y estado; nunca el lugar). -->
+{#if seriesLd}<LDTag schema={seriesLd} />{/if}
 <svelte:head>
 	<title>{pageTitle} · Kinky Vibe</title>
 </svelte:head>
@@ -130,7 +140,7 @@
 	title={pageTitle}
 	description={data?.meta?.summary ||
 		plainTagDescription(data?.tag?.description) ||
-		tagDescription(pageTitle)}
+		(series?.total ? seriesDescription(series) : tagDescription(pageTitle))}
 	image={data?.meta?.featured || KINKIPEDIA_CARD.url}
 	imageInfo={data?.meta?.featured ? undefined : KINKIPEDIA_CARD}
 	imageAlt={pageTitle}

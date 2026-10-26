@@ -33,6 +33,7 @@ import {
 	resizedSize,
 	seoTags,
 	shortText,
+	seriesDescription,
 	tagDescription
 } from './seo.js';
 
@@ -132,6 +133,30 @@ describe('tagDescription', () => {
 	it('nombra la etiqueta', () => {
 		expect(tagDescription('Shibari')).toBe(
 			'Material, amigues y eventos de «Shibari» en Kinky Vibe.'
+		);
+	});
+});
+
+describe('seriesDescription', () => {
+	it('cuántas fechas y la próxima; sin próxima, la última', () => {
+		expect(
+			seriesDescription({
+				name: 'Serie Inventada',
+				total: 12,
+				upcoming: [{ start: '2031-11-08T22:00-03:00' }],
+				past: [{ start: '2031-10-04T22:00-03:00' }]
+			})
+		).toBe(
+			'Ediciones de «Serie Inventada» en Kinky Vibe: 12 fechas, la próxima el 8 de noviembre de 2031.'
+		);
+		expect(
+			seriesDescription({
+				name: 'Serie Inventada',
+				total: 1,
+				past: [{ start: '2025-05-03T22:00-03:00' }]
+			})
+		).toBe(
+			'Ediciones de «Serie Inventada» en Kinky Vibe: 1 fecha, la última el 3 de mayo de 2025.'
 		);
 	});
 });

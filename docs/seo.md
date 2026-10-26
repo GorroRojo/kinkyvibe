@@ -43,6 +43,7 @@ guía: `compartir.md` (llega con el PR #257).
 | Material           | `Article` (+ `DigitalDocument` si es descargable); `CreativeWork` si es interactivo      |
 | `/wiki`            | `DefinedTermSet` (la Kinkipedia)                                                         |
 | Entrada de la wiki | `DefinedTerm` con `inDefinedTermSet` (también una etiqueta sin entrada con descripción)  |
+| Serie              | `EventSeries` con `subEvent` (sin lugar); cada edición la nombra en `superEvent`         |
 | Perfil             | `ProfilePage` con `Person` (persona), `Organization` (proyecto) o `Place` (lugar)        |
 
 El perfil de KinkyVibe (`/amigues/KinkyVibe`, por su dirección) lleva el `@id` de la organización
@@ -368,7 +369,14 @@ cada tarjeta esconde 1 o 2 chips.
   decorativas: el título está al lado); el afiche del evento dice «Afiche de …». Bien.
 - **Sitemap**: 614 direcciones; 36 eran publicaciones con `redirect` (contestan 307 a un
   formulario o a la tienda) y ya no están. Las etiquetas sin entrada de la wiki no están (bien:
-  son listas).
+  son listas). Las series sí (`/wiki/<serie>`, con la fecha más nueva de sus ediciones), solo si
+  tienen alguna edición que ve cualquiera (`sitemap.xml/series.js`).
+- **Series**: la página de una serie (`/wiki/<serie>`) tiene siempre un `h1` (si la etiqueta no
+  tiene descripción, solo para lectores de pantalla: `GlosarioItem`), la descripción «Ediciones de
+  «X» en Kinky Vibe: N fechas, la próxima el …» (`seriesDescription` en `seo.js`) y un
+  `EventSeries` con sus ediciones (`seriesSchema` en `jsonLd.js`: nombre, página, fecha y estado;
+  nunca el lugar). Cada edición dice de qué serie es (`superEvent`); la serie no es la canónica de
+  las ediciones: cada fecha sigue siendo su propio `Event`.
 - **`robots.txt`**: tenía reglas para `/_template`, `/_tags` y `/_glossary`, que ya no existen;
   ahora tiene la línea del sitemap.
 - **Respuestas (AEO)**: las 12 entradas de la wiki arrancan con una definición de una oración

@@ -486,6 +486,61 @@ describe('la Kinkipedia', () => {
 	});
 });
 
+describe('una serie (la página de su etiqueta)', () => {
+	const SERIES = {
+		id: 'Serie Inventada',
+		name: 'Serie Inventada',
+		href: '/wiki/Serie-Inventada',
+		total: 2,
+		upcoming: [
+			{ title: 'Serie Inventada #2', path: '/calendario/serie-2', start: '2026-11-07T22:00-03:00' }
+		],
+		past: [
+			{ title: 'Serie Inventada #1', path: '/calendario/serie-1', start: '2026-09-05T22:00-03:00' }
+		]
+	};
+	/** @param {Record<string, any>} [seriesInfo] */
+	async function seriesPage(seriesInfo) {
+		at('/wiki/Serie-Inventada');
+		const { default: Page } = await import('./wiki/[term]/+page.svelte');
+		return render(Page, {
+			props: {
+				data: /** @type {any} */ ({
+					relatedPosts: [],
+					relatedPastCount: 0,
+					tag: { id: 'Serie Inventada', visible_name: 'Serie Inventada' },
+					seriesInfo
+				})
+			}
+		});
+	}
+
+	it('description con sus fechas, EventSeries y un h1 aunque la etiqueta no tenga descripción', async () => {
+		const { head, body } = await seriesPage({
+			series: SERIES,
+			feed: null,
+			account: { member: false, subscribed: false, sigo: false, invite: null }
+		});
+		const meta = single(head);
+		expect(meta['og:description']).toBe(
+			'Ediciones de «Serie Inventada» en Kinky Vibe: 2 fechas, la próxima el 7 de noviembre de 2026.'
+		);
+		expect(head).toContain('"@type": "EventSeries"');
+		expect(head).toContain('/calendario/serie-1');
+		expect(body.match(/<h1[\s>]/g)?.length).toBe(1);
+		// La etiqueta no tiene descripción: el título va solo para lectores de pantalla y buscadores.
+		expect(body).toMatch(/<h1 class="sr-only[^"]*">\s*(<!--[^>]*-->)*\s*Serie Inventada/);
+	});
+
+	it('sin datos de la serie: la descripción de siempre y sin EventSeries', async () => {
+		const { head } = await seriesPage(undefined);
+		expect(single(head)['og:description']).toBe(
+			'Material, amigues y eventos de «Serie Inventada» en Kinky Vibe.'
+		);
+		expect(head).not.toContain('EventSeries');
+	});
+});
+
 /** @param {Record<string, any>} [profile] @param {Record<string, any>} [extra] */
 async function renderProfile(profile = {}, extra = {}) {
 	at('/amigues/Perfil_Inventado');

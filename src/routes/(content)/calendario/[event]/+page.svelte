@@ -20,7 +20,7 @@
 	import { relatedPostsFor } from '$lib/utils';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import LDTag from '$lib/components/LDTag.svelte';
-	import { eventSchema } from '$lib/utils/jsonLd.js';
+	import { eventSchema, withSuperEvent } from '$lib/utils/jsonLd.js';
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
@@ -135,15 +135,18 @@
 
 <!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js). -->
 <LDTag
-	schema={eventSchema({
-		meta: data.meta,
-		end,
-		venue: data.venue,
-		tickets: data.tickets,
-		webLink: isWebLink(actionLink) ? actionLink : undefined,
-		past,
-		authorLinks: data.authorLinks
-	})}
+	schema={withSuperEvent(
+		eventSchema({
+			meta: data.meta,
+			end,
+			venue: data.venue,
+			tickets: data.tickets,
+			webLink: isWebLink(actionLink) ? actionLink : undefined,
+			past,
+			authorLinks: data.authorLinks
+		}),
+		data.series?.list
+	)}
 />
 <svelte:head>
 	<title>{eventPageTitle(data.meta)} · Kinky Vibe</title>
