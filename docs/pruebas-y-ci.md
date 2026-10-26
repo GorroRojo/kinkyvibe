@@ -192,13 +192,17 @@ ya no hay `.eslintrc` ni `.eslintignore`).
   (`/<[^>]*>/`, `/<!--.*?-->/`): CodeQL lo marca como alerta alta aunque sea un test, y el PR queda
   en rojo.
 - **Mediciones a pedido** (`*.medir.js`): no son pruebas de la CI ni corren con `npx vitest run`
-  (tardan minutos); tienen su propia configuración (`vitest.medir.config.js`) y su script. Hoy
-  hay una: `npm run medir:panel` (`src/routes/(authed)/admin/panel-consultas.medir.js`, ~2 min)
+  (tardan minutos); tienen su propia configuración (`vitest.medir.config.js`) y su script. Hay
+  dos: `npm run medir:panel` (`src/routes/(authed)/admin/panel-consultas.medir.js`, ~2 min)
   arma un GET de une admin a ~50 páginas del panel (hooks y layouts incluidos) y imprime, por
   página, cuántas idas a D1 y cuántas tandas en fila hace en frío, en caliente y al navegar, con
   las tandas automáticas y sin; falla si una página hace más tandas en fila que su tope.
   `KV_CONSULTAS=detalle` imprime además cada tanda. Corrélo antes y después si tu PR toca lo que
   leen los loads del panel, y pegá las filas que cambiaron en el PR.
+  `npm run medir:publico` (`src/routes/(content)/publico-consultas.medir.js`, ~30 s) hace lo mismo
+  con un GET anónimo a cada página pública (con `handle` de `hooks.server.js`) en frío, en frío con
+  las listas en la caché de Cloudflare, en caliente, con el isolate caliente de otra página y con
+  las cachés de 30 s vencidas o por vencer (`KV_D1_TANDAS=off`: sin tandas, solo imprime).
 
 ### Pruebas con base de datos
 

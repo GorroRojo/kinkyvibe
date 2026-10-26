@@ -1,8 +1,8 @@
 import { currentRelated } from '$lib/utils';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
-import { relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
-import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
+import { askVenuePlacesEarly, relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
+import { askTicketStatesEarly, ticketStatesFor } from '$lib/server/tickets/listStates.js';
 import { siteWikiEntry, siteWikiPosts, wikiPost } from '$lib/server/wiki/site.js';
 import { siteTagDetails } from '$lib/server/etiquetas/source.js';
 import { renderContentBody } from '$lib/server/contenido/render.js';
@@ -26,10 +26,19 @@ import { followButtonState } from '$lib/server/sigo/button.js';
 export async function load({ params, platform, locals }) {
 	const { entry, key, tags } = await siteWikiEntry(platform, params.term);
 	const children = tags.get(key)?.getAllChildren() ?? [];
+	/** @param {ProcessedPost[]} list */
+	const relatedOf = (list) =>
+		currentRelated(
+			list.filter((p) => p.meta.tags.includes(key) || children.some((c) => p.meta.tags.includes(c)))
+		);
+	// La venta y los lugares de las tarjetas, a la par de la lista (con lo que ya tiene el isolate).
+	askTicketStatesEarly(platform, (list) => relatedOf(list).relatedPosts);
+	askVenuePlacesEarly(getDB(platform));
 	const posts = await sitePosts(platform);
-	const current = currentRelated(
-		posts.filter((p) => p.meta.tags.includes(key) || children.some((c) => p.meta.tags.includes(c)))
-	);
+	const current = relatedOf(posts);
+	// A la par (cada consulta a la base es una vuelta): el lugar no cambia la venta de entradas.
+	const ticketStatesP = ticketStatesFor(platform, current.relatedPosts);
+	ticketStatesP.catch(() => {});
 	// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento.
 	const related = await relatedWithVenuePlaces(getDB(platform), current);
 	/**
@@ -61,7 +70,7 @@ export async function load({ params, platform, locals }) {
 	}
 	const [ticketStates, seriesInfo, follow, wiki, details] = await Promise.all([
 		// «Comprar entradas» / «Agotadas» en las tarjetas.
-		ticketStatesFor(platform, related.relatedPosts),
+		ticketStatesP,
 		seriesTagInfo(platform, locals, key, { tags, posts }).catch(logged('series')),
 		followButtonState({ platform, locals }, 'etiqueta', key, { tags }).catch(logged('sigo')),
 		// El glosario de la página: las páginas de la wiki y las descripciones y relacionadas de las

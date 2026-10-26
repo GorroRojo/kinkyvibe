@@ -86,18 +86,20 @@ afterEach(() => {
 
 /**
  * Lo más que puede hacer cada página (idas a la base: una tanda de D1 es una) en frío, en caliente
- * y en tibio. Entre paréntesis, lo que hacía antes de las tandas automáticas (consultas sueltas).
+ * y en tibio. Entre paréntesis, lo que hacía antes de las tandas automáticas (consultas sueltas) y
+ * antes de adelantar lo que el pedido va a leer cuando espera el árbol de etiquetas
+ * ($lib/server/adelantarPedido.js).
  * @type {Record<string, Record<string, number>>}
  */
 const BOUNDS = {
-	'/': { frío: 5, caliente: 1, tibio: 3 }, // (9, 2, 7); con solo las tandas, (7, 2, 5)
-	'/calendario': { frío: 5, caliente: 1, tibio: 3 }, // (10, 3, 8); con solo las tandas, (7, 2, 5)
-	'/material': { frío: 4, caliente: 1, tibio: 2 }, // (5, 1, 3)
-	'/amigues': { frío: 4, caliente: 1, tibio: 2 }, // (7, 1, 3)
-	'/wiki/BDSM': { frío: 6, caliente: 1, tibio: 4 }, // (10, 2, 8); con solo las tandas, (8, 2, 6)
-	[`/calendario/${EVENT}`]: { frío: 4, caliente: 1, tibio: 2 }, // (20, 15, 18); con solo las tandas, (4, 3, 4)
-	'/material/6-tips-para-tops': { frío: 4, caliente: 1, tibio: 2 }, // (10, 6, 8); con solo las tandas, (4, 3, 4)
-	'/amigues/autore-inventade': { frío: 5, caliente: 1, tibio: 3 } // (10, 5, 8); con solo las tandas, (5, 2, 3)
+	'/': { frío: 2, caliente: 1, tibio: 2 }, // (9, 2, 7); con solo las tandas, (5, 1, 3)
+	'/calendario': { frío: 2, caliente: 1, tibio: 2 }, // (10, 3, 8); con solo las tandas, (5, 1, 3)
+	'/material': { frío: 1, caliente: 1, tibio: 1 }, // (5, 1, 3); con solo las tandas, (4, 1, 2)
+	'/amigues': { frío: 2, caliente: 1, tibio: 1 }, // (7, 1, 3); con solo las tandas, (4, 1, 2)
+	'/wiki/BDSM': { frío: 2, caliente: 1, tibio: 2 }, // (10, 2, 8); con solo las tandas, (6, 1, 3)
+	[`/calendario/${EVENT}`]: { frío: 2, caliente: 1, tibio: 2 }, // (20, 15, 18); con solo las tandas, (4, 1, 2)
+	'/material/6-tips-para-tops': { frío: 2, caliente: 1, tibio: 2 }, // (10, 6, 8); con solo las tandas, (4, 1, 2)
+	'/amigues/autore-inventade': { frío: 2, caliente: 1, tibio: 2 } // (10, 5, 8); con solo las tandas, (5, 1, 3)
 };
 
 /**
@@ -134,7 +136,7 @@ async function isolate(page) {
 		platform: { env: { ...t.env, DB: counted.db } },
 		repo: await import('$lib/server/contenido/repo.js'),
 		db: await import('$lib/server/db'),
-		tags: await import('$lib/server/etiquetas/source.js'),
+		start: await import('$lib/server/adelantarPedido.js'),
 		member: await import('$lib/server/cuentas/web.js'),
 		root: await import('../+layout.server.js'),
 		content: await import('./+layout.server.js'),
@@ -148,13 +150,15 @@ async function isolate(page) {
  * @param {Awaited<ReturnType<typeof isolate>>} iso
  * @param {string} path
  * @param {Record<string, string>} params
+ * @param {string} route el id de la ruta (`/(content)/…`)
  */
-async function request(iso, path, params) {
+async function request(iso, path, params, route) {
 	const url = new URL(path, 'https://kinkyvibe.ar');
 	const cookies = { get: () => undefined, delete: () => {}, set: () => {} };
 	const event = /** @type {any} */ ({
 		url,
 		params,
+		route: { id: route },
 		request: new Request(url),
 		platform: iso.platform,
 		cookies,
@@ -165,9 +169,9 @@ async function request(iso, path, params) {
 	});
 	fake.event = event;
 	try {
-		// hooks.server.js
+		// hooks.server.js: el árbol de etiquetas y lo que se adelanta mientras se lo espera.
 		iso.repo.setContentDB(iso.db.getDB(iso.platform));
-		await iso.tags.applySiteTags(iso.platform);
+		await iso.start.startRequest(event);
 		await iso.member.loadMember(event);
 		const [, , page] = await Promise.all([
 			iso.root.load(event),
@@ -187,8 +191,9 @@ async function request(iso, path, params) {
  * @param {string} path
  * @param {Record<string, string>} params
  * @param {() => Promise<any>} page
+ * @param {string} route el id de la ruta (`/(content)/…`)
  */
-async function measure(path, params, page) {
+async function measure(path, params, page, route) {
 	const iso = await isolate(page);
 	/** @type {Record<string, { queries: number, waves: number }>} */
 	const out = {};
@@ -198,7 +203,7 @@ async function measure(path, params, page) {
 			vi.setSystemTime(Date.now() + 31_000);
 		}
 		iso.counted.reset();
-		await request(iso, path, params);
+		await request(iso, path, params, route);
 		out[when] = { queries: iso.counted.queries, waves: iso.counted.waves };
 		if (DETAIL) console.info(`[${path}, ${when}]\n${iso.counted.describe()}`);
 	}
@@ -218,22 +223,37 @@ async function measure(path, params, page) {
 
 describe('un pedido anónimo a cada página pública, en pocas tandas', () => {
 	it('/', async () => {
-		const r = await measure('/', {}, () => import('./+page.server.js'));
+		const r = await measure('/', {}, () => import('./+page.server.js'), '/(content)');
 		expect(r['caliente'].waves).toBeLessThanOrEqual(r['frío'].waves);
 	});
 
 	it('/calendario', async () => {
-		const r = await measure('/calendario', {}, () => import('./calendario/+page.server.js'));
+		const r = await measure(
+			'/calendario',
+			{},
+			() => import('./calendario/+page.server.js'),
+			'/(content)/calendario'
+		);
 		expect(r['caliente'].waves).toBeLessThanOrEqual(r['frío'].waves);
 	});
 
 	it('/material', async () => {
-		const r = await measure('/material', {}, () => import('./material/+page.server.js'));
+		const r = await measure(
+			'/material',
+			{},
+			() => import('./material/+page.server.js'),
+			'/(content)/material'
+		);
 		expect(r['caliente'].waves).toBeLessThanOrEqual(r['frío'].waves);
 	});
 
 	it('/amigues', async () => {
-		const r = await measure('/amigues', {}, () => import('./amigues/+page.server.js'));
+		const r = await measure(
+			'/amigues',
+			{},
+			() => import('./amigues/+page.server.js'),
+			'/(content)/amigues'
+		);
 		expect(r['caliente'].waves).toBeLessThanOrEqual(r['frío'].waves);
 	});
 
@@ -241,7 +261,8 @@ describe('un pedido anónimo a cada página pública, en pocas tandas', () => {
 		const r = await measure(
 			'/wiki/BDSM',
 			{ term: 'BDSM' },
-			() => import('./wiki/[term]/+page.server.js')
+			() => import('./wiki/[term]/+page.server.js'),
+			'/(content)/wiki/[term]'
 		);
 		expect(r['caliente'].waves).toBeLessThanOrEqual(r['frío'].waves);
 	});
@@ -250,7 +271,8 @@ describe('un pedido anónimo a cada página pública, en pocas tandas', () => {
 		const r = await measure(
 			`/calendario/${EVENT}`,
 			{ event: EVENT },
-			() => import('./calendario/[event]/+page.server.js')
+			() => import('./calendario/[event]/+page.server.js'),
+			'/(content)/calendario/[event]'
 		);
 		expect(r['caliente'].waves).toBeLessThanOrEqual(r['frío'].waves);
 	});
@@ -259,7 +281,8 @@ describe('un pedido anónimo a cada página pública, en pocas tandas', () => {
 		const r = await measure(
 			'/material/6-tips-para-tops',
 			{ post: '6-tips-para-tops' },
-			() => import('./material/[post]/+page.server.js')
+			() => import('./material/[post]/+page.server.js'),
+			'/(content)/material/[post]'
 		);
 		expect(r['caliente'].waves).toBeLessThanOrEqual(r['frío'].waves);
 	});
@@ -268,7 +291,8 @@ describe('un pedido anónimo a cada página pública, en pocas tandas', () => {
 		const r = await measure(
 			'/amigues/autore-inventade',
 			{ profile: 'autore-inventade' },
-			() => import('./amigues/[profile]/+page.server.js')
+			() => import('./amigues/[profile]/+page.server.js'),
+			'/(content)/amigues/[profile]'
 		);
 		expect(r['caliente'].waves).toBeLessThanOrEqual(r['frío'].waves);
 	});

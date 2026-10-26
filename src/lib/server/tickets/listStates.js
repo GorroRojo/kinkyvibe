@@ -13,6 +13,8 @@
 import { building } from '$app/environment';
 import { getDB } from '$lib/server/db';
 import { readAndKeep } from '$lib/server/db/perRequest.js';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
+import { peekListedPosts } from '$lib/server/contenido/posts.js';
 import { hasOwnTickets } from '$lib/utils/ticketCta.js';
 import { startsAfter } from '$lib/utils/dates.js';
 import { methodsFor, typeBuyableNow } from './checkout.js';
@@ -54,8 +56,36 @@ export function getListTicketStates(db, slugs, { now = Date.now(), cacheMs = LIS
 	if (!cacheMs) return computeStates(db, unique, now);
 	const key = unique.join('\n');
 	const hit = cache.get(key);
-	if (hit && now - hit.at < cacheMs) return Promise.resolve(hit.value);
-	// Un error no se guarda.
+	if (hit && now - hit.at < cacheMs) {
+		// Por vencer: lo de ahora sirve (todavía vale) y se renueva a la par de las primeras consultas
+		// del pedido (con las tandas automáticas, en la misma ida), así el próximo pedido no espera.
+		// Lo que se muestra nunca es más viejo que `cacheMs`, como antes.
+		if (now - hit.at >= cacheMs - REFRESH_AHEAD_MS && batchesReads(db) && !refreshing.has(key)) {
+			// Una renovación por lista a la vez: los pedidos que llegan mientras tanto no lanzan otra.
+			refreshing.add(key);
+			computeAndKeep(db, key, unique, now)
+				.catch(() => {})
+				.finally(() => refreshing.delete(key));
+		}
+		return Promise.resolve(hit.value);
+	}
+	return computeAndKeep(db, key, unique, now);
+}
+
+/** Las listas que se están renovando antes de vencer (ver arriba). */
+const refreshing = new Set();
+
+/** Lo recordado se renueva cuando le queda menos que esto (ms). */
+const REFRESH_AHEAD_MS = 10 * 1000;
+
+/**
+ * Calcula el estado (compartido dentro del pedido) y lo recuerda. Un error no se guarda.
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} key
+ * @param {string[]} unique
+ * @param {number} now
+ */
+function computeAndKeep(db, key, unique, now) {
 	return readAndKeep(
 		db,
 		`list-ticket-states\n${key}`,
@@ -173,6 +203,24 @@ async function queueFor(db, slugs, now) {
 		console.error('[tickets] no se pudo leer la lista de espera para las listas:', error);
 		return new Map();
 	}
+}
+
+/**
+ * Para las páginas con listas: adelanta el estado de la venta con la lista que ya armó este isolate
+ * (`peekListedPosts`; `pick` elige de ella los posts de la página, por defecto todos: el inicio,
+ * /calendario, /todo), así sale a la par de la marca del contenido en vez de esperarla. La página lo
+ * vuelve a pedir con la lista de verdad ({@link ticketStatesFor}): si son los mismos eventos,
+ * recibe lo ya pedido (compartido dentro del pedido); si no, pregunta aparte, como siempre. Nunca
+ * decide qué se muestra. Solo con las tandas automáticas (sin ellas, adelantar es consultar de más).
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {(posts: ProcessedPost[]) => { meta: Record<string, any> }[]} [pick]
+ */
+export function askTicketStatesEarly(platform, pick = (posts) => posts) {
+	if (building) return;
+	const db = getDB(platform);
+	const posts = db && batchesReads(db) ? peekListedPosts() : null;
+	if (posts) ticketStatesFor(platform, pick(posts)).catch(() => {});
 }
 
 /**

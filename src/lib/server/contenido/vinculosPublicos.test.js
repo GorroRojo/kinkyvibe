@@ -8,6 +8,7 @@ import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { saveObject } from '$lib/server/objects/index.js';
 import { approveProfile } from '$lib/server/amigues/approvals.js';
 import {
+	allPublicLinkTargets,
 	linkRefsOf,
 	publicLinkTargets,
 	publicLinksOf,
@@ -185,6 +186,19 @@ describe('publicLinkTargets', () => {
 		await tag('repetida', { slug: 'repetida-nueva' });
 		const targets = await publicLinkTargets(t.db, { slugs: [], keys: ['repetida'] });
 		expect([...targets.hiddenTags]).toEqual([]);
+	});
+
+	it('allPublicLinkTargets (sin la lista de lo nombrado) decide lo mismo que publicLinkTargets', async () => {
+		await seed();
+		await tag('repetida', { deleted: true });
+		await tag('repetida', { slug: 'repetida-nueva' });
+		const all = await allPublicLinkTargets(t.db);
+		const asked = await publicLinkTargets(t.db, { slugs: SLUGS, keys: [...KEYS, 'repetida'] });
+		for (const slug of SLUGS) expect(all.profiles.has(slug)).toBe(asked.profiles.has(slug));
+		for (const key of [...KEYS, 'repetida'])
+			expect(all.hiddenTags.has(key)).toBe(asked.hiddenTags.has(key));
+		const meta = { personas: SLUGS.map((perfil) => ({ perfil, rol: 'Facilita' })), tags: KEYS };
+		expect(withPublicLinks(meta, all)).toEqual(withPublicLinks(meta, asked));
 	});
 
 	it('publicLinksOf: todas las metadatas, en orden', async () => {

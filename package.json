@@ -19,6 +19,7 @@
 		"test:unit:watch": "vitest",
 		"test:related": "node scripts/test-related.js",
 		"medir:panel": "vitest run --config vitest.medir.config.js panel-consultas",
+		"medir:publico": "vitest run --config vitest.medir.config.js publico-consultas",
 		"test:durations": "vitest run --reporter=default --reporter=./scripts/vitest/durations-reporter.js",
 		"db:migrate:local": "wrangler d1 migrations apply kinkyvibe --local",
 		"db:migrate:remote": "wrangler d1 migrations apply kinkyvibe --remote",

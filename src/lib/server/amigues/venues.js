@@ -44,6 +44,7 @@ import {
 import { isApproved, isShownProfile, urlSlugOf, viewerFor } from './profiles.js';
 import { textOrNull as s } from '$lib/utils/text.js';
 import { eventIdsWithSlugSql } from '$lib/server/eventos/eventSlugIds.js';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -470,6 +471,19 @@ async function placesOf(db, slugs) {
 	const out = new Map([...known.views].filter(([slug]) => slugs.includes(slug)));
 	if (missing.length) for (const [slug, view] of await feedVenues(db, missing)) out.set(slug, view);
 	return out;
+}
+
+/**
+ * Para las páginas que van a poner los lugares de sus eventos ({@link withVenuePlaces}) después de
+ * leer la lista: si este isolate tiene listas pero todavía no armó los lugares de sus eventos, los
+ * pide ya, a la par de la marca del contenido (con las tandas automáticas, en la misma ida), en vez
+ * de esperar a la lista. Se usan solo si la marca no cambió (`fromContentState`). Nunca decide qué
+ * se muestra. Solo con las tandas automáticas (sin ellas, adelantar es consultar de más).
+ *
+ * @param {D1Database | null | undefined} db
+ */
+export function askVenuePlacesEarly(db) {
+	if (db && batchesReads(db)) placesOf(db, []).catch(() => {});
 }
 
 /**

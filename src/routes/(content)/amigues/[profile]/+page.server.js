@@ -1,6 +1,7 @@
 import { error, fail } from '@sveltejs/kit';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
 import {
 	askProfilePageEarly,
 	findProfileForPage,
@@ -14,6 +15,7 @@ import { contentForProfilePage } from '$lib/server/personas/index.js';
 import { siteWikiPosts } from '$lib/server/wiki/site.js';
 import { mentionPronouns } from '$lib/server/pronouns';
 import { followButtonState } from '$lib/server/sigo/button.js';
+import { askVenuePlacesEarly } from '$lib/server/amigues/venues.js';
 
 /**
  * La página de un perfil, solo desde la base («solo base»), con la misma dirección que tenía la
@@ -38,7 +40,14 @@ export async function load({ params, platform, locals, setHeaders }) {
 	// Lo que se lee después de encontrar el perfil, adelantado con lo que encontró el pedido
 	// anterior sin sesión (en la misma ida que la búsqueda; las de después reciben lo ya leído).
 	const guess = askProfilePageEarly(db, params.profile, locals, postsP);
-	if (guess) contentForProfilePage(platform, guess.object.slug, loadPosts).catch(() => {});
+	// Los lugares de los eventos de «Más cosas de…», a la par (con lo que ya tiene el isolate).
+	askVenuePlacesEarly(db);
+	// «Participa en»: con la dirección del perfil adivinado o, si este isolate todavía no lo vio, con
+	// la de la página (casi siempre la misma que la del objeto; si no, se pregunta aparte después).
+	if (guess || (batchesReads(db) && !locals.user && !locals.member))
+		contentForProfilePage(platform, guess?.object.slug ?? params.profile, loadPosts).catch(
+			() => {}
+		);
 	const found = await findProfileForPage(db, params.profile, locals);
 	rememberProfilePage(params.profile, found, locals);
 	if (!found) {

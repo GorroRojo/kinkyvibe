@@ -339,7 +339,19 @@ manda lo pendiente y olvida lo leído; si la tanda falla, cada consulta se corre
   decide qué se muestra.
 - Los lugares de los eventos (como los ve cualquiera) y las etiquetas «Parte N de M» se recuerdan
   junto a las listas mientras no cambie la marca del contenido (`fromContentState` en
-  `src/lib/server/contenido/posts.js`): `/`, `/calendario` y la wiki no los vuelven a pedir.
+  `src/lib/server/contenido/posts.js`): `/`, `/calendario` y la wiki no los vuelven a pedir. La
+  primera vez en el isolate (o después de un cambio) se piden a la par de la marca, no después.
+- **Isolate nuevo o cachés de 30 s vencidas** (`src/lib/server/adelantarPedido.js`): cuando
+  `hooks.server.js` tiene que esperar a la base por el árbol de etiquetas, en las páginas públicas
+  pide en esa misma ida la marca del contenido, los interruptores y los textos de la vista previa
+  que vencieron y, en un isolate recién nacido, las dos consultas con que se arman las listas (los
+  posts y a qué perfiles y etiquetas se puede vincular, que ya no se esperan una a la otra); antes
+  de los loads arma las listas sin otra ida, así la página adelanta lo suyo. Si a lo recordado le
+  quedan menos de 10 s (el árbol, la venta de las tarjetas), se renueva sin esperar con las
+  primeras consultas del pedido: con visitas seguidas, ninguna página espera porque venció una
+  caché. Nada se recuerda más de 30 s que antes. Resultado (`npm run medir:publico`): 1 ida en
+  caliente en todas las páginas públicas, también la primera vez que el isolate ve esa página;
+  2 en frío y con las cachés vencidas.
 - Para ver cada tanda y quién pidió cada consulta en las pruebas de cuentas:
   `KV_CONSULTAS=detalle npx vitest run --silent=false --disableConsoleIntercept <archivo>`.
 

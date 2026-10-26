@@ -12,6 +12,7 @@ import { argDate } from '$lib/utils/dates.js';
 import { isCurrent } from '$lib/utils/allPosts';
 import { allWorkshops } from '$lib/server/eventos/partes.js';
 import { partLabelsBySlug } from '$lib/utils/partes.js';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
 
 /** Lo que llega de un evento pasado. */
 export const PAST_EVENT_FIELDS = Object.freeze([
@@ -107,6 +108,22 @@ async function labelsKnownOrRead(db) {
 	if (!db) return read();
 	const { fromContentState } = await import('$lib/server/contenido/posts.js');
 	return (await fromContentState(db, 'partLabels', read)) ?? read();
+}
+
+/**
+ * Para /calendario, que las pone después de leer la lista: si este isolate tiene listas pero
+ * todavía no armó las etiquetas «Parte N de M», las pide ya, a la par de la marca del contenido
+ * (con las tandas automáticas, en la misma ida). Sin listas, nada (las pide {@link partLabelsOrNone}
+ * como siempre). Nunca decide qué se muestra. Solo con las tandas automáticas.
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ */
+export function askPartLabelsEarly(db) {
+	if (!db || !batchesReads(db)) return;
+	import('$lib/server/contenido/posts.js')
+		.then(({ fromContentState }) =>
+			fromContentState(db, 'partLabels', () => allWorkshops(db).then(partLabelsBySlug))
+		)
+		.catch(() => {});
 }
 
 /**

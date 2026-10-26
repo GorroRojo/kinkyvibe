@@ -12,7 +12,14 @@ import { importTags } from './importer.js';
 import { currentSiteTags, setSiteTagList } from '$lib/utils/siteTags.js';
 import { tagManager, wikiTagManager } from '$lib/utils/stores.js';
 import { get } from 'svelte/store';
-import { applySiteTags, clearTagSourceCache, tagManagerOf, tagSourceFrom } from './source.js';
+import {
+	applySiteTags,
+	clearTagSourceCache,
+	refreshTagSourceAhead,
+	tagManagerOf,
+	tagSourceFreshness,
+	tagSourceFrom
+} from './source.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -74,6 +81,49 @@ describe('tagSourceFrom', () => {
 		const changed = await tagSourceFrom(t.db, { now: 1 + 120_000 });
 		expect(changed).not.toBe(s);
 		expect(changed.rawTags.some((e) => e.id === 'nueva de prueba')).toBe(true);
+	});
+
+	it('se renueva antes de vencer sin esperar; si la lectura falla o el panel guardó, queda lo de antes', async () => {
+		await importTags(t.db, { rawTags: structuredClone(RAW) }, { actor: 'admin-de-prueba' });
+		const s = await tagSourceFrom(t.db, { now: 1 });
+		expect(tagSourceFreshness(1 + 15_000)).toBe('fresh');
+		expect(tagSourceFreshness(1 + 25_000)).toBe('aging');
+		expect(tagSourceFreshness(1 + 30_000)).toBe('stale');
+		// Con tiempo de sobra, no se lee nada.
+		/** @type {Promise<unknown>[]} */
+		const tasks = [];
+		const waitUntil = (/** @type {Promise<unknown>} */ p) => void tasks.push(p);
+		refreshTagSourceAhead(t.db, { now: 1 + 15_000, waitUntil });
+		expect(tasks).toEqual([]);
+		// Si la lectura falla, sigue lo recordado (y vence cuando vencía).
+		const broken = /** @type {any} */ ({
+			prepare: () => ({ bind: () => ({}) }),
+			batch: async () => {
+				throw new Error('base caída de prueba');
+			}
+		});
+		const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+		refreshTagSourceAhead(broken, { now: 1 + 25_000, waitUntil });
+		await Promise.all(tasks.splice(0));
+		quiet.mockRestore();
+		expect(await tagSourceFrom(t.db, { now: 1 + 29_000 })).toBe(s);
+		expect(tagSourceFreshness(1 + 30_000)).toBe('stale');
+		// Por vencer: se lee de nuevo sin esperar y se recuerda 30 s desde esa lectura.
+		await importTags(
+			t.db,
+			{ rawTags: [...structuredClone(RAW), { id: 'nueva de prueba' }] },
+			{ actor: 'admin-de-prueba' }
+		);
+		refreshTagSourceAhead(t.db, { now: 1 + 25_000, waitUntil });
+		expect(tasks).toHaveLength(1);
+		await Promise.all(tasks.splice(0));
+		const fresh = await tagSourceFrom(t.db, { now: 1 + 50_000 });
+		expect(fresh.rawTags.some((e) => e.id === 'nueva de prueba')).toBe(true);
+		// Si el panel guarda mientras se renueva, lo leído no se recuerda.
+		refreshTagSourceAhead(t.db, { now: 1 + 50_000, waitUntil });
+		clearTagSourceCache();
+		await Promise.all(tasks.splice(0));
+		expect(tagSourceFreshness(1 + 50_000)).toBe('stale');
 	});
 
 	it('sin base: el archivo', async () => {

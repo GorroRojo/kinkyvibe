@@ -1,9 +1,10 @@
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { currentMonth, isCalendarMonth, isCurrent } from '$lib/utils/allPosts';
 import { getDB } from '$lib/server/db';
-import { withVenuePlaces } from '$lib/server/amigues/venues.js';
-import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
+import { askVenuePlacesEarly, withVenuePlaces } from '$lib/server/amigues/venues.js';
+import { askTicketStatesEarly, ticketStatesFor } from '$lib/server/tickets/listStates.js';
 import {
+	askPartLabelsEarly,
 	firstEventMonth,
 	isPastIn,
 	partLabelsOrNone,
@@ -19,6 +20,11 @@ export async function load({ platform, url, untrack }) {
 	// de mes no vuelve a correr esto (las pruebas llaman sin él).
 	const asked = (untrack ?? ((fn) => fn()))(() => url.searchParams.get('viewdate'));
 	const pastMonth = isCalendarMonth(asked) ? asked : currentMonth(now);
+	// La venta, los lugares y las etiquetas «Parte N de M» de las tarjetas, a la par de la lista (con
+	// lo que ya tiene el isolate).
+	askTicketStatesEarly(platform);
+	askVenuePlacesEarly(getDB(platform));
+	askPartLabelsEarly(getDB(platform));
 	const posts = (await sitePosts(platform)).filter((p) => p.meta.layout == 'calendario');
 	// A la par (cada consulta a la base es una vuelta).
 	const [withVenues, ticketStates, partLabels] = await Promise.all([

@@ -10,7 +10,7 @@ import { withSecurityHeaders } from '$lib/server/securityHeaders.js';
 import { loadMember } from '$lib/server/cuentas/web.js';
 import { setContentDB } from '$lib/server/contenido/repo.js';
 import { resolveAsPanelAuthor } from '$lib/server/contenido/author.js';
-import { applySiteTags } from '$lib/server/etiquetas/source.js';
+import { startRequest } from '$lib/server/adelantarPedido.js';
 import { withPreload } from '$lib/server/preload.js';
 
 // Cookies from the old login flow. They were client-writable and must never be
@@ -25,8 +25,10 @@ export async function handle({ event, resolve: resolvePage }) {
 	// todo el isolate, como la del modo demo).
 	setContentDB(getDB(event.platform));
 	// El árbol de etiquetas de este pedido (la base, docs/etiquetas.md) pasa a ser el que usa todo el
-	// servidor. Nunca tira: sin base (o sin etiquetas en la base), el archivo de respaldo.
-	await applySiteTags(event.platform);
+	// servidor. Nunca tira: sin base (o sin etiquetas en la base), el archivo de respaldo. Si tiene
+	// que esperar a la base por él, en las páginas públicas pide en esa misma ida lo que el pedido va
+	// a leer de todos modos ($lib/server/adelantarPedido.js).
+	await startRequest(event);
 	// Cuentas del público (docs/cuentas.md): `locals.member`, aparte de `locals.user` (admins con
 	// GitHub). Solo consulta algo si hay cookie de sesión y el interruptor está prendido.
 	await loadMember(event);
