@@ -51,4 +51,26 @@ describe('Quienes: las etiquetas', () => {
 		expect(body).toContain('class="kv-tag');
 		expect(body).toContain('Etiqueta de prueba con un nombre bastante largo');
 	});
+
+	it('con página en la Kinkipedia, el chip lleva ahí; las demás siguen filtrando /todo', () => {
+		const { body } = render(Quienes, {
+			props: {
+				groups: [],
+				tags: ['Etiqueta Inventada', 'Otra Inventada'],
+				wikiTags: ['Etiqueta Inventada']
+			}
+		});
+		expect(body).toContain('href="/wiki/Etiqueta-Inventada"');
+		expect(body).toContain('href="/todo?tags=Otra%20Inventada"');
+		expect(body).not.toContain('href="/wiki/Otra-Inventada"');
+		// Mismo chip (misma clase, mismo rel): solo cambia adónde lleva.
+		expect(body.match(/class="kv-tag[^"]*"/g)).toHaveLength(2);
+		expect(body.match(/rel="tag"/g)).toHaveLength(2);
+	});
+
+	it('sin `wikiTags` (las listas, el editor), todos filtran /todo como antes', () => {
+		const { body } = render(Quienes, { props: { groups: [], tags: ['Etiqueta Inventada'] } });
+		expect(body).toContain('href="/todo?tags=Etiqueta%20Inventada"');
+		expect(body).not.toContain('href="/wiki/');
+	});
 });

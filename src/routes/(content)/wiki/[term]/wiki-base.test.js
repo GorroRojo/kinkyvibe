@@ -248,6 +248,22 @@ describe('/wiki/<término> desde la base', () => {
 			expect(await canonical(term)).toBe('/wiki/Serie-Inventada');
 	});
 
+	it('los chips de las páginas de detalle: solo las etiquetas con página o descripción', async () => {
+		await seed();
+		vi.resetModules();
+		const source = await import('$lib/server/etiquetas/source.js');
+		source.clearTagSourceCache();
+		const { wikiLinkedTags } = await import('$lib/server/wiki/site.js');
+		// «termino inventado» tiene página de la wiki; «otra inventada», descripción; «BDSM», nada.
+		const ids = ['termino inventado', 'otra inventada', 'BDSM', 'no existe', 'otra inventada'];
+		expect(await wikiLinkedTags(t.platform, ids)).toEqual(['termino inventado', 'otra inventada']);
+		expect(await wikiLinkedTags(t.platform, [])).toEqual([]);
+		expect(await wikiLinkedTags(t.platform, undefined)).toEqual([]);
+		// Sin base, ninguna (el árbol de respaldo no tiene páginas).
+		const none = /** @type {any} */ ({ env: {} });
+		expect(await wikiLinkedTags(none, ['otra inventada'])).toEqual([]);
+	});
+
 	it('sin base: no hay páginas de la wiki', async () => {
 		const m = await modules();
 		const none = /** @type {any} */ ({ env: {} });

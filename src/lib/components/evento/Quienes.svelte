@@ -5,7 +5,8 @@
 	 * perfil (un nombre libre, sin perfil, va como texto). Recibe solo perfiles públicos: lo decide
 	 * el servidor (src/lib/server/personas/); este componente no filtra nada.
 	 * Sin personas ni etiquetas, no se muestra.
-	 * Props: `groups` ({ rol, items: { slug, title, href }[] }[], o null), `tags`.
+	 * Props: `groups` ({ rol, items: { slug, title, href }[] }[], o null), `tags`, `wikiTags` (las
+	 * etiquetas que llevan a la Kinkipedia: Tags.svelte).
 	 */
 	import Tags from '$lib/components/Tags.svelte';
 
@@ -13,6 +14,8 @@
 	export let groups = [];
 	/** @type {string[]} */
 	export let tags = [];
+	/** @type {readonly string[]} */
+	export let wikiTags = [];
 
 	$: roles = groups ?? [];
 </script>
@@ -40,7 +43,7 @@
 		{/if}
 		{#if tags.length}
 			<h2 id="etiquetas-titulo" class:separado={roles.length > 0}>Etiquetas</h2>
-			<div class="etiquetas" id="tags"><Tags {tags} /></div>
+			<div class="etiquetas" id="tags"><Tags {tags} {wikiTags} /></div>
 		{/if}
 	</section>
 {/if}
