@@ -925,7 +925,7 @@ export const AUTO_SUBMITTED_HEADERS = Object.freeze({ 'Auto-Submitted': 'auto-ge
 
 /**
  * El mismo mensaje con {@link AUTO_SUBMITTED_HEADERS}.
- * @template {{ headers?: Record<string, string> }} M
+ * @template {{ subject: string, html: string, text: string, headers?: Record<string, string> }} M
  * @param {M} message
  * @returns {M & { headers: Record<string, string> }}
  */
