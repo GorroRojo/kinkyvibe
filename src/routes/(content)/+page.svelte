@@ -1,6 +1,7 @@
 <script>
 	import CardRow from '$lib/components/CardRow.svelte';
 	import { parseSiteDate } from '$lib/utils/dates.js';
+	import FeedLinks from '$lib/components/FeedLinks.svelte';
 	import Carrousel from '$lib/components/Carrousel.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import SeoHead from '$lib/components/SeoHead.svelte';
@@ -122,6 +123,8 @@
 	<!-- el feed largo de a 20: así el pie de página queda a mano -->
 	<PostList heading="Lo último publicado" posts={allPosts} limit={20} />
 </main>
+<!-- Los feeds del calendario, también desde el inicio (docs/seo.md); /rss lo anuncia app.html. -->
+<FeedLinks base="/calendario" title="Calendario · Kinky Vibe" />
 
 <style>
 	.hidden {

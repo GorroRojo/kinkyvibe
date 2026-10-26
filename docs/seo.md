@@ -80,8 +80,24 @@ guardada (`start`, `end`, `published_date`, `updated_date`, `opening_date`) se l
 Las 50 publicaciones más nuevas (por fecha de publicación), sin las que redirigen a otro sitio.
 Del evento va la fecha en el resumen (y «Cancelado» si lo está), **nunca el lugar**: así no hay
 que repetir las reglas de privacidad. Cada página los anuncia con `<link rel="alternate">`
-(`FeedLinks.svelte`); el feed de una etiqueta sin eventos ni material da 404. El RSS de siempre
-(`/rss`, en `app.html`) y los calendarios `.ics` siguen igual.
+(`FeedLinks.svelte`); el feed de una etiqueta sin eventos ni material da 404. El inicio también
+anuncia los del calendario, y `/calendario` además su `.ics` (`type="text/calendar"`, prop `ics`).
+
+**El RSS de siempre** (`/rss`, anunciado en `app.html`; `src/routes/rss/+server.js`) usa los mismos
+helpers (`feedEntry`, `feedPosts`, `escapeXml`): los 30 eventos y los 20 materiales más nuevos (así
+los eventos cargados en tanda no tapan el material), con la descripción del Atom (del evento, la
+fecha adelante; nunca el lugar), `dc:creator`, `category`, `language` y `lastBuildDate` (la fecha
+de la entrada más nueva, no «ahora»). Sin redirecciones ni imagen. El aviso temporal
+(`FEED_ONLY_ITEMS`) se va el 27/10 (ítem `rss-aviso-sacar`).
+
+**Los calendarios `.ics` públicos** (`/calendario.ics` y `/ics/etiqueta/<etiqueta>.ics`) llevan de
+los pasados solo los que terminaron en los últimos 90 días (`publicIcsSince` en
+`src/lib/utils/icsFeed.js`; antes eran ~500 eventos desde 2023, más de 500 KB que cada calendario
+suscripto baja cada hora). **Cambia lo que ve quien está suscripte**: los calendarios suscriptos
+copian el archivo, así que los eventos de hace más de 90 días dejan de verse ahí (siguen en el
+sitio). Para cambiar el plazo: `PUBLIC_ICS_PAST_DAYS`. El personal (`/ics/mio/…`) sigue con todo.
+Todos dicen cada cuánto volver a bajarlos: `X-PUBLISHED-TTL` (Outlook) y `REFRESH-INTERVAL` (RFC
+7986), una hora. El mail del `ORGANIZER` no cambió (cuál casilla va ahí lo decide gorrite).
 
 ### Microformats
 
@@ -135,9 +151,9 @@ mediana). No hay datos de personas reales (el sitio tiene poco tráfico para el 
 
 ## Cómo probarlo
 
-- `npx vitest run src/lib/utils/jsonLd.test.js src/lib/utils/vcard.test.js src/lib/utils/securityTxt.test.js src/lib/utils/robots.test.js src/lib/utils/feeds.test.js src/lib/server/feeds.test.js`
-- Feeds: <https://validator.w3.org/feed/> (Atom) y <https://validator.jsonfeed.org/> con la URL
-  del preview.
+- `npx vitest run src/lib/utils/jsonLd.test.js src/lib/utils/vcard.test.js src/lib/utils/securityTxt.test.js src/lib/utils/robots.test.js src/lib/utils/feeds.test.js src/lib/server/feeds.test.js src/routes/rss/rss.test.js src/lib/utils/icsFeed.test.js`
+- Feeds: <https://validator.w3.org/feed/> (Atom y `/rss`) y <https://validator.jsonfeed.org/> con
+  la URL del preview.
 - A mano, en el preview de la rama: abrir un evento, un material, una entrada de la wiki y un
   perfil, copiar la URL en <https://validator.schema.org/> y revisar que no haya errores. Para un
   lugar con la dirección oculta, el `Place` no tiene que tener `address` ni `geo`.

@@ -190,7 +190,23 @@ test.describe('calendario', () => {
 		const { lines, events } = parseIcs(text);
 		expect(lines[0]).toBe('BEGIN:VCALENDAR');
 		expect(lines.at(-1)).toBe('END:VCALENDAR');
-		expect(events.length).toBeGreaterThan(10);
+		expect(text).toContain('REFRESH-INTERVAL;VALUE=DURATION:PT1H');
+		// De los pasados van solo los de los últimos 90 días (docs/seo.md). La semilla es fija y el
+		// tiempo corre, así que en vez de un número fijo de eventos: están todos los eventos listados
+		// (no cancelados) que empezaron en esa ventana, y ninguno que haya terminado antes.
+		const DAY = 24 * 60 * 60 * 1000;
+		const since = Date.now() - 90 * DAY;
+		const posts = await (await request.get('/api/posts')).json();
+		const recent = posts
+			.filter((/** @type {any} */ p) => p.meta.category === 'calendario')
+			.filter((/** @type {any} */ p) => p.meta.status !== 'cancelado')
+			// un día de margen por la zona horaria (el .ics lleva la hora sin zona)
+			.filter((/** @type {any} */ p) => Date.parse(p.meta.start) >= since + DAY)
+			.map((/** @type {any} */ p) => `https://kinkyvibe.ar${p.path}`);
+		const urls = events.map((ev) => ev.URL);
+		for (const url of recent) expect(urls, url).toContain(url);
+		for (const ev of events) expect(icsDate(ev.DTEND), ev.URL).toBeGreaterThan(since - DAY);
+		expect(events.length).toBeGreaterThanOrEqual(recent.length);
 		for (const ev of events) {
 			expect(ev.SUMMARY, JSON.stringify(ev)).toBeTruthy();
 			expect(ev.URL).toMatch(/^https:\/\/kinkyvibe\.ar\/calendario\//);

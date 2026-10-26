@@ -152,7 +152,7 @@
 
 <!-- Sin título grande: el menú ya dice dónde estás (pedido de gorrite, 5/10). -->
 <h1 class="visually-hidden">Calendario</h1>
-<FeedLinks base="/calendario" title="Calendario · Kinky Vibe" />
+<FeedLinks base="/calendario" title="Calendario · Kinky Vibe" ics="/calendario.ics" />
 
 <!-- Los próximos eventos en una fila arriba del calendario, como antes (pedido de gorrite, 5/10).
      La imagen de la primera tarjeta es el LCP: las dos primeras cargan enseguida (docs/seo.md). -->
