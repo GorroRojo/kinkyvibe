@@ -47,6 +47,8 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
  *   buyer_dni: string | null, holders: string | null, status: OrderStatus,
  *   mp_preference_id: string | null, mp_payment_id: string | null, confirmed_by: string | null,
  *   email_sent_at: number | null, created_at: number, updated_at: number, expires_at: number,
+ *   email_id?: string | null, email_problem?: 'bounced' | 'complained' | 'suppressed' | null,
+ *   email_problem_at?: number | null,
  *   refunded_at?: number | null, refunded_by?: string | null,
  *   client_hash?: string | null, needs_review?: 'late_payment' | 'duplicate_payment' | null,
  *   review_detail?: string | null, channel?: 'online' | 'puerta' | 'manual',
@@ -1068,12 +1070,24 @@ export async function getOrderTickets(db, orderId) {
 }
 
 /**
+ * Marca que salió el mail de las entradas. Guarda el id de Resend de ese envío (o `null` si no
+ * salió de verdad: simulado) y limpia el rebote o la queja del envío anterior: si el nuevo también
+ * rebota, el webhook de Resend lo vuelve a marcar (docs/mails.md, «Rebotes y quejas»).
+ *
  * @param {D1Database} db
  * @param {string} orderId
  * @param {number} [now]
+ * @param {string | null} [emailId] el id que devolvió Resend
  */
-export async function markEmailSent(db, orderId, now = Date.now()) {
-	await db.prepare('UPDATE orders SET email_sent_at = ?2 WHERE id = ?1').bind(orderId, now).run();
+export async function markEmailSent(db, orderId, now = Date.now(), emailId = null) {
+	await db
+		.prepare(
+			`UPDATE orders SET email_sent_at = ?2, email_id = ?3, email_problem = NULL,
+				email_problem_at = NULL
+			WHERE id = ?1`
+		)
+		.bind(orderId, now, emailId)
+		.run();
 }
 
 /**

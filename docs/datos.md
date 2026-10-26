@@ -66,6 +66,7 @@ panel, #115). Con la migración a Workers los bindings pasan a configurarse dist
 | `waitlist_entries`, `waitlist_sends`              | 0053                                 | lista de espera de las entradas (por evento o tipo) y sus mails por ronda; interruptor `lista_espera`, en construcción      | `src/lib/server/tickets/waitlist.js`                       |
 | `ticket_combos`                                   | 0056                                 | combos entre eventos (la compra de A genera un código para B); interruptor `combo_codigos`                                  | `src/lib/server/tickets/combos.js`                         |
 | `email_suppressions`                              | 0060                                 | «No fui yo»: hash de las direcciones que no quieren más mails (solo los que no son de una compra pagada; ver mails.md)      | `src/lib/server/email/suppressions.js`                     |
+| `resend_webhook_events`                           | 0064                                 | avisos de Resend ya procesados (rebotes y quejas; también `orders.email_id` y `email_problem`; ver mails.md)                | `src/lib/server/email/resendWebhook.js`                    |
 
 **Borrados suaves (0049, decisión [0033](decisiones/0033-borrados-recuperables.md)).**
 `signup_fields`, `persona_roles` y `person_notes` tienen `deleted_at` (NULL = está). Borrar desde el
