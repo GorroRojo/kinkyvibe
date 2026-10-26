@@ -21,6 +21,7 @@ import {
 	buildStreamLinkEmail,
 	buildTicketEmail,
 	buildTransferEmail,
+	autoSubmitted,
 	maskEmail,
 	sendWithResend
 } from './email.js';
@@ -37,6 +38,7 @@ import {
 	DEFAULT_FROM_EMAIL,
 	DEFAULT_REPLY_TO,
 	getSalesSettings,
+	isAllowedFrom,
 	transferInfoFromSettings
 } from './settings.js';
 import { parseReminders, reminderKey, sendDueReminders } from './reminders.js';
@@ -157,6 +159,20 @@ export function contactEmail() {
 }
 
 /**
+ * El remitente guardado, si es de un dominio verificado (`isAllowedFrom` en settings.js); si no
+ * (un valor viejo guardado en D1 o una variable mal cargada), el de siempre: con otro dominio
+ * Resend rechazaría todos los mails. Lo registra en la consola sin el valor.
+ *
+ * @param {string} from
+ */
+function allowedFrom(from) {
+	if (!from) return DEFAULT_FROM_EMAIL;
+	if (isAllowedFrom(from)) return from;
+	console.error('[mails] el remitente configurado no es @kinkyvibe.ar: se usa el de siempre');
+	return DEFAULT_FROM_EMAIL;
+}
+
+/**
  * Remitente y dirección de respuesta de los mails (y adonde se mandan los comprobantes): los de
  * /admin/mensajes/configuracion o, vacíos, TICKETS_FROM_EMAIL / TICKETS_REPLY_TO, o los de por defecto
  * ("KinkyVibe <entradas@kinkyvibe.ar>" y entradas@kinkyvibe.ar).
@@ -172,7 +188,7 @@ export async function emailSettings(db) {
 		console.error('[tickets] no se pudieron leer los ajustes de venta:', error);
 	}
 	return {
-		from: s.from_email || env.TICKETS_FROM_EMAIL?.trim() || DEFAULT_FROM_EMAIL,
+		from: allowedFrom(s.from_email || env.TICKETS_FROM_EMAIL?.trim() || ''),
 		replyTo: s.reply_to_email || env.TICKETS_REPLY_TO?.trim() || DEFAULT_REPLY_TO,
 		// Pie de los mails (vacío = el de siempre): lo aplica `deliver()` con `withMailFooter`.
 		footer: { contact: s.mail_footer_contact || '', signoff: s.mail_footer_signoff || '' }
@@ -349,7 +365,7 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  *   fetch: typeof fetch,
  *   to: string,
  *   message: { subject: string, html: string, text: string,
- *     attachments?: import('./email.js').MailAttachment[] },
+ *     attachments?: import('./email.js').MailAttachment[], headers?: Record<string, string> },
  *   idempotencyKey?: string,
  *   log?: string,
  *   from?: string,
@@ -668,7 +684,7 @@ export async function sendStreamLinkEmails({
 				db,
 				fetch: fetchFn,
 				to: order.buyer_email,
-				message,
+				message: autoSubmitted(message),
 				idempotencyKey: `stream-${order.id}-${key}`,
 				optOut: isFreeOrder(order)
 			});
@@ -747,7 +763,7 @@ export async function sendDateChangeEmails({
 				db,
 				fetch: fetchFn,
 				to: order.buyer_email,
-				message,
+				message: autoSubmitted(message),
 				idempotencyKey: `datechange-${order.id}-${change.version}`,
 				optOut: isFreeOrder(order)
 			});
@@ -973,7 +989,7 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				db,
 				fetch: fetchFn,
 				to: order.buyer_email,
-				message,
+				message: autoSubmitted(message),
 				idempotencyKey: `reminder-${order.id}-${reminderKey(reminder, part ?? undefined)}`,
 				optOut: isFreeOrder(order)
 			});

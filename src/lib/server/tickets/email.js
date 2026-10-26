@@ -915,6 +915,24 @@ export function buildTransferEmail({
  */
 export const MAIL_HEADERS = Object.freeze({ 'Content-Language': 'es' });
 
+/**
+ * Cabecera de los mails que manda el sitio solo, en tanda (recordatorios, cambio de fecha, link de
+ * la transmisión, lista de espera, series, «Lo que sigo»): las respuestas automáticas («estoy de
+ * vacaciones») no vuelven a la casilla de respuesta, donde llegan los comprobantes. RFC 3834. No va
+ * en «Tus entradas» ni en la transferencia, donde se espera que respondan.
+ */
+export const AUTO_SUBMITTED_HEADERS = Object.freeze({ 'Auto-Submitted': 'auto-generated' });
+
+/**
+ * El mismo mensaje con {@link AUTO_SUBMITTED_HEADERS}.
+ * @template {{ headers?: Record<string, string> }} M
+ * @param {M} message
+ * @returns {M & { headers: Record<string, string> }}
+ */
+export function autoSubmitted(message) {
+	return { ...message, headers: { ...message.headers, ...AUTO_SUBMITTED_HEADERS } };
+}
+
 /** Cuánto se espera la respuesta de Resend (un envío colgado no puede trabar la request). */
 export const RESEND_TIMEOUT_MS = 10_000;
 
@@ -925,10 +943,11 @@ export const RESEND_TIMEOUT_MS = 10_000;
  *   from: string,
  *   to: string,
  *   replyTo?: string,
- *   message: { subject: string, html: string, text: string, attachments?: MailAttachment[] },
+ *   message: { subject: string, html: string, text: string, attachments?: MailAttachment[],
+ *     headers?: Record<string, string> },
  *   idempotencyKey?: string,
  *   timeoutMs?: number
- * }} input
+ * }} input `message.headers`: cabeceras de este mail, sobre {@link MAIL_HEADERS}.
  */
 export async function sendWithResend({
 	fetch,
@@ -955,7 +974,7 @@ export async function sendWithResend({
 			text: message.text,
 			...(message.attachments?.length ? { attachments: message.attachments } : {}),
 			...(replyTo ? { reply_to: replyTo } : {}),
-			headers: MAIL_HEADERS
+			headers: { ...MAIL_HEADERS, ...message.headers }
 		})
 	});
 	if (!res.ok) {

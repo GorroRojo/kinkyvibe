@@ -17,6 +17,7 @@
  */
 import { seriesEditions, seriesTagIds, splitEditions } from '$lib/utils/series.js';
 import { buildNewEditionEmail } from './email.js';
+import { autoSubmitted } from '$lib/server/tickets/email.js';
 import { deleteExpiredPending, unsubscribeUrl } from './subscriptions.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -139,7 +140,7 @@ export async function runSeriesNotifications({
 		/** @type {'sent' | 'simulated' | 'failed'} */
 		let result = 'failed';
 		try {
-			result = await send(String(row.email), message, `series-${id}-${slug}`);
+			result = await send(String(row.email), autoSubmitted(message), `series-${id}-${slug}`);
 		} catch (error) {
 			console.error('[series] no se pudo mandar un aviso:', error);
 		}

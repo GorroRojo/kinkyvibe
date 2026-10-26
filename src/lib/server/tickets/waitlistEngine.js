@@ -33,6 +33,7 @@ import {
 	effectiveWaitlistSettings,
 	holdUntil
 } from '$lib/utils/waitlistHold.js';
+import { autoSubmitted } from './email.js';
 import { mailBatchSize } from './batchSize.js';
 import { salesState, typeAvailability, typeClosesAt } from './config.js';
 import { HOLDING } from './discounts.js';
@@ -682,7 +683,11 @@ export async function sendWaitlistMails(db, input) {
 									reason: m.end_reason === 'event_cancelled' ? 'event_cancelled' : 'closed',
 									eventUrl: `${origin.replace(/\/+$/, '')}/calendario/${encodeURIComponent(m.event_slug)}`
 								});
-			const result = await send(m.email, message, waitlistIdempotencyKey(m.kind, m.id, m.round));
+			const result = await send(
+				m.email,
+				autoSubmitted(message),
+				waitlistIdempotencyKey(m.kind, m.id, m.round)
+			);
 			return result !== 'failed';
 		}
 	});

@@ -37,6 +37,7 @@ import { eventsForFollow } from './calendar.js';
 import { stopAllMail } from './follows.js';
 import { migrateAccountSubscriptions } from './avisame.js';
 import { buildFollowEmail } from './email.js';
+import { autoSubmitted } from '$lib/server/tickets/email.js';
 import { resolveTarget } from './targets.js';
 import { optionsFromRow, telegramOptionsFromRow } from '$lib/utils/sigo.js';
 import { formatFollowNotice } from '$lib/server/telegram/format.js';
@@ -368,7 +369,11 @@ export async function runFollowNotifications({
 				/** @type {'sent' | 'simulated' | 'failed'} */
 				let result = 'failed';
 				try {
-					result = await send(acc.email, message, `sigo-${accountId}-${slug}-${kind}`);
+					result = await send(
+						acc.email,
+						autoSubmitted(message),
+						`sigo-${accountId}-${slug}-${kind}`
+					);
 				} catch (error) {
 					console.error('[sigo] no se pudo mandar un aviso:', error);
 				}
