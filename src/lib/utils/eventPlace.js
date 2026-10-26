@@ -353,7 +353,8 @@ export function eventPlaceSchema(meta, venue, webLink) {
  */
 function omitType(address) {
 	if (!address) return {};
-	const { '@type': _type, ...rest } = address;
+	const rest = { ...address };
+	delete rest['@type'];
 	return rest;
 }
 
