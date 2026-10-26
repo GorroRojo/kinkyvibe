@@ -5,7 +5,7 @@
 	import FollowButton from '$lib/components/FollowButton.svelte';
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
-	import { tagTermSchema, wikiTermSchema } from '$lib/utils/jsonLd.js';
+	import { plainTagDescription, tagTermSchema, wikiTermSchema } from '$lib/utils/jsonLd.js';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
 	import { tagManager, currentPostData, userConfig } from '$lib/utils/stores.js';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
@@ -68,8 +68,11 @@
 	}
 	const guessedTitle =
 		data?.tag?.id ?? decodeURIComponent($page.url.pathname.slice(6)).replaceAll('-', ' ');
-	/** El título de la entrada o, sin entrada, el nombre de la etiqueta. */
-	$: pageTitle = data?.meta?.title ?? data?.tag?.visible_name ?? guessedTitle;
+	/** El título de la entrada o, sin entrada, el nombre de la etiqueta con mayúscula inicial (como
+	 * el h1 de GlosarioItem). */
+	$: pageTitle = data?.meta?.title ?? upperFirst(data?.tag?.visible_name ?? guessedTitle);
+	/** @param {string} s */
+	const upperFirst = (s) => (s ? s[0].toLocaleUpperCase() + s.slice(1) : s);
 	const ascendance = getAscendance(data?.meta?.wiki ?? guessedTitle ?? 'BDSM');
 	const descendance = getDescendance(data?.meta?.wiki ?? guessedTitle ?? 'inglés');
 	// const descendance = [[{ name: 'Shibari' }], [{ name: 'Momificación' }]];
@@ -122,10 +125,13 @@
 	<title>{pageTitle} · Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md): la entrada de la Kinkipedia o, sin entrada,
-     la etiqueta (o la serie) con una descripción genérica; sin imagen, la tarjeta de la Kinkipedia. -->
+     la etiqueta (o la serie) con su descripción en texto o, sin descripción, una genérica; sin
+     imagen, la tarjeta de la Kinkipedia. -->
 <SeoHead
 	title={pageTitle}
-	description={data?.meta?.summary || tagDescription(pageTitle)}
+	description={data?.meta?.summary ||
+		plainTagDescription(data?.tag?.description) ||
+		tagDescription(pageTitle)}
 	image={data?.meta?.featured || KINKIPEDIA_CARD.url}
 	imageInfo={data?.meta?.featured ? undefined : KINKIPEDIA_CARD}
 	imageAlt={pageTitle}

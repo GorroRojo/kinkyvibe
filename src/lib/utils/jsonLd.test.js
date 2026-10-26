@@ -12,6 +12,7 @@ import {
 	organizationSchema,
 	profileSchema,
 	tagTermSchema,
+	plainTagDescription,
 	wikiTermSchema
 } from './jsonLd.js';
 import { jsonForScript } from './escape.js';
@@ -253,6 +254,12 @@ describe('Kinkipedia', () => {
 	it('una etiqueta sin descripción (o vacía), nada', () => {
 		expect(tagTermSchema({ title: 'X', path: '/wiki/X' })).toBeNull();
 		expect(tagTermSchema({ title: 'X', description: '  ', path: '/wiki/X' })).toBeNull();
+	});
+	it('plainTagDescription: los links quedan como su texto, en una línea', () => {
+		expect(plainTagDescription('una [[práctica]]')).toBe('una práctica');
+		expect(plainTagDescription('[[término:texto]] y  más\nlíneas')).toBe('texto y más líneas');
+		expect(plainTagDescription(undefined)).toBe('');
+		expect(plainTagDescription(42)).toBe('');
 	});
 });
 

@@ -37,7 +37,7 @@ export const PREVIEW_TEXT_GROUPS = Object.freeze([
 ]);
 
 const HEADING_HELP =
-	'El título del link de la sección. Lo que va después de « · » es también el subtítulo de la imagen.';
+	'El título del link de la sección y de la pestaña (lo que muestran los buscadores, con « · Kinky Vibe» al final). Lo que va después de « · » es también el subtítulo de la imagen.';
 const ITEMS_HELP =
 	'Cómo se llama lo que lista, al principio de una lista filtrada: «{nombre} con la etiqueta…».';
 const SHORT_HELP = 'El nombre corto, en el título de una lista filtrada: «{nombre} · terapia».';
@@ -90,7 +90,14 @@ function section(group, name, title, heading, description, items) {
 /** @type {ReadonlyArray<Readonly<PreviewTextField>>} */
 export const PREVIEW_TEXT_FIELDS = Object.freeze(
 	/** @type {PreviewTextField[]} */ ([
-		{ key: 'home.title', group: 'inicio', label: 'Título', value: 'Kinky Vibe', max: 60 },
+		{
+			key: 'home.title',
+			group: 'inicio',
+			label: 'Título',
+			help: 'El título del link y de la pestaña del inicio (lo que muestran los buscadores).',
+			value: 'Kinky Vibe',
+			max: 60
+		},
 		{
 			key: 'home.description',
 			group: 'inicio',

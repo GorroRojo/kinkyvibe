@@ -229,6 +229,24 @@ describe('amigues (la lista)', () => {
 	});
 });
 
+describe('títulos de las listas (los textos del panel)', () => {
+	it('/todo: su propio <title> (no el del inicio) y un h1', async () => {
+		at('/todo');
+		const { default: Todo } = await import('./todo/+page.svelte');
+		const { head, body } = render(Todo, { props: { data: /** @type {any} */ ({ posts: [] }) } });
+		expect(head).toContain(`<title>${PREVIEW_TEXT_DEFAULTS['todo.heading']} · Kinky Vibe</title>`);
+		expect(tagsOf(body, 'h1')).toHaveLength(1);
+	});
+
+	it('un texto cambiado en el panel cambia el <title>', async () => {
+		const texts = { ...PREVIEW_TEXT_DEFAULTS, 'material.heading': 'Material · Inventado' };
+		at('/material', ORIGIN, { linkPreview: { texts, images: {} } });
+		const { default: Material } = await import('./material/+page.svelte');
+		const { head } = render(Material, { props: { data: /** @type {any} */ ({ posts: [] }) } });
+		expect(head).toContain('<title>Material · Inventado · Kinky Vibe</title>');
+	});
+});
+
 /** Una portada de la biblioteca inventada. */
 const COVER = '/media/img/' + 'a'.repeat(64) + '.webp';
 
@@ -422,6 +440,23 @@ describe('la Kinkipedia', () => {
 		expect(meta['og:description']).toBe(
 			'Material, amigues y eventos de «Etiqueta Inventada» en Kinky Vibe.'
 		);
+	});
+
+	it('una etiqueta sin entrada con descripción: la definición en texto y el nombre con mayúscula', async () => {
+		const head = await wikiHead('/wiki/etiqueta-inventada', {
+			tag: {
+				id: 'etiqueta inventada',
+				visible_name: 'etiqueta inventada',
+				description: 'Una [[práctica]] inventada, con [[Bondage:ataduras]].'
+			}
+		});
+		const meta = single(head);
+		expect(meta['og:title']).toBe('Etiqueta inventada');
+		expect(meta.description).toBe('Una práctica inventada, con ataduras.');
+		expect(meta['og:description']).toBe('Una práctica inventada, con ataduras.');
+		expect(head).toContain('<title>Etiqueta inventada · Kinky Vibe</title>');
+		// El mismo nombre en el DefinedTerm.
+		expect(head).toContain('"name": "Etiqueta inventada"');
 	});
 });
 
