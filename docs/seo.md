@@ -220,7 +220,7 @@ Después de cambiarla, alguien con acceso tiene que tocar «Update profile» en 
 - La foto del encabezado de un perfil dice «Foto de perfil de X» (los nombres de archivo son
   hashes: el texto alternativo es lo único que lee Google Imágenes).
 
-### Kinkipedia: 404 y canónica
+### Kinkipedia: 404, canónica y 301
 
 - `/wiki/<término>` da **404** (la página de error, con `noindex` y su `<h1>`) cuando el término no
   es ninguna etiqueta del árbol ni una página de la wiki. Antes era una página casi vacía con 200,
@@ -230,7 +230,13 @@ Después de cambiarla, alguien con acceso tiene que tocar «Update profile» en 
 - **Canónica**: la forma slug de la etiqueta (`tagPagePath`, la misma que el sitemap y los links),
   igual para todas las formas que llevan a ella: `/wiki/bdsm`, `/wiki/Bdsm` y `/wiki/BDSM` →
   `/wiki/BDSM`; un alias → la de su etiqueta. Código: `siteWikiEntry` en
-  `src/lib/server/wiki/site.js` (`known`, `fromDb`, `canonicalPath`).
+  `src/lib/server/wiki/site.js` (`known`, `fromDb`, `canonicalPath`, `canonicalTerm`).
+- **301**: las otras formas (`/wiki/bdsm`, `/wiki/Bdsm`, `/wiki/Cine para Sucixs`, un alias)
+  redirigen con un 301 a la canónica, con la misma query (solo GET y HEAD; en la navegación del
+  sitio, el `__data.json` contesta el redirect y el navegador va a la canónica). Se compara el
+  segmento ya decodificado, así una tilde codificada no redirige a sí misma; si la canónica no
+  llevara de vuelta a la misma página (dos etiquetas con el mismo slug), no redirige. Con la misma
+  guarda que el 404: sin base, nunca. Lo aprobó gorrite (Mesa, `seo-wiki-301`).
 
 ### Un solo host: www → apex
 
