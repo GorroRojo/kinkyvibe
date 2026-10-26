@@ -516,8 +516,10 @@ async function dateChangeVersionFor(db, slug) {
  *   tickets?: import('./orders.js').Ticket[],
  *   origin: string,
  *   fetch: typeof fetch,
- *   idempotent?: boolean
- * }} input
+ *   idempotent?: boolean,
+ *   idempotencyKey?: string
+ * }} input `idempotencyKey`: otra clave para Resend en vez de `tickets-<orden>` (la corrección
+ *   del mail manda con una propia: la de siempre ya se usó con otra dirección)
  * @returns {Promise<boolean>} si se envió
  */
 export async function sendOrderEmail(input) {
@@ -540,7 +542,8 @@ export async function sendOrderEmailResult({
 	tickets,
 	origin,
 	fetch: fetchFn,
-	idempotent = true
+	idempotent = true,
+	idempotencyKey = idempotent ? `tickets-${order.id}` : undefined
 }) {
 	/** @type {string | null} */
 	let claimedLink = null;
@@ -599,7 +602,7 @@ export async function sendOrderEmailResult({
 			fetch: fetchFn,
 			to: order.buyer_email,
 			message,
-			idempotencyKey: idempotent ? `tickets-${order.id}` : undefined,
+			idempotencyKey,
 			optOut: isFreeOrder(order),
 			// Nunca logueamos el token completo: con él se entra al evento.
 			log: list

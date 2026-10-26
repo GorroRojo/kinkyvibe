@@ -135,6 +135,9 @@
 {#if form?.resend}
 	<p class="flash" class:error={!form.resend.ok} role="status">{form.resend.message}</p>
 {/if}
+{#if form?.emailFix}
+	<p class="flash" class:error={!form.emailFix.ok} role="status">{form.emailFix.message}</p>
+{/if}
 {#if form?.refund}
 	<p class="flash" class:error={!form.refund.ok} role="status">{form.refund.message}</p>
 {/if}
@@ -250,6 +253,30 @@
 							: ' (desde Mercado Pago)'}
 					{/if}
 				</div>
+				{#if o.status === 'approved'}
+					<!-- Quien compró escribió mal su mail: se corrige y las entradas salen a la nueva. -->
+					<details class="email-fix" open={form?.emailFix?.order === o.id && !form.emailFix.ok}>
+						<summary>Corregir el mail…</summary>
+						<form method="POST" action="?/email" use:enhance class="email-fix-form">
+							<input type="hidden" name="order" value={o.id} />
+							<label>
+								<span>Mail nuevo</span>
+								<input
+									type="email"
+									name="email"
+									required
+									maxlength="254"
+									autocomplete="off"
+									spellcheck="false"
+								/>
+							</label>
+							<button type="submit" class="kv-btn small">Corregir el mail y reenviar</button>
+						</form>
+						<p class="note">
+							Las entradas salen a la dirección nueva; a la anterior no le mandamos nada más.
+						</p>
+					</details>
+				{/if}
 				{#if o.status === 'approved'}
 					<!-- Paso de confirmación: se abre, se revisa y recién ahí se reembolsa. -->
 					<details class="refund">
@@ -439,8 +466,38 @@
 	.holders .inside {
 		background: var(--ok-bg);
 	}
+	.email-fix,
 	.refund {
 		font-size: var(--text-sm);
+	}
+	.email-fix summary {
+		cursor: pointer;
+		font-weight: 700;
+	}
+	.email-fix-form {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2xs);
+		align-items: end;
+		margin-top: 0.4rem;
+	}
+	.email-fix-form label {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		flex: 1 1 14rem;
+		max-width: 22rem;
+	}
+	.email-fix-form input {
+		min-height: 2.5rem;
+		padding: 0 var(--space-2xs);
+		border: 1px solid var(--field);
+		border-radius: var(--radius-m);
+		background: var(--surface);
+		color: var(--text);
+	}
+	.email-fix .note {
+		margin: 0.3em 0 0;
 	}
 	.refund summary {
 		cursor: pointer;
