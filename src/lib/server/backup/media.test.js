@@ -17,6 +17,12 @@ function library({ pageSize = 1000 } = {}) {
 
 const silent = () => {};
 
+/** Lo que la copia anotó en `STATE_KEY`. @param {ReturnType<typeof fakeBucket>} bucket */
+async function savedState(bucket) {
+	const object = await bucket.get(STATE_KEY);
+	return JSON.parse((await object?.text()) ?? 'null');
+}
+
 describe('copyMedia', () => {
 	it('copia img/ y file/ (no og/) con su tipo, y la segunda vez no hay nada que copiar', async () => {
 		const source = library();
@@ -88,7 +94,7 @@ describe('copyMedia', () => {
 			log: silent
 		});
 		expect(night1).toMatchObject({ copied: 3, done: false, resumeAfter: 'img/aaaa.webp' });
-		expect(JSON.parse(await (await target.get(STATE_KEY))?.text())).toMatchObject({
+		expect(await savedState(target)).toMatchObject({
 			resumeAfter: 'img/aaaa.webp'
 		});
 		const night2 = await copyMedia({
@@ -99,7 +105,7 @@ describe('copyMedia', () => {
 		});
 		// Sigue después de la última revisada: no vuelve a mirar las primeras.
 		expect(night2).toMatchObject({ copied: 1, checked: 1, done: true, resumeAfter: '' });
-		expect(JSON.parse(await (await target.get(STATE_KEY))?.text()).resumeAfter).toBe('');
+		expect((await savedState(target)).resumeAfter).toBe('');
 		expect(target.keys().filter((k) => !k.startsWith('_estado/'))).toHaveLength(4);
 		// La vuelta siguiente empieza de nuevo desde el principio.
 		const night3 = await copyMedia({

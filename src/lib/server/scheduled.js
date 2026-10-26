@@ -140,7 +140,7 @@ export async function runObjectsIntegrity(env, now = new Date()) {
  * MEDIA_COPIA; sin el binding no hace nada.
  *
  * @param {ScheduledEnv} env
- * @param {Partial<typeof import('./backup/media.js').DEFAULT_LIMITS>} [limits]
+ * @param {Partial<import('./backup/media.js').MediaCopyLimits>} [limits]
  * @returns {Promise<import('./backup/media.js').MediaCopyResult | null>} null si no corrió
  */
 export async function runMediaCopy(env, limits) {

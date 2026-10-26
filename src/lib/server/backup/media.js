@@ -38,6 +38,9 @@ export const SOURCE_ETAG_META = 'kv-etag-origen';
  * listado: con 200 objetos, ~410 pedidos, que entran holgados en los 1000 a servicios de
  * Cloudflare por invocación del plan gratis aun sumando el backup de la base, que corre antes.
  */
+/** @typedef {{ maxObjects: number, maxBytes: number, maxListPages: number }} MediaCopyLimits */
+
+/** @type {Readonly<MediaCopyLimits>} */
 export const DEFAULT_LIMITS = Object.freeze({
 	maxObjects: 200,
 	maxBytes: 200 * 1024 * 1024,
@@ -167,7 +170,7 @@ async function copyObject(source, target, object) {
  * Una pasada nocturna de la copia. Nunca tira por un objeto que no se pudo copiar (queda en
  * `failed` y se reintenta en la próxima vuelta); sí tira si no puede listar.
  *
- * @param {{ source: R2Bucket, target: R2Bucket, limits?: Partial<typeof DEFAULT_LIMITS>,
+ * @param {{ source: R2Bucket, target: R2Bucket, limits?: Partial<MediaCopyLimits>,
  *   log?: (line: string) => void }} input
  * @returns {Promise<MediaCopyResult>}
  */
