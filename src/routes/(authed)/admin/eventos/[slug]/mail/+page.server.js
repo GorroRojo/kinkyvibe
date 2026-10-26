@@ -13,6 +13,8 @@ import { getDB, logDBError } from '$lib/server/db';
 import { isPreviewDeploy } from '$lib/server/deploy.js';
 import {
 	buyerMailAudience,
+	buyerMailProgress,
+	getBuyerMail,
 	isValidSendId,
 	listBuyerMails,
 	startBuyerMail,
@@ -21,6 +23,7 @@ import {
 import { getEventTickets } from '$lib/server/tickets/events.js';
 import { contactEmail, deliverBuyerMailBatch } from '$lib/server/tickets/index.js';
 import { pickActions } from '$lib/server/admin/eventActions.js';
+import { MAILS_PAUSED_ADMIN_MESSAGE, logMailsPaused, mailsPaused } from '$lib/server/emergencia.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ locals, url, params, platform, setHeaders }) {
@@ -76,6 +79,22 @@ export const actions = {
 		if (!valid.ok) {
 			return fail(400, {
 				mail: { ok: false, message: 'Revisá el asunto y el mensaje.', errors: valid.errors, values }
+			});
+		}
+		// Pausa de emergencia (MAILS_PAUSED): no se empieza ni se sigue ningún envío. El texto queda
+		// en el formulario y, si el envío ya había empezado, su avance: después de la pausa, «Mandar»
+		// sigue con el mismo envío (a quien ya le llegó no le llega dos veces).
+		if (mailsPaused()) {
+			logMailsPaused('«Mail a compradores»');
+			const existing = await getBuyerMail(db, sendId).catch(() => null);
+			const progress = existing ? await buyerMailProgress(db, existing).catch(() => null) : null;
+			return fail(503, {
+				mail: {
+					ok: false,
+					message: `${MAILS_PAUSED_ADMIN_MESSAGE} Cuando se saque la pausa, tocá «Mandar» de nuevo sin recargar la página.`,
+					values,
+					...(progress ? { id: sendId, progress, done: false } : {})
+				}
 			});
 		}
 		const started = await startBuyerMail(db, {

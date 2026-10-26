@@ -58,6 +58,7 @@ import { calendarStamp } from './calendarFile.js';
 import { getDateChange, sendDateChangeBatch } from './dateChange.js';
 import { comboCodesForOrder } from './combos.js';
 import { isFlagOn } from '../flags.js';
+import { logMailsPaused, mailsPaused } from '../emergencia.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
@@ -989,6 +990,10 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
  * Con `sendWaitlist` (interruptor `lista_espera` prendido; `waitlistMailBatch` de
  * waitlistEngine.js), los mails de la lista de espera van primero.
  *
+ * Con la pausa de emergencia de los mails (`MAILS_PAUSED`, $lib/server/emergencia.js) no manda
+ * nada ni gasta intentos: devuelve `{ paused: true }` y todo queda pendiente para las corridas de
+ * después de la pausa.
+ *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
  *   origin: string,
@@ -1006,6 +1011,10 @@ export async function runMailQueue({
 	limit,
 	sendWaitlist
 }) {
+	if (mailsPaused()) {
+		logMailsPaused('la tanda del cron (recordatorios, links, cambios de fecha, lista de espera)');
+		return { paused: /** @type {const} */ (true) };
+	}
 	return runMailQueueWith(db, {
 		limit,
 		...(sendWaitlist ? { sendWaitlist } : {}),

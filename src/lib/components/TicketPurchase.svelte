@@ -501,7 +501,9 @@
 		notyet: tickets.opensAt
 			? `${saleWindowText({ opensAt: tickets.opensAt })}.`
 			: 'La venta todavía no abrió.',
-		unavailable: 'La venta online no está disponible en este momento.'
+		unavailable: 'La venta online no está disponible en este momento.',
+		// Pausa de emergencia (TICKETS_PAUSED): el texto que cargaron les admins.
+		paused: tickets.pausedMessage || 'La venta de entradas está en pausa por un rato.'
 	};
 
 	$: submitText = pending
