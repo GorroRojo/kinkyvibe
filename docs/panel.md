@@ -291,7 +291,8 @@ revisar" del Inicio.
   transferencias por confirmar (una por evento), órdenes para revisar (pago tardío,
   pago duplicado o una venta en la puerta sin conexión que pasó un límite o quedó registrada con otro total que el
   que se cobró, decisión 0035), mails que no
-  salieron (hasta 20), mails de la lista de espera que no salieron (una fila, lleva a Ventas ›
+  salieron (hasta 20), el cupo de Resend terminado (un día después del último 429 por cupo; ver
+  [mails.md](mails.md)), mails de la lista de espera que no salieron (una fila, lleva a Ventas ›
   Lista de espera del evento más reciente), cupos sobrevendidos, links de transmisión que
   faltan, recordatorios que no salieron o fallaron, el link que no le llegó a todes, eventos sin imagen y borradores (juntos si
   son 2 o más), eventos con lugar y etiqueta «Online», perfiles nuevos y pedidos «Es mi perfil»

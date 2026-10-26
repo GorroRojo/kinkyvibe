@@ -191,6 +191,32 @@ falla (Resend caído, un timeout, el Worker que se cortó), la orden queda aprob
 - **Una dirección que falla siempre** (Resend la rechaza) se intenta como mucho 3 veces por día
   (`rate_limits`, la clave lleva el id de la orden) y no frena a las demás. Después de 48 h queda
   en «mails sin enviar» del Inicio para «Reenviar» a mano.
+- **Si Resend dice «ahora no»** (cupo terminado, demasiados por segundo o un 5xx), ese intento no
+  cuenta para los 3 del día y la corrida se corta (ver abajo).
+
+### Cupo de Resend y errores pasajeros
+
+Resend contesta 429 cuando se terminó el cupo diario o mensual del plan (`daily_quota_exceeded`,
+`monthly_quota_exceeded`) o cuando van demasiados mails por segundo (`rate_limit_exceeded`), y 5xx
+cuando está caído. Ninguno de esos dice nada del mail en sí, así que no gastan intentos
+(`resendBackoff` en `src/lib/server/tickets/email.js`):
+
+- **Reintento corto:** un 429 por tasa se reintenta una sola vez ahí mismo, esperando lo que diga
+  `retry-after` (como mucho 2 s). El cupo y el 5xx no: los toma la próxima corrida.
+- **Tandas** (recordatorios, link de la transmisión, cambio de fecha, lista de espera; `sendBatch`
+  en `sendState.js`): el envío vuelve a la cola como `retry` sin sumar el intento (`deferSend`).
+  Con el cupo o la tasa la tanda se corta en ese mail, y la corrida del cron no sigue con las otras
+  partes (la respuesta lleva `stopped`); con dos 5xx en la misma tanda, también. Para que un 429
+  que no se va nunca no quede dando vueltas, cada envío puede volver así a la cola como mucho 48
+  veces por día (`rate_limits`, unas 12 horas de corridas): después cuenta como un intento más.
+- **El mail de las entradas** (reintento del cron, `unsentOrders.js`): lo mismo, el intento no
+  cuenta y la corrida se corta. La ventana de 48 h pone el techo.
+- **«Mail a compradores»:** la tanda se corta con el cupo o la tasa y el panel dice «Resend frenó el
+  envío…»; «Reintentar» sigue más tarde sin repetir a nadie.
+- **Aviso:** con el cupo terminado, `deliver()` lo anota (`resendQuota.js`, una fila
+  `resend_quota` en `ticket_settings`, sin direcciones) y el Inicio muestra en «Para revisar» «Se
+  terminó el cupo diario (o mensual) de mails de Resend» durante un día, con un link al uso en el
+  panel de Resend. Si aparece seguido, hay que mirar el plan de Resend.
 
 ### Códigos copiables
 
