@@ -8,6 +8,7 @@
  */
 import { canonicalTags } from '$lib/utils';
 import { tagIdFromSlug } from '$lib/utils/tagSlug.js';
+import { tagPagePath } from '$lib/utils/series.js';
 import { siteTagDetails, siteTagSource, tagManagerOf } from '$lib/server/etiquetas/source.js';
 
 /** @typedef {import('$lib/server/etiquetas/wikiPages.js').WikiEntry} WikiEntry */
@@ -89,14 +90,29 @@ export async function siteWikiBodies(platform) {
  * un alias o sin mayúsculas, como toda dirección de una etiqueta), con su árbol; `entry` es `null`
  * si esa etiqueta no tiene página de la wiki.
  *
+ * - `known`: el segmento nombra una etiqueta del árbol (o una página de la wiki).
+ * - `fromDb`: el árbol salió de la base. Sin base (o sin poder leerla) el árbol es el de respaldo,
+ *   vacío: ahí nada es `known`, y la página no tiene que dar 404 por eso.
+ * - `canonicalPath`: la dirección canónica (`/wiki/<slug>` de la etiqueta), igual para todas las
+ *   formas que llevan a la misma etiqueta (mayúsculas, espacios, alias).
+ *
  * @param {App.Platform | undefined} platform
  * @param {string} term
- * @returns {Promise<{ entry: WikiEntry | null, key: string, tags: TagManager }>}
+ * @returns {Promise<{ entry: WikiEntry | null, key: string, tags: TagManager, known: boolean, fromDb: boolean, canonicalPath: string }>}
  */
 export async function siteWikiEntry(platform, term) {
 	const source = await siteTagSource(platform);
 	const tags = tagManagerOf(source);
-	const key = tagIdFromSlug(tags, term) ?? term;
+	const id = tagIdFromSlug(tags, term);
+	const key = id ?? term;
 	const entry = (source.wiki ?? []).find((e) => e.key === key || e.slug === term) ?? null;
-	return { entry, key: entry?.key ?? key, tags };
+	const finalKey = entry?.key ?? key;
+	return {
+		entry,
+		key: finalKey,
+		tags,
+		known: Boolean(entry) || id !== null,
+		fromDb: source.fromDb,
+		canonicalPath: tagPagePath(finalKey)
+	};
 }

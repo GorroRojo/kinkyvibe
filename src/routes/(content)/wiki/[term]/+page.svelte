@@ -130,6 +130,7 @@
 	imageInfo={data?.meta?.featured ? undefined : KINKIPEDIA_CARD}
 	imageAlt={pageTitle}
 	type={data?.meta ? 'article' : 'website'}
+	canonical={data.canonicalPath}
 />
 
 <article class="h-entry wiki" id="title">

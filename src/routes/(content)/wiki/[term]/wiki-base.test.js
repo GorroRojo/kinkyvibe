@@ -209,6 +209,45 @@ describe('/wiki/<término> desde la base', () => {
 		expect(data.tag?.id).toBe('BDSM');
 	});
 
+	it('un término que no es ninguna etiqueta da 404 (no una página vacía con 200)', async () => {
+		await seed();
+		const m = await modules();
+		for (const term of ['no-existe', 'Termino-Que-No-Existe']) {
+			await expect(
+				m.server.load(/** @type {any} */ ({ params: { term }, platform: t.platform }))
+			).rejects.toMatchObject({ status: 404 });
+		}
+		// Una etiqueta sin texto de la wiki ni descripción sigue teniendo su página.
+		expect((await page(m, 'BDSM')).tag?.id).toBe('BDSM');
+	});
+
+	it('la canónica es la misma para todas las formas de la dirección', async () => {
+		await importTags(
+			t.db,
+			{
+				rawTags: [
+					{ id: 'root', children: ['termino inventado', 'BDSM', 'Serie Inventada'] },
+					{ id: 'termino inventado', aka: ['alias inventado'] },
+					{ id: 'BDSM' },
+					{ id: 'Serie Inventada' }
+				],
+				wikiFiles: [{ name: 'termino-inventado', raw: WIKI }]
+			},
+			{ actor: 'prueba' }
+		);
+		const m = await modules();
+		/** @param {string} term */
+		const canonical = async (term) => (await page(m, term)).canonicalPath;
+		// Con página de la wiki: su dirección (la del sitemap), también desde un alias.
+		for (const term of ['termino-inventado', 'Termino-Inventado', 'termino inventado'])
+			expect(await canonical(term)).toBe('/wiki/termino-inventado');
+		expect(await canonical('alias-inventado')).toBe('/wiki/termino-inventado');
+		// Sin página de la wiki: la forma slug de la etiqueta, con sus mayúsculas.
+		for (const term of ['bdsm', 'BDSM', 'Bdsm']) expect(await canonical(term)).toBe('/wiki/BDSM');
+		for (const term of ['serie-inventada', 'Serie Inventada', 'SERIE-INVENTADA'])
+			expect(await canonical(term)).toBe('/wiki/Serie-Inventada');
+	});
+
 	it('sin base: no hay páginas de la wiki', async () => {
 		const m = await modules();
 		const none = /** @type {any} */ ({ env: {} });
@@ -219,5 +258,10 @@ describe('/wiki/<término> desde la base', () => {
 		expect(data.wiki).toEqual([]);
 		const index = /** @type {any} */ (await m.index.load(/** @type {any} */ ({ platform: none })));
 		expect(index.wiki).toEqual([]);
+		// Sin base, el árbol es el de respaldo: una caída de la base no convierte la wiki en 404.
+		const unknown = /** @type {any} */ (
+			await m.server.load(/** @type {any} */ ({ params: { term: 'no-existe' }, platform: none }))
+		);
+		expect(unknown.meta).toBeUndefined();
 	});
 });

@@ -115,6 +115,18 @@ cambia en cada visita, Google deja de creerle.
 `u-url`, `p-note`, `u-email`, `p-tel` en elementos `<data hidden>`), `h-card` de Kinky Vibe en el
 inicio y en las tarjetas de las listas.
 
+### Kinkipedia: 404 y canónica
+
+- `/wiki/<término>` da **404** (la página de error, con `noindex` y su `<h1>`) cuando el término no
+  es ninguna etiqueta del árbol ni una página de la wiki. Antes era una página casi vacía con 200,
+  que los buscadores marcan como «soft 404». Solo con el árbol leído de la base: sin base (o si
+  falla la lectura) el árbol de respaldo está vacío y la wiki no se vuelve 404 entera.
+- Una etiqueta que existe sigue teniendo su página aunque no tenga texto ni descripción.
+- **Canónica**: la forma slug de la etiqueta (`tagPagePath`, la misma que el sitemap y los links),
+  igual para todas las formas que llevan a ella: `/wiki/bdsm`, `/wiki/Bdsm` y `/wiki/BDSM` →
+  `/wiki/BDSM`; un alias → la de su etiqueta. Código: `siteWikiEntry` en
+  `src/lib/server/wiki/site.js` (`known`, `fromDb`, `canonicalPath`).
+
 ## Velocidad (PageSpeed, 12/10/2026)
 
 La línea de base, medida por gorrite con [PageSpeed Insights](https://pagespeed.web.dev/) en el

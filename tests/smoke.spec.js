@@ -448,9 +448,10 @@ test.describe('salud', () => {
 });
 
 test.describe('errores', () => {
-	test('/wiki/<término inexistente> no rompe', async ({ request }) => {
+	test('/wiki/<término inexistente> devuelve 404', async ({ request }) => {
+		// Ninguna etiqueta se llama así: 404 de verdad, no una página vacía con 200.
 		const res = await request.get('/wiki/esto-no-existe-xyz');
-		expect(res.status()).toBeLessThan(500);
+		expect(res.status()).toBe(404);
 	});
 
 	// Regression test: missing posts used to bubble up as a 500 instead of a 404.
