@@ -349,7 +349,7 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  *   fetch: typeof fetch,
  *   to: string,
  *   message: { subject: string, html: string, text: string,
- *     attachments?: import('./email.js').MailAttachment[] },
+ *     attachments?: import('./email.js').MailAttachment[], headers?: Record<string, string> },
  *   idempotencyKey?: string,
  *   log?: string,
  *   from?: string,

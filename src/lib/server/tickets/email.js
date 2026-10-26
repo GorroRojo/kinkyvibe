@@ -925,7 +925,8 @@ export const RESEND_TIMEOUT_MS = 10_000;
  *   from: string,
  *   to: string,
  *   replyTo?: string,
- *   message: { subject: string, html: string, text: string, attachments?: MailAttachment[] },
+ *   message: { subject: string, html: string, text: string, attachments?: MailAttachment[],
+ *     headers?: Record<string, string> },
  *   idempotencyKey?: string,
  *   timeoutMs?: number
  * }} input
@@ -955,7 +956,8 @@ export async function sendWithResend({
 			text: message.text,
 			...(message.attachments?.length ? { attachments: message.attachments } : {}),
 			...(replyTo ? { reply_to: replyTo } : {}),
-			headers: MAIL_HEADERS
+			// `message.headers`: las de un mail en particular (baja en un clic, email/oneClick.js).
+			headers: { ...MAIL_HEADERS, ...(message.headers ?? {}) }
 		})
 	});
 	if (!res.ok) {

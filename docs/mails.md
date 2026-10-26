@@ -291,6 +291,35 @@ Todo en `src/lib/server/email/suppressions.js`; la tabla es `email_suppressions`
   igual que las gratis que cargan les admins (puerta, carga a mano) y las de antes de la migración.
   Detalle en [cuentas.md](cuentas.md) (migración 0061, `free_order_choices`).
 
+### Baja en un clic
+
+Los mails de **«Lo que sigo»** y los de **avisos de series** («Hay nueva edición de…») llevan las
+cabeceras de RFC 8058: `List-Unsubscribe: <link>` con el mismo link firmado del pie
+(`/avisos/sigo/<cuenta>.<firma>` o `/avisos/baja/<id>.<firma>`) y
+`List-Unsubscribe-Post: List-Unsubscribe=One-Click`. Gmail, Apple Mail y los demás muestran
+«Anular suscripción» y, al tocarlo, su servidor manda un POST a ese link. Todo en
+`src/lib/server/email/oneClick.js`.
+
+- **Nunca** en entradas, transferencias, reembolsos, recordatorios de una compra, códigos para
+  entrar ni confirmaciones: son mails de algo que la persona pidió y no tienen «baja».
+- **Lista de espera: todavía no.** Ahí la baja es salir de la fila; en la oferta, un «Anular
+  suscripción» sin querer le haría perder el lugar guardado. Los avisos de después (se venció, se
+  cerró) ya no tienen de qué darse de baja. El Worker igual deja pasar el POST de
+  `/lista-de-espera/salir/<token>`, por si se suma más adelante con una decisión.
+- **El POST sin `Origin`:** SvelteKit rechaza con 403 un POST de formulario que no trae el
+  `Origin` del sitio (CSRF), y el servidor de correo no lo manda. El Worker (`worker/index.js`,
+  `allowOneClickPost`) le pone el `Origin` del sitio **solo** a un POST **sin** `Origin` a esas tres
+  páginas, con el token en un solo segmento y sin query. Un navegador siempre manda `Origin` en un
+  POST desde otro sitio, así que eso se sigue rechazando igual. Es seguro porque esas acciones no
+  usan la sesión ni las cookies (lo que autoriza es la firma HMAC del token, que un link tocado no
+  pasa), son idempotentes y contestan 200 sin redirigir. El GET de esos links sigue mostrando solo
+  el botón: los antivirus del correo no dan de baja a nadie.
+- Las cabeceras salen solo con un link `https://` (en dev, sin cabeceras) y nunca con `mailto:`.
+- **Para probar en un preview:**
+  `curl -i -X POST -H 'content-type: application/x-www-form-urlencoded' --data 'List-Unsubscribe=One-Click' https://<preview>/avisos/sigo/<token>`
+  tiene que dar 200 (antes daba 403). En un mail de «Lo que sigo» que llegue a une misme, «Mostrar
+  original» en Gmail tiene que mostrar las dos cabeceras.
+
 ### Mail del Fondo (tu link)
 
 fondo.kinkyvibe.ar («¿Ya sos Mecenas?», `/mi-link`) no tiene clave de Resend: le pide a este sitio

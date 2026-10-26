@@ -210,6 +210,11 @@ describe('runFollowNotifications', () => {
 		});
 		const link = linkIn(send.sent[0].text, '/avisos/sigo/');
 		expect(link).toBeTruthy();
+		// Baja en un clic (RFC 8058): el mismo link, en las cabeceras.
+		expect(send.sent[0].headers).toEqual({
+			'List-Unsubscribe': `<${link}>`,
+			'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+		});
 		const token = String(link).split('/avisos/sigo/')[1];
 		expect(await stopMailWithToken(t.db, token + 'x')).toBeNull();
 		expect(await stopMailWithToken(t.db, token)).toBe(a.id);
