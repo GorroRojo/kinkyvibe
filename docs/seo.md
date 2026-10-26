@@ -83,6 +83,18 @@ que repetir las reglas de privacidad. Cada página los anuncia con `<link rel="a
 (`FeedLinks.svelte`); el feed de una etiqueta sin eventos ni material da 404. El RSS de siempre
 (`/rss`, en `app.html`) y los calendarios `.ics` siguen igual.
 
+### Autoría y contacto
+
+- El pie de todas las páginas públicas, en «Sobre nosotres», lleva «Quiénes somos» (el perfil de
+  Kinky Vibe, `ORG_PROFILE_PATH` en `src/lib/utils/organization.js`) y «Contacto» (un mail a la
+  casilla pública, `DEFAULT_CONTACT_EMAIL` de `src/lib/utils/tickets.js`; `contactLink` en
+  `src/lib/utils/footer.js`).
+- Material: «· actualizado el <fecha>» (`<time class="dt-updated">`) junto a la fecha de
+  publicación, solo si la actualización es de un día posterior (`updatedDay`,
+  `src/lib/utils/autoria.js`). `article:author` va una vez por autore: la dirección de su perfil
+  si la página lo enlaza (los perfiles que quien mira puede ver), si no su nombre
+  (`articleAuthors`).
+
 ### Microformats
 
 `h-event` en eventos, `h-entry` en material y wiki, `h-card` en el encabezado de cada perfil (con

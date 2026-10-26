@@ -18,9 +18,15 @@
 	import ReadingTime from '$lib/components/ReadingTime.svelte';
 	import { readingTimeLabel } from '$lib/utils/readingTime.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { articleAuthors, updatedDay } from '$lib/utils/autoria.js';
 	import { linkPreviewOf, materialDescription } from '$lib/utils/seo.js';
 	import { tagManager } from '$lib/utils/stores.js';
 	export let data;
+	// «actualizado el …»: solo si es de un día posterior a la publicación.
+	$: updated = updatedDay(data.meta.published_date, data.meta.updated_date);
+	// `article:author`: la dirección del perfil de cada autore que tiene uno (el mismo link que
+	// muestra la página); si no, su nombre.
+	$: authorsMeta = articleAuthors(data.meta.authors, data.authorsProfiles, $page.url.origin);
 	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
 	$: readingTime = readingTimeLabel(data.readingMinutes);
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
@@ -49,7 +55,7 @@
 
 	<meta property="article:published_time" content={isoDateTime(data.meta.published_date)} />
 	<meta property="article:modified_time" content={isoDateTime(data.meta.updated_date)} />
-	<meta property="article:author" content={data.meta.authors?.join(', ')} />
+	{#each authorsMeta as author}<meta property="article:author" content={author} />{/each}
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
@@ -91,6 +97,13 @@
 			<time datetime={isoDay(data.meta.published_date)} class="dt-published">
 				{argDateLong(data.meta.published_date?.toString())}
 			</time>
+			{#if updated}
+				<span class="updated"
+					>·&ThickSpace;actualizado el <time datetime={updated} class="dt-updated"
+						>{argDateLong(updated)}</time
+					></span
+				>
+			{/if}
 			{#if readingTime}
 				<!-- El «·» va con el texto: en el celu bajan juntos de línea. -->
 				<span class="reading-time"
@@ -180,7 +193,9 @@
 {/if}
 
 <style lang="scss">
-	.reading-time {
+	/* «actualizado el …», como el tiempo de lectura: no se parte y va en gris */
+	.reading-time,
+	.updated {
 		color: var(--muted);
 		white-space: nowrap;
 	}
