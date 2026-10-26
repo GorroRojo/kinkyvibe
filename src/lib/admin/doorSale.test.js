@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
 	DOOR_SALE_DEFAULT_METHOD,
+	doorChargedPrice,
 	doorOptionLabel,
+	doorPriceChangeText,
 	doorSaleBreakdown,
+	parseDoorAmount,
 	resetDoorSaleForm
 } from './doorSale.js';
-import { computePrice } from '$lib/utils/tickets.js';
+import { ORDER_MAX_TOTAL, computePrice } from '$lib/utils/tickets.js';
 
 const price = (/** @type {any} */ option, quantity = 1) =>
 	computePrice({ price: 12000, fondo: 2400, option, quantity, discount: null, method: 'efectivo' });
@@ -73,5 +76,54 @@ describe('resetDoorSaleForm', () => {
 		const form = fakeForm('transferencia');
 		expect(resetDoorSaleForm(/** @type {any} */ (form))).toBe(DOOR_SALE_DEFAULT_METHOD);
 		expect(marked(form)).toEqual(['efectivo']);
+	});
+});
+
+describe('parseDoorAmount (precio por entrada en la puerta)', () => {
+	it('acepta pesos enteros como se escriben en el celu, 0 incluido', () => {
+		expect(parseDoorAmount('12000')).toBe(12000);
+		expect(parseDoorAmount('12.000')).toBe(12000);
+		expect(parseDoorAmount('$ 12.000')).toBe(12000);
+		expect(parseDoorAmount('0')).toBe(0);
+		expect(parseDoorAmount(String(ORDER_MAX_TOTAL))).toBe(ORDER_MAX_TOTAL);
+	});
+	it('rechaza negativos, centavos, texto, vacío y lo que pasa el tope de `price`', () => {
+		for (const raw of ['-100', '12,5', '1.5', 'abc', '', '  ', String(ORDER_MAX_TOTAL + 1)]) {
+			expect(parseDoorAmount(raw), raw).toBeNull();
+		}
+	});
+});
+
+describe('doorChargedPrice (la cuenta a la vista con otro precio)', () => {
+	const general = { price: 10000, fondo: 2000 };
+	it('sin cambiar el precio: el del tipo, con su Fondo', () => {
+		expect(doorChargedPrice(general, '10000', 20)).toEqual({ price: 10000, fondo: 2000 });
+		expect(doorChargedPrice(general, '', 20)).toEqual({ price: 10000, fondo: 2000 });
+	});
+	it('con otro precio: el Fondo con el mismo porcentaje', () => {
+		expect(doorChargedPrice(general, '5.000', 20)).toEqual({ price: 5000, fondo: 1000 });
+		expect(doorChargedPrice(general, '0', 20)).toEqual({ price: 0, fondo: 0 });
+		expect(doorChargedPrice({ price: 8000, fondo: 0 }, '6000', null)).toEqual({
+			price: 6000,
+			fondo: 0
+		});
+	});
+	it('monto inválido: null', () => {
+		expect(doorChargedPrice(general, '-1', 20)).toBeNull();
+	});
+});
+
+describe('doorPriceChangeText', () => {
+	it('dice de cuánto a cuánto; 0 es sin cargo', () => {
+		expect(flat(doorPriceChangeText({ charged: 5000, list: 12000 }))).toBe(
+			'Precio cambiado en la puerta: $ 5.000 en vez de $ 12.000'
+		);
+		expect(flat(doorPriceChangeText({ charged: 0, list: 12000 }))).toBe(
+			'Precio cambiado en la puerta: sin cargo en vez de $ 12.000'
+		);
+	});
+	it('mismo precio o sin precio de siempre: nada', () => {
+		expect(doorPriceChangeText({ charged: 12000, list: 12000 })).toBe('');
+		expect(doorPriceChangeText({ charged: 12000, list: null })).toBe('');
 	});
 });
