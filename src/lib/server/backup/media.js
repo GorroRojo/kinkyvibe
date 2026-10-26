@@ -33,10 +33,14 @@ export const STATE_KEY = '_estado/copia-medios.json';
  */
 export const SOURCE_ETAG_META = 'kv-etag-origen';
 
-/** Topes por noche: holgados para la biblioteca de hoy (~0,15 GB, ~900 objetos). */
+/**
+ * Topes por noche. Cada objeto copiado son 2 pedidos a R2 (get y put), más unas pocas páginas de
+ * listado: con 200 objetos, ~410 pedidos, que entran holgados en los 1000 a servicios de
+ * Cloudflare por invocación del plan gratis aun sumando el backup de la base, que corre antes.
+ */
 export const DEFAULT_LIMITS = Object.freeze({
-	maxObjects: 300,
-	maxBytes: 300 * 1024 * 1024,
+	maxObjects: 200,
+	maxBytes: 200 * 1024 * 1024,
 	maxListPages: 40
 });
 

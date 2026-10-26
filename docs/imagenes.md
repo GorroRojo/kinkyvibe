@@ -287,16 +287,16 @@ dos cosas (decisión de gorrite, 26/10):
   - **Solo suma**: copia lo que falta en la copia o lo que cambió (otro tamaño u otro etag; en la
     copia guarda el etag del original, `kv-etag-origen`). **Nunca borra nada de la copia**: lo
     que se borra del original sigue en la copia. Esa es la idea.
-  - **Trabajo acotado por noche**: como mucho 300 objetos, 300 MB y 40 páginas de listado
+  - **Trabajo acotado por noche**: como mucho 200 objetos, 200 MB y 40 páginas de listado
     (`DEFAULT_LIMITS`). Si no llega, anota por dónde iba (`_estado/copia-medios.json`, en la copia)
     y sigue la noche siguiente; cuando termina una vuelta entera, la próxima empieza de nuevo. Los
     dos buckets se recorren a la par, de a 1000 claves, así que la memoria no crece con la
-    biblioteca. Hoy (unos 900 objetos, ~0,15 GB) la primera noche copia 300 y en tres o cuatro
+    biblioteca. Hoy (unos 900 objetos, ~0,15 GB) la primera noche copia 200 y en unas cinco
     noches está todo; después, cada noche copia solo lo nuevo.
   - **Nunca hace fallar la corrida** (el backup ya se hizo). En el log (Observability → Logs) queda
-    una línea `copia de medios: N copiado(s) (X MB), M revisado(s), F con error, …; vuelta
-completa` (o `sigue mañana después de <clave>`). Un objeto que no se pudo copiar sale en el log
-    y se reintenta en la vuelta siguiente.
+    una línea que empieza con `copia de medios:` y dice cuántos copió, cuántos revisó y cuántos
+    fallaron, y al final «vuelta completa» o «sigue mañana después de …». Un objeto que no se pudo
+    copiar sale en el log y se reintenta en la vuelta siguiente.
   - Sin el binding (Previews, local sin el bucket) no hace nada. Los Previews no corren crons.
   - Protege de un borrado en el bucket de la biblioteca; **no** de perder la cuenta de Cloudflare
     (los dos buckets están en la misma cuenta).
