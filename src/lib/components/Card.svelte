@@ -5,6 +5,7 @@
 	import { pronounDisplay } from '$lib/utils/mentions';
 	import { argDateList, parseSiteDate } from '$lib/utils/dates.js';
 	import { cardSrcset } from '$lib/utils/mediaCopies.js';
+	import { cardTypeIcon } from '$lib/utils/cardIcon.js';
 	export let post;
 	/**@type {{path: string, mark: string|undefined, start: Date|undefined, meta: AnyPostData}}*/
 	let {
@@ -12,6 +13,10 @@
 		meta: { tags, featured: src, category, title, pronoun, start },
 		mark
 	} = post;
+	// Sin imagen, el ícono grande del tipo sobre el degradé (docs/estilo.md, «Tarjetas»), en vez
+	// de un <img> sin src que quedaba como un degradé liso.
+	const hasImage = Boolean(src) && src !== 'undefined';
+	const icon = hasImage ? null : cardTypeIcon(post.meta);
 	export let setId = true;
 	// Las primeras tarjetas de la página se piden enseguida: con `lazy` el navegador espera al
 	// layout y la imagen más grande (el LCP) arrancaba ~2 s tarde (docs/seo.md, «Velocidad»).
@@ -43,14 +48,20 @@
 	{#if mark}
 		<span class="card-mark">{mark}</span>
 	{/if}
-	<img
-		class="card-img u-featured placeholder-gradient"
-		{src}
-		srcset={cardSrcset(src) || undefined}
-		alt=""
-		loading={eager ? 'eager' : 'lazy'}
-		fetchpriority={priority ? 'high' : undefined}
-	/>
+	{#if hasImage}
+		<img
+			class="card-img u-featured placeholder-gradient"
+			{src}
+			srcset={cardSrcset(src) || undefined}
+			alt=""
+			loading={eager ? 'eager' : 'lazy'}
+			fetchpriority={priority ? 'high' : undefined}
+		/>
+	{:else}
+		<div class="card-img placeholder" aria-hidden="true">
+			<svelte:component this={icon} size={72} strokeWidth={1.5} />
+		</div>
+	{/if}
 	<h3 class="p-name">
 		{title}
 		{#if pronounDisplay(pronoun)}
@@ -93,6 +104,19 @@
 		border: 0 !important;
 		outline: 0;
 		object-fit: cover;
+	}
+	.card-img.placeholder {
+		display: grid;
+		place-items: center;
+		flex-shrink: 0;
+		color: white;
+	}
+	.card-img.placeholder :global(svg) {
+		/* el sitio fija los svg en 24px de alto */
+		width: 4.5rem;
+		height: 4.5rem;
+		opacity: 0.9;
+		filter: drop-shadow(0 0.1em 0.25em rgb(0 0 0 / 0.25));
 	}
 	.card {
 		display: flex;

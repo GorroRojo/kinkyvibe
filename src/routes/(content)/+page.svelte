@@ -9,7 +9,8 @@
 	import PostList from '$lib/components/PostList.svelte';
 	import { page } from '$app/stores';
 	export let data;
-	import { userConfig } from '$lib/utils/stores';
+	import { tagManager, userConfig } from '$lib/utils/stores';
+	import { upcomingEventCards } from '$lib/utils/portada.js';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { organizationSchema, websiteSchema } from '$lib/utils/jsonLd.js';
 	// the server only sends upcoming events; load the rest if past events are shown
@@ -82,13 +83,10 @@
 			id="calendario"
 			title="Talleres y eventos"
 			eager={4}
-			items={allPosts
-				.filter(
-					(/** @type {{ meta: AnyPostData; }} */ p) =>
-						p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
-				)
-				.sort((a, b) => (a.meta.start > b.meta.start ? 1 : -1))
-				.slice(0, 9)}
+			items={upcomingEventCards(allPosts, {
+				tagManager: $tagManager,
+				workshops: data.workshops ?? {}
+			})}
 			--color-1="var(--2-dark)"
 			--color-2="var(--1)"
 			href="/calendario"
