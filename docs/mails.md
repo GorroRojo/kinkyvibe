@@ -370,7 +370,9 @@ cabeceras de RFC 8058: `List-Unsubscribe: <link>` con el mismo link firmado del 
 (`/avisos/sigo/<cuenta>.<firma>` o `/avisos/baja/<id>.<firma>`) y
 `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. Gmail, Apple Mail y los demás muestran
 «Anular suscripción» y, al tocarlo, su servidor manda un POST a ese link. Todo en
-`src/lib/server/email/oneClick.js`.
+`src/lib/server/email/oneClick.js`. Van en `message.headers`, el mismo mecanismo que
+`Auto-Submitted` (`autoSubmitted` suma la suya sin pisarlas) y que `sendWithResend` manda encima de
+`MAIL_HEADERS`.
 
 - **Nunca** en entradas, transferencias, reembolsos, recordatorios de una compra, códigos para
   entrar ni confirmaciones: son mails de algo que la persona pidió y no tienen «baja».

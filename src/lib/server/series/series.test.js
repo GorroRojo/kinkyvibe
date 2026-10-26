@@ -285,10 +285,11 @@ describe('avisos del cron (runSeriesNotifications)', () => {
 		expect(first.send.sent[0].text).toContain(`${ORIGIN}/calendario/serie-prueba-3`);
 		const unsubscribe = linkIn(first.send.sent[0].text, '/avisos/baja/');
 		expect(unsubscribe).toBeTruthy();
-		// Baja en un clic (RFC 8058): el mismo link, en las cabeceras.
+		// Baja en un clic (RFC 8058): el mismo link, en las cabeceras; y Auto-Submitted (#501).
 		expect(first.send.sent[0].headers).toEqual({
 			'List-Unsubscribe': `<${unsubscribe}>`,
-			'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+			'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+			'Auto-Submitted': 'auto-generated'
 		});
 		expect(first.send.sent[0].key).toMatch(/^series-.+-serie-prueba-3$/);
 		for (const later of [NOW + 15 * 60_000, NOW + 30 * 60_000]) {
