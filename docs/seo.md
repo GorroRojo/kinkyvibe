@@ -207,6 +207,14 @@ Después de cambiarla, alguien con acceso tiene que tocar «Update profile» en 
 - `static/site.webmanifest`: nombre «Kinky Vibe», descripción (`SITE_TAGLINE`), `lang` `es-AR`,
   `id` `/` y `theme_color` igual al `theme-color` de las páginas, en hex (lo cuida
   `webmanifest.test.js`).
+- Íconos: los dos de siempre (`android-chrome-192x192.png` y `-512x512.png`, sin `purpose`, o sea
+  `any`) y uno aparte con `"purpose": "maskable"`: `static/maskable-512x512.png`. Android recorta
+  los `maskable` con la forma que elige cada teléfono y lo único que nunca corta es el círculo
+  central de 80 % del lado; el de siempre (un círculo con las esquinas transparentes) quedaba
+  recortado o sobre un fondo blanco. Es el mismo ícono achicado al 80 %, sobre un cuadrado lleno
+  del rosa de su círculo (`#ff48c4`, leído del ícono), sin transparencia. Se hace con
+  `node scripts/icono-maskable.js` (sharp; da siempre el mismo PNG y falla si las letras salen de
+  la zona segura) y se commitea. Si cambia el logo, se regeneran los dos.
 - Un perfil es `og:type` `profile`: sin etiquetas `article:*`. En el material,
   `article:modified_time` va solo si tiene fecha de actualización.
 - La foto del encabezado de un perfil dice «Foto de perfil de X» (los nombres de archivo son
