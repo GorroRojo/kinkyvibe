@@ -1,4 +1,17 @@
 User-agent: *
 Disallow: /auch
 
+# Bots que juntan textos para entrenar modelos de IA: no (decisión de gorrite, octubre de 2026).
+# Los de búsqueda y respuesta (Googlebot, Bingbot, OAI-SearchBot, ChatGPT-User, PerplexityBot,
+# Claude-SearchBot, Claude-User) siguen con el grupo de arriba. Ver docs/seo.md.
+User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: CCBot
+User-agent: Bytespider
+User-agent: meta-externalagent
+User-agent: cohere-training-data-crawler
+Disallow: /
+
 Sitemap: https://kinkyvibe.ar/sitemap.xml
