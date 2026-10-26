@@ -48,7 +48,10 @@ const isContentPage = (event) => Boolean(event.route?.id?.startsWith('/(content)
  * @returns {boolean}
  */
 export function askRequestEarly(event) {
-	if (!isContentPage(event)) return false;
+	// Solo lecturas: las tandas y lo compartido del pedido son de GET/HEAD; una acción (POST) no
+	// necesita las listas y las leería dos veces.
+	const method = event.request.method;
+	if ((method !== 'GET' && method !== 'HEAD') || !isContentPage(event)) return false;
 	const db = getDB(event.platform);
 	if (!db || !batchesReads(db)) return false;
 	const now = Date.now();

@@ -60,12 +60,20 @@ export function getListTicketStates(db, slugs, { now = Date.now(), cacheMs = LIS
 		// Por vencer: lo de ahora sirve (todavía vale) y se renueva a la par de las primeras consultas
 		// del pedido (con las tandas automáticas, en la misma ida), así el próximo pedido no espera.
 		// Lo que se muestra nunca es más viejo que `cacheMs`, como antes.
-		if (now - hit.at >= cacheMs - REFRESH_AHEAD_MS && batchesReads(db))
-			computeAndKeep(db, key, unique, now).catch(() => {});
+		if (now - hit.at >= cacheMs - REFRESH_AHEAD_MS && batchesReads(db) && !refreshing.has(key)) {
+			// Una renovación por lista a la vez: los pedidos que llegan mientras tanto no lanzan otra.
+			refreshing.add(key);
+			computeAndKeep(db, key, unique, now)
+				.catch(() => {})
+				.finally(() => refreshing.delete(key));
+		}
 		return Promise.resolve(hit.value);
 	}
 	return computeAndKeep(db, key, unique, now);
 }
+
+/** Las listas que se están renovando antes de vencer (ver arriba). */
+const refreshing = new Set();
 
 /** Lo recordado se renueva cuando le queda menos que esto (ms). */
 const REFRESH_AHEAD_MS = 10 * 1000;
