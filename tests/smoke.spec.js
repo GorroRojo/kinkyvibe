@@ -580,7 +580,7 @@ test.describe('experiencia', () => {
 			.first()
 			.click();
 		await expect(page).toHaveURL(/\/calendario$/);
-		await expect(page).toHaveTitle(/^Calendario · Kinky Vibe$/);
+		await expect(page).toHaveTitle(/^Calendario · .+ · Kinky Vibe$/);
 		await expect.poll(() => page.evaluate(() => window.__mainAnimations.length)).toBe(2);
 		const [delay, duration] = await page.evaluate(() => window.__mainAnimations);
 		expect(delay).toBe(0);
