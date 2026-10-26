@@ -137,7 +137,8 @@
 		venue: data.venue,
 		tickets: data.tickets,
 		webLink: isWebLink(actionLink) ? actionLink : undefined,
-		past
+		past,
+		authorLinks: data.authorLinks
 	})}
 />
 <svelte:head>

@@ -23,6 +23,7 @@ import { readWorkshop } from '$lib/server/eventos/partes.js';
 import { coveringTicketSlug, partOf } from '$lib/utils/partes.js';
 import { mentionPronouns } from '$lib/server/pronouns';
 import { hasOwnTickets } from '$lib/utils/ticketCta.js';
+import { authorLinksFrom } from '$lib/utils/jsonLd.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
@@ -81,6 +82,9 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		venue,
 		personas,
 		pronouns,
+		// Los perfiles públicos de les autores para los datos estructurados (`url` del organizer):
+		// de la lista que ve cualquiera, nunca de lo que ve quien tiene sesión.
+		authorLinks: authorLinksFrom(post.meta.authors, posts, post.meta.postID),
 		// Con lugar, el «Dónde» del evento no sale del servidor.
 		post: venue ? { ...post, meta: stripMdPlace(post.meta) } : post
 	};
