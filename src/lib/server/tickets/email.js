@@ -568,7 +568,9 @@ export function buildReminderEmail({
 	const where = salePlaceText(online, event);
 	const soon =
 		reminder.kind === 'day_at' && reminder.days === 0
-			? 'es hoy'
+			? reminder.eve
+				? 'es mañana'
+				: 'es hoy'
 			: reminder.kind === 'hours_before' && reminder.hours < 24
 				? 'es en unas horas'
 				: 'se acerca';

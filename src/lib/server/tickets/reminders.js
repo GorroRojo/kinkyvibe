@@ -19,6 +19,11 @@
  *   taller (la parte 1), cada otra parte es un ítem más con su fecha (`part`): quienes tienen la
  *   entrada del taller reciben los recordatorios de cada parte. Su id en `reminder_sends` lleva la
  *   parte (`h48@<parte>`), así cada parte se manda una vez.
+ * - Un recordatorio «el mismo día a las HH:MM» de un evento que empieza antes de esa hora (o justo a
+ *   esa hora: a la madrugada, a las 8...) sale **el día anterior a las 20:00** ({@link EVE_TIME}),
+ *   con el mismo id (así nadie lo recibe dos veces, aunque después el evento cambie de horario) y
+ *   el mail dice «es mañana». No sale si otro recordatorio activado ya cae en las 24 horas antes del
+ *   comienzo (ver {@link reminderSchedule}).
  */
 
 import { DEFAULT_MAIL_BATCH_SIZE } from './batchSize.js';
@@ -26,13 +31,17 @@ import { STALE_CLAIM_MS, expireStaleClaims, pendingSendSql, sendBatch } from './
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /**
+ * `eve`: solo en lo que le llega a `send` (nunca se guarda): un «el mismo día» que sale el día
+ * anterior porque el evento empieza antes de esa hora (ver {@link reminderSchedule}).
+ *
  * @typedef {{ kind: 'hours_before', hours: number, enabled: boolean }
- *   | { kind: 'day_at', days: number, time: string, enabled: boolean }} Reminder
+ *   | { kind: 'day_at', days: number, time: string, enabled: boolean, eve?: boolean }} Reminder
  */
 
 /** Argentina no tiene horario de verano desde 2009: UTC−3 todo el año. */
 const AR_OFFSET = '-03:00';
 const AR_OFFSET_MS = 3 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 export const MAX_REMINDERS = 5;
 
 /** @type {Reminder[]} */
@@ -127,6 +136,65 @@ export function reminderDueAt(r, start) {
 }
 
 /**
+ * Hora (de Argentina) del día anterior a la que sale un recordatorio «el mismo día» cuando el evento
+ * empieza antes de la hora de ese recordatorio. Las 20:00: la noche anterior, a una hora en la que
+ * la gente todavía lee el mail (no a la madrugada, cuando ya pasó la hora del recordatorio
+ * original), el mismo ejemplo de {@link describeReminder}, y antes de que salga para un evento de
+ * madrugada. Como los demás, sale en la primera vuelta del cron (cada 15 minutos) después de esa hora.
+ */
+export const EVE_TIME = '20:00';
+
+/**
+ * Qué recordatorios activados tocan a un evento que empieza en `start` (ms), y cuándo, en el orden
+ * de la lista:
+ * - cada uno a su hora ({@link reminderDueAt});
+ * - un «el mismo día a las HH:MM» cuya hora no es antes del comienzo (un evento a las 8 y el de las
+ *   9:00) sale el día anterior a las {@link EVE_TIME}, con `eve: true`. Salvo que otro recordatorio
+ *   activado ya caiga en las 24 horas antes del comienzo (quien compró ya recibe uno de último
+ *   momento) o que otro «el mismo día» ya haya pasado al día anterior (uno solo por evento).
+ * Los «horas antes» y los de días anteriores siempre caen antes del comienzo.
+ *
+ * @param {Reminder[]} reminders
+ * @param {number} start
+ * @returns {{ reminder: Reminder, due: number, eve: boolean }[]}
+ */
+export function reminderSchedule(reminders, start) {
+	const enabled = reminders.filter((r) => r.enabled);
+	const raw = enabled.map((r) => reminderDueAt(r, start));
+	const shortNotice = raw.some((due) => due < start && due >= start - DAY_MS);
+	const out = [];
+	let eveTaken = false;
+	enabled.forEach((reminder, i) => {
+		const due = raw[i];
+		if (due < start) {
+			out.push({ reminder, due, eve: false });
+			return;
+		}
+		if (reminder.kind !== 'day_at' || reminder.days !== 0 || shortNotice || eveTaken) return;
+		eveTaken = true;
+		out.push({
+			reminder,
+			due: reminderDueAt({ kind: 'day_at', days: 1, time: EVE_TIME, enabled: true }, start),
+			eve: true
+		});
+	});
+	return out;
+}
+
+/**
+ * «el mismo día a las 9:00», o, si sale el día anterior (ver {@link reminderSchedule}), «el mismo
+ * día a las 9:00 → el día anterior a las 20:00 (empieza antes)».
+ *
+ * @param {Reminder} r
+ * @param {boolean} eve
+ */
+export function describeScheduledReminder(r, eve) {
+	return eve
+		? `${describeReminder(r)} → el día anterior a las ${EVE_TIME} (empieza antes)`
+		: describeReminder(r);
+}
+
+/**
  * Un evento para los recordatorios. `slug`: el de las órdenes. `part`: si es una parte (2 en
  * adelante) de un taller con una sola entrada, la dirección de la parte (y `start` es el de la
  * parte); las órdenes son las del taller (`slug`).
@@ -155,6 +223,7 @@ export function reminderKey(r, part) {
  *   reminders: Reminder[],
  *   now: number
  * }} input
+ * `reminder` lleva `eve: true` si es un «el mismo día» que sale el día anterior.
  * @returns {Promise<{ order: import('./orders.js').Order, reminder: Reminder, id: string, slug: string, part: string | null }[]>}
  */
 export async function dueReminderOrders(db, { events, reminders, now }) {
@@ -167,7 +236,7 @@ export async function dueReminderOrders(db, { events, reminders, now }) {
 		for (const order of /** @type {import('./orders.js').Order[]} */ (results)) {
 			out.push({
 				order,
-				reminder: item.reminder,
+				reminder: item.eve ? { ...item.reminder, eve: true } : item.reminder,
 				id: item.id,
 				slug: item.slug,
 				part: item.part
@@ -186,22 +255,22 @@ export async function dueReminderOrders(db, { events, reminders, now }) {
  *   reminders: Reminder[],
  *   now: number
  * }} input
- * @returns {{ slug: string, reminder: Reminder, id: string, due: number, part: string | null }[]}
+ * El id es el del recordatorio aunque salga el día anterior (`eve`): una sola vez por compra.
+ * @returns {{ slug: string, reminder: Reminder, id: string, due: number, eve: boolean, part: string | null }[]}
  */
 export function dueReminderPlan({ events, reminders, now }) {
 	const out = [];
 	const sorted = [...events].sort((a, b) => a.start - b.start);
 	for (const e of sorted) {
 		if (!e.reminders || e.cancelled || !(e.start > now)) continue;
-		for (const r of reminders) {
-			if (!r.enabled) continue;
-			const due = reminderDueAt(r, e.start);
+		for (const { reminder: r, due, eve } of reminderSchedule(reminders, e.start)) {
 			if (due > now || due >= e.start) continue;
 			out.push({
 				slug: e.slug,
 				reminder: r,
 				id: reminderKey(r, e.part),
 				due,
+				eve,
 				part: e.part ?? null
 			});
 		}
