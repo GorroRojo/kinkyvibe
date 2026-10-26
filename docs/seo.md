@@ -206,23 +206,28 @@ comprimido con gzip (lo que viaja es parecido: Cloudflare manda brotli, `/calend
 - **`/wiki/<término>`**: `PostList` con `limit={20}` y «Ver más (N)», como el inicio. Los datos
   llegan enteros del servidor.
 - **La búsqueda y los filtros no dependen de lo que se ve**: `filterPosts` (postSearch.js), el
-  árbol, los chips de la barra y el buscador leen `post.meta.tags` enteras. Con una búsqueda
-  (etiqueta o texto), `PostList` filtra la lista entera y muestra todo lo que encuentra, sin el
-  límite de 20; al despejarla vuelve a lo que se veía antes (las 20, o más si se tocó «Ver más»).
+  árbol, los chips de la barra y el buscador leen `post.meta.tags` enteras, nunca los chips de la
+  tarjeta: una publicación con la etiqueta buscada detrás del «+N» aparece igual (lo prueban
+  `PostList.test.js` y `relacionadas-render.test.js`). Los filtros miran la lista entera: con
+  etiquetas elegidas se ven de a 20 entre las que coinciden, y con texto en la búsqueda, todo lo
+  que encontró (como en `/material`). Si una tarjeta todavía no tiene sus etiquetas, la fila queda
+  vacía sin romperse (`cardTags`).
+- Los chips siguen como antes: links recién después de hidratar. El «+N» no suma links.
 
-Medido con la semilla pública (`npm run build` + `vite preview`, HTML del servidor; entre
-paréntesis, con gzip; en KB). Los datos de la página no cambian (la opción 2b no se hizo):
+Medido con la semilla pública (`npm run db:semilla`, `npm run build` + `vite preview`, HTML del
+servidor; entre paréntesis, con gzip; en KB). Los datos de la página no cambian (la opción 2b no
+se hizo):
 
 | Página          | Tarjetas antes → después | HTML antes   | HTML después |
 | --------------- | ------------------------ | ------------ | ------------ |
-| `/material`     | 55 → 55                  | 284,6 (41,7) | 275,4 (41,0) |
-| `/wiki/BDSM`    | 53 → 20                  | 294,0 (44,2) | 187,9 (36,4) |
-| `/wiki/español` | 81 → 20                  | 367,8 (53,0) | 186,7 (38,8) |
-| `/` (el inicio) | 20 → 20                  | 224,5 (42,6) | 218,7 (41,9) |
+| `/material`     | 24 → 24                  | 183,7 (34,6) | 179,6 (34,3) |
+| `/wiki/BDSM`    | 53 → 20                  | 290,7 (44,5) | 186,8 (36,6) |
+| `/wiki/español` | 81 → 20                  | 363,0 (53,4) | 185,7 (39,2) |
+| `/` (el inicio) | 20 → 20                  | 202,9 (36,7) | 196,8 (36,0) |
 
-En `/material` el ahorro es menor que lo estimado (−9 KB y no −20 a −35): en la semilla, la
-mayor parte del material tiene 6 o 7 etiquetas (sin contar KinkyVibe), así que cada tarjeta
-esconde 1 o 2 chips.
+En `/material` el ahorro es chico (−4 KB y no −20 a −35 como se estimó): ya va de a 24 tarjetas y,
+en la semilla, la mayor parte del material tiene 6 o 7 etiquetas (sin contar KinkyVibe), así que
+cada tarjeta esconde 1 o 2 chips.
 
 ### Lo demás
 
