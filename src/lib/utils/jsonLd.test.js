@@ -163,8 +163,27 @@ describe('eventSchema', () => {
 		const area = roundTrip(
 			eventSchema({ meta: EVENT, venue: { level: 'area', area: 'Barrio Inventado', city: 'CABA' } })
 		);
-		expect(area.location).toEqual({ '@type': 'Place', name: 'Barrio Inventado, CABA' });
+		expect(area.location).toEqual({
+			'@type': 'Place',
+			name: 'Barrio Inventado, CABA',
+			address: {
+				'@type': 'PostalAddress',
+				addressLocality: 'Barrio Inventado, CABA',
+				addressCountry: 'AR'
+			}
+		});
 		expect(area.eventAttendanceMode).toBe('https://schema.org/OfflineEventAttendanceMode');
+	});
+
+	it('lugar oculto con etiqueta de región: solo la ciudad, sin nombre ni calle', () => {
+		const e = roundTrip(
+			eventSchema({ meta: { ...EVENT, tags: ['AMBA'] }, venue: { level: 'hidden' } })
+		);
+		expect(e.location).toEqual({
+			'@type': 'Place',
+			address: { '@type': 'PostalAddress', addressLocality: 'Buenos Aires', addressCountry: 'AR' }
+		});
+		expect(e.location.name).toBeUndefined();
 	});
 
 	it('online: VirtualLocation', () => {

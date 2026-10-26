@@ -251,10 +251,64 @@ export function eventPlace(meta, venue) {
 }
 
 /**
+ * La dirección de cada etiqueta de región (las hojas de «lugar» › «Presencial»: la etiqueta que
+ * la página del evento ya muestra en todos los niveles de privacidad del lugar), a nivel ciudad o
+ * país. Nunca una calle. Una región que no está acá no da dirección (no se inventa).
+ * @type {Readonly<Record<string, Readonly<{ addressLocality?: string, addressRegion?: string, addressCountry: string }>>>}
+ */
+export const REGION_ADDRESS = Object.freeze({
+	AMBA: Object.freeze({ addressLocality: 'Buenos Aires', addressCountry: 'AR' }),
+	Córdoba: Object.freeze({
+		addressLocality: 'Córdoba',
+		addressRegion: 'Córdoba',
+		addressCountry: 'AR'
+	}),
+	Rosario: Object.freeze({
+		addressLocality: 'Rosario',
+		addressRegion: 'Santa Fe',
+		addressCountry: 'AR'
+	}),
+	'La Plata': Object.freeze({
+		addressLocality: 'La Plata',
+		addressRegion: 'Buenos Aires',
+		addressCountry: 'AR'
+	}),
+	'Santa Cruz': Object.freeze({ addressRegion: 'Santa Cruz', addressCountry: 'AR' }),
+	Montevideo: Object.freeze({ addressLocality: 'Montevideo', addressCountry: 'UY' }),
+	Argentina: Object.freeze({ addressCountry: 'AR' }),
+	Uruguay: Object.freeze({ addressCountry: 'UY' }),
+	Chile: Object.freeze({ addressCountry: 'CL' }),
+	Brasil: Object.freeze({ addressCountry: 'BR' })
+});
+
+/** Las regiones por su nombre en minúsculas (las etiquetas se escriben a mano). */
+const REGION_BY_LOWER = new Map(Object.keys(REGION_ADDRESS).map((k) => [k.toLowerCase(), k]));
+
+/**
+ * La dirección (schema.org `PostalAddress`, ciudad o país) de la primera etiqueta de región del
+ * evento ({@link REGION_ADDRESS}), o nada.
+ * @param {unknown} tags
+ * @returns {{ '@type': 'PostalAddress', addressLocality?: string, addressRegion?: string, addressCountry: string } | undefined}
+ */
+export function regionAddress(tags) {
+	if (!Array.isArray(tags)) return undefined;
+	for (const tag of tags) {
+		if (typeof tag !== 'string') continue;
+		const key = REGION_BY_LOWER.get(tag.trim().toLowerCase());
+		if (key) return { '@type': 'PostalAddress', ...REGION_ADDRESS[key] };
+	}
+	return undefined;
+}
+
+/**
  * El lugar de un evento para sus datos estructurados (schema.org): `eventAttendanceMode` y
  * `location`, coherentes con lo que muestra la página. Con lugar vinculado, el lugar (lo que su
- * nivel deja ver); online, `VirtualLocation` (con el link de inscripción si es web); con «Dónde»,
- * un `Place`; sin nada, sin modo ni lugar (no se dice que es online).
+ * nivel deja ver, `venueSchema`); online, `VirtualLocation` (con el link de inscripción si es
+ * web); con «Dónde», un `Place` con su nombre (nunca el título del evento) y la dirección tal
+ * cual. Si al lugar le falta la dirección (un lugar «Sólo Nombre» u oculto, un «Dónde» sin
+ * dirección o nada), la de la etiqueta de región que muestra la página ({@link regionAddress}):
+ * así el evento se puede ubicar sin decir más que la página. Un lugar oculto va sin nombre. Sin
+ * nada (ni lugar, ni «Dónde», ni región), sin modo ni lugar (no se dice que es online).
  *
  * @param {Record<string, any>} meta
  * @param {import('./venues.js').VenueView | null | undefined} venue
@@ -263,7 +317,17 @@ export function eventPlace(meta, venue) {
  */
 export function eventPlaceSchema(meta, venue, webLink) {
 	const OFFLINE = 'https://schema.org/OfflineEventAttendanceMode';
-	if (venue) return { eventAttendanceMode: OFFLINE, location: venueSchema(venue) };
+	const region = () => regionAddress(meta?.tags);
+	if (venue) {
+		const place = venueSchema(venue);
+		if (place?.address) return { eventAttendanceMode: OFFLINE, location: place };
+		const address = region();
+		if (!place && !address) return { eventAttendanceMode: OFFLINE };
+		return {
+			eventAttendanceMode: OFFLINE,
+			location: { ...(place ?? { '@type': 'Place' }), ...(address ? { address } : {}) }
+		};
+	}
 	if (isOnlinePlace(meta)) {
 		return {
 			eventAttendanceMode: 'https://schema.org/OnlineEventAttendanceMode',
@@ -271,16 +335,26 @@ export function eventPlaceSchema(meta, venue, webLink) {
 		};
 	}
 	const name = trimmed(meta.location_name);
-	const address = trimmed(meta.location);
-	if (!name && !address) return {};
+	const text = trimmed(meta.location);
+	const fromRegion = region();
+	if (!name && !text && !fromRegion) return {};
+	const address = text
+		? { '@type': 'PostalAddress', streetAddress: text, ...omitType(fromRegion) }
+		: fromRegion;
 	return {
 		eventAttendanceMode: OFFLINE,
-		location: {
-			'@type': 'Place',
-			name: name || trimmed(meta.title) || address,
-			...(address ? { address: { '@type': 'PostalAddress', name: address } } : {})
-		}
+		location: { '@type': 'Place', ...(name ? { name } : {}), ...(address ? { address } : {}) }
 	};
+}
+
+/**
+ * Una dirección de región sin su `@type` (para sumarla a otra).
+ * @param {Record<string, unknown> | undefined} address
+ */
+function omitType(address) {
+	if (!address) return {};
+	const { '@type': _type, ...rest } = address;
+	return rest;
 }
 
 /** Los campos del «Dónde» del .md (texto libre de quien edita). */

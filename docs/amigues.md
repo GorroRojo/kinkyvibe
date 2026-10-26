@@ -131,6 +131,14 @@ Demo con datos inventados: `node scripts/demo/n3-amigues.js` y después `npm run
 - **Los datos estructurados y la tarjeta de contacto tampoco**: el JSON-LD (`ProfilePage`), la
   h-card y `/amigues/<perfil>/contacto.vcf` usan solo lo que muestra la página (el contacto de
   `contactItems()` y la dirección según el nivel). Ver [seo.md](seo.md).
+- **La dirección estructurada** (`venuePostalAddress` en `src/lib/utils/venues.js`) es una sola
+  para el perfil del lugar y para sus eventos: calle (`streetAddress`) solo en «Nombre +
+  dirección» y «Sólo dirección»; barrio y ciudad (`addressLocality`) también en «Sólo barrio»;
+  nada en «Sólo Nombre» y «Nada». En un evento, el `Place` lleva el link al lugar (`url`, `@id`)
+  solo en los niveles que lo muestran. Si al evento le falta la dirección, va la ciudad o el país
+  de su etiqueta de región (AMBA, Córdoba, Montevideo…; `regionAddress` en `eventPlace.js`), que la
+  página ya muestra; con el lugar oculto, ese `Place` va sin nombre. Las pruebas por nivel están en
+  `venues.test.js` y `eventPlace.test.js`.
 
 ## Privacidad de los lugares
 
