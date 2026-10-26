@@ -113,6 +113,39 @@ export function smallSrcset(src) {
 }
 
 /**
+ * El `srcset` del afiche de la página de un evento (un cuadrado de ancho variable con
+ * `object-fit: cover`; el `sizes` lo pone la página según su CSS): las dos copias y, si se saben las
+ * medidas del original, el original como la opción más grande. '' si la imagen no tiene copias.
+ *
+ * Como el cuadrado recorta al centro, lo que tiene que alcanzar es el **lado corto** (igual que en
+ * las tarjetas): cada opción se anota con su lado corto (`360w`, `720w`, el del original) y no con
+ * su ancho, así una imagen apaisada no elige una copia que se ve borrosa. El tamaño en pantalla lo
+ * manda el CSS (ancho y `aspect-ratio`), así que ese número no cambia cómo se ve. Sin medidas (una
+ * portada vieja sin `width`/`height`) quedan solo las copias. Dos opciones con el mismo lado (un
+ * original chico) quedan en una: la más liviana, la copia.
+ * @param {unknown} src
+ * @param {{ width?: number | null, height?: number | null } | null | undefined} [size] las medidas
+ *   del original (la portada de la biblioteca)
+ */
+export function posterSrcset(src, size) {
+	if (!copyUrl(src, 360)) return '';
+	const w = Number(size?.width);
+	const h = Number(size?.height);
+	const short = w > 0 && h > 0 ? Math.round(Math.min(w, h)) : 0;
+	const options = COPY_SIDES.map(
+		(side) =>
+			/** @type {[string, number]} */ ([copyUrl(src, side), short ? Math.min(side, short) : side])
+	);
+	if (short) options.push([String(src), short]);
+	/** @type {Set<number>} */
+	const seen = new Set();
+	return options
+		.filter(([, width]) => !seen.has(width) && seen.add(width))
+		.map(([url, width]) => `${url} ${width}w`)
+		.join(', ');
+}
+
+/**
  * Pura (la pasada única, scripts/copias-chicas.js): de todas las claves del bucket, las copias que
  * faltan, una por original y lado. Nunca devuelve una clave que ya está.
  * @param {Iterable<string>} keys todas las claves del bucket (originales, copias y archivos)

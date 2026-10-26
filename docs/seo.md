@@ -36,16 +36,28 @@ guía: `compartir.md` (llega con el PR #257).
 
 | Página             | Tipo                                                                                     |
 | ------------------ | ---------------------------------------------------------------------------------------- |
-| Inicio             | `Organization` (logo, contacto público, redes)                                           |
+| Inicio             | `WebSite` (nombre y `alternateName`) y `Organization` (logo, contacto público, redes)    |
 | Evento             | `Event`: estado, modo (presencial u online), lugar según privacidad, `offers`, organizer |
-| Material           | `Article`; `DigitalDocument` si es descargable; `CreativeWork` si es interactivo         |
+| Material           | `Article` (+ `DigitalDocument` si es descargable); `CreativeWork` si es interactivo      |
 | `/wiki`            | `DefinedTermSet` (la Kinkipedia)                                                         |
 | Entrada de la wiki | `DefinedTerm` con `inDefinedTermSet` (también una etiqueta sin entrada con descripción)  |
 | Perfil             | `ProfilePage` con `Person` (persona), `Organization` (proyecto) o `Place` (lugar)        |
 
+El perfil de KinkyVibe (`/amigues/KinkyVibe`, por su dirección) lleva el `@id` de la organización
+de la portada (`ORGANIZATION_ID`): es la misma entidad. Todas las páginas dicen `inLanguage`
+`es-AR`, como `<html lang>`.
+
+Les autores (`organizer` de un evento, `author` del material): KinkyVibe es la organización; quien
+tiene un perfil **listado y público** lleva su `url` (y el `@id` de su perfil; un lugar va como
+`Organization` sin `@id`). La lista sale de `sitePosts` (lo que ve cualquiera sin sesión,
+`authorLinksFrom` en `jsonLd.js`), nunca de lo que ve quien mira con sesión: un perfil oculto o no
+listado queda solo con el nombre.
+
 `offers` de un evento: con venta en el sitio, el precio «desde» en ARS, la disponibilidad
 (`InStock`, `SoldOut`, `PreOrder` con `validFrom`) y el link a `/entradas`; sin venta, el link de
-inscripción (precio 0 si tiene la etiqueta `gratis`). Cancelado o pasado: sin oferta.
+inscripción (precio 0 si tiene la etiqueta `gratis`; disponibilidad según el «Estado»: abierto →
+`InStock`, agotadas → `SoldOut`, anunciado o sin estado → no se dice). Cancelado o pasado: sin
+oferta.
 
 ### Fechas legibles por máquina
 
@@ -56,7 +68,7 @@ de `src/lib/utils/dates.js` las convierten.
 | Dónde                                                       | Helper        | Ejemplo                     |
 | ----------------------------------------------------------- | ------------- | --------------------------- |
 | `article:published_time` / `article:modified_time` (OG)     | `isoDateTime` | `2024-12-06T00:00:00-03:00` |
-| JSON-LD (`datePublished`, `dateModified`, `startDate`...)   | `isoDate`     | `2024-12-06T00:00:00-03:00` |
+| JSON-LD (`datePublished`, `startDate`, `endDate`...)        | `isoDate`     | `2024-12-06T00:00:00-03:00` |
 | `<time datetime>` de una fecha de publicación (solo el día) | `isoDay`      | `2024-12-06`                |
 | `<time datetime>` de un evento (ya viene con hora y zona)   | tal cual      | `2026-10-02T22:00-03:00`    |
 | Sitemap y feeds (`lastmod`, `published`, `updated`)         | `Date`        | `2024-12-06T03:00:00.000Z`  |
