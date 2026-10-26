@@ -725,8 +725,9 @@ describe('buscador del control de ingreso', () => {
 			for (const r of rows) {
 				expect(r.match).toEqual({ field: 'dni', label: 'DNI', value: '333' });
 				expect(r).not.toHaveProperty('dni');
-				// Ningún tramo de 4 dígitos seguidos del DNI en lo que viaja al celu.
-				const sent = JSON.stringify(r);
+				// Ningún tramo de 4 dígitos seguidos del DNI en lo que viaja al celu. Sin `id` ni `token`:
+				// son al azar (UUID y base64) y a veces traen esos dígitos de casualidad.
+				const sent = JSON.stringify({ ...r, id: undefined, token: undefined });
 				for (let i = 0; i + 4 <= 8; i++) expect(sent).not.toContain('31222333'.slice(i, i + 4));
 			}
 		}
