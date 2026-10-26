@@ -87,6 +87,29 @@ describe('todos los mails usan la plantilla común', () => {
 		expect(html).toContain('Kinky Vibe · Buenos Aires');
 	});
 
+	it('los mails de una compra y los de la oferta llevan preencabezado, sin el título del evento', () => {
+		const withPreheader = new Set([
+			'buildTicketEmail',
+			'buildReminderEmail',
+			'buildDateChangeEmail',
+			'buildWaitlistOfferEmail',
+			'buildWaitlistReminderEmail',
+			'buildBuyerMail'
+		]);
+		let seen = 0;
+		for (const [name, fn, input] of cases) {
+			if (!withPreheader.has(fn.name)) continue;
+			seen++;
+			const { html } = fn(input);
+			const pre = html.split(`${MAIL_PREHEADER_MARK}>`)[1]?.split('<')[0];
+			expect(pre, name).toBeTruthy();
+			// El título puede ser sensible: no va en la vista previa de la bandeja.
+			expect(pre, name).not.toContain('Fiesta');
+			expect(pre, name).not.toMatch(/https?:|@/);
+		}
+		expect(seen).toBeGreaterThanOrEqual(withPreheader.size);
+	});
+
 	it.each(cases)('%s: el asunto y el texto plano no cambian', (name, fn, input) => {
 		const { subject, text } = fn(input);
 		expect({ subject, text }).toEqual(textGolden[name]);

@@ -166,7 +166,10 @@ prendido. Van al mail de la cuenta, uno por cuenta, evento y tipo
   con ese mail, si lo seguía desde antes de que el cron viera el evento (`follow_events_seen`). La
   primera corrida de todas anota lo que ya estaba con fecha 0: prender el interruptor no manda una
   tanda de mails por todo lo ya anunciado.
-- **Recordatorio el día antes**: cuando faltan 24 horas o menos para el evento. No sale (ni por
+- **Recordatorio el día antes**: cuando faltan 24 horas o menos para el evento. Como puede salir
+  el mismo día (alguien empezó a seguir algo, o se anunció con menos de un día), el asunto y el
+  título dicen «Hoy», «Mañana» o «Se viene» según el día del evento y el del envío, en hora de
+  Argentina (`followReminderDay` en `src/lib/server/sigo/email.js`). No sale (ni por
   mail ni por Telegram) si la cuenta ya tiene entrada (orden aprobada con su `account_id` o su
   mail): le llegan los recordatorios de las entradas.
 

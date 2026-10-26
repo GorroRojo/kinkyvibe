@@ -2,6 +2,7 @@
  * Email con las entradas, enviado con la API REST de Resend (POST https://api.resend.com/emails).
  */
 import {
+	argDateList,
 	argDateTimeLong,
 	argDeadline,
 	argTime,
@@ -141,6 +142,22 @@ export function applyTemplate(template, vars) {
 		helpText: help === null ? null : plain(help),
 		whyHtml: why === null ? null : renderInlineHtml(why, vars)
 	};
+}
+
+/**
+ * El preencabezado de los mails de una compra (lo que la bandeja muestra al lado del asunto):
+ * `lead`, el día y la hora cortos y el nombre del lugar. Nunca el título del evento (puede ser
+ * sensible y ya está en el asunto), datos personales, links ni códigos.
+ *
+ * @param {string} lead
+ * @param {{ start?: string, online?: boolean, location_name?: string }} event
+ */
+function eventPreheader(lead, event) {
+	const d = event.start ? parseSiteDate(event.start) : null;
+	// `now` = la misma fecha: sin el año («sáb 10 oct · 22:00»), igual en todos los mails.
+	const day = d && !Number.isNaN(d.getTime()) ? argDateList(d, { now: d }) : '';
+	const place = event.online ? '' : (event.location_name?.trim() ?? '');
+	return [lead, day, place].filter(Boolean).join(' · ');
 }
 
 /**
@@ -402,6 +419,10 @@ export function buildTicketEmail({
 
 	const html = mailLayout({
 		origin,
+		preheader: eventPreheader(
+			online ? 'Tu entrada para el evento online' : 'Tu QR para la puerta',
+			event
+		),
 		label: custom.label ?? 'Tus entradas',
 		titleHtml: custom.headingHtml ?? '¡Ya tenés tus entradas!',
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por ${order.payment_method === 'gratis' ? 'anotarte' : 'tu compra'}.</p>`}
@@ -444,13 +465,19 @@ export function buildTicketEmail({
 		...(online && event.streamLink && custom.helpText !== null ? [custom.helpText] : []),
 		...links.map(
 			(l, i) =>
-				`Entrada ${i + 1} (${holder(tickets[i])})${!online && tickets[i].code ? ` · código ${displayCode(tickets[i].code)}` : ''}: ${l}`
+				`Entrada ${i + 1} · ${holder(tickets[i])}${!online && tickets[i].code ? ` · código ${displayCode(tickets[i].code)}` : ''}: ${l}`
 		),
 		...combo.text,
 		'',
 		`Número de orden: ${order.id}`,
+		'Si tenés algún problema, respondé este mail.',
 		policy.text,
-		...optOut.text
+		...optOut.text,
+		'',
+		// Como en los demás mails, lo que se cambia en la plantilla (etiqueta, botón, pie) es solo
+		// del HTML: el texto plano dice siempre el «por qué te llega» de siempre.
+		whyFor(order),
+		`¿Dudas? Escribinos a ${contactEmail}`
 	]
 		.filter((l) => l !== undefined)
 		.join('\n');
@@ -598,6 +625,11 @@ export function buildReminderEmail({
 		: '<p>Llevá el QR de cada entrada (en el celu o impreso). Si no se puede escanear, alcanza con el código.</p>';
 	const html = mailLayout({
 		origin,
+		// Distinto del de «Tus entradas»: según cuándo sale.
+		preheader: eventPreheader(
+			`${soon[0].toUpperCase()}${soon.slice(1)}${online ? '' : ': tené a mano tu QR'}`,
+			event
+		),
 		label: custom.label ?? 'Recordatorio',
 		titleHtml: custom.headingHtml ?? `¡${escapeHtml(event.title)} ${soon}!`,
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, te recordamos que tenés ${tickets.length === 1 ? 'una entrada' : `${tickets.length} entradas`} (${escapeHtml(typeName)}).</p>`}
@@ -711,6 +743,7 @@ export function buildDateChangeEmail({
 	const help = def?.extras.help?.default ?? '';
 	const html = mailLayout({
 		origin,
+		preheader: eventPreheader('Fecha nueva', event),
 		label: custom.label ?? 'Cambio de fecha',
 		titleHtml: custom.headingHtml ?? 'Cambió la fecha',
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, cambió la fecha de <strong>${escapeHtml(event.title)}</strong>. Lo que compraste sigue valiendo para la fecha nueva: no tenés que hacer nada.</p>`}
