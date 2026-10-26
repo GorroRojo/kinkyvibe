@@ -3,6 +3,7 @@
  * y lo que se cobra (con el descuento del Fondo o con un aporte) no parecen dos precios distintos.
  */
 import { formatARS } from '$lib/utils/money.js';
+import { ORDER_MAX_TOTAL, fondoFor, parseAmount } from '$lib/utils/tickets.js';
 
 /** @param {number} part @param {number} whole */
 const percent = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
@@ -49,4 +50,44 @@ export function resetDoorSaleForm(form) {
 	);
 	for (const r of radios) r.checked = r.value === DOOR_SALE_DEFAULT_METHOD;
 	return DOOR_SALE_DEFAULT_METHOD;
+}
+
+/**
+ * El precio por entrada que se escribió en «Vender en puerta» (pesos enteros, con `parseAmount`:
+ * «12.000», «$ 12000» o «0»), o `null` si no es un entero de 0 a `ORDER_MAX_TOTAL` (el mismo tope
+ * que el precio de un tipo). Lo usan la pantalla (la cuenta a la vista) y el servidor
+ * (`parseDoorSale`).
+ * @param {unknown} raw
+ * @returns {number | null}
+ */
+export function parseDoorAmount(raw) {
+	const n = parseAmount(raw);
+	return n !== null && n <= ORDER_MAX_TOTAL ? n : null;
+}
+
+/**
+ * Precio y Fondo por entrada de lo que se va a cobrar en la puerta (la cuenta a la vista): el del
+ * tipo si no se cambió; si se cambió, el Fondo con el mismo porcentaje (`fondoFor`, como
+ * `parseDoorPrice` en el servidor). `null` si el monto no es válido.
+ * @param {{ price: number, fondo: number }} type el precio en la puerta del tipo (`doorPrice`)
+ * @param {unknown} amount lo que se escribió ('' = el del tipo)
+ * @param {number | null} fondoPercent
+ * @returns {{ price: number, fondo: number } | null}
+ */
+export function doorChargedPrice(type, amount, fondoPercent) {
+	if (String(amount ?? '').trim() === '') return { price: type.price, fondo: type.fondo };
+	const price = parseDoorAmount(amount);
+	if (price === null) return null;
+	if (price === type.price) return { price, fondo: type.fondo };
+	return { price, fondo: fondoFor(price, fondoPercent) };
+}
+
+/**
+ * «Precio cambiado en la puerta: $ 5.000 en vez de $ 12.000» (o «sin cargo en vez de …»); '' si
+ * se cobró el precio de siempre (`list` null o igual).
+ * @param {{ charged: number, list: number | null | undefined }} p por entrada
+ */
+export function doorPriceChangeText({ charged, list }) {
+	if (list === null || list === undefined || list === charged) return '';
+	return `Precio cambiado en la puerta: ${charged === 0 ? 'sin cargo' : formatARS(charged)} en vez de ${formatARS(list)}`;
 }
