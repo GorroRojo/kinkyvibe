@@ -227,6 +227,23 @@ describe('amigues (la lista)', () => {
 		expect(meta['og:title']).toBe('Amigues · ' + evil);
 		expect(new URL(meta['og:url']).searchParams.get('tags')).toBe(evil);
 	});
+
+	it('las listas se indexan: sin robots', async () => {
+		expect(single(await amiguesHead('/amigues'))).not.toHaveProperty('robots');
+	});
+});
+
+describe('/todo', () => {
+	it('noindex (sin nofollow): junta las otras listas, los buscadores siguen sus links', async () => {
+		at('/todo');
+		const { default: ListSeoHead } = await import('$lib/components/ListSeoHead.svelte');
+		const head = render(ListSeoHead, { props: { section: 'todo', noindex: true } }).head;
+		expect(single(head).robots).toBe('noindex');
+		// y la página lo pide así (sin compilarla entera: la fuente alcanza)
+		const { readFileSync } = await import('node:fs');
+		const source = readFileSync(new URL('./todo/+page.svelte', import.meta.url), 'utf8');
+		expect(source).toMatch(/<ListSeoHead section="todo" noindex \/>/);
+	});
 });
 
 /** Una portada de la biblioteca inventada. */

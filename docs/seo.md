@@ -92,7 +92,7 @@ se conoce: el de una publicación es su `updated_date` o `published_date`; el de
 más nueva de lo que lista; `/` y `/wiki` van sin. Nunca la hora del pedido: si el `lastmod`
 cambia en cada visita, Google deja de creerle.
 
-- **`/todo` no está y lleva `noindex,follow`**: junta las otras tres listas y competía con ellas;
+- **`/todo` no está y lleva `noindex`** (sin `nofollow`): junta las otras tres listas y competía con ellas;
   los buscadores siguen sus links pero no la guardan.
 - **`/login` lleva `noindex`** (meta y cabecera `X-Robots-Tag`): está enlazada desde el pie. No
   va en `robots.txt` con `Disallow`, porque así el buscador no podría leer el `noindex`.
