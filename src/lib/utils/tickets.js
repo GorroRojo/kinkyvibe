@@ -232,6 +232,17 @@ export function defaultFondoOption(fondo) {
 }
 
 /**
+ * Lo que cubre el Fondo de una entrada de `price` con el porcentaje del Fondo (redondeado al peso);
+ * 0 sin porcentaje (evento sin Fondo).
+ *
+ * @param {number} price
+ * @param {number | null} fondoPercent
+ */
+export function fondoFor(price, fondoPercent) {
+	return fondoPercent !== null ? Math.round((price * fondoPercent) / 100) : 0;
+}
+
+/**
  * Opciones que se ofrecen para un tipo de entrada (sin fondo, no aparece "Con el descuento del
  * fondo").
  *
