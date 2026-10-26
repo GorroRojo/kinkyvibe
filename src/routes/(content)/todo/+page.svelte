@@ -27,6 +27,10 @@
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md). -->
 <ListSeoHead section="todo" />
+<svelte:head>
+	<!-- Junta las otras tres listas: que los buscadores sigan sus links pero no la guarden (docs/seo.md, «Sitemap»). -->
+	<meta name="robots" content="noindex,follow" />
+</svelte:head>
 <div class="glosario">
 	<p>
 		Acá vas a poder ver todo el contenido del sitio en un mismo lugar, tanto cosas del <InlineTag tag="calendario" />, como <InlineTag tag="material" /> y <InlineTag tag="amigues" />. Entonces si te interesa, por ejemplo, el <InlineTag tag="shibari" /> vas a poder ver tanto <InlineTag tag="libros" internalTag="libro" /> y <InlineTag tag="talleres" internalTag="taller" /> como les profesionales que dan <InlineTag tag="clases" /> u ofrecen <InlineTag tag="sesiones" />.

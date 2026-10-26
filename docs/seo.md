@@ -83,6 +83,20 @@ que repetir las reglas de privacidad. Cada página los anuncia con `<link rel="a
 (`FeedLinks.svelte`); el feed de una etiqueta sin eventos ni material da 404. El RSS de siempre
 (`/rss`, en `app.html`) y los calendarios `.ics` siguen igual.
 
+### Sitemap
+
+`/sitemap.xml` (`src/routes/(content)/sitemap.xml/`): la raíz una sola vez (`/`), las listas
+`/calendario`, `/material`, `/amigues` y `/wiki`, las publicaciones listadas (sin las que
+redirigen) y las entradas de la wiki. Sin `<priority>` (Google la ignora). `lastmod` solo cuando
+se conoce: el de una publicación es su `updated_date` o `published_date`; el de una lista, la fecha
+más nueva de lo que lista; `/` y `/wiki` van sin. Nunca la hora del pedido: si el `lastmod`
+cambia en cada visita, Google deja de creerle.
+
+- **`/todo` no está y lleva `noindex,follow`**: junta las otras tres listas y competía con ellas;
+  los buscadores siguen sus links pero no la guardan.
+- **`/login` lleva `noindex`** (meta y cabecera `X-Robots-Tag`): está enlazada desde el pie. No
+  va en `robots.txt` con `Disallow`, porque así el buscador no podría leer el `noindex`.
+
 ### Microformats
 
 `h-event` en eventos, `h-entry` en material y wiki, `h-card` en el encabezado de cada perfil (con

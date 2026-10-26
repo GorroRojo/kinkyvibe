@@ -4,6 +4,15 @@ import { authCookieOptions, safeRedirect } from '$lib/server/auth';
 const target = 'https://github.com/login/oauth/authorize';
 /** Seconds the user has to complete the GitHub authorization. */
 const OAUTH_COOKIE_MAX_AGE = 10 * 60;
+
+/**
+ * La entrada de quienes editan: que los buscadores no la guarden (está enlazada desde el pie). Sin
+ * `Disallow` en robots.txt, para que puedan leer el `noindex`.
+ * @type {import("./$types").PageServerLoad}
+ */
+export const load = ({ setHeaders }) => {
+	setHeaders({ 'x-robots-tag': 'noindex' });
+};
 /** @type {import("./$types").Actions} */
 export const actions = {
 	default: async ({ request, cookies, url }) => {
