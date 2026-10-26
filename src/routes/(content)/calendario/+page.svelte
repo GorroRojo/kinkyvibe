@@ -3,6 +3,7 @@
 	import { linkPreviewOf, upcomingDescription } from '$lib/utils/seo.js';
 	import { userConfig } from '$lib/utils/stores.js';
 	import {
+		calendarMonthHref,
 		currentMonth,
 		defaultCalendarMonth,
 		isCalendarMonth,
@@ -115,13 +116,7 @@
 		!!data.firstMonth &&
 		prev_month >= data.firstMonth;
 	/** @param {string} month yyyy-MM */
-	const monthHref = (month) => {
-		const url = new URL($page.url);
-		url.hash = '';
-		if (month === default_month) url.searchParams.delete('viewdate');
-		else url.searchParams.set('viewdate', month);
-		return url.pathname + url.search;
-	};
+	const monthHref = (month) => calendarMonthHref($page.url, month, default_month);
 	/** @param {MouseEvent} e */
 	async function showPrevMonth(e) {
 		if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
@@ -169,7 +164,12 @@
 
 <div id="container">
 	<div id="calendar">
-		<CalendarHeader {view_date} {default_month} />
+		<CalendarHeader
+			{view_date}
+			{default_month}
+			first_month={data.firstMonth}
+			last_month={data.lastMonth}
+		/>
 		<button
 			type="button"
 			class="pill-btn ghost small grid-toggle tap-target"

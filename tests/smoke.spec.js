@@ -169,10 +169,15 @@ test.describe('calendario', () => {
 		// changing month is client-only: the loads don't read the query string
 		const dataRequests = [];
 		page.on('request', (r) => r.url().includes('__data.json') && dataRequests.push(r.url()));
-		await page.getByRole('button', { name: 'Next Month' }).click();
+		// Dentro del rango de meses con eventos las flechas son links rastreables (docs/seo.md). Hay
+		// eventos pasados en la semilla, así que el mes anterior siempre está en el rango (el
+		// siguiente depende de la fecha: puede no haber eventos después).
+		const prev = page.getByRole('link', { name: 'Previous Month' });
+		await expect(prev).toHaveAttribute('href', /^\/calendario\?viewdate=\d{4}-\d{2}$/);
+		await prev.click();
 		await expect(page).toHaveURL(/[?&]viewdate=\d{4}-\d{2}/);
 		await expect(month).not.toHaveText(first);
-		await page.getByRole('button', { name: 'Previous Month' }).click();
+		await page.getByRole('link', { name: 'Next Month' }).click();
 		await expect(month).toHaveText(first);
 		await expect(page).not.toHaveURL(/viewdate/);
 		await page.goBack();
@@ -180,6 +185,10 @@ test.describe('calendario', () => {
 		await page.goBack();
 		await expect(month).toHaveText(first);
 		expect(dataRequests).toEqual([]);
+		// Fuera del rango, la flecha sigue siendo un botón: no hay links a meses vacíos sin fin.
+		await page.goto('/calendario?viewdate=1999-01');
+		await expect(page.getByRole('button', { name: 'Previous Month' })).toBeVisible();
+		await expect(page.locator('a[href*="viewdate=1998-12"]')).toHaveCount(0);
 	});
 
 	test('/calendario.ics es un iCalendar válido con VEVENTs', async ({ request }) => {
