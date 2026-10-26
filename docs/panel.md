@@ -189,8 +189,12 @@ se puede compartir:
   buscador siguen yendo acá): entradas, cobrado y entrada promedio (con el cambio contra el período
   anterior), ventas en el tiempo, por serie, cómo pagan, opciones del fondo y Fondo y finanzas.
   Períodos 30 días / 90 días / **12 meses** (por defecto) / Todo, y filtro de serie (`?serie=`,
-  el slug sin la fecha, como «Por serie»). Lee las órdenes filtradas por fecha de compra en SQL
-  (desde el comienzo del período anterior, para comparar).
+  el slug sin la fecha, como «Por serie»). Los números, «Por serie», «Cómo pagan», las opciones del
+  fondo y «Fondo y finanzas» cuentan por el **mes del evento** (ver «Ventas por mes» abajo): las
+  ventas de los eventos que empiezan desde el comienzo del período hasta el fin del mes en curso.
+  Solo el gráfico «Ventas en el tiempo» va por **fecha de compra** (muestra cuándo se vendió). Lee
+  en SQL las órdenes compradas, o de eventos que empiezan, desde el comienzo del período anterior
+  (para comparar).
 - **Asistencia** (`/asistencia`): vinieron (check-in), personas que entraron, primera vez y
   vuelven (con el período anterior), vendidas y entraron, primera vez y vuelven, vuelven a la misma
   serie, vuelven por serie y asistencia por evento. Mismos períodos, por defecto 12 meses; cuentan
@@ -206,6 +210,27 @@ se puede compartir:
   con lo buscado y las cosas solo desde 5 veces y solo si esa semana lo usaron 5 personas o más
   (los umbrales, en la consulta). Lee solo las dos tablas del bot (y el vínculo con cuentas y
   admins); nunca las órdenes.
+
+**Ventas por mes** (decisión de gorrite, Mesa `plata-numeros-panel`): todo número de ventas por
+mes del panel cuenta cada orden en el **mes del evento**, no en el de la compra ni en el de la
+aprobación. Vale para «Entradas este mes» del Inicio y para Estadísticas › Ventas (números de
+arriba y «Fondo y finanzas» por mes), así cierran entre sí:
+
+- Cuenta el **comienzo** del evento (`start`; en la base, la columna `start_at` de `objects`). Un
+  evento de varios días (un taller en partes, un fin de semana) cuenta entero en el mes en que
+  empieza.
+- El mes es el calendario de **Argentina** (UTC−3): un evento que empieza el 31/10 a las 22:00 es
+  de octubre aunque en UTC ya sea 1/11, y uno del 1/11 a las 00:30 es de noviembre.
+- Si el evento ya no está en la base, la orden cuenta por su fecha de compra (para que esa plata no
+  desaparezca).
+- Las propinas «Para el Fondo» que suma el «Neto del fondo» del Inicio no tienen evento: van por su
+  fecha de aprobación.
+- No cambian: «Ventas en el tiempo» y «Ventas por día» de la ficha (fecha de compra, muestran cuándo
+  se vendió), ni los totales por evento.
+
+Código: `src/lib/server/admin/saleMonth.js` (`SALE_AT_SQL` y `saleAt`, una sola definición),
+`monthMoneyQuery` (`inicio.js`), `loadPeopleOrders` (`event_start`), `salesPage` (`statsPages.js`),
+`computeStats` y `lastMonths` (`stats.js`, meses en hora de Argentina) y `fondoByMonth` (`charts.js`).
 
 Ventas y Asistencia nunca llaman a Analytics Engine. `/admin/estadisticas` redirige a Ventas (una de
 las dos redirecciones del panel, ver «Mover una URL»). Código: `src/lib/admin/statsPeriod.js`

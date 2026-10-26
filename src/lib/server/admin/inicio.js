@@ -55,6 +55,7 @@ import {
 } from '$lib/server/contenido/etiquetasEdges.js';
 import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
 import { fondoTipTotalsStatement, readFondoTipTotals } from '$lib/server/propinas/index.js';
+import { SALE_AT_SQL } from './saleMonth.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /**
@@ -556,9 +557,11 @@ export function integrityRunQuery() {
 
 /**
  * Plata de entradas del mes calendario en curso (hora de Argentina): lo cobrado en órdenes
- * aprobadas creadas este mes, cuántas órdenes y entradas, y el neto del Fondo (aportes − lo que
- * cubrió). Los aportes son los de las entradas solidarias (`fondo_contribution`) más las propinas
- * "Para el Fondo" aprobadas este mes (`fondoTips`, ya sumadas en `fondoNet`; docs/propinas.md).
+ * aprobadas de los eventos que empiezan este mes (el mes del evento, no el de la compra:
+ * ./saleMonth.js), cuántas órdenes y entradas, y el neto del Fondo (aportes − lo que cubrió).
+ * Los aportes son los de las entradas solidarias (`fondo_contribution`) más las propinas
+ * "Para el Fondo" aprobadas este mes (`fondoTips`, ya sumadas en `fondoNet`; una propina no tiene
+ * evento: va por su fecha de aprobación; docs/propinas.md).
  *
  * @param {D1Database | null | undefined} db
  * @param {number} now
@@ -592,7 +595,7 @@ export function monthMoneyQuery(now) {
 							`SELECT COUNT(*) AS orders, COALESCE(SUM(quantity), 0) AS tickets,
 					COALESCE(SUM(total), 0) AS total,
 					COALESCE(SUM(fondo_contribution - fondo_amount), 0) AS fondo_net
-				FROM orders WHERE status = 'approved' AND created_at >= ? AND created_at < ?`
+				FROM orders o WHERE status = 'approved' AND ${SALE_AT_SQL} >= ?1 AND ${SALE_AT_SQL} < ?2`
 						)
 						.bind(start, end)
 				],
