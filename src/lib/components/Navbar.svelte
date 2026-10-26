@@ -9,9 +9,7 @@
 <nav>
 	<ul>
 		{#each links as { icon, name, sub, href, target = undefined }}
-			<li
-				class:current={isSectionActive($page.url.pathname, href)}
-			>
+			<li class:current={isSectionActive($page.url.pathname, href)}>
 				<a {href} {target} tabindex="0">
 					<span>
 						<span><svelte:component this={icon} size="1em" /></span>

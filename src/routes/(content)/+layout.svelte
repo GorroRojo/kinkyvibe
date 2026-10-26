@@ -21,7 +21,12 @@
 	import SearchLauncher from '$lib/components/SearchLauncher.svelte';
 	import SearchButton from '$lib/components/SearchButton.svelte';
 	import { accountLink } from '$lib/utils/cuentas.js';
-	import { breadcrumbLd, ownBackLink, sectionCrumb, sectionFromRouteId } from '$lib/utils/navigation.js';
+	import {
+		breadcrumbLd,
+		ownBackLink,
+		sectionCrumb,
+		sectionFromRouteId
+	} from '$lib/utils/navigation.js';
 	import { browser } from '$app/environment';
 	import { applyAccountSpeedChange, initReadingSpeed } from '$lib/utils/readingSpeed.js';
 	export let data;
