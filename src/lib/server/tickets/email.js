@@ -65,7 +65,11 @@ function calendarExtras({ order, event, online, origin, markup = false }) {
 	}
 	const googleUrl = googleCalendarUrl(calEvent);
 	const reservation = markup
-		? eventReservationScript({ orderId: order.id, buyerName: order.buyer_name, event: calEvent })
+		? eventReservationScript({
+				orderId: orderReference(order.id),
+				buyerName: order.buyer_name,
+				event: calEvent
+			})
 		: null;
 	const line = `Agregalo a tu calendario: abrí el archivo ${calendar.filename} que va adjunto.`;
 	return {
@@ -90,8 +94,33 @@ function whyFor(order) {
 	return order.payment_method === 'gratis' ? WHY_FREE : WHY_BOUGHT;
 }
 
-/** Línea chica del final de la tarjeta (número de orden, ayuda). */
+/** Línea chica del final de la tarjeta (número de compra, ayuda). */
 const SMALL = `margin:16px 0 0;font-size:13px;line-height:1.5;color:${MAIL_COLORS.muted}`;
+
+/**
+ * «Número de compra: KV-…»: la referencia corta, la misma que muestran la página de la compra, el
+ * mail de la transferencia y el panel (y que el buscador del panel encuentra), en vez del id entero.
+ *
+ * @param {{ id: string }} order
+ */
+const purchaseNumber = (order) => `Número de compra: ${orderReference(order.id)}`;
+
+/**
+ * El botón de los mails de una compra ya pagada (entradas, recordatorio, cambio de fecha), cuando
+ * no lleva a la transmisión. Con una sola entrada, a esa entrada con su QR: su link se abre en
+ * cualquier navegador y ya está en el cuerpo del mail. Con varias, a la página de la compra (que
+ * muestra las entradas solo en el navegador donde se compró; cada una tiene además su link en el
+ * mail).
+ *
+ * @param {{ id: string }} order
+ * @param {{ token: string }[]} tickets
+ * @param {string} origin
+ */
+function ticketsButton(order, tickets, origin) {
+	return tickets.length === 1
+		? { href: `${origin}/entradas/t/${tickets[0].token}`, label: 'Ver mi entrada' }
+		: { href: `${origin}/entradas/${order.id}/estado`, label: 'Ver mis entradas' };
+}
 
 /**
  * Plantilla guardada en el panel (ver emailTemplates.js): la general y, encima, la del evento,
@@ -411,12 +440,12 @@ export function buildTicketEmail({
 		button: withLabel(
 			online && event.streamLink
 				? { href: event.streamLink, label: 'Entrar a la transmisión' }
-				: { href: `${origin}/entradas/${order.id}/estado`, label: 'Ver mis entradas' },
+				: ticketsButton(order, tickets, origin),
 			custom.button
 		),
 		helpHtml: custom.helpHtml ?? intro,
 		afterHtml: `${ticketBlocks}${combo.html}
-		<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
+		<p style="${SMALL}">${purchaseNumber(order)}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
 		whyHtml: custom.whyHtml ?? whyFor(order),
 		contactEmail,
@@ -448,7 +477,7 @@ export function buildTicketEmail({
 		),
 		...combo.text,
 		'',
-		`Número de orden: ${order.id}`,
+		purchaseNumber(order),
 		policy.text,
 		...optOut.text
 	]
@@ -511,7 +540,7 @@ export function buildStreamLinkEmail({
 		button: withLabel({ href: link, label: 'Entrar a la transmisión' }, custom.button),
 		// Con una línea de ayuda propia, los links a cada entrada pasan al final de la tarjeta.
 		helpHtml: custom.helpHtml ?? ticketLinksHtml,
-		afterHtml: `${custom.helpHtml !== null && ticketLinksHtml ? `<p style="${SMALL}">${ticketLinksHtml}</p>` : ''}<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
+		afterHtml: `${custom.helpHtml !== null && ticketLinksHtml ? `<p style="${SMALL}">${ticketLinksHtml}</p>` : ''}<p style="${SMALL}">${purchaseNumber(order)}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
 		whyHtml: custom.whyHtml ?? whyFor(order),
 		contactEmail
@@ -527,7 +556,7 @@ export function buildStreamLinkEmail({
 		'',
 		...ticketLinks.map((l, i) => `Entrada ${i + 1}: ${l}`),
 		'',
-		`Número de orden: ${order.id}`,
+		purchaseNumber(order),
 		policy.text
 	].join('\n');
 	return cal.finish({ subject, html, text });
@@ -607,11 +636,11 @@ export function buildReminderEmail({
 		button: withLabel(
 			online && event.streamLink
 				? { href: event.streamLink, label: 'Entrar a la transmisión' }
-				: { href: `${origin}/entradas/${order.id}/estado`, label: 'Ver mis entradas' },
+				: ticketsButton(order, tickets, origin),
 			custom.button
 		),
 		helpHtml: custom.helpHtml ?? '',
-		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
+		afterHtml: `<p style="${SMALL}">${purchaseNumber(order)}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
 		whyHtml: custom.whyHtml ?? whyFor(order),
 		contactEmail
@@ -637,7 +666,7 @@ export function buildReminderEmail({
 		),
 		...(custom.helpText !== null ? ['', custom.helpText] : []),
 		'',
-		`Número de orden: ${order.id}`,
+		purchaseNumber(order),
 		policy.text
 	].join('\n');
 	return cal.finish({ subject, html, text });
@@ -724,11 +753,11 @@ export function buildDateChangeEmail({
 		button: withLabel(
 			stream
 				? { href: stream, label: 'Entrar a la transmisión' }
-				: { href: `${origin}/entradas/${order.id}/estado`, label: 'Ver mis entradas' },
+				: ticketsButton(order, tickets, origin),
 			custom.button
 		),
 		helpHtml: custom.helpHtml ?? escapeHtml(help),
-		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
+		afterHtml: `<p style="${SMALL}">${purchaseNumber(order)}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
 		whyHtml: custom.whyHtml ?? whyFor(order),
 		contactEmail
@@ -748,7 +777,7 @@ export function buildDateChangeEmail({
 		custom.helpText ?? help,
 		...(links.length ? ['', ...links.map((l, i) => `Entrada ${i + 1}: ${l}`)] : []),
 		'',
-		`Número de orden: ${order.id}`,
+		purchaseNumber(order),
 		policy.text
 	].join('\n');
 	return cal.finish({ subject, html, text });
@@ -786,7 +815,7 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, hicimos el reembolso${escapeHtml(amount)} de tu compra de ${order.quantity} × ${escapeHtml(typeName)} para <strong>${escapeHtml(event.title)}</strong>${event.start ? ` (${escapeHtml(formatEventDate(event.start))})` : ''}.</p>`}
 		<p>${escapeHtml(how)}</p>
 		<p>${order.quantity === 1 ? 'La entrada ya no es válida' : 'Las entradas ya no son válidas'} para ingresar.</p>`,
-		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés alguna duda, respondé este mail o escribinos a ${escapeHtml(contactEmail)}.</p>`,
+		afterHtml: `<p style="${SMALL}">${purchaseNumber(order)}<br>Si tenés alguna duda, respondé este mail o escribinos a ${escapeHtml(contactEmail)}.</p>`,
 		whyHtml: custom.whyHtml ?? WHY_BOUGHT,
 		contactEmail
 	});
@@ -798,7 +827,7 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
 		how,
 		order.quantity === 1 ? 'La entrada ya no es válida.' : 'Las entradas ya no son válidas.',
 		'',
-		`Número de orden: ${order.id}`,
+		purchaseNumber(order),
 		`Dudas: respondé este mail o escribinos a ${contactEmail}.`
 	].join('\n');
 	return { subject, html, text };
@@ -871,7 +900,7 @@ export function buildTransferEmail({
 		${details}`,
 		button: withLabel({ href: statusUrl, label: 'Ver el estado de tu compra' }, custom.button),
 		helpHtml: custom.helpHtml ?? '',
-		afterHtml: `<p style="${SMALL}">Número de orden: ${order.id}</p>
+		afterHtml: `<p style="${SMALL}">${purchaseNumber(order)}</p>
 		${policy.html}`,
 		whyHtml: custom.whyHtml ?? WHY_RESERVED,
 		contactEmail,
@@ -897,7 +926,7 @@ export function buildTransferEmail({
 		`Después mandanos el comprobante: ${where}, con la referencia ${ref}.`,
 		'',
 		`Estado de tu compra: ${statusUrl}`,
-		`Número de orden: ${order.id}`,
+		purchaseNumber(order),
 		policy.text,
 		...optOut.text
 	].join('\n');
