@@ -1,7 +1,6 @@
 <script>
 	import { argDateTimeLong } from '$lib/utils/dates.js';
 	import TicketPurchase from '$lib/components/TicketPurchase.svelte';
-	import { currentPostData } from '$lib/utils/stores.js';
 	import { doorText, ticketsAfterBuy } from '$lib/utils/tickets.js';
 	import { page } from '$app/stores';
 	import { venueLine } from '$lib/utils/venues.js';
@@ -16,10 +15,6 @@
 	 * }}
 	 */
 	let { data, form } = $props();
-
-	$effect(() => {
-		currentPostData.set({ category: 'calendario', path: $page.url.pathname });
-	});
 
 	// Si al comprar el porcentaje del Fondo o el tramo de preventa ya eran otros, el servidor
 	// contesta con los de ahora: la página muestra esos precios sin recargar (y confirmar de nuevo

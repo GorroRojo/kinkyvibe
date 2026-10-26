@@ -27,7 +27,6 @@
 	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { showEventTip } from '$lib/utils/propinas.js';
 	import { eventEnd } from '$lib/utils/dates.js';
-	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
@@ -63,7 +62,6 @@
 	// (y el botón dice a qué sitio lleva).
 	$: actionLink = safeEventLink(data.meta.link);
 	$: actionLinkTarget = isWebLink(actionLink) ? '_blank' : undefined;
-	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;

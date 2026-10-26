@@ -18,6 +18,23 @@ export function isSectionActive(pathname, href) {
 	return pathname === section || pathname.startsWith(section + '/');
 }
 
+/** Las páginas de una publicación: `/(content)/<sección>/[<param>]` (sin lo que cuelga de ellas). */
+const POST_ROUTE = /^\/\(content\)\/(calendario|material|amigues|wiki)\/\[[^\]/]+\]$/;
+
+/**
+ * La sección de la publicación que muestra una ruta, por su `route.id` de SvelteKit (`$page.route.id`):
+ * `/(content)/calendario/[event]` → `calendario`. Las demás páginas (las listas, Mi rincón, la
+ * compra de entradas…) → `null`. Sale de la ruta y no de los datos, así las migas de pan ya están
+ * en el HTML del servidor.
+ *
+ * @param {string | null | undefined} routeId
+ * @returns {'calendario' | 'material' | 'amigues' | 'wiki' | null}
+ */
+export function sectionFromRouteId(routeId) {
+	const match = POST_ROUTE.exec(routeId ?? '');
+	return match ? /** @type {'calendario' | 'material' | 'amigues' | 'wiki'} */ (match[1]) : null;
+}
+
 /**
  * La miga de pan de la sección de una publicación: lo que muestra el sitio y adónde lleva.
  *

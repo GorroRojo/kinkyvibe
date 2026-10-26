@@ -14,14 +14,14 @@
 	import { fade } from 'svelte/transition';
 	import Footer from '$lib/components/Footer.svelte';
 	import logo from '../logo.png';
-	import { filteredTags, currentPostData, togglePositiveTagFilterFn } from '$lib/utils/stores';
+	import { filteredTags, togglePositiveTagFilterFn } from '$lib/utils/stores';
 	import { page } from '$app/stores';
 	import AgeModal from '$lib/components/AgeModal.svelte';
 	import LoadingBar from '$lib/components/LoadingBar.svelte';
 	import SearchLauncher from '$lib/components/SearchLauncher.svelte';
 	import SearchButton from '$lib/components/SearchButton.svelte';
 	import { accountLink } from '$lib/utils/cuentas.js';
-	import { breadcrumbLd, ownBackLink, sectionCrumb } from '$lib/utils/navigation.js';
+	import { breadcrumbLd, ownBackLink, sectionCrumb, sectionFromRouteId } from '$lib/utils/navigation.js';
 	import { browser } from '$app/environment';
 	import { applyAccountSpeedChange, initReadingSpeed } from '$lib/utils/readingSpeed.js';
 	export let data;
@@ -58,13 +58,16 @@
 				);
 			}
 	);
-	// Migas de pan: las visibles y las de datos estructurados salen de lo mismo (sectionCrumb).
-	$: onPost = Boolean($currentPostData && $currentPostData.path == $page.url.pathname);
-	$: crumb = onPost ? sectionCrumb($currentPostData?.category) : null;
+	// Migas de pan: las visibles y las de datos estructurados salen de lo mismo (sectionCrumb), y
+	// la sección sale de la ruta, así ya están en el HTML del servidor (antes las ponía un store que
+	// la página llenaba tarde, y en el servidor era estado compartido entre pedidos).
+	$: section = sectionFromRouteId($page.route?.id);
+	$: onPost = Boolean(section);
+	$: crumb = sectionCrumb(section);
 	// «Salir» (Mi rincón o el encabezado) vuelve al inicio con ?salida=1: un aviso corto.
 	let closedNotice = false;
 	$: loggedOut = !closedNotice && !data.member && $page.url.searchParams.get('salida') === '1';
-	$: ldBreadcrumb = onPost ? breadcrumbLd($currentPostData?.category, $page.url.origin) : null;
+	$: ldBreadcrumb = breadcrumbLd(section, $page.url.origin);
 	// La página nueva aparece con un fundido corto y sin espera: antes eran 300 ms de espera más
 	// 300 ms de fundido, más de medio segundo en blanco en cada navegación. Con «reducir
 	// movimiento» activado en el sistema, sin fundido.

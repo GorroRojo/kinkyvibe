@@ -83,6 +83,17 @@ que repetir las reglas de privacidad. Cada página los anuncia con `<link rel="a
 (`FeedLinks.svelte`); el feed de una etiqueta sin eventos ni material da 404. El RSS de siempre
 (`/rss`, en `app.html`) y los calendarios `.ics` siguen igual.
 
+### Migas de pan
+
+«Inicio › sección» y su `BreadcrumbList` salen en las páginas de una publicación (evento,
+material, perfil, entrada o etiqueta de la Kinkipedia). La sección sale de la ruta
+(`sectionFromRouteId($page.route.id)` en `src/lib/utils/navigation.js`, que usa
+`(content)/+layout.svelte`), así ya están en el HTML del servidor. Antes las ponía un store que la
+página llenaba después de que el layout se armaba: en el servidor no salían, y el store era estado
+compartido entre pedidos. Los stores de `src/lib/utils/stores.js` son de módulo: un componente no
+los escribe al armarse (`src/lib/utils/stores-ssr.test.js` lo cuida, con la lista de los que ya
+estaban).
+
 ### Microformats
 
 `h-event` en eventos, `h-entry` en material y wiki, `h-card` en el encabezado de cada perfil (con
