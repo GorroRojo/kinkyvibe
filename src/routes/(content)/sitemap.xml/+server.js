@@ -1,4 +1,6 @@
-import { siteWikiPosts } from '$lib/server/wiki/site.js';
+// El grupo «wiki» del sitemap: las páginas de la wiki y las de las series con ediciones públicas
+// (./series.js).
+import { sitemapWikiPosts as siteWikiPosts } from './series.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { render, sortByPublished } from './sitemap.js';
 // Dinámico (antes se prerenderizaba): los eventos y el material salen de la base y pueden cambiar

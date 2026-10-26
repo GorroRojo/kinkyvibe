@@ -11,7 +11,7 @@ import { eventPlaceSchema } from './eventPlace.js';
 import { KINKYVIBE_TAG } from './propinas.js';
 import { contactItems } from './perfiles.js';
 import { ORG_CONTACT_EMAIL } from './organization.js';
-import { isoDateTime } from './dates.js';
+import { isoDateTime, parseSiteDate } from './dates.js';
 
 import { SITE_URL } from './site.js';
 
@@ -245,6 +245,65 @@ export function materialSchema(meta) {
 		publisher: organizationRef(),
 		keywords: tagList(meta.tags).join(', ') || undefined,
 		inLanguage: 'es'
+	});
+}
+
+/**
+ * La serie de un evento (`EventSeries`), por referencia: su nombre y su página.
+ * @param {{ name?: string, href?: string } | null | undefined} series
+ * @returns {JsonLd | undefined}
+ */
+export function seriesRef(series) {
+	const url = absoluteUrl(series?.href);
+	if (!series?.name || !url) return undefined;
+	return { '@type': 'EventSeries', '@id': `${url}#serie`, name: series.name, url };
+}
+
+/**
+ * Un evento con las series de las que es edición (`superEvent`). La serie no es la canónica de
+ * las ediciones: cada fecha sigue siendo su propio `Event`.
+ * @param {JsonLd} schema lo que dio {@link eventSchema}
+ * @param {readonly { name?: string, href?: string }[] | null | undefined} series
+ * @returns {JsonLd}
+ */
+export function withSuperEvent(schema, series) {
+	const refs = (series ?? []).map(seriesRef).filter(Boolean);
+	if (!refs.length) return schema;
+	return { ...schema, superEvent: refs.length > 1 ? refs : refs[0] };
+}
+
+/**
+ * La página de una serie (/wiki/<serie>): un `EventSeries` con sus ediciones (`subEvent`). De cada
+ * edición solo el nombre, la página, la fecha y el estado; **nunca el lugar** (su privacidad se
+ * decide en la página de cada evento). Las ediciones son las que ve cualquiera.
+ * @param {{ name?: string, href?: string, description?: string, image?: string,
+ *   upcoming?: readonly Edition[], past?: readonly Edition[] } | null | undefined} series
+ * @returns {JsonLd | null}
+ * @typedef {{ title?: string, path?: string, start?: string, status?: string }} Edition
+ */
+export function seriesSchema(series) {
+	const ref = seriesRef(series);
+	if (!series || !ref) return null;
+	const editions = [...(series.upcoming ?? []), ...(series.past ?? [])];
+	return clean({
+		'@context': 'https://schema.org',
+		...ref,
+		image: absoluteUrl(series.image),
+		subEvent: editions
+			.filter((e) => e.title && absoluteUrl(e.path))
+			.sort((a, b) => parseSiteDate(a.start).getTime() - parseSiteDate(b.start).getTime())
+			.map((e) =>
+				clean({
+					'@type': 'Event',
+					name: e.title,
+					url: absoluteUrl(e.path),
+					startDate: isoDate(e.start),
+					eventStatus:
+						e.status === 'cancelado'
+							? 'https://schema.org/EventCancelled'
+							: 'https://schema.org/EventScheduled'
+				})
+			)
 	});
 }
 

@@ -61,6 +61,7 @@ Todas: `description`, `og:site_name` (Kinky Vibe), `og:locale` (`es_AR`), `og:ty
 | Material (`/material/<post>`)                     | `article` | el título                    | «Guía descargable · resumen» (formato y «descargable», por sus etiquetas) | la portada (*) o la tarjeta por defecto           |
 | Entrada de la Kinkipedia (`/wiki/<entrada>`)      | `article` | el título                    | el resumen                                                                | tarjeta «Kinkipedia»                              |
 | Etiqueta o serie sin entrada (`/wiki/<etiqueta>`) | `website` | el nombre                    | «Material, amigues y eventos de «X» en Kinky Vibe.»                       | tarjeta «Kinkipedia»                              |
+| Serie con ediciones, sin entrada                  | `website` | el nombre                    | «Ediciones de «X» en Kinky Vibe: N fechas, la próxima el …»               | tarjeta «Kinkipedia»                              |
 | Perfil (`/amigues/<perfil>`)                      | `profile` | el nombre                    | la bio (sin bio, «X en Amigues de Kinky Vibe.»)                           | la imagen del perfil (*) o la tarjeta por defecto |
 
 - Las secciones dicen qué son, no solo cómo se llaman: el título (`heading`) y la descripción de

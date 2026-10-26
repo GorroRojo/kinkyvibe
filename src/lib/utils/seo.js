@@ -3,7 +3,7 @@
  * Open Graph y las de Twitter que arma `SeoHead.svelte`. Sin dependencias del servidor: corre en
  * el servidor, en el navegador y en vitest. Ver docs/compartir.md.
  */
-import { argDayMonth, parseSiteDate } from './dates.js';
+import { argDateLong, argDayMonth, parseSiteDate } from './dates.js';
 import { eventLead } from './eventText.js';
 import { placeShort, venuePlaceMeta } from './eventPlace.js';
 import { isMediaPath } from './media.js';
@@ -215,6 +215,21 @@ export function eventDescription(meta, venue) {
  */
 export function tagDescription(name) {
 	return `Material, amigues y eventos de «${name}» en ${SITE_NAME}.`;
+}
+
+/**
+ * La descripción de la página de una serie (sin entrada de la Kinkipedia): cuántas fechas tiene y
+ * la próxima (o, si no hay próxima, la última). Las ediciones son las que ve cualquiera
+ * (`seriesPage` con la lista pública).
+ * @param {{ name: string, total?: number, upcoming?: readonly { start?: string }[],
+ *   past?: readonly { start?: string }[] }} series
+ */
+export function seriesDescription({ name, total = 0, upcoming = [], past = [] }) {
+	const count = total === 1 ? '1 fecha' : `${total} fechas`;
+	const next = argDateLong(upcoming[0]?.start);
+	const last = argDateLong(past[0]?.start);
+	const when = next ? `, la próxima el ${next}` : last ? `, la última el ${last}` : '';
+	return `Ediciones de «${name}» en ${SITE_NAME}: ${count}${when}.`;
 }
 
 /**
