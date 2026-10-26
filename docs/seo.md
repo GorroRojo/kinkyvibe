@@ -261,9 +261,13 @@ corrida falla, la siguiente la cubre.
   el aviso es del sitio; es pública por diseño). Tampoco avisa fuera de producción (origen distinto
   de `https://kinkyvibe.ar`).
 - **Privacidad**: de la base salen solo candidatos (objetos con `updated_at` reciente); se avisan
-  únicamente los que están en la lista pública del sitemap (`sitePosts` y la Kinkipedia, sin los
-  que redirigen). Lo oculto, lo de miembres, lo no listado y lo borrado no está en esa lista, así
-  que nunca se avisa, tampoco al pasar algo a oculto.
+  únicamente los que están en la lista pública del sitemap (`sitePosts` y el grupo «wiki»:
+  la Kinkipedia y las páginas de las series con ediciones públicas, `sitemapWikiPosts` de
+  `sitemap.xml/series.js`; sin los que redirigen). Lo oculto, lo de miembres, lo no listado y lo
+  borrado no está en esa lista, así que nunca se avisa, tampoco al pasar algo a oculto.
+- **Series**: cuando cambia una edición pública, también se avisa la página de su serie
+  (`/wiki/<serie>`, `eventSeriesPaths`), y cuando cambia la etiqueta de la serie, su página. En los
+  dos casos, solo si esa página está en la lista del sitemap.
 - Dónde verlo: el resultado sale en la respuesta del cron (`indexNow: { sent, status }`, en
   Observability → Logs, `recordatorios:`) y en Bing Webmaster Tools → IndexNow.
 
