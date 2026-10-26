@@ -66,7 +66,14 @@ describe('todos los mails usan la plantilla común', () => {
 		// Fondo lila, tarjeta con borde rosa, Lato con fallback.
 		expect(html).toContain('background:#f4eff6');
 		expect(html).toContain('max-width:560px');
-		expect(html).toContain('border-top:5px solid hsl(319,90%,60%)');
+		expect(html).toContain('border-top:5px solid #f53dbb');
+		// Sin hsl(): el Outlook de escritorio no lo entiende. Tema claro forzado («light only»).
+		expect(html).not.toContain('hsl(');
+		expect(html).toContain('<meta name="color-scheme" content="light only">');
+		// El botón, con el color también como atributo (Outlook de escritorio).
+		if (html.includes('font-size:19px;font-weight:700;color:#ffffff')) {
+			expect(html).toContain('<td align="center" bgcolor="#f53dbb" style="border-radius:999px;');
+		}
 		expect(html).toContain("font-family:Lato,'Helvetica Neue',Helvetica,Arial,sans-serif");
 		// Etiqueta, título y un solo botón como mucho.
 		expect(html.match(LABEL_RE)?.[1]).toBeTruthy();
@@ -152,7 +159,7 @@ describe('«No fui yo» en el pie (mails a una dirección sin confirmar)', () =>
 		expect(mailOptOut(null, '¿No te anotaste vos?')).toEqual({ html: '', text: [] });
 		const line = mailOptOut(`${URL_OPT_OUT}?a=1&b=2`, '¿No te anotaste vos?');
 		expect(line.html).toBe(
-			`¿No te anotaste vos? ${LEAD} <a href="${URL_OPT_OUT}?a=1&amp;b=2" style="color:hsl(262,90%,45%);">Tocá acá</a> y ${TAIL}`
+			`¿No te anotaste vos? ${LEAD} <a href="${URL_OPT_OUT}?a=1&amp;b=2" style="color:#570bda;">Tocá acá</a> y ${TAIL}`
 		);
 		expect(line.text.join('\n')).toContain(`¿No te anotaste vos? ${LEAD}`);
 		expect(line.text.join('\n')).toContain(`${URL_OPT_OUT}?a=1&b=2`);
