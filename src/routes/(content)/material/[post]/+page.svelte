@@ -12,15 +12,20 @@
 	import Note from '$lib/components/Note.svelte';
 	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { isKinkyVibePost } from '$lib/utils/propinas.js';
-	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { argDateLong, isoDateTime, isoDay } from '$lib/utils/dates.js';
 	import ReadingTime from '$lib/components/ReadingTime.svelte';
 	import { readingTimeLabel } from '$lib/utils/readingTime.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { articleAuthors, updatedDay } from '$lib/utils/autoria.js';
 	import { linkPreviewOf, materialDescription } from '$lib/utils/seo.js';
 	import { tagManager } from '$lib/utils/stores.js';
 	export let data;
+	// «actualizado el …»: solo si es de un día posterior a la publicación.
+	$: updated = updatedDay(data.meta.published_date, data.meta.updated_date);
+	// `article:author`: la dirección del perfil de cada autore que tiene uno (el mismo link que
+	// muestra la página); si no, su nombre.
+	$: authorsMeta = articleAuthors(data.meta.authors, data.authorsProfiles, $page.url.origin);
 	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
 	$: readingTime = readingTimeLabel(data.readingMinutes);
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
@@ -28,7 +33,6 @@
 	// bloque de estilos del componente.
 	const STYLE_TAG = 'style';
 	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
-	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
 	let loadedPast = false;
@@ -41,15 +45,17 @@
 </script>
 
 <!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js). -->
-<LDTag schema={materialSchema(data.meta)} />
+<LDTag schema={materialSchema(data.meta, data.authorLinks)} />
 <svelte:head>
 	<title>{data.meta.title} · Kinky Vibe</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 
 	<meta property="article:published_time" content={isoDateTime(data.meta.published_date)} />
-	<meta property="article:modified_time" content={isoDateTime(data.meta.updated_date)} />
-	<meta property="article:author" content={data.meta.authors?.join(', ')} />
+	{#if data.meta.updated_date}
+		<meta property="article:modified_time" content={isoDateTime(data.meta.updated_date)} />
+	{/if}
+	{#each authorsMeta as author}<meta property="article:author" content={author} />{/each}
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
 </svelte:head>
@@ -91,6 +97,13 @@
 			<time datetime={isoDay(data.meta.published_date)} class="dt-published">
 				{argDateLong(data.meta.published_date?.toString())}
 			</time>
+			{#if updated}
+				<span class="updated"
+					>·&ThickSpace;actualizado el <time datetime={updated} class="dt-updated"
+						>{argDateLong(updated)}</time
+					></span
+				>
+			{/if}
 			{#if readingTime}
 				<!-- El «·» va con el texto: en el celu bajan juntos de línea. -->
 				<span class="reading-time"
@@ -108,7 +121,7 @@
 	{/if}
 	{#if data.meta.tags}
 		<div id="tags">
-			<Tags tags={data.meta.tags} />
+			<Tags tags={data.meta.tags} wikiTags={data.wikiTags ?? []} />
 		</div>
 	{/if}
 	{#if data.personas}
@@ -169,18 +182,20 @@
 
 {#if relatedPosts.length > 0 || data.relatedPastCount > 0}
 	<div class="content">
-		<h3>
+		<h2 class="like-h3">
 			Más cosas de
 			{data.meta.authors.length == 1
 				? data.meta.authors[0]
 				: [data.meta.authors.slice(0, -1).join(', '), data.meta.authors.slice(-1)[0]].join(' o ')}
-		</h3>
+		</h2>
 	</div>
 	<PostList posts={relatedPosts} />
 {/if}
 
 <style lang="scss">
-	.reading-time {
+	/* «actualizado el …», como el tiempo de lectura: no se parte y va en gris */
+	.reading-time,
+	.updated {
 		color: var(--muted);
 		white-space: nowrap;
 	}

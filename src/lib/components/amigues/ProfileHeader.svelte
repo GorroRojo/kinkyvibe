@@ -17,7 +17,12 @@
 <div class="profile-header h-card p-contact">
 	{#if image}
 		<!-- la copia chica de 360 px si la imagen es de la biblioteca (docs/imagenes.md) -->
-		<img src={image} srcset={smallSrcset(image) || undefined} class="profile-pic u-photo" alt="" />
+		<img
+			src={image}
+			srcset={smallSrcset(image) || undefined}
+			class="profile-pic u-photo"
+			alt={title ? `Foto de perfil de ${title}` : ''}
+		/>
 	{:else}
 		<span class="profile-pic initial" aria-hidden="true"
 			>{title.trim().charAt(0).toUpperCase()}</span

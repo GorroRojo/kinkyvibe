@@ -39,10 +39,6 @@
 	summary={p.bio}
 	image={p.image}
 	{url}
-	published={p.publishedDate}
-	modified={p.updatedDate ?? p.publishedDate}
-	authors={p.authors}
-	tags={p.tags}
 	canonical={data.canonical}
 	noindex={Boolean(data.unlisted)}
 />
@@ -88,7 +84,7 @@
 		</address>
 	{/if}
 	{#if p.tags.length}
-		<ProfileTags tags={p.tags} />
+		<ProfileTags tags={p.tags} wikiTags={data.wikiTags ?? []} />
 	{/if}
 	{#if p.bio}
 		<div class="content">
@@ -109,7 +105,7 @@
 	</div>
 	{#if contact.length}
 		<section class="content contact">
-			<h3>Contacto</h3>
+			<h2 class="like-h3">Contacto</h2>
 			<ul>
 				{#each contact as c (c.href)}
 					<li>
@@ -131,7 +127,7 @@
 	{/if}
 	{#if data.members}
 		<section class="content members">
-			<h3>Integrantes</h3>
+			<h2 class="like-h3">Integrantes</h2>
 			{#if data.members.length}
 				<ul>
 					{#each data.members as m (m.slug)}
@@ -150,7 +146,7 @@
 {/if}
 
 {#if data.location && data.venueEvents.length}
-	<div class="content"><h3>Eventos en {p.title}</h3></div>
+	<div class="content"><h2 class="like-h3">Eventos en {p.title}</h2></div>
 	<PostList posts={data.venueEvents} />
 {/if}
 

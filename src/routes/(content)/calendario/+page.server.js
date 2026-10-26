@@ -6,6 +6,7 @@ import { askTicketStatesEarly, ticketStatesFor } from '$lib/server/tickets/listS
 import {
 	askPartLabelsEarly,
 	firstEventMonth,
+	lastEventMonth,
 	isPastIn,
 	partLabelsOrNone,
 	slimPastMeta
@@ -52,6 +53,8 @@ export async function load({ platform, url, untrack }) {
 		pastMonth,
 		// El mes del evento más viejo: hasta ahí llega «Mostrar el mes anterior».
 		firstMonth: firstEventMonth(posts),
+		// El del evento más nuevo: entre los dos, las flechas de mes son links (docs/seo.md).
+		lastMonth: lastEventMonth(posts),
 		ticketStates,
 		// Link a la lista de series de la Kinkipedia (/wiki#series): las series ya no tienen
 		// interruptor.

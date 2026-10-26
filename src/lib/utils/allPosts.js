@@ -60,6 +60,32 @@ export function shiftCalendarMonth(month, n) {
 }
 
 /**
+ * La dirección de /calendario en `month`: la misma URL con `?viewdate=yyyy-MM` (sin él si es el mes
+ * con el que abre igual) y sin el ancla.
+ * @param {URL} url la de la página
+ * @param {string} month yyyy-MM
+ * @param {string} defaultMonth el mes con el que abre sin `?viewdate`
+ * @returns {string} path y query
+ */
+export function calendarMonthHref(url, month, defaultMonth) {
+	const next = new URL(url);
+	next.hash = '';
+	if (month === defaultMonth) next.searchParams.delete('viewdate');
+	else next.searchParams.set('viewdate', month);
+	return next.pathname + next.search;
+}
+
+/**
+ * true si la flecha a `month` va como link: solo entre el mes del primer evento y el del último,
+ * así los buscadores llegan a cada mes con eventos y no a infinitos meses vacíos (docs/seo.md).
+ * @param {string} month yyyy-MM
+ * @param {string | null | undefined} first
+ * @param {string | null | undefined} last
+ */
+export const isLinkedCalendarMonth = (month, first, last) =>
+	!!first && !!last && month >= first && month <= last;
+
+/**
  * El mes con el que abre /calendario sin `?viewdate`: el de hoy (en Argentina), o el siguiente si
  * todos los eventos de este mes ya empezaron.
  * @param {Record<string, ProcessedPost[]>} days eventos por día de inicio (yyyy-MM-dd, Argentina)

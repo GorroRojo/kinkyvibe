@@ -774,6 +774,12 @@ article.wiki {
 	h3 {
 		font-size: var(--step-2);
 	}
+	// Un h2 que se ve igual que un h3 (tamaño y margen del navegador): para los títulos de sección
+	// que van después del h1 sin saltar niveles (perfil, material).
+	h2.like-h3 {
+		font-size: var(--step-2);
+		margin-block: 1em;
+	}
 	h4 {
 		font-size: var(--step-1);
 	}

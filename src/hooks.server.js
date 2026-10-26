@@ -12,6 +12,7 @@ import { setContentDB } from '$lib/server/contenido/repo.js';
 import { resolveAsPanelAuthor } from '$lib/server/contenido/author.js';
 import { startRequest } from '$lib/server/adelantarPedido.js';
 import { withPreload } from '$lib/server/preload.js';
+import { wwwRedirectResponse } from '$lib/server/canonicalHost.js';
 
 // Cookies from the old login flow. They were client-writable and must never be
 // trusted; delete them if a browser still has them.
@@ -19,6 +20,10 @@ const LEGACY_COOKIES = ['prevToken', 'userLogin', 'userName', 'userAvatarUrl'];
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve: resolvePage }) {
+	// www.kinkyvibe.ar → kinkyvibe.ar (301, mismo camino y query; docs/seo.md). Antes que nada: no
+	// lee la base ni la sesión.
+	const toApex = wwwRedirectResponse(event.request, event.url);
+	if (toApex) return toApex;
 	// Precarga, además del JS y el CSS, las dos Lato latin ($lib/server/preload.js).
 	const resolve = withPreload(resolvePage);
 	// La base donde el cliente del repo lee y guarda los eventos y el material (es la misma para

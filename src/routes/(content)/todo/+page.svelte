@@ -11,6 +11,10 @@
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
 	import { userConfig } from '$lib/utils/stores';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	import { page } from '$app/stores';
+	import { linkPreviewOf, sectionTexts } from '$lib/utils/seo.js';
+	// El título de la pestaña y el h1, de los textos del panel (docs/compartir.md).
+	$: texts = sectionTexts('todo', linkPreviewOf($page.data).texts);
 	// the server only sends upcoming events; load the rest if past events are shown
 	let allPosts = data.posts;
 	let loadedPast = false;
@@ -23,10 +27,12 @@
 </script>
 
 <svelte:head>
-	<title>Kinky Vibe</title>
+	<title>{texts.heading} · Kinky Vibe</title>
 </svelte:head>
+<h1 class="visually-hidden">{texts.title}</h1>
 <!-- La vista previa al compartir (docs/compartir.md). -->
-<ListSeoHead section="todo" />
+<!-- Junta las otras tres listas: los buscadores siguen sus links pero no la guardan (docs/seo.md, «Sitemap»). -->
+<ListSeoHead section="todo" noindex />
 <div class="glosario">
 	<p>
 		Acá vas a poder ver todo el contenido del sitio en un mismo lugar, tanto cosas del <InlineTag tag="calendario" />, como <InlineTag tag="material" /> y <InlineTag tag="amigues" />. Entonces si te interesa, por ejemplo, el <InlineTag tag="shibari" /> vas a poder ver tanto <InlineTag tag="libros" internalTag="libro" /> y <InlineTag tag="talleres" internalTag="taller" /> como les profesionales que dan <InlineTag tag="clases" /> u ofrecen <InlineTag tag="sesiones" />.

@@ -8,6 +8,7 @@
  */
 import { canonicalTags } from '$lib/utils';
 import { tagIdFromSlug } from '$lib/utils/tagSlug.js';
+import { tagPagePath } from '$lib/utils/series.js';
 import { siteTagDetails, siteTagSource, tagManagerOf } from '$lib/server/etiquetas/source.js';
 
 /** @typedef {import('$lib/server/etiquetas/wikiPages.js').WikiEntry} WikiEntry */
@@ -89,14 +90,56 @@ export async function siteWikiBodies(platform) {
  * un alias o sin mayúsculas, como toda dirección de una etiqueta), con su árbol; `entry` es `null`
  * si esa etiqueta no tiene página de la wiki.
  *
+ * - `known`: el segmento nombra una etiqueta del árbol (o una página de la wiki).
+ * - `fromDb`: el árbol salió de la base. Sin base (o sin poder leerla) el árbol es el de respaldo,
+ *   vacío: ahí nada es `known`, y la página no tiene que dar 404 por eso.
+ * - `canonicalPath`: la dirección canónica (`/wiki/<slug>` de la etiqueta), igual para todas las
+ *   formas que llevan a la misma etiqueta (mayúsculas, espacios, alias).
+ *
  * @param {App.Platform | undefined} platform
  * @param {string} term
- * @returns {Promise<{ entry: WikiEntry | null, key: string, tags: TagManager }>}
+ * @returns {Promise<{ entry: WikiEntry | null, key: string, tags: TagManager, known: boolean, fromDb: boolean, canonicalPath: string }>}
  */
 export async function siteWikiEntry(platform, term) {
 	const source = await siteTagSource(platform);
 	const tags = tagManagerOf(source);
-	const key = tagIdFromSlug(tags, term) ?? term;
+	const id = tagIdFromSlug(tags, term);
+	const key = id ?? term;
 	const entry = (source.wiki ?? []).find((e) => e.key === key || e.slug === term) ?? null;
-	return { entry, key: entry?.key ?? key, tags };
+	const finalKey = entry?.key ?? key;
+	return {
+		entry,
+		key: finalKey,
+		tags,
+		known: Boolean(entry) || id !== null,
+		fromDb: source.fromDb,
+		canonicalPath: tagPagePath(finalKey)
+	};
+}
+
+/**
+ * De las etiquetas de una página de detalle (evento, material, perfil), las que tienen algo propio
+ * en la Kinkipedia: una página de la wiki o una descripción. Sus chips llevan a `/wiki/<etiqueta>`
+ * en vez de filtrar `/todo` (`wikiTags` de Tags.svelte); las demás, cuya página sería genérica,
+ * siguen filtrando. Se decide en el servidor: el árbol que llega al navegador no trae las
+ * descripciones, y el link tiene que ser el mismo antes y después de hidratar. Sin base, ninguna.
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {readonly unknown[] | null | undefined} tagIds
+ * @returns {Promise<string[]>}
+ */
+export async function wikiLinkedTags(platform, tagIds) {
+	const ids = (tagIds ?? []).filter((t) => typeof t === 'string' && t !== '');
+	if (!ids.length) return [];
+	const source = await siteTagSource(platform);
+	if (!source.fromDb) return [];
+	const tags = tagManagerOf(source);
+	const withEntry = new Set((source.wiki ?? []).map((e) => e.key));
+	return /** @type {string[]} */ (
+		[...new Set(ids)].filter((id) => {
+			const tag = tags.get(/** @type {string} */ (id));
+			if (!tag || tag.orphan) return false;
+			return withEntry.has(tag.id) || String(tag.description ?? '').trim() !== '';
+		})
+	);
 }

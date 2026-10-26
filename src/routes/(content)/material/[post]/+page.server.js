@@ -8,6 +8,8 @@ import { getDB } from '$lib/server/db';
 import { relatedWithVenuePlaces } from '$lib/server/amigues/venues.js';
 import { ticketStatesFor } from '$lib/server/tickets/listStates.js';
 import { askPostPageEarly } from '$lib/server/contenido/adelantar.js';
+import { authorLinksFrom } from '$lib/utils/jsonLd.js';
+import { wikiLinkedTags } from '$lib/server/wiki/site.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, locals, setHeaders }) {
@@ -37,14 +39,16 @@ export async function load({ params, platform, locals, setHeaders }) {
 	const related = currentRelated(relatedPostsFor(post.meta, posts));
 	// Lo demás, a la par. La venta mira solo qué eventos son y cuándo empiezan (el lugar vinculado
 	// cambia el «Dónde», nada más): no espera a los lugares.
-	const [withPlaces, ticketStates, pronouns, personas] = await Promise.all([
+	const [withPlaces, ticketStates, pronouns, personas, wikiTags] = await Promise.all([
 		// Un lugar vinculado manda sobre el «Dónde» del .md de cada evento.
 		relatedWithVenuePlaces(getDB(platform), related),
 		// «Comprar entradas» / «Agotadas» en las tarjetas de "Más cosas de…".
 		ticketStatesFor(platform, related.relatedPosts),
 		mentionPronouns(platform, posts),
 		// Personas con su rol (`null` si no hay nada que mostrar).
-		personasForPage(platform, post.meta)
+		personasForPage(platform, post.meta),
+		// Las etiquetas cuyo chip lleva a la Kinkipedia.
+		wikiLinkedTags(platform, post.meta?.tags).catch(() => [])
 	]);
 	return {
 		...post,
@@ -54,6 +58,10 @@ export async function load({ params, platform, locals, setHeaders }) {
 		...withPlaces,
 		ticketStates,
 		pronouns,
-		personas
+		personas,
+		// Los perfiles públicos de les autores para los datos estructurados (`url` del author):
+		// de la lista que ve cualquiera, nunca de lo que ve quien tiene sesión.
+		authorLinks: authorLinksFrom(post.meta.authors, posts, post.meta.postID),
+		wikiTags
 	};
 }

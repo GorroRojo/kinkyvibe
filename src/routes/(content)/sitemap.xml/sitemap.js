@@ -22,14 +22,14 @@ export function sortByPublished(posts) {
 }
 
 /**
+ * Sin `<priority>` (Google la ignora) y con `lastmod` solo si se conoce de verdad: una fecha que
+ * cambia en cada pedido hace que Google deje de confiar en los `lastmod` del sitemap.
  * @param {string} loc
- * @param {string} priority
  * @param {Date|undefined} lastmod omitted from the entry when undefined
  */
-const url = (loc, priority, lastmod) =>
+const url = (loc, lastmod) =>
 	`<url>
-    <loc>${siteURL}${loc}</loc>
-    <priority>${priority}</priority>${
+    <loc>${siteURL}${loc}</loc>${
 			lastmod
 				? `
     <lastmod>${lastmod.toISOString()}</lastmod>`
@@ -44,25 +44,42 @@ const url = (loc, priority, lastmod) =>
 const postDate = (post) => parseDate(post.meta.updated_date ?? post.meta.published_date);
 
 /**
- * @param {string[]} pages static pages, relative to the site root
+ * El `lastmod` de una página fija: la fecha más nueva de lo que lista (`/calendario` → sus
+ * eventos), o ninguna si no es la lista de una sección (`/`, `/wiki`).
+ * @param {string} page
+ * @param {ProcessedPost[]} posts ya sin los que redirigen
+ * @returns {Date|undefined}
+ */
+export function sectionLastmod(page, posts) {
+	if (page === '/' || page === '/wiki') return undefined;
+	const prefix = page + '/';
+	/** @type {Date|undefined} */
+	let newest;
+	for (const post of posts) {
+		if (!post.path.startsWith(prefix)) continue;
+		const date = postDate(post);
+		if (date && (!newest || date > newest)) newest = date;
+	}
+	return newest;
+}
+
+/**
+ * @param {string[]} pages static pages, relative to the site root (the root itself is `/`)
  * @param {ProcessedPost[]} posts calendario, amigues and material posts (the ones with `redirect`
  *   are left out: their URL answers 307 to another site, so search engines can't index it)
  * @param {ProcessedPost[]} wikiPosts Kinkipedia entries
- * @param {Date} [now]
  * @returns {string}
  */
-export const render = (pages, posts, wikiPosts, now = new Date()) =>
-	`<?xml version="1.0" encoding="UTF-8" ?>
+export const render = (pages, posts, wikiPosts) => {
+	const listed = posts.filter((post) => !post.meta.redirect);
+	return `<?xml version="1.0" encoding="UTF-8" ?>
 <urlset
       xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
-${url('', '1', now)}
-${pages.map((p) => url(p, '0.8', now)).join('\n')}
-${posts
-	.filter((post) => !post.meta.redirect)
-	.map((post) => url(post.path, '0.6', postDate(post) ?? now))
-	.join('\n')}
-${wikiPosts.map((post) => url(post.path, '0.5', postDate(post))).join('\n')}
+${pages.map((p) => url(p, sectionLastmod(p, listed))).join('\n')}
+${listed.map((post) => url(post.path, postDate(post))).join('\n')}
+${wikiPosts.map((post) => url(post.path, postDate(post))).join('\n')}
 </urlset>
 `;
+};

@@ -71,7 +71,7 @@
 </script>
 
 <svelte:head>
-	<title>Kinkipedia - Enciclopedia Fetichista</title>
+	<title>{KINKIPEDIA_PREVIEW.title} · Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md). -->
 <SeoHead

@@ -1,6 +1,5 @@
 <script>
 	//@ts-nocheck
-	import { currentPostData } from './../utils/stores.js';
 	import { page } from '$app/stores';
 	import SearchButton from './SearchButton.svelte';
 	import { isSectionActive } from '$lib/utils/navigation.js';
@@ -10,12 +9,7 @@
 <nav>
 	<ul>
 		{#each links as { icon, name, sub, href, target = undefined }}
-			<li
-				class:current={isSectionActive($page.url.pathname, href) ||
-					($currentPostData &&
-						$currentPostData?.path == $page?.url?.pathname &&
-						$currentPostData?.category == href.slice(1))}
-			>
+			<li class:current={isSectionActive($page.url.pathname, href)}>
 				<a {href} {target} tabindex="0">
 					<span>
 						<span><svelte:component this={icon} size="1em" /></span>

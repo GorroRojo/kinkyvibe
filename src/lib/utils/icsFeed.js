@@ -11,6 +11,7 @@ import { escapeHtml } from './escape.js';
 import { MAP_LABEL, eventPlace } from './eventPlace.js';
 import { venueLine } from './venues.js';
 import { SITE_URL } from './site.js';
+import { DEFAULT_CONTACT_EMAIL } from './tickets.js';
 
 /** Origen de los links de los calendarios (los clientes de calendario no conocen el sitio). */
 export const SITE_ORIGIN = SITE_URL;
@@ -105,7 +106,31 @@ const STATUS = /** @type {Record<string, import('ics').EventStatus>} */ ({
  *   como el calendario general)
  * @prop {ReadonlyMap<string, import('./venues.js').VenueView>} [venues] el lugar de cada evento
  *   que tiene uno (por dirección), ya filtrado por su privacidad (ver `feedLocation`)
+ * @prop {number} [since] ms: saltear los eventos que terminaron antes (los calendarios públicos
+ *   usan {@link publicIcsSince}); sin esto, van todos
  */
+
+/** Cuántos días de eventos pasados llevan los calendarios públicos (docs/seo.md). */
+export const PUBLIC_ICS_PAST_DAYS = 90;
+
+/**
+ * Desde cuándo van los eventos en un calendario público: los últimos {@link PUBLIC_ICS_PAST_DAYS}
+ * días (los más viejos hacían pesado el archivo que cada calendario suscripto baja cada hora). Un
+ * calendario suscripto copia el archivo: los más viejos dejan de verse ahí, no en el sitio.
+ * @param {number} [now]
+ */
+export const publicIcsSince = (now = Date.now()) =>
+	now - PUBLIC_ICS_PAST_DAYS * 24 * 60 * 60 * 1000;
+
+/**
+ * Cada cuánto conviene volver a bajar el calendario. `X-PUBLISHED-TTL` (lo pone el paquete `ics`)
+ * es de Outlook; `REFRESH-INTERVAL` es el estándar (RFC 7986), que leen Apple y otros.
+ */
+const REFRESH_INTERVAL = 'REFRESH-INTERVAL;VALUE=DURATION:PT1H';
+
+/** @param {string} text un VCALENDAR con `X-PUBLISHED-TTL` */
+const withRefreshInterval = (text) =>
+	text.replace(/^X-PUBLISHED-TTL:PT1H\r\n/m, (line) => `${line}${REFRESH_INTERVAL}\r\n`);
 
 /**
  * Los eventos de `posts` (los que no son de calendario se ignoran) como texto .ics.
@@ -124,6 +149,8 @@ export function buildIcsFeed(posts, opts = {}) {
 		if (post.meta.status == 'cancelado' && !includeCancelled) continue;
 		// one event with a missing/invalid start would make createEvents() fail for the whole feed
 		if (isNaN(parseSiteDate(post.meta.start).getTime())) continue;
+		if (opts.since !== undefined && eventEnd(post.meta.start, post.meta.end).getTime() < opts.since)
+			continue;
 		const organizer = post.meta.tags?.includes('KinkyVibe')
 			? 'Kinky Vibe'
 			: (post.meta.authors?.[0] ?? 'Kinky Vibe');
@@ -143,10 +170,12 @@ export function buildIcsFeed(posts, opts = {}) {
 			htmlContent: eventHtml(postPath, post.meta.summary, mapUrl),
 			location: feedLocation(post.meta, venue) ?? postPath,
 			calName,
+			// El mail del perfil de amigues de quien organiza si lo tiene; si no (y en los de Kinky
+			// Vibe), el contacto público de la organización (gorrite, 26/10).
 			organizer: {
 				name: organizer,
 				email:
-					profiles.find((p) => p.meta.postID == organizer)?.meta?.email ?? 'kinkyvibe@gmail.com'
+					profiles.find((p) => p.meta.postID == organizer)?.meta?.email ?? DEFAULT_CONTACT_EMAIL
 			},
 			status: STATUS[post.meta.status] ?? 'CONFIRMED'
 		};
@@ -155,7 +184,7 @@ export function buildIcsFeed(posts, opts = {}) {
 	if (!events.length) return emptyCalendar(calName);
 	const { value, error } = ics.createEvents(events);
 	if (error) console.error('[ics] no se pudo armar el calendario:', error);
-	return value ?? emptyCalendar(calName);
+	return value ? withRefreshInterval(value) : emptyCalendar(calName);
 }
 
 /**
@@ -241,6 +270,7 @@ function emptyCalendar(calName) {
 		'METHOD:PUBLISH',
 		`X-WR-CALNAME:${name}`,
 		'X-PUBLISHED-TTL:PT1H',
+		REFRESH_INTERVAL,
 		'END:VCALENDAR',
 		''
 	].join('\r\n');

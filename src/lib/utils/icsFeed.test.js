@@ -1,6 +1,14 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { MAP_LABEL, buildIcsFeed, feedLocation, icsResponse } from './icsFeed.js';
+import {
+	MAP_LABEL,
+	PUBLIC_ICS_PAST_DAYS,
+	buildIcsFeed,
+	feedLocation,
+	icsResponse,
+	publicIcsSince
+} from './icsFeed.js';
+import { DEFAULT_CONTACT_EMAIL } from './tickets.js';
 import { MAP_LABEL as PLACE_MAP_LABEL } from './eventPlace.js';
 import { DAY, fakeEvent } from '../server/series/fixtures.js';
 
@@ -42,6 +50,39 @@ describe('buildIcsFeed', () => {
 		expect(ics).toContain('LOCATION:https://kinkyvibe.ar/calendario/online');
 	});
 
+	it('dice cada cuánto volver a bajarlo: X-PUBLISHED-TTL y REFRESH-INTERVAL (RFC 7986)', () => {
+		for (const ics of [buildIcsFeed(posts), buildIcsFeed([])]) {
+			expect(ics).toContain('X-PUBLISHED-TTL:PT1H\r\n');
+			expect(ics).toContain('\r\nREFRESH-INTERVAL;VALUE=DURATION:PT1H\r\n');
+			expect(ics.match(/REFRESH-INTERVAL/g)).toHaveLength(1);
+		}
+	});
+
+	it('`since`: saltea los que terminaron antes (los públicos, los últimos 90 días)', () => {
+		const list = [
+			fakeEvent('viejo', NOW - 200 * DAY, ['Picantearla']),
+			fakeEvent('reciente', NOW - 30 * DAY, ['Picantearla']),
+			// empezó antes del límite pero terminó después: va
+			fakeEvent('largo', NOW - 91 * DAY, ['Picantearla'], {
+				end: new Date(NOW - 89 * DAY).toISOString()
+			}),
+			fakeEvent('proximo', NOW + DAY, ['Picantearla'])
+		];
+		const since = publicIcsSince(NOW);
+		expect(since).toBe(NOW - PUBLIC_ICS_PAST_DAYS * DAY);
+		const trimmed = unfold(buildIcsFeed(list, { since }));
+		expect(trimmed).not.toContain('UID:viejo@');
+		for (const slug of ['reciente', 'largo', 'proximo']) {
+			expect(trimmed).toContain(`UID:${slug}@kinkyvibe.ar`);
+		}
+		// Sin `since` (el calendario personal), todos.
+		expect(unfold(buildIcsFeed(list)).match(/BEGIN:VEVENT/g)).toHaveLength(4);
+		// Todos viejos: un calendario vacío válido.
+		const empty = buildIcsFeed([list[0]], { since });
+		expect(empty).not.toContain('BEGIN:VEVENT');
+		expect(empty).toMatch(/END:VCALENDAR\r\n$/);
+	});
+
 	it('sin eventos: un calendario vacío válido con nombre', () => {
 		const ics = buildIcsFeed([], { calName: 'Vacío' });
 		expect(ics).toMatch(/^BEGIN:VCALENDAR\r\n/);
@@ -69,6 +110,16 @@ describe('buildIcsFeed', () => {
 		const ics = unfold(buildIcsFeed([ev], { profiles: [profile] }));
 		// ics >= 3.12 entrecomilla el CN (quoted-string válido en RFC 5545 §3.2).
 		expect(ics).toContain('ORGANIZER;CN="Org":MAILTO:org@example.com');
+	});
+
+	it('sin perfil con mail (y en los de Kinky Vibe): el contacto público de la organización', () => {
+		const own = fakeEvent('propio', NOW, ['KinkyVibe']);
+		const other = fakeEvent('ajeno', NOW, ['taller'], { authors: ['Sin Perfil'] });
+		const ics = unfold(buildIcsFeed([own, other]));
+		expect(DEFAULT_CONTACT_EMAIL).toBe('kinkyvibe.talleres@gmail.com');
+		expect(ics).toContain(`ORGANIZER;CN="Kinky Vibe":MAILTO:${DEFAULT_CONTACT_EMAIL}`);
+		expect(ics).toContain(`ORGANIZER;CN="Sin Perfil":MAILTO:${DEFAULT_CONTACT_EMAIL}`);
+		expect(ics).not.toContain('kinkyvibe@gmail.com');
 	});
 });
 
