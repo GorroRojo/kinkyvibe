@@ -716,11 +716,13 @@
 	let saleEmail = '';
 	let noteOpen = false;
 	$: sType = data.types.find((t) => t.id === saleType);
-	// Al cambiar de tipo, el precio por entrada vuelve al de la puerta (en la gorra, vacío).
+	// Al cambiar de tipo, el precio por entrada vuelve al de la puerta (en la gorra, vacío). Un
+	// precio en puerta de $ 0 (configuración vieja: el editor ya no lo deja guardar, #374) no se
+	// prellena: una venta sin cargo la decide quien vende, escribiendo 0.
 	let amountFor = '';
 	$: if (sType && amountFor !== sType.id) {
 		amountFor = sType.id;
-		saleAmount = sType.gorra ? '' : String(sType.price);
+		saleAmount = sType.gorra || sType.price === 0 ? '' : String(sType.price);
 	}
 	$: if (sType && !sType.gorra && !sType.options.some((o) => o.id === saleOption)) {
 		saleOption = sType.fondo > 0 ? 'fondo' : 'completo';
@@ -1285,7 +1287,7 @@
 							inputmode="numeric"
 							autocomplete="off"
 							bind:value={saleAmount}
-							defaultValue={String(sType.price)}
+							defaultValue={sType.price === 0 ? '' : String(sType.price)}
 							aria-describedby="sale-price-hint"
 							required
 						/>
@@ -1301,6 +1303,10 @@
 							class="link"
 							on:click={() => (saleAmount = String(sType?.price ?? ''))}
 							>Volver a {formatARS(sType.price)}</button
+						>
+					{:else if sType.price === 0 && !String(saleAmount ?? '').trim()}
+						<span class="changed"
+							>Esta entrada no tiene precio en la puerta: escribí lo que cobraste (0 = sin cargo).</span
 						>
 					{:else if charged === null}
 						<span class="changed">Escribí el precio en pesos, sin centavos (0 = sin cargo).</span>
