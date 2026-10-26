@@ -415,6 +415,82 @@ migración `0048_avisar_cambio_fecha.sql`):
   y botón) si ya está, como en los demás mails. Plantilla `date_change` (variables: `nombre`,
   `evento`, `fecha`, `fecha_anterior`, `lugar`, `entradas`). El texto por defecto dice que lo comprado sigue valiendo y, debajo del botón, que si con la fecha nueva no puede, responda el mail y le devolvemos lo que pagó (como la política de devoluciones).
 
+### Alguien dice que no le llegó la entrada
+
+Es la única guía para este caso: seguí los pasos en orden.
+
+1. **¿Salió?** En la ficha del evento → Órdenes, buscá la orden (por nombre, mail o el
+   número de compra `KV-…`) y fijate si el mail figura como enviado. Si no salió y la orden tiene
+   menos de 48 h, el cron la reintenta sola cada 15 minutos
+   ([Reintento del mail de las entradas](#reintento-del-mail-de-las-entradas)).
+2. **Spam y Promociones.** Pedile que busque en Spam y en Promociones (en Gmail, también en
+   «Todos»), por «Tus entradas para» o por el nombre del evento.
+3. **Qué dice Resend.** En Resend → Emails, buscá la dirección y mirá el estado del último mail:
+   - `delivered`: el servidor de la persona lo aceptó. Si no lo ve, está en spam, en otra
+     carpeta o en un filtro suyo.
+   - `delivery_delayed`: el servidor de destino lo está demorando; Resend sigue intentando.
+     Esperá un rato antes de reenviar.
+   - `bounced`: rebotó. Casi siempre la dirección está mal escrita o no existe (paso 5).
+   - `complained`: la persona (o su proveedor) lo marcó como spam. Desde ahí la dirección queda
+     suprimida (paso 4).
+   - `suppressed`: Resend no lo mandó porque la dirección está en la lista de supresión (paso 4).
+4. **Si está suprimida** y la persona confirma que la dirección es suya y está bien escrita, sacala
+   en Resend → Suppressions y recién ahí usá «Reenviar». Leé antes
+   [La lista de supresión](#la-lista-de-supresión).
+5. **Si rebotó por un error de tipeo** (`gmial.com`, `hotmail.con`…), reenviar a la misma
+   dirección no sirve, y hoy el panel no permite corregir el mail de una orden. Mientras tanto: en
+   la puerta, buscá la orden por nombre («Buscar persona» en el control de ingreso) y dejala pasar
+   con su nombre y su número de compra, sin QR.
+6. **Reenviar.** «Reenviar» (en Órdenes o en «Para revisar») le pide a Resend que mande las
+   entradas de nuevo, sin clave de idempotencia: sale aunque ya hubiera salido. Que Resend lo
+   acepte no quiere decir que llegue: si la dirección está suprimida, no llega (paso 4).
+
+Una orden gratis a una dirección que tocó «No fui yo» no sale nunca, tampoco con «Reenviar»
+([No fui yo](#no-fui-yo)). Quien compró también ve sus entradas en la página de la compra
+(`/entradas/<orden>/estado`), pero solo desde el navegador en que compró; con una sola entrada, el
+botón del mail lleva directo a la entrada.
+
+**Quién puede mirar Resend.** El panel de Resend lo ve quien tenga acceso a la cuenta de Resend del
+sitio (hoy, quien administra el sitio). Si no lo tenés, pedíselo a gorrite; mientras tanto, los
+pasos 1, 2 y 5 se hacen solo desde el panel del sitio.
+
+### La lista de supresión
+
+Resend guarda una lista de direcciones a las que no manda más: las que rebotaron de forma
+permanente y las que marcaron un mail como spam. Hay que saber tres cosas:
+
+- **Vale para todos los mails del sitio**, porque todos salen de la misma cuenta y el mismo
+  dominio: una queja por un aviso de «Lo que sigo» o por una serie bloquea también las entradas
+  de esa persona.
+- **Sacar una dirección no arregla la causa.** Si la sacás de Resend → Suppressions y la dirección
+  sigue rebotando o la persona vuelve a marcar spam, vuelve a quedar suprimida. Sacala solo cuando
+  la persona confirmó que la dirección es suya y está bien escrita.
+- **Es aparte de «No fui yo»**, que es una lista propia del sitio (`email_suppressions`, solo para
+  órdenes gratis y reservas sin pagar). Sacar una dirección en Resend no la saca de «No fui yo», ni
+  al revés.
+
+### Antes de la primera preventa grande
+
+Lista de control del ítem `lanzamiento-mails` del plan. El mail de las entradas sale apenas se
+aprueba el pago (`sendOrderEmail` en `src/lib/server/tickets/index.js`), así que una preventa
+grande es un pico de mails en pocas horas desde un dominio que hoy manda poco. Los proveedores
+desconfían de esos picos: una parte puede ir a spam o demorarse (sobre todo en Outlook y Hotmail).
+
+- **Calentar el dominio.** Una o dos semanas antes, mandá volumen chico y constante (recordatorios,
+  avisos, ventas chicas), mejor que nada y después cientos de golpe.
+- **Abrir la preventa por tramos**, por ejemplo un cupo por día o por horario, en vez de todo a la
+  vez.
+- **Cupo de Resend.** Confirmá en Resend → Usage que el cupo diario y mensual alcanza para las
+  órdenes esperadas más los recordatorios (cada orden manda al menos el mail de las entradas y uno
+  o dos recordatorios).
+- **Los primeros días, mirá Resend → Metrics:** rebotes por debajo del 4 %, quejas por debajo del
+  0,08 % y pocos `delivery_delayed`. Si suben, frená los envíos masivos («Mail a compradores»,
+  avisos) y revisá qué direcciones rebotan
+  ([Alguien dice que no le llegó la entrada](#alguien-dice-que-no-le-llegó-la-entrada)).
+- **Probar antes** los mails en Gmail, Hotmail, Yahoo y un mail de trabajo (spam, `.ics`,
+  recordatorio, cambio de fecha) con «Mandarme una prueba», y que SPF, DKIM y DMARC den PASS
+  («Mostrar original» en Gmail).
+
 ## Configuración
 
 | Qué                                | Dónde                                                                                       |
@@ -456,6 +532,18 @@ vacío sale como en la plantilla general. "Volver a la plantilla general" borra 
 una copia en `panel_deletions`, así se recupera desde Ajustes › Actividad («Recuperar», decisión
 0030).
 
+**Evento con título sensible.** El asunto de los mails lleva el título del evento («Tus entradas
+para …», «Recordatorio: …»), y se ve en la notificación del celu con la pantalla bloqueada, en
+un buzón compartido o de trabajo y en la vista previa de la bandeja. Si el título es explícito,
+poné un asunto propio sin esos términos en la ficha del evento → Mails → Plantillas → el mail →
+Asunto (por ejemplo «Tus entradas · {{fecha}}» o con `{{referencia}}`), en el de entradas, el de
+transferencia y los recordatorios. Revisá también el título de la tarjeta (el que va en grande),
+que se ve en la vista previa. El remitente sigue siendo «KinkyVibe»: el dominio se ve igual, y un
+nombre que la gente reconoce baja las quejas. El nombre del adjunto (`<slug>.ics`) y el cuerpo
+todavía llevan el evento; una opción de mails discretos (una casilla en la compra que saque el
+evento del asunto, del preencabezado y del adjunto) sería una etapa aparte, que necesita una
+decisión de gorrite.
+
 **Cambiar un mail desde el código.** Editá la función `build…Email` en `email.js` y actualizá
 `email.golden.json` en el mismo PR, explicando el cambio. Si agregás una variable, sumala en
 `emailTemplates.js`.
@@ -464,13 +552,8 @@ una copia en `panel_deletions`, así se recupera desde Ajustes › Actividad («
 Resend) y, si es masivo, con una tabla de envíos que reserve a cada destinatarie antes de mandar
 (como `buyerMail.js`). Nueva migración si hace falta tabla ([datos.md](datos.md)).
 
-**A alguien no le llegaron las entradas («no me llegó»).** Buscá la orden en la ficha del evento
-→ Órdenes. Si dice que el mail salió, que revise spam y que la dirección esté bien escrita (si
-está mal, no hay reintento que sirva). Si no salió y la orden tiene menos de 48 h, el cron la
-reintenta sola cada 15 minutos. Si no, «Reenviar» manda las entradas de nuevo (sin clave de
-idempotencia: sale aunque ya hubiera salido). Una orden gratis a una dirección que tocó «No fui
-yo» no sale nunca, tampoco con «Reenviar». Quien compró también ve sus entradas en la página de
-la compra (`/entradas/<orden>/estado`) desde el navegador en que compró.
+**A alguien no le llegaron las entradas («no me llegó»).** Ver
+[Alguien dice que no le llegó la entrada](#alguien-dice-que-no-le-llegó-la-entrada).
 
 **Un recordatorio no salió.** Mirá los logs del Worker `kinkyvibe` en Cloudflare
 (**Observability → Logs**, buscar `recordatorios:`): 503 = falta `CRON_SECRET`.

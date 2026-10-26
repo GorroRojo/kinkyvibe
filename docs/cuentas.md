@@ -104,7 +104,10 @@ nada de estas tablas para sumarlas.
 ### Código por mail
 
 - 6 cifras al azar (sin sesgo), **10 minutos**, **5 intentos** por código, un solo uso. Pedir
-  otro anula el anterior del mismo `purpose`.
+  otro anula el anterior del mismo `purpose`. Por eso los dos mails dicen «Si pediste más de un
+  código, usá el último: los anteriores ya no sirven.», y `/ingresar`, en el paso del código, que
+  puede tardar un par de minutos, que revise spam o promociones (con el asunto para buscarlo) y
+  que vale solo el último.
 - **«Vence en…» con la hora exacta** (pedido de gorrite): el mail dice «Vence en 10 minutos (a
   las 14:35, hora de Argentina y Uruguay)», porque no sabemos la zona de quien lo lee. En
   `/ingresar`, el servidor muestra esa misma hora de Argentina y, ya en el navegador, la cambia por
