@@ -646,7 +646,11 @@ export async function sendWaitlistMails(db, input) {
 		claim: (m) => ({ entryId: m.id, key: [m.kind, m.kind === 'closed' ? 0 : m.round] }),
 		send: async (m) => {
 			const config = await configFor(m.event_slug);
-			const event = { title: config?.title || m.event_slug, start: config?.start ?? null };
+			const event = {
+				title: config?.title || m.event_slug,
+				start: config?.start ?? null,
+				end: config?.end ?? null
+			};
 			const typeName = m.ticket_type
 				? (config?.types.find((t) => t.id === m.ticket_type)?.name ?? m.ticket_type)
 				: null;

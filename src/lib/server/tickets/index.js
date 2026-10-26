@@ -47,7 +47,7 @@ import { parseReminders, reminderKey, sendDueReminders } from './reminders.js';
 import { resolveTemplate } from './templates.js';
 import { queueWaitlistAdvance } from './waitlistEngine.js';
 import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
-import { buyerLocation } from '../amigues/venues.js';
+import { buyerLocation, venueNotesForMail } from '../amigues/venues.js';
 import {
 	claimStreamLinkSend,
 	getStreamLink,
@@ -558,6 +558,8 @@ export async function sendOrderEmailResult({
 		// Si el evento tiene lugar, quien compró recibe la
 		// dirección completa, aunque en el sitio no se muestre (docs/amigues.md).
 		const venue = await buyerLocation(db, order.event_slug);
+		// «Cómo llegar» y «Accesibilidad»: solo si la página del evento se los muestra a cualquiera.
+		const notes = await venueNotesForMail(db, order.event_slug);
 		const message = buildTicketEmail({
 			order,
 			tickets: list,
@@ -579,6 +581,8 @@ export async function sendOrderEmailResult({
 				}),
 				location: venue ? venue.location : config?.location,
 				location_name: venue ? venue.location_name : config?.location_name,
+				howTo: notes?.howTo,
+				accessibility: notes?.accessibility,
 				online,
 				streamLink,
 				// Taller en varias partes con una sola entrada: la fecha y el lugar de cada parte.
@@ -807,6 +811,7 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			event: {
 				title: config?.title || order.event_slug,
 				start: config?.start,
+				end: config?.end,
 				// La compra todavía no está pagada: el lugar como se ve en el sitio.
 				parts: await workshopPartsList(db, order.event_slug, {
 					online: Boolean(config?.online),
@@ -928,6 +933,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 	const dateChanges = new Map();
 	/** @type {Map<string, Awaited<ReturnType<typeof buyerLocation>>>} */
 	const venues = new Map();
+	/** @type {Map<string, Awaited<ReturnType<typeof venueNotesForMail>>>} */
+	const venueNotes = new Map();
 	/** @type {Map<string, Record<string, any> | null>} */
 	const partMetas = new Map();
 	// La lista de partes de cada taller con una sola entrada, leída una vez por taller.
@@ -959,6 +966,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 			const tickets = await getOrderTickets(db, order.id);
 			if (!venues.has(where)) venues.set(where, await buyerLocation(db, where));
 			const venue = venues.get(where);
+			if (!venueNotes.has(where)) venueNotes.set(where, await venueNotesForMail(db, where));
+			const notes = venueNotes.get(where);
 			if (!templates.has(e.slug))
 				templates.set(e.slug, await resolveTemplate(db, e.slug, 'reminder'));
 			if (!partLists.has(e.slug)) {
@@ -984,6 +993,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 						: meta
 							? meta.location_name
 							: config.location_name,
+					howTo: notes?.howTo,
+					accessibility: notes?.accessibility,
 					online: config.online,
 					streamLink: linkInfo?.link ?? null,
 					stamp: calendarStamp({
@@ -1061,7 +1072,11 @@ export async function runMailQueue({
  */
 export async function deliverBuyerMailBatch({ db, send, fetch: fetchFn, limit }) {
 	const config = await getEventTickets(send.event_slug);
-	const event = { title: config?.title || send.event_slug, start: config?.start };
+	const event = {
+		title: config?.title || send.event_slug,
+		start: config?.start,
+		end: config?.end
+	};
 	return sendBuyerMailBatch(db, {
 		send,
 		limit,
