@@ -169,6 +169,10 @@ export async function profilePageFrom(db, found, locals, { posts: sitePosts } = 
 		// No listado (no sale en /amigues): el link se puede compartir, pero los buscadores no lo
 		// guardan (`noindex`, docs/compartir.md).
 		unlisted: object.data.unlisted === true,
+		// Una persona que pidió no aparecer en buscadores (`profileNoindex`): la página se ve igual,
+		// pero con `noindex` (meta y cabecera), sin datos estructurados y con una vista previa sin
+		// foto (docs/amigues.md, «Buscadores»).
+		noindex: profile.noindex,
 		bodyHtml,
 		authors,
 		members,
@@ -178,7 +182,9 @@ export async function profilePageFrom(db, found, locals, { posts: sitePosts } = 
 		badges: {
 			hidden: object.visibility === 'hidden',
 			membersOnly: object.visibility === 'members',
-			pending: !approved
+			pending: !approved,
+			// Solo para quienes lo gestionan y les admins: para el resto la página no cambia.
+			noindex: profile.noindex && (viewer.role === 'admin' || Boolean(found.role))
 		},
 		claim,
 		private: viewer.role !== 'anon'

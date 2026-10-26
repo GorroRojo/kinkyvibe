@@ -42,6 +42,23 @@ describe('las piezas', () => {
 		expect([...visible].sort()).toEqual(['/material/nota', '/wiki/bondage']);
 	});
 
+	it('nunca un perfil que pidió no aparecer en buscadores (la misma regla que el sitemap)', () => {
+		const visible = publicPaths(
+			[post('/amigues/Persona_Inventada'), post('/amigues/Sin_Buscadores', { noindex: true })],
+			[]
+		);
+		expect([...visible]).toEqual(['/amigues/Persona_Inventada']);
+		expect(
+			indexNowUrls(
+				[
+					{ type: 'perfil', slug: 'persona-inventada', legacy_slug: 'Persona_Inventada' },
+					{ type: 'perfil', slug: 'sin-buscadores', legacy_slug: 'Sin_Buscadores' }
+				],
+				visible
+			)
+		).toEqual([ORIGIN + '/amigues/Persona_Inventada']);
+	});
+
 	it('candidatas por slug y slug viejo; solo se avisan las que están en la lista pública', () => {
 		expect(candidatePaths({ type: 'evento', slug: 'nuevo', legacy_slug: 'viejo' })).toEqual([
 			'/calendario/nuevo',

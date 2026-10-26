@@ -330,6 +330,19 @@
 		No listar en /amigues (se puede abrir con el link)
 	</label>
 
+	{#if kind === 'persona'}
+		<label class="kv-check">
+			<input type="checkbox" name="noindex" bind:checked={values.noindex} />
+			No aparecer en buscadores (sigue en /amigues y se abre con el link)
+		</label>
+		<p class="kv-note">
+			Lo eligen quienes gestionan el perfil desde Mi rincón (apagado por defecto). Prendido: la
+			página lleva <code>noindex</code>, sale del sitemap y de IndexNow, va sin datos estructurados
+			y la vista previa al compartir no lleva la foto ni la presentación. No borra lo que Google u
+			otros sitios ya guardaron: Google tarda en sacarlo.
+		</p>
+	{/if}
+
 	{#if err('form')}<p class="kv-flash bad">{err('form')}</p>{/if}
 
 	<div class="kv-row">
