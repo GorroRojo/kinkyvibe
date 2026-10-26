@@ -233,7 +233,7 @@ describe('/indexnow-key.txt', () => {
 		vi.resetModules();
 	});
 
-	/** @param {Record<string, string>} env */
+	/** @param {Record<string, string | undefined>} env */
 	async function get(env) {
 		vi.resetModules();
 		vi.doMock('$env/dynamic/private', () => ({ env }));
