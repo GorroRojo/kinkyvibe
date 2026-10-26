@@ -297,6 +297,62 @@ mediana). No hay datos de personas reales (el sitio tiene poco tráfico para el 
 - Para ver que sigue andando: `curl -s https://kinkyvibe.ar/ | grep -o '<img[^>]*card-img[^>]*>' | head -5`
   muestra las primeras con `loading="eager"` y la primera con `fetchpriority="high"`.
 
+## Qué mirar en los paneles
+
+Lo que no se ve desde el repo: lo hace gorrite en cada panel. Lo que se copie de acá a un PR, sin
+URLs de eventos ocultos ni datos de personas. Los pasos que dependen de un cambio del sitio dicen de
+cuál; si ese PR todavía no está en `main`, el paso espera.
+
+**Para hacer una vez**
+
+- [ ] **Cloudflare → kinkyvibe.ar → Rules → Redirect Rules**: plantilla «Redirect from WWW to
+      Root» (301, conserva camino y query). Probar con `curl -sI https://www.kinkyvibe.ar/calendario`
+      → 301 a `https://kinkyvibe.ar/calendario`. El sitio también lo hace como red (PR #484, «Un
+      solo host» arriba).
+- [ ] **IndexNow** (PR #484): Worker `kinkyvibe` → Settings → Variables and Secrets → Secret
+      `INDEXNOW_KEY` (generarla con `openssl rand -hex 16`, nunca a mano). Después,
+      `https://kinkyvibe.ar/indexnow-key.txt` muestra la clave.
+- [ ] **Bing Webmaster Tools**: agregar el sitio (se puede importar de Search Console) y mandar
+      `https://kinkyvibe.ar/sitemap.xml`. Con IndexNow prendido, sus envíos se ven en «IndexNow».
+- [ ] **Search Console**: que esté verificada la propiedad de dominio `kinkyvibe.ar` (cubre www y
+      http) y mandado el sitemap.
+- [ ] **fed.brid.gy/web/kinkyvibe.ar** → «Update profile», después de que esté el avatar estable
+      de la h-card (PR #476).
+- [ ] **Panel del sitio**: Ajustes → Vistas previas, los títulos y descripciones de cada sección
+      (que digan qué es: «BDSM», «Buenos Aires», «cuir/queer»; title hasta 70 caracteres,
+      description hasta 200), y la biblioteca: el texto alternativo de las portadas que se reusan
+      entre ediciones.
+
+**Para mirar de vez en cuando**
+
+- [ ] **Search Console → Páginas**: URLs de `www.` indexadas (tienen que ir bajando con la
+      redirección), «Soft 404» en `/wiki`, «Descubierta, actualmente sin indexar» en eventos
+      viejos.
+- [ ] **Search Console → Mejoras → Eventos**: avisos de `location` o `address` faltantes e
+      `image` chica. **Si marca `address` faltante, no se completa con la dirección de un lugar
+      cuyo nivel de privacidad la oculta**: el evento queda sin ese resultado enriquecido y está
+      bien (ver «Lo que nunca se rompe»).
+- [ ] **Search Console → Rendimiento**: qué consultas ya traen gente y qué páginas; antes de
+      decidir algo sobre los eventos viejos, mirar sus clics.
+- [ ] **Core Web Vitals de campo**: Search Console → Experiencia → Core Web Vitals, y Cloudflare →
+      Web Analytics → Core Web Vitals. La única medición de visitas reales es el beacon de
+      Cloudflare Web Analytics de `src/app.html`; si no hay datos suficientes, Google no los usa.
+- [ ] **Cloudflare → Security → Bots**: qué bots de IA llegan y cuántos. La política de
+      `robots.txt` y la de ese panel tienen que decir lo mismo.
+
+**Para tener en cuenta**
+
+- **SafeSearch**: el aviso de mayores de 18 es solo del navegador (Google ve la página igual) y
+  el sitio **no** lleva `<meta name="rating" content="adult">` global: con eso Google lo saca
+  entero de las búsquedas con SafeSearch, y la mayoría del contenido es educativo. Para revisar:
+  buscar `site:kinkyvibe.ar` con SafeSearch en «Filtrar»; si desaparece todo, pedir revisión desde
+  el formulario de SafeSearch de Google.
+- **Eventos online**: Google Eventos solo muestra eventos presenciales (o mixtos); los que son
+  solo online no salen ahí aunque su JSON-LD sea válido. No es un error.
+- **Telegram guarda la vista previa de cada link**: si se cambia la imagen o el texto de una
+  página después de compartirla, Telegram sigue mostrando la vieja. Para refrescarla, mandarle el
+  link a [@WebpageBot](https://t.me/WebpageBot) (de Telegram) y después volver a compartirlo.
+
 ## Cómo probarlo
 
 - `npx vitest run src/lib/utils/jsonLd.test.js src/lib/utils/vcard.test.js src/lib/utils/securityTxt.test.js src/lib/utils/robots.test.js src/lib/utils/feeds.test.js src/lib/server/feeds.test.js src/routes/rss/rss.test.js src/lib/utils/icsFeed.test.js`
