@@ -5,7 +5,7 @@
 import { listEventTickets, listOrders, orderHolders } from '$lib/server/tickets/orders.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { answersByOrder } from '$lib/server/tickets/signupFields.js';
-import { dniTail, offlineReviewSummary } from '$lib/server/tickets/door.js';
+import { dniTail, offlineReviewSummary, orderPriceChangeText } from '$lib/server/tickets/door.js';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { dniQueryDigits } from '$lib/admin/orderFormat.js';
 
@@ -76,6 +76,10 @@ export async function eventOrderRows(db, slug, config, now = Date.now()) {
 		confirmedBy: o.confirmed_by,
 		refundedAt: o.refunded_at ?? null,
 		refundedBy: o.refunded_by ?? null,
+		// Solo en el panel: la nota de la carga a mano o de la venta en la puerta, y si en la puerta
+		// se cobró otro precio («Precio cambiado en la puerta: $ 5.000 en vez de $ 12.000»).
+		note: o.admin_note ?? '',
+		priceChange: orderPriceChangeText(o),
 		// Una venta sin conexión que pasó un límite (decisión 0035) también es «para revisar».
 		needsReview: o.needs_review ?? (o.offline_review ? 'door_offline' : null),
 		reviewDetail: o.needs_review
