@@ -466,11 +466,24 @@ Resend) y, si es masivo, con una tabla de envíos que reserve a cada destinatari
 
 **A alguien no le llegaron las entradas («no me llegó»).** Buscá la orden en la ficha del evento
 → Órdenes. Si dice que el mail salió, que revise spam y que la dirección esté bien escrita (si
-está mal, no hay reintento que sirva). Si no salió y la orden tiene menos de 48 h, el cron la
+está mal, no hay reintento que sirva: usá «Corregir el mail…», abajo). Si no salió y la orden tiene menos de 48 h, el cron la
 reintenta sola cada 15 minutos. Si no, «Reenviar» manda las entradas de nuevo (sin clave de
 idempotencia: sale aunque ya hubiera salido). Una orden gratis a una dirección que tocó «No fui
 yo» no sale nunca, tampoco con «Reenviar». Quien compró también ve sus entradas en la página de
 la compra (`/entradas/<orden>/estado`) desde el navegador en que compró.
+
+**Quien compró escribió mal su mail.** En Órdenes, en la orden aprobada (paga o gratis),
+«Corregir el mail…» → el mail nuevo → «Corregir el mail y reenviar» (acción `email` de
+`src/lib/server/admin/eventActions.js`, solo admins). Cambia `buyer_email` (y los códigos combo de
+la orden, que van atados a ese mail) y manda las entradas a la dirección nueva con una clave de
+idempotencia propia (`tickets-<orden>-mail-<hora>`: la de siempre ya se usó con la otra
+dirección). A la dirección vieja no le sale nada más: todos los mails leen `buyer_email`. Si la
+nueva tocó «No fui yo», no se cambia ni se manda nada y el panel lo dice. Queda en Ajustes ›
+Actividad («Corrigió el mail de …»), sin ninguna de las dos direcciones. Si Resend falla, la
+dirección queda corregida y el mail como no enviado: «Reenviar mail» lo vuelve a intentar. La
+orden que una cuenta veía solo por el mail (`cuentas/orders.js`) pasa a la cuenta de la dirección
+nueva. Que quien compró
+corrija su mail sola desde la página de la compra queda para más adelante (lo decide gorrite).
 
 **Un recordatorio no salió.** Mirá los logs del Worker `kinkyvibe` en Cloudflare
 (**Observability → Logs**, buscar `recordatorios:`): 503 = falta `CRON_SECRET`.
