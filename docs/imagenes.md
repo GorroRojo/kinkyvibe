@@ -22,6 +22,7 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 | Enlazar un archivo       | `src/lib/components/admin/LibraryLinkPicker.svelte`, `src/lib/utils/libraryFiles.js` (editor de material) |
 | Achicar en el navegador  | `src/lib/utils/imageResize.js`                                                                            |
 | Copias chicas (tarjetas) | `src/lib/utils/mediaCopies.js`; la pasada por las viejas: `scripts/copias-chicas.js` + `media/copias.js`  |
+| Copia nocturna y bloqueo | `src/lib/server/backup/media.js` (binding `MEDIA_COPIA`, solo producción); ver «Copia de la biblioteca»   |
 | Imágenes viejas del repo | `src/lib/utils/legacyMedia.js` (mapa fijo a su copia en la biblioteca)                                    |
 | PDF y video del material | En la biblioteca (`archivo`); ya no hay copia en el repo (ver abajo)                                      |
 
@@ -226,6 +227,8 @@ videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tip
 deja de aparecer en el selector, las páginas dejan de mostrarla y `/media/…` da 404. **El archivo
 queda en R2** (es barato y permite deshacer: subir el mismo archivo la vuelve a la vida, con sus
 edges). Ojo: los navegadores que ya la tenían en caché la pueden seguir mostrando un tiempo.
+Para borrar los bytes de verdad (el pedido de una persona), ver «Si una persona pide que saquemos su
+foto», abajo: hay que borrarlos también de la copia nocturna.
 
 **Las cuentas** (Mi rincón, «Borrar imágenes sin usar…» en Buscar) borran igual (el mismo borrado
 suave), pero solo una imagen **que subieron y que nada usa** (`deleteOwnImage` en
@@ -267,6 +270,103 @@ servía y que ningún texto ni la semilla seguían nombrando `$lib/archivos`, as
 `src/lib/archivos/`, su glob en `render.js` y el script (que ya no tenía nada que hacer). Un texto
 viejo que todavía importara `./media/<carpeta>/1.pdf` ya no se resuelve: solo las imágenes tienen
 mapa fijo.
+
+## Copia de la biblioteca y bloqueo contra borrados
+
+El borrado del panel es suave (el archivo queda en R2), pero un borrado en R2 mismo (por error, un
+script, un token con permiso de escritura, una regla de ciclo de vida mal puesta) no tiene vuelta
+atrás: R2 no guarda versiones y el backup de la base trae las filas, no los bytes. Contra eso hay
+dos cosas (decisión de gorrite, 26/10):
+
+- **Copia nocturna** a un segundo bucket, `kinkyvibe-media-copia` (binding `MEDIA_COPIA`, solo en
+  producción). La hace el cron de las 03:00 de Argentina, después del backup de la base
+  (`runMediaCopy` en `src/lib/server/scheduled.js`, `copyMedia` en
+  `src/lib/server/backup/media.js`):
+  - Copia `img/` y `file/` (originales, copias chicas y documentos). `og/` no: son las vistas
+    previas, que se vuelven a dibujar solas.
+  - **Solo suma**: copia lo que falta en la copia o lo que cambió (otro tamaño u otro etag; en la
+    copia guarda el etag del original, `kv-etag-origen`). **Nunca borra nada de la copia**: lo
+    que se borra del original sigue en la copia. Esa es la idea.
+  - **Trabajo acotado por noche**: como mucho 300 objetos, 300 MB y 40 páginas de listado
+    (`DEFAULT_LIMITS`). Si no llega, anota por dónde iba (`_estado/copia-medios.json`, en la copia)
+    y sigue la noche siguiente; cuando termina una vuelta entera, la próxima empieza de nuevo. Los
+    dos buckets se recorren a la par, de a 1000 claves, así que la memoria no crece con la
+    biblioteca. Hoy (unos 900 objetos, ~0,15 GB) la primera noche copia 300 y en tres o cuatro
+    noches está todo; después, cada noche copia solo lo nuevo.
+  - **Nunca hace fallar la corrida** (el backup ya se hizo). En el log (Observability → Logs) queda
+    una línea `copia de medios: N copiado(s) (X MB), M revisado(s), F con error, …; vuelta
+completa` (o `sigue mañana después de <clave>`). Un objeto que no se pudo copiar sale en el log
+    y se reintenta en la vuelta siguiente.
+  - Sin el binding (Previews, local sin el bucket) no hace nada. Los Previews no corren crons.
+  - Protege de un borrado en el bucket de la biblioteca; **no** de perder la cuenta de Cloudflare
+    (los dos buckets están en la misma cuenta).
+- **Bucket lock de 30 días** en `img/` y `file/` de los dos buckets (lo pone gorrite en el panel,
+  abajo). Cada objeto queda protegido **sus primeros 30 días desde que se escribió**: en ese tiempo
+  R2 no deja borrarlo ni pisarlo. Pasados los 30 días se puede borrar (así se puede cumplir un
+  pedido de borrar una foto). El código nunca pisa ni borra nada de `img/` ni de `file/` (claves por
+  contenido, `put` solo si no existe), así que el bloqueo no rompe ninguna subida. Lo viejo lo
+  protege la copia, que no borra nunca.
+
+### Tu lista (gorrite, en el panel de Cloudflare)
+
+1. **Crear el bucket de la copia, antes de mergear el PR que la agrega** (si no existe, la
+   publicación falla): R2 object storage → **Create bucket** → nombre `kinkyvibe-media-copia`,
+   ubicación automática, clase Standard → **Create bucket**. No hace falta acceso público ni
+   dominio: nadie lo sirve.
+2. **Mirar que no haya reglas que borren solas**: R2 object storage → `kinkyvibe-media` →
+   **Settings** → **Object lifecycle rules**: ninguna regla tiene que borrar `img/` ni `file/` (la
+   de subidas a medias, si algún día se pone, está bien).
+3. **Bloqueo en la biblioteca**: R2 object storage → `kinkyvibe-media` → **Settings** → tarjeta
+   **Bucket lock rules** → **Add rule**:
+   - Rule name `img-30-dias`, prefix `img/`, retención **30 days** → **Save changes**.
+   - De nuevo **Add rule**: `file-30-dias`, prefix `file/`, **30 days** → **Save changes**.
+   - **Nunca una regla sin prefijo** (todo el bucket): bloquearía `og/`, que se reescribe.
+4. **Bloqueo en la copia** (recomendado, igual que el de arriba): `kinkyvibe-media-copia` →
+   **Settings** → **Bucket lock rules** → las mismas dos reglas (`img/` y `file/`, 30 días).
+   **Nunca sin prefijo**: la copia anota por dónde va en `_estado/copia-medios.json` y lo pisa cada
+   noche. Con el bloqueo, lo que se copió no se puede borrar ni pisar por 30 días, aunque alguien
+   tenga un token; lo que tiene más de 30 días lo protege solo que nada lo borra. Un bloqueo
+   **indefinido** en la copia protegería todo para siempre, pero entonces un pedido de borrar una
+   foto obliga a sacar la regla entera, borrar y volver a ponerla: por eso 30 días.
+5. **Comprobar**, la mañana siguiente al merge: en Workers → `kinkyvibe` → Observability → Logs,
+   buscar `copia de medios`; y en R2, `kinkyvibe-media-copia` tiene objetos en `img/` y `file/`.
+   En unas noches, la línea dice `vuelta completa` y la cantidad de objetos de `img/` y `file/` de
+   los dos buckets coincide.
+
+Con un bloqueo puesto, un bucket no se puede vaciar ni borrar hasta sacar las reglas
+(R2 → bucket → Settings → Bucket lock rules → `...` → **Delete**).
+
+### Si una persona pide que saquemos su foto
+
+1. **En el momento: sacarla del sitio.** Contenido → Biblioteca → buscarla → **Sacar** (el borrado
+   suave): deja de aparecer en las páginas y `/media/…` da 404, también para sus copias chicas.
+   Sacarla también de donde se use (portada, perfil) si hace falta otra imagen. Los navegadores que
+   ya la tenían la pueden mostrar un rato más (caché).
+2. **Anotar la clave** (antes de sacarla, «Abrir» muestra `/media/img/<hash>.<ext>`): la clave en
+   R2 es `img/<hash>.<ext>`, y sus copias chicas, `img/<hash>-360.webp` e `img/<hash>-720.webp`
+   (un GIF no tiene). Un documento: `file/<hash>.<ext>`.
+3. **Borrar los bytes de los dos buckets**, con la cuenta de Cloudflare (una persona con acceso),
+   cuando el bloqueo lo deje: **30 días después de que se subió al original, y 30 días después de
+   que se copió a la copia** (la copia la hace la noche siguiente a la subida, así que en la
+   práctica, 31 días después de subida). Antes, R2 responde que el objeto está bloqueado: esperar
+   y volver a intentar. Desde la compu, en la carpeta del repo:
+
+   ```sh
+   npx wrangler r2 object delete kinkyvibe-media/img/<hash>.<ext> --remote
+   npx wrangler r2 object delete kinkyvibe-media/img/<hash>-360.webp --remote
+   npx wrangler r2 object delete kinkyvibe-media/img/<hash>-720.webp --remote
+   npx wrangler r2 object delete kinkyvibe-media-copia/img/<hash>.<ext> --remote
+   npx wrangler r2 object delete kinkyvibe-media-copia/img/<hash>-360.webp --remote
+   npx wrangler r2 object delete kinkyvibe-media-copia/img/<hash>-720.webp --remote
+   ```
+
+   (O en el panel: R2 → bucket → **Objects** → buscar `img/<hash>` → seleccionar → **Delete**.)
+   **Borrar siempre de los dos**: la copia nunca borra sola lo que se borró del original. Si se
+   borra solo de la copia, la noche siguiente la vuelve a copiar del original.
+
+4. Las vistas previas ya dibujadas que la usaban (`og/…`) dejan de usarse solas (la dirección
+   depende del contenido) y se pueden borrar sin problema: no están bloqueadas.
+5. Los backups de la base guardan la fila de la imagen (nombre, texto alternativo), no los bytes.
 
 ## Configuración en Cloudflare (gorrite)
 
