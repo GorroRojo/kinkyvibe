@@ -1,11 +1,15 @@
 {
-	"name": "KinkyVibe.ar",
-	"short_name": "KinkyVibe.ar",
+	"id": "/",
+	"name": "Kinky Vibe",
+	"short_name": "Kinky Vibe",
+	"description": "Educación crítica, cultura transformativa, y comunidad disidente.",
+	"lang": "es-AR",
+	"dir": "ltr",
 	"icons": [
 		{ "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
 		{ "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" }
 	],
-	"theme_color": "#ff48c4",
+	"theme_color": "#f53dbb",
 	"background_color": "#eee",
 	"display": "standalone",
 	"scope": "/",

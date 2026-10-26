@@ -150,6 +150,15 @@ describe('previewImage', () => {
 		const img = previewImage('/a.webp', ORIGIN, { width: 1200, height: null, alt: '' }, 'Título');
 		expect(img).toMatchObject({ width: null, height: null, alt: 'Título' });
 	});
+	it('el texto genérico «Imagen de «…»» de la biblioteca no cuenta: va el de respaldo', () => {
+		const info = { width: 640, height: 640, alt: 'Imagen de «Fiesta Inventada (1ª edición)»' };
+		expect(previewImage('/a.webp', ORIGIN, info, 'Fiesta Inventada (2ª edición)').alt).toBe(
+			'Fiesta Inventada (2ª edición)'
+		);
+		// Un texto escrito a mano que empieza igual pero dice otra cosa, sí.
+		const own = { ...info, alt: 'Imagen de «la fiesta» con luces rosas' };
+		expect(previewImage('/a.webp', ORIGIN, own, 'T').alt).toBe(own.alt);
+	});
 	it('sin imagen, el logo del sitio (entero, con sus medidas)', () => {
 		for (const src of [undefined, 'undefined', '']) {
 			const img = previewImage(src, ORIGIN);
@@ -581,7 +590,7 @@ describe('seoTags', () => {
 		title: 'Título',
 		description: 'Descripción',
 		url: 'https://sitio.test/x',
-		image: { url: 'https://sitio.test/a.webp', width: 10, height: 20, alt: 'Alt' }
+		image: { url: 'https://sitio.test/a.webp', width: 1200, height: 630, alt: 'Alt' }
 	};
 	/** @param {ReturnType<typeof seoTags>} tags */
 	const asMap = (tags) => Object.fromEntries(tags.map(([, key, content]) => [key, content]));
@@ -596,8 +605,8 @@ describe('seoTags', () => {
 			'og:title': 'Título',
 			'og:description': 'Descripción',
 			'og:image': 'https://sitio.test/a.webp',
-			'og:image:width': '10',
-			'og:image:height': '20',
+			'og:image:width': '1200',
+			'og:image:height': '630',
 			'og:image:alt': 'Alt',
 			'twitter:card': 'summary_large_image',
 			'twitter:site': '@kinkyvibearg',
@@ -606,6 +615,17 @@ describe('seoTags', () => {
 			'twitter:image': 'https://sitio.test/a.webp',
 			'twitter:image:alt': 'Alt'
 		});
+	});
+	it('twitter:card summary si la imagen es cuadrada o angosta; la grande si no o si no se sabe', () => {
+		/** @param {Record<string, any>} image */
+		const card = (image) =>
+			asMap(seoTags({ ...base, image: { url: base.image.url, ...image } }))['twitter:card'];
+		expect(card({ width: 640, height: 640 })).toBe('summary');
+		expect(card({ width: 800, height: 800 })).toBe('summary');
+		expect(card({ width: 500, height: 300 })).toBe('summary');
+		expect(card({ width: 1200, height: 630 })).toBe('summary_large_image');
+		expect(card({ width: 800, height: 1000 })).toBe('summary_large_image');
+		expect(card({})).toBe('summary_large_image');
 	});
 	it('Open Graph con property, las demás con name', () => {
 		for (const [attr, key] of seoTags(base)) {

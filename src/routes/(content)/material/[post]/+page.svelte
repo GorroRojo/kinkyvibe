@@ -48,7 +48,9 @@
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 
 	<meta property="article:published_time" content={isoDateTime(data.meta.published_date)} />
-	<meta property="article:modified_time" content={isoDateTime(data.meta.updated_date)} />
+	{#if data.meta.updated_date}
+		<meta property="article:modified_time" content={isoDateTime(data.meta.updated_date)} />
+	{/if}
 	<meta property="article:author" content={data.meta.authors?.join(', ')} />
 	<!-- <meta property="article:section" content="" /> -->
 	<meta property="article:tag" content={data.meta.tags?.join(', ')} />
@@ -169,12 +171,12 @@
 
 {#if relatedPosts.length > 0 || data.relatedPastCount > 0}
 	<div class="content">
-		<h3>
+		<h2 class="like-h3">
 			Más cosas de
 			{data.meta.authors.length == 1
 				? data.meta.authors[0]
 				: [data.meta.authors.slice(0, -1).join(', '), data.meta.authors.slice(-1)[0]].join(' o ')}
-		</h3>
+		</h2>
 	</div>
 	<PostList posts={relatedPosts} />
 {/if}
