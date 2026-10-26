@@ -22,17 +22,23 @@ async function allMeta() {
 	const { fichaMetas } = await import('../contenido/fichas.js');
 	const db = activeContentDB();
 	if (!db) return [];
+	const categories = Object.entries(CONTENT_CATEGORIES);
+	// Cada categoría, los perfiles de amigues y las páginas de la wiki a la par (no dependen una de
+	// otra: con las tandas automáticas, en la misma ida), en el mismo orden de siempre.
+	const [fichas, ...posts] = await Promise.all([
+		fichaMetas(db),
+		...categories.map(([category]) => allDbPostObjects(db, category))
+	]);
 	/** @type {PostMeta[]} */
 	const out = [];
-	for (const [category, cat] of Object.entries(CONTENT_CATEGORIES)) {
+	categories.forEach(([category, cat], i) => {
 		// Solo la metadata: sin armar el texto de cada post (también los ocultos, que el panel ve;
 		// no los borrados).
-		for (const [slug, e] of await allDbPostObjects(db, category)) {
+		for (const [slug, e] of posts[i]) {
 			if (!e.deleted) out.push({ category, slug, meta: cat.toMeta(e.object) });
 		}
-	}
-	// Los perfiles de amigues y las páginas de la wiki.
-	out.push(...(await fichaMetas(db)));
+	});
+	out.push(...fichas);
 	return out;
 }
 
