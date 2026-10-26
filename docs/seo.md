@@ -12,7 +12,8 @@ guía: `compartir.md` (llega con el PR #257).
 - **Solo lo que la página ya muestra.** Ningún dato estructurado, microformat ni vCard agrega
   algo que la página no le muestre a cualquiera: el lugar llega filtrado por su nivel de
   privacidad ([amigues.md](amigues.md)) y del perfil sale solo el contacto público (decisión
-  0023). Un lugar oculto no tiene dirección en ningún lado.
+  0023). Un lugar oculto no tiene dirección en ningún lado (un evento suyo puede decir la
+  ciudad de su etiqueta de región, que la página ya muestra; nunca la del lugar).
 - **Nada de reglas para bots de IA en `robots.txt`**: gorrite las maneja en Cloudflare.
 - `security.txt` y los datos estructurados usan el contacto general de la organización (`ORG_CONTACT_EMAIL`, `src/lib/utils/organization.js`), nunca uno
   personal.
@@ -58,6 +59,14 @@ listado queda solo con el nombre.
 inscripción (precio 0 si tiene la etiqueta `gratis`; disponibilidad según el «Estado»: abierto →
 `InStock`, agotadas → `SoldOut`, anunciado o sin estado → no se dice). Cancelado o pasado: sin
 oferta.
+
+`location` de un evento presencial: un `Place` con la dirección estructurada
+(`venuePostalAddress`, la misma del perfil del lugar) solo en los niveles que la muestran, y el
+link al lugar (`url`, `@id`) solo en «Nombre + dirección» y «Sólo Nombre». Si falta la dirección,
+la ciudad o el país de la etiqueta de región (`regionAddress`: AMBA → Buenos Aires, Córdoba,
+Rosario, La Plata, Montevideo…), para que Google Eventos lo pueda ubicar; con el lugar oculto, el
+`Place` va sin nombre. El nombre del lugar nunca es el título del evento. Detalle y pruebas por
+nivel: [amigues.md](amigues.md).
 
 ### Fechas legibles por máquina
 

@@ -8,6 +8,7 @@
  * no esté en la página. Los textos de Open Graph y la vista previa al compartir son de otro lado.
  */
 import { eventPlaceSchema } from './eventPlace.js';
+import { venuePostalAddress } from './venues.js';
 import { KINKYVIBE_TAG } from './propinas.js';
 import { contactItems } from './perfiles.js';
 import { ORG_CONTACT_EMAIL } from './organization.js';
@@ -435,23 +436,6 @@ export const PROFILE_TYPES = Object.freeze({
 });
 
 /**
- * La dirección de un lugar, solo en los niveles que la muestran (lo demás ya no llega).
- * @param {import('./venues.js').VenueView | null | undefined} view
- * @returns {JsonLd | undefined}
- */
-function venueAddress(view) {
-	if (!view || view.level === 'hidden' || view.level === 'name') return undefined;
-	const locality = [view.area, view.city].filter(Boolean).join(', ');
-	const address = clean({
-		'@type': 'PostalAddress',
-		streetAddress: view.level === 'area' ? undefined : view.address,
-		addressLocality: locality || undefined,
-		addressCountry: 'AR'
-	});
-	return address.streetAddress || address.addressLocality ? address : undefined;
-}
-
-/**
  * La página de un perfil (/amigues/<perfil>): una ProfilePage con la persona, el proyecto o el
  * lugar. Solo lo que muestra la página: nombre, bio, imagen, sus links, el mail y el teléfono
  * públicos (decisión 0023) y, de un lugar, lo que su nivel de privacidad deja ver.
@@ -488,7 +472,8 @@ export function profileSchema({ profile: p, canonical, location = null }) {
 		sameAs: links,
 		email: type === 'Place' ? undefined : email,
 		telephone: tel,
-		address: type === 'Place' ? venueAddress(location) : undefined,
+		// La misma dirección que en los eventos (venues.js), solo en los niveles que la muestran.
+		address: type === 'Place' ? venuePostalAddress(location) : undefined,
 		geo: type === 'Place' ? geo : undefined
 	});
 	return clean({
