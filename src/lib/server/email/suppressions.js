@@ -89,6 +89,24 @@ export async function suppressByToken(db, token, now = Date.now()) {
 }
 
 /**
+ * Anota una dirección en la misma tabla sin pasar por el link: la usa el webhook de Resend cuando
+ * un mail rebota para siempre o lo marcan como spam (email/resendWebhook.js). Dos veces es lo mismo
+ * que una.
+ *
+ * @param {D1Database} db
+ * @param {string} email
+ * @param {number} [now]
+ */
+export async function suppressAddress(db, email, now = Date.now()) {
+	const hash = await suppressionHash(email);
+	if (!hash) return;
+	await db
+		.prepare('INSERT OR IGNORE INTO email_suppressions (email_hash, created_at) VALUES (?1, ?2)')
+		.bind(hash, now)
+		.run();
+}
+
+/**
  * ¿Esta dirección dijo «no fui yo»? Si la base falla, tira (quien llama no manda: ver `deliver()`).
  *
  * @param {D1Database} db
