@@ -56,8 +56,12 @@ cupo de transformaciones de Cloudflare (decidido por gorrite: nada de `/cdn-cgi/
 - **Cómo las usan las páginas**: `Card.svelte` lleva `srcset="…-360.webp 1x, …-720.webp 2x"`
   (`cardSrcset`); `PostListItem.svelte` y `amigues/ProfileHeader.svelte`, solo la de 360 px
   (`smallSrcset`: alcanza para pantallas de hasta ~2,5× en ~128–160 px, y con una sola densidad la
-  imagen mide lo mismo, así la fila, que se acomoda a la imagen, queda igual). El `src` sigue
-  siendo el original y el CSS no cambia. Solo para direcciones de la biblioteca del mismo sitio
+  imagen mide lo mismo, así la fila, que se acomoda a la imagen, queda igual). El afiche de la
+  página de un evento (cuadrado, `object-fit: cover`, su LCP) lleva `srcset` con anchos
+  (`posterSrcset`: `-360.webp 360w`, `-720.webp 720w` y el original con su lado corto si la portada
+  tiene medidas; se anota el lado corto porque el cuadrado recorta al centro) y un `sizes` sacado
+  de su CSS (`(min-width: 900px) 24rem, calc(100vw - 1.75rem)`). El `src` sigue siendo el original
+  y el CSS no cambia. Solo para direcciones de la biblioteca del mismo sitio
   (`/media/img/…`); una imagen de otro sitio, un GIF o la dirección entera al sitio público (las
   de local y los previews) quedan solo con `src`.
 - **Si una copia no existe** (una imagen de antes de la pasada, o una que el navegador no pudo

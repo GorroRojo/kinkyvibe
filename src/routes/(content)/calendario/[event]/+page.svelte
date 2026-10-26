@@ -52,7 +52,13 @@
 	import { hasVisibleHtml } from '$lib/utils/htmlStrip.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { eventDescription } from '$lib/utils/seo.js';
+	import { posterSrcset } from '$lib/utils/mediaCopies.js';
 	export let data;
+	// El afiche con las copias chicas de la biblioteca (docs/imagenes.md): el ancho que ocupa sale
+	// del CSS de abajo (en el celu, la pantalla menos el margen `--space-xs` de cada lado; en la
+	// compu, la columna de 24rem).
+	const POSTER_SIZES = '(min-width: 900px) 24rem, calc(100vw - 1.75rem)';
+	$: posterSet = posterSrcset(data.meta.featured, data.cover);
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
 	// bloque de estilos del componente.
@@ -196,10 +202,13 @@
 			{#if data.meta.featured}
 				<!-- El afiche es lo más grande de la página (su LCP): se pide primero, y con las medidas
 				     de la portada de la biblioteca (si las tiene) el navegador le guarda el lugar antes
-				     de que llegue el CSS. El tamaño en pantalla lo sigue mandando `.afiche`. -->
+				     de que llegue el CSS. El tamaño en pantalla lo sigue mandando `.afiche`. Si es de la
+				     biblioteca, el navegador elige entre las copias chicas y el original (`srcset`). -->
 				<img
 					class="afiche u-photo"
 					src={data.meta.featured + ''}
+					srcset={posterSet || undefined}
+					sizes={posterSet ? POSTER_SIZES : undefined}
 					alt="Afiche de {data.meta.title}"
 					width={data.cover?.width || undefined}
 					height={data.cover?.height || undefined}
