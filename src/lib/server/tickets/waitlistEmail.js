@@ -114,9 +114,11 @@ const leaveHtml = (url, label = 'Salir de la lista de espera') =>
  *   unsubscribeText?: string,
  *   origin?: string,
  *   contactEmail?: string,
- *   optOut?: { html: string, text: string[] }
+ *   optOut?: { html: string, text: string[] },
+ *   preheader?: string
  * }} input
  * `helpHtml`/`helpText`: la ayuda del código si la plantilla no trae una (vacía = sin ayuda).
+ * `preheader`: lo que la bandeja muestra al lado del asunto (sin el título del evento).
  * `optOut`: la línea «No fui yo» del pie (`mailOptOut`), solo en el de confirmar.
  * @returns {Message}
  */
@@ -136,7 +138,8 @@ function buildWaitlistMail({
 	unsubscribeText = 'Para salir de la lista de espera',
 	origin,
 	contactEmail,
-	optOut = { html: '', text: [] }
+	optOut = { html: '', text: [] },
+	preheader = ''
 }) {
 	const c = applyTemplate(partsFor(id, template), vars);
 	const block = eventBlock(event, typeName);
@@ -146,6 +149,7 @@ function buildWaitlistMail({
 	const helpPlain = c.helpText ?? helpText;
 	const html = mailLayout({
 		origin,
+		preheader,
 		label,
 		titleHtml: /** @type {string} */ (c.headingHtml),
 		contentHtml: `${c.bodyHtml}
@@ -259,7 +263,10 @@ export function buildWaitlistOfferEmail({
 		helpText: help,
 		unsubscribeUrl,
 		origin,
-		contactEmail
+		contactEmail,
+		preheader: deadline
+			? 'Se liberó un lugar: confirmalo antes de que venza'
+			: 'Se liberó un lugar: se lo queda quien compre primero'
 	});
 }
 
@@ -294,7 +301,8 @@ export function buildWaitlistReminderEmail({
 		button: { href: offerUrl },
 		unsubscribeUrl,
 		origin,
-		contactEmail
+		contactEmail,
+		preheader: 'Queda poco: confirmá tu lugar antes de que venza'
 	});
 }
 

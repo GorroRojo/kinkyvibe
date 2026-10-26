@@ -97,6 +97,21 @@ título, detalles, un botón rosa y una línea de ayuda; abajo, por qué te lleg
 baja (si el mail la tiene) y «Kinky Vibe · Buenos Aires». Lo editable de las plantillas va dentro
 de la tarjeta.
 
+- **Colores en hex**, nunca `hsl()` (`MAIL_COLORS`; `layout.test.js` falla si algún mail lo
+  tiene): el Outlook clásico de Windows no lo entiende. La celda del botón lleva además el atributo
+  `bgcolor`, así el botón no queda blanco sobre blanco en Outlook de escritorio (ahí sale sin las
+  puntas redondeadas).
+- **Tema claro forzado:** las metas `color-scheme` y `supported-color-schemes` dicen `light only`
+  (Gmail para celu solo respeta esa forma; con «light» invertía los colores en tema oscuro).
+- **Preencabezado** (lo que la bandeja muestra al lado del asunto): los códigos, «Tus entradas»
+  («Tu QR para la puerta · sáb 10 oct · 22:00 · <lugar>»), el recordatorio («Es hoy: tené a mano
+  tu QR · …», distinto según cuándo sale), el cambio de fecha («Fecha nueva · …»), la oferta y el
+  último aviso de la lista de espera y «Mail a compradores». Nunca el título del evento (puede ser
+  sensible), datos personales, links ni códigos.
+- **Texto plano de «Tus entradas»:** cada entrada como «Entrada 1 · Nombre (pronombres) · código
+  …», y al final «Si tenés algún problema, respondé este mail.», el «por qué te llega» y el
+  contacto, como en el HTML.
+
 **Pie configurable:** la línea de contacto («¿Dudas? Escribinos a {{contacto}}») y la firma
 («Kinky Vibe · Buenos Aires») se cambian en Panel → Mensajes → Configuración → Pie de los mails
 (`mail_footer_contact` y `mail_footer_signoff` en `ticket_settings`), con el mismo formato seguro

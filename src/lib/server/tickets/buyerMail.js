@@ -86,6 +86,7 @@ export function buildBuyerMail({ subject, body, buyerName, event, contactEmail, 
 		.join('\n\t\t');
 	const html = mailLayout({
 		origin,
+		preheader: 'Un aviso de les organizadores sobre tu entrada.',
 		label: 'Sobre tu entrada',
 		titleHtml: escapeHtml(subject),
 		contentHtml: `<p><strong>${escapeHtml(event.title)}</strong>${when ? `<br>${escapeHtml(when)}` : ''}</p>

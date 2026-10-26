@@ -504,7 +504,7 @@ export function unknownVariables(id, tpl) {
 const HTML_TAG_RE = /<\/?[a-z!?][^<>]*>/i;
 
 /** Color de los links de las plantillas (el `MAIL_COLORS.link` de src/lib/server/email/layout.js). */
-export const TEMPLATE_LINK_COLOR = 'hsl(262,90%,45%)';
+export const TEMPLATE_LINK_COLOR = '#570bda';
 
 /** Un link: `[texto](dirección)`, la dirección sin espacios ni paréntesis. */
 const LINK_RE = /\[([^[\]\n]+)\]\(([^\s()]+)\)/g;
