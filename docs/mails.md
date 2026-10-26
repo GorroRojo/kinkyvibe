@@ -240,6 +240,11 @@ código con un preencabezado en castellano. En la segunda prueba Gmail siguió o
 no alcanzó. Quedan igual, porque dicen la verdad sobre el mail y no molestan; la causa sigue sin
 saberse.
 
+**Un hilo por código.** Los mails de código tienen siempre el mismo asunto y Gmail los juntaba en
+una conversación: el nuevo quedaba plegado debajo de uno vencido. Cada uno lleva ahora su propio
+`X-Entity-Ref-ID` (un UUID al azar, en `cuentas/index.js`), que es lo que recomienda Resend para
+que no se agrupen. El código no va en el asunto, para no mostrarlo en las notificaciones.
+
 Fuentes: [9to5Google](https://9to5google.com/2026/09/19/gmail-copy-code/) (botón de Gmail),
 [foro de desarrolladores de Apple](https://developer.apple.com/forums/thread/738690) (códigos en
 Mail, dominio), [Google, SMS User Consent](https://developers.google.com/identity/sms-retriever/user-consent/request)
@@ -427,6 +432,19 @@ migración `0048_avisar_cambio_fecha.sql`):
 | Secreto del cron                   | `CRON_SECRET`, Secret del Worker `kinkyvibe` (lo usan el cron y `/api/cron/*`)              |
 | Secreto del mail del Fondo         | `FONDO_MAIL_SECRET`, Secret del Worker `kinkyvibe` (el mismo valor en el del Fondo)         |
 | Previews                           | `EMAIL_ALLOWLIST` en el entorno Preview de Cloudflare                                       |
+
+**El remitente solo puede ser @kinkyvibe.ar** (`MAIL_FROM_DOMAINS` en `tickets/settings.js`), el
+único dominio verificado en Resend: con otro, Resend rechaza todos los mails (entradas, códigos,
+recordatorios). El panel no deja guardar otro dominio, y si igual hay uno (un valor viejo en la
+base o `TICKETS_FROM_EMAIL` mal cargada), `emailSettings` usa el de siempre y lo anota en la consola
+(sin la dirección). Si algún día se verifica otro dominio o subdominio en Resend, se suma a esa
+lista en el mismo PR.
+
+**Respuestas automáticas.** Los mails que salen solos en tanda (recordatorios, cambio de fecha,
+link de la transmisión, lista de espera, series y «Lo que sigo») llevan `Auto-Submitted:
+auto-generated` (`autoSubmitted` en `tickets/email.js`), así los «estoy de vacaciones» no vuelven a
+la casilla de respuesta, donde llegan los comprobantes. «Tus entradas», la transferencia y «Mail a
+compradores» no lo llevan: ahí sí se espera que respondan.
 
 Las respuestas a `entradas@kinkyvibe.ar` llegan al Gmail de la organización (Cloudflare Email
 Routing). La bandeja dentro del panel es una decisión tomada (0010) pero todavía no existe.
