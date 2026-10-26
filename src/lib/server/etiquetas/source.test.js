@@ -9,7 +9,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { fallbackTagList } from '$lib/utils/tagFallback.js';
 import { importTags } from './importer.js';
-import { clearTagSourceCache, tagManagerOf, tagSourceFrom } from './source.js';
+import { currentSiteTags, setSiteTagList } from '$lib/utils/siteTags.js';
+import { tagManager, wikiTagManager } from '$lib/utils/stores.js';
+import { get } from 'svelte/store';
+import { applySiteTags, clearTagSourceCache, tagManagerOf, tagSourceFrom } from './source.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
@@ -75,5 +78,25 @@ describe('tagSourceFrom', () => {
 
 	it('sin base: el archivo', async () => {
 		expect((await tagSourceFrom(null, {})).fromDb).toBe(false);
+	});
+});
+
+describe('tagManagerOf', () => {
+	it('un árbol por lista, el mismo que usan `currentSiteTags()` y los stores', async () => {
+		const source = { rawTags: structuredClone(RAW), fromDb: true, wiki: [] };
+		try {
+			await applySiteTags(undefined, { source });
+			const tree = tagManagerOf(source);
+			expect(tagManagerOf(source)).toBe(tree);
+			expect(currentSiteTags()).toBe(tree);
+			expect(get(tagManager)).toBe(tree);
+			expect(get(wikiTagManager)).toBe(tree);
+			expect(tree.get('atar').id).toBe('ataduras');
+
+			const otra = { rawTags: structuredClone(RAW), fromDb: true, wiki: [] };
+			expect(tagManagerOf(otra)).not.toBe(tree);
+		} finally {
+			setSiteTagList(null);
+		}
 	});
 });
