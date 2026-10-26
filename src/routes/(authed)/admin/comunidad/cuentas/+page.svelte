@@ -63,6 +63,7 @@
 <div class="kv-stats">
 	<Stat label="Cuentas" value={data.totals.active} sub="sin contar las borradas" />
 	<Stat label="Pueden tener perfiles" value={data.totals.withProfiles} />
+	<Stat label="Suspendidas" value={data.totals.suspended} />
 	<Stat label="Borradas" value={data.totals.deleted} />
 </div>
 
@@ -103,6 +104,7 @@
 					{#if column.key === 'email'}
 						<a class="name" href={accountHref(a.id)}>{a.email ?? 'Cuenta borrada'}</a>
 						{#if a.deletedAt}<Badge tone="bad">borrada {fmtDate(a.deletedAt)}</Badge>{/if}
+						{#if a.suspendedAt && !a.deletedAt}<Badge tone="bad">Suspendida</Badge>{/if}
 					{:else if column.key === 'createdAt'}
 						{fmtDate(a.createdAt)}
 					{:else if column.key === 'verified'}

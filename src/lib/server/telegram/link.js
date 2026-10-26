@@ -110,7 +110,8 @@ export async function consumeLinkCode(db, text, chatId, { now = Date.now() } = {
 		.prepare(
 			`UPDATE telegram_link_codes SET used_at = ?2
 			WHERE code_hash = ?1 AND used_at IS NULL AND expires_at > ?2
-				AND account_id IN (SELECT id FROM accounts WHERE deleted_at IS NULL)
+				AND account_id IN (SELECT id FROM accounts
+					WHERE deleted_at IS NULL AND suspended_at IS NULL)
 			RETURNING account_id`
 		)
 		.bind(await sha256Hex(code), now)
