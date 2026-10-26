@@ -27,12 +27,8 @@ function post(path, headers = {}, method = 'POST') {
 }
 
 describe('ONE_CLICK_PATH_RE', () => {
-	it('solo las tres páginas de baja con un token de un segmento', () => {
-		for (const ok of [
-			'/avisos/sigo/abc.DEF-_1',
-			'/avisos/baja/sub_1.firma',
-			'/lista-de-espera/salir/123.firma'
-		])
+	it('solo las dos páginas de baja con un token de un segmento', () => {
+		for (const ok of ['/avisos/sigo/abc.DEF-_1', '/avisos/baja/sub_1.firma'])
 			expect(ONE_CLICK_PATH_RE.test(ok), ok).toBe(true);
 		for (const bad of [
 			'/avisos/baja/x/otra',
@@ -40,6 +36,7 @@ describe('ONE_CLICK_PATH_RE', () => {
 			'/avisos/baja',
 			'/avisos/confirmar/x',
 			'/lista-de-espera/confirmar/x',
+			'/lista-de-espera/salir/123.firma',
 			'/mails/no-fui-yo/x',
 			'/admin/avisos/baja/x',
 			'/avisos/baja/x%2Fy',
@@ -72,6 +69,7 @@ describe('allowOneClickPost', () => {
 			post('/avisos/baja/x/otra'),
 			post('/avisos/baja/x.firma?/default'),
 			post('/mails/no-fui-yo/x.firma'),
+			post('/lista-de-espera/salir/123.firma'),
 			post('/avisos/baja/x.firma', {}, 'GET'),
 			post('/avisos/baja/x.firma', {}, 'PUT')
 		])
@@ -92,6 +90,7 @@ describe('oneClickHeaders', () => {
 			'http://localhost:5173/avisos/sigo/abc.firma',
 			'mailto:baja@kinkyvibe.ar',
 			`${SITE}/calendario/x`,
+			`${SITE}/lista-de-espera/salir/123.firma`,
 			`${SITE}/avisos/sigo/abc.firma?x=1`,
 			`${SITE}/avisos/sigo/a>b`,
 			'no es un link',

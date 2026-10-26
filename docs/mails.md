@@ -304,11 +304,11 @@ cabeceras de RFC 8058: `List-Unsubscribe: <link>` con el mismo link firmado del 
   entrar ni confirmaciones: son mails de algo que la persona pidió y no tienen «baja».
 - **Lista de espera: todavía no.** Ahí la baja es salir de la fila; en la oferta, un «Anular
   suscripción» sin querer le haría perder el lugar guardado. Los avisos de después (se venció, se
-  cerró) ya no tienen de qué darse de baja. El Worker igual deja pasar el POST de
-  `/lista-de-espera/salir/<token>`, por si se suma más adelante con una decisión.
+  cerró) ya no tienen de qué darse de baja. El Worker tampoco deja pasar el POST sin `Origin` de
+  `/lista-de-espera/salir/<token>`: salir es destructivo y ningún mail manda esa cabecera.
 - **El POST sin `Origin`:** SvelteKit rechaza con 403 un POST de formulario que no trae el
   `Origin` del sitio (CSRF), y el servidor de correo no lo manda. El Worker (`worker/index.js`,
-  `allowOneClickPost`) le pone el `Origin` del sitio **solo** a un POST **sin** `Origin` a esas tres
+  `allowOneClickPost`) le pone el `Origin` del sitio **solo** a un POST **sin** `Origin` a esas dos
   páginas, con el token en un solo segmento y sin query. Un navegador siempre manda `Origin` en un
   POST desde otro sitio, así que eso se sigue rechazando igual. Es seguro porque esas acciones no
   usan la sesión ni las cookies (lo que autoriza es la firma HMAC del token, que un link tocado no

@@ -28,7 +28,6 @@
  * esperó a la base, y si el isolate es nuevo; src/lib/server/serverTiming.js y d1Timing.js), para
  * medir desde afuera. Para contar las consultas, el binding `DB` que recibe SvelteKit va envuelto
  * (siempre el mismo envoltorio) y cada pedido corre con su contador en `d1Context`.
-
  *
  * Baja en un clic (RFC 8058, src/lib/server/email/oneClick.js): el POST sin `Origin` que manda el
  * servidor de correo a una página de baja llega a SvelteKit con el `Origin` del sitio; si no, su

@@ -16,11 +16,12 @@
  */
 
 /**
- * Las páginas de baja que aceptan el POST de un clic: `/avisos/sigo/<token>` («Lo que sigo»),
- * `/avisos/baja/<token>` (series) y `/lista-de-espera/salir/<token>`. El token, un solo segmento.
+ * Las páginas de baja que aceptan el POST de un clic: `/avisos/sigo/<token>` («Lo que sigo») y
+ * `/avisos/baja/<token>` (series), las dos que mandan la cabecera. El token, un solo segmento.
+ * Salir de la lista de espera no está: es destructivo (pierde un lugar guardado) y ningún mail la
+ * manda.
  */
-export const ONE_CLICK_PATH_RE =
-	/^\/(?:avisos\/sigo|avisos\/baja|lista-de-espera\/salir)\/[A-Za-z0-9._~-]{1,200}$/;
+export const ONE_CLICK_PATH_RE = /^\/avisos\/(?:sigo|baja)\/[A-Za-z0-9._~-]{1,200}$/;
 
 /** El cuerpo que manda un cliente de correo (RFC 8058, sección 3.1). */
 export const ONE_CLICK_BODY = 'List-Unsubscribe=One-Click';
