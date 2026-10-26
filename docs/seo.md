@@ -490,7 +490,8 @@ cada tarjeta esconde 1 o 2 chips.
   tienen alguna edición que ve cualquiera (`sitemap.xml/series.js`).
 - **Series**: la página de una serie (`/wiki/<serie>`) tiene siempre un `h1` (si la etiqueta no
   tiene descripción, solo para lectores de pantalla: `GlosarioItem`), la descripción «Ediciones de
-  «X» en Kinky Vibe: N fechas, la próxima el …» (`seriesDescription` en `seo.js`) y un
+  «X» en Kinky Vibe: N fechas, la próxima el …» (`seriesDescription` en `seo.js`; si la etiqueta
+  tiene descripción propia, va esa, como en cualquier etiqueta sin entrada) y un
   `EventSeries` con sus ediciones (`seriesSchema` en `jsonLd.js`: nombre, página, fecha y estado;
   nunca el lugar). Cada edición dice de qué serie es (`superEvent`); la serie no es la canónica de
   las ediciones: cada fecha sigue siendo su propio `Event`.
