@@ -127,6 +127,10 @@ solo); hasta entonces el árbol está vacío y el editor lo avisa.
   nada, es la misma lista: no se rearma nada); el editor lo olvida al guardar.
 - **Todo usa esa fuente, sin excepciones** (paso 5). Una sola puerta: `src/lib/utils/siteTags.js`
   (`currentSiteTags()`, `currentSiteTagList()`).
+  - **Un solo árbol por lista** (`siteTagTree`): `currentSiteTags()`, los stores `tagManager` y
+    `wikiTagManager` y `tagManagerOf`/`siteTagManager` de `source.js` devuelven el mismo objeto,
+    de solo lectura (se arma una vez, sobre una copia de la lista). Para modificar uno (el filtro
+    de la Kinkipedia), `freshSiteTags()`.
   - En el servidor, `hooks.server.js` pone el árbol de cada pedido al empezar (`applySiteTags`):
     también los stores `tagManager` y `wikiTagManager` del SSR. Todos los pedidos de un isolate
     ven la misma lista (la de los 30 s).

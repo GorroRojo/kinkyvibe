@@ -9,13 +9,13 @@
  *   del panel lo olvida al guardar (`clearTagSourceCache`).
  * - `rawTags` (de la base) es la lista que espera `tagsFactory`, SIN tocar: `tagsFactory` les
  *   agrega funciones a los objetos que recibe, así que el árbol se arma sobre una copia
- *   (`tagManagerOf`) y la lista se puede mandar a la página tal cual.
+ *   (`tagManagerOf`, el mismo árbol compartido que `currentSiteTags()`: $lib/utils/siteTags.js) y
+ *   la lista se puede mandar a la página tal cual.
  */
 import { fallbackTagList } from '$lib/utils/tagFallback.js';
-import tagsFactory from '$lib/utils/tags.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { FLAG_CACHE_MS } from '$lib/server/flags.js';
-import { useSiteTags } from '$lib/utils/siteTags.js';
+import { fileSiteTags, siteTagTree, useSiteTags } from '$lib/utils/siteTags.js';
 import { splitTagList } from '$lib/utils/tagDetails.js';
 import { tagManager, wikiTagManager } from '$lib/utils/stores.js';
 import { recordsToRawTags } from './model.js';
@@ -128,26 +128,16 @@ export async function siteTagDetails(platform) {
 	return source.fromDb ? splitTagList(source.rawTags).details : null;
 }
 
-/** @type {WeakMap<object, TagManager>} */
-const managers = new WeakMap();
-/** @type {TagManager | undefined} */
-let fileManager;
-
 /**
- * El árbol armado (`tagsFactory`) de una fuente, uno por lista (se arma sobre una copia). El del
- * respaldo es el de siempre (`tagsFactory()` sobre ./tagFallback.js).
+ * El árbol armado (`tagsFactory`) de una fuente, uno por lista y compartido (de solo lectura) con
+ * `currentSiteTags()` y los stores: `siteTagTree` en $lib/utils/siteTags.js. El del respaldo es el
+ * de siempre (`fileSiteTags()`, sobre ./tagFallback.js).
  *
  * @param {TagSource} source
  * @returns {TagManager}
  */
 export function tagManagerOf(source) {
-	if (!source.fromDb) return (fileManager ??= tagsFactory());
-	let m = managers.get(source.rawTags);
-	if (!m) {
-		m = tagsFactory(/** @type {any} */ (structuredClone(source.rawTags)));
-		managers.set(source.rawTags, m);
-	}
-	return m;
+	return source.fromDb ? siteTagTree(source.rawTags) : fileSiteTags();
 }
 
 /**
