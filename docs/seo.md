@@ -83,7 +83,7 @@ que repetir las reglas de privacidad. Cada página los anuncia con `<link rel="a
 (`FeedLinks.svelte`); el feed de una etiqueta sin eventos ni material da 404. El inicio también
 anuncia los del calendario, y `/calendario` además su `.ics` (`type="text/calendar"`, prop `ics`).
 
-**El RSS de siempre** (`/rss`, anunciado en `app.html`; `src/routes/rss/+server.js`) usa los mismos
+**El RSS de siempre** (`/rss`, anunciado en `app.html`; `src/routes/rss/rss.js`) usa los mismos
 helpers (`feedEntry`, `feedPosts`, `escapeXml`): los 30 eventos y los 20 materiales más nuevos (así
 los eventos cargados en tanda no tapan el material), con la descripción del Atom (del evento, la
 fecha adelante; nunca el lugar), `dc:creator`, `category`, `language` y `lastBuildDate` (la fecha

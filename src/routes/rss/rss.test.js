@@ -11,7 +11,8 @@ const NOW = Date.parse('2026-06-01T12:00:00-03:00');
 let posts = [];
 vi.mock('$lib/server/contenido/posts.js', () => ({ sitePosts: async () => posts }));
 
-const { GET, render, RSS_EVENTS, RSS_MATERIAL } = await import('./+server.js');
+const { GET } = await import('./+server.js');
+const { render, RSS_EVENTS, RSS_MATERIAL } = await import('./rss.js');
 
 /**
  * @param {string} slug

@@ -1,7 +1,7 @@
 /**
  * Feeds Atom (RFC 4287) y JSON Feed 1.1 de los eventos, el material y cada etiqueta:
  * /calendario/feed.atom, /material/feed.json, /wiki/<etiqueta>/feed.atom… (docs/seo.md). El RSS
- * de siempre (/rss, src/routes/rss/+server.js) usa las mismas funciones.
+ * de siempre (/rss, src/routes/rss/rss.js) usa las mismas funciones.
  *
  * Funciones puras: reciben las publicaciones (las mismas que listan las páginas, ya filtradas por
  * quién las puede ver) y devuelven el texto del feed. Del evento va la fecha, nunca el lugar: así
