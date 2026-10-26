@@ -213,7 +213,9 @@ evento los muestra («Ver en el mapa»; con nombre `location_name` y dirección,
 Dirección», o lo que haya de los dos) y el `.ics` lleva el texto en `LOCATION` y el link en la
 descripción. «Online» solo si el evento es online; sin nada cargado no dice nada (antes decía
 «Online»). Los datos estructurados de schema.org siguen lo mismo (`eventPlaceSchema`). Si el evento
-tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto ni el link de `location`. Todo en
+tiene lugar en «Sucede en», **manda el lugar** y no se usa ni el texto ni el link de `location`. Si la
+base falla al leer el lugar, las páginas del evento hacen como con un lugar oculto («Lugar a
+confirmar», a lo sumo la región) y tampoco usan el «Dónde» del .md (`eventPageVenue`). Todo en
 `src/lib/utils/eventPlace.js` (`eventPlace`, `eventPlaceSchema`, `checkMapLink`).
 
 **Online o presencial: una sola regla**, `eventMode(meta, { hasVenue })` en `eventPlace.js`
