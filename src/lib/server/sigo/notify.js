@@ -363,7 +363,8 @@ export async function runFollowNotifications({
 					reasons: [...item.reasons],
 					manageUrl: `${origin}/mi-rincon/sigo`,
 					stopUrl: await stopMailUrl(db, origin, accountId),
-					origin
+					origin,
+					now
 				});
 				/** @type {'sent' | 'simulated' | 'failed'} */
 				let result = 'failed';
