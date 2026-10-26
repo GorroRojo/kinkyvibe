@@ -879,4 +879,32 @@ describe('el afiche (lo más grande de la página, su LCP)', () => {
 		expect(img).not.toMatch(/\swidth=/);
 		expect(img).not.toMatch(/\sheight=/);
 	});
+
+	it('de la biblioteca: las copias chicas y el original en el srcset, con el sizes del CSS', () => {
+		const hash = 'f'.repeat(64);
+		const img = poster(
+			page(
+				{ featured: `/media/img/${hash}.webp` },
+				{ cover: { width: 1080, height: 1350, alt: '', size: null } }
+			)
+		);
+		expect(img).toContain(`src="/media/img/${hash}.webp"`);
+		expect(img).toContain(
+			`srcset="/media/img/${hash}-360.webp 360w, /media/img/${hash}-720.webp 720w, /media/img/${hash}.webp 1080w"`
+		);
+		expect(img).toContain('sizes="(min-width: 900px) 24rem, calc(100vw - 1.75rem)"');
+		expect(img).toContain('fetchpriority="high"');
+		expect(img).toContain('width="1080"');
+	});
+
+	it('una imagen que no es de la biblioteca (o un GIF): solo el original, sin srcset ni sizes', () => {
+		for (const featured of [AFICHE, `/media/img/${'f'.repeat(64)}.gif`]) {
+			const img = poster(
+				page({ featured }, { cover: { width: 1080, height: 1350, alt: '', size: null } })
+			);
+			expect(img).toContain(`src="${featured}"`);
+			expect(img).not.toContain('srcset=');
+			expect(img).not.toContain('sizes=');
+		}
+	});
 });
