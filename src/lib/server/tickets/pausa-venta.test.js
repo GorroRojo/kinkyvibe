@@ -108,7 +108,10 @@ beforeEach(async () => {
 	subjects = [];
 	for (const k of Object.keys(envVars)) delete envVars[k];
 	// Mercado Pago «configurado» (nunca se llama: la pausa corta antes) y Resend de mentira.
-	Object.assign(envVars, { MP_ACCESS_TOKEN: 'TEST-token-inventado', RESEND_API_KEY: 're_inventada' });
+	Object.assign(envVars, {
+		MP_ACCESS_TOKEN: 'TEST-token-inventado',
+		RESEND_API_KEY: 're_inventada'
+	});
 	// Datos para transferir inventados (así se ofrece la transferencia).
 	await t.db
 		.prepare(
@@ -209,7 +212,14 @@ const payment = (o, status, id) => ({
 	currency_id: 'ARS'
 });
 
-const GENERAL = { id: 'general', name: 'General', price: 1000, fondo: 0, capacity: 50, gorra: null };
+const GENERAL = {
+	id: 'general',
+	name: 'General',
+	price: 1000,
+	fondo: 0,
+	capacity: 50,
+	gorra: null
+};
 
 describe('TICKETS_PAUSED: lo que ve el público', () => {
 	it('sin la variable se puede comprar; con ella, el texto en lugar de los botones', async () => {

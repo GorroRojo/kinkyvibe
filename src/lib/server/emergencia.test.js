@@ -18,7 +18,8 @@ import {
 
 describe('pauseText', () => {
 	it('vacía, ausente, solo espacios o 0: apagada', () => {
-		for (const raw of [undefined, null, '', '   ', '0', ' 0 ', '\n']) expect(pauseText(raw)).toBe(null);
+		for (const raw of [undefined, null, '', '   ', '0', ' 0 ', '\n'])
+			expect(pauseText(raw)).toBe(null);
 	});
 
 	it('cualquier otro texto: prendida, limpio y recortado', () => {
