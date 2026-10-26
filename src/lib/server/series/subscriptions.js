@@ -32,7 +32,7 @@ import { optOutUrl, unconfirmedMailAllowed } from '$lib/server/email/suppression
 import { buildSeriesConfirmEmail } from './email.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
-/** @typedef {(to: string, message: { subject: string, html: string, text: string }, idempotencyKey?: string) => Promise<'sent' | 'simulated' | 'failed'>} SeriesSend */
+/** @typedef {(to: string, message: { subject: string, html: string, text: string, headers?: Record<string, string> }, idempotencyKey?: string) => Promise<'sent' | 'simulated' | 'failed'>} SeriesSend */
 
 /** Cuánto vale el link de confirmar. */
 export const CONFIRM_TTL_MS = 48 * 60 * 60 * 1000;

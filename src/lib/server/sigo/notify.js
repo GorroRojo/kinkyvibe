@@ -38,6 +38,7 @@ import { stopAllMail } from './follows.js';
 import { migrateAccountSubscriptions } from './avisame.js';
 import { buildFollowEmail } from './email.js';
 import { autoSubmitted } from '$lib/server/tickets/email.js';
+import { oneClickHeaders } from '$lib/server/email/oneClick.js';
 import { resolveTarget } from './targets.js';
 import { optionsFromRow, telegramOptionsFromRow } from '$lib/utils/sigo.js';
 import { formatFollowNotice } from '$lib/server/telegram/format.js';
@@ -48,7 +49,7 @@ import { askFreeOrderSql, saidMineSql } from '$lib/server/cuentas/orders.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {Pick<ProcessedPost, 'meta' | 'path'>} Post */
-/** @typedef {(to: string, message: import('./email.js').Message, idempotencyKey: string) => Promise<'sent' | 'simulated' | 'failed'>} FollowSend */
+/** @typedef {(to: string, message: import('./email.js').Message & { headers?: Record<string, string> }, idempotencyKey: string) => Promise<'sent' | 'simulated' | 'failed'>} FollowSend */
 
 /** @typedef {'mail' | 'telegram'} Channel */
 
@@ -356,17 +357,22 @@ export async function runFollowNotifications({
 				if (budget <= 0 || !acc.email) break;
 				if (!(await claim(accountId, slug, kind, 'mail'))) continue;
 				budget--;
-				const message = buildFollowEmail({
-					kind,
-					title: String(item.post.meta.title ?? slug),
-					start: String(item.post.meta.start),
-					eventUrl,
-					reasons: [...item.reasons],
-					manageUrl: `${origin}/mi-rincon/sigo`,
-					stopUrl: await stopMailUrl(db, origin, accountId),
-					origin,
-					now
-				});
+				const stopUrl = await stopMailUrl(db, origin, accountId);
+				const message = {
+					...buildFollowEmail({
+						kind,
+						title: String(item.post.meta.title ?? slug),
+						start: String(item.post.meta.start),
+						eventUrl,
+						reasons: [...item.reasons],
+						manageUrl: `${origin}/mi-rincon/sigo`,
+						stopUrl,
+						origin,
+						now
+					}),
+					// Baja en un clic (RFC 8058): el mismo link del pie (email/oneClick.js).
+					headers: oneClickHeaders(stopUrl)
+				};
 				/** @type {'sent' | 'simulated' | 'failed'} */
 				let result = 'failed';
 				try {

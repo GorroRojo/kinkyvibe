@@ -353,6 +353,19 @@ describe('el mail con las entradas', () => {
 			message: { subject, html, text }
 		});
 		expect(bodies[0].headers).toEqual({ 'Content-Language': 'es' });
+		// Las cabeceras de un mail en particular (baja en un clic) se suman a esas.
+		const oneClick = {
+			'List-Unsubscribe': '<https://kinkyvibe.example/avisos/sigo/x.firma>',
+			'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
+		};
+		await sendWithResend({
+			fetch,
+			apiKey: 're_inventada',
+			from: 'a@example.com',
+			to: 'b@example.com',
+			message: { subject, html, text, headers: oneClick }
+		});
+		expect(bodies[1].headers).toEqual({ 'Content-Language': 'es', ...oneClick });
 	});
 });
 
