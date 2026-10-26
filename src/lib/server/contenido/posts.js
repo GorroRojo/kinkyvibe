@@ -43,7 +43,13 @@ import { renderContentBody } from './render.js';
 import { personaEdgesColumn, personaEdgesFromColumn } from './personasEdges.js';
 import { tagEdgesColumn, tagEdgesFromColumn } from './etiquetasEdges.js';
 import { contentEdgesFrom, withContentEdges, withEdgesOf } from './relaciones.js';
-import { linkRefsOf, publicLinkTargets, publicLinksOf } from './vinculosPublicos.js';
+import {
+	allPublicLinkTargets,
+	linkRefsOf,
+	publicLinkTargets,
+	publicLinksOf,
+	withPublicLinks
+} from './vinculosPublicos.js';
 import { imageOfFrom } from '$lib/server/media/library.js';
 import { mediaPath } from '$lib/server/media/sniff.js';
 import { authorProfilePosts, authorSlugs, toPublic } from '$lib/server/amigues/asPost.js';
@@ -129,6 +135,7 @@ let cached = null;
 /** Olvida lo recordado (tests). */
 export function clearContentCache() {
 	cached = null;
+	lastStamp = null;
 }
 
 /**
@@ -140,8 +147,17 @@ export function clearContentCache() {
  * @returns {Promise<string>}
  */
 function contentStamp(db) {
-	return oncePerRequest(db, 'contentStamp', () => readContentStamp(db));
+	return oncePerRequest(db, 'contentStamp', () =>
+		readContentStamp(db).then((stamp) => (lastStamp = stamp))
+	);
 }
+
+/**
+ * La última marca que leyó este isolate (para adelantar: {@link peekContentStamp}). Solo el valor
+ * ya leído, nunca la consulta en camino.
+ * @type {string | null}
+ */
+let lastStamp = null;
 
 /** @param {D1Database} db */
 async function readContentStamp(db) {
@@ -312,12 +328,11 @@ async function edgeState(db, stamp, tree) {
 }
 
 /**
+ * La consulta de los posts de las listas ({@link loadDbState}); la misma sentencia para quien la
+ * adelanta ({@link askListsEarly}): con las tandas automáticas, la de después recibe lo ya leído.
  * @param {D1Database} db
- * @param {string} stamp
- * @param {TagManager} tree el árbol de etiquetas en uso
- * @returns {Promise<DbState>}
  */
-async function loadDbState(db, stamp, tree) {
+function listRowsStatement(db) {
 	const visible = publicWhere(ANON, 'o');
 	const visibleImage = visibleWhere(ANON, 'i');
 	const t = marks(TYPES.length);
@@ -325,7 +340,7 @@ async function loadDbState(db, stamp, tree) {
 	// `cover`: la imagen de la biblioteca del post (edge `portada`, docs/imagenes.md), si tiene; de un
 	// perfil, su `avatar`. En la misma consulta, los perfiles de amigues aprobados y no ocultos («solo
 	// base»: lo que las listas mostraban de las fichas .md).
-	const rows = await db
+	return db
 		.prepare(
 			`SELECT o.id, o.type, o.slug, o.title, ${DATA_WITHOUT_BODY} AS data, o.visibility,
 				coalesce(s.legacy_slug, ps.legacy_slug) AS legacy_slug,
@@ -344,8 +359,24 @@ async function loadDbState(db, stamp, tree) {
 				AND ${visible.sql}
 			ORDER BY o.id`
 		)
-		.bind(...visibleImage.params, ...TYPES, ...visible.params)
-		.all();
+		.bind(...visibleImage.params, ...TYPES, ...visible.params);
+}
+
+/**
+ * @param {D1Database} db
+ * @param {string} stamp
+ * @param {TagManager} tree el árbol de etiquetas en uso
+ * @returns {Promise<DbState>}
+ */
+async function loadDbState(db, stamp, tree) {
+	// Con las tandas automáticas, los posts y a qué perfiles y etiquetas se puede vincular, a la par
+	// (una ida, no dos en fila): los vínculos se revisan contra todos los perfiles y etiquetas, sin
+	// esperar a saber cuáles nombran los posts (./vinculosPublicos.js). Sin tandas, como antes:
+	// primero los posts y después solo lo que nombran (ninguna consulta si no nombran nada).
+	const [rows, targets] = await Promise.all([
+		listRowsStatement(db).all(),
+		batchesReads(db) ? allPublicLinkTargets(db) : null
+	]);
 	/** @type {ProcessedPost[]} */
 	const listed = [];
 	/** @type {ProcessedPost[]} */
@@ -378,10 +409,12 @@ async function loadDbState(db, stamp, tree) {
 		};
 		return [{ r, meta: cat.toMeta(object) }];
 	});
-	const metas = await publicLinksOf(
-		db,
-		content.map((c) => c.meta)
-	);
+	const metas = targets
+		? content.map((c) => withPublicLinks(c.meta, targets))
+		: await publicLinksOf(
+				db,
+				content.map((c) => c.meta)
+			);
 	/** @type {Map<string, PostHint>} */
 	const hints = new Map();
 	for (const { r, meta } of content) {
@@ -576,6 +609,41 @@ export function peekListedPosts() {
 }
 
 /**
+ * Para adelantar (nunca para mostrar): la última marca que leyó este isolate, sin preguntar si la
+ * base cambió; `null` si todavía no leyó ninguna.
+ * @returns {string | null}
+ */
+export function peekContentStamp() {
+	return lastStamp;
+}
+
+/** @param {Promise<unknown>} p */
+const quiet = (p) => {
+	p.catch(() => {});
+};
+
+/**
+ * Al empezar un pedido de lectura que va a esperar a la base de todos modos (hooks.server.js,
+ * src/lib/server/adelantarPedido.js): pide la marca y, si el isolate todavía no armó las listas
+ * (recién nacido), las dos consultas con que se arman ({@link loadDbState}), así salen en la misma
+ * ida que el árbol de etiquetas en vez de dos idas después. Son las mismas sentencias: con las
+ * tandas automáticas, las de después reciben lo ya leído (si la caché de Cloudflare ya tiene las
+ * listas, lo adelantado no se usa). Sin tandas, nada (sería consultar de más). Devuelve si pidió las
+ * listas.
+ *
+ * @param {D1Database | null} db
+ * @returns {boolean}
+ */
+export function askListsEarly(db) {
+	if (!db || !batchesReads(db)) return false;
+	quiet(contentStamp(db));
+	if (cached) return false;
+	quiet(listRowsStatement(db).all());
+	quiet(allPublicLinkTargets(db));
+	return true;
+}
+
+/**
  * Las publicaciones del sitio, todas de la base: los eventos, el material y los perfiles de
  * amigues listados (o, con `unlisted`, los no listados); con `wiki`, las páginas de la wiki. Sin
  * base, nada.
@@ -731,11 +799,27 @@ export async function siteBodies(platform) {
  */
 export async function fromContentState(db, key, compute) {
 	if (!cached) return null;
+	// Si lo recordado todavía no lo tiene, se arma a la par de la marca (con las tandas, en la misma
+	// ida) y se usa solo si la marca no cambió: así lo armado nunca es más viejo que la marca.
+	const ahead = batchesReads(db) ? derivedOf(cached.state, key, compute) : null;
+	if (ahead) quiet(ahead);
 	const stamp = await contentStamp(db);
 	if (cached?.stamp !== stamp || cached.tree !== currentSiteTags()) return null;
-	const state = cached.state;
+	return derivedOf(cached.state, key, compute);
+}
+
+/**
+ * Lo armado con `state` para `key` ({@link fromContentState}): lo recordado, o lo que arma
+ * `compute` (compartido dentro del pedido; recordado cuando termina bien).
+ * @template T
+ * @param {DbState} state
+ * @param {string} key
+ * @param {(eventSlugs: string[]) => Promise<T>} compute
+ * @returns {Promise<T>}
+ */
+function derivedOf(state, key, compute) {
 	const derived = (state.derived ??= new Map());
-	if (derived.has(key)) return /** @type {T} */ (derived.get(key));
+	if (derived.has(key)) return Promise.resolve(/** @type {T} */ (derived.get(key)));
 	const events = [...state.listed, ...state.unlisted]
 		.filter((p) => p.meta?.category === EVENT_CATEGORY)
 		.map((p) => String(p.meta.postID));

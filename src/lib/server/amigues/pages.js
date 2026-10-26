@@ -7,8 +7,8 @@
  */
 import { currentRelated, mediaURL, relatedPostsFor } from '$lib/utils';
 import { canHaveProfiles } from '$lib/server/cuentas/accounts.js';
-import { contentStampOf, peekListedPosts } from '$lib/server/contenido/posts.js';
-import { readAndKeep } from '$lib/server/db/perRequest.js';
+import { contentStampOf, peekContentStamp, peekListedPosts } from '$lib/server/contenido/posts.js';
+import { oncePerRequest, readAndKeep } from '$lib/server/db/perRequest.js';
 import { batchesReads } from '$lib/server/db/autoBatch.js';
 import { ANON } from '$lib/server/objects/visibility.js';
 import { currentSiteTags } from '$lib/utils/siteTags.js';
@@ -80,16 +80,24 @@ export function clearAmiguesCache() {
  * @returns {Promise<ProcessedPost[]>}
  */
 async function anonProfilePosts(db) {
-	const stamp = await contentStampOf(db);
 	const tree = currentSiteTags();
 	const entry = anonCache;
+	// Sin la lista de la marca con que el isolate armó sus listas (la primera vez en el isolate, o
+	// cambió el contenido): se arma ya, a la par de la marca (con las tandas, en la misma ida), y se
+	// usa solo si la marca dice que hace falta. Lo leído nunca es más viejo que la marca.
+	const ahead =
+		batchesReads(db) && !(entry?.stamp === peekContentStamp() && entry?.tree === tree)
+			? oncePerRequest(db, 'amigues-anon-ahead', () => profilePosts(db, ANON))
+			: null;
+	ahead?.catch(() => {});
+	const stamp = await contentStampOf(db);
 	const posts =
 		entry?.stamp === stamp && entry.tree === tree
 			? entry.posts
 			: await readAndKeep(
 					db,
 					`amigues-anon\n${stamp}`,
-					() => profilePosts(db, ANON),
+					() => ahead ?? profilePosts(db, ANON),
 					(list) => {
 						anonCache = { stamp, tree, posts: list };
 					}

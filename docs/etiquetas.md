@@ -124,7 +124,9 @@ solo); hasta entonces el árbol está vacío y el editor lo avisa.
   `siteTagManager`): la base. Sin base, con la base sin etiquetas o sin poder leerla: vacío
   (`src/lib/utils/tagFallback.js`; las pruebas de vitest ponen ahí las etiquetas de la semilla,
   en `src/tests/setup.js`). Lo leído se recuerda 30 s por isolate (si al volver a leer no cambió
-  nada, es la misma lista: no se rearma nada); el editor lo olvida al guardar.
+  nada, es la misma lista: no se rearma nada); el editor lo olvida al guardar. En los últimos 10 s
+  se renueva sin esperar (`refreshTagSourceAhead`, desde `src/lib/server/adelantarPedido.js`): el
+  pedido usa lo que hay y la lectura nueva sale con sus primeras consultas.
 - **Todo usa esa fuente, sin excepciones** (paso 5). Una sola puerta: `src/lib/utils/siteTags.js`
   (`currentSiteTags()`, `currentSiteTagList()`).
   - **Un solo árbol por lista** (`siteTagTree`): `currentSiteTags()`, los stores `tagManager` y

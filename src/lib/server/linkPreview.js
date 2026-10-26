@@ -16,6 +16,7 @@
  */
 import { getDB, logDBError } from '$lib/server/db';
 import { readAndKeep } from '$lib/server/db/perRequest.js';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
 import { parseSiteDate } from '$lib/utils/dates.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { isMediaPath, isPublicMediaUrl } from '$lib/utils/media.js';
@@ -190,6 +191,20 @@ export async function linkPreviewState(platform, now = Date.now()) {
 			cached = { db, expires: now + LINK_PREVIEW_CACHE_MS, state };
 		}
 	);
+}
+
+/**
+ * Al empezar un pedido que va a esperar a la base de todos modos (src/lib/server/adelantarPedido.js):
+ * si lo recordado venció, pide ya la fila de los textos, así sale en esa misma ida y no en la
+ * siguiente. Es la misma sentencia que lee {@link readPreviewTextOverrides}: con las tandas
+ * automáticas (src/lib/server/db/autoBatch.js), la de después recibe lo ya leído. Solo con tandas.
+ * @param {D1Database | null | undefined} db
+ * @param {number} [now]
+ */
+export function askLinkPreviewEarly(db, now = Date.now()) {
+	if (!db || !batchesReads(db)) return;
+	if (cached && cached.db === db && cached.expires > now) return;
+	readPreviewTextOverrides(db).catch(() => {});
 }
 
 /**
