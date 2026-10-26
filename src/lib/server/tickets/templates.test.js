@@ -273,6 +273,98 @@ describe('con plantilla', () => {
 	});
 });
 
+describe('la fecha con fin y huso, y el lugar, en los mails de una compra', () => {
+	const order = fixtureOrder();
+	const tickets = fixtureTickets();
+	const START = '2026-11-14T22:00:00-03:00';
+	const END = '2026-11-15T03:00:00-03:00';
+	const base = {
+		order,
+		tickets,
+		typeName: 'General',
+		origin: 'https://kinkyvibe.example',
+		contactEmail: 'c@example.com'
+	};
+	const reminder = { kind: 'days_before', days: 1 };
+
+	it('formatEventWhen: inicio, fin y «hora de Argentina y Uruguay»; vacía sin inicio', () => {
+		expect(email.formatEventWhen(START, END)).toBe(
+			'sábado 14 de noviembre de 2026, 22:00 a 03:00 (hora de Argentina y Uruguay)'
+		);
+		expect(email.formatEventWhen(START)).toBe(
+			'sábado 14 de noviembre de 2026, 22:00 (hora de Argentina y Uruguay)'
+		);
+		expect(email.formatEventWhen(undefined, END)).toBe('');
+	});
+
+	it('va en el cuerpo de entradas, recordatorio, cambio de fecha y transferencia; {{fecha}} no cambia', () => {
+		const event = { title: 'Fiesta online', start: START, end: END, online: true };
+		const when = 'sábado 14 de noviembre de 2026, 22:00 a 03:00 (hora de Argentina y Uruguay)';
+		for (const m of [
+			email.buildTicketEmail({ ...base, event }),
+			email.buildReminderEmail({ ...base, reminder, event }),
+			email.buildDateChangeEmail({ ...base, event }),
+			email.buildTransferEmail({ ...base, event, transferInfo: 'Alias: ejemplo' })
+		]) {
+			expect(m.text).toContain(when);
+			expect(m.html).toContain(when);
+			// En el asunto no.
+			expect(m.subject).not.toContain('hora de Argentina');
+		}
+		// La variable de las plantillas sigue siendo solo el inicio.
+		expect(email.templateVars(order, event, 'General').fecha).toBe(
+			'sábado 14 de noviembre de 2026, 22:00'
+		);
+	});
+
+	const place = {
+		title: 'Fiesta',
+		start: START,
+		slug: 'fiesta-de-prueba',
+		location_name: 'Lugar de ejemplo',
+		location: 'Calle Falsa 123',
+		howTo: 'Tocá el timbre <2B>\nSubí por la escalera',
+		accessibility: 'Planta baja & sin escalones'
+	};
+
+	it.each([
+		['entradas', (/** @type {any} */ event) => email.buildTicketEmail({ ...base, event })],
+		[
+			'recordatorio',
+			(/** @type {any} */ event) => email.buildReminderEmail({ ...base, reminder, event })
+		]
+	])('%s: «Cómo llegar», «Accesibilidad» (escapados) y el link al evento', (_, build) => {
+		const m = build(place);
+		expect(m.html).toContain(
+			'<a href="https://kinkyvibe.example/calendario/fiesta-de-prueba" style="'
+		);
+		expect(m.html).toContain('>Ver la página del evento</a>');
+		expect(m.html).toContain('data-kv-mail="lugar"');
+		expect(m.html).toContain('Tocá el timbre &lt;2B&gt;\nSubí por la escalera');
+		expect(m.html).toContain('Planta baja &amp; sin escalones');
+		expect(m.html).not.toContain('<2B>');
+		const lines = m.text.split('\n');
+		expect(lines).toContain(
+			'Página del evento: https://kinkyvibe.example/calendario/fiesta-de-prueba'
+		);
+		expect(lines).toContain('Cómo llegar:');
+		expect(lines).toContain('Tocá el timbre <2B>');
+		expect(lines).toContain('Accesibilidad:');
+		expect(lines).toContain('Planta baja & sin escalones');
+
+		// Sin los textos (otro nivel del lugar): ni el recuadro ni las líneas; el link sí.
+		const plain = build({ ...place, howTo: null, accessibility: null });
+		expect(plain.html).not.toContain('data-kv-mail="lugar"');
+		expect(plain.text).not.toContain('Cómo llegar');
+		expect(plain.html).toContain('>Ver la página del evento</a>');
+
+		// Online: sin recuadro del lugar.
+		const online = build({ ...place, online: true });
+		expect(online.html).not.toContain('data-kv-mail="lugar"');
+		expect(online.text).not.toContain('Cómo llegar');
+	});
+});
+
 describe('formato seguro', () => {
 	const vars = { nombre: '**<script>alert(1)</script>**', evento: 'A & B' };
 	it('escapa las variables y el texto; las variables nunca se interpretan', () => {

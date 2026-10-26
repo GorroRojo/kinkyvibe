@@ -266,6 +266,43 @@ function streamLinkBlock(link) {
 }
 
 /**
+ * Lo que la página del evento le muestra a cualquiera del lugar, además de la dirección: «Cómo
+ * llegar» y «Accesibilidad» (`venueNotesForMail`, amigues/venues.js: solo en el nivel en que la
+ * página los muestra), en un recuadro después de la fecha y el lugar, y el link a la página del
+ * evento. Solo en eventos presenciales; sin nada de eso (o sin `event.slug`, como en las vistas
+ * previas y la golden), nada: el mail sale como siempre. Los textos vienen del CMS: van escapados.
+ *
+ * @param {{ slug?: string, howTo?: string | null, accessibility?: string | null }} event
+ * @param {boolean} online
+ * @param {string} origin
+ * @returns {{ linkHtml: string, boxHtml: string, text: string[] }}
+ */
+function venueBlocks(event, online, origin) {
+	const url = event.slug ? `${origin}/calendario/${event.slug}` : null;
+	const notes = online
+		? []
+		: /** @type {[string, string][]} */ (
+				[
+					['Cómo llegar', event.howTo],
+					['Accesibilidad', event.accessibility]
+				].filter(([, v]) => typeof v === 'string' && v.trim())
+			);
+	return {
+		linkHtml: url
+			? `<br><a href="${escapeHtml(url)}" style="${MAIL_STYLES.link}" data-kv-mail="evento">Ver la página del evento</a>`
+			: '',
+		boxHtml: notes.length
+			? `
+		<div style="${MAIL_STYLES.box}" data-kv-mail="lugar">${notes.map(([t, v], i) => `<p style="margin:${i ? '10px' : '0'} 0 4px;font-weight:bold">${t}</p><p style="margin:0;white-space:pre-line">${escapeHtml(v.trim())}</p>`).join('')}</div>`
+			: '',
+		text: [
+			...(url ? [`Página del evento: ${url}`] : []),
+			...notes.flatMap(([t, v]) => ['', `${t}:`, v.trim()])
+		]
+	};
+}
+
+/**
  * La lista «Las N partes del taller» de un taller con una sola entrada para todas sus partes
  * (docs/talleres-partes.md), dentro de la tarjeta, después de los datos del evento. Sin lista,
  * nada: el mail sale igual que siempre, byte a byte.
@@ -318,7 +355,8 @@ export function comboBlocks(title, combos) {
  *   tickets: import('./orders.js').Ticket[],
  *   event: { title: string, start?: string, location?: string, location_name?: string,
  *     online?: boolean, streamLink?: string | null, parts?: PartsList | null,
- *     slug?: string, end?: string | null, status?: string, stamp?: number },
+ *     slug?: string, end?: string | null, status?: string, stamp?: number,
+ *     howTo?: string | null, accessibility?: string | null },
  *   typeName: string,
  *   origin: string,
  *   contactEmail: string,
@@ -327,6 +365,8 @@ export function comboBlocks(title, combos) {
  *   optOutUrl?: string | null
  * }} input
  * `event.parts`: la lista de partes si es un taller con una sola entrada.
+ * `event.howTo`/`event.accessibility`: «Cómo llegar» y «Accesibilidad» del lugar, solo si la página
+ * del evento se los muestra a cualquiera (`venueNotesForMail`).
  * `optOutUrl`: el link «No fui yo» (entradas gratis; email/suppressions.js), en el pie.
  * `combos`: los códigos combo de la compra (combos.js), en un bloque después de las entradas.
  * `event.slug`: con él, el mail lleva adjunto `<slug>.ics` (calendarFile.js), una línea
@@ -348,7 +388,7 @@ export function buildTicketEmail({
 }) {
 	const title = event.title;
 	const optOut = mailOptOut(optOutUrl, '¿No pediste vos estas entradas?');
-	const when = formatEventDate(event.start);
+	const when = formatEventWhen(event.start, event.end);
 	const online = Boolean(event.online);
 	const where = salePlaceText(online, event);
 	const custom = applyTemplate(template, templateVars(order, event, typeName));
@@ -364,6 +404,7 @@ export function buildTicketEmail({
 	const policy = policyBlocks(contactEmail);
 	const parts = partsBlocks(event.parts);
 	const cal = calendarExtras({ order, event, online, origin, markup: true });
+	const venue = venueBlocks(event, online, origin);
 
 	const ticketBlocks = tickets
 		.map((t, i) => {
@@ -405,7 +446,7 @@ export function buildTicketEmail({
 		label: custom.label ?? 'Tus entradas',
 		titleHtml: custom.headingHtml ?? '¡Ya tenés tus entradas!',
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, gracias por ${order.payment_method === 'gratis' ? 'anotarte' : 'tu compra'}.</p>`}
-		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}${cal.html}
+		<p><strong>${escapeHtml(title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}${venue.linkHtml}</p>${venue.boxHtml}${parts.html}${cal.html}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		${online && event.streamLink ? streamLinkBlock(event.streamLink) : ''}`,
 		button: withLabel(
@@ -430,6 +471,7 @@ export function buildTicketEmail({
 		`${title}`,
 		when,
 		where,
+		...venue.text,
 		...parts.text,
 		...cal.text,
 		'',
@@ -543,14 +585,16 @@ export function buildStreamLinkEmail({
  *   reminder: import('./reminders.js').Reminder,
  *   event: { title: string, start?: string, location?: string, location_name?: string,
  *     online?: boolean, streamLink?: string | null, parts?: PartsList | null,
- *     slug?: string, end?: string | null, status?: string, stamp?: number },
+ *     slug?: string, end?: string | null, status?: string, stamp?: number,
+ *     howTo?: string | null, accessibility?: string | null },
  *   typeName: string,
  *   origin: string,
  *   contactEmail: string,
  *   template?: Template
  * }} input
  * `event.slug`: con él, el recordatorio lleva el `.ics` adjunto y el link a Google Calendar (como
- * el mail de las entradas, sin el marcado para Gmail).
+ * el mail de las entradas, sin el marcado para Gmail) y el link a la página del evento.
+ * `event.howTo`/`event.accessibility`: como en el mail de las entradas.
  * @returns {{ subject: string, html: string, text: string, attachments?: MailAttachment[] }}
  */
 export function buildReminderEmail({
@@ -563,7 +607,7 @@ export function buildReminderEmail({
 	contactEmail,
 	template
 }) {
-	const when = formatEventDate(event.start);
+	const when = formatEventWhen(event.start, event.end);
 	const online = Boolean(event.online);
 	const where = salePlaceText(online, event);
 	const soon =
@@ -581,6 +625,7 @@ export function buildReminderEmail({
 	const parts = partsBlocks(event.parts);
 	// Con `event.slug`: el .ics adjunto y el link a Google Calendar, como en el mail de las entradas.
 	const cal = calendarExtras({ order, event, online, origin });
+	const venue = venueBlocks(event, online, origin);
 	const links = tickets.map((t) => `${origin}/entradas/t/${t.token}`);
 	/** @param {import('./orders.js').Ticket} t */
 	const holder = (t) =>
@@ -601,7 +646,7 @@ export function buildReminderEmail({
 		label: custom.label ?? 'Recordatorio',
 		titleHtml: custom.headingHtml ?? `¡${escapeHtml(event.title)} ${soon}!`,
 		contentHtml: `${custom.bodyHtml ?? `<p>Hola ${escapeHtml(order.buyer_name)}, te recordamos que tenés ${tickets.length === 1 ? 'una entrada' : `${tickets.length} entradas`} (${escapeHtml(typeName)}).</p>`}
-		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}</p>${parts.html}${cal.html}
+		<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(when)}${where ? `<br>${escapeHtml(where)}` : ''}${venue.linkHtml}</p>${venue.boxHtml}${parts.html}${cal.html}
 		${intro}
 		<ul style="margin:0 0 16px;padding-left:20px">${list}</ul>`,
 		button: withLabel(
@@ -623,6 +668,7 @@ export function buildReminderEmail({
 		`${event.title}`,
 		when,
 		where,
+		...venue.text,
 		...parts.text,
 		...cal.text,
 		'',
@@ -663,6 +709,20 @@ export function formatEventSchedule(start, end) {
 }
 
 /**
+ * La fecha del evento para el cuerpo de los mails: inicio, fin (si se sabe) y el huso, «sábado 14
+ * de noviembre de 2026, 22:00 a 03:00 (hora de Argentina y Uruguay)». Vacía sin inicio. No va en
+ * los asuntos ni en la variable `{{fecha}}` de las plantillas, que sigue siendo solo el inicio (hay
+ * textos propios escritos alrededor).
+ *
+ * @param {string | undefined | null} start
+ * @param {string | undefined | null} [end]
+ */
+export function formatEventWhen(start, end) {
+	const when = formatEventSchedule(start, end);
+	return when ? `${when} (${ARGENTINA_TIME_NOTE})` : '';
+}
+
+/**
  * Aviso de cambio de fecha («Avisar a les compradores», dateChange.js): la fecha nueva en un
  * recuadro, la de antes si se sabe, el calendario actualizado y, en un evento online con el link
  * ya cargado, el link de la transmisión (como los demás mails).
@@ -696,8 +756,8 @@ export function buildDateChangeEmail({
 }) {
 	const online = Boolean(event.online);
 	const where = salePlaceText(online, event);
-	const when = formatEventSchedule(event.start, event.end);
-	const before = previous?.start ? formatEventSchedule(previous.start, previous.end) : '';
+	const when = formatEventWhen(event.start, event.end);
+	const before = previous?.start ? formatEventWhen(previous.start, previous.end) : '';
 	const custom = applyTemplate(template, {
 		...templateVars({ ...order, quantity: tickets.length || order.quantity }, event, typeName),
 		fecha_anterior: previous?.start ? formatEventDate(previous.start) : ''
@@ -814,7 +874,7 @@ export function buildRefundEmail({ order, event, typeName, contactEmail, origin,
  *
  * @param {{
  *   order: import('./orders.js').Order,
- *   event: { title: string, start?: string, parts?: PartsList | null },
+ *   event: { title: string, start?: string, end?: string | null, parts?: PartsList | null },
  *   typeName: string,
  *   transferInfo: string,
  *   replyTo?: string,
@@ -857,7 +917,7 @@ export function buildTransferEmail({
 	const intro =
 		custom.bodyHtml ??
 		`<p>Hola ${escapeHtml(order.buyer_name)}, para confirmar tus entradas transferí <strong>${formatARS(order.total)}</strong>.</p>`;
-	const details = `<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventDate(event.start))}</p>${parts.html}
+	const details = `<p><strong>${escapeHtml(event.title)}</strong><br>${escapeHtml(formatEventWhen(event.start, event.end))}</p>${parts.html}
 		<p>${prices.map(escapeHtml).join('<br>')}</p>
 		<div style="${MAIL_STYLES.box};white-space:pre-line">${escapeHtml(transferInfo)}</div>
 		<p>En el concepto o la descripción de la transferencia poné: <strong style="font-size:18px">${ref}</strong></p>
@@ -886,7 +946,7 @@ export function buildTransferEmail({
 		...(custom.helpText !== null ? ['', custom.helpText] : []),
 		'',
 		`${event.title}`,
-		formatEventDate(event.start),
+		formatEventWhen(event.start, event.end),
 		...parts.text,
 		...(parts.text.length ? [''] : []),
 		...prices,

@@ -22,12 +22,12 @@ import { argDeadline } from '$lib/utils/dates.js';
 import { ARGENTINA_TIME_NOTE, expiresInText } from '$lib/utils/expiry.js';
 import { mergeTemplates, templateDef } from '$lib/utils/emailTemplates.js';
 import { MAIL_STYLES, mailLayout, mailOptOut } from '$lib/server/email/layout.js';
-import { applyTemplate, escapeHtml, formatEventDate } from './email.js';
+import { applyTemplate, escapeHtml, formatEventDate, formatEventWhen } from './email.js';
 
 /** @typedef {{ subject: string, html: string, text: string }} Message */
 /** @typedef {import('./email.js').Template} Template */
 /** @typedef {import('$lib/utils/emailTemplates.js').WaitlistTemplateId} WaitlistTemplateId */
-/** @typedef {{ title: string, start?: string | null }} WaitlistEvent */
+/** @typedef {{ title: string, start?: string | null, end?: string | null }} WaitlistEvent */
 
 /** El recuadro amarillo de «te lo guardamos hasta…» (como el de la transferencia). */
 const HOLD_BOX = 'background:#fff3c4;border-radius:12px;padding:12px 16px;margin:0 0 16px';
@@ -79,7 +79,7 @@ export function waitlistVars(event, typeName, holdUntil = null) {
  * @param {string | null | undefined} typeName
  */
 function eventBlock(event, typeName) {
-	const date = formatEventDate(event.start ?? undefined);
+	const date = formatEventWhen(event.start, event.end);
 	const lines = [event.title, date, typeName ? `Entrada: ${typeName}` : ''].filter(Boolean);
 	return {
 		html: `<p><strong>${escapeHtml(event.title)}</strong>${date ? `<br>${escapeHtml(date)}` : ''}${typeName ? `<br>Entrada: ${escapeHtml(typeName)}` : ''}</p>`,

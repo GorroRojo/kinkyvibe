@@ -14,7 +14,7 @@
  *   {@link STALE_CLAIM_MS}.
  * - El mail sale por `deliver()` de index.js, así que en los previews solo llega a EMAIL_ALLOWLIST.
  */
-import { escapeHtml, formatEventDate } from './email.js';
+import { escapeHtml, formatEventWhen } from './email.js';
 import { mailLayout } from '$lib/server/email/layout.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -73,12 +73,13 @@ export function validateBuyerMail(input) {
  *
  * @param {{
  *   subject: string, body: string, buyerName: string,
- *   event: { title: string, start?: string }, contactEmail: string, origin?: string
+ *   event: { title: string, start?: string, end?: string | null }, contactEmail: string,
+ *   origin?: string
  * }} input
  * `origin`: del sitio, para el logo (sin él, SITE_URL o el de producción).
  */
 export function buildBuyerMail({ subject, body, buyerName, event, contactEmail, origin }) {
-	const when = formatEventDate(event.start);
+	const when = formatEventWhen(event.start, event.end);
 	const fullSubject = subject.includes(event.title) ? subject : `${subject} · ${event.title}`;
 	const paragraphs = body
 		.split(/\n{2,}/)
@@ -96,7 +97,7 @@ export function buildBuyerMail({ subject, body, buyerName, event, contactEmail, 
 		contactEmail
 	});
 	const text = [
-		`Sobre tu entrada para ${event.title}${when ? ` (${when})` : ''}`,
+		`Sobre tu entrada para ${event.title}${when ? ` · ${when}` : ''}`,
 		'',
 		subject,
 		'',

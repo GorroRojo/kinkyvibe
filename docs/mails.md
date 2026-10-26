@@ -111,6 +111,23 @@ comprueba que cada builder la usa y que el asunto y el texto plano siguen iguale
 transferencia y recordatorios llevan la lista «Las N partes del taller» con la fecha y el lugar de
 cada parte ([talleres-partes.md](talleres-partes.md)); los demás mails no cambian.
 
+**Fecha con fin y huso:** en el cuerpo de los mails (entradas, recordatorios, cambio de fecha,
+transferencia, «Mail a compradores», lista de espera y aviso de edición nueva de una serie) la fecha
+sale con la hora de fin, si el evento la tiene, y el huso: «sábado 14 de noviembre de 2026, 22:00 a
+03:00 (hora de Argentina y Uruguay)» (`formatEventWhen` de `tickets/email.js`, con
+`ARGENTINA_TIME_NOTE`). Los asuntos no cambian, y la variable `{{fecha}}` de las plantillas sigue
+siendo solo el inicio, porque hay textos propios escritos alrededor. Por eso el link de la
+transmisión y el reembolso, que llevan la fecha dentro de su texto editable, siguen igual.
+
+**Cómo llegar, accesibilidad y la página del evento:** «Tus entradas» y los recordatorios llevan,
+abajo del lugar, el link «Ver la página del evento» y, en un evento presencial, un recuadro con
+«Cómo llegar» y «Accesibilidad» del lugar vinculado. Esos dos textos salen **solo si la página del
+evento se los muestra a cualquiera** (`venueNotesForMail` en `amigues/venues.js`: nivel «Nombre +
+dirección», lugar visible y aprobado). En los otros niveles son textos libres que pueden nombrar el
+lugar, y el sitio tampoco se los muestra a quien compró: a quien compró solo le da además el
+nombre y la dirección completa ([amigues.md](amigues.md)). Vienen del CMS y van escapados. Si la
+lectura falla, el mail sale sin el recuadro.
+
 **Calendario («Agregalo a tu calendario»):** solo los mails que salen con el pago ya acreditado
 llevan el calendario: «Tus entradas», los **recordatorios**, «Link de la transmisión» («Enviar el
 link a todes», con el `.ics` actualizado: el link como lugar) y «Cambió la fecha» (el `.ics` con la
