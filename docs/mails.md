@@ -510,9 +510,11 @@ Es la única guía para este caso: seguí los pasos en orden.
    en Resend → Suppressions y recién ahí usá «Reenviar». Leé antes
    [La lista de supresión](#la-lista-de-supresión).
 5. **Si rebotó por un error de tipeo** (`gmial.com`, `hotmail.con`…), reenviar a la misma
-   dirección no sirve, y hoy el panel no permite corregir el mail de una orden. Mientras tanto: en
-   la puerta, buscá la orden por nombre («Buscar persona» en el control de ingreso) y dejala pasar
-   con su nombre y su número de compra, sin QR.
+   dirección no sirve: en Órdenes usá «Corregir el mail…» con la dirección bien escrita, que
+   cambia el mail de la orden y le manda las entradas ahí
+   ([Tareas comunes](#tareas-comunes)). Si no llega a tiempo: en la puerta,
+   buscá la orden por nombre («Buscar persona» en el control de ingreso) y dejala pasar con su
+   nombre y su número de compra, sin QR.
 6. **Reenviar.** «Reenviar» (en Órdenes o en «Para revisar») le pide a Resend que mande las
    entradas de nuevo, sin clave de idempotencia: sale aunque ya hubiera salido. Que Resend lo
    acepte no quiere decir que llegue: si la dirección está suprimida, no llega (paso 4).

@@ -212,16 +212,17 @@ export const eventTicketActions = {
 					: `Corrigió el mail de ${ref} (las entradas no salieron)`,
 			detail: { event: params.slug, sent: result === 'sent' }
 		});
-		/** @type {Record<typeof result, string>} */
+		// Un «ahora no» de Resend (cupo, tasa o un 5xx: `resendBackoff`) acá también es que no salió.
+		const outcome = result === 'sent' || result === 'simulated' ? result : 'failed';
 		const messages = {
 			sent: `Listo, mandamos las entradas a la dirección nueva (${email}).`,
 			simulated: `Corregimos el mail de ${ref}, pero el mail no salió (preview sin EMAIL_ALLOWLIST o dev sin clave).`,
 			failed: `Corregimos el mail de ${ref}, pero no se pudo mandar (ver logs). Probá con «Reenviar mail».`
 		};
 		const body = {
-			emailFix: { ok: result === 'sent', order: order.id, message: messages[result] }
+			emailFix: { ok: outcome === 'sent', order: order.id, message: messages[outcome] }
 		};
-		return result === 'failed' ? fail(502, body) : body;
+		return outcome === 'failed' ? fail(502, body) : body;
 	},
 
 	// "Confirmar pago" de una transferencia: aprueba, emite las entradas y manda el mail.
