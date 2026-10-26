@@ -68,6 +68,8 @@ export async function eventOrderRows(db, slug, config, now = Date.now()) {
 				: o.status,
 		checkedIn: o.checked_in,
 		emailSent: Boolean(o.email_sent_at),
+		// Lo que avisó Resend del último mail de las entradas (webhook, docs/mails.md).
+		emailProblem: o.email_sent_at ? (o.email_problem ?? null) : null,
 		createdAt: o.created_at,
 		expiresAt: o.expires_at,
 		paymentId: o.mp_payment_id,

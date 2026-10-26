@@ -373,18 +373,23 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  *   from?: string,
  *   optOut?: boolean
  * }} input
+ * @param {(emailId: string | null) => void} [onSent] recibe el id que devolvió Resend, si salió (el
+ *   mail de las entradas lo guarda en la orden: docs/mails.md, «Rebotes y quejas»)
  * @returns {Promise<'sent' | 'simulated' | 'failed'>}
  */
-async function deliver({
-	db,
-	fetch: fetchFn,
-	to,
-	message: built,
-	idempotencyKey,
-	log = '',
-	from: fixedFrom,
-	optOut = false
-}) {
+async function deliver(
+	{
+		db,
+		fetch: fetchFn,
+		to,
+		message: built,
+		idempotencyKey,
+		log = '',
+		from: fixedFrom,
+		optOut = false
+	},
+	onSent
+) {
 	if (optOut) {
 		try {
 			if (!db) throw new Error('sin base');
@@ -427,8 +432,10 @@ async function deliver({
 	}
 	const { replyTo } = settings;
 	const from = fixedFrom || settings.from;
+	/** @type {{ id?: string }} */
+	let sent;
 	try {
-		await sendWithResend({
+		sent = await sendWithResend({
 			fetch: fetchFn,
 			apiKey,
 			from,
@@ -447,6 +454,7 @@ async function deliver({
 		}
 		throw error;
 	}
+	onSent?.(typeof sent?.id === 'string' && sent.id ? sent.id : null);
 	return 'sent';
 }
 
@@ -597,23 +605,30 @@ export async function sendOrderEmailResult({
 			template: await resolveTemplate(db, order.event_slug, 'tickets'),
 			combos: await orderCombos(db, order, origin)
 		});
-		const result = await deliver({
-			db,
-			fetch: fetchFn,
-			to: order.buyer_email,
-			message,
-			idempotencyKey,
-			optOut: isFreeOrder(order),
-			// Nunca logueamos el token completo: con él se entra al evento.
-			log: list
-				.map((t) => `  ${origin}/entradas/t/${t.token.slice(0, 6)}… (${t.code ?? 'sin código'})`)
-				.join('\n')
-		});
+		/** @type {string | null} */
+		let emailId = null;
+		const result = await deliver(
+			{
+				db,
+				fetch: fetchFn,
+				to: order.buyer_email,
+				message,
+				idempotencyKey,
+				optOut: isFreeOrder(order),
+				// Nunca logueamos el token completo: con él se entra al evento.
+				log: list
+					.map((t) => `  ${origin}/entradas/t/${t.token.slice(0, 6)}… (${t.code ?? 'sin código'})`)
+					.join('\n')
+			},
+			(id) => {
+				emailId = id;
+			}
+		);
 		if (result === 'failed' && claimedLink) {
 			await releaseStreamLinkSend(db, { orderId: order.id, link: claimedLink });
 		}
 		if (result !== 'sent') return result;
-		await markEmailSent(db, order.id);
+		await markEmailSent(db, order.id, Date.now(), emailId);
 		return 'sent';
 	} catch (error) {
 		console.error(`[tickets] no se pudo mandar el email de la orden ${order.id}:`, error);

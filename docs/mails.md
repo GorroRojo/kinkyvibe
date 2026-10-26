@@ -394,6 +394,45 @@ cabeceras de RFC 8058: `List-Unsubscribe: <link>` con el mismo link firmado del 
   tiene que dar 200 (antes daba 403). En un mail de «Lo que sigo» que llegue a une misme, «Mostrar
   original» en Gmail tiene que mostrar las dos cabeceras.
 
+### Rebotes y quejas
+
+«Mail enviado» quiere decir que Resend lo aceptó, no que llegó. Para enterarse de lo que no llega,
+Resend avisa por un webhook firmado: `POST /api/resend/webhook`
+(`src/routes/api/resend/webhook/+server.js` y `src/lib/server/email/resendWebhook.js`; migración
+`0064_mail_rebotes.sql`).
+
+- **El id de Resend:** el mail de las entradas guarda en la orden el id que devuelve Resend
+  (`orders.email_id`, el del último envío; «Reenviar» lo cambia). Con ese id se busca el mail en
+  Resend → Emails (Resend lo guarda 30 días) y el webhook encuentra la orden.
+- **Qué hace con cada aviso:** un rebote permanente (`email.bounced` con `bounce.type`
+  `Permanent`) o una queja (`email.complained`, alguien lo marcó como spam) anotan la dirección en
+  `email_suppressions`, la misma tabla de [«No fui yo»](#no-fui-yo) (por hash, nunca el mail): no le
+  sale más ningún mail que no sea de una compra pagada. Si el mail era el de las entradas de una
+  orden, la orden queda con `email_problem`. `email.suppressed` (Resend no lo mandó porque la
+  dirección ya estaba bloqueada allá) solo marca la orden. Los rebotes temporales (casilla llena) y
+  los demás avisos no hacen nada.
+- **En el panel:** en Órdenes, la orden dice «el mail rebotó», «marcó el mail como spam» o «el
+  mail rebotó (dirección bloqueada en Resend)» en vez de «mail enviado», y en «Para revisar» del
+  Inicio aparece «Rebotó el mail de <nombre>» (o «<nombre> marcó como spam el mail de las
+  entradas») durante 14 días, con «Ver orden». «Reenviar» limpia la marca; si vuelve a rebotar,
+  Resend avisa de nuevo. Reenviar a una dirección que rebota no sirve: hay que conseguir la
+  dirección bien escrita.
+- **Seguridad:** la firma es la de Svix (HMAC-SHA256 de `<svix-id>.<svix-timestamp>.<cuerpo>` con
+  el secreto `whsec_…`), comparada en tiempo constante; un aviso con la marca de tiempo a más de
+  5 minutos del reloj se rechaza (401), y el mismo `svix-id` se procesa una sola vez
+  (`resend_webhook_events`, se borra a los 7 días). Cuerpos de más de 64 KB: 413. Recién con la
+  firma buena se lee el JSON. Nunca se loguea ni se guarda una dirección.
+- **Sin `RESEND_WEBHOOK_SECRET` no hace nada** (503). Hasta que gorrite lo configure, los rebotes
+  se ven solo en Resend → Emails (filtro Bounced).
+- **Para configurarlo (gorrite, en el panel):** en Resend → Webhooks → Add endpoint, la dirección
+  `https://kinkyvibe.ar/api/resend/webhook` (solo producción) con los eventos `email.bounced`,
+  `email.complained` y `email.suppressed`. Copiar el «Signing secret» que muestra y cargarlo con
+  `npx wrangler secret put RESEND_WEBHOOK_SECRET` (pegado, nunca tipeado). Para probar: el botón de
+  evento de prueba de esa pantalla tiene que dar 200.
+- **Si se saca una dirección de Resend → Suppressions** porque la persona confirmó que es suya,
+  también hay que borrar su fila de `email_suppressions` (por hash), o los mails que no son de una
+  compra pagada siguen sin salirle.
+
 ### Mail del Fondo (tu link)
 
 fondo.kinkyvibe.ar («¿Ya sos Mecenas?», `/mi-link`) no tiene clave de Resend: le pide a este sitio
@@ -607,6 +646,7 @@ desconfían de esos picos: una parte puede ir a spam o demorarse (sobre todo en 
 | Dominio                            | `kinkyvibe.ar` verificado en Resend (SPF/DKIM en Cloudflare DNS)                            |
 | Secreto del cron                   | `CRON_SECRET`, Secret del Worker `kinkyvibe` (lo usan el cron y `/api/cron/*`)              |
 | Secreto del mail del Fondo         | `FONDO_MAIL_SECRET`, Secret del Worker `kinkyvibe` (el mismo valor en el del Fondo)         |
+| Rebotes y quejas (webhook)         | `RESEND_WEBHOOK_SECRET`, Secret del Worker `kinkyvibe` (rebotes y quejas, arriba)           |
 | Previews                           | `EMAIL_ALLOWLIST` en el entorno Preview de Cloudflare                                       |
 
 **El remitente solo puede ser @kinkyvibe.ar** (`MAIL_FROM_DOMAINS` en `tickets/settings.js`), el
