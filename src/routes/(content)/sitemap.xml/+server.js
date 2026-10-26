@@ -7,7 +7,8 @@ import { render, sortByPublished } from './sitemap.js';
 /** @type {import('./$types').RequestHandler} */
 export const GET = async ({ platform }) => {
 	const [posts, wikiPosts] = await Promise.all([sitePosts(platform), siteWikiPosts(platform)]);
-	const pages = ['/', '/material', '/calendario', '/amigues', '/wiki', '/todo'];
+	// Sin /todo: junta las otras tres listas y va con `noindex` (docs/seo.md, «Sitemap»).
+	const pages = ['/', '/material', '/calendario', '/amigues', '/wiki'];
 	const body = render(pages, sortByPublished(posts), wikiPosts);
 	const options = {
 		headers: {

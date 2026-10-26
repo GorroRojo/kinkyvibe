@@ -9,7 +9,8 @@
 	 * Props: `section` (clave de `LIST_SECTIONS`; el título y la descripción de cada sección son
 	 * los textos del panel, `linkPreview` en los datos de la página), `description` sin filtros si
 	 * no es la de la sección (el calendario suma los próximos eventos), `card`
-	 * (la tarjeta de la sección, clave de `OG_CARDS`) y `kinds` (los `?tipo=` que la lista conoce).
+	 * (la tarjeta de la sección, clave de `OG_CARDS`), `kinds` (los `?tipo=` que la lista conoce) y
+	 * `noindex` (que los buscadores sigan sus links pero no la guarden: `/todo`).
 	 */
 	import { page } from '$app/stores';
 	import { tagManager } from '$lib/utils/stores';
@@ -31,6 +32,7 @@
 	export let card = 'default';
 	/** @type {Readonly<Record<string, string>> | undefined} */
 	export let kinds = undefined;
+	export let noindex = false;
 
 	$: lp = linkPreviewOf($page.data);
 	$: texts = sectionTexts(section, lp.texts);
@@ -46,4 +48,5 @@
 	image={image.url}
 	imageInfo={image}
 	ogUrl={filteredListUrl($page.url, filters)}
+	{noindex}
 />

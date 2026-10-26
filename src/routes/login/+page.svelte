@@ -6,6 +6,7 @@
 
 <svelte:head>
 	<title>Entrar · Kinky Vibe</title>
+	<meta name="robots" content="noindex" />
 </svelte:head>
 
 <main>

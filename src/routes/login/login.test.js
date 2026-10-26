@@ -3,7 +3,7 @@ import { isRedirect } from '@sveltejs/kit';
 
 vi.mock('$env/dynamic/private', () => ({ env: { GITHUB_CLIENT_ID: 'cliente-de-prueba' } }));
 
-const { actions } = await import('./+page.server.js');
+const { actions, load } = await import('./+page.server.js');
 
 /** Runs the login action and returns the GitHub authorization URL it redirects to. */
 async function authorizeURL() {
@@ -26,6 +26,13 @@ describe('login', () => {
 		expect(target.origin + target.pathname).toBe('https://github.com/login/oauth/authorize');
 		expect(target.searchParams.get('client_id')).toBe('cliente-de-prueba');
 		expect(target.searchParams.get('state')).toMatch(/^[0-9a-f]{64}$/);
+	});
+
+	it('tells search engines not to index the page', () => {
+		const setHeaders = vi.fn();
+		// @ts-expect-error only the parts of the load event it reads
+		load({ setHeaders });
+		expect(setHeaders).toHaveBeenCalledWith({ 'x-robots-tag': 'noindex' });
 	});
 
 	it('asks GitHub for no permissions (no scope, or an empty one)', async () => {
