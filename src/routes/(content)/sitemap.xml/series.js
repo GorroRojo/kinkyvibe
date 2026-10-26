@@ -34,16 +34,16 @@ export async function sitemapWikiPosts(platform) {
  * la más nueva de sus ediciones (actualización o publicación), si alguna la tiene.
  *
  * @param {TagManager} tags el árbol de etiquetas en uso
- * @param {readonly Pick<ProcessedPost, 'meta' | 'path'>[]} posts
+ * @param {readonly { path?: string, meta?: Record<string, any> }[]} posts
  * @param {Iterable<string>} [taken] direcciones que ya están en el sitemap
- * @returns {{ path: string, meta: { updated_date?: string } }[]}
+ * @returns {ProcessedPost[]} solo `path` y `meta.updated_date` (lo que lee `render`)
  */
 export function seriesSitemapPosts(tags, posts, taken = []) {
 	const seen = new Set(taken);
-	/** @type {{ path: string, meta: { updated_date?: string } }[]} */
+	/** @type {ProcessedPost[]} */
 	const out = [];
 	for (const id of seriesTagIds(tags)) {
-		const editions = seriesEditions(posts, id);
+		const editions = seriesEditions(/** @type {any} */ (posts), id);
 		if (!editions.length) continue;
 		const path = tagPagePath(id);
 		if (seen.has(path)) continue;
@@ -55,10 +55,14 @@ export function seriesSitemapPosts(tags, posts, taken = []) {
 			const t = parseSiteDate(p.meta.updated_date ?? p.meta.published_date).getTime();
 			if (t > newest) newest = t;
 		}
-		out.push({
-			path,
-			meta: Number.isFinite(newest) ? { updated_date: new Date(newest).toISOString() } : {}
-		});
+		out.push(
+			/** @type {ProcessedPost} */ (
+				/** @type {unknown} */ ({
+					path,
+					meta: Number.isFinite(newest) ? { updated_date: new Date(newest).toISOString() } : {}
+				})
+			)
+		);
 	}
 	return out;
 }
