@@ -552,3 +552,72 @@ describe('profileSchema', () => {
 		expect(p.mainEntity.email).toBeUndefined();
 	});
 });
+
+describe('vistas del lugar con todo cargado: cada nivel saca solo lo suyo', () => {
+	// Una vista que trae de más (como si una vista futura se olvidara de filtrar): lo que el nivel
+	// esconde no tiene que salir en los datos estructurados igual.
+	const LEAKY = {
+		name: 'Lugar Filtrado',
+		href: '/amigues/Lugar-Filtrado',
+		address: 'Calle Filtrada 999',
+		area: 'Barrio Filtrado',
+		city: 'Ciudad Filtrada',
+		lat: -34.123456,
+		lng: -58.654321,
+		howTo: 'Puerta Filtrada',
+		accessibility: 'Rampa Filtrada'
+	};
+	const MD = { location: 'Calle Del Md 111', location_name: 'Salón Del Md' };
+	/** Lo que cada nivel deja ver (docs/amigues.md). */
+	const SHOWS = {
+		public: { name: true, link: true, street: true, area: true, geo: true },
+		name: { name: true, link: true, street: false, area: false, geo: false },
+		address: { name: false, link: false, street: true, area: true, geo: true },
+		area: { name: false, link: false, street: false, area: true, geo: false },
+		hidden: { name: false, link: false, street: false, area: false, geo: false }
+	};
+	const COORDS = /-34\.123456|-58\.654321|GeoCoordinates/;
+
+	for (const [level, shows] of Object.entries(SHOWS)) {
+		const venue = /** @type {any} */ ({ ...LEAKY, level });
+
+		it(`evento, nivel «${level}»`, () => {
+			const e = roundTrip(eventSchema({ meta: { ...EVENT, ...MD, tags: ['AMBA'] }, venue }));
+			const json = allText(e);
+			// Con lugar, nunca el «Dónde» del .md; nunca los textos libres ni las coordenadas.
+			expect(json).not.toContain('Del Md');
+			expect(json).not.toMatch(/Puerta Filtrada|Rampa Filtrada/);
+			expect(json).not.toMatch(COORDS);
+			expect(json.includes('Lugar Filtrado')).toBe(shows.name);
+			expect(json.includes('/amigues/Lugar-Filtrado')).toBe(shows.link);
+			expect(json.includes('Calle Filtrada')).toBe(shows.street);
+			expect(json.includes('streetAddress')).toBe(shows.street);
+			expect(json.includes('Barrio Filtrado')).toBe(shows.area);
+			expect(e.eventAttendanceMode).toBe('https://schema.org/OfflineEventAttendanceMode');
+		});
+
+		it(`perfil del lugar, nivel «${level}»`, () => {
+			const p = roundTrip(
+				profileSchema({
+					profile: { title: 'Perfil Inventado', kind: 'lugar' },
+					canonical: '/amigues/Perfil-Inventado',
+					location: venue
+				})
+			);
+			const json = allText(p);
+			expect(json).not.toMatch(/Puerta Filtrada|Rampa Filtrada/);
+			expect(json.includes('Calle Filtrada')).toBe(shows.street);
+			expect(json.includes('Barrio Filtrado')).toBe(shows.area);
+			expect(COORDS.test(json)).toBe(shows.geo);
+			if (shows.geo) {
+				expect(p.mainEntity.geo).toEqual({
+					'@type': 'GeoCoordinates',
+					latitude: LEAKY.lat,
+					longitude: LEAKY.lng
+				});
+			} else {
+				expect(p.mainEntity.geo).toBeUndefined();
+			}
+		});
+	}
+});

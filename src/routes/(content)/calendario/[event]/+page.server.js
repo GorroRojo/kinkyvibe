@@ -37,7 +37,8 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	askEarly(params.event, platform, locals, waitlistOn, now);
 	const early = {
 		ownTickets: loadTickets(params.event, platform, fetch, waitlistOn, now),
-		// "Sucede en": el lugar según su privacidad (docs/amigues.md); `null` si no tiene lugar.
+		// "Sucede en": el lugar según su privacidad (docs/amigues.md); `null` si no tiene lugar. Si
+		// la base falla, como un lugar oculto (sin el «Dónde» del .md).
 		venue: eventPageVenue(getDB(platform), params.event, locals),
 		// Talleres en varias partes: el taller y sus partes (`null` si no es parte de ninguno).
 		partes: loadPartes(params.event, platform, locals)

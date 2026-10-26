@@ -233,6 +233,45 @@ describe('las coordenadas del mapa solo salen si la dirección es pública', () 
 	});
 });
 
+describe('si la base falla al leer el lugar (eventPageVenue)', () => {
+	/** Una base que falla en cualquier consulta. */
+	const broken = /** @type {import('@cloudflare/workers-types').D1Database} */ (
+		/** @type {unknown} */ ({
+			prepare() {
+				throw new Error('D1 de prueba caída');
+			},
+			batch() {
+				throw new Error('D1 de prueba caída');
+			}
+		})
+	);
+
+	it('como un lugar oculto (nunca `null`, que mostraría el «Dónde» del .md), y lo registra', async () => {
+		const m = await modules();
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			for (const locals of /** @type {App.Locals[]} */ ([
+				{},
+				/** @type {any} */ ({ member: { id: 'cuenta-de-prueba' } })
+			])) {
+				const view = await m.eventPageVenue(broken, 'evento-de-prueba', locals);
+				expect(view).toEqual({ level: 'hidden' });
+				expect(view).toEqual(m.VENUE_UNREADABLE);
+			}
+			expect(log).toHaveBeenCalled();
+		} finally {
+			log.mockRestore();
+		}
+	});
+
+	it('sin lugar vinculado (y la base bien), `null` como siempre', async () => {
+		const m = await modules();
+		await makeEvent(t.db, 'sin-lugar');
+		expect(await m.eventPageVenue(t.db, 'sin-lugar', /** @type {App.Locals} */ ({}))).toBeNull();
+		expect(await m.eventPageVenue(null, 'sin-lugar', /** @type {App.Locals} */ ({}))).toBeNull();
+	});
+});
+
 describe('la página del lugar', () => {
 	it('lista solo los eventos que muestran el link al lugar (niveles 1 y 2)', async () => {
 		const m = await modules();

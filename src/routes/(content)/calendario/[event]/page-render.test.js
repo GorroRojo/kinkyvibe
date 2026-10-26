@@ -323,6 +323,46 @@ describe('/calendario/<evento>: el lugar, una sola vez y en «Cuándo y dónde»
 	});
 });
 
+describe('/calendario/<evento>: si la base falla al leer el lugar', () => {
+	// `eventPageVenue` (src/lib/server/amigues/venues.js) devuelve un lugar oculto en vez de
+	// `null`: el «Dónde» del .md (que en un evento con lugar puede tener una dirección que el nivel
+	// esconde) no llega a la página, ni al HTML ni a los datos estructurados.
+	const MD_PLACE = {
+		location: 'Calle Del Punto Md 555',
+		location_name: 'Salón Del Punto Md',
+		location_map: 'https://www.openstreetmap.org/#map=17/-34.7/-58.5',
+		tags: ['AMBA']
+	};
+	const loaded = async () => {
+		const { load } = await import('./+page.js');
+		const out = await load(
+			/** @type {any} */ ({
+				data: {
+					post: { meta: MD_PLACE, html: '<p>Texto inventado.</p>' },
+					venue: { level: 'hidden' }
+				}
+			})
+		);
+		return /** @type {any} */ (out);
+	};
+
+	// (+page.server.js ya saca el «Dónde» de `post` con cualquier lugar, también este.)
+	it('+page.js no le pasa el «Dónde» del .md a la página', async () => {
+		const out = await loaded();
+		expect(out.venue).toEqual({ level: 'hidden' });
+		expect(JSON.stringify(out.meta)).not.toMatch(/Del Punto Md|-34\.7|-58\.5/);
+	});
+
+	it('la página dice «Lugar a confirmar» y los datos estructurados, a lo sumo la región', async () => {
+		const out = await loaded();
+		const { body, head: h } = rendered(out.meta, { venue: out.venue });
+		for (const html of [body, h]) expect(html).not.toMatch(/Del Punto Md|-34\.7|-58\.5/);
+		expect(text(card(body))).toContain('Lugar a confirmar');
+		expect(h).not.toContain('streetAddress');
+		expect(h).toMatch(/"addressLocality": ?"Buenos Aires"/);
+	});
+});
+
 describe('/calendario/<evento>: los botones', () => {
 	// Antes: «Agregar a mi calendario» al lado de «Compartir». La maqueta final (gorrite) lo saca:
 	// queda «Compartir» solo, centrado, y la inscripción va después del texto.

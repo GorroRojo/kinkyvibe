@@ -8,7 +8,7 @@
  * no esté en la página. Los textos de Open Graph y la vista previa al compartir son de otro lado.
  */
 import { eventPlaceSchema } from './eventPlace.js';
-import { venuePostalAddress } from './venues.js';
+import { showsAddress, venuePostalAddress } from './venues.js';
 import { KINKYVIBE_TAG } from './propinas.js';
 import { contactItems } from './perfiles.js';
 import { ORG_CONTACT_EMAIL } from './organization.js';
@@ -517,8 +517,13 @@ export function profileSchema({ profile: p, canonical, location = null }) {
 	const links = contact.filter((c) => c.kind === 'link').map((c) => c.href);
 	const email = contact.find((c) => c.kind === 'email')?.label;
 	const tel = contact.find((c) => c.kind === 'tel')?.href.slice('tel:'.length);
+	// El punto del mapa, solo en los niveles que muestran el mapa (los de la calle, `showsAddress`),
+	// aunque la vista trajera otra cosa (como `venuePostalAddress`).
 	const geo =
-		location && location.lat !== undefined && location.lng !== undefined
+		location &&
+		showsAddress(location.level) &&
+		location.lat !== undefined &&
+		location.lng !== undefined
 			? { '@type': 'GeoCoordinates', latitude: location.lat, longitude: location.lng }
 			: undefined;
 	const entity = clean({
