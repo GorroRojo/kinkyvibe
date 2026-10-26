@@ -164,3 +164,103 @@ describe('barra de filtros de las listas (TagBar)', () => {
 		expect(body).toMatch(/class="post-amount[^"]*"[^>]*>4 resultados<\/p>/);
 	});
 });
+
+/*
+ * Hasta 5 etiquetas por tarjeta y un «+N» que despliega el resto (decisión de gorrite, opción 1b
+ * de docs/seo.md). Las que no se ven no van en el HTML, pero la búsqueda y los filtros siguen
+ * leyendo las etiquetas de los datos: una publicación con la etiqueta buscada entre las ocultas
+ * aparece igual.
+ */
+const { default: PostListItem } = await import('./PostListItem.svelte');
+const { default: CardTags } = await import('./CardTags.svelte');
+const { searchText } = await import('$lib/utils/stores');
+const { withoutComments } = await import('$lib/testing/html.js');
+
+describe('etiquetas de las tarjetas: hasta 5 y «+N»', () => {
+	const seven = [1, 2, 3, 4, 5, 6, 7].map((n) => `inventada ${n}`);
+	const many = { ...post(1), meta: { ...post(1).meta, tags: seven } };
+	/** @param {string} html */
+	const chips = (html) =>
+		[...withoutComments(html).matchAll(/<span class="kv-tag[^"]*"[^>]*>([^<]*)<\/span>/g)].map(
+			(m) => m[1]
+		);
+	/** Los chips de las filas de las tarjetas (no los de la barra de filtros).
+	 * @param {string} html */
+	const cardChips = (html) =>
+		[...withoutComments(html).matchAll(/<ul class="tagrow[^"]*"[^>]*>([\s\S]*?)<\/ul>/g)].flatMap(
+			(m) => chips(m[1])
+		);
+	/** @param {string} html */
+	const more = (html) =>
+		withoutComments(html).match(/<button[^>]*class="kv-tag more[^"]*"[^>]*>[\s\S]*?<\/button>/);
+
+	it('lista: 5 chips y «+2», que no navega y dice que está plegado', () => {
+		const html = render(PostListItem, { props: /** @type {any} */ ({ post: many }) }).body;
+		expect(chips(html)).toEqual(seven.slice(0, 5));
+		expect(html).not.toContain('inventada 6');
+		const button = more(html)?.[0] ?? '';
+		expect(button).toMatch(/type="button"/);
+		expect(button).toMatch(/aria-expanded="false"/);
+		expect(button).toMatch(/\+2<span class="visually-hidden[^"]*"> etiquetas más<\/span>/);
+	});
+
+	it('grilla (Card): lo mismo', () => {
+		const html = render(Card, { props: /** @type {any} */ ({ post: many }) }).body;
+		expect(chips(html)).toEqual(seven.slice(0, 5));
+		expect(more(html)?.[0]).toMatch(/aria-expanded="false"/);
+	});
+
+	it('desplegada: las 7 y el botón para plegarlas', () => {
+		const html = render(CardTags, { props: { tags: seven, expanded: true } }).body;
+		expect(chips(html)).toEqual(seven);
+		const button = more(html)?.[0] ?? '';
+		expect(button).toMatch(/aria-expanded="true"/);
+		expect(button).toContain('Ver menos etiquetas');
+	});
+
+	it('con 5 o menos, sin «+N»', () => {
+		const html = render(CardTags, { props: { tags: seven.slice(0, 5) } }).body;
+		expect(chips(html)).toEqual(seven.slice(0, 5));
+		expect(more(html)).toBeNull();
+	});
+
+	it('filtrar por una etiqueta que no se ve en la tarjeta la encuentra igual', () => {
+		const others = Array.from({ length: 3 }, (_, i) => post(10 + i));
+		filteredTags.set(['inventada 7']);
+		const html = render(PostList, {
+			props: /** @type {any} */ ({ posts: [...others, many] })
+		}).body;
+		filteredTags.set([]);
+		expect(items(html)).toBe(1);
+		expect(html).toContain('data-key="/material/nota-1"');
+		// la sexta tampoco se ve (detrás del «+1»), y la tarjeta igual está
+		expect(cardChips(html)).toHaveLength(5);
+		expect(cardChips(html)).not.toContain('inventada 6');
+	});
+
+	it('filtrar por una etiqueta que está detrás del «+N» (la sexta) la encuentra', () => {
+		const others = Array.from({ length: 3 }, (_, i) => post(10 + i));
+		filteredTags.set(['inventada 6']);
+		const html = render(PostList, {
+			props: /** @type {any} */ ({ posts: [...others, many] })
+		}).body;
+		filteredTags.set([]);
+		expect(items(html)).toBe(1);
+		expect(html).toContain('data-key="/material/nota-1"');
+		expect(cardChips(html)).toHaveLength(5);
+		expect(cardChips(html)).not.toContain('inventada 7');
+	});
+
+	it('buscar por texto el nombre de una etiqueta oculta, también', () => {
+		const others = Array.from({ length: 3 }, (_, i) => post(10 + i));
+		searchText.set('inventada 6');
+		const html = render(PostList, {
+			props: /** @type {any} */ ({ posts: [...others, many] })
+		}).body;
+		searchText.set('');
+		expect(items(html)).toBe(1);
+		expect(html).toContain('data-key="/material/nota-1"');
+		expect(cardChips(html)).toHaveLength(5);
+		expect(cardChips(html)).not.toContain('inventada 6');
+	});
+});
