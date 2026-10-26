@@ -65,6 +65,8 @@ export async function GET({ locals, url, params, platform }) {
 		'total',
 		'pago_mp',
 		'confirmo',
+		'comision_mp',
+		'reembolso_parcial_mp',
 		...extra.map((c) => c.label)
 	];
 	// Cada fila es una lista de valores en el orden del encabezado. `toCsv` las escribe seguras
@@ -113,6 +115,10 @@ export async function GET({ locals, url, params, platform }) {
 				first ? o.total : '',
 				o.mp_payment_id,
 				o.confirmed_by,
+				// La comisión que informó MP (vacío = no la informó) y lo reembolsado desde MP en un pago que
+				// sigue aprobado (migración 0065).
+				first ? (o.mp_fee_amount ?? '') : '',
+				first && o.status === 'approved' ? (o.refunded_amount ?? '') : '',
 				...extra.map((c) => answerFor(answers.get(o.id), c.id))
 			]);
 		});

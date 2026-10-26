@@ -17,12 +17,13 @@ import { goalProgress } from '$lib/utils/salesGoal.js';
  *   unpublished: boolean, online: boolean, onlineMismatch: boolean, thumb: string,
  *   sellsTickets: boolean,
  *   capacity: number | null, goal: string, sold: number, revenue: number, mpFee: number,
- *   transfers: number, i: number
+ *   mpFeeEstimated?: number, transfers: number, i: number
  * }} EventRow
  *   Una fila de la lista. `i`: su lugar en la lista completa (del más nuevo al más viejo), para
  *   mezclar lo que llega después sin desordenar. `goal`: la meta de venta como se guarda
  *   (`'plata:250000'`, '' = sin meta; ver $lib/utils/salesGoal.js); `revenue`: lo recaudado;
- *   `mpFee`: la comisión de Mercado Pago de eso (la meta en plata cuenta lo neto).
+ *   `mpFee`: la comisión de Mercado Pago de eso (la meta en plata cuenta lo neto);
+ *   `mpFeeEstimated`: la parte estimada de esa comisión (MP no la informó).
  */
 
 /** Cuántos días de eventos pasados manda la página de entrada (unos tres meses). */

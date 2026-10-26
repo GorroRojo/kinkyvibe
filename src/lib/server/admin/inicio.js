@@ -15,7 +15,12 @@ import { combineQueries, mapQuery, rowsOf, runQuery } from '$lib/server/db/batch
 import { orderReference } from '$lib/utils/tickets.js';
 import { argDateList } from '$lib/utils/dates.js';
 import { formatARS } from '$lib/utils/money.js';
-import { MP_FEE_SQL, goalProgress } from '$lib/utils/salesGoal.js';
+import {
+	MP_FEE_ESTIMATED_SQL,
+	MP_FEE_SQL,
+	REVENUE_SQL,
+	goalProgress
+} from '$lib/utils/salesGoal.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
 	DUE_REMINDER_WHERE,
@@ -125,7 +130,7 @@ const placeholders = (slugs) => slugs.map(() => '?').join(', ');
 
 /**
  * @typedef {{ sold: number, held: number, revenue: number, fondo: number, contribution: number,
- *   mpFee?: number }} TypeTotals
+ *   mpFee?: number, mpFeeEstimated?: number }} TypeTotals
  *
  * `mpFee`: la comisión de Mercado Pago de las órdenes aprobadas (MP_FEE_SQL en
  * $lib/utils/salesGoal.js), para lo neto de la meta de venta.
@@ -161,10 +166,11 @@ export function ticketTotalsQuery(slugs, now) {
 					SUM(CASE WHEN status = 'approved' THEN quantity ELSE 0 END) AS sold,
 					SUM(CASE WHEN status IN ('pending', 'rejected', 'awaiting_transfer') AND expires_at > ?
 						THEN quantity ELSE 0 END) AS held,
-					SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) AS revenue,
+					SUM(CASE WHEN status = 'approved' THEN ${REVENUE_SQL} ELSE 0 END) AS revenue,
 					SUM(CASE WHEN status = 'approved' THEN fondo_amount ELSE 0 END) AS fondo,
 					SUM(CASE WHEN status = 'approved' THEN fondo_contribution ELSE 0 END) AS contribution,
-					SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_SQL} ELSE 0 END) AS mp_fee
+					SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_SQL} ELSE 0 END) AS mp_fee,
+					SUM(CASE WHEN status = 'approved' THEN ${MP_FEE_ESTIMATED_SQL} ELSE 0 END) AS mp_fee_estimated
 				FROM orders WHERE event_slug IN (${placeholders(slugs)})
 				GROUP BY event_slug, ticket_type`
 							)
@@ -183,7 +189,8 @@ export function ticketTotalsQuery(slugs, now) {
 					revenue: Number(r.revenue ?? 0),
 					fondo: Number(r.fondo ?? 0),
 					contribution: Number(r.contribution ?? 0),
-					mpFee: Number(r.mp_fee ?? 0)
+					mpFee: Number(r.mp_fee ?? 0),
+					mpFeeEstimated: Number(r.mp_fee_estimated ?? 0)
 				});
 			}
 			return out;
@@ -300,7 +307,7 @@ export function cancelledLeftoversQuery(slugs, now) {
 							.prepare(
 								`SELECT event_slug,
 					SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approved,
-					SUM(CASE WHEN status = 'approved' THEN total ELSE 0 END) AS approved_total,
+					SUM(CASE WHEN status = 'approved' THEN ${REVENUE_SQL} ELSE 0 END) AS approved_total,
 					SUM(CASE WHEN status = 'awaiting_transfer' THEN 1 ELSE 0 END) AS transfers
 				FROM orders WHERE event_slug IN (${placeholders(slugs)})
 					AND (status = 'approved' OR (status = 'awaiting_transfer' AND expires_at > ?))
@@ -572,7 +579,11 @@ export function monthMoney(db, now) {
 }
 
 /**
- * @typedef {{ start: number, total: number, orders: number, tickets: number, fondoNet: number, fondoTips: number }} MonthMoney
+ * `total`: lo recaudado (sin los reembolsos parciales hechos en MP). `mpFee`: la comisión de MP
+ * (la que cobró o, si no la informó, la estimada) y `mpFeeEstimated`, la parte estimada; lo neto
+ * es `total − mpFee` ($lib/utils/salesGoal.js).
+ * @typedef {{ start: number, total: number, orders: number, tickets: number, fondoNet: number,
+ *   fondoTips: number, mpFee: number, mpFeeEstimated: number }} MonthMoney
  */
 
 /**
@@ -593,7 +604,9 @@ export function monthMoneyQuery(now) {
 					db
 						.prepare(
 							`SELECT COUNT(*) AS orders, COALESCE(SUM(quantity), 0) AS tickets,
-					COALESCE(SUM(total), 0) AS total,
+					COALESCE(SUM(${REVENUE_SQL}), 0) AS total,
+					COALESCE(SUM(${MP_FEE_SQL}), 0) AS mp_fee,
+					COALESCE(SUM(${MP_FEE_ESTIMATED_SQL}), 0) AS mp_fee_estimated,
 					COALESCE(SUM(fondo_contribution - fondo_amount), 0) AS fondo_net
 				FROM orders o WHERE status = 'approved' AND ${SALE_AT_SQL} >= ?1 AND ${SALE_AT_SQL} < ?2`
 						)
@@ -616,7 +629,9 @@ export function monthMoneyQuery(now) {
 						orders: Number(row.orders ?? 0),
 						tickets: Number(row.tickets ?? 0),
 						fondoNet: Number(row.fondo_net ?? 0) + tips.total,
-						fondoTips: tips.total
+						fondoTips: tips.total,
+						mpFee: Number(row.mp_fee ?? 0),
+						mpFeeEstimated: Number(row.mp_fee_estimated ?? 0)
 					}
 				: null
 	);
@@ -881,7 +896,7 @@ export function sinceLastVisitQuery({ since, login = '', titles }) {
 							FROM (
 								SELECT
 									COALESCE(SUM(CASE WHEN status = 'approved' AND updated_at > ?1 THEN 1 ELSE 0 END), 0) AS orders,
-									COALESCE(SUM(CASE WHEN status = 'approved' AND updated_at > ?1 THEN total ELSE 0 END), 0) AS money,
+									COALESCE(SUM(CASE WHEN status = 'approved' AND updated_at > ?1 THEN ${REVENUE_SQL} ELSE 0 END), 0) AS money,
 									COALESCE(SUM(CASE WHEN status = 'awaiting_transfer' AND created_at > ?1 THEN 1 ELSE 0 END), 0) AS transfers
 								FROM orders WHERE status IN ('approved', 'awaiting_transfer')
 							) o`
@@ -992,6 +1007,7 @@ export function upcomingEvents({
 		let held = 0;
 		let revenue = 0;
 		let mpFee = 0;
+		let mpFeeEstimated = 0;
 		let fondoNet = 0;
 		/** @type {UpcomingEvent['oversold']} */
 		const oversold = [];
@@ -1008,6 +1024,7 @@ export function upcomingEvents({
 		for (const c of byType.values()) {
 			revenue += c.revenue;
 			mpFee += c.mpFee ?? 0;
+			mpFeeEstimated += c.mpFeeEstimated ?? 0;
 			fondoNet += c.contribution - c.fondo;
 		}
 		const ci = checkins.get(e.slug);
@@ -1040,7 +1057,7 @@ export function upcomingEvents({
 			oversold,
 			// Avance contra la meta de venta (`meta_venta`; la de plata, neta de la comisión de MP);
 			// sin meta, null (se muestra el cupo).
-			progress: config ? goalProgress(config.goal, { sold, revenue, mpFee }) : null,
+			progress: config ? goalProgress(config.goal, { sold, revenue, mpFee, mpFeeEstimated }) : null,
 			transfers: transferBy.get(e.slug) ?? 0,
 			review: reviewBy.get(e.slug) ?? 0,
 			missingStream: Boolean(config?.online && sold > 0 && !streamLinks.has(e.slug)),

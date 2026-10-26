@@ -199,11 +199,17 @@
 							>(código {o.discountCode}, −{formatARS(o.discountAmount)})</small
 						>{/if}
 					{#if o.surcharge}<small>(recargo MP +{formatARS(o.surcharge)})</small>{/if}
+					{#if o.mpFee !== null}<small>(comisión de MP {formatARS(o.mpFee)})</small>{/if}
 					· {PAYMENT_METHOD[o.method]}
 					{#if o.status === 'approved'}
 						· ingresaron {o.checkedIn}/{o.quantity}
 					{/if}
 				</div>
+				{#if o.refundedAmount}<p class="admin-note">
+						Reembolso parcial en Mercado Pago: {formatARS(o.refundedAmount)} (quedan {formatARS(
+							Math.max(0, o.total - o.refundedAmount)
+						)})
+					</p>{/if}
 				{#if o.priceChange}<p class="admin-note">{o.priceChange}</p>{/if}
 				{#if o.note}
 					<!-- Nota de la carga a mano o de la venta en la puerta (solo en el panel). -->

@@ -22,7 +22,8 @@ import { EVENT_START_SQL, SALE_AT_SQL } from './saleMonth.js';
  *   payment_method: string, fondo_option: string, fondo_amount: number,
  *   fondo_contribution: number, buyer_name: string, buyer_pronouns: string | null,
  *   buyer_email: string, status: string, created_at: number, checked: number,
- *   surcharge_amount?: number, event_start?: number | null
+ *   surcharge_amount?: number, event_start?: number | null,
+ *   mp_fee_amount?: number | null, refunded_amount?: number | null
  * }} PersonOrder
  * @typedef {{ title: string, start: string | null, tags?: string[] }} EventInfo
  */
@@ -72,7 +73,8 @@ export async function personId(email) {
 export async function loadPeopleOrders(db, { since = null } = {}) {
 	const query = db.prepare(
 		`SELECT o.id, o.event_slug, o.ticket_type, o.quantity, o.total, o.payment_method,
-				o.fondo_option, o.fondo_amount, o.fondo_contribution, o.surcharge_amount, o.buyer_name,
+				o.fondo_option, o.fondo_amount, o.fondo_contribution, o.surcharge_amount, o.mp_fee_amount,
+				o.refunded_amount, o.buyer_name,
 				o.buyer_pronouns,
 				o.buyer_email, o.status, o.created_at, ${EVENT_START_SQL} AS event_start,
 				(SELECT COUNT(*) FROM tickets t WHERE t.order_id = o.id AND t.checked_in_at IS NOT NULL)

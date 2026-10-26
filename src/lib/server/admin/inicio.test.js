@@ -171,7 +171,10 @@ describe('totales', () => {
 			orders: 3,
 			tickets: 4,
 			fondoNet: 2000 - 1600,
-			fondoTips: 0
+			fondoTips: 0,
+			// Comisión de MP: sin recargo ni comisión informada, 0.
+			mpFee: 0,
+			mpFeeEstimated: 0
 		});
 	});
 
