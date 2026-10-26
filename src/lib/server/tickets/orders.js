@@ -51,7 +51,8 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
  *   client_hash?: string | null, needs_review?: 'late_payment' | 'duplicate_payment' | null,
  *   review_detail?: string | null, channel?: 'online' | 'puerta' | 'manual',
  *   admin_note?: string | null, ticket_tier?: string | null,
- *   client_sale_id?: string | null, offline_review?: string | null
+ *   client_sale_id?: string | null, offline_review?: string | null,
+ *   door_list_price?: number | null
  * }} Order
  */
 /**

@@ -206,6 +206,9 @@
 		display: flex;
 		flex-direction: column;
 		justify-content: space-between;
+		/* En la pantalla de la puerta (una columna flex de alto fijo) no se achica: si el resultado
+		   es largo (una venta con nota y precio cambiado), la página scrollea en vez de cortarlo. */
+		flex-shrink: 0;
 	}
 	.scanner.running {
 		min-height: min(62vh, 26rem);
