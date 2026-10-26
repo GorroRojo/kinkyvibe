@@ -192,6 +192,23 @@ falla (Resend caído, un timeout, el Worker que se cortó), la orden queda aprob
   (`rate_limits`, la clave lleva el id de la orden) y no frena a las demás. Después de 48 h queda
   en «mails sin enviar» del Inicio para «Reenviar» a mano.
 
+### Pausa de emergencia de los mails
+
+`MAILS_PAUSED` (variable del Worker, en el panel de Cloudflare; vacía = apagada) frena de golpe los
+mails **en tanda**: la tanda del cron (recordatorios, «Enviar el link a todes», «Avisar a les
+compradores» y la lista de espera; `runMailQueue` devuelve `{ paused: true }`), los avisos de series
+y de «Lo que sigo» (el cron no los corre), «Mail a compradores» (el botón contesta 503 y no empieza
+ni sigue el envío) y los mails de la lista de espera (`sendWaitlistMails` no manda nada). Nada gasta
+intentos ni se marca como fallido: queda pendiente y sale cuando se saca la variable (salvo lo que
+vence antes: un recordatorio de un evento que ya empezó, el «día antes» de «Lo que sigo»). Cada cosa
+que no sale deja una línea `[pausa] MAILS_PAUSED: …` en los logs.
+
+**No** frena los mails de cada compra: entradas (y su reintento del cron), datos para transferir,
+reembolso, códigos para ingresar, confirmaciones, «Tu link» del Fondo ni «Mandarme una prueba».
+La pausa no está en `deliver()` a propósito (lo controla `src/lib/server/emergencia.test.js`).
+Cómo prenderla, apagarla y qué pasa con lo pendiente:
+[interruptores.md](interruptores.md#pausas-de-emergencia).
+
 ### Códigos copiables
 
 Pedido de gorrite (11/10/2026): que Gmail y el celu reconozcan el código de los mails de
@@ -427,6 +444,7 @@ migración `0048_avisar_cambio_fecha.sql`):
 | Secreto del cron                   | `CRON_SECRET`, Secret del Worker `kinkyvibe` (lo usan el cron y `/api/cron/*`)              |
 | Secreto del mail del Fondo         | `FONDO_MAIL_SECRET`, Secret del Worker `kinkyvibe` (el mismo valor en el del Fondo)         |
 | Previews                           | `EMAIL_ALLOWLIST` en el entorno Preview de Cloudflare                                       |
+| Pausa de emergencia                | `MAILS_PAUSED`, Text del Worker `kinkyvibe` (ver arriba); vacía o ausente = apagada         |
 
 Las respuestas a `entradas@kinkyvibe.ar` llegan al Gmail de la organización (Cloudflare Email
 Routing). La bandeja dentro del panel es una decisión tomada (0010) pero todavía no existe.

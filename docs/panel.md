@@ -285,7 +285,9 @@ revisar" del Inicio.
   depende de los eventos que vienen) y `reviewTagUsage` (el uso de las etiquetas). Nada de esto le
   pide algo a GitHub. Los tests `para-revisar.test.js` e `inicio-tanda.test.js` siembran casos y
   comprueban que el botón dice lo mismo que la tarjeta.
-- **Las filas**: «Transferencia» tildada sin datos para
+- **Las filas**: primero, una roja por cada pausa de emergencia prendida (`TICKETS_PAUSED`,
+  `MAILS_PAUSED`; `pauseItems`, lleva a Ajustes › Interruptores, [interruptores.md](interruptores.md#pausas-de-emergencia)),
+  después «Transferencia» tildada sin datos para
   transferir, eventos cancelados con algo por devolver (una por evento: órdenes aprobadas sin
   reembolsar y transferencias vigentes, aunque el evento ya haya pasado; decisión 0044),
   transferencias por confirmar (una por evento), órdenes para revisar (pago tardío,

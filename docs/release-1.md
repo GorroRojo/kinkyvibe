@@ -89,6 +89,13 @@ así que **`cuentas` y `propinas` parecen prendidos**. El resto, confirmarlo en
 Para cortar de golpe sin entrar al panel: la variable `<NOMBRE>_ENABLED=0` en Cloudflare (Worker →
 Settings → Variables and Secrets). Después, borrarla para que vuelva a mandar el panel.
 
+**Pausas de emergencia** (no son interruptores): para frenar la venta online o los mails en tanda
+sin PR, en Cloudflare → Workers & Pages → `kinkyvibe` → Settings → Variables and Secrets → + Add →
+Text: `TICKETS_PAUSED` = el texto que ve el público (p. ej. `Volvemos en un rato`) o
+`MAILS_PAUSED` = `1` → Deploy. Para sacarlas, borrar la variable → Deploy. La puerta, la carga a
+mano, los pagos ya empezados, los reembolsos y los mails de cada compra siguen. Qué frena cada una
+y qué pasa con lo pendiente: [interruptores.md](interruptores.md#pausas-de-emergencia).
+
 ### Importadores
 
 **Ya no existen** ([0032](decisiones/0032-borrar-los-md.md)): los `.md` se borraron del repo y una
@@ -123,6 +130,7 @@ Solo nombres; los valores nunca van al repo. Sacados del código (`$env/dynamic/
 | `TICKETS_CLIENT_SALT`, `TICKETS_TRANSFER_INFO`                                                                                                                                                 | Secret        | Si se usan                               | Opcional              | Sal fija / datos de Ajustes de venta          |
 | `TICKETS_FROM_EMAIL`, `TICKETS_REPLY_TO`, `TICKETS_CONTACT_EMAIL`, `TICKETS_MP_FEE_PERCENT`, `FONDO_PERCENT_URL`                                                                               | Text          | Opcionales                               | Opcionales            | Valores por defecto                           |
 | `CUENTAS_ENABLED`, `SERIES_ENABLED`, `BORRAR_DESDE_PANEL_ENABLED`, `PERFILES_PUBLICOS_ENABLED`, `PERSONAS_EVENTOS_ENABLED`, `PROPINAS_ENABLED`, `ETIQUETAS_DB_ENABLED`, `CONTENIDO_DB_ENABLED` | Text          | **Ausentes** (solo para cortar de golpe) | Ausentes              | Manda el panel                                |
+| `TICKETS_PAUSED`, `MAILS_PAUSED` (pausas de emergencia, [interruptores.md](interruptores.md#pausas-de-emergencia))                                                                             | Text          | **Ausentes** (solo en una emergencia)    | Ausentes              | La venta y los mails andan                    |
 
 Bindings (vienen de `wrangler.toml`, no del panel): `DB` (D1) y `BACKUPS` (R2, solo producción).
 `WORKERS_CI_BRANCH` la pone Workers Builds sola. En un preview, `GET /api/preview-status` dice qué
