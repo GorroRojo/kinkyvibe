@@ -25,6 +25,7 @@ import { MEMBER_EDGE, PROFILE_TYPE, memberViewer } from '$lib/server/cuentas/per
 import { profileKindOf } from '$lib/server/objects/types/perfil.js';
 import { pronounLabel } from '$lib/utils/mentions';
 import { textOrNull as s } from '$lib/utils/text.js';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {import('$lib/server/objects/read.js').StoredObject} StoredObject */
@@ -97,18 +98,24 @@ export function urlSlugOf(o, legacySlug) {
  */
 export async function resolveProfileSlug(db, urlSlug) {
 	if (typeof urlSlug !== 'string' || !urlSlug || urlSlug.length > 100) return null;
+	const byObject = () =>
+		db
+			.prepare(
+				`SELECT o.id, s.legacy_slug FROM objects o LEFT JOIN profile_sources s ON s.profile_id = o.id
+			WHERE o.type = ?1 AND o.slug = ?2`
+			)
+			.bind(PROFILE_TYPE, urlSlug)
+			.first();
+	// Con las tandas automáticas, las dos consultas salen juntas (una ida); sin, la segunda solo
+	// si hace falta. Si la primera encuentra, la segunda no cuenta (ni su error).
+	const early = batchesReads(db) ? byObject() : null;
+	early?.catch(() => {});
 	const legacy = await db
 		.prepare('SELECT profile_id FROM profile_sources WHERE legacy_slug = ?1')
 		.bind(urlSlug)
 		.first();
 	if (legacy) return { id: Number(legacy.profile_id), legacySlug: urlSlug };
-	const row = await db
-		.prepare(
-			`SELECT o.id, s.legacy_slug FROM objects o LEFT JOIN profile_sources s ON s.profile_id = o.id
-			WHERE o.type = ?1 AND o.slug = ?2`
-		)
-		.bind(PROFILE_TYPE, urlSlug)
-		.first();
+	const row = await (early ?? byObject());
 	if (!row) return null;
 	return {
 		id: Number(row.id),

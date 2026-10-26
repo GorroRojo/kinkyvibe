@@ -61,6 +61,8 @@ declare global {
 				 * en los pedidos a `/og/…` (lo agrega worker/index.js); en `vite dev` falta.
 				 */
 				OG_RENDER?: import('../worker/og-render.js').OgRenderer;
+				/** `off`: sin las tandas automáticas de D1 (src/lib/server/db/autoBatch.js). */
+				KV_D1_TANDAS?: string;
 			};
 			ctx?: import('@cloudflare/workers-types').ExecutionContext;
 			caches?: import('@cloudflare/workers-types').CacheStorage;

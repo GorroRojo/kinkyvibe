@@ -24,6 +24,8 @@ vi.mock('$app/server', () => ({
 /** Cada consulta tarda esto de más, para contar bien lo que sale a la par. */
 const DELAY_MS = 15;
 const BY = 'admin-de-prueba';
+/** Con `KV_CONSULTAS=detalle`, cada consulta por tanda y quién la pidió. */
+const DETAIL = process.env.KV_CONSULTAS === 'detalle';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -109,14 +111,20 @@ const fondoFetch = async () =>
 
 /**
  * La página de `slug` cargada en frío (sin nada recordado de otro pedido), con una base que cuenta
- * las consultas y las tandas en fila.
+ * las consultas (idas: una tanda es una) y las tandas en fila. Con `batch: false`, sin las tandas
+ * automáticas (`KV_D1_TANDAS = "off"`, src/lib/server/db/autoBatch.js).
  * @param {string} slug
  */
-async function eventPage(slug, { warm = false } = {}) {
+async function eventPage(slug, { warm = false, batch = true } = {}) {
 	vi.resetModules();
-	const counted = countingDB(t.db, { delayMs: DELAY_MS });
-	(await import('$lib/server/contenido/repo.js')).setContentDB(counted.db);
-	const platform = { env: { ...t.env, DB: counted.db } };
+	const counted = countingDB(t.db, { delayMs: DELAY_MS, trace: DETAIL });
+	const platform = {
+		env: { ...t.env, DB: counted.db, ...(batch ? {} : { KV_D1_TANDAS: 'off' }) }
+	};
+	// Como hooks.server.js: el contenido se lee con la base de `getDB` (con sus tandas).
+	(await import('$lib/server/contenido/repo.js')).setContentDB(
+		(await import('$lib/server/db')).getDB(platform)
+	);
 	const url = new URL(`/calendario/${slug}`, 'https://kinkyvibe.ar');
 	fake.event = { request: new Request(url), url, cookies: { get: () => undefined } };
 	// Como cada pedido: hooks.server.js lee el árbol de etiquetas al empezar.
@@ -140,7 +148,15 @@ async function eventPage(slug, { warm = false } = {}) {
 		const page = /** @type {any} */ (await load(event));
 		// «Por …»: les autores (si llegan como promesa, se esperan para contarlas también).
 		const authors = await page.post.authorsProfiles;
-		return { page, authors, queries: counted.queries, waves: counted.waves, log: counted.log };
+		return {
+			page,
+			authors,
+			queries: counted.queries,
+			statements: counted.statements,
+			waves: counted.waves,
+			log: counted.log,
+			describe: counted.describe
+		};
 	} finally {
 		fake.event = null;
 	}
@@ -150,7 +166,7 @@ async function eventPage(slug, { warm = false } = {}) {
  * Con `KV_CONSULTAS=1`, las cuentas en frío y en caliente (un pedido antes en el mismo isolate),
  * para comparar a mano.
  * @param {string} what
- * @param {{ queries: number, waves: number }} cold
+ * @param {{ queries: number, waves: number, describe: () => string }} cold
  * @param {string} slug
  */
 async function report(what, cold, slug) {
@@ -159,7 +175,36 @@ async function report(what, cold, slug) {
 	console.info(
 		`[${what}] frío: ${cold.queries} consultas en ${cold.waves} tandas; caliente: ${warm.queries} en ${warm.waves}`
 	);
+	if (DETAIL)
+		console.info(`[${what}] frío:\n${cold.describe()}\n[${what}] caliente:\n${warm.describe()}`);
 }
+
+describe('en caliente y sin sesión, una sola ida a la base', () => {
+	// Antes (solo con las tandas automáticas): 4 idas en 4 tandas en los tres casos. Antes de las
+	// tandas: 9 consultas en 4 tandas sin venta, 17 en 4 con venta y con la parte de un taller.
+	for (const slug of [
+		'evento-sin-venta-inventado',
+		'taller-inventado',
+		'taller-inventado-parte-2'
+	]) {
+		it(slug, async () => {
+			const r = await eventPage(slug, { warm: true });
+			const plain = await eventPage(slug, { warm: true, batch: false });
+			if (process.env.KV_CONSULTAS) {
+				console.info(
+					`[${slug}, caliente] con tandas: ${r.statements} consultas en ${r.queries} idas, ${r.waves} tandas; ` +
+						`sin tandas: ${plain.queries} idas en ${plain.waves} tandas`
+				);
+			}
+			if (DETAIL) console.info(r.describe());
+			expect(r.queries).toBe(1);
+			expect(r.waves).toBe(1);
+			// Lo mismo que sin tandas: lo adelantado nunca cambia lo que se muestra.
+			expect(r.page).toEqual(plain.page);
+			expect(r.authors).toEqual(plain.authors);
+		});
+	}
+});
 
 describe('la página de un evento, en pocas tandas', () => {
 	it('sin venta de entradas', async () => {

@@ -9,13 +9,13 @@
  *   del panel lo olvida al guardar (`clearTagSourceCache`).
  * - `rawTags` (de la base) es la lista que espera `tagsFactory`, SIN tocar: `tagsFactory` les
  *   agrega funciones a los objetos que recibe, así que el árbol se arma sobre una copia
- *   (`tagManagerOf`) y la lista se puede mandar a la página tal cual.
+ *   (`tagManagerOf`, el mismo árbol compartido que `currentSiteTags()`: $lib/utils/siteTags.js) y
+ *   la lista se puede mandar a la página tal cual.
  */
 import { fallbackTagList } from '$lib/utils/tagFallback.js';
-import tagsFactory from '$lib/utils/tags.js';
 import { getDB, logDBError } from '$lib/server/db';
 import { FLAG_CACHE_MS } from '$lib/server/flags.js';
-import { useSiteTags } from '$lib/utils/siteTags.js';
+import { fileSiteTags, siteTagTree, useSiteTags } from '$lib/utils/siteTags.js';
 import { splitTagList } from '$lib/utils/tagDetails.js';
 import { tagManager, wikiTagManager } from '$lib/utils/stores.js';
 import { recordsToRawTags } from './model.js';
@@ -35,9 +35,18 @@ const FILE = () => ({ rawTags: fallbackTagList(), fromDb: false, wiki: [] });
 /** @type {{ value: TagSource, expires: number } | null} */
 let cache = null;
 
+/** Cuándo empezó la renovación en camino, o `null` ({@link refreshTagSourceAhead}). */
+/** @type {number | null} */
+let refreshingSince = null;
+
+/** Sube con cada `clearTagSourceCache`: una lectura que empezó antes no se guarda. */
+let generation = 0;
+
 /** Olvida lo leído de la base (al guardar desde el panel, y en los tests). */
 export function clearTagSourceCache() {
 	cache = null;
+	refreshingSince = null;
+	generation++;
 }
 
 /**
@@ -71,6 +80,60 @@ async function readDbTags(db) {
 export async function tagSourceFrom(db, { now = Date.now() } = {}) {
 	if (!db) return FILE();
 	if (cache && cache.expires > now) return cache.value;
+	return readAndCache(db, now);
+}
+
+/**
+ * Lo que se renueva antes de vencer (ms): lo leído hace más de `FLAG_CACHE_MS - TAG_REFRESH_AHEAD_MS`
+ * se vuelve a leer sin esperar ({@link refreshTagSourceAhead}).
+ */
+export const TAG_REFRESH_AHEAD_MS = 10_000;
+
+/**
+ * Cómo está lo recordado: `fresh` (sirve y no hay que hacer nada), `aging` (sirve, pero le quedan
+ * menos de {@link TAG_REFRESH_AHEAD_MS}) o `stale` (venció o no hay: el próximo pedido espera a la
+ * base para leerlo).
+ * @param {number} [now]
+ * @returns {'fresh' | 'aging' | 'stale'}
+ */
+export function tagSourceFreshness(now = Date.now()) {
+	if (!cache || cache.expires <= now) return 'stale';
+	return cache.expires - now <= TAG_REFRESH_AHEAD_MS ? 'aging' : 'fresh';
+}
+
+/**
+ * Renueva lo recordado antes de que venza, sin esperar: el pedido de ahora usa lo que ya hay (que
+ * todavía vale) y la lectura nueva sale con las primeras consultas del pedido (con las tandas
+ * automáticas, en la misma ida). Así, mientras haya visitas, ningún pedido espera a la base por el
+ * árbol; y nunca se usa uno leído hace más de `FLAG_CACHE_MS`, como antes. Solo si le queda poco
+ * (`aging`), una renovación a la vez por isolate; si la lectura falla, queda lo que había (vence
+ * como siempre).
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {{ now?: number, waitUntil?: (task: Promise<unknown>) => void }} [opts] `waitUntil`: el
+ *   del pedido, para que la lectura termine aunque la respuesta ya haya salido
+ */
+export function refreshTagSourceAhead(db, { now = Date.now(), waitUntil } = {}) {
+	if (!db || tagSourceFreshness(now) !== 'aging') return;
+	// Una renovación que nunca terminó (un pedido cortado) no frena las siguientes para siempre.
+	if (refreshingSince !== null && now - refreshingSince < TAG_REFRESH_AHEAD_MS) return;
+	refreshingSince = now;
+	const task = readAndCache(db, now, { keepOnError: true }).finally(() => {
+		refreshingSince = null;
+	});
+	waitUntil?.(task);
+}
+
+/**
+ * Lee el árbol de la base y lo recuerda {@link FLAG_CACHE_MS} desde `now`. Nunca tira: sin poder
+ * leer, el árbol de respaldo (o, con `keepOnError`, lo que ya estaba recordado, sin tocarlo).
+ * @param {D1Database} db
+ * @param {number} now
+ * @param {{ keepOnError?: boolean }} [opts]
+ * @returns {Promise<TagSource>}
+ */
+async function readAndCache(db, now, { keepOnError = false } = {}) {
+	const gen = generation;
 	/** @type {TagSource} */
 	let value = FILE();
 	try {
@@ -91,8 +154,10 @@ export async function tagSourceFrom(db, { now = Date.now() } = {}) {
 			};
 	} catch (error) {
 		logDBError('etiquetas desde la base', error);
+		if (keepOnError && cache) return cache.value;
 	}
-	cache = { value, expires: now + FLAG_CACHE_MS };
+	// Si el panel guardó mientras se leía, lo leído puede ser de antes: se usa, pero no se recuerda.
+	if (gen === generation) cache = { value, expires: now + FLAG_CACHE_MS };
 	return value;
 }
 
@@ -128,26 +193,16 @@ export async function siteTagDetails(platform) {
 	return source.fromDb ? splitTagList(source.rawTags).details : null;
 }
 
-/** @type {WeakMap<object, TagManager>} */
-const managers = new WeakMap();
-/** @type {TagManager | undefined} */
-let fileManager;
-
 /**
- * El árbol armado (`tagsFactory`) de una fuente, uno por lista (se arma sobre una copia). El del
- * respaldo es el de siempre (`tagsFactory()` sobre ./tagFallback.js).
+ * El árbol armado (`tagsFactory`) de una fuente, uno por lista y compartido (de solo lectura) con
+ * `currentSiteTags()` y los stores: `siteTagTree` en $lib/utils/siteTags.js. El del respaldo es el
+ * de siempre (`fileSiteTags()`, sobre ./tagFallback.js).
  *
  * @param {TagSource} source
  * @returns {TagManager}
  */
 export function tagManagerOf(source) {
-	if (!source.fromDb) return (fileManager ??= tagsFactory());
-	let m = managers.get(source.rawTags);
-	if (!m) {
-		m = tagsFactory(/** @type {any} */ (structuredClone(source.rawTags)));
-		managers.set(source.rawTags, m);
-	}
-	return m;
+	return source.fromDb ? siteTagTree(source.rawTags) : fileSiteTags();
 }
 
 /**

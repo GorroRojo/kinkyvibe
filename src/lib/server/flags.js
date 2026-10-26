@@ -224,9 +224,20 @@ export async function isFlagOn(db, key, { now = Date.now(), envValue } = {}) {
 		cache.set(key, { value: false, expires: now + FLAG_CACHE_MS });
 		return false;
 	}
+	const all = await readFlagsAndKeep(db, now);
+	return all.get(key) ?? false;
+}
+
+/**
+ * Lee todos los interruptores (una lectura, compartida solo dentro del pedido) y los recuerda para
+ * los demás pedidos.
+ *
+ * @param {D1Database} db
+ * @param {number} now
+ */
+function readFlagsAndKeep(db, now) {
 	const gen = generation;
-	// Una lectura de todos, compartida solo dentro del pedido; lo leído queda para los demás.
-	const all = await readAndKeep(
+	return readAndKeep(
 		db,
 		'feature-flags',
 		() => readAllFlags(db),
@@ -239,7 +250,25 @@ export async function isFlagOn(db, key, { now = Date.now(), envValue } = {}) {
 			}
 		}
 	);
-	return all.get(key) ?? false;
+}
+
+/**
+ * Al empezar un pedido que va a esperar a la base de todos modos (src/lib/server/adelantarPedido.js):
+ * si algún interruptor que manda la base ya no está recordado, pide la lectura de todos ahora, así
+ * sale en esa misma ida y no después (la de `isFlagOn` recibe la misma lectura, compartida dentro
+ * del pedido). No cambia qué se lee ni cuánto se recuerda.
+ *
+ * @param {D1Database | null | undefined} db
+ * @param {{ now?: number }} [opts]
+ */
+export function askFlagsEarly(db, { now = Date.now() } = {}) {
+	if (!db) return;
+	const stale = /** @type {FlagKey[]} */ (Object.keys(FLAGS)).some((k) => {
+		if (envOverride(env[FLAGS[k].envVar]) !== null) return false;
+		const hit = cache.get(k);
+		return !hit || hit.expires <= now;
+	});
+	if (stale) readFlagsAndKeep(db, now).catch(() => {});
 }
 
 /**

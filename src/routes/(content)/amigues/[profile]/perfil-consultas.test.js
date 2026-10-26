@@ -172,8 +172,11 @@ afterAll(async () => {
 async function profilePage(slug, { as = 'anon', warm = false } = {}) {
 	vi.resetModules();
 	const counted = countingDB(t.db, { delayMs: DELAY_MS });
-	(await import('$lib/server/contenido/repo.js')).setContentDB(counted.db);
 	const platform = { env: { ...t.env, DB: counted.db } };
+	// Como hooks.server.js: el contenido se lee con la base de `getDB` (con sus tandas).
+	(await import('$lib/server/contenido/repo.js')).setContentDB(
+		(await import('$lib/server/db')).getDB(platform)
+	);
 	const url = new URL(`/amigues/${slug}`, 'https://kinkyvibe.ar');
 	fake.event = { request: new Request(url), url, cookies: { get: () => undefined } };
 	// Como cada pedido: hooks.server.js lee el árbol de etiquetas al empezar.
@@ -235,6 +238,11 @@ describe('la página de un perfil, en pocas tandas', () => {
 		expect(warm.page).toEqual(r.page);
 		expect(warm.queries).toBeLessThanOrEqual(8);
 		expect(warm.waves).toBeLessThanOrEqual(3);
+		// Sin sesión y en caliente, una sola ida: lo que se lee después de encontrar el perfil sale
+		// adelantado con lo que encontró el pedido anterior (antes, con solo las tandas: 2 en 2). Y
+		// muestra lo mismo que en frío (sin nada adelantado).
+		expect(warm.queries).toBe(1);
+		expect(warm.waves).toBe(1);
 		// Con cuenta, lo mismo más lo de la cuenta (antes: 30 consultas en 21 tandas).
 		const member = await profilePage('proyecto-inventado', { as: 'member' });
 		expect(member.queries).toBeLessThanOrEqual(12);

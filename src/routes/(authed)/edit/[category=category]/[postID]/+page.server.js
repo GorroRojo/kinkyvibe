@@ -29,6 +29,7 @@ import { panelSavesToDb } from '$lib/server/contenido/saving.js';
 import { commitSavedToDb } from '$lib/admin/saveCopy.js';
 import { featuredOf } from '$lib/utils/sharedImage.js';
 import { wikiEditHref } from '$lib/admin/nav.js';
+import { inOrder } from '$lib/utils/inOrder.js';
 
 /**
  * @param {{category: string, postID: string}} params
@@ -78,56 +79,90 @@ export async function load(event) {
 export async function _editLoad({ locals, params, url, platform }) {
 	// Server loads run in parallel with the layout load, so guard here too.
 	requireAdmin(locals, url);
-	const post = await getFileContent(locals.user_token, postPath(params));
+	const path = postPath(params);
 	const isEvent = params.category === 'calendario';
-	// Entradas ya vendidas o reservadas por tipo: el editor no deja romper esas compras.
-	const sales = isEvent ? await salesByType(getDB(platform), params.postID) : null;
-	return {
-		sales,
+	const db = getDB(platform);
+	// Todo sale a la par (cada lectura en fila es una ida a la base): la publicación y lo demás. Se
+	// espera en el orden de antes, así que el 404 de la publicación (y después cada error) es el
+	// mismo que cuando iban en fila.
+	const postP = getFileContent(locals.user_token, path);
+	const rest = inOrder([
+		// Entradas ya vendidas o reservadas por tipo: el editor no deja romper esas compras.
+		isEvent ? salesByType(db, params.postID) : null,
 		// Lista de espera: si el interruptor está prendido (el editor avisa si no) y la gente
 		// anotada por alcance (no deja apagarla ni cambiar el alcance con gente anotada).
-		waitlistEnabled: isEvent ? await isFlagOn(getDB(platform), 'lista_espera') : null,
-		waitlistLive: isEvent ? await waitlistLiveFor(getDB(platform), params.postID) : null,
+		isEvent ? isFlagOn(db, 'lista_espera') : null,
+		isEvent ? waitlistLiveFor(db, params.postID) : null,
 		// «Lugar» del formulario: los lugares y el elegido (edge `lugar` del evento, no en el archivo).
-		venuePicker: isEvent ? await venuePickerData(getDB(platform), params.postID) : null,
-		salesUnavailable: isEvent && sales === null,
+		isEvent ? venuePickerData(db, params.postID) : null,
 		// ¿Hay datos para transferir? Solo sí/no: el editor avisa si «Transferencia» no se ofrece.
-		transferReady: isEvent ? await transferReady(getDB(platform)) : null,
-		post,
+		isEvent ? transferReady(db) : null,
 		// Tag usage, amigues profiles and past authors for the pickers.
-		...(await editorData(params.category)),
+		editorData(params.category),
 		// Personas con rol: roles y perfiles públicos (sin base, null).
-		personas: params.category === 'amigues' ? null : await editorPersonas(platform),
-		image:
-			params.category === 'calendario'
-				? await eventImageInfo(getDB(platform), locals, params.postID, post.raw)
-				: null,
+		params.category === 'amigues' ? null : editorPersonas(platform),
+		// La imagen de la biblioteca (la vieja del repo sale del texto, más abajo).
+		isEvent ? eventLibraryImage(db, locals, params.postID) : null,
 		// Los eventos y el material se guardan en la base (se ve enseguida).
-		savesToDb: await panelSavesToDb(platform, params.category, params.postID),
+		panelSavesToDb(platform, params.category, params.postID)
+	]);
+	rest.catch(() => {}); // si la publicación no está, lo demás no cuenta
+	const post = await postP;
+	const [
+		sales,
+		waitlistEnabled,
+		waitlistLive,
+		venuePicker,
+		transfer,
+		editor,
+		personas,
+		libraryImage,
+		savesToDb
+	] = await rest;
+	return {
+		sales,
+		waitlistEnabled,
+		waitlistLive,
+		venuePicker,
+		salesUnavailable: isEvent && sales === null,
+		transferReady: transfer,
+		post,
+		...editor,
+		personas,
+		image: isEvent ? eventImageInfo(params.postID, post.raw, libraryImage ?? null) : null,
+		savesToDb,
 		mock: isMockMode()
 	};
 }
 
 /**
- * La imagen del evento para el selector (docs/imagenes.md): la de la biblioteca (edge `portada`)
- * si tiene; si no, la vieja del repo (`featured`), que se sigue mostrando hasta importar.
+ * La imagen del evento en la biblioteca (edge `portada`), o null (sin base, o si no se pudo leer:
+ * entonces se muestra la del repo).
  * @param {import('@cloudflare/workers-types').D1Database | null} db
  * @param {App.Locals} locals
  * @param {string} slug
- * @param {string} raw
+ * @returns {Promise<import('$lib/server/media/library.js').PublicImage | null>}
  */
-async function eventImageInfo(db, locals, slug, raw) {
-	const featured = featuredOf(raw);
-	/** @type {import('$lib/server/media/library.js').PublicImage | null} */
-	let current = null;
-	if (db) {
-		try {
-			const ref = await resolveEventSlug(db, slug);
-			if (ref) current = await imageOf(db, ref.id, 'portada', adminViewer(locals));
-		} catch (e) {
-			// Sin la imagen de la biblioteca, se muestra la del repo.
-		}
+async function eventLibraryImage(db, locals, slug) {
+	if (!db) return null;
+	try {
+		const ref = await resolveEventSlug(db, slug);
+		return ref ? await imageOf(db, ref.id, 'portada', adminViewer(locals)) : null;
+	} catch (e) {
+		// Sin la imagen de la biblioteca, se muestra la del repo.
+		return null;
 	}
+}
+
+/**
+ * La imagen del evento para el selector (docs/imagenes.md): la de la biblioteca (edge `portada`)
+ * si tiene; si no, la vieja del repo (`featured`), que se sigue mostrando hasta importar.
+ * @param {string} slug
+ * @param {string} raw
+ * @param {import('$lib/server/media/library.js').PublicImage | null} current la de la biblioteca
+ */
+function eventImageInfo(slug, raw, current) {
+	const featured = featuredOf(raw);
 	return {
 		current,
 		legacyUrl: current ? null : (featuredURL(slug, featured) ?? null),

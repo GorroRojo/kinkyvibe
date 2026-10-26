@@ -104,8 +104,11 @@ afterAll(async () => {
 async function materialPage(slug, { as = 'anon', warm = false } = {}) {
 	vi.resetModules();
 	const counted = countingDB(t.db, { delayMs: DELAY_MS });
-	(await import('$lib/server/contenido/repo.js')).setContentDB(counted.db);
 	const platform = { env: { ...t.env, DB: counted.db } };
+	// Como hooks.server.js: el contenido se lee con la base de `getDB` (con sus tandas).
+	(await import('$lib/server/contenido/repo.js')).setContentDB(
+		(await import('$lib/server/db')).getDB(platform)
+	);
 	const url = new URL(`/material/${slug}`, 'https://kinkyvibe.ar');
 	fake.event = { request: new Request(url), url, cookies: { get: () => undefined } };
 	// Como cada pedido: hooks.server.js lee el árbol de etiquetas al empezar.
@@ -175,6 +178,9 @@ describe('la página de un material, en pocas tandas', () => {
 				`[material] frío: ${r.queries} consultas en ${r.waves} tandas; caliente: ${warm.queries} en ${warm.waves}`
 			);
 		}
+		// En caliente y sin sesión, una sola ida (con solo las tandas automáticas: 4 en 4).
+		expect(warm.queries).toBe(1);
+		expect(warm.waves).toBe(1);
 		// Antes: 16 consultas en 14 tandas en frío; 11 en 9 en caliente.
 		expect(r.queries).toBeLessThanOrEqual(14);
 		expect(r.waves).toBeLessThanOrEqual(6);

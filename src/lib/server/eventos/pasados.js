@@ -12,6 +12,7 @@ import { argDate } from '$lib/utils/dates.js';
 import { isCurrent } from '$lib/utils/allPosts';
 import { allWorkshops } from '$lib/server/eventos/partes.js';
 import { partLabelsBySlug } from '$lib/utils/partes.js';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
 
 /** Lo que llega de un evento pasado. */
 export const PAST_EVENT_FIELDS = Object.freeze([
@@ -97,15 +98,42 @@ export function firstEventMonth(posts) {
 }
 
 /**
+ * Las etiquetas «Parte N de M»: recordadas con la marca del contenido mientras no cambie (guardar
+ * las partes guarda el taller y mueve la marca; src/lib/server/contenido/posts.js,
+ * `fromContentState`), o leídas de la base.
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ */
+async function labelsKnownOrRead(db) {
+	const read = () => allWorkshops(db).then(partLabelsBySlug);
+	if (!db) return read();
+	const { fromContentState } = await import('$lib/server/contenido/posts.js');
+	return (await fromContentState(db, 'partLabels', read)) ?? read();
+}
+
+/**
+ * Para /calendario, que las pone después de leer la lista: si este isolate tiene listas pero
+ * todavía no armó las etiquetas «Parte N de M», las pide ya, a la par de la marca del contenido
+ * (con las tandas automáticas, en la misma ida). Sin listas, nada (las pide {@link partLabelsOrNone}
+ * como siempre). Nunca decide qué se muestra. Solo con las tandas automáticas.
+ * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
+ */
+export function askPartLabelsEarly(db) {
+	if (!db || !batchesReads(db)) return;
+	import('$lib/server/contenido/posts.js')
+		.then(({ fromContentState }) =>
+			fromContentState(db, 'partLabels', () => allWorkshops(db).then(partLabelsBySlug))
+		)
+		.catch(() => {});
+}
+
+/**
  * «Parte N de M» de los talleres en varias partes (docs/talleres-partes.md), por slug. Si no se
  * pueden leer, sin etiquetas (la página anda igual).
  * @param {import('@cloudflare/workers-types').D1Database | null | undefined} db
  */
 export function partLabelsOrNone(db) {
-	return allWorkshops(db)
-		.then(partLabelsBySlug)
-		.catch((e) => {
-			console.error('[partes] no se pudieron leer los talleres:', e);
-			return new Map();
-		});
+	return labelsKnownOrRead(db).catch((e) => {
+		console.error('[partes] no se pudieron leer los talleres:', e);
+		return new Map();
+	});
 }

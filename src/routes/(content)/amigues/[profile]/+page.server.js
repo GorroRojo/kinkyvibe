@@ -1,7 +1,13 @@
 import { error, fail } from '@sveltejs/kit';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
-import { findProfileForPage, profilePageFrom } from '$lib/server/amigues/pages.js';
+import { batchesReads } from '$lib/server/db/autoBatch.js';
+import {
+	askProfilePageEarly,
+	findProfileForPage,
+	profilePageFrom,
+	rememberProfilePage
+} from '$lib/server/amigues/pages.js';
 import { createClaim } from '$lib/server/amigues/claims.js';
 import { resolveProfileSlug } from '$lib/server/amigues/profiles.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
@@ -9,6 +15,7 @@ import { contentForProfilePage } from '$lib/server/personas/index.js';
 import { siteWikiPosts } from '$lib/server/wiki/site.js';
 import { mentionPronouns } from '$lib/server/pronouns';
 import { followButtonState } from '$lib/server/sigo/button.js';
+import { askVenuePlacesEarly } from '$lib/server/amigues/venues.js';
 
 /**
  * La página de un perfil, solo desde la base («solo base»), con la misma dirección que tenía la
@@ -29,7 +36,20 @@ export async function load({ params, platform, locals, setHeaders }) {
 	// falla, la página falla como antes (también antes de un 404).
 	const postsP = sitePosts(platform);
 	postsP.catch(() => {});
+	const loadPosts = async () => [...(await postsP), ...(await siteWikiPosts(platform))];
+	// Lo que se lee después de encontrar el perfil, adelantado con lo que encontró el pedido
+	// anterior sin sesión (en la misma ida que la búsqueda; las de después reciben lo ya leído).
+	const guess = askProfilePageEarly(db, params.profile, locals, postsP);
+	// Los lugares de los eventos de «Más cosas de…», a la par (con lo que ya tiene el isolate).
+	askVenuePlacesEarly(db);
+	// «Participa en»: con la dirección del perfil adivinado o, si este isolate todavía no lo vio, con
+	// la de la página (casi siempre la misma que la del objeto; si no, se pregunta aparte después).
+	if (guess || (batchesReads(db) && !locals.user && !locals.member))
+		contentForProfilePage(platform, guess?.object.slug ?? params.profile, loadPosts).catch(
+			() => {}
+		);
 	const found = await findProfileForPage(db, params.profile, locals);
+	rememberProfilePage(params.profile, found, locals);
 	if (!found) {
 		await postsP;
 		error(404, 'Not found');
@@ -40,10 +60,7 @@ export async function load({ params, platform, locals, setHeaders }) {
 		postsP.then((posts) => mentionPronouns(platform, posts)),
 		// Eventos y publicaciones que nombran al perfil (por la dirección del objeto), por rol
 		// (solo si el perfil es público; si no, `null`).
-		contentForProfilePage(platform, found.object.slug, async () => [
-			...(await postsP),
-			...(await siteWikiPosts(platform))
-		]),
+		contentForProfilePage(platform, found.object.slug, loadPosts),
 		// «Seguir» (interruptor `lo_que_sigo`).
 		followButtonState({ platform, locals }, 'perfil', String(found.object.id)).catch((e) => {
 			console.error('[amigues] sigo:', e);
