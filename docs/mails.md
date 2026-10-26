@@ -126,6 +126,15 @@ comprueba que cada builder la usa y que el asunto y el texto plano siguen iguale
 transferencia y recordatorios llevan la lista «Las N partes del taller» con la fecha y el lugar de
 cada parte ([talleres-partes.md](talleres-partes.md)); los demás mails no cambian.
 
+**Botón y número de compra:** en «Tus entradas», los recordatorios y «Cambió la fecha», el botón
+lleva a la transmisión si el evento es online y el link ya está; si no, con **una sola entrada**
+lleva a esa entrada con su QR (`/entradas/t/<token>`, «Ver mi entrada»), que se abre en cualquier
+navegador, y con varias a la página de la compra («Ver mis entradas»; ahí las entradas se ven solo
+en el navegador donde se compró, y la página lo dice; cada entrada tiene además su link en el
+mail). Todos los mails de una compra dicen «Número de compra: KV-…», la referencia corta
+(`orderReference`), la misma de la página de la compra, del mail de la transferencia y del panel
+(el buscador del panel la encuentra), nunca el id entero.
+
 **Calendario («Agregalo a tu calendario»):** solo los mails que salen con el pago ya acreditado
 llevan el calendario: «Tus entradas», los **recordatorios**, «Link de la transmisión» («Enviar el
 link a todes», con el `.ics` actualizado: el link como lugar) y «Cambió la fecha» (el `.ics` con la
@@ -163,7 +172,7 @@ misma descripción) y de `calendarExtras` en `email.js`:
   página.
 - **Google Calendar** (`googleCalendarUrl`): `calendar.google.com/calendar/render?action=TEMPLATE`
   con título, las mismas horas UTC, la página del evento (y la nota de online) y el mismo lugar.
-- **Marcado para Gmail** (`eventReservationScript`): número de orden, estado confirmado, solo el
+- **Marcado para Gmail** (`eventReservationScript`): número de compra (`KV-…`), estado confirmado, solo el
   nombre de quien compró (nunca mail ni DNI) y el evento con fechas `-03:00`, la página y el lugar
   (`Place`, o `VirtualLocation` con el link de la transmisión si ya está o la página si no). El
   JSON va con `<` escapado (`\u003c`) para que nada cierre el `<script>`. **Gmail solo lo muestra a

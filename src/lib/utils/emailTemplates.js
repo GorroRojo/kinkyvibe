@@ -7,7 +7,7 @@
  * saludo y lo que quieran agregar) y, si quieren, la **etiqueta** gris de arriba del título, el
  * **texto del botón**, la **línea de ayuda** de abajo del botón y el **por qué te llega** del pie
  * (`TEMPLATE_EXTRAS`: vacíos = el texto de siempre). Lo demás (datos del evento, precios, entradas con su QR y
- * código, links, número de orden, política de devoluciones) lo sigue poniendo el código: una
+ * código, links, número de compra, política de devoluciones) lo sigue poniendo el código: una
  * plantilla nunca puede romper un QR ni un link.
  *
  * Formato seguro (no es HTML):
@@ -163,7 +163,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		label: 'Entradas',
 		when: 'Cuando se aprueba una compra (Mercado Pago, sin cargo o transferencia confirmada) y al reenviar las entradas.',
 		fixed:
-			'Evento con fecha y lugar, detalle del precio, instrucciones para la puerta (o el link de la transmisión), cada entrada con su QR, código y link, número de orden y política de devoluciones.',
+			'Evento con fecha y lugar, detalle del precio, instrucciones para la puerta (o el link de la transmisión), cada entrada con su QR, código y link, número de compra y política de devoluciones.',
 		vars: [
 			V.nombre,
 			V.evento,
@@ -184,7 +184,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			label: { default: 'Tus entradas' },
 			button: {
 				default: 'Ver mis entradas',
-				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión».'
+				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión». Si no, con una sola entrada lleva a esa entrada y dice «Ver mi entrada»; con varias, a la página de la compra.'
 			},
 			help: {
 				default: '',
@@ -228,7 +228,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		label: 'Link de la transmisión',
 		when: 'Con "Enviar el link a todes" en un evento online.',
 		fixed:
-			'El link de la transmisión en un recuadro, links a cada entrada, número de orden y política de devoluciones.',
+			'El link de la transmisión en un recuadro, links a cada entrada, número de compra y política de devoluciones.',
 		vars: [V.nombre, V.evento, V.fecha],
 		defaults: {
 			subject: 'Link de la transmisión: {{evento}}',
@@ -250,7 +250,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		label: 'Recordatorio',
 		when: 'Antes de cada evento, según Mensajes → Configuración → Recordatorios.',
 		fixed:
-			'Evento con fecha y lugar, qué llevar (o el link de la transmisión), la lista de entradas con su link y código, número de orden y política de devoluciones.',
+			'Evento con fecha y lugar, qué llevar (o el link de la transmisión), la lista de entradas con su link y código, número de compra y política de devoluciones.',
 		vars: [V.nombre, V.evento, V.fecha, V.lugar, V.cuando, V.tipo, V.cantidad, V.entradas],
 		defaults: {
 			subject: 'Recordatorio: {{evento}} {{cuando}}',
@@ -261,7 +261,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			label: { default: 'Recordatorio' },
 			button: {
 				default: 'Ver mis entradas',
-				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión».'
+				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión». Si no, con una sola entrada lleva a esa entrada y dice «Ver mi entrada»; con varias, a la página de la compra.'
 			},
 			help: { default: '', note: 'Sin texto propio, este mail no tiene línea de ayuda.' },
 			why: { default: WHY_BOUGHT }
@@ -272,7 +272,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		label: 'Reembolso',
 		when: 'Cuando se reembolsa una compra (desde el panel o desde Mercado Pago).',
 		fixed:
-			'Cómo se devuelve la plata (según el medio de pago), que las entradas ya no valen, número de orden y contacto.',
+			'Cómo se devuelve la plata (según el medio de pago), que las entradas ya no valen, número de compra y contacto.',
 		vars: [V.nombre, V.evento, V.fecha, V.tipo, V.cantidad, V.total],
 		defaults: {
 			subject: 'Reembolso de tu compra · {{evento}}',
@@ -290,7 +290,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 		label: 'Cambio de fecha',
 		when: 'Con «Avisar a les compradores» después de cambiar la fecha o el horario de un evento.',
 		fixed:
-			'La fecha nueva en un recuadro (con el lugar), la de antes, el calendario actualizado (.ics y Google Calendar), el link de la transmisión si es online y ya está, número de orden y política de devoluciones.',
+			'La fecha nueva en un recuadro (con el lugar), la de antes, el calendario actualizado (.ics y Google Calendar), el link de la transmisión si es online y ya está, número de compra y política de devoluciones.',
 		vars: [V.nombre, V.evento, V.fecha, V.fecha_anterior, V.lugar, V.entradas],
 		defaults: {
 			subject: 'Cambió la fecha: {{evento}}',
@@ -301,7 +301,7 @@ export const EMAIL_TEMPLATES = Object.freeze([
 			label: { default: 'Cambio de fecha' },
 			button: {
 				default: 'Ver mis entradas',
-				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión».'
+				note: 'En un evento online con el link cargado, el botón lleva a la transmisión y dice «Entrar a la transmisión». Si no, con una sola entrada lleva a esa entrada y dice «Ver mi entrada»; con varias, a la página de la compra.'
 			},
 			help: {
 				default:
