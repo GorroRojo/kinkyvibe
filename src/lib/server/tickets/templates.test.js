@@ -285,7 +285,8 @@ describe('la fecha con fin y huso, y el lugar, en los mails de una compra', () =
 		origin: 'https://kinkyvibe.example',
 		contactEmail: 'c@example.com'
 	};
-	const reminder = { kind: 'days_before', days: 1 };
+	/** @type {import('./reminders.js').Reminder} */
+	const reminder = { kind: 'day_at', days: 1, time: '12:00', enabled: true };
 
 	it('formatEventWhen: inicio, fin y «hora de Argentina y Uruguay»; vacía sin inicio', () => {
 		expect(email.formatEventWhen(START, END)).toBe(
