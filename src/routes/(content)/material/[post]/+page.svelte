@@ -12,7 +12,6 @@
 	import Note from '$lib/components/Note.svelte';
 	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { isKinkyVibePost } from '$lib/utils/propinas.js';
-	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { argDateLong, isoDateTime, isoDay } from '$lib/utils/dates.js';
 	import ReadingTime from '$lib/components/ReadingTime.svelte';
@@ -28,7 +27,6 @@
 	// bloque de estilos del componente.
 	const STYLE_TAG = 'style';
 	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
-	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
 	let loadedPast = false;

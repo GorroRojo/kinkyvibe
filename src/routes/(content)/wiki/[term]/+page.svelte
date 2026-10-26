@@ -7,7 +7,7 @@
 	import LDTag from '$lib/components/LDTag.svelte';
 	import { plainTagDescription, tagTermSchema, wikiTermSchema } from '$lib/utils/jsonLd.js';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
-	import { tagManager, currentPostData, userConfig } from '$lib/utils/stores.js';
+	import { tagManager, userConfig } from '$lib/utils/stores.js';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
@@ -25,7 +25,6 @@
 	// partes para que el preprocesador de Svelte no la tome como el bloque de estilos del componente.
 	const STYLE_TAG = 'style';
 	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
-	currentPostData.set({ category: 'wiki', path: $page.url.pathname });
 
 	let haswiki = (/**@type string*/ n) =>
 		true || data.wiki?.some((/** @type {ProcessedPost} */ e) => e.meta.wiki == n);
