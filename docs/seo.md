@@ -224,6 +224,35 @@ Después de cambiarla, alguien con acceso tiene que tocar «Update profile» en 
   `/wiki/BDSM`; un alias → la de su etiqueta. Código: `siteWikiEntry` en
   `src/lib/server/wiki/site.js` (`known`, `fromDb`, `canonicalPath`).
 
+### Un solo host: www → apex
+
+`www.kinkyvibe.ar` redirige a `https://kinkyvibe.ar` con el mismo camino y la misma query (301
+para GET y HEAD, 308 para lo demás). La capa que importa es la regla de Cloudflare (Rules →
+Redirect Rules, plantilla «Redirect from WWW to Root»; la carga gorrite en el panel). Como red, el
+primer paso de `handle` (`src/hooks.server.js`) hace lo mismo con `wwwRedirectResponse`
+(`src/lib/server/canonicalHost.js`): solo con el host `www.` exacto, así que el apex, los Previews
+y localhost no cambian y no hay bucles. Las canónicas siguen saliendo del origen del pedido (los
+Previews y `seo.test.js` lo esperan).
+
+### IndexNow
+
+Cada 15 minutos, el cron de recordatorios (`/api/cron/recordatorios`) avisa por IndexNow
+(`api.indexnow.org`: Bing, Yandex, Seznam y los que lo usan) las páginas públicas que cambiaron en
+los últimos 30 minutos (`src/lib/server/seo/indexnow.js`). Repetir una URL no hace daño; si una
+corrida falla, la siguiente la cubre.
+
+- **Apagado hasta que esté la clave**: el secret `INDEXNOW_KEY` del Worker (8 a 128 letras, números
+  o guiones; inventarla con `openssl rand -hex 16`). Sin clave válida no hace nada y
+  `/indexnow-key.txt` da 404; con clave, esa dirección la sirve (IndexNow la lee para confirmar que
+  el aviso es del sitio; es pública por diseño). Tampoco avisa fuera de producción (origen distinto
+  de `https://kinkyvibe.ar`).
+- **Privacidad**: de la base salen solo candidatos (objetos con `updated_at` reciente); se avisan
+  únicamente los que están en la lista pública del sitemap (`sitePosts` y la Kinkipedia, sin los
+  que redirigen). Lo oculto, lo de miembres, lo no listado y lo borrado no está en esa lista, así
+  que nunca se avisa, tampoco al pasar algo a oculto.
+- Dónde verlo: el resultado sale en la respuesta del cron (`indexNow: { sent, status }`, en
+  Observability → Logs, `recordatorios:`) y en Bing Webmaster Tools → IndexNow.
+
 ## Velocidad (PageSpeed, 12/10/2026)
 
 La línea de base, medida por gorrite con [PageSpeed Insights](https://pagespeed.web.dev/) en el
