@@ -8,6 +8,7 @@ import {
 	icsResponse,
 	publicIcsSince
 } from './icsFeed.js';
+import { DEFAULT_CONTACT_EMAIL } from './tickets.js';
 import { MAP_LABEL as PLACE_MAP_LABEL } from './eventPlace.js';
 import { DAY, fakeEvent } from '../server/series/fixtures.js';
 
@@ -109,6 +110,16 @@ describe('buildIcsFeed', () => {
 		const ics = unfold(buildIcsFeed([ev], { profiles: [profile] }));
 		// ics >= 3.12 entrecomilla el CN (quoted-string válido en RFC 5545 §3.2).
 		expect(ics).toContain('ORGANIZER;CN="Org":MAILTO:org@example.com');
+	});
+
+	it('sin perfil con mail (y en los de Kinky Vibe): el contacto público de la organización', () => {
+		const own = fakeEvent('propio', NOW, ['KinkyVibe']);
+		const other = fakeEvent('ajeno', NOW, ['taller'], { authors: ['Sin Perfil'] });
+		const ics = unfold(buildIcsFeed([own, other]));
+		expect(DEFAULT_CONTACT_EMAIL).toBe('kinkyvibe.talleres@gmail.com');
+		expect(ics).toContain(`ORGANIZER;CN="Kinky Vibe":MAILTO:${DEFAULT_CONTACT_EMAIL}`);
+		expect(ics).toContain(`ORGANIZER;CN="Sin Perfil":MAILTO:${DEFAULT_CONTACT_EMAIL}`);
+		expect(ics).not.toContain('kinkyvibe@gmail.com');
 	});
 });
 

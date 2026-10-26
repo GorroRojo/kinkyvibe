@@ -97,7 +97,9 @@ suscripto baja cada hora). **Cambia lo que ve quien está suscripte**: los calen
 copian el archivo, así que los eventos de hace más de 90 días dejan de verse ahí (siguen en el
 sitio). Para cambiar el plazo: `PUBLIC_ICS_PAST_DAYS`. El personal (`/ics/mio/…`) sigue con todo.
 Todos dicen cada cuánto volver a bajarlos: `X-PUBLISHED-TTL` (Outlook) y `REFRESH-INTERVAL` (RFC
-7986), una hora. El mail del `ORGANIZER` no cambió (cuál casilla va ahí lo decide gorrite).
+7986), una hora. El `ORGANIZER` lleva el mail del perfil de quien organiza si lo tiene y si no (los
+de Kinky Vibe siempre) el contacto público `kinkyvibe.talleres@gmail.com` (`DEFAULT_CONTACT_EMAIL`
+de `src/lib/utils/tickets.js`; gorrite, 26/10). Antes caía a otra casilla.
 
 ### Microformats
 

@@ -11,6 +11,7 @@ import { escapeHtml } from './escape.js';
 import { MAP_LABEL, eventPlace } from './eventPlace.js';
 import { venueLine } from './venues.js';
 import { SITE_URL } from './site.js';
+import { DEFAULT_CONTACT_EMAIL } from './tickets.js';
 
 /** Origen de los links de los calendarios (los clientes de calendario no conocen el sitio). */
 export const SITE_ORIGIN = SITE_URL;
@@ -169,10 +170,12 @@ export function buildIcsFeed(posts, opts = {}) {
 			htmlContent: eventHtml(postPath, post.meta.summary, mapUrl),
 			location: feedLocation(post.meta, venue) ?? postPath,
 			calName,
+			// El mail del perfil de amigues de quien organiza si lo tiene; si no (y en los de Kinky
+			// Vibe), el contacto público de la organización (gorrite, 26/10).
 			organizer: {
 				name: organizer,
 				email:
-					profiles.find((p) => p.meta.postID == organizer)?.meta?.email ?? 'kinkyvibe@gmail.com'
+					profiles.find((p) => p.meta.postID == organizer)?.meta?.email ?? DEFAULT_CONTACT_EMAIL
 			},
 			status: STATUS[post.meta.status] ?? 'CONFIRMED'
 		};
