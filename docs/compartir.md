@@ -94,6 +94,9 @@ Amigues, `?tipo=persona|proyecto|lugar`) y la vista previa los nombra:
   no es un filtro (`utm_*`, `viewdate` del calendario) no va.
 - **La canónica, no**: para los buscadores la lista filtrada es la misma página que la lista (si no,
   serían miles de páginas casi iguales).
+  Por eso, en las páginas de detalle (evento, material, perfil) el chip de una etiqueta con algo
+  propio en la Kinkipedia lleva a `/wiki/<etiqueta>` y no a `/todo?tags=` ([seo.md](seo.md),
+  «Chips de etiqueta»).
 - Estas páginas no se prerenderizan (se arman en cada pedido, ver `+page.server.js`), así que el
   servidor ve los filtros y no hace falta nada más. Los `load` no leen `url` (para no volver a
   correr con cada filtro); la vista previa lo lee en el componente.

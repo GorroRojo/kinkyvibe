@@ -284,7 +284,7 @@
 		</section>
 	{/if}
 
-	<Quienes groups={data.personas} tags={data.meta.tags ?? []} />
+	<Quienes groups={data.personas} tags={data.meta.tags ?? []} wikiTags={data.wikiTags ?? []} />
 
 	{#if data.series}<Serie series={data.series} {past} origin={$page.url.origin} />{/if}
 

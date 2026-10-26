@@ -100,3 +100,30 @@ export async function siteWikiEntry(platform, term) {
 	const entry = (source.wiki ?? []).find((e) => e.key === key || e.slug === term) ?? null;
 	return { entry, key: entry?.key ?? key, tags };
 }
+
+/**
+ * De las etiquetas de una página de detalle (evento, material, perfil), las que tienen algo propio
+ * en la Kinkipedia: una página de la wiki o una descripción. Sus chips llevan a `/wiki/<etiqueta>`
+ * en vez de filtrar `/todo` (`wikiTags` de Tags.svelte); las demás, cuya página sería genérica,
+ * siguen filtrando. Se decide en el servidor: el árbol que llega al navegador no trae las
+ * descripciones, y el link tiene que ser el mismo antes y después de hidratar. Sin base, ninguna.
+ *
+ * @param {App.Platform | undefined} platform
+ * @param {readonly unknown[] | null | undefined} tagIds
+ * @returns {Promise<string[]>}
+ */
+export async function wikiLinkedTags(platform, tagIds) {
+	const ids = (tagIds ?? []).filter((t) => typeof t === 'string' && t !== '');
+	if (!ids.length) return [];
+	const source = await siteTagSource(platform);
+	if (!source.fromDb) return [];
+	const tags = tagManagerOf(source);
+	const withEntry = new Set((source.wiki ?? []).map((e) => e.key));
+	return /** @type {string[]} */ (
+		[...new Set(ids)].filter((id) => {
+			const tag = tags.get(/** @type {string} */ (id));
+			if (!tag || tag.orphan) return false;
+			return withEntry.has(tag.id) || String(tag.description ?? '').trim() !== '';
+		})
+	);
+}

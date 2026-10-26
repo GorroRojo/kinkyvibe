@@ -88,7 +88,7 @@
 		</address>
 	{/if}
 	{#if p.tags.length}
-		<ProfileTags tags={p.tags} />
+		<ProfileTags tags={p.tags} wikiTags={data.wikiTags ?? []} />
 	{/if}
 	{#if p.bio}
 		<div class="content">

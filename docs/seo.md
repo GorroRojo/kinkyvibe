@@ -83,6 +83,17 @@ que repetir las reglas de privacidad. Cada página los anuncia con `<link rel="a
 (`FeedLinks.svelte`); el feed de una etiqueta sin eventos ni material da 404. El RSS de siempre
 (`/rss`, en `app.html`) y los calendarios `.ics` siguen igual.
 
+### Chips de etiqueta
+
+En las páginas de detalle (evento, material, perfil), el chip de una etiqueta que tiene página de
+la wiki o descripción lleva a su página de la Kinkipedia (`/wiki/<etiqueta>`, `tagPagePath`); los
+demás siguen filtrando `/todo?tags=` (su página de la wiki sería genérica, y la canónica de
+`/todo?tags=…` es `/todo`). El chip se ve igual; solo cambia adónde lleva. Cuáles se decide en el
+servidor (`wikiLinkedTags` en `src/lib/server/wiki/site.js`, prop `wikiTags` de `Tags.svelte`):
+el árbol que llega al navegador no trae las descripciones y el link no puede cambiar al hidratar.
+Las tarjetas de las listas y el editor no pasan `wikiTags`: sus chips no cambian (adentro de una
+tarjeta, que ya es un link, no van links nuevos).
+
 ### Microformats
 
 `h-event` en eventos, `h-entry` en material y wiki, `h-card` en el encabezado de cada perfil (con

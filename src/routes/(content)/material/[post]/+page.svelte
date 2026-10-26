@@ -108,7 +108,7 @@
 	{/if}
 	{#if data.meta.tags}
 		<div id="tags">
-			<Tags tags={data.meta.tags} />
+			<Tags tags={data.meta.tags} wikiTags={data.wikiTags ?? []} />
 		</div>
 	{/if}
 	{#if data.personas}
