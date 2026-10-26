@@ -1,3 +1,4 @@
+import { error } from '@sveltejs/kit';
 import { currentRelated } from '$lib/utils';
 import { sitePosts } from '$lib/server/contenido/posts.js';
 import { getDB } from '$lib/server/db';
@@ -24,7 +25,14 @@ import { followButtonState } from '$lib/server/sigo/button.js';
  * @type {import("./$types").PageServerLoad}
  */
 export async function load({ params, platform, locals }) {
-	const { entry, key, tags } = await siteWikiEntry(platform, params.term);
+	const { entry, key, tags, known, fromDb, canonicalPath } = await siteWikiEntry(
+		platform,
+		params.term
+	);
+	// Un término que no es ninguna etiqueta: 404 de verdad (antes era una página vacía con 200, que
+	// los buscadores toman como «soft 404»). Solo si el árbol salió de la base: sin base, el árbol es
+	// el de respaldo (vacío) y una caída no tiene que convertir toda la wiki en 404.
+	if (!known && fromDb) error(404, 'Not found');
 	const children = tags.get(key)?.getAllChildren() ?? [];
 	/** @param {ProcessedPost[]} list */
 	const relatedOf = (list) =>
@@ -81,6 +89,8 @@ export async function load({ params, platform, locals }) {
 	return {
 		...page,
 		...related,
+		// La canónica: la misma para /wiki/bondage, /wiki/Bondage y /wiki/BONDAGE (o un alias).
+		canonicalPath,
 		ticketStates,
 		seriesInfo,
 		follow,

@@ -12,7 +12,7 @@ import { createClaim } from '$lib/server/amigues/claims.js';
 import { resolveProfileSlug } from '$lib/server/amigues/profiles.js';
 import { clientAddress, clientHash } from '$lib/server/tickets/safeguards.js';
 import { contentForProfilePage } from '$lib/server/personas/index.js';
-import { siteWikiPosts } from '$lib/server/wiki/site.js';
+import { siteWikiPosts, wikiLinkedTags } from '$lib/server/wiki/site.js';
 import { mentionPronouns } from '$lib/server/pronouns';
 import { followButtonState } from '$lib/server/sigo/button.js';
 import { askVenuePlacesEarly } from '$lib/server/amigues/venues.js';
@@ -68,7 +68,9 @@ export async function load({ params, platform, locals, setHeaders }) {
 		})
 	]);
 	if (page.private) setHeaders({ 'cache-control': 'private, no-store' });
-	return { ...page, pronouns, participa, follow };
+	// Las etiquetas cuyo chip lleva a la Kinkipedia (el árbol ya está leído: no suma consultas).
+	const wikiTags = await wikiLinkedTags(platform, page.profile?.tags).catch(() => []);
+	return { ...page, pronouns, participa, follow, wikiTags };
 }
 
 /** @type {import("./$types").Actions} */

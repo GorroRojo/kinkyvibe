@@ -1,6 +1,7 @@
 <script>
 	import CardRow from '$lib/components/CardRow.svelte';
 	import { parseSiteDate } from '$lib/utils/dates.js';
+	import FeedLinks from '$lib/components/FeedLinks.svelte';
 	import Carrousel from '$lib/components/Carrousel.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import SeoHead from '$lib/components/SeoHead.svelte';
@@ -27,11 +28,10 @@
 	// el sitio (WebSite), con el nombre que muestran los buscadores.
 	const organizationLd = /** @type {any} */ (organizationSchema());
 	const websiteLd = /** @type {any} */ (websiteSchema());
-	import kinkyProfilePic from '../logo.png';
 </script>
 
 <svelte:head>
-	<title>Kinky Vibe</title>
+	<title>{previewTexts['home.title']}</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
 </svelte:head>
@@ -48,7 +48,8 @@
 <div class="profile-header h-card p-contact hidden">
 	<a rel="me" href="https://web.brid.gy/r/https://kinkyvibe.ar/">fed bridgy</a>
 	<a class="u-url u-uid" href="https://kinkyvibe.ar/">https://kinkyvibe.ar/</a>
-	<img class="profile-pic u-photo" src={kinkyProfilePic} alt="" />
+	<!-- Una dirección que no cambia con cada deploy: Bridgy Fed la toma como avatar (docs/seo.md). -->
+	<img class="profile-pic u-photo" src="/android-chrome-512x512.png" alt="" />
 	<p class="profile-name p-name">Kinky Vibe</p>
 	<a
 		target="_blank"
@@ -125,6 +126,8 @@
 	<!-- el feed largo de a 20: así el pie de página queda a mano -->
 	<PostList heading="Lo último publicado" posts={allPosts} limit={20} />
 </main>
+<!-- Los feeds del calendario, también desde el inicio (docs/seo.md); /rss lo anuncia app.html. -->
+<FeedLinks base="/calendario" title="Calendario · Kinky Vibe" />
 
 <style>
 	.hidden {

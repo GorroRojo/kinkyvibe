@@ -21,6 +21,7 @@ import {
 	showsVenueLink,
 	venueHasDetails,
 	venueLine,
+	venuePostalAddress,
 	venueSchema,
 	venueView
 } from './venues.js';
@@ -111,8 +112,18 @@ describe('privacidad del lugar', () => {
 		expect(venueLine(venueView(venue, 'name', href))).toBe('Galpón Inventado');
 		expect(venueLine(venueView(venue, 'area', href))).toBe('Barrio Inventado, Ciudad de Prueba');
 		expect(venueLine({ level: 'hidden' })).toBe('Lugar a confirmar');
-		expect(venueSchema(venueView(venue, 'public', href))).toMatchObject({
-			address: { name: 'Calle Falsa 742' }
+		// La dirección estructurada (antes, un PostalAddress con solo `name`).
+		expect(venueSchema(venueView(venue, 'public', href))).toEqual({
+			'@type': 'Place',
+			'@id': 'https://kinkyvibe.ar/amigues/galpon-inventado#perfil',
+			name: 'Galpón Inventado',
+			url: 'https://kinkyvibe.ar/amigues/galpon-inventado',
+			address: {
+				'@type': 'PostalAddress',
+				streetAddress: 'Calle Falsa 742',
+				addressLocality: 'Barrio Inventado, Ciudad de Prueba',
+				addressCountry: 'AR'
+			}
 		});
 		expect(JSON.stringify(venueSchema(venueView(venue, 'name', href)))).not.toMatch(/Falsa/);
 		expect(venueSchema({ level: 'hidden' })).toBeUndefined();
@@ -187,12 +198,15 @@ describe('nivel «Sólo dirección» (address)', () => {
 	it('la línea y los datos estructurados: la dirección sin el nombre', () => {
 		const v = venueView(venue, 'address', href);
 		expect(venueLine(v)).toBe('Calle Falsa 742, Barrio Inventado, Ciudad de Prueba');
+		// Sin `url` ni `@id`: el link al lugar lo delataría (como en la página).
 		expect(venueSchema(v)).toEqual({
 			'@type': 'Place',
 			name: 'Calle Falsa 742, Barrio Inventado, Ciudad de Prueba',
 			address: {
 				'@type': 'PostalAddress',
-				name: 'Calle Falsa 742, Barrio Inventado, Ciudad de Prueba'
+				streetAddress: 'Calle Falsa 742',
+				addressLocality: 'Barrio Inventado, Ciudad de Prueba',
+				addressCountry: 'AR'
 			}
 		});
 		expect(venueLine({ level: 'address' })).toBe('Lugar a confirmar');
@@ -324,5 +338,85 @@ describe('venueHasDetails: «Ver mapa y cómo llegar» en la página del evento'
 			data: { address: 'Calle Falsa 1', how_to_get_there: 'Timbre B' }
 		};
 		expect(venueHasDetails(venueView(howTo, 'public', href))).toBe(true);
+	});
+});
+
+/**
+ * Los datos estructurados del lugar no dicen más que la página en ningún nivel (decisiones 0005 y
+ * 0021, docs/amigues.md). Con una vista armada a mano con TODOS los campos (como si alguien se
+ * equivocara al armarla), lo que no muestra el nivel igual no sale.
+ */
+describe('datos estructurados del lugar, nivel por nivel (privacidad)', () => {
+	const STREET = /Falsa|742/;
+	const NAME = /Galpón/;
+	const LINK = /amigues|galpon/;
+	const AREA = /Barrio Inventado|Ciudad de Prueba/;
+	const EXTRA = /Colectivo|Rampa|-34|-58/;
+	/** Todo lo que tiene el lugar, con el nivel que se pida. */
+	const leaky = (/** @type {import('./venues.js').VenuePrivacy} */ level) => ({
+		level,
+		name: 'Galpón Inventado',
+		href,
+		address: 'Calle Falsa 742',
+		area: 'Barrio Inventado',
+		city: 'Ciudad de Prueba',
+		lat: -34.6,
+		lng: -58.4,
+		accessibility: 'Rampa en la entrada',
+		howTo: 'Colectivo 999'
+	});
+	const both = (/** @type {any} */ view) =>
+		JSON.stringify([venueSchema(view), venuePostalAddress(view)]);
+
+	it('público: nombre, link y dirección; nunca accesibilidad, cómo llegar ni coordenadas', () => {
+		const out = both(venueView(venue, 'public', href));
+		expect(out).toMatch(STREET);
+		expect(out).toMatch(NAME);
+		expect(out).not.toMatch(EXTRA);
+		expect(both(leaky('public'))).not.toMatch(EXTRA);
+	});
+
+	it('solo nombre: el nombre y el link, ni la calle ni el barrio', () => {
+		for (const view of [venueView(venue, 'name', href), leaky('name')]) {
+			const out = both(view);
+			expect(out).toMatch(NAME);
+			expect(out).not.toMatch(STREET);
+			expect(out).not.toMatch(AREA);
+			expect(out).not.toMatch(EXTRA);
+			expect(venuePostalAddress(view)).toBeUndefined();
+		}
+	});
+
+	it('solo dirección: la calle, sin el nombre ni el link', () => {
+		for (const view of [venueView(venue, 'address', href), leaky('address')]) {
+			const out = both(view);
+			expect(out).toMatch(STREET);
+			expect(out).not.toMatch(NAME);
+			expect(out).not.toMatch(LINK);
+			expect(out).not.toMatch(EXTRA);
+		}
+	});
+
+	it('solo barrio: el barrio y la ciudad, ni la calle, ni el nombre, ni el link', () => {
+		for (const view of [venueView(venue, 'area', href), leaky('area')]) {
+			const out = both(view);
+			expect(out).toMatch(AREA);
+			expect(out).not.toMatch(STREET);
+			expect(out).not.toMatch(NAME);
+			expect(out).not.toMatch(LINK);
+			expect(out).not.toMatch(EXTRA);
+		}
+		expect(venuePostalAddress(venueView(venue, 'area', href))).toEqual({
+			'@type': 'PostalAddress',
+			addressLocality: 'Barrio Inventado, Ciudad de Prueba',
+			addressCountry: 'AR'
+		});
+	});
+
+	it('oculto: nada de nada', () => {
+		for (const view of [venueView(venue, 'hidden', href), leaky('hidden')]) {
+			expect(venueSchema(view)).toBeUndefined();
+			expect(venuePostalAddress(view)).toBeUndefined();
+		}
 	});
 });

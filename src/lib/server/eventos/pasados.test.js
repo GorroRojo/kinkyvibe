@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	PAST_EVENT_FIELDS,
 	firstEventMonth,
+	lastEventMonth,
 	fullPastEventsOf,
 	isPastIn,
 	pastEventsOf,
@@ -86,6 +87,19 @@ describe('fullPastEventsOf', () => {
 		expect(fullPastEventsOf(posts, '2026-10', NOW)).toEqual([posts[1]]);
 		expect(fullPastEventsOf(posts, '2026-09', NOW)).toEqual([posts[3]]);
 		expect(fullPastEventsOf(posts, '2026-11', NOW)).toEqual([]);
+	});
+});
+
+describe('lastEventMonth', () => {
+	it('el mes del evento más nuevo, en hora de Argentina', () => {
+		const last = event('fin-de-2030', '2030-12-31T22:00-03:00');
+		// a las 22 del 31/12 en Argentina ya es enero en UTC: sigue siendo diciembre
+		expect(lastEventMonth([...posts, last])).toBe('2030-12');
+	});
+
+	it('sin eventos con fecha: null', () => {
+		expect(lastEventMonth([])).toBeNull();
+		expect(lastEventMonth([event('rara', 'no-es-fecha')])).toBeNull();
 	});
 });
 

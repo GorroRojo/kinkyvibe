@@ -8,10 +8,11 @@
  * no esté en la página. Los textos de Open Graph y la vista previa al compartir son de otro lado.
  */
 import { eventPlaceSchema } from './eventPlace.js';
+import { venuePostalAddress } from './venues.js';
 import { KINKYVIBE_TAG } from './propinas.js';
 import { contactItems } from './perfiles.js';
 import { ORG_CONTACT_EMAIL } from './organization.js';
-import { isoDateTime } from './dates.js';
+import { isoDateTime, parseSiteDate } from './dates.js';
 
 import { SITE_URL } from './site.js';
 
@@ -351,6 +352,65 @@ export function materialSchema(meta, authorLinks = null) {
 }
 
 /**
+ * La serie de un evento (`EventSeries`), por referencia: su nombre y su página.
+ * @param {{ name?: string, href?: string } | null | undefined} series
+ * @returns {JsonLd | undefined}
+ */
+export function seriesRef(series) {
+	const url = absoluteUrl(series?.href);
+	if (!series?.name || !url) return undefined;
+	return { '@type': 'EventSeries', '@id': `${url}#serie`, name: series.name, url };
+}
+
+/**
+ * Un evento con las series de las que es edición (`superEvent`). La serie no es la canónica de
+ * las ediciones: cada fecha sigue siendo su propio `Event`.
+ * @param {JsonLd} schema lo que dio {@link eventSchema}
+ * @param {readonly { name?: string, href?: string }[] | null | undefined} series
+ * @returns {JsonLd}
+ */
+export function withSuperEvent(schema, series) {
+	const refs = (series ?? []).map(seriesRef).filter(Boolean);
+	if (!refs.length) return schema;
+	return { ...schema, superEvent: refs.length > 1 ? refs : refs[0] };
+}
+
+/**
+ * La página de una serie (/wiki/<serie>): un `EventSeries` con sus ediciones (`subEvent`). De cada
+ * edición solo el nombre, la página, la fecha y el estado; **nunca el lugar** (su privacidad se
+ * decide en la página de cada evento). Las ediciones son las que ve cualquiera.
+ * @param {{ name?: string, href?: string, description?: string, image?: string,
+ *   upcoming?: readonly Edition[], past?: readonly Edition[] } | null | undefined} series
+ * @returns {JsonLd | null}
+ * @typedef {{ title?: string, path?: string, start?: string, status?: string }} Edition
+ */
+export function seriesSchema(series) {
+	const ref = seriesRef(series);
+	if (!series || !ref) return null;
+	const editions = [...(series.upcoming ?? []), ...(series.past ?? [])];
+	return clean({
+		'@context': 'https://schema.org',
+		...ref,
+		image: absoluteUrl(series.image),
+		subEvent: editions
+			.filter((e) => e.title && absoluteUrl(e.path))
+			.sort((a, b) => parseSiteDate(a.start).getTime() - parseSiteDate(b.start).getTime())
+			.map((e) =>
+				clean({
+					'@type': 'Event',
+					name: e.title,
+					url: absoluteUrl(e.path),
+					startDate: isoDate(e.start),
+					eventStatus:
+						e.status === 'cancelado'
+							? 'https://schema.org/EventCancelled'
+							: 'https://schema.org/EventScheduled'
+				})
+			)
+	});
+}
+
+/**
  * La Kinkipedia como conjunto de términos (va en /wiki y en cada entrada).
  * @returns {JsonLd}
  */
@@ -399,6 +459,21 @@ export function wikiTermSchema({ title, summary, path, aka }) {
 }
 
 /**
+ * La descripción de una etiqueta en texto, en una línea: los links (`[[término]]`,
+ * `[[término:texto]]`) quedan como su texto. '' si no hay.
+ * @param {unknown} description
+ * @returns {string}
+ */
+export function plainTagDescription(description) {
+	return typeof description === 'string'
+		? description
+				.replace(/\[\[([^\]]*)\]\]/g, (_, inner) => inner.slice(inner.indexOf(':') + 1))
+				.replace(/\s+/g, ' ')
+				.trim()
+		: '';
+}
+
+/**
  * La página de una etiqueta sin entrada de la Kinkipedia como término definido, si la etiqueta
  * tiene descripción (la que muestra la página arriba de todo): la descripción, en texto, es la
  * definición. Los links de la descripción (`[[término]]`, `[[término:texto]]`) quedan como su
@@ -407,13 +482,7 @@ export function wikiTermSchema({ title, summary, path, aka }) {
  * @returns {JsonLd | null}
  */
 export function tagTermSchema({ title, description, path, aka }) {
-	const text =
-		typeof description === 'string'
-			? description
-					.replace(/\[\[([^\]]*)\]\]/g, (_, inner) => inner.slice(inner.indexOf(':') + 1))
-					.replace(/\s+/g, ' ')
-					.trim()
-			: '';
+	const text = plainTagDescription(description);
 	if (!text) return null;
 	return wikiTermSchema({ title, summary: text, path, aka });
 }
@@ -424,23 +493,6 @@ export const PROFILE_TYPES = Object.freeze({
 	proyecto: 'Organization',
 	lugar: 'Place'
 });
-
-/**
- * La dirección de un lugar, solo en los niveles que la muestran (lo demás ya no llega).
- * @param {import('./venues.js').VenueView | null | undefined} view
- * @returns {JsonLd | undefined}
- */
-function venueAddress(view) {
-	if (!view || view.level === 'hidden' || view.level === 'name') return undefined;
-	const locality = [view.area, view.city].filter(Boolean).join(', ');
-	const address = clean({
-		'@type': 'PostalAddress',
-		streetAddress: view.level === 'area' ? undefined : view.address,
-		addressLocality: locality || undefined,
-		addressCountry: 'AR'
-	});
-	return address.streetAddress || address.addressLocality ? address : undefined;
-}
 
 /**
  * La página de un perfil (/amigues/<perfil>): una ProfilePage con la persona, el proyecto o el
@@ -479,7 +531,8 @@ export function profileSchema({ profile: p, canonical, location = null }) {
 		sameAs: links,
 		email: type === 'Place' ? undefined : email,
 		telephone: tel,
-		address: type === 'Place' ? venueAddress(location) : undefined,
+		// La misma dirección que en los eventos (venues.js), solo en los niveles que la muestran.
+		address: type === 'Place' ? venuePostalAddress(location) : undefined,
 		geo: type === 'Place' ? geo : undefined
 	});
 	return clean({

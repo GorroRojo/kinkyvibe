@@ -81,20 +81,41 @@ export function fullPastEventsOf(posts, month, now = Date.now()) {
 }
 
 /**
+ * Los meses (yyyy-MM, hora de Argentina) de los eventos con fecha.
+ * @param {ProcessedPost[]} posts
+ */
+function eventMonths(posts) {
+	return posts.flatMap((p) => {
+		const start = new Date(p.meta.start);
+		return isNaN(start.getTime()) ? [] : [argDate(start).slice(0, 7)];
+	});
+}
+
+/**
  * El mes (yyyy-MM, hora de Argentina) del evento más viejo, o `null` si no hay ninguno con fecha:
- * hasta ahí ofrece la lista «Mostrar el mes anterior».
+ * hasta ahí ofrece la lista «Mostrar el mes anterior», y hasta ahí enlaza la flecha del mes
+ * anterior del calendario.
  * @param {ProcessedPost[]} posts los del calendario
  * @returns {string | null}
  */
 export function firstEventMonth(posts) {
-	let first = null;
-	for (const p of posts) {
-		const start = new Date(p.meta.start);
-		if (isNaN(start.getTime())) continue;
-		const month = argDate(start).slice(0, 7);
-		if (first === null || month < first) first = month;
-	}
-	return first;
+	return eventMonths(posts).reduce(
+		(/** @type {string | null} */ first, month) =>
+			first === null || month < first ? month : first,
+		null
+	);
+}
+
+/**
+ * El mes del evento más nuevo, o `null`: hasta ahí enlaza la flecha del mes siguiente.
+ * @param {ProcessedPost[]} posts los del calendario
+ * @returns {string | null}
+ */
+export function lastEventMonth(posts) {
+	return eventMonths(posts).reduce(
+		(/** @type {string | null} */ last, month) => (last === null || month > last ? month : last),
+		null
+	);
 }
 
 /**

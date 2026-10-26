@@ -12,8 +12,11 @@ import {
 	materialSchema,
 	materialType,
 	organizationSchema,
+	withSuperEvent,
 	profileSchema,
+	seriesSchema,
 	tagTermSchema,
+	plainTagDescription,
 	websiteSchema,
 	wikiTermSchema
 } from './jsonLd.js';
@@ -226,8 +229,27 @@ describe('eventSchema', () => {
 		const area = roundTrip(
 			eventSchema({ meta: EVENT, venue: { level: 'area', area: 'Barrio Inventado', city: 'CABA' } })
 		);
-		expect(area.location).toEqual({ '@type': 'Place', name: 'Barrio Inventado, CABA' });
+		expect(area.location).toEqual({
+			'@type': 'Place',
+			name: 'Barrio Inventado, CABA',
+			address: {
+				'@type': 'PostalAddress',
+				addressLocality: 'Barrio Inventado, CABA',
+				addressCountry: 'AR'
+			}
+		});
 		expect(area.eventAttendanceMode).toBe('https://schema.org/OfflineEventAttendanceMode');
+	});
+
+	it('lugar oculto con etiqueta de región: solo la ciudad, sin nombre ni calle', () => {
+		const e = roundTrip(
+			eventSchema({ meta: { ...EVENT, tags: ['AMBA'] }, venue: { level: 'hidden' } })
+		);
+		expect(e.location).toEqual({
+			'@type': 'Place',
+			address: { '@type': 'PostalAddress', addressLocality: 'Buenos Aires', addressCountry: 'AR' }
+		});
+		expect(e.location.name).toBeUndefined();
 	});
 
 	it('online: VirtualLocation', () => {
@@ -317,6 +339,64 @@ describe('authorLinksFrom', () => {
 	});
 });
 
+describe('series (EventSeries)', () => {
+	const SERIES = {
+		name: 'Serie Inventada',
+		href: '/wiki/Serie-Inventada',
+		image: '/media/img/serie.webp',
+		upcoming: [
+			{ title: 'Serie Inventada #3', path: '/calendario/serie-3', start: '2031-09-01T20:00-03:00' }
+		],
+		past: [
+			{
+				title: 'Serie Inventada #2',
+				path: '/calendario/serie-2',
+				start: '2031-08-01T20:00-03:00',
+				status: 'cancelado'
+			},
+			{ title: 'Serie Inventada #1', path: '/calendario/serie-1', start: '2031-07-01T20:00-03:00' }
+		]
+	};
+	it('cada edición dice de qué serie es (superEvent), sin dejar de ser su propio Event', () => {
+		const e = roundTrip(
+			withSuperEvent(eventSchema({ meta: EVENT }), [
+				{ name: 'Serie Inventada', href: '/wiki/Serie-Inventada' }
+			])
+		);
+		expect(e['@type']).toBe('Event');
+		expect(e.url).toBe('https://kinkyvibe.ar/calendario/taller-de-prueba-2031-08');
+		expect(e.superEvent).toEqual({
+			'@type': 'EventSeries',
+			'@id': 'https://kinkyvibe.ar/wiki/Serie-Inventada#serie',
+			name: 'Serie Inventada',
+			url: 'https://kinkyvibe.ar/wiki/Serie-Inventada'
+		});
+		// Sin series, el evento queda igual.
+		const plain = eventSchema({ meta: EVENT });
+		expect(withSuperEvent(plain, null)).toBe(plain);
+		expect(withSuperEvent(plain, [])).toBe(plain);
+	});
+	it('la página de la serie: EventSeries con sus ediciones en orden, sin lugar', () => {
+		const s = roundTrip(seriesSchema(SERIES));
+		expect(s['@type']).toBe('EventSeries');
+		expect(s.url).toBe('https://kinkyvibe.ar/wiki/Serie-Inventada');
+		expect(s.subEvent.map((/** @type {any} */ e) => e.url)).toEqual([
+			'https://kinkyvibe.ar/calendario/serie-1',
+			'https://kinkyvibe.ar/calendario/serie-2',
+			'https://kinkyvibe.ar/calendario/serie-3'
+		]);
+		expect(s.subEvent[1].eventStatus).toBe('https://schema.org/EventCancelled');
+		for (const e of s.subEvent) {
+			expect(Object.keys(e).sort()).toEqual(['@type', 'eventStatus', 'name', 'startDate', 'url']);
+		}
+		expect(allText(s)).not.toMatch(/location|address|Place/);
+	});
+	it('sin nombre o sin página, nada', () => {
+		expect(seriesSchema(null)).toBeNull();
+		expect(seriesSchema({ name: 'X' })).toBeNull();
+	});
+});
+
 describe('Kinkipedia', () => {
 	it('DefinedTermSet en /wiki', () => {
 		const s = roundTrip(kinkipediaSchema());
@@ -363,6 +443,12 @@ describe('Kinkipedia', () => {
 	it('una etiqueta sin descripción (o vacía), nada', () => {
 		expect(tagTermSchema({ title: 'X', path: '/wiki/X' })).toBeNull();
 		expect(tagTermSchema({ title: 'X', description: '  ', path: '/wiki/X' })).toBeNull();
+	});
+	it('plainTagDescription: los links quedan como su texto, en una línea', () => {
+		expect(plainTagDescription('una [[práctica]]')).toBe('una práctica');
+		expect(plainTagDescription('[[término:texto]] y  más\nlíneas')).toBe('texto y más líneas');
+		expect(plainTagDescription(undefined)).toBe('');
+		expect(plainTagDescription(42)).toBe('');
 	});
 });
 

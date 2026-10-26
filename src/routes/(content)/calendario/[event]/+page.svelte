@@ -20,14 +20,13 @@
 	import { relatedPostsFor } from '$lib/utils';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import LDTag from '$lib/components/LDTag.svelte';
-	import { eventSchema } from '$lib/utils/jsonLd.js';
+	import { eventSchema, withSuperEvent } from '$lib/utils/jsonLd.js';
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
 	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { showEventTip } from '$lib/utils/propinas.js';
 	import { eventEnd } from '$lib/utils/dates.js';
-	import { currentPostData } from '$lib/utils/stores.js';
 	import { page } from '$app/stores';
 	import { addMentionPronouns } from '$lib/utils/mentions';
 	import ShareEventButton from '$lib/components/ShareEventButton.svelte';
@@ -69,7 +68,6 @@
 	// (y el botón dice a qué sitio lleva).
 	$: actionLink = safeEventLink(data.meta.link);
 	$: actionLinkTarget = isWebLink(actionLink) ? '_blank' : undefined;
-	currentPostData.set({ category: data.meta.category, path: $page.url.pathname });
 	$: end = eventEnd(data.meta.start, data.meta.end);
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
@@ -137,18 +135,21 @@
 
 <!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js). -->
 <LDTag
-	schema={eventSchema({
-		meta: data.meta,
-		end,
-		venue: data.venue,
-		tickets: data.tickets,
-		webLink: isWebLink(actionLink) ? actionLink : undefined,
-		past,
-		authorLinks: data.authorLinks
-	})}
+	schema={withSuperEvent(
+		eventSchema({
+			meta: data.meta,
+			end,
+			venue: data.venue,
+			tickets: data.tickets,
+			webLink: isWebLink(actionLink) ? actionLink : undefined,
+			past,
+			authorLinks: data.authorLinks
+		}),
+		data.series?.list
+	)}
 />
 <svelte:head>
-	<title>{eventPageTitle(data.meta, data.series)} · Kinky Vibe</title>
+	<title>{eventPageTitle(data.meta)} · Kinky Vibe</title>
 	<link rel="icon" href="/favicon-32x32.png" />
 
 	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
@@ -294,7 +295,7 @@
 		</section>
 	{/if}
 
-	<Quienes groups={data.personas} tags={data.meta.tags ?? []} />
+	<Quienes groups={data.personas} tags={data.meta.tags ?? []} wikiTags={data.wikiTags ?? []} />
 
 	{#if data.series}<Serie series={data.series} {past} origin={$page.url.origin} />{/if}
 

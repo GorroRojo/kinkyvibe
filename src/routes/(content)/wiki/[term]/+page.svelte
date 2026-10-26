@@ -5,16 +5,21 @@
 	import FollowButton from '$lib/components/FollowButton.svelte';
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
-	import { tagTermSchema, wikiTermSchema } from '$lib/utils/jsonLd.js';
+	import {
+		plainTagDescription,
+		seriesSchema,
+		tagTermSchema,
+		wikiTermSchema
+	} from '$lib/utils/jsonLd.js';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
-	import { tagManager, currentPostData, userConfig } from '$lib/utils/stores.js';
+	import { tagManager, userConfig } from '$lib/utils/stores.js';
 	import { fetchAllPostsClient } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import ReadingTime from '$lib/components/ReadingTime.svelte';
 	import { readingTimeLabel } from '$lib/utils/readingTime.js';
 	import SeoHead from '$lib/components/SeoHead.svelte';
-	import { cardImage, linkPreviewOf, tagDescription } from '$lib/utils/seo.js';
+	import { cardImage, linkPreviewOf, seriesDescription, tagDescription } from '$lib/utils/seo.js';
 	/** Sin imagen propia, la tarjeta de la Kinkipedia. */
 	$: KINKIPEDIA_CARD = cardImage('wiki', linkPreviewOf($page.data));
 	/** @type {any} La página de la wiki (de la base) o la etiqueta sola (+page.js). */
@@ -25,7 +30,6 @@
 	// partes para que el preprocesador de Svelte no la tome como el bloque de estilos del componente.
 	const STYLE_TAG = 'style';
 	$: ownStyle = data.css ? `<${STYLE_TAG}>${data.css}</${STYLE_TAG}>` : '';
-	currentPostData.set({ category: 'wiki', path: $page.url.pathname });
 
 	let haswiki = (/**@type string*/ n) =>
 		true || data.wiki?.some((/** @type {ProcessedPost} */ e) => e.meta.wiki == n);
@@ -68,8 +72,11 @@
 	}
 	const guessedTitle =
 		data?.tag?.id ?? decodeURIComponent($page.url.pathname.slice(6)).replaceAll('-', ' ');
-	/** El título de la entrada o, sin entrada, el nombre de la etiqueta. */
-	$: pageTitle = data?.meta?.title ?? data?.tag?.visible_name ?? guessedTitle;
+	/** El título de la entrada o, sin entrada, el nombre de la etiqueta con mayúscula inicial (como
+	 * el h1 de GlosarioItem). */
+	$: pageTitle = data?.meta?.title ?? upperFirst(data?.tag?.visible_name ?? guessedTitle);
+	/** @param {string} s */
+	const upperFirst = (s) => (s ? s[0].toLocaleUpperCase() + s.slice(1) : s);
 	const ascendance = getAscendance(data?.meta?.wiki ?? guessedTitle ?? 'BDSM');
 	const descendance = getDescendance(data?.meta?.wiki ?? guessedTitle ?? 'inglés');
 	// const descendance = [[{ name: 'Shibari' }], [{ name: 'Momificación' }]];
@@ -100,6 +107,9 @@
 	}
 	// La entrada como término definido (schema.org, jsonLd.js); sin entrada, la etiqueta si tiene
 	// descripción (docs/seo.md); si no, nada.
+	// Una serie (con ediciones que ve cualquiera): su descripción y sus datos estructurados.
+	$: series = data.seriesInfo?.series ?? null;
+	$: seriesLd = series ? seriesSchema(series) : null;
 	$: termSchema = data?.meta
 		? wikiTermSchema({
 				title: data.meta.title,
@@ -118,18 +128,24 @@
 </script>
 
 {#if termSchema}<LDTag schema={termSchema} />{/if}
+<!-- Una serie: `EventSeries` con sus ediciones (solo nombre, página, fecha y estado; nunca el lugar). -->
+{#if seriesLd}<LDTag schema={seriesLd} />{/if}
 <svelte:head>
 	<title>{pageTitle} · Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md): la entrada de la Kinkipedia o, sin entrada,
-     la etiqueta (o la serie) con una descripción genérica; sin imagen, la tarjeta de la Kinkipedia. -->
+     la etiqueta (o la serie) con su descripción en texto o, sin descripción, una genérica; sin
+     imagen, la tarjeta de la Kinkipedia. -->
 <SeoHead
 	title={pageTitle}
-	description={data?.meta?.summary || tagDescription(pageTitle)}
+	description={data?.meta?.summary ||
+		plainTagDescription(data?.tag?.description) ||
+		(series?.total ? seriesDescription(series) : tagDescription(pageTitle))}
 	image={data?.meta?.featured || KINKIPEDIA_CARD.url}
 	imageInfo={data?.meta?.featured ? undefined : KINKIPEDIA_CARD}
 	imageAlt={pageTitle}
 	type={data?.meta ? 'article' : 'website'}
+	canonical={data.canonicalPath}
 />
 
 <article class="h-entry wiki" id="title">

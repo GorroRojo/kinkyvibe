@@ -24,6 +24,7 @@ import { coveringTicketSlug, partOf } from '$lib/utils/partes.js';
 import { mentionPronouns } from '$lib/server/pronouns';
 import { hasOwnTickets } from '$lib/utils/ticketCta.js';
 import { authorLinksFrom } from '$lib/utils/jsonLd.js';
+import { wikiLinkedTags } from '$lib/server/wiki/site.js';
 
 /** @type {import("./$types").PageServerLoad} */
 export async function load({ params, platform, fetch, locals, setHeaders }) {
@@ -61,18 +62,29 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 	if (!post) error(404, 'Not found');
 	// Un evento oculto solo lo ven les admins: que no quede en ninguna caché compartida.
 	if (post.meta.force_unpublished) setHeaders({ 'cache-control': 'private, no-store' });
-	const [related, ownTickets, series, venue, personas, partes, pronouns, workshopTickets] =
-		await Promise.all([
-			loadRelated(post, posts, platform),
-			early.ownTickets,
-			loadSeries(post, platform, locals, posts),
-			early.venue,
-			loadPersonas(post, platform),
-			early.partes,
-			// Los pronombres de las @menciones del texto (de los perfiles de la base).
-			mentionPronouns(platform, posts).catch(() => ({})),
-			partTickets
-		]);
+	const [
+		related,
+		ownTickets,
+		series,
+		venue,
+		personas,
+		partes,
+		pronouns,
+		workshopTickets,
+		wikiTags
+	] = await Promise.all([
+		loadRelated(post, posts, platform),
+		early.ownTickets,
+		loadSeries(post, platform, locals, posts),
+		early.venue,
+		loadPersonas(post, platform),
+		early.partes,
+		// Los pronombres de las @menciones del texto (de los perfiles de la base).
+		mentionPronouns(platform, posts).catch(() => ({})),
+		partTickets,
+		// Las etiquetas cuyo chip lleva a la Kinkipedia.
+		wikiLinkedTags(platform, post.meta.tags).catch(() => [])
+	]);
 	const tickets = workshopTickets === undefined ? ownTickets : workshopTickets;
 	return {
 		...related,
@@ -85,6 +97,7 @@ export async function load({ params, platform, fetch, locals, setHeaders }) {
 		// Los perfiles públicos de les autores para los datos estructurados (`url` del organizer):
 		// de la lista que ve cualquiera, nunca de lo que ve quien tiene sesión.
 		authorLinks: authorLinksFrom(post.meta.authors, posts, post.meta.postID),
+		wikiTags,
 		// Con lugar, el «Dónde» del evento no sale del servidor.
 		post: venue ? { ...post, meta: stripMdPlace(post.meta) } : post
 	};

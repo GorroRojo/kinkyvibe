@@ -11,7 +11,8 @@
  * ventas para admins por Telegram (ver $lib/server/telegram/adminNotify.js) y el registro automático
  * de los comandos del bot de Telegram (ver $lib/server/telegram/commandsSync.js) y borra las filas
  * por persona de las estadísticas de uso del bot de más de 180 días (ver
- * $lib/server/telegram/uso.js). Lo llama cada 15 minutos el cron
+ * $lib/server/telegram/uso.js) y avisa por IndexNow las páginas públicas que cambiaron (ver
+ * $lib/server/seo/indexnow.js). Lo llama cada 15 minutos el cron
  * del Worker (src/lib/server/scheduled.js); cada corrida sigue donde quedó la anterior.
  *
  * Protegido con un secreto compartido: header `x-cron-secret` = CRON_SECRET (comparado en
@@ -31,6 +32,9 @@ import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
 import { runAdminNoticesCron } from '$lib/server/telegram/adminNotify.js';
 import { pruneUso } from '$lib/server/telegram/uso.js';
 import { resendUnsentOrderEmails } from '$lib/server/tickets/unsentOrders.js';
+import { runIndexNow } from '$lib/server/seo/indexnow.js';
+import { sitePosts } from '$lib/server/contenido/posts.js';
+import { siteWikiPosts } from '$lib/server/wiki/site.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, platform, url, fetch }) {
@@ -106,6 +110,21 @@ export async function POST({ request, platform, url, fetch }) {
 		} catch (error) {
 			logDBError('cron estadísticas del bot', error);
 		}
+		// IndexNow (docs/seo.md): avisa a los buscadores qué páginas públicas cambiaron. Apagado sin
+		// INDEXNOW_KEY y fuera de producción. Nunca tira.
+		const indexNow = await runIndexNow({
+			db,
+			key: env.INDEXNOW_KEY,
+			origin: siteOrigin(url),
+			fetch,
+			lists: async () => {
+				const [posts, wikiPosts] = await Promise.all([
+					sitePosts(platform),
+					siteWikiPosts(platform)
+				]);
+				return { posts, wikiPosts };
+			}
+		});
 		// El menú «/» del bot: solo si cambió la lista y hay token. Nunca tira.
 		const telegramCommands = await syncBotCommands({
 			db,
@@ -121,6 +140,7 @@ export async function POST({ request, platform, url, fetch }) {
 				...(sigo ? { sigo } : {}),
 				...(telegramAdmin ? { telegramAdmin } : {}),
 				...(telegramUsoBorradas ? { telegramUsoBorradas } : {}),
+				...('skipped' in indexNow ? {} : { indexNow }),
 				telegramCommands
 			},
 			{ headers: { 'cache-control': 'no-store' } }

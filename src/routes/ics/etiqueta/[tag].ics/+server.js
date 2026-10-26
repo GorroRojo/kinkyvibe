@@ -6,7 +6,7 @@
  */
 import { error } from '@sveltejs/kit';
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { buildIcsFeed, icsResponse } from '$lib/utils/icsFeed.js';
+import { buildIcsFeed, icsResponse, publicIcsSince } from '$lib/utils/icsFeed.js';
 import { eventsForTag } from '$lib/server/series/index.js';
 import { resolveTagSlug } from '$lib/utils/series.js';
 import { getDB } from '$lib/server/db';
@@ -29,6 +29,12 @@ export async function GET({ params, platform }) {
 		events.map((e) => String(e.meta.postID))
 	);
 	return icsResponse(
-		buildIcsFeed(events, { calName: `${name} · Kinky Vibe`, profiles: posts, venues })
+		buildIcsFeed(events, {
+			calName: `${name} · Kinky Vibe`,
+			profiles: posts,
+			venues,
+			// De los pasados, solo los de los últimos 90 días (como /calendario.ics).
+			since: publicIcsSince()
+		})
 	);
 }

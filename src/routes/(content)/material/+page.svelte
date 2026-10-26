@@ -9,12 +9,16 @@
 	import { flip } from 'svelte/animate';
 	import { fade } from 'svelte/transition';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
+	import { page } from '$app/stores';
+	import { linkPreviewOf, sectionTexts } from '$lib/utils/seo.js';
+	// El título de la pestaña, de los textos del panel (docs/compartir.md).
+	$: texts = sectionTexts('material', linkPreviewOf($page.data).texts);
 
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
 </script>
 
 <svelte:head>
-	<title>Artículos, links y descargables · Kinky Vibe</title>
+	<title>{texts.heading} · Kinky Vibe</title>
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md). -->
 <ListSeoHead section="material" card="material" />

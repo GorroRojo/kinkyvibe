@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	calendarDayFlags,
+	calendarMonthHref,
 	currentMonth,
 	defaultCalendarMonth,
 	isCurrent,
+	isLinkedCalendarMonth,
 	monthCountLabel,
 	monthHasPastEvents,
 	shiftCalendarMonth
@@ -203,5 +205,31 @@ describe('defaultCalendarMonth', () => {
 	it('ignores events with an invalid start', () => {
 		const now = Date.parse('2026-10-15T12:00:00-03:00');
 		expect(defaultCalendarMonth({ '2026-10-20': [ev('mal')] }, now)).toBe('2026-11');
+	});
+});
+
+describe('calendarMonthHref', () => {
+	const url = new URL('https://kinkyvibe.ar/calendario?viewdate=2026-05&otro=1#postlist');
+	it('pone ?viewdate, conserva lo demás y saca el ancla', () => {
+		expect(calendarMonthHref(url, '2026-06', '2026-10')).toBe(
+			'/calendario?viewdate=2026-06&otro=1'
+		);
+	});
+	it('el mes con el que abre igual va sin ?viewdate', () => {
+		expect(calendarMonthHref(url, '2026-10', '2026-10')).toBe('/calendario?otro=1');
+	});
+});
+
+describe('isLinkedCalendarMonth', () => {
+	it('solo entre el mes del primer evento y el del último (incluidos)', () => {
+		expect(isLinkedCalendarMonth('2023-06', '2023-06', '2026-12')).toBe(true);
+		expect(isLinkedCalendarMonth('2026-12', '2023-06', '2026-12')).toBe(true);
+		expect(isLinkedCalendarMonth('2023-05', '2023-06', '2026-12')).toBe(false);
+		expect(isLinkedCalendarMonth('2027-01', '2023-06', '2026-12')).toBe(false);
+		expect(isLinkedCalendarMonth('1998-12', '2023-06', '2026-12')).toBe(false);
+	});
+	it('sin eventos con fecha: ninguno', () => {
+		expect(isLinkedCalendarMonth('2026-10', null, null)).toBe(false);
+		expect(isLinkedCalendarMonth('2026-10', undefined, '2026-12')).toBe(false);
 	});
 });
