@@ -46,8 +46,12 @@ de página y dónde se arma. (La **imagen para compartir** que se descarga desde
 
 Todas: `description`, `og:site_name` (Kinky Vibe), `og:locale` (`es_AR`), `og:type`, `og:url` y
 `<link rel="canonical">` (la dirección sin `?…`), `og:title`, `og:description`, `og:image` (con
-`og:image:width`/`height`/`alt` cuando se saben), `twitter:card` (`summary_large_image`),
+`og:image:width`/`height`/`alt` cuando se saben), `twitter:card` (`summary_large_image`; `summary`
+si la imagen es cuadrada o de menos de 600 px de ancho, que X y Bluesky recortarían a 2:1),
 `twitter:site`, `twitter:title`, `twitter:description`, `twitter:image` y `twitter:image:alt`.
+Cada una va una sola vez. Aparte, `app.html` pone en todas las páginas
+`<meta name="robots" content="max-image-preview:large">` (vistas previas grandes en Google y
+Discover); convive con el `noindex` de las páginas que lo llevan (Google junta las dos).
 
 | Página                                            | `og:type` | Título                        | Descripción                                                                                     | Imagen                                            |
 | ------------------------------------------------- | --------- | ----------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------- |
@@ -74,7 +78,9 @@ Todas: `description`, `og:site_name` (Kinky Vibe), `og:locale` (`es_AR`), `og:ty
 - El material no tiene subtipos propios: qué es sale de sus etiquetas de «formato de material»
   (guía, artículo, libro, fanzine, checklist, video) y de «descargable» (`MATERIAL_FORMATS`).
 - La portada de la biblioteca trae sus medidas y su texto alternativo; una imagen vieja del repo,
-  no (sin `og:image:width`, y el título como texto alternativo).
+  no (sin `og:image:width`, y el título como texto alternativo). El texto genérico «Imagen de
+  «Título»» que les puso el importador a muchas imágenes no cuenta (nombraría otra edición si la
+  portada se reusa): va el título de la página. Para un texto mejor, se corrige en la biblioteca.
 - (*) En producción, una portada pesada va achicada por Cloudflare (abajo).
 
 ## Listas filtradas

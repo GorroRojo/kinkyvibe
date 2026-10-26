@@ -135,6 +135,21 @@ estaban).
 `u-url`, `p-note`, `u-email`, `p-tel` en elementos `<data hidden>`), `h-card` de Kinky Vibe en el
 inicio y en las tarjetas de las listas.
 
+La `h-card` del inicio es la que lee Bridgy Fed (el puente a Mastodon y Bluesky) para el perfil
+de kinkyvibe.ar: su foto (`u-photo`) es `/android-chrome-512x512.png`, una dirección que no
+cambia con cada deploy (antes era el logo del build, con un hash que cambiaba y daba 404).
+Después de cambiarla, alguien con acceso tiene que tocar «Update profile» en fed.brid.gy.
+
+### Manifest y perfiles
+
+- `static/site.webmanifest`: nombre «Kinky Vibe», descripción (`SITE_TAGLINE`), `lang` `es-AR`,
+  `id` `/` y `theme_color` igual al `theme-color` de las páginas, en hex (lo cuida
+  `webmanifest.test.js`).
+- Un perfil es `og:type` `profile`: sin etiquetas `article:*`. En el material,
+  `article:modified_time` va solo si tiene fecha de actualización.
+- La foto del encabezado de un perfil dice «Foto de perfil de X» (los nombres de archivo son
+  hashes: el texto alternativo es lo único que lee Google Imágenes).
+
 ### Kinkipedia: 404 y canónica
 
 - `/wiki/<término>` da **404** (la página de error, con `noindex` y su `<h1>`) cuando el término no
@@ -308,7 +323,9 @@ cada tarjeta esconde 1 o 2 chips.
   previa al compartir (#257).
 - **Encabezados**: un solo `h1` por página, bien. En las listas se saltaba de `h1` a `h3` (las
   tarjetas son `h3` sin `h2` en el medio): `PostList` lleva un `h2` solo para lectores de
-  pantalla (`heading`) en el inicio, `/calendario`, `/material`, `/amigues` y `/todo`.
+  pantalla (`heading`) en el inicio, `/calendario`, `/material`, `/amigues` y `/todo`. En los
+  perfiles y el material, «Contacto», «Integrantes», «Eventos en…» y «Más cosas de…» son `h2`
+  con la clase `like-h3` (style.scss): se ven igual que antes, sin saltar de `h1` a `h3`.
 - **Textos alternativos**: todas las imágenes tienen `alt`. Las de las tarjetas van vacías (son
   decorativas: el título está al lado); el afiche del evento dice «Afiche de …». Bien.
 - **Sitemap**: 614 direcciones; 36 eran publicaciones con `redirect` (contestan 307 a un

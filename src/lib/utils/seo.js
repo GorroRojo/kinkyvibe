@@ -218,6 +218,28 @@ export function tagDescription(name) {
 }
 
 /**
+ * El texto alternativo guardado en la biblioteca, salvo el genérico que les puso el importador al
+ * pasar las imágenes a la biblioteca («Imagen de «Título»»): si la imagen se reusa en otra
+ * publicación (otra edición) nombra la primera, así que vale más el título de la página.
+ * @param {unknown} alt
+ */
+function usefulAlt(alt) {
+	if (typeof alt !== 'string') return '';
+	return /^\s*Imagen de «.*»\s*$/s.test(alt) ? '' : alt;
+}
+
+/**
+ * Para X y Bluesky: tarjeta chica (`summary`) si la imagen es cuadrada o angosta (menos de 600 px
+ * de ancho), que la grande la recortaría a 2:1; si no se saben las medidas, la grande.
+ * @param {PreviewImage} image
+ */
+function twitterCard(image) {
+	const { width, height } = image;
+	if (!width || !height) return 'summary_large_image';
+	return width === height || width < 600 ? 'summary' : 'summary_large_image';
+}
+
+/**
  * La imagen de la vista previa: la de la página (dirección entera, con sus medidas y su texto
  * alternativo si se conocen; en producción, achicada si es grande: {@link resizedImageUrl}) o,
  * sin imagen, `fallback` (por defecto {@link DEFAULT_IMAGE}).
@@ -234,7 +256,7 @@ export function previewImage(src, origin, info, fallbackAlt = '', fallback = DEF
 	const known = Number.isSafeInteger(info?.width) && Number.isSafeInteger(info?.height);
 	const width = known ? Number(info?.width) : null;
 	const height = known ? Number(info?.height) : null;
-	const alt = (info?.alt || fallbackAlt || '').trim();
+	const alt = (usefulAlt(info?.alt) || fallbackAlt || '').trim();
 	const resized = resizedImageUrl(url, info?.size);
 	if (resized) return { url: resized, ...resizedSize(width, height), alt };
 	return { url, width, height, alt };
@@ -273,7 +295,7 @@ export function seoTags({ title, description, url, image, type = 'website', noin
 		['property', 'og:image:width', image.width ? String(image.width) : ''],
 		['property', 'og:image:height', image.height ? String(image.height) : ''],
 		['property', 'og:image:alt', alt],
-		['name', 'twitter:card', 'summary_large_image'],
+		['name', 'twitter:card', twitterCard(image)],
 		['name', 'twitter:site', TWITTER_SITE],
 		['name', 'twitter:title', title],
 		['name', 'twitter:description', desc],

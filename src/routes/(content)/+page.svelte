@@ -27,7 +27,6 @@
 	// el sitio (WebSite), con el nombre que muestran los buscadores.
 	const organizationLd = /** @type {any} */ (organizationSchema());
 	const websiteLd = /** @type {any} */ (websiteSchema());
-	import kinkyProfilePic from '../logo.png';
 </script>
 
 <svelte:head>
@@ -48,7 +47,8 @@
 <div class="profile-header h-card p-contact hidden">
 	<a rel="me" href="https://web.brid.gy/r/https://kinkyvibe.ar/">fed bridgy</a>
 	<a class="u-url u-uid" href="https://kinkyvibe.ar/">https://kinkyvibe.ar/</a>
-	<img class="profile-pic u-photo" src={kinkyProfilePic} alt="" />
+	<!-- Una dirección que no cambia con cada deploy: Bridgy Fed la toma como avatar (docs/seo.md). -->
+	<img class="profile-pic u-photo" src="/android-chrome-512x512.png" alt="" />
 	<p class="profile-name p-name">Kinky Vibe</p>
 	<a
 		target="_blank"
