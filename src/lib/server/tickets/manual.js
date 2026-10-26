@@ -13,7 +13,7 @@
  */
 import { MAX_TICKETS_PER_FORM, computePrice, remainingOf } from '$lib/utils/tickets.js';
 import { salesState, typeAvailability, typeOpen } from './config.js';
-import { insertApprovedOrder } from './door.js';
+import { ORDER_NOTE_MAX, insertApprovedOrder } from './door.js';
 import { getCounts, getTaken } from './orders.js';
 import { capacityLimit, closedLimit, maxPerPurchaseLimit, notActiveLimit } from './overrides.js';
 
@@ -28,8 +28,8 @@ export const MANUAL_METHODS = /** @type {const} */ ([
 ]);
 /** @typedef {(typeof MANUAL_METHODS)[number]} ManualMethod */
 
-/** Largo máximo de la nota. */
-export const MANUAL_NOTE_MAX = 300;
+/** Largo máximo de la nota (el mismo que la de la venta en la puerta). */
+export const MANUAL_NOTE_MAX = ORDER_NOTE_MAX;
 
 /**
  * @param {unknown} value

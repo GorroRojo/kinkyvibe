@@ -123,6 +123,7 @@ import {
 	exceedsOrderMax,
 	PAYMENT_METHODS,
 	defaultFondoOption,
+	fondoFor,
 	isFondoOption,
 	parseAmount,
 	parseFeePercent,
@@ -386,8 +387,7 @@ export function parseDoorPrice(raw, id, fondoPercent) {
 			`\`door_price\` inválido para "${id}": un entero desde 0 (o nada, el precio de siempre)`
 		);
 	}
-	const fondo = fondoPercent !== null ? Math.round((price * fondoPercent) / 100) : 0;
-	return { price, fondo };
+	return { price, fondo: fondoFor(price, fondoPercent) };
 }
 
 /**

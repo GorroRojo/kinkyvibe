@@ -23,6 +23,8 @@
   Cache-Control: public, max-age=86400
 /android-chrome-512x512.png
   Cache-Control: public, max-age=86400
+/maskable-512x512.png
+  Cache-Control: public, max-age=86400
 /site.webmanifest
   Cache-Control: public, max-age=86400
 /og-amigues.jpg

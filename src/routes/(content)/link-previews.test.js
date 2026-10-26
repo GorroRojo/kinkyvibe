@@ -429,6 +429,96 @@ describe('un material', () => {
 	});
 });
 
+/**
+ * Los JSON-LD del head (`<script type="application/ld+json">`, LDTag.svelte), ya leídos.
+ * @param {string} head
+ * @returns {any[]}
+ */
+function jsonLdOf(head) {
+	return head
+		.split('<script type="application/ld+json">')
+		.slice(1)
+		.map((part) => JSON.parse(part.slice(0, part.indexOf('</script>'))));
+}
+
+/** El JSON-LD de un tipo (uno solo). @param {string} head @param {string} type */
+function schemaOf(head, type) {
+	const found = jsonLdOf(head).filter((s) => [s['@type']].flat().includes(type));
+	expect(found).toHaveLength(1);
+	return found[0];
+}
+
+describe('Google Discover: la imagen grande va en el JSON-LD, la liviana en og:image', () => {
+	// Discover pide imágenes de 1200 px de ancho o más (y `max-image-preview:large`, en app.html).
+	// Google lee el JSON-LD; WhatsApp y Telegram, og:image. El JSON-LD lleva siempre el original
+	// de la biblioteca (lo más grande que hay: nunca se agranda ni pasa por /cdn-cgi/image), y
+	// og:image sigue igual: achicada a 800 px si pesa (docs/compartir.md).
+	const ORIGINAL = 'https://kinkyvibe.ar' + COVER;
+
+	it('una portada grande y pesada: el original en el JSON-LD, 800 px en og:image', async () => {
+		const cover = { width: 1600, height: 2000, alt: 'Afiche de prueba', size: 600 * 1024 };
+		const head = await eventHead({}, { cover }, 'https://kinkyvibe.ar');
+		expect(schemaOf(head, 'Event').image).toEqual([ORIGINAL]);
+		const meta = single(head);
+		const og = new URL(meta['og:image']);
+		expect(og.pathname.split('/').slice(1, 4)).toEqual([
+			'cdn-cgi',
+			'image',
+			'width=800,format=jpeg,quality=80,onerror=redirect'
+		]);
+		expect(meta['og:image:width']).toBe('800');
+		expect(meta['og:image:height']).toBe('1000');
+	});
+
+	it('una portada grande y liviana: el original en los dos', async () => {
+		const cover = { width: 1280, height: 1280, alt: 'Afiche de prueba', size: 150 * 1024 };
+		const head = await eventHead({}, { cover }, 'https://kinkyvibe.ar');
+		expect(schemaOf(head, 'Event').image).toEqual([ORIGINAL]);
+		const meta = single(head);
+		expect(meta['og:image']).toBe(ORIGINAL);
+		expect(meta['og:image:width']).toBe('1280');
+	});
+
+	it('una portada chica no se agranda: el original tal cual, sin transformar', async () => {
+		const cover = { width: 1000, height: 1000, alt: 'Afiche de prueba', size: 400 * 1024 };
+		const head = await eventHead({}, { cover }, 'https://kinkyvibe.ar');
+		const [image] = schemaOf(head, 'Event').image;
+		expect(image).toBe(ORIGINAL);
+		expect(image).not.toContain('cdn-cgi');
+		expect(head).not.toContain('width=1200');
+		// og:image, igual que siempre: 800 px porque pesa.
+		expect(single(head)['og:image:width']).toBe('800');
+	});
+
+	it('en un material, lo mismo: el original en el JSON-LD', async () => {
+		at('/material/guia-inventada', 'https://kinkyvibe.ar');
+		const { default: Page } = await import('./material/[post]/+page.svelte');
+		const { head } = render(Page, {
+			props: {
+				data: /** @type {any} */ ({
+					meta: {
+						title: 'Guía Inventada',
+						postID: 'guia-inventada',
+						category: 'material',
+						authors: [],
+						tags: ['guía'],
+						summary: 'Una guía inventada para las pruebas',
+						featured: COVER
+					},
+					cover: { width: 1400, height: 1400, alt: 'Tapa de la guía', size: 500 * 1024 },
+					relatedPosts: [],
+					relatedPastCount: 0,
+					authorsProfiles: Promise.resolve([]),
+					personas: null,
+					html: '<p>Texto inventado.</p>'
+				})
+			}
+		});
+		expect(schemaOf(head, 'Article').image).toEqual([ORIGINAL]);
+		expect(new URL(single(head)['og:image']).pathname).toMatch(/^\/cdn-cgi\/image\//);
+	});
+});
+
 /** @param {string} path @param {Record<string, any>} data */
 async function wikiHead(path, data) {
 	at(path);

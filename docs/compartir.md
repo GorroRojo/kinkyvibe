@@ -208,6 +208,17 @@ Cloudflare: `https://kinkyvibe.ar/cdn-cgi/image/width=800,format=jpeg,quality=80
   casi no se achican, y en JPEG pesan más que el WEBP (se probó: 6 de las 7 seguían arriba de
   300 KB). Con 800 px, todas quedan debajo (entre 100 y 294 KB) y se ve el afiche entero, sin
   recortar.
+- **Google Discover sí ve la grande**: Discover pide imágenes de 1200 px de ancho o más y
+  `max-image-preview:large` (en `app.html`). Google lee el JSON-LD de la página, y su `image`
+  (`eventSchema` y `materialSchema` en `jsonLd.js`) es siempre el **original** de la biblioteca
+  (`https://kinkyvibe.ar/media/img/<hash>.<ext>`), lo más grande que hay; og:image sigue con la de
+  800 px para WhatsApp y Telegram. No hace falta ninguna copia nueva en R2: las copias de
+  `mediaCopies.js` son más chicas (360 y 720 de lado corto) y el original ya es la de 1200 cuando
+  mide eso. Una portada más angosta que 1200 px **no se agranda** (ni con `/cdn-cgi/image`, que no
+  se usa para esto): queda tal cual y Discover la puede mostrar chica. En octubre de 2026, 49 de
+  152 portadas de eventos y 6 de 50 de material medían 1200 px o más de ancho; para que una entre
+  grande, hay que subir un original más grande (el navegador lo deja en 2000 px de lado largo).
+  Lo prueba `link-previews.test.js` («Google Discover»).
 - **Medidas**: `fit` por defecto (`scale-down`) no agranda y mantiene la proporción. Las medidas
   se calculan igual (`resizedSize`); si el alto no da exacto, no se ponen.
 - **`onerror=redirect`**: si Cloudflare no puede transformarla (por ejemplo, pasado el cupo), la
