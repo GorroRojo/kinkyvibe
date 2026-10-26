@@ -71,7 +71,7 @@ CI) va en la fase 0.
 - `lanzamiento-avisos-venta` · fase 0 · sigue · entradas · Avisos durante una venta: errores de MP, mails que no salieron, cupo pasado
 - `lanzamiento-piloto` · fase 0 · hecho · entradas · Abrir con un evento piloto propio y chico, después dos o tres normales, después los de amigues; el piloto ya vendió y anduvo bien (gorrite, 12/10) (depende de: lanzamiento-decisiones, lanzamiento-pruebas-mp)
 - `puerta-celus-reales` · fase 0 · hecho · entradas · La puerta con celulares reales (Android y iPhone): escanear, código, buscar, vender en efectivo y transferencia, sin conexión y con dos celus a la vez (gorrite, 12/10)
-- `puerta-nota-precio-libre` · fase 0 · sigue · entradas · Al vender en la puerta, poder sumar una nota y cobrar cualquier precio (gorrite, 12/10, al probar la puerta) (depende de: puerta-celus-reales)
+- `puerta-nota-precio-libre` · fase 0 · hecho · entradas · «Vender en puerta» con nota (`admin_note`) y cualquier precio por entrada (de 0 al tope de `price`; 0 = sin cargo, canal `manual`), también sin conexión; el Fondo sale del precio cobrado y el de la puerta queda en `door_list_price` (migración 0063) (gorrite, 12/10, al probar la puerta) (depende de: puerta-celus-reales) · [tickets.md](tickets.md)
 - `qr-mp-puerta` · fase 0 · sigue · entradas · Cobrar con el QR de Mercado Pago en la puerta (gorrite, 11/10) (depende de: puerta-sin-conexion)
 - `boton-comprar-afuera` · fase 0 · hecho · sitio · Cuando las entradas se venden en otro sitio, el botón tiene el mismo peso que «Comprar entradas» (gorrite, 10/10) · #331
 - `lista-espera-boton-evento` · fase 0 · hecho · entradas · La página de un evento agotado con lista lleva a anotarse (antes solo se podía desde la página de compra) (gorrite, 12/10) · #351
@@ -91,6 +91,7 @@ CI) va en la fase 0.
 - `tickets-spec-arreglar` · fase 0 · sigue · pruebas · Dos pruebas de `tests/tickets/tickets.spec.js` que no corren en la CI: arregladas en #325 («1 aprobado» en singular; esperar a que cargue la página). Dos de `tests/tickets/menu.spec.js` habían quedado viejas (la flecha de «← Ajustes» ahora es un ícono; Estadísticas suma la pestaña del bot): arregladas en #407. Falta sumarlas a la CI
 - `ci-guardia-ultima-corrida` · fase 0 · hecho · pruebas · La guardia de merge mira la última corrida de cada chequeo: una corrida vieja cancelada en el mismo commit (al editar la descripción del PR se vuelve a correr todo) ya no bloquea; tampoco un trabajo de matriz cancelado antes de expandirse (con el nombre de plantilla)
 - `puerta-sin-conexion` · fase 0 · hecho · entradas · Vender en la puerta sin conexión · #286, [0035](decisiones/0035-vender-en-puerta-sin-conexion.md)
+- `puerta-precio-cero-canal` · fase 0 · algún día · entradas · Una venta en la puerta a $ 0 queda con canal `manual` (la base no acepta precio 0 en `puerta`); que quede `puerta` exige reconstruir `orders` sin perder `order_answers` · [tickets.md](tickets.md)
 - `transferencia-dias-habiles` · fase 0 · hecho · entradas · Reserva por transferencia de 2 días hábiles · #261, [0031](decisiones/0031-reserva-transferencia-dias-habiles.md)
 - `aviso-cambio-fecha` · fase 0 · hecho · mails · «Avisar a les compradores» cuando cambia la fecha · #266
 - `ics-en-mail` · fase 0 · hecho · mails · El .ics y Google Calendar en los mails de entradas · #256

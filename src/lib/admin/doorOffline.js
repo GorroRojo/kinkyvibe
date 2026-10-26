@@ -37,8 +37,9 @@ import { normalizeTicketCode } from '$lib/utils/ticketCode.js';
  * @typedef {{
  *   result: 'ok' | 'already' | 'void' | 'wrong-event' | 'invalid' | 'error' | 'sold',
  *   card: DoorCard | null, cards?: DoorCard[], otherEvent?: string | null, offline?: boolean,
- *   message?: string, stamp: number, typed?: boolean
- * }} DoorScan `typed`: el código se escribió a mano («Escribir código»), no se escaneó
+ *   message?: string, stamp: number, typed?: boolean, notes?: string[]
+ * }} DoorScan `typed`: el código se escribió a mano («Escribir código»), no se escaneó; `notes`:
+ *   en una venta, el precio cambiado y la nota
  */
 /**
  * Un ingreso marcado sin conexión, esperando para sincronizar.
