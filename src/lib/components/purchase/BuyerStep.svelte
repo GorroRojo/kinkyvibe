@@ -50,8 +50,13 @@
 				maxlength="80"
 				required
 				bind:value={buyerName}
+				aria-describedby="entradas-tu-nombre-ayuda"
 				aria-invalid={errors.name ? 'true' : undefined}
 			/>
+			<!-- El nombre elegido vale: la puerta no lo compara con el documento (gorrite, 26/10). -->
+			<small class="hint" id="entradas-tu-nombre-ayuda"
+				>Como querés que te nombremos. No tiene que ser el del documento.</small
+			>
 			{#if errors.name}<span class="field-error">{errors.name}</span>{/if}
 		</label>
 		<div class="field">

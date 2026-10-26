@@ -11,7 +11,13 @@ import {
 import { ARGENTINA_TIME_NOTE } from '$lib/utils/expiry.js';
 import { TRANSFER_HOLD_AFTER, transferHoldText } from '$lib/utils/transferDeadline.js';
 import { formatARS } from '$lib/utils/money.js';
-import { fondoOptionLabel, holdHours, orderReference, refundPolicy } from '$lib/utils/tickets.js';
+import {
+	adultsOnlyText,
+	fondoOptionLabel,
+	holdHours,
+	orderReference,
+	refundPolicy
+} from '$lib/utils/tickets.js';
 import { salePlaceText } from '$lib/utils/eventPlace.js';
 import {
 	WHY_BOUGHT,
@@ -416,6 +422,7 @@ export function buildTicketEmail({
 		),
 		helpHtml: custom.helpHtml ?? intro,
 		afterHtml: `${ticketBlocks}${combo.html}
+		<p><strong>${escapeHtml(adultsOnlyText(online))}</strong></p>
 		<p style="${SMALL}">Número de orden: ${order.id}<br>Si tenés algún problema, respondé este mail.</p>
 		${policy.html}`,
 		whyHtml: custom.whyHtml ?? whyFor(order),
@@ -447,6 +454,8 @@ export function buildTicketEmail({
 				`Entrada ${i + 1} (${holder(tickets[i])})${!online && tickets[i].code ? ` · código ${displayCode(tickets[i].code)}` : ''}: ${l}`
 		),
 		...combo.text,
+		'',
+		adultsOnlyText(online),
 		'',
 		`Número de orden: ${order.id}`,
 		policy.text,

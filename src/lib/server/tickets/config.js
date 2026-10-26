@@ -136,6 +136,7 @@ import {
 	isOnlineEvent
 } from '$lib/utils/ticketsEditor.js';
 import { validateAnswers } from '$lib/utils/signupFields.js';
+import { acceptError } from '$lib/utils/purchaseSteps.js';
 import { GOAL_KEY, parseSalesGoal } from '$lib/utils/salesGoal.js';
 import { WAITLIST_KEY, parseEventWaitlist } from '$lib/utils/waitlistHold.js';
 import { validateBuyer, validateHolder, validateHolders } from '$lib/utils/ticketBuyer.js';
@@ -677,7 +678,8 @@ export function validatePurchase(config, input) {
 		else Object.assign(errors, a.errors);
 	}
 	if (input.accept !== 'on' && input.accept !== '1') {
-		errors.accept = 'Tenés que confirmar que tenés 18 años o más y aceptar las condiciones.';
+		// Obligatoria como siempre; el texto cubre a todas las personas de las entradas.
+		errors.accept = acceptError(errors.quantity ? 1 : quantity);
 	}
 	if (Object.keys(errors).length || !type || !b.ok || option === null) return { ok: false, errors };
 	return {

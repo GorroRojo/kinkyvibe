@@ -1,17 +1,20 @@
 <script>
 	/**
 	 * Paso «Pagar» de la compra: medio de pago (Mercado Pago o transferencia), condiciones, la
-	 * casilla de +18 y el botón que envía el formulario. El total está en el resumen de la compra
+	 * casilla de +18 (por todas las personas de las entradas) y el botón que envía el formulario. El total está en el resumen de la compra
 	 * (PurchaseSummary), siempre a la vista. El medio lo maneja TicketPurchase.svelte (`bind:`).
 	 */
 	import ExpiryTime from '$lib/components/ExpiryTime.svelte';
 	import { TRANSFER_HOLD_AFTER } from '$lib/utils/transferDeadline.js';
+	import { acceptLabel } from '$lib/utils/purchaseSteps.js';
 
 	/** @type {import('$lib/server/tickets/checkout.js').TicketsView} */
 	export let tickets;
 	export let method = '';
 	/** Total 0: no se elige medio de pago (se emite sin pagar). */
 	export let free = false;
+	/** Cuántas entradas: con más de una, la casilla de +18 va en plural. */
+	export let count = 1;
 	/** @type {string[]} */
 	export let conditions = [];
 	/** @type {Record<string, string>} */
@@ -72,7 +75,7 @@
 
 <label class="accept">
 	<input type="checkbox" name="accept" required aria-invalid={errors.accept ? 'true' : undefined} />
-	<span>Tengo 18 años o más y acepto las condiciones de compra.</span>
+	<span>{acceptLabel(count)}</span>
 </label>
 {#if errors.accept}<p class="field-error">{errors.accept}</p>{/if}
 

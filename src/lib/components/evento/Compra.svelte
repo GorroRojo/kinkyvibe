@@ -13,7 +13,7 @@
 	 * todas las partes).
 	 */
 	import { formatARS } from '$lib/utils/money.js';
-	import { doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
+	import { adultsOnlyText, doorText, leftText, saleWindowText } from '$lib/utils/tickets.js';
 	import BotonCompra from './BotonCompra.svelte';
 
 	/** @type {any} */
@@ -63,6 +63,9 @@
 	{/if}
 	{#if tickets.reason !== 'cancelled' && doorText(tickets.door)}
 		<p class="buy-when buy-door">{doorText(tickets.door)}</p>
+	{/if}
+	{#if tickets.open || tickets.waitlist || tickets.reason === 'notyet'}
+		<p class="buy-when buy-adults">{adultsOnlyText(tickets.online)}</p>
 	{/if}
 </section>
 

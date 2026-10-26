@@ -487,6 +487,19 @@ export function refundPolicy(contactEmail) {
 }
 
 /**
+ * La línea fija de +18 (gorrite, 26/10): en la página del evento, junto al botón de las entradas,
+ * y en el mail de las entradas. La pone el código, fuera de los textos editables: ninguna
+ * plantilla ni cuerpo de evento la puede sacar. En un evento online no hay puerta.
+ *
+ * @param {boolean} [online]
+ */
+export function adultsOnlyText(online = false) {
+	return online
+		? 'Solo para personas mayores de 18 años.'
+		: 'Solo para personas mayores de 18 años. Puede pedirse documento en la puerta.';
+}
+
+/**
  * Todas las condiciones de compra, en una sola lista con el mismo formato (el formulario las
  * muestra en "Condiciones de compra y devoluciones").
  *

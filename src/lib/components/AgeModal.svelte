@@ -27,8 +27,15 @@
 
 {#if !mayorDeEdad}
 	<div class="background" transition:fade>
-		<div class="content box" role="dialog" aria-modal="true" aria-labelledby="age-modal-title">
+		<div
+			class="content box"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="age-modal-title"
+			aria-describedby="age-modal-desc"
+		>
 			<h2 id="age-modal-title">¿Sos mayor de 18 años?</h2>
+			<p id="age-modal-desc">Este sitio habla de sexualidad y BDSM.</p>
 			<div class="button-group">
 				<button
 					class="button tap-target"
@@ -70,6 +77,11 @@
 	}
 	.box h2 {
 		margin-top: 0.3em;
+	}
+	/* Con tope de ancho: la caja mide lo que su contenido y en el celu no tiene que desbordar. */
+	.box p {
+		margin: 0.4em auto 0;
+		max-width: 20em;
 	}
 	.button-group {
 		display: flex;
