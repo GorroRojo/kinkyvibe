@@ -502,7 +502,7 @@
 			display: none;
 		}
 	}
-	/* muy angosto: solo el logo y el link de la cuenta (Ingresar / Mi rincón), para que siempre se
+	/* muy angosto: solo el logo y el link de la cuenta (Entrar / Mi rincón), para que siempre se
 	   pueda entrar; los otros botones siguen en el menú y el footer */
 	@media (max-width: 330px) {
 		#me {

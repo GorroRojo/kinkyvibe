@@ -1,3 +1,5 @@
+import { inSitemap } from '$lib/utils/seo.js';
+
 export const siteURL = 'https://kinkyvibe.ar';
 
 /**
@@ -66,12 +68,13 @@ export function sectionLastmod(page, posts) {
 /**
  * @param {string[]} pages static pages, relative to the site root (the root itself is `/`)
  * @param {ProcessedPost[]} posts calendario, amigues and material posts (the ones with `redirect`
- *   are left out: their URL answers 307 to another site, so search engines can't index it)
+ *   are left out: their URL answers 307 to another site, so search engines can't index it; and so
+ *   are the profiles that asked not to appear in search engines, `noindex`)
  * @param {ProcessedPost[]} wikiPosts Kinkipedia entries
  * @returns {string}
  */
 export const render = (pages, posts, wikiPosts) => {
-	const listed = posts.filter((post) => !post.meta.redirect);
+	const listed = posts.filter(inSitemap);
 	return `<?xml version="1.0" encoding="UTF-8" ?>
 <urlset
       xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
