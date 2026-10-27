@@ -311,8 +311,8 @@
 									{#if !ev}<Badge tone="bad">el evento ya no existe</Badge>{/if}
 									{#if ev?.mdAddress && l.privacy !== 'public'}
 										<Notice tone="warn" compact role={null}
-											>Su archivo tiene la dirección escrita (el repo es público): sacala del
-											evento.</Notice
+											>El evento tiene la dirección escrita en su «Dónde» y este lugar no la
+											muestra: sacala del evento.</Notice
 										>
 									{/if}
 								</td>
