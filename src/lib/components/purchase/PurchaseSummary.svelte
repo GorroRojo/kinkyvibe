@@ -64,7 +64,8 @@
 					>{/if}
 			</p>
 			{#if summary.option}<p class="option">{summary.option}</p>{/if}
-			<div class="breakdown" aria-live="polite">
+			<!-- Sin aria-live: el total de abajo ya se anuncia; dos regiones leían lo mismo en cada cambio. -->
+			<div class="breakdown">
 				{#each summary.lines as l (l.id)}
 					<p class="line" class:note={l.note}>
 						<span>{l.label}</span>{#if l.amount}<span class="amount">{l.amount}</span>{/if}
