@@ -267,6 +267,70 @@ describe('backup en R2', () => {
 		// Idempotente.
 		expect(await pruneBackups({ bucket, now: new Date('2026-10-03T06:00:00Z') })).toEqual([]);
 	});
+
+	it('si la poda falla (por ejemplo, un Bucket lock), el backup de la noche igual sale bien', async () => {
+		const real = /** @type {import('@cloudflare/workers-types').R2Bucket} */ (source.env.BACKUPS);
+		await real.put('d1/2026-06-01.sql.gz', 'x');
+		await real.put('d1/2026-06-02.sql.gz', 'x');
+		// El mismo bucket, pero borrar tira (como R2 con un objeto todavía bloqueado).
+		const locked = /** @type {import('@cloudflare/workers-types').R2Bucket} */ (
+			/** @type {unknown} */ ({
+				put: real.put.bind(real),
+				head: real.head.bind(real),
+				list: real.list.bind(real),
+				delete: async () => {
+					throw new Error('objeto bloqueado');
+				}
+			})
+		);
+		const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			const result = await nightlyBackup({
+				db: source.db,
+				bucket: locked,
+				now: new Date('2026-10-04T06:00:00Z')
+			});
+			expect(result.key).toBe('d1/2026-10-04.sql.gz');
+			expect(result.deleted).toEqual([]);
+			expect(result.pruneError).toBe('objeto bloqueado');
+			expect(await real.head('d1/2026-10-04.sql.gz')).toBeTruthy();
+			// Nada se borró: se reintenta la noche siguiente.
+			expect(await real.head('d1/2026-06-02.sql.gz')).toBeTruthy();
+			expect(error).toHaveBeenCalledWith(
+				expect.stringContaining('[backup] la poda'),
+				expect.any(Error)
+			);
+		} finally {
+			error.mockRestore();
+		}
+		// Con el bucket normal, la noche siguiente borra lo que había quedado.
+		const next = await nightlyBackup({
+			db: source.db,
+			bucket: real,
+			now: new Date('2026-10-05T06:00:00Z')
+		});
+		expect(next.pruneError).toBeUndefined();
+		expect(next.deleted).toContain('d1/2026-06-02.sql.gz');
+	});
+
+	it('si falla el backup mismo, no se poda nada y la corrida falla', async () => {
+		const real = /** @type {import('@cloudflare/workers-types').R2Bucket} */ (source.env.BACKUPS);
+		const del = vi.fn();
+		const broken = /** @type {import('@cloudflare/workers-types').R2Bucket} */ (
+			/** @type {unknown} */ ({
+				put: async () => {
+					throw new Error('R2 no responde');
+				},
+				head: real.head.bind(real),
+				list: real.list.bind(real),
+				delete: del
+			})
+		);
+		await expect(
+			nightlyBackup({ db: source.db, bucket: broken, now: new Date('2026-10-06T06:00:00Z') })
+		).rejects.toThrow('R2 no responde');
+		expect(del).not.toHaveBeenCalled();
+	});
 });
 
 describe('gzip', () => {

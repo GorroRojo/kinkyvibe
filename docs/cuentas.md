@@ -2,7 +2,7 @@
 
 ## Qué hace
 
-Cualquier persona puede tener una cuenta en el sitio, **opcional**: entra en **"Ingresar"**
+Cualquier persona puede tener una cuenta en el sitio, **opcional**: entra en **"Entrar"**
 (`/ingresar`) con un código de 6 números que le llega por mail o, si puso una, con su contraseña.
 En **"Mi rincón"** (`/mi-rincon`) ve su mail, sus compras (también las de antes de tener cuenta),
 sus datos guardados para comprar (ver "Datos guardados para la compra"), su velocidad de lectura
@@ -16,7 +16,7 @@ Es la parte 1 del bloque "cuentas y perfiles" (decisión 0002); la parte 2 son l
 cosas separadas (`locals.user` para admins, `locals.member` para cuentas) y una no toca a la otra.
 
 Está **siempre prendido** (el interruptor `cuentas` quedó fijo, [interruptores.md](interruptores.md)):
-el link "Ingresar"/"Mi rincón" está en el encabezado (también en pantallas de menos de 330 px, donde es lo
+el link "Entrar"/"Mi rincón" está en el encabezado (también en pantallas de menos de 330 px, donde es lo
 único que queda al lado del logo) y en la columna "Tu cuenta" del pie de página. El pie de página
 tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 
@@ -111,10 +111,10 @@ nada de estas tablas para sumarlas.
   la hora local de quien mira (`ExpiryTime.svelte`). Lo mismo para el link de «Avisame si se
   repite» (mail) y las páginas de la reserva por transferencia (`/entradas/…/estado` y
   `…/confirmar`). Helper puro: `src/lib/utils/expiry.js`.
-- Cada código tiene un `purpose`: `login` (ingresar), `password` (poner, cambiar o sacar la
+- Cada código tiene un `purpose`: `login` (entrar), `password` (poner, cambiar o sacar la
   contraseña), `delete` (borrar la cuenta) o `grupo` (acciones de dueñes de un proyecto y borrarlo,
-  ver "Perfiles"), y solo sirve para ese. Uno de ingreso no confirma nada y uno de confirmación
-  no sirve para ingresar.
+  ver "Perfiles"), y solo sirve para ese. Uno para entrar no confirma nada y uno de confirmación
+  no sirve para entrar.
 - Se guarda `SHA-256("<id de la fila>:<purpose>:<código>")`: el id, al azar, hace de sal.
 - Cada intento suma al contador en la misma sentencia que busca el código, antes de comparar
   (dos intentos a la vez no pueden pasarse de 5). La comparación es en tiempo constante.
@@ -142,7 +142,7 @@ a cada casa o servidor le toca por lo menos una /64, así que contar cada direcc
 dejaría saltar los límites. Las IPv4 cuentan igual que antes.
 
 El **tope global** (`src/lib/server/cuentas/mailCap.js`) suma todos los mails de cuentas que
-salen (códigos de ingreso, códigos para confirmar y avisos de invitación), de cualquier conexión
+salen (códigos para entrar, códigos para confirmar y avisos de invitación), de cualquier conexión
 y a cualquier mail: estos mails usan la misma cuenta de Resend que los de las entradas, y así
 nunca se comen ese cupo. Cuenta solo los mails que pasaron los otros límites. Si se llega, pedir
 un código responde "Estamos mandando muchos mails en este momento. Probá en un rato." (el mismo
@@ -163,7 +163,7 @@ el código por mail sigue andando.
   para PBKDF2-SHA256; lo compensan los límites de arriba, el largo mínimo y que el código por mail
   es la vía principal. El formato guarda las iteraciones
   (`pbkdf2-sha256$100000$<sal>$<hash>`): si se pueden subir, los hashes viejos se rehacen solos
-  en el próximo ingreso.
+  la próxima vez que se entra.
 - **Sal de 16 bytes** al azar por contraseña y **clave de 32 bytes**.
 - Contraseñas de **10 a 200 caracteres**, normalizadas a Unicode NFC.
 - Poner, cambiar o sacar la contraseña cierra las otras sesiones de la cuenta (la actual sigue
@@ -211,8 +211,8 @@ ni para borrar la cuenta: quien encuentre un navegador abierto no puede hacerlo 
 - La acción verifica y gasta el código del `purpose` que corresponde. Antes chequea lo que no
   gasta el código (que las contraseñas coincidan, «borrar»), así un error de tipeo no obliga a
   pedir otro.
-- Los mismos límites que los códigos de ingreso, con los mismos contadores: los mails por
-  dirección y los intentos por conexión se suman entre ingresar y confirmar.
+- Los mismos límites que los códigos para entrar, con los mismos contadores: los mails por
+  dirección y los intentos por conexión se suman entre entrar y confirmar.
 - En la página de un proyecto pasa lo mismo con hacer dueñe a alguien, sacarle la propiedad o sacar
   a otre dueñe, y borrar el proyecto (`para` no existe ahí: `?/confirmar` manda siempre uno de
   `grupo`; ver "Perfiles").
@@ -233,7 +233,7 @@ lo que la cuenta tiene guardado, y la persona elige qué se guarda.
   **lo desmarcado se saca**. Se guarda recién cuando la orden se crea (una compra rechazada no
   guarda nada) y guardar nunca frena la compra.
 - Un campo oculto `datos_cuenta=1` dice que el formulario mostró las casillas: sin él (por ejemplo,
-  un formulario abierto antes de ingresar) el servidor no guarda ni saca nada.
+  un formulario abierto antes de entrar) el servidor no guarda ni saca nada.
 - **Mi rincón → «Mis datos»:** muestra lo guardado con el DNI tapado salvo los últimos 3
   (`•••••678`); «Mostrar» lo pide entero al servidor (`?/mostrarDni`), así no está en la página
   hasta que se toca. Se puede cambiar (nombre o pronombres vacíos se borran; el DNI vacío no
@@ -328,6 +328,11 @@ Sin el permiso, la cuenta **no ve nada de perfiles**:
   responder). **Quien invita recibe exactamente la misma respuesta de siempre** y ve la
   pendiente como cualquier otra: no se entera de si la cuenta tiene el permiso. La invitación
   queda guardada (y vence sola); si la cuenta recibe el permiso antes de que venza, la ve.
+
+Lo único de perfiles que sí ve una cuenta sin el permiso es **«¿Es tu perfil?»** en la página
+pública de un perfil (y en Mi rincón, la tarjeta «¿Ya estás en Amigues?» que lo explica): pide
+hacerse cargo de un perfil que ya existe y une admin lo revisa; para aprobarlo, le da el permiso
+antes ([amigues.md](amigues.md)). No hay ningún texto para pedir el permiso en sí.
 
 Sacar el permiso **no borra nada**: los perfiles quedan y vuelven a verse si se prende de nuevo.
 Les admins los siguen viendo en el panel. Si une dueñe de un proyecto pierde el permiso, sigue
@@ -454,7 +459,7 @@ aprobar").
 - **Aviso por mail de la invitación.** Si hay una cuenta verificada y no borrada con ese mail (y
   todavía no gestiona el proyecto), le llega un aviso corto: "Te invitaron a gestionar un perfil en
   Kinky Vibe", con el nombre del proyecto y el link a `/mi-rincon/perfiles`. Nunca lleva el mail de
-  quien invitó. Sale por el mismo camino y con el mismo remitente que los códigos de ingreso
+  quien invitó. Sale por el mismo camino y con el mismo remitente que los códigos para entrar
   (`deliverEmail`, que en los previews respeta `EMAIL_ALLOWLIST`).
 
   Cómo no revela nada: `inviteManager()` hace lo mismo antes de responder haya o no cuenta
@@ -532,7 +537,7 @@ aprobar").
 
 - `src/lib/server/cuentas/`: `accounts.js` (cuentas, contraseña, borrado), `codes.js`,
   `session.js`, `orders.js` (compras de la cuenta), `savedBuyer.js` (datos guardados para la compra), `password.js`, `crypto.js`, `email.js`,
-  `index.js` (los pasos de ingresar con sus límites) y `web.js` (cookies, `locals.member`, mails).
+  `index.js` (los pasos de entrar con sus límites) y `web.js` (cookies, `locals.member`, mails).
 - `src/lib/server/flags.js`: interruptores. Panel: `src/routes/(authed)/admin/ajustes/interruptores/`.
 - Páginas: `src/routes/(content)/ingresar/` y `src/routes/(content)/mi-rincon/` (perfiles en
   `mi-rincon/perfiles/`).
@@ -564,7 +569,7 @@ actualizá esta lista.
 - **Turnstile** (o una regla de rate limiting de Cloudflare en `/ingresar`) queda como opción para
   más adelante: necesita claves y configuración en el panel de Cloudflare.
 - **Contraseña bloqueada por otres.** Diez contraseñas mal escritas para un mail, desde cualquier
-  conexión, bloquean el ingreso con contraseña de ese mail por hasta 15 minutos. El ingreso con
+  conexión, no dejan entrar con contraseña a ese mail por hasta 15 minutos. Entrar con
   código sigue andando.
 - **Ventana diaria fija (UTC).** Los topes por día se reinician a medianoche UTC: alrededor de esa
   hora se pueden pedir hasta el doble de códigos para un mail. Con 5 intentos por código, adivinar

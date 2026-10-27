@@ -134,7 +134,10 @@ debajo de las pestañas:
 
 Las direcciones no cambiaron (los links de los mails, el buscador y las pruebas siguen andando):
 `eventHref(slug, 'ordenes')` da `/ordenes` como antes, y `eventTabOf(pathname)` dice qué pestaña
-y qué vista marcar (las subpáginas, como `/ordenes/cargar`, cuentan como su vista). La pestaña
+y qué vista marcar (las subpáginas, como `/ordenes/cargar`, cuentan como su vista). Una orden
+tiene su link: `/ordenes#orden-<id>` (`orderHref` en `src/lib/admin/orderFormat.js`, que usa la
+Puerta); la página baja hasta ella, la marca y, si el filtro «Mostrar» la escondía, pasa a
+«Todas». La pestaña
 Ventas lleva el número de transferencias esperando confirmación; los botones de Órdenes,
 Transferencias y Lista de espera, los suyos (en la lista, las anotaciones vivas). En el celu,
 con 4 vistas (Ventas con la lista de espera) los botones no entran en una fila: son una grilla de

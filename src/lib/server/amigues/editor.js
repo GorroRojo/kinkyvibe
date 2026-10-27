@@ -63,8 +63,10 @@ const KEEP_FIELDS = Object.freeze([
  * @typedef {{
  *   title: string, kind: string, visibility: string, version: number,
  *   text: Record<string, string>, lists: Record<string, string>,
- *   unlisted: boolean, show_members: boolean, lat: string, lng: string, venue_privacy: string
+ *   unlisted: boolean, noindex: boolean, show_members: boolean, lat: string, lng: string,
+ *   venue_privacy: string
  * }} ProfileFormValues
+ * `noindex`: «No aparecer en buscadores» (solo personas, `profileNoindex`).
  */
 
 /** @param {FormData} form @param {string} key @param {number} [max] */
@@ -94,6 +96,7 @@ export function readProfileForm(form) {
 		text,
 		lists,
 		unlisted: form.get('unlisted') === 'on',
+		noindex: form.get('noindex') === 'on',
 		show_members: form.get('show_members') === 'on',
 		lat: field(form, 'lat', 40),
 		lng: field(form, 'lng', 40),
@@ -124,6 +127,7 @@ export function profileFormValues(o) {
 		text,
 		lists,
 		unlisted: d.unlisted === true,
+		noindex: d.noindex === true,
 		show_members: d.show_members === true,
 		lat: typeof d.lat === 'number' ? String(d.lat) : '',
 		lng: typeof d.lng === 'number' ? String(d.lng) : '',
@@ -146,6 +150,7 @@ export function emptyFormValues(kind = 'persona') {
 		text: Object.fromEntries(EDITOR_TEXT_FIELDS.map((k) => [k, ''])),
 		lists: Object.fromEntries(EDITOR_LIST_FIELDS.map((k) => [k, ''])),
 		unlisted: false,
+		noindex: false,
 		show_members: false,
 		lat: '',
 		lng: '',
@@ -192,6 +197,7 @@ export function formToData(values, current = {}) {
 		if (list.length) data[key] = list;
 	}
 	if (values.unlisted) data.unlisted = true;
+	if (kind === 'persona' && values.noindex) data.noindex = true;
 	if (kind === 'proyecto') data.show_members = values.show_members;
 	if (kind === 'lugar') {
 		const lat = parseCoordinate(values.lat);
@@ -217,7 +223,7 @@ export function changedFields(a, b) {
 		if (String(/** @type {any} */ (a)[key] ?? '') !== String(/** @type {any} */ (b)[key] ?? ''))
 			out.push(key);
 	}
-	for (const key of ['unlisted', 'show_members']) {
+	for (const key of ['unlisted', 'noindex', 'show_members']) {
 		if (Boolean(/** @type {any} */ (a)[key]) !== Boolean(/** @type {any} */ (b)[key]))
 			out.push(key);
 	}

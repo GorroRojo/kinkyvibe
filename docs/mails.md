@@ -61,7 +61,7 @@ sus plantillas propias) está en la ficha del evento.
 | Reembolso                 | al reembolsar (desde el panel o desde Mercado Pago)                     | `refund`      | `buildRefundEmail`                      |
 | Cambió la fecha           | «Avisar a les compradores» después de cambiar la fecha de un evento     | `date_change` | `buildDateChangeEmail`, `dateChange.js` |
 | Mail a compradores        | une admin lo escribe en la ficha del evento → Mail                      | —             | `buyerMail.js`                          |
-| Código para ingresar      | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
+| Código para entrar        | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
 | Tu link (Fondo KinkyVibe) | lo pide fondo.kinkyvibe.ar («¿Ya sos Mecenas?», ver abajo)              | —             | `src/lib/server/fondo/email.js`         |
 
 **Lista de espera** (en construcción, interruptor `lista_espera`; ver abajo y
@@ -212,7 +212,7 @@ Cómo prenderla, apagarla y qué pasa con lo pendiente:
 ### Códigos copiables
 
 Pedido de gorrite (11/10/2026): que Gmail y el celu reconozcan el código de los mails de
-«Código para ingresar» y «Tu código para confirmar» (`src/lib/server/cuentas/email.js`), así se
+«Código para entrar» y «Tu código para confirmar» (`src/lib/server/cuentas/email.js`), así se
 copia o se completa solo. Gmail para Android e iOS muestra un botón «Copiar código» abajo del
 asunto (desde septiembre de 2026; en la web todavía no) y, desde iOS 17 y macOS Sonoma, Safari
 ofrece el código que llegó a Mail de Apple en el campo del código.
@@ -307,6 +307,45 @@ Todo en `src/lib/server/email/suppressions.js`; la tabla es `email_suppressions`
   tuyas?», con «Sí, son mías» y «No es mía» (la esconde para esa cuenta). Las pagas se ven siempre,
   igual que las gratis que cargan les admins (puerta, carga a mano) y las de antes de la migración.
   Detalle en [cuentas.md](cuentas.md) (migración 0061, `free_order_choices`).
+
+### Rebotes y quejas
+
+«Mail enviado» quiere decir que Resend lo aceptó, no que llegó. Para enterarse de lo que no llega,
+Resend avisa por un webhook firmado: `POST /api/resend/webhook`
+(`src/routes/api/resend/webhook/+server.js` y `src/lib/server/email/resendWebhook.js`; migración
+`0064_mail_rebotes.sql`).
+
+- **El id de Resend:** el mail de las entradas guarda en la orden el id que devuelve Resend
+  (`orders.email_id`, el del último envío; «Reenviar» lo cambia). Con ese id se busca el mail en
+  Resend → Emails (Resend lo guarda 30 días) y el webhook encuentra la orden.
+- **Qué hace con cada aviso:** un rebote permanente (`email.bounced` con `bounce.type`
+  `Permanent`) o una queja (`email.complained`, alguien lo marcó como spam) anotan la dirección en
+  `email_suppressions`, la misma tabla de [«No fui yo»](#no-fui-yo) (por hash, nunca el mail): no le
+  sale más ningún mail que no sea de una compra pagada. Si el mail era el de las entradas de una
+  orden, la orden queda con `email_problem`. `email.suppressed` (Resend no lo mandó porque la
+  dirección ya estaba bloqueada allá) solo marca la orden. Los rebotes temporales (casilla llena) y
+  los demás avisos no hacen nada.
+- **En el panel:** en Órdenes, la orden dice «el mail rebotó», «marcó el mail como spam» o «el
+  mail rebotó (dirección bloqueada en Resend)» en vez de «mail enviado», y en «Para revisar» del
+  Inicio aparece «Rebotó el mail de <nombre>» (o «<nombre> marcó como spam el mail de las
+  entradas») durante 14 días, con «Ver orden». «Reenviar» limpia la marca; si vuelve a rebotar,
+  Resend avisa de nuevo. Reenviar a una dirección que rebota no sirve: hay que conseguir la
+  dirección bien escrita.
+- **Seguridad:** la firma es la de Svix (HMAC-SHA256 de `<svix-id>.<svix-timestamp>.<cuerpo>` con
+  el secreto `whsec_…`), comparada en tiempo constante; un aviso con la marca de tiempo a más de
+  5 minutos del reloj se rechaza (401), y el mismo `svix-id` se procesa una sola vez
+  (`resend_webhook_events`, se borra a los 7 días). Cuerpos de más de 64 KB: 413. Recién con la
+  firma buena se lee el JSON. Nunca se loguea ni se guarda una dirección.
+- **Sin `RESEND_WEBHOOK_SECRET` no hace nada** (503). Hasta que gorrite lo configure, los rebotes
+  se ven solo en Resend → Emails (filtro Bounced).
+- **Para configurarlo (gorrite, en el panel):** en Resend → Webhooks → Add endpoint, la dirección
+  `https://kinkyvibe.ar/api/resend/webhook` (solo producción) con los eventos `email.bounced`,
+  `email.complained` y `email.suppressed`. Copiar el «Signing secret» que muestra y cargarlo con
+  `npx wrangler secret put RESEND_WEBHOOK_SECRET` (pegado, nunca tipeado). Para probar: el botón de
+  evento de prueba de esa pantalla tiene que dar 200.
+- **Si se saca una dirección de Resend → Suppressions** porque la persona confirmó que es suya,
+  también hay que borrar su fila de `email_suppressions` (por hash), o los mails que no son de una
+  compra pagada siguen sin salirle.
 
 ### Mail del Fondo (tu link)
 
@@ -443,6 +482,7 @@ migración `0048_avisar_cambio_fecha.sql`):
 | Dominio                            | `kinkyvibe.ar` verificado en Resend (SPF/DKIM en Cloudflare DNS)                            |
 | Secreto del cron                   | `CRON_SECRET`, Secret del Worker `kinkyvibe` (lo usan el cron y `/api/cron/*`)              |
 | Secreto del mail del Fondo         | `FONDO_MAIL_SECRET`, Secret del Worker `kinkyvibe` (el mismo valor en el del Fondo)         |
+| Rebotes y quejas (webhook)         | `RESEND_WEBHOOK_SECRET`, Secret del Worker `kinkyvibe` (rebotes y quejas, arriba)           |
 | Previews                           | `EMAIL_ALLOWLIST` en el entorno Preview de Cloudflare                                       |
 | Pausa de emergencia                | `MAILS_PAUSED`, Text del Worker `kinkyvibe` (ver arriba); vacía o ausente = apagada         |
 
@@ -483,7 +523,8 @@ Resend) y, si es masivo, con una tabla de envíos que reserve a cada destinatari
 (como `buyerMail.js`). Nueva migración si hace falta tabla ([datos.md](datos.md)).
 
 **A alguien no le llegaron las entradas («no me llegó»).** Buscá la orden en la ficha del evento
-→ Órdenes. Si dice que el mail salió, que revise spam y que la dirección esté bien escrita (si
+→ Órdenes. Si dice que el mail rebotó, la dirección está mal o no existe: reenviar no sirve
+(ver [Rebotes y quejas](#rebotes-y-quejas)). Si dice que el mail salió, que revise spam y que la dirección esté bien escrita (si
 está mal, no hay reintento que sirva). Si no salió y la orden tiene menos de 48 h, el cron la
 reintenta sola cada 15 minutos. Si no, «Reenviar» manda las entradas de nuevo (sin clave de
 idempotencia: sale aunque ya hubiera salido). Una orden gratis a una dirección que tocó «No fui

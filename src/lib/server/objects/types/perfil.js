@@ -46,6 +46,7 @@
  *   published_date?: string,
  *   updated_date?: string,
  *   unlisted?: boolean,
+ *   noindex?: boolean,
  *   show_members?: boolean,
  *   address?: string,
  *   area?: string,
@@ -118,6 +119,19 @@ export function profileKindOf(data) {
 	return normalizeProfileKind(data?.kind) ?? 'persona';
 }
 
+/**
+ * ¿El perfil pidió no aparecer en buscadores? Solo los de persona (la decisión de gorrite es para
+ * personas: un proyecto o un lugar quiere que lo encuentren, y un lugar ya tiene su privacidad de
+ * dirección y «No listado»). Con esto la página lleva `noindex` (meta y cabecera), no va al
+ * sitemap ni a IndexNow, sin datos estructurados y con una vista previa sin foto; se sigue viendo
+ * en el sitio igual que antes.
+ *
+ * @param {Record<string, unknown> | null | undefined} data
+ */
+export function profileNoindex(data) {
+	return profileKindOf(data) === 'persona' && data?.noindex === true;
+}
+
 /** Cuántos links como mucho (web, redes…). */
 export const LINKS_MAX = 8;
 export const LINK_MAX_LENGTH = 300;
@@ -184,6 +198,9 @@ const perfil = {
 		published_date: { kind: 'text', label: 'Publicado', max: 40 },
 		updated_date: { kind: 'text', label: 'Actualizado', max: 40 },
 		unlisted: { kind: 'boolean', label: 'No listado' },
+		// «No aparecer en buscadores» (solo personas, {@link profileNoindex}): la página sigue igual
+		// para quien entra, pero con `noindex`, fuera del sitemap y de IndexNow (docs/amigues.md).
+		noindex: { kind: 'boolean', label: 'No aparecer en buscadores' },
 		show_members: { kind: 'boolean', label: 'Mostrar integrantes' },
 		// Solo lugares.
 		address: { kind: 'text', label: 'Dirección', max: 300 },
@@ -226,6 +243,12 @@ const perfil = {
 			errors.push({
 				path: 'show_members',
 				message: 'Mostrar integrantes: solo para perfiles de proyecto'
+			});
+		}
+		if (data.kind !== 'persona' && data.noindex !== undefined) {
+			errors.push({
+				path: 'noindex',
+				message: 'No aparecer en buscadores: solo para perfiles de persona'
 			});
 		}
 		if (data.kind !== 'lugar') {

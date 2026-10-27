@@ -33,18 +33,21 @@
 	$: hcardContact = contactItems(p);
 </script>
 
+<!-- «No aparecer en buscadores» (data.noindex): `noindex` y una vista previa reducida, sin la foto
+     ni la presentación (la tarjeta del sitio y «<nombre> en Amigues de Kinky Vibe»). La página de
+     abajo no cambia. -->
 <ProfileHead
 	title={p.title}
 	pronoun={p.pronoun}
-	summary={p.bio}
-	image={p.image}
+	summary={data.noindex ? null : p.bio}
+	image={data.noindex ? null : p.image}
 	{url}
 	canonical={data.canonical}
-	noindex={Boolean(data.unlisted)}
+	noindex={Boolean(data.unlisted || data.noindex)}
 />
 
 <article class="h-entry h-resume" data-kind={p.kind}>
-	{#if data.badges.hidden || data.badges.pending || data.badges.membersOnly}
+	{#if data.badges.hidden || data.badges.pending || data.badges.membersOnly || data.badges.noindex}
 		<p class="badges">
 			{#if data.badges.hidden}<span>Oculto: lo ven solo les admins</span>{/if}
 			{#if data.badges.pending}<span
@@ -52,6 +55,10 @@
 					o sos admin.</span
 				>{/if}
 			{#if data.badges.membersOnly}<span>Solo para personas con cuenta</span>{/if}
+			{#if data.badges.noindex}<span
+					>No aparece en buscadores: se ve en el sitio, pero les pedimos a Google y compañía que no
+					lo muestren. Lo ves porque lo gestionás o sos admin.</span
+				>{/if}
 		</p>
 	{/if}
 	<ProfileHeader title={p.title} image={p.image} pronoun={p.pronoun}>

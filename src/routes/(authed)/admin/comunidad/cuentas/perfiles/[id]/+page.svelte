@@ -95,6 +95,14 @@
 				<dt>Pronombres</dt>
 				<dd>{p.pronouns}</dd>
 			{/if}
+			{#if p.kind === 'persona'}
+				<dt>Buscadores</dt>
+				<dd>
+					{p.noindex
+						? 'Pidió no aparecer (noindex, fuera del sitemap); en el sitio se ve igual'
+						: 'Puede aparecer, si es público (lo de siempre)'}
+				</dd>
+			{/if}
 			{#if p.kind === 'proyecto'}
 				<dt>Integrantes</dt>
 				<dd>{p.showMembers ? 'Se muestran' : 'No se muestran'}</dd>
