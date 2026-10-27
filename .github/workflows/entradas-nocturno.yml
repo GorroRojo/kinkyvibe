@@ -1,0 +1,88 @@
+# Pruebas E2E de entradas y puerta, todas las noches (ítem `tickets-spec-arreglar` en docs/plan.md).
+#
+# `npx playwright test -c playwright.tickets.config.js` (compra, puerta, panel de ventas, lista de
+# espera) tarda mucho para cada PR (un worker, hasta 90 s por prueba), así que corre de noche
+# contra main. Si falla, abre el issue «Las pruebas E2E de entradas y puerta fallaron» (o le suma
+# un comentario si ya está abierto); cuando vuelve a pasar, lo cierra
+# (scripts/vigilante-pruebas.js). No es un chequeo de PR: no va en los `needs` de `ci-ok`.
+name: Entradas nocturno
+
+on:
+  schedule:
+    # 06:41 UTC (03:41 en Argentina), lejos de la hora en punto y del repaso vigilante (04:23).
+    - cron: '41 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: entradas-nocturno
+  cancel-in-progress: false
+
+jobs:
+  e2e-entradas:
+    # 22.04, como el job e2e de ci.yml (@playwright/test no instala las librerías en 24.04).
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      # El navegador cambia solo cuando cambia @playwright/test: la misma caché que ci.yml.
+      - name: Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}-chromium
+
+      - name: Chromium
+        env:
+          PW_CACHE_HIT: ${{ steps.pw-cache.outputs.cache-hit }}
+        run: |
+          if [ "$PW_CACHE_HIT" = 'true' ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
+
+      # La base local con la semilla pública (migraciones + contenido en .wrangler/state). El
+      # `predev:tickets` que corre Playwright la vuelve a mirar, pero sobre una base cargada tarda
+      # segundos.
+      - name: Semilla
+        run: node scripts/semilla.js --quiet
+
+      - name: E2E de entradas y puerta
+        id: e2e
+        run: npx playwright test -c playwright.tickets.config.js
+
+      - uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: playwright-tickets
+          path: test-results/
+          retention-days: 7
+
+      # Solo en main (la corrida programada siempre es en main): una corrida manual en otra rama
+      # no toca issues. Si falló antes de las pruebas (npm ci, Chromium, semilla), también cuenta
+      # como falla.
+      - name: Issue si falla
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' }}
+        uses: actions/github-script@v9
+        env:
+          E2E_OK: ${{ steps.e2e.outcome == 'success' }}
+        with:
+          script: |
+            const { run } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/vigilante-pruebas.js`);
+            await run({ github, context, core, suite: 'entradas', ok: process.env.E2E_OK === 'true' });

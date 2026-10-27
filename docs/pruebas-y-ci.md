@@ -13,7 +13,7 @@ PR no entra hasta arreglarlo. Y además, nadie mergea sin que gorrite lo apruebe
 ## Qué corre en cada PR
 
 Lo de GitHub Actions que corre en cada PR está en un solo archivo, `.github/workflows/ci.yml`
-(los otros dos workflows son los vigilantes del repaso y de producción, ver abajo, que no corren en PRs). Corre en cada pull request (también cuando se edita su descripción, por el job
+(los otros workflows son los vigilantes del repaso y de producción y las corridas programadas de pruebas, ver abajo, que no corren en PRs). Corre en cada pull request (también cuando se edita su descripción, por el job
 `plan-pr`) y en cada push a `main`, con permiso de solo lectura sobre el repo (`permissions:
 contents: read`). Si pusheás de nuevo a la misma rama o editás la descripción, la corrida anterior
 se cancela (`concurrency`) y vuelve a correr todo. Los jobs de prueba corren en paralelo, usan
@@ -109,6 +109,18 @@ node -e "import('./scripts/vigilante-produccion.js').then(async (m) => console.l
 
 La lógica está en `scripts/vigilante-produccion.js` (la decisión de abrir, cerrar o no hacer nada
 es una función pura, con pruebas en `scripts/vigilante-produccion.test.js`).
+
+**Corridas programadas de pruebas.** Pruebas que no corren en cada PR (por lentas, o porque miran
+el futuro) corren solas, fuera de `ci-ok`, y avisan con un issue con la etiqueta
+`pruebas-programadas` (`scripts/vigilante-pruebas.js`): si la corrida falla, abre uno (o le suma un
+comentario con el link a la corrida nueva si ya está abierto); cuando vuelve a pasar, lo cierra.
+El issue lleva solo el link a la corrida, nunca trazas. Solo las corridas en `main` tocan issues;
+todas se pueden lanzar a mano desde la pestaña Actions («Run workflow»).
+
+- **Entradas nocturno** (`.github/workflows/entradas-nocturno.yml`, 06:41 UTC todos los días):
+  siembra la base (`node scripts/semilla.js`) y corre el juego de entradas y puerta
+  (`npx playwright test -c playwright.tickets.config.js`). Issue «Las pruebas E2E de entradas y
+  puerta fallaron»; lo que deja Playwright queda 7 días como artifact `playwright-tickets`.
 
 `ci-ok` existe para que la protección de `main` pida un solo chequeo: si alguien agrega un job a
 `ci.yml`, lo suma a los `needs` de `ci-ok` y listo, sin tocar la configuración de GitHub.
@@ -256,10 +268,10 @@ direcciones directas. Es de vitest, sin navegador. Si agregás una salida públi
 
 Hay dos juegos, con configuraciones distintas:
 
-| Juego                       | Config                         | Contra qué corre                                                            | ¿En CI?                                                                      |
-| --------------------------- | ------------------------------ | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Humo (`tests/*.spec.js`)    | `playwright.config.js`         | el build de producción (`vite preview`, puerto 4173)                        | **Sí** (job `e2e`, con un reintento)                                         |
-| Entradas (`tests/tickets/`) | `playwright.tickets.config.js` | `npm run dev:tickets` en el puerto 5371, con Mercado Pago y admin simulados | **No**, por decisión de gorrite: correlo a mano si tocás entradas o el panel |
+| Juego                       | Config                         | Contra qué corre                                                            | ¿En CI?                                                                                                                                  |
+| --------------------------- | ------------------------------ | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Humo (`tests/*.spec.js`)    | `playwright.config.js`         | el build de producción (`vite preview`, puerto 4173)                        | **Sí** (job `e2e`, con un reintento)                                                                                                     |
+| Entradas (`tests/tickets/`) | `playwright.tickets.config.js` | `npm run dev:tickets` en el puerto 5371, con Mercado Pago y admin simulados | **No** en cada PR, por decisión de gorrite: correlo a mano si tocás entradas o el panel. Sí todas las noches (Entradas nocturno, arriba) |
 
 El juego de entradas cubre la compra, la gorra, el editor de eventos, Ajustes y cada link del
 menú del panel (`tests/tickets/menu.spec.js`). Como la CI no lo corre, si tu PR toca esas partes
