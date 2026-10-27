@@ -203,7 +203,10 @@ export const NOTE_MAX = 2000;
 
 /**
  * El mail se compara sin mayúsculas ni espacios (una nota vieja guardada con otro formato
- * también aparece).
+ * también aparece). Por eso el índice `person_notes_email (email, created_at)` de 0009 no le sirve
+ * a esta consulta y recorre la tabla: con las pocas notas de hoy no importa. Si la tabla crece, la
+ * salida es una migración nueva con un índice por expresión, `(lower(trim(email)), created_at)`
+ * (auditoría de plata, D32).
  *
  * @param {D1Database | null | undefined} db
  * @param {string} email normalizado
