@@ -281,6 +281,27 @@ local nunca la usan.
 - **Sacarla del todo:** en `worker/index.js`, llamar a `app.fetch` directo en vez de
   `withEdgeCache`.
 
+## Clave de caché de las rutas públicas
+
+Las respuestas con `cache-control` público (`/media/…`, `/og/…`, `/api/posts`,
+`/api/search-index.json`, `/calendario.ics`, `/ics/etiqueta/…`) las guarda la caché del adapter
+(`caches.default`, por centro de datos), que busca por la URL completa y se saltea si el pedido trae
+`cache-control: no-cache`. Esas rutas no leen el query ni la sesión, así que `worker/index.js` les
+pasa el pedido normalizado (`src/lib/server/cacheKey.js`): sin query y sin `cache-control` ni
+`pragma`. Variaciones del mismo pedido caen en la misma entrada y no vuelven a hacer el trabajo. Las
+visitas (`trackPageView`) se anotan con el pedido original. Una ruta nueva entra en la lista solo si
+no lee ni el query ni la sesión.
+
+Los `.ics` públicos (`/calendario.ics` y los de etiqueta) salen con `icsResponse`
+(`public, max-age=900`): un calendario suscripto los baja cada hora. `/ics/mio` es privado y queda
+fuera de la lista.
+
+- **Verificar:** `Server-Timing` dice `0 consultas` en la segunda de dos llamadas seguidas, aunque
+  cambie el query: `curl -s -o /dev/null -D - 'https://kinkyvibe.ar/api/posts?x=1' | grep -i
+server-timing` (y después con `?x=2`).
+- **Riesgo que queda:** pedidos a recursos que no existen (404, que el adapter no guarda); lo frena
+  una regla de la zona, no el código.
+
 ## Caché de los archivos estáticos (`_headers`)
 
 Los archivos de `static/` (favicon, íconos, `site.webmanifest`, `og-*.jpg`, `fonts/`) los sirve

@@ -1,6 +1,5 @@
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { buildIcsFeed, publicIcsSince } from '$lib/utils/icsFeed.js';
-import { TAGGED_CACHE } from '$lib/server/etiquetas/cache.js';
+import { buildIcsFeed, icsResponse, publicIcsSince } from '$lib/utils/icsFeed.js';
 import { getDB } from '$lib/server/db';
 import { feedVenues } from '$lib/server/amigues/venues.js';
 
@@ -18,8 +17,7 @@ export async function GET({ platform }) {
 		getDB(platform),
 		allPosts.filter((p) => p.meta.category === 'calendario').map((p) => String(p.meta.postID))
 	);
-	// De los pasados, solo los de los últimos 90 días (`publicIcsSince`, docs/seo.md).
-	return new Response(buildIcsFeed(allPosts, { venues, since: publicIcsSince() }), {
-		headers: { 'Content-Type': 'text/calendar; charset=utf-8', ...TAGGED_CACHE }
-	});
+	// De los pasados, solo los de los últimos 90 días (`publicIcsSince`, docs/seo.md). Con
+	// `max-age=900` como los .ics por etiqueta: un calendario suscripto lo baja cada hora.
+	return icsResponse(buildIcsFeed(allPosts, { venues, since: publicIcsSince() }));
 }
