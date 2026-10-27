@@ -199,7 +199,10 @@ que no depende de nada reactivo es un `const`). `npm run lint` lleva
   `vite.config.js`, `migrations/`, `src/tests/`, `scripts/vitest/`…), corre todas. Lo que va
   después de `--` le llega a vitest (`npm run test:related -- --maxWorkers=2`);
   `TEST_RELATED_BASE` cambia la base. Ojo: un archivo que una prueba lee con `readFile` (y no
-  importa) no cuenta como relacionado; la CI igual corre todas.
+  importa) no cuenta como relacionado; la CI igual corre todas. Al final lista, como aviso, el
+  código cambiado (de `src/` o `scripts/`) que no tiene ninguna prueba al lado (ni `algo.test.js`
+  ni otra prueba de su carpeta que lo nombre): ahí «pasó» puede querer decir «no había nada que
+  probar».
 - **Etiquetas en las pruebas**: sin base, el árbol de etiquetas está vacío; `src/tests/setup.js`
   (en `setupFiles` de `vite.config.js`) pone las de la semilla como respaldo para todas las
   pruebas. Las que necesitan contenido real lo leen de la semilla (`src/lib/server/semilla/testing.js`).
