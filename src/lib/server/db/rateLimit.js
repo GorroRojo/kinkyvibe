@@ -1,5 +1,10 @@
 /**
- * Rate limiting de ventana fija guardado en D1 (tabla `rate_limits`).
+ * Rate limiting guardado en D1 (tabla `rate_limits`).
+ *
+ * Las ventanas cortas (menos de {@link ROLLING_FROM_SECONDS}) son fijas: una fila por ventana.
+ * Las largas (los topes «por día») son móviles: los intentos se anotan por hora y se suman las
+ * últimas `windowSeconds` (con una ventana fija de 24 h, el cupo se podía gastar justo antes de
+ * la medianoche UTC y otra vez justo después).
  *
  * Los `bucket` nunca deben contener datos identificables (ni IPs): usamos hashes anónimos o
  * el slug de un evento. Cada llamada borra las filas más viejas que la ventana más larga
@@ -11,6 +16,27 @@
 
 /** La ventana más larga que acepta `hitRateLimit`; también es cuánto se guardan las filas. */
 export const MAX_WINDOW_SECONDS = 24 * 60 * 60;
+
+/** Desde qué ventana el conteo es móvil (por horas) en vez de fijo. */
+export const ROLLING_FROM_SECONDS = 6 * 60 * 60;
+
+/** El tramo en que se anotan los intentos de una ventana móvil. */
+const ROLLING_STEP_SECONDS = 60 * 60;
+
+/**
+ * El tramo (fila) donde se anota un intento: la ventana fija, o la hora en una ventana móvil.
+ * @param {number} windowSeconds
+ * @param {number} nowSeconds
+ */
+function slotOf(windowSeconds, nowSeconds) {
+	const step = isRolling(windowSeconds) ? ROLLING_STEP_SECONDS : windowSeconds;
+	return nowSeconds - (nowSeconds % step);
+}
+
+/** @param {number} windowSeconds */
+function isRolling(windowSeconds) {
+	return windowSeconds >= ROLLING_FROM_SECONDS && windowSeconds % ROLLING_STEP_SECONDS === 0;
+}
 
 /**
  * Registra un intento en `bucket` y dice si está dentro del límite.
@@ -30,8 +56,9 @@ export async function hitRateLimit(db, bucket, { limit, windowSeconds }, now = D
 		throw new RangeError(`windowSeconds debe ser un entero entre 1 y ${MAX_WINDOW_SECONDS}`);
 	}
 	const nowSeconds = Math.floor(now / 1000);
-	const windowStart = nowSeconds - (nowSeconds % windowSeconds);
-	const [, upsert] = await db.batch([
+	const slot = slotOf(windowSeconds, nowSeconds);
+	const rolling = isRolling(windowSeconds);
+	const statements = [
 		db
 			.prepare('DELETE FROM rate_limits WHERE window_start < ?1')
 			.bind(nowSeconds - MAX_WINDOW_SECONDS),
@@ -41,14 +68,35 @@ export async function hitRateLimit(db, bucket, { limit, windowSeconds }, now = D
 				ON CONFLICT (bucket, window_start) DO UPDATE SET hits = hits + 1
 				RETURNING hits`
 			)
-			.bind(bucket, windowStart)
+			.bind(bucket, slot)
+	];
+	if (!rolling) {
+		const [, upsert] = await db.batch(statements);
+		const hits = Number(/** @type {{ hits: number }[]} */ (upsert.results)[0]?.hits ?? 0);
+		return { allowed: hits <= limit, hits, retryAfter: slot + windowSeconds - nowSeconds };
+	}
+	// Ventana móvil: las horas que todavía caen dentro de las últimas `windowSeconds`.
+	const from = slot + ROLLING_STEP_SECONDS - windowSeconds;
+	const [, , recent] = await db.batch([
+		...statements,
+		db
+			.prepare(
+				`SELECT window_start, hits FROM rate_limits
+				WHERE bucket = ?1 AND window_start >= ?2 ORDER BY window_start`
+			)
+			.bind(bucket, from)
 	]);
-	const hits = Number(/** @type {{ hits: number }[]} */ (upsert.results)[0]?.hits ?? 0);
-	return {
-		allowed: hits <= limit,
-		hits,
-		retryAfter: windowStart + windowSeconds - nowSeconds
-	};
+	const rows = /** @type {{ window_start: number, hits: number }[]} */ (recent.results);
+	const hits = rows.reduce((sum, r) => sum + Number(r.hits), 0);
+	// Cuándo se libera lugar: cuando salen de la ventana las horas más viejas que sobran.
+	let left = hits;
+	let retryAfter = slot + ROLLING_STEP_SECONDS - nowSeconds;
+	for (const r of rows) {
+		if (left < limit) break;
+		left -= Number(r.hits);
+		retryAfter = Number(r.window_start) + windowSeconds - nowSeconds;
+	}
+	return { allowed: hits <= limit, hits, retryAfter };
 }
 
 /**
@@ -61,8 +109,7 @@ export async function hitRateLimit(db, bucket, { limit, windowSeconds }, now = D
  * @param {number} [now] milisegundos, el mismo que se le pasó a `hitRateLimit`
  */
 export async function releaseRateLimitHit(db, bucket, { windowSeconds }, now = Date.now()) {
-	const nowSeconds = Math.floor(now / 1000);
-	const windowStart = nowSeconds - (nowSeconds % windowSeconds);
+	const windowStart = slotOf(windowSeconds, Math.floor(now / 1000));
 	await db
 		.prepare(
 			'UPDATE rate_limits SET hits = hits - 1 WHERE bucket = ?1 AND window_start = ?2 AND hits > 0'
