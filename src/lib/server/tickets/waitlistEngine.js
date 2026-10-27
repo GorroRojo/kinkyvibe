@@ -26,6 +26,7 @@
 import { getDB } from '$lib/server/db';
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { isFlagOn } from '$lib/server/flags.js';
+import { logMailsPaused, mailsPaused, ticketsPausedMessage } from '$lib/server/emergencia.js';
 import { sha256Hex } from '$lib/server/hash.js';
 import { signLink } from '$lib/server/signedLinks.js';
 import {
@@ -616,6 +617,12 @@ const templateOf = (m) =>
 export async function sendWaitlistMails(db, input) {
 	const { limit, send, origin, now = Date.now(), eventSlug = null } = input;
 	const configOf = input.configOf ?? getEventTickets;
+	// Pausa de emergencia de los mails (MAILS_PAUSED): nada sale ni gasta intentos. Lo pendiente
+	// sale del estado de cada anotación, así que va en la primera tanda después de la pausa.
+	if (mailsPaused()) {
+		logMailsPaused('los mails de la lista de espera');
+		return { sent: 0, failed: 0, remaining: 0 };
+	}
 	await expireStaleClaims(db, 'waitlist_sends', now);
 	const items = await pendingWaitlistMails(db, { now, eventSlug });
 	/** @type {Map<string, Promise<EventTickets | null>>} */
@@ -716,8 +723,10 @@ export function waitlistMailBatch({ db, origin, fetch: fetchFn, now }) {
 }
 
 /**
- * @typedef {'no-db' | 'off' | 'idle' | 'throttled' | 'done' | 'error'} NudgeOutcome
+ * @typedef {'no-db' | 'off' | 'paused' | 'idle' | 'throttled' | 'done' | 'error'} NudgeOutcome
  * - `off`: interruptor apagado; `idle`: el evento no tiene a nadie esperando ni con oferta;
+ * - `paused`: una pausa de emergencia (`TICKETS_PAUSED` o `MAILS_PAUSED`): la lista no avanza (un
+ *   lugar guardado que no se puede comprar o del que nadie se entera se vencería igual);
  * - `throttled`: ya hubo un empujón para este evento en el último minuto (el cron sigue);
  * - `done`: avanzó la lista (y, con `fetch` y `origin`, mandó los mails de ese evento).
  */
@@ -749,6 +758,7 @@ async function nudge({ platform, db: given, eventSlug, origin, fetch: fetchFn, n
 	const db = given ?? getDB(platform);
 	if (!db || !eventSlug) return 'no-db';
 	if (!(await isFlagOn(db, 'lista_espera'))) return 'off';
+	if (ticketsPausedMessage() !== null || mailsPaused()) return 'paused';
 	const live = await db
 		.prepare(
 			`SELECT 1 AS ok FROM waitlist_entries WHERE event_slug = ?1

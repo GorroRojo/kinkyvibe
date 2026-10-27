@@ -42,8 +42,30 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 - **Al borrar la cuenta, las órdenes quedan** (decisión P7.6), desvinculadas: `orders.account_id`
   pasa a `NULL`. Se borran las sesiones y los códigos pendientes, y la fila de `accounts` queda
   sin ningún dato (sin mail, sin contraseña, con `deleted_at`).
-  Antes se sueltan sus perfiles (`closeAccount()` en `src/lib/server/cuentas/index.js` →
-  `releaseAccountProfiles()` en `perfiles.js`):
+  Es un **borrado suave**: la fila de `accounts` queda, así que los `ON DELETE CASCADE` de las
+  tablas que apuntan a ella no corren nunca. `deleteAccount()` (`accounts.js`) limpia cada tabla a
+  mano, en la misma tanda. Una tabla nueva con `account_id` (o con el hash del mail) se suma a
+  esta lista y a `deleteAccount()` en el mismo PR:
+
+  | Tabla                                                                                  | Al borrar la cuenta                                                                                                   |
+  | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+  | `orders`                                                                               | Quedan, con `account_id = NULL`: son de la contabilidad y de la puerta (P7.6)                                         |
+  | `account_sessions`, `login_codes`                                                      | Se borran                                                                                                             |
+  | `free_order_choices`                                                                   | Se borran                                                                                                             |
+  | `follows`, `follow_notifications`                                                      | Se borran (lo que sigue y los avisos ya mandados)                                                                     |
+  | `telegram_chats`, `telegram_link_codes`                                                | Se borran (el chat vinculado y sus códigos)                                                                           |
+  | `calendar_feeds`                                                                       | Se borran: el link del calendario personal deja de andar al toque                                                     |
+  | `series_subscriptions` (con cuenta)                                                    | Se borran, con sus `series_notifications`                                                                             |
+  | `series_subscriptions` (sin cuenta, por mail)                                          | Quedan: se hicieron sin la cuenta, con doble confirmación, y cada aviso trae su link de baja                          |
+  | `profile_invites` a su mail                                                            | Se borran (por el hash del mail). Las que mandó las borra antes `releaseAccountProfiles()`                            |
+  | `profile_managers`, `profile_member_invites`/`blocks`                                  | Los suelta `releaseAccountProfiles()` (abajo)                                                                         |
+  | `profile_claims` («Es mi perfil»)                                                      | Los pendientes se borran (nadie los puede aprobar); los decididos quedan, sin el mensaje, como historia de moderación |
+  | `person_notes` atadas a la cuenta (0045)                                               | Quedan: son notas internas del panel, hechas justo para las cuentas borradas                                          |
+  | `admin_audit`                                                                          | Queda: es el registro de actividad del panel                                                                          |
+  | `email_suppressions`                                                                   | Queda: es el pedido de no recibir más mails a esa dirección; borrarla los volvería a mandar                           |
+  | `rate_limits`                                                                          | Quedan: solo hashes, y vencen solos en un día                                                                         |
+  | Antes se sueltan sus perfiles (`closeAccount()` en `src/lib/server/cuentas/index.js` → |
+  | `releaseAccountProfiles()` en `perfiles.js`):                                          |
   - sus **perfiles de persona** (también los que ya había borrado) **se vacían**: sin
     presentación, pronombres, links, imagen ni texto de búsqueda, con el nombre «Perfil borrado»,
     sin los proyectos de los que eran parte, sin su fila de gestión, sus bloqueos ni sus invitaciones
@@ -602,7 +624,7 @@ actualizá esta lista.
   gente.
 - **Al borrar una cuenta**, lo que queda de ella: los proyectos que pasan a otra persona o que se
   borran por quedar sin nadie conservan sus datos y su `created_by`/`updated_by`; las invitaciones
-  a gestionar para su mail vencen solas (solo guardan el hash). Las filas borradas (suave) siguen en los
+  a gestionar para su mail se borran con la cuenta. Las filas borradas (suave) siguen en los
   backups.
 - **Previews.** Cualquiera que entra a un preview es admin de demo y puede entrar con las cuentas
   de prueba en la base del preview (separada de producción, y los mails solo salen a

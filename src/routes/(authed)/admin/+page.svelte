@@ -220,7 +220,7 @@
 							data.money.tickets,
 							'entrada',
 							'entradas'
-						)}"
+						)} · de los eventos de este mes"
 						href="/admin/ventas"
 					/>
 					<Stat

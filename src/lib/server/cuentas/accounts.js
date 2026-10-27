@@ -186,8 +186,13 @@ export async function checkPassword(db, email, password, { now = Date.now() } = 
 }
 
 /**
- * Borra la cuenta: las órdenes quedan (desvinculadas), las sesiones, los códigos pendientes y lo
- * seguido se van, y la fila queda sin ningún dato de la persona. Todo en una tanda atómica.
+ * Borra la cuenta: las órdenes quedan (desvinculadas), las sesiones, los códigos pendientes, lo
+ * seguido, el calendario personal, las series que sigue y las invitaciones a su mail se van, y la
+ * fila queda sin ningún dato de la persona. Todo en una tanda atómica.
+ *
+ * Es un borrado suave (la fila de `accounts` queda): los `ON DELETE CASCADE` de las tablas que
+ * apuntan a la cuenta no corren nunca, así que cada tabla con datos de la cuenta se limpia acá a
+ * mano. Qué se borra y qué queda (y por qué): docs/cuentas.md, «Lo que nunca se tiene que romper».
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -210,6 +215,26 @@ export async function deleteAccount(db, accountId, { now = Date.now() } = {}) {
 		// El chat de Telegram vinculado y sus códigos (migración 0033).
 		db.prepare('DELETE FROM telegram_chats WHERE account_id = ?1').bind(accountId),
 		db.prepare('DELETE FROM telegram_link_codes WHERE account_id = ?1').bind(accountId),
+		// El calendario personal (migración 0020): sus links dejan de andar al toque.
+		db.prepare('DELETE FROM calendar_feeds WHERE account_id = ?1').bind(accountId),
+		// Las series que sigue con la cuenta y sus avisos ya mandados (0020). Las suscripciones
+		// hechas sin cuenta (por mail) quedan: tienen su propio link de baja en cada aviso.
+		db
+			.prepare(
+				`DELETE FROM series_notifications WHERE subscription_id IN
+					(SELECT id FROM series_subscriptions WHERE account_id = ?1)`
+			)
+			.bind(accountId),
+		db.prepare('DELETE FROM series_subscriptions WHERE account_id = ?1').bind(accountId),
+		// Las invitaciones a gestionar un perfil que le llegaron a su mail (0014). Las que mandó
+		// las borra antes releaseAccountProfiles(), y las de ser integrante van con sus perfiles.
+		db.prepare('DELETE FROM profile_invites WHERE email_hash = ?1').bind(hash),
+		// «Es mi perfil» (0017): lo pendiente se va (nadie lo puede aprobar para una cuenta
+		// borrada); lo ya decidido queda para la historia de moderación, sin lo que escribió.
+		db
+			.prepare("DELETE FROM profile_claims WHERE account_id = ?1 AND status = 'pending'")
+			.bind(accountId),
+		db.prepare("UPDATE profile_claims SET message = '' WHERE account_id = ?1").bind(accountId),
 		db
 			.prepare(
 				`UPDATE accounts SET email = NULL, email_verified_at = NULL, password_hash = NULL,
