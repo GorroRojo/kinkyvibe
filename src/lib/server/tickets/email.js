@@ -1136,6 +1136,7 @@ async function resendError(res) {
  *   message: { subject: string, html: string, text: string, attachments?: MailAttachment[],
  *     headers?: Record<string, string> },
  *   idempotencyKey?: string,
+ *   kind?: string,
  *   timeoutMs?: number,
  *   wait?: (ms: number) => Promise<unknown>
  * }} input `message.headers`: cabeceras de este mail, sobre {@link MAIL_HEADERS}. `wait`: la
