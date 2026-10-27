@@ -114,6 +114,8 @@
 	$: base = data.doorBase;
 	/** Puerta con link (sin cuenta): sin nada del panel. */
 	$: linkMode = Boolean(data.doorLink);
+	/** «Cerrar la puerta en este celu» borra lo guardado: no con cosas por sincronizar o sin registrar. */
+	$: canLeave = pending === 0 && door.failed.length === 0;
 	$: backHref = eventHref(data.slug);
 	$: ordersHref = eventHref(data.slug, 'ordenes');
 	/** La lista de /admin/checkin, aunque haya un solo evento hoy (si no, volvería acá). */
@@ -221,8 +223,18 @@
 		return /** @type {any} */ (deserialize(await res.text()));
 	}
 
-	/** Puerta con link: borra la cookie del link en este celu y vuelve a /puerta. */
+	/**
+	 * Puerta con link: borra la cookie del link y la lista guardada en este celu (nombres, mails;
+	 * solo sin nada pendiente ni ventas sin registrar: el botón se apaga si hay) y vuelve a /puerta.
+	 */
 	async function leaveLink() {
+		if (!canLeave) return;
+		try {
+			storage()?.removeItem(`kv-door:${data.slug}`);
+			storage()?.removeItem(recentKey());
+		} catch {
+			// sin almacenamiento: no había nada guardado
+		}
 		try {
 			await fetch('/puerta?/salir', {
 				method: 'POST',
@@ -1606,11 +1618,14 @@
 				al escanear; pantalla siempre prendida mientras esta página está abierta.
 			</p>
 			{#if linkMode}
-				<button type="button" class="link-btn" on:click={leaveLink} disabled={pending > 0}>
+				<button type="button" class="link-btn" on:click={leaveLink} disabled={!canLeave}>
 					Cerrar la puerta en este celu
 				</button>
-				{#if pending > 0}
-					<p class="muted small">Primero sincronizá lo pendiente.</p>
+				{#if !canLeave}
+					<p class="muted small">
+						Primero sincronizá lo pendiente (y cargá a mano las ventas que no se pudieron
+						registrar).
+					</p>
 				{/if}
 			{:else}
 				<a class="link-btn" href={ordersHref}>Ver todas las órdenes del evento</a>

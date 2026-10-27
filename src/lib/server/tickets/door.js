@@ -976,7 +976,8 @@ export function offlineReviewSummary(json) {
  * (últimos `QUEUE_MAX_AGE_MS`, nunca en el futuro).
  *
  * @param {D1Database} db
- * @param {App.Locals} locals para el registro de actividad
+ * @param {Parameters<typeof logAdminAction>[1]} locals para el registro de actividad (une admin o
+ *   un link de puerta, `DoorActor.audit` en doorLinks.js)
  * @param {{
  *   eventSlug: string,
  *   config: { types: import('./config.js').TicketType[], door?: { on: boolean } | null, status?: string },

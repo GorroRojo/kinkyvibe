@@ -211,7 +211,8 @@ página de la entrada, que marca el ingreso solo para admins).
   La página `/puerta` lo saca de la dirección y lo manda en el cuerpo de un POST (`?/entrar`,
   con tope de 20 intentos cada 10 minutos por conexión, con la IP anónima). Si es de un link vivo
   deja la cookie `kv_puerta` (httpOnly, `SameSite=Strict`, solo para `/puerta`, vence con el link)
-  y abre `/puerta/<slug>`. «Cerrar la puerta en este celu» (Opciones) la borra.
+  y abre `/puerta/<slug>`. «Cerrar la puerta en este celu» (Opciones) la borra, junto con la lista
+  guardada en el celu (solo sin nada por sincronizar ni ventas sin registrar).
 - En **cada** pedido de `/puerta/<slug>` (la página, cada acción y los tres GET: `buscar`,
   `compra`, `lista`) `requireDoorLink` vuelve a mirar la base: el link existe, es de **ese**
   evento, no venció y no se revocó; si no, 403 (y borra una cookie que ya no sirve). Además, un
