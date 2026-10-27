@@ -35,6 +35,7 @@ import { eventHref } from '$lib/admin/nav.js';
 import { formatARS } from '$lib/utils/money.js';
 import { failedWaitlistMailsQuery } from '$lib/server/tickets/waitlistAdmin.js';
 import { emergencyPauses } from '$lib/server/emergencia.js';
+import { resendQuotaItem, resendQuotaQuery } from '$lib/server/tickets/resendQuota.js';
 import {
 	arDay,
 	cancelledLeftoversQuery,
@@ -135,7 +136,9 @@ export function reviewQueries(now, { login = '' } = {}) {
 		// Las etiquetas de la base, para lo que Etiquetas tiene «Para revisar».
 		tagRecords: login ? tagRecordsQuery(login) : noQuery(null),
 		// Mails de la lista de espera que no salieron después de los reintentos (null sin la 0053).
-		waitlistFailed: failedWaitlistMailsQuery()
+		waitlistFailed: failedWaitlistMailsQuery(),
+		// El último 429 de Resend por cupo terminado, si fue hace menos de un día (resendQuota.js).
+		resendQuota: resendQuotaQuery(now)
 	};
 }
 
@@ -268,6 +271,7 @@ export function tagReviewItem(tags) {
  *   tagRecords: import('$lib/server/etiquetas/editor.js').StoredTag[] | null,
  *   tagUsage: Awaited<ReturnType<typeof tagUsageAndWiki>> | null,
  *   waitlistFailed?: { count: number, slugs: string[] } | null,
+ *   resendQuota?: import('$lib/server/tickets/resendQuota.js').ResendQuotaHit | null,
  *   cancelled?: import('./inicio.js').CancelledLeftovers[],
  *   pauses?: { tickets: string | null, mails: string | null },
  *   now: number
@@ -299,10 +303,12 @@ export function reviewRows(facts) {
 	const tagItem = tagReviewItem(tagIssuesOf(facts.tagRecords, facts.tagUsage));
 	const waitlistItem = waitlistFailedItem(facts.waitlistFailed ?? null, titles);
 	const cancelledItems = cancelledEventItems(facts.cancelled ?? [], titles);
+	const quotaItem = resendQuotaItem(facts.resendQuota, { formatWhen });
 	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
 	const rows = groupReviewItems(
 		[
 			...pauseItems(facts.pauses ?? emergencyPauses()),
+			...(quotaItem ? [quotaItem] : []),
 			...(transferMissing ? [transferMissing] : []),
 			...cancelledItems,
 			...todoItems,

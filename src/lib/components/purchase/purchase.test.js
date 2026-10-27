@@ -379,6 +379,18 @@ describe('PayStep: la transferencia dice hasta cuándo se guarda el lugar (decis
 	});
 });
 
+describe('PayStep: el mail a la vista antes de pagar', () => {
+	it('dice a qué mail van las entradas; sin mail, nada', async () => {
+		const { default: PayStep } = await import('./PayStep.svelte');
+		const withEmail = render(PayStep, { props: { tickets, email: ' persona@gmai.com ' } });
+		expect(textOf(withEmail.body).replace(/\s+/g, ' ')).toContain(
+			'Te mandamos las entradas a persona@gmai.com. Revisá que esté bien.'
+		);
+		const without = render(PayStep, { props: { tickets } });
+		expect(textOf(without.body)).not.toContain('Te mandamos las entradas a');
+	});
+});
+
 describe('TicketsStep', () => {
 	it('un tipo sin lugar dice «Agotadas» (aunque sea un solo tipo), nunca «Agotada»', async () => {
 		const { default: TicketsStep } = await import('./TicketsStep.svelte');

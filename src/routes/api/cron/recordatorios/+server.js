@@ -40,8 +40,10 @@ import { pruneUso } from '$lib/server/telegram/uso.js';
 import { resendUnsentOrderEmails } from '$lib/server/tickets/unsentOrders.js';
 import { runIndexNow } from '$lib/server/seo/indexnow.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { siteWikiPosts } from '$lib/server/wiki/site.js';
 import { logMailsPaused, mailsPaused, ticketsPausedMessage } from '$lib/server/emergencia.js';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
+import { seriesTagIds } from '$lib/utils/series.js';
+import { sitemapWikiPosts } from '../../../(content)/sitemap.xml/series.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, platform, url, fetch }) {
@@ -82,7 +84,11 @@ export async function POST({ request, platform, url, fetch }) {
 		let unsentOrders = null;
 		try {
 			const u = await resendUnsentOrderEmails({ db, origin: siteOrigin(url), fetch });
-			unsentOrders = { sent: u.sent, failed: u.failed };
+			unsentOrders = {
+				sent: u.sent,
+				failed: u.failed,
+				...(u.stopped ? { stopped: u.stopped } : {})
+			};
 		} catch (error) {
 			logDBError('cron mails de entradas sin enviar', error);
 		}
@@ -133,12 +139,15 @@ export async function POST({ request, platform, url, fetch }) {
 			key: env.INDEXNOW_KEY,
 			origin: siteOrigin(url),
 			fetch,
+			// Las mismas listas que el sitemap: el grupo «wiki» trae también las páginas de las
+			// series con ediciones públicas (sitemap.xml/series.js).
 			lists: async () => {
-				const [posts, wikiPosts] = await Promise.all([
+				const [posts, wikiPosts, tags] = await Promise.all([
 					sitePosts(platform),
-					siteWikiPosts(platform)
+					sitemapWikiPosts(platform),
+					siteTagManager(platform)
 				]);
-				return { posts, wikiPosts };
+				return { posts, wikiPosts, seriesIds: seriesTagIds(tags) };
 			}
 		});
 		// El menú «/» del bot: solo si cambió la lista y hay token. Nunca tira.

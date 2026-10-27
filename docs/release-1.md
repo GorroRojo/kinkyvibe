@@ -146,6 +146,10 @@ está configurado.
 | Cron de backup e integridad        | `0 6 * * *` (03:00 en Argentina)                                                                                                      | Archivo del día en R2; «Para revisar» del Inicio del panel muestra el chequeo de objetos                             |
 | Worker viejo del cron              | `kinkyvibe-cron` borrado (paso 10 de [workers-migracion.md](workers-migracion.md))                                                    | Workers & Pages: no aparece                                                                                          |
 
+Si alguien dice que no le llegó la entrada: [mails.md](mails.md#alguien-dice-que-no-le-llegó-la-entrada).
+Antes de la primera preventa grande:
+[la lista de control de mails](mails.md#antes-de-la-primera-preventa-grande).
+
 ### Backups y vuelta atrás
 
 - **Base entera**: backup nocturno en R2 (30 días, mensual 12 meses, anual para siempre) y Time

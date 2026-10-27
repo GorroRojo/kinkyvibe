@@ -8,6 +8,7 @@ import {
 	getGateway,
 	inBackground,
 	sendOrderEmail,
+	sendOrderEmailResult,
 	sendDateChangeEmails,
 	sendRefundEmail,
 	sendStreamLinkEmails,
@@ -23,8 +24,11 @@ import {
 	confirmTransfer,
 	getOrder,
 	refundOrder,
-	orderTier
+	orderTier,
+	updateBuyerEmail
 } from '$lib/server/tickets/orders.js';
+import { isSuppressed } from '$lib/server/email/suppressions.js';
+import { normalizeBuyerEmail } from '$lib/utils/ticketBuyer.js';
 import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
 import {
 	getStreamLink,
@@ -132,10 +136,94 @@ export const eventTicketActions = {
 			resend: {
 				ok: sent,
 				message: sent
-					? `Reenviamos las entradas a ${order.buyer_email}.`
+					? `Le pedimos a Resend que mande las entradas a ${order.buyer_email}. Si no le llegan, fijate en Resend → Suppressions si la dirección está bloqueada.`
 					: 'No se pudo mandar el email (ver logs).'
 			}
 		};
+	},
+
+	// «Corregir el mail y reenviar»: quien compró escribió mal su dirección. Solo órdenes aprobadas
+	// de este evento (pagas o gratis). Cambia `buyer_email` y manda las entradas a la dirección
+	// nueva, con una clave de idempotencia propia (`tickets-<orden>` ya se usó con la otra); a la
+	// vieja no le sale nada. Si la nueva dijo «No fui yo», no se cambia ni se manda: se avisa. El
+	// registro de actividad no guarda ninguna de las dos direcciones.
+	email: async ({ locals, url, params, platform, request, fetch }) => {
+		requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { emailFix: { ok: false, message: 'Sin base de datos.' } });
+		const form = await request.formData();
+		const orderId = String(form.get('order') ?? '').slice(0, 64);
+		const order = await getOrder(db, orderId);
+		if (!order || order.event_slug !== params.slug || order.status !== 'approved') {
+			return fail(400, {
+				emailFix: { ok: false, order: orderId, message: 'Esa orden no está aprobada.' }
+			});
+		}
+		const ref = orderReference(order.id);
+		const email = normalizeBuyerEmail(form.get('email'));
+		if (!email) {
+			return fail(400, {
+				emailFix: {
+					ok: false,
+					order: order.id,
+					message: 'Revisá el mail nuevo: no parece un mail.'
+				}
+			});
+		}
+		if (email === order.buyer_email.trim().toLowerCase()) {
+			return fail(400, {
+				emailFix: {
+					ok: false,
+					order: order.id,
+					message:
+						'Es la misma dirección que ya tiene la orden. Para mandarla de nuevo, usá «Reenviar mail».'
+				}
+			});
+		}
+		if (await isSuppressed(db, email)) {
+			return fail(409, {
+				emailFix: {
+					ok: false,
+					order: order.id,
+					message: `Esa dirección tocó «No fui yo» (pidió no recibir más mails de Kinky Vibe): no cambiamos ${ref} ni mandamos nada. Si es de quien compró, que te escriba desde ahí.`
+				}
+			});
+		}
+		if (!(await updateBuyerEmail(db, { orderId: order.id, eventSlug: params.slug, email }))) {
+			return fail(409, {
+				emailFix: { ok: false, order: order.id, message: `No se pudo corregir el mail de ${ref}.` }
+			});
+		}
+		const now = Date.now();
+		const result = await sendOrderEmailResult({
+			db,
+			order: { ...order, buyer_email: email, email_sent_at: null },
+			origin: siteOrigin(url),
+			fetch,
+			idempotent: false,
+			idempotencyKey: `tickets-${order.id}-mail-${now}`
+		});
+		await logAdminAction(db, locals, {
+			action: 'order.email_change',
+			targetType: 'order',
+			targetId: order.id,
+			summary:
+				result === 'sent'
+					? `Corrigió el mail de ${ref} y reenvió las entradas`
+					: `Corrigió el mail de ${ref} (las entradas no salieron)`,
+			detail: { event: params.slug, sent: result === 'sent' }
+		});
+		// Un «ahora no» de Resend (cupo, tasa o un 5xx: `resendBackoff`) acá también es que no salió.
+		const outcome = result === 'sent' || result === 'simulated' ? result : 'failed';
+		const messages = {
+			sent: `Listo, mandamos las entradas a la dirección nueva (${email}).`,
+			simulated: `Corregimos el mail de ${ref}, pero el mail no salió (preview sin EMAIL_ALLOWLIST o dev sin clave).`,
+			failed: `Corregimos el mail de ${ref}, pero no se pudo mandar (ver logs). Probá con «Reenviar mail».`
+		};
+		const body = {
+			emailFix: { ok: outcome === 'sent', order: order.id, message: messages[outcome] }
+		};
+		return outcome === 'failed' ? fail(502, body) : body;
 	},
 
 	// "Confirmar pago" de una transferencia: aprueba, emite las entradas y manda el mail.

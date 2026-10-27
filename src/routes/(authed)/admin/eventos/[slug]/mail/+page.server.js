@@ -148,7 +148,9 @@ export const actions = {
 					? r.progress.sent === r.progress.total
 						? `Listo: el aviso les llegó a ${who(r.progress.sent)}.`
 						: `Se mandó a ${who(r.progress.sent)}; faltan ${who(r.progress.pending)}.`
-					: `Mandando… ${r.progress.sent} de ${r.progress.total}.`
+					: r.stopped
+						? `Resend frenó el envío (${r.stopped === 'quota' ? 'se terminó el cupo de mails' : 'demasiados mails seguidos'}): va ${r.progress.sent} de ${r.progress.total}. Tocá «Reintentar» más tarde; a quien ya le llegó no se le manda de nuevo.`
+						: `Mandando… ${r.progress.sent} de ${r.progress.total}.`
 			}
 		};
 	}
