@@ -4,43 +4,6 @@ import { hasProperty } from 'hast-util-has-property';
 import { findAndReplace } from 'hast-util-find-and-replace';
 import { h } from 'hastscript';
 
-const cornerRightUpIcon = {
-	// <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-corner-right-up">
-	type: 'element',
-	tagName: 'svg',
-	properties: {
-		xmlns: 'http://www.w3.org/2000/svg',
-		width: '24',
-		height: '24',
-		viewBox: '0 0 24 24',
-		fill: 'none',
-		stroke: 'currentColor',
-		'stroke-width': '2',
-		'stroke-linecap': 'round',
-		'stroke-linejoin': 'round',
-		class: 'lucide lucide-corner-right-up'
-	},
-	children: [
-		// <polyline points="10 9 15 4 20 9"/>
-		{
-			type: 'element',
-			tagName: 'polyline',
-			properties: {
-				points: '10 9 15 4 20 9'
-			},
-			children: []
-		},
-		// <path d="M4 20h7a4 4 0 0 0 4-4V4"/>
-		{
-			type: 'element',
-			tagName: 'path',
-			properties: {
-				d: 'M4 20h7a4 4 0 0 0 4-4V4'
-			},
-			children: []
-		}
-	]
-};
 //<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
 const linkIcon = {
 	type: 'element',
@@ -77,7 +40,9 @@ const linkIcon = {
 	]
 };
 /**
- * Plugin to add `id`s to headings.
+ * Plugin to add `id`s to headings: a «link to this section» anchor before each one. «Volver
+ * arriba» is no longer one per heading (an extra Tab stop each): the pages put a single one at
+ * the end of the text (VolverArriba.svelte).
  *
  * @type {import('unified').Plugin<[import('rehype-slug').Options?]|Array<void>, import('rehype-slug').Root>}
  */
@@ -99,13 +64,6 @@ export default function customRehype() {
 					},
 					// @ts-ignore
 					children: [linkIcon]
-				});
-				node.children.push({
-					type: 'element',
-					tagName: 'a',
-					properties: { href: '#title', class: 'backtotop', 'aria-label': 'Volver arriba' },
-					// @ts-ignore
-					children: [cornerRightUpIcon]
 				});
 				return [SKIP];
 			}

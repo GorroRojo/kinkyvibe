@@ -28,13 +28,15 @@ const md = async (/** @type {string} */ source) =>
 		.trim();
 
 describe('customRehype', () => {
-	it('agrega el link "linktothis" y "backtotop" a los títulos con id', async () => {
+	it('agrega el link "linktothis" (y ya no "backtotop") a los títulos con id', async () => {
 		const out = await run('<h2>Siglas y más</h2>');
 		expect(out).toMatch(
 			/^<h2 id="siglas-y-más"><a href="#siglas-y-más" class="linktothis"[^>]*><svg/
 		);
 		expect(out).toContain('class="lucide lucide-link"');
-		expect(out).toMatch(/<a href="#title" class="backtotop"[^>]*><svg[^>]*lucide-corner-right-up/);
+		// «Volver arriba» va una sola vez, al final del texto (VolverArriba.svelte), no en cada título
+		expect(out).not.toContain('backtotop');
+		expect(out.match(/<a /g)).toHaveLength(1);
 		expect(out).toContain('Siglas y más');
 	});
 

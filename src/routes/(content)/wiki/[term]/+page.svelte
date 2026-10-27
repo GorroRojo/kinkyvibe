@@ -1,4 +1,5 @@
 <script>
+	import VolverArriba from '$lib/components/VolverArriba.svelte';
 	import GlosarioItem from '$lib/components/GlosarioItem.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import SeriesTagBlock from '$lib/components/series/SeriesTagBlock.svelte';
@@ -169,6 +170,7 @@
 					{@html data.html}
 				{/if}
 			</div>
+			<VolverArriba html={data.html} parts={data.parts} />
 		{/if}
 	</div>
 	<!-- «Lo que sigo» (interruptor `lo_que_sigo`): apagado, `data.follow` es null y no se ve.

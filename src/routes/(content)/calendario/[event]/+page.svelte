@@ -1,4 +1,5 @@
 <script>
+	import VolverArriba from '$lib/components/VolverArriba.svelte';
 	/**
 	 * La página pública de un evento (/calendario/<evento>), con el diseño de la maqueta final que
 	 * aprobó gorrite. Regla de oro: **el texto del evento se lee antes de comprar**: en todas las
@@ -171,7 +172,7 @@
 		{#if series}
 			<p class="event-series-chip"><TagChip tag={series.id} href={series.href} /></p>
 		{/if}
-		<h1 class="p-name">{data.meta.title}</h1>
+		<h1 id="title" class="p-name">{data.meta.title}</h1>
 		<!-- La dirección del evento para la h-event (el link de arriba queda fuera del article). -->
 		<data hidden class="u-url" value="https://kinkyvibe.ar/calendario/{data.meta.postID}"></data>
 		{#if data.meta.summary}<p class="resumen p-summary">{data.meta.summary}</p>{/if}
@@ -241,6 +242,7 @@
 						{@html data.html}
 					{/if}
 				</div>
+				<VolverArriba html={data.html} parts={data.parts} />
 				{#if textLink}
 					<a
 						href={actionLink}

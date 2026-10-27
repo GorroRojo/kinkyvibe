@@ -1,4 +1,5 @@
 <script>
+	import VolverArriba from '$lib/components/VolverArriba.svelte';
 	import { userConfig } from '$lib/utils/stores.js';
 	import { fetchAllPostsClient, relatedPostsFor } from '$lib/utils/allPosts';
 	import { addMentionPronouns } from '$lib/utils/mentions';
@@ -159,6 +160,7 @@
 				{@html data.html}
 			{/if}
 		</div>
+		<VolverArriba html={data.html} parts={data.parts} />
 	</div>
 	{#if isKinkyVibePost(data.meta)}
 		<TipBlock category="material" slug={$page.params.post ?? ''} />

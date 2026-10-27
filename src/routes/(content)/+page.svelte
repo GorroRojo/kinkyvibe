@@ -2,7 +2,6 @@
 	import CardRow from '$lib/components/CardRow.svelte';
 	import { parseSiteDate } from '$lib/utils/dates.js';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
-	import Carrousel from '$lib/components/Carrousel.svelte';
 	import LDTag from '$lib/components/LDTag.svelte';
 	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { linkPreviewOf } from '$lib/utils/seo.js';
@@ -68,14 +67,6 @@
 	<!-- El logo del encabezado es la presentación (decisión de gorrite, 5/10): el h1 queda solo
 	     para lectores de pantalla y buscadores. -->
 	<h1 class="visually-hidden">Kinky Vibe</h1>
-	{#if $page.url.searchParams.has('carrousel')}
-		<Carrousel
-			posts={allPosts.filter(
-				(/** @type {{ meta: AnyPostData; }} */ p) =>
-					p.meta.category == 'calendario' && parseSiteDate(p.meta.start).getTime() > Date.now()
-			)}
-		/>
-	{/if}
 	<div class="cardrow">
 		<CardRow
 			index="0"

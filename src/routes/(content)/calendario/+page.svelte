@@ -341,8 +341,10 @@
 	.month-grid.open {
 		display: block;
 	}
+	/* pasado: en gris (la foto del evento y las barras), sin apagar el texto */
 	.day.past {
-		opacity: 0.35 !important;
+		filter: grayscale(1);
+		background-color: transparent;
 	}
 	.day.today {
 		outline: 3px solid var(--1);
@@ -351,8 +353,8 @@
 			scale: 1.2;
 		}
 	}
+	/* sin opacidad en el día: atenuarlo apagaba también el número (2,4–2,7:1) */
 	.day {
-		opacity: 0.7;
 		display: flex;
 		padding: 0;
 		position: relative;
@@ -376,7 +378,9 @@
 		.bar {
 			width: 100%;
 			height: auto;
-			min-height: 0;
+			/* 24px de alto como mínimo para tocarla (WCAG 2.5.8): el día está a `scale: 0.9`, así
+			   que 1.7rem se ven como 24,5px */
+			min-height: 1.7rem;
 			z-index: 1;
 			outline: 3px solid var(--evt-color);
 			outline-offset: -2px;
@@ -401,7 +405,9 @@
 			display: grid;
 			place-content: center;
 			font-size: 2em;
-			color: rgba(1, 1, 1, 0.5);
+			/* gris del sitio, ≥ 4,5:1 sobre blanco y sobre el fondo (antes negro al 50 % en un día
+			   al 70 %: 2,4–2,7:1) */
+			color: var(--muted);
 			position: absolute;
 			top: 0;
 			right: 0;
