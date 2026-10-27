@@ -244,7 +244,7 @@ CI) va en la fase 0.
 ### Pruebas y CI
 
 - `tests-auditoria` · fase 0 · sigue · pruebas · Auditoría de pruebas: acelerar primero, borrar solo con el sí de gorrite por cada una
-- `auditoria-codigo-arreglos` · fase 0 · en curso · pruebas · Arreglos de la auditoría de salud del código que no necesitan a gorrite: pin de satori documentado, `migrations-lint` en la CI, corridas programadas (entradas y puerta de noche, reloj adelantado los domingos), modo `UPDATE_EMAIL_GOLDEN`, reglas de Svelte en ESLint, hora de Argentina en `dates.js` y limpiezas chicas
+- `auditoria-codigo-arreglos` · fase 0 · en curso · pruebas · Arreglos de la auditoría de salud del código que no necesitan a gorrite: pin de satori documentado, `migrations-lint` en la CI, corridas programadas (entradas y puerta de noche, reloj adelantado los domingos), modo `UPDATE_EMAIL_GOLDEN`, reglas de Svelte en ESLint, hora de Argentina en `dates.js` (migrados los archivos de plata, menos `tickets/stats.js`, que toca un PR abierto; quedan telegram, panel, búsqueda, contenido y los demás, de a uno) y limpiezas chicas
 - `test-importer-flaky` · fase 0 · sigue · pruebas · `etiquetas/importer.test.js` a veces cuenta un error de más con la máquina cargada: prueba frágil o carrera real (depende de: tests-auditoria)
 - `test-estiloguard-lento` · fase 0 · hecho · pruebas · `estiloGuard` y `series-crear` pasaban el límite de 5 s con la máquina cargada: la preparación cara va en `beforeAll` · #325
 - `test-cuentas-lento` · fase 0 · hecho · pruebas · `cuentas.test.js` «límite de intentos por mail y por conexión» pasaba los 5 s con la máquina cargada: los mails del límite por conexión tienen cuenta con hash barato (queda uno sin cuenta) · #330
