@@ -91,7 +91,6 @@
 					class="pill-btn {info.following ? 'ghost' : ''}"
 					type="submit"
 					disabled={busy}
-					aria-pressed={info.following}
 				>
 					{#if info.following}
 						<BellOff size={18} aria-hidden="true" /> Dejar de seguir
