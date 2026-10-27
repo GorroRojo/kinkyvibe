@@ -415,7 +415,7 @@
 </script>
 
 <svelte:head>
-	<title>Editar · {meta.title ?? postID} · {embedded ? 'Panel' : 'KV Admin'}</title>
+	<title>Editar · {meta.title ?? postID} · Panel</title>
 </svelte:head>
 
 <svelte:element this={embedded ? 'div' : 'main'} class="edit kv-admin" class:embedded>

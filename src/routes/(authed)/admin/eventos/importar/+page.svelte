@@ -579,7 +579,7 @@
 <UnsavedChanges dirty={unsaved} saving={submitting} />
 
 <svelte:head>
-	<title>Importar desde la planilla · KV Admin</title>
+	<title>Importar desde la planilla · Panel</title>
 </svelte:head>
 
 <main class="importar">
