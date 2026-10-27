@@ -471,8 +471,9 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			'message',
 			'Seguir: las opciones de un evento',
 			'**⭐ Seguir**\n\nDe «{evento}» podés seguir estas etiquetas y series (tocá una):\n\n' +
-				'Te avisamos cuando se anuncie algo nuevo, como en el sitio. Si querés esos avisos por acá, ' +
-				'prendé la columna Telegram en Mi rincón → Lo que sigo.',
+				// Seguir desde el bot también prende los avisos por Telegram (decisión 0036).
+				'Te avisamos cuando se anuncie algo nuevo, como en el sitio, y también por acá. ' +
+				'Los avisos por Telegram los podés apagar en Mi rincón → Lo que sigo.',
 			{ vars: [V.evento] }
 		),
 		f(
