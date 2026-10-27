@@ -132,6 +132,7 @@ CI) va en la fase 0.
 
 ### Sitio público
 
+- `perfiles-buscadores` · fase 0 · hecho · sitio · «No aparecer en buscadores» para perfiles de persona (auditoría de comunidad, K15; gorrite: en Google por defecto): quienes gestionan el perfil lo sacan de los buscadores sin esconderlo del sitio (`noindex` en meta y cabecera, fuera del sitemap y de IndexNow, sin JSON-LD, vista previa sin foto) · #519, [amigues.md](amigues.md)
 - `promesas-entre-pedidos` · fase 0 · hecho · sitio · Bug: GET /admin y GET / se colgaban minutos a veces (cachés del isolate que compartían una consulta en camino entre pedidos); ahora entre pedidos solo se comparte lo ya leído · #352
 - `ux-auditoria-restos` · fase 0 · hecho · sitio · Lo que seguía abierto de la auditoría de UX del 4/10: anclas del glosario, áreas de toque, migas de pan (ya estaban, #215) y búsqueda vacía de la wiki; en la Puerta (V12), «¿Te equivocaste? Ver la orden», descartar una venta sin conexión que todavía no se mandó y no recargar sin conexión (sin «Anular» con plata en la Puerta: gorrite, 26/10) · #333, #517
 - `wiki-sin-entrada-editar` · fase 0 · hecho · sitio · «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`) · #323
