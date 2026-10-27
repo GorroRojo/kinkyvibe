@@ -6,6 +6,7 @@
  * Solo usa imports relativos: worker/index.js lo importa sin pasar por Vite.
  */
 import { nightlyBackup } from './backup/index.js';
+import { copyMedia } from './backup/media.js';
 import { deleteStaleSessions } from './cuentas/sessionAge.js';
 import { SITE_URL, siteOriginFrom } from '../utils/site.js';
 import { runAnalyticsRollup } from './analytics/report.js';
@@ -27,6 +28,8 @@ export const DEFAULT_ORIGIN = SITE_URL;
  * @typedef {{
  *   DB?: import('@cloudflare/workers-types').D1Database,
  *   BACKUPS?: import('@cloudflare/workers-types').R2Bucket,
+ *   MEDIA?: import('@cloudflare/workers-types').R2Bucket,
+ *   MEDIA_COPIA?: import('@cloudflare/workers-types').R2Bucket,
  *   CRON_SECRET?: string,
  *   SITE_URL?: string,
  *   CF_ACCOUNT_ID?: string,
@@ -137,6 +140,41 @@ export async function runObjectsIntegrity(env, now = new Date()) {
 }
 
 /**
+ * Copia nocturna de la biblioteca (MEDIA) al bucket de la copia (MEDIA_COPIA): solo suma, nunca
+ * borra de la copia, con topes por noche (src/lib/server/backup/media.js; docs/imagenes.md).
+ * **Nunca hace fallar la corrida**. Solo en producción: los Previews no corren crons ni tienen
+ * MEDIA_COPIA; sin el binding no hace nada.
+ *
+ * @param {ScheduledEnv} env
+ * @param {Partial<import('./backup/media.js').MediaCopyLimits>} [limits]
+ * @returns {Promise<import('./backup/media.js').MediaCopyResult | null>} null si no corrió
+ */
+export async function runMediaCopy(env, limits) {
+	try {
+		if (!env.MEDIA_COPIA) {
+			console.log('copia de medios: sin el binding MEDIA_COPIA; no se copió');
+			return null;
+		}
+		if (!env.MEDIA) {
+			console.error('copia de medios: falta el binding MEDIA; no se copió');
+			return null;
+		}
+		const result = await copyMedia({ source: env.MEDIA, target: env.MEDIA_COPIA, limits });
+		const mb = (result.copiedBytes / 1024 / 1024).toFixed(1);
+		const rest = result.done
+			? 'vuelta completa'
+			: `sigue mañana después de ${result.resumeAfter || 'el principio'}`;
+		const line = `copia de medios: ${result.copied} copiado(s) (${mb} MB), ${result.checked} revisado(s), ${result.failed.length} con error, ${result.listPages} página(s) listadas; ${rest}`;
+		if (result.failed.length) console.error(line);
+		else console.log(line);
+		return result;
+	} catch (error) {
+		console.error('copia de medios: falló (el backup ya se hizo)', error);
+		return null;
+	}
+}
+
+/**
  * Limpieza nocturna de las sesiones de las cuentas que ya no tienen cookie en ningún navegador
  * (src/lib/server/cuentas/sessionAge.js): no cierra la sesión de nadie. **Nunca hace fallar la
  * corrida**: si falla, lo escribe en el log y sigue. En el log va solo cuántas borró.
@@ -176,11 +214,12 @@ export async function handleScheduled(controller, env, ctx, appFetch) {
 			// Primero el backup (si falla, la corrida falla). El chequeo, el resumen mensual de las
 			// visitas y la limpieza de sesiones sin cookie después, y nunca la hacen fallar: lo que
 			// encuentra el chequeo queda en "Para revisar"; el resumen, en `analytics_monthly` (meses
-			// de Argentina, docs/analiticas.md).
+			// de Argentina, docs/analiticas.md). Al final, la copia de la biblioteca al segundo bucket.
 			const backup = await runBackup(env, new Date(controller.scheduledTime));
 			await runObjectsIntegrity(env, new Date(controller.scheduledTime));
 			await runAnalyticsRollup(env, { now: new Date(controller.scheduledTime) });
 			await runSessionCleanup(env, new Date(controller.scheduledTime));
+			await runMediaCopy(env);
 			return backup;
 		}
 		default:

@@ -32,7 +32,7 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
 
 - **`wrangler.toml`**: el Worker `kinkyvibe`. `main = "worker/index.js"`, archivos estáticos en
   `.svelte-kit/cloudflare` (binding `ASSETS`), `nodejs_compat`, crons, D1 `DB` (producción),
-  R2 `BACKUPS`, y un bloque `[previews]` con la base `kinkyvibe-preview` para los Previews.
+  R2 `BACKUPS`, `MEDIA` y `MEDIA_COPIA`, y un bloque `[previews]` con la base `kinkyvibe-preview` para los Previews.
   `keep_vars = true` para que un deploy no borre las variables cargadas en el panel.
 - **`worker/index.js`**: el adapter de SvelteKit genera un Worker que solo tiene `fetch`. Este
   archivo lo envuelve y le suma `scheduled()` (los crons). Las páginas se atienden igual.
@@ -46,8 +46,9 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
     corre la misma función que corría con el Worker aparte.
   - `0 6 * * *` (03:00 en Argentina) → backup de la base a R2 y limpieza de los viejos. Después,
     sin hacer fallar la corrida: el chequeo de integridad de los objetos, el resumen mensual de las
-    visitas y la limpieza de las sesiones de cuentas que ya no tienen cookie
-    ([cuentas.md](cuentas.md)).
+    visitas, la limpieza de las sesiones de cuentas que ya no tienen cookie
+    ([cuentas.md](cuentas.md)) y la copia de la biblioteca al bucket `kinkyvibe-media-copia`
+    (binding `MEDIA_COPIA`; [imagenes.md](imagenes.md#copia-de-la-biblioteca-y-bloqueo-contra-borrados)).
   - Los crons **solo corren en producción**; los Previews no los ejecutan.
 - **Modo demo en los Previews**: `__DEPLOY_BRANCH__` se fija al compilar con `WORKERS_CI_BRANCH`
   (la pone Workers Builds; `src/lib/server/deployBranch.js`). `CF_PAGES_BRANCH`, la de Pages,
