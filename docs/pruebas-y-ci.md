@@ -121,6 +121,11 @@ todas se pueden lanzar a mano desde la pestaña Actions («Run workflow»).
   siembra la base (`node scripts/semilla.js`) y corre el juego de entradas y puerta
   (`npx playwright test -c playwright.tickets.config.js`). Issue «Las pruebas E2E de entradas y
   puerta fallaron»; lo que deja Playwright queda 7 días como artifact `playwright-tickets`.
+- **Reloj adelantado** (`.github/workflows/reloj-adelantado.yml`, domingos 05:37 UTC): la suite de
+  vitest con `SHIFT_DAYS=30` (`scripts/vitest/shift-clock.js`, que `vite.config.js` carga solo con
+  esa variable: `Date.now()`, `new Date()` y `Date()` sin argumentos dan la hora real más N días).
+  Encuentra pruebas que dependen de la fecha real antes de que fallen solas en todos los PRs.
+  Issue «Las pruebas fallan con el reloj adelantado». En local: `SHIFT_DAYS=30 npx vitest run <archivo>`.
 
 `ci-ok` existe para que la protección de `main` pida un solo chequeo: si alguien agrega un job a
 `ci.yml`, lo suma a los `needs` de `ci-ok` y listo, sin tocar la configuración de GitHub.
@@ -193,6 +198,10 @@ ya no hay `.eslintrc` ni `.eslintignore`).
   (en `setupFiles` de `vite.config.js`) pone las de la semilla como respaldo para todas las
   pruebas. Las que necesitan contenido real lo leen de la semilla (`src/lib/server/semilla/testing.js`).
   (El viejo chequeo de los `.md`, `src/tests/content.test.js`, se fue con ellos: 0032.)
+- **Fechas**: una prueba con fechas cercanas (un evento el mes que viene, una venta que cierra en
+  unos días) pasa un `now` fijo a la función o usa `vi.useFakeTimers()` con `vi.setSystemTime()`;
+  nunca depende del reloj real ni mueve las fechas al futuro lejano. La corrida semanal del reloj
+  adelantado (arriba) avisa si alguna se escapa.
 - **Mails "golden"**: `src/lib/server/tickets/email.golden.json` guarda cómo sale cada mail; si
   cambiás un mail a propósito, actualizá ese archivo en el mismo PR y explicalo.
 - **Componentes con clics** (`*.dom.test.js`): se montan en jsdom con `@testing-library/svelte`

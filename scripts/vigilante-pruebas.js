@@ -1,7 +1,8 @@
 // Vigilante de las pruebas programadas (docs/pruebas-y-ci.md, «Corridas programadas»).
 //
 // Algunas pruebas no corren en cada PR (son lentas o miran el futuro) y corren solas, fuera de
-// `ci-ok`: las E2E de entradas y puerta todas las noches (.github/workflows/entradas-nocturno.yml).
+// `ci-ok`: las E2E de entradas y puerta todas las noches (.github/workflows/entradas-nocturno.yml)
+// y la suite de vitest con el reloj adelantado los domingos (.github/workflows/reloj-adelantado.yml).
 // Al terminar, el workflow llama a `run` con el resultado:
 // - si falló y no hay issue abierto de esa corrida, abre uno (con la etiqueta `pruebas-programadas`);
 // - si falló y ya hay uno, le suma un comentario con el link a la corrida nueva;
@@ -26,6 +27,16 @@ Qué hacer:
 - Abrí la corrida (link abajo) y bajá el artifact \`playwright-tickets\` con lo que dejó Playwright.
 - Reproducilo en local: \`node scripts/semilla.js\` y \`npx playwright test -c playwright.tickets.config.js\`.
 - Si una prueba quedó vieja porque la pantalla cambió a propósito, actualizala en un PR y decilo; no se saltea ni se afloja.`
+	},
+	reloj: {
+		title: 'Las pruebas fallan con el reloj adelantado',
+		body: `La corrida semanal de vitest con el reloj adelantado 30 días (\`SHIFT_DAYS=30\`, ver \`scripts/vitest/shift-clock.js\`) falló: alguna prueba depende de la fecha real y va a fallar sola dentro de unos días, en todos los PRs y en main.
+
+Qué hacer:
+
+- Abrí la corrida (link abajo) y mirá qué pruebas fallaron.
+- Reproducilo en local: \`SHIFT_DAYS=30 npx vitest run <archivo>\`.
+- Arreglo: que la prueba pase un \`now\` fijo o use \`vi.useFakeTimers()\` con \`vi.setSystemTime()\`; no mover fechas al futuro lejano ni aflojar la prueba.`
 	}
 };
 

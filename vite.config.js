@@ -27,8 +27,12 @@ export default defineConfig({
 		assetsInlineLimit: 0
 	},
 	test: {
-		// El árbol de etiquetas de respaldo, para las pruebas (src/tests/setup.js).
-		setupFiles: ['src/tests/setup.js'],
+		// El árbol de etiquetas de respaldo, para las pruebas (src/tests/setup.js). Con `SHIFT_DAYS`,
+		// también el reloj adelantado (scripts/vitest/shift-clock.js; corrida semanal).
+		setupFiles: [
+			'src/tests/setup.js',
+			...(process.env.SHIFT_DAYS ? ['scripts/vitest/shift-clock.js'] : [])
+		],
 		// Reparte las partes de la CI (`--shard`) por lo que tarda cada archivo
 		// (scripts/vitest/durations.json), no por cantidad de archivos.
 		sequence: { sequencer: DurationSequencer },
