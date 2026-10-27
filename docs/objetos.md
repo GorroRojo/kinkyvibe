@@ -243,7 +243,11 @@ los `.md` (`summary`, `status`, `start`, `end`, `link`, `tags`, `authors`, `feat
 tipo todavía no conoce va tal cual en `extra` (clase `json`, solo para tipos núcleo). `start` y
 `end` (clase `datetime`) se guardan siempre en hora de Argentina (`2026-10-02T20:00-03:00`): una
 fecha con `Z` u otra zona se reescribe al validar (`fields.js`; sin zona, se rechaza). Columnas
-generadas e índices (migración `0031`): `start_at`, `end_at` (ms), `event_status`, `unlisted`. La
+generadas e índices (migración `0031`): `start_at`, `end_at` (ms), `event_status`, `unlisted`. Hoy
+se leen `start_at` (el mes del evento en las ventas, `admin/saleMonth.js`) y `unlisted`; `end_at`,
+`event_status` y los índices `objects_evento_start` y `objects_evento_status` no los usa ninguna
+consulta todavía (auditoría de plata, D31): quedan para cuando se ordene o filtre en SQL, sin
+`DROP` (son virtuales: no se guardan, y una migración más no vale la pena). La
 importación, la lectura (solo la base) y el historial (`object_revisions`):
 [contenido.md](contenido.md) («En la base»).
 
