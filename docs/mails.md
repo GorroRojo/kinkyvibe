@@ -61,7 +61,7 @@ sus plantillas propias) está en la ficha del evento.
 | Reembolso                 | al reembolsar (desde el panel o desde Mercado Pago)                     | `refund`      | `buildRefundEmail`                      |
 | Cambió la fecha           | «Avisar a les compradores» después de cambiar la fecha de un evento     | `date_change` | `buildDateChangeEmail`, `dateChange.js` |
 | Mail a compradores        | une admin lo escribe en la ficha del evento → Mail                      | —             | `buyerMail.js`                          |
-| Código para ingresar      | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
+| Código para entrar        | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
 | Tu link (Fondo KinkyVibe) | lo pide fondo.kinkyvibe.ar («¿Ya sos Mecenas?», ver abajo)              | —             | `src/lib/server/fondo/email.js`         |
 
 **Lista de espera** (en construcción, interruptor `lista_espera`; ver abajo y
@@ -195,7 +195,7 @@ falla (Resend caído, un timeout, el Worker que se cortó), la orden queda aprob
 ### Códigos copiables
 
 Pedido de gorrite (11/10/2026): que Gmail y el celu reconozcan el código de los mails de
-«Código para ingresar» y «Tu código para confirmar» (`src/lib/server/cuentas/email.js`), así se
+«Código para entrar» y «Tu código para confirmar» (`src/lib/server/cuentas/email.js`), así se
 copia o se completa solo. Gmail para Android e iOS muestra un botón «Copiar código» abajo del
 asunto (desde septiembre de 2026; en la web todavía no) y, desde iOS 17 y macOS Sonoma, Safari
 ofrece el código que llegó a Mail de Apple en el campo del código.
