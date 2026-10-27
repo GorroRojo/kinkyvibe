@@ -10,6 +10,10 @@
 	$: email = form?.email ?? '';
 	$: next = form?.next ?? data.next;
 	let busy = false;
+	// «Mandame un código» / «Mandame otro código» dicen «Mandando…» mientras sale el mail (puede
+	// tardar unos segundos).
+	let sendingCode = false;
+	$: if (!busy) sendingCode = false;
 
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	const submit = () => {
@@ -67,15 +71,28 @@
 			</label>
 			<button class="pill-btn" type="submit" disabled={busy}>Entrar</button>
 		</form>
-		<form method="POST" action="?/codigo" use:enhance={submit} class="again">
+		<form
+			method="POST"
+			action="?/codigo"
+			use:enhance={submit}
+			on:submit={() => (sendingCode = true)}
+			class="again"
+		>
 			<input type="hidden" name="email" value={email} />
 			<input type="hidden" name="next" value={next} />
-			<button class="link" type="submit" disabled={busy}>Mandame otro código</button>
+			<button class="link" type="submit" disabled={busy} aria-busy={sendingCode}
+				>{sendingCode ? 'Mandando…' : 'Mandame otro código'}</button
+			>
 			<a href="/ingresar?next={encodeURIComponent(next)}" data-sveltekit-reload>Usar otro mail</a>
 		</form>
 	{:else}
 		<p>Te mandamos un código por mail para entrar. Si es la primera vez, así se crea tu cuenta.</p>
-		<form method="POST" action="?/codigo" use:enhance={submit}>
+		<form
+			method="POST"
+			action="?/codigo"
+			use:enhance={submit}
+			on:submit={() => (sendingCode = true)}
+		>
 			<input type="hidden" name="next" value={next} />
 			<label>
 				<span>Tu mail</span>
@@ -88,7 +105,9 @@
 					required
 				/>
 			</label>
-			<button class="pill-btn" type="submit" disabled={busy}>Mandame un código</button>
+			<button class="pill-btn" type="submit" disabled={busy} aria-busy={sendingCode}
+				>{sendingCode ? 'Mandando…' : 'Mandame un código'}</button
+			>
 		</form>
 
 		<details open={step === 'password'}>
