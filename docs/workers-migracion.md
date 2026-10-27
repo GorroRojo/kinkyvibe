@@ -379,6 +379,23 @@ manda lo pendiente y olvida lo leído; si la tanda falla, cada consulta se corre
 Un `curl` sin `-H 'accept: text/html'` nunca usa la caché de 1 minuto (`BYPASS`): mide la página
 recién hecha, que es lo que ve quien llega cuando no hay una guardada.
 
+## Bots: Bot Fight Mode apagado
+
+**A CONFIRMAR** por gorrite (lo propone la auditoría de costos; no se tocó nada en el panel). Bot
+Fight Mode (Security → Settings → Bot traffic), la opción gratis contra bots, queda **apagado**:
+
+- **No admite excepciones**, ni con reglas propias ni con «Skip». Puede desafiar pedidos de
+  servidor a servidor que no son navegadores: el webhook de Mercado Pago
+  (`/api/mercadopago/webhook`), el del bot de Telegram (`/api/telegram`) y el pedido del Worker
+  del Fondo (`/api/fondo/mi-link`). Si se cortan, quedan órdenes pagadas sin aprobar y sin mail.
+- **Contra bots, en cambio:** AI Crawl Control para los rastreadores de IA y la regla de rate
+  limiting de la zona (una en el plan Free), las dos excluyendo siempre esas tres rutas, y las
+  alertas de presupuesto para enterarse.
+- **Si alguna vez hace falta más:** Super Bot Fight Mode es del plan Pro de la zona y sí admite
+  una regla «Skip»; crearla **antes** de prenderlo.
+- **Verificar (panel):** Security → Settings → Bot traffic sigue apagado y en Security → Analytics
+  no hay eventos de Bot Fight Mode.
+
 ## Volver atrás (rollback)
 
 Si algo sale mal después del paso 8:
