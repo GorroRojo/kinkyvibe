@@ -70,7 +70,8 @@ svelte-check deja de encontrar `process` y `node:fs` en los tests y el ratchet f
 (y a mano desde la pestaña Actions, «Run workflow»), así que no está en los `needs` de `ci-ok`.
 Sin Claude, mira si hay algún PR con la etiqueta `repaso-semanal` creado en los últimos 8 días
 (la rutina de Claude de los lunes lo abre siempre). Si no hay, abre el issue «El repaso semanal
-del plan no corrió» con esa etiqueta, salvo que ya haya uno abierto; si vuelve a haber un PR de
+del plan no corrió» con esa etiqueta y asignado al dueño del repo (así le llega la
+notificación), salvo que ya haya uno abierto; si vuelve a haber un PR de
 repaso y el issue sigue abierto, lo cierra con un comentario. Permisos: `contents: read`,
 `issues: write`, `pull-requests: read`. La etiqueta `repaso-semanal` la crea el vigilante la
 primera vez que abre el issue si todavía no existe (también se puede crear a mano en Issues →
