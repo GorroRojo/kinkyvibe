@@ -208,8 +208,9 @@ el código por mail sigue andando.
   solo se van filas que nunca más se usan. Si falla, lo escribe en el log y la corrida sigue; en el
   log va solo cuántas borró.
 - En Mi rincón, "Salir en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
-  cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
-  saca acceso.
+  cuenta, también la de ese navegador, desvincula el Telegram (`unlinkAccount`: el chat y los
+  códigos pendientes) y anula el link del calendario personal (`revokeFeeds`; para volver a usarlo
+  se crea uno nuevo), y vuelve a `/ingresar` con un aviso. No pide código: solo saca acceso.
 - `hooks.server.js` carga `locals.member` (`{ id, email, readingSpeed, canHaveProfiles }`) solo
   si hay cookie (y base). La velocidad de lectura y el permiso de perfiles vienen en la misma
   consulta que la sesión (`getSessionAccount`), así el layout y Mi rincón no vuelven a leer la
