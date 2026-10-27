@@ -27,7 +27,17 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 
 - **Clave por contenido**: `img/<sha-256>.<ext>`. El mismo archivo subido dos veces es la misma
   imagen (el `slug` del objeto es el hash). Como un archivo nunca cambia, `/media/…` responde con
-  `Cache-Control: public, max-age=31536000, immutable`, `ETag` y el tipo correcto.
+  `Cache-Control: public, max-age=31536000, immutable`, `ETag` y el tipo correcto. La excepción son
+  las imágenes de perfiles (abajo, «Fotos de perfiles»).
+- **Fotos de perfiles** (edge `avatar`): se guardan **un día** (`public, max-age=86400`, sin
+  `immutable`; también sus copias chicas) y se sirven solo mientras algún objeto vivo que se
+  muestra las use (un perfil visible y aprobado, un evento, un texto que la nombra). Si el perfil
+  se oculta, se borra o todavía no se aprobó, `/media` da 404 a cualquiera y la sirve solo a quien
+  ve ese perfil (admins, quien lo gestiona, quien subió la imagen; una cuenta si el perfil es
+  «solo con cuenta») con `private, max-age=3600`, que la caché del borde no guarda
+  (`servableImage`/`servableCopy` en `src/lib/server/media/library.js`). Lo que ya estaba en la
+  caché del borde o de un navegador se sigue viendo hasta un día. Las portadas de eventos, material
+  y series siguen inmutables (nada cambia para el rendimiento de las tarjetas).
 - **Sin metadatos**: antes de calcular el hash, `storeImage` le saca a un JPEG los segmentos Exif,
   XMP, IPTC y los comentarios (de Exif deja solo la orientación) y a un PNG los bloques eXIf,
   tEXt, zTXt, iTXt y tIME (`src/lib/server/media/metadata.js`). Ahí pueden ir el GPS de donde se
@@ -232,7 +242,10 @@ videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tip
 «Sacar de la biblioteca» (admins, en Buscar) es el **borrado suave** del objeto `imagen`:
 deja de aparecer en el selector, las páginas dejan de mostrarla y `/media/…` da 404. **El archivo
 queda en R2** (es barato y permite deshacer: subir el mismo archivo la vuelve a la vida, con sus
-edges). Ojo: los navegadores que ya la tenían en caché la pueden seguir mostrando un tiempo.
+edges). Ojo: los navegadores y la caché del borde de Cloudflare (`caches.default`, que el worker
+consulta antes de la app) que ya la tenían la pueden seguir mostrando: un año una portada, un día
+la foto de un perfil. Para cortarlo antes hay que purgar en Cloudflare la URL y sus variantes
+(`-360.webp`, `-720.webp` y las `/cdn-cgi/image/…`); ver `docs/moderacion.md`.
 
 **Las cuentas** (Mi rincón, «Borrar imágenes sin usar…» en Buscar) borran igual (el mismo borrado
 suave), pero solo una imagen **que subieron y que nada usa** (`deleteOwnImage` en
@@ -307,8 +320,9 @@ aclara en cada punto.
   que confirmó gorrite): solo edges y menciones desde objetos **vivos** (un
   objeto borrado que la tenía no la frena; si se restaura, queda sin esa imagen hasta que se
   suba de nuevo). Sin sesión o sin perfiles, 404 como el resto de `/imagenes` (no 401/403).
-- **/media sirve solo imágenes vivas** (una consulta a D1 por pedido, con caché inmutable en el
-  navegador). Una imagen borrada da 404 aunque el archivo siga en R2.
+- **/media sirve solo imágenes vivas** (dos consultas a D1 por pedido que no está en caché, con caché
+  inmutable en el navegador salvo las fotos de perfiles, arriba). Una imagen borrada da 404 aunque
+  el archivo siga en R2.
 - **Al elegir o sacar una imagen se borra el campo viejo** (`featured` del evento/material,
   `image` de la serie): el edge pasa a ser lo único.
 - **Duplicar un evento**: si el original tiene imagen de la biblioteca, la copia usa la misma
