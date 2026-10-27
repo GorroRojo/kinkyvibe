@@ -180,7 +180,9 @@ cuenta borrada), así que los links viejos siguen andando. Las notas internas va
 cuenta borrada ya no tiene mail, así que sus notas quedan atadas a la cuenta (`account_id`,
 migración 0045, con `email` vacío). Borrar una nota pide confirmar y se recupera desde Actividad
 (`deleted_at`, migración 0049; decisión 0033). El DNI no viene con la página: cada
-«Mostrar» lo pide aparte y queda en Actividad (`person.dni.reveal`, sin el DNI). Propinas y códigos
+«Mostrar» lo pide aparte y queda en Actividad (`person.dni.reveal`, sin el DNI). Abrir la ficha
+también queda en Actividad (`person.view`, «Abrió la ficha de una persona», sin el mail), una vez
+por admin, persona y día de Argentina, y no se lista en la Actividad de la misma ficha. Propinas y códigos
 de ingreso no se pueden atar a una persona y no aparecen. Código: `src/lib/server/admin/ficha.js`
 (una sola tanda de consultas), `fichaRoutes.js` y `src/lib/components/admin/personas/Ficha.svelte`.
 
