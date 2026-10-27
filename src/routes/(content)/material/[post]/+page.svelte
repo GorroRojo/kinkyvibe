@@ -28,6 +28,11 @@
 	$: authorsMeta = articleAuthors(data.meta.authors, data.authorsProfiles, $page.url.origin);
 	// «X min de lectura» (del texto guardado; '' si es corto): src/lib/utils/readingTime.js.
 	$: readingTime = readingTimeLabel(data.readingMinutes);
+	// Los materiales en inglés (etiqueta «inglés»): el título y el resumen con lang="en", así un
+	// lector de pantalla los pronuncia en inglés. El resto de la página sigue en castellano.
+	$: contentLang = (data.meta.tags ?? []).some((/** @type {string} */ t) => /^ingl[eé]s$/i.test(t))
+		? 'en'
+		: undefined;
 	// Los estilos propios del texto de la base (ya limitados al texto con @scope en el servidor).
 	// La etiqueta se arma por partes para que el preprocesador de Svelte no la tome como el
 	// bloque de estilos del componente.
@@ -71,7 +76,7 @@
 />
 <article class="h-entry">
 	<a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
-	<h1 id="title" class="p-name">{data.meta.title}</h1>
+	<h1 id="title" class="p-name" lang={contentLang}>{data.meta.title}</h1>
 	{#if data.meta.authors && data.meta.authors.length > 0}
 		{@const authors = data.meta.authors}
 		<address>
@@ -129,7 +134,7 @@
 	{/if}
 	{#if data.meta.summary}
 		<div class="content">
-			<p class="p-summary">
+			<p class="p-summary" lang={contentLang}>
 				{data.meta.summary}
 			</p>
 		</div>
