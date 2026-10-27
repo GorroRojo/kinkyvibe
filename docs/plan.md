@@ -369,6 +369,7 @@ CI) va en la fase 0.
 - `preguntas-sugeridas` · fase 3 · sigue · panel · Preguntas de inscripción sugeridas para elegir rápido
 - `campos-propios-tipos` · fase 3 · algún día · panel · Campos propios y tipos simples desde el panel; falta diseño
 - `recurrencia-rrule` · fase 3 · algún día · sitio · Recurrencia tipo RRULE (las series y los talleres en partes cubren una parte) · #29
+- `gastos-reparto` · fase 3 · sigue · entradas · Gastos y reparto de la plata de cada evento en el sitio (pedido de gorrite, 27/10): cargar los gastos (lugar, materiales, honorarios), ver lo que queda después de la comisión de Mercado Pago y el Fondo, y repartirlo entre les organizadores con porcentajes o montos, para la mayoría de los eventos y sin planillas aparte; falta diseño (qué ve cada organizadore, comprobantes, cómo se marca lo pagado) (depende de: rol-organizadore)
 - `rol-organizadore` · fase 3 · sigue · cuentas · Rol de organizadore con permisos sobre sus eventos; primero un prototipo para mirar y decidir
 - `bot-organizadores` · fase 3 · sigue · bot · Avisos y estado de venta para organizadores, cada une con sus eventos, reusando lo de admins; nunca datos de compradores (depende de: rol-organizadore) · [0029](decisiones/0029-bot-de-telegram.md), [0041](decisiones/0041-telegram-para-admins.md)
 
