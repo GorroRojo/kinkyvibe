@@ -202,8 +202,11 @@ ya no hay `.eslintrc` ni `.eslintignore`).
   unos días) pasa un `now` fijo a la función o usa `vi.useFakeTimers()` con `vi.setSystemTime()`;
   nunca depende del reloj real ni mueve las fechas al futuro lejano. La corrida semanal del reloj
   adelantado (arriba) avisa si alguna se escapa.
-- **Mails "golden"**: `src/lib/server/tickets/email.golden.json` guarda cómo sale cada mail; si
-  cambiás un mail a propósito, actualizá ese archivo en el mismo PR y explicalo.
+- **Mails "golden"**: `src/lib/server/tickets/email.golden.json` y
+  `src/lib/server/email/mails.text.json` guardan cómo sale cada mail; si cambiás un mail a
+  propósito, regenerálos con `UPDATE_EMAIL_GOLDEN=1` (ver [mails.md](mails.md), «Cambiar un mail
+  desde el código») en el mismo PR y explicalo. Ante un conflicto en un golden, tomá cualquier lado
+  y regenerá.
 - **Componentes con clics** (`*.dom.test.js`): se montan en jsdom con `@testing-library/svelte`
   (proyecto `dom` de `vite.config.js`, con el Svelte del navegador); el resto de las pruebas
   (proyecto `unit`) sigue en Node y renderiza con `svelte/server`. Ejemplo:
