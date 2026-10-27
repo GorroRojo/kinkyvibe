@@ -301,7 +301,7 @@ test('compra de 3 con datos por entrada → pago aprobado → QR → admin con D
 	const quick = page.getByRole('navigation', { name: 'Acciones rápidas' });
 	await expect(quick.getByRole('link', { name: 'Nuevo código' })).toHaveAttribute(
 		'href',
-		'/admin/ventas/codigos'
+		'/admin/ventas/codigos#nuevo'
 	);
 	await expect(quick.getByRole('link', { name: 'Cargar evento' })).toHaveAttribute(
 		'href',
