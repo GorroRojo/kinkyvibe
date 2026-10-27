@@ -565,7 +565,7 @@ describe('la puerta con link (/puerta/<slug>)', () => {
 		const key = asAdmin.data.sale.needsConfirmation.key;
 		expect(key).toBeTruthy();
 		// El link no: un mensaje, sin diálogo, y la clave no le sirve.
-		for (const extra of [{}, { override: key }]) {
+		for (const extra of /** @type {Record<string, string>[]} */ ([{}, { override: key }])) {
 			const r = await call(linkDoor.actions.sell, {
 				fields: { ...fields, ...extra },
 				cookies: j.cookies
