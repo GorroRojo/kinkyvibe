@@ -10,6 +10,7 @@ import {
 	INDEXNOW_MAX_URLS,
 	INDEXNOW_WINDOW_MS,
 	candidatePaths,
+	eventSeriesPaths,
 	indexNowUrls,
 	isValidIndexNowKey,
 	publicPaths,
@@ -42,6 +43,23 @@ describe('las piezas', () => {
 		expect([...visible].sort()).toEqual(['/material/nota', '/wiki/bondage']);
 	});
 
+	it('nunca un perfil que pidió no aparecer en buscadores (la misma regla que el sitemap)', () => {
+		const visible = publicPaths(
+			[post('/amigues/Persona_Inventada'), post('/amigues/Sin_Buscadores', { noindex: true })],
+			[]
+		);
+		expect([...visible]).toEqual(['/amigues/Persona_Inventada']);
+		expect(
+			indexNowUrls(
+				[
+					{ type: 'perfil', slug: 'persona-inventada', legacy_slug: 'Persona_Inventada' },
+					{ type: 'perfil', slug: 'sin-buscadores', legacy_slug: 'Sin_Buscadores' }
+				],
+				visible
+			)
+		).toEqual([ORIGIN + '/amigues/Persona_Inventada']);
+	});
+
 	it('candidatas por slug y slug viejo; solo se avisan las que están en la lista pública', () => {
 		expect(candidatePaths({ type: 'evento', slug: 'nuevo', legacy_slug: 'viejo' })).toEqual([
 			'/calendario/nuevo',
@@ -56,6 +74,65 @@ describe('las piezas', () => {
 			new Set(['/calendario/viejo'])
 		);
 		expect(urls).toEqual(['https://kinkyvibe.ar/calendario/viejo']);
+	});
+
+	it('series: una edición pública que cambió avisa también la página de su serie, si es pública', () => {
+		const posts = [
+			post('/calendario/edicion-3', {
+				category: 'calendario',
+				tags: ['Fiesta Inventada', 'bondage']
+			}),
+			post('/calendario/edicion-serie-sin-pagina', {
+				category: 'calendario',
+				tags: ['Serie Privada']
+			}),
+			post('/material/nota', { category: 'material', tags: ['Fiesta Inventada'] })
+		];
+		const series = eventSeriesPaths(posts, ['Fiesta Inventada', 'Serie Privada']);
+		expect([...series]).toEqual([
+			['/calendario/edicion-3', ['/wiki/Fiesta-Inventada']],
+			['/calendario/edicion-serie-sin-pagina', ['/wiki/Serie-Privada']]
+		]);
+		expect(eventSeriesPaths(posts, [])).toEqual(new Map());
+		// La lista pública (la del sitemap) tiene la página de una serie y no la de la otra: esa no
+		// se avisa aunque cambie una edición.
+		const visible = publicPaths(posts, [post('/wiki/bondage'), post('/wiki/Fiesta-Inventada')]);
+		const urls = indexNowUrls(
+			[
+				{ type: 'evento', slug: 'edicion-3' },
+				{ type: 'evento', slug: 'edicion-serie-sin-pagina' },
+				// un evento que no está en la lista pública no arrastra su serie
+				{ type: 'evento', slug: 'evento-oculto' }
+			],
+			visible,
+			series
+		);
+		expect(urls).toEqual([
+			'https://kinkyvibe.ar/calendario/edicion-3',
+			'https://kinkyvibe.ar/wiki/Fiesta-Inventada',
+			'https://kinkyvibe.ar/calendario/edicion-serie-sin-pagina'
+		]);
+		expect(urls.join(' ')).not.toContain('Serie-Privada');
+		// Sin el mapa de series, como antes.
+		expect(indexNowUrls([{ type: 'evento', slug: 'edicion-3' }], visible)).toEqual([
+			'https://kinkyvibe.ar/calendario/edicion-3'
+		]);
+	});
+
+	it('series: cambiar la etiqueta de la serie avisa su página (con la forma de la dirección del sitemap)', () => {
+		expect(candidatePaths({ type: 'etiqueta', slug: 'Fiesta Inventada' })).toEqual([
+			'/wiki/Fiesta Inventada',
+			'/wiki/Fiesta-Inventada'
+		]);
+		expect(candidatePaths({ type: 'etiqueta', slug: 'Ñandú Cuir' })).toContain(
+			'/wiki/%C3%91and%C3%BA-Cuir'
+		);
+		expect(
+			indexNowUrls(
+				[{ type: 'etiqueta', slug: 'Fiesta Inventada' }],
+				new Set(['/wiki/Fiesta-Inventada'])
+			)
+		).toEqual(['https://kinkyvibe.ar/wiki/Fiesta-Inventada']);
 	});
 
 	it(`como mucho ${INDEXNOW_MAX_URLS} URLs`, () => {
@@ -166,6 +243,24 @@ describe('runIndexNow con la base', () => {
 		for (const secret of ['oculto', 'miembres', 'no-listado', 'tienda', 'nota-vieja']) {
 			expect(sent).not.toContain(secret);
 		}
+		expect(result).toEqual({ sent: 2, status: 202 });
+	});
+
+	it('una edición que cambió avisa la página de su serie (de la lista del sitemap)', async () => {
+		await dbObject('evento', 'edicion-publica', { start });
+		const series = vi.fn(async () => ({
+			posts: [
+				post('/calendario/edicion-publica', { category: 'calendario', tags: ['Fiesta Inventada'] })
+			],
+			wikiPosts: [post('/wiki/Fiesta-Inventada')],
+			seriesIds: ['Fiesta Inventada']
+		}));
+		const { result, fetch } = await run({ lists: /** @type {any} */ (series) });
+		const body = JSON.parse(/** @type {any} */ (fetch.mock.calls[0])[1].body);
+		expect(body.urlList).toEqual([
+			'https://kinkyvibe.ar/calendario/edicion-publica',
+			'https://kinkyvibe.ar/wiki/Fiesta-Inventada'
+		]);
 		expect(result).toEqual({ sent: 2, status: 202 });
 	});
 

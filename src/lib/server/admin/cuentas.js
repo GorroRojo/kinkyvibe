@@ -16,7 +16,11 @@
  */
 import { getObject, saveObject, visibleWhere } from '$lib/server/objects/index.js';
 import { OBJECT_COLUMNS, rowToObject } from '$lib/server/objects/read.js';
-import { LEGACY_PROJECT_KIND, profileKindOf } from '$lib/server/objects/types/perfil.js';
+import {
+	LEGACY_PROJECT_KIND,
+	profileKindOf,
+	profileNoindex
+} from '$lib/server/objects/types/perfil.js';
 import { DELETED_ACTOR, PROFILE_TYPE } from '$lib/server/cuentas/perfiles.js';
 import { rowsOf, runQuery } from '$lib/server/db/batch.js';
 import { PROFILE_KIND_FILTERS, profileOrigin } from '$lib/admin/perfiles.js';
@@ -447,6 +451,8 @@ export async function getProfileDetail(db, id, viewer) {
 			pronouns: typeof o.data.pronouns === 'string' ? o.data.pronouns : '',
 			links: Array.isArray(o.data.links) ? o.data.links.map(String) : [],
 			showMembers: o.data.show_members === true,
+			// «No aparecer en buscadores» (solo personas, lo eligen quienes lo gestionan).
+			noindex: profileNoindex(o.data),
 			updatedAt: o.updated_at,
 			// Quién lo creó o editó: una cuenta (`cuenta:<id>`), une admin (login) o una cuenta borrada.
 			createdBy: o.created_by,

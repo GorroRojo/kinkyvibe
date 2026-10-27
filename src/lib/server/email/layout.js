@@ -26,12 +26,17 @@ export const MAIL_LAYOUT_MARK = 'data-kv-mail="layout"';
 /** Marca del preencabezado oculto (`mailPreheader`). */
 export const MAIL_PREHEADER_MARK = 'data-kv-mail="preheader"';
 
+/**
+ * Colores de los mails, siempre en hex: el Outlook clásico de Windows no entiende `hsl()` (el botón
+ * podía quedar blanco sobre blanco). Son los mismos de antes: pink = hsl(319,90%,60%), pinkText =
+ * hsl(319,100%,36%), link = hsl(262,90%,45%).
+ */
 export const MAIL_COLORS = Object.freeze({
 	page: '#f4eff6',
 	card: '#ffffff',
-	pink: 'hsl(319,90%,60%)',
-	pinkText: 'hsl(319,100%,36%)',
-	link: 'hsl(262,90%,45%)',
+	pink: '#f53dbb',
+	pinkText: '#b8007d',
+	link: '#570bda',
 	text: '#2b2730',
 	muted: '#625b68',
 	faint: '#8a8290',
@@ -62,11 +67,13 @@ export function defaultMailContact() {
 }
 
 /**
- * Botón rosa (uno por mail). Tabla con fondo en la celda: se ve también en Outlook.
+ * Botón rosa (uno por mail). Tabla con el fondo en la celda, también como atributo `bgcolor`: así
+ * se ve en el Outlook de escritorio, que ignora el `background` del estilo (ahí sale sin las
+ * puntas redondeadas, y está bien).
  * @param {{ href: string, label: string }} button
  */
 export function mailButton({ href, label }) {
-	return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 4px"><tr><td style="border-radius:999px;background:${MAIL_COLORS.pink};">
+	return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 4px"><tr><td align="center" bgcolor="${MAIL_COLORS.pink}" style="border-radius:999px;background:${MAIL_COLORS.pink};">
 <a href="${escapeHtml(href)}" style="display:inline-block;padding:13px 28px;font-family:${FONT};font-size:19px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:999px;">${escapeHtml(label)}</a>
 </td></tr></table>`;
 }
@@ -227,7 +234,7 @@ export function mailLayout({
 	const logo = `${siteOrigin(origin)}${MAIL_LOGO_PATH}`;
 	const contact = contactEmail || defaultMailContact();
 	const c = MAIL_COLORS;
-	return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"></head>
+	return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light only"></head>
 <body style="margin:0;padding:0;background:${c.page};">
 ${preheader ? `${mailPreheader(preheader)}\n` : ''}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${c.page};" ${MAIL_LAYOUT_MARK}><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;font-family:${FONT};color:${c.text};">
