@@ -329,9 +329,10 @@ async function venuePageEvents(db, object, href, postsP) {
 }
 
 /**
- * "Es mi perfil": el estado de la cuenta con el perfil (`claimState`), solo si tiene el permiso de
- * perfiles. Si lo gestiona ya se sabe (`role`, de la misma regla que `managerRole`); el pedido
- * pendiente se pregunta a la par del permiso y cuenta solo con el permiso.
+ * "Es mi perfil": el estado de la cuenta con el perfil (`claimState`), para cualquier cuenta (pedir
+ * no da nada: une admin lo revisa). Si lo gestiona ya se sabe (`role`, de la misma regla que
+ * `managerRole`); ese estado lleva a Mi rincón → Perfiles, así que solo sale con el permiso (sin
+ * él, nada). El pedido pendiente se pregunta a la par del permiso.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -341,7 +342,7 @@ async function venuePageEvents(db, object, href, postsP) {
  */
 async function claimOf(db, accountId, profileId, role) {
 	const [can, pending] = await Promise.all([
-		canHaveProfiles(db, accountId),
+		role ? canHaveProfiles(db, accountId) : false,
 		role
 			? null
 			: hasPendingClaim(db, accountId, profileId).then(
@@ -349,8 +350,7 @@ async function claimOf(db, accountId, profileId, role) {
 					(error) => ({ error })
 				)
 	]);
-	if (!can) return null;
-	if (role) return { state: 'manager' };
+	if (role) return can ? { state: 'manager' } : null;
 	if (pending && 'error' in pending) throw pending.error;
 	return { state: pending?.value ? 'pending' : 'none' };
 }
