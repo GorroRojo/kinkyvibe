@@ -11,6 +11,7 @@
 	import { eventHref } from '$lib/admin/nav.js';
 	import { foldSearch } from '$lib/admin/eventFormat.js';
 	import {
+		EMAIL_PROBLEM,
 		ORDER_STATUS,
 		ORDER_STATUS_TONE,
 		PAYMENT_METHOD,
@@ -253,7 +254,9 @@
 						· pago MP {o.paymentId}{/if}{#if o.confirmedBy}
 						· {o.status === 'cancelled' ? 'canceló' : 'confirmó'} {o.confirmedBy}{/if}
 					{#if o.status === 'approved'}
-						· {o.emailSent ? 'mail enviado' : 'mail NO enviado'}
+						· {#if o.emailProblem}<strong class="mail-problem"
+								>{EMAIL_PROBLEM[o.emailProblem] ?? 'mail enviado'}</strong
+							>{:else}{o.emailSent ? 'mail enviado' : 'mail NO enviado'}{/if}
 						<form method="POST" action="?/resend" use:enhance>
 							<input type="hidden" name="order" value={o.id} />
 							<button type="submit" class="kv-btn ghost small">Reenviar mail</button>
@@ -440,6 +443,9 @@
 	}
 	.meta form {
 		display: inline;
+	}
+	.mail-problem {
+		color: var(--bad);
 	}
 	.small {
 		padding: var(--space-3xs) var(--space-2xs);
