@@ -27,6 +27,8 @@ apagado, como todo lo nuevo, decisión 0001):
 
 - `https://kinkyvibe.ar/propinas?de=fondo&monto=<n>` muestra el mismo formulario de propina sin
   publicación, con el título «Dejá una propina para el Fondo Kinky Vibe». Sin cuenta ni datos.
+- `https://kinkyvibe.ar/propinas` a secas (sin `?de=`) muestra lo mismo: como toda propina va al
+  Fondo, no hace falta llegar desde una publicación.
 - `monto` es opcional (el Fondo manda 1500, 3000, 7500, 15000, 30000 o 45000). Si es un entero
   entre el mínimo y el máximo de las propinas, queda elegido: el botón sugerido si coincide con
   uno, si no «Otro monto» con ese número (`presetFromQuery` / `presetValues`). Si no, se ignora.
