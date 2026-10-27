@@ -112,7 +112,10 @@
  * 		job_role?: string,
  * 		gender_identity?: string | URL,
  * 		bday?: Date,
+ * 		noindex?: boolean,
  * }} AmiguesPostData */
+// `noindex: true`: una persona que pidió no aparecer en buscadores (fuera del sitemap y de
+// IndexNow; `profileNoindex` en src/lib/server/objects/types/perfil.js).
 // TODO affiliation, education, experience, skill
 
 /**

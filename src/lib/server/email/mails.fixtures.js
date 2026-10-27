@@ -123,7 +123,9 @@ export function allMailCases() {
 				reasons: ['Ciclo de prueba'],
 				manageUrl: `${ORIGIN}/mi-rincon/sigo`,
 				stopUrl: `${ORIGIN}/sigo/baja?t=ghi&x=1`,
-				origin: ORIGIN
+				origin: ORIGIN,
+				// El día antes, a la tarde (hora de Argentina): «Mañana».
+				now: Date.parse('2026-10-09T18:00:00-03:00')
 			}
 		],
 		[
