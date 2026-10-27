@@ -96,7 +96,9 @@
 	let typedAll = '';
 	let sendingAll = false;
 	$: ra = data.refundAll;
-	$: rr = form?.refundAll;
+	// Las respuestas con error de `?/refundAll` no traen `results`: se lee sin el tipo de la unión.
+	/** @type {any} */
+	$: rr = /** @type {any} */ (form)?.refundAll;
 	$: rrDone = rr?.results ? rr.results.filter((/** @type {any} */ r) => r.ok) : [];
 	$: rrFailed = rr?.results ? rr.results.filter((/** @type {any} */ r) => !r.ok) : [];
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
