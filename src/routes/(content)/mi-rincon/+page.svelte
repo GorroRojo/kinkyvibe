@@ -178,41 +178,49 @@
 						<div>
 							<dt>Nombre</dt>
 							<dd>{data.saved.name}</dd>
-							<form method="POST" action="?/borrarDato" use:enhance={keep}>
-								<input type="hidden" name="campo" value="name" />
-								<button class="link" type="submit" aria-label="Borrar tu nombre">Borrar</button>
-							</form>
+							<dd class="actions">
+								<form method="POST" action="?/borrarDato" use:enhance={keep}>
+									<input type="hidden" name="campo" value="name" />
+									<button class="link" type="submit" aria-label="Borrar tu nombre">Borrar</button>
+								</form>
+							</dd>
 						</div>
 					{/if}
 					{#if data.saved.pronouns}
 						<div>
 							<dt>Pronombres</dt>
 							<dd>{data.saved.pronouns}</dd>
-							<form method="POST" action="?/borrarDato" use:enhance={keep}>
-								<input type="hidden" name="campo" value="pronouns" />
-								<button class="link" type="submit" aria-label="Borrar tus pronombres">Borrar</button
-								>
-							</form>
+							<dd class="actions">
+								<form method="POST" action="?/borrarDato" use:enhance={keep}>
+									<input type="hidden" name="campo" value="pronouns" />
+									<button class="link" type="submit" aria-label="Borrar tus pronombres"
+										>Borrar</button
+									>
+								</form>
+							</dd>
 						</div>
 					{/if}
 					{#if data.saved.hasDni}
 						<div>
 							<dt>DNI</dt>
 							<dd class="dni">{shownDni || data.saved.dniMasked}</dd>
-							{#if shownDni}
-								<button class="link" type="button" on:click={() => (hideDni = true)}>Ocultar</button
-								>
-							{:else}
-								<form method="POST" action="?/mostrarDni" use:enhance={keep}>
-									<button class="link" type="submit" aria-label="Mostrar tu DNI completo"
-										>Mostrar</button
+							<dd class="actions">
+								{#if shownDni}
+									<button class="link" type="button" on:click={() => (hideDni = true)}
+										>Ocultar</button
 									>
+								{:else}
+									<form method="POST" action="?/mostrarDni" use:enhance={keep}>
+										<button class="link" type="submit" aria-label="Mostrar tu DNI completo"
+											>Mostrar</button
+										>
+									</form>
+								{/if}
+								<form method="POST" action="?/borrarDato" use:enhance={keep}>
+									<input type="hidden" name="campo" value="dni" />
+									<button class="link" type="submit" aria-label="Borrar tu DNI">Borrar</button>
 								</form>
-							{/if}
-							<form method="POST" action="?/borrarDato" use:enhance={keep}>
-								<input type="hidden" name="campo" value="dni" />
-								<button class="link" type="submit" aria-label="Borrar tu DNI">Borrar</button>
-							</form>
+							</dd>
 						</div>
 					{/if}
 				</dl>
@@ -606,6 +614,9 @@
 		font-variant-numeric: tabular-nums;
 		letter-spacing: 0.05em;
 	}
+	/* Los botones van en su propio <dd> (en un <dl> solo valen dt y dd), sin caja: se acomodan
+	   en la fila igual que antes. */
+	.saved .actions,
 	.saved form {
 		display: contents;
 	}
