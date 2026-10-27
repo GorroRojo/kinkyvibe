@@ -6,7 +6,9 @@
 	 */
 	import { onMount } from 'svelte';
 	import { deserialize } from '$app/forms';
-	import { argDateLog } from '$lib/utils/dates.js';
+	import { argDateLog, argTime } from '$lib/utils/dates.js';
+	import { dropLinkDoor, forgetAllLinkDoors } from '$lib/admin/doorOffline.js';
+	import { formatARS } from '$lib/utils/money.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -19,25 +21,32 @@
 	const doorHref = (slug) => `/puerta/${encodeURIComponent(slug)}`;
 
 	/**
-	 * Sin un link vivo en este celu: se borra lo que haya quedado guardado de una puerta
-	 * (`kv-door…`: la lista con nombres y mails, los últimos escaneos).
+	 * Lo que quedó en este celu de una puerta con link que ya no anda: las ventas sin mandar (las
+	 * carga une admin; nunca se borran solas, decisión 0035).
+	 * @type {ReturnType<typeof forgetAllLinkDoors>}
 	 */
-	function forgetDoorData() {
+	let left = [];
+
+	const store = () => {
 		try {
-			const store = window.localStorage;
-			const keys = [];
-			for (let i = 0; i < store.length; i++) {
-				const k = store.key(i);
-				if (k?.startsWith('kv-door')) keys.push(k);
-			}
-			for (const k of keys) store.removeItem(k);
+			return window.localStorage;
 		} catch {
-			// sin almacenamiento: no había nada guardado
+			return null;
 		}
+	};
+
+	/** @param {string} slug */
+	function dropLeft(slug) {
+		if (!confirm('¿Une admin ya cargó estas ventas? Se borran de este celu.')) return;
+		dropLinkDoor(store(), slug);
+		left = left.filter((l) => l.slug !== slug);
 	}
 
 	onMount(async () => {
-		if (!data.current) forgetDoorData();
+		// Sin un link vivo: se borra lo guardado de las puertas con link (la lista con nombres y
+		// mails, los ingresos marcados, los últimos escaneos), salvo las ventas sin mandar. Nunca lo
+		// de la puerta del panel.
+		if (!data.current) left = forgetAllLinkDoors(store());
 		const token = window.location.hash.slice(1);
 		if (!token) return;
 		// Que el token no quede en la barra, en el historial ni en una captura de pantalla.
@@ -91,6 +100,31 @@
 			</p>
 		{/if}
 	{/if}
+	{#each left as l (l.slug)}
+		<div class="left" role="alert">
+			<p>
+				<strong
+					>{l.sales.length + l.failed.length === 1
+						? 'Quedó 1 venta sin mandar'
+						: `Quedaron ${l.sales.length + l.failed.length} ventas sin mandar`}</strong
+				>
+				de la puerta con link de «{l.slug}»: mostráselas a une admin para cargarlas.
+			</p>
+			<ul>
+				{#each [...l.sales, ...l.failed] as sale (sale.id)}
+					<li>
+						{argTime(sale.at)} · <strong>{sale.buyer}</strong> · {sale.quantity} × {sale.type}{sale.total ===
+						null
+							? ''
+							: ` · ${formatARS(sale.total)}`}
+					</li>
+				{/each}
+			</ul>
+			<button type="button" class="kv-btn" on:click={() => dropLeft(l.slug)}>
+				Ya las cargó une admin: borrarlas
+			</button>
+		</div>
+	{/each}
 	<noscript><p class="error">La puerta necesita JavaScript.</p></noscript>
 </main>
 
@@ -118,5 +152,16 @@
 	}
 	.kv-btn {
 		justify-self: start;
+	}
+	.left {
+		display: grid;
+		gap: 0.5rem;
+		padding: 0.75rem;
+		border: 2px solid var(--bad);
+		border-radius: 0.5rem;
+	}
+	.left ul {
+		margin: 0;
+		padding-left: 1.1rem;
 	}
 </style>

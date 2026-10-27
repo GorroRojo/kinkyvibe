@@ -1089,4 +1089,26 @@ describe('límites del link de puerta del lado del servidor', () => {
 		});
 		expect(adminL.body.tickets[0].by).toBe(ADMINS[0].login);
 	});
+
+	it('ventas sin mandar de un link revocado: no se pierden; un link nuevo del evento las registra una vez', async () => {
+		const old = await makeLink(SLUG, 'voluntarie viejo');
+		const sale = queued({}, 'venta-que-quedo-1');
+		await t.db
+			.prepare('UPDATE door_links SET revoked_at = 1 WHERE id = ?1')
+			.bind(old.link.id)
+			.run();
+		// El link revocado: 403 (el celu borra la lista pero conserva la venta).
+		expect(await syncSales([sale], old.jar)).toMatchObject({ thrown: 403 });
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM orders').first())?.n).toBe(0);
+		// Con un link nuevo del mismo evento en ese celu, la venta se manda; un reintento no duplica.
+		const fresh = await makeLink(SLUG, 'voluntarie nuevo');
+		const r = await syncSales([sale], fresh.jar);
+		expect(r.syncSales.results[0]).toMatchObject({ id: sale.id, result: 'ok' });
+		const again = await syncSales([sale], fresh.jar);
+		expect(again.syncSales.results[0]).toMatchObject({ id: sale.id, result: 'duplicate' });
+		// Une admin también la ve como ya registrada (la puede cargar desde el panel sin duplicar).
+		const asAdmin = await syncSales([sale], {});
+		expect(asAdmin.syncSales.results[0]).toMatchObject({ result: 'duplicate' });
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM orders').first())?.n).toBe(1);
+	});
 });

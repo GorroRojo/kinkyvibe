@@ -77,6 +77,9 @@
 		doorConnectionNote,
 		applySaleSyncResults,
 		emptyDoorState,
+		doorRecentKey,
+		dropLinkDoor,
+		forgetLinkDoor,
 		isPendingSaleTicket,
 		offlineSaleLimits,
 		pendingNote,
@@ -194,11 +197,23 @@
 			return null;
 		}
 	};
-	const recentKey = () => `kv-door-recent:${data.slug}`;
+	/** La puerta con link se guarda aparte de la del panel (`kv-puerta-link:<slug>`). */
+	const storageOpts = () => ({ link: Boolean(data.doorLink) });
+	const recentKey = () => doorRecentKey(data.slug, storageOpts());
 	function persist() {
-		// Con un link que ya no anda no se vuelve a guardar nada (ver `endLink`).
-		if (linkEnded) return;
-		saveDoorState(storage(), data.slug, door);
+		// Con un link que ya no anda solo quedan guardadas las ventas sin mandar (ver `endLink`).
+		if (linkEnded) {
+			if (door.sales.length || door.failed.length) {
+				saveDoorState(
+					storage(),
+					data.slug,
+					{ ...emptyDoorState(), sales: door.sales, failed: door.failed },
+					storageOpts()
+				);
+			} else dropLinkDoor(storage(), data.slug);
+			return;
+		}
+		saveDoorState(storage(), data.slug, door, storageOpts());
 	}
 
 	// --- Puerta con link: lo guardado en el celu no dura más que el link ---
@@ -206,21 +221,16 @@
 	let linkEnded = '';
 	/**
 	 * El link venció o el servidor dice que ya no sirve (403: revocado, vencido, de otro evento):
-	 * se borra la lista guardada en este celu (nombres, mails) y lo pendiente, que con este link ya
-	 * no se puede sincronizar. Un celu sin conexión no se entera de que lo revocaron: lo borra al
-	 * vencer o la próxima vez que habla con el servidor.
+	 * se borra la lista guardada en este celu (nombres, mails), los ingresos marcados sin conexión y
+	 * los últimos escaneos (`forgetLinkDoor`). Las ventas sin mandar **quedan** (una venta que pasó
+	 * no se pierde, decisión 0035): se muestran para que une admin las cargue. Un celu sin conexión
+	 * no se entera de que lo revocaron: borra al vencer o la próxima vez que habla con el servidor.
 	 * @param {string} message
 	 */
 	function endLink(message) {
 		if (!linkMode || linkEnded) return;
 		linkEnded = message;
-		try {
-			storage()?.removeItem(`kv-door:${data.slug}`);
-			storage()?.removeItem(recentKey());
-		} catch {
-			// sin almacenamiento: no había nada guardado
-		}
-		door = emptyDoorState();
+		door = forgetLinkDoor(storage(), data.slug);
 		recent = [];
 		scan = null;
 		suggestions = [];
@@ -269,12 +279,7 @@
 	 */
 	async function leaveLink() {
 		if (!canLeave) return;
-		try {
-			storage()?.removeItem(`kv-door:${data.slug}`);
-			storage()?.removeItem(recentKey());
-		} catch {
-			// sin almacenamiento: no había nada guardado
-		}
+		forgetLinkDoor(storage(), data.slug);
 		try {
 			await fetch('/puerta?/salir', {
 				method: 'POST',
@@ -641,7 +646,7 @@
 	let linkTimer;
 	onMount(() => {
 		online = navigator.onLine;
-		door = loadDoorState(storage(), data.slug);
+		door = loadDoorState(storage(), data.slug, storageOpts());
 		// Puerta con link: si ya venció (el celu estuvo cerrado), se borra lo guardado al abrir.
 		checkLinkExpiry();
 		if (linkMode) linkTimer = setInterval(checkLinkExpiry, 30_000);
@@ -1086,7 +1091,7 @@
 					{#if pendingText}<strong class="pending">{pendingText}</strong>{/if}
 				</span>
 			</div>
-		{:else if pending}
+		{:else if pending && !linkEnded}
 			<div class="banner" role="status">
 				<CloudUpload size={20} />
 				<span>{pendingText}</span>
@@ -1109,6 +1114,35 @@
 					a une organizadore. <a href="/puerta">Ir al inicio de la puerta</a>
 				</span>
 			</div>
+			{#if door.sales.length}
+				<!-- Las ventas sin mandar no se borran (decisión 0035): las carga une admin. -->
+				<div class="banner warn" role="alert">
+					<TriangleAlert size={20} />
+					<span>
+						<strong
+							>{door.sales.length === 1
+								? 'Quedó 1 venta sin mandar'
+								: `Quedaron ${door.sales.length} ventas sin mandar`}:</strong
+						>
+						mostráselas a une admin para cargarlas.
+						<details class="left-sales">
+							<summary>Ver las ventas</summary>
+							<ul>
+								{#each door.sales as sale (sale.id)}
+									<li>
+										{hhmm(sale.at)} · <strong>{sale.buyer}</strong> · {sale.quantity} × {sale.type} ·
+										{METHOD_TEXT[sale.method] ?? sale.method}{sale.total === null
+											? ''
+											: ` · ${formatARS(sale.total)}`}{sale.fields?.email
+											? ` · ${sale.fields.email}`
+											: ''}
+									</li>
+								{/each}
+							</ul>
+						</details>
+					</span>
+				</div>
+			{/if}
 		{/if}
 		{#each door.failed as f (f.id)}
 			<!-- Una venta sin conexión que el servidor no pudo registrar: queda a la vista hasta que
@@ -1824,6 +1858,10 @@
 		border-radius: var(--radius-m);
 		background: var(--surface-2);
 		font-size: var(--text-sm);
+	}
+	.left-sales ul {
+		margin: 0.25rem 0 0;
+		padding-left: 1.1rem;
 	}
 	.banner span {
 		flex: 1;

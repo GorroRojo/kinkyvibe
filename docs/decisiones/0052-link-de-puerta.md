@@ -42,8 +42,10 @@ puerta.
   mails de compra; con un link, el mail de compra sale solo en ventas con conexión.
 - Con un link no viaja lo interno del panel: ni la nota, quién confirmó, el descuento o el
   reembolso de una compra, ni el token de las entradas en el buscador, ni los logins de admins.
-- La lista guardada en el celu se borra cuando el link vence o el servidor dice que ya no sirve.
-  Revocar no puede llegar a un celu sin conexión: ese celu la conserva hasta que vence el link o
-  vuelve a conectarse.
+- La puerta con link guarda en el celu aparte de la del panel. Cuando el link vence o el servidor
+  dice que ya no sirve, se borran la lista guardada, los ingresos marcados y los últimos escaneos,
+  pero nunca las ventas sin mandar (0035): quedan a la vista para que une admin las cargue (o las
+  manda otro link vivo del evento). Revocar no puede llegar a un celu sin conexión: ese celu
+  conserva la lista hasta que vence el link o vuelve a conectarse.
 - `/puerta` no carga scripts de analytics de terceros (el token va en el fragmento).
 - El rol de organizadore (`rol-organizadore`) puede reusar esto para la puerta de sus eventos.

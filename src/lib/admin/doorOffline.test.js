@@ -21,7 +21,11 @@ import {
 	offlineSaleLimits,
 	pendingNote,
 	queueOfflineSale,
-	salesPayload
+	salesPayload,
+	doorRecentKey,
+	dropLinkDoor,
+	forgetAllLinkDoors,
+	forgetLinkDoor
 } from './doorOffline.js';
 
 const TOKEN = 'A'.repeat(42) + 'b';
@@ -509,5 +513,107 @@ describe('ventas sin conexión', () => {
 		expect(offlineSaleLimits({ ...base, doorSales: false })[0].message).toContain(
 			'solo anticipadas'
 		);
+	});
+});
+
+describe('puerta con link: lo guardado en el celu', () => {
+	/** Un localStorage en memoria (con `key` y `length`, como el del navegador). */
+	function memStorage(/** @type {Record<string, string>} */ init = {}) {
+		const mem = { ...init };
+		const storage = /** @type {Storage} */ (
+			/** @type {unknown} */ ({
+				get length() {
+					return Object.keys(mem).length;
+				},
+				key: (/** @type {number} */ i) => Object.keys(mem)[i] ?? null,
+				getItem: (/** @type {string} */ k) => mem[k] ?? null,
+				setItem: (/** @type {string} */ k, /** @type {string} */ v) => {
+					mem[k] = v;
+				},
+				removeItem: (/** @type {string} */ k) => {
+					delete mem[k];
+				}
+			})
+		);
+		return { mem, storage };
+	}
+	const sale = /** @type {import('./doorOffline.js').QueuedSale} */ ({
+		id: 'venta-inventada-1',
+		at: 1,
+		fields: { type: 'general', quantity: '1', method: 'efectivo', name: 'Persona Inventada' },
+		buyer: 'Persona Inventada',
+		quantity: 1,
+		type: 'General',
+		method: 'efectivo',
+		total: 10000,
+		tickets: []
+	});
+	const failed = /** @type {import('./doorOffline.js').FailedSale} */ ({
+		id: 'venta-inventada-2',
+		at: 2,
+		buyer: 'Otra Persona',
+		quantity: 1,
+		type: 'General',
+		method: 'efectivo',
+		total: 10000,
+		message: 'No se pudo registrar.'
+	});
+	const full = () => ({
+		list: [ticket({})],
+		queue: [{ id: 'q1', ticketId: 't1', holder: 'Persona Inventada', code: 'ABC123', at: 3 }],
+		savedAt: 5,
+		sales: [sale],
+		failed: [failed]
+	});
+
+	it('el link se guarda aparte de la puerta del panel', () => {
+		const { mem, storage } = memStorage();
+		saveDoorState(storage, 'ev', full(), { link: true });
+		expect(Object.keys(mem)).toEqual(['kv-puerta-link:ev']);
+		expect(loadDoorState(storage, 'ev')).toEqual(emptyDoorState());
+		expect(loadDoorState(storage, 'ev', { link: true })).toEqual(full());
+		expect(doorRecentKey('ev')).toBe('kv-door-recent:ev');
+		expect(doorRecentKey('ev', { link: true })).toBe('kv-puerta-link-recent:ev');
+	});
+
+	it('al vencer o revocar: se borran la lista, los ingresos y los escaneos, nunca las ventas sin mandar', () => {
+		const { mem, storage } = memStorage({ 'kv-puerta-link-recent:ev': '[{"title":"x"}]' });
+		saveDoorState(storage, 'ev', full(), { link: true });
+		const kept = forgetLinkDoor(storage, 'ev');
+		expect(kept).toEqual({ ...emptyDoorState(), sales: [sale], failed: [failed] });
+		expect(loadDoorState(storage, 'ev', { link: true })).toEqual(kept);
+		expect(mem['kv-puerta-link-recent:ev']).toBeUndefined();
+		expect(JSON.stringify(mem)).not.toContain('ABC123');
+		// Sin ventas: no queda nada.
+		saveDoorState(storage, 'otro', { ...full(), sales: [], failed: [] }, { link: true });
+		expect(forgetLinkDoor(storage, 'otro')).toEqual(emptyDoorState());
+		expect(mem['kv-puerta-link:otro']).toBeUndefined();
+	});
+
+	it('/puerta sin link vivo: nunca toca la puerta del panel y devuelve las ventas que quedaron', () => {
+		const admin = JSON.stringify(full());
+		const { mem, storage } = memStorage({
+			'kv-door:ev': admin,
+			'kv-door-recent:ev': '[]',
+			'kv-door-sound': '1',
+			'kv-puerta-link-recent:viejo': '[]'
+		});
+		saveDoorState(storage, 'ev', full(), { link: true });
+		saveDoorState(storage, 'sin-ventas', { ...full(), sales: [], failed: [] }, { link: true });
+		const left = forgetAllLinkDoors(storage);
+		expect(left).toEqual([{ slug: 'ev', sales: [sale], failed: [failed] }]);
+		expect(mem['kv-door:ev']).toBe(admin);
+		expect(mem['kv-door-recent:ev']).toBe('[]');
+		expect(mem['kv-door-sound']).toBe('1');
+		expect(
+			Object.keys(mem)
+				.filter((k) => k.startsWith('kv-puerta-link'))
+				.sort()
+		).toEqual(['kv-puerta-link:ev']);
+		// Une admin las cargó: se borran a mano.
+		dropLinkDoor(storage, 'ev');
+		expect(Object.keys(mem).some((k) => k.startsWith('kv-puerta-link'))).toBe(false);
+		expect(mem['kv-door:ev']).toBe(admin);
+		expect(forgetAllLinkDoors(null)).toEqual([]);
 	});
 });

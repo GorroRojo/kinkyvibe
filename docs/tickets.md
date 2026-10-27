@@ -229,12 +229,19 @@ página de la entrada, que marca el ingreso solo para admins).
   deja la cookie `kv_puerta` (httpOnly, `SameSite=Strict`, solo para `/puerta`, vence con el link)
   y abre `/puerta/<slug>`. «Cerrar la puerta en este celu» (Opciones) la borra, junto con la lista
   guardada en el celu (solo sin nada por sincronizar ni ventas sin registrar).
-- **Lo guardado en el celu** (`kv-door:<slug>` en localStorage: la lista sin conexión con nombres
-  y mails, y los últimos escaneos) se borra cuando el servidor contesta 403 (el link venció o lo
-  revocaron) y cuando pasa el vencimiento del link (al abrir la pantalla y cada 30 segundos),
-  aunque no haya conexión. Abrir `/puerta` sin un link vivo borra todo lo `kv-door…` del celu (en
-  ese navegador, también lo de la puerta del panel). **Revocar no llega a un celu sin conexión**:
-  ese celu sigue con la lista hasta que vence el link o vuelve a hablar con el servidor.
+- **Lo guardado en el celu.** La puerta con link guarda aparte de la del panel
+  (`kv-puerta-link:<slug>` y `kv-puerta-link-recent:<slug>` en localStorage; la del panel usa
+  `kv-door:`), así lo que se borra de un link nunca toca lo del panel. Cuando el servidor contesta
+  403 (el link venció o lo revocaron) o pasa el vencimiento del link (al abrir la pantalla y cada 30
+  segundos, aunque no haya conexión), se borran la lista sin conexión (nombres, mails), los ingresos
+  marcados sin conexión y los últimos escaneos, pero **nunca las ventas sin mandar** ni las que el
+  servidor no pudo registrar (una venta que pasó no se pierde, [0035](decisiones/0035-vender-en-puerta-sin-conexion.md)):
+  la pantalla avisa «Quedaron N ventas sin mandar: mostráselas a une admin para cargarlas», con
+  «Ver las ventas». Si en ese celu se abre otro link vivo del mismo evento, se mandan con ese link
+  (con sus límites; un reintento no duplica, `client_sale_id`). Abrir `/puerta` sin un link vivo
+  hace lo mismo con todas las puertas con link guardadas, muestra las ventas que quedaron y deja
+  borrarlas a mano («Ya las cargó une admin»). **Revocar no llega a un celu sin conexión**: ese
+  celu sigue con la lista hasta que vence el link o vuelve a hablar con el servidor.
 - En **cada** pedido de `/puerta/<slug>` (la página, cada acción y los tres GET: `buscar`,
   `compra`, `lista`) `requireDoorLink` vuelve a mirar la base: el link existe, es de **ese**
   evento, no venció y no se revocó; si no, 403 (y borra una cookie que ya no sirve). Además, un

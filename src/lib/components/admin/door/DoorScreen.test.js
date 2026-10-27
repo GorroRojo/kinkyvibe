@@ -3,6 +3,8 @@
  * completo») y la puerta con link (`doorLink`: nada del panel). Datos inventados.
  */
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { render } from 'svelte/server';
 import DoorScreen from './DoorScreen.svelte';
 
@@ -59,5 +61,16 @@ describe('DoorScreen', () => {
 		expect(out).toContain('Cerrar la puerta en este celu');
 		// La guía, en su versión para el link.
 		expect(out).toContain('no lo reenvíes');
+	});
+
+	it('la puerta con link nunca borra lo guardado de la puerta del panel (kv-door:)', () => {
+		for (const f of [
+			'src/lib/components/admin/door/DoorScreen.svelte',
+			'src/routes/puerta/+page.svelte'
+		]) {
+			const src = fs.readFileSync(path.resolve(f), 'utf8');
+			expect(src, f).not.toMatch(/removeItem\([^)]*kv-door/);
+			expect(src, f).not.toMatch(/startsWith\('kv-door/);
+		}
 	});
 });
