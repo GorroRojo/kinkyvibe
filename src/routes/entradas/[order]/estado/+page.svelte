@@ -182,7 +182,7 @@
 			<dd>−{formatARS(order.discountAmount)} (código {order.discountCode})</dd>
 		{/if}
 		{#if order.surcharge}
-			<dt>Recargo MP</dt>
+			<dt>Recargo Mercado Pago</dt>
 			<dd>+{formatARS(order.surcharge)}</dd>
 		{/if}
 		<dt>Total</dt>
