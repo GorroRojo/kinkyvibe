@@ -344,7 +344,7 @@ CI) va en la fase 0.
 - `passkeys` · fase 2 · sigue · cuentas · Passkeys para las cuentas · [cuentas.md](cuentas.md#pendiente-partes-siguientes)
 - `compra-con-cuenta` · fase 2 · sigue · cuentas · Guardar `orders.account_id` al comprar y que `requiere_cuenta` pida ingresar de verdad · [0002](decisiones/0002-cuentas-y-perfiles.md)
 - `amigues-editan-perfil` · fase 2 · sigue · cuentas · Mandarle a cada amigue un link por mail para gestionar su perfil desde Mi rincón (gorrite, 11/10)
-- `sesiones-dispositivos` · fase 2 · algún día · cuentas · Ver dónde hay una sesión abierta y cerrarla
+- `sesiones-dispositivos` · fase 2 · hecho · cuentas · Ver dónde hay una sesión abierta y cerrarla: «Dónde tenés la sesión abierta» en Mi rincón (navegador, cuándo, «Cerrar esta», «Cerrar todas las demás»), migración 0065 · #523, [cuentas.md](cuentas.md#sesiones-srclibservercuentassessionjs)
 - `lo-que-sigo-panel` · fase 2 · hecho · panel · Mensajes › Lo que sigo: el estado para mirar (interruptores, números, avisos que salieron, «Avisame», Telegram, «Lo más seguido» arriba con el número exacto y quiénes siguen cada cosa, y «Por persona»; solo admins) · #320, [0043](decisiones/0043-lo-que-sigo-en-el-panel.md), [0025](decisiones/0025-lo-que-sigo.md)
 - `enlaces-guardar` · fase 2 · sigue · contenido · Al guardar, los `[[…]]`, `@` y `#` del cuerpo se vuelven relaciones del grafo, por objeto (no por título) (depende de: enlaces-sintaxis)
 - `enlaces-lo-que-enlaza` · fase 2 · sigue · sitio · «Lo que enlaza acá» en cada página, respetando quién puede ver qué (depende de: enlaces-guardar)
