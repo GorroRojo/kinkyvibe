@@ -106,7 +106,7 @@
 		max-width: 50rem;
 		width: calc(100% - 32px);
 		margin: 1.5em auto;
-		border-top: 0.35rem solid var(--1);
+		border-top: 0.35rem solid var(--pink);
 		box-sizing: border-box;
 	}
 	.title {

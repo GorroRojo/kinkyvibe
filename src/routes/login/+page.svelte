@@ -51,7 +51,7 @@
 		width: min(24rem, 100%);
 		padding: 2em 1.5em;
 		text-align: center;
-		border-top: 0.35rem solid var(--1);
+		border-top: 0.35rem solid var(--pink);
 	}
 	h1 {
 		margin: 0;

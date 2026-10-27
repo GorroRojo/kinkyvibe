@@ -33,7 +33,7 @@
 <svelte:head>
 	<title>{previewTexts['home.title']}</title>
 	<link rel="icon" href="/favicon-32x32.png" />
-	<meta name="theme-color" content="hsl(319, 90%, 60%)" />
+	<meta name="theme-color" content="hsl(262, 90%, 60%)" />
 </svelte:head>
 <!-- La vista previa al compartir (docs/compartir.md): la tarjeta por defecto y los textos del panel
      (`home.title`, `home.description`: por defecto «Kinky Vibe» y la frase oficial del sitio). -->

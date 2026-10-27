@@ -57,7 +57,7 @@
 		font-family: inherit;
 		cursor: pointer;
 		/* sin color propio: el de la tarjeta */
-		--tag-color: var(--post-color, var(--1));
+		--tag-color: var(--post-color, var(--pink));
 	}
 	.more:hover {
 		text-decoration: underline;

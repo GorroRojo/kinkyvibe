@@ -1,13 +1,24 @@
 :root {
-	--1: hsl(319, 90%, 60%);
+	/** Paleta de la marca: la paleta original del diseño, con el violeta como color principal y el
+	    rosa, el turquesa y el amarillo como acentos (prueba «paleta violeta»; para volver al rosa
+	    principal, que `--1*` vuelva a apuntar a `--pink*`).
+	    - `--1*`: el color principal (botones, links, menú, rellenos, franja de fecha, foco).
+	    - `--pink*`, `--3*` (turquesa), `--4*` (amarillo): acentos (chips, subrayados, guardas,
+	      corazones, badges). El rosa brillante nunca va de texto ni de fondo de texto blanco. **/
+	--pink: hsl(319, 90%, 60%);
+	--pink-light: hsl(319, 100%, 70%);
+	--pink-dark: hsl(319, 100%, 40%);
+	--pink-tint: hsl(319, 100%, 95%);
+	--pink-ink: hsl(319, 100%, 36%);
+	--1: var(--2);
 	--2: hsl(262, 90%, 60%);
 	--3: hsl(165, 84%, 45%);
 	--4: hsl(50, 100%, 60%);
-	--1-light: hsl(319, 100%, 70%);
+	--1-light: var(--2-light);
 	--2-light: hsl(262, 100%, 75%);
 	--3-light: hsl(165, 84%, 65%);
 	--4-light: hsl(50, 100%, 70%);
-	--1-dark: hsl(319, 100%, 40%);
+	--1-dark: var(--2-dark);
 	--2-dark: hsl(262, 90%, 50%);
 	--3-dark: hsl(165, 84%, 30%);
 	--4-dark: hsl(50, 100%, 40%);
@@ -74,12 +85,12 @@
 	    cards on #eee, pill buttons, soft shadow). Use these instead of hand-picked greys,
 	    shadows and radii. **/
 	/* pale tints, for chip/notice backgrounds (dark text on top) */
-	--1-tint: hsl(319, 100%, 95%);
+	--1-tint: var(--2-tint);
 	--2-tint: hsl(262, 100%, 96%);
 	--3-tint: hsl(165, 70%, 92%);
 	--4-tint: hsl(50, 100%, 90%);
 	/* dark text that reads on the tints (and on white) with AA contrast; violet text uses --2-dark */
-	--1-ink: hsl(319, 100%, 36%);
+	--1-ink: var(--2-dark);
 	--3-ink: hsl(165, 84%, 24%);
 	--4-ink: hsl(40, 90%, 26%);
 	--bg: #eee;
@@ -98,7 +109,7 @@
 	--round-pill: var(--radius-pill);
 	--shadow: var(--shadow-1);
 	--shadow-lift: var(--shadow-2);
-	/* foco: anillo violeta para teclado en todo; borde rosa en los campos de texto */
+	/* foco: anillo violeta para teclado en todo; borde del color principal en los campos de texto */
 	--focus-ring: 2px solid var(--2-dark);
 	--focus-field: var(--1);
 	/* placeholder text in inputs: neutral grey (never pink/violet), 4.6:1 on white (legible,
@@ -234,7 +245,7 @@ body,
 }
 
 a {
-	text-decoration-color: var(--color, var(--1));
+	text-decoration-color: var(--color, var(--pink));
 	color: unset;
 	&:hover {
 		color: var(--color, var(--1));
@@ -313,9 +324,9 @@ textarea {
     (`--tag-fill`) y texto blanco. El tema oscuro del panel aclara `--tag-ink` (panel.scss).
     `<TagChip>` (src/lib/components/TagChip.svelte) lo arma a partir del id. **/
 .kv-tag {
-	--tag-ink: color-mix(in srgb, var(--tag-color, var(--1)) 75%, black);
-	--tag-line: var(--tag-color, var(--1));
-	--tag-fill: color-mix(in srgb, var(--tag-color, var(--1)) 75%, black);
+	--tag-ink: color-mix(in srgb, var(--tag-color, var(--pink)) 75%, black);
+	--tag-line: var(--tag-color, var(--pink));
+	--tag-fill: color-mix(in srgb, var(--tag-color, var(--pink)) 75%, black);
 	display: inline-flex;
 	align-items: center;
 	gap: 0.3em;
@@ -413,8 +424,8 @@ textarea {
 		}
 	}
 	&.danger {
-		--btn-bg: var(--1-dark);
-		--btn-bg-hover: color-mix(in srgb, var(--1-dark) 80%, black);
+		--btn-bg: var(--pink-dark);
+		--btn-bg-hover: color-mix(in srgb, var(--pink-dark) 80%, black);
 	}
 	&.permanent {
 		--btn-bg: var(--error);
@@ -816,7 +827,7 @@ article.wiki {
 			margin-block: 0.4em;
 			&::before {
 				content: '|';
-				color: var(--1);
+				color: var(--pink);
 			}
 		}
 	}
@@ -919,7 +930,7 @@ article.wiki {
 		opacity: 0.9;
 		margin-block: 0;
 		padding-left: 1em;
-		border-left: 2px solid var(--1);
+		border-left: 2px solid var(--pink);
 		p {
 			margin-block: 0;
 		}

@@ -134,7 +134,7 @@
 		gap: 0.9em;
 		width: min(28rem, 100%);
 		margin: 2em auto;
-		border-top: 0.35rem solid var(--1);
+		border-top: 0.35rem solid var(--pink);
 	}
 	h1 {
 		margin: 0;

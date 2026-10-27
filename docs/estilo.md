@@ -106,8 +106,15 @@ son sombras: esos quedan como están.
 
 ## Colores
 
-- Marca: `--1` rosa, `--2` violeta, `--3` verde, `--4` amarillo, cada uno con `-light`, `-dark` y
-  `-tint` (fondo pálido); texto legible sobre los tints: `--1-ink`, `--2-dark`, `--3-ink`, `--4-ink`.
+- Marca: `--1` color principal, `--2` violeta, `--3` verde (turquesa), `--4` amarillo, cada uno con
+  `-light`, `-dark` y `-tint` (fondo pálido); texto legible sobre los tints: `--1-ink`, `--2-dark`,
+  `--3-ink`, `--4-ink`.
+- **Prueba «paleta violeta»** (rama `prueba-paleta-violeta`, sin mergear): la paleta original del
+  diseño. `--1*` apunta al violeta (`--2*`), así que botones, links, menú, rellenos, franja de
+  fecha y foco pasan a violeta; el rosa queda como acento en `--pink*` (chips sin color propio,
+  subrayados, guardas, corazones, viñetas, barra de carga) y como rosa oscuro en lo destructivo
+  (`.danger`, `--bad`). Donde esta página dice «rosa» para botones y rellenos, en la prueba es
+  violeta.
 - Neutros del sitio: `--bg` (fondo), `--surface` (tarjetas), `--ink` (texto), `--muted`
   (secundario), `--line` (bordes), `--hover`.
 - **`--error`** (rojo) y **`--error-bg`**: errores, malas noticias, avisos que importan y acciones

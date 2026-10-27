@@ -55,7 +55,7 @@
 		font-size: var(--step-2);
 		font-weight: 700;
 		line-height: 1.15;
-		text-decoration: underline var(--1);
+		text-decoration: underline var(--pink);
 		text-underline-offset: 0.15em;
 	}
 	.author-summary {

@@ -35,7 +35,7 @@
 
 <div
 	class="filtergroup"
-	style:--tag-color={tag.getColor() ?? 'var(--1)'}
+	style:--tag-color={tag.getColor() ?? 'var(--pink)'}
 	class:noname
 	class:nested
 	class:gap
