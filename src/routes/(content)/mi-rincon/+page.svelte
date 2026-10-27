@@ -221,19 +221,23 @@
 				<summary>{savedEmpty ? 'Guardar mis datos' : 'Cambiar mis datos'}</summary>
 				<form method="POST" action="?/datos" use:enhance={keep}>
 					<label>
-						<span>Tu nombre</span>
+						<span id="datos-name-label">Tu nombre</span>
 						<input
 							name="name"
 							type="text"
 							autocomplete="name"
 							maxlength="80"
 							value={form?.action === 'datos' && form.values ? form.values.name : data.saved.name}
+							aria-labelledby="datos-name-label"
+							aria-describedby={datosErrors.name ? 'datos-name-error' : undefined}
 							aria-invalid={datosErrors.name ? 'true' : undefined}
 						/>
-						{#if datosErrors.name}<span class="field-error">{datosErrors.name}</span>{/if}
+						{#if datosErrors.name}<span id="datos-name-error" class="field-error"
+								>{datosErrors.name}</span
+							>{/if}
 					</label>
 					<label>
-						<span>Tus pronombres</span>
+						<span id="datos-pronouns-label">Tus pronombres</span>
 						<input
 							name="pronouns"
 							type="text"
@@ -243,12 +247,16 @@
 							value={form?.action === 'datos' && form.values
 								? form.values.pronouns
 								: data.saved.pronouns}
+							aria-labelledby="datos-pronouns-label"
+							aria-describedby={datosErrors.pronouns ? 'datos-pronouns-error' : undefined}
 							aria-invalid={datosErrors.pronouns ? 'true' : undefined}
 						/>
-						{#if datosErrors.pronouns}<span class="field-error">{datosErrors.pronouns}</span>{/if}
+						{#if datosErrors.pronouns}<span id="datos-pronouns-error" class="field-error"
+								>{datosErrors.pronouns}</span
+							>{/if}
 					</label>
 					<label>
-						<span>{data.saved.hasDni ? 'DNI nuevo' : 'DNI'}</span>
+						<span id="datos-dni-label">{data.saved.hasDni ? 'DNI nuevo' : 'DNI'}</span>
 						<input
 							name="dni"
 							type="text"
@@ -256,9 +264,13 @@
 							autocomplete="off"
 							maxlength="12"
 							placeholder="Ej.: 12.345.678"
+							aria-labelledby="datos-dni-label"
+							aria-describedby={datosErrors.dni ? 'datos-dni-error' : undefined}
 							aria-invalid={datosErrors.dni ? 'true' : undefined}
 						/>
-						{#if datosErrors.dni}<span class="field-error">{datosErrors.dni}</span>{/if}
+						{#if datosErrors.dni}<span id="datos-dni-error" class="field-error"
+								>{datosErrors.dni}</span
+							>{/if}
 					</label>
 					<p class="hint">
 						Si dejás el nombre o los pronombres vacíos, se borran.{#if data.saved.hasDni}

@@ -133,6 +133,16 @@ son sombras: esos quedan como están.
   escribiendo o eligiendo. En el sitio y en el panel.
 - No saques el `outline` sin poner otra señal de foco igual de visible.
 
+## Lectores de pantalla
+
+Lo que no se ve pero se oye. Nada de esto cambia cómo se ve la página.
+
+- **Errores de un campo**: el texto del error lleva un `id` y el campo lo nombra en
+  `aria-describedby` (solo cuando hay error; en un grupo de radios, cada radio). El error no va
+  dentro del `<label>`: si no, pasa a ser parte del nombre del campo («Tu nombre Escribí tu
+  nombre.»). Con un label que envuelve, o se usa `<label for>` con el error afuera, o el campo se
+  nombra con `aria-labelledby` hacia el texto del label (así no se mueve nada de lugar).
+
 ## Toque
 
 - En el celu, todo lo que se toca mide al menos 44px (`--tap`). Para algo chico (un chip, un

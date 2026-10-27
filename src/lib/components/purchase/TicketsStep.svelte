@@ -57,6 +57,13 @@
 		quantityText = String(quantity);
 	}
 
+	/**
+	 * `aria-describedby` con los ids que van (el error solo si hay error).
+	 *
+	 * @param {...(string | false | undefined | null)} ids
+	 */
+	const describedBy = (...ids) => ids.filter(Boolean).join(' ') || undefined;
+
 	/** @param {Event & { currentTarget: HTMLInputElement }} e */
 	function typedQuantity(e) {
 		quantityText = e.currentTarget.value;
@@ -84,6 +91,7 @@
 				bind:group={type}
 				disabled={t.available === 0 || t.closed}
 				required
+				aria-describedby={describedBy(errors.type && 'entradas-tipo-error')}
 			/>
 			<span class="type-name"
 				>{t.name}{#if t.tier}<span class="type-tier">{t.tier.name}</span>{/if}</span
@@ -121,7 +129,7 @@
 			</small>
 		</label>
 	{/each}
-	{#if errors.type}<p class="field-error">{errors.type}</p>{/if}
+	{#if errors.type}<p class="field-error" id="entradas-tipo-error">{errors.type}</p>{/if}
 </fieldset>
 
 {#if selected && gorra}
@@ -138,7 +146,10 @@
 				maxlength="12"
 				placeholder="Sugerido: {gorra.suggested}"
 				bind:value={amount}
-				aria-describedby="entradas-monto-ayuda"
+				aria-describedby={describedBy(
+					'entradas-monto-ayuda',
+					(errors.amount || (amount.trim() && gorraState.value === null)) && 'entradas-monto-error'
+				)}
 				aria-invalid={errors.amount || (amount.trim() && gorraState.value === null)
 					? 'true'
 					: undefined}
@@ -162,9 +173,11 @@
 				Mercado Pago se suma el recargo de la comisión){/if}.
 		</small>
 		{#if errors.amount}
-			<span class="field-error">{errors.amount}</span>
+			<span class="field-error" id="entradas-monto-error">{errors.amount}</span>
 		{:else if amount.trim() && gorraState.value === null}
-			<span class="field-error">{gorraAmountError(gorra, gorraState.tooHigh)}</span>
+			<span class="field-error" id="entradas-monto-error"
+				>{gorraAmountError(gorra, gorraState.tooHigh)}</span
+			>
 		{/if}
 	</div>
 {:else if selected && tickets.fondoEnabled}
@@ -189,6 +202,7 @@
 					value={o.id}
 					checked={chosenOption.id === o.id}
 					on:change={() => (option = o.id)}
+					aria-describedby={describedBy(errors.option && 'entradas-opcion-error')}
 				/>
 				<span class="option-name">
 					{o.label}{#if o.percent}{' '}<small>(+{o.percent} %)</small>{/if}
@@ -205,7 +219,7 @@
 				</small>
 			</label>
 		{/each}
-		{#if errors.option}<p class="field-error">{errors.option}</p>{/if}
+		{#if errors.option}<p class="field-error" id="entradas-opcion-error">{errors.option}</p>{/if}
 	</fieldset>
 {/if}
 
@@ -237,6 +251,7 @@
 				setQuantity(count);
 			}}
 			aria-invalid={errors.quantity ? 'true' : undefined}
+			aria-describedby={describedBy(errors.quantity && 'entradas-cantidad-error')}
 		/>
 		<button
 			type="button"
@@ -247,7 +262,9 @@
 			on:click={() => setQuantity(count + 1)}>+</button
 		>
 	</div>
-	{#if errors.quantity}<span class="field-error">{errors.quantity}</span>{/if}
+	{#if errors.quantity}<span class="field-error" id="entradas-cantidad-error"
+			>{errors.quantity}</span
+		>{/if}
 </div>
 
 {#if !gorra}
@@ -264,6 +281,7 @@
 				spellcheck="false"
 				bind:value={code}
 				aria-invalid={errors.code ? 'true' : undefined}
+				aria-describedby={describedBy(errors.code && 'entradas-codigo-error')}
 			/>
 			<button
 				type="submit"
@@ -274,7 +292,7 @@
 			>
 		</div>
 		{#if errors.code}
-			<span class="field-error" role="alert">{errors.code}</span>
+			<span class="field-error" id="entradas-codigo-error" role="alert">{errors.code}</span>
 		{:else if applied}
 			<span class="applied" role="status">✓ {applied.message}</span>
 		{/if}
