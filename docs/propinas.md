@@ -2,8 +2,9 @@
 
 ## Qué hace
 
-Al pie de las publicaciones con la etiqueta **KinkyVibe** (material y eventos), un bloque "¿Te
-sirvió? Dejá una propina" en lugar de la nota del cafecito. La persona elige $ 1.000, $ 2.000,
+Al pie de las publicaciones con la etiqueta **KinkyVibe** (material y eventos) y de las páginas
+de la Kinkipedia que tienen texto, un bloque "¿Te sirvió? Dejá una propina" en lugar de la nota
+del cafecito. La persona elige $ 1.000, $ 2.000,
 $ 5.000 u "Otro monto" (entre $ 500 y $ 500.000), puede sumar un mensaje (hasta 280 caracteres,
 solo lo leen les admins) y paga con **Mercado Pago**. Al volver, ve una página de gracias. **Toda
 propina va al Fondo KinkyVibe** (decisión de gorrite, octubre de 2026): ya no se elige a dónde va,
@@ -77,8 +78,13 @@ pie de página ya no existen.
 - **El destino también.** Toda propina nueva se guarda con `destination = 'fondo'`
   (`TIP_DESTINATION`): `validateTip` lo pone siempre e ignora cualquier `destination` que llegue
   en el POST (un formulario viejo o armado). La columna sigue aceptando `kinkyvibe` por las
-  propinas viejas; la base lo controla con un `CHECK` (migración 0022). El webhook nunca lo
-  cambia: solo toca el estado.
+  propinas viejas. El webhook nunca lo cambia: solo toca el estado.
+- **Las listas de valores viven en el código, no en la base.** Desde la migración 0070,
+  `post_category`, `source` y `destination` no tienen `CHECK`: las clases de publicación están en
+  `TIP_POST_KINDS` (`src/lib/utils/propinas.js`, con su nombre, su ruta y la forma de su
+  dirección) y `createTip` se niega a guardar un destino o una categoría que no conoce. Sumar una
+  clase nueva es agregarla ahí y enseñarle a `findTipPost` (`src/lib/server/propinas/posts.js`) a
+  buscarla, sin migración. Quedan en la base los `CHECK` del monto, el estado y el mensaje.
 - **Nadie aprueba una propina desde el navegador.** El estado (`pending` → `approved` /
   `rejected` / `refunded`) lo cambia solo un pago pedido a la API de MP: el webhook firmado o el
   re-chequeo de la página de gracias (que pregunta a MP por la referencia, no lee la URL).
@@ -109,6 +115,7 @@ pie de página ya no existen.
 | Tabla                                   | `migrations/0019_propinas.sql` (`tips`)                                          |
 | Destino (`destination`)                 | `migrations/0022_propinas_destino.sql`                                           |
 | Origen (`source`: publicación o Fondo)  | `migrations/0052_propinas_origen.sql`                                            |
+| Sin listas fijas en la base             | `migrations/0070_propinas_sin_listas_fijas.sql`                                  |
 | Total para el Fondo                     | `src/lib/server/fondo/propinasTotal.js`, `src/routes/api/fondo/propinas-total/`  |
 | Datos de demo (inventados)              | `scripts/demo/n3-propinas.sql`                                                   |
 
@@ -149,8 +156,9 @@ simulado (`completeMockCheckout` en `tickets/mock.js`) y el CSV del panel (`$lib
 
 ## Qué necesita la base
 
-Las migraciones **0019**, **0022** y **0052** (0022 agrega `destination` y 0052 `source`; sin
-ellas no se pueden crear propinas). 0052 solo agrega una columna con valor por defecto: se aplica
+Las migraciones **0019**, **0022**, **0052** y **0070** (0022 agrega `destination`, 0052 `source`
+y 0070 reconstruye la tabla sin los `CHECK` de esas listas; sin 0070 no se pueden guardar
+propinas desde la Kinkipedia). 0052 solo agrega una columna con valor por defecto: se aplica
 en producción **antes** de mergear el código que la usa (decisión 0028).
 
 ## Decisiones
