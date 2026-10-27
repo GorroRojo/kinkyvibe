@@ -5,6 +5,7 @@
 	import Card from '$lib/components/admin/panel/Card.svelte';
 	import Badge from '$lib/components/admin/panel/Badge.svelte';
 	import { enhance } from '$app/forms';
+	import { askConfirm } from '$lib/admin/confirm.js';
 	import { brokenImage } from '$lib/admin/brokenImage.js';
 	import { fmtDateTime } from '$lib/admin/format.js';
 	import { argTime } from '$lib/utils/dates.js';
@@ -22,6 +23,19 @@
 			await update({ reset: false });
 			busy = false;
 		};
+	};
+
+	/** «Desvincular» Telegram: pregunta antes, como las otras acciones que sacan algo. */
+	/** @type {import('@sveltejs/kit').SubmitFunction} */
+	const submitUnlink = async (input) => {
+		const ok = await askConfirm({
+			title: '¿Desvincular tu Telegram?',
+			text: 'El bot deja de reconocerte como admin (la puerta y el estado de la venta). Lo podés volver a vincular desde acá.',
+			confirmLabel: 'Desvincular',
+			tone: 'danger'
+		});
+		if (!ok) return input.cancel();
+		return submit(input);
 	};
 
 	// El link recién creado (solo hasta que se vincula o se recarga la página).
@@ -85,7 +99,7 @@
 				el bot (la puerta y el estado de la venta, según lo que esté prendido) mientras sigas en
 				esta lista.
 			</p>
-			<form method="POST" action="?/desvincularTelegram" use:enhance={submit}>
+			<form method="POST" action="?/desvincularTelegram" use:enhance={submitUnlink}>
 				<button class="kv-btn ghost small" type="submit" disabled={busy}>Desvincular</button>
 			</form>
 		{:else if pending}
