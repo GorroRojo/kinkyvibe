@@ -9,7 +9,8 @@
  * $lib/server/tickets/reconcile.js),
  * el reintento del mail con las entradas de las órdenes aprobadas cuyo envío falló (ver
  * $lib/server/tickets/unsentOrders.js),
- * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js), el resumen diario de
+ * los avisos de "Avisame si se repite" (ver $lib/server/series/notify.js), una vez por hora la salud
+ * del webhook del bot (ver $lib/server/telegram/webhookHealth.js), el resumen diario de
  * ventas para admins por Telegram (ver $lib/server/telegram/adminNotify.js) y el registro automático
  * de los comandos del bot de Telegram (ver $lib/server/telegram/commandsSync.js) y borra las filas
  * por persona de las estadísticas de uso del bot de más de 180 días (ver
@@ -34,9 +35,10 @@ import { runMailQueue, siteOrigin } from '$lib/server/tickets/index.js';
 import { MIN_CRON_SECRET_LENGTH, isValidCronSecret } from '$lib/server/cron.js';
 import { runSeriesCron } from '$lib/server/series/web.js';
 import { runSigoCron } from '$lib/server/sigo/cron.js';
-import { listaEsperaEnabled } from '$lib/server/flags.js';
+import { isFlagOn, listaEsperaEnabled } from '$lib/server/flags.js';
 import { runWaitlistCron, waitlistMailBatch } from '$lib/server/tickets/waitlistEngine.js';
 import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
+import { checkWebhookHealth } from '$lib/server/telegram/webhookHealth.js';
 import { runAdminNoticesCron } from '$lib/server/telegram/adminNotify.js';
 import { pruneUso } from '$lib/server/telegram/uso.js';
 import { resendUnsentOrderEmails } from '$lib/server/tickets/unsentOrders.js';
@@ -168,6 +170,14 @@ export async function POST({ request, platform, url, fetch }) {
 			token: env.TELEGRAM_BOT_TOKEN,
 			fetch
 		});
+		// La salud del webhook del bot, una vez por hora (en la corrida de los minutos 0 a 14). Nunca
+		// tira.
+		const telegramWebhook = await checkWebhookHealth({
+			db,
+			token: env.TELEGRAM_BOT_TOKEN,
+			enabled: () => isFlagOn(db, 'telegram_bot'),
+			fetch
+		});
 		return json(
 			{
 				...r,
@@ -180,7 +190,8 @@ export async function POST({ request, platform, url, fetch }) {
 				...(telegramAdmin ? { telegramAdmin } : {}),
 				...(telegramUsoBorradas ? { telegramUsoBorradas } : {}),
 				...('skipped' in indexNow ? {} : { indexNow }),
-				telegramCommands
+				telegramCommands,
+				...(telegramWebhook === 'skipped' ? {} : { telegramWebhook })
 			},
 			{ headers: { 'cache-control': 'no-store' } }
 		);
