@@ -71,8 +71,8 @@ prueba»** (con confirmación en la página; `src/lib/components/admin/DemoReloa
 
 1. **Borra** los datos de prueba anteriores, y nada más: los eventos `demo-*` y lo que cuelga de
    ellos (órdenes, entradas, recordatorios, links de transmisión, avisos por mail, códigos del
-   evento, entradas del registro de actividad sobre esos eventos u
-   órdenes), las filas que puso el seed (`seed-demo`) y la «última visita» del admin de prueba.
+   evento, anotaciones de la lista de espera y sus mails, cambios de fecha y sus avisos, entradas
+   del registro de actividad sobre esos eventos u órdenes), las filas que puso el seed (`seed-demo`) y la «última visita» del admin de prueba.
    Los ajustes o códigos que alguien guardó a mano no se pisan.
 2. **Carga** todo de nuevo relativo a este momento (`src/lib/server/demo/seed.js`): un evento hoy
    a la noche (Noche Látex) con la puerta andando, eventos que vienen, eventos pasados con
