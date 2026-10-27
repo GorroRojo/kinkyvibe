@@ -105,7 +105,7 @@
 		<!-- HTML limpiado en el servidor (src/lib/server/amigues/sanitize.js). -->
 		{@html data.bodyHtml}
 		{#if p.links[0]}
-			<a href={p.links[0]} target="_blank" rel="noopener noreferrer" class="cta"
+			<a href={p.links[0]} target="_blank" rel="nofollow ugc noopener noreferrer" class="cta"
 				>{p.linkText ?? 'Ir a su página'}</a
 			>
 		{/if}
@@ -117,7 +117,9 @@
 				{#each contact as c (c.href)}
 					<li>
 						{#if c.kind === 'link'}
-							<a class="u-url" href={c.href} target="_blank" rel="noopener noreferrer">{c.label}</a>
+							<a class="u-url" href={c.href} target="_blank" rel="nofollow ugc noopener noreferrer"
+								>{c.label}</a
+							>
 						{:else if c.kind === 'email'}
 							<a class="u-email" href={c.href}>{c.label}</a>
 						{:else}
