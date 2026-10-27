@@ -68,6 +68,9 @@ export async function load({ params, platform, locals, setHeaders }) {
 		})
 	]);
 	if (page.private) setHeaders({ 'cache-control': 'private, no-store' });
+	// No listado o «No aparecer en buscadores»: además del meta `robots`, la cabecera (la leen
+	// también los buscadores que no miran el HTML, docs/seo.md).
+	if (page.unlisted || page.noindex) setHeaders({ 'x-robots-tag': 'noindex' });
 	// Las etiquetas cuyo chip lleva a la Kinkipedia (el árbol ya está leído: no suma consultas).
 	const wikiTags = await wikiLinkedTags(platform, page.profile?.tags).catch(() => []);
 	return { ...page, pronouns, participa, follow, wikiTags };
