@@ -162,6 +162,7 @@ export function reminderSchedule(reminders, start) {
 	const enabled = reminders.filter((r) => r.enabled);
 	const raw = enabled.map((r) => reminderDueAt(r, start));
 	const shortNotice = raw.some((due) => due < start && due >= start - DAY_MS);
+	/** @type {{ reminder: Reminder, due: number, eve: boolean }[]} */
 	const out = [];
 	let eveTaken = false;
 	enabled.forEach((reminder, i) => {
@@ -236,7 +237,10 @@ export async function dueReminderOrders(db, { events, reminders, now }) {
 		for (const order of /** @type {import('./orders.js').Order[]} */ (results)) {
 			out.push({
 				order,
-				reminder: item.eve ? { ...item.reminder, eve: true } : item.reminder,
+				// `eve` solo sale de un «el mismo día» (`day_at`).
+				reminder: item.eve
+					? /** @type {Reminder} */ ({ ...item.reminder, eve: true })
+					: item.reminder,
 				id: item.id,
 				slug: item.slug,
 				part: item.part
