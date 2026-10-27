@@ -841,11 +841,13 @@ article.wiki {
 		font-size: var(--step-0);
 		opacity: 0.8;
 		&.p-pronoun {
+			/* sin el .8 del small: el pronombre de una @mención es información (AA) */
+			opacity: 1;
 			font-size: var(--step--2);
 			text-decoration: none;
 			display: inline-block;
 			background: transparent;
-			color: var(--1);
+			color: var(--1-ink);
 			border: 1px solid var(--1);
 			padding: 0.05em 0.3em;
 			border-radius: 0.3em;

@@ -341,8 +341,10 @@
 	.month-grid.open {
 		display: block;
 	}
+	/* pasado: en gris (la foto del evento y las barras), sin apagar el texto */
 	.day.past {
-		opacity: 0.35 !important;
+		filter: grayscale(1);
+		background-color: transparent;
 	}
 	.day.today {
 		outline: 3px solid var(--1);

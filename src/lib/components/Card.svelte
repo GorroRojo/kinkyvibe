@@ -51,6 +51,9 @@
 		loading={eager ? 'eager' : 'lazy'}
 		fetchpriority={priority ? 'high' : undefined}
 	/>
+	{#if category == 'calendario' && parseSiteDate(start ?? '').getTime() < Date.now()}
+		<small class="status">Terminado</small>
+	{/if}
 	<h3 class="p-name">
 		{title}
 		{#if pronounDisplay(pronoun)}
@@ -124,18 +127,32 @@
 		font-size: var(--text-sm);
 		font-weight: 700;
 	}
+	/* el color oscuro de la categoría (--post-ink), sin transparencia: el pronombre es información */
 	.p-pronouns {
 		font-size: 0.6em;
-		opacity: 0.7;
-		color: var(--post-color, var(--2));
+		color: var(--post-ink, var(--2-dark));
 		text-decoration: none;
 	}
-	/* same fade as past items in the list view */
-	.card.past {
-		opacity: 0.5;
+	/* pasado, como en la lista: solo la imagen se apaga (gris) y «Terminado» lo dice en texto */
+	.card.past .card-img {
+		filter: grayscale(1);
+		opacity: 0.6;
+	}
+	.status {
+		align-self: center;
+		margin-top: 0.6em;
+		padding: 0.1em 0.6em;
+		border-radius: var(--radius-pill);
+		background: var(--bg);
+		color: var(--muted);
+		font-size: var(--text-xs);
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
 	}
 	.card.mark {
 		--post-color: var(--1);
+		--post-ink: var(--1-ink);
 		--shadow-color: var(--color, var(--color-2, var(--1)));
 		box-shadow: var(--shadow-1);
 		height: 100%;

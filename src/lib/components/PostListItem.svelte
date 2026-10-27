@@ -257,6 +257,7 @@
 	}
 	.post {
 		--post-color: var(--2);
+		--post-ink: var(--2-dark);
 		/* position: relative; */
 		width: 100%;
 		/* max-width: 900px; */
@@ -281,9 +282,12 @@
 		/* overflow: hidden; */
 		&.mark {
 			--post-color: var(--1);
+			--post-ink: var(--1-ink);
 		}
-		&.past {
-			opacity: 0.5;
+		/* pasado: solo la imagen se apaga (gris); el texto queda legible y «Terminado» lo dice */
+		&.past img {
+			filter: grayscale(1);
+			opacity: 0.6;
 		}
 		&.noimg {
 			grid-template-columns: 0 1fr;
@@ -307,8 +311,9 @@
 		/* text-decoration: underline; */
 		text-decoration-color: var(--post-color, var(--2));
 		/* margin-left: 1em; */
+		/* el color oscuro de la categoría (--post-ink): el pronombre es información, no adorno */
 		small {
-			color: var(--post-color, var(--2));
+			color: var(--post-ink, var(--2-dark));
 			font-size: 0.7em;
 			font-weight: normal;
 		}
