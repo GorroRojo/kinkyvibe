@@ -771,6 +771,16 @@ que ahora no se puede.
 - Marca con lo mismo que el modo puerta del panel (`extractToken` + `checkIn`), con el login de le
   admin; contesta solo el resultado y el nombre de la entrada. Tope de 600 escaneos por hora.
 - Solo Telegram Web puede embeberla (`frame-ancestors https://web.telegram.org`).
+- **Salvedades para la noche del evento** (auditoría de confiabilidad, OX3):
+  - **Necesita señal en cada escaneo**: no guarda la lista ni tiene modo sin conexión. Sin red,
+    cada escaneo falla.
+  - **Cada hora hay que cerrarla y volver a abrirla desde el bot**: el `initData` vale una hora
+    (`auth_date`, decisión 0037) y después cada escaneo contesta «Pasó más de una hora desde que
+    abriste la puerta: cerrala y volvé a abrirla desde el bot».
+  - Para una puerta larga o con mala señal, usá el **modo puerta del panel**
+    (`/admin/eventos/<slug>/ingreso`), que guarda la lista y sigue sin conexión
+    ([tickets.md](tickets.md), punto 9). La de Telegram sirve de respaldo (por ejemplo, si no se
+    puede entrar con GitHub), con señal.
 
 ### Puesta en marcha de la puerta (la hace gorrite)
 
