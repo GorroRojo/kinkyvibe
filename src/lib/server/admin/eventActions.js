@@ -28,6 +28,7 @@ import {
 	REFUND_ALL_WORD,
 	REFUND_REASON,
 	refundAllBatch,
+	refundAllCursor,
 	refundAllPreview,
 	refundFromPanel
 } from '$lib/server/admin/refunds.js';
@@ -75,18 +76,27 @@ export async function afterRefund({
 	fresh,
 	waitlist = true
 }) {
-	await logAdminAction(db, locals, {
-		action: 'order.refund',
-		targetType: 'order',
-		targetId: before.id,
-		summary: `Reembolsó ${orderReference(before.id)}`,
-		detail: {
-			event: before.event_slug,
-			method: before.payment_method,
-			total: before.total
-		}
-	});
-	await inBackground(sendRefundEmail({ db, order: fresh, fetch }), platform);
+	// Cada paso por su lado: si falla la Actividad, el mail sale igual (y al revés).
+	try {
+		await logAdminAction(db, locals, {
+			action: 'order.refund',
+			targetType: 'order',
+			targetId: before.id,
+			summary: `Reembolsó ${orderReference(before.id)}`,
+			detail: {
+				event: before.event_slug,
+				method: before.payment_method,
+				total: before.total
+			}
+		});
+	} catch (error) {
+		console.error(`[tickets] no se pudo anotar el reembolso de ${before.id}:`, error);
+	}
+	try {
+		await inBackground(sendRefundEmail({ db, order: fresh, fetch }), platform);
+	} catch (error) {
+		console.error(`[tickets] no se pudo mandar el aviso de reembolso de ${before.id}:`, error);
+	}
 	// Se liberó un lugar: la lista de espera pasa a la próxima persona.
 	if (waitlist) {
 		queueWaitlistAdvance({
@@ -514,7 +524,7 @@ export const eventTicketActions = {
 			return fail(502, {
 				refund: {
 					ok: false,
-					message: `Mercado Pago no aceptó el reembolso de ${ref} (¿saldo insuficiente o más de 180 días?). No se cambió nada. Detalle en los logs.`
+					message: `Mercado Pago no aceptó el reembolso de ${ref} (¿saldo insuficiente o más de 180 días?). No se cambió nada. Detalle en los logs. Antes de reintentar o devolverla a mano, revisá el pago en Mercado Pago.`
 				}
 			});
 		}
@@ -549,6 +559,16 @@ export const eventTicketActions = {
 			});
 		}
 		const after = String(form.get('after') ?? '').trim() || null;
+		if (after && !(await refundAllCursor(db, params.slug, after))) {
+			// «Seguir» con una orden que no es de este evento: no se vuelve a empezar sin el control
+			// de cantidad y total.
+			return fail(400, {
+				refundAll: {
+					ok: false,
+					message: 'No sabemos desde dónde seguir: recargá la página y confirmá de nuevo.'
+				}
+			});
+		}
 		if (!after) {
 			// La primera tanda: tiene que ser lo mismo que vio le admin al confirmar.
 			const { mp } = await refundAllPreview(db, params.slug);
@@ -575,16 +595,29 @@ export const eventTicketActions = {
 				refundAll: { ok: false, message: 'Mercado Pago no está disponible: no se hizo nada.' }
 			});
 		}
-		const batch = await refundAllBatch({
-			db,
-			eventSlug: params.slug,
-			by: admin.login,
-			gateway: async () => gateway,
-			after,
-			onRefunded: (fresh, before) =>
-				afterRefund({ db, locals, platform, url, fetch, before, fresh, waitlist: false })
-		});
+		let batch;
+		try {
+			batch = await refundAllBatch({
+				db,
+				eventSlug: params.slug,
+				by: admin.login,
+				gateway: async () => gateway,
+				after,
+				onRefunded: (fresh, before) =>
+					afterRefund({ db, locals, platform, url, fetch, before, fresh, waitlist: false })
+			});
+		} catch (error) {
+			// Solo antes de empezar (leer la tanda): cada orden tiene su propio manejo de errores.
+			console.error(`[tickets] reembolsar todas ${params.slug}:`, error);
+			return fail(500, {
+				refundAll: {
+					ok: false,
+					message: 'No se pudo leer la tanda: no se hizo nada. Probá de nuevo.'
+				}
+			});
+		}
 		const results = batch.results.map((r) => ({
+			id: r.id,
 			reference: orderReference(r.id),
 			name: r.name,
 			total: r.total,
@@ -593,6 +626,9 @@ export const eventTicketActions = {
 			reason: REFUND_REASON[r.result]
 		}));
 		const failed = results.filter((r) => !r.ok);
+		console.log(
+			`[tickets] reembolsar todas ${params.slug}: ${results.length - failed.length} ok, ${failed.length} sin reembolsar, faltan ${batch.remaining ?? '?'}`
+		);
 		await logAdminAction(db, locals, {
 			action: 'event.refund_all',
 			targetType: 'event',
@@ -603,7 +639,9 @@ export const eventTicketActions = {
 				results: batch.results.map((r) => ({ order: r.id, total: r.total, result: r.result })),
 				remaining: batch.remaining
 			}
-		});
+		}).catch((error) =>
+			console.error(`[tickets] no se pudo anotar «Reembolsar todas» de ${params.slug}:`, error)
+		);
 		// Una sola vez por tanda (el evento está cancelado: la lista de espera se cierra sola).
 		queueWaitlistAdvance({
 			platform,

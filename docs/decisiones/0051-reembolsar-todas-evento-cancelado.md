@@ -28,8 +28,11 @@ fácil saltearse una y no hay un resumen de qué salió y qué no.
 - **Nunca reembolsa dos veces:** una orden ya reembolsada no se le vuelve a pedir a MP. Dos
   pedidos a la vez mandan la misma clave de idempotencia, y la orden se marca una sola vez, así que
   sale un solo mail.
-- **Si MP rechaza una**, esa queda como estaba (aprobada) para hacerla a mano. Al final se ve un
-  resumen: reembolsadas y sin reembolsar, con el motivo.
+- **Si MP da error** (o la respuesta se corta), antes de darla por fallida se le pregunta a MP por
+  el pago: si ya figura reembolsado, la orden se marca y cuenta como hecha. Si no, queda como estaba
+  (aprobada) y el resumen pide revisar el pago en Mercado Pago antes de devolverlo a mano, para no
+  pagarlo dos veces. Un error en una orden no corta la tanda. Al final se ve un resumen:
+  reembolsadas y sin reembolsar, con el motivo.
 - Cada tanda queda en Actividad (`event.refund_all`, con el resultado de cada orden) y en el log
   del Worker.
 - **Las ventas en la puerta, las cargadas a mano y las transferencias no pasan por MP:** se listan

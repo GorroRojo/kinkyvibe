@@ -59,13 +59,46 @@ export async function refundFromPanel({ db, order, by, gateway }) {
 			await gw.refundPayment(order.mp_payment_id, `refund-${order.id}`);
 		} catch (error) {
 			console.error(`[tickets] reembolso de ${order.id} rechazado por MP:`, error);
-			return { result: 'mp-failed', order };
+			// Un error o un corte del lado nuestro no quiere decir que MP no lo hizo: si el pago ya
+			// figura reembolsado, se marca la orden (así nadie lo devuelve otra vez a mano).
+			return (await refundedAtMp(db, gw, order, by)) ?? { result: 'mp-failed', order };
 		}
 	}
 	const r = await refundOrder(db, { orderId: order.id, eventSlug: order.event_slug, by });
 	if (r.result === 'refunded' || r.result === 'already')
 		return { result: r.result, order: r.order };
 	return { result: 'not-marked', order: r.order };
+}
+
+/**
+ * Después de un error de `refundPayment`: ¿el reembolso salió igual? Le pregunta a MP por el pago
+ * (`getPayment`); si figura `refunded`, marca la orden con el mismo `refundOrder` condicional. Si
+ * no (o si MP tampoco contesta), vuelve a leer la orden: si mientras tanto quedó reembolsada (el
+ * webhook de MP, otro pedido), es `'already'`. `null`: no hay señales de que haya salido.
+ *
+ * @param {D1Database} db
+ * @param {Gateway} gw
+ * @param {Order} order con `mp_payment_id`
+ * @param {string} by
+ * @returns {Promise<{ result: RefundResult, order: Order | null } | null>}
+ */
+async function refundedAtMp(db, gw, order, by) {
+	try {
+		const payment = await gw.getPayment(String(order.mp_payment_id));
+		if (payment?.status === 'refunded') {
+			console.warn(
+				`[tickets] reembolso de ${order.id}: MP dio error pero el pago figura reembolsado; se marca la orden`
+			);
+			const r = await refundOrder(db, { orderId: order.id, eventSlug: order.event_slug, by });
+			if (r.result === 'refunded' || r.result === 'already') {
+				return { result: r.result, order: r.order };
+			}
+		}
+	} catch (error) {
+		console.error(`[tickets] no se pudo consultar el pago de ${order.id} en MP:`, error);
+	}
+	const fresh = await getOrder(db, order.id).catch(() => null);
+	return fresh?.status === 'refunded' ? { result: 'already', order: fresh } : null;
 }
 
 /** Por qué no se reembolsó una orden, para el resumen. @type {Record<RefundResult, string>} */
@@ -75,8 +108,9 @@ export const REFUND_REASON = {
 	'not-approved': 'Ya no está aprobada: no hay nada que reembolsar.',
 	'no-gateway': 'Mercado Pago no está disponible (o la orden no tiene pago).',
 	'mp-failed':
-		'Mercado Pago no aceptó el reembolso (¿saldo insuficiente o más de 180 días?). No se cambió nada; detalle en los logs.',
-	'not-marked': 'No se pudo marcar como reembolsada: revisala.'
+		'Mercado Pago no aceptó el reembolso (¿saldo insuficiente o más de 180 días?). No se cambió nada; detalle en los logs. Antes de devolverla a mano, revisá el pago en Mercado Pago: si figura reembolsado, no la devuelvas de nuevo.',
+	'not-marked':
+		'No se pudo terminar de marcar como reembolsada (el pedido a Mercado Pago puede haber salido): revisá el pago en Mercado Pago y la orden antes de hacer nada a mano.'
 };
 
 /**
@@ -135,7 +169,8 @@ export async function refundAllPreview(db, eventSlug) {
 /**
  * Una tanda de «Reembolsar todas»: las próximas `limit` órdenes de {@link isMpRefundable} del
  * evento después de `after` (la última de la tanda anterior; sin `after`, desde la primera), una
- * después de otra con {@link refundFromPanel}. Las que fallan quedan como estaban (aprobadas) para
+ * después de otra con {@link refundFromPanel}; un error en una no corta la tanda. `after` tiene que
+ * ser una orden de este evento (si no, tira). Las que fallan quedan como estaban (aprobadas) para
  * hacerlas a mano; como la tanda siguiente arranca después de la última vista, no se reintentan
  * solas (volver a tocar «Reembolsar todas» desde el principio sí las reintenta, sin riesgo: lo ya
  * reembolsado no se vuelve a pedir).
@@ -152,8 +187,8 @@ export async function refundAllPreview(db, eventSlug) {
  * @returns {Promise<{
  *   results: { id: string, name: string, total: number, result: RefundResult }[],
  *   after: string | null,
- *   remaining: number
- * }>}
+ *   remaining: number | null
+ * }>} `remaining`: `null` si no se pudo contar
  */
 export async function refundAllBatch({
 	db,
@@ -164,8 +199,10 @@ export async function refundAllBatch({
 	limit = REFUND_ALL_BATCH,
 	onRefunded
 }) {
-	const cursor = after && isValidOrderId(after) ? await getOrder(db, after) : null;
-	const from = cursor && cursor.event_slug === eventSlug ? cursor : null;
+	const from = after ? await refundAllCursor(db, eventSlug, after) : null;
+	// Un `after` que no es una orden de este evento no vuelve a empezar desde la primera (eso
+	// saltearía el control de cantidad y total de la primera tanda): la acción lo rechaza antes.
+	if (after && !from) throw new RangeError('«after» no es una orden de este evento');
 	const { results } = await db
 		.prepare(
 			`SELECT o.* FROM orders o WHERE o.event_slug = ?1 AND ${MP_REFUNDABLE_SQL}
@@ -177,18 +214,55 @@ export async function refundAllBatch({
 	const batch = /** @type {Order[]} */ (results);
 	const out = [];
 	for (const order of batch) {
-		const r = await refundFromPanel({ db, order, by, gateway });
-		console.log(`[tickets] reembolsar todas ${eventSlug}: ${order.id} → ${r.result}`);
-		if (r.result === 'refunded' && r.order && onRefunded) await onRefunded(r.order, order);
-		out.push({ id: order.id, name: order.buyer_name, total: order.total, result: r.result });
+		/** @type {RefundResult} */
+		let result;
+		try {
+			const r = await refundFromPanel({ db, order, by, gateway });
+			result = r.result;
+			if (r.result === 'refunded' && r.order && onRefunded) {
+				// La plata ya se devolvió: un error de acá (Actividad, mail) no cambia el resultado.
+				await onRefunded(r.order, order).catch((error) =>
+					console.error(`[tickets] reembolsar todas: lo de después de ${order.id} falló:`, error)
+				);
+			}
+		} catch (error) {
+			// Un error después de pedirle el reembolso a MP: puede haber salido. Queda para revisar.
+			console.error(`[tickets] reembolsar todas ${eventSlug}: ${order.id} falló:`, error);
+			result = 'not-marked';
+		}
+		console.log(`[tickets] reembolsar todas ${eventSlug}: ${order.id} → ${result}`);
+		out.push({ id: order.id, name: order.buyer_name, total: order.total, result });
 	}
 	const last = batch.at(-1) ?? from;
-	const rest = await db
-		.prepare(
-			`SELECT COUNT(*) AS n FROM orders o WHERE o.event_slug = ?1 AND ${MP_REFUNDABLE_SQL}
-				AND (?2 IS NULL OR o.created_at > ?2 OR (o.created_at = ?2 AND o.id > ?3))`
-		)
-		.bind(eventSlug, last?.created_at ?? null, last?.id ?? '')
-		.first();
-	return { results: out, after: last?.id ?? null, remaining: Number(rest?.n ?? 0) };
+	/** @type {number | null} */
+	let remaining = null;
+	try {
+		const rest = await db
+			.prepare(
+				`SELECT COUNT(*) AS n FROM orders o WHERE o.event_slug = ?1 AND ${MP_REFUNDABLE_SQL}
+					AND (?2 IS NULL OR o.created_at > ?2 OR (o.created_at = ?2 AND o.id > ?3))`
+			)
+			.bind(eventSlug, last?.created_at ?? null, last?.id ?? '')
+			.first();
+		remaining = Number(rest?.n ?? 0);
+	} catch (error) {
+		console.error(
+			`[tickets] reembolsar todas ${eventSlug}: no se pudo contar lo que falta:`,
+			error
+		);
+	}
+	return { results: out, after: last?.id ?? null, remaining };
+}
+
+/**
+ * La orden de `after` («Seguir»), solo si es de este evento; `null` si no.
+ *
+ * @param {D1Database} db
+ * @param {string} eventSlug
+ * @param {string} after
+ */
+export async function refundAllCursor(db, eventSlug, after) {
+	if (!isValidOrderId(after)) return null;
+	const order = await getOrder(db, after);
+	return order && order.event_slug === eventSlug ? order : null;
 }

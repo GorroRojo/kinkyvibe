@@ -170,25 +170,30 @@
 			<div class="refund-summary" role="status">
 				<p>
 					<strong>Reembolsadas: {rrDone.length}</strong>{#if rrFailed.length}
-						· <strong class="bad">Sin reembolsar: {rrFailed.length}</strong> (quedaron como estaban: hacelas
-						a mano desde su orden){/if}{#if rr.remaining}
+						· <strong class="bad">Sin reembolsar: {rrFailed.length}</strong> (quedaron como estaban; antes
+						de devolverlas a mano, revisá cada pago en Mercado Pago: si figura reembolsado, no lo devuelvas
+						de nuevo){/if}{#if rr.remaining}
 						· faltan {rr.remaining}{/if}.
 				</p>
 				{#if rr.results.length}
 					<ul>
-						{#each rr.results as r (r.reference)}
+						{#each rr.results as r (r.id)}
 							<li class:bad={!r.ok}>
 								<span class="ref">{r.reference}</span> · {r.name} · {formatARS(r.total)} · {r.reason}
 							</li>
 						{/each}
 					</ul>
 				{/if}
-				{#if rr.remaining && rr.after}
+				{#if rr.remaining !== 0 && rr.after}
 					<form method="POST" action="?/refundAll" use:enhance={submitAll}>
 						<input type="hidden" name="after" value={rr.after} />
 						<input type="hidden" name="confirm" value={ra.word} />
 						<button type="submit" class="refund-confirm" disabled={sendingAll}>
-							{sendingAll ? 'Reembolsando…' : `Seguir con las ${rr.remaining} que faltan`}
+							{sendingAll
+								? 'Reembolsando…'
+								: rr.remaining
+									? `Seguir con las ${rr.remaining} que faltan`
+									: 'Seguir con las que falten'}
 						</button>
 					</form>
 				{/if}

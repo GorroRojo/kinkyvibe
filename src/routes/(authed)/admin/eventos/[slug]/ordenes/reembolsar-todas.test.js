@@ -46,8 +46,19 @@ const mp = {
 	refunds: new Map(),
 	/** @type {Set<string>} */
 	failFor: new Set(),
+	/** @type {Set<string>} pagos que MP reembolsa pero cuya respuesta se corta (error de nuestro lado) */
+	timeoutFor: new Set(),
+	/** @type {Set<string>} pagos reembolsados en MP (lo que contesta `getPayment`) */
+	refunded: new Set(),
+	getPaymentFails: false,
 	gatewayOn: true
 };
+/** Órdenes cuyo `refundOrder` tira (la base se cae después de que MP reembolsó). */
+const markFails = new Set();
+/** Acciones de Actividad que tiran al anotarse. */
+const auditFails = new Set();
+/** @type {((paymentId: string) => Promise<void>) | null} algo que pasa mientras MP «contesta» */
+let duringRefund = null;
 /** @type {string[]} */
 const refundMails = [];
 
@@ -63,9 +74,19 @@ vi.mock('$lib/server/tickets/index.js', async (importOriginal) => {
 							mp.calls.push({ paymentId, key });
 							// Un respiro, para que dos pedidos a la vez se crucen de verdad.
 							await new Promise((r) => setTimeout(r, 5));
+							if (duringRefund) await duringRefund(paymentId);
 							if (mp.failFor.has(paymentId)) throw new Error('Mercado Pago → 400: sin saldo');
 							if (!mp.refunds.has(key)) mp.refunds.set(key, paymentId);
+							mp.refunded.add(paymentId);
+							if (mp.timeoutFor.has(paymentId)) throw new Error('timeout esperando a MP');
 							return { id: `refund-de-prueba-${paymentId}`, status: 'approved' };
+						},
+						getPayment: async (/** @type {string} */ paymentId) => {
+							if (mp.getPaymentFails) throw new Error('Mercado Pago → 503');
+							return {
+								id: paymentId,
+								status: mp.refunded.has(paymentId) ? 'refunded' : 'approved'
+							};
 						}
 					}
 				: null,
@@ -76,11 +97,33 @@ vi.mock('$lib/server/tickets/index.js', async (importOriginal) => {
 	};
 });
 
+vi.mock('$lib/server/tickets/orders.js', async (importOriginal) => {
+	const actual = /** @type {any} */ (await importOriginal());
+	return {
+		...actual,
+		refundOrder: async (/** @type {any} */ db, /** @type {any} */ input) => {
+			if (markFails.has(input.orderId)) throw new Error('D1 no contesta');
+			return actual.refundOrder(db, input);
+		}
+	};
+});
+
+vi.mock('$lib/server/admin/audit.js', async (importOriginal) => {
+	const actual = /** @type {any} */ (await importOriginal());
+	return {
+		...actual,
+		logAdminAction: async (/** @type {any[]} */ ...args) => {
+			if (auditFails.has(args[2]?.action)) throw new Error('Actividad no contesta');
+			return actual.logAdminAction(...args);
+		}
+	};
+});
+
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth.js';
 import { listAudit } from '$lib/server/admin/audit.js';
 import { parseTicketConfig } from '$lib/server/tickets/config.js';
-import { applyPayment, getOrder, reserveOrder } from '$lib/server/tickets/orders.js';
+import { applyPayment, getOrder, refundOrder, reserveOrder } from '$lib/server/tickets/orders.js';
 import { createManualOrder } from '$lib/server/tickets/manual.js';
 import { REFUND_ALL_BATCH, isMpRefundable, refundAllPreview } from '$lib/server/admin/refunds.js';
 import * as page from './+page.server.js';
@@ -99,7 +142,13 @@ beforeEach(async () => {
 	mp.calls = [];
 	mp.refunds = new Map();
 	mp.failFor = new Set();
+	mp.timeoutFor = new Set();
+	mp.refunded = new Set();
+	mp.getPaymentFails = false;
 	mp.gatewayOn = true;
+	markFails.clear();
+	auditFails.clear();
+	duringRefund = null;
 	refundMails.length = 0;
 });
 
@@ -128,7 +177,7 @@ async function post(fields, locals = admin) {
 	};
 	try {
 		const out = await /** @type {any} */ (page.actions).refundAll(event);
-		return out?.data ?? out;
+		return out?.data ? { ...out.data, status: out.status } : out;
 	} catch (thrown) {
 		return { thrown };
 	}
@@ -419,5 +468,102 @@ describe('«Reembolsar…» de una orden sigue igual (el mismo paso)', () => {
 		expect(mp.calls).toHaveLength(2);
 		// Y «Reembolsar todas» ya no la cuenta.
 		expect((await refundAllPreview(t.db, SLUG)).mp.count).toBe(0);
+	});
+});
+
+describe('«Reembolsar todas»: errores del lado nuestro', () => {
+	it('MP reembolsó pero la respuesta se cortó: se consulta el pago, se marca y cuenta como hecha', async () => {
+		const a = await mpOrder(101);
+		const b = await mpOrder(102);
+		mp.timeoutFor.add('101');
+		const r = await post(confirmFields({ count: 2, total: a.total + b.total }));
+		expect(r.refundAll.results.map((/** @type {any} */ x) => x.result)).toEqual([
+			'refunded',
+			'refunded'
+		]);
+		expect(r.refundAll.ok).toBe(true);
+		expect(await getOrder(t.db, a.id)).toMatchObject({
+			status: 'refunded',
+			refunded_by: ADMINS[0].login
+		});
+		// Un solo reembolso en MP y un solo mail: nadie la va a devolver otra vez a mano.
+		expect(mp.calls.filter((c) => c.paymentId === '101')).toHaveLength(1);
+		expect(refundMails.sort()).toEqual([a.id, b.id].sort());
+	});
+
+	it('error de MP y el pago no figura reembolsado (o MP no contesta): queda aprobada, con «revisá en MP»', async () => {
+		const a = await mpOrder(101);
+		const b = await mpOrder(102);
+		mp.failFor.add('101');
+		mp.failFor.add('102');
+		mp.getPaymentFails = true; // la segunda: MP tampoco contesta la consulta
+		const r = await post(confirmFields({ count: 2, total: a.total + b.total }));
+		expect(r.refundAll.results.map((/** @type {any} */ x) => x.result)).toEqual([
+			'mp-failed',
+			'mp-failed'
+		]);
+		expect(r.refundAll.results[0].reason).toMatch(/revisá el pago en Mercado Pago/);
+		for (const o of [a, b]) expect((await getOrder(t.db, o.id))?.status).toBe('approved');
+		expect(refundMails).toEqual([]);
+	});
+
+	it('error de MP pero mientras tanto la orden quedó reembolsada (webhook): «ya estaba», sin otro mail', async () => {
+		const a = await mpOrder(101);
+		mp.failFor.add('101');
+		mp.getPaymentFails = true;
+		duringRefund = async () => {
+			await refundOrder(t.db, { orderId: a.id, eventSlug: SLUG, by: 'webhook-de-prueba' });
+		};
+		const r = await post(confirmFields({ count: 1, total: a.total }));
+		expect(r.refundAll.results).toMatchObject([{ result: 'already', ok: true }]);
+		expect(refundMails).toEqual([]);
+	});
+
+	it('un error después de pedirle el reembolso a MP no corta la tanda: «not-marked» y sigue; el resumen se anota igual', async () => {
+		const a = await mpOrder(101);
+		const b = await mpOrder(102);
+		const c = await mpOrder(103);
+		markFails.add(b.id);
+		const r = await post(confirmFields({ count: 3, total: a.total + b.total + c.total }));
+		expect(r.refundAll.results.map((/** @type {any} */ x) => [x.id, x.result, x.ok])).toEqual([
+			[a.id, 'refunded', true],
+			[b.id, 'not-marked', false],
+			[c.id, 'refunded', true]
+		]);
+		expect(r.refundAll.results[1].reason).toMatch(/revisá el pago en Mercado Pago/);
+		expect((await getOrder(t.db, c.id))?.status).toBe('refunded');
+		const [summary] = (await listAudit(t.db, { limit: 10 })).filter(
+			(e) => e.action === 'event.refund_all'
+		);
+		expect(summary.summary).toMatch(/2 reembolsadas, 1 sin reembolsar/);
+	});
+
+	it('si la Actividad falla, el mail sale igual y la tanda devuelve su resumen', async () => {
+		const a = await mpOrder(101);
+		auditFails.add('order.refund');
+		auditFails.add('event.refund_all');
+		const r = await post(confirmFields({ count: 1, total: a.total }));
+		expect(r.refundAll).toMatchObject({ ok: true, remaining: 0 });
+		expect(r.refundAll.results).toMatchObject([{ id: a.id, result: 'refunded' }]);
+		expect(refundMails).toEqual([a.id]);
+		expect((await getOrder(t.db, a.id))?.status).toBe('refunded');
+	});
+
+	it('«Seguir» con un `after` que no es una orden de este evento: 400, sin volver a empezar', async () => {
+		const a = await mpOrder(101);
+		for (const after of [crypto.randomUUID(), 'no-es-un-id']) {
+			const r = await post({ confirm: 'REEMBOLSAR', after });
+			expect(r.status).toBe(400);
+			expect(r.refundAll).toMatchObject({ ok: false });
+			expect(r.refundAll.message).toMatch(/No sabemos desde dónde seguir/);
+		}
+		// Una orden real, pero de otro evento.
+		await t.db
+			.prepare("UPDATE orders SET event_slug = 'otro-evento' WHERE id = ?1")
+			.bind(a.id)
+			.run();
+		const other = await post({ confirm: 'REEMBOLSAR', after: a.id });
+		expect(other.refundAll.message).toMatch(/No sabemos desde dónde seguir/);
+		expect(mp.calls).toEqual([]);
 	});
 });
