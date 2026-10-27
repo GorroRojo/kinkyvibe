@@ -209,6 +209,11 @@ transmisión: …», sin «personal, no lo compartas».
 **Recordatorios:** el cron del propio Worker (`src/lib/server/scheduled.js`) le pasa cada 15
 minutos `POST /api/cron/recordatorios`, con el header `x-cron-secret`, al sitio. El sitio decide qué mandar. Por
 defecto: 2 días antes y el mismo día a las 9:00; un evento los apaga con `recordatorios: false`.
+Un evento que empieza antes de la hora de un «el mismo día» (o justo a esa hora: a las 8 con el de
+las 9:00) lo recibe **el día anterior a las 20:00** (`EVE_TIME`), con el mismo id en
+`reminder_sends` (sale una sola vez por compra, aunque después el evento cambie de horario) y el
+asunto «… es mañana». No sale si otro recordatorio activado ya cae en las 24 horas antes del
+comienzo, y si hay dos «el mismo día», solo el primero pasa a la noche anterior.
 
 ### Reintento del mail de las entradas
 
