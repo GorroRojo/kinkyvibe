@@ -317,7 +317,7 @@ export function dueReminderParams(item, now) {
  *   limit?: number,
  *   send: (order: import('./orders.js').Order, reminder: Reminder, part: string | null) => Promise<boolean>
  * }} input
- * @returns {Promise<{ sent: number, failed: number, remaining: number }>}
+ * @returns {Promise<import('./sendState.js').BatchResult>}
  */
 export async function sendDueReminders(
 	db,

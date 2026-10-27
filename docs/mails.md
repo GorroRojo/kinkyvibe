@@ -61,7 +61,7 @@ sus plantillas propias) está en la ficha del evento.
 | Reembolso                 | al reembolsar (desde el panel o desde Mercado Pago)                     | `refund`      | `buildRefundEmail`                      |
 | Cambió la fecha           | «Avisar a les compradores» después de cambiar la fecha de un evento     | `date_change` | `buildDateChangeEmail`, `dateChange.js` |
 | Mail a compradores        | une admin lo escribe en la ficha del evento → Mail                      | —             | `buyerMail.js`                          |
-| Código para ingresar      | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
+| Código para entrar        | al pedirlo en /ingresar (cuentas del público, [cuentas.md](cuentas.md)) | —             | `src/lib/server/cuentas/email.js`       |
 | Tu link (Fondo KinkyVibe) | lo pide fondo.kinkyvibe.ar («¿Ya sos Mecenas?», ver abajo)              | —             | `src/lib/server/fondo/email.js`         |
 
 **Lista de espera** (en construcción, interruptor `lista_espera`; ver abajo y
@@ -97,6 +97,21 @@ título, detalles, un botón rosa y una línea de ayuda; abajo, por qué te lleg
 baja (si el mail la tiene) y «Kinky Vibe · Buenos Aires». Lo editable de las plantillas va dentro
 de la tarjeta.
 
+- **Colores en hex**, nunca `hsl()` (`MAIL_COLORS`; `layout.test.js` falla si algún mail lo
+  tiene): el Outlook clásico de Windows no lo entiende. La celda del botón lleva además el atributo
+  `bgcolor`, así el botón no queda blanco sobre blanco en Outlook de escritorio (ahí sale sin las
+  puntas redondeadas).
+- **Tema claro forzado:** las metas `color-scheme` y `supported-color-schemes` dicen `light only`
+  (Gmail para celu solo respeta esa forma; con «light» invertía los colores en tema oscuro).
+- **Preencabezado** (lo que la bandeja muestra al lado del asunto): los códigos, «Tus entradas»
+  («Tu QR para la puerta · sáb 10 oct · 22:00 · <lugar>»), el recordatorio («Es hoy: tené a mano
+  tu QR · …», distinto según cuándo sale), el cambio de fecha («Fecha nueva · …»), la oferta y el
+  último aviso de la lista de espera y «Mail a compradores». Nunca el título del evento (puede ser
+  sensible), datos personales, links ni códigos.
+- **Texto plano de «Tus entradas»:** cada entrada como «Entrada 1 · Nombre (pronombres) · código
+  …», y al final «Si tenés algún problema, respondé este mail.», el «por qué te llega» y el
+  contacto, como en el HTML.
+
 **Pie configurable:** la línea de contacto («¿Dudas? Escribinos a {{contacto}}») y la firma
 («Kinky Vibe · Buenos Aires») se cambian en Panel → Mensajes → Configuración → Pie de los mails
 (`mail_footer_contact` y `mail_footer_signoff` en `ticket_settings`), con el mismo formato seguro
@@ -110,6 +125,32 @@ comprueba que cada builder la usa y que el asunto y el texto plano siguen iguale
 **Talleres en varias partes:** en un taller con una sola entrada, los mails de entradas,
 transferencia y recordatorios llevan la lista «Las N partes del taller» con la fecha y el lugar de
 cada parte ([talleres-partes.md](talleres-partes.md)); los demás mails no cambian.
+
+**Botón y número de compra:** en «Tus entradas», los recordatorios y «Cambió la fecha», el botón
+lleva a la transmisión si el evento es online y el link ya está; si no, con **una sola entrada**
+lleva a esa entrada con su QR (`/entradas/t/<token>`, «Ver mi entrada»), que se abre en cualquier
+navegador, y con varias a la página de la compra («Ver mis entradas»; ahí las entradas se ven solo
+en el navegador donde se compró, y la página lo dice; cada entrada tiene además su link en el
+mail). Todos los mails de una compra dicen «Número de compra: KV-…», la referencia corta
+(`orderReference`), la misma de la página de la compra, del mail de la transferencia y del panel
+(el buscador del panel la encuentra), nunca el id entero.
+
+**Fecha con fin y huso:** en el cuerpo de los mails (entradas, recordatorios, cambio de fecha,
+transferencia, «Mail a compradores», lista de espera y aviso de edición nueva de una serie) la fecha
+sale con la hora de fin, si el evento la tiene, y el huso: «sábado 14 de noviembre de 2026, 22:00 a
+03:00 (hora de Argentina y Uruguay)» (`formatEventWhen` de `tickets/email.js`, con
+`ARGENTINA_TIME_NOTE`). Los asuntos no cambian, y la variable `{{fecha}}` de las plantillas sigue
+siendo solo el inicio, porque hay textos propios escritos alrededor. Por eso el link de la
+transmisión y el reembolso, que llevan la fecha dentro de su texto editable, siguen igual.
+
+**Cómo llegar, accesibilidad y la página del evento:** «Tus entradas» y los recordatorios llevan,
+abajo del lugar, el link «Ver la página del evento» y, en un evento presencial, un recuadro con
+«Cómo llegar» y «Accesibilidad» del lugar vinculado. Esos dos textos salen **solo si la página del
+evento se los muestra a cualquiera** (`venueNotesForMail` en `amigues/venues.js`: nivel «Nombre +
+dirección», lugar visible y aprobado). En los otros niveles son textos libres que pueden nombrar el
+lugar, y el sitio tampoco se los muestra a quien compró: a quien compró solo le da además el
+nombre y la dirección completa ([amigues.md](amigues.md)). Vienen del CMS y van escapados. Si la
+lectura falla, el mail sale sin el recuadro.
 
 **Calendario («Agregalo a tu calendario»):** solo los mails que salen con el pago ya acreditado
 llevan el calendario: «Tus entradas», los **recordatorios**, «Link de la transmisión» («Enviar el
@@ -148,7 +189,7 @@ misma descripción) y de `calendarExtras` en `email.js`:
   página.
 - **Google Calendar** (`googleCalendarUrl`): `calendar.google.com/calendar/render?action=TEMPLATE`
   con título, las mismas horas UTC, la página del evento (y la nota de online) y el mismo lugar.
-- **Marcado para Gmail** (`eventReservationScript`): número de orden, estado confirmado, solo el
+- **Marcado para Gmail** (`eventReservationScript`): número de compra (`KV-…`), estado confirmado, solo el
   nombre de quien compró (nunca mail ni DNI) y el evento con fechas `-03:00`, la página y el lugar
   (`Place`, o `VirtualLocation` con el link de la transmisión si ya está o la página si no). El
   JSON va con `<` escapado (`\u003c`) para que nada cierre el `<script>`. **Gmail solo lo muestra a
@@ -196,11 +237,37 @@ falla (Resend caído, un timeout, el Worker que se cortó), la orden queda aprob
 - **Una dirección que falla siempre** (Resend la rechaza) se intenta como mucho 3 veces por día
   (`rate_limits`, la clave lleva el id de la orden) y no frena a las demás. Después de 48 h queda
   en «mails sin enviar» del Inicio para «Reenviar» a mano.
+- **Si Resend dice «ahora no»** (cupo terminado, demasiados por segundo o un 5xx), ese intento no
+  cuenta para los 3 del día y la corrida se corta (ver abajo).
+
+### Cupo de Resend y errores pasajeros
+
+Resend contesta 429 cuando se terminó el cupo diario o mensual del plan (`daily_quota_exceeded`,
+`monthly_quota_exceeded`) o cuando van demasiados mails por segundo (`rate_limit_exceeded`), y 5xx
+cuando está caído. Ninguno de esos dice nada del mail en sí, así que no gastan intentos
+(`resendBackoff` en `src/lib/server/tickets/email.js`):
+
+- **Reintento corto:** un 429 por tasa se reintenta una sola vez ahí mismo, esperando lo que diga
+  `retry-after` (como mucho 2 s). El cupo y el 5xx no: los toma la próxima corrida.
+- **Tandas** (recordatorios, link de la transmisión, cambio de fecha, lista de espera; `sendBatch`
+  en `sendState.js`): el envío vuelve a la cola como `retry` sin sumar el intento (`deferSend`).
+  Con el cupo o la tasa la tanda se corta en ese mail, y la corrida del cron no sigue con las otras
+  partes (la respuesta lleva `stopped`); con dos 5xx en la misma tanda, también. Para que un 429
+  que no se va nunca no quede dando vueltas, cada envío puede volver así a la cola como mucho 48
+  veces por día (`rate_limits`, unas 12 horas de corridas): después cuenta como un intento más.
+- **El mail de las entradas** (reintento del cron, `unsentOrders.js`): lo mismo, el intento no
+  cuenta y la corrida se corta. La ventana de 48 h pone el techo.
+- **«Mail a compradores»:** la tanda se corta con el cupo o la tasa y el panel dice «Resend frenó el
+  envío…»; «Reintentar» sigue más tarde sin repetir a nadie.
+- **Aviso:** con el cupo terminado, `deliver()` lo anota (`resendQuota.js`, una fila
+  `resend_quota` en `ticket_settings`, sin direcciones) y el Inicio muestra en «Para revisar» «Se
+  terminó el cupo diario (o mensual) de mails de Resend» durante un día, con un link al uso en el
+  panel de Resend. Si aparece seguido, hay que mirar el plan de Resend.
 
 ### Códigos copiables
 
 Pedido de gorrite (11/10/2026): que Gmail y el celu reconozcan el código de los mails de
-«Código para ingresar» y «Tu código para confirmar» (`src/lib/server/cuentas/email.js`), así se
+«Código para entrar» y «Tu código para confirmar» (`src/lib/server/cuentas/email.js`), así se
 copia o se completa solo. Gmail para Android e iOS muestra un botón «Copiar código» abajo del
 asunto (desde septiembre de 2026; en la web todavía no) y, desde iOS 17 y macOS Sonoma, Safari
 ofrece el código que llegó a Mail de Apple en el campo del código.
@@ -244,6 +311,11 @@ y el nombre del remitente), y es muy corto. Por eso ahora todos los mails salen 
 código con un preencabezado en castellano. En la segunda prueba Gmail siguió ofreciendo traducir:
 no alcanzó. Quedan igual, porque dicen la verdad sobre el mail y no molestan; la causa sigue sin
 saberse.
+
+**Un hilo por código.** Los mails de código tienen siempre el mismo asunto y Gmail los juntaba en
+una conversación: el nuevo quedaba plegado debajo de uno vencido. Cada uno lleva ahora su propio
+`X-Entity-Ref-ID` (un UUID al azar, en `cuentas/index.js`), que es lo que recomienda Resend para
+que no se agrupen. El código no va en el asunto, para no mostrarlo en las notificaciones.
 
 Fuentes: [9to5Google](https://9to5google.com/2026/09/19/gmail-copy-code/) (botón de Gmail),
 [foro de desarrolladores de Apple](https://developer.apple.com/forums/thread/738690) (códigos en
@@ -296,6 +368,37 @@ Todo en `src/lib/server/email/suppressions.js`; la tabla es `email_suppressions`
   igual que las gratis que cargan les admins (puerta, carga a mano) y las de antes de la migración.
   Detalle en [cuentas.md](cuentas.md) (migración 0061, `free_order_choices`).
 
+### Baja en un clic
+
+Los mails de **«Lo que sigo»** y los de **avisos de series** («Hay nueva edición de…») llevan las
+cabeceras de RFC 8058: `List-Unsubscribe: <link>` con el mismo link firmado del pie
+(`/avisos/sigo/<cuenta>.<firma>` o `/avisos/baja/<id>.<firma>`) y
+`List-Unsubscribe-Post: List-Unsubscribe=One-Click`. Gmail, Apple Mail y los demás muestran
+«Anular suscripción» y, al tocarlo, su servidor manda un POST a ese link. Todo en
+`src/lib/server/email/oneClick.js`. Van en `message.headers`, el mismo mecanismo que
+`Auto-Submitted` (`autoSubmitted` suma la suya sin pisarlas) y que `sendWithResend` manda encima de
+`MAIL_HEADERS`.
+
+- **Nunca** en entradas, transferencias, reembolsos, recordatorios de una compra, códigos para
+  entrar ni confirmaciones: son mails de algo que la persona pidió y no tienen «baja».
+- **Lista de espera: todavía no.** Ahí la baja es salir de la fila; en la oferta, un «Anular
+  suscripción» sin querer le haría perder el lugar guardado. Los avisos de después (se venció, se
+  cerró) ya no tienen de qué darse de baja. El Worker tampoco deja pasar el POST sin `Origin` de
+  `/lista-de-espera/salir/<token>`: salir es destructivo y ningún mail manda esa cabecera.
+- **El POST sin `Origin`:** SvelteKit rechaza con 403 un POST de formulario que no trae el
+  `Origin` del sitio (CSRF), y el servidor de correo no lo manda. El Worker (`worker/index.js`,
+  `allowOneClickPost`) le pone el `Origin` del sitio **solo** a un POST **sin** `Origin` a esas dos
+  páginas, con el token en un solo segmento y sin query. Un navegador siempre manda `Origin` en un
+  POST desde otro sitio, así que eso se sigue rechazando igual. Es seguro porque esas acciones no
+  usan la sesión ni las cookies (lo que autoriza es la firma HMAC del token, que un link tocado no
+  pasa), son idempotentes y contestan 200 sin redirigir. El GET de esos links sigue mostrando solo
+  el botón: los antivirus del correo no dan de baja a nadie.
+- Las cabeceras salen solo con un link `https://` (en dev, sin cabeceras) y nunca con `mailto:`.
+- **Para probar en un preview:**
+  `curl -i -X POST -H 'content-type: application/x-www-form-urlencoded' --data 'List-Unsubscribe=One-Click' https://<preview>/avisos/sigo/<token>`
+  tiene que dar 200 (antes daba 403). En un mail de «Lo que sigo» que llegue a une misme, «Mostrar
+  original» en Gmail tiene que mostrar las dos cabeceras.
+
 ### Rebotes y quejas
 
 «Mail enviado» quiere decir que Resend lo aceptó, no que llegó. Para enterarse de lo que no llega,
@@ -318,7 +421,8 @@ Resend avisa por un webhook firmado: `POST /api/resend/webhook`
   Inicio aparece «Rebotó el mail de <nombre>» (o «<nombre> marcó como spam el mail de las
   entradas») durante 14 días, con «Ver orden». «Reenviar» limpia la marca; si vuelve a rebotar,
   Resend avisa de nuevo. Reenviar a una dirección que rebota no sirve: hay que conseguir la
-  dirección bien escrita.
+  dirección bien escrita y cargarla con «Corregir el mail…», que también limpia la marca (y el id
+  de Resend de la dirección vieja).
 - **Seguridad:** la firma es la de Svix (HMAC-SHA256 de `<svix-id>.<svix-timestamp>.<cuerpo>` con
   el secreto `whsec_…`), comparada en tiempo constante; un aviso con la marca de tiempo a más de
   5 minutos del reloj se rechaza (401), y el mismo `svix-id` se procesa una sola vez
@@ -459,6 +563,85 @@ migración `0048_avisar_cambio_fecha.sql`):
   y botón) si ya está, como en los demás mails. Plantilla `date_change` (variables: `nombre`,
   `evento`, `fecha`, `fecha_anterior`, `lugar`, `entradas`). El texto por defecto dice que lo comprado sigue valiendo y, debajo del botón, que si con la fecha nueva no puede, responda el mail y le devolvemos lo que pagó (como la política de devoluciones).
 
+### Alguien dice que no le llegó la entrada
+
+Es la única guía para este caso: seguí los pasos en orden.
+
+1. **¿Salió?** En la ficha del evento → Órdenes, buscá la orden (por nombre, mail o el
+   número de compra `KV-…`) y fijate si el mail figura como enviado. Si dice «el mail rebotó» (o
+   «marcó el mail como spam»), Resend ya avisó qué pasó ([Rebotes y quejas](#rebotes-y-quejas)):
+   seguí en el paso 4 o el 5. Si no salió y la orden tiene menos de 48 h, el cron la reintenta sola
+   cada 15 minutos ([Reintento del mail de las entradas](#reintento-del-mail-de-las-entradas)).
+2. **Spam y Promociones.** Pedile que busque en Spam y en Promociones (en Gmail, también en
+   «Todos»), por «Tus entradas para» o por el nombre del evento.
+3. **Qué dice Resend.** En Resend → Emails, buscá la dirección y mirá el estado del último mail:
+   - `delivered`: el servidor de la persona lo aceptó. Si no lo ve, está en spam, en otra
+     carpeta o en un filtro suyo.
+   - `delivery_delayed`: el servidor de destino lo está demorando; Resend sigue intentando.
+     Esperá un rato antes de reenviar.
+   - `bounced`: rebotó. Casi siempre la dirección está mal escrita o no existe (paso 5).
+   - `complained`: la persona (o su proveedor) lo marcó como spam. Desde ahí la dirección queda
+     suprimida (paso 4).
+   - `suppressed`: Resend no lo mandó porque la dirección está en la lista de supresión (paso 4).
+4. **Si está suprimida** y la persona confirma que la dirección es suya y está bien escrita, sacala
+   en Resend → Suppressions y recién ahí usá «Reenviar». Leé antes
+   [La lista de supresión](#la-lista-de-supresión).
+5. **Si rebotó por un error de tipeo** (`gmial.com`, `hotmail.con`…), reenviar a la misma
+   dirección no sirve: en Órdenes usá «Corregir el mail…» con la dirección bien escrita, que
+   cambia el mail de la orden y le manda las entradas ahí
+   ([Tareas comunes](#tareas-comunes)). Si no llega a tiempo: en la puerta,
+   buscá la orden por nombre («Buscar persona» en el control de ingreso) y dejala pasar con su
+   nombre y su número de compra, sin QR.
+6. **Reenviar.** «Reenviar» (en Órdenes o en «Para revisar») le pide a Resend que mande las
+   entradas de nuevo, sin clave de idempotencia: sale aunque ya hubiera salido. Que Resend lo
+   acepte no quiere decir que llegue: si la dirección está suprimida, no llega (paso 4).
+
+Una orden gratis a una dirección que tocó «No fui yo» no sale nunca, tampoco con «Reenviar»
+([No fui yo](#no-fui-yo)). Quien compró también ve sus entradas en la página de la compra
+(`/entradas/<orden>/estado`), pero solo desde el navegador en que compró; con una sola entrada, el
+botón del mail lleva directo a la entrada.
+
+**Quién puede mirar Resend.** El panel de Resend lo ve quien tenga acceso a la cuenta de Resend del
+sitio (hoy, quien administra el sitio). Si no lo tenés, pedíselo a gorrite; mientras tanto, los
+pasos 1, 2 y 5 se hacen solo desde el panel del sitio.
+
+### La lista de supresión
+
+Resend guarda una lista de direcciones a las que no manda más: las que rebotaron de forma
+permanente y las que marcaron un mail como spam. Hay que saber tres cosas:
+
+- **Vale para todos los mails del sitio**, porque todos salen de la misma cuenta y el mismo
+  dominio: una queja por un aviso de «Lo que sigo» o por una serie bloquea también las entradas
+  de esa persona.
+- **Sacar una dirección no arregla la causa.** Si la sacás de Resend → Suppressions y la dirección
+  sigue rebotando o la persona vuelve a marcar spam, vuelve a quedar suprimida. Sacala solo cuando
+  la persona confirmó que la dirección es suya y está bien escrita.
+- **Es aparte de «No fui yo»**, que es una lista propia del sitio (`email_suppressions`, solo para
+  órdenes gratis y reservas sin pagar). Sacar una dirección en Resend no la saca de «No fui yo», ni
+  al revés.
+
+### Antes de la primera preventa grande
+
+Lista de control del ítem `lanzamiento-mails` del plan. El mail de las entradas sale apenas se
+aprueba el pago (`sendOrderEmail` en `src/lib/server/tickets/index.js`), así que una preventa
+grande es un pico de mails en pocas horas desde un dominio que hoy manda poco. Los proveedores
+desconfían de esos picos: una parte puede ir a spam o demorarse (sobre todo en Outlook y Hotmail).
+
+- **Calentar el dominio.** Una o dos semanas antes, mandá volumen chico y constante (recordatorios,
+  avisos, ventas chicas), mejor que nada y después cientos de golpe.
+- **Abrir la preventa por tramos**, por ejemplo un cupo por día o por horario, en vez de todo a la
+  vez.
+- **Cupo de Resend.** Confirmá en Resend → Usage que el cupo diario y mensual alcanza para las
+  órdenes esperadas más los recordatorios (cada orden manda al menos el mail de las entradas y uno
+  o dos recordatorios).
+- **Los primeros días, mirá Resend → Metrics:** rebotes por debajo del 4 %, quejas por debajo del
+  0,08 % y pocos `delivery_delayed`. Si suben, frená los envíos masivos («Mail a compradores»,
+  avisos) y revisá qué direcciones rebotan
+  ([Alguien dice que no le llegó la entrada](#alguien-dice-que-no-le-llegó-la-entrada)).
+- **Probar antes** los mails en Gmail, Hotmail, Yahoo y un mail de trabajo (spam, `.ics`,
+  recordatorio, cambio de fecha) con «Mandarme una prueba», y que SPF, DKIM y DMARC den PASS
+  («Mostrar original» en Gmail).
+
 ## Configuración
 
 | Qué                                | Dónde                                                                                       |
@@ -472,6 +655,19 @@ migración `0048_avisar_cambio_fecha.sql`):
 | Secreto del mail del Fondo         | `FONDO_MAIL_SECRET`, Secret del Worker `kinkyvibe` (el mismo valor en el del Fondo)         |
 | Rebotes y quejas (webhook)         | `RESEND_WEBHOOK_SECRET`, Secret del Worker `kinkyvibe` (rebotes y quejas, arriba)           |
 | Previews                           | `EMAIL_ALLOWLIST` en el entorno Preview de Cloudflare                                       |
+
+**El remitente solo puede ser @kinkyvibe.ar** (`MAIL_FROM_DOMAINS` en `tickets/settings.js`), el
+único dominio verificado en Resend: con otro, Resend rechaza todos los mails (entradas, códigos,
+recordatorios). El panel no deja guardar otro dominio, y si igual hay uno (un valor viejo en la
+base o `TICKETS_FROM_EMAIL` mal cargada), `emailSettings` usa el de siempre y lo anota en la consola
+(sin la dirección). Si algún día se verifica otro dominio o subdominio en Resend, se suma a esa
+lista en el mismo PR.
+
+**Respuestas automáticas.** Los mails que salen solos en tanda (recordatorios, cambio de fecha,
+link de la transmisión, lista de espera, series y «Lo que sigo») llevan `Auto-Submitted:
+auto-generated` (`autoSubmitted` en `tickets/email.js`), así los «estoy de vacaciones» no vuelven a
+la casilla de respuesta, donde llegan los comprobantes. «Tus entradas», la transferencia y «Mail a
+compradores» no lo llevan: ahí sí se espera que respondan.
 
 Las respuestas a `entradas@kinkyvibe.ar` llegan al Gmail de la organización (Cloudflare Email
 Routing). La bandeja dentro del panel es una decisión tomada (0010) pero todavía no existe.
@@ -501,6 +697,18 @@ vacío sale como en la plantilla general. "Volver a la plantilla general" borra 
 una copia en `panel_deletions`, así se recupera desde Ajustes › Actividad («Recuperar», decisión
 0030).
 
+**Evento con título sensible.** El asunto de los mails lleva el título del evento («Tus entradas
+para …», «Recordatorio: …»), y se ve en la notificación del celu con la pantalla bloqueada, en
+un buzón compartido o de trabajo y en la vista previa de la bandeja. Si el título es explícito,
+poné un asunto propio sin esos términos en la ficha del evento → Mails → Plantillas → el mail →
+Asunto (por ejemplo «Tus entradas · {{fecha}}» o con `{{referencia}}`), en el de entradas, el de
+transferencia y los recordatorios. Revisá también el título de la tarjeta (el que va en grande),
+que se ve en la vista previa. El remitente sigue siendo «KinkyVibe»: el dominio se ve igual, y un
+nombre que la gente reconoce baja las quejas. El nombre del adjunto (`<slug>.ics`) y el cuerpo
+todavía llevan el evento; una opción de mails discretos (una casilla en la compra que saque el
+evento del asunto, del preencabezado y del adjunto) sería una etapa aparte, que necesita una
+decisión de gorrite.
+
 **Cambiar un mail desde el código.** Editá la función `build…Email` en `email.js` y actualizá
 `email.golden.json` en el mismo PR, explicando el cambio. Si agregás una variable, sumala en
 `emailTemplates.js`.
@@ -509,14 +717,22 @@ una copia en `panel_deletions`, así se recupera desde Ajustes › Actividad («
 Resend) y, si es masivo, con una tabla de envíos que reserve a cada destinatarie antes de mandar
 (como `buyerMail.js`). Nueva migración si hace falta tabla ([datos.md](datos.md)).
 
-**A alguien no le llegaron las entradas («no me llegó»).** Buscá la orden en la ficha del evento
-→ Órdenes. Si dice que el mail rebotó, la dirección está mal o no existe: reenviar no sirve
-(ver [Rebotes y quejas](#rebotes-y-quejas)). Si dice que el mail salió, que revise spam y que la dirección esté bien escrita (si
-está mal, no hay reintento que sirva). Si no salió y la orden tiene menos de 48 h, el cron la
-reintenta sola cada 15 minutos. Si no, «Reenviar» manda las entradas de nuevo (sin clave de
-idempotencia: sale aunque ya hubiera salido). Una orden gratis a una dirección que tocó «No fui
-yo» no sale nunca, tampoco con «Reenviar». Quien compró también ve sus entradas en la página de
-la compra (`/entradas/<orden>/estado`) desde el navegador en que compró.
+**A alguien no le llegaron las entradas («no me llegó»).** Ver
+[Alguien dice que no le llegó la entrada](#alguien-dice-que-no-le-llegó-la-entrada).
+
+**Quien compró escribió mal su mail.** En Órdenes, en la orden aprobada (paga o gratis),
+«Corregir el mail…» → el mail nuevo → «Corregir el mail y reenviar» (acción `email` de
+`src/lib/server/admin/eventActions.js`, solo admins). Cambia `buyer_email` (y los códigos combo de
+la orden, que van atados a ese mail) y manda las entradas a la dirección nueva con una clave de
+idempotencia propia (`tickets-<orden>-mail-<hora>`: la de siempre ya se usó con la otra
+dirección). A la dirección vieja no le sale nada más: todos los mails leen `buyer_email`. Si la
+nueva tocó «No fui yo», no se cambia ni se manda nada y el panel lo dice. Queda en Ajustes ›
+Actividad («Corrigió el mail de …»), sin ninguna de las dos direcciones. Borra el rebote o la queja
+de la dirección vieja (`email_problem`) y su `email_id`. Si Resend falla, la
+dirección queda corregida y el mail como no enviado: «Reenviar mail» lo vuelve a intentar. La
+orden que una cuenta veía solo por el mail (`cuentas/orders.js`) pasa a la cuenta de la dirección
+nueva. Que quien compró
+corrija su mail sola desde la página de la compra queda para más adelante (lo decide gorrite).
 
 **Un recordatorio no salió.** Mirá los logs del Worker `kinkyvibe` en Cloudflare
 (**Observability → Logs**, buscar `recordatorios:`): 503 = falta `CRON_SECRET`.

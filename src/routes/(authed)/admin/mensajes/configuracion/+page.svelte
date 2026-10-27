@@ -94,7 +94,7 @@ tarjeta para lo mismo. -->
 		</div>
 		<p class="kv-note">
 			Vacíos: <code>{data.emailDefaults.from}</code> y <code>{data.emailDefaults.replyTo}</code>. El
-			dominio del remitente tiene que estar verificado en Resend.
+			remitente tiene que ser una dirección @kinkyvibe.ar (el dominio verificado en Resend).
 		</p>
 	</Card>
 

@@ -21,6 +21,9 @@ de página y dónde se arma. (La **imagen para compartir** que se descarga desde
 - **No listado no es oculto**: un evento, material o perfil no listado (o un borrador) se puede
   compartir por link y tiene su tarjeta, pero lleva `robots: noindex` para que los buscadores no lo
   guarden.
+- **«No aparecer en buscadores»** (perfiles de persona, lo eligen quienes los gestionan): además
+  del `noindex`, la tarjeta va sin la foto ni la presentación (la del sitio y «<nombre> en Amigues
+  de Kinky Vibe»). Ver [amigues.md](amigues.md).
 
 ## Dónde está
 

@@ -86,7 +86,8 @@ export async function insertOrder(
  * @param {'sent' | 'simulated' | 'failed'} [result]
  */
 export function fakeSend(result = 'sent') {
-	/** @type {Array<{ to: string, subject: string, text: string, html: string, key?: string }>} */
+	/** @type {Array<{ to: string, subject: string, text: string, html: string, key?: string,
+	 *   headers?: Record<string, string> }>} */
 	const sent = [];
 	const state = { result };
 	/** @type {import('./subscriptions.js').SeriesSend} */
