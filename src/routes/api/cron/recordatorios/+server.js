@@ -29,6 +29,7 @@ import { json } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { getDB, logDBError } from '$lib/server/db';
 import { runMailQueue, siteOrigin } from '$lib/server/tickets/index.js';
+import { mailBudgetLeft } from '$lib/server/tickets/mailQueue.js';
 import { MIN_CRON_SECRET_LENGTH, isValidCronSecret } from '$lib/server/cron.js';
 import { runSeriesCron } from '$lib/server/series/web.js';
 import { runSigoCron } from '$lib/server/sigo/cron.js';
@@ -82,8 +83,11 @@ export async function POST({ request, platform, url, fetch }) {
 		// El mail con las entradas que no salió al aprobarse la orden: aparte de la tanda (tiene su
 		// propio tope) y si falla, lo demás sale igual.
 		let unsentOrders = null;
+		/** @type {{ sent: number, failed: number, stopped?: unknown } | null} */
+		let unsentRun = null;
 		try {
 			const u = await resendUnsentOrderEmails({ db, origin: siteOrigin(url), fetch });
+			unsentRun = u;
 			unsentOrders = {
 				sent: u.sent,
 				failed: u.failed,
@@ -99,14 +103,20 @@ export async function POST({ request, platform, url, fetch }) {
 		if (mailsOff) {
 			logMailsPaused('los avisos de series ni los de «Lo que sigo»');
 		} else {
+			// Series y «Lo que sigo» salen con lo que sobró de la tanda («de a cuántos»): la corrida
+			// entera no la pasa y las entradas y los recordatorios van primero. Con la tanda gastada
+			// (o Resend diciendo «ahora no») igual corren con límite 0: anotan las ediciones nuevas y
+			// los avisos por Telegram, y los mails quedan para la próxima corrida.
+			let left = mailBudgetLeft(r, [unsentRun]);
 			try {
-				series = await runSeriesCron({ db, origin: siteOrigin(url), fetch });
+				series = await runSeriesCron({ db, origin: siteOrigin(url), fetch, limit: left });
+				if (series) left = Math.max(0, left - series.sent - series.failed);
 			} catch (error) {
 				logDBError('cron series', error);
 			}
 			// «Lo que sigo» también aparte (interruptor `lo_que_sigo`).
 			try {
-				sigo = await runSigoCron({ db, platform, origin: siteOrigin(url), fetch });
+				sigo = await runSigoCron({ db, platform, origin: siteOrigin(url), fetch, limit: left });
 			} catch (error) {
 				logDBError('cron lo que sigo', error);
 			}
