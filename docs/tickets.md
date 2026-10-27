@@ -673,6 +673,25 @@ Se muestra en "Condiciones de compra y devoluciones" del formulario y al pie de 
 
 (Reescrita para que se lea más clara, con el mismo sentido que el texto original de la organización. En el formulario va dentro de la misma lista que las demás condiciones.)
 
+### Cancelar un evento con entradas vendidas
+
+Receta (auditoría de confiabilidad, O24), siguiendo las decisiones
+[0044](decisiones/0044-reglas-de-la-venta-de-entradas.md) y
+[0051](decisiones/0051-reembolsar-todas-evento-cancelado.md): se le devuelve todo a todes desde el
+panel o, si la persona lo prefiere, un taller grabado. Cancelar no reembolsa ni avisa solo.
+
+1. **Editar el evento → estado `cancelado`.** Cierra la venta, saltea los recordatorios y cierra la
+   lista de espera (con su mail).
+2. **Avisar:** ficha del evento → Mail → «Mail a compradores», con un texto que ofrezca las dos
+   salidas (la devolución o un taller grabado) y diga cómo pedir el taller.
+3. **Devolver:** Ventas › Órdenes. Las de Mercado Pago, con «Reembolsar todas» (de a 10, hay que
+   escribir REEMBOLSAR) o una por una con «Reembolsar…»; cada reembolso manda su mail. Las que MP
+   rechace (sin saldo, más de 180 días) quedan aprobadas: anotarlas y reintentar, o devolver a mano
+   después de mirar el pago en MP. Las de la puerta, carga a mano o transferencia van en «Para
+   devolver a mano». Quien eligió el taller grabado: no se reembolsa; anotarlo (por ejemplo, en una nota interna de la persona).
+4. **Transferencias pendientes:** Ventas › Transferencias → Cancelar cada una.
+5. Mientras quede algo por devolver, el evento sale en «Para revisar» del Inicio.
+
 ### Evento de prueba
 
 `prueba-entradas-2026-12` (en la semilla de contenido, `src/lib/server/semilla/calendario.json`; en producción ya está borrado) es un evento **oculto** (`force_unlisted`) con entradas (General y Anticipada, con fondo en las dos), los dos medios de pago, y en el cuerpo las instrucciones paso a paso para probar todo. `prueba-entradas-gorra-2026-12` es otro, online y a la gorra.
