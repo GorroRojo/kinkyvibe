@@ -251,6 +251,12 @@ primer paso de `handle` (`src/hooks.server.js`) hace lo mismo con `wwwRedirectRe
 y localhost no cambian y no hay bucles. Las canónicas siguen saliendo del origen del pedido (los
 Previews y `seo.test.js` lo esperan).
 
+En los builds de producción (rama `main`), cualquier otro host (una dirección `*.workers.dev` de
+una versión de producción) también va a `https://kinkyvibe.ar` con 308 (`offSiteRedirectResponse`,
+mismo archivo): producción tiene una sola puerta, la de la zona, con sus reglas. Los Previews de
+rama y local no cambian (su rama no es `main`), y `/api/cron/…` no se redirige. Por eso la Version
+URL de un deploy de producción ya no sirve para probarlo: redirige al sitio.
+
 ### IndexNow
 
 Cada 15 minutos, el cron de recordatorios (`/api/cron/recordatorios`) avisa por IndexNow
