@@ -426,6 +426,12 @@ Resend avisa por un webhook firmado: `POST /api/resend/webhook`
 - **El id de Resend:** el mail de las entradas guarda en la orden el id que devuelve Resend
   (`orders.email_id`, el del último envío; «Reenviar» lo cambia). Con ese id se busca el mail en
   Resend → Emails (Resend lo guarda 30 días) y el webhook encuentra la orden.
+- **El tipo de mail:** cada envío lleva el tag de Resend `tipo` (`entradas`, `transmision`,
+  `cambio-fecha`, `transferencia`, `reembolso`, `recordatorio`, `mail-compradores`, `prueba`,
+  `codigo`, `perfil-invitacion`, `serie`, `sigo`, `lista-espera`, `fondo`; el `kind` de
+  `deliver()` en `src/lib/server/tickets/index.js`). En Resend → Emails se filtra por tag, así un
+  rebote de «Tus entradas» no se confunde con uno de «Lo que sigo», y el tag viene en los avisos
+  del webhook. No cambia nada del mail que recibe la persona.
 - **Qué hace con cada aviso:** un rebote permanente (`email.bounced` con `bounce.type`
   `Permanent`) o una queja (`email.complained`, alguien lo marcó como spam) anotan la dirección en
   `email_suppressions`, la misma tabla de [«No fui yo»](#no-fui-yo) (por hash, nunca el mail): no le

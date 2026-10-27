@@ -362,6 +362,7 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  * lista de espera, avisos de series…): si la dirección dijo «No fui yo» (email/suppressions.js), no
  * sale y vuelve `simulated` (como enviado: no se reintenta). Si no se puede leer la base, no sale
  * (`failed`). Los de una compra pagada no lo llevan y salen siempre.
+ * `kind`: el tipo de mail, que va como tag `tipo` de Resend (ver `sendWithResend`).
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database | null | undefined,
@@ -372,7 +373,8 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  *   idempotencyKey?: string,
  *   log?: string,
  *   from?: string,
- *   optOut?: boolean
+ *   optOut?: boolean,
+ *   kind?: string
  * }} input
  * @param {(emailId: string | null) => void} [onSent] recibe el id que devolvió Resend, si salió (el
  *   mail de las entradas lo guarda en la orden: docs/mails.md, «Rebotes y quejas»)
@@ -387,7 +389,8 @@ async function deliver(
 		idempotencyKey,
 		log = '',
 		from: fixedFrom,
-		optOut = false
+		optOut = false,
+		kind
 	},
 	onSent
 ) {
@@ -443,7 +446,8 @@ async function deliver(
 			to: route.to,
 			replyTo,
 			message: { ...message, subject: route.subject },
-			idempotencyKey
+			idempotencyKey,
+			kind
 		});
 	} catch (error) {
 		// Cupo terminado: queda el aviso en «Para revisar» (resendQuota.js). El error sigue: quien
@@ -615,6 +619,7 @@ export async function sendOrderEmailResult({
 				to: order.buyer_email,
 				message,
 				idempotencyKey,
+				kind: 'entradas',
 				optOut: isFreeOrder(order),
 				// Nunca logueamos el token completo: con él se entra al evento.
 				log: list
@@ -723,6 +728,7 @@ export async function sendStreamLinkEmails({
 				to: order.buyer_email,
 				message: autoSubmitted(message),
 				idempotencyKey: `stream-${order.id}-${key}`,
+				kind: 'transmision',
 				optOut: isFreeOrder(order)
 			});
 			return result !== 'failed';
@@ -802,6 +808,7 @@ export async function sendDateChangeEmails({
 				to: order.buyer_email,
 				message: autoSubmitted(message),
 				idempotencyKey: `datechange-${order.id}-${change.version}`,
+				kind: 'cambio-fecha',
 				optOut: isFreeOrder(order)
 			});
 			return result !== 'failed';
@@ -852,6 +859,7 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			to: order.buyer_email,
 			message,
 			idempotencyKey: `transfer-${order.id}`,
+			kind: 'transferencia',
 			optOut: true
 		});
 		return result === 'sent';
@@ -884,6 +892,7 @@ export async function sendRefundEmail({ db, order, fetch: fetchFn }) {
 			to: order.buyer_email,
 			message,
 			idempotencyKey: `refund-${order.id}`,
+			kind: 'reembolso',
 			optOut: isFreeOrder(order)
 		});
 		return result !== 'failed';
@@ -1035,6 +1044,7 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				to: order.buyer_email,
 				message: autoSubmitted(message),
 				idempotencyKey: `reminder-${order.id}-${reminderKey(reminder, part ?? undefined)}`,
+				kind: 'recordatorio',
 				optOut: isFreeOrder(order)
 			});
 			return result !== 'failed';
@@ -1128,6 +1138,7 @@ export async function deliverBuyerMailBatch({ db, send, fetch: fetchFn, limit })
 				to: recipient.email,
 				message,
 				idempotencyKey: `buyer-mail-${send.id}-${who}`,
+				kind: 'mail-compradores',
 				optOut: !recipient.paid
 			});
 			return result !== 'failed';
@@ -1153,7 +1164,8 @@ export async function sendTestEmail({ db, fetch: fetchFn, to, message }) {
 			db,
 			fetch: fetchFn,
 			to,
-			message: { ...message, subject: `[Prueba] ${message.subject}` }
+			message: { ...message, subject: `[Prueba] ${message.subject}` },
+			kind: 'prueba'
 		});
 	} catch (error) {
 		console.error('[tickets] no se pudo mandar el mail de prueba:', error);
