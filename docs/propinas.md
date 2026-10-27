@@ -167,5 +167,5 @@ Confirmadas por gorrite:
 - **Pie de página** (cambiado por gorrite): "Dejá una propina" (al Fondo) reemplaza al link a
   Cafecito (el interruptor `propinas` quedó fijo).
 
-Tomadas por Claude, a confirmar: sin cuenta ni datos, mensaje opcional de 280 caracteres solo
+Tomadas por Claude, **A CONFIRMAR**: sin cuenta ni datos, mensaje opcional de 280 caracteres solo
 para admins y página de gracias.

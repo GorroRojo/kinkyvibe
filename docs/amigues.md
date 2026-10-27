@@ -428,7 +428,7 @@ lugares), esta vincula con los **lugares que ya existen**. Reglas puras en
   «Dejar como texto».
 - **Qué se ve**: con el lugar elegido, la página dice qué eventos se van a ver distinto y por qué
   (`eventFit`, la misma lista blanca que la página del evento).
-- **Privacidad** (decidido por Claude, a confirmar): cada evento queda con el nivel del lugar,
+- **Privacidad** (decidido por Claude, **A CONFIRMAR**): cada evento queda con el nivel del lugar,
   salvo que el evento mostraba menos (por ejemplo, solo el nombre): entonces lleva ese nivel como
   propio en el edge (`linkPrivacy`). Nunca muestra del lugar más de lo que el lugar deja ver por
   defecto, aunque el evento mostrara más en su texto.
