@@ -17,6 +17,12 @@
  * 15 minutos el cron
  * del Worker (src/lib/server/scheduled.js); cada corrida sigue donde quedó la anterior.
  *
+ * Pausas de emergencia ($lib/server/emergencia.js, docs/interruptores.md): con `MAILS_PAUSED`
+ * no sale ningún mail en tanda (la tanda, las series y «Lo que sigo» se saltean y quedan para
+ * después; el reintento del mail de las entradas sigue, es de una compra) y la lista de espera no
+ * avanza (no se guardan lugares que nadie se entera); con `TICKETS_PAUSED`, la lista tampoco
+ * avanza (no se podría comprar). La respuesta suma `paused: { tickets, mails }`.
+ *
  * Protegido con un secreto compartido: header `x-cron-secret` = CRON_SECRET (comparado en
  * tiempo constante, sobre los SHA-256 para no revelar el largo). Sin CRON_SECRET configurado
  * responde 503 (nunca queda abierto).
@@ -42,7 +48,10 @@ import { pruneUso } from '$lib/server/telegram/uso.js';
 import { resendUnsentOrderEmails } from '$lib/server/tickets/unsentOrders.js';
 import { runIndexNow } from '$lib/server/seo/indexnow.js';
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { siteWikiPosts } from '$lib/server/wiki/site.js';
+import { logMailsPaused, mailsPaused, ticketsPausedMessage } from '$lib/server/emergencia.js';
+import { siteTagManager } from '$lib/server/etiquetas/source.js';
+import { seriesTagIds } from '$lib/utils/series.js';
+import { sitemapWikiPosts } from '../../../(content)/sitemap.xml/series.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, platform, url, fetch }) {
@@ -55,14 +64,18 @@ export async function POST({ request, platform, url, fetch }) {
 	}
 	const db = getDB(platform);
 	if (!db) return json({ error: 'sin base de datos' }, { status: 503 });
+	// Las pausas de emergencia: se leen una vez por corrida.
+	const mailsOff = mailsPaused();
+	const ticketsOff = ticketsPausedMessage() !== null;
 	try {
 		// La lista de espera, antes de la tanda (así las ofertas nuevas salen en esta misma
-		// corrida) y aparte: si falla, los demás mails salen igual.
+		// corrida) y aparte: si falla, los demás mails salen igual. Con una pausa no avanza: un
+		// lugar guardado sin mail (o que no se puede comprar) se vencería sin que nadie se entere.
 		let waitlistOn = false;
 		let waitlist = null;
 		try {
 			waitlistOn = await listaEsperaEnabled(platform);
-			waitlist = await runWaitlistCron(db, { enabled: waitlistOn });
+			waitlist = await runWaitlistCron(db, { enabled: waitlistOn && !mailsOff && !ticketsOff });
 		} catch (error) {
 			logDBError('cron lista de espera', error);
 		}
@@ -79,23 +92,32 @@ export async function POST({ request, platform, url, fetch }) {
 		let unsentOrders = null;
 		try {
 			const u = await resendUnsentOrderEmails({ db, origin: siteOrigin(url), fetch });
-			unsentOrders = { sent: u.sent, failed: u.failed };
+			unsentOrders = {
+				sent: u.sent,
+				failed: u.failed,
+				...(u.stopped ? { stopped: u.stopped } : {})
+			};
 		} catch (error) {
 			logDBError('cron mails de entradas sin enviar', error);
 		}
 		// Las series van aparte: si fallan, los recordatorios ya salieron y la corrida no se cae.
+		// Con MAILS_PAUSED, ni las series ni «Lo que sigo» (sus avisos quedan para después).
 		let series = null;
-		try {
-			series = await runSeriesCron({ db, origin: siteOrigin(url), fetch });
-		} catch (error) {
-			logDBError('cron series', error);
-		}
-		// «Lo que sigo» también aparte (interruptor `lo_que_sigo`).
 		let sigo = null;
-		try {
-			sigo = await runSigoCron({ db, platform, origin: siteOrigin(url), fetch });
-		} catch (error) {
-			logDBError('cron lo que sigo', error);
+		if (mailsOff) {
+			logMailsPaused('los avisos de series ni los de «Lo que sigo»');
+		} else {
+			try {
+				series = await runSeriesCron({ db, origin: siteOrigin(url), fetch });
+			} catch (error) {
+				logDBError('cron series', error);
+			}
+			// «Lo que sigo» también aparte (interruptor `lo_que_sigo`).
+			try {
+				sigo = await runSigoCron({ db, platform, origin: siteOrigin(url), fetch });
+			} catch (error) {
+				logDBError('cron lo que sigo', error);
+			}
 		}
 		// Los avisos de admins por Telegram (decisión 0041): el resumen diario desde las 9 (hora
 		// de Argentina), solo a quien lo prendió. Aparte: si falla, lo demás ya salió.
@@ -125,12 +147,15 @@ export async function POST({ request, platform, url, fetch }) {
 			key: env.INDEXNOW_KEY,
 			origin: siteOrigin(url),
 			fetch,
+			// Las mismas listas que el sitemap: el grupo «wiki» trae también las páginas de las
+			// series con ediciones públicas (sitemap.xml/series.js).
 			lists: async () => {
-				const [posts, wikiPosts] = await Promise.all([
+				const [posts, wikiPosts, tags] = await Promise.all([
 					sitePosts(platform),
-					siteWikiPosts(platform)
+					sitemapWikiPosts(platform),
+					siteTagManager(platform)
 				]);
-				return { posts, wikiPosts };
+				return { posts, wikiPosts, seriesIds: seriesTagIds(tags) };
 			}
 		});
 		// Avisos de puerta (decisión 0053): borra los vencidos y avisa 14 días antes, una vez, a la
@@ -151,6 +176,7 @@ export async function POST({ request, platform, url, fetch }) {
 		return json(
 			{
 				...r,
+				...(mailsOff || ticketsOff ? { paused: { tickets: ticketsOff, mails: mailsOff } } : {}),
 				...(waitlist ? { waitlistAdvance: waitlist } : {}),
 				...(unsentOrders ? { unsentOrders } : {}),
 				...(series ? { series } : {}),

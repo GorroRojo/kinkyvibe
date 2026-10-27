@@ -94,7 +94,7 @@ tarjeta para lo mismo. -->
 		</div>
 		<p class="kv-note">
 			Vacíos: <code>{data.emailDefaults.from}</code> y <code>{data.emailDefaults.replyTo}</code>. El
-			dominio del remitente tiene que estar verificado en Resend.
+			remitente tiene que ser una dirección @kinkyvibe.ar (el dominio verificado en Resend).
 		</p>
 	</Card>
 
@@ -236,7 +236,9 @@ tarjeta para lo mismo. -->
 			«Horas antes»: desde la hora de inicio (48 = 2 días antes). «Días antes, a la hora»: 0 = el
 			mismo día; hora de Argentina. Salen en la primera vuelta de mails (cada 15 minutos) después de
 			esa hora (en un evento grande, en varias vueltas: ver «Envíos en tandas»), una sola vez por
-			compra.
+			compra. Si un evento empieza antes de la hora de un «el mismo día» (a las 8, con el de las
+			9:00), ese sale el día anterior a las 20:00 y dice «es mañana», salvo que otro recordatorio ya
+			caiga en las 24 horas antes.
 		</p>
 	</Card>
 

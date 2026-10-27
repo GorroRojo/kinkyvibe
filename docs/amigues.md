@@ -205,7 +205,9 @@ En `name`, `area` y `hidden` aparece "Te mandamos la dirección con tu entrada" 
 entradas en el sitio; si no (no hay entrada que la lleve), no aparece ningún aviso (decisión de
 gorrite, 9/10). En todos los
 niveles **quien compró recibe el lugar completo** (nombre y dirección) en el mail de confirmación,
-en los recordatorios y en la página de su entrada (con la compra aprobada).
+en los recordatorios y en la página de su entrada (con la compra aprobada). «Cómo llegar» y
+«Accesibilidad» van en esos mails solo cuando la página del evento se los muestra a cualquiera
+(nivel «Nombre + dirección»; `venueNotesForMail`, [mails.md](mails.md)).
 
 La página del lugar muestra su ubicación según su nivel por defecto (el mapa, solo con
 "Nombre + dirección").

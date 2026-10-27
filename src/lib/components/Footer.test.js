@@ -1,5 +1,5 @@
 /**
- * Pie de página: "Tu cuenta" (Ingresar / Mi rincón), "Dejá una propina" y "Entrar al panel" para
+ * Pie de página: "Tu cuenta" (Entrar / Mi rincón), "Dejá una propina" y "Entrar al panel" para
  * el equipo. Los interruptores `cuentas` y `propinas` quedaron prendidos para siempre: los casos
  * «apagado» (sin "Tu cuenta", con Cafecito) se fueron con ellos.
  */
