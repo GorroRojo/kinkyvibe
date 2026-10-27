@@ -8,7 +8,7 @@
  * El archivo es SQL comprimido con gzip (ver ./dump.js). Restaurar: scripts/d1-restore.js y
  * docs/workers-migracion.md. Solo usa imports relativos (lo importa worker/index.js).
  */
-import { dumpDatabase } from './dump.js';
+import { streamDatabase } from './dump.js';
 import {
 	BACKUP_PREFIX,
 	manualBackupKey,
@@ -42,13 +42,40 @@ export async function gunzipText(bytes) {
 }
 
 /**
+ * Vuelca la base comprimiéndola a medida que sale: en memoria queda solo lo comprimido (unas diez
+ * veces menos), nunca el SQL entero.
+ *
+ * @param {D1Database} db
+ * @param {Date} now
+ */
+async function dumpCompressed(db, now) {
+	const gzip = new CompressionStream('gzip');
+	const writer = gzip.writable.getWriter();
+	const compressed = new Response(gzip.readable).arrayBuffer();
+	const encoder = new TextEncoder();
+	try {
+		const { stats, sqlBytes } = await streamDatabase(
+			db,
+			(text) => writer.write(encoder.encode(text)),
+			{ now }
+		);
+		await writer.close();
+		return { stats, sqlBytes, body: new Uint8Array(await compressed) };
+	} catch (error) {
+		// Que la lectura de lo comprimido no quede como una promesa rechazada sin atender.
+		compressed.catch(() => {});
+		await writer.abort(error).catch(() => {});
+		throw error;
+	}
+}
+
+/**
  * Vuelca la base, la comprime y la sube a R2.
  *
  * @param {{ db: D1Database, bucket: R2Bucket, now?: Date, manual?: boolean }} input
  */
 export async function backupDatabase({ db, bucket, now = new Date(), manual = false }) {
-	const { sql, stats } = await dumpDatabase(db, { now });
-	const body = await gzipText(sql);
+	const { stats, sqlBytes, body } = await dumpCompressed(db, now);
 	const key = manual ? manualBackupKey(now) : nightlyBackupKey(now);
 	await bucket.put(key, body, {
 		// Sin contentEncoding: el archivo se baja tal cual (.gz), no descomprimido por el cliente.
@@ -57,7 +84,7 @@ export async function backupDatabase({ db, bucket, now = new Date(), manual = fa
 			createdAt: now.toISOString(),
 			tables: String(stats.tables),
 			rows: String(stats.rows),
-			sqlBytes: String(sql.length),
+			sqlBytes: String(sqlBytes),
 			// La sentencia más larga (D1 acepta hasta 100.000 bytes al restaurar).
 			maxStatementBytes: String(stats.maxStatementBytes)
 		}
@@ -68,7 +95,7 @@ export async function backupDatabase({ db, bucket, now = new Date(), manual = fa
 	if (!head || head.size !== body.byteLength) {
 		throw new Error(`El backup ${key} no quedó bien guardado en R2`);
 	}
-	return { key, bytes: body.byteLength, ...stats };
+	return { key, bytes: body.byteLength, sqlBytes, ...stats };
 }
 
 /**

@@ -323,9 +323,10 @@ async function tableColumns(db, table) {
  * @param {TableInfo} table
  * @param {(line: string) => void} emit
  * @param {DumpStats} stats para `maxStatementBytes` y `splitRows`
+ * @param {() => Promise<void>} flush se llama después de cada página (manda lo emitido)
  * @returns {Promise<number>} cantidad de filas
  */
-async function dumpRows(db, table, emit, stats) {
+async function dumpRows(db, table, emit, stats, flush) {
 	const { columns, rowidName, rowidAlias, pkColumns } = await tableColumns(db, table);
 	/** @type {string[]} */
 	const sources = rowidName ? [rowidName, ...columns.map(quoteIdent)] : columns.map(quoteIdent);
@@ -414,6 +415,7 @@ async function dumpRows(db, table, emit, stats) {
 			noteSize(stats, line);
 		}
 		count += results.length;
+		await flush();
 		if (results.length < PAGE_SIZE) return count;
 	}
 }
@@ -454,13 +456,37 @@ function statement(sql) {
  */
 
 /**
- * Vuelca toda la base a SQL.
+ * Vuelca toda la base a SQL, todo en memoria (para tests y archivos chicos). El backup usa
+ * {@link streamDatabase}, que no junta el SQL entero.
  *
  * @param {D1Database} db
  * @param {{ now?: Date, label?: string }} [options]
  * @returns {Promise<{ sql: string, stats: DumpStats }>}
  */
-export async function dumpDatabase(db, { now = new Date(), label = 'D1' } = {}) {
+export async function dumpDatabase(db, options = {}) {
+	/** @type {string[]} */
+	const parts = [];
+	const { stats } = await streamDatabase(
+		db,
+		(text) => {
+			parts.push(text);
+		},
+		options
+	);
+	return { sql: parts.join(''), stats };
+}
+
+/**
+ * Vuelca toda la base a SQL de a pedazos: `write` recibe el texto de cada página de filas (o de
+ * cada parte del esquema) y puede devolver una promesa, que se espera antes de seguir. Así el SQL
+ * entero nunca está en memoria (el isolate tiene 128 MB).
+ *
+ * @param {D1Database} db
+ * @param {(text: string) => void | Promise<void>} write
+ * @param {{ now?: Date, label?: string }} [options]
+ * @returns {Promise<{ stats: DumpStats, sqlBytes: number }>} `sqlBytes`: bytes UTF-8 del SQL
+ */
+export async function streamDatabase(db, write, { now = new Date(), label = 'D1' } = {}) {
 	const { results } = await db
 		.prepare('SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY rowid')
 		.all();
@@ -468,8 +494,20 @@ export async function dumpDatabase(db, { now = new Date(), label = 'D1' } = {}) 
 	const tables = await listTables(db, schema);
 
 	/** @type {string[]} */
-	const out = [];
-	const emit = (/** @type {string} */ line) => out.push(line);
+	let pending = [];
+	let first = true;
+	let sqlBytes = 0;
+	const emit = (/** @type {string} */ line) => {
+		pending.push(first ? line : `\n${line}`);
+		first = false;
+	};
+	const flush = async () => {
+		if (!pending.length) return;
+		const text = pending.join('');
+		pending = [];
+		sqlBytes += utf8Length(text);
+		await write(text);
+	};
 	/** @type {DumpStats} */
 	const stats = {
 		tables: tables.length,
@@ -489,6 +527,7 @@ export async function dumpDatabase(db, { now = new Date(), label = 'D1' } = {}) 
 	emit('');
 	emit('-- Tablas');
 	for (const table of tables) emit(statement(table.sql));
+	await flush();
 
 	/** @type {string[]} */
 	const rebuilds = [];
@@ -510,7 +549,7 @@ export async function dumpDatabase(db, { now = new Date(), label = 'D1' } = {}) 
 				continue;
 			}
 		}
-		const n = await dumpRows(db, table, emit, stats);
+		const n = await dumpRows(db, table, emit, stats, flush);
 		stats.perTable[table.name] = n;
 		stats.rows += n;
 	}
@@ -542,5 +581,6 @@ export async function dumpDatabase(db, { now = new Date(), label = 'D1' } = {}) 
 	// Para verificar una restauración (scripts/d1-restore.js compara estas cantidades).
 	emit(`${STATS_COMMENT} ${JSON.stringify(stats)}`);
 	emit('');
-	return { sql: out.join('\n'), stats };
+	await flush();
+	return { stats, sqlBytes };
 }

@@ -452,8 +452,11 @@ vuelta atrás prendiendo `workers_dev`: abriría otra URL pública a producción
   bucket **nunca** se borran solos. Un backup viejo solo se borra después de que el de esa noche
   quedó guardado y verificado. **Si borrar los viejos falla, la corrida no falla**: el backup ya
   está guardado, el log dice `[backup] la poda de los backups viejos falló` y la noche siguiente se
-  vuelve a intentar (`nightlyBackup` en `src/lib/server/backup/index.js`). (Con la base actual cada
-  archivo pesa unos pocos KB: el costo de R2 es cero en la práctica.)
+  vuelve a intentar (`nightlyBackup` en `src/lib/server/backup/index.js`). El tamaño real de cada
+  backup (comprimido y del SQL, en bytes) queda en el log (la línea `[backup]` de cada noche) y
+  en los metadatos del archivo (`sqlBytes`); el costo de R2 es cero en la práctica.
+- **Memoria:** el SQL se comprime a medida que sale (`streamDatabase` en `backup/dump.js`): en la
+  memoria del Worker (128 MB) queda solo lo comprimido, nunca el volcado entero.
 - **Además** D1 tiene **Time Travel**: volver la base a cualquier minuto de los últimos 30 días,
   sin hacer nada de antemano.
 - **Extra recomendado:** una vez por mes, bajá el último backup a tu compu

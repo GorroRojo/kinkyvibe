@@ -88,7 +88,7 @@ export async function runBackup(env, now) {
 			? result.deleted.join(', ')
 			: 'ninguno';
 	console.log(
-		`[backup] ${result.key} (${result.bytes} bytes, ${result.tables} tablas, ${result.rows} filas); borrados: ${deleted}`
+		`[backup] ${result.key} (${result.bytes} bytes comprimido, ${result.sqlBytes} bytes de SQL, ${result.tables} tablas, ${result.rows} filas); borrados: ${deleted}`
 	);
 	return result;
 }
