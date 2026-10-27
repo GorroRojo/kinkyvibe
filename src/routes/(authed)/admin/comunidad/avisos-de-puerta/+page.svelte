@@ -18,6 +18,8 @@
 	/** @type {any} */
 	export let form;
 
+	/** El vencimiento elegido: un preset o «fecha» (otra fecha). */
+	/** @type {string} */
 	let expiry = data.presets[0]?.id ?? '6m';
 	/** Los avisos que coinciden con la última búsqueda por mail. */
 	$: found = new Set(form?.search?.ids ?? []);
@@ -161,7 +163,7 @@
 							method="POST"
 							action="?/quitar"
 							use:enhance
-							on:submit={(e) => {
+							on:submit={(/** @type {SubmitEvent} */ e) => {
 								if (!confirm('¿Quitar este aviso? En la puerta deja de aparecer.'))
 									e.preventDefault();
 							}}

@@ -160,7 +160,7 @@ describe('doorCheckIn', () => {
 		await link(5003);
 		await addDoorNotice(
 			t.db,
-			{ user: ADMIN },
+			/** @type {App.Locals} */ (/** @type {unknown} */ ({ user: ADMIN })),
 			{ email: 'prueba@example.com', expiry: '6m', reason: 'Motivo inventado', now: NOW }
 		);
 		const kv = await ticket();
