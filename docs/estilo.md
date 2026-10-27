@@ -142,6 +142,23 @@ Lo que no se ve pero se oye. Nada de esto cambia cómo se ve la página.
   dentro del `<label>`: si no, pasa a ser parte del nombre del campo («Tu nombre Escribí tu
   nombre.»). Con un label que envuelve, o se usa `<label for>` con el error afuera, o el campo se
   nombra con `aria-labelledby` hacia el texto del label (así no se mueve nada de lugar).
+- **Avisos que aparecen**: un `role="status"` que nace junto con su texto no siempre se lee. Va
+  una región fija (vacía al principio, con `visually-hidden` si no se tiene que ver) y se le
+  cambia el texto: el buscador («No encontramos nada…», «N resultados»), «Copiar link» del
+  calendario, el estado de la compra. En el panel, `announce()` (ver [panel.md](panel.md)).
+- **Texto solo para lectores**: `<span class="visually-hidden">`, nunca `aria-label` en un
+  elemento sin rol (`<s>`, `<span>`, `<div>`). Si el texto empieza o termina con espacio, va como
+  expresión (`{'precio completo '}`): Svelte recorta los espacios de las puntas.
+- **Foco**: cuando lo que se tocó desaparece (un paso nuevo, un formulario que se abre), el foco
+  va al primer campo nuevo (/ingresar, «¿Es tu perfil?»). Los diálogos (modal de edad, hoja «Más»
+  del panel) reciben el foco, no dejan salir con Tab y lo devuelven al cerrarse.
+- **Una sola forma de decir un estado**: un botón que cambia su texto («Seguir» / «Dejar de
+  seguir») no lleva además `aria-pressed`; uno con texto fijo que se prende y se apaga, sí.
+- **Estructura**: un solo `<main>` (el del layout); cada `<nav>` con nombre; `<dl>` solo con `dt`
+  y `dd` adentro (los botones de una fila, en un `<dd>` con `display: contents`); la grilla del
+  mes es una tabla (`role="table"`, filas con `display: contents`).
+- Los íconos decorativos (`SimpleIcon`, Lucide) llevan `aria-hidden`; las viñetas dibujadas con
+  `content` llevan texto alternativo vacío (`content: '+ ' / ''`).
 
 ## Toque
 

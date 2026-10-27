@@ -681,6 +681,12 @@ dos regiones vivas fijas en el `body`: `announce(texto)` (cortés) y `announceNo
 `use:enhance`, después de `update()`, `announceResult(result, 'clave')` lee el `message` que
 devolvió la acción (lo usan Órdenes y la ficha de una persona). El aviso visible queda como está.
 
+**Teclado en el celu.** La hoja «Más» funciona como un diálogo modal (foco adentro, Tab que da la
+vuelta, el resto del panel `inert`, Escape cierra y el foco vuelve a «Más» o al avatar). No es un
+`<dialog>` nativo a propósito: en la capa superior taparía la barra de carga y el aviso de
+deshacer. El `html` del panel tiene `scroll-padding` del alto de las barras fijas, así lo que
+recibe el foco no queda tapado; un `scroll-margin-top` nuevo no tiene que sumar la barra de arriba.
+
 ## Cómo probar
 
 ```sh
