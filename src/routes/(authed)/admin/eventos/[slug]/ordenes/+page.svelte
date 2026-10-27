@@ -91,6 +91,24 @@
 				return words.every((w) => matches(w, hay, o.id));
 			})
 		: byStatus;
+	// «Reembolsar todas» (evento cancelado): se abre, se escribe la palabra y recién ahí se manda.
+	let confirmingAll = false;
+	let typedAll = '';
+	let sendingAll = false;
+	$: ra = data.refundAll;
+	$: rr = form?.refundAll;
+	$: rrDone = rr?.results ? rr.results.filter((/** @type {any} */ r) => r.ok) : [];
+	$: rrFailed = rr?.results ? rr.results.filter((/** @type {any} */ r) => !r.ok) : [];
+	/** @type {import('@sveltejs/kit').SubmitFunction} */
+	const submitAll = () => {
+		sendingAll = true;
+		return async ({ update }) => {
+			await update();
+			sendingAll = false;
+			confirmingAll = false;
+			typedAll = '';
+		};
+	};
 	$: counts = {
 		approved: data.orders.filter((o) => o.status === 'approved').length,
 		pending: data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
@@ -138,6 +156,113 @@
 {/if}
 {#if form?.refund}
 	<p class="flash" class:error={!form.refund.ok} role="status">{form.refund.message}</p>
+{/if}
+
+{#if ra && (ra.mp.count || ra.manual.length || ra.free || rr)}
+	<section class="refund-all" aria-labelledby="reembolsar-todas">
+		<h2 id="reembolsar-todas">El evento está cancelado: devolver lo vendido</h2>
+		{#if rr?.message}
+			<p class="flash" class:error={!rr.ok} role="status">{rr.message}</p>
+		{/if}
+		{#if rr?.results}
+			<div class="refund-summary" role="status">
+				<p>
+					<strong>Reembolsadas: {rrDone.length}</strong>{#if rrFailed.length}
+						· <strong class="bad">Sin reembolsar: {rrFailed.length}</strong> (quedaron como estaban: hacelas
+						a mano desde su orden){/if}{#if rr.remaining}
+						· faltan {rr.remaining}{/if}.
+				</p>
+				{#if rr.results.length}
+					<ul>
+						{#each rr.results as r (r.reference)}
+							<li class:bad={!r.ok}>
+								<span class="ref">{r.reference}</span> · {r.name} · {formatARS(r.total)} · {r.reason}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+				{#if rr.remaining && rr.after}
+					<form method="POST" action="?/refundAll" use:enhance={submitAll}>
+						<input type="hidden" name="after" value={rr.after} />
+						<input type="hidden" name="confirm" value={ra.word} />
+						<button type="submit" class="refund-confirm" disabled={sendingAll}>
+							{sendingAll ? 'Reembolsando…' : `Seguir con las ${rr.remaining} que faltan`}
+						</button>
+					</form>
+				{/if}
+			</div>
+		{/if}
+		{#if ra.mp.count}
+			<p>
+				<strong>{ra.mp.count} {ra.mp.count === 1 ? 'orden' : 'órdenes'} de Mercado Pago</strong>
+				sin reembolsar, por <strong>{formatARS(ra.mp.total)}</strong> en total.
+			</p>
+			{#if !confirmingAll}
+				<button type="button" class="kv-btn small" on:click={() => (confirmingAll = true)}
+					>Reembolsar todas…</button
+				>
+			{:else}
+				<form method="POST" action="?/refundAll" class="refund-panel" use:enhance={submitAll}>
+					<input type="hidden" name="count" value={ra.mp.count} />
+					<input type="hidden" name="total" value={ra.mp.total} />
+					<p>
+						Se le pide a Mercado Pago el reembolso TOTAL de cada una, de a {ra.batch} por vez (si son
+						más, después aparece «Seguir»). Cada orden reembolsada queda anulada, sale de los totales
+						y le avisamos a quien compró por mail, como con «Reembolsar…». Las que Mercado Pago no acepte
+						quedan como están, para hacerlas a mano. Lo ya reembolsado no se vuelve a pedir.
+					</p>
+					<label class="confirm-word">
+						<span>Para confirmar, escribí <strong>{ra.word}</strong></span>
+						<input name="confirm" bind:value={typedAll} autocomplete="off" spellcheck="false" />
+					</label>
+					<div class="refund-actions">
+						<button
+							type="submit"
+							class="refund-confirm"
+							disabled={sendingAll || typedAll.trim().toUpperCase() !== ra.word}
+						>
+							{sendingAll
+								? 'Reembolsando…'
+								: `Reembolsar ${ra.mp.count} ${ra.mp.count === 1 ? 'orden' : 'órdenes'} por ${formatARS(ra.mp.total)}`}
+						</button>
+						<button
+							type="button"
+							class="kv-btn ghost small"
+							on:click={() => ((confirmingAll = false), (typedAll = ''))}>Cancelar</button
+						>
+					</div>
+				</form>
+			{/if}
+		{:else}
+			<p>No queda ninguna orden de Mercado Pago para reembolsar.</p>
+		{/if}
+		{#if ra.manual.length}
+			<h3>Para devolver a mano</h3>
+			<p class="note">
+				No pasan por Mercado Pago (puerta, carga a mano o transferencia): devolvé la plata por fuera
+				y después marcá cada una con «Reembolsar…» en su orden.
+			</p>
+			<ul>
+				{#each ra.manual as o (o.id)}
+					<li>
+						<a href="#orden-{o.id}" class="ref">{o.reference}</a> · {o.name} · {PAYMENT_METHOD[
+							o.method
+						] ?? o.method}{o.channel === 'puerta'
+							? ' (puerta)'
+							: o.channel === 'manual'
+								? ' (carga a mano)'
+								: ''} · {formatARS(o.total)}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+		{#if ra.free}
+			<p class="note">
+				{ra.free === 1 ? '1 orden sin cargo' : `${ra.free} órdenes sin cargo`}: no hay plata que
+				devolver; si hace falta, anulalas desde su orden.
+			</p>
+		{/if}
+	</section>
 {/if}
 
 <Card title="Órdenes">
@@ -305,6 +430,59 @@
 	.flash.error {
 		background: var(--error-bg);
 		color: var(--error);
+	}
+	.refund-all {
+		border: 2px solid var(--bad);
+		border-radius: var(--radius-m);
+		padding: var(--space-2xs) var(--space-s);
+		margin: 0 0 1rem;
+		font-size: var(--text-sm);
+	}
+	.refund-all h2 {
+		font-size: var(--text-sm);
+		margin: 0.3rem 0;
+	}
+	.refund-all h3 {
+		font-size: var(--text-sm);
+		margin: 0.8rem 0 0.2rem;
+	}
+	.refund-all ul {
+		padding-left: 1.2em;
+		overflow-wrap: anywhere;
+	}
+	.refund-all .bad {
+		color: var(--bad);
+	}
+	.refund-summary {
+		background: var(--surface);
+		border-radius: var(--radius-m);
+		padding: var(--space-3xs) var(--space-xs);
+		margin-bottom: 0.6rem;
+	}
+	.confirm-word {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		max-width: 20rem;
+		margin-bottom: 0.6rem;
+	}
+	.confirm-word input {
+		min-height: 2.5rem;
+		padding: 0 var(--space-2xs);
+		border: 1px solid var(--field);
+		border-radius: var(--radius-m);
+		background: var(--surface);
+		color: var(--text);
+	}
+	.refund-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2xs);
+		align-items: center;
+	}
+	.refund-confirm:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 	.review {
 		background: var(--warn-bg);

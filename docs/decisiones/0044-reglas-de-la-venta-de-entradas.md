@@ -4,7 +4,9 @@
 - Estado: Aceptada. Decidido por gorrite en la Mesa («Sí, todas» a lo propuesto para el
   lanzamiento de las entradas; el mismo día, el plazo de Mercado Pago, `/legales` y las otras
   respuestas de abajo). Completa 0006 (entradas), 0018 (propinas al Fondo) y 0040 (lista de
-  espera).
+  espera). Cómo se devuelve todo de un evento cancelado lo completa
+  [0050](0050-reembolsar-todas-evento-cancelado.md) («Reembolsar todas» para las órdenes de Mercado
+  Pago).
 
 ## Contexto
 
@@ -81,7 +83,8 @@ código; faltaba decidir si se quedaba así.
   aportes de las entradas solidarias aprobadas, coordinado con kv-fondo (issue #265). Plan:
   `fondo-aportes-entradas`.
 - Cancelar un evento no reembolsa solo ni avisa por mail: se reembolsa orden por orden desde
-  Ventas › Órdenes (cada reembolso manda su mail).
+  Ventas › Órdenes (cada reembolso manda su mail). Desde 0050, las de Mercado Pago también se
+  pueden reembolsar todas juntas con «Reembolsar todas».
 - El mail de cambio de fecha ya dice que lo comprado sigue valiendo y que, si no puede, responda y
   se le devuelve lo pagado; el plazo es el de la política de devoluciones del pie.
 - Detalle en [tickets.md](../tickets.md#preguntas-para-les-organizadores). En el plan:
