@@ -999,19 +999,11 @@ article.wiki {
 		grid-template-columns: 1fr 1fr 1fr 1fr;
 	}
 
-	.backtotop,
 	.linktothis {
 		opacity: 0.15;
 		text-decoration: none;
 		&:hover {
 			opacity: 0.3;
-		}
-	}
-	.backtotop {
-		margin-left: 0.2em;
-		svg {
-			height: auto;
-			width: 1ch;
 		}
 	}
 	.linktothis {
