@@ -582,7 +582,7 @@
 	<title>Importar desde la planilla · KV Admin</title>
 </svelte:head>
 
-<main class="importar">
+<div class="importar">
 	<p class="back"><a href="/admin/eventos/agenda">← Agenda</a></p>
 
 	<h1>Importar eventos desde la planilla</h1>
@@ -969,7 +969,7 @@
 			</section>
 		{/if}
 	{/if}
-</main>
+</div>
 
 <style lang="scss">
 	.importar {
