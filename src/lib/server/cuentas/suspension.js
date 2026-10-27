@@ -52,7 +52,7 @@ export function suspendedMessage(contact) {
  * @param {string} accountId
  * @param {{ by: string, reason?: unknown, now?: number }} input `by`: el login de le admin
  * @returns {Promise<{ result: 'suspended', sessions: number, telegram: boolean }
- *   | { result: 'already' | 'not_found' }>}
+ *   | { result: 'already' } | { result: 'not_found' }>}
  */
 export async function suspendAccount(db, accountId, { by, reason, now = Date.now() }) {
 	const current = await db
