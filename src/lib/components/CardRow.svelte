@@ -47,7 +47,10 @@
 			</li>
 		{/each}
 	</ul>
-	{#if href}<a class="btn-more" {href} tabindex="0">...ver más</a>{/if}
+	<!-- Un link ya es enfocable (sin tabindex); con nombre propio, porque en la portada hay tres. -->
+	{#if href}<a class="btn-more" {href} aria-label={title ? `Ver más de ${title}` : undefined}
+			>...ver más</a
+		>{/if}
 </div>
 
 <style lang="scss">
