@@ -278,7 +278,11 @@
 							{:else}
 								<form class="inline" method="POST" action="?/dni" use:enhance={showDni}>
 									<input type="hidden" name="guardado" value="1" />
-									<button class="kv-btn ghost small" type="submit">Mostrar</button>
+									<button
+										class="kv-btn ghost small"
+										type="submit"
+										aria-label="Mostrar el DNI guardado (queda registrado)">Mostrar</button
+									>
 								</form>
 								{#if dniErrors.guardado}<small class="muted">{dniErrors.guardado}</small>{/if}
 							{/if}
@@ -410,7 +414,12 @@
 									{:else}
 										<form class="inline" method="POST" action="?/dni" use:enhance={showDni}>
 											<input type="hidden" name="orden" value={o.id} />
-											<button class="kv-btn ghost small" type="submit">Mostrar</button>
+											<button
+												class="kv-btn ghost small"
+												type="submit"
+												aria-label="Mostrar el DNI de la compra de {o.event} (queda registrado)"
+												>Mostrar</button
+											>
 										</form>
 										{#if dniErrors[`orden:${o.id}`]}<small class="muted"
 												>{dniErrors[`orden:${o.id}`]}</small
