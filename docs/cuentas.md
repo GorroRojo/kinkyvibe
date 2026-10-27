@@ -7,7 +7,8 @@ Cualquier persona puede tener una cuenta en el sitio, **opcional**: entra en **"
 En **"Mi rincón"** (`/mi-rincon`) ve su mail, sus compras (también las de antes de tener cuenta),
 sus datos guardados para comprar (ver "Datos guardados para la compra"), su velocidad de lectura
 (ver "Velocidad de lectura"), pone, cambia o saca la
-contraseña, cierra sesión (en ese navegador o en todos lados) o borra la
+contraseña, ve dónde tiene la sesión abierta y cierra cada una (ver "Sesiones"), cierra sesión
+(en ese navegador o en todos lados) o borra la
 cuenta. Tocar la contraseña y borrar la
 cuenta piden además un código fresco por mail (ver "Acciones delicadas").
 
@@ -89,13 +90,14 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 | Tabla               | Qué guarda                                                                                                                                    |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `accounts`          | id (UUID al azar), mail normalizado y único, cuándo se verificó, hash de la contraseña (opcional), preferencias (JSON), fechas y `deleted_at` |
-| `account_sessions`  | hash del token, cuenta, cómo se entró (`code`, `password`; `passkey` reservado), creada y última vez vista                                    |
+| `account_sessions`  | hash del token, cuenta, cómo se entró (`code`, `password`; `passkey` reservado), creada y última vez vista; después, el navegador (0065)      |
 | `login_codes`       | hash del mail, para qué es (`purpose`), hash del código, intentos, vencimiento y uso                                                          |
 | `feature_flags`     | los interruptores del panel (`cuentas` fue el primero; quedó fijo)                                                                            |
 | `orders.account_id` | columna nueva, para la compra con cuenta que viene; `ON DELETE SET NULL`                                                                      |
 
 Después: `free_order_choices` (migración 0061), lo que eligió cada cuenta sobre una orden gratis
-que le llegó por el mail («¿Son tuyas?», arriba).
+que le llegó por el mail («¿Son tuyas?», arriba), y `account_sessions.device` (migración 0065), el
+nombre corto del navegador de cada sesión (ver "Sesiones").
 
 Sin "nombre para mostrar" (P7.3): los nombres van a ir en los perfiles. Las **passkeys** van a
 ir en una tabla propia (`account_passkeys`, apuntando a `accounts.id`); no hace falta cambiar
@@ -184,6 +186,22 @@ el código por mail sigue andando.
 - En Mi rincón, "Salir en todos lados" (`?/salirTodos`) cierra todas las sesiones de la
   cuenta, también la de ese navegador, y vuelve a `/ingresar` con un aviso. No pide código: solo
   saca acceso.
+- **«Dónde tenés la sesión abierta»** (Mi rincón, `#sesiones`): la lista de las sesiones de la
+  cuenta (`listSessions`, hasta 50), la de ese navegador primero con la marca «esta». De cada una:
+  el navegador («Firefox en Android»), cuándo y cómo se entró (código o contraseña) y la última vez,
+  aproximada al día («hoy», «ayer», «el 12 de octubre»), porque `last_seen_at` se anota como mucho
+  una vez por día. Cada una tiene «Cerrar esta» (`?/cerrarSesion`); en la de ese navegador es
+  salir (vuelve al inicio con «Saliste de tu cuenta»). «Cerrar todas las demás» (`?/cerrarOtras`)
+  deja solo la de ese navegador. Tampoco piden código: solo sacan acceso.
+  - **Qué se guarda:** solo un nombre corto del navegador y el sistema, sacado del user agent al
+    entrar (`deviceLabel()` en `src/lib/utils/userAgent.js`, columna `device`, migración 0065, de
+    hasta 60 caracteres). Nunca el user agent entero, ni la IP, ni un lugar. Las sesiones de antes
+    de la migración dicen «Navegador sin identificar».
+  - **Solo la dueña ve y cierra las suyas:** la página no recibe el token ni su hash; cada sesión
+    va con un id que sale del hash (`SHA-256("sesion:<hash>")`, 32 caracteres). `endSessionById`
+    busca ese id solo entre las sesiones de la cuenta de la sesión actual: con el id de una sesión
+    de otra cuenta no pasa nada (404). Cerrar borra la fila, así que esa cookie deja de abrir nada
+    en el pedido siguiente (`getSessionAccount` busca la fila siempre).
 - `hooks.server.js` carga `locals.member` (`{ id, email, readingSpeed, canHaveProfiles }`) solo
   si hay cookie (y base). La velocidad de lectura y el permiso de perfiles vienen en la misma
   consulta que la sesión (`getSessionAccount`), así el layout y Mi rincón no vuelven a leer la
