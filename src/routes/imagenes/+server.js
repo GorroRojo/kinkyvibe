@@ -22,6 +22,7 @@
  */
 import { error, json } from '@sveltejs/kit';
 import { getDB } from '$lib/server/db';
+import { readBytesCapped } from '$lib/server/http/body.js';
 import { imageAccess } from '$lib/server/media/access.js';
 import {
 	ALT_REQUIRED,
@@ -121,9 +122,19 @@ export async function POST({ locals, platform, request }) {
 	if (capped && !(await uploadCountAllowed(db, capped))) {
 		return json({ error: UPLOAD_CAP_MESSAGE }, { status: 429 });
 	}
+	// El mismo tope aunque no venga content-length: se lee de a pedazos y se corta al pasarlo.
+	const raw = await readBytesCapped(request, MAX_FILE_BYTES + 64 * 1024);
+	if (!raw) {
+		return json(
+			{ error: `El archivo pesa más de ${MAX_FILE_BYTES / 1024 / 1024} MB, el máximo.` },
+			{ status: 413 }
+		);
+	}
 	let form;
 	try {
-		form = await request.formData();
+		form = await new Response(raw, {
+			headers: { 'content-type': request.headers.get('content-type') ?? '' }
+		}).formData();
 	} catch {
 		return json({ error: 'No llegó el archivo. Probá de nuevo.' }, { status: 400 });
 	}

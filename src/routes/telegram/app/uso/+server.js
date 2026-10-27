@@ -6,6 +6,7 @@
  */
 import { env } from '$env/dynamic/private';
 import { getDB } from '$lib/server/db';
+import { readJsonCapped } from '$lib/server/http/body.js';
 import { isFlagOn } from '$lib/server/flags.js';
 import { recordMiniAppOpen } from '$lib/server/telegram/uso.js';
 
@@ -20,14 +21,11 @@ export async function POST({ request, platform }) {
 	if (!(await isFlagOn(db, 'telegram_bot')) || !(await isFlagOn(db, 'telegram_estadisticas'))) {
 		return noContent();
 	}
-	if (Number(request.headers.get('content-length') ?? 0) > 8192) return noContent();
+	// Tope de 8 KB también sin content-length (se corta al leer).
+	const read = await readJsonCapped(request, 8192);
+	if (!read.ok) return noContent();
 	/** @type {any} */
-	let body = null;
-	try {
-		body = await request.json();
-	} catch {
-		return noContent();
-	}
+	const body = read.value;
 	const task = recordMiniAppOpen({ db, initData: body?.initData, token });
 	const ctx = platform?.ctx;
 	if (ctx?.waitUntil) ctx.waitUntil(task);

@@ -303,6 +303,17 @@ si lo encuentra en `static/`, el build falla.
 - **Verificar:** `curl -sI https://kinkyvibe.ar/favicon.ico | grep -i cache-control` (y
   `curl -sI https://kinkyvibe.ar/robots.txt | grep -i nosniff`).
 
+## Tamaño de los pedidos
+
+Workers corta los cuerpos en 100 MB. Las rutas que reciben algo de afuera leen el cuerpo con
+`src/lib/server/http/body.js` (`readJsonCapped`, `readTextCapped`, `readBytesCapped`): con un
+`content-length` mayor que el tope ni empiezan a leer, y sin ese header (chunked) leen de a
+pedazos y cortan apenas se pasa, sin guardar el cuerpo entero. Topes: 8 KB las de la mini app y la
+puerta de Telegram, 64 KB el webhook del bot y el de Mercado Pago, 300 bytes `/api/visto`, 4 KB la
+velocidad de lectura y la búsqueda de direcciones, el de Resend el suyo y `POST /imagenes` 25 MB
+más el formulario. Una ruta nueva que lea un cuerpo de afuera usa estas funciones, no
+`request.json()`.
+
 ## Cuánto tardó: `Server-Timing`
 
 Toda respuesta del Worker lleva `Server-Timing` (`src/lib/server/serverTiming.js`):
