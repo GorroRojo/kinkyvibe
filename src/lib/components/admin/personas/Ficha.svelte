@@ -9,6 +9,7 @@
 	import { askConfirm } from '$lib/admin/confirm.js';
 	import '$lib/admin/panel-forms.scss';
 	import { enhance } from '$app/forms';
+	import { announceResult } from '$lib/admin/announce.js';
 	import { invalidateAll } from '$app/navigation';
 	import { Check, IdCard, ReceiptText, Rss, StickyNote, Trash2, UserRound } from '@lucide/svelte';
 	import { fmtDate, fmtDateTime } from '$lib/admin/format.js';
@@ -169,6 +170,7 @@
 					async ({ result, update }) => {
 						await update();
 						if (result.type === 'success') body = '';
+						announceResult(result, 'note');
 					}}
 			>
 				<label class="kv-field">
@@ -200,6 +202,10 @@
 										tone: 'danger'
 									});
 									if (!ok) cancel();
+									return async ({ result, update }) => {
+										await update();
+										announceResult(result, 'note');
+									};
 								}}
 							>
 								<input type="hidden" name="id" value={n.id} />
@@ -303,9 +309,10 @@
 					action="?/permiso"
 					use:enhance={() => {
 						saving = true;
-						return async ({ update }) => {
+						return async ({ result, update }) => {
 							await update();
 							saving = false;
+							announceResult(result, 'permiso');
 						};
 					}}
 				>

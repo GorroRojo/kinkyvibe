@@ -8,6 +8,7 @@
 	import EmptyState from '$lib/components/admin/panel/EmptyState.svelte';
 	import OrderAnswers from '$lib/components/admin/OrderAnswers.svelte';
 	import DniReveal from '$lib/components/admin/DniReveal.svelte';
+	import { announce, announceResult } from '$lib/admin/announce.js';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { foldSearch } from '$lib/admin/eventFormat.js';
 	import {
@@ -116,11 +117,35 @@
 	$: rr = /** @type {any} */ (form)?.refundAll;
 	$: rrDone = rr?.results ? rr.results.filter((/** @type {any} */ r) => r.ok) : [];
 	$: rrFailed = rr?.results ? rr.results.filter((/** @type {any} */ r) => !r.ok) : [];
+	/**
+	 * `use:enhance` que, al volver, lee en voz alta el mensaje de la acción (`form[key].message`):
+	 * el `role="status"` de cada aviso nace junto con su texto y no siempre se lee.
+	 *
+	 * @param {string} key
+	 * @returns {import('@sveltejs/kit').SubmitFunction}
+	 */
+	const announced =
+		(key) =>
+		() =>
+		async ({ result, update }) => {
+			await update();
+			announceResult(result, key);
+		};
 	/** @type {import('@sveltejs/kit').SubmitFunction} */
 	const submitAll = () => {
 		sendingAll = true;
-		return async ({ update }) => {
+		return async ({ result, update }) => {
 			await update();
+			announceResult(result, 'refundAll');
+			// La tanda que salió bien no trae mensaje: se lee el resumen.
+			const done = /** @type {any} */ (result).data?.refundAll?.results;
+			if (result.type === 'success' && Array.isArray(done)) {
+				const failed = done.filter((/** @type {any} */ r) => !r.ok).length;
+				announce(
+					`Reembolsadas: ${done.length - failed}${failed ? `. Sin reembolsar: ${failed}` : ''}.`,
+					{ force: true }
+				);
+			}
 			sendingAll = false;
 			confirmingAll = false;
 			typedAll = '';
@@ -158,7 +183,7 @@
 						registrada con otro total que el que se cobró ({o.reviewDetail}). Se guardó igual;
 						decidí si queda así o se reembolsa.
 					{/if}
-					<form method="POST" action="?/reviewed" use:enhance>
+					<form method="POST" action="?/reviewed" use:enhance={announced('review')}>
 						<input type="hidden" name="order" value={o.id} />
 						<button type="submit" class="kv-btn ghost small">Marcar como revisada</button>
 					</form>
@@ -392,7 +417,7 @@
 						· {#if o.emailProblem}<strong class="mail-problem"
 								>{EMAIL_PROBLEM[o.emailProblem] ?? 'mail enviado'}</strong
 							>{:else}{o.emailSent ? 'mail enviado' : 'mail NO enviado'}{/if}
-						<form method="POST" action="?/resend" use:enhance>
+						<form method="POST" action="?/resend" use:enhance={announced('resend')}>
 							<input type="hidden" name="order" value={o.id} />
 							<button type="submit" class="kv-btn ghost small">Reenviar mail</button>
 						</form>
@@ -407,7 +432,12 @@
 					<!-- Quien compró escribió mal su mail: se corrige y las entradas salen a la nueva. -->
 					<details class="email-fix" open={form?.emailFix?.order === o.id && !form.emailFix.ok}>
 						<summary>Corregir el mail…</summary>
-						<form method="POST" action="?/email" use:enhance class="email-fix-form">
+						<form
+							method="POST"
+							action="?/email"
+							use:enhance={announced('emailFix')}
+							class="email-fix-form"
+						>
 							<input type="hidden" name="order" value={o.id} />
 							<label>
 								<span>Mail nuevo</span>
@@ -451,7 +481,7 @@
 								Las entradas quedan anuladas (el control de ingreso las rechaza), se libera el cupo y
 								el uso del código, sale de los totales y le avisamos por mail.
 							</p>
-							<form method="POST" action="?/refund" use:enhance>
+							<form method="POST" action="?/refund" use:enhance={announced('refund')}>
 								<input type="hidden" name="order" value={o.id} />
 								<button type="submit" class="refund-confirm">
 									{o.method === 'mercadopago'

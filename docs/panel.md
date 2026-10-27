@@ -674,6 +674,13 @@ sección (`import()`), no con el resto del panel. Mientras llega se ve el texto 
 mismo tamaño con «Cargando el editor…»; si no se puede bajar, queda un campo de texto común. Si
 agregás otro editor pesado, cargalo igual.
 
+**Avisos para lectores de pantalla** (`src/lib/admin/announce.js`). Un `<p role="status">` que
+aparece junto con su texto (por ejemplo dentro de `{#if form?.x}`) no siempre se lee. Para eso hay
+dos regiones vivas fijas en el `body`: `announce(texto)` (cortés) y `announceNow(texto)`
+(urgente, repite aunque el texto sea igual: el resultado de un escaneo en la puerta). Desde un
+`use:enhance`, después de `update()`, `announceResult(result, 'clave')` lee el `message` que
+devolvió la acción (lo usan Órdenes y la ficha de una persona). El aviso visible queda como está.
+
 ## Cómo probar
 
 ```sh
