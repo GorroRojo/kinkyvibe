@@ -58,6 +58,13 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
   es un 404, una línea JSON en los logs (`"area":"error"`, con `id`, estado, método, ruta, el
   `cf-ray` del pedido, el mensaje y el principio del stack). La página de un error 5xx muestra ese
   `id` («pasanos este código»): se busca en **Observability → Logs** y aparece el error exacto.
+- **Workers Issues** (`[observability.issues]` en `wrangler.toml`): Cloudflare agrupa en
+  **Observability → Issues** las excepciones, las invocaciones fallidas (también los `throw` de los
+  crons), las respuestas 5xx y los `console.error`. La clave tiene que quedar en el archivo: sin
+  ella, la próxima publicación lo apaga. Que alguien se entere es aparte: gorrite arma en el panel
+  una automatización de Issues (**Issues → Automations**) hacia un webhook o un chat; mientras no
+  esté, los Issues se ven solo entrando al panel. Después de prenderlo, conviene mirar que una
+  corrida de cron fallida aparezca ahí.
 - **Salud**: `GET /api/health` (`src/routes/api/health/+server.js`) responde un JSON con `ok`, `db`,
   `migrations` y `sha`, sin caché, para un monitor externo o para mirar después de un deploy. `db`:
   la base responde (`SELECT 1`); sin base, 503. `migrations`: `ok` si la base tiene aplicada la
