@@ -25,6 +25,10 @@ preview_urls = true
 # cada deploy borraría las que no estén en este archivo. Los secrets nunca se borran.
 keep_vars = true
 
+# Sin `[cache]` (Workers Cache) a propósito: cobra los archivos estáticos, que hoy son gratis, y no
+# mira las cookies (le daría la página anónima a quien tiene sesión). Ver docs/workers-migracion.md,
+# «No prender Workers Cache».
+
 # Los archivos que genera el adapter de SvelteKit (ver wrangler.adapter.toml).
 [assets]
 directory = ".svelte-kit/cloudflare"
@@ -32,10 +36,6 @@ binding = "ASSETS"
 
 [observability]
 enabled = true
-
-# Sin `[cache]` (Workers Cache) a propósito: cobra los archivos estáticos, que hoy son gratis, y no
-# mira las cookies (le daría la página anónima a quien tiene sesión). Ver docs/workers-migracion.md,
-# «No prender Workers Cache».
 
 # Ubicación del Worker (docs/workers-migracion.md, «Ubicación del Worker»): sin `[placement]`, a
 # propósito. El Worker corre en el centro de datos de quien visita: la caché de 1 minuto responde
