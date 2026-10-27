@@ -1,17 +1,7 @@
 /**
  * Textos de la página de error del panel (`src/routes/(authed)/admin/+error.svelte`).
  */
-
-/** Mensajes que SvelteKit pone solo: no dicen nada (y están en inglés). */
-const DEFAULT_MESSAGES = new Set([
-	'Not Found',
-	'Forbidden',
-	'Unauthorized',
-	'Internal Error',
-	'Internal Server Error',
-	'Method Not Allowed',
-	'Bad Request'
-]);
+import { isDefaultErrorMessage } from '$lib/utils/errorPage.js';
 
 /**
  * Título, texto y detalle para un error del panel. El detalle es el mensaje del error si lo
@@ -23,7 +13,8 @@ const DEFAULT_MESSAGES = new Set([
  * @returns {{ title: string, text: string, detail: string }}
  */
 export function panelErrorCopy(status, message, { dev = false } = {}) {
-	const isDefault = DEFAULT_MESSAGES.has(message) || /^Error: \d+$/.test(message);
+	// Los mensajes que pone SvelteKit (en inglés, también «Not found: /ruta»): no dicen nada.
+	const isDefault = isDefaultErrorMessage(message ?? '');
 	const detail = message && !isDefault && (status < 500 || dev) ? message : '';
 	if (status === 404) {
 		return {

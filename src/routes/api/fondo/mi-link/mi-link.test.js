@@ -244,7 +244,7 @@ describe('POST /api/fondo/mi-link: envío', () => {
 		const [mail] = r.sent;
 		expect(mail.from).toBe('Fondo KinkyVibe <fondo@kinkyvibe.ar>');
 		expect(mail.to).toEqual([TO]);
-		expect(mail.subject).toBe('Tu link para elegir cómo aparecés en el Fondo KinkyVibe');
+		expect(mail.subject).toBe('Tu link para elegir cómo aparecés en el Fondo Kinky Vibe');
 		const found = buttons(mail.html);
 		expect(found.map((b) => b.label)).toEqual([
 			'Mecenas Casual: elegir cómo aparezco',

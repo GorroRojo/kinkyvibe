@@ -11,7 +11,7 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   direcciones** (`/amigues/Gorro_Rojo` sigue andando). **Solo la base**: los `.md` ya no están en
   el repo ([0032](decisiones/0032-borrar-los-md.md); el último commit con ellos tiene el tag
   `posts-md-final`).
-- `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`) y página de cada uno.
+- `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`, que conserva las etiquetas `?tags=` y la búsqueda elegidas) y página de cada uno.
 - **"Es mi perfil"**: cualquier cuenta pide hacerse cargo de un perfil que ya existe, tenga o no
   el permiso "puede tener perfiles" (gorrite, 26/10: en vez de un canal para pedir el permiso,
   reclamar un perfil). Pedir no da nada: une admin lo revisa en el panel y lo aprueba (la cuenta
