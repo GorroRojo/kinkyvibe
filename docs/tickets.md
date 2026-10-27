@@ -202,7 +202,7 @@ que casi nunca pasa. Ahora cada evento puede tener **una** meta (decisión de go
   lo recaudado de las órdenes aprobadas (el «Recaudado» del panel: su `total` menos los reembolsos
   parciales hechos en MP, ver [Reembolsos](#reembolsos)) **menos la comisión de MP de las que se
   pagaron con Mercado Pago**. Esa comisión es, por orden (gorrite, Mesa `plata-numeros-panel`):
-  - la que **cobró MP**, si el pago la informó: el aviso de MP guarda en `mp_fee_amount` (migración 0065) la suma de `fee_details[].amount` con `fee_payer = 'collector'` del pago (`GET
+  - la que **cobró MP**, si el pago la informó: el aviso de MP guarda en `mp_fee_amount` (migración 0068) la suma de `fee_details[].amount` con `fee_payer = 'collector'` del pago (`GET
 /v1/payments/{id}`; los campos, verificados con la búsqueda de documentación de MP el
     2026-10-26). La financiación de las cuotas la paga quien compra y no cuenta;
   - si no, la **estimada**: el recargo guardado en la orden (`surcharge_amount`), que se calcula al
@@ -562,7 +562,7 @@ En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada 
 - No hay reembolsos parciales (por entrada) desde el panel: se hacen desde el panel de MP
   (decisión 0044). Cuando MP avisa un pago que sigue aprobado con algo reembolsado
   (`transaction_amount_refunded`), el aviso lo **anota solo** en la orden (`refunded_amount`,
-  migración 0065; el acumulado, idempotente) sin cambiar nada más: la orden sigue aprobada, las
+  migración 0068; el acumulado, idempotente) sin cambiar nada más: la orden sigue aprobada, las
   entradas siguen valiendo y no se manda ningún mail. En la pestaña Órdenes la orden dice
   «Reembolso parcial en Mercado Pago: $ X (quedan $ Y)» (y, si MP la informó, «comisión de MP
   $ Z»); el CSV de órdenes todavía no lo trae, y se resta de «Recaudado», de lo neto y de los totales del panel y de Estadísticas
