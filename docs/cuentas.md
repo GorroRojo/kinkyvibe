@@ -153,13 +153,17 @@ nada de estas tablas para sumarlas.
 
 | Qué                           | Límite                                      |
 | ----------------------------- | ------------------------------------------- |
-| Pedir código, por mail        | 3 cada 15 minutos y 10 por día              |
-| Pedir código, mail + conexión | 4 por día                                   |
+| Pedir código, por mail        | 5 cada 15 minutos y 10 por día              |
+| Pedir código, mail + conexión | 3 cada 15 minutos y 4 por día               |
 | Pedir código, por conexión    | 10 cada 15 minutos                          |
 | Escribir código, por conexión | 20 cada 15 minutos (además de 5 por código) |
 | Contraseña, por mail          | 10 cada 15 minutos                          |
 | Contraseña, por conexión      | 20 cada 15 minutos                          |
 | Mails de cuentas, en total    | 300 por hora (códigos y avisos)             |
+
+Los topes de mail + conexión son más bajos que los del mail solo: desde una sola conexión nadie
+gasta todo el cupo de un mail ajeno (quien pide sus propios códigos ve lo mismo de siempre: 3
+seguidos).
 
 "Por día" es en las últimas 24 horas (ventana móvil, por hora), no desde la medianoche.
 
