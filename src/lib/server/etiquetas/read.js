@@ -14,7 +14,7 @@ import { TAG_TYPE } from '../objects/types/etiqueta.js';
 /**
  * @param {D1Database} db
  * @param {import('../objects/visibility.js').Viewer} [viewer] por defecto, el público
- * @returns {Promise<(TagRecord & { id: number, slug: string, version: number })[]>}
+ * @returns {Promise<(TagRecord & { id: number, slug: string, version: number, updatedAt?: number })[]>}
  */
 export async function loadTagRecords(db, viewer = ANON) {
 	// Las dos consultas en una sola tanda (una ida y vuelta a la base, no dos en fila).
@@ -38,7 +38,7 @@ export function tagRecordsStatements(db, viewer = ANON) {
 	return [
 		db
 			.prepare(
-				`SELECT o.id, o.slug, o.title, o.data, o.version FROM objects o
+				`SELECT o.id, o.slug, o.title, o.data, o.version, o.updated_at FROM objects o
 			WHERE o.type = ? AND ${vo.sql} ORDER BY o.id`
 			)
 			.bind(TAG_TYPE, ...vo.params),
@@ -58,10 +58,12 @@ export function tagRecordsStatements(db, viewer = ANON) {
  * Los registros a partir de las filas de {@link tagRecordsStatements}.
  * @param {Record<string, unknown>[]} objs
  * @param {Record<string, unknown>[]} edges
- * @returns {(TagRecord & { id: number, slug: string, version: number })[]}
+ * @returns {(TagRecord & { id: number, slug: string, version: number, updatedAt?: number })[]}
+ *   `updatedAt`: el último guardado de la etiqueta (ms), si la fila lo trae (la fecha de su página
+ *   de la wiki en los datos estructurados).
  */
 export function readTagRecords(objs, edges) {
-	/** @type {Map<number, TagRecord & { id: number, slug: string, version: number }>} */
+	/** @type {Map<number, TagRecord & { id: number, slug: string, version: number, updatedAt?: number }>} */
 	const byId = new Map();
 	for (const o of objs) {
 		/** @type {Record<string, unknown>} */
@@ -73,7 +75,9 @@ export function readTagRecords(objs, edges) {
 		}
 		const { key, ...rest } = data;
 		if (typeof key !== 'string' || !key) continue;
+		const updatedAt = Number(o.updated_at);
 		byId.set(Number(o.id), {
+			...(updatedAt > 0 ? { updatedAt } : {}),
 			id: Number(o.id),
 			slug: String(o.slug),
 			version: Number(o.version),

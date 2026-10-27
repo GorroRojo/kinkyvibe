@@ -115,7 +115,8 @@
 				title: data.meta.title,
 				summary: data.meta.summary,
 				path: data.path,
-				aka: $tagManager.get(data.meta.wiki)?.aka
+				aka: $tagManager.get(data.meta.wiki)?.aka,
+				updatedAt: data.updatedAt
 			})
 		: data?.tag
 			? tagTermSchema({

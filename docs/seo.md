@@ -46,6 +46,11 @@ guía: `compartir.md` (llega con el PR #257).
 | Serie              | `EventSeries` con `subEvent` (sin lugar); cada edición la nombra en `superEvent`         |
 | Perfil             | `ProfilePage` con `Person` (persona), `Organization` (proyecto) o `Place` (lugar)        |
 
+En una entrada de la wiki, el `DefinedTerm` lleva su página en `mainEntityOfPage` (un `WebPage`
+con `dateModified`: el último guardado de la etiqueta, `objects.updated_at`), porque `DefinedTerm`
+no es un CreativeWork y no admite fechas propias. La página no muestra la fecha (un «Actualizado
+el» visible es decisión de gorrite).
+
 El perfil de KinkyVibe (`/amigues/KinkyVibe`, por su dirección) lleva el `@id` de la organización
 de la portada (`ORGANIZATION_ID`): es la misma entidad. Todas las páginas dicen `inLanguage`
 `es-AR`, como `<html lang>`.
