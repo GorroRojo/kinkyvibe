@@ -13,7 +13,7 @@
 	} from '$lib/utils/jsonLd.js';
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
 	import { tagManager, userConfig } from '$lib/utils/stores.js';
-	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	import { pastPostsLoader } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import ReadingTime from '$lib/components/ReadingTime.svelte';
@@ -98,13 +98,8 @@
 	};
 	// the server sends no past events; fetch them when the viewer chooses to see them
 	let relatedPosts = data.relatedPosts;
-	let loadedPast = false;
-	$: if ($userConfig.show_past_events && data.relatedPastCount > 0 && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((posts) => (relatedPosts = posts.filter(isRelated)))
-			.catch(() => (loadedPast = false));
-	}
+	const loadPast = pastPostsLoader((posts) => (relatedPosts = posts.filter(isRelated)));
+	$: if ($userConfig.show_past_events && data.relatedPastCount > 0) loadPast();
 	// La entrada como término definido (schema.org, jsonLd.js); sin entrada, la etiqueta si tiene
 	// descripción (docs/seo.md); si no, nada.
 	// Una serie (con ediciones que ve cualquiera): su descripción y sus datos estructurados.

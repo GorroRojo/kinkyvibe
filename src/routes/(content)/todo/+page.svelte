@@ -10,20 +10,15 @@
 	import InlineTag from '$lib/components/InlineTag.svelte';
 	const style = 'display:inline;width:.9em;translate:0 .6em;';
 	import { userConfig } from '$lib/utils/stores';
-	import { fetchAllPostsClient } from '$lib/utils/allPosts';
+	import { pastPostsLoader } from '$lib/utils/allPosts';
 	import { page } from '$app/stores';
 	import { linkPreviewOf, sectionTexts } from '$lib/utils/seo.js';
 	// El título de la pestaña y el h1, de los textos del panel (docs/compartir.md).
 	$: texts = sectionTexts('todo', linkPreviewOf($page.data).texts);
 	// the server only sends upcoming events; load the rest if past events are shown
 	let allPosts = data.posts;
-	let loadedPast = false;
-	$: if ($userConfig.show_past_events && !loadedPast) {
-		loadedPast = true;
-		fetchAllPostsClient()
-			.then((posts) => (allPosts = posts))
-			.catch(() => (loadedPast = false));
-	}
+	const loadPast = pastPostsLoader((posts) => (allPosts = posts));
+	$: if ($userConfig.show_past_events) loadPast();
 </script>
 
 <svelte:head>
