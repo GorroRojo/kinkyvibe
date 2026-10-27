@@ -226,7 +226,8 @@ falla (Resend caído, un timeout, el Worker que se cortó), la orden queda aprob
   (`EMAIL_GRACE_MS`, el mismo margen del aviso «mails sin enviar» del Inicio) y hace menos de 48 h;
   las más viejas primero, 5 por corrida. Va aparte de la tanda de mails (no usa su tope) y en su
   propio try/catch: si falla, lo demás sale igual. La respuesta del cron suma
-  `unsentOrders: { sent, failed }`.
+  `unsentOrders: { sent, failed }`. Una orden sin mail (una venta en la puerta sin mail) no se
+  reintenta ni sale en el aviso «mails sin enviar» del Inicio: no hay a quién mandárselo.
 - **Sin duplicar:** usa `sendOrderEmail` con la clave de siempre (`tickets-<orden>`). Si el primer
   intento sí había llegado a Resend (un timeout), Resend no lo manda de nuevo. Ojo: Resend guarda
   las claves 24 h.

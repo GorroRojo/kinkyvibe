@@ -332,7 +332,8 @@ export const EMAIL_PROBLEM_VISIBLE_MS = 14 * 24 * 60 * 60 * 1000;
 
 /**
  * Órdenes aprobadas cuyo mail con las entradas no salió (`email_sent_at` vacío), más viejas que
- * {@link EMAIL_GRACE_MS}, y las que salió pero Resend avisó que rebotó o lo marcaron como spam
+ * {@link EMAIL_GRACE_MS} (sin las que no tienen mail, como una venta en la puerta sin mail: no hay a
+ * quién mandárselo, igual que en el reintento de unsentOrders.js), y las que salió pero Resend avisó que rebotó o lo marcaron como spam
  * (`problem`, de los últimos {@link EMAIL_PROBLEM_VISIBLE_MS}).
  *
  * @param {D1Database | null | undefined} db
@@ -356,6 +357,7 @@ export function unsentEmailsQuery(now) {
 				.prepare(
 					`SELECT id, event_slug, buyer_name, updated_at AS at, NULL AS email_problem FROM orders
 				WHERE status = 'approved' AND email_sent_at IS NULL AND updated_at < ?1
+					AND TRIM(buyer_email) != ''
 				UNION ALL
 				SELECT id, event_slug, buyer_name, email_problem_at AS at, email_problem FROM orders
 				WHERE email_problem IS NOT NULL AND email_problem_at > ?2 AND status = 'approved'

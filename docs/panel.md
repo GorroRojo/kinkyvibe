@@ -202,7 +202,8 @@ se puede compartir:
   vuelven (con el período anterior), vendidas y entraron, primera vez y vuelven, vuelven a la misma
   serie, vuelven por serie y asistencia por evento. Mismos períodos, por defecto 12 meses; cuentan
   los eventos que ya pasaron y **empezaron** en el período. Lee todas las órdenes: «primera vez» y
-  «ya habían venido» necesitan la historia completa.
+  «ya habían venido» necesitan la historia completa. Una venta sin mail (en la puerta es opcional)
+  no cuenta como persona, ni acá ni en «Personas» de Ventas.
 - **Visitas al sitio** (`/visitas`): las visitas anónimas ([analiticas.md](analiticas.md)), 7 /
   **30** (por defecto) / 90 días. Analytics Engine guarda el detalle unos 3 meses: más atrás solo
   quedan los totales por mes de `analytics_monthly`, y la página lo dice. Nunca lee las órdenes.
