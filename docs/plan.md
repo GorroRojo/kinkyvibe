@@ -106,6 +106,7 @@ CI) va en la fase 0.
 - `aviso-transferencia-sin-datos` · fase 0 · hecho · entradas · Aviso cuando un evento tiene transferencia y faltan los datos de Cobros · #214
 - `entradas-editor-preventas-arreglo` · fase 0 · hecho · entradas · Editor de entradas: keys únicas también con un borrador recuperado (se colgaba: «Sacar» muerto), «Preventas» con errores a la vista ya no deja la tarjeta vacía (Chromium, fieldset y container queries) y «Sacar» desactivado que explica por qué · #348
 - `fondo-propinas-unicas` · fase 0 · hecho · fondo · Donaciones de una vez al Fondo con las propinas, el total del mes para kv-fondo y el mail «tu link» · #287, #268
+- `propinas-kinkipedia` · fase 0 · hecho · fondo · Propina al pie de las páginas de la Kinkipedia con texto; las clases de publicación de las propinas viven en el código (`TIP_POST_KINDS`) y la base ya no tiene listas fijas, así sumar una no pide migración (gorrite, 27/10) · #543
 
 ### Legales
 

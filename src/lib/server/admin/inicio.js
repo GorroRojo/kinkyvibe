@@ -55,6 +55,7 @@ import {
 } from '$lib/server/contenido/etiquetasEdges.js';
 import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
 import { fondoTipTotalsStatement, readFondoTipTotals } from '$lib/server/propinas/index.js';
+import { tipCategoryLabel } from '$lib/utils/propinas.js';
 import { SALE_AT_SQL } from './saleMonth.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
@@ -831,7 +832,7 @@ export function activityItems({ orders, audit, checkins, tips }, { limit, titles
 			// Sin publicación (`post_slug` vacío) = desde fondo.kinkyvibe.ar (migración 0052). Se mira
 			// el slug y no `source` para que la consulta ande igual sin esa migración.
 			who: String(t.post_slug ?? '') || 'Fondo Kinky Vibe',
-			detail: t.post_slug ? String(t.post_category) : 'fondo.kinkyvibe.ar',
+			detail: t.post_slug ? tipCategoryLabel(String(t.post_category)) : 'fondo.kinkyvibe.ar',
 			slug: null,
 			orderId: null,
 			href: '/admin/ajustes/propinas'
