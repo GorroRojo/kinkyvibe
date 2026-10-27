@@ -108,9 +108,11 @@ export async function runMailQueueWith(
  */
 export function mailBudgetLeft(run, extra = []) {
 	if ('paused' in run || run.stopped) return 0;
-	const parts = [run.waitlist, run.reminders, run.streamLinks, run.dateChanges, ...extra].filter(
-		(p) => p != null
-	);
+	/** @type {{ sent: number, failed: number, stopped?: unknown }[]} */
+	const parts = [];
+	for (const p of [run.waitlist, run.reminders, run.streamLinks, run.dateChanges, ...extra]) {
+		if (p != null) parts.push(p);
+	}
 	if (parts.some((p) => 'stopped' in p && p.stopped)) return 0;
 	const used = parts.reduce((n, p) => n + p.sent + p.failed, 0);
 	return Math.max(0, run.limit - used);
