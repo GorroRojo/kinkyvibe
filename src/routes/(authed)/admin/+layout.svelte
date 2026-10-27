@@ -393,7 +393,7 @@
 
 	/**
 	 * Barra de abajo del celu: `null` es el botón "Más". "Ventas" muestra el contador de
-	 * transferencias pendientes.
+	 * transferencias pendientes y, cuando hay, lleva a Transferencias (lo que el número promete).
 	 * @type {({ item: import('$lib/admin/nav.js').NavItem, label: string, counterItem: import('$lib/admin/nav.js').NavItem } | null)[]}
 	 */
 	const mobileTabs = MOBILE_TABS.map((id) => {
@@ -646,7 +646,7 @@
 			{#each mobileTabs as tab, i (i)}
 				{#if tab}
 					<a
-						href={tab.item.href}
+						href={countOf(tab.counterItem) ? tab.counterItem.href : tab.item.href}
 						class:on={active?.id === tab.item.id}
 						class:door={tab.item.id === 'checkin'}
 						aria-current={active?.id === tab.item.id ? 'page' : undefined}
