@@ -323,6 +323,14 @@ entera), junto con la línea `Plan: <id>` o `Plan: ninguno` ([plan.md](plan.md))
 `docs/plan.md` o el `phase` de `nav.js`, corré también `node scripts/plan-lint.js`. No se dice "los
 tests pasan" sin haberlos corrido. La CI corre siempre la suite entera.
 
+Si el PR toca los crons o el Worker (`src/lib/server/scheduled.js`, `worker/index.js`,
+`src/lib/server/backup/` o `src/routes/api/cron/`), la CI no los ejecuta en el runtime de Workers:
+corré además `npm run build && npm run preview:worker`, dispará los dos crons en local (el de
+cada 15 minutos y el nocturno: `preview:worker` corre con `--test-scheduled`, así que se disparan
+con `curl "http://localhost:8880/__scheduled?cron=*/15+*+*+*+*"` y `cron=0+6+*+*+*`) y pegá lo que
+respondieron en el PR
+(auditoría de confiabilidad, O41).
+
 ## Cuando algo está en rojo
 
 1. Abrí el chequeo en rojo en el PR ("Details") y buscá el primer error del log.
