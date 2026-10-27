@@ -34,7 +34,7 @@
 />
 
 {#if !data.dbAvailable}
-	<p class="kv-flash bad">No hay base de datos disponible (o falta aplicar la migración 0066).</p>
+	<p class="kv-flash bad">No hay base de datos disponible (o falta aplicar la migración 0068).</p>
 {/if}
 {#if form?.removed}<p class="kv-flash" role="status">{form.removed.message}</p>{/if}
 {#if form?.row?.error && !form.row.id}<p class="kv-flash bad" role="alert">{form.row.error}</p>{/if}
@@ -51,6 +51,15 @@
 			solo: <strong>«{data.text}»</strong>. Sin el motivo ni ningún otro detalle.
 		</li>
 		<li>
+			Coincide por quien compró, no por quien entra: todas las entradas de una compra hecha con ese
+			mail o esa cuenta muestran el aviso (también las de sus amigues), y si la persona entra con
+			una entrada que compró otra persona, no aparece.
+		</li>
+		<li>
+			El mail tiene que ser exacto: solo se ignoran mayúsculas y espacios. Si sabés que usa otros
+			mails, cargá cada uno como un aviso aparte.
+		</li>
+		<li>
 			No frena el ingreso: decide quien está en la puerta, después de hablar con la organización.
 		</li>
 		<li>
@@ -58,6 +67,15 @@
 			o dejarlo vencer; al vencer, se borra solo.
 		</li>
 		<li>Cargar, renovar y quitar queda en Actividad (quién y cuándo), sin el mail ni el motivo.</li>
+		<li>
+			Es un registro de la organización: si la persona borra su cuenta, el aviso sigue (por el mail)
+			hasta que vence.
+		</li>
+		<li>
+			Quitar un aviso lo borra de la base, pero sigue en las copias de seguridad: el historial de la
+			base (30 días), los backups nocturnos (30 días), los mensuales (12 meses) y el del primero de
+			cada año (se guarda siempre).
+		</li>
 	</ul>
 </Card>
 
@@ -70,8 +88,9 @@
 			<span>Mail</span>
 			<input type="email" name="mail" required autocomplete="off" spellcheck="false" />
 			<small
-				>Nunca un nombre. Si el mail es de una cuenta, el aviso queda en la cuenta (sigue aunque
-				cambie el mail). Del mail se guarda solo un código que no se puede leer.</small
+				>Nunca un nombre. Si el mail es de una cuenta, el aviso queda también en la cuenta. El mail
+				se guarda como código, no como texto: en el panel no se ve, pero quien tenga acceso a la
+				base y sospeche de un mail podría comprobar si tiene aviso.</small
 			>
 		</label>
 		<fieldset class="kv-field">
@@ -141,7 +160,12 @@
 					<p class="meta">
 						Vence el {fmtDate(n.expiresAt)} · cargado el {fmtDate(n.createdAt)} por {n.createdBy}
 					</p>
-					{#if n.reason}<p class="reason"><strong>Motivo:</strong> {n.reason}</p>{/if}
+					{#if n.reason}
+						<details class="reason">
+							<summary>Ver el motivo</summary>
+							<p>{n.reason}</p>
+						</details>
+					{/if}
 					{#if form?.row?.id === n.id}
 						<p class="kv-flash" class:bad={form.row.error} role="status">
 							{form.row.error ?? form.row.message}
@@ -255,8 +279,13 @@
 		font-size: var(--text-sm);
 		color: var(--muted);
 	}
-	.reason {
+	.reason summary {
+		cursor: pointer;
+		width: fit-content;
+	}
+	.reason p {
 		white-space: pre-line;
+		margin-top: var(--space-3xs);
 	}
 	.actions {
 		display: flex;

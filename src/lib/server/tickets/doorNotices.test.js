@@ -7,7 +7,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { listAudit } from '$lib/server/admin/audit.js';
-import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
+import { deleteAccount, upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
 import {
 	DOOR_NOTICE_MAX_MS,
 	DOOR_NOTICE_TEXT,
@@ -23,7 +23,8 @@ import {
 	noticeEmailHash,
 	removeDoorNotice,
 	renewDoorNotice,
-	runDoorNoticesCron
+	runDoorNoticesCron,
+	ticketHasDoorNotice
 } from './doorNotices.js';
 import { offlineList, sellAtDoor, ticketCard, ticketWithBuyer } from './door.js';
 import { searchRows } from './checkin.js';
@@ -134,13 +135,62 @@ describe('cargar, renovar y quitar', () => {
 		expect(row?.email_hash).not.toBe(await emailHash(MAIL.toLowerCase()));
 	});
 
-	it('por el mail de una cuenta: queda en la cuenta', async () => {
+	it('por el mail de una cuenta: queda en la cuenta y también guarda el hash del mail', async () => {
 		const account = await upsertVerifiedAccount(t.db, MAIL.toLowerCase(), { now: NOW });
 		const r = await addDoorNotice(t.db, locals, { email: ` ${MAIL} `, expiry: '1y', now: NOW });
 		expect(r).toMatchObject({ ok: true, byAccount: true });
 		const row = await t.db.prepare('SELECT * FROM door_notices').first();
 		expect(row?.account_id).toBe(account.id);
-		expect(row?.email_hash).toBeNull();
+		expect(row?.email_hash).toBe(await noticeEmailHash(MAIL));
+		expect((await tableDump()).toLowerCase()).not.toContain('example.com');
+	});
+
+	it('la tabla exige al menos la cuenta o el hash del mail', async () => {
+		await expect(
+			t.db
+				.prepare(
+					`INSERT INTO door_notices (id, account_id, email_hash, created_at, created_by,
+						expires_at, updated_at) VALUES (?1, NULL, NULL, ?2, 'x', ?3, ?2)`
+				)
+				.bind(crypto.randomUUID(), NOW, NOW + DAY)
+				.run()
+		).rejects.toThrow(/CHECK/);
+	});
+
+	it('dos admins cargando el mismo mail a la vez: une gana, le otre recibe «ya hay un aviso»', async () => {
+		const results = await Promise.all([
+			addDoorNotice(t.db, locals, { email: MAIL, expiry: '6m', now: NOW }),
+			addDoorNotice(t.db, locals, { email: MAIL.toLowerCase(), expiry: '1y', now: NOW })
+		]);
+		expect(results.filter((r) => r.ok)).toHaveLength(1);
+		expect(results.filter((r) => !r.ok)).toEqual([{ ok: false, error: 'exists' }]);
+		expect(await listDoorNotices(t.db, { now: NOW })).toHaveLength(1);
+	});
+
+	it('si el índice único frena el INSERT (carrera), devuelve `exists` y no un error', async () => {
+		// Simula la carrera: el chequeo previo no ve nada, pero el INSERT choca con el índice.
+		await addDoorNotice(t.db, locals, { email: MAIL, expiry: '6m', now: NOW });
+		/** @type {any} */
+		const racing = new Proxy(t.db, {
+			get(target, prop) {
+				if (prop === 'prepare') {
+					return (/** @type {string} */ sql) =>
+						/^\s*SELECT n\.\*/.test(sql)
+							? target.prepare(
+									'SELECT 1 WHERE 0 AND ?1 IS NOT NULL AND ?2 IS NOT NULL AND ?3 IS NOT NULL'
+								)
+							: target.prepare(sql);
+				}
+				const value = Reflect.get(target, prop);
+				return typeof value === 'function' ? value.bind(target) : value;
+			}
+		});
+		expect(await addDoorNotice(racing, locals, { email: MAIL, expiry: '1y', now: NOW })).toEqual({
+			ok: false,
+			error: 'exists'
+		});
+		const audit = await listAudit(t.db, { targetType: 'door_notice' });
+		expect(audit.filter((a) => a.action === 'door_notice.add')).toHaveLength(1);
 	});
 
 	it('valida el mail y el vencimiento; no duplica', async () => {
@@ -234,6 +284,52 @@ describe('en la puerta', () => {
 		const matches = await doorNoticeMatcher(t.db, { kinkyVibe: true, now: NOW });
 		expect(await matches(byAccount)).toBe(true);
 		expect(await matches(byMail)).toBe(true);
+	});
+
+	it('borrar la cuenta no apaga el aviso: siguen la entrada de antes y una compra nueva sin sesión', async () => {
+		const account = await upsertVerifiedAccount(t.db, 'cuenta.avisada@example.com', { now: NOW });
+		await addDoorNotice(t.db, locals, {
+			email: 'cuenta.avisada@example.com',
+			expiry: '1y',
+			now: NOW
+		});
+		const before = await ticketFor('cuenta.avisada@example.com', account.id);
+		expect(await deleteAccount(t.db, account.id, { now: NOW + DAY })).toBe(true);
+		// La cuenta quedó borrada (sin mail) y la orden, sin cuenta.
+		const deleted = await t.db
+			.prepare('SELECT email, deleted_at FROM accounts WHERE id = ?1')
+			.bind(account.id)
+			.first();
+		expect(deleted?.email).toBeNull();
+		expect(deleted?.deleted_at).not.toBeNull();
+		const earlier = await ticketWithBuyer(t.db, { id: before.id });
+		expect(earlier?.buyer_account_id).toBeNull();
+		const guest = await ticketFor('Cuenta.Avisada@example.com');
+		const matches = await doorNoticeMatcher(t.db, { kinkyVibe: true, now: NOW + 2 * DAY });
+		expect(await matches(/** @type {any} */ (earlier))).toBe(true);
+		expect(await matches(guest)).toBe(true);
+		expect(await matches(await ticketFor('otra.persona@example.com'))).toBe(false);
+		// El panel lo sigue listando y no deja cargar otro igual.
+		expect(await listDoorNotices(t.db, { now: NOW + 2 * DAY })).toHaveLength(1);
+		expect(
+			await addDoorNotice(t.db, locals, {
+				email: 'cuenta.avisada@example.com',
+				expiry: '6m',
+				now: NOW + 2 * DAY
+			})
+		).toEqual({ ok: false, error: 'exists' });
+	});
+
+	it('ticketHasDoorNotice: por token, solo en eventos de Kinky Vibe', async () => {
+		await addDoorNotice(t.db, locals, { email: MAIL, expiry: '6m', now: NOW });
+		const flagged = await ticketFor();
+		const other = await ticketFor('otra.persona@example.com');
+		const at = { kinkyVibe: true, now: NOW };
+		expect(await ticketHasDoorNotice(t.db, { token: flagged.token, ...at })).toBe(true);
+		expect(await ticketHasDoorNotice(t.db, { token: other.token, ...at })).toBe(false);
+		expect(
+			await ticketHasDoorNotice(t.db, { token: flagged.token, kinkyVibe: false, now: NOW })
+		).toBe(false);
 	});
 
 	it('sin la tabla (migración sin aplicar) la puerta sigue andando, sin avisos', async () => {

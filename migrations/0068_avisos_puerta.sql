@@ -1,11 +1,13 @@
--- Migration number: 0066 	 2026-10-26T23:47:30.590Z
+-- Migration number: 0068 	 2026-10-26T23:47:30.590Z
 -- Avisos de puerta (decisión 0053, docs/tickets.md «Avisos de puerta»): personas que la
 -- organización no admite en los eventos que organiza Kinky Vibe. En la puerta, si una entrada
 -- coincide, se ve solo «Avisá a la organización antes de dejar pasar»; nunca frena el ingreso.
--- Creada con `npm run db:migrations:new` (salió 0065) y pasada a 0066 porque la 0065 ya la usa otra
--- rama en curso.
+-- Creada con `npm run db:migrations:new` (salió 0065) y pasada a 0068 porque de la 0065 a la 0067
+-- las usan otras ramas en curso.
 --
--- - Un aviso es de una cuenta (`account_id`) o de un mail (`email_hash`), nunca de un nombre.
+-- - Un aviso es de un mail (`email_hash`) y, si el mail es de una cuenta, también de la cuenta
+--   (`account_id`); nunca de un nombre. El hash se guarda siempre: si la cuenta se borra, el aviso
+--   sigue por el mail hasta que vence (es un registro propio de la organización, decisión 0053).
 -- - Nunca se guarda el mail: solo SHA-256 en hex de `puerta:aviso:<mail en minúsculas, sin
 --   espacios>` (`noticeEmailHash`, src/lib/server/tickets/doorNotices.js). Con un prefijo propio
 --   para que no se pueda cruzar con otros hashes de mail de la base (códigos, «No fui yo»).
@@ -18,7 +20,8 @@
 CREATE TABLE IF NOT EXISTS door_notices (
 	-- UUID v4 al azar.
 	id TEXT PRIMARY KEY NOT NULL CHECK (length(id) = 36),
-	account_id TEXT REFERENCES accounts (id) ON DELETE CASCADE,
+	-- Si la fila de la cuenta llegara a borrarse de verdad, queda el hash del mail.
+	account_id TEXT REFERENCES accounts (id) ON DELETE SET NULL,
 	email_hash TEXT CHECK (email_hash IS NULL OR length(email_hash) = 64),
 	reason TEXT CHECK (reason IS NULL OR length(reason) <= 500),
 	created_at INTEGER NOT NULL,
@@ -27,8 +30,8 @@ CREATE TABLE IF NOT EXISTS door_notices (
 	expires_at INTEGER NOT NULL,
 	reminded_at INTEGER,
 	updated_at INTEGER NOT NULL,
-	-- Exactamente una de las dos: cuenta o mail.
-	CHECK ((account_id IS NULL) <> (email_hash IS NULL)),
+	-- Al menos una de las dos (el código siempre guarda el hash del mail).
+	CHECK (account_id IS NOT NULL OR email_hash IS NOT NULL),
 	CHECK (expires_at > created_at)
 );
 

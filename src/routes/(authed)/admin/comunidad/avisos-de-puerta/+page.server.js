@@ -3,8 +3,8 @@
  * la organización no admite en los eventos que organiza Kinky Vibe. Solo admins: el `load` y cada
  * acción llaman a `requireAdmin`. Es el único lugar donde se ve el motivo.
  *
- * - `agregar`: por mail (si es de una cuenta, queda en la cuenta), con vencimiento obligatorio y
- *   motivo opcional.
+ * - `agregar`: por mail (siempre el hash; si es de una cuenta, también la cuenta), con vencimiento
+ *   obligatorio y motivo opcional. Si otre admin cargó el mismo a la vez, «ya hay un aviso».
  * - `renovar`: vence de nuevo desde hoy.
  * - `quitar`: lo borra.
  * - `buscar`: ¿hay un aviso para este mail? Por POST, para que el mail no quede en la dirección.
@@ -55,7 +55,7 @@ export async function load({ locals, url, platform, setHeaders }) {
 	try {
 		return { ...base, dbAvailable: true, notices: await listDoorNotices(db, { now }) };
 	} catch (error) {
-		// Sin la migración 0066 todavía: la página lo dice en vez de romperse.
+		// Sin la migración 0068 todavía: la página lo dice en vez de romperse.
 		logDBError('panel: avisos de puerta', error);
 		return { ...base, dbAvailable: false, notices: [] };
 	}
@@ -79,7 +79,7 @@ export const actions = {
 		return {
 			add: {
 				message: r.byAccount
-					? 'Listo: el aviso quedó en la cuenta con ese mail.'
+					? 'Listo: el aviso quedó para ese mail y para la cuenta que lo usa.'
 					: 'Listo: el aviso quedó para ese mail.'
 			}
 		};

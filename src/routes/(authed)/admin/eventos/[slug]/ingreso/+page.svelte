@@ -512,7 +512,9 @@
 			door = {
 				...door,
 				list: mergeServerList(body.tickets, door.queue, door.sales),
-				savedAt: body.at
+				savedAt: body.at,
+				// Hasta cuándo puede quedar la marca de los avisos de puerta en este celu.
+				noticeUntil: Number(body.noticeUntil) || null
 			};
 			persist();
 			if (!door.queue.length && !door.sales.length) setCounts(body.counts);

@@ -65,3 +65,22 @@ export function doorNoticeMaxDate(now) {
 	// El último día cuyo final (23:59:59.999 en Argentina) no pasa de `now` + 2 años.
 	return new Date(now + DOOR_NOTICE_MAX_MS - DAY_MS + 1 - AR_OFFSET_MS).toISOString().slice(0, 10);
 }
+
+/**
+ * Cuántos días después del evento puede quedar en un celu la marca `notice` de la lista sin
+ * conexión (localStorage). Pasado eso, el celu la saca (`stripStaleNotices` en
+ * $lib/admin/doorOffline.js).
+ */
+export const DOOR_NOTICE_KEEP_DAYS = 3;
+
+/**
+ * Hasta cuándo puede quedar `notice` en la lista guardada en el celu: {@link DOOR_NOTICE_KEEP_DAYS}
+ * días después del final del evento (o de su comienzo, si no tiene final), contados desde ahora si
+ * el evento ya pasó o no tiene fecha.
+ *
+ * @param {{ start?: string | null, end?: string | null, now: number }} input
+ */
+export function doorNoticeKeepUntil({ start, end, now }) {
+	const at = Date.parse(end ?? '') || Date.parse(start ?? '') || now;
+	return Math.max(at, now) + DOOR_NOTICE_KEEP_DAYS * DAY_MS;
+}

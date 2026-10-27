@@ -1,16 +1,18 @@
 /**
  * Avisos de puerta (decisión 0053, docs/tickets.md «Avisos de puerta»): personas que la
  * organización no admite en los eventos que organiza Kinky Vibe. Tabla `door_notices` (migración
- * 0066).
+ * 0068).
  *
  * Reglas:
  *
  * - **Solo admins** cargan, renuevan y quitan avisos (las rutas llaman a `requireAdmin`), y cada
  *   acción queda en el registro de actividad **sin el motivo ni el mail** (solo el id del aviso y
  *   el vencimiento).
- * - Un aviso es de una **cuenta** o de un **mail**, nunca de un nombre. Si el mail es de una cuenta,
- *   el aviso queda en la cuenta (sigue aunque cambie el mail). Del mail se guarda solo un hash
- *   ({@link noticeEmailHash}): para avisar en la puerta alcanza con comparar.
+ * - Un aviso es de un **mail** y, si el mail es de una cuenta, también de esa **cuenta**; nunca de
+ *   un nombre. Del mail se guarda solo un hash ({@link noticeEmailHash}), **siempre** (aunque sea
+ *   de una cuenta): para avisar en la puerta alcanza con comparar, y si la cuenta se borra el aviso
+ *   sigue por el mail hasta que vence. Coincide si la orden es de esa cuenta o si el mail de la
+ *   orden coincide (exacto, salvo mayúsculas y espacios).
  * - **Solo en los eventos de Kinky Vibe** (la etiqueta KinkyVibe, «Lo organiza KinkyVibe» en el
  *   editor: `isKinkyVibeEvent`, la misma regla que el Fondo). En los demás, nunca avisa.
  * - **Vence siempre** (6 meses, 1 año o una fecha de hasta 2 años). El cron de los recordatorios
@@ -102,7 +104,7 @@ export async function doorNoticeMatcher(db, { kinkyVibe, now = Date.now() }) {
 			.bind(now)
 			.all());
 	} catch (error) {
-		// Sin la migración 0066 (o con la base caída) la puerta sigue como siempre. En el log, sin datos.
+		// Sin la migración 0068 (o con la base caída) la puerta sigue como siempre. En el log, sin datos.
 		console.error(
 			'[puerta] no se pudieron leer los avisos de puerta:',
 			String(error).slice(0, 200)
@@ -117,7 +119,8 @@ export async function doorNoticeMatcher(db, { kinkyVibe, now = Date.now() }) {
 	for (const r of rows) {
 		if (r.account_id) accounts.add(String(r.account_id));
 		if (r.email_hash) hashes.add(String(r.email_hash));
-		// Un aviso de cuenta también vale para las compras sin sesión con el mail de la cuenta.
+		// El hash guardado es el del mail que se cargó; si la cuenta tiene hoy otro mail, también
+		// vale para las compras sin sesión con ese.
 		if (r.account_email) {
 			const h = await noticeEmailHash(r.account_email);
 			if (h) hashes.add(h);
@@ -129,6 +132,30 @@ export async function doorNoticeMatcher(db, { kinkyVibe, now = Date.now() }) {
 		const h = await noticeEmailHash(t.buyer_email);
 		return h !== null && hashes.has(h);
 	};
+}
+
+/**
+ * ¿La entrada de este token coincide con un aviso vigente? Para la página de la entrada cuando la
+ * abre une admin con la cámara del celu (`/entradas/t/[token]`): **solo se llama para admins** y
+ * en eventos de Kinky Vibe. Lee la orden aparte (mail y cuenta de quien compró), así la consulta
+ * de siempre de la página no cambia. Si algo falla, `false`.
+ *
+ * @param {D1Database} db
+ * @param {{ token: string, kinkyVibe: boolean, now?: number }} input
+ */
+export async function ticketHasDoorNotice(db, { token, kinkyVibe, now = Date.now() }) {
+	if (!kinkyVibe) return false;
+	const matches = await doorNoticeMatcher(db, { kinkyVibe, now });
+	if (matches === NEVER) return false;
+	const row = await db
+		.prepare(
+			`SELECT o.buyer_email, o.account_id AS buyer_account_id
+			FROM tickets t JOIN orders o ON o.id = t.order_id WHERE t.token = ?1`
+		)
+		.bind(token)
+		.first()
+		.catch(() => null);
+	return row ? matches(/** @type {NoticeTarget} */ (row)) : false;
 }
 
 /**
@@ -202,8 +229,9 @@ function cleanReason(raw) {
 }
 
 /**
- * Carga un aviso. Si el mail es de una cuenta (no borrada), el aviso queda en la cuenta; si no,
- * se guarda solo el hash del mail. Queda en el registro de actividad sin el mail ni el motivo.
+ * Carga un aviso. Siempre guarda el hash del mail (nunca el mail); si el mail es de una cuenta (no
+ * borrada), además la cuenta. Queda en el registro de actividad sin el mail ni el motivo. Si otre
+ * admin cargó el mismo aviso al mismo tiempo, el índice único lo frena y devuelve `exists`.
  *
  * @param {D1Database} db
  * @param {Pick<App.Locals, 'user'>} locals le admin (de acá sale `created_by`)
@@ -229,20 +257,27 @@ export async function addDoorNotice(db, locals, { email, expiry, reason, now = D
 	const id = crypto.randomUUID();
 	const by = String(locals.user?.login ?? 'desconocide').slice(0, 100);
 	// Uno vencido que el cron todavía no borró ocupa el lugar: se borra antes de cargar el nuevo.
-	await db.batch([
-		db
-			.prepare(
-				'DELETE FROM door_notices WHERE expires_at <= ?1 AND (account_id = ?2 OR email_hash = ?3)'
-			)
-			.bind(now, accountId, accountId ? null : hash),
-		db
-			.prepare(
-				`INSERT INTO door_notices
+	const inserted = await db
+		.batch([
+			db
+				.prepare(
+					'DELETE FROM door_notices WHERE expires_at <= ?1 AND (account_id = ?2 OR email_hash = ?3)'
+				)
+				.bind(now, accountId, hash),
+			db
+				.prepare(
+					`INSERT INTO door_notices
 					(id, account_id, email_hash, reason, created_at, created_by, expires_at, updated_at)
 				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?5)`
-			)
-			.bind(id, accountId, accountId ? null : hash, cleanReason(reason), now, by, expiresAt)
-	]);
+				)
+				.bind(id, accountId, hash, cleanReason(reason), now, by, expiresAt)
+		])
+		.catch((/** @type {unknown} */ error) => {
+			// Dos admins cargando el mismo mail a la vez: el índice único deja entrar a une sola.
+			if (/UNIQUE constraint failed/i.test(String(error))) return 'exists';
+			throw error;
+		});
+	if (inserted === 'exists') return { ok: false, error: 'exists' };
 	await logAdminAction(
 		db,
 		locals,

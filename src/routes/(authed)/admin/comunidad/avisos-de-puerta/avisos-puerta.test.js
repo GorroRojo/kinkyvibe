@@ -6,7 +6,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import { ADMINS } from '$lib/server/auth';
+import { render } from 'svelte/server';
 import * as page from './+page.server.js';
+import Page from './+page.svelte';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -121,5 +123,26 @@ describe('como admin', () => {
 		);
 		expect((await actions.quitar(fakeEvent({ form: { id } }))).removed).toBeTruthy();
 		expect((await actions.quitar(fakeEvent({ form: { id } }))).status).toBe(404);
+	});
+});
+
+describe('la lista del panel', () => {
+	it('cada motivo queda escondido en un <details>, no a la vista', async () => {
+		await actions.agregar(
+			fakeEvent({ form: { mail: 'persona@example.com', vence: '1y', motivo: REASON } })
+		);
+		await actions.agregar(fakeEvent({ form: { mail: 'otra@example.com', vence: '6m' } }));
+		const data = await /** @type {(e: any) => Promise<any>} */ (page.load)(fakeEvent());
+		const html = render(Page, { props: { data, form: null } }).body;
+		const at = html.indexOf(REASON);
+		expect(at).toBeGreaterThan(-1);
+		// El motivo está adentro de un <details> cerrado (sin `open`), después de su <summary>.
+		const opened = html.lastIndexOf('<details', at);
+		expect(opened).toBeGreaterThan(-1);
+		expect(html.slice(opened, at)).toMatch(/<summary[^>]*>Ver el motivo<\/summary>/);
+		expect(html.slice(opened, html.indexOf('>', opened))).not.toContain('open');
+		expect(html.indexOf('</details>', opened)).toBeGreaterThan(at);
+		// Uno por aviso con motivo: el que no tiene, no muestra nada.
+		expect(html.split('Ver el motivo').length - 1).toBe(1);
 	});
 });
