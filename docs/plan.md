@@ -135,6 +135,7 @@ CI) va en la fase 0.
 - `buscador-panel` · fase 0 · hecho · panel · Buscador del panel: tildes, acciones y operadores · #259, #269
 - `moderar-ocultar` · fase 0 · hecho · panel · «Ocultar» un perfil desde el panel también le saca la aprobación para /amigues: si quien lo gestiona lo vuelve a hacer público desde Mi rincón, no reaparece hasta que une admin lo apruebe de nuevo · #385, [amigues.md](amigues.md)
 - `lugares-ocultos-fuera-de-aprobar` · fase 0 · hecho · panel · Un lugar oculto ya no aparece en Eventos › Lugares › «Para aprobar» ni en «Rechazados»: ocultar le saca la aprobación, pero aprobarlo desde ahí no lo volvía a mostrar · #390, [amigues.md](amigues.md)
+- `comunidad-auditoria` · fase 0 · en curso · panel · Arreglos de la auditoría de comunidad que no necesitan a gorrite (un commit por hallazgo, en un PR): las fotos subidas sin GPS ni metadatos (T14) y la foto de un perfil oculto o borrado que deja de servirse, con un día de caché (T13) · [imagenes.md](imagenes.md)
 
 ### Sitio público
 
