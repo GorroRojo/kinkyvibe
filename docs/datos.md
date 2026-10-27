@@ -131,7 +131,10 @@ en el runtime de Workers con la base local: `npm run build && npm run preview:wo
 
 1. `npm run db:migrations:new -- nombre_descriptivo` (crea `migrations/00NN_nombre_descriptivo.sql`).
 2. Escribí el SQL con un comentario arriba que diga para qué es. Valores por defecto que
-   mantengan cómo funciona hoy (decisión 0006).
+   mantengan cómo funciona hoy (decisión 0006). Toda columna nueva que guarda JSON lleva
+   `CHECK (json_valid(col))` (o `col IS NULL OR json_valid(col)`), como las de las tablas nuevas
+   desde 0012; las viejas sin el CHECK (`orders.holders`, `order_answers.answers`…) se leen con
+   `try/catch` (auditoría de plata, D37).
 3. Si reconstruye una tabla (SQLite no deja cambiar un `CHECK` sin copiar la tabla), sumá una
    prueba con datos como `src/lib/server/db/migration0010.test.js`: que no se pierdan filas y
    que las claves foráneas sigan valiendo.
