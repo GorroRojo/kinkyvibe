@@ -296,7 +296,12 @@ si lo encuentra en `static/`, el build falla.
   día en verse. Lo que tiene hash ya está en `/_app/immutable/`.
 - **Archivo nuevo en `static/`**: sumarle su regla (o a `DEFAULT_ON_PURPOSE` si debe quedar con el
   header por defecto, como `robots.txt`). Lo chequea `src/lib/server/staticHeaders.test.js`.
-- **Verificar:** `curl -sI https://kinkyvibe.ar/favicon.ico | grep -i cache-control`.
+- **Headers de seguridad (`/*`)**: una sola regla para todo con `X-Content-Type-Options: nosniff`
+  y `Referrer-Policy: strict-origin-when-cross-origin`, los mismos que `securityHeaders.js` pone
+  en las páginas; sin ella, los estáticos (`/robots.txt` incluido) salían sin esos dos. Nunca
+  caché en esa regla.
+- **Verificar:** `curl -sI https://kinkyvibe.ar/favicon.ico | grep -i cache-control` (y
+  `curl -sI https://kinkyvibe.ar/robots.txt | grep -i nosniff`).
 
 ## Cuánto tardó: `Server-Timing`
 

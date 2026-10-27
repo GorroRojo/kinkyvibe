@@ -49,7 +49,17 @@ function topLevelRouteSegments(dir = join(ROOT, 'src/routes')) {
 	return out;
 }
 
-const rules = parseHeaders(readFileSync(join(ROOT, '_headers'), 'utf8'));
+const allRules = parseHeaders(readFileSync(join(ROOT, '_headers'), 'utf8'));
+
+/**
+ * La única regla para todo (`/*`): los headers de seguridad de securityHeaders.js para los
+ * estáticos, que no pasan por el Worker. Nunca caché ni otra cosa.
+ */
+const SECURITY_ALL = {
+	'x-content-type-options': 'nosniff',
+	'referrer-policy': 'strict-origin-when-cross-origin'
+};
+const rules = allRules.filter((r) => r.path !== '/*');
 
 describe('_headers', () => {
 	it('tiene reglas y no está en static/ (el adapter falla si lo encuentra ahí)', () => {
@@ -57,7 +67,10 @@ describe('_headers', () => {
 		expect(existsSync(join(STATIC, '_headers'))).toBe(false);
 	});
 
-	it('ninguna regla es amplia ni apunta a páginas, HTML o /_app/', () => {
+	it('ninguna regla es amplia ni apunta a páginas, HTML o /_app/ (salvo `/*` de seguridad)', () => {
+		const all = allRules.filter((r) => r.path === '/*');
+		expect(all).toHaveLength(1);
+		expect(all[0].headers).toEqual(SECURITY_ALL);
 		for (const { path } of rules) {
 			expect(path.startsWith('/'), path).toBe(true);
 			expect(path, 'sin host ni regla para todo').not.toMatch(/^\/\*|^\/$|:\/\//);
