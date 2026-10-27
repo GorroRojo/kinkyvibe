@@ -49,9 +49,14 @@ import {
 	createSession,
 	destroyOtherSessions,
 	destroySession,
+	endSessionById,
 	getSessionAccount,
-	sessionCookieOptions
+	listSessions,
+	sessionCookieOptions,
+	sessionIdOfToken
 } from './session.js';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -888,6 +893,57 @@ describe('sesiones', () => {
 		await destroyOtherSessions(t.db, account.id, b);
 		expect(await getSessionAccount(t.db, a, { now: NOW })).toBeNull();
 		expect(await getSessionAccount(t.db, b, { now: NOW })).not.toBeNull();
+	});
+
+	it('listSessions: solo las de la cuenta, esta primero y después la usada más reciente', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const other = await upsertVerifiedAccount(t.db, 'otra.prueba@example.com', { now: NOW });
+		const old = await createSession(t.db, account.id, 'code', { now: NOW - 10 * DAY_MS });
+		const recent = await createSession(t.db, account.id, 'password', {
+			now: NOW - DAY_MS,
+			device: 'Chrome en Windows'
+		});
+		const here = await createSession(t.db, account.id, 'code', { now: NOW - 20 * DAY_MS });
+		await createSession(t.db, other.id, 'code', { now: NOW });
+		const list = await listSessions(t.db, account.id, here);
+		expect(list.map((s) => [s.current, s.method, s.device, s.lastSeenAt])).toEqual([
+			[true, 'code', null, NOW - 20 * DAY_MS],
+			[false, 'password', 'Chrome en Windows', NOW - DAY_MS],
+			[false, 'code', null, NOW - 10 * DAY_MS]
+		]);
+		expect(list[0].id).toBe(await sessionIdOfToken(here));
+		for (const s of list) expect(s.id).toMatch(/^[0-9a-f]{32}$/);
+		expect(JSON.stringify(list)).not.toContain(old);
+		expect(JSON.stringify(list)).not.toContain(recent);
+		// Sin cookie (o con una que no es de la cuenta), ninguna es «esta».
+		expect((await listSessions(t.db, account.id, undefined)).some((s) => s.current)).toBe(false);
+	});
+
+	it('endSessionById: cierra solo una sesión de esa cuenta, al toque', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const other = await upsertVerifiedAccount(t.db, 'otra.prueba@example.com', { now: NOW });
+		const a = await createSession(t.db, account.id, 'code', { now: NOW });
+		const b = await createSession(t.db, account.id, 'code', { now: NOW });
+		const theirs = await createSession(t.db, other.id, 'code', { now: NOW });
+		// Con el id de una sesión ajena, nada.
+		expect(await endSessionById(t.db, account.id, await sessionIdOfToken(theirs))).toBe(false);
+		expect(await getSessionAccount(t.db, theirs, { now: NOW })).not.toBeNull();
+		for (const bad of [undefined, '', 'nada', 'F'.repeat(32), 42])
+			expect(await endSessionById(t.db, account.id, bad)).toBe(false);
+		expect(await endSessionById(t.db, account.id, await sessionIdOfToken(a))).toBe(true);
+		expect(await getSessionAccount(t.db, a, { now: NOW })).toBeNull();
+		expect(await getSessionAccount(t.db, b, { now: NOW })).not.toBeNull();
+		expect(await endSessionById(t.db, account.id, await sessionIdOfToken(a))).toBe(false);
+	});
+
+	it('el nombre del navegador se recorta y vacío queda NULL', async () => {
+		const account = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		await createSession(t.db, account.id, 'code', { now: NOW, device: 'x'.repeat(200) });
+		await createSession(t.db, account.id, 'code', { now: NOW + 1, device: '' });
+		const rows = await t.db
+			.prepare('SELECT device FROM account_sessions ORDER BY created_at')
+			.all();
+		expect(rows.results.map((r) => r.device)).toEqual(['x'.repeat(60), null]);
 	});
 
 	it('tokens inválidos o desconocidos: null', async () => {

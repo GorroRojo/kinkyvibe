@@ -26,7 +26,13 @@ import {
 	verifiedEmail,
 	unconfirmedFreeOrders
 } from '$lib/server/cuentas/orders.js';
-import { SESSION_COOKIE, destroyOtherSessions } from '$lib/server/cuentas/session.js';
+import {
+	SESSION_COOKIE,
+	destroyOtherSessions,
+	endSessionById,
+	listSessions,
+	sessionIdOfToken
+} from '$lib/server/cuentas/session.js';
 import {
 	checkConfirmCode,
 	closeAccount,
@@ -68,47 +74,53 @@ export async function load(event) {
 	const { db, member } = await requireMember(event);
 	// La base está lejos: lo que no depende de otra cosa se lee a la par. La velocidad de lectura
 	// y el permiso de perfiles ya vinieron con la sesión (`locals.member`, getSessionAccount).
-	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed] = await Promise.all([
-		getAccount(db, member.id),
-		// «¿Son tuyas?»: entradas gratis pedidas con este mail sin la sesión de la cuenta («No fui yo»,
-		// parte 2). No van en la lista hasta que la persona dice que son suyas.
-		verifiedEmail(db, member.id)
-			.then((email) =>
-				Promise.all([
-					ordersForAccount(db, member.id, { email }),
-					unconfirmedFreeOrders(db, member.id, { email })
-				])
-			)
-			.then(
-				([orders, unconfirmed]) => ({ orders, unconfirmed, error: false }),
-				(e) => {
-					logDBError('cuentas: compras', e);
+	const [account, ordersRead, savedRead, profilesOk, sigoOn, readingSpeed, sessions] =
+		await Promise.all([
+			getAccount(db, member.id),
+			// «¿Son tuyas?»: entradas gratis pedidas con este mail sin la sesión de la cuenta («No fui yo»,
+			// parte 2). No van en la lista hasta que la persona dice que son suyas.
+			verifiedEmail(db, member.id)
+				.then((email) =>
+					Promise.all([
+						ordersForAccount(db, member.id, { email }),
+						unconfirmedFreeOrders(db, member.id, { email })
+					])
+				)
+				.then(
+					([orders, unconfirmed]) => ({ orders, unconfirmed, error: false }),
+					(e) => {
+						logDBError('cuentas: compras', e);
+						return {
+							orders: /** @type {Awaited<ReturnType<typeof ordersForAccount>>} */ ([]),
+							unconfirmed: /** @type {Awaited<ReturnType<typeof unconfirmedFreeOrders>>} */ ([]),
+							error: true
+						};
+					}
+				),
+			// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
+			getSavedBuyer(db, member.id).then(
+				(saved) => ({ saved, error: false }),
+				() => {
+					console.error('[cuentas] no se pudieron leer los datos guardados');
 					return {
-						orders: /** @type {Awaited<ReturnType<typeof ordersForAccount>>} */ ([]),
-						unconfirmed: /** @type {Awaited<ReturnType<typeof unconfirmedFreeOrders>>} */ ([]),
+						saved: /** @type {import('$lib/utils/savedBuyer.js').SavedBuyer} */ ({}),
 						error: true
 					};
 				}
 			),
-		// «Mis datos»: el DNI va tapado (salvo los últimos 3); entero, solo con «Mostrar» (?/mostrarDni).
-		getSavedBuyer(db, member.id).then(
-			(saved) => ({ saved, error: false }),
-			() => {
-				console.error('[cuentas] no se pudieron leer los datos guardados');
-				return {
-					saved: /** @type {import('$lib/utils/savedBuyer.js').SavedBuyer} */ ({}),
-					error: true
-				};
-			}
-		),
-		member.canHaveProfiles ?? canHaveProfiles(db, member.id),
-		// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
-		// calendario personal (docs/lo-que-sigo.md).
-		sigoEnabled(event.platform),
-		member.readingSpeed !== undefined
-			? member.readingSpeed
-			: getReadingSpeed(db, member.id).catch(() => null)
-	]);
+			member.canHaveProfiles ?? canHaveProfiles(db, member.id),
+			// Interruptor `lo_que_sigo`: una sola tarjeta, Mi rincón → Lo que sigo, que incluye el
+			// calendario personal (docs/lo-que-sigo.md).
+			sigoEnabled(event.platform),
+			member.readingSpeed !== undefined
+				? member.readingSpeed
+				: getReadingSpeed(db, member.id).catch(() => null),
+			// «Dónde tenés la sesión abierta»: solo las de esta cuenta. Si falla, la tarjeta lo dice.
+			listSessions(db, member.id, event.cookies.get(SESSION_COOKIE)).catch((e) => {
+				logDBError('cuentas: sesiones', e);
+				return null;
+			})
+		]);
 	if (!account) {
 		await endSession(event, db);
 		redirect(303, LOGIN);
@@ -149,7 +161,10 @@ export async function load(event) {
 		// La velocidad de lectura de la cuenta (null: la de siempre). $lib/utils/readingSpeed.js.
 		readingSpeed,
 		orders: orders.map(listed),
-		unconfirmed: unconfirmed.map(listed)
+		unconfirmed: unconfirmed.map(listed),
+		// Sin el token ni su hash: cada una con su id público (session.js).
+		sessions,
+		now: Date.now()
 	};
 }
 
@@ -404,6 +419,45 @@ export const actions = {
 			return fail(500, { action: 'sesiones', error: 'No se pudo. Probá de nuevo.' });
 		}
 		redirect(303, '/ingresar?salida=todas');
+	},
+
+	// «Dónde tenés la sesión abierta» → «Cerrar esta». Solo entre las sesiones de esta cuenta
+	// (endSessionById); si es la de este navegador, es salir.
+	cerrarSesion: async (event) => {
+		const { db, member } = await requireMember(event);
+		const form = await event.request.formData();
+		const id = field(form, 'sesion');
+		const token = event.cookies.get(SESSION_COOKIE);
+		let wasCurrent = false;
+		try {
+			if (id && id === (await sessionIdOfToken(token))) {
+				await endSession(event, db);
+				wasCurrent = true;
+			} else if (!(await endSessionById(db, member.id, id))) {
+				return fail(404, { action: 'dispositivos', error: 'Esa sesión ya no estaba abierta.' });
+			}
+		} catch (e) {
+			logDBError('cuentas: cerrar una sesión', e);
+			return fail(500, { action: 'dispositivos', error: 'No se pudo. Probá de nuevo.' });
+		}
+		// El inicio muestra «Saliste de tu cuenta» (src/routes/(content)/+layout.svelte).
+		if (wasCurrent) redirect(303, '/?salida=1');
+		return { action: 'dispositivos', message: 'Listo: cerramos esa sesión.' };
+	},
+
+	// «Cerrar todas las demás»: todas menos la de este navegador.
+	cerrarOtras: async (event) => {
+		const { db, member } = await requireMember(event);
+		const token = event.cookies.get(SESSION_COOKIE);
+		// Sin la cookie no hay «esta» que dejar abierta (no debería pasar con sesión).
+		if (!token) return fail(400, { action: 'dispositivos', error: 'No se pudo. Probá de nuevo.' });
+		try {
+			await destroyOtherSessions(db, member.id, token);
+		} catch (e) {
+			logDBError('cuentas: cerrar las otras sesiones', e);
+			return fail(500, { action: 'dispositivos', error: 'No se pudo. Probá de nuevo.' });
+		}
+		return { action: 'dispositivos', message: 'Listo: cerramos todas tus otras sesiones.' };
 	},
 
 	borrar: async (event) => {
