@@ -40,6 +40,26 @@ export const LONGTEXT_MAX = 100_000;
 /** Fecha y hora con zona horaria explícita: 2026-10-02T20:00-03:00 (como los .md de hoy). */
 const DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** Argentina, sin horario de verano desde 2009: UTC−3 todo el año. */
+const AR_OFFSET = '-03:00';
+const AR_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * El mismo instante escrito en hora de Argentina (`…-03:00`), como se guarda todo hoy: una fecha
+ * con `Z` u otra zona (válida) se reescribe, así el texto ordena y corta bien (el panel y
+ * /calendario comparan el texto de la fecha; auditoría de plata, D15). Los segundos y los
+ * milisegundos van solo si no son cero. Una que ya está en −03:00 queda igual, tal cual.
+ *
+ * @param {string} value ya validada con {@link DATETIME}
+ * @param {number} ms `Date.parse(value)`
+ */
+function inArgentina(value, ms) {
+	if (value.endsWith(AR_OFFSET)) return value;
+	const iso = new Date(ms - AR_OFFSET_MS).toISOString(); // AAAA-MM-DDTHH:MM:SS.sssZ
+	const millis = iso.slice(19, 23) === '.000' ? '' : iso.slice(19, 23);
+	const seconds = iso.slice(16, 19) === ':00' && !millis ? '' : iso.slice(16, 19);
+	return `${iso.slice(0, 16)}${seconds}${millis}${AR_OFFSET}`;
+}
 
 /**
  * Normaliza y valida un valor. Devuelve `undefined` si está vacío.
@@ -81,8 +101,9 @@ function checkValue(def, value) {
 			if (typeof value !== 'string' || !DATETIME.test(value.trim())) {
 				return { error: 'tiene que ser fecha y hora con zona, por ejemplo 2026-10-02T20:00-03:00' };
 			}
-			if (Number.isNaN(Date.parse(value.trim()))) return { error: 'no es una fecha válida' };
-			return { value: value.trim() };
+			const ms = Date.parse(value.trim());
+			if (Number.isNaN(ms)) return { error: 'no es una fecha válida' };
+			return { value: inArgentina(value.trim(), ms) };
 		}
 		case 'date': {
 			if (typeof value !== 'string' || !DATE.test(value.trim())) {

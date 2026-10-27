@@ -240,7 +240,9 @@ Reglas de quién lo gestiona y lo edita: `src/lib/server/cuentas/perfiles.js` y
 Los eventos de calendario (paso 5 de 0026), con los mismos nombres de campo que el frontmatter de
 los `.md` (`summary`, `status`, `start`, `end`, `link`, `tags`, `authors`, `featured`,
 `location`…; `force_unlisted` → `unlisted`, `force_unpublished` → visibilidad `hidden`). Lo que el
-tipo todavía no conoce va tal cual en `extra` (clase `json`, solo para tipos núcleo). Columnas
+tipo todavía no conoce va tal cual en `extra` (clase `json`, solo para tipos núcleo). `start` y
+`end` (clase `datetime`) se guardan siempre en hora de Argentina (`2026-10-02T20:00-03:00`): una
+fecha con `Z` u otra zona se reescribe al validar (`fields.js`; sin zona, se rechaza). Columnas
 generadas e índices (migración `0031`): `start_at`, `end_at` (ms), `event_status`, `unlisted`. La
 importación, la lectura (solo la base) y el historial (`object_revisions`):
 [contenido.md](contenido.md) («En la base»).
