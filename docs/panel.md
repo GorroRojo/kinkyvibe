@@ -171,7 +171,7 @@ sección (Etiquetas), que usan la URL del área.
 el mail en la URL). Es una sola ficha con todo lo que sabemos de alguien, encontrada por el mail
 normalizado (sin espacios ni mayúsculas) y por su cuenta: Notas internas (arriba, después del
 resumen), Cuenta (fechas, contraseña sí/no, sesiones,
-«Mis datos», permiso para tener perfiles), Compras (todas las órdenes por cuenta o por mail, con
+«Mis datos», permiso para tener perfiles, suspensión), Compras (todas las órdenes por cuenta o por mail, con
 entradas, respuestas, recordatorios y mails a compradores), Perfiles (los que gestiona, pedidos «Es
 mi perfil», invitaciones y los eventos donde participan), Lo que sigue (seguimientos, avisos,
 series, calendario y Telegram: nunca tokens ni el id del chat) y Actividad. La
@@ -744,6 +744,12 @@ como revisados (o se ocultan o borran) desde su ficha.
 **Dejar que una cuenta tenga perfiles.** Comunidad › Cuentas → buscar el mail → la ficha → "Darle el
 permiso". Queda en Actividad. Sacarlo no borra sus perfiles: solo deja de verlos
 ([cuentas.md](cuentas.md), «Permiso para tener perfiles»).
+
+**Suspender una cuenta.** Comunidad › Cuentas → la ficha → «Suspensión» → «Suspender la cuenta»
+(motivo opcional, solo para admins) y confirmar. Cierra todas sus sesiones, no la deja entrar ni
+usar el bot y queda en Actividad (sin el motivo). Sus perfiles públicos se moderan aparte (ocultar o
+borrar desde Perfiles). «Levantar la suspensión» la deja entrar de nuevo
+([cuentas.md](cuentas.md), «Suspender una cuenta»).
 
 ## Lo que viene
 

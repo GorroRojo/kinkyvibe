@@ -308,6 +308,44 @@ Con qué velocidad se calcula el «X min de lectura» de los materiales y la Kin
 Por ahora solo el hook: `eventRequiresAccount(meta)` en `src/lib/server/cuentas/index.js` lee
 `requiere_cuenta: true` del frontmatter del evento. La compra todavía no lo usa.
 
+### Suspender una cuenta
+
+Para frenar a una cuenta concreta (por ejemplo, una que acosa con perfiles, invitaciones o «Es mi
+perfil»), une admin la suspende desde su ficha (Comunidad › Cuentas › la cuenta → «Suspensión»,
+o la misma ficha desde Personas). Solo admins (`requireAdmin` en cada action). Código:
+`src/lib/server/cuentas/suspension.js`; las actions `?/suspender` y `?/levantarSuspension` en
+`src/lib/server/admin/fichaRoutes.js`; migración `0065_cuentas_suspendidas.sql`
+(`accounts.suspended_at`, `suspended_by`, `suspended_reason`).
+
+- **Suspender** pide confirmación en la misma página (el diálogo del panel) y acepta un motivo
+  opcional. En una tanda: marca la cuenta, **borra todas sus sesiones** y desvincula su Telegram
+  (`telegram_chats` y los códigos de vincular). Además `getSessionAccount` no acepta ninguna
+  sesión de una cuenta suspendida, así una que se cruzara con la suspensión tampoco vale.
+- **No puede entrar por ningún camino**: con código por mail (`verifyCode`) ni con contraseña
+  (`passwordLogin`) se abre una sesión, y el bot no la reconoce (`chatAccount`) ni la deja
+  vincular de nuevo (`consumeLinkCode`). En `/ingresar` ve «Tu cuenta está suspendida. Si creés
+  que es un error, escribinos a <contacto>» (`contactEmail()` de las entradas, que cae en
+  `DEFAULT_CONTACT_EMAIL`), **recién después** de un código o una contraseña correctos: antes, la
+  respuesta es la de siempre, así nadie se entera de que un mail tiene una cuenta suspendida.
+- **El motivo es privado**: queda en `accounts.suspended_reason` y se ve solo en la ficha (para
+  admins). Nunca va a la persona, a Actividad ni a una página pública
+  (`src/lib/server/cuentas/suspension.test.js` falla si otro archivo lo lee). Al borrar la cuenta
+  se borra.
+- **Actividad**: `account.suspend` («Suspendió una cuenta», con cuántas sesiones se cerraron y si
+  tenía Telegram) y `account.unsuspend`, con quién y cuándo; sin el mail ni el motivo.
+- **Levantar la suspensión** (con confirmación) la deja entrar de nuevo y borra el motivo. Las
+  sesiones y el Telegram no vuelven: la persona entra otra vez y, si quiere, vuelve a conectar el
+  bot.
+- **Lo que no toca**: sus **perfiles públicos no se ocultan solos** (moderarlos es aparte: ocultar
+  o borrar desde Perfiles; la ficha lo dice), ni el permiso de perfiles, ni las compras: comprar
+  con un mail sin entrar sigue andando como para cualquiera (no es una acción de la cuenta). El
+  link del calendario personal y los avisos por mail de «Lo que sigo» siguen como estaban.
+- **Admins**: entran con GitHub (`ADMINS` en `src/lib/server/auth.js`), aparte de las cuentas del
+  sitio, así que suspender una cuenta nunca saca a nadie del panel (tampoco a la última admin).
+  Igual, no se puede suspender la cuenta con la que une admin está en ese mismo navegador.
+- En **Cuentas** la cuenta lleva la marca «Suspendida» y arriba se cuentan las suspendidas; en la
+  ficha, la marca, cuándo y quién.
+
 ## Perfiles
 
 Parte 2 del bloque (decisiones A2, E1 y B3 de gorrite). Una cuenta puede tener **varios
@@ -372,8 +410,9 @@ dé el permiso. El perfil sigue entero y se ve en el panel.
 
 - **Cuentas** (`/admin/comunidad/cuentas`): todas las cuentas, con mail (les admins lo ven), cuándo se
   crearon, si verificaron el mail, si tienen contraseña, cuántos perfiles vivos gestionan, si
-  pueden tener perfiles y si están borradas; búsqueda por mail. La ficha (`/admin/comunidad/cuentas/[id]`)
-  muestra sus perfiles y el botón del permiso.
+  pueden tener perfiles, si están suspendidas y si están borradas; búsqueda por mail. La ficha
+  (`/admin/comunidad/cuentas/[id]`) muestra sus perfiles, el botón del permiso y «Suspensión» (ver
+  "Suspender una cuenta").
 - **Perfiles** (`/admin/comunidad/perfiles`, Comunidad › Perfiles; decisión de gorrite del 1/10: es la
   única lista de perfiles del panel, antes estaban "Amigues" y "Cuentas → Perfiles"): todos los
   perfiles, también ocultos y borrados (nombre, dirección, tipo, origen, visibilidad, creado,

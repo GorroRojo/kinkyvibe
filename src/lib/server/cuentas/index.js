@@ -21,6 +21,8 @@ import { createLoginCode, normalizeCode, verifyLoginCode } from './codes.js';
 import { releaseAccountProfiles } from './perfiles.js';
 import { buildConfirmCodeEmail, buildLoginCodeEmail } from './email.js';
 import { accountMailAllowed } from './mailCap.js';
+import { suspendedMessage } from './suspension.js';
+import { DEFAULT_CONTACT_EMAIL } from '$lib/utils/tickets.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /** @typedef {(to: string, message: { subject: string, html: string, text: string, headers?: Record<string, string> }, log: string) => Promise<'sent' | 'simulated' | 'failed'>} SendMail */
@@ -68,6 +70,20 @@ export const MESSAGES = Object.freeze({
 async function allowed(db, bucket, rule, now) {
 	return (await hitRateLimit(db, bucket, rule, now)).allowed;
 }
+
+/**
+ * La cuenta está suspendida (./suspension.js). Solo se responde esto después de un código o una
+ * contraseña correctos: antes, nadie se entera de que ese mail tiene una cuenta suspendida.
+ * `/ingresar` cambia el contacto por el configurado (`contactEmail()`).
+ *
+ * @returns {{ ok: false, status: number, message: string, suspended: true }}
+ */
+const suspended = () => ({
+	ok: false,
+	status: 403,
+	message: suspendedMessage(DEFAULT_CONTACT_EMAIL),
+	suspended: true
+});
 
 /** @returns {{ ok: false, status: number, message: string }} */
 const tooManyCodes = () => ({ ok: false, status: 429, message: MESSAGES.tooManyCodes });
@@ -136,18 +152,21 @@ async function sendCode({ db, email: rawEmail, client, send, now, purpose }) {
 }
 
 /**
- * Paso 2: verifica el código y devuelve la cuenta (creada si es el primer ingreso).
+ * Paso 2: verifica el código y devuelve la cuenta (creada si es el primer ingreso). Si la cuenta
+ * está suspendida, el código se gasta igual y no se devuelve la cuenta (`suspended: true`).
  *
  * @param {{ db: D1Database, email: unknown, code: unknown, client: string, now?: number }} input
  * @returns {Promise<{ ok: true, account: import('./accounts.js').Account }
- *   | { ok: false, status: number, message: string }>}
+ *   | { ok: false, status: number, message: string, suspended?: true }>}
  */
 export async function verifyCode({ db, email: rawEmail, code, client, now = Date.now() }) {
 	const email = normalizeEmail(rawEmail);
 	if (!email) return { ok: false, status: 400, message: MESSAGES.badEmail };
 	const checked = await checkCode({ db, email, code, client, now, purpose: 'login' });
 	if (!checked.ok) return checked;
-	return { ok: true, account: await upsertVerifiedAccount(db, email, { now }) };
+	const account = await upsertVerifiedAccount(db, email, { now });
+	if (account.suspended) return suspended();
+	return { ok: true, account };
 }
 
 /**
@@ -207,11 +226,12 @@ export function checkConfirmCode({ db, email, purpose, code, client, now = Date.
 
 /**
  * Ingreso con mail y contraseña. El mismo mensaje si el mail no tiene cuenta, si no tiene
- * contraseña o si la contraseña no coincide.
+ * contraseña o si la contraseña no coincide. Con la contraseña correcta y la cuenta suspendida,
+ * `suspended: true` (sin la cuenta).
  *
  * @param {{ db: D1Database, email: unknown, password: unknown, client: string, now?: number }} input
  * @returns {Promise<{ ok: true, account: import('./accounts.js').Account }
- *   | { ok: false, status: number, message: string }>}
+ *   | { ok: false, status: number, message: string, suspended?: true }>}
  */
 export async function passwordLogin({ db, email: rawEmail, password, client, now = Date.now() }) {
 	const email = normalizeEmail(rawEmail);
@@ -225,6 +245,7 @@ export async function passwordLogin({ db, email: rawEmail, password, client, now
 		now
 	});
 	if (!account) return { ok: false, status: 400, message: MESSAGES.badLogin };
+	if (account.suspended) return suspended();
 	return { ok: true, account };
 }
 
