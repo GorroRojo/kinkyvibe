@@ -45,9 +45,16 @@ function isRolling(windowSeconds) {
  * @param {string} bucket
  * @param {RateLimitRule} rule
  * @param {number} [now] milisegundos (para tests)
+ * @param {number} [cost] cuánto suma este intento (por ejemplo, megabytes subidos); 1 por defecto
  * @returns {Promise<{ allowed: boolean, hits: number, retryAfter: number }>}
  */
-export async function hitRateLimit(db, bucket, { limit, windowSeconds }, now = Date.now()) {
+export async function hitRateLimit(
+	db,
+	bucket,
+	{ limit, windowSeconds },
+	now = Date.now(),
+	cost = 1
+) {
 	if (
 		!Number.isInteger(windowSeconds) ||
 		windowSeconds <= 0 ||
@@ -55,6 +62,7 @@ export async function hitRateLimit(db, bucket, { limit, windowSeconds }, now = D
 	) {
 		throw new RangeError(`windowSeconds debe ser un entero entre 1 y ${MAX_WINDOW_SECONDS}`);
 	}
+	if (!Number.isInteger(cost) || cost < 1) throw new RangeError('cost debe ser un entero positivo');
 	const nowSeconds = Math.floor(now / 1000);
 	const slot = slotOf(windowSeconds, nowSeconds);
 	const rolling = isRolling(windowSeconds);
@@ -64,11 +72,11 @@ export async function hitRateLimit(db, bucket, { limit, windowSeconds }, now = D
 			.bind(nowSeconds - MAX_WINDOW_SECONDS),
 		db
 			.prepare(
-				`INSERT INTO rate_limits (bucket, window_start, hits) VALUES (?1, ?2, 1)
-				ON CONFLICT (bucket, window_start) DO UPDATE SET hits = hits + 1
+				`INSERT INTO rate_limits (bucket, window_start, hits) VALUES (?1, ?2, ?3)
+				ON CONFLICT (bucket, window_start) DO UPDATE SET hits = hits + ?3
 				RETURNING hits`
 			)
-			.bind(bucket, slot)
+			.bind(bucket, slot, cost)
 	];
 	if (!rolling) {
 		const [, upsert] = await db.batch(statements);
