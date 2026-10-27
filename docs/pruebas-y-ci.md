@@ -175,7 +175,13 @@ commiteá el resultado. `.prettierignore` tiene además una lista **temporal** d
 todavía no tienen formato porque los tocan ramas abiertas; cuando esas ramas entran, se formatean
 y se sacan de la lista.
 La configuración está en `eslint.config.js` (formato plano; las rutas ignoradas también van ahí,
-ya no hay `.eslintrc` ni `.eslintignore`).
+ya no hay `.eslintrc` ni `.eslintignore`). En los `.svelte` corren, en error, tres reglas de Svelte
+sin ruido: `svelte/no-at-html-tags` (cada `{@html}` lleva arriba
+`<!-- eslint-disable-next-line svelte/no-at-html-tags -- por qué es seguro -->`),
+`svelte/no-unused-svelte-ignore` (un `svelte-ignore` que ya no tapa nada se borra; ojo, marca cada
+código por separado: borrá solo el que señala) y `svelte/no-immutable-reactive-statements` (un `$:`
+que no depende de nada reactivo es un `const`). `npm run lint` lleva
+`--report-unused-disable-directives`: un `eslint-disable` que ya no hace falta también es error.
 
 ## Los tipos de pruebas
 

@@ -51,6 +51,16 @@ export default [
 		}
 	},
 	{
+		// Reglas de Svelte sin ruido (docs/pruebas-y-ci.md, «Lint»): cada `{@html}` lleva su
+		// `eslint-disable-next-line svelte/no-at-html-tags` con el motivo (qué lo hace seguro).
+		files: ['**/*.svelte'],
+		rules: {
+			'svelte/no-at-html-tags': 'error',
+			'svelte/no-unused-svelte-ignore': 'error',
+			'svelte/no-immutable-reactive-statements': 'error'
+		}
+	},
+	{
 		// Las páginas públicas y los componentes que usan importan cada componente de la interfaz por
 		// su archivo: el barril trae todos, con sus estilos y partes del panel (docs/estilo.md).
 		files: ['src/routes/(content)/**', 'src/lib/components/**'],

@@ -275,7 +275,6 @@
 	<!-- Picking a suggestion with the mouse used to move focus to <body>; keep it in the
 	input so the next keystroke still searches. The menu floats at the end of <body>
 	($lib/utils/popover.js), so no container clips it. -->
-	<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 	<ul
 		class="menu"
 		id={menuId}
@@ -289,7 +288,7 @@
 		{#each suggestions as s (s.id)}
 			{@const tag = $tagManager.get(s.id)}
 			<!-- The keyboard goes through the input (aria-activedescendant), as in any combobox. -->
-			<!-- svelte-ignore a11y-click-events-have-key-events a11y-mouse-events-have-key-events a11y-interactive-supports-focus -->
+			<!-- svelte-ignore a11y-click-events-have-key-events a11y-mouse-events-have-key-events -->
 			<li
 				class="suggestion"
 				id={optionId(s.id)}

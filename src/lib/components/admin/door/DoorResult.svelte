@@ -74,7 +74,7 @@
 	}
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions (con teclado: el botón "Ver compra") -->
+<!-- svelte-ignore a11y-click-events-have-key-events (con teclado: el botón "Ver compra") -->
 <div
 	class="result {tone}"
 	class:clickable={Boolean(card)}

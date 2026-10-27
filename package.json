@@ -28,7 +28,7 @@
 		"preview:worker": "wrangler dev --port 8880 --test-scheduled",
 		"db:restore": "node scripts/d1-restore.js",
 		"db:semilla": "node scripts/semilla.js",
-		"lint": "eslint .",
+		"lint": "eslint . --report-unused-disable-directives",
 		"format:check": "prettier --check .",
 		"format": "prettier --write .",
 		"ui:impacto": "node scripts/ui-impacto/run.js",

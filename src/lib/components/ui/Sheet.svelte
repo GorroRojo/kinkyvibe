@@ -33,7 +33,6 @@
 	}
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events a11y-no-noninteractive-element-interactions (Escape ya cierra el <dialog>) -->
 <dialog
 	bind:this={dialog}
 	class:inline

@@ -136,7 +136,6 @@
 
 <div class="scanner" class:running>
 	{#if running}
-		<!-- svelte-ignore a11y-media-has-caption -->
 		<video bind:this={video} playsinline muted></video>
 		<span class="frame" aria-hidden="true"></span>
 	{/if}
