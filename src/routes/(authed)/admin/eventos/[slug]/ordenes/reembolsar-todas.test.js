@@ -221,7 +221,6 @@ describe('qué cuenta «Reembolsar todas»', () => {
 
 	it('la pestaña Órdenes lo muestra solo con el evento cancelado', async () => {
 		await mpOrder(101);
-		/** @param {any} locals */
 		const load = async () =>
 			/** @type {any} */ (
 				await page.load(
