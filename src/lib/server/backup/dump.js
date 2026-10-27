@@ -23,7 +23,9 @@
  *   D1: los AUTOINCREMENT siguen desde el id más alto restaurado.
  *
  * No es una foto atómica (son varias consultas): corre de madrugada, cuando casi no hay
- * escrituras. Para volver a un minuto exacto de los últimos 30 días está D1 Time Travel.
+ * escrituras. Cada tabla se lee por cursor (rowid o clave primaria), así que una escritura en el
+ * medio no repite ni saltea filas ya existentes. Para volver a un minuto exacto de los últimos 30
+ * días está D1 Time Travel.
  *
  * Solo usa imports relativos: lo importa también worker/index.js, que no pasa por Vite.
  */
@@ -336,18 +338,37 @@ async function dumpRows(db, table, emit, stats) {
 		)
 		.concat(rowidAlias ? [`CAST(${rowidAlias} AS TEXT) AS r`] : [])
 		.join(', ');
-	const order = table.withoutRowid ? '' : ' ORDER BY rowid';
 	const insert = `INSERT INTO ${quoteIdent(table.name)} (${targets.join(', ')}) VALUES (`;
 	const offset0 = rowidName ? 1 : 0;
 	const pkIndexes = pkColumns.map((c) => columns.indexOf(c) + offset0);
 
+	// Paginación por cursor (no por OFFSET): una escritura en el medio del volcado no repite ni
+	// saltea filas. Por el rowid o, en las WITHOUT ROWID, por la clave primaria; el cursor va como
+	// literal exacto (los enteros grandes no pasan por un número de JavaScript).
+	const keyset = rowidAlias
+		? { order: rowidAlias, key: rowidAlias }
+		: pkIndexes.length && pkIndexes.every((i) => i >= offset0)
+			? {
+					order: pkIndexes.map((i) => targets[i]).join(', '),
+					key: `(${pkIndexes.map((i) => targets[i]).join(', ')})`
+				}
+			: null;
+	/** @type {string | null} */
+	let after = null;
+
 	let count = 0;
 	for (let offset = 0; ; offset += PAGE_SIZE) {
-		const { results } = await db
-			.prepare(
-				`SELECT ${select} FROM ${quoteIdent(table.name)}${order} LIMIT ${PAGE_SIZE} OFFSET ${offset}`
-			)
-			.all();
+		const from = quoteIdent(table.name);
+		const query = keyset
+			? `SELECT ${select} FROM ${from}${after === null ? '' : ` WHERE ${keyset.key} > ${after}`} ORDER BY ${keyset.order} LIMIT ${PAGE_SIZE}`
+			: `SELECT ${select} FROM ${from} LIMIT ${PAGE_SIZE} OFFSET ${offset}`;
+		const { results } = await db.prepare(query).all();
+		const last = results.at(-1);
+		if (keyset && last) {
+			after = rowidAlias
+				? sqlLiteral('integer', last.r)
+				: `(${pkIndexes.map((i) => sqlLiteral(String(last[`t${i}`]), last[`v${i}`])).join(', ')})`;
+		}
 		for (const row of results) {
 			const values = sources.map((_, i) => sqlLiteral(String(row[`t${i}`]), row[`v${i}`]));
 			let line = `${insert}${values.join(', ')});`;

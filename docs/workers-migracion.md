@@ -506,7 +506,9 @@ Después, según el caso: copiar a mano solo las filas que hagan falta (consulta
 o pasar el sitio a la base restaurada cambiando el `database_id` de `DB` en `wrangler.toml` por el
 de `kinkyvibe-restaurada` (copiado de `npx wrangler d1 list --json`, **nunca a mano**) en un PR.
 
-Detalles del formato: `PRAGMA defer_foreign_keys` al principio, las tablas, las filas (enteros
+Detalles del formato: cada tabla se lee de a 500 filas por cursor (por `rowid` o, en las
+`WITHOUT ROWID`, por su clave primaria), no por `OFFSET`, así que una escritura durante el
+volcado no repite ni saltea filas. `PRAGMA defer_foreign_keys` al principio, las tablas, las filas (enteros
 grandes, decimales, textos y BLOBs exactos), después índices, vistas y triggers. Las tablas
 virtuales FTS se recrean (con contenido externo, con `'rebuild'`). Los contadores AUTOINCREMENT
 siguen desde el id más alto restaurado (D1 no deja escribir `sqlite_sequence`). D1 acepta como

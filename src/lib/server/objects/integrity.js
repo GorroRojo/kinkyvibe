@@ -185,16 +185,28 @@ export function findIntegrityProblems({ types, objects, edges }, registry = core
 const PAGE = 1000;
 
 /**
+ * Todas las filas de una tabla, de a PAGE, paginando por cursor sobre `key` (una columna única):
+ * una escritura en el medio no repite ni saltea filas, como pasaba con OFFSET.
+ *
  * @param {D1Database} db
- * @param {string} sql sin LIMIT; ordenada por id
+ * @param {string} table
+ * @param {string} columns
+ * @param {string} key columna única de la tabla (incluida en `columns`)
  */
-async function readAll(db, sql) {
+async function readAll(db, table, columns, key) {
 	/** @type {Record<string, unknown>[]} */
 	const out = [];
-	for (let offset = 0; ; offset += PAGE) {
-		const { results } = await db.prepare(`${sql} LIMIT ${PAGE} OFFSET ${offset}`).all();
+	/** @type {unknown} */
+	let after = null;
+	for (;;) {
+		const where = after === null ? '' : ` WHERE ${key} > ?1`;
+		const stmt = db.prepare(
+			`SELECT ${columns} FROM ${table}${where} ORDER BY ${key} LIMIT ${PAGE}`
+		);
+		const { results } = await (after === null ? stmt : stmt.bind(after)).all();
 		out.push(...results);
 		if (results.length < PAGE) return out;
+		after = results[results.length - 1][key];
 	}
 }
 
@@ -208,9 +220,9 @@ async function readAll(db, sql) {
  */
 export async function checkObjectsIntegrity(db, { registry = coreTypes } = {}) {
 	const [types, objects, edges] = await Promise.all([
-		readAll(db, 'SELECT type, origin FROM object_types ORDER BY type'),
-		readAll(db, 'SELECT id, type, slug, data, visibility, deleted_at FROM objects ORDER BY id'),
-		readAll(db, 'SELECT id, from_id, kind, to_id FROM edges ORDER BY id')
+		readAll(db, 'object_types', 'type, origin', 'type'),
+		readAll(db, 'objects', 'id, type, slug, data, visibility, deleted_at', 'id'),
+		readAll(db, 'edges', 'id, from_id, kind, to_id', 'id')
 	]);
 	const problems = findIntegrityProblems(
 		/** @type {IntegritySnapshot} */ (/** @type {unknown} */ ({ types, objects, edges })),
