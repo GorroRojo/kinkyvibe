@@ -108,7 +108,10 @@
 				bind:value={email}
 				on:change={() => (emailChecked = email)}
 				aria-invalid={errors.email ? 'true' : undefined}
-				aria-describedby={describedBy(errors.email && 'entradas-tu-email-error')}
+				aria-describedby={describedBy(
+					errors.email && 'entradas-tu-email-error',
+					'entradas-comprador-ayuda'
+				)}
 			/>
 			<EmailTypoHint bind:email bind:checked={emailChecked} />
 			{#if errors.email}<span class="field-error" id="entradas-tu-email-error">{errors.email}</span
@@ -127,12 +130,15 @@
 				placeholder="Ej.: 12.345.678"
 				bind:value={dni}
 				aria-invalid={errors.dni ? 'true' : undefined}
-				aria-describedby={describedBy(errors.dni && 'entradas-dni-error')}
+				aria-describedby={describedBy(
+					errors.dni && 'entradas-dni-error',
+					'entradas-comprador-ayuda'
+				)}
 			/>
 			{#if errors.dni}<span class="field-error" id="entradas-dni-error">{errors.dni}</span>{/if}
 		</div>
 	</div>
-	<small class="hint">
+	<small class="hint" id="entradas-comprador-ayuda">
 		El email y el DNI son datos administrativos de la compra: el DNI no aparece en las entradas ni
 		en los mails.
 	</small>

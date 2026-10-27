@@ -371,6 +371,7 @@
 						minlength="10"
 						maxlength="200"
 						required
+						aria-describedby="pw-ayuda"
 					/>
 				</label>
 				<label>
@@ -382,9 +383,12 @@
 						minlength="10"
 						maxlength="200"
 						required
+						aria-describedby="pw-ayuda"
 					/>
 				</label>
-				<p class="hint">Al menos 10 caracteres. Una frase larga es más fácil de recordar.</p>
+				<p class="hint" id="pw-ayuda">
+					Al menos 10 caracteres. Una frase larga es más fácil de recordar.
+				</p>
 				<button class="pill-btn" type="submit"
 					>{data.hasPassword ? 'Cambiar contraseña' : 'Poner contraseña'}</button
 				>
