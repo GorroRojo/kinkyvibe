@@ -23,12 +23,20 @@ import {
 	clearReview,
 	confirmTransfer,
 	getOrder,
-	refundOrder,
 	orderTier,
 	updateBuyerEmail
 } from '$lib/server/tickets/orders.js';
 import { isSuppressed } from '$lib/server/email/suppressions.js';
 import { normalizeBuyerEmail } from '$lib/utils/ticketBuyer.js';
+import {
+	REFUND_ALL_WORD,
+	REFUND_REASON,
+	refundAllBatch,
+	refundAllCursor,
+	refundAllPreview,
+	refundFromPanel
+} from '$lib/server/admin/refunds.js';
+import { formatARS } from '$lib/utils/money.js';
 import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
 import {
 	getStreamLink,
@@ -46,6 +54,65 @@ import { orderReference } from '$lib/utils/tickets.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 import { MAILS_PAUSED_ADMIN_MESSAGE, logMailsPaused, mailsPaused } from '$lib/server/emergencia.js';
+
+/**
+ * Lo que sigue a un reembolso hecho desde el panel (el de una orden y cada uno de «Reembolsar
+ * todas»): queda en Actividad (`order.refund`), le sale el mail «Reembolsamos tu compra» a quien
+ * compró y, con `waitlist` (por defecto), la lista de espera pasa a la próxima persona.
+ *
+ * @param {{
+ *   db: import('@cloudflare/workers-types').D1Database,
+ *   locals: App.Locals,
+ *   platform: Readonly<App.Platform> | undefined,
+ *   url: URL,
+ *   fetch: typeof fetch,
+ *   before: import('$lib/server/tickets/orders.js').Order,
+ *   fresh: import('$lib/server/tickets/orders.js').Order,
+ *   waitlist?: boolean
+ * }} input
+ */
+export async function afterRefund({
+	db,
+	locals,
+	platform,
+	url,
+	fetch,
+	before,
+	fresh,
+	waitlist = true
+}) {
+	// Cada paso por su lado: si falla la Actividad, el mail sale igual (y al revés).
+	try {
+		await logAdminAction(db, locals, {
+			action: 'order.refund',
+			targetType: 'order',
+			targetId: before.id,
+			summary: `Reembolsó ${orderReference(before.id)}`,
+			detail: {
+				event: before.event_slug,
+				method: before.payment_method,
+				total: before.total
+			}
+		});
+	} catch (error) {
+		console.error(`[tickets] no se pudo anotar el reembolso de ${before.id}:`, error);
+	}
+	try {
+		await inBackground(sendRefundEmail({ db, order: fresh, fetch }), platform);
+	} catch (error) {
+		console.error(`[tickets] no se pudo mandar el aviso de reembolso de ${before.id}:`, error);
+	}
+	// Se liberó un lugar: la lista de espera pasa a la próxima persona.
+	if (waitlist) {
+		queueWaitlistAdvance({
+			platform,
+			db,
+			eventSlug: before.event_slug,
+			fetch,
+			origin: siteOrigin(url)
+		});
+	}
+}
 
 /**
  * Acciones de la venta de entradas de un evento (antes, una página por evento bajo Entradas). Cada pestaña de
@@ -509,6 +576,7 @@ export const eventTicketActions = {
 	// "Reembolsar": Mercado Pago → reembolso total por la API de MP y después se marca la orden;
 	// transferencia o sin cargo → solo se marca (la plata se devuelve a mano). Idempotente: una
 	// orden ya reembolsada no se vuelve a reembolsar (y MP recibe la misma X-Idempotency-Key).
+	// El paso de cada orden es `refundFromPanel` (refunds.js), el mismo de «Reembolsar todas».
 	refund: async ({ locals, url, params, platform, request, fetch }) => {
 		const admin = requireAdmin(locals, url);
 		const db = getDB(platform);
@@ -519,60 +587,14 @@ export const eventTicketActions = {
 		if (!order || order.event_slug !== params.slug) {
 			return fail(404, { refund: { ok: false, message: 'No encontramos esa orden.' } });
 		}
-		if (order.status === 'refunded') {
-			return {
-				refund: { ok: true, message: `${ref} ya estaba reembolsada (no se hizo nada de nuevo).` }
-			};
-		}
-		if (order.status !== 'approved') {
-			return fail(409, {
-				refund: { ok: false, message: `${ref} no está aprobada: no hay nada que reembolsar.` }
-			});
-		}
-		if (order.payment_method === 'mercadopago') {
-			const gateway = await getGateway(fetch);
-			if (!gateway || !order.mp_payment_id) {
-				return fail(503, {
-					refund: {
-						ok: false,
-						message: 'Mercado Pago no está disponible (o la orden no tiene pago).'
-					}
-				});
-			}
-			try {
-				await gateway.refundPayment(order.mp_payment_id, `refund-${order.id}`);
-			} catch (error) {
-				console.error(`[tickets] reembolso de ${order.id} rechazado por MP:`, error);
-				return fail(502, {
-					refund: {
-						ok: false,
-						message: `Mercado Pago no aceptó el reembolso de ${ref} (¿saldo insuficiente o más de 180 días?). No se cambió nada. Detalle en los logs.`
-					}
-				});
-			}
-		}
-		const r = await refundOrder(db, { orderId, eventSlug: params.slug, by: admin.login });
+		const r = await refundFromPanel({
+			db,
+			order,
+			by: admin.login,
+			gateway: () => getGateway(fetch)
+		});
 		if (r.result === 'refunded' && r.order) {
-			await logAdminAction(db, locals, {
-				action: 'order.refund',
-				targetType: 'order',
-				targetId: orderId,
-				summary: `Reembolsó ${ref}`,
-				detail: {
-					event: params.slug,
-					method: order.payment_method,
-					total: order.total
-				}
-			});
-			await inBackground(sendRefundEmail({ db, order: r.order, fetch }), platform);
-			// Se liberó un lugar: la lista de espera pasa a la próxima persona.
-			queueWaitlistAdvance({
-				platform,
-				db,
-				eventSlug: params.slug,
-				fetch,
-				origin: siteOrigin(url)
-			});
+			await afterRefund({ db, locals, platform, url, fetch, before: order, fresh: r.order });
 			return {
 				refund: {
 					ok: true,
@@ -585,9 +607,158 @@ export const eventTicketActions = {
 				refund: { ok: true, message: `${ref} ya estaba reembolsada (no se hizo nada de nuevo).` }
 			};
 		}
+		if (r.result === 'not-approved') {
+			return fail(409, {
+				refund: { ok: false, message: `${ref} no está aprobada: no hay nada que reembolsar.` }
+			});
+		}
+		if (r.result === 'no-gateway') {
+			return fail(503, {
+				refund: {
+					ok: false,
+					message: 'Mercado Pago no está disponible (o la orden no tiene pago).'
+				}
+			});
+		}
+		if (r.result === 'mp-failed') {
+			return fail(502, {
+				refund: {
+					ok: false,
+					message: `Mercado Pago no aceptó el reembolso de ${ref} (¿saldo insuficiente o más de 180 días?). No se cambió nada. Detalle en los logs. Antes de reintentar o devolverla a mano, revisá el pago en Mercado Pago.`
+				}
+			});
+		}
 		return fail(409, {
 			refund: { ok: false, message: `No se pudo marcar ${ref} como reembolsada.` }
 		});
+	},
+
+	// «Reembolsar todas» (decisión 0051): solo un evento cancelado, solo admins, con la cantidad y
+	// el total que vio le admin y la palabra escrita. De a REFUND_ALL_BATCH órdenes de Mercado Pago
+	// por pedido, cada una con el mismo paso que «Reembolsar» (`refundFromPanel` + `afterRefund`:
+	// Actividad, mail y lista de espera); las que faltan, con «Seguir» (`after`: la última vista).
+	// Las de la puerta, la carga a mano o transferencia no se tocan: se devuelven a mano.
+	refundAll: async ({ locals, url, params, platform, request, fetch }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db) return fail(503, { refundAll: { ok: false, message: 'Sin base de datos.' } });
+		const config = await getEventTickets(params.slug);
+		if (!config || config.status !== 'cancelado') {
+			return fail(409, {
+				refundAll: {
+					ok: false,
+					message: 'Solo se puede reembolsar todo de un evento cancelado.'
+				}
+			});
+		}
+		const form = await request.formData();
+		const word = String(form.get('confirm') ?? '').trim();
+		if (word.toUpperCase() !== REFUND_ALL_WORD) {
+			return fail(400, {
+				refundAll: { ok: false, message: `Para confirmar, escribí ${REFUND_ALL_WORD}.` }
+			});
+		}
+		const after = String(form.get('after') ?? '').trim() || null;
+		if (after && !(await refundAllCursor(db, params.slug, after))) {
+			// «Seguir» con una orden que no es de este evento: no se vuelve a empezar sin el control
+			// de cantidad y total.
+			return fail(400, {
+				refundAll: {
+					ok: false,
+					message: 'No sabemos desde dónde seguir: recargá la página y confirmá de nuevo.'
+				}
+			});
+		}
+		if (!after) {
+			// La primera tanda: tiene que ser lo mismo que vio le admin al confirmar.
+			const { mp } = await refundAllPreview(db, params.slug);
+			if (Number(form.get('count')) !== mp.count || Number(form.get('total')) !== mp.total) {
+				return fail(409, {
+					refundAll: {
+						ok: false,
+						message: `Las órdenes cambiaron desde que abriste la página: ahora son ${mp.count} por ${formatARS(mp.total)}. Revisá y confirmá de nuevo.`
+					}
+				});
+			}
+			if (mp.count === 0) {
+				return fail(409, {
+					refundAll: {
+						ok: false,
+						message: 'No queda ninguna orden de Mercado Pago para reembolsar.'
+					}
+				});
+			}
+		}
+		const gateway = await getGateway(fetch);
+		if (!gateway) {
+			return fail(503, {
+				refundAll: { ok: false, message: 'Mercado Pago no está disponible: no se hizo nada.' }
+			});
+		}
+		let batch;
+		try {
+			batch = await refundAllBatch({
+				db,
+				eventSlug: params.slug,
+				by: admin.login,
+				gateway: async () => gateway,
+				after,
+				onRefunded: (fresh, before) =>
+					afterRefund({ db, locals, platform, url, fetch, before, fresh, waitlist: false })
+			});
+		} catch (error) {
+			// Solo antes de empezar (leer la tanda): cada orden tiene su propio manejo de errores.
+			console.error(`[tickets] reembolsar todas ${params.slug}:`, error);
+			return fail(500, {
+				refundAll: {
+					ok: false,
+					message: 'No se pudo leer la tanda: no se hizo nada. Probá de nuevo.'
+				}
+			});
+		}
+		const results = batch.results.map((r) => ({
+			id: r.id,
+			reference: orderReference(r.id),
+			name: r.name,
+			total: r.total,
+			result: r.result,
+			ok: r.result === 'refunded' || r.result === 'already',
+			reason: REFUND_REASON[r.result]
+		}));
+		const failed = results.filter((r) => !r.ok);
+		console.log(
+			`[tickets] reembolsar todas ${params.slug}: ${results.length - failed.length} ok, ${failed.length} sin reembolsar, faltan ${batch.remaining ?? '?'}`
+		);
+		await logAdminAction(db, locals, {
+			action: 'event.refund_all',
+			targetType: 'event',
+			targetId: params.slug,
+			summary: `Reembolsar todas: ${results.length - failed.length} reembolsadas${failed.length ? `, ${failed.length} sin reembolsar` : ''}${batch.remaining ? `, faltan ${batch.remaining}` : ''}`,
+			detail: {
+				event: params.slug,
+				results: batch.results.map((r) => ({ order: r.id, total: r.total, result: r.result })),
+				remaining: batch.remaining
+			}
+		}).catch((error) =>
+			console.error(`[tickets] no se pudo anotar «Reembolsar todas» de ${params.slug}:`, error)
+		);
+		// Una sola vez por tanda (el evento está cancelado: la lista de espera se cierra sola).
+		queueWaitlistAdvance({
+			platform,
+			db,
+			eventSlug: params.slug,
+			fetch,
+			origin: siteOrigin(url)
+		});
+		return {
+			refundAll: {
+				ok: failed.length === 0,
+				message: '',
+				results,
+				remaining: batch.remaining,
+				after: batch.after
+			}
+		};
 	},
 
 	cancel: async ({ locals, url, params, platform, request, fetch }) => {
