@@ -266,6 +266,7 @@ CI) va en la fase 0.
 
 ### Infraestructura
 
+- `interruptores-limpiar` · fase 1 · sigue · infra · Después de cerrar las auditorías (pedido de gorrite, 27/10): repasar los interruptores de `docs/interruptores.md` y proponer cuáles quedan prendidos para siempre, para borrar el interruptor y el código del camino apagado; cada uno con el OK de gorrite en la Mesa, antes de tocar nada · [interruptores.md](interruptores.md)
 - `prettier-ignore-temporal` · fase 1 · sigue · infra · Formatear y sacar de `.prettierignore` la lista temporal de archivos que tocaban ramas abiertas
 - `cf-dashboard-limpiar` · fase 1 · hecho · infra · Dashboard de Cloudflare: borrar las variables `*_ENABLED` que ya no hacen nada; el proyecto viejo de Pages queda por las dudas (gorrite, 12/10)
 - `backup-simulacro` · fase 1 · hecho · infra · Simulacro de restaurar un backup en local (`node scripts/d1-restore.js <fecha> --local`): corrió en Windows, igual que el backup (gorrite, 12/10) · #345
