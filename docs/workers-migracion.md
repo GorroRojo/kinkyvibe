@@ -6,7 +6,8 @@ paso desde el panel de Cloudflare, en orden. Nada de esto se hace solo al mergea
 
 > **Estado (octubre 2026): la migración está hecha.** El sitio corre como Worker en
 > kinkyvibe.ar, Pages está desconectado, el Worker `kinkyvibe-cron` se borró y la carpeta
-> `workers/cron/` ya no está en el repo. Los pasos quedan como registro (y para un rollback).
+> `workers/cron/` ya no está en el repo. Los pasos quedan como registro; cómo se vuelve atrás
+> hoy está en [Volver atrás](#volver-atrás-rollback).
 
 ## En pocas palabras
 
@@ -174,7 +175,7 @@ Los Previews **no heredan nada de producción**.
 
 > Desde la noche del 1/10/2026 `wrangler.toml` tiene `workers_dev = false`: con el dominio ya en
 > el Worker, `kinkyvibe.<tu-subdominio>.workers.dev` era una segunda puerta pública a producción.
-> Si hubiera que repetir este paso (por ejemplo, después de un rollback), poné `workers_dev = true`
+> Si hubiera que repetir este paso (por ejemplo, volviendo a Pages y de nuevo al Worker), poné `workers_dev = true`
 > en una rama, probá y volvé a apagarlo. Los Previews de cada rama no dependen de esto: siguen
 > andando mientras `preview_urls = true`.
 
@@ -367,19 +368,36 @@ recién hecha, que es lo que ve quien llega cuando no hay una guardada.
 
 ## Volver atrás (rollback)
 
-Si algo sale mal después del paso 8:
+Si una publicación rompió algo, hay tres caminos, del más rápido al más lento. La base es la misma
+en todas las versiones: volver atrás el código no toca los datos.
 
-1. **Worker kinkyvibe → Settings → Domains & Routes**: quitar `kinkyvibe.ar`.
-2. **Pages kinkyvibe → Custom domains → Set up a custom domain** → `kinkyvibe.ar` (Pages vuelve a
-   crear el CNAME). El proyecto de Pages sigue con su último deploy y sus variables.
-3. Pages no tiene crons: hay que volver a deployar el Worker `kinkyvibe-cron`. Su código ya no
-   está en el repo: recuperá la carpeta `workers/cron/` del historial de git
-   (`git log --diff-filter=D -- workers/cron` da el commit que la borró; está entera en el
-   anterior) y, desde ahí, `npx wrangler deploy` y `npx wrangler secret put CRON_SECRET` (los
-   pasos están en su `README.md`).
+1. **Volver a la versión anterior del Worker** (necesita la cuenta de Cloudflare): **Workers →
+   kinkyvibe → Deployments** → la versión anterior → **Rollback**, o `npx wrangler rollback`.
+   Cloudflare guarda las últimas 100 versiones; no cambia los recursos conectados (base, buckets,
+   variables) y no deja volver a una versión que usaba un binding que ya no existe. Dura **hasta
+   el próximo push a `main`**, que vuelve a publicar lo que haya en `main`: por eso el paso 2 va
+   igual.
+2. **Revertir el PR en `main`** (lo puede hacer una sesión de noche, sin la cuenta de
+   Cloudflare): `git revert -m 1 <sha del merge>` en una rama nueva, PR, CI verde y merge, como
+   cualquier otro PR ([decisión 0027](decisiones/0027-merges-de-noche.md)); Workers Builds publica
+   solo. Avisarle a gorrite.
+3. **Volver la base atrás** solo si el problema fue de datos (un script que borró o pisó filas),
+   nunca por un problema de código. Time Travel ([Restaurar un backup](#restaurar-un-backup), a)
+   pisa **todo** lo escrito después, ventas y webhooks de Mercado Pago incluidos. Antes: un backup
+   manual (`POST /api/cron/backup`, paso 6) y anotar el bookmark que da
+   `npx wrangler d1 time-travel info kinkyvibe`, para poder volver y rehacer lo posterior.
 
-La base es la misma en los dos, así que no se pierde nada al ir y volver. Si el problema es solo
-de una versión del código, más rápido: **Worker → Deployments → (versión anterior) → Rollback**.
+**Por qué revertir el código es seguro con la base:** las migraciones solo agregan (tablas,
+columnas con nulos o con valor por defecto) y se aplican en producción antes del merge
+([decisión 0028](decisiones/0028-migraciones-antes-del-merge.md)). El código anterior no usa lo
+nuevo y sigue andando con la base ya migrada. Una migración no se «des-aplica».
+
+**Volver a Pages** (el camino de la migración) ya no es una opción real: Pages está desconectado,
+el Worker `kinkyvibe-cron` se borró y el proyecto viejo de Pages queda solo por las dudas
+(`cf-dashboard-limpiar` en el plan). Si alguna vez hiciera falta, los pasos eran quitar
+`kinkyvibe.ar` del Worker (Settings → Domains & Routes), ponerlo en Pages (Custom domains) y
+volver a publicar el Worker del cron desde el historial de git (`workers/cron/`). No ensayar la
+vuelta atrás prendiendo `workers_dev`: abriría otra URL pública a producción.
 
 ## Lista de verificación
 
