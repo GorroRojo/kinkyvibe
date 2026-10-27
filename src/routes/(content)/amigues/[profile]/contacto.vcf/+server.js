@@ -19,7 +19,9 @@ export async function GET({ params, platform, locals }) {
 			'content-type': 'text/vcard; charset=utf-8',
 			'content-disposition': `attachment; filename="${file}"`,
 			// Un perfil que no es público (lo ve una cuenta o une admin) no queda en ninguna caché.
-			'cache-control': page.private ? 'private, no-store' : 'public, max-age=300'
+			'cache-control': page.private ? 'private, no-store' : 'public, max-age=300',
+			// Como su página: un perfil que pidió no aparecer en buscadores tampoco se indexa acá.
+			...(page.noindex || page.unlisted ? { 'x-robots-tag': 'noindex' } : {})
 		}
 	});
 }

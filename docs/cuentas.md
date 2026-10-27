@@ -347,6 +347,11 @@ Sin el permiso, la cuenta **no ve nada de perfiles**:
   pendiente como cualquier otra: no se entera de si la cuenta tiene el permiso. La invitación
   queda guardada (y vence sola); si la cuenta recibe el permiso antes de que venza, la ve.
 
+Lo único de perfiles que sí ve una cuenta sin el permiso es **«¿Es tu perfil?»** en la página
+pública de un perfil (y en Mi rincón, la tarjeta «¿Ya estás en Amigues?» que lo explica): pide
+hacerse cargo de un perfil que ya existe y une admin lo revisa; para aprobarlo, le da el permiso
+antes ([amigues.md](amigues.md)). No hay ningún texto para pedir el permiso en sí.
+
 Sacar el permiso **no borra nada**: los perfiles quedan y vuelven a verse si se prende de nuevo.
 Les admins los siguen viendo en el panel. Si une dueñe de un proyecto pierde el permiso, sigue
 contando como dueñe (el proyecto no queda sin dueñe en los datos), pero no lo puede gestionar.

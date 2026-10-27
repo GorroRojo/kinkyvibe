@@ -19,7 +19,7 @@ const { default: Rincon } = await import('./+page.svelte');
 const { default: Calendario } = await import('./calendario/+page.svelte');
 const { default: Sigo } = await import('./sigo/+page.svelte');
 
-/** @param {{ sigoOn: boolean, readingSpeed?: number | null, unconfirmed?: any[], sessions?: any[] | null, now?: number }} flags */
+/** @param {{ sigoOn: boolean, readingSpeed?: number | null, unconfirmed?: any[], canHaveProfiles?: boolean, sessions?: any[] | null, now?: number }} flags */
 const rincon = (flags) =>
 	render(Rincon, {
 		props: /** @type {any} */ ({
@@ -150,6 +150,7 @@ describe('Mi rincón con «Lo que sigo» apagado: como siempre', () => {
 		expect(cards(html)).toEqual([
 			'Tus compras y entradas',
 			'Tu calendario',
+			'¿Ya estás en Amigues?',
 			'Mis datos',
 			'Velocidad de lectura',
 			'Contraseña',
@@ -165,12 +166,33 @@ describe('Mi rincón con «Lo que sigo» apagado: como siempre', () => {
 	});
 });
 
+describe('Mi rincón: perfiles con y sin el permiso', () => {
+	it('sin el permiso: cómo reclamar un perfil que ya está en Amigues (lo revisa el equipo)', () => {
+		const html = rincon({ sigoOn: false });
+		expect(html).toContain('¿Ya estás en Amigues?');
+		const text = html.replace(/\s+/g, ' ');
+		expect(text).toContain('«¿Es tu perfil?»');
+		expect(text).toContain('Lo revisa el equipo');
+		expect(count(html, '/amigues')).toBe(1);
+		expect(count(html, '/mi-rincon/perfiles')).toBe(0);
+		// Nada de pedir el permiso (gorrite, 26/10).
+		expect(html).not.toMatch(/permiso/i);
+	});
+	it('con el permiso: «Tus perfiles», sin la tarjeta de Amigues', () => {
+		const html = rincon({ sigoOn: false, canHaveProfiles: true });
+		expect(cards(html)).toContain('Tus perfiles');
+		expect(cards(html)).not.toContain('¿Ya estás en Amigues?');
+		expect(count(html, '/mi-rincon/perfiles')).toBe(1);
+	});
+});
+
 describe('Mi rincón con «Lo que sigo» prendido: una sola tarjeta', () => {
 	it('«Lo que seguís y tu calendario» lleva a /mi-rincon/sigo', () => {
 		const html = rincon({ sigoOn: true });
 		expect(cards(html)).toEqual([
 			'Tus compras y entradas',
 			'Lo que seguís y tu calendario',
+			'¿Ya estás en Amigues?',
 			'Mis datos',
 			'Velocidad de lectura',
 			'Contraseña',

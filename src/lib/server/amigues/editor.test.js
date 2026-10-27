@@ -76,6 +76,27 @@ describe('del formulario a los datos', () => {
 		});
 	});
 
+	it('«No aparecer en buscadores»: solo personas, apagado por defecto', () => {
+		const values = emptyFormValues('persona');
+		expect(values.noindex).toBe(false);
+		expect(formToData(values)).not.toHaveProperty('noindex');
+		values.noindex = true;
+		expect(formToData(values)).toEqual({ kind: 'persona', noindex: true });
+		expect(formToData({ ...values, kind: 'proyecto' })).not.toHaveProperty('noindex');
+		expect(formToData({ ...values, kind: 'lugar' })).not.toHaveProperty('noindex');
+		expect(
+			profileFormValues(
+				/** @type {any} */ ({
+					title: 'X',
+					data: { kind: 'persona', noindex: true },
+					visibility: 'public',
+					version: 1
+				})
+			).noindex
+		).toBe(true);
+		expect(changedFields(emptyFormValues(), values)).toContain('noindex');
+	});
+
 	it('dice qué campos cambiaron', () => {
 		const a = emptyFormValues();
 		const b = structuredClone(a);
