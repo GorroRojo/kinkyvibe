@@ -303,6 +303,26 @@ si lo encuentra en `static/`, el build falla.
 - **Verificar:** `curl -sI https://kinkyvibe.ar/favicon.ico | grep -i cache-control` (y
   `curl -sI https://kinkyvibe.ar/robots.txt | grep -i nosniff`).
 
+## Headers de seguridad y CSP
+
+- `src/lib/server/securityHeaders.js` (desde `hooks.server.js`) pone en todas las respuestas del
+  Worker `nosniff`, `Referrer-Policy` y `Permissions-Policy` (cámara solo para el propio sitio,
+  que la usa el escáner de la puerta del panel; sin micrófono ni ubicación), y no deja embeber el
+  panel, las entradas ni las cuentas en un iframe. Los estáticos llevan los dos primeros por `_headers`.
+- **CSP en modo solo reporte** (`kit.csp.reportOnly` en `svelte.config.js`): el header es
+  `Content-Security-Policy-Report-Only`, así que **no bloquea nada**; el navegador avisa a
+  `POST /api/csp` lo que bloquearía, y esa ruta lo loguea (directiva y origen, nada de la URL
+  completa) en los logs del Worker: `[csp] script-src bloquearía https://… (en /evento)`.
+  SvelteKit pone un nonce a sus scripts; el beacon de Web Analytics lleva
+  `nonce="%sveltekit.nonce%"` en `app.html`; los dos scripts del `<head>` del panel (tema y
+  lateral) tienen contenido fijo y van por hash (si se cambia su texto, el hash se recalcula solo
+  al compilar).
+- **Para aplicarla** (decisión de gorrite, después de unas semanas mirando los logs): pasar las
+  mismas directivas de `reportOnly` a `directives`, ajustando lo que haya aparecido (por ejemplo,
+  achicar `frame-src` a los embeds que de verdad se usan). Ojo con la caché de 1 minuto para quien
+  no tiene sesión: guarda el HTML con su nonce y lo repite durante ese minuto; para una política
+  que bloquea conviene no cachear o usar hashes.
+
 ## Tamaño de los pedidos
 
 Workers corta los cuerpos en 100 MB. Las rutas que reciben algo de afuera leen el cuerpo con
