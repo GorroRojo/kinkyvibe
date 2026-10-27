@@ -820,6 +820,16 @@
 </div>
 
 <style lang="scss">
+	/* Las barras fijas del panel (arriba; en el celu también la de abajo) no tapan lo que recibe
+	   el foco ni el destino de un ancla: el navegador deja ese margen al traer algo a la vista.
+	   Los scroll-margin-top de las secciones del editor y de las órdenes ya no suman la barra. */
+	:global(html:has(.kv-panel > .app)) {
+		scroll-padding-top: 4.6rem;
+		@media (max-width: 899.98px) {
+			scroll-padding-top: 3.75rem;
+			scroll-padding-bottom: calc(4.3rem + env(safe-area-inset-bottom, 0px));
+		}
+	}
 	.app {
 		display: grid;
 		grid-template-columns: 15.5rem minmax(0, 1fr);

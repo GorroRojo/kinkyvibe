@@ -76,9 +76,10 @@
 	.sections {
 		min-width: 0;
 	}
-	/* Que la barra fija de arriba (y la fila del índice en el celu) no tape el título. */
+	/* Que la fila del índice en el celu no tape el título (la barra fija de arriba ya la descuenta
+	   el scroll-padding del panel, en admin/+layout.svelte). */
 	.sections :global(fieldset.card) {
-		scroll-margin-top: calc(var(--form-sticky-top, 0px) + 4.5rem);
+		scroll-margin-top: 4.5rem;
 	}
 	@container event-form (min-width: 48rem) {
 		.layout.with-index {
@@ -88,7 +89,7 @@
 			align-items: start;
 		}
 		.sections :global(fieldset.card) {
-			scroll-margin-top: calc(var(--form-sticky-top, 0px) + 1rem);
+			scroll-margin-top: 1rem;
 		}
 	}
 	/* El único «Guardar»: fijo abajo mientras se edita. */

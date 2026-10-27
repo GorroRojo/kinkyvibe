@@ -631,7 +631,8 @@
 		outline-offset: 2px;
 	}
 	.order {
-		scroll-margin-top: 5rem;
+		/* 5rem en total: el resto lo pone el scroll-padding del panel (la barra de arriba). */
+		scroll-margin-top: calc(5rem - var(--form-sticky-top, 0px));
 	}
 	.order:target,
 	.order.linked {
