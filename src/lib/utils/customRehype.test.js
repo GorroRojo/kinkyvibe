@@ -24,7 +24,7 @@ const run = async (/** @type {string} */ html) =>
 const md = async (/** @type {string} */ source) =>
 	(await renderFreeBody(source)).html
 		// el índice de rehype-toc (vacío en estos textos sin títulos), que mdsvex acá no agregaba
-		.replace(/^<nav class="toc">[\s\S]*?<\/nav>/, '')
+		.replace(/^<nav class="toc" aria-label="Índice">[\s\S]*?<\/nav>/, '')
 		.trim();
 
 describe('customRehype', () => {

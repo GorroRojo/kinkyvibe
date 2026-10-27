@@ -810,12 +810,16 @@ article.wiki {
 			position: absolute;
 			left: -1em;
 			content: '+ ';
+			/* Viñeta dibujada: el lector no la lee (texto alternativo vacío; el primero queda para
+			   los navegadores que no entienden la forma con «/»). */
+			content: '+ ' / '';
 			color: var(--2);
 		}
 		li {
 			margin-block: 0.4em;
 			&::before {
 				content: '|';
+				content: '|' / '';
 				color: var(--1);
 			}
 		}
@@ -954,6 +958,7 @@ article.wiki {
 				left: -1.2em;
 				top: -0.2em;
 				content: '┗ ';
+				content: '┗ ' / '';
 				color: var(--1);
 				opacity: 0.5;
 			}

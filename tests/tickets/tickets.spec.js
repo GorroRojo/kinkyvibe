@@ -897,7 +897,8 @@ test('reembolso desde el admin: MP simulado, anula las entradas y es idempotente
 	await shots(page, '13-reembolso-confirmar', order);
 	const orderId = await panel.locator('input[name="order"]').getAttribute('value');
 	await panel.getByRole('button', { name: /Confirmar reembolso de/ }).click();
-	await expect(page.getByText(/reembolsada: se liberó el cupo/)).toBeVisible();
+	// En main: el mismo texto también va a la región oculta de los lectores de pantalla (announce.js).
+	await expect(page.getByRole('main').getByText(/reembolsada: se liberó el cupo/)).toBeVisible();
 
 	// Otra vez (otra pestaña): no hace nada.
 	const again = await page.request.post(`/admin/eventos/${EVENT}/ordenes?/refund`, {

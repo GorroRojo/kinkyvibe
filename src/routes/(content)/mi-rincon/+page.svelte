@@ -1,4 +1,5 @@
 <script>
+	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { Trash2 } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
@@ -40,6 +41,24 @@
 		() =>
 		async ({ update }) =>
 			update({ reset: false });
+
+	/** @type {HTMLInputElement | undefined} */
+	let pwCode;
+	/** @type {HTMLInputElement | undefined} */
+	let deleteCode;
+	/**
+	 * «Mandame un código»: al volver, el foco va al campo del código (si no, cae en el body y un
+	 * lector de pantalla no se entera de que ahora hay que escribirlo).
+	 * @type {import('@sveltejs/kit').SubmitFunction}
+	 */
+	const sendCode =
+		() =>
+		async ({ update }) => {
+			await update({ reset: false });
+			await tick();
+			if (form?.codeSentFor === 'password') pwCode?.focus();
+			else if (form?.codeSentFor === 'delete') deleteCode?.focus();
+		};
 </script>
 
 <svelte:head>
@@ -178,41 +197,49 @@
 						<div>
 							<dt>Nombre</dt>
 							<dd>{data.saved.name}</dd>
-							<form method="POST" action="?/borrarDato" use:enhance={keep}>
-								<input type="hidden" name="campo" value="name" />
-								<button class="link" type="submit" aria-label="Borrar tu nombre">Borrar</button>
-							</form>
+							<dd class="actions">
+								<form method="POST" action="?/borrarDato" use:enhance={keep}>
+									<input type="hidden" name="campo" value="name" />
+									<button class="link" type="submit" aria-label="Borrar tu nombre">Borrar</button>
+								</form>
+							</dd>
 						</div>
 					{/if}
 					{#if data.saved.pronouns}
 						<div>
 							<dt>Pronombres</dt>
 							<dd>{data.saved.pronouns}</dd>
-							<form method="POST" action="?/borrarDato" use:enhance={keep}>
-								<input type="hidden" name="campo" value="pronouns" />
-								<button class="link" type="submit" aria-label="Borrar tus pronombres">Borrar</button
-								>
-							</form>
+							<dd class="actions">
+								<form method="POST" action="?/borrarDato" use:enhance={keep}>
+									<input type="hidden" name="campo" value="pronouns" />
+									<button class="link" type="submit" aria-label="Borrar tus pronombres"
+										>Borrar</button
+									>
+								</form>
+							</dd>
 						</div>
 					{/if}
 					{#if data.saved.hasDni}
 						<div>
 							<dt>DNI</dt>
 							<dd class="dni">{shownDni || data.saved.dniMasked}</dd>
-							{#if shownDni}
-								<button class="link" type="button" on:click={() => (hideDni = true)}>Ocultar</button
-								>
-							{:else}
-								<form method="POST" action="?/mostrarDni" use:enhance={keep}>
-									<button class="link" type="submit" aria-label="Mostrar tu DNI completo"
-										>Mostrar</button
+							<dd class="actions">
+								{#if shownDni}
+									<button class="link" type="button" on:click={() => (hideDni = true)}
+										>Ocultar</button
 									>
+								{:else}
+									<form method="POST" action="?/mostrarDni" use:enhance={keep}>
+										<button class="link" type="submit" aria-label="Mostrar tu DNI completo"
+											>Mostrar</button
+										>
+									</form>
+								{/if}
+								<form method="POST" action="?/borrarDato" use:enhance={keep}>
+									<input type="hidden" name="campo" value="dni" />
+									<button class="link" type="submit" aria-label="Borrar tu DNI">Borrar</button>
 								</form>
-							{/if}
-							<form method="POST" action="?/borrarDato" use:enhance={keep}>
-								<input type="hidden" name="campo" value="dni" />
-								<button class="link" type="submit" aria-label="Borrar tu DNI">Borrar</button>
-							</form>
+							</dd>
 						</div>
 					{/if}
 				</dl>
@@ -221,19 +248,23 @@
 				<summary>{savedEmpty ? 'Guardar mis datos' : 'Cambiar mis datos'}</summary>
 				<form method="POST" action="?/datos" use:enhance={keep}>
 					<label>
-						<span>Tu nombre</span>
+						<span id="datos-name-label">Tu nombre</span>
 						<input
 							name="name"
 							type="text"
 							autocomplete="name"
 							maxlength="80"
 							value={form?.action === 'datos' && form.values ? form.values.name : data.saved.name}
+							aria-labelledby="datos-name-label"
+							aria-describedby={datosErrors.name ? 'datos-name-error' : undefined}
 							aria-invalid={datosErrors.name ? 'true' : undefined}
 						/>
-						{#if datosErrors.name}<span class="field-error">{datosErrors.name}</span>{/if}
+						{#if datosErrors.name}<span id="datos-name-error" class="field-error"
+								>{datosErrors.name}</span
+							>{/if}
 					</label>
 					<label>
-						<span>Tus pronombres</span>
+						<span id="datos-pronouns-label">Tus pronombres</span>
 						<input
 							name="pronouns"
 							type="text"
@@ -243,12 +274,16 @@
 							value={form?.action === 'datos' && form.values
 								? form.values.pronouns
 								: data.saved.pronouns}
+							aria-labelledby="datos-pronouns-label"
+							aria-describedby={datosErrors.pronouns ? 'datos-pronouns-error' : undefined}
 							aria-invalid={datosErrors.pronouns ? 'true' : undefined}
 						/>
-						{#if datosErrors.pronouns}<span class="field-error">{datosErrors.pronouns}</span>{/if}
+						{#if datosErrors.pronouns}<span id="datos-pronouns-error" class="field-error"
+								>{datosErrors.pronouns}</span
+							>{/if}
 					</label>
 					<label>
-						<span>{data.saved.hasDni ? 'DNI nuevo' : 'DNI'}</span>
+						<span id="datos-dni-label">{data.saved.hasDni ? 'DNI nuevo' : 'DNI'}</span>
 						<input
 							name="dni"
 							type="text"
@@ -256,9 +291,13 @@
 							autocomplete="off"
 							maxlength="12"
 							placeholder="Ej.: 12.345.678"
+							aria-labelledby="datos-dni-label"
+							aria-describedby={datosErrors.dni ? 'datos-dni-error' : undefined}
 							aria-invalid={datosErrors.dni ? 'true' : undefined}
 						/>
-						{#if datosErrors.dni}<span class="field-error">{datosErrors.dni}</span>{/if}
+						{#if datosErrors.dni}<span id="datos-dni-error" class="field-error"
+								>{datosErrors.dni}</span
+							>{/if}
 					</label>
 					<p class="hint">
 						Si dejás el nombre o los pronombres vacíos, se borran.{#if data.saved.hasDni}
@@ -346,6 +385,7 @@
 						type="text"
 						inputmode="numeric"
 						autocomplete="one-time-code"
+						bind:this={pwCode}
 						maxlength="9"
 						required
 					/>
@@ -359,6 +399,7 @@
 						minlength="10"
 						maxlength="200"
 						required
+						aria-describedby="pw-ayuda"
 					/>
 				</label>
 				<label>
@@ -370,9 +411,12 @@
 						minlength="10"
 						maxlength="200"
 						required
+						aria-describedby="pw-ayuda"
 					/>
 				</label>
-				<p class="hint">Al menos 10 caracteres. Una frase larga es más fácil de recordar.</p>
+				<p class="hint" id="pw-ayuda">
+					Al menos 10 caracteres. Una frase larga es más fácil de recordar.
+				</p>
 				<button class="pill-btn" type="submit"
 					>{data.hasPassword ? 'Cambiar contraseña' : 'Poner contraseña'}</button
 				>
@@ -382,12 +426,12 @@
 					>
 				{/if}
 			</form>
-			<form method="POST" action="?/confirmar" use:enhance={keep}>
+			<form method="POST" action="?/confirmar" use:enhance={sendCode}>
 				<input type="hidden" name="para" value="password" />
 				<button class="link" type="submit">Mandame otro código</button>
 			</form>
 		{:else}
-			<form method="POST" action="?/confirmar" use:enhance={keep}>
+			<form method="POST" action="?/confirmar" use:enhance={sendCode}>
 				<input type="hidden" name="para" value="password" />
 				<button class="pill-btn ghost" type="submit"
 					>{data.hasPassword ? 'Cambiar o sacar la contraseña' : 'Poner contraseña'}</button
@@ -442,6 +486,7 @@
 							type="text"
 							inputmode="numeric"
 							autocomplete="one-time-code"
+							bind:this={deleteCode}
 							maxlength="9"
 							required
 						/>
@@ -457,12 +502,12 @@
 						><Trash2 size={18} aria-hidden="true" /> Borrar mi cuenta</button
 					>
 				</form>
-				<form method="POST" action="?/confirmar" use:enhance={keep}>
+				<form method="POST" action="?/confirmar" use:enhance={sendCode}>
 					<input type="hidden" name="para" value="delete" />
 					<button class="link" type="submit">Mandame otro código</button>
 				</form>
 			{:else}
-				<form method="POST" action="?/confirmar" use:enhance={keep}>
+				<form method="POST" action="?/confirmar" use:enhance={sendCode}>
 					<input type="hidden" name="para" value="delete" />
 					<button class="pill-btn ghost" type="submit">Mandame un código para confirmar</button>
 				</form>
@@ -590,6 +635,9 @@
 		font-variant-numeric: tabular-nums;
 		letter-spacing: 0.05em;
 	}
+	/* Los botones van en su propio <dd> (en un <dl> solo valen dt y dd), sin caja: se acomodan
+	   en la fila igual que antes. */
+	.saved .actions,
 	.saved form {
 		display: contents;
 	}

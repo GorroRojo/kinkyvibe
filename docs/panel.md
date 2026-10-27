@@ -674,6 +674,21 @@ sección (`import()`), no con el resto del panel. Mientras llega se ve el texto 
 mismo tamaño con «Cargando el editor…»; si no se puede bajar, queda un campo de texto común. Si
 agregás otro editor pesado, cargalo igual.
 
+**Avisos para lectores de pantalla** (`src/lib/admin/announce.js`). Un `<p role="status">` que
+aparece junto con su texto (por ejemplo dentro de `{#if form?.x}`) no siempre se lee. Para eso hay
+dos regiones vivas fijas en el `body`: `announce(texto)` (cortés) y `announceNow(texto)`
+(urgente, repite aunque el texto sea igual: el resultado de un escaneo en la puerta). Desde un
+`use:enhance`, después de `update()`, `announceResult(result, 'clave')` lee el `message` que
+devolvió la acción (lo usan Órdenes y la ficha de una persona). El aviso visible queda como está.
+
+**Teclado en el celu.** La hoja «Más» funciona como un diálogo modal (foco adentro, Tab que da la
+vuelta, el resto del panel `inert`, Escape cierra y el foco vuelve a «Más» o al avatar). No es un
+`<dialog>` nativo a propósito: en la capa superior taparía la barra de carga y el aviso de
+deshacer. En el celu, el `html` del panel tiene `scroll-padding` del alto de las barras fijas
+(`--panel-scroll-top` arriba), así lo que recibe el foco no queda tapado; un `scroll-margin-top`
+nuevo le resta `--panel-scroll-top`. En la compu no: ahí el aviso de atajos, fijo abajo a la
+derecha, taparía «Guardar» al traerlo a la vista.
+
 ## Cómo probar
 
 ```sh
