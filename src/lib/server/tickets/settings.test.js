@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestDB, resetDB } from '$lib/server/db/testing.js';
 import {
+	FROM_DOMAIN_ERROR,
 	getSalesSettings,
+	isAllowedFrom,
 	saveSalesSettings,
 	transferInfoFromSettings,
 	validateSalesSettings
@@ -74,7 +76,7 @@ describe('ajustes de venta', () => {
 			validateSalesSettings({
 				...FORM,
 				fondo_percent_override: '40',
-				from_email: 'Ejemplo <entradas@example.com>',
+				from_email: 'Ejemplo <entradas@kinkyvibe.ar>',
 				reply_to_email: 'respuestas@example.com',
 				reminder_kind_0: 'hours_before',
 				reminder_amount_0: '24',
@@ -102,7 +104,7 @@ describe('ajustes de venta', () => {
 			transfer_holder: 'Nombre de ejemplo',
 			mp_fee_percent: '7,73',
 			fondo_percent_override: '40',
-			from_email: 'Ejemplo <entradas@example.com>',
+			from_email: 'Ejemplo <entradas@kinkyvibe.ar>',
 			reply_to_email: 'respuestas@example.com',
 			reminders: before.reminders
 		});
@@ -111,5 +113,33 @@ describe('ajustes de venta', () => {
 	it('sin nada cargado no hay datos de transferencia (se usa la variable de entorno)', async () => {
 		expect(transferInfoFromSettings(await getSalesSettings(t.db))).toBeNull();
 		expect(transferInfoFromSettings(await getSalesSettings(null))).toBeNull();
+	});
+});
+
+describe('remitente solo @kinkyvibe.ar', () => {
+	it('acepta direcciones del dominio verificado, con o sin nombre y en cualquier caja', () => {
+		for (const ok of [
+			'Kinky Vibe <ejemplo@kinkyvibe.ar>',
+			'EJEMPLO@KinkyVibe.ar',
+			'ejemplo@kinkyvibe.ar'
+		]) {
+			expect(isAllowedFrom(ok)).toBe(true);
+			expect(validateSalesSettings({ from_email: ok })).toMatchObject({ ok: true });
+		}
+	});
+
+	it('rechaza otros dominios, subdominios y dominios que lo contienen', () => {
+		for (const bad of [
+			'ejemplo@example.com',
+			'X <a@mail.kinkyvibe.ar>',
+			'a@kinkyvibe.ar.example.com',
+			'Kinky Vibe <ejemplo@gmail.com>'
+		]) {
+			expect(isAllowedFrom(bad)).toBe(false);
+			expect(validateSalesSettings({ from_email: bad })).toEqual({
+				ok: false,
+				errors: { from_email: FROM_DOMAIN_ERROR }
+			});
+		}
 	});
 });

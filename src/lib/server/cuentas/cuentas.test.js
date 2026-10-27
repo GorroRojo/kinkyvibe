@@ -36,6 +36,7 @@ import {
 	verifyCode
 } from './index.js';
 import { ACCOUNT_MAIL_CAP, accountMailAllowed } from './mailCap.js';
+import { createProfile } from './perfiles.js';
 import {
 	chooseFreeOrder,
 	markFreeOrderMine,
@@ -932,6 +933,157 @@ describe('borrar la cuenta', () => {
 		const again = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW + 3 });
 		expect(again.id).not.toBe(account.id);
 		expect((await ordersForAccount(t.db, again.id)).map((o) => o.id)).toEqual([byEmail]);
+	});
+});
+
+describe('borrar la cuenta: lo que el borrado suave deja atrás', () => {
+	/** @param {string} sql @param {...unknown} args */
+	const run = (sql, ...args) =>
+		t.db
+			.prepare(sql)
+			.bind(...args)
+			.run();
+	/** @param {string} sql @param {...unknown} args */
+	const count = async (sql, ...args) =>
+		Number(
+			(
+				await t.db
+					.prepare(sql)
+					.bind(...args)
+					.first()
+			)?.n
+		);
+	let seq = 0;
+	const uuid = () => `00000000-0000-4000-9000-${String(++seq).padStart(12, '0')}`;
+
+	/**
+	 * Calendario personal, una serie seguida (con un aviso ya mandado), una invitación a gestionar
+	 * para su mail y dos «Es mi perfil» (uno pendiente y uno decidido), todo para `accountId`.
+	 * @param {string} accountId @param {string} email @param {number} profileId @param {string} tag
+	 */
+	async function seed(accountId, email, profileId, tag) {
+		await run(
+			'INSERT INTO calendar_feeds (token_hash, account_id, created_at) VALUES (?1, ?2, ?3)',
+			(await emailHash(`feed:${accountId}`)).padEnd(64, '0'),
+			accountId,
+			NOW
+		);
+		const sub = uuid();
+		await run(
+			`INSERT INTO series_subscriptions (id, series_tag, account_id, subscriber_key, created_at,
+				confirmed_at) VALUES (?1, ?2, ?3, ?4, ?5, ?5)`,
+			sub,
+			tag,
+			accountId,
+			`a:${accountId}`,
+			NOW
+		);
+		await run(
+			'INSERT INTO series_notifications (subscription_id, event_slug, sent_at) VALUES (?1, ?2, ?3)',
+			sub,
+			`${tag}-1`,
+			NOW
+		);
+		await run(
+			`INSERT INTO profile_invites (id, profile_id, email_hash, created_at, expires_at)
+			VALUES (?1, ?2, ?3, ?4, ?5)`,
+			uuid(),
+			profileId,
+			await emailHash(email),
+			NOW,
+			NOW + 1e9
+		);
+		await run(
+			`INSERT INTO profile_claims (profile_id, account_id, message, status, created_at)
+			VALUES (?1, ?2, 'pendiente inventado', 'pending', ?3)`,
+			profileId,
+			accountId,
+			NOW
+		);
+		await run(
+			`INSERT INTO profile_claims (profile_id, account_id, message, status, created_at, decided_at,
+				decided_by) VALUES (?1, ?2, 'decidido inventado', 'rejected', ?3, ?3, 'admin-de-prueba')`,
+			profileId,
+			accountId,
+			NOW
+		);
+	}
+
+	it('se van su calendario, sus series, las invitaciones a su mail y sus pedidos pendientes', async () => {
+		const owner = await upsertVerifiedAccount(t.db, 'duene.prueba@example.com', { now: NOW });
+		await run('UPDATE accounts SET can_have_profiles = 1 WHERE id = ?1', owner.id);
+		const prof = await createProfile(
+			t.db,
+			owner.id,
+			{ kind: 'proyecto', title: 'Proyecto Inventado' },
+			{ now: NOW }
+		);
+		if (!prof.ok) throw new Error('no se creó el perfil');
+		const profileId = Number(prof.profile.id);
+
+		const gone = await upsertVerifiedAccount(t.db, EMAIL, { now: NOW });
+		const stays = await upsertVerifiedAccount(t.db, 'queda.prueba@example.com', { now: NOW });
+		await seed(gone.id, EMAIL, profileId, 'serie-a');
+		await seed(stays.id, 'queda.prueba@example.com', profileId, 'serie-b');
+		// Una suscripción hecha sin cuenta, con el mismo mail: queda (tiene su propio link de baja).
+		await run(
+			`INSERT INTO series_subscriptions (id, series_tag, email, subscriber_key, created_at,
+				confirmed_at) VALUES (?1, 'serie-a', ?2, ?3, ?4, ?4)`,
+			uuid(),
+			EMAIL,
+			`e:${await emailHash(EMAIL)}`,
+			NOW
+		);
+
+		expect(await deleteAccount(t.db, gone.id, { now: NOW + 1 })).toBe(true);
+
+		const mine = { id: gone.id, hash: await emailHash(EMAIL) };
+		expect(
+			await count('SELECT COUNT(*) AS n FROM calendar_feeds WHERE account_id = ?1', mine.id)
+		).toBe(0);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM series_subscriptions WHERE account_id = ?1', mine.id)
+		).toBe(0);
+		expect(
+			await count(
+				`SELECT COUNT(*) AS n FROM series_notifications n
+				LEFT JOIN series_subscriptions s ON s.id = n.subscription_id WHERE s.id IS NULL`
+			)
+		).toBe(0);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM profile_invites WHERE email_hash = ?1', mine.hash)
+		).toBe(0);
+		// «Es mi perfil»: el pendiente se va; el decidido queda, sin el mensaje.
+		const claims = await t.db
+			.prepare('SELECT status, message FROM profile_claims WHERE account_id = ?1')
+			.bind(mine.id)
+			.all();
+		expect(claims.results).toEqual([{ status: 'rejected', message: '' }]);
+		// La suscripción por mail (sin cuenta) queda.
+		expect(
+			await count('SELECT COUNT(*) AS n FROM series_subscriptions WHERE email = ?1', EMAIL)
+		).toBe(1);
+
+		// Lo de otra cuenta no se toca.
+		const other = { id: stays.id, hash: await emailHash('queda.prueba@example.com') };
+		expect(
+			await count('SELECT COUNT(*) AS n FROM calendar_feeds WHERE account_id = ?1', other.id)
+		).toBe(1);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM series_subscriptions WHERE account_id = ?1', other.id)
+		).toBe(1);
+		expect(await count('SELECT COUNT(*) AS n FROM series_notifications')).toBe(1);
+		expect(
+			await count('SELECT COUNT(*) AS n FROM profile_invites WHERE email_hash = ?1', other.hash)
+		).toBe(1);
+		const otherClaims = await t.db
+			.prepare('SELECT status, message FROM profile_claims WHERE account_id = ?1 ORDER BY status')
+			.bind(other.id)
+			.all();
+		expect(otherClaims.results).toEqual([
+			{ status: 'pending', message: 'pendiente inventado' },
+			{ status: 'rejected', message: 'decidido inventado' }
+		]);
 	});
 });
 

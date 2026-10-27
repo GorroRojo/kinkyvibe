@@ -13,14 +13,17 @@
 </script>
 
 <!-- Datos estructurados (schema.org): solo lo que la página muestra (jsonLd.js); el lugar, según
-     su privacidad. -->
-<LDTag
-	schema={profileSchema({
-		profile: data.profile,
-		canonical: data.canonical,
-		location: data.location
-	})}
-/>
+     su privacidad. Una persona que pidió no aparecer en buscadores no lleva ninguno (no hay que
+     ayudar a que la encuentren ni a unir su perfil con sus otras redes). -->
+{#if !data.noindex}
+	<LDTag
+		schema={profileSchema({
+			profile: data.profile,
+			canonical: data.canonical,
+			location: data.location
+		})}
+	/>
+{/if}
 <a href={$page.url.href} hidden aria-hidden="true" class="u-url">Link</a>
 <DbProfile {data} claimResult={form?.claim} url={$page.url.href} />
 <!-- «Lo que sigo» (interruptor `lo_que_sigo`): apagado, `data.follow` es null y no se ve. Viene con

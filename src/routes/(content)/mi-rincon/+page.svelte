@@ -427,8 +427,9 @@
 		<details open={form?.action === 'borrar'}>
 			<summary>Quiero borrar mi cuenta</summary>
 			<p>
-				Se borra tu cuenta con tu mail y tu contraseña, y se cierran todas tus sesiones. Tus compras
-				y entradas siguen valiendo: quedan en el sistema, sin cuenta.{#if data.canHaveProfiles}
+				Se borra tu cuenta con tu mail y tu contraseña, lo que seguís, el link de tu calendario y
+				las invitaciones que te llegaron, y se cierran todas tus sesiones. Tus compras y entradas
+				siguen valiendo: quedan en el sistema, sin cuenta.{#if data.canHaveProfiles}
 					Tus perfiles de persona se vacían y se borran; los proyectos que gestionás con otras
 					personas quedan para elles.{/if} No se puede deshacer.
 			</p>

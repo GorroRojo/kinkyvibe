@@ -14,6 +14,7 @@ import { upsertVerifiedAccount } from '$lib/server/cuentas/accounts.js';
 import { recordIntegrityRun } from '$lib/server/objects/integrity.js';
 import { saveObject } from '$lib/server/objects/save.js';
 import { formatARS } from '$lib/utils/money.js';
+import { noteResendQuota } from '$lib/server/tickets/resendQuota.js';
 import { load } from './+page.server.js';
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
@@ -328,6 +329,15 @@ const CASES = [
 			await failedWaitlistMail('uno', '11111111-1111-4111-8111-111111111111');
 			await failedWaitlistMail('uno', '22222222-2222-4222-8222-222222222222');
 			await failedWaitlistMail('dos', '33333333-3333-4333-8333-333333333333');
+		},
+		1
+	],
+	[
+		'Resend dijo que se terminó el cupo hace una hora: una fila (el de ayer ya no)',
+		async () => {
+			await noteResendQuota(t.db, { code: 'daily_quota_exceeded', now: NOW - DAY - HOUR });
+			expect((await both()).rows).toHaveLength(0);
+			await noteResendQuota(t.db, { code: 'daily_quota_exceeded', now: NOW - HOUR });
 		},
 		1
 	]

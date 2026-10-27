@@ -35,6 +35,7 @@ import {
 import { logAdminAction } from './audit.js';
 import { insertOrder, insertTicket } from './testRows.js';
 import { applyTipPayment, createTip, tipReference } from '$lib/server/propinas/index.js';
+import { saveObject } from '$lib/server/objects/save.js';
 
 /** @type {Awaited<ReturnType<typeof createTestDB>>} */
 let t;
@@ -171,6 +172,70 @@ describe('totales', () => {
 			tickets: 4,
 			fondoNet: 2000 - 1600,
 			fondoTips: 0
+		});
+	});
+
+	it('monthMoney cuenta cada venta en el mes del evento (hora de Argentina), no en el de la compra', async () => {
+		/** @param {string} slug @param {string} start @param {string} [end] */
+		const evento = (slug, start, end) =>
+			saveObject(
+				t.db,
+				{ type: 'evento', slug, title: `Evento ${slug}`, data: { start, ...(end ? { end } : {}) } },
+				{ actor: 'prueba' }
+			);
+		// Empieza el 30/9 a las 22:00 de Argentina (en UTC ya es 1/10): es de septiembre.
+		await evento('fiesta-fin-de-mes', '2026-09-30T22:00-03:00');
+		// Empieza el 1/10 a las 00:30 de Argentina, media hora después del cambio de mes: es de octubre.
+		await evento('fiesta-madrugada', '2026-10-01T00:30-03:00');
+		// Taller de varios días que empieza el 28/9 y termina el 3/10: cuenta entero en septiembre.
+		await evento('taller-largo', '2026-09-28T18:00-03:00', '2026-10-03T21:00-03:00');
+		// Evento de agosto con una compra de septiembre: es de agosto.
+		await evento('fiesta-agosto', '2026-08-20T22:00-03:00');
+
+		// Comprada en agosto para el evento del 30/9: cuenta en septiembre.
+		await insertOrder(t.db, {
+			slug: 'fiesta-fin-de-mes',
+			unitPrice: 10000,
+			created: ar('2026-08-15T10:00')
+		});
+		// Comprada en septiembre para el evento del 1/10: no cuenta en septiembre.
+		await insertOrder(t.db, {
+			slug: 'fiesta-madrugada',
+			unitPrice: 8000,
+			created: ar('2026-09-20T10:00')
+		});
+		await insertOrder(t.db, {
+			slug: 'taller-largo',
+			unitPrice: 5000,
+			quantity: 2,
+			created: ar('2026-09-01T10:00')
+		});
+		await insertOrder(t.db, {
+			slug: 'fiesta-agosto',
+			unitPrice: 3000,
+			created: ar('2026-09-05T10:00')
+		});
+		// Sin evento en la base: cuenta por la fecha de compra.
+		await insertOrder(t.db, {
+			slug: 'evento-que-ya-no-esta',
+			unitPrice: 1000,
+			created: ar('2026-09-10T10:00')
+		});
+
+		expect(await monthMoney(t.db, NOW)).toMatchObject({
+			total: 10000 + 2 * 5000 + 1000,
+			orders: 3,
+			tickets: 4
+		});
+		// En octubre: solo la del evento del 1/10 (aunque se compró en septiembre).
+		expect(await monthMoney(t.db, ar('2026-10-15T12:00'))).toMatchObject({
+			total: 8000,
+			orders: 1
+		});
+		// En agosto: la del evento de agosto, comprada en septiembre.
+		expect(await monthMoney(t.db, ar('2026-08-25T12:00'))).toMatchObject({
+			total: 3000,
+			orders: 1
 		});
 	});
 
