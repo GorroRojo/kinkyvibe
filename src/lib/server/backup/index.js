@@ -57,7 +57,9 @@ export async function backupDatabase({ db, bucket, now = new Date(), manual = fa
 			createdAt: now.toISOString(),
 			tables: String(stats.tables),
 			rows: String(stats.rows),
-			sqlBytes: String(sql.length)
+			sqlBytes: String(sql.length),
+			// La sentencia más larga (D1 acepta hasta 100.000 bytes al restaurar).
+			maxStatementBytes: String(stats.maxStatementBytes)
 		}
 	});
 	// Verificar que quedó guardado entero antes de dar el backup por bueno (y antes de borrar

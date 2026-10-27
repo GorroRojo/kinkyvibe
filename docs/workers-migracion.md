@@ -509,9 +509,14 @@ de `kinkyvibe-restaurada` (copiado de `npx wrangler d1 list --json`, **nunca a m
 Detalles del formato: `PRAGMA defer_foreign_keys` al principio, las tablas, las filas (enteros
 grandes, decimales, textos y BLOBs exactos), después índices, vistas y triggers. Las tablas
 virtuales FTS se recrean (con contenido externo, con `'rebuild'`). Los contadores AUTOINCREMENT
-siguen desde el id más alto restaurado (D1 no deja escribir `sqlite_sequence`). Una fila de más
-de ~100 KB no se podría restaurar con `wrangler d1 execute` (límite de D1 por sentencia): hoy no
-hay ninguna así.
+siguen desde el id más alto restaurado (D1 no deja escribir `sqlite_sequence`). D1 acepta como
+mucho 100.000 bytes por sentencia, y un texto de más de ~45 KB ya los pasaría (el cuerpo de un
+objeto viaja dos veces, en `data` y en `search_text`, y una tilde son dos bytes): un INSERT que
+pasaría 90.000 bytes sale con sus textos más largos vacíos y después un
+`UPDATE … SET col = col || '<trozo>'` por cada trozo de 60.000 bytes como mucho (la fila se ubica
+por su `rowid`, o por su clave en una tabla `WITHOUT ROWID`). La sentencia más larga queda anotada
+(`maxStatementBytes` en los metadatos del archivo y en las cantidades del final) y
+`scripts/d1-restore.js` se niega a restaurar, con un mensaje claro, si pasa de 100.000.
 
 ## Después de migrar (PR de limpieza)
 
