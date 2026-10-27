@@ -1,5 +1,5 @@
 /**
- * Link de cuentas del encabezado del sitio (docs/cuentas.md): "Ingresar" sin sesión, "Mi rincón"
+ * Link de cuentas del encabezado del sitio (docs/cuentas.md): "Entrar" sin sesión, "Mi rincón"
  * con sesión (el interruptor `cuentas` quedó prendido para siempre).
  *
  * @param {{ member?: boolean } | null | undefined} data datos del layout raíz

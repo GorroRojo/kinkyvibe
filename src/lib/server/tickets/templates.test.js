@@ -19,6 +19,7 @@ import * as waitlistEmail from './waitlistEmail.js';
 import { emailCases, fixtureOrder, fixtureTickets, waitlistEmailCases } from './email.fixtures.js';
 import { previewEmail } from './templatePreview.js';
 import { MAIL_COLORS } from '$lib/server/email/layout.js';
+import { orderReference } from '$lib/utils/tickets.js';
 import {
 	deleteTemplateOverride,
 	getTemplateOverride,
@@ -68,7 +69,7 @@ describe('lista de espera: los mails y sus plantillas', () => {
 			expect(footer, name).toContain(`href="${input.unsubscribeUrl.replaceAll('&', '&amp;')}"`);
 			expect(m.text, name).toContain(input.unsubscribeUrl);
 			// Sin nombre (la lista guarda solo el mail) y sin datos de una compra.
-			expect(m.text, name).not.toMatch(/Hola |Número de orden/);
+			expect(m.text, name).not.toMatch(/Hola |Número de (orden|compra)/);
 		}
 	});
 
@@ -229,7 +230,7 @@ describe('con plantilla', () => {
 		for (const part of [
 			`${base.origin}/entradas/t/${tickets[0].token}/qr.gif`,
 			'7HQ 4XM',
-			`Número de orden: ${order.id}`,
+			'Número de compra: KV-3F2B8C1E',
 			'Total: $'
 		]) {
 			expect(original.html).toContain(part);
@@ -239,7 +240,7 @@ describe('con plantilla', () => {
 		expect(m.text.startsWith('Hola, Persona <de> "Ejemplo" & Cía\n\nTe esperamos el sábado')).toBe(
 			true
 		);
-		expect(m.text).toContain(`Número de orden: ${order.id}`);
+		expect(m.text).toContain('Número de compra: KV-3F2B8C1E');
 	});
 
 	it('sin plantilla, una orden gratis agradece que se anotó, no la compra', () => {
@@ -270,6 +271,159 @@ describe('con plantilla', () => {
 		expect(m.html).toContain(
 			'<p>Hola Persona &lt;de&gt; &quot;Ejemplo&quot; &amp; Cía, gracias por tu compra.</p>'
 		);
+	});
+});
+
+describe('el botón y el número de compra de los mails de una compra pagada', () => {
+	const order = fixtureOrder();
+	const [one] = fixtureTickets();
+	const base = {
+		order,
+		event: { title: 'Fiesta', start: '2026-10-10T22:00:00-03:00' },
+		typeName: 'General',
+		origin: 'https://kinkyvibe.example',
+		contactEmail: 'c@example.com'
+	};
+	const reminder = { kind: 'days_before', days: 1 };
+	/** @type {[string, (input: any) => { html: string, text: string }, any][]} */
+	const builders = [
+		['entradas', email.buildTicketEmail, {}],
+		['recordatorio', email.buildReminderEmail, { reminder }],
+		['cambio de fecha', email.buildDateChangeEmail, {}]
+	];
+	/** El href y el texto del botón (el link con el estilo del botón de la plantilla común). */
+	const buttonOf = (/** @type {string} */ html) => {
+		const m = html.match(/<a href="([^"]+)"[^>]*display:inline-block[^>]*>([^<]+)<\/a>/);
+		return m ? { href: m[1], label: m[2].trim() } : null;
+	};
+
+	it.each(builders)('%s: con una sola entrada, el botón lleva a esa entrada', (_, fn, extra) => {
+		const m = fn({ ...base, ...extra, tickets: [one] });
+		expect(buttonOf(m.html)).toEqual({
+			href: `https://kinkyvibe.example/entradas/t/${one.token}`,
+			label: 'Ver mi entrada'
+		});
+	});
+
+	it.each(builders)('%s: con varias, a la página de la compra', (_, fn, extra) => {
+		const m = fn({ ...base, ...extra, tickets: fixtureTickets() });
+		expect(buttonOf(m.html)).toEqual({
+			href: `https://kinkyvibe.example/entradas/${order.id}/estado`,
+			label: 'Ver mis entradas'
+		});
+	});
+
+	it.each(builders)('%s: online con el link cargado, a la transmisión', (_, fn, extra) => {
+		const stream = 'https://meet.example/sala';
+		const m = fn({
+			...base,
+			...extra,
+			event: { ...base.event, online: true, streamLink: stream },
+			tickets: [one]
+		});
+		expect(buttonOf(m.html)?.href).toBe(stream);
+	});
+
+	it('el número de compra es la referencia corta (KV-…), nunca el id entero', () => {
+		for (const [name, fn, input] of emailCases()) {
+			const m = /** @type {any} */ (email)[fn](input);
+			expect(m.text, name).toContain(`Número de compra: ${orderReference(input.order.id)}`);
+			expect(m.html, name).toContain(`Número de compra: ${orderReference(input.order.id)}`);
+			expect(m.text, name).not.toContain('Número de orden');
+		}
+	});
+});
+
+describe('la fecha con fin y huso, y el lugar, en los mails de una compra', () => {
+	const order = fixtureOrder();
+	const tickets = fixtureTickets();
+	const START = '2026-11-14T22:00:00-03:00';
+	const END = '2026-11-15T03:00:00-03:00';
+	const base = {
+		order,
+		tickets,
+		typeName: 'General',
+		origin: 'https://kinkyvibe.example',
+		contactEmail: 'c@example.com'
+	};
+	/** @type {import('./reminders.js').Reminder} */
+	const reminder = { kind: 'day_at', days: 1, time: '12:00', enabled: true };
+
+	it('formatEventWhen: inicio, fin y «hora de Argentina y Uruguay»; vacía sin inicio', () => {
+		expect(email.formatEventWhen(START, END)).toBe(
+			'sábado 14 de noviembre de 2026, 22:00 a 03:00 (hora de Argentina y Uruguay)'
+		);
+		expect(email.formatEventWhen(START)).toBe(
+			'sábado 14 de noviembre de 2026, 22:00 (hora de Argentina y Uruguay)'
+		);
+		expect(email.formatEventWhen(undefined, END)).toBe('');
+	});
+
+	it('va en el cuerpo de entradas, recordatorio, cambio de fecha y transferencia; {{fecha}} no cambia', () => {
+		const event = { title: 'Fiesta online', start: START, end: END, online: true };
+		const when = 'sábado 14 de noviembre de 2026, 22:00 a 03:00 (hora de Argentina y Uruguay)';
+		for (const m of [
+			email.buildTicketEmail({ ...base, event }),
+			email.buildReminderEmail({ ...base, reminder, event }),
+			email.buildDateChangeEmail({ ...base, event }),
+			email.buildTransferEmail({ ...base, event, transferInfo: 'Alias: ejemplo' })
+		]) {
+			expect(m.text).toContain(when);
+			expect(m.html).toContain(when);
+			// En el asunto no.
+			expect(m.subject).not.toContain('hora de Argentina');
+		}
+		// La variable de las plantillas sigue siendo solo el inicio.
+		expect(email.templateVars(order, event, 'General').fecha).toBe(
+			'sábado 14 de noviembre de 2026, 22:00'
+		);
+	});
+
+	const place = {
+		title: 'Fiesta',
+		start: START,
+		slug: 'fiesta-de-prueba',
+		location_name: 'Lugar de ejemplo',
+		location: 'Calle Falsa 123',
+		howTo: 'Tocá el timbre <2B>\nSubí por la escalera',
+		accessibility: 'Planta baja & sin escalones'
+	};
+
+	it.each([
+		['entradas', (/** @type {any} */ event) => email.buildTicketEmail({ ...base, event })],
+		[
+			'recordatorio',
+			(/** @type {any} */ event) => email.buildReminderEmail({ ...base, reminder, event })
+		]
+	])('%s: «Cómo llegar», «Accesibilidad» (escapados) y el link al evento', (_, build) => {
+		const m = build(place);
+		expect(m.html).toContain(
+			'<a href="https://kinkyvibe.example/calendario/fiesta-de-prueba" style="'
+		);
+		expect(m.html).toContain('>Ver la página del evento</a>');
+		expect(m.html).toContain('data-kv-mail="lugar"');
+		expect(m.html).toContain('Tocá el timbre &lt;2B&gt;\nSubí por la escalera');
+		expect(m.html).toContain('Planta baja &amp; sin escalones');
+		expect(m.html).not.toContain('<2B>');
+		const lines = m.text.split('\n');
+		expect(lines).toContain(
+			'Página del evento: https://kinkyvibe.example/calendario/fiesta-de-prueba'
+		);
+		expect(lines).toContain('Cómo llegar:');
+		expect(lines).toContain('Tocá el timbre <2B>');
+		expect(lines).toContain('Accesibilidad:');
+		expect(lines).toContain('Planta baja & sin escalones');
+
+		// Sin los textos (otro nivel del lugar): ni el recuadro ni las líneas; el link sí.
+		const plain = build({ ...place, howTo: null, accessibility: null });
+		expect(plain.html).not.toContain('data-kv-mail="lugar"');
+		expect(plain.text).not.toContain('Cómo llegar');
+		expect(plain.html).toContain('>Ver la página del evento</a>');
+
+		// Online: sin recuadro del lugar.
+		const online = build({ ...place, online: true });
+		expect(online.html).not.toContain('data-kv-mail="lugar"');
+		expect(online.text).not.toContain('Cómo llegar');
 	});
 });
 
