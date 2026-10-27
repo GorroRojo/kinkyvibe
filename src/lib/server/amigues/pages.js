@@ -169,6 +169,10 @@ export async function profilePageFrom(db, found, locals, { posts: sitePosts } = 
 		// No listado (no sale en /amigues): el link se puede compartir, pero los buscadores no lo
 		// guardan (`noindex`, docs/compartir.md).
 		unlisted: object.data.unlisted === true,
+		// Una persona que pidió no aparecer en buscadores (`profileNoindex`): la página se ve igual,
+		// pero con `noindex` (meta y cabecera), sin datos estructurados y con una vista previa sin
+		// foto (docs/amigues.md, «Buscadores»).
+		noindex: profile.noindex,
 		bodyHtml,
 		authors,
 		members,
@@ -178,7 +182,9 @@ export async function profilePageFrom(db, found, locals, { posts: sitePosts } = 
 		badges: {
 			hidden: object.visibility === 'hidden',
 			membersOnly: object.visibility === 'members',
-			pending: !approved
+			pending: !approved,
+			// Solo para quienes lo gestionan y les admins: para el resto la página no cambia.
+			noindex: profile.noindex && (viewer.role === 'admin' || Boolean(found.role))
 		},
 		claim,
 		private: viewer.role !== 'anon'
@@ -323,9 +329,10 @@ async function venuePageEvents(db, object, href, postsP) {
 }
 
 /**
- * "Es mi perfil": el estado de la cuenta con el perfil (`claimState`), solo si tiene el permiso de
- * perfiles. Si lo gestiona ya se sabe (`role`, de la misma regla que `managerRole`); el pedido
- * pendiente se pregunta a la par del permiso y cuenta solo con el permiso.
+ * "Es mi perfil": el estado de la cuenta con el perfil (`claimState`), para cualquier cuenta (pedir
+ * no da nada: une admin lo revisa). Si lo gestiona ya se sabe (`role`, de la misma regla que
+ * `managerRole`); ese estado lleva a Mi rincón → Perfiles, así que solo sale con el permiso (sin
+ * él, nada). El pedido pendiente se pregunta a la par del permiso.
  *
  * @param {D1Database} db
  * @param {string} accountId
@@ -335,7 +342,7 @@ async function venuePageEvents(db, object, href, postsP) {
  */
 async function claimOf(db, accountId, profileId, role) {
 	const [can, pending] = await Promise.all([
-		canHaveProfiles(db, accountId),
+		role ? canHaveProfiles(db, accountId) : false,
 		role
 			? null
 			: hasPendingClaim(db, accountId, profileId).then(
@@ -343,8 +350,7 @@ async function claimOf(db, accountId, profileId, role) {
 					(error) => ({ error })
 				)
 	]);
-	if (!can) return null;
-	if (role) return { state: 'manager' };
+	if (role) return can ? { state: 'manager' } : null;
 	if (pending && 'error' in pending) throw pending.error;
 	return { state: pending?.value ? 'pending' : 'none' };
 }

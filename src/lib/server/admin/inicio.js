@@ -19,12 +19,12 @@ import { MP_FEE_SQL, goalProgress } from '$lib/utils/salesGoal.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
 	DUE_REMINDER_WHERE,
-	describeReminder,
+	describeScheduledReminder,
 	dueReminderParams,
 	dueReminderPlan,
 	failedReminderCountsStatement,
 	readFailedReminderCounts,
-	reminderDueAt,
+	reminderSchedule,
 	reminderId
 } from '$lib/server/tickets/reminders.js';
 import {
@@ -1803,16 +1803,14 @@ export function agendaItems({
 			});
 		}
 		if (config.reminders && Number.isFinite(start) && start > now) {
-			for (const r of reminders) {
-				if (!r.enabled) continue;
-				const at = reminderDueAt(r, start);
+			for (const { reminder: r, due: at, eve } of reminderSchedule(reminders, start)) {
 				if (!inWindow(at)) continue;
 				items.push({
 					id: `reminder-${e.slug}-${reminderId(r)}`,
 					at,
 					kind: 'reminder',
 					title: `Recordatorio por mail: ${e.title}`,
-					text: describeReminder(r),
+					text: describeScheduledReminder(r, eve),
 					href: links.reminders,
 					past: at < now
 				});

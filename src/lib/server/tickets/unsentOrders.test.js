@@ -265,3 +265,47 @@ describe('resendUnsentOrderEmails', () => {
 		expect((await getOrder(t.db, broken.id))?.email_sent_at).toBeNull();
 	});
 });
+
+describe('resendUnsentOrderEmails con el cupo de Resend terminado', () => {
+	it('no gasta los intentos del día, corta la corrida y deja el aviso para «Para revisar»', async () => {
+		const first = await paidOrder(NOW - 60 * MIN, 'primera@example.com');
+		await paidOrder(NOW - 30 * MIN, 'segunda@example.com');
+		/** @type {string[]} */
+		const keys = [];
+		const quota = /** @type {any} */ (
+			async (/** @type {string} */ _url, /** @type {RequestInit} */ init) => {
+				keys.push(/** @type {Record<string, string>} */ (init.headers)['Idempotency-Key']);
+				return new Response('{"statusCode":429,"name":"daily_quota_exceeded","message":"cupo"}', {
+					status: 429
+				});
+			}
+		);
+		for (let i = 0; i <= RETRY_ATTEMPTS; i++) {
+			const r = await resendUnsentOrderEmails({
+				db: t.db,
+				origin: ORIGIN,
+				fetch: quota,
+				now: NOW + i * 15 * MIN
+			});
+			expect(r).toEqual({ sent: 0, failed: 0, skipped: 0, deferred: 1, stopped: 'quota' });
+		}
+		// Una sola llamada por corrida, siempre a la más vieja: ninguna quedó salteada.
+		expect(keys).toEqual(Array(RETRY_ATTEMPTS + 1).fill(`tickets-${first.id}`));
+		const note = await t.db
+			.prepare("SELECT value FROM ticket_settings WHERE key = 'resend_quota'")
+			.first();
+		expect(JSON.parse(String(note?.value))).toEqual({
+			at: expect.any(Number),
+			code: 'daily_quota_exceeded'
+		});
+		// Se renueva el cupo: salen las dos.
+		const up = resend();
+		const r = await resendUnsentOrderEmails({
+			db: t.db,
+			origin: ORIGIN,
+			fetch: up.fetch,
+			now: NOW + 2 * H
+		});
+		expect(r).toEqual({ sent: 2, failed: 0, skipped: 0 });
+	});
+});

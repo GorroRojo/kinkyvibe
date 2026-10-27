@@ -294,7 +294,11 @@ export async function signUpForWaitlist({
 	if (!joined.ok) return { ok: false, status: 400, message: WAITLIST_MESSAGES.badEmail };
 	if (joined.status !== 'pending') return { ok: true, status: 'pending' };
 	const message = buildWaitlistConfirmEmail({
-		event: { title: config.title || eventSlug, start: config.start ?? null },
+		event: {
+			title: config.title || eventSlug,
+			start: config.start ?? null,
+			end: config.end ?? null
+		},
 		typeName: scope.name,
 		confirmUrl: waitlistConfirmUrl(origin, joined.token),
 		unsubscribeUrl: await waitlistLeaveUrl(db, origin, joined.id),
