@@ -9,10 +9,15 @@
 	 * Después de una venta (UX V12): si ya está en el servidor, «¿Te equivocaste? Ver la orden»
 	 * lleva a la orden en el panel (el reembolso se hace ahí, con su confirmación); si todavía está
 	 * en la cola del celu, se puede descartar.
+	 *
+	 * Aviso de puerta (decisión 0053): si la entrada coincide (`card.notice`), un cartel con solo
+	 * `DOOR_NOTICE_TEXT`, sin motivo ni detalles. No cambia el resultado: decide quien está en la
+	 * puerta.
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import { invalidTitle } from '$lib/admin/doorOffline.js';
 	import { argTime } from '$lib/utils/dates.js';
+	import { DOOR_NOTICE_TEXT } from '$lib/utils/doorNotices.js';
 	import {
 		ChevronRight,
 		CircleCheck,
@@ -97,6 +102,12 @@
 	</div>
 
 	{#if card}
+		{#if card.notice}
+			<p class="notice" role="alert">
+				<TriangleAlert size={20} strokeWidth={2.5} />
+				{DOOR_NOTICE_TEXT}
+			</p>
+		{/if}
 		<p class="who">
 			<strong>{card.holder}</strong>{#if card.pronouns}&nbsp;({card.pronouns}){/if} · {card.type}
 		</p>
@@ -209,6 +220,19 @@
 	}
 	p {
 		margin: 0;
+	}
+	.notice {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3xs);
+		background: #fff1c2;
+		color: #2e2600;
+		border: 3px solid #2e2600;
+		border-radius: var(--radius-m, 10px);
+		padding: var(--space-2xs) var(--space-xs);
+		font-weight: 800;
+		font-size: var(--text-l, 1.15rem);
+		line-height: 1.25;
 	}
 	.head {
 		display: flex;

@@ -102,8 +102,10 @@ export async function doorCounts(db, slug) {
 /**
  * @typedef {Ticket & {
  *   order_status: import('./orders.js').OrderStatus, buyer_name: string,
- *   buyer_email: string, buyer_dni: string | null, buyer_pronouns: string | null
- * }} TicketWithBuyer
+ *   buyer_email: string, buyer_dni: string | null, buyer_pronouns: string | null,
+ *   buyer_account_id?: string | null
+ * }} TicketWithBuyer `buyer_account_id`: la cuenta de la orden, solo para los avisos de puerta
+ *   (doorNotices.js); nunca va a la pantalla.
  */
 
 /**
@@ -118,7 +120,7 @@ export async function ticketWithBuyer(db, { token, id }) {
 		await db
 			.prepare(
 				`SELECT t.*, o.status AS order_status, o.buyer_name, o.buyer_email, o.buyer_dni,
-					o.buyer_pronouns
+					o.buyer_pronouns, o.account_id AS buyer_account_id
 				FROM tickets t JOIN orders o ON o.id = t.order_id
 				WHERE ${token !== undefined ? 't.token = ?1' : 't.id = ?1'}`
 			)
@@ -128,12 +130,14 @@ export async function ticketWithBuyer(db, { token, id }) {
 }
 
 /**
- * Lo que muestra la pantalla para una entrada (sin el DNI completo).
+ * Lo que muestra la pantalla para una entrada (sin el DNI completo). `notice`: la entrada coincide
+ * con un aviso de puerta vigente (doorNotices.js); la pantalla muestra solo `DOOR_NOTICE_TEXT`,
+ * nunca el motivo ni nada más del aviso, y el ingreso no se frena.
  *
  * @param {TicketWithBuyer} t
- * @param {{ typeNames: Record<string, string>, prior: PriorAttendance | null }} ctx
+ * @param {{ typeNames: Record<string, string>, prior: PriorAttendance | null, notice?: boolean }} ctx
  */
-export function ticketCard(t, { typeNames, prior }) {
+export function ticketCard(t, { typeNames, prior, notice = false }) {
 	return {
 		ticketId: t.id,
 		orderId: t.order_id,
@@ -148,6 +152,7 @@ export function ticketCard(t, { typeNames, prior }) {
 		code: t.code ?? '',
 		at: t.checked_in_at,
 		by: t.checked_in_by,
+		notice: notice === true,
 		firstTime: prior
 			? isFirstTime(
 					{ holder: t.holder_name, buyerName: t.buyer_name, buyerEmail: t.buyer_email },
@@ -253,16 +258,18 @@ export async function revealDni(db, locals, { slug, ticketId }) {
  * Lista para validar sin conexión: una fila por entrada emitida del evento (también las
  * anuladas, para decir "Anulada" sin conexión). Solo lo mínimo para validar y mostrar: hash del
  * token (no el token), código, persona, tipo, estado, ingreso, quién compró, email, últimos 3 del
- * DNI y si es su primera vez en la serie.
+ * DNI, si es su primera vez en la serie y si coincide con un aviso de puerta (`notice`: solo sí o
+ * no, con el matcher de `doorNoticeMatcher`; sin él, nunca).
  *
  * @param {D1Database} db
- * @param {{ slug: string, typeNames: Record<string, string>, prior: PriorAttendance | null }} input
+ * @param {{ slug: string, typeNames: Record<string, string>, prior: PriorAttendance | null,
+ *   notices?: import('./doorNotices.js').DoorNoticeMatcher }} input
  */
-export async function offlineList(db, { slug, typeNames, prior }) {
+export async function offlineList(db, { slug, typeNames, prior, notices }) {
 	const { results } = await db
 		.prepare(
 			`SELECT t.*, o.status AS order_status, o.buyer_name, o.buyer_email, o.buyer_dni,
-				o.buyer_pronouns
+				o.buyer_pronouns, o.account_id AS buyer_account_id
 			FROM tickets t JOIN orders o ON o.id = t.order_id WHERE t.event_slug = ?1
 			ORDER BY t.rowid`
 		)
@@ -271,7 +278,8 @@ export async function offlineList(db, { slug, typeNames, prior }) {
 	const rows = /** @type {TicketWithBuyer[]} */ (results);
 	return Promise.all(
 		rows.map(async (t) => {
-			const card = ticketCard(t, { typeNames, prior });
+			const notice = notices ? await notices(t) : false;
+			const card = ticketCard(t, { typeNames, prior, notice });
 			return {
 				...card,
 				hash: await sha256Hex(t.token),

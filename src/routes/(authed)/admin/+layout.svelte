@@ -52,6 +52,7 @@
 		X
 	} from '@lucide/svelte';
 	import logo from '../../logo.png';
+	import { pruneDoorNotices } from '$lib/admin/doorOffline.js';
 	import { logoutHref as logoutLink } from '$lib/utils/authLinks.js';
 	import SearchBox from '$lib/components/admin/panel/SearchBox.svelte';
 	import ShortcutTip from '$lib/components/admin/panel/ShortcutTip.svelte';
@@ -277,6 +278,13 @@
 		hideSoon = readHideSoon();
 		sidebarMode = readSidebarMode(user?.login);
 		saveSidebarMode(user?.login, sidebarMode);
+		// Avisos de puerta (decisión 0053): las listas sin conexión de eventos ya pasados no se
+		// quedan con la marca en este celu.
+		try {
+			pruneDoorNotices(window.localStorage);
+		} catch {
+			// sin almacenamiento
+		}
 		return () => {
 			document.documentElement.removeAttribute('data-theme');
 			document.documentElement.removeAttribute('data-lateral');

@@ -13,6 +13,11 @@
  *
  * Todo lo que toca localStorage va en try/catch: en modo privado o con el almacenamiento lleno,
  * el modo puerta sigue andando (solo que sin copia para usar sin conexión).
+ *
+ * Avisos de puerta (decisión 0053): la marca `notice` de la lista guardada vale hasta
+ * `noticeUntil` (unos días después del evento, `doorNoticeKeepUntil`). Pasado eso, el celu la saca
+ * de lo guardado (`stripStaleNotices` al leer, `pruneDoorNotices` en todas las listas al abrir el
+ * panel); el resto de la lista y lo que falta sincronizar quedan como estaban.
  */
 import { normalizeTicketCode } from '$lib/utils/ticketCode.js';
 
@@ -21,15 +26,17 @@ import { normalizeTicketCode } from '$lib/utils/ticketCode.js';
  * @typedef {{
  *   ticketId: string, orderId: string, orderRef: string, holder: string, pronouns: string,
  *   type: string, typeId: string, buyer: string, email: string, dniTail: string, code: string,
- *   at: number | null, by: string | null, firstTime: boolean | null, hash: string, valid: boolean
- * }} OfflineTicket
+ *   at: number | null, by: string | null, firstTime: boolean | null, hash: string, valid: boolean,
+ *   notice?: boolean
+ * }} OfflineTicket `notice`: coincide con un aviso de puerta (decisión 0053): la pantalla muestra
+ *   solo `DOOR_NOTICE_TEXT`.
  */
 /**
  * Lo que se muestra de una entrada al escanearla (`ticketCard` en $lib/server/tickets/door.js).
  * @typedef {{
  *   ticketId: string, orderId: string, orderRef: string, holder: string, pronouns: string,
  *   type: string, buyer: string, email: string, dniTail: string, code: string,
- *   at: number | null, by: string | null, firstTime: boolean | null
+ *   at: number | null, by: string | null, firstTime: boolean | null, notice?: boolean
  * }} DoorCard
  */
 /**
@@ -64,8 +71,8 @@ import { normalizeTicketCode } from '$lib/utils/ticketCode.js';
 /**
  * @typedef {{
  *   list: OfflineTicket[], queue: QueueItem[], savedAt: number | null,
- *   sales: QueuedSale[], failed: FailedSale[]
- * }} DoorState
+ *   sales: QueuedSale[], failed: FailedSale[], noticeUntil?: number | null
+ * }} DoorState `noticeUntil`: hasta cuándo puede quedar `notice` en `list` (sin fecha, nada).
  */
 /**
  * @typedef {{
@@ -277,12 +284,71 @@ export function localSearch(list, query, limit = 8) {
 		.slice(0, limit);
 }
 
+const KEY_PREFIX = 'kv-door:';
 /** @param {string} slug */
-const key = (slug) => `kv-door:${slug}`;
+const key = (slug) => `${KEY_PREFIX}${slug}`;
+
+/**
+ * Saca la marca `notice` de la lista si ya pasó `noticeUntil` (o si no tiene). No toca nada más:
+ * ni la cola ni las ventas por sincronizar. Devuelve el mismo estado si no había nada que sacar.
+ *
+ * @param {DoorState} state
+ * @param {number} now
+ * @returns {DoorState}
+ */
+export function stripStaleNotices(state, now) {
+	if (state.noticeUntil && now <= state.noticeUntil) return state;
+	if (!state.list.some((t) => 'notice' in t)) return state;
+	return { ...state, list: state.list.map(({ notice: _notice, ...t }) => t) };
+}
+
+/**
+ * Recorre todas las listas guardadas en el celu (de cualquier evento) y les saca la marca
+ * `notice` si ya pasó su `noticeUntil`. Se llama al abrir el panel, para que no queden avisos de
+ * eventos viejos en el celu aunque nadie vuelva a abrir esa puerta.
+ *
+ * @param {Storage | undefined | null} storage
+ * @param {number} [now]
+ * @returns {number} cuántas listas cambió
+ */
+export function pruneDoorNotices(storage, now = Date.now()) {
+	let changed = 0;
+	try {
+		if (!storage) return 0;
+		/** @type {string[]} */
+		const keys = [];
+		for (let i = 0; i < storage.length; i++) {
+			const k = storage.key(i);
+			if (k?.startsWith(KEY_PREFIX)) keys.push(k);
+		}
+		for (const k of keys) {
+			const state = readDoorState(storage, k.slice(KEY_PREFIX.length));
+			const clean = stripStaleNotices(state, now);
+			if (clean !== state && saveDoorState(storage, k.slice(KEY_PREFIX.length), clean)) {
+				changed++;
+			}
+		}
+	} catch {
+		// sin almacenamiento: no hay nada guardado
+	}
+	return changed;
+}
 
 /** @returns {DoorState} */
 export function emptyDoorState() {
-	return { list: [], queue: [], savedAt: null, sales: [], failed: [] };
+	return { list: [], queue: [], savedAt: null, sales: [], failed: [], noticeUntil: null };
+}
+
+/**
+ * La lista guardada del evento, sin la marca `notice` si ya pasó su `noticeUntil`.
+ *
+ * @param {Storage | undefined | null} storage
+ * @param {string} slug
+ * @param {number} [now]
+ * @returns {DoorState}
+ */
+export function loadDoorState(storage, slug, now = Date.now()) {
+	return stripStaleNotices(readDoorState(storage, slug), now);
 }
 
 /**
@@ -290,7 +356,7 @@ export function emptyDoorState() {
  * @param {string} slug
  * @returns {DoorState}
  */
-export function loadDoorState(storage, slug) {
+function readDoorState(storage, slug) {
 	try {
 		const raw = storage?.getItem(key(slug));
 		const parsed = raw ? JSON.parse(raw) : null;
@@ -301,7 +367,8 @@ export function loadDoorState(storage, slug) {
 				savedAt: Number(parsed.savedAt) || null,
 				// Lo guardado antes de las ventas sin conexión no tiene estas listas.
 				sales: Array.isArray(parsed.sales) ? parsed.sales : [],
-				failed: Array.isArray(parsed.failed) ? parsed.failed : []
+				failed: Array.isArray(parsed.failed) ? parsed.failed : [],
+				noticeUntil: Number(parsed.noticeUntil) || null
 			};
 		}
 	} catch {
@@ -319,7 +386,8 @@ export function loadDoorState(storage, slug) {
 export function saveDoorState(storage, slug, state) {
 	try {
 		if (!storage) return false;
-		storage.setItem(key(slug), JSON.stringify(state));
+		// Con la página abierta más allá de `noticeUntil`, tampoco se vuelve a guardar la marca.
+		storage.setItem(key(slug), JSON.stringify(stripStaleNotices(state, Date.now())));
 		return true;
 	} catch {
 		return false;
