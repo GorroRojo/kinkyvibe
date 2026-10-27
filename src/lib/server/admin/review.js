@@ -34,6 +34,7 @@ import { editEventHref, orderHref, streamHref, transfersHref } from '$lib/admin/
 import { eventHref } from '$lib/admin/nav.js';
 import { formatARS } from '$lib/utils/money.js';
 import { failedWaitlistMailsQuery } from '$lib/server/tickets/waitlistAdmin.js';
+import { emergencyPauses } from '$lib/server/emergencia.js';
 import { resendQuotaItem, resendQuotaQuery } from '$lib/server/tickets/resendQuota.js';
 import {
 	arDay,
@@ -272,8 +273,10 @@ export function tagReviewItem(tags) {
  *   waitlistFailed?: { count: number, slugs: string[] } | null,
  *   resendQuota?: import('$lib/server/tickets/resendQuota.js').ResendQuotaHit | null,
  *   cancelled?: import('./inicio.js').CancelledLeftovers[],
+ *   pauses?: { tickets: string | null, mails: string | null },
  *   now: number
- * }} facts
+ * }} facts `pauses`: las pausas de emergencia (por defecto, las variables del Worker); van
+ *   primero, en rojo
  * @returns {ReviewRow[]}
  */
 export function reviewRows(facts) {
@@ -304,6 +307,7 @@ export function reviewRows(facts) {
 	// Lo repetitivo (sin imagen, borradores, perfiles nuevos) va en una fila por tipo con la cuenta.
 	const rows = groupReviewItems(
 		[
+			...pauseItems(facts.pauses ?? emergencyPauses()),
 			...(quotaItem ? [quotaItem] : []),
 			...(transferMissing ? [transferMissing] : []),
 			...cancelledItems,
@@ -320,6 +324,45 @@ export function reviewRows(facts) {
 	const integrityRow = integrityReviewRow(facts.integrity, { formatWhen });
 	if (integrityRow) rows.push(integrityRow);
 	return rows;
+}
+
+/** Dónde se explican las pausas de emergencia en el panel. */
+export const PAUSES_HREF = '/admin/ajustes/interruptores#pausas';
+
+/**
+ * «Para revisar»: una fila por pausa de emergencia prendida (`TICKETS_PAUSED`, `MAILS_PAUSED`;
+ * $lib/server/emergencia.js), para que nadie se olvide de sacarla. Se van solas cuando se saca la
+ * variable.
+ *
+ * @param {{ tickets: string | null, mails: string | null }} pauses
+ * @returns {ReviewItem[]}
+ */
+export function pauseItems(pauses) {
+	/** @type {ReviewItem[]} */
+	const items = [];
+	if (pauses.tickets) {
+		items.push({
+			id: 'pause-tickets',
+			tone: 'bad',
+			icon: 'ticket',
+			title: 'La venta online de entradas está en pausa',
+			text: `Les compradores ven: «${pauses.tickets}». La puerta y la carga a mano siguen. Se saca borrando TICKETS_PAUSED en Cloudflare`,
+			action: 'Ver',
+			href: PAUSES_HREF
+		});
+	}
+	if (pauses.mails) {
+		items.push({
+			id: 'pause-mails',
+			tone: 'bad',
+			icon: 'mail',
+			title: 'Los mails en tanda están en pausa',
+			text: 'Recordatorios, avisos y la lista de espera esperan; los de cada compra salen. Se saca borrando MAILS_PAUSED en Cloudflare',
+			action: 'Ver',
+			href: PAUSES_HREF
+		});
+	}
+	return items;
 }
 
 /**
