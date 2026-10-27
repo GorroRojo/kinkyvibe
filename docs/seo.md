@@ -119,6 +119,8 @@ los pasados solo los que terminaron en los últimos 90 días (`publicIcsSince` e
 suscripto baja cada hora). **Cambia lo que ve quien está suscripte**: los calendarios suscriptos
 copian el archivo, así que los eventos de hace más de 90 días dejan de verse ahí (siguen en el
 sitio). Para cambiar el plazo: `PUBLIC_ICS_PAST_DAYS`. El personal (`/ics/mio/…`) sigue con todo.
+Los lugares vinculados se buscan solo para los eventos que van a salir (`isFeedEvent`), y los dos
+salen con `public, max-age=900` (`icsResponse`).
 Todos dicen cada cuánto volver a bajarlos: `X-PUBLISHED-TTL` (Outlook) y `REFRESH-INTERVAL` (RFC
 7986), una hora. El `ORGANIZER` lleva el mail del perfil de quien organiza si lo tiene y si no (los
 de Kinky Vibe siempre) el contacto público `kinkyvibe.talleres@gmail.com` (`DEFAULT_CONTACT_EMAIL`
