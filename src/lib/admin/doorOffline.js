@@ -21,15 +21,17 @@ import { normalizeTicketCode } from '$lib/utils/ticketCode.js';
  * @typedef {{
  *   ticketId: string, orderId: string, orderRef: string, holder: string, pronouns: string,
  *   type: string, typeId: string, buyer: string, email: string, dniTail: string, code: string,
- *   at: number | null, by: string | null, firstTime: boolean | null, hash: string, valid: boolean
- * }} OfflineTicket
+ *   at: number | null, by: string | null, firstTime: boolean | null, hash: string, valid: boolean,
+ *   notice?: boolean
+ * }} OfflineTicket `notice`: coincide con un aviso de puerta (decisión 0051): la pantalla muestra
+ *   solo `DOOR_NOTICE_TEXT`.
  */
 /**
  * Lo que se muestra de una entrada al escanearla (`ticketCard` en $lib/server/tickets/door.js).
  * @typedef {{
  *   ticketId: string, orderId: string, orderRef: string, holder: string, pronouns: string,
  *   type: string, buyer: string, email: string, dniTail: string, code: string,
- *   at: number | null, by: string | null, firstTime: boolean | null
+ *   at: number | null, by: string | null, firstTime: boolean | null, notice?: boolean
  * }} DoorCard
  */
 /**

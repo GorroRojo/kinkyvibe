@@ -7,9 +7,13 @@
 	 * El evento se elige de una lista (los de hoy y los de los próximos días, de `eventos`, con los
 	 * mismos permisos); con uno solo hoy, queda elegido. `?evento=` sigue andando y, para uno que no
 	 * está en la lista, se puede escribir la dirección.
+	 *
+	 * Avisos de puerta (decisión 0051): si la respuesta trae `notice`, se muestra solo
+	 * `DOOR_NOTICE_TEXT` debajo del resultado; el ingreso ya se marcó igual.
 	 */
 	import { onMount } from 'svelte';
 	import { defaultDoorSlug, doorEventWhen } from '$lib/utils/doorEvents.js';
+	import { DOOR_NOTICE_TEXT } from '$lib/utils/doorNotices.js';
 
 	/** @type {import('./$types').PageData} */
 	export let data;
@@ -17,7 +21,7 @@
 	/** @type {any} */
 	let tg = null;
 	let slug = data.slug;
-	/** @type {{ tone: 'ok' | 'warn' | 'error', text: string } | null} */
+	/** @type {{ tone: 'ok' | 'warn' | 'error', text: string, notice?: boolean } | null} */
 	let last = null;
 	let busy = false;
 	/** @type {import('$lib/utils/doorEvents.js').DoorEvent[]} */
@@ -95,7 +99,11 @@
 			else if (!res.ok) last = { tone: 'error', text: 'Algo salió mal. Probá de nuevo.' };
 			else {
 				const r = RESULTS[body.result] ?? RESULTS.invalid;
-				last = { tone: r.tone, text: body.holder ? `${r.text} ${body.holder}` : r.text };
+				last = {
+					tone: r.tone,
+					text: body.holder ? `${r.text} ${body.holder}` : r.text,
+					notice: body.notice === true
+				};
 			}
 		} catch {
 			// Sin conexión o el servidor no contestó: no se marcó nada.
@@ -176,6 +184,9 @@
 		<button type="button" on:click={scan} disabled={busy || !slug}>📷 Escanear entrada</button>
 		{#if last}
 			<p class="result {last.tone}" role="status">{last.text}</p>
+			{#if last.notice}
+				<p class="result notice" role="alert">⚠️ {DOOR_NOTICE_TEXT}</p>
+			{/if}
 		{/if}
 	{/if}
 </main>
@@ -266,5 +277,11 @@
 	.error {
 		background: #fde0e0;
 		color: #8a1414;
+	}
+	.notice {
+		margin-top: 8px;
+		background: #fff1c2;
+		color: #4d3800;
+		border: 2px solid #6b4e00;
 	}
 </style>

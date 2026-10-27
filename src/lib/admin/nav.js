@@ -90,6 +90,7 @@ import {
 	FileSpreadsheet,
 	FileText,
 	CircleUser,
+	DoorClosed,
 	HandCoins,
 	HandHeart,
 	House,
@@ -440,6 +441,17 @@ export const NAV = Object.freeze([
 		icon: CircleUser,
 		emoji: '👤',
 		label: 'Cuentas',
+		area: 'comunidad',
+		soon: false
+	},
+	{
+		// Personas que la organización no admite en los eventos de Kinky Vibe (decisión 0051). Solo
+		// admins; el motivo se ve solo ahí.
+		id: 'avisos-puerta',
+		href: '/admin/comunidad/avisos-de-puerta',
+		icon: DoorClosed,
+		emoji: '🚫',
+		label: 'Avisos de puerta',
 		area: 'comunidad',
 		soon: false
 	},

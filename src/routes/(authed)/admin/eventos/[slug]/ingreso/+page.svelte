@@ -34,6 +34,7 @@
 	import WaitlistDoorNote from '$lib/components/admin/WaitlistDoorNote.svelte';
 	import { eventHref } from '$lib/admin/nav.js';
 	import { CHECKIN_LIST_PARAM } from '$lib/utils/doorEvents.js';
+	import { DOOR_NOTICE_TEXT } from '$lib/utils/doorNotices.js';
 	import {
 		FREE_DOOR_MESSAGE,
 		ORDER_MAX_MESSAGE,
@@ -608,7 +609,7 @@
 	// --- Buscar persona (combobox con sugerencias; sin conexión, en la lista guardada) ---
 	/**
 	 * @typedef {{ id: string, token?: string, code: string, holder: string, pronouns: string,
-	 *   buyer: string, email: string, type: string, checkedInAt: number | null,
+	 *   buyer: string, email: string, type: string, checkedInAt: number | null, notice?: boolean,
 	 *   match: { label: string, value: string, field: string } | null }} Suggestion
 	 */
 	let query = '';
@@ -650,6 +651,7 @@
 					email: t.email,
 					type: t.type,
 					checkedInAt: t.at,
+					notice: t.notice === true,
 					match: null
 				}));
 				searched = q;
@@ -1209,6 +1211,7 @@
 									s.checkedInAt
 								)}{/if}
 						</span>
+						{#if s.notice}<span class="s-notice">⚠️ {DOOR_NOTICE_TEXT}</span>{/if}
 					</li>
 				{:else}
 					{#if searched}
@@ -2046,6 +2049,11 @@
 	.s-match {
 		font-size: var(--text-xs);
 		color: var(--muted);
+	}
+	.s-notice {
+		display: block;
+		font-size: var(--text-sm);
+		font-weight: 800;
 	}
 	.facts {
 		display: grid;

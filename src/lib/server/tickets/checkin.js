@@ -39,10 +39,14 @@ export async function extractToken(db, slug, raw) {
  * búsqueda por DNI completo se hace en el servidor (`searchTickets`) y verlo entero es la acción
  * «ver completo», que queda en el registro de actividad.
  *
+ * `notice`: la entrada coincide con un aviso de puerta (los ids de `noticeIds`, ver
+ * doorNotices.js); la pantalla muestra solo el texto genérico.
+ *
  * @param {import('./orders.js').TicketSearchResult[]} found
  * @param {Record<string, string>} names
+ * @param {Set<string>} [noticeIds]
  */
-export function searchRows(found, names) {
+export function searchRows(found, names, noticeIds = new Set()) {
 	return found.map((t) => ({
 		id: t.id,
 		token: t.token,
@@ -54,6 +58,7 @@ export function searchRows(found, names) {
 		type: names[t.ticket_type] ?? t.ticket_type,
 		checkedInAt: t.checked_in_at,
 		checkedInBy: t.checked_in_by,
+		notice: noticeIds.has(t.id),
 		match: t.match
 			? {
 					field: t.match.field,

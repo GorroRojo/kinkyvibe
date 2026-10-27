@@ -14,6 +14,10 @@
  * - `syncSales`: ventas hechas sin conexión (decisión 0035), en orden, idempotentes (`client_sale_id`)
  *   y sin perder ninguna por un límite: si pasan uno se guardan igual y quedan en «Para revisar».
  *
+ * Avisos de puerta (decisión 0051, $lib/server/tickets/doorNotices.js): en los eventos de Kinky
+ * Vibe, la tarjeta de una entrada que coincide con un aviso lleva `notice: true` y la pantalla
+ * muestra solo «Avisá a la organización antes de dejar pasar». El ingreso se marca igual.
+ *
  * En una parte (2 en adelante) de un taller con una sola entrada (docs/talleres-partes.md), las
  * entradas son las del taller y el ingreso se marca por parte (`doorContext` → `part`,
  * src/lib/server/tickets/partCheckins.js). Ahí no se vende en la puerta: la entrada es del taller
@@ -49,6 +53,7 @@ import {
 	ticketWithBuyer
 } from '$lib/server/tickets/door.js';
 import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
+import { doorNoticeMatcher, isKinkyVibeDoor } from '$lib/server/tickets/doorNotices.js';
 import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
 import {
 	FREE_DOOR_MESSAGE,
@@ -143,7 +148,7 @@ export async function load(event) {
  */
 async function checkinAction(event) {
 	const admin = requireAdmin(event.locals, event.url);
-	const { db, typeNames, ticketSlug, part } = await doorContext(event);
+	const { db, config, typeNames, ticketSlug, part } = await doorContext(event);
 	const slug = ticketSlug;
 	const raw = (await event.request.formData()).get('token');
 	const token = await extractToken(db, slug, raw);
@@ -166,8 +171,9 @@ async function checkinAction(event) {
 			}
 		};
 	}
-	// La entrada con quien compró, la primera vez en la serie y los contadores, juntos.
-	const [full, prior, counts] = await Promise.all([
+	// La entrada con quien compró, la primera vez en la serie, los avisos de puerta y los
+	// contadores, juntos.
+	const [full, prior, notices, counts] = await Promise.all([
 		r.ticket
 			? ticketWithBuyer(db, { id: r.ticket.id }).then(async (found) =>
 					found && part
@@ -182,13 +188,14 @@ async function checkinAction(event) {
 				)
 			: null,
 		cachedPrior(db, slug, event.platform),
+		doorNoticeMatcher(db, { kinkyVibe: isKinkyVibeDoor(config) }),
 		countsFor(db, { ticketSlug, part })
 	]);
 	return {
 		checkin: {
 			result: r.result,
 			stamp,
-			card: full ? ticketCard(full, { typeNames, prior }) : null,
+			card: full ? ticketCard(full, { typeNames, prior, notice: await notices(full) }) : null,
 			otherEvent: null
 		},
 		counts
@@ -404,10 +411,11 @@ export const actions = {
 			);
 		}
 		const prior = await cachedPrior(db, slug, event.platform);
+		const notices = await doorNoticeMatcher(db, { kinkyVibe: isKinkyVibeDoor(config) });
 		const cards = [];
 		for (const t of r.tickets) {
 			const full = await ticketWithBuyer(db, { id: t.id });
-			if (full) cards.push(ticketCard(full, { typeNames, prior }));
+			if (full) cards.push(ticketCard(full, { typeNames, prior, notice: await notices(full) }));
 		}
 		return {
 			sale: {

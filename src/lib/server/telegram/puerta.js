@@ -14,14 +14,19 @@
  * 4. el ingreso se marca con las mismas funciones que el modo puerta del panel (`extractToken` +
  *    `checkIn`), con el login de le admin.
  *
+ * Avisos de puerta (decisión 0051, $lib/server/tickets/doorNotices.js): en un evento de Kinky Vibe,
+ * si la entrada coincide con un aviso, la respuesta lleva `notice: true` y la Mini App muestra solo
+ * «Avisá a la organización antes de dejar pasar». El ingreso se marca igual.
+ *
  * La lista de eventos para elegir (`doorEvents`) pide lo mismo (1 a 3) y sale de lo mismo que
  * /admin/checkin (`listTicketedEvents` + `checkinGroup`): los de hoy y los de los próximos días.
  */
 import { hitRateLimit } from '$lib/server/db/rateLimit.js';
 import { extractToken } from '$lib/server/tickets/checkin.js';
 import { checkIn } from '$lib/server/tickets/orders.js';
-import { checkinGroup } from '$lib/server/tickets/door.js';
-import { listTicketedEvents } from '$lib/server/tickets/events.js';
+import { checkinGroup, ticketWithBuyer } from '$lib/server/tickets/door.js';
+import { doorNoticeMatcher, isKinkyVibeDoor } from '$lib/server/tickets/doorNotices.js';
+import { getEventTickets, listTicketedEvents } from '$lib/server/tickets/events.js';
 import { toTime } from '$lib/server/tickets/config.js';
 import { isAdmin } from '$lib/server/auth';
 import { isFlagOn } from '$lib/server/flags.js';
@@ -91,19 +96,33 @@ export function botDoor(db) {
 /**
  * Marca un ingreso desde la Mini App.
  *
+ * `eventConfig`: de dónde sale la configuración del evento (para saber si es de Kinky Vibe); los
+ * tests la reemplazan.
+ *
  * @param {{ db: D1Database, initData: unknown, token: string | undefined,
- *   eventSlug: string, code: unknown, now?: number }} input
+ *   eventSlug: string, code: unknown, now?: number,
+ *   eventConfig?: (slug: string) => Promise<{ fondoEnabled?: boolean } | null> }} input
  * @returns {Promise<{ status: number, body: Record<string, unknown> }>}
  */
-export async function doorCheckIn({ db, initData, token, eventSlug, code, now }) {
+export async function doorCheckIn({
+	db,
+	initData,
+	token,
+	eventSlug,
+	code,
+	now,
+	eventConfig = getEventTickets
+}) {
 	const who = await doorAdmin({ db, initData, token, now });
 	if (!who.ok) return { status: 403, body: { error: 'forbidden', reason: who.reason } };
 	const rate = await hitRateLimit(db, `tg:puerta:${who.telegramUserId}`, DOOR_RATE_LIMIT, now);
 	if (!rate.allowed) return { status: 429, body: { error: 'too_many' } };
 	const ticketToken = await extractToken(db, eventSlug, code);
 	const r = await checkIn(db, { token: ticketToken, eventSlug, by: who.login, now });
-	// Solo lo que la pantalla necesita: el resultado y, si es de este evento, el nombre y la hora.
+	// Solo lo que la pantalla necesita: el resultado y, si es de este evento, el nombre, la hora y
+	// si coincide con un aviso de puerta (solo sí; nunca el motivo).
 	const sameEvent = r.ticket && r.result !== 'wrong-event';
+	const notice = sameEvent && r.ticket ? await ticketNotice(db, eventSlug, r.ticket.id, eventConfig, now) : false;
 	return {
 		status: 200,
 		body: {
@@ -111,11 +130,37 @@ export async function doorCheckIn({ db, initData, token, eventSlug, code, now })
 			...(sameEvent && r.ticket
 				? {
 						holder: r.ticket.holder_name ?? null,
-						checkedInAt: r.ticket.checked_in_at ?? null
+						checkedInAt: r.ticket.checked_in_at ?? null,
+						...(notice ? { notice: true } : {})
 					}
 				: {})
 		}
 	};
+}
+
+/**
+ * ¿La entrada coincide con un aviso de puerta vigente? Solo en eventos de Kinky Vibe; si algo
+ * falla, no (la puerta sigue andando).
+ *
+ * @param {D1Database} db
+ * @param {string} eventSlug
+ * @param {string} ticketId
+ * @param {(slug: string) => Promise<{ fondoEnabled?: boolean } | null>} eventConfig
+ * @param {number} [now]
+ */
+async function ticketNotice(db, eventSlug, ticketId, eventConfig, now = Date.now()) {
+	try {
+		const config = await eventConfig(eventSlug);
+		if (!isKinkyVibeDoor(config)) return false;
+		const [full, notices] = await Promise.all([
+			ticketWithBuyer(db, { id: ticketId }),
+			doorNoticeMatcher(db, { kinkyVibe: true, now })
+		]);
+		return full ? await notices(full) : false;
+	} catch (error) {
+		console.error('[puerta] avisos de puerta:', String(error).slice(0, 200));
+		return false;
+	}
 }
 
 /** Cuántos días para adelante entran en la lista, además de los de hoy. */
