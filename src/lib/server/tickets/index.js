@@ -35,7 +35,7 @@ import { isPreviewDeploy } from '../deploy.js';
 import { sha256Hex } from '../hash.js';
 import { trackFunnel } from '../analytics/track.js';
 import { createPreference, findPaymentByOrder, getPayment, refundPayment } from './mercadopago.js';
-import { applyPayment, getOrderTickets, markEmailSent } from './orders.js';
+import { applyPayment, getOrderTickets, markEmailSent, markEmailUndeliverable } from './orders.js';
 import {
 	DEFAULT_FROM_EMAIL,
 	DEFAULT_REPLY_TO,
@@ -56,6 +56,7 @@ import {
 } from './stream.js';
 import { mailBatchSize } from './batchSize.js';
 import { withMailFooter } from '../email/layout.js';
+import { domainAcceptsMail } from '../email/mx.js';
 import { isFreeOrder, isSuppressed, optOutUrl } from '../email/suppressions.js';
 import { runMailQueueWith } from './mailQueue.js';
 import { calendarStamp } from './calendarFile.js';
@@ -561,6 +562,17 @@ export async function sendOrderEmailResult({
 	/** @type {string | null} */
 	let claimedLink = null;
 	try {
+		// Un dominio que seguro no recibe correo (un tipeo como gmail.con): no se le pide a Resend
+		// un envío que rebota seguro, y la orden queda marcada como rebotada, como si hubiera
+		// avisado el webhook (Órdenes y «Para revisar»: docs/mails.md, «Rebotes y quejas»). Sin
+		// RESEND_API_KEY (dev, E2E) no sale nada igual: no se consulta.
+		if (env.RESEND_API_KEY && !(await domainAcceptsMail(order.buyer_email))) {
+			console.warn(
+				`[mails] el dominio del mail de la orden ${order.id} no recibe correo: no se manda y queda como rebotado`
+			);
+			await markEmailUndeliverable(db, order.id, Date.now());
+			return 'simulated';
+		}
 		const list = tickets?.length ? tickets : await getOrderTickets(db, order.id);
 		const config = await getEventTickets(order.event_slug);
 		const typeName =
