@@ -103,6 +103,14 @@ del modo demo: desde la decisión 0032 nadie la usa; se puede borrar a mano en e
   `snapshotDB()`/`restoreDB()` (copia de las filas para reusar datos caros) para las pruebas;
   `startTemplateDB()` arma la plantilla migrada que copian las bases de prueba (globalSetup de
   vitest, ver [pruebas-y-ci.md](pruebas-y-ci.md)).
+- `src/lib/server/db/consistency.js`: chequeo nocturno de **solo lectura** de las órdenes y las
+  entradas (auditoría de plata, D16 y D36), en la misma corrida que el de los objetos
+  ([objetos.md](objetos.md), «Chequeo de integridad»): aprobadas (o reembolsadas con alguna
+  entrada) con otra cantidad de entradas que `quantity` (`db_ticket_count`), entradas con otro
+  evento o tipo que su orden (`db_ticket_mismatch`), recargo sin Mercado Pago
+  (`db_surcharge_not_mp`), `gratis` con total distinto de 0 (`db_free_total`) y entradas sin
+  código corto (`db_ticket_no_code`). Lo que encuentra sale en «Para revisar» como «Chequeo
+  nocturno»; nunca arregla nada.
 - `wrangler.toml`: el binding `DB`, con `kinkyvibe` en producción y `kinkyvibe-preview` en los
   Previews (bloque `[previews]`). **No tiene `pages_build_output_dir` a propósito**; no se agrega.
 
