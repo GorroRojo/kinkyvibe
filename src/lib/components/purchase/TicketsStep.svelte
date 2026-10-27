@@ -83,7 +83,11 @@
 		<input type="hidden" name="fondo_percent" value={tickets.fondoPercent ?? ''} />
 	{/if}
 	{#each tickets.types as t (t.id)}
+		{@const waitlistLink =
+			!t.closed && !t.waitingFor && t.available === 0 && waitlistTypes.includes(t.id)}
 		<label class="type" class:soldout={t.available === 0 || t.closed}>
+			<!-- Con el link a la lista de espera adentro del label, el nombre del radio sería «… Agotadas ·
+			     Anotate en la lista de espera»: se nombra con el tipo, el precio y «Agotadas». -->
 			<input
 				type="radio"
 				name="type"
@@ -91,12 +95,15 @@
 				bind:group={type}
 				disabled={t.available === 0 || t.closed}
 				required
+				aria-labelledby={waitlistLink
+					? `tipo-${t.id}-nombre tipo-${t.id}-precio tipo-${t.id}-estado`
+					: undefined}
 				aria-describedby={describedBy(errors.type && 'entradas-tipo-error')}
 			/>
-			<span class="type-name"
+			<span class="type-name" id="tipo-{t.id}-nombre"
 				>{t.name}{#if t.tier}<span class="type-tier">{t.tier.name}</span>{/if}</span
 			>
-			<span class="type-price">
+			<span class="type-price" id="tipo-{t.id}-precio">
 				{#if t.gorra}
 					<strong>A la gorra</strong>
 				{:else}
@@ -117,11 +124,12 @@
 				</small>
 			{/if}
 			<small class="type-left">
-				{#if t.closed}Venta cerrada{:else if t.waitingFor}Se habilita cuando se agote «{t.waitingFor}»{:else if t.available === 0}Agotadas{#if waitlistTypes.includes(t.id)}
-						·
-						<a href="#lista-espera" on:click={() => waitlistPick.set(t.id)}
-							>Anotate en la lista de espera</a
-						>{/if}{:else if t.left !== null}{leftText(t.left)}{#if t.tierLeft}{' '}a este precio{/if}{:else if t.tier?.until}{t
+				{#if t.closed}Venta cerrada{:else if t.waitingFor}Se habilita cuando se agote «{t.waitingFor}»{:else if t.available === 0 && !waitlistLink}Agotadas{:else if t.available === 0}<span
+						id="tipo-{t.id}-estado">Agotadas</span
+					>·
+					<a href="#lista-espera" on:click={() => waitlistPick.set(t.id)}
+						>Anotate en la lista de espera</a
+					>{:else if t.left !== null}{leftText(t.left)}{#if t.tierLeft}{' '}a este precio{/if}{:else if t.tier?.until}{t
 						.tier.name} hasta el
 					{formatSaleTime(t.tier.until)}{:else if t.closesAt}Hasta el {formatSaleTime(
 						t.closesAt
