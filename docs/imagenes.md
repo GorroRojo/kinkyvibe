@@ -28,6 +28,12 @@ adentro del JSON; ver [objetos.md](objetos.md)). Cada documento o video es un **
 - **Clave por contenido**: `img/<sha-256>.<ext>`. El mismo archivo subido dos veces es la misma
   imagen (el `slug` del objeto es el hash). Como un archivo nunca cambia, `/media/…` responde con
   `Cache-Control: public, max-age=31536000, immutable`, `ETag` y el tipo correcto.
+- **Sin metadatos**: antes de calcular el hash, `storeImage` le saca a un JPEG los segmentos Exif,
+  XMP, IPTC y los comentarios (de Exif deja solo la orientación) y a un PNG los bloques eXIf,
+  tEXt, zTXt, iTXt y tIME (`src/lib/server/media/metadata.js`). Ahí pueden ir el GPS de donde se
+  sacó la foto, la fecha o el modelo del celu. WEBP, GIF y AVIF van tal cual (lo que sube el
+  navegador ya pasó por el canvas, que no copia metadatos). Una imagen subida antes de este cambio
+  y subida de nuevo da otro hash: es otra imagen.
 - **Objeto `imagen`**: `title` (nombre para buscarla), `key`, `mime`, `size`, `width`, `height`,
   `alt` (texto alternativo), `original_name` y, si vino del repo, `source_path`. Quién la subió y
   cuándo: `created_by`/`created_at` (solo les admins lo ven).
@@ -165,8 +171,9 @@ recorrer toda la biblioteca está Contenido → Biblioteca (abajo). Pestañas:
 
 - **Subir**: se elige un archivo (JPG, PNG, WEBP, GIF o AVIF, hasta 10 MB), se escribe **qué se
   ve** (texto alternativo, obligatorio) y se sube. Antes de subir, el navegador la achica (lado más
-  largo 2000 px) y la pasa a WEBP, y hace sus dos copias chicas para las tarjetas (arriba); si no
-  puede (o un GIF, que puede ser animado), sube el original.
+  largo 2000 px) y la pasa a WEBP, y hace sus dos copias chicas para las tarjetas (arriba). Si el
+  navegador no sabe hacer WEBP (Safari), la pasa a JPEG; si no puede dibujarla (o un GIF, que puede
+  ser animado), sube el original, y el servidor le saca los metadatos (arriba).
 - **Buscar**: por nombre o texto alternativo (búsqueda de la base, sin tildes).
 - **De este evento** (o «De este material/serie/perfil»): las imágenes que ya usa ese objeto; en un
   evento, también las de su serie (la etiqueta y las otras ediciones).

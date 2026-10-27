@@ -19,6 +19,7 @@ import { ANON, canSee, visibleWhere } from '../objects/visibility.js';
 import { MEDIA_KEY } from '../objects/types/imagen.js';
 import { FILE_KEY } from '../objects/types/archivo.js';
 import { fileKey, mediaKey, mediaPath, sha256Hex, sniffDocument, sniffImage } from './sniff.js';
+import { stripImageMetadata } from './metadata.js';
 import { usageText } from '../../utils/imageChoice.js';
 import { MAX_FILE_BYTES, fileSizeProblem } from '../../utils/libraryFiles.js';
 import { MAX_COPY_BYTES, copyKey, copySize, parseCopyKey } from '../../utils/mediaCopies.js';
@@ -208,10 +209,11 @@ async function findBySlug(db, slug, type = IMAGE_TYPE) {
  */
 export async function storeImage(db, bucket, file, { actor, now = Date.now() }) {
 	if (!bucket) throw new ImageError(503, 'Todavía no hay dónde guardar imágenes en este sitio.');
-	const bytes = file.bytes;
-	if (!(bytes instanceof Uint8Array) || bytes.length === 0) {
+	if (!(file.bytes instanceof Uint8Array) || file.bytes.length === 0) {
 		throw new ImageError(400, 'No llegó ningún archivo. Volvé a elegir la imagen.');
 	}
+	// Sin GPS, fecha ni comentarios (media/metadata.js), antes del hash: lo guardado nunca los lleva.
+	const bytes = stripImageMetadata(file.bytes);
 	if (bytes.length > MAX_UPLOAD_BYTES) {
 		throw new ImageError(
 			413,
