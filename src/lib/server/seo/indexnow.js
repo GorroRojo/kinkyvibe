@@ -7,8 +7,9 @@
  * - **Privacidad**: de la base salen solo candidatos (objetos que cambiaron hace poco). Se mandan
  *   únicamente los que además están en la lista pública del sitemap: publicaciones listadas y
  *   públicas (`sitePosts`, que ya aplica la visibilidad, las partes de taller ocultas y los perfiles
- *   no listados), sin las que redirigen a otro sitio, las páginas de la Kinkipedia y las de las
- *   series con ediciones públicas (`sitemapWikiPosts`, el grupo «wiki» del sitemap). Algo que se
+ *   no listados), sin las que redirigen a otro sitio ni los perfiles de persona que pidieron no
+ *   aparecer en buscadores (`inSitemap`), las páginas de la Kinkipedia y las de las series con
+ *   ediciones públicas (`sitemapWikiPosts`, el grupo «wiki» del sitemap). Algo que se
  *   ocultó, se borró o es solo para miembres no está en esa lista, así que nunca se avisa.
  * - **Series**: si cambia una edición pública, también se avisa la página de su serie
  *   (`/wiki/<serie>`, {@link eventSeriesPaths}), solo si está en esa misma lista.
@@ -18,6 +19,7 @@
 import { SITE_URL } from '$lib/utils/site.js';
 import { tagSlug } from '$lib/utils/tagSlug.js';
 import { tagPagePath } from '$lib/utils/series.js';
+import { inSitemap } from '$lib/utils/seo.js';
 
 /** Adonde se avisa (lo reparte a todos los motores que usan IndexNow). */
 export const INDEXNOW_ENDPOINT = 'https://api.indexnow.org/indexnow';
@@ -54,10 +56,7 @@ export const isValidIndexNowKey = (key) =>
  * @returns {Set<string>}
  */
 export function publicPaths(posts, wikiPosts) {
-	return new Set([
-		...posts.filter((p) => !p.meta.redirect).map((p) => p.path),
-		...wikiPosts.map((p) => p.path)
-	]);
+	return new Set([...posts.filter(inSitemap).map((p) => p.path), ...wikiPosts.map((p) => p.path)]);
 }
 
 /**

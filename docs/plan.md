@@ -20,7 +20,8 @@ gorrite, lo de algún día y lo descartado. Reemplaza a la vieja `docs/hoja-de-r
     que tener su ítem acá.
 
 - **El PR que hace o cambia algo actualiza su línea en el mismo PR** (estado, links). Lo nuevo
-  que queda pendiente entra como línea nueva. Lo hecho queda con `hecho` y su PR, en una línea.
+  que queda pendiente entra como línea nueva. Lo hecho queda con `hecho`, en una línea. El número
+  del PR no hace falta (el PR lo cita con su línea `Plan:`); si ya lo sabés, sumalo a los links.
 - **Todo PR lleva en su descripción una línea** `Plan: <id>[, <id>]` o `Plan: ninguno`. La CI
   falla si falta o si un id no existe en este archivo (los PRs de bots, como Dependabot, no la
   necesitan).
@@ -131,8 +132,9 @@ CI) va en la fase 0.
 
 ### Sitio público
 
+- `perfiles-buscadores` · fase 0 · hecho · sitio · «No aparecer en buscadores» para perfiles de persona (auditoría de comunidad, K15; gorrite: en Google por defecto): quienes gestionan el perfil lo sacan de los buscadores sin esconderlo del sitio (`noindex` en meta y cabecera, fuera del sitemap y de IndexNow, sin JSON-LD, vista previa sin foto) · #519, [amigues.md](amigues.md)
 - `promesas-entre-pedidos` · fase 0 · hecho · sitio · Bug: GET /admin y GET / se colgaban minutos a veces (cachés del isolate que compartían una consulta en camino entre pedidos); ahora entre pedidos solo se comparte lo ya leído · #352
-- `ux-auditoria-restos` · fase 0 · hecho · sitio · Lo que seguía abierto de la auditoría de UX del 4/10: anclas del glosario, áreas de toque, migas de pan (ya estaban, #215) y búsqueda vacía de la wiki · #333
+- `ux-auditoria-restos` · fase 0 · hecho · sitio · Lo que seguía abierto de la auditoría de UX del 4/10: anclas del glosario, áreas de toque, migas de pan (ya estaban, #215) búsqueda vacía de la wiki y «Entrar» en vez de «Ingresar» ([0050](decisiones/0050-entrar-no-ingresar.md)); en la Puerta (V12), «¿Te equivocaste? Ver la orden», descartar una venta sin conexión que todavía no se mandó y no recargar sin conexión (sin «Anular» con plata en la Puerta: gorrite, 26/10) · #333, #517, #522
 - `wiki-sin-entrada-editar` · fase 0 · hecho · sitio · «Editar contenido» en términos de la wiki que no tienen entrada (TODO en `UserMenu.svelte`) · #323
 - `wiki-html-default-seguro` · fase 0 · hecho · sitio · El texto de la wiki sin `wiki_body_html` guardado se muestra con la lista corta (como los eventos); la migración 0059 deja `libre` escrito en las páginas que ya estaban. Las imágenes de los textos con la lista corta (perfiles y demás), solo de la biblioteca propia (`/media/…`) · #384
 - `areas-toque-restos` · fase 0 · hecho · sitio · Toques de menos de 44px que pedían diseño: «Comprar entradas» en las tarjetas de las listas mide 44px en el celu (hecho, el botón mismo); el índice y «Enlace a esta sección» de los textos, las series hijas en la Kinkipedia y la línea de madres e hijas de un término quedan como están (gorrite: dejarlo así) · #335
@@ -250,7 +252,7 @@ CI) va en la fase 0.
 
 ### Plan y forma de trabajo
 
-- `plan-unico` · fase 1 · en curso · plan · Este archivo como único plan, con `plan-lint`, la línea `Plan:` en cada PR y el comentario `Plan revisado contra main` antes de mergear · [pruebas-y-ci.md](pruebas-y-ci.md)
+- `plan-unico` · fase 1 · en curso · plan · Este archivo como único plan, con `plan-lint`, la línea `Plan:` en cada PR y el comentario `Plan revisado contra main` antes de mergear; una línea `hecho` no necesita el número del PR · [pruebas-y-ci.md](pruebas-y-ci.md)
 - `plan-repaso-semanal` · fase 1 · sigue · plan · Repaso semanal del plan (lunes a la mañana): una sesión nueva lo compara con lo mergeado y la Mesa, deja registro y abre un PR de docs o dice «sin cambios»; el vigilante `.github/workflows/repaso-vigilante.yml` (GitHub Action diaria, sin Claude) abre un issue si pasan 8 días sin PR con la etiqueta `repaso-semanal` y lo cierra cuando vuelve a haber uno (depende de: plan-unico)
 - `plan-fuentes-viejas` · fase 1 · sigue · plan · Banner «reemplazado por docs/plan.md» en los artifacts de plan viejos; cerrar #70 y los issues viejos ya mapeados a un id; cerrar #46 (lo reemplazó #274, con crédito); las notas de las sesiones pasan a la Mesa (depende de: plan-unico)
 - `fases-siguiente` · fase 1 · hecho · plan · El próximo bloque grande es «Lo que sigo» del panel (respondido en la Mesa el 12/10; es `lo-que-sigo-panel`)
@@ -263,6 +265,7 @@ CI) va en la fase 0.
 - `backup-simulacro` · fase 1 · hecho · infra · Simulacro de restaurar un backup en local (`node scripts/d1-restore.js <fecha> --local`): corrió en Windows, igual que el backup (gorrite, 12/10) · #345
 - `salud-api` · fase 1 · hecho · infra · `GET /api/health`: si la base responde y tiene la última migración del código, y el commit del build, para un monitor o para mirar después de un deploy · #406 · [workers-migracion.md](workers-migracion.md#cómo-está-armado-para-quien-programa)
 - `backup-aviso-viejo` · fase 1 · hecho · infra · Ajustes › Automatizaciones avisa (en amarillo) si en producción no hay backup nocturno o el último tiene más de 36 horas, y lo mismo con el chequeo de integridad · #405 · [panel.md](panel.md#automatizaciones)
+- `backup-poda-segura` · fase 1 · hecho · infra · Si borrar los backups viejos falla (un Bucket lock sobre `d1/`, un error de R2), el backup nocturno igual termina bien: la poda va en su propio try/catch, lo avisa en el log y se reintenta la noche siguiente; tope del Bucket lock sobre `d1/`: 28 días · #504 · [workers-migracion.md](workers-migracion.md#backups-de-la-base)
 - `perf-placement` · fase 1 · hecho · infra · Dónde corre el Worker: probado `smart` (San José, peor), después región fija al lado de la base (`aws:us-east-1`) y, con las páginas ya en pocas idas a la base, sin ubicación, cerca de quien visita (medido desde Buenos Aires: 6 de 8 páginas más rápidas; gorrite, 25/10) · #387, #411, #449, [workers-migracion.md](workers-migracion.md#ubicación-del-worker)
 - `perf-fuentes-preload` · fase 1 · hecho · infra · Las dos Lato latin (400 y 700) se precargan con la opción `preload` de SvelteKit (cabecera `Link`, antes que el JS y con la URL con hash del CSS) en vez de esperar a que llegue el CSS; `font-display` sigue en `swap` · #402, [estilo.md](estilo.md)
 - `perf-listas-limite` · fase 1 · hecho · infra · `/todo`, `/material` y `/amigues` de a 24 tarjetas con «Ver más» (como el inicio): con todas juntas la página tardaba en responder al cargar; con una búsqueda se ve todo · #400, [seo.md](seo.md#auditoría-11102026)
@@ -340,7 +343,9 @@ CI) va en la fase 0.
 - `lo-que-sigo-avisos-fallidos` · fase 2 · en curso · panel · Contar los avisos de «Lo que sigo» que fallaron (hoy se borra su fila para reintentar: necesita migración; gorrite: sí, contalos, 12/10) (depende de: lo-que-sigo-panel) · #347
 - `admins-cuenta-normal` · fase 2 · sigue · cuentas · Admins con la cuenta del sitio en vez de GitHub: ser admin como permiso de la cuenta, la lista de admins a la base, migrar lo que guarda ids de GitHub; con decisión propia y por partes, con GitHub de respaldo (gorrite, 11/10)
 - `passkeys` · fase 2 · sigue · cuentas · Passkeys para las cuentas · [cuentas.md](cuentas.md#pendiente-partes-siguientes)
-- `compra-con-cuenta` · fase 2 · sigue · cuentas · Guardar `orders.account_id` al comprar y que `requiere_cuenta` pida ingresar de verdad · [0002](decisiones/0002-cuentas-y-perfiles.md)
+- `compra-con-cuenta` · fase 2 · sigue · cuentas · Guardar `orders.account_id` al comprar y que `requiere_cuenta` pida entrar de verdad · [0002](decisiones/0002-cuentas-y-perfiles.md)
+- `perfiles-reclamar` · fase 2 · hecho · cuentas · «¿Es tu perfil?» para cualquier cuenta, también sin el permiso de perfiles (gorrite, 26/10: reclamar un perfil que ya existe en vez de pedir el permiso); pedir no da nada, lo sigue aprobando une admin (con el permiso dado antes); Mi rincón lo explica sin el permiso y Perfiles ya no dice que los perfiles no tienen página pública · #514, [amigues.md](amigues.md)
+- `rincon-pedidos` · fase 2 · sigue · cuentas · Mi rincón lista los pedidos «¿Es tu perfil?» de la cuenta con su estado (pendiente, aprobado, no aprobado) y la página del perfil dice «no aprobado» en vez de volver a ofrecer el botón; aviso por mail al resolverse (depende de: perfiles-reclamar)
 - `amigues-editan-perfil` · fase 2 · sigue · cuentas · Mandarle a cada amigue un link por mail para gestionar su perfil desde Mi rincón (gorrite, 11/10)
 - `sesiones-dispositivos` · fase 2 · algún día · cuentas · Ver dónde hay una sesión abierta y cerrarla
 - `lo-que-sigo-panel` · fase 2 · hecho · panel · Mensajes › Lo que sigo: el estado para mirar (interruptores, números, avisos que salieron, «Avisame», Telegram, «Lo más seguido» arriba con el número exacto y quiénes siguen cada cosa, y «Por persona»; solo admins) · #320, [0043](decisiones/0043-lo-que-sigo-en-el-panel.md), [0025](decisiones/0025-lo-que-sigo.md)

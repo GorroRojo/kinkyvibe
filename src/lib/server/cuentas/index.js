@@ -1,5 +1,5 @@
 /**
- * Cuentas del público: los pasos de "Ingresar" con sus límites de intentos. Las páginas
+ * Cuentas del público: los pasos de "Entrar" con sus límites de intentos. Las páginas
  * (src/routes/(content)/ingresar y /mi-rincon) llaman a esto; las piezas están en:
  * accounts.js (cuentas y contraseñas), codes.js (códigos por mail), session.js (sesiones),
  * orders.js (compras de la cuenta), password.js (PBKDF2). Ver docs/cuentas.md.

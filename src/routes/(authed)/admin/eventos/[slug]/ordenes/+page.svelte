@@ -1,5 +1,5 @@
 <script>
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { deserialize, enhance } from '$app/forms';
 	import { CircleCheck, ReceiptText, Search, TicketPlus, TriangleAlert } from '@lucide/svelte';
 	import Card from '$lib/components/admin/panel/Card.svelte';
@@ -16,6 +16,8 @@
 		ORDER_STATUS_TONE,
 		PAYMENT_METHOD,
 		dniQueryDigits,
+		orderFilterFor,
+		orderIdFromHash,
 		shortTime
 	} from '$lib/admin/orderFormat.js';
 	import { formatARS } from '$lib/utils/money.js';
@@ -91,6 +93,19 @@
 				return words.every((w) => matches(w, hay, o.id));
 			})
 		: byStatus;
+	// Link a una orden (`#orden-<id>`, por ejemplo «¿Te equivocaste? Ver la orden» de la Puerta):
+	// si el filtro la esconde, pasa a «Todas»; baja hasta ella y la marca (`:target` no siempre se
+	// aplica después de una navegación del lado del cliente).
+	let linked = '';
+	onMount(async () => {
+		const id = orderIdFromHash(location.hash);
+		const o = id ? data.orders.find((x) => x.id === id) : null;
+		if (!o) return;
+		filter = orderFilterFor(filter, o.status);
+		linked = o.id;
+		await tick();
+		document.getElementById(`orden-${o.id}`)?.scrollIntoView({ block: 'start' });
+	});
 	$: counts = {
 		approved: data.orders.filter((o) => o.status === 'approved').length,
 		pending: data.orders.filter((o) => o.status === 'pending' || o.status === 'awaiting_transfer')
@@ -180,7 +195,7 @@
 	{/if}
 	<ul class="orders">
 		{#each visible as o (o.id)}
-			<li class="order status-{o.status}" id="orden-{o.id}">
+			<li class="order status-{o.status}" class:linked={o.id === linked} id="orden-{o.id}">
 				<div class="who">
 					<strong>{o.name}</strong>{#if o.pronouns}<span class="muted">({o.pronouns})</span>{/if}
 					<DniReveal orderId={o.id} tail={o.dniTail} {form} />
@@ -403,7 +418,8 @@
 	.order {
 		scroll-margin-top: 5rem;
 	}
-	.order:target {
+	.order:target,
+	.order.linked {
 		box-shadow: 0 0 0 3px var(--link);
 	}
 	.orders {

@@ -29,7 +29,7 @@ guía: `compartir.md` (llega con el PR #257).
 | `security.txt`                         | `src/lib/utils/securityTxt.js`, `/.well-known/security.txt`                     |
 | `robots.txt`                           | `static/robots.txt` (lo cuida `src/lib/utils/robots.test.js`)                   |
 | Feeds Atom y JSON Feed                 | `src/lib/utils/feeds.js` (el texto), `src/lib/server/feeds.js` (las respuestas) |
-| Sitemap                                | `src/routes/(content)/sitemap.xml/` (sin las publicaciones con `redirect`)      |
+| Sitemap                                | `src/routes/(content)/sitemap.xml/` (sin `redirect` ni perfiles `noindex`)      |
 | La dirección del sitio                 | `SITE_URL` y `siteOriginFrom` en `src/lib/utils/site.js` (un solo lugar)        |
 | Un evento en una línea                 | `eventLead` en `src/lib/utils/eventText.js` (vista previa y feeds)              |
 | «Próximo» (empieza después de ahora)   | `startsAfter` en `src/lib/utils/dates.js`                                       |
@@ -128,7 +128,8 @@ de `src/lib/utils/tickets.js`; gorrite, 26/10). Antes caía a otra casilla.
 
 `/sitemap.xml` (`src/routes/(content)/sitemap.xml/`): la raíz una sola vez (`/`), las listas
 `/calendario`, `/material`, `/amigues` y `/wiki`, las publicaciones listadas (sin las que
-redirigen) y las entradas de la wiki. Sin `<priority>` (Google la ignora). `lastmod` solo cuando
+redirigen ni los perfiles de persona con «No aparecer en buscadores»: `inSitemap`, ver
+[amigues.md](amigues.md)) y las entradas de la wiki. Sin `<priority>` (Google la ignora). `lastmod` solo cuando
 se conoce: el de una publicación es su `updated_date` o `published_date`; el de una lista, la fecha
 más nueva de lo que lista; `/` y `/wiki` van sin. Nunca la hora del pedido: si el `lastmod`
 cambia en cada visita, Google deja de creerle.
@@ -263,8 +264,9 @@ corrida falla, la siguiente la cubre.
 - **Privacidad**: de la base salen solo candidatos (objetos con `updated_at` reciente); se avisan
   únicamente los que están en la lista pública del sitemap (`sitePosts` y el grupo «wiki»:
   la Kinkipedia y las páginas de las series con ediciones públicas, `sitemapWikiPosts` de
-  `sitemap.xml/series.js`; sin los que redirigen). Lo oculto, lo de miembres, lo no listado y lo
-  borrado no está en esa lista, así que nunca se avisa, tampoco al pasar algo a oculto.
+  `sitemap.xml/series.js`; sin los que redirigen ni los perfiles con «No aparecer en buscadores»,
+  la misma regla `inSitemap`). Lo oculto, lo de miembres, lo no listado y lo borrado no está en
+  esa lista, así que nunca se avisa, tampoco al pasar algo a oculto.
 - **Series**: cuando cambia una edición pública, también se avisa la página de su serie
   (`/wiki/<serie>`, `eventSeriesPaths`), y cuando cambia la etiqueta de la serie, su página. En los
   dos casos, solo si esa página está en la lista del sitemap.
