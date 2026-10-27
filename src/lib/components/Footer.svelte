@@ -171,7 +171,7 @@
 		min-height: 2em;
 	}
 	a:hover {
-		text-decoration-color: var(--pink);
+		text-decoration-color: var(--1);
 	}
 	a:focus-visible {
 		outline-color: white;

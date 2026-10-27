@@ -131,7 +131,7 @@
 		background: white;
 		border-radius: var(--round, 1rem);
 		box-shadow: var(--shadow-1);
-		border-top: 0.4rem solid var(--pink);
+		border-top: 0.4rem solid var(--1);
 		padding: var(--space-m) var(--space-m) var(--space-m);
 		text-align: center;
 	}

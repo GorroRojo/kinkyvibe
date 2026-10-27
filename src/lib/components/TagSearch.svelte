@@ -296,7 +296,7 @@
 				role="option"
 				aria-selected="false"
 				data-highlighted={$highlightedItem === s.id ? '' : undefined}
-				style:--tag-color={tag?.getColor() ?? 'var(--pink)'}
+				style:--tag-color={tag?.getColor() ?? 'var(--1)'}
 				on:click={() => select(s.id)}
 				on:mouseover={() => highlightedItem.set(s.id)}
 				on:mouseleave={() => highlightedItem.set(null)}

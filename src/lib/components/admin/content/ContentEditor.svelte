@@ -767,11 +767,11 @@
 	.card-preview {
 		color-scheme: light;
 		--1-light: hsl(262, 100%, 75%);
-		--2-light: hsl(262, 100%, 75%);
+		--2-light: hsl(319, 100%, 70%);
 		--3-light: hsl(165, 84%, 65%);
 		--4-light: hsl(50, 100%, 70%);
 		--1-dark: hsl(262, 90%, 50%);
-		--2-dark: hsl(262, 90%, 50%);
+		--2-dark: hsl(319, 100%, 32%);
 		--3-dark: hsl(165, 84%, 30%);
 		--4-dark: hsl(50, 100%, 40%);
 		--surface: #fff;

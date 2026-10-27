@@ -65,7 +65,7 @@
 		max-width: 32rem;
 		margin: 2em auto;
 		box-sizing: border-box;
-		border-top: 0.35rem solid var(--pink);
+		border-top: 0.35rem solid var(--1);
 	}
 	.gracias.bad {
 		border-top-color: var(--muted);

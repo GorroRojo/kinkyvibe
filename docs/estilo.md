@@ -110,11 +110,12 @@ son sombras: esos quedan como están.
   `-light`, `-dark` y `-tint` (fondo pálido); texto legible sobre los tints: `--1-ink`, `--2-dark`,
   `--3-ink`, `--4-ink`.
 - **Prueba «paleta violeta»** (rama `prueba-paleta-violeta`, sin mergear): la paleta original del
-  diseño. `--1*` apunta al violeta (`--2*`), así que botones, links, menú, rellenos, franja de
-  fecha y foco pasan a violeta; el rosa queda como acento en `--pink*` (chips sin color propio,
-  subrayados, guardas, corazones, viñetas, barra de carga) y como rosa oscuro en lo destructivo
-  (`.danger`, `--bad`). Donde esta página dice «rosa» para botones y rellenos, en la prueba es
-  violeta.
+  diseño, con los roles de los dos primeros colores intercambiados. `--1*` (lo que era rosa:
+  botones, menú, rellenos, franja de fecha) pasa a violeta y `--2*` (lo que era violeta: links,
+  «estás acá», foco, negritas, la franja de los posts sin marca) pasa a rosa, en su versión oscura
+  (`--2` = #cc008b, 5.3:1 como texto y bajo texto blanco). Lo que se distinguía por color se sigue
+  distinguiendo. Los neutros teñidos del panel (fondos, líneas, bordes de campos, scrim) siguen
+  teñidos de violeta (`--1`). Donde esta página dice «rosa» o «violeta», en la prueba es al revés.
 - Neutros del sitio: `--bg` (fondo), `--surface` (tarjetas), `--ink` (texto), `--muted`
   (secundario), `--line` (bordes), `--hover`.
 - **`--error`** (rojo) y **`--error-bg`**: errores, malas noticias, avisos que importan y acciones

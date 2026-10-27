@@ -56,7 +56,7 @@
 		content: '';
 		position: absolute;
 		inset: 0;
-		background: var(--pink);
+		background: var(--1);
 		transform-origin: left;
 		/* Crece rápido al principio y cada vez más lento, sin llegar al final: no promete cuánto falta. */
 		animation: loading-bar-grow 8s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;

@@ -98,7 +98,7 @@
 					<BookOpen {style} />
 				{/if}
 			{:else}
-				<Heart style={style + 'fill:var(--pink);'} strokeWidth="3px" />
+				<Heart style={style + 'fill:var(--post-color);'} strokeWidth="3px" />
 			{/if}
 		</div>
 		{#if category != 'amigues'}
