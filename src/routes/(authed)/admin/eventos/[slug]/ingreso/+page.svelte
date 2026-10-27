@@ -83,7 +83,14 @@
 		queueOfflineSale,
 		salesPayload
 	} from '$lib/admin/doorOffline.js';
-	import { CHECKIN_TIMEOUT_MS, SERVER_RETRY_MS, scanFallback } from '$lib/admin/doorFallback.js';
+	import {
+		CHECKIN_TIMEOUT_MS,
+		SALES_BATCH,
+		SERVER_RETRY_MS,
+		SYNC_BATCH,
+		inBatches,
+		scanFallback
+	} from '$lib/admin/doorFallback.js';
 
 	export let data;
 	/** @type {any} */
@@ -570,8 +577,26 @@
 	 * servidor las registra una por una (idempotente: un reintento no duplica).
 	 */
 	async function syncSales() {
-		const r = await postAction('syncSales', { sales: JSON.stringify(salesPayload(door.sales)) });
-		if (r.type !== 'success' || !r.data?.syncSales?.ok) return;
+		// En tandas de SALES_BATCH (el servidor rechaza más), en orden; si una falla, se corta ahí y
+		// lo que queda sigue en la cola.
+		for (const batch of inBatches(salesPayload(door.sales), SALES_BATCH)) {
+			if (!(await syncSalesBatch(batch))) {
+				say(
+					`No se pudo sincronizar: quedan ${door.sales.length} ${door.sales.length === 1 ? 'venta' : 'ventas'} pendientes. Probá con «Sincronizar» o avisale a gorrite.`
+				);
+				return;
+			}
+		}
+	}
+
+	/**
+	 * @param {ReturnType<typeof salesPayload>} batch
+	 * @returns {Promise<boolean>} si el servidor la aceptó
+	 */
+	async function syncSalesBatch(batch) {
+		const r = await postAction('syncSales', { sales: JSON.stringify(batch) });
+		if (r.type === 'success') serverDown = false;
+		if (r.type !== 'success' || !r.data?.syncSales?.ok) return false;
 		const applied = applySaleSyncResults(door, r.data.syncSales.results);
 		door = applied.state;
 		persist();
@@ -607,6 +632,7 @@
 				`${n === 1 ? 'Se sincronizó 1 venta hecha' : `Se sincronizaron ${n} ventas hechas`} sin conexión${applied.warnings.length ? ` (${applied.warnings.length} para revisar)` : ''}.`
 			);
 		}
+		return true;
 	}
 
 	async function sync() {
@@ -619,23 +645,39 @@
 				return;
 			}
 			const queue = door.queue.map(({ id, token, code, at }) => ({ id, token, code, at }));
-			const r = await postAction('sync', { queue: JSON.stringify(queue) });
-			if (r.type === 'success') serverDown = false;
-			if (r.type === 'success' && r.data?.sync?.ok) {
+			// En tandas de SYNC_BATCH (el servidor rechaza más de 500): cada una se aplica al llegar;
+			// si una falla, se corta ahí y lo que queda sigue en la cola, con el aviso.
+			let done = 0;
+			let problems = 0;
+			let synced = false;
+			let failed = false;
+			for (const batch of inBatches(queue, SYNC_BATCH)) {
+				const r = await postAction('sync', { queue: JSON.stringify(batch) });
+				if (r.type === 'success') serverDown = false;
+				if (r.type !== 'success' || !r.data?.sync?.ok) {
+					say(
+						`No se pudo sincronizar: quedan ${door.queue.length} ${door.queue.length === 1 ? 'ingreso' : 'ingresos'} pendientes. Probá con «Sincronizar» o avisale a gorrite.`
+					);
+					failed = true;
+					break;
+				}
 				const applied = applySyncResults(door, r.data.sync.results);
 				door = applied.state;
 				persist();
 				conflicts = [...applied.conflicts, ...conflicts].slice(0, 20);
 				setCounts(r.data.counts);
-				if (applied.done) {
-					const n = applied.done;
-					const problems = applied.conflicts.length;
-					say(
-						`${n === 1 ? 'Se sincronizó 1 ingreso' : `Se sincronizaron ${n} ingresos`} marcado${n === 1 ? '' : 's'} sin conexión${problems ? ` (${problems} con problemas)` : ''}.`
-					);
-				}
-				await refreshList();
+				synced = true;
+				done += applied.done;
+				problems += applied.conflicts.length;
 			}
+			// Si una tanda falló, queda a la vista ese aviso (no lo tapa el de lo que sí salió).
+			if (done && !failed) {
+				const n = done;
+				say(
+					`${n === 1 ? 'Se sincronizó 1 ingreso' : `Se sincronizaron ${n} ingresos`} marcado${n === 1 ? '' : 's'} sin conexión${problems ? ` (${problems} con problemas)` : ''}.`
+				);
+			}
+			if (synced) await refreshList();
 		} catch {
 			// Sin red de verdad, «sin conexión»; con red, el servidor no contestó: se reintenta en la
 			// próxima vuelta (antes quedaba «sin conexión» hasta un evento `online` que no llegaba).
