@@ -33,6 +33,7 @@ import {
 	effectiveWaitlistSettings,
 	holdUntil
 } from '$lib/utils/waitlistHold.js';
+import { autoSubmitted } from './email.js';
 import { mailBatchSize } from './batchSize.js';
 import { salesState, typeAvailability, typeClosesAt } from './config.js';
 import { HOLDING } from './discounts.js';
@@ -610,7 +611,7 @@ const templateOf = (m) =>
  * @param {D1Database} db
  * @param {{ limit: number, send: WaitlistSend, origin: string, contactEmail?: string,
  *   now?: number, eventSlug?: string | null, configOf?: ConfigOf }} input
- * @returns {Promise<{ sent: number, failed: number, remaining: number }>}
+ * @returns {Promise<import('./sendState.js').BatchResult>}
  */
 export async function sendWaitlistMails(db, input) {
 	const { limit, send, origin, now = Date.now(), eventSlug = null } = input;
@@ -645,7 +646,11 @@ export async function sendWaitlistMails(db, input) {
 		claim: (m) => ({ entryId: m.id, key: [m.kind, m.kind === 'closed' ? 0 : m.round] }),
 		send: async (m) => {
 			const config = await configFor(m.event_slug);
-			const event = { title: config?.title || m.event_slug, start: config?.start ?? null };
+			const event = {
+				title: config?.title || m.event_slug,
+				start: config?.start ?? null,
+				end: config?.end ?? null
+			};
 			const typeName = m.ticket_type
 				? (config?.types.find((t) => t.id === m.ticket_type)?.name ?? m.ticket_type)
 				: null;
@@ -682,7 +687,11 @@ export async function sendWaitlistMails(db, input) {
 									reason: m.end_reason === 'event_cancelled' ? 'event_cancelled' : 'closed',
 									eventUrl: `${origin.replace(/\/+$/, '')}/calendario/${encodeURIComponent(m.event_slug)}`
 								});
-			const result = await send(m.email, message, waitlistIdempotencyKey(m.kind, m.id, m.round));
+			const result = await send(
+				m.email,
+				autoSubmitted(message),
+				waitlistIdempotencyKey(m.kind, m.id, m.round)
+			);
 			return result !== 'failed';
 		}
 	});
@@ -693,13 +702,13 @@ export async function sendWaitlistMails(db, input) {
  * `runMailQueueWith`), con el envío de siempre (`deliverEmail`).
  *
  * @param {{ db: D1Database, origin: string, fetch: typeof fetch, now?: number }} input
- * @returns {(limit: number) => Promise<{ sent: number, failed: number, remaining: number }>}
+ * @returns {(limit: number) => Promise<import('./sendState.js').BatchResult>}
  */
 export function waitlistMailBatch({ db, origin, fetch: fetchFn, now }) {
 	return (limit) =>
 		sendWaitlistMails(db, {
 			limit,
-			send: waitlistSender(db, fetchFn),
+			send: waitlistSender(db, fetchFn, { batch: true }),
 			origin,
 			contactEmail: contactEmail(),
 			...(now ? { now } : {})
@@ -756,7 +765,7 @@ async function nudge({ platform, db: given, eventSlug, origin, fetch: fetchFn, n
 	if (fetchFn && origin) {
 		await sendWaitlistMails(db, {
 			limit: mailBatchSize((await getSalesSettings(db)).mail_batch_size),
-			send: waitlistSender(db, fetchFn),
+			send: waitlistSender(db, fetchFn, { batch: true }),
 			origin,
 			contactEmail: contactEmail(),
 			eventSlug,

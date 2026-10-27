@@ -59,6 +59,14 @@
 					</li>
 				{/each}
 			</ul>
+		{:else}
+			<!-- Las entradas se muestran solo con la cookie de la compra (otro navegador o vencida: no). -->
+			<p>
+				Acá las entradas se ven solo en el navegador donde hiciste la compra. Desde otro, abrilas
+				con {order.quantity === 1
+					? 'el link de la entrada que te mandamos por mail'
+					: 'los links del mail: cada entrada tiene el suyo'}.
+			</p>
 		{/if}
 	{:else if order.status === 'awaiting_transfer'}
 		<h1>Reservamos tus entradas: falta la transferencia</h1>
@@ -111,7 +119,7 @@
 		<h1>Esta compra se canceló</h1>
 		<p>
 			No se emitieron entradas. Si pagaste igual, respondé el email o escribinos con el número de
-			orden.
+			compra, {order.reference}.
 		</p>
 	{:else if order.status === 'refunded'}
 		<h1>Esta compra fue reembolsada</h1>
@@ -120,7 +128,7 @@
 		<h1>Esta reserva venció</h1>
 		<p>
 			No recibimos el pago a tiempo y el lugar se liberó. Si te cobraron igual, respondé el email o
-			escribinos con el número de orden.
+			escribinos con el número de compra, {order.reference}.
 		</p>
 	{/if}
 
@@ -173,8 +181,8 @@
 					? 'Sin cargo'
 					: 'Mercado Pago'}
 		</dd>
-		<dt>Orden</dt>
-		<dd><code>{order.id}</code></dd>
+		<dt>Número de compra</dt>
+		<dd><code>{order.reference}</code></dd>
 	</dl>
 
 	{#if order.status !== 'approved' && order.status !== 'pending' && order.status !== 'awaiting_transfer'}

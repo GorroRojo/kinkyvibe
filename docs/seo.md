@@ -29,7 +29,7 @@ guía: `compartir.md` (llega con el PR #257).
 | `security.txt`                         | `src/lib/utils/securityTxt.js`, `/.well-known/security.txt`                     |
 | `robots.txt`                           | `static/robots.txt` (lo cuida `src/lib/utils/robots.test.js`)                   |
 | Feeds Atom y JSON Feed                 | `src/lib/utils/feeds.js` (el texto), `src/lib/server/feeds.js` (las respuestas) |
-| Sitemap                                | `src/routes/(content)/sitemap.xml/` (sin las publicaciones con `redirect`)      |
+| Sitemap                                | `src/routes/(content)/sitemap.xml/` (sin `redirect` ni perfiles `noindex`)      |
 | La dirección del sitio                 | `SITE_URL` y `siteOriginFrom` en `src/lib/utils/site.js` (un solo lugar)        |
 | Un evento en una línea                 | `eventLead` en `src/lib/utils/eventText.js` (vista previa y feeds)              |
 | «Próximo» (empieza después de ahora)   | `startsAfter` en `src/lib/utils/dates.js`                                       |
@@ -128,7 +128,8 @@ de `src/lib/utils/tickets.js`; gorrite, 26/10). Antes caía a otra casilla.
 
 `/sitemap.xml` (`src/routes/(content)/sitemap.xml/`): la raíz una sola vez (`/`), las listas
 `/calendario`, `/material`, `/amigues` y `/wiki`, las publicaciones listadas (sin las que
-redirigen) y las entradas de la wiki. Sin `<priority>` (Google la ignora). `lastmod` solo cuando
+redirigen ni los perfiles de persona con «No aparecer en buscadores»: `inSitemap`, ver
+[amigues.md](amigues.md)) y las entradas de la wiki. Sin `<priority>` (Google la ignora). `lastmod` solo cuando
 se conoce: el de una publicación es su `updated_date` o `published_date`; el de una lista, la fecha
 más nueva de lo que lista; `/` y `/wiki` van sin. Nunca la hora del pedido: si el `lastmod`
 cambia en cada visita, Google deja de creerle.
@@ -220,7 +221,7 @@ Después de cambiarla, alguien con acceso tiene que tocar «Update profile» en 
 - La foto del encabezado de un perfil dice «Foto de perfil de X» (los nombres de archivo son
   hashes: el texto alternativo es lo único que lee Google Imágenes).
 
-### Kinkipedia: 404 y canónica
+### Kinkipedia: 404, canónica y 301
 
 - `/wiki/<término>` da **404** (la página de error, con `noindex` y su `<h1>`) cuando el término no
   es ninguna etiqueta del árbol ni una página de la wiki. Antes era una página casi vacía con 200,
@@ -230,7 +231,13 @@ Después de cambiarla, alguien con acceso tiene que tocar «Update profile» en 
 - **Canónica**: la forma slug de la etiqueta (`tagPagePath`, la misma que el sitemap y los links),
   igual para todas las formas que llevan a ella: `/wiki/bdsm`, `/wiki/Bdsm` y `/wiki/BDSM` →
   `/wiki/BDSM`; un alias → la de su etiqueta. Código: `siteWikiEntry` en
-  `src/lib/server/wiki/site.js` (`known`, `fromDb`, `canonicalPath`).
+  `src/lib/server/wiki/site.js` (`known`, `fromDb`, `canonicalPath`, `canonicalTerm`).
+- **301**: las otras formas (`/wiki/bdsm`, `/wiki/Bdsm`, `/wiki/Cine para Sucixs`, un alias)
+  redirigen con un 301 a la canónica, con la misma query (solo GET y HEAD; en la navegación del
+  sitio, el `__data.json` contesta el redirect y el navegador va a la canónica). Se compara el
+  segmento ya decodificado, así una tilde codificada no redirige a sí misma; si la canónica no
+  llevara de vuelta a la misma página (dos etiquetas con el mismo slug), no redirige. Con la misma
+  guarda que el 404: sin base, nunca. Lo aprobó gorrite (Mesa, `seo-wiki-301`).
 
 ### Un solo host: www → apex
 
@@ -255,9 +262,14 @@ corrida falla, la siguiente la cubre.
   el aviso es del sitio; es pública por diseño). Tampoco avisa fuera de producción (origen distinto
   de `https://kinkyvibe.ar`).
 - **Privacidad**: de la base salen solo candidatos (objetos con `updated_at` reciente); se avisan
-  únicamente los que están en la lista pública del sitemap (`sitePosts` y la Kinkipedia, sin los
-  que redirigen). Lo oculto, lo de miembres, lo no listado y lo borrado no está en esa lista, así
-  que nunca se avisa, tampoco al pasar algo a oculto.
+  únicamente los que están en la lista pública del sitemap (`sitePosts` y el grupo «wiki»:
+  la Kinkipedia y las páginas de las series con ediciones públicas, `sitemapWikiPosts` de
+  `sitemap.xml/series.js`; sin los que redirigen ni los perfiles con «No aparecer en buscadores»,
+  la misma regla `inSitemap`). Lo oculto, lo de miembres, lo no listado y lo borrado no está en
+  esa lista, así que nunca se avisa, tampoco al pasar algo a oculto.
+- **Series**: cuando cambia una edición pública, también se avisa la página de su serie
+  (`/wiki/<serie>`, `eventSeriesPaths`), y cuando cambia la etiqueta de la serie, su página. En los
+  dos casos, solo si esa página está en la lista del sitemap.
 - Dónde verlo: el resultado sale en la respuesta del cron (`indexNow: { sent, status }`, en
   Observability → Logs, `recordatorios:`) y en Bing Webmaster Tools → IndexNow.
 
@@ -496,8 +508,8 @@ cada tarjeta esconde 1 o 2 chips.
   formulario o a la tienda) y ya no están. Las etiquetas sin entrada de la wiki no están (bien:
   son listas). Las series sí (`/wiki/<serie>`, con la fecha más nueva de sus ediciones), solo si
   tienen alguna edición que ve cualquiera (`sitemap.xml/series.js`).
-- **Series**: la página de una serie (`/wiki/<serie>`) tiene siempre un `h1` (si la etiqueta no
-  tiene descripción, solo para lectores de pantalla: `GlosarioItem`), la descripción «Ediciones de
+- **Series**: la página de una serie (`/wiki/<serie>`) tiene siempre un `h1` visible (aunque la
+  etiqueta no tenga descripción: `GlosarioItem`), la descripción «Ediciones de
   «X» en Kinky Vibe: N fechas, la próxima el …» (`seriesDescription` en `seo.js`; si la etiqueta
   tiene descripción propia, va esa, como en cualquier etiqueta sin entrada) y un
   `EventSeries` con sus ediciones (`seriesSchema` en `jsonLd.js`: nombre, página, fecha y estado;
