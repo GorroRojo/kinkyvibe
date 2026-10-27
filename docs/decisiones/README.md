@@ -75,6 +75,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0019](0019-proyecto.md): "Proyecto" reemplaza a "grupo" (1/10)
 - [0048](0048-entradas-gratis-sin-sesion-se-preguntan.md): Las entradas gratis pedidas sin la
   sesión de la cuenta se preguntan en Mi rincón («¿Son tuyas?») (25/10)
+- [0052](0052-link-de-puerta.md): Link de puerta por evento: solo la puerta de ese evento, sin
+  cuenta, con vencimiento y revocable (26/10)
 
 ### Contenido, objetos y etiquetas
 

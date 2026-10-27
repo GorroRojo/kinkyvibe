@@ -1,7 +1,8 @@
--- Migration number: 0065 	 2026-10-26T23:55:00.000Z
+-- Migration number: 0067 	 2026-10-26T23:55:00.000Z
 -- Links de puerta (docs/tickets.md, «Link de puerta»): une admin crea, para un solo evento, un
 -- link que abre solo el modo puerta de ese evento, sin cuenta. Creada con
--- `npm run db:migrations:new`.
+-- `npm run db:migrations:new` (salió 0065) y pasada a 0067 porque la 0065 y la 0066 ya las usan
+-- otros PRs.
 --
 -- - `id`: id público del link (al azar, no secreto): es el que queda en el registro de actividad
 --   y en las acciones del panel (revocar).
