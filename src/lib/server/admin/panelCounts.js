@@ -52,7 +52,12 @@ export async function panelCounts(platform, now = Date.now(), { locals } = {}) {
 	}
 	// El uso de las etiquetas y la lista de eventos, a la par de la tanda.
 	const outside = reviewTagUsage();
-	const eventLists = Promise.all([listEvents(), listTicketedEvents()]).catch((error) => {
+	/** @type {import('$lib/server/tickets/events.js').BrokenTicketConfig[]} */
+	const brokenTickets = [];
+	const eventLists = Promise.all([
+		listEvents(),
+		listTicketedEvents({ broken: brokenTickets, now })
+	]).catch((error) => {
 		console.error('[admin] «Para revisar»: no se pudo leer la lista de eventos', error);
 		return /** @type {[import('$lib/server/eventos/index.js').EventSummary[], { slug: string, config: import('$lib/server/tickets/config.js').EventTickets }[]]} */ ([
 			[],
@@ -114,7 +119,16 @@ export async function panelCounts(platform, now = Date.now(), { locals } = {}) {
 	});
 	// Botón global «Para revisar»: las filas de la tarjeta del Inicio, armadas igual.
 	counts.review = reviewCount(
-		reviewRows({ ...s1, ...(await outside), upcoming, ticketed, titles, cancelled, now })
+		reviewRows({
+			...s1,
+			...(await outside),
+			upcoming,
+			ticketed,
+			titles,
+			cancelled,
+			brokenTickets,
+			now
+		})
 	);
 	return counts;
 }

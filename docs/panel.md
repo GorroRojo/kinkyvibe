@@ -304,6 +304,12 @@ revisar" del Inicio.
   eventos próximos sin imagen», «2 perfiles nuevos para revisar», el chequeo nocturno con sus
   problemas o las etiquetas. Si la tarjeta tiene 7 filas, el botón dice 7 y el Inicio dice «7 cosas
   para revisar». Sin filas, «todo al día».
+- **Entradas con la configuración rota** (auditoría de confiabilidad, O19): un evento próximo y no
+  cancelado que tiene entradas pero cuya configuración ya no se puede leer (una regla endurecida
+  después, un dato editado a mano) no vende y la ficha lo muestra como «no vende». Con la opción
+  `broken`, `listTicketedEvents` (`src/lib/server/tickets/events.js`) los anota y «Para revisar»
+  suma una fila por evento («… no puede vender entradas: su configuración tiene un error», con el
+  error de validación y «Editar»).
 - **Cuando la base falla, el Inicio lo dice** (auditoría de confiabilidad, O18): cada consulta que
   cae a su respaldo por un error queda anotada (el parámetro `failed` de `runQuery` y `runQueries`
   en `src/lib/server/db/batch.js`, que pasa también por `combineQueries` y `mapQuery`) y el load

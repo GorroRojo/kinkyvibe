@@ -77,7 +77,12 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 	first.catch(() => {});
 	others.catch(() => {});
 
-	const [events, ticketedList] = await Promise.all([listEvents(), listTicketedEvents()]);
+	/** @type {import('$lib/server/tickets/events.js').BrokenTicketConfig[]} */
+	const brokenTickets = [];
+	const [events, ticketedList] = await Promise.all([
+		listEvents(),
+		listTicketedEvents({ broken: brokenTickets, now })
+	]);
 	// Los eventos de prueba del repo solo existen en `vite dev`.
 	const skip = skipReviewEvent;
 	const { ticketed, titles, today, soonTicketed, reminderEvents, cancelledSlugs } =
@@ -136,7 +141,16 @@ export async function load({ locals, url, platform, fetch, setHeaders }) {
 		skip
 	});
 	// «Para revisar»: las mismas filas que cuenta el botón del menú (panelCounts.js).
-	const todo = reviewRows({ ...s1, ...outside, upcoming, ticketed, titles, cancelled, now });
+	const todo = reviewRows({
+		...s1,
+		...outside,
+		upcoming,
+		ticketed,
+		titles,
+		cancelled,
+		brokenTickets,
+		now
+	});
 
 	// Los recordatorios se configuran en Mensajes → Configuración.
 	const remindersItem = navItem('ajustes-mails');

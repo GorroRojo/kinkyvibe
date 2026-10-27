@@ -270,6 +270,30 @@ async function eventsWithVenue(slug) {
 	return (await import('../amigues/venues.js')).eventsWithVenue(db, slug);
 }
 
+/** @typedef {{ slug: string, title: string, message: string }} BrokenTicketConfig */
+
+/**
+ * Si un evento próximo y no cancelado tiene entradas pero su configuración no se puede leer: su
+ * dirección, título y el error de validación (corto). `null` si no.
+ *
+ * @param {string} slug
+ * @param {Record<string, any>} meta
+ * @param {number} now
+ * @returns {BrokenTicketConfig | null}
+ */
+export function brokenTicketConfig(slug, meta, now) {
+	if (!sellsTickets(meta) || meta.status === 'cancelado') return null;
+	const start = Date.parse(String(meta.start ?? ''));
+	if (Number.isFinite(start) && start < now) return null;
+	try {
+		parseTicketConfig(meta, {});
+		return null;
+	} catch (error) {
+		const message = String(/** @type {Error} */ (error)?.message ?? error).slice(0, 200);
+		return { slug, title: String(meta.title ?? slug), message };
+	}
+}
+
 /**
  * @param {string} slug
  * @param {Record<string, any> | null} meta
@@ -291,10 +315,16 @@ function ticketsOf(slug, meta, options) {
 /**
  * Todos los eventos publicados que venden entradas.
  *
- * @param {{ fondoPercent?: number | null }} [options] ver `getEventTickets`
+ * `broken` (opcional): una lista donde se anotan los eventos próximos y no cancelados que tienen
+ * entradas pero cuya configuración ya no se puede leer (una regla endurecida después, un dato
+ * editado a mano): no venden y la ficha los muestra como «no vende», así que «Para revisar» los
+ * avisa (auditoría de confiabilidad, O19). Solo la dirección, el título y el error de validación.
+ *
+ * @param {{ fondoPercent?: number | null, broken?: BrokenTicketConfig[], now?: number }} [options]
+ *   ver `getEventTickets`; `now`, para decidir qué evento es próximo
  * @returns {Promise<{ slug: string, config: import('./config.js').EventTickets }[]>}
  */
-export async function listTicketedEvents(options = {}) {
+export async function listTicketedEvents({ broken, now = Date.now(), ...options } = {}) {
 	const out = [];
 	// Los eventos con lugar, a la par de la lista (ver {@link getEventTickets}): solo se usan si
 	// alguno vende entradas.
@@ -304,6 +334,10 @@ export async function listTicketedEvents(options = {}) {
 	for (const { slug, meta } of metas) {
 		const config = ticketsOf(slug, meta, { ...options, hasVenue: withVenue.has(slug) });
 		if (config) out.push({ slug, config });
+		else if (broken) {
+			const b = brokenTicketConfig(slug, meta, now);
+			if (b) broken.push(b);
+		}
 	}
 	out.sort((a, b) => String(b.config.start ?? '').localeCompare(String(a.config.start ?? '')));
 	return out;
