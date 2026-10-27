@@ -29,6 +29,13 @@ keep_vars = true
 # mira las cookies (le daría la página anónima a quien tiene sesión). Ver docs/workers-migracion.md,
 # «No prender Workers Cache».
 
+# Tope de CPU por invocación (pedidos y crons): 15 s en vez de los 30 s por defecto. Es un freno de
+# costo contra un pedido que se cuelga en un bucle, no de velocidad. Medido en local con la semilla
+# (27/10/2026): el cron nocturno entero (backup + integridad) ~1 s de pared y `/og` 1,2–3 s; en
+# producción la base es unas 5 veces la semilla. Ver docs/workers-migracion.md, «Tope de CPU».
+[limits]
+cpu_ms = 15000
+
 # Los archivos que genera el adapter de SvelteKit (ver wrangler.adapter.toml).
 [assets]
 directory = ".svelte-kit/cloudflare"

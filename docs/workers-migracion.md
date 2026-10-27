@@ -389,6 +389,25 @@ manda lo pendiente y olvida lo leído; si la tanda falla, cada consulta se corre
 Un `curl` sin `-H 'accept: text/html'` nunca usa la caché de 1 minuto (`BYPASS`): mide la página
 recién hecha, que es lo que ve quien llega cuando no hay una guardada.
 
+## Tope de CPU (`[limits] cpu_ms`)
+
+`wrangler.toml` pone `cpu_ms = 15000`: cada invocación (un pedido o una corrida de cron) puede usar
+hasta 15 s de CPU en vez de los 30 s por defecto. Es un freno de costo (un pedido colgado en un
+bucle gasta la mitad), no mejora la velocidad. Rige también para los crons.
+
+Medido en local el 27/10/2026, build de producción con la semilla pública (`npm run db:semilla`,
+7.179 filas, 5 MB de SQL) en `wrangler dev`:
+
+- **Cron nocturno** (`/__scheduled?cron=0+6+*+*+*`: backup, integridad y lo demás): ~1,1 s de pared
+  en total. El volcado + gzip solo, medido en Node con `process.cpuUsage`: 1,0–1,3 s de CPU (incluye
+  el costo del proxy local de D1).
+- **`/og/…`** (dibujar una tarjeta): 1,2–3,0 s de pared (la primera incluye iniciar el WebAssembly).
+
+La CPU es como mucho el tiempo de pared. Producción tiene unas 5 veces las filas de la semilla, así
+que el backup andaría por ~5 s: 15 s deja unas 3 veces de margen. Si un día el backup se acerca
+(Observability → cpuTime del cron de las 6:00 UTC), subir el número o sacar el bloque; nunca
+bajarlo sin medir. En el panel: Settings → CPU Limits muestra el valor vigente.
+
 ## Bots: Bot Fight Mode apagado
 
 **A CONFIRMAR** por gorrite (lo propone la auditoría de costos; no se tocó nada en el panel). Bot
