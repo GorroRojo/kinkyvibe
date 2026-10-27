@@ -491,6 +491,9 @@ cada tarjeta esconde 1 o 2 chips.
   febrero de 2026 · Kinky Vibe»; `eventPageTitle` en `eventPage.js`), sea o no de una serie y
   aunque haya varias ediciones en el mes, salvo que el título ya diga ese día. Sale solo del
   evento, sin mirar la serie. El `h1` y la vista previa al compartir quedan con el título solo.
+  Si el `<title>` pasa de 65 caracteres (Google muestra unos 60), pierde « · Kinky Vibe»; y si
+  el título del evento solo ya es más largo, se recorta en una palabra con «…», conservando el
+  día (`eventTabTitle`). Solo la pestaña y los buscadores: el `h1` y `og:title` van enteros.
   Los perfiles no dicen «· Kinky Vibe» («Mem | él»).
 - **Títulos de las listas**: el `<title>` del inicio es `home.title` y el de cada lista es su
   título del panel más « · Kinky Vibe» (`<lista>.heading`, `wiki.title`; Ajustes › Vistas
