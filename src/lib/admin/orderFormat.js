@@ -31,6 +31,16 @@ export const PAYMENT_METHOD = /** @type {Record<string, string>} */ ({
 });
 
 /**
+ * Lo que avisó Resend del mail de las entradas (`orders.email_problem`, webhook de Resend;
+ * docs/mails.md, «Rebotes y quejas»). Lo que no está acá se muestra como «mail enviado».
+ */
+export const EMAIL_PROBLEM = /** @type {Record<string, string>} */ ({
+	bounced: 'el mail rebotó',
+	complained: 'marcó el mail como spam',
+	suppressed: 'el mail rebotó (dirección bloqueada en Resend)'
+});
+
+/**
  * Fecha y hora cortas en Argentina, como en los registros ("30/9/26 21:05").
  * @param {number} ms
  */

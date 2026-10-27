@@ -624,6 +624,32 @@ describe('upcomingEvents y reviewItems', () => {
 			'draft-borrador'
 		]);
 	});
+	it('un mail de entradas que rebotó o marcaron como spam lleva a la orden, no a «Reenviar»', () => {
+		const items = reviewItems({
+			upcoming: [],
+			transfers: [],
+			unsent: [
+				{ id: 'o3', ref: 'KV-O3', slug: 'hoy', buyerName: 'Rebote', problem: 'bounced' },
+				{ id: 'o4', ref: 'KV-O4', slug: 'hoy', buyerName: 'Queja', problem: 'complained' },
+				{ id: 'o5', ref: 'KV-O5', slug: 'hoy', buyerName: 'Bloqueo', problem: 'suppressed' }
+			],
+			review: [],
+			titles: new Map([['hoy', 'Hoy']]),
+			links: {
+				transfers: (s) => `/t/${s}`,
+				order: (s, id) => `/o/${s}/${id ?? ''}`,
+				stream: (s) => `/s/${s}`,
+				edit: (s) => `/e/${s}`
+			},
+			formatWhen: () => ''
+		});
+		expect(items).toMatchObject([
+			{ id: 'mail-o3', title: 'Rebotó el mail de Rebote', action: 'Ver orden', href: '/o/hoy/o3' },
+			{ id: 'mail-o4', title: 'Queja marcó como spam el mail de las entradas', href: '/o/hoy/o4' },
+			{ id: 'mail-o5', title: 'Rebotó el mail de Bloqueo', text: 'KV-O5 · Hoy' }
+		]);
+		expect(items.some((i) => i.resend)).toBe(false);
+	});
 	it('envíos que fallaron todos sus intentos: recordatorios con "Reintentar", link al evento', async () => {
 		expect(await stuckSends(null, ['online'])).toEqual({
 			reminders: new Map(),
