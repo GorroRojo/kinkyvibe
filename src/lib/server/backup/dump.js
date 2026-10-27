@@ -360,10 +360,12 @@ async function dumpRows(db, table, emit, stats, flush) {
 	let count = 0;
 	for (let offset = 0; ; offset += PAGE_SIZE) {
 		const from = quoteIdent(table.name);
+		/** @type {string} */
 		const query = keyset
 			? `SELECT ${select} FROM ${from}${after === null ? '' : ` WHERE ${keyset.key} > ${after}`} ORDER BY ${keyset.order} LIMIT ${PAGE_SIZE}`
 			: `SELECT ${select} FROM ${from} LIMIT ${PAGE_SIZE} OFFSET ${offset}`;
-		const { results } = await db.prepare(query).all();
+		/** @type {Record<string, unknown>[]} */
+		const results = (await db.prepare(query).all()).results;
 		const last = results.at(-1);
 		if (keyset && last) {
 			after = rowidAlias
