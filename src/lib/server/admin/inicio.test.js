@@ -128,7 +128,8 @@ describe('totales', () => {
 			revenue: 28000,
 			fondo: 2000,
 			contribution: 0,
-			mpFee: 0
+			mpFee: 0,
+			mpFeeEstimated: 0
 		});
 		expect(totals.get('a')?.get('anticipada')).toMatchObject({ sold: 1, contribution: 3000 });
 		expect(await ticketTotals(t.db, [], NOW)).toEqual(new Map());

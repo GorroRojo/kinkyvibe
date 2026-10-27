@@ -563,10 +563,9 @@ En la pestaña **Órdenes** de la ficha (`/admin/eventos/<slug>/ordenes`), cada 
   (decisión 0044). Cuando MP avisa un pago que sigue aprobado con algo reembolsado
   (`transaction_amount_refunded`), el aviso lo **anota solo** en la orden (`refunded_amount`,
   migración 0065; el acumulado, idempotente) sin cambiar nada más: la orden sigue aprobada, las
-  entradas siguen valiendo y no se manda ningún mail (si alguien no viene, se anula su entrada
-  aparte). En la pestaña Órdenes la orden dice «Reembolso parcial en Mercado Pago: $ X (quedan
-  $ Y)», el CSV lo trae en `reembolso_parcial_mp` (y la comisión que informó MP en `comision_mp`),
-  y se resta de «Recaudado», de lo neto y de los totales del panel y de Estadísticas
+  entradas siguen valiendo y no se manda ningún mail. En la pestaña Órdenes la orden dice
+  «Reembolso parcial en Mercado Pago: $ X (quedan $ Y)» (y, si MP la informó, «comisión de MP
+  $ Z»); el CSV de órdenes todavía no lo trae, y se resta de «Recaudado», de lo neto y de los totales del panel y de Estadísticas
   (`REVENUE_SQL`). Un reembolso total sigue pasando la orden a `refunded`, como siempre.
   Código: `paymentAmounts` y `recordPaymentAmounts` en `src/lib/server/tickets/orders.js`.
 
