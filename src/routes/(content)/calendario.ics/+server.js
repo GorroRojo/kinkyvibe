@@ -1,6 +1,5 @@
 import { sitePosts } from '$lib/server/contenido/posts.js';
-import { buildIcsFeed, publicIcsSince } from '$lib/utils/icsFeed.js';
-import { TAGGED_CACHE } from '$lib/server/etiquetas/cache.js';
+import { buildIcsFeed, icsResponse, isFeedEvent, publicIcsSince } from '$lib/utils/icsFeed.js';
 import { getDB } from '$lib/server/db';
 import { feedVenues } from '$lib/server/amigues/venues.js';
 
@@ -14,12 +13,13 @@ export async function GET({ platform }) {
 	const allPosts = await sitePosts(platform);
 	// Un lugar vinculado manda sobre el «Dónde» del .md, como en la página y en los otros .ics
 	// (`feedLocation`): lo que la página del evento le muestra a cualquiera.
+	// De los pasados, solo los de los últimos 90 días (`publicIcsSince`, docs/seo.md); los lugares,
+	// solo de los eventos que van a salir.
+	const since = publicIcsSince();
 	const venues = await feedVenues(
 		getDB(platform),
-		allPosts.filter((p) => p.meta.category === 'calendario').map((p) => String(p.meta.postID))
+		allPosts.filter((p) => isFeedEvent(p, { since })).map((p) => String(p.meta.postID))
 	);
-	// De los pasados, solo los de los últimos 90 días (`publicIcsSince`, docs/seo.md).
-	return new Response(buildIcsFeed(allPosts, { venues, since: publicIcsSince() }), {
-		headers: { 'Content-Type': 'text/calendar; charset=utf-8', ...TAGGED_CACHE }
-	});
+	// Con `max-age=900` como los .ics por etiqueta: un calendario suscripto lo baja cada hora.
+	return icsResponse(buildIcsFeed(allPosts, { venues, since }));
 }

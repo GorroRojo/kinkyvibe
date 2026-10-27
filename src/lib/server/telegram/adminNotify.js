@@ -182,6 +182,17 @@ export function chargebackNoticeText({ reference, eventTitle, amount }, override
 }
 
 /**
+ * «📭 Resend frenó los mails por el cupo. Compras aprobadas que esperan el mail …: 4». Solo la
+ * cantidad.
+ *
+ * @param {{ pending: number }} input
+ * @param {BotTexts | null} [overrides]
+ */
+export function mailQuotaNoticeText({ pending }, overrides) {
+	return botText('admin.mails_cupo', { pendientes: pending }, overrides);
+}
+
+/**
  * El resumen diario de un evento: lo vendido desde ayer contra el cupo, las transferencias nuevas
  * y lo pendiente (reservas sin pagar y las que vencen en 24 horas, transferencias por confirmar,
  * órdenes para revisar, la lista de espera). Solo cantidades.
@@ -602,4 +613,59 @@ export async function runAdminNoticesCron({
 		out.failed += r.failed;
 	}
 	return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Cupo de mails
+// ---------------------------------------------------------------------------------------------
+
+/** Las órdenes sin mail que cuenta el aviso del cupo: las mismas que reintenta el cron (48 h). */
+const MAIL_QUOTA_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+/**
+ * Cuando el reintento del mail de las entradas encuentra el cupo de Resend terminado (un 429 de
+ * cupo: `stopped: 'quota'` en unsentOrders.js), avisa a les admins que prendieron «Cada venta»,
+ * **como mucho una vez por hora** (la clave lleva la hora), con cuántas órdenes aprobadas de las
+ * últimas 48 h esperan el mail. Sin datos de compradores. Un 429 de tasa (demasiados por segundo)
+ * no avisa: se resuelve solo en la corrida siguiente.
+ *
+ * @param {{ db: D1Database, origin: string, token?: string, fetch?: typeof fetch, now?: number,
+ *   send?: AdminSend }} input `send`, para los tests
+ * @returns {Promise<{ skipped: 'off' | 'token' | 'nobody' } | { sent: number, failed: number,
+ *   skipped: number }>}
+ */
+export async function notifyMailQuota({
+	db,
+	origin,
+	token,
+	fetch: fetchFn = fetch,
+	now = Date.now(),
+	send
+}) {
+	if (!(await adminBotEnabled(db))) return { skipped: 'off' };
+	if (!token && !send) return { skipped: 'token' };
+	const recipients = await noticeRecipients(db, 'cada_venta');
+	if (recipients.length === 0) return { skipped: 'nobody' };
+	const row = await db
+		.prepare(
+			`SELECT COUNT(*) AS n FROM orders
+			WHERE status = 'approved' AND email_sent_at IS NULL
+				AND buyer_email IS NOT NULL AND TRIM(buyer_email) != '' AND updated_at >= ?1`
+		)
+		.bind(now - MAIL_QUOTA_WINDOW_MS)
+		.first();
+	const overrides = await botTextOverrides(db);
+	const sender = send ?? adminSender(/** @type {string} */ (token), fetchFn, overrides);
+	return deliverOnce({
+		db,
+		send: sender,
+		key: `mails-cupo:${Math.floor(now / (60 * 60 * 1000))}`,
+		message: {
+			text: mailQuotaNoticeText({ pending: Number(row?.n ?? 0) }, overrides),
+			panelUrl: isHttps(origin) ? `${origin}/admin` : null,
+			silent: isQuietHour(now)
+		},
+		now,
+		recipients
+	});
 }

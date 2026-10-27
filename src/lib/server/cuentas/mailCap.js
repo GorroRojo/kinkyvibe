@@ -2,8 +2,13 @@
  * Tope global de mails de cuentas por hora: códigos (de ingreso y para confirmar) y avisos de
  * invitación, sumados entre todas las conexiones y todos los mails. Los límites por conexión y
  * por mail no alcanzan solos (alguien con muchas conexiones podría mandar mails a muchas
- * direcciones), y estos mails salen por el mismo camino y la misma cuenta de Resend que los de
- * las entradas: así nunca se comen ese cupo.
+ * direcciones).
+ *
+ * Ojo: estos mails salen por la misma cuenta de Resend que los de las entradas, y este tope es por
+ * hora, no por día. Acota cuánto pueden gastar, pero **no garantiza** que no se coman el cupo de
+ * Resend: si el plan tiene un cupo diario más chico que lo que este tope deja pasar en un día, un
+ * abuso sostenido puede dejar sin mail las entradas hasta que se renueve. Cuánto protege depende
+ * del plan de Resend (docs/cuentas.md, «Límites conocidos»).
  *
  * Va en un archivo aparte porque lo usan index.js (códigos) y perfiles.js (avisos), y index.js
  * ya importa perfiles.js.

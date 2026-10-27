@@ -175,7 +175,9 @@ prendido. Van al mail de la cuenta, uno por cuenta, evento y tipo
 
 Cada mail lleva el link a Mi rincón → Lo que sigo y otro para no recibir más mails de lo que sigue
 (`/avisos/sigo/<cuenta>.<firma>`, sin entrar y aunque el interruptor esté apagado; apaga los
-dos mails de todo, lo seguido y el calendario quedan). Hasta 50 mails por corrida.
+dos mails de todo, lo seguido y el calendario quedan). Hasta 50 mails por corrida, y nunca más de
+lo que sobró del «de a cuántos» después de la tanda, el reintento de entradas y las series
+(`mailBudgetLeft`); los avisos por Telegram van aparte.
 
 ### «Avisame si se repite» (`src/lib/server/sigo/avisame.js`)
 
