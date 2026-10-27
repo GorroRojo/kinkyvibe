@@ -1,4 +1,4 @@
-# 0050. «Reembolsar todas» para un evento cancelado
+# 0051. «Reembolsar todas» para un evento cancelado
 
 - Fecha: 2026-10-26
 - Estado: Aceptada. Decidido por gorrite en la Mesa (tarjeta `plata-detalles-venta`, opción 4b).

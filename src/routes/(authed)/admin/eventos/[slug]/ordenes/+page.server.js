@@ -7,7 +7,7 @@
  * DNI con `dniSearch` (devuelve solo ids). El CSV (`../ordenes.csv`) sí lleva el DNI completo: se
  * descarga a propósito.
  *
- * Evento cancelado (decisión 0050): arriba, «Reembolsar todas» con la cantidad y el total exactos
+ * Evento cancelado (decisión 0051): arriba, «Reembolsar todas» con la cantidad y el total exactos
  * de las órdenes de Mercado Pago (`refundAllPreview`) y la lista de las que se devuelven a mano.
  */
 import { error } from '@sveltejs/kit';

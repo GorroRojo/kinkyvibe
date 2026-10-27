@@ -523,7 +523,7 @@ export const eventTicketActions = {
 		});
 	},
 
-	// «Reembolsar todas» (decisión 0050): solo un evento cancelado, solo admins, con la cantidad y
+	// «Reembolsar todas» (decisión 0051): solo un evento cancelado, solo admins, con la cantidad y
 	// el total que vio le admin y la palabra escrita. De a REFUND_ALL_BATCH órdenes de Mercado Pago
 	// por pedido, cada una con el mismo paso que «Reembolsar» (`refundFromPanel` + `afterRefund`:
 	// Actividad, mail y lista de espera); las que faltan, con «Seguir» (`after`: la última vista).

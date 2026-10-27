@@ -1,5 +1,5 @@
 /**
- * «Reembolsar todas» de un evento cancelado (decisión 0050): solo admins, solo con el evento
+ * «Reembolsar todas» de un evento cancelado (decisión 0051): solo admins, solo con el evento
  * cancelado, con la palabra y la cantidad y el total que vio le admin; de a tandas con «Seguir»;
  * cada orden por el mismo paso que «Reembolsar…» (MP con la clave `refund-<orden>`, después se
  * marca); nunca reembolsa dos veces; lo que MP rechaza queda como estaba; la puerta, la carga a

@@ -109,7 +109,7 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0044](0044-reglas-de-la-venta-de-entradas.md): Reglas de la venta para el lanzamiento:
   cancelación, reprogramación, Fondo, cierre, reembolsos y plazo de MP; y otras respuestas del día
   (12/10)
-- [0050](0050-reembolsar-todas-evento-cancelado.md): «Reembolsar todas» para un evento cancelado:
+- [0051](0051-reembolsar-todas-evento-cancelado.md): «Reembolsar todas» para un evento cancelado:
   solo admins, con confirmación escrita, de a tandas y por el mismo paso que «Reembolsar…»; la
   puerta y la carga a mano se devuelven a mano (26/10)
 

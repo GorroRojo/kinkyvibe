@@ -1,6 +1,6 @@
 /**
  * Reembolsos desde el panel: el de una orden («Reembolsar…» en Ventas › Órdenes) y «Reembolsar
- * todas» de un evento cancelado (decisión 0050), que usa exactamente el mismo paso por orden.
+ * todas» de un evento cancelado (decisión 0051), que usa exactamente el mismo paso por orden.
  *
  * Una orden ({@link refundFromPanel}): Mercado Pago → reembolso TOTAL por la API de MP
  * (`gateway.refundPayment`, con la clave de idempotencia `refund-<orden>`) y después se marca la
