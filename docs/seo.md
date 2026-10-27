@@ -494,7 +494,7 @@ cada tarjeta esconde 1 o 2 chips.
   Si el `<title>` pasa de 65 caracteres (Google muestra unos 60), pierde « · Kinky Vibe»; y si
   el título del evento solo ya es más largo, se recorta en una palabra con «…», conservando el
   día (`eventTabTitle`). Solo la pestaña y los buscadores: el `h1` y `og:title` van enteros.
-  Los perfiles no dicen «· Kinky Vibe» («Mem | él»).
+  Los perfiles también terminan en «· Kinky Vibe» («Mem | él · Kinky Vibe», `ProfileHead.svelte`).
 - **Títulos de las listas**: el `<title>` del inicio es `home.title` y el de cada lista es su
   título del panel más « · Kinky Vibe» (`<lista>.heading`, `wiki.title`; Ajustes › Vistas
   previas, [compartir.md](compartir.md)), el mismo que `og:title`: así gorrite prueba títulos sin
