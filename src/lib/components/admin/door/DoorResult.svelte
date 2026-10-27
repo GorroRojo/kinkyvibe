@@ -3,9 +3,14 @@
 	 * Resultado grande del modo puerta: verde "Adelante", amarillo "Ya ingresó", rosa "Anulada",
 	 * "De otro evento" o "QR inválido". Tocar el bloque (o "Ver compra") abre la compra completa.
 	 *
-	 * Eventos: `undo`, `details`, `reveal` (DNI completo).
+	 * Eventos: `undo`, `details`, `reveal` (DNI completo), `discard` (descartar una venta sin
+	 * conexión que todavía no se mandó).
 	 *
-	 * Aviso de puerta (decisión 0051): si la entrada coincide (`card.notice`), un cartel con solo
+	 * Después de una venta (UX V12): si ya está en el servidor, «¿Te equivocaste? Ver la orden»
+	 * lleva a la orden en el panel (el reembolso se hace ahí, con su confirmación); si todavía está
+	 * en la cola del celu, se puede descartar.
+	 *
+	 * Aviso de puerta (decisión 0053): si la entrada coincide (`card.notice`), un cartel con solo
 	 * `DOOR_NOTICE_TEXT`, sin motivo ni detalles. No cambia el resultado: decide quien está en la
 	 * puerta.
 	 */
@@ -33,6 +38,11 @@
 	/** @type {string | null} */
 	export let dni = null;
 	export let canUndo = false;
+	/** Link a la orden en el panel (Ventas › Órdenes); `null` si todavía no está en el servidor. */
+	/** @type {string | null} */
+	export let orderHref = null;
+	/** La venta sin conexión todavía está en la cola del celu: se puede descartar. */
+	export let canDiscard = false;
 
 	const dispatch = createEventDispatcher();
 
@@ -148,6 +158,13 @@
 					{scan.result === 'sold' ? 'pendiente de sincronizar' : 'sin conexión'}</span
 				>{/if}
 		</p>
+		{#if scan.result === 'sold' && !scan.offline && orderHref}
+			<a class="fix" href={orderHref} on:click|stopPropagation>¿Te equivocaste? Ver la orden</a>
+		{:else if scan.result === 'sold' && scan.offline && canDiscard}
+			<button type="button" class="fix" on:click|stopPropagation={() => dispatch('discard', card)}>
+				¿Te equivocaste? Descartar esta venta
+			</button>
+		{/if}
 		<button type="button" class="more" on:click|stopPropagation={details}>
 			Ver compra <ChevronRight size={18} />
 		</button>
@@ -316,6 +333,22 @@
 	}
 	.bad .pill {
 		background: rgba(0, 0, 0, 0.25);
+	}
+	.fix {
+		align-self: flex-start;
+		font: inherit;
+		font-size: var(--text-sm);
+		font-weight: 700;
+		color: inherit;
+		background: none;
+		border: 0;
+		padding: var(--space-2xs) 0;
+		min-height: 2.75rem;
+		display: inline-flex;
+		align-items: center;
+		text-decoration: underline;
+		text-underline-offset: 0.2em;
+		cursor: pointer;
 	}
 	.more {
 		align-self: flex-end;

@@ -733,7 +733,7 @@ que ahora no se puede.
     sin los online, hasta 20): solo dirección, título y comienzo (`doorEvents` en `puerta.js`).
   - `?evento=` sigue andando y gana sobre la lista. Para un evento que no está en la lista, «Otro
     evento: escribir la dirección»; si la lista no carga, queda escribirla, como antes.
-- **Avisos de puerta** (decisión [0051](decisiones/0051-avisos-de-puerta.md)): en un evento de
+- **Avisos de puerta** (decisión [0053](decisiones/0053-avisos-de-puerta.md)): en un evento de
   Kinky Vibe, si la entrada coincide con un aviso, la respuesta trae `notice: true` y la Mini App
   muestra solo «Avisá a la organización antes de dejar pasar», debajo del resultado. El ingreso ya
   se marcó igual. Ver [tickets.md](tickets.md#avisos-de-puerta).

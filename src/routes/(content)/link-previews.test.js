@@ -697,6 +697,30 @@ describe('un perfil de amigues', () => {
 		expect(single(await profileHead({}, { unlisted: true })).robots).toBe('noindex');
 	});
 
+	it('«No aparecer en buscadores»: noindex, vista previa sin foto ni bio y sin JSON-LD', async () => {
+		const { head, body } = await renderProfile({}, { noindex: true });
+		const meta = single(head);
+		expectComplete(meta, head, '/amigues/Perfil_Inventado');
+		expect(meta.robots).toBe('noindex');
+		expect(meta['og:title']).toBe('Perfil Inventado');
+		// Ni la foto ni la presentación: la tarjeta del sitio y una frase fija.
+		expect(meta['og:description']).toBe('Perfil Inventado en Amigues de Kinky Vibe.');
+		expectDefaultImage(meta);
+		expect(head).not.toContain('b'.repeat(64));
+		expect(head).not.toContain('Una bio inventada.');
+		expect(head).not.toContain('application/ld+json');
+		// La página se ve igual: la foto y la bio siguen ahí.
+		const photo = tagsOf(body, 'img').find((img) => /\bu-photo\b/.test(img.class ?? ''));
+		expect(photo?.src).toContain('b'.repeat(64));
+		expect(body).toContain('Una bio inventada.');
+	});
+
+	it('sin «No aparecer en buscadores»: lleva su JSON-LD (lo de siempre)', async () => {
+		const { head } = await renderProfile();
+		expect(head).toContain('application/ld+json');
+		expect(head).toContain('ProfilePage');
+	});
+
 	it('sin etiquetas article:* (son de og:type article; un perfil es profile)', async () => {
 		const meta = single(await profileHead());
 		expect(Object.keys(meta).filter((k) => k.startsWith('article:'))).toEqual([]);

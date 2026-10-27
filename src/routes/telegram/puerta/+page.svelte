@@ -8,7 +8,7 @@
 	 * mismos permisos); con uno solo hoy, queda elegido. `?evento=` sigue andando y, para uno que no
 	 * está en la lista, se puede escribir la dirección.
 	 *
-	 * Avisos de puerta (decisión 0051): si la respuesta trae `notice`, se muestra solo
+	 * Avisos de puerta (decisión 0053): si la respuesta trae `notice`, se muestra solo
 	 * `DOOR_NOTICE_TEXT` debajo del resultado; el ingreso ya se marcó igual.
 	 */
 	import { onMount } from 'svelte';

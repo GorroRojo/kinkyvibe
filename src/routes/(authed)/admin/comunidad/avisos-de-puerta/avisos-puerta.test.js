@@ -1,5 +1,5 @@
 /**
- * Comunidad › Avisos de puerta (decisión 0051): solo admins (sin sesión, al login; sin permiso,
+ * Comunidad › Avisos de puerta (decisión 0053): solo admins (sin sesión, al login; sin permiso,
  * 403) en la página y en cada acción, y la respuesta de las acciones no devuelve el mail ni el
  * motivo. D1 de miniflare; datos inventados (example.com).
  */

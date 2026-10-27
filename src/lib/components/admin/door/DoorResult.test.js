@@ -1,5 +1,5 @@
 /**
- * DoorResult y los avisos de puerta (decisión 0051): con `card.notice`, el cartel dice solo
+ * DoorResult y los avisos de puerta (decisión 0053): con `card.notice`, el cartel dice solo
  * «Avisá a la organización antes de dejar pasar» y el resultado no cambia (no frena el ingreso).
  * Datos inventados.
  */

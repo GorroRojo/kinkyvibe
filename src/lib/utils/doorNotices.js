@@ -1,5 +1,5 @@
 /**
- * Avisos de puerta (decisión 0051, docs/tickets.md «Avisos de puerta»): lo que comparten el
+ * Avisos de puerta (decisión 0053, docs/tickets.md «Avisos de puerta»): lo que comparten el
  * servidor, el panel y la puerta. Lo de la base está en $lib/server/tickets/doorNotices.js.
  */
 

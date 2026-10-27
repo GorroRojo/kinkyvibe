@@ -134,7 +134,10 @@ debajo de las pestañas:
 
 Las direcciones no cambiaron (los links de los mails, el buscador y las pruebas siguen andando):
 `eventHref(slug, 'ordenes')` da `/ordenes` como antes, y `eventTabOf(pathname)` dice qué pestaña
-y qué vista marcar (las subpáginas, como `/ordenes/cargar`, cuentan como su vista). La pestaña
+y qué vista marcar (las subpáginas, como `/ordenes/cargar`, cuentan como su vista). Una orden
+tiene su link: `/ordenes#orden-<id>` (`orderHref` en `src/lib/admin/orderFormat.js`, que usa la
+Puerta); la página baja hasta ella, la marca y, si el filtro «Mostrar» la escondía, pasa a
+«Todas». La pestaña
 Ventas lleva el número de transferencias esperando confirmación; los botones de Órdenes,
 Transferencias y Lista de espera, los suyos (en la lista, las anotaciones vivas). En el celu,
 con 4 vistas (Ventas con la lista de espera) los botones no entran en una fila: son una grilla de
@@ -718,7 +721,7 @@ permiso". Queda en Actividad. Sacarlo no borra sus perfiles: solo deja de verlos
 puerta → el mail, cuándo vence y, si querés, el motivo (privado). La puerta muestra solo «Avisá a la
 organización antes de dejar pasar» y no frena el ingreso. Vence solo; 14 días antes llega un mail a
 la casilla de la organización. Ver [tickets.md](tickets.md#avisos-de-puerta) y la decisión
-[0051](decisiones/0051-avisos-de-puerta.md).
+[0053](decisiones/0053-avisos-de-puerta.md).
 
 ## Lo que viene
 

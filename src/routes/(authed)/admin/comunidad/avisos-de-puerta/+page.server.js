@@ -1,5 +1,5 @@
 /**
- * Comunidad › Avisos de puerta (decisión 0051, docs/tickets.md «Avisos de puerta»): personas que
+ * Comunidad › Avisos de puerta (decisión 0053, docs/tickets.md «Avisos de puerta»): personas que
  * la organización no admite en los eventos que organiza Kinky Vibe. Solo admins: el `load` y cada
  * acción llaman a `requireAdmin`. Es el único lugar donde se ve el motivo.
  *

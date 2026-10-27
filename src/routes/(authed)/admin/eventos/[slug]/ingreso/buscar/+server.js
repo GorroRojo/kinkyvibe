@@ -3,7 +3,7 @@
  * escribe): JSON con las entradas que coinciden por nombre, pronombres, quien compró, email, DNI
  * o código, y con qué campo coincidió. Solo admins (los `+server.js` no pasan por el layout: se
  * chequea acá) y solo datos que une admin ya ve en la lista de órdenes. De los avisos de puerta,
- * solo si la entrada coincide (`notice`), nunca el motivo (decisión 0051).
+ * solo si la entrada coincide (`notice`), nunca el motivo (decisión 0053).
  */
 import { json } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';

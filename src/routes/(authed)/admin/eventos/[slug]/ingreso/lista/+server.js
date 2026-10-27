@@ -2,7 +2,7 @@
  * Lista de entradas del evento para validar sin conexión en el modo puerta (el celu la guarda en
  * localStorage). Solo admins. Lleva el hash del token (no el token) y los últimos 3 dígitos del
  * DNI (no el DNI): ver `offlineList` en $lib/server/tickets/door.js. De los avisos de puerta, solo
- * si la entrada coincide (`notice`), nunca el motivo (decisión 0051).
+ * si la entrada coincide (`notice`), nunca el motivo (decisión 0053).
  */
 import { json } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';

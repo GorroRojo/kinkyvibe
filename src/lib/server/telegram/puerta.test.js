@@ -156,7 +156,7 @@ describe('doorCheckIn', () => {
 		});
 	});
 
-	it('aviso de puerta (decisión 0051): solo `notice: true` en eventos de Kinky Vibe, nunca el motivo', async () => {
+	it('aviso de puerta (decisión 0053): solo `notice: true` en eventos de Kinky Vibe, nunca el motivo', async () => {
 		await link(5003);
 		await addDoorNotice(
 			t.db,

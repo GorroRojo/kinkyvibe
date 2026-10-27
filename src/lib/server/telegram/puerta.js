@@ -14,7 +14,7 @@
  * 4. el ingreso se marca con las mismas funciones que el modo puerta del panel (`extractToken` +
  *    `checkIn`), con el login de le admin.
  *
- * Avisos de puerta (decisión 0051, $lib/server/tickets/doorNotices.js): en un evento de Kinky Vibe,
+ * Avisos de puerta (decisión 0053, $lib/server/tickets/doorNotices.js): en un evento de Kinky Vibe,
  * si la entrada coincide con un aviso, la respuesta lleva `notice: true` y la Mini App muestra solo
  * «Avisá a la organización antes de dejar pasar». El ingreso se marca igual.
  *

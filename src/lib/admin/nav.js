@@ -445,7 +445,7 @@ export const NAV = Object.freeze([
 		soon: false
 	},
 	{
-		// Personas que la organización no admite en los eventos de Kinky Vibe (decisión 0051). Solo
+		// Personas que la organización no admite en los eventos de Kinky Vibe (decisión 0053). Solo
 		// admins; el motivo se ve solo ahí.
 		id: 'avisos-puerta',
 		href: '/admin/comunidad/avisos-de-puerta',

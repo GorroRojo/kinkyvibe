@@ -14,7 +14,7 @@
  * - `syncSales`: ventas hechas sin conexión (decisión 0035), en orden, idempotentes (`client_sale_id`)
  *   y sin perder ninguna por un límite: si pasan uno se guardan igual y quedan en «Para revisar».
  *
- * Avisos de puerta (decisión 0051, $lib/server/tickets/doorNotices.js): en los eventos de Kinky
+ * Avisos de puerta (decisión 0053, $lib/server/tickets/doorNotices.js): en los eventos de Kinky
  * Vibe, la tarjeta de una entrada que coincide con un aviso lleva `notice: true` y la pantalla
  * muestra solo «Avisá a la organización antes de dejar pasar». El ingreso se marca igual.
  *

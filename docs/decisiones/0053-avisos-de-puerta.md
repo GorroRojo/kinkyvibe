@@ -1,4 +1,4 @@
-# 0051. Avisos de puerta para personas que la organización no admite
+# 0053. Avisos de puerta para personas que la organización no admite
 
 - Fecha: 2026-10-27
 - Estado: Aceptada. Decidido por gorrite en la Mesa (tarjetas `com-herramientas-moderacion`,

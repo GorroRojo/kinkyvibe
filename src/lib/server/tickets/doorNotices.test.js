@@ -1,5 +1,5 @@
 /**
- * Avisos de puerta (decisión 0051): un aviso es de una cuenta o de un mail (solo su hash), avisa
+ * Avisos de puerta (decisión 0053): un aviso es de una cuenta o de un mail (solo su hash), avisa
  * solo en los eventos de Kinky Vibe, vence siempre (el cron lo borra y avisa una vez antes) y el
  * motivo nunca sale del panel: ni a la puerta, ni al registro, ni al mail. D1 de miniflare; datos
  * inventados (example.com).

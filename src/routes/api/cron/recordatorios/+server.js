@@ -133,7 +133,7 @@ export async function POST({ request, platform, url, fetch }) {
 				return { posts, wikiPosts };
 			}
 		});
-		// Avisos de puerta (decisión 0051): borra los vencidos y avisa 14 días antes, una vez, a la
+		// Avisos de puerta (decisión 0053): borra los vencidos y avisa 14 días antes, una vez, a la
 		// casilla de la organización (la de los comprobantes). Sin datos de la persona. Nunca tira.
 		const doorNotices = await runDoorNoticesCron({
 			db,

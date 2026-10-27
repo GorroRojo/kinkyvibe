@@ -1,5 +1,5 @@
 -- Migration number: 0066 	 2026-10-26T23:47:30.590Z
--- Avisos de puerta (decisión 0051, docs/tickets.md «Avisos de puerta»): personas que la
+-- Avisos de puerta (decisión 0053, docs/tickets.md «Avisos de puerta»): personas que la
 -- organización no admite en los eventos que organiza Kinky Vibe. En la puerta, si una entrada
 -- coincide, se ve solo «Avisá a la organización antes de dejar pasar»; nunca frena el ingreso.
 -- Creada con `npm run db:migrations:new` (salió 0065) y pasada a 0066 porque la 0065 ya la usa otra

@@ -1,5 +1,5 @@
 /**
- * Avisos de puerta (decisión 0051, docs/tickets.md «Avisos de puerta»): personas que la
+ * Avisos de puerta (decisión 0053, docs/tickets.md «Avisos de puerta»): personas que la
  * organización no admite en los eventos que organiza Kinky Vibe. Tabla `door_notices` (migración
  * 0066).
  *

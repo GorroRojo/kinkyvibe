@@ -1,6 +1,6 @@
 <script>
 	/**
-	 * Comunidad › Avisos de puerta (decisión 0051): cargar, renovar y quitar avisos para personas que
+	 * Comunidad › Avisos de puerta (decisión 0053): cargar, renovar y quitar avisos para personas que
 	 * la organización no admite en los eventos de Kinky Vibe. Solo admins. El motivo se ve solo acá.
 	 * En la puerta se ve únicamente el texto genérico (`data.text`).
 	 */
