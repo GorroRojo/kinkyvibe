@@ -5,6 +5,7 @@
  *
  * Las fechas van en hora de Argentina, `2026-10-02 22:30` (`argDateTimeCsv`): pasá un `Date` y
  * `csvCell` lo escribe así. Nunca ISO en UTC (una compra de las 22:30 salía al día siguiente).
+ * Un texto que Excel tomaría como fórmula o como número en notación científica va con `'` adelante.
  *
  * @template T
  * @typedef {{ key?: keyof T & string, label: string, value?: (row: T) => unknown }} CsvColumn
@@ -17,6 +18,13 @@ import { argDateTimeCsv } from '$lib/utils/dates.js';
  * https://owasp.org/www-community/attacks/CSV_Injection
  */
 const FORMULA_START = /^[=+\-@\t\r]/;
+
+/**
+ * Texto con forma de notación científica («234E56», «1e5»): Excel y Sheets lo convierten en un
+ * número y se pierde (pasa con algunos códigos cortos de entrada, auditoría de plata, DX6). Se le
+ * antepone `'`, igual que a las fórmulas, así queda como texto.
+ */
+const SCIENTIFIC = /^\d+(?:\.\d+)?e[+-]?\d+$/i;
 
 /**
  * @param {unknown} value
@@ -32,6 +40,7 @@ export function csvCell(value) {
 	else s = String(value);
 	// Los números negativos son números, no fórmulas.
 	if (FORMULA_START.test(s) && !(typeof value === 'number')) s = "'" + s;
+	else if (typeof value === 'string' && SCIENTIFIC.test(s)) s = "'" + s;
 	return /[",\n\r;]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
 }
 

@@ -16,6 +16,7 @@ import { requireAdmin } from '$lib/server/auth';
 import { logAdminAction } from '$lib/server/admin/audit.js';
 import { getDB } from '$lib/server/db';
 import {
+	coveredPartsByWorkshop,
 	createWorkshopPart,
 	panelParts,
 	setHideParts,
@@ -30,6 +31,8 @@ import { readDbPostFile } from '$lib/server/contenido/repo.js';
 import { postFilePath } from '$lib/utils/postPaths.js';
 import { recordDateChange, scheduleFromFile } from '$lib/server/tickets/dateChange.js';
 import { siteOrigin } from '$lib/server/tickets/index.js';
+import { parseReminders, reopenRemindersForNewStart } from '$lib/server/tickets/reminders.js';
+import { getSalesSettings } from '$lib/server/tickets/settings.js';
 import { queueWaitlistAdvance } from '$lib/server/tickets/waitlistEngine.js';
 
 /**
@@ -148,7 +151,43 @@ async function saveWithDateChange(event) {
 	} catch (e) {
 		console.error('[cambio de fecha] no se pudo anotar:', e);
 	}
+	try {
+		await reopenReminders(db, event.params.slug, before, scheduleFromFile(String(content)));
+	} catch (e) {
+		console.error('[cambio de fecha] no se pudieron reabrir los recordatorios:', e);
+	}
 	return result;
+}
+
+/**
+ * Si cambió el comienzo, los recordatorios que ya salieron para la fecha de antes y en la nueva
+ * todavía no tocan vuelven a quedar pendientes (`reopenRemindersForNewStart`): los de las órdenes
+ * del evento y, si es una parte de un taller con una sola entrada, los de esa parte en las órdenes
+ * del taller. Un cambio solo del fin no reenvía nada.
+ *
+ * @param {import('@cloudflare/workers-types').D1Database} db
+ * @param {string} slug
+ * @param {import('$lib/server/tickets/dateChange.js').Schedule | null} before
+ * @param {import('$lib/server/tickets/dateChange.js').Schedule | null} after
+ */
+async function reopenReminders(db, slug, before, after) {
+	const start = after?.start ? Date.parse(after.start) : NaN;
+	const old = before?.start ? Date.parse(before.start) : NaN;
+	if (!Number.isFinite(start) || !Number.isFinite(old) || start === old) return;
+	const reminders = parseReminders((await getSalesSettings(db)).reminders);
+	let reopened = await reopenRemindersForNewStart(db, { slug, start, reminders });
+	for (const [workshop, { parts }] of await coveredPartsByWorkshop(db)) {
+		if (parts.some((p) => p.slug === slug)) {
+			reopened += await reopenRemindersForNewStart(db, {
+				slug: workshop,
+				part: slug,
+				start,
+				reminders
+			});
+		}
+	}
+	if (reopened)
+		console.log(`[cambio de fecha] ${slug}: ${reopened} recordatorio(s) de nuevo pendientes`);
 }
 
 /** @type {import('./$types').Actions} */

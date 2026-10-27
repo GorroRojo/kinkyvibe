@@ -396,3 +396,43 @@ export async function retryFailedReminders(db, eventSlug) {
 		.run();
 	return res.meta.changes ?? 0;
 }
+
+/**
+ * Cuando cambia el comienzo de un evento (auditoría de plata, D13): los recordatorios que ya
+ * salieron para la fecha de antes vuelven a quedar pendientes, así salen también para la fecha
+ * nueva. La clave de `reminder_sends` no cambia de formato (cambiarla reenviaría lo ya mandado de
+ * todos los eventos): se borran las filas `sent` del evento con ese id.
+ *
+ * Solo los recordatorios que en la fecha nueva **todavía no tocan** (`due > now`): uno cuya hora
+ * nueva ya pasó no se borra, así no sale de nuevo enseguida (correr el evento una hora después del
+ * de «faltan 2 días» no lo repite). Las filas `sending`, `retry` y `failed` quedan como están.
+ * Un evento que ya empezó (o que empieza ya) no se toca.
+ *
+ * `slug`: el de las órdenes; `part`: en una parte de un taller con una sola entrada, la dirección
+ * de la parte (las claves son `h48@<parte>` en las órdenes del taller).
+ *
+ * @param {D1Database} db
+ * @param {{ slug: string, part?: string | null, start: number, reminders: Reminder[],
+ *   now?: number }} input `start`: el comienzo nuevo (ms)
+ * @returns {Promise<number>} cuántos envíos volvieron a quedar pendientes
+ */
+export async function reopenRemindersForNewStart(
+	db,
+	{ slug, part = null, start, reminders, now = Date.now() }
+) {
+	if (!Number.isFinite(start) || !(start > now)) return 0;
+	const statements = reminderSchedule(reminders, start)
+		.filter(({ due }) => due > now)
+		.map(({ reminder, due }) =>
+			db
+				.prepare(
+					`DELETE FROM reminder_sends
+					WHERE reminder_id = ?1 AND status = 'sent' AND sent_at < ?2
+						AND order_id IN (SELECT id FROM orders WHERE event_slug = ?3)`
+				)
+				.bind(reminderKey(reminder, part ?? undefined), due, slug)
+		);
+	if (!statements.length) return 0;
+	const results = await db.batch(statements);
+	return results.reduce((n, r) => n + Number(r.meta?.changes ?? 0), 0);
+}

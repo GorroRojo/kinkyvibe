@@ -226,7 +226,8 @@ falla (Resend caído, un timeout, el Worker que se cortó), la orden queda aprob
   (`EMAIL_GRACE_MS`, el mismo margen del aviso «mails sin enviar» del Inicio) y hace menos de 48 h;
   las más viejas primero, 5 por corrida. Va aparte de la tanda de mails (no usa su tope) y en su
   propio try/catch: si falla, lo demás sale igual. La respuesta del cron suma
-  `unsentOrders: { sent, failed }`.
+  `unsentOrders: { sent, failed }`. Una orden sin mail (una venta en la puerta sin mail) no se
+  reintenta ni sale en el aviso «mails sin enviar» del Inicio: no hay a quién mandárselo.
 - **Sin duplicar:** usa `sendOrderEmail` con la clave de siempre (`tickets-<orden>`). Si el primer
   intento sí había llegado a Resend (un timeout), Resend no lo manda de nuevo. Ojo: Resend guarda
   las claves 24 h.
@@ -572,6 +573,14 @@ migración `0048_avisar_cambio_fecha.sql`):
 - **En tandas.** El botón manda la primera («Mails por tanda») y deja el envío pedido
   (`send_requested_at`); el cron sigue con el resto después de los recordatorios y los links
   (`mailQueue.js`). Queda en Actividad (`event.date_change.send`, solo cuántos: nunca mails).
+- **Los recordatorios, de nuevo** (auditoría de plata, D13): guardar con otro **inicio** (no solo
+  otro fin) vuelve a dejar pendientes los recordatorios que ya salieron para la fecha de antes y que
+  en la fecha nueva todavía no tocan (`reopenRemindersForNewStart` en `reminders.js`: borra esas
+  filas `sent` de `reminder_sends`; en una parte de un taller, las de esa parte), así salen otra
+  vez para la fecha nueva. Uno cuya hora nueva ya pasó no se toca, así no sale de nuevo enseguida
+  (correr el evento una hora después del «faltan 2 días» no lo repite). No depende del botón
+  «Avisar»: es automático al guardar. Un caso queda: si el evento se posterga y se vuelve a la
+  fecha de antes antes de que salga el nuevo, el recordatorio sale otra vez (con la fecha buena).
 - **El mail.** Asunto «Cambió la fecha: <evento>», la fecha nueva en un recuadro (hora argentina,
   con el fin: «sábado 21 de noviembre de 2026, 21:00 a 02:00») con el lugar, «Antes era: …», el
   `.ics` y el link «Agregar a Google Calendar» con el mismo UID y la **versión del cambio**: el
