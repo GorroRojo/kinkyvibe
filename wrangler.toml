@@ -33,6 +33,10 @@ binding = "ASSETS"
 [observability]
 enabled = true
 
+# Sin `[cache]` (Workers Cache) a propósito: cobra los archivos estáticos, que hoy son gratis, y no
+# mira las cookies (le daría la página anónima a quien tiene sesión). Ver docs/workers-migracion.md,
+# «No prender Workers Cache».
+
 # Ubicación del Worker (docs/workers-migracion.md, «Ubicación del Worker»): sin `[placement]`, a
 # propósito. El Worker corre en el centro de datos de quien visita: la caché de 1 minuto responde
 # desde ahí y las páginas livianas tardan menos. Se midió desde Buenos Aires el 25/10 contra la

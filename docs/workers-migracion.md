@@ -302,6 +302,16 @@ server-timing` (y después con `?x=2`).
 - **Riesgo que queda:** pedidos a recursos que no existen (404, que el adapter no guarda); lo frena
   una regla de la zona, no el código.
 
+### No prender Workers Cache
+
+Workers Cache (el bloque `[cache]` de `wrangler.toml`, o el interruptor del panel) parece arreglar
+de una vez la caché de las páginas, pero no conviene: **cobra los archivos estáticos** (hoy son
+gratis), arranca en frío en cada deploy (varios por día) y **no mira las cookies** del pedido, así
+que le daría la página anónima a quien tiene sesión. Para cachear, usar `caches.default` desde
+`worker/index.js` como la caché de 1 minuto (excluye todo pedido con cookie de sesión y nunca guarda
+`(authed)`) y la clave normalizada de arriba. Hoy `wrangler.toml` no tiene `[cache]`, y así tiene
+que quedar.
+
 ## Caché de los archivos estáticos (`_headers`)
 
 Los archivos de `static/` (favicon, íconos, `site.webmanifest`, `og-*.jpg`, `fonts/`) los sirve
