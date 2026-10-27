@@ -1,6 +1,7 @@
 /**
  * Ficha del evento, pestaña Resumen: datos, checklist (imagen, link de la transmisión,
- * recordatorios, venta abierta) y el link de la transmisión de los eventos online.
+ * recordatorios, venta abierta), el link de la transmisión de los eventos online y los links de
+ * puerta de los presenciales (docs/tickets.md, «Link de puerta»).
  */
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '$lib/server/auth';
@@ -18,6 +19,49 @@ import { eventMissing } from '$lib/utils/eventMissing.js';
 import { panelVenueRow } from '$lib/server/amigues/eventFormVenue.js';
 import { getPanelEvent } from '$lib/server/eventos/panel.js';
 import { onlineTagMismatch } from '$lib/utils/onlineTagMismatch.js';
+import { logAdminAction } from '$lib/server/admin/audit.js';
+import {
+	DOOR_LINK_MIN_MS,
+	createDoorLink,
+	defaultDoorLinkExpiry,
+	doorLinkUrl,
+	listDoorLinks,
+	parseDoorLinkForm,
+	revokeDoorLink
+} from '$lib/server/tickets/doorLinks.js';
+import { toArgentinaLocalInput } from '$lib/utils/tickets.js';
+import { siteOrigin } from '$lib/server/tickets/index.js';
+
+/**
+ * Los links de puerta vivos del evento y el vencimiento por defecto para el formulario. `null` si
+ * el evento no tiene control de ingreso (no vende entradas o es online). `links: null` si la base
+ * falla (o todavía no tiene la migración de `door_links`).
+ *
+ * @param {import('@cloudflare/workers-types').D1Database | null} db
+ * @param {string} slug
+ * @param {import('$lib/server/tickets/config.js').EventTickets | null} config
+ */
+async function doorLinksFor(db, slug, config) {
+	if (!config || config.online) return null;
+	const now = Date.now();
+	const expiry = defaultDoorLinkExpiry(config, now);
+	const defaultExpires = expiry >= now + DOOR_LINK_MIN_MS ? toArgentinaLocalInput(expiry) : '';
+	if (!db) return { links: null, defaultExpires };
+	try {
+		const links = (await listDoorLinks(db, slug, now)).map((l) => ({
+			id: l.id,
+			label: l.label,
+			createdBy: l.created_by,
+			createdAt: Number(l.created_at),
+			expiresAt: Number(l.expires_at),
+			lastUsedAt: l.last_used_at === null ? null : Number(l.last_used_at)
+		}));
+		return { links, defaultExpires };
+	} catch (e) {
+		logDBError('links de puerta en la ficha', e);
+		return { links: null, defaultExpires };
+	}
+}
 
 /** @type {Record<string, string>} */
 const CLOSED_REASON = {
@@ -155,6 +199,8 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 		: [];
 	// «Lugar»: el vinculado (edge `lugar` del evento, se elige en el formulario del evento).
 	const venue = await venueP;
+	// Links de puerta (presenciales con entradas).
+	const doorLinks = await doorLinksFor(db, params.slug, config);
 	// Etiqueta «Online» y además un lugar: un aviso arriba (no cambia nada).
 	const onlineMismatch = onlineTagMismatch(
 		{ tags: event.tags, location: event.location, location_name: event.locationName },
@@ -168,7 +214,8 @@ export async function load({ locals, url, params, platform, parent, setHeaders }
 		draft,
 		missing,
 		venue,
-		onlineMismatch
+		onlineMismatch,
+		doorLinks
 	};
 }
 
@@ -187,5 +234,71 @@ export const actions = {
 			slug: params.slug
 		});
 		return r.ok ? { confirm: r } : fail(r.status, { confirm: r });
+	},
+
+	/**
+	 * «Crear link de puerta»: un link que abre solo el modo puerta de este evento, sin cuenta. El
+	 * link (con el token) se devuelve **una sola vez**, en esta respuesta; en la base queda su hash.
+	 * El registro anota el id del link, nunca el token.
+	 */
+	crearLinkPuerta: async ({ locals, url, params, platform, request }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		/** @param {number} status @param {string} message */
+		const bad = (status, message) => fail(status, { doorLink: { ok: false, message } });
+		if (!db) return bad(503, 'No hay base de datos disponible.');
+		const config = await getEventTickets(params.slug);
+		if (!config) return bad(400, 'Este evento no vende entradas: no tiene puerta.');
+		if (config.online) return bad(400, 'Es un evento online: no tiene control de ingreso.');
+		const form = await request.formData();
+		const parsed = parseDoorLinkForm(
+			{ label: form.get('label'), expires: form.get('expires') },
+			config
+		);
+		if (!parsed.ok) return bad(400, parsed.message);
+		const r = await createDoorLink(db, {
+			eventSlug: params.slug,
+			label: parsed.label,
+			createdBy: admin.login,
+			expiresAt: parsed.expiresAt
+		});
+		if (!r.ok) return bad(409, 'Este evento ya tiene muchos links de puerta vivos: revocá alguno.');
+		await logAdminAction(db, locals, {
+			action: 'door_link.create',
+			targetType: 'event',
+			targetId: params.slug,
+			summary: `Creó un link de puerta${parsed.label ? ` («${parsed.label}»)` : ''}`,
+			detail: { doorLink: r.link.id, label: parsed.label, expiresAt: parsed.expiresAt }
+		});
+		return {
+			doorLink: {
+				ok: true,
+				message: 'Link creado. Copialo ahora: después no se puede volver a ver.',
+				url: doorLinkUrl(siteOrigin(url), r.token),
+				label: parsed.label,
+				expiresAt: parsed.expiresAt
+			}
+		};
+	},
+
+	/** «Revocar» un link de puerta de este evento: deja de andar al toque. */
+	revocarLinkPuerta: async ({ locals, url, params, platform, request }) => {
+		const admin = requireAdmin(locals, url);
+		const db = getDB(platform);
+		if (!db)
+			return fail(503, { doorLink: { ok: false, message: 'No hay base de datos disponible.' } });
+		const id = (await request.formData()).get('id');
+		const revoked = await revokeDoorLink(db, { id, eventSlug: params.slug, by: admin.login });
+		if (!revoked) {
+			return fail(404, { doorLink: { ok: false, message: 'Ese link ya no está vivo.' } });
+		}
+		await logAdminAction(db, locals, {
+			action: 'door_link.revoke',
+			targetType: 'event',
+			targetId: params.slug,
+			summary: `Revocó un link de puerta${revoked.label ? ` («${revoked.label}»)` : ''}`,
+			detail: { doorLink: revoked.id, label: revoked.label }
+		});
+		return { doorLink: { ok: true, message: 'Link revocado: ya no abre la puerta.' } };
 	}
 };

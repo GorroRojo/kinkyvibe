@@ -104,6 +104,8 @@ describe('edgeCacheKey: qué pedidos pueden usar la caché', () => {
 		'/lista-de-espera/confirmar/abc',
 		'/propinas',
 		'/telegram/app',
+		'/puerta',
+		'/puerta/una-fiesta',
 		'/auch',
 		'/errores/404',
 		'/imagenes',

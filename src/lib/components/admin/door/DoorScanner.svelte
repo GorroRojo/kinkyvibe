@@ -5,13 +5,15 @@
 	 * En navegadores sin soporte (Safari de iPhone) avisa: queda escanear con la app Cámara del
 	 * celu (abre la entrada con «Marcar ingreso»), «Escribir código» y «Buscar persona».
 	 *
-	 * Props: `onscan(value)`. Slot: lo que va encima del video, abajo (el resultado).
+	 * Props: `onscan(value)`, `cameraApp` (sugerir la app Cámara: solo sirve a admins, que ven
+	 * «Marcar ingreso» en la página de la entrada; con un link de puerta, no). Slot: lo que va encima del video, abajo (el resultado).
 	 */
 	import { createEventDispatcher, onDestroy, onMount, tick as nextTick } from 'svelte';
 	import { Camera, CameraOff, Flashlight, FlashlightOff, SwitchCamera } from '@lucide/svelte';
 
 	/** @type {(value: string) => void} */
 	export let onscan;
+	export let cameraApp = true;
 
 	const dispatch = createEventDispatcher();
 
@@ -143,9 +145,14 @@
 	<div class="top">
 		<p class="hint">
 			{#if supported === false}
-				Este navegador no lee QRs (pasa en iPhone). Abrí la app Cámara del celu y apuntá al QR: se
-				abre la entrada con «Marcar ingreso». También podés usar «Escribir código» o «Buscar
-				persona».
+				{#if cameraApp}
+					Este navegador no lee QRs (pasa en iPhone). Abrí la app Cámara del celu y apuntá al QR: se
+					abre la entrada con «Marcar ingreso». También podés usar «Escribir código» o «Buscar
+					persona».
+				{:else}
+					Este navegador no lee QRs (pasa en iPhone). Usá «Escribir código» (las 6 letras y números
+					de abajo del QR) o «Buscar persona».
+				{/if}
 			{:else if running}
 				Apuntá al QR de la entrada
 			{:else}

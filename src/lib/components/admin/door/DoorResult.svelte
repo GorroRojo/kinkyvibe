@@ -3,7 +3,7 @@
 	 * Resultado grande del modo puerta: verde "Adelante", amarillo "Ya ingresó", rosa "Anulada",
 	 * "De otro evento" o "QR inválido". Tocar el bloque (o "Ver compra") abre la compra completa.
 	 *
-	 * Eventos: `undo`, `details`, `reveal` (DNI completo).
+	 * Eventos: `undo`, `details`, `reveal` (DNI completo, solo con `canReveal`).
 	 */
 	import { createEventDispatcher } from 'svelte';
 	import { invalidTitle } from '$lib/admin/doorOffline.js';
@@ -28,6 +28,8 @@
 	/** @type {string | null} */
 	export let dni = null;
 	export let canUndo = false;
+	/** Tocar el DNI parcial pide el completo (solo admins; con un link de puerta, no). */
+	export let canReveal = true;
 
 	const dispatch = createEventDispatcher();
 
@@ -119,6 +121,8 @@
 			{#if card.dniTail}
 				{#if dni}
 					<span class="mono">DNI {dotted(dni)}</span>
+				{:else if !canReveal}
+					<span class="mono">DNI •••.{card.dniTail}</span>
 				{:else}
 					<button
 						type="button"
