@@ -745,7 +745,7 @@
 											search={(q) => sourceOptions(item, q)}
 											add={(_, value) => [value]}
 											chip={(value) => ({ label: eventLabel(value) })}
-											removeLabel="Quitar (crear desde cero):"
+											removeLabel="Sacar (crear desde cero):"
 											addedMessage={(label) => `Se duplica ${label}`}
 											onChange={(values) => setSource(item, values[0] ?? '')}
 										/>
