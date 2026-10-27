@@ -12,8 +12,12 @@ anda; la variable `PERFILES_PUBLICOS_ENABLED` ya no hace nada.
   el repo ([0032](decisiones/0032-borrar-los-md.md); el último commit con ellos tiene el tag
   `posts-md-final`).
 - `/amigues` es la página pública de perfiles: lista (con filtro `?tipo=`) y página de cada uno.
-- **"Es mi perfil"**: una cuenta con el permiso "puede tener perfiles" pide hacerse cargo; une
-  admin lo aprueba (la cuenta pasa a ser dueñe) o lo rechaza.
+- **"Es mi perfil"**: cualquier cuenta pide hacerse cargo de un perfil que ya existe, tenga o no
+  el permiso "puede tener perfiles" (gorrite, 26/10: en vez de un canal para pedir el permiso,
+  reclamar un perfil). Pedir no da nada: une admin lo revisa en el panel y lo aprueba (la cuenta
+  pasa a ser dueñe) o lo rechaza; para aprobarlo, la cuenta tiene que tener el permiso (el panel
+  lo avisa y une admin se lo da antes). Mi rincón, sin el permiso, tiene la tarjeta «¿Ya estás en
+  Amigues?» que lo explica.
 - **Aprobación**: un perfil nuevo creado por una cuenta aparece en `/amigues` recién cuando une
   admin lo aprueba. Hasta entonces lo ven solo quienes lo gestionan y les admins.
 - **Ocultar desde el panel** (la ficha del perfil, `hideProfile` en
