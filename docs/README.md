@@ -26,6 +26,7 @@ Si recién llegás, empezá por [incorporacion.md](incorporacion.md).
 | [cuentas.md](cuentas.md)                       | Cuentas del público ("Entrar" / "Mi rincón"): código por mail, contraseña, sesiones                                 |
 | [lo-que-sigo.md](lo-que-sigo.md)               | «Lo que sigo»: seguir etiquetas, series, perfiles y lugares (calendario y mails), interruptor `lo_que_sigo`         |
 | [amigues.md](amigues.md)                       | Amigues como perfiles (persona, proyecto, lugar), "Es mi perfil", lugares y la privacidad de sus direcciones        |
+| [moderacion.md](moderacion.md)                 | Moderación: qué hacer cuando alguien pide desaparecer del sitio (perfil, foto, nombre, buscadores)                  |
 | [talleres-partes.md](talleres-partes.md)       | Talleres en varias partes: partes como edges, una entrada para todas, ingreso y avisos por parte                    |
 | [personas-eventos.md](personas-eventos.md)     | Personas con rol en eventos y material, y preguntas de inscripción                                                  |
 | [analiticas.md](analiticas.md)                 | Visitas anónimas y embudo de compra con Workers Analytics Engine: qué se guarda, puesta en marcha y cómo apagarlo   |
