@@ -7,11 +7,15 @@
  *
  * Cada función recibe quién hace la acción (`DoorActor`) ya verificado **en ese pedido** por la
  * ruta. Con un link:
- * - se ve lo mismo que ve hoy la puerta del panel (nombre, pronombres, tipo, quién compró y su
- *   mail, los últimos 3 del DNI, la compra), pero **no** el DNI completo (`reveal`: 403);
- * - se vende en la puerta, pero **sin pasar límites** (cupo, 10 por venta, solo anticipadas): eso
- *   lo confirma une admin. Sin conexión las ventas se guardan igual y van a «Para revisar»
- *   (decisión 0035), como las de cualquier celu;
+ * - se ve lo que hace falta en la puerta (nombre, pronombres, tipo, quién compró y su mail, los
+ *   últimos 3 del DNI, la compra), pero **no** el DNI completo (`reveal`: 403), ni el token de las
+ *   entradas en el buscador, ni lo interno del panel en «Ver compra» (nota, quién confirmó,
+ *   descuento, reembolso), ni los logins de admins (`linkSafeBy`);
+ * - se vende en la puerta, pero **sin pasar límites** (cupo, 10 por venta, solo anticipadas,
+ *   evento sin venta en la puerta o cancelado) y al precio de la puerta (`linkSaleRefusal`): eso lo
+ *   decide une admin. Sin conexión, esos límites también frenan la venta (vuelve al celu como
+ *   rechazada); solo una que pasa el cupo se guarda y va a «Para revisar» (decisión 0035);
+ * - topes por link y por hora: entradas vendidas y mails de compra (solo en ventas con conexión);
  * - una entrada de otro evento dice solo «De otro evento», sin cuál;
  * - cada acción (ingreso, deshacer, venta, sincronizar, ver una compra) queda en el registro de
  *   actividad como `puerta:<id del link>`, con `doorLink` en el detalle.
@@ -52,6 +56,9 @@ import {
 	doorSaleAuditSuffix,
 	doorSaleLimits,
 	doorSalesOpen,
+	linkSafeBy,
+	linkSalePriceProblem,
+	linkSaleRefusal,
 	offlineList,
 	orderPriceChangeText,
 	orderRef,
@@ -66,6 +73,12 @@ import {
 } from '$lib/server/tickets/door.js';
 import { inBackground, sendOrderEmail, siteOrigin } from '$lib/server/tickets/index.js';
 import { checkOverride, logOverride, readOverride } from '$lib/server/tickets/overrides.js';
+import {
+	DOOR_LINK_PATH,
+	DOOR_LINK_TICKETS_MESSAGE,
+	takeDoorLinkEmail,
+	takeDoorLinkTickets
+} from './doorLinks.js';
 import {
 	FREE_DOOR_MESSAGE,
 	fondoOptionLabel,
@@ -82,7 +95,6 @@ import {
 } from '$lib/server/tickets/partCheckins.js';
 import { DOOR_AUTO_PARAM } from '$lib/utils/doorEvents.js';
 import { NO_STORE, cachedPrior, doorContext, doorSeriesLabel } from './doorContext.js';
-import { DOOR_LINK_PATH } from './doorLinks.js';
 
 /** @typedef {import('./doorLinks.js').DoorActor} DoorActor */
 
@@ -107,6 +119,21 @@ export function adminActor(event) {
  */
 function linkDetail(actor) {
 	return actor.link ? { doorLink: actor.link.id } : {};
+}
+
+/**
+ * Con un link: quién marcó cada ingreso sin el login de GitHub de une admin (`linkSafeBy`). Une
+ * admin ve las filas como están.
+ *
+ * @template {Record<string, any>} T
+ * @param {DoorActor} actor
+ * @param {T[]} rows
+ * @param {string} key el campo con quién marcó (`by`, `checkedInBy`)
+ * @returns {T[]}
+ */
+function hideLogins(actor, rows, key) {
+	if (!actor.link) return rows;
+	return rows.map((r) => (r && r[key] ? { ...r, [key]: linkSafeBy(r[key]) } : r));
 }
 
 /**
@@ -262,11 +289,12 @@ async function checkinAction(event, actor) {
 		cachedPrior(db, slug, event.platform),
 		countsFor(db, { ticketSlug, part })
 	]);
+	const card = full ? ticketCard(full, { typeNames, prior }) : null;
 	return {
 		checkin: {
 			result: r.result,
 			stamp,
-			card: full ? ticketCard(full, { typeNames, prior }) : null,
+			card: card ? hideLogins(actor, [card], 'by')[0] : null,
 			otherEvent: null
 		},
 		counts
@@ -358,7 +386,10 @@ export function doorActions(getActor) {
 					detail: { ...tally, ...linkDetail(actor) }
 				});
 			}
-			return { sync: { ok: true, results }, counts: await countsFor(db, { ticketSlug, part }) };
+			return {
+				sync: { ok: true, results: hideLogins(actor, results, 'by') },
+				counts: await countsFor(db, { ticketSlug, part })
+			};
 		},
 
 		/** @param {any} event */
@@ -388,15 +419,26 @@ export function doorActions(getActor) {
 				};
 			}
 			const origin = siteOrigin(event.url);
-			// Con un link, las filas del registro quedan como `puerta:<id del link>` (`actor.audit`).
+			const link = actor.link;
+			// Con un link, las filas del registro quedan como `puerta:<id del link>` (`actor.audit`) y
+			// lo que el link no puede pasar vuelve al celu como rechazado (solo el cupo va a revisar).
 			const results = await applyQueuedSales(db, actor.audit, {
 				eventSlug: slug,
 				config,
 				fondoPercent: config.fondoPercent,
 				by: actor.by,
 				items,
+				doorLink: link?.id ?? null,
+				refuse: link
+					? async (sale) =>
+							linkSaleRefusal(config, sale) ??
+							((await takeDoorLinkTickets(db, link, sale.quantity))
+								? null
+								: DOOR_LINK_TICKETS_MESSAGE)
+					: undefined,
 				onSold: async ({ order, tickets, sale }) => {
-					if (!sale.sendEmail) return;
+					// Con un link, el mail de compra solo sale en las ventas con conexión.
+					if (!sale.sendEmail || link) return;
 					await inBackground(
 						sendOrderEmail({ db, order, tickets, origin, fetch: event.fetch }),
 						event.platform
@@ -444,12 +486,19 @@ export function doorActions(getActor) {
 			const parsed = parseDoorSale(config, (name) => form.get(name));
 			if (!parsed.ok) return bad(parsed.message);
 			const { type, quantity, method, option, unitPrice, note, holders, buyer } = parsed.sale;
+			// Con un link, otro precio (o sin cargo) en un tipo con precio lo carga une admin.
+			const priceProblem = actor.link ? linkSalePriceProblem(type, unitPrice) : null;
+			if (priceProblem) return bad(priceProblem);
 
 			// Límites (solo anticipadas, cupo, máximo por venta): une admin los puede pasar si confirmó
 			// en el diálogo exactamente estos (la clave viene en `override`). Con un link, nunca.
 			const limitsFor = () => doorSaleLimits(db, { eventSlug: slug, config, type, quantity });
 			const check = checkOverride(await limitsFor(), actor.link ? '' : readOverride(form));
 			if (!check.ok) return needsConfirmation(check.needsConfirmation);
+			// Tope de entradas por hora de cada link.
+			if (actor.link && !(await takeDoorLinkTickets(db, actor.link, quantity))) {
+				return fail(429, { sale: { ok: false, message: DOOR_LINK_TICKETS_MESSAGE, tickets: [] } });
+			}
 
 			const r = await sellAtDoor(db, {
 				eventSlug: slug,
@@ -498,7 +547,10 @@ export function doorActions(getActor) {
 				orderId: r.order.id,
 				limits: check.limits
 			});
-			if (parsed.sale.sendEmail) {
+			// Con un link, los mails de compra tienen tope por hora: pasado el tope, la venta queda igual.
+			const mailOk =
+				parsed.sale.sendEmail && (!actor.link || (await takeDoorLinkEmail(db, actor.link)));
+			if (mailOk) {
 				await inBackground(
 					sendOrderEmail({
 						db,
@@ -516,16 +568,17 @@ export function doorActions(getActor) {
 				const full = await ticketWithBuyer(db, { id: t.id });
 				if (full) cards.push(ticketCard(full, { typeNames, prior }));
 			}
+			const mailSkipped = parsed.sale.sendEmail && !mailOk;
 			return {
 				sale: {
 					ok: true,
-					message: `Listo: ${quantity} × ${type.name} (${orderRef(r.order.id)}), ya adentro.`,
+					message: `Listo: ${quantity} × ${type.name} (${orderRef(r.order.id)}), ya adentro.${mailSkipped ? ' No se mandó el mail: este link llegó al tope de mails por hora.' : ''}`,
 					total: r.order.total,
 					method: r.order.payment_method,
-					// Para el resultado de la venta (lo ven quienes ya ven la puerta).
-					note: r.order.admin_note ?? '',
+					// Para el resultado de la venta: la nota es interna del panel (con un link, no va).
+					...(actor.link ? {} : { note: r.order.admin_note ?? '' }),
 					priceChange: orderPriceChangeText(r.order),
-					tickets: cards
+					tickets: hideLogins(actor, cards, 'by')
 				},
 				counts: await doorCounts(db, slug)
 			};
@@ -538,16 +591,25 @@ export function doorActions(getActor) {
  * entradas que coinciden por nombre, pronombres, quien compró, email, DNI o código, y con qué
  * campo coincidió (el DNI, solo los últimos 3).
  *
+ * Con un link: sin el token de las entradas ni buscar por su comienzo, y sin logins de admins.
+ *
  * @param {any} event
- * @param {DoorActor} _actor ya verificado por la ruta
+ * @param {DoorActor} actor ya verificado por la ruta
  */
-export async function doorSearch(event, _actor) {
+export async function doorSearch(event, actor) {
 	// En una parte de un taller: las entradas del taller con el ingreso a esta parte.
 	const { db, typeNames, ticketSlug, part } = await doorContext(event);
 	const q = (event.url.searchParams.get('q') ?? '').trim().slice(0, 80);
 	const found =
 		q.length >= 2
-			? searchRows(await searchTickets(db, ticketSlug, q, { limit: SEARCH_LIMIT }), typeNames)
+			? searchRows(
+					await searchTickets(db, ticketSlug, q, {
+						limit: SEARCH_LIMIT,
+						tokenPrefix: !actor.link
+					}),
+					typeNames,
+					{ forLink: Boolean(actor.link) }
+				)
 			: [];
 	const results = part
 		? await overlayPartCheckins(db, part.slug, found, {
@@ -556,13 +618,13 @@ export async function doorSearch(event, _actor) {
 				by: 'checkedInBy'
 			})
 		: found;
-	return json({ q, results }, { headers: NO_STORE });
+	return json({ q, results: hideLogins(actor, results, 'checkedInBy') }, { headers: NO_STORE });
 }
 
 /**
  * Detalle de la compra de una entrada (hoja «Ver compra»): la orden, cómo pagó, montos y todas sus
  * entradas con su ingreso. Sin el DNI completo (se pide aparte con `reveal`, solo admins). Con un
- * link, queda en el registro.
+ * link, queda en el registro y no lleva lo interno del panel (`purchaseDetails` con `forLink`).
  *
  * @param {any} event
  * @param {DoorActor} actor
@@ -572,15 +634,24 @@ export async function doorPurchase(event, actor) {
 	const { db, typeNames, ticketSlug, part } = await doorContext(event);
 	const ticketId = (event.url.searchParams.get('ticket') ?? '').slice(0, 64);
 	const details = ticketId
-		? await purchaseDetails(db, { slug: ticketSlug, ticketId, typeNames })
+		? await purchaseDetails(db, {
+				slug: ticketSlug,
+				ticketId,
+				typeNames,
+				forLink: Boolean(actor.link)
+			})
 		: null;
 	if (!details) error(404, 'No hay ninguna compra con esa entrada en este evento.');
 	if (part) {
-		details.tickets = await overlayPartCheckins(db, part.slug, details.tickets, {
-			id: 'id',
-			at: 'at',
-			by: 'by'
-		});
+		details.tickets = hideLogins(
+			actor,
+			await overlayPartCheckins(db, part.slug, details.tickets, {
+				id: 'id',
+				at: 'at',
+				by: 'by'
+			}),
+			'by'
+		);
 	}
 	if (actor.link) {
 		await logAdminAction(db, actor.audit, {
@@ -599,9 +670,9 @@ export async function doorPurchase(event, actor) {
  * el hash del token (no el token) y los últimos 3 dígitos del DNI (no el DNI): ver `offlineList`.
  *
  * @param {any} event
- * @param {DoorActor} _actor ya verificado por la ruta
+ * @param {DoorActor} actor ya verificado por la ruta (con un link, sin logins de admins)
  */
-export async function doorList(event, _actor) {
+export async function doorList(event, actor) {
 	// En una parte de un taller (docs/talleres-partes.md): las entradas del taller con el ingreso
 	// a esta parte.
 	const { db, typeNames, ticketSlug: slug, part } = await doorContext(event);
@@ -613,5 +684,8 @@ export async function doorList(event, _actor) {
 	const tickets = part
 		? await overlayPartCheckins(db, part.slug, all, { id: 'ticketId', at: 'at', by: 'by' })
 		: all;
-	return json({ at: Date.now(), tickets, counts }, { headers: NO_STORE });
+	return json(
+		{ at: Date.now(), tickets: hideLogins(actor, tickets, 'by'), counts },
+		{ headers: NO_STORE }
+	);
 }

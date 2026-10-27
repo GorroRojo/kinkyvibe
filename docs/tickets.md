@@ -195,11 +195,27 @@ abierto. Como mucho 20 vivos por evento.
 con escanear, escribir el código, buscar, ver la compra, vender en la puerta, deshacer, la lista
 sin conexión y sincronizar. Muestra lo mismo que la puerta del panel para hacer entrar a la gente
 (nombre, pronombres, tipo, quién compró y su mail, los últimos 3 del DNI, la compra). **No**: el
-DNI completo (`reveal` da 403), pasar límites (cupo, 10 por venta, solo anticipadas: la venta
-contesta «la tiene que confirmar une admin», sin diálogo, y una clave de `override` no sirve), qué
-evento es una entrada «De otro evento», ni ningún link al panel (volver a la ficha, órdenes,
-cargar a mano, otro evento). Sin conexión, una venta que pasa un límite se guarda igual y queda en
-«Para revisar», como la de cualquier celu ([0035](decisiones/0035-vender-en-puerta-sin-conexion.md)).
+DNI completo (`reveal` da 403), pasar límites (cupo, 10 por venta, solo anticipadas, evento
+cancelado: la venta contesta «la tiene que confirmar une admin», sin diálogo, y una clave de
+`override` no sirve), cobrar otro precio que el de la puerta o vender sin cargo en un tipo con
+precio (a la gorra, cualquier monto desde el mínimo), qué evento es una entrada «De otro evento»,
+ni ningún link al panel (volver a la ficha, órdenes, cargar a mano, otro evento). Tampoco ve lo
+interno del panel: en «Ver compra» y en el resultado de una venta no van la nota interna, quién
+confirmó la orden, el código de descuento ni el reembolso; el buscador no trae el token de las
+entradas ni busca por su comienzo (marcar desde una sugerencia usa el código o `ticket:<id>`, una
+entrada de ese evento); y donde dice quién marcó un ingreso, lo que marcó une admin dice «une
+admin», sin su login de GitHub.
+
+**Ventas sin conexión con un link.** Los límites del link valen también al sincronizar: una venta
+de más de 10 entradas, de un evento sin venta en la puerta o cancelado, con otro precio o sin
+cargo en un tipo con precio, vuelve al celu como rechazada (queda a la vista con el motivo, para
+cargarla a mano). Solo el **cupo** sigue la regla de [0035](decisiones/0035-vender-en-puerta-sin-conexion.md):
+la venta se guarda igual y queda en «Para revisar». El registro dice «con un link de puerta» y
+lleva `doorLink`. Las ventas sincronizadas con un link no mandan el mail de compra.
+
+**Topes por link** (por hora): 150 entradas vendidas (con conexión y sincronizadas; pasado el
+tope, la venta se rechaza y la carga une admin) y 40 mails de compra (solo en ventas con
+conexión; pasado el tope, la venta queda y el mail no sale).
 En iPhone se usa «Escribir código» o «Buscar persona» (abrir el QR con la app Cámara lleva a la
 página de la entrada, que marca el ingreso solo para admins).
 
@@ -213,6 +229,12 @@ página de la entrada, que marca el ingreso solo para admins).
   deja la cookie `kv_puerta` (httpOnly, `SameSite=Strict`, solo para `/puerta`, vence con el link)
   y abre `/puerta/<slug>`. «Cerrar la puerta en este celu» (Opciones) la borra, junto con la lista
   guardada en el celu (solo sin nada por sincronizar ni ventas sin registrar).
+- **Lo guardado en el celu** (`kv-door:<slug>` en localStorage: la lista sin conexión con nombres
+  y mails, y los últimos escaneos) se borra cuando el servidor contesta 403 (el link venció o lo
+  revocaron) y cuando pasa el vencimiento del link (al abrir la pantalla y cada 30 segundos),
+  aunque no haya conexión. Abrir `/puerta` sin un link vivo borra todo lo `kv-door…` del celu (en
+  ese navegador, también lo de la puerta del panel). **Revocar no llega a un celu sin conexión**:
+  ese celu sigue con la lista hasta que vence el link o vuelve a hablar con el servidor.
 - En **cada** pedido de `/puerta/<slug>` (la página, cada acción y los tres GET: `buscar`,
   `compra`, `lista`) `requireDoorLink` vuelve a mirar la base: el link existe, es de **ese**
   evento, no venció y no se revocó; si no, 403 (y borra una cookie que ya no sirve). Además, un
@@ -224,12 +246,16 @@ página de la entrada, que marca el ingreso solo para admins).
   ingresó», deshacer, venta, sincronizar, ver una compra) queda como `puerta:<id del link>`, con
   `doorLink` en el detalle. Crear y revocar quedan como `door_link.create` y `door_link.revoke`.
   El token nunca se guarda ni se loguea.
-- `/puerta` no se indexa, no se guarda en la caché del borde, no se cuenta en las visitas y no se
-  puede meter en un iframe.
+- `/puerta` no se indexa, no se guarda en la caché del borde, no se cuenta en las visitas, no se
+  puede meter en un iframe y no carga el beacon de Cloudflare Web Analytics (`hooks.server.js` lo
+  saca del HTML, `src/lib/server/analyticsBeacon.js`), así ningún script de terceros ve el
+  fragmento con el token.
 
 Las pruebas (`src/routes/puerta/puerta-link.test.js`) cubren el token (solo el hash, cambiado,
 cortado), vencido, revocado, de otro evento, cada acción y cada GET con un link ajeno, el DNI
-completo, los límites, el registro sin el token, que la puerta del panel, la ficha, órdenes,
+completo, los límites (también al sincronizar ventas sin conexión), el precio, lo interno del panel
+en «Ver compra», el buscador sin token, los topes de entradas y de mails, el beacon, que la puerta
+del panel sigue igual, el registro sin el token, que la puerta del panel, la ficha, órdenes,
 exportar, reembolsar y mails no reconocen la cookie, y que solo une admin crea y revoca.
 
 ### Pasar límites desde el panel

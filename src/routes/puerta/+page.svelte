@@ -18,7 +18,26 @@
 	/** @param {string} slug */
 	const doorHref = (slug) => `/puerta/${encodeURIComponent(slug)}`;
 
+	/**
+	 * Sin un link vivo en este celu: se borra lo que haya quedado guardado de una puerta
+	 * (`kv-door…`: la lista con nombres y mails, los últimos escaneos).
+	 */
+	function forgetDoorData() {
+		try {
+			const store = window.localStorage;
+			const keys = [];
+			for (let i = 0; i < store.length; i++) {
+				const k = store.key(i);
+				if (k?.startsWith('kv-door')) keys.push(k);
+			}
+			for (const k of keys) store.removeItem(k);
+		} catch {
+			// sin almacenamiento: no había nada guardado
+		}
+	}
+
 	onMount(async () => {
+		if (!data.current) forgetDoorData();
 		const token = window.location.hash.slice(1);
 		if (!token) return;
 		// Que el token no quede en la barra, en el historial ni en una captura de pantalla.

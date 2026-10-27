@@ -14,7 +14,8 @@
  *   es de **ese** evento, no venció y no se revocó. Revocar corta al toque.
  * - Esta cookie no es una sesión de admin: no toca `locals.user`, así que el resto del panel
  *   (`requireAdmin`) la ignora y sigue pidiendo GitHub.
- * - Topes: entrar con un link (por IP, anónima) y los pedidos de cada link.
+ * - Topes: entrar con un link (por IP, anónima), los pedidos de cada link, las entradas que vende
+ *   cada link por hora (con y sin conexión) y los mails de compra que manda cada link por hora.
  * - Nunca se loguea el token: los errores y el registro de actividad llevan el `id` del link.
  */
 import { error } from '@sveltejs/kit';
@@ -83,6 +84,14 @@ export const DOOR_LINK_ENTER_LIMIT = Object.freeze({ limit: 20, windowSeconds: 1
  * para una noche con mucha gente; frena a quien lo use para bajar datos en masa.
  */
 export const DOOR_LINK_REQUEST_LIMIT = Object.freeze({ limit: 3000, windowSeconds: 60 * 60 });
+
+/**
+ * Entradas que puede vender un link por hora (con conexión y las que sincroniza sin conexión).
+ * Holgado para una puerta con mucha gente; más, lo carga une admin.
+ */
+export const DOOR_LINK_TICKETS_LIMIT = Object.freeze({ limit: 150, windowSeconds: 60 * 60 });
+/** Mails de compra que puede mandar un link por hora (solo en ventas con conexión). */
+export const DOOR_LINK_EMAIL_LIMIT = Object.freeze({ limit: 40, windowSeconds: 60 * 60 });
 
 const AR_OFFSET_MS = 3 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
@@ -384,3 +393,57 @@ export async function requireDoorLink(event, db, { now = Date.now() } = {}) {
 	if (!rate.allowed) error(429, 'Demasiados pedidos con este link: esperá un rato.');
 	return linkActor(found.link);
 }
+
+/**
+ * Gasta `amount` del cupo de un tope (ventana fija, la tabla `rate_limits` como `hitRateLimit`)
+ * solo si entra entero: si no entra, no gasta nada y devuelve `false`. Para topes que cuentan
+ * cosas (entradas, mails) y no pedidos.
+ *
+ * @param {D1Database} db
+ * @param {string} bucket sin datos de personas (acá, el id del link)
+ * @param {{ limit: number, windowSeconds: number }} rule
+ * @param {number} amount
+ * @param {number} [now]
+ */
+export async function takeQuota(db, bucket, { limit, windowSeconds }, amount, now = Date.now()) {
+	if (!Number.isSafeInteger(amount) || amount < 1) return true;
+	const nowSeconds = Math.floor(now / 1000);
+	const windowStart = nowSeconds - (nowSeconds % windowSeconds);
+	const row = await db
+		.prepare(
+			`INSERT INTO rate_limits (bucket, window_start, hits) SELECT ?1, ?2, ?3 WHERE ?3 <= ?4
+			ON CONFLICT (bucket, window_start) DO UPDATE SET hits = rate_limits.hits + excluded.hits
+				WHERE rate_limits.hits + excluded.hits <= ?4
+			RETURNING hits`
+		)
+		.bind(bucket, windowStart, amount, limit)
+		.first();
+	return Boolean(row);
+}
+
+/**
+ * ¿Puede este link vender `quantity` entradas más en esta hora? Si puede, las cuenta.
+ *
+ * @param {D1Database} db
+ * @param {Pick<DoorLink, 'id'>} link
+ * @param {number} quantity
+ * @param {number} [now]
+ */
+export function takeDoorLinkTickets(db, link, quantity, now = Date.now()) {
+	return takeQuota(db, `puerta:link-tickets:${link.id}`, DOOR_LINK_TICKETS_LIMIT, quantity, now);
+}
+
+/**
+ * ¿Puede este link mandar un mail de compra más en esta hora? Si puede, lo cuenta.
+ *
+ * @param {D1Database} db
+ * @param {Pick<DoorLink, 'id'>} link
+ * @param {number} [now]
+ */
+export function takeDoorLinkEmail(db, link, now = Date.now()) {
+	return takeQuota(db, `puerta:link-mail:${link.id}`, DOOR_LINK_EMAIL_LIMIT, 1, now);
+}
+
+/** El mensaje cuando un link llegó al tope de entradas por hora. */
+export const DOOR_LINK_TICKETS_MESSAGE =
+	'Este link llegó al tope de entradas vendidas por hora: que la cargue une admin o esperá un rato.';

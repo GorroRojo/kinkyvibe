@@ -55,6 +55,16 @@ vi.mock('$lib/server/tickets/events.js', async (importOriginal) => {
 	};
 });
 
+// Los mails de compra: se cuentan, no se mandan.
+const mails = vi.hoisted(() => ({ sent: 0 }));
+vi.mock('$lib/server/tickets/index.js', async (importOriginal) => ({
+	.../** @type {object} */ (await importOriginal()),
+	sendOrderEmail: async () => {
+		mails.sent++;
+		return true;
+	}
+}));
+
 // Sin serie (leer las publicaciones compila todo el repo).
 vi.mock('$lib/utils', async (importOriginal) => ({
 	.../** @type {object} */ (await importOriginal()),
@@ -74,7 +84,9 @@ import {
 	hashDoorToken,
 	isDoorTokenShape,
 	newDoorToken,
-	parseDoorLinkForm
+	parseDoorLinkForm,
+	DOOR_LINK_EMAIL_LIMIT,
+	DOOR_LINK_TICKETS_LIMIT
 } from '$lib/server/tickets/doorLinks.js';
 import * as entry from './+page.server.js';
 import * as linkDoor from './[slug]/+page.server.js';
@@ -102,6 +114,7 @@ afterAll(async () => {
 beforeEach(async () => {
 	await resetDB(t.db);
 	resetMetas();
+	mails.sent = 0;
 });
 
 const admin = { user: { id: ADMINS[0].id, login: ADMINS[0].login }, user_token: 'prueba' };
@@ -734,5 +747,346 @@ describe('solo une admin crea y revoca links', () => {
 		expect(await call(linkDoor.load, { cookies: own.jar.cookies })).toMatchObject({ thrown: 403 });
 		const revoked = (await listAudit(t.db)).find((e) => e.action === 'door_link.revoke');
 		expect(revoked?.detail).toMatchObject({ doorLink: own.link.id });
+	});
+});
+
+/** Una venta hecha sin conexión, como la manda el celu. */
+function queued(
+	/** @type {Record<string, string>} */ fields,
+	id = `venta-${Math.random().toString(36).slice(2, 12)}`
+) {
+	return {
+		id,
+		at: Date.now() - 60_000,
+		fields: {
+			type: 'general',
+			quantity: '1',
+			method: 'efectivo',
+			name: 'Persona Inventada',
+			...fields
+		}
+	};
+}
+
+/** Sincroniza ventas sin conexión con un link o como admin. */
+async function syncSales(/** @type {any[]} */ sales, /** @type {any} */ who) {
+	const sync = who.cookies ? linkDoor.actions.syncSales : adminDoor.actions.syncSales;
+	return call(sync, {
+		...(who.cookies
+			? { cookies: who.cookies }
+			: { path: `/admin/eventos/${SLUG}/ingreso`, locals: admin }),
+		fields: { sales: JSON.stringify(sales) }
+	});
+}
+
+/** Llena el tope de un link hasta `hits` en esta hora. */
+async function fillQuota(
+	/** @type {string} */ bucket,
+	/** @type {number} */ hits,
+	windowSeconds = 3600
+) {
+	const nowSeconds = Math.floor(Date.now() / 1000);
+	await t.db
+		.prepare('INSERT INTO rate_limits (bucket, window_start, hits) VALUES (?1, ?2, ?3)')
+		.bind(bucket, nowSeconds - (nowSeconds % windowSeconds), hits)
+		.run();
+}
+
+describe('límites del link de puerta del lado del servidor', () => {
+	it('sin conexión: más de 10, sin venta en la puerta o cancelado vuelven rechazadas; el cupo va a revisar', async () => {
+		const { link, jar: j } = await makeLink();
+		const r = await syncSales([queued({ quantity: '11' })], j);
+		expect(r.syncSales.results[0]).toMatchObject({ result: 'rejected' });
+		expect(r.syncSales.results[0].message).toMatch(/hasta 10/);
+
+		// Pasa el cupo (20): se guarda y queda para revisar, con el link en el registro.
+		const many = Array.from({ length: 3 }, () => queued({ quantity: '8' }));
+		const r2 = await syncSales(many, j);
+		expect(r2.syncSales.results.map((/** @type {any} */ x) => x.result)).toEqual([
+			'ok',
+			'ok',
+			'ok'
+		]);
+		expect(r2.syncSales.results[2].review.length).toBe(1);
+		const reviewed = await t.db
+			.prepare('SELECT offline_review FROM orders WHERE offline_review IS NOT NULL')
+			.all();
+		expect(reviewed.results).toHaveLength(1);
+		expect(JSON.parse(String(reviewed.results[0].offline_review))).toEqual([
+			expect.objectContaining({ kind: 'capacity' })
+		]);
+		const logged = (await listAudit(t.db)).filter((e) => e.action === 'order.door_sale');
+		expect(logged).toHaveLength(3);
+		for (const e of logged) {
+			expect(e.summary).toMatch(/con un link de puerta/);
+			expect(e.detail).toMatchObject({ doorLink: link.id, offline: true });
+		}
+
+		metas[SLUG].puerta = false;
+		const off = await syncSales([queued({})], j);
+		expect(off.syncSales.results[0]).toMatchObject({ result: 'rejected' });
+		metas[SLUG].puerta = true;
+		metas[SLUG].status = 'cancelado';
+		const cancelled = await syncSales([queued({})], j);
+		expect(cancelled.syncSales.results[0]).toMatchObject({ result: 'rejected' });
+		const n = await t.db.prepare('SELECT COUNT(*) AS n FROM orders').first();
+		expect(n?.n).toBe(3);
+	});
+
+	it('sin conexión: $ 0 u otro precio en un tipo con precio, rechazadas; el de la puerta, sí', async () => {
+		const { jar: j } = await makeLink();
+		const r = await syncSales(
+			[
+				queued({ amount: '0' }),
+				queued({ amount: '5000' }),
+				queued({ amount: '10000' }),
+				queued({})
+			],
+			j
+		);
+		expect(r.syncSales.results.map((/** @type {any} */ x) => x.result)).toEqual([
+			'rejected',
+			'rejected',
+			'ok',
+			'ok'
+		]);
+		const totals = await t.db
+			.prepare('SELECT total, channel FROM orders ORDER BY created_at')
+			.all();
+		expect(totals.results).toEqual([
+			{ total: 10000, channel: 'puerta' },
+			{ total: 10000, channel: 'puerta' }
+		]);
+	});
+
+	it('a la gorra: cualquier monto desde el mínimo, con y sin conexión', async () => {
+		metas[SLUG].tickets = [
+			{
+				id: 'gorra',
+				name: 'A la gorra',
+				a_la_gorra: { minimo: 1000, sugerido: 2000 },
+				capacity: 20
+			}
+		];
+		const { jar: j } = await makeLink();
+		const fields = { type: 'gorra', quantity: '1', method: 'efectivo', name: 'Alguien' };
+		const ok = await call(linkDoor.actions.sell, {
+			fields: { ...fields, amount: '1500' },
+			cookies: j.cookies
+		});
+		expect(ok.sale).toMatchObject({ ok: true, total: 1500 });
+		const low = await call(linkDoor.actions.sell, {
+			fields: { ...fields, amount: '500' },
+			cookies: j.cookies
+		});
+		expect(low.status).toBe(400);
+		const r = await syncSales([queued({ ...fields, amount: '3000' })], j);
+		expect(r.syncSales.results[0]).toMatchObject({ result: 'ok', total: 3000 });
+	});
+
+	it('con conexión: otro precio o $ 0 en un tipo con precio, no; une admin, sí', async () => {
+		const { jar: j } = await makeLink();
+		const fields = { type: 'general', quantity: '1', method: 'efectivo', name: 'Alguien' };
+		for (const amount of ['0', '5000', '12000']) {
+			const r = await call(linkDoor.actions.sell, {
+				fields: { ...fields, amount },
+				cookies: j.cookies
+			});
+			expect(r.status, amount).toBe(400);
+			expect(r.data.sale.message).toMatch(/une admin/);
+		}
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM orders').first())?.n).toBe(0);
+		const same = await call(linkDoor.actions.sell, {
+			fields: { ...fields, amount: '10000' },
+			cookies: j.cookies
+		});
+		expect(same.sale).toMatchObject({ ok: true, total: 10000 });
+		// La puerta del panel sigue igual: otro precio, con nota.
+		const asAdmin = await call(adminDoor.actions.sell, {
+			path: `/admin/eventos/${SLUG}/ingreso`,
+			fields: { ...fields, amount: '5000', note: 'nota interna de prueba' },
+			locals: admin
+		});
+		expect(asAdmin.sale).toMatchObject({ ok: true, total: 5000, note: 'nota interna de prueba' });
+	});
+
+	it('la puerta del panel sin conexión sigue igual: todo se guarda y los límites van a revisar', async () => {
+		metas[SLUG].puerta = false;
+		const r = await syncSales([queued({ quantity: '11' }), queued({ amount: '0' })], {});
+		expect(r.syncSales.results.map((/** @type {any} */ x) => x.result)).toEqual(['ok', 'ok']);
+		expect(r.syncSales.results[0].review.length).toBeGreaterThan(0);
+		const logged = (await listAudit(t.db)).filter((e) => e.action === 'order.door_sale');
+		expect(logged).toHaveLength(2);
+		for (const e of logged) {
+			expect(e.summary).not.toMatch(/link/);
+			expect(e.detail).not.toHaveProperty('doorLink');
+		}
+	});
+
+	it('tope de entradas vendidas por hora por link (con y sin conexión)', async () => {
+		const { link, jar: j } = await makeLink();
+		await fillQuota(`puerta:link-tickets:${link.id}`, DOOR_LINK_TICKETS_LIMIT.limit - 1);
+		const fields = { type: 'general', quantity: '2', method: 'efectivo', name: 'Alguien' };
+		const r = await call(linkDoor.actions.sell, { fields, cookies: j.cookies });
+		expect(r.status).toBe(429);
+		const off = await syncSales([queued({ quantity: '2' })], j);
+		expect(off.syncSales.results[0]).toMatchObject({ result: 'rejected' });
+		const one = await call(linkDoor.actions.sell, {
+			fields: { ...fields, quantity: '1' },
+			cookies: j.cookies
+		});
+		expect(one.sale.ok).toBe(true);
+		expect((await t.db.prepare('SELECT COUNT(*) AS n FROM orders').first())?.n).toBe(1);
+		// Otro link tiene su propio tope.
+		const other = await makeLink(SLUG, 'voluntarie 2');
+		const r2 = await call(linkDoor.actions.sell, { fields, cookies: other.jar.cookies });
+		expect(r2.sale.ok).toBe(true);
+	});
+
+	it('mails de compra: con tope por hora por link, y nunca al sincronizar con un link', async () => {
+		const { link, jar: j } = await makeLink();
+		const fields = {
+			type: 'general',
+			quantity: '1',
+			method: 'efectivo',
+			name: 'Alguien',
+			email: 'alguien@example.com',
+			send_email: 'on'
+		};
+		const first = await call(linkDoor.actions.sell, { fields, cookies: j.cookies });
+		expect(first.sale.ok).toBe(true);
+		expect(mails.sent).toBe(1);
+
+		await t.db
+			.prepare('DELETE FROM rate_limits WHERE bucket = ?1')
+			.bind(`puerta:link-mail:${link.id}`)
+			.run();
+		await fillQuota(`puerta:link-mail:${link.id}`, DOOR_LINK_EMAIL_LIMIT.limit);
+		const capped = await call(linkDoor.actions.sell, { fields, cookies: j.cookies });
+		expect(capped.sale.ok).toBe(true);
+		expect(capped.sale.message).toMatch(/No se mandó el mail/);
+		expect(mails.sent).toBe(1);
+
+		const off = await syncSales([queued(fields)], {
+			cookies: (await makeLink(SLUG, 'otro')).jar.cookies
+		});
+		expect(off.syncSales.results[0].result).toBe('ok');
+		expect(mails.sent).toBe(1);
+		// Une admin al sincronizar, sí.
+		await syncSales([queued(fields)], {});
+		expect(mails.sent).toBe(2);
+	});
+
+	it('«Ver compra» y la venta: sin nota interna, quién confirmó, descuento ni reembolso; une admin, todo', async () => {
+		const asAdmin = await call(adminDoor.actions.sell, {
+			path: `/admin/eventos/${SLUG}/ingreso`,
+			fields: {
+				type: 'general',
+				quantity: '1',
+				method: 'efectivo',
+				name: 'Persona Inventada',
+				note: 'nota interna de prueba'
+			},
+			locals: admin
+		});
+		const ticketId = asAdmin.sale.tickets[0].ticketId;
+		const { jar: j } = await makeLink();
+		const p = await call(linkPurchase.GET, { query: `?ticket=${ticketId}`, cookies: j.cookies });
+		expect(p.status).toBe(200);
+		for (const k of ['note', 'confirmedBy', 'discountCode', 'refundedAt']) {
+			expect(p.body, k).not.toHaveProperty(k);
+		}
+		expect(JSON.stringify(p.body)).not.toContain('nota interna de prueba');
+		expect(JSON.stringify(p.body)).not.toContain(ADMINS[0].login);
+		// Quién marcó el ingreso (une admin, al vender): sin su login.
+		expect(p.body.tickets[0].by).toBe('une admin');
+
+		const full = await call(adminPurchase.GET, {
+			path: `/admin/eventos/${SLUG}/ingreso/compra`,
+			query: `?ticket=${ticketId}`,
+			locals: admin
+		});
+		expect(full.body).toMatchObject({
+			note: 'nota interna de prueba',
+			confirmedBy: ADMINS[0].login
+		});
+		expect(full.body.tickets[0].by).toBe(ADMINS[0].login);
+
+		const sold = await call(linkDoor.actions.sell, {
+			fields: {
+				type: 'general',
+				quantity: '1',
+				method: 'efectivo',
+				name: 'Alguien',
+				note: 'otra nota'
+			},
+			cookies: j.cookies
+		});
+		expect(sold.sale.ok).toBe(true);
+		expect(sold.sale).not.toHaveProperty('note');
+	});
+
+	it('el buscador no trae el token ni busca por su comienzo; marcar desde una sugerencia anda', async () => {
+		const { jar: j } = await makeLink();
+		const ticket = await ticketFor();
+		const s = await call(linkSearch.GET, { query: '?q=inventada', cookies: j.cookies });
+		expect(s.body.results).toHaveLength(1);
+		expect(s.body.results[0]).not.toHaveProperty('token');
+		expect(JSON.stringify(s.body)).not.toContain(ticket.token);
+		const byToken = await call(linkSearch.GET, {
+			query: `?q=${encodeURIComponent(ticket.token.slice(0, 12))}`,
+			cookies: j.cookies
+		});
+		expect(byToken.body.results).toEqual([]);
+		// La puerta del panel sigue igual.
+		const adminS = await call(adminSearch.GET, {
+			path: `/admin/eventos/${SLUG}/ingreso/buscar`,
+			query: `?q=${encodeURIComponent(ticket.token.slice(0, 12))}`,
+			locals: admin
+		});
+		expect(adminS.body.results[0]).toMatchObject({ token: ticket.token });
+
+		// Desde la sugerencia: por el id de la entrada (de este evento).
+		const r = await call(linkDoor.actions.checkin, {
+			fields: { token: `ticket:${s.body.results[0].id}` },
+			cookies: j.cookies
+		});
+		expect(r.checkin.result).toBe('ok');
+		// Una entrada de otro evento por su id: no.
+		const foreign = await ticketFor(OTHER);
+		const r2 = await call(linkDoor.actions.checkin, {
+			fields: { token: `ticket:${foreign.id}` },
+			cookies: j.cookies
+		});
+		expect(r2.checkin.result).toBe('invalid');
+	});
+
+	it('no manda logins de GitHub de admins: buscar, lista, escanear', async () => {
+		const ticket = await ticketFor();
+		await call(adminDoor.actions.checkin, {
+			path: `/admin/eventos/${SLUG}/ingreso`,
+			fields: { token: ticket.code },
+			locals: admin
+		});
+		const { jar: j } = await makeLink();
+		const s = await call(linkSearch.GET, { query: '?q=inventada', cookies: j.cookies });
+		expect(s.body.results[0].checkedInBy).toBe('une admin');
+		const l = await call(linkList.GET, { cookies: j.cookies });
+		expect(l.body.tickets[0].by).toBe('une admin');
+		const again = await call(linkDoor.actions.checkin, {
+			fields: { token: ticket.code },
+			cookies: j.cookies
+		});
+		expect(again.checkin.result).toBe('already');
+		expect(again.checkin.card.by).toBe('une admin');
+		for (const body of [s.body, l.body, again]) {
+			expect(JSON.stringify(body)).not.toContain(ADMINS[0].login);
+		}
+		// La puerta del panel sigue viendo quién fue.
+		const adminL = await call(adminList.GET, {
+			path: `/admin/eventos/${SLUG}/ingreso/lista`,
+			locals: admin
+		});
+		expect(adminL.body.tickets[0].by).toBe(ADMINS[0].login);
 	});
 });

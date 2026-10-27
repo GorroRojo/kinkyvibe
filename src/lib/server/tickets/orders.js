@@ -1224,10 +1224,16 @@ export const SEARCH_FIELD_LABELS = /** @type {const} */ ({
  * @param {D1Database} db
  * @param {string} eventSlug
  * @param {string} [query]
- * @param {{ limit?: number }} [options]
+ * @param {{ limit?: number, tokenPrefix?: boolean }} [options] `tokenPrefix: false`: no buscar
+ *   por el comienzo del token (la puerta con un link)
  * @returns {Promise<TicketSearchResult[]>}
  */
-export async function searchTickets(db, eventSlug, query = '', { limit = 50 } = {}) {
+export async function searchTickets(
+	db,
+	eventSlug,
+	query = '',
+	{ limit = 50, tokenPrefix = true } = {}
+) {
 	const q = foldText(query.slice(0, 80));
 	if (!q) return [];
 	const digits = q.replace(/[.\s]/g, '');
@@ -1269,7 +1275,7 @@ export async function searchTickets(db, eventSlug, query = '', { limit = 50 } = 
 		) {
 			match = { field: 'code', value: rowCode };
 			rank = rowCode === code ? 0 : 1;
-		} else if (query.trim().length >= 8 && row.token.startsWith(query.trim())) {
+		} else if (tokenPrefix && query.trim().length >= 8 && row.token.startsWith(query.trim())) {
 			// Comienzo del token (el link del QR), por si alguien lo copia a mano.
 			match = { field: 'code', value: rowCode };
 			rank = 1;

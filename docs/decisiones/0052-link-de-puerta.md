@@ -21,9 +21,10 @@ puerta.
 - Muestra **lo mismo que la puerta del panel** para hacer entrar a la gente (nombre, pronombres,
   tipo, quién compró y su mail, los últimos 3 del DNI, la compra), y nada más: **no** el DNI
   completo (gorrite cambió la propuesta original, que no mostraba mails ni DNI).
-- Con el link **no se pasan límites** (cupo, 10 por venta, solo anticipadas): eso sigue siendo de
-  admins (0006). Sin conexión, una venta que pasa un límite se guarda igual y va a «Para revisar»
-  (0035), como la de cualquier celu.
+- Con el link **no se pasan límites** (cupo, 10 por venta, solo anticipadas, evento cancelado) ni
+  se cobra otro precio que el de la puerta: eso sigue siendo de admins (0006). Sin conexión, esos
+  límites también frenan la venta al sincronizar (vuelve al celu como rechazada); solo una venta que
+  pasa el **cupo** se guarda igual y va a «Para revisar» (0035).
 - Cada acción hecha con un link queda en el registro de actividad con el id del link.
 - Sin cambios en la política de devoluciones ni en lo que recibe Mercado Pago.
 
@@ -36,4 +37,13 @@ puerta.
 ## Consecuencias
 
 - Cómo funciona y por qué es seguro: `docs/tickets.md`, «Link de puerta».
+- Los límites del link se controlan en el servidor en cada camino (venta con conexión y
+  sincronización de ventas sin conexión), con topes por link y por hora de entradas vendidas y de
+  mails de compra; con un link, el mail de compra sale solo en ventas con conexión.
+- Con un link no viaja lo interno del panel: ni la nota, quién confirmó, el descuento o el
+  reembolso de una compra, ni el token de las entradas en el buscador, ni los logins de admins.
+- La lista guardada en el celu se borra cuando el link vence o el servidor dice que ya no sirve.
+  Revocar no puede llegar a un celu sin conexión: ese celu la conserva hasta que vence el link o
+  vuelve a conectarse.
+- `/puerta` no carga scripts de analytics de terceros (el token va en el fragmento).
 - El rol de organizadore (`rol-organizadore`) puede reusar esto para la puerta de sus eventos.

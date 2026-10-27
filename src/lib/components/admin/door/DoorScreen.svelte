@@ -196,7 +196,45 @@
 	};
 	const recentKey = () => `kv-door-recent:${data.slug}`;
 	function persist() {
+		// Con un link que ya no anda no se vuelve a guardar nada (ver `endLink`).
+		if (linkEnded) return;
 		saveDoorState(storage(), data.slug, door);
+	}
+
+	// --- Puerta con link: lo guardado en el celu no dura más que el link ---
+	/** Por qué se cerró la puerta con link en este celu ('' mientras anda). */
+	let linkEnded = '';
+	/**
+	 * El link venció o el servidor dice que ya no sirve (403: revocado, vencido, de otro evento):
+	 * se borra la lista guardada en este celu (nombres, mails) y lo pendiente, que con este link ya
+	 * no se puede sincronizar. Un celu sin conexión no se entera de que lo revocaron: lo borra al
+	 * vencer o la próxima vez que habla con el servidor.
+	 * @param {string} message
+	 */
+	function endLink(message) {
+		if (!linkMode || linkEnded) return;
+		linkEnded = message;
+		try {
+			storage()?.removeItem(`kv-door:${data.slug}`);
+			storage()?.removeItem(recentKey());
+		} catch {
+			// sin almacenamiento: no había nada guardado
+		}
+		door = emptyDoorState();
+		recent = [];
+		scan = null;
+		suggestions = [];
+		purchaseOpen = false;
+		purchase = null;
+	}
+	function checkLinkExpiry() {
+		if (linkMode && data.doorLink && Date.now() >= Number(data.doorLink.expiresAt)) {
+			endLink('Este link de puerta venció.');
+		}
+	}
+	/** @param {number} status */
+	function linkRefused(status) {
+		if (status === 403) endLink('Este link de puerta ya no sirve (venció o lo revocaron).');
 	}
 	function persistRecent() {
 		try {
@@ -219,6 +257,8 @@
 			body,
 			headers: { 'x-sveltekit-action': 'true', accept: 'application/json' }
 		});
+		// El DNI completo da 403 con un link aunque el link ande: ese no cierra la puerta.
+		if (name !== 'reveal') linkRefused(res.status);
 		// Resultado de una acción (success / failure / redirect / error) con datos sin tipar.
 		return /** @type {any} */ (deserialize(await res.text()));
 	}
@@ -469,6 +509,8 @@
 			const res = await fetch(`${base}/compra?ticket=${encodeURIComponent(card.ticketId)}`, {
 				headers: { accept: 'application/json' }
 			});
+			linkRefused(res.status);
+			if (linkEnded) return;
 			if (!res.ok) throw new Error(String(res.status));
 			purchase = { ...(await res.json()), ticketId: card.ticketId };
 		} catch {
@@ -479,9 +521,10 @@
 
 	// --- Sin conexión: lista y sincronización ---
 	async function refreshList() {
-		if (!online) return;
+		if (!online || linkEnded) return;
 		try {
 			const res = await fetch(`${base}/lista`, { headers: { accept: 'application/json' } });
+			linkRefused(res.status);
 			if (!res.ok) return;
 			const body = await res.json();
 			door = {
@@ -518,6 +561,12 @@
 		}
 		saleWarnings = [...applied.warnings, ...saleWarnings].slice(0, 20);
 		setCounts(r.data.counts);
+		if (applied.rejected.length) {
+			const n = applied.rejected.length;
+			say(
+				`${n === 1 ? '1 venta hecha sin conexión no se pudo registrar' : `${n} ventas hechas sin conexión no se pudieron registrar`}: mirá el aviso.`
+			);
+		}
 		if (applied.done) {
 			const n = applied.done;
 			say(
@@ -527,7 +576,7 @@
 	}
 
 	async function sync() {
-		if (syncing || !online || (!door.queue.length && !door.sales.length)) return;
+		if (syncing || !online || linkEnded || (!door.queue.length && !door.sales.length)) return;
 		syncing = true;
 		try {
 			if (door.sales.length) await syncSales();
@@ -588,9 +637,14 @@
 
 	/** @type {ReturnType<typeof setInterval> | undefined} */
 	let timer;
+	/** @type {ReturnType<typeof setInterval> | undefined} */
+	let linkTimer;
 	onMount(() => {
 		online = navigator.onLine;
 		door = loadDoorState(storage(), data.slug);
+		// Puerta con link: si ya venció (el celu estuvo cerrado), se borra lo guardado al abrir.
+		checkLinkExpiry();
+		if (linkMode) linkTimer = setInterval(checkLinkExpiry, 30_000);
 		try {
 			recent = JSON.parse(storage()?.getItem(recentKey()) ?? '[]');
 			sound = storage()?.getItem('kv-door-sound') === '1';
@@ -611,6 +665,7 @@
 	onDestroy(() => {
 		if (typeof document === 'undefined') return;
 		clearInterval(timer);
+		clearInterval(linkTimer);
 		document.removeEventListener('visibilitychange', onVisibility);
 		window.removeEventListener('online', goOnline);
 		window.removeEventListener('offline', goOffline);
@@ -702,6 +757,7 @@
 					signal: controller.signal,
 					headers: { accept: 'application/json' }
 				});
+				linkRefused(res.status);
 				if (!res.ok) return;
 				const body = await res.json();
 				if (controller.signal.aborted) return;
@@ -720,7 +776,8 @@
 		query = '';
 		suggestions = [];
 		searched = '';
-		await submitScan(s.token || s.code);
+		// Con un link, el buscador no trae el token: el código o, si no tiene, la entrada por su id.
+		await submitScan(s.token || s.code || `ticket:${s.id}`);
 	}
 
 	/** @param {KeyboardEvent} e */
@@ -1041,6 +1098,16 @@
 			<div class="banner ready" role="status">
 				<CloudCheck size={20} />
 				<span><strong>{connection.title}</strong> {connection.detail}</span>
+			</div>
+		{/if}
+		{#if linkEnded}
+			<!-- Puerta con link que ya no anda: se borró lo guardado en este celu. -->
+			<div class="banner warn" role="alert">
+				<TriangleAlert size={20} />
+				<span>
+					<strong>{linkEnded}</strong> Se borró la lista guardada en este celu. Pedile un link nuevo
+					a une organizadore. <a href="/puerta">Ir al inicio de la puerta</a>
+				</span>
 			</div>
 		{/if}
 		{#each door.failed as f (f.id)}
@@ -1536,7 +1603,11 @@
 						<dd>+ {formatARS(purchase.fondoContribution)}</dd>{/if}
 					{#if purchase.discountAmount}
 						<dt>Descuento</dt>
-						<dd>− {formatARS(purchase.discountAmount)} ({purchase.discountCode})</dd>
+						<dd>
+							− {formatARS(purchase.discountAmount)}{purchase.discountCode
+								? ` (${purchase.discountCode})`
+								: ''}
+						</dd>
 					{/if}
 					{#if purchase.surcharge}<dt>Recargo MP</dt>
 						<dd>+ {formatARS(purchase.surcharge)}</dd>{/if}
