@@ -67,7 +67,9 @@ hace 5 min»…), resaltada si hay algo para mirar. La arma `src/lib/server/admi
 con una sola tanda a la base (ajustes guardados, interruptores, lo último del registro, propinas
 aprobadas) más lo de Automatizaciones; una tarjeta sin un dato barato y claro no lleva línea (el
 Fondo, si no hay uno fijado a mano ni llegó ninguno automático; cualquier parte que no se pudo
-leer). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene `landing` en
+leer). El Fondo automático dice de cuándo es si el último dato tiene más de un día («12 % de cada
+entrada (último dato hace 30 h)»): con fondo.kinkyvibe.ar caído se sigue cobrando ese (auditoría
+de confiabilidad, O36). Ajustes **no lleva pestañas** (ni la lista ▾ del celu): el grupo tiene `landing` en
 `NAV_GROUPS`, y cada página de Ajustes vuelve a la portada con «← Ajustes» (`areaBackLink`).
 
 **Opción C, parte 2** (gorrite, 11/10; [decisión 0039](decisiones/0039-navegacion-del-panel-opcion-c-parte-2.md)):
