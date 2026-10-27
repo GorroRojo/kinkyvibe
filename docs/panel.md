@@ -304,6 +304,13 @@ revisar" del Inicio.
   eventos próximos sin imagen», «2 perfiles nuevos para revisar», el chequeo nocturno con sus
   problemas o las etiquetas. Si la tarjeta tiene 7 filas, el botón dice 7 y el Inicio dice «7 cosas
   para revisar». Sin filas, «todo al día».
+- **Cuando la base falla, el Inicio lo dice** (auditoría de confiabilidad, O18): cada consulta que
+  cae a su respaldo por un error queda anotada (el parámetro `failed` de `runQuery` y `runQueries`
+  en `src/lib/server/db/batch.js`, que pasa también por `combineQueries` y `mapQuery`) y el load
+  devuelve `unreadable`, solo con sus nombres (sin SQL ni mensajes de error). Arriba aparece en rojo
+  «No pudimos leer: … Lo que ves puede estar incompleto; si sigue así, avisale a gorrite.», y ni el
+  saludo ni la tarjeta vacía dicen «todo al día». El contador del menú y Ajustes no lo muestran
+  todavía (Ajustes ya usa `null` como «no se pudo leer»).
 - **Una sola fuente**: `src/lib/server/admin/review.js`. `reviewRows()` arma las filas (con los
   constructores de `inicio.js`: `reviewItems`, `transferMissingItem`, `onlineMismatchItem`,
   `profileReviewItems`, `claimReviewItems`, `groupReviewItems`, `integrityReviewRow`, y los de las
