@@ -87,11 +87,7 @@
 				<input type="hidden" name="tipo" value={info.kind} />
 				<input type="hidden" name="clave" value={info.key} />
 				<input type="hidden" name="volver" value={here} />
-				<button
-					class="pill-btn {info.following ? 'ghost' : ''}"
-					type="submit"
-					disabled={busy}
-				>
+				<button class="pill-btn {info.following ? 'ghost' : ''}" type="submit" disabled={busy}>
 					{#if info.following}
 						<BellOff size={18} aria-hidden="true" /> Dejar de seguir
 					{:else}
