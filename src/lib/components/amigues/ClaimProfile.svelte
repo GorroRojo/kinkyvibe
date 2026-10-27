@@ -97,7 +97,7 @@
 		padding: 0.5em 1.2em;
 		border-radius: var(--radius-pill);
 		border: 0;
-		background: hsl(319, 90%, 55%);
+		background: var(--1);
 		color: white;
 		font-weight: bold;
 		cursor: pointer;
