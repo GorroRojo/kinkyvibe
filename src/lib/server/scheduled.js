@@ -120,7 +120,10 @@ export async function runObjectsIntegrity(env, now = new Date()) {
 			);
 			return null;
 		}
-		const problems = await checkObjectsIntegrity(env.DB);
+		// El bucket de medios (binding MEDIA de wrangler.toml), para ver que no falten archivos.
+		const media = /** @type {{ MEDIA?: import('@cloudflare/workers-types').R2Bucket }} */ (env)
+			.MEDIA;
+		const problems = await checkObjectsIntegrity(env.DB, { bucket: media ?? null });
 		await recordIntegrityRun(env.DB, problems, now.getTime());
 		if (!problems.length) console.log('integridad de objetos: sin problemas');
 		for (const p of problems.slice(0, MAX_LOGGED_PROBLEMS)) {

@@ -21,7 +21,7 @@ import { VISIBILITIES } from './visibility.js';
 /**
  * @typedef {'unknown_type' | 'type_not_registered' | 'type_origin_mismatch' | 'invalid_data'
  *   | 'invalid_visibility' | 'dangling_edge' | 'invalid_edge' | 'too_many_edges' | 'orphan'
- *   | 'fts_out_of_sync'} ProblemCode
+ *   | 'fts_out_of_sync' | 'media_missing'} ProblemCode
  */
 
 /**
@@ -184,6 +184,61 @@ export function findIntegrityProblems({ types, objects, edges }, registry = core
 /** Filas por consulta al leer. */
 const PAGE = 1000;
 
+/** Los tipos cuyo archivo vive en R2 (bucket MEDIA), con el prefijo de su clave. */
+const MEDIA_TYPES = Object.freeze({ imagen: 'img/', archivo: 'file/' });
+
+/**
+ * Imágenes y archivos vivos (sin borrar) cuyo archivo no está en R2. PURA.
+ *
+ * @param {IntegritySnapshot['objects']} objects
+ * @param {Set<string>} keys las claves que hay en el bucket
+ * @returns {Problem[]}
+ */
+export function findMissingMedia(objects, keys) {
+	/** @type {Problem[]} */
+	const problems = [];
+	for (const o of objects) {
+		if (o.deleted_at !== null || !(o.type in MEDIA_TYPES)) continue;
+		let key = '';
+		try {
+			key = String(JSON.parse(o.data)?.key ?? '');
+		} catch {
+			continue; // ya sale como invalid_data
+		}
+		if (key && !keys.has(key)) {
+			problems.push({
+				code: 'media_missing',
+				objectId: o.id,
+				type: o.type,
+				slug: o.slug,
+				message: `El archivo de ${o.type} ${o.id} no está en R2.`
+			});
+		}
+	}
+	return problems;
+}
+
+/**
+ * Todas las claves de R2 bajo los prefijos de {@link MEDIA_TYPES} (de a 1000: un pedido por cada
+ * mil archivos, más barato que un `head` por objeto).
+ *
+ * @param {import('@cloudflare/workers-types').R2Bucket} bucket
+ */
+async function mediaKeys(bucket) {
+	/** @type {Set<string>} */
+	const keys = new Set();
+	for (const prefix of Object.values(MEDIA_TYPES)) {
+		/** @type {string | undefined} */
+		let cursor;
+		do {
+			const page = await bucket.list({ prefix, cursor, limit: 1000 });
+			for (const o of page.objects) keys.add(o.key);
+			cursor = page.truncated ? page.cursor : undefined;
+		} while (cursor);
+	}
+	return keys;
+}
+
 /**
  * Todas las filas de una tabla, de a PAGE, paginando por cursor sobre `key` (una columna única):
  * una escritura en el medio no repite ni saltea filas, como pasaba con OFFSET.
@@ -214,11 +269,15 @@ async function readAll(db, table, columns, key) {
  * Lee la base y devuelve los problemas. Carga todos los objetos en memoria: alcanza para miles;
  * si pasan de ~20.000, pasar los chequeos de edges a SQL (ver docs/objetos.md).
  *
+ * Con `bucket` (el de los medios, MEDIA) mira además que cada imagen y archivo vivo tenga su
+ * archivo en R2 (`media_missing`). Si listar el bucket falla, ese chequeo se saltea (se loguea).
+ *
  * @param {D1Database} db
- * @param {{ registry?: import('./types/index.js').Registry }} [options]
+ * @param {{ registry?: import('./types/index.js').Registry,
+ *   bucket?: import('@cloudflare/workers-types').R2Bucket | null }} [options]
  * @returns {Promise<Problem[]>}
  */
-export async function checkObjectsIntegrity(db, { registry = coreTypes } = {}) {
+export async function checkObjectsIntegrity(db, { registry = coreTypes, bucket = null } = {}) {
 	const [types, objects, edges] = await Promise.all([
 		readAll(db, 'object_types', 'type, origin', 'type'),
 		readAll(db, 'objects', 'id, type, slug, data, visibility, deleted_at', 'id'),
@@ -228,6 +287,18 @@ export async function checkObjectsIntegrity(db, { registry = coreTypes } = {}) {
 		/** @type {IntegritySnapshot} */ (/** @type {unknown} */ ({ types, objects, edges })),
 		registry
 	);
+	if (bucket) {
+		try {
+			problems.push(
+				...findMissingMedia(
+					/** @type {IntegritySnapshot['objects']} */ (/** @type {unknown} */ (objects)),
+					await mediaKeys(bucket)
+				)
+			);
+		} catch (error) {
+			console.error('[integridad] no se pudo listar el bucket de medios', error);
+		}
+	}
 	try {
 		// Compara el índice con `objects` (contenido externo). Si no coinciden, SQLite tira
 		// SQLITE_CORRUPT_VTAB; se arregla con INSERT INTO objects_fts(objects_fts) VALUES('rebuild').
