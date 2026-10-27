@@ -31,6 +31,16 @@ export const PAYMENT_METHOD = /** @type {Record<string, string>} */ ({
 });
 
 /**
+ * Lo que avisó Resend del mail de las entradas (`orders.email_problem`, webhook de Resend;
+ * docs/mails.md, «Rebotes y quejas»). Lo que no está acá se muestra como «mail enviado».
+ */
+export const EMAIL_PROBLEM = /** @type {Record<string, string>} */ ({
+	bounced: 'el mail rebotó',
+	complained: 'marcó el mail como spam',
+	suppressed: 'el mail rebotó (dirección bloqueada en Resend)'
+});
+
+/**
  * Fecha y hora cortas en Argentina, como en los registros ("30/9/26 21:05").
  * @param {number} ms
  */
@@ -62,4 +72,49 @@ export function dniQueryDigits(q) {
 	if (!s || s.length > 20 || !/^[\d.\s-]+$/.test(s)) return '';
 	const digits = s.replace(/\D/g, '');
 	return digits.length >= DNI_SEARCH_MIN_DIGITS ? digits : '';
+}
+
+/** El `id` de cada orden en Ventas › Órdenes (`#orden-<id>` lleva a esa orden). */
+const ANCHOR = 'orden-';
+
+/**
+ * Link a una orden en la ficha del evento (Ventas › Órdenes, con la página bajando hasta ella).
+ * `null` si no hay orden del servidor: una venta sin conexión que todavía no se sincronizó
+ * (`local:…`) solo está en el celu.
+ * @param {string} ordersHref la pestaña Órdenes del evento (`eventHref(slug, 'ordenes')`; no se
+ *   importa acá para que el servidor, que usa este módulo, no cargue los íconos del menú)
+ * @param {string | null | undefined} orderId
+ * @returns {string | null}
+ */
+export function orderHref(ordersHref, orderId) {
+	const id = String(orderId ?? '').trim();
+	if (!ordersHref || !id || id.startsWith('local:')) return null;
+	return `${ordersHref}#${ANCHOR}${encodeURIComponent(id)}`;
+}
+
+/**
+ * El id de la orden de un `#orden-<id>` ('' si el hash no es de una orden).
+ * @param {string | null | undefined} hash
+ */
+export function orderIdFromHash(hash) {
+	const m = /^#orden-(.+)$/.exec(String(hash ?? ''));
+	if (!m) return '';
+	try {
+		return decodeURIComponent(m[1]);
+	} catch {
+		return '';
+	}
+}
+
+/**
+ * El filtro de Órdenes («Mostrar») que deja ver una orden de ese estado: el que está, si ya la
+ * muestra; si no, «Todas» (un link a una orden reembolsada no cae en una lista que la esconde).
+ * @param {string} current 'approved' | 'pending' | 'refunded' | 'all'
+ * @param {string} status el de la orden
+ */
+export function orderFilterFor(current, status) {
+	if (current === 'all' || current === status) return current;
+	if (current === 'pending' && (status === 'pending' || status === 'awaiting_transfer'))
+		return current;
+	return 'all';
 }
