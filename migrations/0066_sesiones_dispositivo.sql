@@ -1,5 +1,6 @@
--- Migration number: 0065 	 2026-10-27T00:20:31.912Z
--- «Dónde tenés la sesión abierta» en Mi rincón (docs/cuentas.md, «Sesiones»).
+-- Migration number: 0066 	 2026-10-27T00:20:31.912Z
+-- «Dónde tenés la sesión abierta» en Mi rincón (docs/cuentas.md, «Sesiones»). Creada con
+-- `npm run db:migrations:new` (salió 0065) y pasada a 0066 porque la 0065 ya la usaba otro PR.
 --
 -- `account_sessions.device`: un nombre corto del navegador y el dispositivo, sacado del user agent
 -- al entrar («Firefox en Android», «Safari en iPhone»; `deviceLabel()` en

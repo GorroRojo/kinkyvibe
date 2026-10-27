@@ -5,7 +5,7 @@
  * reconocer el dispositivo y no sirve para identificar a nadie.
  */
 
-/** El largo máximo que se guarda (el CHECK de `account_sessions.device`, migración 0065). */
+/** El largo máximo que se guarda (el CHECK de `account_sessions.device`, migración 0066). */
 export const DEVICE_LABEL_MAX = 60;
 
 /** En orden: los que se hacen pasar por otro van antes (Edge y Opera dicen «Chrome»). */

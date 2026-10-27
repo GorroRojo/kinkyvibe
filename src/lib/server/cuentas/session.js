@@ -11,7 +11,7 @@
  *   días sin `last_seen_at`; ver ./sessionAge.js): no cierra la sesión de nadie.
  * - Cookie httpOnly, Secure (salvo http://localhost) y SameSite=Lax.
  * - «Dónde tenés la sesión abierta» (Mi rincón): de cada sesión se muestra cómo se entró, cuándo,
- *   la última vez (aproximada: `last_seen_at`) y el navegador (`device`, migración 0065: un nombre
+ *   la última vez (aproximada: `last_seen_at`) y el navegador (`device`, migración 0066: un nombre
  *   corto como «Firefox en Android», nunca el user agent entero; ver $lib/utils/userAgent.js). La
  *   IP no se guarda nunca. La página no ve ni el token ni su hash: cada sesión va con un id que
  *   sale del hash (`publicSessionId`), y cerrarla se busca siempre entre las de esa cuenta.

@@ -90,13 +90,13 @@ tiene además, abajo de todo, "Entrar al panel" (`/login`) para el equipo.
 | Tabla               | Qué guarda                                                                                                                                    |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `accounts`          | id (UUID al azar), mail normalizado y único, cuándo se verificó, hash de la contraseña (opcional), preferencias (JSON), fechas y `deleted_at` |
-| `account_sessions`  | hash del token, cuenta, cómo se entró (`code`, `password`; `passkey` reservado), creada y última vez vista; después, el navegador (0065)      |
+| `account_sessions`  | hash del token, cuenta, cómo se entró (`code`, `password`; `passkey` reservado), creada y última vez vista; después, el navegador (0066)      |
 | `login_codes`       | hash del mail, para qué es (`purpose`), hash del código, intentos, vencimiento y uso                                                          |
 | `feature_flags`     | los interruptores del panel (`cuentas` fue el primero; quedó fijo)                                                                            |
 | `orders.account_id` | columna nueva, para la compra con cuenta que viene; `ON DELETE SET NULL`                                                                      |
 
 Después: `free_order_choices` (migración 0061), lo que eligió cada cuenta sobre una orden gratis
-que le llegó por el mail («¿Son tuyas?», arriba), y `account_sessions.device` (migración 0065), el
+que le llegó por el mail («¿Son tuyas?», arriba), y `account_sessions.device` (migración 0066), el
 nombre corto del navegador de cada sesión (ver "Sesiones").
 
 Sin "nombre para mostrar" (P7.3): los nombres van a ir en los perfiles. Las **passkeys** van a
@@ -194,7 +194,7 @@ el código por mail sigue andando.
   salir (vuelve al inicio con «Saliste de tu cuenta»). «Cerrar todas las demás» (`?/cerrarOtras`)
   deja solo la de ese navegador. Tampoco piden código: solo sacan acceso.
   - **Qué se guarda:** solo un nombre corto del navegador y el sistema, sacado del user agent al
-    entrar (`deviceLabel()` en `src/lib/utils/userAgent.js`, columna `device`, migración 0065, de
+    entrar (`deviceLabel()` en `src/lib/utils/userAgent.js`, columna `device`, migración 0066, de
     hasta 60 caracteres). Nunca el user agent entero, ni la IP, ni un lugar. Las sesiones de antes
     de la migración dicen «Navegador sin identificar».
   - **Solo la dueña ve y cierra las suyas:** la página no recibe el token ni su hash; cada sesión
