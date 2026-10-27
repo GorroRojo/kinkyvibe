@@ -731,6 +731,11 @@ en la misma tanda que el borrado; «Recuperar» va por `undoDeletion` (también 
 
 ¹ Es solo el nombre de la fila (la forma de siempre): esos archivos ya no están en el repo (0032).
 
+**La excepción: las notas de la Agenda** (las notas por día de la tarjeta Agenda,
+`agenda_day_notes`, `src/lib/server/admin/dayNotes.js`) se borran de verdad (`DELETE`): no pasan
+por `panel_deletions` y no aparecen en «Borrados que podés recuperar». Una nota borrada por error
+solo vuelve con un backup o con Time Travel.
+
 Decisión 0030: las etiquetas, las series y los mails por evento se recuperan. Una etiqueta vuelve
 con sus datos y sus relaciones (nunca se fueron); si mientras tanto se creó otra con el mismo
 nombre, «Recuperar» avisa y no hace nada. Un mail no pisa un texto guardado después (avisa).
