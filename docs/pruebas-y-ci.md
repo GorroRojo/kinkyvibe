@@ -362,7 +362,7 @@ tests pasan" sin haberlos corrido. La CI corre siempre la suite entera.
 2. Según cuál:
    - **Lint**: `npm run lint` en tu compu muestra lo mismo; arreglalo (o `npm run format` si es
      formato).
-   - **Unit tests** (job `unit`): `npx vitest run <archivo>` reproduce.
+   - **Unit tests** (jobs `tests (N/3)`): `npx vitest run <archivo>` reproduce.
    - **Build** (job `e2e`, paso «Build + seed + Chromium»): `npm run build`; suele ser un import
      roto. Si falla la semilla o Chromium en el mismo paso, el log los muestra:
      `node scripts/semilla.js` reproduce la semilla.

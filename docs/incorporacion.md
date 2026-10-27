@@ -20,7 +20,7 @@ velocidad.
    | Comando               | Para qué                                                                                 |
    | --------------------- | ---------------------------------------------------------------------------------------- |
    | `npm run dev`         | el sitio tal cual, con la base local                                                     |
-   | `npm run dev:admin`   | + admin falso (`.env.admin`); los "commits" del panel van a una carpeta temporal         |
+   | `npm run dev:admin`   | + admin falso (`.env.admin`); el panel guarda en la base local                           |
    | `npm run dev:tickets` | + Mercado Pago simulado, datos de transferencia inventados y Fondo fijo (`.env.tickets`) |
 
    Los tres aplican antes las migraciones a la **base D1 local** (`.wrangler/state/`, simulada con
@@ -39,7 +39,7 @@ velocidad.
   ([workers-migracion.md](workers-migracion.md)).
 - **Rutas** (`src/routes/`):
   - `(content)/`: páginas públicas (calendario y su página de compra, material, amigues, wiki,
-    sitemap, `.ics`). La home es `src/routes/+page.svelte`; `rss/` y `auch/` están sueltas.
+    sitemap, `.ics`). La home es `src/routes/(content)/+page.svelte`; `rss/` y `auch/` están sueltas.
   - `(authed)/`: el panel `/admin` y el editor genérico `/edit`.
   - `entradas/`: estado de una compra, la entrada con su QR, confirmar reserva, checkout simulado.
   - `api/`: webhook de Mercado Pago, cron de recordatorios, `preview-status`, índice de búsqueda.
