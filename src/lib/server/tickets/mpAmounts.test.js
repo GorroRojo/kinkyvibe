@@ -1,5 +1,5 @@
 /**
- * Comisión real de Mercado Pago y reembolsos parciales hechos desde MP (migración 0068): lo que
+ * Comisión real de Mercado Pago y reembolsos parciales hechos desde MP (migración 0069): lo que
  * guarda el aviso de MP y cómo cambian «Recaudado» y lo neto. Solo reportes: el estado de la
  * orden y lo que pasa con quien compra no cambian. Montos inventados y redondos.
  */

@@ -860,7 +860,7 @@ export function paymentAmounts(payment) {
  * (`mp_payment_id`) y la orden está aprobada; el reembolso parcial solo mientras el pago sigue
  * aprobado (un reembolso total pasa la orden a `refunded`, como siempre, y no se anota acá).
  * Idempotente: si ya estaba igual no escribe. Nunca tira: si falla (por ejemplo, sin la migración
- * 0068) se loguea y el pago sigue su curso.
+ * 0069) se loguea y el pago sigue su curso.
  *
  * @param {D1Database} db
  * @param {string} orderId

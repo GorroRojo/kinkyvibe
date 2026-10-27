@@ -1,4 +1,4 @@
--- Migration number: 0068 	 2026-10-26T23:41:41.845Z
+-- Migration number: 0069 	 2026-10-26T23:41:41.845Z
 -- Comisión real de Mercado Pago y reembolsos parciales hechos desde MP (solo para los reportes
 -- del panel; decisión de gorrite, Mesa `plata-numeros-panel`; auditoría de plata M9 y M11).
 --

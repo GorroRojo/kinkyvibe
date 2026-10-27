@@ -59,7 +59,7 @@ export async function eventOrderRows(db, slug, config, now = Date.now()) {
 		discountCode: o.discount_code,
 		discountAmount: o.discount_amount,
 		total: o.total,
-		// Reembolso parcial hecho desde el panel de MP (la orden sigue aprobada; migración 0068) y la
+		// Reembolso parcial hecho desde el panel de MP (la orden sigue aprobada; migración 0069) y la
 		// comisión que informó MP (null = no la informó: se estima con el recargo).
 		refundedAmount: o.status === 'approved' ? (o.refunded_amount ?? 0) : 0,
 		mpFee: o.payment_method === 'mercadopago' ? (o.mp_fee_amount ?? null) : null,

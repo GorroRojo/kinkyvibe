@@ -136,7 +136,7 @@ export function describeSalesGoal(goal) {
 /**
  * Lo recaudado de una orden, en SQL (sobre una fila de `orders`): su `total` menos lo reembolsado
  * desde el panel de Mercado Pago en un pago que sigue aprobado (`refunded_amount`, reembolso
- * parcial; migración 0068), nunca menos de 0. Es el «Recaudado» del panel. Sumar solo sobre
+ * parcial; migración 0069), nunca menos de 0. Es el «Recaudado» del panel. Sumar solo sobre
  * órdenes aprobadas (una reembolsada entera no suma nada, como siempre).
  */
 export const REVENUE_SQL = `MAX(0, total - COALESCE(refunded_amount, 0))`;
@@ -152,7 +152,7 @@ export function orderRevenue(order) {
 /**
  * La comisión de Mercado Pago de una orden, en SQL (sobre una fila de `orders`), 0 si no se pagó
  * con Mercado Pago (transferencia, puerta, manual y sin cargo no tienen comisión):
- * - la que **cobró MP** (`mp_fee_amount`, migración 0068), si el pago la informó
+ * - la que **cobró MP** (`mp_fee_amount`, migración 0069), si el pago la informó
  *   (`fee_details` del pago; la guarda el aviso de MP);
  * - si no, la **estimada**: el recargo (`surcharge_amount`), que se calcula al comprar con la tasa
  *   vigente (`mp_fee_percent` del evento, Ajustes → Cobros, TICKETS_MP_FEE_PERCENT o 2 %:
