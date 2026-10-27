@@ -127,6 +127,8 @@ CI) va en la fase 0.
 - `estadisticas-pestanas` · fase 0 · hecho · panel · Estadísticas en pestañas (Ventas, Asistencia, Visitas) · #258
 - `buscador-panel` · fase 0 · hecho · panel · Buscador del panel: tildes, acciones y operadores · #259, #269
 - `moderar-ocultar` · fase 0 · hecho · panel · «Ocultar» un perfil desde el panel también le saca la aprobación para /amigues: si quien lo gestiona lo vuelve a hacer público desde Mi rincón, no reaparece hasta que une admin lo apruebe de nuevo · #385, [amigues.md](amigues.md)
+- `puerta-avisos` · fase 0 · en curso · panel · Avisos de puerta para personas que la organización no admite, solo en eventos de Kinky Vibe: por cuenta o hash del mail, vencen siempre (6 meses, 1 año o hasta 2 años; mail 14 días antes), la puerta muestra solo «Avisá a la organización antes de dejar pasar» y nunca frena; motivo privado (migración 0066) · [decisión 0051](decisiones/0051-avisos-de-puerta.md), [tickets.md](tickets.md#avisos-de-puerta)
+- `puerta-avisos-admision` · fase 0 · algún día · entradas · «Derecho de admisión» en las condiciones de compra y aviso al panel cuando una compra nueva coincide con un aviso de puerta (depende de: puerta-avisos) · [decisión 0051](decisiones/0051-avisos-de-puerta.md)
 - `lugares-ocultos-fuera-de-aprobar` · fase 0 · hecho · panel · Un lugar oculto ya no aparece en Eventos › Lugares › «Para aprobar» ni en «Rechazados»: ocultar le saca la aprobación, pero aprobarlo desde ahí no lo volvía a mostrar · #390, [amigues.md](amigues.md)
 
 ### Sitio público

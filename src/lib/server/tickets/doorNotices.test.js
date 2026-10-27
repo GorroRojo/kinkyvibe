@@ -44,7 +44,14 @@ beforeEach(async () => {
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse('2026-10-01T23:00:00Z');
 const EVENT = 'fiesta-de-prueba';
-const GENERAL = { id: 'general', name: 'General', price: 8000, fondo: 0, capacity: 50, gorra: null };
+const GENERAL = {
+	id: 'general',
+	name: 'General',
+	price: 8000,
+	fondo: 0,
+	capacity: 50,
+	gorra: null
+};
 const names = { general: 'General' };
 const REASON = 'Motivo inventado que nunca tiene que salir del panel';
 const MAIL = 'Persona.Avisada@Example.com';
@@ -145,9 +152,9 @@ describe('cargar, renovar y quitar', () => {
 			ok: false,
 			error: 'expiry'
 		});
-		expect(await addDoorNotice(t.db, locals, { email: MAIL, expiry: '6m', now: NOW })).toMatchObject(
-			{ ok: true }
-		);
+		expect(
+			await addDoorNotice(t.db, locals, { email: MAIL, expiry: '6m', now: NOW })
+		).toMatchObject({ ok: true });
 		expect(
 			await addDoorNotice(t.db, locals, { email: MAIL.toUpperCase(), expiry: '1y', now: NOW })
 		).toEqual({ ok: false, error: 'exists' });
@@ -161,9 +168,9 @@ describe('cargar, renovar y quitar', () => {
 			now: NOW
 		});
 		if (!added.ok) throw new Error('no se cargó');
-		expect(await renewDoorNotice(t.db, locals, { id: added.id, expiry: '1y', now: NOW + DAY })).toEqual(
-			{ ok: true, expiresAt: NOW + DAY + 365 * DAY }
-		);
+		expect(
+			await renewDoorNotice(t.db, locals, { id: added.id, expiry: '1y', now: NOW + DAY })
+		).toEqual({ ok: true, expiresAt: NOW + DAY + 365 * DAY });
 		expect(await removeDoorNotice(t.db, locals, { id: added.id, now: NOW + 2 * DAY })).toBe(true);
 		expect(await removeDoorNotice(t.db, locals, { id: added.id })).toBe(false);
 		const audit = await listAudit(t.db, { targetType: 'door_notice' });
@@ -246,7 +253,11 @@ describe('en la puerta', () => {
 		await ticketFor('otra.persona@example.com');
 		const notices = await doorNoticeMatcher(t.db, { kinkyVibe: true, now: NOW });
 
-		const card = ticketCard(flagged, { typeNames: names, prior: null, notice: await notices(flagged) });
+		const card = ticketCard(flagged, {
+			typeNames: names,
+			prior: null,
+			notice: await notices(flagged)
+		});
 		expect(card.notice).toBe(true);
 		expect(ticketCard(flagged, { typeNames: names, prior: null }).notice).toBe(false);
 
@@ -289,7 +300,13 @@ describe('runDoorNoticesCron', () => {
 	it('borra los vencidos (queda en el registro, sin datos) y no avisa por ellos', async () => {
 		await addDoorNotice(t.db, locals, { email: MAIL, expiry: '6m', reason: REASON, now: NOW });
 		const { calls, send } = fakeSend();
-		const r = await runDoorNoticesCron({ db: t.db, origin: ORIGIN, to, send, now: NOW + 184 * DAY });
+		const r = await runDoorNoticesCron({
+			db: t.db,
+			origin: ORIGIN,
+			to,
+			send,
+			now: NOW + 184 * DAY
+		});
 		expect(r).toEqual({ expired: 1, reminded: 0 });
 		expect(calls).toHaveLength(0);
 		expect(await tableDump()).toBe('[]');
@@ -351,7 +368,10 @@ describe('runDoorNoticesCron', () => {
 	});
 
 	it('el mail lleva solo las fechas y el link al panel', () => {
-		const one = buildDoorNoticeReminderEmail({ expiries: [NOW], origin: 'https://kinkyvibe.example' });
+		const one = buildDoorNoticeReminderEmail({
+			expiries: [NOW],
+			origin: 'https://kinkyvibe.example'
+		});
 		expect(one.subject).toBe('Un aviso de puerta vence el 1 de octubre de 2026');
 		expect(one.text).toContain('renovalo');
 		expect(one.html).toContain('https://kinkyvibe.example/admin/comunidad/avisos-de-puerta');

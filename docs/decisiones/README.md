@@ -109,6 +109,8 @@ Por área. Todas están aceptadas; la fecha es la del día en que se decidió.
 - [0044](0044-reglas-de-la-venta-de-entradas.md): Reglas de la venta para el lanzamiento:
   cancelación, reprogramación, Fondo, cierre, reembolsos y plazo de MP; y otras respuestas del día
   (12/10)
+- [0051](0051-avisos-de-puerta.md): Avisos de puerta para personas que la organización no admite:
+  avisan y nunca frenan, solo en eventos de Kinky Vibe, vencen siempre (27/10)
 
 ### Propinas
 

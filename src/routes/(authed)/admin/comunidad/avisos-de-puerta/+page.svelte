@@ -48,14 +48,14 @@
 			Si alguien escanea o busca una entrada comprada con ese mail o esa cuenta, la puerta muestra
 			solo: <strong>«{data.text}»</strong>. Sin el motivo ni ningún otro detalle.
 		</li>
-		<li>No frena el ingreso: decide quien está en la puerta, después de hablar con la organización.</li>
+		<li>
+			No frena el ingreso: decide quien está en la puerta, después de hablar con la organización.
+		</li>
 		<li>
 			Vence siempre. {data.remindDays} días antes llega un mail a la casilla de la organización para renovarlo
 			o dejarlo vencer; al vencer, se borra solo.
 		</li>
-		<li>
-			Cargar, renovar y quitar queda en Actividad (quién y cuándo), sin el mail ni el motivo.
-		</li>
+		<li>Cargar, renovar y quitar queda en Actividad (quién y cuándo), sin el mail ni el motivo.</li>
 	</ul>
 </Card>
 
@@ -68,8 +68,8 @@
 			<span>Mail</span>
 			<input type="email" name="mail" required autocomplete="off" spellcheck="false" />
 			<small
-				>Nunca un nombre. Si el mail es de una cuenta, el aviso queda en la cuenta (sigue aunque cambie
-				el mail). Del mail se guarda solo un código que no se puede leer.</small
+				>Nunca un nombre. Si el mail es de una cuenta, el aviso queda en la cuenta (sigue aunque
+				cambie el mail). Del mail se guarda solo un código que no se puede leer.</small
 			>
 		</label>
 		<fieldset class="kv-field">
@@ -84,7 +84,13 @@
 					><input type="radio" name="vence" value="fecha" bind:group={expiry} /> Otra fecha</label
 				>
 				{#if expiry === 'fecha'}
-					<input type="date" name="fecha" required max={data.maxDate} aria-label="Fecha en que vence" />
+					<input
+						type="date"
+						name="fecha"
+						required
+						max={data.maxDate}
+						aria-label="Fecha en que vence"
+					/>
 				{/if}
 			</div>
 			<small>Hasta 2 años.</small>
@@ -93,8 +99,8 @@
 			<span>Motivo (opcional, privado)</span>
 			<textarea name="motivo" rows="3" maxlength={data.reasonMax}></textarea>
 			<small
-				>Lo ven solo les admins en esta página. Nunca va a la puerta, a la entrada de la persona, a los
-				mails ni a Actividad.</small
+				>Lo ven solo les admins en esta página. Nunca va a la puerta, a la entrada de la persona, a
+				los mails ni a Actividad.</small
 			>
 		</label>
 		<button class="kv-btn" type="submit" disabled={!data.dbAvailable}>Cargar el aviso</button>
@@ -156,7 +162,8 @@
 							action="?/quitar"
 							use:enhance
 							on:submit={(e) => {
-								if (!confirm('¿Quitar este aviso? En la puerta deja de aparecer.')) e.preventDefault();
+								if (!confirm('¿Quitar este aviso? En la puerta deja de aparecer.'))
+									e.preventDefault();
 							}}
 						>
 							<input type="hidden" name="id" value={n.id} />

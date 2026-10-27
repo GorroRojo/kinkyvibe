@@ -103,7 +103,10 @@ export async function doorNoticeMatcher(db, { kinkyVibe, now = Date.now() }) {
 			.all());
 	} catch (error) {
 		// Sin la migración 0066 (o con la base caída) la puerta sigue como siempre. En el log, sin datos.
-		console.error('[puerta] no se pudieron leer los avisos de puerta:', String(error).slice(0, 200));
+		console.error(
+			'[puerta] no se pudieron leer los avisos de puerta:',
+			String(error).slice(0, 200)
+		);
 		return NEVER;
 	}
 	if (!rows.length) return NEVER;
@@ -343,7 +346,9 @@ export function buildDoorNoticeReminderEmail({ expiries, origin }) {
 	const html = mailLayout({
 		origin,
 		label: 'Panel',
-		titleHtml: escapeHtml(several ? 'Avisos de puerta por vencer' : 'Un aviso de puerta por vencer'),
+		titleHtml: escapeHtml(
+			several ? 'Avisos de puerta por vencer' : 'Un aviso de puerta por vencer'
+		),
 		contentHtml: `<p style="${MAIL_STYLES.p}">${escapeHtml(what)}</p>
 <p style="${MAIL_STYLES.box}">${dates.map(escapeHtml).join('<br>')}</p>`,
 		button: { href: url, label: 'Ver los avisos de puerta' },
@@ -423,7 +428,9 @@ export async function runDoorNoticesCron({ db, origin, to, send, now = Date.now(
 				await db.batch(
 					ids.map((id) =>
 						db
-							.prepare('UPDATE door_notices SET reminded_at = NULL WHERE id = ?1 AND reminded_at = ?2')
+							.prepare(
+								'UPDATE door_notices SET reminded_at = NULL WHERE id = ?1 AND reminded_at = ?2'
+							)
 							.bind(id, now)
 					)
 				);

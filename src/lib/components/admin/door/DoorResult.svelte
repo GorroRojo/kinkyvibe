@@ -93,7 +93,10 @@
 
 	{#if card}
 		{#if card.notice}
-			<p class="notice" role="alert"><TriangleAlert size={20} strokeWidth={2.5} /> {DOOR_NOTICE_TEXT}</p>
+			<p class="notice" role="alert">
+				<TriangleAlert size={20} strokeWidth={2.5} />
+				{DOOR_NOTICE_TEXT}
+			</p>
 		{/if}
 		<p class="who">
 			<strong>{card.holder}</strong>{#if card.pronouns}&nbsp;({card.pronouns}){/if} · {card.type}

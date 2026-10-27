@@ -122,7 +122,10 @@ export async function doorCheckIn({
 	// Solo lo que la pantalla necesita: el resultado y, si es de este evento, el nombre, la hora y
 	// si coincide con un aviso de puerta (solo sí; nunca el motivo).
 	const sameEvent = r.ticket && r.result !== 'wrong-event';
-	const notice = sameEvent && r.ticket ? await ticketNotice(db, eventSlug, r.ticket.id, eventConfig, now) : false;
+	const notice =
+		sameEvent && r.ticket
+			? await ticketNotice(db, eventSlug, r.ticket.id, eventConfig, now)
+			: false;
 	return {
 		status: 200,
 		body: {
