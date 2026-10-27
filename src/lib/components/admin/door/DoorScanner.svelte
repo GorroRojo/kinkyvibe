@@ -52,7 +52,7 @@
 	async function start() {
 		problem = null;
 		try {
-			// @ts-ignore BarcodeDetector todavía no está en los tipos de TypeScript.
+			// @ts-expect-error BarcodeDetector todavía no está en los tipos de TypeScript.
 			detector ??= new window.BarcodeDetector({ formats: ['qr_code'] });
 			stream = await navigator.mediaDevices.getUserMedia({
 				video: { facingMode: facing },

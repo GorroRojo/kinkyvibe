@@ -199,7 +199,7 @@ export function applyFrontmatterChanges(frontmatter, changes) {
 		}
 	}
 	if (reparse) doc = parseFrontmatter(text);
-	// @ts-ignore empty frontmatter
+	// @ts-expect-error empty frontmatter
 	if (doc.contents === null) doc.contents = doc.createNode({});
 
 	/** @type {string[]} */

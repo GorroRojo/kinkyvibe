@@ -96,14 +96,14 @@ export default function customRehype() {
 						class: 'linktothis',
 						'aria-label': 'Enlace a esta sección'
 					},
-					// @ts-ignore
+					// @ts-expect-error el ícono es un nodo hast que el tipo de children no acepta
 					children: [linkIcon]
 				});
 				node.children.push({
 					type: 'element',
 					tagName: 'a',
 					properties: { href: '#title', class: 'backtotop', 'aria-label': 'Volver arriba' },
-					// @ts-ignore
+					// @ts-expect-error el ícono es un nodo hast que el tipo de children no acepta
 					children: [cornerRightUpIcon]
 				});
 				return [SKIP];
