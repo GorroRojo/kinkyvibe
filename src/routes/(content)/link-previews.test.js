@@ -618,8 +618,11 @@ describe('una serie (la página de su etiqueta)', () => {
 		expect(head).toContain('"@type": "EventSeries"');
 		expect(head).toContain('/calendario/serie-1');
 		expect(body.match(/<h1[\s>]/g)?.length).toBe(1);
-		// La etiqueta no tiene descripción: el título va solo para lectores de pantalla y buscadores.
-		expect(body).toMatch(/<h1 class="sr-only[^"]*">\s*(<!--[^>]*-->)*\s*Serie Inventada/);
+		// La etiqueta no tiene descripción: el título igual se ve, como cualquier título de la wiki.
+		expect(body).not.toMatch(/<h1 class="sr-only/);
+		expect(body).toMatch(
+			/<div class="itemtitle[^"]*">\s*<h1[^>]*>[^<]*(<!--[^>]*-->\s*)*Serie Inventada/
+		);
 	});
 
 	it('sin datos de la serie: la descripción de siempre y sin EventSeries', async () => {
@@ -695,6 +698,30 @@ describe('un perfil de amigues', () => {
 
 	it('no listado: noindex', async () => {
 		expect(single(await profileHead({}, { unlisted: true })).robots).toBe('noindex');
+	});
+
+	it('«No aparecer en buscadores»: noindex, vista previa sin foto ni bio y sin JSON-LD', async () => {
+		const { head, body } = await renderProfile({}, { noindex: true });
+		const meta = single(head);
+		expectComplete(meta, head, '/amigues/Perfil_Inventado');
+		expect(meta.robots).toBe('noindex');
+		expect(meta['og:title']).toBe('Perfil Inventado');
+		// Ni la foto ni la presentación: la tarjeta del sitio y una frase fija.
+		expect(meta['og:description']).toBe('Perfil Inventado en Amigues de Kinky Vibe.');
+		expectDefaultImage(meta);
+		expect(head).not.toContain('b'.repeat(64));
+		expect(head).not.toContain('Una bio inventada.');
+		expect(head).not.toContain('application/ld+json');
+		// La página se ve igual: la foto y la bio siguen ahí.
+		const photo = tagsOf(body, 'img').find((img) => /\bu-photo\b/.test(img.class ?? ''));
+		expect(photo?.src).toContain('b'.repeat(64));
+		expect(body).toContain('Una bio inventada.');
+	});
+
+	it('sin «No aparecer en buscadores»: lleva su JSON-LD (lo de siempre)', async () => {
+		const { head } = await renderProfile();
+		expect(head).toContain('application/ld+json');
+		expect(head).toContain('ProfilePage');
 	});
 
 	it('sin etiquetas article:* (son de og:type article; un perfil es profile)', async () => {

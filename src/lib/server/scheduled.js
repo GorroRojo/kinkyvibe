@@ -75,7 +75,8 @@ export async function runReminders(env, ctx, appFetch) {
 }
 
 /**
- * Backup nocturno de D1 a R2 y limpieza de los viejos.
+ * Backup nocturno de D1 a R2 y limpieza de los viejos. Si falla el backup, la corrida falla; si
+ * falla solo la limpieza, no (ver `nightlyBackup`).
  *
  * @param {ScheduledEnv} env
  * @param {Date} now
@@ -84,8 +85,13 @@ export async function runBackup(env, now) {
 	if (!env.DB) throw new Error('backup: falta el binding DB');
 	if (!env.BACKUPS) throw new Error('backup: falta el binding BACKUPS (bucket de R2)');
 	const result = await nightlyBackup({ db: env.DB, bucket: env.BACKUPS, now });
+	const deleted = result.pruneError
+		? `la poda falló (${result.pruneError}); se reintenta mañana`
+		: result.deleted.length
+			? result.deleted.join(', ')
+			: 'ninguno';
 	console.log(
-		`backup: ${result.key} (${result.bytes} bytes, ${result.tables} tablas, ${result.rows} filas); borrados: ${result.deleted.length ? result.deleted.join(', ') : 'ninguno'}`
+		`backup: ${result.key} (${result.bytes} bytes, ${result.tables} tablas, ${result.rows} filas); borrados: ${deleted}`
 	);
 	return result;
 }

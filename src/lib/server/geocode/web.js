@@ -22,7 +22,7 @@ export const GEOCODE_MESSAGES = Object.freeze({
 	unavailable: 'No pudimos buscar en el mapa ahora. Probá en un rato o cargá los números a mano.',
 	accountRateLimited:
 		'Hiciste muchas búsquedas seguidas. Esperá unos minutos y probá de nuevo, o cargá los números a mano.',
-	noSession: 'Tu sesión se cerró. Volvé a ingresar para buscar en el mapa.',
+	noSession: 'Tu sesión se cerró. Volvé a entrar para buscar en el mapa.',
 	noVenue: 'Buscar en el mapa es para quienes gestionan un lugar.'
 });
 

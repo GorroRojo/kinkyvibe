@@ -21,9 +21,12 @@ import {
 	buildStreamLinkEmail,
 	buildTicketEmail,
 	buildTransferEmail,
+	autoSubmitted,
 	maskEmail,
+	resendBackoff,
 	sendWithResend
 } from './email.js';
+import { noteResendQuota } from './resendQuota.js';
 import { parseAllowlist, routeEmail, subjectForLog } from './emailGuard.js';
 import { getEventMeta, getEventTickets, listTicketedEvents } from './events.js';
 import { coveredPartsByWorkshop } from '../eventos/partes.js';
@@ -37,13 +40,14 @@ import {
 	DEFAULT_FROM_EMAIL,
 	DEFAULT_REPLY_TO,
 	getSalesSettings,
+	isAllowedFrom,
 	transferInfoFromSettings
 } from './settings.js';
 import { parseReminders, reminderKey, sendDueReminders } from './reminders.js';
 import { resolveTemplate } from './templates.js';
 import { queueWaitlistAdvance } from './waitlistEngine.js';
 import { buildBuyerMail, sendBuyerMailBatch } from './buyerMail.js';
-import { buyerLocation } from '../amigues/venues.js';
+import { buyerLocation, venueNotesForMail } from '../amigues/venues.js';
 import {
 	claimStreamLinkSend,
 	getStreamLink,
@@ -58,6 +62,7 @@ import { calendarStamp } from './calendarFile.js';
 import { getDateChange, sendDateChangeBatch } from './dateChange.js';
 import { comboCodesForOrder } from './combos.js';
 import { isFlagOn } from '../flags.js';
+import { logMailsPaused, mailsPaused } from '../emergencia.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
@@ -157,6 +162,20 @@ export function contactEmail() {
 }
 
 /**
+ * El remitente guardado, si es de un dominio verificado (`isAllowedFrom` en settings.js); si no
+ * (un valor viejo guardado en D1 o una variable mal cargada), el de siempre: con otro dominio
+ * Resend rechazaría todos los mails. Lo registra en la consola sin el valor.
+ *
+ * @param {string} from
+ */
+function allowedFrom(from) {
+	if (!from) return DEFAULT_FROM_EMAIL;
+	if (isAllowedFrom(from)) return from;
+	console.error('[mails] el remitente configurado no es @kinkyvibe.ar: se usa el de siempre');
+	return DEFAULT_FROM_EMAIL;
+}
+
+/**
  * Remitente y dirección de respuesta de los mails (y adonde se mandan los comprobantes): los de
  * /admin/mensajes/configuracion o, vacíos, TICKETS_FROM_EMAIL / TICKETS_REPLY_TO, o los de por defecto
  * ("KinkyVibe <entradas@kinkyvibe.ar>" y entradas@kinkyvibe.ar).
@@ -172,7 +191,7 @@ export async function emailSettings(db) {
 		console.error('[tickets] no se pudieron leer los ajustes de venta:', error);
 	}
 	return {
-		from: s.from_email || env.TICKETS_FROM_EMAIL?.trim() || DEFAULT_FROM_EMAIL,
+		from: allowedFrom(s.from_email || env.TICKETS_FROM_EMAIL?.trim() || ''),
 		replyTo: s.reply_to_email || env.TICKETS_REPLY_TO?.trim() || DEFAULT_REPLY_TO,
 		// Pie de los mails (vacío = el de siempre): lo aplica `deliver()` con `withMailFooter`.
 		footer: { contact: s.mail_footer_contact || '', signoff: s.mail_footer_signoff || '' }
@@ -349,24 +368,29 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
  *   fetch: typeof fetch,
  *   to: string,
  *   message: { subject: string, html: string, text: string,
- *     attachments?: import('./email.js').MailAttachment[] },
+ *     attachments?: import('./email.js').MailAttachment[], headers?: Record<string, string> },
  *   idempotencyKey?: string,
  *   log?: string,
  *   from?: string,
  *   optOut?: boolean
  * }} input
+ * @param {(emailId: string | null) => void} [onSent] recibe el id que devolvió Resend, si salió (el
+ *   mail de las entradas lo guarda en la orden: docs/mails.md, «Rebotes y quejas»)
  * @returns {Promise<'sent' | 'simulated' | 'failed'>}
  */
-async function deliver({
-	db,
-	fetch: fetchFn,
-	to,
-	message: built,
-	idempotencyKey,
-	log = '',
-	from: fixedFrom,
-	optOut = false
-}) {
+async function deliver(
+	{
+		db,
+		fetch: fetchFn,
+		to,
+		message: built,
+		idempotencyKey,
+		log = '',
+		from: fixedFrom,
+		optOut = false
+	},
+	onSent
+) {
 	if (optOut) {
 		try {
 			if (!db) throw new Error('sin base');
@@ -409,15 +433,29 @@ async function deliver({
 	}
 	const { replyTo } = settings;
 	const from = fixedFrom || settings.from;
-	await sendWithResend({
-		fetch: fetchFn,
-		apiKey,
-		from,
-		to: route.to,
-		replyTo,
-		message: { ...message, subject: route.subject },
-		idempotencyKey
-	});
+	/** @type {{ id?: string }} */
+	let sent;
+	try {
+		sent = await sendWithResend({
+			fetch: fetchFn,
+			apiKey,
+			from,
+			to: route.to,
+			replyTo,
+			message: { ...message, subject: route.subject },
+			idempotencyKey
+		});
+	} catch (error) {
+		// Cupo terminado: queda el aviso en «Para revisar» (resendQuota.js). El error sigue: quien
+		// llama decide (las tandas no gastan el intento, ver `resendBackoff`).
+		if (resendBackoff(error) === 'quota') {
+			await noteResendQuota(db, {
+				code: /** @type {import('./email.js').ResendError} */ (error).code
+			});
+		}
+		throw error;
+	}
+	onSent?.(typeof sent?.id === 'string' && sent.id ? sent.id : null);
 	return 'sent';
 }
 
@@ -487,8 +525,10 @@ async function dateChangeVersionFor(db, slug) {
  *   tickets?: import('./orders.js').Ticket[],
  *   origin: string,
  *   fetch: typeof fetch,
- *   idempotent?: boolean
- * }} input
+ *   idempotent?: boolean,
+ *   idempotencyKey?: string
+ * }} input `idempotencyKey`: otra clave para Resend en vez de `tickets-<orden>` (la corrección
+ *   del mail manda con una propia: la de siempre ya se usó con otra dirección)
  * @returns {Promise<boolean>} si se envió
  */
 export async function sendOrderEmail(input) {
@@ -499,10 +539,11 @@ export async function sendOrderEmail(input) {
  * {@link sendOrderEmail} con el resultado de `deliver()`: `sent` (salió y quedó marcado),
  * `simulated` (no salió a propósito: «No fui yo», preview sin EMAIL_ALLOWLIST o dev sin clave) o
  * `failed`. Lo usa el reintento del cron (unsentOrders.js) para no volver a tomar una orden
- * cortada a propósito.
+ * cortada a propósito. Si Resend dijo «ahora no» (cupo, tasa o un 5xx: `resendBackoff` en
+ * email.js), devuelve eso en vez de `failed`, así el reintento no gasta el intento.
  *
  * @param {Parameters<typeof sendOrderEmail>[0]} input
- * @returns {Promise<'sent' | 'simulated' | 'failed'>}
+ * @returns {Promise<'sent' | 'simulated' | 'failed' | 'quota' | 'rate' | 'server'>}
  */
 export async function sendOrderEmailResult({
 	db,
@@ -510,7 +551,8 @@ export async function sendOrderEmailResult({
 	tickets,
 	origin,
 	fetch: fetchFn,
-	idempotent = true
+	idempotent = true,
+	idempotencyKey = idempotent ? `tickets-${order.id}` : undefined
 }) {
 	/** @type {string | null} */
 	let claimedLink = null;
@@ -528,6 +570,8 @@ export async function sendOrderEmailResult({
 		// Si el evento tiene lugar, quien compró recibe la
 		// dirección completa, aunque en el sitio no se muestre (docs/amigues.md).
 		const venue = await buyerLocation(db, order.event_slug);
+		// «Cómo llegar» y «Accesibilidad»: solo si la página del evento se los muestra a cualquiera.
+		const notes = await venueNotesForMail(db, order.event_slug);
 		const message = buildTicketEmail({
 			order,
 			tickets: list,
@@ -549,6 +593,8 @@ export async function sendOrderEmailResult({
 				}),
 				location: venue ? venue.location : config?.location,
 				location_name: venue ? venue.location_name : config?.location_name,
+				howTo: notes?.howTo,
+				accessibility: notes?.accessibility,
 				online,
 				streamLink,
 				// Taller en varias partes con una sola entrada: la fecha y el lugar de cada parte.
@@ -560,30 +606,37 @@ export async function sendOrderEmailResult({
 			template: await resolveTemplate(db, order.event_slug, 'tickets'),
 			combos: await orderCombos(db, order, origin)
 		});
-		const result = await deliver({
-			db,
-			fetch: fetchFn,
-			to: order.buyer_email,
-			message,
-			idempotencyKey: idempotent ? `tickets-${order.id}` : undefined,
-			optOut: isFreeOrder(order),
-			// Nunca logueamos el token completo: con él se entra al evento.
-			log: list
-				.map((t) => `  ${origin}/entradas/t/${t.token.slice(0, 6)}… (${t.code ?? 'sin código'})`)
-				.join('\n')
-		});
+		/** @type {string | null} */
+		let emailId = null;
+		const result = await deliver(
+			{
+				db,
+				fetch: fetchFn,
+				to: order.buyer_email,
+				message,
+				idempotencyKey,
+				optOut: isFreeOrder(order),
+				// Nunca logueamos el token completo: con él se entra al evento.
+				log: list
+					.map((t) => `  ${origin}/entradas/t/${t.token.slice(0, 6)}… (${t.code ?? 'sin código'})`)
+					.join('\n')
+			},
+			(id) => {
+				emailId = id;
+			}
+		);
 		if (result === 'failed' && claimedLink) {
 			await releaseStreamLinkSend(db, { orderId: order.id, link: claimedLink });
 		}
 		if (result !== 'sent') return result;
-		await markEmailSent(db, order.id);
+		await markEmailSent(db, order.id, Date.now(), emailId);
 		return 'sent';
 	} catch (error) {
 		console.error(`[tickets] no se pudo mandar el email de la orden ${order.id}:`, error);
 		if (claimedLink) {
 			await releaseStreamLinkSend(db, { orderId: order.id, link: claimedLink }).catch(() => {});
 		}
-		return 'failed';
+		return resendBackoff(error) ?? 'failed';
 	}
 }
 
@@ -668,7 +721,7 @@ export async function sendStreamLinkEmails({
 				db,
 				fetch: fetchFn,
 				to: order.buyer_email,
-				message,
+				message: autoSubmitted(message),
 				idempotencyKey: `stream-${order.id}-${key}`,
 				optOut: isFreeOrder(order)
 			});
@@ -747,7 +800,7 @@ export async function sendDateChangeEmails({
 				db,
 				fetch: fetchFn,
 				to: order.buyer_email,
-				message,
+				message: autoSubmitted(message),
 				idempotencyKey: `datechange-${order.id}-${change.version}`,
 				optOut: isFreeOrder(order)
 			});
@@ -777,6 +830,7 @@ export async function sendTransferEmail({ db, order, origin, fetch: fetchFn }) {
 			event: {
 				title: config?.title || order.event_slug,
 				start: config?.start,
+				end: config?.end,
 				// La compra todavía no está pagada: el lugar como se ve en el sitio.
 				parts: await workshopPartsList(db, order.event_slug, {
 					online: Boolean(config?.online),
@@ -898,6 +952,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 	const dateChanges = new Map();
 	/** @type {Map<string, Awaited<ReturnType<typeof buyerLocation>>>} */
 	const venues = new Map();
+	/** @type {Map<string, Awaited<ReturnType<typeof venueNotesForMail>>>} */
+	const venueNotes = new Map();
 	/** @type {Map<string, Record<string, any> | null>} */
 	const partMetas = new Map();
 	// La lista de partes de cada taller con una sola entrada, leída una vez por taller.
@@ -929,6 +985,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 			const tickets = await getOrderTickets(db, order.id);
 			if (!venues.has(where)) venues.set(where, await buyerLocation(db, where));
 			const venue = venues.get(where);
+			if (!venueNotes.has(where)) venueNotes.set(where, await venueNotesForMail(db, where));
+			const notes = venueNotes.get(where);
 			if (!templates.has(e.slug))
 				templates.set(e.slug, await resolveTemplate(db, e.slug, 'reminder'));
 			if (!partLists.has(e.slug)) {
@@ -954,6 +1012,8 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 						: meta
 							? meta.location_name
 							: config.location_name,
+					howTo: notes?.howTo,
+					accessibility: notes?.accessibility,
 					online: config.online,
 					streamLink: linkInfo?.link ?? null,
 					stamp: calendarStamp({
@@ -973,7 +1033,7 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
 				db,
 				fetch: fetchFn,
 				to: order.buyer_email,
-				message,
+				message: autoSubmitted(message),
 				idempotencyKey: `reminder-${order.id}-${reminderKey(reminder, part ?? undefined)}`,
 				optOut: isFreeOrder(order)
 			});
@@ -988,6 +1048,10 @@ export async function sendReminderEmails({ db, origin, fetch: fetchFn, now = Dat
  * «Avisar a les compradores» de un cambio de fecha (ver mailQueue.js). Se puede llamar dos veces a la vez sin duplicar nada (ver sendState.js).
  * Con `sendWaitlist` (interruptor `lista_espera` prendido; `waitlistMailBatch` de
  * waitlistEngine.js), los mails de la lista de espera van primero.
+ *
+ * Con la pausa de emergencia de los mails (`MAILS_PAUSED`, $lib/server/emergencia.js) no manda
+ * nada ni gasta intentos: devuelve `{ paused: true }` y todo queda pendiente para las corridas de
+ * después de la pausa.
  *
  * @param {{
  *   db: import('@cloudflare/workers-types').D1Database,
@@ -1006,6 +1070,10 @@ export async function runMailQueue({
 	limit,
 	sendWaitlist
 }) {
+	if (mailsPaused()) {
+		logMailsPaused('la tanda del cron (recordatorios, links, cambios de fecha, lista de espera)');
+		return { paused: /** @type {const} */ (true) };
+	}
 	return runMailQueueWith(db, {
 		limit,
 		...(sendWaitlist ? { sendWaitlist } : {}),
@@ -1031,7 +1099,11 @@ export async function runMailQueue({
  */
 export async function deliverBuyerMailBatch({ db, send, fetch: fetchFn, limit }) {
 	const config = await getEventTickets(send.event_slug);
-	const event = { title: config?.title || send.event_slug, start: config?.start };
+	const event = {
+		title: config?.title || send.event_slug,
+		start: config?.start,
+		end: config?.end
+	};
 	return sendBuyerMailBatch(db, {
 		send,
 		limit,

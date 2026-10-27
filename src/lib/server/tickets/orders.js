@@ -47,6 +47,8 @@ export { TICKET_CODE_LENGTH, normalizeTicketCode };
  *   buyer_dni: string | null, holders: string | null, status: OrderStatus,
  *   mp_preference_id: string | null, mp_payment_id: string | null, confirmed_by: string | null,
  *   email_sent_at: number | null, created_at: number, updated_at: number, expires_at: number,
+ *   email_id?: string | null, email_problem?: 'bounced' | 'complained' | 'suppressed' | null,
+ *   email_problem_at?: number | null,
  *   refunded_at?: number | null, refunded_by?: string | null,
  *   client_hash?: string | null, needs_review?: 'late_payment' | 'duplicate_payment' | null,
  *   review_detail?: string | null, channel?: 'online' | 'puerta' | 'manual',
@@ -1069,12 +1071,57 @@ export async function getOrderTickets(db, orderId) {
 }
 
 /**
+ * Marca que salió el mail de las entradas. Guarda el id de Resend de ese envío (o `null` si no
+ * salió de verdad: simulado) y limpia el rebote o la queja del envío anterior: si el nuevo también
+ * rebota, el webhook de Resend lo vuelve a marcar (docs/mails.md, «Rebotes y quejas»).
+ *
  * @param {D1Database} db
  * @param {string} orderId
  * @param {number} [now]
+ * @param {string | null} [emailId] el id que devolvió Resend
  */
-export async function markEmailSent(db, orderId, now = Date.now()) {
-	await db.prepare('UPDATE orders SET email_sent_at = ?2 WHERE id = ?1').bind(orderId, now).run();
+export async function markEmailSent(db, orderId, now = Date.now(), emailId = null) {
+	await db
+		.prepare(
+			`UPDATE orders SET email_sent_at = ?2, email_id = ?3, email_problem = NULL,
+				email_problem_at = NULL
+			WHERE id = ?1`
+		)
+		.bind(orderId, now, emailId)
+		.run();
+}
+
+/**
+ * Corrige el mail de quien compró una orden aprobada de un evento (Órdenes → «Corregir el mail y
+ * reenviar»). El mail queda como no enviado hasta que salga a la dirección nueva. `false` si la
+ * orden no es de ese evento, no está aprobada o ya tenía esa dirección. Los códigos combo de la
+ * orden (combos.js, atados al mail de quien compró) pasan a la dirección nueva, que es la que los
+ * recibe. Limpia el id de Resend y el rebote o la queja (`email_problem`, webhook de Resend): eran
+ * de la dirección vieja, y un aviso tardío de aquel envío no tiene que marcar la nueva. No toca
+ * `updated_at` (es la hora de la aprobación para el reintento del cron y el Inicio).
+ *
+ * @param {D1Database} db
+ * @param {{ orderId: string, eventSlug: string, email: string }} input `email` ya normalizado
+ * @returns {Promise<boolean>}
+ */
+export async function updateBuyerEmail(db, { orderId, eventSlug, email }) {
+	const [r] = await db.batch([
+		db
+			.prepare(
+				`UPDATE orders SET buyer_email = ?3, email_sent_at = NULL, email_id = NULL,
+					email_problem = NULL, email_problem_at = NULL
+				WHERE id = ?1 AND event_slug = ?2 AND status = 'approved' AND buyer_email != ?3`
+			)
+			.bind(orderId, eventSlug, email),
+		db
+			.prepare(
+				`UPDATE discount_codes SET buyer_email = ?2
+				WHERE source_order_id = ?1
+					AND EXISTS (SELECT 1 FROM orders WHERE id = ?1 AND buyer_email = ?2)`
+			)
+			.bind(orderId, email)
+	]);
+	return (r.meta?.changes ?? 0) > 0;
 }
 
 /**

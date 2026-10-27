@@ -404,15 +404,22 @@ de una versión del código, más rápido: **Worker → Deployments → (versió
 - **Cuánto tiempo:** todos los de los **últimos 30 días**; el primero de **cada mes durante 12
   meses**; y el primero de **cada año, para siempre**. Los manuales y cualquier otro archivo del
   bucket **nunca** se borran solos. Un backup viejo solo se borra después de que el de esa noche
-  quedó guardado y verificado. (Con la base actual cada archivo pesa unos pocos KB: el costo de R2
-  es cero en la práctica.)
+  quedó guardado y verificado. **Si borrar los viejos falla, la corrida no falla**: el backup ya
+  está guardado, el log dice `[backup] la poda de los backups viejos falló` y la noche siguiente se
+  vuelve a intentar (`nightlyBackup` en `src/lib/server/backup/index.js`). (Con la base actual cada
+  archivo pesa unos pocos KB: el costo de R2 es cero en la práctica.)
 - **Además** D1 tiene **Time Travel**: volver la base a cualquier minuto de los últimos 30 días,
   sin hacer nada de antemano.
 - **Extra recomendado:** una vez por mes, bajá el último backup a tu compu
   (`npx wrangler r2 object get kinkyvibe-backups/d1/AAAA-MM-DD.sql.gz --remote --file backup.sql.gz`),
   así también hay una copia fuera de Cloudflare. Y, si querés que ni un error humano pueda borrar
-  backups, en el bucket se puede activar un **Bucket lock** (R2 → bucket → Settings) para el
-  prefijo `d1/`.
+  backups, en el bucket se puede activar un **Bucket lock** (R2 → bucket → Settings):
+  - `d1/manual/`: sin vencimiento (los manuales nunca se borran solos).
+  - `d1/`: **28 días como mucho, nunca 30 o más**. La poda borra los nocturnos a los 30 días; con
+    un bloqueo más largo, R2 no la dejaría borrarlos y quedarían para siempre (la corrida igual
+    sale bien, pero el log avisaría de la poda todas las noches).
+  - Con un bloqueo, lo bloqueado no se puede borrar ni pisar hasta que vence, y el bucket no se
+    puede vaciar ni borrar mientras tenga algo bloqueado.
 
 ### Restaurar un backup
 

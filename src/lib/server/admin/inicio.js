@@ -19,12 +19,12 @@ import { MP_FEE_SQL, goalProgress } from '$lib/utils/salesGoal.js';
 import { KIND_LABELS } from '$lib/utils/perfiles.js';
 import {
 	DUE_REMINDER_WHERE,
-	describeReminder,
+	describeScheduledReminder,
 	dueReminderParams,
 	dueReminderPlan,
 	failedReminderCountsStatement,
 	readFailedReminderCounts,
-	reminderDueAt,
+	reminderSchedule,
 	reminderId
 } from '$lib/server/tickets/reminders.js';
 import {
@@ -55,6 +55,7 @@ import {
 } from '$lib/server/contenido/etiquetasEdges.js';
 import { ACCOUNT_EVENT_ACTIONS, ACCOUNT_EVENT_ACTOR } from './accountEvents.js';
 import { fondoTipTotalsStatement, readFondoTipTotals } from '$lib/server/propinas/index.js';
+import { SALE_AT_SQL } from './saleMonth.js';
 
 /** @typedef {import('@cloudflare/workers-types').D1Database} D1Database */
 /**
@@ -319,12 +320,24 @@ export function cancelledLeftoversQuery(slugs, now) {
 }
 
 /**
+ * Cuánto tiempo queda en «Para revisar» un mail de entradas que rebotó o marcaron como spam
+ * (`orders.email_problem`, webhook de Resend). Reenviarlo lo saca; si vuelve a rebotar, vuelve.
+ */
+export const EMAIL_PROBLEM_VISIBLE_MS = 14 * 24 * 60 * 60 * 1000;
+
+/**
+ * @typedef {{ id: string, ref: string, slug: string, buyerName: string, at: number,
+ *   problem?: 'bounced' | 'complained' | 'suppressed' | null }} UnsentEmail
+ */
+
+/**
  * Órdenes aprobadas cuyo mail con las entradas no salió (`email_sent_at` vacío), más viejas que
- * {@link EMAIL_GRACE_MS}.
+ * {@link EMAIL_GRACE_MS}, y las que salió pero Resend avisó que rebotó o lo marcaron como spam
+ * (`problem`, de los últimos {@link EMAIL_PROBLEM_VISIBLE_MS}).
  *
  * @param {D1Database | null | undefined} db
  * @param {number} now
- * @returns {Promise<{ id: string, ref: string, slug: string, buyerName: string, at: number }[]>}
+ * @returns {Promise<UnsentEmail[]>}
  */
 export function unsentEmails(db, now) {
 	return runQuery(db, unsentEmailsQuery(now));
@@ -332,7 +345,7 @@ export function unsentEmails(db, now) {
 
 /**
  * @param {number} now
- * @returns {BatchQuery<{ id: string, ref: string, slug: string, buyerName: string, at: number }[]>}
+ * @returns {BatchQuery<UnsentEmail[]>}
  */
 export function unsentEmailsQuery(now) {
 	return query(
@@ -341,11 +354,15 @@ export function unsentEmailsQuery(now) {
 		(db) => [
 			db
 				.prepare(
-					`SELECT id, event_slug, buyer_name, updated_at FROM orders
-				WHERE status = 'approved' AND email_sent_at IS NULL AND updated_at < ?
-				ORDER BY updated_at DESC LIMIT 20`
+					`SELECT id, event_slug, buyer_name, updated_at AS at, NULL AS email_problem FROM orders
+				WHERE status = 'approved' AND email_sent_at IS NULL AND updated_at < ?1
+				UNION ALL
+				SELECT id, event_slug, buyer_name, email_problem_at AS at, email_problem FROM orders
+				WHERE email_problem IS NOT NULL AND email_problem_at > ?2 AND status = 'approved'
+					AND email_sent_at IS NOT NULL
+				ORDER BY at DESC LIMIT 20`
 				)
-				.bind(now - EMAIL_GRACE_MS)
+				.bind(now - EMAIL_GRACE_MS, now - EMAIL_PROBLEM_VISIBLE_MS)
 		],
 		(results) =>
 			rowsOf(results).map((r) => ({
@@ -353,7 +370,8 @@ export function unsentEmailsQuery(now) {
 				ref: orderReference(String(r.id)),
 				slug: String(r.event_slug),
 				buyerName: String(r.buyer_name),
-				at: Number(r.updated_at)
+				at: Number(r.at),
+				problem: /** @type {UnsentEmail['problem']} */ (r.email_problem ?? null)
 			}))
 	);
 }
@@ -539,9 +557,11 @@ export function integrityRunQuery() {
 
 /**
  * Plata de entradas del mes calendario en curso (hora de Argentina): lo cobrado en órdenes
- * aprobadas creadas este mes, cuántas órdenes y entradas, y el neto del Fondo (aportes − lo que
- * cubrió). Los aportes son los de las entradas solidarias (`fondo_contribution`) más las propinas
- * "Para el Fondo" aprobadas este mes (`fondoTips`, ya sumadas en `fondoNet`; docs/propinas.md).
+ * aprobadas de los eventos que empiezan este mes (el mes del evento, no el de la compra:
+ * ./saleMonth.js), cuántas órdenes y entradas, y el neto del Fondo (aportes − lo que cubrió).
+ * Los aportes son los de las entradas solidarias (`fondo_contribution`) más las propinas
+ * "Para el Fondo" aprobadas este mes (`fondoTips`, ya sumadas en `fondoNet`; una propina no tiene
+ * evento: va por su fecha de aprobación; docs/propinas.md).
  *
  * @param {D1Database | null | undefined} db
  * @param {number} now
@@ -575,7 +595,7 @@ export function monthMoneyQuery(now) {
 							`SELECT COUNT(*) AS orders, COALESCE(SUM(quantity), 0) AS tickets,
 					COALESCE(SUM(total), 0) AS total,
 					COALESCE(SUM(fondo_contribution - fondo_amount), 0) AS fondo_net
-				FROM orders WHERE status = 'approved' AND created_at >= ? AND created_at < ?`
+				FROM orders o WHERE status = 'approved' AND ${SALE_AT_SQL} >= ?1 AND ${SALE_AT_SQL} < ?2`
 						)
 						.bind(start, end)
 				],
@@ -1110,7 +1130,8 @@ export function claimReviewItems(claims, { formatWhen } = {}) {
  * @param {{
  *   upcoming: UpcomingEvent[],
  *   transfers: { slug: string, count: number, oldestExpiry: number }[],
- *   unsent: { id: string, ref: string, slug: string, buyerName: string }[],
+ *   unsent: { id: string, ref: string, slug: string, buyerName: string,
+ *     problem?: UnsentEmail['problem'] }[],
  *   review: { id: string, ref: string, slug: string, reason: string, buyerName: string }[],
  *   titles: Map<string, string>,
  *   links: {
@@ -1159,6 +1180,23 @@ export function reviewItems({ upcoming, transfers, unsent, review, titles, links
 		});
 	}
 	for (const o of unsent) {
+		// Salió, pero Resend avisó que rebotó o que lo marcaron como spam: reenviar a la misma
+		// dirección no sirve; se mira la orden (docs/mails.md, «Rebotes y quejas»).
+		if (o.problem) {
+			items.push({
+				id: `mail-${o.id}`,
+				tone: 'bad',
+				icon: 'mail',
+				title:
+					o.problem === 'complained'
+						? `${o.buyerName} marcó como spam el mail de las entradas`
+						: `Rebotó el mail de ${o.buyerName}`,
+				text: `${o.ref} · ${title(o.slug)}`,
+				action: 'Ver orden',
+				href: links.order(o.slug, o.id)
+			});
+			continue;
+		}
 		items.push({
 			id: `mail-${o.id}`,
 			tone: 'bad',
@@ -1765,16 +1803,14 @@ export function agendaItems({
 			});
 		}
 		if (config.reminders && Number.isFinite(start) && start > now) {
-			for (const r of reminders) {
-				if (!r.enabled) continue;
-				const at = reminderDueAt(r, start);
+			for (const { reminder: r, due: at, eve } of reminderSchedule(reminders, start)) {
 				if (!inWindow(at)) continue;
 				items.push({
 					id: `reminder-${e.slug}-${reminderId(r)}`,
 					at,
 					kind: 'reminder',
 					title: `Recordatorio por mail: ${e.title}`,
-					text: describeReminder(r),
+					text: describeScheduledReminder(r, eve),
 					href: links.reminders,
 					past: at < now
 				});

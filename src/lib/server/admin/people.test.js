@@ -5,6 +5,7 @@ import {
 	deleteNote,
 	groupPeople,
 	listNotes,
+	loadPeopleOrders,
 	matchesPerson,
 	normalizeEmail,
 	noteCounts,
@@ -13,6 +14,8 @@ import {
 	validateNote
 } from './people.js';
 import { computeStats, monthLabel } from './stats.js';
+import { insertOrder } from './testRows.js';
+import { saveObject } from '$lib/server/objects/save.js';
 
 const NOW = Date.parse('2026-09-30T12:00:00Z');
 const events = new Map([
@@ -224,6 +227,31 @@ describe('notas', () => {
 		expect(await deleteNote(t.db, { email: 'ale@example.com', id: a })).toBe(false);
 		expect(await deleteNote(t.db, { email: 'sol@example.com', id: a })).toBe(true);
 		expect((await listNotes(t.db, 'sol@example.com')).map((x) => x.body)).toEqual(['dos']);
+	});
+
+	it('loadPeopleOrders trae cuándo empieza el evento y, con `since`, también las compras viejas de eventos del período', async () => {
+		await saveObject(
+			t.db,
+			{
+				type: 'evento',
+				slug: 'fiesta-octubre',
+				title: 'Fiesta',
+				data: { start: '2026-10-31T22:00-03:00' }
+			},
+			{ actor: 'prueba' }
+		);
+		const since = Date.parse('2026-10-01T00:00:00-03:00');
+		// Comprada antes de `since` para un evento posterior: entra, con el comienzo del evento.
+		await insertOrder(t.db, { slug: 'fiesta-octubre', created: since - 86_400_000 });
+		// Vieja y sin evento en la base: no entra.
+		await insertOrder(t.db, { slug: 'otro', created: since - 86_400_000 });
+		// Nueva y sin evento: entra, con `event_start` null.
+		await insertOrder(t.db, { slug: 'otro', created: since + 1 });
+		const rows = await loadPeopleOrders(t.db, { since });
+		expect(rows.map((r) => [r.event_slug, r.event_start])).toEqual([
+			['fiesta-octubre', Date.parse('2026-10-31T22:00:00-03:00')],
+			['otro', null]
+		]);
 	});
 
 	it('sin la tabla o sin base: vacío, sin romper', async () => {
