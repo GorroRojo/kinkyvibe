@@ -36,7 +36,7 @@ import { runSigoCron } from '$lib/server/sigo/cron.js';
 import { listaEsperaEnabled } from '$lib/server/flags.js';
 import { runWaitlistCron, waitlistMailBatch } from '$lib/server/tickets/waitlistEngine.js';
 import { syncBotCommands } from '$lib/server/telegram/commandsSync.js';
-import { runAdminNoticesCron } from '$lib/server/telegram/adminNotify.js';
+import { notifyMailQuota, runAdminNoticesCron } from '$lib/server/telegram/adminNotify.js';
 import { pruneUso } from '$lib/server/telegram/uso.js';
 import { resendUnsentOrderEmails } from '$lib/server/tickets/unsentOrders.js';
 import { runIndexNow } from '$lib/server/seo/indexnow.js';
@@ -95,6 +95,20 @@ export async function POST({ request, platform, url, fetch }) {
 			};
 		} catch (error) {
 			logDBError('cron mails de entradas sin enviar', error);
+		}
+		// Si el reintento chocó con el cupo de Resend, aviso a les admins por Telegram (como mucho
+		// uno por hora). Aparte: si falla, lo demás sale igual.
+		if (unsentRun?.stopped === 'quota') {
+			try {
+				await notifyMailQuota({
+					db,
+					origin: siteOrigin(url),
+					token: env.TELEGRAM_BOT_TOKEN,
+					fetch
+				});
+			} catch (error) {
+				logDBError('cron aviso de cupo de mails', error);
+			}
 		}
 		// Las series van aparte: si fallan, los recordatorios ya salieron y la corrida no se cae.
 		// Con MAILS_PAUSED, ni las series ni «Lo que sigo» (sus avisos quedan para después).

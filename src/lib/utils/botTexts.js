@@ -1057,6 +1057,24 @@ export const BOT_TEXT_FIELDS = Object.freeze(
 			}
 		),
 		f(
+			'admin.mails_cupo',
+			'admin',
+			'line',
+			'Aviso «Cada venta»: Resend frenó los mails por el cupo',
+			'📭 Resend frenó los mails por el cupo. Compras aprobadas que esperan el mail con sus entradas: {pendientes}. Se reintentan solas cada 15 minutos; mirá el Inicio del panel.',
+			{
+				vars: [
+					{
+						name: 'pendientes',
+						label: 'cuántas órdenes aprobadas de las últimas 48 h no tienen el mail',
+						sample: '4'
+					}
+				],
+				required: ['pendientes'],
+				help: 'Les llega a quienes prendieron «Cada venta», como mucho uno por hora. Nunca dice quién compró.'
+			}
+		),
+		f(
 			'admin.resumen_titulo',
 			'admin',
 			'line',
