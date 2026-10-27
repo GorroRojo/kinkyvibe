@@ -84,9 +84,11 @@ export async function runBackup(env, now) {
 	const result = await nightlyBackup({ db: env.DB, bucket: env.BACKUPS, now });
 	const deleted = result.pruneError
 		? `la poda falló (${result.pruneError}); se reintenta mañana`
-		: result.deleted.length
-			? result.deleted.join(', ')
-			: 'ninguno';
+		: result.pruneSkipped
+			? `ninguno (poda salteada: ${result.pruneSkipped})`
+			: result.deleted.length
+				? result.deleted.join(', ')
+				: 'ninguno';
 	console.log(
 		`[backup] ${result.key} (${result.bytes} bytes comprimido, ${result.sqlBytes} bytes de SQL, ${result.tables} tablas, ${result.rows} filas); borrados: ${deleted}`
 	);

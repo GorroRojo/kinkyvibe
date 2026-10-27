@@ -450,7 +450,12 @@ vuelta atrás prendiendo `workers_dev`: abriría otra URL pública a producción
 - **Cuánto tiempo:** todos los de los **últimos 30 días**; el primero de **cada mes durante 12
   meses**; y el primero de **cada año, para siempre**. Los manuales y cualquier otro archivo del
   bucket **nunca** se borran solos. Un backup viejo solo se borra después de que el de esa noche
-  quedó guardado y verificado. **Si borrar los viejos falla, la corrida no falla**: el backup ya
+  quedó guardado y verificado: se sube con su SHA-256 (R2 rechaza la subida si no coincide, y queda
+  en los metadatos como `sha256`), se relee entero, se compara el SHA-256 y se descomprime para ver
+  que da los mismos bytes de SQL; si algo no da, la corrida falla. **Tampoco se poda** si el backup
+  nuevo tiene menos del 90 % de las filas o menos tablas que el nocturno anterior: el log dice
+  `[backup] no se podan los backups viejos: …` y los de antes quedan hasta que alguien mire la
+  base. **Si borrar los viejos falla, la corrida no falla**: el backup ya
   está guardado, el log dice `[backup] la poda de los backups viejos falló` y la noche siguiente se
   vuelve a intentar (`nightlyBackup` en `src/lib/server/backup/index.js`). El tamaño real de cada
   backup (comprimido y del SQL, en bytes) queda en el log (la línea `[backup]` de cada noche) y
