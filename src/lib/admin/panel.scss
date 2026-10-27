@@ -84,9 +84,11 @@
 	--line: color-mix(in srgb, var(--2) 22%, #2e2c31);
 	--text: #eee;
 	--muted: #aaa;
-	--accent: var(--1);
-	--accent-dark: color-mix(in srgb, var(--1) 70%, black);
-	--accent-ink: white;
+	// Prueba «paleta violeta»: el violeta puro da 3:1 sobre el fondo oscuro, así que acá el
+	// principal va aclarado (4.7:1 como texto) y lo que va encima, oscuro (5:1 o más).
+	--accent: color-mix(in srgb, var(--1) 75%, white);
+	--accent-dark: color-mix(in srgb, var(--1) 60%, white);
+	--accent-ink: #1a181d;
 	--accent-text: color-mix(in srgb, var(--1) 60%, white);
 	--link: color-mix(in srgb, var(--2) 55%, white);
 	--link-bg: color-mix(in srgb, var(--2) 28%, #1a181d);
