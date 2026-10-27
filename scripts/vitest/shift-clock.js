@@ -7,26 +7,27 @@
  *
  *   SHIFT_DAYS=30 npx vitest run <archivo>
  *
- * Las fechas con argumentos (`new Date('2026-10-01')`, `Date.parse`, `Date.UTC`) no cambian, y
- * `vi.useFakeTimers()` arranca desde la hora adelantada (`setSystemTime` la pisa). La hora de
- * SQLite (`datetime('now')` en la base de prueba) sigue siendo la real.
+ * Las fechas con argumentos (`new Date('2026-10-01')`, `Date.parse`, `Date.UTC`) no cambian,
+ * `vi.spyOn(Date, 'now')` sigue andando, y `vi.useFakeTimers()` sin `setSystemTime` arranca desde
+ * la hora real (esas pruebas no se miran con el reloj adelantado). La hora de SQLite
+ * (`datetime('now')` en la base de prueba) también sigue siendo la real.
  */
 const days = Number(process.env.SHIFT_DAYS || 0);
 
 if (days) {
 	const offset = days * 24 * 60 * 60 * 1000;
 	const RealDate = globalThis.Date;
-	const now = () => RealDate.now() + offset;
+	const realNow = RealDate.now.bind(RealDate);
+	const now = () => realNow() + offset;
+	// `Date.now` como propiedad común (no desde el Proxy): así `vi.spyOn(Date, 'now')` la sigue
+	// pudiendo pisar y restaurar.
+	RealDate.now = now;
 	globalThis.Date = new Proxy(RealDate, {
 		construct(target, args, newTarget) {
 			return Reflect.construct(target, args.length ? args : [now()], newTarget);
 		},
 		apply() {
 			return new RealDate(now()).toString();
-		},
-		get(target, prop, receiver) {
-			if (prop === 'now') return now;
-			return Reflect.get(target, prop, receiver);
 		}
 	});
 }
