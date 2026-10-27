@@ -479,7 +479,7 @@ solo la dirección y los links; el asunto, los textos y el remitente están fijo
   - cualquier otra clave, arriba o en un link, es un 400.
 - **El mail:** remitente `Fondo KinkyVibe <fondo@kinkyvibe.ar>` (no el de entradas de Ajustes;
   `deliver()` acepta un `from` fijo solo para esto; la dirección de respuesta y el pie siguen siendo
-  los de Ajustes), asunto «Tu link para elegir cómo aparecés en el Fondo KinkyVibe», un botón
+  los de Ajustes), asunto «Tu link para elegir cómo aparecés en el Fondo Kinky Vibe», un botón
   «Mecenas <nivel>: elegir cómo aparezco» por link y el aviso «No compartas este mail…». Es el único
   mail con más de un botón (uno por suscripción). Sale por `deliver()`, así que en un preview solo
   llega a `EMAIL_ALLOWLIST`.
