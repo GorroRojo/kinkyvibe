@@ -83,6 +83,7 @@
 		queueOfflineSale,
 		salesPayload
 	} from '$lib/admin/doorOffline.js';
+	import { CHECKIN_TIMEOUT_MS, SERVER_RETRY_MS, scanFallback } from '$lib/admin/doorFallback.js';
 
 	export let data;
 	/** @type {any} */
@@ -119,6 +120,13 @@
 	// --- Estado ---
 	let counts = data.counts;
 	let online = true;
+	// Con red pero el servidor sin contestar (500, sesión cerrada o 8 s sin respuesta) y la lista
+	// guardada: se valida con la lista y lo dice un cartel (auditoría de confiabilidad, OX1). Se
+	// apaga sola cuando el servidor vuelve a contestar.
+	let serverDown = false;
+	let serverDownAt = 0;
+	/** @type {'server' | 'session'} por qué: el servidor no contestó o la sesión se cerró */
+	let serverDownWhy = 'server';
 	/** @type {DoorState} */
 	let door = emptyDoorState();
 	/** @type {DoorScan | null} */
@@ -207,14 +215,18 @@
 	/**
 	 * @param {string} name
 	 * @param {Record<string, string> | FormData} fields
+	 * @param {{ timeoutMs?: number }} [options] `timeoutMs`: cortar el pedido después de eso
 	 */
-	async function postAction(name, fields) {
+	async function postAction(name, fields, { timeoutMs = 0 } = {}) {
 		const body = fields instanceof FormData ? fields : new FormData();
 		if (!(fields instanceof FormData)) for (const [k, v] of Object.entries(fields)) body.set(k, v);
 		const res = await fetch(`${base}?/${name}`, {
 			method: 'POST',
 			body,
-			headers: { 'x-sveltekit-action': 'true', accept: 'application/json' }
+			headers: { 'x-sveltekit-action': 'true', accept: 'application/json' },
+			...(timeoutMs && typeof AbortSignal.timeout === 'function'
+				? { signal: AbortSignal.timeout(timeoutMs) }
+				: {})
 		});
 		// Resultado de una acción (success / failure / redirect / error) con datos sin tipar.
 		return /** @type {any} */ (deserialize(await res.text()));
@@ -311,19 +323,41 @@
 		if (!value || busy) return;
 		busy = true;
 		try {
-			if (!online) {
+			// Sin conexión, o con el servidor caído hace poco: directo a la lista guardada (cada
+			// SERVER_RETRY_MS un escaneo vuelve a probar con el servidor).
+			if (!online || (serverDown && Date.now() - serverDownAt < SERVER_RETRY_MS)) {
 				await offlineScan(value, typed);
 				return;
 			}
 			let r;
 			try {
-				r = await postAction('checkin', { token: value });
+				r = await postAction('checkin', { token: value }, { timeoutMs: CHECKIN_TIMEOUT_MS });
 			} catch {
-				// Sin red (aunque el navegador crea que hay): seguimos con la lista guardada.
-				online = false;
+				// Sin respuesta: sin red (aunque el navegador crea que hay) o el servidor colgado.
+				const fallback = scanFallback({
+					outcome: 'thrown',
+					listLength: door.list.length,
+					browserOnline: navigator.onLine
+				});
+				if (fallback === 'server-down') markServerDown('server');
+				else online = false;
 				await offlineScan(value, typed);
 				return;
 			}
+			const fallback =
+				r.type === 'error' || r.type === 'redirect'
+					? scanFallback({
+							outcome: r.type,
+							listLength: door.list.length,
+							browserOnline: navigator.onLine
+						})
+					: null;
+			if (fallback === 'server-down') {
+				markServerDown(r.type === 'redirect' ? 'session' : 'server');
+				await offlineScan(value, typed);
+				return;
+			}
+			if (r.type === 'success') serverDown = false;
 			if (r.type === 'success' && r.data?.checkin) {
 				const s = /** @type {DoorScan} */ ({ ...r.data.checkin, typed });
 				show(s);
@@ -342,6 +376,13 @@
 		} finally {
 			busy = false;
 		}
+	}
+
+	/** @param {'server' | 'session'} why */
+	function markServerDown(why) {
+		serverDown = true;
+		serverDownAt = Date.now();
+		serverDownWhy = why;
 	}
 
 	/**
@@ -579,6 +620,7 @@
 			}
 			const queue = door.queue.map(({ id, token, code, at }) => ({ id, token, code, at }));
 			const r = await postAction('sync', { queue: JSON.stringify(queue) });
+			if (r.type === 'success') serverDown = false;
 			if (r.type === 'success' && r.data?.sync?.ok) {
 				const applied = applySyncResults(door, r.data.sync.results);
 				door = applied.state;
@@ -595,7 +637,9 @@
 				await refreshList();
 			}
 		} catch {
-			online = false;
+			// Sin red de verdad, «sin conexión»; con red, el servidor no contestó: se reintenta en la
+			// próxima vuelta (antes quedaba «sin conexión» hasta un evento `online` que no llegaba).
+			if (!navigator.onLine) online = false;
 		} finally {
 			syncing = false;
 		}
@@ -1055,7 +1099,24 @@
 			</button>
 		</header>
 
-		{#if !online && connection}
+		{#if online && serverDown}
+			<div class="banner offline" role="status">
+				<WifiOff size={20} />
+				<span>
+					<strong
+						>{serverDownWhy === 'session'
+							? 'Se cerró la sesión (volvé a entrar para sincronizar):'
+							: 'El servidor no contesta:'}</strong
+					>
+					validando con la lista guardada{door.savedAt ? ` de las ${hhmm(door.savedAt)}` : ''}. Los
+					ingresos se mandan solos cuando vuelve.
+					{#if pendingText}<strong class="pending">{pendingText}</strong>{/if}
+				</span>
+				<button type="button" class="link" on:click={sync} disabled={syncing}>
+					{syncing ? 'Sincronizando…' : 'Sincronizar'}
+				</button>
+			</div>
+		{:else if !online && connection}
 			<div class="banner offline" role="status">
 				<WifiOff size={20} />
 				<span>
