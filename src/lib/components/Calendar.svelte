@@ -67,7 +67,8 @@
 	}
 
 	.week-days {
-		color: var(--week-days-color, gray);
+		/* gris del sitio (≥ 4,5:1 sobre el fondo; `gray` daba 3,4:1) */
+		color: var(--week-days-color, var(--muted));
 		font-weight: var(--week-days-font-weight, 700);
 		margin: var(--week-days-margin, 0 0 0rem 0);
 	}

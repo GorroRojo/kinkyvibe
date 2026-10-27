@@ -353,8 +353,8 @@
 			scale: 1.2;
 		}
 	}
+	/* sin opacidad en el día: atenuarlo apagaba también el número (2,4–2,7:1) */
 	.day {
-		opacity: 0.7;
 		display: flex;
 		padding: 0;
 		position: relative;
@@ -405,7 +405,9 @@
 			display: grid;
 			place-content: center;
 			font-size: 2em;
-			color: rgba(1, 1, 1, 0.5);
+			/* gris del sitio, ≥ 4,5:1 sobre blanco y sobre el fondo (antes negro al 50 % en un día
+			   al 70 %: 2,4–2,7:1) */
+			color: var(--muted);
 			position: absolute;
 			top: 0;
 			right: 0;
