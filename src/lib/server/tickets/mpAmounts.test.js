@@ -49,7 +49,10 @@ async function reserve(quantity = 1, feeBasisPoints = 0) {
 		eventSlug: EVENT,
 		type: GENERAL,
 		quantity,
-		holders: Array.from({ length: quantity }, (_, i) => ({ name: `Persona ${i + 1}` })),
+		holders: Array.from({ length: quantity }, (_, i) => ({
+			name: `Persona ${i + 1}`,
+			pronouns: ''
+		})),
 		buyer: { name: 'Persona de Prueba', email: 'prueba@example.com', dni: '30000000' },
 		now: NOW,
 		feeBasisPoints
