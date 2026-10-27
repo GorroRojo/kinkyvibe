@@ -100,8 +100,8 @@
 				{#if t.gorra}
 					<strong>A la gorra</strong>
 				{:else}
-					{#if t.fondo}<s class="list-price" aria-label="precio completo {formatARS(t.price)}"
-							>{formatARS(t.price)}</s
+					{#if t.fondo}<s class="list-price"
+							><span class="visually-hidden">{'precio completo '}</span>{formatARS(t.price)}</s
 						>{/if}
 					<strong>{formatARS(t.price - t.fondo)}</strong>
 				{/if}
