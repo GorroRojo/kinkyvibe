@@ -465,6 +465,23 @@ no borra esa fila (la vuelve a `retry`), y su «Volver a anotarme» anda igual q
 - Formato: con zona (`2026-10-02T20:00-03:00`, lo que escribe el editor) o sin zona (se toma la hora de Argentina, `America/Argentina/Buenos_Aires`, UTC−3 sin horario de verano). **Una fecha sola** (`2026-10-02`, como se usaba antes) en un cierre significa **hasta el fin de ese día** en Argentina; en la apertura, desde el principio del día. (Un YAML importado puede traer esa fecha como `2026-10-02T00:00:00.000Z`; `parseSaleTime` toma la medianoche UTC exacta con `Z` como fecha sola, así que para cerrar justo a las 21:00 del día anterior hay que escribir `2026-10-01T21:00-03:00`.) Un valor que no se entiende deja al evento sin venta (y se loguea).
 - El servidor lo controla en cada compra (`salesState`, `typeOpen` y `validatePurchase` en `config.js`). Lo que ya estaba en curso al cerrar se completa: un pago de Mercado Pago que llega después, una transferencia reservada antes que se confirma o la confirmación de la reserva desde el mail.
 
+### Pausa de emergencia de la venta
+
+`TICKETS_PAUSED` (variable del Worker, en el panel de Cloudflare; vacía = apagada) frena la venta
+online de todos los eventos de golpe: la página del evento y la de compra muestran su texto (p. ej.
+«Volvemos en un rato») en lugar de los botones (`getTicketsView` devuelve `reason: 'paused'` y
+`pausedMessage`; un evento cancelado sigue diciendo que se canceló), y `?/buy` contesta 503 con ese
+texto **antes de tocar la base**: no se crea ninguna orden de Mercado Pago, transferencia ni
+gratis, ni con el link de una oferta de la lista de espera. La lista de espera no avanza.
+
+Sigue igual todo lo que no es una compra nueva desde el sitio: la puerta (con y sin conexión), la
+carga a mano, los webhooks de Mercado Pago (una orden ya creada se aprueba cuando llega su pago y
+manda sus entradas), la página de estado, confirmar o cancelar transferencias, los reembolsos y
+salir de la lista de espera. Cómo prenderla y apagarla:
+[interruptores.md](interruptores.md#pausas-de-emergencia). Lo prueban
+`src/lib/server/tickets/pausa-venta.test.js` y `src/lib/server/emergencia.test.js` (que además
+controla que la pausa solo se mire en la compra pública, la lista de espera y el cron).
+
 ### A la gorra
 
 Un tipo de entrada con `a_la_gorra: { minimo, sugerido }` en lugar de `price`:
@@ -641,6 +658,8 @@ En producción van en Cloudflare: **Workers & Pages → (proyecto) → Settings 
 | `FONDO_PERCENT_URL`      | Opcional. De dónde se lee el porcentaje del Fondo (por defecto `https://fondo.kinkyvibe.ar/api/porcentaje`).                                                                                                                                                                |
 | `SITE_URL`               | Opcional. Origen público (`https://kinkyvibe.ar`) para los links de mails y las URLs que se le pasan a MP. Si falta, se usa el del pedido.                                                                                                                                  |
 | `TICKETS_CLIENT_SALT`    | Opcional, Secret. Sal del hash de cliente de los límites anti-abuso (sin ella se usa una fija que igual rota cada día). Cualquier texto largo al azar.                                                                                                                      |
+| `TICKETS_PAUSED`         | Opcional, solo en una emergencia. Prendida (cualquier texto que no sea `0`), frena la venta online y ese texto es lo que ve el público (`1` = un texto por defecto). Ver [Pausa de emergencia de la venta](#pausa-de-emergencia-de-la-venta).                               |
+| `MAILS_PAUSED`           | Opcional, solo en una emergencia. Prendida, frena los mails en tanda (los de cada compra salen igual). Ver [interruptores.md](interruptores.md#pausas-de-emergencia).                                                                                                       |
 
 Solo en desarrollo (`vite dev`; en el build de producción este código no existe):
 

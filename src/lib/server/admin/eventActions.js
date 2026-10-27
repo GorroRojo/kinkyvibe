@@ -53,6 +53,7 @@ import {
 import { orderReference } from '$lib/utils/tickets.js';
 import { trackFunnel } from '$lib/server/analytics/track.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
+import { MAILS_PAUSED_ADMIN_MESSAGE, logMailsPaused, mailsPaused } from '$lib/server/emergencia.js';
 
 /**
  * Lo que sigue a un reembolso hecho desde el panel (el de una orden y cada uno de «Reembolsar
@@ -448,6 +449,12 @@ export const eventTicketActions = {
 			return fail(400, { stream: { ok: false, message: 'Primero guardá el link.' } });
 		}
 		await requestStreamLinkSend(db, { eventSlug: params.slug, link: current.link });
+		// Pausa de emergencia (MAILS_PAUSED): el envío queda pedido y lo manda el cron cuando se
+		// saque la pausa.
+		if (mailsPaused()) {
+			logMailsPaused('«Enviar el link a todes»');
+			return fail(503, { stream: { ok: false, message: PAUSED_REQUESTED_MESSAGE } });
+		}
 		const r = await sendStreamLinkEmails({
 			db,
 			eventSlug: params.slug,
@@ -502,6 +509,11 @@ export const eventTicketActions = {
 			});
 		}
 		await requestDateChangeSend(db, { eventSlug: params.slug, version, by: admin.login });
+		// Pausa de emergencia (MAILS_PAUSED): como el link, queda pedido para después de la pausa.
+		if (mailsPaused()) {
+			logMailsPaused('«Avisar a les compradores»');
+			return fail(503, { dateChange: { ok: false, message: PAUSED_REQUESTED_MESSAGE } });
+		}
 		const r = await sendDateChangeEmails({
 			db,
 			change,
@@ -839,6 +851,12 @@ export function streamSendMessage(r, who) {
 	}
 	return parts.join(' ');
 }
+
+/**
+ * Lo que ve le admin si toca «Enviar el link a todes» o «Avisar a les compradores» con los mails
+ * en tanda en pausa: el envío quedó pedido y sale solo después.
+ */
+export const PAUSED_REQUESTED_MESSAGE = `${MAILS_PAUSED_ADMIN_MESSAGE} El envío quedó pedido: sale solo en las vueltas del cron cuando se saque la pausa.`;
 
 /**
  * Qué pasó con una tanda de «Avisar a les compradores», para le admin.

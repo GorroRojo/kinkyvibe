@@ -24,6 +24,71 @@ el sitio se ve y anda como antes de esa parte.
 La lista y los textos salen de `src/lib/server/flags.js` (`FLAGS`). Para agregar uno: sumalo ahí,
 con su `envVar` y un atajo (`algoEnabled(platform)`), y documentalo en esta guía.
 
+## Pausas de emergencia
+
+Dos variables del Worker para **frenar de golpe** la venta online o los mails en tanda si algo sale
+mal (un precio mal cargado, una sobreventa, un aviso que salió con un error), sin PR ni build y sin
+borrar `MP_ACCESS_TOKEN` o `RESEND_API_KEY` (Cloudflare no deja volver a ver su valor). No son
+interruptores de la base: se prenden y se apagan **solo desde el panel de Cloudflare**, a propósito,
+para que anden aunque la base o el panel del sitio estén mal. Código:
+`src/lib/server/emergencia.js`.
+
+| Variable         | Valor                                                                                       | Qué frena                                                                                                                                                                                                                                                                  | Qué sigue igual                                                                                                                                                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TICKETS_PAUSED` | el texto que ven les compradores (p. ej. `Volvemos en un rato`); `1` = un texto por defecto | la venta online: la página del evento y la de compra (`/calendario/<slug>/entradas`) muestran el texto en lugar de los botones, y el servidor no crea ninguna orden nueva (Mercado Pago, transferencia ni gratis; responde 503 con el texto). La lista de espera no avanza | la puerta (con y sin conexión), la carga a mano desde el panel, los webhooks de Mercado Pago (una orden ya creada se aprueba cuando llega su pago), la página de estado de una compra, confirmar transferencias, los reembolsos y salir de la lista de espera |
+| `MAILS_PAUSED`   | cualquier texto (una nota para el panel) o `1`                                              | los mails en tanda: recordatorios, «Enviar el link a todes», «Avisar a les compradores», «Mail a compradores», avisos de series, «Lo que sigo» (mail y Telegram) y los de la lista de espera. La lista de espera no avanza                                                 | los mails de cada compra: entradas (y su reintento), datos para transferir, reembolso, códigos para ingresar, confirmaciones (lista de espera, avisos de series), «Tu link» del Fondo y «Mandarme una prueba»                                                 |
+
+Vacía, ausente o `0`: apagada. Cada una anda sola (se pueden prender las dos).
+
+### Cómo prenderla y apagarla (panel de Cloudflare)
+
+Lo hace quien tiene acceso a la cuenta de Cloudflare.
+
+1. [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** → **kinkyvibe** →
+   **Settings** → **Variables and Secrets**.
+2. **Prender:** **+ Add** → Type **Text** → Variable name `TICKETS_PAUSED` (o `MAILS_PAUSED`) →
+   Value: el texto (`Volvemos en un rato`, o `1`) → **Deploy**. El texto de `TICKETS_PAUSED` es lo
+   que lee el público: en voseo y corto.
+3. **Apagar:** en la misma pantalla, borrar la variable (o cambiar su valor a `0`) → **Deploy**.
+
+Guardar publica una versión nueva del Worker al instante. Las páginas públicas guardadas en la
+caché de 1 minuto ([0049](decisiones/0049-cache-de-1-minuto-sin-sesion.md)) pueden mostrar los
+botones hasta 1 minuto más, pero comprar ya no anda. Con `keep_vars = true` (`wrangler.toml`), la
+próxima publicación desde `main` no borra la variable: **hay que sacarla a mano**.
+
+**Cómo se ve en el panel:** Ajustes → Sistema → Interruptores tiene arriba la tarjeta «Pausas de
+emergencia» con el estado de cada una (y el texto que ve el público); la tarjeta de Interruptores
+de la portada de Ajustes dice «En pausa: …» en amarillo, y «Para revisar» del Inicio suma una fila
+roja por pausa, que se va sola al sacarla. La respuesta del cron (`POST /api/cron/recordatorios`)
+suma `paused: { tickets, mails }` y cada cosa que no sale deja una línea `[pausa] MAILS_PAUSED: …`
+en los logs del Worker.
+
+### Qué pasa con lo pendiente
+
+Con `MAILS_PAUSED` nada se descarta ni gasta intentos: lo que no salió queda pendiente y lo manda
+el cron (cada 15 minutos) cuando se saca la variable. Salvo lo que vence antes:
+
+- **Recordatorios:** salen después si el evento todavía no empezó (un «faltan 2 días» puede llegar
+  más tarde de lo previsto); los de un evento que ya empezó no salen.
+- **«Enviar el link a todes» y «Avisar a les compradores»:** el botón dice que los mails están en
+  pausa y deja el envío pedido; el cron lo manda solo después.
+- **«Mail a compradores»:** el botón dice que está en pausa; el texto (y, si había empezado, el
+  avance) queda en la página. Después de la pausa, tocar **Mandar** otra vez **sin recargar la
+  página**: sigue el mismo envío y a quien ya le llegó no le llega de nuevo (recargando, es un envío
+  nuevo y les llegaría otra vez a todes).
+- **Series:** el aviso de una edición nueva sale después, si la edición todavía no pasó.
+- **«Lo que sigo»:** «algo nuevo» sale después; el «recordatorio el día antes» solo si el evento
+  todavía empieza en las próximas 24 h. Los avisos por Telegram de «Lo que sigo» también esperan.
+- **Lista de espera:** con cualquiera de las dos pausas no se guardan lugares nuevos (un lugar que
+  no se puede comprar, o del que nadie se entera, se vencería igual). Los lugares que ya estaban
+  guardados siguen corriendo su tiempo. Sus mails (último aviso, «se venció», «se cerró la lista»)
+  salen después de la pausa si pasaron hace menos de 48 h. Si une admin pasa un lugar a mano durante
+  `MAILS_PAUSED`, el lugar se guarda pero el mail sale recién después (y el tiempo corre).
+
+Con `TICKETS_PAUSED`, una reserva por transferencia o un pago de Mercado Pago ya empezados siguen
+su curso (vencen a su hora, como siempre); quien tiene un lugar guardado en la lista de espera ve
+el texto de la pausa al querer comprar.
+
 ## Los interruptores
 
 | Interruptor (clave)                                     | Variable                        | Qué prende                                                                                                                                                                                                                                                                                                                    | Antes de prenderlo                                                                                                                | Guía                             |
