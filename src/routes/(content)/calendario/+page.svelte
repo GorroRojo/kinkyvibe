@@ -23,6 +23,17 @@
 	import FeedLinks from '$lib/components/FeedLinks.svelte';
 	import { partLabel } from '$lib/utils/partes.js';
 	export let data;
+	/**
+	 * El día de una barra de la grilla, para lectores de pantalla («viernes 30 de octubre»). Al
+	 * mediodía, así ninguna zona horaria lo corre de día.
+	 * @param {string} date yyyy-MM-dd
+	 */
+	const dayLabel = (date) =>
+		new Date(`${date}T12:00:00`).toLocaleDateString('es-AR', {
+			weekday: 'long',
+			day: 'numeric',
+			month: 'long'
+		});
 	let calendarioPosts = data.posts.filter((p) => p.meta.layout == 'calendario');
 	// «Parte N de M» de los talleres en varias partes (lo agrega el servidor, también a los pasados
 	// de cada mes).
@@ -211,6 +222,8 @@
 									? 'var(--1)'
 									: 'var(--2)'}
 							>
+								<!-- El nombre del link empieza por el día: sin esto, la barra no dice de qué día es. -->
+								<span class="visually-hidden">{dayLabel(date) + ': '}</span>
 								<span>
 									{event.meta.title ?? ' '}
 									{#if event.meta.parte}
