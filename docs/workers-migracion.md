@@ -66,6 +66,14 @@ archivos; lo único nuevo es `POST /api/cron/backup`, que en Pages responde 503)
   una automatización de Issues (**Issues → Automations**) hacia un webhook o un chat; mientras no
   esté, los Issues se ven solo entrando al panel. Después de prenderlo, conviene mirar que una
   corrida de cron fallida aparezca ahí.
+- **Convención de logs** (para que se encuentren en Observability → Logs y no tapen lo importante
+  en Issues): cada línea empieza con el área entre corchetes y en minúsculas (`[backup]`,
+  `[recordatorios]`, `[tickets]`, `[mails]`, `[telegram]`, `[auth]`, `[analiticas]`,
+  `[sesiones]`, `[conciliacion]`…), en castellano y sin datos de personas (ids sí; mails,
+  nombres o tokens nunca). `console.error` solo para lo que alguien tiene que mirar (va a Issues);
+  `console.warn` para una degradación que se arregla sola o con un reintento; `console.log` para
+  resultados (cuántos mails salieron, qué backup se guardó). Quedan líneas viejas sin corchetes
+  (por ejemplo, las de la integridad de los objetos en `scheduled.js`): se pasan al tocarlas.
 - **Salud**: `GET /api/health` (`src/routes/api/health/+server.js`) responde un JSON con `ok`, `db`,
   `migrations` y `sha`, sin caché, para un monitor externo o para mirar después de un deploy. `db`:
   la base responde (`SELECT 1`); sin base, 503. `migrations`: `ok` si la base tiene aplicada la
@@ -422,9 +430,9 @@ vuelta atrás prendiendo `workers_dev`: abriría otra URL pública a producción
 - [ ] Login de admin con GitHub y el panel `/admin` (solo en kinkyvibe.ar).
 - [ ] Página de compra de un evento con entradas (sin comprar de verdad).
 - [ ] **Trigger Events → View events**: recordatorios cada 15 minutos con respuesta `{"sent":…,"failed":…}` en los
-      logs (**Observability → Logs**, buscar `recordatorios:`).
+      logs (**Observability → Logs**, buscar `[recordatorios]`).
 - [ ] Al día siguiente: en R2 → `kinkyvibe-backups` → `d1/` hay un archivo de hoy (buscar
-      `backup:` en los logs).
+      `[backup]` en los logs).
 - [ ] Un Preview: la URL del PR anda, usa la base de prueba (`/api/preview-status`) y el modo demo.
 - [ ] Mercado Pago: el siguiente webhook real llega bien (Observability → Logs,
       `/api/mercadopago/webhook` con 200).

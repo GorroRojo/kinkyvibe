@@ -65,9 +65,9 @@ export async function runReminders(env, ctx, appFetch) {
 	const body = (await response.text()).slice(0, 300);
 	if (!response.ok) {
 		// Tirar el error hace que la corrida figure como fallida en Cloudflare (Cron Events).
-		throw new Error(`recordatorios: ${response.status} ${body}`);
+		throw new Error(`[recordatorios] ${response.status} ${body}`);
 	}
-	console.log(`recordatorios: ${body}`);
+	console.log(`[recordatorios] ${body}`);
 	return body;
 }
 
@@ -79,8 +79,8 @@ export async function runReminders(env, ctx, appFetch) {
  * @param {Date} now
  */
 export async function runBackup(env, now) {
-	if (!env.DB) throw new Error('backup: falta el binding DB');
-	if (!env.BACKUPS) throw new Error('backup: falta el binding BACKUPS (bucket de R2)');
+	if (!env.DB) throw new Error('[backup] falta el binding DB');
+	if (!env.BACKUPS) throw new Error('[backup] falta el binding BACKUPS (bucket de R2)');
 	const result = await nightlyBackup({ db: env.DB, bucket: env.BACKUPS, now });
 	const deleted = result.pruneError
 		? `la poda falló (${result.pruneError}); se reintenta mañana`
@@ -88,7 +88,7 @@ export async function runBackup(env, now) {
 			? result.deleted.join(', ')
 			: 'ninguno';
 	console.log(
-		`backup: ${result.key} (${result.bytes} bytes, ${result.tables} tablas, ${result.rows} filas); borrados: ${deleted}`
+		`[backup] ${result.key} (${result.bytes} bytes, ${result.tables} tablas, ${result.rows} filas); borrados: ${deleted}`
 	);
 	return result;
 }
@@ -148,14 +148,14 @@ export async function runObjectsIntegrity(env, now = new Date()) {
 export async function runSessionCleanup(env, now = new Date()) {
 	try {
 		if (!env.DB) {
-			console.error('sesiones viejas: falta el binding DB; no se limpió');
+			console.error('[sesiones] sesiones viejas: falta el binding DB; no se limpió');
 			return null;
 		}
 		const deleted = await deleteStaleSessions(env.DB, now.getTime());
-		console.log(`sesiones viejas: ${deleted} borrada(s)`);
+		console.log(`[sesiones] sesiones viejas: ${deleted} borrada(s)`);
 		return deleted;
 	} catch (error) {
-		console.error('sesiones viejas: la limpieza falló (el backup ya se hizo)', error);
+		console.error('[sesiones] sesiones viejas: la limpieza falló (el backup ya se hizo)', error);
 		return null;
 	}
 }

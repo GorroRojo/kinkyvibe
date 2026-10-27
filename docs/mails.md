@@ -753,4 +753,4 @@ nueva. Que quien compró
 corrija su mail sola desde la página de la compra queda para más adelante (lo decide gorrite).
 
 **Un recordatorio no salió.** Mirá los logs del Worker `kinkyvibe` en Cloudflare
-(**Observability → Logs**, buscar `recordatorios:`): 503 = falta `CRON_SECRET`.
+(**Observability → Logs**, buscar `[recordatorios]`): 503 = falta `CRON_SECRET`.
