@@ -446,9 +446,9 @@
 		gap: 0.8rem;
 		scroll-margin-top: var(--form-sticky-top, 1rem);
 	}
-	/* En el panel, la barra de arriba ya la descuenta su scroll-padding (admin/+layout.svelte). */
+	/* En el celu, parte la pone el scroll-padding del panel (admin/+layout.svelte). */
 	:global(.kv-panel) .partes {
-		scroll-margin-top: 0;
+		scroll-margin-top: calc(var(--form-sticky-top) - var(--panel-scroll-top, 0px));
 	}
 	/* el título (SectionHeading, como en el índice) */
 	.partes > :global(h2) {

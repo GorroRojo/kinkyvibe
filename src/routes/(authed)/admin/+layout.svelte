@@ -820,13 +820,15 @@
 </div>
 
 <style lang="scss">
-	/* Las barras fijas del panel (arriba; en el celu también la de abajo) no tapan lo que recibe
-	   el foco ni el destino de un ancla: el navegador deja ese margen al traer algo a la vista.
-	   Los scroll-margin-top de las secciones del editor y de las órdenes ya no suman la barra. */
+	/* En el celu, las barras fijas del panel (arriba y abajo) no tapan lo que recibe el foco ni el
+	   destino de un ancla: el navegador deja ese margen al traer algo a la vista. Los
+	   scroll-margin-top del editor y de las órdenes le restan --panel-scroll-top para terminar en
+	   el mismo lugar que antes. En la compu queda como estaba (ahí el aviso de atajos, fijo abajo a
+	   la derecha, taparía «Guardar» al traerlo a la vista). */
 	:global(html:has(.kv-panel > .app)) {
-		scroll-padding-top: 4.6rem;
 		@media (max-width: 899.98px) {
-			scroll-padding-top: 3.75rem;
+			--panel-scroll-top: 3.75rem;
+			scroll-padding-top: var(--panel-scroll-top);
 			scroll-padding-bottom: calc(4.3rem + env(safe-area-inset-bottom, 0px));
 		}
 	}

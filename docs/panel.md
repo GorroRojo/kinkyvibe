@@ -684,8 +684,10 @@ devolvió la acción (lo usan Órdenes y la ficha de una persona). El aviso visi
 **Teclado en el celu.** La hoja «Más» funciona como un diálogo modal (foco adentro, Tab que da la
 vuelta, el resto del panel `inert`, Escape cierra y el foco vuelve a «Más» o al avatar). No es un
 `<dialog>` nativo a propósito: en la capa superior taparía la barra de carga y el aviso de
-deshacer. El `html` del panel tiene `scroll-padding` del alto de las barras fijas, así lo que
-recibe el foco no queda tapado; un `scroll-margin-top` nuevo no tiene que sumar la barra de arriba.
+deshacer. En el celu, el `html` del panel tiene `scroll-padding` del alto de las barras fijas
+(`--panel-scroll-top` arriba), así lo que recibe el foco no queda tapado; un `scroll-margin-top`
+nuevo le resta `--panel-scroll-top`. En la compu no: ahí el aviso de atajos, fijo abajo a la
+derecha, taparía «Guardar» al traerlo a la vista.
 
 ## Cómo probar
 
