@@ -1,4 +1,5 @@
 <script>
+	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
 	import { Trash2 } from '@lucide/svelte';
 	import { formatARS } from '$lib/utils/money.js';
@@ -40,6 +41,24 @@
 		() =>
 		async ({ update }) =>
 			update({ reset: false });
+
+	/** @type {HTMLInputElement | undefined} */
+	let pwCode;
+	/** @type {HTMLInputElement | undefined} */
+	let deleteCode;
+	/**
+	 * «Mandame un código»: al volver, el foco va al campo del código (si no, cae en el body y un
+	 * lector de pantalla no se entera de que ahora hay que escribirlo).
+	 * @type {import('@sveltejs/kit').SubmitFunction}
+	 */
+	const sendCode =
+		() =>
+		async ({ update }) => {
+			await update({ reset: false });
+			await tick();
+			if (form?.codeSentFor === 'password') pwCode?.focus();
+			else if (form?.codeSentFor === 'delete') deleteCode?.focus();
+		};
 </script>
 
 <svelte:head>
@@ -366,6 +385,7 @@
 						type="text"
 						inputmode="numeric"
 						autocomplete="one-time-code"
+						bind:this={pwCode}
 						maxlength="9"
 						required
 					/>
@@ -406,12 +426,12 @@
 					>
 				{/if}
 			</form>
-			<form method="POST" action="?/confirmar" use:enhance={keep}>
+			<form method="POST" action="?/confirmar" use:enhance={sendCode}>
 				<input type="hidden" name="para" value="password" />
 				<button class="link" type="submit">Mandame otro código</button>
 			</form>
 		{:else}
-			<form method="POST" action="?/confirmar" use:enhance={keep}>
+			<form method="POST" action="?/confirmar" use:enhance={sendCode}>
 				<input type="hidden" name="para" value="password" />
 				<button class="pill-btn ghost" type="submit"
 					>{data.hasPassword ? 'Cambiar o sacar la contraseña' : 'Poner contraseña'}</button
@@ -466,6 +486,7 @@
 							type="text"
 							inputmode="numeric"
 							autocomplete="one-time-code"
+							bind:this={deleteCode}
 							maxlength="9"
 							required
 						/>
@@ -481,12 +502,12 @@
 						><Trash2 size={18} aria-hidden="true" /> Borrar mi cuenta</button
 					>
 				</form>
-				<form method="POST" action="?/confirmar" use:enhance={keep}>
+				<form method="POST" action="?/confirmar" use:enhance={sendCode}>
 					<input type="hidden" name="para" value="delete" />
 					<button class="link" type="submit">Mandame otro código</button>
 				</form>
 			{:else}
-				<form method="POST" action="?/confirmar" use:enhance={keep}>
+				<form method="POST" action="?/confirmar" use:enhance={sendCode}>
 					<input type="hidden" name="para" value="delete" />
 					<button class="pill-btn ghost" type="submit">Mandame un código para confirmar</button>
 				</form>
