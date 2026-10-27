@@ -11,6 +11,9 @@ export default [
 			// Lo que .eslintrc ignoraba por defecto: archivos y carpetas que empiezan con punto
 			// (por ejemplo src/routes/.well-known y .claude/worktrees).
 			'**/.*',
+			// …salvo las rutas de src/routes/.well-known, que son código del sitio.
+			'!src/routes/.well-known/',
+			'!src/routes/.well-known/**',
 			// Antes en .eslintignore.
 			'build/',
 			'.svelte-kit/',

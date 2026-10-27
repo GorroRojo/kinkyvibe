@@ -48,6 +48,8 @@ describe('stripScriptAndStyle', () => {
 		expect(stripScriptAndStyle('a<SCRIPT>x</script\t\n bar>b')).toBe('ab');
 	});
 	it('no toca el resto del texto', () => {
-		expect(stripScriptAndStyle('<small>nota</small> y <b>más</b>')).toBe('<small>nota</small> y <b>más</b>');
+		expect(stripScriptAndStyle('<small>nota</small> y <b>más</b>')).toBe(
+			'<small>nota</small> y <b>más</b>'
+		);
 	});
 });
