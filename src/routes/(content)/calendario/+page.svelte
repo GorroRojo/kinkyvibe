@@ -378,7 +378,9 @@
 		.bar {
 			width: 100%;
 			height: auto;
-			min-height: 0;
+			/* 24px de alto como mínimo para tocarla (WCAG 2.5.8): el día está a `scale: 0.9`, así
+			   que 1.7rem se ven como 24,5px */
+			min-height: 1.7rem;
 			z-index: 1;
 			outline: 3px solid var(--evt-color);
 			outline-offset: -2px;

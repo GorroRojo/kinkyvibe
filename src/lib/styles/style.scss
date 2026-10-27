@@ -319,6 +319,9 @@ textarea {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.3em;
+	/* 24px de alto como mínimo (WCAG 2.5.8): dentro de una fila con `overflow` el ::after de
+	   .tap-target se recorta, así que el chip mismo tiene que medirlo */
+	min-height: 1.5rem;
 	padding: 0.1em 0.65em;
 	border: 1px solid var(--tag-line);
 	border-radius: var(--radius-pill);
