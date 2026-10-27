@@ -19,7 +19,7 @@ const { default: Rincon } = await import('./+page.svelte');
 const { default: Calendario } = await import('./calendario/+page.svelte');
 const { default: Sigo } = await import('./sigo/+page.svelte');
 
-/** @param {{ sigoOn: boolean, readingSpeed?: number | null, unconfirmed?: any[], canHaveProfiles?: boolean }} flags */
+/** @param {{ sigoOn: boolean, readingSpeed?: number | null, unconfirmed?: any[], canHaveProfiles?: boolean, sessions?: any[] | null, now?: number }} flags */
 const rincon = (flags) =>
 	render(Rincon, {
 		props: /** @type {any} */ ({
@@ -33,6 +33,8 @@ const rincon = (flags) =>
 				savedError: false,
 				orders: [],
 				unconfirmed: [],
+				sessions: [],
+				now: 0,
 				...flags
 			},
 			form: null
@@ -64,6 +66,51 @@ const count = (html, href) => hrefs(html).filter((h) => h === href).length;
 
 /** Las tarjetas de Mi rincón (sus títulos). @param {string} html */
 const cards = (html) => [...html.matchAll(/<h2 id="[^"]+"[^>]*>([^<]+)<\/h2>/g)].map((m) => m[1]);
+
+describe('Mi rincón: «Dónde tenés la sesión abierta»', () => {
+	const NOW = Date.parse('2026-10-20T18:00:00Z');
+	const DAY = 24 * 60 * 60 * 1000;
+	const here = {
+		id: 'a'.repeat(32),
+		method: 'code',
+		device: 'Firefox en Android',
+		createdAt: NOW - 30 * DAY,
+		lastSeenAt: NOW - 2 * DAY,
+		current: true
+	};
+	const other = {
+		id: 'b'.repeat(32),
+		method: 'password',
+		device: null,
+		createdAt: Date.parse('2026-10-01T15:00:00Z'),
+		lastSeenAt: NOW - DAY,
+		current: false
+	};
+
+	it('cada sesión con su navegador, cómo y cuándo se entró, y «Cerrar esta»', () => {
+		const html = rincon({ sigoOn: false, sessions: [here, other], now: NOW });
+		expect(html).toContain('Firefox en Android');
+		expect(html).toContain('>esta<');
+		// La de este navegador está pasando ahora; la otra, con el día aproximado.
+		expect(html).toContain('última vez: ahora');
+		expect(html).toContain('Navegador sin identificar');
+		expect(html).toContain('Entraste el 1 de octubre de 2026 con tu contraseña · última vez: ayer');
+		expect(html.match(/action="\?\/cerrarSesion"/g)).toHaveLength(2);
+		expect(html).toContain(`value="${other.id}"`);
+		expect(html).toContain('Cerrar esta (salís acá)');
+		expect(html).toContain('action="?/cerrarOtras"');
+		expect(html).toContain('Cerrar todas las demás');
+		expect(html).toContain('No guardamos tu IP ni dónde estás.');
+	});
+
+	it('con solo la de este navegador, sin «Cerrar todas las demás»; si no se pudo leer, lo dice', () => {
+		const solo = rincon({ sigoOn: false, sessions: [here], now: NOW });
+		expect(solo).not.toContain('Cerrar todas las demás');
+		const failed = rincon({ sigoOn: false, sessions: null, now: NOW });
+		expect(failed).toContain('No pudimos leer tus sesiones.');
+		expect(failed).not.toContain('?/cerrarSesion');
+	});
+});
 
 describe('Mi rincón: «¿Son tuyas?» («No fui yo», parte 2)', () => {
 	it('sin órdenes gratis por confirmar, no aparece', () => {
@@ -108,6 +155,7 @@ describe('Mi rincón con «Lo que sigo» apagado: como siempre', () => {
 			'Velocidad de lectura',
 			'Contraseña',
 			'Tu cuenta',
+			'Dónde tenés la sesión abierta',
 			'Borrar tu cuenta'
 		]);
 		expect(html).toContain('Tus eventos en tu calendario y los avisos de series que pediste.');
@@ -149,6 +197,7 @@ describe('Mi rincón con «Lo que sigo» prendido: una sola tarjeta', () => {
 			'Velocidad de lectura',
 			'Contraseña',
 			'Tu cuenta',
+			'Dónde tenés la sesión abierta',
 			'Borrar tu cuenta'
 		]);
 		expect(count(html, '/mi-rincon/sigo')).toBe(1);

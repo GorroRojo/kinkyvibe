@@ -10,9 +10,15 @@
  * - El cron nocturno borra las sesiones que ya no tienen cookie en ningún navegador (más de 401
  *   días sin `last_seen_at`; ver ./sessionAge.js): no cierra la sesión de nadie.
  * - Cookie httpOnly, Secure (salvo http://localhost) y SameSite=Lax.
+ * - «Dónde tenés la sesión abierta» (Mi rincón): de cada sesión se muestra cómo se entró, cuándo,
+ *   la última vez (aproximada: `last_seen_at`) y el navegador (`device`, migración 0066: un nombre
+ *   corto como «Firefox en Android», nunca el user agent entero; ver $lib/utils/userAgent.js). La
+ *   IP no se guarda nunca. La página no ve ni el token ni su hash: cada sesión va con un id que
+ *   sale del hash (`publicSessionId`), y cerrarla se busca siempre entre las de esa cuenta.
  */
 import { sha256Hex } from '$lib/server/hash.js';
 import { parseReadingSpeed } from '$lib/utils/readingTime.js';
+import { DEVICE_LABEL_MAX } from '$lib/utils/userAgent.js';
 import { randomToken } from './crypto.js';
 import { SESSION_COOKIE_MAX_AGE } from './sessionAge.js';
 
@@ -26,6 +32,9 @@ export { SESSION_COOKIE_MAX_AGE };
 export const LAST_SEEN_EVERY_MS = 24 * 60 * 60 * 1000;
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
+const SESSION_ID_RE = /^[0-9a-f]{32}$/;
+/** Lo más que lista «Dónde tenés la sesión abierta» (las más recientes). */
+export const SESSION_LIST_LIMIT = 50;
 
 /**
  * Opciones de la cookie de sesión.
@@ -44,22 +53,116 @@ export function sessionCookieOptions(url) {
 
 /**
  * Crea una sesión y devuelve el token para la cookie (el único lugar donde existe en claro).
+ * `device`: el nombre corto del navegador (`deviceLabel()` de $lib/utils/userAgent.js), o nada.
  *
  * @param {D1Database} db
  * @param {string} accountId
  * @param {LoginMethod} method
- * @param {{ now?: number }} [opts]
+ * @param {{ now?: number, device?: string | null }} [opts]
  */
-export async function createSession(db, accountId, method, { now = Date.now() } = {}) {
+export async function createSession(
+	db,
+	accountId,
+	method,
+	{ now = Date.now(), device = null } = {}
+) {
 	const token = randomToken();
+	const label = typeof device === 'string' && device ? device.slice(0, DEVICE_LABEL_MAX) : null;
 	await db
 		.prepare(
-			`INSERT INTO account_sessions (token_hash, account_id, method, created_at, last_seen_at)
-			VALUES (?1, ?2, ?3, ?4, ?4)`
+			`INSERT INTO account_sessions (token_hash, account_id, method, created_at, last_seen_at,
+				device)
+			VALUES (?1, ?2, ?3, ?4, ?4, ?5)`
 		)
-		.bind(await sha256Hex(token), accountId, method, now)
+		.bind(await sha256Hex(token), accountId, method, now, label)
 		.run();
 	return token;
+}
+
+/**
+ * El id con el que una sesión va a la página («Cerrar esta»): sale del hash del token, así ni el
+ * token ni su hash llegan nunca al navegador.
+ *
+ * @param {string} tokenHash
+ */
+async function publicSessionId(tokenHash) {
+	return (await sha256Hex(`sesion:${tokenHash}`)).slice(0, 32);
+}
+
+/**
+ * El id público de la sesión de este token (para saber si «Cerrar esta» es la de este navegador).
+ *
+ * @param {string | undefined} token
+ * @returns {Promise<string | null>}
+ */
+export async function sessionIdOfToken(token) {
+	if (!token || !TOKEN_RE.test(token)) return null;
+	return publicSessionId(await sha256Hex(token));
+}
+
+/**
+ * @typedef {{ id: string, method: LoginMethod, device: string | null, createdAt: number,
+ *   lastSeenAt: number, current: boolean }} SessionInfo
+ */
+
+/**
+ * Las sesiones abiertas de la cuenta, para «Dónde tenés la sesión abierta»: la de este navegador
+ * (`currentToken`) primero y después las demás, de la usada más recientemente a la más vieja.
+ * Solo las de `accountId`.
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {string | undefined} currentToken
+ * @returns {Promise<SessionInfo[]>}
+ */
+export async function listSessions(db, accountId, currentToken) {
+	const current = currentToken && TOKEN_RE.test(currentToken) ? await sha256Hex(currentToken) : '';
+	const { results } = await db
+		.prepare(
+			`SELECT token_hash, method, device, created_at, last_seen_at FROM account_sessions
+			WHERE account_id = ?1
+			ORDER BY token_hash = ?2 DESC, last_seen_at DESC, created_at DESC LIMIT ?3`
+		)
+		.bind(accountId, current, SESSION_LIST_LIMIT)
+		.all();
+	return Promise.all(
+		results.map(async (r) => ({
+			id: await publicSessionId(String(r.token_hash)),
+			method: /** @type {LoginMethod} */ (String(r.method)),
+			device: r.device == null ? null : String(r.device),
+			createdAt: Number(r.created_at),
+			lastSeenAt: Number(r.last_seen_at),
+			current: r.token_hash === current
+		}))
+	);
+}
+
+/**
+ * Cierra una sesión de la cuenta por su id público («Cerrar esta»). Solo busca entre las sesiones
+ * de `accountId`: con el id de una sesión de otra cuenta no pasa nada. Desde que se borra la fila,
+ * esa cookie ya no abre nada (`getSessionAccount` busca la fila en cada pedido).
+ *
+ * @param {D1Database} db
+ * @param {string} accountId
+ * @param {unknown} sessionId
+ * @returns {Promise<boolean>} `false` si esa cuenta no tiene una sesión con ese id
+ */
+export async function endSessionById(db, accountId, sessionId) {
+	if (typeof sessionId !== 'string' || !SESSION_ID_RE.test(sessionId)) return false;
+	const { results } = await db
+		.prepare('SELECT token_hash FROM account_sessions WHERE account_id = ?1')
+		.bind(accountId)
+		.all();
+	for (const r of results) {
+		const hash = String(r.token_hash);
+		if ((await publicSessionId(hash)) !== sessionId) continue;
+		const res = await db
+			.prepare('DELETE FROM account_sessions WHERE token_hash = ?1 AND account_id = ?2')
+			.bind(hash, accountId)
+			.run();
+		return Number(res.meta?.changes ?? 0) > 0;
+	}
+	return false;
 }
 
 /**
