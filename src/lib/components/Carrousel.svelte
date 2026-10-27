@@ -4,12 +4,14 @@
 	import { placeShort } from '$lib/utils/eventPlace.js';
 	import { cubicInOut } from 'svelte/easing';
 	import { fade } from 'svelte/transition';
+	import { onMount } from 'svelte';
+	import { ChevronLeft, ChevronRight, Pause, Play } from '@lucide/svelte';
 	/**@type {{path: string, meta: AnyPostData}[]}*/
 	export let posts;
 	let index = 0;
 	$: post = posts[index];
 	// «Online», el nombre del lugar o la dirección (eventPlace.js); sin nada, solo la fecha.
-	$: place = placeShort(post.meta);
+	$: place = post ? placeShort(post.meta) : '';
 	const defaultCombos = [
 		['var(--1)', 'white'],
 		['var(--2)', 'white'],
@@ -30,8 +32,8 @@
 			return defaultCombos[currDefaultCombo];
 		}
 	});
-	$: currBackground = slideColors[index][0];
-	$: currColor = slideColors[index][1];
+	$: currBackground = slideColors[index]?.[0];
+	$: currColor = slideColors[index]?.[1];
 	$: currAccent = slideColors[index]?.[2] ?? currColor ?? 'white';
 	$: currAccentBg = slideColors[index]?.[3] ?? currBackground;
 	/**
@@ -45,7 +47,8 @@
 		const d = direction === 'in' ? 1 : -1;
 		return {
 			delay: params.delay || 0,
-			duration: params.duration || 400,
+			// con «reducir movimiento», sin giro
+			duration: reducedMotion ? 0 : params.duration || 400,
 			easing: params.easing || cubicInOut,
 			css: (t, u) => `
 				transform: ${existingTransform} rotate(${-d * u * 360}deg);
@@ -53,56 +56,109 @@
 			`
 		};
 	}
-	let clicked = false;
-	let autoslide = setInterval(() => {
-		if (clicked) {
-			clearInterval(autoslide);
-		} else {
-			index != posts.length - 1 ? index++ : (index = 0);
+	// Pasa solo cada 10 s (WCAG 2.2.2: se puede pausar): arranca en el navegador (no en el
+	// servidor), no arranca con «reducir movimiento», se frena mientras el mouse o el foco están
+	// adentro (así el foco nunca se cae con la diapositiva que se va) y se pausa del todo con el
+	// botón o al pasar de diapositiva a mano.
+	let playing = false;
+	let reducedMotion = false;
+	let hovered = false;
+	let focused = false;
+	onMount(() => {
+		reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+		playing = !reducedMotion;
+		const autoslide = setInterval(() => {
+			if (playing && !hovered && !focused && posts.length > 1) next();
+		}, 10000);
+		return () => clearInterval(autoslide);
+	});
+	const next = () => (index = index != posts.length - 1 ? index + 1 : 0);
+	const prev = () => (index = index != 0 ? index - 1 : posts.length - 1);
+	/** @param {KeyboardEvent} e flechas para pasar de diapositiva con el teclado */
+	function onKeydown(e) {
+		if (e.key == 'ArrowRight' || e.key == 'ArrowLeft') {
+			e.preventDefault();
+			playing = false;
+			e.key == 'ArrowRight' ? next() : prev();
 		}
-	}, 10000);
+	}
 </script>
 
-<div
-	id="carrousel"
-	style:--currBackground={currBackground}
-	style:--currColor={currColor}
-	style:--currAccent={currAccent}
-	style:--currAccentBg={currAccentBg}
-	out:fade
->
-	<button
-		on:click={() => {
-			index != 0 ? index-- : (index = posts.length - 1);
-			clicked = true;
-		}}>&lt;</button
+{#if post}
+	<section
+		id="carrousel"
+		aria-roledescription="carrusel"
+		aria-label="Próximos eventos"
+		style:--currBackground={currBackground}
+		style:--currColor={currColor}
+		style:--currAccent={currAccent}
+		style:--currAccentBg={currAccentBg}
+		on:mouseenter={() => (hovered = true)}
+		on:mouseleave={() => (hovered = false)}
+		on:focusin={() => (focused = true)}
+		on:focusout={(e) => (focused = e.currentTarget.contains(e.relatedTarget))}
+		on:keydown={onKeydown}
+		out:fade={{ duration: reducedMotion ? 0 : 400 }}
 	>
-	{#key index}
-		<div class="slide">
-			<div class="img-wrapper">
-				<img
-					in:spin={{ duration: 1500 }}
-					out:spin={{ duration: 1500 }}
-					src={(post.meta.logo ?? post.meta.featured) + ''}
-					alt=""
-				/>
-			</div>
-			<div class="details" in:fade={{ delay: 1100 }} out:fade>
-				<h2>
-					{argWeekdayDay(post.meta.start)}{place ? ` - ${place.replaceAll(' ', '\u00a0')}` : ''}
-				</h2>
-				<p>{post.meta.summary}</p>
-				<a href={post.path}>Saber más</a>
-			</div>
+		<button type="button" class="pause" on:click={() => (playing = !playing)}
+			>{#if playing}<Pause size={16} aria-hidden="true" /> Pausar{:else}<Play
+					size={16}
+					aria-hidden="true"
+				/> Reproducir{/if}</button
+		>
+		<button
+			type="button"
+			class="arrow prev"
+			aria-label="Evento anterior"
+			on:click={() => {
+				prev();
+				playing = false;
+			}}><ChevronLeft aria-hidden="true" /></button
+		>
+		<!-- Con el carrusel en pausa, el lector de pantalla lee la diapositiva nueva; andando, no. -->
+		<div class="slides" aria-live={playing ? 'off' : 'polite'}>
+			{#key index}
+				<div
+					class="slide"
+					role="group"
+					aria-roledescription="diapositiva"
+					aria-label="{index + 1} de {posts.length}"
+				>
+					<div class="img-wrapper">
+						<img
+							in:spin={{ duration: 1500 }}
+							out:spin={{ duration: 1500 }}
+							src={(post.meta.logo ?? post.meta.featured) + ''}
+							alt=""
+						/>
+					</div>
+					<div
+						class="details"
+						in:fade={{ delay: reducedMotion ? 0 : 1100, duration: reducedMotion ? 0 : 400 }}
+						out:fade={{ duration: reducedMotion ? 0 : 400 }}
+					>
+						<h2>
+							{argWeekdayDay(post.meta.start)}{place ? ` - ${place.replaceAll(' ', '\u00a0')}` : ''}
+						</h2>
+						<p>{post.meta.summary}</p>
+						<a href={post.path}
+							>Saber más<span class="visually-hidden"> sobre {post.meta.title}</span></a
+						>
+					</div>
+				</div>
+			{/key}
 		</div>
-	{/key}
-	<button
-		on:click={() => {
-			index != posts.length - 1 ? index++ : (index = 0);
-			clicked = true;
-		}}>&gt;</button
-	>
-</div>
+		<button
+			type="button"
+			class="arrow next"
+			aria-label="Evento siguiente"
+			on:click={() => {
+				next();
+				playing = false;
+			}}><ChevronRight aria-hidden="true" /></button
+		>
+	</section>
+{/if}
 
 <style>
 	#carrousel {
@@ -205,6 +261,9 @@
 			background 1000ms 1000ms,
 			color 1000ms 100ms,
 			scale 200ms;
+		min-height: var(--tap);
+		display: flex;
+		align-items: center;
 		text-decoration: none;
 		border-radius: 0.3em;
 	}
@@ -212,25 +271,54 @@
 		color: var(--currAccent);
 		scale: 1.1;
 	}
-	button {
+	.slides {
+		display: contents;
+	}
+	.arrow {
 		position: absolute;
 		top: 0;
 		bottom: 0;
 		z-index: 1;
+		display: grid;
+		place-items: center;
 		background: color-mix(in srgb, var(--currBackground) 70%, white);
-		outline: 0;
 		border: 0;
 		color: var(--currColor);
 		width: 3rem;
+		cursor: pointer;
 		transition: 1000ms;
-		/* pointer-events: all; */
-		/* cursor: pointer; */
 	}
-	button:first-child {
+	.prev {
 		left: 0;
 	}
-	button:last-child {
+	.next {
 		right: 0;
+	}
+	/* el foco se ve sobre cualquier color de diapositiva: anillo blanco con borde oscuro */
+	button:focus-visible,
+	.details a:focus-visible {
+		outline: 3px solid white;
+		outline-offset: -3px;
+		box-shadow: inset 0 0 0 6px #111;
+	}
+	.pause {
+		position: absolute;
+		left: 3.5rem;
+		bottom: 0.75rem;
+		z-index: 3;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3em;
+		min-height: 2rem;
+		padding: 0.2em 0.8em;
+		border: 0;
+		border-radius: var(--radius-pill);
+		background: rgba(0, 0, 0, 0.6);
+		color: white;
+		font: inherit;
+		font-size: var(--text-sm);
+		font-weight: 700;
+		cursor: pointer;
 	}
 	.img-wrapper {
 		max-height: 100%;
