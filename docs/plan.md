@@ -20,7 +20,8 @@ gorrite, lo de algún día y lo descartado. Reemplaza a la vieja `docs/hoja-de-r
     que tener su ítem acá.
 
 - **El PR que hace o cambia algo actualiza su línea en el mismo PR** (estado, links). Lo nuevo
-  que queda pendiente entra como línea nueva. Lo hecho queda con `hecho` y su PR, en una línea.
+  que queda pendiente entra como línea nueva. Lo hecho queda con `hecho`, en una línea. El número
+  del PR no hace falta (el PR lo cita con su línea `Plan:`); si ya lo sabés, sumalo a los links.
 - **Todo PR lleva en su descripción una línea** `Plan: <id>[, <id>]` o `Plan: ninguno`. La CI
   falla si falta o si un id no existe en este archivo (los PRs de bots, como Dependabot, no la
   necesitan).
@@ -251,7 +252,7 @@ CI) va en la fase 0.
 
 ### Plan y forma de trabajo
 
-- `plan-unico` · fase 1 · en curso · plan · Este archivo como único plan, con `plan-lint`, la línea `Plan:` en cada PR y el comentario `Plan revisado contra main` antes de mergear · [pruebas-y-ci.md](pruebas-y-ci.md)
+- `plan-unico` · fase 1 · en curso · plan · Este archivo como único plan, con `plan-lint`, la línea `Plan:` en cada PR y el comentario `Plan revisado contra main` antes de mergear; una línea `hecho` no necesita el número del PR · [pruebas-y-ci.md](pruebas-y-ci.md)
 - `plan-repaso-semanal` · fase 1 · sigue · plan · Repaso semanal del plan (lunes a la mañana): una sesión nueva lo compara con lo mergeado y la Mesa, deja registro y abre un PR de docs o dice «sin cambios»; el vigilante `.github/workflows/repaso-vigilante.yml` (GitHub Action diaria, sin Claude) abre un issue si pasan 8 días sin PR con la etiqueta `repaso-semanal` y lo cierra cuando vuelve a haber uno (depende de: plan-unico)
 - `plan-fuentes-viejas` · fase 1 · sigue · plan · Banner «reemplazado por docs/plan.md» en los artifacts de plan viejos; cerrar #70 y los issues viejos ya mapeados a un id; cerrar #46 (lo reemplazó #274, con crédito); las notas de las sesiones pasan a la Mesa (depende de: plan-unico)
 - `fases-siguiente` · fase 1 · hecho · plan · El próximo bloque grande es «Lo que sigo» del panel (respondido en la Mesa el 12/10; es `lo-que-sigo-panel`)
