@@ -230,7 +230,7 @@ CI) va en la fase 0.
 - `buscar-registro-doc` · fase 0 · sigue · sitio · Un script arma las tablas de buscar.md (y la guía) desde el registro de operadores, y la CI chequea que coincidan (depende de: buscar-sintaxis-sitio)
 - `buscar-cuerpo-entero` · fase 0 · sigue · sitio · El índice público lleva todo el cuerpo (hoy lo corta `BODY_MAX`), midiendo antes cuánto crece lo que baja el buscador (depende de: buscar-sintaxis-sitio)
 - `buscar-sintaxis-bot` · fase 0 · hecho · bot · El bot (inline y Buscar) entiende la sintaxis base, no solo el prefijo al principio (depende de: buscar-sintaxis) · [buscar.md](buscar.md), [telegram.md](telegram.md), #553
-- `buscar-sintaxis-panel` · fase 0 · sigue · panel · El buscador del panel usa el mismo parser para la base (formas largas de tipo, `material:`, `wiki:`…) y suma lo suyo (depende de: buscar-sintaxis)
+- `buscar-sintaxis-panel` · fase 0 · hecho · panel · El buscador del panel usa el mismo parser para la base (formas largas de tipo, `material:`, `wiki:`…) y suma lo suyo (depende de: buscar-sintaxis) · [buscar.md](buscar.md), [panel.md](panel.md)
 - `buscar-guia-visible` · fase 0 · sigue · sitio · «¿Cómo buscar?» en el buscador del sitio y en /ayuda/buscar, «🔎 Cómo buscar» en la Ayuda del bot y la tabla completa en la paleta del panel (depende de: buscar-sintaxis)
 - `enlaces-sintaxis` · fase 0 · hecho · contenido · La sintaxis del cuerpo de todos los objetos (red de páginas enlazadas), escrita en [enlaces.md](enlaces.md) · [0047](decisiones/0047-cuerpos-enlazados.md)
 - `bot-inline-vista-chica` · fase 0 · hecho · bot · Lo que se manda con el bot inline lleva la vista previa del link chica, al costado (gorrite, 12/10)
