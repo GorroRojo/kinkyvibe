@@ -22,8 +22,8 @@ Del sitio:
 | La página del perfil                         | 404 al toque                                                      |
 | Listas (`/amigues`), búsqueda, `/api/posts`  | hasta 5 minutos (`s-maxage=300`)                                  |
 | Sitemap y RSS                                | hasta 1 hora (`s-maxage=3600`)                                    |
-| La foto del perfil (`/media/img/…`)          | deja de servirse al toque; lo que ya estaba en caché, hasta 1 día |
-| Vista previa de un link (`/cdn-cgi/image/…`) | lo que ya estaba en caché, hasta que se purgue                    |
+| La foto del perfil (`/media/img/…`)          | donde ya estaba en caché, hasta 1 día o hasta purgarla (paso 2)   |
+| Vista previa de un link (`/cdn-cgi/image/…`) | lo que ya estaba en caché, hasta purgar la foto original (paso 2) |
 
 La caché con `s-maxage` es la del borde de Cloudflare (`caches.default`, que el worker del adapter
 consulta antes de la app), y es **una por centro de datos**: borrarla desde el código limpia uno
@@ -41,13 +41,26 @@ las capturas y archive.org. Eso no se borra solo.
    alcanza con «No aparecer en buscadores» desde Mi rincón (`perfiles-buscadores` en el plan).
 2. **La foto.** Con el perfil oculto, `/media` ya no la sirve a nadie salvo a admins y a quien lo
    gestiona. Si la imagen no la usa nada más, sacarla de la biblioteca (Contenido › Biblioteca →
-   «Sacar de la biblioteca»). Para que deje de verse antes de un día, purgar en Cloudflare
-   (dashboard → Caching → Configuration → Custom Purge, por URL) la dirección de la foto, sus copias
-   chicas (`…-360.webp`, `…-720.webp`) y las variantes `/cdn-cgi/image/…` de las vistas previas.
-   Lo que quedó en el navegador de alguien no se puede borrar. Si la persona pide que la foto se
-   borre de verdad (no solo que deje de verse), los bytes se borran a mano de R2, **del bucket
-   original y de la copia nocturna**, cuando el bloqueo de 30 días lo deja: ver «Si una persona
-   pide que saquemos su foto» en `docs/imagenes.md`.
+   «Sacar de la biblioteca»). Ni ocultar ni sacar la borran de la caché del borde de Cloudflare:
+   donde alguien ya la pidió, se sigue sirviendo (hasta un día la foto de un perfil, hasta un año
+   una imagen que además es portada). Para cortarlo ya, **purgar a mano** (antes de sacarla,
+   «Abrir» muestra `/media/img/<hash>.<ext>`): panel de Cloudflare → zona `kinkyvibe.ar` →
+   **Caching** → **Configuration** → **Custom Purge** → **URL**, con estas tres direcciones:
+
+   ```text
+   https://kinkyvibe.ar/media/img/<hash>.<ext>
+   https://kinkyvibe.ar/media/img/<hash>-360.webp
+   https://kinkyvibe.ar/media/img/<hash>-720.webp
+   ```
+
+   Las vistas previas `/cdn-cgi/image/…` no se purgan por su dirección: se van con la primera.
+   Después, `curl -sI https://kinkyvibe.ar/media/img/<hash>.<ext>` tiene que dar `404`. Detalles
+   (y la purga por prefijo, que cubre también direcciones con `?…`) en «Borrar» de
+   `docs/imagenes.md`. Lo que quedó en el navegador de alguien no se puede borrar. Si la persona
+   pide que la foto se borre de verdad (no solo que deje de verse), los bytes se borran a mano de
+   R2, **del bucket original y de la copia nocturna**, cuando el bloqueo de 30 días lo deja: ver
+   «Si una persona pide que saquemos su foto» en `docs/imagenes.md`.
+
 3. **El nombre en los eventos y el material.** Ocultar el perfil lo saca de los créditos con
    perfil, pero no de «Organiza» ni de «Autore» cuando el nombre está escrito como texto: hay que
    editar evento por evento y sacarlo o poner «une organizadore». Buscarlo con el buscador del

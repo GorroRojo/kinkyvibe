@@ -85,7 +85,8 @@ cupo de transformaciones de Cloudflare (decidido por gorrite: nada de `/cdn-cgi/
   achicar), `/media/img/<hash>-360.webp` responde **302 al original** con
   `Cache-Control: public, max-age=3600`: se ve igual que antes y, apenas existe la copia, se usa
   (como mucho una hora después). Una copia que existe se sirve como el original: caché para
-  siempre, `ETag`, `nosniff` y el `sandbox`. Una imagen borrada: 404 también para sus copias.
+  siempre, `ETag`, `nosniff` y el `sandbox`. Una imagen borrada: 404 también para sus copias
+  (salvo lo que ya estaba en caché: ver «Borrar»).
 - **Cuánto ahorra**: ver «Velocidad» en [seo.md](seo.md).
 
 ### La pasada por las imágenes que ya estaban (una vez, la corre gorrite)
@@ -154,7 +155,8 @@ están ahí, y los textos que los enlazan, reescritos («Los PDF y el video del 
   `filename`, el nombre con tildes en `filename*`). Todas las respuestas de `/media` dicen
   `Accept-Ranges: bytes` y atienden **un rango** (`Range: bytes=…`): 206 con `Content-Range`,
   416 si el rango está fuera del archivo; varios rangos o uno raro se ignoran (200 con todo). Un
-  archivo borrado da 404, como una imagen.
+  archivo borrado da 404, como una imagen (y como una imagen, lo que ya estaba en caché se sigue
+  sirviendo hasta que se purgue: ver «Borrar»).
 - **Buscar con filtro por tipo**: `GET /imagenes?q=…&tipo=todo|imagen|documento|video` (solo
   admins; cada cosa con `kind`, `typeLabel` y dónde se usa). Sin `tipo`, `/imagenes` sigue
   trayendo solo imágenes (es lo que usa el selector de imágenes).
@@ -246,14 +248,44 @@ videos, en tarjetas de a 48 (`LIBRARY_PAGE`) con «Cargar más» (`/imagenes?tip
 ## Borrar
 
 «Sacar de la biblioteca» (admins, en Buscar) es el **borrado suave** del objeto `imagen`:
-deja de aparecer en el selector, las páginas dejan de mostrarla y `/media/…` da 404. **El archivo
-queda en R2** (es barato y permite deshacer: subir el mismo archivo la vuelve a la vida, con sus
-edges). Ojo: los navegadores y la caché del borde de Cloudflare (`caches.default`, que el worker
-consulta antes de la app) que ya la tenían la pueden seguir mostrando: un año una portada, un día
-la foto de un perfil. Para cortarlo antes hay que purgar en Cloudflare la URL y sus variantes
-(`-360.webp`, `-720.webp` y las `/cdn-cgi/image/…`); ver `docs/moderacion.md`. Para borrar los
-bytes de verdad (el pedido de una persona), ver «Si una persona pide que saquemos su foto», abajo:
-hay que borrarlos también de la copia nocturna.
+deja de aparecer en el selector y las páginas dejan de mostrarla. **El archivo queda en R2** (es
+barato y permite deshacer: subir el mismo archivo la vuelve a la vida, con sus edges).
+
+**`/media/…` no da 404 al toque en todos lados.** El worker del adapter de SvelteKit busca cada
+pedido en la caché del borde de Cloudflare (`caches.default`, por URL) **antes** de llegar a la
+app, y guarda ahí toda respuesta que no diga `private`/`no-cache`/`no-store`
+(`node_modules/@sveltejs/adapter-cloudflare/files/worker.js`). Así que en cada centro de datos
+donde alguien ya pidió la imagen, la respuesta guardada se sigue sirviendo sin preguntarle a la
+base: **hasta un año** una portada o un archivo (`immutable`), **hasta un día** la foto de un
+perfil. Probado con `wrangler dev` (que emula esa caché): después de borrar, la misma URL sigue
+dando 200 y con `Cache-Control: no-cache` en el pedido (que saltea la caché) da 404. Los
+navegadores que ya la tenían también la guardan ese tiempo, y eso no se puede borrar.
+
+Para que deje de verse en el borde, **purgar a mano** después de sacarla (no hay purga
+automática): panel de Cloudflare → zona `kinkyvibe.ar` → **Caching** → **Configuration** →
+**Custom Purge** → **URL**, y pegar estas direcciones (`<hash>.<ext>` es lo que muestra «Abrir»):
+
+```text
+https://kinkyvibe.ar/media/img/<hash>.<ext>
+https://kinkyvibe.ar/media/img/<hash>-360.webp
+https://kinkyvibe.ar/media/img/<hash>-720.webp
+```
+
+- Las dos copias chicas existen para todo menos un GIF (`copyKey` en `src/lib/utils/mediaCopies.js`);
+  purgarlas aunque no estén no hace daño. Un documento o video es una sola:
+  `https://kinkyvibe.ar/media/file/<hash>.<ext>`.
+- Las variantes `/cdn-cgi/image/…` (vistas previas de links, miniaturas del panel y de Telegram)
+  **no se purgan por su dirección**: Cloudflare las guarda bajo la URL del original y las purga
+  junto con ella (docs de Cloudflare Images, «Caching»). Alcanza con la primera línea.
+- `www.kinkyvibe.ar` redirige al dominio sin `www`, así que no hace falta purgarlo.
+- Cada URL con algo después de `?` (`…webp?x=1`) es otra entrada de la caché, y la purga por URL
+  no la toca. El sitio nunca pide imágenes así, pero si alguien lo hizo, **Custom Purge → Prefix**
+  con `kinkyvibe.ar/media/img/<hash>` saca de una vez el original, las copias y cualquier `?…`.
+- Para comprobar: `curl -sI https://kinkyvibe.ar/media/img/<hash>.<ext>` tiene que dar `404`
+  (mira solo el centro de datos más cercano; la purga es para todos).
+
+Para borrar los bytes de verdad (el pedido de una persona), ver «Si una persona pide que saquemos
+su foto», abajo: hay que borrarlos también de la copia nocturna.
 
 **Las cuentas** (Mi rincón, «Borrar imágenes sin usar…» en Buscar) borran igual (el mismo borrado
 suave), pero solo una imagen **que subieron y que nada usa** (`deleteOwnImage` en
@@ -364,9 +396,12 @@ Con un bloqueo puesto, un bucket no se puede vaciar ni borrar hasta sacar las re
 ### Si una persona pide que saquemos su foto
 
 1. **En el momento: sacarla del sitio.** Contenido → Biblioteca → buscarla → **Sacar** (el borrado
-   suave): deja de aparecer en las páginas y `/media/…` da 404, también para sus copias chicas.
-   Sacarla también de donde se use (portada, perfil) si hace falta otra imagen. Los navegadores que
-   ya la tenían la pueden mostrar un rato más (caché).
+   suave): deja de aparecer en las páginas. Sacarla también de donde se use (portada, perfil) si
+   hace falta otra imagen. **`/media/…` no da 404 al toque**: donde ya estaba en la caché del
+   borde se sigue sirviendo hasta un año (un día si es la foto de un perfil). Enseguida, **purgar
+   en Cloudflare** sus tres direcciones (original, `-360.webp`, `-720.webp`), como dice «Borrar»
+   arriba, y comprobar con `curl -sI` que da 404. Lo que quedó en el navegador de alguien no se
+   puede borrar.
 2. **Anotar la clave** (antes de sacarla, «Abrir» muestra `/media/img/<hash>.<ext>`): la clave en
    R2 es `img/<hash>.<ext>`, y sus copias chicas, `img/<hash>-360.webp` e `img/<hash>-720.webp`
    (un GIF no tiene). Un documento: `file/<hash>.<ext>`.
