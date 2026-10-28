@@ -9,21 +9,27 @@
 	export let tag;
 	export let gap = false;
 	export let nested = true;
+	/** @type {string[]} las madres de esta rama, para no volver a abrir una si los datos traen un ciclo */
+	export let path = [];
 
 	/**@type{(evt: {target: HTMLInputElement}, tag: string)=>*}*/
 	export let onInput = (evt, t) => $togglePositiveTagFilterFn(evt.target?.checked, t);
 
 	/** @param {string} tagID
+	 *  @param {Set<string>} [seen] las ya vistas (sin dar vueltas si hay un ciclo)
 	 *  @return {boolean}
 	 */
-	function isVisible(tagID) {
+	function isVisible(tagID, seen = new Set()) {
+		if (seen.has(tagID)) return false;
+		seen.add(tagID);
 		let t = $tagManager.get(tagID);
 		return (
 			($visibleTags.includes(tagID) ||
-				(t?.children && t.children.length > 0 && t.children.some((s) => isVisible(s)))) ??
+				(t?.children && t.children.length > 0 && t.children.some((s) => isVisible(s, seen)))) ??
 			false
 		);
 	}
+	$: kids = (tag.children ?? []).filter((c) => c !== tag.id && !path.includes(c));
 	// Las etiquetas tildadas salen de la URL (`?tags=a,b`), como antes.
 	$: filtered = ($page.url.searchParams.get('tags') ?? '').split(',').filter(Boolean);
 	let mounted = false;
@@ -54,9 +60,9 @@
 			>
 		</span>
 	{/if}
-	{#if tag.children && tag.children.length > 0 && tag.children.some(isVisible)}
+	{#if kids.length > 0 && kids.some((c) => isVisible(c))}
 		<ul class="groupitems">
-			{#each tag.children.filter(isVisible) ?? [] as item (item)}
+			{#each kids.filter((c) => isVisible(c)) as item (item)}
 				{@const subTag = $tagManager.get(item)}
 				<li>
 					{#if !subTag?.children || subTag.children.length == 0}
@@ -73,7 +79,7 @@
 							<TagChip tag={subTag?.id ?? item} />
 						{/if}
 					{:else if subTag}
-						<svelte:self tag={subTag} />
+						<svelte:self tag={subTag} path={[...path, tag.id]} />
 					{/if}
 				</li>
 			{/each}
