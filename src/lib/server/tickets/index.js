@@ -65,6 +65,7 @@ import { comboCodesForOrder } from './combos.js';
 import { isFlagOn } from '../flags.js';
 import { logMailsPaused, mailsPaused } from '../emergencia.js';
 import { queueOrderNotice } from '$lib/server/telegram/adminNotify.js';
+import { reportPurchaseFailure } from '$lib/server/telegram/purchaseAlerts.js';
 
 /** Secreto fijo del webhook para el checkout simulado en dev (no sirve para nada en producción). */
 const DEV_MOCK_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
@@ -298,6 +299,17 @@ export async function processPayment({ db, payment, origin, fetch: fetchFn, plat
 	});
 	if (result.outcome === 'unknown-order') {
 		console.warn(`[tickets] pago ${payment.id} sin orden conocida`);
+	}
+	if (result.outcome === 'mismatch') {
+		// El monto, la moneda o el medio no coinciden (ya quedó en el log): «Fallas en compras».
+		await reportPurchaseFailure({
+			db,
+			platform,
+			code: 'pago_no_coincide',
+			order: result.order,
+			origin,
+			fetch: fetchFn
+		});
 	}
 	if (result.outcome === 'updated' && result.order?.status === 'refunded') {
 		if (payment.status === 'charged_back') {
@@ -651,6 +663,10 @@ export async function sendOrderEmailResult({
 		if (result === 'failed' && claimedLink) {
 			await releaseStreamLinkSend(db, { orderId: order.id, link: claimedLink });
 		}
+		if (result === 'failed') {
+			// «Fallas en compras» por Telegram (nunca tira); el cron lo reintenta igual.
+			await reportPurchaseFailure({ db, code: 'mail_entradas', order, origin, fetch: fetchFn });
+		}
 		if (result !== 'sent') return result;
 		await markEmailSent(db, order.id, Date.now(), emailId);
 		return 'sent';
@@ -659,7 +675,11 @@ export async function sendOrderEmailResult({
 		if (claimedLink) {
 			await releaseStreamLinkSend(db, { orderId: order.id, link: claimedLink }).catch(() => {});
 		}
-		return resendBackoff(error) ?? 'failed';
+		const backoff = resendBackoff(error);
+		if (!backoff) {
+			await reportPurchaseFailure({ db, code: 'mail_entradas', order, origin, fetch: fetchFn });
+		}
+		return backoff ?? 'failed';
 	}
 }
 
