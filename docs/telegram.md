@@ -980,6 +980,11 @@ lista de arriba.
   - `inline`: lo buscado en el modo inline (solo la primera página: pedir «más» no es otra
     búsqueda). Las consultas que Telegram contesta desde su caché (120 segundos) no llegan al bot:
     se cuentan de menos;
+  - `sin_resultados`: una búsqueda que no encontró nada, **sin lo buscado** (la clave es solo
+    dónde: `busqueda`, en el bot, o `inline`, en el modo inline). En el bot cuenta la respuesta a
+    «🔎 Buscar», `/buscar <texto>` y `/evento <texto>` sin nada (no pasar de página ni volver a los
+    resultados); en el modo inline, la primera página sin nada aunque después se muestre lo de la
+    búsqueda parecida. Sale como columna en «Por semana» y en el detalle de la semana;
   - `objeto`: una cosa abierta en el bot (la tarjeta de un evento, la tarjeta compacta de Buscar o
     de una sección), como `evento:<dirección>`, `material:…`, `wiki:…`, `serie:…` o `amigues:…`;
   - `inline_elegido`: la cosa que alguien mandó desde el modo inline (`chosen_inline_result`);

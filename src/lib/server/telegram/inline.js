@@ -420,7 +420,8 @@ export function resetInlineRate() {
  * fuente, consulta rara o alguien que pasó el tope).
  *
  * @param {any} inlineQuery
- * @param {InlineDeps & { origin: string, now?: () => number }} deps
+ * @param {InlineDeps & { origin: string, now?: () => number, onEmpty?: () => void }} deps
+ *   `onEmpty`: se llama si la primera página no encontró nada (para las estadísticas: uso.js)
  * @returns {Promise<BotPlan | null>}
  */
 export async function planInlineQuery(inlineQuery, deps) {
@@ -438,6 +439,7 @@ export async function planInlineQuery(inlineQuery, deps) {
 	const similar = found.length === 0 && query.text ? similarInline(source, query, now) : null;
 	const all = similar ? similar.docs : found;
 	const offset = parseOffset(inlineQuery.offset);
+	if (found.length === 0 && offset === 0) deps.onEmpty?.();
 	const page = all.slice(offset, offset + INLINE_PAGE);
 	const next = offset + INLINE_PAGE < all.length ? String(offset + INLINE_PAGE) : '';
 

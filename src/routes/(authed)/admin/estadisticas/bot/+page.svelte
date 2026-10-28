@@ -84,6 +84,7 @@
 	const PLAIN = [
 		{ id: 'pantalla', title: 'Pantallas' },
 		{ id: 'comando', title: 'Comandos' },
+		{ id: 'sin_resultados', title: 'Búsquedas sin resultados' },
 		{ id: 'miniapp', title: 'Mini App' },
 		{ id: 'seguir', title: 'Seguir' },
 		{ id: 'vincular', title: 'Vincular' },
