@@ -45,6 +45,15 @@ Se hace en PRs chicos, uno arriba del otro:
    `tagSlug()` (espacios → guiones) y `resolveTagSlug()` (`src/lib/utils/tagSlug.js`). El `slug`
    del objeto es solo interno.
 4. Se escribe solo con `saveObject()`, como todo objeto.
+5. **Un ciclo de madres no cuelga el sitio.** Fusionar ya no arma uno (#582), pero si llega por
+   otro lado (importador, semilla, una edición a mano en la base), todo lo que recorre el árbol
+   termina: `getAllChildren`/`getAllParents` no vuelven a abrir una etiqueta que ya está en el
+   camino que lleva hasta ella (en un árbol sin ciclos dan lo mismo que antes, repetidas
+   incluidas), `getColor` mira cada una una vez, y `TagGroup`, `GlosarioTree`/`GlosarioItem`, la
+   página `/wiki/<etiqueta>`, `tagSorter` y `leavesOf` cortan la rama en la etiqueta repetida.
+   Para encontrarlos: `node scripts/etiquetas-ciclos.js` (solo lee la base local; con `--sql` da
+   la consulta para correrla con `wrangler d1 execute … --remote --json` y `--desde=<archivo>` lee
+   esa salida).
 
 ## El tipo `etiqueta`
 
