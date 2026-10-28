@@ -129,6 +129,11 @@ Detalles de `e2e`:
 - Se probó compilar en un job aparte y correr Playwright en 2 partes que bajan el build (PR #311):
   tardaba más (la semilla y el build siguen en serie con las partes, y cada parte repite
   `npm ci` y Chromium) y gastaba el doble de minutos. Las pruebas en sí son ~20 s.
+- **Sin internet**: `playwright.config.js` abre Chromium con
+  `--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost`, así todo lo que no es el sitio local
+  falla enseguida. La semilla trae imágenes de `https://kinkyvibe.ar` (producción) y el sitio carga
+  el beacon de Cloudflare: con salida a internet, las pruebas que esperan `networkidle` en `/wiki`
+  o `/material` esperaban a producción y, si tardaba, se pasaban de los 30 s.
 - Chromium se guarda en caché entre corridas, por versión de `@playwright/test`.
 - Si las pruebas fallan, sube `playwright-results` (capturas y trazas) como artifact por 7 días.
 
@@ -181,6 +186,16 @@ ya no hay `.eslintrc` ni `.eslintignore`).
   (en `setupFiles` de `vite.config.js`) pone las de la semilla como respaldo para todas las
   pruebas. Las que necesitan contenido real lo leen de la semilla (`src/lib/server/semilla/testing.js`).
   (El viejo chequeo de los `.md`, `src/tests/content.test.js`, se fue con ellos: 0032.)
+- **`$app/server` en las pruebas** (`scripts/vite/app-server-tests.js`): es
+  `src/tests/app-server.js`, que reexporta solo `getRequestEvent` (la misma función de SvelteKit).
+  El de verdad carga el manifiesto y la raíz generados de la app (con el runtime de Svelte del
+  navegador) y lo importa `$lib/server/db/perRequest.js`, o sea casi todo el servidor: eran
+  segundos en cada archivo. Si la app empieza a usar otra cosa de `$app/server`, sumala ahí (si
+  falta, la prueba falla al importar). `vi.mock('$app/server', …)` sigue andando igual.
+- **Tareas en segundo plano** (`platform.ctx.waitUntil`): si una prueba no las espera, terminan
+  durante la prueba siguiente (con la máquina cargada, como en la CI) y ensucian lo que esa mide
+  (un mail de más). Esperalas en la prueba o en un `afterEach` (ver
+  `src/lib/server/tickets/pausa-venta.test.js`).
 - **Mails "golden"**: `src/lib/server/tickets/email.golden.json` guarda cómo sale cada mail; si
   cambiás un mail a propósito, actualizá ese archivo en el mismo PR y explicalo.
 - **Componentes con clics** (`*.dom.test.js`): se montan en jsdom con `@testing-library/svelte`
@@ -221,7 +236,11 @@ vez por corrida, en segundo plano, una **plantilla** (una base con todas las mig
 copia, aislada de las demás. Si la plantilla no está lista todavía, no se pudo armar, es de otras
 migraciones (se compara una huella de los archivos de `migrations/`, por ejemplo si cambiás una con
 `vitest` en modo watch) o falla la copia, esa base migra como siempre;
-`createTestDB({ template: false })` fuerza ese camino. `src/lib/server/db/template.test.js`
+`createTestDB({ template: false })` fuerza ese camino. Los procesos de las pruebas **no cargan
+wrangler** (su bundle son ~15 MB: más de un segundo de CPU en cada archivo con base, que era lo más
+caro de importar de toda la suite): el globalSetup lee una vez las opciones de miniflare de
+`wrangler.toml` y las pasa en la variable `KINKYVIBE_TEST_DB_WORKER_OPTIONS`, y wrangler se carga
+solo si hay que aplicar migraciones (para partir los `.sql`) o si falta esa variable. `src/lib/server/db/template.test.js`
 comprueba que una base copiada de la plantilla es igual a una migrada archivo por archivo
 (esquema de `sqlite_master`, filas, `sqlite_sequence`) y que la plantilla se usó: si falla, no
 relajes la comparación. Si cada prueba de un archivo arranca con los mismos datos y

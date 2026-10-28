@@ -244,8 +244,8 @@ CI) va en la fase 0.
 
 ### Pruebas y CI
 
-- `tests-auditoria` · fase 0 · sigue · pruebas · Auditoría de pruebas: acelerar primero, borrar solo con el sí de gorrite por cada una
-- `test-importer-flaky` · fase 0 · sigue · pruebas · `etiquetas/importer.test.js` a veces cuenta un error de más con la máquina cargada: prueba frágil o carrera real (depende de: tests-auditoria)
+- `tests-auditoria` · fase 0 · sigue · pruebas · Auditoría de pruebas: acelerar primero, borrar solo con el sí de gorrite por cada una. Hecho: los procesos de las pruebas ya no cargan wrangler y `$app/server` es solo `getRequestEvent` en vitest (importar bajó de ~42 % a ~14 % del tiempo de la suite), una importación de referencia compartida en `importer-tandas`, el mail de más de `pausa-venta` (una tarea en segundo plano sin esperar) y e2e sin internet (`networkidle` esperaba a las imágenes de producción). Falta: que gorrite diga sí o no a cada candidata a borrar del PR y, si hace falta más, un solo workerd por proceso de vitest en vez de uno por archivo · [pruebas-y-ci.md](pruebas-y-ci.md)
+- `test-importer-flaky` · fase 0 · sigue · pruebas · `etiquetas/importer.test.js` a veces cuenta un error de más con la máquina cargada: prueba frágil o carrera real. No se reprodujo (28/10: cinco corridas a la par de `importer` e `importer-tandas` con la carga en 12-15, solo el error esperado); si vuelve, guardar el mensaje del error (depende de: tests-auditoria)
 - `test-estiloguard-lento` · fase 0 · hecho · pruebas · `estiloGuard` y `series-crear` pasaban el límite de 5 s con la máquina cargada: la preparación cara va en `beforeAll` · #325
 - `test-cuentas-lento` · fase 0 · hecho · pruebas · `cuentas.test.js` «límite de intentos por mail y por conexión» pasaba los 5 s con la máquina cargada: los mails del límite por conexión tienen cuenta con hash barato (queda uno sin cuenta) · #330
 - `tickets-ajustes-spec` · fase 0 · hecho · pruebas · `tests/tickets/ajustes.spec.js` buscaba la pestaña «Cobros», que se fue con la portada de Ajustes: ahora entra por la portada y su tarjeta · #330
