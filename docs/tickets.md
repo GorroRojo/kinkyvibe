@@ -534,7 +534,8 @@ no borra esa fila (la vuelve a `retry`), y su «Volver a anotarme» anda igual q
 `TICKETS_PAUSED` (variable del Worker, en el panel de Cloudflare; vacía = apagada) frena la venta
 online de todos los eventos de golpe: la página del evento y la de compra muestran su texto (p. ej.
 «Volvemos en un rato») en lugar de los botones (`getTicketsView` devuelve `reason: 'paused'` y
-`pausedMessage`; un evento cancelado sigue diciendo que se canceló), y `?/buy` contesta 503 con ese
+`pausedMessage`; un evento cancelado sigue diciendo que se canceló; las tarjetas de las listas
+dicen «Venta no disponible» en lugar de «Comprar entradas», `listStates.js`), y `?/buy` contesta 503 con ese
 texto **antes de tocar la base**: no se crea ninguna orden de Mercado Pago, transferencia ni
 gratis, ni con el link de una oferta de la lista de espera. La lista de espera no avanza.
 
