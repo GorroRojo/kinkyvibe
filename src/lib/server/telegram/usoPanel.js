@@ -39,7 +39,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Los tipos cuyo detalle es lo buscado o una cosa (con el umbral). */
 const DETAIL_TIPOS = Object.keys(USO_TIPOS).filter((t) => USO_TIPOS[t].detalle);
-/** Los demás (pantallas, comandos, Mini App, seguir, vincular): sin umbral. */
+/** Los demás (pantallas, comandos, sin resultados, Mini App, seguir, vincular): sin umbral. */
 const PLAIN_TIPOS = Object.keys(USO_TIPOS).filter((t) => !USO_TIPOS[t].detalle);
 
 /** Las secciones del bot (nav.js `SectionId`). */
@@ -76,6 +76,8 @@ const SCREENS = /** @type {Record<string, string>} */ ({
 /** Lo demás que no es una pantalla ni un comando. */
 const OTHER_LABELS = /** @type {Record<string, string>} */ ({
 	'miniapp:calendario': 'Calendario',
+	'sin_resultados:busqueda': 'En el bot',
+	'sin_resultados:inline': 'En el modo inline',
 	'seguir:tarjeta': 'Desde la tarjeta de un evento',
 	'seguir:busqueda': 'Desde una búsqueda sin resultados',
 	'vincular:cuenta': 'Una cuenta del sitio',
