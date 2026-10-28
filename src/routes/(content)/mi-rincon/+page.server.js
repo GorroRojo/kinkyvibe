@@ -37,6 +37,8 @@ import {
 } from '$lib/server/cuentas/index.js';
 import { clientOf, endSession, mailSender, requireCuentas } from '$lib/server/cuentas/web.js';
 import { getEventInfo } from '$lib/server/tickets/events.js';
+import { readWorkshop } from '$lib/server/eventos/partes.js';
+import { partsCoveredBy, ticketDate, ticketParts } from '$lib/utils/partes.js';
 import { orderReference } from '$lib/utils/tickets.js';
 import { sigoEnabled } from '$lib/server/sigo/web.js';
 import { getSavedBuyer, setSavedBuyer } from '$lib/server/cuentas/savedBuyer.js';
@@ -117,11 +119,35 @@ export async function load(event) {
 	}
 	const { orders, unconfirmed, error: ordersError } = ordersRead;
 	const { saved, error: savedError } = savedRead;
-	// El título y la fecha de cada evento de las compras, todos a la par.
+	// El título y la fecha de cada evento de las compras, todos a la par. En un taller de varias
+	// partes con una sola entrada, la fecha de la parte que toca (la primera que no pasó; si
+	// pasaron todas, la última), como «Mis entradas» del bot (docs/talleres-partes.md).
 	const slugs = [...new Set([...orders, ...unconfirmed].map((o) => o.event_slug))];
-	const infos = await Promise.all(slugs.map((slug) => getEventInfo(slug)));
+	const [infos, workshops] = await Promise.all([
+		Promise.all(slugs.map((slug) => getEventInfo(slug))),
+		Promise.all(
+			slugs.map((slug) =>
+				readWorkshop(db, slug).catch(() => {
+					// Sin las partes, la fecha del taller (la de la parte 1), como antes.
+					console.error('[cuentas] compras: no se pudieron leer las partes de un taller');
+					return null;
+				})
+			)
+		)
+	]);
+	const now = Date.now();
 	/** @type {Map<string, { title: string, start: string | null } | null>} */
-	const events = new Map(slugs.map((slug, i) => [slug, infos[i]]));
+	const events = new Map(
+		slugs.map((slug, i) => {
+			const info = infos[i];
+			const parts = ticketParts(partsCoveredBy(workshops[i], slug));
+			if (!info || !parts) return [slug, info];
+			return [
+				slug,
+				{ ...info, start: ticketDate({ start: info.start, end: null, parts }, now).start }
+			];
+		})
+	);
 	/** @param {(typeof orders)[number]} o */
 	const listed = (o) => ({
 		id: o.id,
