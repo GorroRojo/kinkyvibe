@@ -4,6 +4,7 @@
 	import DbProfile from '$lib/components/amigues/DbProfile.svelte';
 	import FollowButton from '$lib/components/FollowButton.svelte';
 	import ParticipacionesPorRol from '$lib/components/ParticipacionesPorRol.svelte';
+	import LoQueEnlaza from '$lib/components/LoQueEnlaza.svelte';
 	import { page } from '$app/stores';
 	/** @type {any} */
 	export let data;
@@ -38,3 +39,5 @@
 {#if data.participa}
 	<div class="content"><ParticipacionesPorRol groups={data.participa} /></div>
 {/if}
+<!-- «Lo que enlaza acá» (interruptor `lo_que_enlaza`): apagado o sin nada, `null` o vacío y no se ve. -->
+<LoQueEnlaza links={data.linksHere} />

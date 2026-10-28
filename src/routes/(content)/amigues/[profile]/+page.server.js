@@ -16,6 +16,7 @@ import { siteWikiPosts, wikiLinkedTags } from '$lib/server/wiki/site.js';
 import { mentionPronouns } from '$lib/server/pronouns';
 import { followButtonState } from '$lib/server/sigo/button.js';
 import { askVenuePlacesEarly } from '$lib/server/amigues/venues.js';
+import { linksHere } from '$lib/server/contenido/loQueEnlaza.js';
 
 /**
  * La página de un perfil, solo desde la base («solo base»), con la misma dirección que tenía la
@@ -48,13 +49,16 @@ export async function load({ params, platform, locals, setHeaders }) {
 		contentForProfilePage(platform, guess?.object.slug ?? params.profile, loadPosts).catch(
 			() => {}
 		);
+	// «Lo que enlaza acá» (interruptor `lo_que_enlaza`), por la dirección: en la misma ida que la
+	// búsqueda del perfil. Nunca tira; con un 404 se descarta.
+	const linksHereP = linksHere(platform, locals, { profile: params.profile });
 	const found = await findProfileForPage(db, params.profile, locals);
 	rememberProfilePage(params.profile, found, locals);
 	if (!found) {
 		await postsP;
 		error(404, 'Not found');
 	}
-	const [page, pronouns, participa, follow] = await Promise.all([
+	const [page, pronouns, participa, follow, linksHereList] = await Promise.all([
 		profilePageFrom(db, found, locals, { posts: postsP }),
 		// Los pronombres de las @menciones del texto.
 		postsP.then((posts) => mentionPronouns(platform, posts)),
@@ -65,7 +69,8 @@ export async function load({ params, platform, locals, setHeaders }) {
 		followButtonState({ platform, locals }, 'perfil', String(found.object.id)).catch((e) => {
 			console.error('[amigues] sigo:', e);
 			return undefined;
-		})
+		}),
+		linksHereP
 	]);
 	if (page.private) setHeaders({ 'cache-control': 'private, no-store' });
 	// No listado o «No aparecer en buscadores»: además del meta `robots`, la cabecera (la leen
@@ -73,7 +78,7 @@ export async function load({ params, platform, locals, setHeaders }) {
 	if (page.unlisted || page.noindex) setHeaders({ 'x-robots-tag': 'noindex' });
 	// Las etiquetas cuyo chip lleva a la Kinkipedia (el árbol ya está leído: no suma consultas).
 	const wikiTags = await wikiLinkedTags(platform, page.profile?.tags).catch(() => []);
-	return { ...page, pronouns, participa, follow, wikiTags };
+	return { ...page, pronouns, participa, follow, wikiTags, linksHere: linksHereList };
 }
 
 /** @type {import("./$types").Actions} */

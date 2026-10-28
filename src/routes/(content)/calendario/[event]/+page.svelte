@@ -24,6 +24,7 @@
 	import ContentParts from '$lib/components/ContentParts.svelte';
 	import PostList from '$lib/components/PostList.svelte';
 	import AuthorCallout from '$lib/components/AuthorCallout.svelte';
+	import LoQueEnlaza from '$lib/components/LoQueEnlaza.svelte';
 	import TipBlock from '$lib/components/propinas/TipBlock.svelte';
 	import { showEventTip } from '$lib/utils/propinas.js';
 	import { eventEnd } from '$lib/utils/dates.js';
@@ -319,6 +320,9 @@
 			{/each}
 		{/await}
 	{/if}
+
+	<!-- «Lo que enlaza acá» (interruptor `lo_que_enlaza`): apagado o sin nada, `null` o vacío y no se ve. -->
+	<LoQueEnlaza links={data.linksHere} />
 
 	{#if relatedPosts.length > 0 || data.relatedPastCount > 0}
 		<section class="relacionados" aria-labelledby="mas-titulo">

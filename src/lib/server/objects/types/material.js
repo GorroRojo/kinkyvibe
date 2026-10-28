@@ -17,6 +17,7 @@
 import { fileKeysInText, liveFileIds } from './archivo.js';
 import { linkProblem } from './evento.js';
 import { personaItemsProblems } from '../../../utils/personasList.js';
+import { ENLAZA_EDGE_DEF, deriveEnlaza } from '../enlaces.js';
 
 /** @type {import('./index.js').CoreType} */
 const material = {
@@ -65,10 +66,18 @@ const material = {
 		// en `body` o en `link`): uno por archivo vivo, en el orden del texto, sin `data`. SIGUE AL
 		// TEXTO: cada guardado lo recalcula (`deriveEdges`) y nadie lo manda a mano. Un enlace a un
 		// archivo que no existe o está borrado no es edge (el próximo guardado lo saca).
-		adjunto: { label: 'Archivos enlazados', to: ['archivo'], derived: true }
+		adjunto: { label: 'Archivos enlazados', to: ['archivo'], derived: true },
+		// Lo que nombra el texto (`[[…]]`, `@`, `#`, docs/enlaces.md): un edge por objeto, en el orden
+		// del texto, sin `data`. SIGUE AL TEXTO: cada guardado lo recalcula y nadie lo manda a mano
+		// (../enlaces.js, que dice cómo se resuelve cada nombre).
+		enlaza: ENLAZA_EDGE_DEF
 	},
-	async deriveEdges(db, data) {
-		return { adjunto: await liveFileIds(db, fileKeysInText([data.body, data.link])) };
+	async deriveEdges(db, data, self) {
+		const [adjunto, links] = await Promise.all([
+			liveFileIds(db, fileKeysInText([data.body, data.link])),
+			deriveEnlaza(db, data, self)
+		]);
+		return { adjunto, ...links };
 	},
 	check(data) {
 		const link = data.link ? String(data.link) : '';

@@ -161,6 +161,19 @@ export const FLAGS = Object.freeze({
 			'«Carrusel de la portada»). Con `?carrousel` en la dirección se ve aunque esté apagado (para ' +
 			'revisarlo en un preview). Sin migración.',
 		envVar: 'CARRUSEL_PORTADA_ENABLED'
+	},
+	lo_que_enlaza: {
+		label: 'Lo que enlaza acá',
+		description:
+			'Al pie de cada evento, material, perfil y entrada de la Kinkipedia, la lista de las ' +
+			'páginas cuyo texto la enlaza (con [[…]], @ o #). Cada persona ve solo lo que puede ver: ' +
+			'nada oculto, «solo con cuenta» o sin aprobar a quien no le corresponde. Apagado, no se ' +
+			've nada de esto.',
+		tech:
+			'docs/enlaces.md («Lo que enlaza acá»). Lee los edges `enlaza` que se guardan al guardar ' +
+			'cada cuerpo: lo guardado antes de eso aparece recién cuando se vuelve a guardar (o con ' +
+			'scripts/enlaces-backfill.js). Sin migración.',
+		envVar: 'LO_QUE_ENLAZA_ENABLED'
 	}
 });
 

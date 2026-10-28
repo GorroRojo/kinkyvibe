@@ -23,6 +23,8 @@
  * La página pública es /amigues/<slug>.
  */
 
+import { ENLAZA_EDGE_DEF, deriveEnlaza } from '../enlaces.js';
+
 /**
  * @typedef {{
  *   kind: ProfileKind,
@@ -219,8 +221,13 @@ const perfil = {
 	edges: {
 		es_integrante_de: { label: 'Integrante de', to: ['perfil'] },
 		// La imagen del perfil (docs/imagenes.md). El campo `avatar` (texto) quedó sin uso.
-		avatar: { label: 'Imagen', to: ['imagen'], max: 1 }
+		avatar: { label: 'Imagen', to: ['imagen'], max: 1 },
+		// Lo que nombra el texto (`[[…]]`, `@`, `#`, docs/enlaces.md): un edge por objeto, en el orden
+		// del texto, sin `data`. SIGUE AL TEXTO: cada guardado lo recalcula y nadie lo manda a mano
+		// (../enlaces.js, que dice cómo se resuelve cada nombre).
+		enlaza: ENLAZA_EDGE_DEF
 	},
+	deriveEdges: deriveEnlaza,
 	normalize(data) {
 		// Una fila con el `kind` viejo se guarda (editada, borrada…) ya como `proyecto`.
 		if (data && typeof data === 'object' && !Array.isArray(data)) {

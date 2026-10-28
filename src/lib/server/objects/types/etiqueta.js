@@ -19,6 +19,7 @@
  *
  * Solo usa imports relativos (lo usa el cron nocturno, que no pasa por Vite).
  */
+import { ENLAZA_EDGE_DEF, deriveEnlaza } from '../enlaces.js';
 
 /**
  * @typedef {{
@@ -91,8 +92,13 @@ const etiqueta = {
 		relacionada_con: { label: 'Relacionada con', to: [TAG_TYPE] },
 		alias_de: { label: 'Alias de', to: [TAG_TYPE], max: 1 },
 		// La imagen de una serie (docs/imagenes.md); sin este edge, `image` (la del repo).
-		imagen: { label: 'Imagen', to: ['imagen'], max: 1 }
+		imagen: { label: 'Imagen', to: ['imagen'], max: 1 },
+		// Lo que nombra el texto de la wiki (`[[…]]`, `@`, `#`, docs/enlaces.md): un edge por objeto,
+		// en el orden del texto, sin `data`. SIGUE AL TEXTO: cada guardado lo recalcula y nadie lo
+		// manda a mano (../enlaces.js, que dice cómo se resuelve cada nombre).
+		enlaza: ENLAZA_EDGE_DEF
 	},
+	deriveEdges: deriveEnlaza,
 	check(data) {
 		/** @type {import('../fields.js').FieldError[]} */
 		const errors = [];

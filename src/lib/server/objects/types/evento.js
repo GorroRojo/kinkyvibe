@@ -22,6 +22,7 @@
 
 import { eventLinkProblem } from '../../../utils/eventLink.js';
 import { personaItemsProblems } from '../../../utils/personasList.js';
+import { ENLAZA_EDGE_DEF, deriveEnlaza } from '../enlaces.js';
 
 /**
  * @typedef {{
@@ -131,8 +132,13 @@ const evento = {
 		// Etiquetas y series (docs/objetos.md, «Etiquetas de los eventos»): un edge por etiqueta viva,
 		// `data: { at: [0, …] }`: su lugar en la lista de `tags` (src/lib/server/contenido/
 		// etiquetasEdges.js). Un nombre que no es de ninguna etiqueta queda en `data.tags`.
-		etiqueta: { label: 'Etiquetas', to: ['etiqueta'], max: EVENT_TAGS_MAX }
+		etiqueta: { label: 'Etiquetas', to: ['etiqueta'], max: EVENT_TAGS_MAX },
+		// Lo que nombra el texto (`[[…]]`, `@`, `#`, docs/enlaces.md): un edge por objeto, en el orden
+		// del texto, sin `data`. SIGUE AL TEXTO: cada guardado lo recalcula y nadie lo manda a mano
+		// (../enlaces.js, que dice cómo se resuelve cada nombre).
+		enlaza: ENLAZA_EDGE_DEF
 	},
+	deriveEdges: deriveEnlaza,
 	check(data) {
 		/** @type {import('../fields.js').FieldError[]} */
 		const errors = [];
