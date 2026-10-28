@@ -148,6 +148,18 @@ export const FLAGS = Object.freeze({
 			'(src/lib/admin/reparto.js); gastos y personas en localStorage. Apagado, ' +
 			'/admin/eventos/<slug>/gastos da 404.',
 		envVar: 'GASTOS_REPARTO_ENABLED'
+	carrusel_portada: {
+		label: 'Carrusel en la portada',
+		description:
+			'Arriba de la portada, un carrusel con los próximos eventos de Kinky Vibe que tienen imagen ' +
+			'(hasta 5, por fecha): pasa solo cada unos segundos, se puede pausar y se mueve con las ' +
+			'flechas o deslizando en el celu. Sin eventos así, no aparece. Apagado, la portada se ve ' +
+			'como siempre.',
+		tech:
+			'src/lib/components/Carrousel.svelte, la regla en src/lib/utils/carrusel.js (docs/estilo.md, ' +
+			'«Carrusel de la portada»). Con `?carrousel` en la dirección se ve aunque esté apagado (para ' +
+			'revisarlo en un preview). Sin migración.',
+		envVar: 'CARRUSEL_PORTADA_ENABLED'
 	}
 });
 
@@ -330,6 +342,12 @@ export function comboCodigosEnabled(platform) {
  */
 export function gastosRepartoEnabled(platform) {
 	return isFlagOn(getDB(platform), 'gastos_reparto');
+ * Atajo para las rutas: ¿está prendido el carrusel de la portada? (docs/estilo.md).
+ *
+ * @param {App.Platform | undefined} platform
+ */
+export function carruselPortadaEnabled(platform) {
+	return isFlagOn(getDB(platform), 'carrusel_portada');
 }
 
 /**
