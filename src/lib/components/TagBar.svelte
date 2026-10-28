@@ -24,8 +24,8 @@
 	import Sheet from './ui/Sheet.svelte';
 	import TagChip from './ui/TagChip.svelte';
 	import TagTree from './TagTree.svelte';
-	import { filteredTags } from '$lib/utils/stores';
-	import { barChips, toggleTag } from '$lib/utils/tagBar.js';
+	import { filteredTags, tagManager } from '$lib/utils/stores';
+	import { BAR_CHIPS, barChips, toggleTag } from '$lib/utils/tagBar.js';
 
 	/** @type {{ meta: { tags?: string[] } }[]} */
 	export let posts = [];
@@ -36,7 +36,7 @@
 	let sheetOpen = false;
 	$: if (wide) sheetOpen = false;
 
-	$: chips = barChips(posts, $filteredTags);
+	$: chips = barChips(posts, $filteredTags, BAR_CHIPS, $tagManager);
 	$: active = $filteredTags.length;
 	$: seeLabel = `Ver ${posts.length} ${posts.length == 1 ? 'resultado' : 'resultados'}`;
 
